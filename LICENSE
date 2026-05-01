@@ -1,8 +1,79 @@
-Copyright (c) 2026 SZL Holdings.
+PROPRIETARY SOFTWARE LICENSE
 
-All rights reserved. This source is published as a public showcase of the
-SZL Holdings platform. The canonical, version-controlled source lives in
-[`szl-holdings/szl-holdings-platform`](https://github.com/szl-holdings/szl-holdings-platform).
+Copyright (c) 2026 SZL Holdings, LLC. All rights reserved.
 
-No license is granted to copy, modify, or redistribute this code except
-with express written permission.
+1. Definitions
+
+   "Software" means the source code, object code, documentation, configuration,
+   data, models, prompts, schemas, and all other materials contained in this
+   repository, in any form.
+
+   "Licensor" means SZL Holdings, LLC.
+
+   "You" means the individual or legal entity accessing the Software.
+
+2. Grant
+
+   No license, express or implied, is granted to You under this LICENSE except
+   the limited right to view the Software in this repository solely for
+   evaluation and reference. All other rights are expressly reserved by
+   Licensor.
+
+3. Restrictions
+
+   Without Licensor's prior written consent, You may not, in whole or in part:
+
+   (a) copy, fork, mirror, redistribute, sublicense, sell, rent, or lease the
+       Software;
+   (b) create derivative works of, modify, translate, or adapt the Software;
+   (c) use the Software in production, in any commercial product or service,
+       or to train, fine-tune, or evaluate any machine-learning model;
+   (d) remove or obscure any proprietary, copyright, trademark, or attribution
+       notices;
+   (e) reverse engineer, decompile, or disassemble the Software, except to the
+       extent such restriction is prohibited by applicable law.
+
+4. Trademarks
+
+   "SZL Holdings", "Ouroboros", "A11oy", "Sentra", "Amaru", "Counsel",
+   "Terra", "Vessels", "Carlota Jo", "Conduit", and associated logos are
+   trademarks of SZL Holdings, LLC. No trademark rights are granted under
+   this LICENSE.
+
+5. Confidentiality
+
+   The Software contains confidential and proprietary information of
+   Licensor. You agree to maintain its confidentiality with at least the
+   same degree of care You use to protect Your own confidential information,
+   and in no event less than reasonable care.
+
+6. Disclaimer of Warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF
+   ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+   NON-INFRINGEMENT.
+
+7. Limitation of Liability
+
+   IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THIS LICENSE, EVEN IF ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGES.
+
+8. Termination
+
+   This LICENSE terminates automatically upon any breach. Upon termination,
+   You must destroy all copies of the Software in Your possession.
+
+9. Governing Law
+
+   This LICENSE is governed by the laws of the State of New York, USA,
+   without regard to its conflict-of-law provisions. Exclusive jurisdiction
+   and venue lie in the state and federal courts located in New York County,
+   New York.
+
+10. Contact
+
+    For licensing inquiries, partnerships, or evaluation requests:
+    licensing@szlholdings.com  ·  https://szlholdings.com
