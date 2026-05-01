@@ -9,7 +9,7 @@
 
   [Live Demo](https://szlholdings.com) · [Platform Demo Video](https://szlholdings.com/szl-demo-video/) · [Investor Dashboard](https://szlholdings.com/stephen/investor) · [Architecture](../../docs/architecture/architecture.md)
 
-  ![A11oy — Brand Orchestration Layer](../../.github/assets/screenshots/a11oy-hero.jpg)
+  ![A11oy — Brand Orchestration Layer](https://raw.githubusercontent.com/szl-holdings/.github/main/assets/screenshots/command-fresh.jpg)
 
   ---
   ## What it does
