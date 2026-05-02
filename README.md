@@ -4,7 +4,7 @@
 
   ## Status
 
-  This repository is a **README-stage public placeholder** for a product in the [SZL Holdings](https://github.com/szl-holdings) portfolio. There is no live application here. The shipped, open-source piece of the SZL Holdings work is the runtime in [`@szl-holdings/ouroboros`](https://github.com/szl-holdings/ouroboros) (150 declared Vitest tests at v6.1.0), and the [Ouroboros Thesis](https://github.com/szl-holdings/ouroboros-thesis) (v3 paper, [DOI 10.5281/zenodo.19951520](https://doi.org/10.5281/zenodo.19951520)).
+  This repository is a **README-stage public placeholder** for a product in the [SZL Holdings](https://github.com/szl-holdings) portfolio. There is no live application here. The shipped, open-source piece of the SZL Holdings work is the runtime in [`@szl-holdings/ouroboros`](https://github.com/szl-holdings/ouroboros) (150 declared Vitest tests at v6.1.0), and the [Ouroboros Thesis](https://github.com/szl-holdings/ouroboros-thesis) (v2 paper, [DOI 10.5281/zenodo.19934129](https://doi.org/10.5281/zenodo.19934129) — v3 was retracted 2026-05-02).
 
   ## Intent
 
