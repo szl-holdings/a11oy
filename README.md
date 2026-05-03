@@ -27,7 +27,7 @@
   - Not feature-complete.
   - Not in production.
 
-  Earlier copies of this README claimed government-readiness scorecards, NYSTEC audit findings, NIST AI RMF coverage, deployed routes, and inflated test surfaces across seven products. Those were aspirational. The honest state is: working multi-surface orchestration application on top of a 172-test reference runtime and a Zenodo-pinned thesis.
+  Earlier copies of this README claimed government-readiness scorecards, Empire APEX Accelerator procurement counseling (administered by NYSTEC) findings, NIST AI RMF coverage, deployed routes, and inflated test surfaces across seven products. Those were aspirational. The honest state is: working multi-surface orchestration application on top of a 172-test reference runtime and a Zenodo-pinned thesis.
 
   ## License
 
