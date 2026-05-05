@@ -2,6 +2,9 @@
 
   > Governed agentic execution fabric for the SZL Holdings platform.
 
+  [![CI (platform monorepo)](https://github.com/szl-holdings/szl-holdings-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szl-holdings/szl-holdings-platform/actions/workflows/ci.yml)
+  [![License](https://img.shields.io/badge/license-Proprietary-red?style=flat-square)](./LICENSE)
+
   A11oy is the execution layer that sits between enterprise data and enterprise decisions. It routes every AI recommendation through policy gates, manages approval queues, executes confirmed actions as auditable workflows, and seals cryptographic proof records.
 
   ## What A11oy Does
