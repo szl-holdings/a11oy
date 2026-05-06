@@ -1,0 +1,20 @@
+# SZL Holdings — Code owners
+#
+# These owners will be requested for review when someone opens a pull request.
+# Order matters: the LAST matching pattern wins.
+
+# Default — all files require review by the SZL Holdings core team
+*       @stephenlutar2-hash
+
+# CI / repo configuration
+/.github/                 @stephenlutar2-hash
+/.github/workflows/       @stephenlutar2-hash
+
+# Security-sensitive surface
+SECURITY.md               @stephenlutar2-hash
+LICENSE                   @stephenlutar2-hash
+NOTICE                    @stephenlutar2-hash
+
+# Citation / DOI metadata
+CITATION.cff              @stephenlutar2-hash
+.zenodo.json              @stephenlutar2-hash
