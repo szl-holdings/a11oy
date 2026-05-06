@@ -1,0 +1,26 @@
+name: Docs CI
+
+# CI for repos that ship documentation, papers, and metadata files only
+# (no compiled code). Uses the org-wide reusable Docs CI for citation
+# validation, markdown linting, link checking, and required governance
+# files; also runs the reusable secret scan.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    uses: szl-holdings/.github/.github/workflows/reusable-docs-ci.yml@main
+
+  secrets:
+    uses: szl-holdings/.github/.github/workflows/reusable-secret-scan.yml@main
