@@ -1,11 +1,15 @@
 name: Scorecard
 
+# Removed `branch_protection_rule` trigger — that event runs without commit
+# context and causes startup_failure. Schedule + push on main is sufficient
+# for OSSF Scorecard to track supply-chain hygiene over time.
+
 on:
-  branch_protection_rule:
   schedule:
     - cron: '17 6 * * 1'
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions: read-all
 
