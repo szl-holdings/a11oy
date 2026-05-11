@@ -14,7 +14,7 @@
 
   - **Bug reports.** Open a [GitHub issue](../../issues/new) with reproduction steps, environment, and expected vs actual behavior.
   - **Security disclosures.** Do **not** open a public issue. Follow [`SECURITY.md`](./SECURITY.md) — preferred channel is [security@szlholdings.com](mailto:security@szlholdings.com) or a private GitHub security advisory.
-  - **Questions and feedback.** Email [inquiries@szlholdings.com](mailto:inquiries@szlholdings.com) for product questions, integration requests, or partnership inquiries.
+  - **Questions and feedback.** Email [stephen@szlholdings.com](mailto:stephen@szlholdings.com) for product questions, integration requests, or partnership inquiries.
   - **Documentation corrections.** Small typo / link / factual fixes to public docs are welcome via PR. Please open an issue first describing the change.
 
   ## What we expect from contributors
@@ -29,7 +29,7 @@
   |---|---|
   | [GitHub issues](../../issues) | Bugs, documentation gaps, reproducible defects |
   | [security@szlholdings.com](mailto:security@szlholdings.com) | Security vulnerabilities (private) |
-  | [inquiries@szlholdings.com](mailto:inquiries@szlholdings.com) | Product, partnership, licensing |
+  | [stephen@szlholdings.com](mailto:stephen@szlholdings.com) | Product, partnership, licensing |
 
   ---
 

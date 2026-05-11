@@ -32,7 +32,7 @@
 
   ---
 
-  **[SZL Holdings](https://szlholdings.com)** · [Platform Repository](https://github.com/szl-holdings/szl-holdings-platform) · [inquiries@szlholdings.com](mailto:inquiries@szlholdings.com)
+  **[SZL Holdings](https://szlholdings.com)** · [Platform Repository](https://github.com/szl-holdings/szl-holdings-platform) · [stephen@szlholdings.com](mailto:stephen@szlholdings.com)
 
   (c) 2024–2026 SZL Holdings. All rights reserved.
   
