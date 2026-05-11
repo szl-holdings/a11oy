@@ -1,0 +1,26 @@
+name: Scorecard
+
+# Top-level permissions intentionally empty (Scorecard's Token-Permissions
+# check requires presence; non-empty values would clamp job-level write
+# scopes the analysis job needs).
+permissions: {}
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scorecard:
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+      actions: read
+    uses: szl-holdings/.github/.github/workflows/reusable-scorecard.yml@8186471f7f83f43f3aba4015fcfb2d322dcb4c83 # .github@8186471
