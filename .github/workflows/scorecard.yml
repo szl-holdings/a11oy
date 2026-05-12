@@ -1,26 +1,43 @@
-name: Scorecard
-
-# Top-level permissions intentionally empty (Scorecard's Token-Permissions
-# check requires presence; non-empty values would clamp job-level write
-# scopes the analysis job needs).
-permissions: {}
-
+name: Scorecard supply-chain security
 on:
+  branch_protection_rule:
   schedule:
-    - cron: '17 6 * * 1'
+    - cron: '32 7 * * 2'
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches: [ "main" ]
 
-concurrency:
-  group: scorecard-${{ github.ref }}
-  cancel-in-progress: false
+permissions: read-all
 
 jobs:
-  scorecard:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
     permissions:
-      contents: read
       security-events: write
       id-token: write
+      contents: read
       actions: read
-    uses: szl-holdings/.github/.github/workflows/reusable-scorecard.yml@8186471f7f83f43f3aba4015fcfb2d322dcb4c83 # .github@8186471
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: "Run analysis"
+        uses: ossf/scorecard-action@05b42c624433fc40578a4040d5cf5e36ddca8cde # v2.4.2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: "Upload artifact"
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: "Upload to code-scanning"
+        uses: github/codeql-action/upload-sarif@4e828ff8d448a8a6e532957b1811f387a63867e8 # v3.29.4
+        with:
+          sarif_file: results.sarif
