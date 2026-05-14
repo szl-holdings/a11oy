@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security updates are issued for the latest minor release on the default branch. Prior versions are not supported.
+Security updates are issued for the latest release on the default branch. Prior versions are not supported.
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -11,11 +11,11 @@ Security updates are issued for the latest minor release on the default branch. 
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a vulnerability, please report it privately so we can investigate and remediate before public disclosure.
+We take security seriously. If you discover a vulnerability, please report it **privately** so we can investigate and remediate before public disclosure.
 
-**Preferred channel:** [security@szlholdings.com](mailto:security@szlholdings.com)
+**Primary channel:** Email [stephen@szlholdings.com](mailto:stephen@szlholdings.com)
 
-**Alternate channel:** [Open a private security advisory](https://github.com/szl-holdings/.github/security/advisories/new) on GitHub.
+**Alternate channel:** [Open a private GitHub Security Advisory](https://github.com/szl-holdings/a11oy/security/advisories/new)
 
 Please include:
 
@@ -28,20 +28,20 @@ Please include:
 
 1. We acknowledge receipt within **2 business days**.
 2. We assess severity using CVSS v3.1 and triage within **5 business days**.
-3. We work on a fix and coordinate a release window with you.
+3. We work on a fix and coordinate a release window with the reporter.
 4. We publish a security advisory and credit the reporter at their request.
 
 We ask that you give us a reasonable opportunity to investigate and patch before public disclosure. We do not pursue legal action against good-faith security research.
 
 ## Scope
 
-In scope:
+**In scope:**
 
 - Source code, container images, and infrastructure-as-code in this repository.
 - Authentication, authorization, data handling, and cryptographic implementations.
 - Supply-chain risks affecting build artifacts produced from this repository.
 
-Out of scope:
+**Out of scope:**
 
 - Third-party dependencies (please report upstream).
 - Social engineering, physical attacks, or denial-of-service against shared infrastructure.
@@ -49,4 +49,9 @@ Out of scope:
 
 ## Hall of Thanks
 
-Researchers who responsibly disclose vulnerabilities will be acknowledged here.
+Researchers who responsibly disclose vulnerabilities will be acknowledged here (with permission).
+
+---
+
+Maintainer: **Stephen P. Lutar Jr.** — [stephen@szlholdings.com](mailto:stephen@szlholdings.com)  
+Organization: [SZL Holdings](https://github.com/szl-holdings)

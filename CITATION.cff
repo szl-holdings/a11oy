@@ -1,29 +1,29 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite the SZL Holdings research thesis (Ouroboros Thesis v10) and reference this component."
-title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals."
+message: "If you use this software, please cite it using the metadata below."
+title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and Λ invariant runtime."
 abstract: >-
-  Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals. Component of the SZL Holdings governed AI decision infrastructure,
+  Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and Λ invariant runtime. Part of the SZL Holdings governed AI decision infrastructure,
   built on the Ouroboros Thesis (DOI 10.5281/zenodo.19944926).
 type: software
+version: "1.0.0"
+date-released: "2026-01-01"
+license: Apache-2.0
 authors:
   - family-names: Lutar
     given-names: Stephen
-    name-particle: P.
-    affiliation: SZL Holdings
+    name-particle: "P."
+    name-suffix: "Jr."
+    affiliation: "SZL Holdings"
+    email: "stephen@szlholdings.com"
     orcid: "https://orcid.org/0009-0001-0110-4173"
-license: LicenseRef-SZL-Proprietary
 url: "https://github.com/szl-holdings/a11oy"
 repository-code: "https://github.com/szl-holdings/a11oy"
 keywords:
   - szl-holdings
   - ai-governance
-  - decision-intelligence
   - ouroboros-thesis
 identifiers:
-  - description: "Ouroboros Thesis v10 — research foundation (Zenodo)"
-    type: doi
-    value: "10.5281/zenodo.20053163"
-  - description: "Ouroboros Thesis concept DOI — always-latest"
+  - description: "Ouroboros Thesis — research foundation (Zenodo concept DOI)"
     type: doi
     value: "10.5281/zenodo.19944926"
   - description: "ORCID iD of the principal author"
@@ -31,12 +31,14 @@ identifiers:
     value: "https://orcid.org/0009-0001-0110-4173"
 preferred-citation:
   type: software
-  title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals."
+  title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and Λ invariant runtime."
   authors:
     - family-names: Lutar
       given-names: Stephen
-      name-particle: P.
-      affiliation: SZL Holdings
+      name-particle: "P."
+      name-suffix: "Jr."
+      affiliation: "SZL Holdings"
+      email: "stephen@szlholdings.com"
       orcid: "https://orcid.org/0009-0001-0110-4173"
   year: 2026
   url: "https://github.com/szl-holdings/a11oy"

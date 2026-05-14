@@ -3,7 +3,7 @@
 # These owners will be requested for review when someone opens a pull request.
 # Order matters: the LAST matching pattern wins.
 
-# Default — all files require review by the SZL Holdings core team
+# Default — all files require review by the SZL Holdings maintainer
 *       @stephenlutar2-hash
 
 # CI / repo configuration
