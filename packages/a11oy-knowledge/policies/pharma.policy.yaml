@@ -1,0 +1,53 @@
+# a11oy Covenant Policy — Pharma / Life Sciences R&D
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: pharma
+policy_name: "Pharma / Life Sciences R&D"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "FDA 21 CFR Part 11"
+  - "EMA Annex 11"
+  - "ICH E6(R3) GCP"
+  - "GxP"
+
+required_attestors:
+  - qualified_person
+  - gxp_compliance_officer
+  - computational_scientist
+
+lambda_floors:
+  moralGrounding: 0.97
+  measurabilityHonesty: 1.0
+  informationIntegrity: 1.0
+  temporalConsistency: 0.99
+  constructiveTransparency: 1.0
+
+forbidden_inputs:
+  - non_gxp_validated_software_output
+  - unversioned_model
+
+retention_days: 3650
+
+required_output_formats:
+  - ectd_submission_package
+  - json_audit_trail
+  - csv_gxp_log
+
+primitives_applicable:
+  - A5
+  - A6
+  - A8
+  - A10
+  - A12
+  - T5
+  - TH2
+
+acv_range_usd:
+  low: 500000
+  mid: 2000000
+  high: 10000000

@@ -1,0 +1,50 @@
+# a11oy Covenant Policy — Academic / Research Integrity
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: academic
+policy_name: "Academic / Research Integrity"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "NIH NOT-OD-23-149"
+  - "NSF PAPPG Chapter II.E"
+  - "ORI Standards"
+  - "COPE Guidelines"
+
+required_attestors:
+  - principal_investigator
+  - research_integrity_officer
+
+lambda_floors:
+  measurabilityHonesty: 1.0
+  constructiveTransparency: 1.0
+  informationIntegrity: 0.99
+  temporalConsistency: 0.99
+
+forbidden_inputs:
+  - undisclosed_ai_authored_content
+  - missing_doi_citation
+
+retention_days: 3650
+
+required_output_formats:
+  - zenodo_deposit
+  - json_receipt
+  - orcid_linked_artifact
+
+primitives_applicable:
+  - A5
+  - A8
+  - A12
+  - T5
+  - T10
+  - TH2
+
+acv_range_usd:
+  low: 10000
+  mid: 50000
+  high: 200000

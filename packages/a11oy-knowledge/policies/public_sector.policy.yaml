@@ -1,0 +1,55 @@
+# a11oy Covenant Policy — Public Sector / Civic AI
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: public_sector
+policy_name: "Public Sector / Civic AI"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "EU AI Act Annex III"
+  - "NYC Local Law 144 (2023)"
+  - "NIST AI RMF 1.0"
+  - "OMB M-24-10"
+
+required_attestors:
+  - agency_ai_officer
+  - civil_rights_officer
+  - inspector_general
+
+lambda_floors:
+  moralGrounding: 0.99
+  measurabilityHonesty: 0.99
+  stakeholderAlignment: 0.99
+  constructiveTransparency: 1.0
+  adversarialRobustness: 0.95
+
+forbidden_inputs:
+  - biometric_data_without_explicit_consent
+  - prohibited_social_scoring
+
+retention_days: 3650
+
+required_output_formats:
+  - json_public_audit_log
+  - csv_bias_audit
+  - pdf_annual_report
+
+primitives_applicable:
+  - A1
+  - A5
+  - A8
+  - A12
+  - A13
+  - T6
+  - T10
+  - TH1
+  - TH3
+
+acv_range_usd:
+  low: 300000
+  mid: 1200000
+  high: 5000000

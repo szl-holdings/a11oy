@@ -1,0 +1,52 @@
+# a11oy Covenant Policy — Legal / e-Discovery
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: legal
+policy_name: "Legal / e-Discovery"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "FRCP 26"
+  - "FRCP 34"
+  - "FRE 902(13)"
+  - "FRE 902(14)"
+  - "ABA Model Rule 1.1"
+
+required_attestors:
+  - supervising_attorney
+  - records_custodian
+
+lambda_floors:
+  moralGrounding: 0.97
+  measurabilityHonesty: 0.99
+  informationIntegrity: 0.99
+  constructiveTransparency: 0.99
+  actionReversibility: 0.95
+
+forbidden_inputs:
+  - privileged_attorney_client_without_waiver
+
+retention_days: 2555
+
+required_output_formats:
+  - json_chain_of_custody
+  - pdf_court_exhibit
+
+primitives_applicable:
+  - A5
+  - A6
+  - A8
+  - A12
+  - T5
+  - T8
+  - T10
+  - TH2
+
+acv_range_usd:
+  low: 75000
+  mid: 300000
+  high: 1000000
