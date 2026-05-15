@@ -7,8 +7,9 @@ abstract: >-
 type: software
 authors:
   - family-names: Lutar
-    given-names: Stephen
-    name-particle: P.
+    given-names: "Stephen P."
+
+    email: stephen@szlholdings.com
     affiliation: SZL Holdings
     orcid: "https://orcid.org/0009-0001-0110-4173"
 license: LicenseRef-SZL-Proprietary
@@ -34,8 +35,9 @@ preferred-citation:
   title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals."
   authors:
     - family-names: Lutar
-      given-names: Stephen
-      name-particle: P.
+      given-names: "Stephen P."
+
+      email: stephen@szlholdings.com
       affiliation: SZL Holdings
       orcid: "https://orcid.org/0009-0001-0110-4173"
   year: 2026
