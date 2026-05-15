@@ -1,0 +1,56 @@
+# a11oy Covenant Policy — Healthcare / Clinical AI
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: healthcare
+policy_name: "Healthcare / Clinical AI"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "HIPAA 45 CFR Part 164"
+  - "FDA 21 CFR Part 11"
+  - "FDA SaMD Guidance Q3 2023"
+
+required_attestors:
+  - licensed_clinician
+  - clinical_informatics_officer
+  - hipaa_privacy_officer
+
+lambda_floors:
+  moralGrounding: 0.99
+  measurabilityHonesty: 0.99
+  consentBoundary: 0.99
+  informationIntegrity: 0.99
+  causalSeparability: 0.99
+
+forbidden_inputs:
+  - plaintext_phi
+  - deidentification_not_verified
+
+retention_days: 2190
+
+required_output_formats:
+  - hl7_fhir_audit
+  - json_receipt
+  - pdf_clinical_audit
+
+primitives_applicable:
+  - A1
+  - A4
+  - A5
+  - A8
+  - A9
+  - A11
+  - A12
+  - T5
+  - T7
+  - T10
+  - TH1
+
+acv_range_usd:
+  low: 150000
+  mid: 600000
+  high: 2000000
