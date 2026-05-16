@@ -9,6 +9,7 @@ authors:
   - family-names: Lutar
     given-names: Stephen
     name-particle: P.
+    email: stephen@szlholdings.com
     affiliation: SZL Holdings
     orcid: "https://orcid.org/0009-0001-0110-4173"
 license: LicenseRef-SZL-Proprietary
@@ -36,6 +37,7 @@ preferred-citation:
     - family-names: Lutar
       given-names: Stephen
       name-particle: P.
+      email: stephen@szlholdings.com
       affiliation: SZL Holdings
       orcid: "https://orcid.org/0009-0001-0110-4173"
   year: 2026
