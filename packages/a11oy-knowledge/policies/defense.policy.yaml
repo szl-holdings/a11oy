@@ -1,0 +1,58 @@
+# a11oy Covenant Policy — Defense / DoD
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: defense
+policy_name: "Defense / DoD"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "NIST SP 800-53 Rev 5"
+  - "CMMC 2.0"
+  - "FedRAMP High"
+  - "DISA STIGs"
+
+required_attestors:
+  - authorizing_official
+  - system_owner
+  - security_control_assessor
+
+lambda_floors:
+  moralGrounding: 0.99
+  measurabilityHonesty: 0.99
+  actionReversibility: 0.95
+  scopeContainment: 0.99
+  informationIntegrity: 0.99
+  consentBoundary: 0.95
+
+forbidden_inputs:
+  - unclassified_cui_without_marking
+  - foreign_national_data
+
+retention_days: 7300
+
+required_output_formats:
+  - json_audit_log
+  - nist_oscal
+
+primitives_applicable:
+  - A1
+  - A4
+  - A5
+  - A6
+  - A8
+  - A9
+  - A12
+  - A13
+  - T5
+  - T9
+  - T10
+  - TH1
+
+acv_range_usd:
+  low: 500000
+  mid: 2000000
+  high: 5000000

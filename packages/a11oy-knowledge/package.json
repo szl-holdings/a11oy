@@ -1,0 +1,23 @@
+{
+  "name": "@szl-holdings/a11oy-knowledge",
+  "version": "0.4.0",
+  "description": "Canonical knowledge graph for the a11oy covenant kernel: axioms A1-A14 (+ A15 proposed), theorems TH1-TH7, derivations T1-T10, constants K01-K14, DOI ledger, doctrine clauses, unified extension, vertical routing.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "Apache-2.0",
+  "author": "Lutar, Stephen P. <stephen@szlholdings.com> (https://orcid.org/0009-0001-0110-4173)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/szl-holdings/a11oy"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "files": ["dist", "src", "policies"]
+}
