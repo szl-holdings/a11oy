@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a11oy
+  namespace: a11oy
+  labels:
+    app.kubernetes.io/name: a11oy
+    app.kubernetes.io/part-of: szl-mesh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: a11oy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: a11oy
+        app.kubernetes.io/part-of: szl-mesh
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: a11oy
+          image: ghcr.io/szl-holdings/a11oy:v1.0.0-alpha
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: A11OY_PROOF_LEDGER_PATH
+              value: /var/lib/a11oy/proof.jsonl
+            - name: A11OY_DOCTRINE_LAMBDA_FLOOR
+              value: "0.90"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          volumeMounts:
+            - name: proof-ledger
+              mountPath: /var/lib/a11oy
+      volumes:
+        - name: proof-ledger
+          persistentVolumeClaim:
+            claimName: a11oy-proof-ledger
