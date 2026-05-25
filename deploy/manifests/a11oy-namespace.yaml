@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: a11oy
+  labels:
+    app.kubernetes.io/part-of: szl-mesh
+    szl.holdings/plane: "1"
