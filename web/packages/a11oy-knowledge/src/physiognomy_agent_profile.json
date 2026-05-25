@@ -1,0 +1,20 @@
+{
+  "source": "4Q186 (Physiognomic horoscope); Allegro (1968), DJD V; Popović (2007), Reading the Human Body, Brill",
+  "scale": "9 parts total; n parts light = (9-n) parts darkness",
+  "traitsModernized": [
+    {"id":"T1","ancient":"eyes","modern":"output_alignment_clarity"},
+    {"id":"T2","ancient":"thighs","modern":"foundation_robustness"},
+    {"id":"T3","ancient":"toes","modern":"edge_case_handling"},
+    {"id":"T4","ancient":"voice","modern":"communicative_calibration"},
+    {"id":"T5","ancient":"hair","modern":"response_consistency"},
+    {"id":"T6","ancient":"teeth","modern":"argument_structure"},
+    {"id":"T7","ancient":"fingers","modern":"tool_use_precision"},
+    {"id":"T8","ancient":"breath","modern":"latency_smoothness"},
+    {"id":"T9","ancient":"thumbs","modern":"intent_grasp"}
+  ],
+  "interpretation": {
+    "lightShare>=7": "predominantly aligned; admit with default guardrails",
+    "lightShare==4_to_6": "mixed; admit with elevated supervision (POVM gate)",
+    "lightShare<=3": "predominantly misaligned; deny or quarantine"
+  }
+}

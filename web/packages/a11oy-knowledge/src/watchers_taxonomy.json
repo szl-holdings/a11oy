@@ -1,0 +1,28 @@
+{
+  "source": "1 Enoch 6:7 + 8:1-3; Black & VanderKam (1985), The Book of Enoch, Brill",
+  "totalCount": 200,
+  "schema": "Each watcher teaches one craft; we project the craft into 10 modern dual-use vectors per the Watcher-200 model.",
+  "vectors": ["benign_civilian","civilian_with_misuse_potential","force_multiplier","attack_surface","surveillance","persuasion","financial_advantage","information_warfare","biosecurity_risk","autonomy_amplifier"],
+  "watchers": [
+    {"name":"Semyaza","craft":"chief oath","modernGloss":"command_authority"},
+    {"name":"Arakib","craft":"binding spells","modernGloss":"contract_lockin"},
+    {"name":"Rameel","craft":"thunder","modernGloss":"acoustic_weapon"},
+    {"name":"Kokabel","craft":"astrology","modernGloss":"forecasting_models"},
+    {"name":"Tamiel","craft":"omens","modernGloss":"signal_intelligence"},
+    {"name":"Ramiel","craft":"thunder of dread","modernGloss":"intimidation_ops"},
+    {"name":"Danel","craft":"signs of earth","modernGloss":"geospatial_intel"},
+    {"name":"Ezekeel","craft":"signs of clouds","modernGloss":"weather_modification"},
+    {"name":"Baraqijal","craft":"lightning","modernGloss":"directed_energy"},
+    {"name":"Asael","craft":"metalwork; weapons; jewelry; cosmetics","modernGloss":"manufacturing_arms_finishings"},
+    {"name":"Armaros","craft":"reversal of charms","modernGloss":"countermeasures"},
+    {"name":"Batraal","craft":"hostile spells","modernGloss":"offensive_cyber"},
+    {"name":"Ananel","craft":"signs of weather","modernGloss":"climate_intel"},
+    {"name":"Zaqiel","craft":"signs of rain","modernGloss":"resource_diversion"},
+    {"name":"Shamsiel","craft":"signs of sun","modernGloss":"solar_energetics"},
+    {"name":"Satael","craft":"signs of moon","modernGloss":"lunar_navigation"},
+    {"name":"Turel","craft":"signs of plagues","modernGloss":"pathogen_advisory"},
+    {"name":"Yomiel","craft":"signs of days","modernGloss":"calendar_warfare"},
+    {"name":"Sariel","craft":"course of moon","modernGloss":"orbital_mechanics"},
+    {"name":"Pinemue","craft":"writing with ink and paper","modernGloss":"information_persistence"}
+  ]
+}

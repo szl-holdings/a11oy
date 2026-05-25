@@ -1,0 +1,10 @@
+{
+  "source": "1QpHab; 4QpNah; Berrin (2004), Pesher Nahum, Brill",
+  "templates": [
+    {"id":"PSH-DENY","form":"lemma:{verdict}|pishroAl:{ruleId}|referent:{capabilityClass}|testableClaim:{counterfactual}|witnessHash:{sha256}"},
+    {"id":"PSH-ADMIT","form":"lemma:{verdict}|pishroAl:{policyId}|referent:{guardrailSet}|testableClaim:{invariantHeld}|witnessHash:{sha256}"},
+    {"id":"PSH-ELEVATE","form":"lemma:{verdict}|pishroAl:{escalationId}|referent:{reviewerQuorum}|testableClaim:{quorumReached}|witnessHash:{sha256}"},
+    {"id":"PSH-DIVERGE","form":"lemma:DUAL_WITNESS_DIVERGE|pishroAl:{primaryAxis}|referent:{secondaryAxis}|testableClaim:{deltaBound}|witnessHash:{sha256}"}
+  ],
+  "renderRules": "Every pesher record MUST include witnessHash (SHA-256 of canonical JSON of inputs+verdict). Without witnessHash the record is rejected by the audit chain."
+}

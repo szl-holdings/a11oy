@@ -1,0 +1,14 @@
+{
+  "source": "1 Enoch 7:1-2; Nickelsburg (2001), 1 Enoch 1 (Hermeneia), pp.182-194",
+  "schema": "Capability → first-attestation era → modern equivalent admit-age (in agent-tier days)",
+  "table": [
+    {"capability":"metalwork","ancientEra":"pre-Flood (Asael)","modernMinAgentTierDays":7},
+    {"capability":"cosmetics","ancientEra":"pre-Flood (Asael)","modernMinAgentTierDays":1},
+    {"capability":"sorcery_root_cutting","ancientEra":"pre-Flood (Shemyaza)","modernMinAgentTierDays":30},
+    {"capability":"astrology","ancientEra":"pre-Flood (Kokabel)","modernMinAgentTierDays":14},
+    {"capability":"weather_signs","ancientEra":"pre-Flood (Ezekeel)","modernMinAgentTierDays":14},
+    {"capability":"writing","ancientEra":"post-Flood (Pinemue)","modernMinAgentTierDays":3},
+    {"capability":"weapons","ancientEra":"pre-Flood (Asael)","modernMinAgentTierDays":90},
+    {"capability":"warfare_doctrine","ancientEra":"post-Flood (1 Enoch 56:5)","modernMinAgentTierDays":180}
+  ]
+}

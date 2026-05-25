@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A11oy — Brand Orchestration Layer</title>
+    <meta name="description" content="A11oy is the brand orchestration command center for the SZL family of products — governing design tokens, voice, component library, releases, and accessibility compliance across all sub-brands." />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0f1e'/><text y='24' x='4' font-size='20' font-family='monospace' fill='%233b82f6'>A</text></svg>" />
+    <style>
+      html, body { background: #0a0a0a; margin: 0; }
+      .skip-to-content {
+        position: absolute;
+        left: -9999px;
+        top: 1rem;
+        z-index: 99999;
+        padding: 0.5rem 1.25rem;
+        background: #c8d8e8;
+        color: #060b12;
+        font-weight: 600;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        border-radius: 4px;
+        text-decoration: none;
+        white-space: nowrap;
+        border: 2px solid #4d8fcc;
+      }
+      .skip-to-content:focus {
+        left: 1rem;
+        outline: 3px solid #4d8fcc;
+        outline-offset: 2px;
+      }
+      :focus-visible {
+        outline: 3px solid #4d8fcc;
+        outline-offset: 2px;
+        border-radius: 3px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
+    <div id="root">
+      <!-- Pre-React loading shell — replaced once React mounts -->
+      <div id="pre-react-shell" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <div style="width:8px;height:8px;background:#c9b787;border-radius:50%;"></div>
+          <span style="color:#c9b787;font-size:0.6875rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;">A11oy</span>
+          <span style="color:rgba(255,255,255,0.2);font-size:0.6875rem;letter-spacing:0.1em;">Brand Orchestration Layer</span>
+        </div>
+        <div style="width:200px;height:1px;background:rgba(255,255,255,0.06);"></div>
+        <div style="color:rgba(255,255,255,0.3);font-size:0.6875rem;letter-spacing:0.15em;text-transform:uppercase;">Initialising</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
