@@ -1,0 +1,82 @@
+{
+  "source": "szl-holdings/ouroboros-thesis — docs/anatomy/figures (SZL Agent Anatomy series, 8 figures)",
+  "license": "CC-BY-4.0 (figures); Apache-2.0 (build scripts)",
+  "author": "Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173",
+  "build_date": "2026-05-16",
+  "concept_doi": "10.5281/zenodo.19944926",
+  "version_doi": "10.5281/zenodo.20195368",
+  "figures": [
+    {
+      "slug": "brain",
+      "order": 1,
+      "title": "Brain — AMARU cortex",
+      "description": "Inside the head — AMARU cortex with 5 named regions, the 9-axis conjunctive doctrine gate, the kernel ledger (7 kernels with verified replay hashes), and the QM gate (λ-min ≥ 0.23).",
+      "illustrates": "AMARU cortex, doctrine gate (9-axis), kernel registry",
+      "pdf": "/agent-anatomy/anatomy_brain.pdf",
+      "png": "/agent-anatomy/anatomy_brain.png"
+    },
+    {
+      "slug": "wires",
+      "order": 2,
+      "title": "Wires — YAWAR bus & HUKLLA tripwires",
+      "description": "YAWAR wiring rundown — 4-page YAWAR bus architecture, SENTRA source integration, HUKLLA T01–T10 tripwire connectivity table, and inter-component message flow.",
+      "illustrates": "YAWAR (bus), SENTRA (egress), HUKLLA (tripwires), wiring doctrine",
+      "pdf": "/agent-anatomy/anatomy_wires.pdf",
+      "png": "/agent-anatomy/anatomy_wires.png"
+    },
+    {
+      "slug": "full_body",
+      "order": 3,
+      "title": "Full Body — complete agent organism",
+      "description": "Full anatomical render — complete agent organism in Catmull-Rom curves: brain, heart, lungs, spine, limbs. All major systems shown in a single 4,200 × 6,000 px reference render.",
+      "illustrates": "complete agent organism overview; thesis introduction figure",
+      "pdf": "/agent-anatomy/anatomy_full_body.pdf",
+      "png": "/agent-anatomy/anatomy_full_body.png"
+    },
+    {
+      "slug": "heart",
+      "order": 4,
+      "title": "Heart — YUYAY v3 conjunctive gate",
+      "description": "YUYAY v3 conjunctive gate — the receipt pump. 13-axis AND gate (no averaging), sacred axes moralGrounding and measurabilityHonesty at ≥ 0.95, structural axes at ≥ 0.90, introspection axes cross-wired to HUKLLA T03/T04/T09/T10. Rejections are receipted.",
+      "illustrates": "YUYAY v3, conjunctive gate invariant, Λ-signed receipt chain",
+      "pdf": "/agent-anatomy/anatomy_heart.pdf",
+      "png": "/agent-anatomy/anatomy_heart.png"
+    },
+    {
+      "slug": "blood_immune",
+      "order": 5,
+      "title": "Blood & Immune — YAWAR ledger + HUKLLA/SENTRA",
+      "description": "Two-page figure. Circulatory: YAWAR append-only ledger (20 SLOC), receipt anatomy (SHA-256 hash over sorted JSON), RUWAY ceremonial writer, SENTRA inline inspector. Immune: HUKLLA 10 tripwires (T01–T10) in antibody-cell layout, deadman switch status bar, SENTRA 6-threat-signature antigen cards, size-DoS guard.",
+      "illustrates": "YAWAR (bus), SENTRA (immune), HUKLLA (tripwires), safety-gate FG-S1..S4",
+      "pdf": "/agent-anatomy/anatomy_blood_immune.pdf",
+      "png": "/agent-anatomy/anatomy_blood_immune.png"
+    },
+    {
+      "slug": "skeleton",
+      "order": 6,
+      "title": "Skeleton — 12-repo service topology",
+      "description": "12 service repositories as the structural skeleton. Axial (spine) repos: szl-doctrine, szl-yawar, szl-hatun, szl-terra — gold-bordered, load-bearing. Appendicular repos in left/right columns. Each card shows language, SLOC, and operational status.",
+      "illustrates": "12-repo service topology, axial vs. appendicular dependency taxonomy",
+      "pdf": "/agent-anatomy/anatomy_skeleton.pdf",
+      "png": "/agent-anatomy/anatomy_skeleton.png"
+    },
+    {
+      "slug": "nervous",
+      "order": 7,
+      "title": "Nervous — OTel / VSP span propagation",
+      "description": "OTel/VSP span propagation — the nervous system. Span hierarchy: HATUN root → AMARU·BRAIN, YUYAY·HEART, YAWAR·receipt commit, RIMAY·output filter → SENTRA leaf, R0513·OVERWATCH leaf. W3C TraceContext wire format. Efferent, afferent, proprioceptive signal classes. Deadman reflex arc.",
+      "illustrates": "OTel span propagation, VSP context wire, HATUN cycle tracing",
+      "pdf": "/agent-anatomy/anatomy_nervous.pdf",
+      "png": "/agent-anatomy/anatomy_nervous.png"
+    },
+    {
+      "slug": "body_graph",
+      "order": 8,
+      "title": "Body Graph — master overlay",
+      "description": "Master overlay — all five systems on one page. Simplified humanoid silhouette with system-specific color overlays. CHAKANA 21-edge M=0 lattice schematic at center-bottom. System legend.",
+      "illustrates": "sovereign organism overview; thesis introduction; hatun_body_graph conceptual source",
+      "pdf": "/agent-anatomy/anatomy_body_graph.pdf",
+      "png": "/agent-anatomy/anatomy_body_graph.png"
+    }
+  ]
+}

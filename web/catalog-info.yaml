@@ -1,0 +1,28 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: a11oy
+  title: A11oy — Brand Orchestration Layer
+  description: Brand orchestration layer and design system showcase SPA. Manages brand tokens, component library, and design standards.
+  annotations:
+    github.com/project-slug: szl-holdings/monorepo
+    backstage.io/techdocs-ref: dir:.
+    szl.io/scorecard-score: '1.3'
+    szl.io/golden-path-deviation: "SPA — no server-side health endpoint; brand/design focus"
+    backstage.io/runbook-url: https://github.com/szl-holdings/monorepo/blob/main/docs/runbooks/a11oy.md
+  tags:
+    - corporate
+    - typescript
+    - react
+    - vite
+    - brand
+spec:
+  type: website
+  lifecycle: production
+  owner: group:platform-team
+  system: system:a11oy
+  domain: domain:corporate
+  dependsOn:
+    - component:api-server
+  consumesApis:
+    - api:szl-rest-v1

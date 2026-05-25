@@ -1,0 +1,71 @@
+{
+  "$schema": "./anatomy-citations.schema.json",
+  "source": "upstream published Ouroboros thesis — szl-holdings/ouroboros-thesis",
+  "license": "CC-BY-4.0 (figures); thesis text per upstream DOI metadata",
+  "note": "Read-only display. The DOI on every chakra resolves to the canonical concept record (10.5281/zenodo.19944926), which always points at the latest published version of the Ouroboros thesis. The per-chakra PDF/PNG bytes under /anatomy/ are the deterministic local render from services/amaru/scripts/vendor_anatomy.py — the upstream repo does not currently ship chakra-named figures (it ships a different 8-figure SZL Agent Anatomy series under docs/anatomy/figures/), so the local render stays in place until upstream publishes chakra-named binaries.",
+  "chakras": [
+    {
+      "name": "root",
+      "order": 1,
+      "title": "Root — substrate grounding",
+      "doi": "10.5281/zenodo.19944926",
+      "pdf": "/anatomy/root.pdf",
+      "png": "/anatomy/root.png",
+      "linkedin": "Root anatomy figure — the substrate-grounding pillar that anchors every chakra above it. Bounded stability scalar in [0,1]; verdict ground/destabilize."
+    },
+    {
+      "name": "sacral",
+      "order": 2,
+      "title": "Sacral — generative flow",
+      "doi": "10.5281/zenodo.19944926",
+      "pdf": "/anatomy/sacral.pdf",
+      "png": "/anatomy/sacral.png",
+      "linkedin": "Sacral anatomy figure — the generative-flow valve. 0.6·fluency + 0.4·novelty, clamped to [0,1]; verdict generate/rest."
+    },
+    {
+      "name": "solar",
+      "order": 3,
+      "title": "Solar — will / decisive action",
+      "doi": "10.5281/zenodo.19944926",
+      "pdf": "/anatomy/solar.pdf",
+      "png": "/anatomy/solar.png",
+      "linkedin": "Solar anatomy figure — the will plexus. Upstream kernel governs decisive-action thresholds."
+    },
+    {
+      "name": "heart",
+      "order": 4,
+      "title": "Heart — coherence / harm-avoidance",
+      "doi": "10.5281/zenodo.19944926",
+      "pdf": "/anatomy/heart.pdf",
+      "png": "/anatomy/heart.png",
+      "linkedin": "Heart anatomy figure — coherence = clamp(care − harm, 0, 1). The pivot chakra where ascent meets descent."
+    },
+    {
+      "name": "throat",
+      "order": 5,
+      "title": "Throat — expressive fidelity",
+      "doi": "10.5281/zenodo.19944926",
+      "pdf": "/anatomy/throat.pdf",
+      "png": "/anatomy/throat.png",
+      "linkedin": "Throat anatomy figure — fidelity = √(clarity · truth). Geometric mean penalises one-sided expression."
+    },
+    {
+      "name": "third_eye",
+      "order": 6,
+      "title": "Third Eye — predictive insight",
+      "doi": "10.5281/zenodo.19944926",
+      "pdf": "/anatomy/third_eye.pdf",
+      "png": "/anatomy/third_eye.png",
+      "linkedin": "Third-eye anatomy figure — the predictive-insight lens. Upstream kernel drives counterfactual projection."
+    },
+    {
+      "name": "crown",
+      "order": 7,
+      "title": "Crown — closure / ouroboros handoff",
+      "doi": "10.5281/zenodo.19944926",
+      "pdf": "/anatomy/crown.pdf",
+      "png": "/anatomy/crown.png",
+      "linkedin": "Crown anatomy figure — closure scalar in [0,1] and the ouroboros handoff back to root. Closes the cycle."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "source": "1QS 3:13-4:26 (Two Spirits Treatise); Charlesworth (1995), DSS vol.1, Mohr Siebeck",
+  "totalCount": 14,
+  "lightSpirit": [
+    {"id":"L1","attr":"truth","modernGloss":"factual_grounding"},
+    {"id":"L2","attr":"humility","modernGloss":"calibrated_uncertainty"},
+    {"id":"L3","attr":"patience","modernGloss":"deliberation_quality"},
+    {"id":"L4","attr":"compassion","modernGloss":"user_harm_avoidance"},
+    {"id":"L5","attr":"wisdom","modernGloss":"contextual_integration"},
+    {"id":"L6","attr":"insight","modernGloss":"causal_reasoning"},
+    {"id":"L7","attr":"holy_intention","modernGloss":"goal_alignment"}
+  ],
+  "darknessSpirit": [
+    {"id":"D1","attr":"falsehood","modernGloss":"fabrication"},
+    {"id":"D2","attr":"pride","modernGloss":"overconfidence"},
+    {"id":"D3","attr":"haste","modernGloss":"impulsive_action"},
+    {"id":"D4","attr":"cruelty","modernGloss":"user_harm_indifference"},
+    {"id":"D5","attr":"folly","modernGloss":"context_blindness"},
+    {"id":"D6","attr":"deceit","modernGloss":"deceptive_alignment"},
+    {"id":"D7","attr":"impure_intention","modernGloss":"goal_misalignment"}
+  ]
+}
