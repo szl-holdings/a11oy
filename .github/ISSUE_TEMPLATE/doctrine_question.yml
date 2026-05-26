@@ -1,0 +1,59 @@
+name: Doctrine question
+description: Challenge a formula, derivation, citation, or invariant. These are first-class — please file them.
+title: "[doctrine] "
+labels: ["doctrine", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A11oy lives or dies by the correctness of its doctrine. If you think a formula is wrong, a citation is mis-applied, an invariant is unstated, or an assumption is hidden — **please** file this issue. We will respond on the science, not the optics.
+
+  - type: dropdown
+    id: pillar
+    attributes:
+      label: Which doctrinal pillar
+      options:
+        - "Fisher–Rao distance on belief simplex"
+        - "Bohr complementarity floor (σ_A · σ_B ≥ 0.25)"
+        - "Kochen–Specker 18-vector contextuality witness"
+        - "POVM verdict semantics (Σ E_i = I)"
+        - "Tetrad orthonormality"
+        - "Cross-cutting / composition of the above"
+        - "Other (specify below)"
+    validations: { required: true }
+
+  - type: input
+    id: location
+    attributes:
+      label: File or function in question
+      placeholder: "packages/a11oy-core/src/quantum/kochen_specker_18.ts :: KS18_CONTEXTS"
+    validations: { required: true }
+
+  - type: textarea
+    id: claim
+    attributes:
+      label: What the code (or doc) currently claims
+      description: Quote the exact line, comment, or derivation step.
+    validations: { required: true }
+
+  - type: textarea
+    id: counter
+    attributes:
+      label: Why you believe it is wrong
+      description: Cite a paper, textbook, derivation, or numeric counter-example. If a numeric counter-example, include the input and the expected vs actual output.
+    validations: { required: true }
+
+  - type: input
+    id: citation
+    attributes:
+      label: Reference (paper / textbook / DOI / arXiv)
+      placeholder: "Cabello, Estebaranz & García-Alcaine, Phys. Lett. A 212, 183 (1996), arXiv:quant-ph/9706009"
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      options:
+        - label: I have read the relevant section of the cited reference (not just the abstract)
+          required: true
+        - label: I searched existing issues and this is not a duplicate
+          required: true
