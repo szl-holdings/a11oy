@@ -6,7 +6,7 @@
 [![MCP compatible](https://img.shields.io/badge/MCP-compatible-805AD5?style=flat-square)](https://github.com/szl-holdings/a11oy)
 [![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/szl-holdings/a11oy/badge)](https://scorecard.dev/viewer/?uri=github.com/szl-holdings/a11oy)
-[![License](https://img.shields.io/badge/license-BSL--1.1-28251D?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-8B0000?style=flat-square)](./LICENSE)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
 [![Concept DOI](https://img.shields.io/badge/concept%20DOI-10.5281%2Fzenodo.19944926-01696F?style=flat-square&logo=doi&logoColor=white)](https://doi.org/10.5281/zenodo.19944926)
 [![Series-A Engineering](https://img.shields.io/badge/Series--A-Engineering-success?style=flat-square)](https://github.com/szl-holdings)
@@ -126,7 +126,7 @@ Related: [`szl-holdings/platform`](https://github.com/szl-holdings/platform) · 
 
 ## License
 
-BSL-1.1 — See [LICENSE](./LICENSE) for terms. Copyright (c) 2024-2026 SZL Holdings.
+Proprietary — See [LICENSE](./LICENSE) for terms. Copyright (c) 2024-2026 SZL Holdings, LLC. All rights reserved. SPDX: `LicenseRef-SZL-Proprietary` (matches `CITATION.cff` `license:` field).
 
 ---
 
