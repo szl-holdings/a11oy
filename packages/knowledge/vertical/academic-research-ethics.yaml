@@ -1,0 +1,177 @@
+# Vertical Governance Policy: Academic Research — Belmont Report / Common Rule / COPE
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: academic
+regime: Common-Rule/Belmont/COPE
+effective_date: "2025-07-01"
+jurisdiction: US-Federal-HHS/Global-COPE
+
+meta:
+  title: "Academic Research AI Governance Policy — Common Rule / Belmont / COPE Alignment"
+  description: >
+    Maps the Federal Policy for the Protection of Human Subjects (Common Rule),
+    Belmont Report principles, Committee on Publication Ethics (COPE) guidelines,
+    and NSF/NIH AI data management requirements to Doctrine v6 Λ-axes for AI
+    systems used in academic research contexts.
+  authority: "45 CFR Part 46 (Common Rule); 21 CFR Part 50/56; Belmont Report (1979); COPE Guidelines (2023); NSF PAPPG Ch. II.E.3; NIH DMS Policy (2023)"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  irb_oversight: required
+
+regulatory_clauses:
+  - clause_id: COMMON-RULE-46.111
+    title: "Criteria for IRB Approval"
+    citation: "45 CFR § 46.111; 21 CFR § 56.111"
+    full_ref: "45 C.F.R. § 46.111 — IRB criteria: risks minimised, equitable selection, informed consent, monitoring, privacy protection"
+    lambda_axes:
+      - axis: Λ4
+        label: Fairness
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI research involving human subjects must demonstrate equitable
+          participant selection; demographic stratification receipts submitted
+          with IRB application.
+      - axis: Λ3
+        label: Privacy
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: BELMONT-RESPECT-PERSONS
+    title: "Belmont Report — Respect for Persons (Autonomy)"
+    citation: "Belmont Report Part B.1 (1979); 45 CFR § 46.116"
+    full_ref: "Belmont Report § B.1 — Respect for Persons: informed consent; 45 C.F.R. § 46.116 requirements for informed consent"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          AI systems training on participant data must have consent receipts
+          specifying purpose, data scope, and withdrawal mechanism.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: BELMONT-BENEFICENCE
+    title: "Belmont Report — Beneficence / Non-Maleficence"
+    citation: "Belmont Report Part B.2 (1979)"
+    full_ref: "Belmont Report § B.2 — Beneficence: maximise benefits and minimise harms to research subjects"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          AI-generated research outputs that could harm participants must
+          undergo safety review; harm assessment receipts generated quarterly.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.75
+        enforcement: mandatory
+
+  - clause_id: NIH-DMS-POLICY-2023
+    title: "NIH Data Management and Sharing Policy"
+    citation: "NIH DMS Policy (Jan 2023); NOT-OD-21-013"
+    full_ref: "NIH Data Management and Sharing Policy (effective 25 Jan 2023) — Data management plans and sharing of scientific data"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          AI-generated research datasets and model weights must be shared per
+          FAIR principles; repository deposit receipts logged in chain.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.78
+        enforcement: recommended
+
+  - clause_id: COPE-AI-AUTHORSHIP-2023
+    title: "COPE — AI Authorship and Disclosure"
+    citation: "COPE Position Statement on Authorship and AI Tools (2023)"
+    full_ref: "COPE Position Statement: Authorship and AI tools — AI cannot be listed as an author; authors accountable for AI-generated content"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          All AI-generated content in academic publications must be disclosed;
+          disclosure receipt references specific AI system version and inference
+          timestamp per Doctrine v6 §5.1 provenance requirements.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: NSF-PAPPG-AI-DATA
+    title: "NSF — AI Research Data Management Requirements"
+    citation: "NSF PAPPG Ch. II.E.3 (2024); NSF 23-1 PAPPG"
+    full_ref: "NSF Proposal & Award Policies & Procedures Guide (PAPPG) Ch. II.E.3 — Data management and sharing plan requirements"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          NSF-funded AI research must maintain 3-year post-award data records;
+          Merkle DAG provides tamper-evident archive with dataset versioning.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.72
+        enforcement: recommended
+
+  - clause_id: COMMON-RULE-46.111E-PRIVACY
+    title: "Common Rule — Privacy and Confidentiality Safeguards"
+    citation: "45 CFR § 46.111(a)(7)"
+    full_ref: "45 C.F.R. § 46.111(a)(7) — IRB must determine that privacy of subjects and confidentiality of data are adequately protected"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI training on IRB-approved data must implement k-anonymity (k≥5)
+          or differential privacy (ε≤1.0); privacy parameter receipts generated
+          per dataset epoch.
+      - axis: Λ6
+        label: Security
+        weight: 0.82
+        enforcement: mandatory
+
+  - clause_id: EU-AI-ACT-ART-53-GPAI
+    title: "EU AI Act — GPAI Model Transparency for Research"
+    citation: "EU AI Act Art. 53; Recital 106"
+    full_ref: "Regulation (EU) 2024/1689 Art. 53 — Obligations for providers of general-purpose AI models used in research"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 0.88
+        enforcement: mandatory
+        rationale: >
+          General-purpose AI models used in academic research must publish
+          training data summary and evaluation results; publication receipt
+          links to EU AI Act database entry.
+      - axis: Λ4
+        label: Fairness
+        weight: 0.80
+        enforcement: mandatory
+
+compliance_thresholds:
+  minimum_lambda_coverage: 7
+  mandatory_axes: [Λ1, Λ3, Λ4]
+  receipt_retention_days: 1095        # 3 years NSF/NIH post-award
+  irb_review_cycle_days: 365
+  consent_renewal_days: 365
+  differential_privacy_epsilon_max: 1.0
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, irb-backup, institutional-archive]
+  irb_signed: true

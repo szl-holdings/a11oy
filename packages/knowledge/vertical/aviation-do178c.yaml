@@ -1,0 +1,173 @@
+# Vertical Governance Policy: Aviation — DO-178C / DO-333 / FAA Order 8110.49
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: aviation
+regime: DO-178C/DO-333/FAA-8110.49
+effective_date: "2025-07-01"
+jurisdiction: US-FAA/EASA
+
+meta:
+  title: "Aviation AI Governance Policy — DO-178C/DO-333 Alignment"
+  description: >
+    Maps RTCA DO-178C Software Considerations in Airborne Systems and DO-333
+    Formal Methods Supplement to Doctrine v6 Λ-axes for AI/ML components
+    in airborne systems, targeting Design Assurance Level (DAL) A–C.
+  authority: "RTCA DO-178C (2011); RTCA DO-333 (2011); FAA Order 8110.49B; AC 20-115D; EASA AI Roadmap 2.0"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  design_assurance_level: DAL-B
+
+regulatory_clauses:
+  - clause_id: DO178C-11.9
+    title: "Software Accomplishment Summary"
+    citation: "RTCA DO-178C § 11.9; FAA AC 20-115D"
+    full_ref: "RTCA DO-178C Table A-9 — Software Accomplishment Summary (SAS) lifecycle data"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI model version, training data hash, and validation epoch must appear
+          in SAS; receipt chain provides cryptographic provenance for each build.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: DO178C-6.4
+    title: "Software Verification — Structural Coverage"
+    citation: "RTCA DO-178C § 6.4; DO-333 § FM.6.4"
+    full_ref: "DO-178C § 6.4 — MC/DC structural coverage analysis; DO-333 Supplement for formal methods"
+    lambda_axes:
+      - axis: Λ8
+        label: Robustness
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          DAL-B requires MC/DC coverage; AI components must demonstrate
+          decision coverage via formal methods or exhaustive test suites;
+          coverage receipts committed to Merkle DAG.
+      - axis: Λ5
+        label: Safety
+        weight: 0.98
+        enforcement: mandatory
+
+  - clause_id: DO178C-5.5
+    title: "Traceability — High-Level Requirements to Software Design"
+    citation: "RTCA DO-178C § 5.5; SAE ARP4754B § 5.2"
+    full_ref: "DO-178C § 5.5 — Traceability between high-level requirements, low-level requirements, and source code"
+    lambda_axes:
+      - axis: Λ9
+        label: Explainability
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          Each AI decision affecting flight-critical functions must be traceable
+          to a certified requirement; receipt annotates requirement ID.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: DO178C-12.3
+    title: "Configuration Management — Change Control"
+    citation: "RTCA DO-178C § 12.3; DO-178C Table A-10"
+    full_ref: "DO-178C § 12.3 — Problem reporting, change control, change review, configuration status accounting"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 0.95
+        enforcement: mandatory
+      - axis: Λ2
+        label: Accountability
+        weight: 0.88
+        enforcement: mandatory
+        rationale: >
+          Configuration baseline changes to AI model weights require DER-signed
+          receipts; change control board approval captured in receipt metadata.
+
+  - clause_id: FAA-8110-49B
+    title: "Software Approval Guidelines"
+    citation: "FAA Order 8110.49B (2022)"
+    full_ref: "FAA Order 8110.49B — Software Approval Guidelines for Airborne Systems"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI software approval requires Designated Engineering Representative (DER)
+          sign-off; each DER attestation is a receipt chain entry with X.509 cert.
+      - axis: Λ2
+        label: Accountability
+        weight: 0.92
+        enforcement: mandatory
+
+  - clause_id: EASA-AI-ROADMAP-2
+    title: "EASA AI Roadmap — Concept Paper on AI/ML for Aviation Safety"
+    citation: "EASA AI Roadmap 2.0 (2023); EASA CP No. 2 (2023)"
+    full_ref: "EASA Concept Paper: First usable guidance for Level 1 & 2 ML applications (Oct 2023)"
+    lambda_axes:
+      - axis: Λ4
+        label: Fairness
+        weight: 0.72
+        enforcement: recommended
+        rationale: >
+          AI training data must be checked for operational scenario coverage;
+          distributional gaps documented in receipt chain data-quality node.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.85
+        enforcement: mandatory
+
+  - clause_id: DO333-FM-COMPLETENESS
+    title: "Formal Methods — Completeness of Proof"
+    citation: "RTCA DO-333 § FM.6.3.2"
+    full_ref: "DO-333 § FM.6.3.2 — Completeness of formal proofs with respect to software behavior"
+    lambda_axes:
+      - axis: Λ8
+        label: Robustness
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          Formal proofs of AI inference bounds (e.g., Lipschitz constants) must
+          be committed as proof-receipts; adversarial perturbation guarantees cited.
+      - axis: Λ5
+        label: Safety
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: ARINC-653
+    title: "Avionics Application Software Standard Interface"
+    citation: "ARINC 653 Part 1-5 (2019)"
+    full_ref: "ARINC 653-1 — Avionics Application Software Standard Interface: Partitioning and scheduling"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.85
+        enforcement: mandatory
+        rationale: >
+          AI inference partitions must be temporally and spatially isolated;
+          inter-partition communication events receipt-logged at hypervisor level.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.78
+        enforcement: recommended
+
+compliance_thresholds:
+  minimum_lambda_coverage: 7
+  mandatory_axes: [Λ5, Λ7, Λ8]
+  receipt_retention_days: 9125        # 25 years per FAA airworthiness
+  max_inference_latency_ms: 10        # Safety-critical real-time constraint
+  dal_level: B
+  coverage_target_percent: 100        # MC/DC for DAL-B
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, hot-standby, der-archive]
+  der_signed: true

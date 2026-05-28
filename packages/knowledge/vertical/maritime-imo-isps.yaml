@@ -1,0 +1,176 @@
+# Vertical Governance Policy: Maritime — IMO ISPS Code / SOLAS / IMO MSC-FAL.1/Circ.3
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: maritime
+regime: IMO-ISPS/SOLAS/MSC-FAL1-Circ3
+effective_date: "2025-07-01"
+jurisdiction: IMO-International
+
+meta:
+  title: "Maritime AI Governance Policy — IMO ISPS / SOLAS / Cyber Risk Guidelines"
+  description: >
+    Maps IMO ISPS Code, SOLAS Chapter XI-2, and IMO MSC-FAL.1/Circ.3 (Maritime
+    Cyber Risk Management) to Doctrine v6 Λ-axes for AI systems used in vessel
+    navigation, port operations, and maritime supply chain management.
+  authority: "SOLAS 1974 Chapter XI-2; IMO ISPS Code Parts A & B (2002); IMO MSC-FAL.1/Circ.3 (2017); IMO Resolution MSC.428(98)"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  maritime_security_level: MARSEC-1
+
+regulatory_clauses:
+  - clause_id: ISPS-A-7
+    title: "Ship Security Assessment"
+    citation: "ISPS Code Part A § 7; SOLAS XI-2/2"
+    full_ref: "ISPS Code Part A § 7 — Ship security assessment: identification of existing security measures, procedures, and operations"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          AI bridge systems and ECDIS must be included in ship security
+          assessment; threat model documented in security receipt with IMO number.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.85
+        enforcement: mandatory
+
+  - clause_id: IMO-MSC-FAL-CIRC3-CYBER
+    title: "Maritime Cyber Risk Management"
+    citation: "IMO MSC-FAL.1/Circ.3 (2017); MSC Resolution MSC.428(98) (2017)"
+    full_ref: "IMO MSC-FAL.1/Circ.3 — Guidelines on Maritime Cyber Risk Management; MSC.428(98) incorporation into ISM Code"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          Maritime cyber risk management must address AI systems in integrated
+          bridge, cargo, and propulsion systems; risk assessment receipts
+          required per ISM Code annual review.
+      - axis: Λ7
+        label: Auditability
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: ISPS-A-9
+    title: "Ship Security Plan — Confidentiality"
+    citation: "ISPS Code Part A § 9.4"
+    full_ref: "ISPS Code Part A § 9.4 — Ship security plan: protection and access restrictions"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 0.80
+        enforcement: mandatory
+        rationale: >
+          AI systems with access to Ship Security Plan (SSP) must enforce
+          role-based access; each SSP query generates a receipt.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.85
+        enforcement: mandatory
+        rationale: >
+          SSP data must remain under flag-state jurisdiction; AI cloud
+          processing must use data residency receipts specifying IMO flag.
+
+  - clause_id: SOLAS-XI2-AIS
+    title: "SOLAS — Automatic Identification System Requirements"
+    citation: "SOLAS Chapter V Reg. 19; ITU-R M.1371-5"
+    full_ref: "SOLAS Chapter V Regulation 19 — Carriage requirements for AIS; ITU-R M.1371-5 technical characteristics"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 0.88
+        enforcement: mandatory
+        rationale: >
+          AI vessel tracking systems consuming AIS data must log data source
+          provenance; spoofing detection alerts generate integrity receipts.
+      - axis: Λ5
+        label: Safety
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: IMO-COLREGS-RULE-5
+    title: "COLREGs — Rule 5: Look-out"
+    citation: "COLREGS 1972 Rule 5; IMO Resolution A.1106(29)"
+    full_ref: "Convention on the International Regulations for Preventing Collisions at Sea 1972 Rule 5 — Proper look-out by sight, hearing, and other means"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          Autonomous/AI-assisted collision avoidance must comply with COLREGs;
+          each autonomous manoeuvre decision must produce a receipt with scene
+          classification confidence score.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: IMO-MASS-L4
+    title: "Maritime Autonomous Surface Ships — Level 4"
+    citation: "IMO Maritime Safety Committee MASS Framework (MSC 107/16, 2023)"
+    full_ref: "IMO MSC 107/16 — MASS Regulatory Scoping Exercise: Degree of autonomy Level 4 (fully autonomous)"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          Fully autonomous vessels must designate a remote-control centre as
+          accountable entity; each navigation decision receipt includes RCC ID.
+      - axis: Λ4
+        label: Fairness
+        weight: 0.65
+        enforcement: recommended
+
+  - clause_id: ISPS-B-4-PORT
+    title: "Port Facility Security Assessment"
+    citation: "ISPS Code Part B § 4; 33 CFR Part 105 (USCG)"
+    full_ref: "ISPS Code Part B § 4 — Port facility security assessment; 33 C.F.R. Part 105 (USCG port security)"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.90
+        enforcement: mandatory
+      - axis: Λ8
+        label: Robustness
+        weight: 0.82
+        enforcement: mandatory
+        rationale: >
+          AI cargo scanning and port access control systems undergo annual
+          penetration testing; test results committed as port security receipts.
+
+  - clause_id: MARPOL-EEDI-EEXI
+    title: "MARPOL Annex VI — Energy Efficiency (AI-Optimised Routing)"
+    citation: "MARPOL Annex VI Reg. 24 (EEXI); Reg. 28 (CII); MEPC.328(76)"
+    full_ref: "MARPOL Annex VI Regulation 28 — Carbon Intensity Indicator (CII) and operational carbon intensity rating"
+    lambda_axes:
+      - axis: Λ4
+        label: Fairness
+        weight: 0.70
+        enforcement: recommended
+        rationale: >
+          AI voyage optimisation must demonstrate equitable efficiency gains;
+          CII rating receipts submitted to IMO GISIS registry.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.78
+        enforcement: mandatory
+
+compliance_thresholds:
+  minimum_lambda_coverage: 7
+  mandatory_axes: [Λ5, Λ6, Λ7]
+  receipt_retention_days: 1825        # 5 years ISM Code
+  max_colreg_response_latency_ms: 500
+  marsec_level: 1
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [vessel-primary, shore-backup, flag-state-archive]
+  satellite_sync: true

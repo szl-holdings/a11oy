@@ -1,0 +1,176 @@
+# Vertical Governance Policy: LegalTech — GDPR / EU AI Act / eIDAS 2.0
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: legaltech
+regime: GDPR/EU-AI-Act/eIDAS2
+effective_date: "2025-07-01"
+jurisdiction: EU-EEA
+
+meta:
+  title: "LegalTech AI Governance Policy — GDPR / EU AI Act / eIDAS 2.0 Alignment"
+  description: >
+    Maps GDPR (Regulation EU 2016/679), EU AI Act (Regulation EU 2024/1689),
+    and eIDAS 2.0 (Regulation EU 2024/1183) to Doctrine v6 Λ-axes for AI systems
+    used in legal document review, contract analysis, e-discovery, and legal
+    advisory services.
+  authority: "Regulation (EU) 2016/679 (GDPR); Regulation (EU) 2024/1689 (EU AI Act); Regulation (EU) 2024/1183 (eIDAS 2.0); COM(2022) 68 (AIA proposal)"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  data_subject_jurisdiction: EU-EEA
+
+regulatory_clauses:
+  - clause_id: GDPR-ART-22
+    title: "Automated Decision-Making Including Profiling"
+    citation: "GDPR Art. 22; EDPB Guidelines 1/2022"
+    full_ref: "Regulation (EU) 2016/679 Art. 22 — Right not to be subject to solely automated decision-making; EDPB Guidelines 01/2022"
+    lambda_axes:
+      - axis: Λ9
+        label: Explainability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI legal analytics producing legally significant decisions must offer
+          meaningful explanation; explanation receipt must accompany each
+          determination (EDPB § 58: "meaningful information about logic involved").
+      - axis: Λ4
+        label: Fairness
+        weight: 0.92
+        enforcement: mandatory
+
+  - clause_id: GDPR-ART-5-PRINCIPLES
+    title: "Principles Relating to Processing of Personal Data"
+    citation: "GDPR Art. 5(1)(a)–(f); Art. 5(2)"
+    full_ref: "Regulation (EU) 2016/679 Art. 5 — Lawfulness, fairness, transparency, purpose limitation, data minimisation, accuracy, storage limitation, integrity, confidentiality, accountability"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI processing of personal data in legal documents must respect all
+          GDPR Art. 5 principles; receipt chain logs lawful basis per processing
+          activity (Art. 6 / Art. 9 for special categories).
+      - axis: Λ1
+        label: Transparency
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: EU-AI-ACT-ART-13
+    title: "Transparency and Provision of Information to Deployers"
+    citation: "EU AI Act Art. 13; Annex IV (technical documentation)"
+    full_ref: "Regulation (EU) 2024/1689 Art. 13 — Transparency and provision of information to deployers of high-risk AI systems"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          High-risk legal AI systems must provide instructions-for-use including
+          capabilities, limitations, and human oversight requirements; IFU hash
+          committed to receipt chain at deployment.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: EU-AI-ACT-ART-17
+    title: "Quality Management System"
+    citation: "EU AI Act Art. 17"
+    full_ref: "Regulation (EU) 2024/1689 Art. 17 — Quality management system for providers of high-risk AI systems"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          QMS must include post-market monitoring; each monitoring event
+          generates a receipt linking to the AI system registration in EUDB.
+      - axis: Λ7
+        label: Auditability
+        weight: 0.92
+        enforcement: mandatory
+
+  - clause_id: GDPR-ART-32-SECURITY
+    title: "Security of Processing"
+    citation: "GDPR Art. 32; ENISA AI Security Guidelines (2023)"
+    full_ref: "Regulation (EU) 2016/679 Art. 32 — Appropriate technical and organisational measures for security"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          AI systems processing privileged legal communications must implement
+          end-to-end encryption; encryption key rotation events logged as receipts.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.85
+        enforcement: mandatory
+
+  - clause_id: EIDAS2-QES
+    title: "Qualified Electronic Signature — Legal Equivalence"
+    citation: "eIDAS 2.0 Art. 25; Regulation (EU) 2024/1183 Art. 3"
+    full_ref: "Regulation (EU) 2024/1183 Art. 25 — Legal effects of qualified electronic signatures; Art. 3 — European Digital Identity Wallet"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI-generated legal documents requiring signature must use QES via
+          EUDIW; signature certificate hash embedded in receipt chain leaf.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: GDPR-ART-35-DPIA
+    title: "Data Protection Impact Assessment"
+    citation: "GDPR Art. 35; EDPB Guidelines 01/2023"
+    full_ref: "Regulation (EU) 2016/679 Art. 35 — Data Protection Impact Assessment for high-risk processing"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          Legal AI systems processing special category data (Art. 9) or
+          conducting large-scale profiling require DPIA; DPIA completion
+          receipt logged before processing commences.
+      - axis: Λ5
+        label: Safety
+        weight: 0.72
+        enforcement: mandatory
+
+  - clause_id: EU-AI-ACT-ART-9
+    title: "Risk Management System"
+    citation: "EU AI Act Art. 9"
+    full_ref: "Regulation (EU) 2024/1689 Art. 9 — Risk management system for high-risk AI systems; iterative process throughout lifecycle"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          Residual risks must be estimated and minimised; risk management
+          cycle receipts generated at each iteration with risk delta score.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.85
+        enforcement: mandatory
+
+compliance_thresholds:
+  minimum_lambda_coverage: 8
+  mandatory_axes: [Λ1, Λ3, Λ9]
+  receipt_retention_days: 2555        # 7 years GDPR accountability
+  max_dsar_response_days: 30
+  dpia_refresh_cycle_days: 365
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, eu-gdpr-backup, dpa-archive]
+  data_residency: EU-EEA

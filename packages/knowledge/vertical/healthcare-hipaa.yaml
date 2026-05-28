@@ -1,0 +1,171 @@
+# Vertical Governance Policy: Healthcare — HIPAA/HITECH
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: healthcare
+regime: HIPAA/HITECH
+effective_date: "2025-07-01"
+jurisdiction: US-Federal
+
+meta:
+  title: "Healthcare AI Governance Policy — HIPAA/HITECH Alignment"
+  description: >
+    Maps HIPAA Privacy Rule, Security Rule, and HITECH Act provisions to
+    Doctrine v6 Λ-axes for AI systems processing Protected Health Information (PHI).
+  authority: "45 CFR Parts 160, 162, 164; Pub. L. 111-5 §§ 13001–13411"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+
+regulatory_clauses:
+  - clause_id: HIPAA-PR-164.502
+    title: "Uses and Disclosures of Protected Health Information"
+    citation: "45 CFR § 164.502"
+    full_ref: "45 C.F.R. § 164.502(a) — General rules for uses and disclosures"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          PHI may only be used/disclosed for permitted purposes. AI inference
+          pipelines must gate outputs on minimum-necessary principle.
+      - axis: Λ7
+        label: Auditability
+        weight: 0.85
+        enforcement: mandatory
+        rationale: >
+          Each PHI access event must be receipt-logged with timestamp, actor,
+          purpose, and data category.
+
+  - clause_id: HIPAA-SR-164.312a2i
+    title: "Unique User Identification"
+    citation: "45 CFR § 164.312(a)(2)(i)"
+    full_ref: "45 C.F.R. § 164.312(a)(2)(i) — Technical safeguards: unique user ID"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          Every AI agent or human principal accessing PHI must carry a
+          cryptographically bound identity token in the receipt chain.
+      - axis: Λ2
+        label: Accountability
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: HIPAA-SR-164.312b
+    title: "Audit Controls"
+    citation: "45 CFR § 164.312(b)"
+    full_ref: "45 C.F.R. § 164.312(b) — Implement hardware, software, and procedural mechanisms to record activity in information systems"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          Continuous audit log with tamper-evident Merkle DAG; p50 write
+          latency ≤ 5 µs per Doctrine v6 §4.7.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.70
+        enforcement: recommended
+
+  - clause_id: HIPAA-SR-164.314a2
+    title: "Business Associate Contracts"
+    citation: "45 CFR § 164.314(a)(2)"
+    full_ref: "45 C.F.R. § 164.314(a)(2)(i) — Business associate contract required"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 0.88
+        enforcement: mandatory
+        rationale: >
+          Third-party AI vendors processing PHI must contractually bind
+          compliance obligations; receipt chain must propagate across BA boundary.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.75
+        enforcement: mandatory
+
+  - clause_id: HITECH-13402
+    title: "Notification in Case of Breach"
+    citation: "Pub. L. 111-5 § 13402; 45 CFR § 164.400"
+    full_ref: "HITECH Act § 13402 — Notification of Breaches of Unsecured Protected Health Information"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          Breach involving AI model outputs (e.g., re-identification) triggers
+          60-day notification; AI systems must detect and flag anomalous
+          disclosure automatically.
+      - axis: Λ5
+        label: Safety
+        weight: 0.80
+        enforcement: mandatory
+
+  - clause_id: HIPAA-PR-164.514b
+    title: "De-identification Standard"
+    citation: "45 CFR § 164.514(b)"
+    full_ref: "45 C.F.R. § 164.514(b) — Implementation specifications for de-identification"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI training data must satisfy Expert Determination or Safe Harbor
+          de-identification. Re-identification risk ≤ 0.05 per Doctrine v6 §3.2.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.65
+        enforcement: recommended
+
+  - clause_id: HIPAA-SR-164.308a6
+    title: "Security Incident Procedures"
+    citation: "45 CFR § 164.308(a)(6)"
+    full_ref: "45 C.F.R. § 164.308(a)(6)(i)–(ii) — Identify and respond to suspected security incidents"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.95
+        enforcement: mandatory
+      - axis: Λ8
+        label: Robustness
+        weight: 0.85
+        enforcement: mandatory
+        rationale: >
+          AI anomaly-detection subsystem must trigger incident receipt within
+          30 s of detecting adversarial perturbation on PHI inference pathway.
+
+  - clause_id: HIPAA-SR-164.308a5
+    title: "Security Awareness and Training"
+    citation: "45 CFR § 164.308(a)(5)"
+    full_ref: "45 C.F.R. § 164.308(a)(5)(ii)(B)–(D) — Protection from malicious software; log-in monitoring"
+    lambda_axes:
+      - axis: Λ4
+        label: Fairness
+        weight: 0.60
+        enforcement: recommended
+        rationale: >
+          Training data curation processes must include bias review for
+          protected health-demographic attributes.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.70
+        enforcement: recommended
+
+compliance_thresholds:
+  minimum_lambda_coverage: 6          # Must map ≥6 distinct Λ-axes
+  mandatory_axes: [Λ3, Λ6, Λ7]
+  receipt_retention_days: 2555         # 7 years per CMS standard
+  max_phi_inference_latency_ms: 200
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, backup, audit-only]
