@@ -33,6 +33,29 @@ sense → structure → correlate → explain → recommend → approve → exec
 
 The execution fabric is [**A11oy**](https://github.com/szl-holdings/a11oy). The bounded-loop kernel underneath every domain pack is [**ouroboros**](https://github.com/szl-holdings/ouroboros) — implementing the [Lutar Invariant](https://github.com/szl-holdings/ouroboros-thesis) for measurable convergence with auditable closure.
 
+## Historical Attribution
+
+The QKAN-FWP sequence memory module in amaru (HEART organ) — integrating
+quantum-inspired Kolmogorov-Arnold Networks with Fast Weight Programmers
+[Peng et al. 2026, arXiv:2605.06734, DOI:10.48550/arXiv.2605.06734] — stands
+in a lineage traceable to Feynman's 1982 proposal that quantum mechanical
+systems are most efficiently simulated by quantum computers
+[Feynman 1982, Int. J. Theor. Phys. 21:467, DOI:10.1007/BF02650179].
+
+**QKAN-FWP is not a quantum simulator.** It is a quantum-inspired classical
+approximator: it uses the mathematical formalism of variational quantum circuits
+(rotation gates, data re-uploading) to parameterise sequence memory, and deploys
+primarily as a classical computation. Feynman's 1982 intuition — that quantum
+mechanical structure has computational implications — motivates the research
+direction of quantum-inspired methods, of which QKAN-FWP is one instance.
+
+The SZL governance stack uses QKAN-FWP for temporal context memory in the amaru
+(HEART) organ. The Λ-Gate audit verdict is produced by the classical ouroboros
+runtime; QKAN-FWP provides the sequence-level memory substrate that HEART
+uses to retain governance-relevant state across multi-turn interactions.
+This is a classical AI governance system that incorporates quantum-inspired
+computational methods — not a quantum simulation system.
+
 ## Status
 
 **Alpha.** A11oy is under active development as part of the SZL Holdings platform. Public releases are tagged via [GitHub releases](https://github.com/szl-holdings/a11oy/releases). Security disclosures: see [SECURITY.md](./SECURITY.md).
