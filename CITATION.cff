@@ -13,7 +13,7 @@ authors:
     email: stephen@szlholdings.com
     affiliation: SZL Holdings
     orcid: "https://orcid.org/0009-0001-0110-4173"
-license: LicenseRef-SZL-Proprietary
+license: Apache-2.0
 url: "https://github.com/szl-holdings/a11oy"
 repository-code: "https://github.com/szl-holdings/a11oy"
 keywords:
