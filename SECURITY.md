@@ -17,6 +17,12 @@ We take security seriously. If you discover a vulnerability, please report it pr
 
 **Alternate channel:** [Open a private security advisory](https://github.com/szl-holdings/.github/security/advisories/new) on GitHub.
 
+**Alternate email:** [stephen@szlholdings.com](mailto:stephen@szlholdings.com)
+
+**PGP / encrypted comms:** Optional — if you require encrypted communication, request the maintainer's public key at [security@szlholdings.com](mailto:security@szlholdings.com). Key fingerprint available on request.
+
+**Response SLA:** We acknowledge all vulnerability reports within **48 hours**.
+
 Please include:
 
 - A clear description of the issue and its potential impact.
@@ -26,7 +32,7 @@ Please include:
 
 ## Disclosure Process
 
-1. We acknowledge receipt within **2 business days**.
+1. We acknowledge receipt within **48 hours**.
 2. We assess severity using CVSS v3.1 and triage within **5 business days**.
 3. We work on a fix and coordinate a release window with you.
 4. We publish a security advisory and credit the reporter at their request.
