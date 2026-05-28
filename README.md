@@ -2,16 +2,16 @@
 
 > Vertical alignment substrate — policy, measurement, knowledge, and QEC-integrity packages for governed AI execution
 
-[![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/szl-holdings/a11oy/badge)](https://securityscorecards.dev/viewer/?uri=github.com/szl-holdings/a11oy)
+[![Docs CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml)
+[![MCP compatible](https://img.shields.io/badge/MCP-compatible-805AD5?style=flat-square)](https://github.com/szl-holdings/a11oy)
+[![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/szl-holdings/a11oy/badge)](https://scorecard.dev/viewer/?uri=github.com/szl-holdings/a11oy)
 [![License](https://img.shields.io/badge/license-BSL--1.1-28251D?style=flat-square)](./LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-24+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![MCP Compatible](https://img.shields.io/badge/MCP-compatible-805AD5?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20434276-805AD5?style=flat-square&logo=doi&logoColor=white)](https://doi.org/10.5281/zenodo.20434276)
-[![Series-A Engineering](https://img.shields.io/badge/Series--A-Engineering-28251D?style=flat-square)](https://github.com/szl-holdings)
-[![Doctrine v6](https://img.shields.io/badge/Doctrine-v6-01696F?style=flat-square)](https://github.com/szl-holdings/platform/blob/main/docs/doctrine/szl-doctrine.md)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
+[![Concept DOI](https://img.shields.io/badge/concept%20DOI-10.5281%2Fzenodo.19944926-01696F?style=flat-square&logo=doi&logoColor=white)](https://doi.org/10.5281/zenodo.19944926)
+[![Series-A Engineering](https://img.shields.io/badge/Series--A-Engineering-success?style=flat-square)](https://github.com/szl-holdings)
+[![Alignment substrate](https://img.shields.io/badge/Frontier-Alignment%20substrate-28251D?style=flat-square)](https://doi.org/10.5281/zenodo.20434276)
+[![Doctrine v6](https://img.shields.io/badge/Doctrine--v6-passing-success?style=flat-square)](https://github.com/szl-holdings/platform/blob/main/docs/doctrine/szl-doctrine.md)
 
 > **Frontier Capability:** First agent execution fabric with a Lean-verified termination + Λ-monotonicity proof — `Lutar.AgentLoop.terminates` + `Lutar.AgentLoop.preserves_lambda` (v18.0 Frontier 5 · [Ouroboros Thesis DOI 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)).
 
