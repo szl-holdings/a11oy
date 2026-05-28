@@ -1,0 +1,174 @@
+# Vertical Governance Policy: Financial Services — SOX / Dodd-Frank / SR 11-7
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: financial
+regime: SOX/Dodd-Frank/SR11-7
+effective_date: "2025-07-01"
+jurisdiction: US-Federal
+
+meta:
+  title: "Financial AI Governance Policy — SOX/Dodd-Frank/SR 11-7 Alignment"
+  description: >
+    Maps Sarbanes-Oxley Act, Dodd-Frank Wall Street Reform, and Federal Reserve
+    SR 11-7 Model Risk Management guidance to Doctrine v6 Λ-axes for AI systems
+    used in credit, trading, fraud detection, and financial reporting.
+  authority: "Pub. L. 107-204 (SOX); Pub. L. 111-203 (Dodd-Frank); SR 11-7 (Fed, OCC, FDIC)"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+
+regulatory_clauses:
+  - clause_id: SOX-302
+    title: "Corporate Responsibility for Financial Reports"
+    citation: "Pub. L. 107-204 § 302; 17 CFR § 240.13a-15"
+    full_ref: "SOX § 302 — CEO/CFO certification of financial statements; 17 C.F.R. § 240.13a-15 controls and procedures"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI systems generating financial figures or reports must produce
+          signed receipts traceable to named human principals (CEO/CFO
+          accountability chain).
+      - axis: Λ7
+        label: Auditability
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: SOX-404
+    title: "Management Assessment of Internal Controls"
+    citation: "Pub. L. 107-204 § 404; 17 CFR § 240.13a-15(f)"
+    full_ref: "SOX § 404 — Annual assessment of internal controls over financial reporting (ICFR)"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI model controls must be documented in ICFR scope; Merkle DAG
+          receipts serve as tamper-evident control evidence.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: SR11-7-MRM
+    title: "Model Risk Management — Validation"
+    citation: "Federal Reserve SR 11-7 (Apr 2011); OCC 2011-12"
+    full_ref: "SR 11-7 Guidance on Model Risk Management §§ III.C (Validation), III.D (Ongoing Monitoring)"
+    lambda_axes:
+      - axis: Λ8
+        label: Robustness
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          Independent model validation must test adversarial robustness;
+          receipt chain must capture validation epoch, validator ID, and
+          test-set hash.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          Model outputs affecting credit decisions require explanations
+          satisfying adverse action notice requirements (ECOA/FCRA).
+
+  - clause_id: DODD-FRANK-1033
+    title: "Consumer Financial Data Rights"
+    citation: "Pub. L. 111-203 § 1033; 12 CFR § 1033.201"
+    full_ref: "Dodd-Frank § 1033 / CFPB Rule 1033 — Consumer right to access covered data"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 0.90
+        enforcement: mandatory
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.85
+        enforcement: mandatory
+        rationale: >
+          AI systems must honour data portability requests; receipt chain
+          logs each export event with consumer-authorised scope token.
+
+  - clause_id: DODD-FRANK-619
+    title: "Volcker Rule — Proprietary Trading Prohibition"
+    citation: "Pub. L. 111-203 § 619; 12 CFR § 44 (OCC), § 248 (Fed)"
+    full_ref: "Volcker Rule 12 C.F.R. § 248.3 — Prohibition on proprietary trading"
+    lambda_axes:
+      - axis: Λ4
+        label: Fairness
+        weight: 0.75
+        enforcement: mandatory
+        rationale: >
+          AI trading algorithms must be receipt-tagged to distinguish permitted
+          market-making from prohibited proprietary positions.
+      - axis: Λ2
+        label: Accountability
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: FINRA-4370
+    title: "Business Continuity Plans and Emergency Contact Information"
+    citation: "FINRA Rule 4370; SEC Rule 17a-4"
+    full_ref: "FINRA Rule 4370 — Business Continuity and Contingency Plans; 17 C.F.R. § 240.17a-4 record retention"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.85
+        enforcement: mandatory
+      - axis: Λ6
+        label: Security
+        weight: 0.80
+        enforcement: mandatory
+        rationale: >
+          AI trading and reporting systems must have verified fallback nodes;
+          receipt chain must survive primary node failure with quorum 2-of-3.
+
+  - clause_id: ECOA-FCRA-ADVERSE
+    title: "Adverse Action Notices — Credit Decisions"
+    citation: "15 USC § 1681m; 12 CFR § 202.9 (Reg B)"
+    full_ref: "ECOA 15 U.S.C. § 1681m(a) — Adverse action notice requirements; Reg B 12 C.F.R. § 202.9"
+    lambda_axes:
+      - axis: Λ9
+        label: Explainability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI credit models must produce machine-readable reason codes per
+          CFPB guidance; explanation receipt must accompany each denial.
+      - axis: Λ4
+        label: Fairness
+        weight: 0.92
+        enforcement: mandatory
+
+  - clause_id: SOX-802
+    title: "Criminal Penalties for Altering Documents"
+    citation: "Pub. L. 107-204 § 802; 18 USC § 1519"
+    full_ref: "SOX § 802 — 18 U.S.C. § 1519 destruction/alteration of records; 20-year imprisonment"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          Receipt chain immutability is a legal requirement; SHA3-256 Merkle
+          DAG nodes must be append-only with cryptographic proof of non-alteration.
+      - axis: Λ6
+        label: Security
+        weight: 0.95
+        enforcement: mandatory
+
+compliance_thresholds:
+  minimum_lambda_coverage: 7
+  mandatory_axes: [Λ2, Λ7, Λ9]
+  receipt_retention_days: 2555        # 7 years SOX record retention
+  max_decision_latency_ms: 500
+  model_validation_cycle_days: 365
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, secondary, regulatory-archive]

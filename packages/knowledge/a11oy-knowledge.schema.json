@@ -1,0 +1,317 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://doctrine-v6.ai/schemas/a11oy-knowledge.schema.json",
+  "title": "A11oy Knowledge Vertical Policy Schema",
+  "description": "JSON Schema for Doctrine v6 R3 vertical governance policy YAML files. Validates all 10 vertical policy documents defining regulatory-clause → Λ-axis mappings. Version 1.0.0.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "vertical",
+    "regime",
+    "effective_date",
+    "jurisdiction",
+    "meta",
+    "regulatory_clauses",
+    "compliance_thresholds",
+    "receipt_chain"
+  ],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Semantic version of this schema (must match policy document schema_version).",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "examples": ["1.0.0"]
+    },
+
+    "vertical": {
+      "type": "string",
+      "description": "Regulated vertical industry identifier.",
+      "enum": [
+        "healthcare",
+        "financial",
+        "defense",
+        "aviation",
+        "automotive",
+        "pharmaceutical",
+        "energy",
+        "maritime",
+        "legaltech",
+        "academic"
+      ]
+    },
+
+    "regime": {
+      "type": "string",
+      "description": "Primary regulatory regime identifier (slash-delimited for compound regimes).",
+      "minLength": 3,
+      "maxLength": 128,
+      "examples": ["HIPAA/HITECH", "SOX/Dodd-Frank/SR11-7", "CMMC-L3/NIST-SP-800-171"]
+    },
+
+    "effective_date": {
+      "type": "string",
+      "description": "ISO 8601 date this policy version takes effect.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+
+    "jurisdiction": {
+      "type": "string",
+      "description": "Jurisdiction scope of this policy.",
+      "minLength": 2,
+      "examples": ["US-Federal", "EU-EEA", "IMO-International", "US-FAA/EASA"]
+    },
+
+    "meta": {
+      "type": "object",
+      "description": "Human-readable metadata for this policy document.",
+      "required": ["title", "description", "authority", "receipt_chain_required", "merkle_root_algorithm"],
+      "additionalProperties": true,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 256
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20
+        },
+        "authority": {
+          "type": "string",
+          "description": "Canonical citation of primary legal authority.",
+          "minLength": 5
+        },
+        "receipt_chain_required": {
+          "type": "boolean",
+          "description": "Whether this vertical mandates Merkle DAG receipt chaining."
+        },
+        "merkle_root_algorithm": {
+          "type": "string",
+          "description": "Hash algorithm for Merkle DAG root computation.",
+          "enum": ["SHA3-256", "SHA-256", "BLAKE3", "SHA3-512"]
+        },
+        "classification_ceiling": {
+          "type": "string",
+          "description": "Maximum data classification level (defense contexts).",
+          "enum": ["UNCLASSIFIED", "CUI", "SECRET", "TOP-SECRET"]
+        },
+        "design_assurance_level": {
+          "type": "string",
+          "description": "DO-178C Design Assurance Level (aviation contexts).",
+          "enum": ["DAL-A", "DAL-B", "DAL-C", "DAL-D", "DAL-E"]
+        },
+        "asil_level": {
+          "type": "string",
+          "description": "ISO 26262 Automotive Safety Integrity Level.",
+          "enum": ["QM", "ASIL-A", "ASIL-B", "ASIL-C", "ASIL-D"]
+        },
+        "bes_impact": {
+          "type": "string",
+          "description": "NERC CIP BES Cyber System impact classification.",
+          "enum": ["LOW", "MEDIUM", "HIGH"]
+        },
+        "maritime_security_level": {
+          "type": "string",
+          "description": "ISPS Code Maritime Security Level.",
+          "enum": ["MARSEC-1", "MARSEC-2", "MARSEC-3"]
+        },
+        "data_subject_jurisdiction": {
+          "type": "string",
+          "description": "Data subject protection jurisdiction."
+        },
+        "irb_oversight": {
+          "type": "string",
+          "description": "IRB oversight requirement level.",
+          "enum": ["required", "exempt", "expedited", "full-board"]
+        },
+        "gxp_category": {
+          "type": "string",
+          "description": "GxP category for pharmaceutical/biotech contexts."
+        }
+      }
+    },
+
+    "regulatory_clauses": {
+      "type": "array",
+      "description": "Array of regulatory clause → Λ-axis mappings. Must contain 8–12 entries.",
+      "minItems": 8,
+      "maxItems": 12,
+      "items": {
+        "$ref": "#/definitions/RegulatoryClause"
+      }
+    },
+
+    "compliance_thresholds": {
+      "type": "object",
+      "description": "Quantitative compliance thresholds for this vertical.",
+      "required": ["minimum_lambda_coverage", "mandatory_axes", "receipt_retention_days"],
+      "additionalProperties": true,
+      "properties": {
+        "minimum_lambda_coverage": {
+          "type": "integer",
+          "description": "Minimum number of distinct Λ-axes that must be covered.",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "mandatory_axes": {
+          "type": "array",
+          "description": "List of Λ-axes that are always required for this vertical.",
+          "items": {
+            "type": "string",
+            "pattern": "^Λ(10|[1-9])$"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "receipt_retention_days": {
+          "type": "integer",
+          "description": "Minimum receipt chain retention period in days.",
+          "minimum": 365
+        }
+      }
+    },
+
+    "receipt_chain": {
+      "type": "object",
+      "description": "Merkle DAG receipt chain configuration for this vertical.",
+      "required": ["algorithm", "chaining", "quorum", "nodes"],
+      "additionalProperties": true,
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["SHA3-256", "SHA-256", "BLAKE3", "SHA3-512"],
+          "description": "Hash algorithm for receipt chain nodes."
+        },
+        "chaining": {
+          "type": "string",
+          "enum": ["merkle_dag", "merkle_tree", "hash_chain"],
+          "description": "Chaining topology for receipt nodes."
+        },
+        "quorum": {
+          "type": "string",
+          "pattern": "^\\d+-of-\\d+$",
+          "description": "Quorum specification for receipt validation (e.g., '2-of-3')."
+        },
+        "nodes": {
+          "type": "array",
+          "description": "Named receipt chain node roles.",
+          "items": { "type": "string" },
+          "minItems": 2,
+          "maxItems": 7
+        },
+        "der_signed": { "type": "boolean" },
+        "hardware_security_module": { "type": "boolean" },
+        "enclave_attestation": { "type": "boolean" },
+        "air_gapped_backup": { "type": "boolean" },
+        "satellite_sync": { "type": "boolean" },
+        "qualified_electronic_signature": { "type": "boolean" },
+        "irb_signed": { "type": "boolean" },
+        "data_residency": { "type": "string" }
+      }
+    }
+  },
+
+  "definitions": {
+    "LambdaAxis": {
+      "type": "string",
+      "description": "Doctrine v6 Λ-axis identifier.",
+      "enum": ["Λ1", "Λ2", "Λ3", "Λ4", "Λ5", "Λ6", "Λ7", "Λ8", "Λ9", "Λ10"]
+    },
+
+    "LambdaAxisLabel": {
+      "type": "string",
+      "description": "Human-readable label for the Λ-axis.",
+      "enum": [
+        "Transparency",
+        "Accountability",
+        "Privacy",
+        "Fairness",
+        "Safety",
+        "Security",
+        "Auditability",
+        "Robustness",
+        "Explainability",
+        "Sovereignty"
+      ]
+    },
+
+    "EnforcementLevel": {
+      "type": "string",
+      "enum": ["mandatory", "recommended", "informational"],
+      "description": "Enforcement level: mandatory (legally required), recommended (best practice), informational (advisory)."
+    },
+
+    "AxisMapping": {
+      "type": "object",
+      "description": "Mapping from a regulatory clause to a single Doctrine v6 Λ-axis.",
+      "required": ["axis", "label", "weight", "enforcement"],
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "$ref": "#/definitions/LambdaAxis"
+        },
+        "label": {
+          "$ref": "#/definitions/LambdaAxisLabel"
+        },
+        "weight": {
+          "type": "number",
+          "description": "Compliance weight in [0.0, 1.0]. 1.0 = fully determinative.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "enforcement": {
+          "$ref": "#/definitions/EnforcementLevel"
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Natural language rationale for this axis mapping.",
+          "minLength": 20
+        }
+      }
+    },
+
+    "RegulatoryClause": {
+      "type": "object",
+      "description": "A single regulatory clause with its Doctrine v6 Λ-axis mappings.",
+      "required": ["clause_id", "title", "citation", "full_ref", "lambda_axes"],
+      "additionalProperties": false,
+      "properties": {
+        "clause_id": {
+          "type": "string",
+          "description": "Machine-readable clause identifier (e.g., HIPAA-PR-164.502).",
+          "pattern": "^[A-Z0-9][A-Z0-9\\-\\.]+$",
+          "minLength": 5,
+          "maxLength": 64
+        },
+        "title": {
+          "type": "string",
+          "description": "Short human-readable clause title.",
+          "minLength": 5,
+          "maxLength": 256
+        },
+        "citation": {
+          "type": "string",
+          "description": "Short citation string (CFR section, statute, etc.).",
+          "minLength": 5
+        },
+        "full_ref": {
+          "type": "string",
+          "description": "Full legal reference including long-form citation.",
+          "minLength": 20
+        },
+        "lambda_axes": {
+          "type": "array",
+          "description": "Array of Λ-axis mappings for this clause. Typically 2 axes per clause.",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/definitions/AxisMapping"
+          }
+        }
+      }
+    }
+  }
+}

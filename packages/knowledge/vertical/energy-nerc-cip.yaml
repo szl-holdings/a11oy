@@ -1,0 +1,171 @@
+# Vertical Governance Policy: Energy — NERC CIP / FERC Order 887 / DOE AI Strategy
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: energy
+regime: NERC-CIP/FERC-887/DOE-AI
+effective_date: "2025-07-01"
+jurisdiction: US-FERC/NERC
+
+meta:
+  title: "Energy AI Governance Policy — NERC CIP / FERC Order 887 Alignment"
+  description: >
+    Maps NERC Critical Infrastructure Protection (CIP) standards and FERC
+    Order 887 (Emergency Preparedness) to Doctrine v6 Λ-axes for AI systems
+    used in bulk electric system (BES) operations and grid management.
+  authority: "NERC CIP-002 through CIP-014; FERC Order No. 887 (Jan 2023); DOE AI Strategy (2024); 18 CFR § 40"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  bes_impact: HIGH
+
+regulatory_clauses:
+  - clause_id: NERC-CIP-007-6-R4
+    title: "System Security Management — Security Event Monitoring"
+    citation: "NERC CIP-007-6 R4; 18 CFR § 40.7"
+    full_ref: "NERC CIP-007-6 Requirement R4 — Security event monitoring for BES Cyber Systems"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI anomaly detection on OT/ICS networks must generate security event
+          receipts within 15 minutes of detection; Merkle DAG ensures log integrity.
+      - axis: Λ7
+        label: Auditability
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: NERC-CIP-005-7-R1
+    title: "Electronic Security Perimeter"
+    citation: "NERC CIP-005-7 R1; 18 CFR § 40.5"
+    full_ref: "NERC CIP-005-7 Requirement R1 — Identify and protect Electronic Security Perimeters"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.98
+        enforcement: mandatory
+        rationale: >
+          AI systems accessing BES Cyber Systems must authenticate via ESP
+          boundary with receipt-logged access events.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.85
+        enforcement: mandatory
+
+  - clause_id: NERC-CIP-013-2-R1
+    title: "Supply Chain Risk Management"
+    citation: "NERC CIP-013-2 R1; FERC Order 850"
+    full_ref: "NERC CIP-013-2 Requirement R1 — Supply chain risk management plan for industrial control systems"
+    lambda_axes:
+      - axis: Λ8
+        label: Robustness
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          AI model weights sourced from third parties must have SBOM receipts;
+          supply chain provenance verified before deployment to BES systems.
+      - axis: Λ2
+        label: Accountability
+        weight: 0.85
+        enforcement: mandatory
+
+  - clause_id: FERC-ORDER-887
+    title: "Emergency Preparedness — Extreme Cold Weather"
+    citation: "FERC Order No. 887 (Jan 6 2023); 18 CFR § 40.1"
+    full_ref: "FERC Order No. 887 — Reliability Standards for Transmission System Emergency Preparedness and Operations"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          AI load forecasting must account for extreme weather scenarios;
+          scenario coverage logged in receipt chain with meteorological data hash.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: NERC-CIP-010-4-R1
+    title: "Configuration Change Management"
+    citation: "NERC CIP-010-4 R1"
+    full_ref: "NERC CIP-010-4 Requirement R1 — Configuration change management and vulnerability assessments"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          AI model updates to BES operational systems require configuration
+          baseline comparison; diff receipts committed pre/post update.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.80
+        enforcement: mandatory
+
+  - clause_id: NERC-CIP-003-8-R2
+    title: "Security Management Controls — Transient Devices"
+    citation: "NERC CIP-003-8 R2; Attachment 1"
+    full_ref: "NERC CIP-003-8 Requirement R2 — Transient Cyber Assets and Removable Media"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.88
+        enforcement: mandatory
+      - axis: Λ3
+        label: Privacy
+        weight: 0.65
+        enforcement: recommended
+        rationale: >
+          AI edge inference devices must be sanitised before reuse; wipe
+          confirmation receipts logged in chain.
+
+  - clause_id: DOE-AI-STRATEGY-2024-GRID
+    title: "DOE AI Strategy — Grid Modernisation AI Applications"
+    citation: "DOE AI Strategy (2024) § 3.2; DOE FOA-2986"
+    full_ref: "U.S. DOE Artificial Intelligence Strategy (2024) § 3.2 — Grid modernisation and energy security applications"
+    lambda_axes:
+      - axis: Λ4
+        label: Fairness
+        weight: 0.70
+        enforcement: recommended
+        rationale: >
+          AI demand response systems must not disproportionately curtail service
+          to disadvantaged communities; equity receipts with census-tract metadata.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.78
+        enforcement: recommended
+
+  - clause_id: NERC-CIP-009-6-R1
+    title: "Recovery Plans for BES Cyber Systems"
+    citation: "NERC CIP-009-6 R1"
+    full_ref: "NERC CIP-009-6 Requirement R1 — Recovery plans for BES Cyber Systems: conditions, roles, responsibilities"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          AI-assisted grid restoration must have human override capability;
+          restoration decision receipts must include operator confirmation token.
+      - axis: Λ2
+        label: Accountability
+        weight: 0.88
+        enforcement: mandatory
+
+compliance_thresholds:
+  minimum_lambda_coverage: 7
+  mandatory_axes: [Λ5, Λ6, Λ7]
+  receipt_retention_days: 2190        # 6 years NERC CIP
+  max_anomaly_detection_latency_s: 900    # 15 min CIP-007-6
+  bes_impact_level: HIGH
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, air-gapped-ot, regulatory-archive]
+  air_gapped_backup: true
