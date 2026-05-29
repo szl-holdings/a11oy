@@ -14,10 +14,31 @@ pnpm payload:huggingface
 
 The command writes `dist/huggingface/a11oy/` with:
 
-- a Hugging Face dataset card (`README.md`);
+- a Hugging Face model card (`README.md`);
 - source README, roadmap, changelog, and repo map;
 - deployment payload metadata under `payloads/deploy/`;
 - `a11oy-metadata.json` with source commit and verification commands.
+
+
+## Operational bundle
+
+Run:
+
+```bash
+pnpm payload:bundle
+pnpm payload:bundle:verify
+```
+
+The bundle command is Python-native. It builds doctrine package outputs, refreshes
+`deploy/MANIFEST.json`, prepares the Hugging Face payload, and writes:
+
+- `dist/payload/a11oy-operational-payload.tar.gz`
+- `dist/payload/a11oy-operational-payload.tar.gz.sha256`
+
+The Doctrine Build workflow uploads those files as the
+`a11oy-operational-payload` GitHub Actions artifact on every matching PR or main
+push. Do not paste Hugging Face tokens into chat or commit them to the repo; use
+GitHub secret `HF_TOKEN` for live publishing.
 
 ## Publish from GitHub Actions
 

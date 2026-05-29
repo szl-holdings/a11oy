@@ -6,9 +6,11 @@
     "build:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-core build",
     "test:doctrine": "pnpm --dir web/packages/a11oy-core test:doctrine",
     "typecheck:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-connection typecheck && pnpm --dir web/packages/a11oy-core typecheck",
-    "payload:manifest": "node scripts/build-payload-manifest.mjs deploy --output deploy/MANIFEST.json",
-    "payload:verify": "node scripts/build-payload-manifest.mjs deploy --output deploy/MANIFEST.json --verify",
-    "payload:huggingface": "node scripts/prepare-huggingface-payload.mjs"
+    "payload:manifest": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json",
+    "payload:verify": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json --verify",
+    "payload:huggingface": "python3 scripts/prepare_huggingface_payload.py",
+    "payload:bundle": "pnpm build:doctrine && pnpm payload:manifest && pnpm payload:huggingface && python3 scripts/build_operational_payload.py",
+    "payload:bundle:verify": "python3 scripts/build_operational_payload.py --verify"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

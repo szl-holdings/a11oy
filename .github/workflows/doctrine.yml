@@ -11,7 +11,9 @@ on:
       - 'web/packages/a11oy-core/**'
       - 'web/packages/a11oy-connection/**'
       - 'deploy/**'
-      - 'scripts/build-payload-manifest.mjs'
+      - 'docs/huggingface.md'
+      - 'huggingface/**'
+      - 'scripts/*.py'
       - '.github/workflows/doctrine.yml'
   pull_request:
     branches: [main]
@@ -23,7 +25,9 @@ on:
       - 'web/packages/a11oy-core/**'
       - 'web/packages/a11oy-connection/**'
       - 'deploy/**'
-      - 'scripts/build-payload-manifest.mjs'
+      - 'docs/huggingface.md'
+      - 'huggingface/**'
+      - 'scripts/*.py'
       - '.github/workflows/doctrine.yml'
 
 permissions:
@@ -52,6 +56,11 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.13'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -66,3 +75,19 @@ jobs:
 
       - name: Verify deploy payload manifest
         run: pnpm payload:verify
+
+      - name: Build operational payload bundle
+        run: pnpm payload:bundle
+
+      - name: Verify operational payload bundle
+        run: pnpm payload:bundle:verify
+
+      - name: Upload operational payload bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: a11oy-operational-payload
+          path: |
+            dist/payload/a11oy-operational-payload.tar.gz
+            dist/payload/a11oy-operational-payload.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14

@@ -1,6 +1,7 @@
 {
   "manifestVersion": 1,
   "payloadRoot": "deploy",
+  "generator": "scripts/payload_manifest.py",
   "fileCount": 6,
   "aggregateSha256": "a50833998c465a6f976dce8121279edec9628d0b954cc16b71d0cbe93e8dc231",
   "files": [
