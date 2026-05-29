@@ -21,10 +21,14 @@ jobs:
         with:
           node-version: '20'
       - run: |
+          set -euo pipefail
           if [ -f "package.json" ]; then
-            npm ci --if-present 2>/dev/null || true
-            npx fast-check --version 2>/dev/null || npm install -D fast-check || true
-            npm run test:fuzz --if-present 2>/dev/null || echo "No fuzz tests found yet (Phase 2)"
+            npm ci
+            if npm pkg get scripts.test:fuzz | grep -qv null; then
+              npm run test:fuzz
+            else
+              echo "No fuzz tests configured yet (advisory workflow)"
+            fi
           else
-            echo "No fuzz tests found yet (Phase 2)"
+            echo "No package.json found"
           fi

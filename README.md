@@ -86,8 +86,9 @@ pnpm add @szl-holdings/a11oy-policy
 git clone https://github.com/szl-holdings/a11oy.git
 cd a11oy
 pnpm install
-pnpm run build
-pnpm run test
+pnpm build:doctrine
+pnpm test:doctrine
+npm run test:policy-gates
 ```
 
 ---

@@ -12,10 +12,10 @@ kind: UDSBundle
 metadata:
   name: a11oy
   description: |
-    A11oy — Brand Orchestration Layer. Single-package UDS bundle that
-    deploys the @a11oy/core + @a11oy/connection runtime under /opt/a11oy/
-    on the target node via Zarf.
-  version: 0.1.0
+    A11oy — governed execution fabric. Single-package UDS bundle that
+    stages @a11oy/core, @a11oy/connection, provenance sidecars, and the
+    v0.2 shared packages under /opt/a11oy/ on the target node via Zarf.
+  version: 0.2.0
   authors: A11oy / SZL Holdings
   url: https://github.com/szl-holdings/a11oy
   architecture: multi
@@ -23,7 +23,7 @@ metadata:
 packages:
   - name: a11oy-uds
     path: ../../dist/a11oy-uds  # relative to artifacts/a11oy-uds/uds-bundle.yaml
-    ref: 0.1.0
+    ref: 0.2.0
 ```
 
 The `path:` form points at a locally-built Zarf tarball; once the package
@@ -33,7 +33,7 @@ publishes to OCI it can be switched to:
 packages:
   - name: a11oy-uds
     repository: ghcr.io/szl-holdings/a11oy-uds
-    ref: 0.1.0
+    ref: 0.2.0
 ```
 
 both forms are valid UDS-CLI syntax (uds-cli v0.27+).
@@ -48,14 +48,14 @@ cd artifacts/a11oy-uds
 uds create . --confirm
 ```
 
-This produces `uds-bundle-a11oy-<arch>-0.1.0.tar.zst` next to the
+This produces `uds-bundle-a11oy-<arch>-0.2.0.tar.zst` next to the
 `uds-bundle.yaml`. The bundle tarball is self-contained — it embeds the
 referenced Zarf package(s) and can be moved across an air-gap.
 
 ## Inspect the bundle
 
 ```bash
-uds inspect uds-bundle-a11oy-<arch>-0.1.0.tar.zst
+uds inspect uds-bundle-a11oy-<arch>-0.2.0.tar.zst
 ```
 
 Expected output (abbreviated):
@@ -64,22 +64,22 @@ Expected output (abbreviated):
 kind: UDSBundle
 metadata:
   name: a11oy
-  version: 0.1.0
+  version: 0.2.0
 packages:
   - name: a11oy-uds
-    ref: 0.1.0
-    description: A11oy — Brand Orchestration Layer ...
+    ref: 0.2.0
+    description: A11oy — governed execution fabric ...
 ```
 
 ## Deploy the bundle
 
 ```bash
-uds deploy uds-bundle-a11oy-<arch>-0.1.0.tar.zst --confirm
+uds deploy uds-bundle-a11oy-<arch>-0.2.0.tar.zst --confirm
 ```
 
 UDS-CLI delegates each `packages[*]` entry to `zarf package deploy` under
 the hood — the on-node effect is identical to running `zarf package deploy
-a11oy-uds-0.1.0.tar.zst --confirm` directly.
+a11oy-uds-0.2.0.tar.zst --confirm` directly.
 
 ## Remove the bundle
 
@@ -103,7 +103,7 @@ metadata:
 packages:
   - name: a11oy-uds
     repository: ghcr.io/szl-holdings/a11oy-uds
-    ref: 0.1.0
+    ref: 0.2.0
   - name: sentra
     repository: ghcr.io/szl-holdings/sentra
     ref: <pinned>
@@ -122,8 +122,9 @@ the `a11oy-uds` package is one of the three legs it composes.
 | Zarf CLI            | v0.49.0                | `zarf package create` + `zarf package deploy`      |
 | UDS CLI             | v0.27.0                | `uds create`, `uds inspect`, `uds deploy`, `uds remove` |
 | cosign              | v2.4.1                 | blob signing + keyless OIDC verify                 |
-| Kubernetes (target) | n/a for v0.1.0         | runtime is a pure-functional library; no K8s objects deployed in v0.1 |
+| Kubernetes (target) | package-dependent      | v0.2 stages runtime, provenance, attestations, and shared package artifacts under `/opt/a11oy/` |
 
-v0.1.0 is library-only — no `Chart`, no `manifests:` block, no in-cluster
-objects. A future version will add an optional sidecar `Chart` component
-under a separate `a11oy-runtime-sidecar` component name.
+v0.2.0 is an operator proof-point package: it stages the A11oy runtime,
+provenance sidecars, optional attestations, and shared package artifacts. It is
+not a Defense Unicorns endorsement or UDS catalog acceptance claim; use
+`zarf package inspect` and the manifest/attestation verifiers before deploy.

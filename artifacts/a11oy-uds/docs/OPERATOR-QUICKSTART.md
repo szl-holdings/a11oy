@@ -1,8 +1,9 @@
 # A11oy.UDS — Operator Quickstart
 
-A11oy ships as a signed Zarf payload deployable in any Defense-Unicorns
-cluster. This quickstart walks an operator from "download tarball" to
-"verdicts on the wire" in under five minutes.
+A11oy ships as a signed Zarf payload for UDS/Zarf-compatible operator
+workflows. This quickstart walks an operator from "download tarball" to
+package verification. Do not present fallback tarballs as deployable Zarf
+packages.
 
 ## 1. Pull + verify
 
@@ -25,10 +26,14 @@ Both checks must print `OK` / `Verified OK` before deploying.
 ## 2. Inspect
 
 ```bash
-zstd -d a11oy-uds-0.2.0.tar.zst -o pkg.tar
-mkdir staged && tar -xf pkg.tar -C staged
-cat staged/MANIFEST.json | jq '{count: (.files|length), first: .files[0]}'
-cat staged/attestations.json | jq '.subjects'
+zarf package inspect a11oy-uds-0.2.0.tar.zst
+```
+
+For an unpacked or deployed package, verify the payload sidecars directly:
+
+```bash
+node artifacts/a11oy-uds/scripts/verify-manifest.mjs /opt/a11oy
+node artifacts/a11oy-uds/scripts/verify-attestations.mjs /opt/a11oy /opt/a11oy
 ```
 
 The attestation chain binds five subjects: `a11oy-core`,
@@ -49,7 +54,7 @@ The bundle lands under `/opt/a11oy/`:
 ├── a11oy-core/                # KS-18 contextuality witness, Fisher manifold, POVM verdicts
 ├── a11oy-connection/          # tetrad-field gauge connection
 ├── MANIFEST.json
-├── attestations.json
+├── ATTESTATIONS.json
 └── shared/                    # v0.2 cross-cutting packages
     ├── perception-loop/
     ├── sequence-pipeline/
