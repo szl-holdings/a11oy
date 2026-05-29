@@ -5,7 +5,10 @@
   "scripts": {
     "build:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-core build",
     "test:doctrine": "pnpm --dir web/packages/a11oy-core test:doctrine",
-    "typecheck:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-connection typecheck && pnpm --dir web/packages/a11oy-core typecheck"
+    "typecheck:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-connection typecheck && pnpm --dir web/packages/a11oy-core typecheck",
+    "payload:manifest": "node scripts/build-payload-manifest.mjs deploy --output deploy/MANIFEST.json",
+    "payload:verify": "node scripts/build-payload-manifest.mjs deploy --output deploy/MANIFEST.json --verify",
+    "payload:huggingface": "node scripts/prepare-huggingface-payload.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

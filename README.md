@@ -158,7 +158,6 @@ use `bash scripts/clone-org-repos.sh` to clone sibling checkouts under ignored
 
 Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · 11 axioms · 30 GREEN modules · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
 
-
 ---
 
 ## On Hugging Face
@@ -167,3 +166,6 @@ This repository is mirrored and published on the [SZLHOLDINGS](https://huggingfa
 
 - [huggingface.co/SZLHOLDINGS/a11oy-v19-substrate](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) — a11oy-v19-substrate (model card with 248 tests, DOI 10.5281/zenodo.20434308)
 
+The operational Hugging Face payload can be generated with `pnpm payload:huggingface`
+and published through the manual `Publish Hugging Face Payload` workflow once
+`HF_TOKEN` is configured; see [`docs/huggingface.md`](docs/huggingface.md).

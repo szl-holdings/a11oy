@@ -1,0 +1,80 @@
+name: Publish Hugging Face Payload
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_id:
+        description: Hugging Face repository id
+        required: true
+        default: SZLHOLDINGS/a11oy-v19-substrate
+      repo_type:
+        description: Hugging Face repository type
+        required: true
+        default: model
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build and upload payload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.33.3
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate doctrine and payload
+        run: |
+          pnpm test:doctrine
+          pnpm typecheck:doctrine
+          pnpm build:doctrine
+          pnpm payload:verify
+
+      - name: Prepare Hugging Face payload
+        run: pnpm payload:huggingface
+
+      - name: Install Hugging Face client
+        run: python -m pip install --upgrade huggingface_hub
+
+      - name: Upload payload
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO_ID: ${{ inputs.repo_id }}
+          HF_REPO_TYPE: ${{ inputs.repo_type }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          token = os.environ["HF_TOKEN"]
+          repo_id = os.environ["HF_REPO_ID"]
+          repo_type = os.environ["HF_REPO_TYPE"]
+
+          api = HfApi(token=token)
+          api.create_repo(repo_id=repo_id, repo_type=repo_type, exist_ok=True)
+          api.upload_folder(
+              repo_id=repo_id,
+              repo_type=repo_type,
+              folder_path="dist/huggingface/a11oy",
+              commit_message="publish a11oy operational payload",
+          )
+          PY

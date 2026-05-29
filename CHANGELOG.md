@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - Standalone doctrine workspace wiring with root `test:doctrine`, `typecheck:doctrine`, and `build:doctrine` scripts for the `@a11oy/core` / `@a11oy/connection` packages.
+- Doctrine Build GitHub Action for package tests, typechecks, builds, and payload manifest verification.
+- Deterministic deploy payload manifest tooling plus `deploy/MANIFEST.json`.
+- Hugging Face payload preparation and manual publish workflow using `HF_TOKEN`.
 - Series-A presentation pass: SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CODEOWNERS
 - Apache-2.0 LICENSE
 - CITATION.cff for independent citation
