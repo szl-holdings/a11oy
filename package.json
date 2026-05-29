@@ -11,7 +11,17 @@
     "test:knowledge": "cd packages/a11oy-knowledge && npm test",
     "test:qec": "tsx packages/qec-integrity/src/qec_lineage.test.ts",
     "test:core": "cd web/packages/a11oy-core && npx vitest run",
-    "test:all": "npm test && npm run test:knowledge && npm run test:qec && npm run test:core"
+    "test:all": "npm test && npm run test:knowledge && npm run test:qec && npm run test:core",
+    "build:doctrine": "pnpm --dir web/packages/a11oy-connection run build && pnpm --dir web/packages/a11oy-core run build",
+    "test:doctrine": "pnpm --dir web/packages/a11oy-core run test:doctrine",
+    "typecheck:doctrine": "pnpm --dir web/packages/a11oy-connection run build && pnpm --dir web/packages/a11oy-connection run typecheck && pnpm --dir web/packages/a11oy-core run typecheck",
+    "payload:manifest": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json",
+    "payload:verify": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json --verify",
+    "payload:huggingface": "python3 scripts/prepare_huggingface_payload.py",
+    "payload:bundle": "pnpm build:doctrine && pnpm payload:manifest && pnpm payload:huggingface && python3 scripts/build_operational_payload.py",
+    "payload:bundle:verify": "python3 scripts/build_operational_payload.py --verify",
+    "ecosystem:audit": "python3 scripts/ecosystem_audit.py",
+    "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py"
   },
   "repository": {
     "type": "git",

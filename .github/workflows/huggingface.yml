@@ -58,23 +58,7 @@ jobs:
       - name: Upload payload
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_REPO_ID: ${{ inputs.repo_id }}
-          HF_REPO_TYPE: ${{ inputs.repo_type }}
-        run: |
-          python - <<'PY'
-          import os
-          from huggingface_hub import HfApi
-
-          token = os.environ["HF_TOKEN"]
-          repo_id = os.environ["HF_REPO_ID"]
-          repo_type = os.environ["HF_REPO_TYPE"]
-
-          api = HfApi(token=token)
-          api.create_repo(repo_id=repo_id, repo_type=repo_type, exist_ok=True)
-          api.upload_folder(
-              repo_id=repo_id,
-              repo_type=repo_type,
-              folder_path="dist/huggingface/a11oy",
-              commit_message="publish a11oy operational payload",
-          )
-          PY
+        run: >-
+          python3 scripts/publish_huggingface_payload.py
+          --repo-id "${{ inputs.repo_id }}"
+          --repo-type "${{ inputs.repo_type }}"
