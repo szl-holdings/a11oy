@@ -75,12 +75,13 @@ assert.equal(witness.shor_repetition_count, 9);
 assert.equal(witness.payload_byte, witness.shor_majority_payload);
 assert.equal(witness.css_consistent, true);
 
-const tmp = path.join(os.tmpdir(), `a11oy-receipt-substrate-${process.pid}.jsonl`);
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "a11oy-receipt-substrate-"));
+const tmp = path.join(tmpDir, "receipts.jsonl");
 try {
   fs.writeFileSync(tmp, `${JSON.stringify(genesis)}\n${JSON.stringify(chain[1])}\n`, "utf8");
   assert.equal(readReceiptJsonl(tmp).length, 2);
 } finally {
-  fs.rmSync(tmp, { force: true });
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 }
 
 console.log("[receipt-substrate] OK 9 tests");
