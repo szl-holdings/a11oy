@@ -58,6 +58,14 @@ const DEFAULT_TOL  = 1e-8;
 
 function _falsePosition(x1: number, y1: number, x2: number, y2: number, T: number):
   { xStar: number; residual: number } {
+  for (const [name, value] of Object.entries({ x1, y1, x2, y2, T })) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`FalsePositionGate: ${name} must be finite; got ${value}`);
+    }
+  }
+  if (Math.abs(x2 - x1) < Number.EPSILON * Math.max(Math.abs(x1), Math.abs(x2), 1)) {
+    throw new Error("FalsePositionGate: degenerate samples (x₁ = x₂)");
+  }
   const dy = y2 - y1;
   if (Math.abs(dy) < Number.EPSILON * Math.max(Math.abs(y1), Math.abs(y2), 1)) {
     throw new Error("FalsePositionGate: degenerate samples (y₁ = y₂)");
