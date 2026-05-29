@@ -63,7 +63,7 @@ This document traces which open-source projects and publications influenced A11o
 ## Frontier Safety & Governance
 
 ### NIST AI Risk Management Framework (AI RMF)
-- **Link**: https://www.nist.gov/system/files/documents/2023/01/26/AI%20RMF%20Playbook%20DRAFT.pdf
+- **Link**: https://airc.nist.gov/docs/AI_RMF_Playbook.pdf
 - **Idea borrowed**: GOVERN → MAP → MEASURE → MANAGE lifecycle with organizational accountability for AI risk.
 - **Our implementation**: A11oy's four governance primitives (Constitution, Approval Queue, Proof Ledger, Model Router) directly mirror the RMF quadrant. The Constitution is the GOVERN layer; the Proof Ledger is the MEASURE layer.
 
