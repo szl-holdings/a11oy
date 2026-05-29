@@ -1,5 +1,7 @@
 .repos/
 node_modules/
 dist/
+__pycache__/
+*.pyc
 artifacts/a11oy-uds/build/
 artifacts/a11oy-uds/build-attestations/

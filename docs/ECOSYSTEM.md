@@ -8,10 +8,13 @@ receipt infrastructure lives across `ouroboros`, `rosie`, `amaru`, `sentra`,
 governance charters.
 
 The machine-readable registry is [`ecosystem-registry.json`](ecosystem-registry.json).
-Validate it with:
+The investor-demo readiness report is
+[`ecosystem-readiness-report.json`](ecosystem-readiness-report.json). Validate
+both with:
 
 ```bash
 pnpm ecosystem:audit
+pnpm ecosystem:readiness
 ```
 
 If sibling repos are cloned under `.repos/szl-holdings/`, the audit also reports
@@ -46,8 +49,8 @@ pnpm ecosystem:audit -- --require-local
 | `a11oy` | hub | operationalizing | Doctrine CI, Python payload bundle, deploy manifest, and Hugging Face publish path now live on this branch. |
 | `platform` | runtime-composition | production-monorepo | Canonical deployed product monorepo; A11oy hub should publish contracts, not duplicate the platform runtime. |
 | `ouroboros` | runtime-substrate | production-substrate | Runtime spine for governed loops and receipts. |
-| `lutar-lean` | formal-proof | formal-substrate | Proof source of record; public claims should map to files here before marketing/docs repeat them. |
-| `ouroboros-thesis` | formal-thesis | canonical-thesis | v18 DOI is the current citation anchor for Series-A materials. |
+| `lutar-lean` | formal-proof | formal-substrate | Proof source of record; public claims should map to exact files and current proof status before marketing/docs repeat all-green language. |
+| `ouroboros-thesis` | formal-thesis | canonical-thesis | v18 DOI is the current citation anchor for Series-A materials; GitHub release reconciliation remains an upstream action. |
 | `rosie` | receipt-substrate | uds-component | CSS ingress receipt orchestration. |
 | `amaru` | receipt-substrate | uds-component | Receipt minting / Cardano anchor layer. |
 | `sentra` | receipt-substrate | uds-component | Drift and remediation layer. |
@@ -62,6 +65,13 @@ pnpm ecosystem:audit -- --require-local
 | `szl-trust` | trust | artifact-ledger | Real run artifacts; public portal/replay automation remain next operational layer. |
 | `szl-brand` | brand | production-assets | Canonical anatomy, mockups, previews, and visual doctrine. |
 | `.github` | org-governance | production-workflows | Reusable workflow and template source of truth. |
+
+## Active-demo naming policy
+
+The active showcase centers the real GitHub repositories and does not use the
+retired/stale product-name framing `KORA`, `LUMINA`, `PARAGON`, or active
+`Lyte` copy. `counsel`, `terra`, and `carlota-jo` remain visible for
+transparency but are excluded from active-demo claims until funded.
 
 ## Operational order before Hugging Face push
 
