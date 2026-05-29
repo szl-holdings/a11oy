@@ -2,6 +2,7 @@
 [![License](https://img.shields.io/badge/License-Proprietary-0B1F3A.svg?style=flat-square)](./LICENSE)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
 [![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml)
+[![Tests](https://github.com/szl-holdings/a11oy/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml)
 [![SBOM](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml)
 [![SLSA 3](https://github.com/szl-holdings/a11oy/actions/workflows/slsa.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/slsa.yml)
@@ -183,7 +184,9 @@ Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine
 
 This repository is mirrored and published on the [SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS) Hugging Face organization:
 
-- [huggingface.co/SZLHOLDINGS/a11oy-v19-substrate](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) — a11oy-v19-substrate (model card with 248 tests, DOI 10.5281/zenodo.20434308)
+- [huggingface.co/SZLHOLDINGS/a11oy-v19-substrate](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) — a11oy-v19-substrate (DOI 10.5281/zenodo.20434308)
+
+> **Test count (honest breakdown):** 24 real test files in this repo (jest `__tests__/` + vitest `web/packages/a11oy-core/` + QEC + knowledge packages). The "248" figure cited on the HF model card referred to combined doctrine + unit tests across the full payload; the grep-able count from this repo alone is **24 test files** (run: `find . -path ./node_modules -prune -o -name "*.test.ts" -print | wc -l`). Updated CI via `tests.yml` now runs and surface all of them.
 
 The operational Hugging Face payload can be generated with `pnpm payload:huggingface`
 and published through the manual `Publish Hugging Face Payload` workflow once
