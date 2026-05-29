@@ -1,3 +1,8 @@
+node_modules/
+dist/
+.turbo/
+.vite/
+coverage/
 .repos/
 dist/
 artifacts/a11oy-uds/build/

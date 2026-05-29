@@ -12,12 +12,14 @@
 > Vertical alignment substrate — policy, measurement, knowledge, and QEC-integrity packages for governed AI execution
 
 
-> **Frontier Capability:** First agent execution fabric with a Lean-verified termination + Λ-monotonicity proof — `Lutar.AgentLoop.terminates` + `Lutar.AgentLoop.preserves_lambda` (v18.0 Frontier 5 · [Ouroboros Thesis DOI 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)).
+> **Frontier Capability:** Governed execution fabric aligned to the Ouroboros Thesis v18.0 DOI and Lean proof substrate. Runtime claims are tracked through the A11oy Doctrine Build, deploy payload manifests, and the public-claim contract in [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 
 `a11oy` (Alloy) is the governed agentic execution fabric of SZL Holdings — the seven-layer substrate that connects live enterprise signals to human-confirmed decisions with cryptographic proof at every transition. It provides TypeScript packages for policy enforcement, signal measurement, knowledge-graph traversal, and QEC-integrity verification across all SZL domain verticals.
 
 > [!NOTE]
 > This repository ships the core fabric packages consumed by [`szl-holdings/platform`](https://github.com/szl-holdings/platform). The deployment surface for Alloy is the platform monorepo; this repo contains the standalone alignment substrate packages.
+
+Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md)
 
 ---
 
@@ -175,7 +177,6 @@ ignored `.repos/szl-holdings/`.
 
 Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · 11 axioms · 30 GREEN modules · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
 
-
 ---
 
 ## On Hugging Face
@@ -184,3 +185,6 @@ This repository is mirrored and published on the [SZLHOLDINGS](https://huggingfa
 
 - [huggingface.co/SZLHOLDINGS/a11oy-v19-substrate](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) — a11oy-v19-substrate (model card with 248 tests, DOI 10.5281/zenodo.20434308)
 
+The operational Hugging Face payload can be generated with `pnpm payload:huggingface`
+and published through the manual `Publish Hugging Face Payload` workflow once
+`HF_TOKEN` is configured; see [`docs/huggingface.md`](docs/huggingface.md).

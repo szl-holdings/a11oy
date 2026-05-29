@@ -1,5 +1,5 @@
 {
-  "extends": "../../../../tsconfig.base.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
@@ -10,9 +10,16 @@
     "verbatimModuleSyntax": false,
     "baseUrl": ".",
     "paths": {
-      "@a11oy/connection": ["../a11oy-connection/dist/index.d.ts"]
+      "@a11oy/connection": [
+        "../a11oy-connection/dist/index.d.ts"
+      ]
     }
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/pesher_renderer.ts"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/pesher_renderer.ts",
+    "src/**/__tests__/**/*.ts"
+  ]
 }

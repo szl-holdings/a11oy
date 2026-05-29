@@ -1,0 +1,5 @@
+packages:
+  - "packages/a11oy-knowledge"
+  - "packages/qec-integrity"
+  - "web/packages/a11oy-core"
+  - "web/packages/a11oy-connection"

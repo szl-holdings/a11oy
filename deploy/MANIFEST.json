@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "payloadRoot": "deploy",
+  "generator": "scripts/payload_manifest.py",
+  "fileCount": 6,
+  "aggregateSha256": "a50833998c465a6f976dce8121279edec9628d0b954cc16b71d0cbe93e8dc231",
+  "files": [
+    {
+      "path": "attestations.jsonl",
+      "size": 232,
+      "sha256": "88f3acf147de2d1da2c47d90d2c6abdaee9ea727863339966f0176afbbbd0dca"
+    },
+    {
+      "path": "manifests/a11oy-deployment.yaml",
+      "size": 1591,
+      "sha256": "416afae523214cdbaa16191bfab36163e6bc1ef51d7b1c167a26613a9a08d4a1"
+    },
+    {
+      "path": "manifests/a11oy-namespace.yaml",
+      "size": 133,
+      "sha256": "641f72c4d7d72ecafc1674816c4a4e8a7445c6d7b4d9b8a4c7e6296417fa91e0"
+    },
+    {
+      "path": "manifests/a11oy-service.yaml",
+      "size": 310,
+      "sha256": "a99b1877a51195720a8f249bccd59b836d4f85461b6418428115b4beb6a41a47"
+    },
+    {
+      "path": "manifests/proof-ledger-pvc.yaml",
+      "size": 270,
+      "sha256": "3804fdcf3a0b6ea767c3aaf3a373f8d82976d1824c9249b27cd515c91d567244"
+    },
+    {
+      "path": "zarf.yaml",
+      "size": 1950,
+      "sha256": "3803d3821c2766523ec28c672d0c73265a58264daa2f51a57f96931c02ce4445"
+    }
+  ]
+}
