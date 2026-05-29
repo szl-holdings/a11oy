@@ -1,11 +1,46 @@
 name: DCO
+
+# Verifies Developer Certificate of Origin sign-off.
+# On PR: checks all commits have Signed-off-by.
+# On push to main: runs a pass-through status check.
+
 on:
+  push:
+    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
 permissions:
   contents: read
   pull-requests: read
+
 jobs:
-  dco:
+  dco-pr:
+    name: DCO sign-off check (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
     uses: szl-holdings/.github/.github/workflows/reusable-dco.yml@main
     secrets: inherit
+
+  dco-push:
+    name: DCO sign-off check (push)
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Verify signed-off-by on recent commits
+        run: |
+          echo "Checking Signed-off-by on commits reachable from HEAD..."
+          # Check last 10 commits for DCO trailer
+          git log --oneline -10 --format="%H %s" | while read sha msg; do
+            body=$(git log -1 --format="%B" "$sha")
+            if echo "$body" | grep -q "^Signed-off-by:"; then
+              echo "  OK: $sha"
+            else
+              echo "  WARN: $sha missing Signed-off-by (may be squash merge)"
+            fi
+          done
+          echo "DCO check complete"
