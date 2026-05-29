@@ -197,7 +197,9 @@ Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine
 
 **[a11oy-deep-dive](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-deep-dive)** — Governed execution fabric deep-dive — DSSE receipts, 9 packages
 
-The Hugging Face Space above is an investor-grade static deep-dive with:
+> Status (2026-05-29): **STAGED, private**. Content + design-system upgrade are complete in `/szl/a11oy-deep-dive-staging/`. Public Space creation is gated on the HF rate-limit reset (~2026-05-30 14:58 UTC). This link will return HTTP 200 once the Space is created.
+
+The Hugging Face Space (once public) is an investor-grade static deep-dive with:
 - Architecture diagrams and source-referenced implementation details
 - Live demo iframe embed from the companion interactive Space
 - Honest comparison table (Y/N, no marketing superlatives)
