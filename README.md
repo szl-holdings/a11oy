@@ -131,7 +131,10 @@ BSL-1.1 — See [LICENSE](./LICENSE) for terms. Copyright (c) 2024-2026 SZL Hold
 
 ## Related repositories in the SZL substrate
 
-The 13 substrate repos cross-link reciprocally. This footer is maintained by GH Admin #1 (org-wide).
+The SZL Holdings org currently exposes 19 public repos. See
+[`docs/org-repo-map.md`](docs/org-repo-map.md) for the organized build map and
+use `bash scripts/clone-org-repos.sh` to clone sibling checkouts under ignored
+`.repos/szl-holdings/`.
 
 - [`a11oy`](https://github.com/szl-holdings/a11oy) — vertical alignment substrate (policy · measurement · knowledge · QEC-integrity)
 - [`amaru`](https://github.com/szl-holdings/amaru) — Shor-encoded receipt minting (Cardano-anchored)
@@ -146,5 +149,11 @@ The 13 substrate repos cross-link reciprocally. This footer is maintained by GH 
 - [`szl-cookbook`](https://github.com/szl-holdings/szl-cookbook) — governed-AI recipes
 - [`agi-forecast`](https://github.com/szl-holdings/agi-forecast) — PAC-Bayes + Bekenstein governance-trajectory forecasts
 - [`vsp-otel`](https://github.com/szl-holdings/vsp-otel) — OpenTelemetry exporter for Λ-axis spans
+- [`vessels`](https://github.com/szl-holdings/vessels) — maritime fleet intelligence
+- [`counsel`](https://github.com/szl-holdings/counsel) — legal matter command scaffold
+- [`terra`](https://github.com/szl-holdings/terra) — real estate intelligence scaffold
+- [`carlota-jo`](https://github.com/szl-holdings/carlota-jo) — private advisory operations scaffold
+- [`szl-trust`](https://github.com/szl-holdings/szl-trust) — Public Trust Portal artifacts
+- [`.github`](https://github.com/szl-holdings/.github) — organization profile and community files
 
 Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · 11 axioms · 30 GREEN modules · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
