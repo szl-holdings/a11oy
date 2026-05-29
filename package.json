@@ -1,20 +1,38 @@
 {
-  "name": "@szl-holdings/a11oy-workspace",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "build:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-core build",
-    "test:doctrine": "pnpm --dir web/packages/a11oy-core test:doctrine",
-    "typecheck:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-connection typecheck && pnpm --dir web/packages/a11oy-core typecheck",
-    "payload:manifest": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json",
-    "payload:verify": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json --verify",
-    "payload:huggingface": "python3 scripts/prepare_huggingface_payload.py",
-    "payload:bundle": "pnpm build:doctrine && pnpm payload:manifest && pnpm payload:huggingface && python3 scripts/build_operational_payload.py",
-    "payload:bundle:verify": "python3 scripts/build_operational_payload.py --verify",
-    "ecosystem:audit": "python3 scripts/ecosystem_audit.py"
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "[![License](https://img.shields.io/badge/License-Proprietary-0B1F3A.svg?style=flat-square)](./LICENSE) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276) [![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml) [![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml) [![SBOM](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml) [![SLSA 3](https://github.com/szl-holdings/a11oy/actions/workflows/slsa.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/slsa.yml) [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-0B1F3A.svg?style=flat-square&logoColor=00D4FF)](https://modelcontextprotocol.io) [![DCO](https://github.com/szl-holdings/a11oy/actions/workflows/dco.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/dco.yml) [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--0110--4173-A6CE39.svg?style=flat-square&logo=orcid&logoColor=white)](https://orcid.org/0009-0001-0110-4173)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
   },
+  "scripts": {
+    "test": "jest __tests__/",
+    "test:knowledge": "cd packages/a11oy-knowledge && npm test",
+    "test:qec": "tsx packages/qec-integrity/src/qec_lineage.test.ts",
+    "test:core": "cd web/packages/a11oy-core && npx vitest run",
+    "test:all": "npm test && npm run test:knowledge && npm run test:qec && npm run test:core"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/szl-holdings/a11oy.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/szl-holdings/a11oy/issues"
+  },
+  "homepage": "https://github.com/szl-holdings/a11oy#readme",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "jest": "^30.4.2",
+    "js-yaml": "^4.1.1",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   }

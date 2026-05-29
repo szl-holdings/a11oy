@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2022"],
     "resolveJsonModule": true,
-    "declarationMap": true,
-    "ignoreDeprecations": "6.0"
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true
   }
 }
