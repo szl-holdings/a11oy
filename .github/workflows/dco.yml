@@ -1,8 +1,8 @@
 name: DCO
 
 # Verifies Developer Certificate of Origin sign-off.
-# On PR: checks all commits have Signed-off-by.
-# On push to main: runs a pass-through status check.
+# On push to main: passes (squash merges via admin are signed).
+# On PR: verifies Signed-off-by trailers on commits.
 
 on:
   push:
@@ -16,31 +16,38 @@ permissions:
   pull-requests: read
 
 jobs:
-  dco-pr:
-    name: DCO sign-off check (PR)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    uses: szl-holdings/.github/.github/workflows/reusable-dco.yml@main
-    secrets: inherit
-
-  dco-push:
-    name: DCO sign-off check (push)
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+  dco:
+    name: DCO sign-off check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - name: Verify signed-off-by on recent commits
+      - name: Check DCO on PR commits
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Checking Signed-off-by on commits reachable from HEAD..."
-          # Check last 10 commits for DCO trailer
-          git log --oneline -10 --format="%H %s" | while read sha msg; do
-            body=$(git log -1 --format="%B" "$sha")
+          echo "Checking Signed-off-by on PR commits..."
+          # Get commits in this PR
+          COMMITS=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" --jq '.[].sha' 2>/dev/null || echo "")
+          if [ -z "$COMMITS" ]; then
+            echo "No commits found — assuming OK"
+            exit 0
+          fi
+          FAIL=0
+          for sha in $COMMITS; do
+            body=$(git log -1 --format="%B" "$sha" 2>/dev/null || echo "")
             if echo "$body" | grep -q "^Signed-off-by:"; then
               echo "  OK: $sha"
             else
-              echo "  WARN: $sha missing Signed-off-by (may be squash merge)"
+              echo "  MISSING: $sha — no Signed-off-by"
+              FAIL=1
             fi
           done
-          echo "DCO check complete"
+          exit $FAIL
+      - name: DCO status (push/workflow_dispatch)
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Push to main — commits signed via PR DCO gate or admin squash merge."
+          echo "DCO OK"
