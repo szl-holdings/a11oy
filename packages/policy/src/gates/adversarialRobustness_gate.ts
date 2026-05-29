@@ -58,7 +58,14 @@ const DEFAULT_EPS   = 1.0;
 // ── Inline formula ────────────────────────────────────────────────────────────
 // Lean: robustness_preserved_by_composition:
 //   IsRobust mX mY f δ ε₁ → IsRobust mY mZ g ε₁ ε₂ → IsRobust mX mZ (f∘g) δ ε₂
-
+//
+// Note (PhD audit 2026-05-29): the Lean theorem is stated for abstract metric
+// spaces and does not require Lipschitz structure. This gate computes the
+// Lipschitz special case: if S₁ has Lipschitz constant L₁, then ε₁ = L₁·δ; if
+// S₂ has Lipschitz constant L₂, then ε₂ = L₂·ε₁ = L₁·L₂·δ. Consumers that need
+// non-Lipschitz robustness certificates should instantiate the Lean theorem
+// directly with their metric model rather than treating this numeric gate as
+// the full theorem.
 function _composedEpsilon(l1: number, l2: number, delta: number): { epsilon2: number; composedLipschitz: number } {
   return { epsilon2: l1 * l2 * delta, composedLipschitz: l1 * l2 };
 }
