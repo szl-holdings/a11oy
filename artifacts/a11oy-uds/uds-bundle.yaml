@@ -1,0 +1,24 @@
+kind: UDSBundle
+metadata:
+  name: a11oy
+  description: |
+    A11oy — Brand Orchestration Layer. Single-package UDS bundle that
+    deploys the @a11oy/core + @a11oy/connection runtime (Fisher manifold,
+    Bohr complementarity engine, Kochen-Specker 18-vector witness, POVM
+    verdict semantics, tetrad-field gauge connection) under /opt/a11oy/
+    on the target node via Zarf.
+  version: 0.2.0
+  authors: A11oy / SZL Holdings
+  url: https://github.com/szl-holdings/a11oy
+  architecture: multi
+
+packages:
+  # Path is relative to this uds-bundle.yaml. Build output lands at the
+  # repo-root `dist/a11oy-uds/` (see artifacts/a11oy-uds/scripts/build.sh),
+  # which is two directories up from artifacts/a11oy-uds/uds-bundle.yaml.
+  # When deploying from a release-bundle download (where the .tar.zst sits
+  # next to this file), copy or symlink the tarball into ./dist/a11oy-uds/
+  # first, or override with `--set` at `uds create` time.
+  - name: a11oy-uds
+    path: ../../dist/a11oy-uds
+    ref: 0.2.0

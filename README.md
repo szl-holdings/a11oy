@@ -51,6 +51,7 @@ flowchart TD
 | `packages/measurement` | Signal scoring, PRISM correlation, baseline drift detection | `SignalScore`, `PRISMFrame`, `DriftReport` |
 | `packages/knowledge` | Knowledge-graph traversal and domain ontology queries | `KnowledgeGraph`, `OntologyQuery`, `DomainNode` |
 | `packages/qec-integrity` | Quantum-error-correction lineage verification (CSS-QEC backed by `lutar-lean`) | `QECLineage`, `IntegrityProof`, `CSSVector` |
+| `packages/receipt-substrate` | Operational MCP-style tool-envelope receipts with hash-chain verification and JSONL append flow | `ToolEnvelope`, `OperationalReceipt`, `verifyChain` |
 
 ---
 
@@ -74,6 +75,21 @@ pnpm run test
 
 ---
 
+## Operational artifacts
+
+| Artifact | Purpose | Validation |
+|----------|---------|------------|
+| `packages/receipt-substrate` | MCP/Cursor/Claude-style operational receipts and JSONL chain verification | `npm test --prefix packages/receipt-substrate` |
+| `artifacts/a11oy-uds` | UDS/Zarf payload tree with manifest and attestation generation | `A11OY_UDS_ALLOW_SOURCE_FALLBACK=1 bash artifacts/a11oy-uds/scripts/build.sh` |
+
+The UDS build preserves release-grade behavior when `tsc`, `zarf`, `zstd`, and
+`cosign` are installed. In minimal cloud environments, explicit source fallback
+emits a non-Zarf deterministic tar plus manifest and attestation checks so the
+operator flow remains testable without pretending to produce a deployable Zarf
+package.
+
+---
+
 ## How It Works
 
 Every action in the SZL platform must pass through the policy engine before execution:
@@ -83,7 +99,8 @@ Every action in the SZL platform must pass through the policy engine before exec
 3. **Policy evaluation** — `policy` checks the action against Covenant Policy rules
 4. **Approval gate** — if policy requires human approval, `policy` creates an `ApprovalGate`
 5. **Execution unlock** — only after gate resolution does the action proceed
-6. **QEC verification** — `qec-integrity` verifies proof-chain cryptographic lineage
+6. **Operational receipts** — `receipt-substrate` emits and verifies tool-call receipts for MCP/Cursor/Claude-style operations
+7. **QEC verification** — `qec-integrity` verifies proof-chain cryptographic lineage
 
 The Λ-invariant (lambda axis) constrains the policy evaluation: no recommendation with confidence below the configured threshold proceeds to the approval gate without escalation.
 
@@ -117,7 +134,7 @@ The Λ-invariant (lambda axis) constrains the policy evaluation: no recommendati
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the engineering workflow. All contributions require CI green on all required checks and one reviewer approval. Doctrine v6 tone required in PR descriptions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the engineering workflow. Operational receipt-chain usage is documented in [`docs/operational-receipt-substrate.md`](docs/operational-receipt-substrate.md). All contributions require CI green on all required checks and one reviewer approval. Doctrine v6 tone required in PR descriptions.
 
 Related: [`szl-holdings/platform`](https://github.com/szl-holdings/platform) · [`szl-holdings/sentra`](https://github.com/szl-holdings/sentra) · [`szl-holdings/rosie`](https://github.com/szl-holdings/rosie) · [`szl-holdings/lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 
@@ -131,10 +148,10 @@ BSL-1.1 — See [LICENSE](./LICENSE) for terms. Copyright (c) 2024-2026 SZL Hold
 
 ## Related repositories in the SZL substrate
 
-The SZL Holdings org currently exposes 19 public repos. See
-[`docs/org-repo-map.md`](docs/org-repo-map.md) for the organized build map and
-use `bash scripts/clone-org-repos.sh` to clone sibling checkouts under ignored
-`.repos/szl-holdings/`.
+The SZL Holdings org repos are organized in
+[`docs/org-repo-map.md`](docs/org-repo-map.md). Use
+`bash scripts/clone-org-repos.sh` to discover and clone sibling checkouts under
+ignored `.repos/szl-holdings/`.
 
 - [`a11oy`](https://github.com/szl-holdings/a11oy) — vertical alignment substrate (policy · measurement · knowledge · QEC-integrity)
 - [`amaru`](https://github.com/szl-holdings/amaru) — Shor-encoded receipt minting (Cardano-anchored)

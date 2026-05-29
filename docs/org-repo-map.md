@@ -3,6 +3,8 @@
 This map organizes the public `szl-holdings` GitHub organization around the
 current build center: `a11oy`, the vertical alignment substrate. It is intended
 to be the first navigation layer before pulling code from sibling repositories.
+The categorized tables are a curated snapshot; use the clone helper to discover
+the live GitHub inventory as additional Replit exports arrive.
 
 ## Build center
 
@@ -55,18 +57,30 @@ to be the first navigation layer before pulling code from sibling repositories.
 
 ## Local workspace checkout
 
-Use the helper below to clone or refresh sibling repositories without mixing
-their source trees into this repository:
+Use the helper below to discover, clone, or refresh sibling repositories
+without mixing their source trees into this repository:
 
 ```bash
 bash scripts/clone-org-repos.sh
 ```
 
-By default, the helper checks out repos under `.repos/szl-holdings/`, which is
-ignored by git. Override the destination if you want the checkouts elsewhere:
+When the GitHub CLI is authenticated, the helper asks GitHub for the live repo
+list and filters archived repositories and forks by default. Without `gh`, it
+falls back to the curated snapshot above. By default, the helper checks out repos
+under `.repos/szl-holdings/`, which is ignored by git. Override the destination
+if you want the checkouts elsewhere:
 
 ```bash
 DEST="$HOME/src/szl-holdings" bash scripts/clone-org-repos.sh
+```
+
+Useful options:
+
+```bash
+INCLUDE_ARCHIVED=1 bash scripts/clone-org-repos.sh
+INCLUDE_FORKS=1 bash scripts/clone-org-repos.sh
+UPDATE_WORKTREE=0 bash scripts/clone-org-repos.sh
+REMOTE_PROTOCOL=ssh bash scripts/clone-org-repos.sh
 ```
 
 ## Working rule

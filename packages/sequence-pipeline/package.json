@@ -1,0 +1,25 @@
+{
+  "name": "@szl-holdings/sequence-pipeline",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Multi-stage sequence-style ingest pipeline with per-stage hashed artefacts and CI-bearing tabulated statistics. Re-expressed from CRISPResso2's pipeline-as-evidence-ledger shape.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": { "types": "./src/index.ts", "import": "./src/index.ts" },
+    "./staged": { "types": "./src/staged.ts", "import": "./src/staged.ts" },
+    "./tabulated-statistic": { "types": "./src/tabulated-statistic.ts", "import": "./src/tabulated-statistic.ts" },
+    "./wilson-ci": { "types": "./src/wilson-ci.ts", "import": "./src/wilson-ci.ts" }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
