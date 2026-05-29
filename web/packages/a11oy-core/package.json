@@ -6,10 +6,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
-  },
-  "devDependencies": {
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run test:doctrine",
+    "test:doctrine": "npm run test:standalone",
+    "test:standalone": "tsx src/calibration/__tests__/false-position.test.ts && tsx src/governance/__tests__/lid-check.test.ts && tsx src/governance/__tests__/madhava-bound.test.ts && tsx src/governance/__tests__/pac-bayes-bound.test.ts && tsx src/governance/__tests__/quaternion-state.test.ts && tsx src/lambda/__tests__/composition-ring.test.ts && tsx src/quantum/__tests__/kochen-specker-18.test.ts && tsx src/thresholds/__tests__/akhmim-table.test.ts && tsx src/thresholds/__tests__/quadratic-solver.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

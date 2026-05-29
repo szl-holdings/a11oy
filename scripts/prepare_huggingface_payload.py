@@ -46,6 +46,7 @@ def main() -> int:
         ("docs/huggingface.md", "source/docs/huggingface.md"),
         ("docs/ecosystem-registry.json", "source/docs/ecosystem-registry.json"),
         ("docs/PROVENANCE.md", "source/docs/PROVENANCE.md"),
+        ("docs/SERIES_A_DILIGENCE.md", "source/docs/SERIES_A_DILIGENCE.md"),
         ("docs/ECOSYSTEM.md", "source/docs/ECOSYSTEM.md"),
         ("deploy/MANIFEST.json", "payloads/deploy/MANIFEST.json"),
         ("deploy/zarf.yaml", "payloads/deploy/zarf.yaml"),

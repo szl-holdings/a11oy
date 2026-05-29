@@ -86,3 +86,13 @@ PY
 
 Do not commit `dist/`; the payload is generated from tracked source and deploy
 metadata.
+
+## Direct publish helper
+
+When `HF_TOKEN` is available in the environment, publish the prepared payload with:
+
+```bash
+pnpm payload:publish:huggingface -- --repo-id SZLHOLDINGS/a11oy-v19-substrate --repo-type model
+```
+
+The helper does not print the token. GitHub Actions remains the preferred path for secrets.

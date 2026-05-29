@@ -115,6 +115,7 @@ def stage_payload() -> None:
         "docs/org-repo-map.md",
         "docs/ECOSYSTEM.md",
         "docs/PROVENANCE.md",
+        "docs/SERIES_A_DILIGENCE.md",
         "docs/ecosystem-registry.json",
         "docs/huggingface.md",
         "docs/regulatory_to_lambda.md",
