@@ -1,0 +1,76 @@
+kind: ZarfPackageConfig
+metadata:
+  name: a11oy-uds
+  description: |
+    A11oy — Brand Orchestration Layer. Self-contained, declaratively-deployable
+    payload for Defense-Unicorns (UDS) environments. Drops the @a11oy/core and
+    @a11oy/connection runtime (Fisher manifold, Bohr complementarity engine,
+    Kochen-Specker 18-vector witness, POVM verdict semantics, tetrad-field
+    gauge connection) plus a per-file provenance manifest into a UDS bundle
+    via `zarf package deploy`.
+  version: 0.2.0
+  architecture: multi
+  url: https://github.com/szl-holdings/a11oy
+  authors: "A11oy / SZL Holdings"
+
+components:
+  - name: a11oy-core
+    description: "Built @a11oy/core runtime — Fisher manifold, Bohr complementarity engine, Kochen-Specker 18-vector witness, POVM verdict semantics."
+    required: true
+    files:
+      - source: build/a11oy-core
+        target: /opt/a11oy/core
+
+  - name: a11oy-connection
+    description: "Built @a11oy/connection client — tetrad-field gauge connection over the policy manifold."
+    required: true
+    files:
+      - source: build/a11oy-connection
+        target: /opt/a11oy/connection
+
+  - name: a11oy-provenance
+    description: "Per-file SHA-256 manifest, build metadata, and signature sidecar."
+    required: true
+    files:
+      - source: build/MANIFEST.json
+        target: /opt/a11oy/MANIFEST.json
+
+  - name: a11oy-shared
+    description: |
+      v0.2 cross-cutting shared packages (TypeScript source, ESM):
+        - @szl-holdings/perception-loop      — operator-loop perception envelope
+        - @szl-holdings/sequence-pipeline    — multi-stage hashed evidence pipeline
+        - @szl-holdings/sparse-attention-kit — sparse-attention envelope + 12 receipt classes (NSA / MoBA / MiniMax / FlashAttention re-expressed)
+    required: false
+    default: true
+    files:
+      - source: build/shared/perception-loop
+        target: /opt/a11oy/shared/perception-loop
+      - source: build/shared/sequence-pipeline
+        target: /opt/a11oy/shared/sequence-pipeline
+      - source: build/shared/sparse-attention-kit
+        target: /opt/a11oy/shared/sparse-attention-kit
+
+  - name: a11oy-attestations
+    description: |
+      In-bundle hash-chained attestation sidecar. Each link binds a
+      built subject (a11oy-core, a11oy-connection) to the previous
+      link's hash, producing an offline-verifiable provenance chain
+      over MANIFEST.json. Optional; off by default. Referenced by the
+      szl-mesh UDS bundle as `optionalComponents: [a11oy-attestations]`.
+    required: false
+    default: false
+    files:
+      - source: build-attestations/ATTESTATIONS.json
+        target: /opt/a11oy/ATTESTATIONS.json
+
+  - name: a11oy-docs
+    description: "In-package documentation — ARCHITECTURE (formulas + citations), SECURITY (provenance + signature chain), UDS-BUNDLE (uds-cli integration)."
+    required: true
+    files:
+      - source: docs/ARCHITECTURE.md
+        target: /opt/a11oy/docs/ARCHITECTURE.md
+      - source: docs/SECURITY.md
+        target: /opt/a11oy/docs/SECURITY.md
+      - source: docs/UDS-BUNDLE.md
+        target: /opt/a11oy/docs/UDS-BUNDLE.md

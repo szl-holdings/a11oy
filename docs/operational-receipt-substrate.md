@@ -61,3 +61,17 @@ prints the receipt id, Merkle root, and sequence.
 - This package does not claim external attestation. JSONL output is a local
   ledger input for downstream signing, UDS packaging, or external witness
   services.
+
+## UDS package handoff
+
+The Replit/platform UDS payload now lives in `artifacts/a11oy-uds/`. To stage
+the payload, write `MANIFEST.json`, write `ATTESTATIONS.json`, verify both, and
+produce a local fallback archive in environments without Zarf, run:
+
+```bash
+A11OY_UDS_ALLOW_SOURCE_FALLBACK=1 bash artifacts/a11oy-uds/scripts/build.sh
+```
+
+Release builds should run without `A11OY_UDS_ALLOW_SOURCE_FALLBACK`, after
+installing workspace dependencies and Zarf. The fallback archive is intentionally
+written under `dist/a11oy-uds-fallback/` and is not a deployable Zarf package.

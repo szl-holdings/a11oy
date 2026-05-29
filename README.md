@@ -75,6 +75,21 @@ pnpm run test
 
 ---
 
+## Operational artifacts
+
+| Artifact | Purpose | Validation |
+|----------|---------|------------|
+| `packages/receipt-substrate` | MCP/Cursor/Claude-style operational receipts and JSONL chain verification | `npm test --prefix packages/receipt-substrate` |
+| `artifacts/a11oy-uds` | UDS/Zarf payload tree with manifest and attestation generation | `A11OY_UDS_ALLOW_SOURCE_FALLBACK=1 bash artifacts/a11oy-uds/scripts/build.sh` |
+
+The UDS build preserves release-grade behavior when `tsc`, `zarf`, `zstd`, and
+`cosign` are installed. In minimal cloud environments, explicit source fallback
+emits a non-Zarf deterministic tar plus manifest and attestation checks so the
+operator flow remains testable without pretending to produce a deployable Zarf
+package.
+
+---
+
 ## How It Works
 
 Every action in the SZL platform must pass through the policy engine before execution:

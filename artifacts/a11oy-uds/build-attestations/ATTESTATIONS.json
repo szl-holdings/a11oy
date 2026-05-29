@@ -1,0 +1,63 @@
+{
+  "name": "a11oy-attestations",
+  "version": "0.2.0",
+  "gitSha": "2bcb3e7",
+  "builtAt": "2026-05-29T04:25:59Z",
+  "hashAlgorithm": "sha256",
+  "manifestSha256": "498868c02d7bc9a6d6aa82b2eef59b15e989db305a8776407ce2e980e84db365",
+  "subjects": [
+    "a11oy-core",
+    "a11oy-connection",
+    "shared/perception-loop",
+    "shared/sequence-pipeline",
+    "shared/sparse-attention-kit"
+  ],
+  "chain": [
+    {
+      "index": 0,
+      "subject": "a11oy-core",
+      "fileCount": 24,
+      "totalBytes": 96870,
+      "subjectSha256": "2b5df45ed87ffae53b715b888ba86a87eb9bf65d3a31a2eb3dca15cd86f1f51f",
+      "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entryHash": "28af751666474d5e87fbd9336be81cea355c76e5ba6b7fce21c1ab73f3141d66"
+    },
+    {
+      "index": 1,
+      "subject": "a11oy-connection",
+      "fileCount": 3,
+      "totalBytes": 2102,
+      "subjectSha256": "23f742821fe1d00b9568ae932fe7fa1f05e7c5f581a2bbf9dba4d0c747de51ea",
+      "prevHash": "28af751666474d5e87fbd9336be81cea355c76e5ba6b7fce21c1ab73f3141d66",
+      "entryHash": "7455f3320e7c7998989a4a50bd7f9834d44fcfb8526d32ed889dd6819b951988"
+    },
+    {
+      "index": 2,
+      "subject": "shared/perception-loop",
+      "fileCount": 8,
+      "totalBytes": 20268,
+      "subjectSha256": "23c2424518480839c299adc056d7b0fb1b5b244a45f490bedca26a0ac5c73acc",
+      "prevHash": "7455f3320e7c7998989a4a50bd7f9834d44fcfb8526d32ed889dd6819b951988",
+      "entryHash": "86682efd7c29dc46ab320ae98b6edf7278b3d8652b1d62a7444f6a9415387f35"
+    },
+    {
+      "index": 3,
+      "subject": "shared/sequence-pipeline",
+      "fileCount": 8,
+      "totalBytes": 18815,
+      "subjectSha256": "02e1e55fd1f46817718be6abc50b66d3d2727728aac1c458814f83a39141a331",
+      "prevHash": "86682efd7c29dc46ab320ae98b6edf7278b3d8652b1d62a7444f6a9415387f35",
+      "entryHash": "a3a78483a8fee47a085094fc317847557c43d8d97cd4cbcd7bbbbefd93016f84"
+    },
+    {
+      "index": 4,
+      "subject": "shared/sparse-attention-kit",
+      "fileCount": 10,
+      "totalBytes": 30553,
+      "subjectSha256": "3e282d1418da386cf1421c360938c2f7e70892f2111466ebf2094fb0b4bb9b46",
+      "prevHash": "a3a78483a8fee47a085094fc317847557c43d8d97cd4cbcd7bbbbefd93016f84",
+      "entryHash": "7e4f4032524c06c583935b6968be94d5e710107b25cbd592841b2a99be66e06b"
+    }
+  ],
+  "head": "7e4f4032524c06c583935b6968be94d5e710107b25cbd592841b2a99be66e06b"
+}
