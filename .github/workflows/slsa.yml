@@ -1,12 +1,5 @@
 name: SLSA Level 3 Provenance
 
-# Generates SLSA Level 3 provenance attestation for release artifacts.
-# On push to main: runs supply-chain verification pass (green status indicator).
-# On release: generates full SLSA Level 3 attestation (.intoto.jsonl).
-#
-# SLSA generator pinned to slsa-framework/slsa-github-generator v2.1.0
-# commit SHA: f7dd8c54c2067bafc12ca7a55595d5ee9b75204a (2025-02-24)
-
 on:
   push:
     branches: [main]
