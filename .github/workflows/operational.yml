@@ -8,10 +8,17 @@ on:
     branches: [main]
     paths:
       - 'artifacts/a11oy-uds/**'
+      - 'deploy/**'
       - 'packages/receipt-substrate/**'
       - 'packages/perception-loop/**'
       - 'packages/sequence-pipeline/**'
       - 'packages/sparse-attention-kit/**'
+      - 'huggingface/**'
+      - 'docs/huggingface.md'
+      - 'docs/INVESTOR_DEMO.md'
+      - 'docs/WARHACKER_UDS_PROOF_POINT.md'
+      - 'docs/ecosystem-readiness-report.json'
+      - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
       - '.github/workflows/operational.yml'
@@ -19,10 +26,17 @@ on:
     branches: [main]
     paths:
       - 'artifacts/a11oy-uds/**'
+      - 'deploy/**'
       - 'packages/receipt-substrate/**'
       - 'packages/perception-loop/**'
       - 'packages/sequence-pipeline/**'
       - 'packages/sparse-attention-kit/**'
+      - 'huggingface/**'
+      - 'docs/huggingface.md'
+      - 'docs/INVESTOR_DEMO.md'
+      - 'docs/WARHACKER_UDS_PROOF_POINT.md'
+      - 'docs/ecosystem-readiness-report.json'
+      - 'scripts/*.py'
       - 'scripts/validate-operational.sh'
       - 'scripts/release/lib/**'
       - '.github/workflows/operational.yml'
@@ -53,4 +67,8 @@ jobs:
         with:
           node-version: '22'
       - name: Validate operational surfaces
-        run: bash scripts/validate-operational.sh
+        run: |
+          bash scripts/validate-operational.sh
+          python3 -m py_compile scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
+          npm run payload:verify
+          npm run payload:huggingface

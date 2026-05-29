@@ -228,16 +228,16 @@ Build output lives at `dist/a11oy-uds/` at the repo root.
 
 ## Registry
 
-Each tagged release (`v*.*.*`) is published to GitHub Container Registry as an
-OCI artifact by the `Publish A11oy UDS payload` workflow
-(`.github/workflows/a11oy-uds-publish.yml`):
+The intended release channel is a GitHub Release artifact plus an optional
+GHCR/OCI mirror. Treat the GitHub Release assets and their sha256/cosign
+sidecars as canonical unless a repository workflow named
+`a11oy-uds-publish.yml` is present and green for the exact tag.
 
 | Channel | Coordinates                                          | Signed                  | When                       |
 | ------- | ---------------------------------------------------- | ----------------------- | -------------------------- |
-| release | `oci://ghcr.io/szl-holdings/a11oy-uds:<version>`     | yes (cosign keyless)    | push of a `v*.*.*` tag     |
-| release | `oci://ghcr.io/szl-holdings/a11oy-uds:latest`        | yes (cosign keyless)    | tracks latest release      |
-| dev     | `oci://ghcr.io/szl-holdings/a11oy-uds:dev-<sha>`     | no                      | push to `main`/`master`    |
-| dev     | `oci://ghcr.io/szl-holdings/a11oy-uds:dev`           | no                      | tracks latest `main` build |
+| release | GitHub Release assets (`*.tar.zst`, `.sha256`, `.sig`, `.pub`) | yes when `.sig` is attached | tagged UDS release |
+| optional mirror | `oci://ghcr.io/szl-holdings/a11oy-uds:<version>` | only when a matching publish workflow is present and green | operator mirror |
+| dev | local fallback tarball | unsigned unless `COSIGN_KEY` is set | CI/dev verification only |
 
 Pull a release by name + version:
 
@@ -256,16 +256,17 @@ cosign verify \
   ghcr.io/szl-holdings/a11oy-uds:0.1.0
 ```
 
-For pre-release testing, the unsigned dev channel publishes on every push to
-`main`:
+For pre-release testing, use a locally built payload or a GitHub Release asset.
+Only use an OCI dev channel if the matching publish workflow exists in this
+repository and reports success for the commit under review:
 
 ```bash
 zarf package pull oci://ghcr.io/szl-holdings/a11oy-uds:dev
 ```
 
-The release workflow also attaches the raw `*.tar.zst`, `*.sig`, and `*.sha256`
+Release assets should attach the raw `*.tar.zst`, `.sig`, `.pub`, and `.sha256`
 sidecars to the corresponding GitHub Release for air-gapped operators who
-cannot reach GHCR.
+cannot reach an OCI registry.
 
 ## Out of scope
 

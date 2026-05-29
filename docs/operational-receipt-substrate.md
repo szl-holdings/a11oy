@@ -61,6 +61,9 @@ prints the receipt id, Merkle root, and sequence.
 - This package does not claim external attestation. JSONL output is a local
   ledger input for downstream signing, UDS packaging, or external witness
   services.
+- `quorum_signatures` are deterministic local quorum labels checked against the
+  configured node set. They are not cryptographic signer verification until a
+  COSE/DSSE/cosign verifier is wired into the receipt path.
 
 ## UDS package handoff
 
