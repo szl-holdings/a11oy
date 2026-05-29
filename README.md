@@ -193,4 +193,18 @@ ignored `.repos/szl-holdings/`.
 
 Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · evidence-gated public claims · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
 
+## Deep-dive showcase
+
+**[a11oy-deep-dive](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-deep-dive)** — Governed execution fabric deep-dive — DSSE receipts, 9 packages
+
+The Hugging Face Space above is an investor-grade static deep-dive with:
+- Architecture diagrams and source-referenced implementation details
+- Live demo iframe embed from the companion interactive Space
+- Honest comparison table (Y/N, no marketing superlatives)
+- Explicit scope statement ("What this is NOT")
+- arXiv + Zenodo citations, all verified HTTP 200
+
+*Doctrine v6 — no hallucinations; every claim resolves to source.*
+
+
 ---
