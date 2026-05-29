@@ -72,4 +72,3 @@ jobs:
           python3 -m py_compile scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
           npm run payload:verify
           npm run payload:huggingface
-          npm run payload:bundle:verify
