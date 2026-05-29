@@ -65,6 +65,7 @@ pnpm install
 pnpm test:doctrine
 pnpm typecheck:doctrine
 pnpm build:doctrine
+pnpm ecosystem:audit
 pnpm payload:manifest
 pnpm payload:huggingface
 python -m pip install --upgrade huggingface_hub

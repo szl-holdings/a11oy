@@ -3,13 +3,13 @@ kind: Component
 metadata:
   name: a11oy
   title: A11oy — Brand Orchestration Layer
-  description: Brand orchestration layer and design system showcase SPA. Manages brand tokens, component library, and design standards.
+  description: A11oy operational hub for doctrine packages, payload provenance, and governed execution fabric readiness.
   annotations:
-    github.com/project-slug: szl-holdings/monorepo
+    github.com/project-slug: szl-holdings/a11oy
     backstage.io/techdocs-ref: dir:.
     szl.io/scorecard-score: '1.3'
     szl.io/golden-path-deviation: "SPA — no server-side health endpoint; brand/design focus"
-    backstage.io/runbook-url: https://github.com/szl-holdings/monorepo/blob/main/docs/runbooks/a11oy.md
+    backstage.io/runbook-url: https://github.com/szl-holdings/a11oy/blob/main/docs/PROVENANCE.md
   tags:
     - corporate
     - typescript

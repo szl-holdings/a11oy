@@ -75,6 +75,7 @@ def write_stage_manifest() -> None:
                 "pnpm test:doctrine",
                 "pnpm typecheck:doctrine",
                 "pnpm build:doctrine",
+                "pnpm ecosystem:audit",
             ],
             "payload": [
                 "pnpm payload:verify",
@@ -112,6 +113,9 @@ def stage_payload() -> None:
 
     for source in [
         "docs/org-repo-map.md",
+        "docs/ECOSYSTEM.md",
+        "docs/PROVENANCE.md",
+        "docs/ecosystem-registry.json",
         "docs/huggingface.md",
         "docs/regulatory_to_lambda.md",
         ".github/workflows/doctrine.yml",

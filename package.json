@@ -10,7 +10,8 @@
     "payload:verify": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json --verify",
     "payload:huggingface": "python3 scripts/prepare_huggingface_payload.py",
     "payload:bundle": "pnpm build:doctrine && pnpm payload:manifest && pnpm payload:huggingface && python3 scripts/build_operational_payload.py",
-    "payload:bundle:verify": "python3 scripts/build_operational_payload.py --verify"
+    "payload:bundle:verify": "python3 scripts/build_operational_payload.py --verify",
+    "ecosystem:audit": "python3 scripts/ecosystem_audit.py"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

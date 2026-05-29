@@ -12,6 +12,9 @@ on:
       - 'web/packages/a11oy-connection/**'
       - 'deploy/**'
       - 'docs/huggingface.md'
+      - 'docs/ECOSYSTEM.md'
+      - 'docs/PROVENANCE.md'
+      - 'docs/ecosystem-registry.json'
       - 'huggingface/**'
       - 'scripts/*.py'
       - '.github/workflows/doctrine.yml'
@@ -26,6 +29,9 @@ on:
       - 'web/packages/a11oy-connection/**'
       - 'deploy/**'
       - 'docs/huggingface.md'
+      - 'docs/ECOSYSTEM.md'
+      - 'docs/PROVENANCE.md'
+      - 'docs/ecosystem-registry.json'
       - 'huggingface/**'
       - 'scripts/*.py'
       - '.github/workflows/doctrine.yml'
@@ -72,6 +78,9 @@ jobs:
 
       - name: Build doctrine packages
         run: pnpm build:doctrine
+
+      - name: Audit ecosystem registry
+        run: pnpm ecosystem:audit
 
       - name: Verify deploy payload manifest
         run: pnpm payload:verify

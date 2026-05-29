@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Deterministic deploy payload manifest tooling plus `deploy/MANIFEST.json`.
 - Hugging Face payload preparation and manual publish workflow using `HF_TOKEN`.
 - Python-native operational payload bundle builder and verifier with GitHub Actions artifact upload.
+- Org ecosystem registry, provenance contract, and ecosystem audit command for Series-A readiness.
 - Series-A presentation pass: SECURITY.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CODEOWNERS
 - Apache-2.0 LICENSE
 - CITATION.cff for independent citation
