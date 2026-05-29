@@ -1,0 +1,56 @@
+name: Operational Validation
+
+# Runtime gate for the non-doc operational surfaces: receipt chaining and
+# UDS payload manifest/attestation generation.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/a11oy-uds/**'
+      - 'packages/receipt-substrate/**'
+      - 'packages/perception-loop/**'
+      - 'packages/sequence-pipeline/**'
+      - 'packages/sparse-attention-kit/**'
+      - 'scripts/validate-operational.sh'
+      - 'scripts/release/lib/**'
+      - '.github/workflows/operational.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'artifacts/a11oy-uds/**'
+      - 'packages/receipt-substrate/**'
+      - 'packages/perception-loop/**'
+      - 'packages/sequence-pipeline/**'
+      - 'packages/sparse-attention-kit/**'
+      - 'scripts/validate-operational.sh'
+      - 'scripts/release/lib/**'
+      - '.github/workflows/operational.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: operational-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  operational:
+    name: Receipt + UDS validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Validate operational surfaces
+        run: bash scripts/validate-operational.sh
