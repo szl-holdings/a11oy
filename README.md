@@ -156,6 +156,18 @@ Related: [`szl-holdings/platform`](https://github.com/szl-holdings/platform) · 
 
 ---
 
+## What a11oy Is NOT
+
+Doctrine v6 requires honest scoping. a11oy is:
+
+- **Not a general-purpose AI runtime.** It is a governed execution fabric specific to the SZL domain verticals.
+- **Not a replacement for human review.** Approval gates require human confirmation; the fabric enforces this, not bypasses it.
+- **Not an autonomous agent.** a11oy provides substrate for bounded-recursion agents governed by Ouroboros; it does not ship an agent loop itself.
+- **Not production-ready as a standalone service.** The deployment surface is `szl-holdings/platform`; these packages are consumed as a library.
+- **Not formally verified end-to-end.** QEC-integrity proofs live in `lutar-lean`; the TypeScript packages implement the checked contracts but are not the proof artifacts.
+
+---
+
 ## License
 
 BSL-1.1 — See [LICENSE](./LICENSE) for terms. Copyright (c) 2024-2026 SZL Holdings.
