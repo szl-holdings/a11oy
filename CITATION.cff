@@ -26,7 +26,7 @@ keywords:
 identifiers:
   - description: "Ouroboros Thesis v18 — research foundation (Zenodo)"
     type: doi
-    value: "10.5281/zenodo.20053163"
+    value: "10.5281/zenodo.20434276"
   - description: "Ouroboros Thesis concept DOI — always-latest"
     type: doi
     value: "10.5281/zenodo.19944926"

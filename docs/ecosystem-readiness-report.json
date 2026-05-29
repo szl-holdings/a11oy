@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "scripts/build_ecosystem_readiness.py",
+  "observedAt": "2026-05-29",
+  "canonicalHub": "a11oy",
+  "huggingFaceTarget": "SZLHOLDINGS/a11oy-v19-substrate",
+  "thesis": {
+    "version": "18.0",
+    "doi": "10.5281/zenodo.20434276",
+    "conceptDoi": "10.5281/zenodo.19944926",
+    "leanSoftwareDoi": "10.5281/zenodo.20434308"
+  },
+  "namingPolicy": {
+    "activeProductNames": [
+      "a11oy",
+      "amaru",
+      "sentra",
+      "rosie",
+      "ouroboros",
+      "lutar-lean",
+      "ouroboros-thesis",
+      "uds-mesh",
+      "vsp-otel",
+      "vessels",
+      "agi-forecast",
+      "szl-trust",
+      "szl-brand",
+      "szl-cookbook",
+      "platform"
+    ],
+    "excludedUntilFunded": [
+      "carlota-jo",
+      "counsel",
+      "terra"
+    ],
+    "retiredOrDisallowedInShowcase": [
+      "KORA",
+      "LUMINA",
+      "PARAGON",
+      "Lyte"
+    ]
+  },
+  "claimGuardrails": [
+    "GitHub releases, workflows, manifests, checksums, and DOI records are canonical.",
+    "Hugging Face is a generated diligence mirror, not the source of release truth.",
+    "Counsel, Terra, and Carlota Jo are intentionally excluded from active-demo scope until funded.",
+    "Do not repeat broad all-green or zero-sorry proof claims without a current machine-readable proof report.",
+    "Use Defense Unicorns UDS/Zarf-compatible phrasing; do not imply Defense Unicorns endorsement or catalog acceptance."
+  ],
+  "statusCounts": {
+    "demo-ready": 2,
+    "supporting": 12,
+    "needs-upstream-fix": 2,
+    "scaffold-excluded": 3
+  },
+  "repos": [
+    {
+      "name": "a11oy",
+      "tier": "hub",
+      "readiness": "operationalizing",
+      "functionalDemoStatus": "demo-ready",
+      "activeShowcase": true,
+      "showcaseLabel": "Operational hub and UDS/Zarf-compatible payload publisher",
+      "role": "Vertical alignment substrate and operational hub for doctrine packages, UDS payloads, and Hugging Face publish payloads.",
+      "github": "https://github.com/szl-holdings/a11oy",
+      "defaultBranch": "main",
+      "evidence": [
+        "README.md",
+        "docs/PROVENANCE.md",
+        "docs/INVESTOR_DEMO.md",
+        "artifacts/a11oy-uds/README.md",
+        "deploy/MANIFEST.json",
+        ".github/workflows/doctrine.yml",
+        ".github/workflows/operational.yml",
+        ".github/workflows/huggingface.yml",
+        "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1",
+        "https://github.com/szl-holdings/a11oy/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "platform",
+      "tier": "runtime-composition",
+      "readiness": "production-monorepo",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Canonical product integration monorepo and runtime evidence surface",
+      "role": "Composing monorepo for deployed A11oy UI/runtime, Ouroboros runtime, API services, and product integration.",
+      "github": "https://github.com/szl-holdings/platform",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/platform",
+        "https://github.com/szl-holdings/platform/releases/tag/v1.0.0-codex-kernel"
+      ],
+      "guardrails": [
+        "Use as canonical integration evidence; keep production-readiness claims scoped to current CI and release artifacts."
+      ]
+    },
+    {
+      "name": "ouroboros",
+      "tier": "runtime-substrate",
+      "readiness": "production-substrate",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Bounded-loop runtime and governance receipt spine",
+      "role": "Bounded recursion runtime, governance loops, and receipt emission spine.",
+      "github": "https://github.com/szl-holdings/ouroboros",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/ouroboros",
+        "https://github.com/szl-holdings/ouroboros/releases/tag/v6.3.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "lutar-lean",
+      "tier": "formal-proof",
+      "readiness": "formal-substrate",
+      "functionalDemoStatus": "needs-upstream-fix",
+      "activeShowcase": true,
+      "showcaseLabel": "Lean 4 proof substrate; cite exact closed modules and current CI",
+      "role": "Lean 4 theorem/proof substrate backing Lambda, QEC, KS-18, and public claim inventory.",
+      "github": "https://github.com/szl-holdings/lutar-lean",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/lutar-lean",
+        "https://github.com/szl-holdings/lutar-lean/releases/tag/lutar-v18.0.0",
+        "https://doi.org/10.5281/zenodo.20434308"
+      ],
+      "guardrails": [
+        "Latest observed Lean kernel CI needs upstream repair before broad 'all green' or 'zero sorry' copy is repeated.",
+        "Use exact theorem/module references for formal claims."
+      ]
+    },
+    {
+      "name": "ouroboros-thesis",
+      "tier": "formal-thesis",
+      "readiness": "canonical-thesis",
+      "functionalDemoStatus": "needs-upstream-fix",
+      "activeShowcase": true,
+      "showcaseLabel": "DOI-pinned thesis and public claim taxonomy",
+      "role": "DOI-pinned thesis substrate and version ladder for the governance framework.",
+      "github": "https://github.com/szl-holdings/ouroboros-thesis",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/ouroboros-thesis",
+        "https://doi.org/10.5281/zenodo.20434276",
+        "https://doi.org/10.5281/zenodo.19944926"
+      ],
+      "guardrails": [
+        "Thesis v18.0 DOI is the current citation anchor; GitHub release list reconciliation remains an upstream action.",
+        "Treat the thesis as the claim taxonomy, not blanket runtime proof."
+      ]
+    },
+    {
+      "name": "rosie",
+      "tier": "receipt-substrate",
+      "readiness": "uds-component",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Khipu receipt DAG and CSS-ingress orchestration",
+      "role": "CSS-ingress receipt orchestration and canonical receipt byte-string emission.",
+      "github": "https://github.com/szl-holdings/rosie",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/rosie",
+        "https://github.com/szl-holdings/rosie/releases/tag/v1.0.1",
+        "https://github.com/szl-holdings/rosie/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "amaru",
+      "tier": "receipt-substrate",
+      "readiness": "uds-component",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Receipt minting, append-only provenance, and anchoring component",
+      "role": "Cardano-anchored governance receipt minting and Shor-encoded provenance.",
+      "github": "https://github.com/szl-holdings/amaru",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/amaru",
+        "https://github.com/szl-holdings/amaru/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "sentra",
+      "tier": "receipt-substrate",
+      "readiness": "uds-component",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Telemetry, posture drift, and incident-command evidence component",
+      "role": "Telemetry adapter and Kitaev-surface drift detection on audit fibers.",
+      "github": "https://github.com/szl-holdings/sentra",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/sentra",
+        "https://github.com/szl-holdings/sentra/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "uds-mesh",
+      "tier": "mesh-contract",
+      "readiness": "pointer-manifest",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "UDS/Zarf mesh pointer manifest and bundle topology",
+      "role": "UDS span schemas and mesh pointer manifests binding A11oy, Rosie, Amaru, and Sentra releases.",
+      "github": "https://github.com/szl-holdings/uds-mesh",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/uds-mesh",
+        "https://github.com/szl-holdings/uds-mesh/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "vsp-otel",
+      "tier": "observability",
+      "readiness": "source-package",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "OpenTelemetry exporter for Lambda-axis spans and receipt hashes",
+      "role": "OpenTelemetry exporter for Lambda-axis spans and receipt hashes.",
+      "github": "https://github.com/szl-holdings/vsp-otel",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/vsp-otel",
+        "https://github.com/szl-holdings/vsp-otel/releases/tag/v0.1.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "szl-cookbook",
+      "tier": "operator-docs",
+      "readiness": "recipes",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Operator recipes and governed-AI development patterns",
+      "role": "Governed-AI recipes and operator payload patterns.",
+      "github": "https://github.com/szl-holdings/szl-cookbook",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/szl-cookbook",
+        "https://github.com/szl-holdings/szl-cookbook/releases/tag/v0.1.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "agi-forecast",
+      "tier": "forecast",
+      "readiness": "source-package",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Governance trajectory forecast scenarios",
+      "role": "PAC-Bayes and Bekenstein governance trajectory forecast scenarios.",
+      "github": "https://github.com/szl-holdings/agi-forecast",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/agi-forecast",
+        "https://github.com/szl-holdings/agi-forecast/releases/tag/v0.1.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "vessels",
+      "tier": "vertical-product",
+      "readiness": "demo",
+      "functionalDemoStatus": "demo-ready",
+      "activeShowcase": true,
+      "showcaseLabel": "Maritime vertical demo wedge with governed alert trails",
+      "role": "Maritime/fleet intelligence demo surface; identity should be reconciled between charter, maritime UI, and MCP handshake framing.",
+      "github": "https://github.com/szl-holdings/vessels",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/vessels",
+        "https://github.com/szl-holdings/vessels/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [
+        "Use as the active vertical demo wedge; avoid implying every vertical scaffold is funded or production-ready."
+      ]
+    },
+    {
+      "name": "counsel",
+      "tier": "vertical-product",
+      "readiness": "scaffold",
+      "functionalDemoStatus": "scaffold-excluded",
+      "activeShowcase": false,
+      "showcaseLabel": "Funded-roadmap legal vertical scaffold",
+      "role": "Legal matter command scaffold for policy-gated AI workflows.",
+      "github": "https://github.com/szl-holdings/counsel",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/counsel"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "terra",
+      "tier": "vertical-product",
+      "readiness": "scaffold",
+      "functionalDemoStatus": "scaffold-excluded",
+      "activeShowcase": false,
+      "showcaseLabel": "Funded-roadmap real-estate vertical scaffold",
+      "role": "Real estate intelligence scaffold for underwriting and portfolio analytics.",
+      "github": "https://github.com/szl-holdings/terra",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/terra"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "carlota-jo",
+      "tier": "vertical-product",
+      "readiness": "scaffold",
+      "functionalDemoStatus": "scaffold-excluded",
+      "activeShowcase": false,
+      "showcaseLabel": "Funded-roadmap advisory services scaffold",
+      "role": "Private advisory operations scaffold for concierge workflow and proof-chain delivery.",
+      "github": "https://github.com/szl-holdings/carlota-jo",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/carlota-jo"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "szl-trust",
+      "tier": "trust",
+      "readiness": "artifact-ledger",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Public trust and replay artifact ledger",
+      "role": "Public Trust Portal artifacts and Covenant Proof Standard run records.",
+      "github": "https://github.com/szl-holdings/szl-trust",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/szl-trust"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": "szl-brand",
+      "tier": "brand",
+      "readiness": "production-assets",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Brand, anatomy, social previews, and visual doctrine",
+      "role": "Brand assets, anatomy figures, social previews, and visual doctrine.",
+      "github": "https://github.com/szl-holdings/szl-brand",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/szl-brand",
+        "https://github.com/szl-holdings/szl-brand/releases/tag/v0.1.0"
+      ],
+      "guardrails": []
+    },
+    {
+      "name": ".github",
+      "tier": "org-governance",
+      "readiness": "production-workflows",
+      "functionalDemoStatus": "supporting",
+      "activeShowcase": true,
+      "showcaseLabel": "Organization profile, reusable workflows, templates, and checks",
+      "role": "Organization profile, templates, reusable workflows, and governance defaults.",
+      "github": "https://github.com/szl-holdings/.github",
+      "defaultBranch": "main",
+      "evidence": [
+        "https://github.com/szl-holdings/.github"
+      ],
+      "guardrails": []
+    }
+  ]
+}

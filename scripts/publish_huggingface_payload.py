@@ -16,6 +16,11 @@ def main() -> int:
     parser.add_argument("--repo-id", default="SZLHOLDINGS/a11oy-v19-substrate")
     parser.add_argument("--repo-type", default="model")
     parser.add_argument("--folder", default="dist/huggingface/a11oy")
+    parser.add_argument(
+        "--no-delete-stale",
+        action="store_true",
+        help="upload without pruning remote files absent from the generated payload",
+    )
     args = parser.parse_args()
 
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
@@ -29,13 +34,32 @@ def main() -> int:
         return 1
 
     try:
-        from huggingface_hub import HfApi
+        from huggingface_hub import CommitOperationDelete, HfApi
     except ImportError:
         print("Missing huggingface_hub. Install with: python -m pip install --upgrade huggingface_hub")
         return 2
 
     api = HfApi(token=token)
     api.create_repo(repo_id=args.repo_id, repo_type=args.repo_type, exist_ok=True)
+
+    if not args.no_delete_stale:
+        local_files = {
+            path.relative_to(folder).as_posix()
+            for path in folder.rglob("*")
+            if path.is_file()
+        }
+        remote_files = set(api.list_repo_files(repo_id=args.repo_id, repo_type=args.repo_type))
+        stale_files = sorted(remote_files - local_files)
+        if stale_files:
+            operations = [CommitOperationDelete(path_in_repo=path) for path in stale_files]
+            api.create_commit(
+                repo_id=args.repo_id,
+                repo_type=args.repo_type,
+                operations=operations,
+                commit_message="prune stale a11oy payload files",
+            )
+            print(f"Pruned {len(stale_files)} stale Hugging Face files")
+
     api.upload_folder(
         repo_id=args.repo_id,
         repo_type=args.repo_type,
