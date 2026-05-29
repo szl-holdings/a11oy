@@ -1,6 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite the SZL Holdings research thesis (Ouroboros Thesis v10) and reference this component."
 title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals."
+version: "1.0.1"
+date-released: "2026-05-29"
 abstract: >-
   Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals. Component of the SZL Holdings governed AI decision infrastructure,
   built on the Ouroboros Thesis (DOI 10.5281/zenodo.19944926).
