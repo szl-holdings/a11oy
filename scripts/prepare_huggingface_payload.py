@@ -31,6 +31,13 @@ def copy_text(source: str, target: str) -> None:
     destination.write_text((REPO_ROOT / source).read_text(encoding="utf-8"), encoding="utf-8")
 
 
+def copy_tree(source: str, target: str) -> None:
+    destination = OUT_DIR / target
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(REPO_ROOT / source, destination)
+
+
 def main() -> int:
     if OUT_DIR.exists():
         shutil.rmtree(OUT_DIR)
@@ -38,6 +45,14 @@ def main() -> int:
 
     files = [
         ("huggingface/README.md", "README.md"),
+        ("huggingface/SHOWCASE.md", "SHOWCASE.md"),
+        ("huggingface/INVESTOR_BRIEF.md", "INVESTOR_BRIEF.md"),
+        ("huggingface/VERIFICATION.md", "VERIFICATION.md"),
+        ("huggingface/INNOVATIONS_DEEP_DIVE.md", "INNOVATIONS_DEEP_DIVE.md"),
+        ("huggingface/INTEGRATION_QUICKSTART.md", "INTEGRATION_QUICKSTART.md"),
+        ("huggingface/EVAL_TRACE_SAMPLE.jsonl", "EVAL_TRACE_SAMPLE.jsonl"),
+        ("LICENSE", "LICENSE"),
+        ("CITATION.cff", "CITATION.cff"),
         ("README.md", "source/README.md"),
         ("ROADMAP.md", "source/ROADMAP.md"),
         ("CHANGELOG.md", "source/CHANGELOG.md"),
@@ -47,7 +62,11 @@ def main() -> int:
         ("docs/ecosystem-registry.json", "source/docs/ecosystem-registry.json"),
         ("docs/PROVENANCE.md", "source/docs/PROVENANCE.md"),
         ("docs/SERIES_A_DILIGENCE.md", "source/docs/SERIES_A_DILIGENCE.md"),
+        ("docs/INVESTOR_DEMO.md", "source/docs/INVESTOR_DEMO.md"),
+        ("docs/WARHACKER_UDS_PROOF_POINT.md", "source/docs/WARHACKER_UDS_PROOF_POINT.md"),
+        ("docs/PERPLEXITY_BRIEF.md", "source/docs/PERPLEXITY_BRIEF.md"),
         ("docs/ECOSYSTEM.md", "source/docs/ECOSYSTEM.md"),
+        ("docs/ecosystem-readiness-report.json", "source/docs/ecosystem-readiness-report.json"),
         ("deploy/MANIFEST.json", "payloads/deploy/MANIFEST.json"),
         ("deploy/zarf.yaml", "payloads/deploy/zarf.yaml"),
         ("deploy/attestations.jsonl", "payloads/deploy/attestations.jsonl"),
@@ -60,6 +79,11 @@ def main() -> int:
     for source, target in files:
         copy_text(source, target)
 
+    if (REPO_ROOT / "NOTICE").exists():
+        copy_text("NOTICE", "NOTICE")
+
+    copy_tree("deploy/manifests", "payloads/deploy/manifests")
+
     metadata = {
         "name": "a11oy",
         "owner": "szl-holdings",
@@ -71,14 +95,38 @@ def main() -> int:
             "pnpm typecheck:doctrine",
             "pnpm build:doctrine",
             "pnpm ecosystem:audit",
+            "pnpm ecosystem:readiness",
             "pnpm payload:verify",
+            "pnpm payload:huggingface",
+            "pnpm payload:bundle",
             "pnpm payload:bundle:verify",
         ],
+        "activeShowcaseRepos": [
+            "a11oy",
+            "amaru",
+            "sentra",
+            "rosie",
+            "ouroboros",
+            "lutar-lean",
+            "ouroboros-thesis",
+            "uds-mesh",
+            "vsp-otel",
+            "vessels",
+            "agi-forecast",
+            "szl-trust",
+            "szl-brand",
+            "szl-cookbook",
+            ".github",
+            "platform",
+        ],
+        "excludedUntilFunded": ["carlota-jo", "counsel", "terra"],
+        "retiredOrDisallowedNames": ["KORA", "LUMINA", "PARAGON", "Lyte"],
         "payloads": [
             {
                 "name": "deploy",
                 "manifest": "payloads/deploy/MANIFEST.json",
                 "zarf": "payloads/deploy/zarf.yaml",
+                "kubernetesManifests": "payloads/deploy/manifests/",
             }
         ],
     }

@@ -23,8 +23,10 @@ Use the following language in GitHub, release payloads, and Hugging Face cards.
 | Status | Meaning | Allowed wording |
 | --- | --- | --- |
 | `verified-runtime` | Runtime code and tests in this repo pass CI. | “validated by A11oy Doctrine Build” |
-| `lean-backed` | Claim maps to a Lean module and is included in the public proof/provenance set. | “Lean-backed” |
+| `lean-backed-current-green` | Claim maps to a Lean module and a current upstream proof report / CI run verifies that module. | “Lean-backed in `<module>` with current green proof report” |
+| `lean-backed-needs-upstream-ci` | Claim maps to the Lean proof substrate, but the latest observed upstream proof CI or release state must be reconciled before broad all-green language is used. | “proof-substrate-backed; current proof CI must be checked before repeating all-green claims” |
 | `release-payload` | Claim is present in signed or checksummed release payloads. | “included in operational payload” |
+| `thesis-anchor` | Claim is part of the DOI-pinned thesis / claim taxonomy and may guide implementation language. | “anchored to the Ouroboros Thesis v18.0 DOI” |
 | `roadmap` | Planned or partially implemented; do not present as shipped. | “planned”, “tracked”, “next” |
 | `historical` | Older thesis/doc language retained for context. | “historical”, “legacy” |
 
@@ -39,6 +41,8 @@ Use the following language in GitHub, release payloads, and Hugging Face cards.
 | LID threshold checks | `verified-runtime` | `web/packages/a11oy-core/src/governance/__tests__/lid-check.test.ts` |
 | Deploy payload per-file SHA-256 manifest | `release-payload` | `deploy/MANIFEST.json`, `pnpm payload:verify` |
 | Operational tarball and checksum sidecar | `release-payload` | `pnpm payload:bundle`, `pnpm payload:bundle:verify` |
+| UDS/Zarf-compatible operator proof point | `release-payload` | `artifacts/a11oy-uds/README.md`, `docs/WARHACKER_UDS_PROOF_POINT.md` |
+| Ecosystem readiness map | `verified-runtime` | `docs/ecosystem-readiness-report.json`, `pnpm ecosystem:readiness` |
 
 ## Claims to keep guarded
 
@@ -52,6 +56,13 @@ Use the following language in GitHub, release payloads, and Hugging Face cards.
 - Hugging Face is a distribution mirror and diligence surface, not the canonical
   source of release truth. GitHub releases, checks, manifests, and checksums stay
   canonical.
+- Do not use stale product-name framing (`KORA`, `LUMINA`, `PARAGON`, or active
+  `Lyte`) in the A11oy/Hugging Face showcase. Center the real GitHub repos.
+- Counsel, Terra, and Carlota Jo are funded-roadmap scaffolds and must not be
+  presented as operational demo surfaces until that changes.
+- UDS/Zarf language should be precise: “UDS/Zarf-compatible proof point” and
+  “operator handoff” are acceptable; Defense Unicorns endorsement, catalog
+  acceptance, or universal UDS deployability require separate public evidence.
 
 ## Payload inclusion
 

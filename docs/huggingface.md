@@ -15,10 +15,14 @@ pnpm payload:huggingface
 The command writes `dist/huggingface/a11oy/` with:
 
 - a Hugging Face model card (`README.md`);
+- showcase, investor, verification, quickstart, deep-dive, and receipt-sample files;
 - source README, roadmap, changelog, and repo map;
 - deployment payload metadata under `payloads/deploy/`;
 - `a11oy-metadata.json` with source commit and verification commands.
 
+The publisher prunes stale remote files by default before uploading the
+generated folder. This prevents old unsupported model-wrapper files, stale
+product names, or non-reproducible hand edits from surviving on Hugging Face.
 
 ## Operational bundle
 
@@ -95,4 +99,13 @@ When `HF_TOKEN` is available in the environment, publish the prepared payload wi
 pnpm payload:publish:huggingface -- --repo-id SZLHOLDINGS/a11oy-v19-substrate --repo-type model
 ```
 
-The helper does not print the token. GitHub Actions remains the preferred path for secrets.
+The helper does not print the token. GitHub Actions remains the preferred path
+for secrets. Pass `--no-delete-stale` only for emergency diagnostics; normal
+publishes should prune remote files that are absent from `dist/huggingface/a11oy/`.
+
+## Naming policy
+
+The A11oy Hugging Face packet uses the real GitHub ecosystem names and does not
+use stale KORA, LUMINA, PARAGON, or active Lyte framing. Counsel, Terra, and
+Carlota Jo are marked as funded-roadmap/excluded in the readiness report rather
+than presented as live demo surfaces.

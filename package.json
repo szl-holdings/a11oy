@@ -21,6 +21,8 @@
     "payload:bundle": "pnpm build:doctrine && pnpm payload:manifest && pnpm payload:huggingface && python3 scripts/build_operational_payload.py",
     "payload:bundle:verify": "python3 scripts/build_operational_payload.py --verify",
     "ecosystem:audit": "python3 scripts/ecosystem_audit.py",
+    "ecosystem:readiness": "python3 scripts/build_ecosystem_readiness.py --check",
+    "ecosystem:readiness:write": "python3 scripts/build_ecosystem_readiness.py",
     "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py"
   },
   "repository": {

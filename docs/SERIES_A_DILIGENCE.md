@@ -14,9 +14,11 @@ tests, and a Hugging Face mirror that points back to canonical provenance.
 | Payload integrity | `deploy/MANIFEST.json` and `pnpm payload:verify` provide per-file SHA-256 checks. |
 | Operational bundle | `pnpm payload:bundle` emits a deterministic tarball plus `.sha256` sidecar. |
 | Org-wide map | `docs/ecosystem-registry.json` tracks 19 visible public repos and their readiness tiers. |
+| Demo readiness report | `docs/ecosystem-readiness-report.json` classifies active, supporting, excluded, and upstream-fix-needed repos. |
 | Thesis/proof alignment | `docs/PROVENANCE.md` pins v18 thesis DOI and Lean software DOI, and gates public claims by status. |
 | GitHub validation | Doctrine Build, CodeQL, SBOM, Trivy, DCO, docs, links, and secret scan pass on the branch. |
 | Hugging Face path | Manual workflow publishes the verified payload to `SZLHOLDINGS/a11oy-v19-substrate` when `HF_TOKEN` is available. |
+| UDS / Warhacker proof point | `docs/WARHACKER_UDS_PROOF_POINT.md` ties the package, manifest, attestation, receipt-chain, and tamper-test demo together. |
 
 ## Investor framing
 
@@ -39,6 +41,21 @@ model-driven actions accountable:
   brand, and verticals are mapped in one registry.
 - **Air-gap compatible:** Hugging Face is an explicit mirror/publish step; the
   shipped payload does not depend on outbound telemetry.
+- **UDS/Zarf-aware:** A11oy has an operator proof-point lane for package
+  inspection, manifest verification, attestation review, and receipt-chain
+  smoke testing.
+
+## Active showcase scope
+
+The Series-A showcase centers the public repos with implementation or
+supporting evidence: `a11oy`, `amaru`, `sentra`, `rosie`, `ouroboros`,
+`lutar-lean`, `ouroboros-thesis`, `uds-mesh`, `vsp-otel`, `vessels`,
+`agi-forecast`, `szl-trust`, `szl-brand`, `szl-cookbook`, `.github`, and
+`platform`.
+
+`counsel`, `terra`, and `carlota-jo` are intentionally excluded from active-demo
+claims until funded. The showcase also avoids stale product-name framing such
+as `KORA`, `LUMINA`, `PARAGON`, or active `Lyte` copy.
 
 ## Current roadmap gates
 
@@ -48,7 +65,8 @@ model-driven actions accountable:
 | Add `HF_TOKEN` as GitHub Actions secret | Required for live Hugging Face publish. |
 | Run `Publish Hugging Face Payload` workflow | Publishes generated payload to Hugging Face. |
 | Add UDS release artifact attestation parity | Next hardening pass. |
-| Promote vertical scaffolds to implementation-backed surfaces | Product roadmap; tracked in ecosystem registry. |
+| Repair upstream proof/release caveats | `lutar-lean` latest proof CI and `ouroboros-thesis` v18 release reconciliation should be fixed before broad all-green proof language. |
+| Promote excluded vertical scaffolds to implementation-backed surfaces | Funding roadmap; tracked in ecosystem registry. |
 
 ## Verification command block
 
@@ -58,6 +76,7 @@ pnpm test:doctrine
 pnpm typecheck:doctrine
 pnpm build:doctrine
 pnpm ecosystem:audit
+pnpm ecosystem:readiness
 pnpm payload:verify
 pnpm payload:huggingface
 pnpm payload:bundle

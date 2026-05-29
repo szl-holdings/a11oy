@@ -15,6 +15,9 @@ on:
       - 'docs/ECOSYSTEM.md'
       - 'docs/PROVENANCE.md'
       - 'docs/ecosystem-registry.json'
+      - 'docs/ecosystem-readiness-report.json'
+      - 'docs/INVESTOR_DEMO.md'
+      - 'docs/WARHACKER_UDS_PROOF_POINT.md'
       - 'huggingface/**'
       - 'scripts/*.py'
       - '.github/workflows/doctrine.yml'
@@ -32,6 +35,9 @@ on:
       - 'docs/ECOSYSTEM.md'
       - 'docs/PROVENANCE.md'
       - 'docs/ecosystem-registry.json'
+      - 'docs/ecosystem-readiness-report.json'
+      - 'docs/INVESTOR_DEMO.md'
+      - 'docs/WARHACKER_UDS_PROOF_POINT.md'
       - 'huggingface/**'
       - 'scripts/*.py'
       - '.github/workflows/doctrine.yml'
@@ -81,6 +87,9 @@ jobs:
 
       - name: Audit ecosystem registry
         run: pnpm ecosystem:audit
+
+      - name: Verify ecosystem readiness report
+        run: pnpm ecosystem:readiness
 
       - name: Verify deploy payload manifest
         run: pnpm payload:verify

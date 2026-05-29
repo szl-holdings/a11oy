@@ -47,6 +47,8 @@ jobs:
           pnpm test:doctrine
           pnpm typecheck:doctrine
           pnpm build:doctrine
+          pnpm ecosystem:audit
+          pnpm ecosystem:readiness
           pnpm payload:verify
 
       - name: Prepare Hugging Face payload
