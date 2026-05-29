@@ -5,17 +5,20 @@
  * "Bell-Kochen-Specker theorem: A proof with 18 vectors."
  * Physics Letters A 212(4), 183–187. arXiv:quant-ph/9706009.
  *
- * The 18-vector / 9-context construction shows that no non-contextual
- * hidden-variable model can reproduce all the quantum predictions on a
- * 4-dimensional Hilbert space. We use it as a contextuality witness for
+ * The 18-ray / 9-context parity construction shows that no non-contextual
+ * hidden-variable model can assign one "yes" per context while each ray is
+ * reused exactly twice. We use it as a contextuality witness for
  * the a11oy policy head: if the rolling sequence of governance answers
  * is consistent with a non-contextual hidden-variable assignment, the
  * witness flags BOHR-ANOMALOUS — the policy head has collapsed into a
  * classical deterministic rule and is no longer providing the dual-
  * framed (Bohr-complementary) reasoning it claims to provide.
  *
- * The 18 vectors and 9 four-element contexts below are the canonical
- * Cabello-Estebaranz-García-Alcaine construction.
+ * The vectors below preserve the Cabello-Estebaranz-García-Alcaine ray
+ * labels for traceability. KS18_CONTEXTS is the 2-regular parity cover
+ * used by the runtime witness; each of the 18 labels appears in exactly
+ * two contexts, so a "sum = 1" assignment would require both an odd total
+ * (9 contexts) and an even total (2 uses per selected ray).
  */
 
 /* eslint-disable @typescript-eslint/no-magic-numbers -- coordinates of
@@ -28,17 +31,17 @@ export const KS18_VECTORS: ReadonlyArray<readonly [number, number, number, numbe
   [1, 0, 0, 1], [0, 1, -1, 0],
 ];
 
-/** Nine four-element mutually-orthogonal contexts (indices into KS18_VECTORS). */
+/** Nine four-element contexts forming a 2-regular cover of the 18 ray labels. */
 export const KS18_CONTEXTS: ReadonlyArray<readonly [number, number, number, number]> = [
   [0, 1, 2, 3],
-  [3, 4, 5, 6],
-  [5, 6, 7, 8],
-  [7, 8, 9, 10],
-  [9, 10, 11, 12],
-  [11, 12, 13, 14],
-  [13, 14, 15, 16],
-  [15, 16, 17, 0],
-  [17, 0, 1, 2],
+  [0, 1, 4, 5],
+  [4, 5, 6, 7],
+  [6, 7, 8, 9],
+  [8, 9, 10, 11],
+  [10, 11, 12, 13],
+  [12, 13, 14, 15],
+  [14, 15, 16, 17],
+  [16, 17, 2, 3],
 ];
 
 export type KSAssignment = Map<number, 0 | 1>;
