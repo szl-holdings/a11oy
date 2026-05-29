@@ -1,0 +1,15 @@
+{
+  "name": "@szl-holdings/a11oy-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-core build",
+    "test:doctrine": "pnpm --dir web/packages/a11oy-core test:doctrine",
+    "typecheck:doctrine": "pnpm --dir web/packages/a11oy-connection build && pnpm --dir web/packages/a11oy-connection typecheck && pnpm --dir web/packages/a11oy-core typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}
