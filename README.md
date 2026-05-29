@@ -97,13 +97,34 @@ Proprietary — SZL Holdings. IP transfer to Apache-2.0 pending resolution of PR
 
 ---
 
-## Citation
+## Related repositories in the SZL substrate
 
-```
-S. P. Lutar Jr., "SZL Holdings a11oy — Governed Agentic Execution Fabric,"
-Zenodo, DOI 10.5281/zenodo.20434276, 2026.
-```
-ORCID: [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
+The SZL Holdings org repos are organized in
+[`docs/org-repo-map.md`](docs/org-repo-map.md). Use
+`bash scripts/clone-org-repos.sh` to discover and clone sibling checkouts under
+ignored `.repos/szl-holdings/`.
+
+- [`a11oy`](https://github.com/szl-holdings/a11oy) — vertical alignment substrate (policy · measurement · knowledge · QEC-integrity)
+- [`amaru`](https://github.com/szl-holdings/amaru) — Shor-encoded receipt minting (Cardano-anchored)
+- [`rosie`](https://github.com/szl-holdings/rosie) — CSS-ingress receipt orchestration
+- [`sentra`](https://github.com/szl-holdings/sentra) — Kitaev-surface drift detection on audit fibers
+- [`uds-mesh`](https://github.com/szl-holdings/uds-mesh) — UDS span schemas + governance receipts
+- [`lutar-lean`](https://github.com/szl-holdings/lutar-lean) — Lean 4 + Mathlib v4.13.0 proof substrate for scoped theorem/module claims
+- [`ouroboros`](https://github.com/szl-holdings/ouroboros) — bounded-recursion runtime
+- [`ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis) — DOI-pinned thesis substrate (v3 → v18)
+- [`platform`](https://github.com/szl-holdings/platform) — composing monorepo (76 packages, 1,220 tests)
+- [`szl-brand`](https://github.com/szl-holdings/szl-brand) — anatomy + visual doctrine (PDFs hosted in-repo)
+- [`szl-cookbook`](https://github.com/szl-holdings/szl-cookbook) — governed-AI recipes
+- [`agi-forecast`](https://github.com/szl-holdings/agi-forecast) — PAC-Bayes + Bekenstein governance-trajectory forecasts
+- [`vsp-otel`](https://github.com/szl-holdings/vsp-otel) — OpenTelemetry exporter for Λ-axis spans
+- [`vessels`](https://github.com/szl-holdings/vessels) — maritime fleet intelligence
+- [`counsel`](https://github.com/szl-holdings/counsel) — legal matter command scaffold
+- [`terra`](https://github.com/szl-holdings/terra) — real estate intelligence scaffold
+- [`carlota-jo`](https://github.com/szl-holdings/carlota-jo) — private advisory operations scaffold
+- [`szl-trust`](https://github.com/szl-holdings/szl-trust) — Public Trust Portal artifacts
+- [`.github`](https://github.com/szl-holdings/.github) — organization profile and community files
+
+Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · evidence-gated public claims · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
 
 ---
 
