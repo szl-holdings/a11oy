@@ -1,0 +1,24 @@
+name: SBOM (CycloneDX + SPDX + Trivy)
+
+# Calls the org-level reusable SBOM pipeline.
+# Pinned to .github commit f0961db0f44d8e53f956ccab14bdfa4a22e4e49b (2026-05-28).
+# Series-A supply-chain compliance: CIS SSCS 2.4.4 / NTIA minimum elements.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  sbom:
+    name: SBOM
+    uses: szl-holdings/.github/.github/workflows/reusable-sbom.yml@f0961db0f44d8e53f956ccab14bdfa4a22e4e49b
+    with:
+      attach-to-release: true
+    permissions:
+      contents: write
+      security-events: write
+
