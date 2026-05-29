@@ -32,10 +32,10 @@ This repository's live demos, model card, dataset mirror, and org showcase live 
 | Surface | Hugging Face artifact |
 |---------|---------------------|
 | **Live demo** | [a11oy-platform](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-platform) · [a11oy-receipts-playground](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-receipts-playground) |
-| **Deep-dive showcase** | [a11oy-deep-dive](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-deep-dive) |
+| **Deep-dive showcase** | [a11oy-platform (deep-dive)](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-platform) |
 | **Model card** | [a11oy-v19-substrate](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) |
 | **Source mirror** | [a11oy-source](https://huggingface.co/datasets/SZLHOLDINGS/a11oy-source) |
-| **Org showcase** | [SZLHOLDINGS on Hugging Face](https://huggingface.co/SZLHOLDINGS) — 22 datasets · 19+ Spaces · 2 models |
+| **Org showcase** | [SZLHOLDINGS on Hugging Face](https://huggingface.co/SZLHOLDINGS) — 24 datasets · 19+ Spaces · 2 models |
 
 ## Architecture
 
@@ -186,7 +186,7 @@ ignored `.repos/szl-holdings/`.
 - [`rosie`](https://github.com/szl-holdings/rosie) — CSS-ingress receipt orchestration
 - [`sentra`](https://github.com/szl-holdings/sentra) — Kitaev-surface drift detection on audit fibers
 - [`uds-mesh`](https://github.com/szl-holdings/uds-mesh) — UDS span schemas + governance receipts
-- [`lutar-lean`](https://github.com/szl-holdings/lutar-lean) — Lean 4 + Mathlib v4.13.0 kernel proofs (30 GREEN modules)
+- [`lutar-lean`](https://github.com/szl-holdings/lutar-lean) — Lean 4 + Mathlib v4.13.0 kernel proofs (32 GREEN modules)
 - [`ouroboros`](https://github.com/szl-holdings/ouroboros) — bounded-recursion runtime
 - [`ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis) — DOI-pinned thesis substrate (v3 → v18)
 - [`platform`](https://github.com/szl-holdings/platform) — composing monorepo (76 packages, 1,220 tests)
@@ -201,6 +201,6 @@ ignored `.repos/szl-holdings/`.
 - [`szl-trust`](https://github.com/szl-holdings/szl-trust) — Public Trust Portal artifacts
 - [`.github`](https://github.com/szl-holdings/.github) — organization profile and community files
 
-Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · 11 axioms · 30 GREEN modules · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
+Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · 11 axioms · 32 GREEN modules · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
 
 ---
