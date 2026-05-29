@@ -131,10 +131,10 @@ BSL-1.1 — See [LICENSE](./LICENSE) for terms. Copyright (c) 2024-2026 SZL Hold
 
 ## Related repositories in the SZL substrate
 
-The SZL Holdings org currently exposes 19 public repos. See
-[`docs/org-repo-map.md`](docs/org-repo-map.md) for the organized build map and
-use `bash scripts/clone-org-repos.sh` to clone sibling checkouts under ignored
-`.repos/szl-holdings/`.
+The SZL Holdings org repos are organized in
+[`docs/org-repo-map.md`](docs/org-repo-map.md). Use
+`bash scripts/clone-org-repos.sh` to discover and clone sibling checkouts under
+ignored `.repos/szl-holdings/`.
 
 - [`a11oy`](https://github.com/szl-holdings/a11oy) — vertical alignment substrate (policy · measurement · knowledge · QEC-integrity)
 - [`amaru`](https://github.com/szl-holdings/amaru) — Shor-encoded receipt minting (Cardano-anchored)
