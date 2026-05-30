@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-github-enterprise-access-v1",
+  "observedAt": "2026-05-30",
+  "canonicalRule": "Additional GitHub Enterprise seats solve capacity only. Cross-repo execution requires accepted org membership, repo/team write permission, and token or GitHub App scope for each target repo.",
+  "seatsAloneGrantWriteAccess": false,
+  "currentKnownWritableRepo": "szl-holdings/a11oy",
+  "knownCrossRepoBlocker": "Previous direct pushes to sibling repos returned 403 from this runtime.",
+  "requiredTokenScopes": [
+    "Contents: Read and write for each target repo",
+    "Pull requests: Read and write when PR creation should be direct",
+    "Workflows: Read and write only when workflow files are edited",
+    "SSO authorization for szl-holdings when using a PAT"
+  ],
+  "githubAppRequirements": [
+    "App installed on every target repo",
+    "Contents write permission",
+    "Pull request write permission",
+    "Workflow write permission only when editing workflow files"
+  ],
+  "readOnlyChecks": [
+    "gh auth status",
+    "gh api user -q .login",
+    "gh repo view szl-holdings/a11oy --json viewerPermission",
+    "gh repo view szl-holdings/.github --json viewerPermission",
+    "gh repo view szl-holdings/agi-forecast --json viewerPermission",
+    "gh repo view szl-holdings/lutar-lean --json viewerPermission",
+    "gh repo view szl-holdings/uds-mesh --json viewerPermission"
+  ],
+  "targetRepos": [
+    {
+      "repo": "szl-holdings/.github",
+      "minimumPermission": "write",
+      "phaseUnlocked": "org profile, reusable workflows, coordination issues/PR templates",
+      "currentFallback": "mirror coordination status and proxy instructions in a11oy"
+    },
+    {
+      "repo": "szl-holdings/lutar-lean",
+      "minimumPermission": "write",
+      "phaseUnlocked": "direct Lean proof patching and CI repair",
+      "currentFallback": "a11oy proxy patch queue with build logs"
+    },
+    {
+      "repo": "szl-holdings/agi-forecast",
+      "minimumPermission": "write",
+      "phaseUnlocked": "direct Putnam/FG benchmark pipeline implementation",
+      "currentFallback": "a11oy proxy patch queue"
+    },
+    {
+      "repo": "szl-holdings/uds-mesh",
+      "minimumPermission": "write",
+      "phaseUnlocked": "direct mesh pointer and UDS topology updates",
+      "currentFallback": "a11oy UDS frontier docs and proxy status"
+    },
+    {
+      "repo": "szl-holdings/amaru",
+      "minimumPermission": "write",
+      "phaseUnlocked": "receipt minting/anchor component updates",
+      "currentFallback": "a11oy anatomy/formula map and UDS proof-point references"
+    },
+    {
+      "repo": "szl-holdings/sentra",
+      "minimumPermission": "write",
+      "phaseUnlocked": "drift/telemetry component updates",
+      "currentFallback": "a11oy action-contract and controls evidence map"
+    },
+    {
+      "repo": "szl-holdings/rosie",
+      "minimumPermission": "write",
+      "phaseUnlocked": "receipt DAG / CSS ingress updates",
+      "currentFallback": "a11oy receipt substrate and anatomy map"
+    },
+    {
+      "repo": "szl-holdings/vessels",
+      "minimumPermission": "write",
+      "phaseUnlocked": "active vertical demo wedge implementation",
+      "currentFallback": "a11oy investor demo and ecosystem readiness report"
+    },
+    {
+      "repo": "szl-holdings/platform",
+      "minimumPermission": "write",
+      "phaseUnlocked": "product integration monorepo changes when in scope",
+      "currentFallback": "standalone a11oy package and payload validation"
+    }
+  ],
+  "doctrineBoundaries": [
+    "Do not claim sibling repo operational completion until repo-native tests and CI pass.",
+    "Do not claim all Lean green without current proof report.",
+    "Do not claim Defense Unicorns endorsement or UDS catalog acceptance.",
+    "Do not commit tokens or secrets.",
+    "Do not merge to protected branches without explicit approval."
+  ]
+}

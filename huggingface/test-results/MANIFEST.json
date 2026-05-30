@@ -1,0 +1,69 @@
+{
+  "schema_version": "a11oy.test_results.manifest.v1",
+  "publication": {
+    "repo_id": "SZLHOLDINGS/a11oy-test-results",
+    "repo_type": "dataset",
+    "publish_mode": "mirror-not-canonical",
+    "canonical_source": "https://github.com/szl-holdings/a11oy",
+    "source_commit": "computed-at-publish-time",
+    "ci_run_url": "computed-at-publish-time"
+  },
+  "claim_status": "staged-no-live-score",
+  "allowed_public_wording": [
+    "Future a11oy-test-results dataset schema and staged manifest.",
+    "No live Putnam score is claimed in this revision.",
+    "GitHub remains canonical; Hugging Face is a mirror."
+  ],
+  "disallowed_claims": [
+    "cracked Putnam",
+    "solved Putnam",
+    "AGI proven",
+    "leaderboard score",
+    "HF is canonical"
+  ],
+  "benchmark_map": {
+    "path": "benchmarks/benchmark-map.json",
+    "sha256": "computed-by-validator",
+    "entry_id": "putnam-raw-score-v1"
+  },
+  "corpus": {
+    "corpus_id": "putnam-public-years",
+    "corpus_version": "v1",
+    "source_uri": "external-official-or-licensed-source",
+    "license": "do-not-redistribute-unless-permitted",
+    "canonicalization": "utf8-nfc-jsonl-sorted-keys",
+    "external_digest": null,
+    "problem_count": 0,
+    "sealed": false,
+    "problem_text_included": false
+  },
+  "runs": [],
+  "files": [
+    {
+      "path": "README.md",
+      "role": "dataset-card",
+      "size": "computed-by-publish",
+      "sha256": "computed-by-publish"
+    },
+    {
+      "path": "MANIFEST.json",
+      "role": "manifest",
+      "size": "computed-by-publish",
+      "sha256": "computed-by-publish"
+    },
+    {
+      "path": "benchmark-map.json",
+      "role": "canonical-map-copy",
+      "size": "computed-by-publish",
+      "sha256": "computed-by-publish"
+    }
+  ],
+  "validation": {
+    "validator": "scripts/validate_hf_test_results_manifest.py",
+    "commands": [
+      "npm run hf:test-results:audit",
+      "npm run benchmark:audit"
+    ],
+    "pass_fail_summary": "staged manifest passes when no live score/result files are claimed"
+  }
+}

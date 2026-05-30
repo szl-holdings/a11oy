@@ -1,0 +1,216 @@
+{
+  "schemaVersion": "a11oy.action-contract.v0.1",
+  "contractId": "a11oy.operator.intent.udsp.v0",
+  "claimStatus": "verified-runtime",
+  "canonicalRule": "This is an original A11oy operator intent contract. It models UDS-style handoff concepts without copying upstream CRDs, schemas, templates, or prose. Runtime helper coverage exists for receipt emission; deployment/use remains operator proof-point scoped.",
+  "cleanRoom": {
+    "sourcePatternIds": [
+      "operator-intent-contract",
+      "disconnected-proof-bundle"
+    ],
+    "copyingRule": "pattern-only",
+    "endorsementBoundary": "No Defense Unicorns endorsement, UDS catalog acceptance, or universal deployability is implied."
+  },
+  "intent": {
+    "title": "A11oy UDS/Zarf-compatible operator proof-point action",
+    "requestedAction": "verify_and_stage_operator_payload",
+    "actionClass": "operator-proof-point",
+    "vertical": "a11oy",
+    "regime": "doctrine-v6",
+    "riskTier": "review-required",
+    "lambdaAxes": [
+      "moralGrounding",
+      "measurabilityHonesty",
+      "provenanceIntegrity",
+      "operatorReversibility"
+    ]
+  },
+  "ingress": {
+    "channels": [
+      "github-release",
+      "github-actions-artifact",
+      "generated-huggingface-mirror"
+    ],
+    "packageRefs": [
+      "dist/payload/a11oy-operational-payload.tar.gz",
+      "deploy/MANIFEST.json",
+      "deploy/zarf.yaml"
+    ],
+    "route": "operator-review",
+    "authRequired": true,
+    "networkPolicyRefs": [],
+    "ssoRefs": [],
+    "monitoringRefs": [
+      "vsp-otel",
+      "sentra"
+    ]
+  },
+  "identity": {
+    "actorId": "operator-or-ci-actor",
+    "actorKind": "human-or-ci",
+    "orgUnit": "szl-holdings",
+    "sessionId": "required-at-runtime",
+    "deviceBinding": "optional-at-runtime",
+    "optionalLivenessReceiptRef": null,
+    "signerVerifier": "local-quorum-labels-until-external-verifier-configured"
+  },
+  "policy": {
+    "policyDocumentRef": "docs/PROVENANCE.md",
+    "policyHash": "computed-at-runtime",
+    "mandatoryAxes": [
+      "moralGrounding",
+      "measurabilityHonesty",
+      "provenanceIntegrity"
+    ],
+    "minimumLambdaCoverage": 0.9,
+    "approvalGate": "human-review-required",
+    "exemptionReceiptRef": null
+  },
+  "evidence": {
+    "manifestRefs": [
+      "deploy/MANIFEST.json",
+      "docs/controls-evidence-map.json"
+    ],
+    "attestationRefs": [
+      "deploy/attestations.jsonl"
+    ],
+    "sourceCommit": "computed-at-runtime",
+    "payloadDigest": "computed-at-runtime",
+    "testCommands": [
+      "npm run controls:audit",
+      "npm run action-contract:audit",
+      "npm run test:policy-contracts",
+      "npm run payload:verify",
+      "npm run payload:bundle:verify"
+    ],
+    "localEvidenceRefs": [
+      "docs/UDS_FRONTIER_GAP_MAP.md",
+      "docs/WARHACKER_UDS_PROOF_POINT.md",
+      "artifacts/a11oy-uds/README.md"
+    ],
+    "claimRefs": [
+      "docs/PROVENANCE.md",
+      "docs/ECOSYSTEM_OPERATING_SYSTEM.md"
+    ]
+  },
+  "receiptSinks": {
+    "primaryJsonl": "deploy/attestations.jsonl",
+    "payloadBundlePath": "dist/payload/a11oy-operational-payload.tar.gz",
+    "udsManifestRef": "deploy/zarf.yaml",
+    "externalWitnesses": [],
+    "retentionDays": 365,
+    "chainMode": "hash-chain"
+  },
+  "replayBounds": {
+    "deterministicInputs": [
+      "deploy/MANIFEST.json",
+      "docs/controls-evidence-map.json",
+      "docs/action-contract-manifest.json"
+    ],
+    "idempotencyKey": "sourceCommit:payloadDigest:policyHash",
+    "maxReplays": 5,
+    "replayWindowSeconds": 604800,
+    "seedPolicy": "fixed-seed-where-randomness-exists",
+    "expectedRoot": "computed-at-runtime",
+    "clockRule": "timestamp-monotonic"
+  },
+  "egressLimits": {
+    "defaultDeny": true,
+    "allowedDestinations": [
+      "github-actions-artifact",
+      "github-release-after-human-approval",
+      "huggingface-generated-mirror-after-github-source"
+    ],
+    "deniedCapabilities": [
+      "secret-export",
+      "private-repo-ingestion",
+      "unlicensed-dataset-redistribution",
+      "self-approval",
+      "unbounded-network-egress"
+    ],
+    "maxBytesPerAction": 104857600,
+    "secretHandling": "never-log-or-export",
+    "exportClasses": [
+      "public-docs",
+      "checksummed-payloads",
+      "generated-mirrors"
+    ]
+  },
+  "execution": {
+    "preflightRequired": true,
+    "dryRunAllowed": true,
+    "operatorConfirmRequired": true,
+    "rollbackPlanRef": "git-revert-or-release-yank",
+    "timeoutSeconds": 900
+  },
+  "udsProofPoint": {
+    "wording": "UDS/Zarf-compatible operator proof point with manifest and attestation verification.",
+    "forbiddenClaims": [
+      "Defense Unicorns endorsed",
+      "UDS catalog accepted",
+      "deploys to every UDS environment",
+      "all formal proof work is green"
+    ],
+    "catalogGradeBlockers": [
+      "UDS Package CR coverage",
+      "signed binary assets",
+      "external signer verification",
+      "release evidence"
+    ],
+    "packageInspectionCommands": [
+      "npm run payload:verify",
+      "npm run payload:bundle",
+      "npm run payload:bundle:verify"
+    ]
+  },
+  "validationRules": [
+    {
+      "id": "clean_room_no_copy",
+      "severity": "error",
+      "target": "cleanRoom",
+      "failureMessage": "Action contract must remain pattern-only with no copied upstream schema/prose."
+    },
+    {
+      "id": "claim_status_guard",
+      "severity": "error",
+      "target": "claimStatus",
+      "failureMessage": "Roadmap contracts cannot be presented as active demo runtime."
+    },
+    {
+      "id": "identity_actor_required",
+      "severity": "error",
+      "target": "identity",
+      "failureMessage": "actorId, actorKind, and sessionId placeholders are required."
+    },
+    {
+      "id": "policy_hash_required",
+      "severity": "error",
+      "target": "policy",
+      "failureMessage": "policyHash, mandatoryAxes, minimumLambdaCoverage, and approvalGate are required."
+    },
+    {
+      "id": "receipt_chain_required",
+      "severity": "error",
+      "target": "receiptSinks",
+      "failureMessage": "primaryJsonl, retentionDays, and hash-chain mode are required."
+    },
+    {
+      "id": "replay_bounded",
+      "severity": "error",
+      "target": "replayBounds",
+      "failureMessage": "Replay must be bounded by idempotency key, max replay count, and deterministic inputs."
+    },
+    {
+      "id": "egress_default_deny",
+      "severity": "error",
+      "target": "egressLimits",
+      "failureMessage": "Egress must default deny and explicitly deny secret export/private ingestion."
+    },
+    {
+      "id": "uds_claim_guard",
+      "severity": "error",
+      "target": "udsProofPoint",
+      "failureMessage": "UDS proof-point language must reject endorsement/catalog/universal-deploy claims."
+    }
+  ]
+}

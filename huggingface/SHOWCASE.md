@@ -46,6 +46,15 @@ flowchart TD
 | Deploy manifest verification | `payloads/deploy/MANIFEST.json` |
 | UDS/Zarf operator handoff | `payloads/deploy/zarf.yaml`, `source/docs/WARHACKER_UDS_PROOF_POINT.md` |
 | Ecosystem readiness | `source/docs/ecosystem-readiness-report.json` |
+| Ecosystem operating system | `source/docs/ECOSYSTEM_OPERATING_SYSTEM.md`, `source/docs/anatomy-formula-runtime-map.json` |
+| Public pattern synthesis | `source/docs/PUBLIC_PATTERN_SYNTHESIS.md`, `source/docs/public-pattern-source-manifest.json` |
+| Controls and action contracts | `source/docs/controls-evidence-map.json`, `source/docs/action-contract-manifest.json`; runtime receipt helpers in GitHub `packages/policy/src/contracts` |
+| Cross-repo access readiness | `source/docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`, `source/docs/github-enterprise-access-checklist.json` |
+| Cross-repo handoff queue | `source/docs/CROSS_REPO_HANDOFF_READINESS.md`, `source/docs/cross-repo-handoff-manifest.json`; runtime receipts in GitHub `packages/policy/src/contracts/cross_repo_handoff.ts` |
+| Phase completion report | `source/docs/PHASE_COMPLETION_REPORT.md`, `source/docs/phase-completion-manifest.json` |
+| Autonomous learning doctrine | `source/docs/AUTONOMOUS_LEARNING_DOCTRINE.md` |
+| Autonomous learning receipts | GitHub `packages/policy/src/contracts/autonomous_learning.ts` emits proposal/evaluation/human-promotion receipts without claiming self-approval or production autonomy. |
+| Benchmark evolution | `source/docs/benchmark-evolution-doctrine.md`, `source/benchmarks/benchmark-map.json`, `test-results/MANIFEST.json` |
 | Series-A diligence | `source/docs/SERIES_A_DILIGENCE.md`, `INVESTOR_BRIEF.md` |
 
 ## Verification lane

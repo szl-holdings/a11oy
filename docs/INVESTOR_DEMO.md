@@ -18,6 +18,15 @@ explicitly out of active-demo scope.
 | 7 | [`huggingface/README.md`](../huggingface/README.md) | Hugging Face is a generated diligence mirror tied back to GitHub. |
 | 8 | [`docs/UDS_FRONTIER_GAP_MAP.md`](UDS_FRONTIER_GAP_MAP.md) | UDS/Zarf fit and gaps are mapped against public Defense Unicorns docs. |
 | 9 | [`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](ANCIENT_TEXTS_FORMULA_LINEAGE.md) | Ancient/pre-modern source lineage is mapped to formulas and runtime hooks with caveats. |
+| 10 | [`docs/ECOSYSTEM_OPERATING_SYSTEM.md`](ECOSYSTEM_OPERATING_SYSTEM.md) | Repos, formulas, anatomy, UDS, HF, autonomy, and benchmarks are routed through one claim-status OS. |
+| 11 | [`docs/AUTONOMOUS_LEARNING_DOCTRINE.md`](AUTONOMOUS_LEARNING_DOCTRINE.md) | “Dreaming” and learning are staged as receipt-backed proposals with human promotion, not self-deploying production mutation. |
+| 12 | [`docs/benchmark-evolution-doctrine.md`](benchmark-evolution-doctrine.md) | Putnam and benchmark goals are raw-score, corpus-pinned, receipt-backed, and judge-audited. |
+| 13 | [`docs/PUBLIC_PATTERN_SYNTHESIS.md`](PUBLIC_PATTERN_SYNTHESIS.md) | Public ecosystem inspiration is transformed into original SZL artifacts without private/unlicensed copying or implied endorsement. |
+| 14 | [`docs/controls-evidence-map.json`](controls-evidence-map.json) | A11oy-native controls map binds claims to evidence paths, validators, receipts, HF exposure, and UDS boundaries. |
+| 15 | [`docs/action-contract-manifest.json`](action-contract-manifest.json) | Original operator intent contract captures ingress, identity, policy, evidence, replay, and egress limits. |
+| 16 | [`docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`](GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md) | Enterprise seats help only after org membership, repo/team write permission, SSO, and token/App scope are configured. |
+| 17 | [`docs/CROSS_REPO_HANDOFF_READINESS.md`](CROSS_REPO_HANDOFF_READINESS.md) | Blocked sibling work is queued as checksum-backed proxy patches with target validation requirements and no completion overclaims. |
+| 18 | [`docs/PHASE_COMPLETION_REPORT.md`](PHASE_COMPLETION_REPORT.md) | A11oy-local phase closeout: complete locally, cross-repo phases access-pending until target CI evidence exists. |
 
 ## One-line thesis
 

@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-phase-completion-v1",
+  "observedAt": "2026-05-30",
+  "canonicalRule": "A11oy-local phases are complete on this branch when their docs/manifests, validators, runtime helpers, payload generation, and bundle verification pass. Sibling repo phases remain access-pending until target repo write access, target-native validation, and target CI are green.",
+  "branch": "cursor/ecosystem-os-doctrine-2f18",
+  "pullRequest": "https://github.com/szl-holdings/a11oy/pull/134",
+  "a11oyLocalStatus": "complete-for-current-branch",
+  "crossRepoStatus": "access-pending-handoff-queued",
+  "huggingFaceStatus": "generated-payload-ready-publish-requires-token-or-workflow",
+  "forbiddenClaims": [
+    "all green Lean",
+    "zero sorry",
+    "cracked Putnam",
+    "Defense Unicorns endorsed",
+    "UDS catalog accepted",
+    "HF is canonical",
+    "sibling repo complete without target CI"
+  ],
+  "phases": [
+    {
+      "id": "PHASE-001",
+      "name": "Ecosystem operating system",
+      "status": "complete-for-current-branch",
+      "artifacts": [
+        "docs/ECOSYSTEM_OPERATING_SYSTEM.md",
+        "docs/anatomy-formula-runtime-map.json"
+      ],
+      "validationCommands": [
+        "npm run ecosystem:os:audit",
+        "npm run anatomy:runtime:audit"
+      ]
+    },
+    {
+      "id": "PHASE-002",
+      "name": "Autonomous learning doctrine and receipts",
+      "status": "runtime-helper-complete-harness-staged",
+      "artifacts": [
+        "docs/AUTONOMOUS_LEARNING_DOCTRINE.md",
+        "packages/policy/src/contracts/autonomous_learning.ts",
+        "packages/policy/src/contracts/__tests__/autonomous_learning_contracts.test.ts"
+      ],
+      "validationCommands": [
+        "npm run test:autonomy-contracts"
+      ]
+    },
+    {
+      "id": "PHASE-003",
+      "name": "Benchmark evolution and staged test-results",
+      "status": "schema-complete-no-live-score",
+      "artifacts": [
+        "docs/benchmark-evolution-doctrine.md",
+        "benchmarks/benchmark-map.json",
+        "huggingface/test-results/MANIFEST.json"
+      ],
+      "validationCommands": [
+        "npm run benchmark:audit",
+        "npm run hf:test-results:audit"
+      ]
+    },
+    {
+      "id": "PHASE-004",
+      "name": "Public pattern synthesis",
+      "status": "complete-for-current-branch",
+      "artifacts": [
+        "docs/PUBLIC_PATTERN_SYNTHESIS.md",
+        "docs/public-pattern-source-manifest.json"
+      ],
+      "validationCommands": [
+        "npm run patterns:audit"
+      ]
+    },
+    {
+      "id": "PHASE-005",
+      "name": "Controls, action contracts, and receipts",
+      "status": "runtime-helper-complete",
+      "artifacts": [
+        "docs/controls-evidence-map.json",
+        "docs/action-contract-manifest.json",
+        "packages/policy/src/contracts/controls.ts"
+      ],
+      "validationCommands": [
+        "npm run controls:audit",
+        "npm run action-contract:audit",
+        "npm run test:policy-contracts"
+      ]
+    },
+    {
+      "id": "PHASE-006",
+      "name": "GitHub Enterprise and cross-repo handoff",
+      "status": "access-pending-handoff-queued",
+      "artifacts": [
+        "docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md",
+        "docs/github-enterprise-access-checklist.json",
+        "scripts/audit_github_access_permissions.py",
+        "docs/CROSS_REPO_HANDOFF_READINESS.md",
+        "docs/cross-repo-handoff-manifest.json",
+        "packages/policy/src/contracts/cross_repo_handoff.ts"
+      ],
+      "validationCommands": [
+        "npm run github:access:audit",
+        "npm run github:access:live:validate",
+        "npm run cross-repo:handoff:audit",
+        "npm run test:cross-repo-handoff"
+      ]
+    },
+    {
+      "id": "PHASE-007",
+      "name": "Payload and Hugging Face generation",
+      "status": "generated-payload-ready",
+      "artifacts": [
+        "scripts/prepare_huggingface_payload.py",
+        "scripts/build_operational_payload.py",
+        "huggingface/README.md"
+      ],
+      "validationCommands": [
+        "npm run payload:huggingface",
+        "npm run payload:verify",
+        "npm run payload:bundle",
+        "npm run payload:bundle:verify"
+      ]
+    }
+  ],
+  "completionRequiresForSiblingRepos": [
+    "target repo write-ready access",
+    "target patch applied",
+    "target-native validation passes",
+    "target CI green",
+    "A11oy handoff entry updated with target PR and CI evidence"
+  ]
+}

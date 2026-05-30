@@ -17,6 +17,16 @@ pnpm ecosystem:audit
 pnpm ecosystem:readiness
 ```
 
+The operating-system layer is
+[`ECOSYSTEM_OPERATING_SYSTEM.md`](ECOSYSTEM_OPERATING_SYSTEM.md), with the
+machine-readable anatomy/formula map in
+[`anatomy-formula-runtime-map.json`](anatomy-formula-runtime-map.json). Validate
+the full OS contract with:
+
+```bash
+pnpm ecosystem:os:audit
+```
+
 If sibling repos are cloned under `.repos/szl-holdings/`, the audit also reports
 local checkout coverage. Use:
 

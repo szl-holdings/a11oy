@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-cross-repo-handoff-v1",
+  "observedAt": "2026-05-30",
+  "canonicalRule": "A cross-repo handoff is not complete until the target repo has the patch applied, target-native validation passes, CI is green, and public claims are updated from target GitHub evidence.",
+  "accessBoundary": "Current environment can push to szl-holdings/a11oy, but sibling repos require separate GitHub org/repo/token/App permissions.",
+  "forbiddenClaims": [
+    "complete",
+    "production-ready",
+    "all green",
+    "zero sorry",
+    "catalog accepted",
+    "endorsed",
+    "deployed to target repo"
+  ],
+  "handoffs": [
+    {
+      "handoffId": "XREPO-AGI-FORECAST-FG-PIPELINE",
+      "targetRepo": "szl-holdings/agi-forecast",
+      "targetBranch": "cursor/agi-forecast-fg-pipeline-2f18",
+      "patchPath": "coordination/proxy-patches/agi-forecast-fg-pipeline.patch",
+      "statusPath": "coordination/AGI_FORECAST_PROXY_STATUS_2026-05-29.md",
+      "patchSha256": "719c0109569e3142541e3aa5b79e0929485aca193c9104569a209094e36d453e",
+      "accessState": "blocked-by-access",
+      "handoffState": "ready-for-owner-apply",
+      "localValidation": [
+        "npm install",
+        "npm test",
+        "npm run build"
+      ],
+      "targetValidationRequired": [
+        "npm install",
+        "npm test",
+        "npm run build",
+        "GitHub Actions on agi-forecast PR"
+      ],
+      "completionRequires": [
+        "patch applied in szl-holdings/agi-forecast",
+        "target PR created from cursor/agi-forecast-fg-pipeline-2f18",
+        "target CI green",
+        "raw-score/no-cracked-Putnam language preserved"
+      ],
+      "claimStatus": "roadmap"
+    },
+    {
+      "handoffId": "XREPO-LUTAR-LEAN-SIMPLE-API-DRIFT",
+      "targetRepo": "szl-holdings/lutar-lean",
+      "targetBranch": "cursor/lutar-simple-api-drift-2f18",
+      "patchPath": "coordination/proxy-patches/lutar-lean-simple-api-drift.patch",
+      "statusPath": "coordination/LUTAR_LEAN_SIMPLE_API_DRIFT_STATUS_2026-05-29.md",
+      "patchSha256": "736414920f1d20351e910abdd023fd9de12b28d27f61200186343f32313fed5f",
+      "accessState": "blocked-by-access",
+      "handoffState": "needs-target-runner",
+      "localValidation": [
+        "patch prepared from public clone"
+      ],
+      "targetValidationRequired": [
+        "lake build",
+        "Lean kernel check workflow on lutar-lean PR"
+      ],
+      "completionRequires": [
+        "patch applied in szl-holdings/lutar-lean",
+        "lake build passes in target environment",
+        "sorry inventory and all-green wording remain scoped"
+      ],
+      "claimStatus": "lean-backed-needs-upstream-ci"
+    },
+    {
+      "handoffId": "XREPO-LUTAR-LEAN-DOC-COMMENT-DRIFT",
+      "targetRepo": "szl-holdings/lutar-lean",
+      "targetBranch": "cursor/lutar-doc-comment-api-drift-2f18",
+      "patchPath": "coordination/proxy-patches/lutar-lean-doc-comment-api-drift.patch",
+      "statusPath": "coordination/LUTAR_LEAN_DOC_COMMENT_API_DRIFT_STATUS_2026-05-29.md",
+      "patchSha256": "903567f09981206d6a1da50d3ba96f7f9aa4096c5177069cde4311dcb4de05e0",
+      "accessState": "blocked-by-access",
+      "handoffState": "needs-target-runner",
+      "localValidation": [
+        "patch prepared from public clone"
+      ],
+      "targetValidationRequired": [
+        "lake build",
+        "Lean kernel check workflow on lutar-lean PR"
+      ],
+      "completionRequires": [
+        "patch applied in szl-holdings/lutar-lean",
+        "lake build passes in target environment",
+        "no broad zero-sorry/all-green claim without proof report"
+      ],
+      "claimStatus": "lean-backed-needs-upstream-ci"
+    },
+    {
+      "handoffId": "XREPO-LUTAR-LEAN-ROBUSTNESS-CHAIN-SCOPE",
+      "targetRepo": "szl-holdings/lutar-lean",
+      "targetBranch": "cursor/lutar-robustness-chain-scope-2f18",
+      "patchPath": "coordination/proxy-patches/lutar-lean-robustness-chain-scope.patch",
+      "statusPath": "coordination/LUTAR_LEAN_ROBUSTNESS_CHAIN_SCOPE_STATUS_2026-05-29.md",
+      "patchSha256": "de751fcd16dbb15afc87e569a343542413fc57503d2c13df4d0685d493accb8f",
+      "accessState": "blocked-by-access",
+      "handoffState": "needs-target-runner",
+      "localValidation": [
+        "patch prepared from public clone"
+      ],
+      "targetValidationRequired": [
+        "lake build",
+        "Lean kernel check workflow on lutar-lean PR"
+      ],
+      "completionRequires": [
+        "patch applied in szl-holdings/lutar-lean",
+        "lake build passes in target environment",
+        "tracked-obligation wording preserved"
+      ],
+      "claimStatus": "lean-backed-needs-upstream-ci"
+    }
+  ]
+}
