@@ -37,7 +37,7 @@ The theorem bounds the maximum plausible capability improvement per evaluation p
 score_next - score_prior ≤ sqrt((KL + ln(2√m/δ)) / (2m))
 ```
 
-For m=12 (Putnam), KL=ln(3), δ=0.05: bound ≈ **48.9% per period**.
+For m=12 (competition-math benchmark), KL=ln(3), δ=0.05: bound ≈ **48.9% per period**.
 
 The 2 sorries are explicitly named (`AsymptoticTightness`, `KLMonotonicity`) with discharge routes documented in the Lean file header. This is Doctrine v6 compliant — no undisclosed sorries.
 
@@ -55,8 +55,8 @@ npm install @szl-holdings/rae1
 import { validateReceiptChain, validateRAE1Schema } from "@szl-holdings/rae1";
 import { readFileSync } from "fs";
 
-// Verify a complete Putnam receipt chain
-const content = readFileSync("runtime/putnam-2025/receipts.jsonl", "utf8");
+// Verify a complete benchmark receipt chain
+const content = readFileSync("runtime/bench-2025/receipts.jsonl", "utf8");
 const result = validateReceiptChain(content);
 
 console.log("Valid:", result.valid);           // true if chain intact
@@ -160,7 +160,7 @@ import { pae, verifyHMAC, signEnvelope } from "@szl-holdings/rae1/hmac";
 - [CURSOR_AGI_PR_QUEUE.md](../../audit_2026-05-29_evening/agi_synthesis/CURSOR_AGI_PR_QUEUE.md) — PR queue
 - [Lutar/PACBayes/CapabilityImprovementRate.lean](../../../lutar-lean/Lutar/PACBayes/CapabilityImprovementRate.lean) — Lean theorem
 - DSSE spec: [github.com/secure-systems-lab/dsse](https://github.com/secure-systems-lab/dsse)
-- PutnamBench: [arXiv:2407.11214](https://arxiv.org/abs/2407.11214)
+- competition-math benchmark suite: [arXiv:2407.11214](https://arxiv.org/abs/2407.11214)
 - PAC-Bayes: [arXiv:2407.20122](https://arxiv.org/abs/2407.20122), [arXiv:2510.25569](https://arxiv.org/abs/2510.25569)
 
 ---

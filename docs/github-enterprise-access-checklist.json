@@ -43,7 +43,7 @@
     {
       "repo": "szl-holdings/agi-forecast",
       "minimumPermission": "write",
-      "phaseUnlocked": "direct Putnam/FG benchmark pipeline implementation",
+      "phaseUnlocked": "direct competition-math/FG benchmark pipeline implementation",
       "currentFallback": "a11oy proxy patch queue"
     },
     {

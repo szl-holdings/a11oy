@@ -38,7 +38,7 @@ def main() -> int:
         errors.append("crossRepoStatus must be access-pending-handoff-queued")
 
     forbidden = " ".join(data.get("forbiddenClaims", [])).lower()
-    for phrase in ["zero sorry", "cracked putnam", "uds catalog accepted", "hf is canonical"]:
+    for phrase in ["zero sorry", "solved the benchmark", "uds catalog accepted", "hf is canonical"]:
         if phrase not in forbidden:
             errors.append(f"forbiddenClaims missing {phrase!r}")
 

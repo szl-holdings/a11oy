@@ -19,7 +19,7 @@ repo, release, workflow, DOI, or checked-in file behind it.
 | Repo | Role in the spine | Public evidence | Status | Caveat |
 | --- | --- | --- | --- | --- |
 | `ouroboros-thesis` | Thesis / math substrate | Public repo and DOI `10.5281/zenodo.20434276`; concept DOI `10.5281/zenodo.19944926` | `verified-public` | Latest public GitHub release observed here is `paper-v17-1.0.0`; v18 is DOI-pinned but GitHub release reconciliation remains open. |
-| `lutar-lean` | Lean proof substrate | Public repo, release `lutar-v18.0.0`, DOI `10.5281/zenodo.20434308` | `verified-public` | Agent C audit (2026-05-30): 626 declarations, 15 axioms (14 unique), 189 sorries (138 non-Putnam + 51 Putnam). |
+| `lutar-lean` | Lean proof substrate | Public repo, release `lutar-v18.0.0`, DOI `10.5281/zenodo.20434308` | `verified-public` | Agent C audit (2026-05-30): 626 declarations, 15 axioms (14 unique), 189 sorries (138 in core modules + 51 in the competition-math module). |
 | `ouroboros` | Runtime substrate | Public repo, release `v6.3.0` | `verified-public` | Treat runtime-specific performance claims as per-release/per-paper evidence, not blanket current-main facts. |
 | `a11oy` | Governed execution hub | This repo, green PR #139 checks, receipt/payload/doctrine tests | `verified-ci` | Main currently has seven policy gate files and ten theorem-runtime manifest entries; larger gate counts are PRs until merged. |
 | `amaru` | Memory / receipt anchoring organ | Public repo, release line visible from GitHub metadata | `verified-public` | Current packet cites it as supporting substrate, not independently validated runtime in this checkout. |
@@ -43,7 +43,7 @@ description, not invented marketing copy.
 | 7 | `ouroboros-thesis` | DOI-pinned thesis and public claim taxonomy. |
 | 8 | `uds-mesh` | UDS span schemas and DSSE governance receipt mesh. |
 | 9 | `vsp-otel` | OpenTelemetry exporter for audit fibers and Lambda-axis spans. |
-| 10 | `agi-forecast` | Forecast / Putnam benchmark harness with honest `1/12` baseline posture. |
+| 10 | `agi-forecast` | Forecast / competition-math benchmark harness with honest `1/12` baseline posture. |
 | 11 | `platform` | Composition monorepo for deployed runtime surfaces. |
 | 12 | `szl-brand` | Brand, anatomy, social preview, and visual doctrine assets. |
 | 13 | `szl-cookbook` | Recipes and how-to guides for governed AI infrastructure. |
@@ -94,8 +94,6 @@ Use this language until the upstream evidence changes:
 - **Lean proofs:** proof substrate and green kernel-check PRs exist, but the
   repo description still carries tracked sorries/placeholders. Cite exact
   modules and CI, not “all closed”.
-- **Putnam:** current public posture remains `1/12` truly discharged in Lean
-  unless upstream proof reports verify more.
 - **A11oy gates:** PR #140 may make the broader gate set real when merged; this
   packet should not describe G36-G40 or 35/40-gate totals as main until merged.
 - **SLSA:** L3 work is PR/roadmap until failing PRs are signed, green, merged,

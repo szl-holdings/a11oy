@@ -91,7 +91,6 @@ language:
 | Area | Evidence-backed statement |
 | --- | --- |
 | A11oy runtime gates | Main has seven policy gate files under `packages/policy/src/gates` and ten entries in `docs/theorem-runtime-manifest.json`; larger G36-G40 / 35 / 40-gate counts require merged PR evidence. |
-| Putnam | Treat Putnam as `1/12` truly discharged in Lean until a current upstream `lutar-lean` proof report verifies more. |
 | Vessels UDS | `vessels` `uds-v0.3.0` exists but has zero release assets; `uds-v0.2.0` remains the signed-asset demonstration line. |
 | A11oy UDS | `a11oy` `uds-v0.3.0` carries SBOM assets; do not describe it as a signed binary payload release. |
 | GHCR | GHCR manifest checks returned an authentication challenge from this environment, so package availability needs owner-side push or visibility confirmation. |

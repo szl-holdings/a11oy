@@ -47,7 +47,7 @@
 ## Highest next items
 
 1. Proxy/verify/merge Lutar kernel-green patch in `lutar-lean` with real `lake build`.
-2. Merge/apply `agi-forecast#42`; then continue Putnam v2 judge/harness.
+2. Merge/apply `agi-forecast#42`; then continue competition-math v2 judge/harness.
 3. Merge/apply a11oy runtime hardening branches.
 4. Start Sentra/Amaru/Rosie real tests + receipt verification patches from audit agent outputs.
 5. Keep UDS v0.3.0/v0.3.1 honest: no signed-asset claim until assets verify.

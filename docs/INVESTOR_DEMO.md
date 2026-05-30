@@ -125,7 +125,6 @@ sequenceDiagram
 | Thesis v18.0 is the current claim anchor | `thesis-anchor` | DOI `10.5281/zenodo.20434276` |
 | Lean proofs exist as a public substrate | `lean-backed-needs-current-ci` | `szl-holdings/lutar-lean`, DOI `10.5281/zenodo.20434308` |
 | A11oy live runtime gate count | `verified-runtime` | Seven files under `packages/policy/src/gates`; ten entries in `docs/theorem-runtime-manifest.json` |
-| Putnam Lean discharge posture | `lean-backed-needs-upstream-ci` | Public language remains `1/12` truly discharged until current upstream proof reports verify more |
 | Vessels signed-asset posture | `release-payload` / guarded | `vessels` `uds-v0.3.0` has zero assets; `uds-v0.2.0` has tarball, `.sig`, `.sha256`, and public key |
 
 ## UDS / Warhacker proof point
@@ -147,7 +146,6 @@ acceptance, or partnership unless those become explicit public facts.
 
 | Claim | Allowed investor wording |
 | --- | --- |
-| Putnam | “Current Lean-discharge language is `1/12`; additional Putnam progress is upstream proof work until verified.” |
 | A11oy gates | “Seven live policy gate files and ten theorem-runtime manifest entries are in main; larger gate totals are PR/roadmap until merged.” |
 | UDS v0.3.0 | “A11oy has SBOM assets; Vessels has an empty v0.3.0 release. Signed binary payload proof uses earlier signed releases or future owner-pushed assets.” |
 | GHCR | “Package visibility/push needs owner confirmation when unauthenticated checks return 401.” |

@@ -65,7 +65,6 @@ Excluded from active-demo claims until funded:
   `lutar-lean` CI and theorem reports prove that exact claim.
 - Treat Hugging Face as a generated mirror; GitHub releases, CI, manifests, and
   DOI records are canonical.
-- Treat Putnam as `1/12` truly discharged in Lean unless a current upstream
   proof report verifies more.
 - Treat A11oy main as seven live policy gate files plus ten theorem-runtime
   manifest entries; larger gate totals require merged PR evidence.

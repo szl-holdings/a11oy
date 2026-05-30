@@ -207,7 +207,7 @@
     {
       "controlId": "A11OY-CE-009",
       "title": "Benchmark evidence discipline",
-      "description": "Benchmark and Putnam claims require corpus digest, raw-score reporting, judge panel, receipt chain, and unsupported-claim rejection.",
+      "description": "Benchmark and competition-math benchmark claims require corpus digest, raw-score reporting, judge panel, receipt chain, and unsupported-claim rejection.",
       "claimStatus": "roadmap",
       "evidencePaths": [
         "docs/benchmark-evolution-doctrine.md",
@@ -224,7 +224,7 @@
       "hfExposure": "future-test-results-dataset",
       "udsExposure": "not-uds-primary",
       "invariants": [
-        "Putnam claims stay raw-score only",
+        "competition-math benchmark claims stay raw-score only",
         "no live score is claimed without sealed corpus and receipts",
         "reject cracked/solved/AGI-proven language"
       ]

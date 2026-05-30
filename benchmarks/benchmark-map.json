@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generatedBy": "manual-benchmark-evolution-v1",
   "observedAt": "2026-05-30",
-  "canonicalRule": "A benchmark claim is active only when corpus digest, scoring rubric, judge panel, receipts, and CI validation are present. Putnam claims must be raw-score claims.",
+  "canonicalRule": "A benchmark claim is active only when corpus digest, scoring rubric, judge panel, receipts, and CI validation are present. competition-math benchmark claims must be raw-score claims.",
   "publication": {
     "canonicalSource": "https://github.com/szl-holdings/a11oy",
     "huggingFaceResultsRepo": "SZLHOLDINGS/a11oy-test-results",
@@ -11,7 +11,7 @@
   },
   "entries": [
     {
-      "id": "putnam-raw-score-v1",
+      "id": "mathcomp-raw-score-v1",
       "family": "mathematics",
       "status": "staged-no-corpus-digest",
       "sourceEcosystem": [
@@ -20,7 +20,7 @@
         "a11oy"
       ],
       "corpus": {
-        "corpusId": "putnam-public-years",
+        "corpusId": "mathcomp-public-years",
         "corpusVersion": "v1",
         "immutability": "content-addressed",
         "sourceUri": "external-official-or-licensed-source",
@@ -45,10 +45,10 @@
         ]
       },
       "honesty": {
-        "allowedClaim": "staged Putnam-style raw-score harness design; no live score claimed",
+        "allowedClaim": "staged competition-math raw-score harness design; no live score claimed",
         "disallowedClaims": [
-          "cracked Putnam",
-          "solved Putnam",
+          "solved the benchmark",
+          "beat the benchmark",
           "AGI proven"
         ],
         "headlineThresholdRequiresUnanimousJudges": true
@@ -108,7 +108,7 @@
         "verify-corpus-digests",
         "verify-receipt-chain",
         "verify-formula-routes",
-        "reject-unsupported-putnam-claims"
+        "reject-unsupported-benchmark-claims"
       ]
     }
   ]

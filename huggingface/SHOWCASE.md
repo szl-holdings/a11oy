@@ -89,7 +89,6 @@ The strongest story is the evidence trail:
 
 | Claim area | Current evidence-backed wording |
 | --- | --- |
-| Putnam | Treat Putnam as `1/12` truly discharged in Lean until upstream proof reports say otherwise. Do not repeat `4/12`, `10/12`, or “four GREEN” language as Lean closure. |
 | A11oy gates | A11oy main currently exposes seven policy gate files and ten theorem-runtime manifest entries. G36-G40 and broader gate counts remain PR/roadmap until merged and validated. |
 | UDS signed assets | A11oy `uds-v0.3.0` has SBOM release assets only; Vessels `uds-v0.3.0` has zero release assets. Use `uds-v0.2.0` when demonstrating signed Vessels assets. |
 | GHCR | GHCR manifest checks returned an authentication challenge in this environment, so public package availability needs owner-side push or visibility confirmation. |

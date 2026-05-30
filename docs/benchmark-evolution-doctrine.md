@@ -4,7 +4,7 @@ A11oy benchmark claims are evidence artifacts, not slogans. A run is
 publishable only when the corpus, route, judge panel, receipts, and raw results
 are immutable and replayable.
 
-This doctrine covers Putnam-style goals in `agi-forecast`, theorem/runtime
+This doctrine covers competition-math goals in `agi-forecast`, theorem/runtime
 routes in `lutar-lean` and `a11oy`, and any future Hugging Face
 `test-results` mirror.
 
@@ -16,14 +16,14 @@ routes in `lutar-lean` and `a11oy`, and any future Hugging Face
 - A changed prompt, solution, rubric, split, metadata row, or canonicalization
   rule creates a new `corpusVersion`.
 - Old corpora are never overwritten. They may be deprecated by pointer only.
-- Putnam problem text may be stored only when license permits. Otherwise store
+- competition-math problem text may be stored only when license permits. Otherwise store
   official/source pointers, metadata, and content digests.
 
-## Putnam raw-score honesty
+## Competition-math raw-score honesty
 
-- Report Putnam as raw points: `earned_points / possible_points`, with
+- Report competition-math benchmark results as raw points: `earned_points / possible_points`, with
   year/problem breakdown.
-- Do not say “cracked Putnam” unless a sealed, pre-registered corpus reaches a
+- Do not say “solved the benchmark” unless a sealed, pre-registered corpus reaches a
   declared threshold with receipts, reproducible tooling, and unanimous headline
   judge agreement.
 - Separate answer correctness, proof validity, Lean/formal verification,
@@ -108,13 +108,13 @@ Block benchmark PRs unless:
 - `benchmarks/benchmark-map.json` validates;
 - corpus/result digests match bytes on disk or declared external digests;
 - formula routes resolve to `docs/theorem-runtime-manifest.json`;
-- Putnam language remains raw-score/staged unless evidence supports more;
+- Competition-math benchmark language remains raw-score/staged unless evidence supports more;
 - receipt JSONL verifies as append-only;
 - HF dry-run includes benchmark/test-results files.
 
 ## Current state
 
 The current benchmark map is deliberately staged: it defines the operating
-contract and formula routes, but it does not claim a live Putnam score. The
+contract and formula routes, but it does not claim a live benchmark score. The
 next operational step is a pinned corpus manifest, judge-panel config, and
 receipt-emitting runner in `agi-forecast` or a dedicated benchmark package.

@@ -6,7 +6,7 @@ tags:
   - benchmark
   - receipts
   - governance
-  - putnam
+  - mathcomp
   - mirror-not-canonical
 pretty_name: A11oy staged test-results schema
 ---
@@ -20,12 +20,12 @@ GitHub remains canonical. Hugging Face is a generated mirror for review.
 
 ## Current claim status
 
-- No live Putnam score is claimed.
+- No live benchmark score is claimed.
 - No leaderboard metric is claimed.
 - No benchmark corpus is redistributed here.
 - No model-index metrics are published.
 
-Putnam scoring remains staged until corpus digest, receipts, reproducible
+Competition-math benchmark scoring remains staged until corpus digest, receipts, reproducible
 tooling, and judge agreement are present.
 
 ## Future dataset layout

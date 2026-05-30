@@ -39,7 +39,7 @@ The current Cursor/bot or designated service account needs:
 | --- | --- | --- |
 | `szl-holdings/.github` | Write | Org profile, coordination, reusable workflows, issue/PR templates. |
 | `szl-holdings/lutar-lean` | Write | Apply Lean kernel/proof proxy patches directly instead of via A11oy handoff. |
-| `szl-holdings/agi-forecast` | Write | Apply Putnam/FG pipeline patches directly. |
+| `szl-holdings/agi-forecast` | Write | Apply competition-math/FG pipeline patches directly. |
 | `szl-holdings/uds-mesh` | Write | Update mesh pointers, release topology, and UDS bundle indexes. |
 | `szl-holdings/amaru` | Write | Receipt minting/anchor UDS component upgrades. |
 | `szl-holdings/sentra` | Write | Drift/telemetry UDS component upgrades. |

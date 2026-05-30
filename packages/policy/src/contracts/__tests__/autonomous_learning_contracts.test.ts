@@ -61,7 +61,7 @@ assert.equal(verifyReceipt(proposalReceipt).valid, true);
 assert.throws(
   () => emitAutonomousLearningProposalReceipt({
     ...proposalInput,
-    forbiddenClaimScan: { passed: false, scanner: "doctrine-v6", forbiddenMatches: ["cracked Putnam"] },
+    forbiddenClaimScan: { passed: false, scanner: "doctrine-v6", forbiddenMatches: ["solved the benchmark"] },
   }),
   /forbidden claim scan/,
 );

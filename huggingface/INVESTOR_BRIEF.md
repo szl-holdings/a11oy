@@ -30,7 +30,7 @@ A11oy turns those questions into artifacts.
 | Public mirror | This Hugging Face packet is generated from tracked GitHub source. |
 | Market evidence | `source/docs/SERIES_A_MARKET_EVIDENCE.md` maps public governance, SBOM, provenance, and model-card expectations to concrete A11oy artifacts. |
 | Substrate reality | `source/docs/SUBSTRATE_REALITY_MAP.md` keeps the spine/quadrant/anatomy/GHAS/SLSA claims evidence-gated. |
-| Live correction guardrails | `DEMO_RECEIPT_SAMPLE.jsonl` records blocked claims for Vessels `uds-v0.3.0` signed assets, inflated Putnam discharge counts, and unmerged gate totals. |
+| Live correction guardrails | `DEMO_RECEIPT_SAMPLE.jsonl` records blocked claims for Vessels `uds-v0.3.0` signed assets, inflated benchmark discharge counts, and unmerged gate totals. |
 
 ## Active ecosystem
 
@@ -60,7 +60,6 @@ The clean demo path is:
 
 ## What remains gated
 
-- **Putnam:** current investor language should say `1/12` truly discharged in
   Lean unless a current upstream proof report proves more.
 - **UDS v0.3.x:** signed binary assets and GHCR package pushes remain
   owner-side release work; do not treat empty or SBOM-only releases as signed
