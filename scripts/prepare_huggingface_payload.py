@@ -69,6 +69,7 @@ def main() -> int:
         ("docs/PERPLEXITY_BRIEF.md", "source/docs/PERPLEXITY_BRIEF.md"),
         ("docs/ECOSYSTEM.md", "source/docs/ECOSYSTEM.md"),
         ("docs/ecosystem-readiness-report.json", "source/docs/ecosystem-readiness-report.json"),
+        ("docs/theorem-runtime-manifest.json", "source/docs/theorem-runtime-manifest.json"),
         ("deploy/MANIFEST.json", "payloads/deploy/MANIFEST.json"),
         ("deploy/zarf.yaml", "payloads/deploy/zarf.yaml"),
         ("deploy/attestations.jsonl", "payloads/deploy/attestations.jsonl"),
