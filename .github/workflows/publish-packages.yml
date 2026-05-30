@@ -1,0 +1,129 @@
+name: Publish npm packages
+
+# Publishes the consumable a11oy moat packages to GitHub Packages so the other
+# SZL modules (amaru/sentra/vessels) can import the REAL policy gates + receipt
+# substrate instead of the @workspace/a11oy-orchestration stub.
+#
+# Packages published (by path — these are not pnpm-workspace members, so each is
+# built and published in place):
+#   @szl-holdings/a11oy-policy            (packages/policy)
+#   @szl-holdings/a11oy-receipt-substrate (packages/receipt-substrate)
+#
+# Both ship raw TypeScript in-repo (main: ./src/index.ts). For a consumable
+# package we emit JS + .d.ts via tsconfig.publish.json so downstreams don't need
+# allowImportingTsExtensions and browsers never see node: imports at runtime
+# (consumers import receipt-substrate TYPES only).
+#
+# Triggers:
+#   1. workflow_dispatch{ version } — manual publish/backfill
+#   2. release: published, guarded to tags matching pkg-v* (does NOT collide
+#      with the uds-v* SBOM/sign lanes)
+#
+# Doctrine v7 §10: no fabricated assets. The published tarball is built from
+# tracked source by tsc; nothing is hand-uploaded.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.0). Must match each package.json or use dry-run.'
+        required: false
+        type: string
+      dry_run:
+        description: 'npm publish --dry-run (no upload)'
+        required: false
+        type: boolean
+        default: true
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build + publish to GitHub Packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'pkg-v'))
+    strategy:
+      matrix:
+        pkg:
+          - packages/policy
+          - packages/receipt-substrate
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@szl-holdings'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: 9
+
+      - name: Install deps (workspace root)
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Build package (emit JS + d.ts)
+        working-directory: ${{ matrix.pkg }}
+        run: |
+          echo "Building ${{ matrix.pkg }} for publish..."
+          npx tsc -p tsconfig.publish.json
+          ls -la dist
+
+      - name: Repoint package.json entrypoints to dist (publish-only, not committed)
+        working-directory: ${{ matrix.pkg }}
+        run: |
+          # In-repo, main/types/exports point at raw ./src/*.ts for tsx dev.
+          # For the published tarball we repoint them at the emitted ./dist/*.js
+          # + .d.ts so downstreams import compiled JS (no node: at runtime in the
+          # browser; receipt-substrate is consumed types-only there anyway).
+          node -e '
+            const fs = require("fs");
+            const p = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const toDist = (s) => s.replace(/^\.\/src\//, "./dist/").replace(/\.ts$/, ".js");
+            const toDts  = (s) => s.replace(/^\.\/src\//, "./dist/").replace(/\.ts$/, ".d.ts");
+            if (p.main)  p.main  = toDist(p.main);
+            if (p.types) p.types = toDts(p.types);
+            if (p.exports) {
+              const remap = (e) => {
+                if (typeof e === "string") return toDist(e);
+                const out = {};
+                for (const k of Object.keys(e)) out[k] = k === "types" ? toDts(e[k]) : toDist(e[k]);
+                return out;
+              };
+              for (const k of Object.keys(p.exports)) p.exports[k] = remap(p.exports[k]);
+            }
+            fs.writeFileSync("package.json", JSON.stringify(p, null, 2) + "\n");
+            console.log("repointed:", JSON.stringify({ main: p.main, types: p.types }, null, 2));
+          '
+
+      - name: Determine dry-run
+        id: mode
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "false" ]]; then
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=--dry-run" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        working-directory: ${{ matrix.pkg }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm publish ${{ steps.mode.outputs.flag }}
+          echo "Published ${{ matrix.pkg }} (${{ steps.mode.outputs.flag }})"
