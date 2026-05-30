@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-benchmark-evolution-v1",
+  "observedAt": "2026-05-30",
+  "canonicalRule": "A benchmark claim is active only when corpus digest, scoring rubric, judge panel, receipts, and CI validation are present. Putnam claims must be raw-score claims.",
+  "publication": {
+    "canonicalSource": "https://github.com/szl-holdings/a11oy",
+    "huggingFaceResultsRepo": "SZLHOLDINGS/a11oy-test-results",
+    "huggingFaceRepoType": "dataset",
+    "publishMode": "mirror-not-canonical"
+  },
+  "entries": [
+    {
+      "id": "putnam-raw-score-v1",
+      "family": "mathematics",
+      "status": "staged-no-corpus-digest",
+      "sourceEcosystem": [
+        "agi-forecast",
+        "lutar-lean",
+        "a11oy"
+      ],
+      "corpus": {
+        "corpusId": "putnam-public-years",
+        "corpusVersion": "v1",
+        "immutability": "content-addressed",
+        "sourceUri": "external-official-or-licensed-source",
+        "license": "do-not-redistribute-unless-permitted",
+        "canonicalization": "utf8-nfc-jsonl-sorted-keys",
+        "digestStatus": "external-digest-required-before-scoring",
+        "problemCount": 0,
+        "sealed": false
+      },
+      "scoring": {
+        "scoreType": "raw_points",
+        "maxRawScore": 120,
+        "perProblemMax": 10,
+        "partialCreditAllowed": true,
+        "reportFields": [
+          "year",
+          "problem",
+          "earned",
+          "possible",
+          "judgeIds",
+          "disagreement"
+        ]
+      },
+      "honesty": {
+        "allowedClaim": "staged Putnam-style raw-score harness design; no live score claimed",
+        "disallowedClaims": [
+          "cracked Putnam",
+          "solved Putnam",
+          "AGI proven"
+        ],
+        "headlineThresholdRequiresUnanimousJudges": true
+      },
+      "formulaRoutes": [
+        {
+          "formula": "FalsePosition",
+          "theoremRuntimeManifestId": "RUNTIME-FALSE-POSITION",
+          "allowedUse": "routing-or-verification-when-problem-matches"
+        },
+        {
+          "formula": "MadhavaBound",
+          "theoremRuntimeManifestId": "RUNTIME-MADHAVA-BOUND",
+          "allowedUse": "numeric-bound-check-only"
+        },
+        {
+          "formula": "LiuHuiPi",
+          "theoremRuntimeManifestId": "RUNTIME-LIU-HUI-PI",
+          "allowedUse": "numeric-approximation-check-only"
+        },
+        {
+          "formula": "SummationInvariant",
+          "theoremRuntimeManifestId": "RUNTIME-SUMMATION-INVARIANT",
+          "allowedUse": "additive-invariant-check-only"
+        },
+        {
+          "formula": "QECLineage",
+          "theoremRuntimeManifestId": "RUNTIME-QEC-LINEAGE",
+          "allowedUse": "receipt-integrity-not-math-credit"
+        }
+      ],
+      "judges": [
+        {
+          "id": "raw_grader",
+          "role": "rubric_score",
+          "required": true
+        },
+        {
+          "id": "proof_judge",
+          "role": "proof_validity",
+          "required": true
+        },
+        {
+          "id": "provenance_judge",
+          "role": "receipt_and_claim_guard",
+          "required": true
+        }
+      ],
+      "receipts": {
+        "required": true,
+        "ledgerPathPattern": "benchmarks/results/{runId}/receipts.jsonl",
+        "chain": "hash_chain",
+        "quorum": "2-of-3"
+      },
+      "ciGates": [
+        "validate-benchmark-map",
+        "verify-corpus-digests",
+        "verify-receipt-chain",
+        "verify-formula-routes",
+        "reject-unsupported-putnam-claims"
+      ]
+    }
+  ]
+}

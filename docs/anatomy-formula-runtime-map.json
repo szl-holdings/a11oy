@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-ecosystem-os-doctrine-v1",
+  "observedAt": "2026-05-30",
+  "canonicalHub": "a11oy",
+  "canonicalRule": "An anatomy claim is active only when its formula/runtime hook, receipt surface, test evidence, and claim status are explicit. Anatomy language is a routing map, not proof by metaphor.",
+  "autonomousLearningDoctrine": {
+    "schemaVersion": "autonomous-learning-doctrine.v1",
+    "doctrineFile": "docs/AUTONOMOUS_LEARNING_DOCTRINE.md",
+    "status": "staged_doctrine",
+    "allowedModes": [
+      "dream",
+      "evaluate",
+      "propose"
+    ],
+    "forbiddenModes": [
+      "self_approve",
+      "self_promote",
+      "deploy",
+      "publish",
+      "ingest_private_secrets"
+    ],
+    "promotionModel": "human_promotion_required",
+    "receiptEventTypes": [
+      "AUTONOMOUS_LEARNING_PROPOSAL",
+      "AUTONOMOUS_LEARNING_EVALUATION",
+      "HUMAN_PROMOTION"
+    ],
+    "replayRequirement": {
+      "runs": 5,
+      "deterministicRootsRequired": true
+    },
+    "claimStatusContract": "docs/PROVENANCE.md",
+    "hfExposure": "generated_diligence_mirror_only",
+    "udsExposure": "operator_handoff_proof_point_only"
+  },
+  "organs": [
+    {
+      "repo": "a11oy",
+      "anatomyRole": "brain-heart-spine hub: routes formulas into gates, receipts, payloads, and public claim status",
+      "formulaRuntime": [
+        {
+          "formula": "FalsePosition",
+          "runtimeFile": "packages/policy/src/gates/falsePosition_gate.ts",
+          "theoremRuntimeManifestId": "RUNTIME-FALSE-POSITION",
+          "claimStatus": "verified-runtime"
+        },
+        {
+          "formula": "MadhavaBound",
+          "runtimeFile": "packages/policy/src/gates/madhavaBound_gate.ts",
+          "theoremRuntimeManifestId": "RUNTIME-MADHAVA-BOUND",
+          "claimStatus": "verified-runtime"
+        },
+        {
+          "formula": "LiuHuiPi",
+          "runtimeFile": "packages/policy/src/gates/liuHuiPi_gate.ts",
+          "theoremRuntimeManifestId": "RUNTIME-LIU-HUI-PI",
+          "claimStatus": "verified-runtime"
+        },
+        {
+          "formula": "AdversarialRobustness",
+          "runtimeFile": "packages/policy/src/gates/adversarialRobustness_gate.ts",
+          "theoremRuntimeManifestId": "RUNTIME-ADVERSARIAL-ROBUSTNESS",
+          "claimStatus": "verified-runtime"
+        },
+        {
+          "formula": "SummationInvariant",
+          "runtimeFile": "packages/policy/src/gates/summationInvariant_gate.ts",
+          "theoremRuntimeManifestId": "RUNTIME-SUMMATION-INVARIANT",
+          "claimStatus": "verified-runtime"
+        }
+      ],
+      "theoremAnchors": [
+        "docs/theorem-runtime-manifest.json",
+        "docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md"
+      ],
+      "receiptSurface": [
+        "packages/receipt-substrate/src/index.ts",
+        "packages/policy/src/gates/receipt.ts"
+      ],
+      "testEvidence": [
+        "npm run test:policy-gates",
+        "npm test --prefix packages/receipt-substrate",
+        "npm run test:qec",
+        "npm run test:knowledge:lookup"
+      ],
+      "udsStage": "operator-proof-point",
+      "hfStage": "generated-diligence-mirror",
+      "claimStatus": "verified-runtime",
+      "autonomousLearningRole": "dream_and_propose_only",
+      "gaps": [
+        "Dedicated autonomous-learning runtime harness remains staged.",
+        "External cryptographic signer verification is not claimed by local quorum labels."
+      ]
+    },
+    {
+      "repo": "platform",
+      "anatomyRole": "body: product integration surface consuming A11oy contracts",
+      "formulaRuntime": [],
+      "theoremAnchors": [
+        "a11oy package contracts",
+        "Ouroboros Thesis v18 DOI"
+      ],
+      "receiptSurface": [
+        "platform runtime receipts when present in upstream repo"
+      ],
+      "testEvidence": [
+        "upstream platform CI; web SPA is not runnable in this standalone subset"
+      ],
+      "udsStage": "supporting-runtime",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "release-payload",
+      "autonomousLearningRole": "promotion_boundary",
+      "gaps": [
+        "This standalone subset cannot validate the full platform SPA."
+      ]
+    },
+    {
+      "repo": "lutar-lean",
+      "anatomyRole": "cortex: formal theorem substrate",
+      "formulaRuntime": [
+        {
+          "formula": "CAUCHY_ND / uniqueness",
+          "runtimeFile": null,
+          "theoremRuntimeManifestId": null,
+          "claimStatus": "lean-backed-needs-upstream-ci"
+        },
+        {
+          "formula": "Wheeler window",
+          "runtimeFile": null,
+          "theoremRuntimeManifestId": "STAGED-WHEELER-WINDOW",
+          "claimStatus": "lean-backed-needs-runtime"
+        }
+      ],
+      "theoremAnchors": [
+        "https://github.com/szl-holdings/lutar-lean",
+        "https://doi.org/10.5281/zenodo.20434308"
+      ],
+      "receiptSurface": [
+        "A11oy proxy-patch queue when direct upstream write is blocked"
+      ],
+      "testEvidence": [
+        "upstream lake build / proof report required for all-green wording"
+      ],
+      "udsStage": "proof-source-reference",
+      "hfStage": "source-linked-from-mirror",
+      "claimStatus": "lean-backed-needs-upstream-ci",
+      "autonomousLearningRole": "theorem_obligation_source",
+      "gaps": [
+        "Do not repeat broad all-green or zero-sorry language without current proof report.",
+        "Runtime hooks must remain separate from formal proof status."
+      ]
+    },
+    {
+      "repo": "ouroboros-thesis",
+      "anatomyRole": "codex: DOI-pinned claim taxonomy and doctrine language",
+      "formulaRuntime": [],
+      "theoremAnchors": [
+        "https://doi.org/10.5281/zenodo.20434276",
+        "https://doi.org/10.5281/zenodo.19944926"
+      ],
+      "receiptSurface": [
+        "claim-status contract in docs/PROVENANCE.md"
+      ],
+      "testEvidence": [
+        "A11oy provenance and payload audits"
+      ],
+      "udsStage": "doctrine-reference",
+      "hfStage": "cited-from-generated-mirror",
+      "claimStatus": "thesis-anchor",
+      "autonomousLearningRole": "claim_taxonomy",
+      "gaps": [
+        "GitHub release reconciliation for thesis v18 remains upstream."
+      ]
+    },
+    {
+      "repo": "rosie",
+      "anatomyRole": "blood ledger: receipt DAG and CSS ingress",
+      "formulaRuntime": [
+        {
+          "formula": "Khipu receipt DAG / SummationInvariant",
+          "runtimeFile": "packages/policy/src/gates/summationInvariant_gate.ts",
+          "theoremRuntimeManifestId": "RUNTIME-SUMMATION-INVARIANT",
+          "claimStatus": "verified-runtime"
+        }
+      ],
+      "theoremAnchors": [
+        "Lutar.Khipu.SummationInvariant"
+      ],
+      "receiptSurface": [
+        "Rosie upstream receipt orchestration",
+        "A11oy receipt-substrate compatibility"
+      ],
+      "testEvidence": [
+        "npm run test:policy-gates",
+        "npm test --prefix packages/receipt-substrate"
+      ],
+      "udsStage": "component-supporting",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "verified-runtime",
+      "autonomousLearningRole": "receipt_chain_and_anti_replay",
+      "gaps": [
+        "Upstream Rosie runtime evidence should be cited before claiming Rosie-specific production behavior."
+      ]
+    },
+    {
+      "repo": "amaru",
+      "anatomyRole": "crown/mint: receipt minting and external anchor layer",
+      "formulaRuntime": [
+        {
+          "formula": "QECLineage",
+          "runtimeFile": "packages/qec-integrity/src/qec_lineage.ts",
+          "theoremRuntimeManifestId": "RUNTIME-QEC-LINEAGE",
+          "claimStatus": "verified-runtime"
+        }
+      ],
+      "theoremAnchors": [
+        "Shor/CSS/Kitaev lineage"
+      ],
+      "receiptSurface": [
+        "Amaru upstream minting receipts",
+        "A11oy qec-integrity witness path"
+      ],
+      "testEvidence": [
+        "npm run test:qec"
+      ],
+      "udsStage": "component-supporting",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "verified-runtime",
+      "autonomousLearningRole": "promotion_receipt_anchor",
+      "gaps": [
+        "Cardano/external anchoring should be claimed only from upstream release evidence."
+      ]
+    },
+    {
+      "repo": "sentra",
+      "anatomyRole": "immune/nervous: drift detection and remediation signal",
+      "formulaRuntime": [
+        {
+          "formula": "AdversarialRobustness",
+          "runtimeFile": "packages/policy/src/gates/adversarialRobustness_gate.ts",
+          "theoremRuntimeManifestId": "RUNTIME-ADVERSARIAL-ROBUSTNESS",
+          "claimStatus": "verified-runtime"
+        }
+      ],
+      "theoremAnchors": [
+        "Lutar.Composition.Robustness"
+      ],
+      "receiptSurface": [
+        "Sentra upstream drift receipts",
+        "A11oy policy-gate receipt emission"
+      ],
+      "testEvidence": [
+        "npm run test:policy-gates"
+      ],
+      "udsStage": "component-supporting",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "verified-runtime",
+      "autonomousLearningRole": "drift_evaluator_not_promoter",
+      "gaps": [
+        "Upstream Sentra incident evidence should be cited before claiming live remediation."
+      ]
+    },
+    {
+      "repo": "uds-mesh",
+      "anatomyRole": "connective tissue: release topology and UDS bundle pointers",
+      "formulaRuntime": [],
+      "theoremAnchors": [
+        "receipt and manifest integrity contracts"
+      ],
+      "receiptSurface": [
+        "mesh pointer manifests and release hashes"
+      ],
+      "testEvidence": [
+        "A11oy payload bundle verification",
+        "upstream uds-mesh CI"
+      ],
+      "udsStage": "pointer-manifest",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "release-payload",
+      "autonomousLearningRole": "publication_topology",
+      "gaps": [
+        "Catalog-grade UDS claims require signed assets and external evidence."
+      ]
+    },
+    {
+      "repo": "vsp-otel",
+      "anatomyRole": "nervous system: OpenTelemetry spans and Lambda-axis propagation",
+      "formulaRuntime": [],
+      "theoremAnchors": [
+        "Lambda-axis span contract"
+      ],
+      "receiptSurface": [
+        "span attributes with receipt hashes when wired upstream"
+      ],
+      "testEvidence": [
+        "upstream vsp-otel tests",
+        "A11oy docs/payload verification"
+      ],
+      "udsStage": "observability-supporting",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "release-payload",
+      "autonomousLearningRole": "human_reviewer_presence_and_trace",
+      "gaps": [
+        "A11oy standalone repo does not emit live VSP spans."
+      ]
+    },
+    {
+      "repo": "agi-forecast",
+      "anatomyRole": "future-gauge: benchmark and Putnam-style forecast surface",
+      "formulaRuntime": [
+        {
+          "formula": "Putnam raw-score benchmark map",
+          "runtimeFile": "benchmarks/benchmark-map.json",
+          "theoremRuntimeManifestId": null,
+          "claimStatus": "roadmap"
+        }
+      ],
+      "theoremAnchors": [
+        "docs/benchmark-evolution-doctrine.md",
+        "benchmarks/benchmark-map.json"
+      ],
+      "receiptSurface": [
+        "future benchmark receipts under benchmarks/results/{runId}/receipts.jsonl"
+      ],
+      "testEvidence": [
+        "pnpm benchmark:audit"
+      ],
+      "udsStage": "not-uds-primary",
+      "hfStage": "future-test-results-dataset",
+      "claimStatus": "roadmap",
+      "autonomousLearningRole": "benchmark_replay_evaluator",
+      "gaps": [
+        "No live Putnam score is claimed.",
+        "Pinned corpus, judges, and receipt-emitting runner are next."
+      ]
+    },
+    {
+      "repo": "vessels",
+      "anatomyRole": "hands/field vertical: active product wedge for investor demos",
+      "formulaRuntime": [],
+      "theoremAnchors": [
+        "A11oy receipt/policy contracts"
+      ],
+      "receiptSurface": [
+        "vertical demo receipts when wired upstream"
+      ],
+      "testEvidence": [
+        "upstream vessels CI and release evidence"
+      ],
+      "udsStage": "vertical-demo-supporting",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "release-payload",
+      "autonomousLearningRole": "field_observation_source_only",
+      "gaps": [
+        "Use upstream Vessels repo evidence before claiming live maritime workflow behavior."
+      ]
+    },
+    {
+      "repo": "szl-trust",
+      "anatomyRole": "public trust layer: run artifacts and replay evidence",
+      "formulaRuntime": [],
+      "theoremAnchors": [
+        "receipt-chain and provenance contracts"
+      ],
+      "receiptSurface": [
+        "public trust artifacts when present upstream"
+      ],
+      "testEvidence": [
+        "A11oy provenance and receipt-substrate verification"
+      ],
+      "udsStage": "trust-supporting",
+      "hfStage": "referenced-from-a11oy-mirror",
+      "claimStatus": "release-payload",
+      "autonomousLearningRole": "promotion_evidence_archive",
+      "gaps": [
+        "Public portal/replay automation remains a future operational layer."
+      ]
+    }
+  ]
+}

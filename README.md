@@ -23,7 +23,7 @@
 > [!NOTE]
 > This repository ships the core fabric packages consumed by [`szl-holdings/platform`](https://github.com/szl-holdings/platform). The deployment surface for Alloy is the platform monorepo; this repo contains the standalone alignment substrate packages.
 
-Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · Investor demo: [`docs/INVESTOR_DEMO.md`](docs/INVESTOR_DEMO.md) · Series-A packet: [`docs/SERIES_A_DILIGENCE.md`](docs/SERIES_A_DILIGENCE.md)
+Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Ecosystem OS: [`docs/ECOSYSTEM_OPERATING_SYSTEM.md`](docs/ECOSYSTEM_OPERATING_SYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · Investor demo: [`docs/INVESTOR_DEMO.md`](docs/INVESTOR_DEMO.md) · Series-A packet: [`docs/SERIES_A_DILIGENCE.md`](docs/SERIES_A_DILIGENCE.md)
 
 ---
 

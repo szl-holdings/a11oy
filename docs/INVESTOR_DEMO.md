@@ -18,6 +18,9 @@ explicitly out of active-demo scope.
 | 7 | [`huggingface/README.md`](../huggingface/README.md) | Hugging Face is a generated diligence mirror tied back to GitHub. |
 | 8 | [`docs/UDS_FRONTIER_GAP_MAP.md`](UDS_FRONTIER_GAP_MAP.md) | UDS/Zarf fit and gaps are mapped against public Defense Unicorns docs. |
 | 9 | [`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](ANCIENT_TEXTS_FORMULA_LINEAGE.md) | Ancient/pre-modern source lineage is mapped to formulas and runtime hooks with caveats. |
+| 10 | [`docs/ECOSYSTEM_OPERATING_SYSTEM.md`](ECOSYSTEM_OPERATING_SYSTEM.md) | Repos, formulas, anatomy, UDS, HF, autonomy, and benchmarks are routed through one claim-status OS. |
+| 11 | [`docs/AUTONOMOUS_LEARNING_DOCTRINE.md`](AUTONOMOUS_LEARNING_DOCTRINE.md) | “Dreaming” and learning are staged as receipt-backed proposals with human promotion, not self-deploying production mutation. |
+| 12 | [`docs/benchmark-evolution-doctrine.md`](benchmark-evolution-doctrine.md) | Putnam and benchmark goals are raw-score, corpus-pinned, receipt-backed, and judge-audited. |
 
 ## One-line thesis
 
