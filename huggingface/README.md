@@ -77,6 +77,7 @@ pnpm controls:audit
 pnpm action-contract:audit
 pnpm hf:test-results:audit
 npm run test:policy-contracts
+npm run test:autonomy-contracts
 pnpm payload:verify
 pnpm payload:huggingface
 pnpm payload:bundle

@@ -236,15 +236,18 @@
       "claimStatus": "roadmap",
       "evidencePaths": [
         "docs/AUTONOMOUS_LEARNING_DOCTRINE.md",
-        "docs/anatomy-formula-runtime-map.json"
+        "docs/anatomy-formula-runtime-map.json",
+        "packages/policy/src/contracts/autonomous_learning.ts",
+        "packages/policy/src/contracts/__tests__/autonomous_learning_contracts.test.ts"
       ],
       "validationCommands": [
-        "npm run anatomy:runtime:audit"
+        "npm run anatomy:runtime:audit",
+        "npm run test:autonomy-contracts"
       ],
       "receiptHook": {
         "eventType": "AUTONOMOUS_LEARNING_PROPOSAL",
-        "status": "roadmap",
-        "description": "Future proposal/evaluation/human-promotion receipt chain."
+        "status": "runtime-available",
+        "description": "Runtime helpers emit proposal, evaluation, and human-promotion receipts; dedicated autonomous harness remains staged."
       },
       "hfExposure": "doctrine-only",
       "udsExposure": "operator-context-only",

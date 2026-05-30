@@ -194,16 +194,41 @@ UDS surfaces may expose operator handoff materials, manifests, and proof-point
 flows. Catalog-grade claims require signed assets, UDS package CRs, external
 verification, and public release evidence.
 
+## Runtime helper scope
+
+`packages/policy/src/contracts/autonomous_learning.ts` provides receipt helpers
+for `AUTONOMOUS_LEARNING_PROPOSAL`, `AUTONOMOUS_LEARNING_EVALUATION`, and
+`HUMAN_PROMOTION` events. These helpers make the proposal/evaluation/promotion
+boundary runtime-verifiable with the existing receipt substrate.
+
+What this helper layer proves:
+
+- proposal, evaluation, and promotion receipts can be emitted and verified;
+- passing evaluations require at least five replay seeds;
+- evaluation actors must differ from proposal actors;
+- human promotion actors must differ from proposal and evaluation actors;
+- chain verification catches missing ancestors and policy/source drift.
+
+What this helper layer does **not** prove:
+
+- external human identity beyond the local receipt fields;
+- autonomous production deployment;
+- self-approval;
+- model-weight training;
+- UDS catalog acceptance;
+- Hugging Face canonical truth.
+
 ## Minimum validation lane
 
 ```bash
 pnpm anatomy:runtime:audit
 pnpm benchmark:audit
+npm run test:autonomy-contracts
 npm test --prefix packages/receipt-substrate
 npm run test:policy-gates
 pnpm payload:huggingface
 ```
 
-Autonomous learning is considered **staged doctrine** until a dedicated runtime
-harness emits proposal/evaluation/promotion receipts and those receipts are
-included in CI-backed payloads.
+Autonomous learning remains **operator-gated**: receipt helpers are
+runtime-available, but a fully autonomous harness may only publish or deploy
+after deterministic replay, CI-backed evidence, and named human promotion.

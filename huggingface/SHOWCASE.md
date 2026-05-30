@@ -50,6 +50,7 @@ flowchart TD
 | Public pattern synthesis | `source/docs/PUBLIC_PATTERN_SYNTHESIS.md`, `source/docs/public-pattern-source-manifest.json` |
 | Controls and action contracts | `source/docs/controls-evidence-map.json`, `source/docs/action-contract-manifest.json`; runtime receipt helpers in GitHub `packages/policy/src/contracts` |
 | Autonomous learning doctrine | `source/docs/AUTONOMOUS_LEARNING_DOCTRINE.md` |
+| Autonomous learning receipts | GitHub `packages/policy/src/contracts/autonomous_learning.ts` emits proposal/evaluation/human-promotion receipts without claiming self-approval or production autonomy. |
 | Benchmark evolution | `source/docs/benchmark-evolution-doctrine.md`, `source/benchmarks/benchmark-map.json`, `test-results/MANIFEST.json` |
 | Series-A diligence | `source/docs/SERIES_A_DILIGENCE.md`, `INVESTOR_BRIEF.md` |
 

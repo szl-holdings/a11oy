@@ -3,7 +3,14 @@ import * as fs from "node:fs";
 
 export type HashAlgorithm = "SHA-256" | "SHA3-256" | "SHA3-512";
 export type ReceiptProtocol = "mcp" | "cursor" | "claude" | "a11oy";
-export type ReceiptEventType = "MCP_TOOL_CALL" | "CURSOR_AGENT_EDIT" | "CLAUDE_SUBAGENT_CALL" | "A11OY_OPERATION";
+export type ReceiptEventType =
+  | "MCP_TOOL_CALL"
+  | "CURSOR_AGENT_EDIT"
+  | "CLAUDE_SUBAGENT_CALL"
+  | "A11OY_OPERATION"
+  | "AUTONOMOUS_LEARNING_PROPOSAL"
+  | "AUTONOMOUS_LEARNING_EVALUATION"
+  | "HUMAN_PROMOTION";
 
 export interface ToolEnvelope {
   readonly protocol: ReceiptProtocol;
