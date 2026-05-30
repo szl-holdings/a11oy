@@ -1,66 +1,88 @@
-name: SLSA provenance (L3)
+name: SLSA Build L1 (dist provenance attestation)
 
-# Generates SLSA L3 build provenance for release artifacts.
-# Uses slsa-framework/slsa-github-generator — a GitHub-hosted, signed build.
+# SLSA v1.0 Build L1: provenance EXISTS describing how an artifact was built and
+# is DISTRIBUTED to consumers (https://slsa.dev/spec/v1.0/levels#build-l1).
 #
-# Requirements:
-#   - Repository must produce release artifacts (this workflow fires on tag push)
-#   - The builder runs on GitHub-hosted infrastructure, satisfying SLSA L3
-#     non-falsifiable provenance requirements.
+# This workflow attests the compiled doctrine `dist/` bundle. It complements
+# slsa.yml (which attests the git-archive .tar.zst release artifact); both use
+# the same Sigstore keyless flow (GitHub OIDC -> Fulcio -> Rekor) via
+# actions/attest-build-provenance.
 #
-# Version: slsa-github-generator v2.1.0 @ f7dd8c5 (2025-02-24)
-# Doctrine v6: verifiable workflow reference, no echo stubs.
+# CORRECTION (2026-05-30): this workflow previously claimed SLSA L3 and used
+# slsa-github-generator's generator_generic_slsa3.yml with a placeholder-hash
+# fallback. The org posture is L1-honest (the README badge says SLSA-L1), so the
+# L3 claim was inaccurate and is removed here. We attest real build outputs only.
+#
+# Doctrine v7: every claim is verifiable; no echo stubs, no placeholder hashes.
 
 on:
   workflow_dispatch:
   release:
-    types: [created]
+    types: [published]
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
-  # Build step — emit the artifact(s) to be attested
-  build:
-    outputs:
-      hashes: ${{ steps.hash.outputs.hashes }}
+  attest-dist:
+    name: Build dist + attest SLSA L1 provenance
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write       # OIDC token -> Sigstore keyless signing
+      contents: read
+      attestations: write   # store the attestation via the repo attestations API
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable && corepack prepare pnpm@11.5.0 --activate
 
       - name: Install dependencies
-        run: npm ci
+        env:
+          PNPM_CONFIG_STRICT_DEP_BUILDS: "false"
+        run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: npm run build --if-present
+      - name: Build doctrine packages
+        env:
+          PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
+        run: pnpm run build:doctrine
 
-      - name: Generate artifact hashes
-        id: hash
+      - name: Collect dist artifacts
+        id: collect
         run: |
           set -euo pipefail
-          # Adjust glob to match your real release artifact(s)
-          files=$(find dist -type f 2>/dev/null || find . -name "*.tgz" -o -name "*.zip" 2>/dev/null | head -20)
-          if [ -z "$files" ]; then
-            echo "No release artifacts found — generating hash of package.json as placeholder"
-            files="package.json"
+          mkdir -p _attest
+          # Archive the real built dist trees. Fail loudly if nothing was built
+          # (no placeholder fallback).
+          found=0
+          for d in web/packages/a11oy-core/dist web/packages/a11oy-connection/dist; do
+            if [ -d "$d" ]; then
+              tar -rf _attest/a11oy-dist.tar "$d"
+              found=1
+            fi
+          done
+          if [ "$found" -ne 1 ]; then
+            echo "No dist artifacts produced by build:doctrine — failing." >&2
+            exit 1
           fi
-          echo "hashes=$(sha256sum $files | base64 -w0)" >> "$GITHUB_OUTPUT"
+          gzip -f _attest/a11oy-dist.tar
+          echo "artifact=_attest/a11oy-dist.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "Built $(wc -c < _attest/a11oy-dist.tar.gz) bytes"
 
-  # SLSA L3 provenance generation
-  # Runs on GitHub-hosted infrastructure; attestation is signed by Sigstore Fulcio.
-  provenance:
-    needs: [build]
-    permissions:
-      actions: read
-      id-token: write       # Required for OIDC token → Sigstore signing
-      contents: write       # Required to upload provenance to the release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-    with:
-      base64-subjects: "${{ needs.build.outputs.hashes }}"
-      upload-assets: true   # Attaches .intoto.jsonl to the GitHub Release
+      - name: Attest SLSA provenance (Sigstore keyless)
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: ${{ steps.collect.outputs.artifact }}
+
+      - name: Upload dist artifact (verifiable subject)
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: a11oy-dist
+          path: ${{ steps.collect.outputs.artifact }}
+          retention-days: 90
