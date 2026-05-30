@@ -214,15 +214,9 @@ Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine
 
 **Live now:** [A11oy generated Hugging Face diligence packet](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate)
 
-**Staged next:** `SZLHOLDINGS/a11oy-deep-dive` — governed execution fabric
-deep-dive. The Space is not linked as a public surface until it returns HTTP
-200 without authentication.
+> Status (2026-05-30): **PUBLIC, static Space**. Verified through the public Hugging Face Space API (`private=false`, `sdk=static`).
 
-> Status (2026-05-29): **STAGED, private**. Content + design-system upgrade are
-> complete in `/szl/a11oy-deep-dive-staging/`. Public Space creation is gated on
-> the HF rate-limit reset (~2026-05-30 14:58 UTC).
-
-The staged Hugging Face Space is an investor-grade static deep-dive with:
+The Hugging Face Space is an investor-grade static deep-dive with:
 - Architecture diagrams and source-referenced implementation details
 - Live demo iframe embed from the companion interactive Space
 - Honest comparison table (Y/N, no marketing superlatives)
