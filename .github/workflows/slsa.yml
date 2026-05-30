@@ -8,14 +8,16 @@ on:
     types: [published]
 
 permissions:
-  id-token: write
-  contents: write
-  actions: read
+  contents: read
 
 jobs:
   slsa-verify:
     name: SLSA supply-chain checks
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      actions: read
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
