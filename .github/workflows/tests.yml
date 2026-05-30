@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   test:
@@ -28,5 +29,15 @@ jobs:
           version: 9
       - name: Install dependencies
         run: npm ci
+      - name: Install policy package deps (published @szl-holdings/a11oy-receipt-substrate from GHCR)
+        working-directory: packages/policy
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # packages/policy is not a pnpm-workspace member, so the root install does not
+          # link its runtime dep. The policy gate test transitively imports gates/receipt.ts
+          # which now imports the published @szl-holdings/a11oy-receipt-substrate. Install it
+          # in-place (package-local .npmrc points @szl-holdings at npm.pkg.github.com).
+          npm install --no-save --no-package-lock
       - name: Run policy gate tests
         run: npm run test:policy-gates
