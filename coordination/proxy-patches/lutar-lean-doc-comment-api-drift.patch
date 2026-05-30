@@ -1,0 +1,53 @@
+diff --git a/Lutar/DPI/SCITTMaskEntropy.lean b/Lutar/DPI/SCITTMaskEntropy.lean
+index 0ccbcae..bd9e0ca 100644
+--- a/Lutar/DPI/SCITTMaskEntropy.lean
++++ b/Lutar/DPI/SCITTMaskEntropy.lean
+@@ -67,10 +67,10 @@ noncomputable def stmtEntropy {nF nV K : ℕ} (d : StmtDist nF nV K) : ℝ :=
+ 
+ /-! ## 3. Masked Distribution -/
+ 
+-/-- Push a mask through a distribution: statements with the same masked
+-    representation are merged (their probabilities are summed). In our
+-    model, since we map all masked outputs to a new distribution over K
+-    statements, we track the *image* distribution. -/
++-- Push a mask through a distribution: statements with the same masked
++-- representation are merged (their probabilities are summed). In our
++-- model, since we map all masked outputs to a new distribution over K
++-- statements, we track the image distribution.
+ 
+ /-- The masked distribution assigns to each index the same probability
+     (masking is a deterministic function of the statement). -/
+diff --git a/Lutar/Gates/Adinkra.lean b/Lutar/Gates/Adinkra.lean
+index c6a05ac..c16636e 100644
+--- a/Lutar/Gates/Adinkra.lean
++++ b/Lutar/Gates/Adinkra.lean
+@@ -192,7 +192,7 @@ def trivialAdinkra : Adinkra 1 1 where
+     · intro a b _; exact Fin.eq_of_val_eq (Fin.val_fin_lt.mpr (by omega))
+     · intro b; exact ⟨b, rfl⟩
+ 
+-/-! ## The N=4 adinkra (valise / diamond) — the minimal interesting case -/
++-- ## The N=4 adinkra (valise / diamond) — the minimal interesting case
+ 
+ /-- The valise adinkra with N=4 colors and d=4 bosons.
+     This corresponds to the 4-dimensional hypercube with trivial code (k=0),
+@@ -206,7 +206,7 @@ def trivialAdinkra : Adinkra 1 1 where
+     we define the action but leave `HasQuadrilateralProperty` as a separate
+     axiom for the N=4 case. -/
+ 
+-/-! ## Open conjecture: chromotopology–code correspondence -/
++-- ## Open conjecture: chromotopology-code correspondence
+ 
+ /-- **Conjecture (Doran–Gates et al. 2008/2011 — not yet formalized in Lean).**
+     There is a bijection between:
+diff --git a/Lutar/QEC/CSSBridge.lean b/Lutar/QEC/CSSBridge.lean
+index a4fe9cd..d46a35a 100644
+--- a/Lutar/QEC/CSSBridge.lean
++++ b/Lutar/QEC/CSSBridge.lean
+@@ -57,7 +57,6 @@ theorem css_bridge_consistent
+     (c : ClassicalCodeword) :
+     consistent (classicalToCSS c) = true := by
+   simp [consistent, classicalToCSS]
+-  decide
+ 
+ /-- The bridge is injective on classical codewords. -/
+ theorem css_bridge_injective
