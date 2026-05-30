@@ -87,18 +87,38 @@ jobs:
           ref: ${{ steps.tag.outputs.tag }}
           fetch-depth: 0
 
-      - name: Build tar.zst
+      - name: Install Syft (for embedded SBOM)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+            | sh -s -- -b /usr/local/bin v1.44.0
+          syft version
+
+      - name: Build tar.zst with embedded Syft SBOM
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           VERSION="${{ steps.tag.outputs.version }}"
           TARBALL="${{ steps.tag.outputs.tarball }}"
-          echo "Building ${TARBALL} from ${TAG}..."
-          git archive \
-            --format=tar \
-            --prefix="a11oy-uds-${VERSION}/" \
-            HEAD \
-            | zstd -19 -T0 -o "${TARBALL}"
-          echo "Built ${TARBALL}: $(wc -c < "${TARBALL}") bytes"
+          echo "Building ${TARBALL} from ${TAG} (SBOM embedded inside the tarball)..."
+
+          # 1) Materialise the exact source tree that ships in the tarball.
+          STAGE="$(mktemp -d)"
+          PREFIX="a11oy-uds-${VERSION}"
+          git archive --format=tar --prefix="${PREFIX}/" HEAD | tar -x -C "${STAGE}"
+
+          # 2) Generate the SBOM over that materialised tree, in BOTH
+          #    CycloneDX and SPDX JSON, per SLSA L1 supply-chain evidence.
+          mkdir -p "${STAGE}/${PREFIX}/deploy"
+          syft "dir:${STAGE}/${PREFIX}" \
+            -o cyclonedx-json="${STAGE}/${PREFIX}/deploy/sbom.cyclonedx.json" \
+            -o spdx-json="${STAGE}/${PREFIX}/deploy/sbom.spdx.json"
+          echo "SBOMs embedded at ${PREFIX}/deploy/:"
+          ls -la "${STAGE}/${PREFIX}/deploy/"
+
+          # 3) Re-archive the tree (now INCLUDING the SBOMs) and compress.
+          #    The cosign signature computed later therefore covers the SBOM.
+          tar -C "${STAGE}" -cf - "${PREFIX}" | zstd -19 -T0 -o "${TARBALL}"
+          rm -rf "${STAGE}"
+          echo "Built ${TARBALL}: $(wc -c < "${TARBALL}") bytes (includes deploy/sbom.cyclonedx.json + deploy/sbom.spdx.json)"
 
       - name: Compute sha256
         run: |

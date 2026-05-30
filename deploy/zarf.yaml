@@ -61,3 +61,18 @@ components:
 # Replay-root anchor (informational; surfaced into the attestation
 # manifest at bundle-create time):
 # replay_root: 1ed4d253e876f428c6e182f8ed8a569585442556b339529bbf8ec2522581698b
+
+  # SLSA L1 supply-chain evidence: the Syft SBOM (CycloneDX + SPDX) is
+  # generated at package-create time and embedded INSIDE the package as a
+  # files component, so the cosign signature covers it. See Finding D3 in
+  # PhD_CRYPTO_VERDICT.md.
+  - name: sbom
+    required: true
+    description: Embedded Syft SBOM (CycloneDX + SPDX JSON) for the package.
+    files:
+      - source: sbom.cyclonedx.json
+        target: sbom.cyclonedx.json
+        executable: false
+      - source: sbom.spdx.json
+        target: sbom.spdx.json
+        executable: false

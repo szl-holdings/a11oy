@@ -3,7 +3,7 @@
   "payloadRoot": "deploy",
   "generator": "scripts/payload_manifest.py",
   "fileCount": 6,
-  "aggregateSha256": "a50833998c465a6f976dce8121279edec9628d0b954cc16b71d0cbe93e8dc231",
+  "aggregateSha256": "3e093047e5d1fa5a56431481e1186eb2c3e87293dd1fc0023aa96c91d3e4c2e7",
   "files": [
     {
       "path": "attestations.jsonl",
@@ -32,8 +32,8 @@
     },
     {
       "path": "zarf.yaml",
-      "size": 1950,
-      "sha256": "3803d3821c2766523ec28c672d0c73265a58264daa2f51a57f96931c02ce4445"
+      "size": 2505,
+      "sha256": "2f8d4764fe4c6cd040350b12ad628f8372d66094dc45fb18cb5e805c9b9a5c59"
     }
   ]
 }
