@@ -39,3 +39,11 @@ export type {
   ThresholdPolicySeverityGateConfig,
   ThresholdPolicySeverityGateOpts,
 } from "./thresholdPolicySeverity_gate.ts";
+export {
+  createFormulaGateEnvelope,
+  emitFormulaGateReceipt,
+} from "./receipt.ts";
+export type {
+  FormulaGateDecisionLike,
+  FormulaGateReceiptOptions,
+} from "./receipt.ts";
