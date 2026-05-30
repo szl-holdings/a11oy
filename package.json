@@ -28,6 +28,7 @@
     "ecosystem:audit": "python3 scripts/ecosystem_audit.py",
     "ecosystem:readiness": "python3 scripts/build_ecosystem_readiness.py --check",
     "ecosystem:readiness:write": "python3 scripts/build_ecosystem_readiness.py",
+    "theorem:runtime:audit": "python3 scripts/validate_theorem_runtime_manifest.py",
     "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py"
   },
   "repository": {
