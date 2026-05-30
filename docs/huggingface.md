@@ -9,6 +9,7 @@ GitHub.
 Run:
 
 ```bash
+pnpm hf:ecosystem:write
 pnpm payload:huggingface
 ```
 
@@ -16,6 +17,7 @@ The command writes `dist/huggingface/a11oy/` with:
 
 - a Hugging Face model card (`README.md`);
 - showcase, investor, verification, quickstart, deep-dive, and receipt-sample files;
+- `HF_ECOSYSTEM_MANIFEST.json`, generated from the public Hugging Face API;
 - source README, roadmap, changelog, and repo map;
 - deployment payload metadata under `payloads/deploy/`;
 - `a11oy-metadata.json` with source commit and verification commands.
@@ -23,6 +25,20 @@ The command writes `dist/huggingface/a11oy/` with:
 The publisher prunes stale remote files by default before uploading the
 generated folder. This prevents old unsupported model-wrapper files, stale
 product names, or non-reproducible hand edits from surviving on Hugging Face.
+
+## Ecosystem audit
+
+Run:
+
+```bash
+pnpm hf:ecosystem:write
+pnpm hf:ecosystem:audit
+```
+
+The generated [`huggingface-ecosystem-manifest.json`](huggingface-ecosystem-manifest.json)
+records the public `SZLHOLDINGS` Hugging Face inventory, current counts, source
+links, guardrails, and unsafe flags. Keep this file GitHub-backed; do not
+hand-edit Hugging Face cards with counts that cannot be regenerated.
 
 ## Operational bundle
 
@@ -70,7 +86,9 @@ pnpm test:doctrine
 pnpm typecheck:doctrine
 pnpm build:doctrine
 pnpm ecosystem:audit
+pnpm hf:ecosystem:audit
 pnpm payload:manifest
+pnpm hf:ecosystem:write
 pnpm payload:huggingface
 python -m pip install --upgrade huggingface_hub
 python - <<'PY'

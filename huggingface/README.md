@@ -52,8 +52,8 @@ flowchart LR
 | `VERIFICATION.md` | Exact local verification commands and what each command proves. |
 | `INNOVATIONS_DEEP_DIVE.md` | Evidence-backed implementation deep dive; no unsupported model/API claims. |
 | `INTEGRATION_QUICKSTART.md` | Current TypeScript/package/payload quickstart. |
-| `DEMO_RECEIPT_SAMPLE.jsonl` | Four-line synthetic demo chain generated from the current `packages/receipt-substrate` receipt schema: retrieval, policy gate, unsupported-claim guard, and chain summary. |
-| `source/` | README, roadmap, changelog, ecosystem map, investor demo, market evidence, substrate reality map, UDS gap map, ancient/source lineage, provenance contract. |
+| `EVAL_TRACE_SAMPLE.jsonl` | Two-line receipt sample generated from the current `packages/receipt-substrate` schema and covered by receipt-substrate tests. |
+| `source/` | README, roadmap, changelog, ecosystem map, investor demo, math lineage runtime map, provenance contract. |
 | `payloads/deploy/` | `zarf.yaml`, Kubernetes manifests, `attestations.jsonl`, and per-file `MANIFEST.json`. |
 | `build/` | Root workspace metadata and lockfile used by the doctrine lane. |
 | `a11oy-metadata.json` | Source commit, branch, verification commands, and payload map. |
