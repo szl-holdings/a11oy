@@ -5,7 +5,7 @@
 [![License: Proprietary](https://img.shields.io/badge/License-SZL_Proprietary-0B1F3A.svg?style=flat-square)](./LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/szl-holdings/a11oy?sort=semver&style=flat-square)](https://github.com/szl-holdings/a11oy/releases/latest)
 [![SLSA L1](https://img.shields.io/badge/SLSA-L1_honest-22c55e.svg?style=flat-square)](https://slsa.dev/spec/v1.0/levels)
-[![Doctrine](https://img.shields.io/badge/Doctrine-v7-7c5cff?style=flat-square)](https://github.com/szl-holdings/.github/blob/main/DOCTRINE_V7.md)
+[![Doctrine](https://img.shields.io/badge/Doctrine-v7-7c5cff?style=flat-square)](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V7.md)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--0110--4173-A6CE39.svg?style=flat-square&logo=orcid&logoColor=white)](https://orcid.org/0009-0001-0110-4173)
 
@@ -87,8 +87,8 @@ All counts are grep-verifiable against `main`.
 | Lean declarations (lutar-lean) | 626 | `grep -rE '^(theorem\|lemma\|def\|abbrev\|axiom) ' lutar-lean/Lutar/ \| wc -l` |
 | Lean axioms (lutar-lean) | 15 raw / 14 unique | `grep -rE '^axiom ' lutar-lean/Lutar/ \| wc -l` |
 | Lean sorries (lutar-lean) | 189 (138 baseline + 51 Putnam) | `grep -rE '\bsorry\b' lutar-lean/Lutar/ \| wc -l` |
-| Putnam status | 4/12 Lean-discharged [A1, A5, B4, B6] · 8/12 structure | [lutar-lean](https://github.com/szl-holdings/lutar-lean) |
-| Doctrine | v7 · 15 axioms (14 unique) | [.github/DOCTRINE_V7.md](https://github.com/szl-holdings/.github/blob/main/DOCTRINE_V7.md) |
+| Putnam status | 0/12 fully proved · 12/12 skeletoned (statements + tactic stubs); every `putnam_*_correct` is a `True`-shell or carries a tracked `sorry` | [lutar-lean Lutar/Putnam/](https://github.com/szl-holdings/lutar-lean/tree/main/Lutar/Putnam) |
+| Doctrine | v7 · 15 axioms (14 unique) | [.github/DOCTRINE_V7.md](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V7.md) |
 | SLSA | L1 honest (SBOM + DCO; source + build provenance documented) | [slsa.dev](https://slsa.dev/spec/v1.0/levels) |
 
 > Gate modules present on `main`: 45 files in `packages/policy/src/gates/`. The aggregate index (`packages/policy/src/gates/index.ts`) currently re-exports a subset; remaining modules are imported directly by their consumers. Count reflects files on disk, verifiable with the command above.
@@ -97,7 +97,7 @@ All counts are grep-verifiable against `main`.
 
 ## Warhacker 2026
 
-Featured at Warhacker, June 16–19. A running deployment is available via [`szl-holdings/szl-uds-deployment`](https://github.com/szl-holdings/szl-uds-deployment) v0.4.0.
+Featured at Warhacker, June 16–19. The publicly verifiable signed deployment artifact is the `vessels` release [uds-v0.3.0](https://github.com/szl-holdings/vessels/releases/tag/uds-v0.3.0) (cosign keyless; `.sigstore.json` + `.sha256`). The org deployment bundle in `szl-holdings/szl-uds-deployment` is a private repo and is not yet public.
 
 ---
 
