@@ -189,6 +189,7 @@ def verify_bundle() -> int:
         "a11oy-operational-payload/PAYLOAD-MANIFEST.json",
         "a11oy-operational-payload/deploy/MANIFEST.json",
         "a11oy-operational-payload/publish/huggingface/a11oy/README.md",
+        "a11oy-operational-payload/publish/huggingface/a11oy/DEMO_RECEIPT_SAMPLE.jsonl",
         "a11oy-operational-payload/web/packages/a11oy-core/dist/index.js",
         "a11oy-operational-payload/web/packages/a11oy-connection/dist/index.js",
     }

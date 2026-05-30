@@ -42,7 +42,7 @@ flowchart TD
 | --- | --- |
 | Doctrine runtime checks | `source/README.md`, `build/package.json`, `source/docs/PROVENANCE.md` |
 | KS-18 / governance math test lane | `source/docs/PROVENANCE.md` and GitHub `web/packages/a11oy-core/src/**/__tests__` |
-| Operational receipt chain | `EVAL_TRACE_SAMPLE.jsonl` and GitHub `packages/receipt-substrate` |
+| Operational receipt chain | `DEMO_RECEIPT_SAMPLE.jsonl` and GitHub `packages/receipt-substrate` |
 | Deploy manifest verification | `payloads/deploy/MANIFEST.json` |
 | UDS/Zarf operator handoff | `payloads/deploy/zarf.yaml`, `source/docs/WARHACKER_UDS_PROOF_POINT.md` |
 | Ecosystem readiness | `source/docs/ecosystem-readiness-report.json` |
@@ -82,4 +82,13 @@ The strongest story is the evidence trail:
 4. Receipts bind actions.
 5. Hugging Face mirrors the packet for public review.
 6. Proof and thesis claims are scoped by `source/docs/PROVENANCE.md`.
+
+## Live correction ledger
+
+| Claim area | Current evidence-backed wording |
+| --- | --- |
+| Putnam | Treat Putnam as `1/12` truly discharged in Lean until upstream proof reports say otherwise. Do not repeat `4/12`, `10/12`, or “four GREEN” language as Lean closure. |
+| A11oy gates | A11oy main currently exposes seven policy gate files and ten theorem-runtime manifest entries. G36-G40 and broader gate counts remain PR/roadmap until merged and validated. |
+| UDS signed assets | A11oy `uds-v0.3.0` has SBOM release assets only; Vessels `uds-v0.3.0` has zero release assets. Use `uds-v0.2.0` when demonstrating signed Vessels assets. |
+| GHCR | GHCR manifest checks returned an authentication challenge in this environment, so public package availability needs owner-side push or visibility confirmation. |
 

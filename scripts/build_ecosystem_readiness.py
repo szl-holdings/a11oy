@@ -18,7 +18,20 @@ from pathlib import Path
 REPO_ROOT = Path.cwd()
 REGISTRY_PATH = REPO_ROOT / "docs" / "ecosystem-registry.json"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "ecosystem-readiness-report.json"
-OBSERVED_AT = "2026-05-29"
+OBSERVED_AT = "2026-05-30"
+LIVE_AUDIT_NOTES = {
+    "a11oy": [
+        "Live main has seven policy gate files under packages/policy/src/gates and ten theorem-runtime manifest entries; larger gate counts require merged PR evidence.",
+        "uds-v0.3.0 release currently carries SBOM assets only, not signed binary payload assets.",
+    ],
+    "vessels": [
+        "uds-v0.3.0 release was observed with zero release assets; use uds-v0.2.0 for signed-asset demonstration until v0.3.x assets land.",
+        "GHCR manifest checks returned an authentication challenge in this environment; package availability needs owner-side push or visibility confirmation.",
+    ],
+    "lutar-lean": [
+        "Putnam public language must stay at 1/12 truly discharged in Lean unless a current upstream proof report verifies more.",
+    ],
+}
 
 
 ACTIVE_DEMO_REPOS = {
@@ -199,6 +212,7 @@ def repo_entry(repo: dict[str, object]) -> dict[str, object]:
         "defaultBranch": repo.get("defaultBranch"),
         "evidence": EVIDENCE.get(name, [repo.get("github")]),
         "guardrails": CAVEATS.get(name, []),
+        "liveAuditNotes": LIVE_AUDIT_NOTES.get(name, []),
     }
 
 
@@ -243,8 +257,17 @@ def build_report() -> dict[str, object]:
             "Hugging Face is a generated diligence mirror, not the source of release truth.",
             "Counsel, Terra, and Carlota Jo are intentionally excluded from active-demo scope until funded.",
             "Do not repeat broad all-green or zero-sorry proof claims without a current machine-readable proof report.",
+            "Do not repeat inflated Putnam closure claims; current public language is 1/12 truly discharged in Lean until upstream proof reports verify more.",
+            "Do not describe SBOM-only or empty UDS v0.3.0 releases as signed binary payload releases.",
+            "Do not describe unmerged G36-G40 or broader gate totals as live A11oy main runtime gates.",
             "Use Defense Unicorns UDS/Zarf-compatible phrasing; do not imply Defense Unicorns endorsement or catalog acceptance.",
         ],
+        "runtimeManifestSummary": {
+            "path": "docs/theorem-runtime-manifest.json",
+            "trackedEntries": 10,
+            "verifiedRuntimeEntries": 8,
+            "stagedOrRoadmapEntries": 2,
+        },
         "statusCounts": status_counts,
         "repos": repos,
     }

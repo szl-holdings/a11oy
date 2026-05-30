@@ -50,7 +50,7 @@ def main() -> int:
         ("huggingface/VERIFICATION.md", "VERIFICATION.md"),
         ("huggingface/INNOVATIONS_DEEP_DIVE.md", "INNOVATIONS_DEEP_DIVE.md"),
         ("huggingface/INTEGRATION_QUICKSTART.md", "INTEGRATION_QUICKSTART.md"),
-        ("huggingface/EVAL_TRACE_SAMPLE.jsonl", "EVAL_TRACE_SAMPLE.jsonl"),
+        ("huggingface/DEMO_RECEIPT_SAMPLE.jsonl", "DEMO_RECEIPT_SAMPLE.jsonl"),
         ("LICENSE", "LICENSE"),
         ("CITATION.cff", "CITATION.cff"),
         ("README.md", "source/README.md"),
@@ -132,6 +132,11 @@ def main() -> int:
                 "kubernetesManifests": "payloads/deploy/manifests/",
             }
         ],
+        "demoReceiptSample": "DEMO_RECEIPT_SAMPLE.jsonl",
+        "publishHygiene": {
+            "deleteStaleRemoteFiles": True,
+            "staleLegacyFiles": ["EVAL_TRACE_SAMPLE.jsonl"],
+        },
     }
 
     (OUT_DIR / "a11oy-metadata.json").write_text(
