@@ -611,6 +611,19 @@
       "caveat": "Empirically measured 100% closure; gate enforces minimum closure rate."
     },
     {
+      "id": "RUNTIME-THRESHOLD-POLICY-SEVERITY",
+      "theorem": "IQ-01 severity-indexed witness threshold gate",
+      "formula": "ThresholdPolicySeverity",
+      "lineage": "2-of-N / 3-of-N witness threshold invariant from cross-corpus doctrine synthesis",
+      "leanFile": null,
+      "runtimeFile": "packages/policy/src/gates/thresholdPolicySeverity_gate.ts",
+      "exportFile": "packages/policy/src/gates/index.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npm run test:policy-gates",
+      "claimStatus": "verified-runtime",
+      "caveat": "TypeScript runtime gate is tested and emits a DSSE-shaped HMAC receipt on allow; Lean formalization is not claimed."
+    },
+    {
       "id": "RUNTIME-QEC-LINEAGE",
       "theorem": "Lutar.QEC.HammingFoundations / Shor / CSS / Kitaev runtime parity",
       "formula": "QECLineage",

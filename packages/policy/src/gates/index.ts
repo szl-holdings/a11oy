@@ -27,4 +27,15 @@ export type {
   DecisionReceipt,
   KhipuReceiptGateOpts,
   OrganReceipt,
-} from "./summationInvariant_gate";
+} from "./summationInvariant_gate.ts";
+
+export { thresholdPolicySeverityGate } from "./thresholdPolicySeverity_gate.ts";
+export type {
+  DecisionClass,
+  DsseEnvelope,
+  SeverityClass,
+  SeverityWitness,
+  ThresholdPolicySeverityDecision,
+  ThresholdPolicySeverityGateConfig,
+  ThresholdPolicySeverityGateOpts,
+} from "./thresholdPolicySeverity_gate.ts";
