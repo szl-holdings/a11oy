@@ -50,6 +50,8 @@ Excluded from active-demo claims until funded:
 9. `huggingface/DEMO_RECEIPT_SAMPLE.jsonl` for a schema-aligned receipt-chain
    demo of evidence retrieval, policy blocking, unsupported-claim correction,
    and chain summary.
+10. `docs/SERIES_A_MARKET_EVIDENCE.md` for external standards mapped to shipped
+    artifacts and guarded production gaps.
 
 ## Guardrails for the analyst
 

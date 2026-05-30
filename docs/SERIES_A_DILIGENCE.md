@@ -16,6 +16,7 @@ tests, and a Hugging Face mirror that points back to canonical provenance.
 | Org-wide map | `docs/ecosystem-registry.json` tracks 19 visible public repos and their readiness tiers. |
 | Demo readiness report | `docs/ecosystem-readiness-report.json` classifies active, supporting, excluded, and upstream-fix-needed repos. |
 | Thesis/proof alignment | `docs/PROVENANCE.md` pins v18 thesis DOI and Lean software DOI, and gates public claims by status. |
+| Market evidence map | `docs/SERIES_A_MARKET_EVIDENCE.md` maps NIST AI RMF, EU AI Act, CISA SBOM, SLSA, and model-card expectations to A11oy artifacts and gaps. |
 | GitHub validation | Doctrine Build, CodeQL, SBOM, Trivy, DCO, docs, links, and secret scan pass on the branch. |
 | Hugging Face path | Manual workflow publishes the verified payload to `SZLHOLDINGS/a11oy-v19-substrate` when `HF_TOKEN` is available. |
 | UDS / Warhacker proof point | `docs/WARHACKER_UDS_PROOF_POINT.md` ties the package, manifest, attestation, receipt-chain, and tamper-test demo together. |
@@ -31,6 +32,12 @@ model-driven actions accountable:
 2. record receipts and provenance;
 3. preserve a verifiable payload trail;
 4. expose operator-ready artifacts for diligence and deployment.
+
+The market reason this matters is external, not invented: AI risk frameworks,
+high-risk AI regulation, SBOM guidance, SLSA provenance, and model-card practice
+all point toward traceability, documentation, oversight, and reproducible
+evidence. A11oy turns those requirements into a demoable GitHub/HF packet rather
+than a slide.
 
 ## Differentiation
 

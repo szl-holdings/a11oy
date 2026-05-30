@@ -53,7 +53,7 @@ flowchart LR
 | `INNOVATIONS_DEEP_DIVE.md` | Evidence-backed implementation deep dive; no unsupported model/API claims. |
 | `INTEGRATION_QUICKSTART.md` | Current TypeScript/package/payload quickstart. |
 | `DEMO_RECEIPT_SAMPLE.jsonl` | Four-line synthetic demo chain generated from the current `packages/receipt-substrate` receipt schema: retrieval, policy gate, unsupported-claim guard, and chain summary. |
-| `source/` | README, roadmap, changelog, ecosystem map, investor demo, UDS gap map, ancient/source lineage, provenance contract. |
+| `source/` | README, roadmap, changelog, ecosystem map, investor demo, market evidence, UDS gap map, ancient/source lineage, provenance contract. |
 | `payloads/deploy/` | `zarf.yaml`, Kubernetes manifests, `attestations.jsonl`, and per-file `MANIFEST.json`. |
 | `build/` | Root workspace metadata and lockfile used by the doctrine lane. |
 | `a11oy-metadata.json` | Source commit, branch, verification commands, and payload map. |
@@ -105,6 +105,9 @@ as a GitHub Actions artifact.
   SHA-256 sidecar, DCO, CodeQL, SBOM, Trivy, docs, and secret scan
 - **UDS / Zarf lane:** package and operator proof point are documented in
   `source/docs/WARHACKER_UDS_PROOF_POINT.md`
+- **Market evidence:** `source/docs/SERIES_A_MARKET_EVIDENCE.md` maps NIST AI
+  RMF, EU AI Act, CISA SBOM, SLSA, and model-card expectations to A11oy
+  artifacts and gaps.
 - **Current caveats:** A11oy `uds-v0.3.0` carries SBOM assets only, Vessels
   `uds-v0.3.0` has zero release assets, and GHCR package availability requires
   owner-side push or visibility confirmation.

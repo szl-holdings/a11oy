@@ -25,7 +25,7 @@
 
 Start here for diligence: [`docs/INVESTOR_DEMO.md`](docs/INVESTOR_DEMO.md) · [Hugging Face mirror](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) · [latest A11oy release](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1)
 
-Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · Series-A packet: [`docs/SERIES_A_DILIGENCE.md`](docs/SERIES_A_DILIGENCE.md)
+Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · Series-A packet: [`docs/SERIES_A_DILIGENCE.md`](docs/SERIES_A_DILIGENCE.md) · Market evidence: [`docs/SERIES_A_MARKET_EVIDENCE.md`](docs/SERIES_A_MARKET_EVIDENCE.md)
 
 ---
 

@@ -25,6 +25,7 @@ Canonical public links:
 | 8 | [`docs/UDS_FRONTIER_GAP_MAP.md`](UDS_FRONTIER_GAP_MAP.md) | UDS/Zarf fit and gaps are mapped against public Defense Unicorns docs. |
 | 9 | [`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](ANCIENT_TEXTS_FORMULA_LINEAGE.md) | Ancient/pre-modern source lineage is mapped to formulas and runtime hooks with caveats. |
 | 10 | [`huggingface/DEMO_RECEIPT_SAMPLE.jsonl`](../huggingface/DEMO_RECEIPT_SAMPLE.jsonl) | A small receipt-chain demo blocks inflated UDS, Putnam, and gate-count claims. |
+| 11 | [`docs/SERIES_A_MARKET_EVIDENCE.md`](SERIES_A_MARKET_EVIDENCE.md) | Public standards are mapped to A11oy artifacts and production gaps without certification theater. |
 
 ## One-line thesis
 
