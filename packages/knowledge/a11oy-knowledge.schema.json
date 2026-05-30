@@ -281,8 +281,8 @@
       "properties": {
         "clause_id": {
           "type": "string",
-          "description": "Machine-readable clause identifier (e.g., HIPAA-PR-164.502).",
-          "pattern": "^[A-Z0-9][A-Z0-9\\-\\.]+$",
+          "description": "Machine-readable clause identifier (e.g., HIPAA-PR-164.502 or HIPAA-SR-164.312a2i). Lowercase subsection letters are permitted because regulatory citations encode them (21 CFR 11.10(a), HIPAA 164.312(a)(2)(i)).",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9\\-\\.]+$",
           "minLength": 5,
           "maxLength": 64
         },
