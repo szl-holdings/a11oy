@@ -26,6 +26,7 @@ Canonical public links:
 | 9 | [`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](ANCIENT_TEXTS_FORMULA_LINEAGE.md) | Ancient/pre-modern source lineage is mapped to formulas and runtime hooks with caveats. |
 | 10 | [`huggingface/DEMO_RECEIPT_SAMPLE.jsonl`](../huggingface/DEMO_RECEIPT_SAMPLE.jsonl) | A small receipt-chain demo blocks inflated UDS, Putnam, and gate-count claims. |
 | 11 | [`docs/SERIES_A_MARKET_EVIDENCE.md`](SERIES_A_MARKET_EVIDENCE.md) | Public standards are mapped to A11oy artifacts and production gaps without certification theater. |
+| 12 | [`docs/SUBSTRATE_REALITY_MAP.md`](SUBSTRATE_REALITY_MAP.md) | The substrate spine, quadrants, anatomy, GHAS, SLSA, and proof claims are classified as verified, PR-only, owner-API-needed, or narrative-only. |
 
 ## One-line thesis
 

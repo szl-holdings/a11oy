@@ -17,6 +17,7 @@ tests, and a Hugging Face mirror that points back to canonical provenance.
 | Demo readiness report | `docs/ecosystem-readiness-report.json` classifies active, supporting, excluded, and upstream-fix-needed repos. |
 | Thesis/proof alignment | `docs/PROVENANCE.md` pins v18 thesis DOI and Lean software DOI, and gates public claims by status. |
 | Market evidence map | `docs/SERIES_A_MARKET_EVIDENCE.md` maps NIST AI RMF, EU AI Act, CISA SBOM, SLSA, and model-card expectations to A11oy artifacts and gaps. |
+| Substrate reality map | `docs/SUBSTRATE_REALITY_MAP.md` keeps the 13-repo spine, quadrants, anatomy, GHAS, SLSA, and proof posture useful without treating PR-only or privileged-API claims as shipped. |
 | GitHub validation | Doctrine Build, CodeQL, SBOM, Trivy, DCO, docs, links, and secret scan pass on the branch. |
 | Hugging Face path | Manual workflow publishes the verified payload to `SZLHOLDINGS/a11oy-v19-substrate` when `HF_TOKEN` is available. |
 | UDS / Warhacker proof point | `docs/WARHACKER_UDS_PROOF_POINT.md` ties the package, manifest, attestation, receipt-chain, and tamper-test demo together. |

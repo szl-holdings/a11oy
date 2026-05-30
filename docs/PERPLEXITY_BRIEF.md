@@ -52,6 +52,9 @@ Excluded from active-demo claims until funded:
    and chain summary.
 10. `docs/SERIES_A_MARKET_EVIDENCE.md` for external standards mapped to shipped
     artifacts and guarded production gaps.
+11. `docs/SUBSTRATE_REALITY_MAP.md` for the screenshot substrate spine, four
+    quadrants, anatomy map, GHAS posture, and SLSA/proof claims with evidence
+    status labels.
 
 ## Guardrails for the analyst
 

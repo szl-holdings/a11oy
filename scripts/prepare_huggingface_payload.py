@@ -63,6 +63,7 @@ def main() -> int:
         ("docs/PROVENANCE.md", "source/docs/PROVENANCE.md"),
         ("docs/SERIES_A_DILIGENCE.md", "source/docs/SERIES_A_DILIGENCE.md"),
         ("docs/SERIES_A_MARKET_EVIDENCE.md", "source/docs/SERIES_A_MARKET_EVIDENCE.md"),
+        ("docs/SUBSTRATE_REALITY_MAP.md", "source/docs/SUBSTRATE_REALITY_MAP.md"),
         ("docs/INVESTOR_DEMO.md", "source/docs/INVESTOR_DEMO.md"),
         ("docs/ECOSYSTEM_OPERATING_SYSTEM.md", "source/docs/ECOSYSTEM_OPERATING_SYSTEM.md"),
         ("docs/AUTONOMOUS_LEARNING_DOCTRINE.md", "source/docs/AUTONOMOUS_LEARNING_DOCTRINE.md"),

@@ -118,6 +118,7 @@ def stage_payload() -> None:
         "docs/PROVENANCE.md",
         "docs/SERIES_A_DILIGENCE.md",
         "docs/SERIES_A_MARKET_EVIDENCE.md",
+        "docs/SUBSTRATE_REALITY_MAP.md",
         "docs/INVESTOR_DEMO.md",
         "docs/ECOSYSTEM_OPERATING_SYSTEM.md",
         "docs/AUTONOMOUS_LEARNING_DOCTRINE.md",

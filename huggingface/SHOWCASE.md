@@ -47,6 +47,7 @@ flowchart TD
 | UDS/Zarf operator handoff | `payloads/deploy/zarf.yaml`, `source/docs/WARHACKER_UDS_PROOF_POINT.md` |
 | Ecosystem readiness | `source/docs/ecosystem-readiness-report.json` |
 | Market evidence | `source/docs/SERIES_A_MARKET_EVIDENCE.md` |
+| Substrate reality | `source/docs/SUBSTRATE_REALITY_MAP.md` |
 | Series-A diligence | `source/docs/SERIES_A_DILIGENCE.md`, `INVESTOR_BRIEF.md` |
 
 ## Verification lane
