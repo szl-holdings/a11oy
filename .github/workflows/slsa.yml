@@ -1,9 +1,31 @@
-name: SLSA Level 1 (SBOM + DCO)
+name: SLSA Build L1 (provenance attestation)
+
+# SLSA v1.0 Build L1 requires that provenance EXISTS describing how the
+# artifact was built and is DISTRIBUTED to consumers
+# (https://slsa.dev/spec/v1.0/levels#build-l1).
+#
+# The previous job was a no-op stub (`run: echo "SLSA L1 supply-chain checks OK"`)
+# which emitted no provenance and therefore did not satisfy Build L1.
+#
+# This workflow now:
+#   1. Builds the same a11oy-uds-<version>.tar.zst artifact produced by
+#      uds-sign-release.yml (git archive | zstd).
+#   2. Generates an in-toto v1 SLSA provenance attestation for that artifact
+#      via actions/attest-build-provenance. The attestation is signed with the
+#      SAME Sigstore keyless flow already used for release signing
+#      (GitHub OIDC -> Fulcio short-lived cert -> Rekor transparency log).
+#   3. Uploads the provenance bundle (.intoto.jsonl) as a release asset so it
+#      is distributed to consumers alongside the artifact.
+#
+# Doctrine v6: no echo stubs, verifiable provenance only.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to attest (e.g. uds-v0.3.0). Optional on push.'
+        required: false
+        type: string
   release:
     types: [published]
 
@@ -11,15 +33,99 @@ permissions:
   contents: read
 
 jobs:
-  slsa-verify:
-    name: SLSA supply-chain checks
+  provenance:
+    name: Build artifact + attest SLSA provenance
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
-      contents: write
+      id-token: write     # OIDC token -> Sigstore Fulcio keyless signing
+      contents: write      # upload provenance + write attestation to release
+      attestations: write  # store the attestation in the repo attestations API
       actions: read
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Supply-chain checks
-        run: echo "SLSA L1 supply-chain checks OK"
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag_name }}"
+          fi
+          if [[ -z "${TAG}" ]]; then
+            # No tag context (e.g. manual dispatch on main): attest the current ref.
+            TAG="$(git rev-parse --short HEAD 2>/dev/null || echo main)"
+            VERSION="0.0.0-dev-${TAG}"
+          else
+            VERSION="${TAG#uds-v}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tarball=a11oy-uds-${VERSION}.tar.zst" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Build tar.zst (same artifact as uds-sign-release.yml)
+        id: build
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          TARBALL="${{ steps.tag.outputs.tarball }}"
+          echo "Building ${TARBALL}..."
+          git archive \
+            --format=tar \
+            --prefix="a11oy-uds-${VERSION}/" \
+            HEAD \
+            | zstd -19 -T0 -o "${TARBALL}"
+          echo "Built ${TARBALL}: $(wc -c < "${TARBALL}") bytes"
+          echo "tarball_path=${PWD}/${TARBALL}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SLSA provenance attestation (Sigstore keyless)
+        id: attest
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: ${{ steps.build.outputs.tarball_path }}
+
+      - name: Stage provenance as a distributable .intoto.jsonl
+        id: prov
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          PROV_OUT="a11oy-uds-${VERSION}.tar.zst.intoto.jsonl"
+          # actions/attest-build-provenance writes the signed in-toto v1 bundle
+          # to a file whose path is exported as bundle-path.
+          cp "${{ steps.attest.outputs.bundle-path }}" "${PROV_OUT}"
+          echo "Provenance bundle: ${PROV_OUT} ($(wc -c < "${PROV_OUT}") bytes)"
+          echo "prov_file=${PROV_OUT}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload provenance to the GitHub release (distribute to consumers)
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          PROV_OUT="${{ steps.prov.outputs.prov_file }}"
+          gh release upload "${TAG}" "${PROV_OUT}" \
+            --clobber \
+            --repo szl-holdings/a11oy
+          echo "Provenance distributed as a release asset on ${TAG}."
+
+      - name: Upload provenance as workflow artifact (dispatch runs)
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: ${{ steps.prov.outputs.prov_file }}
+          path: ${{ steps.prov.outputs.prov_file }}
+          retention-days: 90
+
+      - name: Print verification instructions
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          echo "=== Verify SLSA provenance ==="
+          echo "slsa-verifier verify-artifact \\"
+          echo "  --provenance-path a11oy-uds-${VERSION}.tar.zst.intoto.jsonl \\"
+          echo "  --source-uri github.com/szl-holdings/a11oy \\"
+          echo "  a11oy-uds-${VERSION}.tar.zst"
+          echo ""
+          echo "Or with the GitHub CLI (uses the repo attestations API + Rekor):"
+          echo "  gh attestation verify a11oy-uds-${VERSION}.tar.zst --repo szl-holdings/a11oy"
