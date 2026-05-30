@@ -1,0 +1,38 @@
+# Build context exclusions for the a11oy image.
+# Keep the context small and reproducible; dist is rebuilt inside the builder.
+
+# Dependencies (reinstalled from the lockfile inside the image)
+node_modules
+**/node_modules
+
+# VCS / CI metadata
+.git
+.github
+.devcontainer
+
+# Build outputs (the builder regenerates dist/)
+dist
+**/dist
+artifacts/a11oy-uds/build
+artifacts/a11oy-uds/build-attestations
+
+# Tests (not needed in the runtime image)
+__tests__
+**/__tests__
+test
+**/test
+
+# Coverage / caches
+coverage
+**/coverage
+.cache
+__pycache__
+**/__pycache__
+*.pyc
+
+# Editor / OS cruft
+.DS_Store
+*.log
+
+# Local container build helpers themselves
+.dockerignore

@@ -4,6 +4,16 @@
 #         per Plane 1 of the mesh plan (§04). Intended for commit to the external
 #         szl-holdings/a11oy repository at path deploy/zarf.yaml.
 #
+# Reality check (2026-05-30, infra pass):
+#   REAL today:  all four manifests/*.yaml and attestations.jsonl exist and are
+#                referenced correctly; YAML parses; schema is valid Zarf v1.
+#   ROADMAP:     the image ghcr.io/szl-holdings/a11oy:v1.0.0-alpha is not yet
+#                published — a root Dockerfile (CLI image) and docker-build.yml
+#                were added in this pass to produce it. The deployment/service
+#                manifests assume a long-running HTTP server on :8080 with a
+#                /healthz probe; a11oy currently ships a CLI/library, not an
+#                HTTP server, so that server is roadmap, not present code.
+#
 # Build:   zarf package create . --confirm
 # Inspect: zarf package inspect zarf-package-a11oy-amd64-1.0.0-alpha.tar.zst
 # Deploy:  zarf package deploy   zarf-package-a11oy-amd64-1.0.0-alpha.tar.zst --confirm
@@ -14,8 +24,10 @@ metadata:
   version: 1.0.0-alpha
   description: |
     Governed agentic execution fabric. Policy gates, signal mesh, proof
-    ledger, and Λ-9 invariant runtime. Apache-2.0 / NOTICE per SZL
-    Doctrine V6 license allowlist.
+    ledger, and Λ-9 invariant runtime. Proprietary (LicenseRef-SZL-
+    Proprietary, see LICENSE) / NOTICE per SZL Doctrine v7 license
+    allowlist. Apache-2.0 re-license is proposed in PR #57 (IP-HOLD,
+    unmerged).
   url: https://github.com/szl-holdings/a11oy
   authors: "Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings"
   architecture: amd64
