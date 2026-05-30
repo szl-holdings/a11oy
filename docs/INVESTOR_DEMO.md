@@ -22,11 +22,6 @@ Canonical public links:
 | 5 | [`packages/receipt-substrate`](../packages/receipt-substrate) | Tool-envelope receipts can be emitted, chained, and verified locally. |
 | 6 | [`deploy/MANIFEST.json`](../deploy/MANIFEST.json) | Deploy payload files are content-addressed with SHA-256. |
 | 7 | [`huggingface/README.md`](../huggingface/README.md) | Hugging Face is a generated diligence mirror tied back to GitHub. |
-| 8 | [`docs/UDS_FRONTIER_GAP_MAP.md`](UDS_FRONTIER_GAP_MAP.md) | UDS/Zarf fit and gaps are mapped against public Defense Unicorns docs. |
-| 9 | [`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](ANCIENT_TEXTS_FORMULA_LINEAGE.md) | Ancient/pre-modern source lineage is mapped to formulas and runtime hooks with caveats. |
-| 10 | [`huggingface/DEMO_RECEIPT_SAMPLE.jsonl`](../huggingface/DEMO_RECEIPT_SAMPLE.jsonl) | A small receipt-chain demo blocks inflated UDS, Putnam, and gate-count claims. |
-| 11 | [`docs/SERIES_A_MARKET_EVIDENCE.md`](SERIES_A_MARKET_EVIDENCE.md) | Public standards are mapped to A11oy artifacts and production gaps without certification theater. |
-| 12 | [`docs/SUBSTRATE_REALITY_MAP.md`](SUBSTRATE_REALITY_MAP.md) | The substrate spine, quadrants, anatomy, GHAS, SLSA, and proof claims are classified as verified, PR-only, owner-API-needed, or narrative-only. |
 
 ## One-line thesis
 
@@ -43,8 +38,8 @@ provenance contract.
 | Deploy manifest verification | Demo-ready | `pnpm payload:verify` |
 | Hugging Face payload generation | Demo-ready | `pnpm payload:huggingface` |
 | Operational tarball bundle | Demo-ready | `pnpm payload:bundle` and `pnpm payload:bundle:verify` |
-| UDS/Zarf handoff | Demo-ready as package/operator proof point | `artifacts/a11oy-uds/README.md`, `artifacts/a11oy-uds/docs/*`, `deploy/zarf.yaml`; do not present SBOM-only or empty v0.3.0 releases as signed binary payloads |
-| Vessels vertical | Active vertical demo wedge | `https://github.com/szl-holdings/vessels`; use `uds-v0.2.0` for signed-asset evidence until `uds-v0.3.x` assets land |
+| UDS/Zarf handoff | Demo-ready as package/operator proof point | `artifacts/a11oy-uds/README.md`, `artifacts/a11oy-uds/docs/*`, `deploy/zarf.yaml` |
+| Vessels vertical | Active vertical demo wedge | `https://github.com/szl-holdings/vessels` and `uds-v0.2.0` release |
 
 ## What is intentionally not in the active demo
 
