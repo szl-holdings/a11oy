@@ -1,0 +1,48 @@
+diff --git a/Lutar/QEC/KitaevSurface.lean b/Lutar/QEC/KitaevSurface.lean
+index 1229ca4..9c68571 100644
+--- a/Lutar/QEC/KitaevSurface.lean
++++ b/Lutar/QEC/KitaevSurface.lean
+@@ -59,7 +59,7 @@ abbrev ErrorBit := Bool
+ /-- Parity of a vertex check: XOR of the 4 incident error bits.  An odd
+     parity flags a syndrome at this vertex. -/
+ def vertexParity (errs : Site → ErrorBit) (v : VertexCheck) : Bool :=
+-  errs v.n != errs v.s != errs v.e != errs v.w
++  Bool.xor (Bool.xor (errs v.n) (errs v.s)) (Bool.xor (errs v.e) (errs v.w))
+ 
+ /-- A single-site error at exactly one of the 4 vertices flips parity. -/
+ theorem kitaev_single_site_flips_parity_n
+diff --git a/Lutar/Shannon/DoctrineEntropy.lean b/Lutar/Shannon/DoctrineEntropy.lean
+index 3f3f580..091e687 100644
+--- a/Lutar/Shannon/DoctrineEntropy.lean
++++ b/Lutar/Shannon/DoctrineEntropy.lean
+@@ -66,7 +66,7 @@ inductive DoctrineLabel : Type
+ 
+ /-- The doctrine alphabet has exactly 4 elements. -/
+ theorem doctrine_alphabet_size_4 :
+-    Fintype.card DoctrineLabel = 4 := by
++    _root_.Fintype.card DoctrineLabel = 4 := by
+   decide
+ 
+ /-- Shannon source code: a function from each doctrine label to a 2-bit
+@@ -172,7 +172,7 @@ namespace Tests
+   example : shannonDecode 4 = none := by decide
+   example : shannonDecode 99 = none := by decide
+ 
+-  example : Fintype.card DoctrineLabel = 4 := by decide
++  example : _root_.Fintype.card DoctrineLabel = 4 := by decide
+ 
+   -- Kraft sum = 1 (in the form 4 * 2^0 = 2^2 = 4)
+   example : 4 * (2 ^ 0) = 2 ^ 2 := by decide
+diff --git a/Lutar/Wheeler/DelayedChoiceClosure.lean b/Lutar/Wheeler/DelayedChoiceClosure.lean
+index 63840f0..9a18cb9 100644
+--- a/Lutar/Wheeler/DelayedChoiceClosure.lean
++++ b/Lutar/Wheeler/DelayedChoiceClosure.lean
+@@ -85,7 +85,7 @@ def admissible (s : Span) (r : Receipt) : Prop :=
+ /-- Decidable admission (so the runtime can decide). -/
+ instance (s : Span) (r : Receipt) : Decidable (admissible s r) := by
+   unfold admissible
+-  exact And.decidable
++  infer_instance
+ 
+ /-- Audit closure: given a span and a candidate receipt, the *closed label*
+     is the receipt's label when admissible, and `Bot` (no doctrine
