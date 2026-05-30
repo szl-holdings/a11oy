@@ -12,6 +12,7 @@
     "test:knowledge:lookup": "tsx packages/a11oy-knowledge/src/theorems_lookup.test.ts",
     "test:qec": "tsx packages/qec-integrity/src/qec_lineage.test.ts",
     "test:policy-gates": "tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+    "test:policy-contracts": "tsx packages/policy/src/contracts/__tests__/controls_contracts.test.ts",
     "test:policy": "npm test --prefix packages/policy",
     "typecheck:policy": "npm run typecheck --prefix packages/policy",
     "test:runtime": "npm run test:policy && npm test --prefix packages/receipt-substrate && npm run test:qec && npm run test:knowledge:lookup && pnpm test:doctrine",

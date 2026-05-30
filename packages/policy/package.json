@@ -14,14 +14,20 @@
       "types": "./src/gates/index.ts",
       "import": "./src/gates/index.ts"
     },
+    "./contracts": {
+      "types": "./src/contracts/index.ts",
+      "import": "./src/contracts/index.ts"
+    },
     "./policy-loader": {
       "types": "./policy_loader.ts",
       "import": "./policy_loader.ts"
     }
   },
   "scripts": {
-    "test": "tsx src/gates/__tests__/policy_gates.test.ts",
-    "typecheck": "tsc --noEmit --ignoreConfig --module NodeNext --moduleResolution NodeNext --target ES2022 --allowImportingTsExtensions --esModuleInterop --allowSyntheticDefaultImports --types node src/index.ts src/gates/__tests__/policy_gates.test.ts"
+    "test": "tsx src/gates/__tests__/policy_gates.test.ts && tsx src/contracts/__tests__/controls_contracts.test.ts",
+    "test:gates": "tsx src/gates/__tests__/policy_gates.test.ts",
+    "test:contracts": "tsx src/contracts/__tests__/controls_contracts.test.ts",
+    "typecheck": "tsc --noEmit --ignoreConfig --module NodeNext --moduleResolution NodeNext --target ES2022 --allowImportingTsExtensions --resolveJsonModule --esModuleInterop --allowSyntheticDefaultImports --types node src/index.ts src/gates/__tests__/policy_gates.test.ts src/contracts/__tests__/controls_contracts.test.ts"
   },
   "license": "UNLICENSED",
   "publishConfig": {

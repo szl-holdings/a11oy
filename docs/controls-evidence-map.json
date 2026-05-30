@@ -20,7 +20,7 @@
       "receiptHook": {
         "eventType": "A11OY_OPERATION",
         "status": "runtime-available",
-        "description": "Receipt over public-claim scan output and source commit."
+        "description": "Runtime helper emits a receipt over public-claim scan output and source commit via packages/policy/src/contracts/controls.ts."
       },
       "hfExposure": "mirror-only",
       "udsExposure": "operator-proof-point",
@@ -45,7 +45,7 @@
       "receiptHook": {
         "eventType": "A11OY_OPERATION",
         "status": "runtime-available",
-        "description": "Receipt binds source URL, license/copying boundary, and original SZL transform."
+        "description": "Runtime helper emits a receipt binding source URL, license/copying boundary, and original SZL transform via packages/policy/src/contracts/controls.ts."
       },
       "hfExposure": "generated-ledger",
       "udsExposure": "operator-context-only",

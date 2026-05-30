@@ -195,10 +195,15 @@ UDS-style public handoff patterns into an A11oy-native `ActionContract` with
 ingress, identity, policy, evidence, receipt sinks, replay bounds, egress
 limits, and forbidden UDS claims.
 
+Runtime receipt helpers for controls and action contracts live in
+`packages/policy/src/contracts/controls.ts` and are covered by
+`npm run test:policy-contracts`.
+
 Validate it with:
 
 ```bash
 pnpm action-contract:audit
+npm run test:policy-contracts
 ```
 
 ## Test-results dataset lane

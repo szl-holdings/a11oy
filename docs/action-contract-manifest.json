@@ -1,8 +1,8 @@
 {
   "schemaVersion": "a11oy.action-contract.v0.1",
   "contractId": "a11oy.operator.intent.udsp.v0",
-  "claimStatus": "roadmap",
-  "canonicalRule": "This is an original A11oy operator intent contract. It models UDS-style handoff concepts without copying upstream CRDs, schemas, templates, or prose.",
+  "claimStatus": "verified-runtime",
+  "canonicalRule": "This is an original A11oy operator intent contract. It models UDS-style handoff concepts without copying upstream CRDs, schemas, templates, or prose. Runtime helper coverage exists for receipt emission; deployment/use remains operator proof-point scoped.",
   "cleanRoom": {
     "sourcePatternIds": [
       "operator-intent-contract",
@@ -79,6 +79,7 @@
     "testCommands": [
       "npm run controls:audit",
       "npm run action-contract:audit",
+      "npm run test:policy-contracts",
       "npm run payload:verify",
       "npm run payload:bundle:verify"
     ],
