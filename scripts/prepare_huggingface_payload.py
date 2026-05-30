@@ -63,6 +63,7 @@ def main() -> int:
         ("docs/PROVENANCE.md", "source/docs/PROVENANCE.md"),
         ("docs/SERIES_A_DILIGENCE.md", "source/docs/SERIES_A_DILIGENCE.md"),
         ("docs/INVESTOR_DEMO.md", "source/docs/INVESTOR_DEMO.md"),
+        ("docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md", "source/docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md"),
         ("docs/UDS_FRONTIER_GAP_MAP.md", "source/docs/UDS_FRONTIER_GAP_MAP.md"),
         ("docs/WARHACKER_UDS_PROOF_POINT.md", "source/docs/WARHACKER_UDS_PROOF_POINT.md"),
         ("docs/PERPLEXITY_BRIEF.md", "source/docs/PERPLEXITY_BRIEF.md"),
