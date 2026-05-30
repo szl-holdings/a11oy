@@ -103,7 +103,12 @@ export {
 
 // ─── HMAC Verification ───────────────────────────────────────────────────────
 
-export { pae, verifyHMAC, signEnvelope, makeKeyId } from "./hmac.js";
+export { pae, paeRaw, verifyHMAC, signEnvelope, makeKeyId } from "./hmac.js";
+export {
+  dsseV1Pae,
+  dsseV1PaeFromBase64Body,
+  base64ToBytes,
+} from "./dsse-pae.js";
 
 // ─── Package Metadata ────────────────────────────────────────────────────────
 

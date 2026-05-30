@@ -2,18 +2,24 @@
  * @file packages/rae1/src/hmac.ts
  * @description RAE-1 DSSE HMAC-SHA-256 signature gate.
  *
- * Implements the PAE (Pre-Authentication Encoding) function and HMAC verification
- * for DSSE envelopes per RAE_1_PROTOCOL.md §5.3 and the DSSE spec
- * (github.com/secure-systems-lab/dsse).
+ * Implements HMAC-SHA-256 verification over the canonical DSSE v1
+ * Pre-Authentication Encoding (PAE) for DSSE envelopes, per RAE_1_PROTOCOL.md
+ * §5.3 and the DSSE spec
+ * (https://github.com/secure-systems-lab/dsse/blob/master/protocol.md).
  *
- * PAE formula:
- *   PAE(type, payload) = LE64(2) || LE64(len(type)) || type
- *                      || LE64(len(payload)) || payload
+ * Canonical PAE formula (the ONLY one used across SZL — see ./dsse-pae.ts):
+ *   PAE = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body
+ *   SP  = 0x20, LEN = ASCII decimal byte length, body = RAW envelope body.
  *
- * where LE64(x) is x encoded as a little-endian 64-bit unsigned integer.
+ * The DSSE envelope `payload` field is base64url of the raw body, so the PAE is
+ * computed over the base64-DECODED body (dsseV1PaeFromBase64Body).
  *
  * The signature in each DSSEEnvelope.signatures[i].sig is:
- *   base64url(HMAC-SHA-256(key, PAE(payloadType, payload)))
+ *   base64url(HMAC-SHA-256(key, dsseV1PaeFromBase64Body(payloadType, payload)))
+ *
+ * NOTE: prior to PR fix(rae1) this file used the old in-toto LE64 binary PAE,
+ * which has no "DSSEv1" prefix and is not DSSEv1-compatible
+ * (PhD_CRYPTO_VERDICT.md Finding A1, hmac.ts:53-76).
  *
  * Lean ref:  SZL.AGI.PACBayes.capability_improvement_rate_bound
  * Lean file: Lutar/PACBayes/CapabilityImprovementRate.lean
@@ -23,26 +29,21 @@
  * Signed-off-by: SZL Engineering <eng@szl-holdings.com>
  */
 
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
+import { dsseV1Pae, dsseV1PaeFromBase64Body } from "./dsse-pae.js";
 
 // ─── PAE (Pre-Authentication Encoding) ───────────────────────────────────────
 
 /**
- * DSSE Pre-Authentication Encoding (PAE).
+ * Canonical DSSE v1 PAE for an [payloadType, base64Body] item pair.
  *
- * Encodes a variable number of byte strings into a single buffer for
- * use as HMAC input, preventing cross-type forgery attacks.
+ * Backward-compatible call shape: callers historically invoked
+ *   pae([payloadType, base64Payload])
+ * where the second item is the envelope's base64url `payload` field. The PAE is
+ * now computed over the RAW (base64-decoded) body, per the DSSE spec.
  *
- * For RAE-1, always called with exactly 2 items: [payloadType, payload].
- *
- * Layout (per DSSE spec v1):
- *   LE64(count)
- *   LE64(len(item_0)) || item_0
- *   LE64(len(item_1)) || item_1
- *   ...
- *
- * @param items - Array of string items to encode
- * @returns Buffer containing the PAE encoding
+ * @param items - exactly [payloadType, base64Body]
+ * @returns Buffer containing the canonical DSSE v1 PAE
  *
  * @example
  * ```typescript
@@ -51,28 +52,21 @@ import { createHmac } from "crypto";
  * ```
  */
 export function pae(items: string[]): Buffer {
-  const itemBuffers = items.map((item) => Buffer.from(item, "utf8"));
-
-  // Total size: 8 (count) + sum_i(8 + len(item_i))
-  const totalSize =
-    8 + itemBuffers.reduce((acc, buf) => acc + 8 + buf.length, 0);
-
-  const result = Buffer.alloc(totalSize);
-  let offset = 0;
-
-  // Write count as LE64
-  result.writeBigUInt64LE(BigInt(items.length), offset);
-  offset += 8;
-
-  // Write each item: LE64(len) || bytes
-  for (const buf of itemBuffers) {
-    result.writeBigUInt64LE(BigInt(buf.length), offset);
-    offset += 8;
-    buf.copy(result, offset);
-    offset += buf.length;
+  if (items.length !== 2) {
+    throw new Error(
+      `DSSE v1 PAE requires exactly [payloadType, base64Body]; got ${items.length} items`
+    );
   }
+  const [payloadType, base64Body] = items;
+  return Buffer.from(dsseV1PaeFromBase64Body(payloadType, base64Body));
+}
 
-  return result;
+/**
+ * Canonical DSSE v1 PAE over a payload type and RAW body bytes.
+ * Re-exported convenience for callers that already hold raw bytes.
+ */
+export function paeRaw(payloadType: string, body: Uint8Array): Buffer {
+  return Buffer.from(dsseV1Pae(payloadType, body));
 }
 
 // ─── HMAC Verification ───────────────────────────────────────────────────────
@@ -112,8 +106,20 @@ export function verifyHMAC(
   key: Buffer
 ): boolean {
   const message = pae([envelope.payloadType, envelope.payload]);
-  const expected = createHmac("sha256", key).update(message).digest("base64url");
-  return envelope.signatures.some((s) => s.sig === expected);
+  const expected = createHmac("sha256", key).update(message).digest();
+  // Timing-safe comparison over the raw MAC bytes (PhD_CRYPTO_VERDICT.md
+  // "Positive" nit: hmac.ts:116 previously used `===` string compare on the
+  // public tag). Decode each candidate signature and compare in constant time.
+  return envelope.signatures.some((s) => {
+    let actual: Buffer;
+    try {
+      actual = Buffer.from(s.sig, "base64url");
+    } catch {
+      return false;
+    }
+    if (actual.length !== expected.length) return false;
+    return timingSafeEqual(actual, expected);
+  });
 }
 
 /**
