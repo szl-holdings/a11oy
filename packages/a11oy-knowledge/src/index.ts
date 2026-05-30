@@ -9,7 +9,7 @@
 export type { Axiom, Theorem, Derivation, CanonicalConstant, DOIEntry, DoctrineClause, ProposedAxiom, VerticalPolicy, KnowledgeGraph } from './schema.js';
 export { DERIVATIONS, getDerivation } from './derivations.js';
 export { PROPOSED_AXIOMS, getProposedAxiom } from './proposed_axioms.js';
-export { NEW_THEOREMS, getNewTheorem } from './theorems.js';
+export { ALL_THEOREMS, MATH_POD_THEOREMS, NEW_THEOREMS, getNewTheorem, getTheorem } from './theorems.js';
 export { VERTICAL_POLICIES, getPolicyForVertical } from './vertical-router.js';
 
 import knowledgeJson from './knowledge.json' assert { type: 'json' };

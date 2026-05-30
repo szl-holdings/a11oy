@@ -1,30 +1,30 @@
-export { adversarialRobustnessGate } from "./adversarialRobustness_gate";
+export { adversarialRobustnessGate } from "./adversarialRobustness_gate.ts";
 export type {
   AdversarialRobustnessGateConfig,
   AdversarialRobustnessGateOpts,
-} from "./adversarialRobustness_gate";
+} from "./adversarialRobustness_gate.ts";
 
-export { falsePositionGate } from "./falsePosition_gate";
+export { falsePositionGate } from "./falsePosition_gate.ts";
 export type {
   FalsePositionGateConfig,
   FalsePositionGateOpts,
-} from "./falsePosition_gate";
+} from "./falsePosition_gate.ts";
 
-export { liuHuiPiGate } from "./liuHuiPi_gate";
+export { liuHuiPiGate } from "./liuHuiPi_gate.ts";
 export type {
   LiuHuiPiGateConfig,
   LiuHuiPiGateOpts,
-} from "./liuHuiPi_gate";
+} from "./liuHuiPi_gate.ts";
 
-export { madhavaBoundGate } from "./madhavaBound_gate";
+export { madhavaBoundGate } from "./madhavaBound_gate.ts";
 export type {
   MadhavaBoundGateConfig,
   MadhavaBoundGateOpts,
-} from "./madhavaBound_gate";
+} from "./madhavaBound_gate.ts";
 
-export { summationInvariantGate } from "./summationInvariant_gate";
+export { summationInvariantGate } from "./summationInvariant_gate.ts";
 export type {
   DecisionReceipt,
   KhipuReceiptGateOpts,
   OrganReceipt,
-} from "./summationInvariant_gate";
+} from "./summationInvariant_gate.ts";

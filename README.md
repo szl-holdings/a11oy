@@ -6,7 +6,7 @@
 [![Tests](https://github.com/szl-holdings/a11oy/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml)
 [![SBOM](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml)
-[![SLSA 3](https://github.com/szl-holdings/a11oy/actions/workflows/slsa.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/slsa.yml)
+[![SLSA L1](https://img.shields.io/badge/SLSA-L1_(SBOM_%2B_DCO)-0B1F3A.svg?style=flat-square)](https://github.com/szl-holdings/a11oy/actions/workflows/slsa.yml)
 [![DCO](https://github.com/szl-holdings/a11oy/actions/workflows/dco.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/dco.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/szl-holdings/a11oy/badge)](https://securityscorecards.dev/viewer/?uri=github.com/szl-holdings/a11oy)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--0110--4173-A6CE39.svg?style=flat-square&logo=orcid&logoColor=white)](https://orcid.org/0009-0001-0110-4173)
@@ -195,11 +195,17 @@ Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine
 
 ## Deep-dive showcase
 
-**[a11oy-deep-dive](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-deep-dive)** — Governed execution fabric deep-dive — DSSE receipts, 9 packages
+**Live now:** [A11oy generated Hugging Face diligence packet](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate)
 
-> Status (2026-05-29): **STAGED, private**. Content + design-system upgrade are complete in `/szl/a11oy-deep-dive-staging/`. Public Space creation is gated on the HF rate-limit reset (~2026-05-30 14:58 UTC). This link will return HTTP 200 once the Space is created.
+**Staged next:** `SZLHOLDINGS/a11oy-deep-dive` — governed execution fabric
+deep-dive. The Space is not linked as a public surface until it returns HTTP
+200 without authentication.
 
-The Hugging Face Space (once public) is an investor-grade static deep-dive with:
+> Status (2026-05-29): **STAGED, private**. Content + design-system upgrade are
+> complete in `/szl/a11oy-deep-dive-staging/`. Public Space creation is gated on
+> the HF rate-limit reset (~2026-05-30 14:58 UTC).
+
+The staged Hugging Face Space is an investor-grade static deep-dive with:
 - Architecture diagrams and source-referenced implementation details
 - Live demo iframe embed from the companion interactive Space
 - Honest comparison table (Y/N, no marketing superlatives)

@@ -106,3 +106,11 @@ export const MATH_POD_THEOREMS: Theorem[] = [
     proof_sketch: 'Receipt.pass(r, h) where h : ∀i, r.lambda[i] ≥ threshold[i] is exactly the dependent type term for the soundnessAxiom proposition. The Lean type PassReceipt is inhabited iff the gate condition holds. This makes gate evaluation = proof construction (by the Lean type checker). Unifies formal and operational layers.',
   },
 ];
+
+export const ALL_THEOREMS: Theorem[] = [
+  ...NEW_THEOREMS,
+  ...MATH_POD_THEOREMS,
+];
+
+export const getTheorem = (id: string): Theorem | undefined =>
+  ALL_THEOREMS.find(t => t.id === id);

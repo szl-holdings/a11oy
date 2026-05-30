@@ -60,15 +60,30 @@ const tamperedPayloadResult = verifyChain(tamperedPayload, policy);
 assert.equal(tamperedPayloadResult.valid, false);
 assert.match(tamperedPayloadResult.errors.join("\n"), /payload_hash mismatch|merkle_root mismatch/);
 
+const tamperedReceiptId = [{ ...genesis, receipt_id: "or-tampered" }];
+const tamperedReceiptIdResult = verifyChain(tamperedReceiptId, policy);
+assert.equal(tamperedReceiptIdResult.valid, false);
+assert.match(tamperedReceiptIdResult.errors.join("\n"), /receipt_id mismatch/);
+
 const replayed = [...chain, chain[0]];
 const replayResult = verifyChain(replayed, policy);
 assert.equal(replayResult.valid, false);
 assert.match(replayResult.errors.join("\n"), /duplicate receipt_id|prev_receipt_hash mismatch|timestamp regression/);
 
+const skippedSequence = [{ ...genesis, sequence: 3 }];
+const skippedSequenceResult = verifyChain(skippedSequence, policy);
+assert.equal(skippedSequenceResult.valid, false);
+assert.match(skippedSequenceResult.errors.join("\n"), /sequence mismatch|receipt_id mismatch|merkle_root mismatch/);
+
 const weakQuorum = [{ ...genesis, quorum_signatures: ["node-primary"] }];
 const weakQuorumResult = verifyChain(weakQuorum, policy);
 assert.equal(weakQuorumResult.valid, false);
 assert.match(weakQuorumResult.errors.join("\n"), /insufficient quorum/);
+
+const impossibleQuorum = [{ ...genesis, policy: { ...genesis.policy!, quorum: "3-of-4" } }];
+const impossibleQuorumResult = verifyChain(impossibleQuorum, policy);
+assert.equal(impossibleQuorumResult.valid, false);
+assert.match(impossibleQuorumResult.errors.join("\n"), /quorum total exceeds known nodes|merkle_root mismatch|receipt_id mismatch/);
 
 const witness = qecWitness(genesis.payload_hash);
 assert.equal(witness.shor_repetition_count, 9);
@@ -84,4 +99,4 @@ try {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
 
-console.log("[receipt-substrate] OK 9 tests");
+console.log("[receipt-substrate] OK 12 tests");
