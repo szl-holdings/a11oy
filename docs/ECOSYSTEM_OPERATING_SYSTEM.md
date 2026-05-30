@@ -217,6 +217,22 @@ redistributed benchmark corpus. Validate it with:
 pnpm hf:test-results:audit
 ```
 
+## Cross-repo access lane
+
+The GitHub Enterprise access runbook is
+[`docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`](GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md)
+with machine-readable checklist
+[`docs/github-enterprise-access-checklist.json`](github-enterprise-access-checklist.json).
+Additional Enterprise seats can solve seat capacity, but cross-repo phases still
+need accepted org membership, repo/team write permission, and token or GitHub
+App scope for each sibling repo.
+
+Validate the access checklist with:
+
+```bash
+pnpm github:access:audit
+```
+
 ## Validation commands
 
 Run the operating-system audit lane before publishing:
@@ -231,6 +247,7 @@ pnpm patterns:audit
 pnpm controls:audit
 pnpm action-contract:audit
 pnpm hf:test-results:audit
+pnpm github:access:audit
 pnpm payload:verify
 pnpm payload:huggingface
 pnpm payload:bundle

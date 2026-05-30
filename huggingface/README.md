@@ -53,7 +53,7 @@ flowchart LR
 | `INNOVATIONS_DEEP_DIVE.md` | Evidence-backed implementation deep dive; no unsupported model/API claims. |
 | `INTEGRATION_QUICKSTART.md` | Current TypeScript/package/payload quickstart. |
 | `EVAL_TRACE_SAMPLE.jsonl` | Two-line receipt sample generated from the current `packages/receipt-substrate` schema and covered by receipt-substrate tests. |
-| `source/` | README, roadmap, changelog, ecosystem OS, public pattern synthesis ledger, controls map, operator action contract, anatomy/formula map, autonomy doctrine, benchmark doctrine, investor demo, UDS gap map, ancient/source lineage, provenance contract. |
+| `source/` | README, roadmap, changelog, ecosystem OS, public pattern synthesis ledger, controls map, operator action contract, GitHub Enterprise access checklist, anatomy/formula map, autonomy doctrine, benchmark doctrine, investor demo, UDS gap map, ancient/source lineage, provenance contract. |
 | `test-results/` | Staged future `a11oy-test-results` dataset card and manifest; no live Putnam score or leaderboard metric. |
 | `payloads/deploy/` | `zarf.yaml`, Kubernetes manifests, `attestations.jsonl`, and per-file `MANIFEST.json`. |
 | `build/` | Root workspace metadata and lockfile used by the doctrine lane. |
@@ -76,6 +76,7 @@ pnpm patterns:audit
 pnpm controls:audit
 pnpm action-contract:audit
 pnpm hf:test-results:audit
+pnpm github:access:audit
 npm run test:policy-contracts
 npm run test:autonomy-contracts
 pnpm payload:verify
