@@ -79,6 +79,13 @@ const DEFAULT_SEVERITY_SLOPE = 0.20;
 const DEFAULT_MAX_THRESHOLD = 0.95;
 const DEFAULT_STANDARD_WITNESSES = 2;
 const DEFAULT_CAPITAL_WITNESSES = 3;
+// DEMO ONLY — not non-repudiable. DEFAULT_SIGNING_KEY is a hard-coded symmetric
+// HMAC secret for local/dev use. HMAC-SHA-256 gives integrity + authenticity to
+// key-holders but is NOT an asymmetric signature: anyone with read access to the
+// key can mint receipts and there is zero non-repudiation. In production replace
+// with an Ed25519 keypair (production signature scheme — non-repudiable) or a
+// Sigstore keyless flow (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
+// See PhD Crypto Verdict 2026-05-30 Finding A2.
 const DEFAULT_SIGNING_KEY = "a11oy-threshold-policy-dev-key";
 const DEFAULT_KEY_ID = "hmac-sha256:a11oy-threshold-policy-dev";
 
@@ -121,6 +128,20 @@ function b64url(input: string): string {
   return Buffer.from(input, "utf8").toString("base64url");
 }
 
+/**
+ * Pre-Authentication Encoding for this gate's DSSE-shaped receipt.
+ *
+ * NOTE — this is NOT the canonical DSSE v1 PAE. The DSSE spec
+ * (https://github.com/secure-systems-lab/dsse/blob/master/protocol.md) defines:
+ *   PAE = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body
+ * where "DSSEv1" is a LITERAL prefix (not length-counted) and SP = 0x20.
+ * This implementation instead treats "DSSEv1" as a length-counted piece, emitting
+ *   LEN("DSSEv1") SP "DSSEv1" SP LEN(type) SP type SP LEN(payload) SP payload
+ * so receipts from this gate are NOT wire-compatible with an upstream DSSE
+ * verifier or with the canonical encoding being unified in rae1 (a11oy#149).
+ * Documented for the comment sweep; logic intentionally unchanged here.
+ * See PhD Crypto Verdict 2026-05-30 Finding A1 (three incompatible PAE encodings).
+ */
 function pae(payloadType: string, payload: string): string {
   const pieces = ["DSSEv1", payloadType, payload];
   return pieces.map((piece) => `${Buffer.byteLength(piece, "utf8")} ${piece}`).join(" ");
@@ -129,6 +150,9 @@ function pae(payloadType: string, payload: string): string {
 function signDsse(payload: Record<string, unknown>, signingKey: string, keyid: string): DsseEnvelope {
   const payloadType = "application/vnd.szl.threshold-policy.v1+json" as const;
   const encodedPayload = b64url(canonicalJson(payload));
+  // DEMO ONLY — not non-repudiable: this is a symmetric HMAC-SHA-256 MAC tag
+  // placed in the DSSE `signatures[].sig` field, not an asymmetric signature.
+  // Verifiable only by holders of `signingKey`. See Finding A2 (crypto verdict).
   const sig = createHmac("sha256", signingKey)
     .update(pae(payloadType, encodedPayload), "utf8")
     .digest("base64url");
