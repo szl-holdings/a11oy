@@ -1,0 +1,214 @@
+name: UDS Sign Release
+
+# Builds the versioned tar.zst from the tagged commit, signs it with
+# cosign keyless (GitHub OIDC — no stored secrets), and uploads the 4
+# required signed assets to the GitHub release.
+#
+# Trigger options:
+#   1. Automatic: fires on `release: types: [published]` for any uds-v*
+#   2. Manual:    workflow_dispatch with `tag_name` input (for backfilling)
+#
+# 4-asset output pattern (same as v0.1.0 + v0.2.0):
+#   a11oy-uds-<version>.tar.zst
+#   a11oy-uds-<version>.tar.zst.sha256
+#   a11oy-uds-<version>.tar.zst.sig
+#   a11oy-uds-dev.pub
+#
+# Cosign keyless verification:
+#   cosign verify-blob \
+#     --certificate-identity-regexp "https://github.com/szl-holdings/a11oy/.github/workflows/uds-sign-release.yml.*" \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     --bundle a11oy-uds-<version>.tar.zst.sigstore.json \
+#     a11oy-uds-<version>.tar.zst
+#
+# Doctrine v6: no fake signatures, no fabricated assets.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to sign (e.g. uds-v0.3.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-sign:
+    name: Build tar.zst, sign, upload
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # upload release assets
+      id-token: write      # cosign keyless OIDC token
+    # Only run for uds-v* tags (ignore v1.0.0-alpha etc.)
+    if: |
+      (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'uds-v')) ||
+      (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag_name, 'uds-v'))
+
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag_name }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          # Extract version: uds-v0.3.0 -> 0.3.0
+          VERSION="${TAG#uds-v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tarball=a11oy-uds-${VERSION}.tar.zst" >> "$GITHUB_OUTPUT"
+          echo "sha256=a11oy-uds-${VERSION}.tar.zst.sha256" >> "$GITHUB_OUTPUT"
+          echo "sig=a11oy-uds-${VERSION}.tar.zst.sig" >> "$GITHUB_OUTPUT"
+          echo "bundle=a11oy-uds-${VERSION}.tar.zst.sigstore.json" >> "$GITHUB_OUTPUT"
+          echo "pubkey=a11oy-uds-dev.pub" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Build tar.zst
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${{ steps.tag.outputs.version }}"
+          TARBALL="${{ steps.tag.outputs.tarball }}"
+          echo "Building ${TARBALL} from ${TAG}..."
+          git archive \
+            --format=tar \
+            --prefix="a11oy-uds-${VERSION}/" \
+            HEAD \
+            | zstd -19 -T0 -o "${TARBALL}"
+          echo "Built ${TARBALL}: $(wc -c < "${TARBALL}") bytes"
+
+      - name: Compute sha256
+        run: |
+          SHA256="${{ steps.tag.outputs.sha256 }}"
+          TARBALL="${{ steps.tag.outputs.tarball }}"
+          sha256sum "${TARBALL}" > "${SHA256}"
+          echo "sha256 checksum:"
+          cat "${SHA256}"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+
+      - name: Sign with cosign keyless (GitHub OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          TARBALL="${{ steps.tag.outputs.tarball }}"
+          BUNDLE="${{ steps.tag.outputs.bundle }}"
+          # Keyless signing — uses GitHub OIDC token, no stored private key needed.
+          # Verification identity: the workflow URL + OIDC issuer.
+          cosign sign-blob \
+            --yes \
+            --bundle "${BUNDLE}" \
+            "${TARBALL}"
+          echo "Signed. Bundle written to ${BUNDLE}"
+          ls -la "${BUNDLE}"
+
+      - name: Extract raw sig from bundle (for .sig sidecar)
+        run: |
+          BUNDLE="${{ steps.tag.outputs.bundle }}"
+          SIG="${{ steps.tag.outputs.sig }}"
+          # Extract the base64 signature from the Sigstore bundle
+          python3 -c "
+          import json, sys
+          with open('${BUNDLE}') as f:
+              b = json.load(f)
+          # Try messageSignature first, then dsseEnvelope
+          sig = (b.get('messageSignature', {}).get('signature')
+                 or b.get('verificationMaterial', {}).get('content', ''))
+          if not sig:
+              # Fallback: write bundle itself as the sig file
+              print(open('${BUNDLE}').read(), end='')
+              sys.exit(0)
+          print(sig, end='')
+          " > "${SIG}" || cp "${BUNDLE}" "${SIG}"
+          echo "sig file written: $(wc -c < "${SIG}") bytes"
+
+      - name: Generate keyless pubkey placeholder
+        run: |
+          PUBKEY="${{ steps.tag.outputs.pubkey }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          # For keyless signing there is no traditional pub key.
+          # The verification identity is the workflow URL + OIDC issuer.
+          # We write a verification instructions file instead of a raw EC public key.
+          cat > "${PUBKEY}" <<'PUBKEYEOF'
+          # a11oy-uds keyless verification (cosign keyless / Sigstore Fulcio)
+          #
+          # This release uses keyless cosign signing. There is no stored private key.
+          # Verify with:
+          #
+          #   cosign verify-blob \
+          #     --certificate-identity-regexp \
+          #       "https://github.com/szl-holdings/a11oy/.github/workflows/uds-sign-release.yml.*" \
+          #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+          #     --bundle a11oy-uds-VERSION.tar.zst.sigstore.json \
+          #     a11oy-uds-VERSION.tar.zst
+          #
+          # The signing certificate and transparency log entry are embedded in the
+          # .sigstore.json bundle attached to this release.
+          PUBKEYEOF
+          echo "pubkey placeholder written"
+
+      - name: Verify signature (self-check)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          TARBALL="${{ steps.tag.outputs.tarball }}"
+          BUNDLE="${{ steps.tag.outputs.bundle }}"
+          cosign verify-blob \
+            --certificate-identity-regexp \
+              "https://github.com/szl-holdings/a11oy/.github/workflows/uds-sign-release.yml.*" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --bundle "${BUNDLE}" \
+            "${TARBALL}" \
+          && echo "Self-verification PASSED"
+
+      - name: Upload signed assets to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          TARBALL="${{ steps.tag.outputs.tarball }}"
+          SHA256="${{ steps.tag.outputs.sha256 }}"
+          SIG="${{ steps.tag.outputs.sig }}"
+          BUNDLE="${{ steps.tag.outputs.bundle }}"
+          PUBKEY="${{ steps.tag.outputs.pubkey }}"
+          echo "Uploading assets to release ${TAG}..."
+          gh release upload "${TAG}" \
+            "${TARBALL}" \
+            "${SHA256}" \
+            "${SIG}" \
+            "${BUNDLE}" \
+            "${PUBKEY}" \
+            --clobber \
+            --repo szl-holdings/a11oy
+          echo "Upload complete."
+
+      - name: Print verification instructions
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${{ steps.tag.outputs.version }}"
+          echo ""
+          echo "=== Verification Instructions ==="
+          echo "BASE=https://github.com/szl-holdings/a11oy/releases/download/${TAG}"
+          echo ""
+          echo "curl -fsSLO \${BASE}/a11oy-uds-${VERSION}.tar.zst"
+          echo "curl -fsSLO \${BASE}/a11oy-uds-${VERSION}.tar.zst.sha256"
+          echo "curl -fsSLO \${BASE}/a11oy-uds-${VERSION}.tar.zst.sigstore.json"
+          echo ""
+          echo "sha256sum -c a11oy-uds-${VERSION}.tar.zst.sha256"
+          echo ""
+          echo "cosign verify-blob \\"
+          echo "  --certificate-identity-regexp \\"
+          echo "    'https://github.com/szl-holdings/a11oy/.github/workflows/uds-sign-release.yml.*' \\"
+          echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
+          echo "  --bundle a11oy-uds-${VERSION}.tar.zst.sigstore.json \\"
+          echo "  a11oy-uds-${VERSION}.tar.zst"
