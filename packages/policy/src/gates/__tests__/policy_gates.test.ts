@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import {
   adversarialRobustnessGate,
   emitFormulaGateReceipt,
@@ -6,6 +7,7 @@ import {
   liuHuiPiGate,
   madhavaBoundGate,
   summationInvariantGate,
+  thresholdPolicySeverityGate,
 } from "../index.ts";
 import { verifyReceipt } from "../../../../receipt-substrate/src/index.ts";
 
@@ -111,4 +113,66 @@ function assertLeanAnchor(decision: { leanCommitSha: string; rationale: string; 
   assert.throws(() => gate({ khipuId: "bad", primaryCord: 0, organs: null as never }), /organs must be an array/);
 }
 
-console.log("[policy-gates] OK 5 gates / 22 assertions + receipt emission");
+{
+  const gate = thresholdPolicySeverityGate({
+    baseThreshold: 0.70,
+    severitySlope: 0.20,
+    signingKey: "test-threshold-key",
+    keyId: "hmac-sha256:test-threshold",
+  });
+  const allow = gate({
+    actionId: "IQ-01-property",
+    severity: "high",
+    decisionClass: "property",
+    confidence: 0.84,
+    witnesses: [
+      { id: "witness-a", role: "operator", attested: true },
+      { id: "witness-b", role: "reviewer", attested: true },
+      { id: "witness-b", role: "reviewer", attested: true },
+    ],
+  });
+  assert.equal(allow.allow, true);
+  assert.equal(allow.formula, "ThresholdPolicySeverity");
+  assert.equal(allow.requiredWitnesses, 2);
+  assert.equal(allow.attestedWitnesses, 2);
+  assert.ok(allow.requiredThreshold > 0.70);
+  assert.ok(allow.dsseReceipt);
+  assert.equal(allow.dsseReceipt?.payloadType, "application/vnd.szl.threshold-policy.v1+json");
+  assert.equal(allow.dsseReceipt?.signatures[0]?.keyid, "hmac-sha256:test-threshold");
+  const payloadType = allow.dsseReceipt!.payloadType;
+  const payload = allow.dsseReceipt!.payload;
+  const pae = `6 DSSEv1 ${Buffer.byteLength(payloadType, "utf8")} ${payloadType} ${Buffer.byteLength(payload, "utf8")} ${payload}`;
+  const expectedSig = createHmac("sha256", "test-threshold-key").update(pae, "utf8").digest("base64url");
+  assert.equal(allow.dsseReceipt?.signatures[0]?.sig, expectedSig);
+
+  const denyWitness = gate({
+    actionId: "IQ-01-capital",
+    severity: "capital",
+    decisionClass: "capital",
+    confidence: 0.97,
+    witnesses: [
+      { id: "witness-a", role: "operator", attested: true },
+      { id: "witness-b", role: "reviewer", attested: true },
+    ],
+  });
+  assert.equal(denyWitness.allow, false);
+  assert.equal(denyWitness.requiredWitnesses, 3);
+  assert.equal(denyWitness.dsseReceipt, undefined);
+
+  const denyConfidence = gate({
+    actionId: "IQ-01-confidence",
+    severity: "critical",
+    confidence: 0.70,
+    witnesses: [
+      { id: "witness-a", role: "operator", attested: true },
+      { id: "witness-b", role: "reviewer", attested: true },
+      { id: "witness-c", role: "witness", attested: true },
+    ],
+  });
+  assert.equal(denyConfidence.allow, false);
+  assert.equal(denyConfidence.dsseReceipt, undefined);
+  assert.throws(() => gate({ actionId: "bad", severity: "high", confidence: 2, witnesses: [] }), /confidence/);
+  assert.throws(() => gate({ actionId: "bad", severity: "high", confidence: 0.9, witnesses: [{ id: "", role: "x", attested: true }] }), /witness id/);
+}
+
+console.log("[policy-gates] OK 6 gates / 37 assertions");
