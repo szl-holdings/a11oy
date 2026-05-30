@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import {
   adversarialRobustnessGate,
+  emitFormulaGateReceipt,
   falsePositionGate,
   liuHuiPiGate,
   madhavaBoundGate,
   summationInvariantGate,
 } from "../index.ts";
+import { verifyReceipt } from "../../../../receipt-substrate/src/index.ts";
 
 const leanCommit = "1dca00032dfc9aa8559cc6c2e4b63192fcf52371";
 
@@ -28,6 +30,18 @@ function assertLeanAnchor(decision: { leanCommitSha: string; rationale: string; 
   assert.ok(deny.remainderBound > deny.threshold);
   assert.throws(() => gate({ x: 1.2, N: 2 }), /must be ≤ 1/);
   assert.throws(() => gate({ x: 0.5, N: 0 }), /N must be ≥ 1/);
+
+  const receipt = emitFormulaGateReceipt(allow, {
+    actorId: "did:szl:policy-test",
+    invocationId: "policy-gate-madhava-demo",
+    vertical: "a11oy",
+    regime: "doctrine-v6",
+    timestamp: new Date("2026-05-29T00:00:00.000Z"),
+  });
+  assert.equal(receipt.event_type, "A11OY_OPERATION");
+  assert.equal(receipt.envelope.tool_name, "policy_gate.MadhavaBound");
+  assert.equal(receipt.envelope.payload && typeof receipt.envelope.payload === "object", true);
+  assert.equal(verifyReceipt(receipt).valid, true);
 }
 
 {
@@ -97,4 +111,4 @@ function assertLeanAnchor(decision: { leanCommitSha: string; rationale: string; 
   assert.throws(() => gate({ khipuId: "bad", primaryCord: 0, organs: null as never }), /organs must be an array/);
 }
 
-console.log("[policy-gates] OK 5 gates / 21 assertions");
+console.log("[policy-gates] OK 5 gates / 22 assertions + receipt emission");
