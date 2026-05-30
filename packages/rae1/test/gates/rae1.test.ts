@@ -270,12 +270,20 @@ describe("HMAC signature gate (RAE-1 §5.3)", () => {
     expect(verifyHMAC(envelope, wrongKey)).toBe(false);
   });
 
-  it("[T-18] pae() output length is correct (8 + 8 + len(type) + 8 + len(payload))", () => {
+  it("[T-18] pae() emits canonical DSSE v1 PAE over the RAW (base64-decoded) body", () => {
+    // Canonical PAE per github.com/secure-systems-lab/dsse/blob/master/protocol.md:
+    //   "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body  (SP=0x20, body=RAW)
     const type = "application/vnd.szl.rae1+json";
-    const payload = "abc123";
-    const result = pae([type, payload]);
-    const expected = 8 + 8 + type.length + 8 + payload.length;
-    expect(result.length).toBe(expected);
+    const body = '{"v":1}';
+    const base64Body = Buffer.from(body, "utf8").toString("base64url");
+    const result = pae([type, base64Body]);
+    const expected = `DSSEv1 ${Buffer.byteLength(type)} ${type} ${Buffer.byteLength(
+      body
+    )} ${body}`;
+    expect(result.toString("utf8")).toBe(expected);
+    // No LF separators (the old governance-receipts.ts bug) and a DSSEv1 prefix.
+    expect(result.includes(0x0a)).toBe(false);
+    expect(result.subarray(0, 6).toString("utf8")).toBe("DSSEv1");
   });
 
   it("[T-19] signEnvelope then verifyHMAC round-trips", () => {
@@ -292,8 +300,14 @@ describe("HMAC signature gate (RAE-1 §5.3)", () => {
   it("[T-20] Tampered payload breaks HMAC signature", () => {
     const payload = makePayload(0);
     const envelope = makeEnvelope(payload, true);
-    // Corrupt the payload
-    const corrupted = { ...envelope, payload: envelope.payload + "x" };
+    // Corrupt the body content, then re-encode. (Note: the canonical PAE is
+    // computed over the base64-DECODED body, so appending a stray char to the
+    // base64 string can decode to identical bytes; tamper the body itself.)
+    const tamperedBody = { ...payload, tampered: true };
+    const corrupted = {
+      ...envelope,
+      payload: encodePayload(tamperedBody as typeof payload),
+    };
     expect(verifyHMAC(corrupted, TEST_HMAC_KEY)).toBe(false);
   });
 });

@@ -32,7 +32,9 @@ import { readFileSync } from "node:fs";
 
 /** Canonical DSSE envelope as produced by SZL organ layer (sentra/amaru/rosie) */
 export interface DSSEEnvelope {
-  payload: string;           // base64url-encoded PAE(payloadType, payload)
+  payload: string;           // raw body, base64-encoded (NOT the PAE; per DSSE
+                             // the PAE is computed at sign time from this body
+                             // and is never stored here). See PhD_CRYPTO_VERDICT.md A3.
   payloadType: string;       // e.g. "application/vnd.szl.receipt.v1+json"
   signatures: Array<{
     sig: string;             // base64url HMAC-SHA256 or ECDSA signature
