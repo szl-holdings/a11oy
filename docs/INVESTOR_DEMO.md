@@ -36,6 +36,23 @@ provenance contract.
 | Operational tarball bundle | Demo-ready | `pnpm payload:bundle` and `pnpm payload:bundle:verify` |
 | UDS/Zarf handoff | Demo-ready as package/operator proof point | `artifacts/a11oy-uds/README.md`, `artifacts/a11oy-uds/docs/*`, `deploy/zarf.yaml` |
 | Vessels vertical | Active vertical demo wedge | `https://github.com/szl-holdings/vessels` and `uds-v0.2.0` release |
+| Formula gates G36–G40 (DP, VCG, RDP, CertRadius, RS) | Demo-ready — 40 gates total (38 GREEN-discharged; G37 STAGED-ADVISORY) | `packages/policy/src/gates/` — Doctrine v6, lutar-lean#116 companion |
+
+### Gate count: 35 → 40
+
+This release extends the anchor formula gate set from 35 to 40 by adding five runtime gates:
+
+| Gate | Name | Status | Lean theorem | Reference |
+|------|------|--------|--------------|----------|
+| G36 | GaussianMechanismDP | GREEN | `gaussianNoiseSufficiency` | Dwork & Roth 2014, DOI:10.1561/0400000042 |
+| G37 | VCGTruthfulness | **STAGED-ADVISORY** (1 sorry in dominant-strategy proof; `vcgDominantStrategyTruth`) | `vcgDominantStrategyTruth` | Vickrey 1961, Clarke 1971, Groves 1973 |
+| G38 | RDPSequentialComposition | GREEN | `rdpSequentialCompositionAdditivity` | Mironov 2017, arXiv:1702.07476 |
+| G39 | CertifiedRobustnessRadius | GREEN | `certifiedRobustnessRadiusBound` | Cohen, Rosenfeld & Kolter 2019, arXiv:1902.02918 |
+| G40 | ReedSolomonSingletonBound | GREEN | `reedSolomonMDSProperty` | Reed & Solomon 1960, Singleton 1964 |
+
+> **G37 STAGED-ADVISORY:** The `vcgDominantStrategyTruth` Lean theorem carries 1 sorry in the argmax uniqueness sub-proof. The gate-level receipt validator (`vcgReceiptValid_iff`) has 0 sorries. G37 is non-blocking by default (`enforced: false`) and emits an advisory rather than a hard deny until the sorry is discharged. Lean discharge route is documented in `lutar-lean/Lutar/MechanismDesign/VCGTruthfulness.lean`.
+
+Lean stubs for all five gates are tracked in [`szl-holdings/lutar-lean#116`](https://github.com/szl-holdings/lutar-lean/pull/116). Total sorry count increase: +7 (in formula-extension files under `Lutar/DP/`, `Lutar/Robustness/`, `Lutar/CodingTheory/`, `Lutar/MechanismDesign/` — not kernel sorries).
 
 ## What is intentionally not in the active demo
 
