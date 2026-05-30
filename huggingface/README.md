@@ -52,9 +52,8 @@ flowchart LR
 | `VERIFICATION.md` | Exact local verification commands and what each command proves. |
 | `INNOVATIONS_DEEP_DIVE.md` | Evidence-backed implementation deep dive; no unsupported model/API claims. |
 | `INTEGRATION_QUICKSTART.md` | Current TypeScript/package/payload quickstart. |
-| `EVAL_TRACE_SAMPLE.jsonl` | Two-line receipt sample generated from the current `packages/receipt-substrate` schema and covered by receipt-substrate tests. |
-| `source/` | README, roadmap, changelog, ecosystem OS, phase completion report, public pattern synthesis ledger, controls map, operator action contract, GitHub Enterprise access checklist, cross-repo handoff ledger, anatomy/formula map, autonomy doctrine, benchmark doctrine, investor demo, UDS gap map, ancient/source lineage, provenance contract. |
-| `test-results/` | Staged future `a11oy-test-results` dataset card and manifest; no live Putnam score or leaderboard metric. |
+| `DEMO_RECEIPT_SAMPLE.jsonl` | Four-line synthetic demo chain generated from the current `packages/receipt-substrate` receipt schema: retrieval, policy gate, unsupported-claim guard, and chain summary. |
+| `source/` | README, roadmap, changelog, ecosystem map, investor demo, market evidence, substrate reality map, UDS gap map, ancient/source lineage, provenance contract. |
 | `payloads/deploy/` | `zarf.yaml`, Kubernetes manifests, `attestations.jsonl`, and per-file `MANIFEST.json`. |
 | `build/` | Root workspace metadata and lockfile used by the doctrine lane. |
 | `a11oy-metadata.json` | Source commit, branch, verification commands, and payload map. |
@@ -106,6 +105,15 @@ as a GitHub Actions artifact.
   SHA-256 sidecar, DCO, CodeQL, SBOM, Trivy, docs, and secret scan
 - **UDS / Zarf lane:** package and operator proof point are documented in
   `source/docs/WARHACKER_UDS_PROOF_POINT.md`
+- **Market evidence:** `source/docs/SERIES_A_MARKET_EVIDENCE.md` maps NIST AI
+  RMF, EU AI Act, CISA SBOM, SLSA, and model-card expectations to A11oy
+  artifacts and gaps.
+- **Substrate reality:** `source/docs/SUBSTRATE_REALITY_MAP.md` separates
+  verified public facts from PR-only, owner-API-needed, and narrative-only
+  substrate claims.
+- **Current caveats:** A11oy `uds-v0.3.0` carries SBOM assets only, Vessels
+  `uds-v0.3.0` has zero release assets, and GHCR package availability requires
+  owner-side push or visibility confirmation.
 
 See `source/docs/PROVENANCE.md` and `source/docs/ECOSYSTEM.md` for the
 claim-status contract and repository readiness map.
@@ -125,10 +133,17 @@ product-name framing such as KORA, LUMINA, PARAGON, or active Lyte copy.
 
 - Not an LLM host.
 - Not a training dataset.
-- Not a replacement for GitHub Releases, SBOMs, SLSA attestations, or signed UDS
-  payloads.
+- Not a replacement for GitHub Releases, SBOMs, SLSA attestations, GHCR package
+  pushes, or signed UDS payloads.
 - Not a claim that every thesis statement is fully closed in Lean; public claims
   are gated by the provenance contract.
+
+## Publish hygiene
+
+`pnpm payload:huggingface` rewrites the local upload folder from tracked source.
+If a prior Hugging Face publish left stale files such as `EVAL_TRACE_SAMPLE.jsonl`
+or speculative remote-only markdown, remove them with authenticated HF tooling
+or overwrite them with the tracked files in this packet before sharing the mirror.
 
 ## Canonical source
 

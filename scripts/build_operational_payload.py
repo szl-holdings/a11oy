@@ -117,6 +117,8 @@ def stage_payload() -> None:
         "docs/ECOSYSTEM.md",
         "docs/PROVENANCE.md",
         "docs/SERIES_A_DILIGENCE.md",
+        "docs/SERIES_A_MARKET_EVIDENCE.md",
+        "docs/SUBSTRATE_REALITY_MAP.md",
         "docs/INVESTOR_DEMO.md",
         "docs/ECOSYSTEM_OPERATING_SYSTEM.md",
         "docs/AUTONOMOUS_LEARNING_DOCTRINE.md",
@@ -205,6 +207,7 @@ def verify_bundle() -> int:
         "a11oy-operational-payload/PAYLOAD-MANIFEST.json",
         "a11oy-operational-payload/deploy/MANIFEST.json",
         "a11oy-operational-payload/publish/huggingface/a11oy/README.md",
+        "a11oy-operational-payload/publish/huggingface/a11oy/DEMO_RECEIPT_SAMPLE.jsonl",
         "a11oy-operational-payload/web/packages/a11oy-core/dist/index.js",
         "a11oy-operational-payload/web/packages/a11oy-connection/dist/index.js",
     }

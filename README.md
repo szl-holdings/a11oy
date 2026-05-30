@@ -23,7 +23,9 @@
 > [!NOTE]
 > This repository ships the core fabric packages consumed by [`szl-holdings/platform`](https://github.com/szl-holdings/platform). The deployment surface for Alloy is the platform monorepo; this repo contains the standalone alignment substrate packages.
 
-Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Ecosystem OS: [`docs/ECOSYSTEM_OPERATING_SYSTEM.md`](docs/ECOSYSTEM_OPERATING_SYSTEM.md) · Public pattern synthesis: [`docs/PUBLIC_PATTERN_SYNTHESIS.md`](docs/PUBLIC_PATTERN_SYNTHESIS.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · Investor demo: [`docs/INVESTOR_DEMO.md`](docs/INVESTOR_DEMO.md) · Series-A packet: [`docs/SERIES_A_DILIGENCE.md`](docs/SERIES_A_DILIGENCE.md)
+Start here for diligence: [`docs/INVESTOR_DEMO.md`](docs/INVESTOR_DEMO.md) · [Hugging Face mirror](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) · [latest A11oy release](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1)
+
+Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · Series-A packet: [`docs/SERIES_A_DILIGENCE.md`](docs/SERIES_A_DILIGENCE.md) · Market evidence: [`docs/SERIES_A_MARKET_EVIDENCE.md`](docs/SERIES_A_MARKET_EVIDENCE.md) · Substrate reality map: [`docs/SUBSTRATE_REALITY_MAP.md`](docs/SUBSTRATE_REALITY_MAP.md)
 
 ---
 
@@ -161,9 +163,9 @@ Each gate traces to a verifiable source: unit-fraction decomposition (Rhind/Ahme
 Papyrus), pendant-root summation (Inka khipu), bounded iterative approximation
 (Liu Hui / Nine Chapters), alternating-series remainder bounds (Madhava / Kerala
 school), and parity-syndrome checks (Kitaev/Preskill QEC). Claim status for each
-source (`verified-runtime`, `lean-backed`, `historical`, `roadmap`) is recorded in
-the lineage table. Runtime gates require `verified-runtime` status before appearing
-in demo or investor materials.
+source (`verified-runtime`, `lean-backed-needs-upstream-ci`, `historical`, `roadmap`)
+is recorded in the lineage table. Runtime gates require `verified-runtime`
+status before appearing in demo or investor materials.
 
 ## Contributing
 

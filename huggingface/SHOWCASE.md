@@ -42,19 +42,12 @@ flowchart TD
 | --- | --- |
 | Doctrine runtime checks | `source/README.md`, `build/package.json`, `source/docs/PROVENANCE.md` |
 | KS-18 / governance math test lane | `source/docs/PROVENANCE.md` and GitHub `web/packages/a11oy-core/src/**/__tests__` |
-| Operational receipt chain | `EVAL_TRACE_SAMPLE.jsonl` and GitHub `packages/receipt-substrate` |
+| Operational receipt chain | `DEMO_RECEIPT_SAMPLE.jsonl` and GitHub `packages/receipt-substrate` |
 | Deploy manifest verification | `payloads/deploy/MANIFEST.json` |
 | UDS/Zarf operator handoff | `payloads/deploy/zarf.yaml`, `source/docs/WARHACKER_UDS_PROOF_POINT.md` |
 | Ecosystem readiness | `source/docs/ecosystem-readiness-report.json` |
-| Ecosystem operating system | `source/docs/ECOSYSTEM_OPERATING_SYSTEM.md`, `source/docs/anatomy-formula-runtime-map.json` |
-| Public pattern synthesis | `source/docs/PUBLIC_PATTERN_SYNTHESIS.md`, `source/docs/public-pattern-source-manifest.json` |
-| Controls and action contracts | `source/docs/controls-evidence-map.json`, `source/docs/action-contract-manifest.json`; runtime receipt helpers in GitHub `packages/policy/src/contracts` |
-| Cross-repo access readiness | `source/docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`, `source/docs/github-enterprise-access-checklist.json` |
-| Cross-repo handoff queue | `source/docs/CROSS_REPO_HANDOFF_READINESS.md`, `source/docs/cross-repo-handoff-manifest.json`; runtime receipts in GitHub `packages/policy/src/contracts/cross_repo_handoff.ts` |
-| Phase completion report | `source/docs/PHASE_COMPLETION_REPORT.md`, `source/docs/phase-completion-manifest.json` |
-| Autonomous learning doctrine | `source/docs/AUTONOMOUS_LEARNING_DOCTRINE.md` |
-| Autonomous learning receipts | GitHub `packages/policy/src/contracts/autonomous_learning.ts` emits proposal/evaluation/human-promotion receipts without claiming self-approval or production autonomy. |
-| Benchmark evolution | `source/docs/benchmark-evolution-doctrine.md`, `source/benchmarks/benchmark-map.json`, `test-results/MANIFEST.json` |
+| Market evidence | `source/docs/SERIES_A_MARKET_EVIDENCE.md` |
+| Substrate reality | `source/docs/SUBSTRATE_REALITY_MAP.md` |
 | Series-A diligence | `source/docs/SERIES_A_DILIGENCE.md`, `INVESTOR_BRIEF.md` |
 
 ## Verification lane
@@ -91,4 +84,13 @@ The strongest story is the evidence trail:
 4. Receipts bind actions.
 5. Hugging Face mirrors the packet for public review.
 6. Proof and thesis claims are scoped by `source/docs/PROVENANCE.md`.
+
+## Live correction ledger
+
+| Claim area | Current evidence-backed wording |
+| --- | --- |
+| Putnam | Treat Putnam as `1/12` truly discharged in Lean until upstream proof reports say otherwise. Do not repeat `4/12`, `10/12`, or “four GREEN” language as Lean closure. |
+| A11oy gates | A11oy main currently exposes seven policy gate files and ten theorem-runtime manifest entries. G36-G40 and broader gate counts remain PR/roadmap until merged and validated. |
+| UDS signed assets | A11oy `uds-v0.3.0` has SBOM release assets only; Vessels `uds-v0.3.0` has zero release assets. Use `uds-v0.2.0` when demonstrating signed Vessels assets. |
+| GHCR | GHCR manifest checks returned an authentication challenge in this environment, so public package availability needs owner-side push or visibility confirmation. |
 

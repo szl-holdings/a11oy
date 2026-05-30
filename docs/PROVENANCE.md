@@ -26,6 +26,7 @@ Use the following language in GitHub, release payloads, and Hugging Face cards.
 | `lean-backed-current-green` | Claim maps to a Lean module and a current upstream proof report / CI run verifies that module. | “Lean-backed in `<module>` with current green proof report” |
 | `lean-backed-needs-upstream-ci` | Claim maps to the Lean proof substrate, but the latest observed upstream proof CI or release state must be reconciled before broad all-green language is used. | “proof-substrate-backed; current proof CI must be checked before repeating all-green claims” |
 | `release-payload` | Claim is present in signed or checksummed release payloads. | “included in operational payload” |
+| `release-payload-needs-assets` | Release/tag exists, but signed binary assets, GHCR image, or public package visibility are missing. | “release scaffold exists; signed assets/package push remain owner-side work” |
 | `thesis-anchor` | Claim is part of the DOI-pinned thesis / claim taxonomy and may guide implementation language. | “anchored to the Ouroboros Thesis v18.0 DOI” |
 | `roadmap` | Planned or partially implemented; do not present as shipped. | “planned”, “tracked”, “next” |
 | `historical` | Older thesis/doc language retained for context. | “historical”, “legacy” |
@@ -43,6 +44,9 @@ Use the following language in GitHub, release payloads, and Hugging Face cards.
 | Operational tarball and checksum sidecar | `release-payload` | `pnpm payload:bundle`, `pnpm payload:bundle:verify` |
 | UDS/Zarf-compatible operator proof point | `release-payload` | `artifacts/a11oy-uds/README.md`, `docs/WARHACKER_UDS_PROOF_POINT.md` |
 | Ecosystem readiness map | `verified-runtime` | `docs/ecosystem-readiness-report.json`, `pnpm ecosystem:readiness` |
+| Live policy gate inventory | `verified-runtime` | Seven files in `packages/policy/src/gates`, ten entries in `docs/theorem-runtime-manifest.json` |
+| A11oy `uds-v0.3.0` signed binary payload | `release-payload-needs-assets` | GitHub release currently has SBOM assets only |
+| Vessels `uds-v0.3.0` signed binary payload | `release-payload-needs-assets` | GitHub release currently has zero assets; `uds-v0.2.0` has signed assets |
 
 ## Claims to keep guarded
 
@@ -53,6 +57,13 @@ Use the following language in GitHub, release payloads, and Hugging Face cards.
   as thesis/proof-roadmap unless the current Lean source reports them closed.
 - “Zero sorry” or “all GREEN” statements should be backed by a machine-readable
   proof report from `lutar-lean`; otherwise use precise module/test language.
+- Putnam claims should stay at `1/12` truly discharged in Lean unless a current
+  upstream proof report verifies more. Judge-consensus answer matches are not
+  the same as Lean closure.
+- Do not cite `35`, `40`, or G36-G40 gate totals as live A11oy main behavior
+  until those PRs are merged and their validation commands pass on main.
+- Do not describe empty or SBOM-only UDS v0.3.0 releases as signed binary
+  payload releases; signed assets and GHCR package pushes need release evidence.
 - Hugging Face is a distribution mirror and diligence surface, not the canonical
   source of release truth. GitHub releases, checks, manifests, and checksums stay
   canonical.

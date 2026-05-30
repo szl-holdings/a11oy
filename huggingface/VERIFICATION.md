@@ -31,6 +31,17 @@ npm test --prefix packages/receipt-substrate
 | `pnpm payload:bundle:verify` | Operational tarball checksum and required files verify. |
 | `npm test --prefix packages/receipt-substrate` | Operational receipt chain, quorum, tamper, and replay checks pass. |
 
+## Demo receipt sample
+
+`DEMO_RECEIPT_SAMPLE.jsonl` uses the current
+`packages/receipt-substrate/src/index.ts` shape. It contains four synthetic
+investor-demo receipts:
+
+1. evidence retrieval for Vessels UDS signed-asset status;
+2. policy blocking an unsupported signed-asset claim;
+3. unsupported-claim guard correcting inflated Putnam and gate-count language;
+4. chain verification summary that points back to the receipt-substrate test.
+
 ## Tamper check
 
 To demonstrate why the manifest matters:

@@ -50,7 +50,7 @@ def main() -> int:
         ("huggingface/VERIFICATION.md", "VERIFICATION.md"),
         ("huggingface/INNOVATIONS_DEEP_DIVE.md", "INNOVATIONS_DEEP_DIVE.md"),
         ("huggingface/INTEGRATION_QUICKSTART.md", "INTEGRATION_QUICKSTART.md"),
-        ("huggingface/EVAL_TRACE_SAMPLE.jsonl", "EVAL_TRACE_SAMPLE.jsonl"),
+        ("huggingface/DEMO_RECEIPT_SAMPLE.jsonl", "DEMO_RECEIPT_SAMPLE.jsonl"),
         ("LICENSE", "LICENSE"),
         ("CITATION.cff", "CITATION.cff"),
         ("README.md", "source/README.md"),
@@ -62,6 +62,8 @@ def main() -> int:
         ("docs/ecosystem-registry.json", "source/docs/ecosystem-registry.json"),
         ("docs/PROVENANCE.md", "source/docs/PROVENANCE.md"),
         ("docs/SERIES_A_DILIGENCE.md", "source/docs/SERIES_A_DILIGENCE.md"),
+        ("docs/SERIES_A_MARKET_EVIDENCE.md", "source/docs/SERIES_A_MARKET_EVIDENCE.md"),
+        ("docs/SUBSTRATE_REALITY_MAP.md", "source/docs/SUBSTRATE_REALITY_MAP.md"),
         ("docs/INVESTOR_DEMO.md", "source/docs/INVESTOR_DEMO.md"),
         ("docs/ECOSYSTEM_OPERATING_SYSTEM.md", "source/docs/ECOSYSTEM_OPERATING_SYSTEM.md"),
         ("docs/AUTONOMOUS_LEARNING_DOCTRINE.md", "source/docs/AUTONOMOUS_LEARNING_DOCTRINE.md"),
@@ -159,6 +161,11 @@ def main() -> int:
                 "kubernetesManifests": "payloads/deploy/manifests/",
             }
         ],
+        "demoReceiptSample": "DEMO_RECEIPT_SAMPLE.jsonl",
+        "publishHygiene": {
+            "deleteStaleRemoteFiles": True,
+            "staleLegacyFiles": ["EVAL_TRACE_SAMPLE.jsonl"],
+        },
     }
 
     (OUT_DIR / "a11oy-metadata.json").write_text(
