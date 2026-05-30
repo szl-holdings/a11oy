@@ -1,130 +1,122 @@
-# a11oy
+# a11oy — governed agentic execution fabric
 
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-0B1F3A.svg?style=flat-square)](./LICENSE)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
 [![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml)
-[![Tests](https://github.com/szl-holdings/a11oy/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/tests.yml)
-[![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml)
-[![SBOM](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/sbom.yml)
-[![SLSA L1 (SBOM + DCO)](https://img.shields.io/badge/SLSA-L1_(SBOM_%2B_DCO)-0B1F3A.svg?style=flat-square)](https://slsa.dev/spec/v1.0/levels)
-[![DCO](https://github.com/szl-holdings/a11oy/actions/workflows/dco.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/dco.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/szl-holdings/a11oy/badge)](https://securityscorecards.dev/viewer/?uri=github.com/szl-holdings/a11oy)
+[![License: Proprietary](https://img.shields.io/badge/License-SZL_Proprietary-0B1F3A.svg?style=flat-square)](./LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/szl-holdings/a11oy?sort=semver&style=flat-square)](https://github.com/szl-holdings/a11oy/releases/latest)
+[![SLSA L1](https://img.shields.io/badge/SLSA-L1_honest-22c55e.svg?style=flat-square)](https://slsa.dev/spec/v1.0/levels)
+[![Doctrine](https://img.shields.io/badge/Doctrine-v7-7c5cff?style=flat-square)](https://github.com/szl-holdings/.github/blob/main/DOCTRINE_V7.md)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--0110--4173-A6CE39.svg?style=flat-square&logo=orcid&logoColor=white)](https://orcid.org/0009-0001-0110-4173)
 
-> Vertical alignment substrate — policy, measurement, knowledge, and QEC-integrity packages for governed AI execution.  
-> Doctrine v6 · DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
-
-`a11oy` (Alloy) is the governed agentic execution fabric of SZL Holdings — the seven-layer substrate connecting live enterprise signals to human-confirmed decisions with cryptographic proof at every transition. It provides TypeScript packages for policy enforcement, signal measurement, knowledge-graph traversal, and QEC-integrity verification across all SZL domain verticals.
-
-> [!NOTE]
-> This repository ships the core fabric packages consumed by [`szl-holdings/platform`](https://github.com/szl-holdings/platform). The deployment surface for Alloy is the platform monorepo; this repo contains the standalone alignment substrate packages.
->
-> **Status:** 35/35 anchor formulas wired as policy gates (5 on main; 30 in open PR #114 — merge pending review). Gate count is STAGED until PR #114 lands.
-
-Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) · Series-A packet: [`docs/SERIES_A_DILIGENCE.md`](docs/SERIES_A_DILIGENCE.md)
+> The orchestrator at the center of the SZL stack — TypeScript packages for policy gates, signal measurement, knowledge-graph traversal, and QEC-integrity verification connecting enterprise signals to human-confirmed decisions with cryptographic proof at every transition.
 
 ---
 
-## On Hugging Face
+## What it does
 
-Live demos, dataset mirrors, and org showcase at [SZLHOLDINGS on Hugging Face](https://huggingface.co/SZLHOLDINGS):
-
-| Surface | Artifact |
-|---------|----------|
-| Generated diligence mirror | [a11oy-v19-substrate](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) |
-| Org showcase | 24 Spaces · 26 datasets · 2 models |
-
-Hugging Face is not the canonical release source. The mirror is regenerated from tracked source with `pnpm payload:huggingface`.
+`a11oy` (Alloy) is the governed agentic execution fabric. It enforces anchor-formula policy gates, measures incoming signals, traverses a knowledge graph, and emits proof at each state transition before a decision reaches a human confirmation checkpoint. Every other Tier-1 module depends on it via `@workspace/a11oy-orchestration`.
 
 ---
 
-## What is real today
+## Architecture in this stack
 
-All counts are grep-verifiable from this repository.
-
-| Metric | Count | Verify |
-|--------|-------|--------|
-| Policy gate anchors on `main` | 5 | `find packages/policy/src/gates -name "*.ts" \| wc -l` |
-| Policy gate anchors (PR #114, pending merge) | 30 | PR #114 diff |
-| Anchor formulas total (Ouroboros runtime) | 35/35 | `grep -r "FORMULA" packages/ \| wc -l` |
-| CI assertion tests | 35 | `packages/policy/src/gates/index.test.ts` |
-| Lean proof declarations (lutar-lean) | 626 | `grep -r "^theorem\|^lemma\|^def " ../lutar-lean/Lutar/ \| wc -l` |
-| Lean axioms (lutar-lean) | 12 | `grep -r "^axiom " ../lutar-lean/Lutar/ \| wc -l` |
-| Lean residual sorries | 7 | `grep -r "sorry" ../lutar-lean/Lutar/ \| wc -l` |
-| HF Spaces (org) | 24 | [SZLHOLDINGS HF org](https://huggingface.co/SZLHOLDINGS) |
-| HF datasets (org) | 26 | [SZLHOLDINGS HF org](https://huggingface.co/SZLHOLDINGS) |
-| Zenodo DOIs | 7 | [Zenodo community](https://zenodo.org/communities/szl-holdings) |
-
----
-
-## Architecture
+`a11oy` **is the center** of the five-module stack. It is the orchestrator the other four modules wire into: [`sentra`](https://github.com/szl-holdings/sentra) pushes security telemetry in, [`amaru`](https://github.com/szl-holdings/amaru) mints the receipts `a11oy` emits, [`rosie`](https://github.com/szl-holdings/rosie) is the operator console over the resulting receipt DAG, and [`vessels`](https://github.com/szl-holdings/vessels) is a domain UI consuming governed decisions. All four import `@workspace/a11oy-orchestration`.
 
 ```
-Enterprise signals
-       │
-       ▼
-┌─────────────────────────────────────┐
-│  a11oy layers                        │
-│  L1  Policy gates (35 anchors)       │
-│  L2  Measurement fiber               │
-│  L3  Knowledge graph traversal       │
-│  L4  QEC-integrity verification      │
-│  L5  Audit receipt emission          │
-│  L6  Human confirmation gate         │
-│  L7  Cryptographic proof chain       │
-└─────────────────────────────────────┘
-       │
-       ▼
-Human-confirmed decision + receipt
+   sentra ─────┐                                  ┌───── rosie
+ (security)    │                                  │  (operator console)
+               ▼                                  │
+        ┌───────────────────────────────────┐    │
+        │              a11oy                 │◄───┘
+        │  L1 policy gates (anchor formulas) │
+        │  L2 measurement fiber              │◄──────── vessels
+        │  L3 knowledge-graph traversal      │       (maritime UI)
+        │  L4 QEC-integrity verification     │
+        │  L5 proof ledger                   │──────►  amaru
+        │  L6 human confirmation gate        │      (receipt minting)
+        └───────────────────────────────────┘
 ```
+
+Operational map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) · Provenance contract: [`docs/PROVENANCE.md`](docs/PROVENANCE.md)
 
 ---
 
-## Quick start
+## Quick demo
 
 ```bash
+# Full stack (UDS):
+uds run start
+# Module only:
 pnpm install
-pnpm build
-pnpm test            # 35 policy-gate assertions
-pnpm payload:doctrine  # doctrine v6 ban-word check
+pnpm test                          # policy-gate assertion suite
+pnpm payload:verify                # verify deploy payload integrity
 ```
+
+---
+
+## Hugging Face surfaces
+
+| Surface | Link |
+|---------|------|
+| Landing | [SZLHOLDINGS/a11oy-platform](https://huggingface.co/spaces/SZLHOLDINGS/a11oy-platform) |
+| Diligence mirror | [SZLHOLDINGS/a11oy-v19-substrate](https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate) |
+| Org | [huggingface.co/SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS) |
+
+Hugging Face is a mirror, regenerated from tracked source with `pnpm payload:huggingface` — not the canonical release source.
+
+---
+
+## Receipts and provenance
+
+State transitions emit DSSE envelopes (in-toto statement payloads). Release artifacts carry SBOMs (SPDX + CycloneDX), and the repo ships SLSA-provenance workflows. Latest-release signature search via the public Sigstore transparency log:
+
+- Sigstore search: [search.sigstore.dev](https://search.sigstore.dev/)
+- Release artifacts: [github.com/szl-holdings/a11oy/releases/latest](https://github.com/szl-holdings/a11oy/releases/latest)
+
+---
+
+## Verified numbers
+
+All counts are grep-verifiable against `main`.
+
+| Metric | Value | Verify |
+|--------|-------|--------|
+| Anchor-formula gate modules | 45 | `ls packages/policy/src/gates/*_gate.ts \| wc -l` |
+| Substrate packages | 12 | `ls packages/ \| wc -l` |
+| Lean declarations (lutar-lean) | 626 | `grep -rE '^(theorem\|lemma\|def\|abbrev\|axiom) ' lutar-lean/Lutar/ \| wc -l` |
+| Lean axioms (lutar-lean) | 15 raw / 14 unique | `grep -rE '^axiom ' lutar-lean/Lutar/ \| wc -l` |
+| Lean sorries (lutar-lean) | 189 (138 baseline + 51 Putnam) | `grep -rE '\bsorry\b' lutar-lean/Lutar/ \| wc -l` |
+| Putnam status | 4/12 Lean-discharged [A1, A5, B4, B6] · 8/12 structure | [lutar-lean](https://github.com/szl-holdings/lutar-lean) |
+| Doctrine | v7 · 15 axioms (14 unique) | [.github/DOCTRINE_V7.md](https://github.com/szl-holdings/.github/blob/main/DOCTRINE_V7.md) |
+| SLSA | L1 honest (SBOM + DCO; source + build provenance documented) | [slsa.dev](https://slsa.dev/spec/v1.0/levels) |
+
+> Gate modules present on `main`: 45 files in `packages/policy/src/gates/`. The aggregate index (`packages/policy/src/gates/index.ts`) currently re-exports a subset; remaining modules are imported directly by their consumers. Count reflects files on disk, verifiable with the command above.
+
+---
+
+## Warhacker 2026
+
+Featured at Warhacker, June 16–19. A running deployment is available via [`szl-holdings/szl-uds-deployment`](https://github.com/szl-holdings/szl-uds-deployment) v0.4.0.
 
 ---
 
 ## License
 
-Proprietary — SZL Holdings. IP transfer to Apache-2.0 pending resolution of PR #57. See [LICENSE](./LICENSE).
+`LicenseRef-SZL-Proprietary` — SZL Holdings. Apache-2.0 re-licensing pending draft PR [#57](https://github.com/szl-holdings/a11oy/pull/57). See [LICENSE](./LICENSE).
 
 ---
 
-## Related repositories in the SZL substrate
+## Citing
 
-The SZL Holdings org repos are organized in
-[`docs/org-repo-map.md`](docs/org-repo-map.md). Use
-`bash scripts/clone-org-repos.sh` to discover and clone sibling checkouts under
-ignored `.repos/szl-holdings/`.
+See [CITATION.cff](./CITATION.cff).
 
-- [`a11oy`](https://github.com/szl-holdings/a11oy) — vertical alignment substrate (policy · measurement · knowledge · QEC-integrity)
-- [`amaru`](https://github.com/szl-holdings/amaru) — Shor-encoded receipt minting (Cardano-anchored)
-- [`rosie`](https://github.com/szl-holdings/rosie) — CSS-ingress receipt orchestration
-- [`sentra`](https://github.com/szl-holdings/sentra) — Kitaev-surface drift detection on audit fibers
-- [`uds-mesh`](https://github.com/szl-holdings/uds-mesh) — UDS span schemas + governance receipts
-- [`lutar-lean`](https://github.com/szl-holdings/lutar-lean) — Lean 4 + Mathlib v4.13.0 proof substrate for scoped theorem/module claims
-- [`ouroboros`](https://github.com/szl-holdings/ouroboros) — bounded-recursion runtime
-- [`ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis) — DOI-pinned thesis substrate (v3 → v18)
-- [`platform`](https://github.com/szl-holdings/platform) — composing monorepo (76 packages, 1,220 tests)
-- [`szl-brand`](https://github.com/szl-holdings/szl-brand) — anatomy + visual doctrine (PDFs hosted in-repo)
-- [`szl-cookbook`](https://github.com/szl-holdings/szl-cookbook) — governed-AI recipes
-- [`agi-forecast`](https://github.com/szl-holdings/agi-forecast) — PAC-Bayes + Bekenstein governance-trajectory forecasts
-- [`vsp-otel`](https://github.com/szl-holdings/vsp-otel) — OpenTelemetry exporter for Λ-axis spans
-- [`vessels`](https://github.com/szl-holdings/vessels) — maritime fleet intelligence
-- [`counsel`](https://github.com/szl-holdings/counsel) — legal matter command scaffold
-- [`terra`](https://github.com/szl-holdings/terra) — real estate intelligence scaffold
-- [`carlota-jo`](https://github.com/szl-holdings/carlota-jo) — private advisory operations scaffold
-- [`szl-trust`](https://github.com/szl-holdings/szl-trust) — Public Trust Portal artifacts
-- [`.github`](https://github.com/szl-holdings/.github) — organization profile and community files
+```
+S. P. Lutar Jr., "a11oy — Governed agentic execution fabric,"
+Zenodo, DOI 10.5281/zenodo.20434276, 2026.
+```
 
-Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v6 · evidence-gated public claims · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)
+ORCID: [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173) · DOI: [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 
 ---
 
