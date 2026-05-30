@@ -28,8 +28,12 @@
     "ecosystem:audit": "python3 scripts/ecosystem_audit.py",
     "ecosystem:readiness": "python3 scripts/build_ecosystem_readiness.py --check",
     "ecosystem:readiness:write": "python3 scripts/build_ecosystem_readiness.py",
+    "ecosystem:stage": "python3 scripts/build_ecosystem_stage_matrix.py --check",
+    "ecosystem:stage:write": "python3 scripts/build_ecosystem_stage_matrix.py",
     "theorem:runtime:audit": "python3 scripts/validate_theorem_runtime_manifest.py",
-    "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py"
+    "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py",
+    "hf:ecosystem:audit": "python3 scripts/audit_huggingface_ecosystem.py --check",
+    "hf:ecosystem:write": "python3 scripts/audit_huggingface_ecosystem.py"
   },
   "repository": {
     "type": "git",

@@ -123,6 +123,8 @@ def stage_payload() -> None:
         "docs/PERPLEXITY_BRIEF.md",
         "docs/ecosystem-registry.json",
         "docs/ecosystem-readiness-report.json",
+        "docs/ECOSYSTEM_STAGE_MATRIX.md",
+        "docs/ecosystem-stage-matrix.json",
         "docs/theorem-runtime-manifest.json",
         "docs/huggingface.md",
         "docs/regulatory_to_lambda.md",

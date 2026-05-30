@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SZLHOLDINGS Hugging Face ecosystem manifest",
+  "type": "object",
+  "required": ["schemaVersion", "generatedBy", "observedAt", "org", "counts", "inventory", "guardrails"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedBy": { "type": "string" },
+    "observedAt": { "type": "string" },
+    "org": { "const": "SZLHOLDINGS" },
+    "canonicalGitHubRepo": { "type": "string" },
+    "canonicalRule": { "type": "string" },
+    "publicApiEndpoints": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["models", "datasets", "spaces"],
+      "properties": {
+        "models": { "type": "integer", "minimum": 0 },
+        "datasets": { "type": "integer", "minimum": 0 },
+        "spaces": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "canonicalNumbers": { "type": "object" },
+    "guardrails": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "inventory": {
+      "type": "object",
+      "required": ["models", "datasets", "spaces"],
+      "properties": {
+        "models": { "$ref": "#/$defs/items" },
+        "datasets": { "$ref": "#/$defs/items" },
+        "spaces": { "$ref": "#/$defs/items" }
+      }
+    },
+    "recommendedActions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "action"],
+        "properties": {
+          "target": { "type": "string" },
+          "action": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "repoType", "private", "unsafeFlags", "evidenceUrls"],
+        "properties": {
+          "id": { "type": "string" },
+          "repoType": { "enum": ["model", "dataset", "space"] },
+          "private": { "type": "boolean" },
+          "gated": { "type": "boolean" },
+          "disabled": { "type": "boolean" },
+          "sdk": { "type": ["string", "null"] },
+          "license": { "type": ["string", "null"] },
+          "sha": { "type": ["string", "null"] },
+          "lastModified": { "type": ["string", "null"] },
+          "createdAt": { "type": ["string", "null"] },
+          "tags": { "type": "array" },
+          "claimStatus": { "type": "string" },
+          "evidenceUrls": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "unsafeFlags": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

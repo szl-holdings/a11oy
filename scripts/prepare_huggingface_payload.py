@@ -69,6 +69,8 @@ def main() -> int:
         ("docs/PERPLEXITY_BRIEF.md", "source/docs/PERPLEXITY_BRIEF.md"),
         ("docs/ECOSYSTEM.md", "source/docs/ECOSYSTEM.md"),
         ("docs/ecosystem-readiness-report.json", "source/docs/ecosystem-readiness-report.json"),
+        ("docs/ECOSYSTEM_STAGE_MATRIX.md", "source/docs/ECOSYSTEM_STAGE_MATRIX.md"),
+        ("docs/ecosystem-stage-matrix.json", "source/docs/ecosystem-stage-matrix.json"),
         ("docs/theorem-runtime-manifest.json", "source/docs/theorem-runtime-manifest.json"),
         ("deploy/MANIFEST.json", "payloads/deploy/MANIFEST.json"),
         ("deploy/zarf.yaml", "payloads/deploy/zarf.yaml"),

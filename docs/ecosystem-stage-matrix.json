@@ -1,0 +1,1000 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
+  "observedAt": "2026-05-30",
+  "doctrine": {
+    "noFakeGreen": true,
+    "noFakeSignedAssets": true,
+    "githubCanonical": true,
+    "hfGeneratedMirror": true,
+    "excludedUntilFunded": [
+      "carlota-jo",
+      "counsel",
+      "terra"
+    ]
+  },
+  "stageDefinitions": {
+    "operational": "Code/tests/docs support an active demo path in GitHub.",
+    "supporting-operational": "Supports the demo as library, proof, receipt, telemetry, brand, trust, or workflow infrastructure.",
+    "blocked-upstream": "Requires upstream proof/CI/release correction before broad claims.",
+    "proxy-ready": "Patch/artifact exists but target repo write or owner action is required.",
+    "release-payload": "Included in checksummed/signed or generated payload artifacts.",
+    "generated-mirror": "Published/generated Hugging Face mirror of GitHub-backed content.",
+    "staged": "Prepared but not public/verified/live enough for active claims.",
+    "excluded-until-funded": "Visible scaffold, intentionally outside active-demo scope."
+  },
+  "canonicalNumbers": {
+    "githubPublicRepos": 19,
+    "hfModels": 2,
+    "hfDatasets": 29,
+    "hfSpaces": 24,
+    "theoremRuntimeEntries": 10
+  },
+  "repositories": [
+    {
+      "name": "a11oy",
+      "stage": "operational",
+      "tier": "hub",
+      "github": "https://github.com/szl-holdings/a11oy",
+      "activeShowcase": true,
+      "evidence": [
+        "README.md",
+        "docs/PROVENANCE.md",
+        "docs/INVESTOR_DEMO.md",
+        "artifacts/a11oy-uds/README.md",
+        "deploy/MANIFEST.json",
+        ".github/workflows/doctrine.yml",
+        ".github/workflows/operational.yml",
+        ".github/workflows/huggingface.yml",
+        "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1",
+        "https://github.com/szl-holdings/a11oy/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Merge/proxy runtime hardening branches and republish HF payload from GitHub."
+    },
+    {
+      "name": "platform",
+      "stage": "supporting-operational",
+      "tier": "runtime-composition",
+      "github": "https://github.com/szl-holdings/platform",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/platform",
+        "https://github.com/szl-holdings/platform/releases/tag/v1.0.0-codex-kernel"
+      ],
+      "guardrails": [
+        "Use as canonical integration evidence; keep production-readiness claims scoped to current CI and release artifacts."
+      ],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "ouroboros",
+      "stage": "supporting-operational",
+      "tier": "runtime-substrate",
+      "github": "https://github.com/szl-holdings/ouroboros",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/ouroboros",
+        "https://github.com/szl-holdings/ouroboros/releases/tag/v6.3.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "lutar-lean",
+      "stage": "blocked-upstream",
+      "tier": "formal-proof",
+      "github": "https://github.com/szl-holdings/lutar-lean",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/lutar-lean",
+        "https://github.com/szl-holdings/lutar-lean/releases/tag/lutar-v18.0.0",
+        "https://doi.org/10.5281/zenodo.20434308"
+      ],
+      "guardrails": [
+        "Latest observed Lean kernel CI needs upstream repair before broad 'all green' or 'zero sorry' copy is repeated.",
+        "Use exact theorem/module references for formal claims."
+      ],
+      "nextAction": "Apply kernel-green proxy patch in Lean-enabled runner; keep 7 sorries honest."
+    },
+    {
+      "name": "ouroboros-thesis",
+      "stage": "blocked-upstream",
+      "tier": "formal-thesis",
+      "github": "https://github.com/szl-holdings/ouroboros-thesis",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/ouroboros-thesis",
+        "https://doi.org/10.5281/zenodo.20434276",
+        "https://doi.org/10.5281/zenodo.19944926"
+      ],
+      "guardrails": [
+        "Thesis v18.0 DOI is the current citation anchor; GitHub release list reconciliation remains an upstream action.",
+        "Treat the thesis as the claim taxonomy, not blanket runtime proof."
+      ],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "rosie",
+      "stage": "supporting-operational",
+      "tier": "receipt-substrate",
+      "github": "https://github.com/szl-holdings/rosie",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/rosie",
+        "https://github.com/szl-holdings/rosie/releases/tag/v1.0.1",
+        "https://github.com/szl-holdings/rosie/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "amaru",
+      "stage": "supporting-operational",
+      "tier": "receipt-substrate",
+      "github": "https://github.com/szl-holdings/amaru",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/amaru",
+        "https://github.com/szl-holdings/amaru/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "sentra",
+      "stage": "supporting-operational",
+      "tier": "receipt-substrate",
+      "github": "https://github.com/szl-holdings/sentra",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/sentra",
+        "https://github.com/szl-holdings/sentra/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "uds-mesh",
+      "stage": "supporting-operational",
+      "tier": "mesh-contract",
+      "github": "https://github.com/szl-holdings/uds-mesh",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/uds-mesh",
+        "https://github.com/szl-holdings/uds-mesh/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "vsp-otel",
+      "stage": "supporting-operational",
+      "tier": "observability",
+      "github": "https://github.com/szl-holdings/vsp-otel",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/vsp-otel",
+        "https://github.com/szl-holdings/vsp-otel/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "szl-cookbook",
+      "stage": "supporting-operational",
+      "tier": "operator-docs",
+      "github": "https://github.com/szl-holdings/szl-cookbook",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/szl-cookbook",
+        "https://github.com/szl-holdings/szl-cookbook/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "agi-forecast",
+      "stage": "supporting-operational",
+      "tier": "forecast",
+      "github": "https://github.com/szl-holdings/agi-forecast",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/agi-forecast",
+        "https://github.com/szl-holdings/agi-forecast/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Merge FG-S1-S4 pipeline and Putnam v2 harness; preserve 8.3% baseline unless rerun proves improvement."
+    },
+    {
+      "name": "vessels",
+      "stage": "operational",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/vessels",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/vessels",
+        "https://github.com/szl-holdings/vessels/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [
+        "Use as the active vertical demo wedge; avoid implying every vertical scaffold is funded or production-ready."
+      ],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "counsel",
+      "stage": "excluded-until-funded",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/counsel",
+      "activeShowcase": false,
+      "evidence": [
+        "https://github.com/szl-holdings/counsel"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep excluded until funded; do not market as active demo."
+    },
+    {
+      "name": "terra",
+      "stage": "excluded-until-funded",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/terra",
+      "activeShowcase": false,
+      "evidence": [
+        "https://github.com/szl-holdings/terra"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep excluded until funded; do not market as active demo."
+    },
+    {
+      "name": "carlota-jo",
+      "stage": "excluded-until-funded",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/carlota-jo",
+      "activeShowcase": false,
+      "evidence": [
+        "https://github.com/szl-holdings/carlota-jo"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep excluded until funded; do not market as active demo."
+    },
+    {
+      "name": "szl-trust",
+      "stage": "supporting-operational",
+      "tier": "trust",
+      "github": "https://github.com/szl-holdings/szl-trust",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/szl-trust"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "szl-brand",
+      "stage": "supporting-operational",
+      "tier": "brand",
+      "github": "https://github.com/szl-holdings/szl-brand",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/szl-brand",
+        "https://github.com/szl-holdings/szl-brand/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": ".github",
+      "stage": "supporting-operational",
+      "tier": "org-governance",
+      "github": "https://github.com/szl-holdings/.github",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/.github"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    }
+  ],
+  "formulas": [
+    {
+      "id": "RUNTIME-FALSE-POSITION",
+      "formula": "FalsePosition",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/falsePosition_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npm run test:policy-gates",
+      "caveat": "Runtime gate is tested; cite Lean proof status separately when making formal claims."
+    },
+    {
+      "id": "RUNTIME-MADHAVA-BOUND",
+      "formula": "MadhavaBound",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/madhavaBound_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npm run test:policy-gates",
+      "caveat": "Full arctangent specialization still has tracked Lean sorries; runtime enforces numeric remainder threshold."
+    },
+    {
+      "id": "RUNTIME-LIU-HUI-PI",
+      "formula": "LiuHuiPi",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/liuHuiPi_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npm run test:policy-gates",
+      "caveat": "Convergence is axiom/tracked in Lean; runtime enforces approximation threshold."
+    },
+    {
+      "id": "RUNTIME-ADVERSARIAL-ROBUSTNESS",
+      "formula": "AdversarialRobustness",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/adversarialRobustness_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npm run test:policy-gates",
+      "caveat": "Numeric gate is the Lipschitz special case, not the full abstract metric theorem."
+    },
+    {
+      "id": "RUNTIME-SUMMATION-INVARIANT",
+      "formula": "SummationInvariant",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/summationInvariant_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npm run test:policy-gates",
+      "caveat": "Runtime checks additive receipt invariants; broader knot/chord correspondence is lineage unless exact theorem path is cited."
+    },
+    {
+      "id": "RUNTIME-QEC-LINEAGE",
+      "formula": "QECLineage",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/qec-integrity/src/qec_lineage.ts",
+      "testFile": "packages/qec-integrity/src/qec_lineage.test.ts",
+      "validationCommand": "npm run test:qec",
+      "caveat": "Runtime parity tests are real; do not claim full quantum threshold theorem."
+    },
+    {
+      "id": "RUNTIME-RECEIPT-SUBSTRATE",
+      "formula": "ReceiptSubstrate",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/receipt-substrate/src/index.ts",
+      "testFile": "packages/receipt-substrate/src/receipt_substrate.test.ts",
+      "validationCommand": "npm test --prefix packages/receipt-substrate",
+      "caveat": "Local quorum labels are not external cryptographic signer verification."
+    },
+    {
+      "id": "RUNTIME-KNOWLEDGE-THEOREMS",
+      "formula": "KnowledgeGraph",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/a11oy-knowledge/src/theorems.ts",
+      "testFile": "packages/a11oy-knowledge/src/theorems_lookup.test.ts",
+      "validationCommand": "npm run test:knowledge:lookup",
+      "caveat": "Lookup reachability is runtime-verified; proof status remains per theorem."
+    },
+    {
+      "id": "STAGED-WHEELER-WINDOW",
+      "formula": "DelayedChoiceClosure",
+      "stage": "blocked-upstream",
+      "claimStatus": "lean-backed-needs-runtime",
+      "runtimeFile": null,
+      "testFile": null,
+      "validationCommand": null,
+      "caveat": "Proof substrate exists; no A11oy TypeScript runtime gate wired yet."
+    },
+    {
+      "id": "STAGED-FEYNMAN-KNOT",
+      "formula": "AuditReidemeister",
+      "stage": "roadmap",
+      "claimStatus": "historical-roadmap",
+      "runtimeFile": null,
+      "testFile": null,
+      "validationCommand": null,
+      "caveat": "Citation lineage is real; audit-Reidemeister invariance remains conjectural/tracked."
+    }
+  ],
+  "huggingFace": [
+    {
+      "id": "SZLHOLDINGS/SZLHOLDINGS",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "org-profile-duplicate-review"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZLHOLDINGS"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "repoType": "model",
+      "stage": "generated-mirror",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZLHOLDINGS",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "org-profile-duplicate-review"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZLHOLDINGS"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/agi-forecast-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/agi-forecast-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/amaru-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/amaru-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/anatomy-alive-harness",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/anatomy-alive-harness"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/carlota-jo-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "funded-roadmap-scaffold-not-active-demo"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/carlota-jo-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/counsel-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "funded-roadmap-scaffold-not-active-demo"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/counsel-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lean-theorem-tree",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/lean-theorem-tree"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-arxiv-preprint",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/ouroboros-arxiv-preprint"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/ouroboros-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-thesis-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/ouroboros-thesis-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/rosie-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/rosie-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/sentra-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/sentra-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-artifacts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-artifacts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-charts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-charts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cookbook-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-cookbook-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-org-infra",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-org-infra"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-trust-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-trust-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-visual-identity",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-visual-identity"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/terra-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "funded-roadmap-scaffold-not-active-demo"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/terra-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/test-results",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/test-results"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/thesis-formula-index",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/thesis-formula-index"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/thesis-v18-formal-verification",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/thesis-v18-formal-verification"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/uds-governance-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/uds-governance-receipts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/uds-mesh-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/uds-mesh-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/uds-spans-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/uds-spans-receipts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/vessels-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/vessels-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/vsp-otel-source",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/vsp-otel-source"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/why-we-lead",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/why-we-lead"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-deep-dive",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-deep-dive"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-platform",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-platform"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-receipts-playground",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-receipts-playground"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/agi-forecast-platform",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/agi-forecast-platform"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/agi-forecast-viewer",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/agi-forecast-viewer"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/amaru-memory-attestation",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/amaru-memory-attestation"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/amaru-platform",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/amaru-platform"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lean-proof-playground",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/lean-proof-playground"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lutar-lean-browser",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/lutar-lean-browser"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/mcp-receipts-server",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/mcp-receipts-server"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/rosie-deep-dive",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/rosie-deep-dive"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/rosie-operator-console",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/rosie-operator-console"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/rosie-platform",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/rosie-platform"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/sentra-deep-dive",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/sentra-deep-dive"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/sentra-platform",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/sentra-platform"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/sentra-security-gates",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/sentra-security-gates"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-anatomy",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-anatomy"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cookbook-deep-dive",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-cookbook-deep-dive"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cookbook-platform",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-cookbook-platform"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cookbook-runner",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-cookbook-runner"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-showcase",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-showcase"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/vsp-otel-deep-dive",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/vsp-otel-deep-dive"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/vsp-otel-emitter",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/vsp-otel-emitter"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/vsp-otel-platform",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "space-card-should-link-github-commit"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/vsp-otel-platform"
+      ]
+    }
+  ],
+  "uds": {
+    "stage": "operator-proof-point",
+    "evidence": [
+      "artifacts/a11oy-uds/README.md",
+      "artifacts/a11oy-uds/docs/OPERATOR-QUICKSTART.md",
+      "docs/UDS_FRONTIER_GAP_MAP.md",
+      "deploy/MANIFEST.json"
+    ],
+    "blockedForCatalogGrade": [
+      "Signed tar.zst/signature/sha256/pubkey assets must exist and verify for each v0.3.x release.",
+      "UDS Package CR / Helm / monitor / network policy integration is not complete for A11oy catalog-grade packaging.",
+      "Multi-repo mesh capstone requires real a11oy/amaru/sentra/rosie/vessels assets."
+    ]
+  }
+}
