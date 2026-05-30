@@ -1,0 +1,27 @@
+name: Namespace Leak Check
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  namespace-leak-check:
+    name: "Doctrine v7 §14 — Personal Namespace Fence"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Check for personal namespace leaks
+        env:
+          PERSONAL_NAMESPACES: betterwithage
+          BASE_REF: origin/main
+        run: |
+          bash scripts/check_namespace_leak.sh --base origin/main
