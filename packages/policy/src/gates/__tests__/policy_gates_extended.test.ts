@@ -712,8 +712,8 @@ function assertGateBase(d: { leanCommitSha: string; rationale: string; leanFile:
   assert.equal(outside.withinBand, false);
   assert.equal(outside.allow, true); // advisory
 
-  // Edge: just inside boundary (use 0.544 to avoid float rounding at exact 0.545)
-  const edgeRate = gate({ measuredFireRate: 0.544, sampleSize: 1000 }); // 0.544 - 0.495 = 0.049 < 0.05
+  // Edge: exact boundary (495 ± 50ms)
+  const edgeRate = gate({ measuredFireRate: 0.545, sampleSize: 1000 }); // 0.545 - 0.495 = 0.05 exactly
   assert.equal(edgeRate.withinBand, true);
 }
 
