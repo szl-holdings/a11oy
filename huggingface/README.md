@@ -77,6 +77,7 @@ pnpm controls:audit
 pnpm action-contract:audit
 pnpm hf:test-results:audit
 pnpm github:access:audit
+npm run github:access:live:validate
 pnpm cross-repo:handoff:audit
 npm run test:policy-contracts
 npm run test:autonomy-contracts

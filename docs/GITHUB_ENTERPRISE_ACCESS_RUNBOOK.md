@@ -80,6 +80,28 @@ gh repo view szl-holdings/uds-mesh --json viewerPermission
 If `viewerPermission` is empty, `READ`, or not present, direct write phases
 remain blocked and the proxy-patch pattern stays correct.
 
+## Live read-only audit
+
+After seats, invitations, teams, SSO, or GitHub App installation scopes are
+updated, run:
+
+```bash
+npm run github:access:live:validate
+```
+
+This writes `dist/github-access-audit.json` with the current `gh` integration's
+viewer permission for each target repo. It uses only read-only `gh auth`,
+`gh api user`, and `gh repo view` commands. It does not push, create PRs, edit
+repos, mutate teams, or call write-method GitHub APIs.
+
+Interpretation:
+
+| Status | Meaning |
+| --- | --- |
+| `write-ready` | Current auth context reports `WRITE`, `MAINTAIN`, or `ADMIN`. Direct feature-branch work may be tried. |
+| `read-only` | Repo is visible but write phases remain blocked. |
+| `unavailable` | Repo cannot be inspected from this token/app context. |
+
 ## Write-readiness check
 
 Only after permissions are updated, test by pushing a new `cursor/*-2f18`

@@ -233,6 +233,15 @@ Validate the access checklist with:
 pnpm github:access:audit
 ```
 
+When the user updates seats/invites/App scopes, run the read-only live audit:
+
+```bash
+npm run github:access:live:validate
+```
+
+The live audit writes `dist/github-access-audit.json`; it is not committed and
+does not perform writes.
+
 ## Cross-repo handoff lane
 
 While sibling repo write access is pending, A11oy keeps a checksum-backed

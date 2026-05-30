@@ -121,6 +121,7 @@ def main() -> int:
             "pnpm action-contract:audit",
             "pnpm hf:test-results:audit",
             "pnpm github:access:audit",
+            "npm run github:access:live:validate",
             "pnpm cross-repo:handoff:audit",
             "pnpm payload:verify",
             "pnpm payload:huggingface",
