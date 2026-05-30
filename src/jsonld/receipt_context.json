@@ -1,0 +1,130 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+
+    "id": "@id",
+    "type": "@type",
+
+    "szl": "https://szl.io/ns/receipt/v1#",
+    "sec": "https://w3id.org/security#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "schema": "https://schema.org/",
+
+    "SZLGovernanceReceipt": "szl:SZLGovernanceReceipt",
+    "SZLOrganReceipt": "szl:SZLOrganReceipt",
+    "SZLDSSEAttestation": "szl:SZLDSSEAttestation",
+    "SZLRekorAttestation": "szl:SZLRekorAttestation",
+
+    "receiptId": {
+      "@id": "szl:receiptId",
+      "@type": "xsd:string"
+    },
+    "organId": {
+      "@id": "szl:organId",
+      "@type": "xsd:string"
+    },
+    "action": {
+      "@id": "szl:action",
+      "@type": "xsd:string"
+    },
+    "outcome": {
+      "@id": "szl:outcome",
+      "@type": "xsd:string"
+    },
+    "operatorDID": {
+      "@id": "szl:operatorDID",
+      "@type": "@id"
+    },
+    "policyRef": {
+      "@id": "szl:policyRef",
+      "@type": "@id"
+    },
+    "payloadHash": {
+      "@id": "szl:payloadHash",
+      "@type": "xsd:string"
+    },
+
+    "dsseEnvelope": {
+      "@id": "szl:dsseEnvelope",
+      "@type": "@json"
+    },
+    "dssePayloadType": {
+      "@id": "szl:dssePayloadType",
+      "@type": "xsd:string"
+    },
+    "dsseSignatures": {
+      "@id": "szl:dsseSignatures",
+      "@type": "@json"
+    },
+
+    "rekorUUID": {
+      "@id": "szl:rekorUUID",
+      "@type": "xsd:string"
+    },
+    "rekorLogIndex": {
+      "@id": "szl:rekorLogIndex",
+      "@type": "xsd:integer"
+    },
+    "rekorIntegratedTime": {
+      "@id": "szl:rekorIntegratedTime",
+      "@type": "xsd:dateTimeStamp"
+    },
+    "rekorEntryURL": {
+      "@id": "szl:rekorEntryURL",
+      "@type": "@id"
+    },
+    "rekorInclusionProofRootHash": {
+      "@id": "szl:rekorInclusionProofRootHash",
+      "@type": "xsd:string"
+    },
+
+    "ipfsCID": {
+      "@id": "szl:ipfsCID",
+      "@type": "xsd:string"
+    },
+    "ipfsGatewayURL": {
+      "@id": "szl:ipfsGatewayURL",
+      "@type": "@id"
+    },
+    "ipfsPinnedAt": {
+      "@id": "szl:ipfsPinnedAt",
+      "@type": "xsd:dateTimeStamp"
+    },
+
+    "federationSources": {
+      "@id": "szl:federationSources",
+      "@type": "@json"
+    },
+
+    "webAuthnCredentialId": {
+      "@id": "szl:webAuthnCredentialId",
+      "@type": "xsd:string"
+    },
+    "webAuthnRpId": {
+      "@id": "szl:webAuthnRpId",
+      "@type": "xsd:string"
+    },
+    "webAuthnSignatureBase64": {
+      "@id": "szl:webAuthnSignatureBase64",
+      "@type": "xsd:string"
+    },
+    "webAuthnClientDataJSON": {
+      "@id": "szl:webAuthnClientDataJSON",
+      "@type": "@json"
+    },
+
+    "governancePolicyVersion": {
+      "@id": "szl:governancePolicyVersion",
+      "@type": "xsd:string"
+    },
+    "doctrineVersion": {
+      "@id": "szl:doctrineVersion",
+      "@type": "xsd:integer"
+    },
+    "zenodoDOI": {
+      "@id": "szl:zenodoDOI",
+      "@type": "@id"
+    }
+  }
+}
