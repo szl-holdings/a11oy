@@ -1,0 +1,66 @@
+{
+  "name": "@szl-holdings/rae1",
+  "version": "1.0.0",
+  "description": "RAE-1 (Receipt-Attested Evaluation) protocol implementation — DSSE schema, chain integrity, HMAC verification gates. SZL Holdings.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/index.d.ts"
+    },
+    "./schema": {
+      "import": "./src/schema.js",
+      "types": "./src/schema.d.ts"
+    },
+    "./validate": {
+      "import": "./src/validate.js",
+      "types": "./src/validate.d.ts"
+    },
+    "./chain": {
+      "import": "./src/chain.js",
+      "types": "./src/chain.d.ts"
+    },
+    "./hmac": {
+      "import": "./src/hmac.js",
+      "types": "./src/hmac.d.ts"
+    }
+  },
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src/**/*.ts",
+    "src/**/*.js",
+    "src/**/*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "build": "tsc"
+  },
+  "keywords": [
+    "rae1",
+    "dsse",
+    "receipt-attestation",
+    "benchmark",
+    "pac-bayes",
+    "lean4",
+    "szl-holdings",
+    "cryptographic-attestation"
+  ],
+  "author": "SZL Holdings <eng@szl-holdings.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  }
+}
