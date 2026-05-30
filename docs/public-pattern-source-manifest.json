@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-public-pattern-synthesis-v1",
+  "observedAt": "2026-05-30",
+  "canonicalRule": "Use public sources as inspiration signals only. Do not copy private material, unlicensed code, upstream prose, schemas, trademarks, datasets, or branding. Rebuild as original SZL/A11oy artifacts with validation and claim-status labels.",
+  "copyingRule": "pattern-only; no upstream code, prose, schemas, trademarks, private material, or unlicensed datasets copied",
+  "privateIngestionAllowed": false,
+  "endorsementBoundary": "Public-source observation does not imply endorsement, affiliation, partnership, UDS catalog acceptance, or Hugging Face approval.",
+  "sourceQueues": [
+    {
+      "id": "defense-unicorns-public",
+      "sourceType": "organization",
+      "publicUrl": "https://github.com/defenseunicorns",
+      "whyQueued": "UDS, Zarf-adjacent, operator, policy, and compliance patterns relevant to Warhacker readiness.",
+      "auditMode": "public-pattern-only",
+      "status": "active-public-research"
+    },
+    {
+      "id": "zarf-dev-public",
+      "sourceType": "organization",
+      "publicUrl": "https://github.com/zarf-dev",
+      "whyQueued": "Disconnected packaging and bundle verification patterns.",
+      "auditMode": "public-pattern-only",
+      "status": "active-public-research"
+    },
+    {
+      "id": "huggingface-public",
+      "sourceType": "organization",
+      "publicUrl": "https://github.com/huggingface",
+      "whyQueued": "Model card, dataset card, Space, and generated showcase patterns.",
+      "auditMode": "public-pattern-only",
+      "status": "active-public-research"
+    },
+    {
+      "id": "szl-holdings-public",
+      "sourceType": "organization",
+      "publicUrl": "https://github.com/szl-holdings",
+      "whyQueued": "Canonical owned ecosystem: a11oy, platform, amaru, sentra, rosie, uds-mesh, vsp-otel, vessels, agi-forecast, thesis/proof repos.",
+      "auditMode": "owned-public-and-authorized",
+      "status": "canonical"
+    },
+    {
+      "id": "uiuc-ai-public-profile-cluster",
+      "sourceType": "public-profile-cluster",
+      "publicUrl": "https://github.com/search?q=UIUC+LLM+reasoning+agentic+LLM&type=users",
+      "whyQueued": "Public researcher profile cluster from user-provided screenshot; useful for eval, routing, and benchmark pattern inspiration only.",
+      "auditMode": "public-pattern-only",
+      "status": "queued-public-research"
+    },
+    {
+      "id": "polymathic-ai-public",
+      "sourceType": "public-profile-seed",
+      "publicUrl": "https://github.com/PolymathicAI",
+      "whyQueued": "Public scientific/deep-learning pattern inspiration for benchmark and dataset cards.",
+      "auditMode": "public-pattern-only",
+      "status": "queued-public-research"
+    }
+  ],
+  "patterns": [
+    {
+      "id": "disconnected-proof-bundle",
+      "name": "Disconnected proof bundle",
+      "sourceQueueIds": [
+        "zarf-dev-public",
+        "defense-unicorns-public"
+      ],
+      "publicSourceCategories": [
+        "Zarf-style disconnected packaging",
+        "UDS operator workflows"
+      ],
+      "licenseCaveat": "Open-source visibility does not grant permission to copy templates blindly; preserve licenses if copying is ever approved. Current use is pattern-only.",
+      "a11oyTransform": "Original A11oy offline proof bundle containing MANIFEST.json, attestations, receipts, policy report, and tamper demo.",
+      "localEvidence": [
+        "deploy/MANIFEST.json",
+        "scripts/build_operational_payload.py",
+        "docs/UDS_FRONTIER_GAP_MAP.md"
+      ],
+      "validationCommands": [
+        "pnpm payload:bundle",
+        "pnpm payload:bundle:verify"
+      ],
+      "claimStatus": "release-payload"
+    },
+    {
+      "id": "operator-intent-contract",
+      "name": "Operator intent contract",
+      "sourceQueueIds": [
+        "defense-unicorns-public"
+      ],
+      "publicSourceCategories": [
+        "UDS Package concepts",
+        "Kubernetes operator handoff"
+      ],
+      "licenseCaveat": "Concept only; no upstream CRDs, schemas, code, or prose copied without license review.",
+      "a11oyTransform": "A11oy ActionContract with ingress, identity, evidence, policy, receipt sinks, replay bounds, and egress limits.",
+      "localEvidence": [
+        "docs/ECOSYSTEM_OPERATING_SYSTEM.md",
+        "docs/AUTONOMOUS_LEARNING_DOCTRINE.md"
+      ],
+      "validationCommands": [
+        "pnpm patterns:audit"
+      ],
+      "claimStatus": "roadmap"
+    },
+    {
+      "id": "typed-policy-exemption-ledger",
+      "name": "Typed policy exemption ledger",
+      "sourceQueueIds": [
+        "defense-unicorns-public"
+      ],
+      "publicSourceCategories": [
+        "Admission control",
+        "Policy engine",
+        "Exception workflow"
+      ],
+      "licenseCaveat": "No upstream TypeScript, policy templates, schemas, or prose copied without license review.",
+      "a11oyTransform": "Original A11oy ExemptionReceipt design with actor, scope, justification, policy hash, and revalidation deadline.",
+      "localEvidence": [
+        "packages/receipt-substrate/src/index.ts",
+        "packages/policy/src/gates/__tests__/policy_gates.test.ts"
+      ],
+      "validationCommands": [
+        "npm test --prefix packages/receipt-substrate"
+      ],
+      "claimStatus": "roadmap"
+    },
+    {
+      "id": "generated-diligence-card",
+      "name": "Generated diligence card",
+      "sourceQueueIds": [
+        "huggingface-public"
+      ],
+      "publicSourceCategories": [
+        "Hugging Face model cards",
+        "GitHub README/release metadata"
+      ],
+      "licenseCaveat": "Do not copy third-party card prose or metadata; generate original SZL card from tracked source.",
+      "a11oyTransform": "A11oy HF mirror as non-model diligence packet with source commit, provenance, payloads, receipts, and caveats.",
+      "localEvidence": [
+        "huggingface/README.md",
+        "scripts/prepare_huggingface_payload.py"
+      ],
+      "validationCommands": [
+        "pnpm payload:huggingface"
+      ],
+      "claimStatus": "release-payload"
+    },
+    {
+      "id": "receipted-eval-dataset",
+      "name": "Receipted eval dataset",
+      "sourceQueueIds": [
+        "huggingface-public",
+        "uiuc-ai-public-profile-cluster",
+        "polymathic-ai-public"
+      ],
+      "publicSourceCategories": [
+        "HF dataset cards",
+        "Public eval logs",
+        "Math/AI benchmark reporting"
+      ],
+      "licenseCaveat": "Publish only SZL-generated receipts/results and licensed or pointer-only benchmark corpora.",
+      "a11oyTransform": "Future a11oy-test-results dataset with benchmark-map, results JSONL, receipts JSONL, and MANIFEST.json.",
+      "localEvidence": [
+        "docs/benchmark-evolution-doctrine.md",
+        "benchmarks/benchmark-map.json"
+      ],
+      "validationCommands": [
+        "pnpm benchmark:audit"
+      ],
+      "claimStatus": "roadmap"
+    },
+    {
+      "id": "raw-point-putnam-ledger",
+      "name": "Raw-point Putnam ledger",
+      "sourceQueueIds": [
+        "uiuc-ai-public-profile-cluster",
+        "polymathic-ai-public"
+      ],
+      "publicSourceCategories": [
+        "Contest scoring",
+        "Mathematical benchmark reporting"
+      ],
+      "licenseCaveat": "Do not redistribute problem text unless licensed; store source pointers and digests where required.",
+      "a11oyTransform": "Original A11oy raw earned/possible ledger with failed attempts, retries, tool use, judge disagreement, and no cracked-Putnam claim.",
+      "localEvidence": [
+        "benchmarks/benchmark-map.json",
+        "docs/benchmark-evolution-doctrine.md"
+      ],
+      "validationCommands": [
+        "pnpm benchmark:audit"
+      ],
+      "claimStatus": "roadmap"
+    },
+    {
+      "id": "claim-status-scoreboard",
+      "name": "Claim-status scoreboard",
+      "sourceQueueIds": [
+        "huggingface-public",
+        "szl-holdings-public"
+      ],
+      "publicSourceCategories": [
+        "GitHub badges",
+        "Release notes",
+        "HF metadata"
+      ],
+      "licenseCaveat": "Do not copy third-party badges/prose without license review; do not inflate public claims beyond evidence or imply external endorsement.",
+      "a11oyTransform": "Original A11oy scoreboard of verified-runtime, release-payload, thesis-anchor, roadmap, and needs-upstream-ci statuses.",
+      "localEvidence": [
+        "docs/PROVENANCE.md",
+        "docs/ECOSYSTEM_OPERATING_SYSTEM.md",
+        "docs/anatomy-formula-runtime-map.json"
+      ],
+      "validationCommands": [
+        "pnpm ecosystem:os:audit",
+        "pnpm theorem:runtime:audit"
+      ],
+      "claimStatus": "verified-runtime"
+    },
+    {
+      "id": "formula-gate-matrix",
+      "name": "Formula gate matrix",
+      "sourceQueueIds": [
+        "szl-holdings-public"
+      ],
+      "publicSourceCategories": [
+        "Formal methods",
+        "Runtime gate testing",
+        "Mathematical lineage"
+      ],
+      "licenseCaveat": "Runtime gates are not blanket theorem proofs; do not copy external proofs/code without license review; cite exact proof status separately.",
+      "a11oyTransform": "Original A11oy route matrix for problems/actions through FalsePosition, MadhavaBound, LiuHuiPi, SummationInvariant, AdversarialRobustness, QECLineage, and receipt substrate gates.",
+      "localEvidence": [
+        "docs/theorem-runtime-manifest.json",
+        "packages/policy/src/gates/__tests__/policy_gates.test.ts"
+      ],
+      "validationCommands": [
+        "pnpm theorem:runtime:audit",
+        "npm run test:policy-gates"
+      ],
+      "claimStatus": "verified-runtime"
+    }
+  ]
+}

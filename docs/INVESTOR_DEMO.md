@@ -21,6 +21,7 @@ explicitly out of active-demo scope.
 | 10 | [`docs/ECOSYSTEM_OPERATING_SYSTEM.md`](ECOSYSTEM_OPERATING_SYSTEM.md) | Repos, formulas, anatomy, UDS, HF, autonomy, and benchmarks are routed through one claim-status OS. |
 | 11 | [`docs/AUTONOMOUS_LEARNING_DOCTRINE.md`](AUTONOMOUS_LEARNING_DOCTRINE.md) | “Dreaming” and learning are staged as receipt-backed proposals with human promotion, not self-deploying production mutation. |
 | 12 | [`docs/benchmark-evolution-doctrine.md`](benchmark-evolution-doctrine.md) | Putnam and benchmark goals are raw-score, corpus-pinned, receipt-backed, and judge-audited. |
+| 13 | [`docs/PUBLIC_PATTERN_SYNTHESIS.md`](PUBLIC_PATTERN_SYNTHESIS.md) | Public ecosystem inspiration is transformed into original SZL artifacts without private/unlicensed copying or implied endorsement. |
 
 ## One-line thesis
 

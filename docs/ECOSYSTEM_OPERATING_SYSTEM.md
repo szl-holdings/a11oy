@@ -152,6 +152,22 @@ corpus-pinned, receipt-backed, and judge-audited. The standard is in
 [`docs/benchmark-evolution-doctrine.md`](benchmark-evolution-doctrine.md), with
 machine-readable scope in [`benchmarks/benchmark-map.json`](../benchmarks/benchmark-map.json).
 
+## Public pattern synthesis lane
+
+Public repos, profiles, papers, Hugging Face assets, and UDS/Zarf examples can
+be studied as pattern signals. They must pass through the clean-room synthesis
+ledger in [`docs/PUBLIC_PATTERN_SYNTHESIS.md`](PUBLIC_PATTERN_SYNTHESIS.md) and
+[`docs/public-pattern-source-manifest.json`](public-pattern-source-manifest.json):
+
+1. source is public, licensed, permissioned, or owned;
+2. pattern is abstracted without copying code/prose/schema/branding;
+3. original SZL/A11oy transformation is written down;
+4. local evidence and validation commands are attached;
+5. no endorsement or partnership is implied.
+
+This is how the ecosystem can learn from the outside world “like fashion” while
+remaining doctrine-safe and legally clean.
+
 ## Validation commands
 
 Run the operating-system audit lane before publishing:
@@ -162,6 +178,7 @@ pnpm ecosystem:readiness
 pnpm theorem:runtime:audit
 pnpm anatomy:runtime:audit
 pnpm benchmark:audit
+pnpm patterns:audit
 pnpm payload:verify
 pnpm payload:huggingface
 pnpm payload:bundle

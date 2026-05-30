@@ -47,6 +47,7 @@ flowchart TD
 | UDS/Zarf operator handoff | `payloads/deploy/zarf.yaml`, `source/docs/WARHACKER_UDS_PROOF_POINT.md` |
 | Ecosystem readiness | `source/docs/ecosystem-readiness-report.json` |
 | Ecosystem operating system | `source/docs/ECOSYSTEM_OPERATING_SYSTEM.md`, `source/docs/anatomy-formula-runtime-map.json` |
+| Public pattern synthesis | `source/docs/PUBLIC_PATTERN_SYNTHESIS.md`, `source/docs/public-pattern-source-manifest.json` |
 | Autonomous learning doctrine | `source/docs/AUTONOMOUS_LEARNING_DOCTRINE.md` |
 | Benchmark evolution | `source/docs/benchmark-evolution-doctrine.md`, `source/benchmarks/benchmark-map.json` |
 | Series-A diligence | `source/docs/SERIES_A_DILIGENCE.md`, `INVESTOR_BRIEF.md` |
