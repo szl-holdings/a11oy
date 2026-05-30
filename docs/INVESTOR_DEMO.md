@@ -26,6 +26,7 @@ explicitly out of active-demo scope.
 | 15 | [`docs/action-contract-manifest.json`](action-contract-manifest.json) | Original operator intent contract captures ingress, identity, policy, evidence, replay, and egress limits. |
 | 16 | [`docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`](GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md) | Enterprise seats help only after org membership, repo/team write permission, SSO, and token/App scope are configured. |
 | 17 | [`docs/CROSS_REPO_HANDOFF_READINESS.md`](CROSS_REPO_HANDOFF_READINESS.md) | Blocked sibling work is queued as checksum-backed proxy patches with target validation requirements and no completion overclaims. |
+| 18 | [`docs/PHASE_COMPLETION_REPORT.md`](PHASE_COMPLETION_REPORT.md) | A11oy-local phase closeout: complete locally, cross-repo phases access-pending until target CI evidence exists. |
 
 ## One-line thesis
 

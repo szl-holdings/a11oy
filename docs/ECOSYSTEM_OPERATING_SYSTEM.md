@@ -265,6 +265,20 @@ pnpm cross-repo:handoff:audit
 npm run test:cross-repo-handoff
 ```
 
+## Phase completion lane
+
+The A11oy-local phase closeout is recorded in
+[`docs/PHASE_COMPLETION_REPORT.md`](PHASE_COMPLETION_REPORT.md) and
+[`docs/phase-completion-manifest.json`](phase-completion-manifest.json). It
+marks local docs, manifests, validators, runtime helpers, and payload generation
+complete for this branch while keeping sibling repo phases access-pending.
+
+Validate it with:
+
+```bash
+pnpm phase:completion:audit
+```
+
 ## Validation commands
 
 Run the operating-system audit lane before publishing:
@@ -281,6 +295,7 @@ pnpm action-contract:audit
 pnpm hf:test-results:audit
 pnpm github:access:audit
 pnpm cross-repo:handoff:audit
+pnpm phase:completion:audit
 pnpm payload:verify
 pnpm payload:huggingface
 pnpm payload:bundle
