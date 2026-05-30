@@ -22,6 +22,8 @@ explicitly out of active-demo scope.
 | 11 | [`docs/AUTONOMOUS_LEARNING_DOCTRINE.md`](AUTONOMOUS_LEARNING_DOCTRINE.md) | “Dreaming” and learning are staged as receipt-backed proposals with human promotion, not self-deploying production mutation. |
 | 12 | [`docs/benchmark-evolution-doctrine.md`](benchmark-evolution-doctrine.md) | Putnam and benchmark goals are raw-score, corpus-pinned, receipt-backed, and judge-audited. |
 | 13 | [`docs/PUBLIC_PATTERN_SYNTHESIS.md`](PUBLIC_PATTERN_SYNTHESIS.md) | Public ecosystem inspiration is transformed into original SZL artifacts without private/unlicensed copying or implied endorsement. |
+| 14 | [`docs/controls-evidence-map.json`](controls-evidence-map.json) | A11oy-native controls map binds claims to evidence paths, validators, receipts, HF exposure, and UDS boundaries. |
+| 15 | [`docs/action-contract-manifest.json`](action-contract-manifest.json) | Original operator intent contract captures ingress, identity, policy, evidence, replay, and egress limits. |
 
 ## One-line thesis
 

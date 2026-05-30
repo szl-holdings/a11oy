@@ -130,6 +130,8 @@ def stage_payload() -> None:
         "docs/ecosystem-readiness-report.json",
         "docs/anatomy-formula-runtime-map.json",
         "docs/public-pattern-source-manifest.json",
+        "docs/controls-evidence-map.json",
+        "docs/action-contract-manifest.json",
         "docs/theorem-runtime-manifest.json",
         "docs/huggingface.md",
         "docs/regulatory_to_lambda.md",

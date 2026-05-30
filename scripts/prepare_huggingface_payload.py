@@ -68,6 +68,8 @@ def main() -> int:
         ("docs/benchmark-evolution-doctrine.md", "source/docs/benchmark-evolution-doctrine.md"),
         ("docs/PUBLIC_PATTERN_SYNTHESIS.md", "source/docs/PUBLIC_PATTERN_SYNTHESIS.md"),
         ("docs/public-pattern-source-manifest.json", "source/docs/public-pattern-source-manifest.json"),
+        ("docs/controls-evidence-map.json", "source/docs/controls-evidence-map.json"),
+        ("docs/action-contract-manifest.json", "source/docs/action-contract-manifest.json"),
         ("docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md", "source/docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md"),
         ("docs/UDS_FRONTIER_GAP_MAP.md", "source/docs/UDS_FRONTIER_GAP_MAP.md"),
         ("docs/WARHACKER_UDS_PROOF_POINT.md", "source/docs/WARHACKER_UDS_PROOF_POINT.md"),
@@ -93,6 +95,7 @@ def main() -> int:
         copy_text("NOTICE", "NOTICE")
 
     copy_tree("deploy/manifests", "payloads/deploy/manifests")
+    copy_tree("huggingface/test-results", "test-results")
 
     metadata = {
         "name": "a11oy",
@@ -110,6 +113,9 @@ def main() -> int:
             "pnpm anatomy:runtime:audit",
             "pnpm benchmark:audit",
             "pnpm patterns:audit",
+            "pnpm controls:audit",
+            "pnpm action-contract:audit",
+            "pnpm hf:test-results:audit",
             "pnpm payload:verify",
             "pnpm payload:huggingface",
             "pnpm payload:bundle",

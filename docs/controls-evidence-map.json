@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-controls-evidence-v1",
+  "observedAt": "2026-05-30",
+  "canonicalRule": "A control is active only when its claim status, local evidence paths, validation commands, receipt hook, and HF/UDS exposure boundaries are explicit.",
+  "cleanRoomRule": "Original A11oy controls only; no external control catalog, upstream schema, proprietary prose, or private material copied.",
+  "controls": [
+    {
+      "controlId": "A11OY-CE-001",
+      "title": "Public claim status gate",
+      "description": "Every public claim resolves to code, tests, DOI records, manifests, receipts, releases, or an explicit staged/roadmap label.",
+      "claimStatus": "verified-runtime",
+      "evidencePaths": [
+        "docs/PROVENANCE.md",
+        "docs/ECOSYSTEM_OPERATING_SYSTEM.md"
+      ],
+      "validationCommands": [
+        "npm run ecosystem:os:audit"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "Receipt over public-claim scan output and source commit."
+      },
+      "hfExposure": "mirror-only",
+      "udsExposure": "operator-proof-point",
+      "invariants": [
+        "reject all-green proof claims without current proof report",
+        "reject HF-as-canonical wording",
+        "reject UDS endorsement/catalog wording without separate evidence"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-002",
+      "title": "Clean-room public pattern synthesis",
+      "description": "Public sources inspire patterns only; private/unlicensed material, upstream code, prose, schemas, and branding are not copied.",
+      "claimStatus": "verified-runtime",
+      "evidencePaths": [
+        "docs/PUBLIC_PATTERN_SYNTHESIS.md",
+        "docs/public-pattern-source-manifest.json"
+      ],
+      "validationCommands": [
+        "npm run patterns:audit"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "Receipt binds source URL, license/copying boundary, and original SZL transform."
+      },
+      "hfExposure": "generated-ledger",
+      "udsExposure": "operator-context-only",
+      "invariants": [
+        "privateIngestionAllowed must be false",
+        "copyingRule must be pattern-only",
+        "endorsementBoundary must reject implied endorsement"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-003",
+      "title": "Theorem-to-runtime evidence map",
+      "description": "Runtime theorem claims map to explicit files, tests, commands, caveats, and claim statuses.",
+      "claimStatus": "verified-runtime",
+      "evidencePaths": [
+        "docs/theorem-runtime-manifest.json",
+        "scripts/validate_theorem_runtime_manifest.py"
+      ],
+      "validationCommands": [
+        "npm run theorem:runtime:audit"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "Receipt can bind theorem manifest ID, runtime file, test command, and commit."
+      },
+      "hfExposure": "generated-manifest",
+      "udsExposure": "proof-source-reference",
+      "invariants": [
+        "runtime evidence does not imply full Lean proof closure",
+        "staged proof-only claims must stay non-demo until runtime hooks exist"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-004",
+      "title": "Formula gate execution",
+      "description": "Layer 6 formula gates execute tested runtime hooks for false position, Madhava bounds, Liu Hui pi, adversarial robustness, and summation invariants.",
+      "claimStatus": "verified-runtime",
+      "evidencePaths": [
+        "packages/policy/src/gates/index.ts",
+        "packages/policy/src/gates/__tests__/policy_gates.test.ts"
+      ],
+      "validationCommands": [
+        "npm run test:policy-gates"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "Formula gate decision receipt with formula name, Lean anchor, allow/deny, and payload hash."
+      },
+      "hfExposure": "runtime-validation-only",
+      "udsExposure": "policy-gate-proof-point",
+      "invariants": [
+        "non-finite gate inputs fail closed",
+        "runtime gate claims cite proof status separately"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-005",
+      "title": "Operational receipt integrity",
+      "description": "Operational receipts are hash-chained with canonical payload hashes, Merkle roots, sequence checks, previous hashes, timestamp monotonicity, and quorum sanity.",
+      "claimStatus": "verified-runtime",
+      "evidencePaths": [
+        "packages/receipt-substrate/src/index.ts",
+        "packages/receipt-substrate/src/receipt_substrate.test.ts"
+      ],
+      "validationCommands": [
+        "npm test --prefix packages/receipt-substrate"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "Primary receipt substrate for MCP/Cursor/Claude/A11oy actions."
+      },
+      "hfExposure": "sample-receipts-only",
+      "udsExposure": "operator-ledger",
+      "invariants": [
+        "duplicate receipt IDs fail",
+        "broken previous hashes fail",
+        "timestamp regression fails",
+        "weak or impossible quorum labels fail"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-006",
+      "title": "QEC receipt witness",
+      "description": "Shor/CSS/Kitaev runtime parity checks provide receipt-integrity witnesses, not blanket quantum-threshold claims.",
+      "claimStatus": "verified-runtime",
+      "evidencePaths": [
+        "packages/qec-integrity/src/qec_lineage.ts",
+        "packages/qec-integrity/src/qec_lineage.test.ts"
+      ],
+      "validationCommands": [
+        "npm run test:qec"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "qec_witness field inside operational receipts."
+      },
+      "hfExposure": "runtime-validation-only",
+      "udsExposure": "integrity-witness",
+      "invariants": [
+        "CSS consistency must be explicit",
+        "Shor majority behavior must be tested",
+        "do not claim a quantum threshold theorem"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-007",
+      "title": "UDS operator proof-point packaging",
+      "description": "A11oy packages manifests, attestations, source fallback boundaries, and tamper verification as an operator proof point.",
+      "claimStatus": "release-payload",
+      "evidencePaths": [
+        "artifacts/a11oy-uds/README.md",
+        "docs/UDS_FRONTIER_GAP_MAP.md",
+        "scripts/validate-operational.sh"
+      ],
+      "validationCommands": [
+        "bash scripts/validate-operational.sh"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "Build receipt over MANIFEST.json, attestations, payload digest, and verification command."
+      },
+      "hfExposure": "operator-docs",
+      "udsExposure": "operator-proof-point",
+      "invariants": [
+        "do not claim UDS catalog acceptance",
+        "do not claim Defense Unicorns endorsement",
+        "catalog-grade claims require signed assets and external signer verification"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-008",
+      "title": "Hugging Face diligence mirror",
+      "description": "Hugging Face payload is generated from tracked GitHub source and is never canonical release truth.",
+      "claimStatus": "release-payload",
+      "evidencePaths": [
+        "huggingface/README.md",
+        "scripts/prepare_huggingface_payload.py"
+      ],
+      "validationCommands": [
+        "npm run payload:huggingface"
+      ],
+      "receiptHook": {
+        "eventType": "A11OY_OPERATION",
+        "status": "runtime-available",
+        "description": "Publication receipt with source commit, branch, files copied, and payload map."
+      },
+      "hfExposure": "generated-diligence-mirror",
+      "udsExposure": "not-uds-primary",
+      "invariants": [
+        "metadata must include source commit and verification commands",
+        "HF wording must remain mirror-not-canonical"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-009",
+      "title": "Benchmark evidence discipline",
+      "description": "Benchmark and Putnam claims require corpus digest, raw-score reporting, judge panel, receipt chain, and unsupported-claim rejection.",
+      "claimStatus": "roadmap",
+      "evidencePaths": [
+        "docs/benchmark-evolution-doctrine.md",
+        "benchmarks/benchmark-map.json"
+      ],
+      "validationCommands": [
+        "npm run benchmark:audit"
+      ],
+      "receiptHook": {
+        "eventType": "RAE1_EVALUATION",
+        "status": "roadmap",
+        "description": "Future benchmark receipt JSONL under benchmarks/results/{runId}/receipts.jsonl."
+      },
+      "hfExposure": "future-test-results-dataset",
+      "udsExposure": "not-uds-primary",
+      "invariants": [
+        "Putnam claims stay raw-score only",
+        "no live score is claimed without sealed corpus and receipts",
+        "reject cracked/solved/AGI-proven language"
+      ]
+    },
+    {
+      "controlId": "A11OY-CE-010",
+      "title": "Autonomous learning promotion boundary",
+      "description": "Agents may dream, evaluate, and propose; named human promotion and CI evidence are required before publication or deployment.",
+      "claimStatus": "roadmap",
+      "evidencePaths": [
+        "docs/AUTONOMOUS_LEARNING_DOCTRINE.md",
+        "docs/anatomy-formula-runtime-map.json"
+      ],
+      "validationCommands": [
+        "npm run anatomy:runtime:audit"
+      ],
+      "receiptHook": {
+        "eventType": "AUTONOMOUS_LEARNING_PROPOSAL",
+        "status": "roadmap",
+        "description": "Future proposal/evaluation/human-promotion receipt chain."
+      },
+      "hfExposure": "doctrine-only",
+      "udsExposure": "operator-context-only",
+      "invariants": [
+        "no self-approval",
+        "no self-promotion",
+        "no publication without replay and receipts"
+      ]
+    }
+  ]
+}

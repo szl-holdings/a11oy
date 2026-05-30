@@ -168,6 +168,50 @@ ledger in [`docs/PUBLIC_PATTERN_SYNTHESIS.md`](PUBLIC_PATTERN_SYNTHESIS.md) and
 This is how the ecosystem can learn from the outside world “like fashion” while
 remaining doctrine-safe and legally clean.
 
+## Controls evidence lane
+
+The original A11oy controls map is
+[`docs/controls-evidence-map.json`](controls-evidence-map.json). It does not
+import external control catalogs. It binds each A11oy control to:
+
+- claim status;
+- local evidence paths;
+- validation commands;
+- receipt hooks;
+- Hugging Face exposure limits;
+- UDS proof-point boundaries.
+
+Validate it with:
+
+```bash
+pnpm controls:audit
+```
+
+## Operator action-contract lane
+
+The original operator intent contract is
+[`docs/action-contract-manifest.json`](action-contract-manifest.json). It turns
+UDS-style public handoff patterns into an A11oy-native `ActionContract` with
+ingress, identity, policy, evidence, receipt sinks, replay bounds, egress
+limits, and forbidden UDS claims.
+
+Validate it with:
+
+```bash
+pnpm action-contract:audit
+```
+
+## Test-results dataset lane
+
+The staged Hugging Face dataset schema lives under
+[`huggingface/test-results`](../huggingface/test-results). It is intentionally
+schema/manifest-only: no live Putnam score, no leaderboard metric, and no
+redistributed benchmark corpus. Validate it with:
+
+```bash
+pnpm hf:test-results:audit
+```
+
 ## Validation commands
 
 Run the operating-system audit lane before publishing:
@@ -179,6 +223,9 @@ pnpm theorem:runtime:audit
 pnpm anatomy:runtime:audit
 pnpm benchmark:audit
 pnpm patterns:audit
+pnpm controls:audit
+pnpm action-contract:audit
+pnpm hf:test-results:audit
 pnpm payload:verify
 pnpm payload:huggingface
 pnpm payload:bundle
