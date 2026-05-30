@@ -268,6 +268,15 @@ export function verifyReceipt(receipt: OperationalReceipt): VerifyResult {
     errors.push(`merkle_root mismatch for ${receipt.receipt_id}`);
   }
 
+  const expectedReceiptId = `or-${hashHex({
+    merkleRoot: expectedMerkleRoot,
+    payloadHash: expectedPayloadHash,
+    sequence: receipt.sequence,
+  }, algorithm).slice(0, 20)}`;
+  if (receipt.receipt_id !== expectedReceiptId) {
+    errors.push(`receipt_id mismatch for ${receipt.receipt_id}`);
+  }
+
   if (!receipt.qec_witness.css_consistent || receipt.qec_witness.payload_byte !== receipt.qec_witness.shor_majority_payload) {
     errors.push(`qec witness mismatch for ${receipt.receipt_id}`);
   }
@@ -294,6 +303,10 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
       errors.push(`position ${i}: prev_receipt_hash mismatch`);
     }
 
+    if (!Number.isInteger(receipt.sequence) || receipt.sequence !== i) {
+      errors.push(`position ${i}: sequence mismatch`);
+    }
+
     if (i > 0 && receipt.timestamp_tai64n <= chain[i - 1].timestamp_tai64n) {
       errors.push(`position ${i}: timestamp regression`);
     }
@@ -303,6 +316,9 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
       const quorum = parseQuorum(policy.quorum);
       const uniqueSignatures = new Set(receipt.quorum_signatures);
       const knownNodes = new Set(policy.nodes);
+      if (policy.nodes.length < quorum.total) {
+        errors.push(`position ${i}: quorum total exceeds known nodes`);
+      }
       if (uniqueSignatures.size < quorum.required) {
         errors.push(`position ${i}: insufficient quorum signatures`);
       }
