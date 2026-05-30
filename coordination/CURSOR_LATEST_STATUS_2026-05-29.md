@@ -2,7 +2,7 @@
 
 ## New directives read
 
-- `.github#82` latest consolidated CTO+PM+Putnam comment.
+- `.github#82` latest consolidated CTO+PM+benchmark comment.
 - `.github#76` latest comments: agi-forecast patch proxied/applied as agi-forecast#42, invitations still runtime-bound, Lean CI diagnosis, Tier 1 queue.
 
 ## Completed now

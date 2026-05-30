@@ -29,7 +29,7 @@ LIVE_AUDIT_NOTES = {
         "GHCR manifest checks returned an authentication challenge in this environment; package availability needs owner-side push or visibility confirmation.",
     ],
     "lutar-lean": [
-        "Putnam public language must stay at 1/12 truly discharged in Lean unless a current upstream proof report verifies more.",
+        "Competition-math benchmark public language must stay raw-score and reproducible; cite only what an upstream proof report verifies.",
     ],
 }
 
@@ -257,7 +257,7 @@ def build_report() -> dict[str, object]:
             "Hugging Face is a generated diligence mirror, not the source of release truth.",
             "Counsel, Terra, and Carlota Jo are intentionally excluded from active-demo scope until funded.",
             "Do not repeat broad all-green or zero-sorry proof claims without a current machine-readable proof report.",
-            "Do not repeat inflated Putnam closure claims; current public language is 1/12 truly discharged in Lean until upstream proof reports verify more.",
+            "Do not repeat inflated benchmark closure claims; keep public language raw-score and reproducible, citing only what upstream proof reports verify.",
             "Do not describe SBOM-only or empty UDS v0.3.0 releases as signed binary payload releases.",
             "Do not describe unmerged G36-G40 or broader gate totals as live A11oy main runtime gates.",
             "Use Defense Unicorns UDS/Zarf-compatible phrasing; do not imply Defense Unicorns endorsement or catalog acceptance.",

@@ -204,7 +204,7 @@
         "https://github.com/szl-holdings/agi-forecast/releases/tag/v0.1.0"
       ],
       "guardrails": [],
-      "nextAction": "Merge FG-S1-S4 pipeline and Putnam v2 harness; preserve 8.3% baseline unless rerun proves improvement."
+      "nextAction": "Merge FG-S1-S4 pipeline and competition-math v2 harness; preserve the recorded raw-score baseline unless a rerun proves improvement."
     },
     {
       "name": "vessels",

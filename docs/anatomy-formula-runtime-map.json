@@ -307,10 +307,10 @@
     },
     {
       "repo": "agi-forecast",
-      "anatomyRole": "future-gauge: benchmark and Putnam-style forecast surface",
+      "anatomyRole": "future-gauge: benchmark and competition-math forecast surface",
       "formulaRuntime": [
         {
-          "formula": "Putnam raw-score benchmark map",
+          "formula": "competition-math raw-score benchmark map",
           "runtimeFile": "benchmarks/benchmark-map.json",
           "theoremRuntimeManifestId": null,
           "claimStatus": "roadmap"
@@ -331,7 +331,7 @@
       "claimStatus": "roadmap",
       "autonomousLearningRole": "benchmark_replay_evaluator",
       "gaps": [
-        "No live Putnam score is claimed.",
+        "No live benchmark score is claimed.",
         "Pinned corpus, judges, and receipt-emitting runner are next."
       ]
     },

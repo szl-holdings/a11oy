@@ -81,7 +81,7 @@ Forbidden without current public evidence:
 
 - “all Lean green”
 - “zero sorry”
-- “cracked Putnam”
+- “solved the benchmark”
 - “Defense Unicorns endorsed”
 - “UDS catalog accepted”
 - “HF is canonical”
@@ -147,7 +147,7 @@ promotion and CI evidence. The authoritative rules are in
 
 ## Benchmark lane
 
-Benchmark evolution, including Putnam-style goals, must be raw-score,
+Benchmark evolution, including competition-math goals, must be raw-score,
 corpus-pinned, receipt-backed, and judge-audited. The standard is in
 [`docs/benchmark-evolution-doctrine.md`](benchmark-evolution-doctrine.md), with
 machine-readable scope in [`benchmarks/benchmark-map.json`](../benchmarks/benchmark-map.json).
@@ -210,7 +210,7 @@ npm run test:policy-contracts
 
 The staged Hugging Face dataset schema lives under
 [`huggingface/test-results`](../huggingface/test-results). It is intentionally
-schema/manifest-only: no live Putnam score, no leaderboard metric, and no
+schema/manifest-only: no live benchmark score, no leaderboard metric, and no
 redistributed benchmark corpus. Validate it with:
 
 ```bash

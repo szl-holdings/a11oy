@@ -49,7 +49,7 @@
  * - Protocol spec: RAE_1_PROTOCOL.md (SZL Holdings, 2026-05-29)
  * - DSSE spec: github.com/secure-systems-lab/dsse
  * - PAC-Bayes: arXiv:2407.20122, arXiv:2510.25569
- * - PutnamBench: arXiv:2407.11214
+ * - competition-math benchmark suite: arXiv:2407.11214
  *
  * Doctrine v6 — no fake lake-green, no new axioms.
  * Signed-off-by: SZL Engineering <eng@szl-holdings.com>

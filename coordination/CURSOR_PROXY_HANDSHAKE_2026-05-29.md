@@ -39,7 +39,7 @@ Picked up latest #82/#76 directive. Current runtime still cannot git-push to sib
   - `coordination/proxy-patches/agi-forecast-fg-pipeline.patch`
 - Patch contents for target repo `szl-holdings/agi-forecast`:
   - `runtime/src/dsse.ts`
-  - `runtime/src/putnam_to_fg_wiring.ts`
+  - `runtime/src/benchmark_to_fg_wiring.ts`
   - `runtime/src/pipeline.ts`
   - `runtime/src/receipt.ts`
   - `runtime/src/pipeline.test.ts`
@@ -50,7 +50,7 @@ Picked up latest #82/#76 directive. Current runtime still cannot git-push to sib
   - `npm install`
   - `npm test` (38 tests passed)
   - `npm run build`
-- Putnam remains honest `1/12 = 8.3%` and advisory-only; no gate inflation.
+- The competition-math benchmark baseline remains the honest recorded raw-score (`1/12 = 8.3%`) and advisory-only; no gate inflation.
 
 ## Blocked by runtime identity
 

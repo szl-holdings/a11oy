@@ -11,12 +11,12 @@
   "claim_status": "staged-no-live-score",
   "allowed_public_wording": [
     "Future a11oy-test-results dataset schema and staged manifest.",
-    "No live Putnam score is claimed in this revision.",
+    "No live benchmark score is claimed in this revision.",
     "GitHub remains canonical; Hugging Face is a mirror."
   ],
   "disallowed_claims": [
-    "cracked Putnam",
-    "solved Putnam",
+    "solved the benchmark",
+    "beat the benchmark",
     "AGI proven",
     "leaderboard score",
     "HF is canonical"
@@ -24,10 +24,10 @@
   "benchmark_map": {
     "path": "benchmarks/benchmark-map.json",
     "sha256": "computed-by-validator",
-    "entry_id": "putnam-raw-score-v1"
+    "entry_id": "mathcomp-raw-score-v1"
   },
   "corpus": {
-    "corpus_id": "putnam-public-years",
+    "corpus_id": "mathcomp-public-years",
     "corpus_version": "v1",
     "source_uri": "external-official-or-licensed-source",
     "license": "do-not-redistribute-unless-permitted",

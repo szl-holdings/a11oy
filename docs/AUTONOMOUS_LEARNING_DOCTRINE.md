@@ -182,7 +182,7 @@ Do not publish or promote these phrases without exact supporting evidence:
 - “guaranteed safe”
 - “cannot hallucinate”
 - “uses private/trade-secret data”
-- “cracked Putnam”
+- “solved the benchmark”
 
 ## HF and UDS exposure
 

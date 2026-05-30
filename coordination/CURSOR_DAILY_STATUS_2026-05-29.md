@@ -47,7 +47,7 @@
 ## Tomorrow plan
 
 - Continue repo-specific operationalization when write access/workspace is available:
-  1. `agi-forecast`: FG-S1→S4 TypeScript pipeline, DSSE-shaped receipts, Putnam wiring, and real runtime tests.
+  1. `agi-forecast`: FG-S1→S4 TypeScript pipeline, DSSE-shaped receipts, benchmark wiring, and real runtime tests.
   2. `sentra`: witnessed forecast output with formula witness fields.
   3. `amaru`: adversarial regression against historical receipts.
   4. `rosie`: receipt replay proof point.

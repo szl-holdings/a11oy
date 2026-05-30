@@ -115,7 +115,7 @@ export interface RAE1Payload {
   /** ISO 8601 UTC timestamp of this evaluation run, e.g. "2026-05-27T18:34:00Z". */
   run_timestamp: string;
 
-  /** Benchmark name, e.g. "putnam-2024". */
+  /** Benchmark name, e.g. "bench-2024". */
   benchmark_name: string;
 
   /** Benchmark year as a number, e.g. 2024. */
@@ -129,7 +129,7 @@ export interface RAE1Payload {
 
   // ── Problem-level fields ─────────────────────────────────────────────────
 
-  /** Problem identifier, e.g. "putnam-2024-A1". */
+  /** Problem identifier, e.g. "bench-2024-A1". */
   problem_id: string;
 
   /**
@@ -275,7 +275,7 @@ export interface DSSEEnvelope {
 
 /**
  * Published after every complete benchmark run.
- * Committed to runtime/putnam-2025/latest.json and tagged with Zenodo DOI.
+ * Committed to runtime/bench-2025/latest.json and tagged with Zenodo DOI.
  *
  * See RAE_1_PROTOCOL.md §4.3
  */

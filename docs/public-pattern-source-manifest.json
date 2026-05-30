@@ -170,8 +170,8 @@
       "claimStatus": "roadmap"
     },
     {
-      "id": "raw-point-putnam-ledger",
-      "name": "Raw-point Putnam ledger",
+      "id": "raw-point-mathcomp-ledger",
+      "name": "Raw-point competition-math ledger",
       "sourceQueueIds": [
         "uiuc-ai-public-profile-cluster",
         "polymathic-ai-public"
@@ -181,7 +181,7 @@
         "Mathematical benchmark reporting"
       ],
       "licenseCaveat": "Do not redistribute problem text unless licensed; store source pointers and digests where required.",
-      "a11oyTransform": "Original A11oy raw earned/possible ledger with failed attempts, retries, tool use, judge disagreement, and no cracked-Putnam claim.",
+      "a11oyTransform": "Original A11oy raw earned/possible ledger with failed attempts, retries, tool use, judge disagreement, and no benchmark-overclaim claim.",
       "localEvidence": [
         "benchmarks/benchmark-map.json",
         "docs/benchmark-evolution-doctrine.md"

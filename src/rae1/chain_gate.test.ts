@@ -38,11 +38,11 @@ function makePayload(
     schema_version: "rae1.0",
     run_id: "test-run-id-12345",
     run_timestamp: "2026-05-27T18:34:00Z",
-    benchmark_name: "putnam-2024",
+    benchmark_name: "bench-2024",
     benchmark_year: 2024,
     harness_version: "v2.0.0",
     harness_commit_sha: "3672670ee8be63aa5f116ca6124f3f3a4545b4e0",
-    problem_id: `putnam-2024-problem-${index}`,
+    problem_id: `bench-2024-problem-${index}`,
     problem_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     domain: "algebra",
     judges: [
@@ -331,7 +331,7 @@ describe("score_01 computation", () => {
     expect(result.score_01).toBe(1.0);
   });
 
-  it("score_01 matches SZL Putnam 2024 baseline (1/12 ≈ 0.0833)", () => {
+  it("score_01 matches the recorded raw-score baseline (1/12 ≈ 0.0833)", () => {
     const lines = buildChain(12, new Set([0])); // Only problem 0 solved
     const result = validateReceiptChain(lines.join("\n"));
     expect(result.score_01).toBeCloseTo(0.0833, 3);

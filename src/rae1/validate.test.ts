@@ -29,11 +29,11 @@ function makeValidPayload(overrides: Partial<RAE1Payload> = {}): RAE1Payload {
     schema_version: "rae1.0",
     run_id: "f3a1b2c4-d5e6-7890-abcd-ef1234567890",
     run_timestamp: "2026-05-27T18:34:00Z",
-    benchmark_name: "putnam-2024",
+    benchmark_name: "bench-2024",
     benchmark_year: 2024,
     harness_version: "v2.0.0",
     harness_commit_sha: "3672670ee8be63aa5f116ca6124f3f3a4545b4e0",
-    problem_id: "putnam-2024-A1",
+    problem_id: "bench-2024-A1",
     problem_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     domain: "combinatorics",
     judges: [
@@ -137,7 +137,7 @@ describe("validateRAE1Schema — valid envelopes", () => {
   it("returns decoded payload object on success", () => {
     const result = validateRAE1Schema(makeValidEnvelope());
     expect(result.payload).not.toBeNull();
-    expect(result.payload?.benchmark_name).toBe("putnam-2024");
+    expect(result.payload?.benchmark_name).toBe("bench-2024");
   });
 });
 

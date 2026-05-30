@@ -21,7 +21,7 @@ passes.
 | Ecosystem OS | `docs/ECOSYSTEM_OPERATING_SYSTEM.md` | `npm run ecosystem:os:audit` |
 | Anatomy/formula/runtime map | `docs/anatomy-formula-runtime-map.json` | `npm run anatomy:runtime:audit` |
 | Autonomous learning doctrine | `docs/AUTONOMOUS_LEARNING_DOCTRINE.md` | `npm run test:autonomy-contracts` |
-| Benchmark/Putnam doctrine | `docs/benchmark-evolution-doctrine.md`, `benchmarks/benchmark-map.json` | `npm run benchmark:audit` |
+| Benchmark doctrine | `docs/benchmark-evolution-doctrine.md`, `benchmarks/benchmark-map.json` | `npm run benchmark:audit` |
 | Public pattern synthesis | `docs/PUBLIC_PATTERN_SYNTHESIS.md`, `docs/public-pattern-source-manifest.json` | `npm run patterns:audit` |
 | Controls evidence | `docs/controls-evidence-map.json` | `npm run controls:audit` |
 | Operator action contract | `docs/action-contract-manifest.json` | `npm run action-contract:audit` |
@@ -59,5 +59,5 @@ repos, start with the handoff queue:
 4. `XREPO-LUTAR-LEAN-ROBUSTNESS-CHAIN-SCOPE`
 
 Target completion requires target PRs, target-native validation, and green
-target CI. Do not promote all-green Lean, cracked-Putnam, UDS catalog, or
+target CI. Do not promote all-green Lean, benchmark-overclaim, UDS catalog, or
 endorsement language without that evidence.

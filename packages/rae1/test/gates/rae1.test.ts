@@ -59,11 +59,11 @@ function makePayload(
     schema_version: "rae1.0",
     run_id: "test-run-00000000-0000-0000-0000-000000000001",
     run_timestamp: "2026-05-27T18:34:00Z",
-    benchmark_name: "putnam-2024",
+    benchmark_name: "bench-2024",
     benchmark_year: 2024,
     harness_version: "v2.0.0",
     harness_commit_sha: "3672670ee8be63aa5f116ca6124f3f3a4545b4e0",
-    problem_id: `putnam-2024-A${index + 1}`,
+    problem_id: `bench-2024-A${index + 1}`,
     problem_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     domain: "combinatorics",
     judges: [
@@ -205,13 +205,13 @@ describe("Schema validation gate (RAE-1 §2, §5.1)", () => {
   it("[T-10] Returns decoded payload on success", () => {
     const payload = makePayload(0);
     const result = validateRAE1Schema(makeEnvelope(payload));
-    expect(result.payload?.benchmark_name).toBe("putnam-2024");
+    expect(result.payload?.benchmark_name).toBe("bench-2024");
     expect(result.payload?.lean_sorry_count).toBe(2);
   });
 });
 
 describe("Chain integrity gate (RAE-1 §4)", () => {
-  it("[T-11] Validates 12-receipt chain (Putnam-sized)", () => {
+  it("[T-11] Validates 12-receipt chain (12-problem-sized)", () => {
     const lines = buildChain(12, new Set([0]));
     const result = validateReceiptChain(lines.join("\n"));
     expect(result.valid).toBe(true);

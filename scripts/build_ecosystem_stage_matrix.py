@@ -147,7 +147,7 @@ def next_action_for_repo(repo: dict) -> str:
     if name == "lutar-lean":
         return "Apply kernel-green proxy patch in Lean-enabled runner; keep 7 sorries honest."
     if name == "agi-forecast":
-        return "Merge FG-S1-S4 pipeline and Putnam v2 harness; preserve 8.3% baseline unless rerun proves improvement."
+        return "Merge FG-S1-S4 pipeline and competition-math v2 harness; preserve the recorded raw-score baseline unless a rerun proves improvement."
     if name in {"amaru", "rosie", "sentra", "uds-mesh", "vessels"}:
         return "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
     if status == "scaffold-excluded":

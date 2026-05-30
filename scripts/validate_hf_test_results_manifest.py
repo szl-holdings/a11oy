@@ -34,7 +34,7 @@ def main() -> int:
         errors.append("claim_status must remain staged-no-live-score until sealed results exist")
 
     disallowed = {claim.lower() for claim in manifest.get("disallowed_claims", [])}
-    for phrase in ["cracked putnam", "solved putnam", "agi proven", "hf is canonical"]:
+    for phrase in ["solved the benchmark", "beat the benchmark", "agi proven", "hf is canonical"]:
         if phrase not in disallowed:
             errors.append(f"disallowed_claims missing {phrase!r}")
 

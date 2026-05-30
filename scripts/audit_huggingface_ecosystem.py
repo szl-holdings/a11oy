@@ -101,7 +101,7 @@ def build_manifest() -> dict[str, Any]:
             "leanAxioms": 12,
             "leanSorries": 7,
             "anchorFormulaGates": "35/35",
-            "putnamBaseline": "8.3% (1/12)",
+            "benchmarkBaseline": "8.3% (1/12)",
         },
         "guardrails": [
             "Do not present Counsel, Terra, or Carlota Jo as active demo surfaces.",

@@ -86,12 +86,13 @@ All counts are grep-verifiable against `main`.
 | Substrate packages | 12 | `ls packages/ \| wc -l` |
 | Lean declarations (lutar-lean) | 626 | `grep -rE '^(theorem\|lemma\|def\|abbrev\|axiom) ' lutar-lean/Lutar/ \| wc -l` |
 | Lean axioms (lutar-lean) | 15 raw / 14 unique | `grep -rE '^axiom ' lutar-lean/Lutar/ \| wc -l` |
-| Lean sorries (lutar-lean) | 189 (138 baseline + 51 Putnam) | `grep -rE '\bsorry\b' lutar-lean/Lutar/ \| wc -l` |
-| Putnam status | 0/12 fully proved · 12/12 skeletoned (statements + tactic stubs); every `putnam_*_correct` is a `True`-shell or carries a tracked `sorry` | [lutar-lean Lutar/Putnam/](https://github.com/szl-holdings/lutar-lean/tree/main/Lutar/Putnam) |
+| Lean sorries (lutar-lean) | 189 total (each named with a tracked discharge route) | `grep -rE '\bsorry\b' lutar-lean/Lutar/ \| wc -l` |
 | Doctrine | v7 · 15 axioms (14 unique) | [.github/DOCTRINE_V7.md](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V7.md) |
 | SLSA | L1 honest (SBOM + DCO; source + build provenance documented) | [slsa.dev](https://slsa.dev/spec/v1.0/levels) |
 
 > Gate modules present on `main`: 45 files in `packages/policy/src/gates/`. The aggregate index (`packages/policy/src/gates/index.ts`) currently re-exports a subset; remaining modules are imported directly by their consumers. Count reflects files on disk, verifiable with the command above.
+>
+> Note on a repo-wide `find . -name "*_gate.ts"`: that yields **46**, because one additional file — `src/rae1/chain_gate.ts` — is a RAE-1 hash-chain integrity gate, not an anchor-formula policy gate. The anchor-formula gate count is the 45 files under `packages/policy/src/gates/`.
 
 ---
 

@@ -39,7 +39,7 @@ investor-demo receipts:
 
 1. evidence retrieval for Vessels UDS signed-asset status;
 2. policy blocking an unsupported signed-asset claim;
-3. unsupported-claim guard correcting inflated Putnam and gate-count language;
+3. unsupported-claim guard correcting inflated benchmark and gate-count language;
 4. chain verification summary that points back to the receipt-substrate test.
 
 ## Tamper check

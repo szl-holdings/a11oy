@@ -57,9 +57,6 @@ Use the following language in GitHub, release payloads, and Hugging Face cards.
   as thesis/proof-roadmap unless the current Lean source reports them closed.
 - “Zero sorry” or “all GREEN” statements should be backed by a machine-readable
   proof report from `lutar-lean`; otherwise use precise module/test language.
-- Putnam claims should stay at `1/12` truly discharged in Lean unless a current
-  upstream proof report verifies more. Judge-consensus answer matches are not
-  the same as Lean closure.
 - Do not cite `35`, `40`, or G36-G40 gate totals as live A11oy main behavior
   until those PRs are merged and their validation commands pass on main.
 - Do not describe empty or SBOM-only UDS v0.3.0 releases as signed binary

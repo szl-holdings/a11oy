@@ -33,20 +33,20 @@ def main() -> int:
 
     for entry in entries:
         entry_id = entry.get("id", "<missing>")
-        if "putnam" in entry_id.lower():
+        if "mathcomp" in entry_id.lower():
             scoring = entry.get("scoring", {})
             if scoring.get("scoreType") != "raw_points":
-                errors.append(f"{entry_id}: Putnam entries must use raw_points")
+                errors.append(f"{entry_id}: competition-math benchmark entries must use raw_points")
 
             honesty = entry.get("honesty", {})
             disallowed = set(honesty.get("disallowedClaims", []))
-            for phrase in ["cracked Putnam", "solved Putnam", "AGI proven"]:
+            for phrase in ["solved the benchmark", "beat the benchmark", "AGI proven"]:
                 if phrase not in disallowed:
                     errors.append(f"{entry_id}: disallowedClaims missing {phrase!r}")
 
             allowed_claim = honesty.get("allowedClaim", "").lower()
             if "cracked" in allowed_claim or "solved" in allowed_claim:
-                errors.append(f"{entry_id}: allowedClaim contains unsupported Putnam language")
+                errors.append(f"{entry_id}: allowedClaim contains unsupported benchmark language")
 
         corpus = entry.get("corpus", {})
         if corpus.get("sealed") and corpus.get("digestStatus") != "sealed":
@@ -73,7 +73,7 @@ def main() -> int:
         for gate in [
             "validate-benchmark-map",
             "verify-formula-routes",
-            "reject-unsupported-putnam-claims",
+            "reject-unsupported-benchmark-claims",
         ]:
             if gate not in gates:
                 errors.append(f"{entry_id}: missing CI gate {gate}")
