@@ -150,6 +150,19 @@ The Λ-invariant (lambda axis) constrains the policy evaluation: no recommendati
 
 ---
 
+
+## Lineage
+
+a11oy's runtime gates draw on durable mathematical patterns documented in
+[`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md).
+Each gate traces to a verifiable source: unit-fraction decomposition (Rhind/Ahmes
+Papyrus), pendant-root summation (Inka khipu), bounded iterative approximation
+(Liu Hui / Nine Chapters), alternating-series remainder bounds (Madhava / Kerala
+school), and parity-syndrome checks (Kitaev/Preskill QEC). Claim status for each
+source (`verified-runtime`, `lean-backed`, `historical`, `roadmap`) is recorded in
+the lineage table. Runtime gates require `verified-runtime` status before appearing
+in demo or investor materials.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the engineering workflow. Operational receipt-chain usage is documented in [`docs/operational-receipt-substrate.md`](docs/operational-receipt-substrate.md). All contributions require CI green on all required checks and one reviewer approval. Doctrine v6 tone required in PR descriptions.
