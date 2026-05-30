@@ -48,7 +48,7 @@ All counts are grep-verifiable from this repository.
 | Policy gate anchors (PR #114, pending merge) | 30 | PR #114 diff |
 | Anchor formulas total (Ouroboros runtime) | 35/35 | `grep -r "FORMULA" packages/ \| wc -l` |
 | CI assertion tests | 35 | `packages/policy/src/gates/index.test.ts` |
-| Lean proof declarations (lutar-lean) | 217 | `grep -r "^theorem\|^lemma\|^def " ../lutar-lean/Lutar/ \| wc -l` |
+| Lean proof declarations (lutar-lean) | 626 | `grep -r "^theorem\|^lemma\|^def " ../lutar-lean/Lutar/ \| wc -l` |
 | Lean axioms (lutar-lean) | 12 | `grep -r "^axiom " ../lutar-lean/Lutar/ \| wc -l` |
 | Lean residual sorries | 7 | `grep -r "sorry" ../lutar-lean/Lutar/ \| wc -l` |
 | HF Spaces (org) | 24 | [SZLHOLDINGS HF org](https://huggingface.co/SZLHOLDINGS) |
