@@ -17,6 +17,7 @@ explicitly out of active-demo scope.
 | 6 | [`deploy/MANIFEST.json`](../deploy/MANIFEST.json) | Deploy payload files are content-addressed with SHA-256. |
 | 7 | [`huggingface/README.md`](../huggingface/README.md) | Hugging Face is a generated diligence mirror tied back to GitHub. |
 | 8 | [`docs/UDS_FRONTIER_GAP_MAP.md`](UDS_FRONTIER_GAP_MAP.md) | UDS/Zarf fit and gaps are mapped against public Defense Unicorns docs. |
+| 9 | [`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](ANCIENT_TEXTS_FORMULA_LINEAGE.md) | Ancient/pre-modern source lineage is mapped to formulas and runtime hooks with caveats. |
 
 ## One-line thesis
 

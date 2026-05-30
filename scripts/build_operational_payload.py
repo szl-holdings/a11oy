@@ -117,6 +117,7 @@ def stage_payload() -> None:
         "docs/PROVENANCE.md",
         "docs/SERIES_A_DILIGENCE.md",
         "docs/INVESTOR_DEMO.md",
+        "docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md",
         "docs/UDS_FRONTIER_GAP_MAP.md",
         "docs/WARHACKER_UDS_PROOF_POINT.md",
         "docs/PERPLEXITY_BRIEF.md",
