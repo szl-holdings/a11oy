@@ -3,6 +3,7 @@
   "name": "@workspace/a11oy",
   "version": "0.0.0",
   "private": true,
+  "license": "LicenseRef-SZL-Proprietary",
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
