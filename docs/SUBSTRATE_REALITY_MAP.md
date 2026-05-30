@@ -19,7 +19,7 @@ repo, release, workflow, DOI, or checked-in file behind it.
 | Repo | Role in the spine | Public evidence | Status | Caveat |
 | --- | --- | --- | --- | --- |
 | `ouroboros-thesis` | Thesis / math substrate | Public repo and DOI `10.5281/zenodo.20434276`; concept DOI `10.5281/zenodo.19944926` | `verified-public` | Latest public GitHub release observed here is `paper-v17-1.0.0`; v18 is DOI-pinned but GitHub release reconciliation remains open. |
-| `lutar-lean` | Lean proof substrate | Public repo, release `lutar-v18.0.0`, DOI `10.5281/zenodo.20434308` | `verified-public` | Repo description says 217+ declarations, 12 axioms, 5 tracked sorries, plus 53 Putnam placeholders; do not call all Putnam files discharged. |
+| `lutar-lean` | Lean proof substrate | Public repo, release `lutar-v18.0.0`, DOI `10.5281/zenodo.20434308` | `verified-public` | Agent C audit (2026-05-30): 626 declarations, 15 axioms (14 unique), 189 sorries (138 non-Putnam + 51 Putnam). |
 | `ouroboros` | Runtime substrate | Public repo, release `v6.3.0` | `verified-public` | Treat runtime-specific performance claims as per-release/per-paper evidence, not blanket current-main facts. |
 | `a11oy` | Governed execution hub | This repo, green PR #139 checks, receipt/payload/doctrine tests | `verified-ci` | Main currently has seven policy gate files and ten theorem-runtime manifest entries; larger gate counts are PRs until merged. |
 | `amaru` | Memory / receipt anchoring organ | Public repo, release line visible from GitHub metadata | `verified-public` | Current packet cites it as supporting substrate, not independently validated runtime in this checkout. |
@@ -81,7 +81,7 @@ evidence.
 | --- | --- |
 | `a11oy#138` GHAS badge update is live green | `verified-ci`: PR #138 is open, mergeable, and all visible checks are success. |
 | 16 public repos have secret scanning, push protection, and Dependabot enabled | `owner-api-needed`: this token cannot read org/repo security settings. Do not repeat as verified unless owner/API evidence is attached. |
-| 232 CodeQL alerts baseline captured | `owner-api-needed`: code-scanning alert API returned `403 Resource not accessible by integration` for target repos. |
+| 30 CodeQL alerts open on a11oy (verified Agent C 2026-05-30) | `owner-api-needed`: 403 from code-scanning API; Agent C queried alerts directly. |
 | 8 Dependabot alerts total | `owner-api-needed`: Dependabot/security alert counts require privileged API access. |
 | Two SLSA L3 PRs opened with real `slsa-framework/slsa-github-generator` workflows | `open-pr-not-main`: PRs exist, but `a11oy#137` has failing DCO/tests and `lutar-lean#117` has failing DCO/DOI-title gate in the observed checks. |
 
