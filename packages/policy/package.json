@@ -22,16 +22,20 @@
       "types": "./src/contracts/autonomous_learning.ts",
       "import": "./src/contracts/autonomous_learning.ts"
     },
+    "./contracts/cross-repo-handoff": {
+      "types": "./src/contracts/cross_repo_handoff.ts",
+      "import": "./src/contracts/cross_repo_handoff.ts"
+    },
     "./policy-loader": {
       "types": "./policy_loader.ts",
       "import": "./policy_loader.ts"
     }
   },
   "scripts": {
-    "test": "tsx src/gates/__tests__/policy_gates.test.ts && tsx src/contracts/__tests__/controls_contracts.test.ts && tsx src/contracts/__tests__/autonomous_learning_contracts.test.ts",
+    "test": "tsx src/gates/__tests__/policy_gates.test.ts && tsx src/contracts/__tests__/controls_contracts.test.ts && tsx src/contracts/__tests__/autonomous_learning_contracts.test.ts && tsx src/contracts/__tests__/cross_repo_handoff_contracts.test.ts",
     "test:gates": "tsx src/gates/__tests__/policy_gates.test.ts",
-    "test:contracts": "tsx src/contracts/__tests__/controls_contracts.test.ts && tsx src/contracts/__tests__/autonomous_learning_contracts.test.ts",
-    "typecheck": "tsc --noEmit --ignoreConfig --module NodeNext --moduleResolution NodeNext --target ES2022 --allowImportingTsExtensions --resolveJsonModule --esModuleInterop --allowSyntheticDefaultImports --types node src/index.ts src/gates/__tests__/policy_gates.test.ts src/contracts/__tests__/controls_contracts.test.ts src/contracts/__tests__/autonomous_learning_contracts.test.ts"
+    "test:contracts": "tsx src/contracts/__tests__/controls_contracts.test.ts && tsx src/contracts/__tests__/autonomous_learning_contracts.test.ts && tsx src/contracts/__tests__/cross_repo_handoff_contracts.test.ts",
+    "typecheck": "tsc --noEmit --ignoreConfig --module NodeNext --moduleResolution NodeNext --target ES2022 --allowImportingTsExtensions --resolveJsonModule --esModuleInterop --allowSyntheticDefaultImports --types node src/index.ts src/gates/__tests__/policy_gates.test.ts src/contracts/__tests__/controls_contracts.test.ts src/contracts/__tests__/autonomous_learning_contracts.test.ts src/contracts/__tests__/cross_repo_handoff_contracts.test.ts"
   },
   "license": "UNLICENSED",
   "publishConfig": {

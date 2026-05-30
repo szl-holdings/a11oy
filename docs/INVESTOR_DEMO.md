@@ -25,6 +25,7 @@ explicitly out of active-demo scope.
 | 14 | [`docs/controls-evidence-map.json`](controls-evidence-map.json) | A11oy-native controls map binds claims to evidence paths, validators, receipts, HF exposure, and UDS boundaries. |
 | 15 | [`docs/action-contract-manifest.json`](action-contract-manifest.json) | Original operator intent contract captures ingress, identity, policy, evidence, replay, and egress limits. |
 | 16 | [`docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`](GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md) | Enterprise seats help only after org membership, repo/team write permission, SSO, and token/App scope are configured. |
+| 17 | [`docs/CROSS_REPO_HANDOFF_READINESS.md`](CROSS_REPO_HANDOFF_READINESS.md) | Blocked sibling work is queued as checksum-backed proxy patches with target validation requirements and no completion overclaims. |
 
 ## One-line thesis
 

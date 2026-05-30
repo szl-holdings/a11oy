@@ -233,6 +233,29 @@ Validate the access checklist with:
 pnpm github:access:audit
 ```
 
+## Cross-repo handoff lane
+
+While sibling repo write access is pending, A11oy keeps a checksum-backed
+handoff ledger at
+[`docs/cross-repo-handoff-manifest.json`](cross-repo-handoff-manifest.json) with
+operator instructions in
+[`docs/CROSS_REPO_HANDOFF_READINESS.md`](CROSS_REPO_HANDOFF_READINESS.md).
+
+This ledger does not claim target repo completion. It records proxy patches,
+status files, target validation requirements, forbidden claims, and completion
+evidence required after access is fixed.
+
+Runtime receipt helpers for the handoff queue live in
+`packages/policy/src/contracts/cross_repo_handoff.ts` and are covered by
+`npm run test:cross-repo-handoff`.
+
+Validate it with:
+
+```bash
+pnpm cross-repo:handoff:audit
+npm run test:cross-repo-handoff
+```
+
 ## Validation commands
 
 Run the operating-system audit lane before publishing:
@@ -248,6 +271,7 @@ pnpm controls:audit
 pnpm action-contract:audit
 pnpm hf:test-results:audit
 pnpm github:access:audit
+pnpm cross-repo:handoff:audit
 pnpm payload:verify
 pnpm payload:huggingface
 pnpm payload:bundle
