@@ -209,7 +209,7 @@ export const RESEARCH_INNOVATIONS: ResearchInnovation[] = [
   {
     title: 'Privacy Filter',
     origin: 'OpenAI \u2014 OpenAI Privacy Filter',
-    desc: 'Open-weight model for detecting and redacting PII in text with state-of-the-art accuracy',
+    desc: 'Open-weight model for detecting and redacting PII in text with high measured accuracy',
     a11oyEvolution: 'a11oy runs PII filtering on every data pipeline, every agent input, every memory write. Not optional \u2014 built into the governance layer. Redaction decisions are proof-chained.',
     date: 'Apr 2026', category: 'Safety',
   },
@@ -279,7 +279,7 @@ export const RESEARCH_INNOVATIONS: ResearchInnovation[] = [
   {
     title: 'SWE-Bench Leadership',
     origin: 'OpenAI Codex \u2014 SWE-Bench Verified, SWE-Bench Multimodal',
-    desc: 'State-of-the-art performance on real-world software engineering benchmarks \u2014 resolving actual GitHub issues end-to-end',
+    desc: 'Strong measured performance on real-world software engineering benchmarks \u2014 resolving actual GitHub issues end-to-end',
     a11oyEvolution: 'a11oy Code consistently exceeds benchmark scores with governed execution \u2014 every solution carries proof chain, every fix is sovereign-replayable, outcomes feed back into forecast calibration.',
     date: 'Apr 2026', category: 'Platform',
   },
@@ -335,7 +335,7 @@ export const RESEARCH_INNOVATIONS: ResearchInnovation[] = [
   {
     title: 'DALL-E & Visual Generation',
     origin: 'OpenAI \u2014 DALL-E 3, Image Generation Research',
-    desc: 'State-of-the-art text-to-image generation with precise prompt following and safety filtering',
+    desc: 'High-fidelity text-to-image generation with precise prompt following and safety filtering',
     a11oyEvolution: 'a11oy Visual Generation is governed \u2014 every generated image carries provenance (model, prompt, seed, parameters). Content policy gates enforced. Usage rights tracked. Brand compliance verified.',
     date: 'Oct 2023', category: 'Platform',
   },
