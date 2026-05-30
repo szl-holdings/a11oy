@@ -3,7 +3,7 @@ name: Zarf Build and Sign (a11oy)
 # Real Zarf package build path for a11oy targeting uds-v0.3.1-rc.1.
 #
 # Per founder reframe 2026-05-30 ~15:27 EDT, a11oy is the Warhacker focal demo
-# target (the Jarvis-like governed agentic execution fabric). This workflow is the
+# target (the governed agentic execution fabric). This workflow is the
 # v0.3.1-rc.1 build path: it builds the OCI image from the repo Dockerfile, runs a
 # real `zarf package create` against the in-repo deploy/zarf.yaml skeleton, signs the
 # resulting .tar.zst with cosign keyless (reusing the pattern proven in
