@@ -75,6 +75,23 @@ jobs:
       - name: Install deps (workspace root)
         run: pnpm install --frozen-lockfile || pnpm install
 
+      - name: Install package deps (resolve published @szl-holdings deps from GHCR)
+        working-directory: ${{ matrix.pkg }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # packages/policy depends on the published @szl-holdings/a11oy-receipt-substrate.
+          # These packages are NOT pnpm-workspace members, so the root install does not
+          # link them. Install in-place so tsc can resolve the published types + JS.
+          # The package-local .npmrc points @szl-holdings at npm.pkg.github.com and uses
+          # ${NODE_AUTH_TOKEN}. receipt-substrate has no @szl-holdings deps, so this is a
+          # no-op there.
+          if [ -f package.json ] && node -e "process.exit(Object.keys(require('./package.json').dependencies||{}).length ? 0 : 1)"; then
+            npm install --no-save --no-package-lock
+          else
+            echo "No runtime dependencies to install for ${{ matrix.pkg }}"
+          fi
+
       - name: Build package (emit JS + d.ts)
         working-directory: ${{ matrix.pkg }}
         run: |

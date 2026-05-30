@@ -1,35 +1,35 @@
-export { adversarialRobustnessGate } from "./adversarialRobustness_gate";
+export { adversarialRobustnessGate } from "./adversarialRobustness_gate.js";
 export type {
   AdversarialRobustnessGateConfig,
   AdversarialRobustnessGateOpts,
-} from "./adversarialRobustness_gate";
+} from "./adversarialRobustness_gate.js";
 
-export { falsePositionGate } from "./falsePosition_gate";
+export { falsePositionGate } from "./falsePosition_gate.js";
 export type {
   FalsePositionGateConfig,
   FalsePositionGateOpts,
-} from "./falsePosition_gate";
+} from "./falsePosition_gate.js";
 
-export { liuHuiPiGate } from "./liuHuiPi_gate";
+export { liuHuiPiGate } from "./liuHuiPi_gate.js";
 export type {
   LiuHuiPiGateConfig,
   LiuHuiPiGateOpts,
-} from "./liuHuiPi_gate";
+} from "./liuHuiPi_gate.js";
 
-export { madhavaBoundGate } from "./madhavaBound_gate";
+export { madhavaBoundGate } from "./madhavaBound_gate.js";
 export type {
   MadhavaBoundGateConfig,
   MadhavaBoundGateOpts,
-} from "./madhavaBound_gate";
+} from "./madhavaBound_gate.js";
 
-export { summationInvariantGate } from "./summationInvariant_gate";
+export { summationInvariantGate } from "./summationInvariant_gate.js";
 export type {
   DecisionReceipt,
   KhipuReceiptGateOpts,
   OrganReceipt,
-} from "./summationInvariant_gate.ts";
+} from "./summationInvariant_gate.js";
 
-export { thresholdPolicySeverityGate } from "./thresholdPolicySeverity_gate.ts";
+export { thresholdPolicySeverityGate } from "./thresholdPolicySeverity_gate.js";
 export type {
   DecisionClass,
   DsseEnvelope,
@@ -38,12 +38,12 @@ export type {
   ThresholdPolicySeverityDecision,
   ThresholdPolicySeverityGateConfig,
   ThresholdPolicySeverityGateOpts,
-} from "./thresholdPolicySeverity_gate.ts";
+} from "./thresholdPolicySeverity_gate.js";
 export {
   createFormulaGateEnvelope,
   emitFormulaGateReceipt,
-} from "./receipt.ts";
+} from "./receipt.js";
 export type {
   FormulaGateDecisionLike,
   FormulaGateReceiptOptions,
-} from "./receipt.ts";
+} from "./receipt.js";

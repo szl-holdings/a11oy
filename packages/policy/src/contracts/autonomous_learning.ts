@@ -6,7 +6,7 @@ import {
   type OperationalReceipt,
   type ToolEnvelope,
   type VerifyResult,
-} from "../../../receipt-substrate/src/index.ts";
+} from "@szl-holdings/a11oy-receipt-substrate";
 
 export type AutonomousLearningEventType =
   | "AUTONOMOUS_LEARNING_PROPOSAL"

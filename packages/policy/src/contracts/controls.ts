@@ -6,7 +6,7 @@ import {
   type EmitReceiptOptions,
   type OperationalReceipt,
   type ToolEnvelope,
-} from "../../../receipt-substrate/src/index.ts";
+} from "@szl-holdings/a11oy-receipt-substrate";
 
 export type ControlClaimStatus =
   | "verified-runtime"

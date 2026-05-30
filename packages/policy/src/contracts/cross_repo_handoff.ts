@@ -5,7 +5,7 @@ import {
   type EmitReceiptOptions,
   type OperationalReceipt,
   type ToolEnvelope,
-} from "../../../receipt-substrate/src/index.ts";
+} from "@szl-holdings/a11oy-receipt-substrate";
 
 export type HandoffAccessState = "blocked-by-access" | "write-ready";
 export type HandoffState = "ready-for-owner-apply" | "needs-target-runner" | "blocked-by-access" | "complete";
