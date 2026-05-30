@@ -47,6 +47,9 @@ Excluded from active-demo claims until funded:
 6. Thesis DOI `10.5281/zenodo.20434276`.
 7. Lean proof substrate DOI `10.5281/zenodo.20434308`.
 8. Hugging Face target `https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate`.
+9. `huggingface/DEMO_RECEIPT_SAMPLE.jsonl` for a schema-aligned receipt-chain
+   demo of evidence retrieval, policy blocking, unsupported-claim correction,
+   and chain summary.
 
 ## Guardrails for the analyst
 
@@ -57,6 +60,12 @@ Excluded from active-demo claims until funded:
   `lutar-lean` CI and theorem reports prove that exact claim.
 - Treat Hugging Face as a generated mirror; GitHub releases, CI, manifests, and
   DOI records are canonical.
+- Treat Putnam as `1/12` truly discharged in Lean unless a current upstream
+  proof report verifies more.
+- Treat A11oy main as seven live policy gate files plus ten theorem-runtime
+  manifest entries; larger gate totals require merged PR evidence.
+- Treat A11oy `uds-v0.3.0` as SBOM-only and Vessels `uds-v0.3.0` as empty until
+  signed binary assets and/or GHCR package pushes are visible.
 
 ## Suggested external prompt
 

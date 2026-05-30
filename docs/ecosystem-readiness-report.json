@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_readiness.py",
-  "observedAt": "2026-05-29",
+  "observedAt": "2026-05-30",
   "canonicalHub": "a11oy",
   "huggingFaceTarget": "SZLHOLDINGS/a11oy-v19-substrate",
   "thesis": {
@@ -45,8 +45,17 @@
     "Hugging Face is a generated diligence mirror, not the source of release truth.",
     "Counsel, Terra, and Carlota Jo are intentionally excluded from active-demo scope until funded.",
     "Do not repeat broad all-green or zero-sorry proof claims without a current machine-readable proof report.",
+    "Do not repeat inflated Putnam closure claims; current public language is 1/12 truly discharged in Lean until upstream proof reports verify more.",
+    "Do not describe SBOM-only or empty UDS v0.3.0 releases as signed binary payload releases.",
+    "Do not describe unmerged G36-G40 or broader gate totals as live A11oy main runtime gates.",
     "Use Defense Unicorns UDS/Zarf-compatible phrasing; do not imply Defense Unicorns endorsement or catalog acceptance."
   ],
+  "runtimeManifestSummary": {
+    "path": "docs/theorem-runtime-manifest.json",
+    "trackedEntries": 10,
+    "verifiedRuntimeEntries": 8,
+    "stagedOrRoadmapEntries": 2
+  },
   "statusCounts": {
     "demo-ready": 2,
     "supporting": 12,
@@ -76,7 +85,11 @@
         "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1",
         "https://github.com/szl-holdings/a11oy/releases/tag/uds-v0.2.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": [
+        "Live main has seven policy gate files under packages/policy/src/gates and ten theorem-runtime manifest entries; larger gate counts require merged PR evidence.",
+        "uds-v0.3.0 release currently carries SBOM assets only, not signed binary payload assets."
+      ]
     },
     {
       "name": "platform",
@@ -94,7 +107,8 @@
       ],
       "guardrails": [
         "Use as canonical integration evidence; keep production-readiness claims scoped to current CI and release artifacts."
-      ]
+      ],
+      "liveAuditNotes": []
     },
     {
       "name": "ouroboros",
@@ -110,7 +124,8 @@
         "https://github.com/szl-holdings/ouroboros",
         "https://github.com/szl-holdings/ouroboros/releases/tag/v6.3.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "lutar-lean",
@@ -130,6 +145,9 @@
       "guardrails": [
         "Latest observed Lean kernel CI needs upstream repair before broad 'all green' or 'zero sorry' copy is repeated.",
         "Use exact theorem/module references for formal claims."
+      ],
+      "liveAuditNotes": [
+        "Putnam public language must stay at 1/12 truly discharged in Lean unless a current upstream proof report verifies more."
       ]
     },
     {
@@ -150,7 +168,8 @@
       "guardrails": [
         "Thesis v18.0 DOI is the current citation anchor; GitHub release list reconciliation remains an upstream action.",
         "Treat the thesis as the claim taxonomy, not blanket runtime proof."
-      ]
+      ],
+      "liveAuditNotes": []
     },
     {
       "name": "rosie",
@@ -167,7 +186,8 @@
         "https://github.com/szl-holdings/rosie/releases/tag/v1.0.1",
         "https://github.com/szl-holdings/rosie/releases/tag/uds-v0.2.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "amaru",
@@ -183,7 +203,8 @@
         "https://github.com/szl-holdings/amaru",
         "https://github.com/szl-holdings/amaru/releases/tag/uds-v0.2.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "sentra",
@@ -199,7 +220,8 @@
         "https://github.com/szl-holdings/sentra",
         "https://github.com/szl-holdings/sentra/releases/tag/uds-v0.2.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "uds-mesh",
@@ -215,7 +237,8 @@
         "https://github.com/szl-holdings/uds-mesh",
         "https://github.com/szl-holdings/uds-mesh/releases/tag/uds-v0.2.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "vsp-otel",
@@ -231,7 +254,8 @@
         "https://github.com/szl-holdings/vsp-otel",
         "https://github.com/szl-holdings/vsp-otel/releases/tag/v0.1.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "szl-cookbook",
@@ -247,7 +271,8 @@
         "https://github.com/szl-holdings/szl-cookbook",
         "https://github.com/szl-holdings/szl-cookbook/releases/tag/v0.1.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "agi-forecast",
@@ -263,7 +288,8 @@
         "https://github.com/szl-holdings/agi-forecast",
         "https://github.com/szl-holdings/agi-forecast/releases/tag/v0.1.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "vessels",
@@ -281,6 +307,10 @@
       ],
       "guardrails": [
         "Use as the active vertical demo wedge; avoid implying every vertical scaffold is funded or production-ready."
+      ],
+      "liveAuditNotes": [
+        "uds-v0.3.0 release was observed with zero release assets; use uds-v0.2.0 for signed-asset demonstration until v0.3.x assets land.",
+        "GHCR manifest checks returned an authentication challenge in this environment; package availability needs owner-side push or visibility confirmation."
       ]
     },
     {
@@ -296,7 +326,8 @@
       "evidence": [
         "https://github.com/szl-holdings/counsel"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "terra",
@@ -311,7 +342,8 @@
       "evidence": [
         "https://github.com/szl-holdings/terra"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "carlota-jo",
@@ -326,7 +358,8 @@
       "evidence": [
         "https://github.com/szl-holdings/carlota-jo"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "szl-trust",
@@ -341,7 +374,8 @@
       "evidence": [
         "https://github.com/szl-holdings/szl-trust"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": "szl-brand",
@@ -357,7 +391,8 @@
         "https://github.com/szl-holdings/szl-brand",
         "https://github.com/szl-holdings/szl-brand/releases/tag/v0.1.0"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     },
     {
       "name": ".github",
@@ -372,7 +407,8 @@
       "evidence": [
         "https://github.com/szl-holdings/.github"
       ],
-      "guardrails": []
+      "guardrails": [],
+      "liveAuditNotes": []
     }
   ]
 }

@@ -19,6 +19,7 @@ tests, and a Hugging Face mirror that points back to canonical provenance.
 | GitHub validation | Doctrine Build, CodeQL, SBOM, Trivy, DCO, docs, links, and secret scan pass on the branch. |
 | Hugging Face path | Manual workflow publishes the verified payload to `SZLHOLDINGS/a11oy-v19-substrate` when `HF_TOKEN` is available. |
 | UDS / Warhacker proof point | `docs/WARHACKER_UDS_PROOF_POINT.md` ties the package, manifest, attestation, receipt-chain, and tamper-test demo together. |
+| Live correction evidence | `huggingface/DEMO_RECEIPT_SAMPLE.jsonl` records the current blocked claims: inflated Putnam discharge, unmerged gate totals, and unsigned/empty v0.3.x release language. |
 
 ## Investor framing
 
@@ -67,6 +68,15 @@ as `KORA`, `LUMINA`, `PARAGON`, or active `Lyte` copy.
 | Add UDS release artifact attestation parity | Next hardening pass. |
 | Repair upstream proof/release caveats | `lutar-lean` latest proof CI and `ouroboros-thesis` v18 release reconciliation should be fixed before broad all-green proof language. |
 | Promote excluded vertical scaffolds to implementation-backed surfaces | Funding roadmap; tracked in ecosystem registry. |
+
+## Current correction ledger
+
+| Area | Investor-safe wording |
+| --- | --- |
+| Putnam | `1/12` is the current truly discharged Lean posture; additional claims require a current upstream proof report. |
+| Runtime gates | A11oy main can cite seven policy gate files and ten theorem-runtime manifest entries. G36-G40 and broader totals are not live until merged and validated. |
+| UDS v0.3.0 | A11oy v0.3.0 has SBOM assets only; Vessels v0.3.0 has zero release assets. Use earlier signed assets or future owner-pushed assets for signed payload proof. |
+| GHCR | Treat GHCR package availability as founder/owner release work until package push and visibility are confirmed. |
 
 ## Verification command block
 

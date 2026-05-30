@@ -7,6 +7,12 @@ explicitly out of active-demo scope.
 
 ## Start here
 
+Canonical public links:
+
+- GitHub hub: <https://github.com/szl-holdings/a11oy>
+- Hugging Face mirror: <https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate>
+- Latest A11oy release: <https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1>
+
 | Step | What to open | What it proves |
 | --- | --- | --- |
 | 1 | [`README.md`](../README.md) | A11oy is the operational hub, not an LLM checkpoint. |
@@ -18,15 +24,7 @@ explicitly out of active-demo scope.
 | 7 | [`huggingface/README.md`](../huggingface/README.md) | Hugging Face is a generated diligence mirror tied back to GitHub. |
 | 8 | [`docs/UDS_FRONTIER_GAP_MAP.md`](UDS_FRONTIER_GAP_MAP.md) | UDS/Zarf fit and gaps are mapped against public Defense Unicorns docs. |
 | 9 | [`docs/ANCIENT_TEXTS_FORMULA_LINEAGE.md`](ANCIENT_TEXTS_FORMULA_LINEAGE.md) | Ancient/pre-modern source lineage is mapped to formulas and runtime hooks with caveats. |
-| 10 | [`docs/ECOSYSTEM_OPERATING_SYSTEM.md`](ECOSYSTEM_OPERATING_SYSTEM.md) | Repos, formulas, anatomy, UDS, HF, autonomy, and benchmarks are routed through one claim-status OS. |
-| 11 | [`docs/AUTONOMOUS_LEARNING_DOCTRINE.md`](AUTONOMOUS_LEARNING_DOCTRINE.md) | “Dreaming” and learning are staged as receipt-backed proposals with human promotion, not self-deploying production mutation. |
-| 12 | [`docs/benchmark-evolution-doctrine.md`](benchmark-evolution-doctrine.md) | Putnam and benchmark goals are raw-score, corpus-pinned, receipt-backed, and judge-audited. |
-| 13 | [`docs/PUBLIC_PATTERN_SYNTHESIS.md`](PUBLIC_PATTERN_SYNTHESIS.md) | Public ecosystem inspiration is transformed into original SZL artifacts without private/unlicensed copying or implied endorsement. |
-| 14 | [`docs/controls-evidence-map.json`](controls-evidence-map.json) | A11oy-native controls map binds claims to evidence paths, validators, receipts, HF exposure, and UDS boundaries. |
-| 15 | [`docs/action-contract-manifest.json`](action-contract-manifest.json) | Original operator intent contract captures ingress, identity, policy, evidence, replay, and egress limits. |
-| 16 | [`docs/GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md`](GITHUB_ENTERPRISE_ACCESS_RUNBOOK.md) | Enterprise seats help only after org membership, repo/team write permission, SSO, and token/App scope are configured. |
-| 17 | [`docs/CROSS_REPO_HANDOFF_READINESS.md`](CROSS_REPO_HANDOFF_READINESS.md) | Blocked sibling work is queued as checksum-backed proxy patches with target validation requirements and no completion overclaims. |
-| 18 | [`docs/PHASE_COMPLETION_REPORT.md`](PHASE_COMPLETION_REPORT.md) | A11oy-local phase closeout: complete locally, cross-repo phases access-pending until target CI evidence exists. |
+| 10 | [`huggingface/DEMO_RECEIPT_SAMPLE.jsonl`](../huggingface/DEMO_RECEIPT_SAMPLE.jsonl) | A small receipt-chain demo blocks inflated UDS, Putnam, and gate-count claims. |
 
 ## One-line thesis
 
@@ -43,25 +41,8 @@ provenance contract.
 | Deploy manifest verification | Demo-ready | `pnpm payload:verify` |
 | Hugging Face payload generation | Demo-ready | `pnpm payload:huggingface` |
 | Operational tarball bundle | Demo-ready | `pnpm payload:bundle` and `pnpm payload:bundle:verify` |
-| UDS/Zarf handoff | Demo-ready as package/operator proof point | `artifacts/a11oy-uds/README.md`, `artifacts/a11oy-uds/docs/*`, `deploy/zarf.yaml` |
-| Vessels vertical | Active vertical demo wedge | `https://github.com/szl-holdings/vessels` and `uds-v0.2.0` release |
-| Formula gates G36–G40 (DP, VCG, RDP, CertRadius, RS) | Demo-ready — 40 gates total (38 GREEN-discharged; G37 STAGED-ADVISORY) | `packages/policy/src/gates/` — Doctrine v6, lutar-lean#116 companion |
-
-### Gate count: 35 → 40
-
-This release extends the anchor formula gate set from 35 to 40 by adding five runtime gates:
-
-| Gate | Name | Status | Lean theorem | Reference |
-|------|------|--------|--------------|----------|
-| G36 | GaussianMechanismDP | GREEN | `gaussianNoiseSufficiency` | Dwork & Roth 2014, DOI:10.1561/0400000042 |
-| G37 | VCGTruthfulness | **STAGED-ADVISORY** (1 sorry in dominant-strategy proof; `vcgDominantStrategyTruth`) | `vcgDominantStrategyTruth` | Vickrey 1961, Clarke 1971, Groves 1973 |
-| G38 | RDPSequentialComposition | GREEN | `rdpSequentialCompositionAdditivity` | Mironov 2017, arXiv:1702.07476 |
-| G39 | CertifiedRobustnessRadius | GREEN | `certifiedRobustnessRadiusBound` | Cohen, Rosenfeld & Kolter 2019, arXiv:1902.02918 |
-| G40 | ReedSolomonSingletonBound | GREEN | `reedSolomonMDSProperty` | Reed & Solomon 1960, Singleton 1964 |
-
-> **G37 STAGED-ADVISORY:** The `vcgDominantStrategyTruth` Lean theorem carries 1 sorry in the argmax uniqueness sub-proof. The gate-level receipt validator (`vcgReceiptValid_iff`) has 0 sorries. G37 is non-blocking by default (`enforced: false`) and emits an advisory rather than a hard deny until the sorry is discharged. Lean discharge route is documented in `lutar-lean/Lutar/MechanismDesign/VCGTruthfulness.lean`.
-
-Lean stubs for all five gates are tracked in [`szl-holdings/lutar-lean#116`](https://github.com/szl-holdings/lutar-lean/pull/116). Total sorry count increase: +7 (in formula-extension files under `Lutar/DP/`, `Lutar/Robustness/`, `Lutar/CodingTheory/`, `Lutar/MechanismDesign/` — not kernel sorries).
+| UDS/Zarf handoff | Demo-ready as package/operator proof point | `artifacts/a11oy-uds/README.md`, `artifacts/a11oy-uds/docs/*`, `deploy/zarf.yaml`; do not present SBOM-only or empty v0.3.0 releases as signed binary payloads |
+| Vessels vertical | Active vertical demo wedge | `https://github.com/szl-holdings/vessels`; use `uds-v0.2.0` for signed-asset evidence until `uds-v0.3.x` assets land |
 
 ## What is intentionally not in the active demo
 
@@ -146,6 +127,9 @@ sequenceDiagram
 | Operational tarball has checksum sidecar | `release-payload` | `scripts/build_operational_payload.py` |
 | Thesis v18.0 is the current claim anchor | `thesis-anchor` | DOI `10.5281/zenodo.20434276` |
 | Lean proofs exist as a public substrate | `lean-backed-needs-current-ci` | `szl-holdings/lutar-lean`, DOI `10.5281/zenodo.20434308` |
+| A11oy live runtime gate count | `verified-runtime` | Seven files under `packages/policy/src/gates`; ten entries in `docs/theorem-runtime-manifest.json` |
+| Putnam Lean discharge posture | `lean-backed-needs-upstream-ci` | Public language remains `1/12` truly discharged until current upstream proof reports verify more |
+| Vessels signed-asset posture | `release-payload` / guarded | `vessels` `uds-v0.3.0` has zero assets; `uds-v0.2.0` has tarball, `.sig`, `.sha256`, and public key |
 
 ## UDS / Warhacker proof point
 
@@ -162,6 +146,15 @@ The package should be described as **UDS/Zarf-compatible** and operator-ready
 for proof-point review. Do not imply Defense Unicorns endorsement, catalog
 acceptance, or partnership unless those become explicit public facts.
 
+## Live demo guardrails
+
+| Claim | Allowed investor wording |
+| --- | --- |
+| Putnam | “Current Lean-discharge language is `1/12`; additional Putnam progress is upstream proof work until verified.” |
+| A11oy gates | “Seven live policy gate files and ten theorem-runtime manifest entries are in main; larger gate totals are PR/roadmap until merged.” |
+| UDS v0.3.0 | “A11oy has SBOM assets; Vessels has an empty v0.3.0 release. Signed binary payload proof uses earlier signed releases or future owner-pushed assets.” |
+| GHCR | “Package visibility/push needs owner confirmation when unauthenticated checks return 401.” |
+
 ## Verification block
 
 ```bash
@@ -177,6 +170,17 @@ pnpm payload:bundle
 pnpm payload:bundle:verify
 npm test --prefix packages/receipt-substrate
 ```
+
+## CI / workflow evidence
+
+| Workflow or check | What it proves |
+| --- | --- |
+| `Doctrine Build` / `.github/workflows/doctrine.yml` | Doctrine packages test, typecheck, build, and feed the operational payload lane. |
+| `Tests` / `.github/workflows/tests.yml` | Root Jest and package tests remain visible as the general regression lane. |
+| `CodeQL` / `.github/workflows/codeql.yml` | JavaScript/TypeScript and workflow code scanning runs on GitHub. |
+| `SBOM` / `.github/workflows/sbom.yml` | CycloneDX/SPDX SBOM generation and filesystem scanning are part of release evidence. |
+| `DCO` / `.github/workflows/dco.yml` | Commits carry sign-off provenance for PR review. |
+| `Publish Hugging Face Payload` / `.github/workflows/huggingface.yml` | Regenerates and publishes the HF mirror from tracked source when `HF_TOKEN` is configured. |
 
 ## Investor FAQ
 
@@ -207,4 +211,10 @@ No broad proof-completeness claim should be made without current upstream proof
 reports. The strong, truthful claim is that A11oy has a public proof substrate,
 runtime tests, UDS payload manifests, and a claim contract that prevents
 unsupported marketing language from becoming the public story.
+
+### What must happen before production or customer deployment?
+
+Owner-side signed release assets, GHCR package pushes or public visibility
+confirmation, current upstream proof reports for formal claims, customer
+environment hardening, and deployment-specific legal/security review.
 

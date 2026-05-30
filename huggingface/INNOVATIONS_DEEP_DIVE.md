@@ -14,7 +14,7 @@ verifiable audit trail.
 hashes payloads, links receipts through `prev_receipt_hash`, checks quorum
 signatures, and verifies replay/tamper failures.
 
-**Evidence.** `EVAL_TRACE_SAMPLE.jsonl` shows two generated receipts using the
+**Evidence.** `DEMO_RECEIPT_SAMPLE.jsonl` shows four generated receipts using the
 current receipt shape. GitHub contains the implementation and tests under
 `packages/receipt-substrate`.
 
@@ -47,7 +47,7 @@ steps to receipt-chain smoke tests and tamper checks.
 **Problem.** Research-heavy AI companies often overstate formal proof coverage.
 
 **A11oy mechanism.** `source/docs/PROVENANCE.md` defines allowed public-claim
-statuses: runtime-verified, release-payload, thesis-anchor,
+statuses: runtime-verified, release-payload, release-payload-needs-assets, thesis-anchor,
 lean-backed-current-green, lean-backed-needs-upstream-ci, roadmap, historical.
 
 **Evidence.** Every high-level claim in this packet points back to GitHub files,

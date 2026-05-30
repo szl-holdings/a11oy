@@ -28,6 +28,7 @@ A11oy turns those questions into artifacts.
 | UDS/Zarf alignment | Operator proof-point docs and package metadata under the A11oy UDS lane. |
 | Org map | 19 public repos classified in `ecosystem-readiness-report.json`. |
 | Public mirror | This Hugging Face packet is generated from tracked GitHub source. |
+| Live correction guardrails | `DEMO_RECEIPT_SAMPLE.jsonl` records blocked claims for Vessels `uds-v0.3.0` signed assets, inflated Putnam discharge counts, and unmerged gate totals. |
 
 ## Active ecosystem
 
@@ -54,4 +55,15 @@ The clean demo path is:
 3. Sentra / Amaru / Rosie as supporting receipt, drift, and minting components.
 4. UDS/Zarf packaging as the operator deployment story.
 5. Hugging Face as the public diligence mirror.
+
+## What remains gated
+
+- **Putnam:** current investor language should say `1/12` truly discharged in
+  Lean unless a current upstream proof report proves more.
+- **UDS v0.3.x:** signed binary assets and GHCR package pushes remain
+  owner-side release work; do not treat empty or SBOM-only releases as signed
+  deployment payloads.
+- **Gate totals:** this repo can cite seven live policy gate files and ten
+  theorem-runtime manifest entries today; larger counts are PR/roadmap until
+  merged and verified.
 
