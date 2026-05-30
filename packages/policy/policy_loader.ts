@@ -180,8 +180,9 @@ function getValidator(schemaPath: string): Ajv.ValidateFunction {
   const ajv = new Ajv({ allErrors: true, strict: false, coerceTypes: false });
   addFormats(ajv);
   const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
-  _validator = ajv.compile(schema);
-  return _validator;
+  const validator = ajv.compile(schema);
+  _validator = validator;
+  return validator;
 }
 
 // ── Semantic Validators ───────────────────────────────────────────────────────
