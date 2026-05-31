@@ -18,6 +18,13 @@ PGP key: TBD — request the current key at security@szlholdings.com.
 We do not publish a fingerprint here until a key is in place, to avoid asserting
 a key that cannot be verified.
 
+## Doctrine v7
+
+All vulnerability disclosures are governed by SZL Doctrine v7 (canonical, supersedes v6):
+- No fake security claims
+- STAGED-ADVISORY label for gates not yet machine-checked
+- DSSE receipts on every governance decision
+
 ## Response timeline
 
 - Acknowledgment SLA: within 5 business days of receipt.
