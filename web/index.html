@@ -59,5 +59,16 @@
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+  
+  <!-- Rosie floating operator widget (additive). Canonical source:
+       SZLHOLDINGS/README assets/rosie. Set data-a11oy-base / data-amaru-base to the
+       live substrate endpoints (or inject at build time) when available; until then
+       Rosie appears and is honest that she is not wired to a backend on this surface. -->
+  <link rel="stylesheet" href="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.css">
+  <script src="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.js"
+          data-surface="a11oy"
+          data-a11oy-base=""
+          data-amaru-base=""
+          defer></script>
+</body>
 </html>
