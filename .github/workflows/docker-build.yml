@@ -13,6 +13,10 @@ name: Container build (Dockerfile)
 #     for every build and uploaded as an artifact; on release it is attached to
 #     the published image via cosign attach.
 #
+# L1 fix (2026-05-31): REVISION build-arg is now passed as github.sha so that
+# the runtime ENV A11OY_GIT_SHA is populated in the container and /healthz
+# returns the real deployed SHA. Reference: red-team finding L1.
+#
 # Cosign keyless verification (no stored key; GitHub OIDC + Fulcio + Rekor):
 #   cosign verify \
 #     --certificate-identity-regexp \
@@ -80,6 +84,7 @@ jobs:
           file: Dockerfile
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
+            REVISION=${{ github.sha }}
           # Push only on a published release; load into the local daemon
           # otherwise so the smoke test below can run.
           push: ${{ github.event_name == 'release' }}

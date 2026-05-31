@@ -1,0 +1,29 @@
+# .doctrine-allowlist
+#
+# Files listed here legitimately enumerate banned tokens for detection/reference
+# purposes (e.g. ban-list definitions, enforcement documentation, test fixtures).
+# The doctrine-grep CI gate excludes these paths from the banned-token scan.
+#
+# Format: one path per line, relative to the repository root.
+# Lines starting with # are comments.
+#
+# Authority: Founder Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173)
+# Last updated: 2026-05-31
+
+# Doctrine enforcement documentation — enumerates the banned token list by design
+AGENT_DOCTRINE_ENFORCEMENT.md
+
+# The grep workflow itself encodes the banned-token regex as data (not prose),
+# but the workflow file is included here as belt-and-suspenders in case a future
+# editor adds prose examples inside it.
+.github/workflows/doctrine-grep.yml
+
+# Test fixtures for the doctrine-grep gate (fail/pass samples)
+.github/test-fixtures/doctrine-grep/
+
+# Red-team report — references banned tokens when quoting findings
+szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/RED_TEAM_REPORT.md
+szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/RED_TEAM_FINDINGS.jsonl
+
+# CI hardening report — references banned tokens as evidence/examples
+szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/CI_HARDENING_REPORT.md

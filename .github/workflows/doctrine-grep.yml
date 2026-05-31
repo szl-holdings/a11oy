@@ -1,0 +1,136 @@
+name: Doctrine — banned-token grep gate
+
+# Runs on every PR and every push to main.
+# No path filter: the SPA (web/src/**), packages/**, and all docs are scanned.
+#
+# Design:
+#   - The banned-token pattern is stored as a shell variable (data), not prose,
+#     so this workflow file does not trip its own check.
+#   - Tailwind utility classes (leading-{none,tight,snug,normal,relaxed,loose,N})
+#     are excluded via a second grep that strips those matches before evaluation.
+#   - Files listed in .doctrine-allowlist are excluded from the scan. That file
+#     is the only legitimate way to opt a path out; self-granted exemptions
+#     (e.g. __doctrine-scanner-exempt keys in package.json) are NOT honoured
+#     by this gate and are flagged by the M2 finding.
+#
+# Authority: Doctrine v7 §1, Founder Stephen P. Lutar Jr.
+# ORCID: 0009-0001-0110-4173
+#
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  banned-token-grep:
+    name: Banned-token scan (Doctrine v7 §1)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0   # need history for PR diff mode
+
+      - name: Build file list
+        id: filelist
+        shell: bash
+        run: |
+          # For pull_request events: scan only files changed in the PR diff.
+          # For push-to-main: scan the full tree (so stale files don't accumulate).
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-only \
+              "origin/${{ github.base_ref }}" \
+              "${{ github.sha }}" \
+              > /tmp/changed_files.txt
+            echo "mode=diff" >> "$GITHUB_OUTPUT"
+          else
+            git ls-files > /tmp/changed_files.txt
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Remove allowlisted paths from the scan list.
+          if [ -f .doctrine-allowlist ]; then
+            while IFS= read -r line; do
+              # Skip blank lines and comments.
+              [[ -z "$line" || "$line" == \#* ]] && continue
+              grep -v "^${line}" /tmp/changed_files.txt > /tmp/changed_files_tmp.txt \
+                || true
+              mv /tmp/changed_files_tmp.txt /tmp/changed_files.txt
+            done < .doctrine-allowlist
+          fi
+
+          TOTAL=$(wc -l < /tmp/changed_files.txt | tr -d ' ')
+          echo "Scanning ${TOTAL} file(s) (mode=${{ steps.filelist.outputs.mode }})."
+          echo "total=${TOTAL}" >> "$GITHUB_OUTPUT"
+
+      - name: Grep for banned tokens
+        id: grep
+        shell: bash
+        run: |
+          # -----------------------------------------------------------------------
+          # Tokens are stored as shell variables (data), not inline prose, so
+          # this workflow file does not trigger its own scan.
+          #
+          # Two-pass strategy for the word "leading":
+          #   Pass 1 — all banned tokens except bare "leading"; these are always
+          #            flagged regardless of Tailwind context on the same line.
+          #   Pass 2 — bare \bleading\b only; Tailwind leading-* classes on the
+          #            same line suppress the hit (per-line filter is correct here
+          #            because a line with only "leading-tight" is fine, but a line
+          #            with only bare "leading" as a marketing word is not).
+          # -----------------------------------------------------------------------
+          BANNED_NO_LEADING='(revolutionary|unprecedented|world-class|seamless|industry-leading|cutting-edge|game-changing|breakthrough|best-in-class|immaculate|state-of-the-art|premier|Bo11y|Bolly|Jarvis|Wayne Slaughter)'
+          TAILWIND_LEADING_RE='leading-(none|tight|snug|normal|relaxed|loose|[0-9]+)'
+
+          HITS_FILE=/tmp/doctrine_hits.txt
+          > "$HITS_FILE"
+
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+
+            # Pass 1: all banned tokens except bare "leading".
+            # -H ensures filename is included in the output (file:line:content).
+            grep -nHEi "$BANNED_NO_LEADING" "$file" \
+              >> "$HITS_FILE" \
+              || true
+
+            # Pass 2: bare \bleading\b — suppress lines that contain a Tailwind
+            # leading-* class (those are utility classes, not marketing prose).
+            grep -nHEi '\bleading\b' "$file" \
+              | grep -vEi "$TAILWIND_LEADING_RE" \
+              >> "$HITS_FILE" \
+              || true
+          done < /tmp/changed_files.txt
+
+          # Count hits (non-empty lines).
+          HIT_COUNT=$(grep -c . "$HITS_FILE" 2>/dev/null || echo 0)
+          echo "hit_count=${HIT_COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Report and fail on hits
+        shell: bash
+        run: |
+          HIT_COUNT=${{ steps.grep.outputs.hit_count }}
+          if [ "${HIT_COUNT}" -gt 0 ]; then
+            echo "::error::Doctrine v7 §1 violation: ${HIT_COUNT} banned-token hit(s) found."
+            echo ""
+            echo "Each match below must either be removed or — if it is a factual"
+            echo "claim — accompanied by an adjacent citation block within 5 lines."
+            echo ""
+            echo "Hits (file:line:content):"
+            cat /tmp/doctrine_hits.txt
+            echo ""
+            echo "If this file legitimately enumerates banned tokens for detection"
+            echo "purposes, add it to .doctrine-allowlist (founder approval required)."
+            exit 1
+          fi
+          echo "Doctrine v7 §1 — banned-token scan: PASS (0 hits)."
