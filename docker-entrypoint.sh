@@ -1,15 +1,18 @@
 #!/bin/sh
 # a11oy container entrypoint.
 #
-# a11oy is a TypeScript policy/receipt substrate (library + CLI), not a
-# long-running network service. This image is therefore a CLI image: it
-# bundles the doctrine packages (built to dist/) and the receipt-substrate
-# CLI, and dispatches to them.
+# a11oy is a TypeScript policy/receipt substrate. This image bundles the
+# doctrine packages (built to dist/) and the receipt-substrate CLI, and can run
+# in two modes:
+#   - CLI mode:   a11oy <subcommand> [args...]  (selftest, receipt, ...)
+#   - serve mode: a11oy serve --port 8080        (HTTP server with /healthz,
+#                 /readyz, /v1/ledger, /v1/verify, /v1/policy/evaluate)
+# The serve mode is what the Kubernetes liveness/readiness probes target.
 #
 # Authored for SZL Holdings. Signed-off per repository DCO.
 set -eu
 
-APP_DIR="/app"
+APP_DIR="${A11OY_APP_DIR:-/app}"
 VERSION="$(node -p "require('${APP_DIR}/package.json').version" 2>/dev/null || echo "unknown")"
 
 print_help() {
@@ -31,6 +34,14 @@ Usage:
                              Optional:
                                --protocol <mcp> --quorum <1-of-1> \\
                                --nodes <a,b> --lambda-axes <Λ7,...>
+  a11oy serve [args...]      Boot the HTTP server. Exposes:
+                               GET  /healthz   GET  /readyz
+                               GET  /v1/ledger?limit=N   GET /v1/ledger/{hash}
+                               POST /v1/verify   POST /v1/policy/evaluate
+                             Optional:
+                               --port <8080> --host <0.0.0.0> --ledger <path>
+                             Env: A11OY_PORT, A11OY_PROOF_LEDGER_PATH,
+                               A11OY_GIT_SHA
 
 Examples:
   a11oy receipt --out /tmp/receipts.jsonl --actor did:example:operator \\
@@ -58,6 +69,11 @@ case "${1:-}" in
     shift
     exec node --experimental-strip-types \
       "${APP_DIR}/packages/receipt-substrate/src/cli.ts" "$@"
+    ;;
+  serve)
+    shift
+    exec node --experimental-strip-types \
+      "${APP_DIR}/packages/receipt-substrate/src/serve.ts" "$@"
     ;;
   *)
     # Pass through to node for any other invocation (e.g. running a script).

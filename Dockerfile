@@ -3,14 +3,17 @@
 # a11oy — multi-stage container build.
 #
 # a11oy is a TypeScript policy / receipt substrate. It is a library plus a
-# CLI (receipt-substrate), not a long-running network service, so this is a
-# CLI image: ENTRYPOINT dispatches to the bundled CLI. The doctrine packages
+# CLI (receipt-substrate) that can also run an HTTP server. ENTRYPOINT
+# dispatches to the bundled CLI or, when given the `serve` subcommand, boots
+# the HTTP server (/healthz, /readyz, /v1/ledger, /v1/verify,
+# /v1/policy/evaluate) that the Kubernetes probes target. The doctrine packages
 # (@a11oy/core, @a11oy/connection) are compiled to dist/ and importable by
 # downstream Node tooling.
 #
 # Build:  docker build -t a11oy:seriesa-test .
 # Run:    docker run --rm a11oy:seriesa-test --version
 #         docker run --rm a11oy:seriesa-test --help
+#         docker run --rm -p 8080:8080 a11oy:seriesa-test serve --port 8080
 #
 # Authored for SZL Holdings. Signed-off per repository DCO.
 
@@ -85,9 +88,21 @@ ARG VERSION=1.0.0
 LABEL org.opencontainers.image.source="https://github.com/szl-holdings/a11oy" \
       org.opencontainers.image.licenses="LicenseRef-SZL-Proprietary" \
       org.opencontainers.image.title="a11oy" \
-      org.opencontainers.image.description="Governed policy / receipt substrate: Layer 6 formula gates, receipt chaining, and doctrine runtime (CLI image)." \
+      org.opencontainers.image.description="Governed policy / receipt substrate: Layer 6 formula gates, receipt chaining, and doctrine runtime (CLI plus `serve` HTTP mode)." \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.vendor="SZL Holdings"
 
+# Default port for serve mode; the k8s probes target /healthz on this port.
+EXPOSE 8080
+ENV A11OY_PORT=8080
+
+# HEALTHCHECK probes the serve-mode /healthz endpoint. It is a no-op for plain
+# CLI invocations (which exit immediately), and gives orchestrators a real
+# liveness signal when the container is run as `serve`.
+HEALTHCHECK --interval=20s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.A11OY_PORT||8080)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 ENTRYPOINT ["./docker-entrypoint.sh"]
+# Default to CLI help. Long-running deployments override this with `serve`
+# (see deploy/manifests/a11oy-deployment.yaml).
 CMD ["--help"]
