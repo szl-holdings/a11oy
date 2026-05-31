@@ -1,9 +1,14 @@
 /**
  * Multi-Agent Cooperative Termination Gate
  *
- * @lean_theorem Lutar.Thesis.MultiAgent.all_agents_terminate
+ * @lean_theorem Lutar.Thesis.MultiAgent.th_v18_15b_list_termination
  * @lean_file    Lutar/Thesis/TH_V18_15_MultiAgentFairness.lean
- * @lean_status  GREEN — 0 sorries, pure Lean 4 induction
+ * @lean_status  UNVERIFIED — theorem name "all_agents_terminate" does not exist in TH_V18_15_MultiAgentFairness.lean;
+ *               closest match: th_v18_15b_list_termination (proven, 0 sorries).
+ *               The file contains th_v18_15a..th_v18_15f but no top-level alias.
+ *               Per PhD-Math review 2026-05-31 (Pass 1, Binding #1, Finding F3).
+ * @lean_todo    Add theorem all_agents_terminate as a top-level alias wrapping
+ *               th_v18_15b_list_termination in lutar-lean, then restore GREEN.
  * @lean_commit  see LEAN_COMMIT_SHA env var; pin at CI time from lutar-lean/lean-toolchain
  *
  * Theorem (Lynch 1996 Distributed Algorithms Ch.8):
@@ -176,7 +181,7 @@ export function runMultiAgentTermination(
 
   const receipt: MultiAgentDsseReceipt = {
     formula: "all_agents_terminate",
-    lean_theorem: "Lutar.Thesis.MultiAgent.all_agents_terminate",
+    lean_theorem: "Lutar.Thesis.MultiAgent.th_v18_15b_list_termination", // UNVERIFIED: all_agents_terminate does not exist; closest is th_v18_15b_list_termination. See PhD-Math F3.,
     lean_file: "Lutar/Thesis/TH_V18_15_MultiAgentFairness.lean",
     lean_commit_sha,
     inputs_hash,
