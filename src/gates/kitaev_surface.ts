@@ -22,7 +22,7 @@
  *   - Kitaev (2003) DOI 10.1016/S0003-4916(02)00018-0
  *   - Bravyi & Kitaev (1998) arXiv:quant-ph/9811052
  *
- * Doctrine V6: No new axioms. No sorries. STAGED label: FULLY WIRED.
+ * Doctrine v7: No new axioms. No sorries. STAGED label: FULLY WIRED.
  */
 
 import { createHash } from "crypto";
