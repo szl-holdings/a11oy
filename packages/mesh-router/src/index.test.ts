@@ -105,30 +105,112 @@ test("evaluateAmaruChakra POSTs to /chakra/{name}/evaluate with the body", async
   }
 });
 
-test("requestSentraVerdict returns the real allow/deny verdict from the server", async () => {
-  const srv = await bootServer(() => ({ status: 200, json: { decision: "allow", reason: "below threshold" } }));
+test("requestSentraVerdict POSTs /v1/inspect with the anatomy-contracts body shape", async () => {
+  // Sentra ships runtime/immune_server.py exposing POST /v1/inspect with body
+  // {action, actionId, traceparent?}. mesh-router must hit that path with that
+  // body shape and surface sentra's `rationale` as `reason`.
+  const srv = await bootServer(() => ({
+    status: 200,
+    json: {
+      actionId: "a-1",
+      decision: "allow",
+      gate: "sentra.immune.signature-scan",
+      decidedBy: "sentra.immune",
+      rationale: "below threshold",
+      lambdaScore: 0,
+      receiptHash: "",
+      traceparent: "00-0123456789abcdef0123456789abcdef-fedcba9876543210-01",
+    },
+  }));
   try {
     const verdict = await requestSentraVerdict(
       { sentra: { baseUrl: srv.baseUrl } },
       { actionId: "a-1", kind: "egress", payload: { bytes: 10 } },
     );
     assert.equal(verdict.decision, "allow");
+    assert.equal(verdict.reason, "below threshold");
     assert.equal(srv.calls[0].method, "POST");
-    assert.equal(srv.calls[0].url, "/v1/verdict");
+    assert.equal(srv.calls[0].url, "/v1/inspect");
+    // The body must satisfy sentra's contract: {action, actionId}.
+    const body = JSON.parse(srv.calls[0].body);
+    assert.equal(body.actionId, "a-1");
+    assert.ok(body.action, "body.action must be present");
+    assert.equal(body.action.kind, "egress");
+    assert.equal(body.action.bytes, 10);
+  } finally {
+    await srv.close();
+  }
+});
+
+test("requestSentraVerdict propagates traceparent into the /v1/inspect body when provided", async () => {
+  const srv = await bootServer(() => ({
+    status: 200,
+    json: {
+      actionId: "a-tp",
+      decision: "deny",
+      rationale: "signature match",
+    },
+  }));
+  try {
+    const tp = "00-0123456789abcdef0123456789abcdef-fedcba9876543210-01";
+    const verdict = await requestSentraVerdict(
+      { sentra: { baseUrl: srv.baseUrl } },
+      { actionId: "a-tp", kind: "threat", payload: { cmd: "rm -rf /" }, traceparent: tp },
+    );
+    assert.equal(verdict.decision, "deny");
+    assert.equal(verdict.reason, "signature match");
+    const body = JSON.parse(srv.calls[0].body);
+    assert.equal(body.traceparent, tp);
   } finally {
     await srv.close();
   }
 });
 
 test("requestSentraVerdict FAILS CLOSED (deny) when sentra is unreachable", async () => {
-  // No server: this is the real-world state today (sentra exposes no verdict
-  // route). The immune organ being absent must never silently allow.
+  // Hardened (post-merge wave finding): sentra DOES ship /v1/inspect now, but
+  // operational reality includes pod restarts, network blips, mesh outages.
+  // The immune organ being unreachable must never silently allow.
   const verdict = await requestSentraVerdict(
     { sentra: { baseUrl: "http://127.0.0.1:1" } },
     { actionId: "a-2", kind: "threat", payload: {} },
   );
   assert.equal(verdict.decision, "deny");
   assert.ok(verdict.reason && verdict.reason.length > 0);
+});
+
+test("requestSentraVerdict FAILS CLOSED on a 404 (legacy /v1/verdict not exposed)", async () => {
+  // Defence in depth: if sentra is rolled back to a build that does not have
+  // /v1/inspect, the call returns 404 and we deny rather than fail open.
+  const srv = await bootServer(() => ({ status: 404, json: { error: "not found" } }));
+  try {
+    const verdict = await requestSentraVerdict(
+      { sentra: { baseUrl: srv.baseUrl } },
+      { actionId: "a-404", kind: "egress", payload: {} },
+    );
+    assert.equal(verdict.decision, "deny");
+    assert.ok(verdict.reason && verdict.reason.length > 0);
+  } finally {
+    await srv.close();
+  }
+});
+
+test("requestSentraVerdict FAILS CLOSED when sentra returns a garbage decision", async () => {
+  // If sentra emits something other than "allow"|"deny" (e.g. a misconfigured
+  // build), we deny. Never trust an unrecognised verdict.
+  const srv = await bootServer(() => ({
+    status: 200,
+    json: { actionId: "a-bad", decision: "maybe", rationale: "unsure" },
+  }));
+  try {
+    const verdict = await requestSentraVerdict(
+      { sentra: { baseUrl: srv.baseUrl } },
+      { actionId: "a-bad", kind: "admission", payload: {} },
+    );
+    assert.equal(verdict.decision, "deny");
+    assert.ok(verdict.reason && verdict.reason.includes("unrecognised"));
+  } finally {
+    await srv.close();
+  }
 });
 
 test("requestSentraVerdict FAILS CLOSED when sentra not configured", async () => {
