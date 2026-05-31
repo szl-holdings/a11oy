@@ -9,7 +9,7 @@
  * Lean file: Lutar/PACBayes/CapabilityImprovementRate.lean
  * Lean commit: c4d1379568
  *
- * Doctrine v6 — sorry_undisclosed is a validation ERROR, not a warning.
+ * Doctrine v7 — sorry_undisclosed is a validation ERROR, not a warning.
  * Signed-off-by: SZL Engineering <eng@szl-holdings.com>
  */
 
@@ -237,10 +237,10 @@ function validatePayload(payload: Record<string, unknown>): string[] {
     );
   }
 
-  // Doctrine v6: sorry_undisclosed is an explicit violation
+  // Doctrine v7: sorry_undisclosed is an explicit violation
   if (payload.lean_build_status === "sorry_undisclosed") {
     errors.push(
-      "lean_build_status 'sorry_undisclosed' violates Doctrine v6 — all sorries must be named with discharge routes"
+      "lean_build_status 'sorry_undisclosed' violates Doctrine v7 — all sorries must be named with discharge routes"
     );
   }
 
