@@ -8,11 +8,13 @@
 #   REAL today:  all four manifests/*.yaml and attestations.jsonl exist and are
 #                referenced correctly; YAML parses; schema is valid Zarf v1.
 #   ROADMAP:     the image ghcr.io/szl-holdings/a11oy:v1.0.0-alpha is not yet
-#                published — a root Dockerfile (CLI image) and docker-build.yml
-#                were added in this pass to produce it. The deployment/service
-#                manifests assume a long-running HTTP server on :8080 with a
-#                /healthz probe; a11oy currently ships a CLI/library, not an
-#                HTTP server, so that server is roadmap, not present code.
+#                published — a root Dockerfile and docker-build.yml were added
+#                in an earlier pass to produce it.
+#   UPDATE (serve-mode pass): a11oy now ships an HTTP server via the `serve`
+#                subcommand (packages/receipt-substrate/src/serve.ts). The
+#                deployment runs it with `args: [serve, --port, 8080]`; the
+#                /healthz (liveness) and /readyz (readiness) probes target real
+#                routes. Image publication remains roadmap.
 #
 # Build:   zarf package create . --confirm
 # Inspect: zarf package inspect zarf-package-a11oy-amd64-1.0.0-alpha.tar.zst
