@@ -19,6 +19,10 @@ a11oy ${VERSION} — governed policy / receipt substrate (CLI image)
 Usage:
   a11oy --version            Print the a11oy version and exit.
   a11oy --help               Print this help and exit.
+  a11oy selftest             Run the in-process boot self-test. Emits, reads
+                             back, and verifies a receipt chain in a temp file
+                             (no network). Exits non-zero if the bundled
+                             receipt substrate is not functional in this image.
   a11oy receipt [args...]    Run the receipt-substrate CLI. It chains an
                              MCP-style tool-envelope receipt to a JSONL ledger.
                              Required args:
@@ -45,6 +49,10 @@ case "${1:-}" in
   -v|--version|version)
     echo "a11oy ${VERSION}"
     exit 0
+    ;;
+  selftest)
+    exec node --experimental-strip-types \
+      "${APP_DIR}/packages/receipt-substrate/src/selftest.ts"
     ;;
   receipt)
     shift

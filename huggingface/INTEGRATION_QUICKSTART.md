@@ -24,10 +24,14 @@ pnpm build:doctrine
 ```bash
 npm test --prefix packages/receipt-substrate
 npm run smoke --prefix packages/receipt-substrate
+npm run selftest --prefix packages/receipt-substrate
 ```
 
 The smoke command appends a local JSONL receipt and verifies the resulting hash
-chain.
+chain. The selftest command runs the same path against an ephemeral temp file
+(emit, append, read back, verify, plus a tampered-chain negative control) and
+exits non-zero if the bundled substrate is not functional — it is also wired
+into the container entrypoint as `a11oy selftest`.
 
 ## 4. Verify deploy payload integrity
 
