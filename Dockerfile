@@ -79,17 +79,17 @@ ENV A11OY_GIT_SHA=${REVISION}
 
 WORKDIR /app
 
-# Create a non-root user (uid 1000) to satisfy hardened (e.g. IL5) runtimes.
-RUN addgroup -g 1000 -S a11oy \
- && adduser  -u 1000 -S a11oy -G a11oy
+# node:22-alpine ships with the 'node' user (uid=1000, gid=1000). Re-creating a
+# group/user at the same GID/UID fails with "gid '1000' in use". Use the
+# existing 'node' user directly — uid 1000, gid 1000 — satisfies IL5 non-root.
 
 # Copy production node_modules and the built / source artifacts the CLI needs.
-COPY --from=builder --chown=a11oy:a11oy /app/node_modules ./node_modules
-COPY --from=builder --chown=a11oy:a11oy /app/package.json ./package.json
-COPY --from=builder --chown=a11oy:a11oy /app/packages ./packages
-COPY --from=builder --chown=a11oy:a11oy /app/web/packages/a11oy-core/dist       ./web/packages/a11oy-core/dist
-COPY --from=builder --chown=a11oy:a11oy /app/web/packages/a11oy-connection/dist ./web/packages/a11oy-connection/dist
-COPY --from=builder --chown=a11oy:a11oy /app/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/package.json ./package.json
+COPY --from=builder --chown=node:node /app/packages ./packages
+COPY --from=builder --chown=node:node /app/web/packages/a11oy-core/dist       ./web/packages/a11oy-core/dist
+COPY --from=builder --chown=node:node /app/web/packages/a11oy-connection/dist ./web/packages/a11oy-connection/dist
+COPY --from=builder --chown=node:node /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN chmod +x ./docker-entrypoint.sh
 
