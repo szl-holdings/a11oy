@@ -13,7 +13,7 @@
  * Protocol spec: RAE_1_PROTOCOL.md §2
  * Schema version: rae1.0
  *
- * Doctrine v6 — no fake lake-green, no new axioms.
+ * Doctrine v7 — no fake lake-green, no new axioms.
  * Signed-off-by: SZL Engineering <eng@szl-holdings.com>
  */
 
@@ -208,11 +208,11 @@ export interface RAE1Payload {
   /**
    * Build status of the Lean file at lean_commit_sha.
    *
-   * Doctrine v6: "sorry_undisclosed" is FORBIDDEN and will cause validation failure.
+   * Doctrine v7: "sorry_undisclosed" is FORBIDDEN and will cause validation failure.
    *
    * - "green": all proofs complete, 0 sorries
    * - "sorry_disclosed": sorries present but named and documented with discharge routes
-   * - "sorry_undisclosed": FORBIDDEN by Doctrine v6
+   * - "sorry_undisclosed": FORBIDDEN by Doctrine v7
    * - "failed": build did not exit 0
    */
   lean_build_status: "green" | "sorry_disclosed" | "sorry_undisclosed" | "failed";
