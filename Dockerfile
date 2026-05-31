@@ -61,6 +61,13 @@ FROM node:22-alpine AS runtime
 
 ENV NODE_ENV=production
 
+# L1 fix (2026-05-31): wire the build-time git SHA into the runtime environment
+# so /healthz can return the real deployed revision instead of "unknown".
+# REVISION is passed by the docker-build workflow as --build-arg REVISION=${{ github.sha }}.
+# Reference: red-team finding L1 — "/healthz reports sha:'unknown' in-container"
+ARG REVISION=unknown
+ENV A11OY_GIT_SHA=${REVISION}
+
 WORKDIR /app
 
 # Create a non-root user (uid 1000) to satisfy hardened (e.g. IL5) runtimes.
@@ -80,13 +87,14 @@ RUN chmod +x ./docker-entrypoint.sh
 USER 1000:1000
 
 # OCI image metadata. VERSION is overridable at build time:
-#   docker build --build-arg VERSION=1.0.0-alpha ...
+#   docker build --build-arg VERSION=1.0.0-alpha --build-arg REVISION=$(git rev-parse HEAD) ...
 ARG VERSION=1.0.0
 LABEL org.opencontainers.image.source="https://github.com/szl-holdings/a11oy" \
       org.opencontainers.image.licenses="LicenseRef-SZL-Proprietary" \
       org.opencontainers.image.title="a11oy" \
       org.opencontainers.image.description="Governed policy / receipt substrate: Layer 6 formula gates, receipt chaining, and doctrine runtime (CLI image)." \
       org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}" \
       org.opencontainers.image.vendor="SZL Holdings"
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
