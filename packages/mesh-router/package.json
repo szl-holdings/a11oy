@@ -1,0 +1,21 @@
+{
+  "name": "@szl-holdings/a11oy-mesh-router",
+  "version": "0.1.0",
+  "description": "Substrate-side typed HTTP router from a11oy to amaru (reasoning), sentra (policy verdict), and rosie (operator I/O)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "license": "Apache-2.0",
+  "author": "Stephen P. Lutar",
+  "repository": "github:szl-holdings/a11oy",
+  "scripts": {
+    "test": "node --experimental-strip-types src/index.test.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
+  }
+}
