@@ -1,131 +1,52 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite the SZL Holdings research thesis (Ouroboros Thesis v18) and reference this component."
-title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals."
-version: "1.0.1"
-date-released: "2026-05-29"
-abstract: >-
-  Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals. Component of the SZL Holdings governed AI decision infrastructure,
-  built on the Ouroboros Thesis v18.0 (DOI 10.5281/zenodo.20434276) and the Lean proof substrate (DOI 10.5281/zenodo.20434308).
+title: "a11oy — doctrine-bound agent orchestrator and substrate for SZL's receipt-bus"
+message: "If you use a11oy, please cite it as below."
 type: software
 authors:
   - family-names: Lutar
-    given-names: "Stephen P."
-    name-suffix: "Jr."
-
-    email: stephen@szlholdings.com
-    affiliation: SZL Holdings
+    given-names: Stephen P.
+    name-suffix: Jr.
     orcid: "https://orcid.org/0009-0001-0110-4173"
+    affiliation: "SZL Holdings, Inc."
+abstract: >-
+  a11oy is the doctrine-bound agent orchestrator and receipt-bus substrate of the SZL
+  governance stack. It enforces 45 anchor-formula policy gates derived from formally proved
+  Lean 4 theorems (749 declarations / 15 raw axioms / 163 sorries @ HEAD c7c0ba17), routes
+  DSSE-signed receipts across the agent mesh, and wires cooperative multi-agent termination
+  to the Lynch 1996 theorem via Lean theorem TH_V18_15. Aligned with EU AI Act Article 12
+  and NIST AI RMF.
+keywords:
+  - AI governance
+  - agentic AI
+  - receipt-bus
+  - Lean 4
+  - NIST AI RMF
+  - EU AI Act
+  - agent orchestration
+  - DSSE
+  - policy gates
 license: LicenseRef-SZL-Proprietary
+version: "0.3.0"
+date-released: "2026-05-31"
 url: "https://github.com/szl-holdings/a11oy"
 repository-code: "https://github.com/szl-holdings/a11oy"
-keywords:
-  - szl-holdings
-  - ai-governance
-  - decision-intelligence
-  - ouroboros-thesis
 identifiers:
-  - description: "Ouroboros Thesis v18 — research foundation (Zenodo)"
-    type: doi
-    value: "10.5281/zenodo.20434276"
   - description: "Ouroboros Thesis concept DOI — always-latest"
     type: doi
     value: "10.5281/zenodo.19944926"
+  - description: "Ouroboros Thesis v18.0 — versioned release"
+    type: doi
+    value: "10.5281/zenodo.20434276"
   - description: "ORCID iD of the principal author"
     type: other
     value: "https://orcid.org/0009-0001-0110-4173"
 preferred-citation:
-  type: software
-  title: "a11oy — Governed agentic execution fabric. Policy gates, signal mesh, proof ledger, and human review checkpoints across all domain verticals."
+  type: article
+  title: "The Ouroboros Substrate (v18.0)"
   authors:
     - family-names: Lutar
-      given-names: "Stephen P."
-      name-suffix: "Jr."
-
-      email: stephen@szlholdings.com
-      affiliation: SZL Holdings
+      given-names: Stephen P.
+      name-suffix: Jr.
       orcid: "https://orcid.org/0009-0001-0110-4173"
   year: 2026
-  url: "https://github.com/szl-holdings/a11oy"
-references:
-  - type: article
-    title: "On a New Species of Imaginary Quantities, Connected with a Theory of Quaternions"
-    authors:
-      - family-names: Hamilton
-        given-names: "William Rowan"
-    year: 1843
-    journal: "Proceedings of the Royal Irish Academy"
-    volume: 2
-    start: 424
-    end: 434
-    notes: "Cited at web/packages/a11oy-core/src/governance/quaternion-state.ts (Hamilton product, quaternion algebra). JSTOR 20520177."
-  - type: conference-paper
-    title: "Animating rotation with quaternion curves"
-    authors:
-      - family-names: Shoemake
-        given-names: Ken
-    year: 1985
-    collection-title: "SIGGRAPH '85: Proceedings of the 12th annual conference on Computer graphics and interactive techniques"
-    journal: "ACM SIGGRAPH Computer Graphics"
-    volume: 19
-    issue: 3
-    start: 245
-    end: 254
-    doi: "10.1145/325334.325242"
-    notes: "Cited at web/packages/a11oy-core/src/governance/quaternion-state.ts (SLERP)."
-  - type: conference-paper
-    title: "Quaternion Convolutional Neural Networks"
-    authors:
-      - family-names: Zhu
-        given-names: Xuanyu
-      - family-names: Xu
-        given-names: Yi
-      - family-names: Xu
-        given-names: Hongteng
-      - family-names: Chen
-        given-names: Changjian
-    year: 2018
-    collection-title: "Computer Vision – ECCV 2018, Lecture Notes in Computer Science vol 11212"
-    start: 631
-    end: 647
-    doi: "10.1007/978-3-030-01237-3_39"
-    notes: "Quaternion-domain CNN lineage, cited at quaternion-state.ts."
-  - type: conference-paper
-    title: "Quaternion Convolutional Neural Networks for End-to-End Automatic Speech Recognition"
-    authors:
-      - family-names: Parcollet
-        given-names: Titouan
-      - family-names: Zhang
-        given-names: Ying
-      - family-names: Morchid
-        given-names: Mohamed
-      - family-names: Trabelsi
-        given-names: Chiheb
-      - family-names: Linarès
-        given-names: Georges
-      - family-names: De Mori
-        given-names: Renato
-      - family-names: Bengio
-        given-names: Yoshua
-    year: 2018
-    collection-title: "Interspeech 2018"
-    start: 22
-    end: 26
-    doi: "10.21437/Interspeech.2018-1898"
-    notes: "Quaternion deep learning lineage. arXiv:1806.07789. Brief named ICASSP 2019; verified canonical venue is Interspeech 2018."
-  - type: conference-paper
-    title: "Quaternion Convolutional Neural Networks for Detection and Localization of 3D Sound Events"
-    authors:
-      - family-names: Comminiello
-        given-names: Danilo
-      - family-names: Lella
-        given-names: Marco
-      - family-names: Scardapane
-        given-names: Simone
-      - family-names: Uncini
-        given-names: Aurelio
-    year: 2019
-    collection-title: "ICASSP 2019 — IEEE International Conference on Acoustics, Speech and Signal Processing"
-    start: 8533
-    end: 8537
-    notes: "Quaternion CNN audio lineage. arXiv:1812.06811."
-doi: 10.5281/zenodo.20434276
+  doi: "10.5281/zenodo.20434276"
