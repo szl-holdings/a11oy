@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# a11oy — multi-stage container build.
+# a11oy — multi-stage container build (CLI + serve modes).
 #
 # a11oy is a TypeScript policy / receipt substrate. It is a library plus a
 # CLI (receipt-substrate) that can also run an HTTP server. ENTRYPOINT
@@ -10,10 +10,14 @@
 # (@a11oy/core, @a11oy/connection) are compiled to dist/ and importable by
 # downstream Node tooling.
 #
-# Build:  docker build -t a11oy:seriesa-test .
-# Run:    docker run --rm a11oy:seriesa-test --version
-#         docker run --rm a11oy:seriesa-test --help
-#         docker run --rm -p 8080:8080 a11oy:seriesa-test serve --port 8080
+# Build:  docker build -t a11oy:dev .
+# Run:    docker run --rm a11oy:dev --version
+#         docker run --rm a11oy:dev --help
+#         docker run -p 8080:8080 a11oy:dev serve
+# Push:   docker build --build-arg VERSION=1.2.0 -t ghcr.io/szl-holdings/a11oy:1.2.0 .
+#
+# Base images are vanilla node:22-alpine (not Iron Bank-hardened).
+# Iron Bank hardening is tracked in szl-holdings/a11oy#164.
 #
 # Authored for SZL Holdings. Signed-off per repository DCO.
 
@@ -58,11 +62,13 @@ RUN pnpm run build:doctrine
 RUN pnpm prune --prod
 
 # ---------------------------------------------------------------------------
-# Stage 2 — runtime: minimal Alpine, non-root, CLI entrypoint.
+# Stage 2 — runtime: minimal Alpine, non-root, dual-mode entrypoint.
 # ---------------------------------------------------------------------------
 FROM node:22-alpine AS runtime
 
 ENV NODE_ENV=production
+# Port the serve subcommand listens on. Override with -e A11OY_PORT=<n>.
+ENV A11OY_PORT=8080
 
 # L1 fix (2026-05-31): wire the build-time git SHA into the runtime environment
 # so /healthz can return the real deployed revision instead of "unknown".
@@ -89,16 +95,21 @@ RUN chmod +x ./docker-entrypoint.sh
 
 USER 1000:1000
 
-# OCI image metadata. VERSION is overridable at build time:
-#   docker build --build-arg VERSION=1.0.0-alpha --build-arg REVISION=$(git rev-parse HEAD) ...
+# OCI image metadata. VERSION and REVISION are overridable at build time:
+#   docker build --build-arg VERSION=1.0.0 --build-arg REVISION=$(git rev-parse HEAD) ...
 ARG VERSION=1.0.0
+ARG REVISION=unknown
+ARG BUILD_DATE=unknown
 LABEL org.opencontainers.image.source="https://github.com/szl-holdings/a11oy" \
       org.opencontainers.image.licenses="LicenseRef-SZL-Proprietary" \
       org.opencontainers.image.title="a11oy" \
       org.opencontainers.image.description="Governed policy / receipt substrate: Layer 6 formula gates, receipt chaining, and doctrine runtime (CLI plus `serve` HTTP mode)." \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
-      org.opencontainers.image.vendor="SZL Holdings"
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.vendor="SZL Holdings" \
+      org.opencontainers.image.url="https://github.com/szl-holdings/a11oy" \
+      org.opencontainers.image.documentation="https://github.com/szl-holdings/a11oy#readme"
 
 # Default port for serve mode; the k8s probes target /healthz on this port.
 EXPOSE 8080

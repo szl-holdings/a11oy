@@ -1,17 +1,9 @@
-name: Container build (Dockerfile)
+name: Container build + GHCR push
 
-# Builds the root Dockerfile, generates an image SBOM, and on tag releases
-# pushes a signed (cosign keyless / OIDC) image to GHCR.
-#
-# Design choices (Series-A supply-chain posture):
-#   * PR + push-to-main builds the image and verifies it boots (--version /
-#     --help) but does NOT push to the registry, so the registry is not bloated
-#     by every main commit.
-#   * Only `release: published` events push to ghcr.io/szl-holdings/a11oy and
-#     sign the image. No tag is moved by this workflow.
-#   * Image provenance: an SBOM (CycloneDX + SPDX) is produced with anchore/syft
-#     for every build and uploaded as an artifact; on release it is attached to
-#     the published image via cosign attach.
+# Builds the root Dockerfile, generates an image SBOM, and pushes to GHCR:
+#   * Pull-request:    build + smoke-test only (no push, no registry login).
+#   * Push to main:    build + push SHA-tagged image to ghcr.io/szl-holdings/a11oy.
+#   * Release published: push semver + latest tags, sign with cosign keyless.
 #
 # L1 fix (2026-05-31): REVISION build-arg is now passed as github.sha so that
 # the runtime ENV A11OY_GIT_SHA is populated in the container and /healthz
@@ -28,6 +20,8 @@ name: Container build (Dockerfile)
 #   docker/build-push-action: https://github.com/docker/build-push-action
 #   anchore/sbom-action:       https://github.com/anchore/sbom-action
 #   cosign keyless:            https://docs.sigstore.dev/cosign/signing/overview/
+#
+# Authored for SZL Holdings. Signed-off per repository DCO.
 
 on:
   push:
@@ -45,11 +39,11 @@ env:
 
 jobs:
   build:
-    name: Build image + SBOM (sign & push on release only)
+    name: Build image + SBOM (push on main + release)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write       # push to GHCR (only on release; see `push:` below)
+      packages: write       # push to GHCR on main and release
       id-token: write        # cosign keyless OIDC token
     steps:
       - name: Checkout
@@ -58,25 +52,43 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
-      - name: Derive image version
+      - name: Derive image version and tags
         id: ver
         run: |
+          SHA7="${GITHUB_SHA::7}"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           if [ "${{ github.event_name }}" = "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
+            TAGS="${{ env.IMAGE }}:${VERSION}
+          ${{ env.IMAGE }}:latest
+          ${{ env.IMAGE }}:sha-${SHA7}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="0.0.0-dev-${SHA7}"
+            TAGS="${{ env.IMAGE }}:sha-${SHA7}"
           else
-            VERSION="0.0.0-dev-${GITHUB_SHA::7}"
+            VERSION="0.0.0-pr-${SHA7}"
+            TAGS="${{ env.IMAGE }}:pr-${SHA7}"
           fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}"      >> "$GITHUB_OUTPUT"
+          echo "sha7=${SHA7}"            >> "$GITHUB_OUTPUT"
+          echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
+          # Multi-line value — use heredoc to avoid quoting issues.
+          {
+            echo "tags<<EOF"
+            echo "${TAGS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Log in to GHCR (release only)
-        if: github.event_name == 'release'
+      # Log in on push-to-main and on release; skip for PRs.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image (push only on release)
+      - name: Build image (push on main + release; load on PR)
         id: build
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
@@ -85,29 +97,27 @@ jobs:
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
             REVISION=${{ github.sha }}
-          # Push only on a published release; load into the local daemon
-          # otherwise so the smoke test below can run.
-          push: ${{ github.event_name == 'release' }}
-          load: ${{ github.event_name != 'release' }}
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
-            ${{ env.IMAGE }}:latest
+            BUILD_DATE=${{ steps.ver.outputs.build_date }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.ver.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Smoke test image (non-release builds)
-        if: github.event_name != 'release'
+      - name: Smoke test image (PR builds — loaded into local daemon)
+        if: github.event_name == 'pull_request'
         run: |
+          TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
           echo "=== --version ==="
-          docker run --rm "${{ env.IMAGE }}:${{ steps.ver.outputs.version }}" --version
+          docker run --rm "${TAG}" --version
           echo "=== --help ==="
-          docker run --rm "${{ env.IMAGE }}:${{ steps.ver.outputs.version }}" --help
+          docker run --rm "${TAG}" --help
 
-      - name: Generate image SBOM (CycloneDX + SPDX) via Syft
+      - name: Generate image SBOM (CycloneDX) via Syft
         if: github.event_name != 'release'
         uses: anchore/sbom-action@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
         with:
-          image: ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+          image: ${{ env.IMAGE }}:sha-${{ steps.ver.outputs.sha7 }}
           format: cyclonedx-json
           output-file: a11oy-image-sbom.cyclonedx.json
           upload-artifact: true

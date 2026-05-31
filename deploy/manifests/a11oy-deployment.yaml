@@ -17,10 +17,15 @@ spec:
         app.kubernetes.io/name: a11oy
         app.kubernetes.io/part-of: szl-mesh
     spec:
+      # PSS restricted: non-root, non-privileged.
+      # uid 1000 matches the 'a11oy' user created in the Dockerfile.
       securityContext:
         runAsNonRoot: true
-        runAsUser: 65532
-        fsGroup: 65532
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: a11oy
           image: ghcr.io/szl-holdings/a11oy:v1.0.0-alpha
@@ -32,11 +37,28 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+              protocol: TCP
           env:
             - name: A11OY_PROOF_LEDGER_PATH
               value: /var/lib/a11oy/proof.jsonl
             - name: A11OY_DOCTRINE_LAMBDA_FLOOR
               value: "0.90"
+            - name: A11OY_PORT
+              value: "8080"
+          # PSS restricted: drop all capabilities, disallow privilege escalation.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # startupProbe gives the serve subcommand time to initialise before
+          # liveness kicks in (avoids crashloop on slow cold starts).
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            failureThreshold: 10
+            periodSeconds: 5
           # Readiness gates on /readyz, which returns 503 until the proof
           # ledger is readable. Liveness gates on /healthz, which reports
           # process health regardless of ledger state.
@@ -46,23 +68,32 @@ spec:
               port: http
             initialDelaySeconds: 3
             periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 50m
+              memory: 64Mi
             limits:
-              cpu: 1000m
-              memory: 512Mi
+              cpu: 500m
+              memory: 256Mi
           volumeMounts:
             - name: proof-ledger
               mountPath: /var/lib/a11oy
+            # /tmp must be writable even with readOnlyRootFilesystem=true
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: proof-ledger
           persistentVolumeClaim:
             claimName: a11oy-proof-ledger
+        - name: tmp
+          emptyDir: {}
