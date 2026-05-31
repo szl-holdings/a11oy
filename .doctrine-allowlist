@@ -24,3 +24,6 @@ AGENT_DOCTRINE_ENFORCEMENT.md
 # Red-team report — references banned tokens when quoting findings
 szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/RED_TEAM_REPORT.md
 szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/RED_TEAM_FINDINGS.jsonl
+
+# CI hardening report — references banned tokens as evidence/examples
+szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/CI_HARDENING_REPORT.md
