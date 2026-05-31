@@ -187,8 +187,13 @@ describe("Adversarial — Receipt Chain Corruption (10 tests)", () => {
   // RC-007: Timestamp regression — receipt timestamp decreases (replay / back-dating)
   test("RC-007: timestamp regression in receipt sequence is detected by temporal check", () => {
     const chain = buildChain(5);
-    // Set chain[3] timestamp to earlier than chain[2]
-    chain[3].timestamp_tai64n = "@4000000000000000"; // Far past
+    // Set chain[3] timestamp to earlier than chain[2]. buildChain emits values of
+    // the form "@00000000ee6b280X"; the regression check compares TAI64N labels as
+    // fixed-width hex strings, so the back-dated value must be lexically smaller
+    // than its predecessor. "@4000000000000000" sorts AFTER "@00000000ee6b28xx"
+    // (first hex digit "4" > "0"), so it did not trip the check. Use TAI64N epoch
+    // zero, which is both genuinely earlier and lexically smaller.
+    chain[3].timestamp_tai64n = "@0000000000000000"; // Far past (TAI64N epoch zero)
     // verifyChain checks links, not timestamps — document gap and add temporal check
     function verifyTimestamps(c: Receipt[]): { valid: boolean; error?: string } {
       for (let i = 1; i < c.length; i++) {

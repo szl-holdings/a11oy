@@ -54,15 +54,30 @@ function coverageAboveMinimum(policy: any): boolean {
   return covered.size >= (policy.compliance_thresholds?.minimum_lambda_coverage ?? 0);
 }
 
-/** Semantic check: no mandatory axis has only informational enforcement */
+/**
+ * Semantic check: EVERY mandatory axis must carry at least one mandatory
+ * enforcement mapping. Returns false if any axis listed in mandatory_axes is
+ * either never mapped or appears only with non-mandatory enforcement
+ * (informational / recommended). The earlier implementation returned true on
+ * the first mandatory axis that happened to have a mandatory mapping, which
+ * masked the case where a different mandatory axis had been downgraded.
+ */
 function mandatoryAxisHasMandatoryEnforcement(policy: any): boolean {
   const mandatory = new Set<string>(policy.compliance_thresholds?.mandatory_axes ?? []);
+  if (mandatory.size === 0) return true;
+  const axisHasMandatoryMapping = new Map<string, boolean>();
+  for (const ax of mandatory) axisHasMandatoryMapping.set(ax, false);
   for (const clause of policy.regulatory_clauses ?? []) {
     for (const mapping of clause.lambda_axes ?? []) {
-      if (mandatory.has(mapping.axis) && mapping.enforcement === "mandatory") return true;
+      if (mandatory.has(mapping.axis) && mapping.enforcement === "mandatory") {
+        axisHasMandatoryMapping.set(mapping.axis, true);
+      }
     }
   }
-  return mandatory.size === 0;
+  for (const ax of mandatory) {
+    if (!axisHasMandatoryMapping.get(ax)) return false;
+  }
+  return true;
 }
 
 function basePolicy(): any {
