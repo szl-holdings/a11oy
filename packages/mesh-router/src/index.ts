@@ -15,11 +15,18 @@
 //
 // Honesty note (Doctrine v7 §2): amaru exposes a FastAPI sidecar with the
 // routes called here (GET /state, GET /receipts, POST /chakra/{name}/evaluate
-// — verified in the cross-repo mining server index). sentra does NOT yet
-// expose an inbound verdict HTTP server (mining server index lists none), so
-// `requestSentraVerdict` targets the agreed contract path and will fail closed
-// until sentra ships that route. This module does not claim sentra is wired;
-// it provides the client a11oy needs the moment sentra exposes the endpoint.
+// — verified in the cross-repo mining server index). Sentra ships
+// runtime/immune_server.py (sentra PR #96) exposing POST /v1/inspect — the
+// real inbound immune endpoint. The 2026-05-31 post-merge re-test wave found
+// Wire B was contract-mismatched (a11oy was calling /v1/verdict; sentra serves
+// /v1/inspect). This module now targets the deployed sentra contract:
+//   path:  POST /v1/inspect
+//   body:  {actionId, action, traceparent?}
+//   resp:  {actionId, decision: "allow"|"deny", gate, decidedBy, rationale,
+//           lambdaScore, receiptHash, traceparent}
+// The exposed SentraVerdict shape ({decision, reason}) is preserved for
+// existing callers; `reason` is populated from sentra's `rationale` field on
+// allow + deny.
 //
 // No mocked data path: every function issues a real HTTP request via
 // node:http/https and parses the real response. The accompanying tests boot a
@@ -175,19 +182,71 @@ export function evaluateAmaruChakra(
 export interface SentraVerdictRequest {
   readonly actionId: string;
   readonly kind: "egress" | "threat" | "admission";
+  /** Arbitrary action payload sentra inspects (cmd, url, headers, etc.). */
   readonly payload: unknown;
+  /** Optional W3C traceparent so the immune call joins the parent trace. */
+  readonly traceparent?: string;
 }
 
+/**
+ * Externally exposed verdict shape — kept small for callers. The full sentra
+ * response is mapped down to {decision, reason} via inspectResponseToVerdict.
+ */
 export interface SentraVerdict {
   readonly decision: "allow" | "deny";
   readonly reason?: string;
 }
 
 /**
+ * Sentra's /v1/inspect response shape (anatomy-contracts PolicyDecision). We
+ * declare it locally rather than importing to keep mesh-router dependency-free.
+ */
+interface SentraInspectResponse {
+  readonly actionId: string;
+  readonly decision: "allow" | "deny";
+  readonly gate?: string;
+  readonly decidedBy?: string;
+  readonly rationale?: string;
+  readonly lambdaScore?: number;
+  readonly receiptHash?: string;
+  readonly traceparent?: string;
+}
+
+function inspectResponseToVerdict(r: SentraInspectResponse): SentraVerdict {
+  return {
+    decision: r.decision,
+    reason: r.rationale,
+  };
+}
+
+/**
+ * Translate the public SentraVerdictRequest to sentra's actual /v1/inspect
+ * body. sentra accepts `{action, actionId, traceparent}` — the `kind` field on
+ * our public request is folded into `action.kind` so sentra's signature-scan
+ * can still see it.
+ */
+function verdictRequestToInspectBody(req: SentraVerdictRequest): {
+  action: Record<string, unknown>;
+  actionId: string;
+  traceparent?: string;
+} {
+  const action: Record<string, unknown> =
+    req.payload && typeof req.payload === "object" && req.payload !== null
+      ? { ...(req.payload as Record<string, unknown>), kind: req.kind }
+      : { payload: req.payload, kind: req.kind };
+  const body: { action: Record<string, unknown>; actionId: string; traceparent?: string } = {
+    action,
+    actionId: req.actionId,
+  };
+  if (req.traceparent) body.traceparent = req.traceparent;
+  return body;
+}
+
+/**
  * Request an admission/egress verdict from sentra before a11oy admits an
- * action. Contract path: POST /v1/verdict. sentra does not yet expose this
- * route (see module honesty note); this fails closed (deny on transport
- * error) so a missing immune organ never silently allows.
+ * action. Targets sentra's deployed POST /v1/inspect route. Fails closed
+ * (deny) on transport error, missing config, or any non-2xx — so a missing or
+ * crashed immune organ never silently allows.
  */
 export async function requestSentraVerdict(
   cfg: MeshConfig,
@@ -196,11 +255,21 @@ export async function requestSentraVerdict(
   if (!cfg.sentra) {
     return { decision: "deny", reason: "sentra endpoint not configured (fail closed)" };
   }
-  const res = await meshRequest<SentraVerdict>(cfg.sentra, "POST", "/v1/verdict", request);
+  const body = verdictRequestToInspectBody(request);
+  const res = await meshRequest<SentraInspectResponse>(
+    cfg.sentra,
+    "POST",
+    "/v1/inspect",
+    body,
+  );
   if (!res.ok || res.body === null) {
     return { decision: "deny", reason: res.error ?? `sentra returned ${res.status} (fail closed)` };
   }
-  return res.body;
+  // Defensive: if sentra returned an unexpected shape, fail closed.
+  if (res.body.decision !== "allow" && res.body.decision !== "deny") {
+    return { decision: "deny", reason: `sentra returned unrecognised decision (fail closed)` };
+  }
+  return inspectResponseToVerdict(res.body);
 }
 
 // --- rosie: the operator console (operator I/O) ----------------------------
