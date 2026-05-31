@@ -19,7 +19,7 @@
  *
  * DoctrineLabel 4-level lattice: Bot < L1 < L2 < Top.
  *
- * Doctrine V6: No new axioms. No sorries. STAGED label: FULLY WIRED.
+ * Doctrine v7: No new axioms. No sorries. STAGED label: FULLY WIRED.
  */
 
 import { createHash } from "crypto";
