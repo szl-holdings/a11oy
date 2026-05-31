@@ -32,9 +32,11 @@ Usage:
                              back, and verifies a receipt chain in a temp file
                              (no network). Exits non-zero if the bundled
                              receipt substrate is not functional in this image.
-  a11oy serve                Start the HTTP API server on port ${A11OY_PORT}.
+  a11oy serve [--port N]    Start the HTTP API server on port ${A11OY_PORT}.
                              Endpoints: GET /healthz  GET /readyz
-                             Override port: -e A11OY_PORT=<n>
+                               GET  /v1/ledger  POST /v1/verify
+                               POST /v1/policy/evaluate
+                             Override port: -e A11OY_PORT=<n> or --port <n>
   a11oy receipt [args...]    Run the receipt-substrate CLI. It chains an
                              MCP-style tool-envelope receipt to a JSONL ledger.
                              Required args:
@@ -77,16 +79,17 @@ case "${1:-}" in
     ;;
   serve)
     # Delegate to the serve subcommand.  The server module is provided by the
-    # serve-BE dev (packages/receipt-substrate/src/server.ts).  If it is not
+    # serve-BE dev (packages/receipt-substrate/src/serve.ts).  If it is not
     # yet present (pre-merge), the container will exit with a clear error
     # rather than silently hang.
-    SERVE_SCRIPT="${APP_DIR}/packages/receipt-substrate/src/server.ts"
+    SERVE_SCRIPT="${APP_DIR}/packages/receipt-substrate/src/serve.ts"
     if [ ! -f "${SERVE_SCRIPT}" ]; then
       echo "ERROR: serve subcommand not yet available (${SERVE_SCRIPT} missing)." >&2
       echo "The serve-BE PR has not landed yet. See MISSION.md." >&2
       exit 1
     fi
-    exec node --experimental-strip-types "${SERVE_SCRIPT}" --port "${A11OY_PORT}"
+    shift
+    exec node --experimental-strip-types "${SERVE_SCRIPT}" --port "${A11OY_PORT}" "$@"
     ;;
   receipt)
     shift
