@@ -24,7 +24,7 @@
  *   - Jacques et al. (2007) DOI 10.1126/science.1136303
  *   - Manning et al. (2015) DOI 10.1038/nphys3343
  *
- * Doctrine V6: No new axioms. No sorries. STAGED label: FULLY WIRED.
+ * Doctrine v7: No new axioms. No sorries. STAGED label: FULLY WIRED.
  */
 
 import { createHash } from "crypto";
