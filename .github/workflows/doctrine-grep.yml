@@ -113,7 +113,7 @@ jobs:
           done < /tmp/changed_files.txt
 
           # Count hits (non-empty lines).
-          HIT_COUNT=$(grep -c . "$HITS_FILE" 2>/dev/null || echo 0)
+          HIT_COUNT=$(wc -l < "$HITS_FILE" 2>/dev/null | tr -d ' \n' || echo 0)
           echo "hit_count=${HIT_COUNT}" >> "$GITHUB_OUTPUT"
 
       - name: Report and fail on hits
