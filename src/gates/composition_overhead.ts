@@ -15,7 +15,7 @@
  *   Given a list of cost-bearing systems and a cap C, verify that the
  *   sum of their overhead costs does not exceed N * C.
  *
- * Doctrine V6: No new axioms. No sorries. STAGED label: FULLY WIRED.
+ * Doctrine v7: No new axioms. No sorries. STAGED label: FULLY WIRED.
  */
 
 import { createHash } from "crypto";
