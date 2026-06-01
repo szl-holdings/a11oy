@@ -3,7 +3,7 @@
 <!-- series-a-badges (Doctrine v11) -->
 [![CodeQL](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/a11oy/actions/workflows/codeql.yml)  
 [![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?style=flat-square&logo=dependabot&logoColor=white)](https://github.com/szl-holdings/a11oy/security/dependabot)  
-[![SLSA](https://img.shields.io/badge/SLSA-L1_honest-eab308?style=flat-square)](https://slsa.dev/spec/v1.0/levels)  
+[![SLSA](https://img.shields.io/badge/SLSA-L2_signed--provenance-22c55e?style=flat-square)](https://slsa.dev/spec/v1.0/levels)  
 [![HF Space](https://img.shields.io/badge/%F0%9F%A4%97-Space-blue?style=flat-square)](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)
 
 
@@ -179,7 +179,7 @@ All counts are grep-verifiable against `main`.
 | Lean axioms (lutar-lean) | **15 raw / 14 unique** | `grep -rE '^axiom ' lutar-lean/Lutar/ \| wc -l` |
 | Lean sorries (lutar-lean) | **168** (117 baseline + 51 prior-audit-related) | `grep -rE '\bsorry\b' lutar-lean/Lutar/ \| wc -l` |
 | Doctrine | v7 · 15 axioms (14 unique) | [DOCTRINE_V11.md](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V11.md) |
-| SLSA | L1 honest | [slsa.dev](https://slsa.dev/spec/v1.0/levels) |
+| SLSA | **L2** (signed provenance) | DSSE+Cosign signed Khipu receipts; pubkey [cosign.pub](https://github.com/szl-holdings/.github/blob/main/cosign.pub); verify `cosign verify-blob`. **L3 NOT claimed** (no hardened isolated CI yet). [slsa.dev](https://slsa.dev/spec/v1.0/levels) |
 
 > Lean build: green via `lake build` on lutar-lean `main`. Reproducibility script: `.github/scripts/lean_numbers.py`.
 
