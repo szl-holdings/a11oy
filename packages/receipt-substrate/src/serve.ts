@@ -16,8 +16,10 @@
 //   GET  /v1/ledger?limit=N        -> last N receipts from the ledger as JSON
 //   GET  /v1/ledger/{hash}         -> single receipt by receipt_id or merkle_root
 //   POST /v1/verify {ledger:[...]} -> {valid, broken_at} via verifyChain
+//   GET  /v1/policy/example          -> sample valid request body for /v1/policy/evaluate
 //   POST /v1/policy/evaluate       -> {decision, gate, receipt_hash} via the
 //                                     thresholdPolicySeverity gate (real HMAC)
+//                                     Accepts: {action:{...}} OR flat {severity,...}
 //
 // No network calls beyond accepting inbound HTTP. The git SHA is read from the
 // A11OY_GIT_SHA env var (set at build time) or resolved from the local git
@@ -182,6 +184,39 @@ export function handleRoute(
     };
   }
 
+  // --- GET /v1/policy/example -----------------------------------------------
+  if (method === "GET" && url.pathname === "/v1/policy/example") {
+    return {
+      status: 200,
+      body: {
+        description: "Sample valid request body for POST /v1/policy/evaluate",
+        formats: [
+          {
+            name: "flat (preferred)",
+            body: {
+              actionId: "example-action",
+              severity: "medium",
+              confidence: 0.9,
+              witnesses: ["agent-a", "agent-b"],
+            },
+          },
+          {
+            name: "wrapped (legacy compatible)",
+            body: {
+              action: {
+                actionId: "example-action",
+                severity: "medium",
+                confidence: 0.9,
+                witnesses: ["agent-a", "agent-b"],
+              },
+            },
+          },
+        ],
+        severity_values: ["low", "medium", "high", "critical"],
+      },
+    };
+  }
+
   // --- POST /v1/policy/evaluate --------------------------------------------
   if (method === "POST" && url.pathname === "/v1/policy/evaluate") {
     let parsed: unknown;
@@ -190,9 +225,15 @@ export function handleRoute(
     } catch {
       return { status: 400, body: { error: "invalid JSON body" } };
     }
-    const action = (parsed as { action?: unknown }).action;
+    // Accept either {action:{...}} (legacy) or flat {severity,...} (preferred).
+    const p = parsed as { action?: unknown; severity?: unknown; actionId?: unknown };
+    const action = p.action && typeof p.action === "object"
+      ? p.action
+      : (p.severity !== undefined || p.actionId !== undefined)
+        ? p   // flat body — treat top-level as the action object
+        : null;
     if (!action || typeof action !== "object") {
-      return { status: 400, body: { error: "body must be {action: {...}}" } };
+      return { status: 400, body: { error: "body must be {severity,...} or {action:{...}}", example: "/v1/policy/example" } };
     }
     const a = action as {
       actionId?: string;
