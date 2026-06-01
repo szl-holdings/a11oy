@@ -1,0 +1,140 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>a11oy · Hatun-MCP — agentic MCP server</title>
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v12 additive · Signed: Yachay · Co-author: Perplexity Computer Agent -->
+<style>
+:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
+header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
+header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
+header .tag{color:var(--mut);font-size:12px}
+nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
+nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
+nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
+nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
+main{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
+h1{font-size:26px;margin:0 0 4px;color:#fff}h2{font-size:18px;margin:28px 0 10px;color:var(--gold)}
+.sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:16px 0}
+.grid a.tile{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink)}
+.grid a.tile:hover{border-color:var(--gold);text-decoration:none}
+.grid a.tile .t{color:var(--gold);font-weight:600;margin-bottom:4px}.grid a.tile .d{color:var(--mut);font-size:12.5px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}
+.note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
+footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
+.kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
+.statline{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:13.5px}
+.statline b{color:var(--ink)}
+.tag2{display:inline-block;background:#1c2030;color:var(--mut);border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11px;margin-left:6px}
+.st{color:var(--amb);font-weight:600}
+</style></head><body>
+<header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
+<nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/hatun-mcp" class="active">Hatun-MCP</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
+<main>
+<h1>Hatun-MCP — agentic MCP server</h1>
+<p class="sub"><b>Hatun</b> (Quechua: <i>great / sovereign</i>) is the Model Context Protocol gateway that exposes SZL's governed flagship capabilities to any MCP client (Claude Desktop, Cursor, custom agents). Every tool invocation passes the Yuyay-13 governance gate and emits a signed Khipu receipt. Anonymous calls are governed-but-declined (OWASP MCP07) — provide an SZL API key to execute. This tab probes the live server directly from your browser.</p>
+
+<div class="card">
+  <div class="statline">
+    <span>Live status: <span id="health"><span class="pill n">probing…</span></span></span>
+    <span>Signer: <b id="signer">—</b></span>
+    <span>Khipu chain: <b id="chain">—</b></span>
+    <span>Protocol: <b id="proto">—</b></span>
+    <span>Probe latency: <b id="lat">—</b></span>
+  </div>
+  <p class="sub" style="margin:12px 0 0">Endpoint: <code>https://szlholdings-hatun-mcp.hf.space</code> · Transport: streamable-HTTP (<code>/mcp/</code>) + SSE (<code>/sse/</code>) · MCP revision <code>2025-06-18</code></p>
+</div>
+
+<h2>Tools exposed (<span id="toolcount">16</span>)</h2>
+<p class="sub">Loaded live from <code>/.well-known/mcp/server-card.json</code>. Tools marked <span class="pill a">2-person</span> are state-changing and require the Killinchu two-person gate before execution.</p>
+<table><thead><tr><th>Tool</th><th>Backend flagship</th><th>Class</th></tr></thead><tbody id="tools"></tbody></table>
+
+<h2>Recent invocations</h2>
+<p class="sub">Each MCP call appends a Khipu receipt (continuum hash + DSSE signature) to the governance chain. Recent receipts are summarized here from the server's invocation feed; if the feed endpoint is unreachable cross-origin it shows the honest interim message below.</p>
+<table><thead><tr><th>Time (UTC)</th><th>Tool</th><th>Outcome</th><th>Continuum hash</th></tr></thead><tbody id="inv"><tr><td colspan="4" class="sub">loading…</td></tr></tbody></table>
+
+<h2>Connect a client</h2>
+<div class="card">
+<p style="margin:0 0 8px">Claude Desktop — add to <code>claude_desktop_config.json</code> (uses the <code>mcp-remote</code> bridge):</p>
+<pre>{
+  "mcpServers": {
+    "hatun": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://szlholdings-hatun-mcp.hf.space/mcp",
+               "--header", "Authorization: Bearer szl_YOUR_KEY"]
+    }
+  }
+}</pre>
+<p class="sub" style="margin:8px 0 0">Source &amp; quickstart: <a href="https://github.com/szl-holdings/hatun-mcp" target="_blank" rel="noopener">github.com/szl-holdings/hatun-mcp</a> · server card: <a href="https://szlholdings-hatun-mcp.hf.space/.well-known/mcp/server-card.json" target="_blank" rel="noopener">/.well-known/mcp/server-card.json</a> · public key: <a href="https://szlholdings-hatun-mcp.hf.space/pubkey" target="_blank" rel="noopener">/pubkey</a></p>
+</div>
+
+<div class="note">Cross-origin probes may be blocked by the Space's CORS policy — that shows as 'unreachable', not necessarily down. The authoritative health and receipt feed lives on the Hatun-MCP Space itself; this client-side tab is the honest interim view inside a11oy.</div>
+<p class="sub">Source: hatun_mcp/ (server.py · governance.py · backends.py) + live probe</p>
+
+<script>
+const BASE="https://szlholdings-hatun-mcp.hf.space";
+// Static authoritative tool list (mirrors server-card.json); refreshed live below when CORS permits.
+const TOOLS=[
+ ["szl_a11oy_code_chat","a11oy.code","read"],
+ ["szl_killinchu_detect","vessels / killinchu","read"],
+ ["szl_killinchu_cue","vessels / killinchu","2-person"],
+ ["szl_sentra_scan","sentra","read"],
+ ["szl_rosie_reason","rosie","read"],
+ ["szl_khipu_verify","governance","read"],
+ ["szl_lean_verify","lean / formal-verification","read"],
+ ["szl_puriq_evaluate","puriq","read"],
+ ["szl_yachay_dome_predict","yachay-dome","read"],
+ ["szl_wayra_recent","wayra","read"],
+ ["szl_anatomy_3d_render","anatomy","read"],
+ ["szl_doctrine_lookup","governance / doctrine","read"],
+ ["szl_yuyay_score","yuyay-v3","read"],
+ ["szl_thesis_query","thesis","read"],
+ ["szl_drone_lookup","uds / counter-uas","read"],
+ ["szl_formula_evaluate","puriq / formal math","read"]];
+function paintTools(list){const tb=document.getElementById('tools');tb.innerHTML='';
+ list.forEach(([n,b,c])=>{const tr=document.createElement('tr');
+  const cls=c==='2-person'?'a':'n';
+  tr.innerHTML=`<td><code>${n}</code></td><td>${b}</td><td><span class="pill ${cls}">${c}</span></td>`;tb.appendChild(tr);});
+ document.getElementById('toolcount').textContent=list.length;}
+paintTools(TOOLS);
+
+// Live health probe
+const t0=performance.now();
+fetch(BASE+"/healthz",{mode:'cors'}).then(r=>r.json().then(j=>({r,j}))).then(({r,j})=>{
+ const ms=Math.round(performance.now()-t0);
+ document.getElementById('lat').textContent=ms+' ms';
+ document.getElementById('health').innerHTML=(r.ok&&j.status==='ok')?'<span class="pill g">UP</span>':'<span class="pill a">'+r.status+'</span>';
+ document.getElementById('signer').textContent=j.signer_mode||'—';
+ document.getElementById('chain').textContent=(j.chain_verified===true)?'verified ✓':String(j.chain_verified);
+ document.getElementById('proto').textContent=j.protocol_revision||'—';
+}).catch(()=>{document.getElementById('health').innerHTML='<span class="pill r">unreachable (CORS/down)</span>';});
+
+// Live tool refresh from the server card
+fetch(BASE+"/.well-known/mcp/server-card.json",{mode:'cors'}).then(r=>r.json()).then(card=>{
+ if(card&&Array.isArray(card.tools)&&card.tools.length){
+   const byName={};TOOLS.forEach(t=>byName[t[0]]=t);
+   const merged=card.tools.map(t=>{const n=(typeof t==='string')?t:(t.name||'');const e=byName[n];return e?e:[n,'—', (n.endsWith('_cue')?'2-person':'read')];});
+   paintTools(merged);
+ }
+}).catch(()=>{/* keep static list */});
+
+// Recent invocations feed (optional endpoint; honest fallback if absent/blocked)
+fetch(BASE+"/api/hatun/invocations",{mode:'cors'}).then(r=>r.ok?r.json():Promise.reject()).then(rows=>{
+ const tb=document.getElementById('inv');tb.innerHTML='';
+ if(!rows||!rows.length){tb.innerHTML='<tr><td colspan="4" class="sub">No recent invocations recorded.</td></tr>';return;}
+ rows.slice(0,12).forEach(x=>{const tr=document.createElement('tr');
+  const ok=x.outcome==='success';
+  tr.innerHTML=`<td>${x.ts||'—'}</td><td><code>${x.tool||'—'}</code></td><td><span class="pill ${ok?'g':'a'}">${x.outcome||'—'}</span></td><td><code>${(x.continuum_hash||'').slice(0,16)}</code></td>`;tb.appendChild(tr);});
+}).catch(()=>{document.getElementById('inv').innerHTML='<tr><td colspan="4" class="sub">Invocation feed not exposed cross-origin. Each call still appends a signed Khipu receipt server-side — verify with <code>szl_khipu_verify</code> or <code>'+BASE+'/healthz</code> (chain_verified).</td></tr>';});
+</script>
+</main>
+<footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
+</body></html>

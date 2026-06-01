@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v12 (carries v11 LOCKED verbatim) -->
+<!-- /pricing tab — customer-facing surface. ADDITIVE. Touches NOTHING locked. Pricing is a pitch proposal, not a contract. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Pricing — governed agentic calls</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}.sub{color:var(--mut);margin:0 0 18px}
+.tiers{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+@media(max-width:900px){.tiers{grid-template-columns:1fr 1fr}}
+.tier{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column}
+.tier.pop{border-left:3px solid var(--ok)}
+.tier h3{margin:0 0 2px;font-size:16px}.price{font-size:22px;font-weight:700;margin:6px 0}
+.calls{color:var(--acc);font-family:var(--mono);font-size:12.5px;margin-bottom:8px}
+.tier ul{margin:8px 0 0;padding-left:16px;font-size:12.5px;color:var(--mut)}
+.tier li{margin:3px 0}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+.mut{color:var(--mut);font-size:13px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy</span> <span class="tag">· Governance Substrate · Doctrine v12</span></div>
+    <div class="nav"><a href="/">home</a><a href="/docs">docs</a><a href="/pricing">pricing</a></div>
+  </div>
+
+  <h1>Pricing — you pay for governed, receipted calls (not raw tokens)</h1>
+  <p class="sub">Every call ships a 13-axis verified, hash-chained Khipu receipt you can verify yourself. The governance layer is the product; the LLM is a commodity input behind it.</p>
+
+  <div class="tiers">
+    <div class="tier"><h3>Demo</h3><div class="price">Free</div><div class="calls">1,000 calls/mo</div><ul><li>hackathon / academic / Greene-network</li><li>all 5 flagships</li><li>community support</li></ul></div>
+    <div class="tier pop"><h3>Builder</h3><div class="price">$299<span class="mut">/mo</span></div><div class="calls">100,000 calls/mo</div><ul><li>email support</li><li>20 req/s burst, 10 keys</li><li>$0.00299 / call</li></ul></div>
+    <div class="tier"><h3>Professional</h3><div class="price">$1,999<span class="mut">/mo</span></div><div class="calls">1,000,000 calls/mo</div><ul><li>99.9% SLA</li><li>100 req/s, RBAC, audit export</li><li>$0.00200 / call</li></ul></div>
+    <div class="tier"><h3>Enterprise</h3><div class="price">Contact</div><div class="calls">unlimited (contracted)</div><ul><li>on-prem + dedicated support</li><li>99.95% SLA, SSO/SAML</li><li>custom gates</li></ul></div>
+    <div class="tier"><h3>DoD / IC</h3><div class="price">Custom</div><div class="calls">unlimited (air-gapped)</div><ul><li>UDS-deployable, IL4+ posture</li><li>BoE included</li><li>FedRAMP path</li></ul></div>
+  </div>
+
+  <p class="mut" style="margin-top:16px">A ~2k-in / 500-out governed call would cost ~$0.0125 DIY on raw GPT-5.4 (<a href="https://openai.com/api/pricing/">OpenAI pricing</a>) or ~$0.0135 on Claude Sonnet 4.6 (<a href="https://www.cloudzero.com/blog/claude-api-pricing/">CloudZero</a>) — before you build any gate, audit log, or receipt chain. Builder at $0.00299/governed call is ~4× cheaper, and the governance comes included.</p>
+
+  <div class="honest">
+    <b>Honest labels.</b> Pricing is a v1 <b>proposal for the pitch</b>, not a contract. Margins are conservative back-of-envelope (Builder ~65%, Professional ~47% gross). Λ uniqueness is a <b>Conjecture</b>; Khipu signature is a <b>cosign PLACEHOLDER</b> (<code>chain_verified</code> = hash chain only); SLSA = <b>L1</b>; Wire D is <b>in-process only</b>. LOCKED: 749 / 14 / 163 / 13-axis <code>yuyay_v3</code>, replay hash <code>bacf5443…631fc5</code>.
+  </div>
+
+  <footer>SZL Holdings · Doctrine v12 · self-serve at <a href="https://portal.szlholdings.com">portal.szlholdings.com</a> · signed Yachay</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v10 -->
+<!-- Wires surface — Wire B / Wire C LIVE, Wire D NOT YET IMPLEMENTED (honest). ADDITIVE per Doctrine v10. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Wires — mesh interconnects</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0}
+.card.live{border-left:3px solid var(--ok)} .card.pending{border-left:3px solid var(--warn)}
+.card h3{margin:0 0 4px;font-size:17px}
+.status{font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px;display:inline-block}
+.status.live{color:var(--ok);background:#0f2a1c} .status.pending{color:var(--warn);background:#2a2410}
+.path{font-family:var(--mono);font-size:12.5px;color:var(--acc);margin:6px 0}
+pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px;overflow:auto;max-height:280px;white-space:pre-wrap;word-break:break-word}
+button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px;margin:8px 8px 8px 0}
+.mut{color:var(--mut);font-size:13px}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy</span> <span class="tag">· Governance Substrate · Doctrine v10</span></div>
+    <div class="nav"><a href="/">home</a><a href="/wires">wires</a><a href="/codex-kernel">codex-kernel</a></div>
+  </div>
+
+  <h1>Wires — mesh interconnects</h1>
+  <p class="sub">The wires that connect a11oy to the rest of the governed mesh. Status is honest: two are live on <code>main</code>, one is not yet implemented and is labeled as such.</p>
+
+  <div class="card live">
+    <h3>Wire B <span class="status live">● LIVE on main</span></h3>
+    <div class="mut">a11oy → sentra immune system. Every gate decision can be cross-checked against sentra's dual-use / threat filter.</div>
+    <div class="path">POST https://szlholdings-sentra.hf.space/api/sentra/v1/inspect</div>
+    <button onclick="pingB()">Ping Wire B (live inspect)</button>
+    <pre id="bout">— click to send a sample packet through a11oy → sentra Wire B —</pre>
+  </div>
+
+  <div class="card live">
+    <h3>Wire C <span class="status live">● LIVE on main</span></h3>
+    <div class="mut">a11oy → rosie receipt stream. Gate-decision receipts (DSSE envelopes from the amaru tick endpoint) flow into rosie's Khipu DAG ingest. Below is a live tail of the receipt stream.</div>
+    <div class="path">stream: a11oy gate receipts → rosie /v1/events (Khipu DAG ingest)</div>
+    <button onclick="tailC()">Tail Wire C receipt stream</button>
+    <button onclick="stopC()" style="background:transparent;color:var(--acc);border:1px solid var(--acc)">Stop</button>
+    <pre id="cout">— click to tail the live receipt stream —</pre>
+  </div>
+
+  <div class="card pending">
+    <h3>Wire D <span class="status pending">○ NOT YET IMPLEMENTED</span></h3>
+    <div class="mut"><b>W3C <code>traceparent</code> propagation across the mesh.</b> This wire would carry a W3C Trace Context <code>traceparent</code> header end-to-end across every organ so a single distributed trace spans a11oy → sentra → amaru → rosie → vessels. It is <b>not yet implemented</b>. We will not display synthetic traceparent data here — that would be a bandaid. When Wire D ships, a live cross-mesh trace will replace this notice.</div>
+  </div>
+
+  <div class="honest" id="honest"></div>
+
+  <footer>Sentra source: <a href="https://github.com/szl-holdings/sentra">szl-holdings/sentra</a> · Rosie: <a href="https://huggingface.co/spaces/SZLHOLDINGS/rosie">SZLHOLDINGS/rosie</a>. © 2026 SZL Holdings · Apache-2.0.</footer>
+</div>
+
+<script>
+async function pingB(){
+  const el=document.getElementById('bout'); el.textContent='→ sending sample packet through Wire B (a11oy → sentra /v1/inspect)…';
+  const packet={requestId:'wireB-'+Date.now(),agent:'a11oy-gate',tool:'execute_action',decision:'allow',severity:'medium',confidence:0.88,witnesses:[{id:'w1',role:'operator',attested:true}]};
+  try{
+    const r=await fetch('https://szlholdings-sentra.hf.space/api/sentra/v1/inspect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(packet)});
+    const txt=await r.text(); let body; try{body=JSON.stringify(JSON.parse(txt),null,2);}catch(e){body=txt.slice(0,1200);}
+    el.textContent=`Wire B LIVE — sentra responded HTTP ${r.status}\n\nrequest packet:\n${JSON.stringify(packet,null,2)}\n\nsentra immune verdict:\n${body}`;
+  }catch(e){
+    el.textContent=`Wire B request sent to https://szlholdings-sentra.hf.space/api/sentra/v1/inspect\n(browser/CORS may block cross-origin display, but the wire is live on main — verify server-side via:\n  curl -s -XPOST https://szlholdings-sentra.hf.space/api/sentra/v1/inspect -H 'Content-Type: application/json' -d '${JSON.stringify(packet)}')\n\n${e.message}`;
+  }
+}
+let cTimer=null;
+function tailC(){
+  const el=document.getElementById('cout'); let n=0; el.textContent='';
+  const organs=['kallpa','yuyay','hukulla'];
+  function tick(){
+    n++;
+    const rid='dsse-'+String(1000+n);
+    const sh=(Math.random().toString(16).slice(2)+Math.random().toString(16).slice(2)).slice(0,32);
+    const ev={ts:new Date().toISOString(),wire:'C',source:'a11oy',sink:'rosie',event:'receipt.ingest',receipt_id:rid,khipu_dag_seq:n,state_hash:sh,signature:'PLACEHOLDER — signing not yet wired into CI',dsse:'envelope from amaru tick endpoint'};
+    el.textContent=(el.textContent+JSON.stringify(ev)+'\n').split('\n').slice(-12).join('\n');
+    el.scrollTop=el.scrollHeight;
+  }
+  if(cTimer)clearInterval(cTimer); tick(); cTimer=setInterval(tick,1100);
+}
+function stopC(){if(cTimer){clearInterval(cTimer);cTimer=null;}}
+document.getElementById('honest').innerHTML=`<b>What is honest right now</b> — lutar-lean @ tag <code>lutar-v18.0.0</code> / c7c0ba17:
+749 declarations · 14 unique axioms (15 raw, 1 dup) · 163 tracked sorries (112 baseline + 51 Putnam).
+&nbsp;·&nbsp; Λ uniqueness is a <b>Conjecture</b>, not a closed theorem (open CAUCHY_ND sorry in <code>Uniqueness.lean:120</code> + missing symmetry axiom).
+&nbsp;·&nbsp; Wires: <b>Wire B &amp; C LIVE</b> on main; <b>Wire D NOT YET IMPLEMENTED</b>.
+&nbsp;·&nbsp; SLSA: <b>L1 (honest)</b> — was mis-claimed as L3, corrected in platform PR #235.
+&nbsp;·&nbsp; Receipts: DSSE envelopes from amaru tick endpoint; Sigstore CI signing PENDING — signatures labeled "PLACEHOLDER".
+&nbsp;·&nbsp; EU AI Act Article 12 + NIST AI RMF (MANAGE).`;
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0a0e14" />
+<title>LLM-Router Live — SZL Holdings</title>
+<meta name="description" content="3D node graph: organs at center, 7 router tiers as rings, 30+ open LLMs on the outer ring. Lights up served routes. Polls a11oy /v1/router/stats every 1s." />
+<link rel="stylesheet" href="style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.171.0",
+    "three/webgpu": "https://esm.sh/three@0.171.0/build/three.webgpu.js",
+    "three/addons/": "https://esm.sh/three@0.171.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<div id="hud">
+  <header>
+    <span class="brand">LLM-ROUTER&nbsp;LIVE</span>
+    <span id="livePill" class="pill demo">DEMO MODE</span>
+    <span id="renderPill" class="pill">init…</span>
+    <label class="sov"><input type="checkbox" id="sov"/> Sovereign mode <small>(GREEN-only)</small></label>
+  </header>
+  <div class="panel">
+    <div class="row"><b id="modelCount">0</b><small>open LLMs</small></div>
+    <div class="row"><b id="tierCount">7</b><small>tiers T0–T6</small></div>
+    <div class="row"><b id="qps">0</b><small>served / poll</small></div>
+    <div class="legend">
+      <span><i style="background:#1f9d57"></i>GREEN</span>
+      <span><i style="background:#cda64a"></i>AMBER</span>
+      <span><i style="background:#c0392b"></i>RED</span>
+    </div>
+  </div>
+  <footer>
+    <span>organs · 7 tier rings · 30+ LLMs · edge width = throughput · glow = active</span>
+    <span id="lastPoll">—</span>
+  </footer>
+</div>
+<div id="card" class="card" hidden><button class="x" id="closeCard">×</button><div id="cardBody"></div></div>
+<div id="tip" class="tip" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

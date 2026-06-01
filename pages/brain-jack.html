@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a11oy — Brain-Jack Mesh (Wire G · Doctrine v11)</title>
+<meta name="description" content="Wire G brain-jack mesh playground: fan-out query to all 6 SZL Space organs — gate, cortex, immune, receipt, nervous, deploy — see each organ response + unified Λ-signal.">
+<style>
+:root{--bg:#0b0e14;--card:#121826;--ink:#e8eef7;--mut:#8aa0bf;--acc:#5ad1c0;--warn:#e0c060;--line:#243149;--red:#e05555;--green:#5ad1c0}
+*{box-sizing:border-box}body{margin:0;font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 20px 80px}h1{font-size:26px;margin:0 0 4px}
+h2{font-size:18px;margin:30px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600}
+code{background:#0a1626;padding:1px 5px;border-radius:5px;color:var(--acc);font-size:12px}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.note{color:var(--mut);font-size:13px}
+.b{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.green{background:#0f3a2e;color:#5ad1c0}.amber{background:#3a2f0f;color:#e0c060}.red{background:#3a0f0f;color:#e05555}
+textarea{width:100%;background:#0a1626;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:12px;font:14px/1.5 JetBrains Mono,monospace;resize:vertical;min-height:80px}
+input[type=range]{width:100%;margin:4px 0}
+button{background:#13314a;color:#bfe;border:1px solid var(--line);border-radius:8px;padding:9px 18px;cursor:pointer;font-size:14px;font-weight:600;transition:background .15s}
+button:hover{background:#1a4060}
+button.fire{background:#0f3a2e;color:var(--acc);border-color:var(--acc)}
+button.fire:hover{background:#155a45}
+pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
+.foot{margin-top:38px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+.organs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin:18px 0}
+.organ-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.organ-card.loading{opacity:.5}
+.organ-card .organ-name{font-weight:700;color:var(--acc);font-size:14px;margin:0 0 6px}
+.organ-card .organ-text{font-size:13px;line-height:1.5;color:var(--ink)}
+.organ-card .organ-lambda{font-size:12px;color:var(--mut);margin-top:8px}
+.organ-card.stub{border-color:#3a2f0f}
+.unified-bar{background:var(--card);border:2px solid var(--acc);border-radius:12px;padding:18px 22px;margin:20px 0;text-align:center}
+.unified-bar .lam{font-size:36px;font-weight:700;color:var(--acc)}
+.unified-bar .mr{font-size:11px;color:var(--mut);word-break:break-all;margin-top:6px}
+.axis-row{display:flex;gap:8px;align-items:center;margin:3px 0}
+.axis-label{font-size:11px;color:var(--mut);width:160px;flex-shrink:0}
+.axis-val{font-size:11px;color:var(--acc);width:36px;text-align:right}
+#status{padding:8px 12px;border-radius:8px;font-size:13px;margin:10px 0;display:none}
+#status.ok{background:#0f3a2e;color:var(--acc);display:block}
+#status.err{background:#3a0f0f;color:#e05555;display:block}
+#status.working{background:#13314a;color:var(--mut);display:block}
+nav{color:var(--mut);font-size:13px;margin-bottom:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><a href="/">home</a> · <a href="/brain">/brain</a> · <a href="/mesh">/mesh</a> · <a href="/wires">/wires</a> · <a href="/brain-jack">/brain-jack</a></nav>
+
+<h1>Brain-Jack Mesh — Wire G</h1>
+<p class="sub">Fan a query out to all 6 SZL Space organs in parallel. Each organ responds in its own style.<br>
+<span class="b amber">Doctrine v11</span> &nbsp; <span class="b green">749/14/163</span> &nbsp; <span class="b green">Wire G</span> &nbsp; <span class="b amber">λ_receipt sig: PLACEHOLDER</span></p>
+
+<div class="card note">
+<b>Wire G:</b> Every Space exposes 3 brain-jack endpoints:
+<code>POST /api/&lt;space&gt;/v1/brain/jack</code> (accept query),
+<code>GET /api/&lt;space&gt;/v1/brain/sockets</code> (socket registry),
+<code>POST /api/&lt;space&gt;/v1/brain/multi-jack</code> (fan-out).
+This playground calls a11oy's <code>/api/a11oy/v1/brain/multi-jack</code>, which fans out to all 5 other Spaces in parallel.
+<br><b>Honesty:</b> λ_receipt signatures are PLACEHOLDER (Sigstore CI not yet wired, Doctrine v10/v11). Static spaces (vessels, uds-demo) return stubs.
+</div>
+
+<h2>1 · Query</h2>
+<div class="card">
+  <textarea id="query" rows="3" placeholder="Enter your brain-jack query...">How does the Λ aggregator work across all 6 organs? What is the formal status of TH1 uniqueness?</textarea>
+</div>
+
+<h2>2 · 13-Axis Trust Vector (Doctrine v11)</h2>
+<div class="card" id="axis-inputs">
+  <!-- filled by JS -->
+</div>
+
+<button class="fire" onclick="fireMultiJack()" id="fire-btn">🔌 Fire Multi-Jack → 6 Spaces</button>
+<div id="status"></div>
+
+<h2>3 · Organ Responses</h2>
+<div class="organs-grid" id="organs-grid">
+  <div class="organ-card" style="grid-column:1/-1;color:var(--mut);font-size:13px">Fire a multi-jack query above to see responses from all 6 organ spaces.</div>
+</div>
+
+<div class="unified-bar" id="unified-bar" style="display:none">
+  <div style="color:var(--mut);font-size:12px;margin-bottom:4px">Unified Λ-Signal (geometric mean of all 6 organ λ values)</div>
+  <div class="lam" id="unified-lam">—</div>
+  <div class="mr" id="master-receipt-display">master_receipt: —</div>
+</div>
+
+<h2>4 · Socket Registry</h2>
+<div class="card" id="sockets-table">
+  <button onclick="loadSockets()">GET /api/a11oy/v1/brain/sockets</button>
+  <pre id="sockets-out">// click to load</pre>
+</div>
+
+<h2>5 · Raw JSON</h2>
+<div class="card"><pre id="raw-out" style="max-height:400px">// fire a query to see raw response</pre></div>
+
+<div class="foot">Wire G · Brain-Jack Mesh · Doctrine v11 · 749 declarations / 14 unique axioms / 163 tracked sorries @ c7c0ba17<br>
+Λ uniqueness is a <b>Conjecture</b> (CAUCHY_ND sorry @ Uniqueness.lean:120). Hatun-Willay (renamed from Mythos). λ_receipt sig: PLACEHOLDER.</div>
+</div>
+
+<script>
+const AXIS_NAMES = [
+  "truthfulness","calibration","transparency","forthrightness",
+  "non_deception","non_manipulation","autonomy_preservation",
+  "harm_avoidance","data_minimisation","contestability",
+  "accountability","interoperability","reversibility"
+];
+
+const ORGANS = {
+  "a11oy": {label:"gate", emoji:"⚙️", desc:"Brand Orchestration / 46 policy gates"},
+  "amaru": {label:"cortex", emoji:"🧠", desc:"Cortex reasoning / TH1 TH8 TH10"},
+  "sentra": {label:"immune", emoji:"🛡️", desc:"Immune / halt / OVERWATCH R0513"},
+  "vessels": {label:"receipt", emoji:"📜", desc:"Khipu Merkle DAG / DSSE receipts"},
+  "rosie": {label:"nervous", emoji:"🌐", desc:"Nervous system / cross-session"},
+  "uds-demo": {label:"deploy", emoji:"🚀", desc:"UDS bundle / Zarf / airgap deploy"},
+};
+
+const axisVals = AXIS_NAMES.map(()=>0.91);
+
+function buildAxisUI() {
+  const c = document.getElementById("axis-inputs");
+  c.innerHTML = AXIS_NAMES.map((n,i)=>`
+    <div class="axis-row">
+      <span class="axis-label">${n}</span>
+      <input type="range" min="0" max="1" step="0.01" value="${axisVals[i]}"
+        oninput="axisVals[${i}]=+this.value;document.getElementById('av${i}').textContent=this.value.padEnd(4,'0').slice(0,4)">
+      <span class="axis-val" id="av${i}">${axisVals[i].toFixed(2)}</span>
+    </div>
+  `).join("");
+}
+
+async function fireMultiJack() {
+  const query = document.getElementById("query").value.trim();
+  if (!query) return;
+  const btn = document.getElementById("fire-btn");
+  btn.disabled = true;
+  setStatus("working", "Firing multi-jack to 6 spaces...");
+
+  // Show loading cards
+  const grid = document.getElementById("organs-grid");
+  grid.innerHTML = Object.entries(ORGANS).map(([sp,info])=>`
+    <div class="organ-card loading" id="card-${sp}">
+      <div class="organ-name">${info.emoji} ${sp} · ${info.label}</div>
+      <div class="organ-text" style="color:var(--mut)">Waiting for response...</div>
+    </div>
+  `).join("");
+
+  document.getElementById("unified-bar").style.display = "none";
+
+  try {
+    const tp = "00-" + randomHex(32) + "-" + randomHex(16) + "-01";
+    const body = {
+      query,
+      axis_scores: [...axisVals],
+      target_organs: ["cortex","immune","receipt","gate","nervous","deploy"],
+      traceparent: tp,
+    };
+    const r = await fetch("/api/a11oy/v1/brain/multi-jack", {
+      method:"POST",
+      headers:{"content-type":"application/json","traceparent":tp},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+
+    // Show raw
+    document.getElementById("raw-out").textContent = JSON.stringify(data, null, 2);
+
+    // Populate organ cards
+    const responses = data.responses || [];
+    for (const [sp, info] of Object.entries(ORGANS)) {
+      const resp = responses.find(x=>x.space===sp || x.response_organ===info.label);
+      const card = document.getElementById(`card-${sp}`);
+      if (!card) continue;
+      card.classList.remove("loading");
+      if (resp) {
+        const L = resp.lambda_signal || 0;
+        const isStub = resp.stub;
+        card.classList.toggle("stub", isStub);
+        card.innerHTML = `
+          <div class="organ-name">${info.emoji} ${sp} · <span class="b ${L>=0.90?'green':'amber'}">${info.label}</span> ${isStub?'<span class="b amber">STUB</span>':''}</div>
+          <div class="organ-text">${esc(resp.response_text||"")}</div>
+          <div class="organ-lambda">λ = <b>${L.toFixed(4)}</b> ${resp.doctrine?'· '+resp.doctrine:''} ${resp.error?'· err: '+esc(resp.error.slice(0,60)):''}</div>
+        `;
+      } else {
+        card.innerHTML = `<div class="organ-name">${info.emoji} ${sp}</div><div class="organ-text" style="color:var(--mut)">No response received.</div>`;
+      }
+    }
+
+    // Unified Λ
+    const uL = data.unified_lambda || 0;
+    const mr = data.master_receipt || "—";
+    document.getElementById("unified-lam").textContent = uL.toFixed(6);
+    document.getElementById("master-receipt-display").textContent = "master_receipt (Merkle root): " + mr;
+    document.getElementById("unified-bar").style.display = "";
+
+    setStatus("ok", `Multi-jack complete — ${responses.length} responses — unified Λ = ${uL.toFixed(4)} — master_receipt: ${mr.slice(0,16)}...`);
+  } catch(e) {
+    setStatus("err", "Error: " + e.message);
+    document.getElementById("raw-out").textContent = "Error: " + e;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function loadSockets() {
+  try {
+    const r = await fetch("/api/a11oy/v1/brain/sockets");
+    const d = await r.json();
+    document.getElementById("sockets-out").textContent = JSON.stringify(d, null, 2);
+  } catch(e) {
+    document.getElementById("sockets-out").textContent = "Error: " + e;
+  }
+}
+
+function setStatus(cls, msg) {
+  const el = document.getElementById("status");
+  el.className = cls;
+  el.textContent = msg;
+}
+
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function randomHex(n) {
+  let s = "";
+  for (let i=0;i<n;i++) s += "0123456789abcdef"[Math.floor(Math.random()*16)];
+  return s;
+}
+
+buildAxisUI();
+</script>
+</body>
+</html>

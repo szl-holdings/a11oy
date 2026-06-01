@@ -1,127 +1,121 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v9
 #
-# a11oy — multi-stage container build (CLI + serve modes).
+# a11oy HF Docker Space — RESET build (Brand Orchestration Layer at /).
 #
-# a11oy is a TypeScript policy / receipt substrate. It is a library plus a
-# CLI (receipt-substrate) that can also run an HTTP server. ENTRYPOINT
-# dispatches to the bundled CLI or, when given the `serve` subcommand, boots
-# the HTTP server (/healthz, /readyz, /v1/ledger, /v1/verify,
-# /v1/policy/evaluate) that the Kubernetes probes target. The doctrine packages
-# (@a11oy/core, @a11oy/connection) are compiled to dist/ and importable by
-# downstream Node tooling.
+# RESET 2026-05-31 (Yachay CTO): a11oy is NOT a /console/ admin panel.
+# Per Replit .replit-artifact/artifact.toml: BASE_PATH="/", serve="static" from dist/public,
+# rewrite /* -> /index.html (SPA history fallback). The React SPA IS the Brand
+# Orchestration Layer; its HomePage (Vessels-DNA / investor-facing landing) renders at /.
 #
-# Build:  docker build -t a11oy:dev .
-# Run:    docker run --rm a11oy:dev --version
-#         docker run --rm a11oy:dev --help
-#         docker run -p 8080:8080 a11oy:dev serve
-# Push:   docker build --build-arg VERSION=1.2.0 -t ghcr.io/szl-holdings/a11oy:1.2.0 .
+# Serves:
+#   /            — SPA front door (Brand Orchestration Layer landing)
+#   /assets/*    — SPA JS/CSS chunks (vite base="/")
+#   /boardroom, /investor-demo, /sovereign, /fabric, /nexus, /command, ... — SPA routes (history fallback)
+#   /api/a11oy/* — a11oy serve endpoints (health, gates, reason, policy/evaluate, proxy)
 #
-# Base images are vanilla node:22-alpine (not Iron Bank-hardened).
-# Iron Bank hardening is tracked in szl-holdings/a11oy#164.
-#
-# Authored for SZL Holdings. Signed-off per repository DCO.
+# HF Space requirement: listen on PORT 7860.
 
-# ---------------------------------------------------------------------------
-# Stage 1 — builder: install workspace deps and compile the doctrine packages.
-# ---------------------------------------------------------------------------
-FROM node:22-alpine AS builder
-
-# Enable Corepack-managed pnpm pinned to the version used in CI/local dev.
-RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# pnpm's deps-status guard re-runs `pnpm install` before `run` scripts; the
-# extracted showcase repo references some workspace packages that live in the
-# parent monorepo, so we disable that guard for in-image builds. The frozen
-# lockfile install below is still authoritative for what gets installed.
-ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
-# Native-dep build scripts (esbuild/unrs-resolver) are not needed to compile the
-# doctrine TS packages; pnpm v11 otherwise exits non-zero on "ignored builds".
-ENV PNPM_CONFIG_STRICT_DEP_BUILDS=false
-# pnpm refuses to purge node_modules without a TTY unless CI is set.
-ENV CI=true
+# Install Node 22 (for a11oy serve TypeScript runner)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates gnupg git && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy only the manifests + lockfile first to maximise layer caching.
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY packages/a11oy-knowledge/package.json packages/a11oy-knowledge/package.json
-COPY packages/qec-integrity/package.json   packages/qec-integrity/package.json
-COPY artifacts/a11oy-uds/package.json       artifacts/a11oy-uds/package.json
-COPY web/packages/a11oy-core/package.json       web/packages/a11oy-core/package.json
-COPY web/packages/a11oy-connection/package.json web/packages/a11oy-connection/package.json
+# Install Python dependencies
+# ADDITIVE (Yachay): huggingface_hub + openai power the a11oy.code orchestrator's
+# unified open-LLM router (HF Router inference). python-multipart is required by
+# FastAPI UploadFile for the Whisper /voice/stt endpoint. None of these change the
+# existing SPA / gates runtime; the orchestrator import is try/except-guarded in serve.py.
+RUN pip install --no-cache-dir \
+    "fastapi>=0.111.0,<1.0.0" \
+    "uvicorn[standard]>=0.29.0,<1.0.0" \
+    "httpx>=0.27.0,<1.0.0" \
+    "starlette>=0.37.0" \
+    "huggingface_hub>=0.25.0" \
+    "openai>=1.40.0" \
+    "python-multipart>=0.0.9" \
+    "cryptography>=42.0.0" \
+    "lmdb>=1.4.0" \
+    "sqlite-vss>=0.1.2"
 
-RUN pnpm install --frozen-lockfile
+# Clone a11oy source for the serve runtime (receipt-substrate + policy gates only)
+RUN git clone --depth=1 --filter=blob:none --sparse \
+    https://github.com/szl-holdings/a11oy.git /app/a11oy-src && \
+    cd /app/a11oy-src && \
+    git sparse-checkout set \
+        packages/receipt-substrate/src \
+        packages/policy/src/gates
 
-# Copy the rest of the source and build the doctrine packages to dist/.
-COPY . .
-RUN pnpm run build:doctrine
+# Copy the pre-built SPA (Brand Orchestration Layer) to the static root.
+# index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
+COPY console/ ./static/
 
-# Prune to a production-only node_modules for the runtime stage. The doctrine
-# packages carry essentially no runtime deps, so this drops the TypeScript /
-# jest toolchain (node_modules ~142M -> ~0.3M).
-RUN pnpm prune --prod
+# Copy serve orchestrator and gates manifest
+COPY serve.py ./serve.py
+COPY gates_manifest.json ./gates_manifest.json
+# ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
+COPY a11oy_code_orchestrator.py ./a11oy_code_orchestrator.py
+# ADDITIVE (WAYRA organ): explicit per-file COPY (this Dockerfile does not use COPY . .).
+# serve.py mounts wayra_serve.router -> /wayra, /wayra-digest, /api/a11oy/v1/wayra/*.
+COPY wayra_serve.py ./wayra_serve.py
+COPY wayra_snapshot.json ./wayra_snapshot.json
+COPY wayra_digests_7d.json ./wayra_digests_7d.json
+# ADDITIVE (KHIPU-OS agentic DAG organ, 2026-06-01, Yachay): explicit per-file COPY
+# (this Dockerfile does not use COPY . .). serve.py imports szl_khipu_os_routes and
+# mounts GET/POST /api/a11oy/v1/khipu-os/{stats,verify,checkpoint,archive}. Self-driving
+# Merkle DAG + Reed-Solomon erasure (reedsolo optional; honest, NOT holographic/quantum).
+COPY szl_khipu_os_routes.py ./szl_khipu_os_routes.py
+# ADDITIVE (PURIQ Agentic Formulas, 2026-06-01, Yachay): explicit per-file COPY
+# (this Dockerfile does not use COPY . .). serve.py imports szl_puriq_formulas and
+# calls .register(app) -> GET /formulas + /api/a11oy/v1/puriq/formulas*. Doctrine v11 LOCKED.
+COPY szl_puriq_formulas.py ./szl_puriq_formulas.py
 
-# ---------------------------------------------------------------------------
-# Stage 2 — runtime: minimal Alpine, non-root, dual-mode entrypoint.
-# ---------------------------------------------------------------------------
-FROM node:22-alpine AS runtime
+# ADDITIVE (Yachay / AYNI-OS, 2026-06-01): reciprocity organism + event-sourced replay
+# + Tinkuy (Kuramoto) flow. Explicit per-file COPY (this Dockerfile does not use COPY . .).
+# serve.py imports ayni_os_serve.router -> /v1/ayni, /v1/replay, /v1/tinkuy and serves the
+# /ayni tab from /app/pages/ayni.html. HONEST: replay=event-sourcing (NOT time-travel);
+# Ayni=game-theory primitive (Axelrod-Hamilton 1981, NOT mystical); Tinkuy=Kuramoto 1975.
+# LOCKED preserved: 749/14/163, 13-axis yuyay_v3, replay bacf5443…631fc5. Pure additive.
+COPY ayni_os_serve.py ./ayni_os_serve.py
+COPY ayni_os/ ./ayni_os/
+COPY pages/ ./pages/
 
-ENV NODE_ENV=production
-# Port the serve subcommand listens on. Override with -e A11OY_PORT=<n>.
-ENV A11OY_PORT=8080
+# ADDITIVE (Live 3D Wires / PURIQ Doctrine v12, Yachay): explicit per-file COPY.
+# This Dockerfile uses per-file COPY (no `COPY . .`), so the live-wires module +
+# its static assets must be copied explicitly or `import szl_live_wires` 404s and
+# /live-wires falls through to the SPA shell. serve.py registers these FIRST.
+COPY szl_live_wires.py ./szl_live_wires.py
+COPY live_wires.html ./live_wires.html
+COPY live_wires_3d.js ./live_wires_3d.js
 
-# L1 fix (2026-05-31): wire the build-time git SHA into the runtime environment
-# so /healthz can return the real deployed revision instead of "unknown".
-# REVISION is passed by the docker-build workflow as --build-arg REVISION=${{ github.sha }}.
-# Reference: red-team finding L1 — "/healthz reports sha:'unknown' in-container"
-ARG REVISION=unknown
-ENV A11OY_GIT_SHA=${REVISION}
+# ADDITIVE (Provenance Hardening / Wire D + DSSE Cosign REAL signing, 2026-06-01, Yachay):
+# explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
+# szl_provenance (which imports szl_dsse) and calls register_provenance(app, "a11oy") ->
+# GET /api/a11oy/wires/D, POST /khipu/sign, POST /khipu/verify, GET /khipu/ledger,
+# GET /api/a11oy/provenance. Without these COPYs the import fails and the routes fall
+# through to the Node :8081 proxy (503). cryptography (added above) backs the real
+# ECDSA-P256-SHA256 cosign signatures. Real signatures only when SZL_COSIGN_PRIVATE_PEM
+# runtime secret is present (else honestly UNSIGNED). SLSA L2 (signed provenance), NOT L3.
+COPY szl_dsse.py ./szl_dsse.py
+COPY szl_provenance.py ./szl_provenance.py
 
-WORKDIR /app
+ENV PORT=7860
+EXPOSE 7860
 
-# node:22-alpine ships with the 'node' user (uid=1000, gid=1000). Re-creating a
-# group/user at the same GID/UID fails with "gid '1000' in use". Use the
-# existing 'node' user directly — uid 1000, gid 1000 — satisfies IL5 non-root.
-
-# Copy production node_modules and the built / source artifacts the CLI needs.
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/package.json ./package.json
-COPY --from=builder --chown=node:node /app/packages ./packages
-COPY --from=builder --chown=node:node /app/web/packages/a11oy-core/dist       ./web/packages/a11oy-core/dist
-COPY --from=builder --chown=node:node /app/web/packages/a11oy-connection/dist ./web/packages/a11oy-connection/dist
-COPY --from=builder --chown=node:node /app/docker-entrypoint.sh ./docker-entrypoint.sh
-
-RUN chmod +x ./docker-entrypoint.sh
-
-USER 1000:1000
-
-# OCI image metadata. VERSION and REVISION are overridable at build time:
-#   docker build --build-arg VERSION=1.0.0 --build-arg REVISION=$(git rev-parse HEAD) ...
-ARG VERSION=1.0.0
-ARG REVISION=unknown
-ARG BUILD_DATE=unknown
-LABEL org.opencontainers.image.source="https://github.com/szl-holdings/a11oy" \
-      org.opencontainers.image.licenses="LicenseRef-SZL-Proprietary" \
-      org.opencontainers.image.title="a11oy" \
-      org.opencontainers.image.description="Governed policy / receipt substrate: Layer 6 formula gates, receipt chaining, and doctrine runtime (CLI plus `serve` HTTP mode)." \
-      org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.revision="${REVISION}" \
-      org.opencontainers.image.created="${BUILD_DATE}" \
-      org.opencontainers.image.vendor="SZL Holdings" \
-      org.opencontainers.image.url="https://github.com/szl-holdings/a11oy" \
-      org.opencontainers.image.documentation="https://github.com/szl-holdings/a11oy#readme"
-
-# Default port for serve mode; the k8s probes target /healthz on this port.
-EXPOSE 8080
-ENV A11OY_PORT=8080
-
-# HEALTHCHECK probes the serve-mode /healthz endpoint. It is a no-op for plain
-# CLI invocations (which exit immediately), and gives orchestrators a real
-# liveness signal when the container is run as `serve`.
-HEALTHCHECK --interval=20s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.A11OY_PORT||8080)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-
-ENTRYPOINT ["./docker-entrypoint.sh"]
-# Default to CLI help. Long-running deployments override this with `serve`
-# (see deploy/manifests/a11oy-deployment.yaml).
-CMD ["--help"]
+# ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay / Perplexity Computer Agent):
+# explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
+# szl_unay_routes and calls .register(app, ns="a11oy") -> /api/a11oy/v2/unay/* +
+# /api/a11oy/v2/khipu/lmdb/*. Real durable lmdb + real sqlite-vss (honest cosine-
+# fallback if the .so cannot load in the slim image). a11oy carries Khipu-LMDB PRIMARY.
+COPY szl_unay.py ./szl_unay.py
+COPY szl_khipu_lmdb.py ./szl_khipu_lmdb.py
+COPY szl_khipu_replicate.py ./szl_khipu_replicate.py
+COPY szl_unay_routes.py ./szl_unay_routes.py
+CMD ["python", "serve.py"]

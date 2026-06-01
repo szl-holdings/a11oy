@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11+ -->
+<!-- AYNI-OS surface — reciprocity organism + event-sourced replay + Tinkuy flow. ADDITIVE. -->
+<!-- HONEST: Ayni = game-theory primitive (Axelrod-Hamilton 1981). Replay = event-sourcing,
+     NOT time-travel. Tinkuy = Kuramoto 1975 order parameter. No mysticism. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · AYNI-OS — reciprocity organism &amp; time-reversible replay</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0;border-left:3px solid var(--ok)}
+.card h2{margin:0 0 4px;font-size:17px}
+.path{font-family:var(--mono);font-size:12.5px;color:var(--acc);margin:6px 0}
+pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12px;padding:10px;overflow:auto;max-height:240px;white-space:pre-wrap;word-break:break-word}
+button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px;margin:8px 8px 8px 0}
+input[type=range]{width:100%}
+.mut{color:var(--mut);font-size:13px}
+.gauges{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+.g{background:#0a0c11;border:1px solid var(--line);border-radius:10px;padding:10px}
+.g .name{font-family:var(--mono);font-size:12px;color:var(--mut)}
+.g .val{font-size:20px;font-weight:700;margin-top:2px}
+.bar{height:8px;border-radius:5px;background:#1b2030;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%}
+.meter{height:18px;border-radius:9px;background:#1b2030;overflow:hidden;margin:8px 0}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,#54d18c,#7cc4ff)}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.pill.ok{background:rgba(84,209,140,.15);color:var(--ok)}
+.pill.bad{background:rgba(255,107,107,.15);color:var(--bad)}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.cite{font-size:12px;color:var(--mut);border-top:1px solid var(--line);margin-top:18px;padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy</span> <span class="tag">· AYNI-OS</span></div>
+    <div class="nav"><a href="/">home</a><a href="/chaski">chaski</a><a href="/ayni">ayni</a></div>
+  </div>
+
+  <h1>AYNI-OS — reciprocity organism &amp; time-reversible replay</h1>
+  <p class="sub">A time-reversible (event-sourced), forkable runtime governed by an
+  <b>Ayni Conservation Law</b>. <b>Honest framing:</b> Ayni is a game-theory primitive
+  (Axelrod&nbsp;&amp;&nbsp;Hamilton 1981; Trivers 1971), <i>not</i> mysticism;
+  "time-reversal" is <i>event-sourcing replay</i>, <i>not</i> time-travel; Tinkuy is the
+  Kuramoto (1975) order parameter. Locked Doctrine&nbsp;v11 numbers preserved
+  (749/14/163, 13-axis yuyay_v3, replay bacf5443…631fc5).</p>
+
+  <!-- AYNI GAUGES -->
+  <div class="card">
+    <h2>Ayni gauges — per-organ reciprocity coefficient α<sub>o</sub></h2>
+    <div class="path">GET /v1/ayni · α = In/(In+Out) · α&lt;0.45 ⇒ HUKLLA T24 fires</div>
+    <div class="row"><span id="ayniStatus" class="pill ok">loading…</span>
+      <span class="mut">balanced α = 0.50 · deficit threshold 0.45</span></div>
+    <div id="gauges" class="gauges"></div>
+  </div>
+
+  <!-- REPLAY SCRUBBER -->
+  <div class="card">
+    <h2>Replay timeline scrubber — verifiable state at past moment T</h2>
+    <div class="path">GET /v1/replay?at=&lt;timestamp&gt; · mechanism = event-sourcing-replay</div>
+    <div class="row">
+      <span class="mut">T = <span id="tlabel" style="font-family:var(--mono)">—</span></span>
+      <span id="chainPill" class="pill ok">chain —</span>
+    </div>
+    <input id="scrub" type="range" min="0" max="100" value="100"/>
+    <pre id="replayOut">drag the scrubber to reconstruct empire state at past timestamp T…</pre>
+  </div>
+
+  <!-- TINKUY METER -->
+  <div class="card">
+    <h2>Tinkuy r meter — Kuramoto order parameter across organ phases</h2>
+    <div class="path">GET /v1/tinkuy · r = |1/N · Σ e^{iθ}| · r&gt;0.85 ⇒ flow (suppress Reflexion)</div>
+    <div class="meter"><i id="rbar" style="width:0%"></i></div>
+    <div class="row"><span class="mut">r = <b id="rval">—</b></span>
+      <span id="flowPill" class="pill ok">—</span></div>
+  </div>
+
+  <div class="cite">
+    <b>Citations (peer-reviewed):</b>
+    Axelrod &amp; Hamilton, "The Evolution of Cooperation," <i>Science</i> 211(4489):1390–1396, 1981 (DOI 10.1126/science.7466396).
+    Trivers, "The Evolution of Reciprocal Altruism," <i>Q. Rev. Biol.</i> 46(1):35–57, 1971 (DOI 10.1086/406755).
+    Kuramoto, Lecture Notes in Physics 39, Springer, 1975.
+    Csikszentmihalyi, <i>Beyond Boredom and Anxiety</i>, 1975. Strogatz, <i>Sync</i>, 2003.
+    Noether, "Invariante Variationsprobleme," Göttingen, 1918.
+    <br/>Signed — <b>Yachay</b> (CTO). ADDITIVE only; yuyay_v3 hash untouched.
+  </div>
+</div>
+
+<script>
+const T0 = Math.floor(Date.now()/1000) - 3700;  // window start (≈ seed)
+const T1 = Math.floor(Date.now()/1000);          // now
+function color(a){ return a < 0.45 ? 'var(--bad)' : (a < 0.55 ? 'var(--warn)' : 'var(--ok)'); }
+
+async function loadAyni(){
+  try{
+    const r = await fetch('/v1/ayni'); const d = await r.json();
+    const g = document.getElementById('gauges'); g.innerHTML='';
+    Object.entries(d.alphas||{}).forEach(([o,a])=>{
+      const c = color(a);
+      g.insertAdjacentHTML('beforeend',
+        `<div class="g"><div class="name">${o}</div>
+         <div class="val" style="color:${c}">${a.toFixed(2)}</div>
+         <div class="bar"><i style="width:${Math.round(a*100)}%;background:${c}"></i></div></div>`);
+    });
+    const s = document.getElementById('ayniStatus');
+    if(d.halt){ s.className='pill bad'; s.textContent='HUKLLA T24 — organ drained'; }
+    else { s.className='pill ok'; s.textContent='balanced — no deficit'; }
+  }catch(e){ document.getElementById('ayniStatus').textContent='offline'; }
+}
+
+async function loadReplay(frac){
+  const T = Math.round(T0 + (T1-T0)*frac);
+  document.getElementById('tlabel').textContent = new Date(T*1000).toISOString().replace('T',' ').slice(0,19);
+  try{
+    const r = await fetch('/v1/replay?at='+T); const d = await r.json();
+    document.getElementById('replayOut').textContent = JSON.stringify(d, null, 2);
+    const cp = document.getElementById('chainPill');
+    if(d.chain_verified){ cp.className='pill ok'; cp.textContent='chain verified'; }
+    else { cp.className='pill bad'; cp.textContent='chain BROKEN'; }
+  }catch(e){ document.getElementById('replayOut').textContent='replay offline'; }
+}
+
+async function loadTinkuy(){
+  try{
+    const r = await fetch('/v1/tinkuy'); const d = await r.json();
+    const pct = Math.round((d.r||0)*100);
+    document.getElementById('rbar').style.width = pct+'%';
+    document.getElementById('rval').textContent = (d.r||0).toFixed(3);
+    const p = document.getElementById('flowPill');
+    if(d.in_tinkuy){ p.className='pill ok'; p.textContent='TINKUY — flow (Reflexion suppressed)'; }
+    else { p.className='pill bad'; p.textContent='incoherent — no flow'; }
+  }catch(e){ document.getElementById('rval').textContent='offline'; }
+}
+
+document.getElementById('scrub').addEventListener('input', e=>loadReplay(e.target.value/100));
+loadAyni(); loadReplay(1.0); loadTinkuy();
+setInterval(loadAyni, 15000); setInterval(loadTinkuy, 15000);
+</script>
+</body>
+</html>

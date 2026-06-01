@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v13 -->
+<!-- CHASKI surface — reception/onboarding/first-touch organ. ADDITIVE per Doctrine v13 §2.1. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · CHASKI — the Messenger (reception)</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0;border-left:3px solid var(--ok)}
+.path{font-family:var(--mono);font-size:12.5px;color:var(--acc);margin:6px 0}
+pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px;overflow:auto;max-height:280px;white-space:pre-wrap;word-break:break-word}
+button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px;margin:8px 8px 8px 0}
+input,select{background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px}
+.mut{color:var(--mut);font-size:13px}
+.scene{width:100%;height:340px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(circle at 50% 40%,#10131c,#080a0f);margin:14px 0}
+.flag{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--ok);background:#0f2a1c;border-radius:14px;padding:2px 10px;margin:3px}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://esm.sh/three@0.160.0","@react-three/fiber":"https://esm.sh/@react-three/fiber@8.15.19?deps=three@0.160.0,react@18.2.0,react-dom@18.2.0","@react-three/drei":"https://esm.sh/@react-three/drei@9.99.0?deps=three@0.160.0,react@18.2.0,react-dom@18.2.0","react":"https://esm.sh/react@18.2.0","react-dom":"https://esm.sh/react-dom@18.2.0","react-dom/client":"https://esm.sh/react-dom@18.2.0/client"}}
+</script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy</span> <span class="tag">· CHASKI — the Messenger · Doctrine v13 §2.1</span></div>
+    <div class="nav"><a href="/">home</a><a href="/chaski">chaski</a><a href="/wallpa">wallpa</a><a href="/wasi-rikuq">wasi-rikuq</a></div>
+  </div>
+
+  <h1>CHASKI — the Messenger</h1>
+  <p class="sub">Quechua <code>chaski</code> = the relay runner who carried messages between <code>chaskiwasi</code> (relay houses) up to ~300 km/day. The reception organ: it greets you, explains the empire in one breath, and runs you to the right flagship by your stated need. Factor: <code>Chaski(a)=exp(-κ·backpressure)·𝟙[routable] ∈ [0,1]</code>.</p>
+
+  <div class="scene"><canvas id="welcome3d" style="width:100%;height:100%;display:block;border-radius:12px"></canvas></div>
+  <p class="mut" style="text-align:center;margin-top:-6px">A glowing messenger delivers the visitor to the right flagship node. Drag to orbit.</p>
+
+  <div class="card">
+    <h3>Welcome + organ map</h3>
+    <div class="path">GET /api/a11oy/chaski/welcome</div>
+    <button onclick="callWelcome()">Greet me</button>
+    <div id="flags"></div>
+    <pre id="welcomeout">— click to receive the first-touch greeting + flagship map —</pre>
+  </div>
+
+  <div class="card">
+    <h3>Onboard — route by stated need</h3>
+    <div class="path">GET /onboard/start · POST /onboard/step</div>
+    <input id="need" placeholder="what do you want to do? e.g. 'sync data', 'fly a drone'" size="46"/>
+    <button onclick="runOnboard()">Run onboarding → route me</button>
+    <pre id="onboardout">— enter a need and CHASKI will route you, applying the reception gate —</pre>
+  </div>
+
+  <div class="card">
+    <h3>First-touch heatmap (UX metrics)</h3>
+    <div class="path">GET /api/a11oy/chaski/heatmap</div>
+    <button onclick="callHeat()">Load heatmap</button>
+    <pre id="heatout">— first-touch event counts, route distribution, completion rate, Khipu depth —</pre>
+  </div>
+
+  <div class="honest">
+    <b>Honest labels (Doctrine v13 §5):</b> every CHASKI action emits a <b>Khipu receipt</b> (SHA3-256 hash-chain; signature is <b>DSSE PLACEHOLDER</b>). The new <code>Chaski</code> factor is an <b>admissible</b> multiplier ∈ [0,1] — it can only gate harder, never inflate utility. Collision resolved: amaru's <code>Chaski-Yacu</code> courier is a distinct lower layer.
+  </div>
+
+  <footer>a11oy · CHASKI reception organ · Doctrine v13 (additive over v12 / v11 LOCKED 749/14/163 · 13-axis · replay <code>bacf5443…631fc5</code>) · — Yachay</footer>
+</div>
+
+<script>
+const API='/api/a11oy/chaski';
+function show(id,o){document.getElementById(id).textContent=typeof o==='string'?o:JSON.stringify(o,null,2);}
+async function callWelcome(){try{const r=await fetch(API+'/welcome');const j=await r.json();show('welcomeout',j);
+  document.getElementById('flags').innerHTML=Object.entries(j.flagships||{}).map(([k,v])=>`<span class="flag">${k} · ${v.organ}</span>`).join('');
+}catch(e){show('welcomeout','error: '+e);}}
+async function runOnboard(){try{const need=document.getElementById('need').value||'route an llm';
+  const s=await(await fetch(API+'/onboard/start')).json();const sid=s.session_id;let last;
+  last=await(await fetch(API+'/onboard/step',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:sid,answer:need,backpressure:0})})).json();
+  await fetch(API+'/onboard/step',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:sid,answer:'quickstart',backpressure:0})});
+  last=await(await fetch(API+'/onboard/step',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:sid,answer:need,backpressure:0})})).json();
+  show('onboardout',last);
+}catch(e){show('onboardout','error: '+e);}}
+async function callHeat(){try{show('heatout',await(await fetch(API+'/heatmap')).json());}catch(e){show('heatout','error: '+e);}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+// Lightweight R3F-recipe scene rendered with three.js core (R3F is the authoring
+// recipe per anatomy-3d V2; three.js renders it directly so the tab is dep-light).
+const canvas=document.getElementById('welcome3d');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+function size(){renderer.setSize(canvas.clientWidth,canvas.clientHeight,false);}
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(50,canvas.clientWidth/canvas.clientHeight,0.1,100);cam.position.set(0,1.2,6);
+const ctrl=new OrbitControls(cam,renderer.domElement);ctrl.enableDamping=true;ctrl.enablePan=false;
+scene.add(new THREE.AmbientLight(0x6688ff,0.5));
+const key=new THREE.PointLight(0x7cc4ff,2.4,40);key.position.set(2,4,4);scene.add(key);
+// Glowing messenger figure (body + head + a trailing message glyph)
+const mat=new THREE.MeshStandardMaterial({color:0x7cc4ff,emissive:0x2b6bd1,emissiveIntensity:1.1,roughness:0.3});
+const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.35,0.9,8,16),mat);scene.add(body);
+const head=new THREE.Mesh(new THREE.SphereGeometry(0.28,24,24),mat);head.position.y=0.95;scene.add(head);
+const glow=new THREE.Mesh(new THREE.SphereGeometry(0.16,16,16),new THREE.MeshStandardMaterial({color:0x54d18c,emissive:0x54d18c,emissiveIntensity:1.6}));glow.position.set(0.55,1.0,0);scene.add(glow);
+// Five flagship nodes arranged in an arc (the chaskiwasi the messenger runs between)
+const labels=['amaru','sentra','killinchu','rosie','a11oy'];const nodes=[];
+labels.forEach((lab,i)=>{const a=(-0.9+i*0.45);const x=Math.sin(a)*3.4,z=Math.cos(a)*-1.0-1.0;
+  const n=new THREE.Mesh(new THREE.IcosahedronGeometry(0.26,0),new THREE.MeshStandardMaterial({color:0xffcf5c,emissive:0x6b5410,emissiveIntensity:0.7}));
+  n.position.set(x,0.2,z);scene.add(n);nodes.push(n);
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0.4,0),n.position]),new THREE.LineBasicMaterial({color:0x335577}));scene.add(line);});
+let t=0;function loop(){t+=0.016;body.position.y=0.05*Math.sin(t*1.6);head.position.y=0.95+0.05*Math.sin(t*1.6);
+  glow.position.x=0.55+0.25*Math.sin(t*2.0);glow.position.z=0.25*Math.cos(t*2.0);
+  nodes.forEach((n,i)=>n.rotation.y+=0.01+0.002*i);ctrl.update();renderer.render(scene,cam);requestAnimationFrame(loop);}
+size();window.addEventListener('resize',()=>{size();cam.aspect=canvas.clientWidth/canvas.clientHeight;cam.updateProjectionMatrix();});loop();
+</script>
+</body>
+</html>

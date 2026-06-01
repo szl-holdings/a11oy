@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a11oy — Mesh · live wire diagram (B/C/D/E/F) + trace IDs (Doctrine v10)</title>
+<meta name="description" content="Live SZL mesh: Wire B (a11oy↔sentra), C (a11oy↔rosie), D (W3C traceparent), E (a11oy↔amaru cortex SSE), F (a11oy↔vessels receipts). Last 10 messages per wire + live trace IDs. Doctrine v10 honest.">
+<style>
+:root{--bg:#0b0e14;--card:#121826;--ink:#e8eef7;--mut:#8aa0bf;--acc:#5ad1c0;--acc2:#7aa2ff;--line:#243149;--warn:#e0c060}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 90px}
+h1{font-size:27px;margin:0 0 4px}
+h2{font-size:18px;margin:32px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+code{background:#0a1626;padding:1px 5px;border-radius:5px;color:var(--acc);font-size:12px}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.b{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.green{background:#0f3a2e;color:#5ad1c0}.amber{background:#3a2f0f;color:var(--warn)}
+.note{color:var(--mut);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600}
+button{background:var(--acc2);color:#06101f;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:12px}
+.diagram{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;padding:14px}
+.node{background:#16264a;border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-weight:700;color:var(--acc2)}
+.edge{font-size:12px;color:var(--mut);text-align:center}
+nav a{margin-right:14px;font-weight:600}
+.foot{margin-top:40px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style></head>
+<body><div class="wrap">
+<nav class="note"><a href="/">home</a><a href="/brain">/brain</a><a href="/wires">/wires</a><a href="/governed-loops">/governed-loops</a><a href="/upgrades">/upgrades</a></nav>
+<h1>a11oy — Mesh</h1>
+<p class="sub">Live Anatomy wiring across SZL Spaces · Doctrine v10 · Wires B/C LIVE · E/F LIVE (in-memory) · D LIVE in-process only (cross-Space broker NOT wired). Canonical honest status board: <a href="/wires">/wires</a>.</p>
+
+<h2>1 · Mesh diagram</h2>
+<div class="card">
+<div class="diagram">
+  <span class="node">a11oy</span>
+  <span class="node">sentra</span>
+  <span class="node">rosie</span>
+  <span class="node">amaru</span>
+  <span class="node">vessels</span>
+</div>
+<table id="wires"><tr><th>wire</th><th>edge</th><th>status</th><th>detail</th></tr></table>
+</div>
+
+<h2>2 · Wire D — W3C traceparent (real in-process trace IDs; cross-Space broker NOT wired)</h2>
+<div class="card">
+<p class="note">Every Space runs a traceparent middleware: it extracts an incoming <code>traceparent</code> (or generates one), echoes it on the response, and attaches it to outgoing cross-Space call headers. This is real <b>in-process</b> W3C trace propagation. There is <b>no distributed-trace broker/collector</b> wired across Spaces yet — so end-to-end cross-Space Wire D remains <b>NOT YET IMPLEMENTED</b> per the canonical <a href="/wires">/wires</a> board. We show only real trace IDs recorded on this Space; no synthetic cross-Space spans:</p>
+<button onclick="refresh()">refresh /api/a11oy/v1/mesh/state</button>
+<pre id="traces">…</pre>
+</div>
+
+<h2>3 · Wire E — a11oy → amaru cortex sync (last brand-decision events)</h2>
+<div class="card">
+<p class="note">a11oy publishes brand-decision events; amaru subscribes via SSE at <code>/api/amaru/v1/cortex-subscribe</code>. Try <code>/brain</code>'s composition playground to publish an event, then refresh.</p>
+<pre id="cortex">…</pre>
+</div>
+
+<h2>4 · Wire F — a11oy → vessels Khipu DAG (last receipts)</h2>
+<div class="card">
+<p class="note">Every a11oy gate decision emits a receipt that vessels' Khipu Merkle DAG ingests at <code>POST /api/vessels/v1/receipts/ingest</code>. Chain is summation-checked (each node digest folds its parents).</p>
+<pre id="khipu">…</pre>
+</div>
+
+<div class="foot">
+HONEST: in-memory ring buffers (no external broker in a static HF Space). Trace IDs are real W3C ids. Receipt signatures are <b>PLACEHOLDER</b> — Sigstore CI signing not yet wired (Doctrine v10). Wire status source: <code>/api/a11oy/v1/mesh/state</code>. Canonical numbers <a href="https://github.com/szl-holdings/.github/blob/main/.github/data/lean_numbers.json" target="_blank" rel="noopener">lean_numbers.json</a> @ <code>c7c0ba17</code> (749 / 14 / 163).
+</div>
+</div>
+<script>
+async function refresh(){
+  try{
+    const r=await fetch('/api/a11oy/v1/mesh/state');const d=await r.json();
+    const wt=document.getElementById('wires');wt.innerHTML='<tr><th>wire</th><th>edge</th><th>status</th><th>detail</th></tr>';
+    Object.entries(d.wires).forEach(([k,v])=>{const tr=document.createElement('tr');const cls=v.status==='LIVE'?'green':(String(v.status).indexOf('LIVE')===0?'amber':'amber');tr.innerHTML=`<td><b>${k}</b></td><td>${v.edge}</td><td><span class="b ${cls}">${v.status}</span></td><td><code>${v.detail}</code></td>`;wt.appendChild(tr);});
+    document.getElementById('traces').textContent=JSON.stringify(d.recent_traces,null,2)||'[]';
+    document.getElementById('cortex').textContent=JSON.stringify(d.cortex_events,null,2)||'[]';
+    document.getElementById('khipu').textContent='khipu_root: '+(d.khipu_root||'(empty)')+'\n\n'+JSON.stringify(d.khipu_nodes,null,2);
+  }catch(e){document.getElementById('traces').textContent='error: '+e;}
+}
+refresh();
+</script>
+</body></html>

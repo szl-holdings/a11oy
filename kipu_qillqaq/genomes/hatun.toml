@@ -1,0 +1,29 @@
+# genome.toml -- QILLQAQ declarative organ DNA (config; parsed by stdlib tomllib)
+# HONEST NAMING: "DNA"/"genome" = config + module loading. No biology, no magic.
+# Doctrine v11 LOCKED numbers preserved verbatim elsewhere (749/14/163, 13-axis yuyay_v3,
+# replay bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5). ADDITIVE only.
+
+[organ]
+name = "HATUN"
+quechua = "hatun = great/grand (doctrine layer)"
+function = "Doctrine / Hatun-Doctrine schema enforcement and policy gates."
+
+[role]
+loop = "read proposed action -> validate against doctrine schemas -> emit doctrine_verdict receipts"
+
+[reads]
+kinds = ["reasoning_verdict", "lambda_verdict"]
+
+[writes]
+kinds = ["doctrine_verdict"]
+
+[boot]
+handler = "kipu_qillqaq.handlers:reconcile"
+enabled = true
+
+[meta]
+slug = "hatun"
+substrate = "KIPU"
+engine = "QILLQAQ"
+author = "Yachay"
+agent = "Perplexity Computer Agent"

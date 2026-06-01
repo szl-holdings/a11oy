@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>a11oy · Gap Report — live founder-facing heatmap</title>
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v12 additive · Signed: Yachay · Co-author: Perplexity Computer Agent -->
+<style>
+:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
+header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
+header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
+header .tag{color:var(--mut);font-size:12px}
+nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
+nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
+nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
+nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
+main{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
+h1{font-size:26px;margin:0 0 4px;color:#fff}h2{font-size:18px;margin:28px 0 10px;color:var(--gold)}
+.sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:16px 0}
+.grid a.tile{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink)}
+.grid a.tile:hover{border-color:var(--gold);text-decoration:none}
+.grid a.tile .t{color:var(--gold);font-weight:600;margin-bottom:4px}.grid a.tile .d{color:var(--mut);font-size:12.5px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}
+.note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
+footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
+.kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
+</style></head><body>
+<header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
+<nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report" class="active">Gap Report</a></nav>
+<main><h1>Gap Report — live founder-facing heatmap</h1><p class="sub">Partial-public: the organ/flagship heatmap is shown; internal P0 task IDs are summarized, not dumped. GREEN ready · AMBER partial/at-risk · RED missing/broken.</p>
+<h2>Flagship heatmap</h2><table><tr><th>Flagship</th><th>Ops</th><th>Customer</th><th>Investor</th><th>Compliance</th><th>Security</th></tr><tbody id="gb"></tbody></table><h2>Fix this week (top 5)</h2><ul id="wk"></ul><div class="note">This is the honest mirror. killinchu is RED across the board (spec only / not deployed) — do not show a dead flagship; frame it "spec, Q3 2026" or ship a v0 geofence demo. Compliance is RED nearly everywhere because nothing is certified yet (see <a href="/compliance">/compliance</a>).</div><script>
+fetch('/api/a11oy/v1/hub/gap-report').then(r=>r.json()).then(d=>{
+ const tb=document.getElementById('gb');const cell=g=>{const c=g==='GREEN'?'g':g==='RED'?'r':g==='n/a'?'n':'a';return `<span class="pill ${c}">${g}</span>`;};
+ (d.flagship_heatmap||[]).forEach(f=>{const tr=document.createElement('tr');
+  tr.innerHTML=`<td><b>${f.flagship}</b></td><td>${cell(f.ops)}</td><td>${cell(f.customer)}</td><td>${cell(f.investor)}</td><td>${cell(f.compliance)}</td><td>${cell(f.security)}</td>`;tb.appendChild(tr);});
+ const ul=document.getElementById('wk');(d.this_week_top5||[]).forEach(x=>{const li=document.createElement('li');li.textContent=x;ul.appendChild(li);});
+}).catch(()=>{document.getElementById('gb').innerHTML='<tr><td colspan=6>gap endpoint unavailable</td></tr>';});
+</script><p class="sub">Source: completeness_audit/FOUNDER_FACING_HEATMAP.md</p>
+</main>
+<footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
+</body></html>

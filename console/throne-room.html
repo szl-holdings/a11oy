@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Throne Room — SZL Holdings · 5 Flagship Heroes · Live</title>
+<meta name="description" content="The Throne Room — unified 3D control surface for the 5 SZL flagship heroes (a11oy, amaru, sentra, killinchu, rosie). Live /healthz pulses, click-to-control, Cmd-K palette. Kanchay-themed. WebGPU + WebGL2." />
+<!--
+  © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+  Doctrine v11 LOCKED (749/14/163, 13-axis yuyay_v3, Λ Conjecture 1). ADDITIVE only.
+  Three.js r171 (MIT). Kanchay design tokens (Apache-2.0). Real /healthz polling — no fake data.
+  Signed: Yachay (CTO subagent).
+-->
+<link rel="icon" href="/favicon.svg" />
+<link rel="preconnect" href="https://esm.sh" crossorigin />
+<link rel="modulepreload" href="https://esm.sh/three@0.171.0" crossorigin />
+<link rel="modulepreload" href="https://esm.sh/three@0.171.0/examples/jsm/controls/OrbitControls.js" crossorigin />
+<style>
+  :root{
+    /* Kanchay tokens (COLOR_TOKENS.json) */
+    --bg:#0a0f1e; --deep:#10151c; --surface:#1b222c; --overlay:#2a3340; --border:#3c4757;
+    --text:#f5f7fa; --text-sub:#c9d2df; --text-ghost:#76859b;
+    --yuyay-200:#8fd9d5; --yuyay-300:#5cc4bf; --yuyay-400:#34aaa4; --yuyay-500:#168f89; --yuyay-600:#0f726e;
+    --hatun-200:#e4cf99; --hatun-300:#d7b96b; --hatun-400:#cda64a; --hatun-500:#c08f2f;
+    --yawar-300:#e57373; --yawar-400:#d65151; --yawar-500:#c0392b;
+    --success:#3fce82; --warning:#e4cf99; --error:#f0a3a3; --info:#7cb8e0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;overscroll-behavior:none}
+  #scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+  /* ---- top status bar ---- */
+  #topbar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;gap:10px;align-items:center;
+    padding:10px 14px;background:linear-gradient(180deg,rgba(10,15,30,.92),rgba(10,15,30,0));
+    pointer-events:none;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;pointer-events:auto}
+  .brand b{font-weight:800;letter-spacing:.5px;font-size:15px}
+  .brand .sub{color:var(--text-ghost);font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto;pointer-events:auto}
+  .chip{display:flex;align-items:center;gap:6px;background:rgba(27,34,44,.82);border:1px solid var(--border);
+    border-radius:999px;padding:5px 11px;font-size:11px;color:var(--text-sub);backdrop-filter:blur(8px)}
+  .chip b{color:var(--text);font-weight:700}
+  .chip .lbl{color:var(--text-ghost);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--text-ghost);box-shadow:0 0 6px currentColor}
+  .dot.up{background:var(--success);color:var(--success)} .dot.down{background:var(--error);color:var(--error)}
+  .gauge{width:44px;height:5px;border-radius:3px;background:var(--overlay);overflow:hidden}
+  .gauge i{display:block;height:100%;background:linear-gradient(90deg,var(--yuyay-500),var(--yuyay-300));width:0%}
+  /* ---- hint ---- */
+  #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:9;
+    font-size:11.5px;color:var(--text-ghost);background:rgba(16,21,28,.78);border:1px solid var(--border);
+    border-radius:999px;padding:7px 15px;backdrop-filter:blur(8px);white-space:nowrap;
+    transition:opacity .5s;pointer-events:none}
+  kbd{background:var(--overlay);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;
+    padding:1px 6px;font-size:10.5px;color:var(--text);font-family:ui-monospace,monospace}
+  /* ---- tooltip ---- */
+  #tip{position:fixed;z-index:12;pointer-events:none;background:rgba(16,21,28,.95);
+    border:1px solid var(--border);border-radius:10px;padding:9px 12px;max-width:260px;
+    font-size:12px;line-height:1.45;opacity:0;transition:opacity .14s;backdrop-filter:blur(10px);
+    box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  #tip .qn{font-weight:800;font-size:13px;margin-bottom:2px}
+  #tip .ety{color:var(--text-sub);font-style:italic}
+  #tip .lat{color:var(--yuyay-300);font-family:ui-monospace,monospace;font-size:11px;margin-top:4px}
+  /* ---- control pane ---- */
+  #pane{position:fixed;top:0;right:0;z-index:14;height:100vh;width:min(420px,92vw);
+    background:linear-gradient(180deg,rgba(16,21,28,.97),rgba(10,15,30,.98));
+    border-left:1px solid var(--border);backdrop-filter:blur(14px);
+    transform:translateX(100%);transition:transform .42s cubic-bezier(.22,1,.36,1);
+    display:flex;flex-direction:column;box-shadow:-20px 0 60px rgba(0,0,0,.5)}
+  #pane.open{transform:translateX(0)}
+  #pane header{padding:18px 18px 12px;border-bottom:1px solid var(--border)}
+  #pane .ph-row{display:flex;align-items:center;gap:10px}
+  #pane .ph-glyph{width:34px;height:34px;border-radius:9px;flex:0 0 auto;
+    background:radial-gradient(circle at 35% 30%,var(--g1,#5cc4bf),var(--g2,#0f726e));
+    box-shadow:0 0 18px var(--g1,#5cc4bf)}
+  #pane h2{margin:0;font-size:19px;font-weight:800}
+  #pane .role{color:var(--text-sub);font-size:12px;margin-top:1px}
+  #pane .x{margin-left:auto;cursor:pointer;color:var(--text-ghost);font-size:22px;line-height:1;
+    background:none;border:none;padding:4px 8px;border-radius:8px}
+  #pane .x:hover{color:var(--text);background:var(--overlay)}
+  #pane .body{padding:14px 18px 22px;overflow-y:auto;flex:1}
+  .sec{margin-bottom:18px}
+  .sec .h{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--hatun-300);
+    margin-bottom:8px;font-weight:700}
+  .ep{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 9px;border-radius:8px;
+    background:var(--surface);border:1px solid var(--border);margin-bottom:6px;font-family:ui-monospace,monospace}
+  .ep .m{color:var(--hatun-300);font-weight:700;font-size:10px;min-width:30px}
+  .ep .u{color:var(--text-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ep .st{margin-left:auto;font-size:10px;font-weight:700}
+  .ep .st.ok{color:var(--success)} .ep .st.bad{color:var(--error)} .ep .st.pend{color:var(--text-ghost)}
+  .rcpt{font-family:ui-monospace,monospace;font-size:11px;color:var(--text-sub);padding:5px 9px;
+    background:var(--deep);border-radius:7px;margin-bottom:4px;border:1px solid var(--border);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rcpt b{color:var(--yuyay-300)}
+  .deeplink{display:inline-flex;align-items:center;gap:7px;background:var(--yuyay-600);color:#fff;
+    text-decoration:none;font-weight:700;font-size:12.5px;padding:9px 14px;border-radius:9px;
+    border:1px solid var(--yuyay-500)}
+  .deeplink:hover{background:var(--yuyay-500)}
+  .chatbox{display:flex;gap:7px;margin-top:6px}
+  .chatbox input{flex:1;background:var(--deep);border:1px solid var(--border);border-radius:9px;
+    padding:9px 11px;color:var(--text);font-size:12.5px}
+  .chatbox input:focus{outline:none;border-color:var(--yuyay-400)}
+  .chatbox button{background:var(--hatun-400);color:#0a0f1e;font-weight:800;border:none;border-radius:9px;
+    padding:0 14px;cursor:pointer;font-size:12.5px}
+  .chatlog{margin-top:8px;font-size:12px;color:var(--text-sub);max-height:160px;overflow-y:auto}
+  .chatlog .u{color:var(--yuyay-300);font-weight:700} .chatlog .a{color:var(--text)}
+  .chatlog .msg{padding:6px 0;border-bottom:1px solid var(--border)}
+  /* ---- Cmd-K palette ---- */
+  #cmdk{position:fixed;inset:0;z-index:30;display:none;align-items:flex-start;justify-content:center;
+    background:rgba(10,15,30,.6);backdrop-filter:blur(4px);padding-top:14vh}
+  #cmdk.open{display:flex}
+  .palette{width:min(560px,94vw);background:rgba(16,21,28,.99);border:1px solid var(--border);
+    border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+  .palette input{width:100%;border:none;background:none;color:var(--text);font-size:16px;
+    padding:17px 18px;border-bottom:1px solid var(--border)}
+  .palette input:focus{outline:none}
+  .palette .results{max-height:48vh;overflow-y:auto;padding:6px}
+  .pitem{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13.5px}
+  .pitem.sel{background:var(--overlay)}
+  .pitem .pg{width:22px;height:22px;border-radius:6px;flex:0 0 auto}
+  .pitem .pt{flex:1}.pitem .pt small{display:block;color:var(--text-ghost);font-size:11px}
+  .pitem .tag{font-size:10px;color:var(--hatun-300);text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+  .palette .foot{padding:9px 14px;border-top:1px solid var(--border);color:var(--text-ghost);font-size:11px;
+    display:flex;gap:14px}
+  /* loading + error */
+  #boot{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;background:rgba(10,15,30,.82);transition:opacity .6s}
+  #boot.hide{opacity:0;pointer-events:none}
+  .spin{width:38px;height:38px;border:3px solid var(--overlay);border-top-color:var(--yuyay-300);
+    border-radius:50%;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #boot .t{color:var(--text-sub);font-size:13px;letter-spacing:1px}
+  #renderer-badge{position:fixed;bottom:14px;right:14px;z-index:9;font-size:10px;color:var(--text-ghost);
+    font-family:ui-monospace,monospace;background:rgba(16,21,28,.7);border:1px solid var(--border);
+    border-radius:7px;padding:4px 9px}
+  @media (max-width:640px){
+    #pane{width:100vw} .chips{width:100%;margin-left:0}
+    #hint{font-size:10.5px;padding:6px 11px}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="topbar">
+  <div class="brand">
+    <div class="dot up" style="width:11px;height:11px"></div>
+    <div><b>THRONE ROOM</b> <span class="sub">SZL · 5 Flagships</span></div>
+  </div>
+  <div class="chips">
+    <div class="chip"><span class="lbl">Routes</span><b id="c-routes">…</b></div>
+    <div class="chip"><span class="lbl">Khipu</span><b id="c-khipu" style="font-family:ui-monospace,monospace">…</b></div>
+    <div class="chip"><span class="lbl">Yuyay-13</span><span class="gauge"><i id="c-yuyay"></i></span><b id="c-yuyayv">…</b></div>
+    <div class="chip"><span class="lbl">Up</span><b id="c-up">…/5</b></div>
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<div id="hint">Drag to orbit · Click a hero to control · <kbd>⌘K</kbd> / <kbd>Ctrl K</kbd> palette</div>
+<div id="renderer-badge">init…</div>
+
+<!-- Control pane -->
+<aside id="pane" aria-hidden="true">
+  <header>
+    <div class="ph-row">
+      <div class="ph-glyph" id="p-glyph"></div>
+      <div><h2 id="p-name">—</h2><div class="role" id="p-role">—</div></div>
+      <button class="x" id="p-close" aria-label="Close">×</button>
+    </div>
+  </header>
+  <div class="body">
+    <div class="sec"><div class="h">Live status</div><div id="p-status" class="ep"><span class="u">polling…</span></div></div>
+    <div class="sec"><div class="h">Endpoints</div><div id="p-eps"></div></div>
+    <div class="sec"><div class="h">Recent receipts (Khipu)</div><div id="p-rcpts"></div></div>
+    <div class="sec"><a class="deeplink" id="p-deep" target="_blank" rel="noopener">Open in full Space ↗</a></div>
+    <div class="sec"><div class="h">Ask this hero</div>
+      <div class="chatbox"><input id="p-chat" placeholder="Type a question — routes to a11oy.code" />
+        <button id="p-send">Send</button></div>
+      <div class="chatlog" id="p-chatlog"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- Cmd-K -->
+<div id="cmdk"><div class="palette">
+  <input id="cmdk-input" placeholder="Search flagships, tabs — or type a question to route to a11oy.code…" />
+  <div class="results" id="cmdk-results"></div>
+  <div class="foot"><span><kbd>↑↓</kbd> navigate</span><span><kbd>↵</kbd> open</span><span><kbd>esc</kbd> close</span></div>
+</div></div>
+
+<div id="boot"><div class="spin"></div><div class="t">Summoning the Throne Room…</div></div>
+
+<script type="module" src="/throne-room.js"></script>
+</body>
+</html>

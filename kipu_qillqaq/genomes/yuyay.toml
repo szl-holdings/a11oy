@@ -1,0 +1,29 @@
+# genome.toml -- QILLQAQ declarative organ DNA (config; parsed by stdlib tomllib)
+# HONEST NAMING: "DNA"/"genome" = config + module loading. No biology, no magic.
+# Doctrine v11 LOCKED numbers preserved verbatim elsewhere (749/14/163, 13-axis yuyay_v3,
+# replay bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5). ADDITIVE only.
+
+[organ]
+name = "YUYAY"
+quechua = "yuyay = mind/memory (heart, 13-axis wisdom gate)"
+function = "Heart / working-memory conjunctive 13-axis wisdom gate (yuyay_v3)."
+
+[role]
+loop = "read candidate action -> score 13 axes -> gate (2 sacred>=0.95, 7 struct>=0.90) -> emit yuyay receipt"
+
+[reads]
+kinds = ["reasoning_verdict", "task"]
+
+[writes]
+kinds = ["yuyay_score", "gate_decision"]
+
+[boot]
+handler = "kipu_qillqaq.handlers:echo"
+enabled = true
+
+[meta]
+slug = "yuyay"
+substrate = "KIPU"
+engine = "QILLQAQ"
+author = "Yachay"
+agent = "Perplexity Computer Agent"

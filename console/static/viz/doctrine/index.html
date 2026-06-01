@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0a0e14" />
+<title>Doctrine Cathedral — SZL Holdings</title>
+<meta name="description" content="First-person walkthrough of Doctrine v11: 749 declaration tiles, 14 axiom pillars, 163 sorry dim-spots, 13 axis windows. Architectural, not religious." />
+<link rel="stylesheet" href="style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.171.0",
+    "three/webgpu": "https://esm.sh/three@0.171.0/build/three.webgpu.js",
+    "three/addons/": "https://esm.sh/three@0.171.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<div class="crosshair"></div>
+<div id="hud">
+  <header>
+    <span class="brand">DOCTRINE&nbsp;CATHEDRAL</span>
+    <span class="pill locked">v11 LOCKED · 749 / 14 / 163</span>
+    <span id="dataPill" class="pill demo">honest endpoint…</span>
+    <span id="renderPill" class="pill">init…</span>
+  </header>
+  <div class="panel legend">
+    <div class="lrow"><i style="background:#cda64a"></i>14 axioms — load-bearing pillars (click → Lean signature)</div>
+    <div class="lrow"><i style="background:#34aaa4"></i>749 declarations — floor tiles</div>
+    <div class="lrow"><i style="background:#3c4757"></i>163 sorries — dim spots (click → GitHub line)</div>
+    <div class="lrow"><i style="background:#8fb6ff"></i>13 axes — clerestory windows (Yuyay v3 gate)</div>
+  </div>
+  <footer>
+    <span><b>Click</b> to enter · <b>WASD</b> move · <b>mouse</b> look · <b>Esc</b> release · <b>Shift</b> run</span>
+    <span id="pos">—</span>
+  </footer>
+</div>
+<div id="enterOverlay">
+  <div class="card">
+    <h1>Doctrine Cathedral</h1>
+    <p>A first-person walkthrough of <b>Doctrine v11</b>. The hall is a dependency graph rendered as architecture — load-bearing <b>axioms</b> are pillars, the <b>declaration</b> corpus is the floor, unfinished proofs (<b>sorries</b>) are dim spots, and the 13 Yuyay <b>axes</b> are the named windows. No mysticism: this is data cartography in stone.</p>
+    <p class="locked-line">LOCKED v11: <b>749</b> declarations · <b>14</b> axioms · <b>163</b> sorries · 13-axis <code>yuyay_v3</code></p>
+    <button id="enterBtn">Click to enter (WASD + mouse)</button>
+  </div>
+</div>
+<div id="inspect" class="inspect" hidden>
+  <button class="x" id="closeInspect">×</button>
+  <div id="inspectBody"></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

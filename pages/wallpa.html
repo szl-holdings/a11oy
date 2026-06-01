@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v13 -->
+<!-- WALLPA surface — output/voice/expression organ. Open-source TTS only; SYNTHETIC timbres. ADDITIVE per Doctrine v13 §2.2. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · WALLPA — the Voice (expression)</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0;border-left:3px solid var(--ok)}
+.path{font-family:var(--mono);font-size:12.5px;color:var(--acc);margin:6px 0}
+pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12px;padding:10px;overflow:auto;max-height:240px;white-space:pre-wrap;word-break:break-word}
+button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px;margin:8px 8px 8px 0}
+input,select,textarea{background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit}
+.mut{color:var(--mut);font-size:13px}
+.voice{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--acc);background:#0c1a28;border-radius:14px;padding:3px 11px;margin:3px}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+audio{width:100%;margin-top:10px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy</span> <span class="tag">· WALLPA — the Voice · Doctrine v13 §2.2</span></div>
+    <div class="nav"><a href="/">home</a><a href="/chaski">chaski</a><a href="/wallpa">wallpa</a><a href="/wasi-rikuq">wasi-rikuq</a></div>
+  </div>
+
+  <h1>WALLPA — the Voice</h1>
+  <p class="sub">Quechua <code>wallpay</code> = to create / to invent; <code>wallpa</code> = the created/expressed thing. The expression organ: it renders the <code>argmax</code>-selected action into one shared voice, with a fidelity gate. Factor: <code>Wallpa(a)=𝟙[render(a)⊑sanctioned(a)]·(1−drift_out) ∈ [0,1]</code>.</p>
+
+  <div class="card">
+    <h3>★ Demo — 30s narration of the PURIQ master formula</h3>
+    <div class="path">POST /api/a11oy/wallpa/narrate-doctrine (Hatun-Willay narrator)</div>
+    <button onclick="narrate()">Narrate the master formula</button>
+    <audio id="docaudio" controls></audio>
+    <pre id="docout">— renders Doctrine v13's PURIQ master formula as audio in the Hatun-Willay synthetic timbre —</pre>
+  </div>
+
+  <div class="card">
+    <h3>Per-organ voice profiles (synthetic timbres)</h3>
+    <div class="path">GET /api/a11oy/wallpa/voices</div>
+    <button onclick="loadVoices()">List voices</button>
+    <div id="voices"></div>
+    <pre id="voicesout">— one synthetic timbre per organ: Amaru / Yuyay / Killinchu / Hatun-Willay / Chaski / Wasi-Rikuq —</pre>
+  </div>
+
+  <div class="card">
+    <h3>Speak — synthesize any text</h3>
+    <div class="path">POST /api/a11oy/wallpa/speak · SSE: GET /speak/stream</div>
+    <textarea id="text" rows="2" style="width:100%" placeholder="text to express...">The anatomy speaks in one governed voice.</textarea>
+    <div style="margin-top:8px">
+      <select id="voice"></select>
+      <button onclick="speak()">Speak</button>
+      <button onclick="streamSpeak()" style="background:transparent;color:var(--acc);border:1px solid var(--acc)">Stream (SSE)</button>
+    </div>
+    <audio id="speakaudio" controls></audio>
+    <pre id="speakout">— synthesize speech; audio + transcript hashed into a Khipu receipt —</pre>
+  </div>
+
+  <div class="honest">
+    <b>Honest labels (Doctrine v13 §5 + HARD RULES):</b> <b>OPEN-SOURCE TTS ONLY</b> (Piper / Coqui XTTS-v2 / OpenVoice; deterministic synthetic-timbre fallback when no model is installed, so the endpoint is never vapor). All per-organ voices are <b>SYNTHETIC TIMBRES — never clones of real people, no proprietary voice cloning without consent.</b> Every utterance emits a <b>Khipu receipt</b> = SHA3-256 of (audio ‖ transcript); signature is <b>DSSE PLACEHOLDER</b>.
+  </div>
+
+  <footer>a11oy · WALLPA voice organ · Doctrine v13 (additive over v12 / v11 LOCKED 749/14/163 · 13-axis · replay <code>bacf5443…631fc5</code>) · — Yachay</footer>
+</div>
+
+<script>
+const API='/api/a11oy/wallpa';
+function show(id,o){document.getElementById(id).textContent=typeof o==='string'?o:JSON.stringify(o,null,2);}
+function b64ToBlob(b64){const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:'audio/wav'});}
+async function loadVoices(){try{const j=await(await fetch(API+'/voices')).json();
+  const sel=document.getElementById('voice');sel.innerHTML='';
+  document.getElementById('voices').innerHTML=Object.entries(j.voices).map(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);return `<span class="voice">${k} · ${v.organ}</span>`;}).join('');
+  show('voicesout',{engine:j.engine,consent_note:j.consent_note,voices:j.voices});
+}catch(e){show('voicesout','error: '+e);}}
+async function narrate(){try{show('docout','rendering…');const j=await(await fetch(API+'/narrate-doctrine',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})).json();
+  const url=URL.createObjectURL(b64ToBlob(j.audio_base64));document.getElementById('docaudio').src=url;
+  show('docout',{narrator:j.narrator,wallpa_factor:j.wallpa_factor,audio_transcript_sha3:j.audio_transcript_sha3,transcript:j.transcript,khipu_receipt:j.khipu_receipt});
+}catch(e){show('docout','error: '+e);}}
+async function speak(){try{const text=document.getElementById('text').value;const voice=document.getElementById('voice').value||'hatun-willay';
+  const j=await(await fetch(API+'/speak',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text,voice})})).json();
+  document.getElementById('speakaudio').src=URL.createObjectURL(b64ToBlob(j.audio_base64));
+  show('speakout',{voice:j.voice,wallpa_factor:j.wallpa_factor,audio_transcript_sha3:j.audio_transcript_sha3,khipu_receipt:j.khipu_receipt});
+}catch(e){show('speakout','error: '+e);}}
+async function streamSpeak(){try{const text=encodeURIComponent(document.getElementById('text').value);const voice=document.getElementById('voice').value||'hatun-willay';
+  show('speakout','streaming chunks via SSE…\n');const resp=await fetch(API+'/speak/stream?text='+text+'&voice='+voice);const reader=resp.body.getReader();const dec=new TextDecoder();let n=0,buf='';
+  while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});
+    let parts=buf.split('\n\n');buf=parts.pop();for(const p of parts){if(p.includes('event: chunk'))n++;}}
+  show('speakout','SSE complete — '+n+' audio chunks streamed (one per word).');
+}catch(e){show('speakout','error: '+e);}}
+loadVoices();
+</script>
+</body>
+</html>

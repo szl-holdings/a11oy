@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v12 (carries v11 LOCKED verbatim) -->
+<!-- /docs tab — customer-facing surface. ADDITIVE. Touches NOTHING locked. Khipu sig = cosign PLACEHOLDER. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Docs — build on the governed agentic platform</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0}
+.card h3{margin:0 0 4px;font-size:17px}
+.path{font-family:var(--mono);font-size:12.5px;color:var(--acc);margin:6px 0}
+pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.mut{color:var(--mut);font-size:13px}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy</span> <span class="tag">· Governance Substrate · Doctrine v12</span></div>
+    <div class="nav"><a href="/">home</a><a href="/docs">docs</a><a href="/pricing">pricing</a><a href="https://docs.szlholdings.com">full docs↗</a></div>
+  </div>
+
+  <h1>Docs — build on the governed agentic platform</h1>
+  <p class="sub">Every call is 13-axis verified, HUKLLA-safe, and Khipu-receipted. You can verify every receipt yourself.</p>
+
+  <div class="card">
+    <h3>1 · Get a key</h3>
+    <p class="mut">Sign in at <a href="https://portal.szlholdings.com">portal.szlholdings.com</a>, click <b>Generate key</b>, choose scope (read / write / admin) and a per-flagship allowlist. Hackathon / academic / Greene-network accounts get the free <b>Demo</b> tier (1,000 calls/mo).</p>
+  </div>
+
+  <div class="card">
+    <h3>2 · Install the SDK</h3>
+    <pre>pip install szl          # Python
+npm i @szlholdings/szl    # TypeScript / JavaScript
+export SZL_API_KEY=szl_live_...</pre>
+  </div>
+
+  <div class="card">
+    <h3>3 · Your first receipted call</h3>
+    <pre>from szl import SZL
+c = SZL()
+t = c.killinchu.track(target_id="UAS:DJI-Mavic-3-7F2A", kind="drone")
+print(t["trackId"], t["khipu_receipt"].chain_verified)   # -> trk_9f3a True</pre>
+  </div>
+
+  <div class="grid">
+    <div class="card"><h3>Flagships</h3><p class="path">a11oy · amaru · sentra · killinchu · rosie</p><p class="mut">One client, five organs. Every flagship publishes OpenAPI 3.1 at <code>/openapi.json</code>.</p></div>
+    <div class="card"><h3>Verify it yourself</h3><pre>git clone github.com/szl-holdings/lutar-lean
+git checkout c7c0ba17
+python .github/scripts/lean_numbers.py
+# 749 declarations / 14 axioms / 163 sorries</pre></div>
+  </div>
+
+  <div class="honest">
+    <b>Honest labels.</b> Λ uniqueness is a <b>Conjecture</b> (open CAUCHY_ND sorry + missing symmetry axiom), not a closed theorem. The Khipu receipt signature is a <b>cosign / DSSE PLACEHOLDER</b> — <code>chain_verified</code> verifies the <b>hash chain</b>, not the signature, until Sigstore lands. SLSA = <b>L1 (honest)</b>. Wire D (cross-mesh traceparent) is <b>in-process only</b>. LOCKED numbers: 749 / 14 / 163 / 13-axis <code>yuyay_v3</code>, replay hash <code>bacf5443…631fc5</code>, tag <code>lutar-v18.0.0</code> @ <code>c7c0ba17</code>.
+  </div>
+
+  <footer>SZL Holdings · Doctrine v12 · full reference at <a href="https://docs.szlholdings.com">docs.szlholdings.com</a> · status at <a href="https://status.szlholdings.com">status.szlholdings.com</a> · signed Yachay</footer>
+</div>
+</body>
+</html>

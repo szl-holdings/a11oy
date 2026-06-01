@@ -1,0 +1,29 @@
+# genome.toml -- QILLQAQ declarative organ DNA (config; parsed by stdlib tomllib)
+# HONEST NAMING: "DNA"/"genome" = config + module loading. No biology, no magic.
+# Doctrine v11 LOCKED numbers preserved verbatim elsewhere (749/14/163, 13-axis yuyay_v3,
+# replay bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5). ADDITIVE only.
+
+[organ]
+name = "WAYRA"
+quechua = "wayra = wind/air/breath (broadcast/diffusion)"
+function = "Wind/breath / pervasive broadcast & diffusion across the whole mesh at once."
+
+[role]
+loop = "read broadcast-worthy receipts -> diffuse to all subscribers -> emit wayra_pulse receipts"
+
+[reads]
+kinds = ["reception", "watch", "doctrine_verdict"]
+
+[writes]
+kinds = ["wayra_pulse", "broadcast"]
+
+[boot]
+handler = "kipu_qillqaq.handlers:reconcile"
+enabled = true
+
+[meta]
+slug = "wayra"
+substrate = "KIPU"
+engine = "QILLQAQ"
+author = "Yachay"
+agent = "Perplexity Computer Agent"

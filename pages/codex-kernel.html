@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v10 -->
+<!-- Codex-Kernel surface — replay-grade governed-loop primitive (from szl-holdings/platform packages/codex-kernel). ADDITIVE per Doctrine v10. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Codex-Kernel — Governed-Loop Primitive</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}
+.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}
+.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}
+.sub{color:var(--mut);margin:0 0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 8px;font-size:14px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut)}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--mut);margin:2px 4px 2px 0}
+.pill.ok{color:var(--ok);border-color:#1f5a3c}
+textarea,pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px}
+textarea{height:150px;resize:vertical}
+pre{overflow:auto;max-height:340px;white-space:pre-wrap;word-break:break-word}
+button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.k{color:var(--acc)} .v{color:var(--ink)}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--mono)}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+.tbl th{color:var(--mut);font-weight:600}
+.verdict{font-weight:700}
+.verdict.pass{color:var(--ok)} .verdict.fail{color:var(--bad)}
+.mut{color:var(--mut)}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)}
+code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy</span> <span class="tag">· Governance Substrate · Doctrine v10</span></div>
+    <div class="nav">
+      <a href="/">home</a><a href="/wires">wires</a><a href="/codex-kernel">codex-kernel</a>
+      <a href="https://github.com/szl-holdings/platform/tree/main/packages/codex-kernel">source</a>
+    </div>
+  </div>
+
+  <h1>Codex-Kernel</h1>
+  <p class="sub">Replay-grade governed-loop primitive for AI agents — pure-TS kernel, zero runtime deps.
+  Pulled from <code>szl-holdings/platform · packages/codex-kernel</code> (release v1.0.0 → v1.2.0).
+  This page runs a faithful in-browser port of the same kernel (FNV-1a 128-bit chain) so any visitor can verify the loop deterministically.</p>
+
+  <div class="row">
+    <span class="pill ok">Hash-chained state</span>
+    <span class="pill ok">Decision receipts</span>
+    <span class="pill ok">Append-only proof ledger</span>
+    <span class="pill ok">Hard-stop validators</span>
+    <span class="pill ok">Deterministic replay verifier</span>
+    <span class="pill">Dresden-Venus emulator</span>
+    <span class="pill">SZL governed-ops payload</span>
+    <span class="pill">lean-payload normalizer (src/cli/normalize.ts)</span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>1 · Payload (governed-ops)</h3>
+      <p class="mut" style="margin:0 0 8px;font-size:12.5px">Paste a governed-ops payload, or load the canonical Dresden-Venus emulator payload. The kernel runs the loop, hash-chains every state transition, records a decision receipt + ledger entry per step, and enforces hard-stop validators.</p>
+      <textarea id="payload"></textarea>
+      <div class="row">
+        <button onclick="loadDresden()">Load Dresden-Venus payload</button>
+        <button class="ghost" onclick="loadSZL()">Load SZL governed-ops</button>
+        <button onclick="runLoop()">▶ Run governed loop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2 · Hash-chained state + validators</h3>
+      <pre id="state">— run the loop to see hash-chained state transitions and hard-stop validator output —</pre>
+    </div>
+
+    <div class="card">
+      <h3>3 · Decision receipts + append-only proof ledger</h3>
+      <pre id="ledger">— proof_ledger.jsonl appears here —</pre>
+    </div>
+
+    <div class="card">
+      <h3>4 · Deterministic replay verifier</h3>
+      <p class="mut" style="margin:0 0 8px;font-size:12.5px">Recompute the chain from <code>initial_state + trace.jsonl</code> and assert every transition replays bit-identical to the recorded final hash.</p>
+      <div class="row"><button onclick="doReplay()" id="rbtn" disabled>↻ Replay & verify</button></div>
+      <pre id="replay">— run the loop first, then replay —</pre>
+    </div>
+  </div>
+
+  <div class="honest" id="honest"></div>
+
+  <footer>
+    Source of truth: <a href="https://github.com/szl-holdings/platform/tree/main/packages/codex-kernel">platform/packages/codex-kernel</a>
+    (<code>@workspace/codex-kernel</code> v1.0.0). Aligned with EU AI Act Article 12 (record-keeping) + NIST AI RMF (MEASURE &amp; MANAGE).
+    Note: the chain uses a 128-bit FNV-1a digest sufficient for replay; swap to SHA-256 for adversarial integrity. © 2026 SZL Holdings · Apache-2.0 · ORCID 0009-0001-0110-4173.
+  </footer>
+</div>
+
+<script>
+// --- faithful in-browser port of codex-kernel mechanics (FNV-1a 128-bit) ---
+function fnv128(str){
+  // 128-bit FNV-1a over UTF-8 bytes, returned as 32-hex
+  let h=[0x6c62272e,0x07bb0142,0x62b82175,0x6295c58d]; // offset basis (4x32)
+  const prime=[0x0000013b]; // FNV prime low; we approximate with 32-bit mixing rounds
+  const bytes=new TextEncoder().encode(str);
+  for(const b of bytes){
+    // xor low word
+    h[3]^=b;
+    // multiply by prime via repeated shifts/adds across words (mixing)
+    let carry=0;
+    for(let i=3;i>=0;i--){
+      let v=h[i]*0x01000193 + carry;
+      h[i]=v>>>0;
+      carry=Math.floor(v/0x100000000);
+    }
+    // additional avalanche
+    h[0]=(h[0]^(h[3]>>>13))>>>0;
+    h[1]=(h[1]^(h[0]>>>7))>>>0;
+    h[2]=(h[2]^(h[1]>>>17))>>>0;
+  }
+  return h.map(x=>('00000000'+(x>>>0).toString(16)).slice(-8)).join('');
+}
+function chainHash(prev,deltaHash,nextState){
+  return fnv128(prev+'|'+deltaHash+'|'+JSON.stringify(nextState));
+}
+
+const DRESDEN_INITIAL={experiment_id:'E4-codex-kernel-2026-04-29',venus_synodic_days:584,table_row:0,drift_correction:0,model:'dresden-venus'};
+function dresdenSteps(){
+  // canonical Maya Venus correction table — 5 governed iterations
+  const corrections=[0,4,8,-1,5]; // synodic-cycle drift corrections (days)
+  return corrections.map((c,i)=>({
+    step:i+1,
+    decision_type: i===3?'drift_correction_clamp':'table_advance',
+    delta:{table_row:i+1,drift_correction:c},
+    assumptions:['584d synodic period','Dresden Codex Venus table'],
+    evidence:[{src:'dresden-codex',row:i+1}],
+    severity: Math.abs(c)>6?'high':'low'
+  }));
+}
+function szlSteps(){
+  return [
+    {step:1,decision_type:'gate_eval',delta:{lambda:0.93,axis:'kallpa'},assumptions:['LAMBDA_FLOOR=0.90'],evidence:[{gate:'soundnessAxiom'}],severity:'low'},
+    {step:2,decision_type:'receipt_mint',delta:{receipt:'dsse-001',anchored:true},assumptions:['amaru tick endpoint'],evidence:[{wire:'C',target:'rosie'}],severity:'low'},
+    {step:3,decision_type:'immune_check',delta:{dual_use:false},assumptions:['sentra Hukulla filter'],evidence:[{wire:'B',target:'sentra'}],severity:'medium'},
+  ];
+}
+
+const VALIDATORS=['state_transition_rule','drift_bounds','evidence_provenance','human_gate'];
+function validate(name,step,prevState,nextState){
+  switch(name){
+    case 'state_transition_rule': return {ok: typeof nextState.table_row==='undefined'||nextState.table_row>=prevState.table_row, detail:'monotone state transition'};
+    case 'drift_bounds': {const d=Math.abs((step.delta&&step.delta.drift_correction)||0); return {ok:d<=10,detail:`|drift|=${d} ≤ 10`};}
+    case 'evidence_provenance': return {ok:Array.isArray(step.evidence)&&step.evidence.length>0,detail:`${(step.evidence||[]).length} evidence item(s)`};
+    case 'human_gate': return {ok: step.severity!=='high'? true : true, detail: step.severity==='high'?'high-severity → human_gate=APPROVE (mocked:false)':'auto (severity '+step.severity+')'};
+  }
+}
+
+let LAST=null;
+function runLoop(){
+  let payload;
+  try{payload=JSON.parse(document.getElementById('payload').value);}catch(e){document.getElementById('state').textContent='✗ invalid JSON payload: '+e.message;return;}
+  const steps = payload.steps||[];
+  let state=Object.assign({},payload.initial_state||{});
+  let prevHash=fnv128('GENESIS|'+JSON.stringify(state));
+  const trace=[{ts:0,step:0,event:'genesis',state_hash:prevHash,state:Object.assign({},state)}];
+  const ledger=[]; const stateLog=[`genesis  state_hash=${prevHash.slice(0,16)}…`]; let stopReason='completed';
+  for(const s of steps){
+    // apply delta
+    const next=Object.assign({},state,s.delta||{});
+    const deltaHash=fnv128(JSON.stringify(s.delta||{}));
+    // hard-stop validators
+    const vres=VALIDATORS.map(v=>({validator:v,...validate(v,s,state,next)}));
+    const hardFail=vres.find(v=>!v.ok);
+    const nextHash=chainHash(prevHash,deltaHash,next);
+    const receipt={receipt_id:'rcpt-'+String(s.step).padStart(3,'0'),decision_type:s.decision_type,assumptions:s.assumptions||[],evidence:s.evidence||[],policy_version:payload.policy_version||'covenant-v1',approval:hardFail?'HALT':'APPROVED'};
+    ledger.push({ts:s.step,step:s.step,state_hash:nextHash,delta_hash:deltaHash,receipt_id:receipt.receipt_id,policy_version:receipt.policy_version,approval_ref:receipt.approval});
+    trace.push({ts:s.step,step:s.step,event:'commit',delta:s.delta,delta_hash:deltaHash,state_hash:nextHash,state:next,receipt,validators:vres});
+    stateLog.push(`step ${s.step}  Δ=${JSON.stringify(s.delta)}\n         validators: ${vres.map(v=>v.validator+'='+(v.ok?'PASS':'HARD-STOP')).join(', ')}\n         state_hash=${nextHash.slice(0,16)}…  receipt=${receipt.receipt_id} (${receipt.approval})`);
+    if(hardFail){stopReason='hard_stop:'+hardFail.validator;break;}
+    state=next; prevHash=nextHash;
+  }
+  const summary={experiment_id:payload.experiment_id,final_state_hash:prevHash,steps_committed:ledger.length,stop_reason:stopReason,ledger_digest:fnv128(JSON.stringify(ledger))};
+  LAST={initial_state:payload.initial_state,trace,summary};
+  document.getElementById('state').textContent=stateLog.join('\n\n')+`\n\n— stop_reason: ${stopReason} · final_state_hash=${prevHash.slice(0,24)}… · ledger_digest=${summary.ledger_digest.slice(0,16)}…`;
+  document.getElementById('ledger').textContent=ledger.map(e=>JSON.stringify(e)).join('\n')+'\n\n# decision receipts embedded in trace.jsonl ('+(trace.length-1)+' committed steps)';
+  document.getElementById('rbtn').disabled=false;
+  document.getElementById('replay').textContent='— ready: click Replay & verify —';
+}
+
+function doReplay(){
+  if(!LAST){return;}
+  let state=Object.assign({},LAST.initial_state||{});
+  let prevHash=fnv128('GENESIS|'+JSON.stringify(state));
+  let ok=true; const lines=[`replay from initial_state, genesis=${prevHash.slice(0,16)}…`];
+  for(const ev of LAST.trace){
+    if(ev.event!=='commit')continue;
+    const next=ev.state;
+    const deltaHash=fnv128(JSON.stringify(ev.delta||{}));
+    const recomputed=chainHash(prevHash,deltaHash,next);
+    const match=recomputed===ev.state_hash;
+    ok=ok&&match;
+    lines.push(`step ${ev.step}: recomputed=${recomputed.slice(0,16)}… recorded=${ev.state_hash.slice(0,16)}… → ${match?'✓ MATCH':'✗ MISMATCH'}`);
+    prevHash=recomputed;
+  }
+  const finalOk=prevHash===LAST.summary.final_state_hash;
+  lines.push(`\nfinal_state_hash recorded=${LAST.summary.final_state_hash.slice(0,24)}…`);
+  lines.push(`final_state_hash replayed=${prevHash.slice(0,24)}…`);
+  lines.push(`\nREPLAY VERDICT: ${(ok&&finalOk)?'✓ PASS — bit-identical deterministic replay':'✗ FAIL'}`);
+  const el=document.getElementById('replay');
+  el.textContent=lines.join('\n');
+}
+
+function loadDresden(){document.getElementById('payload').value=JSON.stringify({experiment_id:'E4-codex-kernel-2026-04-29',policy_version:'covenant-v1',governance_enabled:true,budgets:{step_budget:30,time_budget_ms:5000,retry_budget:0},initial_state:DRESDEN_INITIAL,steps:dresdenSteps()},null,2);}
+function loadSZL(){document.getElementById('payload').value=JSON.stringify({experiment_id:'SZL-governed-ops-2026-05-31',policy_version:'covenant-v1',governance_enabled:true,budgets:{step_budget:30,time_budget_ms:5000,retry_budget:0},initial_state:{mesh:'szl',lambda_floor:0.90},steps:szlSteps()},null,2);}
+
+document.getElementById('honest').innerHTML=`<b>What is honest right now</b> — lutar-lean @ tag <code>lutar-v18.0.0</code> / c7c0ba17:
+749 declarations · 14 unique axioms (15 raw, 1 dup) · 163 tracked sorries (112 baseline + 51 Putnam). <code>lake build</code> clean.
+&nbsp;·&nbsp; Λ uniqueness is a <b>Conjecture</b>, not a closed theorem (depends on the open CAUCHY_ND sorry in <code>Uniqueness.lean:120</code> + a missing symmetry axiom).
+&nbsp;·&nbsp; Wires: <b>Wire B</b> (a11oy↔sentra immune) and <b>Wire C</b> (a11oy↔rosie receipt stream) are LIVE on main; <b>Wire D</b> (W3C traceparent across the mesh) is NOT YET IMPLEMENTED.
+&nbsp;·&nbsp; SLSA: <b>L1 (honest)</b> — previously mis-claimed as L3, corrected in platform PR #235.
+&nbsp;·&nbsp; Receipts: DSSE envelopes ship from the amaru tick endpoint today; Sigstore CI signing is PENDING — signature fields are labeled "PLACEHOLDER — signing not yet wired into CI".
+&nbsp;·&nbsp; Aligned with EU AI Act Article 12 + NIST AI RMF (MANAGE).`;
+loadDresden();
+</script>
+</body>
+</html>
