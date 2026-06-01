@@ -18,6 +18,25 @@
 
 ---
 
+
+## Architecture
+
+```mermaid
+flowchart LR
+  REQ[Agent action]:::in --> ROUTER[Mesh router]
+  ROUTER --> GATES{Anchor gates\nΛ-aggregator}
+  GATES -->|ALLOW + proof| TOOL[Tool / effect]
+  GATES -->|DENY| BLOCK[Blocked + receipt]
+  GATES --> RCPT[DSSE receipt\nPLACEHOLDER sig]
+  RCPT --> DAG[(Khipu Merkle DAG)]
+  ROUTER -.Wire B.-> SENTRA[sentra immune]
+  ROUTER -.Wire C.-> ROSIE[rosie console]
+  LEAN[(lutar-lean Λ kernel\n749/14/163)] -.anchors.-> GATES
+  classDef in fill:#0B1F3A,color:#fff,stroke:#00D4FF;
+```
+
+> Λ uniqueness is a **Conjecture**, not a closed theorem. Receipts ship with `PLACEHOLDER` signatures until Sigstore CI is wired (Doctrine v11).
+
 ## 30-second pitch
 
 **What is this?** `a11oy` is the substrate that orchestrates every AI action in the SZL mesh. It enforces policy gates derived from formally proved Lean 4 theorems, routes signed receipts across the mesh, and ensures no decision reaches the world without cryptographic provenance. The mesh-router is wired to `/v1/inspect` (merged PR #176), and cooperative multi-agent termination is proved via the Lynch 1996 theorem wired to Lean theorem `TH_V18_15` in the `multi_agent_terminator`.
