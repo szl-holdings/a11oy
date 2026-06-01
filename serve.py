@@ -252,6 +252,29 @@ if ASSETS_DIR.exists():
 
 
 # ---------------------------------------------------------------------------
+# Warhacker top-level alias routes (ADDITIVE, Yachay, 2026-06-01).
+# Registers /healthz, /khipu/{sign,verify,pubkey}, /api/a11oy/v3/doctrine, /wires/D
+# at the TOP level so the investor/Warhacker verification scripts resolve them
+# LOCALLY (they win over the SPA history catch-all defined at the file tail).
+# Delegates signing to the LIVE szl_dsse module (real ECDSA-P256 cosign key).
+# Doctrine v11 numbers VERBATIM: 749 / 14 / 163. Zero regression: only adds routes.
+# ---------------------------------------------------------------------------
+_WH_ERR = None
+try:
+    import szl_warhacker_aliases as _wh_aliases
+    import os as _wh_os
+    _wh_status = _wh_aliases.register(
+        app, "a11oy",
+        build_sha=_wh_os.environ.get("SPACE_COMMIT_SHA", "warhacker-aliases-v1"),
+    )
+    print(f"[a11oy] Warhacker aliases registered: {_wh_status}", file=sys.stderr)
+except Exception as _wh_e:  # never crash the app
+    import traceback as _wh_tb
+    _WH_ERR = _wh_tb.format_exc()
+    print(f"[a11oy] Warhacker aliases NOT registered: {_wh_e!r}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Health / Readiness
 # ---------------------------------------------------------------------------
 
