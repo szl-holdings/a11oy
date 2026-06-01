@@ -52,34 +52,46 @@ jobs:
       - name: Install OpenSCAP + SCAP Security Guide
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends openscap-scanner unzip
+          sudo apt-get install -y --no-install-recommends openscap-scanner openscap-utils unzip
           curl -sSL -o ssg.zip \
             "https://github.com/ComplianceAsCode/content/releases/download/v${SSG_VERSION}/scap-security-guide-${SSG_VERSION}.zip"
           unzip -o ssg.zip "scap-security-guide-${SSG_VERSION}/ssg-rhel9-ds.xml" -d .
           mv "scap-security-guide-${SSG_VERSION}/ssg-rhel9-ds.xml" ssg-rhel9-ds.xml
 
-      - name: Export image root filesystem
+      - name: Pull scan target image
         run: |
-          # Build the image (Iron Bank variant if creds present, else the public
-          # UBI base it inherits from) and export its rootfs for an offline scan.
-          docker create --name scan-target "${IMAGE}"
-          mkdir -p rootfs
-          docker export scan-target | tar -x -C rootfs
-          docker rm scan-target
+          # Pull the public UBI9-minimal base the flagship image inherits from.
+          # (Iron Bank registry1.dso.mil variant scans here once Platform One
+          # pull credentials arrive — see .compliance/iron_bank_parity.json.)
+          docker pull "${IMAGE}"
 
-      - name: Run oscap DISA STIG scan (oscap-docker equivalent, offline rootfs)
+      - name: Run oscap-docker DISA STIG scan (live container — RPM probes evaluable)
         id: scan
         run: |
-          # oscap-docker is the canonical path; on hosted runners we scan the
-          # exported rootfs offline via OSCAP_PROBE_ROOT (same result content).
+          # oscap-docker runs the scan INSIDE the live container so the RPM
+          # probe can read the rpmdb (the offline OSCAP_PROBE_ROOT rootfs scan
+          # cannot open the sqlite rpmdb on a hosted runner — chroot is denied,
+          # which zeroes package_* rules; documented honest limitation). This
+          # live-container path produces the real DISA STIG score.
           set +e
-          OSCAP_PROBE_ROOT="$PWD/rootfs" oscap xccdf eval \
+          mkdir -p .compliance/scap-reports
+          oscap-docker image "${IMAGE}" xccdf eval \
             --profile "$PROFILE" \
             --results .compliance/scap-reports/stig-xccdf.xml \
             --results-arf .compliance/scap-reports/stig-arf.xml \
+            --report .compliance/scap-reports/stig-report.html \
             ssg-rhel9-ds.xml | tee scan.log
-          oscap xccdf generate report .compliance/scap-reports/stig-xccdf.xml \
-            > .compliance/scap-reports/stig-report.html || true
+          # Fallback (offline rootfs) if oscap-docker is unavailable on the runner.
+          if [ ! -f .compliance/scap-reports/stig-xccdf.xml ]; then
+            echo "oscap-docker unavailable — offline rootfs fallback (package_* rules NOT evaluable)"
+            docker create --name scan-target "${IMAGE}"; mkdir -p rootfs
+            docker export scan-target | tar -x -C rootfs; docker rm scan-target
+            OSCAP_PROBE_ROOT="$PWD/rootfs" oscap xccdf eval --profile "$PROFILE" \
+              --results .compliance/scap-reports/stig-xccdf.xml \
+              --results-arf .compliance/scap-reports/stig-arf.xml ssg-rhel9-ds.xml | tee -a scan.log
+            oscap xccdf generate report .compliance/scap-reports/stig-xccdf.xml \
+              > .compliance/scap-reports/stig-report.html || true
+          fi
           PASS=$(grep -oE "<result>pass</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
           FAIL=$(grep -oE "<result>fail</result>" .compliance/scap-reports/stig-xccdf.xml | wc -l)
           SCORE=$(grep -oE 'maximum="100.000000">[0-9.]+' .compliance/scap-reports/stig-xccdf.xml | head -1 | grep -oE '[0-9.]+$')
