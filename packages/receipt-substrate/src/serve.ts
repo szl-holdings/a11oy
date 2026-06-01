@@ -197,7 +197,10 @@ export function handleRoute(
               actionId: "example-action",
               severity: "medium",
               confidence: 0.9,
-              witnesses: ["agent-a", "agent-b"],
+              witnesses: [
+                { id: "agent-a", role: "approver", attested: true },
+                { id: "agent-b", role: "reviewer", attested: true },
+              ],
             },
           },
           {
@@ -207,7 +210,10 @@ export function handleRoute(
                 actionId: "example-action",
                 severity: "medium",
                 confidence: 0.9,
-                witnesses: ["agent-a", "agent-b"],
+                witnesses: [
+                  { id: "agent-a", role: "approver", attested: true },
+                  { id: "agent-b", role: "reviewer", attested: true },
+                ],
               },
             },
           },
@@ -244,14 +250,20 @@ export function handleRoute(
     };
     try {
       const gate = thresholdPolicySeverityGate();
+      // Normalise witnesses: accept either full {id, role, attested} objects or
+      // plain strings (coerced to {id: s, role: "witness", attested: true}).
+      const rawWitnesses = Array.isArray(a.witnesses) ? a.witnesses : [];
+      const normWitnesses = rawWitnesses.map((w: unknown) =>
+        typeof w === "string"
+          ? { id: w, role: "witness", attested: true }
+          : (w as Parameters<typeof gate>[0]["witnesses"][number]),
+      );
       const decision = gate({
         actionId: a.actionId ?? "unspecified-action",
         severity: (a.severity ?? "medium") as Parameters<typeof gate>[0]["severity"],
         decisionClass: a.decisionClass as Parameters<typeof gate>[0]["decisionClass"],
         confidence: typeof a.confidence === "number" ? a.confidence : 0,
-        witnesses: Array.isArray(a.witnesses)
-          ? (a.witnesses as Parameters<typeof gate>[0]["witnesses"])
-          : [],
+        witnesses: normWitnesses,
       });
       // The gate is a runtime severity-threshold gate (no Lean closure), so the
       // "gate" identifier reported is its formula name, not a Lean axiom index.
