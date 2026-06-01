@@ -12,7 +12,7 @@ This is a **standalone subset** of the `szl-holdings/platform` monorepo. The `we
 |-----------|---------|-------|
 | `packages/a11oy-knowledge` | `cd packages/a11oy-knowledge && npm test` | Vitest. 26/27 pass (1 pre-existing failure in TH2 proof sketch). |
 | `__tests__/` (compliance + adversarial) | `npx jest __tests__/` | Jest/ts-jest. 106/110 pass (4 pre-existing failures). Requires root-level symlinks — see below. |
-| `packages/qec-integrity` | `npx tsx packages/qec-integrity/src/qec_lineage.test.ts` | Custom runner, `node:assert/strict`. 24/24 pass. |
+| `packages/qec-integrity` | `npx tsx packages/qec-integrity/src/qec_lineage.test.ts` | Custom runner, `node:assert/strict`. 24/24 pass. (receipt-chain lineage suite) |
 | `web/packages/a11oy-core` (vitest) | `cd web/packages/a11oy-core && npx vitest run` | Only `lid-check.test.ts` uses vitest API (15 tests). |
 | `web/packages/a11oy-core` (custom) | `npx tsx web/packages/a11oy-core/src/<subdir>/__tests__/<file>.test.ts` | 7 test files use `node:assert/strict` custom runners: quaternion-state (16), madhava-bound (8), pac-bayes-bound (8), composition-ring (7), false-position (7), akhmim-table (9), quadratic-solver (7). Run each with `npx tsx`. |
 | `web/packages/a11oy-core` (KS-18) | `npx tsx web/packages/a11oy-core/src/quantum/__tests__/kochen-specker-18.test.ts` | 3 tests. |

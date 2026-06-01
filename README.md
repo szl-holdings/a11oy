@@ -7,7 +7,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--0110--4173-A6CE39.svg?style=flat-square&logo=orcid&logoColor=white)](https://orcid.org/0009-0001-0110-4173)
 
-> A measurable governance operator on the receipt-bus σ-algebra of agentic AI — proved in Lean 4, run sub-millisecond, packaged as a UDS-deployable bundle, and aligned with EU AI Act Article 12 + NIST AI RMF.
+> A doctrine-bound agent orchestrator on the Khipu Merkle DAG receipt substrate of agentic AI — proved in Lean 4, run sub-millisecond, packaged as a UDS-deployable bundle, and aligned with EU AI Act Article 12 + NIST AI RMF.
 
 ---
 
@@ -26,13 +26,14 @@
 ```
          ┌──────────────────────────────────────────────────────┐
          │                    a11oy substrate                    │
-         │  L1 policy gates (45 anchor-formula gate modules)    │
+         │  L1 policy gates (45 policy gate modules)            │
          │  L2 measurement fiber (Λ 9-axis, floor 0.90 conj.)  │
          │  L3 knowledge-graph traversal                        │
-         │  L4 QEC-integrity verification                       │
+         │  L4 receipt-chain integrity verification             │
          │  L5 proof ledger (DSSE-enveloped receipts)          │
          │  L6 human confirmation gate                          │
-         │  mesh-router → /v1/inspect (PR #176)                │
+         │  Wire B → /v1/inspect (PR #176, merged)             │
+         │  Wire C → rosie /v1/events (merged)                │
          │  multi_agent_terminator ← TH_V18_15 (Lynch 1996)    │
          └──────────────────────────────────────────────────────┘
               ▲                    ▲                    ▲
@@ -131,7 +132,7 @@ gh release download --repo szl-holdings/vessels uds-v0.3.0 --pattern "*.spdx.jso
 syft attest --output spdx-json .
 
 # Lean kernel verify (lutar-lean reproducibility bundle):
-# 749 declarations / 15 raw axioms (14 unique) / 163 sorries @ HEAD c7c0ba17
+# 749 declarations / 15 raw axioms (14 unique, 1 duplicate) / 168 sorries @ f6def830aa
 # Reproducibility: .github/scripts/lean_numbers.py in szl-holdings/lutar-lean
 git clone https://github.com/szl-holdings/lutar-lean && cd lutar-lean
 lake build
@@ -146,11 +147,11 @@ All counts are grep-verifiable against `main`.
 
 | Metric | Value | Verify |
 |--------|-------|--------|
-| Anchor-formula gate modules | 45 | `ls packages/policy/src/gates/*_gate.ts \| wc -l` |
+| Policy gate modules | 45 | `ls packages/policy/src/gates/*_gate.ts \| wc -l` |
 | Substrate packages | 12 | `ls packages/ \| wc -l` |
 | Lean declarations (lutar-lean @ c7c0ba17) | **749** | `.github/scripts/lean_numbers.py` |
 | Lean axioms (lutar-lean) | **15 raw / 14 unique** | `grep -rE '^axiom ' lutar-lean/Lutar/ \| wc -l` |
-| Lean sorries (lutar-lean) | **163** (112 baseline + 51 Putnam) | `grep -rE '\bsorry\b' lutar-lean/Lutar/ \| wc -l` |
+| Lean sorries (lutar-lean) | **168** (117 baseline + 51 prior-audit-related) | `grep -rE '\bsorry\b' lutar-lean/Lutar/ \| wc -l` |
 | Doctrine | v7 · 15 axioms (14 unique) | [DOCTRINE_V7.md](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V7.md) |
 | SLSA | L1 honest | [slsa.dev](https://slsa.dev/spec/v1.0/levels) |
 
