@@ -13,8 +13,12 @@
 // Authored for SZL Holdings. Signed-off per repository DCO.
 
 import { useEffect, useState } from "react";
-import { Link, Route, Switch, useRoute } from "wouter";
+import { Link, Route, Router, Switch, useRoute } from "wouter";
 import { A11oyClient, CONSOLE_ROUTES, type OperationalReceipt } from "./a11oyClient.ts";
+
+// The SPA is deployed at /console/ (Vite base=/console/). Wouter must strip
+// that prefix from browser pathnames before matching routes.
+const ROUTER_BASE = "/console";
 
 const BASE = (import.meta.env?.VITE_A11OY_BASE_URL as string | undefined) ?? "";
 const client = new A11oyClient(BASE || window.location.origin);
@@ -135,25 +139,27 @@ function PolicyRoute() {
 
 export default function App() {
   return (
-    <div className="console">
-      <header>
-        <h1>a11oy operator console</h1>
-        <nav>
-          {CONSOLE_ROUTES.map((r) => (
-            <Link key={r.path} href={r.path.replace(":hash", "")}>{r.label}</Link>
-          ))}
-        </nav>
-      </header>
-      <main>
-        <Switch>
-          <Route path="/" component={HealthRoute} />
-          <Route path="/ledger" component={LedgerRoute} />
-          <Route path="/receipt/:hash" component={ReceiptRoute} />
-          <Route path="/verify" component={VerifyRoute} />
-          <Route path="/policy" component={PolicyRoute} />
-          <Route>404 — not a console route</Route>
-        </Switch>
-      </main>
-    </div>
+    <Router base={ROUTER_BASE}>
+      <div className="console">
+        <header>
+          <h1>a11oy operator console</h1>
+          <nav>
+            {CONSOLE_ROUTES.map((r) => (
+              <Link key={r.path} href={r.path.replace(":hash", "")}>{r.label}</Link>
+            ))}
+          </nav>
+        </header>
+        <main>
+          <Switch>
+            <Route path="/" component={HealthRoute} />
+            <Route path="/ledger" component={LedgerRoute} />
+            <Route path="/receipt/:hash" component={ReceiptRoute} />
+            <Route path="/verify" component={VerifyRoute} />
+            <Route path="/policy" component={PolicyRoute} />
+            <Route>404 — not a console route</Route>
+          </Switch>
+        </main>
+      </div>
+    </Router>
   );
 }
