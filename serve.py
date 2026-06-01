@@ -83,7 +83,7 @@ except Exception as _lw_e:
 #   POST /api/a11oy/khipu/sign     — DSSE-sign a receipt (real ECDSA-P256 cosign sig)
 #   POST /api/a11oy/khipu/verify   — verify a DSSE envelope against cosign.pub
 #   GET  /api/a11oy/khipu/ledger   — signed Khipu Merkle DAG
-#   GET  /api/a11oy/provenance     — combined honest board (SLSA L2, not L3)
+#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest; L2 roadmap via Wire D)
 # The Wire-D middleware echoes traceparent on EVERY response (incl. the Node-proxy
 # catch-all) so trace continuity holds across the whole Space. Real signatures only
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
