@@ -104,14 +104,47 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Robust smoke test (fix/build-sbom-smoke-test-2026-06-01, Yachay):
+      # The previous probe ran `docker run <img> --version`, but the image
+      # entrypoint is the FastAPI server (CMD ["python", "serve.py"]), which does
+      # NOT accept a `--version` flag — so Docker tried to exec "--version" as a
+      # command and failed with `exec: "--version": executable file not found in
+      # $PATH` (exit 127). serve.py listens on PORT (default 7860) and exposes a
+      # real liveness endpoint at /api/a11oy/healthz. We now boot the server in a
+      # detached container and poll that endpoint with bounded retries that also
+      # survive the startup window while uvicorn is still binding.
       - name: Smoke test image (PR builds — loaded into local daemon)
         if: github.event_name == 'pull_request'
         run: |
+          set -uo pipefail
           TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
-          echo "=== --version ==="
-          docker run --rm "${TAG}" --version
-          echo "=== --help ==="
-          docker run --rm "${TAG}" --help
+          # Container listens on 7860 (HF default); map it to a host port.
+          CID="$(docker run -d -e PORT=7860 -p 17860:7860 "${TAG}")"
+          cleanup() { echo "=== container logs ==="; docker logs "${CID}" 2>&1 | tail -60 || true; docker rm -f "${CID}" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          echo "=== waiting for /api/a11oy/healthz to become ready ==="
+          # Poll explicitly: curl --retry-connrefused does NOT retry on a
+          # connection-reset (exit 56) while uvicorn is still binding, so we
+          # loop on ANY non-zero curl exit and re-check that the container is
+          # still alive. ~90s budget (45 x 2s).
+          ok=0
+          for i in $(seq 1 45); do
+            if ! docker inspect -f '{{.State.Running}}' "${CID}" 2>/dev/null | grep -q true; then
+              echo "container exited early (attempt ${i})" >&2
+              break
+            fi
+            if curl -fsS --max-time 5 http://localhost:17860/api/a11oy/healthz >/tmp/healthz.out 2>/dev/null; then
+              echo "healthz OK on attempt ${i}:"
+              cat /tmp/healthz.out; echo
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "${ok}" -ne 1 ]; then
+            echo "healthz probe FAILED after retries" >&2
+            exit 1
+          fi
 
       - name: Generate image SBOM (CycloneDX) via Syft
         if: github.event_name != 'release'
