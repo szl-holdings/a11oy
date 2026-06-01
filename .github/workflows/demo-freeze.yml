@@ -1,0 +1,107 @@
+# .github/workflows/demo-freeze.yml
+# DEMO FREEZE POLICY — protect flagships from T-7 onward
+# Author: Yachay <yachay@szlholdings.dev>  ·  ADDITIVE  ·  Doctrine v11 LOCKED (749/14/163)
+# Signed-off-by: Yachay <yachay@szlholdings.dev>  (DCO)
+# cosign keyid: szlholdings-cosign
+#
+# WHAT THIS DOES (real working enforcement, not a policy doc):
+#   During the freeze window [2026-06-09 .. 2026-06-20] (UTC), ANY push or PR
+#   whose head branch is NOT `hotfix/*` is REJECTED with a clear error.
+#   Outside that window this job is a no-op PASS, so it never breaks existing flows.
+#   This workflow is purely ADDITIVE: it adds one required check, touches nothing else.
+#
+# WHY A WORKFLOW (not GitHub branch-protection rules): a checked-in workflow is
+#   itself version-controlled, signed, auditable, and survives org-setting drift.
+#   Pair it with a branch-protection rule that marks `demo-freeze / guard` as
+#   "required" on `main` to make it blocking on PR merges (see DEMO_FREEZE_LEDGER.md).
+
+name: demo-freeze
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate demo-freeze window
+        shell: bash
+        env:
+          # Freeze window (UTC, inclusive). T-7 = 2026-06-09, demo end = 2026-06-20.
+          FREEZE_START: '2026-06-09'
+          FREEZE_END: '2026-06-20'
+        run: |
+          set -euo pipefail
+
+          # Resolve the head branch name for both push and pull_request events.
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            BRANCH="${GITHUB_HEAD_REF}"
+          else
+            BRANCH="${GITHUB_REF_NAME}"
+          fi
+          TODAY="$(date -u +%Y-%m-%d)"
+
+          echo "::group::demo-freeze evaluation"
+          echo "event       = ${GITHUB_EVENT_NAME}"
+          echo "branch       = ${BRANCH}"
+          echo "today (UTC)   = ${TODAY}"
+          echo "freeze window = ${FREEZE_START} .. ${FREEZE_END} (inclusive, UTC)"
+          echo "::endgroup::"
+
+          # Date comparison via lexical compare of YYYY-MM-DD (safe, no date math deps).
+          in_window=0
+          if [[ "${TODAY}" > "${FREEZE_START}" || "${TODAY}" == "${FREEZE_START}" ]] && \
+             [[ "${TODAY}" < "${FREEZE_END}"   || "${TODAY}" == "${FREEZE_END}"   ]]; then
+            in_window=1
+          fi
+
+          if [ "${in_window}" -eq 0 ]; then
+            echo "✅ Outside demo-freeze window — no restriction. PASS."
+            exit 0
+          fi
+
+          # Inside the freeze window: only hotfix/* branches may write.
+          case "${BRANCH}" in
+            hotfix/*)
+              echo "✅ DEMO FREEZE ACTIVE but branch '${BRANCH}' matches hotfix/* — allowed."
+              echo "   (Hotfix content is additionally validated by demo-freeze-hotfix-validate.yml)"
+              exit 0
+              ;;
+            *)
+              echo "::error title=DEMO FREEZE ACTIVE::Pushes to '${BRANCH}' are BLOCKED during the demo freeze (${FREEZE_START}..${FREEZE_END} UTC)."
+              cat >&2 <<EOF
+
+          ════════════════════════════════════════════════════════════════════
+            🔒  DEMO FREEZE ACTIVE  —  this push is REJECTED
+          ════════════════════════════════════════════════════════════════════
+            Window : ${FREEZE_START} .. ${FREEZE_END} (UTC, inclusive)
+            Branch : ${BRANCH}  ❌  (not hotfix/*)
+            Reason : Flagship Spaces are frozen at the demo baseline
+                     (tag: demo-freeze-baseline-2026-06-09). Only hotfix
+                     branches may land during the freeze.
+
+            TO SHIP AN EMERGENCY FIX:
+              1. git checkout -b hotfix/<short-issue-slug>
+              2. make ONE signed commit. Commit message MUST contain:
+                   [demo-hotfix]  and a  #<issue-number>  reference
+              3. git commit -s   (DCO sign-off required)
+              4. open a PR into main — base branch only accepts hotfix/* now
+              5. AUTO-MERGE rule: only hotfix/* PRs merge between T-7 and T+0
+
+            Doctrine v11 LOCKED (749/14/163) · cosign keyid: szlholdings-cosign
+            Sign: Yachay <yachay@szlholdings.dev>
+          ════════════════════════════════════════════════════════════════════
+          EOF
+              exit 1
+              ;;
+          esac

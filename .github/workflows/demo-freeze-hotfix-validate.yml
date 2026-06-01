@@ -1,0 +1,115 @@
+# .github/workflows/demo-freeze-hotfix-validate.yml
+# HOTFIX VALIDATION — the only permitted write path during the demo freeze.
+# Author: Yachay <yachay@szlholdings.dev>  ·  ADDITIVE  ·  Doctrine v11 LOCKED (749/14/163)
+# Signed-off-by: Yachay <yachay@szlholdings.dev>  (DCO)
+# cosign keyid: szlholdings-cosign
+#
+# A hotfix PR is valid ONLY if ALL of the following hold:
+#   1. Head branch matches  hotfix/*
+#   2. PR contains exactly ONE commit (single-commit discipline)
+#   3. The commit message contains the literal tag  [demo-hotfix]
+#   4. The commit message references an issue  (#<n>  or  closes #<n>  etc.)
+#   5. The commit is DCO-signed  (Signed-off-by: trailer present)
+# Outside the freeze window this job runs but only WARNS (advisory), so normal
+# multi-commit PRs are never blocked pre-freeze. ADDITIVE — no existing flow changes.
+
+name: demo-freeze-hotfix-validate
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  hotfix-validate:
+    name: hotfix-validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for commit inspection)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate hotfix discipline
+        shell: bash
+        env:
+          FREEZE_START: '2026-06-09'
+          FREEZE_END: '2026-06-20'
+          BRANCH: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          TODAY="$(date -u +%Y-%m-%d)"
+
+          in_window=0
+          if [[ "${TODAY}" > "${FREEZE_START}" || "${TODAY}" == "${FREEZE_START}" ]] && \
+             [[ "${TODAY}" < "${FREEZE_END}"   || "${TODAY}" == "${FREEZE_END}"   ]]; then
+            in_window=1
+          fi
+
+          # Only enforce on hotfix/* branches; other branches handled by demo-freeze.yml.
+          case "${BRANCH}" in
+            hotfix/*) : ;;
+            *)
+              echo "ℹ️  Branch '${BRANCH}' is not hotfix/* — hotfix-validate skips (demo-freeze.yml owns gating)."
+              exit 0
+              ;;
+          esac
+
+          fail() {
+            if [ "${in_window}" -eq 1 ]; then
+              echo "::error title=Invalid hotfix::$1"
+              FAILED=1
+            else
+              echo "::warning title=Hotfix advisory (pre-freeze)::$1"
+            fi
+          }
+          FAILED=0
+
+          # ---- collect the PR commit range ----
+          RANGE="${BASE_SHA}..${HEAD_SHA}"
+          mapfile -t SHAS < <(git rev-list "${RANGE}")
+          N="${#SHAS[@]}"
+          echo "::group::hotfix commits (${N}) on ${BRANCH}"
+          git log --oneline "${RANGE}" || true
+          echo "::endgroup::"
+
+          # 2. single-commit discipline
+          if [ "${N}" -ne 1 ]; then
+            fail "Hotfix PR must be a SINGLE commit; found ${N}. Squash to one signed commit."
+          fi
+
+          # Inspect the head commit message + body + trailers
+          MSG="$(git log -1 --format='%B' "${HEAD_SHA}")"
+
+          # 3. [demo-hotfix] tag
+          if ! grep -qF '[demo-hotfix]' <<<"${MSG}"; then
+            fail "Commit message must contain the literal tag [demo-hotfix]."
+          fi
+
+          # 4. issue reference (#123, GH-123, closes/fixes #123, or org/repo#123)
+          if ! grep -qiE '(\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\b[[:space:]]+)?(#|GH-)[0-9]+' <<<"${MSG}"; then
+            fail "Commit message must reference an issue (e.g. '#123' or 'fixes #123')."
+          fi
+
+          # 5. DCO sign-off
+          if ! git log -1 --format='%B' "${HEAD_SHA}" | grep -qiE '^Signed-off-by: .+ <.+@.+>'; then
+            fail "Commit must be DCO-signed (git commit -s) — 'Signed-off-by:' trailer required."
+          fi
+
+          if [ "${FAILED}" -eq 1 ]; then
+            echo ""
+            echo "════════════════════════════════════════════════════════════"
+            echo " ❌ Hotfix rejected — fix the items above and force-push one"
+            echo "    squashed, signed commit. Doctrine v11 LOCKED (749/14/163)."
+            echo "    Sign: Yachay <yachay@szlholdings.dev>"
+            echo "════════════════════════════════════════════════════════════"
+            exit 1
+          fi
+          echo "✅ Hotfix discipline satisfied: single signed commit, [demo-hotfix], issue ref, DCO."
