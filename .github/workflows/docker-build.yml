@@ -104,14 +104,34 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Robust smoke test (fix/build-sbom-smoke-test-2026-06-01, Yachay):
+      # The previous probe ran `docker run <img> --version`, but the image
+      # entrypoint is the FastAPI server (CMD ["python", "serve.py"]), which does
+      # NOT accept a `--version` flag — so Docker tried to exec "--version" as a
+      # command and failed with `exec: "--version": executable file not found in
+      # $PATH` (exit 127). serve.py listens on PORT (default 7860) and exposes a
+      # real liveness endpoint at /api/a11oy/healthz. We now boot the server in a
+      # detached container and poll that endpoint with bounded retries that also
+      # survive the connection-refused window while uvicorn is still binding.
       - name: Smoke test image (PR builds — loaded into local daemon)
         if: github.event_name == 'pull_request'
         run: |
+          set -euo pipefail
           TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
-          echo "=== --version ==="
-          docker run --rm "${TAG}" --version
-          echo "=== --help ==="
-          docker run --rm "${TAG}" --help
+          # Container listens on 7860 (HF default); map it to a host port.
+          CID="$(docker run -d -e PORT=7860 -p 17860:7860 "${TAG}")"
+          cleanup() { docker logs "${CID}" 2>&1 | tail -40 || true; docker rm -f "${CID}" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          echo "=== waiting for /api/a11oy/healthz to become ready ==="
+          # --retry-connrefused + --retry tolerates the uvicorn bind/startup window.
+          if curl -fsS --retry 15 --retry-delay 2 --retry-connrefused \
+               --max-time 90 http://localhost:17860/api/a11oy/healthz; then
+            echo
+            echo "healthz OK"
+          else
+            echo "healthz probe FAILED" >&2
+            exit 1
+          fi
 
       - name: Generate image SBOM (CycloneDX) via Syft
         if: github.event_name != 'release'
