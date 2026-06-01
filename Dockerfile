@@ -118,4 +118,7 @@ COPY szl_unay.py ./szl_unay.py
 COPY szl_khipu_lmdb.py ./szl_khipu_lmdb.py
 COPY szl_khipu_replicate.py ./szl_khipu_replicate.py
 COPY szl_unay_routes.py ./szl_unay_routes.py
+# ADDITIVE (Warhacker aliases, Yachay 2026-06-01): top-level /healthz + /khipu/* + /wires/D.
+# Per-file COPY (no `COPY . .`) — without this `import szl_warhacker_aliases` fails.
+COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
 CMD ["python", "serve.py"]
