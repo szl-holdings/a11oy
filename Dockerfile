@@ -102,7 +102,7 @@ COPY live_wires_3d.js ./live_wires_3d.js
 # GET /api/a11oy/provenance. Without these COPYs the import fails and the routes fall
 # through to the Node :8081 proxy (503). cryptography (added above) backs the real
 # ECDSA-P256-SHA256 cosign signatures. Real signatures only when SZL_COSIGN_PRIVATE_PEM
-# runtime secret is present (else honestly UNSIGNED). SLSA L2 (signed provenance), NOT L3.
+# runtime secret is present (else honestly UNSIGNED). SLSA L1 honest (signing live); L2 roadmap via Wire D; L3 NOT claimed.
 COPY szl_dsse.py ./szl_dsse.py
 COPY szl_provenance.py ./szl_provenance.py
 
