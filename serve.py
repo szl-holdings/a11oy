@@ -774,6 +774,29 @@ except Exception as _ue:  # pragma: no cover - defensive, additive-only
     print(f"[szl_unay] UNAY+Khipu-LMDB v2 NOT mounted ({_ue!r}); existing routes unaffected", file=sys.stderr)
 
 
+# ===========================================================================
+# Operator Shell v4 (ADDITIVE, 2026-06-01, Yachay / Co-Authored-By: Perplexity
+# Computer Agent). operator_shell_v4.register(app, "a11oy") mounts the Unified
+# Operator Shell v4 contract:
+#   GET  /api/a11oy/v4/healthz | inbox | map/state | receipts | replay/{hash} | stream
+#   POST /api/a11oy/v4/command  (slash command -> LIVE DSSE receipt via szl_dsse)
+#   GET  /a11oy/operator  and  /operator   serve web/operator.html (desktop cockpit)
+# CRITICAL ORDERING: registered BEFORE the generic /api/a11oy/{path:path} Node
+# proxy and the SPA catch-all so /api/a11oy/v4/* + /operator resolve LOCALLY
+# (proxy/SPA would otherwise 503/return index.html). try/except-guarded: a
+# missing optional dep can NEVER take down any existing route. ADDITIVE ONLY.
+# LOCKED preserved: 749/14/163, 13-axis yuyay_v3, replay bacf5443…631fc5,
+# SLSA L1 (honest), Λ = Conjecture 1 (NOT a theorem).
+# ---------------------------------------------------------------------------
+try:
+    import operator_shell_v4 as _osh
+    _osh_info = _osh.register(app, "a11oy")
+    print(f"[operator_shell_v4] mounted: base={_osh_info.get('base')}, "
+          f"signing_available={_osh_info.get('signing_available')} — /operator live", file=sys.stderr)
+except Exception as _oe:  # pragma: no cover - defensive, additive-only
+    print(f"[operator_shell_v4] NOT mounted ({_oe!r}); existing routes unaffected", file=sys.stderr)
+
+
 
 
 # ===========================================================================
