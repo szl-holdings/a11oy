@@ -1,0 +1,31 @@
+# STATUS.md — a11oy (Governance Layer)
+
+**Updated:** 2026-06-02
+**Doctrine v11 — 749 / 14 / 163 — replay hash c7c0ba17**
+
+HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/a11oy>
+
+---
+
+## What's Live
+
+- **HF Space** — a11oy is deployed and operational on Hugging Face Spaces
+- **`/healthz`** — returns Doctrine v11 numbers (749/14/163) and service status
+- **`/sign`** — Wire D DSSE signing endpoint; Ed25519 signed receipts
+- **Λ-aggregator gate** — every request evaluated across Yuyay-13 axes before execution
+- **`/viz/*`** — SPA operator panel for receipt inspection
+- **Wire D** — cross-cutting signing fabric live to all other flagships
+
+## What's Experimental
+
+- **Chain replay verification** — Khipu DAG chain anchoring is functional; full replay harness under development
+- **Multi-key rotation** — key rotation workflow documented but not yet automated
+
+## What's Deprecated
+
+Nothing deprecated in this repo.
+
+---
+
+*Co-Authored-By: Perplexity Computer Agent*
+*Doctrine v11 — 749/14/163 — c7c0ba17*
