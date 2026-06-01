@@ -21,7 +21,7 @@ Closes two honest-ceiling gaps from session canon:
       * Every Khipu receipt now carries the W3C `traceparent` of its origin span.
       * /api/<space>/wires/D  — current trace volume + active spans on this Space.
 
-  DSSE + COSIGN (signed provenance, SLSA L2) — REAL, replaces PLACEHOLDER:
+  DSSE + COSIGN (signed provenance, SLSA L1 honest; L2 roadmap via Wire D) — REAL, replaces PLACEHOLDER:
       * Every Khipu receipt is signed with a DSSE envelope using the SZLHOLDINGS
         Cosign key (szl_dsse.sign_khipu_receipt). payloadType =
         "application/vnd.szl.khipu+json"; signatures=[{sig,keyid:szlholdings-cosign}].
@@ -40,7 +40,7 @@ HONESTY:
     emitted UNSIGNED and clearly labelled (never faked).
   * Khipu DAG is in-memory per Space (additive, non-persistent across restart) —
     same honest ceiling as before; now SIGNED.
-  * SLSA self-claim is L2 (signed provenance), NOT L3 (no hardened CI yet).
+  * SLSA self-claim is L1 honest (signing live); L2 (hardened build-service provenance) is roadmap via Wire D, NOT yet claimed; L3 NOT claimed.
 """
 from __future__ import annotations
 
@@ -383,7 +383,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "nodes": nodes,
             "honesty": ("DSSE signatures are REAL ECDSA-P256-SHA256 cosign sigs when the "
                         "SZL_COSIGN_PRIVATE_PEM runtime secret is present (else UNSIGNED, labelled). "
-                        "DAG is in-memory per Space (non-persistent across restart). SLSA L2 "
+                        "DAG is in-memory per Space (non-persistent across restart). SLSA L1 honest; L2 roadmap via Wire D "
                         "(signed provenance) — NOT L3 (no hardened CI yet)."),
         })
 
