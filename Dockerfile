@@ -121,4 +121,11 @@ COPY szl_unay_routes.py ./szl_unay_routes.py
 # ADDITIVE (Warhacker aliases, Yachay 2026-06-01): top-level /healthz + /khipu/* + /wires/D.
 # Per-file COPY (no `COPY . .`) — without this `import szl_warhacker_aliases` fails.
 COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
+# ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer Agent):
+# the v4 operator-shell endpoint module + the self-contained desktop shell HTML.
+# Per-file COPY (this Dockerfile never uses `COPY . .`); without these the import
+# fails and serve.py's try/except keeps the SPA + existing routes fully intact.
+# Receipts sign live via the already-COPY'd szl_dsse.py (cosign ECDSA-P256/DSSE).
+COPY operator_shell_v4.py ./operator_shell_v4.py
+COPY web/operator.html ./web/operator.html
 CMD ["python", "serve.py"]

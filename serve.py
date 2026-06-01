@@ -1008,6 +1008,25 @@ async def viz_static_dir(name: str) -> Response:
     return _viz_index(name)
 
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (Unified Operator Shell v4, 2026-06-01, Yachay / Perplexity Computer
+# Agent): register the 7 v4 operator-shell endpoints + /operator desktop shell
+# BEFORE the SPA catch-all so they resolve LOCALLY. try/except-guarded: a missing
+# dep can NEVER take down the SPA or any existing route. Receipts sign live via
+# szl_dsse (cosign ECDSA-P256/DSSE). Cmd-K NL routes to LOCAL LLM only (sovereign).
+# ---------------------------------------------------------------------------
+try:
+    import operator_shell_v4 as _osh_v4
+    _osh_v4_status = _osh_v4.register(app, "a11oy", web_dir="/app/web")
+    import sys as _osh_sys
+    print(f"[a11oy] Operator Shell v4 registered: {_osh_v4_status}", file=_osh_sys.stderr)
+except Exception as _osh_e:
+    import traceback as _osh_tb, sys as _osh_sys
+    print(f"[a11oy] Operator Shell v4 NOT registered: {_osh_e!r}", file=_osh_sys.stderr)
+    _osh_tb.print_exc()
+# --- end Operator Shell v4 ---
+
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).

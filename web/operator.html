@@ -1,0 +1,584 @@
+<!doctype html>
+<!-- operator-shell — Unified Operator Shell · flagship: a11oy
+     4-zone cockpit (Inbox · Map · Command Bar · Receipt Drawer · Footer).
+     Three.js r171 WebGL2 living scene. DESKTOP-FIRST (1280px+).
+     Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE · SPDX: Apache-2.0
+     © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>a11oy — Operator Shell</title>
+<style>/* operator-shell / shared / shell.css — 4-zone cockpit layout (DESKTOP-FIRST 1280px+)
+ * Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE · SPDX: Apache-2.0 */
+:root{
+  --bg-base:#0a0e14;--bg-elevated:#11161e;--bg-card:#161c26;--accent-gold:#e3b04b;
+  --accent-emerald:#10b981;--accent-amber:#f59e0b;--accent-rose:#f43f5e;
+  --text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#475569;
+  --border-subtle:#1e293b;--khipu-knot:#cd8a3d;--font-mono:ui-monospace,Menlo,monospace;
+  --font-display:ui-sans-serif,Inter,system-ui;--radius-card:12px;--shadow-deep:0 10px 40px -10px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg-base);color:var(--text-primary);font-family:var(--font-display)}
+.urgency-info,.verdict-pass{--u:var(--accent-emerald)}
+.urgency-warn,.verdict-warn{--u:var(--accent-amber)}
+.urgency-critical,.verdict-block{--u:var(--accent-rose)}
+
+/* 4-zone grid: Inbox left, Map center, Drawer right, Footer bottom */
+.shell{display:grid;grid-template-columns:340px 1fr 300px;grid-template-rows:1fr 36px;
+  grid-template-areas:"inbox map drawer" "footer footer footer";height:100vh;gap:1px;background:var(--border-subtle)}
+.zone{background:var(--bg-base);overflow:hidden;position:relative}
+.zone-inbox{grid-area:inbox;padding:14px;overflow-y:auto}
+.zone-map{grid-area:map;background:radial-gradient(circle at 50% 40%,#0d1420,var(--bg-base))}
+.zone-map canvas{width:100%;height:100%;display:block}
+.zone-drawer{grid-area:drawer;padding:14px;overflow-y:auto;perspective:600px}
+.zone-footer{grid-area:footer;background:var(--bg-elevated);display:flex;align-items:center;gap:18px;
+  padding:0 16px;font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)}
+
+/* Inbox */
+.zone-inbox h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
+.inbox-calm{color:var(--text-secondary);font-size:14px;line-height:1.6;padding:32px 8px;text-align:center;opacity:.8}
+.inbox-card{background:var(--bg-card);border:1px solid var(--border-subtle);border-left:3px solid var(--u);
+  border-radius:var(--radius-card);padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative}
+.inbox-card:hover{transform:translateY(-3px) scale(1.01);box-shadow:var(--shadow-deep)}
+.inbox-card.flipped .ic-face{display:none}.inbox-card.flipped .ic-back{display:block}
+.ic-back{display:none}.ic-back pre{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:pre-wrap;margin:0}
+.ic-dot{position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%;background:var(--u);box-shadow:0 0 8px var(--u)}
+.ic-title{font-weight:600;font-size:13px;margin-bottom:4px;padding-right:16px}
+.ic-sub{font-size:12px;color:var(--text-secondary);line-height:1.4;margin-bottom:10px}
+.ic-acts{display:flex;gap:8px}
+.ic-act{background:transparent;border:1px solid var(--border-subtle);color:var(--text-secondary);
+  border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:var(--font-mono)}
+.ic-act.primary{background:var(--accent-gold);color:#0a0e14;border-color:var(--accent-gold);font-weight:600}
+.ic-act:hover{border-color:var(--accent-gold)}
+.inbox-more{text-align:center;color:var(--text-muted);font-size:12px;font-family:var(--font-mono);padding:6px}
+
+/* Command bar (Cmd-K) */
+.cmdk-overlay{position:fixed;inset:0;background:rgba(5,8,12,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;justify-content:center;padding-top:14vh}
+.cmdk-box{width:560px;max-width:92vw;height:fit-content;background:var(--bg-elevated);border:1px solid var(--border-subtle);
+  border-radius:14px;box-shadow:var(--shadow-deep);overflow:hidden}
+.cmdk-input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--border-subtle);
+  color:var(--text-primary);font-size:16px;padding:16px 18px;outline:none;font-family:var(--font-mono)}
+.cmdk-list{max-height:46vh;overflow-y:auto;padding:6px}
+.cmdk-group{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);padding:8px 12px 4px}
+.cmdk-row{display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;cursor:pointer}
+.cmdk-row.sel,.cmdk-row:hover{background:var(--bg-card)}
+.cmdk-cmd{font-family:var(--font-mono);font-size:13px;color:var(--accent-gold)}
+.cmdk-desc{font-size:12px;color:var(--text-secondary);margin-left:14px;text-align:right}
+
+/* Receipt drawer (z-tunnel) */
+.zone-drawer h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin:0 0 12px}
+.rcpt-chip{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border-subtle);
+  border-right:3px solid var(--u,var(--accent-emerald));border-radius:9px;padding:8px 10px;margin-bottom:8px;
+  font-family:var(--font-mono);font-size:11px;cursor:pointer;
+  transform:translateZ(calc(var(--z,0)*-6px)) scale(calc(1 - var(--z,0)*0.012));opacity:calc(1 - var(--z,0)*0.04);transition:transform .2s}
+.rcpt-chip:hover{transform:translateZ(20px) scale(1.03);border-color:var(--accent-gold)}
+.rc-time{color:var(--text-muted)}.rc-verb{color:var(--text-primary);flex:1}.rc-key{color:var(--text-secondary)}
+.rc-sig.ok{color:var(--accent-emerald)}.rc-sig.pend{color:var(--text-muted)}
+.drawer-idle{color:var(--text-muted);font-size:12px;padding:20px 4px;text-align:center}
+
+/* Footer */
+.ft-pill{width:10px;height:10px;border-radius:50%;margin-left:auto;box-shadow:0 0 8px currentColor}
+.ft-knot{color:var(--khipu-knot)}.ft-lean{color:var(--text-muted)}
+.ft-sov{color:var(--accent-gold);font-weight:600}.ft-sov.off{color:var(--accent-amber);opacity:.85}
+.ft-doc{color:var(--text-secondary)}
+
+/* Tablet degrade (NOT a priority) */
+@media(max-width:1280px){.shell{grid-template-columns:300px 1fr}.zone-drawer{display:none}}
+@media(max-width:768px){.shell{grid-template-columns:1fr;grid-template-areas:"map" "footer";grid-template-rows:1fr 36px}.zone-inbox{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <section class="zone zone-inbox" aria-label="Inbox">
+    <h2>Inbox</h2>
+    <div id="inbox"></div>
+  </section>
+  <section class="zone zone-map" aria-label="Map — Khipu Spine">
+    <canvas id="map"></canvas>
+  </section>
+  <section class="zone zone-drawer" aria-label="Receipts">
+    <h2>Receipts 🪢</h2>
+    <div id="drawer"></div>
+  </section>
+  <footer class="zone zone-footer" id="footer"></footer>
+</div>
+
+<script type="module">
+import * as THREE from "https://esm.sh/three@0.171.0";
+import { OrbitControls } from "https://esm.sh/three@0.171.0/examples/jsm/controls/OrbitControls.js";
+/* =============================================================================
+ * operator-shell / shared / scenes.js
+ * Shared Three.js (r171+, WebGL2) living-scene modules for the Unified Operator
+ * Shell Map zone. One module per flagship body + shared 3D card stack & receipt
+ * ribbon helpers. Every scene is driven by GET /api/<organ>/v4/map/state and the
+ * live WS /api/<organ>/v4/stream — knots/particles/pulses tick on REAL DSSE
+ * receipts, never mocks. Empty buffers render an honest IDLE (never faked).
+ *
+ * Brand: Quechua names are brand, never translated. 🪢 = Khipu chain.
+ * Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE
+ * SPDX-License-Identifier: Apache-2.0
+ * © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+ * ========================================================================== */
+
+
+
+const TOKENS = {
+  bgBase: 0x0a0e14, emerald: 0x10b981, amber: 0xf59e0b, rose: 0xf43f5e,
+  gold: 0xe3b04b, knot: 0xcd8a3d, textMuted: 0x475569,
+};
+const VERDICT_COLOR = { pass: TOKENS.emerald, info: TOKENS.emerald, warn: TOKENS.amber, block: TOKENS.rose, ambiguous: TOKENS.amber, critical: TOKENS.rose };
+const col = (v) => new THREE.Color(VERDICT_COLOR[v] ?? TOKENS.textMuted);
+
+/* ---- Renderer factory (60fps target on RTX 4060 Ti, WebGL2) -------------- */
+function makeStage(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+  camera.position.set(0, 0, 60);
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const key = new THREE.PointLight(0xffffff, 1.1); key.position.set(30, 40, 60); scene.add(key);
+  function resize() {
+    const w = canvas.clientWidth || canvas.parentElement.clientWidth, h = canvas.clientHeight || canvas.parentElement.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize); resize();
+  return { renderer, scene, camera, controls, resize };
+}
+
+/* ---- IDLE placeholder: shown honestly when a buffer is empty ------------- */
+function idleSprite(text) {
+  const c = document.createElement("canvas"); c.width = 512; c.height = 64;
+  const x = c.getContext("2d"); x.fillStyle = "#475569"; x.font = "28px ui-monospace, monospace";
+  x.textAlign = "center"; x.fillText(text, 256, 40);
+  const t = new THREE.CanvasTexture(c); const m = new THREE.SpriteMaterial({ map: t, transparent: true });
+  const s = new THREE.Sprite(m); s.scale.set(40, 5, 1); return s;
+}
+
+/* =========================================================================
+ * a11oy — "The Khipu Spine": vertical glowing helix; each knot = a receipt.
+ * New receipts spawn at top, descend; lit by gate verdict. Lean SHA at base.
+ * Noise rule: only gates that fired today are surfaced.
+ * ====================================================================== */
+function KhipuSpine(stage) {
+  const group = new THREE.Group(); stage.scene.add(group);
+  const ropeMat = new THREE.LineBasicMaterial({ color: TOKENS.knot, transparent: true, opacity: 0.5 });
+  const helixPts = []; for (let i = 0; i <= 200; i++) { const t = i / 200, a = t * Math.PI * 8, r = 6; helixPts.push(new THREE.Vector3(Math.cos(a) * r, 28 - t * 56, Math.sin(a) * r)); }
+  group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(helixPts), ropeMat));
+  let knots = [], gates = [], idle = null;
+  const baseLabel = makeSpriteLabel("", TOKENS.gold); baseLabel.position.set(0, -30, 0); baseLabel.scale.set(24, 3, 1); group.add(baseLabel);
+  function setState(s) {
+    knots.forEach(k => group.remove(k.mesh)); knots = [];
+    gates.forEach(g => group.remove(g)); gates = [];
+    if (idle) { group.remove(idle); idle = null; }
+    baseLabel.material.map = textTex("Lean " + (s.lean_sha || "—"), TOKENS.gold); baseLabel.material.needsUpdate = true;
+    const ks = s.knots || [];
+    if (!ks.length) { idle = idleSprite("KHIPU SPINE · IDLE · no receipts today"); idle.position.y = 0; group.add(idle); }
+    ks.forEach(k => {
+      const t = k.t ?? 0.5, a = t * Math.PI * 8, r = 6;
+      const geo = new THREE.IcosahedronGeometry(0.9, 1);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col(k.verdict), emissive: col(k.verdict), emissiveIntensity: 0.8 }));
+      mesh.position.set(Math.cos(a) * r, 28 - t * 56, Math.sin(a) * r);
+      mesh.userData = { receipt_sha: k.receipt_sha, kind: "knot" };
+      group.add(mesh); knots.push({ mesh, vy: 0 });
+    });
+    // Only gates that fired today (server already filters; we render what arrives)
+    (s.gates || []).forEach((g, i) => {
+      const ang = (i / Math.max(1, s.gates.length)) * Math.PI * 2;
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ color: TOKENS.gold, transparent: true, opacity: g.active ? 0.9 : 0.35, side: THREE.DoubleSide }));
+      card.position.set(Math.cos(ang) * 16, (i % 5) * 4 - 8, Math.sin(ang) * 16);
+      card.userData = { gate: g.id, kind: "gate" }; group.add(card); gates.push(card);
+    });
+  }
+  function spawn(receipt) { // new receipt descends from top
+    const geo = new THREE.IcosahedronGeometry(1.1, 1);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col(receipt.verdict), emissive: col(receipt.verdict), emissiveIntensity: 1.4 }));
+    mesh.position.set(0, 30, 0); mesh.userData = { receipt_sha: receipt.receipt_sha, kind: "knot" };
+    group.add(mesh); knots.push({ mesh, vy: -0.4, target: 28 - (receipt.t ?? 0.2) * 56 });
+  }
+  function tick(dt) {
+    group.rotation.y += dt * 0.08;
+    knots.forEach(k => { if (k.vy) { k.mesh.position.y += k.vy; if (k.mesh.position.y <= (k.target ?? -28)) k.vy = 0; } });
+    gates.forEach((g, i) => g.lookAt(stage.camera.position));
+  }
+  function ripple() { knots.forEach(k => k.mesh.material.emissiveIntensity = 1.6); setTimeout(() => knots.forEach(k => k.mesh.material.emissiveIntensity = 0.8), 240); }
+  return { group, setState, spawn, tick, ripple };
+}
+
+/* =========================================================================
+ * sentra — "The Immune Cathedral": geodesic sphere shell + small core.
+ * Particles fly in; malicious -> rose flare; benign -> green trail; ambiguous
+ * -> amber held in suspension. Noise rule: only signatures fired today shown.
+ * ====================================================================== */
+function ImmuneCathedral(stage) {
+  const group = new THREE.Group(); stage.scene.add(group);
+  const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(18, 2), new THREE.MeshBasicMaterial({ color: TOKENS.emerald, wireframe: true, transparent: true, opacity: 0.18 }));
+  group.add(shell);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(3, 1), new THREE.MeshStandardMaterial({ color: TOKENS.gold, emissive: TOKENS.gold, emissiveIntensity: 0.6 }));
+  group.add(core);
+  let sigs = [], parts = [], idle = null;
+  function setState(s) {
+    sigs.forEach(n => group.remove(n)); sigs = [];
+    if (idle) { group.remove(idle); idle = null; }
+    const sg = s.signatures || [];
+    if (!sg.length) { idle = idleSprite("IMMUNE CATHEDRAL · IDLE · no signatures fired today"); group.add(idle); }
+    sg.forEach((sig, i) => {
+      const phi = Math.acos(-1 + (2 * i) / Math.max(1, sg.length)), theta = Math.sqrt(sg.length * Math.PI) * phi;
+      const node = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12), new THREE.MeshStandardMaterial({ color: TOKENS.emerald, emissive: TOKENS.emerald, emissiveIntensity: 0.3 + (sig.activity || 0) }));
+      node.position.setFromSphericalCoords(18, phi, theta); node.userData = { signature: sig.id, kind: "signature" };
+      group.add(node); sigs.push(node);
+    });
+  }
+  function spawn(p) { // p.verdict: pass|block|ambiguous
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), new THREE.MeshBasicMaterial({ color: col(p.verdict) }));
+    const dir = new THREE.Vector3().randomDirection().multiplyScalar(34); m.position.copy(dir);
+    parts.push({ m, verdict: p.verdict, t: 0, sha: p.event_sha }); group.add(m);
+  }
+  function tick(dt) {
+    group.rotation.y += dt * 0.05; core.material.emissiveIntensity = 0.5 + 0.3 * Math.sin(performance.now() / 600);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i]; p.t += dt;
+      if (p.verdict === "block") { p.m.position.multiplyScalar(1.0 + dt * 0.4); p.m.material.color.set(TOKENS.rose); if (p.t > 1.5) { group.remove(p.m); parts.splice(i, 1); } }
+      else if (p.verdict === "ambiguous") { p.m.position.lerp(p.m.position.clone().normalize().multiplyScalar(18), dt); p.m.material.color.set(TOKENS.amber); }
+      else { p.m.position.lerp(new THREE.Vector3(0, 0, 0), dt * 0.9); if (p.m.position.length() < 3.2) { group.remove(p.m); parts.splice(i, 1); } }
+    }
+  }
+  function ripple() { shell.material.opacity = 0.5; setTimeout(() => shell.material.opacity = 0.18, 260); }
+  return { group, setState, spawn, tick, ripple };
+}
+
+/* =========================================================================
+ * amaru — "The 13-Axis Cortex": 3D radial spike chart, Λ pulsing at center.
+ * 7 chakra spheres orbit at heights. F1-F23 formula cards float as a
+ * constellation — only formulas with recent activity OR PROVED (F1,F11,F12,
+ * F18,F19) are shown (noise rule).
+ * ====================================================================== */
+const PROVED = new Set(["F1", "F11", "F12", "F18", "F19"]);
+function Cortex(stage) {
+  const group = new THREE.Group(); stage.scene.add(group);
+  const lambda = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 2), new THREE.MeshStandardMaterial({ color: TOKENS.gold, emissive: TOKENS.gold, emissiveIntensity: 1.0 }));
+  group.add(lambda);
+  let spikes = [], chakras = [], formulas = [], idle = null;
+  function setState(s) {
+    spikes.forEach(x => group.remove(x)); spikes = [];
+    chakras.forEach(x => group.remove(x)); chakras = [];
+    formulas.forEach(x => group.remove(x)); formulas = [];
+    if (idle) { group.remove(idle); idle = null; }
+    const ax = s.axes || [];
+    if (!ax.length) { idle = idleSprite("13-AXIS CORTEX · IDLE · no tick"); group.add(idle); }
+    ax.forEach((a, i) => {
+      const ang = (i / Math.max(1, ax.length)) * Math.PI * 2, len = 6 + (a.value || 0) * 14;
+      const geo = new THREE.CylinderGeometry(0.15, 0.5, len, 6);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: a.color || TOKENS.emerald, emissive: a.color || TOKENS.emerald, emissiveIntensity: 0.5 }));
+      mesh.position.set(Math.cos(ang) * len / 2, 0, Math.sin(ang) * len / 2);
+      mesh.lookAt(0, 0, 0); mesh.rotateX(Math.PI / 2); mesh.userData = { axis: a.id || a.name, kind: "axis" };
+      group.add(mesh); spikes.push(mesh);
+    });
+    (s.chakras || []).forEach((c, i) => {
+      const ang = (i / 7) * Math.PI * 2;
+      const sph = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), new THREE.MeshStandardMaterial({ color: TOKENS.rose, emissive: TOKENS.rose, emissiveIntensity: c.glow || 0.4 }));
+      sph.userData = { chakra: c.name, ang, h: c.height || (i - 3) * 3 }; group.add(sph); chakras.push(sph);
+    });
+    (s.formulas || []).forEach((f, i) => {
+      const proved = PROVED.has(f.id) || f.proved;
+      if (!proved && !f.recent) return; // noise rule
+      const ang = (i / Math.max(1, s.formulas.length)) * Math.PI * 2, R = 26;
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1), new THREE.MeshBasicMaterial({ map: textTex(f.id, proved ? TOKENS.gold : TOKENS.emerald), transparent: true, opacity: proved ? 1.0 : 0.6, side: THREE.DoubleSide }));
+      card.position.set(Math.cos(ang) * R, (i % 6) * 4 - 12, Math.sin(ang) * R); card.userData = { formula: f.id, kind: "formula" };
+      group.add(card); formulas.push(card);
+    });
+  }
+  function tick(dt) {
+    const now = performance.now();
+    lambda.material.emissiveIntensity = 0.8 + 0.5 * Math.sin(now / 400);
+    lambda.rotation.y += dt * 0.5;
+    chakras.forEach((c, i) => { c.userData.ang += dt * 0.3; c.position.set(Math.cos(c.userData.ang) * 10, c.userData.h, Math.sin(c.userData.ang) * 10); });
+    formulas.forEach(f => f.lookAt(stage.camera.position));
+    group.rotation.y += dt * 0.04;
+  }
+  function ripple() { lambda.material.emissiveIntensity = 2.2; spikes.forEach(s => s.material.emissiveIntensity = 1.2); setTimeout(() => spikes.forEach(s => s.material.emissiveIntensity = 0.5), 280); }
+  return { group, setState, tick, ripple };
+}
+
+/* =========================================================================
+ * killinchu — "Earth + Command Orbit": Cesium globe preserved in the page;
+ * here we render the 4 superhero orbital cards (Sentra/Amaru/a11oy/Rosie)
+ * whose orbit distance is dynamic by activity (busy = closer). Tracks/threats
+ * on a globe proxy. Noise rule: only tracks updated in last 60s shown.
+ * (Used as an overlay layer above the Cesium canvas, or standalone proxy globe.)
+ * ====================================================================== */
+function CommandOrbit(stage) {
+  const group = new THREE.Group(); stage.scene.add(group);
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(10, 48, 48), new THREE.MeshStandardMaterial({ color: 0x123047, emissive: 0x0a1a28, emissiveIntensity: 0.4, wireframe: false }));
+  const grid = new THREE.Mesh(new THREE.SphereGeometry(10.05, 24, 24), new THREE.MeshBasicMaterial({ color: TOKENS.emerald, wireframe: true, transparent: true, opacity: 0.12 }));
+  group.add(globe); group.add(grid);
+  let officers = [], tracks = [], idle = null;
+  function setState(s) {
+    officers.forEach(o => group.remove(o.mesh)); officers = [];
+    tracks.forEach(t => group.remove(t)); tracks = [];
+    if (idle) { group.remove(idle); idle = null; }
+    (s.officers || []).forEach((o, i) => {
+      const ang = (i / Math.max(1, s.officers.length)) * Math.PI * 2;
+      const dist = 18 + (1 - (o.activity ?? 0.5)) * 14; // busy = closer
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(4, 2.2), new THREE.MeshBasicMaterial({ map: textTex(o.name, TOKENS.gold), transparent: true, side: THREE.DoubleSide }));
+      card.userData = { officer: o.name, ang, dist, kind: "officer" }; group.add(card); officers.push({ mesh: card });
+    });
+    const tr = (s.tracks || []);
+    if (!tr.length && !(s.officers || []).length) { idle = idleSprite("COMMAND ORBIT · IDLE · no tracks in last 60s"); group.add(idle); }
+    tr.forEach(t => {
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: col(t.verdict || "warn") }));
+      const phi = (90 - (t.lat || 0)) * Math.PI / 180, theta = (t.lon || 0) * Math.PI / 180;
+      dot.position.setFromSphericalCoords(10.3, phi, theta); dot.userData = { track: t.id, kind: "track" };
+      group.add(dot); tracks.push(dot);
+    });
+  }
+  function tick(dt) {
+    globe.rotation.y += dt * 0.06; grid.rotation.y += dt * 0.06;
+    officers.forEach((o, i) => { const u = o.mesh.userData; u.ang += dt * 0.2; o.mesh.position.set(Math.cos(u.ang) * u.dist, Math.sin(i) * 4, Math.sin(u.ang) * u.dist); o.mesh.lookAt(stage.camera.position); });
+  }
+  function ripple() { grid.material.opacity = 0.4; setTimeout(() => grid.material.opacity = 0.12, 260); }
+  return { group, setState, tick, ripple };
+}
+
+/* ---- shared helpers: text texture + sprite label ------------------------ */
+function textTex(text, color) {
+  const c = document.createElement("canvas"); c.width = 256; c.height = 128;
+  const x = c.getContext("2d"); x.clearRect(0, 0, 256, 128);
+  x.fillStyle = "#" + new THREE.Color(color).getHexString(); x.font = "bold 40px ui-monospace, monospace";
+  x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(String(text), 128, 64);
+  const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
+}
+function makeSpriteLabel(text, color) {
+  const m = new THREE.SpriteMaterial({ map: textTex(text, color), transparent: true });
+  return new THREE.Sprite(m);
+}
+
+/* ---- click picking (returns userData of nearest mesh) ------------------- */
+function pick(stage, group, ev) {
+  const rect = stage.renderer.domElement.getBoundingClientRect();
+  const m = new THREE.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+  const ray = new THREE.Raycaster(); ray.setFromCamera(m, stage.camera);
+  const hits = ray.intersectObjects(group.children, true);
+  return hits.length ? hits[0].object.userData : null;
+}
+
+/* ---- scene registry by organ ------------------------------------------- */
+const SCENES = { a11oy: KhipuSpine, sentra: ImmuneCathedral, amaru: Cortex, killinchu: CommandOrbit };
+
+/* =============================================================================
+ * operator-shell / shared / zones.js
+ * Shared zone renderers for the 4-zone Unified Operator Shell:
+ *   Zone 1 INBOX        — 3D-feel card stack of action-needed items
+ *   Zone 3 COMMAND BAR  — Cmd-K palette, single-letter aliases, fuzzy filter
+ *   Zone 4 RECEIPT DRAWER — z-tunnel ribbon of successfully-signed receipts
+ *   Footer              — single line: doctrine · 🪢 depth · Lean SHA · status pill
+ * Noise principle: every element earns its pixel by being ALIVE. Empty inbox =
+ * one calm line. Zero-value stat cards are hidden, never shown as "0".
+ * Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE · SPDX: Apache-2.0
+ * ========================================================================== */
+
+const URGENCY_RANK = { critical: 0, warn: 1, info: 2 };
+
+/* ---- Zone 1: INBOX card stack ------------------------------------------ */
+function renderInbox(el, items, onCommand) {
+  el.innerHTML = "";
+  const active = (items || []).slice().sort((a, b) =>
+    (URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency]) || (b.ts || "").localeCompare(a.ts || "") || (a.id || "").localeCompare(b.id || ""));
+  if (!active.length) {
+    const calm = document.createElement("div"); calm.className = "inbox-calm";
+    calm.textContent = "Nothing requires your attention. Map is breathing.";
+    el.appendChild(calm); return;
+  }
+  const visible = active.slice(0, 8), overflow = active.length - 8;
+  visible.forEach(item => {
+    const card = document.createElement("div");
+    card.className = `inbox-card urgency-${item.urgency}`;
+    card.tabIndex = 0;
+    const t = (item.title || "").slice(0, 80), st = (item.subtitle || "").slice(0, 120);
+    const acts = (item.actions || []).map(a =>
+      `<button class="ic-act${a.primary ? " primary" : ""}" data-cmd="${a.command.replace(/"/g, "&quot;")}" data-id="${item.id}">${a.label}</button>`).join("");
+    card.innerHTML =
+      `<div class="ic-face"><div class="ic-dot"></div><div class="ic-title">${esc(t)}</div>` +
+      `<div class="ic-sub">${esc(st)}</div><div class="ic-acts">${acts}</div></div>` +
+      `<div class="ic-back"><pre>${esc(JSON.stringify(item.evidence || {}, null, 2))}</pre></div>`;
+    card.addEventListener("click", e => { if (!e.target.classList.contains("ic-act")) card.classList.toggle("flipped"); });
+    card.querySelectorAll(".ic-act").forEach(b => b.addEventListener("click", e => {
+      e.stopPropagation(); onCommand(b.dataset.cmd.replace(/<id>/g, b.dataset.id));
+    }));
+    el.appendChild(card);
+  });
+  if (overflow > 0) { const m = document.createElement("div"); m.className = "inbox-more"; m.textContent = `+${overflow} more`; el.appendChild(m); }
+}
+
+/* ---- Zone 3: COMMAND BAR (Cmd-K) --------------------------------------- */
+const ALIASES = { s: "/sign", v: "/verify", i: "/inspect", r: "/replay" };
+function makeCommandBar(root, registry, onExecute) {
+  const overlay = document.createElement("div"); overlay.className = "cmdk-overlay"; overlay.hidden = true;
+  overlay.innerHTML = `<div class="cmdk-box"><input class="cmdk-input" placeholder="Type a command…  s=sign v=verify i=inspect r=replay" />` +
+    `<div class="cmdk-list"></div></div>`;
+  root.appendChild(overlay);
+  const input = overlay.querySelector(".cmdk-input"), list = overlay.querySelector(".cmdk-list");
+  let sel = 0, flat = [];
+  function open() { overlay.hidden = false; input.value = ""; filter(""); input.focus(); }
+  function close() { overlay.hidden = true; }
+  function filter(q) {
+    const ql = q.trim().toLowerCase();
+    list.innerHTML = ""; flat = [];
+    const groups = registry(); // {Recent:[], Suggested:[], Common:[], Organ:[], Compliance:[]}
+    for (const [grp, cmds] of Object.entries(groups)) {
+      const matched = cmds.filter(c => !ql || c.cmd.toLowerCase().includes(ql) || (c.desc || "").toLowerCase().includes(ql));
+      if (!matched.length) continue;
+      const h = document.createElement("div"); h.className = "cmdk-group"; h.textContent = grp; list.appendChild(h);
+      matched.forEach(c => {
+        const row = document.createElement("div"); row.className = "cmdk-row"; row.dataset.cmd = c.cmd;
+        row.innerHTML = `<span class="cmdk-cmd">${esc(c.cmd)}</span><span class="cmdk-desc">${esc(c.desc || "")}</span>`;
+        row.addEventListener("click", () => exec(c.cmd)); list.appendChild(row); flat.push(row);
+      });
+    }
+    sel = 0; highlight();
+  }
+  function highlight() { flat.forEach((r, i) => r.classList.toggle("sel", i === sel)); flat[sel]?.scrollIntoView({ block: "nearest" }); }
+  function exec(raw) {
+    let cmd = raw.trim();
+    const parts = cmd.split(/\s+/); if (ALIASES[parts[0]]) { parts[0] = ALIASES[parts[0]]; cmd = parts.join(" "); }
+    close(); onExecute(cmd);
+  }
+  input.addEventListener("input", e => filter(e.target.value));
+  input.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { sel = Math.min(sel + 1, flat.length - 1); highlight(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { sel = Math.max(sel - 1, 0); highlight(); e.preventDefault(); }
+    else if (e.key === "Enter") { const r = flat[sel]; exec(r ? r.dataset.cmd : input.value); }
+    else if (e.key === "Escape") close();
+  });
+  window.addEventListener("keydown", e => {
+    if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && document.activeElement.tagName !== "INPUT")) { e.preventDefault(); open(); }
+  });
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+  return { open, close };
+}
+
+/* ---- Zone 4: RECEIPT DRAWER (z-tunnel ribbon) -------------------------- */
+function renderReceipts(el, receipts, onInspect) {
+  el.innerHTML = "";
+  const ok = (receipts || []).filter(r => r.verify === undefined ? true : r.verify); // only successfully-signed surface here
+  if (!ok.length) { const d = document.createElement("div"); d.className = "drawer-idle"; d.textContent = "No signed receipts in window."; el.appendChild(d); return; }
+  ok.forEach((r, i) => {
+    const chip = document.createElement("div");
+    chip.className = `rcpt-chip verdict-${r.verdict || "pass"}`;
+    chip.style.setProperty("--z", i);
+    chip.innerHTML = `<span class="rc-time">${(r.ts || "").slice(11, 19)}</span>` +
+      `<span class="rc-verb">${esc(r.action_verb || "—")}</span>` +
+      `<span class="rc-key">${esc((r.keyid || "").replace("szlholdings-", ""))}</span>` +
+      `<span class="rc-sig ${r.verify ? "ok" : "pend"}">${r.verify ? "✓" : "·"}</span>`;
+    chip.addEventListener("click", () => onInspect(r));
+    el.appendChild(chip);
+  });
+}
+
+/* ---- Footer: single line ----------------------------------------------- */
+function renderFooter(el, { doctrine, counts, depth, leanSha, status, sovereign }) {
+  const pill = { ok: "var(--accent-emerald)", warn: "var(--accent-amber)", down: "var(--accent-rose)" }[status] || "var(--accent-emerald)";
+  const sov = sovereign === false
+    ? `<span class="ft-sov off" title="Local LLM offline — honest fallback">⚙️ Sovereign (LLM offline)</span>`
+    : `<span class="ft-sov" title="Runs entirely on the operator's hardware — no cloud API">⚙️ Sovereign</span>`;
+  el.innerHTML = `<span class="ft-knot">🪢 ${depth}</span>` +
+    sov +
+    `<span class="ft-doc">🪶 ${esc(doctrine)} LOCKED · ${esc(counts)}</span>` +
+    `<span class="ft-lean">⚖️ Lean ${esc(leanSha)}</span>` +
+    `<span class="ft-pill" style="background:${pill}"></span>`;
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+/* operator-shell / shared / api.js — thin client for the v4 endpoint contract.
+ * GET inbox · GET map/state · POST command · GET receipts · GET replay · WS stream · GET healthz
+ * Sign: Yachay <yachay@szlholdings.dev> — DCO · ADDITIVE · SPDX: Apache-2.0 */
+function makeApi(organ, base = "") {
+  const p = `${base}/api/${organ}/v4`;
+  return {
+    organ,
+    inbox: () => fetch(`${p}/inbox`).then(r => r.json()),
+    mapState: () => fetch(`${p}/map/state`).then(r => r.json()),
+    command: (command, args = {}) => fetch(`${p}/command`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command, args })
+    }).then(r => r.json()),
+    receipts: (since, limit = 50) => fetch(`${p}/receipts?` + new URLSearchParams({ ...(since ? { since } : {}), limit })).then(r => r.json()),
+    replay: (hash, frame = 0) => fetch(`${p}/replay/${hash}?frame=${frame}`).then(r => r.json()),
+    healthz: () => fetch(`${p}/healthz`).then(r => r.json()),
+    stream: (onMsg, onErr) => {
+      // SSE over the WS-labelled /stream route (EventSource = honest live updates)
+      const es = new EventSource(`${p}/stream`);
+      es.onmessage = e => { try { onMsg(JSON.parse(e.data)); } catch (_) {} };
+      es.onerror = e => { onErr && onErr(e); };
+      return es;
+    },
+  };
+}
+
+
+const ORGAN = "a11oy";
+const api = makeApi(ORGAN);
+
+// Zone 2: Map — Three.js living scene for this flagship
+const canvas = document.getElementById("map");
+const stage = makeStage(canvas);
+const scene = SCENES[ORGAN](stage);
+let last = performance.now();
+function loop(now){ const dt=(now-last)/1000; last=now; stage.controls.update(); scene.tick(dt);
+  stage.renderer.render(stage.scene, stage.camera); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+canvas.addEventListener("click", e => { const u = pick(stage, scene.group, e);
+  if (u && (u.receipt_sha||u.signature||u.axis||u.formula||u.officer||u.track||u.gate))
+    runCommand(`/inspect ${u.receipt_sha||u.signature||u.axis||u.formula||u.officer||u.track||u.gate}`); });
+
+// Command registry (Zone 3) — single-letter aliases + grouped, per-organ + compliance(killinchu)
+function registry(){
+  const universal = [
+    {cmd:"/sign <action>", desc:"sign → DSSE receipt (s)"},
+    {cmd:"/verify <sha>", desc:"cosign verify (v)"},
+    {cmd:"/inspect <id>", desc:"drill into entity (i)"},
+    {cmd:"/replay <hash>", desc:"cognitive replay (r)"},
+    {cmd:"/healthz", desc:"flagship health"},
+  ];
+  const perOrgan = [{"cmd": "/gate <id>", "desc": "Yuyay-gate verdict"}, {"cmd": "/khipu append <action>", "desc": "append to Khipu chain"}, {"cmd": "/policy list", "desc": "active policies (fired today)"}];
+  const compliance = [];
+  const g = {Suggested:universal.slice(0,2), Common:universal, "a11oy":perOrgan};
+  if (compliance.length) g["Compliance"] = compliance;
+  return g;
+}
+const cmdk = makeCommandBar(document.body, registry, runCommand);
+
+async function runCommand(cmd){
+  scene.ripple && scene.ripple();           // 3D ripple into the Map
+  const res = await api.command(cmd).catch(()=>({ok:false,message:"network"}));
+  await refresh();                           // re-pull live state
+  return res;
+}
+
+// Zones 1 + 4 + Footer + Map state — all from live v4 endpoints
+async function refresh(){
+  const [inbox, mapState, receipts, health] = await Promise.all([
+    api.inbox().catch(()=>[]), api.mapState().catch(()=>({})),
+    api.receipts(undefined,40).catch(()=>[]), api.healthz().catch(()=>({})),
+  ]);
+  renderInbox(document.getElementById("inbox"), inbox, runCommand);
+  scene.setState(mapState||{});
+  renderReceipts(document.getElementById("drawer"), receipts, r => runCommand(`/inspect ${r.receipt_sha}`));
+  renderFooter(document.getElementById("footer"), {
+    doctrine: health.doctrine||"v11", counts: health.counts||"749/14/163",
+    depth: receipts.length, leanSha: health.lean_sha||"c7c0ba17",
+    status: health.status==="ok" ? "ok" : "warn",
+    sovereign: health.local_llm_online,   // ⚙️ Sovereign badge; honest (offline) marker when local LLM unreachable
+  });
+}
+refresh();
+
+// Live updates via SSE stream (real DSSE events)
+api.stream(msg => { if (msg.type==="receipt") refresh(); }, () => {});
+setInterval(refresh, 15000); // gentle reconcile
+</script>
+</body>
+</html>
