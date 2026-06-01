@@ -1010,7 +1010,7 @@ def _viz_index(name: str) -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
-@app.get("/viz")
+@app.api_route("/viz", methods=["GET", "HEAD"])
 async def viz_gallery() -> Response:
     f = VIZ_DIR / "index.html"
     if f.is_file():
@@ -1019,19 +1019,19 @@ async def viz_gallery() -> Response:
     return _viz_index("khipu")
 
 
-@app.get("/viz/{name}")
-@app.get("/viz/{name}/")
+@app.api_route("/viz/{name}", methods=["GET", "HEAD"])
+@app.api_route("/viz/{name}/", methods=["GET", "HEAD"])
 async def viz_clean(name: str) -> Response:
     return _viz_index(name)
 
 
-@app.get("/static/viz/{name}")
-@app.get("/static/viz/{name}/")
+@app.api_route("/static/viz/{name}", methods=["GET", "HEAD"])
+@app.api_route("/static/viz/{name}/", methods=["GET", "HEAD"])
 async def viz_static_dir(name: str) -> Response:
     return _viz_index(name)
 
 
-@app.get("/{full_path:path}")
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
     if full_path.startswith("api/"):
