@@ -89,9 +89,23 @@ _SEVERITY_SLOPE = 0.20
 _MAX_THRESHOLD = 0.95
 _STANDARD_WITNESSES = 2
 _CAPITAL_WITNESSES = 3
-# DEMO ONLY — symmetric HMAC, NOT non-repudiable (see PhD Crypto Verdict A2).
-_SIGNING_KEY = "a11oy-threshold-policy-dev-key"
-_KEY_ID = "hmac-sha256:a11oy-threshold-policy-dev"
+# HMAC key MUST be injected as HF Space secret A11OY_HMAC_KEY.
+# Without it, signatures are PLACEHOLDER per Doctrine v11 (non-repudiation=false).
+# DO NOT hardcode a real key here — the founder injects real keys as HF Space secrets.
+import os as _os
+import logging as _logging
+_HMAC_KEY_RAW = _os.environ.get("A11OY_HMAC_KEY")
+if _HMAC_KEY_RAW:
+    _SIGNING_KEY: str | None = _HMAC_KEY_RAW
+    _KEY_ID = "hmac-sha256:a11oy-env-injected"
+else:
+    _SIGNING_KEY = None  # Key not set — signatures will be PLACEHOLDER
+    _KEY_ID = "hmac-sha256:PLACEHOLDER"
+    _logging.warning(
+        "A11OY_HMAC_KEY env var is not set. "
+        "HMAC receipt signatures will be PLACEHOLDER (non-repudiation=false). "
+        "Inject the key as an HF Space secret before relying on receipt signatures."
+    )
 
 
 def _b64url(s: str) -> str:
@@ -108,10 +122,16 @@ def _pae(payload_type: str, payload: str) -> str:
 def _sign_dsse(payload: dict[str, Any]) -> dict[str, Any]:
     payload_type = "application/vnd.szl.threshold-policy.v1+json"
     encoded = _b64url(canonical_json(payload))
-    sig = hmac.new(_SIGNING_KEY.encode("utf-8"), _pae(payload_type, encoded).encode("utf-8"),
-                   hashlib.sha256).digest()
     import base64
-    sig_b64 = base64.urlsafe_b64encode(sig).decode("ascii").rstrip("=")
+    if _SIGNING_KEY is None:
+        # A11OY_HMAC_KEY env var not set — emit honest PLACEHOLDER per Doctrine v11.
+        # This is NOT a valid HMAC. It signals non-repudiation is unavailable.
+        placeholder = "PLACEHOLDER:" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+        sig_b64 = base64.urlsafe_b64encode(placeholder.encode()).decode("ascii").rstrip("=")
+    else:
+        sig = hmac.new(_SIGNING_KEY.encode("utf-8"), _pae(payload_type, encoded).encode("utf-8"),
+                       hashlib.sha256).digest()
+        sig_b64 = base64.urlsafe_b64encode(sig).decode("ascii").rstrip("=")
     return {"payloadType": payload_type, "payload": encoded,
             "signatures": [{"keyid": _KEY_ID, "sig": sig_b64}]}
 
