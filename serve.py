@@ -797,6 +797,45 @@ except Exception as _oe:  # pragma: no cover - defensive, additive-only
     print(f"[operator_shell_v4] NOT mounted ({_oe!r}); existing routes unaffected", file=sys.stderr)
 
 
+# ---------------------------------------------------------------------------
+# CROSS-HARNESS RECEIPT BRIDGE (Yachay 2026-06-01, ADDITIVE). "Bring your own
+# harness. We sign the truth." Lets external agent harnesses — Hermes Function
+# Calling (ChatML <tool_call>/<think>) and OpenClaw (SOUL.md hash + tool event)
+# — cross into the SZL Khipu receipt chain. Every crossing tool call validates
+# SCHEMA-STRICT against szl_bridge_schemas (JSON Schema 2020-12, deny-by-default)
+# and is DSSE-signed via szl_dsse, hash-chained into the public szl_receipt_
+# substrate ledger. When a <think> block is present the bridge mints TWO receipts:
+# kind:"deliberation" (hash(prompt)+reasoning) and kind:"action" (the tool call).
+# Mounts POST /api/a11oy/v4/bridge/{hermes,openclaw}, GET /api/a11oy/v4/bridge/
+# receipt/{id} (public, no auth), GET /bridge (HTML). Registered BEFORE the
+# generic /api/a11oy/{path:path} Node proxy + SPA catch-all so the bridge routes
+# resolve LOCALLY. try/except-guarded — a missing dep can NEVER take down the SPA.
+# Doctrine v11 LOCKED 749/14/163 UNCHANGED. Co-Authored-By: Perplexity Computer Agent.
+# ---------------------------------------------------------------------------
+try:
+    import szl_bridge as _bridge
+    _bridge_status = _bridge.register(app, "a11oy")
+    print(f"[a11oy] Cross-Harness Receipt Bridge registered: {_bridge_status}", file=sys.stderr)
+except Exception as _bridge_e:  # pragma: no cover - defensive, additive-only
+    print(f"[a11oy] Cross-Harness Receipt Bridge NOT registered: {_bridge_e!r}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# v4 MULTI-LLM ENSEMBLE AGENT (ADDITIVE; now in-repo). serve.py imports
+# a11oy_v4_agent and calls .register(app) BEFORE the /api/a11oy/{path} Node proxy
+# + SPA catch-all, mounting POST /api/a11oy/v4/agent/ask (with the optional
+# `envelope`: chatml|openai|anthropic param routed through szl_bridge),
+# GET /api/a11oy/v4/agent/voters, and the operator UI GET /agent. try/except-
+# guarded — a missing dep can NEVER take down the SPA. Doctrine v11 UNCHANGED.
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_v4_agent as _v4_agent
+    _v4_status = _v4_agent.register(app, "a11oy")
+    print(f"[a11oy] v4 ensemble agent registered: {_v4_status}", file=sys.stderr)
+except Exception as _v4_e:  # pragma: no cover - defensive, additive-only
+    print(f"[a11oy] v4 ensemble agent NOT registered: {_v4_e!r}", file=sys.stderr)
+
+
 
 
 # ===========================================================================

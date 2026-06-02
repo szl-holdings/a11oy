@@ -121,4 +121,21 @@ COPY szl_unay_routes.py ./szl_unay_routes.py
 # ADDITIVE (Warhacker aliases, Yachay 2026-06-01): top-level /healthz + /khipu/* + /wires/D.
 # Per-file COPY (no `COPY . .`) — without this `import szl_warhacker_aliases` fails.
 COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
+
+# ADDITIVE (Cross-Harness Receipt Bridge — Hermes + OpenClaw; 2026-06-01, Yachay /
+# Perplexity Computer Agent): explicit per-file COPY (this Dockerfile does not use
+# `COPY . .`). serve.py imports szl_bridge + a11oy_v4_agent and calls .register(app)
+# BEFORE the /api/a11oy/{path} Node proxy + SPA catch-all, mounting POST /api/a11oy/
+# v4/bridge/{hermes,openclaw}, GET /api/a11oy/v4/bridge/receipt/{id} (public),
+# GET /bridge, and POST /api/a11oy/v4/agent/ask (optional envelope param). szl_bridge
+# imports szl_bridge_schemas (JSON Schema 2020-12 tool registry) and reuses the
+# already-copied szl_dsse + szl_receipt_substrate signing/ledger modules. Without
+# these COPYs the imports fail and the routes fall through to the SPA shell.
+COPY szl_bridge.py ./szl_bridge.py
+COPY szl_bridge_schemas.py ./szl_bridge_schemas.py
+COPY a11oy_v4_agent.py ./a11oy_v4_agent.py
+COPY agent.html ./agent.html
+# a11oy-bridge CLI (sign --from hermes/openclaw, verify --receipt-id). Standalone
+# operator tool; not imported at boot but shipped so it is runnable in-container.
+COPY a11oy_bridge_cli.py ./a11oy_bridge_cli.py
 CMD ["python", "serve.py"]

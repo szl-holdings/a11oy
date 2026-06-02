@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>a11oy · Multi-LLM Ensemble Vote</title>
+<!--
+  a11oy v4 operator surface — Yachay, 2026-06-01. ADDITIVE.
+  No external CDN: the radar chart is hand-rolled inline SVG. The Λ aggregator
+  is Conjecture 1 (NOT a theorem; 163 sorries outstanding). DCO Signed-off-by:
+  Yachay <yachay@szlholdings.dev>. Co-Authored-By: Perplexity Computer Agent.
+-->
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#141a24; --panel2:#1b2330; --line:#2a3545;
+    --ink:#e6edf3; --dim:#8b99ab; --accent:#ffd24a; --accent2:#4ad6c4;
+    --win:#ffd24a; --err:#ff6b6b; --stub:#c08bff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{margin:0;font-size:20px;letter-spacing:.3px}
+  header .tag{color:var(--dim);font-size:13px}
+  .badge{font-size:11px;padding:2px 8px;border:1px solid var(--line);
+    border-radius:999px;color:var(--accent2)}
+  main{max-width:1180px;margin:0 auto;padding:22px 24px 60px}
+  .ask{display:flex;gap:10px;margin-bottom:8px}
+  .ask textarea{flex:1;min-height:64px;resize:vertical;background:var(--panel);
+    color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    font:inherit}
+  .ask button{background:var(--accent);color:#1b1500;border:0;border-radius:10px;
+    padding:0 22px;font-weight:700;cursor:pointer;font-size:15px}
+  .ask button:disabled{opacity:.5;cursor:wait}
+  .voters{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 18px;color:var(--dim);font-size:13px}
+  .voters label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .status{color:var(--dim);font-size:13px;min-height:20px;margin-bottom:14px}
+  .composite{font-size:14px;margin:0 0 16px;color:var(--accent2)}
+  .composite b{color:var(--accent);font-size:22px}
+  .conj{color:var(--err);font-size:12px;margin-left:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px;position:relative;overflow:hidden}
+  .card.win{border-color:var(--win);box-shadow:0 0 0 1px var(--win) inset,0 8px 28px #0008}
+  .card .crown{position:absolute;top:10px;right:12px;font-size:11px;font-weight:700;
+    color:#1b1500;background:var(--win);padding:2px 8px;border-radius:999px}
+  .card h3{margin:0 0 4px;font-size:15px}
+  .card .meta{color:var(--dim);font-size:12px;margin-bottom:10px}
+  .lam{font-size:13px;margin:10px 0 6px}
+  .lam b{color:var(--accent);font-size:18px}
+  .resp{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:10px;font-size:13px;max-height:180px;overflow:auto;white-space:pre-wrap}
+  .err{color:var(--err);font-size:13px}
+  .stubtag{color:var(--stub);font-size:11px;border:1px solid var(--stub);
+    border-radius:999px;padding:1px 7px;margin-left:6px}
+  .radar-wrap{display:flex;justify-content:center;margin:6px 0}
+  details.receipt{margin-top:26px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:12px 16px}
+  details.receipt summary{cursor:pointer;font-weight:600}
+  details.receipt pre{background:#0a0d13;border:1px solid var(--line);border-radius:8px;
+    padding:12px;overflow:auto;font-size:12px;max-height:420px}
+  .sig{font-size:12px;color:var(--dim);margin:8px 0 0}
+  .sig .ok{color:var(--accent2)} .sig .no{color:var(--err)}
+  .axiskey{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.7}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · Multi-LLM Ensemble Vote</h1>
+  <span class="tag">Yuyay-13 · Lutar Λ-aggregator</span>
+  <span class="badge" id="hfbadge">checking voters…</span>
+</header>
+
+<main>
+  <div class="ask">
+    <textarea id="prompt" placeholder="Ask the ensemble a question…">Explain, step by step, how a stateless API authenticates a request using bearer tokens, and note one security caveat.</textarea>
+    <button id="askbtn">Ask</button>
+  </div>
+  <div class="voters" id="voterpicks"></div>
+  <div class="status" id="status"></div>
+  <div class="composite" id="composite"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <details class="receipt" id="receiptbox" style="display:none">
+    <summary>Signed Khipu receipt (DSSE)</summary>
+    <p class="sig" id="sig"></p>
+    <pre id="receipt"></pre>
+  </details>
+</main>
+
+<script>
+const AXES = ["Yachay","Yuyay","Kallpa","Killa","Unay","Ayni","Hatun","Wallpa","Chaski","Wasi-Rikuq","Throne-Room","Inka","Khipu"];
+const ALL_VOTERS = ["qwen-local","hf-inference-llama","hf-inference-mistral","hf-inference-qwen"];
+
+const $ = (id)=>document.getElementById(id);
+
+// Render voter checkboxes
+const vp = $("voterpicks");
+ALL_VOTERS.forEach(v=>{
+  const id="v_"+v;
+  vp.insertAdjacentHTML("beforeend",
+    `<label><input type="checkbox" id="${id}" value="${v}" checked> ${v}</label>`);
+});
+
+// Probe voter availability badge
+fetch("/api/a11oy/v4/agent/voters").then(r=>r.json()).then(d=>{
+  $("hfbadge").textContent = d.hf_token_present ? "HF Inference: token present" : "HF Inference: NO token";
+}).catch(()=>{ $("hfbadge").textContent="voters endpoint unreachable"; });
+
+// ---- Inline SVG radar chart (no CDN) -------------------------------------
+function radar(values, opts){
+  const n = values.length, R = 92, cx = 110, cy = 110;
+  const ring = (opts && opts.win) ? "#ffd24a" : "#4ad6c4";
+  function pt(i, r){
+    const a = -Math.PI/2 + i*2*Math.PI/n;
+    return [cx + r*Math.cos(a), cy + r*Math.sin(a)];
+  }
+  let grid = "";
+  [0.25,0.5,0.75,1].forEach(f=>{
+    let p = values.map((_,i)=>pt(i,R*f).join(",")).join(" ");
+    grid += `<polygon points="${p}" fill="none" stroke="#2a3545" stroke-width="1"/>`;
+  });
+  let spokes = "", labels = "";
+  for(let i=0;i<n;i++){
+    const [x,y]=pt(i,R);
+    spokes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#2a3545" stroke-width="1"/>`;
+    const [lx,ly]=pt(i,R+13);
+    const anchor = Math.abs(lx-cx)<6?"middle":(lx<cx?"end":"start");
+    labels += `<text x="${lx}" y="${ly+3}" font-size="8.5" fill="#8b99ab" text-anchor="${anchor}">${AXES[i].slice(0,8)}</text>`;
+  }
+  const poly = values.map((v,i)=>pt(i, R*Math.max(0,Math.min(1,v))).join(",")).join(" ");
+  const dots = values.map((v,i)=>{const[x,y]=pt(i,R*Math.max(0,Math.min(1,v)));return `<circle cx="${x}" cy="${y}" r="2" fill="${ring}"/>`;}).join("");
+  return `<svg width="232" height="232" viewBox="-6 -6 244 244" aria-label="Yuyay-13 radar">
+    ${grid}${spokes}
+    <polygon points="${poly}" fill="${ring}33" stroke="${ring}" stroke-width="1.6"/>
+    ${dots}${labels}
+  </svg>`;
+}
+
+function card(vote, isWin){
+  let body;
+  if(vote.error && !vote.response){
+    body = `<div class="err">⚠ ${vote.error}</div>`;
+  } else {
+    const axes = vote.yuyay_axes || [];
+    const stub = vote.stub ? `<span class="stubtag">deterministic stub</span>` : "";
+    body = `
+      <div class="lam">Λ <b>${(vote.lambda??0).toFixed(3)}</b>
+        <span style="color:var(--dim)">· weight ${(vote.lambda_weight??0).toFixed(3)}</span> ${stub}</div>
+      <div class="radar-wrap">${radar(axes,{win:isWin})}</div>
+      <div class="resp">${escapeHtml(vote.response||"")}</div>`;
+  }
+  const lat = vote.latency_ms!=null ? `${vote.latency_ms} ms` : "";
+  return `<div class="card ${isWin?'win':''}">
+    ${isWin?'<span class="crown">★ WINNER</span>':''}
+    <h3>${vote.voter}</h3>
+    <div class="meta">${vote.model||vote.source||''} ${lat?'· '+lat:''}</div>
+    ${body}
+  </div>`;
+}
+
+function escapeHtml(s){return (s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+async function ask(){
+  const prompt = $("prompt").value.trim();
+  if(!prompt){ $("status").textContent="Enter a prompt."; return; }
+  const voters = ALL_VOTERS.filter(v=>$("v_"+v).checked);
+  $("askbtn").disabled = true;
+  $("status").textContent = `Fanning out to ${voters.length} voter(s)… (up to 30s each)`;
+  $("grid").innerHTML=""; $("composite").innerHTML=""; $("receiptbox").style.display="none";
+  try{
+    const r = await fetch("/api/a11oy/v4/agent/ask",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({prompt, voters})
+    });
+    const d = await r.json();
+    if(!r.ok){ $("status").textContent = "Error: "+(d.error||r.status); return; }
+    render(d);
+  }catch(e){ $("status").textContent = "Request failed: "+e; }
+  finally{ $("askbtn").disabled=false; }
+}
+
+function render(d){
+  $("status").textContent = `Winner: ${d.winner ?? '—'}`;
+  $("composite").innerHTML =
+    `Λ-composite <b>${(d.lambda_composite??0).toFixed(3)}</b>`+
+    `<span class="conj">${d.lambda_status||''}</span>`;
+  const grid = $("grid");
+  (d.votes||[]).forEach(v=>{
+    grid.insertAdjacentHTML("beforeend", card(v, d.winner && v.voter===d.winner));
+  });
+  const rb = $("receiptbox"); rb.style.display="block";
+  const rec = d.receipt||{};
+  const dsse = rec.dsse||{};
+  const signed = rec.signed;
+  const avail = rec.signing_available;
+  $("sig").innerHTML =
+    `DSSE: <span class="${signed?'ok':'no'}">${signed?'SIGNED':'UNSIGNED'}</span> · `+
+    `signing key available: <span class="${avail?'ok':'no'}">${avail?'yes':'no'}</span> · `+
+    `keyid ${dsse.keyid || (dsse.signatures&&dsse.signatures[0]&&dsse.signatures[0].keyid) || 'szlholdings-cosign'}`;
+  $("receipt").textContent = JSON.stringify(rec, null, 2);
+}
+
+$("askbtn").addEventListener("click", ask);
+$("prompt").addEventListener("keydown", e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) ask(); });
+</script>
+</body>
+</html>
