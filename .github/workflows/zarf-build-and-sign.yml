@@ -94,7 +94,7 @@ jobs:
           file: Dockerfile
           # push only when explicitly requested via dispatch input
           push: ${{ inputs.push_image }}
-          load: ${{ !inputs.push_image }}
+          load: ${{ inputs.push_image == false }}
           tags: |
             ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE }}:${{ env.SKELETON_TAG }}
@@ -220,3 +220,4 @@ jobs:
           echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
           echo "  --bundle ${{ steps.pkg.outputs.bundle }} \\"
           echo "  ${{ steps.pkg.outputs.tarball }}"
+
