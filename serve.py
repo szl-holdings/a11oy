@@ -1349,3 +1349,27 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "7860"))
     print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v11 LOCKED 749/14/163 — SPA at /", file=sys.stderr)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+
+# ===========================================================================
+# V4 Fleet Status Panel + /api/health fix (ADDITIVE, 2026-06-02, Dev2 Inti).
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# szl_v4_fleet.register(app, "a11oy") mounts:
+#   GET  /api/health                       → JSON 200 (fixes "Not Found" / HTML)
+#   GET  /api/a11oy/v4/fleet                → JSON: 5-peer live status + doctrine
+#   GET  /api/a11oy/v4/fleet/doctrine       → JSON: doctrine claim v11/749/14/163
+#   GET  /fleet                             → HTML: v4_fleet_panel.html (canonical)
+#   GET  /thesis                            → HTML: SPA index.html (fixes 404)
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem).
+# ADDITIVE ONLY — try/except guarded, never crashes host app.
+# Per-file COPY; no COPY . .
+# ---------------------------------------------------------------------------
+try:
+    import szl_v4_fleet as _fleet
+    _fleet_status = _fleet.register(app, "a11oy")
+    import sys as _sys_fleet
+    print(f"[szl_v4_fleet] {{_fleet_status}}", file=_sys_fleet.stderr)
+except Exception as _fleet_exc:
+    import sys as _sys_fleet
+    print(f"[szl_v4_fleet] NOT mounted ({{_fleet_exc!r}}); existing routes unaffected", file=_sys_fleet.stderr)
+
