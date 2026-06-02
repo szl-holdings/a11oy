@@ -190,7 +190,55 @@ def verify_envelope(env: dict[str, Any]) -> dict[str, Any]:
 # Convenience: build a full signed Khipu receipt dict
 # ---------------------------------------------------------------------------
 
-def sign_khipu_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
-    """Return {receipt, dsse} where dsse is the DSSE envelope over the receipt."""
+def _normalize_neuro_citations(neuro_citations: Any) -> list[dict[str, Any]]:
+    """Coerce a neuro_citations argument into a list of {doi,label} dicts.
+
+    Accepts None (-> []), a list of dicts, or a list of bare DOI strings.
+    Each citation is normalized to a dict carrying at least a `doi` key and a
+    human-readable `label` (defaults to the DOI if no label supplied). This is
+    the cognitive-neuroscience provenance channel added for the Hickok ingest
+    (Lutar Anchors A36/A37/A38) — see DOI 10.1038/nrn2113 (Hickok & Poeppel
+    2007, dual-stream model)."""
+    if not neuro_citations:
+        return []
+    out: list[dict[str, Any]] = []
+    for c in neuro_citations:
+        if isinstance(c, str):
+            out.append({"doi": c, "label": c})
+        elif isinstance(c, dict):
+            doi = c.get("doi", "")
+            label = c.get("label") or doi
+            entry = {"doi": doi, "label": label}
+            # Preserve any extra provenance fields the caller supplied.
+            for k, v in c.items():
+                if k not in entry:
+                    entry[k] = v
+            out.append(entry)
+    return out
+
+
+def sign_khipu_receipt(receipt: dict[str, Any],
+                       neuro_citations: Any = None) -> dict[str, Any]:
+    """Return {receipt, dsse} where dsse is the DSSE envelope over the receipt.
+
+    Task E (Hickok ingest): every receipt now carries a `neuro_citations` list
+    (default empty). Each entry is `{doi, label}`. This embeds cognitive-
+    neuroscience provenance directly into the signed payload so the DSSE
+    envelope cryptographically commits to the citation set. Callers that pass
+    nothing keep the prior behaviour (empty list, no semantic change)."""
+    # ADDITIVE: never overwrite a neuro_citations the caller already placed on
+    # the receipt; merge the explicit argument in front of any existing list.
+    existing = receipt.get("neuro_citations")
+    merged = _normalize_neuro_citations(neuro_citations) + _normalize_neuro_citations(existing)
+    # de-dup on doi while preserving order
+    seen: set = set()
+    deduped: list[dict[str, Any]] = []
+    for c in merged:
+        key = c.get("doi", "")
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(c)
+    receipt["neuro_citations"] = deduped
     env = sign_payload(receipt, KHIPU_PAYLOAD_TYPE)
     return {"receipt": receipt, "dsse": env}

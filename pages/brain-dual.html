@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+     a11oy /brain — Hickok dual-stream architecture, live.
+     ADDITIVE. Doctrine v11 LOCKED 749/14/163. Sovereign — no cloud LLM.
+     Architecture: Hickok & Poeppel 2007 (DOI 10.1038/nrn2113) · Hickok 2022
+     (DOI 10.1016/B978-0-12-823384-9.00003-7) · Hickok 2025 Wired for Words (MIT Press). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>a11oy — Brain · Dual-Stream Architecture (Hickok)</title>
+<style>
+  :root{
+    --bg:#06080d; --bg2:#0a0e16; --panel:#0e1420; --line:#1b2536;
+    --ink:#e9eff8; --mut:#8aa0bd; --faint:#5a6b86;
+    --dorsal:#5591c7;   /* action lane — blue */
+    --ventral:#a86fdf;  /* meaning lane — purple */
+    --gold:#e8af34;     /* A37 internal-feedback loop */
+    --accent:#5ad1c7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 50% 0%, #0c1322 0%, var(--bg) 70%);
+    color:var(--ink); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    overflow:hidden; height:100vh; display:flex; flex-direction:column;
+  }
+  header{
+    padding:14px 22px 10px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:18px; margin:0; letter-spacing:.2px}
+  header h1 b{color:var(--accent)}
+  header .sub{font-size:12px; color:var(--mut)}
+  header code{background:#10192b; color:#bcd; padding:1px 6px; border-radius:5px; font-size:11px}
+  main{flex:1; position:relative; min-height:0}
+  svg{width:100%; height:100%; display:block}
+  .legend{position:absolute; top:14px; left:18px; font-size:12px; line-height:1.7; background:rgba(10,14,22,.7);
+    border:1px solid var(--line); border-radius:10px; padding:10px 12px; backdrop-filter:blur(4px)}
+  .legend .row{display:flex; align-items:center; gap:8px}
+  .legend .dot{width:11px; height:11px; border-radius:50%}
+  .panel{position:absolute; top:14px; right:18px; width:330px; max-height:calc(100% - 120px);
+    background:rgba(10,14,22,.82); border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+    overflow:auto; backdrop-filter:blur(6px)}
+  .panel h3{margin:0 0 8px; font-size:13px; color:var(--accent)}
+  .panel .hint{font-size:11px; color:var(--faint); margin-bottom:8px}
+  .rcpt{border:1px solid var(--line); border-radius:8px; padding:7px 9px; margin-bottom:7px; font-size:11px}
+  .rcpt .a{font-weight:600}
+  .rcpt .meta{color:var(--mut); font-size:10px; margin-top:2px}
+  .rcpt .cite{color:var(--gold); font-size:10px; margin-top:2px; word-break:break-all}
+  .rcpt.dorsal{border-left:3px solid var(--dorsal)}
+  .rcpt.ventral{border-left:3px solid var(--ventral)}
+  .rcpt.dual{border-left:3px solid #d05}
+  .citestrip{font-size:11px; color:var(--mut); padding:8px 22px; border-top:1px solid var(--line);
+    background:var(--bg2); line-height:1.5}
+  .citestrip a{color:var(--accent); text-decoration:none}
+  .citestrip a:hover{text-decoration:underline}
+  footer{font-size:11px; color:var(--faint); padding:7px 22px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  footer .lock{color:var(--gold); font-weight:600}
+  .node{cursor:pointer}
+  .node:hover .nbox{stroke-width:2.5}
+  .nlabel{font-size:13px; font-weight:600; fill:var(--ink)}
+  .nsub{font-size:10px; fill:var(--mut)}
+  .streamlabel{font-size:12px; font-weight:700; letter-spacing:1px}
+  text{font-family:inherit}
+  @media (prefers-reduced-motion: reduce){ .pulse{animation:none !important} }
+  .pulse{animation:pulseGold 1.6s ease-in-out infinite}
+  @keyframes pulseGold{0%,100%{opacity:.35; stroke-width:3}50%{opacity:1; stroke-width:6}}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>a11oy</b> · brain — Hickok Dual-Stream Architecture</h1>
+  <span class="sub">A36 routing · A37 internal-feedback (gold) · A38 hierarchical linearization · live receipts via SSE
+    <code id="status">connecting…</code></span>
+</header>
+
+<main>
+  <div class="legend">
+    <div class="row"><span class="dot" style="background:var(--dorsal)"></span> Dorsal — action / sensorimotor</div>
+    <div class="row"><span class="dot" style="background:var(--ventral)"></span> Ventral — meaning / comprehension</div>
+    <div class="row"><span class="dot" style="background:var(--gold)"></span> A37 internal-feedback loop</div>
+  </div>
+
+  <svg id="diagram" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="arrowD" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 Z" fill="var(--dorsal)"/></marker>
+      <marker id="arrowV" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 Z" fill="var(--ventral)"/></marker>
+      <marker id="arrowG" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+        <path d="M0,0 L7,3 L0,6 Z" fill="var(--gold)"/></marker>
+    </defs>
+
+    <!-- stream labels -->
+    <text class="streamlabel" x="500" y="60" text-anchor="middle" fill="var(--dorsal)">DORSAL STREAM · action</text>
+    <text class="streamlabel" x="500" y="500" text-anchor="middle" fill="var(--ventral)">VENTRAL STREAM · meaning</text>
+
+    <!-- input node -->
+    <g class="node" data-node="input">
+      <rect class="nbox" x="40" y="250" width="150" height="60" rx="10" fill="#0e1726" stroke="var(--accent)"/>
+      <text class="nlabel" x="115" y="276" text-anchor="middle">Auditory input</text>
+      <text class="nsub" x="115" y="294" text-anchor="middle">spectrotemporal (STG)</text>
+    </g>
+
+    <!-- DORSAL path -->
+    <path id="pathD" d="M190 268 C 300 120, 420 120, 520 110" fill="none" stroke="var(--dorsal)" stroke-width="2.5" marker-end="url(#arrowD)"/>
+    <path d="M650 110 C 760 110, 800 200, 820 250" fill="none" stroke="var(--dorsal)" stroke-width="2.5" marker-end="url(#arrowD)"/>
+    <g class="node" data-node="spt">
+      <rect class="nbox" x="520" y="80" width="130" height="60" rx="10" fill="#0e1726" stroke="var(--dorsal)"/>
+      <text class="nlabel" x="585" y="106" text-anchor="middle">Area Spt</text>
+      <text class="nsub" x="585" y="124" text-anchor="middle">sensorimotor xlate</text>
+    </g>
+    <g class="node" data-node="dorsal">
+      <rect class="nbox" x="755" y="250" width="200" height="60" rx="10" fill="#0e1726" stroke="var(--dorsal)"/>
+      <text class="nlabel" x="855" y="276" text-anchor="middle">Articulatory network</text>
+      <text class="nsub" x="855" y="294" text-anchor="middle">/dorsal · motor plan</text>
+    </g>
+
+    <!-- A37 internal-feedback loop (GOLD), Spt <-> motor -->
+    <path id="loopA37" class="pulse" d="M650 130 C 760 150, 800 200, 808 248 C 700 200, 660 170, 652 138 Z"
+          fill="none" stroke="var(--gold)" stroke-width="3" marker-end="url(#arrowG)"/>
+    <text x="730" y="200" text-anchor="middle" fill="var(--gold)" font-size="11" font-weight="700">A37 feedback (efference→forward model)</text>
+
+    <!-- VENTRAL path -->
+    <path id="pathV" d="M190 292 C 300 440, 420 440, 520 450" fill="none" stroke="var(--ventral)" stroke-width="2.5" marker-end="url(#arrowV)"/>
+    <path d="M650 450 C 760 450, 800 360, 820 312" fill="none" stroke="var(--ventral)" stroke-width="2.5" marker-end="url(#arrowV)"/>
+    <g class="node" data-node="ventral_mid">
+      <rect class="nbox" x="520" y="420" width="130" height="60" rx="10" fill="#0e1726" stroke="var(--ventral)"/>
+      <text class="nlabel" x="585" y="446" text-anchor="middle">Lexical-semantic</text>
+      <text class="nsub" x="585" y="464" text-anchor="middle">post. MTG / ITS</text>
+    </g>
+    <g class="node" data-node="ventral">
+      <rect class="nbox" x="755" y="250" width="200" height="60" rx="10" fill="transparent" stroke="none"/>
+    </g>
+    <g class="node" data-node="ventral_out">
+      <rect class="nbox" x="755" y="370" width="200" height="60" rx="10" fill="#0e1726" stroke="var(--ventral)"/>
+      <text class="nlabel" x="855" y="396" text-anchor="middle">Conceptual network</text>
+      <text class="nsub" x="855" y="414" text-anchor="middle">/ventral · meaning</text>
+    </g>
+
+    <!-- A38 linearization note -->
+    <text x="500" y="540" text-anchor="middle" fill="var(--faint)" font-size="11">
+      A38 — hierarchical meaning ⇄ linear Khipu sequence (round-trip)</text>
+
+    <!-- moving receipt tokens are injected here -->
+    <g id="tokens"></g>
+  </svg>
+
+  <div class="panel">
+    <h3 id="panelTitle">Live receipts</h3>
+    <div class="hint" id="panelHint">Click a node to see its last 10 receipts. Receipts stream live from <code>/api/a11oy/v4/stream</code>.</div>
+    <div id="receipts"></div>
+  </div>
+</main>
+
+<div class="citestrip">
+  Architecture: <a href="https://doi.org/10.1038/nrn2113" target="_blank" rel="noopener">Hickok &amp; Poeppel 2007 (DOI 10.1038/nrn2113)</a>
+  · <a href="https://doi.org/10.1016/B978-0-12-823384-9.00003-7" target="_blank" rel="noopener">Hickok 2022 (DOI 10.1016/B978-0-12-823384-9.00003-7)</a>
+  · Hickok 2025 <i>Wired for Words</i> (MIT Press)
+</div>
+
+<footer>
+  <span><span class="lock">Doctrine v11 LOCKED</span> · 749/14/163 · Λ Conjecture 1 · SLSA L1 (honest) · sovereign-default (no cloud LLM)</span>
+  <span>Yachay (CTO) · SZL Holdings · co-authored with Perplexity Computer Agent</span>
+</footer>
+
+<script>
+(function(){
+  var SSE_URL = "/api/a11oy/v4/stream";
+  var receiptsEl = document.getElementById("receipts");
+  var statusEl = document.getElementById("status");
+  var panelTitle = document.getElementById("panelTitle");
+  var tokensG = document.getElementById("tokens");
+  var svg = document.getElementById("diagram");
+  var pathD = document.getElementById("pathD");
+  var pathV = document.getElementById("pathV");
+  var all = [];           // all received receipts
+  var byNode = {};        // node -> receipts
+  var selected = null;
+
+  function fmtTs(t){ try{ return new Date(t*1000).toLocaleTimeString(); }catch(e){ return ""; } }
+
+  function citeText(c){
+    if(!c || !c.length) return "no neuro_citations";
+    return c.map(function(x){ return "DOI " + (x.doi||x.label||"?"); }).join(" · ");
+  }
+
+  function render(list, title){
+    panelTitle.textContent = title || "Live receipts";
+    receiptsEl.innerHTML = "";
+    list.slice(-10).reverse().forEach(function(r){
+      var div = document.createElement("div");
+      var s = r.stream || "dual";
+      div.className = "rcpt " + s;
+      div.innerHTML =
+        '<div class="a">' + (r.action||"receipt") + ' <span style="color:var(--faint)">· ' + s + '</span></div>' +
+        '<div class="meta">' + (r.id? r.id.slice(0,18):"") + ' · ' + fmtTs(r.ts) +
+            ' · ' + (r.signed? 'signed' : 'unsigned (honest)') + '</div>' +
+        '<div class="cite">' + citeText(r.neuro_citations) + '</div>';
+      receiptsEl.appendChild(div);
+    });
+    if(!list.length){ receiptsEl.innerHTML = '<div class="hint">No receipts yet.</div>'; }
+  }
+
+  // Map an action/stream to a diagram node for click-history bucketing.
+  function nodeFor(r){
+    var a = (r.action||"");
+    if(a.indexOf("spt")>=0) return "spt";
+    if(a.indexOf("dorsal")>=0 || a.indexOf("when")>=0) return "dorsal";
+    if(a.indexOf("ventral")>=0 || a.indexOf("what")>=0) return "ventral_out";
+    if(r.stream==="dorsal") return "dorsal";
+    if(r.stream==="ventral") return "ventral_out";
+    return "input";
+  }
+
+  // Animate a token along the appropriate stream path.
+  function flow(r){
+    var path = (r.stream==="ventral") ? pathV : pathD;
+    if(!path || !path.getTotalLength) return;
+    var len = path.getTotalLength();
+    var color = (r.stream==="ventral") ? "var(--ventral)" : (r.stream==="dorsal" ? "var(--dorsal)" : "#d05");
+    var c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("r","5"); c.setAttribute("fill",color);
+    tokensG.appendChild(c);
+    var start = null, dur = 2200;
+    function step(ts){
+      if(!start) start = ts;
+      var p = Math.min(1,(ts-start)/dur);
+      var pt = path.getPointAtLength(p*len);
+      c.setAttribute("cx", pt.x); c.setAttribute("cy", pt.y);
+      c.setAttribute("opacity", String(1-p*0.5));
+      if(p<1){ requestAnimationFrame(step); } else { c.remove(); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function ingest(r){
+    all.push(r);
+    if(all.length>500) all.shift();
+    var n = nodeFor(r);
+    (byNode[n] = byNode[n] || []).push(r);
+    if(r.stream==="ventral" || r.stream==="dorsal" || r.stream==="dual") flow(r);
+    if(!selected) render(all, "Live receipts");
+    else if(selected===n) render(byNode[n], "Node: " + n);
+  }
+
+  // Node click → last 10 receipts for that node.
+  Array.prototype.forEach.call(document.querySelectorAll(".node"), function(g){
+    g.addEventListener("click", function(){
+      selected = g.getAttribute("data-node");
+      render(byNode[selected]||[], "Node: " + selected);
+    });
+  });
+
+  // SSE connection.
+  function connect(){
+    try{
+      var es = new EventSource(SSE_URL);
+      es.onopen = function(){ statusEl.textContent = "live · SSE connected"; };
+      es.onmessage = function(ev){
+        if(!ev.data) return;
+        try{ ingest(JSON.parse(ev.data)); }catch(e){}
+      };
+      es.onerror = function(){ statusEl.textContent = "reconnecting…"; };
+    }catch(e){ statusEl.textContent = "SSE unavailable"; }
+  }
+  connect();
+  render([], "Live receipts");
+})();
+</script>
+</body>
+</html>
