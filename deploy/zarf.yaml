@@ -1,35 +1,23 @@
 # SZL Holdings — A11oy Zarf package
-# Authored by: Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings
-# Status: Real package. Promoted from docs/proposals/defense-unicorns/skeletons/zarf.yaml
-#         per Plane 1 of the mesh plan (§04). Intended for commit to the external
-#         szl-holdings/a11oy repository at path deploy/zarf.yaml.
+# Authored by: Connector Wayra · P4 UDS Apply + Lutar, Stephen P.
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
 #
-# Reality check (2026-05-30, infra pass):
-#   REAL today:  all four manifests/*.yaml and attestations.jsonl exist and are
-#                referenced correctly; YAML parses; schema is valid Zarf v1.
-#   ROADMAP:     the image ghcr.io/szl-holdings/a11oy:v1.0.0-alpha is not yet
-#                published — a root Dockerfile and docker-build.yml were added
-#                in an earlier pass to produce it.
-#   UPDATE (serve-mode pass): a11oy now ships an HTTP server via the `serve`
-#                subcommand (packages/receipt-substrate/src/serve.ts). The
-#                deployment runs it with `args: [serve, --port, 8080]`; the
-#                /healthz (liveness) and /readyz (readiness) probes target real
-#                routes. Image publication remains roadmap.
+# Build:   zarf package create deploy/ --confirm
+# Deploy:  zarf package deploy zarf-package-a11oy-amd64-uds-v0.3.1-rc.1.tar.zst --confirm
 #
-# Build:   zarf package create . --confirm
-# Inspect: zarf package inspect zarf-package-a11oy-amd64-1.0.0-alpha.tar.zst
-# Deploy:  zarf package deploy   zarf-package-a11oy-amd64-1.0.0-alpha.tar.zst --confirm
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 
 kind: ZarfPackageConfig
 metadata:
   name: a11oy
-  version: 1.0.0-alpha
+  version: uds-v0.3.1-rc.1
   description: |
-    Governed agentic execution fabric. Policy gates, signal mesh, proof
-    ledger, and Λ-9 invariant runtime. Proprietary (LicenseRef-SZL-
-    Proprietary, see LICENSE) / NOTICE per SZL Doctrine v7 license
-    allowlist. Apache-2.0 re-license is proposed in PR #57 (IP-HOLD,
-    unmerged).
+    A11oy — Brand Orchestration Layer (Yachay). Governed agentic execution
+    fabric. Policy gates, signal mesh, proof ledger, and Lambda-9 invariant
+    runtime. Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a
+    theorem). SLSA L1 honest.
   url: https://github.com/szl-holdings/a11oy
   authors: "Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings"
   architecture: amd64
@@ -39,6 +27,7 @@ components:
     required: true
     description: A11oy runtime container + proof-ledger sidecar mount.
     images:
+      - ghcr.io/szl-holdings/a11oy:uds-v0.3.1-rc.1
       - ghcr.io/szl-holdings/a11oy:v1.0.0-alpha
     manifests:
       - name: a11oy
@@ -52,29 +41,9 @@ components:
   - name: a11oy-attestations
     required: false
     description: |
-      Sidecar component that mounts the proof-ledger and exposes
-      attestations.jsonl at /uds-bundle/attestations.jsonl for offline
-      verification (see §05 Fix A).
+      Attestation ledger component that mounts attestations.jsonl for offline
+      verification (SLSA L1 evidence, cosign-covered).
     files:
       - source: attestations.jsonl
         target: /uds-bundle/attestations.jsonl
-        executable: false
-
-# Replay-root anchor (informational; surfaced into the attestation
-# manifest at bundle-create time):
-# replay_root: 1ed4d253e876f428c6e182f8ed8a569585442556b339529bbf8ec2522581698b
-
-  # SLSA L1 supply-chain evidence: the Syft SBOM (CycloneDX + SPDX) is
-  # generated at package-create time and embedded INSIDE the package as a
-  # files component, so the cosign signature covers it. See Finding D3 in
-  # PhD_CRYPTO_VERDICT.md.
-  - name: sbom
-    required: true
-    description: Embedded Syft SBOM (CycloneDX + SPDX JSON) for the package.
-    files:
-      - source: sbom.cyclonedx.json
-        target: sbom.cyclonedx.json
-        executable: false
-      - source: sbom.spdx.json
-        target: sbom.spdx.json
         executable: false
