@@ -150,5 +150,19 @@ COPY web/formulas.html ./web/formulas.html
 COPY static-vendor/three.min.js ./static-vendor/three.min.js
 COPY szl_anatomy_3d.py ./szl_anatomy_3d.py
 
+# ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
+# explicit per-file COPY (this Dockerfile does not use COPY . .).
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# szl_v4_fleet.py: /api/health + /api/a11oy/v4/fleet[/doctrine] + /fleet + /thesis
+# v4_fleet_panel.html: canonical fleet panel served at /fleet
+# operator_shell_v4.py: Unified Operator Shell v4 endpoints (fix import failure)
+# web/operator.html: operator shell desktop cockpit HTML
+COPY szl_v4_fleet.py ./szl_v4_fleet.py
+COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
+COPY operator_shell_v4.py ./operator_shell_v4.py
+COPY web/operator.html ./web/operator.html
+
+
 CMD ["python", "serve.py"]
 
