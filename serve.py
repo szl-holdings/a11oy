@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings
 # ORCID: 0009-0001-0110-4173
-# Doctrine v9 — 456 declarations · 6 sorries · 14 unique axioms · 46 policy gates · 12 MCP tools
+# Doctrine v11 — 749 declarations · 163 sorries · 14 unique axioms · 46 policy gates · 12 MCP tools
 """
 a11oy unified HF Space server — RESET build (Brand Orchestration Layer at /).
 
@@ -539,7 +539,7 @@ async def evidence() -> JSONResponse:
     return JSONResponse({
         "source": "ouroboros/LUTAR_EVIDENCE.md",
         "lean_repo": "https://github.com/szl-holdings/lutar-lean",
-        "doctrine": "v10",
+        "doctrine": "v11",
         "canonical": {"declarations": 749, "axioms": 14, "sorries": 163},
         "date": "2026-05-02",
         "total_assertions": 22,
@@ -659,7 +659,7 @@ async def ouroboros_run_all() -> JSONResponse:
         "tests_fail": tests_fail,
         "duration_ms": duration_ms,
         "verdict": "GREEN" if tests_fail == 0 else "RED",
-        "doctrine": "v10",
+        "doctrine": "v11",
         "canonical": {"declarations": 749, "axioms": 14, "sorries": 163},
         "receipts": receipts,
     })
@@ -708,7 +708,7 @@ async def reason(request: Request) -> JSONResponse:
         "policy_result": gate_result,
         "context": body.get("context", ""),
         "all_gates_count": len(_gates_list),
-        "doctrine": "v9 — 456 declarations / 14 unique axioms / 6 tracked sorries — lutar-lean@main",
+        "doctrine": "v11",
         "hatun_willay": True,
     }
     return JSONResponse(reasoning)
