@@ -178,7 +178,6 @@ const primitivesSections: NavSection[] = [
 ];
 
 const intelligenceItems: NavItem[] = [
-  { id: 'chat', name: 'Chat', icon: MessageSquare, path: '/chat' },
   { id: 'sigil', name: 'SIGIL', icon: Sigma, path: '/sigil' },
   { id: 'lab', name: 'A11oy Lab', icon: Beaker, path: '/lab' },
   { id: 'reasoning', name: 'Reasoning Audit', icon: Brain, path: '/reasoning' },

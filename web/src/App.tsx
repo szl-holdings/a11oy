@@ -636,7 +636,7 @@ function AppInner() {
           <WithShell><Console /></WithShell>
         </Route>
         <Route path={`${base}/praxis`}>
-          <RedirectTo to={`${base}/chat`} />
+          <RedirectTo to={`${base}/code`} />
         </Route>
 
         {/* NEXUS — Unified Agentic AI Layer (consolidated into A11oy — Task #4310) */}
