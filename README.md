@@ -28,7 +28,7 @@ Open the full mesh: [SZLHOLDINGS/uds-demo](https://huggingface.co/spaces/SZLHOLD
 
 Source: [github.com/szl-holdings/a11oy](https://github.com/szl-holdings/a11oy) · DOI: [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 
-Apache-2.0 · Doctrine v10 · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
+Apache-2.0 · Doctrine v11 LOCKED (749/14/163) · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
 
 ## Live endpoints
 
