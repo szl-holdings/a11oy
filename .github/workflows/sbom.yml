@@ -61,9 +61,13 @@ jobs:
         run: syft scan dir:. -o spdx-json=sbom.spdx.json
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@9ea583eb67910444b1f64abf338bd2e105a0a93d # v0.2.3
+        # CI-HYGIENE 2026-06-03: SHA upgraded from v0.2.3 (9ea583eb) to v0.3.0 (151a37f2).
+        # v0.2.3 install.sh exits code 1 when downloading Trivy v0.58.1 on current runners.
+        # v0.3.0 (2026-06-02 release) fixes the install script. aquasecurity IS a verified
+        # creator. Trivy version updated to v0.61.0 (latest stable).
+        uses: aquasecurity/setup-trivy@151a37f29c09e4ff49f853d2b23682e688bb1fa1 # v0.3.0
         with:
-          version: v0.58.1
+          version: v0.61.0
 
       - name: Trivy vulnerability scan (report-only)
         run: |
