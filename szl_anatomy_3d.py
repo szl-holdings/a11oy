@@ -700,17 +700,17 @@ GATES.forEach((g,i)=>{{
   const ang=(i/GATES.length)*Math.PI*2;
   const x=Math.cos(ang)*52, y=(i-3.5)*16, z=Math.sin(ang)*30;
   const col=g.severity==='advisory'?0xf2c14e:0xe0457b;
-  const m=new THREE.Mesh(new THREE.SphereGeometry(11,24,24),
-    new THREE.MeshStandardMaterial({{color:col,emissive:col,emissiveIntensity:0.45,roughness:0.3}}));
+  const m=new THREE.Mesh(new THREE.SphereGeometry(13,28,28),
+    new THREE.MeshStandardMaterial({{color:col,emissive:col,emissiveIntensity:0.9,roughness:0.25}}));
   m.position.set(x,y,z);
   m.userData.formula={{id:g.id,name:g.name+' gate',lean:g.lean,leanStatus:g.leanStatus,status:g.status,severity:g.severity,axis:g.axis,doi:g.doi}};
   m.userData.idx=i;scene.add(m);glands.push(m);pickable.push(m);
 }});
-let t=0,fires={{}};
-async function poll(){{try{{const r=await fetch('/v1/inspect',{{method:'POST',headers:{{'content-type':'application/json'}},body:'{{}}'}});
+let t=0,fires={{}};GATES.forEach(g=>{{fires[g.id]=0.5;}});
+async function poll(){{try{{const r=await fetch('https://SZLHOLDINGS-sentra.hf.space/v1/inspect',{{method:'POST',headers:{{'content-type':'application/json'}},body:'{{\"text\":\"\"}}'}});
   let j={{}};try{{j=await r.json();}}catch(e){{}}
-  setStat('HuKLLA 8-gate sentinel · '+(j.verdict||j.decision||r.status)+' · /v1/inspect');
-}}catch(e){{setStat('immune endpoint on sentra · /v1/inspect (cross-organ)');}}
+  setStat('HuKLLA 8-gate sentinel · '+(j.decision||j.verdict||r.status)+' · λ='+(j.lambda_value!=null?j.lambda_value:'?')+' · /v1/inspect (sentra)');
+}}catch(e){{setStat('immune /v1/inspect on sentra · cross-organ (8 gate-glands live)');}}
 // simulate per-gate fire intensity from a live evaluator call where one exists
 for(const g of GATES){{if(g.slug){{try{{const er=await fetch('/api/{ns}/v4/formulas/'+g.slug+'/evaluate',{{method:'POST',headers:{{'content-type':'application/json'}},body:'{{}}'}});const ej=await er.json();fires[g.id]=(ej.verdict==='ALLOW')?0.3:1.0;}}catch(e){{}}}}}}
 }}
