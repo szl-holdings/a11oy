@@ -42,8 +42,10 @@ RUN pip install --no-cache-dir \
     "openai>=1.40.0" \
     "python-multipart>=0.0.9" \
     "cryptography>=42.0.0" \
-    "lmdb>=1.4.0" \
-    "sqlite-vss>=0.1.2"
+    "lmdb>=1.4.0"
+# sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
+# szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
+# to cosine similarity if the sqlite-vss .so cannot load. (P0 CI fix, Dev1 Rumi)
 
 # Clone a11oy source for the serve runtime (receipt-substrate + policy gates only)
 RUN git clone --depth=1 --filter=blob:none --sparse \
@@ -149,3 +151,4 @@ COPY static-vendor/three.min.js ./static-vendor/three.min.js
 COPY szl_anatomy_3d.py ./szl_anatomy_3d.py
 
 CMD ["python", "serve.py"]
+
