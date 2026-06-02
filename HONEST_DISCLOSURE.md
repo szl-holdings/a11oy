@@ -28,11 +28,36 @@ is a lightweight gate-evaluation receipt for in-process threshold policy
 verification — faster than asymmetric signing for the high-frequency policy
 path.
 
+## Shared-Key Requirement — CRITICAL
+
+> **HMAC is a symmetric shared-secret scheme.** The signer (a11oy) and the
+> verifier (rosie) MUST use the **same secret value**.
+
+The environment variable names differ by design for per-repo clarity:
+- a11oy uses `A11OY_HMAC_KEY`
+- rosie uses `ROSIE_HMAC_KEY`
+
+**However, the VALUES injected into both variables MUST be identical** — the
+same 32+ byte secret, injected into each HF Space independently.
+
+A mismatch means **rosie will mark every real a11oy receipt as TAMPERED**, even
+though the receipts are cryptographically correct. There is no error message
+that distinguishes a key mismatch from genuine tampering — both produce the same
+`TAMPERED` verdict from the verifier.
+
+### Deployment Checklist
+
+1. Generate a single strong secret: `python3 -c "import secrets; print(secrets.token_hex(32))"`
+2. Inject the **same value** as `A11OY_HMAC_KEY` into the a11oy HF Space secrets.
+3. Inject the **same value** as `ROSIE_HMAC_KEY` into the rosie HF Space secrets.
+4. Rotate both simultaneously if the key is ever compromised.
+
 ## Action Required
 
-The founder must inject `A11OY_HMAC_KEY` as an HF Space secret before the
-HMAC receipt layer provides any authentication guarantee. The PLACEHOLDER
-behavior is a deliberate fail-safe, not a silent failure.
+The founder must inject `A11OY_HMAC_KEY` (a11oy) and `ROSIE_HMAC_KEY` (rosie)
+as HF Space secrets **with the same value** before the HMAC receipt layer
+provides any authentication guarantee. The PLACEHOLDER behavior is a deliberate
+fail-safe, not a silent failure.
 
 ## Cross-References
 
@@ -40,6 +65,7 @@ behavior is a deliberate fail-safe, not a silent failure.
 - `szl_dsse.py`: ECDSA-P256 DSSE asymmetric signing layer
 - `szl_khipu.py`: SHA3-256 hash chain (tamper-evident, works without secrets)
 - [RECEIPT_CHAIN_AS_SAFETY_PRIMITIVE.md](../phd-ai-safety/RECEIPT_CHAIN_AS_SAFETY_PRIMITIVE.md): Gap analysis
+- [rosie HONEST_DISCLOSURE.md](https://github.com/szl-holdings/rosie/blob/main/HONEST_DISCLOSURE.md): Verifier-side disclosure
 
 ---
 
