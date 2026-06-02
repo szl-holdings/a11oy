@@ -4,6 +4,13 @@ name: release
 # release, sign artifacts with cosign keyless OIDC, and generate SLSA L1 provenance.
 # ADDITIVE. Doctrine v11 LOCKED 749/14/163 locked_at c7c0ba17
 # Action SHAs pinned 2026-06-03 by Auditor BETA (Beta-iter4)
+#
+# CI-HYGIENE 2026-06-03: softprops/action-gh-release removed — softprops is a GitHub
+# User (not a verified marketplace creator) and is blocked by the szl-holdings org
+# allowed_actions policy (github_owned_allowed=true, verified_allowed=true,
+# patterns_allowed=[]). Replaced with gh CLI inline steps (pre-installed on all
+# GitHub-hosted runners, github-owned tooling). Semantics preserved: same tag
+# creation, release notes generation, file attachment, and signature upload.
 
 on:
   push:
@@ -49,13 +56,20 @@ jobs:
           cd dist
           echo "hashes=$(sha256sum * | base64 -w0)" >> "$GITHUB_OUTPUT"
 
-      - name: Create tag + GitHub release
+      - name: Create tag + GitHub release (gh CLI — github-owned tooling)
+        # softprops/action-gh-release removed: softprops is not a GitHub-verified creator.
+        # gh CLI is pre-installed on all GitHub-hosted runners and is maintained by GitHub.
+        # --generate-notes: equivalent to generate_release_notes: true in softprops action.
         id: gh_release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          tag_name: ${{ steps.bump.outputs.tag }}
-          generate_release_notes: true
-          files: dist/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.bump.outputs.tag }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            --generate-notes \
+            dist/*
 
       - name: Install cosign
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
@@ -68,13 +82,12 @@ jobs:
               --output-certificate "${f}.crt" "$f"
           done
 
-      - name: Attach signatures to release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          tag_name: ${{ steps.bump.outputs.tag }}
-          files: |
-            dist/*.sig
-            dist/*.crt
+      - name: Attach signatures to release (gh CLI — github-owned tooling)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.bump.outputs.tag }}"
+          gh release upload "$TAG" dist/*.sig dist/*.crt --clobber
 
   provenance:
     needs: [release]
