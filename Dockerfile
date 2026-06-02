@@ -132,4 +132,20 @@ COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
 # via the sparse-checkout of packages/policy/src/gates above (no explicit COPY needed).
 # Grounded in Hickok & Poeppel 2007 (DOI 10.1038/nrn2113). Doctrine v11 LOCKED 749/14/163.
 COPY a11oy_v4_hickok.py ./a11oy_v4_hickok.py
+
+# ADDITIVE (Anatomy 3D + live formula wiring, 2026-06-02, Yachay / Perplexity
+# Computer Agent): explicit per-file COPY (this Dockerfile does not use `COPY . .`).
+# serve.py imports a11oy_v4_formulas (38-formula manifest + 15 live evaluators) and
+# szl_anatomy_3d (7 sovereign Three.js r128 anatomy surfaces + 6 live JSON endpoints).
+# szl_anatomy_3d self-serves Three.js at /anatomy-three.min.js from static-vendor/.
+# Receipts sign via szl_dsse (already COPYed) using szl_khipu + szl_formulas. Without
+# these COPYs the imports fail and the pages/endpoints fall through to the SPA shell.
+# Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). NO external CDN.
+COPY szl_khipu.py ./szl_khipu.py
+COPY szl_formulas.py ./szl_formulas.py
+COPY a11oy_v4_formulas.py ./a11oy_v4_formulas.py
+COPY web/formulas.html ./web/formulas.html
+COPY static-vendor/three.min.js ./static-vendor/three.min.js
+COPY szl_anatomy_3d.py ./szl_anatomy_3d.py
+
 CMD ["python", "serve.py"]

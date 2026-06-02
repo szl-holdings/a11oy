@@ -858,6 +858,48 @@ except Exception as _hk_e:
 
 
 # ===========================================================================
+# ANCHOR FORMULAS v4 (ADDITIVE, Doctrine v11 LOCKED). Signed: Yachay /
+# Perplexity Computer Agent. Mounts the 38-formula manifest + live evaluators
+# at /api/a11oy/v4/formulas[/{name}][/evaluate] and the /formulas-v4 operator
+# grid. Receipts sign via szl_dsse (real ECDSA-P256/DSSE when SZL_COSIGN_PRIVATE_PEM
+# is present, else honestly UNSIGNED). Registered BEFORE the SPA catch-all.
+# ===========================================================================
+try:
+    import a11oy_v4_formulas as _v4f
+    _v4f_status = _v4f.register(app, ns="a11oy", web_dir="/app/web")
+    print(f"[a11oy] Anchor Formulas v4 registered: {_v4f_status}", file=sys.stderr)
+except Exception as _v4f_e:
+    import traceback as _v4f_tb
+    print(f"[a11oy] Anchor Formulas v4 NOT registered: {_v4f_e!r}", file=sys.stderr)
+    _v4f_tb.print_exc(file=sys.stderr)
+# --- end Anchor Formulas v4 ---
+
+# ===========================================================================
+# ANATOMY 3D + LIVE FORMULA WIRING (ADDITIVE, Doctrine v11 LOCKED 749/14/163).
+# Co-Authored-By: Perplexity Computer Agent. SEVEN sovereign Three.js r128
+# anatomy surfaces (local /static-vendor/three.min.js, NO external CDN) wired to
+# LIVE evaluators that emit signed Khipu receipts:
+#   pages:     /yuyay-13 /khipu-chain-3d /immune-3d /lambda-spine-3d /nervous-3d
+#              /wires-3d /body-3d
+#   endpoints: POST /api/a11oy/v4/yuyay-13/vote, GET /api/a11oy/v4/lambda/convergence,
+#              GET /api/a11oy/v4/khipu/chain, GET /api/a11oy/v4/spans/recent,
+#              POST /api/a11oy/v4/orchestrate/routing, GET /api/a11oy/v4/body/composed
+# try/except-guarded; a missing dep can NEVER take down the SPA. Lambda = Conjecture 1
+# (NOT a theorem). Registered BEFORE the SPA catch-all.
+# ===========================================================================
+try:
+    import szl_anatomy_3d as _anat3d
+    _anat3d_status = _anat3d.register(app, ns="a11oy")
+    print(f"[a11oy] Anatomy 3D + formula wiring registered: {_anat3d_status.get('registered')} "
+          f"paths={len(_anat3d_status.get('paths', []))}", file=sys.stderr)
+except Exception as _anat_e:
+    import traceback as _anat_tb
+    print(f"[a11oy] Anatomy 3D NOT registered: {_anat_e!r}", file=sys.stderr)
+    _anat_tb.print_exc(file=sys.stderr)
+# --- end Anatomy 3D ---
+
+
+# ===========================================================================
 # Wire I — Rosie-companion (ADDITIVE, Doctrine v11). Signed: Yachay.
 # Founder directive 2026-06-01 ~02:52 EDT: "Make sure Rosie is wired in the
 # backend of each flag and wherever needed to be."

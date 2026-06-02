@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+     a11oy v4 — 38 SZL anchor formulas as LIVE operator gates.
+     ADDITIVE. Doctrine v11 LOCKED 749/14/163. Sovereign — no cloud LLM. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>a11oy — 38 Anchor Formulas · Live Gates</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121826; --panel2:#0e1420; --line:#1f2a3d;
+    --ink:#e6edf6; --mut:#8aa0bd; --acc:#5ad1c7; --accd:#2a9d94;
+    --allow:#36d399; --deny:#f06b6b; --advisory:#f2c14e; --tsonly:#7d8fb0;
+    --chip:#1a2436;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+  header{padding:22px 26px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#0e1521,#0a0e14)}
+  h1{margin:0 0 4px;font-size:20px;letter-spacing:.2px}
+  h1 .v{color:var(--acc)}
+  .sub{color:var(--mut);font-size:12.5px}
+  .sub code{color:#bcd; background:var(--chip); padding:1px 6px; border-radius:5px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 26px;
+    border-bottom:1px solid var(--line);background:var(--panel2);position:sticky;top:0;z-index:5}
+  .bar label{color:var(--mut);font-size:12px;margin-right:4px}
+  select,input[type=text]{background:var(--panel);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:7px 10px;font:inherit}
+  .counts{margin-left:auto;color:var(--mut);font-size:12.5px}
+  .counts b{color:var(--ink)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding:20px 26px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px;
+    display:flex;flex-direction:column;gap:9px;transition:border-color .15s, transform .05s}
+  .card:hover{border-color:#365073}
+  .card h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
+  .id{font-size:10.5px;color:#0a0e14;background:var(--acc);border-radius:5px;padding:1px 6px;font-weight:700}
+  .row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .chip{font-size:10.5px;border-radius:20px;padding:2px 9px;border:1px solid var(--line);background:var(--chip);color:var(--mut)}
+  .chip.axis{color:#bfe;border-color:#2a4} .chip.live{color:var(--allow);border-color:#2a6b50}
+  .chip.tsonly{color:var(--tsonly)} .chip.advisory{color:var(--advisory);border-color:#7a6420}
+  .chip.theorem{color:#9fd} .chip.axiom{color:#cda} .chip.conjectured{color:var(--advisory)} .chip.measured{color:#b9c}
+  .desc{color:var(--mut);font-size:12.5px;min-height:34px}
+  .lean{font-size:11px;color:#9fb3d6;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+  .btn{align-self:flex-start;background:var(--accd);color:#04110f;border:0;border-radius:8px;
+    padding:8px 14px;font-weight:700;cursor:pointer;font-size:12.5px}
+  .btn:hover{background:var(--acc)}
+  .btn.ghost{background:transparent;color:var(--mut);border:1px solid var(--line);font-weight:500}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .evalbox{border-top:1px dashed var(--line);padding-top:10px;margin-top:2px;display:none;flex-direction:column;gap:8px}
+  .evalbox.open{display:flex}
+  .evalbox textarea{width:100%;min-height:88px;background:var(--panel2);color:#cfe;border:1px solid var(--line);
+    border-radius:8px;padding:9px;font:12px ui-monospace,Menlo,monospace;resize:vertical}
+  .verdict{border-radius:9px;padding:10px;font-size:12px;border:1px solid var(--line);background:var(--panel2)}
+  .verdict .v{font-weight:800;font-size:13px}
+  .v.ALLOW{color:var(--allow)} .v.DENY{color:var(--deny)}
+  .verdict pre{margin:7px 0 0;white-space:pre-wrap;word-break:break-word;color:#aebfdc;font-size:11px;max-height:230px;overflow:auto}
+  .seal{display:inline-flex;align-items:center;gap:6px;font-size:11px;margin-top:6px}
+  .seal.signed{color:var(--allow)} .seal.unsigned{color:var(--advisory)}
+  footer{padding:18px 26px;color:var(--mut);font-size:11.5px;border-top:1px solid var(--line)}
+  a{color:var(--acc)}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy — 38 SZL Anchor Formulas <span class="v">· /api/a11oy/v4 · live operator gates</span></h1>
+  <div class="sub">
+    Click a formula → see the math → <b>Evaluate</b> → live verdict + signed Khipu receipt.
+    Lean anchor <code>1dca0003…f52371</code> · Doctrine <code>v11 LOCKED 749/14/163</code> ·
+    Sovereign (no cloud LLM) · Source: <a href="https://github.com/szl-holdings/a11oy/tree/main/packages/policy/src/gates" target="_blank" rel="noopener">a11oy/packages/policy/src/gates</a> · wired in <a href="https://github.com/szl-holdings/a11oy/pull/108" target="_blank" rel="noopener">a11oy#108</a>
+  </div>
+</header>
+
+<div class="bar">
+  <span><label>Axis</label>
+    <select id="fAxis"><option value="">all</option></select></span>
+  <span><label>Status</label>
+    <select id="fStatus">
+      <option value="">all</option>
+      <option value="live">live</option>
+      <option value="ts-only">ts-only</option>
+      <option value="lean-only">lean-only</option>
+    </select></span>
+  <span><label>Severity</label>
+    <select id="fSev"><option value="">all</option><option value="enforced">enforced</option><option value="advisory">advisory</option></select></span>
+  <span><label>Search</label><input id="fText" type="text" placeholder="name / Lean theorem…" /></span>
+  <span class="counts" id="counts">loading…</span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Receipts are <b>real ECDSA-P256-SHA256 DSSE</b> only when the <code>SZL_COSIGN_PRIVATE_PEM</code> Space secret is present;
+  otherwise the envelope is <b>honestly UNSIGNED</b> (no signature is fabricated). Liu Hui π is a Lean <b>axiom</b> (advisory), not a discharged theorem.
+  Yachay (CTO), co-authored with Perplexity Computer Agent. Zenodo DOI <a href="https://doi.org/10.5281/zenodo.20162352" target="_blank" rel="noopener">10.5281/zenodo.20162352</a>.
+</footer>
+
+<script>
+const API = "/api/a11oy/v4/formulas";
+let DATA = [];
+
+function chip(cls, text){ const s=document.createElement("span"); s.className="chip "+cls; s.textContent=text; return s; }
+
+function card(f){
+  const c = document.createElement("div"); c.className="card";
+  c.dataset.axis=f.axis; c.dataset.status=f.status; c.dataset.sev=f.severity;
+  c.dataset.text=(f.name+" "+f.leanTheorem+" "+f.id+" "+f.gates).toLowerCase();
+
+  const h = document.createElement("h3");
+  const id = document.createElement("span"); id.className="id"; id.textContent=f.id; h.appendChild(id);
+  h.appendChild(document.createTextNode(f.name)); c.appendChild(h);
+
+  const r1 = document.createElement("div"); r1.className="row";
+  r1.appendChild(chip("axis", f.axis));
+  r1.appendChild(chip(f.status==="live"?"live":"tsonly", f.status));
+  r1.appendChild(chip(f.severity, f.severity));
+  r1.appendChild(chip(f.leanStatus.replace(/[^a-z]/g,""), "Lean: "+f.leanStatus));
+  c.appendChild(r1);
+
+  const d = document.createElement("div"); d.className="desc"; d.textContent=f.gates; c.appendChild(d);
+
+  const ln = document.createElement("div"); ln.className="lean";
+  ln.textContent = f.leanTheorem + "  ·  " + f.leanFile; c.appendChild(ln);
+
+  const btn = document.createElement("button"); btn.className="btn";
+  if(f.status!=="live"){ btn.textContent="Evaluate (ts-only)"; btn.disabled=true; btn.title="Real TS gate exists in a11oy ("+f.tsRuntime+"); not yet ported to the live v4 module."; }
+  else { btn.textContent="Evaluate"; }
+  c.appendChild(btn);
+
+  const box = document.createElement("div"); box.className="evalbox";
+  const ta = document.createElement("textarea");
+  ta.value = JSON.stringify({input: f.sample||{}, config: f.defaultConfig||{}}, null, 2);
+  const actions = document.createElement("div"); actions.className="row";
+  const run = document.createElement("button"); run.className="btn"; run.textContent="Run gate";
+  const reset = document.createElement("button"); reset.className="btn ghost"; reset.textContent="Reset sample";
+  actions.appendChild(run); actions.appendChild(reset);
+  const out = document.createElement("div"); out.className="verdict hidden";
+  box.appendChild(ta); box.appendChild(actions); box.appendChild(out);
+  c.appendChild(box);
+
+  btn.onclick = ()=> box.classList.toggle("open");
+  reset.onclick = ()=> ta.value = JSON.stringify({input: f.sample||{}, config: f.defaultConfig||{}}, null, 2);
+  run.onclick = async ()=>{
+    out.classList.remove("hidden"); out.innerHTML='<span class="v">…evaluating…</span>';
+    let payload; try{ payload=JSON.parse(ta.value); }catch(e){ out.innerHTML='<span class="v DENY">JSON error: '+e.message+'</span>'; return; }
+    try{
+      const res = await fetch(`${API}/${f.slug}/evaluate`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const j = await res.json();
+      if(!res.ok || j.ok===false){
+        out.innerHTML = `<span class="v DENY">HTTP ${res.status}</span><pre>${esc(JSON.stringify(j,null,2))}</pre>`; return;
+      }
+      const dsse = j.receipt && j.receipt.dsse || {};
+      const signed = dsse.signed===true;
+      const sigTxt = signed ? ("SIGNED · "+(dsse.signatures&&dsse.signatures[0]&&dsse.signatures[0].keyid||"ecdsa-p256"))
+                            : ("UNSIGNED · "+(dsse.honesty||"no signing key present"));
+      out.innerHTML =
+        `<span class="v ${j.verdict}">${j.verdict}</span> &nbsp;`+
+        `<span class="chip">${esc(j.decision.formula)}</span> `+
+        `<span class="chip">λ=${(j.decision.lambdaScore!==undefined?j.decision.lambdaScore.toFixed(4):"-")}</span>`+
+        `<div class="seal ${signed?'signed':'unsigned'}">${signed?'🔏':'⚠'} Khipu receipt — ${esc(sigTxt)}</div>`+
+        `<pre>${esc(JSON.stringify(j,null,2))}</pre>`;
+    }catch(e){ out.innerHTML = '<span class="v DENY">network error: '+esc(e.message)+'</span>'; }
+  };
+  return c;
+}
+function esc(s){ return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+
+function applyFilters(){
+  const a=fAxis.value, st=fStatus.value, sv=fSev.value, t=fText.value.trim().toLowerCase();
+  let shown=0;
+  document.querySelectorAll(".card").forEach(c=>{
+    const ok = (!a||c.dataset.axis===a) && (!st||c.dataset.status===st) &&
+               (!sv||c.dataset.sev===sv) && (!t||c.dataset.text.includes(t));
+    c.classList.toggle("hidden", !ok); if(ok) shown++;
+  });
+  counts.innerHTML = `showing <b>${shown}</b> / ${DATA.length}`;
+}
+
+async function boot(){
+  try{
+    const j = await (await fetch(API)).json();
+    DATA = j.formulas;
+    const axes=[...new Set(DATA.map(f=>f.axis))].sort();
+    axes.forEach(a=>{ const o=document.createElement("option"); o.value=a;o.textContent=a; fAxis.appendChild(o); });
+    const g=document.getElementById("grid");
+    DATA.forEach(f=> g.appendChild(card(f)));
+    const c=j.counts;
+    counts.innerHTML = `<b>${c.total}</b> formulas · <b style="color:var(--allow)">${c.live}</b> live · ${c.ts_only} ts-only · signing ${j.signing_available?'<b style="color:var(--allow)">available</b>':'<b style="color:var(--advisory)">unsigned</b>'}`;
+  }catch(e){ counts.textContent="failed to load: "+e.message; }
+  [fAxis,fStatus,fSev].forEach(el=>el.onchange=applyFilters);
+  fText.oninput=applyFilters;
+}
+boot();
+</script>
+</body>
+</html>
