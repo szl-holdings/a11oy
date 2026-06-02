@@ -189,7 +189,6 @@ const platformItems: NavItem[] = [
   { id: 'ecosystem', name: 'MCP Ecosystem', icon: Network, path: '/ecosystem' },
   { id: 'omnia', name: 'OMNIA Hub', icon: Sparkles, path: '/omnia' },
   { id: 'evolution', name: 'Evolution Runtime', icon: Zap, path: '/evolution' },
-  { id: 'trust-center', name: 'Trust Center (legacy)', icon: Lock, path: '/trust-center' },
   { id: 'governance', name: 'Governance', icon: ShieldCheck, path: '/governance' },
   { id: 'adaptive-governance', name: 'Adaptive Governance', icon: GitBranch, path: '/adaptive-governance' },
   { id: 'hook-packs', name: 'Hook Packs', icon: Zap, path: '/governance/hook-packs' },
@@ -225,9 +224,6 @@ const cognitiveSections: NavSection[] = [
 ];
 
 const decisionIntelligenceItems: NavItem[] = [
-  { id: 'di-overview', name: 'Command Overview', icon: Gauge, path: '/intelligence' },
-  { id: 'di-deep-dive', name: 'Entity Deep Dive', icon: Search, path: '/intelligence/deep-dive' },
-  { id: 'di-roi-lens', name: 'ROI Lens', icon: DollarSign, path: '/intelligence/roi-lens' },
   { id: 'di-propeller', name: 'Propeller Drive', icon: Brain, path: '/fabric/decisions' },
 ];
 
@@ -245,18 +241,13 @@ const nexusSections: NavSection[] = [
     label: 'Intelligence',
     items: [
       { id: 'nexus-home', name: 'NEXUS Home', icon: Sparkles, path: '/nexus' },
-      { id: 'nexus-research', name: 'Research Swarm', icon: FlaskConical, path: '/nexus/research' },
-      { id: 'nexus-bridge', name: 'Protocol Bridge', icon: Network, path: '/nexus/bridge' },
-      { id: 'nexus-orchestrator', name: 'Orchestrator', icon: Workflow, path: '/nexus/orchestrator' },
-    ],
+                ],
   },
   {
     id: 'nexus-memory-skills',
     label: 'Memory & Skills',
     items: [
-      { id: 'nexus-memory', name: 'Memory', icon: Brain, path: '/nexus/memory' },
-      { id: 'nexus-skills', name: 'Skills Library', icon: Layers, path: '/nexus/skills' },
-      { id: 'nexus-marketplace', name: 'Marketplace', icon: ShieldCheck, path: '/nexus/marketplace' },
+              { id: 'nexus-marketplace', name: 'Marketplace', icon: ShieldCheck, path: '/nexus/marketplace' },
       { id: 'nexus-ingest', name: 'Repo Ingest', icon: Download, path: '/nexus/ingest' },
     ],
   },
@@ -305,9 +296,7 @@ const orchestratorSections: NavSection[] = [
     items: [
       { id: 'orch-catalog', name: 'Domain Pack Catalog', icon: Package, path: '/orchestrator/catalog' },
       { id: 'orch-compose', name: 'Compose Pack', icon: PenTool, path: '/orchestrator/compose' },
-      { id: 'orch-wiring', name: 'Governance Wiring', icon: Share2, path: '/orchestrator/wiring/counsel' },
-      { id: 'orch-health', name: 'Pack Health', icon: HeartPulse, path: '/orchestrator/health/counsel' },
-    ],
+            ],
   },
 ];
 
@@ -365,8 +354,7 @@ const doctrineSections: NavSection[] = [
       { id: 'doc-covenant-lift', name: 'Covenant Lift', icon: Sparkles, path: '/covenant-lift' },
       { id: 'doc-alignment', name: 'Alignment Review', icon: ShieldCheck, path: '/alignment-review' },
       { id: 'doc-welfare', name: 'Welfare Playbooks', icon: BookOpen, path: '/welfare-playbooks' },
-      { id: 'doc-reliquary', name: 'Reliquary Doctrine', icon: Lock, path: '/reliquary/doctrine' },
-    ],
+        ],
   },
 ];
 
@@ -383,10 +371,7 @@ const trustSections: NavSection[] = [
       { id: 'trust-exchange', name: 'Trust Exchange', icon: Network, path: '/trust-exchange' },
       { id: 'trust-security', name: 'Security & Compliance', icon: Shield, path: '/security-compliance' },
       { id: 'trust-audit', name: 'Right to Audit', icon: Eye, path: '/right-to-audit' },
-      { id: 'trust-vault', name: 'Reliquary Vault', icon: Database, path: '/reliquary/vault' },
-      { id: 'trust-governance', name: 'Governance', icon: ShieldCheck, path: '/governance' },
-      { id: 'trust-hook-packs', name: 'Hook Packs', icon: Zap, path: '/governance/hook-packs' },
-    ],
+                ],
   },
 ];
 
