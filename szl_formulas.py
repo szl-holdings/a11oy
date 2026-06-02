@@ -46,6 +46,7 @@ ADDITIVE — pure functions, zero bandaid.
 """
 from __future__ import annotations
 
+import base64
 import math
 from hashlib import sha256
 from typing import List, Literal, Sequence, TypedDict
@@ -274,31 +275,72 @@ def khipu_merkle_root(receipts: List[Receipt]) -> bytes:
 
 
 # ===========================================================================
-# 8. dsse_envelope — DSSE structure with PLACEHOLDER signature (Doctrine v10 honest)
+# 8. dsse_envelope — DSSE structure with PLACEHOLDER signature (Doctrine v11 honest)
 # ===========================================================================
 class DSSE(TypedDict):
     payloadType: str
-    payload: str           # base64-ish hex of payload
+    payload: str           # base64(payload bytes) per DSSE spec (was hex — fixed Tier A)
     signatures: List[dict]
+
+
+_DSSE_PAYLOAD_TYPE = "application/vnd.szl+json"
+
+
+def _dsse_pae(payload_type: str, payload: bytes) -> bytes:
+    """Pre-Authentication Encoding per DSSE spec.
+
+    PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body
+    Reference: https://github.com/secure-systems-lab/dsse/blob/master/protocol.md
+    LEN is the byte length of the UTF-8 encoding of each argument.
+    """
+    type_bytes = payload_type.encode("utf-8")
+    return (
+        b"DSSEv1 "
+        + str(len(type_bytes)).encode()
+        + b" "
+        + type_bytes
+        + b" "
+        + str(len(payload)).encode()
+        + b" "
+        + payload
+    )
 
 
 def dsse_envelope(payload: bytes, signer: str) -> DSSE:
     """Build a DSSE (Dead-Simple-Signing-Envelope) with a PLACEHOLDER signature.
 
+    This is a structurally-valid DSSE envelope with a PLACEHOLDER signature.
+    Real signature implementation deferred to Tier B (Sigstore SDK).
+    See GitHub issue #203 (szl-holdings/a11oy) for Tier B tracking.
+
     PAE (Pre-Authentication Encoding) per the DSSE spec is used to bind the
     payloadType + payload before signing. The signature here is an HONEST
-    PLACEHOLDER (sha256 of the PAE, prefixed 'PLACEHOLDER:') — Doctrine v10
+    PLACEHOLDER (sha256 of the PAE, prefixed 'PLACEHOLDER:') — Doctrine v11
     forbids claiming a real Sigstore signature where none is minted.
 
+    STRUCTURAL FIXES (Tier A, Doctrine v10 → v11):
+    - payload now base64-encoded (was hex — DSSE spec requires base64)
+    - PAE uses dynamic len(payloadType) (was hardcoded to 24)
+    - sig field is base64(placeholder_bytes) for wire-format compliance
+    - keyid renamed to 'placeholder-doctrine-v11' (honest labeling)
+
+    TO UPGRADE TO REAL SIGNING: see _dsse_pae() and implement dsse_envelope_real()
+    per DSSE_FIX_PLAN.md Tier B using the sigstore Python SDK.
+
     THEOREM: DSSE spec (secure-systems-lab/dsse); in-toto/SCITT provenance.
-    PROOF-STATUS: PROVEN structure (dsse-pae.test.ts); signature = PLACEHOLDER.
+    PROOF-STATUS: PROVEN structure (PAE per spec); signature = PLACEHOLDER.
     """
-    pae = f"DSSEv1 {len('application/vnd.szl+json')} application/vnd.szl+json {len(payload)} ".encode() + payload
-    placeholder = "PLACEHOLDER:" + sha256(pae).hexdigest()
+    pae = _dsse_pae(_DSSE_PAYLOAD_TYPE, payload)
+    # Honest placeholder: SHA-256 of PAE, but NOT a signature.
+    # Any party who can compute SHA-256 can reproduce this — no authentication.
+    placeholder_bytes = b"PLACEHOLDER:" + sha256(pae).digest()
     return DSSE(
-        payloadType="application/vnd.szl+json",
-        payload=payload.hex(),
-        signatures=[{"keyid": signer, "sig": placeholder}],
+        payloadType=_DSSE_PAYLOAD_TYPE,
+        payload=base64.b64encode(payload).decode(),
+        signatures=[{
+            "keyid": "placeholder-doctrine-v11",
+            "sig": base64.b64encode(placeholder_bytes).decode(),
+        }],
     )
 
 
@@ -468,8 +510,13 @@ def css_ingress_verify(envelope: DSSE, css_root: bytes) -> bool:
     THEOREM: Calderbank-Shor (1996) Phys. Rev. A 54:1098; Steane (1996) PRL 77:793.
     PROOF-STATUS: PROVEN structure; root-prefix commitment is exact.
     """
-    payload_hex = envelope.get("payload", "")
-    commit = sha256(bytes.fromhex(payload_hex) if payload_hex else b"").digest()
+    # payload field is base64-encoded per DSSE spec (Tier A fix).
+    payload_b64 = envelope.get("payload", "")
+    try:
+        payload_bytes = base64.b64decode(payload_b64) if payload_b64 else b""
+    except Exception:
+        payload_bytes = b""
+    commit = sha256(payload_bytes).digest()
     # ingress accepts iff the commitment shares the css_root's leading 4 bytes
     return commit[:4] == css_root[:4]
 
