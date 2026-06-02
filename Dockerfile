@@ -121,4 +121,15 @@ COPY szl_unay_routes.py ./szl_unay_routes.py
 # ADDITIVE (Warhacker aliases, Yachay 2026-06-01): top-level /healthz + /khipu/* + /wires/D.
 # Per-file COPY (no `COPY . .`) — without this `import szl_warhacker_aliases` fails.
 COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
+# ADDITIVE (Hickok dual-stream ingest, 2026-06-01, Yachay / Perplexity Computer Agent):
+# explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
+# a11oy_v4_hickok and calls .register(app, ns="a11oy") -> POST /api/a11oy/v4/{dorsal,
+# ventral,spt,when,what} + GET /api/a11oy/v4/stream (SSE) + GET /brain, plus the
+# dual-stream router middleware on /agent/ask + /predict. Without this COPY the import
+# fails and the routes fall through to the Node :8081 proxy (503). Every receipt carries
+# neuro_citations[]. Anchors A36/A37/A38 (ts-only, honest `sorry` proofs). The three Lean
+# anchor files (DualStreamRouting/InternalFeedback/HierarchicalLinearization.lean) arrive
+# via the sparse-checkout of packages/policy/src/gates above (no explicit COPY needed).
+# Grounded in Hickok & Poeppel 2007 (DOI 10.1038/nrn2113). Doctrine v11 LOCKED 749/14/163.
+COPY a11oy_v4_hickok.py ./a11oy_v4_hickok.py
 CMD ["python", "serve.py"]

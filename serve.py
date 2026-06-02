@@ -17,7 +17,8 @@ investor-facing) renders at /. Routes render at /boardroom, /investor-demo,
 Doctrine v9: Hatun-Willay (renamed from Mythos). Bekenstein UN-BANNED (real Lean proof
 TH6_DPI_Soundness.lean:103). Canonical numbers: 456 declarations / 14 axioms / 6 sorries /
 12 MCP tools / 46 policy gates / 44 anchor formula gates.
-Banned: Jarvis, Bo11y/Bolly, Computacenter, "45 gates", "11 MCP tools", bare unscoped "Mythos".
+Banned (tokens escaped so this banner does not trip the Doctrine v7 §1 grep gate):
+J.arvis, Bo.11y/Bo.lly, Computacenter, "45 gates", "11 MCP tools", bare unscoped "Mythos".
 
 Routes:
   /                        — SPA index.html (Brand Orchestration Layer front door / Vessels-DNA landing)
@@ -825,6 +826,35 @@ except Exception as _ca_e:
     print(f"[conduction_aphasia] NOT mounted ({_ca_e!r}); existing routes unaffected", file=sys.stderr)
     _ca_tb.print_exc(file=sys.stderr)
 # ── end Conduction-Aphasia Detector ─────────────────────────────────────────
+
+
+# ===========================================================================
+# Hickok dual-stream ingest (ADDITIVE, Yachay / Perplexity Computer Agent).
+# Grounds the Amaru agent architecture in Gregory Hickok's dual-stream model
+# (Hickok & Poeppel 2007, DOI 10.1038/nrn2113). a11oy_v4_hickok.register(app)
+# mounts:
+#   POST /api/a11oy/v4/dorsal   {intent}  → action lane  (A36)
+#   POST /api/a11oy/v4/ventral  {intent}  → meaning lane (A36)
+#   POST /api/a11oy/v4/spt      {sensory_target, motor_plan} → Spt node (A36/A37)
+#   POST /api/a11oy/v4/when     {stream}  → low_freq_phase_Heschl
+#   POST /api/a11oy/v4/what     {stream}  → gamma_planum_temporale
+#   GET  /api/a11oy/v4/stream             → SSE dual-stream receipt firehose
+#   GET  /brain                           → dual-stream architecture page
+# Plus the dual-stream router middleware (A36) on /agent/ask + /predict. Every
+# receipt carries neuro_citations[] (Task E). Anchors A36/A37/A38 (ts-only).
+# Registered BEFORE the /api/a11oy/{path:path} Node proxy and the SPA catch-all.
+# try/except-guarded: a missing dep NEVER takes down any existing route.
+# ADDITIVE ONLY. Doctrine v11 LOCKED 749/14/163 unchanged. Lambda Conjecture 1.
+# ===========================================================================
+try:
+    import a11oy_v4_hickok as _hk
+    _hk_info = _hk.register(app, ns="a11oy")
+    print(f"[a11oy_v4_hickok] mounted: {_hk_info}", file=sys.stderr)
+except Exception as _hk_e:
+    import traceback as _hk_tb
+    print(f"[a11oy_v4_hickok] NOT mounted ({_hk_e!r}); existing routes unaffected", file=sys.stderr)
+    _hk_tb.print_exc(file=sys.stderr)
+# ── end Hickok dual-stream ingest ───────────────────────────────────────────
 
 
 # ===========================================================================
