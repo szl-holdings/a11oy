@@ -107,12 +107,15 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Install Zarf
-        # Zarf v0.77.0 (2026-05-28) adds keyless signing + offline verification
-        # and ships a signed init package — exactly what this cosign-keyless flow
-        # needs. Pinned per founder version guidance 2026-05-30.
-        uses: defenseunicorns/setup-zarf@10e539efed02f75ec39eb8823e22a5c795f492ae # v1.0.1
-        with:
-          version: v0.77.0
+        # Download Zarf v0.77.0 binary directly from GitHub releases.
+        # Replaces defenseunicorns/setup-zarf action (not in org allowlist).
+        # Zarf v0.77.0 adds keyless signing + offline verification.
+        run: |
+          ZARF_VERSION=v0.77.0
+          curl -fsSL "https://github.com/zarf-dev/zarf/releases/download/${ZARF_VERSION}/zarf_${ZARF_VERSION}_Linux_amd64" \
+            -o /usr/local/bin/zarf
+          chmod +x /usr/local/bin/zarf
+          zarf version
 
       - name: zarf package create (dry-run inspect of the skeleton)
         run: |
@@ -220,4 +223,5 @@ jobs:
           echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
           echo "  --bundle ${{ steps.pkg.outputs.bundle }} \\"
           echo "  ${{ steps.pkg.outputs.tarball }}"
+
 
