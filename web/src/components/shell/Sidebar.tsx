@@ -440,104 +440,141 @@ function NavLink({ item }: { item: NavItem }) {
   );
 }
 
+// ── NAV COLLAPSE (Founder decree 2026-06-02): 158 sidebar items -> 8 top-level
+// tabs modeled on Palantir Foundry's 5-section sidebar. Per execution rule #1 the
+// 480 <Route> handlers in App.tsx are UNTOUCHED -> every previously-listed path
+// remains a working deep link; it is simply no longer rendered in the sidebar and
+// is instead reachable via the Cmd+K command palette (CommandPalette below) and by
+// direct URL/bookmark. The legacy NavSection arrays above are retained verbatim so
+// the command palette can index them and nothing that imports them breaks.
+// Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 (NOT a theorem). ADDITIVE collapse.
+const COLLAPSED_TABS: NavItem[] = [
+  { id: 'tab-home', name: 'Home', icon: LayoutGrid, path: '/foundry' },
+  { id: 'tab-explorer', name: 'Explorer', icon: Boxes, path: '/explorer' },
+  { id: 'tab-code', name: 'Code', icon: SquareTerminal, path: '/code' },
+  { id: 'tab-doctrine', name: 'Doctrine', icon: BookOpenCheck, path: '/doctrine', badge: 'v11' },
+  { id: 'tab-evidence', name: 'Evidence', icon: ShieldCheck, path: '/evidence' },
+  { id: 'tab-scenes', name: '3D Scenes', icon: Telescope, path: '/canonical', badge: 'DREAM' },
+  { id: 'tab-papers', name: 'Papers', icon: FileStack, path: '/papers' },
+  { id: 'tab-about', name: 'About', icon: BookOpen, path: '/about' },
+];
+
+// Every other route (151 deep links) stays live; indexed here for the Cmd+K palette.
+const ALL_DEEP_LINKS: NavItem[] = [
+  ...topItems,
+  ...foundrySections.flatMap(s => s.items),
+  ...strategySections.flatMap(s => s.items),
+  ...operationsSections.flatMap(s => s.items),
+  ...infrastructureSections.flatMap(s => s.items),
+  ...decisionsSections.flatMap(s => s.items),
+  ...primitivesSections.flatMap(s => s.items),
+  ...cognitiveSections.flatMap(s => s.items),
+  ...nexusSections.flatMap(s => s.items),
+  ...psycheSections.flatMap(s => s.items),
+  ...orchestratorSections.flatMap(s => s.items),
+  ...argoSections.flatMap(s => s.items),
+  ...frontierSections.flatMap(s => s.items),
+  ...doctrineSections.flatMap(s => s.items),
+  ...trustSections.flatMap(s => s.items),
+  ...decisionIntelligenceItems,
+  ...intelligenceItems,
+  ...evaluationItems,
+  ...operatorsItems,
+  ...platformItems,
+  ...reliquaryItems,
+];
+
+function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [, navigate] = useLocation();
+  const [q, setQ] = useState('');
+  // De-dup by path; include the 8 tabs too so ⌘K is the single source of navigation.
+  const seen = new Set<string>();
+  const index = [...COLLAPSED_TABS, ...ALL_DEEP_LINKS].filter(i => {
+    if (seen.has(i.path)) return false; seen.add(i.path); return true;
+  });
+  const results = q.trim()
+    ? index.filter(i => (i.name + ' ' + i.path).toLowerCase().includes(q.toLowerCase())).slice(0, 40)
+    : index.slice(0, 40);
+  if (!open) return null;
+  return (
+    <div role="dialog" aria-modal="true"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] bg-black/60"
+      onClick={onClose}>
+      <div className="w-[640px] max-w-[90vw] rounded-xl border border-[var(--color-a11oy-border)] bg-[var(--color-a11oy-deep)] shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-a11oy-border-subtle)]">
+          <Search className="w-4 h-4 opacity-60" />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)}
+            placeholder="Search all surfaces (⌘K) — every deep link stays live…"
+            className="flex-1 bg-transparent outline-none text-[13px] text-[var(--color-a11oy-text)]" />
+        </div>
+        <nav className="max-h-[50vh] overflow-y-auto py-2">
+          {results.map(i => (
+            <button key={i.id} type="button"
+              onClick={() => { navigate(`${BASE}${i.path}`); onClose(); }}
+              className="flex items-center gap-3 w-full text-left px-4 py-2 text-[13px] text-[var(--color-a11oy-text-sub)] hover:bg-[var(--color-a11oy-overlay)] hover:text-[var(--color-a11oy-text)]">
+              <i.icon className="w-4 h-4 opacity-50" />
+              <span className="flex-1">{i.name}</span>
+              <span className="text-[10px] font-mono opacity-40">{i.path}</span>
+            </button>
+          ))}
+          {results.length === 0 && (
+            <div className="px-4 py-6 text-center text-[12px] text-[var(--color-a11oy-text-ghost)]">No surface matches “{q}”.</div>
+          )}
+        </nav>
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar() {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(o => !o);
+      }
+      if (e.key === 'Escape') setPaletteOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <aside className="w-60 border-r border-[var(--color-a11oy-border)] bg-[var(--color-a11oy-deep)] shrink-0 flex flex-col h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto">
-      <div className="px-3 py-4 flex-1">
+      {/* Search-to-navigate (Datadog pattern): opens the ⌘K command palette that indexes ALL deep links */}
+      <div className="px-3 pt-4 pb-2">
+        <button type="button" onClick={() => setPaletteOpen(true)}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-[12px] text-[var(--color-a11oy-text-ghost)] border border-[var(--color-a11oy-border-subtle)] hover:text-[var(--color-a11oy-text-sub)]">
+          <Search className="w-3.5 h-3.5" />
+          <span className="flex-1 text-left">Search surfaces…</span>
+          <span className="text-[10px] font-mono opacity-60">⌘K</span>
+        </button>
+      </div>
+
+      {/* 8 top-level tabs (Palantir Foundry pattern). All other routes -> ⌘K. */}
+      <div className="px-3 py-1 flex-1">
         <nav className="flex flex-col gap-0.5">
-          {topItems.map(item => <NavLink key={item.id} item={item} />)}
-        </nav>
-
-        {foundrySections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-        {strategySections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-        {operationsSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-        {infrastructureSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-        {decisionsSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-        {primitivesSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-        {doctrineSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-        {trustSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-
-        <SectionHeader>Cognitive (legacy)</SectionHeader>
-        {cognitiveSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-
-        <SectionHeader>NEXUS</SectionHeader>
-        {nexusSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-
-        <SectionHeader>PSYCHE</SectionHeader>
-        {psycheSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-
-        {(import.meta.env.PROD
-          ? import.meta.env.VITE_A11OY_ORCHESTRATOR_ENABLED === 'true'
-          : import.meta.env.VITE_A11OY_ORCHESTRATOR_ENABLED !== 'false') && (
-          <>
-            <SectionHeader>Vertical Orchestrator</SectionHeader>
-            {orchestratorSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-          </>
-        )}
-
-        <SectionHeader>Argo</SectionHeader>
-        {argoSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-
-        <SectionHeader>Frontier Intelligence</SectionHeader>
-        {frontierSections.map(s => <CollapsibleSection key={s.id} section={s} />)}
-
-        <SectionHeader>Decision Intelligence</SectionHeader>
-        <nav className="flex flex-col gap-0.5">
-          {decisionIntelligenceItems.map(item => <NavLink key={item.id} item={item} />)}
-        </nav>
-
-        <SectionHeader>Intelligence</SectionHeader>
-        <nav className="flex flex-col gap-0.5">
-          {intelligenceItems.map(item => <NavLink key={item.id} item={item} />)}
-        </nav>
-
-        <SectionHeader>Evaluation</SectionHeader>
-        <nav className="flex flex-col gap-0.5">
-          {evaluationItems.map(item => <NavLink key={item.id} item={item} />)}
-        </nav>
-
-        <SectionHeader>Operators</SectionHeader>
-        <nav className="flex flex-col gap-0.5">
-          {operatorsItems.map(item => <NavLink key={item.id} item={item} />)}
-        </nav>
-
-        <SectionHeader>Platform</SectionHeader>
-        <nav className="flex flex-col gap-0.5">
-          {platformItems.map(item => <NavLink key={item.id} item={item} />)}
-        </nav>
-
-        <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--color-a11oy-text-ghost)] mt-6 mb-4 px-2" style={{ color: '#9a8456' }}>
-          Reliquary
-        </div>
-        <nav className="flex flex-col gap-1">
-          {reliquaryItems.map(item => {
-            const fullPath = `${BASE}${item.path}`;
-            const isActive = location === fullPath || location.startsWith(fullPath + '/');
-            const isSovereign = item.id === 'reliquary-sovereign';
-
-            return (
-              <Link
-                key={item.id}
-                href={fullPath}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                  isActive
-                    ? "bg-[var(--color-a11oy-surface)] font-medium"
-                    : "text-[var(--color-a11oy-text-sub)] hover:bg-[var(--color-a11oy-surface)] hover:text-[var(--color-a11oy-text)]"
-                )}
-                style={isActive ? { color: '#c9b787' } : isSovereign ? { color: '#94a3b8' } : {}}
-              >
-                <item.icon className={cn("w-4 h-4", isActive ? "opacity-100" : "opacity-60")} style={isSovereign && !isActive ? { color: '#64748b' } : {}} />
-                {item.name}
-              </Link>
-            );
-          })}
+          {COLLAPSED_TABS.map(item => <NavLink key={item.id} item={item} />)}
         </nav>
       </div>
-      <div className="px-4 py-3 border-t border-[var(--color-a11oy-border-subtle)] text-xs text-[var(--color-a11oy-text-ghost)]">
-        <div>v5.0.0 — Agent Foundry</div>
+
+      {/* Settings / profile pinned bottom-left (New Relic / Datadog pattern) */}
+      <div className="px-3 py-2 border-t border-[var(--color-a11oy-border-subtle)]">
+        <NavLink item={{ id: 'tab-settings', name: 'Settings', icon: Settings, path: '/settings' }} />
+        <NavLink item={{ id: 'tab-account', name: 'Account', icon: Users, path: '/account' }} />
+      </div>
+
+      {/* Doctrine footer — present on every page via the persistent sidebar */}
+      <div className="px-4 py-3 border-t border-[var(--color-a11oy-border-subtle)] text-[10px] font-mono text-[var(--color-a11oy-text-ghost)] leading-relaxed">
+        <div style={{ color: '#c9b787' }}>Doctrine v11 LOCKED · 749 / 14 / 163</div>
+        <div>Λ Conjecture 1 (NOT a theorem)</div>
         <div className="text-[var(--color-a11oy-success)]">System nominal</div>
       </div>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </aside>
   );
 }
