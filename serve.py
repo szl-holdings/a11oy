@@ -797,6 +797,34 @@ except Exception as _oe:  # pragma: no cover - defensive, additive-only
     print(f"[operator_shell_v4] NOT mounted ({_oe!r}); existing routes unaffected", file=sys.stderr)
 
 
+# ===========================================================================
+# Conduction-Aphasia Detector (ADDITIVE, Doctrine v11, Yachay / Perplexity Computer Agent).
+# Hickok state feedback control — Neuron 2011, DOI 10.1016/j.neuron.2011.01.019
+# Lutar anchor A37 InternalFeedbackIntegrity (live, enforced).
+# Adds:
+#   POST /api/a11oy/v4/conduction/observe  — record predicted->actual delta
+#   GET  /api/a11oy/v4/conduction/status   — current alert level + window state
+#   GET  /api/a11oy/v4/conduction/receipts — last N signed Khipu-compatible receipts
+#   POST /api/a11oy/v4/conduction/demo     — inject synthetic divergence (demo only)
+#   GET  /conduction                        — exec-grade HTML dashboard (5s auto-refresh)
+# Registered BEFORE the /api/a11oy/{path:path} Node proxy and the SPA catch-all.
+# try/except-guarded: a missing dep NEVER takes down any existing route. ADDITIVE ONLY.
+# Doctrine v11 LOCKED preserved: 749/14/163 unchanged. Lambda stays Conjecture 1.
+# ===========================================================================
+try:
+    import conduction_aphasia as _ca
+    _ca_info = _ca.register(app, "a11oy")
+    print(
+        f"[conduction_aphasia] mounted: {_ca_info.get('observe')} | "
+        f"{_ca_info.get('status')} | ui={_ca_info.get('ui')} "
+        f"| anchor={_ca_info.get('lutar_anchor')} | doctrine_v={_ca_info.get('doctrine_v')}",
+        file=sys.stderr,
+    )
+except Exception as _ca_e:
+    import traceback as _ca_tb
+    print(f"[conduction_aphasia] NOT mounted ({_ca_e!r}); existing routes unaffected", file=sys.stderr)
+    _ca_tb.print_exc(file=sys.stderr)
+# ── end Conduction-Aphasia Detector ─────────────────────────────────────────
 
 
 # ===========================================================================
