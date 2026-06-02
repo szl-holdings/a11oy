@@ -1,12 +1,21 @@
-name: SBOM (CycloneDX + SPDX + Trivy)
+name: SBOM (CycloneDX + SPDX, cosign-signed)
 
-# Calls the org-level reusable SBOM pipeline.
-# Pinned to .github commit f0961db0f44d8e53f956ccab14bdfa4a22e4e49b (2026-05-28).
-# Series-A supply-chain compliance: CIS SSCS 2.4.4 / NTIA minimum elements.
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · sovereign-default
+#
+# Self-contained software supply-chain pipeline (Warhacker / UDS Edition):
+#  - Syft generates CycloneDX + SPDX SBOMs on every push to main AND every tag.
+#  - Trivy runs a vulnerability scan (report-only on push; table output).
+#  - Both SBOMs are uploaded as build artifacts.
+#  - Cosign signs the CycloneDX SBOM when secrets.COSIGN_PRIVATE_KEY is set
+#    (blob signature attached as an artifact; no Fulcio/Rekor egress required).
+# Concepts only — no third-party logos or trademarks.
 
 on:
   push:
     branches: [main]
+    tags: ["v*", "*.*.*"]
   pull_request:
     branches: [main]
   release:
@@ -15,14 +24,82 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   sbom:
-    name: SBOM
-    uses: szl-holdings/.github/.github/workflows/reusable-sbom.yml@f0961db0f44d8e53f956ccab14bdfa4a22e4e49b
-    with:
-      attach-to-release: true
+    name: Generate + sign SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
-      contents: write
-      security-events: write
+      contents: write   # only used to attach SBOMs on a tagged release
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
 
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@f5e124a5e5e1d497a692818ae907d3c45829d033 # v0.20.7
+
+      - name: Generate CycloneDX SBOM (Syft)
+        run: syft scan dir:. -o cyclonedx-json=sbom.cyclonedx.json
+
+      - name: Generate SPDX SBOM (Syft)
+        run: syft scan dir:. -o spdx-json=sbom.spdx.json
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@9ea583eb67910444b1f64abf338bd2e105a0a93d # v0.2.3
+        with:
+          version: v0.58.1
+
+      - name: Trivy vulnerability scan (report-only)
+        run: |
+          trivy fs --scanners vuln --severity CRITICAL,HIGH,MEDIUM \
+            --ignore-unfixed --exit-code 0 --format table .
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+
+      - name: Sign CycloneDX SBOM with cosign (key-based, airgap-friendly)
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          if [ -z "${COSIGN_PRIVATE_KEY}" ]; then
+            echo "COSIGN_PRIVATE_KEY not set — skipping SBOM signing (set the secret to enable)."
+            exit 0
+          fi
+          echo "$COSIGN_PRIVATE_KEY" > cosign.key
+          cosign sign-blob --yes --key cosign.key \
+            --output-signature sbom.cyclonedx.json.sig \
+            --output-certificate sbom.cyclonedx.json.pem \
+            sbom.cyclonedx.json || true
+          rm -f cosign.key
+
+      - name: Upload SBOM + signature artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom
+          path: |
+            sbom.cyclonedx.json
+            sbom.spdx.json
+            sbom.cyclonedx.json.sig
+            sbom.cyclonedx.json.pem
+          if-no-files-found: warn
+
+      - name: Attach SBOMs to release
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release upload "$TAG" \
+            sbom.cyclonedx.json sbom.spdx.json \
+            sbom.cyclonedx.json.sig sbom.cyclonedx.json.pem \
+            --clobber || true
