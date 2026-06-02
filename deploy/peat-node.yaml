@@ -1,0 +1,73 @@
+# deploy/peat-node.yaml — a11oy peat-node CRDT mesh participation
+# Authored by: Connector Wayra · P4 UDS Apply
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# peat-node sidecar: Rust binary that runs alongside a11oy in Kubernetes pods,
+# participates as a full CRDT mesh node (Automerge + Iroh QUIC),
+# and exposes gRPC API on localhost:50051.
+#
+# References:
+#   peat-node: https://github.com/defenseunicorns/peat-node
+#   peat-node BRIEF: szl-ingest/specs/peat-node_BRIEF.md
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: peat.dev/v1
+kind: Node
+metadata:
+  name: a11oy-node
+  namespace: a11oy
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+spec:
+  image: ghcr.io/szl-holdings/a11oy:v1.0.0-alpha
+  port: 7860
+  role: "brand-orchestration-fabric"
+  capabilities:
+    - "crdt-mesh-participant"
+    - "receipt-substrate"
+    - "policy-gate"
+    - "wire-b-emitter"
+    - "wire-e-cortex-sync"
+  transport: "iroh-quic"
+  mesh:
+    grpcPort: 50051
+    documentNamespace: "szl/a11oy"
+    documents:
+      - name: "proof-state"
+        type: "LWWRegister"
+        description: "Λ proof state — Conjecture 1 milestone tracking"
+      - name: "receipt-chain"
+        type: "GrowOnlyLog"
+        description: "DSSE receipt chain for audit"
+      - name: "doctrine-version"
+        type: "LWWRegister"
+        description: "Active doctrine version (v11 LOCKED)"
+  env:
+    - name: SZL_DOCTRINE_VERSION
+      value: "v11"
+    - name: SZL_LEAN_SHA
+      value: "c7c0ba17"
+    - name: SZL_FLAGSHIP
+      value: "a11oy"
+    - name: SZL_ROLE
+      value: "brand-orchestration-fabric"
+    - name: PEAT_GRPC_PORT
+      value: "50051"
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 7860
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 3
+  cosign:
+    keyRef: a11oy-cosign
+    certificateIdentityRegexp: "https://github.com/szl-holdings/a11oy/.github/workflows/zarf-build-and-sign.yml.*"
+    certificateOIDCIssuer: "https://token.actions.githubusercontent.com"
