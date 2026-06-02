@@ -4,6 +4,7 @@ name: Container build + GHCR push
 #   * Pull-request:    build + smoke-test only (no push, no registry login).
 #   * Push to main:    build + push SHA-tagged image to ghcr.io/szl-holdings/a11oy.
 #   * Release published: push semver + latest tags, sign with cosign keyless.
+#   * workflow_dispatch: push image_tag + sha-tagged image, sign with cosign keyless.
 #
 # L1 fix (2026-05-31): REVISION build-arg is now passed as github.sha so that
 # the runtime ENV A11OY_GIT_SHA is populated in the container and /healthz
@@ -30,6 +31,12 @@ on:
     branches: [main]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to push (e.g. uds-v0.2.0)'
+        required: false
+        default: 'uds-v0.2.0'
 
 permissions:
   contents: read
@@ -62,6 +69,10 @@ jobs:
             TAGS="${{ env.IMAGE }}:${VERSION}
           ${{ env.IMAGE }}:latest
           ${{ env.IMAGE }}:sha-${SHA7}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.image_tag }}"
+            TAGS="${{ env.IMAGE }}:${VERSION}
+          ${{ env.IMAGE }}:sha-${SHA7}"
           elif [ "${{ github.event_name }}" = "push" ]; then
             VERSION="0.0.0-dev-${SHA7}"
             TAGS="${{ env.IMAGE }}:sha-${SHA7}"
@@ -79,7 +90,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # Log in on push-to-main and on release; skip for PRs.
+      # Log in on push-to-main, on release, and on workflow_dispatch; skip for PRs.
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
@@ -147,7 +158,7 @@ jobs:
           fi
 
       - name: Generate image SBOM (CycloneDX) via Syft
-        if: github.event_name != 'release'
+        if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'
         uses: anchore/sbom-action@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
         with:
           image: ${{ env.IMAGE }}:sha-${{ steps.ver.outputs.sha7 }}
@@ -155,12 +166,12 @@ jobs:
           output-file: a11oy-image-sbom.cyclonedx.json
           upload-artifact: true
 
-      - name: Install cosign (release only)
-        if: github.event_name == 'release'
+      - name: Install cosign (release + workflow_dispatch)
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
-      - name: Sign image with cosign keyless (release only)
-        if: github.event_name == 'release'
+      - name: Sign image with cosign keyless (release + workflow_dispatch)
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
@@ -169,7 +180,7 @@ jobs:
           echo "Signed ${{ env.IMAGE }}@${DIGEST} (keyless OIDC)."
 
       - name: Generate + attach image SBOM on release (signed)
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         uses: anchore/sbom-action@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
         with:
           image: ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
