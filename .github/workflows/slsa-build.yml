@@ -1,0 +1,71 @@
+name: SLSA L2 Build Provenance
+
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · sovereign-default
+#
+# SLSA Build L2 upgrade: generate SIGNED build provenance on a hosted GitHub
+# Actions builder (not a workstation) for every release tag, using the official
+# slsa-framework/slsa-github-generator reusable workflow. The provenance
+# attestation is signed via Sigstore (Fulcio keyless + Rekor) and attached to
+# the release. This moves the honest claim from "SLSA L1" to "SLSA L2".
+# Concepts only — no third-party logos or trademarks.
+
+on:
+  push:
+    tags: ["v*", "*.*.*"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  # 1. Build the release artifact and record its digest (hosted runner).
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      digest: ${{ steps.hash.outputs.digest }}
+      artifact: ${{ steps.pack.outputs.artifact }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pack source release artifact
+        id: pack
+        run: |
+          NAME="${GITHUB_REPOSITORY##*/}-${GITHUB_REF_NAME}.tar.gz"
+          git archive --format=tar.gz -o "$NAME" HEAD
+          echo "artifact=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Compute artifact digest (base64 sha256 set)
+        id: hash
+        run: |
+          echo "digest=$(sha256sum '${{ steps.pack.outputs.artifact }}' | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact for release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-artifact
+          path: ${{ steps.pack.outputs.artifact }}
+          if-no-files-found: error
+
+  # 2. Generate signed SLSA provenance (reusable hosted-builder workflow).
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read       # read the workflow run for provenance
+      id-token: write     # Sigstore keyless signing (Fulcio/OIDC)
+      contents: write     # attach provenance to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.digest }}"
+      provenance-name: "${{ needs.build.outputs.artifact }}.intoto.jsonl"
+      upload-assets: true
