@@ -1,0 +1,62 @@
+# deploy/uds-package.yaml — a11oy UDS Package CR
+# Authored by: Connector Wayra · P4 UDS Apply
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# References:
+#   UDS Core CRD: https://github.com/defenseunicorns/uds-core/blob/main/src/pepr/operator/crd/
+#   UDS Package spec: https://uds.defenseunicorns.com/core/
+#   SZL P2 Spec: SHARED_LEDGER/a11oy/P2_SPEC_PM.md
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: a11oy
+  namespace: a11oy
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+    szl.io/section-889: "Huawei,ZTE,Hytera,Hikvision,Dahua"
+spec:
+  network:
+    allow:
+      - direction: Egress
+        selector:
+          app: a11oy
+        remoteGenerated: Anywhere
+        port: 443
+        description: "HF Space egress + Wire B to sentra + Wire E to amaru cortex"
+      - direction: Ingress
+        selector:
+          app: a11oy
+        remoteNamespace: istio-system
+        port: 7860
+        description: "Istio ingress gateway"
+  expose:
+    - service: a11oy-svc
+      selector:
+        app: a11oy
+      host: a11oy
+      gateway: tenant
+      port: 7860
+      targetPort: 7860
+  sso:
+    - name: a11oy SSO
+      clientId: a11oy
+      redirectUris:
+        - "https://a11oy.uds.dev/callback"
+        - "https://szlholdings-a11oy.hf.space/callback"
+      description: "A11oy brand orchestration layer — Yachay"
+  monitor:
+    - selector:
+        app: a11oy
+      portName: http
+      targetPort: 7860
+      path: /api/health
+      description: "a11oy health monitor"
