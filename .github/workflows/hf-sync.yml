@@ -11,7 +11,11 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
-          lfs: true
+          # lfs disabled: the repo has a dangling LFS pointer (oid 28f749cf… 404s on
+          # the LFS server) and NO path is tracked by filter=lfs in .gitattributes,
+          # so `lfs: true` made every checkout fail and the HF sync never ran. The
+          # deployed SPA assets are committed as regular git blobs, not LFS objects.
+          lfs: false
       - name: Push to HuggingFace Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
