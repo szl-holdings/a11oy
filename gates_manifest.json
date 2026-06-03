@@ -7,7 +7,7 @@
     "lean_file": "Lutar/Composition/AdversarialRobustness.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "AdversarialRobustness",
-    "rationale": "A composed pipeline is allowed to deploy only when the end-to-end adversarial output perturbation bound ε₂ = L₁·L₂·δ is at or below the configured maximum tolerable perturbation. The Lean theorem proves that if each component is (δ,ε)-robust, the composition is (δ,ε₂)-robust. This gate enforces that the composed system does not amplify adversarial inputs beyond the policy tolerance.",
+    "rationale": "A composed pipeline is allowed to deploy only when the end-to-end adversarial output perturbation bound \u03b5\u2082 = L\u2081\u00b7L\u2082\u00b7\u03b4 is at or below the configured maximum tolerable perturbation. The Lean theorem proves that if each component is (\u03b4,\u03b5)-robust, the composition is (\u03b4,\u03b5\u2082)-robust. This gate enforces that the composed system does not amplify adversarial inputs beyond the policy tolerance.",
     "lean_status": "real"
   },
   {
@@ -18,9 +18,9 @@
     "lean_file": "Lutar/Composition/AnatomyReduction.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "AnatomyReduction",
-    "rationale": "Any multi-agent system implementing (R,A,E,Λ,ρ,W) with |R|>8 is bisimilar to the canonical 8-region anatomy. Systems with |R|<8 are missing capability. 8 is both necessary and sufficient. This gate validates that a submitted system topology meets the 8-region requirement before admission.",
+    "rationale": "Any multi-agent system implementing (R,A,E,\u039b,\u03c1,W) with |R|>8 is bisimilar to the canonical 8-region anatomy. Systems with |R|<8 are missing capability. 8 is both necessary and sufficient. This gate validates that a submitted system topology meets the 8-region requirement before admission.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "bekensteinBound",
@@ -30,9 +30,9 @@
     "lean_file": "Lutar/Gate/BekensteinBound.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "BekensteinBound",
-    "rationale": "Receipt chain entropy H(R_n) is bounded by the information-theoretic limit from registry area: H(R_n) ≤ 8·sizeBytes bits. This is an advisory check — chains exceeding the bound indicate anomalous entropy generation that may signal state corruption or replay attacks.",
+    "rationale": "Receipt chain entropy H(R_n) is bounded by the information-theoretic limit from registry area: H(R_n) \u2264 8\u00b7sizeBytes bits. This is an advisory check \u2014 chains exceeding the bound indicate anomalous entropy generation that may signal state corruption or replay attacks.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "bekensteinEntropyDpi",
@@ -42,9 +42,9 @@
     "lean_file": "Lutar/EntropyBound.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "BekensteinEntropyDpi",
-    "rationale": "H(receipt chain) ≤ H(registry) ≤ 8A bits, proved via the data processing inequality (DPI). This gate provides the formally-proved enforcement of the Bekenstein entropy bound, superseding the conjectured A7 gate. The DPI proof is elementary: any deterministic function cannot increase entropy.",
+    "rationale": "H(receipt chain) \u2264 H(registry) \u2264 8A bits, proved via the data processing inequality (DPI). This gate provides the formally-proved enforcement of the Bekenstein entropy bound, superseding the conjectured A7 gate. The DPI proof is elementary: any deterministic function cannot increase entropy.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "bekensteinEntropyMeasure",
@@ -54,9 +54,9 @@
     "lean_file": "Lutar/Gate/BekensteinEntropyMeasure.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "BekensteinEntropyMeasure",
-    "rationale": "H(R_n) ≤ k·A / (4 ln 2). A registry of sizeBytes bytes admits a chain entropy of at most 8·sizeBytes bits. This gate validates that the Shannon-estimated chain entropy falls within the bound.",
+    "rationale": "H(R_n) \u2264 k\u00b7A / (4 ln 2). A registry of sizeBytes bytes admits a chain entropy of at most 8\u00b7sizeBytes bits. This gate validates that the Shannon-estimated chain entropy falls within the bound.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "bekensteinSoundness",
@@ -68,7 +68,7 @@
     "formula": "BekensteinSoundness",
     "rationale": "Bekenstein indicator fires at 49.5% under uniform seed (measured). This gate validates that a submitted fire-rate measurement falls within the expected range [45%, 55%] around the 49.5% measured value. Advisory only until the Lean proof is formally discharged.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "causalSeparability",
@@ -80,7 +80,7 @@
     "formula": "CausalSeparability",
     "rationale": "Receipts from disjoint actor sets carry statistically independent entropy. If two receipts share any actor IDs, they may share PRNG seeds, violating the independence property required for cross-actor attribution without information leakage.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "certifiedRobustness",
@@ -90,7 +90,7 @@
     "lean_file": "Lutar/Robustness/CertifiedRadius.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "certifiedRobustness",
-    "rationale": "A gate decision is certifiably robust at input x if the ℓ₂ radius R computed from randomized smoothing parameters satisfies R ≥ R_min_safety. Formula (Cohen-Rosenfeld-Kolter 2019, Theorem 1): R = (σ/2) · (Φ⁻¹(p̄_A) − Φ⁻¹(p̄_B)) where p̄_A is the Monte Carlo lower bound on the top-class probability and p̄_B is the upper bound on the runner-up probability.",
+    "rationale": "A gate decision is certifiably robust at input x if the \u2113\u2082 radius R computed from randomized smoothing parameters satisfies R \u2265 R_min_safety. Formula (Cohen-Rosenfeld-Kolter 2019, Theorem 1): R = (\u03c3/2) \u00b7 (\u03a6\u207b\u00b9(p\u0304_A) \u2212 \u03a6\u207b\u00b9(p\u0304_B)) where p\u0304_A is the Monte Carlo lower bound on the top-class probability and p\u0304_B is the upper bound on the runner-up probability.",
     "lean_status": "real"
   },
   {
@@ -101,9 +101,9 @@
     "lean_file": "Lutar/Composition/Composability.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "Composability",
-    "rationale": "If systems A and B share a doctrine.json SHA, use compatible Λ-floors (A exit ≤ B entry), and communicate via A2A receipt-envelope headers, their composition A∘B is doctrine-locked. This gate validates the three composability preconditions before allowing cross-system deployment.",
+    "rationale": "If systems A and B share a doctrine.json SHA, use compatible \u039b-floors (A exit \u2264 B entry), and communicate via A2A receipt-envelope headers, their composition A\u2218B is doctrine-locked. This gate validates the three composability preconditions before allowing cross-system deployment.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "conjunctiveGateCounterexample",
@@ -113,9 +113,9 @@
     "lean_file": "Lutar/Gate/ConjunctiveGate.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "ConjunctiveGateCounterexample",
-    "rationale": "∃ x: Λ_i(x) ≥ 0.95 for some i ∧ Λ(x) < 0.90 — a high single-axis score does NOT guarantee gate pass. This gate enforces strict conjunctive logic: all axes must meet the floor, regardless of how high any one axis scores.",
+    "rationale": "\u2203 x: \u039b_i(x) \u2265 0.95 for some i \u2227 \u039b(x) < 0.90 \u2014 a high single-axis score does NOT guarantee gate pass. This gate enforces strict conjunctive logic: all axes must meet the floor, regardless of how high any one axis scores.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "constructiveTransparency",
@@ -125,9 +125,9 @@
     "lean_file": "Lutar/Gate/ConstructiveTransparency.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "ConstructiveTransparency",
-    "rationale": "Every Λ score must be re-derivable from declared public inputs; no hidden weights, hidden state, or user-history boosts. A scorer that produces different outputs for identical axis vectors (from different actors) has a hidden state component and must be rejected.",
+    "rationale": "Every \u039b score must be re-derivable from declared public inputs; no hidden weights, hidden state, or user-history boosts. A scorer that produces different outputs for identical axis vectors (from different actors) has a hidden state component and must be rejected.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "crossRegionPolicy",
@@ -139,7 +139,7 @@
     "formula": "CrossRegionPolicy",
     "rationale": "Cross-region receipts must pass BOTH source exit policy AND destination entry policy. The stricter policy dominates component-wise. A receipt attempting to cross a region boundary must meet the max(floor_src, floor_dst) conjunctive requirement.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "curryHowardReceiptCalculus",
@@ -149,9 +149,9 @@
     "lean_file": "Lutar/CurryHoward.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "CurryHowardReceiptCalculus",
-    "rationale": "The receipt calculus satisfies Curry-Howard: PassReceipt is the proof term for the soundness proposition. Gate evaluation = proof construction. This gate validates that a submitted receipt carries a valid proof structure — specifically, that all required proof-term fields are present and typed.",
+    "rationale": "The receipt calculus satisfies Curry-Howard: PassReceipt is the proof term for the soundness proposition. Gate evaluation = proof construction. This gate validates that a submitted receipt carries a valid proof structure \u2014 specifically, that all required proof-term fields are present and typed.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "deterministicReplay",
@@ -161,9 +161,9 @@
     "lean_file": "Lutar/Gate/DeterministicReplay.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "DeterministicReplay",
-    "rationale": "For canonical JSON + pinned PRNG + frozen registry, 5× replay must yield byte-identical Merkle roots. This gate validates that a submitted replay bundle reports the same root across all runs — enforcing determinism as a first-class policy property before admitting any production operation.",
+    "rationale": "For canonical JSON + pinned PRNG + frozen registry, 5\u00d7 replay must yield byte-identical Merkle roots. This gate validates that a submitted replay bundle reports the same root across all runs \u2014 enforcing determinism as a first-class policy property before admitting any production operation.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "doctrineCompleteness",
@@ -175,7 +175,7 @@
     "formula": "DoctrineCompleteness",
     "rationale": "doctrine.json v1.0.0 must enumerate all 8 forbidden patterns and carry a SHA-256 anchor. Any artifact that fails the SHA-256 check or lacks one of the 8 forbidden pattern entries is denied. This gate is the policy-layer enforcement of doctrine-check.sh.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "doctrineEnforcement",
@@ -185,9 +185,9 @@
     "lean_file": "Lutar/Gate/DoctrineEnforcement.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "DoctrineEnforcement",
-    "rationale": "SHA256(doctrine.json) = canonical ∧ all gates pass ⟹ ∀p ∈ FP: p ∉ artifacts. This gate is the terminal gate that, after doctrine SHA validation, checks that no forbidden patterns (FP-1..FP-8) appear in submitted artifact text.",
+    "rationale": "SHA256(doctrine.json) = canonical \u2227 all gates pass \u27f9 \u2200p \u2208 FP: p \u2209 artifacts. This gate is the terminal gate that, after doctrine SHA validation, checks that no forbidden patterns (FP-1..FP-8) appear in submitted artifact text.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "dualWitnessDisjointness",
@@ -197,9 +197,9 @@
     "lean_file": "Lutar/Gate/DualWitness.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "DualWitnessDisjointness",
-    "rationale": "For ρ-closure, witness_1_id ≠ witness_2_id must hold at registry write time. A receipt with the same entity serving as both witnesses is invalid — it collapses the dual-witness requirement to a single-witness signature, which fails the independence property needed for audit closure.",
+    "rationale": "For \u03c1-closure, witness_1_id \u2260 witness_2_id must hold at registry write time. A receipt with the same entity serving as both witnesses is invalid \u2014 it collapses the dual-witness requirement to a single-witness signature, which fails the independence property needed for audit closure.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "economicGrounding",
@@ -209,9 +209,9 @@
     "lean_file": "Lutar/Gate/EconomicGrounding.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "EconomicGrounding",
-    "rationale": "Gate passes only if the declared action cost ≤ registered actor budget at evaluation time. Required for financial services (SR 11-7 position limits), insurance underwriting ceilings, and SEC Rule 17a-4 order size compliance.",
+    "rationale": "Gate passes only if the declared action cost \u2264 registered actor budget at evaluation time. Required for financial services (SR 11-7 position limits), insurance underwriting ceilings, and SEC Rule 17a-4 order size compliance.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "falsePosition",
@@ -232,7 +232,7 @@
     "lean_file": "Lutar/DP/GaussianMechanism.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "gaussianMechanismDP",
-    "rationale": "A DSSE receipt asserting differential privacy via the Gaussian mechanism is accepted only if the declared noise scale σ_claimed satisfies the calibration formula: σ_claimed ≥ Δ₂f · √(2 ln(1.25/δ)) / ε for the declared (ε, δ, Δ₂f) in the receipt header. If σ_claimed is too small, the DP guarantee is void and the receipt is denied.",
+    "rationale": "A DSSE receipt asserting differential privacy via the Gaussian mechanism is accepted only if the declared noise scale \u03c3_claimed satisfies the calibration formula: \u03c3_claimed \u2265 \u0394\u2082f \u00b7 \u221a(2 ln(1.25/\u03b4)) / \u03b5 for the declared (\u03b5, \u03b4, \u0394\u2082f) in the receipt header. If \u03c3_claimed is too small, the DP guarantee is void and the receipt is denied.",
     "lean_status": "real"
   },
   {
@@ -245,7 +245,7 @@
     "formula": "HashChainIntegrity",
     "rationale": "Every spine entry must satisfy: entry.chain = SHA256(prev_entry). This gate validates a submitted chain array for sequential hash linkage, denying any sequence where a break in the chain is detected.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "ingestDiscipline",
@@ -257,7 +257,7 @@
     "formula": "IngestDiscipline",
     "rationale": "Every ingest requires: source_url + content_hash + license (allowlist) + ORCID. Missing any of these four fields causes the ingest to be rejected before any receipt is issued, preventing unlicensed or unattributed content from entering the SZL knowledge graph.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "lambdaCategoryComposability",
@@ -267,9 +267,9 @@
     "lean_file": "Lutar/LaxFunctor.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "LambdaCategoryComposability",
-    "rationale": "The Λ-Category is a monoidal category; the gate function Λ is a monoidal functor. Gate composition is a natural transformation. TH1 (composability) follows as a corollary. This gate validates that parallel receipt evaluation (monoidal product) preserves the gate semantics.",
+    "rationale": "The \u039b-Category is a monoidal category; the gate function \u039b is a monoidal functor. Gate composition is a natural transformation. TH1 (composability) follows as a corollary. This gate validates that parallel receipt evaluation (monoidal product) preserves the gate semantics.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "lambdaMinMaxBounds",
@@ -279,7 +279,7 @@
     "lean_file": "Lutar/Bound.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "LambdaMinMaxBounds",
-    "rationale": "Λ_k lies in [0,1] with min=0 iff any axis=0 and max=1 iff all axes=1. This gate validates that a submitted Λ score and axis vector satisfy the min/max bound theorem, rejecting any score outside [0,1] or inconsistent with the all-zero/all-one boundary conditions.",
+    "rationale": "\u039b_k lies in [0,1] with min=0 iff any axis=0 and max=1 iff all axes=1. This gate validates that a submitted \u039b score and axis vector satisfy the min/max bound theorem, rejecting any score outside [0,1] or inconsistent with the all-zero/all-one boundary conditions.",
     "lean_status": "real"
   },
   {
@@ -292,21 +292,21 @@
     "formula": "LambdaMonotonicity",
     "rationale": "Adding consistent evidence to a receipt must weakly increase all axis scores. If a proposed evidence augmentation decreases any axis score, it is classified as conflicting evidence and rejected at the gate.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "lambdaUniquenessConjecture",
     "file": "lambdaUniquenessConjecture_gate.ts",
-    "description": "a11oy policy gate for LambdaUniquenessConjecture (TH_L1) — Conjecture 1, NOT a theorem",
+    "description": "a11oy policy gate for LambdaUniquenessConjecture (TH_L1) \u2014 Conjecture 1, NOT a theorem",
     "lean_theorem": "lambdaUniquenessConjecture",
     "lean_file": "Lutar/Uniqueness.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "LambdaUniquenessConjecture",
-    "rationale": "The Lutar Invariant Λ_k as weighted geometric mean with Egyptian unit-fraction weights is unique given the four axioms. This gate validates that a submitted scoring function produces outputs consistent with the uniqueness theorem — i.e., that no alternative scoring function with the same axiom constraints would produce a different result for the same input vector.",
+    "rationale": "The Lutar Invariant \u039b_k as weighted geometric mean with Egyptian unit-fraction weights is unique given the four axioms. This gate validates that a submitted scoring function produces outputs consistent with the uniqueness theorem \u2014 i.e., that no alternative scoring function with the same axiom constraints would produce a different result for the same input vector.",
     "lean_status": "real",
     "status": "CONJECTURE",
     "proven": false,
-    "lambda_statement": "Conjecture 1 (NOT a theorem — LOCKED by Doctrine v11)"
+    "lambda_statement": "Conjecture 1 (NOT a theorem \u2014 LOCKED by Doctrine v11)"
   },
   {
     "name": "liuHuiPi",
@@ -316,7 +316,7 @@
     "lean_file": "Lutar/Banach/LiuHuiPi.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "LiuHuiPi",
-    "rationale": "A geometric computation is allowed only when the Liu Hui polygon approximation of π at step k achieves an absolute error ≤ threshold. The Lean theorem proves sideSquared ∈ [0,4] (well-definedness), and the monotone convergence guarantees piEstimate < π. The gate enforces that sufficient polygon sides have been computed before the approximation is trusted in a governance computation.",
+    "rationale": "A geometric computation is allowed only when the Liu Hui polygon approximation of \u03c0 at step k achieves an absolute error \u2264 threshold. The Lean theorem proves sideSquared \u2208 [0,4] (well-definedness), and the monotone convergence guarantees piEstimate < \u03c0. The gate enforces that sufficient polygon sides have been computed before the approximation is trusted in a governance computation.",
     "lean_status": "real"
   },
   {
@@ -327,7 +327,7 @@
     "lean_file": "Lutar/PACBayes/MadhavaBound.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "MadhavaBound",
-    "rationale": "A request is allowed only when the Mādhava arctan remainder bound (madhavaRemainderBound) is below a configured precision threshold. A high remainder bound means the truncated series is far from arctan(x), indicating insufficient convergence — the governance signal is unreliable.",
+    "rationale": "A request is allowed only when the M\u0101dhava arctan remainder bound (madhavaRemainderBound) is below a configured precision threshold. A high remainder bound means the truncated series is far from arctan(x), indicating insufficient convergence \u2014 the governance signal is unreliable.",
     "lean_status": "real"
   },
   {
@@ -340,7 +340,7 @@
     "formula": "MeasurabilityHonestyFloor",
     "rationale": "The measurabilityHonesty axis carries a stricter floor (0.95) requiring that all claims in an artifact are anchored to verifiable evidence. Superlatives without citations, inflated closure claims, or bandaid fixes all reduce this axis below the floor and trigger denial.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "merkleDagBatch",
@@ -350,9 +350,9 @@
     "lean_file": "Lutar/Gate/MerkleDagBatch.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "MerkleDagBatch",
-    "rationale": "For batch size B ≥ 7, Merkle-DAG build latency p50 must be ≤ 5µs. This gate validates that a reported batch build time is within the amortized O(log B) bound derived from T3.",
+    "rationale": "For batch size B \u2265 7, Merkle-DAG build latency p50 must be \u2264 5\u00b5s. This gate validates that a reported batch build time is within the amortized O(log B) bound derived from T3.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "moralGroundingFloor",
@@ -362,14 +362,14 @@
     "lean_file": "Lutar/Gate/MoralGrounding.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "MoralGroundingFloor",
-    "rationale": "The moralGrounding axis carries a stricter floor (0.95) than the default 0.90 because misattribution of authorship or suppression of ORCID constitutes a governance-critical violation. This gate enforces that higher bar independently of the composite Λ check.",
+    "rationale": "The moralGrounding axis carries a stricter floor (0.95) than the default 0.90 because misattribution of authorship or suppression of ORCID constitutes a governance-critical violation. This gate enforces that higher bar independently of the composite \u039b check.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "pareto_stabilization",
     "file": "pareto_stabilization.ts",
-    "description": "Pareto Finite Stabilization Gate — multi-objective governance optimization",
+    "description": "Pareto Finite Stabilization Gate \u2014 multi-objective governance optimization",
     "lean_theorem": "Lutar.Thesis.ParetoStabilization.th_v18_11_pareto_stabilization",
     "lean_file": "Lutar/Thesis/TH_V18_11_ParetoFiniteStabilization.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
@@ -385,9 +385,9 @@
     "lean_file": "Lutar/Gate/PrivacyMask.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "PrivacyMask",
-    "rationale": "The 9-bit axis mask reveals pass/fail per axis only (not quantitative Λ values). bits_leaked(mask) = 9 ≪ 576 bits (raw Λ-vector). This gate validates that only the binary mask is transmitted externally, blocking any export of raw floating-point axis scores.",
+    "rationale": "The 9-bit axis mask reveals pass/fail per axis only (not quantitative \u039b values). bits_leaked(mask) = 9 \u226a 576 bits (raw \u039b-vector). This gate validates that only the binary mask is transmitted externally, blocking any export of raw floating-point axis scores.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "rdpComposition",
@@ -397,7 +397,7 @@
     "lean_file": "Lutar/DP/RDPComposition.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "rdpComposition",
-    "rationale": "For a pipeline of k steps each satisfying (α, εᵢ)-RDP, the sequential composition is (α, Σεᵢ)-RDP (Mironov 2017, Proposition 1). Converting to (ε_dp, δ)-DP: ε_dp = Σεᵢ + ln(1/δ)/(α-1). The gate accepts a chained receipt only if ε_dp ≤ declared budget ceiling.",
+    "rationale": "For a pipeline of k steps each satisfying (\u03b1, \u03b5\u1d62)-RDP, the sequential composition is (\u03b1, \u03a3\u03b5\u1d62)-RDP (Mironov 2017, Proposition 1). Converting to (\u03b5_dp, \u03b4)-DP: \u03b5_dp = \u03a3\u03b5\u1d62 + ln(1/\u03b4)/(\u03b1-1). The gate accepts a chained receipt only if \u03b5_dp \u2264 declared budget ceiling.",
     "lean_status": "real"
   },
   {
@@ -410,7 +410,7 @@
     "formula": "ReceiptChainConfluence",
     "rationale": "The receipt chain is the cofree comonad of the receipt functor. Two replay runs produce the same comonad element iff they agree on all observations. This gate validates that two independently generated chain roots agree, which proves that both runs followed the unique normal form.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "reedSolomonSingleton",
@@ -420,7 +420,7 @@
     "lean_file": "Lutar/CodingTheory/ReedSolomonSingleton.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "reedSolomonSingleton",
-    "rationale": "A receipt chain that claims to use Reed-Solomon erasure coding for shard resilience must declare valid RS parameters [n, k, d, q] that satisfy: (1) n ≤ q (valid parameter range over field GF(q)) (2) 1 ≤ k ≤ n (3) d = n - k + 1 (MDS condition — Singleton bound achieved with equality) (4) claimed_erasure_capacity ≤ n - k If any condition fails, the resilience claim is unsubstantiated and the gate de",
+    "rationale": "A receipt chain that claims to use Reed-Solomon erasure coding for shard resilience must declare valid RS parameters [n, k, d, q] that satisfy: (1) n \u2264 q (valid parameter range over field GF(q)) (2) 1 \u2264 k \u2264 n (3) d = n - k + 1 (MDS condition \u2014 Singleton bound achieved with equality) (4) claimed_erasure_capacity \u2264 n - k If any condition fails, the resilience claim is unsubstantiated and the gate de",
     "lean_status": "real"
   },
   {
@@ -431,9 +431,9 @@
     "lean_file": "Lutar/Gate/ReplayDeterminism.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "ReplayDeterminism",
-    "rationale": "For canonical JSON + pinned PRNG + frozen registry, 5× replay must yield the canonical root \"1ed4d253…\". Any deviation from the expected root is a determinism violation that blocks production deployment.",
+    "rationale": "For canonical JSON + pinned PRNG + frozen registry, 5\u00d7 replay must yield the canonical root \"1ed4d253\u2026\". Any deviation from the expected root is a determinism violation that blocks production deployment.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "replayDoiDuality",
@@ -445,7 +445,7 @@
     "formula": "ReplayDoiDuality",
     "rationale": "The DOI version ledger and the ouroboros replay-root ledger are isomorphic as temporally-ordered sets: each release commit maps bijectively to a version DOI, mediated by the replay root. This gate validates that a supplied (commitSha, replayRoot, doi) triple is consistent with the bijection before admitting a release operation.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "rhoClosureComposition",
@@ -455,9 +455,9 @@
     "lean_file": "Lutar/Gate/RhoClosureComposition.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "RhoClosureComposition",
-    "rationale": "ρ(r1) ∧ ρ(r2) ⟹ ρ(r1∘r2) iff witness sets are pairwise disjoint OR a third independent witness co-signs. This gate validates that a composed receipt bundle satisfies the closure condition before admission.",
+    "rationale": "\u03c1(r1) \u2227 \u03c1(r2) \u27f9 \u03c1(r1\u2218r2) iff witness sets are pairwise disjoint OR a third independent witness co-signs. This gate validates that a composed receipt bundle satisfies the closure condition before admission.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "rhoClosureProduction",
@@ -467,9 +467,9 @@
     "lean_file": "Lutar/RhoClosureProduction.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "RhoClosureProduction",
-    "rationale": "100% ρ-closure on 8,000/8,000 paired calls under v11 platform. This gate validates that a production ρ-closure measurement meets the ≥ 100% target (i.e., all paired calls close successfully). Any failure in a paired call is a ρ-closure regression requiring immediate investigation.",
+    "rationale": "100% \u03c1-closure on 8,000/8,000 paired calls under v11 platform. This gate validates that a production \u03c1-closure measurement meets the \u2265 100% target (i.e., all paired calls close successfully). Any failure in a paired call is a \u03c1-closure regression requiring immediate investigation.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "singleWitnessExclusion",
@@ -479,9 +479,9 @@
     "lean_file": "Lutar/Gate/SingleWitnessExclusion.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "SingleWitnessExclusion",
-    "rationale": "Different actors with identical digest content produce different SHA-256 receipt hashes (different canonical JSON → different hash). Single-witness closure fails for cross-actor pairs. This gate enforces T8: dual witness is required whenever actor IDs differ.",
+    "rationale": "Different actors with identical digest content produce different SHA-256 receipt hashes (different canonical JSON \u2192 different hash). Single-witness closure fails for cross-actor pairs. This gate enforces T8: dual witness is required whenever actor IDs differ.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "soundnessAxiom",
@@ -491,9 +491,9 @@
     "lean_file": "Lutar/Gate/SoundnessAxiom.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "SoundnessAxiom",
-    "rationale": "A receipt is allowed to pass only when all 9 Λ-axis scores meet or exceed the conjunctive floor of 0.90. The soundness axiom guarantees: if gate_pass(r) then lambda(r) >= 0.90 conjunctively. This gate enforces that claim at the policy layer — rejecting any receipt that would silently under-score.",
+    "rationale": "A receipt is allowed to pass only when all 9 \u039b-axis scores meet or exceed the conjunctive floor of 0.90. The soundness axiom guarantees: if gate_pass(r) then lambda(r) >= 0.90 conjunctively. This gate enforces that claim at the policy layer \u2014 rejecting any receipt that would silently under-score.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "summationInvariant",
@@ -503,7 +503,7 @@
     "lean_file": "Lutar/Khipu/SummationInvariant.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "SummationInvariant",
-    "rationale": "A receipt is allowed to advance in the governance chain only when the khipu summation invariant holds: the primary cord equals the sum of all pendant-cord values, and each pendant equals the sum of its leaf values. A broken invariant means the receipt tree has been tampered with — the additive Merkle accumulator is violated.",
+    "rationale": "A receipt is allowed to advance in the governance chain only when the khipu summation invariant holds: the primary cord equals the sum of all pendant-cord values, and each pendant equals the sum of its leaf values. A broken invariant means the receipt tree has been tampered with \u2014 the additive Merkle accumulator is violated.",
     "lean_status": "real"
   },
   {
@@ -514,9 +514,9 @@
     "lean_file": "Lutar/Gate/TemporalConsistency.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "TemporalConsistency",
-    "rationale": "Gate verdict is invariant under time-shift within the registered clock-drift bound ε_clock. If a receipt's timestamp differs from evaluation time by more than the drift bound, the temporal consistency property is violated and the receipt is rejected.",
+    "rationale": "Gate verdict is invariant under time-shift within the registered clock-drift bound \u03b5_clock. If a receipt's timestamp differs from evaluation time by more than the drift bound, the temporal consistency property is violated and the receipt is rejected.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "thresholdPolicySeverity",
@@ -536,19 +536,19 @@
     "lean_file": "Lutar/MechanismDesign/VCGTruthfulness.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
     "formula": "vcgTruthfulness",
-    "rationale": "In a multi-attester SZL system, payment vectors that do not match the Clarke pivot formula violate the truthful-reporting dominant strategy. This gate verifies that each declared payment p_i equals: p_i = max_{x} Σ_{j≠i} v_j(x) − Σ_{j≠i} v_j(x*) where x* is the welfare-maximising outcome. A receipt with incorrect payments is denied (attester incentives not aligned).",
+    "rationale": "In a multi-attester SZL system, payment vectors that do not match the Clarke pivot formula violate the truthful-reporting dominant strategy. This gate verifies that each declared payment p_i equals: p_i = max_{x} \u03a3_{j\u2260i} v_j(x) \u2212 \u03a3_{j\u2260i} v_j(x*) where x* is the welfare-maximising outcome. A receipt with incorrect payments is denied (attester incentives not aligned).",
     "lean_status": "phantom",
     "status": "DEFERRED",
     "sorry_count": 1,
     "deferred_reason": "open sorry in Lean proof at HEAD c7c0ba17",
     "proof_ref": "/home/user/workspace/team/math-phd-information-theory/VCG_TRUTHFULNESS_PROOF.md",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "dualStreamRoutingAxiom",
     "anchor": "A36",
     "file": "packages/policy/src/gates/InternalFeedback.lean",
-    "description": "a11oy policy gate for DualStreamRoutingAxiom (A36) — Hickok dual-stream axis.",
+    "description": "a11oy policy gate for DualStreamRoutingAxiom (A36) \u2014 Hickok dual-stream axis.",
     "lean_theorem": "dual_stream_routing",
     "lean_file": "Lutar/Gate/InternalFeedback.lean",
     "lean_commit_sha": "feat/conduction-aphasia-detector",
@@ -561,13 +561,13 @@
     "doctrine_v": "11",
     "rationale": "Every a11oy tick MUST route through exactly one of {dorsal, ventral}, never both, never neither. Dorsal = action/repetition (sensorimotor). Ventral = meaning/comprehension (lexical). This axiom formalizes the Hickok & Poeppel 2007 dual-stream model. ts-only: TypeScript evaluator live; Lean proof scheduled Doctrine v12.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "internalFeedbackIntegrity",
     "anchor": "A37",
     "file": "conduction_aphasia.py",
-    "description": "a11oy policy gate for InternalFeedbackIntegrity (A37) — Hickok state feedback control. The Conduction-Aphasia Detector IS the live evaluator.",
+    "description": "a11oy policy gate for InternalFeedbackIntegrity (A37) \u2014 Hickok state feedback control. The Conduction-Aphasia Detector IS the live evaluator.",
     "lean_theorem": "internal_feedback_intact",
     "lean_file": "Lutar/Gate/InternalFeedback.lean",
     "lean_commit_sha": "feat/conduction-aphasia-detector",
@@ -576,7 +576,7 @@
     "status": "live",
     "severity": "enforced",
     "citation_doi": "10.1016/j.neuron.2011.01.019",
-    "citation_label": "Hickok, Houde, Rong 2011, Neuron 69:407-422 — Sensorimotor integration: state feedback control",
+    "citation_label": "Hickok, Houde, Rong 2011, Neuron 69:407-422 \u2014 Sensorimotor integration: state feedback control",
     "doctrine_v": "11",
     "endpoints": {
       "observe": "POST /api/a11oy/v4/conduction/observe",
@@ -586,13 +586,13 @@
     },
     "rationale": "An action MAY execute only when ||predicted_sensory - actual_sensory|| <= tau. If delta exceeds tau for N consecutive ticks while outputs look fine, a CONDUCTION_ALERT fires. This is the AI analog of conduction aphasia: motor plans intact, outputs fine, but the internal feedback loop is broken. The Conduction-Aphasia Detector (conduction_aphasia.py) provides the LIVE evaluator. DOI 10.1016/j.neuron.2011.01.019.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   },
   {
     "name": "hierarchicalLinearizationRoundTrip",
     "anchor": "A38",
     "file": "packages/policy/src/gates/InternalFeedback.lean",
-    "description": "a11oy policy gate for HierarchicalLinearizationRoundTrip (A38) — Hickok hierarchical linearization, Khipu chain losslessness.",
+    "description": "a11oy policy gate for HierarchicalLinearizationRoundTrip (A38) \u2014 Hickok hierarchical linearization, Khipu chain losslessness.",
     "lean_theorem": "hier_linearization_round_trip",
     "lean_file": "Lutar/Gate/InternalFeedback.lean",
     "lean_commit_sha": "feat/conduction-aphasia-detector",
@@ -605,6 +605,6 @@
     "doctrine_v": "11",
     "rationale": "A hierarchical receipt set MUST linearize to a Khipu sequence such that the listener can recover the hierarchy from the sequence alone (round-trip lossless). recover(linearize(h)) = h. Hickok 2025: syntax is a hierarchical mobile linearized into a morpheme sequence. The Khipu receipt chain IS this linearization. ts-only: Lean proof scheduled Doctrine v12.",
     "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) — NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
   }
 ]
