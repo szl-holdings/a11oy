@@ -57,8 +57,8 @@ export interface GovernanceReceipt {
   resource_kind: string;
   resource_name: string;
   pepr_controller_version: string;
-  slsa_level: 1 | 3;
-  attestation_uri?: string;    // Rekor entry URI (SLSA L3)
+  slsa_level: 1;
+  attestation_uri?: string;    // Rekor entry URI (SLSA L1 honest; Sigstore signing pending)
   metadata: Record<string, unknown>;
 }
 
@@ -75,7 +75,7 @@ export interface PeatCapabilityDispatch {
   namespace: string;
   payload: {
     governance_receipt_digest: string;  // SHA-256 of raw DSSE envelope JSON
-    slsa_level: 1 | 3;
+    slsa_level: 1;
     attestation_uri?: string;
     organ_version: string;
     pqc_signed: boolean;                // true if ML-DSA-65 sig present
