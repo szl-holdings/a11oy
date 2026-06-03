@@ -1,0 +1,26 @@
+name: README frontmatter check
+on:
+  pull_request:
+    paths: ['README.md']
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify YAML frontmatter
+        run: |
+          set -eu
+          head -1 README.md | grep -q "^---$" || { echo "::error::README must start with --- (YAML frontmatter)"; exit 1; }
+          # find the closing ---
+          if ! head -30 README.md | tail -29 | grep -q "^---$"; then
+            echo "::error::No closing --- found in first 30 lines"; exit 1
+          fi
+          # check required fields
+          for f in title sdk emoji colorFrom colorTo; do
+            head -30 README.md | grep -q "^${f}:" || { echo "::error::Missing required frontmatter field: ${f}"; exit 1; }
+          done
+          echo "✅ Frontmatter OK"
