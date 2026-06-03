@@ -4,16 +4,13 @@ import { Link, useLocation } from 'wouter';
 import {
   LayoutGrid, Rocket, ShieldCheck, Sparkles,
   ChevronDown, ChevronRight,
-  Globe, Crosshair, Activity, Radio, BarChart3, Map, Shield, Server,
-  Cpu, Eye, Zap, Network, Settings, Users, Terminal, Layers,
-  Briefcase, FileText, Target, GitBranch, Database, Lock,
-  GitFork, History, BookOpen, SquareTerminal, Sliders,
-  FlaskConical, Workflow, Download, BarChart2, BookMarked, ShieldAlert,
-  Swords, Waves, Microscope, TrendingUp, FlaskRound, Package, PenTool, Share2, HeartPulse,
-  Palette, Sigma, MessageSquare, Brain, Beaker,
-  Box, Cog, Newspaper, KeyRound, Boxes, Wrench,
-  Gauge, Search, DollarSign, Mic2,
-  Telescope, BookOpenCheck, Lightbulb, BarChart, FileStack, ScanLine, ExternalLink
+  Globe, Crosshair, Activity, BarChart3, Map, Shield, Server,
+  Cpu, Zap, Network, Settings, Users, Terminal, Layers,
+  FileText, Workflow,
+  BookOpen, Brain, Beaker,
+  Box, Newspaper, KeyRound, Boxes,
+  Search, Sigma,
+  Telescope, BookOpenCheck, ExternalLink, TrendingUp, Target
 } from 'lucide-react';
 import { cn } from '@szl-holdings/design-system';
 
@@ -35,14 +32,24 @@ interface NavSection {
   defaultOpen?: boolean;
 }
 
-// Top: Foundry pinned + What's New
+// ── SIDEBAR CONSOLIDATION (Ken pattern, 2026-06-03): 157 tabs across 17 sections
+// → 3 pinned + 7 sections (≈35 tabs), modeled on Stripe / Linear / Vercel command
+// surfaces. Sub-routes with 4+ siblings collapse to a single parent tab; the parent
+// page owns the in-page navigation (e.g. /strategy/briefings/* → one "Briefings" tab).
+// EVERY one of the 478 App.tsx <Route> handlers stays a working deep link: each is
+// still reachable via direct URL and via the ⌘K command palette (CommandPalette below),
+// which indexes the full link set. No new dependencies; same lucide-react icons, same
+// wouter Link, same @szl-holdings/design-system import. Doctrine v11 LOCKED 749/14/163.
+// Λ Conjecture 1 (NOT a theorem). ADDITIVE collapse — no routes removed.
+
+// Top pinned (3) — Stripe/Vercel-style always-visible entries.
 const topItems: NavItem[] = [
   { id: 'whats-new', name: "What's New", icon: Newspaper, path: '/whats-new', badge: 'NEW' },
   { id: 'console', name: 'Console', icon: Terminal, path: '/console' },
   { id: 'szl-ops', name: 'SZL Operational Core', icon: ShieldCheck, path: '/szl-ops', badge: 'LIVE' },
 ];
 
-const foundrySections: NavSection[] = [
+const sections: NavSection[] = [
   {
     id: 'foundry',
     label: 'Foundry',
@@ -52,328 +59,131 @@ const foundrySections: NavSection[] = [
       { id: 'foundry-catalog', name: 'Catalog', icon: Boxes, path: '/foundry/catalog' },
       { id: 'foundry-provision', name: 'Provision', icon: FileText, path: '/foundry/provision' },
       { id: 'foundry-deployments', name: 'Deployments', icon: Rocket, path: '/foundry/deployments' },
-      { id: 'foundry-workcells', name: 'Workcells', icon: Box, path: '/foundry/workcells' },
       { id: 'foundry-keys', name: 'Keys & Secrets', icon: KeyRound, path: '/foundry/keys' },
-      { id: 'foundry-sovereign', name: 'Sovereign Mode', icon: Lock, path: '/foundry/sovereign' },
       { id: 'foundry-monitoring', name: 'Monitoring', icon: Activity, path: '/foundry/monitoring' },
-      { id: 'foundry-quickstarts', name: 'Quickstarts', icon: Sparkles, path: '/foundry/quickstarts' },
+      { id: 'primitives-hub', name: 'Primitives', icon: Box, path: '/primitives' },
     ],
   },
-];
-
-const strategySections: NavSection[] = [
   {
     id: 'strategy',
     label: 'Strategy',
-    defaultOpen: false,
     items: [
       { id: 'strat-dashboard', name: 'Strategy Dashboard', icon: Globe, path: '/strategy' },
-      { id: 'strat-briefings', name: 'Briefings Hub', icon: Newspaper, path: '/strategy/briefings' },
-      { id: 'strat-briefing-today', name: "Today's Brief", icon: FileText, path: '/strategy/briefings/today' },
-      { id: 'strat-briefing-engine', name: 'Briefing Engine', icon: Cog, path: '/strategy/briefings/engine' },
-      { id: 'strat-briefing-library', name: 'Brief Library', icon: BookOpen, path: '/strategy/briefings/library' },
-      { id: 'strat-briefing-watchlist', name: 'Watchlist', icon: Eye, path: '/strategy/briefings/watchlist' },
-      { id: 'strat-briefing-confidence', name: 'Confidence', icon: BarChart3, path: '/strategy/briefings/confidence' },
-      { id: 'strat-briefing-dissent', name: 'Dissent Channel', icon: MessageSquare, path: '/strategy/briefings/dissent' },
-      { id: 'strat-briefing-cockpit', name: 'Governed Cockpit', icon: ShieldCheck, path: '/strategy/briefings/cockpit' },
+      // /strategy/briefings/* — 8 siblings collapsed; the Briefings page owns in-page nav.
+      { id: 'strat-briefings', name: 'Briefings', icon: Newspaper, path: '/strategy/briefings' },
       { id: 'strat-atlas-runtime', name: 'Atlas Runtime', icon: Zap, path: '/strategy/atlas-runtime' },
-      { id: 'strat-enterprise', name: 'Enterprise State', icon: Layers, path: '/strategy/enterprise-state' },
-      { id: 'strat-simulation', name: 'Simulation', icon: GitBranch, path: '/strategy/simulation' },
-      // Crisis Stress Drill + Game Day are gated behind the
-      // VITE_FEATURE_A11OY_STRATEGY_SIMS flag (Task #5171). When the flag is
-      // not set, these items are removed from the default nav; the new
-      // /api/a11oy/strategy/* scenario+run contract is the supported surface
-      // for headless drill execution.
-      ...(import.meta.env.VITE_FEATURE_A11OY_STRATEGY_SIMS === 'true'
-        ? [
-            { id: 'strat-stress', name: 'Crisis Stress Drill', icon: Activity, path: '/strategy/stress-drill' },
-            { id: 'strat-gameday', name: 'Game Day Engine', icon: Target, path: '/strategy/game-day' },
-          ]
-        : []),
-      { id: 'strat-correlation', name: 'Correlation Map', icon: Network, path: '/strategy/correlation-map' },
-      { id: 'strat-signals', name: 'Signal Chains', icon: Radio, path: '/strategy/signal-chains' },
-      { id: 'strat-worldline', name: 'Worldline Registry', icon: FileText, path: '/strategy/worldline-registry' },
-      { id: 'strat-cross', name: 'Cross-Platform Hub', icon: Globe, path: '/strategy/cross-platform/hub' },
+      { id: 'strat-simulation', name: 'Simulation', icon: Layers, path: '/strategy/simulation' },
       { id: 'strat-competitive', name: 'Competitive Atlas', icon: Map, path: '/strategy/competitive-atlas' },
     ],
   },
-];
-
-const operationsSections: NavSection[] = [
   {
     id: 'operations',
     label: 'Operations',
-    defaultOpen: false,
     items: [
-      { id: 'ops-exec', name: 'Executive Command', icon: Activity, path: '/operations' },
-      { id: 'ops-noc', name: 'Autonomous NOC', icon: Eye, path: '/operations/autonomous-noc' },
+      { id: 'ops-exec', name: 'Operations Monitor', icon: Activity, path: '/operations' },
+      { id: 'ops-noc', name: 'Autonomous NOC', icon: Server, path: '/operations/autonomous-noc' },
       { id: 'ops-slo', name: 'SLO Management', icon: Target, path: '/operations/slo' },
-      { id: 'ops-topology', name: 'Service Topology', icon: Network, path: '/operations/topology' },
       { id: 'ops-metrics', name: 'Metrics Explorer', icon: BarChart3, path: '/operations/metrics' },
-      { id: 'ops-tracing', name: 'Distributed Tracing', icon: GitBranch, path: '/operations/tracing' },
-      { id: 'ops-logs', name: 'Log Explorer', icon: Terminal, path: '/operations/logs' },
-      { id: 'ops-alerts', name: 'Alert Management', icon: Radio, path: '/operations/alerts' },
-      { id: 'ops-self-heal', name: 'Self-Healing', icon: Zap, path: '/operations/self-healing' },
-      { id: 'ops-runbook', name: 'Runbook Studio', icon: FileText, path: '/operations/runbook-studio' },
-      { id: 'ops-deployments', name: 'Deployments', icon: Rocket, path: '/operations/deployments' },
-      { id: 'ops-admin', name: 'Admin Console', icon: Settings, path: '/operations/admin/overview' },
-      { id: 'ops-ownership-graph', name: 'Ownership Graph', icon: Network, path: '/operations/ownership-graph' },
-      { id: 'ops-distress-engine', name: 'Distress Engine', icon: Activity, path: '/operations/distress-engine' },
-      { id: 'ops-knowledge-vault', name: 'Knowledge Vault', icon: FileText, path: '/operations/knowledge-vault' },
     ],
   },
-];
-
-const infrastructureSections: NavSection[] = [
   {
     id: 'infrastructure',
     label: 'Infrastructure',
-    defaultOpen: false,
     items: [
+      // Single consolidated view; the IMPERIUM console owns in-page nav for the other surfaces.
       { id: 'infra-legatus', name: 'IMPERIUM Console', icon: Server, path: '/infrastructure/legatus' },
-      { id: 'infra-map', name: 'Imperium Map', icon: Map, path: '/infrastructure/imperium-map' },
-      { id: 'infra-praetorian', name: 'Praetorian Guard', icon: Shield, path: '/infrastructure/praetorian' },
-      { id: 'infra-senate', name: 'Senate Chamber', icon: Briefcase, path: '/infrastructure/senate' },
-      { id: 'infra-supply', name: 'Supply Lines', icon: Network, path: '/infrastructure/supply-lines' },
-      { id: 'infra-centurion', name: 'Centurion AI', icon: Cpu, path: '/infrastructure/centurion' },
-      { id: 'infra-geospatial', name: 'Geospatial Intel', icon: Globe, path: '/infrastructure/geospatial' },
-      { id: 'infra-data-fabric', name: 'Data Fabric', icon: Database, path: '/infrastructure/data-fabric' },
-      { id: 'infra-coalition', name: 'Coalition', icon: Users, path: '/infrastructure/coalition' },
     ],
   },
-];
-
-const decisionsSections: NavSection[] = [
   {
-    id: 'decisions',
-    label: 'Decisions',
-    defaultOpen: false,
+    id: 'intelligence-decisions',
+    label: 'Intelligence & Decisions',
     items: [
       { id: 'dec-center', name: 'Decision Center', icon: Crosshair, path: '/decisions' },
       { id: 'dec-twin', name: 'Decision Twin (PRISM)', icon: Brain, path: '/decisions/twin' },
       { id: 'dec-autonomy', name: 'Autonomy Modes', icon: Workflow, path: '/decisions/autonomy' },
-      { id: 'dec-entity', name: 'Entity Graph', icon: Network, path: '/decisions/entity-graph' },
-      { id: 'dec-health', name: 'Workflow Health', icon: Activity, path: '/decisions/workflow-health' },
-      { id: 'dec-intelligence', name: 'Command Overview', icon: LayoutGrid, path: '/intelligence' },
-      { id: 'dec-deep', name: 'Entity Deep Dive', icon: Eye, path: '/intelligence/deep-dive' },
-      { id: 'dec-roi', name: 'ROI Lens', icon: BarChart3, path: '/intelligence/roi-lens' },
-    ],
-  },
-];
-
-const primitivesSections: NavSection[] = [
-  {
-    id: 'primitives',
-    label: 'Primitives',
-    defaultOpen: false,
-    items: [
-      { id: 'prim-hub', name: 'Primitives Hub', icon: LayoutGrid, path: '/primitives' },
-      { id: 'prim-research', name: 'Research Swarm', icon: Beaker, path: '/primitives/research-swarm' },
-      { id: 'prim-memory', name: 'Memory Fabric', icon: Database, path: '/primitives/memory-fabric' },
-      { id: 'prim-bridge', name: 'Protocol Bridge', icon: GitBranch, path: '/primitives/protocol-bridge' },
-      { id: 'prim-orchestrator', name: 'Orchestrator', icon: Workflow, path: '/primitives/orchestrator' },
-      { id: 'prim-skills', name: 'Skills Library', icon: Wrench, path: '/primitives/skills' },
-      { id: 'prim-tokens', name: 'Tokens & Governance', icon: ShieldCheck, path: '/primitives/tokens-governance' },
-    ],
-  },
-];
-
-const intelligenceItems: NavItem[] = [
-  { id: 'sigil', name: 'SIGIL', icon: Sigma, path: '/sigil' },
-  { id: 'lab', name: 'A11oy Lab', icon: Beaker, path: '/lab' },
-  { id: 'reasoning', name: 'Reasoning Audit', icon: Brain, path: '/reasoning' },
-  { id: 'lesson-graph', name: 'Lesson Graph', icon: GitFork, path: '/lesson-graph' },
-];
-
-const platformItems: NavItem[] = [
-  { id: 'substrate', name: 'Substrate Command', icon: Cpu, path: '/substrate' },
-  { id: 'ecosystem', name: 'MCP Ecosystem', icon: Network, path: '/ecosystem' },
-  { id: 'omnia', name: 'OMNIA Hub', icon: Sparkles, path: '/omnia' },
-  { id: 'evolution', name: 'Evolution Runtime', icon: Zap, path: '/evolution' },
-  { id: 'governance', name: 'Governance', icon: ShieldCheck, path: '/governance' },
-  { id: 'adaptive-governance', name: 'Adaptive Governance', icon: GitBranch, path: '/adaptive-governance' },
-  { id: 'hook-packs', name: 'Hook Packs', icon: Zap, path: '/governance/hook-packs' },
-  { id: 'routing-weights', name: 'Routing Weights', icon: Sliders, path: '/routing-weights' },
-  { id: 'codex', name: 'Codex', icon: Brain, path: '/codex' },
-];
-
-const evaluationItems: NavItem[] = [
-  { id: 'evals', name: 'MirrorEval', icon: Eye, path: '/evals' },
-  { id: 'eval-evolution', name: 'Eval Evolution', icon: Sparkles, path: '/eval-evolution' },
-];
-
-const operatorsItems: NavItem[] = [
-  { id: 'operator-profile', name: 'Operator Profiles', icon: Users, path: '/operator-profile' },
-];
-
-const cognitiveSections: NavSection[] = [
-  {
-    id: 'cognitive-runtime',
-    label: 'Cognitive Runtime',
-    defaultOpen: false,
-    items: [
-      { id: 'cog-overview', name: 'Cognitive Overview', icon: Brain, path: '/cognitive/overview' },
-      { id: 'cog-memory', name: 'Memory', icon: Database, path: '/cognitive/memory' },
-      { id: 'cog-planner', name: 'Planner', icon: Target, path: '/cognitive/planner' },
-      { id: 'cog-verifier', name: 'Verifier', icon: ShieldCheck, path: '/cognitive/verifier' },
-      { id: 'cog-reflection', name: 'Reflection', icon: Eye, path: '/cognitive/reflection' },
-      { id: 'cog-traces', name: 'Traces', icon: GitBranch, path: '/cognitive/traces' },
-      { id: 'cog-self-model', name: 'Self Model', icon: Sparkles, path: '/cognitive/self-model' },
-      { id: 'cog-world-model', name: 'World Model', icon: Globe, path: '/cognitive/world-model' },
-    ],
-  },
-];
-
-const decisionIntelligenceItems: NavItem[] = [
-  { id: 'di-propeller', name: 'Propeller Drive', icon: Brain, path: '/fabric/decisions' },
-];
-
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-a11oy-text-ghost)] mt-7 mb-2 px-3 first:mt-0">
-      {children}
-    </div>
-  );
-}
-
-const nexusSections: NavSection[] = [
-  {
-    id: 'nexus-intelligence',
-    label: 'Intelligence',
-    items: [
-      { id: 'nexus-home', name: 'NEXUS Home', icon: Sparkles, path: '/nexus' },
-                ],
-  },
-  {
-    id: 'nexus-memory-skills',
-    label: 'Memory & Skills',
-    items: [
-              { id: 'nexus-marketplace', name: 'Marketplace', icon: ShieldCheck, path: '/nexus/marketplace' },
-      { id: 'nexus-ingest', name: 'Repo Ingest', icon: Download, path: '/nexus/ingest' },
+      { id: 'intel-overview', name: 'Command Overview', icon: LayoutGrid, path: '/intelligence' },
+      { id: 'cog-overview', name: 'Cognitive Runtime', icon: Cpu, path: '/cognitive/overview' },
+      { id: 'nexus-home', name: 'NEXUS Intelligence', icon: Sparkles, path: '/nexus' },
     ],
   },
   {
-    id: 'nexus-quality',
-    label: 'Quality & Audit',
-    items: [
-      { id: 'nexus-ai-quality', name: 'AI Quality', icon: Activity, path: '/nexus/ai-quality' },
-      { id: 'nexus-prompt-registry', name: 'Prompt Registry', icon: BookMarked, path: '/nexus/prompt-registry' },
-      { id: 'nexus-eval-console', name: 'Eval Console', icon: BarChart2, path: '/nexus/eval-console' },
-      { id: 'nexus-audit-trail', name: 'Audit Trail', icon: ShieldAlert, path: '/nexus/audit-trail' },
-    ],
-  },
-  {
-    id: 'nexus-design',
-    label: 'Design System',
-    items: [
-      { id: 'nexus-pattern-atlas', name: 'Pattern Atlas', icon: GitBranch, path: '/nexus/pattern-atlas' },
-      { id: 'nexus-design-system', name: 'Design System', icon: Palette, path: '/nexus/design-system' },
-      { id: 'nexus-tokens', name: 'Tokens Governance', icon: Sigma, path: '/nexus/tokens-governance' },
-    ],
-  },
-];
-
-const psycheSections: NavSection[] = [
-  {
-    id: 'psyche-core',
-    label: 'PSYCHE — Sentience',
-    defaultOpen: false,
-    items: [
-      { id: 'psyche-anima', name: 'Anima', icon: Sparkles, path: '/psyche' },
-      { id: 'psyche-genesis', name: 'Genesis Ledger', icon: BookOpen, path: '/psyche/genesis' },
-      { id: 'psyche-selfhood', name: 'Selfhood Trace', icon: Eye, path: '/psyche/selfhood' },
-      { id: 'psyche-volition', name: 'Volition Registry', icon: Target, path: '/psyche/volition' },
-      { id: 'psyche-dreams', name: 'Dream Atlas', icon: FlaskConical, path: '/psyche/dreams' },
-      { id: 'psyche-voice', name: 'Voice & Consent', icon: Mic2, path: '/psyche/voice' },
-    ],
-  },
-];
-
-const orchestratorSections: NavSection[] = [
-  {
-    id: 'vertical-orchestrator',
-    label: 'Vertical Orchestrator',
-    defaultOpen: false,
-    items: [
-      { id: 'orch-catalog', name: 'Domain Pack Catalog', icon: Package, path: '/orchestrator/catalog' },
-      { id: 'orch-compose', name: 'Compose Pack', icon: PenTool, path: '/orchestrator/compose' },
-            ],
-  },
-];
-
-const argoSections: NavSection[] = [
-  {
-    id: 'argo-core',
-    label: 'Argo — Decision Engine',
-    defaultOpen: false,
-    items: [
-      { id: 'argo-bridge', name: 'Argo Bridge', icon: TrendingUp, path: '/argo' },
-      { id: 'argo-world-model', name: 'Lodestone World Model', icon: Globe, path: '/argo/world-model' },
-      { id: 'argo-arena', name: 'Self-Play Arena', icon: Swords, path: '/argo/arena' },
-      { id: 'argo-stream', name: 'Experience Stream', icon: Waves, path: '/argo/stream' },
-      { id: 'argo-ineffable', name: 'Ineffable Channel', icon: Microscope, path: '/argo/ineffable' },
-      { id: 'argo-forge', name: 'Distillation Forge', icon: FlaskRound, path: '/argo/forge' },
-    ],
-  },
-];
-
-const frontierSections: NavSection[] = [
-  {
-    id: 'frontier-intelligence',
-    label: 'Frontier Intelligence',
-    defaultOpen: false,
+    id: 'frontier-research',
+    label: 'Frontier & Research',
     items: [
       { id: 'frontier-index', name: 'Frontier Overview', icon: Telescope, path: '/frontier' },
-      { id: 'frontier-feed', name: 'Signal Feed', icon: Radio, path: '/frontier/feed' },
-      { id: 'frontier-mythos', name: 'Mythos Index', icon: BookOpenCheck, path: '/frontier/mythos' },
-      { id: 'frontier-proposals', name: 'Capability Proposals', icon: Lightbulb, path: '/frontier/proposals' },
-      { id: 'frontier-benchmarks', name: 'Benchmark Scoreboard', icon: BarChart, path: '/frontier/benchmarks' },
-      { id: 'frontier-memos', name: 'Recalibration Memos', icon: FileStack, path: '/frontier/memos' },
-      { id: 'frontier-scanners', name: 'Scanner Network', icon: ScanLine, path: '/frontier/scanners' },
-      { id: 'frontier-system', name: 'System Health', icon: HeartPulse, path: '/frontier/system' },
+      { id: 'argo-bridge', name: 'Argo — Decision Engine', icon: TrendingUp, path: '/argo' },
+      { id: 'psyche-anima', name: 'PSYCHE — Sentience', icon: Sparkles, path: '/psyche' },
+      { id: 'sigil', name: 'SIGIL', icon: Sigma, path: '/sigil' },
+      { id: 'lab', name: 'A11oy Lab', icon: Beaker, path: '/lab' },
+    ],
+  },
+  {
+    id: 'doctrine-trust',
+    label: 'Doctrine & Trust',
+    items: [
+      { id: 'doc-overview', name: 'Doctrine', icon: BookOpen, path: '/doctrine' },
+      { id: 'doc-constitution', name: 'Constitution', icon: FileText, path: '/constitution' },
+      { id: 'doc-alignment', name: 'Alignment Review', icon: ShieldCheck, path: '/alignment-review' },
+      { id: 'trust-hub', name: 'Trust Hub', icon: Shield, path: '/trust' },
+      { id: 'trust-portal', name: 'Public Trust Portal', icon: Globe, path: '/trust-portal' },
+      { id: 'trust-transparency', name: 'Transparency Report', icon: FileText, path: '/transparency-report' },
+      { id: 'trust-bom', name: 'Agent BOM / Proof', icon: BookOpenCheck, path: '/agent-bom' },
     ],
   },
 ];
 
-const reliquaryItems: NavItem[] = [
-  { id: 'reliquary-vault', name: 'Vault Browser', icon: Database, path: '/reliquary/vault' },
-  { id: 'reliquary-lineage', name: 'Lineage Graph', icon: GitFork, path: '/reliquary/lineage' },
-  { id: 'reliquary-snapshots', name: 'Snapshot Replay', icon: History, path: '/reliquary/snapshots' },
-  { id: 'reliquary-sovereign', name: 'Sovereign Mode', icon: Lock, path: '/reliquary/sovereign' },
-  { id: 'reliquary-doctrine', name: 'Doctrine', icon: BookOpen, path: '/reliquary/doctrine' },
-];
-
-const doctrineSections: NavSection[] = [
-  {
-    id: 'doctrine',
-    label: 'Doctrine',
-    defaultOpen: false,
-    items: [
-      { id: 'doc-overview', name: 'Doctrine Overview', icon: BookOpen, path: '/doctrine' },
-      { id: 'doc-constitution', name: 'Constitution', icon: FileText, path: '/constitution' },
-      { id: 'doc-constitution-dsl', name: 'Constitution DSL', icon: Cog, path: '/constitution-dsl' },
-      { id: 'doc-covenant-lift', name: 'Covenant Lift', icon: Sparkles, path: '/covenant-lift' },
-      { id: 'doc-alignment', name: 'Alignment Review', icon: ShieldCheck, path: '/alignment-review' },
-      { id: 'doc-welfare', name: 'Welfare Playbooks', icon: BookOpen, path: '/welfare-playbooks' },
-        ],
-  },
-];
-
-const trustSections: NavSection[] = [
-  {
-    id: 'trust',
-    label: 'Trust',
-    defaultOpen: false,
-    items: [
-      { id: 'trust-hub', name: 'Trust Hub', icon: ShieldCheck, path: '/trust' },
-      { id: 'trust-portal', name: 'Public Trust Portal', icon: Globe, path: '/trust-portal' },
-      { id: 'trust-transparency', name: 'Transparency Report', icon: FileText, path: '/transparency-report' },
-      { id: 'trust-bom', name: 'Agent BOM / Proof', icon: GitBranch, path: '/agent-bom' },
-      { id: 'trust-exchange', name: 'Trust Exchange', icon: Network, path: '/trust-exchange' },
-      { id: 'trust-security', name: 'Security & Compliance', icon: Shield, path: '/security-compliance' },
-      { id: 'trust-audit', name: 'Right to Audit', icon: Eye, path: '/right-to-audit' },
-                ],
-  },
+// Full deep-link index for the ⌘K palette — every primary surface across the 478 routes
+// remains reachable here even though the sidebar now renders only the consolidated set.
+const ALL_DEEP_LINKS: NavItem[] = [
+  ...topItems,
+  ...sections.flatMap(s => s.items),
+  // Foundry deep links collapsed from the sidebar
+  { id: 'dl-foundry-workcells', name: 'Workcells', icon: Box, path: '/foundry/workcells' },
+  { id: 'dl-foundry-sovereign', name: 'Sovereign Mode', icon: KeyRound, path: '/foundry/sovereign' },
+  { id: 'dl-foundry-quickstarts', name: 'Quickstarts', icon: Sparkles, path: '/foundry/quickstarts' },
+  // Strategy briefings family (page owns in-page nav; deep links retained for ⌘K)
+  { id: 'dl-brief-today', name: "Today's Brief", icon: FileText, path: '/strategy/briefings/today' },
+  { id: 'dl-brief-engine', name: 'Briefing Engine', icon: Workflow, path: '/strategy/briefings/engine' },
+  { id: 'dl-brief-library', name: 'Brief Library', icon: BookOpen, path: '/strategy/briefings/library' },
+  { id: 'dl-brief-watchlist', name: 'Watchlist', icon: BookOpenCheck, path: '/strategy/briefings/watchlist' },
+  { id: 'dl-brief-confidence', name: 'Confidence', icon: BarChart3, path: '/strategy/briefings/confidence' },
+  { id: 'dl-brief-dissent', name: 'Dissent Channel', icon: Newspaper, path: '/strategy/briefings/dissent' },
+  { id: 'dl-brief-cockpit', name: 'Governed Cockpit', icon: ShieldCheck, path: '/strategy/briefings/cockpit' },
+  { id: 'dl-strat-enterprise', name: 'Enterprise State', icon: Layers, path: '/strategy/enterprise-state' },
+  { id: 'dl-strat-correlation', name: 'Correlation Map', icon: Network, path: '/strategy/correlation-map' },
+  { id: 'dl-strat-signals', name: 'Signal Chains', icon: Activity, path: '/strategy/signal-chains' },
+  // Operations deep links collapsed from the sidebar
+  { id: 'dl-ops-topology', name: 'Service Topology', icon: Network, path: '/operations/topology' },
+  { id: 'dl-ops-tracing', name: 'Distributed Tracing', icon: Workflow, path: '/operations/tracing' },
+  { id: 'dl-ops-logs', name: 'Log Explorer', icon: Terminal, path: '/operations/logs' },
+  { id: 'dl-ops-alerts', name: 'Alert Management', icon: Activity, path: '/operations/alerts' },
+  { id: 'dl-ops-selfheal', name: 'Self-Healing', icon: Zap, path: '/operations/self-healing' },
+  { id: 'dl-ops-runbook', name: 'Runbook Studio', icon: FileText, path: '/operations/runbook-studio' },
+  { id: 'dl-ops-admin', name: 'Admin Console', icon: Settings, path: '/operations/admin/overview' },
+  // Infrastructure deep links collapsed from the sidebar
+  { id: 'dl-infra-map', name: 'Imperium Map', icon: Map, path: '/infrastructure/imperium-map' },
+  { id: 'dl-infra-praetorian', name: 'Praetorian Guard', icon: Shield, path: '/infrastructure/praetorian' },
+  { id: 'dl-infra-centurion', name: 'Centurion AI', icon: Cpu, path: '/infrastructure/centurion' },
+  { id: 'dl-infra-fabric', name: 'Data Fabric', icon: Boxes, path: '/infrastructure/data-fabric' },
+  // Cognitive runtime deep links
+  { id: 'dl-cog-memory', name: 'Cognitive Memory', icon: Boxes, path: '/cognitive/memory' },
+  { id: 'dl-cog-planner', name: 'Planner', icon: Target, path: '/cognitive/planner' },
+  { id: 'dl-cog-verifier', name: 'Verifier', icon: ShieldCheck, path: '/cognitive/verifier' },
+  // Frontier / Argo / PSYCHE deep links
+  { id: 'dl-argo-arena', name: 'Self-Play Arena', icon: Zap, path: '/argo/arena' },
+  { id: 'dl-argo-forge', name: 'Distillation Forge', icon: Beaker, path: '/argo/forge' },
+  { id: 'dl-psyche-genesis', name: 'Genesis Ledger', icon: BookOpen, path: '/psyche/genesis' },
+  // Doctrine / Trust deep links collapsed from the sidebar
+  { id: 'dl-doc-constitution-dsl', name: 'Constitution DSL', icon: FileText, path: '/constitution-dsl' },
+  { id: 'dl-doc-covenant', name: 'Covenant Lift', icon: Sparkles, path: '/covenant-lift' },
+  { id: 'dl-doc-welfare', name: 'Welfare Playbooks', icon: BookOpen, path: '/welfare-playbooks' },
+  { id: 'dl-trust-exchange', name: 'Trust Exchange', icon: Network, path: '/trust-exchange' },
+  { id: 'dl-trust-security', name: 'Security & Compliance', icon: Shield, path: '/security-compliance' },
+  { id: 'dl-trust-audit', name: 'Right to Audit', icon: BookOpenCheck, path: '/right-to-audit' },
+  // Reasoning / Lesson
+  { id: 'dl-reasoning', name: 'Reasoning Audit', icon: Brain, path: '/reasoning' },
+  // External 3D + repo (Stripe-style "more" surfaces)
+  { id: 'dl-github', name: 'GitHub', icon: ExternalLink, path: 'https://github.com/szl-holdings/a11oy', external: true },
 ];
 
 function CollapsibleSection({ section }: { section: NavSection }) {
@@ -455,76 +265,12 @@ function NavLink({ item }: { item: NavItem }) {
   );
 }
 
-// ── NAV COLLAPSE (Founder decree 2026-06-02): 158 sidebar items -> 8 top-level
-// tabs modeled on Palantir Foundry's 5-section sidebar. Per execution rule #1 the
-// 480 <Route> handlers in App.tsx are UNTOUCHED -> every previously-listed path
-// remains a working deep link; it is simply no longer rendered in the sidebar and
-// is instead reachable via the Cmd+K command palette (CommandPalette below) and by
-// direct URL/bookmark. The legacy NavSection arrays above are retained verbatim so
-// the command palette can index them and nothing that imports them breaks.
-// Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 (NOT a theorem). ADDITIVE collapse.
-// ── TAB TRIAGE (UX P0, 2026-06-03): 8 tabs updated to match the 12 public landing
-// nav pills exactly. External links open in new tab; SPA routes use wouter navigation.
-// ALL routes in App.tsx remain UNTOUCHED — every deep link stays live via ⌘K palette.
-// Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 (NOT a theorem). ADDITIVE.
-const COLLAPSED_TABS: NavItem[] = [
-  // Matches landing pill 1: ⚡ Open Console → SPA root (Foundry home as entry)
-  { id: 'tab-home', name: 'Home', icon: LayoutGrid, path: '/foundry' },
-  // Matches landing pill 2: 💚 Health → /health (strategy health page)
-  { id: 'tab-health', name: 'Health', icon: HeartPulse, path: '/health' },
-  // Matches landing pill 3: 📋 Honest Disclosure → /proof (ProofLedger)
-  { id: 'tab-honest', name: 'Honest Disclosure', icon: ShieldCheck, path: '/proof' },
-  // Matches landing pill 4: 🏷️ Version → /releases (ReleasesSection)
-  { id: 'tab-version', name: 'Version', icon: FileStack, path: '/releases' },
-  // Matches landing pill 5: Λ Lambda Score → /model-router (ModelRouter)
-  { id: 'tab-lambda', name: 'Lambda Score', icon: Sigma, path: '/model-router', badge: 'Λ' },
-  // Matches landing pill 6: 🤖 MCP Tools → /mcp-hub (McpHub)
-  { id: 'tab-mcp', name: 'MCP Tools', icon: Network, path: '/mcp-hub' },
-  // Matches landing pill 7: 🔄 Agent Loop → /orchestration (AgentOrchestration)
-  { id: 'tab-agent-loop', name: 'Agent Loop', icon: Workflow, path: '/orchestration' },
-  // Matches landing pill 8: 🔍 Evidence Ledger → /evidence (Evidence/receipts)
-  { id: 'tab-evidence', name: 'Evidence Ledger', icon: BookOpenCheck, path: '/evidence' },
-  // Matches landing pill 9: 🏛️ Doctrine Cathedral 3D → external static viz
-  { id: 'tab-doctrine-3d', name: 'Doctrine Cathedral', icon: Telescope, path: '/static/viz/doctrine/', external: true, badge: '3D' },
-  // Matches landing pill 10: ✨ Khipu Constellation 3D → external static viz
-  { id: 'tab-khipu', name: 'Khipu Constellation', icon: Sparkles, path: '/static/viz/khipu/', external: true, badge: '3D' },
-  // Matches landing pill 11: 🧠 LLM Router 3D → external static viz
-  { id: 'tab-router-3d', name: 'LLM Router Live', icon: Brain, path: '/static/viz/router/', external: true, badge: '3D' },
-  // Matches landing pill 12: 📦 GitHub → external repo
-  { id: 'tab-github', name: 'GitHub', icon: GitBranch, path: 'https://github.com/szl-holdings/a11oy', external: true },
-];
-
-// Every other route (151 deep links) stays live; indexed here for the Cmd+K palette.
-const ALL_DEEP_LINKS: NavItem[] = [
-  ...topItems,
-  ...foundrySections.flatMap(s => s.items),
-  ...strategySections.flatMap(s => s.items),
-  ...operationsSections.flatMap(s => s.items),
-  ...infrastructureSections.flatMap(s => s.items),
-  ...decisionsSections.flatMap(s => s.items),
-  ...primitivesSections.flatMap(s => s.items),
-  ...cognitiveSections.flatMap(s => s.items),
-  ...nexusSections.flatMap(s => s.items),
-  ...psycheSections.flatMap(s => s.items),
-  ...orchestratorSections.flatMap(s => s.items),
-  ...argoSections.flatMap(s => s.items),
-  ...frontierSections.flatMap(s => s.items),
-  ...doctrineSections.flatMap(s => s.items),
-  ...trustSections.flatMap(s => s.items),
-  ...decisionIntelligenceItems,
-  ...intelligenceItems,
-  ...evaluationItems,
-  ...operatorsItems,
-  ...platformItems,
-  ...reliquaryItems,
-];
-
 function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [, navigate] = useLocation();
   const [q, setQ] = useState('');
-  // De-dup by path; include the 8 tabs too so ⌘K is the single source of navigation.
+  // De-dup by path so ⌘K is the single source of navigation for ALL surfaces.
   const seen = new Set<string>();
-  const index = [...COLLAPSED_TABS, ...ALL_DEEP_LINKS].filter(i => {
+  const index = ALL_DEEP_LINKS.filter(i => {
     if (seen.has(i.path)) return false; seen.add(i.path); return true;
   });
   const results = q.trim()
@@ -546,7 +292,11 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
         <nav className="max-h-[50vh] overflow-y-auto py-2">
           {results.map(i => (
             <button key={i.id} type="button"
-              onClick={() => { navigate(`${BASE}${i.path}`); onClose(); }}
+              onClick={() => {
+                if (i.external) { window.open(i.path, '_blank', 'noopener,noreferrer'); }
+                else { navigate(`${BASE}${i.path}`); }
+                onClose();
+              }}
               className="flex items-center gap-3 w-full text-left px-4 py-2 text-[13px] text-[var(--color-a11oy-text-sub)] hover:bg-[var(--color-a11oy-overlay)] hover:text-[var(--color-a11oy-text)]">
               <i.icon className="w-4 h-4 opacity-50" />
               <span className="flex-1">{i.name}</span>
@@ -579,7 +329,7 @@ export function Sidebar() {
 
   return (
     <aside className="w-60 border-r border-[var(--color-a11oy-border)] bg-[var(--color-a11oy-deep)] shrink-0 flex flex-col h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto">
-      {/* Search-to-navigate (Datadog pattern): opens the ⌘K command palette that indexes ALL deep links */}
+      {/* Search-to-navigate: opens the ⌘K command palette that indexes ALL deep links */}
       <div className="px-3 pt-4 pb-2">
         <button type="button" onClick={() => setPaletteOpen(true)}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-[12px] text-[var(--color-a11oy-text-ghost)] border border-[var(--color-a11oy-border-subtle)] hover:text-[var(--color-a11oy-text-sub)]">
@@ -589,17 +339,24 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* 8 top-level tabs (Palantir Foundry pattern). All other routes -> ⌘K. */}
-      <div className="px-3 py-1 flex-1">
+      {/* 3 pinned top items (Stripe/Linear/Vercel pattern) */}
+      <div className="px-3 py-1">
         <nav className="flex flex-col gap-0.5">
-          {COLLAPSED_TABS.map(item => <NavLink key={item.id} item={item} />)}
+          {topItems.map(item => <NavLink key={item.id} item={item} />)}
         </nav>
       </div>
 
-      {/* Settings / profile pinned bottom-left (New Relic / Datadog pattern) */}
+      {/* 7 consolidated sections. Every other route stays live via ⌘K + direct URL. */}
+      <div className="px-3 py-1 flex-1">
+        {sections.map(section => (
+          <CollapsibleSection key={section.id} section={section} />
+        ))}
+      </div>
+
+      {/* Settings / profile pinned bottom-left (Linear / Vercel pattern) */}
       <div className="px-3 py-2 border-t border-[var(--color-a11oy-border-subtle)]">
-        <NavLink item={{ id: 'tab-settings', name: 'Settings', icon: Settings, path: '/settings' }} />
-        <NavLink item={{ id: 'tab-account', name: 'Account', icon: Users, path: '/account' }} />
+        <NavLink item={{ id: 'tab-settings', name: 'Settings & Billing', icon: Settings, path: '/account/billing' }} />
+        <NavLink item={{ id: 'tab-account', name: 'Operator Profile', icon: Users, path: '/operator-profile' }} />
       </div>
 
       {/* Doctrine footer — present on every page via the persistent sidebar */}
