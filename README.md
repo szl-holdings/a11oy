@@ -14,7 +14,7 @@ tags:
   - dsse
   - governance
   - agentic-ai
-  - doctrine-v7
+  - doctrine-v11
   - a11oy
   - execution-fabric
 ecosystem-stage: "operational"
