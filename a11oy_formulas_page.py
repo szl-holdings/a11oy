@@ -29,17 +29,22 @@ LEAN_REPO = "https://github.com/szl-holdings/lutar-lean"
 LEAN_SHA = "c7c0ba17"
 DOCTRINE = {"version": "v11", "counts": "749/14/163", "lambda": "Conjecture 1"}
 
-# Per-formula HTTP method for the live endpoint + a tiny default sample body.
+# Per-formula live endpoint: (method, query-string). The endpoints are mounted at
+# /api/<ns>/v1/formula/<name> (SINGULAR `formula`); the index is the only plural
+# path. All "Try it" buttons use GET with sensible default query params so they
+# return a real computed value (kalman REQUIRES ?z=; quorum/holevo/bloom take
+# optional params). welford/bloom also expose POST mutators, but GET snapshots are
+# the honest, side-effect-free demo.
 _METHOD = {
-    "pacbayes": ("GET", None),
-    "welford": ("POST", {"x": 3.14}),
-    "quorum": ("GET", None),
-    "holevo": ("GET", None),
-    "bloom": ("POST", {"key": "a11oy"}),
-    "kalman": ("GET", None),
-    "bls": ("GET", None),
-    "reidemeister": ("GET", None),
-    "hnsw": ("GET", None),
+    "pacbayes": ("GET", ""),
+    "welford": ("GET", ""),               # GET = running-variance snapshot
+    "quorum": ("GET", "?n=5&f=1"),
+    "holevo": ("GET", "?dim=2&snr=1.0"),
+    "bloom": ("GET", "?key=a11oy"),
+    "kalman": ("GET", "?z=1.0"),         # z is required
+    "bls": ("GET", ""),
+    "reidemeister": ("GET", ""),
+    "hnsw": ("GET", ""),
 }
 
 # Lean file path per formula (relative inside lutar-lean), parsed from _INDEX label.
@@ -75,10 +80,9 @@ def _card(item: dict, ns: str) -> str:
     name = item.get("name", "")
     citation = item.get("citation", "")
     theorem = item.get("lean_theorem", "")
-    method, sample = _METHOD.get(name, ("GET", None))
-    ep = f"/api/{ns}/v1/formulas/{name}"
+    method, qs = _METHOD.get(name, ("GET", ""))
+    ep = f"/api/{ns}/v1/formula/{name}{qs}"
     perm = _lean_permalink(name)
-    sample_js = json.dumps(sample) if sample is not None else "null"
     scaffold = "scaffolding" in theorem.lower() or "conjecture" in theorem.lower()
     badge = ('<span class="badge warn">honest: not a proved theorem</span>'
              if scaffold else '<span class="badge ok">proved</span>')
@@ -89,7 +93,7 @@ def _card(item: dict, ns: str) -> str:
       <p class="lean">∎ <code>{_html.escape(theorem)}</code></p>
       <div class="row">
         <a class="lean-link" href="{_html.escape(perm)}" target="_blank" rel="noopener">Lean permalink ↗</a>
-        <button class="tryit" data-ep="{_html.escape(ep)}" data-method="{method}" data-body='{_html.escape(sample_js)}'>Try it ({method})</button>
+        <button class="tryit" data-ep="{_html.escape(ep)}" data-method="{method}">Try it ({method})</button>
       </div>
       <pre class="out" id="out-{_html.escape(name)}" hidden></pre>
     </article>"""
@@ -149,15 +153,11 @@ document.querySelectorAll('.tryit').forEach(function(btn) {{
   btn.addEventListener('click', async function() {{
     var ep = btn.getAttribute('data-ep');
     var method = btn.getAttribute('data-method') || 'GET';
-    var body = btn.getAttribute('data-body');
-    var name = ep.split('/').pop();
+    var name = ep.split('/').pop().split('?')[0];
     var out = document.getElementById('out-' + name);
     out.hidden = false; out.textContent = 'calling ' + method + ' ' + ep + ' …';
     try {{
       var opts = {{ method: method, headers: {{ 'Accept': 'application/json' }} }};
-      if (method === 'POST' && body && body !== 'null') {{
-        opts.headers['Content-Type'] = 'application/json'; opts.body = body;
-      }}
       var r = await fetch(ep, opts);
       var t = await r.text();
       try {{ out.textContent = '[' + r.status + '] ' + JSON.stringify(JSON.parse(t), null, 2); }}
@@ -191,8 +191,8 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
                 "citation": it.get("citation"),
                 "lean_theorem": it.get("lean_theorem"),
                 "lean_permalink": _lean_permalink(it.get("name", "")),
-                "endpoint": f"/api/{ns}/v1/formulas/{it.get('name')}",
-                "method": _METHOD.get(it.get("name", ""), ("GET", None))[0],
+                "endpoint": f"/api/{ns}/v1/formula/{it.get('name')}{_METHOD.get(it.get('name', ''), ('GET', ''))[1]}",
+                "method": _METHOD.get(it.get("name", ""), ("GET", ""))[0],
             } for it in items],
         })
 
