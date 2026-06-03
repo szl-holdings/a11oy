@@ -32,9 +32,15 @@ references:
   - type: article
     title: "SLSA: Ensuring the Integrity of Software Supply Chains"
     url: "https://slsa.dev/spec/v1.0/levels"
+    authors:
+      - name: "Open Source Security Foundation (OpenSSF)"
   - type: standard
     title: "NDAA Section 889 — Prohibition on Certain Telecommunications"
     url: "https://www.congress.gov/bill/115th-congress/house-bill/5515/text"
+    authors:
+      - name: "United States Congress"
   - type: standard
     title: "EO 14028 — Improving the Nation's Cybersecurity (SBOM mandate)"
     url: "https://www.federalregister.gov/documents/2021/05/17/2021-10460/improving-the-nations-cybersecurity"
+    authors:
+      - name: "United States Government"
