@@ -608,7 +608,7 @@ code{{color:#79c0ff}}
 </style></head><body>
 <header>
 <h1>PURIQ — Agentic Formula Layer · /formulas</h1>
-<div class="sub">Doctrine v12 · 23 FormulaAgents · live self-evaluation + Khipu receipts + honest Lean self-prove · signed Yachay (CTO)</div>
+<div class="sub">Doctrine v11 LOCKED · 23 FormulaAgents · live self-evaluation + Khipu receipts + honest Lean self-prove · signed Yachay (CTO)</div>
 </header>
 <div class="kpis">
 <div class="kpi"><b>{stats['n_agents']}</b>FormulaAgents</div>
