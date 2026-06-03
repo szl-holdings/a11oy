@@ -44,6 +44,38 @@ jobs:
           git rm -r --cached --ignore-unmatch docs/anatomy-linkedin web/public/doctrine-anatomy web/public/agent-anatomy >/dev/null 2>&1 || true
           # Also drop them from the working tree so they are not re-added.
           rm -rf docs/anatomy-linkedin web/public/doctrine-anatomy web/public/agent-anatomy || true
+          # HF Spaces require YAML front-matter (sdk: docker, etc.) at the TOP of
+          # README.md or the Space returns CONFIG_ERROR and never builds the
+          # Dockerfile. GitHub main's README.md has no front-matter, so inject the
+          # canonical Space front-matter and keep GitHub's README body beneath it.
+          # The orphan snapshot replaces the Space README, so this must be present.
+          {
+            printf '%s\n' \
+              '---' \
+              'title: "a11oy — Governance Substrate"' \
+              'emoji: "🔬"' \
+              'colorFrom: indigo' \
+              'colorTo: gray' \
+              'sdk: docker' \
+              'app_port: 7860' \
+              'pinned: true' \
+              'license: apache-2.0' \
+              'short_description: "a11oy — policy + receipt substrate"' \
+              'tags:' \
+              '  - governance' \
+              '  - agentic-ai' \
+              '  - doctrine-v11' \
+              '  - a11oy' \
+              '  - execution-fabric' \
+              '  - apache-2.0' \
+              'ecosystem-stage: "operational"' \
+              '---' \
+              '<!-- HF Space front-matter is REQUIRED (sdk: docker). Injected by the' \
+              '     hf-sync mirror so the Space builds the Dockerfile. Do not remove. -->' \
+              '';
+            cat README.md 2>/dev/null || true;
+          } > /tmp/hf_readme.md
+          mv /tmp/hf_readme.md README.md
           git add -A
           printf '%s\n' \
             'chore(hf-mirror): snapshot of main minus build-irrelevant large binaries' \
