@@ -313,6 +313,37 @@ for _organ_mod, _organ_label in (
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (Formulas → Ecosystem instillation, Opus 4.8, 2026-06-03, Yachay).
+# a11oy is the FRONT DOOR that instills every proven thesis-v22 formula FIRST;
+# the other 4 organs echo a shared subset. a11oy_formula_endpoints.register(app)
+# mounts REAL (no-mock) /api/a11oy/v1/formula/* + /api/a11oy/v1/formulas/index
+# routes that wrap src/a11oy/formulas/*: PAC-Bayes, BLS12-381 aggregate (py_ecc,
+# honest ECDSA fallback if absent), Welford, Byzantine quorum (n>=3f+1), Holevo,
+# Bloom, Kalman, HNSW (amaru-delegate, honest STUB), Reidemeister. Every response
+# carries the HONEST schema {value, citation, lean_theorem}: citation is a real
+# thesis_v22.pdf section, lean_theorem a real Lean declaration/obligation name.
+# Registered EARLY here (before the /api/a11oy/{path:path} Node proxy at the file
+# tail AND the /{full_path:path} SPA catch-all) so these routes resolve LOCALLY
+# and win ordering. The package root /app/src is added to sys.path so
+# `import a11oy.formulas` resolves under WORKDIR /app (per-file COPY in Dockerfile).
+# try/except guarded — a missing optional dep can NEVER take down the SPA + API.
+# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest + L2 attested (public
+# Sigstore + Rekor verified for the a11oy image).
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+try:
+    if "/app/src" not in sys.path and os.path.isdir("/app/src/a11oy"):
+        sys.path.insert(0, "/app/src")
+    import a11oy_formula_endpoints as _a11oy_formulas
+    _a11oy_formulas_status = _a11oy_formulas.register(app, ns="a11oy")
+    print(f"[a11oy] thesis-v22 formulas wired ({_a11oy_formulas_status})", file=sys.stderr)
+except Exception as _formulas_exc:  # additive: never break the Space
+    _a11oy_formulas_status = f"formulas-not-wired:{_formulas_exc!r}"
+    print(f"[a11oy] formula endpoints NOT mounted ({_formulas_exc!r}); SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Load gates manifest at startup
 # ---------------------------------------------------------------------------
 
@@ -1489,17 +1520,44 @@ async def _a11oy_pr_lambda_v2():
 @app.get("/api/a11oy/v1/honest")
 async def _a11oy_pr_honest_v2():
     """Honest doctrine disclosure. Doctrine v11 LOCKED 749/14/163."""
+    # ADDITIVE (Formulas → Ecosystem, 2026-06-03): surface the wired thesis-v22
+    # formulas + HONEST SLSA status. a11oy image (tag uds-v0.2.0) was verified at
+    # SLSA L2 via the GitHub Attestations API + public Sigstore/Rekor inclusion
+    # (Fulcio O=sigstore.dev, Rekor logIndex 1711940457). We report L2 ONLY because
+    # slsa-verifier / public Rekor actually confirm it — never a checklist claim.
+    try:
+        _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
+    except Exception:
+        _wired = []
     return JSONResponse({
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
+        "slsa": "L2 (public-verifiable)",
+        "slsa_evidence": {
+            "level": "L2",
+            "image_tag": "uds-v0.2.0",
+            "image_digest": "sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879",
+            "builder": "GitHub-hosted Actions (slsa.dev/provenance/v1)",
+            "fulcio_issuer": "sigstore.dev (public-good)",
+            "rekor_log_index": 1711940457,
+            "verified_via": "GitHub Attestations API + offline DSSE crypto + live Rekor inclusion (HTTP 200)",
+            "note": "L1 honest baseline always held; L2 reported only because public Sigstore+Rekor actually confirm.",
+        },
+        "formulas_wired": _wired,
+        "formulas_count": len(_wired),
+        "formulas_status": globals().get("_a11oy_formulas_status", "unknown"),
+        "formulas_index": "/api/a11oy/v1/formulas/index",
+        "formulas_provenance": "thesis_v22.pdf §2 + real Lean theorem/obligation per module",
         "honest_disclosures": [
             "Λ remains an unproven conjecture — CAUCHY_ND sorry open",
             "Audit log is in-memory (ring buffer maxlen=200), resets on rebuild",
             "No Iron Bank / FedRAMP / CMMC certification claimed",
             "Section 889 = exactly 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua)",
+            "HNSW formula endpoint is an HONEST amaru-delegate stub (amaru owns retrieval); BLS returns an honest backend-availability flag (real verify only when py_ecc present).",
+            "SLSA L2 is public-verifiable for the a11oy image; killinchu remains L1 (private GitHub Fulcio, no public Rekor entry) — honest ecosystem gap.",
         ],
         "role": "Brand Orchestration / gates",
     })
@@ -1994,13 +2052,41 @@ async def _a11oy_pr_lambda():
 @app.get("/api/a11oy/v1/honest")
 async def _a11oy_pr_honest():
     """Honest doctrine disclosure — parity with sentra/amaru/killinchu/rosie. Doctrine v11."""
+    # ADDITIVE (Formulas → Ecosystem, 2026-06-03): this is the LAST-registered /honest
+    # (it wins ordering), so the formula + SLSA surface lives HERE too. a11oy image
+    # (uds-v0.2.0) was verified public-SLSA-L2 (GitHub Attestations API + public
+    # Sigstore/Rekor inclusion, Fulcio O=sigstore.dev, Rekor logIndex 1711940457).
+    # We report L2 ONLY because public Rekor actually confirms it — never a checklist claim.
+    try:
+        _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
+    except Exception:
+        _wired = []
     return JSONResponse({
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
         "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
         "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "L1 (honest)",
+        "slsa": "L2 (public-verifiable)",
+        "slsa_evidence": {
+            "level": "L2",
+            "image_tag": "uds-v0.2.0",
+            "image_digest": "sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879",
+            "builder": "GitHub-hosted Actions (slsa.dev/provenance/v1)",
+            "fulcio_issuer": "sigstore.dev (public-good)",
+            "rekor_log_index": 1711940457,
+            "verified_via": "GitHub Attestations API + offline DSSE crypto + live Rekor inclusion (HTTP 200)",
+            "ecosystem_gap": "killinchu remains L1 (private GitHub Fulcio, no public Rekor entry) — honest.",
+        },
+        "formulas_wired": _wired,
+        "formulas_count": len(_wired),
+        "formulas_status": globals().get("_a11oy_formulas_status", "unknown"),
+        "formulas_index": "/api/a11oy/v1/formulas/index",
+        "formulas_provenance": "thesis_v22.pdf §2 + real Lean theorem/obligation per module",
+        "formulas_honest_notes": [
+            "HNSW endpoint is an honest amaru-delegate stub (amaru owns retrieval).",
+            "BLS returns an honest backend-availability flag; real aggregate-verify only when py_ecc present.",
+        ],
         "role": "Brand Orchestration / gates",
         "hatun_willay": True,
     })
