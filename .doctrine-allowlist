@@ -8,7 +8,7 @@
 # Lines starting with # are comments.
 #
 # Authority: Founder Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173)
-# Last updated: 2026-05-31
+# Last updated: 2026-06-02
 
 # Doctrine enforcement documentation — enumerates the banned token list by design
 AGENT_DOCTRINE_ENFORCEMENT.md
@@ -41,3 +41,10 @@ YACHAY_SYSTEM_PROMPT.md
 packages/rae1/src/__tests__/adversarial/
 a11oy/
 packages/
+
+# console/assets/ — minified/bundled JS/CSS build artifacts produced by Vite.
+# These files contain third-party library strings (e.g., lucide-react, Radix UI
+# docstrings) that may embed marketing prose from upstream authors. The SPA source
+# is scanned in web/src/**; scanning compiled bundles is redundant and produces
+# false positives from upstream vendor code.
+console/assets/
