@@ -7,7 +7,12 @@
   "claimedGateCount": 35,
   "gapCount": 0,
   "gapNote": "All 35 anchor formula gates now have TypeScript runtime files in packages/policy/src/gates/. 30 gates added in feat/policy-gates-instill-anchor-g1-g35. 4 gates are STAGED-ADVISORY where Lean proof has open sorries.",
-  "stagedAdvisoryGates": ["A7-BekensteinBound", "TH4-LambdaCategoryComposability", "TH_L3-BekensteinSoundness", "LiuHuiPi-axiom"],
+  "stagedAdvisoryGates": [
+    "A7-BekensteinBound",
+    "TH4-LambdaCategoryComposability",
+    "TH_L3-BekensteinSoundness",
+    "LiuHuiPi-axiom"
+  ],
   "testValidationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates.test.ts && npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
   "entries": [
     {
@@ -551,19 +556,22 @@
       "caveat": "Receipt term structure checked; full type-theoretic correspondence is lineage."
     },
     {
-      "id": "RUNTIME-THL1-LAMBDA-UNIQUENESS",
-      "theorem": "lambdaUniqueness",
-      "formula": "LambdaUniqueness",
+      "id": "CONJECTURE-THL1-LAMBDA-UNIQUENESS",
+      "theorem": "lambdaUniquenessConjecture",
+      "formula": "LambdaUniquenessConjecture",
       "lineage": "Lutar/Thesis/TH_V18_12 Lambda uniqueness: only one Lambda satisfies A1-A4",
-      "leanFile": "Lutar/Gate/LambdaUniqueness.lean",
-      "leanStatus": "theorem-with-2-tracked-sorries-in-wider-repo",
-      "runtimeFile": "packages/policy/src/gates/lambdaUniqueness_gate.ts",
+      "leanFile": "Lutar/Uniqueness.lean",
+      "leanStatus": "conjecture-open",
+      "runtimeFile": "packages/policy/src/gates/lambdaUniquenessConjecture_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
-      "stagedAdvisory": false,
-      "caveat": "Gate Lean file has 0 sorries; 2 sorries exist elsewhere in lutar-lean (not in this gate's proof)."
+      "stagedAdvisory": true,
+      "caveat": "CONJECTURE \u2014 NOT a theorem. \u039b uniqueness is Conjecture 1 per Doctrine v11. Gate validates scoring consistency; formal uniqueness is unproven. Gate file renamed to lambdaUniquenessConjecture_gate.ts.",
+      "status": "CONJECTURE",
+      "proven": false,
+      "lambda_statement": "Conjecture 1 (NOT a theorem \u2014 LOCKED by Doctrine v11)"
     },
     {
       "id": "RUNTIME-THL2-LAMBDA-MINMAX-BOUNDS",
