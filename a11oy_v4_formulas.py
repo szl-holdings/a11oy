@@ -623,7 +623,7 @@ _LIVE = {
 _REGISTRY: List[Dict[str, Any]] = [
     # ---- 5 LIVE ----
     {"name": "AdversarialRobustness", "id": "TH8", "leanTheorem": "robustness_preserved_by_composition",
-     "leanFile": "Lutar/Composition/AdversarialRobustness.lean", "leanStatus": "theorem", "axis": "SENTRA",
+     "leanFile": "Lutar/Composition/AdversarialRobustness.lean", "leanStatus": "conjecture-open", "axis": "SENTRA",
      "severity": "enforced", "gates": "Allows pipeline deploy only when composed perturbation ε₂=L₁·L₂·δ ≤ maxEpsilon.",
      "status": "live", "ts": "packages/policy/src/gates/adversarialRobustness_gate.ts",
      "sample": {"lipschitz1": 0.8, "lipschitz2": 0.9, "delta": 0.5}, "config": {"maxEpsilon": 1.0}},
@@ -694,7 +694,7 @@ _REGISTRY: List[Dict[str, Any]] = [
 # DO exist in a11oy; they are exposed below as supplementary ts-only metadata and are
 # NOT counted toward the 35.
 _SUPPLEMENTARY: List[Dict[str, Any]] = [
-    {"name": "LambdaUniqueness", "id": "TH_L1", "leanTheorem": "lambda_uniqueness", "leanFile": "Lutar/Uniqueness.lean", "leanStatus": "theorem", "axis": "YUYAY", "severity": "enforced", "gates": "Λ fixed point uniqueness (2 sorry in wider repo).", "status": "ts-only", "ts": "packages/policy/src/gates/lambdaUniqueness_gate.ts"},
+    {"name": "LambdaUniquenessConjecture", "id": "TH_L1", "leanTheorem": "lambdaUniquenessConjecture", "leanFile": "Lutar/Uniqueness.lean", "leanStatus": "theorem", "axis": "YUYAY", "severity": "enforced", "gates": "Λ fixed point uniqueness (2 sorry in wider repo).", "status": "ts-only", "ts": "packages/policy/src/gates/lambdaUniquenessConjecture_gate.ts", "is_conjecture": True, "proven": False, "lambda_statement": "Conjecture 1 (NOT a theorem — LOCKED)"},
     {"name": "LambdaMinMaxBounds", "id": "TH_L2", "leanTheorem": "lambda_min_max_bounds", "leanFile": "Lutar/Bound.lean", "leanStatus": "theorem", "axis": "YUYAY", "severity": "enforced", "gates": "Λ score min/max bounds (2 sorry in wider repo).", "status": "ts-only", "ts": "packages/policy/src/gates/lambdaMinMaxBounds_gate.ts"},
     {"name": "BekensteinSoundness", "id": "TH_L3", "leanTheorem": "bekenstein_soundness", "leanFile": "Lutar/BekensteinSoundness.lean", "leanStatus": "measured/conjectured", "axis": "SENTRA", "severity": "advisory", "gates": "Advisory (STAGED): Bekenstein soundness.", "status": "ts-only", "ts": "packages/policy/src/gates/bekensteinSoundness_gate.ts"},
     {"name": "RhoClosureProduction", "id": "TH_L4", "leanTheorem": "rho_closure_production", "leanFile": "Lutar/RhoClosureProduction.lean", "leanStatus": "measured", "axis": "AMARU_CORTEX", "severity": "enforced", "gates": "ρ-closure measured in production.", "status": "ts-only", "ts": "packages/policy/src/gates/rhoClosureProduction_gate.ts"},
