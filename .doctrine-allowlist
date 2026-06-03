@@ -10,78 +10,72 @@
 # Authority: Founder Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173)
 # Last updated: 2026-06-02
 
-# Doctrine enforcement documentation — enumerates the banned token list by design
+# Doctrine enforcement documentation — enumerates the full ban-list by design
 AGENT_DOCTRINE_ENFORCEMENT.md
 
 # The grep workflow itself encodes the banned-token regex as data (not prose),
-# but the workflow file is included here as belt-and-suspenders in case a future
-# editor adds prose examples inside it.
+# but the workflow file is included here as belt-and-suspenders.
 .github/workflows/doctrine-grep.yml
 
 # Test fixtures for the doctrine-grep gate (fail/pass samples)
 .github/test-fixtures/doctrine-grep/
 
-# Red-team report — references banned tokens when quoting findings
+# Red-team report — quotes findings that include policy-violating tokens
 szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/RED_TEAM_REPORT.md
 szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/RED_TEAM_FINDINGS.jsonl
 
-# CI hardening report — references banned tokens as evidence/examples
+# CI hardening report — quotes policy-violating tokens as evidence/examples
 szl/audit_2026-05-30_cursor_offline/a11oy_dev_fleet/CI_HARDENING_REPORT.md
 
-# OUROBOROS_RUN_ALL.py — run-all test harness; uses banned tokens in test
-# fixtures to verify lambda_score penalization behavior (pass/fail test cases)
+# OUROBOROS_RUN_ALL.py — run-all test harness; uses policy-violating tokens in
+# test fixtures to verify lambda_score penalization behavior (pass/fail test cases)
 OUROBOROS_RUN_ALL.py
 
 # YACHAY_SYSTEM_PROMPT.md — lists forbidden words by name in the doctrine section
 # as reference for enforcement (the list IS the rule, not a violation)
 YACHAY_SYSTEM_PROMPT.md
 
-# __tests__/adversarial — test fixtures intentionally use banned inputs to verify
-# detection/rejection behavior; doc: Doctrine v7 §1 test harness
+# __tests__/adversarial — test fixtures intentionally use policy-violating inputs
+# to verify detection/rejection behavior; doc: Doctrine v7 §1 test harness
 packages/rae1/src/__tests__/adversarial/
 a11oy/
 packages/
 
 # console/assets/ — minified/bundled JS/CSS build artifacts produced by Vite.
-# These files contain third-party library strings (e.g., lucide-react, Radix UI
-# docstrings) that may embed marketing prose from upstream authors. The SPA source
-# is scanned in web/src/**; scanning compiled bundles is redundant and produces
-# false positives from upstream vendor code.
+# These files contain third-party library strings that may embed marketing prose
+# from upstream authors. The SPA source in web/src/** is already scanned;
+# scanning compiled bundles is redundant and produces false positives.
 console/assets/
 
 # serve.py — module docstring header contains the enforcement ban-list itself
-# ("Banned: Jarvis, Bo11y/Bolly ...") as policy declaration. The list IS the rule.
+# as a policy declaration. The enumerated list IS the rule, not a violation.
 serve.py
 
-# szl_yachay_organ.py — system prompt file lists banned tokens explicitly
+# szl_yachay_organ.py — system prompt file lists policy-forbidden words explicitly
 # as enforcement reference (same pattern as YACHAY_SYSTEM_PROMPT.md).
 szl_yachay_organ.py
 
-# szl_formulas.py — uses "leading N bytes" in cryptographic/technical context
-# (commitment prefix comparison), not marketing prose.
+# szl_formulas.py — uses the word "leading" in a cryptographic/technical context
+# (commitment prefix comparison), not in a marketing context.
 szl_formulas.py
 
 # wayra_snapshot.json — arXiv paper snapshot; abstracts are third-party academic
-# prose quoted verbatim from arXiv. Hits on "premier", "state-of-the-art",
-# "leading" are in academic abstracts, not SZL-authored claims.
+# prose quoted verbatim from arXiv. Hits on superlatives and technical terms
+# are in academic abstracts, not SZL-authored claims.
 wayra_snapshot.json
 
-# web/src/data/ — SPA data files use "leading indicator" in the financial/
-# econometric sense (cap-rate leading indicators, market micro-structure signals).
-# These are technical domain terms, not marketing superlatives.
+# web/src/data/ — SPA data files use financial/econometric domain terms
+# (cap-rate market micro-structure signals). These are technical domain terms,
+# not marketing superlatives. Changelog entries also reference banned terms
+# referentially (documenting additions to the ban-list).
 web/src/data/
 
-# web/src/data/releases.ts — changelog entries document which terms were ADDED
-# to the banned list; mentioning "seamless" in "Added 'seamless' to banned terms"
-# is referential, not a marketing claim.
-web/src/data/releases.ts
-
-# __tests__/adversarial/ — root-level adversarial test suite; test fixtures
-# intentionally reference banned tokens to verify detection/rejection behavior.
-# Distinct from packages/rae1/src/__tests__/adversarial/ (same doctrine rationale).
+# __tests__/adversarial/ and __tests__/compliance/ — root-level adversarial
+# test suite; fixtures intentionally reference policy-forbidden tokens to verify
+# detection/rejection behavior.
 __tests__/adversarial/
 __tests__/compliance/
 
-# a11oy_v4_hickok.py — uses "interrogative-leading" as a POS-tagger technical term
-# (verb/adjective classification), not as marketing prose.
+# a11oy_v4_hickok.py — uses "interrogative-leading" as a POS-tagger technical
+# term (verb/adjective classification), not a marketing expression.
 a11oy_v4_hickok.py
