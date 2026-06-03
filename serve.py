@@ -2136,3 +2136,24 @@ except Exception as _ke:
 # END: SZL Agent Pattern v1 ("Ken") — ADDITIVE BLOCK
 # ============================================================================
 
+
+
+# ============================================================================
+# FRONTIER REGISTRATION — a11oy (2026-06-03T05:00Z)
+# Loads a11oy_frontier_patch.py and inserts routes at position 0.
+# ADDITIVE ONLY. Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17. SLSA L1.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_frontier_patch as _a11oy_ftr
+    _a11oy_ftr_status = _a11oy_ftr.register(app)
+    import sys as _a11oy_ftr_sys
+    print(f"[a11oy-frontier] registered: {_a11oy_ftr_status}", file=_a11oy_ftr_sys.stderr)
+except Exception as _a11oy_ftr_e:
+    import sys as _a11oy_ftr_sys, traceback as _a11oy_ftr_tb
+    print(f"[a11oy-frontier] FAILED: {_a11oy_ftr_e!r}", file=_a11oy_ftr_sys.stderr)
+    _a11oy_ftr_tb.print_exc(file=_a11oy_ftr_sys.stderr)
+# ============================================================================
+# END: FRONTIER REGISTRATION — a11oy
+# ============================================================================
