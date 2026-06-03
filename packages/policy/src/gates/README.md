@@ -90,7 +90,7 @@ Thirty new gates are added here. All 35 are barrel-exported from `index.ts`.
 
 | # | ID | Gate file | Formula | Lean file | Lean status | Severity |
 |---|---|---|---|---|---|---|
-| 32b | TH_L1 | `lambdaUniqueness_gate.ts` | LambdaUniqueness | `Lutar/Uniqueness.lean` | theorem (2 sorry in wider repo) | enforced |
+| 32b | TH_L1 | `lambdaUniquenessConjecture_gate.ts` | LambdaUniquenessConjecture | `Lutar/Uniqueness.lean` | conjecture-open (NOT a theorem — Doctrine v11) | advisory-conjecture |
 | 33b | TH_L2 | `lambdaMinMaxBounds_gate.ts` | LambdaMinMaxBounds | `Lutar/Bound.lean` | theorem (2 sorry in wider repo) | enforced |
 | 34b | TH_L3 | `bekensteinSoundness_gate.ts` | BekensteinSoundness | `Lutar/BekensteinSoundness.lean` | measured/conjectured | **advisory** (STAGED) |
 | 35b | TH_L4 | `rhoClosureProduction_gate.ts` | RhoClosureProduction | `Lutar/RhoClosureProduction.lean` | measured | enforced |
