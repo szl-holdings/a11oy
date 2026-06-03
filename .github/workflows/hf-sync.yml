@@ -1,97 +1,82 @@
 name: Sync to HuggingFace Space
+
+# hf-sync (Yachay, slsa-l2-promotion 2026-06-03): switched from git-push / orphan
+# mirror to huggingface_hub create_commit of README.md only. Prior failures:
+# (1) dangling LFS pointer (oid 28f749cf 404s) broke lfs:true checkout/push;
+# (2) HF pre-receive hook rejected oversized plain-git design blobs in ancestor
+# commits; (3) the upload_folder variant pushed the GitHub README verbatim with
+# NO Space front-matter, which CONFIG_ERROR'd the Space. create_commit of a
+# front-matter-prepended README needs no git history and no LFS, so it avoids all
+# three. Deployed app files already live on the Space and are NOT re-synced here.
+# Front-matter is base64 (FM_B64) so the python here-doc stays fully indented
+# inside the YAML block scalar (the indentation pitfall flagged in sentra).
+
 on:
   push:
     branches: [main]
+    paths:
+      - "README.md"
+      - ".github/workflows/hf-sync.yml"
+  workflow_dispatch: {}
+
 permissions:
   contents: read
+
 jobs:
   sync-to-hub:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 0
-          # lfs disabled: the repo has a dangling LFS pointer (oid 28f749cf 404s on
-          # the LFS server) and NO path is tracked by filter=lfs in .gitattributes,
-          # so `lfs: true` made every checkout fail and the HF sync never ran. The
-          # deployed SPA assets are committed as regular git blobs, not LFS objects.
+          fetch-depth: 1
           lfs: false
-      - name: Push to HuggingFace Space
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install huggingface_hub
+        run: pip install --quiet "huggingface_hub>=0.25"
+      - name: Sync README (front-matter + body) to HuggingFace Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: SZLHOLDINGS/a11oy
+          FM_B64: "dGl0bGU6ICJhMTFveSDigJQgR292ZXJuYW5jZSBTdWJzdHJhdGUiCmVtb2ppOiAi8J+UrCIKY29sb3JGcm9tOiBpbmRpZ28KY29sb3JUbzogZ3JheQpzZGs6IGRvY2tlcgphcHBfcG9ydDogNzg2MApwaW5uZWQ6IHRydWUKbGljZW5zZTogYXBhY2hlLTIuMApzaG9ydF9kZXNjcmlwdGlvbjogImExMW95IOKAlCBwb2xpY3kgKyByZWNlaXB0IHN1YnN0cmF0ZSIKdGFnczoKICAtIGdvdmVybmFuY2UKICAtIGFnZW50aWMtYWkKICAtIGRvY3RyaW5lLXYxMQogIC0gYTExb3kKICAtIGV4ZWN1dGlvbi1mYWJyaWMKICAtIGFwYWNoZS0yLjAKZWNvc3lzdGVtLXN0YWdlOiAib3BlcmF0aW9uYWwi"
         run: |
           set -euo pipefail
-          # Disable git-LFS smudge/transfer for the mirror push: the HF Space repo
-          # carries no LFS objects and the LFS handshake emitted
-          # "fatal: expected acknowledgments" during fetch, leaving main stale.
-          export GIT_LFS_SKIP_SMUDGE=1
-          git config --global filter.lfs.process "git-lfs filter-process --skip"
-          git config --global filter.lfs.smudge "git-lfs smudge --skip -- %f"
-          git config --global user.email "yachay@szlholdings.ai"
-          git config --global user.name "Yachay"
-          # HF's pre-receive hook rejects plain-git binary blobs above its size
-          # threshold (they must live in Xet/LFS). The repo carries large png/jpg
-          # design assets under docs/anatomy-linkedin/ and web/public/*-anatomy/ that
-          # the Dockerfile NEVER COPYs into the image (per-file COPY of console/,
-          # pages/, serve.py, *.py and a few web/*.html only). A normal force-push
-          # still ships those blobs because they live in ANCESTOR commits of the
-          # pushed history, so the hook keeps rejecting them. HF Spaces only need the
-          # current snapshot, not git history -> build a single ORPHAN commit whose
-          # tree is `main` minus the build-irrelevant binaries, with NO ancestors, so
-          # the offending blobs are never part of the push pack. GitHub main is
-          # untouched (mirror hygiene, not a source change).
-          git checkout --orphan hf-mirror
-          git rm -r --cached --ignore-unmatch docs/anatomy-linkedin web/public/doctrine-anatomy web/public/agent-anatomy >/dev/null 2>&1 || true
-          # Also drop them from the working tree so they are not re-added.
-          rm -rf docs/anatomy-linkedin web/public/doctrine-anatomy web/public/agent-anatomy || true
-          # HF Spaces require YAML front-matter (sdk: docker, etc.) at the TOP of
-          # README.md or the Space returns CONFIG_ERROR and never builds the
-          # Dockerfile. GitHub main's README.md has no front-matter, so inject the
-          # canonical Space front-matter and keep GitHub's README body beneath it.
-          # The orphan snapshot replaces the Space README, so this must be present.
-          {
-            printf '%s\n' \
-              '---' \
-              'title: "a11oy — Governance Substrate"' \
-              'emoji: "🔬"' \
-              'colorFrom: indigo' \
-              'colorTo: gray' \
-              'sdk: docker' \
-              'app_port: 7860' \
-              'pinned: true' \
-              'license: apache-2.0' \
-              'short_description: "a11oy — policy + receipt substrate"' \
-              'tags:' \
-              '  - governance' \
-              '  - agentic-ai' \
-              '  - doctrine-v11' \
-              '  - a11oy' \
-              '  - execution-fabric' \
-              '  - apache-2.0' \
-              'ecosystem-stage: "operational"' \
-              '---' \
-              '<!-- HF Space front-matter is REQUIRED (sdk: docker). Injected by the' \
-              '     hf-sync mirror so the Space builds the Dockerfile. Do not remove. -->' \
-              '';
-            cat README.md 2>/dev/null || true;
-          } > /tmp/hf_readme.md
-          mv /tmp/hf_readme.md README.md
-          git add -A
-          printf '%s\n' \
-            'chore(hf-mirror): snapshot of main minus build-irrelevant large binaries' \
-            '' \
-            'Single orphan commit (no history) mirroring GitHub main for the HF Space.' \
-            'The Dockerfile uses per-file COPY and never copies docs/ or web/public/,' \
-            'so these design PNG/JPG assets are not needed by the deployed Space and HF' \
-            'rejects them as oversized plain-git blobs. Orphan ensures the offending' \
-            'blobs are absent from the push pack entirely. GitHub main is unchanged.' \
-            '' \
-            'Signed-off-by: Yachay <yachay@szlholdings.ai>' \
-            'Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>' \
-            > /tmp/hf_mirror_msg.txt
-          git commit -F /tmp/hf_mirror_msg.txt --no-verify >/dev/null
-          git remote add space "https://oauth2:$HF_TOKEN@huggingface.co/spaces/SZLHOLDINGS/${{ github.event.repository.name }}"
-          # Force-push the single orphan snapshot onto the Space's main. The Space
-          # main had diverged and carried the oversized blobs; replacing its history
-          # with this clean snapshot keeps the deployed bundle in lockstep with main.
-          git push --force space hf-mirror:main
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN secret is not set on this repo — cannot push to the HuggingFace Space."
+            echo "::error::Founder action required: add repo secret HF_TOKEN (HF write token with org write to SZLHOLDINGS)."
+            exit 1
+          fi
+          python3 <<'PYEOF'
+          import os, base64
+          from huggingface_hub import HfApi, CommitOperationAdd
+
+          fm = base64.b64decode(os.environ["FM_B64"]).decode("utf-8")
+          front_matter = "---\n" + fm + "\n---\n"
+
+          with open("README.md", "r", encoding="utf-8") as fh:
+              body = fh.read()
+          # Strip any existing front-matter so we never double-stack a header.
+          if body.startswith("---"):
+              segs = body.split("\n---", 2)
+              if len(segs) >= 2:
+                  body = segs[-1].lstrip("\n")
+
+          note = ("<!-- HF Space front-matter is REQUIRED (sdk: docker). Injected by "
+                  "hf-sync\n     so the Space builds the Dockerfile. Do not remove. -->\n\n")
+          card = front_matter + note + body
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["SPACE_ID"]
+          commit = api.create_commit(
+              repo_id=space,
+              repo_type="space",
+              operations=[CommitOperationAdd(path_in_repo="README.md",
+                                             path_or_fileobj=card.encode("utf-8"))],
+              commit_message="docs(slsa): sync Space card with GitHub README (SLSA L1 + L2 attested)",
+              commit_description=("Automated README sync from szl-holdings/a11oy main via hf-sync.\n\n"
+                                  "Signed-off-by: Yachay <yachay@szlholdings.ai>\n"
+                                  "Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>"),
+          )
+          print("HF commit:", commit.oid, "->", space)
+          PYEOF
