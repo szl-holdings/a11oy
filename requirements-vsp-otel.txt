@@ -1,0 +1,5 @@
+# Verifiable Span Provenance via OpenTelemetry — operational mesh tracing layer.
+# Repo: https://github.com/szl-holdings/vsp-otel
+# Wired in serve.py via: vsp_otel.middleware.install(app)
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1. ADDITIVE ONLY.
+vsp-otel>=0.1

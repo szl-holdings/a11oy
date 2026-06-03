@@ -81,6 +81,23 @@ except Exception as _otel_e:
     import sys as _otel_sys; print(f"[a11oy] OTel setup skipped: {_otel_e!r}", file=_otel_sys.stderr)
 # --- end OTel setup ---
 
+# ── ADDITIVE: vsp-otel — Verifiable Span Provenance (Yachay; Perplexity Computer Agent) ──
+# Adopts the szl-holdings/vsp-otel operational layer: real OTLP/gRPC export to the
+# OTel Collector + DSSE/Khipu span binding (szl.mesh.receipt_hash on every span).
+# Fail-safe: install() degrades to an HONEST no-op if vsp_otel / the OTel SDK are
+# absent, and returns a status object describing exactly what was wired. Set
+# OTEL_EXPORTER_OTLP_ENDPOINT to point organs at the collector.
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1. ADDITIVE ONLY.
+try:
+    import vsp_otel.middleware as _vsp_otel
+    _vsp_status = _vsp_otel.install(app)
+    import sys as _vsp_sys
+    print(f"[a11oy] vsp-otel VSP installed: {_vsp_status.note}", file=_vsp_sys.stderr)
+except Exception as _vsp_e:
+    import sys as _vsp_sys
+    print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
+# --- end vsp-otel VSP ---
+
 
 # ── Live 3D Wires (PURIQ / Doctrine v12) — ADDITIVE, re-pinned FIRST ─────────
 # Registered immediately after the app is constructed so FastAPI's ordered route
