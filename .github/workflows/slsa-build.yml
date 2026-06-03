@@ -1,14 +1,14 @@
-name: SLSA L2 Build Provenance
+name: SLSA L1 Build Provenance (signed)
 
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 # Doctrine v11 LOCKED 749/14/163 · sovereign-default
 #
-# SLSA Build L2 upgrade: generate SIGNED build provenance on a hosted GitHub
-# Actions builder (not a workstation) for every release tag, using the official
+# SLSA L1 honest: generate signed build provenance on a hosted GitHub
+# Actions builder for every release tag, using the official
 # slsa-framework/slsa-github-generator reusable workflow. The provenance
 # attestation is signed via Sigstore (Fulcio keyless + Rekor) and attached to
-# the release. This moves the honest claim from "SLSA L1" to "SLSA L2".
+# the release. SZL claims SLSA L1 (honest); L2 requires isolated builder not yet configured.
 # Concepts only — no third-party logos or trademarks.
 
 on:
