@@ -45,7 +45,7 @@ formula_gates_30/
 │   ├── receiptChainConfluence_gate.ts    (TH5)
 │   ├── bekensteinEntropyDpi_gate.ts      (TH6)
 │   ├── curryHowardReceiptCalculus_gate.ts (TH7)
-│   ├── lambdaUniqueness_gate.ts          (TH_L1)
+│   ├── lambdaUniquenessConjecture_gate.ts (TH_L1 — CONJECTURE, NOT theorem)
 │   ├── lambdaMinMaxBounds_gate.ts        (TH_L2)
 │   ├── bekensteinSoundness_gate.ts       (TH_L3 — STAGED)
 │   ├── rhoClosureProduction_gate.ts      (TH_L4)
