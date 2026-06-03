@@ -43,6 +43,9 @@ RUN pip install --no-cache-dir \
     "python-multipart>=0.0.9" \
     "cryptography>=42.0.0" \
     "lmdb>=1.4.0"
+# BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
+RUN pip install --no-cache-dir "slowapi>=0.1.9"
+
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
 # to cosine similarity if the sqlite-vss .so cannot load. (P0 CI fix, Dev1 Rumi)
@@ -111,6 +114,9 @@ COPY szl_dsse.py ./szl_dsse.py
 COPY szl_provenance.py ./szl_provenance.py
 
 ENV PORT=7860
+# BE hardening (Greene) — per-file COPY (this Dockerfile uses per-file COPY).
+COPY szl_be_hardening.py ./szl_be_hardening.py
+
 EXPOSE 7860
 
 # ADDITIVE (UNAY + Khipu-LMDB v2, 2026-06-01, Yachay / Perplexity Computer Agent):

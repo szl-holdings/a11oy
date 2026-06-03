@@ -74,6 +74,25 @@ except ImportError:
 
 app = FastAPI(title="a11oy — Brand Orchestration Layer", version="2.0.0")
 
+# ── BE hardening (Greene) — szl_be_hardening ──
+# Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
+# /api/a11oy/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
+# (trace/span id), uniform error envelopes, durable SQLite Khipu store, /honest
+# footer (v11 LOCKED 749/14/163 @ c7c0ba17, Λ = Conjecture 1). try/except-guarded:
+# can NEVER crash the host app. Per-file Dockerfile COPY adds szl_be_hardening.py.
+try:
+    import szl_be_hardening as _be_harden
+    _be_report = _be_harden.harden(app, organ="a11oy")
+    import sys as _be_sys
+    print(f"[a11oy] BE hardening registered: {_be_report.get('registered')} "
+          f"khipu={_be_report.get('khipu_backend')}", file=_be_sys.stderr)
+except Exception as _be_e:
+    import sys as _be_sys, traceback as _be_tb
+    print(f"[a11oy] BE hardening NOT registered: {_be_e!r}", file=_be_sys.stderr)
+    _be_tb.print_exc()
+# ── BE hardening (Greene) — szl_be_hardening ── end
+
+
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
     from vsp_otel.middleware import install as install_vsp; install_vsp(app)
