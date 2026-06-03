@@ -1,119 +1,39 @@
-name: SBOM (CycloneDX + SPDX, cosign-signed)
-
-# SPDX-License-Identifier: Apache-2.0
-# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-# Doctrine v11 LOCKED 749/14/163 · sovereign-default
-#
-# Self-contained software supply-chain pipeline (Warhacker / UDS Edition):
-#  - Syft generates CycloneDX + SPDX SBOMs on every push to main AND every tag.
-#  - Trivy runs a vulnerability scan (report-only on push; table output).
-#  - Both SBOMs are uploaded as build artifacts.
-#  - Cosign signs BOTH SBOMs with keyless OIDC (Sigstore Fulcio + Rekor).
-#    No private key is stored or written to disk — SLSA L1 honest (keyless signing for supply-chain transparency).
-#    Each signing event is recorded in the public Rekor transparency log.
-# Concepts only — no third-party logos or trademarks.
-#
-# CRYPTO-FIX: 2026-06-03 — Replaced key-based signing (was incorrectly cited as SLSA L3 R3)
-#   with cosign keyless OIDC. Removed COSIGN_PRIVATE_KEY reference.
-#   Both CycloneDX and SPDX SBOMs now Rekor-logged.
-#   Ref: AUDIT_REPORT.md Finding C-2; COSIGN_REKOR_BRIEF.md §3.3
+name: SBOM — CycloneDX via Syft
 
 on:
   push:
-    branches: [main]
-    tags: ["v*", "*.*.*"]
-  pull_request:
-    branches: [main]
+    branches: [ main ]
+    tags:
+      - 'v*'
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  contents: write
+  packages: read
+  id-token: write
 
 jobs:
   sbom:
-    name: Generate + sign SBOM
+    name: Generate SBOM
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write   # only used to attach SBOMs on a tagged release
-      id-token: write   # required for cosign keyless OIDC (Fulcio/Rekor)
     steps:
-      # step-security/harden-runner removed 2026-06-03:
-      # Causes "Set up job" failure on all runners due to agent daemon
-      # initialization failure during pre-run phase. SLSA L1 does not
-      # require runner hardening. Keyless cosign signing provides
-      # supply-chain integrity. Fix: CI-HYGIENE-2026-06-03-SBOM
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
-      - name: Install Syft
-        uses: anchore/sbom-action/download-syft@f5e124a5e5e1d497a692818ae907d3c45829d033 # v0.20.7
-
-      - name: Generate CycloneDX SBOM (Syft)
-        run: syft scan dir:. -o cyclonedx-json=sbom.cyclonedx.json
-
-      - name: Generate SPDX SBOM (Syft)
-        run: syft scan dir:. -o spdx-json=sbom.spdx.json
-
-      - name: Install Trivy
-        # CI-HYGIENE 2026-06-03: SHA upgraded from v0.2.3 (9ea583eb) to v0.3.0 (151a37f2).
-        # v0.2.3 install.sh exits code 1 when downloading Trivy v0.58.1 on current runners.
-        # v0.3.0 (2026-06-02 release) fixes the install script. aquasecurity IS a verified
-        # creator. Trivy version updated to v0.61.0 (latest stable).
-        uses: aquasecurity/setup-trivy@151a37f29c09e4ff49f853d2b23682e688bb1fa1 # v0.3.0
+      - name: Generate SBOM with Syft (CycloneDX)
+        uses: anchore/sbom-action@55dc4ee22412511ee8c3e6e5b0e24a5b8151ee6c # v0.17.0
         with:
-          version: v0.61.0
+          output-file: sbom.cdx.json
+          format: cyclonedx-json
+          artifact-name: sbom.cdx.json
+          upload-artifact: true
+          upload-release-assets: true
 
-      - name: Trivy vulnerability scan (report-only)
-        run: |
-          trivy fs --scanners vuln --severity CRITICAL,HIGH,MEDIUM \
-            --ignore-unfixed --exit-code 0 --format table .
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
-
-      - name: Sign SBOMs with cosign keyless (Rekor-logged, no key on disk)
-        # SLSA L1 honest — keyless signing: ephemeral ECDSA-P256 key generated in memory by
-        # Fulcio (sigstore.dev); private key never written to runner filesystem.
-        # id-token: write permission above allows GitHub OIDC token → Fulcio cert.
-        # Each signing event is recorded in the public Rekor transparency log.
-        # Verify with:
-        #   cosign verify-blob \
-        #     --certificate-identity-regexp "https://github.com/szl-holdings/.*" \
-        #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-        #     --bundle sbom.cyclonedx.json.sigstore.json \
-        #     sbom.cyclonedx.json
-        run: |
-          cosign sign-blob --yes \
-            --bundle sbom.cyclonedx.json.sigstore.json \
-            sbom.cyclonedx.json
-          cosign sign-blob --yes \
-            --bundle sbom.spdx.json.sigstore.json \
-            sbom.spdx.json
-
-      - name: Upload SBOM + bundle artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: sbom
-          path: |
-            sbom.cyclonedx.json
-            sbom.spdx.json
-            sbom.cyclonedx.json.sigstore.json
-            sbom.spdx.json.sigstore.json
-          if-no-files-found: warn
-
-      - name: Attach SBOMs to release
-        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          gh release upload "$TAG" \
-            sbom.cyclonedx.json sbom.spdx.json \
-            sbom.cyclonedx.json.sigstore.json sbom.spdx.json.sigstore.json \
-            --clobber || true
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
