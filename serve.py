@@ -1061,6 +1061,16 @@ try:
 except Exception as _ue:  # pragma: no cover - defensive, additive-only
     print(f"[szl_unay] UNAY+Khipu-LMDB v2 NOT mounted ({_ue!r}); existing routes unaffected", file=sys.stderr)
 
+# Alloy Embedding Fabric surface (ADDITIVE). Surfaces apps/alloy-embedding-api +
+# aef-* packages (RRF hybrid search, recall@k/nDCG/MRR) from platform@main.
+# Mobile-first; DEFENSIVE — never crash the app.
+try:
+    import szl_alloy_embed_fabric as _aef
+    _aef_info = _aef.register(app, ns="a11oy")
+    print(f"[a11oy] szl_alloy_embed_fabric registered: {_aef_info.get('routes')}", file=sys.stderr)
+except Exception as _aef_e:  # pragma: no cover
+    print(f"[a11oy] szl_alloy_embed_fabric NOT registered ({_aef_e!r}); existing routes unaffected", file=sys.stderr)
+
 
 # ===========================================================================
 # a11oy OBSERVABILITY (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
