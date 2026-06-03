@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
+# Authored by A11oy Full-Stack Team (closeout). Co-Authored-By: Perplexity Computer Agent.
+"""a11oy_formulas_page — ADDITIVE Formulas section for the SPA navigation.
+
+Renders GET /formulas/wired : a premium (Inca-palette) page that lists EACH live
+formula from a11oy_formula_endpoints._INDEX with:
+  * its thesis citation (thesis_v22.pdf §2),
+  * a Lean permalink (github.com/szl-holdings/lutar-lean @ locked SHA c7c0ba17),
+  * a "Try it" button that calls the LIVE per-formula endpoint and shows the JSON.
+
+Honesty: the page reads the SAME _INDEX the JSON API serves (no duplicate list).
+The "Try it" buttons hit the real /api/a11oy/v1/formulas/<name> endpoints; if an
+endpoint is not GET-able (e.g. welford/bloom are POST), the button is labelled
+accordingly. Reidemeister is shown as v15 scaffolding (not a proved theorem) and
+Quorum carries its honest "Conjecture 2" label. Doctrine v11 LOCKED 749/14/163,
+Λ = Conjecture 1 — UNCHANGED. Registered BEFORE the SPA catch-all. try/except in
+serve.py guarantees a missing dep can never take down the Space.
+"""
+from __future__ import annotations
+
+import json
+import html as _html
+
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, JSONResponse
+
+LEAN_REPO = "https://github.com/szl-holdings/lutar-lean"
+LEAN_SHA = "c7c0ba17"
+DOCTRINE = {"version": "v11", "counts": "749/14/163", "lambda": "Conjecture 1"}
+
+# Per-formula HTTP method for the live endpoint + a tiny default sample body.
+_METHOD = {
+    "pacbayes": ("GET", None),
+    "welford": ("POST", {"x": 3.14}),
+    "quorum": ("GET", None),
+    "holevo": ("GET", None),
+    "bloom": ("POST", {"key": "a11oy"}),
+    "kalman": ("GET", None),
+    "bls": ("GET", None),
+    "reidemeister": ("GET", None),
+    "hnsw": ("GET", None),
+}
+
+# Lean file path per formula (relative inside lutar-lean), parsed from _INDEX label.
+_LEAN_PATH = {
+    "pacbayes": "Lutar/PACBayes.lean",
+    "welford": "Lutar/FrontierWelfordVariance.lean",
+    "quorum": "Lutar/KhipuConsensus.lean",
+    "holevo": "Lutar/QuantumHolevoReceipt.lean",
+    "bloom": "Lutar/FrontierBloomCacheBypass.lean",
+    "kalman": "Lutar/FrontierKalmanGain.lean",
+    "bls": "Lutar/FrontierBLSAggregation.lean",
+    "reidemeister": "Lutar/KnotCalculus.lean",
+    "hnsw": "Lutar/FrontierHNSWNavigability.lean",
+}
+
+
+def _index() -> list[dict]:
+    try:
+        import a11oy_formula_endpoints as _fe
+        return list(_fe._INDEX)
+    except Exception:
+        return []
+
+
+def _lean_permalink(name: str) -> str:
+    path = _LEAN_PATH.get(name, "")
+    if not path:
+        return LEAN_REPO
+    return f"{LEAN_REPO}/blob/{LEAN_SHA}/{path}"
+
+
+def _card(item: dict, ns: str) -> str:
+    name = item.get("name", "")
+    citation = item.get("citation", "")
+    theorem = item.get("lean_theorem", "")
+    method, sample = _METHOD.get(name, ("GET", None))
+    ep = f"/api/{ns}/v1/formulas/{name}"
+    perm = _lean_permalink(name)
+    sample_js = json.dumps(sample) if sample is not None else "null"
+    scaffold = "scaffolding" in theorem.lower() or "conjecture" in theorem.lower()
+    badge = ('<span class="badge warn">honest: not a proved theorem</span>'
+             if scaffold else '<span class="badge ok">proved</span>')
+    return f"""
+    <article class="fcard" id="f-{_html.escape(name)}">
+      <header><h3>{_html.escape(name)}</h3>{badge}</header>
+      <p class="cite">📄 {_html.escape(citation)}</p>
+      <p class="lean">∎ <code>{_html.escape(theorem)}</code></p>
+      <div class="row">
+        <a class="lean-link" href="{_html.escape(perm)}" target="_blank" rel="noopener">Lean permalink ↗</a>
+        <button class="tryit" data-ep="{_html.escape(ep)}" data-method="{method}" data-body='{_html.escape(sample_js)}'>Try it ({method})</button>
+      </div>
+      <pre class="out" id="out-{_html.escape(name)}" hidden></pre>
+    </article>"""
+
+
+def _page_html(ns: str) -> str:
+    items = _index()
+    cards = "\n".join(_card(it, ns) for it in items)
+    n = len(items)
+    return f"""<!doctype html>
+<html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>A11oy — Formulas ({n} live)</title>
+<style>
+  :root {{ --bg:#0a0f1e; --panel:#111a2e; --ink:#e8eef7; --muted:#8aa0bd;
+           --indigo:#4d8fcc; --terra:#c8643c; --gold:#d8a23c; --ok:#3fae7a; --warn:#c8893c; }}
+  * {{ box-sizing:border-box; }}
+  body {{ margin:0; font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;
+          background:radial-gradient(1200px 600px at 70% -10%, #16223c, var(--bg)); color:var(--ink); }}
+  .wrap {{ max-width:1100px; margin:0 auto; padding:2.5rem 1.25rem 4rem; }}
+  .plaque {{ font-family:ui-monospace,monospace; font-size:.72rem; letter-spacing:.12em;
+             color:var(--muted); text-transform:uppercase; }}
+  .plaque b {{ color:var(--gold); }}
+  h1 {{ font-size:clamp(1.8rem,4vw,2.8rem); margin:.4rem 0 0; }}
+  h1 .accent {{ color:var(--terra); }}
+  .sub {{ color:var(--muted); max-width:60ch; line-height:1.55; }}
+  .grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:1rem; margin-top:1.75rem; }}
+  .fcard {{ background:var(--panel); border:1px solid #21304d; border-radius:12px; padding:1.1rem 1.15rem;
+            box-shadow:0 1px 0 rgba(255,255,255,.03), 0 18px 40px -28px #000; }}
+  .fcard header {{ display:flex; align-items:center; justify-content:space-between; gap:.5rem; }}
+  .fcard h3 {{ margin:0; font-family:ui-monospace,monospace; color:var(--indigo); font-size:1.05rem; }}
+  .badge {{ font-size:.62rem; padding:.18rem .5rem; border-radius:999px; letter-spacing:.06em; text-transform:uppercase; }}
+  .badge.ok {{ background:rgba(63,174,122,.16); color:var(--ok); border:1px solid rgba(63,174,122,.4); }}
+  .badge.warn {{ background:rgba(200,137,60,.16); color:var(--warn); border:1px solid rgba(200,137,60,.4); }}
+  .cite {{ color:var(--muted); font-size:.82rem; margin:.65rem 0 .25rem; }}
+  .lean code {{ color:var(--gold); font-size:.78rem; word-break:break-word; }}
+  .row {{ display:flex; gap:.6rem; align-items:center; margin-top:.85rem; flex-wrap:wrap; }}
+  .lean-link {{ color:var(--indigo); text-decoration:none; font-size:.8rem; border-bottom:1px dotted; }}
+  .tryit {{ background:var(--terra); color:#0a0f1e; border:0; border-radius:8px; padding:.45rem .8rem;
+            font-weight:700; cursor:pointer; font-size:.8rem; }}
+  .tryit:hover {{ filter:brightness(1.08); }}
+  .out {{ background:#070c17; border:1px solid #1a2742; border-radius:8px; padding:.6rem .7rem; margin-top:.7rem;
+          font-size:.72rem; color:#bcd; overflow:auto; max-height:220px; white-space:pre-wrap; }}
+  a.back {{ color:var(--muted); text-decoration:none; font-size:.85rem; }}
+</style></head>
+<body>
+  <main class="wrap" id="main">
+    <div class="plaque">SZL HOLDINGS / A11OY / DOCTRINE <b>V11 · LOCKED</b> / 749·14·163 / Λ = CONJECTURE 1</div>
+    <h1>The <span class="accent">formulas</span> are live.</h1>
+    <p class="sub">{n} thesis-v22 formulas wired to real, no-mock endpoints. Each card cites
+       its source and links the exact Lean declaration at the locked SHA {LEAN_SHA}. "Try it"
+       calls the live endpoint and shows the raw signed JSON. <a class="back" href="/">← back to console</a></p>
+    <section class="grid">{cards}</section>
+  </main>
+<script>
+document.querySelectorAll('.tryit').forEach(function(btn) {{
+  btn.addEventListener('click', async function() {{
+    var ep = btn.getAttribute('data-ep');
+    var method = btn.getAttribute('data-method') || 'GET';
+    var body = btn.getAttribute('data-body');
+    var name = ep.split('/').pop();
+    var out = document.getElementById('out-' + name);
+    out.hidden = false; out.textContent = 'calling ' + method + ' ' + ep + ' …';
+    try {{
+      var opts = {{ method: method, headers: {{ 'Accept': 'application/json' }} }};
+      if (method === 'POST' && body && body !== 'null') {{
+        opts.headers['Content-Type'] = 'application/json'; opts.body = body;
+      }}
+      var r = await fetch(ep, opts);
+      var t = await r.text();
+      try {{ out.textContent = '[' + r.status + '] ' + JSON.stringify(JSON.parse(t), null, 2); }}
+      catch (e) {{ out.textContent = '[' + r.status + '] ' + t.slice(0, 800); }}
+    }} catch (e) {{ out.textContent = 'error: ' + e; }}
+  }});
+}});
+</script>
+</body></html>"""
+
+
+def register(app: FastAPI, ns: str = "a11oy") -> str:
+    """Mount GET /formulas/wired (HTML) + GET /api/<ns>/v1/formulas/page-manifest (JSON).
+    ADDITIVE — registered before the SPA catch-all; touches no existing route."""
+
+    @app.get("/formulas/wired", include_in_schema=False)
+    async def formulas_wired_page() -> HTMLResponse:  # noqa: ANN202
+        return HTMLResponse(_page_html(ns))
+
+    @app.get(f"/api/{ns}/v1/formulas/page-manifest", include_in_schema=False)
+    async def formulas_page_manifest() -> JSONResponse:  # noqa: ANN202
+        items = _index()
+        return JSONResponse({
+            "section": "Formulas",
+            "count": len(items),
+            "doctrine": DOCTRINE,
+            "lean_repo": LEAN_REPO,
+            "lean_sha": LEAN_SHA,
+            "formulas": [{
+                "name": it.get("name"),
+                "citation": it.get("citation"),
+                "lean_theorem": it.get("lean_theorem"),
+                "lean_permalink": _lean_permalink(it.get("name", "")),
+                "endpoint": f"/api/{ns}/v1/formulas/{it.get('name')}",
+                "method": _METHOD.get(it.get("name", ""), ("GET", None))[0],
+            } for it in items],
+        })
+
+    return f"formulas-page mounted: GET /formulas/wired + page-manifest ({len(_index())} formulas)"

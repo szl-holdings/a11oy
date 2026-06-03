@@ -221,6 +221,12 @@ COPY src/a11oy/formulas/kalman.py ./src/a11oy/formulas/kalman.py
 COPY src/a11oy/formulas/hnsw_retrieval.py ./src/a11oy/formulas/hnsw_retrieval.py
 COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
 COPY a11oy_formula_endpoints.py ./a11oy_formula_endpoints.py
+# ADDITIVE (Formulas SECTION page — closeout): serve.py imports a11oy_formulas_page
+# and calls .register(app) BEFORE the SPA catch-all, mounting GET /formulas/wired
+# (premium Inca-palette list of every live formula + thesis citation + Lean permalink
+# + "Try it") and GET /api/a11oy/v1/formulas/page-manifest. Per-file COPY (never
+# `COPY . .`); without it the import fails and the route falls through to the SPA.
+COPY a11oy_formulas_page.py ./a11oy_formulas_page.py
 
 CMD ["python", "serve.py"]
 
