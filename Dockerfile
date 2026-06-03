@@ -47,13 +47,15 @@ RUN pip install --no-cache-dir \
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
 # to cosine similarity if the sqlite-vss .so cannot load. (P0 CI fix, Dev1 Rumi)
 
-# Clone a11oy source for the serve runtime (receipt-substrate + policy gates only)
-RUN git clone --depth=1 --filter=blob:none --sparse \
-    https://github.com/szl-holdings/a11oy.git /app/a11oy-src && \
-    cd /app/a11oy-src && \
-    git sparse-checkout set \
-        packages/receipt-substrate/src \
-        packages/policy/src/gates
+# a11oy source for the serve runtime (receipt-substrate + policy gates only).
+# FIX (2026-06-03, HF Verification Squad): the previous `git clone` of the PRIVATE
+# github.com/szl-holdings/a11oy repo failed in the HF build sandbox (no GitHub creds)
+# with exit code 128, leaving the Space stuck in BUILD_ERROR. The required source is
+# already vendored in THIS Space repo under packages/, so we COPY it locally to the
+# exact path serve.py expects (/app/a11oy-src/packages/...). No network, no auth.
+# Doctrine v11 LOCKED 749/14/163. ADDITIVE-equivalent: same files, same runtime path.
+COPY packages/receipt-substrate/src /app/a11oy-src/packages/receipt-substrate/src
+COPY packages/policy/src/gates /app/a11oy-src/packages/policy/src/gates
 
 # Copy the pre-built SPA (Brand Orchestration Layer) to the static root.
 # index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
@@ -199,3 +201,6 @@ COPY a11oy_formula_endpoints.py ./a11oy_formula_endpoints.py
 
 CMD ["python", "serve.py"]
 
+
+# Build cache-bust 2026-06-03T18:37Z (HF Real Verify Squad): force fresh build after
+# adding web/v4_fleet_panel.html so the 38-tab consolidated SPA bundle finally deploys.
