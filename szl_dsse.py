@@ -72,10 +72,28 @@ def pae(payload_type: str, body: bytes) -> bytes:
 # Key loading (private = runtime secret; public = embedded)
 # ---------------------------------------------------------------------------
 
+# Runtime secret env var names, in resolution order. The canonical name is
+# SZL_COSIGN_PRIVATE_KEY_PEM (Kubernetes secretKeyRef + GitHub org secret); the
+# established SZL_COSIGN_PRIVATE_PEM is kept as a backward-compatible fallback.
+# NEITHER is ever committed — both are runtime-only secrets.
+PRIVATE_KEY_ENV_VARS = ("SZL_COSIGN_PRIVATE_KEY_PEM", "SZL_COSIGN_PRIVATE_PEM")
+
+
 def _load_private_key():
-    """Load the Cosign EC private key from the SZL_COSIGN_PRIVATE_PEM secret.
-    Returns None if absent/invalid — NEVER raises into the request path."""
-    pem = os.environ.get("SZL_COSIGN_PRIVATE_PEM")
+    """Load the Cosign EC private key from the runtime secret.
+
+    Resolution order (additive, never raises into the request path):
+      1. SZL_COSIGN_PRIVATE_KEY_PEM   (canonical — k8s secretKeyRef / org secret)
+      2. SZL_COSIGN_PRIVATE_PEM       (legacy szlholdings-cosign fallback)
+
+    Returns None if no secret is present or the value is invalid — the caller
+    then emits an honest UNSIGNED envelope. NEVER fabricates a key."""
+    pem = None
+    for _name in PRIVATE_KEY_ENV_VARS:
+        val = os.environ.get(_name)
+        if val:
+            pem = val
+            break
     if not pem:
         return None
     try:
@@ -124,8 +142,9 @@ def sign_payload(payload_obj: Any, payload_type: str = KHIPU_PAYLOAD_TYPE) -> di
     priv = _load_private_key()
     if priv is None:
         env["signatures"] = []
-        env["honesty"] = ("UNSIGNED — SZL_COSIGN_PRIVATE_PEM secret not present in this "
-                          "Space runtime; no signature fabricated.")
+        env["honesty"] = ("UNSIGNED — neither SZL_COSIGN_PRIVATE_KEY_PEM nor "
+                          "SZL_COSIGN_PRIVATE_PEM secret present in this runtime; "
+                          "no signature fabricated.")
         env["signed"] = False
         return env
     from cryptography.hazmat.primitives.asymmetric import ec
