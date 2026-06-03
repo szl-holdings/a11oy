@@ -31,6 +31,39 @@ Every file in this repository builds the signed payload above. See `deploy/zarf.
 - SLSA L1 honest
 - Section 889 = exactly 5 vendors
 
+## Prerequisites
+
+- [Zarf](https://docs.zarf.dev/getting-started/install/) v0.38+
+- [cosign](https://docs.sigstore.dev/cosign/installation/) v2.2+
+- [UDS CLI](https://uds.defenseunicorns.com/docs/getting-started/) v0.14+
+- OCI registry access to `ghcr.io/szl-holdings`
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| `cosign: no bundle found` | Wrong tag in bundle filename | Re-pull with exact tag from release assets |
+| `uds deploy` hangs | UDS Core not running | `uds deploy k3d-core` first |
+| `/healthz` returns 503 | Container starting | Wait 30s, retry |
+| Image pull backoff | GHCR auth | `zarf tools registry login ghcr.io` |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). All commits require a DCO sign-off:
+
+```bash
+git commit -s -m "your message"
+```
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability disclosure policy.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
+
+
 ---
 
 ---
