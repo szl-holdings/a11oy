@@ -2,8 +2,8 @@
   "manifestVersion": 1,
   "payloadRoot": "deploy",
   "generator": "scripts/payload_manifest.py",
-  "fileCount": 6,
-  "aggregateSha256": "7dd809dc7d4427430ffe2dfeb7c06ee156c0fcf6676ea68f7c6d08da617d2319",
+  "fileCount": 8,
+  "aggregateSha256": "7ad1af5f2edec520600cf24222ab4787f7cd212e09c649fe3c00c930a640642f",
   "files": [
     {
       "path": "attestations.jsonl",
@@ -31,9 +31,19 @@
       "sha256": "3804fdcf3a0b6ea767c3aaf3a373f8d82976d1824c9249b27cd515c91d567244"
     },
     {
+      "path": "peat-node.yaml",
+      "size": 2339,
+      "sha256": "9cf761c4e21a7f728bdd4c7ceaf6d2bf883a7e574de9eba899eaabaddab906ef"
+    },
+    {
+      "path": "uds-package.yaml",
+      "size": 1877,
+      "sha256": "b433765c369bcd2ee1f8b3ee45ec848861adc5f04631cb95b9ebce658eea23f3"
+    },
+    {
       "path": "zarf.yaml",
-      "size": 3401,
-      "sha256": "b087e71a1c4f2349cef4c161c0f32fe7be4a0e8e8f86a9f77bd55f1ce41ab0c2"
+      "size": 1809,
+      "sha256": "670a7e9cb55ed50bdcc96876d3f5f73809a3b692785df9460ea968f2f1b3c1ea"
     }
   ]
 }
