@@ -42,6 +42,16 @@ rekor-cli get --log-index 1710355173
 **Public proof:** cosign keyless cert (Fulcio) + Rekor transparency log entry
 [`#1710355173`](https://search.sigstore.dev/?logIndex=1710355173) for image `ghcr.io/szl-holdings/a11oy:uds-v0.2.0` (`sha256:7301a4…ab88`).
 
+## Try the cookbook
+
+New here? The **[SZL Cookbook](https://github.com/szl-holdings/szl-cookbook)** has runnable recipes for your use case:
+
+- **[Recipe 01 — Verify a receipt end-to-end](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/01-verify-a-receipt-end-to-end.md)**
+- **[Recipe 06 — Verify cosign + Rekor for SLSA L1](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/06-cosign-rekor-slsa-l1.md)**
+- **[Recipe 09 — PAC-Bayes confidence margin](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/09-pac-bayes-confidence-margin.md)**
+
+Full index: [szl-cookbook/recipes](https://github.com/szl-holdings/szl-cookbook/tree/main/recipes).
+
 ## Architecture
 
 ```mermaid
