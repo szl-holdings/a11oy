@@ -1,8 +1,7 @@
 name: GHCR Build + Push (uds-v0.2.0)
 # Builds the root Dockerfile and pushes to ghcr.io/szl-holdings/<repo>.
 # Unblocks Warhacker UDS bundle chain (FA-01).
-# Triggered on: push to main, uds-v* or v* tags, workflow_dispatch.
-# Cosign keyless OIDC signing (Sigstore Fulcio + Rekor) — no COSIGN_KEY secret.
+# Uses GHCR_TOKEN (PAT with write:packages) for org GHCR push.
 # DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 on:
   push:
@@ -19,11 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - name: Log in to GHCR (PAT for org package creation)
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@v5
