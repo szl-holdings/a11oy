@@ -197,7 +197,7 @@ def emit_gate_decision_receipt(action_id: str, gate: str, lambda_score: float,
         "lambda": round(lambda_score, 6),
         "gates_fired": fired,
         "passed": passed,
-        "doctrine": "v10",
+        "doctrine": "v11",
         "ts_utc": datetime.now(timezone.utc).isoformat(),
         "signature": SIGNATURE_PLACEHOLDER,
     }
@@ -209,7 +209,7 @@ def emit_gate_decision_receipt(action_id: str, gate: str, lambda_score: float,
 
 def mesh_status() -> dict[str, Any]:
     return {
-        "doctrine": "v10",
+        "doctrine": "v11",
         "wires": {
             "B": {"edge": "a11oy↔sentra (immune)", "status": "LIVE", "detail": "/v1/verdict + /v1/inspect"},
             "C": {"edge": "a11oy↔rosie (receipt stream)", "status": "LIVE", "detail": "/v1/events + Khipu ingest"},
