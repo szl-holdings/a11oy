@@ -33,25 +33,33 @@ jobs:
           # threshold (they must live in Xet/LFS). The repo carries large png/jpg
           # design assets under docs/anatomy-linkedin/ and web/public/*-anatomy/ that
           # the Dockerfile NEVER COPYs into the image (per-file COPY of console/,
-          # pages/, serve.py, *.py and a few web/*.html only). Build a mirror-only
-          # commit that drops these build-irrelevant binaries so the HF push is
-          # accepted; GitHub main keeps them untouched (mirror hygiene, not a source change).
-          git checkout -B hf-mirror
+          # pages/, serve.py, *.py and a few web/*.html only). A normal force-push
+          # still ships those blobs because they live in ANCESTOR commits of the
+          # pushed history, so the hook keeps rejecting them. HF Spaces only need the
+          # current snapshot, not git history -> build a single ORPHAN commit whose
+          # tree is `main` minus the build-irrelevant binaries, with NO ancestors, so
+          # the offending blobs are never part of the push pack. GitHub main is
+          # untouched (mirror hygiene, not a source change).
+          git checkout --orphan hf-mirror
           git rm -r --cached --ignore-unmatch docs/anatomy-linkedin web/public/doctrine-anatomy web/public/agent-anatomy >/dev/null 2>&1 || true
+          # Also drop them from the working tree so they are not re-added.
+          rm -rf docs/anatomy-linkedin web/public/doctrine-anatomy web/public/agent-anatomy || true
+          git add -A
           printf '%s\n' \
-            'chore(hf-mirror): drop build-irrelevant large binaries for HF push' \
+            'chore(hf-mirror): snapshot of main minus build-irrelevant large binaries' \
             '' \
+            'Single orphan commit (no history) mirroring GitHub main for the HF Space.' \
             'The Dockerfile uses per-file COPY and never copies docs/ or web/public/,' \
-            'so these design PNG/JPG assets are not needed by the deployed Space. HF' \
-            'rejects plain-git binaries over its size threshold; strip them from the' \
-            'mirror only. GitHub main is unchanged.' \
+            'so these design PNG/JPG assets are not needed by the deployed Space and HF' \
+            'rejects them as oversized plain-git blobs. Orphan ensures the offending' \
+            'blobs are absent from the push pack entirely. GitHub main is unchanged.' \
             '' \
             'Signed-off-by: Yachay <yachay@szlholdings.ai>' \
             'Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>' \
             > /tmp/hf_mirror_msg.txt
           git commit -F /tmp/hf_mirror_msg.txt --no-verify >/dev/null
           git remote add space "https://oauth2:$HF_TOKEN@huggingface.co/spaces/SZLHOLDINGS/${{ github.event.repository.name }}"
-          # GitHub main is the single source of truth for the mirror. The HF Space
-          # main had diverged and rejects large plain-git binaries, so force-push the
-          # cleaned hf-mirror branch onto the Space's main.
+          # Force-push the single orphan snapshot onto the Space's main. The Space
+          # main had diverged and carried the oversized blobs; replacing its history
+          # with this clean snapshot keeps the deployed bundle in lockstep with main.
           git push --force space hf-mirror:main
