@@ -4,15 +4,10 @@ name: Container build + GHCR push
 #   * Pull-request:    build + smoke-test only (no push, no registry login).
 #   * Push to main:    build + push SHA-tagged image to ghcr.io/szl-holdings/a11oy.
 #   * Release published: push semver + latest tags, sign with cosign keyless.
-#   * workflow_dispatch: push image_tag + sha-tagged image, sign with cosign keyless.
 #
 # L1 fix (2026-05-31): REVISION build-arg is now passed as github.sha so that
 # the runtime ENV A11OY_GIT_SHA is populated in the container and /healthz
 # returns the real deployed SHA. Reference: red-team finding L1.
-#
-# GHCR fix (2026-06-03): Enterprise disables write workflow permissions org-wide.
-# Use GHCR_TOKEN secret (classic PAT with write:packages scope) for registry login
-# instead of GITHUB_TOKEN which is capped at read-only by enterprise policy.
 #
 # Cosign keyless verification (no stored key; GitHub OIDC + Fulcio + Rekor):
 #   cosign verify \
@@ -35,12 +30,6 @@ on:
     branches: [main]
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: 'Image tag to push (e.g. uds-v0.2.0)'
-        required: false
-        default: 'uds-v0.2.0'
 
 permissions:
   contents: read
@@ -58,10 +47,10 @@ jobs:
       id-token: write        # cosign keyless OIDC token
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       - name: Derive image version and tags
         id: ver
@@ -72,10 +61,6 @@ jobs:
             VERSION="${{ github.event.release.tag_name }}"
             TAGS="${{ env.IMAGE }}:${VERSION}
           ${{ env.IMAGE }}:latest
-          ${{ env.IMAGE }}:sha-${SHA7}"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.image_tag }}"
-            TAGS="${{ env.IMAGE }}:${VERSION}
           ${{ env.IMAGE }}:sha-${SHA7}"
           elif [ "${{ github.event_name }}" = "push" ]; then
             VERSION="0.0.0-dev-${SHA7}"
@@ -94,20 +79,18 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # Log in using GHCR_TOKEN (classic PAT with write:packages).
-      # Enterprise-level restriction disables GITHUB_TOKEN write permissions org-wide
-      # even when packages: write is declared in the job. GHCR_TOKEN bypasses this.
+      # Log in on push-to-main and on release; skip for PRs.
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build image (push on main + release; load on PR)
         id: build
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: .
           file: Dockerfile
@@ -120,64 +103,55 @@ jobs:
           tags: ${{ steps.ver.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # FIX (Yachay, empire-reliability 2026-06-01): docker/build-push-action@v6
+          # defaults to provenance:true, which exports an OCI attestation manifest.
+          # Pushing that referrers index to ghcr.io/szl-holdings/* returns 403 Forbidden
+          # on the attestation blob HEAD (org GHCR rejects the auto-created attestation
+          # index). Image SBOM is already produced by the dedicated anchore/syft step,
+          # so disabling buildx attestations is the root-cause fix, not a workaround.
+          provenance: false
+          sbom: false
 
-      # Robust smoke test (fix/build-sbom-smoke-test-2026-06-01, Yachay):
-      # The previous probe ran `docker run <img> --version`, but the image
-      # entrypoint is the FastAPI server (CMD ["python", "serve.py"]), which does
-      # NOT accept a `--version` flag — so Docker tried to exec "--version" as a
-      # command and failed with `exec: "--version": executable file not found in
-      # $PATH` (exit 127). serve.py listens on PORT (default 7860) and exposes a
-      # real liveness endpoint at /api/a11oy/healthz. We now boot the server in a
-      # detached container and poll that endpoint with bounded retries that also
-      # survive the startup window while uvicorn is still binding.
       - name: Smoke test image (PR builds — loaded into local daemon)
         if: github.event_name == 'pull_request'
         run: |
-          set -uo pipefail
           TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
-          # Container listens on 7860 (HF default); map it to a host port.
-          CID="$(docker run -d -e PORT=7860 -p 17860:7860 "${TAG}")"
-          cleanup() { echo "=== container logs ==="; docker logs "${CID}" 2>&1 | tail -60 || true; docker rm -f "${CID}" >/dev/null 2>&1 || true; }
-          trap cleanup EXIT
-          echo "=== waiting for /api/a11oy/healthz to become ready ==="
-          # Poll explicitly: curl --retry-connrefused does NOT retry on a
-          # connection-reset (exit 56) while uvicorn is still binding, so we
-          # loop on ANY non-zero curl exit and re-check that the container is
-          # still alive. ~90s budget (45 x 2s).
-          ok=0
-          for i in $(seq 1 45); do
-            if ! docker inspect -f '{{.State.Running}}' "${CID}" 2>/dev/null | grep -q true; then
-              echo "container exited early (attempt ${i})" >&2
-              break
-            fi
-            if curl -fsS --max-time 5 http://localhost:17860/api/a11oy/healthz >/tmp/healthz.out 2>/dev/null; then
-              echo "healthz OK on attempt ${i}:"
-              cat /tmp/healthz.out; echo
-              ok=1
-              break
-            fi
-            sleep 2
-          done
-          if [ "${ok}" -ne 1 ]; then
-            echo "healthz probe FAILED after retries" >&2
-            exit 1
-          fi
+          echo "=== --version ==="
+          docker run --rm "${TAG}" --version
+          echo "=== --help ==="
+          docker run --rm "${TAG}" --help
 
-      - name: Generate image SBOM (CycloneDX) via Syft
-        if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      # FIX (Yachay, empire-reliability 2026-06-01): the SBOM step previously always
+      # referenced the pushed main tag `:sha-<sha7>`. On pull_request builds the image
+      # is NOT pushed to GHCR (push:false) — it is `load`ed into the local Docker daemon
+      # under tag `:pr-<sha7>`. Syft therefore tried to pull `ghcr.io/.../a11oy:sha-<sha7>`
+      # which does not exist for PRs and returned `unauthorized` (registry has no such
+      # manifest + no PR login), failing every PR run. Root-cause fix: scan the
+      # locally-loaded PR image on PRs and the pushed SHA tag on push-to-main.
+      - name: Generate image SBOM (CycloneDX) via Syft — push to main
+        if: github.event_name == 'push'
+        uses: anchore/sbom-action@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
         with:
           image: ${{ env.IMAGE }}:sha-${{ steps.ver.outputs.sha7 }}
           format: cyclonedx-json
           output-file: a11oy-image-sbom.cyclonedx.json
           upload-artifact: true
 
-      - name: Install cosign (release + workflow_dispatch)
-        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Generate image SBOM (CycloneDX) via Syft — PR (local image)
+        if: github.event_name == 'pull_request'
+        uses: anchore/sbom-action@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
+        with:
+          image: ${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}
+          format: cyclonedx-json
+          output-file: a11oy-image-sbom.cyclonedx.json
+          upload-artifact: true
 
-      - name: Sign image with cosign keyless (release + workflow_dispatch)
-        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+      - name: Install cosign (release only)
+        if: github.event_name == 'release'
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+
+      - name: Sign image with cosign keyless (release only)
+        if: github.event_name == 'release'
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
@@ -186,8 +160,8 @@ jobs:
           echo "Signed ${{ env.IMAGE }}@${DIGEST} (keyless OIDC)."
 
       - name: Generate + attach image SBOM on release (signed)
-        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        if: github.event_name == 'release'
+        uses: anchore/sbom-action@df80a981bc6edbc4e220a492d3cbe9f5547a6e75 # v0.17.9
         with:
           image: ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
           format: cyclonedx-json
