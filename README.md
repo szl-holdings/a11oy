@@ -1,7 +1,11 @@
-# a11oy 🔬
-> Governed agentic execution fabric — policy substrate with HMAC-signed receipts for every gated decision.
+# a11oy 🔬 — governed agentic execution across **749 declarations · 14 axioms · 46 policy gates**
+> Policy + receipt substrate: every action signed, every decision gated, every receipt verifiable.
+
+[Live Space](https://szlholdings-a11oy.hf.space) · [Docs](https://docs.szlholdings.com/flagships/a11oy) · [Verify](#verify-in-2-minutes) · [API](#api-surface) · [Doctrine](#doctrine) · [Citation](#citation)
 
 ![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A) ![SLSA-L1-L2](https://img.shields.io/badge/SLSA-L1%20%2B%20L2%20attested-2C5F2D) ![DCO](https://img.shields.io/badge/DCO-required-555) ![CI](https://img.shields.io/badge/CI-green-2C5F2D) ![Scorecard](https://img.shields.io/badge/OpenSSF-Scorecard-informational) ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+
+> **Honest status line:** Doctrine v11 · 749 / 14 / 163 · Λ = **Conjecture 1** (NOT a theorem) · SLSA **L1 (honest) + L2 build provenance attested** · Apache-2.0.
 
 ## Live
 - **Space:** https://szlholdings-a11oy.hf.space
@@ -14,6 +18,7 @@
 - **Brand-orchestration gates** — governed-loop primitive with deterministic replay and hard-stop validators.
 
 ## Verify (in 2 minutes)
+<a id="verify-in-2-minutes"></a>
 
 ```bash
 # 1. Confirm the live doctrine posture on the running Space.
@@ -41,16 +46,6 @@ rekor-cli get --log-index 1710355173
 
 **Public proof:** cosign keyless cert (Fulcio) + Rekor transparency log entry
 [`#1710355173`](https://search.sigstore.dev/?logIndex=1710355173) for image `ghcr.io/szl-holdings/a11oy:uds-v0.2.0` (`sha256:7301a4…ab88`).
-
-## Try the cookbook
-
-New here? The **[SZL Cookbook](https://github.com/szl-holdings/szl-cookbook)** has runnable recipes for your use case:
-
-- **[Recipe 01 — Verify a receipt end-to-end](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/01-verify-a-receipt-end-to-end.md)**
-- **[Recipe 06 — Verify cosign + Rekor for SLSA L1](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/06-cosign-rekor-slsa-l1.md)**
-- **[Recipe 09 — PAC-Bayes confidence margin](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/09-pac-bayes-confidence-margin.md)**
-
-Full index: [szl-cookbook/recipes](https://github.com/szl-holdings/szl-cookbook/tree/main/recipes).
 
 ## Architecture
 
@@ -123,5 +118,37 @@ gh attestation verify oci://ghcr.io/szl-holdings/a11oy:uds-v0.2.0 --owner szl-ho
 SLSA L2 = hosted build platform (GitHub Actions) + signed provenance available to consumers.
 L3 is **not** claimed (requires a hardened, isolated build environment).
 
+## Try it
+
+```bash
+# Live, no install — probe the running Space:
+curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .
+
+# Sovereign / air-gapped — run the signed container locally:
+docker run --rm -p 7860:7860 ghcr.io/szl-holdings/a11oy:uds-v0.2.0
+#   → open http://localhost:7860  ·  GET /api/a11oy/v1/honest  ·  GET /api/health
+```
+
+## Where a11oy runs
+
+| Surface | Where | Role |
+|---|---|---|
+| Live demo | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space) | Docker HF Space (SPA + `/api/a11oy/*` + `/honest`) |
+| Signed image | `ghcr.io/szl-holdings/a11oy:uds-v0.2.0` | GHCR, SLSA L2 attested · cosign keyless |
+| Air-gap bundle | `artifacts/a11oy-uds/` (UDS / Zarf) | Sovereign deploy, offline-verifiable |
+| Archived release | [Zenodo `10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276) | Citable concept DOI |
+
+## Built with / learned from
+
+We cite who we learned from. a11oy's **publication shell** — number-in-the-hook,
+above-the-fold quickstart, always-on BibTeX, signed-release discipline — adapts patterns
+from [The Well](https://github.com/PolymathicAI/the_well) and [Walrus](https://github.com/PolymathicAI/walrus)
+(Polymathic AI), [transformers](https://github.com/huggingface/transformers) and
+[whisper](https://github.com/openai/whisper) (HF / OpenAI), the Zenodo-DOI discipline of
+[lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) (EleutherAI),
+and the `docker run` reproducibility path of [AlphaFold3](https://github.com/google-deepmind/alphafold3).
+The receipt-substrate, Λ-gate, DSSE/cosign receipt chain, Lean kernel, and honest
+disclosure endpoint are a11oy's own — the layer those projects do not have.
+
 ---
-*Doctrine v11 LOCKED · 749/14/163 · kernel c7c0ba17 · Λ = Conjecture 1 · SLSA L1 + L2 build provenance attested (verifiable via slsa-verifier)*
+*Doctrine v11 LOCKED · 749/14/163 · kernel c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 (honest) + L2 build provenance attested (verifiable via slsa-verifier)*

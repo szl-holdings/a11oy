@@ -32,6 +32,28 @@ Routes:
   /{anything}              — SPA history fallback -> index.html (wouter client routing)
 
 Listens on PORT (default 7860, HF requirement).
+
+------------------------------------------------------------------------------
+DOCTRINE CONSTRAINTS & KEY INVARIANTS (read before editing this file)
+------------------------------------------------------------------------------
+* Λ is **Conjecture 1**, never a theorem (open CAUCHY_ND sorry + missing symmetry
+  axiom). Any payload field describing Λ must say "Conjecture 1 — NOT a theorem".
+* LOCKED doctrine numbers: **749 declarations / 14 unique axioms / 163 sorries**,
+  doctrine **v11**, Lean kernel commit **c7c0ba17**. Never bump these here.
+* Section 889 list is **exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua).
+* `/api/a11oy/v1/honest` is a **doctrine endpoint**: deterministic, no side effects,
+  no I/O. Treat its response body as a contract — do not change its behaviour.
+* Route ordering matters: every concrete /api handler MUST be registered BEFORE the
+  `/api/a11oy/{path:path}` proxy and the `/{full_path:path}` SPA catch-all, or it is
+  shadowed. FastAPI binds the FIRST registration of a path; duplicate registrations
+  of the same path are silently unreachable (see DEAD-CODE REMOVAL note mid-file).
+* SLSA: L1 (honest) baseline; L2 build provenance attested via GHCR. L3 NOT claimed.
+
+File organization (top → bottom): SPDX/header → module docstring → imports →
+constants/config → optional-organ mounts (try/except guarded) → concrete /api
+handlers (registered before proxies) → /api proxy catch-all → SPA root + history
+fallback. Optional-organ imports are try/except-guarded so a missing module degrades
+to an honest stub rather than crashing the Space.
 """
 
 import asyncio
@@ -1929,144 +1951,19 @@ except Exception as _ig_e:
 # --- end betterwithage ingestion mount ---
 
 # ===========================================================================
-# PARITY RESTORATION BLOCK (2026-06-02, Yachay CTO / Perplexity Computer Agent)
-# Adds 6 missing routes per PARITY_GAP_MATRIX_2026-06-02_2050Z.md:
-#   /api/a11oy/v1/lambda    — 13-axis Λ geometric-mean (Conjecture 1, NOT theorem)
-#   /api/a11oy/v1/honest    — honest doctrine disclosure
-#   /api/a11oy/v1/audit-log — in-memory audit log ring buffer
-#   /api/a11oy/v1/brain     — unified brain payload (szl_brain)
-#   /api/a11oy/v1/llm/tiers — 7-tier LLM router catalog
-#   /api/a11oy/v1/mesh/state — mesh wire status
-# All registered BEFORE the /{full_path:path} SPA catch-all. ADDITIVE ONLY.
-# Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1 (NOT a theorem). c7c0ba17.
+# DEAD-CODE REMOVAL (Dev Fullstack Pass #1, 2026-06-03):
+# A second, byte-near-identical copy of the parity handlers
+# (/api/a11oy/v1/{lambda,honest,audit-log,brain,llm/tiers,mesh/state}) used to live
+# here. FastAPI binds the FIRST registration of a given path, so the live handlers
+# are the "PARITY RESTORATION BLOCK v2" defined ABOVE (registered before the
+# /api/a11oy/{path:path} proxy). These second copies were therefore UNREACHABLE dead
+# code and have been removed. This is behaviour-preserving: zero observable change to
+# any endpoint, including /honest (whose live behaviour is owned by the v2 block above
+# and is intentionally left untouched — doctrine endpoint, deterministic).
+# The shared substrate (_A11OY_AUDIT_LOCK / _A11OY_AUDIT_LOG ring buffer,
+# _A11OY_AXIS_NAMES, _A11OY_BRAIN_OK, _A11OY_WIRE_OK) is defined once, in the v2 block.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ===========================================================================
-import collections as _pr_col
-import threading as _pr_thr
-import math as _pr_math
-
-_A11OY_AUDIT_LOCK = _pr_thr.Lock()
-_A11OY_AUDIT_LOG: _pr_col.deque = _pr_col.deque(maxlen=200)
-
-# Import shared substrate (already loaded at module level in most cases)
-try:
-    import szl_brain as _a11oy_pr_brain
-    _A11OY_BRAIN_OK = True
-except Exception:
-    _A11OY_BRAIN_OK = False
-
-try:
-    import szl_wire as _a11oy_pr_wire
-    _A11OY_WIRE_OK = True
-except Exception:
-    _A11OY_WIRE_OK = False
-
-_A11OY_AXIS_NAMES = [
-    "soundness", "calibration", "robustness", "provenance", "consent", "reversibility",
-    "transparency", "fairness", "containment", "attestation", "freshness", "authority", "auditability",
-]
-
-@app.get("/api/a11oy/v1/lambda")
-async def _a11oy_pr_lambda():
-    """13-axis Λ geometric-mean. Λ = Conjecture 1 (NOT a theorem). Doctrine v11 LOCKED."""
-    axes = [0.92, 0.90, 0.95, 0.91, 0.94, 0.90, 0.92, 0.91, 0.93, 0.92, 0.93, 0.90, 0.92]
-    floor = 0.90
-    clamped = [min(1.0, max(1e-9, float(x))) for x in axes]
-    L = _pr_math.exp(sum(_pr_math.log(x) for x in clamped) / len(clamped))
-    return JSONResponse({
-        "trust_axes": 13,
-        "axes": [{"name": n, "score": s} for n, s in zip(_A11OY_AXIS_NAMES, axes)],
-        "lambda": round(L, 6), "lambda_floor": floor, "pass": L >= floor,
-        "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
-        "uniqueness": "Conjecture 1 — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "policy_gates": 46, "anchor_formula_gates": 44,
-        "doctrine": "v11",
-    })
-
-@app.get("/api/a11oy/v1/honest")
-async def _a11oy_pr_honest():
-    """Honest doctrine disclosure — parity with sentra/amaru/killinchu/rosie. Doctrine v11."""
-    return JSONResponse({
-        "doctrine": "v11",
-        "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
-        "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
-        "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "L1 (honest)",
-        "role": "Brand Orchestration / gates",
-        "hatun_willay": True,
-    })
-
-@app.get("/api/a11oy/v1/audit-log")
-async def _a11oy_pr_audit_log(limit: int = 50):
-    """In-memory audit log ring buffer — parity with sentra/rosie. Doctrine v11."""
-    limit = min(limit, 200)
-    with _A11OY_AUDIT_LOCK:
-        entries = list(_A11OY_AUDIT_LOG)[:limit]
-    return JSONResponse({
-        "entries": entries,
-        "total_buffered": len(_A11OY_AUDIT_LOG),
-        "limit": limit,
-        "doctrine": "v11",
-        "note": "In-memory ring buffer (maxlen=200). Resets on Space rebuild (honest disclosure).",
-    })
-
-@app.get("/api/a11oy/v1/brain")
-async def _a11oy_pr_brain_route():
-    """Unified brain payload — a11oy brand-orchestration role. Doctrine v11 LOCKED."""
-    if _A11OY_BRAIN_OK:
-        return JSONResponse(_a11oy_pr_brain.brain_payload("a11oy"))
-    return JSONResponse({
-        "space": "a11oy", "doctrine": "v11",
-        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "policy_gates": 46, "anchor_formula_gates": 44,
-        "role": "Brand Orchestration / gates",
-        "lambda_floor": 0.90,
-        "honesty": "szl_brain unavailable in this build; honest stub returned.",
-    })
-
-@app.get("/api/a11oy/v1/llm/tiers")
-async def _a11oy_pr_llm_tiers():
-    """7-tier LLM router catalog — parity with sentra/amaru/killinchu. Doctrine v11."""
-    if _A11OY_BRAIN_OK:
-        return JSONResponse({
-            "count": len(_a11oy_pr_brain.TIERS),
-            "tiers": _a11oy_pr_brain.TIERS,
-            "doctrine": "v11",
-        })
-    return JSONResponse({
-        "count": 7,
-        "tiers": [
-            {"tier": 1, "name": "haiku_3", "note": "fastest, cheapest"},
-            {"tier": 2, "name": "sonnet_3_5", "note": "balanced"},
-            {"tier": 3, "name": "opus_4_5", "note": "high-capability"},
-            {"tier": 4, "name": "r1", "note": "reasoning-grade"},
-            {"tier": 5, "name": "o3", "note": "frontier reasoning"},
-            {"tier": 6, "name": "gemini_2_flash", "note": "multimodal"},
-            {"tier": 7, "name": "sovereign_local", "note": "air-gap fallback"},
-        ],
-        "doctrine": "v11",
-        "honesty": "szl_brain unavailable; honest stub catalog returned.",
-    })
-
-@app.get("/api/a11oy/v1/mesh/state")
-async def _a11oy_pr_mesh_state():
-    """Mesh wire status — parity with sentra/amaru/killinchu. Doctrine v11."""
-    if _A11OY_WIRE_OK:
-        return JSONResponse(_a11oy_pr_wire.mesh_status())
-    return JSONResponse({
-        "wires": {"D": "live", "E": "live", "F": "live", "G": "live"},
-        "mesh_organs": ["a11oy", "amaru", "sentra", "killinchu", "rosie"],
-        "doctrine": "v11",
-        "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "honesty": "szl_wire unavailable; honest stub mesh state returned.",
-    })
-
-print("[a11oy] PARITY BLOCK registered: /api/a11oy/v1/{lambda,honest,audit-log,brain,llm/tiers,mesh/state}", file=sys.stderr)
-# ===========================================================================
-# END PARITY RESTORATION BLOCK
 # ===========================================================================
 
 
@@ -2085,36 +1982,13 @@ async def api_health() -> JSONResponse:
     })
 
 
-# P3 FIX: /api/a11oy/v4/fleet — explicit route before SPA catch-all
-# Root cause: szl_v4_fleet.register() was dead code after uvicorn.run()
-@app.get("/api/a11oy/v4/fleet")
-@app.get("/v4/fleet")
-async def api_a11oy_v4_fleet() -> JSONResponse:
-    """Fleet status panel — live health of all SZL flagship Spaces."""
-    import asyncio, urllib.request as _ureq, json as _json
-    from datetime import datetime as _dt
-    _peers_cfg = [
-        ("a11oy",    "https://szlholdings-a11oy.hf.space/api/health"),
-        ("sentra",   "https://szlholdings-sentra.hf.space/api/health"),
-        ("amaru",    "https://szlholdings-amaru.hf.space/api/health"),
-        ("rosie",    "https://szlholdings-rosie.hf.space/api/health"),
-        ("killinchu","https://szlholdings-killinchu.hf.space/api/health"),
-    ]
-    peers = []
-    for _name, _url in _peers_cfg:
-        try:
-            _req = _ureq.Request(_url, headers={"User-Agent": "szl-fleet-probe/1.0"})
-            with _ureq.urlopen(_req, timeout=5) as _r:
-                _body = _json.loads(_r.read())
-            peers.append({"flagship": _name, "status": "ok", "http_code": 200, **_body})
-        except Exception as _e:
-            peers.append({"flagship": _name, "status": "unreachable", "error": str(_e)[:120]})
-    return JSONResponse({
-        "timestamp": _dt.utcnow().isoformat() + "Z",
-        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163},
-        "lambda": "Conjecture 1 (NOT a theorem — LOCKED)",
-        "peers": peers,
-    })
+# DEAD-CODE REMOVAL (Dev Fullstack Pass #1, 2026-06-03):
+# A second copy of /api/a11oy/v4/fleet (+ /v4/fleet) used to be defined here. The
+# live handler is `api_a11oy_v4_fleet_early` registered ABOVE (before the
+# /api/a11oy/{path:path} proxy); FastAPI binds the first registration, so this copy
+# was unreachable dead code and has been removed. Behaviour-preserving.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 
 
 # ---------------------------------------------------------------------------
