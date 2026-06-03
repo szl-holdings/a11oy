@@ -9,7 +9,7 @@ append-only, hash-chained record: each receipt links to the prior receipt's
 digest, so the chain is tamper-evident by additive arithmetic alone (mirrors the
 v11 YAWAR ledger discipline + `khipuReceipt_checksum_invariant`).
 
-Honest label (Doctrine v12 §2, carried): the receipt SIGNATURE is DSSE
+Honest label (Doctrine v11 LOCKED §2, carried): the receipt SIGNATURE is DSSE
 PLACEHOLDER (Sigstore not wired into CI). This store verifies the HASH CHAIN
 only, not a cryptographic signature. SHA3-256 is used for the chain digest.
 
@@ -66,7 +66,7 @@ class KhipuDAG:
             receipt = {
                 **body,
                 "digest": digest,
-                # DSSE PLACEHOLDER — signature not wired (Doctrine v12 §2). The
+                # DSSE PLACEHOLDER — signature not wired (Doctrine v11 LOCKED §2). The
                 # field is present so the contract is stable; value is honest.
                 "signature": "DSSE_PLACEHOLDER",
                 "chain_verified": True,
