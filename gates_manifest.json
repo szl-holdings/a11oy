@@ -275,15 +275,18 @@
     "lean_status": "phantom"
   },
   {
-    "name": "lambdaUniqueness",
-    "file": "lambdaUniqueness_gate.ts",
-    "description": "a11oy policy gate for LambdaUniqueness (TH_L1)",
-    "lean_theorem": "lambdaUniqueness",
+    "name": "lambdaUniquenessConjecture",
+    "file": "lambdaUniquenessConjecture_gate.ts",
+    "description": "a11oy policy gate for LambdaUniquenessConjecture (TH_L1) \u2014 Conjecture 1, NOT a theorem",
+    "lean_theorem": "lambdaUniquenessConjecture",
     "lean_file": "Lutar/Uniqueness.lean",
     "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
-    "formula": "LambdaUniqueness",
+    "formula": "LambdaUniquenessConjecture",
     "rationale": "The Lutar Invariant \u039b_k as weighted geometric mean with Egyptian unit-fraction weights is unique given the four axioms. This gate validates that a submitted scoring function produces outputs consistent with the uniqueness theorem \u2014 i.e., that no alternative scoring function with the same axiom constraints would produce a different result for the same input vector.",
-    "lean_status": "real"
+    "lean_status": "real",
+    "status": "CONJECTURE",
+    "proven": false,
+    "lambda_statement": "Conjecture 1 (NOT a theorem \u2014 LOCKED by Doctrine v11)"
   },
   {
     "name": "liuHuiPi",
