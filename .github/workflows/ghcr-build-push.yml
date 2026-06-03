@@ -1,21 +1,21 @@
 name: GHCR Build + Push (uds-v0.2.0)
 # Builds the root Dockerfile and pushes to ghcr.io/szl-holdings/<repo>.
 # Unblocks Warhacker UDS bundle chain (FA-01).
-# Uses GHCR_TOKEN PAT (write:packages) with correct user login for GHCR auth.
-# GHCR requires: username = PAT owner, password = PAT (not GITHUB_TOKEN for new org packages).
+# Uses GITHUB_TOKEN (proven working pattern from killinchu/build-uds-image.yml).
+# No top-level permissions block — job-level only (matches killinchu pattern).
 # DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 on:
   push:
     branches: [main]
     tags: ['v*', 'uds-v*']
   workflow_dispatch:
-permissions:
-  contents: read
-  packages: write
-  id-token: write   # for keyless cosign
 jobs:
   build-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
@@ -23,8 +23,8 @@ jobs:
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
-          username: stephenlutar2-hash
-          password: ${{ secrets.GHCR_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@v5
