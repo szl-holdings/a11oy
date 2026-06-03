@@ -1,3 +1,23 @@
+---
+title: "a11oy — Governance Substrate"
+emoji: "🔬"
+colorFrom: indigo
+colorTo: gray
+sdk: docker
+app_port: 7860
+pinned: true
+license: apache-2.0
+short_description: "a11oy — policy + receipt substrate"
+tags:
+  - governance
+  - agentic-ai
+  - doctrine-v11
+  - a11oy
+  - execution-fabric
+  - apache-2.0
+ecosystem-stage: "operational"
+---
+
 # a11oy 🔬
 > Governed agentic execution fabric — policy substrate with HMAC-signed receipts for every gated decision.
 
