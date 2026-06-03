@@ -14,7 +14,7 @@ The React SPA IS the Brand Orchestration Layer. Its HomePage (Vessels-DNA landin
 investor-facing) renders at /. Routes render at /boardroom, /investor-demo,
 /sovereign, /fabric, /nexus, /command, etc. — NO /console/ prefix anywhere.
 
-Doctrine v9: Hatun-Willay (renamed from Mythos). Bekenstein UN-BANNED (real Lean proof
+Doctrine v11: Hatun-Willay (renamed from Mythos). Bekenstein UN-BANNED (real Lean proof
 TH6_DPI_Soundness.lean:103). Canonical numbers: 456 declarations / 14 axioms / 6 sorries /
 12 MCP tools / 46 policy gates / 44 anchor formula gates.
 Banned: Jarvis, Bo11y/Bolly, Computacenter, "45 gates", "11 MCP tools", bare unscoped "Mythos".
@@ -633,7 +633,7 @@ async def proxy_to_backend(request: Request, backend_path: str) -> Response:
 
 @app.get("/api/a11oy/v1/gates")
 async def list_gates() -> JSONResponse:
-    """List all 46 policy gates with name + description + lean_theorem. Doctrine v9."""
+    """List all 46 policy gates with name + description + lean_theorem. Doctrine v11."""
     summary = [
         {
             "name": g["name"],
@@ -2096,7 +2096,7 @@ async def a11oy_version():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
-    print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v9 — SPA at /", file=sys.stderr)
+    print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v11 — SPA at /", file=sys.stderr)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
@@ -2135,3 +2135,4 @@ except Exception as _ke:
 # ============================================================================
 # END: SZL Agent Pattern v1 ("Ken") — ADDITIVE BLOCK
 # ============================================================================
+
