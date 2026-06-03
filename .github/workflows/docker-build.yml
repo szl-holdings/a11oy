@@ -10,6 +10,10 @@ name: Container build + GHCR push
 # the runtime ENV A11OY_GIT_SHA is populated in the container and /healthz
 # returns the real deployed SHA. Reference: red-team finding L1.
 #
+# GHCR fix (2026-06-03): Enterprise disables write workflow permissions org-wide.
+# Use GHCR_TOKEN secret (classic PAT with write:packages scope) for registry login
+# instead of GITHUB_TOKEN which is capped at read-only by enterprise policy.
+#
 # Cosign keyless verification (no stored key; GitHub OIDC + Fulcio + Rekor):
 #   cosign verify \
 #     --certificate-identity-regexp \
@@ -90,14 +94,16 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # Log in on push-to-main, on release, and on workflow_dispatch; skip for PRs.
+      # Log in using GHCR_TOKEN (classic PAT with write:packages).
+      # Enterprise-level restriction disables GITHUB_TOKEN write permissions org-wide
+      # even when packages: write is declared in the job. GHCR_TOKEN bypasses this.
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Build image (push on main + release; load on PR)
         id: build
