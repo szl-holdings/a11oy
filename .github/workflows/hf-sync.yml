@@ -20,6 +20,14 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # Disable git-LFS smudge/transfer for the mirror push: the HF Space repo
+          # carries no LFS objects and the LFS handshake was emitting
+          # `fatal: expected 'acknowledgments'` during fetch, leaving main stale.
+          export GIT_LFS_SKIP_SMUDGE=1
+          git config --global filter.lfs.process "git-lfs filter-process --skip"
+          git config --global filter.lfs.smudge "git-lfs smudge --skip -- %f"
           git remote add space https://oauth2:$HF_TOKEN@huggingface.co/spaces/SZLHOLDINGS/${{ github.event.repository.name }}
-          git fetch space main || true
-          git push space main
+          # GitHub main is the single source of truth for the mirror. The HF Space
+          # main had diverged (manual edits), so a fast-forward push was rejected;
+          # force-push the mirror to keep the deployed bundle in lockstep with main.
+          git push --force space main
