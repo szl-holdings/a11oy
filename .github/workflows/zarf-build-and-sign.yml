@@ -161,7 +161,7 @@ jobs:
         run: |
           SRC=$(ls zarf-package-a11oy-amd64-*.tar.zst | head -1)
           DST="zarf-package-a11oy-amd64-${{ env.IMAGE_TAG }}.tar.zst"
-          mv "${SRC}" "${DST}"
+          [ "${SRC}" != "${DST}" ] && mv "${SRC}" "${DST}" || true
           sha256sum "${DST}" > "${DST}.sha256"
           echo "tarball=${DST}" >> "$GITHUB_OUTPUT"
           echo "sha256=${DST}.sha256" >> "$GITHUB_OUTPUT"
