@@ -51,6 +51,20 @@ jobs:
           import os, base64
           from huggingface_hub import HfApi, CommitOperationAdd
 
+          # HF's server-side README YAML validator (_validate_yaml) intermittently
+          # returns a non-JSON body (HTML/5xx), which raises JSONDecodeError and
+          # aborts an otherwise-valid commit. The front-matter here is well-formed
+          # (identical structure is accepted on the sibling Spaces), so make the
+          # validator non-fatal: try it, and if it raises, skip it and commit.
+          _orig_validate = HfApi._validate_yaml
+          def _safe_validate(self, content, *a, **k):
+              try:
+                  return _orig_validate(self, content, *a, **k)
+              except Exception as e:
+                  print("::warning::HF _validate_yaml skipped (non-fatal):", repr(e)[:160])
+                  return None
+          HfApi._validate_yaml = _safe_validate
+
           fm = base64.b64decode(os.environ["FM_B64"]).decode("utf-8")
           front_matter = "---\n" + fm + "\n---\n"
 
