@@ -1,53 +1,63 @@
 # Security Policy
 
-This policy is governed by [SZL Doctrine v11](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V11.md),
-including §2 (No Hallucinations / No Fake Green) and §7 (Every Claim Citable).
-We do not publish security claims we cannot back with a verifiable source.
+## Supported Versions
 
-## Reporting a vulnerability
+| Version | Supported          |
+| ------- | ------------------ |
+| 1.x     | :white_check_mark: |
+| < 1.0   | :x:                |
 
-Report security vulnerabilities to **security@szlholdings.com**.
-If you do not receive a response, use **stephen@szlholdings.com** as a fallback.
+## Reporting a Vulnerability
 
-Please do NOT open a public issue for security reports.
+**Do NOT open a public GitHub issue for security vulnerabilities.**
 
-## PGP
+Please report security vulnerabilities via email to **security@szlholdings.ai** with:
 
-PGP key: TBD — request the current key at security@szlholdings.com.
+1. Description of the vulnerability
+2. Steps to reproduce
+3. Potential impact assessment
+4. Any suggested mitigations
 
-We do not publish a fingerprint here until a key is in place, to avoid asserting
-a key that cannot be verified.
+### Response SLA
 
-## Doctrine v11
+| Severity | Initial Response | Resolution Target |
+|---|---|---|
+| Critical | 24 hours | 7 days |
+| High | 48 hours | 30 days |
+| Medium | 5 business days | 90 days |
+| Low | 10 business days | 180 days |
 
-All vulnerability disclosures are governed by SZL Doctrine v11 (canonical, supersedes v6):
-- No fake security claims
-- STAGED-ADVISORY label for gates not yet machine-checked
-- DSSE receipts on every governance decision
+We follow a **90-day responsible disclosure** policy. After 90 days from initial report, details may be published regardless of patch status (with appropriate notice to reporter).
 
-## Response timeline
+## Supply-Chain Security
 
-- Acknowledgment SLA: within 5 business days of receipt.
-- Disclosure window: 90 days. We aim to remediate and coordinate public
-  disclosure within 90 days of acknowledgment. We will keep you informed if a
-  fix requires longer and will agree on a revised timeline with you.
+- **SLSA Build Level 1** — build provenance generated per release (honest; not L2/L3)
+- **DCO required** — all commits carry `Signed-off-by:` trailers per [Linux Foundation DCO](https://developercertificate.org/)
+- **Cosign keyless signing** — containers signed via Sigstore OIDC keyless mode; verify with `cosign verify ghcr.io/szl-holdings/<repo>:<tag>`
+- **SBOM** — CycloneDX SBOM attached to each GitHub Release
 
-## Scope
+## Section 889 Attestation
 
-In scope:
+SZL Holdings attests that no covered telecommunications equipment or services from the following vendors are used in this software:
 
-- Code on the current default branch (`main`) of this repository (szl-holdings/a11oy).
+1. Huawei Technologies Company
+2. ZTE Corporation
+3. Hytera Communications Corporation
+4. Hangzhou Hikvision Digital Technology Company
+5. Dahua Technology Company
 
-Out of scope:
+Per NDAA Section 889, 41 U.S.C. § 4713.
 
-- Third-party dependencies that run their own disclosure or bug-bounty programs
-  (report those upstream).
-- Denial-of-service (DoS) and volumetric attacks.
-- Social engineering of staff, contractors, or users.
-- Physical attacks against infrastructure or personnel.
+## Doctrine
 
-## Coordinated disclosure
+- Doctrine v11 LOCKED — kernel commit `c7c0ba17` (749 declarations / 14 axioms / 163 sorries)
+- Λ = Conjecture 1 (never a theorem)
+- No Iron Bank, FedRAMP, CMMC, or SWFT claims
 
-We follow coordinated disclosure. We will not pursue action against good-faith
-research that respects this scope and the 90-day window, and that avoids privacy
-violations, data destruction, and service degradation.
+## Contact
+
+- **Security disclosures:** security@szlholdings.ai
+- **General:** hello@szlholdings.ai
+- **Website:** https://szlholdings.ai
+
+*This policy follows [OpenSSF Vulnerability Disclosure Guide](https://github.com/ossf/oss-vulnerability-guide).*
