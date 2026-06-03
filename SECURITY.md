@@ -1,6 +1,6 @@
 # Security Policy
 
-This policy is governed by [SZL Doctrine v7](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V7.md),
+This policy is governed by [SZL Doctrine v11](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V11.md),
 including §2 (No Hallucinations / No Fake Green) and §7 (Every Claim Citable).
 We do not publish security claims we cannot back with a verifiable source.
 
@@ -18,9 +18,9 @@ PGP key: TBD — request the current key at security@szlholdings.com.
 We do not publish a fingerprint here until a key is in place, to avoid asserting
 a key that cannot be verified.
 
-## Doctrine v7
+## Doctrine v11
 
-All vulnerability disclosures are governed by SZL Doctrine v7 (canonical, supersedes v6):
+All vulnerability disclosures are governed by SZL Doctrine v11 (canonical, supersedes v6):
 - No fake security claims
 - STAGED-ADVISORY label for gates not yet machine-checked
 - DSSE receipts on every governance decision
