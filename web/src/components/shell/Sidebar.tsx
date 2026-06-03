@@ -13,7 +13,7 @@ import {
   Palette, Sigma, MessageSquare, Brain, Beaker,
   Box, Cog, Newspaper, KeyRound, Boxes, Wrench,
   Gauge, Search, DollarSign, Mic2,
-  Telescope, BookOpenCheck, Lightbulb, BarChart, FileStack, ScanLine
+  Telescope, BookOpenCheck, Lightbulb, BarChart, FileStack, ScanLine, ExternalLink
 } from 'lucide-react';
 import { cn } from '@szl-holdings/design-system';
 
@@ -25,6 +25,7 @@ interface NavItem {
   icon: React.ElementType;
   path: string;
   badge?: string;
+  external?: boolean;
 }
 
 interface NavSection {
@@ -417,25 +418,39 @@ function CollapsibleSection({ section }: { section: NavSection }) {
 
 function NavLink({ item }: { item: NavItem }) {
   const [location] = useLocation();
-  const fullPath = `${BASE}${item.path}`;
-  const isActive = location === fullPath || location.startsWith(fullPath + '/');
+  const fullPath = item.external ? item.path : `${BASE}${item.path}`;
+  const isActive = !item.external && (location === `${BASE}${item.path}` || location.startsWith(`${BASE}${item.path}/`));
 
-  return (
-    <Link
-      href={fullPath}
-      className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors',
-        isActive
-          ? 'bg-[var(--color-a11oy-gold-soft)] text-[var(--color-a11oy-gold-dim)] font-medium'
-          : 'text-[var(--color-a11oy-text-sub)] hover:bg-[var(--color-a11oy-overlay)] hover:text-[var(--color-a11oy-text)]',
-      )}
-    >
+  const className = cn(
+    'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors',
+    isActive
+      ? 'bg-[var(--color-a11oy-gold-soft)] text-[var(--color-a11oy-gold-dim)] font-medium'
+      : 'text-[var(--color-a11oy-text-sub)] hover:bg-[var(--color-a11oy-overlay)] hover:text-[var(--color-a11oy-text)]',
+  );
+
+  const inner = (
+    <>
       <item.icon className={cn('w-4 h-4', isActive ? 'opacity-100' : 'opacity-50')} />
       <span className="flex-1">{item.name}</span>
       {item.badge && (
         <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded"
           style={{ background: 'rgba(201,183,135,0.16)', color: '#c9b787' }}>{item.badge}</span>
       )}
+      {item.external && <ExternalLink className="w-3 h-3 opacity-30 shrink-0" />}
+    </>
+  );
+
+  if (item.external) {
+    return (
+      <a href={fullPath} target="_blank" rel="noopener noreferrer" className={className}>
+        {inner}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={fullPath} className={className}>
+      {inner}
     </Link>
   );
 }
@@ -448,15 +463,35 @@ function NavLink({ item }: { item: NavItem }) {
 // direct URL/bookmark. The legacy NavSection arrays above are retained verbatim so
 // the command palette can index them and nothing that imports them breaks.
 // Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 (NOT a theorem). ADDITIVE collapse.
+// ── TAB TRIAGE (UX P0, 2026-06-03): 8 tabs updated to match the 12 public landing
+// nav pills exactly. External links open in new tab; SPA routes use wouter navigation.
+// ALL routes in App.tsx remain UNTOUCHED — every deep link stays live via ⌘K palette.
+// Doctrine v11 LOCKED 749/14/163. Λ Conjecture 1 (NOT a theorem). ADDITIVE.
 const COLLAPSED_TABS: NavItem[] = [
+  // Matches landing pill 1: ⚡ Open Console → SPA root (Foundry home as entry)
   { id: 'tab-home', name: 'Home', icon: LayoutGrid, path: '/foundry' },
-  { id: 'tab-explorer', name: 'Explorer', icon: Boxes, path: '/explorer' },
-  { id: 'tab-code', name: 'Code', icon: SquareTerminal, path: '/code' },
-  { id: 'tab-doctrine', name: 'Doctrine', icon: BookOpenCheck, path: '/doctrine', badge: 'v11' },
-  { id: 'tab-evidence', name: 'Evidence', icon: ShieldCheck, path: '/evidence' },
-  { id: 'tab-scenes', name: '3D Scenes', icon: Telescope, path: '/canonical', badge: 'DREAM' },
-  { id: 'tab-papers', name: 'Papers', icon: FileStack, path: '/papers' },
-  { id: 'tab-about', name: 'About', icon: BookOpen, path: '/about' },
+  // Matches landing pill 2: 💚 Health → /health (strategy health page)
+  { id: 'tab-health', name: 'Health', icon: HeartPulse, path: '/health' },
+  // Matches landing pill 3: 📋 Honest Disclosure → /proof (ProofLedger)
+  { id: 'tab-honest', name: 'Honest Disclosure', icon: ShieldCheck, path: '/proof' },
+  // Matches landing pill 4: 🏷️ Version → /releases (ReleasesSection)
+  { id: 'tab-version', name: 'Version', icon: FileStack, path: '/releases' },
+  // Matches landing pill 5: Λ Lambda Score → /model-router (ModelRouter)
+  { id: 'tab-lambda', name: 'Lambda Score', icon: Sigma, path: '/model-router', badge: 'Λ' },
+  // Matches landing pill 6: 🤖 MCP Tools → /mcp-hub (McpHub)
+  { id: 'tab-mcp', name: 'MCP Tools', icon: Network, path: '/mcp-hub' },
+  // Matches landing pill 7: 🔄 Agent Loop → /orchestration (AgentOrchestration)
+  { id: 'tab-agent-loop', name: 'Agent Loop', icon: Workflow, path: '/orchestration' },
+  // Matches landing pill 8: 🔍 Evidence Ledger → /evidence (Evidence/receipts)
+  { id: 'tab-evidence', name: 'Evidence Ledger', icon: BookOpenCheck, path: '/evidence' },
+  // Matches landing pill 9: 🏛️ Doctrine Cathedral 3D → external static viz
+  { id: 'tab-doctrine-3d', name: 'Doctrine Cathedral', icon: Telescope, path: '/static/viz/doctrine/', external: true, badge: '3D' },
+  // Matches landing pill 10: ✨ Khipu Constellation 3D → external static viz
+  { id: 'tab-khipu', name: 'Khipu Constellation', icon: Sparkles, path: '/static/viz/khipu/', external: true, badge: '3D' },
+  // Matches landing pill 11: 🧠 LLM Router 3D → external static viz
+  { id: 'tab-router-3d', name: 'LLM Router Live', icon: Brain, path: '/static/viz/router/', external: true, badge: '3D' },
+  // Matches landing pill 12: 📦 GitHub → external repo
+  { id: 'tab-github', name: 'GitHub', icon: GitBranch, path: 'https://github.com/szl-holdings/a11oy', external: true },
 ];
 
 // Every other route (151 deep links) stays live; indexed here for the Cmd+K palette.
