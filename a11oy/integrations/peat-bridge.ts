@@ -730,8 +730,8 @@ async function selfTest(): Promise<void> {
     resource_kind: "ConfigMap",
     resource_name: "organ-a-dataset",
     pepr_controller_version: "0.4.0",
-    slsa_level: 3,
-    attestation_uri: "https://rekor.sigstore.dev/api/v1/log/entries?logIndex=12345",
+    slsa_level: 1,
+    attestation_uri: "https://rekor.sigstore.dev/api/v1/log/entries?logIndex=12345", // example fixture; SLSA L1 honest
     metadata: { test: true },
   };
 
