@@ -114,12 +114,41 @@ jobs:
 
       - name: Smoke test image (PR builds — loaded into local daemon)
         if: github.event_name == 'pull_request'
+        # FIX (Dev Fullstack Pass #1, 2026-06-03): the previous smoke test ran
+        #   docker run --rm TAG --version   /   --help
+        # but the Dockerfile CMD is ["python", "serve.py"], so those args REPLACE the
+        # command — Docker tried to exec `--version` as a binary and failed on EVERY PR
+        # (serve.py has no --version/--help CLI; it is a uvicorn server). This step has
+        # therefore been red on all pull_request builds while push-to-main skips it.
+        # Real fix: start the server detached, poll the health probe, then assert the
+        # /honest doctrine contract (LOCKED 749) is intact. Container started on :7860.
         run: |
+          set -euo pipefail
           TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
-          echo "=== --version ==="
-          docker run --rm "${TAG}" --version
-          echo "=== --help ==="
-          docker run --rm "${TAG}" --help
+          CID=$(docker run -d -p 7860:7860 "${TAG}")
+          echo "started container ${CID}"
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:7860/api/health >/dev/null 2>&1; then ok=1; break; fi
+            sleep 2
+          done
+          if [ -z "${ok}" ]; then
+            echo "::error::container did not become healthy on :7860 within 60s"
+            docker logs "${CID}" | tail -50 || true
+            docker rm -f "${CID}" >/dev/null 2>&1 || true
+            exit 1
+          fi
+          echo "=== /api/health ==="
+          curl -fsS http://localhost:7860/api/health
+          echo
+          echo "=== /api/a11oy/v1/honest (doctrine contract check) ==="
+          HONEST=$(curl -fsS http://localhost:7860/api/a11oy/v1/honest)
+          echo "${HONEST}"
+          # Assert LOCKED doctrine declarations count is present and unchanged.
+          echo "${HONEST}" | grep -q '"declarations": *749' \
+            || { echo "::error::/honest did not report LOCKED 749 declarations"; docker rm -f "${CID}" >/dev/null 2>&1 || true; exit 1; }
+          docker rm -f "${CID}" >/dev/null 2>&1 || true
+          echo "smoke test passed: server healthy + /honest LOCKED 749 intact"
 
       # FIX (Yachay, empire-reliability 2026-06-01): the SBOM step previously always
       # referenced the pushed main tag `:sha-<sha7>`. On pull_request builds the image
@@ -167,3 +196,4 @@ jobs:
           format: cyclonedx-json
           output-file: a11oy-image-sbom.cyclonedx.json
           upload-artifact: true
+
