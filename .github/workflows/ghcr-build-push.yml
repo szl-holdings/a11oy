@@ -3,6 +3,8 @@ name: GHCR Build + Push (uds-v0.2.0)
 # Unblocks Warhacker UDS bundle chain (FA-01).
 # EXACT pattern from killinchu/build-uds-image.yml (confirmed working).
 # Adds uds-v0.2.0 + latest + sha-* tags. No sbom/provenance (isolates 403 issue).
+# GHCR fix (2026-06-03): Use GHCR_TOKEN secret (classic PAT, write:packages scope)
+# instead of GITHUB_TOKEN — enterprise policy disables workflow write permissions.
 # DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 on:
   push:
@@ -22,7 +24,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_TOKEN }}
       - uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
         with:
           context: .
