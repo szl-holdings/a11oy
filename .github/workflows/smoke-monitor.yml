@@ -1,0 +1,95 @@
+# smoke-monitor.yml — Synthetic monitoring for SZL Holdings flagship HF Spaces
+# Runs every 5 minutes via cron; logs results; closes C-05 gap.
+# Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+name: Synthetic Smoke Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  smoke:
+    name: Flagship smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Smoke test all 5 HF Spaces
+        id: smoke
+        run: |
+          set +e
+          PASS=0
+          FAIL=0
+          FAILURES=""
+
+          check() {
+            local name="$1"
+            local url="$2"
+            local code
+            code=$(curl -o /dev/null -s -w '%{http_code}' --max-time 15 "$url")
+            if [ "$code" = "200" ]; then
+              echo "  PASS: $name => $code"
+              PASS=$((PASS+1))
+            else
+              echo "  FAIL: $name => $code"
+              FAIL=$((FAIL+1))
+              FAILURES="$FAILURES\n- $name: HTTP $code"
+            fi
+          }
+
+          check "a11oy /" "https://szlholdings-a11oy.hf.space/"
+          check "a11oy /v1/lambda" "https://szlholdings-a11oy.hf.space/v1/lambda"
+          check "a11oy /v1/honest" "https://szlholdings-a11oy.hf.space/v1/honest"
+          check "a11oy /api/a11oy/v4/fleet" "https://szlholdings-a11oy.hf.space/api/a11oy/v4/fleet"
+          check "sentra /" "https://szlholdings-sentra.hf.space/"
+          check "sentra /api/sentra/v1/lambda" "https://szlholdings-sentra.hf.space/api/sentra/v1/lambda"
+          check "sentra /api/sentra/v1/verdict" "https://szlholdings-sentra.hf.space/api/sentra/v1/verdict"
+          check "amaru /" "https://szlholdings-amaru.hf.space/"
+          check "amaru /api/amaru/v1/lambda" "https://szlholdings-amaru.hf.space/api/amaru/v1/lambda"
+          check "amaru /api/amaru/v1/brain" "https://szlholdings-amaru.hf.space/api/amaru/v1/brain"
+          check "rosie /" "https://szlholdings-rosie.hf.space/"
+          check "rosie /api/rosie/v1/lambda" "https://szlholdings-rosie.hf.space/api/rosie/v1/lambda"
+          check "rosie /api/rosie/v1/honest" "https://szlholdings-rosie.hf.space/api/rosie/v1/honest"
+          check "killinchu /" "https://szlholdings-killinchu.hf.space/"
+          check "killinchu /api/killinchu/v1/lambda" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/lambda"
+          check "killinchu /api/killinchu/v1/honest" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest"
+
+          echo "PASS=$PASS FAIL=$FAIL"
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+          echo "fail=$FAIL" >> $GITHUB_OUTPUT
+
+          if [ "$FAIL" -gt 0 ]; then
+            echo "failures<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$FAILURES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@60a0d83039f74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const failures = `${{ steps.smoke.outputs.failures }}`;
+            const title = `[SMOKE ALERT] Flagship endpoint failure detected ${new Date().toISOString()}`;
+            const body = `## Smoke Monitor Alert\n\nThe following endpoints failed:\n${failures}\n\n**Doctrine v11 LOCKED 749/14/163** | Run: ${{ github.run_id }}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['smoke-alert', 'incident'],
+            });
