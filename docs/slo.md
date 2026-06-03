@@ -1,80 +1,53 @@
-# Service Level Objectives (SLO)
+# SLI/SLO/Error Budget — SZL Holdings Flagship Services
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest | Generated: 2026-06-03**
 
-**Service:** a11oy  
-**Version:** v1.0.0  
-**Last reviewed:** 2026-06-09  
-**Next review:** 2026-09-09 (quarterly)
+## Service Level Indicators (SLIs)
 
----
+| Indicator | Measurement | Tool |
+|-----------|-------------|------|
+| Availability | % 200 responses on / and /api/health | Uptime Robot / HF Space status |
+| Latency | P50, P95, P99 response time on doctrine endpoints | HF Metrics |
+| Error Rate | 5xx responses / total requests | HF Logs |
+| Doctrine Integrity | Correct `doctrine: v11`, `declarations: 749` in responses | Automated checker |
 
-## Availability SLO
+## Service Level Objectives (SLOs)
 
-| Metric | Target | Measurement Window |
-|---|---|---|
-| Availability (uptime) | 99.5% | Rolling 30 days |
-| Error rate | < 1% of requests | Rolling 24 hours |
-| Error budget | 0.5% = ~216 minutes/month | Monthly |
+| Flagship | Endpoint | SLO | Window | Error Budget |
+|----------|----------|-----|--------|--------------|
+| a11oy | / (root) | 99.5% availability | 30-day rolling | 3.65 hours downtime |
+| a11oy | /v1/lambda | 99.5% + correct doctrine | 30-day rolling | 3.65 hours |
+| a11oy | /v1/honest | 99.5% + correct disclosure | 30-day rolling | 3.65 hours |
+| sentra | /api/sentra/v1/lambda | 99.5% availability | 30-day rolling | 3.65 hours |
+| sentra | /api/sentra/v1/verdict | 99.5% + non-empty response | 30-day rolling | 3.65 hours |
+| amaru | /api/amaru/v1/brain | 99.0% availability | 30-day rolling | 7.2 hours |
+| rosie | /api/rosie/v1/lambda | 99.5% availability | 30-day rolling | 3.65 hours |
+| killinchu | /api/killinchu/v1/lambda | 99.5% availability | 30-day rolling | 3.65 hours |
 
----
+## Notes on HF Space Constraints
 
-## Latency SLOs
-
-| Endpoint | p50 | p95 | p99 |
-|---|---|---|---|
-| `/api/health` | < 50ms | < 200ms | < 500ms |
-| `/api/v4/*` (read) | < 200ms | < 800ms | < 2000ms |
-| `/api/v4/*` (write) | < 500ms | < 2000ms | < 5000ms |
-
----
+SZL Holdings flagships run on HuggingFace Spaces (cpu-basic tier). Honest disclosure:
+- HF free-tier spaces may sleep after 48h inactivity → cold start 30-60s
+- SLO window resets if space restarts (cold start not counted as downtime if < 120s)
+- Actual latency P99 may be 2-5x higher during cold start
+- Error budget measured from the moment space is RUNNING
 
 ## Error Budget Policy
 
-| Burn Rate | Window | Action |
-|---|---|---|
-| > 2× | 1 hour | Page on-call immediately |
-| > 5× | 5 minutes | Incident declared; rollback considered |
-| Budget exhausted | — | Freeze non-critical deploys until budget recovered |
+- If error budget is **<50% remaining**: freeze new deployments to that space
+- If error budget is **exhausted**: escalate to founder; no changes until budget resets
+- **SLO burn alert**: If 5% of budget consumed in 1 hour → immediate investigation
 
----
+## Doctrine Compliance SLO
 
-## Alert Thresholds
+| Check | SLO | Measurement |
+|-------|-----|-------------|
+| `doctrine: v11` in all responses | 100% | Automated grep |
+| `declarations: 749` | 100% | Automated check |
+| `sorries_total: 163` | 100% | Automated check |
+| `kernel_commit: c7c0ba17` | 100% | Automated check |
+| Λ = Conjecture 1 (not theorem) | 100% | Automated check |
+| SLSA L1 honest (not L2/L3) | 100% | Automated check |
+| Section 889 = exactly 5 vendors | 100% | Automated check |
 
-```yaml
-# Recommended alert rules (adapt to monitoring stack)
-- alert: HighErrorRate
-  expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
-  for: 5m
-  labels:
-    severity: warning
-
-- alert: P95LatencyBreach
-  expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.8
-  for: 10m
-  labels:
-    severity: warning
-
-- alert: ServiceDown
-  expr: up == 0
-  for: 2m
-  labels:
-    severity: critical
-```
-
----
-
-## Observability Coverage
-
-- [x] `/api/health` endpoint returning `{"status": "ok", "sovereign": true}`
-- [x] OpenTelemetry `traceparent` W3C header propagation
-- [ ] RED metrics dashboard (Rate/Errors/Duration) — post-v1.0 milestone
-- [ ] Synthetic uptime monitoring — post-v1.0 milestone
-
----
-
-## Sources
-
-- [Google SRE — Service Level Objectives](https://sre.google/sre-book/service-level-objectives/)
-- [Datadog SLOs](https://docs.datadoghq.com/service_management/service_level_objectives/)
-- [Google SRE — Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/)
-
-*Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>*
+**Signed-off-by: Yachay <yachay@szlholdings.ai>**  
+**Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>**
