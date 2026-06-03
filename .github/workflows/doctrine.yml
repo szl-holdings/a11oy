@@ -1,86 +1,12 @@
-name: Doctrine Build
-
-# H2 fix (2026-05-31): removed the paths: filter that caused the job to be
-# skipped for PRs touching web/src/**, src/**, or packages/**. The build gate
-# now runs on every PR and every push to main, so the SPA and all packages are
-# covered.
-#
-# Reference: red-team finding H2 — "doctrine.yml path-filter skips the entire SPA"
-# Fix author: ci/doctrine-hardening-h1-h2-l1 (Signed-off: Stephen P. Lutar Jr.)
-
+name: Doctrine
 on:
-  push:
-    branches: [main]
   pull_request:
+  push:
     branches: [main]
 
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  doctrine:
-    name: Doctrine package validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Enable corepack and install pnpm 10.33.3
-        # CI-HYGIENE 2026-06-03: pnpm/action-setup removed — isVerifiedOwner=false
-        # in GitHub Marketplace; blocked by szl-holdings org allowed_actions policy.
-        # Replaced with corepack (Node.js built-in). Semantics preserved.
-        run: |
-          corepack enable
-          corepack install -g pnpm@10.33.3
-
-      - name: Setup Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: 22
-          # cache: pnpm removed — pnpm installed via corepack step; cache not needed
-
-      - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
-        with:
-          python-version: '3.13'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run doctrine tests
-        run: pnpm test:doctrine
-
-      - name: Typecheck doctrine packages
-        run: pnpm typecheck:doctrine
-
-      - name: Build doctrine packages
-        run: pnpm build:doctrine
-
-      - name: Audit ecosystem registry
-        run: pnpm ecosystem:audit
-
-      - name: Verify ecosystem readiness report
-        run: pnpm ecosystem:readiness
-
-      - name: Verify deploy payload manifest
-        run: pnpm payload:verify
-
-      - name: Build operational payload bundle
-        run: pnpm payload:bundle
-
-      - name: Verify operational payload bundle
-        run: pnpm payload:bundle:verify
-
-      - name: Upload operational payload bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: a11oy-operational-payload
-          path: |
-            dist/payload/a11oy-operational-payload.tar.gz
-            dist/payload/a11oy-operational-payload.tar.gz.sha256
-          if-no-files-found: error
-          retention-days: 14
+  check:
+    uses: szl-holdings/.github/.github/workflows/doctrine-check.yml@main
