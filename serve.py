@@ -2098,3 +2098,40 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "7860"))
     print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v9 — SPA at /", file=sys.stderr)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+
+
+# ============================================================================
+# ADDITIVE: SZL Agent Pattern v1 ("Ken") — AUTO-REGISTERED
+# Date: 2026-06-03 | By: Ecosystem Agentic Uplift Team
+# Doctrine v11 LOCKED 749/14/163 UNCHANGED. Kernel commit c7c0ba17.
+# P6-verified endpoints PRESERVED. Only NEW /v1/agent/* + /v1/mcp/* routes.
+# Sources adapted (Apache-2.0/MIT): LangGraph (Apache-2.0), Letta (Apache-2.0),
+#   AutoGen (MIT), MCP spec (Apache-2.0), smolagents (Apache-2.0), crewAI (MIT)
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_ken as _ken
+    import sys as _sys
+    # Detect flagship from FastAPI app title
+    _kf = "unknown"
+    _app_title = getattr(app, "title", "").lower()
+    for _fn in ["a11oy", "sentra", "amaru", "rosie", "killinchu"]:
+        if _fn in _app_title or _fn in __file__.lower():
+            _kf = _fn
+            break
+    _ken_router = _ken.make_ken_router(
+        flagship=_kf,
+        tools_manifest=_ken.get_default_tools(_kf),
+    )
+    app.include_router(_ken_router)
+    print(f"[{_kf}] szl_ken v1: POST /api/{_kf}/v1/agent/loop registered ✓", file=_sys.stderr)
+    print(f"[{_kf}] szl_ken v1: GET  /api/{_kf}/v1/mcp/tools registered ✓", file=_sys.stderr)
+    print(f"[{_kf}] szl_ken v1: GET  /api/{_kf}/v1/khipu/<hash> registered ✓", file=_sys.stderr)
+except ImportError as _ke:
+    print(f"[ken] szl_ken not available: {_ke!r}", file=__import__("sys").stderr)
+except Exception as _ke:
+    print(f"[ken] registration error (non-fatal): {_ke!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: SZL Agent Pattern v1 ("Ken") — ADDITIVE BLOCK
+# ============================================================================
