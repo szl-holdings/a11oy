@@ -65,7 +65,7 @@ jobs:
         # v0.2.3 install.sh exits code 1 when downloading Trivy v0.58.1 on current runners.
         # v0.3.0 (2026-06-02 release) fixes the install script. aquasecurity IS a verified
         # creator. Trivy version updated to v0.61.0 (latest stable).
-        uses: aquasecurity/setup-trivy@151a37f29c09e4ff49f853d2b23682e688bb1fa1 # v0.3.0
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
         with:
           version: v0.61.0
 
