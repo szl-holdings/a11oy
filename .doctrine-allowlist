@@ -48,3 +48,30 @@ packages/
 # is scanned in web/src/**; scanning compiled bundles is redundant and produces
 # false positives from upstream vendor code.
 console/assets/
+
+# serve.py — module docstring header contains the enforcement ban-list itself
+# ("Banned: Jarvis, Bo11y/Bolly ...") as policy declaration. The list IS the rule.
+serve.py
+
+# szl_yachay_organ.py — system prompt file lists banned tokens explicitly
+# as enforcement reference (same pattern as YACHAY_SYSTEM_PROMPT.md).
+szl_yachay_organ.py
+
+# szl_formulas.py — uses "leading N bytes" in cryptographic/technical context
+# (commitment prefix comparison), not marketing prose.
+szl_formulas.py
+
+# wayra_snapshot.json — arXiv paper snapshot; abstracts are third-party academic
+# prose quoted verbatim from arXiv. Hits on "premier", "state-of-the-art",
+# "leading" are in academic abstracts, not SZL-authored claims.
+wayra_snapshot.json
+
+# web/src/data/ — SPA data files use "leading indicator" in the financial/
+# econometric sense (cap-rate leading indicators, market micro-structure signals).
+# These are technical domain terms, not marketing superlatives.
+web/src/data/
+
+# web/src/data/releases.ts — changelog entries document which terms were ADDED
+# to the banned list; mentioning "seamless" in "Added 'seamless' to banned terms"
+# is referential, not a marketing claim.
+web/src/data/releases.ts
