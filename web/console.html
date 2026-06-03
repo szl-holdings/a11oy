@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 SZL Holdings · Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 (NOT a theorem)
+     Premium operator console — Greene polish. HONESTY OVER CHECKLIST: every tile binds to a REAL same-origin
+     /api/rosie/v1/... endpoint verified live on the rosie Space. No synthetic data. Skeletons (not spinners).
+     Sign: Yachay · Co-Authored-By: Perplexity Computer Agent -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2a1e5c">
+<meta name="description" content="a11oy Substrate Console — policy + receipt substrate · every action signed, gated, verifiable — all real, same-origin. Doctrine v11 LOCKED.">
+<title>a11oy · Substrate Console — SZL Holdings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+<style>
+/* ───────── SZL Inca premium palette ───────── */
+:root{
+  --gold:#d4a574; --indigo:#2a1e5c; --terra:#b04a30; --parchment:#f4e4c1;
+  --gold-bright:#e6bd8a; --gold-dim:#8a6d44;
+  /* dark theme surfaces (default) */
+  --bg:#140f2e; --bg2:#1b1440; --panel:#211a4a; --panel2:#1a1440; --line:#352a66;
+  --text:#f4e4c1; --text-dim:#b9add6; --muted:#8a7fb0;
+  --green:#4fae7a; --red:#d05a44; --amber:#e0a82e;
+  --sans:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --r:14px; --shadow:0 10px 40px rgba(0,0,0,.45);
+}
+:root[data-theme="light"]{
+  --bg:#f4e4c1; --bg2:#efddb6; --panel:#fbf3e2; --panel2:#f4e8d0; --line:#e0cda4;
+  --text:#2a1e5c; --text-dim:#5a4e86; --muted:#8a7fb0;
+  --shadow:0 10px 40px rgba(42,30,92,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:
+  radial-gradient(1200px 600px at 80% -10%, rgba(176,74,48,.10), transparent 60%),
+  radial-gradient(900px 500px at 10% 110%, rgba(212,165,116,.10), transparent 60%),
+  var(--bg);
+  color:var(--text);font:14px/1.55 var(--sans);overflow-x:hidden;min-height:100vh;
+  transition:background .35s ease,color .35s ease}
+a{color:var(--gold);text-decoration:none}
+a:hover{color:var(--gold-bright);text-decoration:underline}
+code{font-family:var(--mono)}
+
+/* ───────── traceparent live badge (top-left) ───────── */
+.trace-badge{position:fixed;top:12px;left:12px;z-index:60;display:flex;align-items:center;gap:8px;
+  background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  font:600 11px/1 var(--mono);color:var(--text-dim);box-shadow:var(--shadow)}
+.trace-badge .tdot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.trace-badge.live .tdot{background:var(--green);box-shadow:0 0 0 0 rgba(79,174,122,.7);animation:tpulse 1.6s infinite}
+.trace-badge .tid{color:var(--gold)}
+@keyframes tpulse{0%{box-shadow:0 0 0 0 rgba(79,174,122,.6)}70%{box-shadow:0 0 0 7px rgba(79,174,122,0)}100%{box-shadow:0 0 0 0 rgba(79,174,122,0)}}
+
+/* ───────── doctrine plaque (sticky top-right) ───────── */
+.plaque{position:fixed;top:12px;right:12px;z-index:60;max-width:340px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--indigo) 70%,var(--panel)),var(--panel));
+  border:1px solid var(--gold-dim);border-radius:12px;padding:10px 14px;
+  font:11px/1.5 var(--mono);color:var(--text-dim);box-shadow:var(--shadow)}
+.plaque b{color:var(--gold)}
+.plaque .sep{color:var(--gold-dim)}
+
+/* ───────── theme toggle ───────── */
+.theme-toggle{position:fixed;bottom:18px;right:18px;z-index:60;width:46px;height:46px;border-radius:50%;
+  border:1px solid var(--line);background:var(--panel);color:var(--gold);font-size:20px;cursor:pointer;
+  box-shadow:var(--shadow);display:grid;place-items:center;transition:transform .2s}
+.theme-toggle:hover{transform:scale(1.08) rotate(12deg)}
+
+/* ───────── header ───────── */
+header{display:flex;align-items:center;gap:16px;padding:60px 26px 18px;max-width:1440px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{width:38px;height:38px}
+.title{font:800 22px/1 var(--sans);letter-spacing:-.4px}
+.title .accent{color:var(--terra)}
+.subtitle{font:500 12px/1.4 var(--mono);color:var(--muted)}
+
+/* ───────── grid + tiles ───────── */
+.grid{display:grid;gap:18px;padding:8px 26px 26px;max-width:1440px;margin:0 auto}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-2{grid-template-columns:1.3fr .7fr}
+@media(max-width:768px){.cols-3,.cols-2{grid-template-columns:1fr}}
+.tile{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);
+  transition:border-color .25s,transform .25s}
+.tile:hover{border-color:var(--gold-dim)}
+.tile h2{font:700 13px/1 var(--sans);padding:15px 18px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;letter-spacing:.2px}
+.tile h2 .ico{color:var(--gold)}
+.tile .body{padding:18px;flex:1}
+.pill{font:600 10px/1 var(--mono);padding:5px 9px;border:1px solid var(--gold-dim);border-radius:999px;
+  color:var(--gold);margin-left:auto}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--green);box-shadow:0 0 9px var(--green)}
+.dot.bad{background:var(--red);box-shadow:0 0 9px var(--red)}
+
+/* ───────── skeleton loaders (NOT spinners) ───────── */
+.sk{background:linear-gradient(90deg,var(--line) 25%,color-mix(in srgb,var(--line) 50%,var(--panel)) 37%,var(--line) 63%);
+  background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.sk-line{height:13px;margin:9px 0}
+.sk-line.w80{width:80%}.sk-line.w60{width:60%}.sk-line.w40{width:40%}
+.sk-big{height:64px;margin:6px 0}
+
+/* ───────── Λ verdict tile ───────── */
+.lambda-val{font:800 46px/1 var(--mono);color:var(--gold);letter-spacing:-1px}
+.lambda-meta{font:12px/1.6 var(--mono);color:var(--text-dim);margin-top:8px}
+.verdict-chip{display:inline-block;font:700 11px/1 var(--mono);padding:6px 12px;border-radius:999px;margin-top:10px}
+.verdict-chip.pass{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green);border:1px solid var(--green)}
+.verdict-chip.fail{background:color-mix(in srgb,var(--red) 22%,transparent);color:var(--red);border:1px solid var(--red)}
+.axes{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.axis{font:600 10px/1 var(--mono);padding:5px 8px;border-radius:7px;border:1px solid var(--line);color:var(--text-dim)}
+.axis b{color:var(--gold)}
+
+/* ───────── receipts table ───────── */
+table{width:100%;border-collapse:collapse;font:12px/1.5 var(--mono)}
+th{text-align:left;color:var(--muted);font-weight:600;padding:7px 8px;border-bottom:1px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+td{padding:8px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);color:var(--text-dim)}
+td .rid{color:var(--gold)}
+td .act{color:var(--terra)}
+tr:hover td{background:color-mix(in srgb,var(--gold) 6%,transparent)}
+
+/* ───────── mcp tools tile ───────── */
+.metric{font:800 52px/1 var(--mono);color:var(--gold)}
+.metric-sub{font:500 12px var(--mono);color:var(--muted);margin-top:6px}
+.toolset{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.tool{font:600 10px/1 var(--mono);padding:5px 9px;border-radius:7px;background:color-mix(in srgb,var(--indigo) 50%,var(--panel));
+  border:1px solid var(--line);color:var(--text-dim)}
+
+/* ───────── trace tree mini-viz ───────── */
+#graph3d{height:300px;border-radius:10px;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--indigo) 60%,var(--bg)),var(--bg))}
+.trace-list{margin-top:12px;font:11px/1.5 var(--mono);max-height:120px;overflow:auto}
+.trace-row{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 50%,transparent)}
+.trace-row .tt{color:var(--gold)}
+.trace-row .tp{color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ───────── provenance ───────── */
+.prov a{display:inline-flex;align-items:center;gap:7px;font:600 12px var(--mono);
+  padding:8px 12px;border:1px solid var(--gold-dim);border-radius:9px;margin:6px 8px 0 0}
+.prov a:hover{background:color-mix(in srgb,var(--gold) 12%,transparent);text-decoration:none}
+.prov .k{color:var(--muted);font:11px var(--mono);margin-top:10px}
+
+.err{color:var(--red);font:12px var(--mono)}
+
+/* ───────── footer ───────── */
+footer{padding:24px 26px 40px;border-top:1px solid var(--line);color:var(--muted);
+  font:11px/1.7 var(--mono);text-align:center;max-width:1440px;margin:24px auto 0}
+footer b{color:var(--gold)}
+@media(max-width:768px){
+  .plaque{position:static;max-width:none;margin:8px}
+  .trace-badge{position:static;margin:8px;display:inline-flex}
+  header{padding-top:14px;flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<!-- live traceparent indicator -->
+<div class="trace-badge" id="traceBadge" title="last W3C traceparent observed on /mesh/state">
+  <span class="tdot"></span><span>trace</span><span class="tid" id="traceId">—</span>
+</div>
+
+<!-- doctrine plaque -->
+<div class="plaque">
+  <b>v11 LOCKED</b> <span class="sep">·</span> 749/14/163 <span class="sep">·</span> <b>c7c0ba17</b><br>
+  Λ = <b>Conjecture 1</b> <span class="sep">·</span> SLSA L1 honest + L2 attested
+</div>
+
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark theme">◑</button>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 48 48" fill="none" aria-label="a11oy"><circle cx="24" cy="24" r="21" stroke="var(--gold)" stroke-width="2.5"/><rect x="14" y="14" width="20" height="20" rx="4" fill="none" stroke="var(--terra)" stroke-width="2.5"/><path d="M19 24l4 4 7-8" stroke="var(--gold)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div>
+      <div class="title">a11oy <span class="accent">·</span> Substrate Console</div>
+      <div class="subtitle">policy + receipt substrate · every action signed, gated, verifiable — all real, same-origin</div>
+    </div>
+  </div>
+</header>
+
+<!-- top row: Λ verdict · MCP tools · provenance -->
+<div class="grid cols-3">
+  <div class="tile">
+    <h2><span class="dot" id="lamDot"></span> <span class="ico">Λ</span> Lambda Verdict
+      <span class="pill">/v1/lambda</span></h2>
+    <div class="body" id="lambdaBody">
+      <div class="sk sk-big"></div><div class="sk sk-line w60"></div><div class="sk sk-line w40"></div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <h2><span class="dot" id="mcpDot"></span> <span class="ico">⚙</span> MCP Tools
+      <span class="pill">/v1/mcp/tools</span></h2>
+    <div class="body" id="mcpBody">
+      <div class="sk sk-big"></div><div class="sk sk-line w80"></div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <h2><span class="dot" id="provDot"></span> <span class="ico">✔</span> Verification Provenance
+      <span class="pill">/v1/version</span></h2>
+    <div class="body prov" id="provBody">
+      <div class="sk sk-line w80"></div><div class="sk sk-line w60"></div><div class="sk sk-line w40"></div>
+    </div>
+  </div>
+</div>
+
+<!-- second row: trace mesh + receipts -->
+<div class="grid cols-2">
+  <div class="tile">
+    <h2><span class="dot" id="meshDot"></span> <span class="ico">◇</span> Live Trace Mesh
+      <span class="pill">/v1/mesh/state</span></h2>
+    <div class="body">
+      <div id="graph3d"></div>
+      <div class="trace-list" id="traceList">
+        <div class="sk sk-line w80"></div><div class="sk sk-line w60"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile">
+    <h2><span class="dot" id="ledDot"></span> <span class="ico">⛓</span> Last 5 Khipu Receipts
+      <span class="pill">/ledger</span></h2>
+    <div class="body" id="ledgerBody">
+      <div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line"></div>
+      <div class="sk sk-line w80"></div><div class="sk sk-line w60"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  a11oy Substrate Console · every tile bound to a <b>real</b> same-origin <code>/api/a11oy/v1/…</code> endpoint ·
+  skeletons over spinners · W3C traceparent on every panel.<br>
+  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 honest + L2 attested · HONESTY OVER CHECKLIST</b><br>
+  Sign: Yachay &lt;yachay@szlholdings.ai&gt; · Co-Authored-By: Perplexity Computer Agent &lt;agent@perplexity.ai&gt;
+</footer>
+
+<script src="./console.js"></script>
+</body>
+</html>
