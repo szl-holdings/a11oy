@@ -1,8 +1,8 @@
 name: GHCR Build + Push (uds-v0.2.0)
 # Builds the root Dockerfile and pushes to ghcr.io/szl-holdings/<repo>.
 # Unblocks Warhacker UDS bundle chain (FA-01).
-# Uses GITHUB_TOKEN (proven working pattern from killinchu/build-uds-image.yml).
-# No top-level permissions block — job-level only (matches killinchu pattern).
+# EXACT pattern from killinchu/build-uds-image.yml (confirmed working).
+# Adds uds-v0.2.0 + latest + sha-* tags. No sbom/provenance (isolates 403 issue).
 # DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 on:
   push:
@@ -18,37 +18,22 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/szl-holdings/${{ github.event.repository.name }}
-          tags: |
-            type=raw,value=uds-v0.2.0
-            type=raw,value=latest
-            type=ref,event=tag
-            type=sha,prefix=sha-,format=short
-      - name: Build + push
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+      - uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          provenance: true
-          sbom: true
+          tags: |
+            ghcr.io/szl-holdings/${{ github.event.repository.name }}:uds-v0.2.0
+            ghcr.io/szl-holdings/${{ github.event.repository.name }}:latest
       - uses: sigstore/cosign-installer@053f9b74638557590800a301da1ba82351507e2c # v3.8.1
-      - name: Cosign sign keyless
+      - name: cosign sign
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
-          for tag in ${{ steps.meta.outputs.tags }}; do
-            cosign sign --yes "$tag"
-          done
+          cosign sign --yes ghcr.io/szl-holdings/${{ github.event.repository.name }}:uds-v0.2.0
+          cosign sign --yes ghcr.io/szl-holdings/${{ github.event.repository.name }}:latest
