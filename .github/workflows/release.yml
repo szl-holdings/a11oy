@@ -1,11 +1,13 @@
-name: Release artifacts — SBOM + DSSE attestation
+name: Release artifacts — SBOM + DSSE attestation + build provenance
 on:
   release:
     types: [created]
+  workflow_dispatch:
 permissions:
   id-token: write
   contents: write
   packages: write
+  attestations: write
 jobs:
   attach:
     runs-on: ubuntu-latest
@@ -19,6 +21,19 @@ jobs:
         with:
           format: cyclonedx-json
           output-file: ${{ github.event.repository.name }}-sbom.cdx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            ${{ github.event.repository.name }}-sbom.cdx.json
+          push-to-registry: false
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: '${{ github.event.repository.name }}-sbom.cdx.json'
+          sbom-path: '${{ github.event.repository.name }}-sbom.cdx.json'
 
       - name: Install cosign
         uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
@@ -35,6 +50,7 @@ jobs:
 
       - name: Upload SBOM + attestation to release
         uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        if: github.event_name == 'release'
         with:
           files: |
             ${{ github.event.repository.name }}-sbom.cdx.json
