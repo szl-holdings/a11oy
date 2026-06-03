@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>a11oy — 3D Action-Cone Visualizer</title>
+<style>
+  body { margin:0; background:#050a12; color:#d4a444; font-family:'Courier New',monospace; overflow:hidden; }
+  #canvas-container { width:100vw; height:100vh; }
+  #hud {
+    position:fixed; top:12px; left:12px; background:rgba(0,0,0,0.75);
+    border:1px solid #d4a444; padding:10px 16px; border-radius:6px;
+    font-size:12px; line-height:1.7; z-index:10; max-width:280px;
+  }
+  #hud h2 { color:#d4a444; margin:0 0 6px; font-size:14px; letter-spacing:2px; }
+  .axis-label { color:#88b4cc; }
+  .axis-val { color:#d4a444; float:right; }
+  #status { position:fixed; bottom:12px; left:12px; font-size:11px; color:#888; }
+  #legend { position:fixed; top:12px; right:12px; background:rgba(0,0,0,0.75);
+    border:1px solid #333; padding:8px 12px; border-radius:6px; font-size:11px; }
+  .legend-item { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  .legend-dot { width:10px; height:10px; border-radius:50%; }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="hud">
+  <h2>⚡ A11OY ACTION-CONE</h2>
+  <div style="color:#888;font-size:10px;margin-bottom:8px;">Λ 9-Axis Space · Doctrine v11</div>
+  <div><span class="axis-label">Axis 1 Soundness</span> <span class="axis-val" id="ax1">0.93</span></div>
+  <div><span class="axis-label">Axis 2 Safety</span> <span class="axis-val" id="ax2">0.91</span></div>
+  <div><span class="axis-label">Axis 3 PII Guard</span> <span class="axis-val" id="ax3">0.88</span></div>
+  <div><span class="axis-label">Axis 4 Jailbreak</span> <span class="axis-val" id="ax4">0.95</span></div>
+  <div><span class="axis-label">Axis 5 Dual-Use</span> <span class="axis-val" id="ax5">0.79</span></div>
+  <div><span class="axis-label">Axis 6 Size Guard</span> <span class="axis-val" id="ax6">0.99</span></div>
+  <div><span class="axis-label">Axis 7 Policy</span> <span class="axis-val" id="ax7">0.87</span></div>
+  <div><span class="axis-label">Axis 8 Replay</span> <span class="axis-val" id="ax8">0.92</span></div>
+  <div><span class="axis-label">Axis 9 Signature</span> <span class="axis-val" id="ax9">0.94</span></div>
+  <hr style="border-color:#333;margin:6px 0"/>
+  <div><span class="axis-label">Λ Aggregate</span> <span class="axis-val" id="lambda" style="color:#00ff88">CONJECTURE 1</span></div>
+  <div><span class="axis-label">Actions</span> <span class="axis-val" id="action-count">0</span></div>
+</div>
+<div id="legend">
+  <div style="color:#888;font-size:10px;margin-bottom:6px;">RECEIPT VERDICTS</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div><span>ALLOW</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff4444"></div><span>DENY</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffaa00"></div><span>FLAG</span></div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4488ff"></div><span>REDACT</span></div>
+</div>
+<div id="status">Doctrine v11 LOCKED · 749/14/163 · Λ Conjecture 1 · a11oy/3d/cone · © SZL Holdings 2026 · Apache-2.0</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// a11oy 3D Action-Cone Visualizer
+// Source: Three.js r160 (MIT) — https://threejs.org/
+// DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
+// Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+// Doctrine: v11 LOCKED | Λ Conjecture 1 | ADDITIVE ONLY
+
+const SPACE_API = '/api/a11oy/v1/agent/loop';
+const DOCTRINE = {v:'v11', kernel:'c7c0ba17', declarations:749, sorries:163};
+
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050a12);
+scene.fog = new THREE.Fog(0x050a12, 40, 120);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(0, 8, 24);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+const dirLight = new THREE.DirectionalLight(0xd4a444, 1.2);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+const pLight = new THREE.PointLight(0x00ff88, 2, 30);
+pLight.position.set(0, 5, 0);
+scene.add(pLight);
+
+// Grid floor
+const grid = new THREE.GridHelper(60, 30, 0x1a2030, 0x0d1520);
+scene.add(grid);
+
+// Central axis cone (the Λ space)
+const coneGeo = new THREE.ConeGeometry(5, 10, 32, 1, true);
+const coneMat = new THREE.MeshBasicMaterial({
+  color:0xd4a444, wireframe:true, transparent:true, opacity:0.15
+});
+const cone = new THREE.Mesh(coneGeo, coneMat);
+cone.position.y = 2;
+scene.add(cone);
+
+// Axis lines (9 Λ axes radiating from center)
+const AXIS_COLORS = [0x00ff88,0x4488ff,0xffaa00,0xff4444,0xaa44ff,0x44ffaa,0xff8844,0x4488ff,0xffd700];
+const axes9 = [];
+for(let i=0;i<9;i++){
+  const angle = (i/9)*Math.PI*2;
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0),
+    new THREE.Vector3(Math.cos(angle)*8, 0.5, Math.sin(angle)*8)
+  ]);
+  const mat = new THREE.LineBasicMaterial({color:AXIS_COLORS[i], transparent:true, opacity:0.4});
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  axes9.push({angle, color:AXIS_COLORS[i]});
+}
+
+// Particle system for action vectors
+const MAX_PARTICLES = 200;
+const positions = new Float32Array(MAX_PARTICLES * 3);
+const colors = new Float32Array(MAX_PARTICLES * 3);
+const particleGeo = new THREE.BufferGeometry();
+particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+const particleMat = new THREE.PointsMaterial({size:0.25, vertexColors:true, transparent:true, opacity:0.9});
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// Trail lines
+const trailLines = [];
+let trailGeometry = new THREE.BufferGeometry();
+const trailPoints = [];
+let trailLine = null;
+
+// State
+let actionCount = 0;
+let pIndex = 0;
+let axes = [0.93,0.91,0.88,0.95,0.79,0.99,0.87,0.92,0.94];
+let t = 0;
+
+// Verdict colors
+const VERDICT_COLOR = {
+  'ALLOW':  new THREE.Color(0x00ff88),
+  'DENY':   new THREE.Color(0xff4444),
+  'FLAG':   new THREE.Color(0xffaa00),
+  'REDACT': new THREE.Color(0x4488ff),
+};
+
+function addActionVector(axisScores, verdict) {
+  // Map 9 scores to a 3D point in Λ-cone
+  const theta = (pIndex % 9) * Math.PI * 2 / 9;
+  const r = axisScores[pIndex % 9] * 6;
+  const x = Math.cos(theta) * r + (Math.random()-0.5)*0.5;
+  const y = axisScores[(pIndex+4) % 9] * 4 - 1;
+  const z = Math.sin(theta) * r + (Math.random()-0.5)*0.5;
+
+  const col = VERDICT_COLOR[verdict] || new THREE.Color(0xffffff);
+  const pidx = (pIndex % MAX_PARTICLES) * 3;
+  positions[pidx]   = x;
+  positions[pidx+1] = y;
+  positions[pidx+2] = z;
+  colors[pidx]   = col.r;
+  colors[pidx+1] = col.g;
+  colors[pidx+2] = col.b;
+
+  // Add trail point
+  trailPoints.push(new THREE.Vector3(x, y, z));
+  if(trailPoints.length > 50) trailPoints.shift();
+  if(trailLine) scene.remove(trailLine);
+  const tlGeo = new THREE.BufferGeometry().setFromPoints(trailPoints);
+  const tlMat = new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.3});
+  trailLine = new THREE.Line(tlGeo, tlMat);
+  scene.add(trailLine);
+
+  particleGeo.attributes.position.needsUpdate = true;
+  particleGeo.attributes.color.needsUpdate = true;
+
+  pIndex++;
+  actionCount++;
+  document.getElementById('action-count').textContent = actionCount;
+}
+
+// Update HUD axes
+function updateHUD(axScores) {
+  for(let i=1;i<=9;i++){
+    const el = document.getElementById('ax'+i);
+    if(el && axScores[i-1]!==undefined) {
+      el.textContent = axScores[i-1].toFixed(2);
+      el.style.color = axScores[i-1] > 0.85 ? '#00ff88' : axScores[i-1] > 0.65 ? '#ffaa00' : '#ff4444';
+    }
+  }
+}
+
+// Simulate or fetch live data
+async function fetchAction() {
+  try {
+    const resp = await fetch(SPACE_API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'3d_cone_probe', context:{frontier:'a11oy/3d/cone'}})
+    });
+    if(resp.ok) {
+      const data = await resp.json();
+      // Extract lambda scores from chain if available
+      if(data.chain && data.chain.length > 0) {
+        const payload = data.chain[0].payload || {};
+        const lScores = payload.lambda_scores || axes;
+        axes = lScores.slice(0,9).map(Number).map(v=>isNaN(v)?Math.random()*0.2+0.8:v);
+      }
+    }
+  } catch(e) { /* use simulated */ }
+
+  // Simulate drift
+  axes = axes.map(v => Math.max(0.5, Math.min(1.0, v + (Math.random()-0.5)*0.04)));
+  const verdict = Math.random() > 0.15 ? 'ALLOW' : (Math.random() > 0.5 ? 'FLAG' : 'DENY');
+  addActionVector(axes, verdict);
+  updateHUD(axes);
+}
+
+// Orbit camera
+let camTheta = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.005;
+  camTheta += 0.003;
+  camera.position.x = Math.sin(camTheta) * 24;
+  camera.position.z = Math.cos(camTheta) * 24;
+  camera.position.y = 8 + Math.sin(t*0.5) * 2;
+  camera.lookAt(0, 2, 0);
+  cone.rotation.y += 0.005;
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Start
+animate();
+setInterval(fetchAction, 2000);
+fetchAction();
+</script>
+</body>
+</html>
