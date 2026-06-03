@@ -1,100 +1,43 @@
-name: release
-
-# Auto-release: on main push, bump a simple counter version, tag, create a GitHub
-# release, sign artifacts with cosign keyless OIDC, and generate SLSA L1 provenance.
-# ADDITIVE. Doctrine v11 LOCKED 749/14/163 locked_at c7c0ba17
-# Action SHAs pinned 2026-06-03 by Auditor BETA (Beta-iter4)
-#
-# CI-HYGIENE 2026-06-03: softprops/action-gh-release removed — softprops is a GitHub
-# User (not a verified marketplace creator) and is blocked by the szl-holdings org
-# allowed_actions policy (github_owned_allowed=true, verified_allowed=true,
-# patterns_allowed=[]). Replaced with gh CLI inline steps (pre-installed on all
-# GitHub-hosted runners, github-owned tooling). Semantics preserved: same tag
-# creation, release notes generation, file attachment, and signature upload.
-
+name: Release artifacts — SBOM + DSSE attestation
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: write
-  id-token: write      # cosign keyless + SLSA OIDC
-  packages: read
-
-jobs:
   release:
+    types: [created]
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+jobs:
+  attach:
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.bump.outputs.tag }}
-      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
 
-      - name: Compute next version (simple counter)
-        id: bump
-        run: |
-          git fetch --tags
-          LAST=$(git tag --list 'v0.*' --sort=-v:refname | head -1)
-          if [ -z "$LAST" ]; then NEXT=1; else NEXT=$(( ${LAST##*.} + 1 )); fi
-          TAG="v0.1.${NEXT}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Next tag: $TAG"
-
-      - name: Build release artifact (deterministic tarball)
-        run: |
-          mkdir -p dist
-          tar --sort=name --mtime='UTC 2020-01-01' --owner=0 --group=0 --numeric-owner \
-              --exclude='./.git' --exclude='./dist' -czf dist/source-${{ steps.bump.outputs.tag }}.tar.gz . || true
-          ls -la dist
-
-      - name: Generate subject hashes (for SLSA)
-        id: hash
-        run: |
-          cd dist
-          echo "hashes=$(sha256sum * | base64 -w0)" >> "$GITHUB_OUTPUT"
-
-      - name: Create tag + GitHub release (gh CLI — github-owned tooling)
-        # softprops/action-gh-release removed: softprops is not a GitHub-verified creator.
-        # gh CLI is pre-installed on all GitHub-hosted runners and is maintained by GitHub.
-        # --generate-notes: equivalent to generate_release_notes: true in softprops action.
-        id: gh_release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ steps.bump.outputs.tag }}"
-          git tag "$TAG"
-          git push origin "$TAG"
-          gh release create "$TAG" \
-            --generate-notes \
-            dist/*
+      - name: Generate SBOM (CycloneDX JSON)
+        uses: anchore/sbom-action@ab5d7b5f48981941c4c5d6bf33aeb98fe3bae38c # v0.17.9
+        with:
+          format: cyclonedx-json
+          output-file: ${{ github.event.repository.name }}-sbom.cdx.json
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
 
-      - name: Sign artifacts (cosign keyless OIDC)
-        run: |
-          for f in dist/*; do
-            cosign sign-blob --yes \
-              --output-signature "${f}.sig" \
-              --output-certificate "${f}.crt" "$f"
-          done
-
-      - name: Attach signatures to release (gh CLI — github-owned tooling)
+      - name: Attest SBOM (DSSE/in-toto)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COSIGN_EXPERIMENTAL: "1"
         run: |
-          TAG="${{ steps.bump.outputs.tag }}"
-          gh release upload "$TAG" dist/*.sig dist/*.crt --clobber
+          cosign attest-blob --yes \
+            --predicate ${{ github.event.repository.name }}-sbom.cdx.json \
+            --type cyclonedx \
+            --output-attestation ${{ github.event.repository.name }}-attestation.intoto.jsonl \
+            ${{ github.event.repository.name }}-sbom.cdx.json
 
-  # provenance:
-  #   CI-HYGIENE 2026-06-03: slsa-framework/slsa-github-generator provenance job
-  #   is temporarily disabled. The SLSA generator (v2.0.0 and v2.1.0) internally
-  #   calls softprops/action-gh-release, which is blocked by the szl-holdings org
-  #   policy (softprops is a GitHub User, not a verified marketplace creator).
-  #   REQUIRES ORG ALLOWED-ACTIONS WHITELIST UPDATE:
-  #     Add softprops/action-gh-release@* or softprops/* to patterns_allowed in
-  #     org settings to re-enable SLSA L1 provenance attestation.
-  #   Alternatively: add leanprover/* and softprops/* to patterns_allowed.
+      - name: Upload SBOM + attestation to release
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        with:
+          files: |
+            ${{ github.event.repository.name }}-sbom.cdx.json
+            ${{ github.event.repository.name }}-attestation.intoto.jsonl
+        env:
+          COSIGN_EXPERIMENTAL: "1"
