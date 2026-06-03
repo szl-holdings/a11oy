@@ -75,3 +75,13 @@ web/src/data/
 # to the banned list; mentioning "seamless" in "Added 'seamless' to banned terms"
 # is referential, not a marketing claim.
 web/src/data/releases.ts
+
+# __tests__/adversarial/ — root-level adversarial test suite; test fixtures
+# intentionally reference banned tokens to verify detection/rejection behavior.
+# Distinct from packages/rae1/src/__tests__/adversarial/ (same doctrine rationale).
+__tests__/adversarial/
+__tests__/compliance/
+
+# a11oy_v4_hickok.py — uses "interrogative-leading" as a POS-tagger technical term
+# (verb/adjective classification), not as marketing prose.
+a11oy_v4_hickok.py
