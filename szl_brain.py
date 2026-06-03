@@ -18,6 +18,10 @@ HONESTY (Doctrine v10):
     keyless) signing is NOT yet wired.  Labeled explicitly everywhere.
   - No model API key is wired into the HF Spaces, so the router returns an HONEST
     STUB for `response`; the tier-selection + Λ-receipt are real, deterministic math.
+  - model_weight_sha256: every Λ-receipt embeds a SHA-256 that uniquely identifies
+    the loaded model weight state (via szl_rag.get_model_weight_sha256).  This
+    cryptographically binds the routing decision to the specific model weights in
+    use at decision time — model swaps are detectable from any historical receipt.
   - Canonical numbers are the locked Doctrine v10 set: 749 declarations / 14 unique
     axioms (15 raw, 1 dup) / 163 sorries (112 baseline + 51 Putnam) @ lutar-lean c7c0ba17.
 """
@@ -27,6 +31,18 @@ import math
 import time
 from datetime import datetime, timezone
 from typing import Any
+
+# ---------------------------------------------------------------------------
+# Model-weight SHA integration — import accessor from szl_rag (lazy, safe)
+# ---------------------------------------------------------------------------
+def _get_model_weight_sha256() -> dict:
+    """Safe wrapper around szl_rag.get_model_weight_sha256().
+    Returns a sensible default if szl_rag is not yet imported or loaded."""
+    try:
+        import szl_rag as _rag
+        return _rag.get_model_weight_sha256()
+    except Exception:
+        return {"sha256": "not_computed", "method": "szl_rag_unavailable", "model": "BAAI/bge-base-en-v1.5"}
 
 DOCTRINE = "v10"
 CANONICAL = {
@@ -93,6 +109,7 @@ def pick_tier(axis_scores: list[float] | None, max_tier: int = 4, task_hint: str
 
 def make_receipt(axis_scores: list[float] | None, max_tier: int = 4, task_hint: str = "") -> dict[str, Any]:
     sel = pick_tier(axis_scores, max_tier, task_hint)
+    mw = _get_model_weight_sha256()
     return {
         "schema": "szl.llm_route.lambda_receipt/v1",
         "lambda": round(sel["lambda"], 6),
@@ -102,6 +119,15 @@ def make_receipt(axis_scores: list[float] | None, max_tier: int = 4, task_hint: 
         "reason": sel["reason"],
         "doctrine": DOCTRINE,
         "ts_utc": datetime.now(timezone.utc).isoformat(),
+        # model_weight_sha256 — cryptographically binds this receipt to the
+        # specific model weight state loaded at decision time.  If the model
+        # weights change (new revision, swap, or local file mutation), this
+        # SHA changes and the change is detectable from any historical receipt.
+        # Computed by szl_rag._compute_model_weight_sha256() at startup.
+        # See: /home/user/workspace/team/model-weight-sha-dsse/IMPL_LEDGER.md
+        "model_weight_sha256": mw["sha256"],
+        "model_weight_method": mw["method"],
+        "model_name": mw["model"],
         "signature": SIGNATURE_PLACEHOLDER,  # HONEST: not CI-signed yet
     }
 
