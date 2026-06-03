@@ -1080,6 +1080,24 @@ except Exception as _e:  # pragma: no cover - defensive, additive-only
 
 
 # ===========================================================================
+# Round-12 Ayni/Ubuntu quorum formula (ADDITIVE, 2026-06-03, New-Math Frontier pod).
+# Exposes the PROVED, sorry-free Lean theorem
+#   Lutar.Round12.AyniQuorum.quorum_intersection_honest  (lutar-lean PR #181)
+# at GET|POST /api/a11oy/v1/formula/ayni-quorum. Registered BEFORE the
+# /api/a11oy/{path:path} catch-all so it resolves locally. try/except-guarded.
+# Cites CT-E5 (Ubuntu) + CT-3 (Spinoza nesting). Does NOT claim ubuntu_quorum_safety
+# (Khipu Conjecture 2). Λ stays Conjecture 1; axioms_unique=14; v11 LOCKED.
+# ---------------------------------------------------------------------------
+try:
+    import szl_ayni_quorum as _ayni_quorum
+    _aq_info = _ayni_quorum.register(app, ns="a11oy")
+    print(f"[szl_ayni_quorum] Round-12 quorum formula mounted: {_aq_info.get('path')} "
+          f"(theorem={_aq_info.get('lean_theorem')}, status={_aq_info.get('proof_status')})", file=sys.stderr)
+except Exception as _aq_e:  # pragma: no cover - defensive, additive-only
+    print(f"[szl_ayni_quorum] Round-12 quorum formula NOT mounted ({_aq_e!r}); existing routes unaffected", file=sys.stderr)
+
+
+# ===========================================================================
 # UNAY + Khipu-LMDB v2 organs (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
 # a11oy carries the Khipu-LMDB PRIMARY (durable hash-chained receipts on a real
 # lmdb env) alongside its existing in-memory Khipu DAG + KHIPU-OS Merkle DAG. NEW
