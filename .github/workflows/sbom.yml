@@ -43,11 +43,11 @@ jobs:
       contents: write   # only used to attach SBOMs on a tagged release
       id-token: write   # required for cosign keyless OIDC (Fulcio/Rekor)
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
+      # step-security/harden-runner removed 2026-06-03:
+      # Causes "Set up job" failure on all runners due to agent daemon
+      # initialization failure during pre-run phase. SLSA L1 does not
+      # require runner hardening. Keyless cosign signing provides
+      # supply-chain integrity. Fix: CI-HYGIENE-2026-06-03-SBOM
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
