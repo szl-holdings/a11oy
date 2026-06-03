@@ -89,14 +89,12 @@ jobs:
           TAG="${{ steps.bump.outputs.tag }}"
           gh release upload "$TAG" dist/*.sig dist/*.crt --clobber
 
-  provenance:
-    needs: [release]
-    permissions:
-      actions: read
-      id-token: write
-      contents: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@5a775b367a56d5bd118a224a811bba288150a563 # v2.0.0
-    with:
-      base64-subjects: "${{ needs.release.outputs.hashes }}"
-      upload-assets: true
-      provenance-name: "provenance-${{ needs.release.outputs.tag }}.intoto.jsonl"
+  # provenance:
+  #   CI-HYGIENE 2026-06-03: slsa-framework/slsa-github-generator provenance job
+  #   is temporarily disabled. The SLSA generator (v2.0.0 and v2.1.0) internally
+  #   calls softprops/action-gh-release, which is blocked by the szl-holdings org
+  #   policy (softprops is a GitHub User, not a verified marketplace creator).
+  #   REQUIRES ORG ALLOWED-ACTIONS WHITELIST UPDATE:
+  #     Add softprops/action-gh-release@* or softprops/* to patterns_allowed in
+  #     org settings to re-enable SLSA L1 provenance attestation.
+  #   Alternatively: add leanprover/* and softprops/* to patterns_allowed.
