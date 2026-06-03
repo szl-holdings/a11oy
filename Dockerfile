@@ -171,6 +171,23 @@ COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
 COPY operator_shell_v4.py ./operator_shell_v4.py
 COPY web/operator.html ./web/operator.html
 
+# ADDITIVE (Cross-Harness Receipt Bridge — Hermes + OpenClaw; 2026-06-01, Yachay /
+# Perplexity Computer Agent; closeout PR superseding #198 runtime files). serve.py
+# already imports szl_bridge + a11oy_v4_agent and calls .register(app) BEFORE the
+# /api/a11oy/{path} Node proxy + SPA catch-all, but the bridge runtime modules were
+# never COPY'd, so `import szl_bridge` failed at boot and POST /api/a11oy/v4/bridge/
+# {hermes,openclaw} + GET /api/a11oy/v4/bridge/receipt/{id} + GET /bridge fell through
+# to the SPA (404). Explicit per-file COPY (this Dockerfile never uses `COPY . .`).
+# szl_bridge imports szl_bridge_schemas (JSON Schema 2020-12 tool registry) and reuses
+# the already-COPY'd szl_dsse + szl_receipt_substrate signing/ledger modules. Doctrine
+# v11 LOCKED 749/14/163 UNCHANGED.
+COPY szl_bridge.py ./szl_bridge.py
+COPY szl_bridge_schemas.py ./szl_bridge_schemas.py
+COPY agent.html ./agent.html
+# a11oy-bridge CLI (sign --from hermes/openclaw, verify --receipt-id). Standalone
+# operator tool; not imported at boot but shipped so it is runnable in-container.
+COPY a11oy_bridge_cli.py ./a11oy_bridge_cli.py
+
 
 # ADDITIVE (SZL Ken Agent Pattern v1, CTO Yachay Convergence Cycle 1, 2026-06-03):
 # Explicit per-file COPY of szl_ken.py (this Dockerfile never uses `COPY . .`).
