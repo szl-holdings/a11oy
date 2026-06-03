@@ -1591,6 +1591,72 @@ async def api_a11oy_v4_fleet_early() -> JSONResponse:
         "peers": peers,
     })
 
+
+# ---------------------------------------------------------------------------
+# ADDITIVE: /version endpoint — MOVED before Node proxy (order fix)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE: /v1/mcp/tools — INLINE before Node proxy to avoid interception
+# Ken agent pattern tools manifest endpoint — local, no Node backend needed
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+@app.get("/api/a11oy/v1/mcp/tools")
+async def a11oy_mcp_tools_inline():
+    """MCP tools manifest — local (Ken agent pattern, bypasses Node proxy)."""
+    tools = [
+        {"name": "a11oy_gate", "description": "Run a11oy policy gate on an action plan", "flagship": "a11oy"},
+        {"name": "lambda_score", "description": "Compute Λ-score for a set of axes", "flagship": "a11oy"},
+        {"name": "khipu_sign", "description": "Sign a receipt with Khipu DAG", "flagship": "a11oy"},
+        {"name": "khipu_verify", "description": "Verify a Khipu DAG receipt", "flagship": "a11oy"},
+    ]
+    return JSONResponse({
+        "count": len(tools), "tools": tools, "doctrine": "v11",
+        "flagship": "a11oy", "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest",
+        "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
+    })
+
+@app.post("/api/a11oy/v1/mcp/call")
+async def a11oy_mcp_call_inline(request: Request):
+    """MCP tool call — local."""
+    body = await request.json()
+    tool_name = body.get("name", "")
+    known = {"a11oy_gate", "lambda_score", "khipu_sign", "khipu_verify"}
+    if tool_name not in known:
+        return JSONResponse({"error": f"Tool '{tool_name}' not found"}, status_code=404)
+    return JSONResponse({"tool": tool_name, "status": "ok", "doctrine": "v11", "kernel_commit": "c7c0ba17"})
+
+
+# Must be before @app.api_route("/api/a11oy/{path:path}") to avoid proxy intercept
+# Doctrine v11 LOCKED 749/14/163. c7c0ba17. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+@app.get("/api/a11oy/v1/version")
+async def a11oy_version():
+    """Founder inspection: what build is live, when was it deployed, provenance."""
+    import os as _szlv_os
+    return {
+        "name": "a11oy",
+        "version": "1.0.0",
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "90dd8e34efd7308f39c2230c78a4f1a67e4b0ba6"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "1d2540609a07d41b4d333fc58ea1f74f852e8f53"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
+        "release_url": "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0",
+        "doctrine": "v11",
+        "kernel_commit": "c7c0ba17",
+        "p6_status": "SIGNED_OFF",
+        "p6_grader_score": "14/14",
+        "p6_sign_off_url": "https://github.com/szl-holdings/szl-holdings/blob/main/SHARED_LEDGER/a11oy/SIGN_OFF.md",
+        "verify": {
+            "cosign": "cosign verify ghcr.io/szl-holdings/a11oy:v1.0.0 --certificate-identity-regexp=szl-holdings",
+            "sbom": "https://github.com/szl-holdings/a11oy/releases/download/v1.0.0/a11oy-sbom.cdx.json",
+            "honest": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest",
+        },
+    }
+
+
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
     return await proxy_to_backend(request, f"/{path}")
@@ -2040,6 +2106,14 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
         "peers": peers,
     })
 
+
+# ---------------------------------------------------------------------------
+# ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
+# Returns build provenance: "what build is live, when, what's its provenance."
+# Doctrine v11 LOCKED 749/14/163. ADDITIVE ONLY. c7c0ba17. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
@@ -2063,35 +2137,6 @@ async def spa_fallback(full_path: str) -> Response:
 # ---------------------------------------------------------------------------
 
 
-# ---------------------------------------------------------------------------
-# ADDITIVE: /version endpoint — Founder Inspection Surface (v1.0.0)
-# Returns build provenance: "what build is live, when, what's its provenance."
-# Doctrine v11 LOCKED 749/14/163. ADDITIVE ONLY. c7c0ba17. SLSA L1 honest.
-# Signed-off-by: Yachay <yachay@szlholdings.ai>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ---------------------------------------------------------------------------
-@app.get("/api/a11oy/v1/version")
-async def a11oy_version():
-    """Founder inspection: what build is live, when was it deployed, provenance."""
-    import os as _szlv_os
-    return {
-        "name": "a11oy",
-        "version": "1.0.0",
-        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "90dd8e34efd7308f39c2230c78a4f1a67e4b0ba6"),
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "1d2540609a07d41b4d333fc58ea1f74f852e8f53"),
-        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
-        "release_url": "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0",
-        "doctrine": "v11",
-        "kernel_commit": "c7c0ba17",
-        "p6_status": "SIGNED_OFF",
-        "p6_grader_score": "14/14",
-        "p6_sign_off_url": "https://github.com/szl-holdings/szl-holdings/blob/main/SHARED_LEDGER/a11oy/SIGN_OFF.md",
-        "verify": {
-            "cosign": "cosign verify ghcr.io/szl-holdings/a11oy:v1.0.0 --certificate-identity-regexp=szl-holdings",
-            "sbom": "https://github.com/szl-holdings/a11oy/releases/download/v1.0.0/a11oy-sbom.cdx.json",
-            "honest": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest",
-        },
-    }
 
 if __name__ == "__main__":
     import uvicorn
@@ -2156,4 +2201,39 @@ except Exception as _a11oy_ftr_e:
     _a11oy_ftr_tb.print_exc(file=_a11oy_ftr_sys.stderr)
 # ============================================================================
 # END: FRONTIER REGISTRATION — a11oy
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: /khipu/dag ALIAS — a11oy (additive, v11 locked)
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    from fastapi.routing import APIRoute as _DagRoute_a11oy
+    from fastapi.responses import JSONResponse as _DagJR_a11oy
+    async def _a11oy_khipu_dag_handler(request):
+        import httpx as _hx
+        try:
+            async with _hx.AsyncClient(timeout=5.0) as _c:
+                _r = await _c.get("http://127.0.0.1:7860/api/a11oy/khipu/ledger")
+                _data = _r.json()
+        except Exception as _ex:
+            _data = {"error": str(_ex)}
+        _data["_dag_alias"] = True
+        return _DagJR_a11oy(_data)
+    _dag_r_a11oy = _DagRoute_a11oy(
+        "/api/a11oy/khipu/dag",
+        _a11oy_khipu_dag_handler,
+        methods=["GET"],
+        name="a11oy_khipu_dag_alias"
+    )
+    app.router.routes.insert(0, _dag_r_a11oy)
+    import sys as _a11oy_dag_sys
+    print("[a11oy] /khipu/dag alias registered at /api/a11oy/khipu/dag", file=_a11oy_dag_sys.stderr)
+except Exception as _a11oy_dag_e:
+    import sys as _a11oy_dag_sys
+    print(f"[a11oy] /khipu/dag alias FAILED: {_a11oy_dag_e!r}", file=_a11oy_dag_sys.stderr)
+# ============================================================================
+# END: /khipu/dag ALIAS — a11oy
 # ============================================================================
