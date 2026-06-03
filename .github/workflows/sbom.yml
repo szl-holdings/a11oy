@@ -9,11 +9,11 @@ name: SBOM (CycloneDX + SPDX, cosign-signed)
 #  - Trivy runs a vulnerability scan (report-only on push; table output).
 #  - Both SBOMs are uploaded as build artifacts.
 #  - Cosign signs BOTH SBOMs with keyless OIDC (Sigstore Fulcio + Rekor).
-#    No private key is stored or written to disk — SLSA L3 R3 compliant.
+#    No private key is stored or written to disk — SLSA L1 honest (keyless signing for supply-chain transparency).
 #    Each signing event is recorded in the public Rekor transparency log.
 # Concepts only — no third-party logos or trademarks.
 #
-# CRYPTO-FIX: 2026-06-03 — Replaced key-based signing (SLSA L3 R3 violation)
+# CRYPTO-FIX: 2026-06-03 — Replaced key-based signing (was incorrectly cited as SLSA L3 R3)
 #   with cosign keyless OIDC. Removed COSIGN_PRIVATE_KEY reference.
 #   Both CycloneDX and SPDX SBOMs now Rekor-logged.
 #   Ref: AUDIT_REPORT.md Finding C-2; COSIGN_REKOR_BRIEF.md §3.3
@@ -78,7 +78,7 @@ jobs:
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
 
       - name: Sign SBOMs with cosign keyless (Rekor-logged, no key on disk)
-        # SLSA L3 R3 compliant: ephemeral ECDSA-P256 key generated in memory by
+        # SLSA L1 honest — keyless signing: ephemeral ECDSA-P256 key generated in memory by
         # Fulcio (sigstore.dev); private key never written to runner filesystem.
         # id-token: write permission above allows GitHub OIDC token → Fulcio cert.
         # Each signing event is recorded in the public Rekor transparency log.
