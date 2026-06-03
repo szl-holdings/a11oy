@@ -62,7 +62,7 @@ jobs:
           echo "tarball=a11oy-uds-${VERSION}.tar.zst" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ steps.tag.outputs.tag }}
           fetch-depth: 0
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload provenance as workflow artifact (dispatch runs)
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.prov.outputs.prov_file }}
           path: ${{ steps.prov.outputs.prov_file }}
