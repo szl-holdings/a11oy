@@ -56,7 +56,7 @@ from fastapi.responses import JSONResponse
 import szl_dsse
 
 DOCTRINE = "v12"
-SLSA_LEVEL = "L2"
+SLSA_LEVEL = "L1"
 
 # ---------------------------------------------------------------------------
 # Wire D — W3C Trace Context
@@ -409,3 +409,4 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "signing_available": szl_dsse.signing_available(),
             "endpoints": [f"{base}/wires/D", f"{base}/khipu/verify",
                           f"{base}/khipu/sign", f"{base}/khipu/ledger", f"{base}/provenance"]}
+
