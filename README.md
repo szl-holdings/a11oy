@@ -22,6 +22,16 @@ ecosystem-stage: "operational"
 
 # a11oy — Signed UDS Payload
 
+## Lean-Verified
+
+[![Lean-verified: composition_preserves_doctrine](https://img.shields.io/badge/Lean%204%20kernel-composition__preserves__doctrine%20%E2%9C%85-22c55e?style=flat-square&logo=github)](https://github.com/szl-holdings/lutar-lean/actions/runs/26854942475)
+
+> ✅ **Lean-verified theorem:** `composition_preserves_doctrine` in `Lutar/Composition/TH1_Composition.lean`  
+> Verified by Lake CI at commit `acd0fd46` (Mathlib v4.13.0 + Lean 4, kernel commit `c7c0ba17`).  
+> Zero sorries · Full kernel check pass · [CI Run](https://github.com/szl-holdings/lutar-lean/actions/runs/26854942475)  
+> This theorem proves that sequential composition of two doctrine-locked Lutar systems yields a doctrine-locked composed system — the formal foundation for the SZL governance stack.  
+> Λ remains **Conjecture 1** (uniqueness TH10 is not yet fully proved). This is the first named green theorem on [lutar-lean main](https://github.com/szl-holdings/lutar-lean).
+
 Policy substrate with HMAC-signed receipts for every gated decision.
 
 ## Prerequisites
