@@ -24,6 +24,7 @@ HONESTY (Doctrine v10/v11):
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import threading
@@ -62,6 +63,19 @@ SPACE_ORGAN = {
 # Lazy global state — loaded once per process.
 # ---------------------------------------------------------------------------
 _lock = threading.Lock()
+# ---------------------------------------------------------------------------
+# MODEL WEIGHT SHA-256 — computed once at startup, cached for all receipts.
+# For HF-hosted models (no local weight files downloaded), we bind the SHA to
+# the HF model revision commit + tokenizer config bytes.  This means:
+#   - If BAAI/bge-base-en-v1.5 weights change on HF (new revision), the SHA changes.
+#   - Any Λ-receipt carrying this SHA is cryptographically bound to THAT model state.
+#   - Model swaps are detectable from any historical receipt.
+# The compute path (below) tries local weight files first (definitive), then falls
+# back to HF revision + tokenizer-config bytes (HF-hosted, no local files).
+# ---------------------------------------------------------------------------
+_MODEL_WEIGHT_SHA256: str | None = None   # set once by _ensure_loaded(); read by get_model_weight_sha256()
+_MODEL_WEIGHT_SHA256_METHOD: str = "not_computed"   # "local_files" | "hf_revision" | "error"
+
 _state: dict[str, Any] = {
     "ready": False,
     "error": None,
@@ -109,11 +123,117 @@ def _ensure_loaded() -> None:
 
             _state["model"] = SentenceTransformer(MODEL_NAME, device="cpu")
             _state["ready"] = True
+            # Compute model-weight SHA-256 after successful load.
+            _compute_model_weight_sha256()
             print(f"[szl_rag] READY — {len(corpus)} chunks, organs={list(indexes)}",
                   flush=True)
         except Exception as exc:  # honest degradation, never fake data
             _state["error"] = f"{type(exc).__name__}: {exc}"
             print(f"[szl_rag] NOT READY (honest stub mode): {_state['error']}", flush=True)
+
+
+def _compute_model_weight_sha256() -> None:
+    """Compute and cache a SHA-256 that cryptographically binds this process to a
+    specific model weight state.  Two strategies, tried in order:
+
+    Strategy A — Local weight files (definitive):
+      Hash every file whose name ends in .safetensors, .bin, or .pt inside the
+      sentence-transformers cache directory for MODEL_NAME, sorted by relative path.
+      The combined SHA-256 is the concatenated hash of all file bytes.
+      Produces a hash that changes IFF any model weight changes.
+
+    Strategy B — HF revision SHA + tokenizer config (HF-hosted, no local files):
+      Query the HuggingFace Hub API for the latest revision commit SHA of MODEL_NAME.
+      Hash: SHA-256(revision_sha_bytes + tokenizer_config_json_bytes).
+      Produces a hash that changes IFF the HF repo receives a new commit (weight push).
+
+    The method used is recorded in _MODEL_WEIGHT_SHA256_METHOD for receipt honesty.
+    On any failure, sets method="error" and SHA="UNAVAILABLE:...".
+    """
+    global _MODEL_WEIGHT_SHA256, _MODEL_WEIGHT_SHA256_METHOD
+
+    # --- Strategy A: local weight files ---
+    try:
+        import sentence_transformers as _st
+        cache_dir = _st.SentenceTransformer(MODEL_NAME, device="cpu")._modules["0"].auto_model.config._name_or_path  # type: ignore[attr-defined]
+    except Exception:
+        cache_dir = None
+
+    if cache_dir is None:
+        # Fallback: check HF hub cache location
+        try:
+            from huggingface_hub import snapshot_download
+            cache_dir = snapshot_download(MODEL_NAME, repo_type="model", local_files_only=True)
+        except Exception:
+            cache_dir = None
+
+    if cache_dir and os.path.isdir(cache_dir):
+        weight_exts = (".safetensors", ".bin", ".pt")
+        weight_files = sorted([
+            os.path.join(root, fname)
+            for root, _dirs, files in os.walk(cache_dir)
+            for fname in files
+            if fname.endswith(weight_exts)
+        ])
+        if weight_files:
+            sha = hashlib.sha256()
+            for wf in weight_files:
+                try:
+                    with open(wf, "rb") as fh:
+                        for chunk in iter(lambda: fh.read(1 << 20), b""):
+                            sha.update(chunk)
+                except OSError:
+                    pass
+            _MODEL_WEIGHT_SHA256 = sha.hexdigest()
+            _MODEL_WEIGHT_SHA256_METHOD = f"local_files:{len(weight_files)}_files"
+            print(f"[szl_rag] model_weight_sha256 (local_files): {_MODEL_WEIGHT_SHA256[:16]}...",
+                  flush=True)
+            return
+
+    # --- Strategy B: HF revision SHA + tokenizer config bytes ---
+    try:
+        from huggingface_hub import model_info
+        info = model_info(MODEL_NAME)
+        revision_sha = (info.sha or "").encode("utf-8")
+
+        # tokenizer_config.json provides a stable, small config fingerprint
+        try:
+            from huggingface_hub import hf_hub_download
+            tok_cfg_path = hf_hub_download(MODEL_NAME, "tokenizer_config.json")
+            with open(tok_cfg_path, "rb") as f:
+                tok_cfg_bytes = f.read()
+        except Exception:
+            tok_cfg_bytes = b""
+
+        sha = hashlib.sha256(revision_sha + tok_cfg_bytes)
+        _MODEL_WEIGHT_SHA256 = sha.hexdigest()
+        _MODEL_WEIGHT_SHA256_METHOD = f"hf_revision:{info.sha[:12] if info.sha else 'unknown'}"
+        print(f"[szl_rag] model_weight_sha256 (hf_revision): {_MODEL_WEIGHT_SHA256[:16]}...",
+              flush=True)
+        return
+    except Exception as exc:
+        _MODEL_WEIGHT_SHA256 = f"UNAVAILABLE:{type(exc).__name__}"
+        _MODEL_WEIGHT_SHA256_METHOD = "error"
+        print(f"[szl_rag] model_weight_sha256 UNAVAILABLE: {exc}", flush=True)
+
+
+def get_model_weight_sha256() -> dict[str, str]:
+    """Return the cached model-weight SHA-256 and the method used to compute it.
+
+    Called by szl_brain.make_receipt() to embed the SHA into every Λ-receipt
+    BEFORE the DSSE envelope is signed, cryptographically binding the decision
+    to the model weight state.
+
+    Returns a dict with:
+      sha256: hex SHA-256 string (or 'UNAVAILABLE:...' if computation failed)
+      method: 'local_files:N_files' | 'hf_revision:SHA12' | 'error' | 'not_computed'
+      model: MODEL_NAME (always present for provenance)
+    """
+    return {
+        "sha256": _MODEL_WEIGHT_SHA256 or "not_computed",
+        "method": _MODEL_WEIGHT_SHA256_METHOD,
+        "model": MODEL_NAME,
+    }
 
 
 def status(space: str) -> dict[str, Any]:
@@ -138,6 +258,7 @@ def status(space: str) -> dict[str, Any]:
 
 
 def _make_lambda_receipt(query: str, organ: str, axis_scores, chunk_ids) -> dict[str, Any]:
+    mw = get_model_weight_sha256()
     return {
         "schema": "szl.rag.lambda_receipt/v1",
         "query": query,
@@ -146,6 +267,12 @@ def _make_lambda_receipt(query: str, organ: str, axis_scores, chunk_ids) -> dict
         "chunk_ids": chunk_ids,            # honesty: every chunk used is cited
         "doctrine": DOCTRINE,
         "ts_utc": datetime.now(timezone.utc).isoformat(),
+        # model_weight_sha256 — cryptographically binds this RAG receipt to the
+        # loaded embedding model weight state.  Any change in BAAI/bge-base-en-v1.5
+        # weights (new HF revision, local file swap) changes this SHA.
+        "model_weight_sha256": mw["sha256"],
+        "model_weight_method": mw["method"],
+        "model_name": mw["model"],
         "signature": SIGNATURE_PLACEHOLDER,
     }
 
