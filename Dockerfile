@@ -173,5 +173,29 @@ COPY web/operator.html ./web/operator.html
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY szl_ken.py ./szl_ken.py
 
+
+# ADDITIVE (Formulas → Ecosystem instillation, Opus 4.8, 2026-06-03):
+# Per-file COPY of the a11oy.formulas package (this Dockerfile never uses `COPY . .`).
+# serve.py imports a11oy_formula_endpoints, which imports a11oy.formulas.* — without
+# these COPYs the import fails and /api/a11oy/v1/formula/* fall through to the SPA shell.
+# Real implementations of PAC-Bayes, BLS12-381 aggregate, Welford, Byzantine quorum,
+# Holevo, Bloom, Kalman, HNSW (amaru-delegate), Reidemeister. Each cites thesis_v22.pdf
+# + a real Lean theorem/obligation. Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest
+# + L2 attested (public Sigstore + Rekor verified for a11oy image).
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY src/a11oy/__init__.py ./src/a11oy/__init__.py
+COPY src/a11oy/formulas/__init__.py ./src/a11oy/formulas/__init__.py
+COPY src/a11oy/formulas/pac_bayes.py ./src/a11oy/formulas/pac_bayes.py
+COPY src/a11oy/formulas/bls_aggregate.py ./src/a11oy/formulas/bls_aggregate.py
+COPY src/a11oy/formulas/welford.py ./src/a11oy/formulas/welford.py
+COPY src/a11oy/formulas/byzantine_quorum.py ./src/a11oy/formulas/byzantine_quorum.py
+COPY src/a11oy/formulas/holevo_bound.py ./src/a11oy/formulas/holevo_bound.py
+COPY src/a11oy/formulas/bloom_filter.py ./src/a11oy/formulas/bloom_filter.py
+COPY src/a11oy/formulas/kalman.py ./src/a11oy/formulas/kalman.py
+COPY src/a11oy/formulas/hnsw_retrieval.py ./src/a11oy/formulas/hnsw_retrieval.py
+COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
+COPY a11oy_formula_endpoints.py ./a11oy_formula_endpoints.py
+
 CMD ["python", "serve.py"]
 
