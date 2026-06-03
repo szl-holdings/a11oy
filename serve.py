@@ -1559,6 +1559,38 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # ===========================================================================
 
 
+# P3 FIX: /api/a11oy/v4/fleet — must be BEFORE /api/a11oy/{path:path} proxy catch-all
+# AND registered as /v4/fleet for HF proxy stripping.  Both registered here.
+@app.get("/api/a11oy/v4/fleet")
+@app.get("/v4/fleet")
+async def api_a11oy_v4_fleet_early() -> JSONResponse:
+    """Fleet status panel — live health of all SZL flagship Spaces.
+    Registered before /api/a11oy/{path:path} proxy so route ordering wins."""
+    import urllib.request as _ureq, json as _json
+    from datetime import datetime as _dt
+    _peers_cfg = [
+        ("a11oy",    "https://szlholdings-a11oy.hf.space/api/health"),
+        ("sentra",   "https://szlholdings-sentra.hf.space/api/health"),
+        ("amaru",    "https://szlholdings-amaru.hf.space/api/health"),
+        ("rosie",    "https://szlholdings-rosie.hf.space/api/health"),
+        ("killinchu","https://szlholdings-killinchu.hf.space/api/health"),
+    ]
+    peers = []
+    for _name, _url in _peers_cfg:
+        try:
+            _req = _ureq.Request(_url, headers={"User-Agent": "szl-fleet-probe/1.0"})
+            with _ureq.urlopen(_req, timeout=5) as _r:
+                _body = _json.loads(_r.read())
+            peers.append({"flagship": _name, "status": "ok", "http_code": 200, **_body})
+        except Exception as _e:
+            peers.append({"flagship": _name, "status": "unreachable", "error": str(_e)[:120]})
+    return JSONResponse({
+        "timestamp": _dt.utcnow().isoformat() + "Z",
+        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163},
+        "lambda": "Conjecture 1 (NOT a theorem — LOCKED)",
+        "peers": peers,
+    })
+
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
     return await proxy_to_backend(request, f"/{path}")
@@ -1980,6 +2012,7 @@ async def api_health() -> JSONResponse:
 # P3 FIX: /api/a11oy/v4/fleet — explicit route before SPA catch-all
 # Root cause: szl_v4_fleet.register() was dead code after uvicorn.run()
 @app.get("/api/a11oy/v4/fleet")
+@app.get("/v4/fleet")
 async def api_a11oy_v4_fleet() -> JSONResponse:
     """Fleet status panel — live health of all SZL flagship Spaces."""
     import asyncio, urllib.request as _ureq, json as _json
