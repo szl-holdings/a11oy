@@ -1,0 +1,65 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "Lutar/Innovations/round6/PythagorasHarmonicMean.lean",
+      "digest": {
+        "sha256": "aae1307c4a06b57bf3e3175a56d2bbfd8c701f0f23d18fa0bd536233d8bae137"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v0.2",
+  "predicate": {
+    "builder": {
+      "id": "https://github.com/szl-holdings/a11oy/.github/workflows/"
+    },
+    "buildType": "https://szlholdings.ai/innovation-instillation/v1",
+    "invocation": {
+      "configSource": {
+        "uri": "git+https://github.com/szl-holdings/a11oy",
+        "digest": {
+          "sha1": "165b81cef184e3c603800457a75dab8771f9566b"
+        },
+        "entryPoint": "innovation-instillation"
+      }
+    },
+    "metadata": {
+      "buildStartedOn": "2026-06-03T06:30:00Z",
+      "completeness": {
+        "parameters": true,
+        "environment": false,
+        "materials": true
+      },
+      "reproducible": true
+    },
+    "materials": [
+      {
+        "uri": "https://github.com/szl-holdings/a11oy",
+        "digest": {
+          "sha1": "165b81cef184e3c603800457a75dab8771f9566b"
+        }
+      }
+    ]
+  },
+  "szl_doctrine": {
+    "version": "v11",
+    "kernel_commit": "c7c0ba17",
+    "declarations": 749,
+    "axioms_unique": 14,
+    "sorries_total": 163,
+    "lambda_uniqueness": "Conjecture 1 \u2014 NOT a theorem",
+    "slsa": "L1 honest",
+    "section_889_vendors": 5
+  },
+  "innovation": {
+    "formula": "PYTHAGORAS-HARMONIC-MEAN",
+    "round": 6,
+    "source": "Hardy, Littlewood, P\u00f3lya. Inequalities (Cambridge UP, 1952), Ch.2, Thm 9",
+    "flagship": "a11oy",
+    "lean_theorem": "Lutar.Innovations.Round6.PythagorasHarmonicMean.harmonic_le_geometric_two",
+    "lean_status": "partial \u2014 sorries open, math sound",
+    "plug_in": "\u039b-axis harmonic floor guard: H(axes) \u2265 0.9 required before geometric mean",
+    "nonce": "4c74da1e98af139087fced157d72e666",
+    "timestamp": "2026-06-03T06:30:00Z"
+  }
+}
