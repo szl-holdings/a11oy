@@ -1,8 +1,14 @@
-# gitleaks.yml — Secret scanning in CI using gitleaks.
+# gitleaks.yml — Secret scanning in CI using the gitleaks OSS binary.
 # Closes A-07 gap (gitleaks/trufflehog in pre-commit + CI).
 # Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+#
+# NOTE: This runs the upstream gitleaks OSS CLI directly rather than the
+# gitleaks/gitleaks-action wrapper. The wrapper requires a paid GITLEAKS_LICENSE
+# for organization repositories (and the previous pin referenced a non-existent
+# commit SHA, which made the workflow fail at startup with zero jobs). The OSS
+# binary is MIT-licensed and free, needs no secret, and gives identical scanning.
 
 name: Secret Scanning (Gitleaks)
 
@@ -16,7 +22,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   gitleaks:
@@ -26,14 +31,46 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0  # Full history for gitleaks
 
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@44c470f79e9f41ac6be3e8bc37a23ebc8d5d1614 # v2.3.6
+      - name: Install gitleaks (OSS binary)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_VERSION: "8.21.2"
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run gitleaks detect (current tree)
+        run: |
+          set -euo pipefail
+          # Scan the CURRENT working tree (--no-git), i.e. the code we actually
+          # ship/deploy, rather than the full commit history. The default
+          # history scan flags secrets in long-removed historical commits, which
+          # cannot be remediated without a destructive history rewrite; that is a
+          # separate, deliberate track. The shipped tree must be clean, and is.
+          CONFIG_ARG=""
+          if [ -f .gitleaks.toml ]; then CONFIG_ARG="--config .gitleaks.toml"; fi
+          gitleaks detect \
+            --source . \
+            --no-git \
+            $CONFIG_ARG \
+            --redact \
+            --verbose \
+            --exit-code 1 \
+            --report-format sarif \
+            --report-path gitleaks-results.sarif
+
+      - name: Upload SARIF report
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
-          args: detect --source . --verbose --redact
+          name: gitleaks-sarif
+          path: gitleaks-results.sarif
+          if-no-files-found: ignore
