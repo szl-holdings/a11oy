@@ -51,7 +51,7 @@ jobs:
           echo "digest=$(sha256sum '${{ steps.pack.outputs.artifact }}' | base64 -w0)" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact for release
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-artifact
           path: ${{ steps.pack.outputs.artifact }}
@@ -64,7 +64,7 @@ jobs:
       actions: read       # read the workflow run for provenance
       id-token: write     # Sigstore keyless signing (Fulcio/OIDC)
       contents: write     # attach provenance to the release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: "${{ needs.build.outputs.digest }}"
       provenance-name: "${{ needs.build.outputs.artifact }}.intoto.jsonl"
