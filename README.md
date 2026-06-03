@@ -176,3 +176,35 @@ L3 is **not** claimed (requires a hardened, isolated build environment).
 
 ---
 *Doctrine v11 LOCKED · 749/14/163 · kernel c7c0ba17 · Λ = Conjecture 1 · SLSA L1 + L2 build provenance attested (verifiable via slsa-verifier)*
+
+---
+
+## 🔌 UDS Mesh — the nervous system
+
+This organ is part of the **SZL UDS mesh**: a 7-organ trace + receipt substrate
+(brain `rosie` · heart `a11oy` · blood `amaru` · immune `sentra` · nervous/courier
+`killinchu` · skeleton `vessels` · wires = W3C `traceparent`).
+
+```mermaid
+flowchart LR
+    classDef live fill:#0f3a2e,stroke:#5ad1c0,color:#e8eef7;
+    classDef inproc fill:#2a3550,stroke:#7aa2ff,color:#e8eef7;
+    classDef roadmap fill:#3a2f0f,stroke:#e0c060,color:#e8eef7;
+    ROSIE["🧠 rosie<br/>brain"]:::inproc -->|Wire C| A11OY["❤️ a11oy<br/>heart / fabric"]:::live
+    A11OY -->|Wire B| SENTRA["🛡️ sentra<br/>immune"]:::live
+    A11OY -->|Wire E| AMARU["🩸 amaru<br/>blood"]:::inproc
+    A11OY -->|Wire F| VESSELS["🦴 vessels<br/>skeleton"]:::roadmap
+    KILLINCHU["📡 killinchu<br/>courier"]:::roadmap -.->|relay| RECEIPTS["📜 receipts<br/>DSSE Khipu"]:::inproc
+    A11OY -->|traceparent embedded| RECEIPTS
+    WIRES["🔌 wires / W3C traceparent"]:::live -.-> A11OY
+```
+
+**Honest mesh status (verified 2026-06-03):** every organ emits **real W3C trace
+context** (`traceparent` / `tracestate` / `x-szl-wire-d: LIVE`) and a11oy binds it into
+**DSSE Khipu receipts** — this is **LIVE in-process**. Spans are **not** yet OTLP-exported,
+DSSE receipts are currently **unsigned**, and cross-pod organ routing is **roadmap (v0.4.0)**.
+Honesty over checklist.
+
+→ Full diagram + wire-status table: **[docs-site / mesh](https://szl-holdings.github.io/docs-site/mesh)**
+
+<sub>Λ Conjecture 1 (not a theorem) · 749/14/163 v11 LOCKED · SLSA L1 honest · Section 889 = 5 vendors</sub>
