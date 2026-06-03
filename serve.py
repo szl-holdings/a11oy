@@ -380,6 +380,25 @@ except Exception as _formulas_exc:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (Formulas SECTION for the SPA navigation — closeout, A11oy Full-Stack
+# Team / Perplexity Computer Agent): mount GET /formulas/wired, a premium
+# Inca-palette page that lists EACH live thesis-v22 formula (reads the SAME
+# a11oy_formula_endpoints._INDEX the JSON API serves — no duplicate list) with its
+# thesis citation, a Lean permalink (lutar-lean @ locked SHA c7c0ba17), and a
+# "Try it" button wired to the real /api/a11oy/v1/formulas/<name> endpoint. Also
+# mounts GET /api/a11oy/v1/formulas/page-manifest (JSON nav descriptor). Registered
+# BEFORE the SPA catch-all so it resolves LOCALLY. try/except-guarded — a missing
+# dep can NEVER take down the SPA. Doctrine v11 LOCKED 749/14/163, Λ = Conjecture 1.
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_formulas_page as _formulas_page
+    _formulas_page_status = _formulas_page.register(app, ns="a11oy")
+    print(f"[a11oy] Formulas section registered: {_formulas_page_status}", file=sys.stderr)
+except Exception as _fp_e:  # additive: never break the Space
+    print(f"[a11oy] Formulas section NOT registered: {_fp_e!r}; SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Load gates manifest at startup
 # ---------------------------------------------------------------------------
 
