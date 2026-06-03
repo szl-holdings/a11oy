@@ -27,11 +27,20 @@ curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .kernel_comm
 cosign verify ghcr.io/szl-holdings/a11oy:uds-v0.2.0 \
   --certificate-identity-regexp="^https://github.com/szl-holdings/" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+
+# 3. Inspect the public transparency-log entry for this image (Sigstore Rekor).
+#    Image digest: sha256:7301a4…ab88
+#    Rekor log index: 1710355173
+rekor-cli get --log-index 1710355173
+# Or open in a browser: https://search.sigstore.dev/?logIndex=1710355173
 ```
 
 > Honest note: DSSE/Sigstore CI signing is being wired (receipt signatures are
 > labelled `PLACEHOLDER` until CI signing lands). The `/v1/honest` check above is
 > the authoritative live doctrine probe.
+
+**Public proof:** cosign keyless cert (Fulcio) + Rekor transparency log entry
+[`#1710355173`](https://search.sigstore.dev/?logIndex=1710355173) for image `ghcr.io/szl-holdings/a11oy:uds-v0.2.0` (`sha256:7301a4…ab88`).
 
 ## Architecture
 
@@ -63,6 +72,11 @@ The full, canonical endpoint list is on the [docs site](https://docs.szlholdings
 - **Λ = Conjecture 1** (NOT a theorem) — depends on the open CAUCHY_ND sorry + a missing symmetry axiom
 - **SLSA L1 honest** · **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua)
 - No Iron Bank / FedRAMP / CMMC / SWFT / Mission Owner claims
+
+## License + DOI
+
+- **License:** Apache-2.0 (OSS across all SZL Holdings repos).
+- **Concept DOI:** [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276) — cite the archived release on Zenodo.
 
 ## Citation
 
