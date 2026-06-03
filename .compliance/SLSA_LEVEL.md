@@ -3,19 +3,18 @@
 
 # SLSA Build Level — SZL Holdings
 
-**Current honest status: SLSA Build L2 (in progress).**
+**Current honest status: SLSA Build L1 (honest).**
 
-Previously declared **L1 (honest)** — provenance existed but was generated on
-non-hosted builders (Hugging Face Spaces / local pipeline). The upgrade to **L2**
-is now wired: signed build provenance is generated on a **hosted GitHub Actions
-builder** for every release tag using the official
-`slsa-framework/slsa-github-generator` reusable workflow, signed via Sigstore
-(Fulcio keyless + Rekor) and attached to the release artifact.
+SZL Holdings claims **L1 (honest)** — provenance exists and is signed via Sigstore
+(Fulcio keyless + Rekor) using a hosted GitHub Actions builder for every release
+tag using the official `slsa-framework/slsa-github-generator` reusable workflow.
+L2 requires downstream verifier validation; L3 requires isolated builders.
+Both L2 and L3 are on the roadmap (honest). Current claim is L1.
 
 | SLSA Build level | Requirement | SZL status |
 |---|---|---|
 | L1 | Provenance exists (may be unsigned) | ✅ Met |
-| **L2** | **Signed provenance from a hosted build platform, verified downstream** | **🟡 In progress** — `.github/workflows/slsa-build.yml` lands the hosted signer; verifying on first tagged release |
+| L2 | Signed provenance from a hosted build platform, verified downstream | ⬜ Roadmap — signing is live but downstream verifier validation not yet proven end-to-end |
 | L3 | Hardened, isolated builder; signing keys inaccessible to build steps | ⬜ Deferred (roadmap) |
 
 ## Evidence
