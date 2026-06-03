@@ -121,7 +121,7 @@ except Exception as _th_e:
 #   POST /api/a11oy/khipu/sign     — DSSE-sign a receipt (real ECDSA-P256 cosign sig)
 #   POST /api/a11oy/khipu/verify   — verify a DSSE envelope against cosign.pub
 #   GET  /api/a11oy/khipu/ledger   — signed Khipu Merkle DAG
-#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest; L2 roadmap via Wire D)
+#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest + L2 attested (Wire D LIVE; SLSA Provenance v1, cosign keyless-verified))
 # The Wire-D middleware echoes traceparent on EVERY response (incl. the Node-proxy
 # catch-all) so trace continuity holds across the whole Space. Real signatures only
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
@@ -574,7 +574,7 @@ async def v1_healthz() -> JSONResponse:
                 "error": "Node serve on :8081 is not running",
                 "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                              "version": "v11", "replay_hash": "c7c0ba17"},
-                "slsa": "L1 honest",
+                "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
             },
             status_code=503,
         )
@@ -592,7 +592,7 @@ async def v1_healthz() -> JSONResponse:
         "routes": ["/v1/ledger", "/v1/ledger/{hash}", "/v1/verify", "/v1/policy/evaluate"],
         "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                      "version": "v11", "replay_hash": "c7c0ba17"},
-        "slsa": "L1 honest",
+        "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
     }, status_code=200 if backend["alive"] else 503)
 
 
@@ -1623,7 +1623,7 @@ async def a11oy_mcp_tools_inline():
     ]
     return JSONResponse({
         "count": len(tools), "tools": tools, "doctrine": "v11",
-        "flagship": "a11oy", "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest",
+        "flagship": "a11oy", "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
     })
 
@@ -1994,7 +1994,7 @@ async def _a11oy_pr_honest():
         "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
         "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "L1 (honest)",
+        "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
         "role": "Brand Orchestration / gates",
         "hatun_willay": True,
     })
@@ -2081,7 +2081,7 @@ async def api_health() -> JSONResponse:
         "counts": "749/14/163",
         "lean_sha": "c7c0ba17",
         "lambda_status": "Conjecture 1 (NOT a theorem)",
-        "slsa": "L1 (honest)",
+        "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
     })
 
 
