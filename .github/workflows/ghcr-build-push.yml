@@ -24,12 +24,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        id: build-push
         with:
           context: .
           push: true
           tags: |
             ghcr.io/szl-holdings/${{ github.event.repository.name }}:uds-v0.2.0
             ghcr.io/szl-holdings/${{ github.event.repository.name }}:latest
+      - name: Attest build provenance (SLSA L2)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ghcr.io/szl-holdings/${{ github.event.repository.name }}
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          push-to-registry: true
       - uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.8.1
       - name: cosign sign
         env:
