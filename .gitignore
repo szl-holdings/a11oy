@@ -5,3 +5,8 @@ __pycache__/
 *.pyc
 artifacts/a11oy-uds/build/
 artifacts/a11oy-uds/build-attestations/
+# Added by cleanup-hotfix-squad (M4 hygiene)
+.DS_Store
+.env
+*.log
+.lake/build/
