@@ -93,6 +93,20 @@ except Exception as _be_e:
 # ── BE hardening (Greene) — szl_be_hardening ── end
 
 
+async def _safe_json_body(request: Request):
+    """Parse a JSON request body, tolerating empty/malformed input.
+
+    Returns (body, error_response). On a parse failure the caller should return
+    error_response (a 400) instead of letting request.json() raise — an
+    unguarded raise becomes an opaque HTTP 500 with a trace_id, which is both a
+    poor judge/demo experience and a minor error-shape leak. QA-hardened.
+    """
+    try:
+        return await request.json(), None
+    except Exception:
+        return None, JSONResponse({"error": "invalid JSON body"}, status_code=400)
+
+
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
     from vsp_otel.middleware import install as install_vsp; install_vsp(app)
@@ -1073,10 +1087,15 @@ async def policy_evaluate(request: Request) -> JSONResponse:
     except Exception:
         return JSONResponse({"error": "invalid JSON body"}, status_code=400)
 
-    if "severity" in body and "action" not in body:
-        body = {"action": body}
-    elif isinstance(body, str):
+    if isinstance(body, str):
         body = {"action": {"severity": body}}
+    elif isinstance(body, dict) and "severity" in body and "action" not in body:
+        body = {"action": body}
+    elif not isinstance(body, dict):
+        return JSONResponse({
+            "error": "body must be {action: {...}} or shorthand {severity: '...'}",
+            "example": {"action": {"severity": "medium", "confidence": 0.8, "actionId": "my-action"}},
+        }, status_code=400)
 
     action = body.get("action")
     if not action or not isinstance(action, dict):
@@ -1244,21 +1263,33 @@ try:
 
     @app.post("/api/a11oy/v1/rosie-companion/ponder")
     async def a11oy_rosie_ponder(request: Request) -> JSONResponse:
-        body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {"context": body}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.ponder(body.get("context", body), traceparent=tp)
         return JSONResponse(r.to_dict())
 
     @app.post("/api/a11oy/v1/rosie-companion/synthesize")
     async def a11oy_rosie_synthesize(request: Request) -> JSONResponse:
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.synthesize(body.get("events", []), traceparent=tp)
         return JSONResponse(r.to_dict())
 
     @app.post("/api/a11oy/v1/rosie-companion/evolve")
     async def a11oy_rosie_evolve(request: Request) -> JSONResponse:
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         p = _A11OY_SHADOW.evolve(body.get("strategy", {}),
                                  approvers=body.get("approvers", []), traceparent=tp)
@@ -1266,7 +1297,11 @@ try:
 
     @app.post("/api/a11oy/v1/rosie-companion/brain-jack")
     async def a11oy_rosie_brain_jack(request: Request) -> JSONResponse:
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.brain_jack(body.get("query", ""),
                                      depth=int(body.get("depth", 1)),
@@ -1279,7 +1314,11 @@ try:
         queries. Router tier T4/T5 -> Rosie-shadow.brain_jack; else honest passthrough
         hint to the local /api/a11oy/code chat. Always emits a Khipu cross-link receipt
         when Rosie is consulted."""
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tier = body.get("tier", "T3")
         query = body.get("query") or body.get("message", "")
         tp = getattr(getattr(request, "state", None), "traceparent", None)
@@ -1862,7 +1901,11 @@ async def a11oy_mcp_tools_inline():
 @app.post("/api/a11oy/v1/mcp/call")
 async def a11oy_mcp_call_inline(request: Request):
     """MCP tool call — local."""
-    body = await request.json()
+    body, _err = await _safe_json_body(request)
+    if _err is not None:
+        return _err
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "body must be a JSON object with a 'name' field"}, status_code=400)
     tool_name = body.get("name", "")
     known = {"a11oy_gate", "lambda_score", "khipu_sign", "khipu_verify"}
     if tool_name not in known:
