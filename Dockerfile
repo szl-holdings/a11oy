@@ -228,6 +228,19 @@ COPY a11oy_formula_endpoints.py ./a11oy_formula_endpoints.py
 # `COPY . .`); without it the import fails and the route falls through to the SPA.
 COPY a11oy_formulas_page.py ./a11oy_formulas_page.py
 
+# ADDITIVE (Missing modules fix, 2026-06-04, Perplexity Computer Agent):
+# The following .py files exist in the repo and are imported via try/except
+# in serve.py, but were never COPY'd into the Docker image. Without them the
+# imports fail silently and the associated routes/tabs are unavailable.
+# Per-file COPY (this Dockerfile never uses `COPY . .`).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY a11oy_frontier_patch.py ./a11oy_frontier_patch.py
+COPY a11oy_v4_agent.py ./a11oy_v4_agent.py
+COPY szl_brain.py ./szl_brain.py
+COPY szl_wire.py ./szl_wire.py
+COPY szl_hub.py ./szl_hub.py
+COPY szl_rosie_companion.py ./szl_rosie_companion.py
+
 CMD ["python", "serve.py"]
 
 
