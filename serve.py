@@ -1693,11 +1693,15 @@ async def _a11oy_pr_mesh_state_v2():
     if _A11OY_WIRE_OK:
         return JSONResponse(_a11oy_pr_wire.mesh_status())
     return JSONResponse({
-        "wires": {"D": "live", "E": "live", "F": "live", "G": "live"},
+        "wires": {"D": "live_in_process", "E": "live", "F": "live",
+                  "G": "not_served_on_this_build", "H": "not_served_on_this_build"},
         "mesh_organs": ["a11oy", "amaru", "sentra", "killinchu", "rosie"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "honesty": "szl_wire unavailable; honest stub mesh state returned.",
+        "honesty": "szl_wire unavailable; honest stub mesh state returned. "
+                   "Wire D is in-process only (cross-Space broker NOT wired). "
+                   "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
+                   "served on this build (endpoints return 404); do not claim G/H live.",
     })
 
 print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,honest,audit-log,brain,llm/tiers,mesh/state}", file=sys.stderr)
@@ -2254,11 +2258,15 @@ async def _a11oy_pr_mesh_state():
     if _A11OY_WIRE_OK:
         return JSONResponse(_a11oy_pr_wire.mesh_status())
     return JSONResponse({
-        "wires": {"D": "live", "E": "live", "F": "live", "G": "live"},
+        "wires": {"D": "live_in_process", "E": "live", "F": "live",
+                  "G": "not_served_on_this_build", "H": "not_served_on_this_build"},
         "mesh_organs": ["a11oy", "amaru", "sentra", "killinchu", "rosie"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "honesty": "szl_wire unavailable; honest stub mesh state returned.",
+        "honesty": "szl_wire unavailable; honest stub mesh state returned. "
+                   "Wire D is in-process only (cross-Space broker NOT wired). "
+                   "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
+                   "served on this build (endpoints return 404); do not claim G/H live.",
     })
 
 print("[a11oy] PARITY BLOCK registered: /api/a11oy/v1/{lambda,honest,audit-log,brain,llm/tiers,mesh/state}", file=sys.stderr)
