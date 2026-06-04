@@ -23,6 +23,19 @@ HONESTY: trace IDs are real W3C-format ids; the event buses are in-memory ring
 buffers (no Kafka/NATS in a static HF Space), labeled as such.  Receipt signatures
 are PLACEHOLDER.  Nothing here fabricates cross-process delivery it cannot do.
 """
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       Shared mesh wiring for every SZL Space. Implements the
+#                Wire D/E/F cross-pod connections from Doctrine v11.
+# Key entry pts: install_traceparent_middleware(app, space) [Wire D],
+#                WireE_EventBus (cortex events) [Wire E],
+#                ingest_receipt(receipt) [Wire F]
+# Related mods:  szl_khipu.py (receipt chain), szl_dsse.py (signing),
+#                serve.py (mount point)
+# Doctrine note: Wire E event bus is an IN-MEMORY ring buffer (no Kafka/NATS).
+#                Wire F receipt signatures are PLACEHOLDER until CI signing lands.
+#                Both are honest disclosures — nothing fabricates delivery.
+# ---------------------------------------------------------------------------
 from __future__ import annotations
 
 import hashlib

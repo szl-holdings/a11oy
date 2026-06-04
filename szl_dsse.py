@@ -30,6 +30,22 @@ for SZL Khipu receipts, backed by the SZLHOLDINGS **Cosign** keypair.
   payloadType for Khipu receipts: "application/vnd.szl.khipu+json"
   keyid: "szlholdings-cosign"
 """
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       DSSE (Dead-Simple-Signing-Envelope) signing + verification for
+#                SZL Khipu receipts, backed by the SZLHOLDINGS Cosign keypair.
+# Key entry pts: sign_payload(payload_obj, payload_type) -> DSSE envelope dict
+#                verify_envelope(env) -> verdict dict
+#                sign_khipu_receipt(receipt) -> receipt dict with DSSE envelope
+#                signing_available() -> bool (False if no private key secret)
+# Related mods:  szl_khipu.py (DAG that stores receipts),
+#                szl_wire.py (Wire F uses this to sign cross-pod receipts),
+#                szl_be_hardening.py (DurableKhipu stores signed receipts)
+# Doctrine note: Private key is RUNTIME SECRET ONLY (SZL_COSIGN_PRIVATE_KEY_PEM).
+#                NEVER commit it. Absent = PLACEHOLDER mode (honest, no fabrication).
+#                Public key is embedded in COSIGN_PUBLIC_PEM for offline verification.
+# PAE spec:      DSSEv1 SP LEN(type) SP type SP LEN(body) SP body
+# ---------------------------------------------------------------------------
 from __future__ import annotations
 
 import base64

@@ -4,6 +4,18 @@
 # szl_formulas.py — PORTABLE canonical-formula registry + Codex-Kernel composer.
 # ADDITIVE, self-contained, pure. Inlined from szl-cookbook recipes
 #   canonical-formulas-v1 + codex-kernel-composer-v1 so each HF Space carries one file.
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       Pure, typed canonical formula registry for all SZL Doctrine v11
+#                formulas. Also contains the Codex-Kernel composer (governance contracts).
+# Key entry pts: lambda_aggregate(), dsse_envelope(), khipu_merkle_root(),
+#                pac_bayes_mcallester(), kochen_specker_18vector_witness()
+# Related mods:  szl_dsse.py (signing), szl_khipu.py (DAG store),
+#                szl_lambda_tripwire.py (halt logic), szl_be_hardening.py (persistence)
+# Doctrine note: Λ uniqueness = Conjecture 1 (NOT proven). See CAUCHY_ND sorry
+#                in Lutar/Uniqueness.lean:120. Never label it 'Theorem'.
+#                All PROOF-STATUS tags in docstrings are authoritative.
+# ---------------------------------------------------------------------------
 
 """
 canonical-formulas-v1 — SZL Holdings Canonical Formula Registry

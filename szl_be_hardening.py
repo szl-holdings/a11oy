@@ -44,6 +44,22 @@ Stdlib only, with OPTIONAL slowapi. No mocks in any non-test path.
 Signed-off-by: Greene (BE) <greene@szlholdings.ai>
 Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 """
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       Backend hardening for every SZL organ. One-call setup:
+#                harden(app, organ="a11oy") wires everything additively.
+# Key entry pts: harden(app, organ) -> report dict
+#                DurableKhipu (SQLite-backed receipt store, stdlib only)
+# What it adds:  Rate limiting (60/min/IP via slowapi or stdlib fallback),
+#                structured JSON logs, uniform error envelopes {error: {code,
+#                message, trace_id, doctrine}}, /healthz + /readyz probes,
+#                /honest footer (749/14/163), OpenAPI at /openapi.json.
+# Related mods:  szl_khipu.py (in-memory DAG), szl_dsse.py (signing),
+#                serve.py (calls harden() inside try/except at startup)
+# Doctrine note: Every block is try/except-guarded — NEVER crashes host app.
+#                SQLite path: /tmp/szl_khipu_<organ>.db (HF writable).
+#                Falls back: SQLite -> JSON file -> in-memory (reported on /readyz).
+# ---------------------------------------------------------------------------
 from __future__ import annotations
 
 import hashlib

@@ -12,6 +12,20 @@ Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 Doctrine: v11 LOCKED | Λ Conjecture 1 | SLSA L1 honest
 """
 
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       The Lambda (Λ) trust-score halt guard. Raised when Λ score
+#                drops below HALT_THRESHOLD (0.30), triggering a hard stop.
+# Key entry pts: LambdaTripwireTriggered (exception class),
+#                A11oyGateTripwire.check(score) -> raises if halted
+# Related mods:  szl_formulas.py (lambda_aggregate), szl_khipu.py (receipts),
+#                serve.py (caught in gate evaluation handlers)
+# Doctrine note: Λ uniqueness = Conjecture 1 (NOT a closed theorem).
+#                Adapted from openai/openai-guardrails-js (MIT) with SZL
+#                extension: DSSE receipt_id and Doctrine v11 binding.
+# Thresholds:    HALT=0.30 (stop execution), FLAG=0.60, WARN=0.80
+# ---------------------------------------------------------------------------
+
 from __future__ import annotations
 
 import hashlib

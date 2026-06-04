@@ -16,6 +16,18 @@ only, not a cryptographic signature. SHA3-256 is used for the chain digest.
 Stdlib only (hashlib, json, threading, time). No external deps so it runs in the
 slim a11oy Docker image with zero new pip installs.
 """
+# ---------------------------------------------------------------------------
+# DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
+# Purpose:       In-memory, thread-safe, append-only Khipu receipt DAG.
+#                One DAG per (organ, namespace). Each receipt is SHA3-256
+#                hash-chained to the previous — tamper-evident without a DB.
+# Key entry pts: KhipuDAG.emit(action, payload), KhipuDAG.verify_chain(),
+#                KhipuDAG.receipts(), get_dag(organ, ns)
+# Related mods:  szl_dsse.py (DSSE signing), szl_be_hardening.py (SQLite
+#                persistence), szl_wire.py (Wire F receipt ingest)
+# Doctrine note: Chain verifies INTEGRITY only. DSSE (szl_dsse) provides
+#                authorship. Both layers are required for full attestation.
+# ---------------------------------------------------------------------------
 from __future__ import annotations
 
 import hashlib
