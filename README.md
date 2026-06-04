@@ -181,7 +181,7 @@ L3 is **not** claimed.
 
 This organ is part of the **SZL UDS mesh**: a 7-organ trace + receipt substrate
 (brain `rosie` · heart `a11oy` · blood `amaru` · immune `sentra` · nervous/courier
-`killinchu` · skeleton `vessels` · wires = W3C `traceparent`).
+`killinchu` · skeleton `phawaq` · wires = W3C `traceparent`).
 
 ```mermaid
 flowchart LR
@@ -191,7 +191,7 @@ flowchart LR
     ROSIE["🧠 rosie<br/>brain"]:::inproc -->|Wire C| A11OY["❤️ a11oy<br/>heart / fabric"]:::live
     A11OY -->|Wire B| SENTRA["🛡️ sentra<br/>immune"]:::live
     A11OY -->|Wire E| AMARU["🩸 amaru<br/>blood"]:::inproc
-    A11OY -->|Wire F| VESSELS["🦴 vessels<br/>skeleton"]:::roadmap
+    A11OY -->|Wire F| PHAWAQ["🦴 phawaq<br/>skeleton"]:::roadmap
     KILLINCHU["📡 killinchu<br/>courier"]:::roadmap -.->|relay| RECEIPTS["📜 receipts<br/>DSSE Khipu"]:::inproc
     A11OY -->|traceparent embedded| RECEIPTS
     WIRES["🔌 wires / W3C traceparent"]:::live -.-> A11OY
