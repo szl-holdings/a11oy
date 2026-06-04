@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v10
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 """
 szl_wire — shared mesh wiring for every SZL Space.  Closes Wires D, E, F per
-Doctrine v10 (Wire B a11oy↔sentra LIVE, Wire C a11oy↔rosie LIVE already).
+Doctrine v11 (Wire B a11oy↔sentra LIVE, Wire C a11oy↔rosie LIVE already).
 
   Wire D — W3C traceparent propagation.  Middleware extracts an incoming
            `traceparent` header (W3C Trace Context), generates one if absent,
@@ -37,7 +37,7 @@ def _now_utc() -> str:
     """Return current UTC time as ISO-8601 string."""
     return datetime.now(timezone.utc).isoformat()
 
-SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doctrine v10)"
+SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doctrine v11)"
 
 # ---------------------------------------------------------------------------
 # Wire D — W3C Trace Context (traceparent: 00-<32hex trace>-<16hex span>-01)
@@ -222,8 +222,8 @@ def mesh_status() -> dict[str, Any]:
         "cortex_events": cortex_events(10),
         "khipu_root": khipu_root(),
         "khipu_nodes": khipu_nodes(10),
-        "coexists_with": "a11oy /wires (sibling Doctrine-v10 surface): /wires is the canonical honest status board (Wire D shown there as NOT YET cross-Space). /mesh adds the in-process traceparent + cortex-SSE + Khipu-receipt live views. No duplication: /mesh LINKS to /wires.",
+        "coexists_with": "a11oy /wires (sibling Doctrine-v11 surface): /wires is the canonical honest status board (Wire D shown there as NOT YET cross-Space). /mesh adds the in-process traceparent + cortex-SSE + Khipu-receipt live views. No duplication: /mesh LINKS to /wires.",
         "honesty": "In-memory ring buffers (no external broker in a static HF Space). "
                    "Trace IDs are real W3C ids generated + propagated in-process; cross-Space distributed tracing is NOT wired. "
-                   "Receipt signatures are PLACEHOLDER (Sigstore CI not wired). Numbers 749/14/163 per Doctrine v10.",
+                   "Receipt signatures are PLACEHOLDER (Sigstore CI not wired). Numbers 749/14/163 per Doctrine v11.",
     }

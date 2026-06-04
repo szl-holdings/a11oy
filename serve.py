@@ -666,7 +666,7 @@ async def v1_healthz() -> JSONResponse:
                 "error": "Node serve on :8081 is not running",
                 "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                              "version": "v11", "replay_hash": "c7c0ba17"},
-                "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
+                "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
             },
             status_code=503,
         )
@@ -684,7 +684,7 @@ async def v1_healthz() -> JSONResponse:
         "routes": ["/v1/ledger", "/v1/ledger/{hash}", "/v1/verify", "/v1/policy/evaluate"],
         "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                      "version": "v11", "replay_hash": "c7c0ba17"},
-        "slsa": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
+        "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
     }, status_code=200 if backend["alive"] else 503)
 
 
@@ -1608,7 +1608,7 @@ async def _a11oy_pr_honest_v2():
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
-        "slsa": "L2 (public-verifiable)",
+        "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "slsa_evidence": {
             "level": "L2",
             "image_tag": "uds-v0.2.0",
@@ -1630,7 +1630,7 @@ async def _a11oy_pr_honest_v2():
             "No Iron Bank / FedRAMP / CMMC certification claimed",
             "Section 889 = exactly 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua)",
             "HNSW formula endpoint is an HONEST amaru-delegate stub (amaru owns retrieval); BLS returns an honest backend-availability flag (real verify only when py_ecc present).",
-            "SLSA L2 is public-verifiable for the a11oy image; killinchu remains L1 (private GitHub Fulcio, no public Rekor entry) — honest ecosystem gap.",
+            "SLSA L1 honest (cosign-signed) for the a11oy image. L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. killinchu remains L1 honest.",
         ],
         "role": "Brand Orchestration / gates",
     })
@@ -1760,7 +1760,7 @@ async def a11oy_mcp_tools_inline():
     ]
     return JSONResponse({
         "count": len(tools), "tools": tools, "doctrine": "v11",
-        "flagship": "a11oy", "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest + L2 attested (in-toto SLSA Provenance v1; cosign keyless-verified) — NOT L3",
+        "flagship": "a11oy", "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
     })
 
@@ -2140,7 +2140,7 @@ async def _a11oy_pr_honest():
         "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
         "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "L2 (public-verifiable)",
+        "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "slsa_evidence": {
             "level": "L2",
             "image_tag": "uds-v0.2.0",
