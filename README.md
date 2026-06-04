@@ -21,7 +21,7 @@ ecosystem-stage: "operational"
 # a11oy 🔬
 > Governed agentic execution fabric — policy substrate with HMAC-signed receipts for every gated decision.
 
-![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A) ![SLSA-L1-L2](https://img.shields.io/badge/SLSA-L1%20%2B%20L2%20attested-2C5F2D) ![DCO](https://img.shields.io/badge/DCO-required-555) ![CI](https://img.shields.io/badge/CI-green-2C5F2D) ![Scorecard](https://img.shields.io/badge/OpenSSF-Scorecard-informational) ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A) ![SLSA-L1_honest](https://img.shields.io/badge/SLSA-L1%20honest-2C5F2D) ![DCO](https://img.shields.io/badge/DCO-required-555) ![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg) ![Scorecard](https://img.shields.io/badge/OpenSSF-Scorecard-informational) ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 **749 declarations · 14 axioms · 163 sorries · Doctrine v11 LOCKED · kernel `c7c0ba17`**
 
@@ -34,7 +34,7 @@ ecosystem-stage: "operational"
 
 ## What it does
 - **Policy + receipt substrate** — `/v1/policy/evaluate`, `/v1/verify`, `/v1/ledger`: one hash-chained substrate, deny by default.
-- **Honest disclosure endpoint** — `/v1/honest` reports the live doctrine posture (749/14/163, Λ = Conjecture 1, SLSA L1 + L2).
+- **Honest disclosure endpoint** — `/v1/honest` reports the live doctrine posture (749/14/163, Λ = Conjecture 1, SLSA L1 honest).
 - **Brand-orchestration gates** — governed-loop primitive with deterministic replay and hard-stop validators.
 
 ## Quickstart
@@ -119,7 +119,7 @@ The full, canonical endpoint list is on the [docs site](https://docs.szlholdings
 ## Doctrine
 - **Doctrine v11 LOCKED** — 749/14/163 · kernel `c7c0ba17` (never bumped)
 - **Λ = Conjecture 1** (NOT a theorem) — depends on the open CAUCHY_ND sorry + a missing symmetry axiom
-- **SLSA L1 + L2 build provenance attested** · **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua)
+- **SLSA L1 honest** (cosign-signed images, verifiable via `cosign verify`) · L2 (attested build-service provenance) is roadmap, not yet claimed · **Section 889 = exactly 5 vendors** (Huawei, ZTE, Hytera, Hikvision, Dahua)
 - No Iron Bank / FedRAMP / CMMC / SWFT / Mission Owner claims
 
 ## License + DOI
@@ -154,11 +154,9 @@ We are a precision substrate, not a vibes company.
 }
 ```
 
-## SLSA L2 build provenance (verify)
+## SLSA L1 honest build provenance (verify)
 
-Every `ghcr.io/szl-holdings/a11oy` image ships a signed in-toto **SLSA provenance v1**
-attestation (`actions/attest-build-provenance@v2`), discoverable on the public Sigstore
-Rekor transparency log and pushed to the registry alongside the image.
+Every `ghcr.io/szl-holdings/a11oy` image is cosign-signed and independently verifiable. SLSA L1 honest — images are cosign-signed and verifiable via `cosign verify`. L2 (isolated, attested build-service provenance) is roadmap via Wire D; not yet claimed.
 
 ```bash
 # Resolve the image digest, then verify provenance against the source repo:
@@ -171,11 +169,11 @@ slsa-verifier verify-image \
 gh attestation verify oci://ghcr.io/szl-holdings/a11oy:uds-v0.2.0 --owner szl-holdings
 ```
 
-SLSA L2 = hosted build platform (GitHub Actions) + signed provenance available to consumers.
-L3 is **not** claimed (requires a hardened, isolated build environment).
+L2 (isolated, attested build-service provenance) is roadmap via Wire D; not yet claimed.
+L3 is **not** claimed.
 
 ---
-*Doctrine v11 LOCKED · 749/14/163 · kernel c7c0ba17 · Λ = Conjecture 1 · SLSA L1 + L2 build provenance attested (verifiable via slsa-verifier)*
+*Doctrine v11 LOCKED · 749/14/163 · kernel c7c0ba17 · Λ = Conjecture 1 · SLSA L1 honest (cosign-signed, verifiable via `cosign verify`); L2 roadmap, not yet claimed*
 
 ---
 
