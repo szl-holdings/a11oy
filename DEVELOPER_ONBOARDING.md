@@ -174,7 +174,7 @@ bash scripts/smoke-from-public-url.sh
 | Sorries | 163 (112 baseline + 51 Putnam) |
 | Kernel commit | `c7c0ba17` |
 | Lambda uniqueness | Conjecture 1 — NOT a theorem |
-| SLSA | L1 honest; L2 attested on GHCR |
+| SLSA | L1 honest (cosign-signed); L2 attestation roadmap via Wire D — not yet earned (`cosign verify-attestation` returns "no matching attestations") |
 
 ---
 

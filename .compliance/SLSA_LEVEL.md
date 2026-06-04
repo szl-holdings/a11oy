@@ -13,34 +13,50 @@ The published `ghcr.io/szl-holdings/a11oy` container image is cosign-signed on a
 | L2 | Signed provenance from a hosted build platform, verifiable downstream | ⬜ Roadmap via Wire D — not yet claimed (GHCR verification shows cosign-signed L1 only; no provenance attestation tags verified) |
 | L3 | Hardened, isolated builder; signing keys inaccessible to build steps | ⬜ Not claimed (requires a hardened, isolated build environment) |
 
-## Evidence
+## Evidence (L1 earned)
 
-- Build + attest workflow: `.github/workflows/ghcr-build-push.yml`
-  (`actions/attest-build-provenance@v2`, `attestations: write`, `id-token: write`,
-  `push-to-registry: true`).
-- Predicate type: `https://slsa.dev/provenance/v1` (in-toto DSSE).
+- The published image is cosign-signed keyless on a GitHub-hosted Actions runner;
+  signature + Rekor inclusion are independently verifiable via `cosign verify`.
 - Builder: GitHub-hosted Actions runner; OIDC issuer
   `https://token.actions.githubusercontent.com`.
+
+## L2 status (NOT yet earned — roadmap via Wire D)
+
+The build workflow `.github/workflows/ghcr-build-push.yml` includes
+`actions/attest-build-provenance@v2` (pinned by SHA) with `push-to-registry: true`
+and `permissions: { id-token: write, attestations: write, packages: write }`.
+**However, a live check against the deployed image returns no attestation:**
+
+```text
+$ cosign verify-attestation --type slsaprovenance ghcr.io/szl-holdings/a11oy:uds-v0.2.0 \
+    --certificate-identity-regexp="^https://github.com/szl-holdings/" \
+    --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+Error: no matching attestations
+```
+
+Until this command returns a valid attestation, **L2 is NOT claimed anywhere**.
+The likely remaining blocker is org-level permission (`attestations: write`); if a
+workflow run fails with "Resource not accessible by integration," that is a
+**founder action** (enable attestations at the org level) — see the team report.
 
 ## Verify (downstream)
 
 ```bash
-# Verify the cosign signature on the published container image (SLSA L1 honest):
+# 1. Verify the cosign signature on the published image (SLSA L1 honest — PASSES today):
 cosign verify ghcr.io/szl-holdings/a11oy:uds-v0.2.0 \
-  --certificate-identity-regexp="https://github.com/szl-holdings/a11oy" \
+  --certificate-identity-regexp="^https://github.com/szl-holdings/" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 
-# GitHub attestation check (if attestation tags exist):
-gh attestation verify oci://ghcr.io/szl-holdings/a11oy:uds-v0.2.0 --owner szl-holdings
+# 2. SLSA L2 provenance attestation (roadmap — currently "no matching attestations"):
+cosign verify-attestation --type slsaprovenance ghcr.io/szl-holdings/a11oy:uds-v0.2.0 \
+  --certificate-identity-regexp="^https://github.com/szl-holdings/" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 ```
 
-Verified image digest: `sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71`.
 Public Sigstore transparency-log entry (Rekor): log index **1710578865**
-(`https://search.sigstore.dev/?logIndex=1710578865`). Offline cryptographic
-verification of the DSSE bundle returned **VALID**; predicate
-`https://slsa.dev/provenance/v1`; subject digest matches the published image.
+(`https://search.sigstore.dev/?logIndex=1710578865`).
 
-SLSA L1 honest = cosign-signed images, verifiable via `cosign verify`. L2 (attested build-service provenance) is roadmap via Wire D; not yet claimed. **L3 is not claimed.**
+SLSA L1 honest = cosign-signed images, verifiable via `cosign verify`. L2 (attested build-service provenance) is roadmap via Wire D; **not yet claimed because `cosign verify-attestation` does not yet pass on the deployed image.** **L3 is not claimed.**
 
 ---
 

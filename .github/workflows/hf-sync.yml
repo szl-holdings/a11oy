@@ -87,7 +87,7 @@ jobs:
               repo_type="space",
               operations=[CommitOperationAdd(path_in_repo="README.md",
                                              path_or_fileobj=card.encode("utf-8"))],
-              commit_message="docs(slsa): sync Space card with GitHub README (SLSA L1 + L2 attested)",
+              commit_message="docs(slsa): sync Space card with GitHub README (SLSA L1 honest; L2 roadmap)",
               commit_description=("Automated README sync from szl-holdings/a11oy main via hf-sync.\n\n"
                                   "Signed-off-by: Yachay <yachay@szlholdings.ai>\n"
                                   "Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>"),

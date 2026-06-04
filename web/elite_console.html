@@ -485,7 +485,7 @@ input, button, select { font:inherit }
   <b>v11 LOCKED</b> <span class="sep">·</span> 749/<span id="dp-decl">14</span>/163
   <span class="sep">·</span> <b>c7c0ba17</b><br>
   Λ = <b>Conjecture 1</b> <span class="sep">·</span>
-  SLSA <b id="dp-slsa">L2</b> <span class="sep">·</span>
+  SLSA <b id="dp-slsa">L1 honest</b> <span class="sep">·</span>
   <span id="dp-gates">46</span> gates
 </div>
 
@@ -506,7 +506,7 @@ input, button, select { font:inherit }
   </div>
   <div class="header-spacer"></div>
   <div class="slsa-badge" id="slsaBadge">
-    <span>✓</span> <span>SLSA L2 VERIFIED</span>
+    <span>✓</span> <span>SLSA L1 HONEST (L2 ROADMAP)</span>
   </div>
 </header>
 
@@ -572,7 +572,7 @@ input, button, select { font:inherit }
     </div>
     <div class="grid g-3" style="margin-top:16px">
       <div class="card">
-        <div class="card-head"><span class="icon">🔏</span>SLSA L2 Provenance<span class="pill">/v1/version</span></div>
+        <div class="card-head"><span class="icon">🔏</span>SLSA L1 Provenance (L2 roadmap)<span class="pill">/v1/version</span></div>
         <div class="card-body" id="ov-prov-body"><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
       </div>
       <div class="card">
@@ -982,7 +982,8 @@ input, button, select { font:inherit }
       <div class="card">
         <div class="card-head"><span class="icon">✔</span>What We Claim</div>
         <div class="card-body" style="font:11px/1.9 var(--mono);color:var(--text-dim)">
-          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA L2 VERIFIED</div><br>
+          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA L1 HONEST (L2 ROADMAP)</div><br>
+          ✓ cosign keyless signature verified (cosign verify)<br>
           ✓ Rekor logIndex 1711940457 confirmed<br>
           ✓ Fulcio issuer: sigstore.dev (public-good)<br>
           ✓ 749 Lean declarations · 14 unique axioms<br>
@@ -995,6 +996,7 @@ input, button, select { font:inherit }
         <div class="card-head"><span class="icon">⚠</span>What We Do Not Claim</div>
         <div class="card-body" style="font:11px/1.9 var(--mono);color:var(--text-dim)">
           <div class="tag tag-amber" style="display:inline-block;margin-bottom:6px">HONEST</div><br>
+          ✗ L2 attestation not yet earned (cosign verify-attestation → "no matching attestations"); roadmap via Wire D<br>
           ✗ L3 not claimed (no hermetic build)<br>
           ✗ FedRAMP / Iron Bank / CMMC not claimed<br>
           ✗ Λ is a conjecture — CAUCHY_ND sorry open<br>
@@ -1008,16 +1010,16 @@ input, button, select { font:inherit }
       <div class="card-head"><span class="icon">⚙</span>SLSA Verify Command</div>
       <div class="card-body">
         <div class="codeblock">
-<span class="cmt"># Verify SLSA L2 provenance (requires slsa-verifier + cosign)</span>
-<span class="kw">slsa-verifier</span> verify-image \
-  --source-uri <span class="str">github.com/szl-holdings/a11oy</span> \
-  --builder-id <span class="str">https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml</span> \
-  szlholdings/a11oy@sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879
+<span class="cmt"># Verify the cosign keyless signature on the image (SLSA L1 honest)</span>
+<span class="kw">cosign</span> verify <span class="str">ghcr.io/szl-holdings/a11oy:uds-v0.2.0</span> \
+  --certificate-identity-regexp <span class="str">"^https://github.com/szl-holdings/"</span> \
+  --certificate-oidc-issuer <span class="str">"https://token.actions.githubusercontent.com"</span>
 
-<span class="cmt"># cosign verify (key-based)</span>
-<span class="kw">cosign</span> verify-blob \
-  --key <span class="str">https://github.com/szl-holdings/.github/blob/main/cosign.pub</span> \
-  --signature &lt;sig&gt; &lt;payload.json&gt;
+<span class="cmt"># SLSA L2 provenance attestation is roadmap (Wire D), NOT yet earned.</span>
+<span class="cmt"># When earned this returns the attestation; today it returns "no matching attestations":</span>
+<span class="kw">cosign</span> verify-attestation --type slsaprovenance <span class="str">ghcr.io/szl-holdings/a11oy:uds-v0.2.0</span> \
+  --certificate-identity-regexp <span class="str">"^https://github.com/szl-holdings/"</span> \
+  --certificate-oidc-issuer <span class="str">"https://token.actions.githubusercontent.com"</span>
 
 <span class="cmt"># Rekor transparency log</span>
 <span class="kw">rekor-cli</span> get --log-index <span class="num">1711940457</span>
@@ -1078,8 +1080,8 @@ input, button, select { font:inherit }
 <footer class="honest-footer">
   <b>a11oy Elite Console</b> — 20 tabs · zero mocks · every surface bound to a real <code>/api/a11oy/…</code> endpoint ·
   W3C traceparent on every panel · skeletons over spinners · 3D where it adds value (Three.js r128 vendored)<br>
-  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L2 VERIFIED (Rekor 1711940457)</b><br>
-  HONEST: Wires G+H not live · audit log resets on rebuild · no FedRAMP/Iron Bank/CMMC · no L3<br>
+  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 honest, cosign-verified (Rekor 1711940457)</b><br>
+  HONEST: SLSA L2 attestation not yet earned (roadmap via Wire D) · Wires G+H not live · audit log resets on rebuild · no FedRAMP/Iron Bank/CMMC · no L3<br>
   Sign: Yachay &lt;yachay@szlholdings.ai&gt; ·
   Co-Authored-By: <a href="https://perplexity.ai">Perplexity Computer Agent</a> ·
   <a href="https://github.com/szl-holdings/a11oy">GitHub</a> ·
@@ -1877,7 +1879,7 @@ async function loadAnatomy() {
     const el = document.getElementById('anatomy-prov-body');
     el.innerHTML = `
       <div style="font:10px/1.7 var(--mono);color:var(--text-muted)">
-        SLSA: <b style="color:var(--gold)">${pv.slsa?.level||'L2'}</b><br>
+        SLSA: <b style="color:var(--gold)">${pv.slsa?.level||'L1 honest (L2 roadmap)'}</b><br>
         Rekor: <b style="color:var(--cyan)">${pv.slsa?.rekor_log_index||1711940457}</b><br>
         image: <code>${(pv.slsa?.image_digest||'').slice(0,30)}…</code><br>
         builder: ${pv.slsa?.builder||'GitHub Actions'}
@@ -2005,7 +2007,7 @@ async function loadHonest() {
       </div>
       <div style="margin-top:16px">
         <div class="kpi-label">SLSA Level</div>
-        <span class="tag tag-green">${d.slsa?.level||d.slsa||'L2'}</span>
+        <span class="tag tag-green">${d.slsa?.level||d.slsa||'L1 honest (L2 roadmap)'}</span>
         ${d.slsa_evidence ? `<div style="margin-top:8px;font:10px/1.7 var(--mono);color:var(--text-muted)">
           image_tag: <b style="color:var(--gold)">${d.slsa_evidence.image_tag||''}</b><br>
           Rekor: <b style="color:var(--cyan)">${d.slsa_evidence.rekor_log_index||1711940457}</b><br>

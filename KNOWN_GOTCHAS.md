@@ -126,13 +126,18 @@ The `doctrine-grep.yml` CI workflow fails PRs that introduce conflicting numbers
 
 ## 8. SLSA level honest disclosure
 
-**Current status**: SLSA L1 (source provenance documented). The GHCR image build
-attaches SLSA L2 build-provenance attestation. L3 is NOT claimed (no hardened
-isolated build pipeline).
+**Current status**: SLSA L1 honest — the GHCR image is cosign-signed keyless and
+verifiable via `cosign verify`. The build workflow contains an
+`actions/attest-build-provenance@v2` step, but it has NOT yet produced a
+verifiable attestation on the deployed image: `cosign verify-attestation
+--type slsaprovenance ghcr.io/szl-holdings/a11oy:uds-v0.2.0` currently returns
+"no matching attestations". So **L2 is NOT yet earned** (roadmap via Wire D; the
+likely blocker is org-level `attestations: write`, a founder action). L3 is NOT
+claimed (no hardened isolated build pipeline).
 
-Do not upgrade the SLSA badge to L2 or L3 without the infrastructure to back it.
-The `/v1/honest` endpoint is the authoritative live source; the README badge must
-match it.
+Do not upgrade the SLSA badge to L2 or L3 until `cosign verify-attestation`
+actually returns the attestation on the deployed image. The `/v1/honest` endpoint
+is the authoritative live source; the README badge must match it.
 
 ---
 

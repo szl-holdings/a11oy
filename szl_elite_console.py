@@ -159,7 +159,7 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
 
     # seed a few honest info-level events
     _add_alert("info", "Space started", "a11oy elite console initialised", "system")
-    _add_alert("info", "SLSA L2 verified", "Rekor logIndex 1711940457 confirmed", "slsa")
+    _add_alert("info", "SLSA L1 honest", "cosign keyless verified; Rekor logIndex 1711940457. L2 attestation roadmap (Wire D) — not yet earned", "slsa")
     _add_alert("warning", "Wire G not live", "brain-mesh bridge not served on this build", "wireG")
 
     @app.get("/api/a11oy/v1/console/alerts")
@@ -276,7 +276,8 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
             "payload_type": "application/vnd.szl.khipu+json",
             "verify_cmd": "cosign verify-blob --key cosign.pub --signature <sig> <payload>",
             "rekor_log_index": 1711940457,
-            "slsa_level": "L2",
+            "slsa_level": "L1 honest (L2 roadmap via Wire D)",
+            "slsa_l2_attestation": "not earned — cosign verify-attestation --type slsaprovenance returns 'no matching attestations'",
             "doctrine": DOCTRINE,
             "note": "DSSE receipts from live in-process Khipu DAG. signing_available=true only when SZL_COSIGN_PRIVATE_PEM secret is set.",
             "honest_notes": _HONEST_NOTES[:10],
@@ -412,7 +413,7 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
     _h0 = hashlib.sha3_256(b"boot_verdict_0").hexdigest()
     _add_verdict("system_boot", "PASS", ["a11oy", "sentra", "killinchu"], _lam_seed, _h0)
     _h1 = hashlib.sha3_256(b"slsa_verify").hexdigest()
-    _add_verdict("slsa_l2_verify", "PASS", ["a11oy", "sentra", "amaru", "killinchu"], _lam_seed, _h1)
+    _add_verdict("slsa_l1_cosign_verify", "PASS", ["a11oy", "sentra", "amaru", "killinchu"], _lam_seed, _h1)
 
     @app.get("/api/a11oy/v1/console/verdict-theater")
     async def console_verdict_theater(limit: int = 30) -> JSONResponse:
