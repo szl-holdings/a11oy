@@ -21,9 +21,9 @@ import importlib
 from pathlib import Path
 from typing import Callable, Optional
 
-from .genome import Genome, load_genome, GenomeError
-from .pool import KipuPool
 from .cell import ReceiptCell
+from .genome import Genome, GenomeError, load_genome
+from .pool import KipuPool
 
 
 class OrganAgent:

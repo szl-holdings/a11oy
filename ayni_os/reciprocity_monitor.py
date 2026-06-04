@@ -14,9 +14,8 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from typing import Optional
 
-from .ledger import ReciprocityLedger, ORGANS
+from .ledger import ORGANS, ReciprocityLedger
 
 ALPHA_BALANCED = 0.5
 ALPHA_MIN = 0.45

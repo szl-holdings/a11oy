@@ -11,14 +11,13 @@ so the logic is testable and runnable without extra deps (open-source only).
 """
 from __future__ import annotations
 
-import json
 from dataclasses import asdict
 from typing import Optional
 
-from .ledger import ReciprocityLedger, ORGANS
 from .checkpoint import CheckpointStore
-from .rewind import reconstruct_at
+from .ledger import ReciprocityLedger
 from .reciprocity_monitor import scan
+from .rewind import reconstruct_at
 from .tinkuy import TinkuyMonitor
 
 

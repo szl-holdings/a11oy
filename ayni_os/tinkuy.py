@@ -21,7 +21,7 @@ from __future__ import annotations
 import cmath
 import math
 import time as _time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterable, Optional
 
 from .ledger import ORGANS

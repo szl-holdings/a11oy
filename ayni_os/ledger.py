@@ -13,9 +13,8 @@ from __future__ import annotations
 import hashlib
 import json
 import time as _time
-from dataclasses import dataclass, asdict, field
-from typing import Iterable, Optional
-
+from dataclasses import asdict, dataclass
+from typing import Optional
 
 # Doctrine v11: 14 organs.
 ORGANS = (
