@@ -77,4 +77,4 @@ def pac_bayes_bound(
 __all__ = ["pac_bayes_halfwidth", "pac_bayes_bound", "CITATION", "LEAN_THEOREM"]
 
 # Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem)
-# SLSA L1 honest + L2 attested (public Sigstore+Rekor) where slsa-verifier confirms.
+# SLSA L1 honest. L2 build-provenance attestation = roadmap (Wire D) — not yet claimed. L3 not claimed.

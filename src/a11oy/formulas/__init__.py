@@ -47,4 +47,4 @@ __all__ = [
     "reidemeister",
 ]
 
-# SLSA L1 honest + L2 attested (public Sigstore+Rekor) where slsa-verifier confirms.
+# SLSA L1 honest. L2 build-provenance attestation = roadmap (Wire D) — not yet claimed. L3 not claimed.

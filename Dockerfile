@@ -206,8 +206,8 @@ COPY szl_ken.py ./szl_ken.py
 # these COPYs the import fails and /api/a11oy/v1/formula/* fall through to the SPA shell.
 # Real implementations of PAC-Bayes, BLS12-381 aggregate, Welford, Byzantine quorum,
 # Holevo, Bloom, Kalman, HNSW (amaru-delegate), Reidemeister. Each cites thesis_v22.pdf
-# + a real Lean theorem/obligation. Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest
-# + L2 attested (public Sigstore + Rekor verified for a11oy image).
+# + a real Lean theorem/obligation. Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest.
+# L2 build-provenance attestation = roadmap (Wire D) — not yet claimed. L3 not claimed.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY src/a11oy/__init__.py ./src/a11oy/__init__.py
@@ -242,8 +242,28 @@ COPY szl_wire.py ./szl_wire.py
 COPY szl_hub.py ./szl_hub.py
 COPY szl_rosie_companion.py ./szl_rosie_companion.py
 
+# ADDITIVE (Parity Gaps + Receipt Substrate fix, 2026-06-05, Orchestrator Squad):
+# szl_parity_gaps.py was MISSING from the Dockerfile despite being imported by
+# serve.py at line ~1722 and being the source of the 5 parity endpoints
+# (compliance/export, lineage, policy/validate, receipts/replay, lambda/score).
+# Without this COPY those endpoints 404'd.
+# szl_receipt_substrate.py was likewise missing — the Dockerfile comment at line ~182
+# said "already-COPY'd" but no COPY line existed; szl_bridge.py and szl_parity_gaps.py
+# both import it via try/except, causing silent degradation.
+# szl_alloy_embed_fabric.py + szl_ayni_quorum.py: exist in repo, imported in serve.py,
+# but were never COPY'd — adding them makes their endpoints live.
+# Per-file COPY (this Dockerfile never uses `COPY . .`).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_parity_gaps.py ./szl_parity_gaps.py
+COPY szl_receipt_substrate.py ./szl_receipt_substrate.py
+COPY szl_alloy_embed_fabric.py ./szl_alloy_embed_fabric.py
+COPY szl_ayni_quorum.py ./szl_ayni_quorum.py
+
 CMD ["python", "serve.py"]
 
 
-# Build cache-bust 2026-06-03T18:37Z (HF Real Verify Squad): force fresh build after
-# adding web/v4_fleet_panel.html so the 38-tab consolidated SPA bundle finally deploys.
+# Build cache-bust 2026-06-05T00:00Z (Orchestrator Squad):
+# Added COPY szl_parity_gaps.py + szl_receipt_substrate.py + szl_alloy_embed_fabric.py
+# + szl_ayni_quorum.py. All 5 parity endpoints now deployable from clean clone.
+# Every COPY source verified present in git repo at HEAD.

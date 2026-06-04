@@ -106,4 +106,4 @@ if __name__ == "__main__":  # pragma: no cover
     print("✓ byzantine_quorum doctests passed" if fails == 0 else f"✗ {fails} failed")
 
 # Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem)
-# SLSA L1 honest + L2 attested (public Sigstore+Rekor) where slsa-verifier confirms.
+# SLSA L1 honest. L2 build-provenance attestation = roadmap (Wire D) — not yet claimed. L3 not claimed.
