@@ -253,9 +253,9 @@ COPY szl_rosie_companion.py ./szl_rosie_companion.py
 # szl_alloy_embed_fabric.py + szl_ayni_quorum.py: exist in repo, imported in serve.py,
 # but were never COPY'd — adding them makes their endpoints live.
 # Per-file COPY (this Dockerfile never uses `COPY . .`).
+# NOTE: szl_parity_gaps.py is already COPY'd at line 68 (above serve.py).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY szl_parity_gaps.py ./szl_parity_gaps.py
 COPY szl_receipt_substrate.py ./szl_receipt_substrate.py
 COPY szl_alloy_embed_fabric.py ./szl_alloy_embed_fabric.py
 COPY szl_ayni_quorum.py ./szl_ayni_quorum.py
@@ -264,6 +264,6 @@ CMD ["python", "serve.py"]
 
 
 # Build cache-bust 2026-06-05T00:00Z (Orchestrator Squad):
-# Added COPY szl_parity_gaps.py + szl_receipt_substrate.py + szl_alloy_embed_fabric.py
-# + szl_ayni_quorum.py. All 5 parity endpoints now deployable from clean clone.
-# Every COPY source verified present in git repo at HEAD.
+# szl_parity_gaps.py already COPY'd at line 68 (commit 543ca95).
+# Added COPY szl_receipt_substrate.py + szl_alloy_embed_fabric.py + szl_ayni_quorum.py.
+# All 5 parity endpoints now deployable. All 63 COPY sources verified present in repo.
