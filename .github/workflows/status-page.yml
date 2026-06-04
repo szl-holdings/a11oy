@@ -93,6 +93,8 @@ jobs:
           git config user.email "yachay@szlholdings.ai"
           git add STATUS.md
           git diff --staged --quiet && exit 0
-          MSG="chore(status): update STATUS.md [$TS]"$'\n\n'"Doctrine v11 LOCKED 749/14/163"
+          MSG="chore(status): update STATUS.md [$TS]"
           git commit -m "$MSG"
-          git push
+          # Push may fail if branch protection requires PRs; that is expected
+          # and non-fatal -- the status data is still captured in the workflow log.
+          git push || echo "[status-page] push blocked by branch protection (non-fatal)"
