@@ -1741,6 +1741,65 @@ except Exception as _parity_e:
 # END PARITY GAP CLOSURE
 # ===========================================================================
 
+# ===========================================================================
+# ADDITIVE — a11oy LLM Hub Registry + Elite Console
+# (Yachay CTO + Perplexity Computer Agent, 2026-06-04)
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+#
+# a11oy IS the LLM hub for the entire SZL ecosystem.
+# szl_llm_registry adds:
+#   GET  /api/a11oy/v1/llm/registry               — full model roster (7 models, 5 tiers)
+#   GET  /api/a11oy/v1/llm/registry/{model_id}     — single model detail
+#   POST /api/a11oy/v1/llm/route                   — Λ-gated tier selection + receipt
+#   GET  /api/a11oy/v1/llm/forum                   — shared receipt forum (a11oy + Rosie)
+#   POST /api/a11oy/v1/llm/forum/ingest            — ingest from Rosie/organ mirrors
+#   GET  /api/a11oy/v1/llm/ecosystem-mirror        — manifest for Sentra/Amaru/killinchu
+#
+# szl_elite_console adds:
+#   GET  /api/a11oy/v1/console/slo                 — SLO board (gate pass-rates + error budget)
+#   GET  /api/a11oy/v1/console/alerts              — live alert feed
+#   GET  /api/a11oy/v1/console/organ-map           — organ topology for 3D service map
+#   GET  /api/a11oy/v1/console/dsse-stream         — last-N DSSE receipt events
+#   GET  /api/a11oy/v1/console/quorum-state        — 3-of-4 Khipu quorum organ vote
+#   GET  /api/a11oy/v1/console/genome              — formula→Lean→organ GENOME index
+#   GET  /api/a11oy/v1/console/verdict-theater     — multi-party witnessed verdicts
+#   GET  /api/a11oy/v1/console/policy-canvas       — 46-gate policy canvas
+#   GET  /elite-console                            — 20-tab Elite Console HTML
+#
+# All endpoints are ADDITIVE — no existing routes touched.
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
+# ===========================================================================
+try:
+    import szl_llm_registry as _llm_reg
+    _llm_reg_info = _llm_reg.register(app)
+    print(
+        f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
+        f"{len(_llm_reg_info.get('endpoints', []))} endpoints — Doctrine v11",
+        file=sys.stderr,
+    )
+except Exception as _llm_e:
+    import traceback as _tb_llm
+    print(f"[a11oy] LLM registry NOT mounted ({_llm_e!r}); existing routes unaffected", file=sys.stderr)
+    _tb_llm.print_exc()
+
+try:
+    import szl_elite_console as _elite_con
+    _elite_gates = globals().get("_gates_list", [])
+    _elite_gates_by_name = globals().get("_gates_by_name", {})
+    _elite_info = _elite_con.register(app, _elite_gates, _elite_gates_by_name)
+    print(
+        f"[a11oy] Elite Console mounted: {len(_elite_info.get('endpoints', []))} endpoints — Doctrine v11",
+        file=sys.stderr,
+    )
+except Exception as _elite_e:
+    import traceback as _tb_elite
+    print(f"[a11oy] Elite Console NOT mounted ({_elite_e!r}); existing routes unaffected", file=sys.stderr)
+    _tb_elite.print_exc()
+# ===========================================================================
+# END LLM HUB REGISTRY + ELITE CONSOLE
+# ===========================================================================
+
 
 # P3 FIX: /api/a11oy/v4/fleet — must be BEFORE /api/a11oy/{path:path} proxy catch-all
 # AND registered as /v4/fleet for HF proxy stripping.  Both registered here.
