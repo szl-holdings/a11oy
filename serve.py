@@ -1705,6 +1705,38 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # END PARITY RESTORATION BLOCK v2
 # ===========================================================================
 
+# ===========================================================================
+# ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+#
+# Closes three parity gaps vs market leaders:
+#   GAP-A: GET  /api/a11oy/v1/compliance/export  — Credo AI / Vanta parity
+#   GAP-B: GET  /api/a11oy/v1/lineage            — Palantir Foundry parity
+#   GAP-C: POST /api/a11oy/v1/policy/validate    — Credo AI policy-as-code parity
+# Adds two DSSE-unique differentiators:
+#   DIFF-1: POST /api/a11oy/v1/receipts/replay   — independent receipt replay
+#   DIFF-2: POST /api/a11oy/v1/lambda/score      — Λ-gated formal scoring
+# ===========================================================================
+try:
+    import szl_parity_gaps as _parity_gaps
+    _parity_info = _parity_gaps.register(
+        app,
+        _gates_list,
+        _gates_by_name,
+    )
+    print(
+        f"[a11oy] parity-gaps mounted: {_parity_info.get('endpoints')} — Doctrine v11",
+        file=sys.stderr,
+    )
+except Exception as _parity_e:
+    import traceback as _tb_pg
+    print(f"[a11oy] parity-gaps NOT mounted ({_parity_e!r}); existing routes unaffected", file=sys.stderr)
+    _tb_pg.print_exc()
+# ===========================================================================
+# END PARITY GAP CLOSURE
+# ===========================================================================
+
 
 # P3 FIX: /api/a11oy/v4/fleet — must be BEFORE /api/a11oy/{path:path} proxy catch-all
 # AND registered as /v4/fleet for HF proxy stripping.  Both registered here.
