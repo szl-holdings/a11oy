@@ -499,7 +499,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "doctrine_lock": DOCTRINE_LOCK,
             "footer": DOCTRINE_FOOTER,
             "honest_labels": {
-                "lambda": "Λ-Aggregator Uniqueness is CONJECTURE 1 — not a closed theorem.",
+                "lambda": "Λ-Aggregator Uniqueness is Conjecture 1 — NOT a theorem.",
                 "khipu_signatures": "Chain integrity is SHA3-256 hash-chain verified; "
                                     "DSSE signature is a separately-labelled cosign concern.",
                 "persistence": f"Khipu receipts persist via backend={store.backend} "
