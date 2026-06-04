@@ -16,10 +16,10 @@ Author: Yachay (SZL Holdings). License: Apache-2.0.
 __version__ = "0.1.0"
 
 from .cell import ReceiptCell, content_address
-from .pool import KipuPool
+from .coding import ReedSolomonCoder, decode_shards, encode_cell
 from .events import EventBus
-from .coding import ReedSolomonCoder, encode_cell, decode_shards
 from .genome import Genome, GenomeError, load_genome, validate_genome
+from .pool import KipuPool
 from .transcribe import OrganAgent, QillqaqEngine
 
 __all__ = [

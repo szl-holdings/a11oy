@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from .ledger import ReciprocityLedger, ORGANS
+from .ledger import ORGANS, ReciprocityLedger
 
 CHECKPOINT_INTERVAL_SECONDS = 7 * 60  # every 7 minutes
 DSSE_PAYLOAD_TYPE = "application/vnd.szl.ayni-checkpoint+json"

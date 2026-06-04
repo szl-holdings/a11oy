@@ -8,11 +8,11 @@ mechanism used by event stores, write-ahead logs, and git.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
-from .ledger import ReciprocityLedger, ORGANS
 from .checkpoint import CheckpointStore
+from .ledger import ORGANS, ReciprocityLedger
 
 
 @dataclass

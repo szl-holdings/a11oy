@@ -17,11 +17,11 @@ import json
 import os
 import threading
 from pathlib import Path
-from typing import Optional, Iterable
+from typing import Iterable, Optional
 
 from .cell import ReceiptCell
+from .coding import decode_shards, encode_cell
 from .events import EventBus
-from .coding import encode_cell, decode_shards
 
 
 class _Store:

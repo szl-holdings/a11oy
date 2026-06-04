@@ -15,17 +15,23 @@ HONEST: receipt signature is DSSE PLACEHOLDER (Sigstore CI not wired, v11 §9).
         Khipu DAG ingest reuses szl_wire.ingest_receipt (in-memory ring + S3 mirror).
 """
 from __future__ import annotations
+
 import functools
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import datetime, timezone
 from typing import Any, Callable
 
 import pybreaker
-from tenacity import (retry, stop_after_attempt, wait_exponential_jitter,
-                      retry_if_exception_type)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 try:
-    from szl_wire import ingest_receipt, SIGNATURE_PLACEHOLDER  # reuse the live DAG
+    from szl_wire import SIGNATURE_PLACEHOLDER, ingest_receipt  # reuse the live DAG
 except Exception:  # edge / standalone import
     SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI not wired (Doctrine v12)"
     def ingest_receipt(receipt: dict) -> dict:  # local fallback writer

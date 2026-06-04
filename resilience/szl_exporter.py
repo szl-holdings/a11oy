@@ -12,8 +12,10 @@ HONEST: it reports what the Spaces actually expose. Where a Space has no metric 
 The in-process buses + Khipu DAG are in-memory ring buffers (per szl_wire.py); the
 durable record is the S3 mirror (BACKUP_AND_RECOVERY.md). v11 LOCKED numbers untouched.
 """
+import time
+
+import httpx
 from prometheus_client import Gauge, start_http_server
-import httpx, time
 
 SPACES = {
     "a11oy":       "https://szlholdings-a11oy.hf.space",
@@ -38,7 +40,8 @@ LOCKED = Gauge("szl_lean_locked_reference", "Doctrine LOCKED reference numbers",
 
 def _recompute_integrity(nodes: list[dict]) -> int:
     """Honest hash-chain check: digest must equal sha256(receipt sorted-json || parents)."""
-    import hashlib, json
+    import hashlib
+    import json
     prev = None
     for n in nodes:
         h = hashlib.sha256()
