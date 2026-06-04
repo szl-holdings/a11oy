@@ -58,39 +58,37 @@ jobs:
           set -euo pipefail
           IMG="ghcr.io/szl-holdings/${{ github.event.repository.name }}"
           DIGEST="${{ steps.build-push.outputs.digest }}"
+          # SLSA Provenance v0.2 predicate (matches `cosign ... --type slsaprovenance`,
+          # which validates the v0.2 schema with a top-level `builder` field).
           cat > predicate.json <<EOF
           {
-            "buildDefinition": {
-              "buildType": "https://actions.github.io/buildtypes/workflow/v1",
-              "externalParameters": {
-                "workflow": {
-                  "ref": "${{ github.ref }}",
-                  "repository": "${{ github.server_url }}/${{ github.repository }}",
-                  "path": ".github/workflows/ghcr-build-push.yml"
-                }
-              },
-              "internalParameters": {
-                "github": {
-                  "event_name": "${{ github.event_name }}",
-                  "repository_id": "${{ github.repository_id }}",
-                  "runner_environment": "github-hosted"
-                }
-              },
-              "resolvedDependencies": [
-                {
-                  "uri": "git+${{ github.server_url }}/${{ github.repository }}@${{ github.ref }}",
-                  "digest": { "gitCommit": "${{ github.sha }}" }
-                }
-              ]
+            "builder": {
+              "id": "${{ github.server_url }}/${{ github.repository }}/.github/workflows/ghcr-build-push.yml@${{ github.ref }}"
             },
-            "runDetails": {
-              "builder": {
-                "id": "${{ github.server_url }}/${{ github.repository }}/.github/workflows/ghcr-build-push.yml@${{ github.ref }}"
+            "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+            "invocation": {
+              "configSource": {
+                "uri": "git+${{ github.server_url }}/${{ github.repository }}@${{ github.ref }}",
+                "digest": { "sha1": "${{ github.sha }}" },
+                "entryPoint": ".github/workflows/ghcr-build-push.yml"
               },
-              "metadata": {
-                "invocationId": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
+              "environment": {
+                "event_name": "${{ github.event_name }}",
+                "repository_id": "${{ github.repository_id }}",
+                "runner_environment": "github-hosted"
               }
-            }
+            },
+            "metadata": {
+              "buildInvocationId": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}",
+              "completeness": { "parameters": true, "environment": false, "materials": false },
+              "reproducible": false
+            },
+            "materials": [
+              {
+                "uri": "git+${{ github.server_url }}/${{ github.repository }}@${{ github.ref }}",
+                "digest": { "sha1": "${{ github.sha }}" }
+              }
+            ]
           }
           EOF
           cosign attest --yes \
