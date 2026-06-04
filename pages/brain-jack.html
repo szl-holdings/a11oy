@@ -53,7 +53,7 @@ nav{color:var(--mut);font-size:13px;margin-bottom:24px}
 
 <h1>Brain-Jack Mesh — Wire G</h1>
 <p class="sub">Fan a query out to all 6 SZL Space organs in parallel. Each organ responds in its own style.<br>
-<span class="b amber">Doctrine v11</span> &nbsp; <span class="b green">749/14/163</span> &nbsp; <span class="b green">Wire G</span> &nbsp; <span class="b amber">λ_receipt sig: PLACEHOLDER</span></p>
+<span class="b amber">Doctrine v11</span> &nbsp; <span class="b green">749/14/163</span> &nbsp; <span class="b amber">Wire G — ROADMAP (404 live)</span> &nbsp; <span class="b amber">λ_receipt sig: PLACEHOLDER</span></p>
 
 <div class="card note">
 <b>Wire G:</b> Every Space exposes 3 brain-jack endpoints:
@@ -61,7 +61,7 @@ nav{color:var(--mut);font-size:13px;margin-bottom:24px}
 <code>GET /api/&lt;space&gt;/v1/brain/sockets</code> (socket registry),
 <code>POST /api/&lt;space&gt;/v1/brain/multi-jack</code> (fan-out).
 This playground calls a11oy's <code>/api/a11oy/v1/brain/multi-jack</code>, which fans out to all 5 other Spaces in parallel.
-<br><b>Honesty:</b> λ_receipt signatures are PLACEHOLDER (Sigstore CI not yet wired, Doctrine v10/v11). Static spaces (vessels, uds-demo) return stubs.
+<br><b>Honesty (Wire G status):</b> the brain-jack mesh endpoints (<code>/api/&lt;space&gt;/v1/brain/{sockets,multi-jack}</code>) are <b>NOT served on the current deployed build</b> — they return <b>HTTP 404</b> live (probed 2026-06-04). Wire G is <b>roadmap (v0.5.0)</b>, not live; <code>/api/a11oy/v1/mesh/state</code> reports <code>G/H = not_served_on_this_build</code>. Firing the playground below will surface those 404s. λ_receipt signatures are PLACEHOLDER (Sigstore CI not yet wired, Doctrine v10/v11). Static spaces (vessels, uds-demo) return stubs.
 </div>
 
 <h2>1 · Query</h2>

@@ -163,7 +163,7 @@ except Exception as _th_e:
 #   POST /api/a11oy/khipu/sign     — DSSE-sign a receipt (real ECDSA-P256 cosign sig)
 #   POST /api/a11oy/khipu/verify   — verify a DSSE envelope against cosign.pub
 #   GET  /api/a11oy/khipu/ledger   — signed Khipu Merkle DAG
-#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest + L2 attested (Wire D LIVE; SLSA Provenance v1, cosign keyless-verified))
+#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest: cosign keyless-verified image; L2 build-provenance attestation roadmap via Wire D, not yet claimed; L3 not claimed)
 # The Wire-D middleware echoes traceparent on EVERY response (incl. the Node-proxy
 # catch-all) so trace continuity holds across the whole Space. Real signatures only
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
@@ -363,8 +363,9 @@ for _organ_mod, _organ_label in (
 # and win ordering. The package root /app/src is added to sys.path so
 # `import a11oy.formulas` resolves under WORKDIR /app (per-file COPY in Dockerfile).
 # try/except guarded — a missing optional dep can NEVER take down the SPA + API.
-# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest + L2 attested (public
-# Sigstore + Rekor verified for the a11oy image).
+# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest (cosign-signed image, public
+# Sigstore + Rekor verified). L2 build-provenance attestation roadmap via Wire D —
+# not yet claimed; L3 not claimed. See .compliance/SLSA_LEVEL.md.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
@@ -1594,10 +1595,11 @@ async def _a11oy_pr_lambda_v2():
 async def _a11oy_pr_honest_v2():
     """Honest doctrine disclosure. Doctrine v11 LOCKED 749/14/163."""
     # ADDITIVE (Formulas → Ecosystem, 2026-06-03): surface the wired thesis-v22
-    # formulas + HONEST SLSA status. a11oy image (tag uds-v0.2.0) was verified at
-    # SLSA L2 via the GitHub Attestations API + public Sigstore/Rekor inclusion
-    # (Fulcio O=sigstore.dev, Rekor logIndex 1711940457). We report L2 ONLY because
-    # slsa-verifier / public Rekor actually confirm it — never a checklist claim.
+    # formulas + HONEST SLSA status. HONEST STATUS (locked by .compliance/SLSA_LEVEL.md):
+    # the deployed a11oy image (tag uds-v0.2.0) is cosign-signed and publicly verifiable
+    # (Rekor logIndex 1710578865) = SLSA Build L1 honest. L2 (isolated, attested
+    # build-service provenance for the deployed image) is roadmap via Wire D, NOT yet
+    # claimed; GHCR shows the cosign-signed image (L1) only. L3 not claimed.
     try:
         _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
     except Exception:
@@ -1610,14 +1612,14 @@ async def _a11oy_pr_honest_v2():
         "lambda_status": "Conjecture 1 — NOT a theorem",
         "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "slsa_evidence": {
-            "level": "L2",
+            "level": "L1",
             "image_tag": "uds-v0.2.0",
-            "image_digest": "sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879",
-            "builder": "GitHub-hosted Actions (slsa.dev/provenance/v1)",
+            "image_digest": "sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71",
+            "builder": "GitHub-hosted Actions (cosign keyless)",
             "fulcio_issuer": "sigstore.dev (public-good)",
-            "rekor_log_index": 1711940457,
-            "verified_via": "GitHub Attestations API + offline DSSE crypto + live Rekor inclusion (HTTP 200)",
-            "note": "L1 honest baseline always held; L2 reported only because public Sigstore+Rekor actually confirm.",
+            "rekor_log_index": 1710578865,
+            "verified_via": "cosign verify + live public Rekor inclusion (HTTP 200) for the image SIGNATURE",
+            "l2_status": "roadmap (Wire D) — GHCR shows cosign-signed image (L1) only; no verified provenance-attestation tag on the deployed image. NOT claimed.",
         },
         "formulas_wired": _wired,
         "formulas_count": len(_wired),
@@ -2221,10 +2223,13 @@ async def _a11oy_pr_lambda():
 async def _a11oy_pr_honest():
     """Honest doctrine disclosure — parity with sentra/amaru/killinchu/rosie. Doctrine v11."""
     # ADDITIVE (Formulas → Ecosystem, 2026-06-03): this is the LAST-registered /honest
-    # (it wins ordering), so the formula + SLSA surface lives HERE too. a11oy image
-    # (uds-v0.2.0) was verified public-SLSA-L2 (GitHub Attestations API + public
-    # Sigstore/Rekor inclusion, Fulcio O=sigstore.dev, Rekor logIndex 1711940457).
-    # We report L2 ONLY because public Rekor actually confirms it — never a checklist claim.
+    # (it wins ordering), so the formula + SLSA surface lives HERE too. HONEST STATUS
+    # (locked by .compliance/SLSA_LEVEL.md): the deployed a11oy image (uds-v0.2.0) is
+    # cosign-signed and publicly verifiable (Rekor logIndex 1710578865) — that is
+    # SLSA Build L1 honest. L2 (an isolated, attested build-service PROVENANCE for the
+    # deployed image, verifiable downstream) is roadmap via Wire D and NOT yet claimed;
+    # GHCR verification shows the cosign-signed image (L1) only, no verified provenance
+    # attestation tag on the image. L3 not claimed. Report exactly what Rekor confirms.
     try:
         _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
     except Exception:
@@ -2237,13 +2242,14 @@ async def _a11oy_pr_honest():
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "slsa_evidence": {
-            "level": "L2",
+            "level": "L1",
             "image_tag": "uds-v0.2.0",
-            "image_digest": "sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879",
-            "builder": "GitHub-hosted Actions (slsa.dev/provenance/v1)",
+            "image_digest": "sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71",
+            "builder": "GitHub-hosted Actions (cosign keyless)",
             "fulcio_issuer": "sigstore.dev (public-good)",
-            "rekor_log_index": 1711940457,
-            "verified_via": "GitHub Attestations API + offline DSSE crypto + live Rekor inclusion (HTTP 200)",
+            "rekor_log_index": 1710578865,
+            "verified_via": "cosign verify + live public Rekor inclusion (HTTP 200) for the image SIGNATURE",
+            "l2_status": "roadmap (Wire D) — GHCR shows cosign-signed image (L1) only; no verified provenance-attestation tag on the deployed image. NOT claimed.",
             "ecosystem_gap": "killinchu remains L1 (private GitHub Fulcio, no public Rekor entry) — honest.",
         },
         "formulas_wired": _wired,
