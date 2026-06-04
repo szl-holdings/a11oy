@@ -65,6 +65,7 @@ COPY packages/policy/src/gates /app/a11oy-src/packages/policy/src/gates
 COPY console/ ./static/
 
 # Copy serve orchestrator and gates manifest
+COPY szl_parity_gaps.py ./szl_parity_gaps.py
 COPY serve.py ./serve.py
 COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
