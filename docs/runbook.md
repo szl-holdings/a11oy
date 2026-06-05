@@ -1,5 +1,5 @@
 # SZL Holdings — On-Call Runbook
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest | Generated: 2026-06-03**
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Generated: 2026-06-03**
 
 ## Quick Reference
 
