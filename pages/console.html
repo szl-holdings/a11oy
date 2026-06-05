@@ -7,6 +7,8 @@
 <meta name="description" content="a11oy is the orchestrating brain of the SZL governed-AI substrate: a full operator application — command center, five superpowers, Warhacker orchestration, observability, the constitution (wires), formulas, and the evidence ledger. Every view reads a live endpoint."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
@@ -103,22 +105,36 @@ pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--pa
   .menu-btn{display:inline-flex!important;}
 }
 .menu-btn{display:none;background:none;border:1px solid var(--gold-line);color:var(--gold);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-family:var(--mono);font-size:11px;}
+/* ===== VISUALS ===== */
+.chartbox{position:relative;height:260px;width:100%;}
+.chartbox.tall{height:320px;}
+.graph3d{height:420px;width:100%;border-radius:9px;background:radial-gradient(circle at 50% 40%,#0c1410,#070707);overflow:hidden;border:1px solid var(--gold-line);}
+.gauge-wrap{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;}
+.gauge{position:relative;width:150px;height:150px;}
+.gauge .lbl{position:absolute;inset:0;display:grid;place-items:center;flex-direction:column;text-align:center;}
+.gauge .lbl .big{font-size:1.8rem;font-weight:600;color:var(--gold);line-height:1;}
+.gauge .lbl .sm{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:.2rem;}
+.legend{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:.6rem;font-family:var(--mono);font-size:10px;color:var(--muted);}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:.35rem;vertical-align:middle;}
+.spark{height:46px;width:100%;}
+.bar-track{flex:1;height:9px;background:#161616;border-radius:5px;overflow:hidden;}
+.bar-fill{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:5px;transition:width .6s cubic-bezier(.2,.8,.2,1);}
+details.raw{margin-top:1rem;}
+details.raw summary{cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;}
+details.raw[open] summary{color:var(--muted);}
 </style>
 </head>
 <body>
 <div class="topbar">
   <button class="menu-btn" onclick="document.querySelector('.side').classList.toggle('open')">☰</button>
   <span>SZL HOLDINGS</span><span class="sep">/</span>
-  <span style="color:var(--teal)">A11OY</span><span class="sep">/</span>
-  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
-  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
-  <nav class="switcher" aria-label="Flagship switcher">
-    <span class="lbl">FLEET</span>
-    <a class="flag active" href="https://szlholdings-a11oy.hf.space/console">a11oy</a>
-    <a class="flag" href="https://szlholdings-sentra.hf.space/console">sentra</a>
-    <a class="flag" href="https://szlholdings-amaru.hf.space/operational-core">amaru</a>
-    <a class="flag" href="https://szlholdings-rosie.hf.space/">rosie</a>
-    <a class="flag" href="https://szlholdings-killinchu.hf.space/elite">killinchu</a>
+  <span style="color:var(--teal)">a11oy</span><span class="sep">/</span>
+  <span>GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
+  <span class="live"><span class="live-dot"></span>LIVE</span>
+  <nav class="switcher" aria-label="Surfaces">
+    <span class="lbl">SURFACES</span>
+    <a class="flag active" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
+    <a class="flag" href="https://szlholdings-killinchu.hf.space/elite">Drones &amp; Vessels</a>
   </nav>
 </div>
 
@@ -127,17 +143,26 @@ pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--pa
     <div class="brand"><div class="mark">A</div><div><div class="nm">a11oy</div><div class="role">orchestrating brain</div></div></div>
     <div class="nav-group">Operate</div>
     <div class="nav-item active" data-view="command" onclick="go('command')"><span class="ico">◎</span>Command Center</div>
-    <div class="nav-item" data-view="superpowers" onclick="go('superpowers')"><span class="ico">✦</span>Five Superpowers</div>
-    <div class="nav-item" data-view="warhacker" onclick="go('warhacker')"><span class="ico">⊞</span>Warhacker</div>
-    <div class="nav-group">Observe</div>
-    <div class="nav-item" data-view="observability" onclick="go('observability')"><span class="ico">∿</span>Observability</div>
-    <div class="nav-item" data-view="wires" onclick="go('wires')"><span class="ico">⧉</span>Wires · Constitution</div>
-    <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Mesh Reach</div>
-    <div class="nav-group">Govern</div>
-    <div class="nav-item" data-view="formulas" onclick="go('formulas')"><span class="ico">ƒ</span>Formulas</div>
-    <div class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⎙</span>Evidence Ledger</div>
-    <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>LLM Router</div>
-    <div class="side-foot">Λ = Conjecture 1 · proved = 5<br>{F1,F11,F12,F18,F19}<br>SLSA Build L2 · 5/5 organs<br>v11 LOCKED · 749/14/163</div>
+    <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
+    <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
+    <div class="nav-item" data-view="fleet" onclick="go('fleet')"><span class="ico">⊟</span>System Health</div>
+    <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
+    <div class="nav-group">Decide &amp; Govern</div>
+    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score</div>
+    <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
+    <div class="nav-item" data-view="feed" onclick="go('feed')"><span class="ico">∿</span>Live Decisions</div>
+    <div class="nav-item" data-view="readiness" onclick="go('readiness')"><span class="ico">✓</span>Readiness</div>
+    <div class="nav-item" data-view="compliance" onclick="go('compliance')"><span class="ico">§</span>Compliance</div>
+    <div class="nav-item" data-view="forecast" onclick="go('forecast')"><span class="ico">↗</span>Forecast</div>
+    <div class="nav-group">Prove &amp; Verify</div>
+    <div class="nav-item" data-view="receipts" onclick="go('receipts')"><span class="ico">⎙</span>Signed Receipts</div>
+    <div class="nav-item" data-view="formulas" onclick="go('formulas')"><span class="ico">ƒ</span>Proof &amp; Formulas</div>
+    <div class="nav-item" data-view="threats" onclick="go('threats')"><span class="ico">☠</span>Threat Library</div>
+    <div class="nav-group">Models &amp; Tools</div>
+    <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
+    <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
+    <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
+    <div class="side-foot">Trust score = research conjecture<br>5 formulas formally proven<br>SLSA Build L2 · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -145,7 +170,11 @@ pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--pa
 
 <script>
 const API='/api/a11oy';
+// Sibling organs — folded into this ONE app. Browser fetches their PUBLIC URLs directly (CORS open).
+const ORG={sentra:'https://szlholdings-sentra.hf.space',amaru:'https://szlholdings-amaru.hf.space',rosie:'https://szlholdings-rosie.hf.space',killinchu:'https://szlholdings-killinchu.hf.space'};
 async function getJSON(p){const r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function orgGet(organ,path){const r=await fetch(ORG[organ]+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function orgPost(organ,path,body){const r=await fetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 async function postJSON(p,b){const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function el(id){return document.getElementById(id);}
@@ -153,102 +182,273 @@ function setOut(id,obj){const e=el(id);if(e)e.textContent=typeof obj==='string'?
 function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
 function setTxt(id,t){const e=el(id);if(e)e.textContent=t;}
 function addHTML(id,html){const e=el(id);if(e)e.insertAdjacentHTML('beforeend',html);}
+// ===== VISUAL HELPERS (Chart.js + 3d-force-graph) =====
+const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#555',GRID='rgba(201,183,135,0.08)';
+let _charts={};
+function killChart(id){if(_charts[id]){try{_charts[id].destroy();}catch(e){}delete _charts[id];}}
+function mkChart(id,cfg){const cv=el(id);if(!cv||!window.Chart)return;killChart(id);
+  Chart.defaults.color=DIM;Chart.defaults.font.family="'JetBrains Mono',monospace";Chart.defaults.font.size=10;
+  _charts[id]=new Chart(cv.getContext('2d'),cfg);return _charts[id];}
+// doughnut gauge 0..1
+function gauge(id,val,label,color){const v=Math.max(0,Math.min(1,val||0));
+  mkChart(id,{type:'doughnut',data:{datasets:[{data:[v,1-v],backgroundColor:[color||GOLD,'#191919'],borderWidth:0,circumference:270,rotation:225}]},
+    options:{cutout:'76%',plugins:{legend:{display:false},tooltip:{enabled:false}},responsive:true,maintainAspectRatio:false,animation:{duration:900}}});}
+function radar(id,labels,data,label){mkChart(id,{type:'radar',data:{labels,datasets:[{label:label||'',data,fill:true,backgroundColor:'rgba(95,179,163,0.18)',borderColor:TEAL,pointBackgroundColor:GOLD,borderWidth:1.5,pointRadius:2}]},
+  options:{scales:{r:{min:0,max:1,grid:{color:GRID},angleLines:{color:GRID},pointLabels:{color:'#9a9a9a',font:{size:9}},ticks:{display:false}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});}
+function barH(id,labels,data,colors){mkChart(id,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||TEAL,borderRadius:4,barThickness:14}]},
+  options:{indexAxis:'y',scales:{x:{grid:{color:GRID},ticks:{color:DIM}},y:{grid:{display:false},ticks:{color:'#9a9a9a',font:{size:9}}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});}
+function barV(id,labels,data,colors){mkChart(id,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||TEAL,borderRadius:4}]},
+  options:{scales:{x:{grid:{display:false},ticks:{color:'#9a9a9a',font:{size:9}}},y:{grid:{color:GRID},ticks:{color:DIM}}},plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false}});}
+function lineSpark(id,labels,data,color){mkChart(id,{type:'line',data:{labels,datasets:[{data,borderColor:color||TEAL,backgroundColor:'rgba(95,179,163,0.12)',fill:true,tension:.35,pointRadius:0,borderWidth:1.6}]},
+  options:{scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},tooltip:{enabled:false}},responsive:true,maintainAspectRatio:false}});}
+function doughnut(id,labels,data,colors){mkChart(id,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#0a0a0a',borderWidth:2}]},
+  options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{enabled:true}},responsive:true,maintainAspectRatio:false}});}
+let _fg=null;
+function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';
+  try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
+    .graphData({nodes,links}).nodeLabel('name').nodeColor(n=>n.color||TEAL).nodeVal(n=>n.val||4)
+    .linkColor(()=>'rgba(201,183,135,0.45)').linkWidth(1.2).linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(()=>TEAL)
+    .showNavInfo(false);
+  setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
 
-const HONEST='<div class="honesty"><b>Honesty.</b> Every panel reads a live a11oy endpoint — no mock data. Λ is <b>Conjecture 1</b>, never a theorem. Proved formulas = <b>5</b> {F1,F11,F12,F18,F19}. SLSA <b>Build L2</b> on all 5 organ images. No L3 / FedRAMP / Iron Bank / CMMC. Receipts are real DSSE when a key is present, honest UNSIGNED otherwise.</div>';
+const HONEST='<div class="honesty"><b>How to read this.</b> Every panel reads a live service \u2014 no mock data. The trust score is a research conjecture, not a proven theorem. Five formulas are formally proven; the rest are open. Builds are SLSA Level 2 (not L3/FedRAMP/Iron Bank). Audit receipts are cryptographically signed where a key is present, and honestly marked unsigned otherwise.</div>';
+const FLOOR=0.9;
 
 const VIEWS={
-  command:{title:'Command Center',badge:'LIVE',sub:'The orchestrating brain at a glance — live fleet health, the cross-organ mesh, evidence integrity, and one-click into every governed surface.',
-    render:async(c)=>{
-      c.innerHTML=`<div class="kpis">
-        <div class="kpi"><div class="k">Fleet reachable</div><div class="v live" id="k-fleet">—</div><div class="d">organs answering health</div></div>
-        <div class="kpi"><div class="k">Mesh wires</div><div class="v teal" id="k-wires">—</div><div class="d">conserved cross-organ</div></div>
-        <div class="kpi"><div class="k">Evidence checks</div><div class="v" id="k-evid">—</div><div class="d">passed / total</div></div>
-        <div class="kpi"><div class="k">Λ status</div><div class="v teal">Conjecture 1</div><div class="d">NOT a theorem</div></div>
-        <div class="kpi"><div class="k">SLSA</div><div class="v teal">Build L2</div><div class="d">all 5 organ images</div></div></div>
-        <div class="card"><div class="card-h"><span class="card-t">Fleet — live peer health</span><span class="card-ep">GET /v4/fleet</span></div><div id="fleet"><div class="row mono dim">probing…</div></div></div>
-        <div class="grid2">
-          <div class="card"><div class="card-h"><span class="card-t">Cross-organ mesh</span><span class="card-ep">/v1/mesh/state</span></div><div id="cmesh"><div class="row mono dim">loading…</div></div></div>
-          <div class="card"><div class="card-h"><span class="card-t">Evidence integrity</span><span class="card-ep">/v1/evidence</span></div><div id="cevid"><div class="row mono dim">loading…</div></div></div>
-        </div>${HONEST}`;
-      // fleet
-      try{const d=await getJSON('/v4/fleet');const peers=d.peers||d.organs||{};const entries=Array.isArray(peers)?peers.map(p=>[p.flagship||p.name,p]):Object.entries(peers);
-        let ok=0;setHTML('fleet','');
-        entries.forEach(([n,p])=>{const up=(p.status||'').toLowerCase()==='ok'||p.reachable===true||p.http_code===200;if(up)ok++;
-          addHTML('fleet',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'OK':'DOWN'}</span><span>${esc(n||'organ')}</span><span class="spacer mono dim">${p.latency_ms?Math.round(p.latency_ms)+'ms':''}</span></div>`);});
-        setTxt('k-fleet',entries.length?ok+'/'+entries.length:'—');}catch(e){setHTML('fleet','<div class="row mono dim">fleet retrying… (transient egress)</div>');}
-      // mesh
-      try{const d=await getJSON(API+'/v1/mesh/state');const w=d.wires||{};setTxt('k-wires',Object.keys(w).length);setHTML('cmesh','');
-        Object.entries(w).forEach(([k,v])=>addHTML('cmesh',`<div class="row"><span class="badge b-teal">${k}</span><span>${esc(v.edge)}</span><span class="spacer badge ${String(v.status).includes('PROCESS')?'b-gold':'b-live'}">${esc(v.status)}</span></div>`));}catch(e){setHTML('cmesh','<div class="row mono dim">mesh retrying…</div>');}
-      // evidence
-      try{const d=await getJSON(API+'/v1/evidence');if(d.passed!=null)setTxt('k-evid',d.passed+'/'+d.total_assertions);
-        setHTML('cevid',`<div class="row"><span>Declarations</span><span class="spacer b-gold badge">${d.canonical?.declarations??'—'}</span></div>
-        <div class="row"><span>Axioms</span><span class="spacer b-gold badge">${d.canonical?.axioms??'—'}</span></div>
-        <div class="row"><span>Assertions passed</span><span class="spacer b-live badge">${d.passed}/${d.total_assertions}</span></div>
-        <div class="row"><span>Lean repo</span><span class="spacer mono dim">lutar-lean</span></div>`);}catch(e){setHTML('cevid','<div class="row mono dim">evidence retrying…</div>');}
-    }},
-  superpowers:{title:'Five Superpowers',badge:'LIVE',sub:'Five screenshot-provable superpowers. Each button POSTs/GETs a real a11oy endpoint and renders the raw response — Decision Replay, Tamper Theater, Λ-collapse, Resurrection, One-Signed-Organism.',
-    render:(c)=>{c.innerHTML=`
-      <div class="card"><div class="card-h"><span class="card-t">① Decision Replay & ② Tamper Theater</span><span class="card-ep">/v1/receipts/replay</span></div>
-        <div class="btns"><button class="btn teal" onclick="sp_replay()">▶ Replay a decision</button><button class="btn" onclick="sp_tamper()">⚠ Detect tampering</button></div><pre class="out" id="o-replay">— click to run —</pre></div>
-      <div class="card"><div class="card-h"><span class="card-t">③ Λ-collapse</span><span class="card-ep">/v1/lambda/score</span></div>
-        <div class="btns"><button class="btn teal" onclick="sp_lambda(false)">▶ Healthy Λ</button><button class="btn" onclick="sp_lambda(true)">⊘ Collapse an axis</button></div><pre class="out" id="o-lambda">— click to run —</pre></div>
+  command:{title:'Command Center',badge:'LIVE',sub:'One pane of glass over the whole governed-AI platform \u2014 live service health, the connected system map, trust posture, and a verifiable audit trail.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Services up</div><div class="v live" id="k-fleet">probing\u2026</div><div class="d">live health probe</div></div>
+      <div class="kpi"><div class="k">Connections</div><div class="v teal" id="k-wires">\u2014</div><div class="d">cross-service links</div></div>
+      <div class="kpi"><div class="k">Trust score</div><div class="v teal" id="k-lam">\u2014</div><div class="d">vs floor 0.90</div></div>
+      <div class="kpi"><div class="k">Decisions today</div><div class="v" id="k-dec">\u2014</div><div class="d">governed + logged</div></div>
+      <div class="kpi"><div class="k">Build security</div><div class="v teal">SLSA L2</div><div class="d">all services</div></div></div>
       <div class="grid2">
-        <div class="card"><div class="card-h"><span class="card-t">④ Resurrection</span><span class="card-ep">GET /v4/fleet</span></div><div class="btns"><button class="btn teal" onclick="sp_fleet()">▶ Probe the fleet</button></div><pre class="out" id="o-fleet">— click to run —</pre></div>
-        <div class="card"><div class="card-h"><span class="card-t">⑤ One-Signed-Organism</span><span class="card-ep">/v1/mesh/state</span></div><div class="btns"><button class="btn teal" onclick="sp_mesh()">▶ Show the organism</button></div><pre class="out" id="o-mesh">— click to run —</pre></div>
-      </div>${HONEST}`;}},
-  warhacker:{title:'Warhacker Orchestration',badge:'5 PROBLEMS',sub:'a11oy is the single launch point. Each launch calls the live organ endpoint server-side, renders the organ\u2019s real JSON, and records a signed Khipu receipt of the orchestration.',
-    render:(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="wh_all()">▶ Launch all 5 demos</button></div>
-      <div id="wh"></div>${HONEST}`;
-      const probs=[['P1','cannonico','Cannonico — AI-drone oversight','killinchu'],['P2','tychee','Tychee — satellite GSW air-gap','sentra'],['P3','hangar2apps','HANGAR2APPS — deployment-readiness','amaru'],['P4','cyber-rts','Cyber RTS — anomaly triage','amaru'],['P5','raven','Raven — edge AI mesh','a11oy']];
-      el('wh').innerHTML=probs.map(([id,key,t,o])=>`<div class="card"><div class="card-h"><span class="badge b-teal">${id}</span><span class="card-t">${t}</span><span class="card-ep">organ: ${o}</span></div><div class="btns"><button class="btn" onclick="wh_one('${key}','o-${key}')">▶ Launch</button></div><pre class="out" id="o-${key}">— click to launch —</pre></div>`).join('');}},
-  observability:{title:'Observability',badge:'MELT + SIGNED',sub:'Observability, but cryptographically true. MELT + distributed tracing where every span is a DSSE-signed Khipu receipt, plus live cross-organ mesh reachability and Λ-drift.',
-    render:async(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="obs_load()">▶ Refresh MELT + mesh</button></div>
-      <div class="kpis" id="obs-kpis"><div class="kpi"><div class="k">Mesh reachable</div><div class="v live" id="ok-mesh">—</div></div><div class="kpi"><div class="k">Signed spans</div><div class="v" id="ok-spans">—</div></div><div class="kpi"><div class="k">Chain verified</div><div class="v teal" id="ok-chain">—</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Mesh reachability — live public-URL probes</span><span class="card-ep">/v1/observability/summary</span></div><div id="obs-mesh"><div class="row mono dim">loading…</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Signed Khipu spans</span><span class="card-ep">/v1/observability/spans</span></div><pre class="out" id="obs-spans">loading…</pre></div>${HONEST}`;
-      window.obs_load();}},
-  wires:{title:'Wires · The Constitution',badge:'LIVE',sub:'The mesh is the constitution: five wires that bind the organs into one signed organism. Each row reads the live mesh-state endpoint. Honest labels distinguish a cross-Space wire from an in-process one.',
-    render:async(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="wires_load()">▶ Refresh the mesh</button></div><div id="wires-host"><div class="row mono dim">loading…</div></div>${HONEST}`;window.wires_load();}},
-  mesh:{title:'Mesh Reach',badge:'5 ORGANS',sub:'Live per-organ reachability probes from a11oy to every flagship\u2019s public health endpoint. Real URL + HTTP code + latency. An unreachable organ is shown honestly — never faked green.',
-    render:async(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="mesh_load()">▶ Probe all organs</button></div><div id="mesh-host"><div class="row mono dim">probing…</div></div>${HONEST}`;window.mesh_load();}},
-  formulas:{title:'PURIQ Formulas',badge:'23 AGENTS',sub:'The 23 FormulaAgents. The proved set — exactly five {F1,F11,F12,F18,F19}, Lean sorry-free — is honestly distinguished from the open conjectures, including Λ (F23), which is Conjecture 1, never a theorem.',
-    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Formula registry</span><span class="card-ep">/v1/puriq/formulas</span></div><pre class="out" id="f-out">loading…</pre></div>${HONEST}`;
-      try{const d=await getJSON(API+'/v1/puriq/formulas');setOut('f-out',d);}catch(e){setOut('f-out','Proved (Lean, sorry-free): F1, F11, F12, F18, F19 (5).\nΛ = F23 = Conjecture 1 — NOT a theorem.\nAll other F-numbers: open / roadmap.\n(live registry endpoint retrying: '+e.message+')');}}},
-  evidence:{title:'Evidence Ledger',badge:'LEAN-ANCHORED',sub:'The audit trail anchored to the lutar-lean repository: declarations, axioms, sorries, and the assertion suite — read live from the evidence endpoint.',
-    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Evidence</span><span class="card-ep">/v1/evidence</span></div><pre class="out" id="e-out">loading…</pre></div>${HONEST}`;
-      try{setOut('e-out',await getJSON(API+'/v1/evidence'));}catch(e){setOut('e-out','retrying… '+e.message);}}},
-  llm:{title:'LLM Router',badge:'5-TIER',sub:'The five-tier model roster a11oy routes through. A real model call when a key is present, an honest stub otherwise — the tier selection and Λ-receipt are always real.',
-    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Model tiers</span><span class="card-ep">/v1/llm/tiers</span></div><pre class="out" id="l-out">loading…</pre></div>${HONEST}`;
-      try{setOut('l-out',await getJSON(API+'/v1/llm/tiers').catch(()=>getJSON('/api/amaru/v1/llm/tiers')));}catch(e){setOut('l-out','5-tier router (real call when a model key is present; honest stub otherwise). retrying… '+e.message);}}},
+        <div class="card"><div class="card-h"><span class="card-t">Trust posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="cmd-radar"></canvas></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Safety gate posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="cmd-gates"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>allow-capable</span><span><i style="background:#b06a5a"></i>deny-by-default</span></div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Service health</span><span class="card-ep">live probe</span></div><div id="cmd-fleet"><div class="row mono dim">probing 5 services\u2026</div></div></div>${HONEST}`;
+      // instant: trust radar (this service)
+      try{const d=await getJSON(API+'/v1/lambda');const ax=d.axes||[];radar('cmd-radar',ax.map(a=>a.name),ax.map(a=>a.score||0));setTxt('k-lam',(d.lambda||0).toFixed?d.lambda.toFixed(3):d.lambda);}catch(e){}
+      // safety gates posture (sentra, fast)
+      try{const g=await orgGet('sentra','/api/sentra/v1/gates');const gs=g.gates||[];const deny=gs.filter(x=>x.expectedDecision==='deny').length;doughnut('cmd-gates',['allow-capable','deny-by-default'],[gs.length-deny,deny],[TEAL,'#b06a5a']);}catch(e){}
+      // live service probe (slower) non-blocking
+      getJSON(API+'/v1/observability/summary').then(d=>{const mr=Object.values(d.mesh_reach||{});let ok=0;const names=['a11oy','sentra','amaru','rosie','killinchu'];setHTML('cmd-fleet','');
+        mr.forEach((p,i)=>{const up=p.status==='ok';if(up)ok++;addHTML('cmd-fleet',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'UP':'DOWN'}</span><span>${esc(names[i]||'service')}</span><span class="spacer mono dim">${p.latency_ms?Math.round(p.latency_ms)+'ms':''}</span></div>`);});
+        setTxt('k-fleet',mr.length?ok+'/'+mr.length:'\u2014');}).catch(()=>setTxt('k-fleet','\u2014'));
+      try{const m=await getJSON(API+'/v1/mesh/state');setTxt('k-wires',Object.keys(m.wires||{}).length);}catch(e){}
+      try{const f=await orgGet('sentra','/api/sentra/v1/verdict/feed?limit=50');setTxt('k-dec',f.total_buffered??(f.verdicts||[]).length);}catch(e){}
+    }},
+
+  ask:{title:'Ask & Act',badge:'OPERATOR',sub:'Ask the platform a question and get a grounded, cited answer \u2014 it answers only from live system data and refuses to make things up. Then approve or deny an action; every action is logged to a signed, tamper-evident audit trail.',
+    render:(c)=>{c.innerHTML=`<div class="grid2">
+      <div class="card"><div class="card-h"><span class="card-t">Ask the operator</span><span class="card-ep">grounded + cited</span></div>
+        <div class="btns"><button class="btn teal" onclick="ask_q('Which services are live right now?')">Which services are live?</button><button class="btn" onclick="ask_q('What is the current trust score?')">Current trust score?</button><button class="btn" onclick="ask_q('Is the 3-of-4 consensus permitted?')">Consensus status?</button></div>
+        <pre class="out" id="o-ask">\u2014 pick a question \u2014</pre></div>
+      <div class="card"><div class="card-h"><span class="card-t">Approve / deny an action</span><span class="card-ep">signed audit</span></div>
+        <div class="btns"><button class="btn teal" onclick="act_do('approve')">Approve</button><button class="btn" onclick="act_do('deny')">Deny</button><button class="btn" onclick="act_do('acknowledge')">Acknowledge</button></div>
+        <pre class="out" id="o-act">\u2014 emit an action \u2014</pre></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">What needs attention</span><span class="card-ep">live findings</span></div><div class="chartbox" style="height:200px"><canvas id="ask-rec"></canvas></div><div id="ask-rec-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;
+      window.ask_recs();}},
+
+  demo:{title:'Run a Demo',badge:'5 SCENARIOS',sub:'The platform is the single launch point for the Warhacker challenge problems. Each launch calls the live service for that problem, shows its real answer, and records a signed receipt of the decision.',
+    render:(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="wh_all()">\u25b6 Launch all 5</button></div><div id="wh"></div>${HONEST}`;
+      const probs=[['P1','cannonico','AI-drone oversight','Drones & Vessels'],['P2','tychee','Air-gapped satellite governance','Policy'],['P3','hangar2apps','Deployment readiness','Readiness'],['P4','cyber-rts','Anomaly triage','Reasoning'],['P5','raven','Edge AI mesh','Platform']];
+      el('wh').innerHTML=probs.map(([id,key,t,o])=>`<div class="card"><div class="card-h"><span class="badge b-teal">${id}</span><span class="card-t">${t}</span><span class="card-ep">handled by: ${o}</span></div><div class="btns"><button class="btn" onclick="wh_one('${key}','o-${key}')">\u25b6 Launch</button></div><pre class="out" id="o-${key}">\u2014 click to launch \u2014</pre></div>`).join('');}},
+
+  fleet:{title:'System Health',badge:'5 SERVICES',sub:'Live reachability of every service behind the platform \u2014 real probe, real latency. A service that is down shows honestly, never faked green.',
+    render:async(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="fleet_load()">\u25b6 Re-probe</button></div>
+      <div class="kpis"><div class="kpi"><div class="k">Up</div><div class="v live" id="fl-reach">probing\u2026</div></div><div class="kpi"><div class="k">Build security</div><div class="v teal">SLSA L2</div></div><div class="kpi"><div class="k">Trust score</div><div class="v teal">research conjecture</div><div class="d">not a theorem</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Live reachability</span><span class="card-ep">public-URL probe</span></div><div id="fl-reach-host"><div class="row mono dim">probing\u2026</div></div></div>${HONEST}`;window.fleet_load();}},
+
+  mesh:{title:'Live System Map',badge:'3D',sub:'The platform and its services as one connected organism. The command platform sits at the core; each service is a node; every link is a live, conserved connection. Node color reflects the live health probe \u2014 down is shown honestly.',
+    render:async(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="mesh_load()">\u25b6 Re-probe + rebuild</button></div>
+      <div class="card"><div class="card-h"><span class="card-t">Connected system \u2014 live 3D</span><span class="card-ep">drag to orbit</span></div><div class="graph3d" id="mesh-3d"></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Reachability detail</span><span class="card-ep">live</span></div><div id="mesh-host"><div class="row mono dim">probing\u2026</div></div></div>${HONEST}`;window.mesh_load();}},
+
+  lambda:{title:'Trust Score',badge:'13 CHECKS',sub:'Before any high-consequence action, the platform scores it across 13 trust dimensions and requires the combined score to clear a floor of 0.90. The score is honest about its own status: it is a research conjecture, not a proven-unique function.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Trust score</div><div class="v teal" id="la-val">\u2014</div></div><div class="kpi"><div class="k">Floor</div><div class="v" id="la-floor">0.90</div></div><div class="kpi"><div class="k">Decision</div><div class="v" id="la-pass">\u2014</div></div><div class="kpi"><div class="k">Status</div><div class="v warn">research conjecture</div></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Combined score</span><span class="card-ep">live</span></div><div class="gauge-wrap" style="justify-content:center"><div class="gauge"><canvas id="la-gauge"></canvas><div class="lbl"><div><div class="big" id="la-gbig">\u2014</div><div class="sm">vs floor 0.90</div></div></div></div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">13 trust dimensions</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="la-radar"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Per-dimension scores</span></div><div class="chartbox tall"><canvas id="la-bars"></canvas></div><div id="la-host" style="margin-top:.6rem"></div></div>${HONEST}`;window.lambda_load();}},
+
+  gates:{title:'Safety Gates',badge:'8 GATES',sub:'Eight deny-by-default safety gates inspect every action for dangerous signals (injection, unsafe commands, banned vendors, and more). Anything suspicious is blocked before it runs.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Gates</div><div class="v" id="g-count">\u2014</div></div><div class="kpi"><div class="k">Deny-by-default</div><div class="v warn" id="g-deny">\u2014</div></div><div class="kpi"><div class="k">Categories</div><div class="v teal" id="g-cat">\u2014</div></div></div>
+      <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Gate posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="g-donut"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Try it \u2014 inspect an action</span><span class="card-ep">live decision</span></div><div class="btns"><button class="btn" onclick="gate_try('DROP TABLE users')">Malicious payload</button><button class="btn teal" onclick="gate_try('summarize todays telemetry')">Benign request</button></div><pre class="out" id="g-try">\u2014 try an action \u2014</pre></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">The 8 gates</span></div><div id="g-host" style="max-height:280px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;window.gates_load();}},
+
+  feed:{title:'Live Decisions',badge:'STREAMING',sub:'A running feed of allow/deny decisions the safety system has made, each with the signals that drove it. This is the platform proving it is alive and governing in real time.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Decisions buffered</div><div class="v" id="fd-n">\u2014</div></div><div class="kpi"><div class="k">Denied</div><div class="v warn" id="fd-deny">\u2014</div></div><div class="kpi"><div class="k">Allowed</div><div class="v live" id="fd-allow">\u2014</div></div></div>
+      <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Allow vs deny</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="fd-donut"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Recent decisions</span><span class="card-ep">live feed</span></div><div id="fd-host" style="max-height:280px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div></div>${HONEST}`;window.feed_load();}},
+
+  readiness:{title:'Readiness',badge:'GO / NO-GO',sub:'A deployment-readiness check: the platform scores a subject against required criteria and returns a clear Go, Needs-Review, or No-Go verdict \u2014 with every gap named.',
+    render:(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Run a readiness check</span><span class="card-ep">live</span></div>
+      <div class="btns"><button class="btn teal" onclick="readiness_run()">\u25b6 Assess a sample subject</button></div>
+      <div class="grid2" style="margin-top:1rem"><div class="chartbox" style="height:220px"><canvas id="rd-donut"></canvas></div><div id="rd-host"><div class="row mono dim">click assess\u2026</div></div></div></div>${HONEST}`;}},
+
+  compliance:{title:'Compliance',badge:'EVIDENCE',sub:'Map the platform\u2019s controls to a recognized framework (NIST, STIG, ISO 27001) and show coverage \u2014 each control backed by an evidence hash. Audit-ready, with no third-party audit claimed.',
+    render:(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Compliance coverage</span><span class="card-ep">live</span></div>
+      <div class="btns"><button class="btn teal" onclick="comp_run('NIST')">NIST</button><button class="btn" onclick="comp_run('STIG')">STIG</button><button class="btn" onclick="comp_run('ISO27001')">ISO 27001</button></div>
+      <div class="grid2" style="margin-top:1rem"><div class="chartbox" style="height:220px"><canvas id="cp-donut"></canvas></div><div id="cp-host"><div class="row mono dim">pick a framework\u2026</div></div></div></div>${HONEST}`;}},
+
+  forecast:{title:'Forecast',badge:'WITH ERROR BAND',sub:'A witnessed forecast that returns a prediction together with an honest confidence band. The underlying math is partially formally verified \u2014 we say so plainly rather than overclaiming.',
+    render:(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Run a forecast</span><span class="card-ep">live</span></div>
+      <div class="btns"><button class="btn teal" onclick="forecast_run(0.5,8)">Forecast (input 0.5)</button><button class="btn" onclick="forecast_run(0.8,8)">Forecast (input 0.8)</button></div>
+      <div class="chartbox" style="margin-top:1rem"><canvas id="fc-line"></canvas></div><div id="fc-host" style="margin-top:.6rem"></div></div>${HONEST}`;}},
+
+  receipts:{title:'Signed Receipts',badge:'VERIFY YOURSELF',sub:'Every governed decision can produce a cryptographically signed, tamper-evident receipt that anyone can verify offline \u2014 no trust in us required. This is the core differentiator: no market leader signs individual AI decisions.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Receipts (platform)</div><div class="v" id="rc-n">\u2014</div></div><div class="kpi"><div class="k">Chain</div><div class="v teal" id="rc-chain">\u2014</div></div><div class="kpi"><div class="k">Offline-verifiable</div><div class="v live">yes</div><div class="d">drones service has a real key</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Receipt activity</span><span class="card-ep">live</span></div><div class="chartbox" style="height:200px"><canvas id="rc-line"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Audit trail</span><span class="card-ep">hash-chained</span></div><div id="rc-host"><div class="row mono dim">loading\u2026</div></div></div>
+      <div class="honesty"><b>Verify it yourself.</b> The Drones &amp; Vessels service signs receipts with a real key. Fetch its public key at <span class="mono">/cosign.pub</span> and a receipt at <span class="mono">/api/killinchu/v1/receipt/export</span>, then verify the signature offline with cosign/openssl \u2014 a tampered byte fails. Other services honestly mark receipts unsigned where no key is wired.</div>`;window.receipts_load();}},
+
+  formulas:{title:'Proof & Formulas',badge:'HONEST',sub:'The math behind the platform. Five formulas are formally proven in Lean (machine-checked, no gaps). The rest are open or experimental. The trust-score uniqueness claim is an open research conjecture \u2014 never presented as a theorem.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Formula agents</div><div class="v" id="f-n">23</div></div><div class="kpi"><div class="k">Formally proven</div><div class="v teal">5</div><div class="d">machine-checked</div></div><div class="kpi"><div class="k">Trust-score uniqueness</div><div class="v warn">open conjecture</div></div></div>
+      <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Proof status</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="f-donut"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>proven (5, locked)</span><span><i style="background:#c9b787"></i>open / roadmap</span><span><i style="background:#b06a5a"></i>conjecture</span></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Lean evidence</span><span class="card-ep">live</span></div><div id="f-host"><div class="row mono dim">loading\u2026</div></div></div></div>
+      <details class="raw"><summary>raw formula registry</summary><pre class="out" id="f-out">loading\u2026</pre></details>${HONEST}`;window.formulas_load();}},
+
+  threats:{title:'Threat Library',badge:'30 PATTERNS',sub:'The known attack patterns behind the safety gates \u2014 each tagged with severity, MITRE ATT&CK technique, and a CVSS score. This is the intelligence the platform screens every action against.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Patterns</div><div class="v" id="th-n">\u2014</div></div><div class="kpi"><div class="k">Critical</div><div class="v warn" id="th-crit">\u2014</div></div><div class="kpi"><div class="k">High</div><div class="v" id="th-high">\u2014</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">By severity</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="th-bars"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Pattern list</span><span class="card-ep">live</span></div><div id="th-host" style="max-height:260px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;window.threats_load();}},
+
+  llm:{title:'Model Router',badge:'5-TIER',sub:'The platform routes each task to the right model tier by cost and capability. A real model call when a key is present, an honest stub otherwise \u2014 the tier choice and the trust receipt are always real.',
+    render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tier throughput</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="l-bars"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Model roster</span><span class="card-ep">live</span></div><div id="l-host" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div></div>
+      <details class="raw"><summary>raw tiers</summary><pre class="out" id="l-out">loading\u2026</pre></details>${HONEST}`;
+      try{const d=await getJSON(API+'/v1/llm/tiers').catch(()=>orgGet('amaru','/api/amaru/v1/llm/tiers'));setOut('l-out',d);const tiers=d.tiers||[];setHTML('l-host','');tiers.forEach(t=>addHTML('l-host',`<div class="row"><span class="badge b-teal">T${esc(t.rank??'')}</span><span>${esc(t.id||t.model||'')}</span><span class="spacer mono dim">${esc(t.use||'')}</span></div>`));}catch(e){setHTML('l-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+      try{const r=await getJSON(API+'/v1/router/stats');const routes=r.routes||[];barH('l-bars',routes.map(x=>x.organ+' \u00b7 '+(x.tier||'')),routes.map(x=>x.throughput||0),routes.map(x=>x.license==='GREEN'?TEAL:GOLD));}catch(e){}}},
+
+  mcp:{title:'Agent Tools',badge:'LIVE',sub:'The tools the platform exposes to AI agents over the Model Context Protocol. Read the registry, then actually invoke a tool \u2014 every call returns a real, doctrine-stamped response.',
+    render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tools available</span><span class="card-ep">live</span></div><div class="chartbox" style="height:220px"><canvas id="mcp-bar"></canvas></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Invoke a tool</span><span class="card-ep">live call</span></div><div class="btns"><button class="btn teal" onclick="mcp_call('lambda_score')">Score trust</button><button class="btn" onclick="mcp_call('a11oy_gate')">Run gate</button><button class="btn" onclick="mcp_call('khipu_sign')">Sign receipt</button><button class="btn" onclick="mcp_call('khipu_verify')">Verify receipt</button></div><pre class="out" id="o-mcp">\u2014 invoke \u2014</pre></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Registry</span></div><div id="mcp-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;window.mcp_list();}},
+
+  honest:{title:'What We Claim',badge:'NO BANDAIDS',sub:'The single source of truth for what this platform does and does NOT claim \u2014 published, not marketed. If it is not proven, we say so.',
+    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading\u2026</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function \u2014 it is a research conjecture.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 2.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
+      </div>
+      <details class="raw"><summary>raw honesty record</summary><pre class="out" id="o-honest">loading\u2026</pre></details>${HONEST}`;window.honest_load();}},
 };
 
-// superpower handlers — proven-correct contracts (from pages/superpowers.html)
-const ACTION={severity:'high',confidence:0.92,actionId:'superpowers-demo',witnesses:[{id:'w1',role:'op',attested:true},{id:'w2',role:'auditor',attested:true},{id:'w3',role:'witness',attested:true}]};
-const AXES_OK={soundness:0.95,calibration:0.92,robustness:0.95,provenance:0.93,consent:0.94,reversibility:0.91,auditability:0.90,linearity:0.93,scope_compliance:0.92};
-const AXES_COLLAPSE={soundness:0.0,calibration:0.90,robustness:0.95,provenance:0.90,consent:0.90,reversibility:0.90,auditability:0.88,linearity:0.93,scope_compliance:0.91};
-async function sp_replay(){try{const d=await postJSON(API+'/v1/receipts/replay',{action:ACTION});setOut('o-replay','VERDICT '+String(d.replay_decision||'?').toUpperCase()+' \u00b7 hash '+String(d.replay_receipt_hash||'').slice(0,16)+'\u2026\n\n'+JSON.stringify(d,null,2));}catch(e){setOut('o-replay','retry: '+e.message);}}
-async function sp_tamper(){try{const base={action:ACTION};const r1=await postJSON(API+'/v1/receipts/replay',base);const r2=await postJSON(API+'/v1/receipts/replay',base);const r3=await postJSON(API+'/v1/receipts/replay',{action:Object.assign({},ACTION,{confidence:0.50})});const summary={baseline_hash:r1.replay_receipt_hash,repeat_hash:r2.replay_receipt_hash,tampered_hash:r3.replay_receipt_hash,repeatable:r1.replay_receipt_hash===r2.replay_receipt_hash,tamper_detected:r1.replay_receipt_hash!==r3.replay_receipt_hash};setOut('o-replay',(summary.repeatable&&summary.tamper_detected?'TAMPER DETECTED \u00b7 baseline repeatable, tampered hash differs\n\n':'')+JSON.stringify(summary,null,2));}catch(e){setOut('o-replay','retry: '+e.message);}}
-async function sp_lambda(col){try{const d=await postJSON(API+'/v1/lambda/score',{axes:col?AXES_COLLAPSE:AXES_OK});setOut('o-lambda',(col&&d.lambda===0?'\u039b COLLAPSED to 0 \u00b7 gate DENY \u00b7 zero-pinned\n\n':'\u039b='+d.lambda+' \u00b7 gate '+(d.gate_pass?'ALLOW':'DENY')+'\n\n')+JSON.stringify(d,null,2));}catch(e){setOut('o-lambda','retry: '+e.message);}}
-async function sp_fleet(){try{setOut('o-fleet',await getJSON('/v4/fleet'));}catch(e){setOut('o-fleet','retry: '+e.message);}}
-async function sp_mesh(){try{setOut('o-mesh',await getJSON(API+'/v1/mesh/state'));}catch(e){setOut('o-mesh','retry: '+e.message);}}
-// warhacker
-async function wh_one(key,out){try{setOut(out,'launching…');const d=await postJSON(API+'/v1/warhacker/launch/'+key,{});const o=d.organ_response||{};setOut(out,'organ: '+d.organ+'  status: '+(o.status)+'  http: '+(o.http_code)+'\n'+JSON.stringify(o.json||o,null,2));}catch(e){setOut(out,'retry: '+e.message);}}
+// ============ HANDLERS ============
+// Ask & Act (rosie)
+async function ask_q(q){try{setOut('o-ask','asking\u2026');const d=await orgPost('rosie','/api/rosie/v1/jarvis/ask',{question:q});
+  const cited=d.grounded?'grounded \u00b7 cited':'';const sig=(d.llm&&d.llm.lambda_receipt&&String(d.llm.lambda_receipt.signature||'').includes('PLACEHOLDER'))?'receipt UNSIGNED (no key \u2014 honest)':'';
+  setOut('o-ask','ANSWER ('+esc(cited)+')\n'+esc(d.answer||'')+'\n\n'+(sig?sig+'\n\n':'')+JSON.stringify(d.citations||d,null,2).slice(0,1200));}catch(e){setOut('o-ask','retry: '+e.message);}}
+async function act_do(action){try{setOut('o-act','emitting\u2026');const d=await orgPost('rosie','/api/rosie/v1/jarvis/act',{action,target:'demo-action',note:'from a11oy command platform'});
+  const eh=(d.entry&&d.entry.entry_hash)||'';setOut('o-act','ACTION '+esc(action).toUpperCase()+' \u00b7 logged\nreceipt hash '+esc(eh).slice(0,20)+'\u2026 \u00b7 audit depth '+esc(d.audit_depth)+'\n\n'+JSON.stringify(d.receipt||d,null,2).slice(0,1000));}catch(e){setOut('o-act','retry: '+e.message);}}
+async function ask_recs(){try{const d=await orgGet('rosie','/api/rosie/v1/jarvis/recommend');const cnt=d.counts||{};doughnut('ask-rec',['critical','warn','info','ok'],[cnt.critical||0,cnt.warn||0,cnt.info||0,cnt.ok||0],['#b06a5a',GOLD,TEAL,'#5a8a6e']);
+  setHTML('ask-rec-list','');(d.recommendations||[]).forEach(r=>addHTML('ask-rec-list',`<div class="row"><span class="badge ${r.severity==='critical'?'b-err':(r.severity==='warn'?'b-gold':'b-teal')}">${esc(r.severity)}</span><span>${esc(r.organ||'')}: ${esc(r.finding||'')}</span></div>`));
+  if(!(d.recommendations||[]).length)setHTML('ask-rec-list','<div class="row mono dim">no findings \u2014 all clear</div>');}catch(e){setHTML('ask-rec-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Demo / Warhacker (a11oy)
+async function wh_one(key,out){try{setOut(out,'launching\u2026');const d=await postJSON(API+'/v1/warhacker/launch/'+key,{});const o=d.organ_response||{};setOut(out,'service: '+esc(d.organ)+'  status: '+esc(o.status)+'  http: '+esc(o.http_code)+'\n'+JSON.stringify(o.json||o,null,2).slice(0,900));}catch(e){setOut(out,'retry: '+e.message);}}
 async function wh_all(){for(const k of ['cannonico','tychee','hangar2apps','cyber-rts','raven']){await wh_one(k,'o-'+k);}}
-// observability
-async function obs_load(){try{const d=await getJSON(API+'/v1/observability/summary');const raw=JSON.stringify(d);const m=raw.match(/"organs_reachable":\s*(\d+)/),t=raw.match(/"organs_total":\s*(\d+)/);
-  setTxt('ok-mesh',(m?m[1]:'?')+'/'+(t?t[1]:'?'));const mr=d.mesh_reach||{};setHTML('obs-mesh','');
-  Object.entries(mr).forEach(([k,v])=>addHTML('obs-mesh',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status)}</span><span>${esc(k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} ${esc(v.url||'')}</span></div>`));
-  if(!Object.keys(mr).length)setHTML('obs-mesh','<div class="row mono dim">summary loaded — see KPI</div>');}catch(e){setHTML('obs-mesh','<div class="row mono dim">retry: '+e.message+'</div>');}
-  try{const s=await getJSON(API+'/v1/observability/spans');setTxt('ok-spans',(s.spans||s.nodes||[]).length||s.signed_spans||'—');setTxt('ok-chain',s.chain_verified?'YES':(s.chain_verified===false?'no':'—'));setOut('obs-spans',s);}catch(e){setOut('obs-spans','retry: '+e.message);}}
-// wires
-async function wires_load(){try{const d=await getJSON(API+'/v1/mesh/state');const w=d.wires||{};setHTML('wires-host','');
-  Object.entries(w).forEach(([k,v])=>addHTML('wires-host',`<div class="card"><div class="card-h"><span class="badge b-teal">Wire ${k}</span><span class="card-t">${esc(v.edge)}</span><span class="spacer badge ${String(v.status).includes('PROCESS')?'b-gold':'b-live'}">${esc(v.status)}</span></div><div class="mono" style="font-size:11.5px;color:var(--paragraph)">${esc(v.detail)}</div></div>`));}catch(e){setHTML('wires-host','<div class="row mono dim">retry: '+e.message+'</div>');}}
-// mesh
-async function mesh_load(){try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};setHTML('mesh-host','');
-  if(!Object.keys(mr).length){setHTML('mesh-host','<pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre>');return;}
-  Object.entries(mr).forEach(([k,v])=>addHTML('mesh-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status)}</span><span>${esc(k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} · ${esc(v.url||'')}</span></div>`));}catch(e){setHTML('mesh-host','<div class="row mono dim">retry: '+e.message+'</div>');}}
+
+// System health (a11oy public-URL probe)
+async function fleet_load(){try{const d=await getJSON(API+'/v1/observability/summary');const arr=Object.values(d.mesh_reach||{});let ok=0;const names=['a11oy','sentra','amaru','rosie','killinchu'];setHTML('fl-reach-host','');
+  arr.forEach((v,i)=>{const up=v.status==='ok';if(up)ok++;addHTML('fl-reach-host',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'UP':'DOWN'}</span><span>${esc(names[i]||'service')}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} ${esc(v.url||'')}</span></div>`);});
+  setTxt('fl-reach',arr.length?ok+'/'+arr.length:'\u2014');}catch(e){setHTML('fl-reach-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setTxt('fl-reach','\u2014');}}
+
+// Live system map (3D)
+async function mesh_load(){
+  try{const d=await getJSON(API+'/v1/observability/summary');const arr=Object.values(d.mesh_reach||{});const names=['a11oy','sentra','amaru','rosie','killinchu'];
+    const nodes=[{id:'a11oy',name:'command platform',color:GOLD,val:14}];const links=[];
+    arr.forEach((p,i)=>{const nm=names[i]||('service'+i);if(nm==='a11oy')return;const up=p.status==='ok';
+      nodes.push({id:nm,name:nm+(up?' \u00b7 up '+(p.latency_ms?Math.round(p.latency_ms)+'ms':''):' \u00b7 down'),color:up?TEAL:'#b06a5a',val:7});links.push({source:'a11oy',target:nm});});
+    mesh3d('mesh-3d',nodes,links);}catch(e){const h=el('mesh-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">graph retry: '+esc(e.message)+'</div>';}
+  try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};setHTML('mesh-host','');const names=['a11oy','sentra','amaru','rosie','killinchu'];
+    Object.values(mr).forEach((v,i)=>addHTML('mesh-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status)}</span><span>${esc(names[i]||'service')}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} \u00b7 ${esc(v.url||'')}</span></div>`));}catch(e){setHTML('mesh-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Trust score (a11oy /v1/lambda)
+async function lambda_load(){try{const d=await getJSON(API+'/v1/lambda');const L=d.lambda||0;setTxt('la-val',L.toFixed?L.toFixed(4):L);setTxt('la-floor',d.lambda_floor??'0.90');setTxt('la-pass',d.pass?'ALLOW':(d.pass===false?'DENY':'\u2014'));
+  const ax=d.axes||[];const labels=ax.map(a=>a.name);const vals=ax.map(a=>a.score||0);
+  gauge('la-gauge',L,'',L>=(d.lambda_floor||FLOOR)?TEAL:'#b06a5a');setTxt('la-gbig',(L.toFixed?L.toFixed(3):L));
+  radar('la-radar',labels,vals);barH('la-bars',labels,vals,vals.map(v=>v>=0.9?TEAL:(v>=0.7?GOLD:'#b06a5a')));
+  setHTML('la-host','<details class="raw"><summary>raw trust vector</summary><pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre></details>');}catch(e){setHTML('la-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Safety gates (sentra)
+async function gates_load(){try{const d=await orgGet('sentra','/api/sentra/v1/gates');const g=d.gates||[];setTxt('g-count',d.total||g.length);
+  const deny=g.filter(x=>x.expectedDecision==='deny').length;setTxt('g-deny',deny);const cats=[...new Set(g.map(x=>x.category))];setTxt('g-cat',cats.length);
+  doughnut('g-donut',['allow-capable','deny-by-default'],[g.length-deny,deny],[TEAL,'#b06a5a']);
+  setHTML('g-host','');g.forEach(x=>addHTML('g-host',`<div class="row"><span class="badge ${x.expectedDecision==='deny'?'b-err':'b-live'}">${esc(x.expectedDecision||'')}</span><span>${esc(x.label||x.name)}</span><span class="spacer mono dim">${esc(x.category||'')}</span></div>`));}catch(e){setHTML('g-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+async function gate_try(action){try{setOut('g-try','inspecting\u2026');const d=await orgPost('sentra','/api/sentra/v1/verdict',{agent:'a11oy-demo',action,severity:'high',confidence:0.9,witnesses:[]});
+  setOut('g-try','DECISION '+esc(String(d.decision||'').toUpperCase())+'\n'+esc(d.reason||'')+'\nsignals: '+esc(JSON.stringify(d.signals||[]))+'\nreceipt '+esc(String(d.receipt_hash||'').slice(0,16)));}catch(e){setOut('g-try','retry: '+e.message);}}
+
+// Live decisions (sentra verdict feed)
+async function feed_load(){try{const d=await orgGet('sentra','/api/sentra/v1/verdict/feed?limit=50');const v=d.verdicts||[];setTxt('fd-n',d.total_buffered??v.length);
+  const deny=v.filter(x=>x.decision==='deny').length;const allow=v.length-deny;setTxt('fd-deny',deny);setTxt('fd-allow',allow);
+  doughnut('fd-donut',['allowed','denied'],[allow,deny],[TEAL,'#b06a5a']);
+  setHTML('fd-host','');v.slice(0,30).forEach(x=>addHTML('fd-host',`<div class="row"><span class="badge ${x.decision==='deny'?'b-err':'b-live'}">${esc(x.decision)}</span><span>${esc(x.agent||'')}</span><span class="spacer mono dim">${esc((x.signals||[]).join(', ')).slice(0,40)}</span></div>`));
+  if(!v.length)setHTML('fd-host','<div class="row mono dim">no decisions buffered yet</div>');}catch(e){setHTML('fd-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Readiness (amaru)
+async function readiness_run(){try{setHTML('rd-host','<div class="row mono dim">assessing\u2026</div>');const d=await orgPost('amaru','/api/amaru/v1/readiness/assess',{subject:'demo-deploy',records:{medical_clearance:true,training:true}});
+  const a=d.assessment||{};const cleared=a.criteria_cleared||0,gaps=a.criteria_gaps||0,total=a.criteria_total||0,failed=Math.max(0,total-cleared-gaps);
+  doughnut('rd-donut',['cleared','gaps','failed'],[cleared,gaps,failed],[TEAL,GOLD,'#b06a5a']);
+  setHTML('rd-host',`<div class="row"><span class="badge ${a.verdict==='DEPLOYABLE'?'b-live':(a.verdict==='NOT_DEPLOYABLE'?'b-err':'b-gold')}">${esc(a.verdict||'')}</span><span>${esc(cleared)}/${esc(total)} criteria cleared</span></div>`+(a.checks||[]).map(ch=>`<div class="row"><span class="badge ${ch.result==='GAP'?'b-gold':'b-live'}">${esc(ch.result)}</span><span>${esc(ch.criterion)}</span></div>`).join(''));}catch(e){setHTML('rd-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Compliance (sentra)
+async function comp_run(fw){try{setHTML('cp-host','<div class="row mono dim">mapping '+esc(fw)+'\u2026</div>');const d=await orgPost('sentra','/api/sentra/v1/elite/compliance',{framework:fw});
+  const cov=d.covered||0,total=d.total||0,gaps=Math.max(0,total-cov);doughnut('cp-donut',['covered','gaps'],[cov,gaps],[TEAL,'#b06a5a']);
+  setHTML('cp-host',`<div class="row"><span class="badge b-live">${esc(d.coverage_pct??0)}%</span><span>${esc(cov)}/${esc(total)} controls covered</span><span class="spacer mono dim">${esc(fw)}</span></div>`+(d.controls||[]).slice(0,12).map(c=>`<div class="row"><span class="badge ${c.status==='COVERED'?'b-live':'b-gold'}">${esc(c.status)}</span><span>${esc(c.id)} ${esc(c.name)}</span></div>`).join('')+`<div class="row mono dim">${esc(d.note||'No third-party audit')}</div>`);}catch(e){setHTML('cp-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Forecast (sentra)
+async function forecast_run(input,k){try{setHTML('fc-host','<div class="row mono dim">forecasting\u2026</div>');const d=await orgGet('sentra','/api/sentra/v1/forecast/run?input_value='+input+'&k='+k);
+  const env=d.confidence_envelope||{};const pred=d.prediction||0;const lo=env.lower??pred,hi=env.upper??pred;
+  lineSpark('fc-line',['lower','prediction','upper'],[lo,pred,hi],TEAL);
+  setHTML('fc-host',`<div class="row"><span>Prediction</span><span class="spacer b-teal badge">${esc(pred.toFixed?pred.toFixed(4):pred)}</span></div><div class="row"><span>Confidence band</span><span class="spacer mono dim">[${esc(lo)}, ${esc(hi)}]</span></div><div class="row mono dim">Partial formal proof \u2014 we do not claim a zero-gap proof for the error bound.</div>`);}catch(e){setHTML('fc-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Signed receipts (rosie ledger + command-log)
+async function receipts_load(){try{const d=await orgGet('rosie','/api/rosie/v1/ledger');setTxt('rc-n',d.count??(d.receipts||[]).length);
+  const r=d.receipts||[];lineSpark('rc-line',r.map((x,i)=>i),r.map((x,i)=>i+1),TEAL);
+  setHTML('rc-host','');r.slice(0,12).forEach(x=>addHTML('rc-host',`<div class="row"><span class="badge b-gold">#${esc(x.seq)}</span><span>${esc(x.action||'')}</span><span class="spacer mono dim">${esc(String(x.receipt_id||'').slice(0,16))}</span></div>`));
+  }catch(e){setHTML('rc-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
+  try{const cl=await orgGet('rosie','/api/rosie/v2/command-log');setTxt('rc-chain',cl.chain_verified?('verified \u00b7 depth '+(cl.depth||'')):'\u2014');}catch(e){setTxt('rc-chain','\u2014');}}
+
+// Proof & formulas (a11oy)
+async function formulas_load(){try{const d=await getJSON(API+'/v1/puriq/formulas');setOut('f-out',d);const n=d.summary?.n_agents||23;setTxt('f-n',n);
+  doughnut('f-donut',['proven','open','conjecture'],[5,Math.max(0,n-6),1],[TEAL,GOLD,'#b06a5a']);
+  setHTML('f-host',`<div class="row"><span>Formally proven (locked)</span><span class="spacer b-live badge">5</span></div><div class="row"><span>Proven set</span><span class="spacer mono dim">F1, F11, F12, F18, F19</span></div><div class="row"><span>Trust-score uniqueness</span><span class="spacer b-err badge">open conjecture</span></div><div class="row"><span>Lean repo</span><span class="spacer mono dim">lutar-lean</span></div>`);
+  }catch(e){doughnut('f-donut',['proven','open','conjecture'],[5,17,1],[TEAL,GOLD,'#b06a5a']);setHTML('f-host','<div class="row mono dim">Proven sorry-free: F1,F11,F12,F18,F19 (5). Trust-score uniqueness = open conjecture. retry: '+esc(e.message)+'</div>');setOut('f-out','retry: '+e.message);}}
+
+// Threat library (sentra)
+async function threats_load(){try{const d=await orgGet('sentra','/api/sentra/v1/threats/full');const c=d.corpus||[];setTxt('th-n',d.total||c.length);
+  const sev=s=>c.filter(x=>x.severity===s).length;const crit=sev('critical'),high=sev('high'),med=sev('medium'),low=sev('low');setTxt('th-crit',crit);setTxt('th-high',high);
+  barV('th-bars',['critical','high','medium','low'],[crit,high,med,low],['#b06a5a',GOLD,TEAL,'#5a8a6e']);
+  setHTML('th-host','');c.slice(0,30).forEach(x=>addHTML('th-host',`<div class="row"><span class="badge ${x.severity==='critical'?'b-err':(x.severity==='high'?'b-gold':'b-teal')}">${esc(x.severity)}</span><span>${esc(x.signature||x.category)}</span><span class="spacer mono dim">${esc(x.mitre_technique||'')} ${x.cvss_base?('CVSS '+x.cvss_base):''}</span></div>`));}catch(e){setHTML('th-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Agent tools (a11oy MCP)
+const ACTION={severity:'high',confidence:0.92,actionId:'platform-demo',witnesses:[{id:'w1',role:'op',attested:true},{id:'w2',role:'auditor',attested:true},{id:'w3',role:'witness',attested:true}]};
+const AXES_OK={soundness:0.95,calibration:0.92,robustness:0.95,provenance:0.93,consent:0.94,reversibility:0.91,auditability:0.90,linearity:0.93,scope_compliance:0.92};
+async function mcp_list(){try{const d=await getJSON(API+'/v1/mcp/tools');const t=d.tools||[];setHTML('mcp-list','');t.forEach(x=>addHTML('mcp-list',`<div class="row"><span class="badge b-teal">${esc(x.name)}</span><span>${esc(x.description||'')}</span></div>`));
+  // tools-per-service bar from rosie mesh (amaru4 rosie3 sentra1 a11oy4)
+  try{const m=await orgGet('rosie','/api/rosie/v1/mesh/3d');const nd=m.nodes||[];barV('mcp-bar',nd.map(n=>n.id),nd.map(n=>n.mcp_tools||0),TEAL);}catch(e){}}catch(e){setHTML('mcp-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+async function mcp_call(name){try{setOut('o-mcp','invoking '+name+'\u2026');const args=name==='lambda_score'?{axes:AXES_OK}:name==='a11oy_gate'?{action:ACTION}:name==='khipu_sign'?{payload:{actionId:'mcp-demo',severity:'high'}}:{receipt:{actionId:'mcp-demo'}};
+  const d=await postJSON(API+'/v1/mcp/call',{name,arguments:args});setOut('o-mcp','TOOL '+esc(d.tool||name)+' \u00b7 '+esc(d.status||'')+' \u00b7 kernel '+esc(d.kernel_commit||'')+'\n\n'+JSON.stringify(d,null,2));}catch(e){setOut('o-mcp','retry: '+e.message);}}
+
+// What we claim (a11oy honest)
+async function honest_load(){try{const d=await getJSON(API+'/v1/honest');const dl=d.doctrine_lock||{};setHTML('ho-host','');
+  addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 2</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Verifiable receipts</span><span class="spacer b-live badge">yes (real key on drones service)</span></div>`);
+  setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
 
 function go(view){
+  // tear down any live charts / 3D graph from the previous view to avoid canvas reuse errors
+  Object.keys(_charts).forEach(killChart);
+  if(_fg){try{_fg._destructor&&_fg._destructor();}catch(e){}_fg=null;}
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const v=VIEWS[view];const c=el('content');
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
