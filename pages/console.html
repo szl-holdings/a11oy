@@ -209,8 +209,8 @@ const VIEWS={
   mesh:{title:'Mesh Reach',badge:'5 ORGANS',sub:'Live per-organ reachability probes from a11oy to every flagship\u2019s public health endpoint. Real URL + HTTP code + latency. An unreachable organ is shown honestly — never faked green.',
     render:async(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="mesh_load()">▶ Probe all organs</button></div><div id="mesh-host"><div class="row mono dim">probing…</div></div>${HONEST}`;window.mesh_load();}},
   formulas:{title:'PURIQ Formulas',badge:'23 AGENTS',sub:'The 23 FormulaAgents. The proved set — exactly five {F1,F11,F12,F18,F19}, Lean sorry-free — is honestly distinguished from the open conjectures, including Λ (F23), which is Conjecture 1, never a theorem.',
-    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Formula registry</span><span class="card-ep">/v1/formula/index</span></div><pre class="out" id="f-out">loading…</pre></div>${HONEST}`;
-      try{const d=await getJSON(API+'/v1/formula/index').catch(()=>getJSON(API+'/v1/puriq/formulas'));setOut('f-out',d);}catch(e){setOut('f-out','Proved (Lean, sorry-free): F1, F11, F12, F18, F19 (5).\nΛ = F23 = Conjecture 1 — NOT a theorem.\nAll other F-numbers: open / roadmap.\n(live registry endpoint retrying: '+e.message+')');}}},
+    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Formula registry</span><span class="card-ep">/v1/puriq/formulas</span></div><pre class="out" id="f-out">loading…</pre></div>${HONEST}`;
+      try{const d=await getJSON(API+'/v1/puriq/formulas');setOut('f-out',d);}catch(e){setOut('f-out','Proved (Lean, sorry-free): F1, F11, F12, F18, F19 (5).\nΛ = F23 = Conjecture 1 — NOT a theorem.\nAll other F-numbers: open / roadmap.\n(live registry endpoint retrying: '+e.message+')');}}},
   evidence:{title:'Evidence Ledger',badge:'LEAN-ANCHORED',sub:'The audit trail anchored to the lutar-lean repository: declarations, axioms, sorries, and the assertion suite — read live from the evidence endpoint.',
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Evidence</span><span class="card-ep">/v1/evidence</span></div><pre class="out" id="e-out">loading…</pre></div>${HONEST}`;
       try{setOut('e-out',await getJSON(API+'/v1/evidence'));}catch(e){setOut('e-out','retrying… '+e.message);}}},
@@ -219,10 +219,13 @@ const VIEWS={
       try{setOut('l-out',await getJSON(API+'/v1/llm/tiers').catch(()=>getJSON('/api/amaru/v1/llm/tiers')));}catch(e){setOut('l-out','5-tier router (real call when a model key is present; honest stub otherwise). retrying… '+e.message);}}},
 };
 
-// superpower handlers
-async function sp_replay(){try{const d=await postJSON(API+'/v1/receipts/replay',{});setOut('o-replay',d);}catch(e){setOut('o-replay','retry: '+e.message);}}
-async function sp_tamper(){try{const d=await postJSON(API+'/v1/receipts/replay?tamper=1',{});setOut('o-replay',d);}catch(e){setOut('o-replay','retry: '+e.message);}}
-async function sp_lambda(col){try{const d=await postJSON(API+'/v1/lambda/score',col?{axes:{soundness:0}}:{});setOut('o-lambda',d);}catch(e){setOut('o-lambda','retry: '+e.message);}}
+// superpower handlers — proven-correct contracts (from pages/superpowers.html)
+const ACTION={severity:'high',confidence:0.92,actionId:'superpowers-demo',witnesses:[{id:'w1',role:'op',attested:true},{id:'w2',role:'auditor',attested:true},{id:'w3',role:'witness',attested:true}]};
+const AXES_OK={soundness:0.95,calibration:0.92,robustness:0.95,provenance:0.93,consent:0.94,reversibility:0.91,auditability:0.90,linearity:0.93,scope_compliance:0.92};
+const AXES_COLLAPSE={soundness:0.0,calibration:0.90,robustness:0.95,provenance:0.90,consent:0.90,reversibility:0.90,auditability:0.88,linearity:0.93,scope_compliance:0.91};
+async function sp_replay(){try{const d=await postJSON(API+'/v1/receipts/replay',{action:ACTION});setOut('o-replay','VERDICT '+String(d.replay_decision||'?').toUpperCase()+' \u00b7 hash '+String(d.replay_receipt_hash||'').slice(0,16)+'\u2026\n\n'+JSON.stringify(d,null,2));}catch(e){setOut('o-replay','retry: '+e.message);}}
+async function sp_tamper(){try{const base={action:ACTION};const r1=await postJSON(API+'/v1/receipts/replay',base);const r2=await postJSON(API+'/v1/receipts/replay',base);const r3=await postJSON(API+'/v1/receipts/replay',{action:Object.assign({},ACTION,{confidence:0.50})});const summary={baseline_hash:r1.replay_receipt_hash,repeat_hash:r2.replay_receipt_hash,tampered_hash:r3.replay_receipt_hash,repeatable:r1.replay_receipt_hash===r2.replay_receipt_hash,tamper_detected:r1.replay_receipt_hash!==r3.replay_receipt_hash};setOut('o-replay',(summary.repeatable&&summary.tamper_detected?'TAMPER DETECTED \u00b7 baseline repeatable, tampered hash differs\n\n':'')+JSON.stringify(summary,null,2));}catch(e){setOut('o-replay','retry: '+e.message);}}
+async function sp_lambda(col){try{const d=await postJSON(API+'/v1/lambda/score',{axes:col?AXES_COLLAPSE:AXES_OK});setOut('o-lambda',(col&&d.lambda===0?'\u039b COLLAPSED to 0 \u00b7 gate DENY \u00b7 zero-pinned\n\n':'\u039b='+d.lambda+' \u00b7 gate '+(d.gate_pass?'ALLOW':'DENY')+'\n\n')+JSON.stringify(d,null,2));}catch(e){setOut('o-lambda','retry: '+e.message);}}
 async function sp_fleet(){try{setOut('o-fleet',await getJSON('/v4/fleet'));}catch(e){setOut('o-fleet','retry: '+e.message);}}
 async function sp_mesh(){try{setOut('o-mesh',await getJSON(API+'/v1/mesh/state'));}catch(e){setOut('o-mesh','retry: '+e.message);}}
 // warhacker
