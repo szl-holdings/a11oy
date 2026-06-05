@@ -12,4 +12,5 @@ Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a th
 """
 
 __all__ = ["formulas"]
-# SLSA L1 honest + L2 attested (public Sigstore+Rekor) where slsa-verifier confirms.
+# SLSA L1 honest: cosign-signed image, publicly verifiable (Sigstore+Rekor).
+# L2 build-provenance attestation roadmap via Wire D — not yet claimed; L3 not claimed.

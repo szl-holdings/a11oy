@@ -399,9 +399,12 @@ def register_provenance(app, space: str) -> dict[str, Any]:
                            "payloadType": szl_dsse.KHIPU_PAYLOAD_TYPE,
                            "verify_endpoint": f"{base}/khipu/verify",
                            "pub_key_url": szl_dsse.PUB_KEY_URL},
-            "slsa_note": ("L2 = signed provenance via DSSE+Cosign (now real). L3 would require "
-                          "a hardened, isolated build pipeline (UDS Core) which is NOT yet in place — "
-                          "honestly L2, not L3."),
+            "slsa_note": ("L1 honest: the deployed image is cosign-signed and publicly "
+                          "verifiable (Rekor). L2 = an isolated, attested build-service "
+                          "PROVENANCE for the deployed image, verifiable downstream — roadmap "
+                          "via Wire D, NOT yet claimed (GHCR shows the cosign-signed image only). "
+                          "L3 = a hardened, isolated build pipeline (UDS Core), also not in place. "
+                          "Honestly L1; L2/L3 not claimed."),
             "self_attesting": "every sign/verify op emits its own DSSE-signed Khipu receipt.",
         })
 
