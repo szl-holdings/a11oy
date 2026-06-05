@@ -2258,7 +2258,12 @@ async def api_proxy(request: Request, path: str) -> Response:
 
 @app.get("/")
 async def spa_root() -> FileResponse:
-    """Brand Orchestration Layer front door — SPA HomePage (Vessels-DNA landing)."""
+    """PRIMARY FACE: the full a11oy operator application (left-nav, live views,
+    cross-flag switcher). Opening a11oy lands directly in the app — not a thin
+    marketing landing. Falls back to the SPA index only if the app file is absent."""
+    app_file = PAGES_DIR / "console.html"
+    if app_file.is_file():
+        return FileResponse(app_file, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
