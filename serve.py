@@ -2307,6 +2307,19 @@ async def ayni_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# /superpowers — Five live, screenshot-provable superpowers (Decision Replay,
+# Tamper Theater, Λ-collapse, RS Resurrection, One-Signed-Organism). Without this
+# explicit route the path fell through to the SPA catch-all, which served index.html
+# (identical bytes to /) — the page looked like the generic landing, not the demo.
+# Served from pages/ (already COPYed wholesale by the Dockerfile) so no image change.
+@app.get("/superpowers")
+async def superpowers_page() -> Response:
+    f = PAGES_DIR / "superpowers.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 # --- Throne Room (ADDITIVE; Doctrine v12 PURIQ / Yachay CTO) ---
 # Unified 3D control surface for the 5 flagship heroes. WebGPU + WebGL2 fallback.
 # Real /healthz polling — no fake data. Three.js r171 (MIT). Kanchay tokens.
