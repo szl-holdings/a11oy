@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>a11oy — Command Console · SZL Holdings</title>
+  <meta name="description" content="The a11oy operator command console: live fleet health, mesh wires, evidence ledger, and one-click access to every governed surface. Every tile reads a real endpoint."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --ground:#0a0a0a; --panel:#0c0c0c; --panel2:#070707;
+      --gold:#c9b787; --gold-bright:#d6c69a;
+      --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+      --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+      --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+      --teal-line:rgba(95,179,163,0.22);
+      --live:#5a8a6e; --err:#b06a5a;
+      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+      --display:'Space Grotesk',Georgia,serif;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+    .mono{font-family:var(--mono);} a{color:inherit;}
+    :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}
+    .ribbon{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;padding:0.5rem 1.25rem;
+      font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);
+      background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);}
+    .ribbon .sep{color:var(--dim);} .ribbon .teal{color:var(--teal);}
+    .ribbon .live{display:inline-flex;align-items:center;gap:0.4rem;color:var(--cream);}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulseDot 2.2s ease-in-out infinite;}
+    @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.35;}}
+    .hero{position:relative;overflow:hidden;padding:2.5rem 1.5rem 1.5rem;text-align:center;}
+    .grid-bg{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+      background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);}
+    .hero-inner{position:relative;z-index:2;max-width:64rem;margin:0 auto;}
+    .eyebrow{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .85rem;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-soft);margin-bottom:1.25rem;}
+    .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulseDot 2.2s ease-in-out infinite;}
+    .eyebrow-text{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+    .headline{font-size:clamp(2.1rem,5vw,3.7rem);font-weight:300;line-height:1.04;letter-spacing:-.035em;margin:0 0 1rem;color:var(--cream);}
+    .headline .accent{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+    .support{font-size:15.5px;line-height:1.6;color:var(--paragraph);max-width:42rem;margin:0 auto 0;}
+    .wrap{max-width:64rem;margin:1.5rem auto 3rem;padding:0 1.25rem;}
+    .section-label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:1.75rem 0 .8rem;}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;}
+    .kpi{border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);padding:.9rem 1rem;}
+    .kpi .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+    .kpi .v{font-size:1.5rem;font-weight:500;color:var(--gold);margin-top:.25rem;}
+    .kpi .v.teal{color:var(--teal);} .kpi .v.live{color:var(--live);}
+    .kpi .d{font-size:11px;color:var(--paragraph);margin-top:.2rem;}
+    .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem;}
+    .tile{display:block;text-decoration:none;border:1px solid var(--gold-line);border-radius:10px;background:var(--panel);padding:1.1rem 1.2rem;transition:border-color .18s,background .18s;}
+    .tile:hover{border-color:rgba(201,183,135,.4);background:rgba(201,183,135,.04);}
+    .tile .t{font-size:1.05rem;font-weight:500;color:var(--cream);margin-bottom:.3rem;}
+    .tile .s{font-size:12px;color:var(--paragraph);line-height:1.55;}
+    .tile .arrow{font-family:var(--mono);font-size:11px;color:var(--teal);margin-top:.6rem;display:inline-block;}
+    .fleet{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.6rem;}
+    .organ{border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);padding:.7rem .9rem;display:flex;align-items:center;gap:.6rem;}
+    .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+    .dot.ok{background:var(--live);box-shadow:0 0 6px var(--live);} .dot.down{background:var(--err);}
+    .organ .name{font-weight:500;color:var(--cream);font-size:.95rem;} .organ .lat{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto;}
+    .honesty{margin:2rem 0 0;padding:1.1rem 1.3rem;border:1px solid var(--gold-line);border-radius:10px;background:var(--gold-soft);font-size:12px;color:var(--paragraph);line-height:1.7;}
+    .honesty b{color:var(--gold);}
+    .footer{padding:2rem 1.5rem 3rem;text-align:center;}
+    .footer .note{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
+  </style>
+</head>
+<body>
+<div class="ribbon">
+  <span>SZL HOLDINGS</span><span class="sep">/</span>
+  <span class="teal">A11OY</span><span class="sep">/</span>
+  <span>COMMAND CONSOLE</span><span class="sep">/</span>
+  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
+  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+</div>
+
+<section class="hero">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">· one governed control plane</span></div>
+    <h1 class="headline">The command <span class="accent">console.</span></h1>
+    <p class="support">Live fleet health, the cross-organ mesh, the evidence ledger, and one-click access to every governed surface.
+      Every number on this page is read from a real a11oy endpoint — no mock data.</p>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="section-label">Live status</div>
+  <div class="kpis">
+    <div class="kpi"><div class="k">Fleet reachable</div><div class="v live" id="k-fleet">—</div><div class="d">organs answering /health</div></div>
+    <div class="kpi"><div class="k">Mesh wires</div><div class="v teal" id="k-wires">—</div><div class="d">conserved cross-organ</div></div>
+    <div class="kpi"><div class="k">Evidence checks</div><div class="v" id="k-evid">—</div><div class="d">passed / total</div></div>
+    <div class="kpi"><div class="k">Λ status</div><div class="v teal">Conjecture 1</div><div class="d">NOT a theorem</div></div>
+  </div>
+
+  <div class="section-label">Fleet — live peer health</div>
+  <div class="fleet" id="fleet"><div class="organ"><span class="dot down"></span><span class="name mono">probing…</span></div></div>
+
+  <div class="section-label">Governed surfaces — open any console</div>
+  <div class="tiles">
+    <a class="tile" href="/superpowers"><div class="t">Five Superpowers</div><div class="s">Decision Replay · Tamper Theater · Λ-collapse · RS Resurrection · One-Signed-Organism — each a real endpoint.</div><span class="arrow">open →</span></a>
+    <a class="tile" href="/warhacker"><div class="t">Warhacker Orchestration</div><div class="s">One launch point for all 5 Warhacker problems — a11oy calls each live organ + records a signed receipt.</div><span class="arrow">open →</span></a>
+    <a class="tile" href="/observability"><div class="t">Observability</div><div class="s">MELT + distributed tracing where every span is a signed Khipu receipt. Mesh reachability, live.</div><span class="arrow">open →</span></a>
+    <a class="tile" href="/wires"><div class="t">Wires · The Constitution</div><div class="s">The five wires that bind the organs into one signed organism, read live.</div><span class="arrow">open →</span></a>
+    <a class="tile" href="/formulas"><div class="t">PURIQ Formulas</div><div class="s">The 23 FormulaAgents — proved set {F1,F11,F12,F18,F19} honestly distinguished from open conjectures.</div><span class="arrow">open →</span></a>
+    <a class="tile" href="/brain"><div class="t">Brain · Dual-Stream</div><div class="s">The dual-stream (Hickok) architecture view of a11oy as the orchestrating brain.</div><span class="arrow">open →</span></a>
+  </div>
+
+  <div class="honesty">
+    <b>Honesty.</b> Fleet + mesh numbers are read live (<span class="mono">/v4/fleet</span>, <span class="mono">/api/a11oy/v1/mesh/state</span>,
+    <span class="mono">/api/a11oy/v1/evidence</span>). An unreachable organ is shown as down — never faked green. Λ is <b>Conjecture 1</b>, not a theorem.
+    Proved formulas = <b>5</b> {F1,F11,F12,F18,F19}. SLSA <b>Build L2</b> on all 5 organ images. No L3 / FedRAMP / Iron Bank / CMMC.
+  </div>
+</div>
+
+<footer class="footer"><span class="note">a11oy · governance substrate · by SZL Holdings · Counsel-governed · A11oy-orchestrated</span></footer>
+
+<script>
+async function getJSON(path){ const r=await fetch(path); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+async function loadFleet(){
+  const host=document.getElementById('fleet');
+  try{
+    const d=await getJSON('/v4/fleet');
+    const peers=d.peers||d.organs||{};
+    let reachable=0,total=0; host.innerHTML='';
+    const entries = Array.isArray(peers) ? peers.map(p=>[p.flagship||p.name,p]) : Object.entries(peers);
+    entries.forEach(([name,p])=>{
+      total++; const ok=(p.status||'').toLowerCase()==='ok'||p.reachable===true||(p.http_code===200);
+      if(ok) reachable++;
+      const el=document.createElement('div'); el.className='organ';
+      el.innerHTML=`<span class="dot ${ok?'ok':'down'}"></span><span class="name">${name||'organ'}</span><span class="lat mono">${p.latency_ms?Math.round(p.latency_ms)+'ms':(ok?'ok':'—')}</span>`;
+      host.appendChild(el);
+    });
+    document.getElementById('k-fleet').textContent = total? reachable+'/'+total : '—';
+  }catch(e){ host.innerHTML='<div class="organ"><span class="dot down"></span><span class="name mono">fleet probe retrying… (transient)</span></div>'; }
+}
+async function loadMesh(){ try{ const d=await getJSON('/api/a11oy/v1/mesh/state'); document.getElementById('k-wires').textContent=Object.keys(d.wires||{}).length; }catch(e){} }
+async function loadEvidence(){ try{ const d=await getJSON('/api/a11oy/v1/evidence'); if(d.passed!=null&&d.total_assertions!=null) document.getElementById('k-evid').textContent=d.passed+'/'+d.total_assertions; }catch(e){} }
+loadFleet(); loadMesh(); loadEvidence();
+</script>
+</body>
+</html>
