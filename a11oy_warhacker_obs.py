@@ -185,6 +185,13 @@ def _call_organ(organ: str, method: str, path: str, body: Any, timeout: int = 12
     base = ORGAN_BASE.get(organ)
     if not base:
         return {"status": "error", "error": f"unknown organ '{organ}'"}
+    # Self-call shortcut: when a11oy orchestrates an a11oy endpoint (e.g. P5 Raven
+    # mesh/state), reaching our OWN public hf.space URL loops back through the HF
+    # edge and frequently times out. Hit the in-container loopback instead — this is
+    # still a genuine live HTTP call to the running a11oy app, just not via the edge.
+    if organ == "a11oy":
+        _self = _os.environ.get("SZL_SELF_BASE", f"http://127.0.0.1:{_os.environ.get('PORT', '7860')}")
+        base = _self
     url = base.rstrip("/") + path
     data = None
     headers = {"User-Agent": "a11oy-warhacker-orchestrator/1.0", "Accept": "application/json"}
