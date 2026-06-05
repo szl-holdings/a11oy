@@ -32,7 +32,7 @@ jobs:
           tags: |
             ghcr.io/szl-holdings/${{ github.event.repository.name }}:uds-v0.2.0
             ghcr.io/szl-holdings/${{ github.event.repository.name }}:latest
-      - name: Attest build provenance (SLSA L2)
+      - name: Attest build provenance (GitHub Attestations API + Rekor)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-name: ghcr.io/szl-holdings/${{ github.event.repository.name }}
@@ -45,3 +45,66 @@ jobs:
         run: |
           cosign sign --yes ghcr.io/szl-holdings/${{ github.event.repository.name }}:uds-v0.2.0
           cosign sign --yes ghcr.io/szl-holdings/${{ github.event.repository.name }}:latest
+      # SLSA L2: write a cosign-NATIVE provenance attestation to GHCR. The
+      # actions/attest-build-provenance step above lands the attestation in the
+      # GitHub Attestations API + public Rekor (verifiable via `gh attestation
+      # verify`), but does NOT produce an OCI referrer that `cosign
+      # verify-attestation` reads. This step closes that gap so the deployed
+      # image passes `cosign verify-attestation --type slsaprovenance`.
+      - name: cosign attest SLSA provenance (registry, cosign-verifiable)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/szl-holdings/${{ github.event.repository.name }}"
+          DIGEST="${{ steps.build-push.outputs.digest }}"
+          # SLSA Provenance v0.2 predicate (matches `cosign ... --type slsaprovenance`,
+          # which validates the v0.2 schema with a top-level `builder` field).
+          cat > predicate.json <<EOF
+          {
+            "builder": {
+              "id": "${{ github.server_url }}/${{ github.repository }}/.github/workflows/ghcr-build-push.yml@${{ github.ref }}"
+            },
+            "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+            "invocation": {
+              "configSource": {
+                "uri": "git+${{ github.server_url }}/${{ github.repository }}@${{ github.ref }}",
+                "digest": { "sha1": "${{ github.sha }}" },
+                "entryPoint": ".github/workflows/ghcr-build-push.yml"
+              },
+              "environment": {
+                "event_name": "${{ github.event_name }}",
+                "repository_id": "${{ github.repository_id }}",
+                "runner_environment": "github-hosted"
+              }
+            },
+            "metadata": {
+              "buildInvocationId": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}",
+              "completeness": { "parameters": true, "environment": false, "materials": false },
+              "reproducible": false
+            },
+            "materials": [
+              {
+                "uri": "git+${{ github.server_url }}/${{ github.repository }}@${{ github.ref }}",
+                "digest": { "sha1": "${{ github.sha }}" }
+              }
+            ]
+          }
+          EOF
+          cosign attest --yes \
+            --type slsaprovenance \
+            --predicate predicate.json \
+            "${IMG}@${DIGEST}"
+      - name: cosign verify-attestation (SLSA L2 honesty gate)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/szl-holdings/${{ github.event.repository.name }}"
+          DIGEST="${{ steps.build-push.outputs.digest }}"
+          cosign verify-attestation \
+            --type slsaprovenance \
+            --certificate-identity-regexp="github.com/szl-holdings" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            "${IMG}@${DIGEST}" > /dev/null
+          echo "SLSA L2 verified: cosign verify-attestation passed for ${IMG}@${DIGEST}"
