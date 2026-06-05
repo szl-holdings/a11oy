@@ -732,7 +732,7 @@ input, button, select { font:inherit }
     <div class="grid g-3" style="margin-bottom:16px">
       <div class="card"><div class="card-head"><span class="icon">🔏</span>DSSE Signing<span class="pill">/console/dsse-stream</span></div><div class="card-body"><div class="kpi"><div class="kpi-num" id="dsse-signing">…</div><div class="kpi-sub">signing_available</div></div></div></div>
       <div class="card"><div class="card-head"><span class="icon">⛓</span>DAG Root<span class="pill">/khipu/ledger</span></div><div class="card-body"><div class="kpi-label">Merkle root</div><div class="kpi-num" id="dsse-root" style="font-size:14px;color:var(--cyan)">…</div></div></div>
-      <div class="card"><div class="card-head"><span class="icon">✔</span>Rekor logIndex<span class="pill">Sigstore</span></div><div class="card-body"><div class="kpi"><div class="kpi-num cyan" id="dsse-rekor">1711940457</div><div class="kpi-sub">public-good Rekor</div></div></div></div>
+      <div class="card"><div class="card-head"><span class="icon">✔</span>Rekor logIndex<span class="pill">Sigstore</span></div><div class="card-body"><div class="kpi"><div class="kpi-num cyan" id="dsse-rekor">—</div><div class="kpi-sub">public-good Rekor (live)</div></div></div></div>
     </div>
     <div class="grid g-2">
       <div class="card">
@@ -982,8 +982,9 @@ input, button, select { font:inherit }
       <div class="card">
         <div class="card-head"><span class="icon">✔</span>What We Claim</div>
         <div class="card-body" style="font:11px/1.9 var(--mono);color:var(--text-dim)">
-          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA L2 VERIFIED</div><br>
-          ✓ Rekor logIndex 1711940457 confirmed<br>
+          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA BUILD L2 ATTESTED</div><br>
+          ✓ signed slsa.dev/provenance/v0.2 .att on the GHCR image<br>
+          ✓ Rekor index resolved at verify time (cosign verify-attestation)<br>
           ✓ Fulcio issuer: sigstore.dev (public-good)<br>
           ✓ 749 Lean declarations · 14 unique axioms<br>
           ✓ 163 honest open sorries<br>
@@ -1008,19 +1009,20 @@ input, button, select { font:inherit }
       <div class="card-head"><span class="icon">⚙</span>SLSA Verify Command</div>
       <div class="card-body">
         <div class="codeblock">
-<span class="cmt"># Verify SLSA L2 provenance (requires slsa-verifier + cosign)</span>
-<span class="kw">slsa-verifier</span> verify-image \
-  --source-uri <span class="str">github.com/szl-holdings/a11oy</span> \
-  --builder-id <span class="str">https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml</span> \
-  szlholdings/a11oy@sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879
+<span class="cmt"># Verify the SLSA Build L2 provenance attestation on the published image</span>
+<span class="kw">cosign</span> verify-attestation \
+  --type <span class="str">slsaprovenance</span> \
+  --certificate-identity-regexp <span class="str">github.com/szl-holdings</span> \
+  --certificate-oidc-issuer <span class="str">https://token.actions.githubusercontent.com</span> \
+  ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 
-<span class="cmt"># cosign verify (key-based)</span>
-<span class="kw">cosign</span> verify-blob \
-  --key <span class="str">https://github.com/szl-holdings/.github/blob/main/cosign.pub</span> \
-  --signature &lt;sig&gt; &lt;payload.json&gt;
+<span class="cmt"># Verify the cosign image signature (keyless / Fulcio)</span>
+<span class="kw">cosign</span> verify \
+  --certificate-identity-regexp <span class="str">github.com/szl-holdings</span> \
+  --certificate-oidc-issuer <span class="str">https://token.actions.githubusercontent.com</span> \
+  ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 
-<span class="cmt"># Rekor transparency log</span>
-<span class="kw">rekor-cli</span> get --log-index <span class="num">1711940457</span>
+<span class="cmt"># Rekor index is per-signing — read it from the verify output above (not hardcoded)</span>
         </div>
       </div>
     </div>
@@ -1078,7 +1080,7 @@ input, button, select { font:inherit }
 <footer class="honest-footer">
   <b>a11oy Elite Console</b> — 20 tabs · zero mocks · every surface bound to a real <code>/api/a11oy/…</code> endpoint ·
   W3C traceparent on every panel · skeletons over spinners · 3D where it adds value (Three.js r128 vendored)<br>
-  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L2 VERIFIED (Rekor 1711940457)</b><br>
+  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA Build L2 attested (signed slsa.dev/provenance/v0.2 .att; never L3)</b><br>
   HONEST: Wires G+H not live · audit log resets on rebuild · no FedRAMP/Iron Bank/CMMC · no L3<br>
   Sign: Yachay &lt;yachay@szlholdings.ai&gt; ·
   Co-Authored-By: <a href="https://perplexity.ai">Perplexity Computer Agent</a> ·
@@ -1244,7 +1246,7 @@ async function loadOverview() {
       <a href="https://sigstore.dev" class="tag tag-green">Sigstore</a>
       <div style="margin-top:10px;font:10px/1.7 var(--mono);color:var(--text-muted)">
         ${v.image_digest ? 'sha256:' + v.image_digest.slice(7,23) + '…' : ''}<br>
-        Rekor ${v.rekor_log_index||1711940457}
+        Rekor ${v.rekor_log_index||'— (resolved at verify time)'}
       </div>`;
   } catch(e) {}
 
@@ -1878,7 +1880,7 @@ async function loadAnatomy() {
     el.innerHTML = `
       <div style="font:10px/1.7 var(--mono);color:var(--text-muted)">
         SLSA: <b style="color:var(--gold)">${pv.slsa?.level||'L2'}</b><br>
-        Rekor: <b style="color:var(--cyan)">${pv.slsa?.rekor_log_index||1711940457}</b><br>
+        Rekor: <b style="color:var(--cyan)">${pv.slsa?.rekor_log_index||'— (resolved at verify time)'}</b><br>
         image: <code>${(pv.slsa?.image_digest||'').slice(0,30)}…</code><br>
         builder: ${pv.slsa?.builder||'GitHub Actions'}
       </div>
@@ -2008,7 +2010,7 @@ async function loadHonest() {
         <span class="tag tag-green">${d.slsa?.level||d.slsa||'L2'}</span>
         ${d.slsa_evidence ? `<div style="margin-top:8px;font:10px/1.7 var(--mono);color:var(--text-muted)">
           image_tag: <b style="color:var(--gold)">${d.slsa_evidence.image_tag||''}</b><br>
-          Rekor: <b style="color:var(--cyan)">${d.slsa_evidence.rekor_log_index||1711940457}</b><br>
+          Rekor: <b style="color:var(--cyan)">${d.slsa_evidence.rekor_log_index||'— (resolved at verify time)'}</b><br>
           builder: ${d.slsa_evidence.builder||''}<br>
           verified_via: ${d.slsa_evidence.verified_via||''}
         </div>` : ''}

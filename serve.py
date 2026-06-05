@@ -1937,7 +1937,8 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # shape the scene's normalizeStats() consumes. Registered at BOTH the root path
 # (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
 # proxy + SPA, matching the existing /v4/fleet dual-registration pattern.
-# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L2 verified — unchanged.
+# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA Build L2 attested (signed
+# slsa.dev/provenance/v0.2 .att on the GHCR image; never L3) — unchanged.
 # ===========================================================================
 import time as _rtr_time
 
