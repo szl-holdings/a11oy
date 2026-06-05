@@ -36,13 +36,15 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
 from __future__ import annotations
 
+import asyncio as _asyncio
 import json as _json
 import os as _os
 import time as _time
 import urllib.error as _uerr
 import urllib.request as _ureq
+from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -51,13 +53,46 @@ DOCTRINE = "v11"
 LAMBDA_STATUS = "Conjecture 1 (NOT a theorem — LOCKED)"
 SLSA_NOTE = "SLSA L2 build-provenance on the 5 organ images (cosign .att), not the bundle. No L3/FedRAMP/Iron Bank/CMMC."
 
-# Live organ base URLs. Overridable by env for air-gap / mirror deploys.
-ORGAN_BASE = {
-    "a11oy": _os.environ.get("A11OY_BASE_A11OY", "https://szlholdings-a11oy.hf.space"),
-    "sentra": _os.environ.get("A11OY_BASE_SENTRA", "https://szlholdings-sentra.hf.space"),
-    "amaru": _os.environ.get("A11OY_BASE_AMARU", "https://szlholdings-amaru.hf.space"),
-    "rosie": _os.environ.get("A11OY_BASE_ROSIE", "https://szlholdings-rosie.hf.space"),
-    "killinchu": _os.environ.get("A11OY_BASE_KILLINCHU", "https://szlholdings-killinchu.hf.space"),
+# Live organ base URLs. Overridable by env for air-gap / mirror / cluster deploys.
+# Resolution order per organ (first non-empty wins):
+#   1. SZL_ORGAN_BASE_<ORGAN>  (e.g. SZL_ORGAN_BASE_AMARU=http://amaru.svc:8000)
+#   2. A11OY_BASE_<ORGAN>      (legacy per-organ var, kept for back-compat)
+#   3. SZL_ORGAN_BASE          (shared prefix; the organ name is appended as the
+#                               final path segment, e.g. http://mesh.svc/amaru)
+#   4. public hf.space default (so HF Spaces works out of the box)
+# On HF Spaces, Space-to-Space INTERNAL networking is isolated; the public
+# hf.space URL is the genuinely reachable endpoint, so it is the default.
+_ORGAN_PUBLIC_DEFAULT = {
+    "a11oy": "https://szlholdings-a11oy.hf.space",
+    "sentra": "https://szlholdings-sentra.hf.space",
+    "amaru": "https://szlholdings-amaru.hf.space",
+    "rosie": "https://szlholdings-rosie.hf.space",
+    "killinchu": "https://szlholdings-killinchu.hf.space",
+}
+
+
+def _resolve_organ_base(organ: str) -> str:
+    up = organ.upper()
+    per_organ = _os.environ.get(f"SZL_ORGAN_BASE_{up}") or _os.environ.get(f"A11OY_BASE_{up}")
+    if per_organ:
+        return per_organ.rstrip("/")
+    shared = _os.environ.get("SZL_ORGAN_BASE")
+    if shared:
+        return shared.rstrip("/") + "/" + organ
+    return _ORGAN_PUBLIC_DEFAULT[organ]
+
+
+ORGAN_BASE = {o: _resolve_organ_base(o) for o in _ORGAN_PUBLIC_DEFAULT}
+
+# Correct PUBLIC health-check path per organ (verified live, all return 200).
+# amaru exposes /healthz; the rest expose /api/health. Used by the mesh-reach
+# probe so reachability is genuine, never a fabricated green.
+ORGAN_HEALTH_PATH = {
+    "a11oy": _os.environ.get("SZL_ORGAN_HEALTH_A11OY", "/api/health"),
+    "sentra": _os.environ.get("SZL_ORGAN_HEALTH_SENTRA", "/api/health"),
+    "amaru": _os.environ.get("SZL_ORGAN_HEALTH_AMARU", "/healthz"),
+    "rosie": _os.environ.get("SZL_ORGAN_HEALTH_ROSIE", "/api/health"),
+    "killinchu": _os.environ.get("SZL_ORGAN_HEALTH_KILLINCHU", "/api/health"),
 }
 
 # The 5 APPROVED Warhacker problems → the LIVE organ proof each launches.
@@ -180,6 +215,18 @@ def _call_organ(organ: str, method: str, path: str, body: Any, timeout: int = 12
     except Exception as e:  # URLError, timeout, DNS, socket — honest unreachable
         latency_ms = round((_time.perf_counter() - t0) * 1000, 2)
         return {"status": "unreachable", "latency_ms": latency_ms, "url": url, "error": str(e)[:160]}
+
+
+async def _run_in_threadpool_all(jobs: list[tuple[Callable[..., Any], Any]]) -> list[Any]:
+    """Run blocking probe jobs in parallel without blocking the event loop.
+
+    Each job is (fn, arg); urllib is synchronous, so we fan out across a
+    threadpool and await all of them. Results preserve the input order.
+    """
+    loop = _asyncio.get_event_loop()
+    with _ThreadPoolExecutor(max_workers=max(1, len(jobs))) as pool:
+        futures = [loop.run_in_executor(pool, fn, arg) for fn, arg in jobs]
+        return list(await _asyncio.gather(*futures))
 
 
 def _emit_receipt(app: FastAPI, request: Request, payload: dict[str, Any]) -> dict[str, Any]:
@@ -373,34 +420,28 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         except Exception as e:
             return {"available": False, "reason": f"khipu DAG unavailable: {str(e)[:120]}", "spans": []}
 
-    # Not every organ exposes /api/health (amaru answers 404 there yet its real
-    # endpoints are live). Probe /api/health first, then a known-live fallback,
-    # and report WHICH path answered — honest reachability, never faked green.
-    _PROBE_FALLBACK = {
-        "amaru": "/api/amaru/v1/proof-tabs/manifest",
-        "sentra": "/api/sentra/v1/gates",
-        "killinchu": "/api/killinchu/v1/cannonico/status",
-    }
+    # Mesh reach: probe each organ's PUBLIC health endpoint at its CORRECT
+    # per-organ path (amaru = /healthz, the rest = /api/health). On HF Spaces the
+    # internal /api/health is unreachable (Space-to-Space isolation), so we hit
+    # the public hf.space URL — genuinely reachable, never a fabricated green.
+    # Probes run in parallel with a short per-organ timeout.
+    _MESH_ORGANS = ("a11oy", "sentra", "amaru", "rosie", "killinchu")
+    _PROBE_TIMEOUT = int(_os.environ.get("SZL_ORGAN_PROBE_TIMEOUT", "8"))
 
     def _probe_organ(organ: str) -> dict[str, Any]:
-        r = _call_organ(organ, "GET", "/api/health", None, timeout=6)
-        probed = "/api/health"
-        if r.get("status") != "ok":
-            fb = _PROBE_FALLBACK.get(organ)
-            if fb:
-                r2 = _call_organ(organ, "GET", fb, None, timeout=6)
-                if r2.get("status") == "ok":
-                    r, probed = r2, fb
+        path = ORGAN_HEALTH_PATH.get(organ, "/api/health")
+        r = _call_organ(organ, "GET", path, None, timeout=_PROBE_TIMEOUT)
         return {"organ": organ, "status": r.get("status"),
                 "http_code": r.get("http_code"), "latency_ms": r.get("latency_ms"),
-                "probed_path": probed}
+                "url": r.get("url"), "probed_path": path}
 
     @app.get(f"{base}/observability/summary")
     async def observability_summary() -> JSONResponse:
         """MELT rollup from the LIVE in-process Khipu DAG (signed spans as the L+T
         of MELT) + honest mesh reach. No fabricated metrics."""
         dag = _read_dag_spans(50)
-        organ_reach = [_probe_organ(o) for o in ("a11oy", "sentra", "amaru", "rosie", "killinchu")]
+        organ_reach = await _run_in_threadpool_all(
+            [(_probe_organ, o) for o in _MESH_ORGANS])
         reachable = sum(1 for o in organ_reach if o["status"] == "ok")
         return JSONResponse({
             "ok": True,
