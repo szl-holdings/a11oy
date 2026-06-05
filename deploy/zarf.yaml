@@ -4,7 +4,7 @@
 # SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
 #
 # Build:   zarf package create deploy/ --confirm
-# Deploy:  zarf package deploy zarf-package-a11oy-amd64-uds-v0.3.1-rc.1.tar.zst --confirm
+# Deploy:  zarf package deploy zarf-package-a11oy-amd64-uds-v0.2.0.tar.zst --confirm
 #
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
@@ -12,7 +12,7 @@
 kind: ZarfPackageConfig
 metadata:
   name: a11oy
-  version: uds-v0.3.1-rc.1
+  version: uds-v0.2.0
   description: |
     A11oy — Brand Orchestration Layer (Yachay). Governed agentic execution
     fabric. Policy gates, signal mesh, proof ledger, and Lambda-9 invariant
@@ -27,8 +27,8 @@ components:
     required: true
     description: A11oy runtime container + proof-ledger sidecar mount.
     images:
-      - ghcr.io/szl-holdings/a11oy:uds-v0.3.1-rc.1
-      - ghcr.io/szl-holdings/a11oy:v1.0.0-alpha
+      - ghcr.io/szl-holdings/a11oy:uds-v0.2.0
+      - ghcr.io/szl-holdings/a11oy:uds-v0.2.0
     manifests:
       - name: a11oy
         namespace: a11oy
