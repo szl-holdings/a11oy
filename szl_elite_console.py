@@ -40,6 +40,15 @@ DOCTRINE = "v11"
 _KERNEL_COMMIT = "c7c0ba17"
 _LAMBDA_FLOOR = 0.90
 
+# SLSA Build L2 is genuinely earned: the published GHCR image carries a signed
+# slsa.dev/provenance/v0.2 attestation (.att referrer). The Rekor transparency-log
+# index, however, is per-signing and must NOT be hardcoded (DOCTRINE_NO_HALLUCINATION:
+# never assert a specific Rekor inclusion we cannot resolve at runtime). CI injects the
+# real index via SLSA_REKOR_LOG_INDEX at build time; it is None (honest) when unset.
+def _rekor_log_index() -> int | None:
+    raw = os.environ.get("SLSA_REKOR_LOG_INDEX", "").strip()
+    return int(raw) if raw.isdigit() else None
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Lazy imports from existing modules — wrapped to degrade gracefully
 # ─────────────────────────────────────────────────────────────────────────────
@@ -159,7 +168,11 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
 
     # seed a few honest info-level events
     _add_alert("info", "Space started", "a11oy elite console initialised", "system")
-    _add_alert("info", "SLSA L2 verified", "Rekor logIndex 1711940457 confirmed", "slsa")
+    _ri = _rekor_log_index()
+    _add_alert("info", "SLSA Build L2 attested",
+               (f"Rekor logIndex {_ri} confirmed" if _ri is not None
+                else "signed slsa.dev/provenance/v0.2 .att on GHCR image; Rekor index resolved at verify time"),
+               "slsa")
     _add_alert("warning", "Wire G not live", "brain-mesh bridge not served on this build", "wireG")
 
     @app.get("/api/a11oy/v1/console/alerts")
@@ -275,8 +288,9 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
             "cosign_pub_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
             "payload_type": "application/vnd.szl.khipu+json",
             "verify_cmd": "cosign verify-blob --key cosign.pub --signature <sig> <payload>",
-            "rekor_log_index": 1711940457,
+            "rekor_log_index": _rekor_log_index(),
             "slsa_level": "L2",
+            "slsa_evidence": "signed slsa.dev/provenance/v0.2 attestation (.att referrer) on the published GHCR image; verify: cosign verify-attestation --type slsaprovenance",
             "doctrine": DOCTRINE,
             "note": "DSSE receipts from live in-process Khipu DAG. signing_available=true only when SZL_COSIGN_PRIVATE_PEM secret is set.",
             "honest_notes": _HONEST_NOTES[:10],
