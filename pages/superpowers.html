@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>a11oy — Five Superpowers · SZL Holdings</title>
+  <meta name="description" content="Five live, screenshot-provable superpowers: Decision Replay, Tamper Theater, Λ-collapse, RS Resurrection, One-Signed-Organism. Every button hits a real a11oy endpoint."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* a11oy house style — extracted from style.css (gold standard), dark ground + gold + teal */
+    :root{
+      --ground:#0a0a0a; --panel:#0c0c0c; --panel2:#070707;
+      --gold:#c9b787; --gold-bright:#d6c69a;
+      --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+      --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+      --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+      --teal-line:rgba(95,179,163,0.22);
+      --live:#5a8a6e; --err:#b06a5a;
+      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+      --display:'Space Grotesk',Georgia,serif;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);
+      font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+    .mono{font-family:var(--mono);}
+    a{color:inherit;}
+    :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}
+
+    /* ===== TOP RIBBON ===== */
+    .ribbon{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;
+      flex-wrap:wrap;padding:0.5rem 1.25rem;font-family:var(--mono);font-size:10px;
+      letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);
+      background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--gold-line);}
+    .ribbon .sep{color:var(--dim);}
+    .ribbon .teal{color:var(--teal);}
+    .ribbon .live{display:inline-flex;align-items:center;gap:0.4rem;color:var(--cream);}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);
+      box-shadow:0 0 6px var(--live);animation:pulseDot 2.2s ease-in-out infinite;}
+    @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+    /* ===== HERO ===== */
+    .hero{position:relative;overflow:hidden;padding:3.5rem 1.5rem 2.5rem;text-align:center;}
+    .grid-bg{position:absolute;inset:0;pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+      background-size:56px 56px;
+      -webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);
+      mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);}
+    .hero-inner{position:relative;z-index:2;max-width:64rem;margin:0 auto;}
+    .eyebrow{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .85rem;
+      border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-soft);margin-bottom:1.75rem;}
+    .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);
+      animation:pulseDot 2.2s ease-in-out infinite;}
+    .eyebrow-text{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+    .headline{font-size:clamp(2.4rem,5.5vw,4.4rem);font-weight:300;line-height:1.03;
+      letter-spacing:-.035em;margin:0 0 1.25rem;color:var(--cream);}
+    .headline .accent{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+    .support{font-size:16px;line-height:1.65;color:var(--paragraph);max-width:42rem;margin:0 auto 2rem;}
+
+    /* ===== STAT TILES ===== */
+    .stats{display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem;max-width:60rem;margin:0 auto;}
+    .stat{flex:1 1 150px;min-width:140px;border:1px solid var(--gold-line);border-radius:8px;
+      background:var(--panel);padding:.9rem 1rem;text-align:left;}
+    .stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+    .stat .v{font-size:1.35rem;font-weight:500;color:var(--gold);margin-top:.25rem;}
+    .stat .v.teal{color:var(--teal);}
+
+    /* ===== SUPERPOWER CARDS ===== */
+    .grid{max-width:64rem;margin:2.75rem auto 4rem;padding:0 1.25rem;
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.25rem;}
+    .card{border:1px solid var(--gold-line);border-radius:12px;background:var(--panel);
+      padding:1.4rem 1.4rem 1.6rem;display:flex;flex-direction:column;}
+    .card-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.5rem;}
+    .card-num{font-family:var(--mono);font-size:11px;color:var(--teal);border:1px solid var(--teal-line);
+      border-radius:5px;padding:.1rem .4rem;background:var(--teal-soft);}
+    .card-title{font-size:1.15rem;font-weight:500;color:var(--cream);letter-spacing:-.01em;}
+    .card-sub{font-size:12.5px;color:var(--paragraph);line-height:1.6;margin:0 0 1rem;}
+    .card-endpoint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:1rem;word-break:break-all;}
+    .card-endpoint b{color:var(--gold);font-weight:500;}
+    .card-controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;}
+    .r-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;font-size:11.5px;
+      font-weight:500;font-family:var(--mono);border-radius:6px;border:1px solid var(--gold-line);
+      background:transparent;color:var(--gold);cursor:pointer;letter-spacing:.04em;
+      transition:background .18s ease,border-color .18s ease;}
+    .r-btn:hover{background:rgba(201,183,135,.08);border-color:rgba(201,183,135,.35);}
+    .r-btn:active{opacity:.75;}
+    .r-btn:disabled{opacity:.4;cursor:not-allowed;}
+    .r-btn-primary{background:var(--gold);color:var(--ground);border-color:var(--gold);}
+    .r-btn-primary:hover{background:var(--gold-bright);border-color:var(--gold-bright);}
+    .r-btn-teal{border-color:var(--teal-line);color:var(--teal);}
+    .r-btn-teal:hover{background:var(--teal-soft);border-color:var(--teal);}
+
+    .verdict{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--mono);font-size:11px;
+      padding:.2rem .6rem;border-radius:5px;margin-bottom:.6rem;visibility:hidden;}
+    .verdict.show{visibility:visible;}
+    .verdict.ok{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+    .verdict.warn{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+    .verdict.err{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+
+    .out{position:relative;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel2);
+      overflow:hidden;margin-top:auto;}
+    .out-label{display:flex;align-items:center;justify-content:space-between;padding:.45rem .85rem;
+      border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:9px;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+    .out-status{display:inline-flex;align-items:center;gap:.4rem;}
+    .status-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .3s;}
+    .status-dot.ok{background:var(--live);box-shadow:0 0 6px var(--live);}
+    .status-dot.err{background:var(--err);box-shadow:0 0 6px var(--err);}
+    .status-dot.loading{background:var(--gold);animation:pulseDot 1s ease-in-out infinite;}
+    .out-pre{margin:0;padding:.85rem;font-family:var(--mono);font-size:10.5px;line-height:1.6;
+      color:var(--paragraph);white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto;
+      scrollbar-width:thin;scrollbar-color:var(--dim) transparent;}
+    .out-pre:empty::before{content:"— click a button to run this superpower —";color:var(--dim);font-style:italic;}
+
+    .footer{border-top:1px solid var(--gold-line);padding:2rem 1.5rem;text-align:center;}
+    .footer .note{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+    .honest{max-width:64rem;margin:0 auto 2rem;padding:0 1.25rem;}
+    .honest-box{border:1px solid var(--teal-line);border-radius:8px;background:var(--teal-soft);
+      padding:.9rem 1.1rem;font-size:12px;color:var(--paragraph);line-height:1.6;}
+    .honest-box b{color:var(--teal);}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;}}
+  </style>
+</head>
+<body>
+
+<!-- ===== TOP RIBBON (house style) ===== -->
+<div class="ribbon">
+  <span>SZL HOLDINGS</span><span class="sep">/</span>
+  <span class="teal">A11OY</span><span class="sep">/</span>
+  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
+  <span>REPLAY c7c0ba17</span><span class="sep">/</span>
+  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+</div>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="eyebrow">
+      <span class="eyebrow-dot"></span>
+      <span class="eyebrow-text">· five superpowers · live endpoints</span>
+    </div>
+    <h1 class="headline">Five superpowers. Every one <span class="accent">provable.</span></h1>
+    <p class="support">No slides, no mock data. Each button below POSTs/GETs a real a11oy API and renders the
+      raw response. Replay re-derives a decision hash, tamper changes it, Λ collapses on a zeroed axis,
+      the fleet reports honest peer health, and the mesh shows conserved cross-organ wires.</p>
+    <div class="stats">
+      <div class="stat"><div class="k">Declarations</div><div class="v">749</div></div>
+      <div class="stat"><div class="k">Unique axioms</div><div class="v">14</div></div>
+      <div class="stat"><div class="k">Sorries</div><div class="v">163</div></div>
+      <div class="stat"><div class="k">Λ status</div><div class="v teal">Conjecture 1</div></div>
+      <div class="stat"><div class="k">SLSA</div><div class="v teal">Build L2</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SUPERPOWER CARDS ===== -->
+<div class="grid">
+
+  <!-- 1. Decision Replay -->
+  <div class="card">
+    <div class="card-head"><span class="card-num">01</span><span class="card-title">Decision Replay</span></div>
+    <p class="card-sub">a11oy policy gates are deterministic pure functions. Re-execute a past decision from its
+      inputs and get the same verdict + a canonical SHA-256 receipt hash — independently verifiable.</p>
+    <p class="card-endpoint">POST <b>/api/a11oy/v1/receipts/replay</b></p>
+    <div class="card-controls">
+      <button class="r-btn r-btn-primary" id="b-replay" onclick="runReplay()">&#9654; Replay a decision</button>
+    </div>
+    <span class="verdict" id="v-replay"></span>
+    <div class="out"><div class="out-label"><span>RESULT</span>
+      <span class="out-status"><span class="status-dot" id="d-replay"></span><span id="s-replay">idle</span></span></div>
+      <pre class="out-pre" id="o-replay"></pre></div>
+  </div>
+
+  <!-- 2. Tamper Theater -->
+  <div class="card">
+    <div class="card-head"><span class="card-num">02</span><span class="card-title">Tamper Theater</span></div>
+    <p class="card-sub">Replay the same action twice → identical hash (repeatable). Then tamper a single input
+      (confidence 0.92 → 0.50) → the hash changes. Tampering is detectable, not hideable.</p>
+    <p class="card-endpoint">POST <b>/api/a11oy/v1/receipts/replay</b> ×3 (baseline · repeat · tampered)</p>
+    <div class="card-controls">
+      <button class="r-btn r-btn-teal" id="b-tamper" onclick="runTamper()">&#9888; Detect tampering</button>
+    </div>
+    <span class="verdict" id="v-tamper"></span>
+    <div class="out"><div class="out-label"><span>RESULT</span>
+      <span class="out-status"><span class="status-dot" id="d-tamper"></span><span id="s-tamper">idle</span></span></div>
+      <pre class="out-pre" id="o-tamper"></pre></div>
+  </div>
+
+  <!-- 3. Λ-collapse -->
+  <div class="card">
+    <div class="card-head"><span class="card-num">03</span><span class="card-title">Λ-collapse</span></div>
+    <p class="card-sub">Λ = ∏ xᵢ^wᵢ is zero-pinned: if any positive-weight trust axis hits 0, Λ collapses to 0 and the
+      gate DENIES — regardless of the other axes. Compare a healthy score vs a single zeroed axis.</p>
+    <p class="card-endpoint">POST <b>/api/a11oy/v1/lambda/score</b></p>
+    <div class="card-controls">
+      <button class="r-btn r-btn-primary" id="b-lh" onclick="runLambda(false)">&#9654; Healthy Λ</button>
+      <button class="r-btn r-btn-teal" id="b-lc" onclick="runLambda(true)">&#9760; Collapse (zero an axis)</button>
+    </div>
+    <span class="verdict" id="v-lambda"></span>
+    <div class="out"><div class="out-label"><span>RESULT</span>
+      <span class="out-status"><span class="status-dot" id="d-lambda"></span><span id="s-lambda">idle</span></span></div>
+      <pre class="out-pre" id="o-lambda"></pre></div>
+  </div>
+
+  <!-- 4. RS Resurrection -->
+  <div class="card">
+    <div class="card-head"><span class="card-num">04</span><span class="card-title">RS Resurrection</span></div>
+    <p class="card-sub">The fleet probes every flagship organ's live health endpoint. Organs that answer report
+      <span style="color:var(--live)">ok</span>; ones that don't are shown honestly as
+      <span style="color:var(--err)">unreachable</span> — no fabricated green.</p>
+    <p class="card-endpoint">GET <b>/v4/fleet</b></p>
+    <div class="card-controls">
+      <button class="r-btn r-btn-primary" id="b-fleet" onclick="runFleet()">&#9654; Probe the fleet</button>
+    </div>
+    <span class="verdict" id="v-fleet"></span>
+    <div class="out"><div class="out-label"><span>RESULT</span>
+      <span class="out-status"><span class="status-dot" id="d-fleet"></span><span id="s-fleet">idle</span></span></div>
+      <pre class="out-pre" id="o-fleet"></pre></div>
+  </div>
+
+  <!-- 5. One-Signed-Organism -->
+  <div class="card">
+    <div class="card-head"><span class="card-num">05</span><span class="card-title">One-Signed-Organism</span></div>
+    <p class="card-sub">Five organs, one substrate. The mesh state lists the cross-organ wires (a11oy↔sentra,
+      ↔rosie, ↔amaru, ↔vessels) and their live status. Honest labels distinguish in-process wires from
+      cross-Space ones that are not yet brokered.</p>
+    <p class="card-endpoint">GET <b>/api/a11oy/v1/mesh/state</b></p>
+    <div class="card-controls">
+      <button class="r-btn r-btn-primary" id="b-mesh" onclick="runMesh()">&#9654; Show the organism</button>
+    </div>
+    <span class="verdict" id="v-mesh"></span>
+    <div class="out"><div class="out-label"><span>RESULT</span>
+      <span class="out-status"><span class="status-dot" id="d-mesh"></span><span id="s-mesh">idle</span></span></div>
+      <pre class="out-pre" id="o-mesh"></pre></div>
+  </div>
+
+</div>
+
+<div class="honest">
+  <div class="honest-box">
+    <b>Honesty.</b> Λ is <b>Conjecture 1</b>, not a closed theorem — A1–A4 are individually Lean-proved
+    (monotonicity, zero-pinning, Egyptian weights, page-curve concavity), but uniqueness is asserted, not proven.
+    Public proved-formula count is <b>5</b>. SLSA <b>Build L2</b> provenance verifies on all 5 organ images
+    (keyless Fulcio+Rekor, strict identity); the bundle does not yet. No L3 / FedRAMP / Iron Bank / CMMC claims.
+    Receipt signatures are real only when the cosign key is present — otherwise envelopes are labelled UNSIGNED.
+  </div>
+</div>
+
+<footer class="footer">
+  <span class="note">a11oy · governance substrate · by SZL Holdings · Counsel-governed · A11oy-orchestrated</span>
+</footer>
+
+<script>
+const API = '/api/a11oy';
+
+function setS(key, state, text){
+  const d=document.getElementById('d-'+key), s=document.getElementById('s-'+key);
+  d.className='status-dot '+(state||''); s.textContent=text||state||'idle';
+}
+function setO(key, text){ document.getElementById('o-'+key).textContent=text; }
+function setV(key, cls, text){
+  const v=document.getElementById('v-'+key);
+  v.className='verdict show '+cls; v.textContent=text;
+}
+function fmt(o){ return JSON.stringify(o,null,2); }
+function dis(id,b){ document.getElementById(id).disabled=b; }
+
+async function postJSON(path, body){
+  const res=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  let data; try{ data=await res.json(); }catch(e){ data={_raw:await res.text()}; }
+  return {res,data};
+}
+async function getJSON(path){
+  const res=await fetch(path);
+  let data; try{ data=await res.json(); }catch(e){ data={_raw:await res.text()}; }
+  return {res,data};
+}
+
+const ACTION = {severity:'high',confidence:0.92,actionId:'superpowers-demo',
+  witnesses:[{id:'w1',role:'op',attested:true},{id:'w2',role:'auditor',attested:true},{id:'w3',role:'witness',attested:true}]};
+
+async function runReplay(){
+  dis('b-replay',true); setS('replay','loading','replaying…'); setO('replay','');
+  try{
+    const {res,data}=await postJSON('/v1/receipts/replay',{action:ACTION});
+    if(!res.ok) throw new Error('HTTP '+res.status+': '+fmt(data));
+    setV('replay','ok','VERDICT '+(data.replay_decision||'?').toUpperCase()+' · hash '+(data.replay_receipt_hash||'').slice(0,16)+'…');
+    setS('replay','ok','replayed ✓'); setO('replay',fmt(data));
+  }catch(e){ setS('replay','err','error'); setV('replay','err','ERROR'); setO('replay',String(e)); }
+  finally{ dis('b-replay',false); }
+}
+
+async function runTamper(){
+  dis('b-tamper',true); setS('tamper','loading','replaying ×3…'); setO('tamper','');
+  try{
+    const base={action:ACTION};
+    const r1=(await postJSON('/v1/receipts/replay',base)).data;
+    const r2=(await postJSON('/v1/receipts/replay',base)).data;
+    const tampered={action:Object.assign({},ACTION,{confidence:0.50})};
+    const r3=(await postJSON('/v1/receipts/replay',tampered)).data;
+    const repeatable=r1.replay_receipt_hash===r2.replay_receipt_hash;
+    const detected=r1.replay_receipt_hash!==r3.replay_receipt_hash;
+    const summary={
+      baseline_hash:r1.replay_receipt_hash, repeat_hash:r2.replay_receipt_hash,
+      tampered_hash:r3.replay_receipt_hash,
+      baseline_decision:r1.replay_decision, tampered_decision:r3.replay_decision,
+      repeatable, tamper_detected:detected
+    };
+    if(repeatable && detected){ setV('tamper','ok','TAMPER DETECTED · baseline repeatable, tampered hash differs'); setS('tamper','ok','detected ✓'); }
+    else { setV('tamper','warn','INCONCLUSIVE'); setS('tamper','err','check output'); }
+    setO('tamper',fmt(summary));
+  }catch(e){ setS('tamper','err','error'); setV('tamper','err','ERROR'); setO('tamper',String(e)); }
+  finally{ dis('b-tamper',false); }
+}
+
+async function runLambda(collapse){
+  dis('b-lh',true); dis('b-lc',true); setS('lambda','loading',collapse?'collapsing…':'scoring…'); setO('lambda','');
+  try{
+    const axes=collapse
+      ? {soundness:0.0,calibration:0.90,robustness:0.95,provenance:0.90,consent:0.90,reversibility:0.90,auditability:0.88,linearity:0.93,scope_compliance:0.91}
+      : {soundness:0.95,calibration:0.92,robustness:0.95,provenance:0.93,consent:0.94,reversibility:0.91,auditability:0.90,linearity:0.93,scope_compliance:0.92};
+    const {res,data}=await postJSON('/v1/lambda/score',{axes});
+    if(!res.ok) throw new Error('HTTP '+res.status+': '+fmt(data));
+    if(collapse && data.lambda===0){ setV('lambda','ok','Λ COLLAPSED to 0 · gate DENY · zero-pinned'); setS('lambda','ok','collapsed ✓'); }
+    else if(!collapse && data.gate_pass){ setV('lambda','ok','Λ='+data.lambda+' · gate ALLOW'); setS('lambda','ok','scored ✓'); }
+    else { setV('lambda','warn','Λ='+data.lambda+' · gate '+(data.gate_pass?'ALLOW':'DENY')); setS('lambda','ok','scored'); }
+    setO('lambda',fmt(data));
+  }catch(e){ setS('lambda','err','error'); setV('lambda','err','ERROR'); setO('lambda',String(e)); }
+  finally{ dis('b-lh',false); dis('b-lc',false); }
+}
+
+async function runFleet(){
+  dis('b-fleet',true); setS('fleet','loading','probing peers…'); setO('fleet','');
+  try{
+    const {res,data}=await getJSON('/v4/fleet');
+    if(!res.ok) throw new Error('HTTP '+res.status+': '+fmt(data));
+    const peers=data.peers||[];
+    const ok=peers.filter(p=>p.status==='ok').length;
+    setV('fleet','ok',ok+' of '+peers.length+' organs reachable · honest health');
+    setS('fleet','ok','probed ✓'); setO('fleet',fmt(data));
+  }catch(e){ setS('fleet','err','error'); setV('fleet','err','ERROR'); setO('fleet',String(e)); }
+  finally{ dis('b-fleet',false); }
+}
+
+async function runMesh(){
+  dis('b-mesh',true); setS('mesh','loading','reading mesh…'); setO('mesh','');
+  try{
+    const {res,data}=await getJSON(API+'/v1/mesh/state');
+    if(!res.ok) throw new Error('HTTP '+res.status+': '+fmt(data));
+    const wires=data.wires||{};
+    setV('mesh','ok',Object.keys(wires).length+' wires · doctrine '+(data.doctrine||'v11'));
+    setS('mesh','ok','conserved ✓'); setO('mesh',fmt(data));
+  }catch(e){ setS('mesh','err','error'); setV('mesh','err','ERROR'); setO('mesh',String(e)); }
+  finally{ dis('b-mesh',false); }
+}
+</script>
+
+</body>
+</html>
