@@ -13,7 +13,7 @@ tags:
   - agentic-ai
   - doctrine-v11
   - a11oy
-  - slsa-l1
+  - slsa-l2
   - apache-2.0
 ecosystem-stage: "operational"
 ---
