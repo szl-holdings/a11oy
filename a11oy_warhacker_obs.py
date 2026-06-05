@@ -341,7 +341,12 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             except Exception:
                 override = None
         body = override if override is not None else p["request_sample"]
-        organ_resp = _call_organ(p["organ"], p["method"], p["path"], body)
+        # Run the blocking urlopen OFF the event loop. Critical for the a11oy
+        # self-call (P5 Raven -> our own /mesh/state): a sync urlopen on the loop
+        # thread deadlocks the single uvicorn worker (it cannot serve the inbound
+        # loopback request while blocked on the outbound one). to_thread frees the
+        # loop so the self-call completes. Cross-Space organs are unaffected.
+        organ_resp = await _asyncio.to_thread(_call_organ, p["organ"], p["method"], p["path"], body)
 
         receipt = _emit_receipt(app, request, {
             "schema": "szl.a11oy.warhacker_launch/v1",
