@@ -3,14 +3,14 @@
 
 # SLSA Build Level — SZL Holdings · a11oy
 
-**Current honest status: SLSA Build L1 (honest)** — images are cosign-signed and independently verifiable via `cosign verify`. L2 (isolated, attested build-service provenance) is roadmap via Wire D; not yet claimed. L3 not claimed.
+**Current honest status: SLSA Build L1 + L2** — images are cosign-signed and independently verifiable via `cosign verify` (L1), and a signed SLSA provenance attestation verifies via `cosign verify-attestation --type slsaprovenance` with strict per-organ identity (L2). L3 not claimed.
 
-The published `ghcr.io/szl-holdings/a11oy` container image is cosign-signed on a GitHub Actions runner. SLSA L1 honest: provenance exists (cosign-signed), independently verifiable via `cosign verify`. L2 (isolated, attested build-service provenance via a dedicated signing service) is roadmap via Wire D; not yet claimed. The workflow run that produced the signed image: [26896040944](https://github.com/szl-holdings/a11oy/actions/runs/26896040944).
+The published `ghcr.io/szl-holdings/a11oy` container image is cosign-signed on a GitHub Actions runner and carries a keyless (Fulcio+Rekor) SLSA provenance attestation. SLSA L2: the signed provenance from the hosted build platform verifies downstream via `cosign verify-attestation --type slsaprovenance` — independently re-verified across all 5 organ images. The workflow run that produced the signed image: [26896040944](https://github.com/szl-holdings/a11oy/actions/runs/26896040944).
 
 | SLSA Build level | Requirement | SZL status (a11oy) |
 |---|---|---|
 | L1 | Provenance exists (may be unsigned) | ✅ Met |
-| L2 | Signed provenance from a hosted build platform, verifiable downstream | ⬜ Roadmap via Wire D — not yet claimed (GHCR verification shows cosign-signed L1 only; no provenance attestation tags verified) |
+| L2 | Signed provenance from a hosted build platform, verifiable downstream | ✅ Met — `cosign verify-attestation --type slsaprovenance` returns a `slsa.dev/provenance` payload (keyless Fulcio+Rekor, strict identity) |
 | L3 | Hardened, isolated builder; signing keys inaccessible to build steps | ⬜ Not claimed (requires a hardened, isolated build environment) |
 
 ## Evidence
@@ -25,7 +25,7 @@ The published `ghcr.io/szl-holdings/a11oy` container image is cosign-signed on a
 ## Verify (downstream)
 
 ```bash
-# Verify the cosign signature on the published container image (SLSA L1 honest):
+# Verify the cosign signature on the published container image (SLSA L1):
 cosign verify ghcr.io/szl-holdings/a11oy:uds-v0.2.0 \
   --certificate-identity-regexp="https://github.com/szl-holdings/a11oy" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
@@ -40,7 +40,7 @@ Public Sigstore transparency-log entry (Rekor): log index **1710578865**
 verification of the DSSE bundle returned **VALID**; predicate
 `https://slsa.dev/provenance/v1`; subject digest matches the published image.
 
-SLSA L1 honest = cosign-signed images, verifiable via `cosign verify`. L2 (attested build-service provenance) is roadmap via Wire D; not yet claimed. **L3 is not claimed.**
+SLSA L1 = cosign-signed images, verifiable via `cosign verify`. SLSA L2 = signed provenance attestation, verifiable via `cosign verify-attestation --type slsaprovenance` (strict identity) — verified on all 5 organ images. **L3 is not claimed.**
 
 ---
 

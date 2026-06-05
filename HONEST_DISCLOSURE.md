@@ -1,6 +1,6 @@
 # HONEST_DISCLOSURE — a11oy Receipt Signing
 
-**Doctrine:** v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L1 honest  
+**Doctrine:** v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L1 + L2  
 **Date:** 2026-06-03
 
 ## HMAC Receipt Signing

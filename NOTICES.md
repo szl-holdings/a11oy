@@ -1,5 +1,5 @@
 # Third-Party Notices — SZL Holdings Flagships
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest | Generated: 2026-06-03**
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Generated: 2026-06-03**
 
 This file contains notices for third-party libraries used by SZL Holdings flagships.
 

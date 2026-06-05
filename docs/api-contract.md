@@ -1,5 +1,5 @@
 # API Contract — a11oy v1.0
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest | Version: 1.0.0**  
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Version: 1.0.0**  
 **Updated:** 2026-06-03
 
 This document is the canonical API contract for the `a11oy` flagship.
@@ -95,7 +95,17 @@ Flagship-specific endpoints (see per-flagship docs below).
 
 ## SLSA Level
 
-**SLSA L1 (honest disclosure).** L2+ requires Sigstore + isolated builders (roadmap for Series-A).
+**SLSA L1 + L2 (verified).** The published image is cosign-signed (L1) and carries a
+signed SLSA provenance attestation that verifies downstream via
+`cosign verify-attestation --type slsaprovenance` (keyless Fulcio+Rekor, strict
+per-organ identity) — independently verified across all 5 organ images. L3 is not
+claimed (requires a hardened, isolated builder). See
+[`.compliance/SLSA_LEVEL.md`](../.compliance/SLSA_LEVEL.md).
+
+> Note: the live `/api/a11oy/v1/honest` response currently emits the field
+> `"slsa": "L1 (honest)"` verbatim (shown above). That literal field value is the
+> deployed runtime string; the L1 + L2 build-artifact status here describes the
+> cosign-verifiable signing/attestation posture of the published image.
 
 ## Section 889 Compliance
 
