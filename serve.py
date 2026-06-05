@@ -2364,6 +2364,28 @@ async def superpowers_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# REAL PAGES (close-out 2026-06-05): the landing copy advertised a "command
+# console" and a "constitution / wires" view, but /console and /wires had no
+# server route and fell through to the SPA soft-404. These are now genuine
+# house-style pages backed by LIVE endpoints (/v4/fleet, /api/a11oy/v1/mesh/state,
+# /api/a11oy/v1/evidence) — NOT redirects, NOT stubs. Served from pages/ (already
+# COPYed wholesale by the Dockerfile). Registered BEFORE the SPA catch-all.
+@app.get("/console")
+async def command_console_page() -> Response:
+    f = PAGES_DIR / "console.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/wires")
+async def wires_page() -> Response:
+    f = PAGES_DIR / "wires.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/ayni")
 async def ayni_page() -> Response:
     # ADDITIVE (Yachay / AYNI-OS): reciprocity gauges + replay scrubber + Tinkuy meter.
