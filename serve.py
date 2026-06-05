@@ -2220,8 +2220,28 @@ except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
     print(f"[a11oy] Warhacker+Observability NOT mounted ({_wh_obs_e!r}); existing routes unaffected", file=sys.stderr)
 
 
+# Namespaces that are served LOCALLY by registered FastAPI routes above and have
+# NO counterpart on the Node backend. If a request for one of these ever reaches
+# this proxy, the local route failed to match (e.g. registration order regressed
+# after a partial rebuild) — proxying it would hit the Node backend and return a
+# misleading {"error":"not found","path":"/v1/..."}. Instead we answer honestly
+# here so the failure is self-documenting and never silently mis-attributed to
+# the organ. ADDITIVE, defensive: matches nothing in the normal (correct) path.
+_LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/")
+
+
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
+    if path.startswith(_LOCAL_ONLY_A11OY_PREFIXES):
+        return JSONResponse(
+            {"error": "local route unmatched — not proxied to Node backend",
+             "path": f"/api/a11oy/{path}",
+             "hint": "this namespace is served in-process by a11oy_warhacker_obs.register(); "
+                     "a 404 here means its routes did not register before this proxy. "
+                     "Rebuild the Space from the merged build so the local routes load.",
+             "warhacker_index": "/api/a11oy/v1/warhacker/index"},
+            status_code=404,
+        )
     return await proxy_to_backend(request, f"/{path}")
 
 
