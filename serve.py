@@ -2196,6 +2196,30 @@ async def a11oy_version():
     }
 
 
+# ===========================================================================
+# WARHACKER ORCHESTRATION + AI OBSERVABILITY (ADDITIVE, 2026-06-05).
+# a11oy is the orchestrating BRAIN: one launch point for the 5 Warhacker demos
+# (server-side calls to each LIVE organ + a11oy Khipu receipt), plus the flagship
+# AI-observability stack (MELT + distributed tracing, every span a DSSE-signed
+# receipt on the Khipu DAG, Λ-drift detection). CRITICAL ORDERING: registered
+# BEFORE the generic /api/a11oy/{path:path} Node proxy (just below) so the new
+# /api/a11oy/v1/{warhacker,observability}/* routes resolve LOCALLY instead of
+# being shadowed by the proxy (which would 503 when the Node backend is absent).
+# try/except-guarded: can NEVER take down the host app. Honest by construction —
+# an unreachable organ is reported 'unreachable', never fabricated.
+# Λ = Conjecture 1; proved=5; SLSA L2 organ images (not bundle); no L3/FedRAMP.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ===========================================================================
+try:
+    import a11oy_warhacker_obs as _wh_obs
+    _wh_obs_info = _wh_obs.register(app, ns="a11oy")
+    print(f"[a11oy] Warhacker+Observability mounted: {len(_wh_obs_info.get('warhacker', []))} warhacker + "
+          f"{len(_wh_obs_info.get('observability', []))} observability routes, "
+          f"{_wh_obs_info.get('problems')} problems — Doctrine v11", file=sys.stderr)
+except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
+    print(f"[a11oy] Warhacker+Observability NOT mounted ({_wh_obs_e!r}); existing routes unaffected", file=sys.stderr)
+
+
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
     return await proxy_to_backend(request, f"/{path}")
@@ -2324,19 +2348,6 @@ async def superpowers_page() -> Response:
 async def ayni_page() -> Response:
     # ADDITIVE (Yachay / AYNI-OS): reciprocity gauges + replay scrubber + Tinkuy meter.
     f = PAGES_DIR / "ayni.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
-
-
-# /superpowers — Five live, screenshot-provable superpowers (Decision Replay,
-# Tamper Theater, Λ-collapse, RS Resurrection, One-Signed-Organism). Without this
-# explicit route the path fell through to the SPA catch-all, which served index.html
-# (identical bytes to /) — the page looked like the generic landing, not the demo.
-# Served from pages/ (already COPYed wholesale by the Dockerfile) so no image change.
-@app.get("/superpowers")
-async def superpowers_page() -> Response:
-    f = PAGES_DIR / "superpowers.html"
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -2706,6 +2717,17 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
         "lambda": "Conjecture 1 (NOT a theorem — LOCKED)",
         "peers": peers,
     })
+
+
+# --- /warhacker page — a11oy orchestration launchpad for the 5 Warhacker demos.
+# Explicit route wins over the SPA catch-all. Served from pages/ (COPYed wholesale
+# by the Dockerfile) so no image-layout change. ADDITIVE.
+@app.get("/warhacker")
+async def warhacker_page() -> Response:
+    f = PAGES_DIR / "warhacker.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
 
 
 # ---------------------------------------------------------------------------
