@@ -422,11 +422,20 @@ _gates_list: list[dict[str, Any]] = []
 
 
 def load_gates() -> None:
-    global _gates_by_name, _gates_list
+    # Mutate the existing _gates_list / _gates_by_name objects in place rather than
+    # rebinding them. szl_parity_gaps.register() and szl_elite_console.register() are
+    # called at module-import time (below) and capture references to these objects,
+    # but load_gates() runs later inside the startup event. Reassigning the globals
+    # here would leave those modules pointing at the original EMPTY dict — which made
+    # /api/a11oy/v1/receipts/replay return {"error":"Unknown gate: 'thresholdPolicySeverity'",
+    # "available_count":0} (and, via the 3-call flow, broke Tamper detection too).
     if GATES_MANIFEST.exists():
         with open(GATES_MANIFEST) as f:
-            _gates_list = json.load(f)
-        _gates_by_name = {g["name"]: g for g in _gates_list}
+            loaded = json.load(f)
+        _gates_list.clear()
+        _gates_list.extend(loaded)
+        _gates_by_name.clear()
+        _gates_by_name.update({g["name"]: g for g in loaded})
         print(f"[a11oy] Loaded {len(_gates_list)} policy gates from manifest", file=sys.stderr)
     else:
         print(f"[a11oy] WARNING: gates manifest not found at {GATES_MANIFEST}", file=sys.stderr)
@@ -2293,6 +2302,19 @@ async def wallpa_page() -> Response:
 @app.get("/wasi-rikuq")
 async def wasi_rikuq_page() -> Response:
     f = PAGES_DIR / "wasi-rikuq.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# /superpowers — Five live, screenshot-provable superpowers (Decision Replay,
+# Tamper Theater, Λ-collapse, RS Resurrection, One-Signed-Organism). Without this
+# explicit route the path fell through to the SPA catch-all, which served index.html
+# (identical bytes to /) — the page looked like the generic landing, not the demo.
+# Served from pages/ (already COPYed wholesale by the Dockerfile) so no image change.
+@app.get("/superpowers")
+async def superpowers_page() -> Response:
+    f = PAGES_DIR / "superpowers.html"
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
