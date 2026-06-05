@@ -1,43 +1,451 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>a11oy · Observability — single pane</title>
-<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v12 additive · Signed: Yachay · Co-author: Perplexity Computer Agent -->
-<style>
-:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
-header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
-header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
-header .tag{color:var(--mut);font-size:12px}
-nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
-nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
-nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
-nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
-main{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
-h1{font-size:26px;margin:0 0 4px;color:#fff}h2{font-size:18px;margin:28px 0 10px;color:var(--gold)}
-.sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:16px 0}
-.grid a.tile{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink)}
-.grid a.tile:hover{border-color:var(--gold);text-decoration:none}
-.grid a.tile .t{color:var(--gold);font-weight:600;margin-bottom:4px}.grid a.tile .d{color:var(--mut);font-size:12.5px}
-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
-pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
-.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}
-.note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
-footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
-.kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
-</style></head><body>
-<header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
-<nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/observability" class="active">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
-<main><h1>Observability — single pane</h1><p class="sub">One pane for the whole stack: per-flagship uptime/latency (see /status), Khipu DAG depth, Yuyay-13 axis distribution, HUKLLA tripwire firings, and circuit-breaker states. Every external call is wrapped in a Hystrix-style breaker with a named fallback.</p>
-<h2>Circuit breakers (Hystrix semantics)</h2><table><tr><th>Breaker</th><th>Wraps</th><th>State</th><th>Fallback</th></tr><tr><td>llm_router</td><td>HF Router / LLM providers</td><td><span class="pill g">CLOSED</span></td><td>tier-downgrade → cached → honest 503</td></tr><tr><td>hf_hub</td><td>Hugging Face Hub</td><td><span class="pill g">CLOSED</span></td><td>local snapshot</td></tr><tr><td>github</td><td>GitHub API</td><td><span class="pill g">CLOSED</span></td><td>cached read</td></tr><tr><td>ground_link</td><td>satellite / ground-link</td><td><span class="pill g">CLOSED</span></td><td>pre-signed ROE envelope (disconnected edge)</td></tr></table><div class="note">CLOSED→OPEN when failures ≥ threshold in a rolling window; OPEN short-circuits to the fallback and emits a <code>breaker_open</code> Khipu degradation receipt; HALF-OPEN probes with one trial call. Breakers never alter the 13-axis gate math (additive).</div><h2>Khipu DAG &amp; Yuyay</h2><table><tr><th>Signal</th><th>Source</th><th>Posture</th></tr><tr><td>Khipu DAG depth</td><td>Merkle DAG, SHA-256-linked</td><td><span class="pill g">live substrate</span> · off-box store AMBER</td></tr><tr><td>Yuyay-13 distribution</td><td>13-axis yuyay_v3 conjunctive AND</td><td><span class="pill g">LOCKED</span></td></tr><tr><td>HUKLLA firings</td><td>T01–T10 tripwires</td><td><span class="pill g">live</span></td></tr></table><script>
-fetch('/api/a11oy/v1/hub/security-posture').then(r=>r.json()).then(()=>{}).catch(()=>{});
-</script><p class="sub">Source: resilience_observability/CIRCUIT_BREAKER_LAYER.md · DEGRADATION_PATHS.md</p>
-</main>
-<footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>a11oy — AI Observability · MELT + signed traces · SZL Holdings</title>
+  <meta name="description" content="New-Relic-but-signed: MELT (metrics/events/logs/traces) + distributed tracing where every span is a DSSE-signed, replayable receipt on the Khipu DAG. The killer feature traces agent reasoning and flags where it drifts from the Λ-gate."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* a11oy house style — dark-constellation + gold/teal ribbon (matches /warhacker /superpowers) */
+    :root{
+      --ground:#0a0a0a; --panel:#0c0c0c; --panel2:#070707;
+      --gold:#c9b787; --gold-bright:#d6c69a;
+      --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+      --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+      --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+      --teal-line:rgba(95,179,163,0.22);
+      --live:#5a8a6e; --err:#b06a5a; --warn:#c9b787;
+      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+      --display:'Space Grotesk',Georgia,serif;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);
+      font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+    .mono{font-family:var(--mono);}
+    a{color:inherit;}
+    :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}
+    .ribbon{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;
+      flex-wrap:wrap;padding:0.5rem 1.25rem;font-family:var(--mono);font-size:10px;
+      letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);
+      background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--gold-line);}
+    .ribbon .sep{color:var(--dim);}
+    .ribbon .teal{color:var(--teal);}
+    .ribbon .live{display:inline-flex;align-items:center;gap:0.4rem;color:var(--cream);}
+    .ribbon a{margin-left:auto;color:var(--muted);text-decoration:none;}
+    .ribbon a:hover{color:var(--gold);}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);
+      box-shadow:0 0 6px var(--live);animation:pulseDot 2.2s ease-in-out infinite;}
+    @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.35;}}
+    .hero{position:relative;overflow:hidden;padding:3.5rem 1.5rem 2.5rem;text-align:center;}
+    .grid-bg{position:absolute;inset:0;pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+      background-size:56px 56px;
+      -webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);
+      mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);}
+    .hero-inner{position:relative;z-index:2;max-width:64rem;margin:0 auto;}
+    .eyebrow{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .85rem;
+      border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-soft);margin-bottom:1.75rem;}
+    .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);
+      animation:pulseDot 2.2s ease-in-out infinite;}
+    .eyebrow-text{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+    .headline{font-size:clamp(2.4rem,5.5vw,4.4rem);font-weight:300;line-height:1.03;
+      letter-spacing:-.035em;margin:0 0 1.25rem;color:var(--cream);}
+    .headline .accent{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+    .support{font-size:16px;line-height:1.65;color:var(--paragraph);max-width:46rem;margin:0 auto 2rem;}
+    .support b{color:var(--cream);font-weight:500;}
+    .runall{display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;font-size:12.5px;
+      font-weight:500;font-family:var(--mono);border-radius:8px;border:1px solid var(--gold);
+      background:var(--gold);color:var(--ground);cursor:pointer;letter-spacing:.06em;margin-top:.5rem;}
+    .runall:hover{background:var(--gold-bright);}
+    .runall:disabled{opacity:.5;cursor:not-allowed;}
+    .stats{display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem;max-width:62rem;margin:2rem auto 0;}
+    .stat{flex:1 1 150px;min-width:140px;border:1px solid var(--gold-line);border-radius:8px;
+      background:var(--panel);padding:.9rem 1rem;text-align:left;}
+    .stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+    .stat .v{font-size:1.35rem;font-weight:500;color:var(--gold);margin-top:.25rem;}
+    .stat .v.teal{color:var(--teal);}
+    .wrap{max-width:64rem;margin:0 auto;padding:0 1.25rem;}
+    .section{margin:2.5rem auto;}
+    .section-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.4rem;flex-wrap:wrap;}
+    .section-head h2{font-size:1.45rem;font-weight:400;color:var(--cream);letter-spacing:-.02em;margin:0;}
+    .section-head .tag{font-family:var(--mono);font-size:10px;color:var(--teal);border:1px solid var(--teal-line);
+      border-radius:5px;padding:.1rem .4rem;background:var(--teal-soft);text-transform:uppercase;letter-spacing:.08em;}
+    .section-sub{font-size:13px;color:var(--paragraph);line-height:1.6;margin:0 0 1.1rem;max-width:48rem;}
+    .panel{border:1px solid var(--gold-line);border-radius:12px;background:var(--panel);padding:1.3rem 1.4rem 1.5rem;}
+    .controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;align-items:center;}
+    .r-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;font-size:11.5px;
+      font-weight:500;font-family:var(--mono);border-radius:6px;border:1px solid var(--gold-line);
+      background:transparent;color:var(--gold);cursor:pointer;letter-spacing:.04em;
+      transition:background .18s ease,border-color .18s ease;}
+    .r-btn:hover{background:rgba(201,183,135,.08);border-color:rgba(201,183,135,.35);}
+    .r-btn:active{opacity:.75;}
+    .r-btn:disabled{opacity:.4;cursor:not-allowed;}
+    .r-btn-primary{background:var(--gold);color:var(--ground);border-color:var(--gold);}
+    .r-btn-primary:hover{background:var(--gold-bright);border-color:var(--gold-bright);}
+    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem;}
+    .metric{border:1px solid var(--gold-line);border-radius:8px;background:var(--panel2);padding:.8rem .9rem;}
+    .metric .mk{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+    .metric .mv{font-size:1.5rem;font-weight:500;color:var(--gold);margin-top:.2rem;font-family:var(--mono);}
+    .metric .mv.teal{color:var(--teal);}
+    .reach{display:flex;flex-wrap:wrap;gap:.5rem;margin:.4rem 0 1rem;}
+    .reach .organ{display:inline-flex;align-items:center;gap:.45rem;font-family:var(--mono);font-size:11px;
+      padding:.3rem .65rem;border-radius:6px;border:1px solid var(--gold-line);background:var(--panel2);color:var(--paragraph);}
+    .reach .organ .dot{width:7px;height:7px;border-radius:50%;background:var(--dim);}
+    .reach .organ.ok .dot{background:var(--live);box-shadow:0 0 6px var(--live);}
+    .reach .organ.bad .dot{background:var(--err);box-shadow:0 0 6px var(--err);}
+    .reach .organ .lat{color:var(--muted);}
+    .verdict{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--mono);font-size:12px;
+      padding:.35rem .8rem;border-radius:6px;margin-bottom:.7rem;visibility:hidden;}
+    .verdict.show{visibility:visible;}
+    .verdict.ok{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+    .verdict.warn{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+    .verdict.err{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+    .receipt{font-family:var(--mono);font-size:10px;color:var(--teal);margin:-.3rem 0 .7rem;visibility:hidden;word-break:break-all;}
+    .receipt.show{visibility:visible;}
+    .out{position:relative;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel2);overflow:hidden;}
+    .out-label{display:flex;align-items:center;justify-content:space-between;padding:.45rem .85rem;
+      border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:9px;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+    .out-status{display:inline-flex;align-items:center;gap:.4rem;}
+    .status-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .3s;}
+    .status-dot.ok{background:var(--live);box-shadow:0 0 6px var(--live);}
+    .status-dot.err{background:var(--err);box-shadow:0 0 6px var(--err);}
+    .status-dot.loading{background:var(--gold);animation:pulseDot 1s ease-in-out infinite;}
+    .out-pre{margin:0;padding:.85rem;font-family:var(--mono);font-size:10.5px;line-height:1.6;
+      color:var(--paragraph);white-space:pre-wrap;word-break:break-word;max-height:340px;overflow-y:auto;
+      scrollbar-width:thin;scrollbar-color:var(--dim) transparent;}
+    .out-pre:empty::before{content:"— run this query to read the live Khipu DAG —";color:var(--dim);font-style:italic;}
+    /* signed span list */
+    .spans{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem;}
+    .span{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;
+      padding:.45rem .7rem;border:1px solid var(--gold-line);border-radius:6px;background:var(--panel2);}
+    .span .sig{font-size:9px;padding:.05rem .4rem;border-radius:4px;letter-spacing:.06em;text-transform:uppercase;}
+    .span .sig.signed{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+    .span .sig.unsigned{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+    .span .sname{color:var(--cream);}
+    .span .sdigest{color:var(--teal);}
+    .span .sts{color:var(--muted);margin-left:auto;}
+    /* drift form */
+    .axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.6rem;margin-bottom:1rem;}
+    .axis{border:1px solid var(--gold-line);border-radius:7px;background:var(--panel2);padding:.55rem .7rem;}
+    .axis label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;}
+    .axis input[type=range]{width:100%;accent-color:var(--teal);}
+    .axis .av{font-family:var(--mono);font-size:11px;color:var(--gold);float:right;}
+    .axis.weak{border-color:rgba(176,106,90,.45);background:rgba(176,106,90,.06);}
+    .axis.weak label{color:var(--err);}
+    .preset-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem;}
+    .lam-readout{font-family:var(--mono);font-size:13px;color:var(--paragraph);margin:.2rem 0 .9rem;}
+    .lam-readout b{font-size:1.4rem;color:var(--gold);}
+    .honest{margin:0 auto 2rem;}
+    .honest-box{border:1px solid var(--teal-line);border-radius:8px;background:var(--teal-soft);
+      padding:.9rem 1.1rem;font-size:12px;color:var(--paragraph);line-height:1.6;}
+    .honest-box b{color:var(--teal);}
+    .footer{border-top:1px solid var(--gold-line);padding:2rem 1.5rem;text-align:center;margin-top:1rem;}
+    .footer .note{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;}}
+  </style>
+</head>
+<body>
+
+<div class="ribbon">
+  <span>SZL HOLDINGS</span><span class="sep">/</span>
+  <span class="teal">A11OY</span><span class="sep">/</span>
+  <span>AI OBSERVABILITY</span><span class="sep">/</span>
+  <span>MELT · SIGNED TRACES</span><span class="sep">/</span>
+  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+  <a href="/warhacker">Warhacker &rarr;</a>
+</div>
+
+<section class="hero">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="eyebrow">
+      <span class="eyebrow-dot"></span>
+      <span class="eyebrow-text">· a11oy orchestrates · every span is a signed receipt</span>
+    </div>
+    <h1 class="headline">Observability, but <span class="accent">cryptographically true.</span></h1>
+    <p class="support">New-Relic-style <b>MELT</b> (metrics · events · logs · traces) and distributed tracing —
+      except every span is a <b>DSSE-signed, replayable receipt</b> on the Khipu DAG. a11oy collects spans across
+      the mesh, then does the thing dashboards can't: it <b>traces an agent's reasoning and flags where it drifts
+      from the Λ-gate</b>. The drift verdict is a real geometric computation plus a signed receipt — not an LLM opinion.</p>
+    <button class="runall" id="b-refresh" onclick="refreshAll()">&#10227; Refresh live MELT + spans</button>
+    <div class="stats">
+      <div class="stat"><div class="k">DAG depth</div><div class="v" id="st-depth">—</div></div>
+      <div class="stat"><div class="k">Signed spans</div><div class="v teal" id="st-spans">—</div></div>
+      <div class="stat"><div class="k">Organs reachable</div><div class="v" id="st-reach">—</div></div>
+      <div class="stat"><div class="k">Chain verified</div><div class="v teal" id="st-chain">—</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <!-- ===================== MELT SUMMARY ===================== -->
+  <section class="section">
+    <div class="section-head"><h2>MELT rollup</h2><span class="tag">live DAG + health probes</span></div>
+    <p class="section-sub">Metrics &amp; traces are read from the live in-process Khipu DAG; mesh reach is probed
+      against each organ's <code class="mono">/api/health</code>. An unreachable organ is shown honestly — never faked green.</p>
+    <div class="panel">
+      <div class="controls">
+        <button class="r-btn r-btn-primary" id="b-summary" onclick="loadSummary()">&#9654; Pull MELT summary</button>
+      </div>
+      <span class="verdict" id="v-summary"></span>
+      <div class="metrics" id="m-summary"></div>
+      <div class="reach" id="reach-summary"></div>
+      <div class="out"><div class="out-label"><span>OBSERVABILITY / SUMMARY (raw)</span>
+        <span class="out-status"><span class="status-dot" id="d-summary"></span><span id="s-summary">idle</span></span></div>
+        <pre class="out-pre" id="o-summary"></pre></div>
+    </div>
+  </section>
+
+  <!-- ===================== SIGNED SPANS ===================== -->
+  <section class="section">
+    <div class="section-head"><h2>Signed spans</h2><span class="tag">Khipu DAG tail</span></div>
+    <p class="section-sub">Each span is an append-only, hash-chained receipt. The signature is real <b>DSSE (cosign)</b>
+      when a key is wired; otherwise it is honestly labelled <b>UNSIGNED — no key present</b>. <code class="mono">chain_verified</code> proves integrity regardless.</p>
+    <div class="panel">
+      <div class="controls">
+        <button class="r-btn r-btn-primary" id="b-spans" onclick="loadSpans()">&#9654; Read recent signed spans</button>
+      </div>
+      <span class="verdict" id="v-spans"></span>
+      <div class="spans" id="span-list"></div>
+      <div class="out"><div class="out-label"><span>OBSERVABILITY / SPANS (raw)</span>
+        <span class="out-status"><span class="status-dot" id="d-spans"></span><span id="s-spans">idle</span></span></div>
+        <pre class="out-pre" id="o-spans"></pre></div>
+    </div>
+  </section>
+
+  <!-- ===================== DISTRIBUTED TRACE ===================== -->
+  <section class="section">
+    <div class="section-head"><h2>Distributed trace</h2><span class="tag">cross-organ fan-out</span></div>
+    <p class="section-sub">a11oy (the root span) fans out to every organ and collects span-bearing receipts. Each
+      organ span carries <code class="mono">fabricated:false</code>; unreachable organs are reported, not invented.</p>
+    <div class="panel">
+      <div class="controls">
+        <button class="r-btn r-btn-primary" id="b-trace" onclick="loadTrace()">&#9654; Run distributed trace</button>
+      </div>
+      <span class="verdict" id="v-trace"></span>
+      <div class="reach" id="reach-trace"></div>
+      <div class="out"><div class="out-label"><span>OBSERVABILITY / TRACE (raw)</span>
+        <span class="out-status"><span class="status-dot" id="d-trace"></span><span id="s-trace">idle</span></span></div>
+        <pre class="out-pre" id="o-trace"></pre></div>
+    </div>
+  </section>
+
+  <!-- ===================== Λ-DRIFT (KILLER FEATURE) ===================== -->
+  <section class="section">
+    <div class="section-head"><h2>Λ-drift detector</h2><span class="tag">the killer feature</span></div>
+    <p class="section-sub">Score an agent's reasoning on the 9 canonical axes. a11oy computes the <b>real</b> geometric
+      Λ = ∏ xᵢ<sup>wᵢ</sup>. If Λ falls below the floor (0.90), the reasoning has <b>drifted</b> → <b>DENY</b>, and the weak
+      axes are cited as the cause. Zero-pinning: any zero positive-weight axis forces Λ=0. The verdict is emitted as a signed receipt.</p>
+    <div class="panel">
+      <div class="preset-row">
+        <button class="r-btn" onclick="preset('clean')">Preset · clean reasoning</button>
+        <button class="r-btn" onclick="preset('thin')">Preset · thin provenance (drift)</button>
+        <button class="r-btn" onclick="preset('zero')">Preset · zero consent (pinned)</button>
+      </div>
+      <div class="axes" id="axes"></div>
+      <div class="lam-readout">local preview &nbsp;Λ&nbsp;≈&nbsp;<b id="lam-preview">—</b>
+        <span style="color:var(--muted)">(server computes the authoritative value)</span></div>
+      <div class="controls">
+        <button class="r-btn r-btn-primary" id="b-drift" onclick="scoreDrift()">&#9654; Score reasoning vs Λ-gate</button>
+      </div>
+      <span class="verdict" id="v-drift"></span>
+      <div class="receipt" id="rc-drift"></div>
+      <div class="out"><div class="out-label"><span>OBSERVABILITY / DRIFT (raw)</span>
+        <span class="out-status"><span class="status-dot" id="d-drift"></span><span id="s-drift">idle</span></span></div>
+        <pre class="out-pre" id="o-drift"></pre></div>
+    </div>
+  </section>
+
+  <div class="honest">
+    <div class="honest-box">
+      <b>Honesty.</b> Every metric, span, and trace on this page is read from the <b>live in-process Khipu DAG</b>
+      and <b>live organ health probes</b> — no synthetic data. A span's signature reads <b>DSSE (cosign)</b> only when
+      a key is present; otherwise it is labelled <b>UNSIGNED — no key present</b>. The Λ-drift verdict is a real
+      geometric computation, not an LLM judgement. Λ uniqueness is <b>Conjecture 1</b>, not a theorem; proved-formula
+      count is <b>5</b>. SLSA <b>L2</b> build-provenance verifies on the 5 organ images (cosign <code>.att</code>), not
+      the bundle. No L3 / FedRAMP / Iron Bank / CMMC claims. <b>telemetry</b> (an unauthenticated claim) is distinct
+      from a <b>receipt</b> (an attested record).
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <span class="note">a11oy · the orchestrating brain · MELT + signed traces · by SZL Holdings · Counsel-governed</span>
+</footer>
+
+<script>
+const API = '/api/a11oy/v1';
+const CANON = ["soundness","calibration","robustness","provenance","consent","reversibility","auditability","linearity","scope_compliance"];
+const FLOOR = 0.90;
+
+function fmt(o){return JSON.stringify(o,null,2);}
+function setS(key,state,text){const d=document.getElementById('d-'+key),s=document.getElementById('s-'+key);if(d)d.className='status-dot '+(state||'');if(s)s.textContent=text||state||'idle';}
+function setO(key,text){const o=document.getElementById('o-'+key);if(o)o.textContent=text;}
+function setV(key,cls,text){const v=document.getElementById('v-'+key);if(v){v.className='verdict show '+cls;v.textContent=text;}}
+function setRC(key,text){const r=document.getElementById('rc-'+key);if(r){r.className='receipt show';r.textContent=text;}}
+
+function reachHTML(arr){
+  return (arr||[]).map(o=>{
+    const ok=o.status==='ok';
+    const cls=ok?'ok':'bad';
+    const lat=(o.latency_ms!=null)?(' · '+o.latency_ms+'ms'):'';
+    return `<span class="organ ${cls}"><span class="dot"></span>${o.organ} · ${o.status||'?'}${lat}</span>`;
+  }).join('');
+}
+
+async function loadSummary(){
+  const btn=document.getElementById('b-summary'); if(btn)btn.disabled=true;
+  setS('summary','loading','reading DAG + probing organs…'); setO('summary','');
+  try{
+    const res=await fetch(API+'/observability/summary');
+    const j=await res.json();
+    const m=j.melt||{}; const met=m.metrics||{}; const ev=m.events||{}; const tr=m.traces||{};
+    document.getElementById('m-summary').innerHTML=`
+      <div class="metric"><div class="mk">DAG depth</div><div class="mv">${met.dag_depth??'—'}</div></div>
+      <div class="metric"><div class="mk">Signed spans</div><div class="mv teal">${ev.signed_spans??'—'}</div></div>
+      <div class="metric"><div class="mk">Organs reachable</div><div class="mv">${met.organs_reachable??'—'} / ${met.organs_total??'—'}</div></div>
+      <div class="metric"><div class="mk">Chain verified</div><div class="mv teal">${tr.chain_verified===true?'YES':(tr.chain_verified===false?'NO':'—')}</div></div>`;
+    document.getElementById('reach-summary').innerHTML=reachHTML(j.mesh_reach);
+    // hero stats
+    document.getElementById('st-depth').textContent=met.dag_depth??'—';
+    document.getElementById('st-spans').textContent=ev.signed_spans??'—';
+    document.getElementById('st-reach').textContent=(met.organs_reachable??'—')+' / '+(met.organs_total??'—');
+    document.getElementById('st-chain').textContent=tr.chain_verified===true?'YES':(tr.chain_verified===false?'NO':'—');
+    setV('summary','ok','MELT live · '+(met.organs_reachable??0)+'/'+(met.organs_total??0)+' organs reachable · DAG depth '+(met.dag_depth??0));
+    setS('summary','ok','live ✓');
+    setO('summary',fmt(j));
+  }catch(e){ setS('summary','err','error'); setV('summary','err','ERROR'); setO('summary',String(e)); }
+  finally{ if(btn)btn.disabled=false; }
+}
+
+async function loadSpans(){
+  const btn=document.getElementById('b-spans'); if(btn)btn.disabled=true;
+  setS('spans','loading','reading DAG tail…'); setO('spans','');
+  try{
+    const res=await fetch(API+'/observability/spans?limit=25');
+    const j=await res.json();
+    const spans=j.spans||[];
+    if(!j.available){
+      setV('spans','warn','DAG unavailable — '+(j.reason||'honest empty'));
+      document.getElementById('span-list').innerHTML='';
+    }else if(spans.length===0){
+      setV('spans','warn','0 spans yet — DAG present, depth '+(j.depth??0)+' (honest, not faked)');
+      document.getElementById('span-list').innerHTML='';
+    }else{
+      setV('spans','ok',spans.length+' signed span(s) · depth '+(j.depth??'?')+' · chain '+(j.chain&&j.chain.ok?'verified ✓':'?'));
+      document.getElementById('span-list').innerHTML=spans.map(s=>{
+        const signed=!!s.signed;
+        const sig=signed?'<span class="sig signed">DSSE signed</span>':'<span class="sig unsigned">unsigned · no key</span>';
+        const dg=(s.digest||s.span_id||'').slice(0,16);
+        return `<div class="span">${sig}<span class="sname">${s.name||'receipt'}</span>
+          <span class="sdigest">${dg}…</span><span class="sts">${s.ts||''}</span></div>`;
+      }).join('');
+    }
+    setS('spans','ok','live ✓ · backend: '+(j.backend||'?'));
+    setO('spans',fmt(j));
+  }catch(e){ setS('spans','err','error'); setV('spans','err','ERROR'); setO('spans',String(e)); }
+  finally{ if(btn)btn.disabled=false; }
+}
+
+async function loadTrace(){
+  const btn=document.getElementById('b-trace'); if(btn)btn.disabled=true;
+  setS('trace','loading','fanning out to mesh…'); setO('trace','');
+  try{
+    const res=await fetch(API+'/observability/trace');
+    const j=await res.json();
+    const spans=j.organ_spans||[];
+    const reachable=spans.filter(s=>s.status==='ok').length;
+    document.getElementById('reach-trace').innerHTML=reachHTML(spans);
+    setV('trace','ok','trace '+(j.trace_id||'')+' · '+reachable+'/'+spans.length+' organs · '+(j.total_latency_ms??'?')+'ms');
+    setS('trace','ok','live ✓');
+    setO('trace',fmt(j));
+  }catch(e){ setS('trace','err','error'); setV('trace','err','ERROR'); setO('trace',String(e)); }
+  finally{ if(btn)btn.disabled=false; }
+}
+
+// ---- Λ-drift form ----
+function buildAxes(){
+  const root=document.getElementById('axes'); root.innerHTML='';
+  CANON.forEach(a=>{
+    const div=document.createElement('div'); div.className='axis'; div.id='ax-'+a;
+    div.innerHTML=`<label>${a.replace(/_/g,' ')}<span class="av" id="av-${a}">1.00</span></label>
+      <input type="range" min="0" max="1" step="0.01" value="1" id="in-${a}" oninput="onAxis()">`;
+    root.appendChild(div);
+  });
+  onAxis();
+}
+function axesValues(){
+  const o={}; CANON.forEach(a=>{o[a]=parseFloat(document.getElementById('in-'+a).value);}); return o;
+}
+function localLambda(ax){
+  // mirror of server geometric mean (preview only — server is authoritative)
+  const wi=1/CANON.length; let logsum=0, zero=false;
+  CANON.forEach(a=>{const xi=Math.max(0,Math.min(1,ax[a]??0)); if(xi<=0){zero=true;logsum=-Infinity;} else if(xi<1){logsum+=wi*Math.log(xi);}});
+  return zero?0:(logsum>-Infinity?Math.exp(logsum):0);
+}
+function onAxis(){
+  const ax=axesValues();
+  CANON.forEach(a=>{
+    document.getElementById('av-'+a).textContent=ax[a].toFixed(2);
+    document.getElementById('ax-'+a).classList.toggle('weak',ax[a]<FLOOR);
+  });
+  const lam=localLambda(ax);
+  const el=document.getElementById('lam-preview');
+  el.textContent=lam.toFixed(4);
+  el.style.color=(lam<FLOOR)?'var(--err)':'var(--gold)';
+}
+function preset(kind){
+  const set=(o)=>{CANON.forEach(a=>{document.getElementById('in-'+a).value=(a in o)?o[a]:1;}); onAxis();};
+  if(kind==='clean') set({});
+  if(kind==='thin') set({provenance:0.2,auditability:0.55});
+  if(kind==='zero') set({consent:0});
+}
+async function scoreDrift(){
+  const btn=document.getElementById('b-drift'); if(btn)btn.disabled=true;
+  setS('drift','loading','computing Λ + signing receipt…'); setO('drift','');
+  const ax=axesValues();
+  const claim={clean:'agent reasoning across all axes',thin:'agent asserted X with thin provenance',zero:'action without consent'};
+  try{
+    const res=await fetch(API+'/observability/drift',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({axes:ax,lambda_floor:FLOOR,claim:'observability page drift check'})});
+    const j=await res.json();
+    if(j.drift_detected){
+      const cause=(j.drift_cause||[]).map(c=>c.axis+'='+c.score).join(', ');
+      setV('drift','err','Λ='+j.lambda+' < '+j.lambda_floor+' · DRIFT → DENY · cause: '+(cause||'zero-pinned'));
+    }else{
+      setV('drift','ok','Λ='+j.lambda+' ≥ '+j.lambda_floor+' · within gate → ALLOW');
+    }
+    const rc=j.a11oy_receipt||{};
+    if(rc.digest) setRC('drift','a11oy receipt '+String(rc.digest).slice(0,16)+'… · '+(rc.signed?'SIGNED':'UNSIGNED (no key)'));
+    setS('drift','ok','live ✓ · real geometric Λ');
+    setO('drift',fmt(j));
+  }catch(e){ setS('drift','err','error'); setV('drift','err','ERROR'); setO('drift',String(e)); }
+  finally{ if(btn)btn.disabled=false; }
+}
+
+async function refreshAll(){
+  const b=document.getElementById('b-refresh'); b.disabled=true;
+  await loadSummary();
+  await loadSpans();
+  b.disabled=false;
+}
+
+// init: build the Λ form and pull the live MELT summary once.
+(function init(){
+  buildAxes();
+  loadSummary();
+})();
+</script>
+
+</body>
+</html>

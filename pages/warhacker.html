@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>a11oy — Warhacker Orchestration · SZL Holdings</title>
+  <meta name="description" content="a11oy is the single launch point for the 5 approved Warhacker demos. Each button calls the live organ endpoint and renders the real result + a signed receipt."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* a11oy house style — dark-constellation + gold/teal ribbon (matches /superpowers) */
+    :root{
+      --ground:#0a0a0a; --panel:#0c0c0c; --panel2:#070707;
+      --gold:#c9b787; --gold-bright:#d6c69a;
+      --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+      --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+      --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+      --teal-line:rgba(95,179,163,0.22);
+      --live:#5a8a6e; --err:#b06a5a;
+      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+      --display:'Space Grotesk',Georgia,serif;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);
+      font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+    .mono{font-family:var(--mono);}
+    a{color:inherit;}
+    :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}
+    .ribbon{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;
+      flex-wrap:wrap;padding:0.5rem 1.25rem;font-family:var(--mono);font-size:10px;
+      letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);
+      background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--gold-line);}
+    .ribbon .sep{color:var(--dim);}
+    .ribbon .teal{color:var(--teal);}
+    .ribbon .live{display:inline-flex;align-items:center;gap:0.4rem;color:var(--cream);}
+    .ribbon a{margin-left:auto;color:var(--muted);text-decoration:none;}
+    .ribbon a:hover{color:var(--gold);}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);
+      box-shadow:0 0 6px var(--live);animation:pulseDot 2.2s ease-in-out infinite;}
+    @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.35;}}
+    .hero{position:relative;overflow:hidden;padding:3.5rem 1.5rem 2.5rem;text-align:center;}
+    .grid-bg{position:absolute;inset:0;pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+      background-size:56px 56px;
+      -webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);
+      mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);}
+    .hero-inner{position:relative;z-index:2;max-width:64rem;margin:0 auto;}
+    .eyebrow{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .85rem;
+      border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-soft);margin-bottom:1.75rem;}
+    .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);
+      animation:pulseDot 2.2s ease-in-out infinite;}
+    .eyebrow-text{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+    .headline{font-size:clamp(2.4rem,5.5vw,4.4rem);font-weight:300;line-height:1.03;
+      letter-spacing:-.035em;margin:0 0 1.25rem;color:var(--cream);}
+    .headline .accent{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+    .support{font-size:16px;line-height:1.65;color:var(--paragraph);max-width:44rem;margin:0 auto 2rem;}
+    .runall{display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;font-size:12.5px;
+      font-weight:500;font-family:var(--mono);border-radius:8px;border:1px solid var(--gold);
+      background:var(--gold);color:var(--ground);cursor:pointer;letter-spacing:.06em;margin-top:.5rem;}
+    .runall:hover{background:var(--gold-bright);}
+    .runall:disabled{opacity:.5;cursor:not-allowed;}
+    .stats{display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem;max-width:60rem;margin:2rem auto 0;}
+    .stat{flex:1 1 150px;min-width:140px;border:1px solid var(--gold-line);border-radius:8px;
+      background:var(--panel);padding:.9rem 1rem;text-align:left;}
+    .stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+    .stat .v{font-size:1.35rem;font-weight:500;color:var(--gold);margin-top:.25rem;}
+    .stat .v.teal{color:var(--teal);}
+    .grid{max-width:64rem;margin:2.75rem auto 4rem;padding:0 1.25rem;
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.25rem;}
+    .card{border:1px solid var(--gold-line);border-radius:12px;background:var(--panel);
+      padding:1.4rem 1.4rem 1.6rem;display:flex;flex-direction:column;}
+    .card-head{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.5rem;flex-wrap:wrap;}
+    .card-num{font-family:var(--mono);font-size:11px;color:var(--teal);border:1px solid var(--teal-line);
+      border-radius:5px;padding:.1rem .4rem;background:var(--teal-soft);}
+    .card-organ{font-family:var(--mono);font-size:10px;color:var(--gold);border:1px solid var(--gold-line);
+      border-radius:5px;padding:.1rem .4rem;background:var(--gold-soft);text-transform:uppercase;letter-spacing:.08em;}
+    .card-title{font-size:1.1rem;font-weight:500;color:var(--cream);letter-spacing:-.01em;}
+    .card-sub{font-size:12.5px;color:var(--paragraph);line-height:1.6;margin:0 0 1rem;}
+    .card-endpoint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:1rem;word-break:break-all;}
+    .card-endpoint b{color:var(--gold);font-weight:500;}
+    .card-controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;}
+    .r-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;font-size:11.5px;
+      font-weight:500;font-family:var(--mono);border-radius:6px;border:1px solid var(--gold-line);
+      background:transparent;color:var(--gold);cursor:pointer;letter-spacing:.04em;
+      transition:background .18s ease,border-color .18s ease;}
+    .r-btn:hover{background:rgba(201,183,135,.08);border-color:rgba(201,183,135,.35);}
+    .r-btn:active{opacity:.75;}
+    .r-btn:disabled{opacity:.4;cursor:not-allowed;}
+    .r-btn-primary{background:var(--gold);color:var(--ground);border-color:var(--gold);}
+    .r-btn-primary:hover{background:var(--gold-bright);border-color:var(--gold-bright);}
+    .verdict{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--mono);font-size:11px;
+      padding:.2rem .6rem;border-radius:5px;margin-bottom:.6rem;visibility:hidden;}
+    .verdict.show{visibility:visible;}
+    .verdict.ok{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+    .verdict.warn{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+    .verdict.err{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+    .receipt{font-family:var(--mono);font-size:10px;color:var(--teal);margin:-.2rem 0 .6rem;visibility:hidden;}
+    .receipt.show{visibility:visible;}
+    .out{position:relative;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel2);
+      overflow:hidden;margin-top:auto;}
+    .out-label{display:flex;align-items:center;justify-content:space-between;padding:.45rem .85rem;
+      border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:9px;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+    .out-status{display:inline-flex;align-items:center;gap:.4rem;}
+    .status-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .3s;}
+    .status-dot.ok{background:var(--live);box-shadow:0 0 6px var(--live);}
+    .status-dot.err{background:var(--err);box-shadow:0 0 6px var(--err);}
+    .status-dot.loading{background:var(--gold);animation:pulseDot 1s ease-in-out infinite;}
+    .out-pre{margin:0;padding:.85rem;font-family:var(--mono);font-size:10.5px;line-height:1.6;
+      color:var(--paragraph);white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto;
+      scrollbar-width:thin;scrollbar-color:var(--dim) transparent;}
+    .out-pre:empty::before{content:"— launch this demo to call the live organ —";color:var(--dim);font-style:italic;}
+    .footer{border-top:1px solid var(--gold-line);padding:2rem 1.5rem;text-align:center;}
+    .footer .note{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+    .honest{max-width:64rem;margin:0 auto 2rem;padding:0 1.25rem;}
+    .honest-box{border:1px solid var(--teal-line);border-radius:8px;background:var(--teal-soft);
+      padding:.9rem 1.1rem;font-size:12px;color:var(--paragraph);line-height:1.6;}
+    .honest-box b{color:var(--teal);}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;}}
+  </style>
+</head>
+<body>
+
+<div class="ribbon">
+  <span>SZL HOLDINGS</span><span class="sep">/</span>
+  <span class="teal">A11OY</span><span class="sep">/</span>
+  <span>WARHACKER ORCHESTRATION</span><span class="sep">/</span>
+  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
+  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+  <a href="/observability">Observability &rarr;</a>
+</div>
+
+<section class="hero">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="eyebrow">
+      <span class="eyebrow-dot"></span>
+      <span class="eyebrow-text">· a11oy orchestrates · five live organ proofs</span>
+    </div>
+    <h1 class="headline">Five Warhacker problems. One <span class="accent">launch point.</span></h1>
+    <p class="support">a11oy is the orchestrating brain. Each launch below calls the <b>live organ endpoint</b>
+      server-side — killinchu, sentra, amaru, a11oy — renders the organ's <b>real JSON</b>, and records an
+      a11oy Khipu receipt of the orchestration. No mock data; an unreachable organ is shown honestly.</p>
+    <button class="runall" id="b-all" onclick="runAll()">&#9654; Launch all 5 demos</button>
+    <div class="stats">
+      <div class="stat"><div class="k">Approved problems</div><div class="v">5</div></div>
+      <div class="stat"><div class="k">Live organs</div><div class="v">4</div></div>
+      <div class="stat"><div class="k">Λ status</div><div class="v teal">Conjecture 1</div></div>
+      <div class="stat"><div class="k">SLSA</div><div class="v teal">L2 · organ images</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="grid" id="cards"></div>
+
+<div class="honest">
+  <div class="honest-box">
+    <b>Honesty.</b> Each card's RESULT panel is the <b>live organ's real response</b> — fetched
+    server-side by a11oy. <b>telemetry</b> (an unauthenticated claim) is distinct from a <b>receipt</b>
+    (an attested record); the a11oy receipt line shows whether the orchestration receipt is signed
+    (a key is present) or <b>UNSIGNED</b>. Λ is <b>Conjecture 1</b>, not a theorem; proved-formula count
+    is <b>5</b>. SLSA <b>L2</b> build-provenance verifies on the 5 organ images (cosign <code>.att</code>),
+    not the bundle. No L3 / FedRAMP / Iron Bank / CMMC claims. Organs unreachable from the browser are
+    reported as such — never faked green.
+  </div>
+</div>
+
+<footer class="footer">
+  <span class="note">a11oy · the orchestrating brain · by SZL Holdings · Counsel-governed</span>
+</footer>
+
+<script>
+const API = '/api/a11oy/v1';
+
+// Static fallback catalog (mirrors the backend WARHACKER_PROBLEMS). The page
+// also fetches /warhacker/index at load and prefers the live catalog.
+const PROBLEMS = [
+  {id:'P1',key:'cannonico',title:'Cannonico — AI-drone oversight',organ:'killinchu',
+   method:'POST',path:'/api/killinchu/v1/cannonico/mission/begin',
+   proves:'Begins a governed oversight mission; killinchu returns a DSSE-signed anchor receipt. Engage decisions are gated; an envelope breach is BREACH-flagged + signed.'},
+  {id:'P2',key:'tychee',title:'Tychee — satellite GSW air-gap',organ:'sentra',
+   method:'GET',path:'/api/sentra/v1/gates',
+   proves:"sentra's deny-by-default immune gates (signature-scan, intrusion, supply-chain). Every action is matched against the gate corpus before it is allowed."},
+  {id:'P3',key:'hangar2apps',title:'HANGAR2APPS — readiness screening',organ:'amaru',
+   method:'POST',path:'/api/amaru/v1/readiness/assess',
+   proves:'amaru returns a cited DEPLOYABLE/NOT_DEPLOYABLE/NEEDS_REVIEW verdict; every PASS cites the exact record. Missing data forces NEEDS_REVIEW — it refuses to fabricate.'},
+  {id:'P4',key:'cyber-rts',title:'Cyber RTS — trajectory triage',organ:'amaru',
+   method:'POST',path:'/api/amaru/v1/trajectory/triage',
+   proves:'amaru contextualizes a track and flags anomalies (NOMINAL/ANOMALOUS); each flag cites its numeric field + the violated envelope. Absent fields force INSUFFICIENT_EVIDENCE.'},
+  {id:'P5',key:'raven',title:'Raven Tactical — edge AI mesh',organ:'a11oy',
+   method:'GET',path:'/api/a11oy/v1/mesh/state',
+   proves:"a11oy's conserved signed mesh (wires D/E/F): the one-signed-organism state tying the edge organs together. Every wire is live in-process; the mesh is conservation-checked."},
+];
+
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+function fmt(o){return JSON.stringify(o,null,2);}
+
+function buildCards(list){
+  const root=document.getElementById('cards'); root.innerHTML='';
+  list.forEach(p=>{
+    const card=el('div','card');
+    card.innerHTML=`
+      <div class="card-head">
+        <span class="card-num">${p.id}</span>
+        <span class="card-organ">${p.organ}</span>
+        <span class="card-title">${p.title}</span>
+      </div>
+      <p class="card-sub">${p.proves}</p>
+      <p class="card-endpoint">${p.method} <b>${p.path}</b> &nbsp;·&nbsp; via a11oy <b>/warhacker/launch/${p.key}</b></p>
+      <div class="card-controls">
+        <button class="r-btn r-btn-primary" id="b-${p.key}">&#9654; Launch demo</button>
+      </div>
+      <span class="verdict" id="v-${p.key}"></span>
+      <div class="receipt" id="rc-${p.key}"></div>
+      <div class="out"><div class="out-label"><span>LIVE ORGAN RESULT</span>
+        <span class="out-status"><span class="status-dot" id="d-${p.key}"></span><span id="s-${p.key}">idle</span></span></div>
+        <pre class="out-pre" id="o-${p.key}"></pre></div>`;
+    root.appendChild(card);
+    card.querySelector('#b-'+p.key).addEventListener('click',()=>launch(p.key));
+  });
+}
+
+function setS(key,state,text){const d=document.getElementById('d-'+key),s=document.getElementById('s-'+key);if(d)d.className='status-dot '+(state||'');if(s)s.textContent=text||state||'idle';}
+function setO(key,text){const o=document.getElementById('o-'+key);if(o)o.textContent=text;}
+function setV(key,cls,text){const v=document.getElementById('v-'+key);if(v){v.className='verdict show '+cls;v.textContent=text;}}
+function setRC(key,text){const r=document.getElementById('rc-'+key);if(r){r.className='receipt show';r.textContent=text;}}
+
+function organVerdict(key,j){
+  // Pull the human headline out of each organ's real response shape.
+  try{
+    if(key==='cannonico') return 'mission '+(j.mission_id||'?')+' · anchor receipt signed='+!!(j.anchor_receipt&&j.anchor_receipt.dsse&&j.anchor_receipt.dsse.signatures);
+    if(key==='tychee') return (j.total||(j.gates||[]).length)+' immune gates · deny-by-default';
+    if(key==='hangar2apps') return 'VERDICT '+((j.assessment||{}).verdict||'?')+' · cited';
+    if(key==='cyber-rts') return 'VERDICT '+((j.triage||{}).verdict||'?')+' · '+(((j.triage||{}).flags||[]).length)+' flag(s)';
+    if(key==='raven') return Object.keys(j.wires||{}).length+' wires · doctrine '+(j.doctrine||'v11');
+  }catch(e){}
+  return 'organ responded';
+}
+
+async function launch(key){
+  const btn=document.getElementById('b-'+key); if(btn)btn.disabled=true;
+  setS(key,'loading','calling organ…'); setO(key,'');
+  try{
+    const res=await fetch(API+'/warhacker/launch/'+key,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    let data; try{data=await res.json();}catch(e){data={_raw:await res.text()};}
+    const org=data.organ_response||{};
+    if(org.status==='ok'){
+      setV(key,'ok',organVerdict(key,org.json||{}));
+      setS(key,'ok','live ✓ ('+org.latency_ms+'ms)');
+    }else if(org.status==='unreachable'){
+      setV(key,'warn','ORGAN UNREACHABLE — honest, not faked');
+      setS(key,'err','unreachable');
+    }else{
+      setV(key,'err','ORGAN ERROR '+(org.http_code||''));
+      setS(key,'err','error');
+    }
+    const rc=data.a11oy_receipt||{};
+    if(rc.digest) setRC(key,'a11oy receipt '+String(rc.digest).slice(0,16)+'… · '+(rc.signed?'SIGNED':'UNSIGNED (no key)'));
+    setO(key,fmt(data));
+  }catch(e){ setS(key,'err','error'); setV(key,'err','ERROR'); setO(key,String(e)); }
+  finally{ if(btn)btn.disabled=false; }
+}
+
+async function runAll(){
+  const b=document.getElementById('b-all'); b.disabled=true;
+  for(const p of PROBLEMS){ await launch(p.key); }
+  b.disabled=false;
+}
+
+// Prefer the live backend catalog; fall back to the static list.
+(async function init(){
+  buildCards(PROBLEMS);
+  try{
+    const r=await fetch(API+'/warhacker/index');
+    if(r.ok){ const j=await r.json(); if(j.problems&&j.problems.length){ buildCards(j.problems); } }
+  }catch(e){/* static catalog already rendered */}
+})();
+</script>
+
+</body>
+</html>
