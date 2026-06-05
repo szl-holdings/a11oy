@@ -150,6 +150,9 @@ async function postJSON(p,b){const r=await fetch(p,{method:'POST',headers:{'Cont
 function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function el(id){return document.getElementById(id);}
 function setOut(id,obj){const e=el(id);if(e)e.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,2);}
+function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
+function setTxt(id,t){const e=el(id);if(e)e.textContent=t;}
+function addHTML(id,html){const e=el(id);if(e)e.insertAdjacentHTML('beforeend',html);}
 
 const HONEST='<div class="honesty"><b>Honesty.</b> Every panel reads a live a11oy endpoint — no mock data. Λ is <b>Conjecture 1</b>, never a theorem. Proved formulas = <b>5</b> {F1,F11,F12,F18,F19}. SLSA <b>Build L2</b> on all 5 organ images. No L3 / FedRAMP / Iron Bank / CMMC. Receipts are real DSSE when a key is present, honest UNSIGNED otherwise.</div>';
 
@@ -169,19 +172,19 @@ const VIEWS={
         </div>${HONEST}`;
       // fleet
       try{const d=await getJSON('/v4/fleet');const peers=d.peers||d.organs||{};const entries=Array.isArray(peers)?peers.map(p=>[p.flagship||p.name,p]):Object.entries(peers);
-        let ok=0;const host=el('fleet');host.innerHTML='';
+        let ok=0;setHTML('fleet','');
         entries.forEach(([n,p])=>{const up=(p.status||'').toLowerCase()==='ok'||p.reachable===true||p.http_code===200;if(up)ok++;
-          host.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'OK':'DOWN'}</span><span>${esc(n||'organ')}</span><span class="spacer mono dim">${p.latency_ms?Math.round(p.latency_ms)+'ms':''}</span></div>`);});
-        el('k-fleet').textContent=entries.length?ok+'/'+entries.length:'—';}catch(e){el('fleet').innerHTML='<div class="row mono dim">fleet retrying… (transient egress)</div>';}
+          addHTML('fleet',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'OK':'DOWN'}</span><span>${esc(n||'organ')}</span><span class="spacer mono dim">${p.latency_ms?Math.round(p.latency_ms)+'ms':''}</span></div>`);});
+        setTxt('k-fleet',entries.length?ok+'/'+entries.length:'—');}catch(e){setHTML('fleet','<div class="row mono dim">fleet retrying… (transient egress)</div>');}
       // mesh
-      try{const d=await getJSON(API+'/v1/mesh/state');const w=d.wires||{};el('k-wires').textContent=Object.keys(w).length;const h=el('cmesh');h.innerHTML='';
-        Object.entries(w).forEach(([k,v])=>h.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge b-teal">${k}</span><span>${esc(v.edge)}</span><span class="spacer badge ${String(v.status).includes('PROCESS')?'b-gold':'b-live'}">${esc(v.status)}</span></div>`));}catch(e){el('cmesh').innerHTML='<div class="row mono dim">mesh retrying…</div>';}
+      try{const d=await getJSON(API+'/v1/mesh/state');const w=d.wires||{};setTxt('k-wires',Object.keys(w).length);setHTML('cmesh','');
+        Object.entries(w).forEach(([k,v])=>addHTML('cmesh',`<div class="row"><span class="badge b-teal">${k}</span><span>${esc(v.edge)}</span><span class="spacer badge ${String(v.status).includes('PROCESS')?'b-gold':'b-live'}">${esc(v.status)}</span></div>`));}catch(e){setHTML('cmesh','<div class="row mono dim">mesh retrying…</div>');}
       // evidence
-      try{const d=await getJSON(API+'/v1/evidence');if(d.passed!=null)el('k-evid').textContent=d.passed+'/'+d.total_assertions;const h=el('cevid');
-        h.innerHTML=`<div class="row"><span>Declarations</span><span class="spacer b-gold badge">${d.canonical?.declarations??'—'}</span></div>
+      try{const d=await getJSON(API+'/v1/evidence');if(d.passed!=null)setTxt('k-evid',d.passed+'/'+d.total_assertions);
+        setHTML('cevid',`<div class="row"><span>Declarations</span><span class="spacer b-gold badge">${d.canonical?.declarations??'—'}</span></div>
         <div class="row"><span>Axioms</span><span class="spacer b-gold badge">${d.canonical?.axioms??'—'}</span></div>
         <div class="row"><span>Assertions passed</span><span class="spacer b-live badge">${d.passed}/${d.total_assertions}</span></div>
-        <div class="row"><span>Lean repo</span><span class="spacer mono dim">lutar-lean</span></div>`;}catch(e){el('cevid').innerHTML='<div class="row mono dim">evidence retrying…</div>';}
+        <div class="row"><span>Lean repo</span><span class="spacer mono dim">lutar-lean</span></div>`);}catch(e){setHTML('cevid','<div class="row mono dim">evidence retrying…</div>');}
     }},
   superpowers:{title:'Five Superpowers',badge:'LIVE',sub:'Five screenshot-provable superpowers. Each button POSTs/GETs a real a11oy endpoint and renders the raw response — Decision Replay, Tamper Theater, Λ-collapse, Resurrection, One-Signed-Organism.',
     render:(c)=>{c.innerHTML=`
@@ -233,17 +236,17 @@ async function wh_one(key,out){try{setOut(out,'launching…');const d=await post
 async function wh_all(){for(const k of ['cannonico','tychee','hangar2apps','cyber-rts','raven']){await wh_one(k,'o-'+k);}}
 // observability
 async function obs_load(){try{const d=await getJSON(API+'/v1/observability/summary');const raw=JSON.stringify(d);const m=raw.match(/"organs_reachable":\s*(\d+)/),t=raw.match(/"organs_total":\s*(\d+)/);
-  el('ok-mesh').textContent=(m?m[1]:'?')+'/'+(t?t[1]:'?');const mr=d.mesh_reach||{};const h=el('obs-mesh');h.innerHTML='';
-  Object.entries(mr).forEach(([k,v])=>h.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status)}</span><span>${esc(k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} ${esc(v.url||'')}</span></div>`));
-  if(!Object.keys(mr).length)h.innerHTML='<div class="row mono dim">summary loaded — see KPI</div>';}catch(e){el('obs-mesh').innerHTML='<div class="row mono dim">retry: '+e.message+'</div>';}
-  try{const s=await getJSON(API+'/v1/observability/spans');el('ok-spans').textContent=(s.spans||s.nodes||[]).length||s.signed_spans||'—';el('ok-chain').textContent=s.chain_verified?'YES':(s.chain_verified===false?'no':'—');setOut('obs-spans',s);}catch(e){setOut('obs-spans','retry: '+e.message);}}
+  setTxt('ok-mesh',(m?m[1]:'?')+'/'+(t?t[1]:'?'));const mr=d.mesh_reach||{};setHTML('obs-mesh','');
+  Object.entries(mr).forEach(([k,v])=>addHTML('obs-mesh',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status)}</span><span>${esc(k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} ${esc(v.url||'')}</span></div>`));
+  if(!Object.keys(mr).length)setHTML('obs-mesh','<div class="row mono dim">summary loaded — see KPI</div>');}catch(e){setHTML('obs-mesh','<div class="row mono dim">retry: '+e.message+'</div>');}
+  try{const s=await getJSON(API+'/v1/observability/spans');setTxt('ok-spans',(s.spans||s.nodes||[]).length||s.signed_spans||'—');setTxt('ok-chain',s.chain_verified?'YES':(s.chain_verified===false?'no':'—'));setOut('obs-spans',s);}catch(e){setOut('obs-spans','retry: '+e.message);}}
 // wires
-async function wires_load(){const h=el('wires-host');try{const d=await getJSON(API+'/v1/mesh/state');const w=d.wires||{};h.innerHTML='';
-  Object.entries(w).forEach(([k,v])=>h.insertAdjacentHTML('beforeend',`<div class="card"><div class="card-h"><span class="badge b-teal">Wire ${k}</span><span class="card-t">${esc(v.edge)}</span><span class="spacer badge ${String(v.status).includes('PROCESS')?'b-gold':'b-live'}">${esc(v.status)}</span></div><div class="mono" style="font-size:11.5px;color:var(--paragraph)">${esc(v.detail)}</div></div>`));}catch(e){h.innerHTML='<div class="row mono dim">retry: '+e.message+'</div>';}}
+async function wires_load(){try{const d=await getJSON(API+'/v1/mesh/state');const w=d.wires||{};setHTML('wires-host','');
+  Object.entries(w).forEach(([k,v])=>addHTML('wires-host',`<div class="card"><div class="card-h"><span class="badge b-teal">Wire ${k}</span><span class="card-t">${esc(v.edge)}</span><span class="spacer badge ${String(v.status).includes('PROCESS')?'b-gold':'b-live'}">${esc(v.status)}</span></div><div class="mono" style="font-size:11.5px;color:var(--paragraph)">${esc(v.detail)}</div></div>`));}catch(e){setHTML('wires-host','<div class="row mono dim">retry: '+e.message+'</div>');}}
 // mesh
-async function mesh_load(){const h=el('mesh-host');try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};h.innerHTML='';
-  if(!Object.keys(mr).length){h.innerHTML='<pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre>';return;}
-  Object.entries(mr).forEach(([k,v])=>h.insertAdjacentHTML('beforeend',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status)}</span><span>${esc(k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} · ${esc(v.url||'')}</span></div>`));}catch(e){h.innerHTML='<div class="row mono dim">retry: '+e.message+'</div>';}}
+async function mesh_load(){try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};setHTML('mesh-host','');
+  if(!Object.keys(mr).length){setHTML('mesh-host','<pre class="out">'+esc(JSON.stringify(d,null,2))+'</pre>');return;}
+  Object.entries(mr).forEach(([k,v])=>addHTML('mesh-host',`<div class="row"><span class="badge ${(v.status==='ok')?'b-live':'b-err'}">${esc(v.status)}</span><span>${esc(k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} · ${esc(v.url||'')}</span></div>`));}catch(e){setHTML('mesh-host','<div class="row mono dim">retry: '+e.message+'</div>');}}
 
 function go(view){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
