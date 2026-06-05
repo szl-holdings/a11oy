@@ -93,6 +93,20 @@ except Exception as _be_e:
 # ── BE hardening (Greene) — szl_be_hardening ── end
 
 
+async def _safe_json_body(request: Request):
+    """Parse a JSON request body, tolerating empty/malformed input.
+
+    Returns (body, error_response). On a parse failure the caller should return
+    error_response (a 400) instead of letting request.json() raise — an
+    unguarded raise becomes an opaque HTTP 500 with a trace_id, which is both a
+    poor judge/demo experience and a minor error-shape leak. QA-hardened.
+    """
+    try:
+        return await request.json(), None
+    except Exception:
+        return None, JSONResponse({"error": "invalid JSON body"}, status_code=400)
+
+
 # ADDITIVE (mesh wire-up, Dev2): cross-pod vsp-otel tracing (W3C traceparent + OTLP/gRPC).
 try:
     from vsp_otel.middleware import install as install_vsp; install_vsp(app)
@@ -163,7 +177,7 @@ except Exception as _th_e:
 #   POST /api/a11oy/khipu/sign     — DSSE-sign a receipt (real ECDSA-P256 cosign sig)
 #   POST /api/a11oy/khipu/verify   — verify a DSSE envelope against cosign.pub
 #   GET  /api/a11oy/khipu/ledger   — signed Khipu Merkle DAG
-#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest + L2 attested (Wire D LIVE; SLSA Provenance v1, cosign keyless-verified))
+#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest: cosign keyless-verified image; L2 build-provenance attestation roadmap via Wire D, not yet claimed; L3 not claimed)
 # The Wire-D middleware echoes traceparent on EVERY response (incl. the Node-proxy
 # catch-all) so trace continuity holds across the whole Space. Real signatures only
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
@@ -363,8 +377,9 @@ for _organ_mod, _organ_label in (
 # and win ordering. The package root /app/src is added to sys.path so
 # `import a11oy.formulas` resolves under WORKDIR /app (per-file COPY in Dockerfile).
 # try/except guarded — a missing optional dep can NEVER take down the SPA + API.
-# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest + L2 attested (public
-# Sigstore + Rekor verified for the a11oy image).
+# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest (cosign-signed image, public
+# Sigstore + Rekor verified). L2 build-provenance attestation roadmap via Wire D —
+# not yet claimed; L3 not claimed. See .compliance/SLSA_LEVEL.md.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
@@ -1073,10 +1088,15 @@ async def policy_evaluate(request: Request) -> JSONResponse:
     except Exception:
         return JSONResponse({"error": "invalid JSON body"}, status_code=400)
 
-    if "severity" in body and "action" not in body:
-        body = {"action": body}
-    elif isinstance(body, str):
+    if isinstance(body, str):
         body = {"action": {"severity": body}}
+    elif isinstance(body, dict) and "severity" in body and "action" not in body:
+        body = {"action": body}
+    elif not isinstance(body, dict):
+        return JSONResponse({
+            "error": "body must be {action: {...}} or shorthand {severity: '...'}",
+            "example": {"action": {"severity": "medium", "confidence": 0.8, "actionId": "my-action"}},
+        }, status_code=400)
 
     action = body.get("action")
     if not action or not isinstance(action, dict):
@@ -1290,21 +1310,33 @@ try:
 
     @app.post("/api/a11oy/v1/rosie-companion/ponder")
     async def a11oy_rosie_ponder(request: Request) -> JSONResponse:
-        body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {"context": body}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.ponder(body.get("context", body), traceparent=tp)
         return JSONResponse(r.to_dict())
 
     @app.post("/api/a11oy/v1/rosie-companion/synthesize")
     async def a11oy_rosie_synthesize(request: Request) -> JSONResponse:
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.synthesize(body.get("events", []), traceparent=tp)
         return JSONResponse(r.to_dict())
 
     @app.post("/api/a11oy/v1/rosie-companion/evolve")
     async def a11oy_rosie_evolve(request: Request) -> JSONResponse:
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         p = _A11OY_SHADOW.evolve(body.get("strategy", {}),
                                  approvers=body.get("approvers", []), traceparent=tp)
@@ -1312,7 +1344,11 @@ try:
 
     @app.post("/api/a11oy/v1/rosie-companion/brain-jack")
     async def a11oy_rosie_brain_jack(request: Request) -> JSONResponse:
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.brain_jack(body.get("query", ""),
                                      depth=int(body.get("depth", 1)),
@@ -1325,7 +1361,11 @@ try:
         queries. Router tier T4/T5 -> Rosie-shadow.brain_jack; else honest passthrough
         hint to the local /api/a11oy/code chat. Always emits a Khipu cross-link receipt
         when Rosie is consulted."""
-        body = await request.json()
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
         tier = body.get("tier", "T3")
         query = body.get("query") or body.get("message", "")
         tp = getattr(getattr(request, "state", None), "traceparent", None)
@@ -1640,10 +1680,11 @@ async def _a11oy_pr_lambda_v2():
 async def _a11oy_pr_honest_v2():
     """Honest doctrine disclosure. Doctrine v11 LOCKED 749/14/163."""
     # ADDITIVE (Formulas → Ecosystem, 2026-06-03): surface the wired thesis-v22
-    # formulas + HONEST SLSA status. a11oy image (tag uds-v0.2.0) was verified at
-    # SLSA L2 via the GitHub Attestations API + public Sigstore/Rekor inclusion
-    # (Fulcio O=sigstore.dev, Rekor logIndex 1711940457). We report L2 ONLY because
-    # slsa-verifier / public Rekor actually confirm it — never a checklist claim.
+    # formulas + HONEST SLSA status. HONEST STATUS (locked by .compliance/SLSA_LEVEL.md):
+    # the deployed a11oy image (tag uds-v0.2.0) is cosign-signed and publicly verifiable
+    # (Rekor logIndex 1710578865) = SLSA Build L1 honest. L2 (isolated, attested
+    # build-service provenance for the deployed image) is roadmap via Wire D, NOT yet
+    # claimed; GHCR shows the cosign-signed image (L1) only. L3 not claimed.
     try:
         _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
     except Exception:
@@ -1656,14 +1697,14 @@ async def _a11oy_pr_honest_v2():
         "lambda_status": "Conjecture 1 — NOT a theorem",
         "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "slsa_evidence": {
-            "level": "L2",
+            "level": "L1",
             "image_tag": "uds-v0.2.0",
-            "image_digest": "sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879",
-            "builder": "GitHub-hosted Actions (slsa.dev/provenance/v1)",
+            "image_digest": "sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71",
+            "builder": "GitHub-hosted Actions (cosign keyless)",
             "fulcio_issuer": "sigstore.dev (public-good)",
-            "rekor_log_index": 1711940457,
-            "verified_via": "GitHub Attestations API + offline DSSE crypto + live Rekor inclusion (HTTP 200)",
-            "note": "L1 honest baseline always held; L2 reported only because public Sigstore+Rekor actually confirm.",
+            "rekor_log_index": 1710578865,
+            "verified_via": "cosign verify + live public Rekor inclusion (HTTP 200) for the image SIGNATURE",
+            "l2_status": "roadmap (Wire D) — GHCR shows cosign-signed image (L1) only; no verified provenance-attestation tag on the deployed image. NOT claimed.",
         },
         "formulas_wired": _wired,
         "formulas_count": len(_wired),
@@ -1854,6 +1895,65 @@ except Exception as _parity_e:
 # END PARITY GAP CLOSURE
 # ===========================================================================
 
+# ===========================================================================
+# ADDITIVE — a11oy LLM Hub Registry + Elite Console
+# (Yachay CTO + Perplexity Computer Agent, 2026-06-04)
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+#
+# a11oy IS the LLM hub for the entire SZL ecosystem.
+# szl_llm_registry adds:
+#   GET  /api/a11oy/v1/llm/registry               — full model roster (7 models, 5 tiers)
+#   GET  /api/a11oy/v1/llm/registry/{model_id}     — single model detail
+#   POST /api/a11oy/v1/llm/route                   — Λ-gated tier selection + receipt
+#   GET  /api/a11oy/v1/llm/forum                   — shared receipt forum (a11oy + Rosie)
+#   POST /api/a11oy/v1/llm/forum/ingest            — ingest from Rosie/organ mirrors
+#   GET  /api/a11oy/v1/llm/ecosystem-mirror        — manifest for Sentra/Amaru/killinchu
+#
+# szl_elite_console adds:
+#   GET  /api/a11oy/v1/console/slo                 — SLO board (gate pass-rates + error budget)
+#   GET  /api/a11oy/v1/console/alerts              — live alert feed
+#   GET  /api/a11oy/v1/console/organ-map           — organ topology for 3D service map
+#   GET  /api/a11oy/v1/console/dsse-stream         — last-N DSSE receipt events
+#   GET  /api/a11oy/v1/console/quorum-state        — 3-of-4 Khipu quorum organ vote
+#   GET  /api/a11oy/v1/console/genome              — formula→Lean→organ GENOME index
+#   GET  /api/a11oy/v1/console/verdict-theater     — multi-party witnessed verdicts
+#   GET  /api/a11oy/v1/console/policy-canvas       — 46-gate policy canvas
+#   GET  /elite-console                            — 20-tab Elite Console HTML
+#
+# All endpoints are ADDITIVE — no existing routes touched.
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
+# ===========================================================================
+try:
+    import szl_llm_registry as _llm_reg
+    _llm_reg_info = _llm_reg.register(app)
+    print(
+        f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
+        f"{len(_llm_reg_info.get('endpoints', []))} endpoints — Doctrine v11",
+        file=sys.stderr,
+    )
+except Exception as _llm_e:
+    import traceback as _tb_llm
+    print(f"[a11oy] LLM registry NOT mounted ({_llm_e!r}); existing routes unaffected", file=sys.stderr)
+    _tb_llm.print_exc()
+
+try:
+    import szl_elite_console as _elite_con
+    _elite_gates = globals().get("_gates_list", [])
+    _elite_gates_by_name = globals().get("_gates_by_name", {})
+    _elite_info = _elite_con.register(app, _elite_gates, _elite_gates_by_name)
+    print(
+        f"[a11oy] Elite Console mounted: {len(_elite_info.get('endpoints', []))} endpoints — Doctrine v11",
+        file=sys.stderr,
+    )
+except Exception as _elite_e:
+    import traceback as _tb_elite
+    print(f"[a11oy] Elite Console NOT mounted ({_elite_e!r}); existing routes unaffected", file=sys.stderr)
+    _tb_elite.print_exc()
+# ===========================================================================
+# END LLM HUB REGISTRY + ELITE CONSOLE
+# ===========================================================================
+
 
 # P3 FIX: /api/a11oy/v4/fleet — must be BEFORE /api/a11oy/{path:path} proxy catch-all
 # AND registered as /v4/fleet for HF proxy stripping.  Both registered here.
@@ -1916,7 +2016,11 @@ async def a11oy_mcp_tools_inline():
 @app.post("/api/a11oy/v1/mcp/call")
 async def a11oy_mcp_call_inline(request: Request):
     """MCP tool call — local."""
-    body = await request.json()
+    body, _err = await _safe_json_body(request)
+    if _err is not None:
+        return _err
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "body must be a JSON object with a 'name' field"}, status_code=400)
     tool_name = body.get("name", "")
     known = {"a11oy_gate", "lambda_score", "khipu_sign", "khipu_verify"}
     if tool_name not in known:
@@ -2275,10 +2379,13 @@ async def _a11oy_pr_lambda():
 async def _a11oy_pr_honest():
     """Honest doctrine disclosure — parity with sentra/amaru/killinchu/rosie. Doctrine v11."""
     # ADDITIVE (Formulas → Ecosystem, 2026-06-03): this is the LAST-registered /honest
-    # (it wins ordering), so the formula + SLSA surface lives HERE too. a11oy image
-    # (uds-v0.2.0) was verified public-SLSA-L2 (GitHub Attestations API + public
-    # Sigstore/Rekor inclusion, Fulcio O=sigstore.dev, Rekor logIndex 1711940457).
-    # We report L2 ONLY because public Rekor actually confirms it — never a checklist claim.
+    # (it wins ordering), so the formula + SLSA surface lives HERE too. HONEST STATUS
+    # (locked by .compliance/SLSA_LEVEL.md): the deployed a11oy image (uds-v0.2.0) is
+    # cosign-signed and publicly verifiable (Rekor logIndex 1710578865) — that is
+    # SLSA Build L1 honest. L2 (an isolated, attested build-service PROVENANCE for the
+    # deployed image, verifiable downstream) is roadmap via Wire D and NOT yet claimed;
+    # GHCR verification shows the cosign-signed image (L1) only, no verified provenance
+    # attestation tag on the image. L3 not claimed. Report exactly what Rekor confirms.
     try:
         _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
     except Exception:
@@ -2291,13 +2398,14 @@ async def _a11oy_pr_honest():
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "slsa_evidence": {
-            "level": "L2",
+            "level": "L1",
             "image_tag": "uds-v0.2.0",
-            "image_digest": "sha256:f075421ff4ca76a02147c08119ff27c9c64f38727d9f593e97334cecbcbbd879",
-            "builder": "GitHub-hosted Actions (slsa.dev/provenance/v1)",
+            "image_digest": "sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71",
+            "builder": "GitHub-hosted Actions (cosign keyless)",
             "fulcio_issuer": "sigstore.dev (public-good)",
-            "rekor_log_index": 1711940457,
-            "verified_via": "GitHub Attestations API + offline DSSE crypto + live Rekor inclusion (HTTP 200)",
+            "rekor_log_index": 1710578865,
+            "verified_via": "cosign verify + live public Rekor inclusion (HTTP 200) for the image SIGNATURE",
+            "l2_status": "roadmap (Wire D) — GHCR shows cosign-signed image (L1) only; no verified provenance-attestation tag on the deployed image. NOT claimed.",
             "ecosystem_gap": "killinchu remains L1 (private GitHub Fulcio, no public Rekor entry) — honest.",
         },
         "formulas_wired": _wired,
