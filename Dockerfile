@@ -66,6 +66,7 @@ COPY console/ ./static/
 
 # Copy serve orchestrator and gates manifest
 COPY szl_parity_gaps.py ./szl_parity_gaps.py
+COPY a11oy_warhacker_obs.py ./a11oy_warhacker_obs.py
 COPY serve.py ./serve.py
 COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
@@ -282,3 +283,4 @@ CMD ["python", "serve.py"]
 # Build cache-bust 2026-06-04T19:31Z (Elite Console + LLM Hub Registry):
 # Added szl_llm_registry.py, szl_elite_console.py, web/elite_console.html.
 # 20-tab Elite Console + 7-model LLM Hub now deployable. All COPY sources verified.
+
