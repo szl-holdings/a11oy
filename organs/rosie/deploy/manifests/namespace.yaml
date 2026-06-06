@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rosie
+  labels:
+    app.kubernetes.io/part-of: szl-mesh
+    szl.holdings/role: operator-console

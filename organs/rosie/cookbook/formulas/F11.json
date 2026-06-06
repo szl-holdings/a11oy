@@ -1,0 +1,9 @@
+{
+ "id": "F11",
+ "name": "recall_cosine",
+ "description": "Cosine recall score over embeddings.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "Implemented honestly; optimality conjectural.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

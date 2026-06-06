@@ -1,0 +1,45 @@
+{
+  "_provenance": "Cursor re-instill manifest for SZLHOLDINGS/amaru. Additive evidence record per OPUS Cursor re-instill ship.",
+  "doctrine": "v11",
+  "canonical_numbers": {
+    "declarations": 456,
+    "unique_axioms": 14,
+    "tracked_sorries": 6,
+    "mcp_tools": 12,
+    "policy_gates": 46,
+    "anchor_formula_gates": 44
+  },
+  "live_space": {
+    "sha_baseline": "51b0fc22",
+    "current_head": "8b7f0364",
+    "chakras": 7,
+    "console_routes": 6,
+    "watunakuy": "42/42",
+    "reasoner": "chakra evaluate + Khipu receipt chain"
+  },
+  "reinstilled_prs": [
+    {
+      "pr": 56,
+      "title": "feat: standalone web frontend + HF Spaces deployment + dev environment setup",
+      "status": "already-reflected-in-live-space (sidecar + web frontend deployed)"
+    },
+    {
+      "pr": 55,
+      "title": "Add AGENTS.md with Cursor Cloud development instructions",
+      "status": "already-reflected"
+    },
+    {
+      "pr": 64,
+      "title": "chore(license): add SPDX-License-Identifier headers (amaru)",
+      "status": "already-reflected (serve.py + sidecar carry SPDX Apache-2.0 headers)"
+    }
+  ],
+  "honesty": "No 'zero sorry' claim. lutar-lean has 163 real tracked sorries (112 baseline + 51 Putnam). thm:unique-aggregator/pac-bayes-main/no-nchv/quantum-lambda are NOT fully PROVEN (sorried/axiomatized). \u039b uniqueness is a Conjecture (open CAUCHY_ND sorry + missing symmetry axiom).",
+  "preserved": "7 chakras, 6 console routes, reasoner UI, 42/42 Watunakuy. ADDITIVE only.",
+  "ip_hold_excluded": [
+    "amaru#46"
+  ],
+  "canonical_ref": "lutar-lean tag lutar-v18.0.0 / c7c0ba17 (canonical reproducibility counter)",
+  "honesty_note": "749 declarations / 14 unique axioms (15 raw, 1 dup) / 163 tracked sorries (112 baseline + 51 Putnam) per .github/scripts/lean_numbers.py @ c7c0ba17. The v18 'zero sorry' claim is FALSE and not propagated. \u039b uniqueness is a Conjecture (open CAUCHY_ND sorry in Uniqueness.lean:120 + missing symmetry axiom). Wire B & C LIVE, Wire D NOT IMPLEMENTED. SLSA L1 honest (not L3). Prior re-audit 456/6 was wrong (stale clone + restricted token set).",
+  "supersedes": "Doctrine v9 numbers 456/6 (retired)"
+}

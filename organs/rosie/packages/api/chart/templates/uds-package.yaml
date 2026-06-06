@@ -1,0 +1,57 @@
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: {{ include "rosie-api.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rosie-api.labels" . | nindent 4 }}
+spec:
+  network:
+    # Default-deny posture; only the explicit rules below are permitted.
+    allow:
+      # Ingress: only the rosie widget may call this API.
+      - direction: Ingress
+        remoteGenerated: IntraNamespace
+        selector:
+          {{- include "rosie-api.selectorLabels" . | nindent 10 }}
+        ports:
+          - {{ .Values.port }}
+        description: "Intra-namespace ingress to rosie-api"
+      - direction: Ingress
+        selector:
+          {{- include "rosie-api.selectorLabels" . | nindent 10 }}
+        remoteSelector:
+          {{- toYaml .Values.uds.widgetRemoteSelector | nindent 10 }}
+        remoteNamespace: rosie
+        ports:
+          - {{ .Values.port }}
+        description: "Allow ingress from the rosie widget hosts"
+
+      # Egress: OTLP traces/metrics to the monitoring collector.
+      - direction: Egress
+        remoteNamespace: monitoring
+        remoteSelector:
+          app.kubernetes.io/name: opentelemetry-collector
+        ports:
+          - {{ .Values.uds.otlpPort }}
+        description: "OTLP egress to monitoring/opentelemetry-collector:{{ .Values.uds.otlpPort }}"
+
+      # Egress: the szl-receipts-server (a11oy receipt substrate backend).
+      - direction: Egress
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app.kubernetes.io/name: szl-receipts-server
+        ports:
+          - 8080
+        description: "Egress to the receipt substrate backend"
+
+  sso:
+    - name: rosie-api
+      clientId: {{ .Values.uds.ssoClientId }}
+      # authservice fronts every route; the Keycloak realm enforces the OIDC
+      # Bearer requirement (groups: szl-operators / szl-executors). The
+      # application additionally enforces step-up for /v1/execute/confirm.
+      enableAuthserviceSelector:
+        {{- toYaml .Values.uds.authserviceSelector | nindent 8 }}
+      redirectUris:
+        - "https://rosie-api.{{ .Release.Namespace }}.svc/login"

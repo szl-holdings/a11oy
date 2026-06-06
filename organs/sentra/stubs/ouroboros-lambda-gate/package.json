@@ -1,0 +1,14 @@
+{
+  "name": "@szl/ouroboros-lambda-gate",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./index.ts"
+  },
+  "dependencies": {
+    "@szl/ouroboros-types": "workspace:*"
+  }
+}

@@ -1,0 +1,7 @@
+{
+ "name": "understudy_promote",
+ "description": "Promote Rosie as a11oy's failover understudy.",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

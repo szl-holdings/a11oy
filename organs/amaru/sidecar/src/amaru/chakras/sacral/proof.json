@@ -1,0 +1,7 @@
+{
+  "proof_id": "amaru.sacral.v1",
+  "sha256": "069f86d74af7d8c94a96c5027142a90947c863d8213204d29119ef1a122aa11e",
+  "kind": "kernel-source",
+  "summary": "convex blend 0.6*fluency + 0.4*novelty, clamped to [0,1]",
+  "notes": "sha256 computed over the canonical kernel.py source bytes; re-pin via services/amaru/scripts/pin_proofs.py after edits."
+}

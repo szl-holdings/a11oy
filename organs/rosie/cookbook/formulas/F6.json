@@ -1,0 +1,9 @@
+{
+ "id": "F6",
+ "name": "bounded_aggregator",
+ "description": "Boundedness of the aggregator on the simplex.",
+ "status": "PROVEN",
+ "honesty_note": "Lean-proven (IsBounded).",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

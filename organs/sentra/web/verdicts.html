@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
+     Sentra Immune Verdict Theatre — CLOSEOUT (Opus 4.8).
+     Live verdict SSE stream · click any receipt → real DSSE + in-toto Statement +
+     SLSA Provenance v1 · real Rekor RFC 6962 Merkle-proof recomputation ·
+     Immune Cathedral (operator shell) nav · Inca palette · doctrine plaque · responsive.
+     HONESTY OVER CHECKLIST — every panel is fed by a REAL /api/sentra/v1/* endpoint. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sentra · Immune Verdict Theatre</title>
+<style>
+  :root{
+    /* Inca palette */
+    --inca-gold:#E8B04B; --inca-gold-dim:#b9863a;
+    --inca-terra:#9C3B25; --inca-jade:#1F7A5C; --inca-jade-lo:#0d4636;
+    --inca-stone:#2A2622; --inca-night:#16130f; --inca-night-2:#1d1a15;
+    --inca-cloud:#EFE7D6; --inca-ash:#9b9388;
+    --allow:#39b88a; --deny:#d6533a; --line:#3a342b;
+    --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(1200px 600px at 80% -10%,rgba(232,176,75,.10),transparent 60%),
+      radial-gradient(900px 500px at -10% 110%,rgba(31,122,92,.12),transparent 55%),
+      var(--inca-night);
+    color:var(--inca-cloud);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--inca-gold);text-decoration:none}
+  header{position:sticky;top:0;z-index:20;background:rgba(22,19,15,.82);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line)}
+  .bar{max-width:1280px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .glyph{width:34px;height:34px;border-radius:8px;background:
+      conic-gradient(from 45deg,var(--inca-gold),var(--inca-terra),var(--inca-jade),var(--inca-gold));
+    box-shadow:0 0 0 1px var(--inca-gold-dim) inset, 0 6px 18px rgba(0,0,0,.4)}
+  .brand{font-weight:800;letter-spacing:.5px}
+  .brand small{display:block;font-weight:500;color:var(--inca-ash);letter-spacing:2px;font-size:10px;text-transform:uppercase}
+  nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  nav a{padding:7px 13px;border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--inca-cloud)}
+  nav a.active,nav a:hover{border-color:var(--inca-gold-dim);background:rgba(232,176,75,.10)}
+  .live{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--inca-ash)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--inca-ash)}
+  .dot.on{background:var(--allow);box-shadow:0 0 0 0 rgba(57,184,138,.6);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(57,184,138,.55)}70%{box-shadow:0 0 0 9px rgba(57,184,138,0)}100%{box-shadow:0 0 0 0 rgba(57,184,138,0)}}
+
+  main{max-width:1280px;margin:0 auto;padding:22px 20px 60px}
+  .plaque{border:1px solid var(--inca-gold-dim);border-radius:14px;padding:16px 20px;margin-bottom:22px;
+    background:linear-gradient(180deg,rgba(232,176,75,.08),rgba(232,176,75,.02));position:relative;overflow:hidden}
+  .plaque:before{content:"";position:absolute;inset:0;background:
+      repeating-linear-gradient(90deg,transparent 0 22px,rgba(232,176,75,.05) 22px 24px);pointer-events:none}
+  .plaque h1{margin:0 0 6px;font-size:18px;letter-spacing:.3px}
+  .plaque .kvs{display:flex;flex-wrap:wrap;gap:10px 26px;font-family:var(--mono);font-size:12px;color:var(--inca-cloud)}
+  .plaque .kvs b{color:var(--inca-gold)}
+  .grid{display:grid;grid-template-columns:1.05fr 1.25fr;gap:20px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--inca-night-2),rgba(29,26,21,.6));border:1px solid var(--line);
+    border-radius:14px;padding:16px;min-height:120px}
+  .card h2{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--inca-ash);display:flex;gap:10px;align-items:center}
+  .stream{display:flex;flex-direction:column;gap:9px;max-height:560px;overflow:auto}
+  .receipt{border:1px solid var(--line);border-left:3px solid var(--inca-ash);border-radius:10px;padding:11px 13px;
+    cursor:pointer;transition:.15s;background:rgba(0,0,0,.18)}
+  .receipt:hover{border-color:var(--inca-gold-dim);transform:translateX(2px)}
+  .receipt.allow{border-left-color:var(--allow)} .receipt.deny{border-left-color:var(--deny)}
+  .receipt.sel{outline:1px solid var(--inca-gold);background:rgba(232,176,75,.07)}
+  .receipt .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .verdict-pill{font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:.5px}
+  .verdict-pill.allow{background:rgba(57,184,138,.16);color:var(--allow)}
+  .verdict-pill.deny{background:rgba(214,83,58,.16);color:var(--deny)}
+  .receipt .act{font-family:var(--mono);font-size:12px;color:var(--inca-cloud);margin-top:5px;word-break:break-all}
+  .receipt .meta{font-family:var(--mono);font-size:10.5px;color:var(--inca-ash);margin-top:5px;display:flex;gap:12px;flex-wrap:wrap}
+  pre{font-family:var(--mono);font-size:11.5px;background:#100d0a;border:1px solid var(--line);border-radius:10px;
+    padding:12px;overflow:auto;max-height:320px;color:#d8cfbd;margin:0}
+  .seg{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .seg button{font:inherit;font-size:12px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+    background:transparent;color:var(--inca-cloud);cursor:pointer}
+  .seg button.on{background:var(--inca-gold);color:#1a1408;border-color:var(--inca-gold);font-weight:700}
+  .chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:7px;border:1px solid var(--line);margin:3px 4px 0 0}
+  .chip.ok{border-color:var(--jade);color:var(--allow)} .chip.bad{border-color:var(--deny);color:var(--deny)}
+  .rekor .roots{display:grid;gap:8px;margin:10px 0}
+  .rekor .root{font-family:var(--mono);font-size:11px;word-break:break-all;padding:8px;border-radius:8px;border:1px solid var(--line)}
+  .rekor .match{font-weight:700} .rekor .match.ok{color:var(--allow)} .rekor .match.no{color:var(--deny)}
+  .path{display:flex;flex-direction:column;gap:3px;max-height:200px;overflow:auto;margin-top:8px}
+  .path .h{font-family:var(--mono);font-size:10px;color:var(--inca-ash);padding:4px 8px;border:1px dashed var(--line);border-radius:6px;word-break:break-all}
+  .gates{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+  .gate{border:1px solid var(--line);border-radius:10px;padding:10px;background:rgba(0,0,0,.18)}
+  .gate b{display:block;font-size:12px} .gate span{font-family:var(--mono);font-size:10px;color:var(--inca-ash)}
+  .btn{font:inherit;font-size:13px;padding:8px 14px;border-radius:9px;border:1px solid var(--inca-gold-dim);
+    background:rgba(232,176,75,.10);color:var(--inca-gold);cursor:pointer}
+  .btn:active{transform:translateY(1px)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  input[type=number],input[type=text]{font-family:var(--mono);font-size:12px;background:#100d0a;border:1px solid var(--line);
+    color:var(--inca-cloud);border-radius:8px;padding:7px 9px;max-width:220px}
+  .muted{color:var(--inca-ash);font-size:12px}
+  footer{max-width:1280px;margin:30px auto 0;padding:18px 20px;border-top:1px solid var(--line);color:var(--inca-ash);font-size:11.5px;font-family:var(--mono)}
+  section{margin-top:22px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="glyph"></div>
+    <div class="brand">SENTRA<small>Immune Verdict Theatre</small></div>
+    <nav>
+      <a class="active" href="#theatre">Verdict Theatre</a>
+      <a href="#cathedral" id="navCathedral">Immune Cathedral</a>
+      <a href="#gates">8 Gates</a>
+      <a href="#rekor">Rekor Proof</a>
+      <a href="/api/sentra/v1/honest" target="_blank">/honest</a>
+    </nav>
+    <span class="live"><span class="dot" id="liveDot"></span><span id="liveTxt">connecting…</span></span>
+  </div>
+</header>
+
+<main>
+  <div class="plaque">
+    <h1>⛨ Deny-by-default immune gateway · live attestation chain</h1>
+    <div class="kvs">
+      <span>Doctrine <b>v11</b> LOCKED</span>
+      <span><b>749</b> decl</span>
+      <span><b>14</b> unique axioms</span>
+      <span><b>163</b> sorries</span>
+      <span>kernel <b>c7c0ba17</b></span>
+      <span>Λ = <b>Conjecture 1</b> (not a theorem)</span>
+      <span>SLSA <b>L1 honest</b> (L2 roadmap) — NOT L3</span>
+      <span>DSSE <b>Ed25519</b> · Rekor <b>RFC 6962</b></span>
+    </div>
+  </div>
+
+  <section id="theatre" class="grid">
+    <div class="card">
+      <h2>◉ Live Verdict Stream <span class="muted" id="streamCount"></span></h2>
+      <div class="row">
+        <button class="btn" onclick="emitVerdict('read_config')">Emit ALLOW</button>
+        <button class="btn" onclick="emitVerdict('DROP TABLE users')">Emit DENY</button>
+        <span class="muted">SSE · /api/sentra/v1/verdict/stream</span>
+      </div>
+      <div class="stream" id="stream"></div>
+    </div>
+
+    <div class="card">
+      <h2>⛓ Attestation Chain <span class="muted" id="selHash"></span></h2>
+      <div class="seg" id="seg">
+        <button class="on" data-t="dsse">DSSE Envelope</button>
+        <button data-t="intoto">in-toto Statement</button>
+        <button data-t="slsa">SLSA Provenance v1</button>
+        <button data-t="verify">DSSE Verify</button>
+      </div>
+      <div id="attestBody"><p class="muted">Click any receipt in the live stream to fetch its real DSSE envelope, in-toto Statement, and SLSA Provenance v1 predicate — signed live with Ed25519.</p></div>
+    </div>
+  </section>
+
+  <section id="rekor" class="card rekor">
+    <h2>🜨 Rekor Merkle-Proof Recomputation · RFC 6962</h2>
+    <div class="row">
+      <label class="muted">logIndex</label>
+      <input type="number" id="rekorIdx" value="1711939508"/>
+      <button class="btn" onclick="verifyRekor()">Recompute root</button>
+      <span class="muted">Fetches a real Sigstore Rekor entry, recomputes the root from leaf + audit path.</span>
+    </div>
+    <div id="rekorOut"><p class="muted">No proof requested yet.</p></div>
+  </section>
+
+  <section id="gates" class="card">
+    <h2>⛨ 8 Immune Gates</h2>
+    <div class="gates" id="gatesBox"><p class="muted">loading…</p></div>
+  </section>
+
+  <section id="cathedral" class="card">
+    <h2>🏛 Immune Cathedral · Operator Desktop Shell</h2>
+    <p class="muted">The full operator-shell v4 desktop (7 endpoints: inbox · map · command · receipts · replay · stream · healthz) lives at the dedicated shell. It is wired to the same live audit log and DSSE substrate as this theatre.</p>
+    <div class="row">
+      <a class="btn" href="/operator" target="_blank">Open Immune Cathedral ↗</a>
+      <a class="btn" href="/verdict-river" target="_blank">3D Verdict River ↗</a>
+      <a class="btn" href="/threat-globe" target="_blank">3D Threat Globe ↗</a>
+    </div>
+  </section>
+
+  <footer>
+    SZL Holdings · © 2026 Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · Apache-2.0 · Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 ·
+    HONESTY OVER CHECKLIST — every panel is fed by a real /api/sentra/v1/* endpoint; no mocks. Λ = Conjecture 1 (NOT a theorem). SLSA L1 honest (cosign-signed); L2 attestation roadmap via Wire D — not yet earned; NOT L3.
+  </footer>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const seen=new Set(); let selected=null; let lastAttest=null; let curTab="dsse"; let nStream=0;
+function esc(s){return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+function renderReceipt(e){
+  if(!e||!e.id||seen.has(e.id))return; seen.add(e.id); nStream++;
+  $("#streamCount").textContent="· "+nStream;
+  const dec=(e.decision||"allow"); const div=document.createElement("div");
+  div.className="receipt "+dec; div.dataset.hash=e.receipt_hash||"";
+  div.innerHTML=`<div class="top"><span class="verdict-pill ${dec}">${dec.toUpperCase()}</span>
+    <span class="meta">Λ=${e.lambda_value}</span></div>
+    <div class="act">${esc(e.action_preview)}</div>
+    <div class="meta"><span>agent: ${esc(e.agent)}</span><span>receipt: ${esc(e.receipt_hash||"—")}</span><span>${esc((e.timestamp||"").slice(11,19))}</span></div>`;
+  div.onclick=()=>selectReceipt(div,e);
+  const s=$("#stream"); s.insertBefore(div,s.firstChild);
+  while(s.children.length>60)s.removeChild(s.lastChild);
+}
+
+async function selectReceipt(div,e){
+  document.querySelectorAll(".receipt.sel").forEach(x=>x.classList.remove("sel"));
+  div.classList.add("sel"); selected=e.receipt_hash;
+  $("#selHash").textContent= selected? "· "+selected : "";
+  if(!selected){$("#attestBody").innerHTML='<p class="muted">This historical receipt predates receipt-hash binding; emit a fresh verdict to attest.</p>';return;}
+  $("#attestBody").innerHTML='<p class="muted">fetching real DSSE + in-toto + SLSA…</p>';
+  try{
+    const r=await fetch(`/api/sentra/v1/attest/${selected}`); lastAttest=await r.json();
+    if(!lastAttest.ok){$("#attestBody").innerHTML=`<p class="muted">${esc(lastAttest.error||"unavailable")}</p>`;return;}
+    paintTab(curTab);
+  }catch(err){$("#attestBody").innerHTML=`<p class="muted">error: ${esc(err)}</p>`;}
+}
+
+function paintTab(t){
+  curTab=t; if(!lastAttest){return;}
+  let html="";
+  if(t==="dsse") html=`<pre>${esc(JSON.stringify(lastAttest.dsse,null,2))}</pre>`;
+  else if(t==="intoto") html=`<pre>${esc(JSON.stringify(lastAttest.in_toto_statement?.statement||lastAttest.in_toto_statement,null,2))}</pre>`;
+  else if(t==="slsa") html=`<pre>${esc(JSON.stringify(lastAttest.slsa_provenance_predicate,null,2))}</pre>`;
+  else if(t==="verify"){
+    const v=lastAttest.dsse_verify||{}; const ok=v.verified===true;
+    html=`<div><span class="chip ${ok?'ok':'bad'}">verified: ${ok}</span>
+      <span class="chip">keyid: ${esc(v.keyid_expected||"")}</span>
+      <span class="chip">signing_available: ${lastAttest.signing_available}</span></div>
+      <p class="muted" style="margin:10px 0 4px">PAE SHA-256</p><pre>${esc(v.pae_sha256||"")}</pre>
+      <p class="muted" style="margin:10px 0 4px">decoded payload</p><pre>${esc(JSON.stringify(v.payload_decoded,null,2))}</pre>
+      <p class="muted" style="margin:8px 0 0">SLSA: ${esc(lastAttest.slsa||"")}</p>`;
+  }
+  $("#attestBody").innerHTML=html;
+}
+$("#seg").addEventListener("click",ev=>{const b=ev.target.closest("button");if(!b)return;
+  document.querySelectorAll("#seg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");paintTab(b.dataset.t);});
+
+async function emitVerdict(action){
+  try{await fetch("/api/sentra/v1/verdict",{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({request_id:"theatre-"+Date.now(),agent:"verdict-theatre",action})});}catch(e){}
+}
+
+async function verifyRekor(){
+  const idx=$("#rekorIdx").value||0; $("#rekorOut").innerHTML='<p class="muted">fetching real Rekor entry + recomputing…</p>';
+  try{
+    const r=await fetch(`/api/sentra/v1/rekor/proof?index=${encodeURIComponent(idx)}`); const d=await r.json();
+    if(d.verified===null||d.verified===undefined && d.reason){
+      $("#rekorOut").innerHTML=`<p class="muted">verified: unknown — ${esc(d.reason||"")}</p>`;return;}
+    const match=d.computed_root===d.server_root;
+    const path=(d.proof_path||[]).map(p=>`<div class="h">L${p.level}: ${esc(p.sibling_sha256)}</div>`).join("");
+    $("#rekorOut").innerHTML=`
+      <div class="roots">
+        <div class="root">computed root: <b>${esc(d.computed_root||"—")}</b></div>
+        <div class="root">server   root: <b>${esc(d.server_root||"—")}</b></div>
+      </div>
+      <p class="match ${match?'ok':'no'}">${match?'✓ ROOTS MATCH — inclusion proof verified by recomputation':'✗ root mismatch'}</p>
+      <p class="muted">tree_size: ${d.tree_size} · proof_index: ${d.proof_index} · audit path length: ${d.audit_path_len}</p>
+      <p class="muted">${esc(d.method||"")}</p>
+      <p class="muted" style="margin-top:8px">Audit path (siblings, hashed bottom-up):</p>
+      <div class="path">${path}</div>`;
+  }catch(err){$("#rekorOut").innerHTML=`<p class="muted">error: ${esc(err)}</p>`;}
+}
+
+async function loadGates(){
+  try{const r=await fetch("/api/sentra/v1/gates");const d=await r.json();
+    $("#gatesBox").innerHTML=(d.gates||[]).map(g=>`<div class="gate"><b>${esc(g.name||g.id)}</b>
+      <span>${esc(g.id)}</span><span>→ ${esc(g.expectedDecision||"")}</span></div>`).join("")||'<p class="muted">none</p>';
+  }catch(e){$("#gatesBox").innerHTML='<p class="muted">gates unavailable</p>';}
+}
+
+function connectSSE(){
+  const es=new EventSource("/api/sentra/v1/verdict/stream");
+  es.addEventListener("verdict",ev=>{try{renderReceipt(JSON.parse(ev.data));}catch(e){}});
+  es.addEventListener("heartbeat",()=>{$("#liveDot").classList.add("on");$("#liveTxt").textContent="LIVE";});
+  es.onopen=()=>{$("#liveDot").classList.add("on");$("#liveTxt").textContent="LIVE";};
+  es.onerror=()=>{$("#liveDot").classList.remove("on");$("#liveTxt").textContent="reconnecting…";};
+}
+loadGates(); connectSSE();
+</script>
+</body>
+</html>

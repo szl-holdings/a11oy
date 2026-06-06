@@ -1,0 +1,12 @@
+Contact: mailto:security@szlholdings.ai
+Expires: 2027-06-01T00:00:00.000Z
+Encryption: https://github.com/szl-holdings/rosie/blob/main/docs/pgp-key.asc
+Preferred-Languages: en
+Canonical: https://szlholdings-rosie.hf.space/.well-known/security.txt
+Policy: https://github.com/szl-holdings/rosie/blob/main/SECURITY.md
+Acknowledgments: https://github.com/szl-holdings/rosie/blob/main/SECURITY.md#acknowledgments
+Hiring: https://szlholdings.ai/careers
+
+# SZL Holdings — Doctrine v11 LOCKED | SLSA L1 honest | Section 889: 5 vendors
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>

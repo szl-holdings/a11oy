@@ -1,0 +1,61 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "off" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "recommended": false
+      },
+      "correctness": {
+        "noUnusedVariables": "off",
+        "noUnusedImports": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "off",
+        "noConfusingLabels": "off",
+        "noExportsInTest": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "noUnusedTemplateLiteral": "off",
+        "useTemplate": "off",
+        "useSingleVarDeclarator": "off",
+        "useNumberNamespace": "off",
+        "useExponentiationOperator": "off",
+        "useSelfClosingElements": "off",
+        "useImportType": "off",
+        "noInferrableTypes": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "noUselessLoneBlockStatements": "off",
+        "useLiteralKeys": "off",
+        "noCommaOperator": "off"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/*.css",
+      "!**/src/lib/theme.tsx"
+    ]
+  },
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
+  }
+}

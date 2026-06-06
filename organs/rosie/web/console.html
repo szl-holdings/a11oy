@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 SZL Holdings · Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 (NOT a theorem)
+     Rosie Operator Console — 13-tab vertical command surface. HONESTY OVER CHECKLIST: every tab binds to a REAL
+     same-origin /api/rosie/v1|v2/... endpoint verified live on the rosie Space. No synthetic data. Skeletons (not spinners).
+     SLSA + doctrine wording is rendered from the live /honest + /version endpoints — never hardcoded above what the backend reports.
+     Sign: Stephen P. Lutar Jr. <stephenlutar2@gmail.com> -->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2a1e5c">
+<meta name="description" content="Rosie operator console — 13 live tabs over the SZL mesh: shared forum, incident command, quorum, policy gates, fleet, Λ-gate, audit, command replay, provenance, MCP, deploy, cortex, live stream. Doctrine v11 LOCKED.">
+<title>Rosie · Operator Console — SZL Holdings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ───────── SZL Inca premium palette ───────── */
+:root{
+  --gold:#d4a574; --indigo:#2a1e5c; --terra:#b04a30; --parchment:#f4e4c1;
+  --gold-bright:#e6bd8a; --gold-dim:#8a6d44;
+  --bg:#140f2e; --bg2:#1b1440; --panel:#211a4a; --panel2:#1a1440; --line:#352a66;
+  --text:#f4e4c1; --text-dim:#b9add6; --muted:#8a7fb0;
+  --green:#4fae7a; --red:#d05a44; --amber:#e0a82e;
+  --sans:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --r:14px; --shadow:0 10px 40px rgba(0,0,0,.45);
+}
+:root[data-theme="light"]{
+  --bg:#f4e4c1; --bg2:#efddb6; --panel:#fbf3e2; --panel2:#f4e8d0; --line:#e0cda4;
+  --text:#2a1e5c; --text-dim:#5a4e86; --muted:#8a7fb0;
+  --shadow:0 10px 40px rgba(42,30,92,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:
+  radial-gradient(1200px 600px at 80% -10%, rgba(176,74,48,.10), transparent 60%),
+  radial-gradient(900px 500px at 10% 110%, rgba(212,165,116,.10), transparent 60%),
+  var(--bg);
+  color:var(--text);font:14px/1.55 var(--sans);overflow-x:hidden;min-height:100vh;
+  transition:background .35s ease,color .35s ease}
+a{color:var(--gold);text-decoration:none}
+a:hover{color:var(--gold-bright);text-decoration:underline}
+code{font-family:var(--mono)}
+
+/* ───────── traceparent live badge (top-left) ───────── */
+.trace-badge{position:fixed;top:12px;left:12px;z-index:60;display:flex;align-items:center;gap:8px;
+  background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  font:600 11px/1 var(--mono);color:var(--text-dim);box-shadow:var(--shadow)}
+.trace-badge .tdot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.trace-badge.live .tdot{background:var(--green);box-shadow:0 0 0 0 rgba(79,174,122,.7);animation:tpulse 1.6s infinite}
+.trace-badge .tid{color:var(--gold)}
+@keyframes tpulse{0%{box-shadow:0 0 0 0 rgba(79,174,122,.6)}70%{box-shadow:0 0 0 7px rgba(79,174,122,0)}100%{box-shadow:0 0 0 0 rgba(79,174,122,0)}}
+
+/* ───────── doctrine plaque (sticky top-right) ───────── */
+.plaque{position:fixed;top:12px;right:12px;z-index:60;max-width:360px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--indigo) 70%,var(--panel)),var(--panel));
+  border:1px solid var(--gold-dim);border-radius:12px;padding:10px 14px;
+  font:11px/1.5 var(--mono);color:var(--text-dim);box-shadow:var(--shadow)}
+.plaque b{color:var(--gold)}
+.plaque .sep{color:var(--gold-dim)}
+
+/* ───────── theme toggle ───────── */
+.theme-toggle{position:fixed;bottom:18px;right:18px;z-index:60;width:46px;height:46px;border-radius:50%;
+  border:1px solid var(--line);background:var(--panel);color:var(--gold);font-size:20px;cursor:pointer;
+  box-shadow:var(--shadow);display:grid;place-items:center;transition:transform .2s}
+.theme-toggle:hover{transform:scale(1.08) rotate(12deg)}
+
+/* ───────── header ───────── */
+header{display:flex;align-items:center;gap:16px;padding:56px 26px 8px;max-width:1480px;margin:0 auto;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{width:38px;height:38px}
+.title{font:800 22px/1 var(--sans);letter-spacing:-.4px}
+.title .accent{color:var(--terra)}
+.subtitle{font:500 12px/1.4 var(--mono);color:var(--muted)}
+/* live router/skills chips in header */
+.hchips{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center}
+.hchip{font:600 10px/1 var(--mono);padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--text-dim)}
+.hchip b{color:var(--gold)}
+
+/* ───────── tab bar ───────── */
+.tabbar{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 86%,transparent);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:8px 14px;margin-top:6px}
+.tabbar-inner{display:flex;gap:6px;overflow-x:auto;max-width:1480px;margin:0 auto;scrollbar-width:thin}
+.tabbar-inner::-webkit-scrollbar{height:6px}
+.tabbar-inner::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+.tab{flex:0 0 auto;display:flex;align-items:center;gap:7px;font:700 11.5px/1 var(--sans);
+  padding:10px 13px;border-radius:10px;border:1px solid transparent;color:var(--text-dim);
+  cursor:pointer;white-space:nowrap;transition:background .18s,color .18s,border-color .18s;background:none}
+.tab .tnum{font:700 9px/1 var(--mono);color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:2px 4px}
+.tab .tdot2{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .2s}
+.tab .tdot2.ok{background:var(--green);box-shadow:0 0 7px var(--green)}
+.tab .tdot2.bad{background:var(--red);box-shadow:0 0 7px var(--red)}
+.tab:hover{color:var(--text);background:color-mix(in srgb,var(--gold) 8%,transparent)}
+.tab.active{color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent);border-color:var(--gold-dim)}
+.tab.active .tnum{color:var(--gold);border-color:var(--gold-dim)}
+
+/* ───────── tab panes ───────── */
+.panes{max-width:1480px;margin:0 auto;padding:16px 26px 26px}
+.pane{display:none;animation:panefade .28s ease}
+.pane.active{display:block}
+@keyframes panefade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.pane-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.pane-head h1{font:800 19px/1.1 var(--sans);letter-spacing:-.3px}
+.pane-head .lede{font:500 12px/1.5 var(--mono);color:var(--muted);max-width:760px}
+.pane-head .epill{font:600 10px/1 var(--mono);padding:6px 10px;border:1px solid var(--gold-dim);border-radius:999px;
+  color:var(--gold);margin-left:auto}
+.bench{font:600 10px/1.4 var(--mono);color:var(--muted)}
+.bench b{color:var(--terra)}
+
+/* ───────── grid + tiles ───────── */
+.grid{display:grid;gap:18px}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-2{grid-template-columns:1.3fr .7fr}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1200px){.cols-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1024px){.cols-3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){.cols-3,.cols-2,.cols-4{grid-template-columns:1fr}}
+.tile{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);
+  transition:border-color .25s,transform .25s}
+.tile:hover{border-color:var(--gold-dim)}
+.tile h2{font:700 13px/1 var(--sans);padding:15px 18px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;letter-spacing:.2px}
+.tile h2 .ico{color:var(--gold)}
+.tile .body{padding:18px;flex:1}
+.pill{font:600 10px/1 var(--mono);padding:5px 9px;border:1px solid var(--gold-dim);border-radius:999px;
+  color:var(--gold);margin-left:auto}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--green);box-shadow:0 0 9px var(--green)}
+.dot.bad{background:var(--red);box-shadow:0 0 9px var(--red)}
+
+/* ───────── skeleton loaders (NOT spinners) ───────── */
+.sk{background:linear-gradient(90deg,var(--line) 25%,color-mix(in srgb,var(--line) 50%,var(--panel)) 37%,var(--line) 63%);
+  background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.sk-line{height:13px;margin:9px 0}
+.sk-line.w80{width:80%}.sk-line.w60{width:60%}.sk-line.w40{width:40%}
+.sk-big{height:64px;margin:6px 0}
+
+/* ───────── Λ verdict ───────── */
+.lambda-val{font:800 46px/1 var(--mono);color:var(--gold);letter-spacing:-1px}
+.lambda-meta{font:12px/1.6 var(--mono);color:var(--text-dim);margin-top:8px}
+.verdict-chip{display:inline-block;font:700 11px/1 var(--mono);padding:6px 12px;border-radius:999px;margin-top:10px}
+.verdict-chip.pass{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green);border:1px solid var(--green)}
+.verdict-chip.fail{background:color-mix(in srgb,var(--red) 22%,transparent);color:var(--red);border:1px solid var(--red)}
+.axes{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.axis{font:600 10px/1 var(--mono);padding:5px 8px;border-radius:7px;border:1px solid var(--line);color:var(--text-dim)}
+.axis b{color:var(--gold)}
+.axis.low{border-color:var(--red);color:var(--red)}
+
+/* ───────── tables ───────── */
+table{width:100%;border-collapse:collapse;font:12px/1.5 var(--mono)}
+th{text-align:left;color:var(--muted);font-weight:600;padding:7px 8px;border-bottom:1px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+td{padding:8px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);color:var(--text-dim);vertical-align:top}
+td .rid{color:var(--gold)}
+td .act{color:var(--terra)}
+tr:hover td{background:color-mix(in srgb,var(--gold) 6%,transparent)}
+.tag{font:600 9px/1 var(--mono);padding:3px 6px;border-radius:5px;border:1px solid var(--line);color:var(--text-dim)}
+.tag.proven{border-color:var(--green);color:var(--green)}
+.tag.sorry{border-color:var(--amber);color:var(--amber)}
+.tag.axiom{border-color:var(--terra);color:var(--terra)}
+.tag.policy{border-color:var(--muted);color:var(--muted)}
+
+/* ───────── metric ───────── */
+.metric{font:800 52px/1 var(--mono);color:var(--gold)}
+.metric-sub{font:500 12px var(--mono);color:var(--muted);margin-top:6px}
+.toolset{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.tool{font:600 10px/1 var(--mono);padding:5px 9px;border-radius:7px;background:color-mix(in srgb,var(--indigo) 50%,var(--panel));
+  border:1px solid var(--line);color:var(--text-dim)}
+
+/* ───────── provenance ───────── */
+.prov a{display:inline-flex;align-items:center;gap:7px;font:600 12px var(--mono);
+  padding:8px 12px;border:1px solid var(--gold-dim);border-radius:9px;margin:6px 8px 0 0}
+.prov a:hover{background:color-mix(in srgb,var(--gold) 12%,transparent);text-decoration:none}
+.prov .k{color:var(--muted);font:11px var(--mono);margin-top:10px}
+.kv{display:flex;justify-content:space-between;gap:10px;font:11px/1.9 var(--mono);
+  border-bottom:1px solid color-mix(in srgb,var(--line) 50%,transparent);padding:2px 0}
+.kv .kk{color:var(--muted)}.kv .vv{color:var(--gold);text-align:right;word-break:break-all}
+
+.err{color:var(--red);font:12px var(--mono)}
+
+/* ───────── Khipu quorum ───────── */
+.quorum-val{font:800 46px/1 var(--mono);color:var(--gold);letter-spacing:-1px}
+.quorum-sub{font:12px/1.6 var(--mono);color:var(--text-dim);margin-top:6px}
+.quorum-chip{display:inline-block;font:700 11px/1 var(--mono);padding:6px 12px;border-radius:999px;margin-top:10px}
+.quorum-chip.permitted{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green);border:1px solid var(--green)}
+.quorum-chip.denied{background:color-mix(in srgb,var(--red) 22%,transparent);color:var(--red);border:1px solid var(--red)}
+.quorum-witnesses{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.witness{font:600 10px/1 var(--mono);padding:5px 8px;border-radius:7px;border:1px solid var(--line);color:var(--text-dim)}
+.witness.ok{border-color:color-mix(in srgb,var(--green) 50%,transparent);color:var(--green)}
+.witness.down{border-color:color-mix(in srgb,var(--red) 50%,transparent);color:var(--red)}
+
+/* ───────── organ fleet grid ───────── */
+.organs{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+@media(max-width:1080px){.organs{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.organs{grid-template-columns:1fr}}
+.organ{position:relative;background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--line);border-radius:var(--r);padding:15px 15px 13px;box-shadow:var(--shadow);
+  transition:border-color .25s,transform .25s}
+.organ:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+.organ.up{border-left:3px solid var(--green)}
+.organ.down{border-left:3px solid var(--red)}
+.organ .oh{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.organ .oh .odot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.organ.up .oh .odot{background:var(--green);box-shadow:0 0 9px var(--green)}
+.organ.down .oh .odot{background:var(--red);box-shadow:0 0 9px var(--red)}
+.organ .oname{font:800 14px/1 var(--sans);letter-spacing:.2px;color:var(--text)}
+.organ .orole{font:600 9px/1 var(--mono);color:var(--terra);text-transform:uppercase;letter-spacing:.7px;margin-left:auto}
+.organ .orow{display:flex;justify-content:space-between;font:11px/1.9 var(--mono);color:var(--text-dim)}
+.organ .orow .ok{color:var(--gold);font-weight:600}
+.organ .otp{margin-top:8px;font:600 9.5px/1.4 var(--mono);color:var(--muted);word-break:break-all;
+  border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);padding-top:7px}
+.organ .otp b{color:var(--gold)}
+.organ .hz{font-weight:700}
+.organ .hz.g{color:var(--green)}.organ .hz.r{color:var(--red)}
+
+/* ───────── incident rows ───────── */
+.incident{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:9px;background:color-mix(in srgb,var(--panel) 80%,transparent)}
+.incident .sev{font:700 9px/1 var(--mono);padding:5px 8px;border-radius:6px;letter-spacing:.5px}
+.incident .sev.crit{background:color-mix(in srgb,var(--red) 22%,transparent);color:var(--red);border:1px solid var(--red)}
+.incident .sev.ok{background:color-mix(in srgb,var(--green) 18%,transparent);color:var(--green);border:1px solid var(--green)}
+.incident .iname{font:700 13px/1 var(--sans);color:var(--text)}
+.incident .imeta{font:600 10px/1.4 var(--mono);color:var(--muted)}
+.incident .iright{margin-left:auto;text-align:right;font:600 10px/1.4 var(--mono);color:var(--text-dim)}
+
+/* ───────── live MCP stream ───────── */
+#mcpStream{font:11px/1.5 var(--mono);max-height:340px;overflow:auto;margin-top:6px;
+  background:color-mix(in srgb,var(--bg) 60%,var(--panel));border:1px solid var(--line);border-radius:10px;padding:10px}
+.sline{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 40%,transparent);animation:fadein .3s ease}
+@keyframes fadein{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.sline .stag{flex:0 0 64px;color:var(--gold);font-weight:600}
+.sline .stag.hop{color:var(--terra)}.sline .stag.sum{color:var(--green)}.sline .stag.span{color:var(--muted)}
+.sline .sbody{color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.ws-controls input{flex:1;min-width:160px;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  color:var(--text);font:12px var(--mono);padding:8px 10px}
+.btn{font:700 11px/1 var(--mono);padding:9px 14px;border-radius:9px;cursor:pointer;border:1px solid var(--gold-dim);
+  background:color-mix(in srgb,var(--gold) 14%,transparent);color:var(--gold);transition:background .2s,transform .15s}
+.btn:hover{background:color-mix(in srgb,var(--gold) 26%,transparent);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.primary{background:var(--terra);color:var(--parchment);border-color:var(--terra)}
+.btn.primary:hover{background:color-mix(in srgb,var(--terra) 82%,#fff)}
+.ws-stat{font:600 10px/1 var(--mono);color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.ws-stat .wd{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.ws-stat.on .wd{background:var(--green);box-shadow:0 0 8px var(--green)}
+
+/* ───────── audit search ───────── */
+.searchbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.searchbar input{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  color:var(--text);font:12px var(--mono);padding:9px 11px}
+
+/* ───────── Setup MCP modal ───────── */
+.modal-bg{position:fixed;inset:0;z-index:120;background:rgba(10,7,28,.74);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.modal-bg.open{display:flex}
+.modal{width:min(720px,96vw);max-height:88vh;overflow:auto;background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--gold-dim);border-radius:16px;box-shadow:var(--shadow);padding:22px}
+.modal h3{font:800 18px/1 var(--sans);color:var(--text);margin-bottom:6px}
+.modal .msub{font:500 12px/1.5 var(--mono);color:var(--muted);margin-bottom:16px}
+.host-tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.host-tab{font:700 11px/1 var(--mono);padding:9px 13px;border-radius:9px;cursor:pointer;
+  border:1px solid var(--line);background:var(--bg);color:var(--text-dim)}
+.host-tab.active{border-color:var(--gold);color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,transparent)}
+.modal pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;
+  font:11px/1.5 var(--mono);color:var(--text-dim);max-height:46vh}
+.modal .mrow{display:flex;gap:8px;margin-top:14px;align-items:center}
+.modal .close{margin-left:auto;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer}
+.copied{color:var(--green);font:700 11px/1 var(--mono);opacity:0;transition:opacity .2s}
+.copied.show{opacity:1}
+
+/* ───────── footer ───────── */
+footer{padding:24px 26px 40px;border-top:1px solid var(--line);color:var(--muted);
+  font:11px/1.7 var(--mono);text-align:center;max-width:1480px;margin:24px auto 0}
+footer b{color:var(--gold)}
+@media(max-width:768px){
+  .plaque{position:static;max-width:none;margin:8px}
+  .trace-badge{position:static;margin:8px;display:inline-flex}
+  header{padding-top:14px}
+  .hchips{margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- live traceparent indicator -->
+<div class="trace-badge" id="traceBadge" title="last W3C traceparent observed on /mesh/3d">
+  <span class="tdot"></span><span>trace</span><span class="tid" id="traceId">—</span>
+</div>
+
+<!-- doctrine plaque — text hydrated from live /honest + /version (never hardcoded above backend) -->
+<div class="plaque" id="plaque">
+  <b>v11 LOCKED</b> <span class="sep">·</span> 749/14/163 <span class="sep">·</span> <b>c7c0ba17</b><br>
+  Λ = <b>Conjecture 1</b> <span class="sep">·</span> <span id="slsaLine">SLSA L1 honest</span>
+</div>
+
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle light/dark theme">◑</button>
+
+<!-- Setup MCP modal -->
+<div class="modal-bg" id="mcpModal">
+  <div class="modal">
+    <div style="display:flex;align-items:flex-start">
+      <div>
+        <h3>Setup MCP</h3>
+        <div class="msub">Real MCP stdio server (<code>python -m rosie.mcp_server</code>) · 12 governed tools.<br>Pick your host, copy the config, replace <code>/ABSOLUTE/PATH/TO/rosie</code>, restart.</div>
+      </div>
+      <button class="close" id="mcpClose" aria-label="Close">×</button>
+    </div>
+    <div class="host-tabs" id="hostTabs">
+      <button class="host-tab active" data-host="claude-desktop">Claude Desktop</button>
+      <button class="host-tab" data-host="codex">Codex</button>
+      <button class="host-tab" data-host="continue">Continue</button>
+    </div>
+    <pre id="mcpConfig">loading real config…</pre>
+    <div class="mrow">
+      <button class="btn primary" id="mcpCopy">⧉ Copy config to clipboard</button>
+      <span class="copied" id="mcpCopied">✓ copied</span>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 48 48" fill="none" aria-label="Rosie">
+      <circle cx="24" cy="24" r="21" stroke="var(--terra)" stroke-width="2.5"/>
+      <path d="M24 9c8 4 8 14 0 18-8-4-8-14 0-18Z" fill="var(--terra)"/>
+      <path d="M24 39c-8-4-8-14 0-18 8 4 8 14 0 18Z" fill="var(--gold)"/>
+      <circle cx="24" cy="24" r="3.4" fill="var(--parchment)"/>
+    </svg>
+    <div>
+      <div class="title">Rosie <span class="accent">·</span> Operator Console</div>
+      <div class="subtitle">human-in-the-loop command surface over the SZL mesh — 13 live tabs, all real, same-origin</div>
+    </div>
+  </div>
+  <div class="hchips" id="hchips">
+    <span class="hchip" id="chRouter">router <b>…</b></span>
+    <span class="hchip" id="chSkills">skills <b>…</b></span>
+    <span class="hchip" id="chTools">MCP <b>…</b></span>
+    <button class="btn primary" id="setupMcpBtn" style="padding:7px 11px">⚙ Setup MCP</button>
+  </div>
+</header>
+
+<!-- ───────── tab bar (13 tabs) ───────── -->
+<nav class="tabbar" aria-label="Operator console tabs">
+  <div class="tabbar-inner" id="tabbar" role="tablist">
+    <button class="tab active" role="tab" data-tab="forum"    data-n="1"><span class="tnum">1</span><span class="tdot2" id="d_forum"></span>Shared Forum</button>
+    <button class="tab" role="tab" data-tab="incident"  data-n="2"><span class="tnum">2</span><span class="tdot2" id="d_incident"></span>Incident Command</button>
+    <button class="tab" role="tab" data-tab="quorum"    data-n="3"><span class="tnum">3</span><span class="tdot2" id="d_quorum"></span>Quorum / Consensus</button>
+    <button class="tab" role="tab" data-tab="policy"    data-n="4"><span class="tnum">4</span><span class="tdot2" id="d_policy"></span>Policy Gates</button>
+    <button class="tab" role="tab" data-tab="fleet"     data-n="5"><span class="tnum">5</span><span class="tdot2" id="d_fleet"></span>Organ Fleet</button>
+    <button class="tab" role="tab" data-tab="lambda"    data-n="6"><span class="tnum">6</span><span class="tdot2" id="d_lambda"></span>Λ-Gate Monitor</button>
+    <button class="tab" role="tab" data-tab="audit"     data-n="7"><span class="tnum">7</span><span class="tdot2" id="d_audit"></span>Audit Log</button>
+    <button class="tab" role="tab" data-tab="command"   data-n="8"><span class="tnum">8</span><span class="tdot2" id="d_command"></span>Command Replay</button>
+    <button class="tab" role="tab" data-tab="prov"      data-n="9"><span class="tnum">9</span><span class="tdot2" id="d_prov"></span>Provenance</button>
+    <button class="tab" role="tab" data-tab="mcp"       data-n="10"><span class="tnum">10</span><span class="tdot2" id="d_mcp"></span>MCP Console</button>
+    <button class="tab" role="tab" data-tab="deploy"    data-n="11"><span class="tnum">11</span><span class="tdot2" id="d_deploy"></span>Deploy / Mesh</button>
+    <button class="tab" role="tab" data-tab="cortex"    data-n="12"><span class="tnum">12</span><span class="tdot2" id="d_cortex"></span>Cortex</button>
+    <button class="tab" role="tab" data-tab="stream"    data-n="13"><span class="tnum">13</span><span class="tdot2" id="d_stream"></span>Live Stream</button>
+  </div>
+</nav>
+
+<div class="panes">
+
+  <!-- ───── 1. SHARED FORUM ───── -->
+  <section class="pane active" id="pane-forum" role="tabpanel">
+    <div class="pane-head">
+      <h1>Shared Forum — Decision &amp; Receipt Substrate</h1>
+      <span class="epill">/v1/khipu/aggregate · /v1/ledger</span>
+    </div>
+    <div class="pane-head"><div class="lede">Rosie ingests ALL of the a11oy receipt substrate. Every decision/receipt that flows through the mesh is mirrored here — a live fan-out across all five organ ledgers. <span class="bench"><b>cf.</b> Datadog Event Stream</span></div></div>
+    <div class="grid cols-4" style="margin-bottom:18px">
+      <div class="tile"><h2><span class="ico">⛓</span> Substrate Depth</h2><div class="body" id="forumDepth"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2><span class="ico">◴</span> Organs Live</h2><div class="body" id="forumOrgans"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2><span class="ico">▦</span> Forum Nodes</h2><div class="body" id="forumNodes"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2><span class="ico">⇄</span> Forum Edges</h2><div class="body" id="forumEdges"><div class="sk sk-big"></div></div></div>
+    </div>
+    <div class="grid cols-2">
+      <div class="tile"><h2><span class="dot" id="forumDot"></span> Per-organ ledger fan-out <span class="pill">/v1/khipu/aggregate</span></h2><div class="body" id="forumOrganList"><div class="sk sk-line"></div><div class="sk sk-line w80"></div></div></div>
+      <div class="tile"><h2><span class="dot" id="forumLedDot"></span> Latest Khipu receipts <span class="pill">/v1/ledger</span></h2><div class="body" id="forumLedger"><div class="sk sk-line"></div><div class="sk sk-line"></div><div class="sk sk-line w80"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ───── 2. INCIDENT COMMAND ───── -->
+  <section class="pane" id="pane-incident" role="tabpanel">
+    <div class="pane-head"><h1>Incident Command &amp; Escalation</h1><span class="epill">/v1/mesh/3d · /v1/deploy/status</span></div>
+    <div class="pane-head"><div class="lede">Live derivation of incidents from organ health: any organ not returning HTTP&nbsp;200, or a denied quorum, escalates to an open incident. Healthy mesh = zero open incidents. <span class="bench"><b>cf.</b> PagerDuty incident command</span></div></div>
+    <div class="grid cols-4" style="margin-bottom:18px">
+      <div class="tile"><h2>Open Incidents</h2><div class="body" id="incOpen"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Healthy Organs</h2><div class="body" id="incHealthy"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Quorum</h2><div class="body" id="incQuorum"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Mesh Status</h2><div class="body" id="incMesh"><div class="sk sk-big"></div></div></div>
+    </div>
+    <div class="tile"><h2><span class="dot" id="incDot"></span> Escalation board <span class="pill">derived from live health</span></h2><div class="body" id="incBoard"><div class="sk sk-line"></div><div class="sk sk-line w80"></div></div></div>
+  </section>
+
+  <!-- ───── 3. QUORUM / CONSENSUS ───── -->
+  <section class="pane" id="pane-quorum" role="tabpanel">
+    <div class="pane-head"><h1>Quorum / Consensus Monitor</h1><span class="epill">/v1/mesh/3d</span></div>
+    <div class="pane-head"><div class="lede">BFT 3-of-4 Khipu quorum (n≥3f+1, f=1). No single organ can forge or block a verdict — multi-party-witnessed AI. <span class="bench"><b>SZL differentiator</b> — no SIEM leader has this</span></div></div>
+    <div class="grid cols-2">
+      <div class="tile"><h2><span class="dot" id="quorumDot"></span> <span class="ico">⦻</span> 3-of-4 BFT Quorum <span class="pill">/v1/mesh/3d</span></h2><div class="body" id="quorumBody"><div class="sk sk-big"></div><div class="sk sk-line w60"></div></div></div>
+      <div class="tile"><h2><span class="ico">◇</span> Consensus chain</h2><div class="body" id="quorumChain"><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ───── 4. POLICY GATES ───── -->
+  <section class="pane" id="pane-policy" role="tabpanel">
+    <div class="pane-head"><h1>Policy Gate Status Board</h1><span class="epill">/v1/policy/gates</span></div>
+    <div class="pane-head"><div class="lede">Deny-by-default policy gates with Lean proof-status per gate (PROVEN / SORRY-TRACKED / AXIOM / POLICY). Honest labels — no gate claimed proven beyond its Lean obligation. <span class="bench"><b>cf.</b> Palantir policy / sentra gates</span></div></div>
+    <div class="grid cols-4" style="margin-bottom:18px">
+      <div class="tile"><h2>Total Gates</h2><div class="body" id="polTotal"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Proven</h2><div class="body" id="polProven"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Sorry-tracked</h2><div class="body" id="polSorry"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Policy / Axiom</h2><div class="body" id="polOther"><div class="sk sk-big"></div></div></div>
+    </div>
+    <div class="tile"><h2><span class="dot" id="polDot"></span> Gates <span class="pill">name · Lean theorem · status</span></h2><div class="body"><div class="searchbar"><input id="polSearch" placeholder="filter gates by name / theorem / status…"></div><div id="polTable"><div class="sk sk-line"></div><div class="sk sk-line w80"></div></div></div></div>
+  </section>
+
+  <!-- ───── 5. ORGAN FLEET ───── -->
+  <section class="pane" id="pane-fleet" role="tabpanel">
+    <div class="pane-head"><h1>Organ Fleet Map</h1><span class="epill">/v1/mesh/3d</span></div>
+    <div class="pane-head"><div class="lede">Live health, role, MCP-tool count and W3C traceparent for every organ in the mesh. <span class="bench"><b>cf.</b> Grafana fleet / Gotham situational awareness</span></div></div>
+    <div class="organs" id="organs">
+      <div class="organ" data-organ="amaru"><div class="oh"><span class="odot"></span><span class="oname">Amaru</span><span class="orole">cortex</span></div><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
+      <div class="organ" data-organ="sentra"><div class="oh"><span class="odot"></span><span class="oname">Sentra</span><span class="orole">immune</span></div><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
+      <div class="organ" data-organ="killinchu"><div class="oh"><span class="odot"></span><span class="oname">Killinchu</span><span class="orole">field</span></div><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
+      <div class="organ" data-organ="a11oy"><div class="oh"><span class="odot"></span><span class="oname">A11oy</span><span class="orole">governance</span></div><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
+      <div class="organ" data-organ="rosie"><div class="oh"><span class="odot"></span><span class="oname">Rosie</span><span class="orole">nervous</span></div><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
+    </div>
+  </section>
+
+  <!-- ───── 6. Λ-GATE MONITOR ───── -->
+  <section class="pane" id="pane-lambda" role="tabpanel">
+    <div class="pane-head"><h1>Λ-Gate Monitor</h1><span class="epill">/v1/lambda · /v1/doctrine-guard</span></div>
+    <div class="pane-head"><div class="lede">13-axis geometric-mean trust score, floor 0.90. Λ-Aggregator Uniqueness is <b>Conjecture 1 — NOT a theorem</b>. The doctrine-guard panel shows a live adversarial prompt being clamped. <span class="bench"><b>cf.</b> New Relic SLO / risk-based alerting</span></div></div>
+    <div class="grid cols-2">
+      <div class="tile"><h2><span class="dot" id="lamDot"></span> <span class="ico">Λ</span> Live Verdict <span class="pill">/v1/lambda</span></h2><div class="body" id="lambdaBody"><div class="sk sk-big"></div><div class="sk sk-line w60"></div></div></div>
+      <div class="tile"><h2><span class="dot" id="guardDot"></span> <span class="ico">⛨</span> Doctrine Guard <span class="pill">/v1/doctrine-guard</span></h2><div class="body" id="guardBody"><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ───── 7. AUDIT LOG ───── -->
+  <section class="pane" id="pane-audit" role="tabpanel">
+    <div class="pane-head"><h1>Audit Log Search</h1><span class="epill">/v1/audit-log</span></div>
+    <div class="pane-head"><div class="lede">In-memory audit ring buffer (maxlen 200, resets on Space rebuild — honest disclosure). Filter by substring. <span class="bench"><b>cf.</b> Splunk Enterprise Security search</span></div></div>
+    <div class="tile"><h2><span class="dot" id="audDot"></span> Audit entries <span class="pill" id="audCount">—</span></h2><div class="body"><div class="searchbar"><input id="audSearch" placeholder="filter audit entries…"><button class="btn" id="audRefresh">↻ Refresh</button></div><div id="audTable"><div class="sk sk-line"></div><div class="sk sk-line w80"></div></div></div></div>
+  </section>
+
+  <!-- ───── 8. COMMAND REPLAY ───── -->
+  <section class="pane" id="pane-command" role="tabpanel">
+    <div class="pane-head"><h1>Command Replay — Hash-chained Operator Ledger</h1><span class="epill">/v2/command-log</span></div>
+    <div class="pane-head"><div class="lede">Every operator command is appended to a SHA-256 hash-chain (prev_hash → hash). Tamper-evident, replayable mission timeline. <span class="bench"><b>cf.</b> Palantir Gotham mission log</span></div></div>
+    <div class="grid cols-4" style="margin-bottom:18px">
+      <div class="tile"><h2>Chain Depth</h2><div class="body" id="cmdDepth"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Chain Verified</h2><div class="body" id="cmdVerified"><div class="sk sk-big"></div></div></div>
+      <div class="tile"><h2>Genesis</h2><div class="body" id="cmdGenesis"><div class="sk sk-line w80"></div></div></div>
+      <div class="tile"><h2>Head</h2><div class="body" id="cmdHead"><div class="sk sk-line w80"></div></div></div>
+    </div>
+    <div class="tile"><h2><span class="dot" id="cmdDot"></span> Command receipts <span class="pill">seq · kind · prev→hash</span></h2><div class="body" id="cmdTable"><div class="sk sk-line"></div><div class="sk sk-line w80"></div></div></div>
+  </section>
+
+  <!-- ───── 9. PROVENANCE ───── -->
+  <section class="pane" id="pane-prov" role="tabpanel">
+    <div class="pane-head"><h1>Provenance / Attestation Browser</h1><span class="epill">/v1/version · /v1/honest</span></div>
+    <div class="pane-head"><div class="lede">Build provenance, cosign verify command, SBOM link, and the honest doctrine disclosure — SLSA wording is whatever the running backend reports. <span class="bench"><b>SZL differentiator</b> — verifiable supply chain</span></div></div>
+    <div class="grid cols-2">
+      <div class="tile"><h2><span class="dot" id="provDot"></span> <span class="ico">✔</span> Verification provenance <span class="pill">/v1/version</span></h2><div class="body prov" id="provBody"><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div></div>
+      <div class="tile"><h2><span class="dot" id="honDot"></span> <span class="ico">ℹ</span> Honest disclosure <span class="pill">/v1/honest</span></h2><div class="body" id="honBody"><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ───── 10. MCP CONSOLE ───── -->
+  <section class="pane" id="pane-mcp" role="tabpanel">
+    <div class="pane-head"><h1>MCP Tool Console</h1><span class="epill">/v1/mcp/tools · /v1/mcp/configs</span></div>
+    <div class="pane-head"><div class="lede">12 governed Model Context Protocol tools exposed via a real stdio server. Click "Setup MCP" (top-right) for copy-paste host configs. <span class="bench"><b>SZL differentiator</b> — agentic tool governance</span></div></div>
+    <div class="grid cols-2">
+      <div class="tile"><h2><span class="dot" id="mcpDot"></span> <span class="ico">⚙</span> Governed tools <span class="pill">/v1/mcp/tools</span></h2><div class="body" id="mcpBody"><div class="sk sk-big"></div><div class="sk sk-line w80"></div></div></div>
+      <div class="tile"><h2><span class="ico">⧉</span> Host integration</h2><div class="body"><p class="metric-sub">Real MCP stdio server — <code>python -m rosie.mcp_server</code>. Supported hosts: Claude Desktop, Codex, Continue.</p><div style="margin-top:12px"><button class="btn primary" id="setupMcpBtn2">⚙ Open Setup MCP</button></div></div></div>
+    </div>
+  </section>
+
+  <!-- ───── 11. DEPLOY / MESH ───── -->
+  <section class="pane" id="pane-deploy" role="tabpanel">
+    <div class="pane-head"><h1>Deploy / Mesh Status</h1><span class="epill">/v1/deploy/status</span></div>
+    <div class="pane-head"><div class="lede">Per-Space deployment status: live SHA, SDK, health, last-verified timestamp. <span class="bench"><b>cf.</b> Datadog infrastructure monitor</span></div></div>
+    <div class="tile"><h2><span class="dot" id="depDot"></span> Spaces <span class="pill">space · sha · sdk · health</span></h2><div class="body" id="depTable"><div class="sk sk-line"></div><div class="sk sk-line w80"></div></div></div>
+  </section>
+
+  <!-- ───── 12. CORTEX ───── -->
+  <section class="pane" id="pane-cortex" role="tabpanel">
+    <div class="pane-head"><h1>Cortex — Self-Learning &amp; Active Inference</h1><span class="epill">/v1/self-learning · /v1/active-inference</span></div>
+    <div class="pane-head"><div class="lede">In-process predictive-coding loop: variational free energy, belief μ, precision (iterations reset on Space restart — honest). <span class="bench"><b>cf.</b> New Relic AI monitoring</span></div></div>
+    <div class="grid cols-2">
+      <div class="tile"><h2><span class="dot" id="slDot"></span> <span class="ico">◉</span> Self-learning <span class="pill">/v1/self-learning</span></h2><div class="body" id="slBody"><div class="sk sk-big"></div><div class="sk sk-line w60"></div></div></div>
+      <div class="tile"><h2><span class="dot" id="aiDot"></span> <span class="ico">∮</span> Active inference <span class="pill">/v1/active-inference</span></h2><div class="body" id="aiBody"><div class="sk sk-big"></div><div class="sk sk-line w60"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ───── 13. LIVE STREAM ───── -->
+  <section class="pane" id="pane-stream" role="tabpanel">
+    <div class="pane-head"><h1>Live MCP Call Stream</h1><span class="epill">ws /v1/mcp/stream</span></div>
+    <div class="pane-head"><div class="lede">Real per-hop DSSE-tagged receipts streamed over a WebSocket as a governed chain executes. <span class="bench"><b>cf.</b> Datadog live tail</span></div></div>
+    <div class="tile"><h2><span class="dot" id="streamDot"></span> <span class="ico">⇄</span> WebSocket stream <span class="ws-stat" id="wsStat" style="margin-left:auto"><span class="wd"></span>MCP stream</span></h2>
+      <div class="body">
+        <div class="ws-controls">
+          <input id="streamGoal" placeholder="goal — e.g. ship doctrine-v11 receipt" value="ship doctrine-v11 receipt">
+          <button class="btn" id="streamRun">▶ Run real chain</button>
+        </div>
+        <div id="mcpStream"><div class="metric-sub">open this tab to connect to the live MCP WebSocket…</div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Rosie operator console · 13 tabs, each bound to a <b>real</b> same-origin <code>/api/rosie/v1|v2/…</code> endpoint ·
+  skeletons over spinners · W3C traceparent on every panel · shared a11oy receipt substrate ingested live.<br>
+  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · HONESTY OVER CHECKLIST</b><br>
+  <span id="footSlsa">SLSA wording rendered live from /api/rosie/v1/honest + /version</span><br>
+  Sign: Stephen P. Lutar Jr. &lt;stephenlutar2@gmail.com&gt;
+</footer>
+
+<script src="./console.js"></script>
+</body>
+</html>

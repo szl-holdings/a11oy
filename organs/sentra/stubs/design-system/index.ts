@@ -1,0 +1,22 @@
+import { createElement, type ReactNode } from 'react';
+
+export type AutonomyMode = 'supervised' | 'autonomous' | 'hybrid';
+export const ProofEnvelope = (props: any) => createElement('div', props);
+export const AtlasScenePanel = (props: any) => null;
+export const SubstrateWorkflowPanel = (props: any) => null;
+export const DecisionPanel = (props: any) => null;
+export const GovernancePanel = (props: any) => null;
+export const TrustPanel = (props: any) => null;
+export const PolicyPanel = (props: any) => null;
+export const Badge = (props: any) => createElement('span', props);
+export const Card = (props: any) => createElement('div', props);
+export const CardContent = (props: any) => createElement('div', props);
+export const CardHeader = (props: any) => createElement('div', props);
+export const CardTitle = (props: any) => createElement('h3', props);
+export const Button = (props: any) => createElement('button', props);
+export const Input = (props: any) => createElement('input', props);
+export const Select = (props: any) => createElement('select', props);
+export const Tabs = (props: any) => createElement('div', props);
+export const TabsList = (props: any) => createElement('div', props);
+export const TabsTrigger = (props: any) => createElement('button', props);
+export const TabsContent = (props: any) => createElement('div', props);

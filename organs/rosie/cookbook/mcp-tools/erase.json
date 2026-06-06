@@ -1,0 +1,7 @@
+{
+ "name": "erase",
+ "description": "GDPR erase + signed deletion receipt.",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

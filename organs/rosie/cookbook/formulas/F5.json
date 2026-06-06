@@ -1,0 +1,9 @@
+{
+ "id": "F5",
+ "name": "homogeneous_aggregator",
+ "description": "Homogeneity of the aggregator.",
+ "status": "PROVEN",
+ "honesty_note": "Lean-proven (IsHomogeneous).",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

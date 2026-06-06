@@ -1,0 +1,7 @@
+{
+ "name": "cite_thesis",
+ "description": "Return thesis chapter content + PDF SHA-256.",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

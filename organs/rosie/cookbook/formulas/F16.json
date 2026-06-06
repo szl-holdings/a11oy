@@ -1,0 +1,9 @@
+{
+ "id": "F16",
+ "name": "dsse_pae",
+ "description": "DSSE Pre-Authentication-Encoding.",
+ "status": "PROVEN",
+ "honesty_note": "Deterministic spec (matches in-toto DSSE PAE).",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

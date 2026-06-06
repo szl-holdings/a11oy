@@ -1,0 +1,9 @@
+{
+ "id": "F1",
+ "name": "lambda_aggregate",
+ "description": "\u039b aggregator over the 13 Yuyay axes.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "\u039b is Conjecture 1 \u2014 NOT a proven theorem. The aggregator is defined; its claimed bound is conjectural.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

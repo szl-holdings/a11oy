@@ -1,0 +1,448 @@
+<!doctype html>
+<!-- v4-fleet-panel — SZL Holdings · Canonical Fleet Status Panel
+     Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+     Visual: Khipu Gold #c8a84b · Space Grotesk + JetBrains Mono (HCI/UX PhD spec)
+     Sign: Yachay <yachay@szlholdings.ai>
+     Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+     SPDX-License-Identifier: Apache-2.0
+     © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fleet Status — SZL Holdings V4</title>
+<!-- HCI/UX PhD Spec: Space Grotesk (panel headers, labels) + JetBrains Mono (data) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* === SZL Visual System — Khipu Gold #c8a84b (HCI/UX PhD spec 2026-06-02) === */
+  --bg:#0a0a0c;          /* Surface 0 — page background (near-black, cool tint) */
+  --bg-100:#111116;      /* Surface 1 — panel background */
+  --bg-200:#181820;      /* Surface 2 — card / elevated */
+  --bg-300:#1e1e28;      /* Surface 3 — hover / selected */
+  --bg-400:#252533;      /* Surface 4 — active / pressed */
+
+  /* Khipu Gold — SZL brand primary (Andean sovereign, "color of verified truth") */
+  --gold:#c8a84b;         /* PRIMARY — Khipu Gold */
+  --gold-hover:#b89340;   /* Hover state */
+  --gold-signal:#f0d080;  /* Signal Gold — high-contrast labels */
+  --gold-deep:#8b6f2e;    /* Deep Quipu — footer / tertiary */
+  --gold-shadow:rgba(200,168,75,.2);
+
+  /* Mission state colors (traffic-light standard — do NOT substitute gold) */
+  --em:#00e87a;           /* NOMINAL / PASS green */
+  --amb:#ffb700;          /* ELEVATED / WARNING amber */
+  --rose:#ff4444;         /* THREAT ACTIVE / FAIL red */
+  --blue:#4488ff;         /* DEGRADED / OFFLINE blue */
+
+  /* Text (warm white — not pure #fff, reduces eye fatigue on long shifts) */
+  --tx:#f0edd4;           /* Primary text */
+  --tx2:#a09880;          /* Secondary / muted */
+  --txm:#605850;          /* Tertiary / metadata */
+
+  /* Borders — gold-opacity for coherent dark surfaces */
+  --bdr:rgba(200,168,75,.12);
+  --bdr-med:rgba(200,168,75,.25);
+  --bdr-strong:rgba(200,168,75,.50);
+  --bdr-alert:#ffb700;
+
+  /* Typography — HCI/UX PhD spec */
+  --sans:"Space Grotesk","Inter",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 20px}
+
+/* ── Doctrine banner (AC-4: required on every V4 page) ── */
+.doctrine-banner{
+  background:linear-gradient(135deg,rgba(200,168,75,.09),rgba(0,232,122,.05));
+  border:1px solid var(--bdr-med);
+  border-radius:6px;
+  padding:11px 17px;margin-bottom:20px;
+  font-family:var(--mono);font-size:11px;
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  letter-spacing:0;
+}
+.db-key{color:var(--gold);font-weight:700}
+.db-val{color:var(--tx)}
+.db-conj{color:var(--amb);font-weight:700}
+.db-ok{color:var(--em)}
+.db-sep{color:var(--txm)}
+
+/* ── Lambda Conjecture 1 banner (standalone, prominent) ── */
+.lambda-banner{
+  background:linear-gradient(135deg,rgba(255,183,0,.06),rgba(200,168,75,.04));
+  border:1px solid rgba(255,183,0,.35);
+  border-radius:6px;
+  padding:10px 17px;margin-bottom:18px;
+  font-family:var(--mono);font-size:12px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.lambda-symbol{font-size:20px;color:var(--amb);font-weight:700;line-height:1}
+.lambda-text{color:var(--tx)}
+.lambda-warn{color:var(--amb);font-weight:600}
+
+/* ── Section header ── */
+.sec-hdr{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.sec-hdr h2{
+  font-family:var(--sans);font-size:10px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--tx2);margin:0
+}
+.btn{
+  background:transparent;border:1px solid var(--bdr);color:var(--tx2);
+  border-radius:4px;padding:4px 10px;font-size:11px;font-family:var(--mono);cursor:pointer;
+  transition:border-color 200ms,color 200ms;
+}
+.btn:hover{border-color:var(--gold);color:var(--gold)}
+.ts{font-family:var(--mono);font-size:10px;color:var(--txm);margin-left:auto}
+
+/* ── Fleet status bar (top-level NOMINAL/DEGRADED/THREAT indicator) ── */
+.fleet-status-bar{
+  background:var(--bg-100);
+  border:1px solid var(--bdr);
+  border-radius:6px;
+  padding:10px 16px;margin-bottom:14px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.fsb-label{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.04em}
+.fsb-label.nominal{color:var(--em)}
+.fsb-label.degraded{color:var(--blue)}
+.fsb-label.threat{color:var(--rose)}
+.fsb-meta{font-family:var(--mono);font-size:11px;color:var(--tx2)}
+.fsb-clock{font-family:var(--mono);font-size:10px;color:var(--txm);margin-left:auto}
+
+/* ── 5-peer grid ── */
+.peers{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:10px;margin-bottom:20px}
+.peer{
+  background:var(--bg-200);
+  border:1px solid var(--bdr);
+  border-radius:6px;
+  padding:14px 15px;position:relative;overflow:hidden;
+}
+.peer::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--sc,var(--em));border-radius:6px 6px 0 0;
+}
+.peer.ok{--sc:var(--em)}.peer.warn{--sc:var(--amb)}.peer.down{--sc:var(--rose)}.peer.pend{--sc:var(--txm)}
+.p-name{font-family:var(--mono);font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.p-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--sc,var(--txm));
+  box-shadow:0 0 5px var(--sc,var(--txm));flex-shrink:0;
+}
+.p-q{font-size:10px;color:var(--gold);font-family:var(--sans);font-weight:600;margin-bottom:4px;letter-spacing:.06em}
+.p-doc{font-size:10px;color:var(--txm);font-family:var(--mono);margin-bottom:3px}
+.p-http{font-family:var(--mono);font-size:11px;color:var(--tx2)}
+.p-url{font-size:10px;color:var(--txm);font-family:var(--mono);margin-top:6px;word-break:break-all}
+.p-url a{color:var(--txm);text-decoration:none}.p-url a:hover{color:var(--gold)}
+.ok-txt{color:var(--em)}.warn-txt{color:var(--amb)}.down-txt{color:var(--rose)}.pend-txt{color:var(--txm)}
+
+/* ── Lambda + Kernel card ── */
+.lc{
+  background:var(--bg-200);
+  border:1px solid var(--bdr-med);
+  border-radius:6px;
+  padding:15px 18px;margin-bottom:18px;
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;
+}
+@media(max-width:580px){.lc{grid-template-columns:1fr}}
+.lc-lbl{
+  font-family:var(--sans);font-size:10px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:4px;
+}
+.lc-val{font-family:var(--mono);font-size:14px;color:var(--tx)}
+.lc-val.conj{color:var(--amb);font-weight:700}
+.lc-sha{
+  font-family:var(--mono);font-size:12px;color:var(--blue);
+  background:rgba(68,136,255,.08);border:1px solid rgba(68,136,255,.2);
+  padding:2px 7px;border-radius:4px;display:inline-block;
+}
+.lc-note{font-size:11px;color:var(--txm);margin-top:4px;line-height:1.4}
+
+/* ── Wire status chips ── */
+.wires{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.wc{
+  background:var(--bg-200);border:1px solid var(--bdr);border-radius:20px;
+  padding:5px 12px;font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:6px;
+}
+.wc-dot{width:7px;height:7px;border-radius:50%}
+.wc.live{border-color:rgba(0,232,122,.3)}.wc.live .wc-dot{background:var(--em);box-shadow:0 0 5px var(--em)}
+.wc.pend .wc-dot{background:var(--txm)}
+.wc-lbl{color:var(--tx2)}.wc.live .wc-lbl{color:var(--tx)}
+
+/* ── Section 889 ── */
+.s889{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;font-family:var(--mono);font-size:10px;align-items:center}
+.vb{background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2);color:var(--rose);padding:3px 9px;border-radius:4px}
+.s889-lbl{color:var(--txm);margin-right:3px}
+
+/* ── Receipt chain (AC-3) ── */
+.rcpt-wrap{margin-top:16px}
+table.rcpt{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+table.rcpt th{
+  text-align:left;padding:6px 10px;color:var(--tx2);font-family:var(--sans);font-size:10px;
+  font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  border-bottom:1px solid var(--bdr-med);
+}
+table.rcpt td{padding:7px 10px;border-bottom:1px solid var(--bdr);color:var(--tx2);vertical-align:top}
+table.rcpt tr:hover td{background:rgba(30,30,40,.7)}
+.td-time{color:var(--txm);white-space:nowrap}
+.td-op{color:var(--tx)}
+.td-org{color:var(--gold)}
+.sig-ok{color:var(--em)}.sig-pend{color:var(--amb)}.sig-no{color:var(--txm)}
+.td-hash{font-size:10px;color:var(--txm);word-break:break-all}
+.rekor{color:var(--blue);text-decoration:none;font-size:10px}.rekor:hover{text-decoration:underline}
+.empty{
+  text-align:center;color:var(--txm);font-family:var(--mono);font-size:12px;
+  padding:28px;border:1px dashed var(--bdr);border-radius:6px;
+}
+
+/* ── SLSA + authority footer ── */
+.authority-footer{
+  margin-top:20px;
+  background:var(--bg-100);
+  border:1px solid var(--bdr);
+  border-radius:6px;
+  padding:10px 16px;
+  font-family:var(--mono);font-size:11px;color:var(--txm);
+  display:flex;gap:16px;flex-wrap:wrap;align-items:center;
+}
+.af-item{display:flex;gap:5px;align-items:center}
+.af-ok{color:var(--em)}.af-gold{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- Fleet status bar — top-level operator state (3-second glance) -->
+<div class="fleet-status-bar" role="banner" aria-label="Fleet mission state">
+  <span class="fsb-label nominal" id="fleet-state">FLEET: NOMINAL</span>
+  <span class="fsb-meta" id="fleet-meta">5 peers · checking…</span>
+  <span class="fsb-clock" id="fleet-clock"></span>
+</div>
+
+<!-- Doctrine claim banner (AC-4: required on every V4 page) -->
+<div class="doctrine-banner" role="region" aria-label="Doctrine status">
+  <span><span class="db-key">DOCTRINE</span> <span class="db-val">v11 · LOCKED</span></span>
+  <span class="db-sep">·</span>
+  <span><span class="db-key">749</span> <span class="db-val">decls</span></span>
+  <span class="db-sep">·</span>
+  <span><span class="db-key">14</span> <span class="db-val">axioms</span></span>
+  <span class="db-sep">·</span>
+  <span><span class="db-key">163</span> <span class="db-val">sorries</span></span>
+  <span class="db-sep">·</span>
+  <span class="db-ok">kernel c7c0ba17</span>
+  <span class="db-sep">·</span>
+  <span class="db-ok">SLSA L1 (honest)</span>
+</div>
+
+<!-- Lambda Conjecture 1 banner (Λ honest disclosure — standalone, prominent) -->
+<div class="lambda-banner" role="region" aria-label="Lambda convergence status">
+  <span class="lambda-symbol">Λ</span>
+  <span class="lambda-text">
+    <span class="lambda-warn">Conjecture 1 — NOT a theorem.</span>
+    Depends on 163 open sorries including CAUCHY_ND (Uniqueness.lean:120).
+    Operator authority is human-final; Λ score is conjecture-grade, not closed proof.
+  </span>
+</div>
+
+<!-- Fleet header -->
+<div class="sec-hdr">
+  <h2>Fleet Status — 5 Peers</h2>
+  <button class="btn" onclick="loadFleet()">↻ Refresh</button>
+  <span class="ts" id="fleet-ts"></span>
+</div>
+
+<!-- 5-peer cards -->
+<div class="peers" id="peers-grid">
+  <div class="empty">Loading fleet status…</div>
+</div>
+
+<!-- Lambda + Kernel card -->
+<div class="lc" role="region" aria-label="Lambda kernel detail">
+  <div>
+    <div class="lc-lbl">Λ Status</div>
+    <div class="lc-val conj">Conjecture 1</div>
+    <div class="lc-note">NOT a theorem. Depends on open CAUCHY_ND sorry
+      (Uniqueness.lean:120) + missing symmetry axiom. 163 sorries open.
+      <em>Human decision required for all operational verdicts.</em></div>
+  </div>
+  <div>
+    <div class="lc-lbl">Lean Kernel Commit</div>
+    <div class="lc-val"><span class="lc-sha">c7c0ba17</span></div>
+    <div class="lc-note">lutar-lean @ <code>lutar-v18.0.0</code> · 749 declarations ·
+      14 unique axioms · 163 tracked sorries · <code>lake build</code> clean.</div>
+  </div>
+</div>
+
+<!-- Wire status -->
+<div class="wires" role="region" aria-label="Wire status">
+  <div class="wc live"><div class="wc-dot"></div><span class="wc-lbl">Wire B: a11oy↔sentra immune — LIVE</span></div>
+  <div class="wc live"><div class="wc-dot"></div><span class="wc-lbl">Wire C: a11oy↔rosie receipts — LIVE</span></div>
+  <div class="wc pend"><div class="wc-dot"></div><span class="wc-lbl">Wire D: W3C traceparent — PENDING</span></div>
+</div>
+
+<!-- Section 889 -->
+<div class="s889" role="region" aria-label="Section 889 compliance">
+  <span class="s889-lbl">§889 — 5 excluded vendors:</span>
+  <span class="vb">Huawei</span><span class="vb">ZTE</span><span class="vb">Hytera</span>
+  <span class="vb">Hikvision</span><span class="vb">Dahua</span>
+</div>
+
+<!-- Receipt chain viewer (AC-3) -->
+<div class="rcpt-wrap" role="region" aria-label="Receipt chain">
+  <div class="sec-hdr" style="margin-top:4px">
+    <h2>Receipt Chain</h2>
+    <button class="btn" onclick="loadReceipts()">↻ Refresh</button>
+  </div>
+  <div id="rcpt-container"><div class="empty">Loading receipts…</div></div>
+</div>
+
+<!-- Authority footer -->
+<div class="authority-footer" role="contentinfo">
+  <div class="af-item"><span class="af-ok">✓</span><span>A11OY GATES ACTIVE</span></div>
+  <div class="af-item"><span class="af-gold">·</span><span>DOCTRINE v11 LOCKED (c7c0ba17)</span></div>
+  <div class="af-item"><span class="af-ok">✓</span><span>SLSA L1 (honest; L2 via Wire D roadmap)</span></div>
+  <div class="af-item"><span class="af-gold">·</span><span>§889: 5 vendors excluded</span></div>
+  <div class="af-item" style="margin-left:auto"><span>HUMAN FINAL AUTHORITY — NO AUTONOMOUS DECISIONS PENDING</span></div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+/* Fleet panel — V4 · Doctrine v11 LOCKED · Λ = Conjecture 1 (NOT a theorem)
+   Visual: Khipu Gold #c8a84b · Space Grotesk + JetBrains Mono (HCI/UX PhD spec)
+   Sign: Yachay <yachay@szlholdings.ai>
+   Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai> */
+
+const PEERS=[
+  {id:"a11oy",    q:"Yachay",     role:"Policy Gate · AI Constitution",
+   api:"/api/a11oy/healthz",      href:"https://szlholdings-a11oy.hf.space"},
+  {id:"sentra",   q:"Musquy",     role:"Immune System · SOC",
+   api:"https://szlholdings-sentra.hf.space/api/health",    href:"https://szlholdings-sentra.hf.space"},
+  {id:"amaru",    q:"Amaru",      role:"Data Convergence Fabric",
+   api:"https://szlholdings-amaru.hf.space/api/health",     href:"https://szlholdings-amaru.hf.space"},
+  {id:"rosie",    q:"Yuyay",      role:"Command · God-View",
+   api:"https://szlholdings-rosie.hf.space/api/health",     href:"https://szlholdings-rosie.hf.space"},
+  {id:"killinchu",q:"Killinchu",  role:"C-UAS · Drone Intelligence",
+   api:"https://szlholdings-killinchu.hf.space/api/health", href:"https://szlholdings-killinchu.hf.space"},
+];
+
+function detectNs(){
+  const h=location.hostname;
+  for(const p of PEERS){if(h.includes(p.id))return p.id;}
+  return "a11oy";
+}
+const NS=detectNs();
+
+const peerApi=(p)=>{
+  if(location.hostname.includes(p.id)){
+    return p.api.startsWith("http")?new URL(p.api).pathname:p.api;
+  }
+  return p.api;
+};
+
+async function probePeer(p){
+  try{
+    const sig=AbortSignal.timeout(5000);
+    const r=await fetch(peerApi(p),{signal:sig});
+    let body={};
+    try{body=await r.json();}catch(_){}
+    return{...p,ok:r.ok,code:r.status,body};
+  }catch(e){
+    return{...p,ok:null,code:"ERR",err:String(e).slice(0,60)};
+  }
+}
+
+function peerCard(p,probe){
+  const cls=probe.ok===true?"ok":probe.ok===null?"pend":"down";
+  const httpTxt=probe.ok===true
+    ?`<span class="ok-txt">HTTP ${probe.code} NOMINAL</span>`
+    :probe.ok===null
+    ?`<span class="pend-txt">unreachable / cross-origin</span>`
+    :`<span class="down-txt">HTTP ${probe.code||"ERR"} DEGRADED</span>`;
+  const b=probe.body||{};
+  const doc=b.counts||b.doctrine?`v${b.doctrine||"11"} · ${b.counts||"749/14/163"}`:"—";
+  return`<div class="peer ${cls}" role="article" aria-label="${p.id} peer status">
+    <div class="p-name"><div class="p-dot"></div>${p.id}</div>
+    <div class="p-q">${p.q} — ${p.role}</div>
+    <div class="p-doc">Doctrine ${doc}</div>
+    <div class="p-http">${httpTxt}</div>
+    <div class="p-url"><a href="${p.href}" target="_blank" rel="noopener">${p.href.replace("https://","")}</a></div>
+  </div>`;
+}
+
+async function loadFleet(){
+  const g=document.getElementById("peers-grid");
+  const ts=document.getElementById("fleet-ts");
+  const state=document.getElementById("fleet-state");
+  const meta=document.getElementById("fleet-meta");
+  const clock=document.getElementById("fleet-clock");
+  g.innerHTML='<div class="empty">Probing 5 peers…</div>';
+  const probes=await Promise.all(PEERS.map(p=>probePeer(p)));
+  g.innerHTML=PEERS.map((p,i)=>peerCard(p,probes[i])).join("");
+  const now=new Date();
+  const nowStr=now.toISOString().replace("T"," ").slice(0,19)+" UTC";
+  ts.textContent=nowStr;
+  clock.textContent=nowStr;
+  const downs=probes.filter(p=>p.ok===false).length;
+  const unreachable=probes.filter(p=>p.ok===null).length;
+  if(downs>0){
+    state.textContent="FLEET: DEGRADED";state.className="fsb-label degraded";
+    meta.textContent=`${downs} degraded · ${5-downs-unreachable} nominal`;
+  } else {
+    state.textContent="FLEET: NOMINAL";state.className="fsb-label nominal";
+    meta.textContent=`${probes.filter(p=>p.ok===true).length}/5 NOMINAL · ${unreachable} cross-origin`;
+  }
+}
+
+async function loadReceipts(){
+  const c=document.getElementById("rcpt-container");
+  let receipts=[];
+  try{
+    const r=await fetch(`/api/${NS}/v4/receipts`);
+    if(r.ok){const d=await r.json();receipts=Array.isArray(d)?d:(d.receipts||d.items||[]);}
+  }catch(_){}
+  if(!receipts.length){
+    c.innerHTML='<div class="empty">No receipts yet — DSSE chain populates on first operation.</div>';
+    return;
+  }
+  const rows=receipts.slice(0,10).map(r=>{
+    const ts=(r.timestamp||r.ts||r.created_at||"—").slice(0,19).replace("T"," ");
+    const op=r.operation||r.subject||r.action||"—";
+    const org=r.organ||r.namespace||NS;
+    const hash=(r.payload_hash||r.hash||r.digest||"").slice(0,16)||"—";
+    const sig=r.signing_available===false?"unsigned":(r.signed?"signed":"pending");
+    const sigCls=sig==="signed"?"sig-ok":sig==="pending"?"sig-pend":"sig-no";
+    const sigTxt=sig==="signed"?"✓ DSSE-signed":sig==="pending"?"⏳ pending":"UNSIGNED (honest)";
+    const rekor=`https://search.sigstore.dev/?hash=${hash}`;
+    return`<tr>
+      <td class="td-time">${ts}</td>
+      <td class="td-op">${op}</td>
+      <td class="td-org">${org}</td>
+      <td><span class="${sigCls}">${sigTxt}</span><br>
+      <span class="td-hash">${hash}</span>
+      <a class="rekor" href="${rekor}" target="_blank" rel="noopener">Rekor ↗</a></td>
+    </tr>`;
+  }).join("");
+  c.innerHTML=`<table class="rcpt">
+    <thead><tr>
+      <th>Time (UTC)</th><th>Operation</th><th>Organ</th><th>Signature / Hash</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  loadFleet();
+  loadReceipts();
+  // UTC clock tick
+  setInterval(()=>{
+    const clock=document.getElementById("fleet-clock");
+    if(clock)clock.textContent=new Date().toISOString().replace("T"," ").slice(0,19)+" UTC";
+  },1000);
+});
+</script>
+</body>
+</html>

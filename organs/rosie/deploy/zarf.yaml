@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# deploy/zarf.yaml — rosie (operator console) Zarf package skeleton
+#
+# Anatomy: rosie is the human-facing operator console — the command surface
+# that drives the underlying modules through the a11oy policy + receipt substrate
+# (amaru = memory, sentra = immune, vessels = deployment fabric).
+#
+# NOTE: images block removed to keep tarball under GitHub 2 GiB release asset
+# limit. The container image is published separately via docker-build.yml and
+# pulled at deploy time from ghcr.io/szl-holdings/rosie:v0.3.1-rc.1.
+# This package contains manifests only (skeleton delivery, SLSA L1 honest).
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+kind: ZarfPackageConfig
+metadata:
+  name: rosie
+  version: uds-v0.3.1-rc.1
+  description: >-
+    rosie — operator console. Human-facing command surface (Gradio, 6 tabs:
+    Span Explorer, Receipt Verifier, Mesh Health, Doctrine Sweep, Live Formulas, About)
+    that drives the SZL mesh through the a11oy policy/receipt substrate.
+    Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). SLSA L1 honest.
+  authors: "Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings"
+  url: https://github.com/szl-holdings/rosie
+  architecture: amd64
+
+components:
+  - name: rosie-console
+    required: true
+    description: Gradio operator console Deployment + Service. Image pulled at deploy time.
+    manifests:
+      - name: rosie-console
+        namespace: rosie
+        files:
+          - manifests/namespace.yaml
+          - manifests/rosie-deployment.yaml
+          - manifests/rosie-service.yaml

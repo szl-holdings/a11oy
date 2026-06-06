@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rosie · Jarvis — grounded operator assistant</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#121724; --panel2:#0e131e; --line:#1f2738;
+    --ink:#e7ecf3; --dim:#8c98ad; --gold:#d9b25a; --green:#4fd18b;
+    --red:#ff6b6b; --amber:#f2c14e; --blue:#5aa9ff; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 var(--mono)}
+  header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#10151f,#0b0e14)}
+  .badge{font:700 12px/1 var(--mono);color:var(--gold)}
+  .sub{color:var(--dim);font-size:12px}
+  .plaque{margin-left:auto;color:var(--dim);font-size:11px;text-align:right}
+  .plaque b{color:var(--gold)}
+  nav{display:flex;gap:6px;padding:10px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--panel2)}
+  .tab{padding:8px 14px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--dim);
+    cursor:pointer;font:700 12px/1 var(--mono)}
+  .tab.active{color:var(--gold);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,transparent)}
+  main{padding:22px;max-width:1080px;margin:0 auto}
+  .pane{display:none}
+  .pane.active{display:block}
+  h2{font-size:15px;margin:0 0 4px}
+  .hint{color:var(--dim);font-size:12px;margin:0 0 14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  textarea,input,select{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    color:var(--ink);padding:11px;font:13px/1.5 var(--mono);resize:vertical}
+  textarea{min-height:70px}
+  .btn{padding:10px 16px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);
+    cursor:pointer;font:700 12px/1 var(--mono)}
+  .btn.primary{border-color:var(--gold);color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,transparent)}
+  .btn.chip{padding:7px 11px;font-weight:600;color:var(--dim)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}
+  .answer{white-space:pre-wrap;font-size:13.5px;line-height:1.65}
+  .meta{color:var(--dim);font-size:11.5px;margin-top:10px;border-top:1px dashed var(--line);padding-top:9px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font:700 10px/1.6 var(--mono);margin-right:6px}
+  .pill.ok{color:var(--green);border:1px solid var(--green)}
+  .pill.warn{color:var(--amber);border:1px solid var(--amber)}
+  .pill.crit{color:var(--red);border:1px solid var(--red)}
+  .pill.info{color:var(--blue);border:1px solid var(--blue)}
+  .pill.dim{color:var(--dim);border:1px solid var(--line)}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px;overflow:auto;
+    font-size:11.5px;color:var(--dim);max-height:340px}
+  .rec{border-left:3px solid var(--line);padding:9px 12px;margin:8px 0;background:var(--panel2);border-radius:0 8px 8px 0}
+  .rec.critical{border-left-color:var(--red)} .rec.warn{border-left-color:var(--amber)}
+  .rec.info{border-left-color:var(--blue)} .rec.ok{border-left-color:var(--green)}
+  .rec .f{font-weight:700} .rec .r{color:var(--dim);font-size:12px}
+  .organ{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;margin:7px 0;background:var(--panel2)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--dim)} .dot.up{background:var(--green)} .dot.down{background:var(--red)}
+  .arrow{color:var(--gold)}
+  .err{color:var(--red)}
+  code{color:var(--gold)}
+  .foot{color:var(--dim);font-size:11px;padding:18px 22px;border-top:1px solid var(--line);margin-top:24px}
+  @media (max-width:480px){
+    header{flex-wrap:wrap;gap:8px;padding:12px 14px}
+    .plaque{margin-left:0;text-align:left;width:100%}
+    nav{padding:8px 14px}
+    main{padding:14px}
+    .row .btn{flex:1 1 auto;min-height:44px}
+    .tab{min-height:40px;padding:8px 12px}
+    #actType,#actTarget{max-width:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="badge">ROSIE · JARVIS</div>
+    <div class="sub">grounded operator assistant — answers · recommends · acts · remembers the roadmap</div>
+  </div>
+  <div class="plaque" id="plaque">
+    Λ = <b>Conjecture 1</b> (NOT a theorem)<br>
+    Doctrine <b id="doctrine">v11</b> · <span id="wired">wiring…</span>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" data-pane="ask">Ask</button>
+  <button class="tab" data-pane="recommend">Recommend</button>
+  <button class="tab" data-pane="act">Act</button>
+  <button class="tab" data-pane="roadmap">Roadmap</button>
+</nav>
+
+<main>
+  <!-- ASK -->
+  <section class="pane active" id="pane-ask">
+    <h2>Ask the ecosystem</h2>
+    <p class="hint">Every answer is read from a live organ endpoint or the canonical roadmap and <b>cited</b>.
+      If there's no grounded source, Jarvis refuses to fabricate. The framing is routed through the shared
+      5-tier LLM roster (real call when a model key is present, honest stub otherwise) and a DSSE receipt is emitted.</p>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn chip" data-q="How does the system fit together?">roadmap</button>
+      <button class="btn chip" data-q="Which organs are live right now?">organ health</button>
+      <button class="btn chip" data-q="Is the 3-of-4 quorum permitted?">quorum</button>
+      <button class="btn chip" data-q="What is the current Λ verdict?">Λ verdict</button>
+      <button class="btn chip" data-q="Which formulas are proved?">formulas</button>
+    </div>
+    <textarea id="q" placeholder="Ask about organ health, quorum, Λ, proved formulas, or how the organs connect…"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="askBtn">Ask Jarvis</button>
+    </div>
+    <div id="askOut"></div>
+  </section>
+
+  <!-- RECOMMEND -->
+  <section class="pane" id="pane-recommend">
+    <h2>Recommendations</h2>
+    <p class="hint">Derived only from live health / quorum / Λ reads — no synthetic alerts. Refresh to re-probe.</p>
+    <button class="btn primary" id="recBtn">Run recommendation pass</button>
+    <div id="recOut"></div>
+  </section>
+
+  <!-- ACT -->
+  <section class="pane" id="pane-act">
+    <h2>Operator actions (scoped + receipted)</h2>
+    <p class="hint">Enumerated, safe operator actions only — <b>not</b> arbitrary execution. Each emits a signed
+      DSSE receipt and is appended to a SHA-256 hash-chained audit ring.</p>
+    <div class="row">
+      <select id="actType" style="max-width:220px">
+        <option value="approve">approve (HITL verdict)</option>
+        <option value="deny">deny (HITL verdict)</option>
+        <option value="acknowledge">acknowledge (alert)</option>
+        <option value="recheck">recheck (force live probe)</option>
+      </select>
+      <input id="actTarget" placeholder="target (e.g. verdict id / alert id / organ)" style="max-width:340px" />
+    </div>
+    <input id="actNote" placeholder="note (optional)" style="margin-top:10px" />
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="actBtn">Emit action + receipt</button>
+      <button class="btn" id="auditBtn">Refresh audit ring</button>
+    </div>
+    <div id="actOut"></div>
+    <div id="auditOut"></div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section class="pane" id="pane-roadmap">
+    <h2>Connection roadmap (what Rosie remembers)</h2>
+    <p class="hint">The canonical map of how the organs connect. Served as real data from
+      <code>/api/rosie/v1/jarvis/roadmap</code>.</p>
+    <div id="roadOut"></div>
+  </section>
+</main>
+
+<div class="foot">
+  Λ = Conjecture 1 (NOT a theorem) · PROVED = {F1,F11,F12,F18,F19} (5, Lean sorry-free) · Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 ·
+  SLSA L2 earned (a11oy/rosie/sentra) · killinchu/amaru L1 · No FedRAMP / Iron Bank / CMMC · Section 889 = 5 vendors · receipts.in ≡ receipts.out
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function api(path){ return "/api/rosie/v1/jarvis" + path; }
+  function get(path){ return fetch(api(path)).then(function(r){ return r.json(); }); }
+  function post(path, body){
+    return fetch(api(path), {method:"POST", headers:{"content-type":"application/json"},
+      body: JSON.stringify(body||{})}).then(function(r){ return r.json(); });
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+
+  // Tabs
+  document.querySelectorAll(".tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
+      document.querySelectorAll(".pane").forEach(function(x){ x.classList.remove("active"); });
+      t.classList.add("active");
+      $("pane-" + t.getAttribute("data-pane")).classList.add("active");
+    });
+  });
+
+  function receiptMeta(rec){
+    if(!rec) return "";
+    var signed = rec.signed ? '<span class="pill ok">DSSE signed</span>'
+                            : '<span class="pill dim">UNSIGNED (no key — honest)</span>';
+    var sha = (rec.receipt && rec.receipt.receipt_sha256) ? rec.receipt.receipt_sha256.slice(0,16)+"…" : "—";
+    return '<div class="meta">'+signed+' receipt sha256 <code>'+esc(sha)+'</code> · kind '+
+           esc(rec.receipt ? rec.receipt.kind : "?")+'</div>';
+  }
+
+  // ----- ASK -----
+  document.querySelectorAll("[data-q]").forEach(function(b){
+    b.addEventListener("click", function(){ $("q").value = b.getAttribute("data-q"); doAsk(); });
+  });
+  $("askBtn").addEventListener("click", doAsk);
+  function doAsk(){
+    var q = $("q").value.trim();
+    if(!q){ return; }
+    $("askOut").innerHTML = '<div class="card">querying live organs…</div>';
+    post("/ask", {question:q}).then(function(d){
+      if(d.error){ $("askOut").innerHTML = '<div class="card err">'+esc(d.error)+'</div>'; return; }
+      var grounded = d.grounded ? '<span class="pill ok">grounded</span>'
+                                : '<span class="pill warn">no grounded source — refused</span>';
+      var topic = '<span class="pill info">'+esc(d.topic)+'</span>';
+      var llm = d.llm || {};
+      var llmline = llm.tier_used ? ('LLM tier <code>'+esc(llm.tier_used)+'</code> · '+esc(llm.response||"")) : "";
+      var cites = (d.citations||[]).map(function(c){
+        return '<pre>'+esc(c.endpoint)+'\n'+esc(JSON.stringify(c.data,null,2)).slice(0,1400)+'</pre>';
+      }).join("");
+      $("askOut").innerHTML = '<div class="card">'+grounded+topic+
+        '<div class="answer">'+esc(d.answer)+'</div>'+
+        (llmline?'<div class="meta">'+llmline+'</div>':'')+
+        '<details style="margin-top:10px"><summary class="meta" style="cursor:pointer">citations (live data Jarvis read)</summary>'+cites+'</details>'+
+        receiptMeta(d.receipt)+'</div>';
+    }).catch(function(e){ $("askOut").innerHTML='<div class="card err">'+esc(e)+'</div>'; });
+  }
+
+  // ----- RECOMMEND -----
+  $("recBtn").addEventListener("click", doRec);
+  function doRec(){
+    $("recOut").innerHTML = '<div class="card">probing live state…</div>';
+    get("/recommend").then(function(d){
+      var c = d.counts||{};
+      var summary = '<span class="pill crit">'+(c.critical||0)+' critical</span>'+
+                    '<span class="pill warn">'+(c.warn||0)+' warn</span>'+
+                    '<span class="pill info">'+(c.info||0)+' info</span>'+
+                    '<span class="pill ok">'+(c.ok||0)+' ok</span>';
+      var rows = (d.recommendations||[]).map(function(r){
+        return '<div class="rec '+esc(r.severity)+'"><div class="f">['+esc(r.severity).toUpperCase()+'] '+
+          esc(r.organ)+' — '+esc(r.finding)+'</div><div class="r">→ '+esc(r.remedy)+'</div></div>';
+      }).join("");
+      $("recOut").innerHTML = '<div class="card">'+summary+rows+
+        '<div class="meta">'+esc(d.honesty||"")+'</div>'+receiptMeta(d.receipt)+'</div>';
+    }).catch(function(e){ $("recOut").innerHTML='<div class="card err">'+esc(e)+'</div>'; });
+  }
+
+  // ----- ACT -----
+  $("actBtn").addEventListener("click", function(){
+    var body = {action:$("actType").value, target:$("actTarget").value, note:$("actNote").value};
+    $("actOut").innerHTML = '<div class="card">emitting…</div>';
+    post("/act", body).then(function(d){
+      if(!d.ok){ $("actOut").innerHTML='<div class="card err">'+esc(d.error||"failed")+
+        '<div class="meta">allowed: '+esc((d.allowed||[]).join(", "))+'</div></div>'; return; }
+      $("actOut").innerHTML = '<div class="card"><span class="pill ok">action recorded</span>'+
+        '<div class="answer">'+esc(d.action)+(d.target?(' · '+esc(d.target)):'')+
+        '\naudit depth: '+esc(d.audit_depth)+'</div>'+
+        '<div class="meta">'+esc(d.honesty||"")+'</div>'+receiptMeta(d.receipt)+'</div>';
+      doAudit();
+    }).catch(function(e){ $("actOut").innerHTML='<div class="card err">'+esc(e)+'</div>'; });
+  });
+  $("auditBtn").addEventListener("click", doAudit);
+  function doAudit(){
+    get("/audit?limit=20").then(function(d){
+      var rows = (d.entries||[]).map(function(e){
+        return '<div class="rec"><div class="f">'+esc(e.action)+(e.target?(' · '+esc(e.target)):'')+'</div>'+
+          '<div class="r">'+esc(e.ts_utc)+' · hash '+esc((e.entry_hash||"").slice(0,16))+'…</div></div>';
+      }).join("") || '<div class="meta">audit ring empty (resets on restart — honest)</div>';
+      $("auditOut").innerHTML = '<div class="card"><h2 style="font-size:13px">Audit ring · depth '+
+        esc(d.depth)+'</h2>'+rows+'</div>';
+    }).catch(function(){});
+  }
+
+  // ----- ROADMAP -----
+  function doRoadmap(){
+    get("/roadmap").then(function(d){
+      var order = (d.priority_order||[]).map(function(o){ return '<span class="arrow">'+esc(o)+'</span>'; }).join(" → ");
+      var organs = (d.organs||[]).map(function(o){
+        return '<div class="organ"><span class="dot up"></span><div><b>'+esc(o.id)+'</b> — '+esc(o.role)+
+          '<div class="r" style="color:var(--dim);font-size:12px">'+esc(o.note||"")+'</div></div></div>';
+      }).join("");
+      var wires = (d.wires||[]).map(function(w){
+        var live = /LIVE/.test(w.status);
+        return '<div class="rec '+(live?'ok':'warn')+'"><div class="f">'+esc(w.from)+' → '+esc(w.to)+
+          ': '+esc(w.wire)+'</div><div class="r">'+esc(w.status)+'</div></div>';
+      }).join("");
+      var limits = (d.honest_limits||[]).map(function(l){ return '<li>'+esc(l)+'</li>'; }).join("");
+      $("roadOut").innerHTML = '<div class="card"><div class="answer" style="font-size:14px">'+order+'</div>'+
+        '<div class="meta">invariant: <code>'+esc(d.mesh_invariant)+'</code></div></div>'+
+        '<div class="card"><h2 style="font-size:13px">Organs</h2>'+organs+'</div>'+
+        '<div class="card"><h2 style="font-size:13px">Wires</h2>'+wires+'</div>'+
+        '<div class="card"><h2 style="font-size:13px">Honest limits</h2><ul class="r" style="color:var(--dim)">'+limits+'</ul>'+
+        '<div class="meta">source: '+esc(d.source)+'</div></div>';
+    }).catch(function(e){ $("roadOut").innerHTML='<div class="card err">'+esc(e)+'</div>'; });
+  }
+
+  // header wiring + initial loads
+  get("/health").then(function(d){
+    var w = d.wired_like_a11oy||{};
+    $("wired").textContent = "a11oy parity: LLM "+(w.llm_roster?"✓":"✗")+
+      " · receipts "+(w.receipt_substrate?"✓":"✗")+" · grounding "+(w.live_grounding?"✓":"✗");
+    if(d.honesty && d.honesty.doctrine){ $("doctrine").textContent = "v11"; }
+  }).catch(function(){ $("wired").textContent="health unavailable"; });
+
+  doRoadmap();
+})();
+</script>
+</body>
+</html>

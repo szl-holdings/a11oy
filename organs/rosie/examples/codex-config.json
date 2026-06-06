@@ -1,0 +1,18 @@
+{
+  "_comment": "Rosie MCP server for OpenAI Codex / codex-cli. Codex reads MCP servers from ~/.codex/config.json (or the project .codex/config.json) under the mcpServers key. Replace /ABSOLUTE/PATH/TO/rosie with your local rosie checkout. The server speaks the real MCP stdio JSON-RPC 2.0 transport (rev 2025-06-18). Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 | Lambda = Conjecture 1 (NOT a theorem). 12 live tools; safety-critical tools require a 3-of-4 Byzantine quorum across the organ mesh. Honest disclosure: results reflect the REAL organ response/error.",
+  "mcpServers": {
+    "rosie": {
+      "command": "python",
+      "args": ["-m", "rosie.mcp_server"],
+      "cwd": "/ABSOLUTE/PATH/TO/rosie",
+      "env": {
+        "PYTHONPATH": "/ABSOLUTE/PATH/TO/rosie/src",
+        "AMARU_URL": "https://szlholdings-amaru.hf.space",
+        "SENTRA_URL": "https://szlholdings-sentra.hf.space",
+        "KILLINCHU_URL": "https://szlholdings-killinchu.hf.space",
+        "A11OY_URL": "https://szlholdings-a11oy.hf.space",
+        "ROSIE_URL": "https://szlholdings-rosie.hf.space"
+      }
+    }
+  }
+}

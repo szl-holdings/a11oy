@@ -1,0 +1,40 @@
+{
+  "space": "rosie",
+  "doctrine": "v11",
+  "doctrine_numbers": {
+    "declarations": 749,
+    "unique_axioms": 14,
+    "tracked_sorries": 163,
+    "mcp_tools": 12,
+    "policy_gates": 46,
+    "anchor_gates": 44,
+    "raw_axioms": 15,
+    "sorries_baseline": 112,
+    "sorries_putnam": 51
+  },
+  "cursor_prs_reinstilled": [
+    {
+      "pr": "szl-holdings/rosie#32",
+      "title": "Add AGENTS.md with Cursor Cloud development instructions",
+      "category": "dev-env",
+      "status": "recorded as provenance (AGENTS.md is a GitHub-repo dev file, not part of the Gradio Space build)"
+    },
+    {
+      "pr": "szl-holdings/rosie#39",
+      "title": "chore(license): add SPDX-License-Identifier headers",
+      "category": "license",
+      "status": "INTEGRATED \u2014 SPDX-License-Identifier: Apache-2.0 header added to app.py (mirrors PR #39 SPDX headers on src/axis-value-option.ts + src/khipu-receipt.ts)"
+    }
+  ],
+  "doctrine_correction": "Doctrine reconciliation (v11): app.py + README state canonical 749 declarations / 14 unique axioms (15 raw, 1 dup) / 163 tracked sorries (112 baseline + 51 Putnam). Footer updated to v11. Retired earlier 456/6 figures from a stale clone. Added Tab 13 (Governed Loop Replays); Tab 12 (DINN Lab) owned by parallel agent, left untouched.",
+  "preserved": [
+    "7 Gradio tabs",
+    "4 reasoner sub-tabs (/v1/reason,/v1/ledger,/v1/verify,/v1/policy/evaluate)",
+    "Rosie widget cross-Space embed",
+    "khipu-receipt DAG tooling"
+  ],
+  "shipped_by": "OPUS Cursor re-instill \u2014 additive only",
+  "ship_date": "2026-05-31",
+  "canonical_ref": "lutar-lean tag lutar-v18.0.0 / c7c0ba17",
+  "honesty_note": "749 declarations / 14 unique axioms (15 raw, 1 dup) / 163 tracked sorries (112 baseline + 51 Putnam) per lean_numbers.py @ c7c0ba17. Prior 456/6 re-audit was wrong. Tab 13 Governed Loop Replays added (E4-codex-kernel)."
+}

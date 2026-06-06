@@ -1,0 +1,70 @@
+# deploy/uds-package.yaml — sentra UDS Package CR
+# Authored by: Connector Wayra · P4 UDS Apply
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# Sentra is the SZL mesh immune system: 8-gate dual-use filter protecting all
+# organs and actions. Receives Wire B verdicts from a11oy.
+#
+# References:
+#   UDS Core CRD: https://github.com/defenseunicorns/uds-core/blob/main/src/pepr/operator/crd/
+#   SZL P2 Spec: SHARED_LEDGER/sentra/P2_SPEC_PM.md
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: sentra
+  namespace: sentra
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+    szl.io/section-889: "Huawei,ZTE,Hytera,Hikvision,Dahua"
+spec:
+  network:
+    allow:
+      - direction: Egress
+        selector:
+          app: sentra
+        remoteGenerated: Anywhere
+        port: 443
+        description: "HF Space egress + Wire B inbound from a11oy"
+      - direction: Ingress
+        selector:
+          app: sentra
+        remoteNamespace: a11oy
+        port: 7860
+        description: "Wire B: receive verdicts from a11oy"
+      - direction: Ingress
+        selector:
+          app: sentra
+        remoteNamespace: istio-system
+        port: 7860
+        description: "Istio ingress gateway"
+  expose:
+    - service: sentra-svc
+      selector:
+        app: sentra
+      host: sentra
+      gateway: tenant
+      port: 7860
+      targetPort: 7860
+  sso:
+    - name: sentra SSO
+      clientId: sentra
+      redirectUris:
+        - "https://sentra.uds.dev/callback"
+        - "https://szlholdings-sentra.hf.space/callback"
+      description: "Sentra mesh immune system"
+  monitor:
+    - selector:
+        app: sentra
+      portName: http
+      targetPort: 7860
+      path: /api/health
+      description: "sentra health monitor"

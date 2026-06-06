@@ -1,0 +1,7 @@
+{
+  "proof_id": "amaru.solar.v1",
+  "sha256": "d0ef8f289c2e0e8f580be8e05eb2f212f984d05c0bc99ba268e8441312ac9926",
+  "kind": "kernel-source",
+  "summary": "intent * agency - friction, clamped to [0,1]",
+  "notes": "sha256 computed over the canonical kernel.py source bytes; re-pin via services/amaru/scripts/pin_proofs.py after edits."
+}

@@ -1,0 +1,9 @@
+{
+ "id": "F15",
+ "name": "bekenstein_bound",
+ "description": "Bekenstein information bound (stub).",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "OPEN CONJECTURE / stub \u2014 explicitly NOT proven.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

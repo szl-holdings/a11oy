@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "SZL Holdings — rosie"
+version: "1.0.0"
+date-released: "2026-06-09"
+license: Apache-2.0
+repository-code: "https://github.com/szl-holdings/rosie"
+url: "https://szlholdings.ai"
+abstract: >
+  SZL Holdings flagship software suite — Doctrine v11 compliant,
+  SLSA Build Level 1, Section 889 attested, OpenTelemetry instrumented.
+  Built for defense-grade governance and sovereign AI workloads.
+keywords:
+  - defense
+  - governance
+  - uds
+  - slsa
+  - sigstore
+  - opentelemetry
+  - sovereign-ai
+authors:
+  - name: "SZL Holdings"
+    website: "https://szlholdings.ai"
+    email: "hello@szlholdings.ai"
+  - name: "Yachay"
+    email: "yachay@szlholdings.ai"
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+contact:
+  - email: "hello@szlholdings.ai"
+    name: "SZL Holdings"
+references:
+  - type: article
+    title: "SLSA: Ensuring the Integrity of Software Supply Chains"
+    url: "https://slsa.dev/spec/v1.0/levels"
+    authors:
+      - name: "Open Source Security Foundation (OpenSSF)"
+  - type: standard
+    title: "NDAA Section 889 — Prohibition on Certain Telecommunications"
+    url: "https://www.congress.gov/bill/115th-congress/house-bill/5515/text"
+    authors:
+      - name: "United States Congress"
+  - type: standard
+    title: "EO 14028 — Improving the Nation's Cybersecurity (SBOM mandate)"
+    url: "https://www.federalregister.gov/documents/2021/05/17/2021-10460/improving-the-nations-cybersecurity"
+    authors:
+      - name: "United States Government"

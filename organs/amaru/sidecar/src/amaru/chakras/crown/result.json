@@ -1,0 +1,24 @@
+{
+  "canonical_input": {
+    "upstream": {
+      "coherence": 0.8,
+      "fidelity": 0.72,
+      "flow": 0.68,
+      "insight": 0.56,
+      "stability": 0.9,
+      "will": 0.62
+    }
+  },
+  "canonical_output": {
+    "chakra": "crown",
+    "closure": 0.7133333333333333,
+    "handoff": {
+      "to": "root",
+      "via": "ouroboros"
+    },
+    "n_upstream_scalars": 6,
+    "verdict": "close"
+  },
+  "proof_id": "amaru.crown.v1",
+  "stubbed": false
+}

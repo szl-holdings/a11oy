@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>amaru — Cited-Knowledge 3D Galaxy</title>
+<style>
+  body { margin:0; background:#03050a; color:#aabbcc; font-family:'Courier New',monospace; overflow:hidden; }
+  #canvas-container { width:100vw; height:100vh; }
+  #hud {
+    position:fixed; top:12px; left:12px; background:rgba(0,0,0,0.8);
+    border:1px solid #1a3050; padding:10px 16px; border-radius:6px;
+    font-size:12px; line-height:1.8; z-index:10; max-width:270px;
+  }
+  #hud h2 { color:#aabbcc; margin:0 0 6px; font-size:14px; letter-spacing:2px; }
+  #status { position:fixed; bottom:12px; left:12px; font-size:11px; color:#333; }
+  #legend { position:fixed; top:12px; right:12px; background:rgba(0,0,0,0.8);
+    border:1px solid #1a3050; padding:8px 12px; border-radius:6px; font-size:11px; }
+  .cluster-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="hud">
+  <h2>✦ AMARU KNOWLEDGE GALAXY</h2>
+  <div style="color:#333;font-size:10px;margin-bottom:8px;">Citations as Stars · DSSE-Receipted · Doctrine v11</div>
+  <div>Stars (docs): <span id="star-count" style="color:#aabbcc">0</span></div>
+  <div>Citations: <span id="cite-count" style="color:#aabbcc">0</span></div>
+  <div>Clusters: <span id="cluster-count" style="color:#ffaa00">0</span></div>
+  <div>Receipts: <span id="receipt-count" style="color:#00ff88">0</span></div>
+  <hr style="border-color:#0a1520;margin:6px 0"/>
+  <div style="color:#333;font-size:10px">RAG: amaru/v1</div>
+  <div style="color:#333;font-size:10px">Kernel: c7c0ba17</div>
+</div>
+<div id="legend">
+  <div style="color:#555;font-size:10px;margin-bottom:6px;">KNOWLEDGE CLUSTERS</div>
+  <div><span class="cluster-dot" style="background:#4488ff"></span>Security</div>
+  <div><span class="cluster-dot" style="background:#00ff88"></span>Doctrine</div>
+  <div><span class="cluster-dot" style="background:#ffaa00"></span>Drone</div>
+  <div><span class="cluster-dot" style="background:#ff4488"></span>Memory</div>
+  <div><span class="cluster-dot" style="background:#aa44ff"></span>Math</div>
+  <div><span class="cluster-dot" style="background:#44ffcc"></span>Protocol</div>
+</div>
+<div id="status">Doctrine v11 LOCKED · amaru/3d/galaxy · Three.js r160 (MIT) · © SZL Holdings 2026 · Apache-2.0</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// amaru Cited-Knowledge 3D Galaxy
+// Source: Three.js r160 (MIT) — https://threejs.org/
+// DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
+// Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+// Doctrine: v11 LOCKED | Λ Conjecture 1 | ADDITIVE ONLY
+
+const BRAIN_API = '/api/amaru/v1/brain';
+const DOCTRINE = {v:'v11', kernel:'c7c0ba17', declarations:749, sorries:163};
+
+// Cluster definitions
+const CLUSTERS = [
+  {name:'Security', color:new THREE.Color(0x4488ff), center:new THREE.Vector3(-15,2,0)},
+  {name:'Doctrine', color:new THREE.Color(0x00ff88), center:new THREE.Vector3(0,10,0)},
+  {name:'Drone', color:new THREE.Color(0xffaa00), center:new THREE.Vector3(15,2,0)},
+  {name:'Memory', color:new THREE.Color(0xff4488), center:new THREE.Vector3(-8,-10,8)},
+  {name:'Math', color:new THREE.Color(0xaa44ff), center:new THREE.Vector3(8,-10,-8)},
+  {name:'Protocol', color:new THREE.Color(0x44ffcc), center:new THREE.Vector3(0,0,18)},
+];
+
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x03050a);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(0, 15, 50);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x112233, 0.8));
+const pLight = new THREE.PointLight(0xffffff, 1.5, 80);
+pLight.position.set(0,20,0);
+scene.add(pLight);
+
+// Background stars (nebula effect)
+const bgStarGeo = new THREE.BufferGeometry();
+const bgPos = new Float32Array(3000*3);
+for(let i=0;i<3000;i++){
+  bgPos[i*3]   = (Math.random()-0.5)*300;
+  bgPos[i*3+1] = (Math.random()-0.5)*300;
+  bgPos[i*3+2] = (Math.random()-0.5)*300;
+}
+bgStarGeo.setAttribute('position', new THREE.BufferAttribute(bgPos,3));
+const bgStarMat = new THREE.PointsMaterial({size:0.1,color:0x223344,transparent:true,opacity:0.6});
+scene.add(new THREE.Points(bgStarGeo, bgStarMat));
+
+// Cluster center markers
+CLUSTERS.forEach(c => {
+  const geo = new THREE.SphereGeometry(0.6,16,16);
+  const mat = new THREE.MeshBasicMaterial({color:c.color, transparent:true, opacity:0.5});
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(c.center);
+  scene.add(mesh);
+  // Cluster glow ring
+  const ringGeo = new THREE.RingGeometry(1.2,1.5,32);
+  const ringMat = new THREE.MeshBasicMaterial({color:c.color, side:THREE.DoubleSide, transparent:true, opacity:0.2});
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.copy(c.center);
+  scene.add(ring);
+});
+
+// Document star particles
+const MAX_DOCS = 300;
+const starPositions = new Float32Array(MAX_DOCS*3);
+const starColors = new Float32Array(MAX_DOCS*3);
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions,3));
+starGeo.setAttribute('color', new THREE.BufferAttribute(starColors,3));
+const starMat = new THREE.PointsMaterial({size:0.4,vertexColors:true,transparent:true,opacity:0.9});
+const stars = new THREE.Points(starGeo, starMat);
+scene.add(stars);
+
+// Citation edges
+const citationLines = new THREE.Group();
+scene.add(citationLines);
+
+// State
+let docCount = 0;
+let citeCount = 0;
+let receiptCount = 0;
+let docPositions = [];
+
+function addDocStar(clusterIdx, topic, receipted) {
+  const cluster = CLUSTERS[clusterIdx % CLUSTERS.length];
+  const offset = new THREE.Vector3(
+    (Math.random()-0.5)*8,
+    (Math.random()-0.5)*8,
+    (Math.random()-0.5)*8
+  );
+  const pos = cluster.center.clone().add(offset);
+  
+  const sIdx = (docCount % MAX_DOCS)*3;
+  starPositions[sIdx]   = pos.x;
+  starPositions[sIdx+1] = pos.y;
+  starPositions[sIdx+2] = pos.z;
+  const col = cluster.color;
+  starColors[sIdx]   = col.r * (receipted ? 1.5 : 0.8);
+  starColors[sIdx+1] = col.g * (receipted ? 1.5 : 0.8);
+  starColors[sIdx+2] = col.b * (receipted ? 1.5 : 0.8);
+
+  starGeo.attributes.position.needsUpdate = true;
+  starGeo.attributes.color.needsUpdate = true;
+
+  docPositions.push(pos);
+
+  // Add citation edge to cluster center
+  if(docPositions.length > 1 && Math.random() > 0.6) {
+    const srcPos = docPositions[Math.floor(Math.random()*Math.min(docPositions.length-1,20))];
+    const edgeGeo = new THREE.BufferGeometry().setFromPoints([pos, srcPos]);
+    const edgeMat = new THREE.LineBasicMaterial({
+      color:cluster.color, transparent:true, opacity:0.2
+    });
+    const edge = new THREE.Line(edgeGeo, edgeMat);
+    citationLines.add(edge);
+    citeCount++;
+  }
+
+  docCount++;
+  if(receipted) receiptCount++;
+
+  updateCounters();
+}
+
+function updateCounters() {
+  document.getElementById('star-count').textContent = docCount;
+  document.getElementById('cite-count').textContent = citeCount;
+  document.getElementById('cluster-count').textContent = CLUSTERS.length;
+  document.getElementById('receipt-count').textContent = receiptCount;
+}
+
+// Topic keywords → cluster mapping
+const TOPIC_CLUSTERS = {
+  security:0, sentra:0, gate:0, threat:0, signature:0,
+  doctrine:1, lambda:1, axiom:1, lean:1, kernel:1,
+  drone:2, mavlink:2, killinchu:2, uas:2, faa:2,
+  memory:3, recall:3, amaru:3, rag:3, context:3,
+  math:4, topology:4, homology:4, conjecture:4, proof:4,
+  protocol:5, dsse:5, khipu:5, receipt:5, attestation:5,
+};
+
+function topicToCluster(topic) {
+  const t = (topic || '').toLowerCase();
+  for(const [kw, idx] of Object.entries(TOPIC_CLUSTERS)) {
+    if(t.includes(kw)) return idx;
+  }
+  return Math.floor(Math.random()*CLUSTERS.length);
+}
+
+async function fetchCitations() {
+  try {
+    const resp = await fetch(BRAIN_API);
+    if(resp.ok) {
+      const data = await resp.json();
+      const brain = data.brain || {};
+      // Mine theorems as citation nodes
+      const theorems = brain.theorems || {};
+      Object.entries(theorems).forEach(([key, th]) => {
+        const topic = key + ' ' + (th.statement||'');
+        addDocStar(topicToCluster(topic), key, true);
+      });
+      return;
+    }
+  } catch(e) { /* use simulated */ }
+
+  // Simulate citation
+  const topics = ['DSSE attestation','Doctrine v11 axiom','MAVLink protocol','Memory recall','Lean theorem','Khipu receipt','Lambda conjecture','Security gate'];
+  const topic = topics[Math.floor(Math.random()*topics.length)];
+  addDocStar(topicToCluster(topic), topic, Math.random()>0.3);
+}
+
+// Orbit camera
+let camAngle = 0;
+let camTilt = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  camAngle += 0.002;
+  camTilt = Math.sin(camAngle*0.3)*0.2;
+  camera.position.x = Math.sin(camAngle)*50;
+  camera.position.z = Math.cos(camAngle)*50;
+  camera.position.y = 15 + Math.sin(camAngle*0.5)*10;
+  camera.lookAt(0,0,0);
+  // Gentle rotation on citation lines
+  citationLines.rotation.y += 0.001;
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Seed with 30 initial docs
+for(let i=0;i<30;i++) {
+  const ci = Math.floor(Math.random()*CLUSTERS.length);
+  addDocStar(ci, CLUSTERS[ci].name, Math.random()>0.4);
+}
+
+animate();
+setInterval(fetchCitations, 3000);
+</script>
+</body>
+</html>

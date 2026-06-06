@@ -1,0 +1,9 @@
+{
+ "id": "F2",
+ "name": "babylonian_contraction",
+ "description": "Babylonian/Heron sqrt contraction map.",
+ "status": "PROVEN",
+ "honesty_note": "Lean-proven (one_step_into_invariant, babylonian_lipschitz_le_half).",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

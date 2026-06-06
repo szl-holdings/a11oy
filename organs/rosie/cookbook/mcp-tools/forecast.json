@@ -1,0 +1,7 @@
+{
+ "name": "forecast",
+ "description": "PAC-Bayes governance trajectory forecast.",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

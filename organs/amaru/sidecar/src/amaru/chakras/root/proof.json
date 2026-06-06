@@ -1,0 +1,7 @@
+{
+  "proof_id": "amaru.root.v1",
+  "sha256": "93ea31995b5d2870f0bc29f79e01a88c54a017a3875f700d4183eed6b5546217",
+  "kind": "kernel-source",
+  "summary": "mean of (grounded + integrity) / 2, clamped to [0,1]",
+  "notes": "sha256 computed over the canonical kernel.py source bytes; re-pin via services/amaru/scripts/pin_proofs.py after edits."
+}

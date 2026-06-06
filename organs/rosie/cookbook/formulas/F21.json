@@ -1,0 +1,9 @@
+{
+ "id": "F21",
+ "name": "evidence_merkle",
+ "description": "Merkle root over a Body-of-Evidence bundle.",
+ "status": "PROVEN",
+ "honesty_note": "Standard Merkle construction.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

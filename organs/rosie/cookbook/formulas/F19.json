@@ -1,0 +1,9 @@
+{
+ "id": "F19",
+ "name": "lambda_budget",
+ "description": "Recall budget from bounded-loop \u039b runtime.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "SORRY_PURIQ_OPEN.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

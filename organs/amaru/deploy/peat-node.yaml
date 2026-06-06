@@ -1,0 +1,89 @@
+# deploy/peat-node.yaml — amaru peat-node CRDT mesh participation
+# Authored by: Connector Wayra · P4 UDS Apply
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# peat-node sidecar: Rust binary participating in the SZL CRDT mesh.
+# amaru role: memory cortex — writes Λ proof state to mesh document
+# szl/conjecture-1/status so any mesh node can subscribe to proof completions.
+# Dual-pilot: rosie is co-pilot (NOT pilot) per amaru's dualPilotConstraint gate.
+#
+# References:
+#   peat-node: https://github.com/defenseunicorns/peat-node
+#   peat-node BRIEF: szl-ingest/specs/peat-node_BRIEF.md
+#   INGEST_PLAN.md Invention #2: Λ Proof State as First-Class Mesh Document
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: peat.dev/v1
+kind: Node
+metadata:
+  name: amaru-node
+  namespace: amaru
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+    szl.io/dual-pilot: "rosie=co-pilot amaru=cortex-pilot"
+spec:
+  image: ghcr.io/szl-holdings/amaru:v1.0.0-alpha
+  port: 7860
+  role: "memory-cortex"
+  capabilities:
+    - "crdt-mesh-participant"
+    - "lambda-proof-state-writer"
+    - "chakra-gate-evaluator"
+    - "wire-e-cortex-sync"
+    - "dual-pilot-constraint"
+    - "hash-chain-integrity"
+  transport: "iroh-quic"
+  mesh:
+    grpcPort: 50051
+    documentNamespace: "szl/amaru"
+    documents:
+      - name: "szl/conjecture-1/status"
+        type: "LWWRegister"
+        description: "Λ = Conjecture 1 proof state (Unproven|Active|Milestone) — NOT a theorem"
+        fields:
+          status: "Active"
+          milestone_count: 0
+          last_proof_hash: ""
+          doctrine_commit: "c7c0ba17"
+      - name: "chakra-state"
+        type: "LWWMap"
+        description: "7-chakra framework status (root,sacral,solar,heart,throat,third_eye,crown)"
+      - name: "audit-ring"
+        type: "GrowOnlyLog"
+        description: "In-memory audit ring — amaru proof decisions"
+      - name: "delta-log"
+        type: "GrowOnlyLog"
+        description: "Append-only hash-chained delta-log"
+  env:
+    - name: SZL_DOCTRINE_VERSION
+      value: "v11"
+    - name: SZL_LEAN_SHA
+      value: "c7c0ba17"
+    - name: SZL_FLAGSHIP
+      value: "amaru"
+    - name: SZL_ROLE
+      value: "memory-cortex"
+    - name: SZL_DUAL_PILOT
+      value: "rosie"
+    - name: SZL_LAMBDA_STATUS
+      value: "Conjecture 1 — NOT a theorem"
+    - name: PEAT_GRPC_PORT
+      value: "50051"
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 7860
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 3
+  cosign:
+    keyRef: amaru-cosign
+    certificateIdentityRegexp: "https://github.com/szl-holdings/amaru/.github/workflows/zarf-build-and-sign.yml.*"
+    certificateOIDCIssuer: "https://token.actions.githubusercontent.com"

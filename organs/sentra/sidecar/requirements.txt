@@ -1,0 +1,19 @@
+# sentra sidecar — HTTP verdict service dependencies
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Minimal dependency set for the FastAPI verdict endpoint.
+# Pin major versions; patch versions resolved by pip at install time.
+
+fastapi>=0.136.3,<1.0.0
+uvicorn[standard]>=0.48.0,<1.0.0
+pydantic>=2.13.4,<3.0.0
+
+# Test dependencies (installed in dev/CI environments only)
+# httpx is required by the FastAPI TestClient
+httpx>=0.28.1,<1.0.0
+pytest>=9.0.3,<10.0.0  # bumped to admit CVE-2025-71176 fix (9.0.3); prior cap <9.0.0 excluded the patch
+pytest-asyncio>=1.4.0,<2.0.0
+
+# feat/immune-dsse-rekor-verify: real Ed25519 DSSE signing + Rekor proof verify
+cryptography>=42.0.0,<46.0.0

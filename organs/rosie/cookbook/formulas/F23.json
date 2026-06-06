@@ -1,0 +1,9 @@
+{
+ "id": "F23",
+ "name": "bekenstein_holographic",
+ "description": "Holographic capacity variant of F15.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "OPEN CONJECTURE / stub \u2014 NOT proven; RS(10,6) is not holographic.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

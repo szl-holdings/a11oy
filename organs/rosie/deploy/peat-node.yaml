@@ -1,0 +1,88 @@
+# deploy/peat-node.yaml — rosie peat-node CRDT mesh participation
+# Authored by: Connector Wayra · P4 UDS Apply
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# peat-node sidecar: Rust binary participating in the SZL CRDT mesh.
+# rosie role: fleet operator console / nervous system — subscribes to
+# szl/conjecture-1/status from amaru, displays fleet health god-view,
+# enforces hatun_willay aggregate invariant.
+#
+# References:
+#   peat-node: https://github.com/defenseunicorns/peat-node
+#   peat-node BRIEF: szl-ingest/specs/peat-node_BRIEF.md
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: peat.dev/v1
+kind: Node
+metadata:
+  name: rosie-node
+  namespace: rosie
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+    szl.io/hatun-willay: "true"
+    szl.io/dual-pilot: "rosie=co-pilot amaru=cortex-pilot"
+spec:
+  image: ghcr.io/szl-holdings/rosie:v0.3.1-rc.1
+  port: 7860
+  role: "fleet-operator-console"
+  capabilities:
+    - "crdt-mesh-participant"
+    - "lambda-proof-state-subscriber"
+    - "fleet-health-god-view"
+    - "hatun-willay-invariant"
+    - "dual-stream-routing"
+    - "merkle-dag-batch"
+    - "cross-session-god-view"
+  transport: "iroh-quic"
+  mesh:
+    grpcPort: 50051
+    documentNamespace: "szl/rosie"
+    subscriptions:
+      - documentPath: "szl/conjecture-1/status"
+        description: "Subscribe to Λ proof state from amaru — Conjecture 1 (NOT a theorem)"
+      - documentPath: "szl/a11oy"
+        description: "Fleet health: a11oy status"
+      - documentPath: "szl/sentra"
+        description: "Fleet health: sentra status"
+      - documentPath: "szl/amaru"
+        description: "Fleet health: amaru status (cortex, co-pilot source)"
+    documents:
+      - name: "fleet-state"
+        type: "LWWMap"
+        description: "Cross-session fleet god-view — all 5 flagship statuses"
+      - name: "hatun-willay"
+        type: "LWWRegister"
+        description: "Aggregate invariant: hatun_willay = true required"
+  env:
+    - name: SZL_DOCTRINE_VERSION
+      value: "v11"
+    - name: SZL_LEAN_SHA
+      value: "c7c0ba17"
+    - name: SZL_FLAGSHIP
+      value: "rosie"
+    - name: SZL_ROLE
+      value: "fleet-operator-console"
+    - name: SZL_DUAL_PILOT_OF
+      value: "amaru"
+    - name: SZL_HATUN_WILLAY
+      value: "true"
+    - name: PEAT_GRPC_PORT
+      value: "50051"
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 7860
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 3
+  cosign:
+    keyRef: rosie-cosign
+    certificateIdentityRegexp: "https://github.com/szl-holdings/rosie/.github/workflows/zarf-build-and-sign.yml.*"
+    certificateOIDCIssuer: "https://token.actions.githubusercontent.com"

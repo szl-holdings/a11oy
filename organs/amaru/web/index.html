@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0e14">
+  <title>amaru — cortex memory · SZL Holdings</title>
+  <meta name="description" content="Every inference cites its source. Every memory carries its receipt."/>
+  <meta property="og:title" content="amaru — cortex memory · SZL Holdings"/>
+  <meta property="og:description" content="Every inference cites its source. Every memory carries its receipt."/>
+  <meta property="og:image" content="assets/amaru_hero.png"/>
+  <meta property="og:type" content="website"/>
+  <style>
+/* =========================================================
+   SZL Holdings — shared landing DNA (Vessels gold standard)
+   Dark ground · gold accent · cream paragraph · serif headline
+   Extracted from vessels-landing.tsx hero (szl-holdings/vessels)
+   © 2026 Stephen P. Lutar Jr. — SZL Holdings · Doctrine v7
+   ========================================================= */
+
+:root {
+  --ground: #0a0a0a;
+  --panel: #0c0c0c;
+  --gold: #c9b787;
+  --gold-bright: #d6c69a;
+  --cream: #f5f5f5;
+  --paragraph: #9a9a9a;
+  --muted: #888888;
+  --dim: #555555;
+  --hairline: rgba(255, 255, 255, 0.05);
+  --gold-soft: rgba(201, 183, 135, 0.04);
+  --gold-line: rgba(201, 183, 135, 0.15);
+  --live: #5a8a6e;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --display: 'Space Grotesk', Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--ground);
+  color: var(--cream);
+  font-family: var(--display);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.mono { font-family: var(--mono); }
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 1rem;
+  z-index: 999;
+  padding: 0.5rem 1.25rem;
+  background: var(--gold);
+  color: var(--ground);
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.skip:focus { left: 1rem; }
+
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
+
+/* ===== HEADER ===== */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(10, 10, 10, 0.78);
+  backdrop-filter: blur(10px);
+}
+.header-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  height: 3.5rem;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand { display: flex; align-items: center; gap: 0.6rem; }
+.brand-mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(201, 183, 135, 0.4);
+  border-radius: 4px;
+  font-size: 9px;
+  color: var(--gold);
+}
+.brand-name { font-size: 13px; font-weight: 500; letter-spacing: -0.01em; }
+.brand-tag { font-size: 10px; color: var(--dim); margin-left: 0.4rem; }
+
+.cta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0.4rem 0.85rem;
+  border-radius: 6px;
+  background: var(--gold);
+  color: var(--ground);
+  text-decoration: none;
+  transition: background 0.18s ease;
+}
+.cta-pill:hover { background: var(--gold-bright); }
+.cta-arrow { font-size: 0.9em; }
+
+/* ===== HERO ===== */
+.hero {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100vh - 3.5rem);
+  display: flex;
+  align-items: center;
+}
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+.hero-rail {
+  position: absolute;
+  top: 5rem;
+  display: none;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 10px;
+  color: #444;
+}
+.hero-rail-left { left: 1.5rem; align-items: flex-start; }
+.hero-rail-right { right: 1.5rem; align-items: flex-end; }
+.rail-live { display: inline-flex; align-items: center; gap: 0.4rem; }
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--live); box-shadow: 0 0 6px var(--live);
+  animation: pulseDot 2.2s ease-in-out infinite;
+}
+@keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (min-width: 1024px) { .hero-rail { display: flex; } }
+
+.hero-inner {
+  position: relative;
+  z-index: 2;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--gold-line);
+  background: var(--gold-soft);
+  margin-bottom: 2.5rem;
+}
+.eyebrow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold);
+  animation: pulseDot 2.2s ease-in-out infinite;
+}
+.eyebrow-text {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.headline {
+  font-family: var(--display);
+  font-size: clamp(2.6rem, 6vw, 5.2rem);
+  font-weight: 300;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin: 0 0 1.75rem;
+  color: var(--cream);
+}
+.headline .accent {
+  background: linear-gradient(120deg, var(--cream) 20%, var(--gold) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.support {
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--paragraph);
+  max-width: 36rem;
+  margin: 0 auto 3rem;
+}
+
+.hero-ctas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  background: var(--gold);
+  color: var(--ground);
+  text-decoration: none;
+  transition: background 0.18s ease;
+}
+.btn-primary:hover { background: var(--gold-bright); }
+
+.hero-portrait {
+  margin: 3.5rem auto 0;
+  max-width: 220px;
+}
+.hero-portrait img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--gold-line);
+  display: block;
+}
+
+/* ===== REASONER SECTION ===== */
+.reasoner-section {
+  border-top: 1px solid var(--gold-line);
+  padding: 4rem 1.5rem 5rem;
+  background: var(--panel);
+}
+.reasoner-inner {
+  max-width: 56rem;
+  margin: 0 auto;
+}
+.reasoner-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--gold-line);
+  background: var(--gold-soft);
+  margin-bottom: 1.75rem;
+}
+.reasoner-eyebrow-text {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-family: var(--mono);
+}
+.reasoner-heading {
+  font-family: var(--display);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 300;
+  letter-spacing: -0.025em;
+  color: var(--cream);
+  margin: 0 0 0.75rem;
+}
+.reasoner-sub {
+  font-size: 14px;
+  color: var(--paragraph);
+  margin: 0 0 2.5rem;
+  line-height: 1.65;
+}
+.reasoner-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+.r-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--mono);
+  border-radius: 6px;
+  border: 1px solid var(--gold-line);
+  background: transparent;
+  color: var(--gold);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+  letter-spacing: 0.04em;
+}
+.r-btn:hover {
+  background: rgba(201, 183, 135, 0.08);
+  border-color: rgba(201, 183, 135, 0.35);
+}
+.r-btn:active { opacity: 0.75; }
+.r-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.r-btn-primary {
+  background: var(--gold);
+  color: var(--ground);
+  border-color: var(--gold);
+}
+.r-btn-primary:hover {
+  background: var(--gold-bright);
+  border-color: var(--gold-bright);
+}
+.reasoner-output {
+  position: relative;
+  border: 1px solid var(--gold-line);
+  border-radius: 8px;
+  background: #070707;
+  overflow: hidden;
+}
+.output-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--gold-line);
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.output-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--dim);
+  transition: background 0.3s;
+}
+.status-dot.ok { background: var(--live); box-shadow: 0 0 6px var(--live); }
+.status-dot.err { background: #8a4a4a; box-shadow: 0 0 6px #8a4a4a; }
+.status-dot.loading { background: var(--gold); animation: pulseDot 1s ease-in-out infinite; }
+.output-pre {
+  margin: 0;
+  padding: 1rem;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--paragraph);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 360px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dim) transparent;
+}
+.output-pre:empty::before {
+  content: "— awaiting command —";
+  color: var(--dim);
+  font-style: italic;
+}
+.output-pre .k { color: var(--gold); }
+.output-pre .v { color: #7ab8a0; }
+.output-pre .s { color: #b0a0d0; }
+
+/* ===== FOOTER ===== */
+.site-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 2.5rem 1.5rem;
+}
+.footer-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.footer-brand { display: flex; align-items: center; gap: 0.6rem; }
+.footer-name { font-size: 12px; color: var(--muted); }
+.footer-by { font-size: 10px; color: var(--dim); }
+.footer-note {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
+</style>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<a href="#main" class="skip">Skip to main content</a>
+
+<!-- ===== HEADER: bracketed identity chip (left) + CTA pill (right) ===== -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-mark mono">A</span>
+      <span class="brand-name">amaru</span>
+      <span class="brand-tag mono">/ cortex memory</span>
+    </div>
+    <a class="cta-pill" href="#reasoner">
+      Open reasoner <span class="cta-arrow" aria-hidden="true">→</span>
+    </a>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<main id="main">
+  <section class="hero">
+    <div class="grid-bg" aria-hidden="true"></div>
+
+    <div class="hero-rail hero-rail-left mono" aria-hidden="true">
+      <span>BASIN · GLOBAL</span><span>FEED · SIGNED</span><span>POSTURE · UNDERWAY</span>
+    </div>
+    <div class="hero-rail hero-rail-right mono" aria-hidden="true">
+      <span>NODE · AMARU-01</span><span>EPOCH · 2026.Q2</span>
+      <span class="rail-live"><span class="live-dot"></span>LIVE · RT</span>
+    </div>
+
+    <div class="hero-inner">
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span class="eyebrow-text mono">· CORTEX MEMORY · SERIES A</span>
+      </div>
+
+      <h1 class="headline">
+        Reasoning with <span class="accent">provenance.</span>
+      </h1>
+
+      <p class="support">Every inference cites its source. Every memory carries its receipt.</p>
+
+      <div class="hero-ctas">
+        <a class="btn-primary" href="https://huggingface.co/spaces/SZLHOLDINGS/amaru" target="_blank" rel="noopener">
+          Open reasoner <span class="cta-arrow" aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <div class="hero-portrait">
+        <img src="assets/amaru_hero.png" alt="amaru painterly identity portrait" loading="eager"/>
+      </div>
+    </div>
+  </section>
+  <!-- ===== REASONER PANEL (below founder-locked hero) ===== -->
+  <section class="reasoner-section" id="reasoner" aria-label="amaru reasoner">
+    <div class="reasoner-inner">
+      <div class="reasoner-eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span class="reasoner-eyebrow-text">· live reasoner · api surface</span>
+      </div>
+      <h2 class="reasoner-heading">amaru — scheduler &amp; receipts</h2>
+      <p class="reasoner-sub">Run a chakra tick, inspect DSSE-wrapped receipts, and check tripwire status — directly against the live API.</p>
+
+      <div class="reasoner-controls">
+        <button class="r-btn r-btn-primary" id="btn-tick" onclick="runTick()">&#9654; Run scheduler tick</button>
+        <button class="r-btn" id="btn-receipts" onclick="showReceipts()">&#x25A4; Show receipt chain</button>
+        <button class="r-btn" id="btn-tripwires" onclick="checkTripwires()">&#x26A0; Check tripwires</button>
+      </div>
+
+      <div class="reasoner-output">
+        <div class="output-label">
+          <span id="output-title">OUTPUT</span>
+          <span class="output-status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">idle</span>
+          </span>
+        </div>
+        <pre class="output-pre" id="output-pre" role="log" aria-live="polite" aria-label="API response output"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DINN — 8th chakra (ADDITIVE) ===== -->
+  <section class="reasoner-section" id="dinn" aria-label="amaru DINN reasoner">
+    <div class="reasoner-inner">
+      <div class="reasoner-eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span class="reasoner-eyebrow-text">· 8th chakra · doctrine-informed neural network</span>
+      </div>
+      <h2 class="reasoner-heading">DINN — governance as a learning signal</h2>
+      <p class="reasoner-sub">Physics-informed neural networks (PINNs) fold a PDE residual into the training loss. A <strong>DINN</strong> folds a <em>law</em> residual instead: a doctrine Λ-floor (Doctrine-DINN), a Reidemeister invariance (Knot-DINN), or a Bekenstein entropy cap (Bekenstein-DINN). Run the live monitor against the <code>/api/amaru/chakra/dinn</code> endpoint — each of 13 axes is structurally pinned ≥ Λ_FLOOR=0.90 and output entropy is clamped under S<sub>max</sub>. Recipes: <a href="https://github.com/szl-holdings/szl-cookbook/tree/main/recipes" target="_blank" rel="noopener">szl-cookbook</a>. <strong>Honesty:</strong> every DINN ships its Lean obligation as a <code>sorry</code> placeholder — none is claimed proven.</p>
+
+      <div class="reasoner-controls">
+        <button class="r-btn r-btn-primary" id="btn-dinn" onclick="runDinn()">&#9654; Run DINN axis monitor</button>
+      </div>
+
+      <div class="reasoner-output">
+        <div class="output-label">
+          <span id="dinn-output-title">DINN MONITOR</span>
+          <span class="output-status">
+            <span class="status-dot" id="dinn-status-dot"></span>
+            <span id="dinn-status-text">idle</span>
+          </span>
+        </div>
+        <pre class="output-pre" id="dinn-output-pre" role="log" aria-live="polite" aria-label="DINN monitor output"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="footer-name">amaru</span>
+      <span class="mono footer-by">/ by SZL Holdings</span>
+    </div>
+    <span class="mono footer-note">Counsel-governed · A11oy-orchestrated</span>
+  </div>
+</footer>
+
+
+  <!-- Rosie floating operator widget (additive). Canonical source: SZLHOLDINGS/README assets/rosie. Set data-a11oy-base / data-amaru-base to the
+       live substrate endpoints when available (or inject via build env); until then
+       Rosie appears and is honest that she is not wired to a backend on this surface. -->
+  <link rel="stylesheet" href="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.css">
+  <script src="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.js"
+          data-surface="amaru"
+          data-a11oy-base=""
+          data-amaru-base=""
+          defer></script>
+
+  <script>
+  /* amaru reasoner panel — Llamkachiq II patch */
+  const API_BASE = '/api/amaru';
+
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    const stxt = document.getElementById('status-text');
+    dot.className = 'status-dot ' + (state || '');
+    stxt.textContent = text || state || 'idle';
+  }
+
+  function setOutput(title, text) {
+    document.getElementById('output-title').textContent = title || 'OUTPUT';
+    document.getElementById('output-pre').textContent = text;
+  }
+
+  function formatJson(obj) {
+    return JSON.stringify(obj, null, 2);
+  }
+
+  function disableButtons(disabled) {
+    ['btn-tick', 'btn-receipts', 'btn-tripwires'].forEach(id => {
+      document.getElementById(id).disabled = disabled;
+    });
+  }
+
+  async function runTick() {
+    disableButtons(true);
+    setStatus('loading', 'running tick…');
+    setOutput('SCHEDULER TICK', '');
+    try {
+      const res = await fetch(API_BASE + '/scheduler/tick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+      setStatus('ok', 'tick ✓ seq ' + (data.tick_receipt && data.tick_receipt.seq));
+      setOutput('SCHEDULER TICK — seq ' + (data.tick_receipt && data.tick_receipt.seq), formatJson(data));
+    } catch (err) {
+      setStatus('err', 'error');
+      setOutput('SCHEDULER TICK — ERROR', String(err));
+    } finally {
+      disableButtons(false);
+    }
+  }
+
+  async function showReceipts() {
+    disableButtons(true);
+    setStatus('loading', 'fetching receipts…');
+    setOutput('RECEIPT CHAIN', '');
+    try {
+      const res = await fetch(API_BASE + '/receipts?limit=10');
+      const data = await res.json();
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+      setStatus('ok', 'receipts ✓ total ' + data.total);
+      setOutput('RECEIPT CHAIN — last ' + (data.items && data.items.length) + ' of ' + data.total, formatJson(data));
+    } catch (err) {
+      setStatus('err', 'error');
+      setOutput('RECEIPT CHAIN — ERROR', String(err));
+    } finally {
+      disableButtons(false);
+    }
+  }
+
+  async function runDinn() {
+    const btn = document.getElementById('btn-dinn');
+    const dot = document.getElementById('dinn-status-dot');
+    const stxt = document.getElementById('dinn-status-text');
+    const setD = (state, text) => { dot.className = 'status-dot ' + (state || ''); stxt.textContent = text || state || 'idle'; };
+    btn.disabled = true;
+    setD('loading', 'running DINN…');
+    document.getElementById('dinn-output-title').textContent = 'DINN MONITOR';
+    document.getElementById('dinn-output-pre').textContent = '';
+    try {
+      const res = await fetch(API_BASE + '/chakra/dinn?envelope=amaru-live-' + Date.now());
+      const data = await res.json();
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+      const d = data.doctrine || {};
+      setD(d.above_floor ? 'ok' : 'err', 'Λ=' + d.and_gate_lambda + ' · floor ' + (d.above_floor ? '✓' : '✗'));
+      document.getElementById('dinn-output-title').textContent = 'DINN MONITOR — Λ=' + d.and_gate_lambda + ' (min axis ' + d.min_axis + ', floor 0.90)';
+      document.getElementById('dinn-output-pre').textContent = formatJson(data);
+    } catch (err) {
+      setD('err', 'error');
+      document.getElementById('dinn-output-pre').textContent = String(err);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function checkTripwires() {
+    disableButtons(true);
+    setStatus('loading', 'checking tripwires…');
+    setOutput('TRIPWIRES', '');
+    try {
+      const res = await fetch(API_BASE + '/tripwires');
+      const data = await res.json();
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+      const s = data.summary || {};
+      const statusLabel = s.trip > 0 ? 'err' : s.warn > 0 ? 'loading' : 'ok';
+      setStatus(statusLabel, 'pass:' + s.pass + ' warn:' + s.warn + ' trip:' + s.trip);
+      setOutput('TRIPWIRES — pass:' + s.pass + ' warn:' + s.warn + ' trip:' + s.trip, formatJson(data));
+    } catch (err) {
+      setStatus('err', 'error');
+      setOutput('TRIPWIRES — ERROR', String(err));
+    } finally {
+      disableButtons(false);
+    }
+  }
+  </script>
+</body>
+</html>

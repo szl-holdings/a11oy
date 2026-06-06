@@ -1,0 +1,7 @@
+{
+ "name": "sign_payload",
+ "description": "DSSE-sign a JSON payload (HMAC-SHA-256, keyid szlholdings-cosign).",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

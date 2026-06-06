@@ -1,0 +1,9 @@
+{
+ "id": "F8",
+ "name": "axis_dichotomy",
+ "description": "Axis pass/fail dichotomy.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "SORRY_PURIQ_OPEN.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

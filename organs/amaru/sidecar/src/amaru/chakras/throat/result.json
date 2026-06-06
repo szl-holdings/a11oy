@@ -1,0 +1,19 @@
+{
+  "canonical_input": {
+    "signals": {
+      "clarity": 0.81,
+      "truth": 0.64
+    }
+  },
+  "canonical_output": {
+    "chakra": "throat",
+    "fidelity": 0.7200000000000001,
+    "inputs": {
+      "clarity": 0.81,
+      "truth": 0.64
+    },
+    "verdict": "speak"
+  },
+  "proof_id": "amaru.throat.v1",
+  "stubbed": false
+}

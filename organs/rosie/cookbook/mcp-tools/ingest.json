@@ -1,0 +1,7 @@
+{
+ "name": "ingest",
+ "description": "WAYRA ingest: chunk + embed + SHA a document.",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

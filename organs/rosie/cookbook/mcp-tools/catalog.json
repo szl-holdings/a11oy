@@ -1,0 +1,71 @@
+{
+ "schema": "rosie/mcp-catalog/v1",
+ "count": 16,
+ "tools": [
+  {
+   "name": "yuyay_gate",
+   "description": "Evaluate an action against the 13-axis Yuyay gate."
+  },
+  {
+   "name": "sign_payload",
+   "description": "DSSE-sign a JSON payload (HMAC-SHA-256, keyid szlholdings-cosign)."
+  },
+  {
+   "name": "verify_envelope",
+   "description": "Verify a DSSE envelope against the public-key fingerprint."
+  },
+  {
+   "name": "recall",
+   "description": "Cosine recall over Rosie's provenanced memory."
+  },
+  {
+   "name": "ingest",
+   "description": "WAYRA ingest: chunk + embed + SHA a document."
+  },
+  {
+   "name": "lean_lookup",
+   "description": "Search the 870-declaration Lean index by name substring."
+  },
+  {
+   "name": "cite_thesis",
+   "description": "Return thesis chapter content + PDF SHA-256."
+  },
+  {
+   "name": "route_llm",
+   "description": "Route a prompt across the 7-tier open-model stack."
+  },
+  {
+   "name": "rag_ask",
+   "description": "Agentic RAG answer with source citations."
+  },
+  {
+   "name": "formula",
+   "description": "Fetch a Codex-Kernel formula descriptor (F1..F23)."
+  },
+  {
+   "name": "export_boe",
+   "description": "Export a signed Body-of-Evidence bundle (SLSA L1 honest)."
+  },
+  {
+   "name": "replay_day",
+   "description": "Event-sourced AYNI replay of a day's decisions."
+  },
+  {
+   "name": "erase",
+   "description": "GDPR erase + signed deletion receipt."
+  },
+  {
+   "name": "transcribe",
+   "description": "Speech-to-text then sign the transcript."
+  },
+  {
+   "name": "forecast",
+   "description": "PAC-Bayes governance trajectory forecast."
+  },
+  {
+   "name": "understudy_promote",
+   "description": "Promote Rosie as a11oy's failover understudy."
+  }
+ ],
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

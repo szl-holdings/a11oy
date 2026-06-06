@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentra
+  namespace: sentra
+  labels:
+    app.kubernetes.io/name: sentra
+    app.kubernetes.io/part-of: szl-mesh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentra
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentra
+        app.kubernetes.io/part-of: szl-mesh
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: sentra
+          image: ghcr.io/szl-holdings/sentra:v1.0.0-alpha
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SENTRA_POSTURE_API
+              value: "/api/sentra/posture"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi

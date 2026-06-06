@@ -1,0 +1,32 @@
+{
+  "name": "@szl-holdings/rosie-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "rosie-api — execution and observability API behind the rosie widget + admin console",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/app.ts",
+    "./types": "./src/types/index.ts"
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types src/index.ts",
+    "start": "node --experimental-strip-types src/index.ts",
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint:openapi": "redocly lint openapi.yaml"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.14",
+    "jose": "^5.9.6",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^4.1.7",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.7"
+  }
+}

@@ -1,0 +1,9 @@
+{
+ "id": "F9",
+ "name": "khipu_rs_encode",
+ "description": "Reed-Solomon RS(10,6) encode for Khipu DAG.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "RS(10,6) is erasure coding \u2014 NOT holographic. Recovery bound conjectural here.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

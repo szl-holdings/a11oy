@@ -1,0 +1,7 @@
+{
+ "name": "yuyay_gate",
+ "description": "Evaluate an action against the 13-axis Yuyay gate.",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

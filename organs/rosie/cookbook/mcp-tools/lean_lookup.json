@@ -1,0 +1,7 @@
+{
+ "name": "lean_lookup",
+ "description": "Search the 870-declaration Lean index by name substring.",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

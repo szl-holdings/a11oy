@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rosie-api.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rosie-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rosie-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rosie-api.labels" . | nindent 8 }}
+      annotations:
+        # Prometheus annotations mirror the ServiceMonitor scrape target.
+        prometheus.io/scrape: "true"
+        prometheus.io/path: {{ .Values.serviceMonitor.path | quote }}
+        prometheus.io/port: {{ .Values.port | quote }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if eq .Values.antiAffinity "soft" }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "rosie-api.selectorLabels" . | nindent 20 }}
+                topologyKey: kubernetes.io/hostname
+      {{- end }}
+      containers:
+        - name: rosie-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.port | quote }}
+            {{- range $k, $v := .Values.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://{{ .Values.uds.otlpEndpoint }}:{{ .Values.uds.otlpPort }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            # Ed25519 signing key, mounted read-only from a Secret. The key
+            # material is provisioned per the key-custody runbook (PhD SecOps);
+            # this chart never embeds key bytes. See {{ .Values.keyCustody.runbook }}.
+            - name: signing-key
+              mountPath: {{ .Values.keyCustody.mountPath }}
+              readOnly: true
+      volumes:
+        - name: signing-key
+          secret:
+            secretName: {{ .Values.keyCustody.secretName }}
+            optional: true

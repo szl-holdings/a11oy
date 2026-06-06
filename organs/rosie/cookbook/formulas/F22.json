@@ -1,0 +1,9 @@
+{
+ "id": "F22",
+ "name": "forgetting_tombstone",
+ "description": "GDPR tombstone + deletion-receipt invariant.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "Invariant stated; completeness conjectural.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

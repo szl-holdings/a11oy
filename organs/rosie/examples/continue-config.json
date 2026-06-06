@@ -1,0 +1,24 @@
+{
+  "_comment": "Rosie MCP server for Continue (VS Code / JetBrains). Continue reads MCP servers from ~/.continue/config.json under experimental.modelContextProtocolServers (each entry has a transport block). Replace /ABSOLUTE/PATH/TO/rosie with your local rosie checkout. Speaks the real MCP stdio JSON-RPC 2.0 transport (rev 2025-06-18): initialize -> tools/list -> tools/call. Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 | Lambda = Conjecture 1 (NOT a theorem). 12 live tools route to the SZLHOLDINGS organ mesh; safety-critical tools require a 3-of-4 Byzantine quorum. Honest: results reflect the REAL organ response/error.",
+  "experimental": {
+    "modelContextProtocolServers": [
+      {
+        "name": "rosie",
+        "transport": {
+          "type": "stdio",
+          "command": "python",
+          "args": ["-m", "rosie.mcp_server"],
+          "cwd": "/ABSOLUTE/PATH/TO/rosie",
+          "env": {
+            "PYTHONPATH": "/ABSOLUTE/PATH/TO/rosie/src",
+            "AMARU_URL": "https://szlholdings-amaru.hf.space",
+            "SENTRA_URL": "https://szlholdings-sentra.hf.space",
+            "KILLINCHU_URL": "https://szlholdings-killinchu.hf.space",
+            "A11OY_URL": "https://szlholdings-a11oy.hf.space",
+            "ROSIE_URL": "https://szlholdings-rosie.hf.space"
+          }
+        }
+      }
+    ]
+  }
+}

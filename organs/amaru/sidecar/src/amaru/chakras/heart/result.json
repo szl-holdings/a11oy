@@ -1,0 +1,19 @@
+{
+  "canonical_input": {
+    "signals": {
+      "care": 0.9,
+      "harm": 0.1
+    }
+  },
+  "canonical_output": {
+    "chakra": "heart",
+    "coherence": 0.8,
+    "inputs": {
+      "care": 0.9,
+      "harm": 0.1
+    },
+    "verdict": "open"
+  },
+  "proof_id": "amaru.heart.v1",
+  "stubbed": false
+}

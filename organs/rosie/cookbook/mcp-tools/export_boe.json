@@ -1,0 +1,7 @@
+{
+ "name": "export_boe",
+ "description": "Export a signed Body-of-Evidence bundle (SLSA L1 honest).",
+ "namespace": "hatun-mcp",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

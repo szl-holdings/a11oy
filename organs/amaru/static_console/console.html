@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amaru Operator Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #0f0f0f;
+      --surface2: #141414;
+      --border: rgba(201,183,135,0.15);
+      --border-dim: rgba(255,255,255,0.05);
+      --gold: #c9b787;
+      --gold-dim: rgba(201,183,135,0.12);
+      --text: #e6e6e6;
+      --text-muted: #8a8a8a;
+      --text-dim: #5e5e5e;
+      --pass: #5a8a6e;
+      --warn: #d4a853;
+      --trip: #b85450;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ---- LAYOUT ---- */
+    .shell { display: flex; flex-direction: column; height: 100vh; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; height: 48px;
+      background: rgba(10,10,10,0.92);
+      border-bottom: 1px solid var(--border-dim);
+      backdrop-filter: blur(10px);
+      position: sticky; top: 0; z-index: 40;
+      gap: 12px;
+    }
+
+    .header-brand { display: flex; align-items: center; gap: 8px; }
+    .header-brand-mark {
+      width: 20px; height: 20px;
+      border: 1px solid rgba(201,183,135,0.4);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono); font-size: 9px; color: var(--gold);
+    }
+    .header-title { font-size: 13px; font-weight: 500; letter-spacing: -0.01em; }
+    .header-subtitle { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+
+    .header-status { display: flex; align-items: center; gap: 8px; }
+    .status-pill {
+      font-family: var(--font-mono); font-size: 10px;
+      padding: 2px 8px; border-radius: 3px;
+      border: 1px solid transparent;
+    }
+    .status-pill.live { background: rgba(90,138,110,0.15); border-color: rgba(90,138,110,0.3); color: var(--pass); }
+    .status-pill.warn { background: rgba(212,168,83,0.12); border-color: rgba(212,168,83,0.3); color: var(--warn); }
+    .status-pill.error { background: rgba(184,84,80,0.12); border-color: rgba(184,84,80,0.3); color: var(--trip); }
+    .status-pill.neutral { background: rgba(94,94,94,0.15); color: var(--text-dim); }
+
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--pass); box-shadow: 0 0 6px var(--pass);
+      animation: pulseDot 2.2s ease-in-out infinite;
+    }
+
+    nav { display: flex; align-items: center; gap: 2px; }
+    nav button {
+      background: none; border: none; cursor: pointer;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+      color: var(--text-dim); padding: 4px 10px; border-radius: 3px;
+      text-transform: uppercase; transition: color 0.15s, background 0.15s;
+    }
+    nav button:hover { color: var(--gold); background: var(--gold-dim); }
+    nav button.active { color: var(--gold); background: var(--gold-dim); }
+
+    main { flex: 1; overflow-y: auto; padding: 20px; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ---- CARDS / GRID ---- */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .grid-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+
+    @media (max-width: 1100px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-7 { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .grid-7 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+    }
+
+    .card-title {
+      font-family: var(--font-mono); font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--gold); margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .kpi-value {
+      font-family: var(--font-display); font-size: 28px;
+      font-weight: 300; color: var(--gold); letter-spacing: -0.02em;
+    }
+    .kpi-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ---- CHAKRA CARDS ---- */
+    .chakra-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      transition: border-color 0.2s;
+    }
+    .chakra-card:hover { border-color: rgba(201,183,135,0.3); }
+
+    .chakra-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .chakra-name { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; color: var(--gold); }
+    .chakra-badge {
+      font-family: var(--font-mono); font-size: 9px;
+      padding: 2px 6px; border-radius: 2px;
+    }
+    .badge-pass { background: rgba(90,138,110,0.15); color: var(--pass); }
+    .badge-warn { background: rgba(212,168,83,0.12); color: var(--warn); }
+    .badge-stub { background: rgba(245,245,245,0.08); color: #f5f5f5; }
+    .badge-idle { color: var(--text-dim); }
+    .badge-error { background: rgba(184,84,80,0.12); color: var(--trip); }
+
+    .chakra-proof {
+      font-family: var(--font-mono); font-size: 9px; color: var(--text-dim);
+      margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .chakra-output {
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+      background: #000; border-radius: 3px; padding: 6px;
+      max-height: 80px; overflow-y: auto; white-space: pre-wrap;
+      word-break: break-all; line-height: 1.4;
+    }
+
+    .chakra-receipt {
+      font-family: var(--font-mono); font-size: 9px; color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    /* ---- TRIPWIRES TABLE ---- */
+    .tripwires-list { display: flex; flex-direction: column; gap: 4px; }
+    .tripwire-row {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono); font-size: 11px;
+      background: rgba(0,0,0,0.3); border-radius: 3px; padding: 6px 10px;
+      border: 1px solid var(--border-dim);
+    }
+    .trip-status { width: 36px; shrink: 0; }
+    .trip-id { width: 70px; color: var(--gold); flex-shrink: 0; }
+    .trip-title { flex: 1; color: var(--text); min-width: 0; }
+    .trip-detail { color: var(--text-muted); font-size: 10px; text-align: right; flex-shrink: 0; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .tw-pass { color: var(--pass); }
+    .tw-warn { color: var(--warn); }
+    .tw-trip { color: var(--trip); }
+
+    /* ---- TICK HISTORY ---- */
+    .tick-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 14px; margin-bottom: 8px;
+    }
+    .tick-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .tick-id { font-family: var(--font-mono); font-size: 11px; color: var(--gold); }
+    .tick-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+    .tick-steps { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tick-step-badge {
+      font-family: var(--font-mono); font-size: 10px;
+      padding: 2px 8px; border-radius: 3px;
+      background: var(--gold-dim); color: var(--gold);
+    }
+    .tick-step-badge.stubbed { background: rgba(245,245,245,0.08); color: #f5f5f5; }
+    .tick-step-badge.error { background: rgba(184,84,80,0.12); color: var(--trip); }
+
+    /* ---- RECEIPT CHAIN ---- */
+    .receipt-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+      padding: 6px 0; border-bottom: 1px solid var(--border-dim);
+    }
+    .receipt-seq { color: var(--gold); width: 40px; flex-shrink: 0; }
+    .receipt-kind { color: var(--text-muted); width: 80px; flex-shrink: 0; }
+    .receipt-hash { color: var(--text-dim); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ---- DSSE ENVELOPE INSPECTOR ---- */
+    .envelope-output {
+      font-family: var(--font-mono); font-size: 11px; line-height: 1.6;
+      color: #e6e6e6; background: #000; border-radius: 4px; padding: 12px;
+      max-height: 400px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+    }
+
+    /* ---- BUS METRICS ---- */
+    .bus-bar {
+      height: 4px; background: var(--border-dim); border-radius: 2px; margin-top: 6px;
+    }
+    .bus-bar-fill { height: 100%; border-radius: 2px; background: var(--gold); transition: width 0.4s; }
+
+    /* ---- BUTTONS ---- */
+    .btn {
+      font-family: var(--font-mono); font-size: 11px;
+      padding: 7px 14px; border-radius: 4px; cursor: pointer;
+      border: 1px solid transparent; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-primary {
+      background: var(--gold-dim); color: var(--gold);
+      border-color: rgba(201,183,135,0.4);
+    }
+    .btn-primary:hover { background: rgba(201,183,135,0.2); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-sm { padding: 4px 10px; font-size: 10px; }
+
+    /* ---- REASONER SECTION ---- */
+    .reasoner-area {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 16px; margin-bottom: 14px;
+    }
+    .reasoner-label {
+      font-family: var(--font-mono); font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--text-dim); margin-bottom: 8px;
+    }
+    .reasoner-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .output-pane {
+      background: #000; border-radius: 4px; padding: 12px;
+      font-family: var(--font-mono); font-size: 11px; line-height: 1.6; color: #e6e6e6;
+      min-height: 120px; max-height: 360px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .output-pane .placeholder { color: var(--text-dim); }
+
+    /* ---- ROSIE WIDGET ---- */
+    .rosie-widget {
+      position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    }
+    .rosie-fab {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--gold); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(201,183,135,0.3);
+      font-family: var(--font-mono); font-size: 18px; color: #0a0a0a;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .rosie-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(201,183,135,0.4); }
+    .rosie-panel {
+      display: none;
+      position: absolute; bottom: 56px; right: 0;
+      width: 320px; background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+    .rosie-panel.open { display: block; }
+    .rosie-title {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--gold); text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .rosie-body { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px; }
+    .rosie-links { display: flex; flex-direction: column; gap: 6px; }
+    .rosie-link {
+      font-family: var(--font-mono); font-size: 10px; color: var(--gold);
+      background: var(--gold-dim); border-radius: 3px; padding: 5px 10px;
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+    }
+    .rosie-link:hover { background: rgba(201,183,135,0.2); }
+    .rosie-close {
+      position: absolute; top: 10px; right: 12px;
+      background: none; border: none; cursor: pointer;
+      font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+    }
+    .rosie-close:hover { color: var(--gold); }
+
+    /* ---- SECTION HEADERS ---- */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
+    }
+    .section-title {
+      font-family: var(--font-mono); font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.15em; color: var(--gold);
+    }
+    .section-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+
+    /* ---- ANIMATIONS ---- */
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.25s ease; }
+
+    /* ---- DIVIDER ---- */
+    .divider { height: 1px; background: var(--border-dim); margin: 16px 0; }
+
+    /* ---- SUMMARY BAR ---- */
+    .summary-bar {
+      display: flex; gap: 20px; align-items: center;
+      font-family: var(--font-mono); font-size: 10px;
+      padding: 8px 12px; background: rgba(0,0,0,0.3);
+      border-radius: 4px; margin-bottom: 12px;
+      border: 1px solid var(--border-dim);
+    }
+
+    /* ---- SPINNER ---- */
+    .spinner {
+      display: inline-block; width: 10px; height: 10px;
+      border: 1.5px solid var(--border-dim);
+      border-top-color: var(--gold); border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- GRACE PERIOD METER ---- */
+    .grace-meter {
+      height: 3px; background: var(--border-dim); border-radius: 2px;
+      overflow: hidden; margin-top: 6px;
+    }
+    .grace-fill {
+      height: 100%; background: linear-gradient(90deg, var(--pass), var(--warn));
+      border-radius: 2px; transition: width 1s linear;
+    }
+
+    /* ---- MERKLE CHAIN VIZ ---- */
+    .chain-node {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono); font-size: 10px;
+      padding: 5px 0; border-bottom: 1px solid var(--border-dim);
+    }
+    .chain-seq { color: var(--gold); width: 32px; flex-shrink: 0; }
+    .chain-hash { color: var(--text-dim); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chain-connector {
+      font-family: var(--font-mono); font-size: 9px; color: rgba(201,183,135,0.3);
+      padding: 0 2px;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(201,183,135,0.2); border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <!-- HEADER -->
+  <header>
+    <div class="header-brand">
+      <div class="header-brand-mark">A</div>
+      <span class="header-title">Amaru Console</span>
+      <span class="header-subtitle">/ operator · 7-chakra runtime</span>
+    </div>
+
+    <nav id="main-nav">
+      <button class="active" data-panel="chakras">Chakras</button>
+      <button data-panel="reasoner">Reasoner</button>
+      <button data-panel="tick-history">Tick History</button>
+      <button data-panel="tripwires">Tripwires</button>
+      <button data-panel="receipts">Receipt Chain</button>
+      <button data-panel="bus">Bus Metrics</button>
+    </nav>
+
+    <div class="header-status">
+      <div class="live-dot" id="live-dot" title="Polling /api/amaru/healthz"></div>
+      <span class="status-pill neutral" id="runtime-pill">CHECKING</span>
+      <span class="status-pill neutral" id="sse-pill">POLL</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ══ PANEL: CHAKRAS ══ -->
+    <div class="panel active" id="panel-chakras">
+      <div class="section-header">
+        <span class="section-title">7-Chakra Dashboard · root → crown</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="section-meta" id="chakra-poll-ts">—</span>
+          <button class="btn btn-primary btn-sm" id="btn-refresh-chakras" onclick="refreshChakras()">↺ REFRESH</button>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:12px">
+        <div class="card">
+          <div class="card-title">Scheduler Ticks</div>
+          <div class="kpi-value" id="kpi-ticks">—</div>
+          <div class="kpi-label">total fired</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Receipts in Chain</div>
+          <div class="kpi-value" id="kpi-receipts">—</div>
+          <div class="kpi-label">khipu merkle dag</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Bus Publishes OK</div>
+          <div class="kpi-value" id="kpi-bus-ok">—</div>
+          <div class="kpi-label">yawar bus</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Tripwires Passing</div>
+          <div class="kpi-value" id="kpi-tripwires">—</div>
+          <div class="kpi-label">huklla-10</div>
+        </div>
+      </div>
+
+      <div class="grid-7" id="chakra-grid">
+        <!-- populated by JS -->
+        <div class="chakra-card">
+          <div class="chakra-header">
+            <span class="chakra-name">root</span>
+            <span class="chakra-badge badge-idle">idle</span>
+          </div>
+          <div class="chakra-proof">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: REASONER ══ -->
+    <div class="panel" id="panel-reasoner">
+      <div class="section-header">
+        <span class="section-title">Reasoner · DSSE Envelope Inspector</span>
+        <span class="section-meta">Llamkachiq II · Hampichiq grace-period active</span>
+      </div>
+
+      <div class="reasoner-area">
+        <div class="reasoner-label">Actions</div>
+        <div class="reasoner-actions">
+          <button class="btn btn-primary" id="btn-tick" onclick="runSchedulerTick()">▷ Run scheduler tick</button>
+          <button class="btn btn-primary" id="btn-receipts" onclick="showReceiptChain()">⛓ Show receipt chain</button>
+          <button class="btn btn-primary" id="btn-tripwires-r" onclick="checkTripwires()">⚡ Check tripwires</button>
+        </div>
+        <div class="reasoner-label">Output · DSSE Envelope</div>
+        <div class="output-pane" id="reasoner-output">
+          <span class="placeholder">Click an action above to see the live DSSE-wrapped response from the Amaru runtime.</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Grace-Period Indicator · Hampichiq</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:8px">
+          60-second tripwire grace period — allows warm-up before alerting on huklla-5 (scheduler_progressing).
+        </div>
+        <div class="summary-bar">
+          <span style="color:var(--gold)">GRACE_PERIOD</span>
+          <span id="grace-state" style="color:var(--pass)">ACTIVE ON BOOT</span>
+          <span style="color:var(--text-dim)">· 60 sec window</span>
+        </div>
+        <div class="grace-meter">
+          <div class="grace-fill" id="grace-fill" style="width:100%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: TICK HISTORY ══ -->
+    <div class="panel" id="panel-tick-history">
+      <div class="section-header">
+        <span class="section-title">Tick History · DSSE Envelopes</span>
+        <button class="btn btn-primary btn-sm" onclick="runSchedulerTick(true)">▷ FIRE TICK</button>
+      </div>
+      <div id="tick-history-list">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">
+          Fire a scheduler tick to populate history.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: TRIPWIRES ══ -->
+    <div class="panel" id="panel-tripwires">
+      <div class="section-header">
+        <span class="section-title">HUKLLA Tripwires · huklla-10</span>
+        <button class="btn btn-primary btn-sm" onclick="pollTripwires()">↺ REFRESH</button>
+      </div>
+      <div class="summary-bar" id="tripwire-summary">
+        <span style="color:var(--text-dim)">Loading tripwires…</span>
+      </div>
+      <div class="tripwires-list" id="tripwire-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- ══ PANEL: RECEIPT CHAIN ══ -->
+    <div class="panel" id="panel-receipts">
+      <div class="section-header">
+        <span class="section-title">Receipt Chain · Khipu Merkle DAG</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="section-meta" id="receipt-meta">—</span>
+          <button class="btn btn-primary btn-sm" onclick="pollReceipts()">↺ REFRESH</button>
+        </div>
+      </div>
+      <div id="receipt-chain-viz">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">Loading receipt chain…</div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL: BUS METRICS ══ -->
+    <div class="panel" id="panel-bus">
+      <div class="section-header">
+        <span class="section-title">Yawar Bus · Publish/Failure Metrics</span>
+        <button class="btn btn-primary btn-sm" onclick="pollState()">↺ REFRESH</button>
+      </div>
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">Bus Publishes</div>
+          <div class="kpi-value" id="bus-publishes">—</div>
+          <div class="kpi-label">total amaru.chakra + amaru.scheduler events</div>
+          <div class="bus-bar"><div class="bus-bar-fill" id="bus-pub-bar" style="width:0%"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Bus Failures</div>
+          <div class="kpi-value" id="bus-failures" style="color:var(--trip)">—</div>
+          <div class="kpi-label">failed publish attempts</div>
+          <div class="bus-bar">
+            <div class="bus-bar-fill" id="bus-fail-bar" style="width:0%;background:var(--trip)"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Bus Health</div>
+        <div id="bus-health-text" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">
+          Polling state…
+        </div>
+        <div class="divider"></div>
+        <div class="card-title" style="margin-bottom:6px">Oversized Envelopes (huklla-9)</div>
+        <div class="kpi-value" id="oversized-envelopes" style="font-size:20px">—</div>
+        <div class="kpi-label">envelopes exceeding 64KiB soft cap</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ROSIE WIDGET -->
+<div class="rosie-widget">
+  <div class="rosie-panel" id="rosie-panel">
+    <button class="rosie-close" onclick="toggleRosie()">✕</button>
+    <div class="rosie-title">
+      <span class="live-dot" style="width:5px;height:5px"></span>
+      Rosie · Operator Assistant
+    </div>
+    <div class="rosie-body">
+      Amaru operator console. Rosie surfaces live runtime signals
+      and routes you to the right panel. Doctrine v7 — every action signed.
+    </div>
+    <div class="rosie-links">
+      <a class="rosie-link" href="#" onclick="switchPanel('chakras');toggleRosie();return false;">
+        ◈ 7-Chakra Dashboard
+      </a>
+      <a class="rosie-link" href="#" onclick="switchPanel('reasoner');toggleRosie();return false;">
+        ▷ Reasoner / DSSE Inspector
+      </a>
+      <a class="rosie-link" href="#" onclick="switchPanel('tripwires');toggleRosie();return false;">
+        ⚡ HUKLLA Tripwires
+      </a>
+      <a class="rosie-link" href="#" onclick="switchPanel('receipts');toggleRosie();return false;">
+        ⛓ Receipt Chain
+      </a>
+      <a class="rosie-link" href="/api/amaru/healthz" target="_blank" rel="noopener">
+        ☰ API Healthz ↗
+      </a>
+    </div>
+  </div>
+  <button class="rosie-fab" onclick="toggleRosie()" title="Rosie operator widget" aria-label="Open Rosie operator widget">
+    R
+  </button>
+</div>
+
+<script>
+/* ============================================================
+   AMARU OPERATOR CONSOLE — runtime wiring
+   API base: /api/amaru (same origin, served by FastAPI)
+   ============================================================ */
+
+const API = '/api/amaru';
+const CHAKRAS = ['root','sacral','solar','heart','throat','third_eye','crown'];
+const CHAKRA_LABELS = {
+  root: 'Root · muladhara',
+  sacral: 'Sacral · svadhisthana',
+  solar: 'Solar · manipura',
+  heart: 'Heart · anahata',
+  throat: 'Throat · vishuddha',
+  third_eye: 'Third-Eye · ajna',
+  crown: 'Crown · sahasrara',
+};
+
+let _state = null;
+let _tripwires = null;
+let _tickHistory = [];
+let _receipts = null;
+let _runtimeUp = null;
+let _sseOpen = false;
+let _pollInterval = null;
+
+// Grace period counter (60s from page load)
+let _graceStart = Date.now();
+const GRACE_MS = 60000;
+
+function graceProgress() {
+  const elapsed = Date.now() - _graceStart;
+  const pct = Math.max(0, 100 - (elapsed / GRACE_MS) * 100);
+  document.getElementById('grace-fill').style.width = pct + '%';
+  if (elapsed >= GRACE_MS) {
+    document.getElementById('grace-state').textContent = 'EXPIRED';
+    document.getElementById('grace-state').style.color = 'var(--text-dim)';
+  }
+}
+setInterval(graceProgress, 1000);
+
+/* ---- Navigation ---- */
+function switchPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.classList.add('active');
+  const btn = document.querySelector(`nav button[data-panel="${id}"]`);
+  if (btn) btn.classList.add('active');
+  // lazy-load data for active panel
+  if (id === 'tripwires') pollTripwires();
+  if (id === 'receipts') pollReceipts();
+  if (id === 'bus') pollState();
+}
+
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => switchPanel(btn.dataset.panel));
+});
+
+/* ---- API helpers ---- */
+async function apiFetch(path, init) {
+  try {
+    const r = await fetch(API + path, init);
+    const text = await r.text();
+    if (!r.ok) return { _error: `HTTP ${r.status}`, _body: text };
+    return JSON.parse(text);
+  } catch (e) {
+    return { _error: e.message };
+  }
+}
+
+/* ---- Runtime pill ---- */
+function setRuntimeStatus(up) {
+  _runtimeUp = up;
+  const pill = document.getElementById('runtime-pill');
+  const dot = document.getElementById('live-dot');
+  if (up === null) {
+    pill.className = 'status-pill neutral'; pill.textContent = 'CHECKING';
+  } else if (up) {
+    pill.className = 'status-pill live'; pill.textContent = 'RUNTIME UP';
+    dot.style.background = 'var(--pass)'; dot.style.boxShadow = '0 0 6px var(--pass)';
+  } else {
+    pill.className = 'status-pill error'; pill.textContent = 'RUNTIME DOWN';
+    dot.style.background = 'var(--trip)'; dot.style.boxShadow = '0 0 6px var(--trip)';
+  }
+}
+
+function setSseStatus(open) {
+  _sseOpen = open;
+  const pill = document.getElementById('sse-pill');
+  pill.className = open ? 'status-pill live' : 'status-pill neutral';
+  pill.textContent = open ? 'SSE LIVE' : 'POLL';
+}
+
+/* ---- SSE subscription ---- */
+function initSSE() {
+  try {
+    const es = new EventSource(API + '/events');
+    es.addEventListener('hello', () => setSseStatus(true));
+    es.addEventListener('amaru.chakra', (e) => {
+      try {
+        const env = JSON.parse(e.data);
+        const ev = env.payload;
+        if (!ev?.chakra || !_state) return;
+        _state.last_evaluation[ev.chakra] = ev;
+        renderChakraGrid();
+      } catch {}
+    });
+    es.addEventListener('amaru.scheduler', (e) => {
+      try {
+        const env = JSON.parse(e.data);
+        const tick = env.payload;
+        if (!tick?.tick_id) return;
+        if (!_tickHistory.find(t => t.tick_id === tick.tick_id)) {
+          _tickHistory.unshift(tick);
+          _tickHistory = _tickHistory.slice(0, 20);
+          renderTickHistory();
+        }
+      } catch {}
+    });
+    es.onerror = () => setSseStatus(false);
+  } catch {}
+}
+
+/* ---- State polling ---- */
+async function pollState() {
+  const data = await apiFetch('/state');
+  if (data._error) { setRuntimeStatus(false); return; }
+  _state = data;
+  setRuntimeStatus(true);
+  renderChakraGrid();
+  renderKPIs();
+  renderBusMetrics();
+  document.getElementById('chakra-poll-ts').textContent = new Date().toLocaleTimeString();
+}
+
+async function pollTripwires() {
+  const data = await apiFetch('/tripwires');
+  if (data._error) return;
+  _tripwires = data;
+  renderTripwires();
+  // update KPI
+  const el = document.getElementById('kpi-tripwires');
+  if (el && data.summary) el.textContent = `${data.summary.pass}/${data.summary.total}`;
+}
+
+async function pollReceipts() {
+  const data = await apiFetch('/receipts?limit=50');
+  if (data._error) return;
+  _receipts = data;
+  renderReceiptChain();
+  const meta = document.getElementById('receipt-meta');
+  if (meta) meta.textContent = `head #${data.head_seq} · total ${data.total}`;
+}
+
+async function refreshChakras() {
+  const btn = document.getElementById('btn-refresh-chakras');
+  if (btn) { btn.disabled = true; btn.textContent = '↺ …'; }
+  await Promise.all([pollState(), pollTripwires()]);
+  if (btn) { btn.disabled = false; btn.textContent = '↺ REFRESH'; }
+}
+
+/* ---- Chakra Grid Renderer ---- */
+function renderChakraGrid() {
+  const grid = document.getElementById('chakra-grid');
+  if (!grid || !_state) return;
+  grid.innerHTML = '';
+  CHAKRAS.forEach(name => {
+    const ev = _state.last_evaluation?.[name];
+    const stub = ev?.stubbed;
+    const error = ev?.error;
+    const output = ev?.output;
+    const seq = ev?.receipt?.seq;
+
+    let badgeClass = 'badge-idle';
+    let badgeText = 'idle';
+    if (ev) {
+      if (stub) { badgeClass = 'badge-stub'; badgeText = 'STUBBED'; }
+      else if (error) { badgeClass = 'badge-error'; badgeText = 'ERROR'; }
+      else { badgeClass = 'badge-pass'; badgeText = 'OK'; }
+    }
+
+    const card = document.createElement('div');
+    card.className = 'chakra-card fade-in';
+    card.innerHTML = `
+      <div class="chakra-header">
+        <span class="chakra-name">${CHAKRA_LABELS[name] ?? name}</span>
+        <span class="chakra-badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <div class="chakra-proof">proof: ${ev ? (ev.proof_id ? ev.proof_id.slice(0,16)+'…' : 'none') : '—'}</div>
+      ${output ? `<div class="chakra-output">${escHtml(JSON.stringify(output, null, 2).slice(0,300))}</div>` : ''}
+      ${error ? `<div class="chakra-output" style="color:var(--trip)">${escHtml(error.slice(0,200))}</div>` : ''}
+      <div class="chakra-receipt">receipt seq: ${seq ?? '—'}${ev?.tick_id ? ` · tick ${ev.tick_id}` : ''}${ev?.via ? ` · via ${ev.via}` : ''}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+/* ---- KPI Render ---- */
+function renderKPIs() {
+  if (!_state) return;
+  const ticks = _state.scheduler_ticks ?? 0;
+  const receipts = _state.receipts ?? 0;
+  const bus = _state.bus ?? {};
+  const busOk = (bus.publishes ?? 0) - (bus.failures ?? 0);
+
+  document.getElementById('kpi-ticks').textContent = ticks;
+  document.getElementById('kpi-receipts').textContent = receipts;
+  document.getElementById('kpi-bus-ok').textContent = Math.max(0, busOk);
+}
+
+/* ---- Tripwires Render ---- */
+function renderTripwires() {
+  if (!_tripwires) return;
+  const { summary, tripwires } = _tripwires;
+  const summaryEl = document.getElementById('tripwire-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <span class="tw-pass">${summary.pass} PASS</span>
+      <span class="tw-warn">${summary.warn} WARN</span>
+      <span class="tw-trip">${summary.trip} TRIP</span>
+      <span style="color:var(--text-dim)">· ${summary.total} total · huklla-10</span>
+    `;
+  }
+  const list = document.getElementById('tripwire-list');
+  if (!list) return;
+  list.innerHTML = '';
+  tripwires.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'tripwire-row fade-in';
+    const statusClass = t.status === 'pass' ? 'tw-pass' : t.status === 'warn' ? 'tw-warn' : 'tw-trip';
+    row.innerHTML = `
+      <span class="trip-status ${statusClass}">${t.status.toUpperCase()}</span>
+      <span class="trip-id">${t.id}</span>
+      <span class="trip-title">${escHtml(t.title)}</span>
+      <span class="trip-detail">${escHtml(t.detail)}</span>
+    `;
+    list.appendChild(row);
+  });
+}
+
+/* ---- Tick History Render ---- */
+function renderTickHistory() {
+  const list = document.getElementById('tick-history-list');
+  if (!list) return;
+  if (_tickHistory.length === 0) {
+    list.innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">Fire a scheduler tick to populate history.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  _tickHistory.forEach(tick => {
+    const row = document.createElement('div');
+    row.className = 'tick-row fade-in';
+    const stepsHtml = (tick.steps ?? []).map(s => {
+      const cls = s.error && !s.stubbed ? 'error' : s.stubbed ? 'stubbed' : '';
+      return `<span class="tick-step-badge ${cls}">${s.chakra}#${s.receipt_seq}</span>`;
+    }).join('');
+    row.innerHTML = `
+      <div class="tick-header">
+        <span class="tick-id">tick #${tick.tick_id}</span>
+        <span class="tick-meta">
+          closure ${tick.closure != null ? tick.closure.toFixed(4) : '—'} ·
+          ${tick.steps?.length ?? 0} chakras ·
+          ${tick.tick_receipt ? `receipt #${tick.tick_receipt.seq}` : ''}
+        </span>
+      </div>
+      <div class="tick-steps">${stepsHtml}</div>
+      <details style="margin-top:8px">
+        <summary style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);cursor:pointer">DSSE envelope ↓</summary>
+        <div class="envelope-output" style="margin-top:6px">${escHtml(JSON.stringify(tick, null, 2))}</div>
+      </details>
+    `;
+    list.appendChild(row);
+  });
+}
+
+/* ---- Receipt Chain Render ---- */
+function renderReceiptChain() {
+  const viz = document.getElementById('receipt-chain-viz');
+  if (!viz || !_receipts) return;
+  const items = (_receipts.items ?? []).slice().reverse(); // newest first
+  viz.innerHTML = '';
+  if (items.length === 0) {
+    viz.innerHTML = '<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim)">No receipts yet — chain initialised, no signed runs recorded.</div>';
+    return;
+  }
+  items.forEach((r, i) => {
+    const node = document.createElement('div');
+    node.className = 'chain-node fade-in';
+    const hashStr = r.self_hash ? r.self_hash.slice(0,20)+'…' : (r.hash ? r.hash.slice(0,20)+'…' : '—');
+    const prevStr = r.prev_hash ? r.prev_hash.slice(0,16)+'…' : 'genesis';
+    node.innerHTML = `
+      <span class="chain-seq">#${r.seq ?? i}</span>
+      <span style="color:var(--text-muted);width:80px;flex-shrink:0">${r.kind ?? '—'}</span>
+      <span class="chain-hash" title="${r.self_hash ?? ''}">${hashStr}</span>
+      <span class="chain-connector">← prev: ${prevStr}</span>
+    `;
+    viz.appendChild(node);
+  });
+}
+
+/* ---- Bus Metrics Render ---- */
+function renderBusMetrics() {
+  if (!_state) return;
+  const bus = _state.bus ?? {};
+  const pub = bus.publishes ?? 0;
+  const fail = bus.failures ?? 0;
+  document.getElementById('bus-publishes').textContent = pub;
+  document.getElementById('bus-failures').textContent = fail;
+
+  const pubBar = document.getElementById('bus-pub-bar');
+  const failBar = document.getElementById('bus-fail-bar');
+  const maxPub = Math.max(1, pub);
+  if (pubBar) pubBar.style.width = Math.min(100, (pub / maxPub) * 100) + '%';
+  if (failBar) failBar.style.width = Math.min(100, (fail / maxPub) * 100) + '%';
+
+  const health = document.getElementById('bus-health-text');
+  if (health) {
+    const ok = pub - fail;
+    health.innerHTML = pub === 0
+      ? '<span style="color:var(--warn)">No publishes yet — fire a scheduler tick.</span>'
+      : fail === 0
+        ? `<span style="color:var(--pass)">${pub} publishes · 0 failures · all OK</span>`
+        : `<span style="color:var(--warn)">${fail} failures / ${pub} total</span>`;
+  }
+
+  // oversized envelopes — comes from tripwires snap, surfaced via state
+  const oe = document.getElementById('oversized-envelopes');
+  if (oe && _tripwires) {
+    const tw9 = (_tripwires.tripwires ?? []).find(t => t.id === 'huklla-9');
+    oe.textContent = tw9?.detail?.match(/\d+/)?.[0] ?? '0';
+  }
+}
+
+/* ---- Reasoner Actions ---- */
+async function runSchedulerTick(silent) {
+  const out = document.getElementById('reasoner-output');
+  const btn = document.getElementById('btn-tick');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ TICKING…'; }
+  if (out && !silent) { out.innerHTML = '<span class="spinner"></span> Firing scheduler tick…'; }
+
+  const data = await apiFetch('/scheduler/tick', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ envelope: { signals: { grounded:0.85, integrity:0.9, novelty:0.55, fluency:0.78, care:0.82, harm:0.12, clarity:0.84, truth:0.88 } } }),
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = '▷ Run scheduler tick'; }
+
+  if (!data._error) {
+    // add to tick history
+    if (!_tickHistory.find(t => t.tick_id === data.tick_id)) {
+      _tickHistory.unshift(data);
+      _tickHistory = _tickHistory.slice(0, 20);
+      renderTickHistory();
+    }
+    // refresh state
+    await pollState();
+    await pollTripwires();
+  }
+
+  if (out && !silent) {
+    out.textContent = data._error
+      ? `ERROR: ${data._error}\n${data._body ?? ''}`
+      : JSON.stringify(data, null, 2);
+  }
+
+  return data;
+}
+
+async function showReceiptChain() {
+  const out = document.getElementById('reasoner-output');
+  if (out) out.innerHTML = '<span class="spinner"></span> Fetching receipt chain…';
+  const data = await apiFetch('/receipts?limit=20');
+  if (out) {
+    out.textContent = data._error
+      ? `ERROR: ${data._error}`
+      : JSON.stringify(data, null, 2);
+  }
+  _receipts = data;
+  renderReceiptChain();
+}
+
+async function checkTripwires() {
+  const out = document.getElementById('reasoner-output');
+  if (out) out.innerHTML = '<span class="spinner"></span> Evaluating HUKLLA tripwires…';
+  const data = await apiFetch('/tripwires');
+  if (out) {
+    out.textContent = data._error
+      ? `ERROR: ${data._error}`
+      : JSON.stringify(data, null, 2);
+  }
+  if (!data._error) {
+    _tripwires = data;
+    renderTripwires();
+    const el = document.getElementById('kpi-tripwires');
+    if (el && data.summary) el.textContent = `${data.summary.pass}/${data.summary.total}`;
+  }
+}
+
+/* ---- Rosie widget ---- */
+function toggleRosie() {
+  const panel = document.getElementById('rosie-panel');
+  if (panel) panel.classList.toggle('open');
+}
+
+/* ---- Utilities ---- */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+/* ---- Bootstrap ---- */
+async function init() {
+  await pollState();
+  await pollTripwires();
+  await pollReceipts();
+  initSSE();
+
+  // polling fallback
+  _pollInterval = setInterval(async () => {
+    await pollState();
+    await pollTripwires();
+  }, 10000);
+}
+
+init();
+</script>
+</body>
+</html>

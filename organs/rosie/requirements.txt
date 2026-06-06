@@ -1,0 +1,27 @@
+gradio>=6.15.2,<7
+pydantic>=2.13.4
+fastapi>=0.136.3
+uvicorn>=0.48.0
+markdown>=3.10.2
+numpy>=2.4.6
+matplotlib>=3.10.9
+httpx>=0.28.1
+# ADDITIVE (Doctrine v10/v11): agentic-RAG deps (organ=all). CPU torch resolved by pip.
+faiss-cpu>=1.14.2
+sentence-transformers>=5.5.1
+torch>=2.12.0
+huggingface_hub>=1.17.0
+cryptography>=48.0.0
+# ADDITIVE (UNAY + Khipu-LMDB v2, Yachay): durable LMDB persistence + optional
+# sqlite-vss vector recall. sqlite-vss is best-effort; szl_unay degrades to an
+# honest cosine-fallback if the extension cannot load in the slim image.
+lmdb>=2.2.0
+sqlite-vss>=0.1.2
+# ADDITIVE (Dev2, feat/real-orchestrator-and-ui): real OTLP/gRPC span export for
+# the src/rosie orchestrator + observability. Import-guarded: absence falls back
+# to the in-process span recorder (honest, no silent no-op).
+opentelemetry-sdk>=1.27.0
+opentelemetry-exporter-otlp-proto-grpc>=1.27.0
+# Optional: official Anthropic MCP Python SDK for the stdio server's preferred
+# path; mcp_server.py runs a spec-correct hand-written stdio loop if absent.
+mcp>=1.2.0

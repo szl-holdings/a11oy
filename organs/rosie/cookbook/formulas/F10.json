@@ -1,0 +1,9 @@
+{
+ "id": "F10",
+ "name": "khipu_rs_recover",
+ "description": "RS(10,6) recovery from any 6 of 10 shards.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "SORRY_PURIQ_OPEN.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

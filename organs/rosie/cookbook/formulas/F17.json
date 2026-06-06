@@ -1,0 +1,9 @@
+{
+ "id": "F17",
+ "name": "hmac_sign",
+ "description": "HMAC-SHA-256 signature over PAE.",
+ "status": "PROVEN",
+ "honesty_note": "Standard primitive.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

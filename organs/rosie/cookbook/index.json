@@ -1,0 +1,360 @@
+{
+ "schema": "rosie/cookbook-index/v1",
+ "doctrine": "v11 (749/14/163, locked c7c0ba17)",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent",
+ "count": 22,
+ "recipes": [
+  {
+   "id": "recipe-signed-receipt",
+   "title": "Sign a payload & get a recall receipt",
+   "summary": "Wrap any JSON payload in a DSSE envelope (HMAC-SHA-256) and return a signed receipt Rosie can replay later.",
+   "tags": [
+    "sign",
+    "signing",
+    "payload",
+    "signature",
+    "provenance",
+    "wire-d",
+    "dsse",
+    "khipu",
+    "receipt",
+    "sign a payload"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-signed-receipt"
+  },
+  {
+   "id": "recipe-recall-memory",
+   "title": "Recall a past conversation or note",
+   "summary": "Cosine recall over Rosie's provenanced memory; returns the best match with a signed recall receipt.",
+   "tags": [
+    "recall",
+    "memory",
+    "conversation",
+    "remember",
+    "retrieve",
+    "note",
+    "provenance",
+    "aide"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-recall-memory"
+  },
+  {
+   "id": "recipe-injection-screen",
+   "title": "Screen user input for prompt injection",
+   "summary": "Run input through the Sentra immune filter before dispatch; block/warn/allow with reasons + receipt.",
+   "tags": [
+    "injection",
+    "detect",
+    "prompt",
+    "filter",
+    "sentra",
+    "security",
+    "immune",
+    "guard",
+    "screen"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-injection-screen"
+  },
+  {
+   "id": "recipe-yuyay-gate",
+   "title": "Run the 13-axis Yuyay decision gate",
+   "summary": "Evaluate an action against the 13-axis Yuyay gate (\u039b aggregator) before Rosie commits to it.",
+   "tags": [
+    "yuyay",
+    "gate",
+    "decision",
+    "13-axis",
+    "lambda",
+    "aggregate",
+    "governance",
+    "axis"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-yuyay-gate"
+  },
+  {
+   "id": "recipe-cite-thesis",
+   "title": "Cite a thesis chapter with SHA",
+   "summary": "Pull chapter content from an ingested thesis plus its PDF SHA-256 and a signed recall receipt.",
+   "tags": [
+    "thesis",
+    "cite",
+    "citation",
+    "chapter",
+    "sha",
+    "ouroboros",
+    "v18",
+    "v20",
+    "v21",
+    "puriq",
+    "ayni"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-cite-thesis"
+  },
+  {
+   "id": "recipe-lean-lookup",
+   "title": "Look up a Lean theorem's type signature",
+   "summary": "Substring-search the 870-declaration Lean index; returns name, kind, status (PROVEN/SORRY/AXIOM), file, signature.",
+   "tags": [
+    "lean",
+    "theorem",
+    "proof",
+    "type",
+    "signature",
+    "yuyay_axis",
+    "axis",
+    "lambda",
+    "lutar",
+    "verify"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-lean-lookup"
+  },
+  {
+   "id": "recipe-warhacker-demo",
+   "title": "Run the Warhacker demo",
+   "summary": "Execute the Warhacker readiness demo (k3d + uds-cli + Pepr DSSE) \u2014 San Diego June 16-19 2026, readiness 6/6 GREEN.",
+   "tags": [
+    "warhacker",
+    "demo",
+    "run",
+    "k3d",
+    "uds",
+    "pepr",
+    "dsse",
+    "readiness",
+    "defense"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-warhacker-demo"
+  },
+  {
+   "id": "recipe-mobile-response",
+   "title": "Adapt a response mobile-first",
+   "summary": "Format Rosie's answer per SZL_MOBILE_FIRST_STANDARD.md \u2014 short blocks, thumb-reachable actions.",
+   "tags": [
+    "mobile",
+    "mobile-first",
+    "format",
+    "responsive",
+    "adapt",
+    "ui",
+    "aide"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-mobile-response"
+  },
+  {
+   "id": "recipe-replay-day",
+   "title": "Replay yesterday's decisions",
+   "summary": "Event-sourced AYNI replay of a day's signed decisions for self-reflection / audit.",
+   "tags": [
+    "replay",
+    "ayni",
+    "event-sourcing",
+    "reflection",
+    "audit",
+    "day",
+    "timeline",
+    "memory"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-replay-day"
+  },
+  {
+   "id": "recipe-verify-envelope",
+   "title": "Verify a DSSE envelope",
+   "summary": "Validate an HMAC-SHA-256 DSSE envelope from amaru/sentra/rosie against the public-key fingerprint.",
+   "tags": [
+    "verify",
+    "dsse",
+    "envelope",
+    "signature",
+    "validate",
+    "provenance",
+    "receipt"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-verify-envelope"
+  },
+  {
+   "id": "recipe-formula-lookup",
+   "title": "Look up a Codex formula",
+   "summary": "Fetch one of the 23 Codex-Kernel formula descriptors (5 Lean-proven, 18 open conjecture).",
+   "tags": [
+    "formula",
+    "codex",
+    "kernel",
+    "lambda",
+    "f15",
+    "bekenstein",
+    "aggregate",
+    "lookup"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-formula-lookup"
+  },
+  {
+   "id": "recipe-mcp-dispatch",
+   "title": "Dispatch a Hatun-MCP tool",
+   "summary": "Call one of the 16 Hatun-MCP tools via the tool mesh, with a signed call receipt.",
+   "tags": [
+    "mcp",
+    "tool",
+    "dispatch",
+    "hatun",
+    "mesh",
+    "call",
+    "catalog"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-mcp-dispatch"
+  },
+  {
+   "id": "recipe-ingest-doc",
+   "title": "Ingest a document into memory (WAYRA)",
+   "summary": "Push a document through WAYRA ingest so Rosie can recall + cite it later with a SHA.",
+   "tags": [
+    "ingest",
+    "wayra",
+    "document",
+    "memory",
+    "index",
+    "embed",
+    "provenance"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-ingest-doc"
+  },
+  {
+   "id": "recipe-boe-export",
+   "title": "Export a Body-of-Evidence bundle",
+   "summary": "Produce a signed Body-of-Evidence (BoE) bundle of receipts for an audit or a customer.",
+   "tags": [
+    "boe",
+    "evidence",
+    "export",
+    "bundle",
+    "audit",
+    "receipt",
+    "compliance",
+    "slsa"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-boe-export"
+  },
+  {
+   "id": "recipe-understudy-failover",
+   "title": "Promote Rosie as a11oy's understudy",
+   "summary": "Health-check a11oy and, on failure, promote Rosie to serve the same routes (failover understudy).",
+   "tags": [
+    "understudy",
+    "failover",
+    "a11oy",
+    "promote",
+    "health",
+    "resilience",
+    "aide"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-understudy-failover"
+  },
+  {
+   "id": "recipe-route-llm",
+   "title": "Route a prompt across the 7-tier open stack",
+   "summary": "Send a prompt through Rosie's 7-tier LLM router (Llama/Qwen/DeepSeek/Mistral/Gemma/Phi/Yi + more).",
+   "tags": [
+    "llm",
+    "route",
+    "router",
+    "open-stack",
+    "model",
+    "inference",
+    "tier"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-route-llm"
+  },
+  {
+   "id": "recipe-agentic-rag",
+   "title": "Answer with agentic RAG",
+   "summary": "Run agentic retrieval-augmented generation over Rosie's provenanced corpus, citing sources.",
+   "tags": [
+    "rag",
+    "agentic",
+    "retrieve",
+    "answer",
+    "cite",
+    "corpus",
+    "grounded"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-agentic-rag"
+  },
+  {
+   "id": "recipe-gdpr-erase",
+   "title": "Honor a GDPR erasure request",
+   "summary": "Erase a user's memory entries and emit a signed deletion receipt (right-to-be-forgotten).",
+   "tags": [
+    "gdpr",
+    "erase",
+    "delete",
+    "privacy",
+    "forget",
+    "compliance",
+    "receipt",
+    "ccpa"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-gdpr-erase"
+  },
+  {
+   "id": "recipe-transcript-sign",
+   "title": "Sign a voice transcript",
+   "summary": "Transcribe speech (STT) and sign the transcript so the spoken record is provenanced.",
+   "tags": [
+    "speech",
+    "stt",
+    "voice",
+    "transcript",
+    "sign",
+    "provenance",
+    "aide"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-transcript-sign"
+  },
+  {
+   "id": "recipe-calendar-advise",
+   "title": "Advise on calendar / email (aide vertical)",
+   "summary": "Read connected M365 calendar/email (advisory only) and propose actions Rosie can sign before sending.",
+   "tags": [
+    "calendar",
+    "email",
+    "m365",
+    "advise",
+    "connector",
+    "aide",
+    "schedule"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-calendar-advise"
+  },
+  {
+   "id": "recipe-doctrine-check",
+   "title": "Check Doctrine v11 constants at runtime",
+   "summary": "Return the locked Doctrine v11 numbers (749/14/163) and locked-at commit so claims stay honest.",
+   "tags": [
+    "doctrine",
+    "v11",
+    "constants",
+    "749",
+    "14",
+    "163",
+    "locked",
+    "honest",
+    "provenance"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-doctrine-check"
+  },
+  {
+   "id": "recipe-forecast-trajectory",
+   "title": "Forecast a governance trajectory",
+   "summary": "Run a PAC-Bayes governance trajectory forecast (Meridian) for a planned change.",
+   "tags": [
+    "forecast",
+    "pac-bayes",
+    "governance",
+    "trajectory",
+    "meridian",
+    "predict",
+    "risk"
+   ],
+   "endpoint": "/api/rosie/v2/cookbook/recipe-forecast-trajectory"
+  }
+ ]
+}

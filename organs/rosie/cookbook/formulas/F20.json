@@ -1,0 +1,9 @@
+{
+ "id": "F20",
+ "name": "yuyay_gate_aggregate",
+ "description": "13-axis gate aggregate verdict.",
+ "status": "OPEN_CONJECTURE",
+ "honesty_note": "Composition of \u039b; conjectural.",
+ "doctrine": "v11",
+ "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
+}

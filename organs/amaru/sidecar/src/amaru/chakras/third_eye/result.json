@@ -1,0 +1,19 @@
+{
+  "canonical_input": {
+    "signals": {
+      "pattern_strength": 0.7,
+      "uncertainty": 0.2
+    }
+  },
+  "canonical_output": {
+    "chakra": "third_eye",
+    "inputs": {
+      "pattern_strength": 0.7,
+      "uncertainty": 0.2
+    },
+    "insight": 0.5599999999999999,
+    "verdict": "foresee"
+  },
+  "proof_id": "amaru.third_eye.v1",
+  "stubbed": false
+}
