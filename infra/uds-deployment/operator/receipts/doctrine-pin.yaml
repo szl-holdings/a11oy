@@ -1,0 +1,36 @@
+# SZL Doctrine Receipt — SLSA L1 honest attestation
+# Doctrine v11 LOCKED — NEVER change without board sign-off
+apiVersion: szl.io/v1
+kind: DoctrineReceipt
+metadata:
+  name: szl-fleet-overlay-receipt
+  createdAt: "2026-06-03T00:00:00Z"
+spec:
+  doctrine:
+    version: "v11"
+    pin: "749/14/163"
+    kernelCommit: "c7c0ba17"
+    lambda: "Conjecture 1"
+  compliance:
+    slsaLevel: "L1"
+    section889Vendors:
+      - Huawei
+      - ZTE
+      - Hytera
+      - Hikvision
+      - Dahua
+    excludedFrameworks:
+      - IronBank
+      - FedRAMP
+      - CMMC
+      - SWFT
+      - MissionOwner
+  packages:
+    - name: szl-fleet-overlay
+      version: "0.1.0"
+      checksumFile: "checksums.txt"
+      signedBy: "szl-holdings-cosign-key"
+  attestations:
+    - type: "PackageIntegrity"
+      method: "cosign-detached-signature"
+      keyRef: "cosign.pub"

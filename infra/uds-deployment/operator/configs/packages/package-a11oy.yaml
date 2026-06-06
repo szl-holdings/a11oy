@@ -1,0 +1,67 @@
+# UDS Package CR for szl-a11oy
+# Doctrine v11 LOCKED 749/14/163
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: szl-a11oy
+  namespace: szl-a11oy
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/kernel-commit: "c7c0ba17"
+    szl.io/slsa-level: "L1"
+spec:
+  network:
+    expose:
+      - host: a11oy
+        service: szl-a11oy
+        port: 8080
+        gateway: tenant
+        selector:
+          app: szl-a11oy
+    allow:
+      - direction: Egress
+        description: "Keycloak OIDC token endpoint"
+        remoteNamespace: keycloak
+        remoteSelector:
+          app.kubernetes.io/name: keycloak
+        port: 8443
+        remoteProtocol: TLS
+      - direction: Egress
+        description: "Peat mesh QUIC CRDT sync"
+        remoteNamespace: peat-system
+        remoteSelector:
+          app.kubernetes.io/name: peat-mesh
+        port: 4001
+        remoteProtocol: UDP
+      - direction: Ingress
+        description: "IntraNamespace sidecar and probes"
+        remoteGenerated: IntraNamespace
+  sso:
+    - clientId: uds-szl-a11oy
+      name: "SZL A11oy"
+      protocol: openid-connect
+      redirectUris:
+        - "https://a11oy.uds.dev/*"
+      webOrigins:
+        - "https://a11oy.uds.dev"
+      standardFlowEnabled: true
+      enableAuthserviceSelector:
+        app: szl-a11oy
+      groups:
+        anyOf:
+          - /szl-operators
+      secretConfig:
+        name: szl-a11oy-oidc-secret
+        template: |
+          OIDC_CLIENT_ID: "{{ .clientId }}"
+          OIDC_CLIENT_SECRET: "{{ .secret }}"
+          OIDC_ISSUER: "https://sso.uds.dev/realms/uds"
+  monitor:
+    - description: "szl-a11oy Prometheus metrics"
+      portName: http-metrics
+      targetPort: 9090
+      selector:
+        app: szl-a11oy
+      path: /metrics
+      kind: ServiceMonitor

@@ -1,0 +1,9 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: szl-receipts-server
+  namespace: szl-receipts
+spec:
+  replicas: 3

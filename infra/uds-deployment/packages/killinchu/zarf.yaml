@@ -1,0 +1,89 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# zarf.yaml — szl-killinchu (UDS-bundle member package)
+#
+# Zarf v0.77.0-compliant package. Wraps the LIVE, already-published and
+# cosign-signed container image:
+#     ghcr.io/szl-holdings/killinchu:###ZARF_PKG_TMPL_VERSION###
+# (tag uds-v0.2.0 confirmed live on ghcr.io with a cosign .sig present).
+#
+# Build (CI):
+#   zarf package create packages/killinchu \
+#     --set VERSION=0.2.0 --architecture amd64 --confirm
+#
+# This package is composed into oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0
+# by bundles/szl-uds-bundle/uds-bundle.yaml via a local path reference.
+#
+# References:
+#   Zarf schema: https://docs.zarf.dev/ref/zarf-package/
+#   UDS Operator: https://uds.defenseunicorns.com/reference/uds-core/overview/
+#   killinchu repo: https://github.com/szl-holdings/killinchu
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/main/zarf.schema.json
+kind: ZarfPackageConfig
+
+metadata:
+  name: szl-killinchu
+  version: "###ZARF_PKG_TMPL_VERSION###"
+  description: >-
+    SZL killinchu — courier/transport organ: receipt relay and span transport across the SZL mesh.
+  url: "https://szlholdings.com"
+  authors: "SZL Holdings <eng@szlholdings.com>"
+  documentation: "https://github.com/szl-holdings/szl-uds-deployment"
+  image: "ghcr.io/szl-holdings/killinchu:###ZARF_PKG_TMPL_VERSION###"
+  uncompressed: false
+
+variables:
+  - name: VERSION
+    description: "Image tag / package version (injected from the release tag, 'v'/'uds-' stripped)"
+    default: "0.2.0"
+  - name: DOMAIN
+    description: "Cluster domain — must match UDS Core DOMAIN"
+    default: "uds.dev"
+  - name: REPLICAS
+    description: "killinchu replica count"
+    default: "1"
+
+components:
+  # 1. Namespace + UDS Operator Package CR (Istio/NetworkPolicy/SSO/ServiceMonitor)
+  - name: szl-killinchu-operator
+    required: true
+    description: >-
+      Create the szl-killinchu namespace and apply the UDS Operator Package CR that
+      generates Istio sidecar config, NetworkPolicies, SSO client and the
+      ServiceMonitor for killinchu.
+    manifests:
+      - name: szl-killinchu-namespace
+        namespace: szl-killinchu
+        files:
+          - manifests/namespace.yaml
+      - name: szl-killinchu-uds-package
+        namespace: szl-killinchu
+        files:
+          - ../killinchu/uds-package.yaml
+
+  # 2. The killinchu workload itself (pulls the live signed image)
+  - name: szl-killinchu-workload
+    required: true
+    description: >-
+      Deploy the killinchu workload from the live signed image
+      ghcr.io/szl-holdings/killinchu:###ZARF_PKG_TMPL_VERSION###.
+    images:
+      - ghcr.io/szl-holdings/killinchu:###ZARF_PKG_TMPL_VERSION###
+    manifests:
+      - name: szl-killinchu-workload
+        namespace: szl-killinchu
+        files:
+          - manifests/deployment.yaml
+    actions:
+      onDeploy:
+        after:
+          - description: "Wait for killinchu Deployment to be Available"
+            maxTotalSeconds: 180
+            wait:
+              cluster:
+                kind: Deployment
+                name: killinchu
+                namespace: szl-killinchu
+                condition: Available

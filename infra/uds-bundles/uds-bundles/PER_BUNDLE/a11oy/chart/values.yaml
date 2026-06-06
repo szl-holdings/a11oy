@@ -1,0 +1,36 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+replicaCount: 1
+image:
+  repository: ghcr.io/szl-holdings/a11oy
+  tag: uds-v0.3.1
+  # Airgap: image is preloaded via `kind load docker-image` / Zarf seed registry.
+  pullPolicy: IfNotPresent
+service:
+  port: 8080
+  targetPort: 8080
+gates:
+  enabled: true
+  strictMode: true
+  anchors:
+    liuHuiPi: true
+    madhavaBound: true
+    falsePosition: true
+    summationInvariant: true
+    adversarialRobustness: true
+puriq:
+  router:
+    enabled: true
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]

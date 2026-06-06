@@ -1,0 +1,290 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# ConfigMap carrying the dashboard HTML.
+#
+# DEPRECATED (v0.3.1): the receipts_server.py block below is NO LONGER MOUNTED.
+# The server now ships as the OCI image built from
+# services/szl-receipts-server/Dockerfile (see charts values.server.image).
+# The inline source is retained for reference/diffing only and will be removed
+# in a follow-up PR. The canonical, maintained source is server.py in that
+# service directory (Ed25519 signing, canonical DSSE PAE, chain rehydration,
+# OTLP spans). Only szl-receipts-dashboard-html is consumed by the Deployment.
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: szl-receipts-server-code
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: szl-receipts-server
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  receipts_server.py: |
+    #!/usr/bin/env python3
+    # SZL Receipts MCP Server — Warhacker 2026 demo build
+    # License: Apache-2.0
+    # This is a minimal FastAPI server that:
+    #   POST /receipt    — accept a DSSE-wrapped governance receipt
+    #   GET  /receipts   — return all stored receipts as JSON
+    #   GET  /stream     — SSE stream of new receipts for the dashboard
+    #   GET  /health     — readiness/liveness probe
+    #   GET  /metrics    — Prometheus-compatible counters
+
+    import os, json, time, hmac, hashlib, base64, threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from urllib.parse import urlparse
+
+    PORT       = int(os.environ.get("SZL_PORT", 8080))
+    HMAC_KEY   = base64.b64decode(os.environ.get("SZL_HMAC_KEY", ""))
+    STORE_PATH = os.environ.get("SZL_RECEIPT_STORE", "/tmp/receipts")
+    LOG_LEVEL  = os.environ.get("SZL_LOG_LEVEL", "info")
+
+    os.makedirs(STORE_PATH, exist_ok=True)
+
+    _receipts      = []
+    _receipt_lock  = threading.Lock()
+    _sse_clients   = []
+    _client_lock   = threading.Lock()
+    _counter_total = 0
+    _counter_valid = 0
+
+    def log(level, msg):
+        if LOG_LEVEL == "debug" or level in ("info", "warn", "error"):
+            print(f"[{level.upper()}] {time.strftime('%Y-%m-%dT%H:%M:%SZ')} {msg}", flush=True)
+
+    def _verify_dsse(envelope: dict) -> bool:
+        """Verify the HMAC-SHA-256 signature on a DSSE envelope."""
+        try:
+            payload_b64 = envelope.get("payload", "")
+            sigs = envelope.get("signatures", [])
+            if not sigs or not HMAC_KEY:
+                return False
+            sig_b64 = sigs[0].get("sig", "")
+            expected = hmac.new(HMAC_KEY, base64.b64decode(payload_b64), hashlib.sha256).digest()
+            actual   = base64.b64decode(sig_b64)
+            return hmac.compare_digest(expected, actual)
+        except Exception as e:
+            log("warn", f"Signature verification failed: {e}")
+            return False
+
+    def _broadcast_sse(data: str):
+        dead = []
+        with _client_lock:
+            for wfile in list(_sse_clients):
+                try:
+                    wfile.write(f"data: {data}\n\n".encode())
+                    wfile.flush()
+                except Exception:
+                    dead.append(wfile)
+            for d in dead:
+                _sse_clients.remove(d)
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, fmt, *args):
+            log("debug", fmt % args)
+
+        def _send(self, code, content_type, body):
+            if isinstance(body, str):
+                body = body.encode()
+            self.send_response(code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", len(body))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_OPTIONS(self):
+            self.send_response(200)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.end_headers()
+
+        def do_GET(self):
+            path = urlparse(self.path).path
+            if path == "/health":
+                self._send(200, "application/json", json.dumps({"status": "ok"}))
+            elif path == "/receipts":
+                with _receipt_lock:
+                    body = json.dumps(_receipts)
+                self._send(200, "application/json", body)
+            elif path == "/metrics":
+                body = (
+                    f"# HELP szl_receipts_total Total receipts received\n"
+                    f"# TYPE szl_receipts_total counter\n"
+                    f"szl_receipts_total {_counter_total}\n"
+                    f"# HELP szl_receipts_valid_total Valid (verified) receipts\n"
+                    f"# TYPE szl_receipts_valid_total counter\n"
+                    f"szl_receipts_valid_total {_counter_valid}\n"
+                )
+                self._send(200, "text/plain; version=0.0.4", body)
+            elif path == "/stream":
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                # Send buffered receipts first
+                with _receipt_lock:
+                    for r in _receipts[-20:]:
+                        self.wfile.write(f"data: {json.dumps(r)}\n\n".encode())
+                self.wfile.flush()
+                with _client_lock:
+                    _sse_clients.append(self.wfile)
+                # Block until client disconnects
+                try:
+                    while True:
+                        time.sleep(1)
+                except Exception:
+                    pass
+            else:
+                self._send(404, "text/plain", "not found")
+
+        def do_POST(self):
+            global _counter_total, _counter_valid
+            path = urlparse(self.path).path
+            if path != "/receipt":
+                self._send(404, "text/plain", "not found")
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            body   = self.rfile.read(length)
+            try:
+                envelope = json.loads(body)
+            except json.JSONDecodeError:
+                self._send(400, "text/plain", "invalid JSON")
+                return
+            _counter_total += 1
+            valid  = _verify_dsse(envelope)
+            if valid:
+                _counter_valid += 1
+            receipt_id = hashlib.sha256(body).hexdigest()
+            record = {
+                "id":        receipt_id,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "valid":     valid,
+                "envelope":  envelope,
+            }
+            with _receipt_lock:
+                _receipts.append(record)
+                # Persist to file
+                try:
+                    with open(f"{STORE_PATH}/{receipt_id}.json", "w") as f:
+                        json.dump(record, f)
+                except Exception as e:
+                    log("warn", f"Could not persist receipt: {e}")
+            _broadcast_sse(json.dumps(record))
+            log("info", f"Receipt {receipt_id[:12]}… valid={valid}")
+            resp = {"id": receipt_id, "valid": valid}
+            self._send(200, "application/json", json.dumps(resp))
+
+    if __name__ == "__main__":
+        server = HTTPServer(("0.0.0.0", PORT), Handler)
+        log("info", f"SZL Receipts server listening on :{PORT}")
+        server.serve_forever()
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: szl-receipts-dashboard-html
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: szl-receipts-server
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>SZL Governance Receipts — Live</title>
+      <style>
+        :root{--bg:#0a0e1a;--panel:#111827;--border:#1e293b;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--text:#e2e8f0;--muted:#64748b}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+        header{padding:1.5rem 2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1rem}
+        header h1{font-size:1.25rem;font-weight:700}
+        header .badge{background:var(--accent);color:#fff;font-size:.7rem;padding:.2rem .5rem;border-radius:9999px}
+        .live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        main{padding:2rem;max-width:1200px;margin:0 auto}
+        .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}
+        .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:.75rem;padding:1.25rem}
+        .stat-card .label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+        .stat-card .value{font-size:2rem;font-weight:700;margin-top:.25rem}
+        .receipt-list{display:flex;flex-direction:column;gap:.75rem}
+        .receipt{background:var(--panel);border:1px solid var(--border);border-radius:.75rem;padding:1rem 1.25rem;cursor:pointer;transition:border-color .15s}
+        .receipt:hover{border-color:var(--accent)}
+        .receipt .header{display:flex;justify-content:space-between;align-items:center}
+        .receipt .id{font-family:monospace;font-size:.85rem;color:var(--muted)}
+        .receipt .valid-badge{font-size:.7rem;padding:.2rem .5rem;border-radius:9999px;font-weight:600}
+        .valid-badge.valid{background:rgba(34,197,94,.15);color:var(--green)}
+        .valid-badge.invalid{background:rgba(239,68,68,.15);color:var(--red)}
+        .receipt .ts{font-size:.75rem;color:var(--muted);margin-top:.25rem}
+        .receipt .workload{font-size:.85rem;margin-top:.5rem;color:var(--text)}
+        .detail{display:none;margin-top:.75rem;background:var(--bg);border-radius:.5rem;padding:1rem;font-family:monospace;font-size:.75rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all}
+        .receipt.expanded .detail{display:block}
+        #empty{color:var(--muted);text-align:center;padding:3rem;display:none}
+        #empty.show{display:block}
+      </style>
+    </head>
+    <body>
+      <header>
+        <div class="live-dot"></div>
+        <h1>SZL Governance Receipts</h1>
+        <span class="badge">LIVE</span>
+      </header>
+      <main>
+        <div class="stats">
+          <div class="stat-card"><div class="label">Total Receipts</div><div class="value" id="stat-total">0</div></div>
+          <div class="stat-card"><div class="label">Verified</div><div class="value" id="stat-valid" style="color:var(--green)">0</div></div>
+          <div class="stat-card"><div class="label">Last Seen</div><div class="value" id="stat-last" style="font-size:1rem;padding-top:.4rem">—</div></div>
+        </div>
+        <div class="receipt-list" id="feed"></div>
+        <p id="empty" class="show">Waiting for workloads… run <code>uds run demo:workload</code></p>
+      </main>
+      <script>
+        const feed      = document.getElementById('feed');
+        const empty     = document.getElementById('empty');
+        const statTotal = document.getElementById('stat-total');
+        const statValid = document.getElementById('stat-valid');
+        const statLast  = document.getElementById('stat-last');
+        let total = 0, valid = 0;
+
+        function addReceipt(r) {
+          total++;
+          if (r.valid) valid++;
+          statTotal.textContent = total;
+          statValid.textContent = valid;
+          statLast.textContent  = r.timestamp ? r.timestamp.slice(11,19) : '—';
+          empty.classList.remove('show');
+
+          const div = document.createElement('div');
+          div.className = 'receipt';
+          const workload = (r.envelope?.payload
+            ? JSON.parse(atob(r.envelope.payload)).subject || '(unknown workload)'
+            : '(no payload)');
+          div.innerHTML = `
+            <div class="header">
+              <span class="id">${r.id.slice(0,16)}…</span>
+              <span class="valid-badge ${r.valid?'valid':'invalid'}">${r.valid?'✓ VALID':'✗ UNVERIFIED'}</span>
+            </div>
+            <div class="ts">${r.timestamp}</div>
+            <div class="workload">${workload}</div>
+            <div class="detail">${JSON.stringify(r.envelope, null, 2)}</div>
+          `;
+          div.addEventListener('click', () => div.classList.toggle('expanded'));
+          feed.prepend(div);
+        }
+
+        // Connect SSE
+        const apiBase = window.location.origin.replace(/:\d+/, ':8080');
+        const es = new EventSource(apiBase + '/stream');
+        es.onmessage = e => { try { addReceipt(JSON.parse(e.data)); } catch(_){} };
+        es.onerror   = () => console.warn('SSE disconnected — retrying…');
+      </script>
+    </body>
+    </html>

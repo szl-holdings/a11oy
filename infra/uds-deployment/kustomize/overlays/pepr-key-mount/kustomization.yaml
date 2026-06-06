@@ -1,0 +1,30 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Kustomize overlay to mount the szl-receipts-ed25519 Secret into
+# Pepr admission pods so the Pepr policy can read the Ed25519 key
+# at /etc/szl-receipts-key/key.priv.
+#
+# Apply after deploying UDS Core (Pepr is deployed as part of UDS Core):
+#   kubectl apply -k kustomize/overlays/pepr-key-mount/
+#
+# NOTE: Pepr regenerates its Deployment spec on re-deploy. Re-apply
+# this kustomize overlay after any `npx pepr deploy` operation.
+#
+# Refs:
+#   Pepr Deep Dive: team/zarf-uds-deep-sweep/PEPR_DEEP_DIVE.md
+#   Key generation: scripts/generate-receipt-key.sh
+#   SZL_OPERATIONAL_UPGRADES.md U4 (P0, S)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pepr-system
+
+resources: []
+
+patches:
+  - path: pepr-admission-key-mount.yaml
+    target:
+      kind: Deployment
+      namespace: pepr-system
+      labelSelector: "app.kubernetes.io/name=module,app.kubernetes.io/part-of=szl-receipt-policy"

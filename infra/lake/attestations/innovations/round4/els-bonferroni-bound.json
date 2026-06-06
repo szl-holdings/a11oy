@@ -1,0 +1,22 @@
+{
+  "idea_id": "F-07",
+  "idea_name": "ELS-BONFERRONI-BOUND",
+  "lean_path": "Lutar/Innovations/round4/ELSBonferroniBound.lean",
+  "source": "McKay, Bar-Natan, Bar-Hillel, Kalai. Statistical Science 14(2):150-173, 1999",
+  "academic_citation": "DOI: 10.1214/ss/1009212243 (Project Euclid)",
+  "plug_in_target": "sentra \u2014 gate output false-positive Bonferroni correction",
+  "sorry_free": false,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "203c16ce377865e5e7d0a61f8ef579d33ac984d88b28cc28e1e950f6ef91ca3b",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+  "note": "ELS claims are REFUTED; we extract only the statistical false-positive bound"
+}

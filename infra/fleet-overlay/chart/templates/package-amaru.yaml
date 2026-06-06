@@ -1,0 +1,3 @@
+{{- if .Values.apps.amaru.enabled }}
+{{ include "szl-fleet.package" (dict "name" "amaru" "app" .Values.apps.amaru "global" .Values.global "Chart" .Chart) }}
+{{- end }}

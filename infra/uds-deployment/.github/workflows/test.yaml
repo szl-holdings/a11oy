@@ -1,0 +1,135 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Test workflow — szl-uds-deployment
+# Runs helm lint, yamllint, and kubectl dry-run validation on PRs and pushes.
+# When a full cluster is available (test-install / test-upgrade), those are gated here too.
+#
+# References:
+#   UDS Testing Guidelines: https://github.com/defenseunicorns/uds-common/blob/main/docs/uds-packages/guidelines/testing-guidelines.md
+#   Requirement R18: no CI test workflow in v0.3.1
+
+name: Test
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Static validation (always runs — no cluster needed) ──────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: DSSE receipt scheme regression
+        # Pins the signer (pepr policy) and verifier (verify_receipts.sh) to the
+        # same HMAC-SHA-256-over-RAW-payload scheme (no DSSE PAE). Standard
+        # library, no cluster. Catches a quiet drift to PAE that would break
+        # verification.
+        run: python3 scripts/dsse_scheme_regression_test.py
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: yamllint — all YAML
+        # Config (incl. Helm template ignores) lives in .yamllint.yml at repo
+        # root. Helm chart templates contain Go templating ({{ ... }}) that is
+        # not valid standalone YAML and is validated by `helm lint` below.
+        run: |
+          yamllint -c .yamllint.yml $(find . -name "*.yaml" -o -name "*.yml" \
+            | grep -v "node_modules" \
+            | grep -v ".git" \
+            | grep -v "charts/.*/templates/") 2>&1
+          # NOTE: charts/*/templates/ are excluded because Go templating ({{ }}) is not valid
+          # standalone YAML. These are validated by 'helm lint' below instead.
+          # yamllint's ignore: config only works with directory args, not explicit file lists.
+
+      - name: Install Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+        with:
+          version: v3.14.0
+
+      - name: helm lint — charts/szl-receipts
+        run: helm lint charts/szl-receipts/ --strict 2>&1
+
+      - name: helm template — dry run render
+        run: helm template test-release charts/szl-receipts/ > /dev/null && echo "helm template OK"
+
+      - name: Validate kustomize manifests (offline schema check)
+        run: |
+          # Install kubectl (for `kubectl kustomize` rendering only)
+          curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+          # Install kubeconform for offline manifest schema validation. CI has no
+          # API server, so `kubectl apply --dry-run` (even client-side) cannot
+          # run: it still contacts the cluster for API discovery / OpenAPI.
+          # kubeconform validates the rendered manifests against bundled schemas
+          # entirely offline.
+          KUBECONFORM_VERSION=v0.6.7
+          curl -sL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin kubeconform
+          # Render the kustomization (structural + kustomize-semantic validation)
+          # then schema-validate every rendered resource.
+          kubectl kustomize kustomize/base/ \
+            | kubeconform -strict -summary -verbose - \
+            && echo "kustomize manifests valid"
+
+  # ── Full install test (requires cluster — manual dispatch or scheduled) ────
+  test-install:
+    name: Test Install
+    runs-on: ubuntu-24.04
+    # Only run on workflow_dispatch to avoid burning runner minutes on every PR
+    # until the full UDS stack is stable. Remove 'if' to enable on all PRs.
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install UDS CLI
+        uses: defenseunicorns/setup-uds@ab842abcad1f7a3305c2538e3dd1950d0daacfa5 # v1 (v1.0.1)
+        with:
+          version: v0.31.0
+
+      - name: Install Zarf
+        run: |
+          curl -sL "https://github.com/zarf-dev/zarf/releases/download/v0.77.0/zarf_v0.77.0_Linux_amd64" \
+            -o /usr/local/bin/zarf && chmod +x /usr/local/bin/zarf
+
+      - name: Install k3d
+        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      - name: Run test-install
+        run: uds run test-install
+
+  # ── Upgrade test (requires cluster — manual dispatch only) ────────────────
+  test-upgrade:
+    name: Test Upgrade
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install UDS CLI
+        uses: defenseunicorns/setup-uds@ab842abcad1f7a3305c2538e3dd1950d0daacfa5 # v1 (v1.0.1)
+        with:
+          version: v0.31.0
+
+      - name: Install Zarf
+        run: |
+          curl -sL "https://github.com/zarf-dev/zarf/releases/download/v0.77.0/zarf_v0.77.0_Linux_amd64" \
+            -o /usr/local/bin/zarf && chmod +x /usr/local/bin/zarf
+
+      - name: Install k3d
+        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      - name: Run test-upgrade
+        run: uds run test-upgrade

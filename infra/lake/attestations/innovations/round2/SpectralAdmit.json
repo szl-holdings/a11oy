@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "SpectralAdmit",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "killinchu/spectraladmit_gate",
+      "digest": {
+        "sha256": "fe233b55642e505387277369d343d58f7cacdf5ac94d25b543a0ba40117aa8ca"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "spectral_gap x admission_stability",
+    "mixing_time_bound": "1/lambda2 * log(1/eps)",
+    "cheeger_connection": true
+  }
+}

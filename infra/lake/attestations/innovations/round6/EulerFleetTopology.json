@@ -1,0 +1,28 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "Lutar/Innovations/round6/EulerFleetTopology.lean",
+      "digest": {
+        "sha256": "70a92c6cb667c60c6b306cee73d85958ee9d2707"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v0.2",
+  "predicate": {
+    "formula_id": "EULER-FLEET-TOPOLOGY",
+    "round": "round6",
+    "doctrine": "v11",
+    "kernel": "c7c0ba17",
+    "lambda_status": "Conjecture 1",
+    "slsa": "L1",
+    "plug_in_target": "rosie/fleet-health",
+    "source_citation": "Euler, L. Solutio problematis ad geometriam situs pertinentis. Commentarii Acad. Sci. Petropolitanae 8 (1741):128-140; Diestel, Graph Theory (5th ed., Springer, 2017) Thm 4.2.8.",
+    "lean_stub_url": "https://github.com/szl-holdings/lutar-lean/blob/feat/innovations-round6/Lutar/Innovations/round6/EulerFleetTopology.lean",
+    "lean_ci_status": "\ud83d\udfe1 sorry (honest: planarity hypothesis runtime-only)",
+    "gap_closed": "Rosie fleet health had no topological invariant; Euler V-E+F=2 provides doctrine-completeness check",
+    "timestamp": "2026-06-03T05:34:55Z",
+    "signedOffBy": "Yachay <yachay@szlholdings.ai>",
+    "coAuthoredBy": "Perplexity Computer Agent <agent@perplexity.ai>"
+  }
+}

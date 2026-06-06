@@ -1,0 +1,17 @@
+{
+  "idea_id": "INN-DSPy",
+  "idea_name": "DSPY-SIGNATURES",
+  "lean_path": "killinchu/szl_formula_signatures.py",
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T04:33:51.402535+00:00",
+  "cycle": "meta-replay-round3",
+  "slsa": "L1 honest",
+  "receipt_hash": "5f4fb75b1fcffb67a19a4f7b5259d6194a8914b73c4dcba1e97e63a32bcb2f07",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+  "note": "DSPy-lift: typed Signatures for formula LLM calls"
+}

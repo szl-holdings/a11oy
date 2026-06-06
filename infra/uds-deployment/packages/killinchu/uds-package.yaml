@@ -1,0 +1,105 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# UDS Package CR — killinchu (drone/UAV coordination module)
+#
+# killinchu is the aerial surveillance and drone coordination module.
+# It manages MAVLink telemetry streams, UDP beacon channels, and drone
+# command-and-control. Registered with UDS Operator for mesh, SSO, and monitoring.
+#
+# UDS Package CR reference:
+#   https://uds.defenseunicorns.com/reference/configuration/custom-resources/packages-v1alpha1-cr/
+---
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: killinchu
+  namespace: szl-killinchu
+  labels:
+    app.kubernetes.io/name: killinchu
+    szl.io/component: uds-package
+    szl.io/mesh-version: v0.4.0
+  annotations:
+    szl.io/role: "drone/UAV coordination (killinchu.szl-killinchu.svc.cluster.local:8080)"
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/kernel-commit: "c7c0ba17"
+    szl.io/slsa-level: "L1"
+spec:
+  sso:
+    - name: SZL Killinchu
+      clientId: szl-killinchu
+      standardFlowEnabled: true
+      enabled: true
+      redirectUris:
+        - "https://killinchu.uds.dev/*"
+      webOrigins:
+        - "https://killinchu.uds.dev"
+      groups:
+        anyOf:
+          - /szl-operators
+      secretConfig:
+        name: szl-killinchu-oidc-secret
+        template: |
+          OIDC_CLIENT_ID: "{{ .clientId }}"
+          OIDC_CLIENT_SECRET: "{{ .secret }}"
+          OIDC_ISSUER: "https://sso.uds.dev/realms/uds"
+
+  network:
+    serviceMesh:
+      mode: sidecar
+    expose:
+      - host: killinchu
+        service: szl-killinchu
+        port: 8080
+        gateway: tenant
+        selector:
+          app: killinchu
+    allow:
+      - direction: Egress
+        selector:
+          app: killinchu
+        remoteGenerated: KubeAPI
+        description: "Kubernetes API / DNS resolution"
+      # killinchu -> a11oy : report drone telemetry up
+      - direction: Egress
+        selector:
+          app: killinchu
+        remoteNamespace: szl-a11oy
+        remoteSelector:
+          app: a11oy
+        port: 8080
+        description: "killinchu reports drone status to a11oy orchestrator"
+      # killinchu -> szl-receipts : ALLOW (telemetry receipt emission)
+      - direction: Egress
+        selector:
+          app: killinchu
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app: szl-receipts-server
+        port: 8080
+        description: "killinchu emits telemetry receipts to the chain authority"
+      # a11oy -> killinchu : send commands
+      - direction: Ingress
+        selector:
+          app: killinchu
+        remoteNamespace: szl-a11oy
+        remoteSelector:
+          app: a11oy
+        port: 8080
+        description: "a11oy commands killinchu for drone tasking"
+      # IntraNamespace for sidecar communication
+      - direction: Ingress
+        selector:
+          app: killinchu
+        remoteGenerated: IntraNamespace
+        description: "IntraNamespace (Istio sidecar + health probes)"
+
+  monitor:
+    - portName: metrics
+      selector:
+        app: killinchu
+      targetPort: 8080
+      path: /metrics
+      kind: ServiceMonitor
+      description: "killinchu drone coordination metrics scrape"

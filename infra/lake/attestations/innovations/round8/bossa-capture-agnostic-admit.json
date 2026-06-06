@@ -1,0 +1,25 @@
+{
+    "idea_id": "R8-L5",
+    "idea_name": "BOSSA-CAPTURE-AGNOSTIC-ADMIT",
+    "lean_path": "Lutar/Innovations/round8/BossaCaptureAgnostic.lean",
+    "source": "Bossa Technology (fka Bossa Nova Robotics) retail-AI rebrand (Dec 2021) \u2014 UNVERIFIED: no primary whitepaper found",
+    "academic_citation": "The Robot Report, 'Bossa Nova Downplays Robots in Retail, AI Rebrand' (Dec 2021). https://www.therobotreport.com/bossa-nova-downplays-robots-in-retail-ai-rebrand/ [UNVERIFIED: no peer-reviewed source; pattern is admit-agnostic to capture backend]",
+    "plug_in_target": "killinchu / vsp-otel \u2014 capture-agnostic admit predicate",
+    "sorry_free": true,
+    "doctrine": "v11",
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "kernel_commit": "c7c0ba17",
+    "lambda": "Conjecture 1 - NOT a theorem",
+    "ts": "2026-06-03T13:54:00+00:00",
+    "cycle": "round8-leader-scrape-plus-ancient-redecode",
+    "slsa": "L1 honest",
+    "pr_url": "PENDING",
+    "receipt_hash": "5306833bde3637a9a20f1a24db69fe923d48d417317668dfc90596d67cb14547",
+    "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+    "dco": {
+        "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+        "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+    }
+}

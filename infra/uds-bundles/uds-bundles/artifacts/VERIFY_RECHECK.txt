@@ -1,0 +1,12 @@
+### LIVE RE-VERIFICATION Mon Jun  1 09:23:12 UTC 2026
+## cosign version
+  ______   ______        _______. __    _______ .__   __.
+ /      | /  __  \      /       ||  |  /  _____||  \ |  |
+|  ,----'|  |  |  |    |   (----`|  | |  |  __  |   \|  |
+
+## cosign verify-blob (all 5)
+[a11oy] zarf-package-a11oy-runtime-proof-amd64-0.3.1.tar.zst: Verified OK
+[amaru] zarf-package-amaru-attestation-proof-amd64-0.3.1.tar.zst: Verified OK
+[sentra] zarf-package-sentra-gates-proof-amd64-0.3.1.tar.zst: Verified OK
+[killinchu] zarf-package-killinchu-bundle-proof-amd64-0.3.1.tar.zst: Verified OK
+[rosie] zarf-package-rosie-replay-proof-amd64-0.3.1.tar.zst: Verified OK

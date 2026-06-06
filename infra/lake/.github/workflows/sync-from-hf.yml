@@ -1,0 +1,65 @@
+name: Sync from HF dataset
+on:
+  schedule: [{ cron: "13 */6 * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # LOUD GUARD (no silent green): HF_TOKEN is REQUIRED to read the szl-lake
+      # dataset. Without it every fetch 401s; the old `|| true` swallowed that
+      # and committed a green no-op sync over stale/empty files.
+      - name: Require HF_TOKEN (fail loudly if missing)
+        if: ${{ secrets.HF_TOKEN == '' }}
+        run: |
+          echo "::error title=HF_TOKEN missing::sync-from-hf needs HF_TOKEN to read SZLHOLDINGS/szl-lake."
+          echo "::error::Founder action required: add the org/repo secret HF_TOKEN (HF read token for the SZLHOLDINGS org)."
+          echo "::error::Create it at https://huggingface.co/settings/tokens . See FOUNDER_SECRETS_RUNBOOK.md."
+          exit 1
+      - name: Pull HF dataset metadata + small JSONs
+        if: ${{ secrets.HF_TOKEN != '' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN resolved empty at runtime — refusing to sync over stale data. Failing loudly."
+            exit 1
+          fi
+          mkdir -p attestations doctrine keys
+          BASE="https://huggingface.co/datasets/SZLHOLDINGS/szl-lake/resolve/main"
+          # No `|| true`: a failed fetch must fail the job, not silently keep a
+          # stale file. `curl -f` already exits non-zero on HTTP errors.
+          for f in \
+            attestations/section_889_attestation.json \
+            attestations/slsa_level.json \
+            doctrine/manifest.json \
+            keys/MANIFEST.json; do
+            curl -fsSL -H "Authorization: Bearer $HF_TOKEN" "$BASE/$f" -o "$f"
+          done
+          # Refresh lake_index.json with current timestamp + HF SHA
+          HF_SHA=$(curl -fsSL -H "Authorization: Bearer $HF_TOKEN" \
+            "https://huggingface.co/api/datasets/SZLHOLDINGS/szl-lake" | jq -r .sha)
+          if [ -z "${HF_SHA}" ] || [ "${HF_SHA}" = "null" ]; then
+            echo "::error::Could not read HF dataset SHA — aborting rather than recording a bogus sync."
+            exit 1
+          fi
+          jq --arg sha "$HF_SHA" --arg ts "$(date -u +%FT%TZ)" \
+            '.hf_sha=$sha | .synced_from_hf_at=$ts' \
+            lake_index.json > lake_index.json.tmp && mv lake_index.json.tmp lake_index.json
+      - name: Commit if changed
+        if: ${{ secrets.HF_TOKEN != '' }}
+        run: |
+          git config user.email "yachay@szlholdings.ai"
+          git config user.name "Yachay"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add -A
+            git commit -m "chore(lake): sync from HF $(date -u +%FT%TZ)
+
+Signed-off-by: Yachay <yachay@szlholdings.ai>
+Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>"
+            git push
+          fi

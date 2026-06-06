@@ -1,0 +1,188 @@
+kind: UDSBundle
+metadata:
+  name: szl-full-stack
+  description: >
+    SZL Holdings full-stack UDS bundle — composes szl-receipts, a11oy-runtime,
+    sentra-gates, amaru-attestation, and rosie-replay as separate Zarf packages.
+    Doctrine v6 strict: STAGED labels indicate packages pending Zarf package
+    creation (blocked on FA-001 container push and cosign signing).
+  version: 0.3.1
+  # Doctrine marker: honest STAGED labels in package entries below.
+  # Do NOT remove STAGED markers until the corresponding Zarf packages exist
+  # and containers are pushed to ghcr.io/szl-holdings/.
+
+packages:
+  # ─────────────────────────────────────────────────────────────────
+  # Package 1: szl-receipts
+  # Status: AVAILABLE — Zarf package exists, Pepr policy deployed
+  # ─────────────────────────────────────────────────────────────────
+  - name: szl-receipts
+    description: >
+      SZL governance receipt server and Pepr admission webhook.
+      Emits DSSE envelopes for every Deployment/Job API call cluster-wide.
+      The only fully-deployed package in v0.3.0.
+    repository: ghcr.io/szl-holdings/vessels
+    # NOTE: container tag uds-v0.3.0 NOT YET PUSHED — awaiting FA-001.
+    # When pushed, this ref becomes valid. Until then, use local Zarf package:
+    #   zarf package create packages/szl-receipts/
+    ref: uds-v0.3.1
+    # STAGED: change ref from uds-v0.3.1 to published tag once container pushed
+    optionalComponents:
+      - name: szl-receipts-server
+        description: Receipt HTTP server (port 8443)
+      - name: szl-receipts-pepr
+        description: Pepr admission webhook (cluster-wide policy)
+    overrides:
+      szl-receipts:
+        szl-receipts-server:
+          values:
+            - path: replicaCount
+              value: 1
+            - path: service.port
+              value: 8443
+            - path: receipts.signingMode
+              # demo: HMAC-SHA256 | production: Ed25519 (requires FA-001 cosign keys)
+              value: demo
+            - path: receipts.retentionDays
+              value: 30
+
+  # ─────────────────────────────────────────────────────────────────
+  # Package 2: a11oy-runtime
+  # Status: STAGED — awaiting Zarf package creation (blocked on FA-001)
+  # Zarf package does not yet exist. Add after: docker push ghcr.io/szl-holdings/a11oy:uds-v0.3.1
+  # ─────────────────────────────────────────────────────────────────
+  - name: a11oy-runtime
+    description: >
+      [STAGED: awaiting FA-001 container push + Zarf package create]
+      a11oy brand-orchestration kernel: L1–L7 receipt chain, 5 anchor formula
+      policy gates (LiuHuiPi, MadhavaBound, FalsePosition, SummationInvariant,
+      AdversarialRobustness), KS-18 contextuality witness, 248 CI assertions.
+    repository: ghcr.io/szl-holdings/a11oy
+    ref: uds-v0.3.1
+    # BLOCKER: This package cannot be deployed until container is pushed to GHCR.
+    # Founder action FA-001 required before this entry is functional.
+    optionalComponents:
+      - name: a11oy-policy-gates
+        description: 5 anchor formula policy gates (L6)
+      - name: a11oy-receipt-substrate
+        description: Receipt substrate with DSSE emission
+    overrides:
+      a11oy-runtime:
+        a11oy-policy-gates:
+          values:
+            - path: gates.enabled
+              value: true
+            - path: gates.strictMode
+              value: true
+            - path: gates.anchors.liuHuiPi
+              value: true
+            - path: gates.anchors.madhavaBound
+              value: true
+            - path: gates.anchors.falsePosition
+              value: true
+            - path: gates.anchors.summationInvariant
+              value: true
+            - path: gates.anchors.adversarialRobustness
+              value: true
+
+  # ─────────────────────────────────────────────────────────────────
+  # Package 3: sentra-gates
+  # Status: STAGED — awaiting Zarf package creation (blocked on FA-001)
+  # ─────────────────────────────────────────────────────────────────
+  - name: sentra-gates
+    description: >
+      [STAGED: awaiting FA-001 container push + Zarf package create]
+      sentra cyber-resilience runtime: fail-closed asset-scoped Safety Gate
+      (Sentra-V1, NIST CSF 2.0 + D3FEND), L7 forecast engine consuming
+      a11oy-gate-emitted UDS receipts.
+    repository: ghcr.io/szl-holdings/sentra
+    ref: uds-v0.3.1
+    # BLOCKER: Requires sentra container at GHCR + Zarf package.
+    optionalComponents:
+      - name: sentra-safety-gate
+        description: Fail-closed asset-scoped safety gate (Sentra-V1)
+      - name: sentra-l7-forecast
+        description: L7 forecast engine consuming a11oy receipts
+    overrides:
+      sentra-gates:
+        sentra-safety-gate:
+          values:
+            - path: gate.failClosed
+              value: true
+            - path: gate.nistCsf
+              value: "2.0"
+            - path: gate.d3fend
+              value: true
+
+  # ─────────────────────────────────────────────────────────────────
+  # Package 4: amaru-attestation
+  # Status: STAGED — awaiting Zarf package creation (blocked on FA-001)
+  # ─────────────────────────────────────────────────────────────────
+  - name: amaru-attestation
+    description: >
+      [STAGED: awaiting FA-001 container push + Zarf package create]
+      amaru convergent data-sync runtime: KL drift + hash-chained proof receipts,
+      brain organ wiring for anatomy-alive Phase 1 Track 1 (emits formula_witness),
+      adversarial regression detection runtime.
+    repository: ghcr.io/szl-holdings/amaru
+    ref: uds-v0.3.1
+    # BLOCKER: Requires amaru container at GHCR + Zarf package.
+    optionalComponents:
+      - name: amaru-formula-witness
+        description: anatomy-alive Phase 1 Track 1 formula witness emitter
+      - name: amaru-adversarial-detect
+        description: Adversarial regression detection runtime
+    overrides:
+      amaru-attestation:
+        amaru-formula-witness:
+          values:
+            - path: witness.enabled
+              value: true
+            - path: witness.emitOnDrift
+              value: true
+            - path: witness.klDriftThreshold
+              value: "0.05"
+
+  # ─────────────────────────────────────────────────────────────────
+  # Package 5: rosie-replay
+  # Status: STAGED — awaiting Zarf package creation (blocked on FA-001)
+  # ─────────────────────────────────────────────────────────────────
+  - name: rosie-replay
+    description: >
+      [STAGED: awaiting FA-001 container push + Zarf package create]
+      rosie governed decision fabric: mandatory witnesses on every decision
+      (ROSIE-V1), receipt observability dashboard, receipt-replayable Warhacker
+      demo path. Provides live receipt feed at http://localhost:8443 when deployed.
+    repository: ghcr.io/szl-holdings/rosie
+    ref: uds-v0.3.1
+    # BLOCKER: Requires rosie container at GHCR + Zarf package.
+    optionalComponents:
+      - name: rosie-dashboard
+        description: Receipt observability dashboard (Phase 1 Track 1)
+      - name: rosie-replay-engine
+        description: Receipt-replayable demo engine (Phase 1 Track 2c)
+    overrides:
+      rosie-replay:
+        rosie-dashboard:
+          values:
+            - path: dashboard.enabled
+              value: true
+            - path: dashboard.port
+              value: 8443
+            - path: dashboard.retentionDays
+              value: 30
+        rosie-replay-engine:
+          values:
+            - path: replay.enabled
+              value: true
+            - path: replay.mode
+              # live: real-time | replay: recorded scenario
+              value: live
+
+# ─────────────────────────────────────────────────────────────────
+# Bundle metadata
+# ─────────────────────────────────────────────────────────────────
+# SZL UDS = Unified Decision Span (not Defense Unicorns' "Unified Defense Stack" trademark, formerly "Unicorn Delivery Service", rebranded 2026-06-02)
+# Andrew Greene Option-A endorsement 2026-05-22 authorizes operation within UDS licensing.
+# This bundle is NOT UDS Catalog accepted. See catalog-submission/ for acceptance status.
+# ─────────────────────────────────────────────────────────────────

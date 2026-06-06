@@ -1,0 +1,18 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Kustomize overlay — EKS-Anywhere (eks-a)
+# Sets replica count to 3 for HA in EKS-A multi-node clusters.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: szl-receipts
+
+resources:
+  - ../../base
+
+patches:
+  - path: replica-patch.yaml
+    target:
+      kind: Deployment
+      name: szl-receipts-server

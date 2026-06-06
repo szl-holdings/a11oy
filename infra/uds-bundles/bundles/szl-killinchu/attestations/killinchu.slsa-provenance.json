@@ -1,0 +1,92 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "ghcr.io/szl-holdings/killinchu:uds-v0.2.0",
+      "digest": {
+        "sha256": "e872344f2fc8e7d8085042d5b5660c8bd62887a7d2f2353f44f882d782e8cd75"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://huggingface.co/docs/hub/spaces-sdks-docker",
+      "externalParameters": {
+        "source": "https://github.com/szl-holdings/killinchu",
+        "space": "https://huggingface.co/spaces/SZLHOLDINGS/killinchu",
+        "dockerfile": "Dockerfile",
+        "baseImage": "python:3.12-slim"
+      },
+      "internalParameters": {
+        "doctrine": "v11 LOCKED 749/14/163"
+      },
+      "resolvedDependencies": [
+        {
+          "uri": "pkg:pypi/fastapi@0.111.0"
+        },
+        {
+          "uri": "pkg:pypi/uvicorn@0.29.0"
+        },
+        {
+          "uri": "pkg:pypi/httpx@0.27.0"
+        },
+        {
+          "uri": "pkg:pypi/starlette@0.37.0"
+        },
+        {
+          "uri": "pkg:pypi/pyModeS@3.3.0"
+        },
+        {
+          "uri": "pkg:pypi/pymavlink@2.4.40"
+        },
+        {
+          "uri": "pkg:pypi/cryptography@42.0"
+        },
+        {
+          "uri": "pkg:pypi/dilithium-py@1.0.0"
+        },
+        {
+          "uri": "pkg:pypi/huggingface_hub@0.23"
+        },
+        {
+          "uri": "pkg:pypi/opentelemetry-sdk@1.24.0"
+        },
+        {
+          "uri": "pkg:pypi/opentelemetry-exporter-otlp-proto-http@1.24.0"
+        },
+        {
+          "uri": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.45b0"
+        },
+        {
+          "uri": "pkg:pypi/opentelemetry-instrumentation-starlette@0.45b0"
+        },
+        {
+          "uri": "pkg:pypi/lmdb@1.4.0"
+        },
+        {
+          "uri": "pkg:pypi/sqlite-vss@0.1.2"
+        }
+      ]
+    },
+    "runDetails": {
+      "builder": {
+        "id": "https://huggingface.co/spaces (HF Docker Space builder)"
+      },
+      "metadata": {
+        "invocationId": "hf-space-killinchu-build",
+        "startedOn": "2026-06-02T00:00:00Z"
+      }
+    },
+    "slsaLevel": "SLSA Build L1 (honest) — spec v1.2",
+    "_honest_disclosure": {
+      "claimed": "SLSA Build L1 — Provenance showing how the package was built (slsa.dev/spec/v1.0/levels).",
+      "L2_status": "in progress via Wire D (build-service provenance); not yet claimed",
+      "lambda": "Λ is Conjecture 1, NOT a theorem",
+      "lean_kernel": "163 sorries open in the Lean kernel (disclosed, never hidden)",
+      "spec_version": "SLSA v1.2 (https://slsa.dev/spec/) — predicate slsa.dev/provenance/v1; level remains L1",
+      "honest_scope": "This build is honest: SLSA level 1 only. Not Iron Bank certified. Not SWFT-listed. Not FedRAMP authorized. No CMMC claim. Higher levels not yet achieved and not claimed. Λ is Conjecture 1, not a theorem."
+    },
+    "slsaSpecVersion": "v1.2"
+  }
+}

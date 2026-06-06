@@ -1,0 +1,31 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "OperadMesh",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "a11oy/operadmesh_gate",
+      "digest": {
+        "sha256": "b20b578ebb39c7efa21c2a1103502bd7ebe3205daef9559da0a22d373f00b700"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "colored_operads x multi_organ_routing",
+    "operad_colors": [
+      "score",
+      "sign",
+      "retrieve",
+      "monitor",
+      "admit"
+    ],
+    "composition_rule": "valid iff color profile compatible"
+  }
+}

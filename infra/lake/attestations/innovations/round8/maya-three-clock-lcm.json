@@ -1,0 +1,25 @@
+{
+    "idea_id": "A8-05",
+    "idea_name": "MAYA-THREE-CLOCK-LCM",
+    "lean_path": "Lutar/Innovations/round8/MayaThreeClockLCM.lean",
+    "source": "Maya Long Count calendar \u2014 Tzolk'in 260 / Haab' 365 / Tun 360 (Classic period ~250\u2013900 CE); three-clock extension of R4",
+    "academic_citation": "Aveni, A.F., Skywatchers of Ancient Mexico (Univ. of Texas Press, 1980), ch. 7. Thompson, J.E.S., Maya Hieroglyphic Writing (Carnegie Institution, 1950). https://mayadecipherment.com/2012/05/02/the-misunderstanding-of-maya-math/",
+    "plug_in_target": "rosie \u2014 distributed timer array re-sync epoch",
+    "sorry_free": true,
+    "doctrine": "v11",
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "kernel_commit": "c7c0ba17",
+    "lambda": "Conjecture 1 - NOT a theorem",
+    "ts": "2026-06-03T14:19:00+00:00",
+    "cycle": "round8-leader-scrape-plus-ancient-redecode",
+    "slsa": "L1 honest",
+    "pr_url": "PENDING",
+    "receipt_hash": "60d0fd6063958192ddaf82a288ad1573bfda1991f01122b8f35176682dc20a1c",
+    "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+    "dco": {
+        "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+        "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+    }
+}

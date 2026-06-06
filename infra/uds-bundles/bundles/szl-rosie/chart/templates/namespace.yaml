@@ -1,0 +1,17 @@
+{{/* Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0 */}}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace }}
+  labels:
+    istio-injection: enabled
+    app.kubernetes.io/part-of: szl-mesh
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    # --- PSA: enforce restricted; existing securityContext already satisfies it ---
+    # https://kubernetes.io/docs/concepts/security/pod-security-admission/
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36   # validated ceiling (gh api kubernetes releases)
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # sigstore policy-controller opt-in (ClusterImagePolicy enforcement)
+    policy.sigstore.dev/include: "true"

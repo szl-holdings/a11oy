@@ -1,0 +1,17 @@
+{
+  "idea_id": "INN-HONEYCOMB",
+  "idea_name": "SLO-BURN-RATE",
+  "lean_path": "killinchu/szl_formulas.py:slo_burn_rate",
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T04:33:51.402522+00:00",
+  "cycle": "meta-replay-round3",
+  "slsa": "L1 honest",
+  "receipt_hash": "b5dc60220acac6e36ba57733b63a91f6a0a055e667dbe1ffc02ee077e8aece50",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+  "note": "Honeycomb-lift: SLO budget burn rate formula"
+}

@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: Apache-2.0
+# vsp-otel — Python operational layer CI
+# Doctrine v11 LOCKED — 749/14/163 · Λ = Conjecture 1
+# ADDITIVE: this is a NEW workflow alongside the existing TS `ci.yml`; it does
+# not modify or replace TS CI. Runs the Python vsp_otel test suite.
+name: Python CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/vsp_otel/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "Dockerfile"
+      - ".github/workflows/python-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/vsp_otel/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "Dockerfile"
+      - ".github/workflows/python-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }} — lint + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package + test extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Byte-compile (syntax gate)
+        run: python -m compileall -q src/vsp_otel
+      - name: Run test suite (includes real in-process OTLP/gRPC round-trip)
+        run: pytest -q
+
+  docker-integration:
+    name: Real OTel Collector container integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: test
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.12"
+      - name: Install package + test extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Integration vs. real otel-collector container
+        env:
+          VSP_OTEL_IT_DOCKER: "1"
+        run: pytest -q tests/test_integration.py
+
+  docker-build:
+    name: Build minimal image (per-file COPY)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Build image
+        run: docker build -f Dockerfile.python-lib -t vsp-otel:ci .
+      - name: Run banner (import smoke)
+        run: docker run --rm vsp-otel:ci

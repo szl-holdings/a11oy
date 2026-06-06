@@ -1,0 +1,393 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "killinchu-sbom",
+  "documentNamespace": "https://szlholdings.dev/spdx/killinchu-0.1.0",
+  "creationInfo": {
+    "created": "2026-06-02T00:00:00Z",
+    "creators": [
+      "Organization: SZL Holdings",
+      "Tool: szl-uds-payload-forge-1.0"
+    ],
+    "licenseListVersion": "3.22"
+  },
+  "packages": [
+    {
+      "name": "killinchu",
+      "SPDXID": "SPDXRef-Package-killinchu",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "https://huggingface.co/spaces/SZLHOLDINGS/killinchu",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "supplier": "Organization: SZL Holdings",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:oci/killinchu@uds-v0.2.0"
+        }
+      ]
+    },
+    {
+      "name": "python",
+      "SPDXID": "SPDXRef-Package-python-base",
+      "versionInfo": "3.12-slim",
+      "downloadLocation": "https://hub.docker.com/_/python",
+      "filesAnalyzed": false,
+      "licenseConcluded": "PSF-2.0",
+      "licenseDeclared": "PSF-2.0",
+      "supplier": "Organization: Python Software Foundation",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:docker/python@3.12-slim"
+        }
+      ]
+    },
+    {
+      "name": "fastapi",
+      "SPDXID": "SPDXRef-Package-pip-0",
+      "versionInfo": "0.111.0",
+      "downloadLocation": "https://pypi.org/project/fastapi/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/fastapi@0.111.0"
+        }
+      ]
+    },
+    {
+      "name": "uvicorn",
+      "SPDXID": "SPDXRef-Package-pip-1",
+      "versionInfo": "0.29.0",
+      "downloadLocation": "https://pypi.org/project/uvicorn/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/uvicorn@0.29.0"
+        }
+      ]
+    },
+    {
+      "name": "httpx",
+      "SPDXID": "SPDXRef-Package-pip-2",
+      "versionInfo": "0.27.0",
+      "downloadLocation": "https://pypi.org/project/httpx/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/httpx@0.27.0"
+        }
+      ]
+    },
+    {
+      "name": "starlette",
+      "SPDXID": "SPDXRef-Package-pip-3",
+      "versionInfo": "0.37.0",
+      "downloadLocation": "https://pypi.org/project/starlette/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/starlette@0.37.0"
+        }
+      ]
+    },
+    {
+      "name": "pyModeS",
+      "SPDXID": "SPDXRef-Package-pip-4",
+      "versionInfo": "3.3.0",
+      "downloadLocation": "https://pypi.org/project/pyModeS/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pyModeS@3.3.0"
+        }
+      ]
+    },
+    {
+      "name": "pymavlink",
+      "SPDXID": "SPDXRef-Package-pip-5",
+      "versionInfo": "2.4.40",
+      "downloadLocation": "https://pypi.org/project/pymavlink/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pymavlink@2.4.40"
+        }
+      ]
+    },
+    {
+      "name": "cryptography",
+      "SPDXID": "SPDXRef-Package-pip-6",
+      "versionInfo": "42.0",
+      "downloadLocation": "https://pypi.org/project/cryptography/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/cryptography@42.0"
+        }
+      ]
+    },
+    {
+      "name": "dilithium-py",
+      "SPDXID": "SPDXRef-Package-pip-7",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "https://pypi.org/project/dilithium-py/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/dilithium-py@1.0.0"
+        }
+      ]
+    },
+    {
+      "name": "huggingface_hub",
+      "SPDXID": "SPDXRef-Package-pip-8",
+      "versionInfo": "0.23",
+      "downloadLocation": "https://pypi.org/project/huggingface_hub/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/huggingface_hub@0.23"
+        }
+      ]
+    },
+    {
+      "name": "opentelemetry-sdk",
+      "SPDXID": "SPDXRef-Package-pip-9",
+      "versionInfo": "1.24.0",
+      "downloadLocation": "https://pypi.org/project/opentelemetry-sdk/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/opentelemetry-sdk@1.24.0"
+        }
+      ]
+    },
+    {
+      "name": "opentelemetry-exporter-otlp-proto-http",
+      "SPDXID": "SPDXRef-Package-pip-10",
+      "versionInfo": "1.24.0",
+      "downloadLocation": "https://pypi.org/project/opentelemetry-exporter-otlp-proto-http/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/opentelemetry-exporter-otlp-proto-http@1.24.0"
+        }
+      ]
+    },
+    {
+      "name": "opentelemetry-instrumentation-fastapi",
+      "SPDXID": "SPDXRef-Package-pip-11",
+      "versionInfo": "0.45b0",
+      "downloadLocation": "https://pypi.org/project/opentelemetry-instrumentation-fastapi/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/opentelemetry-instrumentation-fastapi@0.45b0"
+        }
+      ]
+    },
+    {
+      "name": "opentelemetry-instrumentation-starlette",
+      "SPDXID": "SPDXRef-Package-pip-12",
+      "versionInfo": "0.45b0",
+      "downloadLocation": "https://pypi.org/project/opentelemetry-instrumentation-starlette/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/opentelemetry-instrumentation-starlette@0.45b0"
+        }
+      ]
+    },
+    {
+      "name": "lmdb",
+      "SPDXID": "SPDXRef-Package-pip-13",
+      "versionInfo": "1.4.0",
+      "downloadLocation": "https://pypi.org/project/lmdb/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/lmdb@1.4.0"
+        }
+      ]
+    },
+    {
+      "name": "sqlite-vss",
+      "SPDXID": "SPDXRef-Package-pip-14",
+      "versionInfo": "0.1.2",
+      "downloadLocation": "https://pypi.org/project/sqlite-vss/",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/sqlite-vss@0.1.2"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-killinchu"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-python-base"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-2"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-3"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-4"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-5"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-6"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-7"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-8"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-9"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-10"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-11"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-12"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-13"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-killinchu",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-pip-14"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: vsp-otel
+description: Λ-signed OpenTelemetry collector exporter shim (SZL Layer 4). Gates spans at LAMBDA_FLOOR=0.90, DSSE-signs accepted spans, forwards to Tempo/Jaeger.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/szl-holdings/vsp-otel
+sources:
+  - https://github.com/szl-holdings/vsp-otel
+maintainers:
+  - name: Yachay
+    email: yachay@szlholdings.ai
+keywords: [opentelemetry, otlp, governance, lambda-gate, dsse, slsa]

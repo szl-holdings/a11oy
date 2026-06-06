@@ -1,0 +1,100 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# UDS Package CR — amaru (memory cortex; YACHAY + MUSQUY + AMARU shell)
+#
+# amaru only answers a11oy's memory queries and emits memory-write receipts. It
+# does NOT reach sentra, vessels, or rosie (memory has no need to talk to the
+# immune system, the skeleton, or the operator). It receives ingress from a11oy
+# and (because sentra is the immune system) from sentra for inspection.
+#
+# UDS Package CR (v1alpha1) reference for every field:
+#   https://uds.defenseunicorns.com/reference/configuration/custom-resources/packages-v1alpha1-cr/
+#   (sso fields / network.allow fields / monitor fields sections)
+# UDS Operator generation: https://uds.defenseunicorns.com/reference/uds-core/overview/
+---
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: amaru
+  namespace: szl-amaru
+  labels:
+    app.kubernetes.io/name: amaru
+    szl.io/component: uds-package
+    szl.io/mesh-version: v0.4.0
+  annotations:
+    szl.io/role: "memory cortex (amaru.szl-amaru.svc.cluster.local:8080)"
+    szl.io/blocked-by: "FA-001 — ghcr.io/szl-holdings/amaru image not yet pushed"
+spec:
+  # No human login UI; machine identity only. authservice protection is optional
+  # for amaru since all callers are mTLS-authenticated peers gated by AuthorizationPolicy.
+  sso:
+    - name: SZL amaru Memory
+      clientId: szl-amaru
+      standardFlowEnabled: false
+      serviceAccountsEnabled: true
+      enabled: true
+
+  network:
+    # serviceMesh.mode: sidecar — our mesh relies on Istio sidecar
+    # AuthorizationPolicies (mesh/authpolicies/*) and strict PeerAuthentication
+    # (mesh/peerauth/peerauthentication-strict.yaml), which require sidecar mode.
+    # The v1alpha1 CRD defaults to ambient; we set it explicitly.
+    # (CRD: defenseunicorns/uds-core@v1.5.0/schemas/package-v1alpha1.schema.json,
+    #  ServiceMesh.mode enum [sidecar, ambient]. Declared-explicitly idiom from
+    #  uds-packages/reference-package/chart/templates/uds-package.yaml.)
+    serviceMesh:
+      mode: sidecar
+    allow:
+      - direction: Egress
+        selector:
+          app: amaru
+        remoteGenerated: KubeAPI
+        description: "Kubernetes API / DNS resolution"
+      # amaru -> a11oy : ALLOW (responses only)
+      - direction: Egress
+        selector:
+          app: amaru
+        remoteNamespace: szl-a11oy
+        remoteSelector:
+          app: a11oy
+        port: 8080
+        description: "amaru responds to a11oy memory queries"
+      # amaru -> szl-receipts : ALLOW (memory-write receipt emission)
+      - direction: Egress
+        selector:
+          app: amaru
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app: szl-receipts-server
+        port: 8080
+        description: "amaru emits memory-write receipts to the chain authority"
+      # a11oy -> amaru : ALLOW (memory queries)
+      - direction: Ingress
+        selector:
+          app: amaru
+        remoteNamespace: szl-a11oy
+        remoteSelector:
+          app: a11oy
+        port: 8080
+        description: "a11oy queries amaru memory"
+      # sentra -> amaru : ALLOW (immune system inspection)
+      - direction: Ingress
+        selector:
+          app: amaru
+        remoteNamespace: szl-sentra
+        remoteSelector:
+          app: sentra
+        port: 8080
+        description: "sentra (immune system) may inspect amaru"
+      # NOTE: there is intentionally NO ingress allow from vessels or rosie, and
+      # NO egress allow to sentra/vessels/rosie. Those pairs are DENY in the matrix.
+
+  monitor:
+    - portName: metrics
+      selector:
+        app: amaru
+      targetPort: 8080
+      path: /metrics
+      kind: ServiceMonitor
+      description: "amaru memory metrics scrape"

@@ -1,0 +1,15 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# STRICT mTLS for the a11oy workload (Istio PeerAuthentication).
+{{- if .Values.istio.strictMtls }}
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: a11oy-strict-mtls
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: a11oy
+  mtls:
+    mode: STRICT
+{{- end }}

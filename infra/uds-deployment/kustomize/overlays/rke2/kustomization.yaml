@@ -1,0 +1,19 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Kustomize overlay — RKE2 (Rancher Kubernetes Engine 2)
+# Sets replica count to 3 and adds a PodDisruptionBudget for rolling upgrades.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: szl-receipts
+
+resources:
+  - ../../base
+  - pdb.yaml
+
+patches:
+  - path: replica-patch.yaml
+    target:
+      kind: Deployment
+      name: szl-receipts-server

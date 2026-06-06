@@ -1,0 +1,7 @@
+{
+  "schema": "szl.lake.doctrine.manifest/v1",
+  "snapshots": [
+    "v11_snapshot_20260602.json"
+  ],
+  "generated_at_utc": "2026-06-02T02:14:39Z"
+}

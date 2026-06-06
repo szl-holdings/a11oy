@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# ClusterImagePolicy — require cosign signature on every szl image. Fail-CLOSED.
+# sigstore/policy-controller v0.15.1 (Apache-2.0). Defaults to deny on no-match.
+# https://docs.sigstore.dev/policy-controller/overview/
+apiVersion: policy.sigstore.dev/v1beta1
+kind: ClusterImagePolicy
+metadata:
+  name: szl-sentra-cosign
+spec:
+  images:
+    - glob: "ghcr.io/szl-holdings/sentra**"
+  authorities:
+    # OPTION 1 — keyed (matches our current HF-Space-held cosign key, ECDSA-P256):
+    - name: szl-key
+      key:
+        data: |
+          -----BEGIN PUBLIC KEY-----
+          <SZL_COSIGN_PUBLIC_KEY>
+          -----END PUBLIC KEY-----
+    # OPTION 2 — keyless (GitHub Actions OIDC), the keyless path (not yet verified L2 — deferred):
+    # - name: szl-keyless
+    #   keyless:
+    #     url: https://fulcio.sigstore.dev
+    #     identities:
+    #       - issuer: https://token.actions.githubusercontent.com
+    #         subjectRegExp: "https://github.com/szl-holdings/sentra/.github/workflows/release.yml@.*"
+  mode: warn                                  # warn during rollout -> remove for enforce

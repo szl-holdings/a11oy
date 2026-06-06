@@ -1,0 +1,72 @@
+<!-- Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0 -->
+<!-- a11oy /uds tab — ADDITIVE static surface. Drop into the a11oy HF Space and add a
+     route (e.g. @app.get("/uds") returning this file) WITHOUT touching existing routes.
+     PURIQ gotcha: if served from a new .py, add an explicit `COPY uds.html ./uds.html`
+     line to the a11oy Dockerfile (it uses per-file COPY, not `COPY . .`). -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>a11oy · UDS Bundles</title>
+  <style>
+    body{font-family:ui-monospace,Menlo,monospace;background:#0b0f17;color:#cdd9e5;margin:0;padding:2rem;line-height:1.5}
+    h1{color:#7dd3fc}h2{color:#a5b4fc;margin-top:2rem}
+    code,pre{background:#111827;color:#e5e7eb;border-radius:6px}
+    pre{padding:1rem;overflow:auto;border:1px solid #1f2937}
+    table{border-collapse:collapse;width:100%;margin:1rem 0}
+    th,td{border:1px solid #1f2937;padding:.5rem .75rem;text-align:left}
+    th{background:#0f172a;color:#93c5fd}
+    .green{color:#4ade80}.amber{color:#fbbf24}
+    a{color:#7dd3fc}
+    .locked{font-size:.85rem;color:#94a3b8}
+  </style>
+</head>
+<body>
+  <h1>UDS Bundles — SZL Crew</h1>
+  <p class="locked">Doctrine v11 LOCKED · 749 decls / 14 axioms / 163 sorries · 13-axis yuyay_v3 ·
+     replay <code>bacf5443…631fc5</code> · Apache-2.0 · SZL UDS = Unified Decision Span.</p>
+
+  <p>Five cosign-signed, Zarf-packaged, airgap-deployable UDS bundles. Mesh order:
+     <strong>a11oy → amaru → sentra → killinchu → rosie</strong>, all over UDS Core.</p>
+
+  <h2>Bundles</h2>
+  <table>
+    <thead><tr><th>Bundle</th><th>Zarf package</th><th>Image</th><th>Role</th><th>Signed</th></tr></thead>
+    <tbody>
+      <tr><td>a11oy.uds</td><td>a11oy-runtime</td><td>ghcr.io/szl-holdings/a11oy:uds-v0.3.1</td><td>orchestration kernel + 5 anchor gates + PURIQ router</td><td class="amber">key ready (sign on build host)</td></tr>
+      <tr><td>amaru.uds</td><td>amaru-attestation</td><td>ghcr.io/szl-holdings/amaru:uds-v0.3.1</td><td>cortex attestation / formula witness</td><td class="amber">key ready</td></tr>
+      <tr><td>sentra.uds</td><td>sentra-gates</td><td>ghcr.io/szl-holdings/sentra:uds-v0.3.1</td><td>immune/threat gates (8, fail-closed)</td><td class="amber">key ready</td></tr>
+      <tr><td>killinchu.uds</td><td>killinchu-bundle</td><td>ghcr.io/szl-holdings/killinchu:uds-v0.3.1</td><td>drone flagship (PURIQ core + twin, 2-person gate)</td><td class="amber">key ready</td></tr>
+      <tr><td>rosie.uds</td><td>rosie-replay</td><td>ghcr.io/szl-holdings/rosie:uds-v0.3.1</td><td>governed decision fabric / replay console</td><td class="amber">key ready</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Get the bundles</h2>
+  <pre># GitHub
+gh repo clone szl-holdings/uds-bundles
+
+# Hugging Face (dataset)
+huggingface-cli download SZLHOLDINGS/uds-bundles-v1 --repo-type dataset --local-dir uds</pre>
+
+  <h2>Build + sign + verify (one command)</h2>
+  <pre>export COSIGN_PASSWORD=""
+COSIGN_KEY=.secret/cosign_signing_key.key COSIGN_PUB=.secret/cosign_signing_key.pub \
+  bash build_sign_all.sh | tee BUILD_RUN.log
+# -> artifacts/zarf-package-*-0.3.1.tar.zst + *.uds.sig + SBOM + SHA256SUMS.txt
+# -> cosign verify-blob: Verified OK ; zarf package inspect: component/image listing</pre>
+
+  <h2>Deploy on UDS Core</h2>
+  <pre>uds deploy k3d-core-slim-dev:0.41.0 --confirm
+for f in a11oy amaru sentra killinchu rosie; do
+  ( cd PER_BUNDLE/$f && uds create . --confirm && \
+    uds deploy uds-bundle-$f-amd64-0.3.1.tar.zst --confirm )
+done</pre>
+
+  <h2>Airgap test (kind, no internet)</h2>
+  <pre>bash airgap_test.sh | tee AIRGAP_RUN.log
+# Expect GREEN: rollout Available + /healthz 200 for all 5; mesh smoke a11oy-&gt;...-&gt;rosie</pre>
+
+  <p class="locked">Full runbook: FOUNDER_DEPLOY_QUICKSTART.md · Signing status: COSIGN_SIGNING_LOG.md</p>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Sample DoctrineLock — the single founder-signed source of truth for the locked
+# doctrine constant. Provable by:
+#   kubectl get doctrinelock szl-doctrine-v11 -o jsonpath='{.spec.locked}'  -> 749/14/163
+# Lambda is Conjecture 1 (the schema enum REJECTS 'theorem'). SLSA stays L1-honest.
+apiVersion: szl.dev/v1alpha1
+kind: DoctrineLock
+metadata:
+  name: szl-doctrine-v11
+spec:
+  version: "v11"
+  locked: "749/14/163"                 # decls / axioms / sorries — LOCKED
+  lambdaStatus: "Conjecture-1"         # NEVER 'theorem'
+  slsaPosture: "L1-honest"             # 'L2-in-progress' only; never claim L2 until verified
+  changeControl:
+    requiresFounderSignature: true     # only a founder-DSSE-signed update may change spec
+    founderKeyRef:
+      secretName: szl-founder-cosign-pub
+status:
+  enforced: true
+  boundGates: 5                        # number of LambdaGates parameterized by this lock
+  lastVerified: "2026-06-02T15:41:00Z"
+  driftRepairs: 0

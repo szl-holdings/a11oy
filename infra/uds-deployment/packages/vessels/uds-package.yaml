@@ -1,0 +1,121 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# UDS Package CR — vessels (skeleton / deployment fabric; downstream)
+#
+# vessels is the deployment fabric, downstream of a11oy. Per the matrix it only
+# egresses to a11oy (status up) and to szl-receipts (deployment-event receipts).
+# It receives ingress only from a11oy (commands) and from sentra (inspection). It
+# never reaches rosie or amaru, and rosie/amaru never reach it directly.
+#
+# UDS Package CR (v1alpha1) reference for every field:
+#   https://uds.defenseunicorns.com/reference/configuration/custom-resources/packages-v1alpha1-cr/
+#   (sso fields / network.expose fields / network.allow fields / monitor fields sections)
+# UDS Operator generation: https://uds.defenseunicorns.com/reference/uds-core/overview/
+---
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: vessels
+  namespace: szl-vessels
+  labels:
+    app.kubernetes.io/name: vessels
+    szl.io/component: uds-package
+    szl.io/mesh-version: v0.4.0
+  annotations:
+    szl.io/role: "deployment fabric / skeleton (vessels.szl-vessels.svc.cluster.local:8080)"
+    szl.io/blocked-by: "FA-001 — ghcr.io/szl-holdings/vessels:uds-v0.3.0 must be pushed by founder"
+spec:
+  # vessels has an optional read-only maritime-fleet dashboard. It is exposed
+  # behind the tenant gateway + authservice ONLY if operators need to view it;
+  # left enabled here because vessels already ships a real uds-v0.3.0 UI.
+  sso:
+    - name: SZL vessels Fabric
+      clientId: szl-vessels
+      redirectUris:
+        - "https://vessels.uds.dev/login/callback"
+      enableAuthserviceSelector:
+        app: vessels
+      groups:
+        anyOf:
+          - "/szl/operators"
+
+  network:
+    # serviceMesh.mode: sidecar — our mesh relies on Istio sidecar
+    # AuthorizationPolicies (mesh/authpolicies/*) and strict PeerAuthentication
+    # (mesh/peerauth/peerauthentication-strict.yaml), which require sidecar mode.
+    # The v1alpha1 CRD defaults to ambient; we set it explicitly.
+    # (CRD: defenseunicorns/uds-core@v1.5.0/schemas/package-v1alpha1.schema.json,
+    #  ServiceMesh.mode enum [sidecar, ambient]. Declared-explicitly idiom from
+    #  uds-packages/reference-package/chart/templates/uds-package.yaml.)
+    serviceMesh:
+      mode: sidecar
+    expose:
+      - service: vessels
+        selector:
+          app: vessels
+        gateway: tenant
+        host: vessels
+        port: 8080
+        targetPort: 8080
+        description: "vessels maritime/governance dashboard — tenant gateway (read-only)"
+        # uptime.checks.paths enables blackbox-exporter uptime monitoring.
+        # (pattern: uds-packages/reference-package/chart/templates/uds-package.yaml;
+        #  CRD Uptime.Checks.paths, defenseunicorns/uds-core@v1.5.0 schema)
+        uptime:
+          checks:
+            paths:
+              - /healthz
+
+    allow:
+      - direction: Egress
+        selector:
+          app: vessels
+        remoteGenerated: KubeAPI
+        description: "Kubernetes API / DNS resolution"
+      # vessels -> a11oy : ALLOW (deployment status up)
+      - direction: Egress
+        selector:
+          app: vessels
+        remoteNamespace: szl-a11oy
+        remoteSelector:
+          app: a11oy
+        port: 8080
+        description: "vessels reports deployment status up to a11oy"
+      # vessels -> szl-receipts : ALLOW (deployment-event receipt emission)
+      - direction: Egress
+        selector:
+          app: vessels
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app: szl-receipts-server
+        port: 8080
+        description: "vessels emits deployment-event receipts to the chain authority"
+      # a11oy -> vessels : ALLOW (commands)
+      - direction: Ingress
+        selector:
+          app: vessels
+        remoteNamespace: szl-a11oy
+        remoteSelector:
+          app: a11oy
+        port: 8080
+        description: "a11oy commands vessels (deployment fabric)"
+      # sentra -> vessels : ALLOW (immune inspection)
+      - direction: Ingress
+        selector:
+          app: vessels
+        remoteNamespace: szl-sentra
+        remoteSelector:
+          app: sentra
+        port: 8080
+        description: "sentra (immune system) may inspect vessels"
+      # NOTE: no ingress from rosie/amaru and no egress to rosie/amaru/sentra — DENY in the matrix.
+
+  monitor:
+    - portName: metrics
+      selector:
+        app: vessels
+      targetPort: 8080
+      path: /metrics
+      kind: ServiceMonitor
+      description: "vessels fabric metrics scrape"

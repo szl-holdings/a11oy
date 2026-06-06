@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-02",
+  "idea_name": "YBC-HERON-CONVERGENCE",
+  "lean_path": "Lutar/Innovations/round4/YBCHeronConvergence.lean",
+  "source": "YBC 7289, Old Babylonian tablet ~1700 BCE",
+  "academic_citation": "Friberg, A Remarkable Collection of Babylonian Mathematical Texts (Springer, 2007)",
+  "plug_in_target": "sentra \u2014 verdict calibration convergence bound",
+  "sorry_free": false,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "0664d15956ee17b3f40dc8a585d7c34b895950d1e544cb26e3ac2bf12673e878",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

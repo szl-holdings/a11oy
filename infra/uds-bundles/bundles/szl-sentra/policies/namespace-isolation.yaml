@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+# Pepr policy — namespace isolation for szl-sentra (UDS Core native admission).
+# Author: Yachay <yachay@szlholdings.dev> (DCO signed). Doctrine v11 LOCKED 749/14/163.
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: szl-sentra-isolation
+  namespace: szl-sentra
+spec:
+  network:
+    # UDS Core v1.5.0 canonical: Istio ambient service-mesh mode.
+    # https://github.com/defenseunicorns/uds-core/blob/main/src/grafana/chart/templates/uds-package.yaml
+    serviceMesh:
+      mode: ambient
+    # Default-deny: only same-namespace + Istio mesh ingress allowed.
+    allow:
+      - direction: Ingress
+        remoteNamespace: istio-system
+        port: 8080
+        description: "Allow Istio mesh ingress only"
+      - direction: Ingress
+        remoteNamespace: szl-sentra
+        description: "Allow same-namespace traffic"
+  # UDS Core monitor block — wire Prometheus scrape through the Package CRD.
+  monitor:
+    - selector:
+        app.kubernetes.io/name: sentra
+      targetPort: 8080
+      portName: http
+      description: "SZL sentra metrics"
+  # UDS Core SSO — declarative Keycloak client registration (operator-facing UI).
+  # Plan for SIGNED_JWT mode per UDS Core DEPRECATIONS.md (Federated Signed JWTs).
+  sso:
+    - name: SZL sentra
+      clientId: szl-sentra
+      redirectUris:
+        - "https://sentra.{{ .Values.domain }}/login"

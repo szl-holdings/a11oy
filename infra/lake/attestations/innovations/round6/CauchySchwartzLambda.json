@@ -1,0 +1,28 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "Lutar/Innovations/round6/CauchySchwartzLambda.lean",
+      "digest": {
+        "sha256": "db6d4595da4260f56b768bfc5aae7c642d95fd90"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v0.2",
+  "predicate": {
+    "formula_id": "CAUCHY-SCHWARZ-LAMBDA",
+    "round": "round6",
+    "doctrine": "v11",
+    "kernel": "c7c0ba17",
+    "lambda_status": "Conjecture 1",
+    "slsa": "L1",
+    "plug_in_target": "sentra/verdict-engine",
+    "source_citation": "Cauchy, A.-L. Cours d'Analyse (1821) Note II; Steele, J.M. Cauchy-Schwarz Master Class. Cambridge UP, 2004.",
+    "lean_stub_url": "https://github.com/szl-holdings/lutar-lean/blob/feat/innovations-round6/Lutar/Innovations/round6/CauchySchwartzLambda.lean",
+    "lean_ci_status": "\ud83d\udfe1 sorry (honest: inner_mul_le_norm_sq API path uncertain)",
+    "gap_closed": "Sentra verdict has no lower-bound guarantee; Cauchy-Schwarz closes silent weak-axis gap",
+    "timestamp": "2026-06-03T05:34:55Z",
+    "signedOffBy": "Yachay <yachay@szlholdings.ai>",
+    "coAuthoredBy": "Perplexity Computer Agent <agent@perplexity.ai>"
+  }
+}

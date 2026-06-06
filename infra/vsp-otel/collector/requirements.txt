@@ -1,0 +1,6 @@
+# vsp-otel collector exporter shim runtime deps
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+cryptography==46.0.7
+# stdlib-only fallback path needs none of the above; these enable the FastAPI
+# OTLP/HTTP server + ECDSA P-256 DSSE signing in production.

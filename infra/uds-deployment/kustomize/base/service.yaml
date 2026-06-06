@@ -1,0 +1,18 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-receipts-server
+  namespace: szl-receipts
+  labels:
+    app.kubernetes.io/name: szl-receipts-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: szl-receipts-server
+  ports:
+    - name: http
+      port: 8443
+      targetPort: http
+      protocol: TCP

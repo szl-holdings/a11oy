@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: Apache-2.0
+# SZL Holdings — Λ-Conjecture Bounty CI · Sign: Yachay <yachay@szlholdings.dev>
+# Doctrine v11 — 749 / 14 / 163 · locked_at c7c0ba17
+#
+# Validates a submission: it must compile under `lake build` AND prove
+# Lambda.lambda_aggregator_unique with NO `sorry` and NO axiom beyond the
+# allowlist (propext, Quot.sound, Classical.choice). NO bypass.
+name: verify-proof
+
+on:
+  pull_request:
+    paths:
+      - "Lambda/**"
+      - "lakefile.lean"
+      - "lean-toolchain"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install elan (Lean toolchain manager)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
+          chmod +x elan-init.sh
+          ./elan-init.sh -y --default-toolchain "$(cat lean-toolchain | cut -d: -f2)"
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Mathlib build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages
+            .lake/build
+          key: lake-${{ runner.os }}-${{ hashFiles('lakefile.lean','lean-toolchain') }}
+
+      - name: Fetch Mathlib cache
+        run: |
+          lake exe cache get || true
+
+      - name: lake build (must be green)
+        run: lake build
+
+      - name: Reject any `sorry` (open bounty fails here until solved)
+        run: |
+          # A winning submission discharges the `sorry` in Lambda/Lambda.lean (and adds
+          # no new ones). Until then, `main` legitimately fails this gate: that failing
+          # state IS the public, honest signal that Conjecture 1 remains OPEN.
+          if grep -RInE '(^|[^a-zA-Z_])sorry([^a-zA-Z_]|$)' Lambda/; then
+            echo "::error::A `sorry` remains. Conjecture 1 is still OPEN — discharge it to win the bounty."
+            exit 1
+          fi
+          echo "No `sorry` anywhere — conjecture appears discharged. Proceeding to axiom audit."
+
+      - name: Axiom allowlist check (#print axioms)
+        run: |
+          cat > _AxiomCheck.lean <<'LEAN'
+          import Lambda.Lambda
+          open Lambda
+          #print axioms lambda_aggregator_unique
+          LEAN
+          # Print the axioms the discharged theorem depends on.
+          lake env lean _AxiomCheck.lean > axioms.txt 2>&1 || { cat axioms.txt; exit 1; }
+          cat axioms.txt
+          # Allowlist: propext, Quot.sound, Classical.choice. Reject sorryAx + others.
+          if grep -qE 'sorryAx' axioms.txt; then
+            echo "::error::theorem still depends on sorryAx — not proved."; exit 1
+          fi
+          # Extract axiom identifiers and ensure each is allowlisted.
+          BAD=$(grep -oE "'[^']+'" axioms.txt | tr -d "'" | grep -vE '^(propext|Quot\.sound|Classical\.choice)$' || true)
+          # The first line is the theorem name itself; filter known non-axiom lines.
+          BAD=$(echo "$BAD" | grep -vE '^(lambda_aggregator_unique|depends on axioms:|Lambda)$' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::theorem depends on non-allowlisted axioms:"; echo "$BAD"; exit 1
+          fi
+          echo "Axiom allowlist satisfied."
+
+      - name: Green — eligible for auto-merge + Khipu acceptance receipt
+        run: echo "Submission compiles, no sorry, axioms allowlisted. Eligible for bounty."

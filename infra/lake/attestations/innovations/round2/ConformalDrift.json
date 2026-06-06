@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "ConformalDrift",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "a11oy/conformaldrift_gate",
+      "digest": {
+        "sha256": "c80578349ef0477d520157fab34f2ba26e0fd841f2d46cc2add7ae5972ebad8e"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "conformal_prediction x compliance_drift",
+    "coverage_guarantee": "P(s_{t+1} in C_t) >= 1 - alpha",
+    "distribution_free": true
+  }
+}

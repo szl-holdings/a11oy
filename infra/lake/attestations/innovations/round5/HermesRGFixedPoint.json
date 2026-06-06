@@ -1,0 +1,22 @@
+{
+  "specVersion": "1.0",
+  "type": "https://szlholdings.ai/attestation/innovation/round5",
+  "predicateType": "https://szlholdings.ai/predicate/lean-stub",
+  "subject": {
+    "name": "HERMES-RG-FIXEDPOINT",
+    "namespace": "Lutar.Innovations.Round5"
+  },
+  "predicate": {
+    "timestamp": "2026-06-03T07:15:00Z",
+    "formula": "HERMES-RG-FIXEDPOINT",
+    "source_citation": "Wilson-Kogut 1974 Physics.Reports 12(2):75-199",
+    "plug_in_target": "amaru/Pepr",
+    "lean_stub_url": "https://github.com/szl-holdings/lutar-lean/blob/feat/innovations-round5/Lutar/Innovations/round5/HermesRGFixedPoint.lean",
+    "ci_status": "pending",
+    "sorry_count": 1,
+    "doctrine": "v11 LOCKED 749/14/163 | kernel c7c0ba17 | Lambda=Conjecture1 | SLSA-L1",
+    "round": "round5",
+    "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+    "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+  }
+}

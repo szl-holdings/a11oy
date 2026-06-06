@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-06",
+  "idea_name": "ENOCH-EPOCH-ALIGNMENT",
+  "lean_path": "Lutar/Innovations/round4/EnochEpochAlignment.lean",
+  "source": "1 Enoch chapters 72-82 (Astronomical Book), ~3rd century BCE",
+  "academic_citation": "VanderKam & Glessmer, DJD 21 (2001); Albani, Astronomie und Schoepfungsglaube (1994)",
+  "plug_in_target": "rosie \u2014 fleet health epoch rollover with exact weekly alignment",
+  "sorry_free": true,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "1c8ff49cab50cc5c630ee3d9d7d3595191c0ded1871cf6c2f41ba0fd98d0bf30",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

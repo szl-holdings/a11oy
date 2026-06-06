@@ -1,0 +1,322 @@
+# SZL Holdings — rosie.decision.* OTEL Span Schema (v17.2)
+# Author: Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings
+#
+# OTEL semantic-convention schema for governed-decision spans emitted by the rosie
+# decision fabric — mandatory witnesses on every decision (ROSIE-V1).
+#
+# Specification follows:
+#   OpenTelemetry Specification v1.29+ (https://opentelemetry.io/docs/specs/otel/)
+#   OpenTelemetry Semantic Conventions v1.25+ (https://opentelemetry.io/docs/specs/semconv/)
+#   DSSE envelope: https://github.com/secure-systems-lab/dsse
+#   in-toto attestation: https://github.com/in-toto/attestation
+#
+# Origins:
+#   - Governed decision fabric (ROSIE-V1) — witness-on-every-decision invariant.
+#
+# UDS mesh wiring (cross-organ):
+#   namespace:        szl-rosie
+#   service:          szl-rosie  (Istio sidecar mTLS via UDS Operator / uds-core)
+#   service discovery: UDS Package CR `Package/szl-rosie` (network.expose host=rosie)
+#   DSSE receipt sink: szl-receipts (Egress NetworkPolicy, port 8080)
+#   SSO:              Keycloak OIDC client uds-szl-rosie
+#
+# SLSA provenance: L1 (honest) — receipts bind spans to extended-attestations.jsonl
+
+schema_url: https://github.com/szl-holdings/uds-mesh/blob/main/schemas/spans/rosie.decision.yaml
+version: 17.2.0
+organ: rosie
+mesh_namespace: szl-rosie
+mesh_service: szl-rosie
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Common fields — shared by EVERY organ span across the UDS mesh
+# (cross-organ receipt envelope: any organ can read any other organ's spans)
+# ─────────────────────────────────────────────────────────────────────────────
+
+common_fields:
+  description: |
+    All rosie.decision.* spans share the standard OTEL span envelope plus the
+    SZL cross-organ DSSE governance-receipt attributes (prefix szl.mesh.*).
+    These shared attributes are IDENTICAL across all five organs (a11oy, sentra,
+    amaru, killinchu, rosie) so that the mesh can correlate a single decision as
+    it crosses organ boundaries.
+
+  otel_fields:
+    - name: trace_id
+      type: string
+      required: true
+      description: "W3C TraceContext trace-id (32 hex chars). Stable across organs."
+      example: "4bf92f3577b34da6a3ce929d0e0e4736"
+    - name: span_id
+      type: string
+      required: true
+      description: "W3C TraceContext span-id (16 hex chars)."
+      example: "00f067aa0ba902b7"
+    - name: parent_span_id
+      type: string
+      required: false
+      description: "Parent span-id; may belong to a DIFFERENT organ (cross-organ edge)."
+      example: "00f067aa0ba902b6"
+    - name: name
+      type: string
+      required: true
+      description: "Span name — one of the rosie.decision.* names below."
+    - name: start_time
+      type: string
+      format: "RFC 3339 / ISO 8601 UTC"
+      required: true
+      example: "2026-06-03T12:00:00.000000000Z"
+    - name: end_time
+      type: string
+      format: "RFC 3339 / ISO 8601 UTC"
+      required: true
+      example: "2026-06-03T12:00:00.042000000Z"
+    - name: status
+      type: object
+      required: true
+      description: "OTEL SpanStatus: {code: OK | ERROR | UNSET, message?: string}."
+      properties:
+        code:
+          type: string
+          enum: [OK, ERROR, UNSET]
+        message:
+          type: string
+          required: false
+
+  # Cross-organ DSSE governance-receipt attributes. Present on EVERY mesh span
+  # regardless of organ. These bind each span to the Khipu Merkle DAG receipt
+  # chain and to the per-organ cosign-signed image that emitted it.
+  szl_mesh_attributes:
+    - name: szl.mesh.organ
+      type: string
+      required: true
+      description: "Emitting organ: a11oy | sentra | amaru | killinchu | rosie."
+      example: "rosie"
+    - name: szl.mesh.receipt_hash
+      type: string
+      required: true
+      description: |
+        SHA-256 hex digest of the canonical DSSE receipt for this span. Binds the
+        span to the cross-organ provenance chain in extended-attestations.jsonl.
+      example: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1a"
+    - name: szl.mesh.dsse_payload_type
+      type: string
+      required: true
+      description: "DSSE payloadType. Always application/vnd.in-toto+json for mesh receipts."
+      example: "application/vnd.in-toto+json"
+    - name: szl.mesh.image_digest
+      type: string
+      required: true
+      description: |
+        Digest of the cosign-signed ghcr.io image that emitted the span,
+        e.g. ghcr.io/szl-holdings/rosie@sha256:... (key-based P-256 signature).
+      example: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    - name: szl.mesh.lambda_value
+      type: string
+      required: true
+      description: |
+        Governance Λ for this span as a decimal string (Λ Conjecture 1: Λ ∈ [0,1]).
+        Shared governance scalar so the mesh can gate any organ's output uniformly.
+      example: "0.813472"
+    - name: szl.mesh.governance_drift
+      type: boolean
+      required: true
+      description: |
+        True iff Λ fell below the Doctrine Λ floor (LAMBDA_FLOOR = 0.1) or exceeded 1.0.
+      example: false
+    - name: szl.mesh.upstream_organ
+      type: string
+      required: false
+      description: |
+        For cross-organ edges: the organ that produced the parent span. Enables the
+        mesh to reconstruct the inter-organ call graph from spans alone.
+      example: "a11oy"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Span definitions (organ-specific)
+# ─────────────────────────────────────────────────────────────────────────────
+
+spans:
+
+  - name: rosie.decision.evaluate
+    stability: experimental
+    brief: |
+      Emitted on every governed decision (mandatory witness).
+    description: |
+      Covers one governed decision: inputs are gathered from upstream organs,
+      the Λ governance gate is applied, and a verdict is produced with a mandatory
+      witness. No decision may be emitted without a witness (ROSIE-V1 invariant).
+    attributes:
+      - name: szl.decision.id
+        type: string
+        required: true
+        description: "Decision identifier."
+        example: "dec-7a2f"
+      - name: szl.decision.verdict
+        type: string
+        required: true
+        description: "PERMIT | DENY | DEFER."
+        example: "PERMIT"
+      - name: szl.decision.witness_count
+        type: integer
+        required: true
+        description: "Number of witnesses (must be ≥ 1)."
+        example: 3
+
+  - name: rosie.decision.witness
+    stability: experimental
+    brief: |
+      Emitted for each witness attached to a governed decision.
+    description: |
+      Records one witness: a cross-organ receipt (from a11oy/sentra/amaru/killinchu)
+      cited as evidence for the decision. Witnesses make the decision replayable.
+    attributes:
+      - name: szl.decision.witness_organ
+        type: string
+        required: true
+        description: "Organ that produced the cited witness receipt."
+        example: "sentra"
+
+  - name: rosie.decision.replay
+    stability: experimental
+    brief: |
+      Emitted when a prior governed decision is replayed for audit.
+    description: |
+      Re-evaluates a stored decision from its witnesses to confirm determinism;
+      binds the replay outcome to the Khipu DAG for governance audit.
+    attributes:
+      - name: szl.decision.replay_match
+        type: boolean
+        required: true
+        description: "True iff replay reproduced the original verdict."
+        example: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSON Schema (canonical wire format — shared mesh envelope + organ fields)
+# ─────────────────────────────────────────────────────────────────────────────
+
+json_schema:
+  type: object
+  required:
+    - trace_id
+    - span_id
+    - name
+    - start_time
+    - end_time
+    - status
+    - attributes
+  properties:
+    trace_id:
+      type: string
+      pattern: "^[0-9a-f]{32}$"
+    span_id:
+      type: string
+      pattern: "^[0-9a-f]{16}$"
+    parent_span_id:
+      type: string
+      pattern: "^[0-9a-f]{16}$"
+    name:
+      type: string
+      enum:
+        - "rosie.decision.evaluate"
+        - "rosie.decision.witness"
+        - "rosie.decision.replay"
+    start_time:
+      type: string
+      format: "date-time"
+    end_time:
+      type: string
+      format: "date-time"
+    status:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [OK, ERROR, UNSET]
+        message:
+          type: string
+    attributes:
+      type: object
+      required:
+        - "szl.mesh.organ"
+        - "szl.mesh.receipt_hash"
+        - "szl.mesh.dsse_payload_type"
+        - "szl.mesh.image_digest"
+        - "szl.mesh.lambda_value"
+        - "szl.mesh.governance_drift"
+      properties:
+        "szl.mesh.organ":
+          type: string
+          enum: ["a11oy", "sentra", "amaru", "killinchu", "rosie"]
+        "szl.mesh.receipt_hash":
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        "szl.mesh.dsse_payload_type":
+          type: string
+        "szl.mesh.image_digest":
+          type: string
+          pattern: "^sha256:[0-9a-f]{64}$"
+        "szl.mesh.lambda_value":
+          type: string
+          description: "Λ ∈ [0,1] decimal string (Λ Conjecture 1)"
+        "szl.mesh.governance_drift":
+          type: boolean
+        "szl.mesh.upstream_organ":
+          type: string
+        "szl.decision.id":
+          type: string
+        "szl.decision.verdict":
+          type: string
+          enum: ["PERMIT", "DENY", "DEFER"]
+        "szl.decision.witness_count":
+          type: integer
+          minimum: 1
+        "szl.decision.witness_organ":
+          type: string
+        "szl.decision.replay_match":
+          type: boolean
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Example spans
+# ─────────────────────────────────────────────────────────────────────────────
+
+examples:
+
+  - span: rosie.decision.evaluate
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "00f067aa0ba902b7"
+      parent_span_id: "00f067aa0ba902b6"
+      name: "rosie.decision.evaluate"
+      start_time: "2026-06-03T12:00:00.000000000Z"
+      end_time: "2026-06-03T12:00:00.040000000Z"
+      status: {code: OK}
+      attributes:
+        szl.mesh.organ: "rosie"
+        szl.mesh.receipt_hash: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1a"
+        szl.mesh.dsse_payload_type: "application/vnd.in-toto+json"
+        szl.mesh.image_digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        szl.mesh.lambda_value: "0.813472"
+        szl.mesh.governance_drift: false
+        szl.mesh.upstream_organ: "killinchu"
+        szl.decision.id: "dec-7a2f"
+        szl.decision.verdict: "PERMIT"
+        szl.decision.witness_count: 3
+  - span: rosie.decision.witness
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "44f49aee4fe246fb"
+      parent_span_id: "00f067aa0ba902b7"
+      name: "rosie.decision.witness"
+      start_time: "2026-06-03T12:00:00.000000000Z"
+      end_time: "2026-06-03T12:00:00.040000000Z"
+      status: {code: OK}
+      attributes:
+        szl.mesh.organ: "rosie"
+        szl.mesh.receipt_hash: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1a"
+        szl.mesh.dsse_payload_type: "application/vnd.in-toto+json"
+        szl.mesh.image_digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        szl.mesh.lambda_value: "0.813472"
+        szl.mesh.governance_drift: false
+        szl.decision.witness_organ: "sentra"

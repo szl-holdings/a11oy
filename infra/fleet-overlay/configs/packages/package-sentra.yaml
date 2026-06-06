@@ -1,0 +1,67 @@
+# UDS Package CR for szl-sentra
+# Doctrine v11 LOCKED 749/14/163
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: szl-sentra
+  namespace: szl-sentra
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/kernel-commit: "c7c0ba17"
+    szl.io/slsa-level: "L1"
+spec:
+  network:
+    expose:
+      - host: sentra
+        service: szl-sentra
+        port: 8080
+        gateway: tenant
+        selector:
+          app: szl-sentra
+    allow:
+      - direction: Egress
+        description: "Keycloak OIDC token endpoint"
+        remoteNamespace: keycloak
+        remoteSelector:
+          app.kubernetes.io/name: keycloak
+        port: 8443
+        remoteProtocol: TLS
+      - direction: Egress
+        description: "Peat mesh QUIC CRDT sync"
+        remoteNamespace: peat-system
+        remoteSelector:
+          app.kubernetes.io/name: peat-mesh
+        port: 4001
+        remoteProtocol: UDP
+      - direction: Ingress
+        description: "IntraNamespace sidecar and probes"
+        remoteGenerated: IntraNamespace
+  sso:
+    - clientId: uds-szl-sentra
+      name: "SZL Sentra"
+      protocol: openid-connect
+      redirectUris:
+        - "https://sentra.uds.dev/*"
+      webOrigins:
+        - "https://sentra.uds.dev"
+      standardFlowEnabled: true
+      enableAuthserviceSelector:
+        app: szl-sentra
+      groups:
+        anyOf:
+          - /szl-operators
+      secretConfig:
+        name: szl-sentra-oidc-secret
+        template: |
+          OIDC_CLIENT_ID: "{{ .clientId }}"
+          OIDC_CLIENT_SECRET: "{{ .secret }}"
+          OIDC_ISSUER: "https://sso.uds.dev/realms/uds"
+  monitor:
+    - description: "szl-sentra Prometheus metrics"
+      portName: http-metrics
+      targetPort: 9090
+      selector:
+        app: szl-sentra
+      path: /metrics
+      kind: ServiceMonitor

@@ -1,0 +1,28 @@
+# Cosign verification reference — szl-a11oy
+# SPDX-License-Identifier: Apache-2.0
+# The PRIVATE signing key lives in the HF Space secret COSIGN_PRIVATE_KEY
+# (huggingface.co/spaces/SZLHOLDINGS/a11oy → Settings → Secrets). It is NEVER in this repo.
+# The PUBLIC key is published at bundles/v0.1.0/cosign_signing_key.pub in this repo.
+
+# --- Verify the container image signature ---
+cosign verify \
+  --key bundles/v0.1.0/cosign_signing_key.pub \
+  ghcr.io/szl-holdings/a11oy:uds-v0.1.0
+
+# --- Verify the SLSA L1 provenance attestation ---
+cosign verify-attestation \
+  --key bundles/v0.1.0/cosign_signing_key.pub \
+  --type slsaprovenance \
+  ghcr.io/szl-holdings/a11oy:uds-v0.1.0
+
+# --- Verify the Helm chart (OCI) signature ---
+cosign verify \
+  --key bundles/v0.1.0/cosign_signing_key.pub \
+  ghcr.io/szl-holdings/charts/a11oy:0.1.0
+
+# --- Verify any DSSE receipt blob emitted by a a11oy agent action ---
+cosign verify-blob \
+  --key bundles/v0.1.0/cosign_signing_key.pub \
+  --signature <receipt>.sig \
+  --certificate <receipt>.pem \
+  <receipt>.blob

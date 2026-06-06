@@ -1,0 +1,144 @@
+{
+  "schema": "szl.lake.index/v1",
+  "name": "SZL Holdings Data Lake",
+  "generated_at_utc": "2026-06-02T02:14:39Z",
+  "doctrine": "v11 LOCKED 749/14/163",
+  "lambda": "Conjecture 1 (open)",
+  "concept_doi": "10.5281/zenodo.19944926",
+  "umbrella_doi": "10.5281/zenodo.20434276",
+  "license": "CC-BY-4.0",
+  "signed_by": "Yachay (CTO)",
+  "co_author": "Perplexity Computer Agent",
+  "khipu_receipt_counts": {
+    "amaru": 14,
+    "sentra": 2,
+    "a11oy": 0,
+    "rosie": 0,
+    "killinchu": 0
+  },
+  "sections": {},
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha256": "9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+      "bytes": 18657
+    },
+    {
+      "path": "README.md",
+      "sha256": "cf23f67b77a048591c4cd3f0b34e4dc0db7d304fec2a483b20492671def6ac2a",
+      "bytes": 6029
+    },
+    {
+      "path": "lake_index.json",
+      "sha256": "4d0acb58ab64186910cfd0321f1f6d73495c1787b4a93ebb4ac477b7756dfdc9",
+      "bytes": 3927
+    },
+    {
+      "path": "khipu/a11oy_receipts.parquet",
+      "sha256": "e79d7853a35c8fdda39319e186ff4f9c8332c08203cc5b47eef6e5f71003313e",
+      "bytes": 3470
+    },
+    {
+      "path": "khipu/amaru_receipts.parquet",
+      "sha256": "b21a450153178e1ab13aec8e05d5b73cf83cc1a630796276377b64049012033c",
+      "bytes": 13017
+    },
+    {
+      "path": "khipu/killinchu_receipts.parquet",
+      "sha256": "e79d7853a35c8fdda39319e186ff4f9c8332c08203cc5b47eef6e5f71003313e",
+      "bytes": 3470
+    },
+    {
+      "path": "khipu/rosie_receipts.parquet",
+      "sha256": "e79d7853a35c8fdda39319e186ff4f9c8332c08203cc5b47eef6e5f71003313e",
+      "bytes": 3470
+    },
+    {
+      "path": "khipu/sentra_receipts.parquet",
+      "sha256": "8fa2b4ac513e6bf826e7e65be0b381247ea303b1b18d62b5a8de3756cbcc2a92",
+      "bytes": 7619
+    },
+    {
+      "path": "papers/manifest.json",
+      "sha256": "90580a6f42bf37dd47b0c3c6425103fc63a687368c90eafa3f639e1aab12403e",
+      "bytes": 2032
+    },
+    {
+      "path": "trajectories/manifest.json",
+      "sha256": "ce38c7a8d6eab277c4fd5ff23948932dd940803802a9eb0a7bcddd4539c64b75",
+      "bytes": 337
+    },
+    {
+      "path": "trajectories/trajectories.parquet",
+      "sha256": "9bf9c8e2de3f92fb24225a7941b4bf3beec9529c457c57054110b3138076cc5b",
+      "bytes": 1214
+    },
+    {
+      "path": "sboms/manifest.json",
+      "sha256": "0eae7fd0d3851eb74833adb32706863ae11583cefe730607304d39d902aa9b72",
+      "bytes": 613
+    },
+    {
+      "path": "doctrine/manifest.json",
+      "sha256": "30bffcf91eaac0b3ab1e8e6fbb270cef97bd650c7139088f7eb6292d7e04322b",
+      "bytes": 148
+    },
+    {
+      "path": "doctrine/v11_snapshot_20260602.json",
+      "sha256": "78c958cd629112d225e43be89c66b5c5cb133b73d61fa3551252e25e268bce8c",
+      "bytes": 1568
+    },
+    {
+      "path": "attestations/cmmc_l1_self_attest.json",
+      "sha256": "0ff8d376d656610050346eeffa969d8b43ad278274b4390ca4368ff45fc61df0",
+      "bytes": 264
+    },
+    {
+      "path": "attestations/section_889_attestation.json",
+      "sha256": "cdbe5ef3a08ff35d82bc842ce2711228bb20638fa7bd1644260ffa1503d94b67",
+      "bytes": 434
+    },
+    {
+      "path": "attestations/slsa_level.json",
+      "sha256": "12e2fa32a0f540e02412dbd3dd4753b5ceddbb30554ba2d5102a6f2c24618562",
+      "bytes": 291
+    },
+    {
+      "path": "keys/MANIFEST.json",
+      "sha256": "ddae01f75efeb4f249212af460cddbdc04fba686df5fa4dbe4b442f22000deef",
+      "bytes": 1850
+    },
+    {
+      "path": "keys/a11oy.pub",
+      "sha256": "aafa01a4d1b16b14620ed669ae9c724c9cb082e90401628aba7f70fdcc824b67",
+      "bytes": 178
+    },
+    {
+      "path": "keys/amaru.pub",
+      "sha256": "279450143558cad9ab475fd1943a4a2d8fb77887c6c638b59faec4eaa381fd2c",
+      "bytes": 178
+    },
+    {
+      "path": "keys/killinchu.pub",
+      "sha256": "39f890a0e85f3626d1ea8c38928d02f87642b8454c75d80a09733ae4348adf44",
+      "bytes": 178
+    },
+    {
+      "path": "keys/org-cosign.pub",
+      "sha256": "b066de4081a3a49dd98d830ee68938facb86ffa5a658e71ddfe27b00b00f5dd2",
+      "bytes": 178
+    },
+    {
+      "path": "keys/rosie.pub",
+      "sha256": "cab007ce5f28715914bcc8ac321ce66895b41d47fa6db86893576d6fbc9c7e7e",
+      "bytes": 178
+    },
+    {
+      "path": "keys/sentra.pub",
+      "sha256": "82253cba0464b3c54c675eb3c84c9ce3dff2ccc9036297fa38b7bcf693d88872",
+      "bytes": 178
+    }
+  ],
+  "total_files": 24,
+  "total_khipu_receipts": 16
+}

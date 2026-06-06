@@ -1,0 +1,63 @@
+name: ci
+# PR CI: stand up the build env in kind and run the honest supply-chain gate.
+# Doctrine v11 749/14/163 @ c7c0ba17. NOT Iron Bank. SLSA L1 honest (L2 not yet produced).
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read   # read-only: pull public organ images. No write, no secret needed.
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kind
+        uses: helm/kind-action@v1
+        with:
+          version: v0.32.0
+          cluster_name: szl-build-env
+          config: kind/cluster.yaml
+          wait: 120s
+
+      - name: Install tools (kubectl, cosign, slsa-verifier, jq)
+        run: |
+          set -euo pipefail
+          # kubectl
+          curl -sSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/v1.32.2/bin/linux/amd64/kubectl"
+          chmod +x /usr/local/bin/kubectl
+          # cosign
+          curl -sSLo /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64"
+          chmod +x /usr/local/bin/cosign
+          # slsa-verifier
+          curl -sSLo /usr/local/bin/slsa-verifier "https://github.com/slsa-framework/slsa-verifier/releases/download/v2.6.0/slsa-verifier-linux-amd64"
+          chmod +x /usr/local/bin/slsa-verifier
+          sudo apt-get update -y && sudo apt-get install -y jq
+
+      - name: Load cosign public key into the cluster
+        run: make cosign-key
+
+      - name: make up (kind + istio ambient + otel + organs)
+        run: make up
+        # killinchu may ImagePullBackOff (private) — make up tolerates it (|| true on rollout).
+
+      - name: make verify (honest cosign + SLSA gate)
+        # Fails the PR only on a REAL verification failure. KNOWN-GAP (killinchu
+        # private) exits 0 by design — nothing is faked, see verify/cosign-init.sh.
+        run: make verify
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide || true
+          kubectl -n szl describe pods || true
+          kubectl -n istio-system get pods || true

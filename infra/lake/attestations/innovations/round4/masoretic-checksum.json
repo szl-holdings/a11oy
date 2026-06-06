@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-04",
+  "idea_name": "MASORETIC-CHECKSUM",
+  "lean_path": "Lutar/Innovations/round4/MasoreticChecksum.lean",
+  "source": "Masoretic scribal tradition, 600-1000 CE",
+  "academic_citation": "Wuerthwein, The Text of the Old Testament (1988), pp. 12-15",
+  "plug_in_target": "sentra \u2014 receipt byte-length + midpoint checksum validation",
+  "sorry_free": true,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "a4cf5c6af93347c7d14d0f64023f65cdf9789f3a8d8de40f58fe4b64b8b6a51c",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

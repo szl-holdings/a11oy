@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "GramSabotageNet",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "sentra/gramsabotagenet_gate",
+      "digest": {
+        "sha256": "f31ecc9566c60cddb439132cba8b11ba83c799ffee7524663337d3f1e2014382"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "honeypot_detection x bft_liveness",
+    "detection_probability": "1 - 2^(-k)",
+    "honeypot_count": 5
+  }
+}

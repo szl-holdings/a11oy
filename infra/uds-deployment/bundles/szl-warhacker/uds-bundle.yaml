@@ -1,0 +1,162 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# SZL Warhacker Meta-Bundle — v0.4.0
+#
+# Single UDS bundle that bootstraps the SZL governed-AI substrate on a local
+# k3d cluster (cluster name: szl-warhacker) for the Warhacker 2026 demo.
+#
+# ── HONESTY / DOCTRINE V7 §10 ────────────────────────────────────────────────
+# Every package below is labeled with its VERIFIED artifact status as of
+# 2026-05-30. "No 'ready' without HTTP 200" — so packages whose signed Zarf
+# artifact does NOT yet exist are marked STAGED and are commented out of the
+# deployable set. They are documented here so the bundle is complete the moment
+# the artifacts are published, but they are NOT presented as working.
+#
+# Verified artifact status (gh release view <repo> uds-v0.3.0 --json assets):
+#   vessels  : vessels-uds-0.3.0.tar.zst + .sig + .sigstore.json + .pub  → SIGNED ZARF PKG EXISTS
+#   amaru    : SBOM JSON only                                            → NO PACKAGE (STAGED)
+#   a11oy    : SBOM JSON only                                            → NO PACKAGE (STAGED)
+#   sentra   : SBOM JSON only                                            → NO PACKAGE (STAGED)
+#   rosie    : SBOM JSON only                                            → NO PACKAGE (STAGED)
+#
+# Additional verified blocker (FA-001): the vessels uds-v0.3.0 release body states
+#   "Founder pushes ghcr.io/szl-holdings/vessels:<tag> to GHCR (requires org GHCR
+#   auth — founder action)". Until FA-001 completes, even the vessels layer cannot
+#   pull its image. szl-receipts therefore remains the only end-to-end deployable
+#   add-on today, exactly as docs/WARHACKER_DEMO.md (2026-06-09) describes.
+#
+# References:
+#   UDS Bundle schema:  https://github.com/defenseunicorns/uds-cli
+#   UDS Core releases:  https://github.com/defenseunicorns/uds-core/releases
+#   UDS docs:           https://docs.defenseunicorns.com/
+#   Existing honest 5-module bundle: bundles/szl-full-stack/uds-bundle.yaml
+#   Talk track:         docs/WARHACKER_DEMO.md
+
+kind: UDSBundle
+metadata:
+  name: szl-warhacker
+  version: 0.4.0
+  description: "SZL Holdings governed AI substrate — 5 modules + Pepr receipts. Running deployment for Warhacker 2026."
+
+packages:
+  # ── Layer 1: Zarf init — internal registry + agent ──────────────────────────
+  # Status: AVAILABLE (upstream artifact). The init package moved to the zarf-dev
+  # org; v0.77.0 is the ref uds-core v1.5.0 ships with.
+  # (defenseunicorns/uds-core@v1.5.0/bundles/k3d-slim-dev/uds-bundle.yaml)
+  - name: init
+    repository: ghcr.io/zarf-dev/packages/init
+    ref: v0.77.0
+
+  # ── Layer 2: UDS Core — Istio + Pepr (UDS Operator) + Keycloak + Prometheus ─
+  # Status: AVAILABLE (upstream Defense Unicorns artifact). For the local k3d demo
+  # the documented path is the slim-dev bundle
+  # oci://ghcr.io/defenseunicorns/bundles/k3d-core-slim-dev:1.5.0; here we pull the
+  # published upstream core package directly. Flavor grammar X.Y.Z-upstream|registry1|unicorn
+  # per defenseunicorns/uds-core@v1.5.0/docs/getting-started/production/build-your-bundle.mdx.
+  - name: core
+    repository: registry.defenseunicorns.com/public/core
+    ref: 1.5.0-upstream
+    overrides:
+      keycloak:
+        keycloak:
+          values:
+            - path: realmInitEnv.INSECURE_ADMIN_PASSWORD_GENERATION
+              value: "true"
+
+  # ── Layer 3: szl-receipts — Pepr admission webhook + DSSE receipt server ─────
+  # Status: AVAILABLE as a LOCAL Zarf package (path build). This is the
+  # Apache-2.0 contribution offer to Defense Unicorns. Deploys cluster-wide;
+  # emits a DSSE receipt for every Deployment/Job admission — including the
+  # module pods below, once they exist.
+  #
+  # NOTE: the szl-receipts BUNDLE artifact is not cosign-signed yet (Phase 2,
+  # org key provisioning U5). `cosign verify` on the bundle artifact WILL FAIL
+  # until then. The receipt server itself signs receipts with HMAC-SHA-256 in
+  # demo mode (Ed25519 in production).
+  - name: szl-receipts
+    path: ../../packages/szl-receipts
+    ref: 0.3.1
+    overrides:
+      szl-receipts:
+        szl-receipts:
+          variables:
+            - name: DOMAIN
+              description: "Cluster domain (must match UDS Core DOMAIN)"
+              path: global.domain
+              default: "uds.dev"
+            # RECEIPT_HMAC_KEY override REMOVED (matches root uds-bundle.yaml,
+            # PhD Crypto Finding A2). Receipts are signed with an operator-
+            # provisioned Ed25519 Secret (szl-receipts-ed25519); no signing key
+            # flows through the bundle. See charts/szl-receipts/templates/secret-keypair.yaml.
+            - name: RECEIPTS_REPLICAS
+              description: "Receipt server replica count"
+              path: server.replicas
+              default: "1"
+          values:
+            - path: server.logLevel
+              value: "info"
+            - path: ingress.enabled
+              value: true
+            - path: ingress.host
+              value: "receipts.uds.dev"
+            - path: podSecurityStandard.enforce
+              value: "restricted"
+
+  # ── Layer 4: vessels-uds — maritime UI (port 7863) ──────────────────────────
+  # Status: SIGNED ZARF PACKAGE EXISTS at the vessels uds-v0.3.0 release
+  #   (vessels-uds-0.3.0.tar.zst + .sig + .sigstore.json), BUT image push is
+  #   gated on FA-001 (founder pushes ghcr.io/szl-holdings/vessels image to GHCR).
+  # This entry references the release-attached signed package. Enable it for the
+  # live demo only AFTER FA-001 image push is confirmed; otherwise the pod will
+  # ImagePullBackOff.
+  #
+  # The OCI coordinate below assumes the package is (or will be) published to
+  # ghcr.io/szl-holdings/vessels-uds:uds-v0.3.0. As of 2026-05-30 the package is
+  # attached to the GitHub *release* as a tarball; confirm OCI publication
+  # (zarf package publish) before relying on this `repository`/`ref`.
+  - name: vessels-uds
+    repository: ghcr.io/szl-holdings/vessels-uds
+    ref: uds-v0.3.0
+    # optional: keep vessels out of the default deploy set until FA-001 confirmed.
+    optionalComponents:
+      - vessels-ui
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # ── STAGED MODULES — NOT DEPLOYABLE (Doctrine §10) ──────────────────────────
+  # The following four modules publish ONLY SBOM JSON at uds-v0.3.0 — no signed
+  # Zarf package, no image, no root zarf.yaml. They are documented here as the
+  # target topology and are intentionally COMMENTED OUT so `uds run start` does
+  # not fail or misrepresent a non-existent artifact as deployable.
+  #
+  # To activate each one, a founder/maintainer must FIRST:
+  #   1. Build a Zarf package for the module (no zarf.yaml exists in the repo today)
+  #   2. Push the module container image to ghcr.io/szl-holdings/<module> (FA-001)
+  #   3. Publish the signed Zarf package to ghcr.io/szl-holdings/<module>-uds
+  #   4. Uncomment the matching block below and verify `zarf package verify`
+  #
+  # Target topology (when live): all four discover a11oy via Kubernetes service
+  # DNS at a11oy.szl-platform.svc.cluster.local:8080 and register gate-results to
+  # it; a11oy is the orchestration mediator. Deploy order: amaru → a11oy →
+  # sentra → rosie (a11oy up before sentra/rosie so they can register).
+  # ───────────────────────────────────────────────────────────────────────────
+
+  # STAGED — amaru-uds (memory cortex, port 7860). No signed package at uds-v0.3.0.
+  # - name: amaru-uds
+  #   repository: ghcr.io/szl-holdings/amaru-uds
+  #   ref: uds-v0.3.0   # <-- artifact does NOT exist yet (SBOM only)
+
+  # STAGED — a11oy-uds (orchestration substrate / mediator, port 8080). No signed package.
+  # - name: a11oy-uds
+  #   repository: ghcr.io/szl-holdings/a11oy-uds
+  #   ref: uds-v0.3.0   # <-- artifact does NOT exist yet (SBOM only)
+
+  # STAGED — sentra-uds (security gates, port 7861). No signed package.
+  # - name: sentra-uds
+  #   repository: ghcr.io/szl-holdings/sentra-uds
+  #   ref: uds-v0.3.0   # <-- artifact does NOT exist yet (SBOM only)
+
+  # STAGED — rosie-uds (operator console, port 7862). No signed package.
+  # - name: rosie-uds
+  #   repository: ghcr.io/szl-holdings/rosie-uds
+  #   ref: uds-v0.3.0   # <-- artifact does NOT exist yet (SBOM only)

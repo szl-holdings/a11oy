@@ -1,0 +1,67 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# UDS Package CR — admitted by UDS Core (uds-operator). Configures Istio sidecar
+# injection, exposes the a11oy API via the tenant gateway, declares egress to the
+# rest of the SZL mesh, and registers a Prometheus monitor.
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: a11oy
+  namespace: a11oy
+spec:
+  network:
+    serviceMesh:
+      mode: ambient   # UDS Core v1.5.0 canonical — Istio ambient mode default since v1.2.0
+    expose:
+      - service: a11oy-runtime
+        selector:
+          app.kubernetes.io/name: a11oy
+        host: a11oy
+        gateway: tenant
+        port: 8080
+        targetPort: 8080
+    allow:
+      - direction: Egress
+        selector:
+          app.kubernetes.io/name: a11oy
+        remoteNamespace: amaru
+        remoteSelector:
+          app.kubernetes.io/name: amaru
+        port: 8080
+        description: "a11oy -> amaru (attestation / formula witness)"
+      - direction: Egress
+        selector:
+          app.kubernetes.io/name: a11oy
+        remoteNamespace: sentra
+        remoteSelector:
+          app.kubernetes.io/name: sentra
+        port: 8080
+        description: "a11oy -> sentra (safety gates)"
+      - direction: Egress
+        selector:
+          app.kubernetes.io/name: a11oy
+        remoteNamespace: rosie
+        remoteSelector:
+          app.kubernetes.io/name: rosie
+        port: 8080
+        description: "a11oy -> rosie (receipt replay)"
+      - direction: Egress
+        selector:
+          app.kubernetes.io/name: a11oy
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app.kubernetes.io/name: szl-receipts
+        port: 8443
+        description: "a11oy -> szl-receipts (governance receipt sink)"
+  monitor:
+    - selector:
+        app.kubernetes.io/name: a11oy
+      portName: metrics
+      targetPort: 8080
+      description: "a11oy Prometheus metrics"
+  sso:
+    - name: a11oy SSO
+      clientId: uds-a11oy
+      redirectUris:
+        - "https://a11oy.uds.dev/login/generic/callback"

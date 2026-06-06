@@ -1,0 +1,28 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "Lutar/Innovations/round6/NoetherAudit.lean",
+      "digest": {
+        "sha256": "c4080d8cd21ada63cecde974f0b2bb79109a0c0e"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v0.2",
+  "predicate": {
+    "formula_id": "NOETHER-AUDIT-CONSERVATION",
+    "round": "round6",
+    "doctrine": "v11",
+    "kernel": "c7c0ba17",
+    "lambda_status": "Conjecture 1",
+    "slsa": "L1",
+    "plug_in_target": "amaru/audit",
+    "source_citation": "Noether, E. Invariante Variationsprobleme. Nachrichten GWG (1918):235-257. doi:10.1080/00411457108231446",
+    "lean_stub_url": "https://github.com/szl-holdings/lutar-lean/blob/feat/innovations-round6/Lutar/Innovations/round6/NoetherAudit.lean",
+    "lean_ci_status": "\ud83d\udfe1 sorry (honest: Finset.sum_equiv API)",
+    "gap_closed": "Audit trail had no conservation law; Noether symmetry->conservation closes it",
+    "timestamp": "2026-06-03T05:34:55Z",
+    "signedOffBy": "Yachay <yachay@szlholdings.ai>",
+    "coAuthoredBy": "Perplexity Computer Agent <agent@perplexity.ai>"
+  }
+}

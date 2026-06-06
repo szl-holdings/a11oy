@@ -1,0 +1,9 @@
+{
+  "schema": "szl.lake.trajectories/v1",
+  "generated_at_utc": "2026-06-02T02:14:39Z",
+  "count": 0,
+  "note": "Multi-turn agent trajectories: schema published; corpus seeding pending the SOUL/trajectory agent. Empty DSSE-signed parquet provided so consumers can rely on the schema today.",
+  "files": [
+    "trajectories.parquet"
+  ]
+}

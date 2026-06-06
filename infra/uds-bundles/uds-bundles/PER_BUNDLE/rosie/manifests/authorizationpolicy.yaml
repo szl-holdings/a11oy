@@ -1,0 +1,18 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-mesh-to-rosie
+  namespace: rosie
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rosie
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-tenant-gateway/sa/tenant-ingressgateway"
+              - "cluster.local/ns/a11oy/sa/default"
+              - "cluster.local/ns/killinchu/sa/default"

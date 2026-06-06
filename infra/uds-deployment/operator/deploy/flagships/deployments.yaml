@@ -1,0 +1,437 @@
+# SZL Flagship Deployments — Demo Cluster
+# Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · SLSA L1
+# Each flagship runs as a Deployment pulling from GHCR or HF Space image.
+# For demo purposes these point to the live HF Space images.
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+---
+# ─── a11oy ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: szl-a11oy
+  namespace: szl-a11oy
+  labels:
+    app: szl-a11oy
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/flagship: "a11oy"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: szl-a11oy
+  template:
+    metadata:
+      labels:
+        app: szl-a11oy
+        szl.io/doctrine-version: "v11"
+    spec:
+      containers:
+        - name: a11oy
+          image: ghcr.io/szl-holdings/a11oy:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: DOCTRINE_VERSION
+              value: "v11"
+            - name: DOCTRINE_PIN
+              value: "749/14/163"
+            - name: KERNEL_COMMIT
+              value: "c7c0ba17"
+            - name: LAMBDA_STATUS
+              value: "Conjecture 1"
+            - name: SLSA_LEVEL
+              value: "L1"
+            - name: PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-a11oy
+  namespace: szl-a11oy
+  labels:
+    app: szl-a11oy
+    szl.io/doctrine-version: "v11"
+spec:
+  selector:
+    app: szl-a11oy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: http-metrics
+      port: 9090
+      targetPort: 9090
+
+---
+# ─── sentra ────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: szl-sentra
+  namespace: szl-sentra
+  labels:
+    app: szl-sentra
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/flagship: "sentra"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: szl-sentra
+  template:
+    metadata:
+      labels:
+        app: szl-sentra
+        szl.io/doctrine-version: "v11"
+    spec:
+      containers:
+        - name: sentra
+          image: ghcr.io/szl-holdings/sentra:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: DOCTRINE_VERSION
+              value: "v11"
+            - name: DOCTRINE_PIN
+              value: "749/14/163"
+            - name: KERNEL_COMMIT
+              value: "c7c0ba17"
+            - name: LAMBDA_STATUS
+              value: "Conjecture 1"
+            - name: SLSA_LEVEL
+              value: "L1"
+            - name: PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-sentra
+  namespace: szl-sentra
+  labels:
+    app: szl-sentra
+    szl.io/doctrine-version: "v11"
+spec:
+  selector:
+    app: szl-sentra
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: http-metrics
+      port: 9090
+      targetPort: 9090
+
+---
+# ─── amaru ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: szl-amaru
+  namespace: szl-amaru
+  labels:
+    app: szl-amaru
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/flagship: "amaru"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: szl-amaru
+  template:
+    metadata:
+      labels:
+        app: szl-amaru
+        szl.io/doctrine-version: "v11"
+    spec:
+      containers:
+        - name: amaru
+          image: ghcr.io/szl-holdings/amaru:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: DOCTRINE_VERSION
+              value: "v11"
+            - name: DOCTRINE_PIN
+              value: "749/14/163"
+            - name: KERNEL_COMMIT
+              value: "c7c0ba17"
+            - name: LAMBDA_STATUS
+              value: "Conjecture 1"
+            - name: SLSA_LEVEL
+              value: "L1"
+            - name: PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-amaru
+  namespace: szl-amaru
+  labels:
+    app: szl-amaru
+    szl.io/doctrine-version: "v11"
+spec:
+  selector:
+    app: szl-amaru
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: http-metrics
+      port: 9090
+      targetPort: 9090
+
+---
+# ─── rosie ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: szl-rosie
+  namespace: szl-rosie
+  labels:
+    app: szl-rosie
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/flagship: "rosie"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: szl-rosie
+  template:
+    metadata:
+      labels:
+        app: szl-rosie
+        szl.io/doctrine-version: "v11"
+    spec:
+      containers:
+        - name: rosie
+          image: ghcr.io/szl-holdings/rosie:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: DOCTRINE_VERSION
+              value: "v11"
+            - name: DOCTRINE_PIN
+              value: "749/14/163"
+            - name: KERNEL_COMMIT
+              value: "c7c0ba17"
+            - name: LAMBDA_STATUS
+              value: "Conjecture 1"
+            - name: SLSA_LEVEL
+              value: "L1"
+            - name: PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-rosie
+  namespace: szl-rosie
+  labels:
+    app: szl-rosie
+    szl.io/doctrine-version: "v11"
+spec:
+  selector:
+    app: szl-rosie
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: http-metrics
+      port: 9090
+      targetPort: 9090
+
+---
+# ─── killinchu ─────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: szl-killinchu
+  namespace: szl-killinchu
+  labels:
+    app: szl-killinchu
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/flagship: "killinchu"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: szl-killinchu
+  template:
+    metadata:
+      labels:
+        app: szl-killinchu
+        szl.io/doctrine-version: "v11"
+    spec:
+      containers:
+        - name: killinchu
+          image: ghcr.io/szl-holdings/killinchu:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: DOCTRINE_VERSION
+              value: "v11"
+            - name: DOCTRINE_PIN
+              value: "749/14/163"
+            - name: KERNEL_COMMIT
+              value: "c7c0ba17"
+            - name: LAMBDA_STATUS
+              value: "Conjecture 1"
+            - name: SLSA_LEVEL
+              value: "L1"
+            - name: PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-killinchu
+  namespace: szl-killinchu
+  labels:
+    app: szl-killinchu
+    szl.io/doctrine-version: "v11"
+spec:
+  selector:
+    app: szl-killinchu
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: http-metrics
+      port: 9090
+      targetPort: 9090

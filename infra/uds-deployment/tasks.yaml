@@ -1,0 +1,195 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# uds-cli task definitions for the SZL Warhacker demo
+#
+# Usage:
+#   uds run start          # full bootstrap + deploy (90 seconds on a modern laptop)
+#   uds run demo:workload   # apply a sample workload that gets receipt-traced
+#   uds run demo:scenario  # run the Day 3 drone-deny scenario (step 10)
+#   uds run demo:verify    # verify the receipt chain in the cluster
+#   uds run teardown       # destroy the k3d cluster
+#
+# Requires: uds CLI, zarf CLI, k3d, docker
+# Reference: https://github.com/defenseunicorns/uds-cli/blob/main/docs/tasks.md
+
+variables:
+  - name: CLUSTER_NAME
+    default: uds-szl-demo
+
+  - name: DOMAIN
+    default: uds.dev
+
+  - name: VERSION
+    default: "0.3.1"
+
+includes:
+  - test: ./tasks/test.yaml
+  - demo: ./tasks/demo.yaml
+  - smoke: ./tasks/smoke.yaml
+
+tasks:
+  # ── Cold smoke entry point ────────────────────────────────────────────────
+  # `uds run smoke`: cold k3d -> deploy szl-warhacker bundle -> honest readiness
+  # check of szl-receipts (hard PASS) + the 5 apps (PASS or SKIPPED-on-FA-001).
+  # Implemented in tasks/smoke.yaml; aliased here so `uds run smoke` works.
+  - name: smoke
+    description: "Cold k3d up + deploy + honest readiness of receipts and the 5 apps"
+    actions:
+      - task: smoke:smoke
+
+  # ── Primary entry point ───────────────────────────────────────────────────
+  - name: start
+    description: "Bootstrap k3d cluster and deploy SZL receipts bundle (≈90 seconds)"
+    actions:
+      - description: "Check required tools"
+        cmd: |
+          for tool in uds zarf k3d docker; do
+            if ! command -v $tool >/dev/null 2>&1; then
+              echo "ERROR: $tool is not installed. See docs/INSTALL.md for setup."
+              exit 1
+            fi
+          done
+          echo "All required tools found."
+
+      - description: "Create k3d cluster"
+        cmd: |
+          if k3d cluster list | grep -q "${CLUSTER_NAME}"; then
+            echo "Cluster ${CLUSTER_NAME} already exists — skipping create."
+          else
+            k3d cluster create "${CLUSTER_NAME}" \
+              --k3s-arg "--disable=traefik@server:0" \
+              --port "80:80@loadbalancer" \
+              --port "443:443@loadbalancer" \
+              --port "8443:8443@loadbalancer" \
+              --wait
+            echo "Cluster ${CLUSTER_NAME} created."
+          fi
+
+      - description: "Build SZL receipts Zarf package"
+        cmd: |
+          zarf package create . \
+            --set DOMAIN=${DOMAIN} \
+            --confirm \
+            --no-progress
+
+      - description: "Create UDS bundle"
+        cmd: |
+          uds create . \
+            --confirm \
+            --no-progress
+
+      - description: "Deploy the SZL Warhacker bundle"
+        cmd: |
+          uds deploy uds-bundle-szl-warhacker-demo-*.tar.zst \
+            --set DOMAIN=${DOMAIN} \
+            --set INSECURE_ADMIN_PASSWORD_GENERATION=true \
+            --confirm \
+            --no-progress
+
+      - description: "Print access info"
+        cmd: |
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════╗"
+          echo "║          SZL Receipts — Warhacker 2026 Demo             ║"
+          echo "╠══════════════════════════════════════════════════════════╣"
+          echo "║  Dashboard:  https://szl.uds.dev (add to /etc/hosts)   ║"
+          echo "║  Port-fwd:   kubectl port-forward svc/szl-receipts \\    ║"
+          echo "║              8443:8443 -n szl-receipts                 ║"
+          echo "║  Then open:  http://localhost:8443                      ║"
+          echo "╚══════════════════════════════════════════════════════════╝"
+          echo ""
+
+  # ── Teardown ──────────────────────────────────────────────────────────────
+  - name: teardown
+    description: "Destroy the k3d demo cluster"
+    actions:
+      - description: "Delete k3d cluster"
+        cmd: |
+          k3d cluster delete "${CLUSTER_NAME}" && echo "Cluster deleted."
+
+  # ── Dependency installer ──────────────────────────────────────────────────
+  - name: install-deps
+    description: "Install uds, zarf, k3d on macOS/Linux (requires curl)"
+    actions:
+      - description: "Install uds CLI"
+        cmd: |
+          if ! command -v uds >/dev/null 2>&1; then
+            curl -sL https://github.com/defenseunicorns/uds-cli/releases/latest/download/uds-cli_linux_amd64 \
+              -o /usr/local/bin/uds && chmod +x /usr/local/bin/uds
+            echo "uds installed: $(uds version)"
+          else
+            echo "uds already installed: $(uds version)"
+          fi
+
+      - description: "Install zarf CLI"
+        cmd: |
+          if ! command -v zarf >/dev/null 2>&1; then
+            curl -sL https://github.com/zarf-dev/zarf/releases/latest/download/zarf_linux_amd64 \
+              -o /usr/local/bin/zarf && chmod +x /usr/local/bin/zarf
+            echo "zarf installed: $(zarf version)"
+          else
+            echo "zarf already installed: $(zarf version)"
+          fi
+
+      - description: "Install k3d"
+        cmd: |
+          if ! command -v k3d >/dev/null 2>&1; then
+            curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          else
+            echo "k3d already installed: $(k3d version)"
+          fi
+
+  # ── Port-forward convenience ──────────────────────────────────────────────
+  - name: port-forward
+    description: "Port-forward szl-receipts to localhost:8443"
+    actions:
+      - description: "kubectl port-forward"
+        cmd: |
+          kubectl port-forward svc/szl-receipts-server 8443:8443 -n szl-receipts &
+          echo "Dashboard available at http://localhost:8443"
+          echo "Press Ctrl+C to stop."
+          wait
+
+  # ── CI-required task names (R16/R17/R18 fix) ──────────────────────────────
+  # Reference: https://github.com/defenseunicorns/uds-common/blob/main/docs/uds-packages/guidelines/testing-guidelines.md
+  - name: test-install
+    description: "CI: deploy current branch to a new cluster and run journey tests"
+    actions:
+      - description: "Create k3d test cluster"
+        cmd: |
+          k3d cluster create "${CLUSTER_NAME}-test" --wait
+      - description: "Zarf init"
+        cmd: |
+          zarf init --confirm
+      - description: "Create and deploy szl-receipts Zarf package"
+        cmd: |
+          zarf package create . --confirm && \
+          zarf package deploy zarf-package-szl-receipts-amd64-0.3.1.tar.zst --confirm
+      - description: "Run Playwright journey tests"
+        task: test:all
+
+  - name: test-upgrade
+    description: "CI: deploy previous release, then upgrade to current branch"
+    actions:
+      - description: "Create k3d upgrade-test cluster"
+        cmd: |
+          k3d cluster create "${CLUSTER_NAME}-upgrade" --wait
+      - description: "Zarf init"
+        cmd: |
+          zarf init --confirm
+      - description: "Deploy previous release (v0.3.1) from OCI"
+        cmd: |
+          zarf package deploy oci://ghcr.io/szl-holdings/packages/szl-receipts:0.3.1 --confirm 2>/dev/null || \
+          echo "WARN: Previous OCI release not found — skipping baseline deploy (FA-001 staged)"
+      - description: "Build and deploy current branch package"
+        cmd: |
+          zarf package create . --confirm && \
+          zarf package deploy zarf-package-szl-receipts-amd64-0.3.1.tar.zst --confirm
+      - description: "Run Playwright journey tests post-upgrade"
+        task: test:all
+
+  - name: test-lint
+    description: "Run static validation: yamllint + helm lint (no cluster needed)"
+    actions:
+      - task: test:lint

@@ -1,0 +1,28 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: v2
+name: szl-receipts
+description: >-
+  SZL Governance Receipts — a DSSE-wrapped audit receipt server that attaches
+  cryptographic governance receipts to every Kubernetes workload deployment.
+  Runs as a UDS add-on alongside uds-core. Does not modify uds-core internals.
+type: application
+version: 0.3.1
+appVersion: "0.1.0"
+keywords:
+  - szl
+  - receipts
+  - governance
+  - dsse
+  - uds
+  - defense-unicorns
+  - k8s
+home: https://szlholdings.com
+sources:
+  - https://github.com/szl-holdings/szl-uds-deployment
+maintainers:
+  - name: Stephen Paul Lutar JR
+    email: stephen@szlholdings.com
+annotations:
+  "uds.dev/package": "szl-receipts"
+  "szl.io/doc": "https://github.com/szl-holdings/szl-uds-deployment/blob/main/docs/ARCHITECTURE.md"

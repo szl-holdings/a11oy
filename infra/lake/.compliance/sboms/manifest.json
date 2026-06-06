@@ -1,0 +1,19 @@
+{
+  "schema": "szl.lake.sbom/v1",
+  "generated_at_utc": "2026-06-02T02:14:39Z",
+  "note": "CycloneDX + SPDX SBOMs are produced as GitHub Actions artifacts by .github/workflows/sbom.yml (reusable-sbom.yml) in each repo, not committed to source. This manifest pins the producing workflow + repos. Download the latest SBOM artifact from each repo's Actions tab.",
+  "format": [
+    "CycloneDX",
+    "SPDX"
+  ],
+  "producing_workflow": "szl-holdings/.github/.github/workflows/reusable-sbom.yml",
+  "repos": [
+    "a11oy",
+    "amaru",
+    "sentra",
+    "rosie",
+    "killinchu",
+    "platform",
+    "lutar-lean"
+  ]
+}

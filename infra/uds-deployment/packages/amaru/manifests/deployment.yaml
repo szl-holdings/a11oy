@@ -1,0 +1,76 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amaru
+  namespace: szl-amaru
+  labels:
+    app: amaru
+    app.kubernetes.io/name: amaru
+    szl.io/component: uds-workload
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amaru
+  template:
+    metadata:
+      labels:
+        app: amaru
+        app.kubernetes.io/name: amaru
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: amaru
+          # Live, cosign-signed image. Zarf rewrites this to the in-cluster
+          # registry reference at deploy time.
+          image: ghcr.io/szl-holdings/amaru:###ZARF_PKG_TMPL_VERSION###
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: amaru
+  namespace: szl-amaru
+  labels:
+    app: amaru
+    app.kubernetes.io/name: amaru
+spec:
+  selector:
+    app: amaru
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

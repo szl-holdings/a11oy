@@ -1,0 +1,32 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# szl-crew.uds — combined UDS bundle composing all 5 flagship Zarf packages in
+# mesh order. ADDITIVE companion to szl-uds-deployment-fresh/bundles/szl-full-stack.
+# Build:  uds create . --confirm
+# Deploy: uds deploy uds-bundle-szl-crew-amd64-0.3.1.tar.zst --confirm
+kind: UDSBundle
+metadata:
+  name: szl-crew
+  description: >
+    SZL flagship crew full-stack: a11oy + amaru + sentra + killinchu + rosie,
+    composed as 5 signed Zarf packages over UDS Core. Mesh order:
+    a11oy -> amaru -> sentra -> killinchu -> rosie. Doctrine v11 LOCKED:
+    749/14/163, 13-axis yuyay_v3, replay bacf5443...631fc5.
+  version: "0.3.1"
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+packages:
+  - name: a11oy-runtime
+    path: ../a11oy
+    ref: "0.3.1"
+  - name: amaru-attestation
+    path: ../amaru
+    ref: "0.3.1"
+  - name: sentra-gates
+    path: ../sentra
+    ref: "0.3.1"
+  - name: killinchu-bundle
+    path: ../killinchu
+    ref: "0.3.1"
+  - name: rosie-replay
+    path: ../rosie
+    ref: "0.3.1"
+# SZL UDS = Unified Decision Span. Andrew Greene Option-A endorsement 2026-05-22.

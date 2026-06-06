@@ -1,0 +1,32 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# amaru.uds — single-flagship UDS bundle. Build: uds create . --confirm
+kind: UDSBundle
+metadata:
+  name: amaru
+  description: >
+    amaru cortex attestation / formula-witness runtime as a standalone UDS
+    bundle. Depends on UDS Core (Istio + Loki/Tempo + Prometheus). Doctrine v11
+    LOCKED: 749/14/163, 13-axis yuyay_v3, replay bacf5443...631fc5.
+  version: "0.3.1"
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+packages:
+  - name: amaru-attestation
+    description: >
+      amaru convergent data-sync runtime: KL drift + hash-chained proof receipts,
+      anatomy-alive Phase 1 Track 1 formula witness, adversarial regression detection.
+    path: .
+    ref: "0.3.1"
+    optionalComponents:
+      - amaru-mesh-policy
+      - amaru-uds-package
+    overrides:
+      amaru-attestation:
+        amaru:
+          values:
+            - path: witness.enabled
+              value: true
+            - path: witness.emitOnDrift
+              value: true
+            - path: witness.klDriftThreshold
+              value: "0.05"
+# SZL UDS = Unified Decision Span. Andrew Greene Option-A endorsement 2026-05-22.

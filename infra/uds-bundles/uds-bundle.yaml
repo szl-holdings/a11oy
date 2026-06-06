@@ -1,0 +1,80 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# SZL Mesh UDS Bundle — top-level meta-bundle for CI publish workflow
+#
+# Produces: oci://ghcr.io/szl-holdings/szl-mesh:v0.4.0
+#
+# Package composition (5 flagship organs — szl-receipts deferred):
+#   szl-a11oy     — ghcr.io/szl-holdings/a11oy:uds-v0.2.0    (PUBLIC, cosign-signed)
+#   szl-sentra    — ghcr.io/szl-holdings/sentra:uds-v0.2.0   (PUBLIC, cosign-signed)
+#   szl-amaru     — ghcr.io/szl-holdings/amaru:uds-v0.2.0    (PUBLIC, cosign-signed)
+#   szl-rosie     — ghcr.io/szl-holdings/rosie:uds-v0.2.0    (PUBLIC, cosign-signed)
+#   szl-killinchu — ghcr.io/szl-holdings/killinchu:uds-v0.2.0 (PUBLIC, cosign-signed)
+#
+# v0.4.0 extends v0.3.0 (a11oy+sentra+amaru) with rosie + killinchu.
+# Mesh interconnect wiring (UDS Package CRs, Istio, mTLS) is roadmap v0.4.0
+# feature — see docs/roadmap/MESH_INTERCONNECT.md in szl-holdings/uds-mesh.
+# This bundle is the image-bearing air-gap artifact for the June 9 rehearsal.
+#
+# USB deploy (into Defense Unicorns' existing UDS Core cluster):
+#   uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
+#
+# OCI deploy (pull from GHCR):
+#   uds deploy oci://ghcr.io/szl-holdings/szl-mesh:v0.4.0 --confirm
+#
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17
+# SLSA L1 honest — not L3
+# Λ = Conjecture 1 (NEVER theorem)
+# Section 889 = 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua)
+#
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+kind: UDSBundle
+metadata:
+  name: szl-mesh
+  description: "SZL Holdings governed-AI substrate — 5 flagship organs (June 9 tower rehearsal / Warhacker USB)"
+  version: "0.4.0"
+  architecture: amd64
+  authors: "Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"
+
+packages:
+  # TODO: re-add szl-receipts once szl-receipts-server image is public + charts vendored
+  # (ghcr.io/szl-holdings/szl-receipts-server:uds-v0.3.1 is not yet a public package;
+  #  requires szl-uds-deployment to be public or a cross-repo PAT to build locally)
+  # - name: szl-receipts
+  #   path: bundles/szl-receipts
+  #   ref: "0.3.1"
+
+  # ── a11oy: governance + policy overlay ─────────────────────────────────────
+  # Image ghcr.io/szl-holdings/a11oy:uds-v0.2.0 — PUBLIC, cosign-signed (Rekor anchored)
+  - name: szl-a11oy
+    path: bundles/szl-a11oy
+    ref: "0.2.0"
+
+  # ── sentra: security gate ──────────────────────────────────────────────────
+  # Image ghcr.io/szl-holdings/sentra:uds-v0.2.0 — PUBLIC, cosign-signed
+  - name: szl-sentra
+    path: bundles/szl-sentra
+    ref: "0.2.0"
+
+  # ── amaru: memory cortex ───────────────────────────────────────────────────
+  # Image ghcr.io/szl-holdings/amaru:uds-v0.2.0 — PUBLIC, cosign-signed
+  - name: szl-amaru
+    path: bundles/szl-amaru
+    ref: "0.2.0"
+
+  # ── rosie: operator console ────────────────────────────────────────────────
+  # Image ghcr.io/szl-holdings/rosie:uds-v0.2.0 — PUBLIC, cosign-signed
+  # v0.4.0 addition (was not in v0.3.0 which was a11oy+sentra+amaru only)
+  - name: szl-rosie
+    path: bundles/szl-rosie
+    ref: "0.2.0"
+
+  # ── killinchu: counter-UAS ML inference runner ────────────────────────────
+  # Image ghcr.io/szl-holdings/killinchu:uds-v0.2.0 — PUBLIC
+  # v0.4.0 addition; continue-on-error: true in workflow (honest 4/5 fallback)
+  - name: szl-killinchu
+    path: bundles/szl-killinchu
+    ref: "0.2.0"

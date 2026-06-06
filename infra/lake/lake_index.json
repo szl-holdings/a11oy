@@ -1,0 +1,11 @@
+{
+  "canonical_source": "https://huggingface.co/datasets/SZLHOLDINGS/szl-lake",
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "doi": "10.5281/zenodo.20434276",
+  "dirs": ["attestations", "doctrine", "keys", "khipu", "papers", "sboms", "trajectories"],
+  "synced_from_hf_at": "2026-06-03T00:41:56Z"
+}

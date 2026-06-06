@@ -1,0 +1,17 @@
+{
+  "idea_id": "UI-01",
+  "idea_name": "TOPODRIFT",
+  "lean_path": "Lutar/Innovations/round3/TopoDrift.lean",
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T04:33:51.402510+00:00",
+  "cycle": "meta-replay-round3",
+  "slsa": "L1 honest",
+  "receipt_hash": "54daf49499cfdd19a1949b639c3ee63f2775e31104a5d228e8bc3722c323c96b",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+  "note": "Doctrine drift detection via multiparameter persistent homology"
+}

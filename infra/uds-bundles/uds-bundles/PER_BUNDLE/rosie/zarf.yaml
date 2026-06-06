@@ -1,0 +1,69 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# rosie — UDS Zarf Package. Build: zarf package create . --confirm
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/main/zarf.schema.json
+kind: ZarfPackageConfig
+metadata:
+  name: rosie-replay
+  description: "rosie governed decision fabric — mandatory witnesses (ROSIE-V1), receipt-DAG replay engine + observability dashboard, brain-jack mesh. Doctrine v11 LOCKED preserved."
+  version: "0.3.1"
+  zarfVersion: ">=0.77.0"   # Min Zarf CLI: Helm 4 + keyless signing
+  url: "https://szlholdings.com"
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+  documentation: "https://github.com/szl-holdings/uds-bundles"
+variables:
+  - name: DOMAIN
+    default: "uds.dev"
+  - name: LOG_LEVEL
+    default: "info"
+components:
+  - name: rosie-namespace
+    required: true
+    description: "Create the rosie namespace (Istio inject + UDS Core labels)"
+    manifests:
+      - name: rosie-namespace
+        namespace: rosie
+        files:
+          - ./manifests/namespace.yaml
+  - name: rosie-replay
+    required: true
+    description: "Deploy rosie replay engine + observability dashboard"
+    only:
+      flavor: upstream
+    charts:
+      - name: rosie
+        namespace: rosie
+        version: 0.3.1
+        localPath: ./chart
+        valuesFiles:
+          - ./chart/values.yaml
+    images:
+      - ghcr.io/szl-holdings/rosie:uds-v0.3.1
+    actions:
+      onDeploy:
+        after:
+          - description: "Wait for rosie-replay to be ready"
+            maxTotalSeconds: 180
+            wait:
+              cluster:
+                kind: Deployment
+                name: rosie-replay
+                namespace: rosie
+                condition: Available
+  - name: rosie-mesh-policy
+    required: true
+    description: "Istio VirtualService + AuthorizationPolicy + NetworkPolicy"
+    manifests:
+      - name: rosie-mesh
+        namespace: rosie
+        files:
+          - ./manifests/virtualservice.yaml
+          - ./manifests/authorizationpolicy.yaml
+          - ./manifests/networkpolicy.yaml
+  - name: rosie-uds-package
+    required: true
+    description: "UDS Package CR — UDS Core admission"
+    manifests:
+      - name: rosie-uds-package
+        namespace: rosie
+        files:
+          - ./uds-package.yaml

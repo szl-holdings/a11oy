@@ -1,0 +1,40 @@
+# vsp-otel Helm values
+replicaCount: 2
+
+image:
+  repository: ghcr.io/szl-holdings/vsp-otel
+  tag: "0.1.0"          # pin by digest in production (SLSA L2)
+  pullPolicy: IfNotPresent
+
+# a11oy doctrine constant — the Λ floor below which spans are rejected.
+lambdaFloor: "0.90"
+
+# Downstream OTLP/HTTP endpoint that accepted+signed spans are forwarded to.
+forwardEndpoint: "http://tempo.observability.svc:4318/v1/traces"
+
+signing:
+  mode: "auto"          # auto | ecdsa | cosign-keyless
+  # For ECDSA P-256, mount a PEM via the secret named below (key: signing.pem).
+  existingSecret: ""    # e.g. vsp-otel-signing
+  # For cosign keyless (production), set OIDC + Fulcio/Rekor via env on the pod.
+
+service:
+  type: ClusterIP
+  port: 4318
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits:   { cpu: 500m, memory: 256Mi }
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  seccompProfile: { type: RuntimeDefault }
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: ["ALL"] }
+
+serviceMonitor:
+  enabled: false        # set true if Prometheus Operator is installed

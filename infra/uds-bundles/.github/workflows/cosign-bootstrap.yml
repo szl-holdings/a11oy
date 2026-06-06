@@ -1,0 +1,112 @@
+# cosign-bootstrap.yml — FOUNDER-TRIGGERED cosign key-pair generation helper.
+#
+# PURPOSE
+#   Generate a fresh cosign key-pair (cosign.key private PEM + cosign.pub public
+#   key) inside an ephemeral GitHub Actions runner so the FOUNDER can copy the
+#   private PEM into the org secret SZL_COSIGN_PRIVATE_PEM (and/or COSIGN_KEY)
+#   and publish only the PUBLIC counterpart.
+#
+# DOCTRINE / SAFETY
+#   - This workflow is `workflow_dispatch` ONLY. It is NEVER triggered by push.
+#   - The orchestrating agent does NOT run this. The FOUNDER triggers it.
+#   - The PRIVATE key is the FOUNDER's possession. It is printed to the job log
+#     ONCE (masked-by-default off so the founder can copy it) and is NOT
+#     committed anywhere. Treat the run log as sensitive and delete the run
+#     afterwards (`gh run delete`). Rotate immediately if the log leaked.
+#   - ONLY the private PEM goes into secrets. The PUBLIC key (cosign.pub) is the
+#     non-secret counterpart and may be committed to the repo / published.
+#   - No secret VALUE is hard-coded here. Nothing is assumed.
+#
+# AFTER RUNNING (founder)
+#   1. Copy the printed cosign.key block -> org secret SZL_COSIGN_PRIVATE_PEM
+#      (and COSIGN_KEY where key-based signing is used).
+#   2. Copy the COSIGN_PASSWORD you chose -> org secret COSIGN_PASSWORD.
+#   3. Commit cosign.pub to the repo (download it from the run artifact).
+#   4. Delete this workflow run so the private key does not persist in logs.
+#
+# See FOUNDER_SECRETS_RUNBOOK.md for the full procedure.
+
+name: cosign-bootstrap (founder key-pair generation)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type 'generate' to confirm you intend to mint a new cosign key-pair"
+        required: true
+        default: ""
+      print_private_key:
+        description: "Print the PRIVATE key to the run log (founder copies it, then deletes the run). If false, only the public key + a private-key artifact are produced."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    # Hard gate: only proceeds when the founder typed the confirmation token.
+    if: ${{ inputs.confirm == 'generate' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse unconfirmed runs (loud)
+        if: ${{ inputs.confirm != 'generate' }}
+        run: |
+          echo "::error::confirm input must equal 'generate'. Aborting."
+          exit 1
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+        with:
+          cosign-release: v2.4.1
+
+      - name: Generate cosign key-pair
+        env:
+          # The founder MUST set this when dispatching via `gh` (see runbook).
+          # Empty password is allowed by cosign but discouraged; we fail loudly
+          # if it is empty to force a real password into COSIGN_PASSWORD.
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_BOOTSTRAP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COSIGN_PASSWORD:-}" ]; then
+            echo "::error title=COSIGN_BOOTSTRAP_PASSWORD missing::Set a temporary repo/org secret COSIGN_BOOTSTRAP_PASSWORD before dispatching, or cosign will mint an unprotected key."
+            echo "::error::This protects the freshly-minted private key at rest. See FOUNDER_SECRETS_RUNBOOK.md."
+            exit 1
+          fi
+          # EXACT doctrine command:
+          cosign generate-key-pair
+          echo "Generated cosign.key (PRIVATE) and cosign.pub (PUBLIC)."
+          echo "--- cosign.pub (PUBLIC — safe to publish) ---"
+          cat cosign.pub
+
+      - name: Print PRIVATE key for founder copy (opt-in)
+        if: ${{ inputs.print_private_key == true }}
+        run: |
+          echo "::warning::Printing the PRIVATE key. Copy it into SZL_COSIGN_PRIVATE_PEM, then DELETE this run."
+          echo "----------BEGIN SZL_COSIGN_PRIVATE_PEM----------"
+          cat cosign.key
+          echo "----------END SZL_COSIGN_PRIVATE_PEM----------"
+
+      - name: Upload key-pair as run artifact (private key included)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: cosign-keypair-DELETE-AFTER-USE
+          path: |
+            cosign.key
+            cosign.pub
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Founder next-steps reminder
+        run: |
+          {
+            echo "## cosign key-pair generated"
+            echo ""
+            echo "1. Download the **cosign-keypair-DELETE-AFTER-USE** artifact (expires in 1 day)."
+            echo "2. Put **cosign.key** (private PEM) into org secret **SZL_COSIGN_PRIVATE_PEM** (and **COSIGN_KEY** where key-based signing runs)."
+            echo "3. Put your chosen password into org secret **COSIGN_PASSWORD**."
+            echo "4. Commit **cosign.pub** (public, non-secret) to the repo."
+            echo "5. **Delete this workflow run** (\`gh run delete <id>\`) and remove the temp **COSIGN_BOOTSTRAP_PASSWORD** secret."
+            echo ""
+            echo "ONLY the private PEM is a secret. The public key is published."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,84 @@
+# doctrine-completeness-zarf.yaml
+# SZL Holdings — Formula Uplift E-04
+# SPDX-License-Identifier: Apache-2.0
+#
+# Zarf component: DoctrineCompleteness gate (POLICY — infrastructure invariant)
+# Source: UDS_PAYLOAD_UPLIFTS.md E-04 / SHARED_CONTEXT.md 749/14/163
+# Lean status: N/A — POLICY (doctrine governance, not a mathematical theorem)
+# Warhacker flag: YES — critical correctness gate; prevents v12 bleed
+#
+# Add this component to any SZL Zarf package to verify doctrine.json
+# before every deploy. Blocks if: missing, wrong version, or wrong counts.
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/main/zarf.schema.json
+kind: ZarfPackageConfig
+metadata:
+  name: szl-doctrine-completeness
+  version: "0.1.0"
+  description: |
+    SZL DoctrineCompleteness Zarf gate (E-04).
+    Verifies doctrine/manifest.json counts match v11 LOCKED: 749/14/163 at c7c0ba17.
+    Blocks deploy if drift detected — prevents Doctrine v12 bleed.
+    Proof label: POLICY (infrastructure invariant, not a mathematical theorem).
+
+variables:
+  - name: DOCTRINE_MANIFEST
+    description: "Path to the doctrine manifest JSON file"
+    default: "/doctrine/manifest.json"
+
+components:
+  - name: szl-doctrine-completeness-check
+    required: true
+    description: |
+      Doctrine v11 completeness gate (749 theorems / 14 axioms / 163 definitions).
+      Proof label: POLICY. Source: UDS_PAYLOAD_UPLIFTS.md E-04.
+    files:
+      - source: doctrine/manifest.json
+        target: /doctrine/manifest.json
+        executable: false
+    actions:
+      onDeploy:
+        before:
+          - cmd: |
+              #!/usr/bin/env bash
+              set -euo pipefail
+              MANIFEST="${ZARF_VAR_DOCTRINE_MANIFEST:-/doctrine/manifest.json}"
+              REQUIRED_THEOREMS=749
+              REQUIRED_AXIOMS=14
+              REQUIRED_DEFS=163
+              REQUIRED_VERSION="v11"
+              REQUIRED_COMMIT="c7c0ba17"
+
+              if [ ! -f "$MANIFEST" ]; then
+                echo "ERROR: doctrine manifest not found at $MANIFEST"
+                exit 1
+              fi
+
+              VERSION=$(jq -r '.version' "$MANIFEST")
+              THEOREMS=$(jq -r '.theorem_count' "$MANIFEST")
+              AXIOMS=$(jq -r '.axiom_count' "$MANIFEST")
+              DEFS=$(jq -r '.definition_count' "$MANIFEST")
+              KERNEL=$(jq -r '.kernel_commit' "$MANIFEST")
+              LAMBDA=$(jq -r '.lambda_status' "$MANIFEST")
+
+              if [ "$VERSION" != "$REQUIRED_VERSION" ]; then
+                echo "ERROR: Doctrine version mismatch. Got '$VERSION', expected '$REQUIRED_VERSION'."
+                echo "FORBIDDEN: Doctrine v12 must never appear in deployed packages."
+                exit 1
+              fi
+              if [ "$THEOREMS" -ne "$REQUIRED_THEOREMS" ] || \
+                 [ "$AXIOMS" -ne "$REQUIRED_AXIOMS" ] || \
+                 [ "$DEFS" -ne "$REQUIRED_DEFS" ]; then
+                echo "ERROR: Doctrine count mismatch. Got T=$THEOREMS/A=$AXIOMS/D=$DEFS, expected 749/14/163."
+                exit 1
+              fi
+              if [ "$LAMBDA" != "conjecture" ]; then
+                echo "ERROR: lambda_status='$LAMBDA'. Must be 'conjecture'. Lambda is NEVER a theorem."
+                exit 1
+              fi
+              echo "SZL E-04 DoctrineCompleteness PASSED: $VERSION T=$THEOREMS A=$AXIOMS D=$DEFS kernel=$KERNEL lambda=$LAMBDA"
+            description: "Doctrine v11 completeness gate (749 theorems / 14 axioms / 163 definitions). POLICY label."
+            mute: false

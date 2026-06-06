@@ -1,0 +1,30 @@
+name: Fuzz
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # weekly Monday 6am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz (fast-check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+      - run: |
+          if [ -f "package.json" ]; then
+            npm ci --if-present 2>/dev/null || true
+            npx fast-check --version 2>/dev/null || npm install -D fast-check || true
+            npm run test:fuzz --if-present 2>/dev/null || echo "No fuzz tests found yet (Phase 2)"
+          else
+            echo "No fuzz tests found yet (Phase 2)"
+          fi

@@ -1,0 +1,101 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Big Bang-compatible default values for the SZL umbrella chart.
+# Author: Yachay <yachay@szlholdings.dev> (DCO signed). ADDITIVE.
+
+# ---- Global (Big Bang convention) ----
+global:
+  # Big Bang sets these; we honor them. When deployed standalone, defaults apply.
+  domain: dev.bigbang.mil
+  imagePullPolicy: IfNotPresent
+  imageRegistry: ghcr.io/szl-holdings
+  # Istio service mesh — Big Bang injects sidecars by namespace label.
+  istio:
+    enabled: true
+    hardened:
+      enabled: true   # STRICT mTLS PeerAuthentication
+  # Keycloak / Authservice SSO (Big Bang) — configured, NOT deployed by this chart.
+  authservice:
+    enabled: false    # honest: configured-not-deployed; Big Bang owns Authservice
+  keycloak:
+    enabled: false    # honest: Big Bang owns Keycloak; we declare the realm config only
+
+# ---- Monitoring (Big Bang Prometheus/Grafana stack) ----
+monitoring:
+  enabled: true
+  podMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+
+# ---- Admission policy (Big Bang Kyverno/Gatekeeper + UDS Pepr) ----
+networkPolicies:
+  enabled: true
+  defaultDeny: true
+gatekeeper:
+  enabled: true
+  labels:
+    app.kubernetes.io/part-of: szl-mesh
+
+# ---- Shared securityContext (STIG-hardened; UBI9-minimal base, NOT an Iron Bank image) ----
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {cpu: "1", memory: 512Mi}
+
+# ---- The 7 flagships rendered by templates/_flagships.tpl loop ----
+# image.tag defaults to the STIG-hardened UBI9-minimal base (vanilla, NOT Iron Bank).
+# An aspirational `-ironbank` parity image is tracked in
+# .compliance/iron_bank_parity.json but is NOT yet built/pushed
+# (ironbank_image_pushed: "N") — do not claim an Iron Bank base in runtime.
+flagships:
+  a11oy:
+    enabled: true
+    image: {repository: ghcr.io/szl-holdings/a11oy, tag: uds-v0.1.0}
+    port: 8080
+    healthPath: /api/a11oy/healthz
+    role: "policy gate (Λ-anchors)"
+  amaru:
+    enabled: true
+    image: {repository: ghcr.io/szl-holdings/amaru, tag: uds-v0.1.0}
+    port: 8080
+    healthPath: /api/amaru/healthz
+    role: "13-axis cortex"
+  sentra:
+    enabled: true
+    image: {repository: ghcr.io/szl-holdings/sentra, tag: uds-v0.1.0}
+    port: 8080
+    healthPath: /healthz
+    role: "immune filter gate"
+  rosie:
+    enabled: true
+    image: {repository: ghcr.io/szl-holdings/rosie, tag: uds-v0.1.0}
+    port: 7860
+    healthPath: /api/rosie/healthz
+    role: "companion / classifier"
+  killinchu:
+    enabled: true
+    image: {repository: ghcr.io/szl-holdings/killinchu, tag: uds-v0.1.0}
+    port: 7860
+    healthPath: /api/killinchu/healthz
+    role: "UDS front door / field action"
+  vessels:
+    enabled: true
+    image: {repository: ghcr.io/szl-holdings/vessels, tag: uds-v0.1.0}
+    port: 7860
+    healthPath: /api/vessels/healthz
+    role: "maritime substrate"
+  hatun-mcp:
+    enabled: true
+    image: {repository: ghcr.io/szl-holdings/hatun-mcp, tag: uds-v0.1.0}
+    port: 8080
+    healthPath: /healthz
+    role: "MCP control plane"

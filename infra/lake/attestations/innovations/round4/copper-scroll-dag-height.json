@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-05",
+  "idea_name": "COPPER-SCROLL-DAG-HEIGHT",
+  "lean_path": "Lutar/Innovations/round4/CopperScrollDAGHeight.lean",
+  "source": "Copper Scroll (3Q15), Dead Sea Scrolls, ~50 CE",
+  "academic_citation": "Milik & Cross, Les Grottes de Murabba'\u00e2t (1961)",
+  "plug_in_target": "amaru \u2014 Khipu DAG append-only height invariant",
+  "sorry_free": true,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "84c63899d512f389b450094f4f9dd7d11d1ead69662c049314e899c11f7db441",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

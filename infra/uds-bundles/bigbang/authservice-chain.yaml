@@ -1,0 +1,16 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Big Bang Authservice chain entry for the SZL front door (Killinchu) — CONFIGURED,
+# NOT deployed. A Big Bang operator merges this into the bigbang Authservice values.
+# Keycloak owns the OIDC client; this declares the protected upstream + match.
+addons:
+  authservice:
+    values:
+      chains:
+        szl-killinchu:
+          callback_uri: "https://killinchu.{{ .Values.domain }}/login"
+          oidc:
+            clientId: szl-killinchu
+            clientSecret: "<from keycloak realm — sealed-secret, NOT committed>"
+          match:
+            header: ":authority"
+            prefix: "killinchu."

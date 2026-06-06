@@ -1,0 +1,20 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: amaru
+  namespace: amaru
+spec:
+  hosts:
+    - "amaru.uds.dev"
+  gateways:
+    - istio-tenant-gateway/tenant
+  http:
+    - match:
+        - uri:
+            prefix: /api/amaru
+      route:
+        - destination:
+            host: amaru.amaru.svc.cluster.local
+            port:
+              number: 8080

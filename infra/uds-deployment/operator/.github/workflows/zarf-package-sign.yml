@@ -1,0 +1,202 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# zarf-package-sign.yml — Zarf package build + keyless cosign signing
+#
+# Triggered on push to main or workflow_dispatch. Builds the szl-fleet-overlay
+# Zarf package and signs it keyless via GitHub OIDC (Sigstore Fulcio).
+#
+# Keyless signing:
+#   - No cosign private key required in repository secrets
+#   - The signing certificate identity is the workflow URL (OIDC claim)
+#   - Transparency log entry created in Rekor (public audit)
+#
+# Verification:
+#   cosign verify-blob \
+#     --bundle zarf-package-szl-fleet-overlay-amd64-<version>.tar.zst.cosign.bundle \
+#     --certificate-identity "https://github.com/szl-holdings/szl-fleet-overlay/.github/workflows/zarf-package-sign.yml@refs/heads/main" \
+#     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+#     zarf-package-szl-fleet-overlay-amd64-<version>.tar.zst
+#
+# Refs:
+#   Zarf v0.77.0: https://github.com/zarf-dev/zarf/releases/tag/v0.77.0
+#   Keyless docs: https://docs.sigstore.dev/cosign/signing/keyless/
+#   SZL_OPERATIONAL_UPGRADES.md U3 (P0, M)
+
+name: Zarf Package Build + Sign
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: 'Package version override (defaults to chart version)'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write     # Required for OIDC token exchange with Fulcio (keyless signing)
+  contents: read      # Required for checkout
+  packages: write     # Required to push to ghcr.io
+
+env:
+  ZARF_VERSION: "v0.77.0"
+  COSIGN_VERSION: "v2.4.3"
+  SYFT_VERSION: "v1.18.1"
+  REGISTRY: "ghcr.io"
+  ORG: "szl-holdings"
+  PACKAGE_NAME: "szl-fleet-overlay"
+
+jobs:
+  package-sign:
+    name: Build & Sign Zarf Package
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Determine package version ─────────────────────────────────────────
+      - name: Determine version
+        id: version
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ github.event.inputs.version_override }}" ]]; then
+            VERSION="${{ github.event.inputs.version_override }}"
+          else
+            VERSION=$(grep '^version:' chart/Chart.yaml | awk '{print $2}')
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Package version: ${VERSION}"
+
+      # ── Install Zarf v0.77.0 ─────────────────────────────────────────────
+      - name: Install Zarf
+        run: |
+          set -euo pipefail
+          curl -sLo /usr/local/bin/zarf \
+            https://github.com/zarf-dev/zarf/releases/download/${ZARF_VERSION}/zarf_${ZARF_VERSION}_Linux_amd64
+          chmod +x /usr/local/bin/zarf
+          zarf version
+
+      # ── Install cosign ────────────────────────────────────────────────────
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: ${{ env.COSIGN_VERSION }}
+
+      - name: Verify cosign
+        run: cosign version
+
+      # ── Install syft (SBOM generator) ─────────────────────────────────────
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
+        with:
+          syft-version: ${{ env.SYFT_VERSION }}
+
+      # ── Log in to ghcr.io ─────────────────────────────────────────────────
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Build Zarf package ────────────────────────────────────────────────
+      - name: Build Zarf package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          zarf package create . \
+            --confirm \
+            --no-progress \
+            --output-directory ./dist
+          PKG=$(ls dist/zarf-package-${PACKAGE_NAME}-amd64-*.tar.zst | head -1)
+          echo "Built: ${PKG}"
+          echo "pkg_file=$(basename ${PKG})" >> "$GITHUB_ENV"
+
+      # ── Generate SBOM ─────────────────────────────────────────────────────
+      - name: Generate SBOM
+        run: |
+          set -euo pipefail
+          SBOM_FILE="dist/${pkg_file%.tar.zst}.sbom.spdx.json"
+          syft . -o spdx-json --file "${SBOM_FILE}"
+          echo "SBOM: ${SBOM_FILE}"
+          echo "sbom_file=$(basename ${SBOM_FILE})" >> "$GITHUB_ENV"
+
+      # ── Keyless sign package blob ─────────────────────────────────────────
+      # cosign sign-blob obtains a short-lived cert from Fulcio via GitHub OIDC.
+      # The signing bundle (cert + signature + Rekor log entry) is written to
+      # ${pkg_file}.cosign.bundle — no private key is stored anywhere.
+      - name: Sign Zarf package (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          PKG="dist/${pkg_file}"
+          BUNDLE="${PKG}.cosign.bundle"
+
+          cosign sign-blob \
+            --yes \
+            --bundle "${BUNDLE}" \
+            "${PKG}"
+
+          echo "Signed: ${PKG}"
+          echo "Bundle: ${BUNDLE}"
+
+          CERT_IDENTITY="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/zarf-package-sign.yml@refs/heads/main"
+          CERT_ISSUER="https://token.actions.githubusercontent.com"
+          cat >> "${GITHUB_STEP_SUMMARY}" <<SUMMARY
+          ### Signed package
+
+          \`\`\`bash
+          cosign verify-blob \\
+            --bundle dist/${pkg_file}.cosign.bundle \\
+            --certificate-identity "${CERT_IDENTITY}" \\
+            --certificate-oidc-issuer "${CERT_ISSUER}" \\
+            dist/${pkg_file}
+          \`\`\`
+          SUMMARY
+
+      # ── Attest SBOM (DSSE) ────────────────────────────────────────────────
+      - name: Attest SBOM (keyless DSSE)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          PKG="dist/${pkg_file}"
+          SBOM="dist/${sbom_file}"
+
+          cosign attest-blob \
+            --yes \
+            --predicate "${SBOM}" \
+            --type spdxjson \
+            --bundle "${PKG}.sbom.bundle" \
+            "${PKG}"
+
+          echo "SBOM attestation: ${PKG}.sbom.bundle"
+
+      # ── Publish to OCI registry ───────────────────────────────────────────
+      - name: Publish to GHCR
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          PKG="dist/${pkg_file}"
+          zarf package publish "${PKG}" "oci://${REGISTRY}/${ORG}/packages" \
+            --no-progress
+          echo "Published: oci://${REGISTRY}/${ORG}/packages/${PACKAGE_NAME}-amd64:${VERSION}"
+
+      # ── Upload artifacts ──────────────────────────────────────────────────
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zarf-package-signed
+          retention-days: 14
+          path: |
+            dist/zarf-package-*.tar.zst
+            dist/zarf-package-*.cosign.bundle
+            dist/zarf-package-*.sbom.bundle
+            dist/*.sbom.spdx.json

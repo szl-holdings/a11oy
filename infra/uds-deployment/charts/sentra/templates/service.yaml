@@ -1,0 +1,17 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Service for sentra — Istio sidecar provides STRICT mTLS (UDS Operator managed).
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-sentra
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: sentra
+    app.kubernetes.io/name: sentra
+spec:
+  selector:
+    app: sentra
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}

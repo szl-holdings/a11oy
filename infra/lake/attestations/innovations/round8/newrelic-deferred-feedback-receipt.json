@@ -1,0 +1,25 @@
+{
+    "idea_id": "R8-L4",
+    "idea_name": "NEWRELIC-DEFERRED-FEEDBACK-RECEIPT",
+    "lean_path": "Lutar/Innovations/round8/NewRelicFeedback.lean",
+    "source": "New Relic AI Monitoring Ruby SDK \u2014 recordLlmFeedbackEvent (2024)",
+    "academic_citation": "New Relic Inc., 'AI Monitoring Ruby agent API guide' (2024). https://docs.newrelic.com/docs/apm/agents/ruby-agent/api-guides/ai-monitoring/",
+    "plug_in_target": "sentra / amaru \u2014 deferred feedback receipt binding",
+    "sorry_free": true,
+    "doctrine": "v11",
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "kernel_commit": "c7c0ba17",
+    "lambda": "Conjecture 1 - NOT a theorem",
+    "ts": "2026-06-03T13:49:00+00:00",
+    "cycle": "round8-leader-scrape-plus-ancient-redecode",
+    "slsa": "L1 honest",
+    "pr_url": "PENDING",
+    "receipt_hash": "ef7cb9f23b9f764da8c6b00aaa03bc205ac538914bddcfb1dcae144557242d22",
+    "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+    "dco": {
+        "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+        "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+    }
+}

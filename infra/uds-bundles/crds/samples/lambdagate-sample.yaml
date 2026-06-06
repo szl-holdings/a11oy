@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# Sample LambdaGate — a11oy citation gate (Lambda-7). Lambda Conjecture 1 (NOT a theorem).
+# Doctrine v11 LOCKED 749/14/163. enforcementMode starts Audit; promote to Deny
+# only after a green dress rehearsal (per SZL_K8S_NATIVE_PATTERNS.md §5).
+apiVersion: szl.dev/v1alpha1
+kind: LambdaGate
+metadata:
+  name: a11oy-citation-gate
+spec:
+  axis: "Lambda-7"                     # which Lambda-axis this gate enforces
+  failClosed: true                     # compiles to VAP failurePolicy: Fail
+  match:
+    namespaces: ["szl-a11oy"]
+    resources: ["pods", "deployments"]
+  requirements:
+    - expression: "object.metadata.labels['dsse-receipt'] == 'required'"
+      message: "Lambda-7: workload must emit a signed DSSE receipt (fail-CLOSED)"
+    - expression: "object.metadata.labels['lambda.szl.dev/axis'] == 'Lambda-7'"
+      message: "Lambda-7: workload must declare its Lambda-axis"
+  doctrineRef:
+    name: szl-doctrine-v11             # paramRef target — the DoctrineLock below
+  enforcementMode: Audit               # Audit -> Warn -> Deny progressive rollout

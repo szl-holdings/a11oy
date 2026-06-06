@@ -1,0 +1,78 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# UDS Package CR for szl-killinchu
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17
+#
+# This CR registers szl-killinchu with the UDS Operator so that:
+#   - Istio sidecar injection is managed by UDS Core
+#   - NetworkPolicy is UDS-operated (not raw Cilium)
+#   - SSO (Keycloak OIDC) is provisioned automatically
+#   - Prometheus monitoring is configured via ServiceMonitor
+#
+# The UDS Operator (Pepr-based, uds-core) watches this CR and reconciles
+# Istio configs, NetworkPolicies, and Keycloak clients.
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: szl-killinchu
+  namespace: szl-killinchu
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/kernel-commit: "c7c0ba17"
+    szl.io/slsa-level: "L1"
+spec:
+  network:
+    expose:
+      - host: killinchu
+        service: killinchu
+        port: 7860
+        gateway: tenant
+        selector:
+          app: szl-killinchu
+    allow:
+      - direction: Egress
+        description: "Keycloak OIDC token endpoint"
+        remoteNamespace: keycloak
+        remoteSelector:
+          app.kubernetes.io/name: keycloak
+        port: 8443
+        remoteProtocol: TLS
+      - direction: Egress
+        description: "SZL receipts server (DSSE audit sink)"
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app.kubernetes.io/name: szl-receipts-server
+        port: 8080
+      - direction: Ingress
+        description: "IntraNamespace (Istio sidecar + health probes)"
+        remoteGenerated: IntraNamespace
+  sso:
+    - clientId: uds-szl-killinchu
+      name: "SZL Killinchu"
+      protocol: openid-connect
+      redirectUris:
+        - "https://killinchu.uds.dev/*"
+      webOrigins:
+        - "https://killinchu.uds.dev"
+      standardFlowEnabled: true
+      enableAuthserviceSelector:
+        app: szl-killinchu
+      groups:
+        anyOf:
+          - /szl-operators
+      secretConfig:
+        name: szl-killinchu-oidc-secret
+        template: |
+          OIDC_CLIENT_ID: "{{ .clientId }}"
+          OIDC_CLIENT_SECRET: "{{ .secret }}"
+          OIDC_ISSUER: "https://sso.uds.dev/realms/uds"
+  monitor:
+    - description: "szl-killinchu Prometheus metrics"
+      portName: http-metrics
+      targetPort: 9090
+      selector:
+        app: szl-killinchu
+      path: /metrics
+      kind: ServiceMonitor

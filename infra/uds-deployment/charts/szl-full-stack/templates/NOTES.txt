@@ -1,0 +1,52 @@
+SZL Full Stack Helm Chart v{{ .Chart.Version }}
+Doctrine v6 strict
+
+DEPLOYMENT STATUS:
+─────────────────────────────────────────────────────────────────────────────
+
+  szl-receipts:       {{ if index .Values "szl-receipts" "enabled" }}ENABLED  ✓{{ else }}DISABLED{{ end }}
+  a11oy-runtime:      {{ if index .Values "a11oy-runtime" "enabled" }}ENABLED  ✓{{ else }}[STAGED: awaiting FA-001 container push]{{ end }}
+  sentra-gates:       {{ if index .Values "sentra-gates" "enabled" }}ENABLED  ✓{{ else }}[STAGED: awaiting FA-001 container push]{{ end }}
+  amaru-attestation:  {{ if index .Values "amaru-attestation" "enabled" }}ENABLED  ✓{{ else }}[STAGED: awaiting FA-001 container push]{{ end }}
+  rosie-replay:       {{ if index .Values "rosie-replay" "enabled" }}ENABLED  ✓{{ else }}[STAGED: awaiting FA-001 container push]{{ end }}
+
+─────────────────────────────────────────────────────────────────────────────
+
+{{ if index .Values "szl-receipts" "enabled" }}
+ACCESS THE RECEIPT DASHBOARD:
+
+  kubectl port-forward svc/szl-receipts-server 8443:8443 -n szl-receipts &
+  curl http://localhost:8443/health
+{{ end }}
+
+TRIGGER A WORKLOAD RECEIPT:
+
+  uds run demo:workload
+  # OR
+  kubectl run test --image=nginx --restart=Never -n default
+
+VERIFY RECEIPTS:
+
+  curl -s http://localhost:8443/receipts | python3 -m json.tool
+
+─────────────────────────────────────────────────────────────────────────────
+
+TO ENABLE STAGED COMPONENTS (after FA-001 completed):
+
+  helm upgrade {{ .Release.Name }} szl-full-stack \
+    --set 'a11oy-runtime.enabled=true' \
+    --set 'sentra-gates.enabled=true' \
+    --set 'amaru-attestation.enabled=true' \
+    --set 'rosie-replay.enabled=true'
+
+─────────────────────────────────────────────────────────────────────────────
+
+DOCTRINE COMPLIANCE CHECK:
+
+  grep -rn "STAGED" $(helm get manifest {{ .Release.Name }} | grep Source)
+
+─────────────────────────────────────────────────────────────────────────────
+SZL UDS = Unified Decision Span. Not a Defense Unicorns product.
+Andrew Greene Option-A endorsement: 2026-05-22 (collaboration only).
+UDS Catalog status: NOT SUBMITTED. See catalog-submission/README.md.
+─────────────────────────────────────────────────────────────────────────────

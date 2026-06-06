@@ -1,0 +1,5 @@
+{{/* NOTES */}}
+SZL Killinchu deployed to namespace {{ .Values.namespace }}.
+Health:  kubectl -n {{ .Values.namespace }} port-forward svc/killinchu 7860:7860
+         curl http://localhost:7860/api/killinchu/healthz
+Operational: pull the network cable — it still serves. Doctrine v11 LOCKED 749/14/163.

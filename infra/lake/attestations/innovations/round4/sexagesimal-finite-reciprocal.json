@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-03",
+  "idea_name": "SEXAGESIMAL-FINITE-RECIPROCAL",
+  "lean_path": "Lutar/Innovations/round4/SexagesimalReciprocal.lean",
+  "source": "Babylonian reciprocal tables, ~2000 BCE",
+  "academic_citation": "Robson, Mathematics in Ancient Iraq (Princeton UP, 2008)",
+  "plug_in_target": "amaru \u2014 receipt shard slot divisibility",
+  "sorry_free": false,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "a3e6ba429abdbc611b37af3b9591d6882bb8d54e163060cc3350e29c392c8d0d",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

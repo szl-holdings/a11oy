@@ -1,0 +1,122 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Standalone NGINX manifest for the SZL anatomy demo UI.
+# Applied directly via kubectl when not using the Helm chart.
+# The dashboard HTML is served from a ConfigMap.
+#
+# Apply with:
+#   kubectl apply -f ui/dashboard.yaml -n szl-receipts
+#   kubectl port-forward svc/szl-dashboard 8080:80 -n szl-receipts
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: szl-dashboard-html
+  namespace: szl-receipts
+  labels:
+    app.kubernetes.io/name: szl-dashboard
+    szl.io/component: dashboard
+data:
+  # The live HTML is served from the Helm chart ConfigMap (configmap.yaml).
+  # This standalone manifest references the same content for direct-apply scenarios.
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>SZL Receipts — Warhacker 2026</title>
+      <style>
+        body{background:#0a0e1a;color:#e2e8f0;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:1rem}
+        h1{font-size:1.5rem}p{color:#64748b;max-width:500px;text-align:center}
+        code{background:#1e293b;padding:.2rem .5rem;border-radius:.25rem;font-size:.85rem}
+      </style>
+    </head>
+    <body>
+      <h1>SZL Governance Receipts</h1>
+      <p>This is the standalone dashboard manifest. For the full live receipt feed,
+         deploy via the Helm chart: <code>uds run start</code></p>
+      <p>The receipt server is at <code>http://szl-receipts-server.szl-receipts.svc:8443</code></p>
+    </body>
+    </html>
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: szl-dashboard
+  namespace: szl-receipts
+  labels:
+    app.kubernetes.io/name: szl-dashboard
+    szl.io/component: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: szl-dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: szl-dashboard
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: docker.io/library/nginx:1.27-alpine
+          ports:
+            - name: http
+              containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+      volumes:
+        - name: html
+          configMap:
+            name: szl-dashboard-html
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-dashboard
+  namespace: szl-receipts
+  labels:
+    app.kubernetes.io/name: szl-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: szl-dashboard
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: Apache-2.0
+# Λ-Bounty webhook intake — repository_dispatch + manual dispatch receiver.
+# Validates a Conjecture-1 submission payload, emits a hash-chained intake receipt,
+# and commits it to submissions/receipts/. Eligibility is still decided ONLY by
+# verify-proof.yml on the actual PR. Sign: Yachay.
+name: bounty-webhook
+
+on:
+  # External webhook: POST to the repository_dispatch API with event_type=lambda-bounty-submit
+  #   curl -X POST -H "Authorization: Bearer <token>" \
+  #        -H "Accept: application/vnd.github+json" \
+  #        https://api.github.com/repos/szl-holdings/lambda-bounty/dispatches \
+  #        -d '{"event_type":"lambda-bounty-submit","client_payload":{...submission...}}'
+  repository_dispatch:
+    types: [lambda-bounty-submit]
+  # Manual fallback from the Actions tab
+  workflow_dispatch:
+    inputs:
+      submitter_name: { description: "Submitter name (thesis attribution)", required: true }
+      pr_url:         { description: "PR url (https://github.com/szl-holdings/lambda-bounty/pull/N)", required: true }
+      axiom_print:    { description: "#print axioms output", required: false, default: "" }
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Build payload
+        id: payload
+        env:
+          CP: ${{ toJSON(github.event.client_payload) }}
+          IN_NAME: ${{ github.event.inputs.submitter_name }}
+          IN_PR:   ${{ github.event.inputs.pr_url }}
+          IN_AX:   ${{ github.event.inputs.axiom_print }}
+        run: |
+          python - <<'PY'
+          import json, os
+          cp = os.environ.get("CP") or "null"
+          try:
+              payload = json.loads(cp)
+          except Exception:
+              payload = None
+          if not payload:  # workflow_dispatch path
+              payload = {
+                  "submitter": {"name": os.environ.get("IN_NAME","?")},
+                  "pr_url": os.environ.get("IN_PR",""),
+                  "lean_toolchain": "leanprover/lean4:v4.13.0",
+                  "axiom_print": os.environ.get("IN_AX",""),
+                  "sorry_free_claim": True,
+              }
+          open("/tmp/payload.json","w").write(json.dumps(payload))
+          print("payload built")
+          PY
+
+      - name: Validate + emit intake receipt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LAMBDA_BOUNTY_HMAC_KEY: ${{ secrets.LAMBDA_BOUNTY_HMAC_KEY }}
+        run: |
+          python - <<'PY'
+          import json, sys
+          sys.path.insert(0, "webhook")
+          import intake
+          payload = json.load(open("/tmp/payload.json"))
+          code, body = intake.handle_submit(payload)
+          print(json.dumps(body, indent=2))
+          # Non-blocking: invalid intake still records a receipt, but flags the run.
+          open("/tmp/intake_result.json","w").write(json.dumps(body))
+          if not body["accepted_intake"]:
+              print("::warning::Intake payload invalid — receipt recorded with errors. "
+                    "Eligibility is decided by verify-proof CI on the PR.")
+          PY
+
+      - name: Commit intake receipt
+        run: |
+          git config user.name "Yachay"
+          git config user.email "yachay@szlholdings.dev"
+          git add submissions/receipts/intake_ledger.jsonl || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(bounty): record Λ-bounty intake receipt [skip ci]"
+            git push
+          else
+            echo "no new receipt to commit"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Λ-bounty intake" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/intake_result.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "Eligibility for the founder-set award is decided ONLY by verify-proof CI on the PR." >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,67 @@
+# UDS Package CR for szl-amaru
+# Doctrine v11 LOCKED 749/14/163
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: szl-amaru
+  namespace: szl-amaru
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/kernel-commit: "c7c0ba17"
+    szl.io/slsa-level: "L1"
+spec:
+  network:
+    expose:
+      - host: amaru
+        service: szl-amaru
+        port: 8080
+        gateway: tenant
+        selector:
+          app: szl-amaru
+    allow:
+      - direction: Egress
+        description: "Keycloak OIDC token endpoint"
+        remoteNamespace: keycloak
+        remoteSelector:
+          app.kubernetes.io/name: keycloak
+        port: 8443
+        remoteProtocol: TLS
+      - direction: Egress
+        description: "Peat mesh QUIC CRDT sync"
+        remoteNamespace: peat-system
+        remoteSelector:
+          app.kubernetes.io/name: peat-mesh
+        port: 4001
+        remoteProtocol: UDP
+      - direction: Ingress
+        description: "IntraNamespace sidecar and probes"
+        remoteGenerated: IntraNamespace
+  sso:
+    - clientId: uds-szl-amaru
+      name: "SZL Amaru"
+      protocol: openid-connect
+      redirectUris:
+        - "https://amaru.uds.dev/*"
+      webOrigins:
+        - "https://amaru.uds.dev"
+      standardFlowEnabled: true
+      enableAuthserviceSelector:
+        app: szl-amaru
+      groups:
+        anyOf:
+          - /szl-operators
+      secretConfig:
+        name: szl-amaru-oidc-secret
+        template: |
+          OIDC_CLIENT_ID: "{{ .clientId }}"
+          OIDC_CLIENT_SECRET: "{{ .secret }}"
+          OIDC_ISSUER: "https://sso.uds.dev/realms/uds"
+  monitor:
+    - description: "szl-amaru Prometheus metrics"
+      portName: http-metrics
+      targetPort: 9090
+      selector:
+        app: szl-amaru
+      path: /metrics
+      kind: ServiceMonitor

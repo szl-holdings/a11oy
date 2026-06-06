@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "HomflyReceipt",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "szl-lake/homflyreceipt_gate",
+      "digest": {
+        "sha256": "0a2d153d81c00688b576e5a012ae6117465639807456d1bb72eb590cac3b1e9d"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "knot_theory x audit_chain_integrity",
+    "invariant": "HOMFLY_polynomial",
+    "tamper_class": "topological"
+  }
+}

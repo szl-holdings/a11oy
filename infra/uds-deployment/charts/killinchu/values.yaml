@@ -1,0 +1,52 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# killinchu Helm values — STIG-aligned securityContext, default-deny NetworkPolicy,
+# STRICT mTLS via Istio (managed by UDS Operator / uds-core).
+namespace: szl-killinchu
+replicas: 1
+
+image:
+  repository: ghcr.io/szl-holdings/killinchu
+  tag: "uds-v0.2.0"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8080
+
+healthPath: "/api/killinchu/healthz"
+
+# Receipt-signing key (Ed25519). Provisioned by the szl-key-init pre-install hook
+# into Secret `receiptKeySecret` unless it already exists (BYOK supported).
+receiptKeySecret: szl-receipts-ed25519
+
+# Cross-organ DSSE receipt sink (amaru/killinchu courier targets this).
+receiptsSink:
+  namespace: szl-receipts
+  service: szl-receipts-server
+  port: 8080
+
+istio:
+  enabled: true
+  strictMtls: true   # PeerAuthentication STRICT
+
+monitoring:
+  enabled: true
+  path: /metrics
+  interval: 30s
+
+networkPolicy:
+  enabled: true
+  defaultDeny: true
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {cpu: "1", memory: 1Gi}

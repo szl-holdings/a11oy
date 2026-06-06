@@ -1,0 +1,25 @@
+{
+    "idea_id": "R8-L1",
+    "idea_name": "DATADOG-LLMOBS-QUINTUPLE",
+    "lean_path": "Lutar/Innovations/round8/DatadogLLMObs.lean",
+    "source": "Datadog LLM Observability \u2014 dd-trace-py async context (2024)",
+    "academic_citation": "DataDog Inc., dd-trace-py Issue #13795 (2024). https://github.com/DataDog/dd-trace-py/issues/13795",
+    "plug_in_target": "killinchu / sentra \u2014 LLM call provenance quintuple",
+    "sorry_free": true,
+    "doctrine": "v11",
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "kernel_commit": "c7c0ba17",
+    "lambda": "Conjecture 1 - NOT a theorem",
+    "ts": "2026-06-03T13:34:00+00:00",
+    "cycle": "round8-leader-scrape-plus-ancient-redecode",
+    "slsa": "L1 honest",
+    "pr_url": "PENDING",
+    "receipt_hash": "cc0b4c1bac12377eaa9db29f3d1e662e629770e4debe6b63c5a01c2c3b9e6786",
+    "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+    "dco": {
+        "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+        "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+    }
+}

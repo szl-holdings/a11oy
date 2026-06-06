@@ -1,0 +1,102 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Ed25519 keygen — Helm pre-install hook Job
+#
+# Runs once per `helm install` (hook weight: -5, so it runs before main templates).
+# Generates an Ed25519 keypair via openssl, creates the Secret
+# szl-receipts-ed25519 in the release namespace, then exits 0.
+#
+# Idempotent: if the Secret already exists, the Job prints a message and exits 0
+# immediately — no key is touched, no error is surfaced. This is the BYOK
+# (Bring Your Own Key) path: pre-create the Secret before `uds deploy`.
+#
+# Key material NEVER leaves the cluster. The founder never sees the private key.
+# The customer cluster generates it at deploy time.
+#
+# Image: docker.io/library/alpine:3.21 (public, no auth, has apk openssl).
+# cgr.dev/chainguard/openssl requires pull auth in air-gap Zarf package create.
+#
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17
+# SLSA L1 honest — not L3
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: szl-key-init
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: szl-key-init
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    szl.ai/doctrine-version: "v11"
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: szl-key-init
+    spec:
+      serviceAccountName: szl-key-init
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: false
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keygen
+          image: docker.io/library/alpine:3.21
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              SECRET_NAME="{{ .Values.secretName | default "szl-receipts-ed25519" }}"
+              NAMESPACE="{{ .Values.namespace | default .Release.Namespace }}"
+
+              # Install kubectl and openssl
+              apk add --no-cache curl openssl >/dev/null 2>&1
+              # Install kubectl
+              KUBECTL_VERSION="v1.31.0"
+              curl -sLo /usr/local/bin/kubectl \
+                "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+              chmod +x /usr/local/bin/kubectl
+
+              # Idempotency check: if Secret already exists, exit clean (BYOK path)
+              if kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
+                echo "szl-key-init: Secret $SECRET_NAME exists in $NAMESPACE — skipping keygen (BYOK mode)"
+                exit 0
+              fi
+
+              echo "szl-key-init: Generating Ed25519 keypair..."
+              openssl genpkey -algorithm ED25519 -out /tmp/priv.pem
+              openssl pkey -in /tmp/priv.pem -pubout -out /tmp/pub.pem
+
+              echo "szl-key-init: Creating Secret $SECRET_NAME in $NAMESPACE"
+              kubectl create secret generic "$SECRET_NAME" \
+                -n "$NAMESPACE" \
+                --from-file=key.priv=/tmp/priv.pem \
+                --from-file=key.pub=/tmp/pub.pem
+
+              # Remove key files
+              rm -f /tmp/priv.pem /tmp/pub.pem
+
+              echo "szl-key-init: Ed25519 Secret created. Key material removed from container."
+              echo "szl-key-init: DONE — founder never sees this key."
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"

@@ -1,0 +1,23 @@
+name: Release Please
+
+# Automated changelog + release-PR management via Conventional Commits.
+# Reusable workflow pinned SHA: updated post package-name removal fix
+# Fixed: release-type changed from "node" to "simple" — uds-mesh has no package.json
+# Fixed: removed deprecated package-name input (release-please-action v5)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    uses: szl-holdings/.github/.github/workflows/reusable-release-please.yml@main
+    with:
+      release-type: simple
+      target-branch: main
+    permissions:
+      contents: write
+      pull-requests: write

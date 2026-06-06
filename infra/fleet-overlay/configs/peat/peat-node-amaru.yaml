@@ -1,0 +1,35 @@
+# Peat Mesh Node config for szl-amaru
+# Requires defenseunicorns/peat-node sidecar injector
+apiVersion: peat.dev/v1alpha1
+kind: PeatNode
+metadata:
+  name: szl-amaru
+  namespace: szl-amaru
+spec:
+  selector:
+    matchLabels:
+      app: szl-amaru
+  mesh:
+    meshRef:
+      name: szl-fleet-mesh
+      namespace: peat-system
+  grpc:
+    port: 50051
+  quic:
+    port: 4001
+    listenAddr: "0.0.0.0"
+  crdt:
+    documentNamespace: "szl.amaru"
+    peers:
+      - "szl.a11oy"
+      - "szl.sentra"
+      - "szl.amaru"
+      - "szl.rosie"
+      - "szl.killinchu"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"

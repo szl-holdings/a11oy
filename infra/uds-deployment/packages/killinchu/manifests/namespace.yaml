@@ -1,0 +1,15 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-killinchu
+  labels:
+    app.kubernetes.io/name: killinchu
+    szl.io/component: uds-workload
+    # UDS Operator + Istio sidecar injection
+    istio-injection: enabled
+    # Pod Security Standards: restricted enforcement (doctrine)
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

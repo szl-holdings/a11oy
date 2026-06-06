@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · Lambda Conjecture 1 · SLSA L1+L2
+#
+# Helm values overlay that injects the cosign private key as an ENV VAR
+# (NOT a mounted file) into each of the five SZL organ Deployments.
+#
+# Apply with, e.g.:
+#   helm upgrade --install <organ> <chart> -n szl -f deploy/helm/values-cosign.yaml
+#
+# The secret is OPTIONAL (optional: true): if it is absent the organ emits
+# honest UNSIGNED DSSE receipts (signatures: []) — it NEVER fabricates a signature.
+
+cosign:
+  secretName: szl-cosign      # Kubernetes Secret holding the private key
+  secretKey: cosign.key       # key within the Secret
+  envVar: SZL_COSIGN_PRIVATE_KEY_PEM
+  optional: true              # honest fallback
+
+# Per-organ env injection. A Helm chart that renders container `env` from this
+# list will add the cosign key to every organ pod. Mirror of the raw manifests
+# under deploy/organs/*.yaml.
+organs:
+  - a11oy
+  - sentra
+  - amaru
+  - killinchu
+  - rosie
+
+# Rendered env entry (chart templates iterate `extraEnv` onto each container):
+extraEnv:
+  - name: SZL_COSIGN_PRIVATE_KEY_PEM
+    valueFrom:
+      secretKeyRef:
+        name: szl-cosign
+        key: cosign.key
+        optional: true   # honest fallback

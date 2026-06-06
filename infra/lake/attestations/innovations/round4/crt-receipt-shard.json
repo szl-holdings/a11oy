@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-09",
+  "idea_name": "CRT-RECEIPT-SHARD",
+  "lean_path": "Lutar/Innovations/round4/CRTReceiptShard.lean",
+  "source": "Sunzi Suanjing (Sun Tzu's Mathematical Manual), ~3rd-5th century CE",
+  "academic_citation": "Needham, Science and Civilisation in China Vol. 3 (Cambridge UP, 1959)",
+  "plug_in_target": "UDS Pepr policy / amaru \u2014 receipt ID sharding with CRT reconstruction",
+  "sorry_free": true,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "8bce6c1c8671421ee6cb53b31d465551b7a947969a4de358d0fe8d70ef885106",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

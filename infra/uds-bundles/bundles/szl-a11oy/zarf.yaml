@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: Apache-2.0
+# Zarf package definition — szl-a11oy
+# Author: Yachay <yachay@szlholdings.dev> (DCO signed)
+# Doctrine v11 LOCKED 749/14/163
+# OPERATIONAL: deploy in 60s, pull the network cable, it still works.
+kind: ZarfPackageConfig
+metadata:
+  name: szl-a11oy
+  version: 0.2.0
+  # zarfVersion: ">=0.77.0" removed — not a valid Zarf metadata field; enforce via CI --no-progress check
+  description: "SZL a11oy — Governance + policy overlay + agentic /code (adds the governance layer UDS Core lacks)"
+  architecture: amd64
+  authors: "Yachay <yachay@szlholdings.dev>"
+  source: "https://github.com/szl-holdings/a11oy"
+  url: "https://huggingface.co/spaces/SZLHOLDINGS/a11oy"
+  # Air-gap: all images + charts are baked into the .tar.zst; no pull at deploy time.
+  yolo: false
+
+components:
+  - name: a11oy-runtime
+    required: true
+    description: "Governance policy gate (Λ-anchors) + agentic /code orchestrator emitting DSSE receipts per agent action."
+    charts:
+      - name: a11oy
+        namespace: szl-a11oy
+        localPath: ./chart
+        version: 0.2.0
+        valuesFiles:
+          - ./chart/values.yaml
+    images:
+      - "ghcr.io/szl-holdings/a11oy:uds-v0.2.0"
+    # Pepr admission policies applied as raw manifests at deploy time.
+    manifests:
+      - name: a11oy-pepr-policies
+        namespace: szl-a11oy
+        files:
+          - ./policies/namespace-isolation.yaml
+          - ./policies/dsse-receipt-egress.yaml
+          - ./policies/section889-denylist.yaml
+          # K8s-native additive gates (alongside Pepr; Audit/warn during rollout)
+          - ./policies/lambda-gate.vap.yaml
+          - ./policies/cosign-image-policy.yaml
+
+  - name: a11oy-sbom-attest
+    required: false
+    description: "SBOM (SPDX 2.3 + CycloneDX 1.4) and SLSA L1 provenance, shipped in-bundle."
+    files:
+      - source: ./sbom/a11oy.spdx.json
+        target: ./sbom/a11oy.spdx.json
+      - source: ./sbom/a11oy.cyclonedx.json
+        target: ./sbom/a11oy.cyclonedx.json
+      - source: ./attestations/a11oy.slsa-provenance.json
+        target: ./attestations/a11oy.slsa-provenance.json
+
+  - name: szl-a11oy-uds-package
+    required: true
+    description: "UDS Package CR — registers szl-a11oy with UDS Operator for Istio, NetworkPolicy, SSO, and monitoring"
+    manifests:
+      - name: szl-a11oy-uds-package
+        namespace: szl-a11oy
+        files:
+          - ./manifests/uds-package.yaml

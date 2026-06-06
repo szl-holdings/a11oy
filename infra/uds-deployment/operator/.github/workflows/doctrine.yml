@@ -1,0 +1,12 @@
+name: Doctrine
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    uses: szl-holdings/.github/.github/workflows/doctrine-check.yml@main

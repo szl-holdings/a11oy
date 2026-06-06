@@ -1,0 +1,17 @@
+{
+  "idea_id": "INN-01",
+  "idea_name": "KHIPU-EMIT-MONOTONE",
+  "lean_path": "Lutar/Innovations/round3/KhipuEmitMonotone.lean",
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T04:33:51.402491+00:00",
+  "cycle": "meta-replay-round3",
+  "slsa": "L1 honest",
+  "receipt_hash": "602f7008f2402928f762fc5efc94ced23ab66faf063457bb9a85b408f32d4240",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+  "note": "Khipu emission monotonicity \u2014 sorry-free proof"
+}

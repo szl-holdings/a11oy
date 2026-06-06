@@ -1,0 +1,108 @@
+# Organ Deployment: killinchu
+# Image: ghcr.io/szl-holdings/killinchu:uds-v0.2.0 (from bundle oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0)
+# Supply-chain gate: initContainer runs cosign verify + slsa-verifier. FAIL-CLOSED.
+# !!! HONEST GAP: the killinchu image is PRIVATE on GHCR. Until the founder flips
+# !!! ghcr.io/szl-holdings/killinchu to public (or a pull secret is added), this
+# !!! Deployment will ImagePullBackOff. This is EXPECTED. See HONEST_GAPS.md and
+# !!! FOUNDER_BUILD_ENV.md. Do NOT assume killinchu is public.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: killinchu
+  namespace: szl
+  labels:
+    app: killinchu
+    szl.organ: "killinchu"
+    szl.doctrine: "v11-749-14-163-c7c0ba17"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: killinchu
+  template:
+    metadata:
+      labels:
+        app: killinchu
+        szl.organ: "killinchu"
+    spec:
+      # cosign public key for the supply-chain gate (NOT a secret — public key only)
+      volumes:
+        - name: cosign-pub
+          configMap:
+            name: szl-cosign-pub
+      initContainers:
+        - name: cosign-gate
+          image: ghcr.io/sigstore/cosign/cosign:v2.4.1
+          # The slsa-verifier binary is layered into a small helper image in CI;
+          # for local kind we shell out to cosign and treat missing slsa provenance
+          # as L1-honest (see verify/cosign-init.sh for the authoritative gate).
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              IMAGE="$ORGAN_IMAGE"
+              echo "[cosign-gate] verifying $IMAGE against szl-holdings cosign key + slsa provenance"
+              # 1) cosign verify (keyed). Public key is mounted at /keys/cosign.pub.
+              if ! cosign verify --key /keys/cosign.pub "$IMAGE" --output text > /tmp/cosign.out 2>&1; then
+                echo "::HONEST GATE FAILED:: cosign verify did NOT pass for $IMAGE" >&2
+                echo "------ cosign output ------" >&2; cat /tmp/cosign.out >&2
+                echo "Pod will NOT start. Fix the signature or image ref. See HONEST_GAPS.md." >&2
+                exit 1
+              fi
+              echo "[cosign-gate] cosign signature OK"
+              # 2) slsa-verifier (L2 attestation). Honest: enforce only if provenance exists.
+              if slsa-verifier verify-image "$IMAGE" \
+                   --source-uri "github.com/szl-holdings/${ORGAN_NAME}" \
+                   > /tmp/slsa.out 2>&1; then
+                echo "[cosign-gate] SLSA L2 provenance verified"
+              else
+                if grep -qi "no matching attestations\|no provenance" /tmp/slsa.out; then
+                  echo "[cosign-gate] SLSA: no provenance attestation present -> L1 honest (not failing)"
+                else
+                  echo "::HONEST GATE FAILED:: slsa-verifier rejected $IMAGE" >&2
+                  cat /tmp/slsa.out >&2
+                  exit 1
+                fi
+              fi
+              echo "[cosign-gate] PASS for $IMAGE"
+          env:
+            - { name: ORGAN_NAME,  value: "killinchu" }
+            - { name: ORGAN_IMAGE, value: "ghcr.io/szl-holdings/killinchu:uds-v0.2.0" }
+          volumeMounts:
+            - { name: cosign-pub, mountPath: /keys, readOnly: true }
+      containers:
+        - name: killinchu
+          image: ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            # OTLP export so this organ's spans join the cross-organ trace
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://opentelemetry-collector.szl.svc:4318" }
+            - { name: OTEL_SERVICE_NAME,           value: "killinchu" }
+            - { name: OTEL_TRACES_EXPORTER,        value: "otlp" }
+            - { name: SZL_ORGAN,                   value: "killinchu" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: killinchu
+  namespace: szl
+  labels:
+    app: killinchu
+spec:
+  selector:
+    app: killinchu
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }

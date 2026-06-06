@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "Provenon",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "sentra/provenon_gate",
+      "digest": {
+        "sha256": "76112739554d65bd3ebc2bd1584393d6bdad325cf9178b4ddcb4dfc09d329f92"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "noncomm_poly_identity x receipt_anticollision",
+    "algebra": "free_algebra_k_angle_X",
+    "bound": "1 - d/p"
+  }
+}

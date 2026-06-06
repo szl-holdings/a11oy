@@ -1,0 +1,17 @@
+{
+  "schema": "szl.attest.section889/v1",
+  "attestation": "Section 889 (a)(1)(A)/(B)",
+  "vendors": [
+    "Huawei Technologies",
+    "ZTE Corporation",
+    "Hytera Communications",
+    "Hangzhou Hikvision Digital Technology",
+    "Dahua Technology"
+  ],
+  "status": "COMPLIANT — no covered telecommunications/video-surveillance equipment from named entities (Huawei, ZTE, Hytera, Hikvision, Dahua) in the SZL stack",
+  "banned_vendors_used": [],
+  "sovereign_default": true,
+  "captured_at_utc": "2026-06-02T02:14:39Z",
+  "signed_by": "Yachay (CTO)",
+  "co_author": "Perplexity Computer Agent"
+}

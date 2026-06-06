@@ -1,0 +1,7 @@
+{
+  "schema": "szl.attest.cmmc/v1",
+  "level": "CMMC Level 1 (self-attestation)",
+  "status": "self-attested \u2014 15 FAR 52.204-21 basic safeguarding practices; not a C3PAO assessment",
+  "captured_at_utc": "2026-06-02T02:14:39Z",
+  "signed_by": "Yachay (CTO)"
+}

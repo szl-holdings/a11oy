@@ -1,0 +1,6 @@
+{
+  "schema": "szl.attest.slsa/v1",
+  "slsa_level": "L1 (honest)",
+  "detail": "Real cosign-signed provenance, Sigstore Rekor anchored. L2 on roadmap via Wire D; NOT claimed today. SLSA L3 workflow claim was corrected to L1 in lutar-lean #139.",
+  "captured_at_utc": "2026-06-02T02:14:39Z"
+}

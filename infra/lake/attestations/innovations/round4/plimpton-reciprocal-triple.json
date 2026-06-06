@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-01",
+  "idea_name": "PLIMPTON-RECIPROCAL-TRIPLE",
+  "lean_path": "Lutar/Innovations/round4/PlimptonReciprocal.lean",
+  "source": "Plimpton 322, Babylonian clay tablet ~1800 BCE",
+  "academic_citation": "Neugebauer & Sachs, Mathematical Cuneiform Texts (1945); Robson, Historia Mathematica 28(3):167-206 (2001)",
+  "plug_in_target": "a11oy \u2014 gate scoring integer-lattice basis",
+  "sorry_free": true,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "90fc03b4365200293b01355318ee78fd7a8ef15803738dea94dac34b19a3aad4",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

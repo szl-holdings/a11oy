@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/szl-holdings/lambda-bounty/blob/main/webhook/submission.schema.json",
+  "title": "Λ-Bounty Submission (Conjecture 1 intake)",
+  "description": "Payload POSTed to the Λ-bounty webhook intake endpoint. A valid payload is acknowledged with a hash-chained Khipu intake receipt. Eligibility for the founder-set award is still decided solely by the verify-proof CI on a pull request.",
+  "type": "object",
+  "required": ["submitter", "pr_url", "lean_toolchain", "axiom_print", "sorry_free_claim"],
+  "additionalProperties": false,
+  "properties": {
+    "submitter": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "description": "Name for thesis co-author attribution." },
+        "github": { "type": "string", "description": "GitHub handle (optional)." },
+        "contact": { "type": "string", "description": "Email or contact (optional)." }
+      }
+    },
+    "pr_url": {
+      "type": "string",
+      "pattern": "^https://github\\.com/szl-holdings/lambda-bounty/pull/[0-9]+$",
+      "description": "The pull request against szl-holdings/lambda-bounty that carries the proof. CI on this PR is the sole arbiter."
+    },
+    "lean_toolchain": {
+      "type": "string",
+      "const": "leanprover/lean4:v4.13.0",
+      "description": "Must match the pinned toolchain."
+    },
+    "axiom_print": {
+      "type": "string",
+      "description": "Verbatim output of `#print axioms lambda_aggregator_unique`. Must list only propext / Quot.sound / Classical.choice."
+    },
+    "sorry_free_claim": {
+      "type": "boolean",
+      "const": true,
+      "description": "Submitter asserts no sorry/sorryAx under Lambda/. Verified independently by CI."
+    },
+    "strategy": {
+      "type": "string",
+      "description": "Short prose description of the proof strategy (optional but encouraged)."
+    },
+    "discharges_cauchy_nd": {
+      "type": "boolean",
+      "description": "True if this submission discharges the n-D CAUCHY_ND residual (partial-tier eligible)."
+    }
+  }
+}

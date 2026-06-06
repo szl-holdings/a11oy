@@ -1,0 +1,28 @@
+# SZL Build Env — single-node kind cluster
+# Lightweight: one control-plane node that also schedules workloads.
+# Pinned node image for reproducibility (Kubernetes v1.32.x via kind v0.32.0).
+#
+# NOTE (honesty): Istio ambient mode requires the kind node to expose the
+# host's CNI/iptables surface; the default kind CNI (kindnet) is compatible
+# with Istio ambient ztunnel as of Istio 1.25. No custom CNI swap needed.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: szl-build-env
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.32.2@sha256:f226345927d7e348497136874b6d207e0b32cc52154ad8323129352923a3142f
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # Jaeger UI (OTLP trace viewer) reachable on host localhost:16686
+      - containerPort: 30686
+        hostPort: 16686
+        protocol: TCP
+      # Demo ingress / organ gateway on host localhost:8080
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP

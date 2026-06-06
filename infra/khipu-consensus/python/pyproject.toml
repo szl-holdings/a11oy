@@ -1,0 +1,15 @@
+[project]
+name = "khipu-consensus"
+version = "0.1.0"
+description = "Byzantine-fault-tolerant multi-party signed agreement (3-of-4 BFT) over DSSE/cosign per-witness signatures."
+license = { text = "Apache-2.0" }
+authors = [{ name = "Yachay", email = "yachay@szlholdings.dev" }]
+requires-python = ">=3.9"
+dependencies = ["cryptography>=41.0"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]

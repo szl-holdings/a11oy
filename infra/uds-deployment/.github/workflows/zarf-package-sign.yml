@@ -1,0 +1,193 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# zarf-package-sign.yml — Keyless cosign signing for szl-uds-deployment packages
+#
+# Triggered on push to main or workflow_dispatch. Builds the szl-receipts Zarf
+# package and signs it keyless via GitHub OIDC (Sigstore Fulcio).
+#
+# The existing uds-package-release.yml handles tagged releases for szl-vessels-demo.
+# This workflow handles the szl-receipts package (the core UDS deployment artifact)
+# on every push to main, enabling continuous signed artifact availability.
+#
+# Keyless signing — no COSIGN_KEY secret required:
+#   - Certificate identity = this workflow URL (GitHub OIDC claim)
+#   - Cert issued by Fulcio, logged to Rekor transparency log
+#   - Signing bundle is self-contained for offline verification
+#
+# Verification:
+#   cosign verify-blob \
+#     --bundle <pkg>.cosign.bundle \
+#     --certificate-identity "https://github.com/szl-holdings/szl-uds-deployment/.github/workflows/zarf-package-sign.yml@refs/heads/main" \
+#     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+#     <pkg>
+#
+# Refs:
+#   Zarf v0.77.0: https://github.com/zarf-dev/zarf/releases/tag/v0.77.0
+#   Keyless docs: https://docs.sigstore.dev/cosign/signing/keyless/
+#   SZL_OPERATIONAL_UPGRADES.md U3 (P0, M)
+
+name: Zarf Package Build + Sign (Keyless)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write     # Required for OIDC token exchange with Fulcio (keyless signing)
+  contents: read      # Required for checkout
+  packages: write     # Required to push to ghcr.io
+
+env:
+  ZARF_VERSION: "v0.77.0"
+  COSIGN_VERSION: "v2.4.3"
+  SYFT_VERSION: "v1.18.1"
+  REGISTRY: "ghcr.io"
+  ORG: "szl-holdings"
+
+jobs:
+  package-sign:
+    name: Build & Sign Zarf Package
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Install Zarf v0.77.0 ─────────────────────────────────────────────
+      - name: Install Zarf
+        run: |
+          set -euo pipefail
+          curl -sLo /usr/local/bin/zarf \
+            https://github.com/zarf-dev/zarf/releases/download/${ZARF_VERSION}/zarf_${ZARF_VERSION}_Linux_amd64
+          chmod +x /usr/local/bin/zarf
+          zarf version
+
+      # ── Install cosign ────────────────────────────────────────────────────
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: ${{ env.COSIGN_VERSION }}
+
+      # ── Install syft (SBOM generator) ─────────────────────────────────────
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
+        with:
+          syft-version: ${{ env.SYFT_VERSION }}
+
+      # ── Log in to ghcr.io ─────────────────────────────────────────────────
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Build szl-receipts Zarf package ───────────────────────────────────
+      # The canonical szl-receipts package lives in packages/szl-receipts/
+      - name: Build szl-receipts Zarf package
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          # Build the szl-receipts package (the core UDS deployment artifact)
+          # NOTE: szl-receipts-pepr-policy imports ../../dist/pepr (optional, required: false)
+          # Zarf lint validates the import path even for optional components. Create the
+          # placeholder dir so lint passes without needing a full Pepr build in CI.
+          if [ -f "packages/szl-receipts/zarf.yaml" ]; then
+            mkdir -p dist/pepr
+            # Create a minimal placeholder zarf.yaml so the import resolves
+            printf 'kind: ZarfPackageConfig\nmetadata:\n  name: szl-receipt-policy\n  version: "0.0.0"\n  description: "CI placeholder"\ncomponents:\n  - name: szl-receipt-policy\n    required: false\n    description: "CI placeholder component"\n' > dist/pepr/zarf.yaml
+            zarf package create packages/szl-receipts \
+              --confirm \
+              --no-progress \
+              --output-directory ./dist
+          fi
+
+          # Also build the root zarf.yaml if it exists and differs
+          if [ -f "uds/zarf.yaml" ]; then
+            # uds/zarf.yaml uses ###ZARF_PKG_TMPL_VERSION### — must supply --set VERSION
+            PKG_VERSION="${GITHUB_REF_NAME#v}"  # strip leading v from tag; or use 0.3.1 default
+            PKG_VERSION="${PKG_VERSION:-0.3.1}"
+            zarf package create uds \
+              --set VERSION="${PKG_VERSION}" \
+              --confirm \
+              --no-progress \
+              --output-directory ./dist
+          fi
+
+          ls -lh dist/*.tar.zst 2>/dev/null || { echo "No packages built"; exit 1; }
+          FIRST_PKG=$(ls dist/*.tar.zst | head -1)
+          echo "FIRST_PKG=${FIRST_PKG}" >> "$GITHUB_ENV"
+
+      # ── Generate SBOM ─────────────────────────────────────────────────────
+      - name: Generate SBOM for szl-receipts
+        run: |
+          set -euo pipefail
+          SBOM="dist/szl-receipts.sbom.spdx.json"
+          syft packages/szl-receipts -o spdx-json --file "${SBOM}" 2>/dev/null || \
+            syft . -o spdx-json --file "${SBOM}"
+          echo "SBOM: ${SBOM}"
+
+      # ── Keyless sign all packages ─────────────────────────────────────────
+      - name: Sign all Zarf packages (keyless OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          CERT_IDENTITY="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/zarf-package-sign.yml@refs/heads/main"
+          CERT_ISSUER="https://token.actions.githubusercontent.com"
+
+          for PKG in dist/*.tar.zst; do
+            echo "Signing: ${PKG}"
+            cosign sign-blob \
+              --yes \
+              --bundle "${PKG}.cosign.bundle" \
+              "${PKG}"
+            echo "  -> Bundle: ${PKG}.cosign.bundle"
+          done
+
+          cat >> "${GITHUB_STEP_SUMMARY}" <<SUMMARY
+          ### Signed packages
+
+          Verify with:
+          \`\`\`bash
+          cosign verify-blob \\
+            --bundle <pkg>.cosign.bundle \\
+            --certificate-identity "${CERT_IDENTITY}" \\
+            --certificate-oidc-issuer "${CERT_ISSUER}" \\
+            <pkg>
+          \`\`\`
+          SUMMARY
+
+      # ── Attest SBOM ──────────────────────────────────────────────────────
+      - name: Attest SBOM (keyless DSSE)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          SBOM="dist/szl-receipts.sbom.spdx.json"
+          if [ -f "${SBOM}" ]; then
+            for PKG in dist/*.tar.zst; do
+              cosign attest-blob \
+                --yes \
+                --predicate "${SBOM}" \
+                --type spdxjson \
+                --bundle "${PKG}.sbom.bundle" \
+                "${PKG}"
+            done
+          fi
+
+      # ── Upload signed artifacts ───────────────────────────────────────────
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zarf-package-szl-receipts-signed
+          retention-days: 14
+          path: |
+            dist/*.tar.zst
+            dist/*.cosign.bundle
+            dist/*.sbom.bundle
+            dist/*.sbom.spdx.json

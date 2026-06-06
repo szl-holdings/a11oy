@@ -1,0 +1,54 @@
+# OpenTelemetry Collector config — cross-pod OTLP broker for the 5-organ stack.
+# Organs (and the Istio ambient mesh) export OTLP here; the collector forwards to
+# Jaeger so one traceparent is visible end-to-end across all organs.
+#
+# DSSE-aware processor: STUB. See HONEST_GAPS.md § DSSE. The `transform` processor
+# below copies any `szl.dsse.receipt` / `szl.dsse.predecessor` span attributes onto
+# the span so the receipt chain is queryable in Jaeger. It does NOT yet verify the
+# DSSE signature envelope — that requires the COSIGN public key wired as a secret.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+  # --- DSSE-aware processor (STUB) ------------------------------------------
+  # Promotes DSSE receipt attributes so the receipt chain is visible per-span.
+  # TODO(honest): replace with a verifying processor once COSIGN_PUBLIC_KEY is mounted.
+  transform/dsse:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - set(attributes["szl.dsse.verified"], "stub-unverified") where attributes["szl.dsse.receipt"] != nil
+          - set(attributes["szl.doctrine"], "v11-749-14-163-c7c0ba17")
+  resource:
+    attributes:
+      - { key: deployment.environment, value: szl-build-env, action: upsert }
+
+exporters:
+  # Jaeger now ingests OTLP natively (COLLECTOR_OTLP_ENABLED=true).
+  otlp/jaeger:
+    endpoint: jaeger.szl.svc:4317
+    tls:
+      insecure: true
+  debug:
+    verbosity: normal
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, transform/dsse, batch]
+      exporters: [otlp/jaeger, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheus, debug]

@@ -1,0 +1,38 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# SZL umbrella Helm chart — drops the 7 SZL flagships into a DoD Platform One
+# Big Bang cluster. Big Bang-compatible: Istio sidecar injection, Prometheus
+# scrape annotations + PodMonitor, Gatekeeper/Pepr labels, AuthorizationPolicy,
+# NetworkPolicy default-deny. Author: Yachay <yachay@szlholdings.dev> (DCO signed).
+apiVersion: v2
+name: szl
+description: SZL Holdings umbrella chart — 7 governed flagships for DoD Platform One Big Bang
+type: application
+version: 0.1.0
+appVersion: "uds-v0.1.0"
+home: https://github.com/szl-holdings
+sources:
+  - https://github.com/szl-holdings/uds-bundles
+keywords:
+  - dod
+  - big-bang
+  - uds
+  - counter-uas
+  - ai-governance
+maintainers:
+  - name: Yachay
+    email: yachay@szlholdings.dev
+annotations:
+  # Big Bang package metadata convention
+  bigbang.dev/applicationVersions: |
+    - SZL UDS: v0.1.0
+  helm.sh/images: |
+    - ghcr.io/szl-holdings/a11oy:uds-v0.1.0
+    - ghcr.io/szl-holdings/amaru:uds-v0.1.0
+    - ghcr.io/szl-holdings/sentra:uds-v0.1.0
+    - ghcr.io/szl-holdings/rosie:uds-v0.1.0
+    - ghcr.io/szl-holdings/killinchu:uds-v0.1.0
+    - ghcr.io/szl-holdings/vessels:uds-v0.1.0
+    - ghcr.io/szl-holdings/hatun-mcp:uds-v0.1.0
+# Sub-charts: each flagship reuses the shared Big Bang base patterns rendered
+# from this chart's templates (loop over .Values.flagships). The PER_BUNDLE/*
+# charts remain available as standalone Zarf packages (additive, not removed).

@@ -1,0 +1,122 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# SZL Receipts — UDS Zarf Package
+#
+# This package ships the SZL governance receipt emitter as a UDS add-on.
+# It is NOT a fork or repackage of uds-core. It runs as a separate workload
+# that communicates with the cluster over the network only. No AGPL code
+# is included or modified.
+#
+# This is NOT:
+#   - A replacement for uds-core security policies
+#   - A certified DoD package (Phase 2 intent)
+#   - A production-hardened system (demo-grade, cosign signing is Phase 2)
+#
+# References:
+#   Zarf schema: https://docs.zarf.dev/ref/zarf-package/
+#   UDS add-on pattern: https://github.com/defenseunicorns/uds-core
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/main/zarf.schema.json
+kind: ZarfPackageConfig
+metadata:
+  name: szl-receipts
+  description: "SZL Governance Receipts — DSSE-wrapped audit receipts emitted from live Kubernetes workloads"
+  version: "0.3.1"
+  url: "https://szlholdings.com"
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+  documentation: "https://github.com/szl-holdings/szl-uds-deployment"
+  # NOTE: cosign signing is Phase 2. When a cosign key is available, sign with:
+  #   zarf package publish szl-receipts.tar.zst oci://ghcr.io/szl-holdings --signing-key cosign.key
+
+variables:
+  - name: DOMAIN
+    description: "Cluster domain (must match UDS Core DOMAIN variable)"
+    default: "uds.dev"
+
+  # NOTE (v0.3.1): the RECEIPT_HMAC_KEY variable (and its baked base64 demo key)
+  # was REMOVED per PhD Crypto Finding A2. Receipts are signed with an Ed25519
+  # key the operator provisions as the Secret szl-receipts-ed25519 BEFORE deploy.
+  # See charts/szl-receipts NOTES.txt and templates/secret-keypair.yaml.
+
+  - name: RECEIPTS_REPLICAS
+    description: "Number of szl-receipts-server replicas"
+    default: "1"
+
+  - name: LOG_LEVEL
+    description: "Log level for szl-receipts-server"
+    default: "info"
+
+components:
+  - name: szl-receipts-namespace
+    required: true
+    description: "Create the szl-receipts namespace with required labels"
+    manifests:
+      - name: szl-namespace
+        namespace: szl-receipts
+        files:
+          - manifests/namespace.yaml
+
+  - name: szl-receipts-server
+    required: true
+    description: "Deploy the SZL receipts MCP server and dashboard"
+    only:
+      flavor: upstream
+    charts:
+      - name: szl-receipts
+        namespace: szl-receipts
+        version: 0.3.1
+        localPath: charts/szl-receipts
+        valuesFiles:
+          - charts/szl-receipts/values.yaml
+    images:
+      # v0.3.1: built OCI image (services/szl-receipts-server/Dockerfile),
+      # replacing the prior ConfigMap-on-python:3.12-slim approach.
+      - ghcr.io/szl-holdings/szl-receipts-server:uds-v0.3.1
+      # NGINX for the dashboard UI
+      - docker.io/library/nginx:1.27-alpine
+    actions:
+      onDeploy:
+        after:
+          - description: "Wait for szl-receipts-server to be ready"
+            maxTotalSeconds: 120
+            wait:
+              cluster:
+                kind: Deployment
+                name: szl-receipts-server
+                namespace: szl-receipts
+                condition: Available
+
+  - name: szl-receipts-pepr-policy
+    required: false
+    description: "Deploy the SZL Pepr policy that annotates Deployments/Jobs with receipt IDs"
+    import:
+      name: szl-receipt-policy
+      path: dist/pepr
+    actions:
+      onDeploy:
+        after:
+          - description: "Verify Pepr policy is loaded"
+            cmd: |
+              ./zarf tools kubectl get mutatingwebhookconfigurations.admissionregistration.k8s.io \
+                -l pepr.dev/controller=szl-receipts 2>/dev/null || \
+                echo "WARN: Pepr webhook not yet visible — may take up to 30s"
+
+  - name: szl-ui-dashboard
+    required: false
+    description: "NGINX-served SZL anatomy demo UI"
+    charts:
+      - name: szl-ui-dashboard
+        namespace: szl-receipts
+        version: 0.3.1
+        localPath: ui/chart
+    images:
+      - docker.io/library/nginx:1.27-alpine
+
+  - name: kyverno-verify-attestations
+    required: true
+    description: "Kyverno ClusterPolicy: enforce GitHub-signed build provenance on all szl-holdings images"
+    manifests:
+      - name: kyverno-policy
+        files:
+          - policies/kyverno-verify-attestations.yaml

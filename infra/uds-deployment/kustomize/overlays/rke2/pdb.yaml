@@ -1,0 +1,15 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# PodDisruptionBudget for RKE2 rolling upgrades.
+# Ensures at least 2 replicas are available during node drains.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: szl-receipts-server
+  namespace: szl-receipts
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: szl-receipts-server

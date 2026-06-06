@@ -1,0 +1,41 @@
+| caller \ callee | rosie | a11oy | amaru | sentra | vessels | receipts |
+|---|---|---|---|---|---|---|
+| **rosie** | ALLOW | ALLOW | DENY | DENY | DENY | ALLOW |
+| **a11oy** | ALLOW | ALLOW | ALLOW | ALLOW | ALLOW | ALLOW |
+| **amaru** | DENY | ALLOW | ALLOW | DENY | DENY | ALLOW |
+| **sentra** | ALLOW | ALLOW | ALLOW | ALLOW | ALLOW | ALLOW |
+| **vessels** | DENY | ALLOW | DENY | DENY | ALLOW | ALLOW |
+| **receipts** | DENY | DENY | DENY | DENY | DENY | ALLOW |
+
+# cross-pairs: 16 ALLOW, 14 DENY, 6 self-ALLOW = 36 total
+
+rosie     -> a11oy     : ALLOW  # rosie commands a11oy (operator -> policy substrate)
+rosie     -> amaru     : DENY   # operator commands route through a11oy, never direct to organs
+rosie     -> sentra    : DENY   # operator commands route through a11oy, never direct to organs
+rosie     -> vessels   : DENY   # operator commands route through a11oy, never direct to organs
+rosie     -> receipts  : ALLOW  # receipt fan-out: every module emits to the chain authority
+a11oy     -> rosie     : ALLOW  # a11oy emits events to rosie for human display
+a11oy     -> amaru     : ALLOW  # a11oy delegates to the organ (memory/immune/skeleton)
+a11oy     -> sentra    : ALLOW  # a11oy delegates to the organ (memory/immune/skeleton)
+a11oy     -> vessels   : ALLOW  # a11oy delegates to the organ (memory/immune/skeleton)
+a11oy     -> receipts  : ALLOW  # receipt fan-out: every module emits to the chain authority
+amaru     -> rosie     : DENY   # memory has no need to reach immune/skeleton/operator
+amaru     -> a11oy     : ALLOW  # amaru responds to a11oy's memory queries
+amaru     -> sentra    : DENY   # memory has no need to reach immune/skeleton/operator
+amaru     -> vessels   : DENY   # memory has no need to reach immune/skeleton/operator
+amaru     -> receipts  : ALLOW  # receipt fan-out: every module emits to the chain authority
+sentra    -> rosie     : ALLOW  # sentra is the immune system; may inspect all module traffic
+sentra    -> a11oy     : ALLOW  # sentra is the immune system; may inspect all module traffic
+sentra    -> amaru     : ALLOW  # sentra is the immune system; may inspect all module traffic
+sentra    -> vessels   : ALLOW  # sentra is the immune system; may inspect all module traffic
+sentra    -> receipts  : ALLOW  # receipt fan-out: every module emits to the chain authority
+vessels   -> rosie     : DENY   # deployment fabric is downstream; no sibling/operator calls
+vessels   -> a11oy     : ALLOW  # vessels reports deployment status up to a11oy
+vessels   -> amaru     : DENY   # deployment fabric is downstream; no sibling/operator calls
+vessels   -> sentra    : DENY   # deployment fabric is downstream; no sibling/operator calls
+vessels   -> receipts  : ALLOW  # receipt fan-out: every module emits to the chain authority
+receipts  -> rosie     : DENY   # receipts-server is a sink; it never calls modules
+receipts  -> a11oy     : DENY   # receipts-server is a sink; it never calls modules
+receipts  -> amaru     : DENY   # receipts-server is a sink; it never calls modules
+receipts  -> sentra    : DENY   # receipts-server is a sink; it never calls modules
+receipts  -> vessels   : DENY   # receipts-server is a sink; it never calls modules

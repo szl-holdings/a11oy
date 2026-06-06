@@ -1,0 +1,26 @@
+{{- if .Values.networkPolicy.cilium }}
+{{/* SPDX-License-Identifier: Apache-2.0 */}}
+{{/* CiliumNetworkPolicy L7 — DSSE-receipt egress pinned to KhipuReceipt write path. */}}
+{{/* Cilium v1.19.4 (Apache-2.0). Gated on networkPolicy.cilium so non-Cilium clusters skip. */}}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: szl-{{ .Values.namespace }}-l7-egress
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector:
+    matchLabels: { dsse-receipt: required }      # only receipt-emitting workloads
+  egress:
+    - toEndpoints:
+        - matchLabels: { "k8s:io.kubernetes.pod.namespace": kube-system, "k8s-app": kube-dns }
+      toPorts: [{ ports: [{ port: "53", protocol: ANY }] }]
+    - toServices:
+        - k8sService: { serviceName: kubernetes, namespace: default }   # kube-API for receipt write
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+          rules:
+            http:                                # L7: only the receipt-write verb/path
+              - method: "POST"
+                path: "/apis/szl.dev/v1alpha1/.*/khipureceipts"
+  # Everything else inherits default-deny egress (fail-CLOSED).
+{{- end }}

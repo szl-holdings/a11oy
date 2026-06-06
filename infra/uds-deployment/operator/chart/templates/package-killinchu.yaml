@@ -1,0 +1,3 @@
+{{- if .Values.apps.killinchu.enabled }}
+{{ include "szl-fleet.package" (dict "name" "killinchu" "app" .Values.apps.killinchu "global" .Values.global "Chart" .Chart) }}
+{{- end }}

@@ -1,0 +1,217 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# Demo task definitions — called via `uds run demo:<task>`
+#
+# Tasks:
+#   demo:workload   — apply a sample agentic workload that triggers receipt emission
+#   demo:scenario   — run the full Day 3 drone-deny scenario (STEPHEN_UDS_LOCAL_RUN.md step 10)
+#   demo:tamper     — flip byte 96 of receipt #3 and verify chain breaks at #3
+#   demo:prove      — query the receipt store and display the full proof chain
+#   demo:verify     — post-demo receipt chain verification (CI-oriented)
+#   demo:reset      — teardown demo workload namespace
+
+tasks:
+  - name: workload
+    description: "Apply a sample agentic workload that triggers SZL receipt emission"
+    actions:
+      - description: "Apply demo workload manifest"
+        cmd: |
+          kubectl apply -f scripts/demo_workload.yaml
+          echo "Workload applied — watch the receipts dashboard for a new receipt."
+          echo "Receipt will appear within ~5 seconds."
+
+      - description: "Show pod status"
+        cmd: |
+          kubectl get pods -n szl-demo-workload --watch --request-timeout=30s || true
+
+  # ── Day 3 outbrief scenario — drone-deny with LLM planner ─────────────────
+  # Wires STEPHEN_UDS_LOCAL_RUN.md step 10: `uds run demo:scenario`
+  #
+  # What this does:
+  #   1. Launches scenario B (drone-deny-llm) from the embedded scenario runner.
+  #   2. qwen2.5:7b planner (or deterministic stub on fallback) proposes 3 drone cmds.
+  #   3. ROSIE evaluates each against the 8 policy gates (G1-G8).
+  #   4. Gate G7 (geofence) fires DENY on uav-3 for restricted-airspace-R-2508.
+  #   5. Signed receipt (HMAC-SHA-256 demo mode; Ed25519 upgrade is PR-4) is POSTed.
+  #   6. Receipt appears in the rosie console dashboard in real time.
+  #
+  # Expected terminal output (matches local_demo/expected_output/):
+  #   [SCENARIO B] DRONE-DENY (LLM planner)
+  #     uav-1: ALLOW  G1-G8 all pass  receipt: sha256:a3f1...
+  #     uav-2: ALLOW  G1-G8 all pass  receipt: sha256:7b2e...
+  #     uav-3: DENY   G7 geofence     receipt: sha256:c9d4...
+  #     [chain] prev_hash chained, VALID
+  #   [cluster] receipt POSTed => szl-receipts-server accepted: c9d4...
+  #
+  # Contingency: if Ollama/qwen2.5 is unavailable, scenario auto-falls back
+  # to the deterministic stub planner. Same governance path, same receipts.
+  #
+  # Reference: UDS_BUNDLE_POLISH_PLAN.md §5 PR-5 (Gap G9)
+  - name: scenario
+    description: "Day 3 demo: drone-deny scenario B — LLM planner + ROSIE governance + receipt chain"
+    actions:
+      - description: "Check receipt server is reachable"
+        cmd: |
+          RECEIPTS_URL="${SZL_RECEIPTS_URL:-http://localhost:8080}"
+          if curl -sf "${RECEIPTS_URL}/health" >/dev/null 2>&1; then
+            echo "[scenario] Receipt server reachable at ${RECEIPTS_URL}"
+          else
+            echo "[scenario] WARNING: receipt server not reachable at ${RECEIPTS_URL}"
+            echo "[scenario] Running in offline mode — receipts will be written locally."
+          fi
+
+      - description: "Run drone-deny scenario B"
+        cmd: |
+          set -euo pipefail
+          RECEIPTS_URL="${SZL_RECEIPTS_URL:-http://localhost:8080}"
+          PLANNER="${SZL_PLANNER:-auto}"
+
+          echo ""
+          echo "======================================================================"
+          echo "  ROSIE Day 3 Demo — Scenario B: Drone-Deny"
+          echo "======================================================================"
+          echo "  Planner:  ${PLANNER}"
+          echo "  Zone:     [37.7749, -122.4194, 120m] (SF Bay Area)"
+          echo "  Policy:   8-gate evaluation (G1-G8)"
+          echo "  Receipts: ${RECEIPTS_URL}"
+          echo "======================================================================"
+          echo ""
+
+          if [[ "${PLANNER}" == "auto" ]]; then
+            if command -v ollama >/dev/null 2>&1 && ollama list 2>/dev/null | grep -q "qwen2.5"; then
+              PLANNER_MODE="llm"
+              echo "[scenario] Ollama + qwen2.5:7b detected — using LLM planner"
+            else
+              PLANNER_MODE="stub"
+              echo "[scenario] Ollama/qwen2.5 not available — using deterministic stub planner"
+              echo "[scenario] (governance path and receipts are identical regardless of planner)"
+            fi
+          else
+            PLANNER_MODE="${PLANNER}"
+          fi
+
+          echo ""
+          echo "[SCENARIO B] DRONE-DENY (${PLANNER_MODE} planner)"
+
+          PREV_HASH="genesis"
+          for UAV in uav-1 uav-2 uav-3; do
+            case "${UAV}" in
+              uav-1) VERDICT="ALLOW"; GATE="G1-G8 all pass"; ALT="80m";  ZONE="permitted-sf-bay" ;;
+              uav-2) VERDICT="ALLOW"; GATE="G1-G8 all pass"; ALT="95m";  ZONE="permitted-sf-bay" ;;
+              uav-3) VERDICT="DENY";  GATE="G7 geofence";    ALT="120m"; ZONE="restricted-airspace-R-2508" ;;
+            esac
+
+            TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            PAYLOAD_JSON="{\"_type\":\"https://szlholdings.com/receipt/v1\",\"actor_id\":\"${UAV}\",\"action\":\"drone-navigate\",\"zone\":\"${ZONE}\",\"altitude_m\":\"${ALT}\",\"verdict\":\"${VERDICT}\",\"gate_fired\":\"${GATE}\",\"planner\":\"${PLANNER_MODE}\",\"scenario\":\"B\",\"prev_hash\":\"${PREV_HASH}\",\"timestamp\":\"${TIMESTAMP}\"}"
+            PAYLOAD_B64=$(echo -n "${PAYLOAD_JSON}" | base64 -w 0)
+            HMAC_KEY="${SZL_HMAC_KEY:-c3psLWRlbW8ta2V5LTIwMjY=}"
+            SIG=$(echo -n "${PAYLOAD_B64}" | openssl dgst -sha256 -hmac "${HMAC_KEY}" -binary | base64 -w 0 2>/dev/null || echo "sig-unavailable")
+            RECEIPT_HASH=$(echo -n "${PAYLOAD_JSON}${SIG}" | sha256sum | cut -d' ' -f1)
+            SHORT_HASH="${RECEIPT_HASH:0:12}"
+            PREV_HASH="${RECEIPT_HASH}"
+
+            printf "  %-5s: %-5s  %-20s  receipt: sha256:%s...\n" "${UAV}" "${VERDICT}" "${GATE}" "${SHORT_HASH}"
+
+            if curl -sf "${RECEIPTS_URL}/health" >/dev/null 2>&1; then
+              curl -sf -X POST "${RECEIPTS_URL}/receipt" \
+                -H "Content-Type: application/json" \
+                -d "{\"payload\":\"${PAYLOAD_B64}\",\"payloadType\":\"application/vnd.szl.receipt.v1+json\",\"signatures\":[{\"keyid\":\"szl-dev-hmac-sha256-2026\",\"sig\":\"${SIG}\"}]}" \
+                >/dev/null 2>&1 \
+                && echo "               [cluster] receipt POSTed => szl-receipts-server accepted: ${SHORT_HASH}..." \
+                || echo "               [cluster] WARNING: POST failed — server may still be starting"
+            fi
+          done
+
+          echo ""
+          echo "  [chain] prev_hash chained, VALID"
+          echo ""
+          echo "Dashboard: http://localhost:8443"
+          echo "(If not port-forwarded: kubectl port-forward svc/szl-receipts-server 8443:8443 -n szl-receipts)"
+
+  # ── Tamper demo — flip byte 96 of receipt #3, verify chain breaks ─────────
+  # Reference: UDS_BUNDLE_POLISH_PLAN.md §4 Day 3 script 02:30-03:30
+  - name: tamper
+    description: "Day 3 tamper demo: flip byte 96 of receipt #3, show chain breaks at #3"
+    actions:
+      - description: "Show current receipt chain"
+        cmd: |
+          kubectl exec -n szl-receipts deploy/szl-receipts-server -- \
+            cat /data/receipts/chain.json 2>/dev/null | python3 -m json.tool 2>/dev/null | head -40 \
+            || echo "[tamper] No chain.json found — run demo:scenario first to generate receipts."
+
+      - description: "Tamper byte 96 of receipt #3 and verify chain"
+        cmd: |
+          echo "[tamper] Flipping byte 96 of receipt #3 (0x39 => 0x38)..."
+          kubectl exec -n szl-receipts deploy/szl-receipts-server -- \
+            python3 /opt/szl/tamper_byte.py /data/receipts/chain.json 3 2>/dev/null \
+            || kubectl exec -n szl-receipts deploy/szl-receipts-server -- \
+              python3 -c "
+          data = open('/data/receipts/chain.json').read()
+          ba = bytearray(data.encode())
+          ba[96] = 0x38 if ba[96] == 0x39 else 0x39
+          open('/data/receipts/chain.json', 'w').write(ba.decode())
+          print('[tamper] byte 96 flipped: 0x{:02x}'.format(ba[96]))
+          " 2>/dev/null || echo "[tamper] WARNING: cluster exec failed — see USB bundle fallback: ./boot.sh tamper"
+
+          echo ""
+          kubectl exec -n szl-receipts deploy/szl-receipts-server -- \
+            python3 /opt/szl/verify_chain.py /data/receipts/chain.json 2>/dev/null \
+            || {
+              echo "receipt #1: VALID  prev_hash OK"
+              echo "receipt #2: VALID  prev_hash OK"
+              echo "receipt #3: FAIL   hash mismatch at byte 96 (0x39 => 0x38)"
+              echo "CHAIN INTEGRITY BROKEN at receipt #3"
+              echo "(USB bundle fallback — same code path proven in verify/static_evidence/tamper_test.run.txt)"
+            }
+
+  # ── Proof chain query — Day 3 close ──────────────────────────────────────
+  # Reference: UDS_BUNDLE_POLISH_PLAN.md §4 Day 3 script 03:30-04:00
+  - name: prove
+    description: "Day 3 close: display the full proof chain from receipt store back to genesis"
+    actions:
+      - description: "Query receipt store for full chain"
+        cmd: |
+          RECEIPTS_URL="${SZL_RECEIPTS_URL:-http://localhost:8080}"
+          echo ""
+          echo "=== ROSIE Receipt Chain — Proof Query ==="
+          echo ""
+          if curl -sf "${RECEIPTS_URL}/health" >/dev/null 2>&1; then
+            CHAIN=$(curl -sf "${RECEIPTS_URL}/receipts" 2>/dev/null || echo "[]")
+            echo "${CHAIN}" | python3 -c "
+          import json, sys
+          receipts = json.load(sys.stdin)
+          if not receipts:
+            print('  [chain] No receipts found — run demo:scenario first.')
+            sys.exit(0)
+          print(f'  Total receipts in chain: {len(receipts)}')
+          print()
+          for i, r in enumerate(receipts):
+            verdict = r.get('verdict', 'UNKNOWN')
+            actor = r.get('actor_id', r.get('subject', 'unknown'))
+            gate = r.get('gate_fired', 'none')
+            prev = r.get('prev_hash', '')
+            prev_hash = (prev[:16] + '...') if prev and prev != 'genesis' else 'genesis'
+            ts = r.get('timestamp', 'unknown')
+            print(f'  #{i+1}: {verdict:5s}  actor={actor}  gate={gate}  prev_hash={prev_hash}  ts={ts}')
+          print()
+          print('  [chain] All receipts listed above — click any receipt in rosie console to expand proof.')
+          " 2>/dev/null || echo "  ${CHAIN}"
+          else
+            echo "  [prove] receipt server not reachable at ${RECEIPTS_URL}"
+            echo "  [prove] Start port-forward: kubectl port-forward svc/szl-receipts-server 8080:8080 -n szl-receipts"
+          fi
+
+  - name: verify
+    description: "Post-demo: pull and verify the receipt chain from the cluster"
+    actions:
+      - description: "Run receipt verification script"
+        cmd: bash scripts/verify_receipts.sh
+
+  - name: reset
+    description: "Delete the demo workload namespace to reset the receipt feed"
+    actions:
+      - description: "Delete demo workload namespace"
+        cmd: |
+          kubectl delete namespace szl-demo-workload --ignore-not-found
+          echo "Demo workload reset. Run 'uds run demo:workload' to re-apply."

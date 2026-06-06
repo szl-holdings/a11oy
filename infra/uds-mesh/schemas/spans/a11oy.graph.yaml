@@ -1,0 +1,508 @@
+# SZL Holdings — a11oy.graph.* OTEL Span Schema (v17.2)
+# Author: Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings
+#
+# OpenTelemetry semantic-convention schema for graph-valued tool-call spans
+# emitted by the a11oy runtime when executing Lutar/GraphLambda.lean computations.
+#
+# Specification follows:
+#   OpenTelemetry Specification v1.29+ (https://opentelemetry.io/docs/specs/otel/)
+#   OpenTelemetry Semantic Conventions v1.25+ (https://opentelemetry.io/docs/specs/semconv/)
+#
+# Citation origins:
+#   - You, J., Leskovec, J., He, K., Xie, S. (2020). "Graph Structure of Neural
+#     Networks." NeurIPS 2020. arXiv:2007.06559. [facebookresearch/graph2nn]
+#   - You, J., Gomes-Selman, J., Ying, R., Leskovec, J. (2019). "Position-aware
+#     Graph Neural Networks." ICML 2019. arXiv:1906.04817. [JiaxuanYou/P-GNN]
+#   - You, J., Ying, R., Ren, X., Hamilton, W., Leskovec, J. (2018). "GraphRNN:
+#     Generating Realistic Graphs with Deep Auto-regressive Models." ICML 2018.
+#     arXiv:1802.08773. [JiaxuanYou/graph-generation]
+#   - You, J., Liu, B., Ying, R., Pande, V., Leskovec, J. (2018). "Graph
+#     Convolutional Policy Network for Goal-Directed Molecular Graph Generation."
+#     NeurIPS 2018. arXiv:1806.02473. [bowenliu16/rl_graph_generation]
+#   - Fey, M., Lenssen, J. E. (2019). "Fast Graph Representation Learning with
+#     PyTorch Geometric." ICLR 2019 Workshop. [pyg-team/pytorch_geometric]
+#
+# Lean proof substrate: Lutar/GraphLambda.lean + Lutar/PositionAware.lean (v17.2)
+#   V17.2-T1: Λ_graph_le_one (kernel-checked, 0 sorry)
+#   V17.2-T2: Λ_graph_automorphism_invariant (kernel-checked, 0 sorry)
+#   V17.2-T3: positionEncoding_equivariant (kernel-checked, 0 sorry)
+
+schema_url: https://github.com/szl-holdings/uds-mesh/blob/main/schemas/spans/a11oy.graph.yaml
+version: 17.2.1
+organ: a11oy
+mesh_namespace: szl-a11oy
+mesh_service: szl-a11oy
+
+# v17.2.1 — Cross-organ envelope parity (make-real strike, 2026-06-03):
+#   a11oy.graph was the last organ still on the legacy szl_attributes / szl.graph.*
+#   block. It now ALSO carries the unified szl_mesh_attributes / szl.mesh.* envelope
+#   shared identically by sentra, amaru, killinchu, rosie so the mesh can correlate
+#   a single decision as it crosses organ boundaries. The graph-specific szl.graph.*
+#   fields are retained (additive, non-breaking). The previous YAML defect in the
+#   szl_attributes block (a scalar `description:` mixed with sequence items at the
+#   same indent — not parseable) is corrected to `description:` + `fields:`.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Common fields (all a11oy.graph.* spans)
+# ─────────────────────────────────────────────────────────────────────────────
+
+common_fields:
+  description: |
+    All a11oy.graph.* spans share the standard OTEL span envelope plus
+    SZL-specific graph-Lambda governance attributes.
+
+  otel_fields:
+    - name: trace_id
+      type: string
+      required: true
+      description: "W3C TraceContext trace-id (32 hex chars). RFC 7230."
+      example: "4bf92f3577b34da6a3ce929d0e0e4736"
+
+    - name: span_id
+      type: string
+      required: true
+      description: "W3C TraceContext span-id (16 hex chars)."
+      example: "00f067aa0ba902b7"
+
+    - name: parent_span_id
+      type: string
+      required: false
+      description: "Parent span-id; absent for root spans."
+      example: "00f067aa0ba902b6"
+
+    - name: name
+      type: string
+      required: true
+      description: "Span name — one of the four a11oy.graph.* names below."
+
+    - name: start_time
+      type: string
+      format: "RFC 3339 / ISO 8601 UTC"
+      required: true
+      description: "Wall-clock instant when the span began."
+      example: "2026-06-01T12:00:00.000000000Z"
+
+    - name: end_time
+      type: string
+      format: "RFC 3339 / ISO 8601 UTC"
+      required: true
+      description: "Wall-clock instant when the span ended."
+      example: "2026-06-01T12:00:00.042000000Z"
+
+    - name: status
+      type: object
+      required: true
+      description: "OTEL SpanStatus: {code: OK | ERROR | UNSET, message?: string}."
+      properties:
+        code:
+          type: string
+          enum: [OK, ERROR, UNSET]
+        message:
+          type: string
+          required: false
+
+  # Cross-organ DSSE governance-receipt attributes — IDENTICAL across all five
+  # organs (a11oy, sentra, amaru, killinchu, rosie). Present on EVERY mesh span.
+  szl_mesh_attributes:
+    - name: szl.mesh.organ
+      type: string
+      required: true
+      description: "Emitting organ: a11oy | sentra | amaru | killinchu | rosie."
+      example: "a11oy"
+    - name: szl.mesh.receipt_hash
+      type: string
+      required: true
+      description: |
+        SHA-256 hex digest of the canonical DSSE receipt for this span. Binds the
+        span to the cross-organ provenance chain in extended-attestations.jsonl.
+      example: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1a"
+    - name: szl.mesh.dsse_payload_type
+      type: string
+      required: true
+      description: "DSSE payloadType. Always application/vnd.in-toto+json for mesh receipts."
+      example: "application/vnd.in-toto+json"
+    - name: szl.mesh.image_digest
+      type: string
+      required: false
+      description: |
+        Digest of the cosign-signed ghcr.io image that emitted the span,
+        e.g. ghcr.io/szl-holdings/a11oy@sha256:... (key-based P-256 signature).
+      example: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    - name: szl.mesh.lambda_value
+      type: string
+      required: true
+      description: |
+        Governance Λ for this span as a decimal string (Λ Conjecture 1: Λ ∈ [0,1]).
+        Shared governance scalar so the mesh can gate any organ's output uniformly.
+      example: "0.813472"
+    - name: szl.mesh.governance_drift
+      type: boolean
+      required: true
+      description: |
+        True iff Λ fell below the Doctrine Λ floor (LAMBDA_FLOOR = 0.1) or exceeded 1.0.
+      example: false
+    - name: szl.mesh.upstream_organ
+      type: string
+      required: false
+      description: |
+        For cross-organ edges: the organ that produced the parent span.
+      example: "sentra"
+
+  # Legacy graph-specific attributes (additive; retained for back-compat). These
+  # mirror the szl.mesh.* values for graph executions and carry extra graph data.
+  szl_attributes:
+    description: |
+      Graph-specific attributes carried on every a11oy.graph.* span.
+      Attribute key prefix: szl.graph. (additive to the cross-organ szl.mesh.* envelope)
+    fields:
+    - name: szl.graph.lambda_value
+      type: string
+      required: true
+      description: |
+        Λ_graph (V17.2-T1) serialised as a decimal string with ≥ 6 significant
+        digits. NNReal serialisation: value ∈ [0, 1]. Example: "0.813472".
+        Invariant: Λ_graph ≤ 1 (V17.2-T1 kernel-checked).
+      example: "0.813472"
+
+    - name: szl.graph.v_count
+      type: integer
+      required: true
+      description: "Number of vertices |V| in the graph-valued execution."
+      example: 12
+
+    - name: szl.graph.e_count
+      type: integer
+      required: true
+      description: "Number of edges |E| in the graph-valued execution."
+      example: 18
+
+    - name: szl.graph.receipt_hash
+      type: string
+      required: true
+      description: |
+        SHA-256 hex digest of the canonical receipt for this graph execution.
+        Binds the span to the SLSA provenance chain in extended-attestations.jsonl.
+      example: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1"
+
+    - name: szl.graph.governance_drift
+      type: boolean
+      required: true
+      description: |
+        True iff Λ_graph fell below the Doctrine v6 §3.2 floor (LAMBDA_FLOOR = 0.1)
+        OR above 1.0 (which V17.2-T1 proves impossible; a true value here
+        indicates a runtime serialisation error warranting alert).
+      example: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Span definitions
+# ─────────────────────────────────────────────────────────────────────────────
+
+spans:
+
+  # ── 1. a11oy.graph.lambda ─────────────────────────────────────────────────
+  - name: a11oy.graph.lambda
+    stability: experimental
+    brief: |
+      Emitted when Λ_graph (V17.2-T1, Lutar/GraphLambda.lean) is computed on
+      a runtime graph-valued execution. One span per GraphExecution evaluation.
+    description: |
+      Covers the full computation:
+        1. Score assignment: mapping each vertex v ↦ scores v ∈ Axes 9
+        2. Per-vertex Λ: vertexLambda e v = Lutar.Λ 9 (scores v)
+        3. Product: ∏_{v ∈ V} vertexLambda e v
+        4. n-th root: (∏...)^(1/|V|) = Λ_graph e ∈ [0, 1]
+      The span ends when Λ_graph is written to the receipt.
+    attributes:
+      # Inherits all common OTEL + SZL fields above.
+      - name: szl.graph.computation_mode
+        type: string
+        required: false
+        description: "geometric_mean | vertex_min (default: geometric_mean)"
+        example: "geometric_mean"
+
+  # ── 2. a11oy.graph.automorphism ───────────────────────────────────────────
+  - name: a11oy.graph.automorphism
+    stability: experimental
+    brief: |
+      Emitted when a Λ-preserving automorphism of the graph execution is detected,
+      indicating a Λ_graph cache hit (V17.2-T2 invariance guarantee).
+    description: |
+      When the runtime detects that the current graph-valued execution is related
+      to a prior execution by a LambdaAutomorphism (bijection preserving edges AND
+      per-vertex axis scores), Λ_graph need not be recomputed: by V17.2-T2
+      (Λ_graph_automorphism_invariant, kernel-checked), the value is identical.
+      This span records the cache hit and the automorphism metadata.
+    attributes:
+      - name: szl.graph.automorphism_orbit_size
+        type: integer
+        required: false
+        description: |
+          Size of the automorphism orbit (number of graph relabellings that map
+          to the same Λ_graph value). 1 = trivial automorphism (identity only).
+        example: 6
+      - name: szl.graph.cache_hit
+        type: boolean
+        required: true
+        description: "True iff this span records a cache hit."
+        example: true
+
+  # ── 3. a11oy.graph.position ───────────────────────────────────────────────
+  - name: a11oy.graph.position
+    stability: experimental
+    brief: |
+      Emitted when the position-anchored DPI bound is computed for a local
+      audit neighbourhood (Lutar/PositionAware.lean, V17.2-T3).
+    description: |
+      P-GNN position encoding [You et al. ICML 2019, arXiv:1906.04817] assigns
+      each vertex a distance vector to a random anchor set A ⊆ V. This span
+      covers:
+        1. Anchor set selection: A ⊆ V of size |A|
+        2. Distance computation: positionEncoding G A v : A → ℕ  for each v
+        3. Per-anchor DPI bound: Bekenstein capacity of the k-hop ball B_k(a)
+        4. Aggregated position-aware DPI bound across all anchors
+      The bound is sharper than the global DPI bound (Lutar/DPI/DPIBound.lean)
+      when the graph has localised topology.
+    attributes:
+      - name: szl.graph.anchor_count
+        type: integer
+        required: true
+        description: "Number of anchor vertices |A|."
+        example: 4
+      - name: szl.graph.hop_radius
+        type: integer
+        required: true
+        description: "k-hop radius for the local audit neighbourhood B_k(anchor)."
+        example: 2
+      - name: szl.graph.dpi_bound
+        type: string
+        required: true
+        description: |
+          Position-anchored DPI bound (Bekenstein capacity) as a decimal string.
+          Invariant: dpi_bound ≤ global DPI bound (always tighter or equal).
+        example: "0.342110"
+
+  # ── 4. a11oy.graph.gcpn_propose ───────────────────────────────────────────
+  - name: a11oy.graph.gcpn_propose
+    stability: experimental
+    brief: |
+      Emitted when a GCPN-styled [You et al. NeurIPS 2018, arXiv:1806.02473]
+      audit-graph synthesis step proposes a new topology for the next governed
+      decision execution.
+    description: |
+      Graph Convolutional Policy Network (GCPN) generates graph topologies via
+      a sequential edge-proposal policy conditioned on the current partial graph.
+      This span records one proposal step in the audit-graph synthesis loop:
+        1. Current partial graph state (v_count, e_count at time of proposal)
+        2. Proposed edge: (src_vertex, dst_vertex)
+        3. Predicted Λ_graph for the resulting graph (from the policy head)
+        4. Whether the proposal was accepted (passes the Doctrine v6 Λ floor)
+    attributes:
+      - name: szl.graph.proposed_edge_src
+        type: integer
+        required: true
+        description: "Source vertex index of the proposed edge."
+        example: 3
+      - name: szl.graph.proposed_edge_dst
+        type: integer
+        required: true
+        description: "Destination vertex index of the proposed edge."
+        example: 7
+      - name: szl.graph.predicted_lambda
+        type: string
+        required: true
+        description: |
+          Policy head's predicted Λ_graph after adding the proposed edge,
+          as a decimal string. Used for governance pre-filter before full
+          Λ_graph computation.
+        example: "0.761234"
+      - name: szl.graph.proposal_accepted
+        type: boolean
+        required: true
+        description: |
+          True iff the proposal passed the Doctrine v6 §3.2 Λ floor check
+          (predicted_lambda ≥ LAMBDA_FLOOR = 0.1) and was added to the graph.
+        example: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSON Schema (canonical wire format for all four spans)
+# ─────────────────────────────────────────────────────────────────────────────
+
+json_schema:
+  description: |
+    All four a11oy.graph.* spans share the same JSON envelope.
+    The `name` field selects the span type; `attributes` carries the
+    SZL-specific fields listed above.
+
+  type: object
+  required:
+    - trace_id
+    - span_id
+    - name
+    - start_time
+    - end_time
+    - status
+    - attributes
+  properties:
+    trace_id:
+      type: string
+      pattern: "^[0-9a-f]{32}$"
+    span_id:
+      type: string
+      pattern: "^[0-9a-f]{16}$"
+    parent_span_id:
+      type: string
+      pattern: "^[0-9a-f]{16}$"
+    name:
+      type: string
+      enum:
+        - "a11oy.graph.lambda"
+        - "a11oy.graph.automorphism"
+        - "a11oy.graph.position"
+        - "a11oy.graph.gcpn_propose"
+    start_time:
+      type: string
+      format: "date-time"
+    end_time:
+      type: string
+      format: "date-time"
+    status:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [OK, ERROR, UNSET]
+        message:
+          type: string
+    attributes:
+      type: object
+      required:
+        - "szl.graph.lambda_value"
+        - "szl.graph.v_count"
+        - "szl.graph.e_count"
+        - "szl.graph.receipt_hash"
+        - "szl.graph.governance_drift"
+      properties:
+        "szl.graph.lambda_value":
+          type: string
+          description: "Λ_graph ∈ [0,1] as decimal string; 0 ≤ value ≤ 1 (V17.2-T1)"
+        "szl.graph.v_count":
+          type: integer
+          minimum: 0
+        "szl.graph.e_count":
+          type: integer
+          minimum: 0
+        "szl.graph.receipt_hash":
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        "szl.graph.governance_drift":
+          type: boolean
+        "szl.graph.computation_mode":
+          type: string
+          enum: ["geometric_mean", "vertex_min"]
+        "szl.graph.automorphism_orbit_size":
+          type: integer
+          minimum: 1
+        "szl.graph.cache_hit":
+          type: boolean
+        "szl.graph.anchor_count":
+          type: integer
+          minimum: 0
+        "szl.graph.hop_radius":
+          type: integer
+          minimum: 0
+        "szl.graph.dpi_bound":
+          type: string
+          description: "Position-anchored DPI bound as decimal string"
+        "szl.graph.proposed_edge_src":
+          type: integer
+          minimum: 0
+        "szl.graph.proposed_edge_dst":
+          type: integer
+          minimum: 0
+        "szl.graph.predicted_lambda":
+          type: string
+          description: "Policy-predicted Λ_graph as decimal string"
+        "szl.graph.proposal_accepted":
+          type: boolean
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Example spans (one per span type)
+# ─────────────────────────────────────────────────────────────────────────────
+
+examples:
+
+  - span: a11oy.graph.lambda
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "00f067aa0ba902b7"
+      parent_span_id: "00f067aa0ba902b6"
+      name: "a11oy.graph.lambda"
+      start_time: "2026-06-01T12:00:00.000000000Z"
+      end_time: "2026-06-01T12:00:00.042000000Z"
+      status: {code: OK}
+      attributes:
+        szl.graph.lambda_value: "0.813472"
+        szl.graph.v_count: 12
+        szl.graph.e_count: 18
+        szl.graph.receipt_hash: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1"
+        szl.graph.governance_drift: false
+        szl.graph.computation_mode: "geometric_mean"
+
+  - span: a11oy.graph.automorphism
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "11e167bb1cb913c8"
+      parent_span_id: "00f067aa0ba902b7"
+      name: "a11oy.graph.automorphism"
+      start_time: "2026-06-01T12:00:00.043000000Z"
+      end_time: "2026-06-01T12:00:00.044000000Z"
+      status: {code: OK}
+      attributes:
+        szl.graph.lambda_value: "0.813472"
+        szl.graph.v_count: 12
+        szl.graph.e_count: 18
+        szl.graph.receipt_hash: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1"
+        szl.graph.governance_drift: false
+        szl.graph.automorphism_orbit_size: 6
+        szl.graph.cache_hit: true
+
+  - span: a11oy.graph.position
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "22d278cc2dc024d9"
+      parent_span_id: "00f067aa0ba902b7"
+      name: "a11oy.graph.position"
+      start_time: "2026-06-01T12:00:00.045000000Z"
+      end_time: "2026-06-01T12:00:00.061000000Z"
+      status: {code: OK}
+      attributes:
+        szl.graph.lambda_value: "0.813472"
+        szl.graph.v_count: 12
+        szl.graph.e_count: 18
+        szl.graph.receipt_hash: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1"
+        szl.graph.governance_drift: false
+        szl.graph.anchor_count: 4
+        szl.graph.hop_radius: 2
+        szl.graph.dpi_bound: "0.342110"
+
+  - span: a11oy.graph.gcpn_propose
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "33e389dd3ed135ea"
+      parent_span_id: "00f067aa0ba902b7"
+      name: "a11oy.graph.gcpn_propose"
+      start_time: "2026-06-01T12:00:00.062000000Z"
+      end_time: "2026-06-01T12:00:00.078000000Z"
+      status: {code: OK}
+      attributes:
+        szl.graph.lambda_value: "0.761234"
+        szl.graph.v_count: 12
+        szl.graph.e_count: 19
+        szl.graph.receipt_hash: "b4e3f2c1d0e9f8g7h6i5j4k3l2m1n0o9p8q7r6s5t4u3v2w1x0y9z8a7b6c5d4e3"
+        szl.graph.governance_drift: false
+        szl.graph.proposed_edge_src: 3
+        szl.graph.proposed_edge_dst: 7
+        szl.graph.predicted_lambda: "0.761234"
+        szl.graph.proposal_accepted: true
+

@@ -1,0 +1,152 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# uds/values.yaml — Top-level Helm values for szl-vessels-demo
+#
+# These are the aggregate defaults for all charts in this Zarf package.
+# Chart-specific overrides live in charts/<name>/values.yaml.
+# Zarf variable substitution is handled in zarf.yaml; values here are
+# the Helm defaults that land in each chart's Values object.
+#
+# Override at deploy time:
+#   zarf package deploy <pkg> --set VESSELS_REPLICAS=2
+# Or via uds-bundle.yaml overrides stanza.
+
+global:
+  # Cluster domain — must match UDS Core DOMAIN
+  domain: "uds.dev"
+
+  # Image pull policy across all charts
+  imagePullPolicy: IfNotPresent
+
+  # Common labels applied to all resources via Helm .Release.labels
+  labels:
+    app.kubernetes.io/part-of: szl-vessels-demo
+    szl.io/managed-by: zarf
+
+  # OCI registry prefix (overridden by Zarf's internal registry in air-gap mode)
+  registry: "ghcr.io"
+
+# ── vessels-web ───────────────────────────────────────────────────────────────
+vessels:
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/szl-holdings/vessels
+    # Tag is set by Zarf variable VESSELS_IMAGE_TAG → matches package version
+    tag: "0.3.1"
+    pullPolicy: IfNotPresent
+
+  # AIRGAP: Set to empty string to disable live feed: --set VESSELS_IMO_SANCTIONS_URL=""
+  # When empty, the application warns and skips sanctions checks (see docs/AIRGAP.md)
+  sanctionsUrl: "https://sanctionslist.ofac.treas.gov/Home/SdnList"
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+
+  ingress:
+    enabled: true
+    # Rendered as vessels-web.<DOMAIN> by the chart template
+    host: "vessels-web"
+    annotations:
+      kubernetes.io/ingress.class: "istio"
+    tls: []  # Handled by Istio mTLS in UDS core
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "512Mi"
+
+  env:
+    - name: VESSELS_LOG_LEVEL
+      value: "info"
+    - name: VESSELS_IMO_SANCTIONS_URL
+      value: "###ZARF_PKG_VAR_VESSELS_IMO_SANCTIONS_URL###"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "###ZARF_PKG_VAR_OTEL_ENDPOINT###"
+    - name: SZL_RECEIPT_HMAC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: szl-vessels-hmac
+          key: hmac-key
+          optional: true
+
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 20
+
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+  podAnnotations:
+    # Injected at deploy time by Pepr governance-receipts controller
+    szl.receipt.id: ""
+    szl.receipt.ts: ""
+
+# ── uds-mesh span relay ───────────────────────────────────────────────────────
+udsMesh:
+  enabled: true
+
+  image:
+    repository: ghcr.io/szl-holdings/uds-mesh
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  otel:
+    endpoint: ""  # Set via OTEL_ENDPOINT variable; empty = spans logged only
+    protocol: "grpc"
+    timeout: 5s
+
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+# ── a11oy policy substrate ────────────────────────────────────────────────────
+a11oy:
+  enabled: true
+
+  image:
+    repository: ghcr.io/szl-holdings/a11oy
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Policy mode: enforce | audit | off
+  mode: "audit"
+
+  resources:
+    requests:
+      cpu: "25m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "64Mi"
+
+# ── Pepr receipts ─────────────────────────────────────────────────────────────
+pepr:
+  enabled: true
+
+  hmacKey: "###ZARF_PKG_VAR_RECEIPT_HMAC_KEY###"
+
+  # Receipts server endpoint inside the cluster
+  receiptsUrl: "http://szl-receipts-server.szl-receipts.svc.cluster.local:8443/receipt"
+
+  # If true, receipt POST failures do not block admission
+  failOpen: true
+
+  keyId: "szl-vessels-demo-hmac-sha256-2026"

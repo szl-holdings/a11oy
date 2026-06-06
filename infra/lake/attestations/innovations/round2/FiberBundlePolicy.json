@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "FiberBundlePolicy",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "lutar-lean/fiberbundlepolicy_gate",
+      "digest": {
+        "sha256": "4dad3605de87b7bd93e5b3488ba50be0a036cc6c2b63de9fc85f1ea39df7b80d"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "fiber_bundles x doctrine_universality",
+    "connection_type": "Ehresmann",
+    "flat_sections": "globally_consistent_policies"
+  }
+}

@@ -1,0 +1,106 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# SZL UDS Bundle — catalog-grade 0.3.1
+#
+# This bundle supersedes the v0.1.0 Warhacker demo bundle and targets
+# catalog-grade requirements per Andrew Greene's Option A endorsement (2026-05-22).
+#
+# Changes from 0.1.0:
+#   - init repointed to ghcr.io/zarf-dev/packages/init (the init package moved out
+#     of the defenseunicorns org as of uds-core v1.x; see attribution below)
+#   - core ref modernized to uds-core 1.5.0 (was 0.34.0-slim-dev, four minors behind)
+#   - szl-receipts bumped to 0.3.1
+#   - SSO overrides now wired to Keycloak realm
+#   - Pepr component enabled by default in this bundle
+#
+# Ref attribution (mined 2026-05-30 from live Defense Unicorns repos):
+#   init coordinate: defenseunicorns/uds-core@v1.5.0/bundles/k3d-slim-dev/uds-bundle.yaml
+#                    (init = ghcr.io/zarf-dev/packages/init)
+#   core OCI + flavor grammar (X.Y.Z-upstream|registry1|unicorn):
+#                    defenseunicorns/uds-core@v1.5.0/docs/getting-started/production/build-your-bundle.mdx
+#   slim-dev local-demo bundle: oci://ghcr.io/defenseunicorns/bundles/k3d-core-slim-dev:1.5.0
+#
+# STAGED items:
+#   FA-001: Image ghcr.io/szl-holdings/vessels:uds-v0.3.0 must be pushed by founder
+#           before `uds create` can air-gap bundle szl-receipts component.
+#           Until then, szl-receipts pulls from docker.io/library/python:3.12-slim.
+#   FA-002: cosign signing of this bundle is staged pending org key provisioning (U5).
+#           `uds deploy` will succeed; `cosign verify` on bundle artifact will fail.
+#
+# Deploy:
+#   uds run demo:start          # full bootstrap
+#   uds deploy uds-bundle-szl-receipts-bundle-amd64-0.3.1.tar.zst --confirm
+#
+# References:
+#   UDS Bundle schema: https://github.com/defenseunicorns/uds-cli
+#   UDS Core releases: https://github.com/defenseunicorns/uds-core/releases
+#   Option A endorsement: internal doc 2026-05-22 (Andrew Greene, Defense Unicorns)
+
+kind: UDSBundle
+metadata:
+  name: szl-receipts-bundle
+  version: 0.3.1
+  description: SZL governance receipt mesh for UDS environments
+
+packages:
+  # ── Layer 1: Zarf init — internal registry + agent ──────────────────────────
+  # NOTE: the init package moved from ghcr.io/defenseunicorns/packages/init to
+  # ghcr.io/zarf-dev/packages/init. v0.77.0 is the ref uds-core v1.5.0 ships with.
+  # (defenseunicorns/uds-core@v1.5.0/bundles/k3d-slim-dev/uds-bundle.yaml)
+  - name: init
+    repository: ghcr.io/zarf-dev/packages/init
+    ref: v0.77.0
+
+  # ── Layer 2: UDS Core — Istio + Pepr (UDS Operator) + Keycloak + Prometheus ─
+  # For the local k3d demo, the documented path is the slim-dev BUNDLE:
+  #   oci://ghcr.io/defenseunicorns/bundles/k3d-core-slim-dev:1.5.0
+  # For production, reference the published core PACKAGE and pick a flavor:
+  #   registry.defenseunicorns.com/public/core ref 1.5.0-upstream|1.5.0-registry1|1.5.0-unicorn
+  # We use the published upstream core package here (public images, no DoD registry
+  # access required for the hackathon demo).
+  - name: core
+    repository: registry.defenseunicorns.com/public/core
+    ref: 1.5.0-upstream
+    overrides:
+      keycloak:
+        keycloak:
+          values:
+            - path: realmInitEnv.INSECURE_ADMIN_PASSWORD_GENERATION
+              value: "true"
+
+  # ── Layer 3: SZL Receipts add-on ────────────────────────────────────────────
+  # path: local Zarf package built from this directory.
+  # v0.3.1: szl-receipts-server now uses the built OCI image
+  #   ghcr.io/szl-holdings/szl-receipts-server:uds-v0.3.1
+  #   (built from services/szl-receipts-server/Dockerfile). Pushing that image
+  #   to GHCR + cosign-signing it ships in a follow-up PR; until then the
+  #   bundle references it by tag (imagePullPolicy IfNotPresent).
+  - name: szl-receipts
+    path: ./packages/szl-receipts
+    ref: 0.3.1
+    overrides:
+      szl-receipts:
+        szl-receipts:
+          variables:
+            - name: DOMAIN
+              description: "Cluster domain (must match UDS Core DOMAIN)"
+              path: global.domain
+              default: "uds.dev"
+            # RECEIPT_HMAC_KEY override REMOVED (v0.3.1, PhD Crypto Finding A2).
+            # Signing uses an operator-provisioned Ed25519 Secret
+            # (szl-receipts-ed25519); no signing key flows through the bundle.
+            - name: RECEIPTS_REPLICAS
+              description: "Receipt server replica count"
+              path: server.replicas
+              default: "1"
+          values:
+            - path: server.logLevel
+              value: "info"
+            - path: ingress.enabled
+              value: true
+            - path: ingress.host
+              value: "receipts.uds.dev"
+            # PSS restricted enforcement on namespace
+            - path: podSecurityStandard.enforce
+              value: "restricted"

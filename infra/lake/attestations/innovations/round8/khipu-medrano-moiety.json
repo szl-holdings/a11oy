@@ -1,0 +1,25 @@
+{
+    "idea_id": "A8-06",
+    "idea_name": "KHIPU-MEDRANO-MOIETY",
+    "lean_path": "Lutar/Innovations/round8/KhipuMedrano2023.lean",
+    "source": "Medrano & Urton 2023 \u2014 binary moiety partition in Santa Valley khipus",
+    "academic_citation": "Medrano, M. & Urton, G., 'Toward the Decipherment of a Set of Mid-Colonial Khipus from the Santa Valley, Coastal Peru', Current Anthropology 64(1):115\u2013153 (2023). DOI:10.1086/723561",
+    "plug_in_target": "amaru / killinchu \u2014 two-party receipt sharding",
+    "sorry_free": true,
+    "doctrine": "v11",
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "kernel_commit": "c7c0ba17",
+    "lambda": "Conjecture 1 - NOT a theorem",
+    "ts": "2026-06-03T14:24:00+00:00",
+    "cycle": "round8-leader-scrape-plus-ancient-redecode",
+    "slsa": "L1 honest",
+    "pr_url": "PENDING",
+    "receipt_hash": "743e66f33794d083ac775ba572e8ac9c4e390a8aec9d0705e3fcdff2fc4d492e",
+    "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+    "dco": {
+        "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+        "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+    }
+}

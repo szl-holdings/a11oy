@@ -1,0 +1,15 @@
+{{/* Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0 */}}
+{{- if .Values.global.istio.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "szl.namespace" . }}
+  labels:
+    # Big Bang convention: enable Istio sidecar injection on the namespace.
+    istio-injection: enabled
+    app.kubernetes.io/part-of: szl-mesh
+    {{- if .Values.gatekeeper.enabled }}
+    # Gatekeeper/Pepr admission scoping label.
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- end }}
+{{- end }}

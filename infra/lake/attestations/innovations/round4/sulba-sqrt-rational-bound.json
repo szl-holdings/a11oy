@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-08",
+  "idea_name": "SULBA-SQRT-RATIONAL-BOUND",
+  "lean_path": "Lutar/Innovations/round4/SulbaSqrtBound.lean",
+  "source": "Baudhayana Sulba Sutra, ~800 BCE",
+  "academic_citation": "Datta, The Science of the Sulba (University of Calcutta, 1932); MacTutor St Andrews",
+  "plug_in_target": "killinchu \u2014 drone-payload hash comparison rational precision floor",
+  "sorry_free": true,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "fc705d7bb10078cb8ab1943195bb029888d51a08098e55bf17c0fb8fd9b87af5",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

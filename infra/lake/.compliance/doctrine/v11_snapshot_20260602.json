@@ -1,0 +1,40 @@
+{
+  "schema": "szl.lake.doctrine/v11",
+  "captured_at_utc": "2026-06-02T02:14:39Z",
+  "doctrine": "v11 LOCKED",
+  "locked_at": "c7c0ba17",
+  "numbers": {
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "putnam_sorries": 51,
+    "baseline_sorries": 112
+  },
+  "public_constant": {
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163
+  },
+  "lambda_status": "Conjecture 1 (NOT a theorem)",
+  "yuyay_axes": 13,
+  "yuyay_v3_replay_hash": "bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5",
+  "slsa": "L1 (honest; L2 in roadmap via Wire D)",
+  "kernel_repo": "szl-holdings/lutar-lean",
+  "kernel_toolchain": "leanprover/lean4:v4.13.0",
+  "cosign_org_keyid": "szlholdings-cosign",
+  "cosign_fingerprints": {
+    "sentra": "cc7ad05bdb32abdb91d61bf82590985b66d9ea225b49a3df5add2ee8951fbb3e",
+    "amaru": "d087de7c11a3eb1533211d518c9503800a44b65da99aa5b8e68d89598118c910",
+    "a11oy": "f042ba5a0fc42a2bad5c6854c978b3c3c7637b221b61c421903c7db156ba3883",
+    "killinchu": "f208cba36d1bc1ab7b7a24922fea3beedc2145d35607e83eea9bcc0919251b8a",
+    "rosie": "c4f42f63794673822c7d65cb1c53b1bf898f3c4fce88ff902bf70eb97347699d"
+  },
+  "lake_build_status_main": "FAIL (Lutar/KhipuConsensus.lean unknown identifier 'Vector' @ v4.13.0; CI run 26786461244)",
+  "source_level_counts_main_head": {
+    "declarations": 774,
+    "axioms_unique": 14,
+    "sorries_noncomment": 161,
+    "note": "includes additive experimental modules excluded from the 749/14/163 baseline; see LEAN_KERNEL_TEST_REPORT.md"
+  },
+  "build_sha": "warhacker-aliases-v1"
+}

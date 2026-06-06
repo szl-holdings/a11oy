@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · Lambda Conjecture 1 · SLSA L1+L2
+# rosie organ Deployment — cosign private key mounted as an ENV VAR (not a file).
+# The secret is optional: when absent the organ emits honest UNSIGNED receipts.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rosie
+  namespace: szl
+  labels:
+    app.kubernetes.io/name: rosie
+    app.kubernetes.io/part-of: szl-organs
+    szl.holdings/doctrine: v11-749-14-163
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rosie
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rosie
+        app.kubernetes.io/part-of: szl-organs
+    spec:
+      containers:
+        - name: rosie
+          image: ghcr.io/szl-holdings/rosie:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # ---- Cosign DSSE signing key (runtime secret) -------------------
+            # Canonical name read first by szl_dsse._load_private_key().
+            # optional: true => if the secret is not set, the organ falls back
+            # to honest UNSIGNED receipts (signatures: []) — never fabricated.
+            - name: SZL_COSIGN_PRIVATE_KEY_PEM
+              valueFrom:
+                secretKeyRef:
+                  name: szl-cosign
+                  key: cosign.key
+                  optional: true   # honest fallback
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]

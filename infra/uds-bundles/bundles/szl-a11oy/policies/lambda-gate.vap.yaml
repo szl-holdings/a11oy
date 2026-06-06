@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# ValidatingAdmissionPolicy — Lambda-gate (fail-CLOSED). Lambda Conjecture 1 (NOT a theorem).
+# Doctrine v11 LOCKED 749/14/163. K8s VAP GA since v1.30 — runs in-API-server, no webhook pod.
+# https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/
+# Additive: sits ALONGSIDE the Pepr Package policies (UDS Core compat preserved).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: szl-lambda-gate
+spec:
+  failurePolicy: Fail                      # fail-CLOSED
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  validations:
+    # Every governed workload must carry the DSSE-receipt label.
+    - expression: "has(object.metadata.labels) && 'dsse-receipt' in object.metadata.labels && object.metadata.labels['dsse-receipt'] == 'required'"
+      message: "Lambda-gate: workload must declare dsse-receipt=required (fail-CLOSED, Lambda Conjecture 1)"
+    # Enforce hardened securityContext at admission (belt-and-suspenders with PSA).
+    - expression: "object.spec.containers.all(c, has(c.securityContext) && c.securityContext.allowPrivilegeEscalation == false && c.securityContext.readOnlyRootFilesystem == true)"
+      message: "Lambda-gate: containers must run hardened (no privilege escalation, read-only rootfs)"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: szl-lambda-gate-binding-a11oy
+spec:
+  policyName: szl-lambda-gate
+  validationActions: ["Audit"]             # Audit during rollout; promote to Deny after green dress rehearsal
+  matchResources:
+    namespaceSelector:
+      matchLabels: { "kubernetes.io/metadata.name": "szl-a11oy" }

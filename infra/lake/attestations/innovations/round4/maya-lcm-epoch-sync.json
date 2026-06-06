@@ -1,0 +1,21 @@
+{
+  "idea_id": "F-10",
+  "idea_name": "MAYA-LCM-EPOCH-SYNC",
+  "lean_path": "Lutar/Innovations/round4/MayaLCMEpochSync.lean",
+  "source": "Maya Long Count / Calendar Round, pre-Columbian ~250-900 CE",
+  "academic_citation": "Thompson, Maya Hieroglyphic Writing (Carnegie, 1950)",
+  "plug_in_target": "rosie \u2014 dual audit-cadence LCM epoch synchronization",
+  "sorry_free": true,
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T05:31:01.677909+00:00",
+  "cycle": "ancient-decode-round4",
+  "slsa": "L1 honest",
+  "pr_url": "https://github.com/szl-holdings/lutar-lean/pull/162",
+  "receipt_hash": "7a0740cb5155afbc05d644981288f9436343667517c0977183a7e9761a7421bd",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11"
+}

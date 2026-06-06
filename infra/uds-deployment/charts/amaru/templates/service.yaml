@@ -1,0 +1,17 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Service for amaru — Istio sidecar provides STRICT mTLS (UDS Operator managed).
+apiVersion: v1
+kind: Service
+metadata:
+  name: szl-amaru
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: amaru
+    app.kubernetes.io/name: amaru
+spec:
+  selector:
+    app: amaru
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}

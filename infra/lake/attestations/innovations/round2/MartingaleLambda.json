@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "MartingaleLambda",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "a11oy/martingalelambda_gate",
+      "digest": {
+        "sha256": "471900e490a130e5eb7bc10ef7f0008bdcf0c91f526cbd68279760215cc53ec1"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "optional_stopping x sequential_lambda_testing",
+    "theorem": "E[M_tau] = E[M_0]",
+    "bias_free": true
+  }
+}

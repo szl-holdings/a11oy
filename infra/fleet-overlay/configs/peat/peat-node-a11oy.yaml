@@ -1,0 +1,35 @@
+# Peat Mesh Node config for szl-a11oy
+# Requires defenseunicorns/peat-node sidecar injector
+apiVersion: peat.dev/v1alpha1
+kind: PeatNode
+metadata:
+  name: szl-a11oy
+  namespace: szl-a11oy
+spec:
+  selector:
+    matchLabels:
+      app: szl-a11oy
+  mesh:
+    meshRef:
+      name: szl-fleet-mesh
+      namespace: peat-system
+  grpc:
+    port: 50051
+  quic:
+    port: 4001
+    listenAddr: "0.0.0.0"
+  crdt:
+    documentNamespace: "szl.a11oy"
+    peers:
+      - "szl.a11oy"
+      - "szl.sentra"
+      - "szl.amaru"
+      - "szl.rosie"
+      - "szl.killinchu"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"

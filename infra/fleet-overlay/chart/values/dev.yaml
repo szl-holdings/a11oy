@@ -1,0 +1,57 @@
+# Development environment overrides
+# Usage: helm upgrade --install szl-fleet-overlay ./chart -f chart/values/dev.yaml
+
+global:
+  domain: uds.dev
+  doctrinePinVersion: "v11"
+  doctrinePinRef: "749/14/163"
+  kernelCommit: "c7c0ba17"
+  slsaLevel: "L1"
+  ssoGroup: "/szl-operators"
+  gatewayName: tenant
+
+apps:
+  a11oy:
+    enabled: true
+    namespace: szl-a11oy
+    servicePort: 8080
+    metricsPort: 9090
+    clientId: uds-szl-a11oy
+    displayName: "SZL A11oy (dev)"
+    peatEnabled: false  # disable peat in dev to reduce dependencies
+
+  sentra:
+    enabled: true
+    namespace: szl-sentra
+    servicePort: 8080
+    metricsPort: 9090
+    clientId: uds-szl-sentra
+    displayName: "SZL Sentra (dev)"
+    peatEnabled: false
+
+  amaru:
+    enabled: true
+    namespace: szl-amaru
+    servicePort: 8080
+    metricsPort: 9090
+    clientId: uds-szl-amaru
+    displayName: "SZL Amaru (dev)"
+    peatEnabled: false
+
+  rosie:
+    enabled: true
+    namespace: szl-rosie
+    servicePort: 8080
+    metricsPort: 9090
+    clientId: uds-szl-rosie
+    displayName: "SZL Rosie (dev)"
+    peatEnabled: false
+
+  killinchu:
+    enabled: true
+    namespace: szl-killinchu
+    servicePort: 8080
+    metricsPort: 9090
+    clientId: uds-szl-killinchu
+    displayName: "SZL Killinchu (dev)"
+    peatEnabled: false

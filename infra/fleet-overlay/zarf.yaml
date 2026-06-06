@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/main/zarf.schema.json
+# SZL Fleet Overlay — Pure Zarf variant
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17
+
+kind: ZarfPackageConfig
+metadata:
+  name: szl-fleet-overlay
+  description: "SZL Fleet UDS Package Overlay — registers all SZL flagships as UDS-managed applications with doctrine-pinned receipts"
+  version: "0.1.0"
+  vendor: "SZL Holdings"
+  url: "https://github.com/szl-holdings/szl-fleet-overlay"
+  yolo: false
+
+constants:
+  - name: DOCTRINE_VERSION
+    value: "v11"
+  - name: DOCTRINE_PIN
+    value: "749/14/163"
+  - name: KERNEL_COMMIT
+    value: "c7c0ba17"
+  - name: SLSA_LEVEL
+    value: "L1"
+
+variables:
+  - name: DOMAIN
+    description: "UDS cluster domain"
+    default: "uds.dev"
+  - name: SSO_GROUP
+    description: "Keycloak group gate"
+    default: "/szl-operators"
+
+components:
+  - name: szl-namespaces
+    required: true
+    description: "Create SZL application namespaces"
+    manifests:
+      - name: szl-namespaces
+        files:
+          - configs/namespaces.yaml
+    actions:
+      onDeploy:
+        after:
+          - wait:
+              cluster:
+                kind: Namespace
+                name: szl-a11oy
+                condition: Exists
+
+  - name: szl-a11oy-package
+    required: true
+    description: "UDS Package CR for a11oy"
+    manifests:
+      - name: szl-a11oy-package
+        namespace: szl-a11oy
+        files:
+          - configs/packages/package-a11oy.yaml
+
+  - name: szl-sentra-package
+    required: true
+    description: "UDS Package CR for sentra"
+    manifests:
+      - name: szl-sentra-package
+        namespace: szl-sentra
+        files:
+          - configs/packages/package-sentra.yaml
+
+  - name: szl-amaru-package
+    required: true
+    description: "UDS Package CR for amaru"
+    manifests:
+      - name: szl-amaru-package
+        namespace: szl-amaru
+        files:
+          - configs/packages/package-amaru.yaml
+
+  - name: szl-rosie-package
+    required: true
+    description: "UDS Package CR for rosie"
+    manifests:
+      - name: szl-rosie-package
+        namespace: szl-rosie
+        files:
+          - configs/packages/package-rosie.yaml
+
+  - name: szl-killinchu-package
+    required: true
+    description: "UDS Package CR for killinchu"
+    manifests:
+      - name: szl-killinchu-package
+        namespace: szl-killinchu
+        files:
+          - configs/packages/package-killinchu.yaml
+
+  - name: szl-peat-mesh-nodes
+    required: false
+    default: true
+    description: "Peat mesh node configs for CRDT-based state sync"
+    manifests:
+      - name: szl-peat-nodes
+        files:
+          - configs/peat/peat-node-a11oy.yaml
+          - configs/peat/peat-node-sentra.yaml
+          - configs/peat/peat-node-amaru.yaml
+          - configs/peat/peat-node-rosie.yaml
+          - configs/peat/peat-node-killinchu.yaml
+
+  - name: szl-doctrine-receipts
+    required: true
+    description: "Doctrine-pinned SLSA L1 receipts"
+    files:
+      - source: receipts/checksums.txt
+        target: /var/szl/receipts/checksums.txt
+      - source: receipts/checksums.txt.sig
+        target: /var/szl/receipts/checksums.txt.sig
+      - source: receipts/doctrine-pin.yaml
+        target: /var/szl/receipts/doctrine-pin.yaml

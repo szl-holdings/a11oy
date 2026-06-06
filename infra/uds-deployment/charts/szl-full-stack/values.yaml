@@ -1,0 +1,195 @@
+# SZL Full Stack — Helm Umbrella Values
+# Doctrine v6 strict: STAGED values for components pending FA-001
+
+# ─────────────────────────────────────────────────────────────────
+# Global settings
+# ─────────────────────────────────────────────────────────────────
+global:
+  imageRegistry: ghcr.io/szl-holdings
+  imagePullPolicy: IfNotPresent
+  # NOTE: containers not yet pushed to GHCR — imagePullPolicy: Never for local dev
+  imagePullSecrets: []
+  doctrineVersion: "v6"
+  releaseVersion: "0.3.1"
+
+# ─────────────────────────────────────────────────────────────────
+# szl-receipts — AVAILABLE (Pepr policy + receipt server)
+# ─────────────────────────────────────────────────────────────────
+szl-receipts:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/szl-holdings/vessels
+    tag: uds-v0.3.1
+    # STAGED: tag not yet pushed. Use local image for now.
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8443
+  receipts:
+    signingMode: demo  # demo (HMAC-SHA256) | production (Ed25519, requires FA-001)
+    retentionDays: 30
+    namespace: szl-receipts
+  pepr:
+    enabled: true
+    watchedResources:
+      - Deployment
+      - Job
+      - StatefulSet
+    namespaces: []  # empty = cluster-wide
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  networkPolicy:
+    enabled: true
+    ingress:
+      - port: 8443
+        protocol: TCP
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+  podSecurityStandards:
+    enforce: restricted
+
+# ─────────────────────────────────────────────────────────────────
+# a11oy-runtime — STAGED (awaiting FA-001 + container push)
+# ─────────────────────────────────────────────────────────────────
+a11oy-runtime:
+  # STAGED: set enabled: true after ghcr.io/szl-holdings/a11oy:uds-v0.3.1 is pushed
+  enabled: false
+  image:
+    repository: ghcr.io/szl-holdings/a11oy
+    tag: uds-v0.3.1
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  gates:
+    enabled: true
+    strictMode: true
+    anchors:
+      liuHuiPi: true
+      madhavaBound: true
+      falsePosition: true
+      summationInvariant: true
+      adversarialRobustness: true
+  receipts:
+    emit: true
+    dsseMode: hmac  # hmac | ed25519 (ed25519 requires FA-001)
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  networkPolicy:
+    enabled: true
+  serviceMonitor:
+    enabled: true
+  podSecurityStandards:
+    enforce: restricted
+
+# ─────────────────────────────────────────────────────────────────
+# sentra-gates — STAGED (awaiting FA-001 + container push)
+# ─────────────────────────────────────────────────────────────────
+sentra-gates:
+  # STAGED: set enabled: true after ghcr.io/szl-holdings/sentra:uds-v0.3.1 is pushed
+  enabled: false
+  image:
+    repository: ghcr.io/szl-holdings/sentra
+    tag: uds-v0.3.1
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  gate:
+    failClosed: true
+    nistCsf: "2.0"
+    d3fend: true
+  forecast:
+    enabled: true
+    consumeA11oyReceipts: true
+    a11oyReceiptEndpoint: "http://szl-receipts-server.szl-receipts.svc.cluster.local:8443"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  networkPolicy:
+    enabled: true
+  serviceMonitor:
+    enabled: true
+  podSecurityStandards:
+    enforce: restricted
+
+# ─────────────────────────────────────────────────────────────────
+# amaru-attestation — STAGED (awaiting FA-001 + container push)
+# ─────────────────────────────────────────────────────────────────
+amaru-attestation:
+  # STAGED: set enabled: true after ghcr.io/szl-holdings/amaru:uds-v0.3.1 is pushed
+  enabled: false
+  image:
+    repository: ghcr.io/szl-holdings/amaru
+    tag: uds-v0.3.1
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  witness:
+    enabled: true
+    emitOnDrift: true
+    klDriftThreshold: "0.05"
+  adversarialDetect:
+    enabled: true
+    regressionThreshold: "0.01"
+  theoremRefs:
+    lutarAdversarialRobustness: true
+  resources:
+    requests:
+      cpu: 150m
+      memory: 192Mi
+    limits:
+      cpu: 750m
+      memory: 768Mi
+  networkPolicy:
+    enabled: true
+  serviceMonitor:
+    enabled: true
+  podSecurityStandards:
+    enforce: restricted
+
+# ─────────────────────────────────────────────────────────────────
+# rosie-replay — STAGED (awaiting FA-001 + container push)
+# ─────────────────────────────────────────────────────────────────
+rosie-replay:
+  # STAGED: set enabled: true after ghcr.io/szl-holdings/rosie:uds-v0.3.1 is pushed
+  enabled: false
+  image:
+    repository: ghcr.io/szl-holdings/rosie
+    tag: uds-v0.3.1
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  dashboard:
+    enabled: true
+    port: 8443
+    retentionDays: 30
+  replay:
+    enabled: true
+    mode: live  # live | replay
+  decision:
+    mandatoryWitness: true  # ROSIE-V1: every decision requires witness
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  networkPolicy:
+    enabled: true
+  serviceMonitor:
+    enabled: true
+  podSecurityStandards:
+    enforce: restricted

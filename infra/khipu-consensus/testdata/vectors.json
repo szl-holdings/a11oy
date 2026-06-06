@@ -1,0 +1,233 @@
+{
+  "schema": "szl.khipu.consensus.test-vectors/v1",
+  "note": "Deterministic test vectors. TEST-ONLY keys in testdata/*.test.{key,pub}; never production.",
+  "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+  "action_hash": "c67945277763d12641ba4649349e42f221d4bd637268623ebe8a500edac02312",
+  "threshold": 3,
+  "n": 4,
+  "pubkeys": {
+    "sentra": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcdv0smwiVfr/o66zewZ8TuYGopT8\n2PN9LJfTK4pczgcQBP48ljJsOM4O/nWm4IH0HMblJeja3i5jsMRc77WhCw==\n-----END PUBLIC KEY-----\n",
+    "amaru": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6yOytMc51nA3PoggrTgkviPd/w2a\nMoR6PT9p2f1b5BFP4VYLHnkIDKjZBvO8O1nex+tD9xJIK4mKFUWVfcLm+g==\n-----END PUBLIC KEY-----\n",
+    "a11oy": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGuwlzbyVZbDPpjTcovhZwkwYB5wP\nVx+Yjkj0riZSejn5tiT5kJ4+poP95oXQIbqEGESxz8tvIar999ZbxcpqTA==\n-----END PUBLIC KEY-----\n",
+    "killinchu": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVC6ebOc+MduGpvEMYfNHVG/4CBWw\nQi6dUKqQ/GWuq/E5F3LOQNq8D1luZt4I+mFf5yOaWMXEuxMIiMod0TexrA==\n-----END PUBLIC KEY-----\n"
+  },
+  "cases": [
+    {
+      "name": "4-of-4 all allow",
+      "expect": {
+        "decision": "canonical",
+        "consensus_count": 4
+      },
+      "signatures": [
+        {
+          "organ": "sentra",
+          "keyid": "sentra-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6InNlbnRyYS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6InNlbnRyYSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEUCIGcXm34lBqMEZ9NwpaEtrFj/DC7atlrRAxHtyPxDhQLfAiEAngdLlGw44ozJeA180raqyr5Zy5jphbtmBS2F4QXcHWg=",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "amaru",
+          "keyid": "amaru-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImFtYXJ1LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYW1hcnUiLCJyZWFzb24iOiJvayIsInNjaGVtYSI6InN6bC5raGlwdS5vcmdhbl92ZXJkaWN0L3YxIiwidHMiOiIyMDI2LTA2LTAxVDAwOjAwOjAwKzAwOjAwIiwidmVyZGljdCI6ImFsbG93In0=",
+          "signature": "MEUCID4VUm1k5MgVAjkCFx6NIHu8XDGwdkPvzuT0K9RRGSpXAiEAylxJEGq4dAGUYrVfL+Oh3qZIFD5LgAu4tKq6o2gkyxI=",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "a11oy",
+          "keyid": "a11oy-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImExMW95LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYTExb3kiLCJyZWFzb24iOiJvayIsInNjaGVtYSI6InN6bC5raGlwdS5vcmdhbl92ZXJkaWN0L3YxIiwidHMiOiIyMDI2LTA2LTAxVDAwOjAwOjAwKzAwOjAwIiwidmVyZGljdCI6ImFsbG93In0=",
+          "signature": "MEYCIQCMWSEgZ0W+wKcpkvIHnM8vTxSTTVmkl+4xmapdPZOe/gIhANx1z98D4NUFLFbCPexDwnHcQTKtLSusprGckgm+gVrC",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "killinchu",
+          "keyid": "killinchu-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImtpbGxpbmNodS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6ImtpbGxpbmNodSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEUCIQCj8gpeHJvN3eVvICuLdsGohtgrTW+I4gamRsoFhKNH2gIgT9V3pQuwA/vTucr2GOo9fNLX8JDkGaH+8FYUXWNx3/0=",
+          "verdict": "allow",
+          "reason": "ok"
+        }
+      ]
+    },
+    {
+      "name": "3-of-4 one block (BFT tolerates 1)",
+      "expect": {
+        "decision": "canonical",
+        "consensus_count": 3
+      },
+      "signatures": [
+        {
+          "organ": "sentra",
+          "keyid": "sentra-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6InNlbnRyYS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6InNlbnRyYSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEYCIQCrLXQHTvoyO8PfUtEeEAKBe0XHqA941vb/GGnzyDy7ZAIhAKEh0b4hNHRk+6tUyFhK1+j0Vmk9BuuTjm6NCQvNeURI",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "amaru",
+          "keyid": "amaru-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImFtYXJ1LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYW1hcnUiLCJyZWFzb24iOiJvayIsInNjaGVtYSI6InN6bC5raGlwdS5vcmdhbl92ZXJkaWN0L3YxIiwidHMiOiIyMDI2LTA2LTAxVDAwOjAwOjAwKzAwOjAwIiwidmVyZGljdCI6ImFsbG93In0=",
+          "signature": "MEUCIQDxyrlpPrbsSQ4V00YrFWhO0ArYGNQ2ThV2CaTZTpCmhwIgFPP6ogc/CEHrCo3oTTod9UsSk9n39PHu+7EtLvYgR1s=",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "a11oy",
+          "keyid": "a11oy-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImExMW95LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYTExb3kiLCJyZWFzb24iOiJnYXRlIDQyIGhpZ2ggc2V2ZXJpdHkiLCJzY2hlbWEiOiJzemwua2hpcHUub3JnYW5fdmVyZGljdC92MSIsInRzIjoiMjAyNi0wNi0wMVQwMDowMDowMCswMDowMCIsInZlcmRpY3QiOiJibG9jayJ9",
+          "signature": "MEQCIFSQ6vsaKG1j+bG4WHjWdRAg/Fsq2Au+J9bwZ9Pfw0MEAiBo5RkrnO0SVR+h5LRuh7lQvRLNiD0tectexrB1WE17Zw==",
+          "verdict": "block",
+          "reason": "gate 42 high severity"
+        },
+        {
+          "organ": "killinchu",
+          "keyid": "killinchu-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImtpbGxpbmNodS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6ImtpbGxpbmNodSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEYCIQCgan1yxsJipftmii5tScXBFiE1f1BwU4cFbBrK4irPUAIhAMYhMyBvRlOvXhoWBhyUF5m0EtOsMsgUrLQu9gEOVtX6",
+          "verdict": "allow",
+          "reason": "ok"
+        }
+      ]
+    },
+    {
+      "name": "3-of-4 one abstain (None)",
+      "expect": {
+        "decision": "canonical",
+        "consensus_count": 3
+      },
+      "signatures": [
+        {
+          "organ": "sentra",
+          "keyid": "sentra-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6InNlbnRyYS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6InNlbnRyYSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEUCIGu82OvJquwkf/1vjDNyS3CX+kYx+vRJK9L+ZXkW3YbnAiEA2H9Fx+twYfLZxmaamIRbymDQ8gnWti9nlYvzsZTHm3A=",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "amaru",
+          "keyid": "amaru-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImFtYXJ1LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYW1hcnUiLCJyZWFzb24iOiJvayIsInNjaGVtYSI6InN6bC5raGlwdS5vcmdhbl92ZXJkaWN0L3YxIiwidHMiOiIyMDI2LTA2LTAxVDAwOjAwOjAwKzAwOjAwIiwidmVyZGljdCI6ImFsbG93In0=",
+          "signature": "MEUCIQD2eVUIi/7KYuWR5iSaSmd0+rIEzogqadPuYuT647Q+RAIgDyCjeCGsvfIZ33NrsrPoGfvBO7gLeL0Td+VfXW1qrqA=",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "a11oy",
+          "keyid": "a11oy-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImExMW95LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYTExb3kiLCJyZWFzb24iOiJvayIsInNjaGVtYSI6InN6bC5raGlwdS5vcmdhbl92ZXJkaWN0L3YxIiwidHMiOiIyMDI2LTA2LTAxVDAwOjAwOjAwKzAwOjAwIiwidmVyZGljdCI6ImFsbG93In0=",
+          "signature": "MEQCIHJnifETWqkKkaeeljiWCtnku/oqDyWXRGiUgDeIcpLcAiBJAx1+NB1Od4F7Qi+J/6k892x0DgEYEc8AxiKtItuMCw==",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        null
+      ]
+    },
+    {
+      "name": "2-of-4 two block (REJECTED)",
+      "expect": {
+        "decision": "rejected",
+        "consensus_count": 2
+      },
+      "signatures": [
+        {
+          "organ": "sentra",
+          "keyid": "sentra-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6InNlbnRyYS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6InNlbnRyYSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEYCIQCpYEQIe2FdDeaevmcwNaHaVdHY78jkB4ygzPtycoIOrwIhAM158+YCgX6L3gEZ8kxUfRVcMfnGEsHAwEG4cN5H95Jj",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "amaru",
+          "keyid": "amaru-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImFtYXJ1LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYW1hcnUiLCJyZWFzb24iOiJZdXlheS0xMyBheGlzIDciLCJzY2hlbWEiOiJzemwua2hpcHUub3JnYW5fdmVyZGljdC92MSIsInRzIjoiMjAyNi0wNi0wMVQwMDowMDowMCswMDowMCIsInZlcmRpY3QiOiJibG9jayJ9",
+          "signature": "MEQCIDxJUwuJoi1SFqYyWcRaXJaHrzYYkM4bEWswdnwUztrJAiBbzCOFq3B9yRHgGdBZsMZaC/2ZKq1QNC+C+UZtTR+TNw==",
+          "verdict": "block",
+          "reason": "Yuyay-13 axis 7"
+        },
+        {
+          "organ": "a11oy",
+          "keyid": "a11oy-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImExMW95LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYTExb3kiLCJyZWFzb24iOiJnYXRlIDQyIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYmxvY2sifQ==",
+          "signature": "MEUCIA1umNVNFci0t4K4yj84ejJttQO7uFaa1nBGjjftklLeAiEA9T6dZ7lxGiLw6jEPXO4Grpbruw4fa8eDJxaXWAoM1dw=",
+          "verdict": "block",
+          "reason": "gate 42"
+        },
+        {
+          "organ": "killinchu",
+          "keyid": "killinchu-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImtpbGxpbmNodS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6ImtpbGxpbmNodSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEQCICDJurriIJizOFsPAwmNgpIOJ6wBkMBzkVJYWj4cvaDXAiA6i0hiHR7S7K2PvIeFo7yg9oKZO6PRFQgvkChipqCHgQ==",
+          "verdict": "allow",
+          "reason": "ok"
+        }
+      ]
+    },
+    {
+      "name": "tamper: forged sentra sig excluded",
+      "expect": {
+        "decision": "canonical",
+        "consensus_count": 3
+      },
+      "signatures": [
+        {
+          "organ": "sentra",
+          "keyid": "sentra-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6InNlbnRyYS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6InNlbnRyYSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEUCIGfom34lBqMEZ9NwpaEtrFj/DC7atlrRAxHtyPxDhQLfAiEAngdLlGw44ozJeA180raqyr5Zy5jphbtmBS2F4QXcHWg=",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "amaru",
+          "keyid": "amaru-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImFtYXJ1LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYW1hcnUiLCJyZWFzb24iOiJvayIsInNjaGVtYSI6InN6bC5raGlwdS5vcmdhbl92ZXJkaWN0L3YxIiwidHMiOiIyMDI2LTA2LTAxVDAwOjAwOjAwKzAwOjAwIiwidmVyZGljdCI6ImFsbG93In0=",
+          "signature": "MEUCID4VUm1k5MgVAjkCFx6NIHu8XDGwdkPvzuT0K9RRGSpXAiEAylxJEGq4dAGUYrVfL+Oh3qZIFD5LgAu4tKq6o2gkyxI=",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "a11oy",
+          "keyid": "a11oy-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImExMW95LWNvc2lnbiIsImxlYW5fc2hhIjoiNDdkODY4MmYyNyIsIm9yZ2FuIjoiYTExb3kiLCJyZWFzb24iOiJvayIsInNjaGVtYSI6InN6bC5raGlwdS5vcmdhbl92ZXJkaWN0L3YxIiwidHMiOiIyMDI2LTA2LTAxVDAwOjAwOjAwKzAwOjAwIiwidmVyZGljdCI6ImFsbG93In0=",
+          "signature": "MEYCIQCMWSEgZ0W+wKcpkvIHnM8vTxSTTVmkl+4xmapdPZOe/gIhANx1z98D4NUFLFbCPexDwnHcQTKtLSusprGckgm+gVrC",
+          "verdict": "allow",
+          "reason": "ok"
+        },
+        {
+          "organ": "killinchu",
+          "keyid": "killinchu-cosign",
+          "payloadType": "application/vnd.szl.khipu.organ-verdict+json",
+          "payload": "eyJhY3Rpb25faGFzaCI6ImM2Nzk0NTI3Nzc2M2QxMjY0MWJhNDY0OTM0OWU0MmYyMjFkNGJkNjM3MjY4NjIzZWJlOGE1MDBlZGFjMDIzMTIiLCJrZXlpZCI6ImtpbGxpbmNodS1jb3NpZ24iLCJsZWFuX3NoYSI6IjQ3ZDg2ODJmMjciLCJvcmdhbiI6ImtpbGxpbmNodSIsInJlYXNvbiI6Im9rIiwic2NoZW1hIjoic3psLmtoaXB1Lm9yZ2FuX3ZlcmRpY3QvdjEiLCJ0cyI6IjIwMjYtMDYtMDFUMDA6MDA6MDArMDA6MDAiLCJ2ZXJkaWN0IjoiYWxsb3cifQ==",
+          "signature": "MEUCIQCj8gpeHJvN3eVvICuLdsGohtgrTW+I4gamRsoFhKNH2gIgT9V3pQuwA/vTucr2GOo9fNLX8JDkGaH+8FYUXWNx3/0=",
+          "verdict": "allow",
+          "reason": "ok"
+        }
+      ]
+    }
+  ]
+}

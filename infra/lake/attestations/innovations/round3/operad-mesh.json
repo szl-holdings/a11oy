@@ -1,0 +1,17 @@
+{
+  "idea_id": "II-01",
+  "idea_name": "OPERAD-MESH",
+  "lean_path": "Lutar/Innovations/round3/OperadMesh.lean",
+  "doctrine": "v11",
+  "declarations": 749,
+  "axioms": 14,
+  "sorries": 163,
+  "kernel_commit": "c7c0ba17",
+  "lambda": "Conjecture 1 - NOT a theorem",
+  "ts": "2026-06-03T04:33:51.402434+00:00",
+  "cycle": "meta-replay-round3",
+  "slsa": "L1 honest",
+  "receipt_hash": "d36fe388a8928d5ed08eeebbf0826ff4de8f7ac030cb8f05d4ebbd0ce4aa41c1",
+  "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+  "note": "Colored operadic typing for multi-organ capability composition"
+}

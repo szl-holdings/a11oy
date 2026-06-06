@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: Apache-2.0
+# vsp-otel — Verifiable Span Provenance via OpenTelemetry (Python operational layer)
+# Doctrine v11 LOCKED — 749/14/163 · Λ = Conjecture 1
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vsp-otel"
+version = "0.1.0"
+description = "Verifiable Span Provenance via OpenTelemetry — real OTLP/gRPC exporter + DSSE/Khipu span processor for the SZL mesh"
+readme = "src/vsp_otel/README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "SZL Holdings" }]
+keywords = ["opentelemetry", "otlp", "dsse", "provenance", "khipu", "slsa"]
+
+dependencies = [
+  "opentelemetry-api>=1.25.0",
+  "opentelemetry-sdk>=1.25.0",
+  "opentelemetry-exporter-otlp-proto-grpc>=1.25.0",
+]
+
+[project.optional-dependencies]
+fastapi = ["opentelemetry-instrumentation-fastapi>=0.46b0"]
+test = [
+  "pytest>=8.0",
+  "grpcio>=1.60",
+  "opentelemetry-instrumentation-fastapi>=0.46b0",
+]
+
+[project.urls]
+Homepage = "https://github.com/szl-holdings/vsp-otel"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

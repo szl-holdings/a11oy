@@ -1,0 +1,26 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+nameOverride: amaru
+deploymentName: amaru-attestation
+healthPath: /api/amaru/healthz
+replicaCount: 1
+image:
+  repository: ghcr.io/szl-holdings/amaru
+  tag: uds-v0.3.1
+  pullPolicy: IfNotPresent
+service:
+  port: 8080
+  targetPort: 8080
+witness:
+  enabled: true
+  emitOnDrift: true
+  klDriftThreshold: "0.05"
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {cpu: 500m, memory: 256Mi}
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]

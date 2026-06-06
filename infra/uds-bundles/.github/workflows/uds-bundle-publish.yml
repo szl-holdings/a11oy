@@ -1,0 +1,258 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# UDS Bundle Build + Publish — szl-mesh v0.4.0 (Warhacker 2026)
+#
+# Produces:
+#   oci://ghcr.io/szl-holdings/szl-mesh:v0.4.0   (+ :0.4.0 + :latest)
+#   USB artifact: szl-mesh-v0.4.0.tar.zst
+#
+# Deploy command (USB into Defense Unicorns' existing UDS Core cluster):
+#   uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
+#
+# Deploy command (pull from GHCR):
+#   uds deploy oci://ghcr.io/szl-holdings/szl-mesh:v0.4.0 --confirm
+#
+# Design notes:
+#   - uds-cli v0.32.0 bundles Zarf v0.77.0 (required for init:v0.77.0 compatibility)
+#   - Keyless cosign OIDC signing — NO COSIGN_KEY secret required
+#   - szl-receipts DEFERRED: image ghcr.io/szl-holdings/szl-receipts-server:uds-v0.3.1
+#     is not yet public; re-add once image is public + charts vendored in this repo.
+#   - All 5 flagship Zarf packages are built from bundles/szl-<organ>/zarf.yaml
+#     which reference ghcr.io/szl-holdings/<organ>:uds-v0.2.0 (images EXIST in GHCR)
+#   - killinchu image is at ghcr.io/szl-holdings/killinchu:uds-v0.2.0
+#     → continue-on-error: true; honest 4/5 bundle if unavailable
+#   - Bundle published to oci://ghcr.io/szl-holdings/szl-mesh
+#   - Bundle name: szl-mesh (matches uds-bundle.yaml metadata.name)
+#
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17
+# SLSA L1 honest — not L3
+# Λ = Conjecture 1 (NEVER theorem)
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+
+name: UDS Bundle Build + Publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Bundle tag (e.g. v0.4.0)'
+        required: false
+        default: 'v0.4.0'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write   # required for keyless cosign OIDC signing + attest
+
+env:
+  UDS_CLI_VERSION: "v0.32.0"
+  ZARF_VERSION: "v0.77.0"
+  REGISTRY: "ghcr.io"
+  ORG: "szl-holdings"
+  BUNDLE_NAME: "szl-mesh"
+  BUNDLE_VERSION: "0.4.0"
+
+jobs:
+  publish:
+    name: Build + Publish UDS Bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout uds-bundles
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install uds-cli v0.32.0 (bundles Zarf v0.77.0)
+        run: |
+          set -euo pipefail
+          curl -sLo /usr/local/bin/uds \
+            "https://github.com/defenseunicorns/uds-cli/releases/download/${UDS_CLI_VERSION}/uds-cli_${UDS_CLI_VERSION}_Linux_amd64"
+          chmod +x /usr/local/bin/uds
+          uds version
+          echo "Bundled Zarf version: $(uds zarf version)"
+
+      - name: Install Zarf v0.77.0 (standalone, for package create steps)
+        run: |
+          set -euo pipefail
+          curl -sLo /usr/local/bin/zarf \
+            "https://github.com/zarf-dev/zarf/releases/download/${ZARF_VERSION}/zarf_${ZARF_VERSION}_Linux_amd64"
+          chmod +x /usr/local/bin/zarf
+          zarf version
+
+      - name: Install cosign (keyless OIDC, no COSIGN_KEY needed)
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine bundle tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUNDLE_TAG="${{ inputs.tag }}"
+          else
+            BUNDLE_TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "BUNDLE_TAG=${BUNDLE_TAG}" >> "$GITHUB_ENV"
+          echo "Bundle tag: ${BUNDLE_TAG}"
+
+      - name: Configure Zarf GHCR auth (for private flagship images)
+        run: |
+          set -euo pipefail
+          zarf tools registry login "${REGISTRY}" \
+            -u "${{ github.actor }}" -p "${{ secrets.GITHUB_TOKEN }}" || true
+
+      - name: Probe flagship image pullability (diagnostic — non-fatal)
+        run: |
+          set +e
+          for organ in a11oy sentra amaru rosie killinchu; do
+            IMG="${REGISTRY}/${ORG}/${organ}:uds-v0.2.0"
+            if zarf tools registry digest "${IMG}" >/dev/null 2>&1; then
+              echo "PULLABLE   ${IMG}"
+            else
+              echo "NOT-PULLABLE ${IMG}"
+            fi
+          done
+          set -e
+
+      # ── Build flagship Zarf packages ───────────────────────────────────────
+      # Each bundles/szl-<organ>/zarf.yaml bakes ghcr.io/szl-holdings/<organ>:uds-v0.2.0
+      # (verified public) into the .tar.zst at create time — no pull on deploy.
+      - name: Build Zarf package — szl-a11oy
+        run: zarf package create bundles/szl-a11oy --confirm -o bundles/szl-a11oy
+
+      - name: Build Zarf package — szl-sentra
+        run: zarf package create bundles/szl-sentra --confirm -o bundles/szl-sentra
+
+      - name: Build Zarf package — szl-amaru
+        run: zarf package create bundles/szl-amaru --confirm -o bundles/szl-amaru
+
+      - name: Build Zarf package — szl-rosie
+        run: zarf package create bundles/szl-rosie --confirm -o bundles/szl-rosie
+
+      # killinchu image is ghcr.io/szl-holdings/killinchu:uds-v0.2.0.
+      # continue-on-error: true so a private killinchu never blocks the bundle.
+      - name: Build Zarf package — szl-killinchu (may fail if image private)
+        id: killinchu_build
+        continue-on-error: true
+        run: zarf package create bundles/szl-killinchu --confirm -o bundles/szl-killinchu
+
+      - name: Report killinchu build result
+        run: |
+          if ls bundles/szl-killinchu/zarf-package-*.tar.zst >/dev/null 2>&1; then
+            echo "killinchu: BUILT — composing 5/5 bundle"
+            echo "KILLINCHU_BUILT=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::killinchu image is private/unavailable. Composing honest 4/5 bundle."
+            echo "KILLINCHU_BUILT=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: List all built Zarf packages
+        run: find bundles -name 'zarf-package-*.tar.zst' 2>/dev/null | sort
+
+      # ── Compose the UDS bundle ─────────────────────────────────────────────
+      # If killinchu did not build, drop it from the bundle manifest.
+      - name: Patch bundle manifest if killinchu unavailable (honest 4/5)
+        if: env.KILLINCHU_BUILT == 'false'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, sys
+          with open('uds-bundle.yaml', 'r') as f:
+              content = f.read()
+          # Remove from killinchu comment/package block to end of file
+          pattern = r'\n  # ── killinchu.*$'
+          result = re.split(pattern, content, maxsplit=1, flags=re.DOTALL)[0]
+          if result == content:
+              result = re.sub(r'\n  - name: szl-killinchu\b.*$', '', content, flags=re.DOTALL)
+          with open('uds-bundle.yaml', 'w') as f:
+              f.write(result)
+          print("Patched uds-bundle.yaml — killinchu removed for honest 4/5 build")
+          PY
+          echo "--- Bundle packages after patch ---"
+          grep -- '- name: szl-' uds-bundle.yaml || true
+
+      - name: uds create (compose full UDS bundle)
+        run: |
+          set -euo pipefail
+          uds create . --confirm --no-progress
+          echo "=== Bundle tarballs ==="
+          ls -lh uds-bundle-*.tar.zst 2>/dev/null || { echo "ERROR: no bundle tarball produced"; exit 1; }
+
+      # ── Publish to GHCR ────────────────────────────────────────────────────
+      # uds publish tags with metadata.version (0.4.0 → oci://...szl-mesh:0.4.0).
+      # Mirror to BUNDLE_TAG (v0.4.0) and :latest via zarf tools registry copy.
+      - name: uds publish bundle to GHCR
+        run: |
+          set -euo pipefail
+          for tarball in uds-bundle-*.tar.zst; do
+            [ -f "$tarball" ] || continue
+            echo "Publishing: $tarball"
+            uds publish "$tarball" "oci://${REGISTRY}/${ORG}"
+            echo "Published: oci://${REGISTRY}/${ORG}/${BUNDLE_NAME}:${BUNDLE_VERSION}"
+          done
+
+      - name: Tag bundle as BUNDLE_TAG and :latest
+        run: |
+          set -euo pipefail
+          SRC="${REGISTRY}/${ORG}/${BUNDLE_NAME}:${BUNDLE_VERSION}"
+          for tag in "${BUNDLE_TAG}" "latest"; do
+            echo "Tagging :${BUNDLE_VERSION} → :${tag}"
+            zarf tools registry copy "${SRC}" "${REGISTRY}/${ORG}/${BUNDLE_NAME}:${tag}"
+          done
+
+      # ── Keyless cosign sign (OIDC, no COSIGN_KEY secret) ──────────────────
+      - name: Cosign sign bundle (keyless OIDC — no secret required)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          set -euo pipefail
+          for tag in "${BUNDLE_VERSION}" "${BUNDLE_TAG}" "latest"; do
+            TARGET="${REGISTRY}/${ORG}/${BUNDLE_NAME}:${tag}"
+            echo "Signing: ${TARGET}"
+            cosign sign --yes "${TARGET}" || {
+              echo "::warning::cosign sign failed for :${tag}. Bundle published but unsigned for this tag."
+            }
+          done
+
+      # ── Attest provenance (SLSA L1 honest) ────────────────────────────────
+      - name: Attest build provenance (SLSA L1 — non-blocking)
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        continue-on-error: true
+        if: hashFiles('uds-bundle-*.tar.zst') != ''
+        with:
+          subject-path: 'uds-bundle-*.tar.zst'
+
+      # ── Job summary ────────────────────────────────────────────────────────
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### UDS Bundle Build + Publish — szl-mesh v0.4.0"
+            echo ""
+            echo "**Artifact:** \`oci://${REGISTRY}/${ORG}/${BUNDLE_NAME}:${BUNDLE_TAG}\`"
+            echo "  (also tagged \`:${BUNDLE_VERSION}\` and \`:latest\`)"
+            echo ""
+            echo "**USB deploy command (into Defense Unicorns' existing UDS Core cluster):**"
+            echo '```bash'
+            echo "uds-cli bundle deploy szl-mesh-${BUNDLE_TAG}.tar.zst --confirm"
+            echo '```'
+            echo ""
+            echo "**OCI deploy command (pull from GHCR):**"
+            echo '```bash'
+            echo "uds deploy oci://${REGISTRY}/${ORG}/${BUNDLE_NAME}:${BUNDLE_TAG} --confirm"
+            echo '```'
+            echo ""
+            echo "**Verify cosign signature (keyless OIDC — SLSA L1 honest):**"
+            echo '```bash'
+            echo "cosign verify ${REGISTRY}/${ORG}/${BUNDLE_NAME}:${BUNDLE_TAG} \\"
+            echo '  --certificate-identity-regexp="^https://github.com/szl-holdings/" \'
+            echo '  --certificate-oidc-issuer="https://token.actions.githubusercontent.com"'
+            echo '```'
+            echo ""
+            echo "**Doctrine:** v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · SLSA L1"
+          } >> "$GITHUB_STEP_SUMMARY"

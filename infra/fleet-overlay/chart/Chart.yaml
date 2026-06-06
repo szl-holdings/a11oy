@@ -1,0 +1,20 @@
+apiVersion: v2
+name: szl-fleet-overlay
+description: "SZL Fleet UDS Package Overlay — registers all SZL flagship applications as UDS-managed apps with doctrine-pinned receipts"
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - uds
+  - szl
+  - fleet
+  - air-gap
+  - peat-mesh
+maintainers:
+  - name: SZL Holdings Engineering
+    email: eng@szlholdings.ai
+annotations:
+  szl.io/doctrine-version: "v11"
+  szl.io/doctrine-pin: "749/14/163"
+  szl.io/kernel-commit: "c7c0ba17"
+  szl.io/slsa-level: "L1"

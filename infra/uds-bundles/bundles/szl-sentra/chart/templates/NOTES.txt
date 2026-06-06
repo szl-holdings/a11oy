@@ -1,0 +1,5 @@
+{{/* NOTES */}}
+SZL Sentra deployed to namespace {{ .Values.namespace }}.
+Health:  kubectl -n {{ .Values.namespace }} port-forward svc/sentra 8080:8080
+         curl http://localhost:8080/healthz
+Operational: pull the network cable — it still serves. Doctrine v11 LOCKED 749/14/163.

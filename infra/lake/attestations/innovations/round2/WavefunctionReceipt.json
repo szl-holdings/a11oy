@@ -1,0 +1,25 @@
+{
+  "doctrine": "v11",
+  "kernel_commit": "c7c0ba17",
+  "lambda_uniqueness": "Conjecture 1 (NOT a theorem \u2014 LOCKED)",
+  "innovation": "WavefunctionReceipt",
+  "round": 2,
+  "predicate_type": "https://szlholdings.com/attestations/innovation/v1",
+  "subject": [
+    {
+      "name": "sentra/wavefunctionreceipt_gate",
+      "digest": {
+        "sha256": "9e27c1a274ef21f73447be3aa25316454c8b75e8dc2da41656f9d78afef687ea"
+      }
+    }
+  ],
+  "predicate": {
+    "round": 2,
+    "agent": "lane-leader-scrape-round2",
+    "lean_branch": "feat/innovations-round2",
+    "lean_pr": "https://github.com/szl-holdings/lutar-lean/pull/161",
+    "bridge": "quantum_purification x dsse_multiparty",
+    "quorum": "2_of_4",
+    "purification_theorem": "Stinespring_dilation"
+  }
+}

@@ -1,0 +1,76 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# v0.4.0 mesh — the six canonical namespaces, each labeled for Istio sidecar
+# injection (istio-injection=enabled) and PSS-restricted enforcement.
+#
+# istio-injection=enabled is the namespace label that triggers automatic sidecar
+# injection on pod creation:
+#   https://istio.io/latest/docs/setup/additional-setup/sidecar-injection/
+# Pod Security Standards (restricted) labels:
+#   https://kubernetes.io/docs/concepts/security/pod-security-standards/
+#
+# NOTE: szl-receipts already exists with istio.io/dataplane-mode: ambient in
+# manifests/namespace.yaml. For the v0.4.0 sidecar (not ambient) design, the
+# runbook switches it to istio-injection=enabled for a uniform sidecar mesh; if
+# the cluster runs ambient mode, keep the ambient label instead — both yield mTLS.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-rosie
+  labels:
+    istio-injection: enabled
+    szl.io/mesh-version: v0.4.0
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-a11oy
+  labels:
+    istio-injection: enabled
+    szl.io/mesh-version: v0.4.0
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-amaru
+  labels:
+    istio-injection: enabled
+    szl.io/mesh-version: v0.4.0
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-sentra
+  labels:
+    istio-injection: enabled
+    szl.io/mesh-version: v0.4.0
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-vessels
+  labels:
+    istio-injection: enabled
+    szl.io/mesh-version: v0.4.0
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-receipts
+  labels:
+    istio-injection: enabled
+    szl.io/mesh-version: v0.4.0
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

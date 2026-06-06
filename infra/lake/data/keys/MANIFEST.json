@@ -1,0 +1,45 @@
+{
+  "schema": "szl.khipu.cosign-keys/v1",
+  "organs": {
+    "sentra": {
+      "keyid": "sentra-cosign",
+      "curve": "secp256r1 (P-256)",
+      "pub_path": ".github/cosign-keys/sentra.pub",
+      "fingerprint_sha256": "cc7ad05bdb32abdb91d61bf82590985b66d9ea225b49a3df5add2ee8951fbb3e",
+      "served_at": "https://szlholdings-sentra.hf.space/khipu/pubkey?keyid=sentra-cosign",
+      "action": "generated"
+    },
+    "amaru": {
+      "keyid": "amaru-cosign",
+      "curve": "secp256r1 (P-256)",
+      "pub_path": ".github/cosign-keys/amaru.pub",
+      "fingerprint_sha256": "d087de7c11a3eb1533211d518c9503800a44b65da99aa5b8e68d89598118c910",
+      "served_at": "https://szlholdings-amaru.hf.space/khipu/pubkey?keyid=amaru-cosign",
+      "action": "generated"
+    },
+    "a11oy": {
+      "keyid": "a11oy-cosign",
+      "curve": "secp256r1 (P-256)",
+      "pub_path": ".github/cosign-keys/a11oy.pub",
+      "fingerprint_sha256": "f042ba5a0fc42a2bad5c6854c978b3c3c7637b221b61c421903c7db156ba3883",
+      "served_at": "https://szlholdings-a11oy.hf.space/khipu/pubkey?keyid=a11oy-cosign",
+      "action": "generated"
+    },
+    "killinchu": {
+      "keyid": "killinchu-cosign",
+      "curve": "secp256r1 (P-256)",
+      "pub_path": ".github/cosign-keys/killinchu.pub",
+      "fingerprint_sha256": "f208cba36d1bc1ab7b7a24922fea3beedc2145d35607e83eea9bcc0919251b8a",
+      "served_at": "https://szlholdings-killinchu.hf.space/khipu/pubkey?keyid=killinchu-cosign",
+      "action": "generated"
+    },
+    "rosie": {
+      "keyid": "rosie-cosign",
+      "curve": "secp256r1 (P-256)",
+      "pub_path": ".github/cosign-keys/rosie.pub",
+      "fingerprint_sha256": "c4f42f63794673822c7d65cb1c53b1bf898f3c4fce88ff902bf70eb97347699d",
+      "served_at": "https://szlholdings-rosie.hf.space/khipu/pubkey?keyid=rosie-cosign",
+      "action": "generated"
+    }
+  }
+}

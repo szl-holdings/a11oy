@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML files
+        run: |
+          yamllint -d "{extends: relaxed, rules: {line-length: {max: 200}}}" \
+            zarf.yaml \
+            uds-bundle.yaml \
+            tasks.yaml \
+            chart/Chart.yaml \
+            chart/values.yaml \
+            chart/values/dev.yaml \
+            chart/values/staging.yaml \
+            chart/values/prod.yaml \
+            configs/packages/ \
+            configs/peat/ \
+            receipts/doctrine-pin.yaml
+
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Helm lint (default values)
+        run: helm lint ./chart
+
+      - name: Helm lint (dev values)
+        run: helm lint ./chart -f chart/values/dev.yaml
+
+      - name: Helm lint (staging values)
+        run: helm lint ./chart -f chart/values/staging.yaml
+
+      - name: Helm lint (prod values)
+        run: helm lint ./chart -f chart/values/prod.yaml
+
+  zarf-lint:
+    name: Zarf Dev Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Zarf
+        run: |
+          curl -sL https://github.com/defenseunicorns/zarf/releases/download/v0.38.2/zarf_v0.38.2_Linux_amd64 \
+            -o /usr/local/bin/zarf
+          chmod +x /usr/local/bin/zarf
+
+      - name: Zarf dev lint
+        run: zarf dev lint .
+
+  doctrine-check:
+    name: Doctrine Pin Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify doctrine-pin.yaml contains correct values
+        run: |
+          set -euo pipefail
+          PIN=$(grep 'pin:' receipts/doctrine-pin.yaml | awk '{print $2}' | tr -d '"')
+          VERSION=$(grep 'version:' receipts/doctrine-pin.yaml | head -1 | awk '{print $2}' | tr -d '"')
+          KERNEL=$(grep 'kernelCommit:' receipts/doctrine-pin.yaml | awk '{print $2}' | tr -d '"')
+          echo "Doctrine version: ${VERSION}"
+          echo "Pin: ${PIN}"
+          echo "Kernel: ${KERNEL}"
+          [ "${VERSION}" = "v11" ] || { echo "FAIL: wrong doctrine version ${VERSION}"; exit 1; }
+          [ "${PIN}" = "749/14/163" ] || { echo "FAIL: wrong pin ${PIN}"; exit 1; }
+          [ "${KERNEL}" = "c7c0ba17" ] || { echo "FAIL: wrong kernel commit ${KERNEL}"; exit 1; }
+          echo "Doctrine pin OK"
+
+      - name: Verify no forbidden framework references in chart and config YAML
+        run: |
+          set -euo pipefail
+          # Scope: chart/ and configs/ only.
+          # receipts/doctrine-pin.yaml is the compliance record that MUST list these as excluded.
+          # ci.yml itself uses these as search terms and is not a workload manifest.
+          # Docs (SECURITY.md, CONTRIBUTING.md, SZL_FLEET_OVERLAY_DESIGN.md) describe exclusions.
+          FAIL=0
+          DIRS="chart configs"
+          for term in IronBank FedRAMP CMMC SWFT MissionOwner; do
+            HITS=$(grep -rl "${term}" ${DIRS} --include="*.yaml" --include="*.yml" 2>/dev/null || true)
+            if [ -n "${HITS}" ]; then
+              echo "FAIL: forbidden term '${term}' found in workload manifests:"
+              echo "${HITS}"
+              FAIL=1
+            fi
+          done
+          [ "${FAIL}" -eq 0 ] || exit 1
+          echo "Chart and config manifests clean — no forbidden framework references"

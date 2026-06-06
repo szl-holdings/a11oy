@@ -1,0 +1,41 @@
+name: DCO Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  dco:
+    name: Developer Certificate of Origin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check DCO sign-off on all commits
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          MISSING=0
+          while IFS= read -r commit; do
+            MSG=$(git log --format="%B" -n 1 "${commit}")
+            if ! echo "${MSG}" | grep -q "^Signed-off-by:"; then
+              echo "FAIL: commit ${commit} missing Signed-off-by trailer"
+              echo "Message: ${MSG}"
+              MISSING=1
+            fi
+          done < <(git log --format="%H" "${BASE}..${HEAD}")
+          if [ "${MISSING}" -eq 1 ]; then
+            echo ""
+            echo "DCO FAILED: One or more commits are missing a Signed-off-by trailer."
+            echo "Add it with: git commit -s --amend"
+            echo "Required format: Signed-off-by: Your Name <your.email@example.com>"
+            exit 1
+          fi
+          echo "DCO OK: all commits signed off"

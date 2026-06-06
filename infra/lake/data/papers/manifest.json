@@ -1,0 +1,57 @@
+{
+  "schema": "szl.lake.papers/v1",
+  "generated_at_utc": "2026-06-02T02:14:39Z",
+  "concept_doi": "10.5281/zenodo.19944926",
+  "umbrella_doi": "10.5281/zenodo.20434276",
+  "note": "DOIs verified from szl-holdings repo CITATION.cff / .zenodo.json and org README. PDFs are NOT duplicated here \u2014 cite Zenodo directly.",
+  "papers": [
+    {
+      "title": "lutar-lean \u2014 Lean 4 + Mathlib formalization of the \u039b aggregator (749/14/163)",
+      "doi": "10.5281/zenodo.19944926",
+      "relation": "concept",
+      "url": "https://doi.org/10.5281/zenodo.19944926"
+    },
+    {
+      "title": "lutar-lean kernel release",
+      "doi": "10.5281/zenodo.20434308",
+      "relation": "version",
+      "url": "https://doi.org/10.5281/zenodo.20434308"
+    },
+    {
+      "title": "SZL governance substrate (umbrella deposit)",
+      "doi": "10.5281/zenodo.20434276",
+      "relation": "umbrella",
+      "url": "https://doi.org/10.5281/zenodo.20434276"
+    },
+    {
+      "title": "vsp-otel \u2014 \u039b-signed OpenTelemetry exporter",
+      "doi": "10.5281/zenodo.20424995",
+      "relation": "version",
+      "url": "https://doi.org/10.5281/zenodo.20424995"
+    },
+    {
+      "title": "Ouroboros bounded-recursion thesis substrate",
+      "doi": "10.5281/zenodo.20434276",
+      "relation": "thesis",
+      "url": "https://doi.org/10.5281/zenodo.20434276"
+    },
+    {
+      "title": "PURIQ: A Master Formula for Agentic AI under Provable Provenance (preprint)",
+      "doi": "pending",
+      "relation": "preprint",
+      "url": "https://github.com/szl-holdings/puriq-preprint"
+    },
+    {
+      "title": "Khipu Consensus \u2014 BFT 3-of-4 multi-party-witnessed AI",
+      "doi": "pending",
+      "relation": "working",
+      "url": "https://github.com/szl-holdings/khipu-consensus"
+    },
+    {
+      "title": "Prior-art defensive disclosures (PURIQ master formula, Yuyay-13, Khipu DAG)",
+      "doi": "pending",
+      "relation": "disclosure",
+      "url": "https://github.com/szl-holdings/prior-art-disclosures"
+    }
+  ]
+}

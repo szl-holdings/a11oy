@@ -1,0 +1,39 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Big Bang overlay — places the SZL umbrella chart into Big Bang namespace
+# conventions and demonstrates integration with Big Bang Istio, Authservice and
+# Keycloak (configured-not-deployed). Author: Yachay <yachay@szlholdings.dev>.
+#
+# Big Bang ships its core via Flux HelmReleases. This overlay is a Kustomize
+# wrapper that a Big Bang operator references from their environment overlay so
+# the SZL chart reconciles alongside bigbang core in the szl-system namespace.
+#
+# Render locally:
+#   kubectl kustomize ./bigbang
+# Or apply the SZL chart directly into a Big Bang cluster:
+#   helm install bigbang-szl ../charts/szl --namespace szl-system --create-namespace
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: szl-system
+
+# The rendered SZL chart manifests (output of `helm template`) are committed as a
+# Kustomize base so air-gapped Big Bang clusters can apply without a Helm round-trip.
+resources:
+  - rendered/szl-manifests.yaml
+
+# Big Bang convention labels applied to every SZL object so Big Bang's Kyverno
+# policies, Istio sidecar injector, and Prometheus operator select them.
+labels:
+  - pairs:
+      bigbang.dev/component: szl
+      app.kubernetes.io/part-of: szl-mesh
+    includeSelectors: false
+
+# Big Bang Istio + Authservice + Keycloak are CONFIGURED here, NOT deployed by
+# this overlay (Big Bang core owns those HelmReleases). These patches declare the
+# integration contract: the SZL Authservice chain entry + Keycloak realm client.
+patches:
+  - path: patches/istio-injection.yaml
+    target:
+      kind: Namespace
+      name: szl-system

@@ -1,0 +1,25 @@
+{
+    "idea_id": "R8-L2",
+    "idea_name": "DATABRICKS-OBO-CONSENT-RECEIPT",
+    "lean_path": "Lutar/Innovations/round8/DatabricksOBO.lean",
+    "source": "Databricks AI Gateway + Unity Catalog OBO token flow (2024)",
+    "academic_citation": "Databricks Engineering Blog, 'AI Gateway: A Governance Layer for Agentic AI' (2024). https://www.databricks.com/blog/ai-gateway-governance-layer-agentic-ai",
+    "plug_in_target": "killinchu / amaru \u2014 on-behalf-of consent receipt",
+    "sorry_free": true,
+    "doctrine": "v11",
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "kernel_commit": "c7c0ba17",
+    "lambda": "Conjecture 1 - NOT a theorem",
+    "ts": "2026-06-03T13:39:00+00:00",
+    "cycle": "round8-leader-scrape-plus-ancient-redecode",
+    "slsa": "L1 honest",
+    "pr_url": "PENDING",
+    "receipt_hash": "707f49e6bfc7c08c207646b1c94862dcee54ce65eee87e9b127005e92691f87e",
+    "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+    "dco": {
+        "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+        "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+    }
+}

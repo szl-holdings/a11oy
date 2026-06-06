@@ -1,0 +1,20 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# Rosie standalone Helm chart — UDS Core / Big Bang compatible.
+# Author: Yachay <yachay@szlholdings.dev> (DCO signed). Doctrine v11 LOCKED 749/14/163.
+apiVersion: v2
+name: rosie
+description: "SZL Rosie — Operator console + decision approval gates (adds human-in-loop layer UDS Core lacks)"
+type: application
+version: 0.2.0
+appVersion: "uds-v0.2.0"
+home: https://github.com/szl-holdings/rosie
+sources:
+  - https://github.com/szl-holdings/rosie
+  - https://huggingface.co/spaces/SZLHOLDINGS/rosie
+keywords: [uds, big-bang, szl, rosie]
+maintainers:
+  - name: Yachay
+    email: yachay@szlholdings.dev
+annotations:
+  helm.sh/images: |
+    - ghcr.io/szl-holdings/rosie:uds-v0.2.0

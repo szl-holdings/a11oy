@@ -1,0 +1,14 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# szl-key-init chart values
+# Doctrine v11 LOCKED 749/14/163
+
+# Target namespace for the Ed25519 Secret.
+# Defaults to the Helm release namespace (usually pepr-system when
+# integrated with the szl-receipts bundle).
+namespace: pepr-system
+
+# Name of the Kubernetes Secret to create (must match what the
+# szl-receipts Deployment expects via signing.keypair.secretName).
+secretName: szl-receipts-ed25519

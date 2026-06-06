@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "name": "vsp-otel-workspace",
+  "scripts": {
+    "build": "pnpm -C runtime build",
+    "test": "pnpm -C runtime test",
+    "lint": "eslint runtime/src --ext .ts"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.0.0"
+  }
+}

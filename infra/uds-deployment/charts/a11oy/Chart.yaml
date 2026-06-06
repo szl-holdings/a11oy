@@ -1,0 +1,28 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# a11oy per-flagship Helm chart — UDS Core / Big Bang compatible.
+# References the LIVE, cosign-signed image ghcr.io/szl-holdings/a11oy:uds-v0.2.0.
+# Includes a receipt-key init pre-install hook (charts/szl-key-init pattern) and
+# mounts the receipt-signing secret + doctrine configmap.
+#
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17. SLSA L1 (honest).
+apiVersion: v2
+name: a11oy
+description: "SZL a11oy — Governance + policy + receipt substrate orchestrator (Λ governance)"
+type: application
+version: 0.2.0
+appVersion: "uds-v0.2.0"
+home: https://github.com/szl-holdings/a11oy
+sources:
+  - https://github.com/szl-holdings/a11oy
+keywords: [uds, big-bang, szl, a11oy]
+maintainers:
+  - name: Yachay
+    email: yachay@szlholdings.ai
+annotations:
+  szl.ai/doctrine-version: "v11"
+  szl.ai/slsa-level: "L1"
+  helm.sh/images: |
+    - name: a11oy
+      image: ghcr.io/szl-holdings/a11oy:uds-v0.2.0

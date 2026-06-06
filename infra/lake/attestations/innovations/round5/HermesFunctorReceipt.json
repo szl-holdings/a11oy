@@ -1,0 +1,22 @@
+{
+  "specVersion": "1.0",
+  "type": "https://szlholdings.ai/attestation/innovation/round5",
+  "predicateType": "https://szlholdings.ai/predicate/lean-stub",
+  "subject": {
+    "name": "HERMES-FUNCTOR-RECEIPT",
+    "namespace": "Lutar.Innovations.Round5"
+  },
+  "predicate": {
+    "timestamp": "2026-06-03T07:15:00Z",
+    "formula": "HERMES-FUNCTOR-RECEIPT",
+    "source_citation": "MacLane 1998 Categories Ch.II; Eilenberg-MacLane 1945 Trans.AMS 58:231-294",
+    "plug_in_target": "a11oy/khipu",
+    "lean_stub_url": "https://github.com/szl-holdings/lutar-lean/blob/feat/innovations-round5/Lutar/Innovations/round5/HermesFunctorReceipt.lean",
+    "ci_status": "pending",
+    "sorry_count": 1,
+    "doctrine": "v11 LOCKED 749/14/163 | kernel c7c0ba17 | Lambda=Conjecture1 | SLSA-L1",
+    "round": "round5",
+    "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+    "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+  }
+}

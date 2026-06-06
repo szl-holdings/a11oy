@@ -1,0 +1,72 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+# amaru — UDS Zarf Package. Build: zarf package create . --confirm
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/main/zarf.schema.json
+kind: ZarfPackageConfig
+metadata:
+  name: amaru-attestation
+  description: "amaru cortex attestation / formula witness — KL drift + hash-chained proof receipts, 7-chakra runtime, adversarial regression detection. Doctrine v11 LOCKED preserved."
+  version: "0.3.1"
+  zarfVersion: ">=0.77.0"   # Min Zarf CLI: Helm 4 + keyless signing
+  url: "https://szlholdings.com"
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+  documentation: "https://github.com/szl-holdings/uds-bundles"
+
+variables:
+  - name: DOMAIN
+    default: "uds.dev"
+  - name: LOG_LEVEL
+    default: "info"
+
+components:
+  - name: amaru-namespace
+    required: true
+    description: "Create the amaru namespace (Istio inject + UDS Core labels)"
+    manifests:
+      - name: amaru-namespace
+        namespace: amaru
+        files:
+          - ./manifests/namespace.yaml
+  - name: amaru-attestation
+    required: true
+    description: "Deploy amaru cortex attestation runtime (formula witness emitter)"
+    only:
+      flavor: upstream
+    charts:
+      - name: amaru
+        namespace: amaru
+        version: 0.3.1
+        localPath: ./chart
+        valuesFiles:
+          - ./chart/values.yaml
+    images:
+      - ghcr.io/szl-holdings/amaru:uds-v0.3.1
+    actions:
+      onDeploy:
+        after:
+          - description: "Wait for amaru-attestation to be ready"
+            maxTotalSeconds: 180
+            wait:
+              cluster:
+                kind: Deployment
+                name: amaru-attestation
+                namespace: amaru
+                condition: Available
+  - name: amaru-mesh-policy
+    required: true
+    description: "Istio VirtualService + AuthorizationPolicy + NetworkPolicy"
+    manifests:
+      - name: amaru-mesh
+        namespace: amaru
+        files:
+          - ./manifests/virtualservice.yaml
+          - ./manifests/authorizationpolicy.yaml
+          - ./manifests/networkpolicy.yaml
+  - name: amaru-uds-package
+    required: true
+    description: "UDS Package CR — UDS Core admission"
+    manifests:
+      - name: amaru-uds-package
+        namespace: amaru
+        files:
+          - ./uds-package.yaml

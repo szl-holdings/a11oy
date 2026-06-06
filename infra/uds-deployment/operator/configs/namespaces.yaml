@@ -1,0 +1,40 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-a11oy
+  labels:
+    istio.io/dataplane-mode: ambient
+    szl.io/doctrine-version: "v11"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-sentra
+  labels:
+    istio.io/dataplane-mode: ambient
+    szl.io/doctrine-version: "v11"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-amaru
+  labels:
+    istio.io/dataplane-mode: ambient
+    szl.io/doctrine-version: "v11"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-rosie
+  labels:
+    istio.io/dataplane-mode: ambient
+    szl.io/doctrine-version: "v11"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: szl-killinchu
+  labels:
+    istio.io/dataplane-mode: ambient
+    szl.io/doctrine-version: "v11"

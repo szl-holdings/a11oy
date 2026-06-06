@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: Apache-2.0
+# vsp-otel — cross-pod OpenTelemetry Collector config
+# Doctrine v11 LOCKED — 749/14/163 · Λ = Conjecture 1
+#
+# The collector is the cross-pod broker: it RECEIVES spans over OTLP/gRPC from N
+# organs (a11oy, killinchu, rosie, ...) and EXPORTS them to:
+#   * Jaeger  (interactive trace UI)
+#   * Tempo   (long-term trace store, Grafana-native)
+#   * the SZL custom Khipu exporter (writes DSSE-bound Khipu receipts)
+#
+# HONEST GAP: the "szl/khipu" exporter below is a CUSTOM exporter that must be
+# built + loaded via the OpenTelemetry Collector Builder (ocb). Until that binary
+# is published, route to the `debug` exporter (uncommented) so spans are still
+# observable. The pipeline shape is real; the custom exporter binary is roadmap.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317   # organs export here (matches OTEL_EXPORTER_OTLP_ENDPOINT)
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+  # Tag every span with the mesh + Λ-axis so downstream sinks can filter.
+  resource:
+    attributes:
+      - key: szl.mesh.lambda_axis
+        value: "Conjecture 1"
+        action: upsert
+      - key: szl.doctrine.version
+        value: "v11"
+        action: upsert
+
+exporters:
+  # Interactive trace UI.
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  # Long-term store (Grafana Tempo).
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  # SZL custom Khipu exporter (writes DSSE-bound Khipu receipts).
+  # ROADMAP: requires the ocb-built custom exporter binary. Until then, use debug.
+  # szl/khipu:
+  #   khipu_endpoint: http://khipu-receipts:8088/v1/append
+  #   dsse: true
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      # When the custom exporter is built, add `szl/khipu` to this list.
+      exporters: [otlp/jaeger, otlp/tempo, debug]
+  telemetry:
+    logs:
+      level: info

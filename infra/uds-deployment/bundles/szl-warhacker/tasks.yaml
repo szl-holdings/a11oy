@@ -1,0 +1,106 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# uds-cli task definitions for the SZL Warhacker meta-bundle (v0.4.0).
+#
+# Usage (run from bundles/szl-warhacker/):
+#   uds run start           # k3d cluster + init + uds-core slim-dev + szl-receipts (+ vessels if FA-001 done)
+#   uds run verify          # HTTP-200 / kubectl health checks — Doctrine §10 evidence
+#   uds run demo:scenario   # apply demo workload, watch a receipt fire (mirrors WARHACKER_DEMO.md)
+#   uds run cleanup         # delete the szl-warhacker k3d cluster
+#
+# Requires: uds, zarf, k3d, docker, kubectl. See ../../docs/INSTALL.md.
+# Reference: https://github.com/defenseunicorns/uds-cli/blob/main/docs/tasks.md
+
+variables:
+  - name: CLUSTER_NAME
+    default: szl-warhacker
+  - name: DOMAIN
+    default: uds.dev
+  - name: VERSION
+    default: "0.4.0"
+
+tasks:
+  # ── start ───────────────────────────────────────────────────────────────────
+  - name: start
+    description: "Bootstrap k3d (szl-warhacker) + init + uds-core slim-dev + szl-receipts"
+    actions:
+      - description: "Check required tools"
+        cmd: |
+          for tool in uds zarf k3d docker kubectl; do
+            command -v "$tool" >/dev/null 2>&1 || { echo "ERROR: $tool not installed. See docs/INSTALL.md."; exit 1; }
+          done
+          echo "All required tools found."
+      - description: "Create k3d cluster (szl-warhacker)"
+        cmd: |
+          if k3d cluster list | grep -q "${CLUSTER_NAME}"; then
+            echo "Cluster ${CLUSTER_NAME} already exists — skipping create."
+          else
+            k3d cluster create "${CLUSTER_NAME}" \
+              --k3s-arg "--disable=traefik@server:0" \
+              --port "80:80@loadbalancer" \
+              --port "443:443@loadbalancer" \
+              --port "8443:8443@loadbalancer" \
+              --wait
+          fi
+      - description: "Create the szl-warhacker bundle"
+        cmd: uds create . --confirm --no-progress
+      - description: "Deploy the bundle (init → core slim-dev → szl-receipts → vessels*)"
+        cmd: |
+          # * vessels deploys only if FA-001 (image push to GHCR) is complete;
+          #   it is an optionalComponent and may ImagePullBackOff otherwise.
+          uds deploy uds-bundle-szl-warhacker-*.tar.zst \
+            --set DOMAIN="${DOMAIN}" \
+            --set INSECURE_ADMIN_PASSWORD_GENERATION=true \
+            --confirm --no-progress
+      - description: "Access info"
+        cmd: |
+          echo "Cluster: ${CLUSTER_NAME}"
+          echo "Receipts dashboard: kubectl port-forward svc/szl-receipts-server 8443:8443 -n szl-receipts"
+          echo "Then: curl -s http://localhost:8443/health"
+
+  # ── verify ──────────────────────────────────────────────────────────────────
+  - name: verify
+    description: "Doctrine §10 evidence: pod health + HTTP-200 on the receipts server"
+    actions:
+      - description: "Cluster reachable?"
+        cmd: kubectl cluster-info | head -2
+      - description: "uds-core pods Ready?"
+        cmd: kubectl get pods -A -l app.kubernetes.io/part-of=uds-core -o wide || kubectl get pods -n istio-system
+      - description: "szl-receipts pods Ready?"
+        cmd: kubectl get pods -n szl-receipts -o wide
+      - description: "Receipts server HTTP 200?"
+        cmd: |
+          kubectl port-forward svc/szl-receipts-server 8443:8443 -n szl-receipts >/dev/null 2>&1 &
+          PF=$!; sleep 3
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8443/health || echo 000)
+          kill $PF 2>/dev/null || true
+          echo "GET /health -> HTTP ${CODE}"
+          [ "${CODE}" = "200" ] || { echo "FAIL: receipts server did not return 200"; exit 1; }
+          echo "PASS"
+
+  # ── demo:scenario ───────────────────────────────────────────────────────────
+  # Mirrors docs/WARHACKER_DEMO.md Minute 3 — apply a workload, watch a receipt fire.
+  - name: demo:scenario
+    description: "Apply the demo workload and show the receipt it triggers (per WARHACKER_DEMO.md)"
+    actions:
+      - description: "Apply demo workload"
+        cmd: kubectl apply -f ../../scripts/demo_workload.yaml
+      - description: "Wait for the receipt annotation to appear"
+        cmd: |
+          echo "Waiting up to 30s for receipt annotation..."
+          for i in $(seq 1 30); do
+            ANN=$(kubectl get deployment szl-demo-agent -n szl-demo-workload \
+              -o jsonpath='{.metadata.annotations.szl\.receipt\.id}' 2>/dev/null || true)
+            [ -n "$ANN" ] && { echo "Receipt id: $ANN"; break; }
+            sleep 1
+          done
+      - description: "Verify the receipt chain"
+        cmd: bash ../../scripts/verify_receipts.sh || echo "verify_receipts.sh reported unverified — inspect manually"
+
+  # ── cleanup ────────────────────────────────────────────────────────────────
+  - name: cleanup
+    description: "Delete the szl-warhacker k3d cluster"
+    actions:
+      - description: "Delete k3d cluster"
+        cmd: k3d cluster delete "${CLUSTER_NAME}" && echo "Cluster ${CLUSTER_NAME} deleted."

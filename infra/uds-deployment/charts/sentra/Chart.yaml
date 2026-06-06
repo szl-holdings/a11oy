@@ -1,0 +1,28 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# sentra per-flagship Helm chart — UDS Core / Big Bang compatible.
+# References the LIVE, cosign-signed image ghcr.io/szl-holdings/sentra:uds-v0.2.0.
+# Includes a receipt-key init pre-install hook (charts/szl-key-init pattern) and
+# mounts the receipt-signing secret + doctrine configmap.
+#
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17. SLSA L1 (honest).
+apiVersion: v2
+name: sentra
+description: "SZL sentra — Cyber-resilience runtime — fail-closed asset-scoped Safety Gate (NIST CSF 2.0 + D3FEND)"
+type: application
+version: 0.2.0
+appVersion: "uds-v0.2.0"
+home: https://github.com/szl-holdings/sentra
+sources:
+  - https://github.com/szl-holdings/sentra
+keywords: [uds, big-bang, szl, sentra]
+maintainers:
+  - name: Yachay
+    email: yachay@szlholdings.ai
+annotations:
+  szl.ai/doctrine-version: "v11"
+  szl.ai/slsa-level: "L1"
+  helm.sh/images: |
+    - name: sentra
+      image: ghcr.io/szl-holdings/sentra:uds-v0.2.0

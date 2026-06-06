@@ -1,0 +1,2 @@
+-- Place optional helper lemma files here and import them from your proof.
+-- The final `theorem lambda_aggregator_unique` must stay in Lambda/Lambda.lean.

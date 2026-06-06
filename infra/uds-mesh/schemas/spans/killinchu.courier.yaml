@@ -1,0 +1,320 @@
+# SZL Holdings — killinchu.courier.* OTEL Span Schema (v17.2)
+# Author: Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings
+#
+# OTEL semantic-convention schema for receipt/transport courier spans emitted by
+# the killinchu organ — the mesh's receipt courier and mission-transport flagship.
+#
+# Specification follows:
+#   OpenTelemetry Specification v1.29+ (https://opentelemetry.io/docs/specs/otel/)
+#   OpenTelemetry Semantic Conventions v1.25+ (https://opentelemetry.io/docs/specs/semconv/)
+#   DSSE envelope: https://github.com/secure-systems-lab/dsse
+#   in-toto attestation: https://github.com/in-toto/attestation
+#
+# Origins:
+#   - DSSE envelope spec (secure-systems-lab/dsse)
+#   - in-toto attestation framework (in-toto/attestation)
+#
+# UDS mesh wiring (cross-organ):
+#   namespace:        szl-killinchu
+#   service:          szl-killinchu  (Istio sidecar mTLS via UDS Operator / uds-core)
+#   service discovery: UDS Package CR `Package/szl-killinchu` (network.expose host=killinchu)
+#   DSSE receipt sink: szl-receipts (Egress NetworkPolicy, port 8080)
+#   SSO:              Keycloak OIDC client uds-szl-killinchu
+#
+# SLSA provenance: L1 (honest) — receipts bind spans to extended-attestations.jsonl
+
+schema_url: https://github.com/szl-holdings/uds-mesh/blob/main/schemas/spans/killinchu.courier.yaml
+version: 17.2.0
+organ: killinchu
+mesh_namespace: szl-killinchu
+mesh_service: szl-killinchu
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Common fields — shared by EVERY organ span across the UDS mesh
+# (cross-organ receipt envelope: any organ can read any other organ's spans)
+# ─────────────────────────────────────────────────────────────────────────────
+
+common_fields:
+  description: |
+    All killinchu.courier.* spans share the standard OTEL span envelope plus the
+    SZL cross-organ DSSE governance-receipt attributes (prefix szl.mesh.*).
+    These shared attributes are IDENTICAL across all five organs (a11oy, sentra,
+    amaru, killinchu, rosie) so that the mesh can correlate a single decision as
+    it crosses organ boundaries.
+
+  otel_fields:
+    - name: trace_id
+      type: string
+      required: true
+      description: "W3C TraceContext trace-id (32 hex chars). Stable across organs."
+      example: "4bf92f3577b34da6a3ce929d0e0e4736"
+    - name: span_id
+      type: string
+      required: true
+      description: "W3C TraceContext span-id (16 hex chars)."
+      example: "00f067aa0ba902b7"
+    - name: parent_span_id
+      type: string
+      required: false
+      description: "Parent span-id; may belong to a DIFFERENT organ (cross-organ edge)."
+      example: "00f067aa0ba902b6"
+    - name: name
+      type: string
+      required: true
+      description: "Span name — one of the killinchu.courier.* names below."
+    - name: start_time
+      type: string
+      format: "RFC 3339 / ISO 8601 UTC"
+      required: true
+      example: "2026-06-03T12:00:00.000000000Z"
+    - name: end_time
+      type: string
+      format: "RFC 3339 / ISO 8601 UTC"
+      required: true
+      example: "2026-06-03T12:00:00.042000000Z"
+    - name: status
+      type: object
+      required: true
+      description: "OTEL SpanStatus: {code: OK | ERROR | UNSET, message?: string}."
+      properties:
+        code:
+          type: string
+          enum: [OK, ERROR, UNSET]
+        message:
+          type: string
+          required: false
+
+  # Cross-organ DSSE governance-receipt attributes. Present on EVERY mesh span
+  # regardless of organ. These bind each span to the Khipu Merkle DAG receipt
+  # chain and to the per-organ cosign-signed image that emitted it.
+  szl_mesh_attributes:
+    - name: szl.mesh.organ
+      type: string
+      required: true
+      description: "Emitting organ: a11oy | sentra | amaru | killinchu | rosie."
+      example: "killinchu"
+    - name: szl.mesh.receipt_hash
+      type: string
+      required: true
+      description: |
+        SHA-256 hex digest of the canonical DSSE receipt for this span. Binds the
+        span to the cross-organ provenance chain in extended-attestations.jsonl.
+      example: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1a"
+    - name: szl.mesh.dsse_payload_type
+      type: string
+      required: true
+      description: "DSSE payloadType. Always application/vnd.in-toto+json for mesh receipts."
+      example: "application/vnd.in-toto+json"
+    - name: szl.mesh.image_digest
+      type: string
+      required: true
+      description: |
+        Digest of the cosign-signed ghcr.io image that emitted the span,
+        e.g. ghcr.io/szl-holdings/killinchu@sha256:... (key-based P-256 signature).
+      example: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    - name: szl.mesh.lambda_value
+      type: string
+      required: true
+      description: |
+        Governance Λ for this span as a decimal string (Λ Conjecture 1: Λ ∈ [0,1]).
+        Shared governance scalar so the mesh can gate any organ's output uniformly.
+      example: "0.813472"
+    - name: szl.mesh.governance_drift
+      type: boolean
+      required: true
+      description: |
+        True iff Λ fell below the Doctrine Λ floor (LAMBDA_FLOOR = 0.1) or exceeded 1.0.
+      example: false
+    - name: szl.mesh.upstream_organ
+      type: string
+      required: false
+      description: |
+        For cross-organ edges: the organ that produced the parent span. Enables the
+        mesh to reconstruct the inter-organ call graph from spans alone.
+      example: "a11oy"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Span definitions (organ-specific)
+# ─────────────────────────────────────────────────────────────────────────────
+
+spans:
+
+  - name: killinchu.courier.dispatch
+    stability: experimental
+    brief: |
+      Emitted when a DSSE receipt is dispatched between organs over the mesh.
+    description: |
+      Covers one courier hop: a DSSE receipt produced by a source organ is
+      transported (mTLS, Istio) to a destination organ's receipt sink.
+    attributes:
+      - name: szl.courier.src_organ
+        type: string
+        required: true
+        description: "Source organ emitting the receipt."
+        example: "sentra"
+      - name: szl.courier.dst_organ
+        type: string
+        required: true
+        description: "Destination organ receiving the receipt."
+        example: "rosie"
+      - name: szl.courier.hop_count
+        type: integer
+        required: true
+        description: "Mesh hop index for this transport."
+        example: 1
+
+  - name: killinchu.courier.verify
+    stability: experimental
+    brief: |
+      Emitted when the courier verifies a receipt's DSSE signature before relay.
+    description: |
+      Records signature verification of the in-flight DSSE receipt against the
+      source organ's cosign public key. Fail-closed: an invalid signature drops the hop.
+    attributes:
+      - name: szl.courier.sig_valid
+        type: boolean
+        required: true
+        description: "True iff DSSE signature verified against source organ key."
+        example: true
+
+  - name: killinchu.courier.deliver
+    stability: experimental
+    brief: |
+      Emitted when a receipt is durably delivered to the destination sink.
+    description: |
+      Binds final delivery to the Khipu DAG, closing the cross-organ transport loop.
+    attributes:
+      - name: szl.courier.delivered
+        type: boolean
+        required: true
+        description: "True iff receipt durably persisted at destination."
+        example: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JSON Schema (canonical wire format — shared mesh envelope + organ fields)
+# ─────────────────────────────────────────────────────────────────────────────
+
+json_schema:
+  type: object
+  required:
+    - trace_id
+    - span_id
+    - name
+    - start_time
+    - end_time
+    - status
+    - attributes
+  properties:
+    trace_id:
+      type: string
+      pattern: "^[0-9a-f]{32}$"
+    span_id:
+      type: string
+      pattern: "^[0-9a-f]{16}$"
+    parent_span_id:
+      type: string
+      pattern: "^[0-9a-f]{16}$"
+    name:
+      type: string
+      enum:
+        - "killinchu.courier.dispatch"
+        - "killinchu.courier.verify"
+        - "killinchu.courier.deliver"
+    start_time:
+      type: string
+      format: "date-time"
+    end_time:
+      type: string
+      format: "date-time"
+    status:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [OK, ERROR, UNSET]
+        message:
+          type: string
+    attributes:
+      type: object
+      required:
+        - "szl.mesh.organ"
+        - "szl.mesh.receipt_hash"
+        - "szl.mesh.dsse_payload_type"
+        - "szl.mesh.image_digest"
+        - "szl.mesh.lambda_value"
+        - "szl.mesh.governance_drift"
+      properties:
+        "szl.mesh.organ":
+          type: string
+          enum: ["a11oy", "sentra", "amaru", "killinchu", "rosie"]
+        "szl.mesh.receipt_hash":
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        "szl.mesh.dsse_payload_type":
+          type: string
+        "szl.mesh.image_digest":
+          type: string
+          pattern: "^sha256:[0-9a-f]{64}$"
+        "szl.mesh.lambda_value":
+          type: string
+          description: "Λ ∈ [0,1] decimal string (Λ Conjecture 1)"
+        "szl.mesh.governance_drift":
+          type: boolean
+        "szl.mesh.upstream_organ":
+          type: string
+        "szl.courier.src_organ":
+          type: string
+        "szl.courier.dst_organ":
+          type: string
+        "szl.courier.hop_count":
+          type: integer
+          minimum: 0
+        "szl.courier.sig_valid":
+          type: boolean
+        "szl.courier.delivered":
+          type: boolean
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Example spans
+# ─────────────────────────────────────────────────────────────────────────────
+
+examples:
+
+  - span: killinchu.courier.dispatch
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "00f067aa0ba902b7"
+      parent_span_id: "00f067aa0ba902b6"
+      name: "killinchu.courier.dispatch"
+      start_time: "2026-06-03T12:00:00.000000000Z"
+      end_time: "2026-06-03T12:00:00.040000000Z"
+      status: {code: OK}
+      attributes:
+        szl.mesh.organ: "killinchu"
+        szl.mesh.receipt_hash: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1a"
+        szl.mesh.dsse_payload_type: "application/vnd.in-toto+json"
+        szl.mesh.image_digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        szl.mesh.lambda_value: "0.813472"
+        szl.mesh.governance_drift: false
+        szl.mesh.upstream_organ: "sentra"
+        szl.courier.src_organ: "sentra"
+        szl.courier.dst_organ: "rosie"
+        szl.courier.hop_count: 1
+  - span: killinchu.courier.verify
+    body:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "33e389dd3ed135ea"
+      parent_span_id: "00f067aa0ba902b7"
+      name: "killinchu.courier.verify"
+      start_time: "2026-06-03T12:00:00.000000000Z"
+      end_time: "2026-06-03T12:00:00.040000000Z"
+      status: {code: OK}
+      attributes:
+        szl.mesh.organ: "killinchu"
+        szl.mesh.receipt_hash: "a3f2e1d4b8c7094f6e5d2c1b0a9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1a"
+        szl.mesh.dsse_payload_type: "application/vnd.in-toto+json"
+        szl.mesh.image_digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        szl.mesh.lambda_value: "0.813472"
+        szl.mesh.governance_drift: false
+        szl.courier.sig_valid: true

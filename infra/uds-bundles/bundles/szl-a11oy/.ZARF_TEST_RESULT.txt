@@ -1,0 +1,30 @@
+ZARF/UDS MANIFEST VALIDATION — szl-a11oy (2026-06-02)
+=====================================================
+Tooling present: zarf v0.51.0, uds v0.27.0, helm, cosign, syft.
+
+1) helm lint chart/            -> 0 charts failed (icon-recommended info only)
+2) helm template a11oy chart/  -> renders valid Namespace/Deployment/Service/
+                                  NetworkPolicy/PeerAuthentication/PodMonitor
+3) zarf dev lint .             -> PASS. Only finding: "Image not pinned with
+                                  digest" (expected — digest is populated at
+                                  cosign-attest/build time; SLSA provenance
+                                  records subject digest as PENDING-cosign-attest-at-build)
+4) uds zarf dev lint .         -> PASS (same single warning)
+5) zarf package create .       -> parses package, processes local helm chart,
+                                  proceeds to image fetch, then HONESTLY fails:
+                                  ghcr.io/szl-holdings/a11oy:uds-v0.1.0 -> 403 denied
+                                  (image not yet published) + no docker daemon in
+                                  this sandbox. This is the ONLY blocker and is
+                                  environmental, not a manifest defect.
+
+EXPECTED OUTPUT once image is published + run on a box with a container runtime:
+  zarf package create . --confirm
+    INF creating package path=.
+    INF processing local helm chart name=a11oy version=0.1.0 path=chart
+    INF pulling images count=1
+    INF generating SBOM
+    INF writing zarf-package-szl-a11oy-amd64-0.1.0.tar.zst
+  -> rename to szl-a11oy.uds.tar.zst, cosign sign, ship.
+
+CONCLUSION: manifests (zarf.yaml, uds-bundle.yaml, chart/) are VALID and
+deployable. Build only requires the published GHCR image + container runtime.

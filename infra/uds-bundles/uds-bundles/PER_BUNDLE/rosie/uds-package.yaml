@@ -1,0 +1,38 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: rosie
+  namespace: rosie
+spec:
+  network:
+    serviceMesh:
+      mode: ambient   # UDS Core v1.5.0 canonical — Istio ambient mode default since v1.2.0
+    expose:
+      - service: rosie
+        selector:
+          app.kubernetes.io/name: rosie
+        host: rosie
+        gateway: tenant
+        port: 8080
+        targetPort: 8080
+    allow:
+      - direction: Egress
+        selector:
+          app.kubernetes.io/name: rosie
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app.kubernetes.io/name: szl-receipts
+        port: 8443
+        description: "rosie -> szl-receipts (replay receipt source)"
+  monitor:
+    - selector:
+        app.kubernetes.io/name: rosie
+      portName: metrics
+      targetPort: 8080
+      description: "rosie Prometheus metrics"
+  sso:
+    - name: rosie Console
+      clientId: uds-rosie
+      redirectUris:
+        - "https://rosie.uds.dev/login/generic/callback"

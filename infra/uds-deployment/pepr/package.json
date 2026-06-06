@@ -1,0 +1,55 @@
+{
+  "name": "szl-receipt-policy",
+  "version": "0.1.0",
+  "description": "Pepr policy module: emit DSSE governance receipts on every Kubernetes Deployment/Job apply",
+  "license": "Apache-2.0",
+  "keywords": [
+    "pepr",
+    "k8s",
+    "governance",
+    "receipts",
+    "dsse",
+    "szl",
+    "uds"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pepr": {
+    "name": "szl-receipt-policy",
+    "uuid": "szl-receipt-policy",
+    "onError": "ignore",
+    "logLevel": "info",
+    "alwaysIgnore": {
+      "namespaces": [
+        "zarf",
+        "kube-system",
+        "kube-public",
+        "kube-node-lease",
+        "pepr-system",
+        "szl-receipts"
+      ]
+    },
+    "watch": {
+      "alwaysIgnore": {
+        "namespaces": [
+          "zarf",
+          "kube-system"
+        ]
+      }
+    }
+  },
+  "scripts": {
+    "build": "npx pepr build",
+    "deploy": "npx pepr deploy --confirm",
+    "dev": "npx pepr dev",
+    "test": "npx pepr validate"
+  },
+  "dependencies": {
+    "pepr": "1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  }
+}

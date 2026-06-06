@@ -1,0 +1,32 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+# killinchu.uds — single-flagship UDS bundle. Build: uds create . --confirm
+kind: UDSBundle
+metadata:
+  name: killinchu
+  description: >
+    killinchu drone flagship as a standalone UDS bundle. Depends on UDS Core
+    (Istio + Pepr 2-person gate) and szl-receipts. Doctrine v11 LOCKED: 749/14/163,
+    13-axis yuyay_v3, replay bacf5443...631fc5.
+  version: "0.3.1"
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+packages:
+  - name: killinchu-bundle
+    description: >
+      killinchu drone flagship: PURIQ core + anatomy libs + digital twin,
+      drone registry/audit, 2-person admission gate (Pepr).
+    path: .
+    ref: "0.3.1"
+    optionalComponents:
+      - killinchu-mesh-policy
+      - killinchu-uds-package
+    overrides:
+      killinchu-bundle:
+        killinchu:
+          values:
+            - path: gate.twoPerson
+              value: true
+            - path: puriq.core.enabled
+              value: true
+            - path: twin.enabled
+              value: true
+# SZL UDS = Unified Decision Span. Andrew Greene Option-A endorsement 2026-05-22.

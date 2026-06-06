@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · Lambda Conjecture 1 · SLSA L1+L2
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: szl
+resources:
+  - a11oy-deployment.yaml
+  - sentra-deployment.yaml
+  - amaru-deployment.yaml
+  - killinchu-deployment.yaml
+  - rosie-deployment.yaml

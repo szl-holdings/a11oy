@@ -1,0 +1,92 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# UDS Package CR for rosie — szl-fleet-overlay
+# Doctrine v11 LOCKED 749/14/163 at kernel commit c7c0ba17
+#
+# This CR is the canonical fleet-overlay Package CR for szl-rosie.
+# The UDS Operator (Pepr-based, shipped in UDS Core) watches this CR and:
+#   - Manages Istio VirtualService / DestinationRule
+#   - Generates Kubernetes NetworkPolicies (replaces raw Cilium manifests)
+#   - Provisions Keycloak OIDC client via SSO block
+#   - Creates Prometheus ServiceMonitor via monitor block
+#
+# Apply order: this CR must be applied AFTER UDS Core is running.
+# The fleet overlay Zarf package applies it via the szl-rosie-package component.
+#
+# References:
+#   UDS Package CR spec: https://uds.defenseunicorns.com/reference/configuration/custom-resources/packages-v1alpha1-cr/
+#   UDS Core Operator:   https://uds.defenseunicorns.com/reference/uds-core/overview/
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: szl-rosie
+  namespace: szl-rosie
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-pin: "749/14/163"
+    szl.io/kernel-commit: "c7c0ba17"
+    szl.io/slsa-level: "L1"
+    szl.io/fleet-version: "0.1.0"
+spec:
+  network:
+    expose:
+      - host: rosie
+        service: szl-rosie
+        port: 8080
+        gateway: tenant
+        selector:
+          app: szl-rosie
+    allow:
+      - direction: Egress
+        description: "Keycloak OIDC token endpoint"
+        remoteNamespace: keycloak
+        remoteSelector:
+          app.kubernetes.io/name: keycloak
+        port: 8443
+        remoteProtocol: TLS
+      - direction: Egress
+        description: "Peat mesh QUIC CRDT sync"
+        remoteNamespace: peat-system
+        remoteSelector:
+          app.kubernetes.io/name: peat-mesh
+        port: 4001
+        remoteProtocol: UDP
+      - direction: Egress
+        description: "Peat mesh gRPC API"
+        remoteNamespace: peat-system
+        remoteSelector:
+          app.kubernetes.io/name: peat-mesh
+        port: 50051
+        remoteProtocol: TCP
+      - direction: Ingress
+        description: "IntraNamespace (Istio sidecar + health probes)"
+        remoteGenerated: IntraNamespace
+  sso:
+    - clientId: uds-szl-rosie
+      name: "SZL Rosie"
+      protocol: openid-connect
+      redirectUris:
+        - "https://rosie.uds.dev/*"
+      webOrigins:
+        - "https://rosie.uds.dev"
+      standardFlowEnabled: true
+      enableAuthserviceSelector:
+        app: szl-rosie
+      groups:
+        anyOf:
+          - /szl-operators
+      secretConfig:
+        name: szl-rosie-oidc-secret
+        template: |
+          OIDC_CLIENT_ID: "{{ .clientId }}"
+          OIDC_CLIENT_SECRET: "{{ .secret }}"
+          OIDC_ISSUER: "https://sso.uds.dev/realms/uds"
+  monitor:
+    - description: "szl-rosie Prometheus metrics"
+      portName: http-metrics
+      targetPort: 9090
+      selector:
+        app: szl-rosie
+      path: /metrics
+      kind: ServiceMonitor

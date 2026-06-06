@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# Pepr policy — DSSE-receipt-required egress for szl-sentra.
+# Egress is DENIED unless the workload carries the dsse-receipt=required label,
+# enforcing that any agent action leaving the namespace emits a signed receipt.
+# Author: Yachay <yachay@szlholdings.dev> (DCO signed). Doctrine v11 LOCKED 749/14/163.
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: szl-sentra-dsse-egress
+  namespace: szl-sentra
+spec:
+  network:
+    allow:
+    # @lulaStart d2acc774-9e5c-26f2-6c11-b124aa0db850   # NIST SP 800-53 AC-4 / AU-10 mapping (validate with Lula, Apache-2.0)
+    # https://github.com/defenseunicorns/lula
+      - direction: Egress
+        selector:
+          dsse-receipt: required
+        remoteGenerated: KubeAPI
+        description: "Egress permitted ONLY for workloads emitting cosign-signed DSSE receipts"
+    # @lulaEnd d2acc774-9e5c-26f2-6c11-b124aa0db850
+  # Workloads without the dsse-receipt label inherit default-deny egress (fail-CLOSED).

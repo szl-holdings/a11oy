@@ -1,0 +1,5 @@
+{{/* NOTES */}}
+SZL Amaru deployed to namespace {{ .Values.namespace }}.
+Health:  kubectl -n {{ .Values.namespace }} port-forward svc/amaru 8080:8080
+         curl http://localhost:8080/api/amaru/healthz
+Operational: pull the network cable — it still serves. Doctrine v11 LOCKED 749/14/163.

@@ -1,0 +1,41 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: killinchu
+  namespace: killinchu
+spec:
+  network:
+    serviceMesh:
+      mode: ambient   # UDS Core v1.5.0 canonical — Istio ambient mode default since v1.2.0
+    expose:
+      - service: killinchu
+        selector:
+          app.kubernetes.io/name: killinchu
+        host: killinchu
+        gateway: tenant
+        port: 8080
+        targetPort: 8080
+    allow:
+      - direction: Egress
+        selector:
+          app.kubernetes.io/name: killinchu
+        remoteNamespace: rosie
+        remoteSelector:
+          app.kubernetes.io/name: rosie
+        port: 8080
+        description: "killinchu -> rosie"
+      - direction: Egress
+        selector:
+          app.kubernetes.io/name: killinchu
+        remoteNamespace: szl-receipts
+        remoteSelector:
+          app.kubernetes.io/name: szl-receipts
+        port: 8443
+        description: "killinchu -> szl-receipts (drone-audit receipt sink)"
+  monitor:
+    - selector:
+        app.kubernetes.io/name: killinchu
+      portName: metrics
+      targetPort: 8080
+      description: "killinchu Prometheus metrics"

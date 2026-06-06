@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: Apache-2.0
+# Zarf package definition — szl-amaru
+# Author: Yachay <yachay@szlholdings.dev> (DCO signed)
+# Doctrine v11 LOCKED 749/14/163
+# OPERATIONAL: deploy in 60s, pull the network cable, it still works.
+kind: ZarfPackageConfig
+metadata:
+  name: szl-amaru
+  version: 0.2.0
+  # zarfVersion: ">=0.77.0" removed — not a valid Zarf metadata field; enforce via CI --no-progress check
+  description: "SZL Amaru — Cortex memory + DSSE receipts + Khipu DAG (adds signed-decisions chain UDS Core lacks)"
+  architecture: amd64
+  authors: "Yachay <yachay@szlholdings.dev>"
+  source: "https://github.com/szl-holdings/amaru"
+  url: "https://huggingface.co/spaces/SZLHOLDINGS/amaru"
+  # Air-gap: all images + charts are baked into the .tar.zst; no pull at deploy time.
+  yolo: false
+
+components:
+  - name: amaru-runtime
+    required: true
+    description: "13-axis memory cortex. Each decision is hashed into a Khipu DAG and sealed with a DSSE/cosign receipt — an append-only signed chain of decisions."
+    charts:
+      - name: amaru
+        namespace: szl-amaru
+        localPath: ./chart
+        version: 0.2.0
+        valuesFiles:
+          - ./chart/values.yaml
+    images:
+      - "ghcr.io/szl-holdings/amaru:uds-v0.2.0"
+    # Pepr admission policies applied as raw manifests at deploy time.
+    manifests:
+      - name: amaru-pepr-policies
+        namespace: szl-amaru
+        files:
+          - ./policies/namespace-isolation.yaml
+          - ./policies/dsse-receipt-egress.yaml
+          - ./policies/section889-denylist.yaml
+          # K8s-native additive gates (alongside Pepr; Audit/warn during rollout)
+          - ./policies/lambda-gate.vap.yaml
+          - ./policies/cosign-image-policy.yaml
+
+  - name: amaru-sbom-attest
+    required: false
+    description: "SBOM (SPDX 2.3 + CycloneDX 1.4) and SLSA L1 provenance, shipped in-bundle."
+    files:
+      - source: ./sbom/amaru.spdx.json
+        target: ./sbom/amaru.spdx.json
+      - source: ./sbom/amaru.cyclonedx.json
+        target: ./sbom/amaru.cyclonedx.json
+      - source: ./attestations/amaru.slsa-provenance.json
+        target: ./attestations/amaru.slsa-provenance.json
+
+  - name: szl-amaru-uds-package
+    required: true
+    description: "UDS Package CR — registers szl-amaru with UDS Operator for Istio, NetworkPolicy, SSO, and monitoring"
+    manifests:
+      - name: szl-amaru-uds-package
+        namespace: szl-amaru
+        files:
+          - ./manifests/uds-package.yaml

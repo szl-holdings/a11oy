@@ -1,0 +1,76 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: killinchu
+  namespace: szl-killinchu
+  labels:
+    app: killinchu
+    app.kubernetes.io/name: killinchu
+    szl.io/component: uds-workload
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: killinchu
+  template:
+    metadata:
+      labels:
+        app: killinchu
+        app.kubernetes.io/name: killinchu
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: killinchu
+          # Live, cosign-signed image. Zarf rewrites this to the in-cluster
+          # registry reference at deploy time.
+          image: ghcr.io/szl-holdings/killinchu:###ZARF_PKG_TMPL_VERSION###
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: killinchu
+  namespace: szl-killinchu
+  labels:
+    app: killinchu
+    app.kubernetes.io/name: killinchu
+spec:
+  selector:
+    app: killinchu
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

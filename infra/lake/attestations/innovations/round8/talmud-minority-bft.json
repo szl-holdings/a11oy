@@ -1,0 +1,25 @@
+{
+    "idea_id": "A8-02",
+    "idea_name": "TALMUD-MINORITY-BFT",
+    "lean_path": "Lutar/Innovations/round8/TalmudMinorityBFT.lean",
+    "source": "Mishnah Eduyot 1:5\u20136 (~200 CE) \u2014 minority opinion preservation",
+    "academic_citation": "Mishnah Eduyot 1:5, in: Danby, H. (trans.), The Mishnah (Oxford UP, 1933). Lamport, L., Shostak, R., Pease, M., 'The Byzantine Generals Problem', ACM TOPLAS 4(3):382\u2013401 (1982). DOI:10.1145/357172.357176",
+    "plug_in_target": "amaru \u2014 BFT consensus minority-record fallback",
+    "sorry_free": true,
+    "doctrine": "v11",
+    "declarations": 749,
+    "axioms": 14,
+    "sorries": 163,
+    "kernel_commit": "c7c0ba17",
+    "lambda": "Conjecture 1 - NOT a theorem",
+    "ts": "2026-06-03T14:04:00+00:00",
+    "cycle": "round8-leader-scrape-plus-ancient-redecode",
+    "slsa": "L1 honest",
+    "pr_url": "PENDING",
+    "receipt_hash": "155f75ac70ac632a4803822617018521568018246ea5e0cf3d07718c642ed8b4",
+    "signature": "PLACEHOLDER \u2014 Sigstore CI signing pending per Doctrine v11",
+    "dco": {
+        "signed_off_by": "Yachay <yachay@szlholdings.ai>",
+        "co_authored_by": "Perplexity Computer Agent <agent@perplexity.ai>"
+    }
+}
