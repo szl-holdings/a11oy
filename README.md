@@ -48,7 +48,7 @@ ecosystem-stage: "operational"
 
 ## The application
 
-a11oy is a **full left-nav application** — not a landing page or a single console panel. It opens directly to the Command Center and carries the unified SZL house style (dark ground, gold `#c9b787` + teal `#5fb3a3` accents, Space Grotesk + JetBrains Mono) with a **cross-flag switcher** in the top ribbon that jumps to a11oy · sentra · amaru · rosie · killinchu in one click.
+a11oy is a **full left-nav application** — not a landing page or a single console panel. It opens directly to the Command Center and carries the unified SZL house style (dark ground, gold `#c9b787` + teal `#5fb3a3` accents, Space Grotesk + JetBrains Mono) with a **product switcher** in the top ribbon that jumps between the two live SZL products — a11oy (command platform) and killinchu (drones & vessels) — in one click.
 
 **Primary app file:** [`pages/console.html`](pages/console.html) · **served at** `/` and `/console`.
 
@@ -56,12 +56,12 @@ Working views in the left navigation:
 
 | View | What it does |
 |---|---|
-| **Command Center** | Live operational overview — organ health, recent verdicts, receipt stream |
-| **Five Superpowers** | The five orchestrated capabilities a11oy coordinates across the mesh |
-| **Warhacker** | Maps the five Warhacker problems to the organ(s) that solve each, with a live signed receipt |
+| **Command Center** | Live operational overview — service health, recent verdicts, receipt stream |
+| **Five Superpowers** | The five orchestrated capabilities a11oy coordinates internally |
+| **Warhacker** | Maps the five Warhacker problems to the a11oy capability that solves each, with a live signed receipt |
 | **Observability** | MELT + distributed tracing where every span is a signed Khipu receipt (vs New Relic / Datadog / OTel) |
-| **Wires** | The live inter-organ wires (a11oy↔sentra immune, a11oy↔rosie receipts, a11oy↔amaru cortex) |
-| **Mesh** | Live cross-organ reachability — real probes, honest when an organ is unreachable |
+| **Capabilities** | The built-in a11oy capability fabric — reasoning, policy, and operator paths wired into the receipt substrate |
+| **Services** | Live service reachability — real probes, honest when a service is unreachable |
 | **Formulas** | The PURIQ formula set — **5 proved in Lean 4 {F1, F11, F12, F18, F19}**, the rest Roadmap |
 | **Evidence** | Body-of-evidence export — DSSE Khipu receipts, replayable and tamper-evident |
 | **LLM Router** | The governed LLM routing surface |
@@ -70,10 +70,11 @@ Working views in the left navigation:
 
 ## What it does
 
-**a11oy is the audit-fiber continuity layer for the SZL mesh.** Every AI action routes through a11oy and leaves a DSSE-enveloped Khipu receipt on a SHA-256 hash-linked Merkle DAG. The invariant is `receipts.in ≡ receipts.out`: nothing is lost between the decision and the proof.
+**a11oy is the audit-fiber continuity layer of the SZL command platform.** Every AI action routes through a11oy and leaves a DSSE-enveloped Khipu receipt on a SHA-256 hash-linked Merkle DAG. The invariant is `receipts.in ≡ receipts.out`: nothing is lost between the decision and the proof.
 
 Key capabilities:
 - **Policy + receipt substrate** — `/v1/policy/evaluate`, `/v1/verify`, `/v1/ledger`: deny-by-default; every action signed
+- **Built-in capability fabric** — reasoning, policy, and operator paths are internal to a11oy (not external services); each emits signed receipts
 - **Honest disclosure** — `/v1/honest` reports live doctrine posture (749/14/163, Λ = Conjecture 1)
 - **8 TS workspace libs** — `@szl-holdings/a11oy-knowledge`, `a11oy-policy`, `a11oy-qec-integrity`, `a11oy-receipt-substrate`, `perception-loop`, `rae1`, `sequence-pipeline`, `sparse-attention-kit`
 - **DSSE Khipu receipts** — ECDSA P-256-SHA256; multi-party-witnessed; BFT quorum-capable
@@ -101,8 +102,8 @@ cosign verify-attestation --type slsaprovenance ghcr.io/szl-holdings/a11oy:uds-v
   --certificate-identity-regexp="https://github.com/szl-holdings/a11oy/" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 
-# 4. Deploy as part of the signed 5-organ mesh bundle
-#    (organ images are L2-attested; the bundle artifact itself is not yet attested)
+# 4. Deploy as part of the signed mesh bundle
+#    (service images are L2-attested; the bundle artifact itself is not yet attested)
 uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0 --confirm
 ```
 
@@ -151,7 +152,7 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 | Live HF Space (HTTP 200) | ✅ |
 | SLSA Build L1 + L2 | ✅ — cosign-signed image (L1), verifiable via `cosign verify`; Rekor [1710578865](https://search.sigstore.dev/?logIndex=1710578865). L2 SLSA provenance attestation verifies via `cosign verify-attestation --type slsaprovenance` (strict identity, keyless Fulcio+Rekor). See [.compliance/SLSA_LEVEL.md](.compliance/SLSA_LEVEL.md). |
 | cosign keyless signed | ✅ |
-| UDS bundle (`szl-uds-bundle:uds-v0.2.0`) | ✅ Real, deployable 5-organ bundle. **Note:** the bundle artifact itself is **not yet SLSA-attested** (owner-only GHCR package-write grant pending). The L2 build-provenance attestation that verifies is on the **5 organ images**, not the bundle. |
+| UDS bundle (`szl-uds-bundle:uds-v0.2.0`) | ✅ Real, deployable mesh bundle. **Note:** the bundle artifact itself is **not yet SLSA-attested** (owner-only GHCR package-write grant pending). The L2 build-provenance attestation that verifies is on the **service images**, not the bundle. |
 | DSSE Khipu receipts | ✅ — ECDSA P-256-SHA256 |
 | Lean 749/14/163 @ `c7c0ba17` | ✅ |
 | Proved PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, zero-sorry). Remaining formulas are Roadmap. |
