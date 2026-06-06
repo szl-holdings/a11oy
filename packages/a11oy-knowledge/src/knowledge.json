@@ -11,7 +11,7 @@
       "name": "soundnessAxiom",
       "statement": "For any receipt r, if gate_pass(r) then lambda(r) >= 0.90 conjunctively",
       "source_file": "thesis.md",
-      "source_section": "§4.1",
+      "source_section": "\u00a74.1",
       "maturity": "proven",
       "citation": "https://doi.org/10.5281/zenodo.20119582"
     },
@@ -20,7 +20,7 @@
       "name": "moralGroundingFloor",
       "statement": "moralGrounding axis floor = 0.95 (higher than default 0.90)",
       "source_file": "thesis.md",
-      "source_section": "§4.1",
+      "source_section": "\u00a74.1",
       "maturity": "defined",
       "citation": "https://doi.org/10.5281/zenodo.20119582"
     },
@@ -29,7 +29,7 @@
       "name": "measurabilityHonestyFloor",
       "statement": "measurabilityHonesty axis floor = 0.95",
       "source_file": "thesis.md",
-      "source_section": "§4.1",
+      "source_section": "\u00a74.1",
       "maturity": "defined",
       "citation": "https://doi.org/10.5281/zenodo.20119582"
     },
@@ -38,7 +38,7 @@
       "name": "dualWitnessDisjointness",
       "statement": "For rho-closure: witness_1_id != witness_2_id (enforced by registry at write time)",
       "source_file": "thesis.md",
-      "source_section": "§4.3",
+      "source_section": "\u00a74.3",
       "maturity": "proven",
       "citation": "https://doi.org/10.5281/zenodo.20119582"
     },
@@ -47,7 +47,7 @@
       "name": "deterministicReplay",
       "statement": "For canonical JSON + pinned PRNG + frozen registry, 5x replay yields byte-identical roots",
       "source_file": "thesis.md",
-      "source_section": "§4.6",
+      "source_section": "\u00a74.6",
       "maturity": "measured",
       "citation": "https://doi.org/10.5281/zenodo.20119582"
     },
@@ -56,7 +56,7 @@
       "name": "hashChainIntegrity",
       "statement": "Every spine entry hash-chain invariant: entry.chain = SHA256(prev_entry)",
       "source_file": "thesis.md",
-      "source_section": "§3.4",
+      "source_section": "\u00a73.4",
       "maturity": "defined",
       "citation": "https://doi.org/10.5281/zenodo.20119582"
     },
@@ -65,7 +65,7 @@
       "name": "bekensteinBound",
       "statement": "Receipt chain entropy H(R_n) bounded by information-theoretic limit from registry area",
       "source_file": "thesis.md",
-      "source_section": "§4.5",
+      "source_section": "\u00a74.5",
       "maturity": "conjectured",
       "citation": "https://doi.org/10.5281/zenodo.19944926"
     },
@@ -74,7 +74,7 @@
       "name": "ingestDiscipline",
       "statement": "Every ingest requires: source_url + content_hash + license (allow-list) + ORCID",
       "source_file": "thesis.md",
-      "source_section": "§7",
+      "source_section": "\u00a77",
       "maturity": "defined",
       "citation": "https://doi.org/10.5281/zenodo.20119582"
     },
@@ -83,7 +83,7 @@
       "name": "doctrineCompleteness",
       "statement": "doctrine.json v1.0.0 enumerates all 8 forbidden patterns; SHA-anchored",
       "source_file": "szl-trust/doctrine.json",
-      "source_section": "§8",
+      "source_section": "\u00a78",
       "maturity": "defined",
       "citation": "https://github.com/szl-holdings/szl-trust"
     }
@@ -91,16 +91,16 @@
   "theorems": [
     {
       "id": "TH_L1",
-      "name": "Λ_uniqueness",
-      "statement": "Conjecture 1: the Lutar Invariant Λ_k (weighted geometric mean with Egyptian unit-fraction weights) is the unique aggregator satisfying axioms A1-A5. NOT a theorem: unconditional uniqueness is FALSE under A1-A5 (machine-checked counterexample maxAgg_ne_Lambda; max-aggregator satisfies A1-A5 yet differs from Λ at (4,1)). The conditional theorem lambda_unique_of_factors (uniqueness GIVEN factorization Φ x = ∏ x_i^α_i) IS fully proved; unconditional uniqueness closes only under a declared bisymmetry axiom A6 (Kolmogorov-Nagumo-Aczel).",
+      "name": "\u039b_uniqueness",
+      "statement": "Conjecture 1: the Lutar Invariant \u039b_k (weighted geometric mean with Egyptian unit-fraction weights) is the unique aggregator satisfying axioms A1-A5. NOT a theorem: unconditional uniqueness is FALSE under A1-A5 (machine-checked counterexample maxAgg_ne_Lambda; max-aggregator satisfies A1-A5 yet differs from \u039b at (4,1)). The conditional theorem lambda_unique_of_factors (uniqueness GIVEN factorization \u03a6 x = \u220f x_i^\u03b1_i) IS fully proved; unconditional uniqueness closes only under a declared bisymmetry axiom A6 (Kolmogorov-Nagumo-Aczel).",
       "source_file": "lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean",
       "maturity": "conjectured",
       "citation": "https://doi.org/10.5281/zenodo.20053148"
     },
     {
       "id": "TH_L2",
-      "name": "Λ_min_max_bounds",
-      "statement": "Λ_k lies in [0,1] with min=0 iff any axis=0 and max=1 iff all axes=1",
+      "name": "\u039b_min_max_bounds",
+      "statement": "\u039b_k lies in [0,1] with min=0 iff any axis=0 and max=1 iff all axes=1",
       "source_file": "lutar-lean/Lutar/Bound.lean",
       "maturity": "proven",
       "citation": "https://doi.org/10.5281/zenodo.20053148"
@@ -137,7 +137,7 @@
       "source_file": "thesis.md",
       "source_line": 229,
       "latex": "\\mathtt{szl\\text{-}trust}",
-      "context": "d system.  - \\(A\\) — the set of **named actors**. Every actor in \\(A\\) carries a stable identity resolvable to a key in \\(\\mathtt{szl\\text{-}trust}\\). No edge in \\(E\\) may originate from or terminate ",
+      "context": "d system.  - \\(A\\) \u2014 the set of **named actors**. Every actor in \\(A\\) carries a stable identity resolvable to a key in \\(\\mathtt{szl\\text{-}trust}\\). No edge in \\(E\\) may originate from or terminate ",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -146,7 +146,7 @@
       "source_file": "thesis.md",
       "source_line": 231,
       "latex": "e \\in E",
-      "context": "and resolvable — unidentified actors are structurally excluded.  - \\(E\\) — the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\",
+      "context": "and resolvable \u2014 unidentified actors are structurally excluded.  - \\(E\\) \u2014 the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -155,7 +155,7 @@
       "source_file": "thesis.md",
       "source_line": 231,
       "latex": "(a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)",
-      "context": "ntified actors are structurally excluded.  - \\(E\\) — the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(",
+      "context": "ntified actors are structurally excluded.  - \\(E\\) \u2014 the set of **receipt-bound edges**. An edge \\(e \\in E\\) is a tuple \\((a_{\\text{src}},\\; r_{\\text{src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -182,7 +182,7 @@
       "source_file": "thesis.md",
       "source_line": 231,
       "latex": "\\varepsilon",
-      "context": "src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varepsilon\\) is the receipt envelope defined in §3.3. No message may traverse",
+      "context": "src}},\\; r_{\\text{dst}},\\; \\varepsilon)\\) where \\(a_{\\text{src}} \\in A\\), \\(r_{\\text{src}}, r_{\\text{dst}} \\in R\\), and \\(\\varepsilon\\) is the receipt envelope defined in \u00a73.3. No message may traverse",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -191,7 +191,7 @@
       "source_file": "thesis.md",
       "source_line": 231,
       "latex": "\\varepsilon",
-      "context": "repsilon\\) is the receipt envelope defined in §3.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Forma",
+      "context": "repsilon\\) is the receipt envelope defined in \u00a73.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) \u2014 the **composable axis-gating function**. Forma",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -200,7 +200,7 @@
       "source_file": "thesis.md",
       "source_line": 233,
       "latex": "\\Lambda",
-      "context": "ceipt envelope defined in §3.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,",
+      "context": "ceipt envelope defined in \u00a73.3. No message may traverse a region boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) \u2014 the **composable axis-gating function**. Formally, \\(\\Lambda : [0,",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -209,7 +209,7 @@
       "source_file": "thesis.md",
       "source_line": 233,
       "latex": "\\Lambda : [0,1]^k \\to \\{0,1\\}",
-      "context": "boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive A",
+      "context": "boundary unless it carries a valid \\(\\varepsilon\\).  - \\(\\Lambda\\) \u2014 the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive A",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -218,7 +218,7 @@
       "source_file": "thesis.md",
       "source_line": 233,
       "latex": "k \\geq 9",
-      "context": "varepsilon\\).  - \\(\\Lambda\\) — the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive AND:  \\[ \\Lambda(\\mathbf{x}) = 1 \\iff \\",
+      "context": "varepsilon\\).  - \\(\\Lambda\\) \u2014 the **composable axis-gating function**. Formally, \\(\\Lambda : [0,1]^k \\to \\{0,1\\}\\) for \\(k \\geq 9\\), defined as the conjunctive AND:  \\[ \\Lambda(\\mathbf{x}) = 1 \\iff \\",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -254,7 +254,7 @@
       "source_file": "thesis.md",
       "source_line": 239,
       "latex": "\\Lambda(\\mathbf{x}) \\wedge \\Lambda(\\mathbf{y})",
-      "context": "ctors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is equivalent to \\(\\Lambda(\\mathbf{x}) \\wedge \\Lambda(\\mathbf{y})\\) — gate composition does not w",
+      "context": "ctors \\(\\mathbf{x}\\) and \\(\\mathbf{y}\\), their composed gate \\(\\Lambda(\\mathbf{x} \\wedge \\mathbf{y})\\) is equivalent to \\(\\Lambda(\\mathbf{x}) \\wedge \\Lambda(\\mathbf{y})\\) \u2014 gate composition does not w",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -263,7 +263,7 @@
       "source_file": "thesis.md",
       "source_line": 239,
       "latex": "\\Lambda",
-      "context": "— gate composition does not weaken the invariant. The `lutar-lean` skeleton repository contains the Lean 4 statement of \\(\\Lambda\\) uniqueness: given the four axioms (A1 monotonicity, A2 homogeneity, ",
+      "context": "\u2014 gate composition does not weaken the invariant. The `lutar-lean` skeleton repository contains the Lean 4 statement of \\(\\Lambda\\) uniqueness: given the four axioms (A1 monotonicity, A2 homogeneity, ",
       "source_id": "thesis_session",
       "maturity": "conjectured"
     },
@@ -281,7 +281,7 @@
       "source_file": "thesis.md",
       "source_line": 241,
       "latex": "\\rho(e)",
-      "context": "arget is zero.  - \\(\\rho\\) — the **dual-witness closure relation**. For any edge \\(e\\) carrying execution result \\(v\\), \\(\\rho(e)\\) holds iff two independent witnesses \\(w_1, w_2 \\in W\\) each produce ",
+      "context": "arget is zero.  - \\(\\rho\\) \u2014 the **dual-witness closure relation**. For any edge \\(e\\) carrying execution result \\(v\\), \\(\\rho(e)\\) holds iff two independent witnesses \\(w_1, w_2 \\in W\\) each produce ",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -353,7 +353,7 @@
       "source_file": "thesis.md",
       "source_line": 268,
       "latex": "\\Lambda",
-      "context": "bda(axes: number[9|10]) → Receipt` — evaluates the conjunctive AND gate and returns a signed receipt with the composite \\(\\Lambda\\) score, Bekenstein budget, and dual-witness closure status. - `build_",
+      "context": "bda(axes: number[9|10]) \u2192 Receipt` \u2014 evaluates the conjunctive AND gate and returns a signed receipt with the composite \\(\\Lambda\\) score, Bekenstein budget, and dual-witness closure status. - `build_",
       "source_id": "thesis_session",
       "maturity": "conjectured"
     },
@@ -362,7 +362,7 @@
       "source_file": "thesis.md",
       "source_line": 274,
       "latex": "\\Lambda",
-      "context": "chain root for third-party verification.  **Dependencies:** - Depends on: `lutar-lean` (Skeleton) — the axiom set that \\(\\Lambda\\) is required to satisfy is formally stated there; the Brain Stem is th",
+      "context": "chain root for third-party verification.  **Dependencies:** - Depends on: `lutar-lean` (Skeleton) \u2014 the axiom set that \\(\\Lambda\\) is required to satisfy is formally stated there; the Brain Stem is th",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -371,7 +371,7 @@
       "source_file": "thesis.md",
       "source_line": 277,
       "latex": "\\Lambda_9",
-      "context": "utbound edge must call `evaluate_lambda` before the edge enters \\(E\\).  The gate composition benchmark for v6.3.0 shows \\(\\Lambda_9\\) base p50 = 3.12 µs and composed p50 = 3.29 µs; with the Platform v",
+      "context": "utbound edge must call `evaluate_lambda` before the edge enters \\(E\\).  The gate composition benchmark for v6.3.0 shows \\(\\Lambda_9\\) base p50 = 3.12 \u00b5s and composed p50 = 3.29 \u00b5s; with the Platform v",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -380,7 +380,7 @@
       "source_file": "thesis.md",
       "source_line": 285,
       "latex": "\\mathcal{S}",
-      "context": "a continuous supply-chain security posture.  ---  ### Heart — `a11oy`  **Repo:** `szl-holdings/a11oy`  **Formal role in \\(\\mathcal{S}\\):** The Heart is the covenant policy engine and the agent approva",
+      "context": "a continuous supply-chain security posture.  ---  ### Heart \u2014 `a11oy`  **Repo:** `szl-holdings/a11oy`  **Formal role in \\(\\mathcal{S}\\):** The Heart is the covenant policy engine and the agent approva",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -407,7 +407,7 @@
       "source_file": "thesis.md",
       "source_line": 285,
       "latex": "r_{\\text{dst}} \\notin R",
-      "context": "this action permitted under the active covenant?\". No action may exit the body graph — i.e., no edge in \\(E\\) may have \\(r_{\\text{dst}} \\notin R\\) — without a Heart pulse. The covenant is a named, ver",
+      "context": "this action permitted under the active covenant?\". No action may exit the body graph \u2014 i.e., no edge in \\(E\\) may have \\(r_{\\text{dst}} \\notin R\\) \u2014 without a Heart pulse. The covenant is a named, ver",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -416,7 +416,7 @@
       "source_file": "thesis.md",
       "source_line": 293,
       "latex": "\\Lambda",
-      "context": "Stem's chain.  **Dependencies:** - Depends on: `ouroboros` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a g",
+      "context": "Stem's chain.  **Dependencies:** - Depends on: `ouroboros` (Brain Stem) \u2014 covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a g",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -425,7 +425,7 @@
       "source_file": "thesis.md",
       "source_line": 293,
       "latex": "\\Lambda",
-      "context": "os` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a gate-level violation. - Depends on: `safety-gate layer` (safety wires) — t",
+      "context": "os` (Brain Stem) \u2014 covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a gate-level violation. - Depends on: `safety-gate layer` (safety wires) \u2014 t",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -434,7 +434,7 @@
       "source_file": "thesis.md",
       "source_line": 305,
       "latex": "\\mathcal{S}",
-      "context": "but a verifiable, chain-linked artifact.  ---  ### safety wires — `safety-gate layer`  **Repo:** `szl-holdings/safety-gate layer`  **Formal role in \\(\\mathcal{S}\\):** The safety wires are the attribution trail — the afferent channel tha",
+      "context": "but a verifiable, chain-linked artifact.  ---  ### safety wires \u2014 `safety-gate layer`  **Repo:** `szl-holdings/safety-gate layer`  **Formal role in \\(\\mathcal{S}\\):** The safety wires are the attribution trail \u2014 the afferent channel tha",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -461,7 +461,7 @@
       "source_file": "thesis.md",
       "source_line": 308,
       "latex": "a \\in A",
-      "context": "egal-accountability sense.  **Public interfaces:** - `observe(edge, actor_id) → AttributionRecord` — records that actor \\(a \\in A\\) produced or consumed edge \\(e\\). - `attribution_trail(region, time_r",
+      "context": "egal-accountability sense.  **Public interfaces:** - `observe(edge, actor_id) \u2192 AttributionRecord` \u2014 records that actor \\(a \\in A\\) produced or consumed edge \\(e\\). - `attribution_trail(region, time_r",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -470,7 +470,7 @@
       "source_file": "thesis.md",
       "source_line": 325,
       "latex": "\\mathcal{S}",
-      "context": "aft-morrow-sogomonian-exec-outcome-attest`.  ---  ### reasoning spine — `reasoning core`  **Repo:** `szl-holdings/reasoning core`  **Formal role in \\(\\mathcal{S}\\):** The reasoning spine is the append-only coordination and protocol bridge",
+      "context": "aft-morrow-sogomonian-exec-outcome-attest`.  ---  ### reasoning spine \u2014 `reasoning core`  **Repo:** `szl-holdings/reasoning core`  **Formal role in \\(\\mathcal{S}\\):** The reasoning spine is the append-only coordination and protocol bridge",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -488,7 +488,7 @@
       "source_file": "thesis.md",
       "source_line": 339,
       "latex": "O(\\log n)",
-      "context": "(identified in the runtime roadmap) would upgrade the reasoning spine's linear hash-chain to a directed acyclic graph supporting \\(O(\\log n)\\) subset inclusion proofs — enabling privacy-preserving audits for re",
+      "context": "(identified in the runtime roadmap) would upgrade the reasoning spine's linear hash-chain to a directed acyclic graph supporting \\(O(\\log n)\\) subset inclusion proofs \u2014 enabling privacy-preserving audits for re",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -497,7 +497,7 @@
       "source_file": "thesis.md",
       "source_line": 347,
       "latex": "\\mathcal{S}",
-      "context": "nce in the enterprise segment.  ---  ### Skeleton — `lutar-lean`  **Repo:** `szl-holdings/lutar-lean`  **Formal role in \\(\\mathcal{S}\\):** The Skeleton is the formal scaffold — the Lean 4 axioms and M",
+      "context": "nce in the enterprise segment.  ---  ### Skeleton \u2014 `lutar-lean`  **Repo:** `szl-holdings/lutar-lean`  **Formal role in \\(\\mathcal{S}\\):** The Skeleton is the formal scaffold \u2014 the Lean 4 axioms and M",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -506,7 +506,7 @@
       "source_file": "thesis.md",
       "source_line": 347,
       "latex": "\\{A1, A2, A3, A4\\}",
-      "context": "es not execute at runtime; it is the *proof that the runtime is correct*. Formally, `lutar-lean` provides the axiom set \\(\\{A1, A2, A3, A4\\}\\) and the derived theorems (Λ uniqueness, Bound theorem) th",
+      "context": "es not execute at runtime; it is the *proof that the runtime is correct*. Formally, `lutar-lean` provides the axiom set \\(\\{A1, A2, A3, A4\\}\\) and the derived theorems (\u039b uniqueness, Bound theorem) th",
       "source_id": "thesis_session",
       "maturity": "conjectured"
     },
@@ -515,7 +515,7 @@
       "source_file": "thesis.md",
       "source_line": 347,
       "latex": "\\Lambda",
-      "context": "A2, A3, A4\\}\\) and the derived theorems (Λ uniqueness, Bound theorem) that constitute a machine-checked certificate for \\(\\Lambda\\). If the Skeleton's `sorry` count is zero, the gate the Brain Stem en",
+      "context": "A2, A3, A4\\}\\) and the derived theorems (\u039b uniqueness, Bound theorem) that constitute a machine-checked certificate for \\(\\Lambda\\). If the Skeleton's `sorry` count is zero, the gate the Brain Stem en",
       "source_id": "thesis_session",
       "maturity": "conjectured"
     },
@@ -524,7 +524,7 @@
       "source_file": "thesis.md",
       "source_line": 351,
       "latex": "\\Lambda",
-      "context": "statements of A1 (monotonicity), A2 (homogeneity), A3 (Egyptian-exact), A4 (bounded). - `Uniqueness.lean` — Theorem 1: \\(\\Lambda\\) is the unique function satisfying A1–A4; proof scaffold with tracked ",
+      "context": "statements of A1 (monotonicity), A2 (homogeneity), A3 (Egyptian-exact), A4 (bounded). - `Uniqueness.lean` \u2014 Theorem 1: \\(\\Lambda\\) is the unique function satisfying A1\u2013A4; proof scaffold with tracked ",
       "source_id": "thesis_session",
       "maturity": "conjectured"
     },
@@ -533,7 +533,7 @@
       "source_file": "thesis.md",
       "source_line": 367,
       "latex": "\\mathcal{S}",
-      "context": "*Repos:** `szl-holdings/counsel` (governance UI), `szl-holdings/terra` (dashboards and visualization)  **Formal role in \\(\\mathcal{S}\\):** The Hands are the tooling and visualization surfaces — the co",
+      "context": "*Repos:** `szl-holdings/counsel` (governance UI), `szl-holdings/terra` (dashboards and visualization)  **Formal role in \\(\\mathcal{S}\\):** The Hands are the tooling and visualization surfaces \u2014 the co",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -542,7 +542,7 @@
       "source_file": "thesis.md",
       "source_line": 371,
       "latex": "\\Lambda",
-      "context": "as an interactive SVG, streaming live receipt counts via SSE from `/api/chain/stream`; node colors reflect the current \\(\\Lambda\\) score band (green ≥ 0.95, amber 0.90–0.95, red < 0.90). The planned \"",
+      "context": "as an interactive SVG, streaming live receipt counts via SSE from `/api/chain/stream`; node colors reflect the current \\(\\Lambda\\) score band (green \u2265 0.95, amber 0.90\u20130.95, red < 0.90). The planned \"",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -551,7 +551,7 @@
       "source_file": "thesis.md",
       "source_line": 386,
       "latex": "\\mathcal{S}",
-      "context": "*is* the system.  ---  ### Full Body — `ouroboros-thesis`  **Repo:** `szl-holdings/ouroboros-thesis`  **Formal role in \\(\\mathcal{S}\\):** The Full Body is the public-record thesis — the DOI-pinned, ve",
+      "context": "*is* the system.  ---  ### Full Body \u2014 `ouroboros-thesis`  **Repo:** `szl-holdings/ouroboros-thesis`  **Formal role in \\(\\mathcal{S}\\):** The Full Body is the public-record thesis \u2014 the DOI-pinned, ve",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -560,7 +560,7 @@
       "source_file": "thesis.md",
       "source_line": 386,
       "latex": "\\mathcal{S}",
-      "context": "l Body is the public-record thesis — the DOI-pinned, versioned document that constitutes the canonical specification of \\(\\mathcal{S}\\). Formally, `ouroboros-thesis` defines the normative description ",
+      "context": "l Body is the public-record thesis \u2014 the DOI-pinned, versioned document that constitutes the canonical specification of \\(\\mathcal{S}\\). Formally, `ouroboros-thesis` defines the normative description ",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -596,7 +596,7 @@
       "source_file": "thesis.md",
       "source_line": 479,
       "latex": "\\Lambda",
-      "context": "_lambda(axes) → Receipt` — any MCP-compatible client (Claude Desktop, Cursor, enterprise agent frameworks) can call the \\(\\Lambda\\) gate as a typed tool and receive a signed receipt in the tool respon",
+      "context": "_lambda(axes) \u2192 Receipt` \u2014 any MCP-compatible client (Claude Desktop, Cursor, enterprise agent frameworks) can call the \\(\\Lambda\\) gate as a typed tool and receive a signed receipt in the tool respon",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -632,7 +632,7 @@
       "source_file": "thesis.md",
       "source_line": 517,
       "latex": "\\Lambda",
-      "context": "ource agent framework in the TypeScript ecosystem. Mastra has no Skeleton: there are no Lean 4 proofs. It has no formal \\(\\Lambda\\) gate — behavioral constraints are implemented as runtime checks with",
+      "context": "ource agent framework in the TypeScript ecosystem. Mastra has no Skeleton: there are no Lean 4 proofs. It has no formal \\(\\Lambda\\) gate \u2014 behavioral constraints are implemented as runtime checks with",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -740,7 +740,7 @@
       "source_file": "thesis.md",
       "source_line": 575,
       "latex": "t + \\Delta",
-      "context": "Measures the stability of the gate verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the Λ₉ composite scores ",
+      "context": "Measures the stability of the gate verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the \u039b\u2089 composite scores ",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -749,7 +749,7 @@
       "source_file": "thesis.md",
       "source_line": 575,
       "latex": "v_{t+\\Delta}",
-      "context": "te verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the Λ₉ composite scores at the two evaluation times. The",
+      "context": "te verdict under repeated evaluation on the same input at two different times \\(t\\) and \\(t + \\Delta\\). Let \\(v_t\\) and \\(v_{t+\\Delta}\\) denote the \u039b\u2089 composite scores at the two evaluation times. The",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -767,7 +767,7 @@
       "source_file": "thesis.md",
       "source_line": 581,
       "latex": "\\lambda_5 = 0.99",
-      "context": "ta}\\bigr)^2\\Bigr) \\]  A zero-drift evaluation scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the ≥ 0",
+      "context": "ta}\\bigr)^2\\Bigr) \\]  A zero-drift evaluation scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the \u2265 0",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -776,7 +776,7 @@
       "source_file": "thesis.md",
       "source_line": 581,
       "latex": "\\lambda_5 = 0.75",
-      "context": "scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the ≥ 0.90 conjunctive floor. This axis operationaliz",
+      "context": "scores \\(\\lambda_5 = 1.0\\). A drift of 0.05 in the composite score yields \\(\\lambda_5 = 0.99\\). A drift of 0.25 yields \\(\\lambda_5 = 0.75\\), below the \u2265 0.90 conjunctive floor. This axis operationaliz",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -805,7 +805,7 @@
       "source_file": "thesis.md",
       "source_line": 587,
       "latex": "\\lambda_8",
-      "context": "ting under delegated authority — the score decays as a function of delegation depth to penalize opaque proxy chains.  **\\(\\lambda_8\\): axiomConsistency.** Measures whether the proposed action is inter",
+      "context": "ting under delegated authority \u2014 the score decays as a function of delegation depth to penalize opaque proxy chains.  **\\(\\lambda_8\\): axiomConsistency.** Measures whether the proposed action is inter",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -850,7 +850,7 @@
       "source_file": "thesis.md",
       "source_line": 589,
       "latex": "\\lambda_9 = 1.0",
-      "context": "ied by the postcondition of \\(A_i\\), under the operator's precondition/postcondition schema. For the base case \\(k=0\\), \\(\\lambda_9 = 1.0\\).  ### The conjunctive gate condition  The Λ₉ gate passes if ",
+      "context": "ied by the postcondition of \\(A_i\\), under the operator's precondition/postcondition schema. For the base case \\(k=0\\), \\(\\lambda_9 = 1.0\\).  ### The conjunctive gate condition  The \u039b\u2089 gate passes if ",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -859,7 +859,7 @@
       "source_file": "thesis.md",
       "source_line": 599,
       "latex": "\\lambda_1 = 0.50",
-      "context": "for the following reason. A single composite score — even a geometric mean — can mask localized failures. An agent with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1",
+      "context": "for the following reason. A single composite score \u2014 even a geometric mean \u2014 can mask localized failures. An agent with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -868,7 +868,7 @@
       "source_file": "thesis.md",
       "source_line": 599,
       "latex": "\\prod_{i}^{1/9} = 0.50^{1/9} \\approx 0.926",
-      "context": "with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1.0\\) achieves a geometric mean of \\(\\prod_{i}^{1/9} = 0.50^{1/9} \\approx 0.926\\), which would pass a ≥ 0.90 single-",
+      "context": "with \\(\\lambda_1 = 0.50\\) (severely morally misaligned) and all remaining axes at \\(1.0\\) achieves a geometric mean of \\(\\prod_{i}^{1/9} = 0.50^{1/9} \\approx 0.926\\), which would pass a \u2265 0.90 single-",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -877,7 +877,7 @@
       "source_file": "thesis.md",
       "source_line": 599,
       "latex": "\\lambda_1",
-      "context": "gle-score gate. The conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry — these are the ",
+      "context": "gle-score gate. The conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry \u2014 these are the ",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -886,7 +886,7 @@
       "source_file": "thesis.md",
       "source_line": 599,
       "latex": "\\lambda_2",
-      "context": "e conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry — these are the axes most directly",
+      "context": "e conjunctive AND structure prevents this: every axis is a blocking veto. The two elevated floors for \\(\\lambda_1\\) and \\(\\lambda_2\\) add a second layer of asymmetry \u2014 these are the axes most directly",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -949,7 +949,7 @@
       "source_file": "thesis.md",
       "source_line": 611,
       "latex": "\\sum_i m_i = 9",
-      "context": "eq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_i m_i = 9\\) (or 10 under Λ₁₀). The mask is committed via SHA-256 and incl",
+      "context": "eq \\theta_i] \\]  where \\(\\theta_i = 0.95\\) for \\(i \\in \\{1,2\\}\\) and \\(\\theta_i = 0.90\\) otherwise. The gate passes iff \\(\\sum_i m_i = 9\\) (or 10 under \u039b\u2081\u2080). The mask is committed via SHA-256 and incl",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -1012,7 +1012,7 @@
       "source_file": "thesis.md",
       "source_line": 631,
       "latex": "\\vec{\\lambda}",
-      "context": ": A monotonic timestamp in milliseconds since the Unix epoch, drawn from a pinned, non-forgeable source (see §4.6). - **\\(\\vec{\\lambda}\\)**: The full nine-dimensional Λ vector, or the `lambda9_mask` b",
+      "context": ": A monotonic timestamp in milliseconds since the Unix epoch, drawn from a pinned, non-forgeable source (see \u00a74.6). - **\\(\\vec{\\lambda}\\)**: The full nine-dimensional \u039b vector, or the `lambda9_mask` b",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -1021,7 +1021,7 @@
       "source_file": "thesis.md",
       "source_line": 632,
       "latex": "\\rho\\_\\textit{witness\\_set}",
-      "context": "vec{\\lambda}\\)**: The full nine-dimensional Λ vector, or the `lambda9_mask` bitfield under the Λ₁₀ privacy variant. - **\\(\\rho\\_\\textit{witness\\_set}\\)**: The set of co-witnesses whose signatures are ",
+      "context": "vec{\\lambda}\\)**: The full nine-dimensional \u039b vector, or the `lambda9_mask` bitfield under the \u039b\u2081\u2080 privacy variant. - **\\(\\rho\\_\\textit{witness\\_set}\\)**: The set of co-witnesses whose signatures are ",
       "source_id": "thesis_session",
       "maturity": "defined"
     }
@@ -1032,7 +1032,7 @@
       "id": "K01",
       "name": "receipt_build_p50_us",
       "value": "11.5",
-      "unit": "µs",
+      "unit": "\u00b5s",
       "ops_per_sec": "62764",
       "source": "THESIS_BRIEF.md",
       "doi": "10.5281/zenodo.20119582",
@@ -1042,7 +1042,7 @@
       "id": "K02",
       "name": "receipt_build_p99_us",
       "value": "50.7",
-      "unit": "µs",
+      "unit": "\u00b5s",
       "source": "THESIS_BRIEF.md",
       "doi": "10.5281/zenodo.20119582",
       "maturity": "measured"
@@ -1051,7 +1051,7 @@
       "id": "K03",
       "name": "receipt_verify_p50_us",
       "value": "10.4",
-      "unit": "µs",
+      "unit": "\u00b5s",
       "ops_per_sec": "74149",
       "source": "THESIS_BRIEF.md",
       "doi": "10.5281/zenodo.20119582",
@@ -1061,7 +1061,7 @@
       "id": "K04",
       "name": "lambda9_base_p50_us",
       "value": "3.12",
-      "unit": "µs",
+      "unit": "\u00b5s",
       "source": "THESIS_BRIEF.md",
       "doi": "10.5281/zenodo.20119582",
       "maturity": "measured"
@@ -1070,7 +1070,7 @@
       "id": "K05",
       "name": "lambda9_composed_p50_us",
       "value": "3.29",
-      "unit": "µs",
+      "unit": "\u00b5s",
       "source": "THESIS_BRIEF.md",
       "doi": "10.5281/zenodo.20119582",
       "maturity": "measured"
@@ -1138,7 +1138,7 @@
       "id": "K13",
       "name": "bekenstein_indicator_fire_rate",
       "value": "49.5%",
-      "source": "thesis.md §4.5",
+      "source": "thesis.md \u00a74.5",
       "doi": "10.5281/zenodo.20119582",
       "maturity": "measured"
     }
@@ -1148,8 +1148,8 @@
       "id": "C0001",
       "name": "receipt_build_p50_us",
       "value": "11.5",
-      "raw": "receipt build p50 = 11.5 µs",
-      "context": "0).** A production Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec",
+      "raw": "receipt build p50 = 11.5 \u00b5s",
+      "context": "0).** A production Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 \u00b5s (62,764 ops/sec), receipt verify p50 = 10.4 \u00b5s (74,149 ops/sec",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1158,8 +1158,8 @@
       "id": "C0003",
       "name": "receipt_verify_p50_us",
       "value": "10.4",
-      "raw": "receipt verify p50 = 10.4 µs",
-      "context": "ests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired ca",
+      "raw": "receipt verify p50 = 10.4 \u00b5s",
+      "context": "ests passing, receipt build p50 = 11.5 \u00b5s (62,764 ops/sec), receipt verify p50 = 10.4 \u00b5s (74,149 ops/sec), and 100% \u03c1-closure on 8,000/8,000 paired ca",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1168,8 +1168,8 @@
       "id": "C0008",
       "name": "receipt_build_p99_us",
       "value": "50.7",
-      "raw": "p99 = 50.7 µs",
-      "context": "→ Receipt` — constructs a receipt envelope; p50 = 11.5 µs, p99 = 50.7 µs, throughput 62,764 ops/sec. - `verify_receipt(receipt) → bool` — verifies byt",
+      "raw": "p99 = 50.7 \u00b5s",
+      "context": "\u2192 Receipt` \u2014 constructs a receipt envelope; p50 = 11.5 \u00b5s, p99 = 50.7 \u00b5s, throughput 62,764 ops/sec. - `verify_receipt(receipt) \u2192 bool` \u2014 verifies byt",
       "source_file": "thesis.md",
       "source_line": 269,
       "source_id": "thesis_session"
@@ -1179,7 +1179,7 @@
       "name": "ops_per_sec",
       "value": "62764",
       "raw": "62,764 ops/sec",
-      "context": "me with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,00",
+      "context": "me with 218/218 tests passing, receipt build p50 = 11.5 \u00b5s (62,764 ops/sec), receipt verify p50 = 10.4 \u00b5s (74,149 ops/sec), and 100% \u03c1-closure on 8,00",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1189,7 +1189,7 @@
       "name": "ops_per_sec",
       "value": "74149",
       "raw": "74,149 ops/sec",
-      "context": "0 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired calls [9]. The runtime enforces ",
+      "context": "0 = 11.5 \u00b5s (62,764 ops/sec), receipt verify p50 = 10.4 \u00b5s (74,149 ops/sec), and 100% \u03c1-closure on 8,000/8,000 paired calls [9]. The runtime enforces ",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1199,7 +1199,7 @@
       "name": "ops_per_sec",
       "value": "200000",
       "raw": "200,000 ops/sec",
-      "context": "arget for the Merkle-DAG upgrade is **5 µs build p50** at **200,000 ops/sec**. This is a 2.3× improvement in latency and a 3.2× improvement in through",
+      "context": "arget for the Merkle-DAG upgrade is **5 \u00b5s build p50** at **200,000 ops/sec**. This is a 2.3\u00d7 improvement in latency and a 3.2\u00d7 improvement in through",
       "source_file": "thesis.md",
       "source_line": 2100,
       "source_id": "thesis_session"
@@ -1208,8 +1208,8 @@
       "id": "C0027",
       "name": "lambda9_base_p50_us",
       "value": "3.12",
-      "raw": "Λ₉ base p50 = 3.12 µs",
-      "context": "9]. The runtime enforces a 9-axis conjunctive quality gate (Λ₉ base p50 = 3.12 µs) and a Λ₁₀ platform layer with 0.49–0.59 ms/route overhead validated",
+      "raw": "\u039b\u2089 base p50 = 3.12 \u00b5s",
+      "context": "9]. The runtime enforces a 9-axis conjunctive quality gate (\u039b\u2089 base p50 = 3.12 \u00b5s) and a \u039b\u2081\u2080 platform layer with 0.49\u20130.59 ms/route overhead validated",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1219,7 +1219,7 @@
       "name": "tests_passed",
       "value": "218",
       "raw": "218/218 passing",
-      "context": "ify-p50 with 100% ρ-closure on 8,000/8,000 paired calls and 218/218 passing tests. We propose `lambda9_mask` as a privacy-preserving extension to SCIT",
+      "context": "ify-p50 with 100% \u03c1-closure on 8,000/8,000 paired calls and 218/218 passing tests. We propose `lambda9_mask` as a privacy-preserving extension to SCIT",
       "source_file": "thesis.md",
       "source_line": 27,
       "source_id": "thesis_session"
@@ -1239,7 +1239,7 @@
       "name": "http_calls",
       "value": "24800",
       "raw": "24,800 HTTP calls",
-      "context": "orm layer with 0.49–0.59 ms/route overhead validated across 24,800 HTTP calls.  2. **Lean 4 formal axioms and proofs (`lutar-lean`).** A Mathlib-groun",
+      "context": "orm layer with 0.49\u20130.59 ms/route overhead validated across 24,800 HTTP calls.  2. **Lean 4 formal axioms and proofs (`lutar-lean`).** A Mathlib-groun",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1248,8 +1248,8 @@
       "id": "C0053",
       "name": "lambda_p50_us",
       "value": "11.5",
-      "raw": "p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-closure on 8,000/8,000 paired calls [9]. The runtime enforces a 9-axis conjunctive quality gate (Λ",
-      "context": "tion Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 µs (62,764 ops/sec), receipt verify p50 = 10.4 µs (74,149 ops/sec), and 100% ρ-",
+      "raw": "p50 = 11.5 \u00b5s (62,764 ops/sec), receipt verify p50 = 10.4 \u00b5s (74,149 ops/sec), and 100% \u03c1-closure on 8,000/8,000 paired calls [9]. The runtime enforces a 9-axis conjunctive quality gate (\u039b",
+      "context": "tion Rust runtime with 218/218 tests passing, receipt build p50 = 11.5 \u00b5s (62,764 ops/sec), receipt verify p50 = 10.4 \u00b5s (74,149 ops/sec), and 100% \u03c1-",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1258,8 +1258,8 @@
       "id": "C0054",
       "name": "lambda_p50_us",
       "value": "3.12",
-      "raw": "p50 = 3.12 µs) and a Λ",
-      "context": "runtime enforces a 9-axis conjunctive quality gate (Λ₉ base p50 = 3.12 µs) and a Λ₁₀ platform layer with 0.49–0.59 ms/route overhead validated across ",
+      "raw": "p50 = 3.12 \u00b5s) and a \u039b",
+      "context": "runtime enforces a 9-axis conjunctive quality gate (\u039b\u2089 base p50 = 3.12 \u00b5s) and a \u039b\u2081\u2080 platform layer with 0.49\u20130.59 ms/route overhead validated across ",
       "source_file": "thesis.md",
       "source_line": 83,
       "source_id": "thesis_session"
@@ -1268,8 +1268,8 @@
       "id": "C0055",
       "name": "receipt_build_p99_us",
       "value": "50.7",
-      "raw": "p99 = 50.7 µs",
-      "context": "bers - **218/218 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ ba",
+      "raw": "p99 = 50.7 \u00b5s",
+      "context": "bers - **218/218 tests** - Receipt build p50 = **11.5 \u00b5s**, p99 = 50.7 \u00b5s (62,764 ops/sec) - Receipt verify p50 = **10.4 \u00b5s** (74,149 ops/sec) - \u039b\u2089 ba",
       "source_file": "THESIS_BRIEF.md",
       "source_line": 57,
       "source_id": "thesis_brief"
@@ -1279,7 +1279,7 @@
       "name": "ops_per_sec",
       "value": "62764",
       "raw": "62,764 ops/sec",
-      "context": "8 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µ",
+      "context": "8 tests** - Receipt build p50 = **11.5 \u00b5s**, p99 = 50.7 \u00b5s (62,764 ops/sec) - Receipt verify p50 = **10.4 \u00b5s** (74,149 ops/sec) - \u039b\u2089 base p50 = 3.12 \u00b5",
       "source_file": "THESIS_BRIEF.md",
       "source_line": 57,
       "source_id": "thesis_brief"
@@ -1289,7 +1289,7 @@
       "name": "ops_per_sec",
       "value": "74149",
       "raw": "74,149 ops/sec",
-      "context": "0.7 µs (62,764 ops/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µs / composed p50 = 3.29 µs - 100% ρ-closure on **8,0",
+      "context": "0.7 \u00b5s (62,764 ops/sec) - Receipt verify p50 = **10.4 \u00b5s** (74,149 ops/sec) - \u039b\u2089 base p50 = 3.12 \u00b5s / composed p50 = 3.29 \u00b5s - 100% \u03c1-closure on **8,0",
       "source_file": "THESIS_BRIEF.md",
       "source_line": 58,
       "source_id": "thesis_brief"
@@ -1298,8 +1298,8 @@
       "id": "C0058",
       "name": "lambda9_base_p50_us",
       "value": "3.12",
-      "raw": "Λ₉ base p50 = 3.12 µs",
-      "context": "/sec) - Receipt verify p50 = **10.4 µs** (74,149 ops/sec) - Λ₉ base p50 = 3.12 µs / composed p50 = 3.29 µs - 100% ρ-closure on **8,000/8,000 paired ca",
+      "raw": "\u039b\u2089 base p50 = 3.12 \u00b5s",
+      "context": "/sec) - Receipt verify p50 = **10.4 \u00b5s** (74,149 ops/sec) - \u039b\u2089 base p50 = 3.12 \u00b5s / composed p50 = 3.29 \u00b5s - 100% \u03c1-closure on **8,000/8,000 paired ca",
       "source_file": "THESIS_BRIEF.md",
       "source_line": 59,
       "source_id": "thesis_brief"
@@ -1309,7 +1309,7 @@
       "name": "tests_passed",
       "value": "218",
       "raw": "218/218 tests",
-      "context": "boros v6.3.0 (released 2026-05-13) — production numbers - **218/218 tests** - Receipt build p50 = **11.5 µs**, p99 = 50.7 µs (62,764 ops/sec) - Receip",
+      "context": "boros v6.3.0 (released 2026-05-13) \u2014 production numbers - **218/218 tests** - Receipt build p50 = **11.5 \u00b5s**, p99 = 50.7 \u00b5s (62,764 ops/sec) - Receip",
       "source_file": "THESIS_BRIEF.md",
       "source_line": 56,
       "source_id": "thesis_brief"
@@ -1329,7 +1329,7 @@
       "name": "http_calls",
       "value": "24800",
       "raw": "24,800 HTTP calls",
-      "context": "ρ-closure on **8,000/8,000 paired calls** - Platform v11: **24,800 HTTP calls validated**, Λ₁₀ overhead 0.49–0.59 ms/route, p99 ≤ 1.27 ms - Apache-2.0",
+      "context": "\u03c1-closure on **8,000/8,000 paired calls** - Platform v11: **24,800 HTTP calls validated**, \u039b\u2081\u2080 overhead 0.49\u20130.59 ms/route, p99 \u2264 1.27 ms - Apache-2.0",
       "source_file": "THESIS_BRIEF.md",
       "source_line": 61,
       "source_id": "thesis_brief"
@@ -1338,8 +1338,8 @@
       "id": "C0062",
       "name": "receipt_build_p50_us",
       "value": "11.5",
-      "raw": "Receipt build p50 = 11.5 µs",
-      "context": "e not. | 12–18 months — they have a runtime, not a kernel | Receipt build p50 = 11.5 µs · v11 DOI [`zenodo.20119582`](https://doi.org/10.5281/zenodo.2",
+      "raw": "Receipt build p50 = 11.5 \u00b5s",
+      "context": "e not. | 12\u201318 months \u2014 they have a runtime, not a kernel | Receipt build p50 = 11.5 \u00b5s \u00b7 v11 DOI [`zenodo.20119582`](https://doi.org/10.5281/zenodo.2",
       "source_file": "master_evolution_memo.md",
       "source_line": 81,
       "source_id": "master_memo"
@@ -1348,8 +1348,8 @@
       "id": "C0064",
       "name": "receipt_build_p99_us",
       "value": "50.7",
-      "raw": "p99 = 50.7 µs",
-      "context": "218 / 218 passing** | | Receipt build | p50 = **11.5 µs** · p99 = 50.7 µs · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | |",
+      "raw": "p99 = 50.7 \u00b5s",
+      "context": "218 / 218 passing** | | Receipt build | p50 = **11.5 \u00b5s** \u00b7 p99 = 50.7 \u00b5s \u00b7 62,764 ops/sec | | Receipt verify | p50 = **10.4 \u00b5s** \u00b7 74,149 ops/sec | |",
       "source_file": "master_evolution_memo.md",
       "source_line": 36,
       "source_id": "master_memo"
@@ -1359,7 +1359,7 @@
       "name": "ops_per_sec",
       "value": "62764",
       "raw": "62,764 ops/sec",
-      "context": "g** | | Receipt build | p50 = **11.5 µs** · p99 = 50.7 µs · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | | Λ₉ base | p50 =",
+      "context": "g** | | Receipt build | p50 = **11.5 \u00b5s** \u00b7 p99 = 50.7 \u00b5s \u00b7 62,764 ops/sec | | Receipt verify | p50 = **10.4 \u00b5s** \u00b7 74,149 ops/sec | | \u039b\u2089 base | p50 =",
       "source_file": "master_evolution_memo.md",
       "source_line": 36,
       "source_id": "master_memo"
@@ -1369,7 +1369,7 @@
       "name": "ops_per_sec",
       "value": "74149",
       "raw": "74,149 ops/sec",
-      "context": "s · 62,764 ops/sec | | Receipt verify | p50 = **10.4 µs** · 74,149 ops/sec | | Λ₉ base | p50 = 3.12 µs | | Λ₉ composed | p50 = **3.29 µs** | | ρ-closu",
+      "context": "s \u00b7 62,764 ops/sec | | Receipt verify | p50 = **10.4 \u00b5s** \u00b7 74,149 ops/sec | | \u039b\u2089 base | p50 = 3.12 \u00b5s | | \u039b\u2089 composed | p50 = **3.29 \u00b5s** | | \u03c1-closu",
       "source_file": "master_evolution_memo.md",
       "source_line": 37,
       "source_id": "master_memo"
@@ -1389,7 +1389,7 @@
       "name": "tests_passed",
       "value": "218",
       "raw": "218/218 tests",
-      "context": "astructure.  **Success metric:** the Replit demo URL shows \"218/218 tests · v6.3.0 · OpenSSF 8.2\" with the same badge as the canonical repo, refreshed",
+      "context": "astructure.  **Success metric:** the Replit demo URL shows \"218/218 tests \u00b7 v6.3.0 \u00b7 OpenSSF 8.2\" with the same badge as the canonical repo, refreshed",
       "source_file": "master_evolution_memo.md",
       "source_line": 152,
       "source_id": "master_memo"
@@ -1398,8 +1398,8 @@
       "id": "C0070",
       "name": "receipt_build_p50_us",
       "value": "11.5",
-      "raw": "Receipt build p50=11.5 µs",
-      "context": "rg/doc/draft-morrow-sogomonian-exec-outcome-attest/00/)). | Receipt build p50=11.5 µs, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.o",
+      "raw": "Receipt build p50=11.5 \u00b5s",
+      "context": "rg/doc/draft-morrow-sogomonian-exec-outcome-attest/00/)). | Receipt build p50=11.5 \u00b5s, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.o",
       "source_file": "pm_memo.md",
       "source_line": 54,
       "source_id": "pm_memo"
@@ -1409,7 +1409,7 @@
       "name": "ops_per_sec",
       "value": "62764",
       "raw": "62,764 ops/sec",
-      "context": "Claim:** Receipt build p50 = 11.5 µs, verify p50 = 10.4 µs, 62,764 ops/sec, 218/218 runtime tests, ρ-closure 8,000/8,000, byte-identical replay root `",
+      "context": "Claim:** Receipt build p50 = 11.5 \u00b5s, verify p50 = 10.4 \u00b5s, 62,764 ops/sec, 218/218 runtime tests, \u03c1-closure 8,000/8,000, byte-identical replay root `",
       "source_file": "pm_memo.md",
       "source_line": 81,
       "source_id": "pm_memo"
@@ -1419,7 +1419,7 @@
       "name": "tests_passed",
       "value": "218",
       "raw": "218/218 tests",
-      "context": "ian-exec-outcome-attest/00/)). | Receipt build p50=11.5 µs, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.org/10.5281/zenodo.20119582)",
+      "context": "ian-exec-outcome-attest/00/)). | Receipt build p50=11.5 \u00b5s, 218/218 tests, v11 DOI: [10.5281/zenodo.20119582](https://doi.org/10.5281/zenodo.20119582)",
       "source_file": "pm_memo.md",
       "source_line": 54,
       "source_id": "pm_memo"
@@ -1439,7 +1439,7 @@
       "name": "http_calls",
       "value": "24800",
       "raw": "24,800 HTTP calls",
-      "context": "ships a Λ₉-gated resource. | Ouroboros v6.3.0 platform v11: 24,800 HTTP calls, Λ₁₀ overhead 0.49–0.59 ms/route | | **Mastra** ([mastra.ai](https://mas",
+      "context": "ships a \u039b\u2089-gated resource. | Ouroboros v6.3.0 platform v11: 24,800 HTTP calls, \u039b\u2081\u2080 overhead 0.49\u20130.59 ms/route | | **Mastra** ([mastra.ai](https://mas",
       "source_file": "pm_memo.md",
       "source_line": 57,
       "source_id": "pm_memo"
@@ -1448,8 +1448,8 @@
       "id": "C0078",
       "name": "receipt_build_p50_us",
       "value": "11.5",
-      "raw": "Receipt build p50 = 11.5 µs",
-      "context": "-witness guarantee baked into `ouroboros`'s runtime kernel. Receipt build p50 = 11.5 µs; verify p50 = 10.4 µs; 100% ρ-closure on 8,000/8,000 paired ca",
+      "raw": "Receipt build p50 = 11.5 \u00b5s",
+      "context": "-witness guarantee baked into `ouroboros`'s runtime kernel. Receipt build p50 = 11.5 \u00b5s; verify p50 = 10.4 \u00b5s; 100% \u03c1-closure on 8,000/8,000 paired ca",
       "source_file": "cto_memo.md",
       "source_line": 78,
       "source_id": "cto_memo"
@@ -1459,7 +1459,7 @@
       "name": "ops_per_sec",
       "value": "62764",
       "raw": "62,764 ops/sec",
-      "context": "in · p50 = 11.5 µs build / 10.4 µs verify · 218/218 tests · 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** (consent + pulse",
+      "context": "in \u00b7 p50 = 11.5 \u00b5s build / 10.4 \u00b5s verify \u00b7 218/218 tests \u00b7 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** (consent + pulse",
       "source_file": "cto_memo.md",
       "source_line": 18,
       "source_id": "cto_memo"
@@ -1469,7 +1469,7 @@
       "name": "tests_passed",
       "value": "218",
       "raw": "218/218 tests",
-      "context": "ss · receipt chain · p50 = 11.5 µs build / 10.4 µs verify · 218/218 tests · 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** ",
+      "context": "ss \u00b7 receipt chain \u00b7 p50 = 11.5 \u00b5s build / 10.4 \u00b5s verify \u00b7 218/218 tests \u00b7 62,764 ops/sec | | `a11oy` | Covenant policy + approval queue | **HEART** ",
       "source_file": "cto_memo.md",
       "source_line": 18,
       "source_id": "cto_memo"
@@ -1479,7 +1479,7 @@
       "name": "ops_per_sec",
       "value": "62764",
       "raw": "62,764 ops/sec",
-      "context": "218 / 218 passing | 100% | | Receipt build p50 | 11.5 µs | 62,764 ops/sec | | Receipt build p99 | 50.7 µs | — | | Receipt verify p50 | 10.4 µs | 74,14",
+      "context": "218 / 218 passing | 100% | | Receipt build p50 | 11.5 \u00b5s | 62,764 ops/sec | | Receipt build p99 | 50.7 \u00b5s | \u2014 | | Receipt verify p50 | 10.4 \u00b5s | 74,14",
       "source_file": "runtime_memo.md",
       "source_line": 20,
       "source_id": "runtime_memo"
@@ -1489,7 +1489,7 @@
       "name": "ops_per_sec",
       "value": "74149",
       "raw": "74,149 ops/sec",
-      "context": "build p99 | 50.7 µs | — | | Receipt verify p50 | 10.4 µs | 74,149 ops/sec | | Λ₉ base p50 | 3.12 µs | — | | Λ₉ composed p50 | 3.29 µs | — | | ρ-closur",
+      "context": "build p99 | 50.7 \u00b5s | \u2014 | | Receipt verify p50 | 10.4 \u00b5s | 74,149 ops/sec | | \u039b\u2089 base p50 | 3.12 \u00b5s | \u2014 | | \u039b\u2089 composed p50 | 3.29 \u00b5s | \u2014 | | \u03c1-closur",
       "source_file": "runtime_memo.md",
       "source_line": 22,
       "source_id": "runtime_memo"
@@ -1499,7 +1499,7 @@
       "name": "tests_passed",
       "value": "218",
       "raw": "218/218 tests",
-      "context": "ary (5 lines)  The ouroboros v6.3.0 runtime is confirmed at 218/218 tests, receipt build p50 11.5 µs, Λ₉ composed p50 3.29 µs, and 100% ρ-closure — al",
+      "context": "ary (5 lines)  The ouroboros v6.3.0 runtime is confirmed at 218/218 tests, receipt build p50 11.5 \u00b5s, \u039b\u2089 composed p50 3.29 \u00b5s, and 100% \u03c1-closure \u2014 al",
       "source_file": "runtime_memo.md",
       "source_line": 404,
       "source_id": "runtime_memo"
@@ -1509,7 +1509,7 @@
       "name": "http_calls",
       "value": "11",
       "raw": "11 HTTP calls",
-      "context": "9 µs | — | | ρ-closure | 8,000 / 8,000 | 100% | | Platform v11 HTTP calls | 24,800 | — | | Λ overhead p50 per route | 0.49–0.59 ms | — | | Λ overhead ",
+      "context": "9 \u00b5s | \u2014 | | \u03c1-closure | 8,000 / 8,000 | 100% | | Platform v11 HTTP calls | 24,800 | \u2014 | | \u039b overhead p50 per route | 0.49\u20130.59 ms | \u2014 | | \u039b overhead ",
       "source_file": "runtime_memo.md",
       "source_line": 26,
       "source_id": "runtime_memo"
@@ -1519,7 +1519,7 @@
       "name": "ops_per_sec",
       "value": "74149",
       "raw": "74,149 ops/sec",
-      "context": "pt verify p50 | **10.4 µs** | | Receipt verify throughput | 74,149 ops/sec | | Λ₉ base p50 | 3.12 µs | | Λ₉ composed p50 | 3.29 µs | | ρ-closure | 100",
+      "context": "pt verify p50 | **10.4 \u00b5s** | | Receipt verify throughput | 74,149 ops/sec | | \u039b\u2089 base p50 | 3.12 \u00b5s | | \u039b\u2089 composed p50 | 3.29 \u00b5s | | \u03c1-closure | 100",
       "source_file": "data_memo.md",
       "source_line": 419,
       "source_id": "data_memo"
@@ -1621,7 +1621,7 @@
   "doctrine_clauses": [
     {
       "id": "DC1",
-      "clause": "Byline must be 'Lutar, Stephen P.' — never 'Jr.' or 'Stephen Paul'",
+      "clause": "Byline must be 'Lutar, Stephen P.' \u2014 never 'Jr.' or 'Stephen Paul'",
       "source": "THESIS_BRIEF.md"
     },
     {
@@ -1641,7 +1641,7 @@
     },
     {
       "id": "DC5",
-      "clause": "9-axis Λ >= 0.90 conjunctive AND; moralGrounding + measurabilityHonesty >= 0.95",
+      "clause": "9-axis \u039b >= 0.90 conjunctive AND; moralGrounding + measurabilityHonesty >= 0.95",
       "source": "THESIS_BRIEF.md"
     },
     {
@@ -1847,12 +1847,12 @@
       "ci_status": "build (Lean kernel check) + lake build + numbers + check/doctrine + DCO all GREEN @ 0a552a90 (and @ 099d6caa). Only doi-title-gate + PR-title-lint fail (PRE-EXISTING / cosmetic, unrelated to proofs).",
       "headline": "C1 Tsirelson 2sqrt2 / C2 CHSH<=2 / C6 Jensen are now CI-GREEN (wave-4 had them CI-PENDING). Root cause fixed: dropped the non-load-bearing c1a_tsirelson_constant numeric remark and its two extra SpecialFunctions imports, minimizing Tier1Mathlib's build closure to exactly the two modules that define the instantiated theorems.",
       "ci_green_mathlib_dependent": {
-        "Wave3.Tier1.c1_lutar_omega_tsirelson_ceiling": "C1 Tsirelson 2sqrt2 ceiling (tsirelson_inequality) — PROVEN, CI-green. EPR-Bell governance diagnostic (entangled-agent ceiling).",
-        "Wave3.Tier1.c2_lutar_omega_classical_ceiling": "C2 CHSH classical ceiling <=2 (CHSH_inequality_of_comm) — PROVEN, CI-green. Local/independent-prior agent ceiling.",
-        "Wave3.Tier1.c6_jensen_forecaster": "C6 finite Jensen (ConvexOn.map_sum_le) — PROVEN, CI-green. Active-inference ELBO-direction conservative forecaster.",
-        "Wave5.MathlibCore.w5_1_lambda_le_arith_mean": "W5-1 weighted AM-GM (Real.geom_mean_le_arith_mean_weighted) — PROVEN, CI-green. Lambda (geometric-mean aggregator) <= arithmetic mean: no-inflation guarantee.",
-        "Wave5.MathlibCore.w5_1b_lambda2_le_arith_mean": "W5-1b two-point weighted AM-GM — PROVEN, CI-green. Pairwise consensus diagnostic.",
-        "Wave5.MathlibCore.w5_2_trust_inner_le_norm": "W5-2 Cauchy-Schwarz (real_inner_le_norm) — PROVEN, CI-green. Trust-vector similarity bound (cosine in [-1,1])."
+        "Wave3.Tier1.c1_lutar_omega_tsirelson_ceiling": "C1 Tsirelson 2sqrt2 ceiling (tsirelson_inequality) \u2014 PROVEN, CI-green. EPR-Bell governance diagnostic (entangled-agent ceiling).",
+        "Wave3.Tier1.c2_lutar_omega_classical_ceiling": "C2 CHSH classical ceiling <=2 (CHSH_inequality_of_comm) \u2014 PROVEN, CI-green. Local/independent-prior agent ceiling.",
+        "Wave3.Tier1.c6_jensen_forecaster": "C6 finite Jensen (ConvexOn.map_sum_le) \u2014 PROVEN, CI-green. Active-inference ELBO-direction conservative forecaster.",
+        "Wave5.MathlibCore.w5_1_lambda_le_arith_mean": "W5-1 weighted AM-GM (Real.geom_mean_le_arith_mean_weighted) \u2014 PROVEN, CI-green. Lambda (geometric-mean aggregator) <= arithmetic mean: no-inflation guarantee.",
+        "Wave5.MathlibCore.w5_1b_lambda2_le_arith_mean": "W5-1b two-point weighted AM-GM \u2014 PROVEN, CI-green. Pairwise consensus diagnostic.",
+        "Wave5.MathlibCore.w5_2_trust_inner_le_norm": "W5-2 Cauchy-Schwarz (real_inner_le_norm) \u2014 PROVEN, CI-green. Trust-vector similarity bound (cosine in [-1,1])."
       },
       "proven_mathlib_free_bare_lean": {
         "Wave5.DiscreteSubstrate.w5_3a_miscover_le_total": "miscoverage<=sample size. axioms=[propext]. killinchu conformal coverage.",
@@ -1862,7 +1862,7 @@
         "Wave5.DiscreteSubstrate.w5_5_no_early_stop_deflation": "monotone optional-stopping anti-deflation. ZERO axioms. UDS receipt-stream anti-gaming."
       },
       "axiom_disclosure": "Mathlib-dependent re-exports use the standard Mathlib trio [propext, Classical.choice, Quot.sound] (NO sorryAx, NO declared Lutar axioms); their #print axioms are emitted in the CI build log (blob log download proxy-blocked here, but the build is green and they are pure term-mode instantiations of axiom-clean Mathlib theorems). Mathlib-free theorems' #print axioms pasted verbatim in PROVE_WAVE5_REPORT.md section 3 (bare lean 4.13.0, exit 0).",
-      "not_available_at_pinned_mathlib": "C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) — verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.",
+      "not_available_at_pinned_mathlib": "C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) \u2014 verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.",
       "lambda_status": "Lambda (F23) STAYS Conjecture 1 unconditionally. W5-1 AM-GM is a building block Lambda relies on; it does NOT prove uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).",
       "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-5 work is experimental scope (counter-excluded).",
       "canonical_numbers": {
@@ -1889,7 +1889,157 @@
       "mathlib_dependent_ci_green": 6,
       "mathlib_free_bare_lean": 5,
       "total_new": 11
-    }
+    },
+    "wave6": {
+      "campaign": "prove-wave-6 (graph substrate)",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/189",
+      "commit_ci_green": "dc7ae26d",
+      "ci_status": "GREEN (Lean kernel check + lake build+numbers + doctrine + DCO)",
+      "count": 11,
+      "axioms": "0 new",
+      "new_proven_ids": [
+        "F-G1",
+        "F-G2",
+        "F-G3",
+        "F-G4",
+        "F-G5",
+        "F-G6"
+      ],
+      "headline": "Frechet/Kuratowski embedding core, GNN<=1-WL ceiling, spectral contraction, Lambda-graph iso-invariance, bounded-frontier DAG termination, relabel-invariance",
+      "maturity": "experimental-CI-green",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; experimental scope"
+    },
+    "wave7": {
+      "campaign": "prove-wave-7",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/190",
+      "commit_ci_green": "d6a232ba",
+      "ci_status": "GREEN",
+      "count": 10,
+      "axioms": "0 new",
+      "new_proven_ci_green": [
+        "W7-1a",
+        "W7-1",
+        "W7-5a",
+        "W7-5b",
+        "W7-5"
+      ],
+      "new_proven_bare_lean": [
+        "W7-4a",
+        "W7-4b",
+        "W7-4c",
+        "W7-6a",
+        "W7-6"
+      ],
+      "headline": "conformal rank-count/p-value + Doob two-sided audit envelope + degree-sum iso-invariance + PAC-Bayes routing envelope",
+      "maturity": "experimental-CI-green",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; experimental scope"
+    },
+    "agentic_loop": {
+      "campaign": "prove-agentic-loop (the governed RAG->MCP->kernel->receipt loop, proven as a SYSTEM)",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/188",
+      "commit_ci_green": "2ede47a2",
+      "ci_status": "GREEN",
+      "namespace": "Lutar.Agentic.Pipeline (EXPERIMENTAL_SCOPES; NOT imported into Lutar.lean)",
+      "theorems": 28,
+      "axiom_free": 14,
+      "lean_core_only": 10,
+      "axiom_gated": 4,
+      "declared_axiom": "hashFn_collision_resistant (P5 only; NIST FIPS 180-4)",
+      "properties": {
+        "P1": "receipt-completeness",
+        "P2": "gate-soundness",
+        "P3": "non-interference (Goguen-Meseguer 1982, axiom-free core)",
+        "P4": "replay-determinism (axiom-free)",
+        "P5": "tamper-evidence (axiom-gated)",
+        "P6": "monotone auditability"
+      },
+      "headline": "the RAG->MCP->kernel loop is proven end-to-end; P3 (poisoned input can't flip the verdict) is the Cannonico bullseye",
+      "maturity": "experimental-CI-green (P5 axiom-gated)",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; experimental scope"
+    },
+    "coder_formulas": {
+      "campaign": "prove-coder (a11oy Code governed coder formulas)",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/193",
+      "commit_ci_green": "29e33534",
+      "ci_status": "GREEN (bare-lean sorry-free + CI build/numbers/doctrine/DCO)",
+      "theorems": 27,
+      "axiom_free": 5,
+      "lean_core_only": 23,
+      "axiom_gated": 1,
+      "declared_axiom": "codeHash_collision_resistant (1 only; standard, disclosed)",
+      "areas": {
+        "CS1": "sandbox containment (extends P2)",
+        "CS2": "bounded exec/termination (extends F-G5)",
+        "CR3": "router envelope + argmin stability (W7-5/C20)",
+        "CV4": "consensus/Byzantine majority (C10)",
+        "CC5": "conformal code-confidence <1 (W5-3/W7-4)",
+        "CK6": "receipt-log compression (Kraft/Shannon C8/C9)",
+        "NI7": "code-context non-interference (extends P3) \u2014 poisoned dependency can't flip DENY->ALLOW"
+      },
+      "headline": "27 theorems innovated for the governed coder; kernel-verified two ways",
+      "maturity": "experimental-CI-green (1 axiom-gated)",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; experimental scope"
+    },
+    "lambda_setalpha_setdelta": {
+      "campaign": "lambda-uniqueness Set alpha + Set delta (conditional uniqueness within strengthened axiom classes)",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/192",
+      "commit_ci_green": "5f0bb5ee",
+      "ci_status": "GREEN (build + lake+numbers + doctrine + DCO)",
+      "results": 22,
+      "headline_theorems_approx": 12,
+      "declared_bridge_axioms": [
+        "setAlpha_cauchy",
+        "KS_theorem_1_1",
+        "setDelta_stage2"
+      ],
+      "impostor_deaths_axiom_free": 10,
+      "what_proven": "Lambda (geometric mean) is UNIQUE within Set alpha {A1,A2,A3,A4,A5' multiplicativity} (cond. on setAlpha_cauchy) and within Set delta {d1..d4,d5' multiplicativity} (cond. on KS_theorem_1_1+setDelta_stage2). All 10 impostor-deaths AXIOM-FREE.",
+      "what_NOT_claimed": "NOT unconditional uniqueness under original A1-A5 (machine-checked FALSE: Round13.maxAgg_ne_Lambda). Lambda STAYS Conjecture 1.",
+      "maturity": "conditional (axiom-gated bridge); Lambda = Conjecture 1 unconditionally",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; locked_proven STAYS 5"
+    },
+    "mathlib_bump_c3c4c5": {
+      "campaign": "Mathlib v4.18 bump \u2014 concentration/KL re-exports C3/C4/C5",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/187",
+      "ci_status": "PROVEN on the Mathlib-v4.18 bump branch (CI-green), PENDING MERGE to main",
+      "ids": [
+        "C3",
+        "C4",
+        "C5"
+      ],
+      "status_honest": "proven on bump branch (PR#187), pending merge to main \u2014 NOT on-main, NOT blocked",
+      "maturity": "branch-pending"
+    },
+    "unify_governed_run_sound": {
+      "campaign": "unify governance substrate meta-theorem (monoid-action spine unifying P1/P4/P6 + coder corpus)",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/194",
+      "commit_ci_green": "9f9c1bbd",
+      "artifact": "Lutar/Unify/GovernanceSubstrate.lean (EXPERIMENTAL scope; NOT wired into Lutar.lean)",
+      "spine": "run is a left monoid action of the free monoid (List Hop,++,[]) on St; run_append homomorphism is the unifier",
+      "theorems": [
+        "run_nil (axiom-free)",
+        "run_append",
+        "run_singleton (axiom-free)",
+        "completeness_additive",
+        "determinism_composes",
+        "chainEnd_append (axiom-free)",
+        "auditability_multiplicative",
+        "governed_run_sound"
+      ],
+      "headline": "every compositional corpus guarantee is a corollary of one homomorphism; a synthesis (unification) theorem, not new deep pure math",
+      "maturity": "experimental-CI-green",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; experimental scope"
+    },
+    "maturity_legend": [
+      "locked",
+      "experimental-CI-green",
+      "branch-pending",
+      "axiom-gated",
+      "conditional",
+      "conjecture"
+    ],
+    "experimental_total_note": "LOCKED proven = exactly 5 {F1,F11,F12,F18,F19} @ c7c0ba17 (749/14/163), UNCHANGED. PLUS 80+ experimental kernel-verified theorems (all CI-green, never folded into the locked 5): wave5 (11, PR#186), wave6 (11, PR#189), wave7 (10, PR#190), agentic-loop P1-P6 (28, PR#188), coder formulas (27, PR#193), Lambda Set alpha/delta (22 results / ~12 theorems, PR#192), unify governed_run_sound (PR#194). C3/C4/C5 proven on the Mathlib-v4.18 bump branch (PR#187), pending merge to main. Lambda = Conjecture 1 unconditionally (uniqueness machine-checked FALSE) + PROVEN conditionally under declared strengthened Set alpha/delta axioms (PR#192).",
+    "experimental_count_min": 80
   },
   "puriq_formulas": [
     {
