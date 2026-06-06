@@ -1,0 +1,17 @@
+FROM gcr.io/oss-fuzz-base/base-builder-javascript
+
+# Install Node.js (match .node-version in repo root)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy repo into the builder image
+COPY . $SRC/ouroboros
+
+WORKDIR $SRC/ouroboros
+
+# Copy build script
+COPY .clusterfuzzlite/build.sh $SRC/

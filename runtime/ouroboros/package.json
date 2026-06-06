@@ -1,0 +1,72 @@
+{
+  "name": "@szl-holdings/ouroboros",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Ouroboros \u2014 bounded loops with measurable convergence as a system primitive. Kernel + adaptive depth + cross-step consistency + React trace UI. Inspired by ByteDance's Ouro LoopLM (arXiv:2510.25741), generalized to system layer.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./src/types.ts"
+    },
+    "./loop-kernel": {
+      "types": "./dist/loop-kernel.d.ts",
+      "import": "./src/loop-kernel.ts"
+    },
+    "./consistency": {
+      "types": "./dist/consistency.d.ts",
+      "import": "./src/consistency.ts"
+    },
+    "./depth-allocator": {
+      "types": "./dist/depth-allocator.d.ts",
+      "import": "./src/depth-allocator.ts"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./src/react/index.tsx"
+    }
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.16",
+    "react": "^19.2.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8",
+    "@biomejs/biome": "^2.4.16"
+  },
+  "scripts": {
+    "lint": "biome lint ./src",
+    "lint:ci": "biome lint ./src",
+    "format": "biome format --write ./src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "packageManager": "pnpm@10.26.1",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/szl-holdings/ouroboros.git"
+  },
+  "homepage": "https://github.com/szl-holdings/ouroboros",
+  "bugs": {
+    "url": "https://github.com/szl-holdings/ouroboros/issues"
+  }
+}

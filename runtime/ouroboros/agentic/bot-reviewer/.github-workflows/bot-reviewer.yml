@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: Apache-2.0
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | SZL Holdings
+# Module: 12_agentic/bot-reviewer — GitHub Actions workflow
+# Doctrine V6 preflight: ✓ (no forbidden patterns)
+#
+# NOTE: This file lives in .github-workflows/ (module-local) so that it can
+# be versioned with the payload.  The operator must copy it to
+# .github/workflows/bot-reviewer.yml in the target repository before use.
+#
+# All action steps are pinned to full SHAs for supply-chain integrity:
+#   actions/checkout@v4        → 11bd71901bbe5b1630ceea73d27597364c9af683 (v4.2.2)
+#   actions/setup-node@v4      → 1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a (v4.2.0)
+
+name: Doctrine V6 Bot Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  doctrine-review:
+    name: Doctrine V6 — bot-reviewer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 20
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: 12_agentic/bot-reviewer/package.json
+
+      - name: Install dependencies
+        working-directory: 12_agentic/bot-reviewer
+        run: npm install
+
+      - name: Run Doctrine V6 reviewer on changed files
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No changed files detected — skipping review."
+            exit 0
+          fi
+          npx tsx 12_agentic/bot-reviewer/src/reviewer.ts $CHANGED
+
+      - name: Post review to PR (on failure)
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+          if [ -z "$CHANGED" ]; then
+            exit 0
+          fi
+          # Capture violations as JSON and pipe to poster
+          npx tsx 12_agentic/bot-reviewer/src/reviewer.ts $CHANGED 2>&1 || true
+          # Build a minimal failure result and post it
+          RESULT=$(node -e "
+            const { reviewFiles } = await import('./12_agentic/bot-reviewer/src/reviewer.js');
+            const files = process.argv.slice(1);
+            const r = reviewFiles(files);
+            process.stdout.write(JSON.stringify(r));
+          " -- $CHANGED 2>/dev/null || echo '{"pass":false,"violations":[{"filePath":"unknown","rule":"review-error","detail":"Could not collect structured violations — see reviewer step output above"}]}')
+          echo "$RESULT" | npx tsx 12_agentic/bot-reviewer/src/github-poster.ts \
+            "${{ github.repository_owner }}" \
+            "${{ github.event.repository.name }}" \
+            "${{ github.event.pull_request.number }}"

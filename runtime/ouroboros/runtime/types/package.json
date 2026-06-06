@@ -1,0 +1,34 @@
+{
+  "name": "@szl/ouroboros-types",
+  "version": "0.1.0",
+  "description": "SZL Holdings \u2014 Ouroboros runtime module",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.0",
+    "@types/node": "^20.14.0"
+  },
+  "main": "./dist/receipt.js",
+  "types": "./dist/receipt.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/receipt.d.ts",
+      "import": "./dist/receipt.js",
+      "default": "./dist/receipt.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json",
+    "README.md"
+  ]
+}

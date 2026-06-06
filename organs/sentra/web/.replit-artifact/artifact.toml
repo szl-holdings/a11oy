@@ -1,0 +1,31 @@
+kind = "web"
+    previewPath = "/sentra/"
+    title = "Sentra — Cyber Resilience Command"
+    version = "1.0.0"
+    id = "artifacts/sentra"
+    router = "path"
+
+    [[integratedSkills]]
+    name = "react-vite"
+    version = "1.0.0"
+
+    [[services]]
+    name = "web"
+    paths = [ "/sentra/" ]
+    localPort = 9090
+
+    [services.development]
+    run = "bash -c 'cd /home/runner/workspace/artifacts/sentra && exec node_modules/.bin/vite --config vite.config.ts --host ::'"
+
+    [services.production]
+    build = [ "pnpm", "--filter", "@workspace/sentra", "run", "build" ]
+    publicDir = "artifacts/sentra/dist/public"
+    serve = "static"
+
+    [[services.production.rewrites]]
+    from = "/*"
+    to = "/index.html"
+
+    [services.env]
+    VITE_PORT = "4099"
+    BASE_PATH = "/sentra/"

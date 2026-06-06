@@ -1,0 +1,36 @@
+{
+  "name": "@szl/ouroboros-category",
+  "version": "0.1.0",
+  "description": "SZL Holdings \u2014 Ouroboros runtime module",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.22.4",
+    "@szl/ouroboros-types": "workspace:*",
+    "@szl/ouroboros-lambda-gate": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@types/node": "^20.14.0"
+  },
+  "main": "./dist/category.js",
+  "types": "./dist/category.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/category.d.ts",
+      "import": "./dist/category.js",
+      "default": "./dist/category.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json",
+    "README.md"
+  ]
+}
