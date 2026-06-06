@@ -1,0 +1,362 @@
+{
+  "title": "SZL Holdings — Ouroboros Thesis & Proven Formula Kernel",
+  "byline": "Stephen P. Lutar Jr.",
+  "orcid": "0009-0001-0110-4173",
+  "concept_doi": "https://doi.org/10.5281/zenodo.19944926",
+  "doctrine_pin": "lutar-lean v11 LOCKED @ c7c0ba17 — 749 declarations / 14 unique axioms / 163 sorries",
+  "lambda_status": "Λ = Conjecture 1 — NEVER a theorem.",
+  "lean_repo": "https://github.com/szl-holdings/lutar-lean",
+  "generated_from": [
+    "szl-papers/thesis/THESIS_LINEAGE.md",
+    "team/PROOFS_WAVE2_REPORT.md"
+  ],
+  "versions": [
+    {
+      "ver": "v1",
+      "date": "2026-04-28",
+      "doi": "https://doi.org/10.5281/zenodo.19867281",
+      "contribution": "The Ouroboros Loop — looped computation as a system primitive"
+    },
+    {
+      "ver": "v2",
+      "date": "2026-04-30",
+      "doi": "https://doi.org/10.5281/zenodo.19934129",
+      "contribution": "\"The Loop Is the Product\" — first empirical pass"
+    },
+    {
+      "ver": "v3",
+      "date": "2026-05-02",
+      "doi": "https://doi.org/10.5281/zenodo.19983066",
+      "contribution": "The Lutar Invariant Λ — closed-form aggregator (A2/A4 axiom semantics later revised in v14)"
+    },
+    {
+      "ver": "v4",
+      "date": "2026-05-04",
+      "doi": "https://doi.org/10.5281/zenodo.20020841",
+      "contribution": "The Lutar Omega formalism — EPR–Bell governance diagnostic"
+    },
+    {
+      "ver": "v5",
+      "date": "2026-05-04",
+      "doi": "https://doi.org/10.5281/zenodo.20020846",
+      "contribution": "Prisca-GraphRAG + Tawa SAE — lineage-aware retrieval"
+    },
+    {
+      "ver": "v6",
+      "date": "2026-05-04",
+      "doi": "https://doi.org/10.5281/zenodo.20020845",
+      "contribution": "Sealed constitutional guardrails"
+    },
+    {
+      "ver": "v7",
+      "date": "2026-05-04",
+      "doi": "https://doi.org/10.5281/zenodo.20020848",
+      "contribution": "Tiered continual learning"
+    },
+    {
+      "ver": "v8",
+      "date": "2026-05-04",
+      "doi": "https://doi.org/10.5281/zenodo.20020849",
+      "contribution": "Free-energy active inference with prediction"
+    },
+    {
+      "ver": "v9",
+      "date": "2026-05-05",
+      "doi": "https://doi.org/10.5281/zenodo.20053148",
+      "contribution": "Unified-Operational — the Lutar Invariant family"
+    },
+    {
+      "ver": "v10",
+      "date": "2026-05-05",
+      "doi": "https://doi.org/10.5281/zenodo.20053163",
+      "contribution": "Exhaustive-Audit — the audit-closure operator Λ"
+    },
+    {
+      "ver": "v11",
+      "date": "2026-05-11",
+      "doi": "https://doi.org/10.5281/zenodo.20119582",
+      "contribution": "Applied Λ — measured per-request governance overhead"
+    },
+    {
+      "ver": "v12",
+      "date": "2026-05-14",
+      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "contribution": "The Λ-Ouroboros substrate — first four machine-verified theorems"
+    },
+    {
+      "ver": "v13",
+      "date": "2026-05-18",
+      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "contribution": "Anatomy as architecture (exhaustive)"
+    },
+    {
+      "ver": "v14",
+      "date": "2026-05-28",
+      "doi": "https://doi.org/10.5281/zenodo.20173912",
+      "contribution": "Verifiable multi-agent anatomy — Lutar Calculus; Λ downgraded to Conjecture 1"
+    },
+    {
+      "ver": "v15",
+      "date": "2026-05-28",
+      "doi": "https://doi.org/10.5281/zenodo.20195368",
+      "contribution": "Knot calculus for governed decision receipts"
+    },
+    {
+      "ver": "v16",
+      "date": "2026-05-28",
+      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "contribution": "Λ-invariant stack + Feynman path-integral audit sum"
+    },
+    {
+      "ver": "v17",
+      "date": "2026-05-28",
+      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "contribution": "Wheelerian audit closure; Shannon doctrine (Kraft inequality)"
+    },
+    {
+      "ver": "v18",
+      "date": "2026-05-30",
+      "doi": "https://doi.org/10.5281/zenodo.20434276",
+      "contribution": "Multi-track Substrate Expansion — 29 modules, per-theorem Lean index, 7-DOI chain"
+    },
+    {
+      "ver": "v19",
+      "date": null,
+      "doi": null,
+      "contribution": "Intentionally skipped — version gap (v18 → v20); no release, no DOI. Documented, not missing."
+    },
+    {
+      "ver": "v20",
+      "date": "2026-06-01",
+      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "contribution": "\"The Culmination\" — formally-verified anatomical substrate"
+    },
+    {
+      "ver": "v21",
+      "date": "2026-06-01",
+      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "contribution": "The PURIQ-OS Substrate — 12-organ runtime, 23 agentic formulas (5 proved in Lean 4)"
+    },
+    {
+      "ver": "v22",
+      "date": "2026-06-03",
+      "doi": null,
+      "doi_status": "DOI pending (founder mint)",
+      "contribution": "\"Convergence\" — A5 axiom merge; VCG truthfulness; Cauchy_ND partial closure; SLSA L2; Rounds 10–11; Sim2Real Walrus-parallel (α=0.10)"
+    }
+  ],
+  "proof_summary": {
+    "locked_proven": 5,
+    "locked_ids": [
+      "F1",
+      "F11",
+      "F12",
+      "F18",
+      "F19"
+    ],
+    "experimental_sorry_free": 21,
+    "axiom_gated": 3,
+    "axiom_gated_detail": {
+      "f13_tamper_evident": "hash_collision_resistant",
+      "f14_dsse_verifiable": "ecdsa_unforgeable",
+      "f15_inclusion_binding": "h2_collision_resistant"
+    },
+    "conjecture": [
+      "F23"
+    ],
+    "note": "Locked kernel proven=5; experimental scope Lutar/Puriq/Formulas has 21 sorry-free (excluded from locked count); F23 = Conjecture 1, NOT a theorem.",
+    "lean_repo": "szl-holdings/lutar-lean",
+    "lean_files": [
+      "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+      "Lutar/Puriq/Formulas/F23_Uniqueness.lean"
+    ],
+    "verification": "bare `lean` 4.13.0, 0 errors, 1 sorry (F23 only); #print axioms shows no sorryAx in any proved theorem.",
+    "source_report": "team/PROOFS_WAVE2_REPORT.md"
+  },
+  "proven_formulas": [
+    {
+      "id": "F1",
+      "name": "Replay-Hash Determinism",
+      "statement": "Deterministic step-fold replay: equal logs replay to equal final state; folded state equals last of the explicit replay trace.",
+      "maturity": "proven",
+      "lean_ref": "f1_replay_fold_deterministic",
+      "locked_kernel": true
+    },
+    {
+      "id": "F2",
+      "name": "Scheduler Liveness",
+      "statement": "Fair round-robin scheduler: every ready organ eventually ticks (strictly-decreasing Nat ranking measure reaches 0).",
+      "maturity": "proven",
+      "lean_ref": "f2_scheduler_liveness",
+      "locked_kernel": false
+    },
+    {
+      "id": "F3",
+      "name": "Organ Boot-Gate Soundness",
+      "statement": "If the boot gate permits an organ, its genome is valid (decidable implication).",
+      "maturity": "proven",
+      "lean_ref": "f3_genome_gate_sound",
+      "locked_kernel": false
+    },
+    {
+      "id": "F4",
+      "name": "Khipu DAG Acyclicity",
+      "statement": "Appending the new largest-index node preserves DAG acyclicity (backward-edge invariant).",
+      "maturity": "proven",
+      "lean_ref": "f4_khipu_dag_acyclic",
+      "locked_kernel": false
+    },
+    {
+      "id": "F5",
+      "name": "Unay Receipt Recall",
+      "statement": "Insert-then-lookup on the same receipt key returns the inserted value (exact-key recall correctness).",
+      "maturity": "proven",
+      "lean_ref": "f5_unay_recall_correct",
+      "locked_kernel": false
+    },
+    {
+      "id": "F6",
+      "name": "LMDB Durability",
+      "statement": "Commit-then-restart-then-read returns the committed value; uncommitted writes are lost on crash (WAL model).",
+      "maturity": "proven",
+      "lean_ref": "f6_lmdb_durability",
+      "locked_kernel": false
+    },
+    {
+      "id": "F7",
+      "name": "Chaski FIFO Ordering",
+      "statement": "Enqueue-batch-then-drain yields send order; head is the oldest message (true FIFO, no tautology).",
+      "maturity": "proven",
+      "lean_ref": "f7_chaski_fifo",
+      "locked_kernel": false
+    },
+    {
+      "id": "F8",
+      "name": "Wallpa OSS-Only Safety",
+      "statement": "Governed-voice admission gate admits only OSS sources; no humanClone or synthetic config is ever admitted.",
+      "maturity": "proven",
+      "lean_ref": "f8_wallpa_oss_only",
+      "locked_kernel": false
+    },
+    {
+      "id": "F9",
+      "name": "Wasi-Rikuq Non-Interference",
+      "statement": "Advisory non-interference (Goguen-Meseguer 1982): the low view is unchanged by high inputs.",
+      "maturity": "proven",
+      "lean_ref": "f9_wasi_rikuq_noninterference",
+      "locked_kernel": false
+    },
+    {
+      "id": "F10",
+      "name": "Hatun MCP Idempotency",
+      "statement": "MCP request normalizer is idempotent: normalizing twice equals normalizing once.",
+      "maturity": "proven",
+      "lean_ref": "f10_hatun_mcp_idempotent",
+      "locked_kernel": false
+    },
+    {
+      "id": "F11",
+      "name": "Ayni Reciprocity Conservation",
+      "statement": "Event-sourcing replay invariant: balance reciprocity is conserved; tit-for-tat parity (Axelrod-Hamilton).",
+      "maturity": "proven",
+      "lean_ref": "f11_ayni_reciprocity_conservation",
+      "locked_kernel": true
+    },
+    {
+      "id": "F12",
+      "name": "Kuramoto Phase-Coupling Boundedness",
+      "statement": "Discrete additive coupling is bounded and superposes over an organ set. CAVEAT: additive fragment only, NOT nonlinear Kuramoto synchronisation.",
+      "maturity": "proven",
+      "lean_ref": "f12_kuramoto_superposition",
+      "locked_kernel": true
+    },
+    {
+      "id": "F13",
+      "name": "Wayra Hash-Chain Verification",
+      "statement": "Hash-chain verification is sound by induction: a verified chain has every link consistent.",
+      "maturity": "proven",
+      "lean_ref": "f13_wayra_chain_verified",
+      "locked_kernel": false
+    },
+    {
+      "id": "F15",
+      "name": "Rekor Merkle Inclusion",
+      "statement": "Merkle inclusion checker is sound (structural). Binding form (equal roots => equal leaves) is AXIOM-GATED on declared `h2_collision_resistant`.",
+      "maturity": "proven",
+      "lean_ref": "f15_rekor_inclusion",
+      "locked_kernel": false
+    },
+    {
+      "id": "F16",
+      "name": "Sentra Immune Completeness",
+      "statement": "Immune cross-cut completeness: 8 gates cover all 8 enumerated threats; gate set is exhaustive.",
+      "maturity": "proven",
+      "lean_ref": "f16_sentra_immune_complete",
+      "locked_kernel": false
+    },
+    {
+      "id": "F17",
+      "name": "Three-Vertical Isolation",
+      "statement": "The three verticals are pairwise disjoint (isolation by construction).",
+      "maturity": "proven",
+      "lean_ref": "f17_three_vertical_isolation",
+      "locked_kernel": false
+    },
+    {
+      "id": "F18",
+      "name": "Reed-Solomon RS(10,6) Recovery",
+      "statement": "RS(10,6) parity arithmetic: data is recoverable iff at least 6 of 10 shards survive (tolerates 4 erasures).",
+      "maturity": "proven",
+      "lean_ref": "f18_reed_solomon_parity_count",
+      "locked_kernel": true
+    },
+    {
+      "id": "F19",
+      "name": "Bekenstein Entropy Budget",
+      "statement": "Entropy budget is additive and monotone over a region partition; each region <= total. CAVEAT: additive scaffolding only, NOT the full Bekenstein bound S <= 2*pi*k*R*E/(hbar*c).",
+      "maturity": "proven",
+      "lean_ref": "f19_budget_total_cons",
+      "locked_kernel": true
+    },
+    {
+      "id": "F20",
+      "name": "Mobile Input Equivalence",
+      "statement": "Touch and pointer inputs are equivalent under the normalization map (decidable and sound).",
+      "maturity": "proven",
+      "lean_ref": "f20_mobile_input_equiv",
+      "locked_kernel": false
+    },
+    {
+      "id": "F21",
+      "name": "Genome Validator Totality",
+      "statement": "The genome validator is total over Fin 16: every organ validates.",
+      "maturity": "proven",
+      "lean_ref": "f21_all_organs_valid",
+      "locked_kernel": false
+    },
+    {
+      "id": "F22",
+      "name": "Khipu Emit Monotonicity",
+      "statement": "Emit appends to the sequence log with strictly increasing sequence numbers (monotone emit).",
+      "maturity": "proven",
+      "lean_ref": "f22_khipu_emit_monotone",
+      "locked_kernel": false
+    },
+    {
+      "id": "F14",
+      "name": "DSSE Verifiable Attribution",
+      "statement": "A DSSE signature that verifies attributes the message to the key. AXIOM-GATED on declared `ecdsa_unforgeable`.",
+      "maturity": "axiom-gated",
+      "lean_ref": "f14_dsse_verifiable",
+      "locked_kernel": false
+    },
+    {
+      "id": "F23",
+      "name": "Lambda-Aggregator Uniqueness",
+      "statement": "CONJECTURE 1 (NOT a theorem). Unconditional uniqueness is FALSE under A1-A5 (maxAgg counterexample). Conditional `lambda_unique_of_factors` IS proved; unconditional uniqueness closes only under declared axiom A6_bisymmetric.",
+      "maturity": "conjectured",
+      "lean_ref": "f23_lambda_aggregator_sound",
+      "locked_kernel": false
+    }
+  ]
+}
