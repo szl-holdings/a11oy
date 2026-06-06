@@ -92,9 +92,9 @@
     {
       "id": "TH_L1",
       "name": "\u039b_uniqueness",
-      "statement": "The Lutar Invariant \u039b_k as weighted geometric mean with Egyptian unit-fraction weights is unique given the four axioms",
-      "source_file": "lutar-lean/Lutar/Uniqueness.lean",
-      "maturity": "proven",
+      "statement": "Conjecture 1: the Lutar Invariant \u039b_k (weighted geometric mean with Egyptian unit-fraction weights) is the unique aggregator satisfying axioms A1-A5. NOT a theorem: unconditional uniqueness is FALSE under A1-A5 (machine-checked counterexample maxAgg_ne_Lambda; max-aggregator satisfies A1-A5 yet differs from \u039b at (4,1)). The conditional theorem lambda_unique_of_factors (uniqueness GIVEN factorization \u03a6 x = \u220f x_i^\u03b1_i) IS fully proved; unconditional uniqueness closes only under a declared bisymmetry axiom A6 (Kolmogorov-Nagumo-Aczel).",
+      "source_file": "lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean",
+      "maturity": "conjectured",
       "citation": "https://doi.org/10.5281/zenodo.20053148"
     },
     {
