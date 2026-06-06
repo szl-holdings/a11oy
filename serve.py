@@ -3919,6 +3919,18 @@ except Exception as _a11oy_dag_e:
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
+_LOOP_DIAG = {"status": "not-run"}
+try:
+    from starlette.routing import Route as _DiagRoute
+    from starlette.responses import JSONResponse as _DiagJSON2
+    async def _a11oy_loop_diag_route(request):
+        return _DiagJSON2(_LOOP_DIAG)
+    app.router.routes.insert(0, _DiagRoute("/api/a11oy/v1/agent/_diag",
+                                           _a11oy_loop_diag_route, methods=["GET"],
+                                           name="a11oy_loop_diag"))
+except Exception:
+    pass
+
 try:
     import szl_agentic_loop as _szl_loop
     import sys as _loop_sys
@@ -3963,10 +3975,42 @@ try:
                       "resets on rebuild, verifiable vs /cosign.pub)"),
     )
     print(f"[a11oy] governed agent loop registered: {_loop_status}", file=_loop_sys.stderr)
+    _LOOP_DIAG = {"status": "ok", "registered": _loop_status}
 except Exception as _loop_e:
     import sys as _loop_sys, traceback as _loop_tb
     print(f"[a11oy] governed agent loop FAILED (non-fatal): {_loop_e!r}", file=_loop_sys.stderr)
     _loop_tb.print_exc(file=_loop_sys.stderr)
+    _LOOP_DIAG = {"status": "FAILED", "error": repr(_loop_e),
+                  "traceback": _loop_tb.format_exc()}
 # ============================================================================
 # END: GOVERNED AGENT LOOP — a11oy
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: WARHACKER MISSION TABS — a11oy (2026-06-06, ADDITIVE, real-operational)
+# Registers the 5 investor-facing mission surfaces (AI Oversight / Deploy Posture
+# / Mission Health / Trajectory Picture / Edge Run) as REAL endpoints under BOTH
+# /api/a11oy/v1/... and the stripped /v1/... form, inserted BEFORE the SPA catch-
+# all. AI Oversight + Edge Run REUSE the make_agentic_loop_operational squad's
+# governed-run primitives (szl_agentic_loop) and a11oy's REAL in-image signer
+# (_a11oy_sign_receipt) + the loop's verifier (_a11oy_loop_verify) -- the loop is
+# coordinated/reused, NOT duplicated. Never crashes the app (try/except guarded).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_warhacker_real as _szl_whr
+    import sys as _whr_sys
+    _whr_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
+    _whr_status = _szl_whr.register(app, _a11oy_sign_receipt, verify_fn=_whr_verify)
+    print(f"[a11oy] warhacker mission tabs registered: {_whr_status}", file=_whr_sys.stderr)
+    _WHR_DIAG = {"status": "ok", "registered": _whr_status}
+except Exception as _whr_e:
+    import sys as _whr_sys, traceback as _whr_tb
+    print(f"[a11oy] warhacker mission tabs FAILED (non-fatal): {_whr_e!r}", file=_whr_sys.stderr)
+    _whr_tb.print_exc(file=_whr_sys.stderr)
+    _WHR_DIAG = {"status": "FAILED", "error": repr(_whr_e)}
+# ============================================================================
+# END: WARHACKER MISSION TABS — a11oy
 # ============================================================================

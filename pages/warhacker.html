@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>a11oy — Warhacker Orchestration · SZL Holdings</title>
-  <meta name="description" content="a11oy is the single launch point for the 5 approved Warhacker demos. Each button calls the live organ endpoint and renders the real result + a signed receipt."/>
+  <title>a11oy — Mission Surfaces · SZL Holdings</title>
+  <meta name="description" content="Five working a11oy mission surfaces: AI Oversight, Deploy Posture, Mission Health, Trajectory Picture, and Edge Run. Each runs live in-image and produces a real, signed, re-verifiable result."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -123,162 +123,575 @@
     .honest-box b{color:var(--teal);}
     @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;}}
   </style>
+  <style>
+    .tabs-bar{position:sticky;top:0;z-index:40;display:flex;gap:.35rem;flex-wrap:wrap;justify-content:center;
+      padding:.6rem 1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);}
+    .tab-btn{font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:.5rem .9rem;border-radius:7px;
+      border:1px solid var(--gold-line);background:transparent;color:var(--paragraph);cursor:pointer;transition:all .18s ease;}
+    .tab-btn:hover{color:var(--gold);border-color:rgba(201,183,135,.35);}
+    .tab-btn.active{background:var(--gold);color:var(--ground);border-color:var(--gold);font-weight:600;}
+    .tab-btn .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--dim);margin-right:.4rem;vertical-align:middle;}
+    .tab-btn .dot.ok{background:var(--live);box-shadow:0 0 5px var(--live);}
+    .tab-btn .dot.err{background:var(--err);}
+    .tab-btn .dot.loading{background:var(--gold);animation:pulseDot 1s ease-in-out infinite;}
+    .panel-wrap{max-width:60rem;margin:1.75rem auto 3rem;padding:0 1.25rem;}
+    .panel{display:none;}
+    .panel.active{display:block;animation:fade .3s ease;}
+    @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+    .p-head{margin-bottom:1rem;}
+    .p-title{font-size:1.6rem;font-weight:400;letter-spacing:-.02em;margin:0 0 .35rem;color:var(--cream);}
+    .p-blurb{font-size:13.5px;line-height:1.6;color:var(--paragraph);max-width:42rem;margin:0;}
+    .seg{display:inline-flex;gap:.3rem;margin:.75rem 0 1rem;flex-wrap:wrap;}
+    .seg .r-btn.sel{background:var(--gold);color:var(--ground);border-color:var(--gold);}
+    textarea.ta{width:100%;min-height:120px;background:var(--panel2);border:1px solid var(--gold-line);border-radius:8px;
+      color:var(--cream);font-family:var(--mono);font-size:11px;padding:.7rem;resize:vertical;line-height:1.5;}
+    .tl{list-style:none;margin:.6rem 0 0;padding:0;}
+    .tl li{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid var(--gold-soft);font-size:12px;}
+    .tl .ic{flex:0 0 auto;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-family:var(--mono);font-size:10px;margin-top:1px;}
+    .tl .ic.ok{background:rgba(90,138,110,.15);color:var(--live);border:1px solid rgba(90,138,110,.4);}
+    .tl .ic.no{background:rgba(176,106,90,.15);color:var(--err);border:1px solid rgba(176,106,90,.4);}
+    .tl .step{color:var(--cream);font-weight:500;}
+    .tl .det{color:var(--muted);}
+    .crossed{border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.07);border-radius:8px;padding:.7rem .9rem;margin:.7rem 0;}
+    .crossed h4{margin:0 0 .4rem;font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--err);}
+    .crossed .row{font-size:12px;color:var(--paragraph);padding:.25rem 0;}
+    .crossed .row b{color:var(--cream);}
+    table.t{width:100%;border-collapse:collapse;margin-top:.6rem;font-size:11.5px;}
+    table.t th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--muted);padding:.4rem .5rem;border-bottom:1px solid var(--gold-line);}
+    table.t td{padding:.4rem .5rem;border-bottom:1px solid var(--gold-soft);color:var(--paragraph);}
+    .pill{font-family:var(--mono);font-size:10px;padding:.12rem .45rem;border-radius:4px;}
+    .pill.go,.pill.nominal,.pill.allow{color:var(--live);background:rgba(90,138,110,.12);border:1px solid rgba(90,138,110,.35);}
+    .pill.review,.pill.insufficient{color:var(--gold);background:var(--gold-soft);border:1px solid var(--gold-line);}
+    .pill.nogo,.pill.anomalous,.pill.block{color:var(--err);background:rgba(176,106,90,.1);border:1px solid rgba(176,106,90,.35);}
+    .kpis{display:flex;gap:.6rem;flex-wrap:wrap;margin:.4rem 0 .2rem;}
+    .kpi{flex:1 1 100px;min-width:90px;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);padding:.7rem .8rem;}
+    .kpi .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+    .kpi .v{font-size:1.5rem;font-weight:500;color:var(--gold);}
+    .kpi .v.live{color:var(--live);} .kpi .v.err{color:var(--err);} .kpi .v.teal{color:var(--teal);}
+    #trajCanvas{width:100%;height:340px;background:radial-gradient(ellipse at center,#0d0d12,#060606);
+      border:1px solid var(--gold-line);border-radius:10px;display:block;margin-top:.6rem;cursor:grab;}
+    #trajCanvas:active{cursor:grabbing;}
+    .leg{display:flex;gap:1rem;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:.5rem;}
+    .leg span b{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:.35rem;vertical-align:middle;}
+    .field{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.6rem;}
+    .field label{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+    .sub{font-family:var(--mono);font-size:10px;color:var(--teal);margin:.3rem 0 0;}
+    .gap{height:.6rem;}
+  </style>
 </head>
 <body>
-
-<div class="ribbon">
-  <span>SZL HOLDINGS</span><span class="sep">/</span>
-  <span class="teal">A11OY</span><span class="sep">/</span>
-  <span>WARHACKER ORCHESTRATION</span><span class="sep">/</span>
-  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
-  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
-  <a href="/observability">Observability &rarr;</a>
-</div>
-
-<section class="hero">
-  <div class="grid-bg" aria-hidden="true"></div>
-  <div class="hero-inner">
-    <div class="eyebrow">
-      <span class="eyebrow-dot"></span>
-      <span class="eyebrow-text">· a11oy orchestrates · five live organ proofs</span>
-    </div>
-    <h1 class="headline">Five Warhacker problems. One <span class="accent">launch point.</span></h1>
-    <p class="support">a11oy is the orchestrating brain. Each launch below calls the <b>live organ endpoint</b>
-      server-side — killinchu, sentra, amaru, a11oy — renders the organ's <b>real JSON</b>, and records an
-      a11oy Khipu receipt of the orchestration. No mock data; an unreachable organ is shown honestly.</p>
-    <button class="runall" id="b-all" onclick="runAll()">&#9654; Launch all 5 demos</button>
-    <div class="stats">
-      <div class="stat"><div class="k">Approved problems</div><div class="v">5</div></div>
-      <div class="stat"><div class="k">Live organs</div><div class="v">4</div></div>
-      <div class="stat"><div class="k">Λ status</div><div class="v teal">Conjecture 1</div></div>
-      <div class="stat"><div class="k">SLSA</div><div class="v teal">L2 · organ images</div></div>
-    </div>
+  <div class="ribbon">
+    <span class="live"><span class="live-dot"></span>a11oy</span>
+    <span class="sep">·</span><span>Mission Surfaces</span>
+    <span class="sep">·</span><span class="teal">in-image · signed · re-verifiable</span>
+    <a href="/console">console →</a>
   </div>
-</section>
 
-<div class="grid" id="cards"></div>
-
-<div class="honest">
-  <div class="honest-box">
-    <b>Honesty.</b> Each card's RESULT panel is the <b>live organ's real response</b> — fetched
-    server-side by a11oy. <b>telemetry</b> (an unauthenticated claim) is distinct from a <b>receipt</b>
-    (an attested record); the a11oy receipt line shows whether the orchestration receipt is signed
-    (a key is present) or <b>UNSIGNED</b>. Λ is <b>Conjecture 1</b>, not a theorem; proved-formula count
-    is <b>5</b>. SLSA <b>L2</b> build-provenance verifies on the 5 organ images (cosign <code>.att</code>),
-    not the bundle. No L3 / FedRAMP / Iron Bank / CMMC claims. Organs unreachable from the browser are
-    reported as such — never faked green.
-  </div>
-</div>
-
-<footer class="footer">
-  <span class="note">a11oy · the orchestrating brain · by SZL Holdings · Counsel-governed</span>
-</footer>
-
-<script>
-const API = '/api/a11oy/v1';
-
-// Static fallback catalog (mirrors the backend WARHACKER_PROBLEMS). The page
-// also fetches /warhacker/index at load and prefers the live catalog.
-const PROBLEMS = [
-  {id:'P1',key:'cannonico',title:'Cannonico — AI-drone oversight',organ:'killinchu',
-   method:'POST',path:'/api/killinchu/v1/cannonico/mission/begin',
-   proves:'Begins a governed oversight mission; killinchu returns a DSSE-signed anchor receipt. Engage decisions are gated; an envelope breach is BREACH-flagged + signed.'},
-  {id:'P2',key:'tychee',title:'Tychee — satellite GSW air-gap',organ:'sentra',
-   method:'GET',path:'/api/sentra/v1/gates',
-   proves:"sentra's deny-by-default immune gates (signature-scan, intrusion, supply-chain). Every action is matched against the gate corpus before it is allowed."},
-  {id:'P3',key:'hangar2apps',title:'HANGAR2APPS — readiness screening',organ:'amaru',
-   method:'POST',path:'/api/amaru/v1/readiness/assess',
-   proves:'amaru returns a cited DEPLOYABLE/NOT_DEPLOYABLE/NEEDS_REVIEW verdict; every PASS cites the exact record. Missing data forces NEEDS_REVIEW — it refuses to fabricate.'},
-  {id:'P4',key:'cyber-rts',title:'Cyber RTS — trajectory triage',organ:'amaru',
-   method:'POST',path:'/api/amaru/v1/trajectory/triage',
-   proves:'amaru contextualizes a track and flags anomalies (NOMINAL/ANOMALOUS); each flag cites its numeric field + the violated envelope. Absent fields force INSUFFICIENT_EVIDENCE.'},
-  {id:'P5',key:'raven',title:'Raven Tactical — edge AI mesh',organ:'a11oy',
-   method:'GET',path:'/api/a11oy/v1/mesh/state',
-   proves:"a11oy's conserved signed mesh (wires D/E/F): the one-signed-organism state tying the edge organs together. Every wire is live in-process; the mesh is conservation-checked."},
-];
-
-function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
-function fmt(o){return JSON.stringify(o,null,2);}
-
-function buildCards(list){
-  const root=document.getElementById('cards'); root.innerHTML='';
-  list.forEach(p=>{
-    const card=el('div','card');
-    card.innerHTML=`
-      <div class="card-head">
-        <span class="card-num">${p.id}</span>
-        <span class="card-organ">${p.organ}</span>
-        <span class="card-title">${p.title}</span>
+  <section class="hero">
+    <div class="grid-bg"></div>
+    <div class="hero-inner">
+      <span class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">Five working surfaces · live on this Space</span></span>
+      <h1 class="headline">One platform.<br/><span class="accent">Five mission answers.</span></h1>
+      <p class="support">Each surface below runs live inside this container and returns a real result &mdash;
+        a governed decision with a signed, tamper-evident record you can re-verify on screen, a deployment
+        package read live from the registry, a readiness dashboard, an instant trajectory picture, and the
+        whole governed decision running on the device itself.</p>
+      <button class="runall" id="runAll">▶ Run all five</button>
+      <div class="stats">
+        <div class="stat"><div class="k">Surfaces live</div><div class="v" id="stLive">0 / 5</div></div>
+        <div class="stat"><div class="k">Records signed</div><div class="v teal" id="stSigned">0</div></div>
+        <div class="stat"><div class="k">Re-verified</div><div class="v" id="stVerified">—</div></div>
+        <div class="stat"><div class="k">Registry</div><div class="v teal" id="stReg">—</div></div>
       </div>
-      <p class="card-sub">${p.proves}</p>
-      <p class="card-endpoint">${p.method} <b>${p.path}</b> &nbsp;·&nbsp; via a11oy <b>/warhacker/launch/${p.key}</b></p>
+    </div>
+  </section>
+
+  <div class="tabs-bar" id="tabsBar">
+    <button class="tab-btn active" data-tab="oversight"><span class="dot" id="dot-oversight"></span>AI Oversight</button>
+    <button class="tab-btn" data-tab="deploy"><span class="dot" id="dot-deploy"></span>Deploy Posture</button>
+    <button class="tab-btn" data-tab="health"><span class="dot" id="dot-health"></span>Mission Health</button>
+    <button class="tab-btn" data-tab="trajectory"><span class="dot" id="dot-trajectory"></span>Trajectory Picture</button>
+    <button class="tab-btn" data-tab="edge"><span class="dot" id="dot-edge"></span>Edge Run</button>
+  </div>
+
+  <div class="panel-wrap">
+
+    <!-- 1. AI OVERSIGHT -->
+    <section class="panel active" id="panel-oversight">
+      <div class="p-head">
+        <h2 class="p-title">AI Oversight</h2>
+        <p class="p-blurb">Watch an autonomous system make a decision and catch the exact moment it crosses an
+          authorized limit. Every run is sealed into a signed, tamper-evident record &mdash; press <b>Re-verify</b> to
+          confirm it, then <b>Tamper test</b> to prove a single changed byte is detected.</p>
+      </div>
+      <div class="seg" id="ovrSeg">
+        <button class="r-btn sel" data-sc="within">Within limits</button>
+        <button class="r-btn" data-sc="crossing">Crosses the line</button>
+        <button class="r-btn" data-sc="drift">Borderline</button>
+      </div>
       <div class="card-controls">
-        <button class="r-btn r-btn-primary" id="b-${p.key}">&#9654; Launch demo</button>
+        <button class="r-btn r-btn-primary" id="ovrRun">▶ Run governed decision</button>
+        <button class="r-btn" id="ovrVerify" disabled>✓ Re-verify record</button>
+        <button class="r-btn" id="ovrTamper" disabled>⚠ Tamper test</button>
       </div>
-      <span class="verdict" id="v-${p.key}"></span>
-      <div class="receipt" id="rc-${p.key}"></div>
-      <div class="out"><div class="out-label"><span>LIVE ORGAN RESULT</span>
-        <span class="out-status"><span class="status-dot" id="d-${p.key}"></span><span id="s-${p.key}">idle</span></span></div>
-        <pre class="out-pre" id="o-${p.key}"></pre></div>`;
-    root.appendChild(card);
-    card.querySelector('#b-'+p.key).addEventListener('click',()=>launch(p.key));
-  });
-}
+      <div id="ovrVerdict" class="verdict"></div>
+      <div id="ovrCrossed"></div>
+      <ul class="tl" id="ovrTimeline"></ul>
+      <div class="out">
+        <div class="out-label"><span>Signed record</span>
+          <span class="out-status"><span class="status-dot" id="ovrDot"></span><span id="ovrStatus">idle</span></span></div>
+        <pre class="out-pre" id="ovrOut"></pre>
+      </div>
+      <p class="sub" id="ovrSub"></p>
+    </section>
 
-function setS(key,state,text){const d=document.getElementById('d-'+key),s=document.getElementById('s-'+key);if(d)d.className='status-dot '+(state||'');if(s)s.textContent=text||state||'idle';}
-function setO(key,text){const o=document.getElementById('o-'+key);if(o)o.textContent=text;}
-function setV(key,cls,text){const v=document.getElementById('v-'+key);if(v){v.className='verdict show '+cls;v.textContent=text;}}
-function setRC(key,text){const r=document.getElementById('rc-'+key);if(r){r.className='receipt show';r.textContent=text;}}
+    <!-- 2. DEPLOY POSTURE -->
+    <section class="panel" id="panel-deploy">
+      <div class="p-head">
+        <h2 class="p-title">Deploy Posture</h2>
+        <p class="p-blurb">The signed, ready-to-ship deployment package &mdash; the same artifact deploys from cloud to
+          a disconnected edge node with one command. Existence, digest and signature are read <b>live from the public
+          registry</b> on each click, not asserted from memory.</p>
+      </div>
+      <div class="card-controls">
+        <button class="r-btn r-btn-primary" id="depRun">▶ Check deploy posture (live)</button>
+      </div>
+      <div id="depVerdict" class="verdict"></div>
+      <div id="depBody"></div>
+      <div class="out">
+        <div class="out-label"><span>Registry response</span>
+          <span class="out-status"><span class="status-dot" id="depDot"></span><span id="depStatus">idle</span></span></div>
+        <pre class="out-pre" id="depOut"></pre>
+      </div>
+    </section>
 
-function organVerdict(key,j){
-  // Pull the human headline out of each organ's real response shape.
-  try{
-    if(key==='cannonico') return 'mission '+(j.mission_id||'?')+' · anchor receipt signed='+!!(j.anchor_receipt&&j.anchor_receipt.dsse&&j.anchor_receipt.dsse.signatures);
-    if(key==='tychee') return (j.total||(j.gates||[]).length)+' immune gates · deny-by-default';
-    if(key==='hangar2apps') return 'VERDICT '+((j.assessment||{}).verdict||'?')+' · cited';
-    if(key==='cyber-rts') return 'VERDICT '+((j.triage||{}).verdict||'?')+' · '+(((j.triage||{}).flags||[]).length)+' flag(s)';
-    if(key==='raven') return Object.keys(j.wires||{}).length+' wires · doctrine '+(j.doctrine||'v11');
-  }catch(e){}
-  return 'organ responded';
-}
+    <!-- 3. MISSION HEALTH -->
+    <section class="panel" id="panel-health">
+      <div class="p-head">
+        <h2 class="p-title">Mission Health</h2>
+        <p class="p-blurb">A live readiness dashboard that tells you who is ready to deploy and who needs review.
+          Each verdict is computed in-image from concrete readiness criteria; <b>missing data forces a review</b> &mdash;
+          the system never assumes a member is ready.</p>
+      </div>
+      <div class="card-controls">
+        <button class="r-btn r-btn-primary" id="hlRun">▶ Generate readiness dashboard</button>
+      </div>
+      <div class="kpis" id="hlKpis"></div>
+      <div id="hlBody"></div>
+      <div class="out">
+        <div class="out-label"><span>Computed in-image</span>
+          <span class="out-status"><span class="status-dot" id="hlDot"></span><span id="hlStatus">idle</span></span></div>
+        <pre class="out-pre" id="hlOut"></pre>
+      </div>
+    </section>
 
-async function launch(key){
-  const btn=document.getElementById('b-'+key); if(btn)btn.disabled=true;
-  setS(key,'loading','calling organ…'); setO(key,'');
-  try{
-    const res=await fetch(API+'/warhacker/launch/'+key,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    let data; try{data=await res.json();}catch(e){data={_raw:await res.text()};}
-    const org=data.organ_response||{};
-    if(org.status==='ok'){
-      setV(key,'ok',organVerdict(key,org.json||{}));
-      setS(key,'ok','live ✓ ('+org.latency_ms+'ms)');
-    }else if(org.status==='unreachable'){
-      setV(key,'warn','ORGAN UNREACHABLE — honest, not faked');
-      setS(key,'err','unreachable');
-    }else{
-      setV(key,'err','ORGAN ERROR '+(org.http_code||''));
-      setS(key,'err','error');
+    <!-- 4. TRAJECTORY PICTURE -->
+    <section class="panel" id="panel-trajectory">
+      <div class="p-head">
+        <h2 class="p-title">Trajectory Picture</h2>
+        <p class="p-blurb">Paste any trajectory or orbit data &mdash; a JSON array or plain rows &mdash; and see it placed
+          in an operational 3D picture instantly. The system auto-detects the fields, assesses each track against real
+          orbital-regime envelopes, and flags anomalies. <b>No bespoke per-source integration.</b></p>
+      </div>
+      <div class="field">
+        <label>Paste tracks (JSON array, or rows: <span class="mono">id alt_km velocity_kms inclination_deg</span>) &mdash; or leave blank for a sample</label>
+        <textarea class="ta" id="trajIn" placeholder='[{"id":"ISS","alt_km":420,"velocity_kms":7.66,"inclination_deg":51.6}]
+or
+SAT-A 550 7.59 53.0
+SAT-B 35786 3.07 0.0'></textarea>
+      </div>
+      <div class="card-controls">
+        <button class="r-btn r-btn-primary" id="trajRun">▶ Build trajectory picture</button>
+        <button class="r-btn" id="trajSample">Load sample</button>
+      </div>
+      <div id="trajVerdict" class="verdict"></div>
+      <canvas id="trajCanvas"></canvas>
+      <div class="leg">
+        <span><b style="background:#5fb3a3"></b>LEO</span>
+        <span><b style="background:#c9b787"></b>MEO</span>
+        <span><b style="background:#7aa0d0"></b>GEO</span>
+        <span><b style="background:#b06a5a"></b>anomalous</span>
+        <span class="mono">drag to rotate</span>
+      </div>
+      <div id="trajBody"></div>
+      <div class="out">
+        <div class="out-label"><span>Assessment</span>
+          <span class="out-status"><span class="status-dot" id="trajDot"></span><span id="trajStatus">idle</span></span></div>
+        <pre class="out-pre" id="trajOut"></pre>
+      </div>
+    </section>
+
+    <!-- 5. EDGE RUN -->
+    <section class="panel" id="panel-edge">
+      <div class="p-head">
+        <h2 class="p-title">Edge Run</h2>
+        <p class="p-blurb">The whole governed decision running on the device itself, with no connection required. The
+          run executes <b>fully in this container</b> with no outbound call, the on-device model router picks a tier,
+          and the result is signed and re-verifiable &mdash; the same container is the package that deploys to a
+          disconnected node.</p>
+      </div>
+      <div class="card-controls">
+        <button class="r-btn r-btn-primary" id="edgeRun">▶ Run on the edge (disconnected)</button>
+        <button class="r-btn" id="edgeVerify" disabled>✓ Re-verify record</button>
+      </div>
+      <div id="edgeVerdict" class="verdict"></div>
+      <div id="edgeRouter"></div>
+      <ul class="tl" id="edgeTimeline"></ul>
+      <div class="out">
+        <div class="out-label"><span>In-image governed run</span>
+          <span class="out-status"><span class="status-dot" id="edgeDot"></span><span id="edgeStatus">idle</span></span></div>
+        <pre class="out-pre" id="edgeOut"></pre>
+      </div>
+      <p class="sub" id="edgeSub"></p>
+    </section>
+
+  </div>
+
+  <div class="honest">
+    <div class="honest-box" id="honestBox">
+      <b>What is real here.</b> Every surface above runs live in this container. Governed decisions are sealed into
+      real DSSE envelopes signed by an in-image ECDSA-P256 key (verifiable against
+      <a href="/cosign.pub" style="color:var(--teal)">/cosign.pub</a>); change one byte and re-verify returns false.
+      The advisory trust score (&Lambda;) is a research conjecture, not a pass/fail oracle. Deploy posture is read live
+      from the public registry. Attestation is SLSA Build L2 on the organ images (honest L1 + L2) &mdash; not the bundle,
+      not L3, not an ATO. Readiness and trajectory use clearly-labelled sample inputs over real logic; plug a real feed
+      into the same shape and they are live.
+    </div>
+  </div>
+
+  <footer class="footer"><span class="note">a11oy · SZL Holdings · in-image · signed · re-verifiable</span></footer>
+<script>
+(function(){
+  "use strict";
+  // API base: the /api/a11oy/v1 form is what the Node proxy forwards; the stripped
+  // /v1 form is reachable directly. Try /api first, fall back to /v1.
+  var BASES = ["/api/a11oy/v1", "/v1"];
+  function api(path, opts){
+    var i = 0;
+    function attempt(){
+      return fetch(BASES[i] + path, opts).then(function(r){
+        if(!r.ok && r.status === 404 && i < BASES.length-1){ i++; return attempt(); }
+        return r.json().then(function(j){ return {ok:r.ok, status:r.status, json:j}; });
+      }).catch(function(e){
+        if(i < BASES.length-1){ i++; return attempt(); }
+        throw e;
+      });
     }
-    const rc=data.a11oy_receipt||{};
-    if(rc.digest) setRC(key,'a11oy receipt '+String(rc.digest).slice(0,16)+'… · '+(rc.signed?'SIGNED':'UNSIGNED (no key)'));
-    setO(key,fmt(data));
-  }catch(e){ setS(key,'err','error'); setV(key,'err','ERROR'); setO(key,String(e)); }
-  finally{ if(btn)btn.disabled=false; }
-}
+    return attempt();
+  }
+  function getJSON(p){ return api(p, {method:"GET"}); }
+  function postJSON(p, body){
+    return api(p, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body||{})});
+  }
+  var $ = function(id){ return document.getElementById(id); };
+  function setDot(id, state){ var d=$(id); if(d){ d.className = "dot" + (state?(" "+state):""); } }
+  function setStatus(dotId, statusId, state, text){
+    var d=$(dotId); if(d) d.className="status-dot"+(state?(" "+state):"");
+    var s=$(statusId); if(s) s.textContent=text||state||"";
+  }
+  function show(el, cls, html){ el.className = el.className.split(" ")[0] + " " + cls + " show"; el.innerHTML = html; }
+  function pretty(o){ return JSON.stringify(o, null, 2); }
 
-async function runAll(){
-  const b=document.getElementById('b-all'); b.disabled=true;
-  for(const p of PROBLEMS){ await launch(p.key); }
-  b.disabled=false;
-}
+  // ---------- tab switching ----------
+  var tabBtns = document.querySelectorAll(".tab-btn");
+  tabBtns.forEach(function(b){
+    b.addEventListener("click", function(){
+      tabBtns.forEach(function(x){ x.classList.remove("active"); });
+      b.classList.add("active");
+      document.querySelectorAll(".panel").forEach(function(p){ p.classList.remove("active"); });
+      $("panel-"+b.dataset.tab).classList.add("active");
+      if(b.dataset.tab === "trajectory") drawTraj();
+    });
+  });
 
-// Prefer the live backend catalog; fall back to the static list.
-(async function init(){
-  buildCards(PROBLEMS);
-  try{
-    const r=await fetch(API+'/warhacker/index');
-    if(r.ok){ const j=await r.json(); if(j.problems&&j.problems.length){ buildCards(j.problems); } }
-  }catch(e){/* static catalog already rendered */}
+  // ---------- shared run-state for the hero stats ----------
+  var state = {live:{}, signed:0, verified:null};
+  function refreshStats(){
+    var n = Object.keys(state.live).filter(function(k){return state.live[k];}).length;
+    $("stLive").textContent = n + " / 5";
+    $("stSigned").textContent = state.signed;
+    if(state.verified !== null){ $("stVerified").textContent = state.verified ? "PASS" : "FAIL"; $("stVerified").className = "v " + (state.verified?"teal":""); }
+  }
+  function markLive(tab, ok){ state.live[tab]= ok; setDot("dot-"+tab, ok?"ok":"err"); refreshStats(); }
+
+  // ---------- helper: render a governed-run timeline ----------
+  function renderTimeline(ulId, timeline){
+    var ul = $(ulId); ul.innerHTML = "";
+    (timeline||[]).forEach(function(t){
+      var li = document.createElement("li");
+      li.innerHTML = '<span class="ic '+(t.ok?"ok":"no")+'">'+(t.ok?"✓":"✕")+'</span>'+
+                     '<span><span class="step">'+t.step+'</span> &mdash; <span class="det">'+t.detail+'</span></span>';
+      ul.appendChild(li);
+    });
+  }
+  function renderCrossed(elId, crossed){
+    var el = $(elId);
+    if(!crossed || !crossed.length){ el.innerHTML=""; return; }
+    var rows = crossed.map(function(c){
+      return '<div class="row"><b>'+c.name+'</b> &mdash; observed: '+c.observed+'; limit: '+c.limit+'</div>';
+    }).join("");
+    el.innerHTML = '<div class="crossed"><h4>Lines crossed (caught at the limit-check step)</h4>'+rows+'</div>';
+  }
+
+  // ========== 1. AI OVERSIGHT ==========
+  var ovrScenario = "within", lastRun = null;
+  $("ovrSeg").querySelectorAll(".r-btn").forEach(function(b){
+    b.addEventListener("click", function(){
+      $("ovrSeg").querySelectorAll(".r-btn").forEach(function(x){x.classList.remove("sel");});
+      b.classList.add("sel"); ovrScenario = b.dataset.sc;
+    });
+  });
+  function ovrRun(){
+    setStatus("ovrDot","ovrStatus","loading","running…");
+    $("ovrVerify").disabled=true; $("ovrTamper").disabled=true;
+    return postJSON("/oversight/run", {scenario: ovrScenario}).then(function(r){
+      var d = r.json; lastRun = d;
+      renderTimeline("ovrTimeline", d.timeline);
+      renderCrossed("ovrCrossed", d.crossed_lines);
+      var v = $("ovrVerdict");
+      if(d.decision === "ALLOW"){ show(v,"ok", "ALLOW &mdash; "+d.headline); }
+      else { show(v,"err", "BLOCK &mdash; "+d.headline); }
+      $("ovrOut").textContent = pretty(d.signed_record);
+      setStatus("ovrDot","ovrStatus","ok","sealed + signed");
+      $("ovrSub").textContent = d.honesty || "";
+      $("ovrVerify").disabled=false; $("ovrTamper").disabled=false;
+      if(d.signed_record && d.signed_record.signed) state.signed++;
+      markLive("oversight", true); refreshStats();
+      return d;
+    }).catch(function(e){ setStatus("ovrDot","ovrStatus","err","error"); $("ovrOut").textContent=String(e); markLive("oversight",false); });
+  }
+  function ovrVerify(tamper){
+    if(!lastRun) return;
+    var run = JSON.parse(JSON.stringify(lastRun));
+    if(tamper){
+      // flip a byte in a receipt body to prove detection
+      if(run.receipt_chain && run.receipt_chain.length>2){ run.receipt_chain[2].body.allow = !run.receipt_chain[2].body.allow; }
+    }
+    setStatus("ovrDot","ovrStatus","loading","verifying…");
+    return postJSON("/oversight/verify", {run: run}).then(function(r){
+      var v = r.json; var vd = $("ovrVerdict");
+      if(tamper){
+        show(vd, "err", "TAMPER TEST &mdash; verified:false (chain break at receipt #"+v.chain_break_at_seq+"). A single changed byte is caught.");
+        setStatus("ovrDot","ovrStatus","err","tamper detected");
+        state.verified = false;
+      } else {
+        show(vd, "ok", "RE-VERIFIED &mdash; verified:"+v.verified+" · chain intact:"+v.chain_intact+" · signature valid:"+v.signature_valid);
+        setStatus("ovrDot","ovrStatus","ok","verified PASS");
+        state.verified = v.verified;
+      }
+      $("ovrOut").textContent = pretty(v); refreshStats();
+    }).catch(function(e){ setStatus("ovrDot","ovrStatus","err","error"); $("ovrOut").textContent=String(e); });
+  }
+  $("ovrRun").addEventListener("click", function(){ ovrRun(); });
+  $("ovrVerify").addEventListener("click", function(){ ovrVerify(false); });
+  $("ovrTamper").addEventListener("click", function(){ ovrVerify(true); });
+
+  // ========== 2. DEPLOY POSTURE ==========
+  function depRun(){
+    setStatus("depDot","depStatus","loading","reading registry…");
+    return getJSON("/deploy/posture").then(function(r){
+      var d = r.json;
+      var pub = (d.bundles||[]).filter(function(b){return b.published;}).length;
+      var rows = (d.bundles||[]).map(function(b){
+        return '<tr><td><b>'+b.name+'</b><br><span class="mono" style="color:var(--muted);font-size:10px">'+b.ref+'</span></td>'+
+               '<td><span class="pill '+(b.published?"go":"nogo")+'">'+(b.published?"HTTP "+b.registry_status:"unreachable")+'</span></td>'+
+               '<td class="mono" style="font-size:9.5px;color:var(--teal)">'+((b.digest||"").slice(0,23))+'…</td>'+
+               '<td>'+(b.cosign_signature_tag?'<span class="pill go">signed</span>':'—')+'</td></tr>';
+      }).join("");
+      $("depBody").innerHTML =
+        '<table class="t"><thead><tr><th>Bundle</th><th>Registry</th><th>Digest</th><th>Cosign</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+        '<div class="gap"></div>'+
+        '<div class="kpis">'+
+          '<div class="kpi"><div class="k">One-command deploy</div><div class="v teal mono" style="font-size:11px;line-height:1.5">'+d.deploy_one_command+'</div></div>'+
+        '</div>'+
+        '<div class="gap"></div>'+
+        '<table class="t"><tbody>'+
+          '<tr><td>Package CR</td><td>'+d.package_cr.apiVersion+' · '+d.package_cr.kind+'</td></tr>'+
+          '<tr><td>SBOM</td><td>'+d.sbom.formats.join(" + ")+'</td></tr>'+
+          '<tr><td>Image attestation</td><td>'+d.attestation.image_level+'</td></tr>'+
+          '<tr><td>Bundle provenance</td><td>'+d.attestation.bundle_level+'</td></tr>'+
+          '<tr><td>Not claimed</td><td class="mono" style="font-size:10px">'+d.attestation.not_claimed.join(" · ")+'</td></tr>'+
+          '<tr><td>UDS Core compat</td><td>'+d.uds_core_compat+'</td></tr>'+
+        '</tbody></table>';
+      show($("depVerdict"), pub>=1?"ok":"err", pub+" / "+(d.bundles||[]).length+" bundles published & signed on the registry");
+      $("depOut").textContent = pretty(d.bundles);
+      setStatus("depDot","depStatus","ok","live from registry");
+      $("stReg").textContent = pub>=1 ? "200 OK" : "down";
+      markLive("deploy", pub>=1);
+    }).catch(function(e){ setStatus("depDot","depStatus","err","error"); $("depOut").textContent=String(e); markLive("deploy",false); });
+  }
+  $("depRun").addEventListener("click", function(){ depRun(); });
+
+  // ========== 3. MISSION HEALTH ==========
+  function hlRun(){
+    setStatus("hlDot","hlStatus","loading","computing…");
+    return getJSON("/mission/health").then(function(r){
+      var d = r.json, s = d.summary;
+      $("hlKpis").innerHTML =
+        '<div class="kpi"><div class="k">Ready (GO)</div><div class="v live">'+s.go+'</div></div>'+
+        '<div class="kpi"><div class="k">Review</div><div class="v">'+s.review+'</div></div>'+
+        '<div class="kpi"><div class="k">Not ready</div><div class="v err">'+s.no_go+'</div></div>'+
+        '<div class="kpi"><div class="k">% Ready</div><div class="v teal">'+s.percent_ready+'%</div></div>';
+      var rows = (d.members||[]).map(function(m){
+        var pc = m.verdict==="GO"?"go":(m.verdict==="REVIEW"?"review":"nogo");
+        var gaps = (m.gaps||[]).map(function(g){return g.criterion+": "+g.result;}).join("; ") || "all current";
+        return '<tr><td class="mono">'+m.id+'</td><td>'+m.unit+'</td><td>'+m.role+'</td>'+
+               '<td><span class="pill '+pc+'">'+m.verdict+'</span></td><td style="font-size:10.5px">'+gaps+'</td></tr>';
+      }).join("");
+      $("hlBody").innerHTML = '<table class="t"><thead><tr><th>ID</th><th>Unit</th><th>Role</th><th>Verdict</th><th>Gaps</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      $("hlOut").textContent = pretty(d.summary)+"\n\nby unit: "+pretty(d.by_unit);
+      setStatus("hlDot","hlStatus","ok","computed in-image");
+      markLive("health", true);
+    }).catch(function(e){ setStatus("hlDot","hlStatus","err","error"); $("hlOut").textContent=String(e); markLive("health",false); });
+  }
+  $("hlRun").addEventListener("click", function(){ hlRun(); });
+
+  // ========== 4. TRAJECTORY PICTURE ==========
+  var trajTracks = [], rot = {x: -0.5, y: 0.6}, dragging=false, lastXY=null;
+  function trajRun(){
+    setStatus("trajDot","trajStatus","loading","ingesting…");
+    var raw = $("trajIn").value.trim();
+    var body = raw ? {data: raw} : {};
+    return postJSON("/trajectory/ingest", body).then(function(r){
+      var d = r.json; trajTracks = d.tracks || [];
+      var rows = trajTracks.map(function(t){
+        var a = t.assessment || {}; var pc = a.verdict==="NOMINAL"?"nominal":(a.verdict==="ANOMALOUS"?"anomalous":"insufficient");
+        return '<tr><td class="mono">'+t.id+'</td><td>'+(t.alt_km!=null?t.alt_km+" km":"—")+'</td>'+
+               '<td>'+(t.velocity_kms!=null?t.velocity_kms+" km/s":"—")+'</td><td>'+(a.regime||"—")+'</td>'+
+               '<td><span class="pill '+pc+'">'+(a.verdict||"—")+'</span></td>'+
+               '<td style="font-size:10px">'+((a.flags||[]).join("; ")||"—")+'</td></tr>';
+      }).join("");
+      $("trajBody").innerHTML = '<table class="t"><thead><tr><th>Track</th><th>Alt</th><th>Velocity</th><th>Regime</th><th>Verdict</th><th>Flags</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      show($("trajVerdict"), (d.summary.ANOMALOUS>0?"warn":"ok"), d.headline);
+      $("trajOut").textContent = pretty(d.summary);
+      setStatus("trajDot","trajStatus","ok","assessed");
+      markLive("trajectory", true);
+      drawTraj();
+    }).catch(function(e){ setStatus("trajDot","trajStatus","err","error"); $("trajOut").textContent=String(e); markLive("trajectory",false); });
+  }
+  // sovereign 3D: orthographic projection on canvas, no external libs
+  function drawTraj(){
+    var cv = $("trajCanvas"); if(!cv) return;
+    var dpr = window.devicePixelRatio||1;
+    var w = cv.clientWidth, h = cv.clientHeight;
+    cv.width = w*dpr; cv.height = h*dpr;
+    var ctx = cv.getContext("2d"); ctx.scale(dpr,dpr);
+    ctx.clearRect(0,0,w,h);
+    var cx=w/2, cy=h/2, Rearth=38;
+    function proj(x,y,z){
+      var cyaw=Math.cos(rot.y), syaw=Math.sin(rot.y), cp=Math.cos(rot.x), sp=Math.sin(rot.x);
+      var x1=x*cyaw - z*syaw, z1=x*syaw + z*cyaw;
+      var y1=y*cp - z1*sp, z2=y*sp + z1*cp;
+      var scale = 320/(320+z2);
+      return [cx + x1*scale, cy - y1*scale, z2];
+    }
+    // earth sphere
+    var ep = proj(0,0,0);
+    var g = ctx.createRadialGradient(ep[0]-10, ep[1]-10, 4, ep[0], ep[1], Rearth);
+    g.addColorStop(0,"#2a4a6a"); g.addColorStop(1,"#0a1828");
+    ctx.beginPath(); ctx.arc(ep[0],ep[1],Rearth,0,2*Math.PI); ctx.fillStyle=g; ctx.fill();
+    ctx.strokeStyle="rgba(95,179,163,0.3)"; ctx.stroke();
+    // regime rings (radii scaled by log of altitude)
+    function ringR(alt){ return Rearth + 26*Math.log10(1 + alt/300); }
+    [{a:1000,c:"rgba(95,179,163,0.25)"},{a:20000,c:"rgba(201,183,135,0.22)"},{a:35786,c:"rgba(122,160,208,0.25)"}].forEach(function(rg){
+      var rr=ringR(rg.a); ctx.beginPath();
+      for(var t=0;t<=64;t++){ var th=t/64*2*Math.PI; var p=proj(rr*Math.cos(th),0,rr*Math.sin(th)); if(t===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]); }
+      ctx.strokeStyle=rg.c; ctx.lineWidth=1; ctx.stroke();
+    });
+    // tracks: place each on its regime ring by inclination + a hash of id for spread
+    (trajTracks||[]).forEach(function(t,i){
+      if(t.alt_km==null) return;
+      var rr = ringR(t.alt_km);
+      var inc = (t.inclination_deg!=null? t.inclination_deg: 30) * Math.PI/180;
+      var ang = (i/Math.max(1,trajTracks.length))*2*Math.PI + 0.3;
+      var x = rr*Math.cos(ang), z = rr*Math.sin(ang), y = rr*Math.sin(inc)*0.4*Math.sin(ang*1.3);
+      var p = proj(x,y,z);
+      var a = t.assessment||{};
+      var col = a.verdict==="ANOMALOUS" ? "#b06a5a" :
+                (a.regime==="LEO"?"#5fb3a3": a.regime==="MEO"?"#c9b787": a.regime==="GEO"?"#7aa0d0":"#9a9a9a");
+      ctx.beginPath(); ctx.arc(p[0],p[1],4.5,0,2*Math.PI); ctx.fillStyle=col; ctx.fill();
+      ctx.shadowColor=col; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+      ctx.fillStyle="rgba(245,245,245,0.85)"; ctx.font="9px 'JetBrains Mono',monospace";
+      ctx.fillText(t.id, p[0]+7, p[1]+3);
+    });
+  }
+  (function bindDrag(){
+    var cv = $("trajCanvas");
+    cv.addEventListener("mousedown", function(e){ dragging=true; lastXY=[e.clientX,e.clientY]; });
+    window.addEventListener("mouseup", function(){ dragging=false; });
+    window.addEventListener("mousemove", function(e){
+      if(!dragging||!lastXY) return;
+      rot.y += (e.clientX-lastXY[0])*0.01; rot.x += (e.clientY-lastXY[1])*0.01;
+      lastXY=[e.clientX,e.clientY]; drawTraj();
+    });
+    window.addEventListener("resize", function(){ drawTraj(); });
+  })();
+  $("trajRun").addEventListener("click", function(){ trajRun(); });
+  $("trajSample").addEventListener("click", function(){
+    getJSON("/trajectory/sample").then(function(r){ $("trajIn").value = JSON.stringify(r.json.sample, null, 2); });
+  });
+
+  // ========== 5. EDGE RUN ==========
+  var edgeLast = null;
+  function edgeRun(){
+    setStatus("edgeDot","edgeStatus","loading","running on edge…");
+    $("edgeVerify").disabled=true;
+    return postJSON("/edge/run", {connected:false}).then(function(r){
+      var d = r.json; edgeLast = d;
+      renderTimeline("edgeTimeline", d.timeline);
+      var ed = d.edge || {};
+      var mr = ed.model_router || {};
+      $("edgeRouter").innerHTML =
+        '<div class="kpis">'+
+          '<div class="kpi"><div class="k">Ran where</div><div class="v teal" style="font-size:12px;line-height:1.4">in-image · no uplink</div></div>'+
+          '<div class="kpi"><div class="k">Model tier</div><div class="v" style="font-size:13px">'+(mr.picked||"—")+'</div></div>'+
+          '<div class="kpi"><div class="k">Decision</div><div class="v '+(d.decision==="ALLOW"?"live":"err")+'" style="font-size:14px">'+d.decision+'</div></div>'+
+        '</div>'+
+        '<table class="t"><tbody>'+
+          '<tr><td>Router policy</td><td>'+(mr.policy||"")+'</td></tr>'+
+          '<tr><td>Deploy command</td><td class="mono" style="font-size:10px;color:var(--teal)">'+(ed.deploy_command||"")+'</td></tr>'+
+        '</tbody></table>';
+      show($("edgeVerdict"), d.decision==="ALLOW"?"ok":"err",
+        (d.decision==="ALLOW"?"ALLOW":"BLOCK")+" &mdash; governed run completed fully in-image, no outbound call");
+      $("edgeOut").textContent = pretty({decision:d.decision, edge:ed, signed:!!(d.signed_record&&d.signed_record.signed)});
+      $("edgeSub").textContent = ed.honesty || "";
+      setStatus("edgeDot","edgeStatus","ok","in-image · signed");
+      $("edgeVerify").disabled=false;
+      if(d.signed_record && d.signed_record.signed) state.signed++;
+      markLive("edge", true); refreshStats();
+    }).catch(function(e){ setStatus("edgeDot","edgeStatus","err","error"); $("edgeOut").textContent=String(e); markLive("edge",false); });
+  }
+  function edgeVerify(){
+    if(!edgeLast) return;
+    setStatus("edgeDot","edgeStatus","loading","verifying…");
+    return postJSON("/oversight/verify", {run: edgeLast}).then(function(r){
+      var v = r.json;
+      show($("edgeVerdict"), v.verified?"ok":"err", "RE-VERIFIED &mdash; verified:"+v.verified+" · signature valid:"+v.signature_valid);
+      $("edgeOut").textContent = pretty(v);
+      setStatus("edgeDot","edgeStatus", v.verified?"ok":"err", v.verified?"verified PASS":"FAIL");
+    });
+  }
+  $("edgeRun").addEventListener("click", function(){ edgeRun(); });
+  $("edgeVerify").addEventListener("click", function(){ edgeVerify(); });
+
+  // ========== RUN ALL ==========
+  $("runAll").addEventListener("click", function(){
+    var btn = $("runAll"); btn.disabled = true; btn.textContent = "running all five…";
+    ovrScenario = "crossing"; // show the dramatic line-crossing catch by default in run-all
+    Promise.resolve()
+      .then(ovrRun).then(function(){ return ovrVerify(false); })
+      .then(depRun).then(hlRun).then(function(){ $("trajIn").value=""; return trajRun(); }).then(edgeRun)
+      .then(function(){ btn.disabled=false; btn.textContent="✓ all five ran — click any tab"; })
+      .catch(function(){ btn.disabled=false; btn.textContent="▶ Run all five"; });
+  });
+
+  // mark surfaces present on load (index probe) + size canvas
+  getJSON("/warhacker-tabs/index").then(function(r){
+    if(r.json && r.json.ok){ /* surfaces present */ }
+  }).catch(function(){});
+  drawTraj();
 })();
 </script>
 

@@ -66,6 +66,9 @@ COPY console/ ./static/
 
 # Copy serve orchestrator and gates manifest
 COPY szl_parity_gaps.py ./szl_parity_gaps.py
+# ADDITIVE (live-ops): orchestration + AI-observability module — per-file COPY Dockerfile
+# omitted it, so import a11oy_warhacker_obs failed and /warhacker + /observability 404'd.
+COPY a11oy_warhacker_obs.py ./a11oy_warhacker_obs.py
 COPY serve.py ./serve.py
 COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
@@ -260,24 +263,15 @@ COPY szl_receipt_substrate.py ./szl_receipt_substrate.py
 COPY szl_alloy_embed_fabric.py ./szl_alloy_embed_fabric.py
 COPY szl_ayni_quorum.py ./szl_ayni_quorum.py
 
-# ADDITIVE (Elite Console + LLM Hub Registry, 2026-06-04, Yachay CTO + Perplexity Computer Agent):
-# szl_llm_registry.py   — a11oy canonical LLM roster (7 models/5 tiers) + forum/mirror endpoints
-# szl_elite_console.py  — 20-tab Elite Console backend (SLO, alerts, organ-map, DSSE, quorum, genome...)
-# web/elite_console.html — 20-tab Elite Console HTML (Three.js 3D, real endpoints, zero mocks)
-# Per-file COPY (this Dockerfile never uses `COPY . .`).
-# Verified source files present in repo before commit.
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY szl_llm_registry.py ./szl_llm_registry.py
-COPY szl_elite_console.py ./szl_elite_console.py
-COPY web/elite_console.html ./web/elite_console.html
-
-# ADDITIVE (Governed Agent Loop, 2026-06-06): the operational RAG -> tool-call ->
-# policy/trust gate -> signed-receipt loop + canonical live MCP + consumer UI.
-# Explicit per-file COPY (this Dockerfile does not use `COPY . .`); without this
-# line `import szl_agentic_loop` fails silently and /mcp/, /ask-and-act 404.
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Governed agent loop module (RAG->tool-call->policy/trust->signed-receipt + canonical /mcp/).
 COPY szl_agentic_loop.py ./szl_agentic_loop.py
+
+# Warhacker mission tabs backend (5 investor-facing surfaces; reuses
+# szl_agentic_loop primitives + the in-image signer). Per-file COPY
+# (this Dockerfile never uses `COPY . .`) — without this
+# `import szl_warhacker_real` fails at boot.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY szl_warhacker_real.py ./szl_warhacker_real.py
 
 CMD ["python", "serve.py"]
 
@@ -286,6 +280,3 @@ CMD ["python", "serve.py"]
 # szl_parity_gaps.py already COPY'd at line 68 (commit 543ca95).
 # Added COPY szl_receipt_substrate.py + szl_alloy_embed_fabric.py + szl_ayni_quorum.py.
 # All 5 parity endpoints now deployable. All 63 COPY sources verified present in repo.
-# Build cache-bust 2026-06-04T19:31Z (Elite Console + LLM Hub Registry):
-# Added szl_llm_registry.py, szl_elite_console.py, web/elite_console.html.
-# 20-tab Elite Console + 7-model LLM Hub now deployable. All COPY sources verified.
