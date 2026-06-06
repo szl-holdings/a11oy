@@ -1,10 +1,10 @@
 {
-  "version": "1.0.0",
+  "version": "5.1.0",
   "byline": "Lutar, Stephen P.",
   "orcid": "0009-0001-0110-4173",
   "email": "stephen@szlholdings.com",
   "org": "SZL Holdings",
-  "generated_at": "2026-05-15T16:30:00Z",
+  "generated_at": "2026-06-06T06:00:00Z",
   "axioms": [
     {
       "id": "A1",
@@ -425,7 +425,7 @@
       "source_file": "thesis.md",
       "source_line": 293,
       "latex": "\\Lambda",
-      "context": "os` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a gate-level violation. - Depends on: `sentra` (Wires) — t",
+      "context": "os` (Brain Stem) — covenant evaluation results are sealed with a \\(\\Lambda\\)-gated receipt; a covenant check that fails \\(\\Lambda\\) is itself a gate-level violation. - Depends on: `safety-gate layer` (safety wires) — t",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -434,7 +434,7 @@
       "source_file": "thesis.md",
       "source_line": 305,
       "latex": "\\mathcal{S}",
-      "context": "but a verifiable, chain-linked artifact.  ---  ### Wires — `sentra`  **Repo:** `szl-holdings/sentra`  **Formal role in \\(\\mathcal{S}\\):** The Wires are the attribution trail — the afferent channel tha",
+      "context": "but a verifiable, chain-linked artifact.  ---  ### safety wires — `safety-gate layer`  **Repo:** `szl-holdings/safety-gate layer`  **Formal role in \\(\\mathcal{S}\\):** The safety wires are the attribution trail — the afferent channel tha",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -443,7 +443,7 @@
       "source_file": "thesis.md",
       "source_line": 305,
       "latex": "\\text{attr}: E \\to A",
-      "context": "rent channel that carries signals inward and records *who observed what and when*. Formally, Wires maintain the mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a",
+      "context": "rent channel that carries signals inward and records *who observed what and when*. Formally, safety wires maintain the mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -452,7 +452,7 @@
       "source_file": "thesis.md",
       "source_line": 305,
       "latex": "\\mathcal{S}",
-      "context": "he mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a named actor. Without Wires, \\(\\mathcal{S}\\) degrades: edges carry receipts but not attributions, making the ",
+      "context": "he mapping \\(\\text{attr}: E \\to A\\), ensuring that every edge in \\(E\\) is attributable to a named actor. Without safety wires, \\(\\mathcal{S}\\) degrades: edges carry receipts but not attributions, making the ",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -470,7 +470,7 @@
       "source_file": "thesis.md",
       "source_line": 325,
       "latex": "\\mathcal{S}",
-      "context": "aft-morrow-sogomonian-exec-outcome-attest`.  ---  ### Spine — `amaru`  **Repo:** `szl-holdings/amaru`  **Formal role in \\(\\mathcal{S}\\):** The Spine is the append-only coordination and protocol bridge",
+      "context": "aft-morrow-sogomonian-exec-outcome-attest`.  ---  ### reasoning spine — `reasoning core`  **Repo:** `szl-holdings/reasoning core`  **Formal role in \\(\\mathcal{S}\\):** The reasoning spine is the append-only coordination and protocol bridge",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -479,7 +479,7 @@
       "source_file": "thesis.md",
       "source_line": 325,
       "latex": "\\langle e_1, e_2, \\ldots, e_n \\rangle \\subseteq E",
-      "context": "ordered, hash-verified record of every state transition across the body graph. Formally, `amaru` maintains the sequence \\(\\langle e_1, e_2, \\ldots, e_n \\rangle \\subseteq E\\) ordered by timestamp, with",
+      "context": "ordered, hash-verified record of every state transition across the body graph. Formally, `reasoning core` maintains the sequence \\(\\langle e_1, e_2, \\ldots, e_n \\rangle \\subseteq E\\) ordered by timestamp, with",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -488,7 +488,7 @@
       "source_file": "thesis.md",
       "source_line": 339,
       "latex": "O(\\log n)",
-      "context": "(identified in the runtime roadmap) would upgrade the Spine's linear hash-chain to a directed acyclic graph supporting \\(O(\\log n)\\) subset inclusion proofs — enabling privacy-preserving audits for re",
+      "context": "(identified in the runtime roadmap) would upgrade the reasoning spine's linear hash-chain to a directed acyclic graph supporting \\(O(\\log n)\\) subset inclusion proofs — enabling privacy-preserving audits for re",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -1830,6 +1830,65 @@
         "Maksa-Munnich-Mokken",
         "Burai-Kiss-Szokol 2021"
       ]
+    },
+    "wave5": {
+      "campaign": "prove-wave-5: un-block C1/C2/C6 Mathlib re-exports (CI-GREEN) + new substrate re-exports (AM-GM/Cauchy-Schwarz) + Mathlib-free discrete substrate guarantees (bare-lean verified)",
+      "source_report": "team/PROVE_WAVE5_REPORT.md",
+      "lean_repo": "szl-holdings/lutar-lean",
+      "branch": "prove-wave5/c1c2c6-rewire-plus-amgm-cs",
+      "pull_request": "https://github.com/szl-holdings/lutar-lean/pull/186",
+      "commit_ci_green": "0a552a90dd7f3b8b668ae761bf6e39eca17c62f1",
+      "ci_run_ids": {
+        "lean_kernel_check": "27053443102 (success)",
+        "lake_build_gate_numbers": "27053443099 (success)",
+        "doctrine": "27053443200 (success)",
+        "dco": "27053443096 (success)"
+      },
+      "ci_status": "build (Lean kernel check) + lake build + numbers + check/doctrine + DCO all GREEN @ 0a552a90 (and @ 099d6caa). Only doi-title-gate + PR-title-lint fail (PRE-EXISTING / cosmetic, unrelated to proofs).",
+      "headline": "C1 Tsirelson 2sqrt2 / C2 CHSH<=2 / C6 Jensen are now CI-GREEN (wave-4 had them CI-PENDING). Root cause fixed: dropped the non-load-bearing c1a_tsirelson_constant numeric remark and its two extra SpecialFunctions imports, minimizing Tier1Mathlib's build closure to exactly the two modules that define the instantiated theorems.",
+      "ci_green_mathlib_dependent": {
+        "Wave3.Tier1.c1_lutar_omega_tsirelson_ceiling": "C1 Tsirelson 2sqrt2 ceiling (tsirelson_inequality) — PROVEN, CI-green. EPR-Bell governance diagnostic (entangled-agent ceiling).",
+        "Wave3.Tier1.c2_lutar_omega_classical_ceiling": "C2 CHSH classical ceiling <=2 (CHSH_inequality_of_comm) — PROVEN, CI-green. Local/independent-prior agent ceiling.",
+        "Wave3.Tier1.c6_jensen_forecaster": "C6 finite Jensen (ConvexOn.map_sum_le) — PROVEN, CI-green. Active-inference ELBO-direction conservative forecaster.",
+        "Wave5.MathlibCore.w5_1_lambda_le_arith_mean": "W5-1 weighted AM-GM (Real.geom_mean_le_arith_mean_weighted) — PROVEN, CI-green. Lambda (geometric-mean aggregator) <= arithmetic mean: no-inflation guarantee.",
+        "Wave5.MathlibCore.w5_1b_lambda2_le_arith_mean": "W5-1b two-point weighted AM-GM — PROVEN, CI-green. Pairwise consensus diagnostic.",
+        "Wave5.MathlibCore.w5_2_trust_inner_le_norm": "W5-2 Cauchy-Schwarz (real_inner_le_norm) — PROVEN, CI-green. Trust-vector similarity bound (cosine in [-1,1])."
+      },
+      "proven_mathlib_free_bare_lean": {
+        "Wave5.DiscreteSubstrate.w5_3a_miscover_le_total": "miscoverage<=sample size. axioms=[propext]. killinchu conformal coverage.",
+        "Wave5.DiscreteSubstrate.w5_3b_cover_miscover_partition": "covered+miscovered=total. axioms=[propext, Quot.sound]. coverage=1-miscoverage conservation.",
+        "Wave5.DiscreteSubstrate.w5_3c_threshold_count_mono": "stricter threshold selects fewer. axioms=[propext, Quot.sound]. a11oy threshold monotonicity.",
+        "Wave5.DiscreteSubstrate.w5_4_collision_of_image_dup": "image-duplicate => hash collision (pigeonhole). axioms=[propext, Classical.choice, Quot.sound]. UDS forgery-detection.",
+        "Wave5.DiscreteSubstrate.w5_5_no_early_stop_deflation": "monotone optional-stopping anti-deflation. ZERO axioms. UDS receipt-stream anti-gaming."
+      },
+      "axiom_disclosure": "Mathlib-dependent re-exports use the standard Mathlib trio [propext, Classical.choice, Quot.sound] (NO sorryAx, NO declared Lutar axioms); their #print axioms are emitted in the CI build log (blob log download proxy-blocked here, but the build is green and they are pure term-mode instantiations of axiom-clean Mathlib theorems). Mathlib-free theorems' #print axioms pasted verbatim in PROVE_WAVE5_REPORT.md section 3 (bare lean 4.13.0, exit 0).",
+      "not_available_at_pinned_mathlib": "C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) — verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.",
+      "lambda_status": "Lambda (F23) STAYS Conjecture 1 unconditionally. W5-1 AM-GM is a building block Lambda relies on; it does NOT prove uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-5 work is experimental scope (counter-excluded).",
+      "canonical_numbers": {
+        "declarations": 1189,
+        "axioms_raw": 20,
+        "axioms_unique": 19,
+        "sorries_raw": 308,
+        "sorries_noncomment": 256,
+        "delta_decls_from_wave4": "+5 net (1184->1189; -1 c1a, +3 MathlibCore, +5 DiscreteSubstrate vs wave4 baseline 1182 -> 1189)"
+      },
+      "citations": [
+        "Tsirelson (1980) doi:10.1007/BF00417500",
+        "CHSH (1969) doi:10.1103/PhysRevLett.23.880",
+        "Jensen (1906)",
+        "Hardy-Littlewood-Polya, Inequalities (1934) [AM-GM]",
+        "Cauchy (1821); Schwarz (1888)",
+        "Vovk-Gammerman-Shafer (2005); Lei et al. (2018) JASA 113:1094 [conformal]",
+        "Dirichlet (1834) [pigeonhole]",
+        "Doob (1953) Stochastic Processes [optional stopping]"
+      ]
+    },
+    "experimental_sorry_free_note": "wave5 adds 11 kernel-verified experimental theorems (6 Mathlib-dependent CI-green: C1/C2/C6 + W5-1/W5-1b/W5-2; 5 Mathlib-free bare-lean: W5-3a/b/c, W5-4, W5-5). Prior experimental_sorry_free baseline was 21 (wave-2 F-pack ceiling).",
+    "wave5_proven_count": {
+      "mathlib_dependent_ci_green": 6,
+      "mathlib_free_bare_lean": 5,
+      "total_new": 11
     }
   },
   "puriq_formulas": [
@@ -1863,7 +1922,7 @@
     },
     {
       "id": "F4",
-      "name": "Khipu DAG Acyclicity",
+      "name": "Receipt-Chain Acyclicity",
       "statement": "Appending the new largest-index node preserves DAG acyclicity (backward-edge invariant).",
       "maturity": "proven",
       "lean_ref": "f4_khipu_dag_acyclic",
@@ -1956,8 +2015,8 @@
     },
     {
       "id": "F14",
-      "name": "DSSE Verifiable Attribution",
-      "statement": "A DSSE signature that verifies attributes the message to the key. AXIOM-GATED on declared `ecdsa_unforgeable`.",
+      "name": "Signature Verifiable Attribution",
+      "statement": "A signature-envelope signature that verifies attributes the message to the key. AXIOM-GATED on declared `ecdsa_unforgeable`.",
       "maturity": "axiom-gated",
       "lean_ref": "f14_dsse_verifiable",
       "lean_repo": "szl-holdings/lutar-lean",
@@ -1976,10 +2035,10 @@
     },
     {
       "id": "F16",
-      "name": "Sentra Immune Completeness",
+      "name": "Safety-Gate Coverage Completeness",
       "statement": "Immune cross-cut completeness: 8 gates cover all 8 enumerated threats; gate set is exhaustive.",
       "maturity": "proven",
-      "lean_ref": "f16_sentra_immune_complete",
+      "lean_ref": "f16_safegate_immune_complete",
       "lean_repo": "szl-holdings/lutar-lean",
       "lean_file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean"
     },
@@ -2032,7 +2091,7 @@
     },
     {
       "id": "F22",
-      "name": "Khipu Emit Monotonicity",
+      "name": "Receipt Emit Monotonicity",
       "statement": "Emit appends to the sequence log with strictly increasing sequence numbers (monotone emit).",
       "maturity": "proven",
       "lean_ref": "f22_khipu_emit_monotone",
@@ -2049,5 +2108,494 @@
       "lean_file": "Lutar/Puriq/Formulas/F23_Uniqueness.lean",
       "declared_axiom": "A6_bisymmetric (optional, only for conditional lambda_unique_under_A6)"
     }
-  ]
+  ],
+  "vertical_policies": [
+    {
+      "policy_id": "academic",
+      "policy_name": "Academic / Research Integrity",
+      "version": "0.3.0",
+      "regulations": [
+        "NIH NOT-OD-23-149",
+        "NSF PAPPG Chapter II.E",
+        "ORI Standards",
+        "COPE Guidelines"
+      ],
+      "required_attestors": [
+        "principal_investigator",
+        "research_integrity_officer"
+      ],
+      "lambda_floors": {
+        "measurabilityHonesty": 1.0,
+        "constructiveTransparency": 1.0,
+        "informationIntegrity": 0.99,
+        "temporalConsistency": 0.99
+      },
+      "forbidden_inputs": [
+        "undisclosed_ai_authored_content",
+        "missing_doi_citation"
+      ],
+      "required_output_formats": [
+        "zenodo_deposit",
+        "json_receipt",
+        "orcid_linked_artifact"
+      ],
+      "retention_days": "3650",
+      "primitives_applicable": [
+        "A5",
+        "A8",
+        "A12",
+        "T5",
+        "T10",
+        "TH2"
+      ],
+      "acv_range_usd": {
+        "low": 10000.0,
+        "mid": 50000.0,
+        "high": 200000.0
+      }
+    },
+    {
+      "policy_id": "capital_markets",
+      "policy_name": "Capital Markets / Quant / Hedge Funds",
+      "version": "0.3.0",
+      "regulations": [
+        "SEC Rule 17a-4",
+        "MiFID II RTS 6",
+        "FINRA Rule 4370",
+        "Reg SCI 17 CFR 242"
+      ],
+      "required_attestors": [
+        "chief_compliance_officer",
+        "quant_review_committee",
+        "external_auditor"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.97,
+        "measurabilityHonesty": 1.0,
+        "temporalConsistency": 1.0,
+        "economicGrounding": 1.0,
+        "constructiveTransparency": 0.99,
+        "informationIntegrity": 0.99
+      },
+      "forbidden_inputs": [
+        "non_sec_registered_model",
+        "missing_algo_documentation"
+      ],
+      "required_output_formats": [
+        "sec_17a4_compliant_log",
+        "json_receipt",
+        "worm_storage_manifest"
+      ],
+      "retention_days": "2190",
+      "primitives_applicable": [
+        "A5",
+        "A6",
+        "A10",
+        "A12",
+        "A14",
+        "T5",
+        "T9",
+        "TH2"
+      ],
+      "acv_range_usd": {
+        "low": 500000.0,
+        "mid": 2000000.0,
+        "high": 10000000.0
+      }
+    },
+    {
+      "policy_id": "critical_infrastructure",
+      "policy_name": "Critical Infrastructure / Utilities",
+      "version": "0.3.0",
+      "regulations": [
+        "NERC CIP-013-2",
+        "IEC 62443-3-3",
+        "TSA Pipeline Security Directive SD-02C",
+        "NIST CSF 2.0"
+      ],
+      "required_attestors": [
+        "system_security_officer",
+        "control_systems_engineer",
+        "incident_commander"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.99,
+        "actionReversibility": 0.99,
+        "scopeContainment": 1.0,
+        "informationIntegrity": 0.99,
+        "adversarialRobustness": 0.99,
+        "temporalConsistency": 0.99
+      },
+      "forbidden_inputs": [
+        "unauthenticated_control_commands",
+        "non_air_gapped_ot_data"
+      ],
+      "required_output_formats": [
+        "ics_audit_log",
+        "json_receipt",
+        "nerc_compliance_report"
+      ],
+      "retention_days": "1825",
+      "primitives_applicable": [
+        "A4",
+        "A5",
+        "A6",
+        "A10",
+        "A13",
+        "T5",
+        "T9",
+        "T10",
+        "TH1"
+      ],
+      "acv_range_usd": {
+        "low": 1000000.0,
+        "mid": 5000000.0,
+        "high": 20000000.0
+      }
+    },
+    {
+      "policy_id": "defense",
+      "policy_name": "Defense / DoD",
+      "version": "0.3.0",
+      "regulations": [
+        "NIST SP 800-53 Rev 5",
+        "CMMC 2.0",
+        "FedRAMP High",
+        "DISA STIGs"
+      ],
+      "required_attestors": [
+        "authorizing_official",
+        "system_owner",
+        "security_control_assessor"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.99,
+        "measurabilityHonesty": 0.99,
+        "actionReversibility": 0.95,
+        "scopeContainment": 0.99,
+        "informationIntegrity": 0.99,
+        "consentBoundary": 0.95
+      },
+      "forbidden_inputs": [
+        "unclassified_cui_without_marking",
+        "foreign_national_data"
+      ],
+      "required_output_formats": [
+        "json_audit_log",
+        "nist_oscal"
+      ],
+      "retention_days": "7300",
+      "primitives_applicable": [
+        "A1",
+        "A4",
+        "A5",
+        "A6",
+        "A8",
+        "A9",
+        "A12",
+        "A13",
+        "T5",
+        "T9",
+        "T10",
+        "TH1"
+      ],
+      "acv_range_usd": {
+        "low": 500000.0,
+        "mid": 2000000.0,
+        "high": 5000000.0
+      }
+    },
+    {
+      "policy_id": "financial_services",
+      "policy_name": "Financial Services / Banking",
+      "version": "0.3.0",
+      "regulations": [
+        "SR 11-7",
+        "OCC 2011-12",
+        "MiFID II RTS 6",
+        "Basel III"
+      ],
+      "required_attestors": [
+        "model_risk_officer",
+        "chief_risk_officer",
+        "internal_audit"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.97,
+        "measurabilityHonesty": 0.99,
+        "temporalConsistency": 0.99,
+        "informationIntegrity": 0.99,
+        "economicGrounding": 1.0
+      },
+      "forbidden_inputs": [
+        "insider_information",
+        "unregistered_model_version"
+      ],
+      "required_output_formats": [
+        "csv_model_log",
+        "json_receipt",
+        "pdf_board_report"
+      ],
+      "retention_days": "2190",
+      "primitives_applicable": [
+        "A1",
+        "A5",
+        "A6",
+        "A8",
+        "A9",
+        "A14",
+        "T5",
+        "T9",
+        "T10",
+        "TH1",
+        "TH2"
+      ],
+      "acv_range_usd": {
+        "low": 200000.0,
+        "mid": 800000.0,
+        "high": 2000000.0
+      }
+    },
+    {
+      "policy_id": "healthcare",
+      "policy_name": "Healthcare / Clinical AI",
+      "version": "0.3.0",
+      "regulations": [
+        "HIPAA 45 CFR Part 164",
+        "FDA 21 CFR Part 11",
+        "FDA SaMD Guidance Q3 2023"
+      ],
+      "required_attestors": [
+        "licensed_clinician",
+        "clinical_informatics_officer",
+        "hipaa_privacy_officer"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.99,
+        "measurabilityHonesty": 0.99,
+        "consentBoundary": 0.99,
+        "informationIntegrity": 0.99,
+        "causalSeparability": 0.99
+      },
+      "forbidden_inputs": [
+        "plaintext_phi",
+        "deidentification_not_verified"
+      ],
+      "required_output_formats": [
+        "hl7_fhir_audit",
+        "json_receipt",
+        "pdf_clinical_audit"
+      ],
+      "retention_days": "2190",
+      "primitives_applicable": [
+        "A1",
+        "A4",
+        "A5",
+        "A8",
+        "A9",
+        "A11",
+        "A12",
+        "T5",
+        "T7",
+        "T10",
+        "TH1"
+      ],
+      "acv_range_usd": {
+        "low": 150000.0,
+        "mid": 600000.0,
+        "high": 2000000.0
+      }
+    },
+    {
+      "policy_id": "insurance",
+      "policy_name": "Insurance",
+      "version": "0.3.0",
+      "regulations": [
+        "NAIC Model Law 881",
+        "NY DFS Circular Letter 7 (2022)",
+        "NAIC AI Principles (2020)"
+      ],
+      "required_attestors": [
+        "chief_actuary",
+        "ai_ethics_board",
+        "compliance_officer"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.97,
+        "measurabilityHonesty": 0.99,
+        "informationIntegrity": 0.99,
+        "constructiveTransparency": 0.99,
+        "economicGrounding": 0.97
+      },
+      "forbidden_inputs": [
+        "prohibited_rating_factors",
+        "non_actuarially_justified_proxies"
+      ],
+      "required_output_formats": [
+        "csv_underwriting_log",
+        "json_receipt",
+        "pdf_state_filing"
+      ],
+      "retention_days": "1825",
+      "primitives_applicable": [
+        "A1",
+        "A5",
+        "A8",
+        "A9",
+        "A12",
+        "A14",
+        "T6",
+        "T9",
+        "T10"
+      ],
+      "acv_range_usd": {
+        "low": 200000.0,
+        "mid": 750000.0,
+        "high": 2000000.0
+      }
+    },
+    {
+      "policy_id": "legal",
+      "policy_name": "Legal / e-Discovery",
+      "version": "0.3.0",
+      "regulations": [
+        "FRCP 26",
+        "FRCP 34",
+        "FRE 902(13)",
+        "FRE 902(14)",
+        "ABA Model Rule 1.1"
+      ],
+      "required_attestors": [
+        "supervising_attorney",
+        "records_custodian"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.97,
+        "measurabilityHonesty": 0.99,
+        "informationIntegrity": 0.99,
+        "constructiveTransparency": 0.99,
+        "actionReversibility": 0.95
+      },
+      "forbidden_inputs": [
+        "privileged_attorney_client_without_waiver"
+      ],
+      "required_output_formats": [
+        "json_chain_of_custody",
+        "pdf_court_exhibit"
+      ],
+      "retention_days": "2555",
+      "primitives_applicable": [
+        "A5",
+        "A6",
+        "A8",
+        "A12",
+        "T5",
+        "T8",
+        "T10",
+        "TH2"
+      ],
+      "acv_range_usd": {
+        "low": 75000.0,
+        "mid": 300000.0,
+        "high": 1000000.0
+      }
+    },
+    {
+      "policy_id": "pharma",
+      "policy_name": "Pharma / Life Sciences R&D",
+      "version": "0.3.0",
+      "regulations": [
+        "FDA 21 CFR Part 11",
+        "EMA Annex 11",
+        "ICH E6(R3) GCP",
+        "GxP"
+      ],
+      "required_attestors": [
+        "qualified_person",
+        "gxp_compliance_officer",
+        "computational_scientist"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.97,
+        "measurabilityHonesty": 1.0,
+        "informationIntegrity": 1.0,
+        "temporalConsistency": 0.99,
+        "constructiveTransparency": 1.0
+      },
+      "forbidden_inputs": [
+        "non_gxp_validated_software_output",
+        "unversioned_model"
+      ],
+      "required_output_formats": [
+        "ectd_submission_package",
+        "json_audit_trail",
+        "csv_gxp_log"
+      ],
+      "retention_days": "3650",
+      "primitives_applicable": [
+        "A5",
+        "A6",
+        "A8",
+        "A10",
+        "A12",
+        "T5",
+        "TH2"
+      ],
+      "acv_range_usd": {
+        "low": 500000.0,
+        "mid": 2000000.0,
+        "high": 10000000.0
+      }
+    },
+    {
+      "policy_id": "public_sector",
+      "policy_name": "Public Sector / Civic AI",
+      "version": "0.3.0",
+      "regulations": [
+        "EU AI Act Annex III",
+        "NYC Local Law 144 (2023)",
+        "NIST AI RMF 1.0",
+        "OMB M-24-10"
+      ],
+      "required_attestors": [
+        "agency_ai_officer",
+        "civil_rights_officer",
+        "inspector_general"
+      ],
+      "lambda_floors": {
+        "moralGrounding": 0.99,
+        "measurabilityHonesty": 0.99,
+        "stakeholderAlignment": 0.99,
+        "constructiveTransparency": 1.0,
+        "adversarialRobustness": 0.95
+      },
+      "forbidden_inputs": [
+        "biometric_data_without_explicit_consent",
+        "prohibited_social_scoring"
+      ],
+      "required_output_formats": [
+        "json_public_audit_log",
+        "csv_bias_audit",
+        "pdf_annual_report"
+      ],
+      "retention_days": "3650",
+      "primitives_applicable": [
+        "A1",
+        "A5",
+        "A8",
+        "A12",
+        "A13",
+        "T6",
+        "T10",
+        "TH1",
+        "TH3"
+      ],
+      "acv_range_usd": {
+        "low": 300000.0,
+        "mid": 1200000.0,
+        "high": 5000000.0
+      }
+    }
+  ],
+  "instill_wave": "build-wave (locked 5 + wave3 19 sorry-free/4 axiom-gated + wave5 6 Mathlib-CI-green/5 bare-lean + conditional Lambda)"
 }
