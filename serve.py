@@ -3807,11 +3807,6 @@ async def spa_fallback(full_path: str) -> Response:
 
 
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", "7860"))
-    print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v11 — SPA at /", file=sys.stderr)
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
 # ============================================================================
@@ -4014,3 +4009,19 @@ except Exception as _whr_e:
 # ============================================================================
 # END: WARHACKER MISSION TABS — a11oy
 # ============================================================================
+
+
+# ============================================================================
+# ENTRY POINT (relocated to END so all ADDITIVE registrations — Ken, governed
+# agent loop, warhacker mission tabs — execute on import BEFORE uvicorn.run
+# blocks. Previously this block sat mid-file and uvicorn.run() blocked before
+# the loop/warhacker blocks could register, so those routes fell through to
+# the SPA. SURGICAL: only the entry point moved; no additive code reordered.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", "7860"))
+    print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v11 — SPA at /", file=sys.stderr)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
