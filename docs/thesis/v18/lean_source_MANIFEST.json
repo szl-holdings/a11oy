@@ -1,0 +1,1326 @@
+{
+  "generated": "2026-05-28",
+  "license": "Apache-2.0",
+  "description": "Every Lean 4 source file from SZLHOLDINGS lutar-lean + frontier skeletons",
+  "dataset": "SZLHOLDINGS/thesis-v18-formal-verification",
+  "space": "SZLHOLDINGS/lutar-lean-browser",
+  "github": "https://github.com/szl-holdings/lutar-lean",
+  "doi": "10.5281/zenodo.20434276",
+  "total_files": 99,
+  "group_A_files": 34,
+  "group_B_files": 65,
+  "total_bytes": 463899,
+  "total_sorries": 124,
+  "files": [
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Axioms.lean",
+      "rel_repo": "Lutar/Axioms.lean",
+      "dataset_path": "lean_source/Lutar/Axioms.lean",
+      "space_path": "theorems/Lutar/Axioms.lean",
+      "sha256": "0dea422c27d53c4a8c3af7df2bfe222f20b2944e4cc050b3e915f02d733f55a3",
+      "lines": 86,
+      "bytes": 3705,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": []
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Banach/BabylonianContraction.lean",
+      "rel_repo": "Lutar/Banach/BabylonianContraction.lean",
+      "dataset_path": "lean_source/Lutar/Banach/BabylonianContraction.lean",
+      "space_path": "theorems/Lutar/Banach/BabylonianContraction.lean",
+      "sha256": "83dd239d4ffdbc494aa940736de34fe779cf002055e940d34051188cb53fec5c",
+      "lines": 151,
+      "bytes": 6724,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "one_step_into_invariant"
+        },
+        {
+          "kind": "theorem",
+          "name": "babylonian_lipschitz_le_half"
+        },
+        {
+          "kind": "theorem",
+          "name": "babylonian_sqrt_is_banach_contraction"
+        },
+        {
+          "kind": "theorem",
+          "name": "T_fixedPoint_sqrt"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Banach/LiuHuiPi.lean",
+      "rel_repo": "Lutar/Banach/LiuHuiPi.lean",
+      "dataset_path": "lean_source/Lutar/Banach/LiuHuiPi.lean",
+      "space_path": "theorems/Lutar/Banach/LiuHuiPi.lean",
+      "sha256": "507928dc607c7092bb5043ef5d0ca8d40dc7fa93eb076a880a498ec926de7768",
+      "lines": 92,
+      "bytes": 3724,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "sideSquared_bounds"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Bound.lean",
+      "rel_repo": "Lutar/Bound.lean",
+      "dataset_path": "lean_source/Lutar/Bound.lean",
+      "space_path": "theorems/Lutar/Bound.lean",
+      "sha256": "35033b79ec3960e10661d7d073c38bb09f5ee89732764b144caa3f43f3873529",
+      "lines": 106,
+      "bytes": 5192,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "\u039b_le_max"
+        },
+        {
+          "kind": "theorem",
+          "name": "min_le_\u039b"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Brahmi/AxisOption.lean",
+      "rel_repo": "Lutar/Brahmi/AxisOption.lean",
+      "dataset_path": "lean_source/Lutar/Brahmi/AxisOption.lean",
+      "space_path": "theorems/Lutar/Brahmi/AxisOption.lean",
+      "sha256": "ef37bd1961e1bf0f90111cada6384e40716d688242b92a8f0e820c24e1adb4bd",
+      "lines": 84,
+      "bytes": 2990,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "axis_option_distinguishes"
+        },
+        {
+          "kind": "theorem",
+          "name": "axis_dichotomy"
+        },
+        {
+          "kind": "theorem",
+          "name": "axis_exclusive"
+        },
+        {
+          "kind": "theorem",
+          "name": "serialize_injective"
+        },
+        {
+          "kind": "theorem",
+          "name": "serialize_measured_zero_ne_absent"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Calibration/FalsePosition.lean",
+      "rel_repo": "Lutar/Calibration/FalsePosition.lean",
+      "dataset_path": "lean_source/Lutar/Calibration/FalsePosition.lean",
+      "space_path": "theorems/Lutar/Calibration/FalsePosition.lean",
+      "sha256": "240985039de39026e291a86f3612a177c85570c5c989d56d184bb0efca6d6454",
+      "lines": 82,
+      "bytes": 3659,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "false_position_correct"
+        },
+        {
+          "kind": "theorem",
+          "name": "false_position_identity"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Composition/AdversarialRobustness.lean",
+      "rel_repo": "Lutar/Composition/AdversarialRobustness.lean",
+      "dataset_path": "lean_source/Lutar/Composition/AdversarialRobustness.lean",
+      "space_path": "theorems/Lutar/Composition/AdversarialRobustness.lean",
+      "sha256": "e4b8a5fa1d17f6ee37388ea225cb54334462777dea19657e2eb3d48d6540d33a",
+      "lines": 155,
+      "bytes": 6139,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "lemma",
+          "name": "robustness_composes"
+        },
+        {
+          "kind": "theorem",
+          "name": "robustness_preserved_by_composition"
+        },
+        {
+          "kind": "theorem",
+          "name": "robustness_chain"
+        },
+        {
+          "kind": "theorem",
+          "name": "adversary_budget_bounded"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Composition/CompositionOverhead.lean",
+      "rel_repo": "Lutar/Composition/CompositionOverhead.lean",
+      "dataset_path": "lean_source/Lutar/Composition/CompositionOverhead.lean",
+      "space_path": "theorems/Lutar/Composition/CompositionOverhead.lean",
+      "sha256": "fa4d25cff772bfc88ea2bb5cb8f61c6252314d02e7c36cf0f6ba3f57d417996f",
+      "lines": 159,
+      "bytes": 5898,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "totalOverhead_singleton"
+        },
+        {
+          "kind": "theorem",
+          "name": "totalOverhead_append"
+        },
+        {
+          "kind": "theorem",
+          "name": "totalOverhead_le_len_mul_max"
+        },
+        {
+          "kind": "theorem",
+          "name": "composition_overhead_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "composition_overhead_strict_bound"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Composition/R1Tests.lean",
+      "rel_repo": "Lutar/Composition/R1Tests.lean",
+      "dataset_path": "lean_source/Lutar/Composition/R1Tests.lean",
+      "space_path": "theorems/Lutar/Composition/R1Tests.lean",
+      "sha256": "3e1e6c174f74037227d050e7e8d23ce2644fa45e4171904a22ca14d108b54930",
+      "lines": 98,
+      "bytes": 3246,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "test1_bot_le_l1"
+        },
+        {
+          "kind": "theorem",
+          "name": "test2_l2_not_le_l1"
+        },
+        {
+          "kind": "theorem",
+          "name": "test3_doctrine_predicate_exact"
+        },
+        {
+          "kind": "theorem",
+          "name": "test4_compose_labels"
+        },
+        {
+          "kind": "theorem",
+          "name": "test5_composition_preserves_doctrine_concrete"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Composition/TH1_Composition.lean",
+      "rel_repo": "Lutar/Composition/TH1_Composition.lean",
+      "dataset_path": "lean_source/Lutar/Composition/TH1_Composition.lean",
+      "space_path": "theorems/Lutar/Composition/TH1_Composition.lean",
+      "sha256": "7db984f8917ef5d4d98613efd009d5bd5f7a18f9143d88dfc65efe6dc3eeb713",
+      "lines": 223,
+      "bytes": 8553,
+      "sorry_count": 2,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "DoctrineLabel"
+        },
+        {
+          "kind": "theorem",
+          "name": "DoctrineLabel"
+        },
+        {
+          "kind": "theorem",
+          "name": "composition_preserves_doctrine"
+        },
+        {
+          "kind": "theorem",
+          "name": "composeList_doctrine_locked"
+        },
+        {
+          "kind": "theorem",
+          "name": "doctrine_monotone_threshold"
+        },
+        {
+          "kind": "theorem",
+          "name": "DoctrineEquiv"
+        },
+        {
+          "kind": "theorem",
+          "name": "DoctrineEquiv"
+        },
+        {
+          "kind": "theorem",
+          "name": "DoctrineEquiv"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Correlator/MatchedFilter.lean",
+      "rel_repo": "Lutar/Correlator/MatchedFilter.lean",
+      "dataset_path": "lean_source/Lutar/Correlator/MatchedFilter.lean",
+      "space_path": "theorems/Lutar/Correlator/MatchedFilter.lean",
+      "sha256": "273bef1079b4af9b70e2ff5a0e3d04482111d8b9ff669f4b5bdb5ed667206210",
+      "lines": 146,
+      "bytes": 6191,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "self_correlation_eq_energy"
+        },
+        {
+          "kind": "theorem",
+          "name": "correlate_scale_left"
+        },
+        {
+          "kind": "theorem",
+          "name": "doctrine_template_energy"
+        },
+        {
+          "kind": "theorem",
+          "name": "matched_signal_correlation"
+        },
+        {
+          "kind": "theorem",
+          "name": "zero_signal_correlation"
+        },
+        {
+          "kind": "theorem",
+          "name": "anti_correlation"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Crt/WeightChunking.lean",
+      "rel_repo": "Lutar/Crt/WeightChunking.lean",
+      "dataset_path": "lean_source/Lutar/Crt/WeightChunking.lean",
+      "space_path": "theorems/Lutar/Crt/WeightChunking.lean",
+      "sha256": "35f61fed28ff9d1953355ae12496411d4ad557f01978f648c31146fee635a107",
+      "lines": 88,
+      "bytes": 3919,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "crt_chunking_correct_two"
+        },
+        {
+          "kind": "theorem",
+          "name": "crt_chunking_correct_two_inv"
+        },
+        {
+          "kind": "theorem",
+          "name": "crt_chunking_correct_multi"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/DPI/DPIBound.lean",
+      "rel_repo": "Lutar/DPI/DPIBound.lean",
+      "dataset_path": "lean_source/Lutar/DPI/DPIBound.lean",
+      "space_path": "theorems/Lutar/DPI/DPIBound.lean",
+      "sha256": "134437ef92203fd8477729107e4257fe2dd36a7514fc5b205339952a747c9d0d",
+      "lines": 133,
+      "bytes": 5095,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "dpi_bound_positive"
+        },
+        {
+          "kind": "theorem",
+          "name": "dpi_bound_monotone"
+        },
+        {
+          "kind": "theorem",
+          "name": "dpi_admit_monotone"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/DPI/MerkleDAGBuild.lean",
+      "rel_repo": "Lutar/DPI/MerkleDAGBuild.lean",
+      "dataset_path": "lean_source/Lutar/DPI/MerkleDAGBuild.lean",
+      "space_path": "theorems/Lutar/DPI/MerkleDAGBuild.lean",
+      "sha256": "0aa755b27115dd235b38c5e671209e97e57c28373ca7f6bd9f1d9b4be11e26f0",
+      "lines": 135,
+      "bytes": 5125,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "leafCount_le_pow_height"
+        },
+        {
+          "kind": "theorem",
+          "name": "height_le_log_leafCount"
+        },
+        {
+          "kind": "theorem",
+          "name": "merkle_dag_height_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "nodeCount_ge_leafCount"
+        },
+        {
+          "kind": "theorem",
+          "name": "complete_tree_node_count_formula"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/DPI/SCITTMaskEntropy.lean",
+      "rel_repo": "Lutar/DPI/SCITTMaskEntropy.lean",
+      "dataset_path": "lean_source/Lutar/DPI/SCITTMaskEntropy.lean",
+      "space_path": "theorems/Lutar/DPI/SCITTMaskEntropy.lean",
+      "sha256": "6c79b6a140f508755a404471d28c819fb6b11cbe241fafa81c9642987c888074",
+      "lines": 152,
+      "bytes": 6183,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "full_mask_zero_entropy"
+        },
+        {
+          "kind": "theorem",
+          "name": "scitt_mask_entropy_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "mask_refinement_entropy_mono"
+        },
+        {
+          "kind": "theorem",
+          "name": "scitt_mask_preserves_hash"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/DPI/TH6_DPI_Soundness.lean",
+      "rel_repo": "Lutar/DPI/TH6_DPI_Soundness.lean",
+      "dataset_path": "lean_source/Lutar/DPI/TH6_DPI_Soundness.lean",
+      "space_path": "theorems/Lutar/DPI/TH6_DPI_Soundness.lean",
+      "sha256": "8432459afb5920eb15e259d3b29937b444d89735f86f2bc1bcb00b7637c26bb7",
+      "lines": 156,
+      "bytes": 6262,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "dpi_receipt_chain_entropy_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "dpi_chain_stage_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "dpi_chain_max_entropy_bound"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/DPOFeasibility.lean",
+      "rel_repo": "Lutar/DPOFeasibility.lean",
+      "dataset_path": "lean_source/Lutar/DPOFeasibility.lean",
+      "space_path": "theorems/Lutar/DPOFeasibility.lean",
+      "sha256": "96b523584dcd7c8fbd0c2b922968cc3fcc6dee4d65755e994d92a92ca505de8f",
+      "lines": 454,
+      "bytes": 21899,
+      "sorry_count": 3,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "axisScore_lipschitz"
+        },
+        {
+          "kind": "theorem",
+          "name": "gateLipschitz_nonneg"
+        },
+        {
+          "kind": "theorem",
+          "name": "tvDist_symm"
+        },
+        {
+          "kind": "theorem",
+          "name": "tvDist_nonneg"
+        },
+        {
+          "kind": "theorem",
+          "name": "tvDist_perm_inv"
+        },
+        {
+          "kind": "theorem",
+          "name": "klDivergence_perm_inv"
+        },
+        {
+          "kind": "theorem",
+          "name": "axisScore_perm_equivar"
+        },
+        {
+          "kind": "theorem",
+          "name": "pinsker_tv_zero_of_kl_zero"
+        },
+        {
+          "kind": "theorem",
+          "name": "pinsker_coords_eq_of_kl_zero"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039bGateLID_DPO_stability"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039bGateLID_DPO_stability_zero_kl"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039bGateLID_perm_forward"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039bGateLID_perm_backward"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039bGateLID_DPO_stability_general_R1"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Doctrine/CrossComponentInvariant.lean",
+      "rel_repo": "Lutar/Doctrine/CrossComponentInvariant.lean",
+      "dataset_path": "lean_source/Lutar/Doctrine/CrossComponentInvariant.lean",
+      "space_path": "theorems/Lutar/Doctrine/CrossComponentInvariant.lean",
+      "sha256": "7c64b78134f805761536b6bee11b92d5ad45732d4c5d72591ebf80ddf6898fb6",
+      "lines": 147,
+      "bytes": 5330,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "doctrine_cross_invariant"
+        },
+        {
+          "kind": "theorem",
+          "name": "doctrine_cross_contrapositive"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Doctrine/PublicClaims.lean",
+      "rel_repo": "Lutar/Doctrine/PublicClaims.lean",
+      "dataset_path": "lean_source/Lutar/Doctrine/PublicClaims.lean",
+      "space_path": "theorems/Lutar/Doctrine/PublicClaims.lean",
+      "sha256": "efe60c3e1aa16febf4192e5f91750718111273414fd6d2fb40a104a47a8b0c67",
+      "lines": 139,
+      "bytes": 5486,
+      "sorry_count": 2,
+      "group": "B",
+      "declarations": []
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/DoctrineV3/MeasurabilityHonesty.lean",
+      "rel_repo": "Lutar/DoctrineV3/MeasurabilityHonesty.lean",
+      "dataset_path": "lean_source/Lutar/DoctrineV3/MeasurabilityHonesty.lean",
+      "space_path": "theorems/Lutar/DoctrineV3/MeasurabilityHonesty.lean",
+      "sha256": "f0a66fcaf964da145c1672507610ab3f917e7313887eb781e0058702e077cf02",
+      "lines": 105,
+      "bytes": 4186,
+      "sorry_count": 2,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "MeasurabilityHonestyTheorem"
+        },
+        {
+          "kind": "theorem",
+          "name": "ReceiptSlot"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/DoctrineV3/MoralGrounding.lean",
+      "rel_repo": "Lutar/DoctrineV3/MoralGrounding.lean",
+      "dataset_path": "lean_source/Lutar/DoctrineV3/MoralGrounding.lean",
+      "space_path": "theorems/Lutar/DoctrineV3/MoralGrounding.lean",
+      "sha256": "aa38f3c78c5f5d7a444b9266b7a8badf141a2278f11e6f19d2e44aae664f6e9b",
+      "lines": 178,
+      "bytes": 7112,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "MoralGroundingTheorem"
+        },
+        {
+          "kind": "theorem",
+          "name": "P_moral_iff_conjunction"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Egyptian/AkhmimTable.lean",
+      "rel_repo": "Lutar/Egyptian/AkhmimTable.lean",
+      "dataset_path": "lean_source/Lutar/Egyptian/AkhmimTable.lean",
+      "space_path": "theorems/Lutar/Egyptian/AkhmimTable.lean",
+      "sha256": "ea9e28e6c230034e078c640914ca960bc5edcfca39a2f46f21715b7cc2bb782c",
+      "lines": 101,
+      "bytes": 4237,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "twoOverThree_correct"
+        },
+        {
+          "kind": "theorem",
+          "name": "twoOverFive_correct"
+        },
+        {
+          "kind": "theorem",
+          "name": "twoOverSeven_correct"
+        },
+        {
+          "kind": "theorem",
+          "name": "twoOverThirteen_correct"
+        },
+        {
+          "kind": "theorem",
+          "name": "twoOverOneOhOne_correct"
+        },
+        {
+          "kind": "theorem",
+          "name": "akhmim_2n_correct_representatives"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Egyptian/HorusEye.lean",
+      "rel_repo": "Lutar/Egyptian/HorusEye.lean",
+      "dataset_path": "lean_source/Lutar/Egyptian/HorusEye.lean",
+      "space_path": "theorems/Lutar/Egyptian/HorusEye.lean",
+      "sha256": "c71128673f6db7733b182679143885c9a17f98c10b7976a48f7a6671a70cad23",
+      "lines": 61,
+      "bytes": 2217,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "horus_eye_sum_eq_63_over_64"
+        },
+        {
+          "kind": "theorem",
+          "name": "horus_eye_unit_count"
+        },
+        {
+          "kind": "theorem",
+          "name": "horus_eye_units_nonneg"
+        },
+        {
+          "kind": "theorem",
+          "name": "horus_eye_decode_encode"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Egyptian.lean",
+      "rel_repo": "Lutar/Egyptian.lean",
+      "dataset_path": "lean_source/Lutar/Egyptian.lean",
+      "space_path": "theorems/Lutar/Egyptian.lean",
+      "sha256": "68013b7e5f5b742e7f76c7dae1cb4137955bf74d9e2af6c8c2aa60443da1bc0c",
+      "lines": 39,
+      "bytes": 1578,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "unitWeight_sum_eq_one"
+        },
+        {
+          "kind": "theorem",
+          "name": "unitWeight_unique"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Feynman/FeynmanLineage.lean",
+      "rel_repo": "Lutar/Feynman/FeynmanLineage.lean",
+      "dataset_path": "lean_source/Lutar/Feynman/FeynmanLineage.lean",
+      "space_path": "theorems/Lutar/Feynman/FeynmanLineage.lean",
+      "sha256": "c6d0290dbb24025ae8cac82cf5c7bbb93b7b3b1c203f1fda37e20f289c09030d",
+      "lines": 166,
+      "bytes": 8871,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "chain_length"
+        },
+        {
+          "kind": "theorem",
+          "name": "chain_citations_nonempty"
+        },
+        {
+          "kind": "theorem",
+          "name": "doctrine_compliant"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Feynman/PathIntegralAuditSum.lean",
+      "rel_repo": "Lutar/Feynman/PathIntegralAuditSum.lean",
+      "dataset_path": "lean_source/Lutar/Feynman/PathIntegralAuditSum.lean",
+      "space_path": "theorems/Lutar/Feynman/PathIntegralAuditSum.lean",
+      "sha256": "12b161b4b54fe7f5d6f54563ea34767678f91bb91b3b0da5aa219821f01c41e8",
+      "lines": 505,
+      "bytes": 22622,
+      "sorry_count": 8,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "exec_lambda_le_one"
+        },
+        {
+          "kind": "theorem",
+          "name": "z_lambda_empty"
+        },
+        {
+          "kind": "theorem",
+          "name": "z_lambda_singleton"
+        },
+        {
+          "kind": "theorem",
+          "name": "z_lambda_nonneg"
+        },
+        {
+          "kind": "theorem",
+          "name": "z_lambda_le_one"
+        },
+        {
+          "kind": "theorem",
+          "name": "fiber_collapse"
+        },
+        {
+          "kind": "theorem",
+          "name": "fiber_collapse_global"
+        },
+        {
+          "kind": "theorem",
+          "name": "z_lambda_insert_mono"
+        },
+        {
+          "kind": "theorem",
+          "name": "exists_lambda_stationary"
+        },
+        {
+          "kind": "theorem",
+          "name": "z_lambda_equals_sup"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Gates/GleasonMod8.lean",
+      "rel_repo": "Lutar/Gates/GleasonMod8.lean",
+      "dataset_path": "lean_source/Lutar/Gates/GleasonMod8.lean",
+      "space_path": "theorems/Lutar/Gates/GleasonMod8.lean",
+      "sha256": "cb4b9a61b1b1ec62065234049eee834f14104f257651b9740d4080117b65f4e2",
+      "lines": 184,
+      "bytes": 8019,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "hammingWeight_zero"
+        },
+        {
+          "kind": "theorem",
+          "name": "zero_weight_mod_4"
+        },
+        {
+          "kind": "theorem",
+          "name": "zero_codeword_weight_mod_4"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/GraphLambda.lean",
+      "rel_repo": "Lutar/GraphLambda.lean",
+      "dataset_path": "lean_source/Lutar/GraphLambda.lean",
+      "space_path": "theorems/Lutar/GraphLambda.lean",
+      "sha256": "c055d64ae169a7b39428835b675e658a31c42019760df45553e0594e962ba2aa",
+      "lines": 190,
+      "bytes": 8272,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "vertexLambda_le_one"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039b_graph_def"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039b_graph_le_one"
+        },
+        {
+          "kind": "theorem",
+          "name": "\u039b_graph_automorphism_invariant"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/HUKLLA/HaltEligibility.lean",
+      "rel_repo": "Lutar/HUKLLA/HaltEligibility.lean",
+      "dataset_path": "lean_source/Lutar/HUKLLA/HaltEligibility.lean",
+      "space_path": "theorems/Lutar/HUKLLA/HaltEligibility.lean",
+      "sha256": "5971f1ab67624aab273e3c6ba27e0aa8f462447f1345a3b9f6399fb15251d57e",
+      "lines": 135,
+      "bytes": 5415,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "halt_eligibility_monotone"
+        },
+        {
+          "kind": "theorem",
+          "name": "not_eligible_of_low_score"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Invariant.lean",
+      "rel_repo": "Lutar/Invariant.lean",
+      "dataset_path": "lean_source/Lutar/Invariant.lean",
+      "space_path": "theorems/Lutar/Invariant.lean",
+      "sha256": "fb3e7e3a62bf446fb01a8bf74b0e39371f5d5fd5fdb4de991dad6bea757f45f5",
+      "lines": 54,
+      "bytes": 1976,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "\u039b_def"
+        },
+        {
+          "kind": "theorem",
+          "name": "a3_normalize_proof"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Khipu/SummationInvariant.lean",
+      "rel_repo": "Lutar/Khipu/SummationInvariant.lean",
+      "dataset_path": "lean_source/Lutar/Khipu/SummationInvariant.lean",
+      "space_path": "theorems/Lutar/Khipu/SummationInvariant.lean",
+      "sha256": "f6a612f3e710b437351253374ed5530307fa7f158155a75a8f6d6da3753162fb",
+      "lines": 282,
+      "bytes": 11826,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "pendantValue_bump"
+        },
+        {
+          "kind": "theorem",
+          "name": "khipuReceipt_checksum_invariant"
+        },
+        {
+          "kind": "theorem",
+          "name": "pendantValue_def"
+        },
+        {
+          "kind": "theorem",
+          "name": "rootValue_def"
+        },
+        {
+          "kind": "theorem",
+          "name": "rootValue_empty"
+        },
+        {
+          "kind": "theorem",
+          "name": "rootValue_singleton"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Knot/ReidemeisterConjecture.lean",
+      "rel_repo": "Lutar/Knot/ReidemeisterConjecture.lean",
+      "dataset_path": "lean_source/Lutar/Knot/ReidemeisterConjecture.lean",
+      "space_path": "theorems/Lutar/Knot/ReidemeisterConjecture.lean",
+      "sha256": "f3feae87c0538aaa847cf024dc89ed930169f6b85908d82d18f37513406f2819",
+      "lines": 303,
+      "bytes": 12828,
+      "sorry_count": 2,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "r3_invariance"
+        },
+        {
+          "kind": "theorem",
+          "name": "audit_reidemeister_combined"
+        },
+        {
+          "kind": "theorem",
+          "name": "r1_r2_composition_invariance"
+        },
+        {
+          "kind": "theorem",
+          "name": "r1_iterate_invariance"
+        },
+        {
+          "kind": "theorem",
+          "name": "r12_equiv_lambda_flat"
+        },
+        {
+          "kind": "theorem",
+          "name": "r12_equiv_class_lambda_eq"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Lambda/CompositionRing.lean",
+      "rel_repo": "Lutar/Lambda/CompositionRing.lean",
+      "dataset_path": "lean_source/Lutar/Lambda/CompositionRing.lean",
+      "space_path": "theorems/Lutar/Lambda/CompositionRing.lean",
+      "sha256": "30a820a4748a91ffca02125ca35afe1a2e74721dede493e22e0d099bc2eb6714",
+      "lines": 76,
+      "bytes": 2763,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "brahmagupta_fibonacci_identity"
+        },
+        {
+          "kind": "theorem",
+          "name": "squareNorm_bfProduct"
+        },
+        {
+          "kind": "theorem",
+          "name": "bfProduct_one_left"
+        },
+        {
+          "kind": "theorem",
+          "name": "bfProduct_one_right"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Lambda/SchurConcave.lean",
+      "rel_repo": "Lutar/Lambda/SchurConcave.lean",
+      "dataset_path": "lean_source/Lutar/Lambda/SchurConcave.lean",
+      "space_path": "theorems/Lutar/Lambda/SchurConcave.lean",
+      "sha256": "508e9c98a7cba5e268a9f1d5ecbcdcb10f420fc7e94c60015d87decc3c40c545",
+      "lines": 192,
+      "bytes": 8753,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "product_weakly_increases_under_equalising_transfer"
+        },
+        {
+          "kind": "theorem",
+          "name": "lambda_two_axis_schur_concave"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/OVERWATCH/ReadOnly.lean",
+      "rel_repo": "Lutar/OVERWATCH/ReadOnly.lean",
+      "dataset_path": "lean_source/Lutar/OVERWATCH/ReadOnly.lean",
+      "space_path": "theorems/Lutar/OVERWATCH/ReadOnly.lean",
+      "sha256": "c829c1547e2fb274476beab449acdd92b01a2228e13e307a29de27c1c081f4fc",
+      "lines": 164,
+      "bytes": 6238,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "overwatch_no_writes"
+        },
+        {
+          "kind": "theorem",
+          "name": "overwatch_read_admitted"
+        },
+        {
+          "kind": "theorem",
+          "name": "overwatch_rejects_write"
+        },
+        {
+          "kind": "theorem",
+          "name": "overwatch_rejects_exec"
+        },
+        {
+          "kind": "theorem",
+          "name": "overwatch_halt_separation_of_powers"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/PACBayes/MadhavaBound.lean",
+      "rel_repo": "Lutar/PACBayes/MadhavaBound.lean",
+      "dataset_path": "lean_source/Lutar/PACBayes/MadhavaBound.lean",
+      "space_path": "theorems/Lutar/PACBayes/MadhavaBound.lean",
+      "sha256": "a07e0ee38a9eb043feead8ee5b52d19bcfff80df9a18a46ee999f4db94f84b24",
+      "lines": 147,
+      "bytes": 6890,
+      "sorry_count": 4,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "madhavaRemainderBound_nonneg"
+        },
+        {
+          "kind": "theorem",
+          "name": "madhavaRemainderBound_at_zero"
+        },
+        {
+          "kind": "theorem",
+          "name": "madhavaRemainderBound_anti"
+        },
+        {
+          "kind": "theorem",
+          "name": "madhava_alt_series_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "madhava_arctan_remainder"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/PACBayes.lean",
+      "rel_repo": "Lutar/PACBayes.lean",
+      "dataset_path": "lean_source/Lutar/PACBayes.lean",
+      "space_path": "theorems/Lutar/PACBayes.lean",
+      "sha256": "9fa5a9e6b2d731841f3bfdcbe2b1c66e5474c989c6fe1fe52f457e30a882b24d",
+      "lines": 463,
+      "bytes": 21247,
+      "sorry_count": 11,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "pacBayesBound_mono_kl"
+        },
+        {
+          "kind": "theorem",
+          "name": "pacBayes_inequality_form"
+        },
+        {
+          "kind": "theorem",
+          "name": "pacBayesBound_nonvacuous_iff"
+        },
+        {
+          "kind": "theorem",
+          "name": "governanceHead_PACBayes_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "pacBayesBound_eq_add_slack"
+        },
+        {
+          "kind": "theorem",
+          "name": "badEvent_measurable"
+        },
+        {
+          "kind": "theorem",
+          "name": "chernoff_bad_event_le_delta"
+        },
+        {
+          "kind": "theorem",
+          "name": "th13_pacBayes_probabilistic_wrapper"
+        },
+        {
+          "kind": "theorem",
+          "name": "hoeffding_mgf_tail_bound"
+        },
+        {
+          "kind": "theorem",
+          "name": "sub_gaussian_implies_psi2_bound"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/PRNG/K10v2_ReplayRoot.lean",
+      "rel_repo": "Lutar/PRNG/K10v2_ReplayRoot.lean",
+      "dataset_path": "lean_source/Lutar/PRNG/K10v2_ReplayRoot.lean",
+      "space_path": "theorems/Lutar/PRNG/K10v2_ReplayRoot.lean",
+      "sha256": "dbb04546ba78a828f0a847837c55f0ef1d3e0ac26d4f6e1a0b262f8515275bd4",
+      "lines": 163,
+      "bytes": 6279,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "isReplayRoot_decidable"
+        },
+        {
+          "kind": "theorem",
+          "name": "isReplayRoot_correct"
+        },
+        {
+          "kind": "theorem",
+          "name": "xoshiroOutput_eq_of_state_eq"
+        },
+        {
+          "kind": "theorem",
+          "name": "generateOutputs_eq_of_eq"
+        },
+        {
+          "kind": "theorem",
+          "name": "replayRoot_unique_in_list"
+        },
+        {
+          "kind": "theorem",
+          "name": "findReplayRoot_sound"
+        },
+        {
+          "kind": "theorem",
+          "name": "findReplayRoot_complete"
+        },
+        {
+          "kind": "theorem",
+          "name": "xoshiro_period_bound"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/PositionAware.lean",
+      "rel_repo": "Lutar/PositionAware.lean",
+      "dataset_path": "lean_source/Lutar/PositionAware.lean",
+      "space_path": "theorems/Lutar/PositionAware.lean",
+      "sha256": "b140d557797cc8aa8ef59c97d973edb696d47666be3f53cfbdc3b0a6e213d724",
+      "lines": 129,
+      "bytes": 5710,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "dist_iso_inv"
+        },
+        {
+          "kind": "theorem",
+          "name": "positionEncoding_equivariant"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Precision/SexagesimalRegular.lean",
+      "rel_repo": "Lutar/Precision/SexagesimalRegular.lean",
+      "dataset_path": "lean_source/Lutar/Precision/SexagesimalRegular.lean",
+      "space_path": "theorems/Lutar/Precision/SexagesimalRegular.lean",
+      "sha256": "d2658e79073cab84c6f2072996b8b75cd83ae85478bd68c1d86c3f79883f89d8",
+      "lines": 59,
+      "bytes": 2359,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "nineAxisDenominators_all_bounded_regular"
+        },
+        {
+          "kind": "theorem",
+          "name": "nine_axis_weight_is_sex_regular"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/Propagation/RelayChain.lean",
+      "rel_repo": "Lutar/Propagation/RelayChain.lean",
+      "dataset_path": "lean_source/Lutar/Propagation/RelayChain.lean",
+      "space_path": "theorems/Lutar/Propagation/RelayChain.lean",
+      "sha256": "e3a22311343fb98416793b749b291bc5d93e829dba3a923b170984965afc87b9",
+      "lines": 70,
+      "bytes": 2506,
+      "sorry_count": 1,
+      "group": "B",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "relay_chain_bounded_latency"
+        },
+        {
+          "kind": "theorem",
+          "name": "totalLatency_nil"
+        },
+        {
+          "kind": "theorem",
+          "name": "totalLatency_nonneg"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/QEC/CSSBridge.lean",
+      "rel_repo": "Lutar/QEC/CSSBridge.lean",
+      "dataset_path": "lean_source/Lutar/QEC/CSSBridge.lean",
+      "space_path": "theorems/Lutar/QEC/CSSBridge.lean",
+      "sha256": "1dd25d2ddd25f82903e95c69dfeb8a34673b8e35794ae8d01737475e5aee37a7",
+      "lines": 79,
+      "bytes": 2776,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "css_bridge_consistent"
+        },
+        {
+          "kind": "theorem",
+          "name": "css_bridge_injective"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/QEC/HammingFoundations.lean",
+      "rel_repo": "Lutar/QEC/HammingFoundations.lean",
+      "dataset_path": "lean_source/Lutar/QEC/HammingFoundations.lean",
+      "space_path": "theorems/Lutar/QEC/HammingFoundations.lean",
+      "sha256": "cc7d7a06dd31287f9896be8a7d87b72d131a842433b9c0f5c37f23ba3f4464e8",
+      "lines": 71,
+      "bytes": 2694,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "hamming_dist_self"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/QEC/KitaevSurface.lean",
+      "rel_repo": "Lutar/QEC/KitaevSurface.lean",
+      "dataset_path": "lean_source/Lutar/QEC/KitaevSurface.lean",
+      "space_path": "theorems/Lutar/QEC/KitaevSurface.lean",
+      "sha256": "66cf67138326288e27551dfd72a8296eaabb7bcade4a5b2824e5a783543f7258",
+      "lines": 92,
+      "bytes": 3263,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "kitaev_single_site_flips_parity_n"
+        },
+        {
+          "kind": "theorem",
+          "name": "kitaev_no_errors_zero_parity"
+        },
+        {
+          "kind": "theorem",
+          "name": "kitaev_all_errors_zero_parity"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/QEC/ShorReceiptCode.lean",
+      "rel_repo": "Lutar/QEC/ShorReceiptCode.lean",
+      "dataset_path": "lean_source/Lutar/QEC/ShorReceiptCode.lean",
+      "space_path": "theorems/Lutar/QEC/ShorReceiptCode.lean",
+      "sha256": "7f76b8649d457080601371fd74706976577af11d3d2001f6267858537963d71e",
+      "lines": 120,
+      "bytes": 4695,
+      "sorry_count": 0,
+      "group": "A",
+      "declarations": [
+        {
+          "kind": "theorem",
+          "name": "shor_single_fault_corrects"
+        },
+        {
+          "kind": "theorem",
+          "name": "shor_encode_first"
+        },
+        {
+          "kind": "theorem",
+          "name": "shor_encode_all_equal"
+        },
+        {
+          "kind": "theorem",
+          "name": "shor_clean_roundtrip"
+        }
+      ]
+    },
+    {
+      "local_path": "/home/user/workspace/szl/repos/lutar-lean/Lutar/SBOMProvenance.lean",
+      "rel_repo": "Lutar/SBOMProvenance.lean",
+      "dataset_path": "lean_source/Lutar/SBOMProvenance.lean",
+      "space_path": "theorems/Lutar/SBOMProvenance.lean",
+      "sha256": "f2aa6b581c0c50ed8ac1296f98694764e02e79103ffc640c3127b70cf4fdfe79",
+      "lines": 227,
+      "bytes": 9648,
+      "sorry_count": 3,
+      "group": "B",
+      "declarations": [
+        {
+          "k

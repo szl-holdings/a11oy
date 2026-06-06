@@ -1,0 +1,16 @@
+{
+  "name": "k-verify-benchmark-v1",
+  "version": "1.0.0",
+  "total": 100,
+  "categories": {
+    "STEM": 28,
+    "history": 22,
+    "current-events": 26,
+    "reasoning": 14,
+    "computation": 10
+  },
+  "unverifiable_traps": 15,
+  "verifiable": 85,
+  "sha256_jsonl": "dc0a12efd873f6b9174e9c247c9fe5158b21a681514dc79637edafb198412915",
+  "author": "Yachay / SZL Holdings"
+}

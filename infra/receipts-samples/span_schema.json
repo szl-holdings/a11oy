@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huggingface.co/datasets/szl-holdings/uds-observability/schemas/span_schema.json",
+  "title": "UDS Span",
+  "description": "A single UDS (Unified Data Substrate) observability span, shaped to the OpenTelemetry Trace Data Model (https://opentelemetry.io/docs/specs/otel/trace/api/) and extended with SZL governance fields for SLSA attestation linkage.",
+  "type": "object",
+  "required": [
+    "trace_id",
+    "span_id",
+    "component",
+    "kind",
+    "timestamp_utc",
+    "duration_ms",
+    "status",
+    "synthetic"
+  ],
+  "properties": {
+    "trace_id": {
+      "type": "string",
+      "description": "128-bit globally unique trace identifier, hex-encoded (32 chars). Conforms to W3C Trace Context (https://www.w3.org/TR/trace-context/#trace-id). Groups all spans belonging to a single end-to-end request.",
+      "pattern": "^[0-9a-f]{32}$",
+      "examples": ["4bf92f3577b34da6a3ce929d0e0e4736"]
+    },
+    "span_id": {
+      "type": "string",
+      "description": "64-bit unique span identifier within the trace, hex-encoded (16 chars). Conforms to the OpenTelemetry SpanContext spec (https://opentelemetry.io/docs/specs/otel/trace/api/#spancontext).",
+      "pattern": "^[0-9a-f]{16}$",
+      "examples": ["00f067aa0ba902b7"]
+    },
+    "parent_span_id": {
+      "type": ["string", "null"],
+      "description": "Span ID of the parent span, or null for a root span. Used to reconstruct the directed-acyclic-graph (DAG) of spans within a trace per the OpenTelemetry Traces spec (https://opentelemetry.io/docs/concepts/signals/traces/).",
+      "pattern": "^([0-9a-f]{16})?$",
+      "examples": ["5e8b6c0d1a4f2e9d", null]
+    },
+    "component": {
+      "type": "string",
+      "description": "The SZL mesh component that emitted the span. One of the four UDS mesh components versioned at commit 25a7e53 (uds-v0.2.0).",
+      "enum": ["a11oy", "amaru", "rosie", "sentra"],
+      "examples": ["a11oy"]
+    },
+    "component_commit": {
+      "type": "string",
+      "description": "Short-form commit SHA of the specific component release that emitted the span. Used for supply-chain traceability per SLSA provenance requirements (https://slsa.dev/spec/v1.0/provenance).",
+      "examples": ["cbf10510", "1ceefeb9", "29982b68", "ed6bca8f"]
+    },
+    "attestation_id": {
+      "type": ["string", "null"],
+      "description": "Opaque string identifier linking this span to a governance receipt in the DSSE-wrapped receipts file. Null when the span has not yet been attested. A non-null value indicates the span is 'well-attested' for the binary classification task defined in eval_starter.ipynb.",
+      "examples": ["att-a11oy-001", null]
+    },
+    "dsse_envelope_b64": {
+      "type": ["string", "null"],
+      "description": "Base64url-encoded DSSE (Dead Simple Signing Envelope, https://github.com/secure-systems-lab/dsse) payload. Contains the in-toto attestation predicate for this span when present. Null for unattested spans. The PAE (Pre-Authentication Encoding) format follows the DSSE v1 spec: 'DSSEv1 SP LEN(type) SP type SP LEN(payload) SP payload'.",
+      "contentEncoding": "base64url",
+      "examples": [null]
+    },
+    "kind": {
+      "type": "string",
+      "description": "UDS span kind. Extends the OpenTelemetry SpanKind vocabulary (https://opentelemetry.io/docs/specs/otel/trace/api/#spankind) with UDS-specific governance and agent operation kinds. Core OTel kinds: CLIENT, SERVER, INTERNAL, PRODUCER, CONSUMER.",
+      "enum": [
+        "agent_call",
+        "tool_invocation",
+        "attestation_emit",
+        "receipt_verify",
+        "sbom_probe",
+        "policy_eval",
+        "sensor_ingest",
+        "model_inference",
+        "data_fetch",
+        "receipt_chain_append",
+        "CLIENT",
+        "SERVER",
+        "INTERNAL",
+        "PRODUCER",
+        "CONSUMER"
+      ],
+      "examples": ["agent_call", "attestation_emit"]
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp marking the start of the span. Aligns with OTel Span start_time_unix_nano semantics (https://opentelemetry.io/docs/specs/otel/trace/api/#span-start).",
+      "examples": ["2026-01-15T10:23:45.123456Z"]
+    },
+    "duration_ms": {
+      "type": "number",
+      "description": "Span duration in milliseconds (float). Derived from OTel start_time_unix_nano and end_time_unix_nano. Must be >= 0.",
+      "minimum": 0,
+      "examples": [42.7, 1023.1]
+    },
+    "status": {
+      "type": "string",
+      "description": "Span status per the OpenTelemetry Status spec (https://opentelemetry.io/docs/specs/otel/trace/api/#set-status). Unset = operation completed without error; Error = error occurred; Ok = explicitly marked error-free by the developer.",
+      "enum": ["Unset", "Ok", "Error"],
+      "examples": ["Ok"]
+    },
+    "status_message": {
+      "type": ["string", "null"],
+      "description": "Human-readable description of the status, populated when status is Error.",
+      "examples": [null, "Policy check failed: missing required field 'subject_sha256'"]
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Key-value pairs carrying span-specific metadata. Values must be string, boolean, number, or homogeneous arrays thereof per the OTel Attributes spec (https://opentelemetry.io/docs/specs/otel/common/). SZL-specific keys are prefixed 'szl.'.",
+      "additionalProperties": {
+        "oneOf": [
+          {"type": "string"},
+          {"type": "boolean"},
+          {"type": "number"},
+          {"type": "array", "items": {"type": "string"}},
+          {"type": "array", "items": {"type": "number"}},
+          {"type": "array", "items": {"type": "boolean"}}
+        ]
+      },
+      "examples": [{"szl.component_version": "0.2.0", "szl.slsa_level": 2, "http.method": "POST"}]
+    },
+    "events": {
+      "type": "array",
+      "description": "Timestamped annotations on the span, per the OTel SpanEvent spec (https://opentelemetry.io/docs/specs/otel/trace/api/#add-events). Useful for recording discrete governance checkpoints mid-span.",
+      "items": {
+        "type": "object",
+        "required": ["name", "timestamp_utc"],
+        "properties": {
+          "name": {"type": "string"},
+          "timestamp_utc": {"type": "string", "format": "date-time"},
+          "attributes": {"type": "object"}
+        }
+      }
+    },
+    "slsa_level": {
+      "type": ["integer", "null"],
+      "description": "Observed SLSA level (https://slsa.dev/spec/v1.0/levels) at span emission time. Integer 0–3 per the SLSA v1.0 track taxonomy. Null when SLSA posture is unknown.",
+      "minimum": 0,
+      "maximum": 3,
+      "examples": [2, null]
+    },
+    "mesh_commit": {
+      "type": "string",
+      "description": "The uds-mesh commit SHA at which this span was captured. Canonical anchor: github.com/szl-holdings/uds-mesh @ uds-v0.2.0 (commit 25a7e53).",
+      "examples": ["25a7e53"]
+    },
+    "split": {
+      "type": "string",
+      "description": "Dataset split assignment: train, test, or validation.",
+      "enum": ["train", "test", "validation"],
+      "examples": ["train"]
+    },
+    "synthetic": {
+      "type": "boolean",
+      "description": "True for all records in this dataset release. All spans are synthetic-but-realistic examples generated to match the statistical distribution of production UDS mesh traffic. No live production data is included in v0.1.0.",
+      "const": true
+    }
+  },
+  "additionalProperties": false
+}

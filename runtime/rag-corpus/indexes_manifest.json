@@ -1,0 +1,38 @@
+{
+  "model": "BAAI/bge-base-en-v1.5",
+  "dim": 768,
+  "n_chunks": 762,
+  "organs": {
+    "cortex": {
+      "n": 679,
+      "faiss": "cortex.faiss",
+      "ids": "cortex.ids.json"
+    },
+    "immune": {
+      "n": 12,
+      "faiss": "immune.faiss",
+      "ids": "immune.ids.json"
+    },
+    "receipt": {
+      "n": 16,
+      "faiss": "receipt.faiss",
+      "ids": "receipt.ids.json"
+    },
+    "gate": {
+      "n": 63,
+      "faiss": "gate.faiss",
+      "ids": "gate.ids.json"
+    },
+    "nervous": {
+      "n": 4,
+      "faiss": "nervous.faiss",
+      "ids": "nervous.ids.json"
+    },
+    "all": {
+      "n": 762,
+      "faiss": "all.faiss",
+      "ids": "all.ids.json"
+    }
+  },
+  "doctrine": "v10/v11"
+}

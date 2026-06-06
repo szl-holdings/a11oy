@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huggingface.co/datasets/szl-holdings/uds-observability/schemas/receipt_schema.json",
+  "title": "UDS Governance Receipt (DSSE-Wrapped)",
+  "description": "A DSSE-wrapped (Dead Simple Signing Envelope, https://github.com/secure-systems-lab/dsse) governance receipt for a UDS span. The receipt attests to the span's provenance using an in-toto attestation predicate (https://github.com/in-toto/attestation) shaped per SLSA Provenance v1.0 (https://slsa.dev/spec/v1.0/provenance). Part of the 5-link SLSA attestation chain in extended-attestations.jsonl at uds-mesh commit 25a7e53.",
+  "type": "object",
+  "required": [
+    "receipt_id",
+    "span_id",
+    "trace_id",
+    "component",
+    "dsse_envelope",
+    "issued_at_utc",
+    "synthetic"
+  ],
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "description": "Unique receipt identifier. Monotonically increasing per component for deterministic pairing with spans.",
+      "examples": ["att-a11oy-001"]
+    },
+    "span_id": {
+      "type": "string",
+      "description": "The span_id of the UDS span this receipt attests to. Foreign key into spans_sample.jsonl.",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "The trace_id of the trace containing the attested span. Allows receipt-to-trace correlation without needing span data.",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "component": {
+      "type": "string",
+      "description": "The UDS mesh component that issued this receipt.",
+      "enum": ["a11oy", "amaru", "rosie", "sentra"]
+    },
+    "dsse_envelope": {
+      "type": "object",
+      "description": "The DSSE envelope (https://github.com/secure-systems-lab/dsse). Payload is an in-toto attestation statement (https://github.com/in-toto/attestation/blob/main/spec/README.md) with a SLSA Provenance v1.0 predicate (https://slsa.dev/spec/v1.0/provenance). Signatures in this dataset use HMAC-SHA-256 with a dev key (see slsa_dsse_substrate.py §1.5); production deployments should use Ed25519 via cosign.",
+      "required": ["payload", "payloadType", "signatures"],
+      "properties": {
+        "payload": {
+          "type": "string",
+          "description": "Base64-encoded in-toto attestation statement JSON. The PAE (Pre-Authentication Encoding) signing input is: 'DSSEv1 SP LEN(payloadType) SP payloadType SP LEN(payload_bytes) SP payload_bytes'.",
+          "contentEncoding": "base64"
+        },
+        "payloadType": {
+          "type": "string",
+          "description": "Media type of the payload. Must be 'application/vnd.in-toto+json' per the in-toto attestation spec (https://github.com/in-toto/attestation).",
+          "const": "application/vnd.in-toto+json"
+        },
+        "signatures": {
+          "type": "array",
+          "description": "Array of signature objects per the DSSE envelope spec.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["keyid", "sig"],
+            "properties": {
+              "keyid": {
+                "type": "string",
+                "description": "Key identifier, formatted as a DID URL (https://www.w3.org/TR/did-core/) for production or a short string for dev fixtures."
+              },
+              "sig": {
+                "type": "string",
+                "description": "Base64-encoded signature bytes over the PAE-encoded payload."
+              }
+            }
+          }
+        }
+      }
+    },
+    "predicate_type": {
+      "type": "string",
+      "description": "The in-toto predicate type URI. 'https://slsa.dev/provenance/v1' for SLSA Provenance v1.0 attestations.",
+      "examples": ["https://slsa.dev/provenance/v1"]
+    },
+    "subject_name": {
+      "type": "string",
+      "description": "Human-readable subject of the attestation, typically '{component}:{span_id}'.",
+      "examples": ["a11oy:00f067aa0ba902b7"]
+    },
+    "subject_sha256": {
+      "type": "string",
+      "description": "SHA-256 digest of the canonical JSON serialization of the attested span. Binds the receipt to the span content per SLSA subject requirements (https://slsa.dev/spec/v1.0/provenance#schema).",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "builder_id": {
+      "type": "string",
+      "description": "SLSA builder identifier (https://slsa.dev/spec/v1.0/provenance#builderid). Uses the SZL DID method: 'did:web:szlholdings.com:{component}'.",
+      "examples": ["did:web:szlholdings.com:a11oy"]
+    },
+    "slsa_level_claimed": {
+      "type": "integer",
+      "description": "The SLSA level claimed by this receipt (https://slsa.dev/spec/v1.0/levels). Verified externally; this dataset does not include a verifier.",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "issued_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of receipt issuance."
+    },
+    "mesh_commit": {
+      "type": "string",
+      "description": "uds-mesh commit SHA at receipt issuance. Canonical: 25a7e53 (uds-v0.2.0).",
+      "examples": ["25a7e53"]
+    },
+    "chain_position": {
+      "type": ["integer", "null"],
+      "description": "Position (1-indexed) of this receipt in the 5-link SLSA attestation chain in extended-attestations.jsonl. Null for standalone receipts not part of the chain.",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "synthetic": {
+      "type": "boolean",
+      "description": "True for all records in v0.1.0. All receipts are synthetic fixtures; no live SLSA chain material is included.",
+      "const": true
+    }
+  },
+  "additionalProperties": false
+}
