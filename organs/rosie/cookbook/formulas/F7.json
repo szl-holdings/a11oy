@@ -1,9 +1,0 @@
-{
- "id": "F7",
- "name": "yuyay_axis_value",
- "description": "Per-axis value map for the Yuyay gate.",
- "status": "OPEN_CONJECTURE",
- "honesty_note": "Defined; aggregate guarantee conjectural.",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

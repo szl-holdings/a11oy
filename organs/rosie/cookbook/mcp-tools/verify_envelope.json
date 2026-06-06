@@ -1,7 +1,0 @@
-{
- "name": "verify_envelope",
- "description": "Verify a DSSE envelope against the public-key fingerprint.",
- "namespace": "hatun-mcp",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

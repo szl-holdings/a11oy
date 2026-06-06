@@ -78,7 +78,7 @@ jobs:
           else
             TAG="${GITHUB_REF_NAME}"
           fi
-          # Strip leading 'v' for Zarf metadata version field
+          # Strip the 'v' prefix for Zarf metadata version field
           VERSION="${TAG#v}"
           echo "tag=${TAG}"     >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"

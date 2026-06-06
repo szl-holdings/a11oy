@@ -1,9 +1,0 @@
-{
- "id": "F18",
- "name": "ayni_replay_fold",
- "description": "Event-sourced AYNI replay fold.",
- "status": "OPEN_CONJECTURE",
- "honesty_note": "Defined; determinism claim conjectural under concurrency.",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

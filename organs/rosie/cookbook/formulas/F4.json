@@ -1,9 +1,0 @@
-{
- "id": "F4",
- "name": "monotone_aggregator",
- "description": "Monotonicity of the aggregator.",
- "status": "PROVEN",
- "honesty_note": "Lean-proven (IsMonotone).",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

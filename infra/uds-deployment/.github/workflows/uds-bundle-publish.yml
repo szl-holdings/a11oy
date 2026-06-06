@@ -89,7 +89,7 @@ jobs:
           else
             TAG="${GITHUB_REF_NAME}"
           fi
-          # Strip a leading 'uds-v' or 'v' to get the bundle metadata version.
+          # Strip a 'uds-v' or 'v' prefix to get the bundle metadata version.
           VERSION="${TAG#uds-v}"
           VERSION="${VERSION#v}"
           echo "tag=${TAG}"        >> "$GITHUB_OUTPUT"

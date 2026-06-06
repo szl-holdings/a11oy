@@ -1,9 +1,0 @@
-{
- "id": "F12",
- "name": "recall_kind_weight",
- "description": "Kind-weighting (recipe 1.15 / lean 0.85) for recall.",
- "status": "OPEN_CONJECTURE",
- "honesty_note": "Heuristic weight; not proven optimal.",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

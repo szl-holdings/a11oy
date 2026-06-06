@@ -109,7 +109,7 @@ jobs:
           # Also build the root zarf.yaml if it exists and differs
           if [ -f "uds/zarf.yaml" ]; then
             # uds/zarf.yaml uses ###ZARF_PKG_TMPL_VERSION### — must supply --set VERSION
-            PKG_VERSION="${GITHUB_REF_NAME#v}"  # strip leading v from tag; or use 0.3.1 default
+            PKG_VERSION="${GITHUB_REF_NAME#v}"  # strip the v prefix from tag; or use 0.3.1 default
             PKG_VERSION="${PKG_VERSION:-0.3.1}"
             zarf package create uds \
               --set VERSION="${PKG_VERSION}" \
