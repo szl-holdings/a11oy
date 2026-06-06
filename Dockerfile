@@ -285,12 +285,52 @@ COPY szl_ayni_quorum.py ./szl_ayni_quorum.py
 # Governed agent loop module (RAG->tool-call->policy/trust->signed-receipt + canonical /mcp/).
 COPY szl_agentic_loop.py ./szl_agentic_loop.py
 
+# a11oy Code engine (governed chat/code/research; C20/W7-5 router; W5-3/W7-4 conformal;
+# C10-C12 consensus; REAL restricted-subprocess sandbox). Per-file COPY (this Dockerfile
+# never uses `COPY . .`) -- without this `import a11oy_code_engine` fails at boot and the
+# /api/a11oy/v1/code/* routes fall through to the SPA. Imports only stdlib + the already-
+# present szl_agentic_loop primitives; OPEN-WEIGHT roster only, NO closed weights, NO keys.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY a11oy_code_engine.py ./a11oy_code_engine.py
+
 # Warhacker mission tabs backend (5 investor-facing surfaces; reuses
 # szl_agentic_loop primitives + the in-image signer). Per-file COPY
 # (this Dockerfile never uses `COPY . .`) — without this
 # `import szl_warhacker_real` fails at boot.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY szl_warhacker_real.py ./szl_warhacker_real.py
+
+# ---------------------------------------------------------------------------
+# OPEN-WEIGHT ALLOY MODEL LAYER (model-integration squad, 2026-06-06, ADDITIVE)
+# Forges the strongest OPEN-WEIGHT coding models into a11oy's brains, BOUND by
+# proven formulas (C20/W7-5 router, W5-3/W7-4 conformal, C10-C12 consensus),
+# UNIFIED into the existing LLM registry (one roster, not two).
+#   * szl_alloy_models.py : roster + router + conformal + consensus + governed
+#     suggest + local GGUF backend (honest tower-side label when no GGUF mounted).
+#   * szl_llm_registry.py : the EXISTING registry module (was imported in serve.py
+#     but NEVER COPY'd -> import failed silently / /llm/registry 404). This COPY
+#     makes the unified roster genuinely LIVE.
+#   * szl_elite_console.py: existing console module imported by serve.py.
+# Per-file COPY (this Dockerfile never uses `COPY . .`). OPEN-WEIGHT only, NO
+# closed weights, NO keys. Weights NOT redistributed (loaded by hf_repo at
+# runtime / tower-side).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY szl_llm_registry.py ./szl_llm_registry.py
+COPY szl_elite_console.py ./szl_elite_console.py
+COPY szl_alloy_models.py ./szl_alloy_models.py
+
+# OPTIONAL live CPU demo tier: try to install llama.cpp + fetch ONE tiny
+# Apache-2.0 GGUF (Qwen2.5-Coder-0.5B-Instruct Q4_K_M) so the demo tier can
+# serve REAL output on cpu-basic. Both steps are NON-FATAL (`|| echo ...`): if
+# the wheel build or download fails on this hardware, the alloy layer falls back
+# to the HONEST tower-side label and NEVER fakes output. We never redistribute
+# the weight in our repo — it is fetched from the original HF repo at build time.
+RUN pip install --no-cache-dir "llama-cpp-python>=0.2.79" \
+    || echo "[a11oy] llama-cpp-python unavailable on this hardware -> alloy demo tier falls back to honest tower-side label"
+RUN mkdir -p /app/models && python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF', filename='qwen2.5-coder-0.5b-instruct-q4_k_m.gguf', local_dir='/app/models')" \
+    || echo "[a11oy] GGUF fetch skipped/failed -> alloy demo tier falls back to honest tower-side label"
+ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 
 CMD ["python", "serve.py"]
 
@@ -299,3 +339,10 @@ CMD ["python", "serve.py"]
 # szl_parity_gaps.py already COPY'd at line 68 (commit 543ca95).
 # Added COPY szl_receipt_substrate.py + szl_alloy_embed_fabric.py + szl_ayni_quorum.py.
 # All 5 parity endpoints now deployable. All 63 COPY sources verified present in repo.
+
+# Build cache-bust 2026-06-06T09:00Z (model-integration squad, Opus 4.8):
+# Added OPEN-WEIGHT ALLOY MODEL LAYER: COPY szl_alloy_models.py + szl_llm_registry.py
+# (was 404/never-copied) + szl_elite_console.py; optional non-fatal llama-cpp-python +
+# tiny Apache-2.0 GGUF fetch for the live CPU demo tier (honest tower-side fallback).
+# UNIFIED into the existing LLM registry (one roster). DeepSeek-Coder-V2 = CODE_PRIMARY.
+# C20/W7-5 router, W5-3/W7-4 conformal, C10-C12 consensus; every call -> signed receipt.

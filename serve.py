@@ -4067,6 +4067,61 @@ except Exception as _loop_e:
 
 
 # ============================================================================
+# BEGIN: OPEN-WEIGHT ALLOY MODEL LAYER — a11oy (2026-06-06, ADDITIVE)
+# Model-integration squad (Opus 4.8). Forges the strongest GPT/Claude-competitive
+# OPEN-WEIGHT coding models (DeepSeek-Coder-V2 CODE_PRIMARY, DeepSeek-V2.5,
+# Qwen2.5-Coder-32B/14B/7B Apache-2.0, Llama-3.3-70B, DeepSeek-Coder-6.7B; Codestral
+# flagged NON-COMMERCIAL/excluded) into a11oy's brains, BOUND by proven formulas:
+#   * MULTI-MODEL ROUTER  -> C20 softmax order-stability + W7-5 PAC-Bayes min<=avg<=max
+#   * CONFORMAL CALIBRATION (W5-3/W7-4) -> distribution-free band, anti-overconfidence
+#     floor 1/(n+1), NEVER 100%.
+#   * CONSENSUS VOTING (C10/C11 proven; C12 bivalence core) -> n>=3f+1 Byzantine quorum.
+#   * Every alloy call flows as ONE HOP through the proven loop -> REAL signed receipt
+#     (reuses a11oy's in-image _a11oy_sign_receipt ECDSA-P256 signer).
+# UNIFY-not-fork: szl_alloy_models extends szl_llm_registry.MODEL_REGISTRY (one roster,
+# not two). Open weights only; weights NOT redistributed (loaded by hf_repo at runtime /
+# tower-side). NO closed weights, NO AGI claims. Routes inserted at position 0 so they
+# beat the /api/a11oy/{path:path} proxy + SPA catch-all. NEVER fakes model output: when
+# no local GGUF is mounted it returns an HONEST tower-side label. try/except guarded.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_ALLOY_DIAG = {"status": "not-run"}
+try:
+    from starlette.routing import Route as _AlloyDiagRoute
+    from starlette.responses import JSONResponse as _AlloyDiagJSON
+    async def _a11oy_alloy_diag_route(request):
+        return _AlloyDiagJSON(_ALLOY_DIAG)
+    for _adp in ("/api/a11oy/v1/alloy/_diag", "/v1/alloy/_diag"):
+        app.router.routes.insert(0, _AlloyDiagRoute(_adp, _a11oy_alloy_diag_route,
+                                                    methods=["GET"], name="a11oy_alloy_diag_%s" % _adp.count('/')))
+except Exception:
+    pass
+
+try:
+    import szl_alloy_models as _szl_alloy
+    import sys as _alloy_sys
+    _alloy_status = _szl_alloy.register(app, "a11oy", _a11oy_sign_receipt)
+    # UNIFY the open-weight roster INTO the existing LLM registry (one coherent
+    # system, not two). Idempotent; preserves the legacy closed honest-stub models.
+    try:
+        _alloy_unify = _szl_alloy.unify_into_registry()
+    except Exception as _ue:
+        _alloy_unify = {"unified": False, "error": repr(_ue)}
+    print(f"[a11oy] open-weight alloy model layer registered: {_alloy_status}; unify={_alloy_unify}", file=_alloy_sys.stderr)
+    _ALLOY_DIAG = {"status": "ok", "registered": _alloy_status, "unify": _alloy_unify}
+except Exception as _alloy_e:
+    import sys as _alloy_sys, traceback as _alloy_tb
+    print(f"[a11oy] open-weight alloy model layer FAILED (non-fatal): {_alloy_e!r}", file=_alloy_sys.stderr)
+    _alloy_tb.print_exc(file=_alloy_sys.stderr)
+    _ALLOY_DIAG = {"status": "FAILED", "error": repr(_alloy_e),
+                   "traceback": _alloy_tb.format_exc()}
+# ============================================================================
+# END: OPEN-WEIGHT ALLOY MODEL LAYER — a11oy
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: WARHACKER MISSION TABS — a11oy (2026-06-06, ADDITIVE, real-operational)
 # Registers the 5 investor-facing mission surfaces (AI Oversight / Deploy Posture
 # / Mission Health / Trajectory Picture / Edge Run) as REAL endpoints under BOTH
@@ -4092,6 +4147,60 @@ except Exception as _whr_e:
     _WHR_DIAG = {"status": "FAILED", "error": repr(_whr_e)}
 # ============================================================================
 # END: WARHACKER MISSION TABS — a11oy
+# ============================================================================
+
+
+# ============================================================================
+# BEGIN: a11oy CODE — governed agentic coder + chatbot + research (2026-06-06,
+# ADDITIVE, v11 locked). The founder's "a11oy Code" tab backend: THREE governed
+# modes (chat / code / research), each flowing through the SAME proven P1-P6
+# 6-receipt loop primitives (szl_agentic_loop) and emitting a signed, re-
+# verifiable receipt via a11oy's REAL in-image signer (_a11oy_sign_receipt) +
+# the loop's verifier (_a11oy_loop_verify). CODE mode actually RUNS code in a
+# REAL governed sandbox (restricted subprocess: rlimits, no network, timeout).
+# Multi-model router = C20 softmax order-stability + W7-5 PAC-Bayes envelope;
+# confidence = W5-3/W7-4 conformal (never 100%); consensus = C10-C12. Roster is
+# OPEN-WEIGHT ONLY (closed API models are NEVER presented as baked-in) and DEFERS
+# to the forge squad's szl_llm_registry open-weight entries when present. Routes
+# inserted BEFORE the SPA catch-all; try/except guarded so it can NEVER take down
+# the SPA or any existing route. Coordinated with (not duplicating) the Open-
+# Weight Alloy model layer (szl_alloy_models) — that is the model/router surface;
+# this is the governed coder/chat/research surface on top of the proven loop.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_A11OY_CODE_DIAG = {"status": "not-run"}
+try:
+    from starlette.routing import Route as _CodeDiagRoute
+    from starlette.responses import JSONResponse as _CodeDiagJSON
+    async def _a11oy_code_diag_route(request):
+        return _CodeDiagJSON(_A11OY_CODE_DIAG)
+    app.router.routes.insert(0, _CodeDiagRoute("/api/a11oy/v1/code/_diag",
+                                               _a11oy_code_diag_route, methods=["GET"],
+                                               name="a11oy_code_diag"))
+except Exception:
+    pass
+try:
+    import a11oy_code_engine as _a11oy_code
+    import sys as _code_sys
+    _code_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
+    _code_status = _a11oy_code.register(
+        app, "a11oy",
+        _a11oy_sign_receipt,
+        verify_fn=_code_verify,
+        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
+                      "resets on rebuild, verifiable vs /cosign.pub)"),
+    )
+    print(f"[a11oy] a11oy Code (chat/code/research) registered: {_code_status}", file=_code_sys.stderr)
+    _A11OY_CODE_DIAG = {"status": "ok", "registered": _code_status}
+except Exception as _code_e:
+    import sys as _code_sys, traceback as _code_tb
+    print(f"[a11oy] a11oy Code FAILED (non-fatal): {_code_e!r}", file=_code_sys.stderr)
+    _code_tb.print_exc(file=_code_sys.stderr)
+    _A11OY_CODE_DIAG = {"status": "FAILED", "error": repr(_code_e),
+                        "traceback": _code_tb.format_exc()}
+# ============================================================================
+# END: a11oy CODE — a11oy
 # ============================================================================
 
 

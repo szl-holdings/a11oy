@@ -219,6 +219,8 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="verticals" onclick="go('verticals')"><span class="ico">▦</span>Vertical-Pack Ecosystem</div>
     <div class="nav-group">Models &amp; Tools</div>
     <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
+    <div class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</div>
+    <div class="nav-item" data-view="codetab" onclick="go('codetab')"><span class="ico">⌨</span>a11oy Code</div>
     <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
     <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
     <div class="nav-group">Leader-Grade (NEW)</div>
@@ -613,10 +615,52 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       try{const d=await getJSON(API+'/v1/llm/tiers').catch(()=>orgGet('core','/api/a11oy/v1/reason/tiers'));setOut('l-out',d);const tiers=d.tiers||[];setHTML('l-host','');tiers.forEach(t=>addHTML('l-host',`<div class="row"><span class="badge b-teal">T${esc(t.rank??'')}</span><span>${esc(t.id||t.model||'')}</span><span class="spacer mono dim">${esc(t.use||'')}</span></div>`));}catch(e){setHTML('l-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
       try{const r=await getJSON(API+'/v1/router/stats');const routes=r.routes||[];barH('l-bars',routes.map(x=>x.organ+' \u00b7 '+(x.tier||'')),routes.map(x=>x.throughput||0),routes.map(x=>x.license==='GREEN'?TEAL:GOLD));}catch(e){}}},
 
+  alloy:{title:'Open-Weight Alloy',badge:'OPEN MODELS \u00b7 GOVERNED',sub:'a11oy Code\u2019s brains are the strongest OPEN-WEIGHT coding models (DeepSeek-Coder-V2, Qwen2.5-Coder, Llama-3.3), forged together and bound by our proven formulas. The router picks one (provably order-stable, C20) inside a PAC-Bayes min\u2264avg\u2264max envelope (W7-5), wraps it in a calibrated confidence band that never reports 100% (W5-3/W7-4), can take an N-model Byzantine agreement vote (C10-C12), and seals the choice in a signed receipt. Open weights only \u2014 every license is honored; nothing closed is ever claimed; model output is never faked.',
+    render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Ask the alloy</span><span class="card-ep">governed</span></div>
+      <div class="row"><input id="al-task" class="inp" placeholder="e.g. write a Python function to reverse a string" style="flex:1" value="write a Python function to reverse a string"></div>
+      <div class="btns"><button class="btn teal" onclick="alloy_ask()">Route &amp; suggest</button></div>
+      <pre class="out" id="al-out">\u2014 route &amp; suggest \u2014</pre></div>
+      <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Open-weight roster</span><span class="card-ep">unified</span></div><div id="al-roster" style="max-height:320px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Local serving</span><span class="card-ep">honest</span></div><div id="al-health"><div class="row mono dim">loading\u2026</div></div></div></div>${HONEST}`;
+      window.alloy_load();}},
+
   mcp:{title:'Agent Tools',badge:'LIVE',sub:'The tools the platform exposes to AI agents over the Model Context Protocol. Read the registry, then actually invoke a tool \u2014 every call returns a real, doctrine-stamped response.',
     render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tools available</span><span class="card-ep">live</span></div><div class="chartbox" style="height:220px"><canvas id="mcp-bar"></canvas></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Invoke a tool</span><span class="card-ep">live call</span></div><div class="btns"><button class="btn teal" onclick="mcp_call('lambda_score')">Score trust</button><button class="btn" onclick="mcp_call('a11oy_gate')">Run gate</button><button class="btn" onclick="mcp_call('khipu_sign')">Sign receipt</button><button class="btn" onclick="mcp_call('khipu_verify')">Verify receipt</button></div><pre class="out" id="o-mcp">\u2014 invoke \u2014</pre></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Registry</span></div><div id="mcp-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;window.mcp_list();}},
+
+  codetab:{title:'a11oy Code',badge:'CHAT \u00b7 CODE \u00b7 RESEARCH \u00b7 GOVERNED',sub:'A governed agentic coder you can mathematically trust \u2014 NOT AGI. Three modes (chat, run code, research), and EVERY turn flows through the proven P1\u2013P6 governed loop and emits a signed, re-verifiable receipt. Code actually runs in a real governed sandbox (restricted subprocess: no network, CPU/memory/time limits). The model roster is OPEN-WEIGHT only (Qwen2.5-Coder, Phi, Gemma, Mistral-Nemo, StarCoder2, DeepSeek-Coder, Codestral, Llama) \u2014 nothing closed is ever claimed as baked in. The router pick is stability-bounded (C20), bracketed best\u2013worst (W7-5), and the confidence is conformal (W5-3/W7-4) so it never reports 100%.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Routed model</div><div class="v teal" id="cd-model">\u2014</div><div class="d">C20-stable open-weight pick</div></div>
+      <div class="kpi"><div class="k">Decision</div><div class="v" id="cd-decision">\u2014</div><div class="d">deny-by-default gate</div></div>
+      <div class="kpi"><div class="k">Confidence</div><div class="v" id="cd-conf">\u2014</div><div class="d">conformal \u00b7 never 100%</div></div>
+      <div class="kpi"><div class="k">Receipt</div><div class="v live" id="cd-rcpt">\u2014</div><div class="d">signed \u00b7 verifiable</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Ask a11oy Code</span><span class="card-ep">live \u00b7 governed</span></div>
+        <div class="btns" style="gap:8px;margin-bottom:8px">
+          <button class="btn teal" id="cd-m-chat" onclick="codetab_mode('chat')">Chat</button>
+          <button class="btn" id="cd-m-code" onclick="codetab_mode('code')">Run code</button>
+          <button class="btn" id="cd-m-research" onclick="codetab_mode('research')">Research</button>
+          <span class="mono dim" id="cd-modehint" style="font-size:11px;align-self:center">chat \u2014 multi-turn answer, governed + receipted</span></div>
+        <textarea id="cd-input" class="in" style="width:100%;min-height:88px;padding:10px;background:#0d1411;border:1px solid #1c2a24;color:#cfe;border-radius:6px;font-family:ui-monospace,monospace;font-size:13px">Explain how the governed P1-P6 loop makes a code action trustworthy.</textarea>
+        <div class="btns" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+          <label class="mono dim" style="font-size:12px;align-self:center"><input type="checkbox" id="cd-sandbox" checked/> run in sandbox (code mode)</label>
+          <input id="cd-untrusted" class="in" placeholder="optional untrusted input (e.g. a hostile comment) \u2014 quarantined by P3" style="flex:1;min-width:240px;padding:8px;background:#0d1411;border:1px solid #1c2a24;color:#cfe;border-radius:6px;font-size:12px"/>
+          <button class="btn teal" onclick="codetab_run()">Run governed turn</button></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Result</span><span class="card-ep" id="cd-result-ep">\u2014</span></div><div id="cd-result"><div class="row mono dim">\u2014 run a turn \u2014</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">Governed loop \u2014 the 6 receipts</span><span class="card-ep">P1\u2013P6</span></div><div id="cd-chain"><div class="row mono dim">\u2014</div></div>
+          <div class="btns" style="margin-top:8px"><button class="btn" id="cd-verify-btn" onclick="codetab_verify()" disabled>Verify this receipt chain</button><button class="btn" id="cd-tamper-btn" onclick="codetab_tamper()" disabled>Tamper test</button></div>
+          <div id="cd-verify" class="row mono dim" style="margin-top:6px">\u2014 run a turn, then verify \u2014</div></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><span class="card-t">Open-weight roster</span><span class="card-ep">licensed \u00b7 offline-bakeable</span></div><div id="cd-roster" style="max-height:240px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div>
+        <div class="card"><div class="card-h"><span class="card-t">How each turn is governed</span><span class="card-ep">proven (experimental)</span></div>
+          <div class="row"><span class="badge b-teal">ROUTE</span><span>Open-weight pick is order-stable (C20) and bracketed best\u2013worst (W7-5).</span></div>
+          <div class="row"><span class="badge b-teal">QUARANTINE</span><span>Untrusted input is recorded but excluded from the gate \u2014 non-interference (P3, Goguen\u2013Meseguer 1982).</span></div>
+          <div class="row"><span class="badge b-teal">GATE</span><span>Deny-by-default safety + advisory trust floor before anything runs (P2/P4).</span></div>
+          <div class="row"><span class="badge b-teal">SANDBOX</span><span id="cd-iso">Real restricted-subprocess isolation: no network, CPU/mem/time limits.</span></div>
+          <div class="row"><span class="badge b-teal">RECEIPT</span><span>Every hop is hash-chained and the run is ECDSA-P256 signed; flip a byte \u2192 verify fails (P5/P6).</span></div>
+          <div class="row"><span class="badge b-teal">HALTS</span><span>The run provably finishes in bounded steps (F-G5 bounded-frontier).</span></div></div></div>
+      <details class="raw"><summary>raw governed-turn run + signed receipt</summary><pre class="out" id="cd-raw">\u2014</pre></details>${HONEST}`;window.codetab_load();}},
 
   honest:{title:'What We Claim',badge:'NO BANDAIDS',sub:'The single source of truth for what this platform does and does NOT claim \u2014 published, not marketed. If it is not proven, we say so.',
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading\u2026</div></div></div>
@@ -845,6 +889,46 @@ const AXES_OK={soundness:0.95,calibration:0.92,robustness:0.95,provenance:0.93,c
 async function mcp_list(){try{const d=await getJSON(API+'/v1/mcp/tools');const t=d.tools||[];setHTML('mcp-list','');t.forEach(x=>addHTML('mcp-list',`<div class="row"><span class="badge b-teal">${esc(x.name)}</span><span>${esc(x.description||'')}</span></div>`));
   // tools-per-capability bar from in-image capability mesh
   try{const m=await orgGet('core','/api/a11oy/v1/capabilities/mesh');const nd=m.nodes||[];barV('mcp-bar',nd.map(n=>n.id),nd.map(n=>n.mcp_tools||0),TEAL);}catch(e){}}catch(e){setHTML('mcp-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+async function alloy_load(){
+  try{const d=await getJSON(API+'/v1/alloy/roster');const roster=d.roster||[];setHTML('al-roster','');
+    roster.forEach(m=>{const code=(m.router_role||'').indexOf('CODE_PRIMARY')===0;const nc=!m.commercial_ok;
+      const badge=nc?'<span class="badge b-err">NON-COMMERCIAL</span>':(code?'<span class="badge b-teal">CODE PRIMARY</span>':'<span class="badge b-gold">'+esc((m.tier_band||'').toUpperCase())+'</span>');
+      addHTML('al-roster',`<div class="row">${badge}<span>${esc(m.display_name||m.model_id||'')}</span><span class="spacer mono dim">${esc(m.license||'')}</span></div>`);});
+  }catch(e){setHTML('al-roster','<div class="row mono dim">roster: '+esc(e.message)+'</div>');}
+  try{const h=await getJSON(API+'/v1/alloy/health');
+    const live=h.backend_available?'<span class="badge b-teal">LIVE local CPU</span>':'<span class="badge b-gold">TOWER-SIDE</span>';
+    setHTML('al-health',`<div class="row">${live}<span class="mono dim">${esc(h.honest_label||'')}</span></div>`);
+  }catch(e){setHTML('al-health','<div class="row mono dim">health: '+esc(e.message)+'</div>');}
+}
+async function alloy_ask(){
+  const t=(el('al-task')&&el('al-task').value)||'write a Python function to reverse a string';
+  setOut('al-out','routing \u2014 picking the strongest open-weight model, calibrating, signing\u2026');
+  try{
+    const r=await postJSON(API+'/v1/alloy/suggest',{prompt:t,task_hint:'code'});
+    const router=r.router||{};const chosen=router.chosen||{};const conf=r.conformal||{};const rcpt=r.receipt||{};
+    const lines=[];
+    lines.push('ROUTER PICK (C20 order-stability + W7-5 PAC-Bayes envelope)');
+    lines.push('  model      : '+(chosen.display_name||chosen.model_id||'?')+'  ['+(chosen.tier_band||'')+(chosen.router_role?(' \u00b7 '+chosen.router_role):'')+']');
+    lines.push('  license    : '+(chosen.license||'')+(chosen.commercial_ok===false?'  (NON-COMMERCIAL \u2014 excluded from production routing)':''));
+    lines.push('  why        : '+(router.why||''));
+    const env=router.w7_5_pac_bayes_envelope||{};
+    if(env.within_envelope!==undefined)lines.push('  W7-5 envelope: min\u2264avg\u2264max held = '+env.within_envelope);
+    if(router.c20_order_stability!==undefined)lines.push('  C20 stability: '+JSON.stringify(router.c20_order_stability));
+    lines.push('');
+    lines.push('CONFORMAL CONFIDENCE BAND (W5-3/W7-4 \u2014 distribution-free, never 100%)');
+    lines.push('  point='+conf.point+'  band=['+conf.lo+', '+conf.hi+']  floor='+conf.floor+'  coverage='+conf.coverage);
+    lines.push('');
+    lines.push('SERVING');
+    lines.push('  served_locally = '+r.served_locally+'   '+(r.served_locally?'(REAL local llama.cpp output below)':'(HONEST tower-side label \u2014 weights run on the SZL tower GPU / bring local weights; output NOT faked)'));
+    const gen=r.generation||{};
+    if(gen.text)lines.push('\nOUTPUT:\n'+gen.text);
+    else if(gen.honest_label)lines.push('\n'+gen.honest_label);
+    lines.push('');
+    lines.push('GOVERNED RECEIPT (proven P1\u2013P6 loop \u2014 real ECDSA-P256)');
+    lines.push('  signed = '+(rcpt.signed||r.receipt_signed)+'   signer = '+(rcpt.signer||'')+'   alg = '+(rcpt.alg||''));
+    setOut('al-out',lines.join('\n'));
+  }catch(e){setOut('al-out','alloy suggest failed: '+esc(e.message));}
+}
 async function mcp_call(name){try{setOut('o-mcp','invoking '+name+'\u2026');const args=name==='lambda_score'?{axes:AXES_OK}:name==='a11oy_gate'?{action:ACTION}:name==='khipu_sign'?{payload:{actionId:'mcp-demo',severity:'high'}}:{receipt:{actionId:'mcp-demo'}};
   const d=await postJSON(API+'/v1/mcp/call',{name,arguments:args});setOut('o-mcp','TOOL '+esc(d.tool||name)+' \u00b7 '+esc(d.status||'')+' \u00b7 kernel '+esc(d.kernel_commit||'')+'\n\n'+JSON.stringify(d,null,2));}catch(e){setOut('o-mcp','retry: '+e.message);}}
 
@@ -1486,6 +1570,115 @@ async function replay_run(){
   }
 }
 window.replay_run=replay_run;
+
+/* ============================================================================
+   TAB: a11oy Code  (data-view="codetab")
+   Governed agentic coder + chatbot + research. Three modes, each flows through
+   the proven P1-P6 governed loop and emits a signed, re-verifiable receipt.
+   Backend: a11oy_code_engine.register() -> /api/a11oy/v1/code/{turn,verify,
+   capabilities,models,consensus}. OPEN-WEIGHT roster only; code runs in a REAL
+   governed sandbox (restricted subprocess). Real data only — no mock.
+   ============================================================================ */
+window._cd_mode='chat';
+window._cd_lastRun=null;
+const _CD_HINTS={chat:'chat \u2014 multi-turn answer, governed + receipted',
+  code:'code \u2014 generate AND run code in the governed sandbox (plan \u2192 gate \u2192 exec \u2192 signed receipt)',
+  research:'research \u2014 retrieve + answer over real sources, with citations, governed + receipted'};
+function codetab_mode(m){window._cd_mode=m;['chat','code','research'].forEach(k=>{const b=el('cd-m-'+k);if(b)b.className='btn'+(k===m?' teal':'');});const h=el('cd-modehint');if(h)h.textContent=_CD_HINTS[m]||'';
+  const ta=el('cd-input');if(ta&&(!ta.value||Object.values({a:'Explain how the governed P1-P6 loop makes a code action trustworthy.',b:'def is_prime(n):\n    return n>1 and all(n%i for i in range(2,int(n**0.5)+1))\nprint([x for x in range(20) if is_prime(x)])',c:'What is the P3 non-interference property and why does it matter for a coding agent?'}).includes(ta.value))){
+    ta.value = m==='code' ? 'def is_prime(n):\n    return n>1 and all(n%i for i in range(2,int(n**0.5)+1))\nprint([x for x in range(20) if is_prime(x)])'
+            : m==='research' ? 'What is the P3 non-interference property and why does it matter for a coding agent?'
+            : 'Explain how the governed P1-P6 loop makes a code action trustworthy.';}}
+async function codetab_load(){
+  codetab_mode(window._cd_mode||'chat');
+  // capabilities (honest backend label + isolation note)
+  try{const cap=await getJSON(API+'/v1/code/capabilities');
+    const b=cap.backend||{};const iso=el('cd-iso');
+    if(iso&&b.sandbox_isolation)iso.textContent=b.sandbox_isolation;
+  }catch(e){}
+  // roster
+  try{const d=await getJSON(API+'/v1/code/models');const r=d.roster||[];
+    setTxt('cd-model','\u2014');setHTML('cd-roster','');
+    addHTML('cd-roster',`<div class="row mono dim" style="font-size:11px">source: ${esc(d.source||'')} \u00b7 backend: ${esc((d.backend||{}).model_serving||'')}</div>`);
+    r.forEach(m=>{const id=esc(m.id||m.model_id||m.display_name||'model');const lic=esc(m.license||'');const tier=esc(String(m.tier||''));const use=esc(m.use||m.role||m.use_case||'');
+      addHTML('cd-roster',`<div class="row"><span class="badge b-teal">${tier}</span><span><b>${id}</b> <span class="dim mono" style="font-size:10px">${lic}</span><br><span class="dim" style="font-size:11px">${use}</span></span></div>`);});
+    if(!r.length)addHTML('cd-roster','<div class="row mono dim">roster unavailable</div>');
+  }catch(e){setHTML('cd-roster','<div class="row mono dim">roster endpoint unavailable: '+esc(e.message)+'</div>');}
+}
+async function codetab_run(){
+  const mode=window._cd_mode||'chat';
+  const prompt=(el('cd-input')||{}).value||'';
+  const untrusted=(el('cd-untrusted')||{}).value||'';
+  const sandbox=mode==='code'&&((el('cd-sandbox')||{}).checked!==false);
+  setHTML('cd-result','<div class="row mono dim">running governed turn\u2026</div>');
+  setHTML('cd-chain','<div class="row mono dim">\u2026</div>');
+  setTxt('cd-decision','\u2026');setTxt('cd-conf','\u2026');setTxt('cd-rcpt','\u2026');setTxt('cd-model','\u2026');
+  el('cd-verify-btn').disabled=true;el('cd-tamper-btn').disabled=true;setHTML('cd-verify','\u2014');
+  try{
+    const r=await fetch(API+'/v1/code/turn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode,prompt:prompt,untrusted_input:untrusted,sandbox:sandbox})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const run=await r.json();window._cd_lastRun=run;
+    setOut('cd-raw',run);
+    setTxt('cd-result-ep',mode+(sandbox?' \u00b7 sandboxed':''));
+    // KPIs
+    const chosen=((run.router||{}).chosen||{});
+    setTxt('cd-model', chosen.id || '\u2014');
+    const dec=run.decision||'\u2014';const decEl=el('cd-decision');decEl.textContent=dec;decEl.className='v '+(dec==='ALLOW'?'teal':'err');
+    const conf=run.confidence||{};setTxt('cd-conf', conf.confidence!=null?(Math.round(conf.confidence*100)+'%'):'\u2014');
+    const signed=(run.signed_receipt||{}).signed;setHTML('cd-rcpt', signed?'<span class="badge b-teal">SIGNED</span>':'<span class="badge" style="border:1px solid #c9a05f;color:#c9a05f">UNSIGNED</span>');
+    // result body
+    let body='';
+    if(mode==='code'){
+      const sb=run.sandbox||{};
+      body+=`<div class="row"><span class="badge ${dec==='ALLOW'?'b-teal':'b-err'}">${esc(dec)}</span><span>${esc(run.summary||'')}</span></div>`;
+      if(run.code&&run.code.code)body+=`<div class="dim mono" style="font-size:11px;margin:6px 0 2px">code (${esc(run.code.language||'python')}):</div><pre class="out" style="max-height:160px">${esc(run.code.code)}</pre>`;
+      body+=`<div class="dim mono" style="font-size:11px;margin:6px 0 2px">sandbox \u2014 ${esc(sb.isolation||'')}</div>`;
+      if(sb.blocked){body+=`<div class="row"><span class="badge b-err">BLOCKED</span><span>not executed \u2014 stopped at the gate (gate soundness)</span></div>`;}
+      else{body+=`<pre class="out" style="max-height:160px">exit ${esc(String(sb.exit))}\n${esc(sb.stdout||'')}${sb.stderr?('\n[stderr] '+esc(sb.stderr)):''}</pre>`;}
+    }else if(mode==='research'){
+      body+=`<div class="row"><span class="badge ${dec==='ALLOW'?'b-teal':'b-err'}">${esc(dec)}</span><span>${esc(run.answer||run.summary||'')}</span></div>`;
+      const cites=((run.research||{}).citations)||[];
+      if(cites.length){body+='<div class="dim mono" style="font-size:11px;margin-top:6px">citations:</div>';cites.forEach(ci=>{body+=`<div class="row"><span class="badge b-teal">${esc(ci.chunk_id||'')}</span><span>${esc(ci.title||'')}</span></div>`;});}
+      if((run.research||{}).sources_note)body+=`<div class="row mono dim" style="font-size:11px">${esc(run.research.sources_note)}</div>`;
+    }else{
+      body+=`<div class="row"><span class="badge ${dec==='ALLOW'?'b-teal':'b-err'}">${esc(dec)}</span><span>${esc(run.answer||run.summary||'')}</span></div>`;
+    }
+    // untrusted / non-interference note
+    if(run.untrusted&&run.untrusted.present){body+=`<div class="row"><span class="badge" style="border:1px solid #c9a05f;color:#c9a05f">QUARANTINED</span><span>${esc(run.untrusted.note||'untrusted input recorded but excluded from the gate (P3 non-interference)')}${run.untrusted.injection_markers_detected?' \u2014 injection markers detected':''}</span></div>`;}
+    setHTML('cd-result',body||'<div class="row mono dim">\u2014</div>');
+    // chain
+    const chain=run.receipt_chain||[];setHTML('cd-chain','');
+    const labels={retrieve:'P1 retrieve',quarantine_untrusted:'P2/P3 quarantine',tool_call:'P3 tool_call',policy_check:'P4 policy gate',kernel_check:'P5 trust/kernel',emit:'P6 emit + sign'};
+    chain.forEach(rc=>{addHTML('cd-chain',`<div class="row"><span class="badge b-teal">#${rc.seq}</span><span><b>${esc(labels[rc.kind]||rc.kind)}</b> <span class="dim mono" style="font-size:10px">${esc(String(rc.hash||'').slice(0,16))}\u2026</span></span></div>`);});
+    addHTML('cd-chain',`<div class="row mono dim" style="font-size:11px">chain depth ${chain.length} \u00b7 final ${esc(String(run.chain_final_hash||'').slice(0,20))}\u2026 \u00b7 ${esc((run.halts||{}).basis||'F-G5 bounded-frontier')}</div>`);
+    el('cd-verify-btn').disabled=false;el('cd-tamper-btn').disabled=false;
+    setHTML('cd-verify','\u2014 click \u201cVerify this receipt chain\u201d \u2014');
+  }catch(e){setHTML('cd-result','<div class="row mono dim">turn endpoint unavailable: '+esc(e.message)+'</div>');}
+}
+async function codetab_verify(){
+  if(!window._cd_lastRun){setHTML('cd-verify','run a turn first');return;}
+  setHTML('cd-verify','<span class="mono dim">verifying\u2026</span>');
+  try{const r=await fetch(API+'/v1/code/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run:window._cd_lastRun})});
+    const v=await r.json();
+    const ci=v.chain_intact;const sv=v.signature_valid;
+    setHTML('cd-verify',`<span class="badge ${ci?'b-teal':'b-err'}">chain ${ci?'INTACT':'BROKEN'+(v.chain_break_at_seq!=null?(' @seq '+v.chain_break_at_seq):'')}</span> <span class="badge ${sv?'b-teal':''}" style="${sv?'':'border:1px solid #c9a05f;color:#c9a05f'}">signature ${sv?'VALID':'UNVERIFIED'}</span> <span class="dim mono" style="font-size:11px">recomputed independently from receipt bodies</span>`);
+  }catch(e){setHTML('cd-verify','verify endpoint unavailable: '+esc(e.message));}
+}
+async function codetab_tamper(){
+  if(!window._cd_lastRun){setHTML('cd-verify','run a turn first');return;}
+  // flip a byte in receipt seq-2's body, then re-verify -> must report BROKEN at that seq
+  const tampered=JSON.parse(JSON.stringify(window._cd_lastRun));
+  const ch=tampered.receipt_chain||[];const idx=Math.min(2,ch.length-1);
+  if(idx<0){setHTML('cd-verify','no chain to tamper');return;}
+  ch[idx].body=Object.assign({},ch[idx].body,{__TAMPERED__:'evil'});
+  setHTML('cd-verify','<span class="mono dim">tampering receipt #'+idx+' and re-verifying\u2026</span>');
+  try{const r=await fetch(API+'/v1/code/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run:tampered})});
+    const v=await r.json();const ci=v.chain_intact;
+    setHTML('cd-verify',`<span class="badge ${ci?'b-err':'b-teal'}">tamper test: ${ci?'NOT DETECTED (bug!)':'DETECTED'}</span> <span class="dim mono" style="font-size:11px">flipped a byte in receipt #${idx} \u2192 chain_intact=${ci}${v.chain_break_at_seq!=null?(', break_at_seq='+v.chain_break_at_seq):''}. This is P5 tamper-evidence working.</span>`);
+  }catch(e){setHTML('cd-verify','verify endpoint unavailable: '+esc(e.message));}
+}
+window.codetab_load=codetab_load;window.codetab_run=codetab_run;window.codetab_mode=codetab_mode;
+window.codetab_verify=codetab_verify;window.codetab_tamper=codetab_tamper;
 
 </script>
 </body>
