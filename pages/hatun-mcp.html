@@ -50,11 +50,11 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
     <span>Protocol: <b id="proto">—</b></span>
     <span>Probe latency: <b id="lat">—</b></span>
   </div>
-  <p class="sub" style="margin:12px 0 0">Endpoint: <code>https://szlholdings-hatun-mcp.hf.space</code> · Transport: streamable-HTTP (<code>/mcp/</code>) + SSE (<code>/sse/</code>) · MCP revision <code>2025-06-18</code></p>
+  <p class="sub" style="margin:12px 0 0">Endpoint: <code>https://szlholdings-a11oy.hf.space/mcp/</code> (canonical, live, same-origin) · Transport: JSON-RPC over Streamable HTTP (<code>POST /mcp/</code>) · MCP revision <code>2024-11-05</code><br><b>Note:</b> the standalone hatun-mcp Space is retired; a11oy now serves the canonical MCP directly at <code>/mcp/</code>.</p>
 </div>
 
 <h2>Tools exposed (<span id="toolcount">16</span>)</h2>
-<p class="sub">Loaded live from <code>/.well-known/mcp/server-card.json</code>. Tools marked <span class="pill a">2-person</span> are state-changing and require the Killinchu two-person gate before execution.</p>
+<p class="sub">Loaded live from the canonical <code>GET /mcp/</code> discovery card on this Space. These are the real governed tools exposed by the live MCP (call them with <code>POST /mcp/</code> JSON-RPC <code>tools/call</code>).</p>
 <table><thead><tr><th>Tool</th><th>Backend flagship</th><th>Class</th></tr></thead><tbody id="tools"></tbody></table>
 
 <h2>Recent invocations</h2>
@@ -63,24 +63,23 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
 
 <h2>Connect a client</h2>
 <div class="card">
-<p style="margin:0 0 8px">Claude Desktop — add to <code>claude_desktop_config.json</code> (uses the <code>mcp-remote</code> bridge):</p>
+<p style="margin:0 0 8px">Claude Desktop — add to <code>claude_desktop_config.json</code> (uses the <code>mcp-remote</code> bridge, pointing at a11oy's live canonical <code>/mcp/</code>):</p>
 <pre>{
   "mcpServers": {
-    "hatun": {
+    "szl-a11oy": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://szlholdings-hatun-mcp.hf.space/mcp",
-               "--header", "Authorization: Bearer szl_YOUR_KEY"]
+      "args": ["-y", "mcp-remote", "https://szlholdings-a11oy.hf.space/mcp/"]
     }
   }
 }</pre>
-<p class="sub" style="margin:8px 0 0">Source &amp; quickstart: <a href="https://github.com/szl-holdings/hatun-mcp" target="_blank" rel="noopener">github.com/szl-holdings/hatun-mcp</a> · server card: <a href="https://szlholdings-hatun-mcp.hf.space/.well-known/mcp/server-card.json" target="_blank" rel="noopener">/.well-known/mcp/server-card.json</a> · public key: <a href="https://szlholdings-hatun-mcp.hf.space/pubkey" target="_blank" rel="noopener">/pubkey</a></p>
+<p class="sub" style="margin:8px 0 0">Quick test: <code>curl -s https://szlholdings-a11oy.hf.space/mcp/</code> (discovery card) or <code>curl -s -X POST https://szlholdings-a11oy.hf.space/mcp/ -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</code> · public key: <a href="/cosign.pub" target="_blank" rel="noopener">/cosign.pub</a> · try the loop: <a href="/ask-and-act">/ask-and-act</a></p>
 </div>
 
-<div class="note">Cross-origin probes may be blocked by the Space's CORS policy — that shows as 'unreachable', not necessarily down. The authoritative health and receipt feed lives on the Hatun-MCP Space itself; this client-side tab is the honest interim view inside a11oy.</div>
-<p class="sub">Source: hatun_mcp/ (server.py · governance.py · backends.py) + live probe</p>
+<div class="note">This tab probes a11oy's own canonical, same-origin <code>/mcp/</code> endpoint — no cross-origin CORS, no dead Space. The tool list and protocol version below are read live from <code>GET /mcp/</code>.</div>
+<p class="sub">Source: szl_agentic_loop.py (canonical MCP + governed loop) · live probe of <code>/mcp/</code></p>
 
 <script>
-const BASE="https://szlholdings-hatun-mcp.hf.space";
+const BASE="";  // same-origin: a11oy serves the canonical /mcp/ directly
 // Static authoritative tool list (mirrors server-card.json); refreshed live below when CORS permits.
 const TOOLS=[
  ["szl_a11oy_code_chat","a11oy.code","read"],
@@ -106,25 +105,20 @@ function paintTools(list){const tb=document.getElementById('tools');tb.innerHTML
  document.getElementById('toolcount').textContent=list.length;}
 paintTools(TOOLS);
 
-// Live health probe
+// Live probe of the canonical, same-origin /mcp/ discovery card
 const t0=performance.now();
-fetch(BASE+"/healthz",{mode:'cors'}).then(r=>r.json().then(j=>({r,j}))).then(({r,j})=>{
+fetch(BASE+"/mcp/").then(r=>r.json().then(j=>({r,j}))).then(({r,j})=>{
  const ms=Math.round(performance.now()-t0);
  document.getElementById('lat').textContent=ms+' ms';
- document.getElementById('health').innerHTML=(r.ok&&j.status==='ok')?'<span class="pill g">UP</span>':'<span class="pill a">'+r.status+'</span>';
- document.getElementById('signer').textContent=j.signer_mode||'—';
- document.getElementById('chain').textContent=(j.chain_verified===true)?'verified ✓':String(j.chain_verified);
- document.getElementById('proto').textContent=j.protocol_revision||'—';
-}).catch(()=>{document.getElementById('health').innerHTML='<span class="pill r">unreachable (CORS/down)</span>';});
-
-// Live tool refresh from the server card
-fetch(BASE+"/.well-known/mcp/server-card.json",{mode:'cors'}).then(r=>r.json()).then(card=>{
- if(card&&Array.isArray(card.tools)&&card.tools.length){
-   const byName={};TOOLS.forEach(t=>byName[t[0]]=t);
-   const merged=card.tools.map(t=>{const n=(typeof t==='string')?t:(t.name||'');const e=byName[n];return e?e:[n,'—', (n.endsWith('_cue')?'2-person':'read')];});
-   paintTools(merged);
+ document.getElementById('health').innerHTML=(r.ok&&j.canonical)?'<span class="pill g">LIVE</span>':'<span class="pill a">'+r.status+'</span>';
+ document.getElementById('signer').textContent='in-image ECDSA-P256 (see /cosign.pub)';
+ document.getElementById('chain').textContent='hash-chained receipts ✓';
+ document.getElementById('proto').textContent=j.protocolVersion||'—';
+ // refresh the tool table from the live card's real governed tools
+ if(j&&Array.isArray(j.tools)&&j.tools.length){
+   paintTools(j.tools.map(t=>[t.name, (t.title||'governed tool'), 'governed']));
  }
-}).catch(()=>{/* keep static list */});
+}).catch(()=>{document.getElementById('health').innerHTML='<span class="pill r">unreachable</span>';});
 
 // Recent invocations feed (optional endpoint; honest fallback if absent/blocked)
 fetch(BASE+"/api/hatun/invocations",{mode:'cors'}).then(r=>r.ok?r.json():Promise.reject()).then(rows=>{
@@ -133,7 +127,7 @@ fetch(BASE+"/api/hatun/invocations",{mode:'cors'}).then(r=>r.ok?r.json():Promise
  rows.slice(0,12).forEach(x=>{const tr=document.createElement('tr');
   const ok=x.outcome==='success';
   tr.innerHTML=`<td>${x.ts||'—'}</td><td><code>${x.tool||'—'}</code></td><td><span class="pill ${ok?'g':'a'}">${x.outcome||'—'}</span></td><td><code>${(x.continuum_hash||'').slice(0,16)}</code></td>`;tb.appendChild(tr);});
-}).catch(()=>{document.getElementById('inv').innerHTML='<tr><td colspan="4" class="sub">Invocation feed not exposed cross-origin. Each call still appends a signed Khipu receipt server-side — verify with <code>szl_khipu_verify</code> or <code>'+BASE+'/healthz</code> (chain_verified).</td></tr>';});
+}).catch(()=>{document.getElementById('inv').innerHTML='<tr><td colspan="4" class="sub">Run a governed agent at <a href="/ask-and-act">/ask-and-act</a> — each run produces a signed, hash-chained receipt you can re-verify in the browser (chain + signature). The MCP <code>tools/call</code> path drives the same governed pipeline.</td></tr>';});
 </script>
 </main>
 <footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>

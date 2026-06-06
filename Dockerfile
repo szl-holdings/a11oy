@@ -66,7 +66,6 @@ COPY console/ ./static/
 
 # Copy serve orchestrator and gates manifest
 COPY szl_parity_gaps.py ./szl_parity_gaps.py
-COPY a11oy_warhacker_obs.py ./a11oy_warhacker_obs.py
 COPY serve.py ./serve.py
 COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
@@ -273,6 +272,13 @@ COPY szl_llm_registry.py ./szl_llm_registry.py
 COPY szl_elite_console.py ./szl_elite_console.py
 COPY web/elite_console.html ./web/elite_console.html
 
+# ADDITIVE (Governed Agent Loop, 2026-06-06): the operational RAG -> tool-call ->
+# policy/trust gate -> signed-receipt loop + canonical live MCP + consumer UI.
+# Explicit per-file COPY (this Dockerfile does not use `COPY . .`); without this
+# line `import szl_agentic_loop` fails silently and /mcp/, /ask-and-act 404.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY szl_agentic_loop.py ./szl_agentic_loop.py
+
 CMD ["python", "serve.py"]
 
 
@@ -283,4 +289,3 @@ CMD ["python", "serve.py"]
 # Build cache-bust 2026-06-04T19:31Z (Elite Console + LLM Hub Registry):
 # Added szl_llm_registry.py, szl_elite_console.py, web/elite_console.html.
 # 20-tab Elite Console + 7-model LLM Hub now deployable. All COPY sources verified.
-
