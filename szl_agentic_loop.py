@@ -239,7 +239,16 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 reversible: bool, untrusted_input: str = ""):
         tr = _Trace("governed_agent_run")
         hops = []
-        prev_hash = _RUN_CHAIN[-1]["final_hash"] if _RUN_CHAIN else "GENESIS"
+        # PER-RUN GENESIS (FIX 2026-06-06): seed each run's seq-0 receipt with the
+        # SAME genesis constant the verifier (_verify_chain) seeds with. Previously
+        # this seeded from the prior run's final_hash (a rolling global chain), so
+        # only the FIRST run after boot verified chain_intact=true and every later
+        # clean run reported chain_intact=false / break_at_seq=0 -- making a clean
+        # PASS indistinguishable from a tamper FAIL from outside. Per-run genesis
+        # matches killinchu and makes the P5 tamper-evidence beat reproduce on the
+        # Nth clean run. Run-of-runs lineage is still tracked separately via
+        # prev_run_hash on the run_record below.
+        prev_hash = "GENESIS"
         chain = []
 
         def _chain_receipt(kind, body):
