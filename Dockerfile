@@ -285,6 +285,15 @@ COPY szl_ayni_quorum.py ./szl_ayni_quorum.py
 # Governed agent loop module (RAG->tool-call->policy/trust->signed-receipt + canonical /mcp/).
 COPY szl_agentic_loop.py ./szl_agentic_loop.py
 
+# Formula-wiring module (ADDITIVE 2026-06-06): registers the kernel-verified theorem
+# mechanisms as live executable checks + the /api/<ns>/v1/formulas/* endpoints
+# (selftest, proof-summary). BYTE-IDENTICAL across a11oy + killinchu (single source of
+# truth). Per-file COPY (this Dockerfile never uses `COPY . .`) -- without this
+# `import szl_formula_wiring` fails at boot and the formula endpoints 404. Imports
+# stdlib only; no weights, no keys.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY szl_formula_wiring.py ./szl_formula_wiring.py
+
 # a11oy Code engine (governed chat/code/research; C20/W7-5 router; W5-3/W7-4 conformal;
 # C10-C12 consensus; REAL restricted-subprocess sandbox). Per-file COPY (this Dockerfile
 # never uses `COPY . .`) -- without this `import a11oy_code_engine` fails at boot and the
