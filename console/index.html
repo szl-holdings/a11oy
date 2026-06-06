@@ -7,15 +7,15 @@
 <meta name="description" content="a11oy is the orchestrating brain of the SZL governed-AI substrate: a full operator application — command center, five superpowers, Warhacker orchestration, observability, the constitution (wires), formulas, and the evidence ledger. Every view reads a live endpoint."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts-gl@2/dist/echarts-gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/globe.gl@2/dist/globe.gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/cytoscape@3/dist/cytoscape.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"/>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="/vendor/chart.umd.min.js"></script>
+<script src="/vendor/3d-force-graph.min.js"></script>
+<script src="/vendor/echarts.min.js"></script>
+<script src="/vendor/echarts-gl.min.js"></script>
+<script src="/vendor/globe.gl.min.js"></script>
+<script src="/vendor/cytoscape.min.js"></script>
+<script src="/vendor/d3.min.js"></script>
+<link rel="stylesheet" href="/vendor/katex.min.css"/>
+<script src="/vendor/katex.min.js"></script>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
@@ -416,7 +416,14 @@ const VIEWS={
       <div class="card"><div class="card-h"><span class="card-t">Connected system \u2014 live 3D</span><span class="card-ep">drag to orbit</span></div><div class="graph3d" id="mesh-3d"></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Reachability detail</span><span class="card-ep">live</span></div><div id="mesh-host"><div class="row mono dim">probing\u2026</div></div></div>${HONEST}`;window.mesh_load();}},
 
-  organism:{title:'Living Organism',badge:'3D · SHOWSTOPPER',sub:'The platform as one breathing organism. a11oy — the orchestrating brain — sits at the GOLD center; every service is a node, every link is a live connection that flows back to the brain. Node color reflects the live health probe; a down service shows honestly, never faked green.',
+  /* PROOF-BINDING (cite-in-code-only): the Living Organism / mesh-health score is
+   RELABEL-INVARIANT (F-G4): renaming or re-ordering services/organs does not
+   change the health score the graph encodes. W7-1 gives invariance under the
+   group action; F-G6 bounds how the score composes across sub-meshes. Practical
+   meaning surfaced to the operator as plain language ('health doesn't depend on
+   what you call the nodes') -- never the formula IDs. Node positions are forces,
+   not data; only live /api reachability + score drive color/size. */
+organism:{title:'Living Organism',badge:'3D · SHOWSTOPPER',sub:'The platform as one breathing organism. a11oy — the orchestrating brain — sits at the GOLD center; every service is a node, every link is a live connection that flows back to the brain. Node color reflects the live health probe; a down service shows honestly, never faked green.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Brain</div><div class="v">a11oy</div><div class="d">orchestrating hub</div></div>
       <div class="kpi"><div class="k">Organs reachable</div><div class="v live" id="org-reach">probing\u2026</div></div>
@@ -426,7 +433,16 @@ const VIEWS={
       <div class="card"><div class="card-h"><span class="card-t">Organ health detail</span><span class="card-ep">live probe</span></div><div id="org-host"><div class="row mono dim">probing\u2026</div></div>
         <details class="raw"><summary>raw /observability/summary</summary><pre class="out" id="org-raw">loading\u2026</pre></details></div>${HONEST}`;window.organism_load();}},
 
-  chain:{title:'Receipt Chain',badge:'3D · PROOF HERO',sub:'The brand\u2019s proof-of-governance centerpiece. Every command the operator brain runs is appended to a SHA-256 hash-chain, each receipt linked to its parent. This is a REAL verified chain \u2014 we render its true depth as a growing 3D directed graph. No competitor visualizes the audit chain as a living object.',
+  /* PROOF-BINDING (cite-in-code-only): the Receipt-Chain 3D DAG is the runtime
+   face of three results. (1) F-G5 -- the audit walk over the hash-chain frontier
+   is BOUNDED: a verify-on-read traversal always TERMINATES in a bounded number
+   of steps (surfaced as 'audit walks always finish in bounded steps' -- the
+   efficiency claim that matters for Raven #5 tactical-edge audit). (2) verify-on-read
+   badge is powered by P5/P6 + W5-4 (each receipt re-verified against its parent
+   hash as it is read, not trusted blindly). (3) W7-6 (Doob two-sided envelope,
+   axiom-free) -- auditing EARLY or LATE cannot change the result, so the audit
+   copy is TWO-SIDED. All IDs live in code only. */
+chain:{title:'Receipt Chain',badge:'3D · PROOF HERO',sub:'The brand\u2019s proof-of-governance centerpiece. Every command the operator brain runs is appended to a SHA-256 hash-chain, each receipt linked to its parent. This is a REAL verified chain \u2014 we render its true depth as a growing 3D directed graph. No competitor visualizes the audit chain as a living object.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Chain depth</div><div class="v" id="ch-depth">\u2014</div><div class="d">real hash chain</div></div>
       <div class="kpi"><div class="k">Chain verified</div><div class="v live" id="ch-ver">\u2014</div></div>
@@ -444,7 +460,14 @@ const VIEWS={
       <div class="card"><div class="card-h"><span class="card-t">Live earthquake arcs \u2192 a11oy</span><span class="card-ep">USGS all_day.geojson</span></div><div class="globe3d" id="pl-globe"></div><div class="brain-note">Source: USGS Earthquake Hazards Program (earthquake.usgs.gov), past-day feed. Arc color = magnitude.</div></div>
       <div class="card"><div class="card-h"><span class="card-t">Recent events</span><span class="card-ep">live</span></div><div id="pl-list" style="max-height:260px;overflow-y:auto"><div class="row mono dim">loading USGS feed\u2026</div></div></div>${HONEST}`;window.pulse_load();}},
 
-  trustspace:{title:'Trust Space',badge:'3D POINT-CLOUD',sub:'Every trust dimension plotted in a rotating 3D space. The 13 axes the brain scores before any high-consequence action become points whose position encodes their score \u2014 outliers and clusters are spatially obvious. Auto-rotating; drag to inspect.',
+  /* PROOF-BINDING (graph-substrate, cite-in-code-only -- NO on-screen jargon):
+   Trust Space point cloud is the geometric face of F-G1. The 13 trust axes are
+   plotted as an EXPANSION-SIDE CORE: F-G1 guarantees the scored region is a
+   well-defined core of the trust space (the side that can only grow as evidence
+   accumulates), so clusters/outliers in this cloud are meaningful, not artifacts
+   of an arbitrary embedding. On-screen copy stays plain ('research conjecture,
+   not a theorem') because the COMBINED-trust floor Lambda is Conjecture 1. */
+trustspace:{title:'Trust Space',badge:'3D POINT-CLOUD',sub:'Every trust dimension plotted in a rotating 3D space. The 13 axes the brain scores before any high-consequence action become points whose position encodes their score \u2014 outliers and clusters are spatially obvious. Auto-rotating; drag to inspect.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Axes</div><div class="v" id="ts-n">13</div></div>
       <div class="kpi"><div class="k">Combined trust</div><div class="v teal" id="ts-lam">\u2014</div><div class="d">vs floor 0.90</div></div>
@@ -508,7 +531,13 @@ const VIEWS={
       <div class="card"><div class="card-h"><span class="card-t">Audit trail</span><span class="card-ep">hash-chained</span></div><div id="rc-host"><div class="row mono dim">loading\u2026</div></div></div>
       <div class="honesty"><b>Verify it yourself.</b> a11oy signs receipts with its own in-image ECDSA P-256 key. Fetch the public key at <span class="mono">/cosign.pub</span> and a signed envelope at <span class="mono">/api/a11oy/v1/receipt/export</span>, then verify the signature \u2014 here, in your browser, or offline with openssl. A single tampered byte fails verification. The key is ephemeral and resets on every rebuild.</div>`;window.receipts_load();}},
 
-  knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMULAS',sub:'The platform\u2019s intellectual-property ontology as a typed, citable graph: foundational axioms feed proven theorems, which ground the working formulas. Click any node for its formal statement, DOI citation, and an honest maturity badge \u2014 teal = formally proven, gold = empirically measured, amber = open conjecture. Loaded live from the published knowledge base (/knowledge.json).',
+  /* PROOF-BINDING (cite-in-code-only): the Knowledge Ontology entity-link graph
+   (axioms -> theorems -> formulas) is bounded by F-G2's EXPRESSIVITY CEILING:
+   the link structure can encode exactly the relationships F-G2 admits and no
+   more, so the graph cannot imply a derivation the substrate does not support.
+   This view READS knowledge.json proof_summary ONLY (owned by the instill
+   squads) -- it never rewrites it. On-screen text stays plain English. */
+knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMULAS',sub:'The platform\u2019s intellectual-property ontology as a typed, citable graph: foundational axioms feed proven theorems, which ground the working formulas. Click any node for its formal statement, DOI citation, and an honest maturity badge \u2014 teal = formally proven, gold = empirically measured, amber = open conjecture. Loaded live from the published knowledge base (/knowledge.json).',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Axioms</div><div class="v" id="kn-ax">\u2014</div><div class="d">foundational</div></div>
       <div class="kpi"><div class="k">Theorems</div><div class="v teal" id="kn-th">\u2014</div><div class="d">Lean-checked</div></div>
@@ -929,7 +958,7 @@ async function pulse_load(){
     const host=el('pl-globe');
     if(host&&window.Globe){killGlobe();host.innerHTML='';
       _globe=Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
-        .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+        .globeImageUrl('/vendor/earth-night.jpg')
         .pointsData(pts).pointColor('color').pointAltitude(d=>d.size*0.06).pointRadius(0.25).pointLabel('label')
         .arcsData(arcs).arcColor('color').arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1600).arcStroke(0.5).arcAltitudeAutoScale(0.4);
       try{_globe.pointOfView({lat:39,lng:-98,altitude:2.2},0);const ctr=_globe.controls();if(ctr){ctr.autoRotate=true;ctr.autoRotateSpeed=0.6;}}catch(e){}

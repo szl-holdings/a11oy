@@ -162,6 +162,25 @@ COPY web/formulas.html ./web/formulas.html
 COPY static-vendor/three.min.js ./static-vendor/three.min.js
 COPY szl_anatomy_3d.py ./szl_anatomy_3d.py
 
+# ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
+# VENDORING. The operator console (pages/console.html) loads the 7 viz libs +
+# KaTeX from /vendor/* instead of cdn.jsdelivr.net so the Space renders every
+# graph with ZERO network egress (Warhacker #2 "Tychee" air-gap deploy stacks).
+# Per-file COPY (this Dockerfile does NOT use `COPY . .`). The .js/.css ship as
+# text under static-vendor/; the binary globe texture + KaTeX woff2 fonts ship
+# as base64 TEXT in _vendor_blobs.py (decoded by the /vendor/* routes in serve.py)
+# so NO LFS/Xet blob is committed. Doctrine v11 LOCKED. NO external CDN.
+COPY static-vendor/chart.umd.min.js ./static-vendor/chart.umd.min.js
+COPY static-vendor/3d-force-graph.min.js ./static-vendor/3d-force-graph.min.js
+COPY static-vendor/echarts.min.js ./static-vendor/echarts.min.js
+COPY static-vendor/echarts-gl.min.js ./static-vendor/echarts-gl.min.js
+COPY static-vendor/globe.gl.min.js ./static-vendor/globe.gl.min.js
+COPY static-vendor/cytoscape.min.js ./static-vendor/cytoscape.min.js
+COPY static-vendor/d3.min.js ./static-vendor/d3.min.js
+COPY static-vendor/katex.min.js ./static-vendor/katex.min.js
+COPY static-vendor/katex.min.css ./static-vendor/katex.min.css
+COPY _vendor_blobs.py ./_vendor_blobs.py
+
 # ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
 # explicit per-file COPY (this Dockerfile does not use COPY . .).
 # Signed-off-by: Yachay <yachay@szlholdings.ai>

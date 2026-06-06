@@ -3233,6 +3233,90 @@ async def api_proxy(request: Request, path: str) -> Response:
     return await proxy_to_backend(request, f"/{path}")
 
 
+# ===========================================================================
+# ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
+# VENDORING of the 7 visualization libraries + KaTeX + globe texture, served
+# locally at /vendor/* so the operator console pulls ZERO third-party CDN.
+#
+# WHY (Warhacker #2 "Tychee" — air-gap deploy stacks): the console previously
+# loaded Chart.js / 3d-force-graph / ECharts(+gl) / globe.gl / Cytoscape / D3 /
+# KaTeX and the globe night texture from cdn.jsdelivr.net. On a disconnected /
+# air-gapped deployment those <script> tags fail and every graph silently dies.
+# Vendoring them in-image makes the whole console render with NO egress, which
+# is the literal Tychee requirement (ship a stack that runs with no network).
+#
+# HOW: the .js/.css are shipped as text under static-vendor/ (per-file COPY in
+# the Dockerfile). The binary globe texture (earth-night.jpg) and the KaTeX
+# woff2 fonts are shipped as base64 TEXT in _vendor_blobs.py and decoded here —
+# this sidesteps HF LFS/Xet entirely (no binary blob in the commit). Explicit
+# routes are registered BEFORE the SPA /{full_path:path} catch-all so FastAPI's
+# ordered matching resolves /vendor/* locally instead of returning the SPA shell.
+# Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1. ADDITIVE ONLY.
+# ===========================================================================
+try:
+    from fastapi.responses import Response as _VendResponse
+    _VENDOR_DIR = Path("/app/static-vendor")
+    _VENDOR_JS_CT = "application/javascript; charset=utf-8"
+    _VENDOR_CSS_CT = "text/css; charset=utf-8"
+    # Allowlist of the 7 keepers + KaTeX (exact filenames the console references).
+    _VENDOR_TEXT = {
+        "chart.umd.min.js": _VENDOR_JS_CT,
+        "3d-force-graph.min.js": _VENDOR_JS_CT,
+        "echarts.min.js": _VENDOR_JS_CT,
+        "echarts-gl.min.js": _VENDOR_JS_CT,
+        "globe.gl.min.js": _VENDOR_JS_CT,
+        "cytoscape.min.js": _VENDOR_JS_CT,
+        "d3.min.js": _VENDOR_JS_CT,
+        "katex.min.js": _VENDOR_JS_CT,
+        "katex.min.css": _VENDOR_CSS_CT,
+    }
+
+    # NOTE on route ORDER: literal paths (/vendor/earth-night.jpg, /vendor/fonts/*)
+    # are registered BEFORE the parameterized /vendor/{fname} so FastAPI's ordered
+    # matching resolves them first (otherwise {fname} would swallow earth-night.jpg
+    # and reject it as "not allowlisted").
+
+    # Binary globe texture, decoded from base64 text (no LFS / no CDN).
+    @app.get("/vendor/earth-night.jpg")
+    async def _vendor_globe_tex():
+        import _vendor_blobs as _vb
+        data = _vb.get("earth-night.jpg")
+        if not data:
+            return JSONResponse({"error": "globe texture blob missing"}, status_code=404)
+        return _VendResponse(content=data, media_type="image/jpeg",
+                             headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+    # KaTeX woff2 math fonts, decoded from base64 text.
+    @app.get("/vendor/fonts/{fname}")
+    async def _vendor_font(fname: str):
+        import _vendor_blobs as _vb
+        data = _vb.get(f"fonts/{fname}")
+        if not data:
+            return JSONResponse({"error": "font blob missing", "file": fname}, status_code=404)
+        return _VendResponse(content=data, media_type="font/woff2",
+                             headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+    @app.get("/vendor/{fname}")
+    async def _vendor_text(fname: str):
+        ct = _VENDOR_TEXT.get(fname)
+        if ct is None:
+            return JSONResponse({"error": "vendor asset not allowlisted", "file": fname}, status_code=404)
+        f = (_VENDOR_DIR / fname)
+        if not f.is_file():
+            return JSONResponse({"error": "vendor asset missing on disk", "file": fname}, status_code=404)
+        return _VendResponse(content=f.read_bytes(), media_type=ct,
+                             headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+    import sys as _vend_sys
+    print("[a11oy] AIR-GAP vendor routes registered: /vendor/{7 libs+KaTeX}, "
+          "/vendor/earth-night.jpg, /vendor/fonts/* (NO CDN — Warhacker #2 Tychee)", file=_vend_sys.stderr)
+except Exception as _vend_e:  # never crash the app — additive only
+    import sys as _vend_sys, traceback as _vend_tb
+    print(f"[a11oy] AIR-GAP vendor routes NOT registered: {_vend_e!r}", file=_vend_sys.stderr)
+    _vend_tb.print_exc()
+# === end AIR-GAP vendoring ===
+
+
 # ---------------------------------------------------------------------------
 # SPA — Brand Orchestration Layer at root.
 # Root + history fallback: any unknown GET that is not an /api or /assets path
