@@ -28,7 +28,8 @@ ecosystem-stage: "operational"
 [![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/a11oy/actions)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 
-**749 declarations · 14 axioms · 163 sorries · Doctrine v11 LOCKED · kernel `c7c0ba17`**
+**LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
+**Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + **~36 experimental** theorems CI-green on main `@7885fd9` (Lean v4.18.0 · 1304 decls / 22 axioms — NOT in the locked count).
 
 [Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status)
 
@@ -52,7 +53,7 @@ a11oy is a **full left-nav application** — not a landing page or a single cons
 
 **Primary app file:** [`pages/console.html`](pages/console.html) · **served at** `/` and `/console`.
 
-Working views in the left navigation:
+**43 unique tabs** in the left navigation (plus **7 Warhacker live demos**). Representative views:
 
 | View | What it does |
 |---|---|
@@ -62,7 +63,7 @@ Working views in the left navigation:
 | **Observability** | MELT + distributed tracing where every span is a signed Khipu receipt (vs New Relic / Datadog / OTel) |
 | **Capabilities** | The built-in a11oy capability fabric — reasoning, policy, and operator paths wired into the receipt substrate |
 | **Services** | Live service reachability — real probes, honest when a service is unreachable |
-| **Formulas** | The PURIQ formula set — **5 proved in Lean 4 {F1, F11, F12, F18, F19}**, the rest Roadmap |
+| **Formulas** | The PURIQ formula set — **5 locked-proven in Lean 4 {F1, F11, F12, F18, F19}** + **~36 experimental** theorems CI-green on main `@7885fd9` (e.g. M2 hash-chain tamper-evidence, CP1 split-conformal coverage); remaining formulas are Roadmap |
 | **Evidence** | Body-of-evidence export — DSSE Khipu receipts, replayable and tamper-evident |
 | **LLM Router** | The governed LLM routing surface |
 
@@ -155,7 +156,8 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 | UDS bundle (`szl-uds-bundle:uds-v0.2.0`) | ✅ Real, deployable mesh bundle. **Note:** the bundle artifact itself is **not yet SLSA-attested** (owner-only GHCR package-write grant pending). The L2 build-provenance attestation that verifies is on the **service images**, not the bundle. |
 | DSSE Khipu receipts | ✅ — ECDSA P-256-SHA256 |
 | Lean 749/14/163 @ `c7c0ba17` | ✅ |
-| Proved PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, zero-sorry). Remaining formulas are Roadmap. |
+| Locked-proven PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, depend on **no** axioms; machine-enforced `locked_count_five`). |
+| Experimental theorems (main `@7885fd9`) | ✅ **~36** CI-green, kernel-verified results (waves 5/6/7/8 + agentic P1–P6 + coder + the strengthened-axiom Λ set, where Λ-uniqueness remains **Conjecture 1**). **NOT** in the locked count. Key: M2 tamper-evidence (`#print axioms = [propext]` only), CP1 split-conformal coverage (not Hoeffding). |
 | Λ-uniqueness | ⚠️ **Conjecture 1** (F23 open bounty) — never a theorem |
 | SLSA L3 | ❌ Not claimed |
 | FedRAMP / CMMC | ❌ Not claimed |
