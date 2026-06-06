@@ -12,3 +12,39 @@ trademark license.
 
 For permissions, partnerships, or licensing inquiries:
 stephen@szlholdings.com
+
+================================================================================
+THIRD-PARTY VENDORED LIBRARIES (frontier 3D/live tabs)
+================================================================================
+
+The a11oy operator console vendors the following open-source visualization
+libraries locally (served from /vendor/, no CDN — sovereign/offline). a11oy
+adopts their interaction PATTERNS and reimplements tab logic as its own original
+code; the libraries themselves are used unmodified under their own licenses.
+
+  three-forcegraph / 3d-force-graph  — (c) Vasco Asturiano (vasturiano)  — MIT
+    https://github.com/vasturiano/3d-force-graph
+  globe.gl                           — (c) Vasco Asturiano (vasturiano)  — MIT
+    https://github.com/vasturiano/globe.gl
+  force-graph                        — (c) Vasco Asturiano (vasturiano)  — MIT
+    https://github.com/vasturiano/force-graph
+  d3 (d3-force et al.)               — (c) Mike Bostock                  — ISC/BSD-3-Clause
+    https://github.com/d3/d3
+  Apache ECharts                     — The Apache Software Foundation    — Apache-2.0
+    https://github.com/apache/echarts
+  echarts-gl                         — The Apache Software Foundation    — Apache-2.0
+    https://github.com/ecomfe/echarts-gl
+  Cytoscape.js                       — (c) The Cytoscape Consortium      — MIT
+    https://github.com/cytoscape/cytoscape.js
+
+Interaction-model inspirations (PATTERNS only — no code copied):
+  - anvaka / vasturiano force-graph explorable entity-link model (MIT-compatible)
+  - GraphRouter / RouteProfile, Tao Feng et al. (arXiv:2605.00180) — Model Atlas routing graph
+  - New Relic / Datadog MELT + service-map — MELT Observability tab
+  - Wiz / CrowdStrike security-graph "toxic path" — Threat Graph tab
+  - Defense Unicorns UDS deploy-posture — Deploy Posture tab (uds-core is AGPL:
+    PATTERN ONLY, NO code copied)
+  - LangSmith / Arize governed-run pattern — AI Oversight tab (proven kernel is ours)
+
+Copyright (c) of each library belongs to its respective authors. Full license
+texts ship with each minified bundle's upstream distribution.
