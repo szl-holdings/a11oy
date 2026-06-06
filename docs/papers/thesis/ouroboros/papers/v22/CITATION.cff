@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+title: "Ouroboros Thesis v22 — Convergence: Λ-Uniqueness Chain, Mechanism Truthfulness, and Sim-to-Real Doctrine Transfer"
+version: "22.0.0"
+date-released: "2026-06-03"
+doi: 10.5281/zenodo.19944926
+authors:
+  - family-names: Lutar Jr.
+    given-names: Stephen P.
+    orcid: https://orcid.org/0009-0001-0110-4173
+    affiliation: "SZL Holdings, Inc."
+license: CC-BY-4.0
+repository-code: https://github.com/szl-holdings/szl-papers
+url: https://github.com/szl-holdings/szl-papers/tree/main/thesis/ouroboros/papers/v22
+abstract: >
+  Ouroboros Thesis v22 (Convergence) consolidates the May-June 2026 formal-verification
+  advances into the canonical thesis line. A5 permutation invariance is added as a structure
+  field (not a new axiom; unique-axiom count stays 14), correcting the false A1-A4 uniqueness
+  claim with a verified counterexample. The n-dimensional Cauchy functional-equation chain is
+  partially closed (topology, functional-analysis, symmetric branches in review). VCG mechanism
+  truthfulness is proven on branch; SLSA L2 build provenance is attested on 5/5 GHCR images
+  (L1 + L2, not L3); Innovation Rounds 10-11 add frontier physics, quantum, CS, and crypto
+  formalizations; and a Sim-to-Real doctrine-transfer benchmark modeled on the Walrus physical
+  foundation model measures a mean doctrine alpha-gap of 0.10 across five unseen compliance
+  regimes. The Lambda-aggregator remains Conjecture 1 - NOT a theorem. Doctrine v11 LOCKED
+  749/14/163 at kernel commit c7c0ba17 (v11.1 in flight post-A5: 794/14/191). Concept DOI:
+  10.5281/zenodo.19944926; the v22 version DOI is minted by Zenodo on the paper-v22-1.0.0 release.
+keywords:
+  - AI governance
+  - Ouroboros
+  - Lutar Invariant
+  - geometric mean uniqueness
+  - permutation invariance
+  - VCG mechanism design
+  - SLSA provenance
+  - sim-to-real transfer
+  - formal verification

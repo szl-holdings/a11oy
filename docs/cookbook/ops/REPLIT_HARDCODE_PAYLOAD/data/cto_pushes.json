@@ -1,0 +1,18 @@
+{
+  "session_date": "2026-05-16",
+  "operator": "Lutar, Stephen P.",
+  "email": "stephen@szlholdings.com",
+  "orcid": "0009-0001-0110-4173",
+  "doctrine": "V6",
+  "github_user": "stephenlutar2-hash",
+  "pushes": [
+    { "category": "doi_gate_fix",  "repo": "ouroboros",        "pr": 28, "branch": "feat/huklla-t11-doi-title-gate",        "what": "curl -L follow-redirect for Zenodo concept DOIs + SHA-pin checkout@v4.1.1 + SPDX header" },
+    { "category": "doi_gate_fix",  "repo": "ouroboros-thesis", "pr": 38, "branch": "feat/huklla-t11-doi-title-gate",        "what": "curl -L follow-redirect for Zenodo concept DOIs + SHA-pin checkout@v4.1.1 + SPDX header" },
+    { "category": "doi_gate_fix",  "repo": "szl-trust",        "pr": 11, "branch": "feat/huklla-t11-doi-title-gate",        "what": "curl -L follow-redirect for Zenodo concept DOIs + SHA-pin checkout@v4.1.1 + SPDX header" },
+    { "category": "branch_sync",   "repo": "ouroboros-thesis", "pr": 39, "branch": "feat/docs-anatomy-pdfs",                  "what": "Merge-commit sync with main (BEHIND -> BLOCKED, no conflicts)" },
+    { "category": "anatomy_full",  "repo": "ouroboros-thesis", "pr": 46, "branch": "feat/anatomy/full-bundle-16-figures",   "what": "Net-new PR: complete 16-figure anatomy bundle under docs/anatomy/ (40 files, 3.5MB)" },
+    { "category": "supersede",     "repo": "szl-brand",        "pr": 12, "branch": "feat/anatomy-publication",                "what": "Closed as superseded by #15" },
+    { "category": "supersede",     "repo": "szl-brand",        "pr": 14, "branch": "feat/fly-v8-anatomy-assets",              "what": "Closed as superseded by #15" },
+    { "category": "verification",  "repo": "szl-brand",        "pr": 15, "branch": "feat/anatomy/full-body-v2",               "what": "Doctrine V6 verification comment posted: 20/20 checks PASS" }
+  ]
+}

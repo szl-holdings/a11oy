@@ -1,0 +1,115 @@
+name: Lean kernel check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Top-level: deny everything by default; jobs grant only what they need.
+# Addresses Scorecard "Token-Permissions" finding.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # The repo doesn't commit lake-manifest.json (per .gitignore best practice).
+      # Install elan first so we can run `lake update` to generate the manifest
+      # before lean-action's configure step (which requires it).
+      - name: Install elan
+        run: |
+          # Pinned to leanprover/elan commit SHA 3d5138e1526a569a23901b8ee559032793cf445e (v4.2.1)
+          # SHA-256 of elan-init.sh at this commit: 4bacca9502cb89736fe63d2685abc2947cfbf34dc87673504f1bb4c43eda9264
+          ELAN_SHA=3d5138e1526a569a23901b8ee559032793cf445e
+          EXPECTED=4bacca9502cb89736fe63d2685abc2947cfbf34dc87673504f1bb4c43eda9264
+          curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/$ELAN_SHA/elan-init.sh" -o /tmp/elan-init.sh
+          echo "$EXPECTED  /tmp/elan-init.sh" | sha256sum -c
+          sh /tmp/elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve toolchain from lean-toolchain
+        run: |
+          # elan auto-installs the toolchain pinned in ./lean-toolchain on first lake use
+          lake --version
+
+      - name: Generate lake-manifest.json (lake update)
+        run: lake update -R
+
+      # leanprover/lean-action removed: leanprover org is not a GitHub-verified creator
+      # and the szl-holdings org policy (allowed_actions=selected, github_owned+verified only,
+      # patterns_allowed=[]) blocks it — causing startup_failure before any runner is allocated.
+      # Inlined equivalent using only github-owned actions/cache (allowed) + shell commands.
+      - name: Restore Lake build cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-v2-${{ github.sha }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-v2
+
+
+      - name: Repair Mathlib package git state
+        run: |
+          set -eu
+          if [ -d .lake/packages/mathlib ]; then
+            cd .lake/packages/mathlib
+            # If git index is corrupt OR HEAD missing, blow it away
+            if ! git rev-parse HEAD >/dev/null 2>&1 || ! git status >/dev/null 2>&1; then
+              echo "::warning::Mathlib package corrupt — removing for fresh fetch"
+              cd ../..
+              rm -rf packages/mathlib
+            else
+              echo ".lake/packages/mathlib OK"
+            fi
+          fi
+        shell: bash
+
+      - name: Get Mathlib binary cache
+        run: lake exe cache get
+
+      - name: Build (kernel-check the whole library)
+        run: lake build
+
+      - name: Save Lake build cache
+        if: success()
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-v2-${{ github.sha }}
+
+      - name: Count remaining sorrys
+        run: |
+          {
+            echo "## Remaining \`sorry\` axioms"
+            echo ""
+            COUNT=$(grep -rn '^[^-]*\bsorry\b' Lutar/*.lean Main.lean 2>/dev/null | grep -v '^--' | wc -l || echo "0")
+            echo "Total \`sorry\` markers: **$COUNT**"
+            echo ""
+            grep -rn '\bsorry\b' Lutar/*.lean Main.lean 2>/dev/null | grep -v '^--' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run check executable
+        run: lake exe check
+
+      - name: Run reference-vectors parity check
+        run: lake exe ref_vectors reference-vectors.json

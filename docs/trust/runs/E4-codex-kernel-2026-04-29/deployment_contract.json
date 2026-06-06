@@ -1,0 +1,21 @@
+{
+  "platform": "replit",
+  "healthcheck": {
+    "enabled": true,
+    "path": "/api/healthz",
+    "expected_status": 200,
+    "startup_timeout_seconds": 60
+  },
+  "logging": {
+    "json_logs": true,
+    "retain_local_artifacts": true,
+    "write_run_logs_to_output": true
+  },
+  "healthcheck_payload": {
+    "ok": true,
+    "payload_version": "1.0.0",
+    "kernel_version": "codex-kernel-runner-1.0.0",
+    "repo_commit": "7eb623f8b870128e615ac6be9880e0265204b454",
+    "run_id": "run_386723681730b1fd"
+  }
+}

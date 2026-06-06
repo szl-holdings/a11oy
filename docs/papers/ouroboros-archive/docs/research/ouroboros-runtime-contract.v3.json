@@ -1,0 +1,635 @@
+{
+  "payload_version": "3.0.0",
+  "payload_name": "replit_ouroboros_ecosystem_master",
+  "title": "SZL Ecosystem Master Payload for Replit",
+  "author": "Stephen P. Lutar Jr.",
+  "organization": "SZL Holdings",
+  "date": "2026-04-30",
+  "mission": "Unified governed runtime payload for innovating and evolving the Alloy/A11oy ecosystem across agent orchestration, property operations, finance, governance, security, research, and data convergence.",
+  "vision": {
+    "north_star": "Build a self-evolving, governed, auditable AI ecosystem where recursive computation is bounded, observable, economically controlled, and portable across domain packs.",
+    "platform_identity": "Alloy/A11oy as the living orchestration layer for the SZL ecosystem",
+    "thesis_alignment": {
+      "title": "The Ouroboros Thesis: Looped Computation as a System Primitive for AI Systems",
+      "core_claim": "Bounded loops with typed traces, explicit deltas, and convergence-aware exits should be treated as first-class governance surfaces in AI systems.",
+      "paper_type": "position_and_systems_design_preprint"
+    }
+  },
+  "runner_compatibility": {
+    "environment": "Replit",
+    "runtime": "TypeScript Node pnpm monorepo",
+    "preserve_legacy_runner_fields": true,
+    "legacy_fields": [
+      "goal",
+      "initial_state",
+      "loop_policy",
+      "budgets",
+      "transition_model"
+    ],
+    "deployment_context": {
+      "source_of_truth": "private_repo_and_replit_project",
+      "secrets_expected_in_replit": true,
+      "hetzner_prod_exists": true
+    }
+  },
+  "goal": {
+    "target_rows": 1,
+    "objective": "Operate one master governed payload that can route work across the SZL ecosystem, evolve by replay and receipts, and support innovation through domain-specific packs under a shared Ouroboros runtime.",
+    "success_criteria": [
+      "all_steps_traced",
+      "all_high_risk_actions_receipted",
+      "proof_routes_bound_when_required",
+      "domain_pack_selected_explicitly",
+      "replay_baseline_available",
+      "budgets_enforced",
+      "ecosystem_modules_operate_under_one_control_plane"
+    ]
+  },
+  "initial_state": {
+    "state_version": "3.0.0",
+    "current_step": 0,
+    "halted": false,
+    "mode": "approval_gated",
+    "active_runtime": "A11oy_core",
+    "active_context": "agent_orchestration",
+    "active_domain_pack": "A11oy_core",
+    "operator_presence": "human_in_the_loop_available",
+    "proof_required": true,
+    "receipt_required": true,
+    "ecosystem_focus": "multi_domain_governed_operations",
+    "cycle_positions": {
+      "madrid_almanac_cycle": 0,
+      "paris_long_cycle": 0,
+      "grolier_schedule_cycle": 0,
+      "review_cycle": 0
+    }
+  },
+  "loop_policy": {
+    "max_steps": 10,
+    "adaptive_depth": true,
+    "early_stop_enabled": true,
+    "no_silent_mutation": true,
+    "append_only_trace_expectation": true,
+    "halt_conditions": [
+      "low_delta_high_consistency",
+      "validator_stop",
+      "budget_exhaustion",
+      "manual_approval_required",
+      "risk_tier_forced_escalation",
+      "health_contract_failure",
+      "proof_unavailable"
+    ],
+    "delta_gate": {
+      "enabled": true,
+      "max_delta_for_early_stop": 0.08
+    },
+    "consistency_gate": {
+      "enabled": true,
+      "mode": "cross_step_and_final_alignment",
+      "min_consistency_score": 0.86
+    },
+    "continuation_strategy": {
+      "mode": "adaptive_governed",
+      "requires_budget_and_value_check": true,
+      "requires_validator_clearance": true
+    }
+  },
+  "budgets": {
+    "step_budget": 10,
+    "max_wall_clock_ms": 45000,
+    "max_tokens": 16000,
+    "max_cost_usd": 5.0,
+    "economic_continuation_rule": {
+      "enabled": true,
+      "expression": "continue_if_expected_incremental_value_gt_incremental_cost",
+      "dimensions": [
+        "tokens",
+        "latency",
+        "money",
+        "risk",
+        "operator_time"
+      ],
+      "purpose": "prevent_runaway_loops_and_prioritize_efficient_reasoning"
+    }
+  },
+  "transition_model": {
+    "type": "ouroboros_runtime_kernel",
+    "kernel_name": "LoopKernel",
+    "depth_allocator": "EntropyDepthAllocator",
+    "consistency_checker": "CrossStepConsistency",
+    "validator_gate": "ValidatorGate",
+    "receipt_writer": "DecisionReceiptWriter",
+    "supports_deterministic_mode": true,
+    "supports_stochastic_mode": true
+  },
+  "ecosystem_map": {
+    "platform_core": [
+      "A11oy_core",
+      "Ouroboros_kernel",
+      "trace_runtime",
+      "receipt_runtime",
+      "validator_runtime",
+      "proof_router",
+      "replay_runtime"
+    ],
+    "operational_products": [
+      "AlloyScape",
+      "Bingle_Properties",
+      "Mule_Properties",
+      "Laundry_management_app",
+      "PSEM_platform"
+    ],
+    "domain_intents": [
+      "agent_orchestration",
+      "property_management",
+      "finance_operations",
+      "security_ops",
+      "research_and_claims",
+      "data_sync",
+      "client_execution"
+    ]
+  },
+  "domain_pack_router": {
+    "enabled": true,
+    "default_pack": "A11oy_core",
+    "routing_basis": [
+      "task_type",
+      "risk_tier",
+      "tool_affinity",
+      "proof_requirements",
+      "client_context",
+      "operator_mode"
+    ],
+    "packs": [
+      {
+        "pack_id": "A11oy_core",
+        "purpose": "general agent orchestration and planner runtime"
+      },
+      {
+        "pack_id": "property_ops",
+        "purpose": "property management, maintenance, scheduling, receipts, vendor workflows"
+      },
+      {
+        "pack_id": "finance_ops",
+        "purpose": "cashflow logic, budget review, payment workflows, financial guardrails"
+      },
+      {
+        "pack_id": "security_ops",
+        "purpose": "recursive threat modeling and access-risk workflows"
+      },
+      {
+        "pack_id": "research_ops",
+        "purpose": "claim-bound research, evidence collection, thesis and payload analysis"
+      },
+      {
+        "pack_id": "data_sync_ops",
+        "purpose": "convergent synchronization, merge conflicts, delta-based reconciliation"
+      },
+      {
+        "pack_id": "medical_review",
+        "purpose": "non-diagnostic bounded review with mandatory escalation gates"
+      },
+      {
+        "pack_id": "legal_ops",
+        "purpose": "document analysis and workflow support with approval gates"
+      },
+      {
+        "pack_id": "government_workflows",
+        "purpose": "public-sector process support and structured compliance routing"
+      },
+      {
+        "pack_id": "creative_studio",
+        "purpose": "content, voice, visual planning, animation, and media workflow orchestration"
+      }
+    ]
+  },
+  "workspace_contract": {
+    "enabled": true,
+    "repo_shape": "pnpm_monorepo",
+    "package_boundary": "@workspace/ouroboros",
+    "expected_exports": [
+      "LoopKernel",
+      "DepthAllocator",
+      "ConsistencyChecker",
+      "OuroborosTrace",
+      "DecisionReceipt",
+      "ValidatorGate",
+      "ProofRouter",
+      "ReplayVerifier"
+    ],
+    "workspace_assumptions": [
+      "shared_packages",
+      "api_server",
+      "frontend_app",
+      "trace_module",
+      "validator_registry",
+      "receipt_store",
+      "domain_packs"
+    ]
+  },
+  "trace_contract": {
+    "trace_required": true,
+    "trace_schema": "OuroborosTrace.v2",
+    "append_only": true,
+    "per_step_fields": [
+      "root_trace_id",
+      "run_id",
+      "parent_span_id",
+      "step_span_id",
+      "step_index",
+      "input_state_hash",
+      "output_state_hash",
+      "delta_score",
+      "uncertainty_score",
+      "consistency_score",
+      "validator_results",
+      "budget_consumed",
+      "elapsed_ms",
+      "active_domain_pack",
+      "proof_route_id",
+      "risk_tier",
+      "halt_decision"
+    ],
+    "golden_trace_support": true,
+    "trace_is_product": true
+  },
+  "decision_receipt": {
+    "enabled": true,
+    "schema": "DecisionReceipt.v2",
+    "required_fields": [
+      "receipt_id",
+      "run_id",
+      "final_state_hash",
+      "halt_reason",
+      "budget_summary",
+      "validator_summary",
+      "proof_summary",
+      "risk_tier",
+      "operator_review_required",
+      "escalation_status",
+      "unresolved_issues"
+    ],
+    "human_readable_summary": true,
+    "machine_replayable": true,
+    "approval_grade_provenance": true
+  },
+  "proof_routing": {
+    "enabled": true,
+    "default_mode": "route_by_claim_action_and_risk",
+    "routes": [
+      {
+        "route_id": "PRF_CLAIM_BOUND_RESEARCH",
+        "applies_to": "research_claims_or_thesis_assertions",
+        "required_artifacts": [
+          "source_binding",
+          "locator",
+          "trace_reference",
+          "receipt"
+        ]
+      },
+      {
+        "route_id": "PRF_OPERATIONAL_ACTION",
+        "applies_to": "operational_or_client_actions",
+        "required_artifacts": [
+          "validator_result",
+          "risk_tier",
+          "receipt"
+        ]
+      },
+      {
+        "route_id": "PRF_SECURITY_ACTION",
+        "applies_to": "security_sensitive_actions",
+        "required_artifacts": [
+          "validator_result",
+          "escalation_check",
+          "receipt",
+          "approval_if_required"
+        ]
+      },
+      {
+        "route_id": "PRF_DATA_CONVERGENCE",
+        "applies_to": "data_merge_or_sync",
+        "required_artifacts": [
+          "source_priority_record",
+          "delta_log",
+          "consistency_score",
+          "receipt"
+        ]
+      }
+    ]
+  },
+  "validators": {
+    "enabled": true,
+    "modes": [
+      "hard_stop",
+      "soft_warn",
+      "correction_required",
+      "escalate"
+    ],
+    "default_validators": [
+      {
+        "validator_id": "VAL_BUDGET_ENFORCER",
+        "severity": "error",
+        "rule": "No loop step may exceed configured budget ceilings."
+      },
+      {
+        "validator_id": "VAL_PROOF_REQUIRED",
+        "severity": "error",
+        "rule": "High-consequence actions require a proof route and decision receipt."
+      },
+      {
+        "validator_id": "VAL_LOCATOR_REQUIRED",
+        "severity": "error",
+        "rule": "Evidence-bearing claims require locators when corpus governance applies."
+      },
+      {
+        "validator_id": "VAL_RISK_ESCALATION",
+        "severity": "error",
+        "rule": "Risk tiers above threshold must escalate before execution continues."
+      },
+      {
+        "validator_id": "VAL_NO_SILENT_MUTATION",
+        "severity": "error",
+        "rule": "All material state changes must appear in append-only trace records."
+      }
+    ],
+    "correction_policy": {
+      "enabled": true,
+      "max_correction_steps": 2,
+      "reenter_loop_after_correction": true
+    }
+  },
+  "risk_governance": {
+    "enabled": true,
+    "tiers": [
+      {
+        "tier": "R1_low",
+        "description": "Informational and low-impact assistance",
+        "requires_manual_approval": false,
+        "receipt_required": true
+      },
+      {
+        "tier": "R2_moderate",
+        "description": "Operational support with limited consequence",
+        "requires_manual_approval": false,
+        "receipt_required": true
+      },
+      {
+        "tier": "R3_high",
+        "description": "High-consequence actions affecting business, finance, clients, or security",
+        "requires_manual_approval": true,
+        "receipt_required": true
+      },
+      {
+        "tier": "R4_critical",
+        "description": "Critical actions involving legal, medical, major financial, or security implications",
+        "requires_manual_approval": true,
+        "receipt_required": true,
+        "force_escalation": true
+      }
+    ]
+  },
+  "operational_modes": {
+    "enabled": true,
+    "default_mode": "approval_gated",
+    "modes": [
+      {
+        "mode": "advisory",
+        "description": "Suggest only, no autonomous execution"
+      },
+      {
+        "mode": "semi_autonomous",
+        "description": "Execute low-risk actions under validator and budget constraints"
+      },
+      {
+        "mode": "approval_gated",
+        "description": "Require approval before medium/high-risk actions complete"
+      },
+      {
+        "mode": "replay_audit",
+        "description": "Replay historical traces, receipts, and golden runs for audit and debugging"
+      },
+      {
+        "mode": "distillation_capture",
+        "description": "Capture high-quality traces for later policy or model distillation"
+      }
+    ]
+  },
+  "golden_runs": {
+    "enabled": true,
+    "purpose": "deterministic replay baselines for regression control and ecosystem evolution",
+    "required_outputs": [
+      "trace.jsonl",
+      "decision_receipt.json",
+      "final_state.json",
+      "run_summary.json"
+    ],
+    "verification": {
+      "require_final_state_hash_match": true,
+      "require_trace_chain_integrity": true,
+      "require_receipt_integrity": true
+    }
+  },
+  "evidence_pack_contract": {
+    "enabled": true,
+    "purpose": "standardize provenance for high-consequence outputs and replay-ready decisions",
+    "required_fields": [
+      "evidence_pack_id",
+      "source_ids",
+      "locators",
+      "proof_route_id",
+      "receipt_id",
+      "trace_id",
+      "risk_tier"
+    ]
+  },
+  "deployment_health_contract": {
+    "enabled": true,
+    "expected_health_endpoint": "/api/healthz",
+    "checks": [
+      "api_healthz",
+      "trace_writer_ready",
+      "validator_registry_loaded",
+      "receipt_store_ready",
+      "proof_router_ready",
+      "domain_router_loaded"
+    ],
+    "failure_behavior": "degrade_to_advisory_or_halt"
+  },
+  "caching_and_replay": {
+    "enabled": true,
+    "step_level_memoization": true,
+    "replay_enabled": true,
+    "cache_safety": {
+      "require_state_hash_match": true,
+      "forbid_cross_risk_tier_reuse": true,
+      "invalidate_on_validator_schema_change": true
+    }
+  },
+  "distillation_hooks": {
+    "enabled": true,
+    "trace_export_format": "jsonl",
+    "eligible_artifacts": [
+      "step_traces",
+      "decision_receipts",
+      "validator_paths",
+      "halt_summaries",
+      "golden_runs"
+    ]
+  },
+  "codex_corpus_governance": {
+    "enabled": true,
+    "role": "comparative_structural_inspiration_not_literal_execution_truth",
+    "policy": {
+      "no_single_codex_as_sole_proof_for_ouroboros_core_claims": true,
+      "comparative_support_only": true,
+      "locators_required_when_codex_claims_are_bound": true
+    },
+    "sources": [
+      {
+        "source_id": "DRESDEN_ANALOGY_LAYER",
+        "status": "ingested",
+        "role": "proof_chain_analogy_and_table_discipline"
+      },
+      {
+        "source_id": "MADRID_ALMANAC_LAYER",
+        "status": "ingested",
+        "role": "layered_multi_cycle_almanac_coordination"
+      },
+      {
+        "source_id": "PARIS_CADENCE_LAYER",
+        "status": "ingested",
+        "role": "long_cycle_and_calendrical_cadence_context"
+      },
+      {
+        "source_id": "GROLIER_SCHEDULE_LAYER",
+        "status": "ingested",
+        "role": "compact_predetermined_schedule_context"
+      }
+    ]
+  },
+  "almanac_system": {
+    "enabled": true,
+    "description": "Codex-inspired cycle layer coordinating periodic review, cadence, and predetermined schedule constraints above the loop kernel.",
+    "cycles": [
+      {
+        "cycle_id": "madrid_almanac_cycle",
+        "purpose": "short_horizon_review_and_task_rotation",
+        "step_interval": 1
+      },
+      {
+        "cycle_id": "paris_long_cycle",
+        "purpose": "long_horizon_reassessment_and_cadence",
+        "step_interval": 3
+      },
+      {
+        "cycle_id": "grolier_schedule_cycle",
+        "purpose": "predetermined_schedule_constraints",
+        "step_interval": 2
+      },
+      {
+        "cycle_id": "review_cycle",
+        "purpose": "system_health_review_and_receipt_checkpointing",
+        "step_interval": 2
+      }
+    ],
+    "advance_cycles_each_step": true
+  },
+  "targeted_service_execution": {
+    "enabled": true,
+    "services": [
+      {
+        "service_id": "client_ops_service",
+        "purpose": "execute client-facing workflows under proof and receipt controls"
+      },
+      {
+        "service_id": "property_service",
+        "purpose": "support maintenance, communication, scheduling, and receipts for properties"
+      },
+      {
+        "service_id": "research_service",
+        "purpose": "support governed research and claim-bound outputs"
+      },
+      {
+        "service_id": "security_review_service",
+        "purpose": "recursive threat modeling and escalation"
+      },
+      {
+        "service_id": "data_convergence_service",
+        "purpose": "merge, reconcile, and verify structured records"
+      }
+    ]
+  },
+  "innovation_engine": {
+    "enabled": true,
+    "purpose": "Drive ecosystem evolution by learning from traces, receipts, replay, and operator feedback instead of only adding more prompts or bigger models.",
+    "loops": [
+      "runtime_feedback_loop",
+      "golden_run_regression_loop",
+      "receipt_quality_loop",
+      "domain_pack_improvement_loop",
+      "economic_efficiency_loop"
+    ],
+    "operator_feedback_binding": true,
+    "replay_driven_iteration": true
+  },
+  "missing_pieces_patch_map": {
+    "purpose": "Code roadmap to convert the full payload from metadata-rich governance into executable ecosystem behavior.",
+    "missing_pieces": [
+      {
+        "piece": "validator_execution_binding",
+        "status": "needs_code"
+      },
+      {
+        "piece": "decision_receipt_writer",
+        "status": "needs_code"
+      },
+      {
+        "piece": "proof_route_resolver",
+        "status": "needs_code"
+      },
+      {
+        "piece": "domain_pack_dispatcher",
+        "status": "needs_code"
+      },
+      {
+        "piece": "golden_run_replay_verifier",
+        "status": "needs_code"
+      },
+      {
+        "piece": "almanac_cycle_advancer",
+        "status": "needs_code"
+      },
+      {
+        "piece": "health_contract_degrader",
+        "status": "needs_code"
+      },
+      {
+        "piece": "operator_approval_gate",
+        "status": "needs_code"
+      }
+    ]
+  },
+  "output_paths": {
+    "trace_jsonl": "output/trace.jsonl",
+    "decision_receipt": "output/decision_receipt.json",
+    "proof_ledger_jsonl": "output/proof_ledger.jsonl",
+    "final_state_json": "output/final_state.json",
+    "run_summary_json": "output/run_summary.json",
+    "golden_run_report_json": "output/golden_run_report.json"
+  },
+  "replit_notes": {
+    "copy_target": "payload.json",
+    "recommended_next_actions": [
+      "bind_runner_to_trace_contract_and_output_paths",
+      "make_validators_executable",
+      "emit_decision_receipts_on_all_high_risk_or_terminal_runs",
+      "wire_domain_pack_router_into_dispatch_logic",
+      "implement_replay_and_final_state_hash_verification",
+      "bind_health_checks_to_advisory_fallback_or_halt",
+      "add_operator_approval_gate_ui_or_cli"
+    ],
+    "safe_for_private_repo": true,
+    "purpose": "single master payload to innovate and evolve the full SZL ecosystem from one governed Replit control plane"
+  }
+}

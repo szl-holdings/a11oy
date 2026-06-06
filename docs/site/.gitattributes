@@ -1,0 +1,40 @@
+# .gitattributes — SZL Holdings
+# Force consistent line endings
+
+# Default: normalize to LF
+* text=auto eol=lf
+
+# Source files
+*.py text eol=lf
+*.go text eol=lf
+*.ts text eol=lf
+*.js text eol=lf
+*.lean text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.toml text eol=lf
+
+# Docs
+*.txt text eol=lf
+*.rst text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
+*.woff binary
+*.woff2 binary
+
+# Archives
+*.zip binary
+*.tar.gz binary
+
+# Linguist overrides
+*.lean linguist-language=Lean
+docs/ linguist-documentation

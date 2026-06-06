@@ -1,0 +1,38 @@
+{
+  "title": "PURIQ: A Master Formula for Agentic AI under Provable Provenance",
+  "version": "v1.0.0",
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "description": "<p>PURIQ (Quechua <em>puriq</em>, \"the one who acts\") is a single master formula that turns a governed language-model substrate into a provably-provenanced agent. PURIQ selects an action by maximizing the product of four factors: a positive-homogeneous, bounded &Lambda; aggregator; the canonical 13-axis <code>yuyay_v3</code> conjunctive gate (replay hash bacf5443&hellip;); an exponential penalty over ten HUKLLA halt-tripwires; and a Khipu Merkle-DAG receipt product that is nonzero only when the action's provenance chain verifies. The paper gives the formula's derivation, four governance invariants, and a Lean 4 formalization of the Khipu DAG soundness theorem, and tabulates 23 organ sub-formulas mechanized against Mathlib.</p><p><strong>Honest scope:</strong> the &Lambda;-uniqueness result is carried as Conjecture 1, not a theorem; the Doctrine v11 Lean corpus carries 749 declarations, 14 unique axioms, and 163 sorry obligations (112 baseline + 51 Putnam); this work is strictly additive, introducing four net-new sorry-tagged obligations (SORRY_PURIQ_OPEN[24..27]) and no new axiom; provenance posture is honestly SLSA L1.</p><p>This preprint is the canonical, standalone citation for the PURIQ formula, the agentic-action layer of Doctrine v12. It is independent of but cites the companion Ouroboros Thesis v20.</p>",
+  "creators": [
+    {
+      "name": "Lutar, Stephen P., Jr.",
+      "orcid": "0009-0001-0110-4173",
+      "affiliation": "SZL Holdings"
+    }
+  ],
+  "keywords": [
+    "agentic AI governance",
+    "formal verification",
+    "Lean 4",
+    "PURIQ",
+    "Lutar invariant",
+    "weighted geometric mean",
+    "Khipu Merkle DAG",
+    "Merkle DAG soundness",
+    "13-axis gate",
+    "HUKLLA tripwires",
+    "Doctrine v11",
+    "court-admissible provenance",
+    "SLSA",
+    "non-compensatory gate"
+  ],
+  "license": "cc-by-4.0",
+  "access_right": "open",
+  "language": "eng",
+  "related_identifiers": [
+    {"relation": "isVersionOf", "identifier": "10.5281/zenodo.19944926", "scheme": "doi"},
+    {"relation": "references", "identifier": "10.5281/zenodo.19944926", "scheme": "doi"}
+  ],
+  "notes": "Concept DOI 10.5281/zenodo.19944926 (Ouroboros line) resolves to the latest related version. PURIQ preprint source: szl-holdings/puriq-preprint, tag preprint-v1.0.0. DOI minted automatically via the GitHub-Zenodo integration on GitHub release; see ZENODO_AUTO_MINT_SETUP.md."
+}

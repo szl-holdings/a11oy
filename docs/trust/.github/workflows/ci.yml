@@ -1,0 +1,72 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate trust runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Verify README is present
+        run: test -f README.md
+
+      - name: Verify LICENSE is CC-BY-4.0
+        run: grep -qi "Creative Commons" LICENSE
+
+      - name: Check trust-run directory exists
+        run: test -d runs
+
+      - name: Validate every run is a directory with a manifest
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for run in runs/*/; do
+            if [ ! -f "$run/run_manifest.json" ] && [ ! -f "$run/manifest.json" ] && [ ! -f "$run/README.md" ]; then
+              echo "::error::run $run is missing manifest file or README.md"
+              exit 1
+            fi
+          done
+          echo "All runs validated."
+
+      - name: Lint markdown (informational, non-blocking)
+        continue-on-error: true
+        run: |
+          find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" \
+            -exec bash -c 'echo "::group::$1"; head -5 "$1"; echo "::endgroup::"' _ {} \;
+
+  json-validity:
+    name: Validate JSON manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Find and parse every JSON file
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for f in $(find . -name "*.json" -not -path "./.git/*"); do
+            found=$((found + 1))
+            python3 -m json.tool "$f" > /dev/null || { echo "::error file=$f::Invalid JSON"; exit 1; }
+          done
+          echo "Validated $found JSON files."

@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "SZL Holdings — lean-kernel"
+date-released: "2026-06-03"
+license: Apache-2.0
+repository-code: "https://github.com/szl-holdings/lean-kernel"
+url: "https://szlholdings.ai"
+abstract: >
+  SZL Holdings component — Doctrine v11 compliant (749/14/163, kernel c7c0ba17,
+  Λ = Conjecture 1). SLSA Build Level 1 (honest); Sigstore signing pending.
+  DCO-compliant; Section 889 attested (5 banned vendors).
+keywords:
+  - governance
+  - agentic-ai
+  - defense-tech
+  - doctrine-v11
+authors:
+  - name: "SZL Holdings"
+    website: "https://szlholdings.ai"
+    email: "hello@szlholdings.ai"

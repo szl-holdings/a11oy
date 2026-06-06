@@ -1,0 +1,3645 @@
+[
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:38Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 22,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:35Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25960507729/job/76314889529",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:57Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25960507742/job/76314889639",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:57Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25960507742/job/76314889634",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25960507742/job/76314889615",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25960507742/job/76314889642",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:14:44Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25960507742/job/76314889627",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/runs/76314925358",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:25Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — amaru",
+    "updatedAt": "2026-05-16T11:14:38Z",
+    "url": "https://github.com/szl-holdings/amaru/pull/22",
+    "repo": "amaru"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T09:09:28Z",
+    "deletions": 1,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 21,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:16Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25958111468/job/76308434231",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25958111493/job/76308434262",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25958111493/job/76308434244",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25958111493/job/76308434256",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25958111493/job/76308434258",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/actions/runs/25958111493/job/76308434240",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/amaru/runs/76308464846",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T09:10:10Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:28Z",
+    "url": "https://github.com/szl-holdings/amaru/pull/21",
+    "repo": "amaru"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:39Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 24,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25960507979/job/76314890144",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T11:14:44Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25960507992/job/76314890252",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:15:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:40Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25960507992/job/76314890286",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:15:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:16:17Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25960507992/job/76314890247",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:15:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25960507992/job/76314890245",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:14:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25960507992/job/76314890235",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:14:44Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:25Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/runs/76314924392",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:23Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — a11oy",
+    "updatedAt": "2026-05-16T11:14:39Z",
+    "url": "https://github.com/szl-holdings/a11oy/pull/24",
+    "repo": "a11oy"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T09:09:28Z",
+    "deletions": 1,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 23,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:36Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25958111609/job/76308434666",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T09:09:34Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:15Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25958111662/job/76308434723",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T09:10:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:09Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25958111662/job/76308434732",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T09:09:59Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:19Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25958111662/job/76308434726",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T09:10:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:12Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25958111662/job/76308434724",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T09:10:02Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:07Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/actions/runs/25958111662/job/76308434721",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T09:09:52Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/a11oy/runs/76308478779",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T09:10:23Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:28Z",
+    "url": "https://github.com/szl-holdings/a11oy/pull/23",
+    "repo": "a11oy"
+  },
+  {
+    "additions": 691,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 12,
+    "createdAt": "2026-05-16T14:10:38Z",
+    "deletions": 0,
+    "headRefName": "feat/runtime/th2-th5-scaffold",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 22,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:11:53Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25964035757/job/76324228377",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T14:10:48Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:11:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25964035815/job/76324228489",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T14:10:44Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:10:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25964035815/job/76324228496",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T14:10:44Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:11:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25964035815/job/76324228499",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T14:10:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:10:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25964035815/job/76324228492",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T14:10:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:10:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25964035815/job/76324228464",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T14:10:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:11:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/runs/76324285978",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:11:43Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(runtime): TH2 DOI-bind + TH5 confluence + 14 tests",
+    "updatedAt": "2026-05-16T14:21:12Z",
+    "url": "https://github.com/szl-holdings/sentra/pull/22",
+    "repo": "sentra"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:37Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 21,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25960507673/job/76314889376",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25960507690/job/76314889458",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25960507690/job/76314889500",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25960507690/job/76314889470",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25960507690/job/76314889456",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25960507690/job/76314889464",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:32Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/runs/76314929897",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:30Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — sentra",
+    "updatedAt": "2026-05-16T11:14:38Z",
+    "url": "https://github.com/szl-holdings/sentra/pull/21",
+    "repo": "sentra"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T09:09:28Z",
+    "deletions": 1,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 20,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:47Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25958111642/job/76308434705",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T09:09:51Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25958111680/job/76308434804",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T09:10:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25958111680/job/76308434807",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T09:10:05Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25958111680/job/76308434811",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T09:10:08Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:16Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25958111680/job/76308434817",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T09:10:06Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:22Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/actions/runs/25958111680/job/76308434808",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T09:10:05Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:35Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/sentra/runs/76308487976",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T09:10:34Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:28Z",
+    "url": "https://github.com/szl-holdings/sentra/pull/20",
+    "repo": "sentra"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:37Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 22,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25960507555/job/76314889136",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T11:14:43Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25960507593/job/76314889191",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:14:42Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25960507593/job/76314889211",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:14:42Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25960507593/job/76314889187",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:14:42Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:14:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25960507593/job/76314889199",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:14:42Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25960507593/job/76314889185",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:14:42Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:29Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/runs/76314927569",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:28Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — terra",
+    "updatedAt": "2026-05-16T11:14:37Z",
+    "url": "https://github.com/szl-holdings/terra/pull/22",
+    "repo": "terra"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T09:09:28Z",
+    "deletions": 1,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 21,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25958111606/job/76308434629",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25958111623/job/76308434675",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:04Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25958111623/job/76308434676",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T09:09:49Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:53Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25958111623/job/76308434681",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T09:09:34Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25958111623/job/76308434673",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:50Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/actions/runs/25958111623/job/76308434664",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:19Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/terra/runs/76308473564",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T09:10:17Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:28Z",
+    "url": "https://github.com/szl-holdings/terra/pull/21",
+    "repo": "terra"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:44Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 22,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25960509735/job/76314894566",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T11:14:58Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25960509765/job/76314894739",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:15:19Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25960509765/job/76314894733",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:15:01Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:16:41Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25960509765/job/76314894761",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:15:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:12Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25960509765/job/76314894744",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:14:59Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25960509765/job/76314895001",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:15:12Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:39Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/runs/76314935013",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:37Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — vessels",
+    "updatedAt": "2026-05-16T11:14:44Z",
+    "url": "https://github.com/szl-holdings/vessels/pull/22",
+    "repo": "vessels"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T09:09:28Z",
+    "deletions": 1,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 21,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:40Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25958111560/job/76308434468",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25958111573/job/76308434515",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25958111573/job/76308434554",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:47Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25958111573/job/76308434520",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:44Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25958111573/job/76308434537",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:47Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/actions/runs/25958111573/job/76308434506",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:30Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vessels/runs/76308482621",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T09:10:28Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:28Z",
+    "url": "https://github.com/szl-holdings/vessels/pull/21",
+    "repo": "vessels"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:45Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 22,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:53Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25960510068/job/76314895444",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T11:14:58Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25960510140/job/76314895500",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:15:35Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25960510140/job/76314895501",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:15:35Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25960510140/job/76314895498",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:15:12Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:07Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25960510140/job/76314895496",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:14:57Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25960510140/job/76314895508",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:14:56Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/runs/76314938256",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:41Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — counsel",
+    "updatedAt": "2026-05-16T11:14:45Z",
+    "url": "https://github.com/szl-holdings/counsel/pull/22",
+    "repo": "counsel"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T09:09:28Z",
+    "deletions": 1,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 21,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25958111614/job/76308434679",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T09:09:33Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25958111634/job/76308434709",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T09:09:49Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25958111634/job/76308434710",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T09:09:50Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25958111634/job/76308434708",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T09:09:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25958111634/job/76308434711",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T09:09:50Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:06Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/actions/runs/25958111634/job/76308434702",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T09:09:46Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:25Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/counsel/runs/76308476523",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T09:10:20Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:28Z",
+    "url": "https://github.com/szl-holdings/counsel/pull/21",
+    "repo": "counsel"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:46Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 21,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:57Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25960510181/job/76314895745",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T11:15:03Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:22Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25960510228/job/76314895736",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:15:10Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:09Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25960510228/job/76314895744",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:14:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:16:51Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25960510228/job/76314895754",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:15:36Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:49Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25960510228/job/76314895734",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:15:37Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:16:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25960510228/job/76314895723",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:15:41Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:48Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/runs/76314942024",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:47Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — carlota-jo",
+    "updatedAt": "2026-05-16T11:14:46Z",
+    "url": "https://github.com/szl-holdings/carlota-jo/pull/21",
+    "repo": "carlota-jo"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T09:09:28Z",
+    "deletions": 1,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 20,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25958111631/job/76308434706",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T09:09:47Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:02Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25958111646/job/76308434754",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T09:09:46Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25958111646/job/76308434737",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T09:09:47Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:11:13Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25958111646/job/76308434757",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T09:09:56Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:09:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25958111646/job/76308434722",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T09:09:44Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/actions/runs/25958111646/job/76308434725",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T09:09:49Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T09:10:32Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/carlota-jo/runs/76308484669",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T09:10:30Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:28Z",
+    "url": "https://github.com/szl-holdings/carlota-jo/pull/20",
+    "repo": "carlota-jo"
+  },
+  {
+    "additions": 3456,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 31,
+    "createdAt": "2026-05-16T14:13:47Z",
+    "deletions": 0,
+    "headRefName": "feat/agentic/a11oy-core",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 32,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:19:16Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25964203705/job/76324674304",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T14:18:39Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:19:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25964203705/job/76324674305",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T14:18:39Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:19:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/runs/76324701284",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:19:06Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(agentic): a11oy-core orchestrator + MCP server + Cursor/Claude/Replit configs",
+    "updatedAt": "2026-05-16T14:21:10Z",
+    "url": "https://github.com/szl-holdings/ouroboros/pull/32",
+    "repo": "ouroboros"
+  },
+  {
+    "additions": 2080,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 37,
+    "createdAt": "2026-05-16T14:13:42Z",
+    "deletions": 0,
+    "headRefName": "feat/runtime/th1-th7-scaffold",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 31,
+    "reviewDecision": "",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:14:22Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25964099253/job/76324397817",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T14:13:46Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:14:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25964099253/job/76324397807",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T14:13:48Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:14:19Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/runs/76324424930",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:14:13Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(runtime): TH1–TH7 scaffolds with 105 vitest tests",
+    "updatedAt": "2026-05-16T14:21:09Z",
+    "url": "https://github.com/szl-holdings/ouroboros/pull/31",
+    "repo": "ouroboros"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:47Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 30,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:16:02Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25960509889/job/76314895917",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T11:15:09Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/runs/76314947073",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:52Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — ouroboros",
+    "updatedAt": "2026-05-16T11:14:47Z",
+    "url": "https://github.com/szl-holdings/ouroboros/pull/30",
+    "repo": "ouroboros"
+  },
+  {
+    "additions": 51,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 11,
+    "createdAt": "2026-05-15T03:48:27Z",
+    "deletions": 8,
+    "headRefName": "feat/docs-anatomy-pdfs",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 29,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:49:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25899149525/job/76118634355",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-15T03:48:32Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:49:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/runs/76118696805",
+        "name": "CodeQL",
+        "startedAt": "2026-05-15T03:49:18Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "docs(anatomy): publish 4 anatomy PDFs (heart/brain/wires/full_body)",
+    "updatedAt": "2026-05-16T14:50:31Z",
+    "url": "https://github.com/szl-holdings/ouroboros/pull/29",
+    "repo": "ouroboros"
+  },
+  {
+    "additions": 127,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-15T03:46:51Z",
+    "deletions": 0,
+    "headRefName": "feat/huklla-t11-doi-title-gate",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 28,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:29Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25965738161/job/76328815119",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-05-16T15:29:49Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:07Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25965739310/job/76328816627",
+        "name": "doi-title-gate",
+        "startedAt": "2026-05-16T15:29:50Z",
+        "status": "COMPLETED",
+        "workflowName": "huklla-t11-doi-title-gate"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:40Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25965738161/job/76328815121",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T15:29:49Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/runs/76328849691",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T15:30:18Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(huklla T11): DOI-title CI gate (postmortem follow-up)",
+    "updatedAt": "2026-05-16T15:30:22Z",
+    "url": "https://github.com/szl-holdings/ouroboros/pull/28",
+    "repo": "ouroboros"
+  },
+  {
+    "additions": 10,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 3,
+    "createdAt": "2026-05-15T01:09:27Z",
+    "deletions": 8,
+    "headRefName": "doctrine/readme-badge-fix",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 26,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:46:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25899077585/job/76118418378",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-15T03:45:53Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:46:37Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/runs/76118477975",
+        "name": "CodeQL",
+        "startedAt": "2026-05-15T03:46:35Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "doctrine(readme): Apache-2.0 license badge, v6.3.0 release, v12+v13 DOI badges",
+    "updatedAt": "2026-05-16T14:51:12Z",
+    "url": "https://github.com/szl-holdings/ouroboros/pull/26",
+    "repo": "ouroboros"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-13T19:21:02Z",
+    "deletions": 2,
+    "headRefName": "docs/readme-v6.3.0-sync",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 24,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-13T19:22:12Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/actions/runs/25821181049/job/75862592275",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-13T19:21:14Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-13T19:22:04Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros/runs/75862748888",
+        "name": "CodeQL",
+        "startedAt": "2026-05-13T19:22:01Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "docs(readme): sync version badge and status to v6.3.0",
+    "updatedAt": "2026-05-16T14:51:11Z",
+    "url": "https://github.com/szl-holdings/ouroboros/pull/24",
+    "repo": "ouroboros"
+  },
+  {
+    "additions": 3330,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 40,
+    "createdAt": "2026-05-16T15:39:09Z",
+    "deletions": 0,
+    "headRefName": "feat/anatomy/full-bundle-16-figures",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 46,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:40:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965947802/job/76329368067",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T15:39:14Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965948617/job/76329369612",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T15:39:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:19Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965948487/job/76329369160",
+        "name": "docs-only-paths",
+        "startedAt": "2026-05-16T15:39:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs-only paths guard"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:40:02Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965947802/job/76329368076",
+        "name": "Analyze (python)",
+        "startedAt": "2026-05-16T15:39:14Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965948617/job/76329369619",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T15:39:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:44:36Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965948617/job/76329369613",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T15:39:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965948617/job/76329369624",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T15:39:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965948617/job/76329369609",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T15:39:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/runs/76329407311",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T15:39:53Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(anatomy): publish full 16-figure anatomy bundle under docs/anatomy",
+    "updatedAt": "2026-05-16T15:39:09Z",
+    "url": "https://github.com/szl-holdings/ouroboros-thesis/pull/46",
+    "repo": "ouroboros-thesis"
+  },
+  {
+    "additions": 2883,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 14,
+    "createdAt": "2026-05-16T14:12:10Z",
+    "deletions": 0,
+    "headRefName": "feat/arxiv/v2-finalized",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 44,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:13:17Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25964067599/job/76324314479",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T14:12:15Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:31Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25964068565/job/76324315904",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T14:12:16Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:13:03Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25964067599/job/76324314480",
+        "name": "Analyze (python)",
+        "startedAt": "2026-05-16T14:12:15Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25964068565/job/76324315889",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T14:12:16Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:18:29Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25964068565/job/76324315901",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T14:12:16Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:29Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25964068565/job/76324315897",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T14:12:17Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25964068565/job/76324315900",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T14:12:17Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/runs/76324351496",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:12:53Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(thesis): finalize arXiv v2 — 3 reviewer defects fixed",
+    "updatedAt": "2026-05-16T14:21:18Z",
+    "url": "https://github.com/szl-holdings/ouroboros-thesis/pull/44",
+    "repo": "ouroboros-thesis"
+  },
+  {
+    "additions": 108,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T13:52:30Z",
+    "deletions": 0,
+    "headRefName": "task-5039/docs-only-automation-bypass",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 43,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:00:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25963788799/job/76323559322",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T13:59:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T13:59:44Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25963789583/job/76323575097",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T13:59:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T13:59:52Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25963788799/job/76323559323",
+        "name": "Analyze (python)",
+        "startedAt": "2026-05-16T13:59:10Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T13:59:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25963789583/job/76323575106",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T13:59:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:05:42Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25963789583/job/76323575108",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T13:59:27Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T13:59:38Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25963789583/job/76323575104",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T13:59:27Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T13:59:47Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25963789583/job/76323575083",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T13:59:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T13:59:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/runs/76323591042",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T13:59:43Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "docs: document docs-only automation bypass policy (task #5039)",
+    "updatedAt": "2026-05-16T14:51:14Z",
+    "url": "https://github.com/szl-holdings/ouroboros-thesis/pull/43",
+    "repo": "ouroboros-thesis"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:53Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 42,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:49Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25960511698/job/76314900665",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T11:14:58Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25960512225/job/76314901262",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T11:15:44Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:51Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25960511698/job/76314900666",
+        "name": "Analyze (python)",
+        "startedAt": "2026-05-16T11:15:01Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:27Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25960512225/job/76314901265",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T11:15:13Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:21:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25960512225/job/76314901259",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T11:15:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25960512225/job/76314901257",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T11:15:44Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:42Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25960512225/job/76314901256",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T11:15:24Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:42Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/runs/76314937841",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:41Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — ouroboros-thesis",
+    "updatedAt": "2026-05-16T11:14:53Z",
+    "url": "https://github.com/szl-holdings/ouroboros-thesis/pull/42",
+    "repo": "ouroboros-thesis"
+  },
+  {
+    "additions": 108,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 51,
+    "createdAt": "2026-05-15T03:49:18Z",
+    "deletions": 57,
+    "headRefName": "feat/docs-anatomy-pdfs",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 39,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:57Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942071/job/76329352563",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T15:38:57Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:15Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942964/job/76329353972",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T15:38:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942857/job/76329353654",
+        "name": "docs-only-paths",
+        "startedAt": "2026-05-16T15:38:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs-only paths guard"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942071/job/76329352569",
+        "name": "Analyze (python)",
+        "startedAt": "2026-05-16T15:38:57Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:13Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942964/job/76329353973",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T15:38:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:45:10Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942964/job/76329353977",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T15:38:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:09Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942964/job/76329353978",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T15:38:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:13Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965942964/job/76329353964",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T15:38:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:39:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/runs/76329399915",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T15:39:45Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "docs(anatomy): publish 4 anatomy PDFs (heart/brain/wires/full_body)",
+    "updatedAt": "2026-05-16T15:39:41Z",
+    "url": "https://github.com/szl-holdings/ouroboros-thesis/pull/39",
+    "repo": "ouroboros-thesis"
+  },
+  {
+    "additions": 339,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 2,
+    "createdAt": "2026-05-15T03:47:06Z",
+    "deletions": 0,
+    "headRefName": "feat/huklla-t11-doi-title-gate",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 38,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:31:00Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965744389/job/76328830424",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-16T15:30:05Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:21Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965745984/job/76328833394",
+        "name": "docs / Validate CITATION.cff",
+        "startedAt": "2026-05-16T15:30:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965745869/job/76328833090",
+        "name": "docs-only-paths",
+        "startedAt": "2026-05-16T15:30:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs-only paths guard"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965745787/job/76328832678",
+        "name": "doi-title-gate",
+        "startedAt": "2026-05-16T15:30:06Z",
+        "status": "COMPLETED",
+        "workflowName": "huklla-t11-doi-title-gate"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:57Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965744389/job/76328830418",
+        "name": "Analyze (python)",
+        "startedAt": "2026-05-16T15:30:05Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965745984/job/76328833389",
+        "name": "docs / Markdown lint",
+        "startedAt": "2026-05-16T15:30:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:36:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965745984/job/76328833388",
+        "name": "docs / External link check",
+        "startedAt": "2026-05-16T15:30:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965745984/job/76328833387",
+        "name": "docs / Required files present",
+        "startedAt": "2026-05-16T15:30:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:24Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25965745984/job/76328833395",
+        "name": "secrets / TruffleHog Secret Scan",
+        "startedAt": "2026-05-16T15:30:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Docs CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:49Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/runs/76328879243",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T15:30:48Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(huklla T11): DOI-title CI gate (postmortem follow-up)",
+    "updatedAt": "2026-05-16T15:30:23Z",
+    "url": "https://github.com/szl-holdings/ouroboros-thesis/pull/38",
+    "repo": "ouroboros-thesis"
+  },
+  {
+    "additions": 26774,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 54,
+    "createdAt": "2026-05-14T00:55:14Z",
+    "deletions": 56,
+    "headRefName": "paper-v13-thesis",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 34,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-14T00:56:19Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25835196099/job/75908644327",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-05-14T00:55:24Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-14T00:56:16Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/actions/runs/25835196099/job/75908644337",
+        "name": "Analyze (python)",
+        "startedAt": "2026-05-14T00:55:19Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-14T00:56:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/ouroboros-thesis/runs/75908722463",
+        "name": "CodeQL",
+        "startedAt": "2026-05-14T00:56:06Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "papers/v13: Ouroboros Thesis v13 (doctrine v2 PASS, GAP-02 re-loop)",
+    "updatedAt": "2026-05-16T14:51:13Z",
+    "url": "https://github.com/szl-holdings/ouroboros-thesis/pull/34",
+    "repo": "ouroboros-thesis"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:58:02Z",
+    "deletions": 1,
+    "headRefName": "pin-bump/lutar-lean",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 19,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:58:53Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25965053778/job/76326961301",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T14:58:07Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:01:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25965053777/job/76326961311",
+        "name": "build",
+        "startedAt": "2026-05-16T14:58:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Lean kernel check"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:58:44Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/runs/76326995422",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:58:42Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "ci: pin elan init script to v4.2.1 tag (closes PinnedDependenciesID)",
+    "updatedAt": "2026-05-16T14:58:02Z",
+    "url": "https://github.com/szl-holdings/lutar-lean/pull/19",
+    "repo": "lutar-lean"
+  },
+  {
+    "additions": 1734,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 6,
+    "createdAt": "2026-05-16T14:12:04Z",
+    "deletions": 0,
+    "headRefName": "feat/th8/lean-v2-close-7-sorries",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 18,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:53Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25964066045/job/76324309417",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T14:12:10Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:15:37Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25964066046/job/76324309847",
+        "name": "build",
+        "startedAt": "2026-05-16T14:12:11Z",
+        "status": "COMPLETED",
+        "workflowName": "Lean kernel check"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/runs/76324342223",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:12:43Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(th8): close 7/9 sorries; 1 skeleton, 1 honestly blocked",
+    "updatedAt": "2026-05-16T14:21:17Z",
+    "url": "https://github.com/szl-holdings/lutar-lean/pull/18",
+    "repo": "lutar-lean"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:53Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 17,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:16:04Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25960512243/job/76314901279",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T11:15:13Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:18:39Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25960512231/job/76314901272",
+        "name": "build",
+        "startedAt": "2026-05-16T11:14:59Z",
+        "status": "COMPLETED",
+        "workflowName": "Lean kernel check"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T11:15:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/runs/76314947672",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T11:15:53Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore(citation): add canonical contact email — lutar-lean",
+    "updatedAt": "2026-05-16T11:14:53Z",
+    "url": "https://github.com/szl-holdings/lutar-lean/pull/17",
+    "repo": "lutar-lean"
+  },
+  {
+    "additions": 106,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-15T03:47:22Z",
+    "deletions": 0,
+    "headRefName": "feat/huklla-t11-doi-title-gate",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 15,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:48:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25899120718/job/76118546958",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-15T03:47:28Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:50:19Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25899120713/job/76118546980",
+        "name": "build",
+        "startedAt": "2026-05-15T03:47:28Z",
+        "status": "COMPLETED",
+        "workflowName": "Lean kernel check"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:47:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/actions/runs/25899120730/job/76118547025",
+        "name": "doi-title-gate",
+        "startedAt": "2026-05-15T03:47:28Z",
+        "status": "COMPLETED",
+        "workflowName": "huklla-t11-doi-title-gate"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-15T03:48:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/lutar-lean/runs/76118601597",
+        "name": "CodeQL",
+        "startedAt": "2026-05-15T03:48:07Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(huklla T11): DOI-title CI gate (postmortem follow-up)",
+    "updatedAt": "2026-05-16T14:50:34Z",
+    "url": "https://github.com/szl-holdings/lutar-lean/pull/15",
+    "repo": "lutar-lean"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:56:16Z",
+    "deletions": 2,
+    "headRefName": "pin-bump/szl-trust",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 13,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:57:07Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/actions/runs/25965018396/job/76326863609",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T14:56:21Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:56:25Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/actions/runs/25965018397/job/76326863552",
+        "name": "Validate trust runs",
+        "startedAt": "2026-05-16T14:56:21Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:56:24Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/actions/runs/25965018397/job/76326863553",
+        "name": "Validate JSON manifests",
+        "startedAt": "2026-05-16T14:56:21Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:57:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/runs/76326897661",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:56:59Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "ci: pin actions/checkout@v6 → SHA (v6.0.2) — closes PinnedDependenciesID",
+    "updatedAt": "2026-05-16T14:56:16Z",
+    "url": "https://github.com/szl-holdings/szl-trust/pull/13",
+    "repo": "szl-trust"
+  },
+  {
+    "additions": 127,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-15T03:47:37Z",
+    "deletions": 0,
+    "headRefName": "feat/huklla-t11-doi-title-gate",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 11,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:17Z",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/actions/runs/25965747244/job/76328836360",
+        "name": "doi-title-gate",
+        "startedAt": "2026-05-16T15:30:10Z",
+        "status": "COMPLETED",
+        "workflowName": "huklla-t11-doi-title-gate"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/actions/runs/25965747229/job/76328836407",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T15:30:09Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:16Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/actions/runs/25965747247/job/76328836559",
+        "name": "Validate trust runs",
+        "startedAt": "2026-05-16T15:30:10Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:13Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/actions/runs/25965747247/job/76328836563",
+        "name": "Validate JSON manifests",
+        "startedAt": "2026-05-16T15:30:09Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T15:30:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-trust/runs/76328876283",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T15:30:45Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(huklla T11): DOI-title CI gate (postmortem follow-up)",
+    "updatedAt": "2026-05-16T15:30:24Z",
+    "url": "https://github.com/szl-holdings/szl-trust/pull/11",
+    "repo": "szl-trust"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:56:18Z",
+    "deletions": 1,
+    "headRefName": "pin-bump/szl-cookbook",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 12,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:57:16Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-cookbook/actions/runs/25965018869/job/76326864938",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T14:56:23Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:56:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-cookbook/actions/runs/25965018871/job/76326864927",
+        "name": "Validate cookbook skills",
+        "startedAt": "2026-05-16T14:56:23Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:57:06Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-cookbook/runs/76326903286",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:57:05Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "ci: pin actions/checkout@v6 → SHA (v6.0.2) — closes PinnedDependenciesID",
+    "updatedAt": "2026-05-16T14:56:18Z",
+    "url": "https://github.com/szl-holdings/szl-cookbook/pull/12",
+    "repo": "szl-cookbook"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:56:20Z",
+    "deletions": 1,
+    "headRefName": "pin-bump/szl-brand",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 16,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:57:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-brand/actions/runs/25965019515/job/76326866191",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T14:56:24Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:56:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-brand/actions/runs/25965019498/job/76326866264",
+        "name": "Validate brand assets",
+        "startedAt": "2026-05-16T14:56:24Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:57:04Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-brand/runs/76326900768",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:57:02Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "ci: pin actions/checkout@v6 → SHA (v6.0.2) — closes PinnedDependenciesID",
+    "updatedAt": "2026-05-16T14:56:20Z",
+    "url": "https://github.com/szl-holdings/szl-brand/pull/16",
+    "repo": "szl-brand"
+  },
+  {
+    "additions": 3314,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 41,
+    "createdAt": "2026-05-16T14:12:17Z",
+    "deletions": 0,
+    "headRefName": "feat/anatomy/full-body-v2",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 15,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:13:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-brand/actions/runs/25964070631/job/76324321671",
+        "name": "Analyze actions (actions)",
+        "startedAt": "2026-05-16T14:12:22Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL (actions)"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:31Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-brand/actions/runs/25964070655/job/76324321667",
+        "name": "Validate brand assets",
+        "startedAt": "2026-05-16T14:12:23Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:12:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/szl-brand/runs/76324353959",
+        "name": "CodeQL",
+        "startedAt": "2026-05-16T14:12:56Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "feat(anatomy): full-body build — heart + blood/immune + skeleton + nervous + body_graph",
+    "updatedAt": "2026-05-16T15:43:58Z",
+    "url": "https://github.com/szl-holdings/szl-brand/pull/15",
+    "repo": "szl-brand"
+  },
+  {
+    "additions": 36,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 8,
+    "createdAt": "2026-05-16T14:52:21Z",
+    "deletions": 32,
+    "headRefName": "scorecard-fix/dotgithub/TokenPermissionsID",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 37,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:52:43Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/.github/actions/runs/25964934609/job/76326641554",
+        "name": "All actions SHA-pinned",
+        "startedAt": "2026-05-16T14:52:27Z",
+        "status": "COMPLETED",
+        "workflowName": "Pin Check"
+      }
+    ],
+    "title": "security: bump harden-runner v2.12.0→v2.19.3, codeql v3→v4, fix TokenPermissions",
+    "updatedAt": "2026-05-16T14:52:21Z",
+    "url": "https://github.com/szl-holdings/.github/pull/37",
+    "repo": ".github"
+  },
+  {
+    "additions": 17,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:16:40Z",
+    "deletions": 0,
+    "headRefName": "chore/ci/baseline-doctrine-v6",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 36,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:53:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/.github/actions/runs/25964946857/job/76326673260",
+        "name": "All actions SHA-pinned",
+        "startedAt": "2026-05-16T14:53:00Z",
+        "status": "COMPLETED",
+        "workflowName": "Pin Check"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:53:06Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/.github/actions/runs/25964946919/job/76326673264",
+        "name": "markdown-lint",
+        "startedAt": "2026-05-16T14:53:01Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      }
+    ],
+    "title": "chore(ci): add baseline CI workflow per Doctrine V6",
+    "updatedAt": "2026-05-16T14:52:55Z",
+    "url": "https://github.com/szl-holdings/.github/pull/36",
+    "repo": ".github"
+  },
+  {
+    "additions": 158,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:08:13Z",
+    "deletions": 0,
+    "headRefName": "feat/agentic/m2m-envelope",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 35,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "feat(agentic): document machine-to-machine envelope contract",
+    "updatedAt": "2026-05-16T14:21:22Z",
+    "url": "https://github.com/szl-holdings/.github/pull/35",
+    "repo": ".github"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:59Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "DIRTY",
+    "mergeable": "CONFLICTING",
+    "number": 34,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore(citation): add canonical contact email — .github",
+    "updatedAt": "2026-05-16T11:14:59Z",
+    "url": "https://github.com/szl-holdings/.github/pull/34",
+    "repo": ".github"
+  },
+  {
+    "additions": 3,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 2,
+    "createdAt": "2026-05-16T09:09:29Z",
+    "deletions": 3,
+    "headRefName": "chore/identity-d1-sweep",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 33,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore(identity): replace stephenlutar2@gmail.com with stephen@szlholdings.com (Doctrine V6 D1)",
+    "updatedAt": "2026-05-16T09:09:29Z",
+    "url": "https://github.com/szl-holdings/.github/pull/33",
+    "repo": ".github"
+  },
+  {
+    "additions": 23,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-15T03:49:28Z",
+    "deletions": 1,
+    "headRefName": "feat/profile-anatomy-section",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BEHIND",
+    "mergeable": "MERGEABLE",
+    "number": 31,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "feat(profile): add Anatomy section linking to szl-brand PDFs",
+    "updatedAt": "2026-05-16T14:50:38Z",
+    "url": "https://github.com/szl-holdings/.github/pull/31",
+    "repo": ".github"
+  },
+  {
+    "additions": 20,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:58:44Z",
+    "deletions": 0,
+    "headRefName": "hygiene/vsp-otel/dependabot",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 8,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:58:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://dependabot-api.githubapp.com",
+        "name": ".github/dependabot.yml",
+        "startedAt": "2026-05-16T14:58:32Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "title": "chore: add .github/dependabot.yml (closes DependencyUpdateToolID)",
+    "updatedAt": "2026-05-16T14:58:44Z",
+    "url": "https://github.com/szl-holdings/vsp-otel/pull/8",
+    "repo": "vsp-otel"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:53:53Z",
+    "deletions": 2,
+    "headRefName": "docs/vsp-otel/citation-given-names-fix",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 7,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "docs: fix CITATION.cff given-names format (Stephen P.)",
+    "updatedAt": "2026-05-16T14:53:53Z",
+    "url": "https://github.com/szl-holdings/vsp-otel/pull/7",
+    "repo": "vsp-otel"
+  },
+  {
+    "additions": 20,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:52:49Z",
+    "deletions": 0,
+    "headRefName": "hygiene/vsp-otel/codeowners",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 6,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore: add .github/CODEOWNERS",
+    "updatedAt": "2026-05-16T14:52:49Z",
+    "url": "https://github.com/szl-holdings/vsp-otel/pull/6",
+    "repo": "vsp-otel"
+  },
+  {
+    "additions": 30,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:16:23Z",
+    "deletions": 0,
+    "headRefName": "chore/ci/baseline-doctrine-v6",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 5,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:52:12Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/vsp-otel/actions/runs/25964927232/job/76326622577",
+        "name": "lint-typecheck-test",
+        "startedAt": "2026-05-16T14:52:05Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      }
+    ],
+    "title": "chore(ci): add baseline CI workflow per Doctrine V6",
+    "updatedAt": "2026-05-16T14:52:00Z",
+    "url": "https://github.com/szl-holdings/vsp-otel/pull/5",
+    "repo": "vsp-otel"
+  },
+  {
+    "additions": 433,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 7,
+    "createdAt": "2026-05-16T14:10:43Z",
+    "deletions": 0,
+    "headRefName": "feat/runtime/vsp-spine",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 4,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "feat(runtime): Vessels Spine Protocol over OTel + 10 tests",
+    "updatedAt": "2026-05-16T14:21:14Z",
+    "url": "https://github.com/szl-holdings/vsp-otel/pull/4",
+    "repo": "vsp-otel"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:54Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 3,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore(citation): add canonical contact email — vsp-otel",
+    "updatedAt": "2026-05-16T11:14:54Z",
+    "url": "https://github.com/szl-holdings/vsp-otel/pull/3",
+    "repo": "vsp-otel"
+  },
+  {
+    "additions": 209,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 3,
+    "createdAt": "2026-05-16T11:14:37Z",
+    "deletions": 0,
+    "headRefName": "chore/fly-v8-hygiene-baseline",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 2,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore: Fly V8 hygiene baseline (SECURITY, CONTRIBUTING, COC)",
+    "updatedAt": "2026-05-16T11:14:37Z",
+    "url": "https://github.com/szl-holdings/vsp-otel/pull/2",
+    "repo": "vsp-otel"
+  },
+  {
+    "additions": 20,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:58:46Z",
+    "deletions": 0,
+    "headRefName": "hygiene/agi-forecast/dependabot",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 8,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore: add .github/dependabot.yml (closes DependencyUpdateToolID)",
+    "updatedAt": "2026-05-16T14:58:46Z",
+    "url": "https://github.com/szl-holdings/agi-forecast/pull/8",
+    "repo": "agi-forecast"
+  },
+  {
+    "additions": 2,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:54:24Z",
+    "deletions": 2,
+    "headRefName": "docs/agi-forecast/citation-given-names-fix",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 7,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "docs: fix CITATION.cff given-names format (Stephen P.)",
+    "updatedAt": "2026-05-16T14:54:24Z",
+    "url": "https://github.com/szl-holdings/agi-forecast/pull/7",
+    "repo": "agi-forecast"
+  },
+  {
+    "additions": 20,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:53:08Z",
+    "deletions": 0,
+    "headRefName": "hygiene/agi-forecast/codeowners",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 6,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore: add .github/CODEOWNERS",
+    "updatedAt": "2026-05-16T14:53:08Z",
+    "url": "https://github.com/szl-holdings/agi-forecast/pull/6",
+    "repo": "agi-forecast"
+  },
+  {
+    "additions": 30,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T14:16:31Z",
+    "deletions": 0,
+    "headRefName": "chore/ci/baseline-doctrine-v6",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 5,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-05-16T14:52:21Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/szl-holdings/agi-forecast/actions/runs/25964929531/job/76326628771",
+        "name": "lint-typecheck-test",
+        "startedAt": "2026-05-16T14:52:12Z",
+        "status": "COMPLETED",
+        "workflowName": "ci"
+      }
+    ],
+    "title": "chore(ci): add baseline CI workflow per Doctrine V6",
+    "updatedAt": "2026-05-16T14:52:07Z",
+    "url": "https://github.com/szl-holdings/agi-forecast/pull/5",
+    "repo": "agi-forecast"
+  },
+  {
+    "additions": 734,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 10,
+    "createdAt": "2026-05-16T14:10:48Z",
+    "deletions": 0,
+    "headRefName": "feat/runtime/forecast-gauge",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 4,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "feat(runtime): Forecast Gauge — 12 base + 3 derived + 4 safety",
+    "updatedAt": "2026-05-16T14:21:15Z",
+    "url": "https://github.com/szl-holdings/agi-forecast/pull/4",
+    "repo": "agi-forecast"
+  },
+  {
+    "additions": 209,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 3,
+    "createdAt": "2026-05-16T11:15:01Z",
+    "deletions": 0,
+    "headRefName": "chore/fly-v8-hygiene-baseline",
+    "isDraft": false,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 3,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore: Fly V8 hygiene baseline (SECURITY, CONTRIBUTING, COC)",
+    "updatedAt": "2026-05-16T11:15:01Z",
+    "url": "https://github.com/szl-holdings/agi-forecast/pull/3",
+    "repo": "agi-forecast"
+  },
+  {
+    "additions": 1,
+    "author": {
+      "id": "U_kgDOECbF8Q",
+      "is_bot": false,
+      "login": "stephenlutar2-hash",
+      "name": "Lutar, Stephen P."
+    },
+    "baseRefName": "main",
+    "changedFiles": 1,
+    "createdAt": "2026-05-16T11:14:56Z",
+    "deletions": 0,
+    "headRefName": "chore/citation-email-fly-v8",
+    "isDraft": true,
+    "labels": [],
+    "mergeStateStatus": "BLOCKED",
+    "mergeable": "MERGEABLE",
+    "number": 2,
+    "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [],
+    "title": "chore(citation): add canonical contact email — agi-forecast",
+    "updatedAt": "2026-05-16T11:14:56Z",
+    "url": "https://github.com/szl-holdings/agi-forecast/pull/2",
+    "repo": "agi-forecast"
+  }
+]

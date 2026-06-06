@@ -1,0 +1,22 @@
+{
+  "name": "szl-docs-site",
+  "version": "1.0.0",
+  "description": "SZL Holdings unified documentation site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs && node fix-relative-paths.mjs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "markdown-it-mathjax3": "^4.3.2",
+    "mermaid": "^11.4.1",
+    "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  },
+  "dependencies": {
+    "@vscode/markdown-it-katex": "^1.1.2",
+    "katex": "^0.17.0"
+  }
+}

@@ -1,0 +1,166 @@
+% The Ouroboros Thesis v22 -- Convergence
+% Reconstructed LaTeX source for arXiv submission (from PDF + markdown).
+% Compile: pdflatex thesis_v22 ; bibtex thesis_v22 ; pdflatex x2
+% License: CC BY 4.0.  Code: Apache-2.0.
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{xcolor}
+
+% --- Greek/math macros to avoid Type-3 fonts and keep ASCII source ---
+\newcommand{\Lam}{\ensuremath{\Lambda}}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+
+\title{The Ouroboros Thesis v22 --- Convergence\\[2pt]
+\large An Honest, Audit-Ready Convergence of the \Lam-Aggregator Uniqueness Chain,
+Mechanism Truthfulness, and Sim-to-Real Doctrine Transfer}
+\author{Stephen P. Lutar Jr.\\ SZL Holdings, Inc.\\
+\texttt{ORCID 0009-0001-0110-4173}}
+\date{2026-06-03}
+
+% MSC2020: 39B22 (primary), 26E60, 91B26, 68V20, 94A17.  ACM: F.4.1, F.2.0.
+
+\begin{document}
+\maketitle
+
+\begin{center}\small\fbox{\parbox{0.95\linewidth}{\centering
+Doctrine v11 LOCKED --- 749 declarations $\cdot$ 14 unique axioms $\cdot$ 163 sorries @ \texttt{c7c0ba17}
+$\cdot$ A5 merged (v11.1 in flight: 794/14/191, axioms unchanged) $\cdot$
+\Lam-aggregator uniqueness is \textbf{Conjecture 1 --- NOT a theorem} $\cdot$ SLSA L1 + L2 attested (NOT L3).}}
+\end{center}
+
+\begin{abstract}
+v22 (``Convergence'') consolidates the May--June 2026 formal-verification advances into the canonical
+thesis line. Its central correction: the claim that axioms A1--A4 force the weighted geometric mean is
+\emph{false}. The asymmetric mean $\Phi(x_1,x_2)=x_1^{2/3}\,x_2^{1/3}$ satisfies A1--A4 yet differs
+from \Lam{} and fails permutation invariance. We add A5 (permutation invariance) as a \emph{structure
+field} on \texttt{LutarAxioms} --- not a new axiom --- keeping the unique-axiom count at 14, and report
+the partial closure of the $n$-dimensional Cauchy functional-equation chain that, when complete, would
+discharge \Lam-uniqueness. It is \emph{not} complete on \texttt{main}; \Lam{} therefore remains
+\textbf{Conjecture 1}. We additionally report VCG mechanism truthfulness (proven on branch), the
+achievement of SLSA L2 build provenance (verified on all five GHCR images), the Round 10--11 frontier
+formalizations, and a Sim-to-Real doctrine-transfer benchmark modeled on the Walrus physical foundation
+model that measures a mean doctrine $\alpha$-gap of $0.10$ across five unseen compliance regimes. We
+claim only what is mechanically checked or empirically measured.
+\end{abstract}
+
+\section{Recent advances (the substance of v22)}
+
+\subsection{A5 axiom merge --- the A1--A4 uniqueness gap, corrected (MERGED, PR \#148)}
+The historical ``Theorem~1 --- \Lam{} is the unique aggregator under A1--A4'' was \emph{incorrect}. A
+review of 13 published results on quasi-arithmetic and symmetric means confirms A1--A4 are insufficient
+to force the geometric mean~\cite{kolmogorov1930,nagumo1930,aczel1966,hardy1934,voorneveld2008}.
+
+\paragraph{Counterexample (verified).} $\Phi(x_1,x_2)=x_1^{2/3}\,x_2^{1/3}$ satisfies homogeneity (A2),
+boundedness (A4) and the A1/A3 conditions, yet $\Phi(2,1)=2^{2/3}\neq 2^{1/3}=\Phi(1,2)$, so
+permutation invariance fails and $\Phi\neq\Lambda_2$.
+
+\paragraph{Fix (landed on \texttt{main}).} Add an \texttt{IsPermutationInvariant} predicate and an
+\textbf{A5 structure field} to \texttt{LutarAxioms}. \texttt{Lambda\_A5\_perm\_invariant} is sorry-free
+(\texttt{Equiv.prod\_comp}/\texttt{Fintype.prod\_equiv}). Because A5 is a structure field, the
+unique-axiom count stays \textbf{14}; the live corpus moves to 794 declarations / 14 axioms / 191 sorries.
+
+\subsection{The Cauchy\_ND uniqueness chain --- partial closure (IN REVIEW)}
+With A5 in place, \Lam-uniqueness reduces to an $n$-dimensional Cauchy functional-equation chain.
+
+\begin{center}\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Branch & PR & Status & Note \\
+\midrule
+Topology (monotone $\to$ continuity bridge) & \#175 & in review & Landed \emph{true forms}; refused to fake-prove \\
+Functional analysis (\texttt{multiplicative\_monotone\_isPow}) & \#173 & in review & 1 honest sorry on the $t=0$ degenerate case \\
+Symmetric (exponents $\alpha_i=1/k$) & \#174 & in review & Closed with A5 dependency \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The combined chain \texttt{A5 + Cauchy + topology + symmetric} is the full \Lam-uniqueness
+chain. \textbf{It is not yet complete on \texttt{main}} (three PRs open, one residual honest sorry).
+\textbf{Therefore \Lam{} stays Conjecture~1.} We will elevate \Lam{} to Theorem~1 \emph{only} when every
+Cauchy\_ND sorry closes on \texttt{main} and Lake CI is green.
+
+The proof route follows Acz\'el (1966, Thm~5.1)~\cite{aczel1966} and Cauchy (1821)~\cite{cauchy1821}:
+the axis slice $f_i(t)=\Lambda(1,\dots,t,\dots,1)$ is monotone (A1) with $f_i(1)=1$ (A3); the log-space
+map $g_i(u)=\log f_i(e^u)$ is additive and monotone, hence linear, giving $f_i(t)=t^{\alpha_i}$; A5 forces
+$\alpha_i=\alpha_j$; A3 pins $\alpha=1/k$; reassembly yields $\Lambda(x)=\bigl(\prod_i x_i\bigr)^{1/k}$.
+
+\subsection{VCG mechanism truthfulness (IN REVIEW, PR \#172)}
+Both VCG obligations are closed on branch: \texttt{vcgDominantStrategyTruth} (truthful bidding is a
+dominant strategy) and \texttt{vcgIndividualRationality} (participation never yields negative utility),
+via Mathlib's \texttt{Finset.exists\_max\_image} and \texttt{add\_sum\_erase}.
+
+\subsection{SLSA L2 achieved (ATTESTED)}
+Build-provenance posture upgraded to L1 + L2; all 5/5 flagship GHCR images (a11oy, sentra, amaru,
+killinchu, rosie) empirically verified with \texttt{slsa-verifier}. SLSA L3 is \emph{not} claimed ---
+hardened/isolated builders remain roadmap.
+
+\subsection{Innovation Rounds 10--11 (IN REVIEW / IN FLIGHT)}
+Round 10 instilled frontier formalizations (all in review): Physics (\#177; Noether, Liouville,
+Hamiltonian, entropy, A5-from-gauge), Quantum (\#176; post-quantum signatures, Holevo
+bound~\cite{holevo1973}, Kitaev, ZK, no-cloning$\to$A5), CS (\#178; Byzantine quorum $n\ge 3f+1$,
+FLP impossibility~\cite{flp1985}, CAP), Crypto (\#179; DSSE EUF-CMA, Rekor Merkle
+inclusion~\cite{rfc6962}, Fulcio chain, BLS aggregation~\cite{bls2001}), distributed systems (PR
+pending), Round~9 anatomy (\#170). Round~11 (formula frontier) is in flight.
+
+\subsection{Sim-to-Real doctrine transfer --- Walrus parallel (DESIGN + PARTIAL EMPIRICAL)}
+Modeled on the Walrus physical foundation model~\cite{walrus2025}, we treat the locked doctrine kernel
+as a pretraining prior and a customer's few-shot receipt set as fine-tuning data, and define the doctrine
+$\alpha$-gap $=\lvert\text{OOD acc.}-\text{in-distribution acc.}\rvert$. On a live $N{=}60$ run against
+sentra and a11oy:
+
+\begin{center}\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Regime & Accuracy & $\alpha$-gap \\
+\midrule
+R0 control & 1.00 & --- \\
+R1 adversarial & 0.50 & 0.50 \\
+R2 cross-jurisdictional & 1.00 & 0.00 \\
+R3 multimodal & 1.00 & 0.00 \\
+R4 temporal-drift & 1.00 & 0.00 \\
+R5 low-data & 1.00 & 0.00 \\
+\midrule
+\textbf{Mean} & --- & \textbf{0.10} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Four of five unseen regimes transfer perfectly; adversarial transfers only partially (signature
+blocklist misses semantically novel attacks). We claim the architecture \emph{admits} sim-to-real
+transfer --- not that it matches physical-FM accuracy. This is a single $N{=}60$ run reported as
+partial empirical evidence, not a generalization guarantee.
+
+\section{Doctrine attestation (verbatim)}
+\begin{itemize}\setlength\itemsep{0pt}
+  \item Doctrine version: v11 LOCKED (v11.1 in flight, post-A5).
+  \item Declarations 749 (pinned @ \texttt{c7c0ba17}); 794 post-A5 live.
+  \item Unique axioms: \textbf{14} (unchanged by A5 --- structure field).
+  \item Sorries: 163 pinned (112 baseline + 51 Putnam); 191 post-A5 live.
+  \item \Lam{} status: \textbf{Conjecture 1 --- NOT a theorem.}
+  \item Supply chain: SLSA L1 + L2 attested; NOT L3.
+  \item Section 889 vendors: Huawei, ZTE, Hytera, Hikvision, Dahua (exactly 5).
+\end{itemize}
+
+\section{Honest posture}
+\begin{itemize}\setlength\itemsep{0pt}
+  \item \Lam-aggregator uniqueness is Conjecture~1, conditional on the Cauchy\_ND chain closing on \texttt{main}.
+  \item A5 is a structure field, not a new axiom; axiom count remains 14.
+  \item Reed--Solomon $\neq$ holographic. Event-sourcing $\neq$ time travel. Physics analogies are scaffolding.
+  \item Quechua organ names are brand naming, not prior-art or cultural claims. No mystical claims.
+  \item In-review PRs (\#170, \#172--\#179) are labeled as such and not presented as landed theorems.
+\end{itemize}
+
+\paragraph{Citation.} S.~P.~Lutar~Jr., ``The Ouroboros Thesis v22 --- Convergence,'' SZL Holdings,
+Concept DOI \href{https://doi.org/10.5281/zenodo.19944926}{10.5281/zenodo.19944926}, 2026. The v22
+version DOI is minted by Zenodo on the \texttt{paper-v22-1.0.0} release.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

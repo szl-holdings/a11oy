@@ -1,0 +1,10 @@
+rule,total_open_across_org
+MaintainedID,14
+FuzzingID,14
+CodeReviewID,14
+CIIBestPracticesID,14
+SASTID,13
+BranchProtectionID,10
+CITestsID,9
+PinnedDependenciesID,8
+TokenPermissionsID,5

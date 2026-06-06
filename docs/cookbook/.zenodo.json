@@ -1,0 +1,31 @@
+{
+  "title": "szl-cookbook \u2014 SZL Holdings engineering cookbook \u2014 Anthropic skills pattern. 9 skills covering pre-flight thinking, refactoring, review, debugging, dependencies, dead code, docs, and commit hygiene.",
+  "description": "SZL Holdings engineering cookbook \u2014 Anthropic skills pattern. 9 skills covering pre-flight thinking, refactoring, review, debugging, dependencies, dead code, docs, and commit hygiene.",
+  "upload_type": "other",
+  "creators": [
+    {
+      "name": "Lutar, Stephen P.",
+      "affiliation": "SZL Holdings",
+      "orcid": "0009-0001-0110-4173"
+    }
+  ],
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "keywords": [
+    "szl-holdings",
+    "ai-governance",
+    "ouroboros"
+  ],
+  "communities": [
+    {
+      "identifier": "open-science"
+    }
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.19944926",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    }
+  ]
+}

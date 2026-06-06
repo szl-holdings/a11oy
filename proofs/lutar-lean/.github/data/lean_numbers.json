@@ -1,0 +1,34 @@
+{
+  "schema": "szl.lean_numbers/v1",
+  "repo": "szl-holdings/lutar-lean",
+  "ref": "feat/innovations-round11-frontier-software",
+  "sha": "PENDING-180",
+  "measured_at_utc": "2026-06-04T00:00:00Z",
+  "method": "see .github/scripts/lean_numbers.py docstring (fixed grep-equivalent regexes)",
+  "note": "Rolled forward by Lean Backlog Wave-2 for PR #180. Rebased onto current main (1090 decl). Round11 software-helping frontier formulas F1-F5: 5 orphan files under Lutar/Innovations/round11/. +36 declarations, +5 sorry tokens (honest documented proof-deferrals in orphan files NOT compiled by lake build). Staged innovation OUTSIDE locked v11 kernel. 0 new axioms; axioms_unique STAYS 14. Doctrine v11 749/14/163 UNCHANGED; Lambda remains Conjecture 1. Signed-off-by: Lean Backlog Wave-2 <lean-backlog-wave2@szlholdings.ai>",
+  "numbers": {
+    "declarations": 1126,
+    "axioms_raw": 15,
+    "axioms_unique": 14,
+    "axiom_names": [
+      "MomentSubGaussian",
+      "audit_reidemeister_invariance",
+      "canonicalReceipt",
+      "chromotopology_code_bijection",
+      "gleason_length_mod_8",
+      "klDivergence_nonneg",
+      "lambda_schur_concave_n_axis",
+      "lambda_stationary_unique",
+      "liu_hui_pi_converges",
+      "pinsker",
+      "r1_invariance",
+      "r2_invariance",
+      "sha256",
+      "sha256_collision_resistant"
+    ],
+    "sorries_raw": 306,
+    "sorries_noncomment": 254,
+    "sorries_putnam": 56,
+    "sorries_baseline": 172
+  }
+}

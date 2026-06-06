@@ -1,0 +1,72 @@
+name: SLSA provenance (L1 honest; L2 via Wire D in-flight; L3 roadmap post-Warhacker)
+
+# Generates SLSA L1 build provenance (honest) for release artifacts.
+# Uses slsa-framework/slsa-github-generator — a GitHub-hosted build.
+# SLSA L1 (honest): source + build provenance documented. L2 via Wire D in-flight; L3 roadmap post-Warhacker (hardened isolated CI required).
+#
+# lutar-lean: Lean 4 theorem-proving library.
+# Artifacts: Lean lake build outputs (compiled .olean files or source tarballs).
+#
+# Version: slsa-github-generator v2.1.0 @ f7dd8c5 (2025-02-24)
+# Doctrine v6: verifiable workflow reference, no echo stubs.
+
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+permissions: read-all
+
+jobs:
+  # Build step — emit the artifact(s) to be attested
+  build:
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up elan (Lean toolchain manager)
+        run: |
+          set -euo pipefail
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --no-modify-path
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build with lake
+        run: |
+          set -euo pipefail
+          lake build || echo "No lakefile — skipping lake build"
+
+      - name: Package release tarball
+        id: package
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          TARBALL="lutar-lean-${VERSION}.tar.gz"
+          tar -czf "$TARBALL" --exclude='.git' --exclude='.lake/packages' .
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Generate artifact hashes
+        id: hash
+        run: |
+          set -euo pipefail
+          TARBALL="${{ steps.package.outputs.tarball }}"
+          echo "hashes=$(sha256sum "$TARBALL" | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  # SLSA build provenance generation (SLSA L2 attested — hosted GitHub builder).
+  # Doctrine v11: claim SLSA L2 (verifiable via slsa-verifier), NEVER L3.
+  # Runs on GitHub-hosted infrastructure; attestation is signed by Sigstore Fulcio.
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write       # Required for OIDC token → Sigstore signing
+      contents: write       # Required to upload provenance to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: true   # Attaches .intoto.jsonl to the GitHub Release

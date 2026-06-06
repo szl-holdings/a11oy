@@ -1,0 +1,51 @@
+{
+  "experiment_id": "E4-codex-kernel-governed-loop-unified-replit-all-in-one",
+  "payload_hash": "624332a9470f8509fcfb57c6c39ac8dc",
+  "identity": {
+    "run_id": "run_386723681730b1fd",
+    "trace_id": "trace_86725c2a26210b61",
+    "span_ids": [
+      "",
+      "span_02a379e5d82be103",
+      "span_02a37ae5d82be2b6",
+      "span_02a37be5d82be469",
+      "span_02a37ce5d82be61c",
+      "span_02a37de5d82be7cf",
+      "span_02a37ee5d82be982",
+      "span_02a37fe5d82beb35",
+      "span_02a380e5d82bece8",
+      "span_02a381e5d82bee9b",
+      "span_a7a9548e528fa9a9",
+      "span_a7a9538e528fa7f6",
+      "span_a7a9528e528fa643",
+      "span_a7a9518e528fa490",
+      "span_a7a9588e528fb075",
+      "span_a7a9578e528faec2",
+      "span_a7a9568e528fad0f",
+      "span_a7a9558e528fab5c",
+      "span_a7a95c8e528fb741",
+      "span_a7a95b8e528fb58e",
+      "span_a7ac5a8e5291e9b2",
+      "span_a7ac5b8e5291eb65",
+      "span_a7ac588e5291e64c",
+      "span_a7ac598e5291e7ff",
+      "span_a7ac568e5291e2e6",
+      "span_a7ac578e5291e499",
+      "span_a7ac548e5291df80",
+      "span_a7ac558e5291e133",
+      "span_a7ac628e5291f74a",
+      "span_a7ac638e5291f8fd",
+      "span_a7afe08e5295033b"
+    ],
+    "config": {
+      "enabled": true,
+      "trace_id_prefix": "trace",
+      "span_id_prefix": "span",
+      "run_id_prefix": "run",
+      "require_trace_id_per_run": true,
+      "require_span_id_per_step": true
+    }
+  },
+  "steps_executed": 12,
+  "manifest_hash": "b977a47f69b7ba0d038c86271c85d234"
+}

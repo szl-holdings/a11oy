@@ -1,0 +1,63 @@
+{
+  "experiment_id": "E4-codex-kernel-governed-loop-unified-replit-all-in-one",
+  "payload_version": "1.0.0",
+  "payload_hash": "624332a9470f8509fcfb57c6c39ac8dc",
+  "output_root": "/home/runner/workspace",
+  "final_state_hash": "fe20ecc47445dbd887b5b14ef26ed981",
+  "ledger_digest": "4d0a943cef5b8fa605919db38df5e8e7",
+  "deliverables": [
+    {
+      "name": "trace_jsonl",
+      "rel": "./output/trace.jsonl",
+      "sha": "5af58ce42dff9ce31c4eb63d24c30162"
+    },
+    {
+      "name": "proof_ledger_jsonl",
+      "rel": "./output/proof_ledger.jsonl",
+      "sha": "a3bae59551a19894d2c46b47d3c49613"
+    },
+    {
+      "name": "final_state",
+      "rel": "./output/final_state.json",
+      "sha": "72d927c419aa65283fe0ba46e0c1644d"
+    },
+    {
+      "name": "run_summary",
+      "rel": "./output/run_summary.json",
+      "sha": "632de88ccf5146c041bd9c83430875c9"
+    },
+    {
+      "name": "decision_receipt",
+      "rel": "./output/decision_receipt.json",
+      "sha": "3fb63cc465faaa272730968a1efecf74"
+    },
+    {
+      "name": "final_table_preview",
+      "rel": "./output/final_table_preview.json",
+      "sha": "c4c3122d64ccc70f2346968593861d92"
+    }
+  ],
+  "trace_identity": {
+    "run_id": "run_386723681730b1fd",
+    "trace_id": "trace_86725c2a26210b61",
+    "manifest_hash": "b977a47f69b7ba0d038c86271c85d234"
+  },
+  "version_lineage": {
+    "payload_version": "1.0.0",
+    "kernel_version": "codex-kernel-runner-1.0.0",
+    "repo_commit": "7eb623f8b870128e615ac6be9880e0265204b454",
+    "model_provider": "proxy_or_offline_emulator",
+    "model_version": "deterministic",
+    "resolved_at": "2026-04-30T20:23:14.612Z"
+  },
+  "secrets_status": {
+    "degraded": false,
+    "missing_required_count": 0,
+    "missing_optional_count": 0
+  },
+  "deployment_contract": {
+    "platform": "replit",
+    "healthcheck_path": "/api/healthz",
+    "expected_status": 200
+  }
+}

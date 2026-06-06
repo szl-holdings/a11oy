@@ -1,0 +1,29 @@
+{
+  "last_receipt": {
+    "decision_type": "cycle_advance",
+    "summary": "Advanced one synodic cycle (+584d).",
+    "assumptions": [
+      "cycle_days = 584 (Maya idealized).",
+      "drift_per_cycle = 0 (configured)."
+    ],
+    "evidence": [
+      {
+        "kind": "archaeological_reference",
+        "ref": "Dresden Codex pp. 24, 46–50 (Venus tables)",
+        "mocked": false
+      },
+      {
+        "kind": "astronomical_constant",
+        "ref": "IAU synodic period of Venus = 583.92d",
+        "mocked": false
+      }
+    ],
+    "policy_version": "covenant-v1",
+    "approval_status": "not_required",
+    "mocked": false,
+    "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0012",
+    "step": 12,
+    "timestamp": "2026-04-29T00:00:33.000Z"
+  },
+  "receipt_count": 12
+}

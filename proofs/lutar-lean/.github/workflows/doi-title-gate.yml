@@ -1,0 +1,115 @@
+name: huklla-t11-doi-title-gate
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  doi-title-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Extract DOIs from README
+        id: extract
+        run: |
+          grep -oE "zenodo\.[0-9]+|10\.5281/zenodo\.[0-9]+" README.md \
+            | sed 's|10\.5281/zenodo\.||' \
+            | sed 's|zenodo\.||' \
+            | sort -u > /tmp/dois.txt
+          echo "Found DOIs:"; cat /tmp/dois.txt
+      - name: Verify each DOI resolves and titles match versions
+        run: |
+          # DOI truth-table (postmortem T11 — zenodo.20173912=v13, zenodo.20173920=v12)
+          # This gate prevents a repeat of the v12/v13 DOI swap incident.
+          fail=0
+          while read id; do
+            [ -z "$id" ] && continue
+            echo "::group::Checking zenodo.$id"
+
+            # Step 1: Check doi.org resolves (HTTP 200-range)
+            # -L/--location is REQUIRED: doi.org returns 302 to the Zenodo
+            # record; without following the redirect the check sees 302 and
+            # fails. (CTO C1: concept DOI zenodo.19944926 302-not-followed.)
+            doi_status=$(curl -sSL -o /dev/null -w "%{http_code}" \
+              --max-time 15 \
+              "https://doi.org/10.5281/zenodo.$id" 2>&1)
+            if [[ "$doi_status" != 2* ]]; then
+              echo "::error::DOI-RESOLVE FAILURE: zenodo.$id — doi.org returned HTTP $doi_status (expected 2xx)"
+              fail=1
+              echo "::endgroup::"
+              continue
+            fi
+            echo "doi.org status: $doi_status ✓"
+
+            # Step 2: Fetch Zenodo API metadata
+            meta=$(curl -sSL --max-time 15 "https://zenodo.org/api/records/$id")
+            http_ok=$(echo "$meta" | jq -e '.id' > /dev/null 2>&1 && echo "yes" || echo "no")
+            if [ "$http_ok" != "yes" ]; then
+              echo "::error::DOI-API FAILURE: zenodo.$id — Zenodo API returned no record"
+              fail=1
+              echo "::endgroup::"
+              continue
+            fi
+
+            title=$(echo "$meta" | jq -r '.metadata.title // "MISSING"')
+            ver=$(echo  "$meta" | jq -r '.metadata.version // "MISSING"')
+            echo "  title:   $title"
+            echo "  version: $ver"
+
+            if [ "$title" = "MISSING" ]; then
+              echo "::error::DOI-TITLE MISSING: zenodo.$id — Zenodo record has no title"
+              fail=1
+              echo "::endgroup::"
+              continue
+            fi
+
+            # Step 3: Extract version token from title (e.g. v13, v6.3.0)
+            tver=$(echo "$title" | grep -oE "v[0-9]+(\.[0-9]+)*" | head -1)
+
+            if [ -n "$tver" ] && [ "$ver" != "MISSING" ]; then
+              if ! echo "$ver" | grep -qF "$tver"; then
+                echo "::warning::VERSION-SKEW on zenodo.$id — title says $tver but version field is $ver"
+              else
+                echo "  version consistency: $tver ✓"
+              fi
+            fi
+
+            # Step 4: Cross-check README version claim vs Zenodo title
+            # Look for lines that reference this DOI and extract claimed version.
+            # We must only consider PROSE version claims, not version-like
+            # tokens embedded in URLs (e.g. slsa.dev/spec/v1.0), markdown link
+            # targets, badge image syntax, or doctrine references — all of
+            # which previously produced false-positive MISMATCH failures
+            # (Doctrine-v7 badge, SLSA v1.0 URL, "Doctrine v6" prose).
+            doi_lines=$(grep "$id" README.md \
+              | sed -E 's#https?://[^ )]*##g' \
+              | sed -E 's#\([^)]*\)##g' \
+              | sed -E 's#!\[[^]]*\]##g' \
+              | sed -E 's#[Dd]octrine[ _-]?v[0-9]+(\.[0-9]+)*##g')
+            readme_claim=$(echo "$doi_lines" \
+              | grep -oE "v[0-9]+(\.[0-9]+)*" | head -1)
+
+            if [ -n "$readme_claim" ] && [ -n "$tver" ]; then
+              if [ "$readme_claim" != "$tver" ]; then
+                echo "::error::DOI-TITLE MISMATCH: zenodo.$id — README claims $readme_claim but Zenodo title says $tver"
+                fail=1
+              else
+                echo "  README↔Zenodo version match: $readme_claim ✓"
+              fi
+            elif [ -n "$readme_claim" ] && [ -z "$tver" ]; then
+              echo "  README claims $readme_claim; Zenodo title has no version token — manual review advised"
+              echo "::warning::NO-VERSION-TOKEN: zenodo.$id — README claims $readme_claim but title '$title' has no parseable version"
+            fi
+
+            echo "::endgroup::"
+          done < /tmp/dois.txt
+
+          if [ $fail -eq 1 ]; then
+            echo ""
+            echo "HUKLLA T11 GATE FAILED — one or more DOIs failed consistency checks."
+            echo "See annotations above. Reference the DOI truth-table in docs/HUKLLA.md."
+            exit 1
+          fi
+          echo "HUKLLA T11: all DOIs resolved and titles consistent ✓"

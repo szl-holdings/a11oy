@@ -1,0 +1,58 @@
+{
+  "experiment_id": "E4-codex-kernel-governed-loop-unified-replit-all-in-one",
+  "status": "ok",
+  "steps_executed": 12,
+  "hard_stop_failures": 0,
+  "soft_failures": 1,
+  "budget_used": {
+    "time_ms": 18,
+    "steps": 12,
+    "retries": 0
+  },
+  "stop_reason": "convergence",
+  "replay_status": "not_run",
+  "final_state_hash": "fe20ecc47445dbd887b5b14ef26ed981",
+  "adaptive_depth_used": false,
+  "adaptive_depth_extensions": 0,
+  "adaptive_depth_effective_max_steps": 30,
+  "payload_path": "/home/runner/workspace/packages/codex-kernel/runner/payload.json",
+  "payload_version": "1.0.0",
+  "payload_experiment_id": "E4-codex-kernel-governed-loop-unified-replit-all-in-one",
+  "receipts_emitted": 12,
+  "approvals_recorded": 0,
+  "ledger_size": 12,
+  "ledger_digest": "4d0a943cef5b8fa605919db38df5e8e7",
+  "trace_identity": {
+    "run_id": "run_386723681730b1fd",
+    "trace_id": "trace_86725c2a26210b61",
+    "span_count": 12
+  },
+  "version_lineage": {
+    "payload_version": "1.0.0",
+    "kernel_version": "codex-kernel-runner-1.0.0",
+    "repo_commit": "7eb623f8b870128e615ac6be9880e0265204b454",
+    "model_provider": "proxy_or_offline_emulator",
+    "model_version": "deterministic",
+    "resolved_at": "2026-04-30T20:23:14.612Z"
+  },
+  "secrets_status": {
+    "degraded": false,
+    "missing_required": [],
+    "missing_optional": [],
+    "behavior": "degrade_gracefully"
+  },
+  "deployment_contract": {
+    "platform": "replit",
+    "healthcheck": {
+      "enabled": true,
+      "path": "/api/healthz",
+      "expected_status": 200,
+      "startup_timeout_seconds": 60
+    },
+    "logging": {
+      "json_logs": true,
+      "retain_local_artifacts": true,
+      "write_run_logs_to_output": true
+    }
+  }
+}

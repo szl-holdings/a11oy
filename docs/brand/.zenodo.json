@@ -1,0 +1,31 @@
+{
+  "title": "szl-brand \u2014 SZL Holdings brand assets \u2014 social preview images (1280\u00d7640 PNG), logo monograms, and brand guidance. Upload these to repo Settings \u2192 Social preview.",
+  "description": "SZL Holdings brand assets \u2014 social preview images (1280\u00d7640 PNG), logo monograms, and brand guidance. Upload these to repo Settings \u2192 Social preview.",
+  "upload_type": "other",
+  "creators": [
+    {
+      "name": "Lutar, Stephen P.",
+      "affiliation": "SZL Holdings",
+      "orcid": "0009-0001-0110-4173"
+    }
+  ],
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "keywords": [
+    "szl-holdings",
+    "ai-governance",
+    "ouroboros"
+  ],
+  "communities": [
+    {
+      "identifier": "open-science"
+    }
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.19944926",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+name: Trivy + Grype container vulnerability scan
+
+# NOTE: No CVE suppressions (.trivyignore/.grype.yaml) are needed as of 2026-06-04:
+# Grype finds 0 HIGH/CRITICAL vulnerabilities in the filesystem scan.
+# If future CVEs are added, create a .grype.yaml with per-CVE justifications
+# (only upstream-unfixable; never hide fixable CVEs).
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-scan:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Trivy vulnerability scan (filesystem)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'  # Don't fail on scan (gate in grype job)
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  grype-gate:
+    name: Grype CVE gate (fail on HIGH/CRITICAL)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Scan with Grype (fail build on HIGH/CRITICAL)
+        id: grype-scan
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          path: "."
+          fail-build: true
+          severity-cutoff: high
+          output-format: sarif
+
+      - name: Upload Grype SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        # anchore/scan-action only generates results.sarif when findings exist.
+        # When 0 findings, the file may not be created — guard with a check.
+        continue-on-error: true
+        with:
+          sarif_file: results.sarif

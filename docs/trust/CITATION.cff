@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+title: "szl-trust — Trust runtime with hash-chained proof ledgers from real production runs"
+message: "If you use this work, please cite it as below."
+type: software
+authors:
+  - family-names: Lutar
+    given-names: Stephen P.
+    name-suffix: Jr.
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+    affiliation: "SZL Holdings, Inc."
+abstract: >-
+  Public transparency layer of the SZL Holdings governed AI platform. Publishes
+  Covenant Proof Standard (CPS) run artifacts — hash-chained, cryptographically
+  verifiable governance receipts from real production executions. The canonical
+  reference run is the E4 Codex Kernel (2026-04-29): 12 receipts all mocked:false,
+  with deployment_contract.json anchoring to a specific repo commit.
+keywords:
+  - AI governance
+  - proof chain
+  - governance receipts
+  - Covenant Proof Standard
+  - audit trail
+  - EU AI Act
+  - NIST AI RMF
+  - transparency
+license: CC-BY-4.0
+version: "0.3.0"
+date-released: "2026-05-31"
+url: "https://github.com/szl-holdings/szl-trust"
+repository-code: "https://github.com/szl-holdings/szl-trust"
+identifiers:
+  - description: "Ouroboros Thesis v18.0 — research foundation (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.20434276"
+  - description: "Ouroboros Thesis concept DOI — always-latest"
+    type: doi
+    value: "10.5281/zenodo.19944926"
+preferred-citation:
+  type: article
+  title: "The Ouroboros Substrate (v18.0)"
+  authors:
+    - family-names: Lutar
+      given-names: Stephen P.
+      name-suffix: Jr.
+      orcid: "https://orcid.org/0009-0001-0110-4173"
+  year: 2026
+  doi: "10.5281/zenodo.20434276"

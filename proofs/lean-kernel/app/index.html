@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SZLHOLDINGS · lean-kernel — live Lean/Lake verification</title>
+<style>
+  :root{--bg:#0b0e14;--panel:#121722;--ink:#e6edf3;--mut:#8b97a7;--ok:#3fb950;--bad:#f85149;--ax:#d29922;--acc:#58a6ff;--line:#222b38}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--bg);color:var(--ink)}
+  header{padding:22px 26px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0e1320,#0b0e14)}
+  h1{margin:0;font-size:20px;letter-spacing:.3px}
+  .sub{color:var(--mut);margin-top:4px;font-size:12.5px}
+  main{max-width:1100px;margin:0 auto;padding:22px 18px 60px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:780px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+  .card h2{margin:0 0 10px;font-size:14px;color:var(--acc);text-transform:uppercase;letter-spacing:.6px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.ok{background:rgba(63,185,80,.15);color:var(--ok)}
+  .pill.bad{background:rgba(248,81,73,.15);color:var(--bad)}
+  .pill.ax{background:rgba(210,153,34,.15);color:var(--ax)}
+  .pill.un{background:rgba(139,151,167,.15);color:var(--mut)}
+  button{background:#1f6feb;color:#fff;border:0;border-radius:7px;padding:8px 14px;font:inherit;cursor:pointer}
+  button:hover{background:#388bfd}
+  button.ghost{background:#1c2333;color:var(--ink);border:1px solid var(--line)}
+  pre{background:#0a0d13;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);position:sticky;top:0;background:var(--panel)}
+  .tblwrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .num{font-size:26px;font-weight:700}
+  .kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--line)}
+  .kv span:first-child{color:var(--mut)}
+  textarea{width:100%;min-height:120px;background:#0a0d13;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit}
+  a{color:var(--acc)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .stat{display:flex;gap:18px;flex-wrap:wrap}
+  .stat>div{min-width:90px}
+  code{background:#0a0d13;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>SZLHOLDINGS · lean-kernel</h1>
+  <div class="sub">Live Lean v4.13.0 + Mathlib v4.13.0 kernel for <a href="https://github.com/szl-holdings/lutar-lean">szl-holdings/lutar-lean</a> · the Lutar Invariant Λ. Numbers are computed live from <code>lean_numbers.py</code> against the deployed commit — never hardcoded. If the build fails, this page shows it honestly.</div>
+</header>
+<main>
+
+  <div class="card" id="health">
+    <h2>Kernel status</h2>
+    <div class="row"><span class="pill un" id="hpill">loading…</span>
+      <span class="sub" id="hmeta"></span></div>
+    <div class="kv"><span>repo</span><span id="hrepo">—</span></div>
+    <div class="kv"><span>commit</span><span id="hsha">—</span></div>
+    <div class="kv"><span>toolchain</span><span id="htc">—</span></div>
+    <div class="kv"><span>last lake build</span><span id="hbuild">—</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Canonical numbers (live)</h2>
+      <div class="stat">
+        <div><div class="num" id="ndecl">—</div><div class="sub">declarations</div></div>
+        <div><div class="num" id="naxr">—</div><div class="sub">axioms (raw)</div></div>
+        <div><div class="num" id="naxu">—</div><div class="sub">axioms (unique)</div></div>
+        <div><div class="num" id="nsor">—</div><div class="sub">sorries (raw)</div></div>
+        <div><div class="num" id="nsnc">—</div><div class="sub">sorries (non-comment)</div></div>
+      </div>
+      <div class="sub" id="nmeta" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h2>lake build (on demand)</h2>
+      <div class="row"><button onclick="runBuild()" id="bbtn">Run lake build</button>
+        <span class="pill un" id="bpill">idle</span>
+        <span class="sub" id="btime"></span></div>
+      <pre id="blog">Press “Run lake build” to kernel-check the whole library live.
+(First run on a cold box downloads the Mathlib cache and can take minutes;
+ if disk/cache is unavailable the failure is shown here verbatim.)</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Theorem table (PROVEN / AXIOM / SORRY)</h2>
+    <div class="row">
+      <span class="pill ok" id="tp">PROVEN —</span>
+      <span class="pill ax" id="ta">AXIOM —</span>
+      <span class="pill bad" id="ts">SORRY —</span>
+      <input id="tfilter" placeholder="filter by name/file…" oninput="renderTheorems()"
+        style="margin-left:auto;background:#0a0d13;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font:inherit"/>
+    </div>
+    <div class="tblwrap">
+      <table><thead><tr><th>status</th><th>kind</th><th>name</th><th>file:line</th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="4" class="sub">loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Λ-receipt verifier playground</h2>
+      <div class="sub">POST a receipt <code>{"axes":[...], "lambda":…}</code>. The kernel recomputes Λ = (∏xᵢ)^(1/k) and names the confirming theorem.</div>
+      <textarea id="vin">{"axes":[0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9],"lambda":0.9}</textarea>
+      <div class="row" style="margin-top:8px"><button onclick="doVerify()">Verify receipt</button></div>
+      <pre id="vout">—</pre>
+    </div>
+
+    <div class="card">
+      <h2>10 golden reference vectors</h2>
+      <div class="row"><button class="ghost" onclick="loadVectors()">Load vectors</button>
+        <button onclick="exerciseVectors()">Exercise vs current Lean</button>
+        <span class="pill un" id="vpill">—</span></div>
+      <pre id="vecout">—</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>API</h2>
+    <div class="sub">
+      <code>GET /api/lean/healthz</code> ·
+      <code>GET /api/lean/numbers</code> ·
+      <code>GET /api/lean/theorems</code> ·
+      <code>POST /api/lean/verify</code> ·
+      <code>GET /api/lean/build</code> (SSE) ·
+      <code>GET /api/lean/vectors</code> ·
+      <code>POST /api/lean/vectors/exercise</code>
+    </div>
+  </div>
+
+</main>
+<script>
+const J = async (u,o)=> (await fetch(u,o)).json();
+let THEOREMS=[];
+
+async function loadHealth(){
+  try{
+    const h = await J('api/lean/healthz');
+    const p=document.getElementById('hpill');
+    const b=h.build||{};
+    if(b.status==='pass'){p.className='pill ok';p.textContent='BUILD PASS';}
+    else if(b.status==='fail'){p.className='pill bad';p.textContent='BUILD FAIL';}
+    else {p.className='pill un';p.textContent='BUILD NOT YET RUN';}
+    document.getElementById('hrepo').textContent=h.repo+(h.repo_present?'':' (missing!)');
+    document.getElementById('hsha').textContent=(h.repo_sha||'').slice(0,12);
+    document.getElementById('htc').textContent=h.toolchain;
+    document.getElementById('hbuild').textContent=b.status==='unknown'?'not run yet':
+      `${b.status} · exit ${b.exit_code} · ${b.duration_s}s`;
+  }catch(e){document.getElementById('hpill').textContent='healthz error';}
+}
+async function loadNumbers(){
+  try{
+    const d = await J('api/lean/numbers'); const n=d.numbers||{};
+    document.getElementById('ndecl').textContent=n.declarations??'—';
+    document.getElementById('naxr').textContent=n.axioms_raw??'—';
+    document.getElementById('naxu').textContent=n.axioms_unique??'—';
+    document.getElementById('nsor').textContent=n.sorries_raw??'—';
+    document.getElementById('nsnc').textContent=n.sorries_noncomment??'—';
+    document.getElementById('nmeta').textContent=`live · sha ${(d.sha||'').slice(0,12)} · measured ${d.measured_at_utc||''}`;
+  }catch(e){document.getElementById('nmeta').textContent='numbers error: '+e;}
+}
+async function loadTheorems(){
+  try{
+    const d = await J('api/lean/theorems'); THEOREMS=d.items||[]; const s=d.summary||{};
+    document.getElementById('tp').textContent='PROVEN '+(s.proven??'—');
+    document.getElementById('ta').textContent='AXIOM '+(s.axiom??'—');
+    document.getElementById('ts').textContent='SORRY '+(s.sorry??'—');
+    renderTheorems();
+  }catch(e){document.getElementById('tbody').innerHTML='<tr><td colspan=4 class=sub>error: '+e+'</td></tr>';}
+}
+function renderTheorems(){
+  const f=(document.getElementById('tfilter').value||'').toLowerCase();
+  const rows=THEOREMS.filter(x=>!f||x.name.toLowerCase().includes(f)||x.file.toLowerCase().includes(f))
+    .map(x=>{const cls=x.status==='PROVEN'?'ok':x.status==='AXIOM'?'ax':'bad';
+      return `<tr><td><span class="pill ${cls}">${x.status}</span></td><td>${x.kind}</td><td>${x.name}</td><td class=sub>${x.file}:${x.line}</td></tr>`;}).join('');
+  document.getElementById('tbody').innerHTML=rows||'<tr><td colspan=4 class=sub>no matches</td></tr>';
+}
+function runBuild(){
+  const log=document.getElementById('blog'); const pill=document.getElementById('bpill');
+  log.textContent=''; pill.className='pill un'; pill.textContent='running…';
+  document.getElementById('bbtn').disabled=true;
+  const es=new EventSource('api/lean/build');
+  es.onmessage=(ev)=>{const d=JSON.parse(ev.data);
+    if(d.event==='line'){log.textContent+=d.line+'\n';log.scrollTop=log.scrollHeight;}
+    else if(d.event==='start'){log.textContent+='$ lake build\n';}
+    else if(d.event==='done'){pill.className='pill '+(d.status==='pass'?'ok':'bad');
+      pill.textContent='BUILD '+d.status.toUpperCase();
+      document.getElementById('btime').textContent=`exit ${d.exit_code} · ${d.duration_s}s`;
+      es.close();document.getElementById('bbtn').disabled=false;loadHealth();}
+    else if(d.event==='error'){pill.className='pill bad';pill.textContent='ERROR';
+      log.textContent+='ERROR: '+d.msg+'\n';es.close();document.getElementById('bbtn').disabled=false;}
+  };
+  es.onerror=()=>{pill.className='pill bad';pill.textContent='stream error';es.close();document.getElementById('bbtn').disabled=false;};
+}
+async function doVerify(){
+  let body; try{body=JSON.parse(document.getElementById('vin').value);}catch(e){document.getElementById('vout').textContent='invalid JSON';return;}
+  const r=await J('api/lean/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  document.getElementById('vout').textContent=JSON.stringify(r,null,2);
+}
+async function loadVectors(){const d=await J('api/lean/vectors');document.getElementById('vecout').textContent=JSON.stringify(d,null,2);}
+async function exerciseVectors(){
+  const r=await J('api/lean/vectors/exercise',{method:'POST'});
+  const p=document.getElementById('vpill');
+  p.className='pill '+(r.all_pass?'ok':'bad');p.textContent=r.all_pass?('ALL '+r.count+' PASS'):'SOME FAIL';
+  document.getElementById('vecout').textContent=JSON.stringify(r,null,2);
+}
+loadHealth();loadNumbers();loadTheorems();
+</script>
+</body>
+</html>

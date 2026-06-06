@@ -1,0 +1,14 @@
+# Replit entry config for SZL Holdings Operator Payload
+run = "bash bootstrap.sh"
+entrypoint = "bootstrap.sh"
+modules = ["bash", "nix"]
+
+[nix]
+channel = "stable-24_05"
+
+[env]
+PAYLOAD_ROOT = "."
+LANG = "en_US.UTF-8"
+
+[interpreter]
+command = ["bash"]

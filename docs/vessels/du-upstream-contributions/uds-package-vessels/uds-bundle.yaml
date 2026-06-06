@@ -1,0 +1,38 @@
+kind: UDSBundle
+metadata:
+  name: vessels-maritime-intelligence
+  description: >
+    UDS bundle for vessels maritime intelligence platform. Composes the vessels
+    web frontend with the szl-receipts governance receipt infrastructure.
+    Requires: k3d cluster with UDS core (Istio, Pepr, Loki) pre-installed.
+  version: 0.1.0
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+
+packages:
+  # szl-receipts must deploy first — vessels depends on receipt infrastructure.
+  - name: szl-receipts
+    path: oci://ghcr.io/szl-holdings/uds-package-szl-receipts:v0.1.0
+    ref: v0.1.0
+    overrides:
+      szl-receipts:
+        szl-receipts:
+          values:
+            - path: receiptsNamespace
+              value: szl-receipts
+
+  # vessels — maritime intelligence frontend
+  - name: vessels
+    path: ../../uds-package-vessels
+    ref: v0.1.0
+    overrides:
+      vessels:
+        vessels:
+          values:
+            - path: image.repository
+              value: ghcr.io/szl-holdings/vessels
+            - path: image.tag
+              value: v0.1.0
+            - path: aisReplayMode
+              value: "true"
+            - path: receiptsNamespace
+              value: szl-receipts

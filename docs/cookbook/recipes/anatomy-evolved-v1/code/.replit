@@ -1,0 +1,8 @@
+modules = ["nodejs-20"]
+run = "npm run build && npm run doctrine-check && npm run test:smoke"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "npm install && npm run build"]
