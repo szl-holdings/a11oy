@@ -37,6 +37,38 @@ except Exception:  # pragma: no cover
 
 DOCTRINE_V11_LOCKED = {"declarations": 749, "unique_axioms": 14, "sorries": 163,
                        "lambda_status": "Conjecture 1 (NOT a theorem)"}
+
+# ADDITIVE (instill-wave 2026-06-06): experimental kernel-verified proof waves.
+# These are SEPARATE from the locked 5 {F1,F11,F12,F18,F19}. Locked count UNCHANGED.
+# Lambda (F23) remains Conjecture 1 unconditionally. Honest maturity labels only.
+EXPERIMENTAL_WAVES = {
+    "locked_proven": 5,
+    "locked_ids": ["F1", "F11", "F12", "F18", "F19"],
+    "waves": [
+        {"id": "wave5", "new_theorems": 11, "pr": 186,
+         "label": "proven sorry-free (experimental)",
+         "summary": "Tsirelson/CHSH governance ceiling, AM-GM no-inflation, Cauchy-Schwarz similarity, conformal count law, collision pigeonhole, optional-stopping audit core. 6 Mathlib-dep CI-green + 5 bare-lean."},
+        {"id": "wave6", "new_theorems": 11, "pr": 189,
+         "label": "proven sorry-free (experimental)",
+         "summary": "Graph substrate: F-G4 Lambda-graph isomorphism invariance (CI-green), F-G1 Kuratowski embedding, F-G3 geometric contraction, F-G2 GNN<=1-WL ceiling, F-G5 bounded-frontier DAG termination, F-G6 relabel-invariant functionals."},
+        {"id": "wave7", "new_theorems": 10, "pr": 190,
+         "label": "proven sorry-free (experimental)",
+         "summary": "Conformal rank-count p-value (distribution-free Trust Score interval, anti-overconfidence floor), two-sided Doob audit envelope, degree-sum iso-invariance, PAC-Bayes/router envelope (min<=avg<=max)."},
+        {"id": "agentic_loop", "new_theorems": 28, "pr": 188,
+         "label": "proven sorry-free (experimental); P5 axiom-gated (declared)",
+         "summary": "End-to-end governed-run system proofs P1-P6: receipt completeness, gate-soundness, non-interference (injection-resistant), replay determinism, tamper-evidence (axiom-gated on hash collision-resistance), monotone auditability. 1 declared hash axiom (P5)."},
+    ],
+    "total_new_experimental_theorems": 60,
+    "maturity_legend": {
+        "proven (locked)": "In the locked Doctrine-v11 kernel (749/14/163 @ c7c0ba17). Exactly 5.",
+        "proven sorry-free (experimental)": "Kernel-verified sorry-free this session on a PR branch (CI-green or bare-lean exit 0); NOT in the locked count.",
+        "axiom-gated (declared)": "Proven modulo one named disclosed idealization (e.g. hash collision-resistance).",
+        "conjectured": "Open / not a theorem. Lambda (F23) uniqueness is Conjecture 1 unconditionally.",
+    },
+    "trust_score_interval_source": "CONFORMAL (W5-3 + W7-4), distribution-free, anti-overconfidence floor (never reports 100%). NOT Hoeffding/PAC-Bayes (those are NOT proven at the pinned Mathlib v4.13.0).",
+    "deferred_not_proven": ["C3 Hoeffding", "C4 Azuma", "C5 KL>=0", "C15", "C16", "C18", "C19"],
+    "lambda_status": "Lambda (F23) = Conjecture 1 unconditionally. Unconditional uniqueness FALSE. Only a conditional/strengthened-class theorem (lambda_unique_under_block, A6') is CI-green.",
+}
 FORMULA_META = {   'F1': {   'id': 'F1',
               'name': 'Euler-Khipu DAG Identity',
               'organ': 'Khipu',
@@ -559,6 +591,7 @@ def summary_stats():
         "doctrine_v11_locked": DOCTRINE_V11_LOCKED,
         "sprint_proved": [fid for fid, m in FORMULA_META.items()
                           if m["proof_status"] == "PROVED" and m["proved_tactic"]],
+        "experimental_waves": EXPERIMENTAL_WAVES,
     }
 
 
@@ -589,6 +622,13 @@ def _render_html():
         )
     table = "\n".join(rows)
     proved = ", ".join(stats["sprint_proved"])
+    ew = stats["experimental_waves"]
+    ew_total = ew["total_new_experimental_theorems"]
+    ew_rows = "<br>".join(
+        f'&bull; <b>{w["id"]}</b> (+{w["new_theorems"]} thm, PR#{w["pr"]}) '
+        f'<span style="color:#1a7f37">[{w["label"]}]</span>: {w["summary"]}'
+        for w in ew["waves"]
+    )
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <title>PURIQ /formulas — 23 FormulaAgents</title>
 <style>
@@ -615,6 +655,13 @@ code{{color:#79c0ff}}
 <div class="kpi"><b>{stats['proved_count']}</b>Lean PROVED</div>
 <div class="kpi"><b>{stats['harness_baseline']}</b>numeric harness</div>
 <div class="kpi"><b>749 / 14 / 163</b>Doctrine v11 LOCKED (decl/axioms/sorries)</div>
+<div class="kpi"><b>+{ew_total}</b>experimental kernel-verified (separate from locked)</div>
+</div>
+<div class="note" style="margin-top:0">
+<b>Experimental kernel-verified waves</b> (NOT in the locked count of 5; honest maturity labels):<br>
+{ew_rows}
+<br><b>Trust Score interval:</b> sourced from <b>CONFORMAL</b> (W5-3 + W7-4) \u2014 distribution-free, with an anti-overconfidence floor (we never report 100%). NOT Hoeffding/PAC-Bayes (those are NOT proven at the pinned Mathlib v4.13.0).<br>
+<b>Deferred (not proven at pin):</b> C3 Hoeffding, C4 Azuma, C5 KL\u22650, C15, C16, C18, C19.
 </div>
 <table>
 <tr><th>ID</th><th>Formula</th><th>Organ</th><th>Live value</th><th>Identity</th>
