@@ -4067,6 +4067,38 @@ except Exception as _loop_e:
 
 
 # ============================================================================
+# BEGIN: FORMULA-WIRING SURFACE — a11oy (2026-06-06, ADDITIVE, surgical)
+# Wires ALL ~80 kernel-verified theorems to REAL, executed mechanisms (shared,
+# byte-identical szl_formula_wiring across a11oy + killinchu). Adds:
+#   GET  /api/a11oy/v1/formulas/selftest        (runs every mechanism live)
+#   GET  /api/a11oy/v1/formulas/proof-summary   (single-source proof+capability map)
+#   POST /api/a11oy/v1/formulas/conformal | routing-envelope | consensus-quorum
+#   POST /api/a11oy/v1/formulas/verify-receipts
+# Routes inserted at position 0 so they beat the SPA /{path:path} catch-all.
+# try/except guarded (non-fatal). The loop (szl_agentic_loop) already imports
+# these mechanisms and calls them inside every governed run (formula_proof).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_FORMULA_WIRING_DIAG = {"status": "not-run"}
+try:
+    import szl_formula_wiring as _szl_fw
+    import sys as _fw_sys
+    _fw_status = _szl_fw.register(app, "a11oy")
+    print(f"[a11oy] formula-wiring surface registered: {_fw_status}", file=_fw_sys.stderr)
+    _FORMULA_WIRING_DIAG = {"status": "ok", "registered": _fw_status}
+except Exception as _fw_e:
+    import sys as _fw_sys, traceback as _fw_tb
+    print(f"[a11oy] formula-wiring FAILED (non-fatal): {_fw_e!r}", file=_fw_sys.stderr)
+    _fw_tb.print_exc(file=_fw_sys.stderr)
+    _FORMULA_WIRING_DIAG = {"status": "FAILED", "error": repr(_fw_e),
+                            "traceback": _fw_tb.format_exc()}
+# ============================================================================
+# END: FORMULA-WIRING SURFACE — a11oy
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: OPEN-WEIGHT ALLOY MODEL LAYER — a11oy (2026-06-06, ADDITIVE)
 # Model-integration squad (Opus 4.8). Forges the strongest GPT/Claude-competitive
 # OPEN-WEIGHT coding models (DeepSeek-Coder-V2 CODE_PRIMARY, DeepSeek-V2.5,
