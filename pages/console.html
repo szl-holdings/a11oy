@@ -1371,7 +1371,10 @@ function go(view){
   if(window.innerWidth<=820)document.querySelector('.side').classList.remove('open');
 }
 const start=(location.hash||'#command').slice(1);
-go(VIEWS[start]?start:'command');
+/* defer initial render until all inline scripts (helpers + frontier loaders) have executed,
+   so deep-links to tabs whose loaders live in a later script block resolve correctly */
+function _bootGo(){go(VIEWS[start]?start:'command');}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_bootGo);else setTimeout(_bootGo,0);
 </script>
 
 <script>
@@ -2024,14 +2027,9 @@ async function threatgraph_load(){
       var td=await getJSON(API+'/v1/policy/threats');
       var corpus=td.corpus||[];
       setTxt('tg-n',corpus.length);
-      // live CISA KEV (public). Build a set of KEV-known CVE technique hints.
-      var kevTechniques={};
-      try{
-        var kev=await getPublic('https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json',9000);
-        var vulns=(kev&&kev.vulnerabilities)||[];
-        // mark high-frequency vendor/product as "lit" — map onto our technique severities heuristically
-        window._kevCount=vulns.length;
-      }catch(e){ window._kevCount=null; }
+      // Sovereign/offline: toxic-path "lit" status is computed from the in-image STIX corpus
+      // itself (CVSS base >= 9.0 == known-exploited-class). No external browser fetch — a11oy is
+      // air-gap-capable; the KEV mapping is baked into the corpus severity (deny-by-default).
       var tactics={}; corpus.forEach(function(t){ if(t.mitre_tactic) tactics[t.mitre_tactic]=1; });
       var nodes=[]; var links=[]; var tox=0; var gates=0;
       Object.keys(tactics).forEach(function(tac){ nodes.push({id:'tac-'+tac,name:'tactic \u00b7 '+tac,color:'#7aa0d0',val:8,group:'tactic'}); });
