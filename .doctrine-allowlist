@@ -75,3 +75,53 @@ __tests__/compliance/
 # a11oy_v4_hickok.py — uses a compound technical term for POS-tagger
 # verb/adjective classification, not a marketing expression.
 a11oy_v4_hickok.py
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemptions (2026-06-07, founder-authorized).
+# Each path below legitimately contains a flagged token for a NON-marketing
+# reason: enumeration-for-detection, archived papers, vendored third-party
+# code, or formal proof/test fixtures. None are active marketing-hype claims.
+# ----------------------------------------------------------------------------
+
+# Doctrine docs that ENUMERATE the banned identities (Jarvis/Bo11y/Bolly) as
+# "still banned" — the list IS the rule, not a violation.
+docs/doctrine/
+
+# Cookbook recipe README that enumerates "no banned tokens: revolutionary,
+# world-class, best-in-class, game-changing, unprecedented ..." for reference.
+docs/cookbook/recipes/knot-calculus-v1/README.md
+
+# Archival research papers (ouroboros-archive) — frozen historical prose;
+# ch10_knot_calculus.md enumerates the ban-list, sdk-innovation.md quotes a
+# gap-scan vs. third-party SDKs. Not current marketing claims.
+docs/papers/ouroboros-archive/
+
+# Archival ops report (REPLIT_HARDCODE_PAYLOAD) — frozen evaluation note that
+# quotes third-party "novel problem framing" wording; not an SZL claim.
+docs/cookbook/ops/REPLIT_HARDCODE_PAYLOAD/
+
+# Vendored third-party libraries (minified bundles) — upstream author strings,
+# not SZL-authored prose. False positives.
+static-vendor/
+
+# Formal proof corpus (Lean) + kernel tooling — comments ENUMERATE the ban-list
+# ("No banned words (revolutionary, ... )") and use "leading" in a technical
+# byte-header / comment-prefix sense. Detection reference + technical usage.
+proofs/
+
+# Bot-reviewer test fixture — "catches sorry with leading whitespace" is a
+# technical test description (Lean `sorry` detection), not marketing prose.
+runtime/ouroboros/agentic/bot-reviewer/
+
+# Sibling mirror organ source (sentra, amaru) — NOT part of the a11oy deployed
+# surface (Dockerfile COPYs no organs/ path; serve.py does not import them).
+# All flags are code identifiers (keyBreakthroughs), Tailwind leading-[N]
+# bracket classes, or technical "leading bytes/digits/whitespace" — no
+# SZL marketing-hype prose. (organs/rosie/ was REMOVED, not allowlisted.)
+organs/sentra/
+organs/amaru/
+
+# This allowlist file itself enumerates the banned identities in its comments
+# (explaining WHY each path is exempt). The list IS the documentation, not a
+# marketing violation — same enumeration-for-detection rationale as above.
+.doctrine-allowlist

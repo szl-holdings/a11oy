@@ -1,7 +1,0 @@
-{
- "name": "formula",
- "description": "Fetch a Codex-Kernel formula descriptor (F1..F23).",
- "namespace": "hatun-mcp",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

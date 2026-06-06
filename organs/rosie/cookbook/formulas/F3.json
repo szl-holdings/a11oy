@@ -1,9 +1,0 @@
-{
- "id": "F3",
- "name": "egyptian_exact",
- "description": "Egyptian-fraction exactness condition.",
- "status": "PROVEN",
- "honesty_note": "Lean-proven (IsEgyptianExact).",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

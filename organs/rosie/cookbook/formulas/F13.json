@@ -1,9 +1,0 @@
-{
- "id": "F13",
- "name": "tag_match_bonus",
- "description": "Tag-match bonus (0.04/tag, cap 0.12) for recall.",
- "status": "OPEN_CONJECTURE",
- "honesty_note": "Heuristic; tuned, not proven.",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

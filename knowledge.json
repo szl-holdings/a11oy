@@ -605,7 +605,7 @@
    "source_file": "thesis.md",
    "source_line": 507,
    "latex": "\\mathcal{S}",
-   "context": "the 8-Region Model Structurally Surpasses the Leaders  Each leading framework or protocol is a partial instantiation of \\(\\mathcal{S}\\). The gap is structural: the missing region is not a feature that",
+   "context": "the 8-Region Model Structurally Surpasses the Leaders  Each major framework or protocol is a partial instantiation of \\(\\mathcal{S}\\). The gap is structural: the missing region is not a feature that",
    "source_id": "thesis_session",
    "maturity": "defined"
   },

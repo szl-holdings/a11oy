@@ -2252,7 +2252,7 @@ async def a11oy_version():
 # Khipu receipt ledger + verified command-log, the mesh/quorum graph, the
 # seeded decision feed) are the REAL responses captured live from the organs on
 # 2026-06-06 and embedded verbatim. The compute endpoints (/verdict, /forecast,
-# /readiness/assess, /jarvis/ask, /jarvis/act) port the organs' REAL logic
+# /readiness/assess, /operator/ask, /operator/act) port the organs' REAL logic
 # (THREAT_SIGNATURES inspection, Madhava arctan partial-sum + remainder bound,
 # the 5-criterion HANGAR2APPS readiness gate, grounded-answer classification,
 # and the SHA-256 hash-chained operator audit ring). No values are fabricated;
@@ -2420,7 +2420,7 @@ try:
                 "confidence_basis": "grounded_confidence = field/criteria coverage (cleared / total criteria).",
                 "doctrine": "v11", "lambda_status": "Conjecture 1 (NOT a theorem)"}
 
-    # ---- rosie: jarvis ask / act (ported, self-contained grounding) ----
+    # ---- rosie: operator ask / act (ported, self-contained grounding) ----
     _SC_PROVED_FORMULAS = ["F1", "F11", "F12", "F18", "F19"]
     _SC_OP_ACTIONS = {
         "approve": "HITL approve — operator approves a pending governed verdict / decision.",
@@ -2588,18 +2588,18 @@ try:
         body = await _sc_body(request)
         return _SCJSON(_sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {})))
 
-    # ---- rosie-shaped (operator ask / act / recommend / ledger / command-log / mesh) ----
-    @app.post("/api/rosie/v1/jarvis/ask")
+    # ---- rosie-shaped operator endpoints (operator ask / act / recommend / ledger / command-log / mesh) ----
+    @app.post("/api/rosie/v1/operator/ask")
     async def _sc_rosie_ask(request: _SCRequest):
         body = await _sc_body(request)
         return _SCJSON(_sc_ask((body or {}).get("question", "")))
 
-    @app.post("/api/rosie/v1/jarvis/act")
+    @app.post("/api/rosie/v1/operator/act")
     async def _sc_rosie_act(request: _SCRequest):
         body = await _sc_body(request)
         return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
 
-    @app.get("/api/rosie/v1/jarvis/recommend")
+    @app.get("/api/rosie/v1/operator/recommend")
     async def _sc_rosie_recommend():
         return _SCJSON(_SC_RECOMMEND)
 

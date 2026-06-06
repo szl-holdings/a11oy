@@ -1,7 +1,0 @@
-{
- "name": "route_llm",
- "description": "Route a prompt across the 7-tier open-model stack.",
- "namespace": "hatun-mcp",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}

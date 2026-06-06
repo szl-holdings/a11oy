@@ -1,9 +1,0 @@
-{
- "id": "F14",
- "name": "pac_bayes_band",
- "description": "PAC-Bayes governance trajectory band.",
- "status": "OPEN_CONJECTURE",
- "honesty_note": "Bound form; assumptions conjectural here.",
- "doctrine": "v11",
- "generated_by": "Yachay <yachay@szlholdings.dev>; Co-Authored-By: Perplexity Computer Agent"
-}
