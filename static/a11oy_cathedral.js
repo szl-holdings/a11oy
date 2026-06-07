@@ -159,6 +159,8 @@ function animate(){
 }
 window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
 paintHUD(); animate();
-document.getElementById('boot').classList.add('hide');
+(function(){ var b=document.getElementById('boot'); b.classList.add('hide');
+  b.addEventListener('transitionend', function(){ b.style.display='none'; });
+  setTimeout(function(){ b.style.display='none'; }, 1200); })();
 poll(); setInterval(poll, 8000);
 controls.addEventListener('start',()=>{ controls.autoRotate=false; });
