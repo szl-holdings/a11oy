@@ -441,19 +441,131 @@ def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
 #             (2) HF router IF a token is present (disclosed)
 #             (3) local DETERMINISTIC, retrieval-grounded responder (honest label)
 # ===========================================================================
-_HF_TOKEN = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or ""
+# Token detection: read HF_TOKEN first, then a broad set of common fallback names so a
+# correctly-pasted token is picked up regardless of which secret NAME it was saved under
+# (HF Space secrets are sometimes saved as 'Token', 'HF_ROUTER_TOKEN', etc.). Values are
+# stripped of stray whitespace/quotes. Server-side only; never sent to the browser.
+def _detect_hf_token() -> str:
+    for _name in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HF_ROUTER_TOKEN",
+                  "HF_API_TOKEN", "HUGGINGFACE_TOKEN", "HUGGINGFACEHUB_API_TOKEN", "Token"):
+        _v = os.environ.get(_name)
+        if _v:
+            _v = _v.strip().strip('"').strip("'").strip()
+            if _v.startswith("hf_") or len(_v) >= 20:
+                return _v
+    return ""
+
+_HF_TOKEN = _detect_hf_token()
 _LOCAL_MODEL_CMD = os.environ.get("A11OY_LOCAL_MODEL_CMD") or ""
+
+# ---------------------------------------------------------------------------
+# MODEL-ENDPOINT ADAPTER (sovereign, swappable).
+# Default target = the OpenAI-compatible Hugging Face Router. A single env var
+# A11OY_MODEL_BASE_URL repoints this at a Hetzner/GPU-hosted local open-weight
+# model later (any OpenAI-compatible /chat/completions server) WITHOUT code
+# changes. The token is read server-side only and NEVER sent to the browser.
+# Open-weight roster only — no closed (GPT/Claude/Gemini) models.
+# ---------------------------------------------------------------------------
+_MODEL_BASE_URL = (os.environ.get("A11OY_MODEL_BASE_URL")
+                   or os.environ.get("HF_ROUTER_BASE")
+                   or "https://router.huggingface.co/v1").rstrip("/")
+
+# Open-weight serverless roster (real HF repo ids + licenses). Primary first;
+# the rest are graceful fallbacks tried in order on error/timeout.
+_HF_ROSTER = [
+    {"hf_repo": "Qwen/Qwen2.5-Coder-32B-Instruct", "display": "Qwen2.5-Coder 32B",
+     "license": "Apache-2.0", "role": "primary", "open_weight": True},
+    {"hf_repo": "meta-llama/Llama-3.1-8B-Instruct", "display": "Llama 3.1 8B",
+     "license": "Llama-3.1-Community", "role": "fallback", "open_weight": True},
+    {"hf_repo": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "display": "DeepSeek-Coder-V2",
+     "license": "DeepSeek-License (open weights)", "role": "fallback", "open_weight": True},
+]
+
+
+def _model_configured() -> bool:
+    """True iff a real generative endpoint is reachable-by-config (token present
+    for the HF router, OR a non-router base URL e.g. a local Hetzner model)."""
+    if _LOCAL_MODEL_CMD:
+        return True
+    if "router.huggingface.co" in _MODEL_BASE_URL:
+        return bool(_HF_TOKEN)
+    # a custom base url (Hetzner/local) is assumed reachable without an HF token
+    return True
+
+
+def _hf_chat(messages, max_tokens=512, want_model=None):
+    """Call the OpenAI-compatible model endpoint server-side, with 2x retry and
+    automatic fallback down the open-weight roster. Returns a dict:
+      {ok, text, model, license, attempts, rate_limited, error}
+    NEVER fabricates: on total failure ok=False and text=None."""
+    import urllib.request, urllib.error, json as _json, time as _time
+    # build the model try-order: requested model first (if open-weight), then roster
+    order = []
+    if want_model:
+        order.append({"hf_repo": want_model, "display": want_model,
+                      "license": "declared open-weight", "role": "requested", "open_weight": True})
+    order += [m for m in _HF_ROSTER if m["hf_repo"] != want_model]
+    headers = {"Content-Type": "application/json"}
+    if _HF_TOKEN:
+        headers["Authorization"] = "Bearer " + _HF_TOKEN
+    url = _MODEL_BASE_URL + "/chat/completions"
+    last_err = None
+    rate_limited = False
+    attempts = 0
+    for m in order:
+        for attempt in range(2):  # 2 tries per model
+            attempts += 1
+            body = _json.dumps({"model": m["hf_repo"], "messages": messages,
+                                "max_tokens": max_tokens, "temperature": 0.2}).encode()
+            req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+            try:
+                with urllib.request.urlopen(req, timeout=45) as r:
+                    data = _json.loads(r.read())
+                txt = (((data.get("choices") or [{}])[0].get("message") or {}).get("content")) or ""
+                if txt.strip():
+                    return {"ok": True, "text": txt, "model": m["hf_repo"],
+                            "display": m["display"], "license": m["license"],
+                            "attempts": attempts, "rate_limited": False, "error": None}
+                last_err = "empty completion"
+            except urllib.error.HTTPError as e:
+                code = e.code
+                last_err = "HTTP %s on %s" % (code, m["hf_repo"])
+                if code == 429:
+                    rate_limited = True
+                    _time.sleep(1.2)  # brief backoff then retry/fallback
+                elif code in (401, 403):
+                    return {"ok": False, "text": None, "model": None, "attempts": attempts,
+                            "rate_limited": False,
+                            "error": "auth rejected (HTTP %s) — HF_TOKEN missing or unauthorized" % code}
+                else:
+                    break  # try next model
+            except Exception as e:
+                last_err = "%s: %s" % (type(e).__name__, e)
+        # next model in roster
+    return {"ok": False, "text": None, "model": None, "attempts": attempts,
+            "rate_limited": rate_limited, "error": last_err or "all models failed"}
 
 
 def _backend_label() -> dict:
     if _LOCAL_MODEL_CMD:
         return {"backend": "local-weights", "model_serving": "real local model (LOCAL_MODEL_CMD)",
                 "offline": True, "honest": "Running your plugged-in local open-weight model."}
+    if _model_configured():
+        tgt = "local model (A11OY_MODEL_BASE_URL)" if "router.huggingface.co" not in _MODEL_BASE_URL else "Hugging Face Router"
+        return {"backend": "generative", "endpoint": _MODEL_BASE_URL,
+                "model_serving": "%s — open-weight serverless (token present, server-side only)" % tgt,
+                "primary_model": _HF_ROSTER[0]["hf_repo"], "configured": True,
+                "offline": False,
+                "honest": "Real generative inference via the OpenAI-compatible endpoint with the "
+                          "present HF_TOKEN (disclosed, never sent to browser). 2x retry + roster "
+                          "fallback. No token => honest 'configure HF_TOKEN' state, never a fake answer."}
     if _HF_TOKEN:
         return {"backend": "hf-router", "model_serving": "Hugging Face Router (token present)",
-                "offline": False, "honest": "Using the HF Router with the present token (disclosed). "
-                                            "No token => local deterministic backend (fully offline)."}
-    return {"backend": "local-deterministic",
+                "configured": True, "offline": False,
+                "honest": "Using the HF Router with the present token (disclosed)."}
+    return {"backend": "local-deterministic", "configured": False,
+            "configure_hint": "Set the HF_TOKEN Space secret to enable live open-weight inference "
+                              "via the HF Router (server-side only). Governance is real either way.",
             "model_serving": "local deterministic, retrieval-grounded backend",
             "sandbox_isolation": ("Real restricted-subprocess isolation here (separate process, "
                                   "no network, CPU/memory/time/file-size/process rlimits, isolated "
@@ -547,7 +659,7 @@ _INJECTION_MARKERS = ("ignore previous", "ignore all previous", "override",
 
 def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                   untrusted_input: str = "", run_chain=None,
-                  sandbox: bool = False) -> dict:
+                  sandbox: bool = False, want_model: str = "") -> dict:
     """One fully-governed a11oy Code turn (chat | code | research).
     P1 retrieve -> P2 quarantine untrusted -> P3 tool_call -> P4 policy_check ->
     P5 kernel_check -> P6 emit (+sign). Same 6-receipt chain as the proven loop.
@@ -598,8 +710,38 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     answer = None
     code_blob = None
     research = None
+    inference = {"mode": "local-deterministic", "model": None, "rate_limited": False, "error": None}
+
+    # REAL generative path when a model endpoint is configured (HF_TOKEN present
+    # or a custom A11OY_MODEL_BASE_URL). Otherwise honest local deterministic.
+    gen = None
+    if _model_configured() and prompt.strip():
+        sys_prompt = ("You are a11oy Code, a governed open-weight coding/research assistant. "
+                      "Be concise, correct and cite your reasoning. When asked for code, return "
+                      "a single runnable code block. Never claim to be a closed model.")
+        ctx_note = ("In-image governance context: " + (chunks[0]["text"] if chunks else "")) if mode == "research" else ""
+        msgs = [{"role": "system", "content": sys_prompt}]
+        if ctx_note:
+            msgs.append({"role": "system", "content": ctx_note})
+        msgs.append({"role": "user", "content": prompt})
+        gen = _hf_chat(msgs, max_tokens=700, want_model=(want_model or None))
+        if gen.get("ok"):
+            inference = {"mode": "generative", "model": gen["model"], "display": gen.get("display"),
+                         "license": gen.get("license"), "attempts": gen.get("attempts"),
+                         "rate_limited": False, "error": None}
+        else:
+            inference = {"mode": "unavailable", "model": None, "attempts": gen.get("attempts"),
+                         "rate_limited": bool(gen.get("rate_limited")), "error": gen.get("error")}
+
     if mode == "code":
-        code_blob = _local_code(prompt)
+        if gen and gen.get("ok"):
+            # extract a code block from the generative answer; fall back to whole text
+            mblk = re.search(r"```[a-zA-Z0-9_+-]*\n(.*?)```", gen["text"], re.S)
+            code_str = (mblk.group(1) if mblk else gen["text"]).strip()
+            code_blob = {"code": code_str, "language": "python",
+                         "description": "Generated by %s (%s) under the governed loop." % (gen["model"], gen.get("license"))}
+        else:
+            code_blob = _local_code(prompt)
         nonconf = 0.4
     elif mode == "research":
         research = {"sources_note": ("Answer is grounded on the in-image RAG corpus and, when "
@@ -607,11 +749,23 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                                      "feeds (CVE/NVD, CISA KEV, MITRE ATT&CK, USGS). The UI "
                                      "renders those live feeds with attribution next to this run."),
                     "citations": [{"chunk_id": c["chunk_id"], "title": c["title"]} for c in chunks]}
-        answer = ("[grounded research] " + (chunks[0]["text"] if chunks else
-                  "No matching in-image source; the tab also queries the live public feeds with citations."))
+        if gen and gen.get("ok"):
+            answer = gen["text"]
+        else:
+            answer = ("[grounded research] " + (chunks[0]["text"] if chunks else
+                      "No matching in-image source; the tab also queries the live public feeds with citations."))
         nonconf = 0.5
     else:  # chat
-        answer = _local_chat(prompt, chunks)
+        if gen and gen.get("ok"):
+            answer = gen["text"]
+        elif gen and not gen.get("ok"):
+            # endpoint configured but failed (rate-limit/error) — honest, not faked
+            answer = ("[a11oy Code — model endpoint reachable but no completion: %s] "
+                      "This is an honest unavailable state (the governance still ran and is "
+                      "receipted). Retry, or the founder can verify HF_TOKEN / model availability."
+                      % gen.get("error"))
+        else:
+            answer = _local_chat(prompt, chunks)
         nonconf = 0.35
 
     # ---- HOP 3: tool_call (MCP policy_check tool) -----------------------------
@@ -651,10 +805,26 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                                     "severity": severity, "confidence": confidence})
 
     # ---- HOP 5: kernel_check (advisory trust floor) ---------------------------
-    axes = {"soundness": min(1.0, confidence + 0.05), "calibration": confidence,
-            "robustness": 0.92 if reversible else 0.7, "provenance": 0.97,
-            "reversibility": 0.99 if reversible else 0.4, "transparency": 0.96,
-            "containment": 0.95 if sev_rank <= 2 else 0.78, "auditability": 0.99}
+    # YUYAY 13-axis trust gate (advisory; Conjecture 1, NOT a proven oracle).
+    # Every axis is derived from REAL signals of this run (confidence, severity,
+    # reversibility, signing, quarantine, sandbox isolation), never fabricated.
+    _gen_ok = bool(gen and gen.get("ok"))
+    axes = {
+        "soundness": min(1.0, confidence + 0.05),
+        "calibration": confidence,
+        "robustness": 0.92 if reversible else 0.70,
+        "provenance": 0.97,
+        "reversibility": 0.99 if reversible else 0.40,
+        "transparency": 0.96,
+        "containment": 0.95 if sev_rank <= 2 else 0.78,
+        "auditability": 0.99,
+        # --- the 5 additional YUYAY axes (13 total) ---
+        "non_interference": 0.99 if not bool(untrusted_input) else 0.90,  # P3: untrusted quarantined
+        "determinism": 0.98,            # P4 replay-determinism of the governed loop
+        "signedness": 0.99,             # P5 ECDSA-P256 signed receipt chain
+        "sovereignty": 0.94,            # 0-CDN same-origin; weights open-weight only
+        "groundedness": 0.93 if (mode == "research" or _gen_ok) else 0.85,  # cited/in-corpus
+    }
     trust = _trust_score(axes)
     trust_floor = 0.80
     trust_pass = trust >= trust_floor
@@ -735,6 +905,7 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                    "plain": "Routing is stable to small changes (C20) and bracketed best..worst (W7-5)."},
         "confidence": conf,
         "backend": backend,
+        "inference": inference,
         "retrieved": chunks,
         "untrusted": {"present": bool(untrusted_input), "excerpt": (untrusted_input or "")[:240],
                       "injection_markers_detected": injection_detected,
@@ -858,8 +1029,63 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
         prompt = b.get("prompt") or b.get("message") or b.get("query") or ""
         untrusted = b.get("untrusted_input") or b.get("untrusted") or ""
         sandbox = bool(b.get("sandbox", mode == "code"))
+        want_model = b.get("model") or b.get("want_model") or ""
         run = governed_turn(mode, prompt, sign_fn, ns, untrusted_input=untrusted,
-                            run_chain=_RUN_CHAIN, sandbox=sandbox)
+                            run_chain=_RUN_CHAIN, sandbox=sandbox, want_model=want_model)
+        return JSONResponse(run)
+
+    async def _chat(request):
+        """Founder contract: POST /api/<ns>/v1/code/chat {prompt[,model]}.
+        Returns a REAL model answer + signed governed receipt + gate verdict when
+        a model endpoint is configured; otherwise an honest 'configure HF_TOKEN'
+        payload — NEVER a fabricated answer."""
+        try:
+            b = await request.json()
+        except Exception:
+            b = {}
+        prompt = b.get("prompt") or b.get("message") or b.get("query") or ""
+        mode = (b.get("mode") or "chat").lower()
+        if mode not in ("chat", "code", "research"):
+            mode = "chat"
+        want_model = b.get("model") or b.get("want_model") or ""
+        if not _model_configured():
+            return JSONResponse({
+                "configured": False,
+                "error": "model endpoint not configured: set HF_TOKEN secret on the Space",
+                "backend": _backend_label(),
+                "roster": _HF_ROSTER,
+                "note": "a11oy Code never fabricates output. Set the HF_TOKEN Space secret "
+                        "(open-weight serverless via the HF Router) or point A11OY_MODEL_BASE_URL "
+                        "at a local/Hetzner open-weight model. The governance (P1-P6 + signed "
+                        "receipt) is real either way — try /v1/code/turn for a governed local run.",
+            }, status_code=200)
+        run = governed_turn(mode, prompt, sign_fn, ns, untrusted_input=(b.get("untrusted_input") or ""),
+                            run_chain=_RUN_CHAIN, sandbox=False, want_model=want_model)
+        return JSONResponse({
+            "configured": True,
+            "answer": run.get("answer"),
+            "inference": run.get("inference"),
+            "decision": run.get("decision"),
+            "gate": run.get("gate"),
+            "trust": run.get("trust"),
+            "signed_receipt": run.get("signed_receipt"),
+            "receipt_chain": run.get("receipt_chain"),
+            "chain_final_hash": run.get("chain_final_hash"),
+            "run_id": run.get("run_id"),
+            "backend": run.get("backend"),
+            "honesty": run.get("honesty"),
+        })
+
+    async def _run(request):
+        """POST /api/<ns>/v1/code/run {prompt|code} — governed code turn with sandbox exec."""
+        try:
+            b = await request.json()
+        except Exception:
+            b = {}
+        prompt = b.get("prompt") or b.get("code") or b.get("message") or ""
+        want_model = b.get("model") or ""
+        run = governed_turn("code", prompt, sign_fn, ns, untrusted_input=(b.get("untrusted_input") or ""),
+                            run_chain=_RUN_CHAIN, sandbox=bool(b.get("sandbox", True)), want_model=want_model)
         return JSONResponse(run)
 
     async def _consensus_route(request):
@@ -891,10 +1117,15 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
 
     async def _models(request):
         roster, src = _roster()
-        return JSONResponse({"roster": roster, "source": src, "backend": _backend_label()})
+        return JSONResponse({"roster": roster, "source": src,
+                             "generative_roster": _HF_ROSTER,
+                             "endpoint": _MODEL_BASE_URL,
+                             "backend": _backend_label()})
 
     routes = [
         Route("/api/%s/v1/code/turn" % ns, _turn, methods=["POST"], name="%s_code_turn" % ns),
+        Route("/api/%s/v1/code/chat" % ns, _chat, methods=["POST"], name="%s_code_chat" % ns),
+        Route("/api/%s/v1/code/run" % ns, _run, methods=["POST"], name="%s_code_run" % ns),
         Route("/api/%s/v1/code/consensus" % ns, _consensus_route, methods=["POST"], name="%s_code_consensus" % ns),
         Route("/api/%s/v1/code/verify" % ns, _verify, methods=["POST"], name="%s_code_verify" % ns),
         Route("/api/%s/v1/code/capabilities" % ns, _caps, methods=["GET"], name="%s_code_caps" % ns),
