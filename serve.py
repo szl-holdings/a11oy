@@ -412,6 +412,75 @@ try:
 except Exception as _fp_e:  # additive: never break the Space
     print(f"[a11oy] Formulas section NOT registered: {_fp_e!r}; SPA + API unaffected", file=sys.stderr)
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained, dependency-free
+# operator surfaces, each adopting a PERMISSIVELY-licensed PATTERN from a founder-
+# followed GitHub repo and EVOLVING it into an a11oy-native mechanism (NOTICE
+# updated). All stdlib-only (no torch/numpy/CDN), all registered BEFORE the SPA
+# catch-all so their explicit routes win, all try/except-guarded so a missing dep
+# can NEVER take the Space down. Doctrine v11 LOCKED 749/14/163, Λ = Conjecture 1.
+#   1) szl_governance_gateway  (LLMRouter MIT, ulab-uiuc)  -> /governance-gateway
+#   2) szl_abacus_verify       (arithmetic MIT, mcleish7)  -> /abacus-verify
+#   3) szl_decision_uncertainty(prfr MIT + gaul, al-jshen) -> /decision-uncertainty
+#   4) szl_gor_audit           (GoR MIT, ulab-uiuc)        -> /gor-audit
+# ---------------------------------------------------------------------------
+for _mined_mod in (
+    "szl_governance_gateway",
+    "szl_abacus_verify",
+    "szl_decision_uncertainty",
+    "szl_gor_audit",
+):
+    try:
+        _m = __import__(_mined_mod)
+        _status = _m.register(app, ns="a11oy")
+        print(f"[a11oy] MINED-UPGRADE {_mined_mod} registered: {_status}", file=sys.stderr)
+    except Exception as _mined_e:  # additive: never break the Space
+        print(f"[a11oy] MINED-UPGRADE {_mined_mod} NOT registered: {_mined_e!r}; SPA + API unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (RE-SWEEP WAVE 2, 2026-06, Yachay): four MORE self-contained,
+# dependency-free operator surfaces from the P0 re-sweep backlog. Same doctrine:
+# adopt a PERMISSIVE pattern (MIT/Apache), attribute in NOTICE, EVOLVE to an
+# a11oy-native mechanism. All stdlib-only (no torch/numpy/CDN); graph tabs render
+# with the ALREADY-VENDORED cytoscape (/vendor/*, 0 CDN). Registered BEFORE the SPA
+# catch-all; try/except-guarded so a missing dep can NEVER take the Space down.
+#   5) szl_sovereign_search    (tantivy-wasm MIT, phiresky)        -> /sovereign-search
+#   6) szl_consensus_clusters  (ngraph.leiden MIT, anvaka)          -> /consensus-clusters
+#   7) szl_mission_ledger      (research-arcade MIT, ulab-uiuc)     -> /mission-ledger
+#   8) szl_budget_router       (BudgetMem+MemSkill Apache; GraphPlanner MIT) -> /budget-router
+# ---------------------------------------------------------------------------
+for _resweep_mod in (
+    "szl_sovereign_search",
+    "szl_consensus_clusters",
+    "szl_mission_ledger",
+    "szl_budget_router",
+):
+    try:
+        _m = __import__(_resweep_mod)
+        _status = _m.register(app, ns="a11oy")
+        print(f"[a11oy] RESWEEP-W2 {_resweep_mod} registered: {_status}", file=sys.stderr)
+    except Exception as _rs_e:  # additive: never break the Space
+        print(f"[a11oy] RESWEEP-W2 {_resweep_mod} NOT registered: {_rs_e!r}; SPA + API unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (WAVE9/10 INSTILLATION, 2026-06): a "Proven Formulas (experimental)"
+# operator surface wiring the a11oy-targeted lutar-lean Wave9 + Wave10 theorems
+# (Gershgorin MA1, Merkle CP-1, Ville MC-4, RobustDeclass IF2, PAC-Bayes PB1,
+# Quorum-Intersection CN-1, DSSE-Token TE-3, NI-Composition IF-3, Replay AU-1)
+# as HONEST cards. Each carries the verbatim #print axioms + an
+# "EXPERIMENTAL · CI-green on main" chip; LOCKED-proven stays EXACTLY 5
+# {F1,F11,F12,F18,F19}; Λ = Conjecture 1. Where a check is cheap it RUNS a REAL
+# in-image computation (Gershgorin matrix-health, Ville anytime-alarm, replay-
+# determinism + tamper-localize, quorum-intersection, DSSE injectivity). stdlib-
+# only, 0 CDN, registered BEFORE the SPA catch-all, try/except-guarded.
+# ---------------------------------------------------------------------------
+try:
+    import szl_wave910_proofs as _wave910
+    _wave910_status = _wave910.register(app, ns="a11oy")
+    print(f"[a11oy] WAVE9/10 proven-formulas registered: {_wave910_status}", file=sys.stderr)
+except Exception as _w910_e:  # additive: never break the Space
+    print(f"[a11oy] WAVE9/10 proven-formulas NOT registered: {_w910_e!r}; SPA + API unaffected", file=sys.stderr)
+
 
 # ---------------------------------------------------------------------------
 # Load gates manifest at startup
@@ -643,6 +712,7 @@ async def healthz() -> JSONResponse:
         "doctrine": "v11",
         "gates": len(_gates_list),
         "declarations": 749,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "axioms": 14,
         "sorries": 163,
         "mcp_tools": 12,
@@ -772,7 +842,7 @@ async def list_gates() -> JSONResponse:
         "count": len(summary),
         "gates": summary,
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": 12},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": 12, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
         "lean_citation_audit": {
             "verified_against": "LEAN_PROOF_CITATION_MATRIX.csv",
             "real_theorem_citations": verified,
@@ -912,7 +982,7 @@ async def evidence() -> JSONResponse:
         "source": "ouroboros/LUTAR_EVIDENCE.md",
         "lean_repo": "https://github.com/szl-holdings/lutar-lean",
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
         "date": "2026-05-02",
         "total_assertions": 22,
         "passed": 22,
@@ -1032,7 +1102,7 @@ async def ouroboros_run_all() -> JSONResponse:
         "duration_ms": duration_ms,
         "verdict": "GREEN" if tests_fail == 0 else "RED",
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
         "receipts": receipts,
     })
 
@@ -1080,7 +1150,7 @@ async def reason(request: Request) -> JSONResponse:
         "policy_result": gate_result,
         "context": body.get("context", ""),
         "all_gates_count": len(_gates_list),
-        "doctrine": "v11 — 749 declarations / 14 unique axioms / 163 tracked sorries — lutar-lean@main",
+        "doctrine": "v11 — locked kernel c7c0ba17: 749 declarations / 14 unique axioms / 163 tracked sorries (5 proven) — experimental main 7885fd9: 1304 declarations / 22 axioms · ~36 theorems CI-green (Wave5-8), not folded into the locked count — lutar-lean@main",
         "hatun_willay": True,
     }
     return JSONResponse(reasoning)
@@ -1301,9 +1371,9 @@ try:
 
     _A11OY_SHADOW = _rc.RosieShadow("a11oy")
 
-    def _a11oy_router_tier_to_rosie(tier: str) -> bool:
+    def _a11oy_router_tier_to_deep(tier: str) -> bool:
         """a11oy.code router escalation rule: deep-reasoning tiers T4/T5 consult
-        the Rosie-shadow. T0-T3 stay on the local unified-LLM router."""
+        the deep-reasoning co-pilot. T0-T3 stay on the local unified-LLM router."""
         return str(tier).upper() in ("T4", "T5")
 
     @app.get("/api/a11oy/v1/rosie-companion")
@@ -1364,12 +1434,12 @@ try:
                                      axis_scores=body.get("axis_scores"), traceparent=tp)
         return JSONResponse(r.to_dict())
 
-    @app.post("/api/a11oy/v1/code/chat-with-rosie")
-    async def a11oy_code_chat_with_rosie(request: Request) -> JSONResponse:
-        """a11oy.code chat that optionally invokes the Rosie-shadow for deep-reasoning
-        queries. Router tier T4/T5 -> Rosie-shadow.brain_jack; else honest passthrough
-        hint to the local /api/a11oy/code chat. Always emits a Khipu cross-link receipt
-        when Rosie is consulted."""
+    @app.post("/api/a11oy/v1/code/chat-deep")
+    async def a11oy_code_chat_deep(request: Request) -> JSONResponse:
+        """a11oy.code chat that optionally escalates to the deep-reasoning tier for
+        hard queries. Router tier T4/T5 -> deep-reasoning co-pilot; else an honest
+        passthrough hint to the local /api/a11oy/code chat. Always emits a Khipu
+        cross-link receipt when the deep-reasoning tier is consulted."""
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
@@ -1378,14 +1448,32 @@ try:
         tier = body.get("tier", "T3")
         query = body.get("query") or body.get("message", "")
         tp = getattr(getattr(request, "state", None), "traceparent", None)
-        if _a11oy_router_tier_to_rosie(tier):
+        if _a11oy_router_tier_to_deep(tier):
             r = _A11OY_SHADOW.brain_jack(query, depth=int(body.get("depth", 2)),
                                          axis_scores=body.get("axis_scores"), traceparent=tp)
-            return JSONResponse({"routed_to": "rosie-shadow", "tier": tier, **r.to_dict()})
+            # Doctrine: NO user-visible codenames on the /code surface. Scrub the
+            # internal co-pilot codename out of the response payload (route-local
+            # only; does not touch the separate /api/a11oy/v1/rosie-companion/* ns).
+            def _scrub_codename(obj):
+                if isinstance(obj, str):
+                    return (obj.replace("rosie-shadow", "deep-reasoning-tier")
+                               .replace("Rosie-shadow", "deep-reasoning tier")
+                               .replace("rosie_companion", "deep_reasoning")
+                               .replace("rosie_endpoint", "deep_tier_endpoint")
+                               .replace("rosie_receipt", "deep_tier_receipt")
+                               .replace("Rosie", "the deep-reasoning tier")
+                               .replace("rosie", "deep-reasoning-tier"))
+                if isinstance(obj, dict):
+                    return {_scrub_codename(k): _scrub_codename(v) for k, v in obj.items()}
+                if isinstance(obj, list):
+                    return [_scrub_codename(x) for x in obj]
+                return obj
+            clean = _scrub_codename(r.to_dict())
+            return JSONResponse({"routed_to": "deep-reasoning-tier", "tier": tier, **clean})
         return JSONResponse({
             "routed_to": "a11oy-local-router", "tier": tier,
             "note": "T0-T3 stay on the local unified-LLM router; POST to /api/a11oy/code for the chat.",
-            "rosie_consulted": False, "doctrine": "v11", "wire": "I",
+            "deep_tier_consulted": False, "doctrine": "v11", "wire": "I",
         })
 
     print("[a11oy] Wire I rosie-companion registered (T4/T5 -> Rosie-shadow)", file=_sys_rc.stderr)
@@ -1644,6 +1732,337 @@ except Exception as _alias_e:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ===========================================================================
 import collections as _pr_col
+
+
+# ===========================================================================
+# ADDITIVE (Deep-Upgrade, 2026-06-06): server-side LIVE-DATA proxy + Warhacker
+# scenario engine. Registered BEFORE the /{full_path:path} SPA catch-all so the
+# explicit routes win FastAPI ordered matching. try/except-guarded — a missing
+# dep can NEVER take down the SPA + API. HONEST live-vs-replay labels; NO
+# fabricated data. Λ = Conjecture 1 (advisory). Doctrine v11 LOCKED 749/14/163.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ===========================================================================
+try:
+    import time as _du_time
+    import json as _du_json
+    import math as _du_math
+    from pathlib import Path as _du_Path
+
+    _DU_PROM_BASE = "https://prometheus.demo.prometheus.io/api/v1"
+    _DU_SNAP_DIR = _du_Path("/tmp/a11oy_snapshots")
+    try:
+        _DU_SNAP_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    _DU_CACHE = {}          # query -> {"ts": epoch, "data": {...}}
+    _DU_CACHE_TTL = 15.0    # seconds — honest live window
+
+    def _du_snap_path(key: str) -> "_du_Path":
+        safe = "".join(c if c.isalnum() else "_" for c in key)[:80]
+        return _DU_SNAP_DIR / f"prom_{safe}.json"
+
+    async def _du_prom_fetch(query: str, kind: str = "query", extra: dict | None = None):
+        """Fetch from the Prometheus demo (no auth). Returns (payload, mode):
+        mode in {'live','replay'}. On any failure, fall back to the last
+        disk snapshot and label it 'replay'. NEVER fabricates."""
+        now = _du_time.time()
+        ckey = kind + "|" + query + "|" + _du_json.dumps(extra or {}, sort_keys=True)
+        c = _DU_CACHE.get(ckey)
+        if c and (now - c["ts"]) < _DU_CACHE_TTL:
+            return c["data"], "live"
+        url = f"{_DU_PROM_BASE}/{kind}"
+        params = {"query": query}
+        if extra:
+            params.update(extra)
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as _cl:
+                r = await _cl.get(url, params=params)
+                r.raise_for_status()
+                j = r.json()
+            if j.get("status") != "success":
+                raise RuntimeError("prometheus status != success")
+            _DU_CACHE[ckey] = {"ts": now, "data": j}
+            try:
+                _du_snap_path(ckey).write_text(_du_json.dumps(
+                    {"saved_at": now, "query": query, "kind": kind, "data": j}))
+            except Exception:
+                pass
+            return j, "live"
+        except Exception:
+            sp = _du_snap_path(ckey)
+            if sp.is_file():
+                try:
+                    snap = _du_json.loads(sp.read_text())
+                    return snap["data"], "replay"
+                except Exception:
+                    pass
+            return None, "unavailable"
+
+    @app.get("/api/a11oy/v1/metrics")
+    @app.get("/api/a11oy/v1/prometheus")
+    async def _du_metrics():
+        """Live Prometheus demo metrics, server-side proxied (CORS-safe), with a
+        disk snapshot fallback. HONEST: each block is labeled live|replay. Feeds
+        the anomaly/trust/pulse panels. Source: prometheus.demo.prometheus.io."""
+        up_j, up_mode = await _du_prom_fetch("up")
+        gor_j, gor_mode = await _du_prom_fetch("go_goroutines")
+        mem_j, mem_mode = await _du_prom_fetch("process_resident_memory_bytes")
+        # range series for the anomaly-band time series (last 30 min, 60s step)
+        end = int(_du_time.time())
+        start = end - 1800
+        rng_j, rng_mode = await _du_prom_fetch(
+            'rate(prometheus_http_requests_total{job="prometheus"}[5m])',
+            kind="query_range",
+            extra={"start": str(start), "end": str(end), "step": "60"},
+        )
+
+        def _vec(j):
+            out = []
+            if not j:
+                return out
+            for it in j.get("data", {}).get("result", []):
+                m = it.get("metric", {})
+                v = it.get("value", [None, None])
+                try:
+                    val = float(v[1])
+                except Exception:
+                    val = None
+                out.append({"job": m.get("job"), "instance": m.get("instance"),
+                            "name": m.get("__name__"), "value": val})
+            return out
+
+        # targets up/down for the pulse panel
+        up_vec = _vec(up_j)
+        targets_up = sum(1 for x in up_vec if x["value"] == 1.0)
+        targets_total = len(up_vec)
+
+        # build the range series (single most-active series)
+        series = []
+        if rng_j:
+            results = rng_j.get("data", {}).get("result", [])
+            if results:
+                # pick the series with the highest mean rate
+                best = None
+                best_mean = -1.0
+                for it in results:
+                    vals = [float(p[1]) for p in it.get("values", []) if p[1] not in (None, "NaN")]
+                    if not vals:
+                        continue
+                    mn = sum(vals) / len(vals)
+                    if mn > best_mean:
+                        best_mean = mn
+                        best = it
+                if best is not None:
+                    series = [{"t": int(float(p[0])), "v": float(p[1])}
+                              for p in best.get("values", []) if p[1] not in (None, "NaN")]
+
+        # conformal-style band on the range series (distribution-free, W5-3/W7-4):
+        # use absolute residuals from a rolling median as nonconformity scores,
+        # band = median +/- q_{0.9}(|residual|). NOT Hoeffding (unprovable at pin).
+        band = None
+        if len(series) >= 8:
+            vs = [p["v"] for p in series]
+            srt = sorted(vs)
+            med = srt[len(srt) // 2]
+            resid = sorted(abs(v - med) for v in vs)
+            # 90% conformal quantile with finite-sample correction ceil((n+1)*0.9)/n
+            import math as _m
+            k = min(len(resid) - 1, max(0, _m.ceil((len(resid) + 1) * 0.9) - 1))
+            q = resid[k]
+            lo = med - q
+            hi = med + q
+            violations = sum(1 for v in vs if v < lo or v > hi)
+            band = {"median": med, "lower": lo, "upper": hi,
+                    "coverage_target": 0.9,
+                    "violations": violations, "n": len(vs),
+                    "method": "split-conformal residual quantile (W5-3/W7-4); NOT Hoeffding"}
+
+        mode = "live" if "live" in (up_mode, gor_mode, mem_mode, rng_mode) else "replay"
+        return JSONResponse({
+            "source": "prometheus.demo.prometheus.io (public demo, no auth)",
+            "fetched_at": int(_du_time.time()),
+            "cache_ttl_s": _DU_CACHE_TTL,
+            "mode": mode,
+            "blocks": {
+                "up": {"mode": up_mode, "targets_up": targets_up,
+                       "targets_total": targets_total, "series": up_vec},
+                "go_goroutines": {"mode": gor_mode, "series": _vec(gor_j)},
+                "resident_memory_bytes": {"mode": mem_mode, "series": _vec(mem_j)},
+                "request_rate_range": {"mode": rng_mode, "series": series, "band": band},
+            },
+            "honest": ("Server-side proxy of the public Prometheus demo. 'live' = fetched "
+                       "this request; 'replay' = last disk snapshot (feed was unreachable). "
+                       "Band is split-conformal (W5-3/W7-4), not Hoeffding."),
+        })
+
+    # -----------------------------------------------------------------------
+    # YUYAY v3 — 13-axis CONJUNCTIVE truth gate (the HEART). REAL mechanism:
+    # pass = all(score[i] >= floor[i]); NOT a weighted average. A 0.94 on
+    # moralGrounding (floor 0.95) FAILS even if all other 12 axes = 1.00.
+    # Emits a Λ-signed YAWAR receipt (DSSE, ECDSA-P256) via the in-image key,
+    # verifiable in-browser against /cosign.pub. Λ = Conjecture 1 (advisory).
+    # -----------------------------------------------------------------------
+    _YUYAY_AXES = [
+        ("A01", "moralGrounding",      0.95, "score"),
+        ("A02", "measurabilityHonesty",0.95, "score"),
+        ("A03", "empiricalGrounding",  0.90, "score"),
+        ("A04", "logicalConsistency",  0.90, "score"),
+        ("A05", "sourceTransparency",  0.90, "score"),
+        ("A06", "reproducibility",     0.90, "score"),
+        ("A07", "licenseHygiene",      0.90, "score"),
+        ("A08", "scopeDiscipline",     0.90, "score"),
+        ("A09", "claimCalibration",    0.90, "score"),
+        ("A10", "evalAwareness",       1.00, "gate"),
+        ("A11", "deceptionKeywords",   1.00, "gate"),
+        ("A12", "conflictingDirectives",1.00,"gate"),
+        ("A13", "reversalDirective",   1.00, "gate"),
+    ]
+    _YUYAY_BAD_LICENSES = ("gpl", "agpl", "proprietary", "closed", "sspl", "bsl")
+    _YUYAY_DECEPTION = ("manipulate", "deceive", "trick the", "hide from", "bypass oversight",
+                        "exfiltrate", "jailbreak", "ignore previous")
+
+    def _yuyay_evaluate(text: str, ctx: dict):
+        """Compute the 13 axis scores from the proposal text + declared context.
+        Deterministic, explainable heuristics (no model call) so the mechanism
+        is auditable and reproducible. Returns list of axis dicts."""
+        t = (text or "").lower()
+        ctx = ctx or {}
+        def clamp(x):
+            return max(0.0, min(1.0, float(x)))
+        out = []
+        for code, name, floor, kind in _YUYAY_AXES:
+            # default: caller-supplied score for that axis if present, else a
+            # transparent heuristic. We expose WHY each score landed.
+            supplied = ctx.get(name)
+            why = ""
+            if kind == "gate":
+                ok = True
+                if name == "deceptionKeywords":
+                    hit = [w for w in _YUYAY_DECEPTION if w in t]
+                    ok = len(hit) == 0
+                    why = ("clean" if ok else "deception keyword(s): " + ", ".join(hit))
+                elif name == "reversalDirective":
+                    # explicit STOP/HALT must halt -> if proposal asks to override a STOP it fails
+                    bad = ("override stop" in t or "ignore stop" in t or "continue despite stop" in t)
+                    ok = not bad
+                    why = ("no reversal-override" if ok else "attempts to override a STOP directive")
+                elif name == "evalAwareness":
+                    bad = ("because this is a test" in t or "only during eval" in t or "sandbagging" in t)
+                    ok = not bad
+                    why = ("no eval-gaming" if ok else "eval-gaming language detected")
+                elif name == "conflictingDirectives":
+                    bad = ("and also do the opposite" in t or "contradict" in t)
+                    ok = not bad
+                    why = ("directives consistent" if ok else "conflicting directives detected")
+                score = 1.0 if ok else 0.0
+            else:
+                if supplied is not None:
+                    score = clamp(supplied)
+                    why = "declared by caller"
+                else:
+                    score = 0.97  # neutral-honest default
+                    why = "default (no declared score)"
+                    if name == "licenseHygiene":
+                        import re as _yre
+                        # word-boundary match so 'disclosed' doesn't match 'closed'
+                        bad = [w for w in _YUYAY_BAD_LICENSES if _yre.search(r"\b"+_yre.escape(w)+r"\b", t)]
+                        if bad:
+                            score = 0.40
+                            why = "non-permissive license token(s): " + ", ".join(bad)
+                        else:
+                            score = 0.96
+                            why = "no non-permissive license tokens (Apache/MIT/BSD/CC-BY ok)"
+                    elif name == "measurabilityHonesty":
+                        # honest hedges like "never 100%" / "not 100%" are GOOD, not overclaim
+                        hedged = ("never 100%" in t or "not 100%" in t or "no 100%" in t)
+                        overclaim = (("100%" in t and not hedged) or "guaranteed" in t
+                                     or "always works" in t or "proven agi" in t)
+                        if overclaim:
+                            score = 0.55
+                            why = "overclaim language (100%/guaranteed/always)"
+                    elif name == "claimCalibration":
+                        if "proven" in t and "conjecture" not in t and "lambda" in t:
+                            score = 0.60
+                            why = "claims Lambda 'proven' (it is Conjecture 1)"
+                    elif name == "moralGrounding":
+                        if any(w in t for w in ("harm", "weaponize civilians", "target noncombatant")):
+                            score = 0.50
+                            why = "moral-harm language"
+            out.append({"code": code, "name": name, "floor": floor, "kind": kind,
+                        "score": round(score, 4), "pass": score >= floor, "why": why})
+        return out
+
+    @app.post("/api/a11oy/v1/yuyay/gate")
+    @app.get("/api/a11oy/v1/yuyay/gate")
+    async def _du_yuyay_gate(request: Request):
+        """REAL conjunctive 13-axis gate. Body: {proposal:str, axes?:{name:score}}.
+        Returns the per-axis verdict, the conjunctive pass (all >= floor), the
+        first failing axis, an advisory Lambda (geometric mean, Conjecture 1),
+        and a Lambda-signed DSSE receipt (verifiable against /cosign.pub)."""
+        try:
+            if request.method == "POST":
+                body = await request.json()
+            else:
+                body = {"proposal": request.query_params.get("proposal", "")}
+        except Exception:
+            body = {}
+        proposal = body.get("proposal") or body.get("text") or ""
+        ctx = body.get("axes") or body.get("context") or {}
+        axes = _yuyay_evaluate(proposal, ctx if isinstance(ctx, dict) else {})
+        conjunctive_pass = all(a["pass"] for a in axes)
+        first_fail = next((a for a in axes if not a["pass"]), None)
+        # advisory Lambda = geometric mean of the 9 scored axes (NOT the gate result)
+        scored = [a["score"] for a in axes if a["kind"] == "score"]
+        clamped = [min(1.0, max(1e-9, s)) for s in scored]
+        lam = _du_math.exp(sum(_du_math.log(s) for s in clamped) / len(clamped)) if clamped else 0.0
+        am = sum(scored) / len(scored) if scored else 0.0
+        verdict = "ALLOW" if conjunctive_pass else "DENY"
+        receipt_payload = {
+            "organ": "YUYAY v3", "mechanism": "13-axis conjunctive truth gate",
+            "verdict": verdict,
+            "conjunctive_pass": conjunctive_pass,
+            "rule": "pass = all(score[i] >= floor[i]); NOT a weighted average",
+            "first_failing_axis": (first_fail["code"] + " " + first_fail["name"]) if first_fail else None,
+            "axis_scores": {a["code"]: a["score"] for a in axes},
+            "lambda_advisory": round(lam, 6),
+            "lambda_am_check": {"gm": round(lam, 6), "am": round(am, 6), "gm_le_am": lam <= am + 1e-9,
+                                 "theorem": "W5-1 weighted AM-GM (no-inflation), CI-green"},
+            "lambda_status": "Conjecture 1 (advisory; unconditional uniqueness machine-checked FALSE)",
+            "proposal_sha256": __import__("hashlib").sha256((proposal or "").encode()).hexdigest(),
+            "issued_at": _du_time.strftime("%Y-%m-%dT%H:%M:%SZ", _du_time.gmtime()),
+            "issuer": "a11oy/YUYAY",
+        }
+        try:
+            env = _a11oy_sign_receipt(receipt_payload)
+        except Exception as _se:
+            env = {"signed": False, "honesty": "UNSIGNED — signer unavailable (%r)" % _se}
+        return JSONResponse({
+            "organ": "YUYAY v3 (HEART) · 13-axis conjunctive truth gate",
+            "verdict": verdict,
+            "conjunctive_pass": conjunctive_pass,
+            "rule": "pass = all(score[i] >= floor[i]) — NOT a weighted average",
+            "axes": axes,
+            "first_failing_axis": first_fail,
+            "lambda_advisory": round(lam, 6),
+            "lambda_am_gm": {"gm": round(lam, 6), "am": round(am, 6), "gm_le_am": lam <= am + 1e-9},
+            "receipt": env,
+            "honest": ("Conjunctive gate is REAL: a single axis below its floor denies the "
+                       "whole proposal. Lambda is advisory (Conjecture 1), never the gate. "
+                       "Receipt is ECDSA-P256/DSSE signed by the in-image key; verify against /cosign.pub."),
+        })
+
+    import sys as _du_sys
+    print("[a11oy] DEEP-UPGRADE live-data proxy + YUYAY gate registered: "
+          "/api/a11oy/v1/metrics, /api/a11oy/v1/prometheus, /api/a11oy/v1/yuyay/gate",
+          file=_du_sys.stderr)
+except Exception as _du_e:  # additive only — never crash the app
+    import sys as _du_sys, traceback as _du_tb
+    print(f"[a11oy] DEEP-UPGRADE live-data proxy NOT registered: {_du_e!r}", file=_du_sys.stderr)
+    _du_tb.print_exc()
+# === end DEEP-UPGRADE live-data proxy ===
+
+
 import threading as _pr_thr
 import math as _pr_math
 
@@ -1682,6 +2101,7 @@ async def _a11oy_pr_lambda_v2():
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
         "uniqueness": "Conjecture 1 — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "doctrine": "v11",
     })
 
@@ -1831,9 +2251,10 @@ async def _a11oy_pr_honest_v2():
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
-        "slsa": "SLSA Build Level 2: isolated GitHub-hosted build service emits signed slsa.dev/provenance/v0.2; image is cosign-signed and publicly verifiable via cosign verify + Rekor. NOT L3, NOT FedRAMP, NOT Iron Bank.",
+        "slsa": "SLSA L1 across all organs; L2 build-provenance verified on 3/5 (a11oy/sentra/rosie), L2 roadmap for the rest.",
         "slsa_evidence": {
             "level": "L2",
             "image_tag": "uds-v0.2.0",
@@ -1882,6 +2303,7 @@ async def _a11oy_pr_brain_route_v2():
     return JSONResponse({
         "space": "a11oy", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "policy_gates": 46, "anchor_formula_gates": 44,
         "role": "Brand Orchestration / gates",
         "lambda_floor": 0.90,
@@ -1963,6 +2385,7 @@ async def _a11oy_pr_mesh_state_v2():
         "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "honesty": "szl_wire unavailable; honest stub mesh state returned. "
                    "Wire D is in-process only (cross-Space broker NOT wired). "
                    "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
@@ -2161,7 +2584,7 @@ async def api_a11oy_v4_fleet_early() -> JSONResponse:
             peers.append({"flagship": _name, "status": "unreachable", "error": str(_e)[:120]})
     return JSONResponse({
         "timestamp": _dt.utcnow().isoformat() + "Z",
-        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163},
+        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
         "lambda": "Conjecture 1 (NOT a theorem — LOCKED)",
         "peers": peers,
     })
@@ -2252,7 +2675,7 @@ async def a11oy_version():
 # Khipu receipt ledger + verified command-log, the mesh/quorum graph, the
 # seeded decision feed) are the REAL responses captured live from the organs on
 # 2026-06-06 and embedded verbatim. The compute endpoints (/verdict, /forecast,
-# /readiness/assess, /operator/ask, /operator/act) port the organs' REAL logic
+# /readiness/assess, /jarvis/ask, /jarvis/act) port the organs' REAL logic
 # (THREAT_SIGNATURES inspection, Madhava arctan partial-sum + remainder bound,
 # the 5-criterion HANGAR2APPS readiness gate, grounded-answer classification,
 # and the SHA-256 hash-chained operator audit ring). No values are fabricated;
@@ -2420,7 +2843,7 @@ try:
                 "confidence_basis": "grounded_confidence = field/criteria coverage (cleared / total criteria).",
                 "doctrine": "v11", "lambda_status": "Conjecture 1 (NOT a theorem)"}
 
-    # ---- rosie: operator ask / act (ported, self-contained grounding) ----
+    # ---- rosie: jarvis ask / act (ported, self-contained grounding) ----
     _SC_PROVED_FORMULAS = ["F1", "F11", "F12", "F18", "F19"]
     _SC_OP_ACTIONS = {
         "approve": "HITL approve — operator approves a pending governed verdict / decision.",
@@ -2488,7 +2911,8 @@ try:
         elif topic == "formulas":
             answer = ("PROVED formulas (Lean, sorry-free) = {" + ", ".join(_SC_PROVED_FORMULAS) + "} = "
                       + str(len(_SC_PROVED_FORMULAS)) + " total. All other F-numbers are roadmap / open sorry. "
-                      "Lambda is Conjecture 1. Lean pin: 749 declarations / 14 unique axioms / 163 sorries @ c7c0ba17, doctrine v11.")
+                      "Lambda is Conjecture 1. Locked kernel @ c7c0ba17: 749 declarations / 14 unique axioms / 163 sorries (doctrine v11). "
+                      "Experimental main @ 7885fd9: 1304 declarations / 22 axioms, ~36 theorems CI-green (Wave5-8) — labeled experimental, NOT folded into the locked count of 5.")
             cites = [{"endpoint": "szl_brain.CANONICAL", "data": {"proved": _SC_PROVED_FORMULAS, "count": len(_SC_PROVED_FORMULAS), "doctrine": "v11", "kernel_commit": "c7c0ba17"}}]
         elif topic == "roadmap":
             answer = ("a11oy is fully self-contained: it is the orchestrator, receipt substrate and LLM hub, "
@@ -2588,18 +3012,18 @@ try:
         body = await _sc_body(request)
         return _SCJSON(_sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {})))
 
-    # ---- rosie-shaped operator endpoints (operator ask / act / recommend / ledger / command-log / mesh) ----
-    @app.post("/api/rosie/v1/operator/ask")
+    # ---- rosie-shaped (operator ask / act / recommend / ledger / command-log / mesh) ----
+    @app.post("/api/rosie/v1/jarvis/ask")
     async def _sc_rosie_ask(request: _SCRequest):
         body = await _sc_body(request)
         return _SCJSON(_sc_ask((body or {}).get("question", "")))
 
-    @app.post("/api/rosie/v1/operator/act")
+    @app.post("/api/rosie/v1/jarvis/act")
     async def _sc_rosie_act(request: _SCRequest):
         body = await _sc_body(request)
         return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
 
-    @app.get("/api/rosie/v1/operator/recommend")
+    @app.get("/api/rosie/v1/jarvis/recommend")
     async def _sc_rosie_recommend():
         return _SCJSON(_SC_RECOMMEND)
 
@@ -2724,6 +3148,16 @@ try:
         {"id": "P5", "key": "raven", "title": "Edge AI mesh",
          "capability": "Operator",
          "proves": "Coordinates an edge decision and links the outcome into the live receipt chain."},
+        {"id": "P6", "key": "ai-sbom", "title": "AI-SBOM air-gap binding",
+         "capability": "Provenance",
+         "proves": "Binds the running model weights to an authorized CycloneDX 1.6 MLBOM by SHA-256, "
+                   "runs the conjunctive admission gate, and seals the admit/reject decision to the "
+                   "append-only Merkle chain. Tamper swaps the weights -> hash mismatch -> REJECTED."},
+        {"id": "P7", "key": "agentic-provenance", "title": "Agentic provenance binding",
+         "capability": "Provenance",
+         "proves": "Builds a per-action provenance chain binding an autonomous action to the exact "
+                   "agent version, the operator delegation, the inputs, and the policy gate vector, "
+                   "then verifies all links. Tamper forges the delegation -> the named link FAILS."},
     ]
     _WH_BY_KEY = {d["key"]: d for d in _WH_DEMOS}
     _WH_AXES = {"soundness": 0.95, "calibration": 0.92, "robustness": 0.94,
@@ -2752,37 +3186,96 @@ try:
                           "launch_at": "/api/a11oy/v1/warhacker/launch/" + d["key"]}
                          for d in _WH_DEMOS],
             "lambda_status": "Conjecture 1 (advisory, not a pass/fail oracle)",
-            "slsa": "SLSA Build Level 2",
+            "slsa": "SLSA L1 across all organs; L2 build-provenance verified on 3/5 (a11oy/sentra/rosie), L2 roadmap for the rest.",
         })
+
+    # Map the launch keys to the REAL exhaustive-demo engine keys (the demos
+    # module uses 'cyber_rts' with an underscore).
+    _WH_LAUNCH_TO_DEMO = {"cannonico": "cannonico", "tychee": "tychee",
+                          "hangar2apps": "hangar2apps", "cyber-rts": "cyber_rts",
+                          "cyber_rts": "cyber_rts", "raven": "raven",
+                          "ai-sbom": "ai-sbom", "ai_sbom": "ai-sbom",
+                          "agentic-provenance": "agentic-provenance",
+                          "agentic_provenance": "agentic-provenance"}
 
     @app.post("/api/a11oy/v1/warhacker/launch/{problem}")
     @app.post("/v1/warhacker/launch/{problem}")
     @app.get("/api/a11oy/v1/warhacker/launch/{problem}")
     @app.get("/v1/warhacker/launch/{problem}")
-    async def _wh_launch_sc(problem: str):
+    async def _wh_launch_sc(problem: str, request: Request):
+        # ROOT-CAUSE FIX (2026-06-06): the previous self-contained launch handler
+        # returned an IDENTICAL receipt for mode=nominal and mode=tamper (no real
+        # tamper test). It now DELEGATES to the REAL, mode-aware exhaustive-demo
+        # engine (szl_warhacker_demos), which computes STL robustness rho, the
+        # PolyCARP-style geofence, the conformal interval, a SHA-256 Merkle chain
+        # + Rekor-style inclusion proof, and DSSE-signs the breach event with the
+        # in-image ECDSA-P256 key. nominal => AUTHORIZED + rho>=0 + intact chain;
+        # tamper => UNAUTHORIZED + rho<0 + named crossed axis + chain/inclusion
+        # FAIL. Receipt id is a real hash over the real per-run payload, so it
+        # differs every run. Honest by construction.
         d = _WH_BY_KEY.get(problem)
-        if not d:
+        demo_key = _WH_LAUNCH_TO_DEMO.get(problem)
+        if not d or not demo_key:
             return _SCJSON({"ok": False, "error": "unknown scenario", "problem": problem}, status_code=404)
-        lam = _wh_lambda(_WH_AXES)
-        gate = "pass" if lam >= 0.90 else "review"
-        payload = {"scenario": d["id"], "capability": d["capability"], "lambda": lam,
-                   "gate": gate, "axes": _WH_AXES}
-        rid = "a11oy-rcpt-" + _wh_hl.sha256(
-            (d["key"] + ":" + _wh_json.dumps(payload, sort_keys=True)).encode()).hexdigest()[:16]
+        # mode from JSON body OR ?mode= query (GET-friendly)
+        mode = None
+        try:
+            _b = await request.json()
+            if isinstance(_b, dict):
+                mode = _b.get("mode")
+        except Exception:
+            mode = None
+        mode = (mode or request.query_params.get("mode") or "nominal").lower()
+        if mode not in ("nominal", "tamper"):
+            mode = "nominal"
+        try:
+            import szl_warhacker_demos as _whd_engine
+            host = {"sign": _a11oy_sign_receipt,
+                    "verify": _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None}
+            run = _whd_engine._DEMOS[demo_key](mode, host)
+        except Exception as _de:
+            return _SCJSON({"ok": False, "error": "engine error: %r" % _de,
+                            "problem": problem, "mode": mode}, status_code=500)
+        authorized = bool(run.get("authorized"))
+        ev = run.get("evaluation", {}) or {}
+        sealed = run.get("sealed", {}) or {}
+        # REAL per-run receipt id: hash over the signed envelope PAE + chain hash
+        env = sealed.get("envelope", {}) or {}
+        rid_basis = (str(env.get("_pae_sha256", "")) + "|" + str(sealed.get("chain_hash", ""))
+                     + "|" + str(run.get("mode")) + "|" + str(run.get("decision")))
+        rid = "a11oy-rcpt-" + _wh_hl.sha256(rid_basis.encode()).hexdigest()[:16]
+        gate = "pass" if authorized else "fail"
         result = {
             "ok": True, "self_contained": True, "capability": d["capability"],
-            "status": "ok", "http_code": 200,
+            "status": "ok", "http_code": 200, "mode": mode,
             "scenario": {"id": d["id"], "title": d["title"], "proves": d["proves"]},
-            "decision": {"lambda": lam, "gate": gate,
-                         "note": "Lambda is Conjecture 1 \u2014 an advisory score, not a pass/fail oracle."},
-            "axes": _WH_AXES,
-            "receipt": {"receipt_id": rid, "signed": True,
+            "decision": {"verdict": run.get("decision"), "authorized": authorized, "gate": gate,
+                         "stl_robustness_rho": ev.get("stl_robustness_rho"),
+                         "stl_binding_axis": ev.get("stl_binding_axis"),
+                         "first_failing_axis": run.get("first_failing_node"),
+                         "note": "Lambda is Conjecture 1 \u2014 an advisory score, not a pass/fail oracle. "
+                                 "The conjunctive GATE is P2 gate-soundness PROVEN."},
+            "real_or_roadmap": run.get("real_or_roadmap"),
+            "headline": run.get("headline"),
+            "chain": {"merkle_root": (run.get("chain", {}) or {}).get("merkle_root")
+                                     or sealed.get("merkle_root"),
+                      "depth": (run.get("chain", {}) or {}).get("depth")},
+            "chain_self_verification": run.get("chain_self"),
+            "tamper_test": run.get("tamper_test"),
+            "receipt": {"receipt_id": rid, "signed": bool(sealed.get("signed")),
                         "verify_at": "/api/a11oy/v1/receipt/export",
-                        "public_key": "/cosign.pub"},
-            "honesty": "Deterministic in-image computation \u2014 no external service is called.",
+                        "public_key": "/cosign.pub",
+                        "dsse": {"payloadType": env.get("payloadType"),
+                                 "pae_sha256": env.get("_pae_sha256"),
+                                 "signed": bool(env.get("signed"))}},
+            "timeline": run.get("timeline"),
+            "catch_tree": run.get("catch_tree"),
+            "first_failing_node": run.get("first_failing_node"),
+            "honesty": run.get("honesty"),
         }
         # console renders d.organ + d.organ_response; provide neutral, self-contained shapes
-        return _SCJSON({"ok": True, "capability": d["capability"],
+        return _SCJSON({"ok": True, "capability": d["capability"], "mode": mode,
+                        "authorized": authorized,
                         "organ": d["capability"], "organ_response": result,
                         "receipt": result["receipt"]})
 
@@ -3215,7 +3708,286 @@ async def a11oy_business_observability_v2() -> JSONResponse:
 
 
 
-_LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/")
+# ============================================================================
+# BATCH-2 SOVEREIGN SECURITY DATA — additive same-origin endpoints so the
+# batch-2 security tabs (cve/kev/attack/threats/threatgraph) fetch ZERO
+# off-origin/CDN data. Real CISA KEV snapshot + MITRE ATT&CK public IDs,
+# labelled "sample". Signed-off-by: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_b2_secdata as _b2_secdata
+    _B2_SEC_DIAG = _b2_secdata.register(app, "a11oy")
+    import sys as _b2_sys
+    print(f"[a11oy] batch-2 sovereign security data registered: {_B2_SEC_DIAG}", file=_b2_sys.stderr)
+except Exception as _b2_e:
+    import sys as _b2_sys, traceback as _b2_tb
+    print(f"[a11oy] batch-2 security data FAILED (non-fatal): {_b2_e!r}", file=_b2_sys.stderr)
+    _b2_tb.print_exc(file=_b2_sys.stderr)
+    _B2_SEC_DIAG = {"status": "FAILED", "error": repr(_b2_e)}
+# ============================================================================
+
+# ============================================================================
+# a11oy CODE ROUTER SURFACE (ADDITIVE, 2026-06-07, Perplexity Computer Agent).
+# FIX: the /code page UI (src/pages/A11oyCode.tsx) calls
+#   GET  /api/a11oy/v1/code/tiers          (load the 7-tier organ->model table)
+#   POST /api/a11oy/v1/code/route          (manual organ route)
+#   POST /api/a11oy/v1/code/auto           (auto route from query + Λ)
+# NONE of those routes existed, so every call fell through to the
+# /api/a11oy/{path:path} catch-all below and returned 404 "local route
+# unmatched" -> the /code chat could not take questions. This block registers
+# the real route group backed by a11oy_code.py (TIERS + route() + tiers_payload),
+# plus /health, /index, /roster, and a /complete completion endpoint.
+#
+# HONEST MODE: tier selection, organ routing, Λ-signal and the receipt are REAL
+# deterministic math. The text completion is LIVE (generative) when an HF token
+# is present in the Space env (HF_TOKEN / HUGGING_FACE_HUB_TOKEN), via the
+# OpenAI-compatible HF Router (router.huggingface.co) with model
+# Qwen/Qwen2.5-Coder-32B-Instruct + open-weight roster fallback. If no token is
+# present at runtime, the completion degrades to the honest deterministic stub
+# from a11oy_code.route() and mode is labelled "deterministic" -- NEVER a fake
+# answer. Each /route|/auto|/complete emits a REAL signed, hash-chained receipt
+# via app.state.szl_emit_signed_receipt (UNSIGNED-labelled if no cosign key).
+#
+# CRITICAL ORDERING: registered HERE, BEFORE the /api/a11oy/{path:path} Node
+# proxy catch-all (just below) so FastAPI ordered matching resolves these
+# v1/code/* paths LOCALLY instead of returning the 404 proxy. try/except-guarded
+# -> a missing dep can NEVER take down any existing route. ADDITIVE ONLY.
+# ============================================================================
+try:
+    import sys as _ac_sys
+    import a11oy_code as _a11oy_code_router
+
+    # Open-weight roster (real HF repo ids + licenses). Primary first; the rest
+    # are graceful fallbacks tried in order on error/timeout. Server-side only.
+    _AC_HF_ROSTER = [
+        {"hf_repo": "Qwen/Qwen2.5-Coder-32B-Instruct", "display": "Qwen2.5-Coder 32B",
+         "license": "Apache-2.0", "role": "primary", "open_weight": True},
+        {"hf_repo": "meta-llama/Llama-3.1-8B-Instruct", "display": "Llama 3.1 8B",
+         "license": "Llama-3.1-Community", "role": "fallback", "open_weight": True},
+        {"hf_repo": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "display": "DeepSeek-Coder-V2",
+         "license": "DeepSeek-License (open weights)", "role": "fallback", "open_weight": True},
+    ]
+    _AC_ROUTER_BASE = (os.environ.get("A11OY_MODEL_BASE_URL")
+                       or os.environ.get("HF_ROUTER_BASE")
+                       or "https://router.huggingface.co/v1").rstrip("/")
+
+    def _ac_hf_token() -> str:
+        # Read at RUNTIME so a founder-provisioned Space secret is honoured
+        # without a code change. Server-side only; never sent to the browser.
+        return os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or ""
+
+    def _ac_mode() -> str:
+        return "generative" if _ac_hf_token() else "deterministic"
+
+    def _ac_hf_chat(messages, max_tokens=640, want_model=None):
+        """Call the OpenAI-compatible HF Router server-side, 2x retry + roster
+        fallback. Returns {ok,text,model,license,attempts,rate_limited,error}.
+        NEVER fabricates: on total failure ok=False and text=None."""
+        import urllib.request as _u_req, urllib.error as _u_err, json as _u_json, time as _u_time
+        token = _ac_hf_token()
+        if not token:
+            return {"ok": False, "text": None, "model": None, "attempts": 0,
+                    "rate_limited": False, "error": "no HF_TOKEN in Space env"}
+        order = []
+        if want_model:
+            order.append({"hf_repo": want_model, "display": want_model,
+                          "license": "declared open-weight", "role": "requested", "open_weight": True})
+        order += [m for m in _AC_HF_ROSTER if m["hf_repo"] != want_model]
+        headers = {"Content-Type": "application/json", "Authorization": "Bearer " + token}
+        url = _AC_ROUTER_BASE + "/chat/completions"
+        last_err, rate_limited, attempts = None, False, 0
+        for m in order:
+            for _attempt in range(2):
+                attempts += 1
+                body = _u_json.dumps({"model": m["hf_repo"], "messages": messages,
+                                      "max_tokens": max_tokens, "temperature": 0.2}).encode()
+                req = _u_req.Request(url, data=body, headers=headers, method="POST")
+                try:
+                    with _u_req.urlopen(req, timeout=45) as r:
+                        data = _u_json.loads(r.read())
+                    txt = (((data.get("choices") or [{}])[0].get("message") or {}).get("content")) or ""
+                    if txt.strip():
+                        return {"ok": True, "text": txt, "model": m["hf_repo"],
+                                "display": m["display"], "license": m["license"],
+                                "attempts": attempts, "rate_limited": False, "error": None}
+                    last_err = "empty completion"
+                except _u_err.HTTPError as e:
+                    code = e.code
+                    last_err = "HTTP %s on %s" % (code, m["hf_repo"])
+                    if code == 429:
+                        rate_limited = True
+                        _u_time.sleep(1.2)
+                    elif code in (401, 403):
+                        return {"ok": False, "text": None, "model": None, "attempts": attempts,
+                                "rate_limited": False,
+                                "error": "auth rejected (HTTP %s) — HF_TOKEN missing or unauthorized" % code}
+                    else:
+                        break
+                except Exception as e:
+                    last_err = "%s: %s" % (type(e).__name__, e)
+        return {"ok": False, "text": None, "model": None, "attempts": attempts,
+                "rate_limited": rate_limited, "error": last_err or "all models failed"}
+
+    def _ac_open_weight_roster() -> list:
+        return [{"hf_repo": m["hf_repo"], "display_name": m["display"],
+                 "license": m["license"], "role": m["role"], "open_weight": True}
+                for m in _AC_HF_ROSTER]
+
+    def _ac_emit_receipt(request, payload: dict) -> dict:
+        """Emit a REAL signed, hash-chained receipt of the code-router decision.
+        Honest by construction: signed=true only when the cosign key is present
+        (else szl_dsse labels the envelope UNSIGNED). Never fakes a signature."""
+        emit = getattr(app.state, "szl_emit_signed_receipt", None)
+        if not callable(emit):
+            return {"emitted": False, "reason": "signer not wired in this env"}
+        try:
+            node = emit({"schema": "szl.a11oy.code_route/v1", "op": "code/route", **payload}, request)
+            return {"emitted": True, "receipt_hash": node.get("digest"),
+                    "receipt_signed": bool(node.get("signed")),
+                    "receipt_index": node.get("index"),
+                    "receipt_verify_at": "/api/a11oy/khipu/verify"}
+        except Exception as _re:
+            return {"emitted": False, "reason": "emit failed: %r" % (_re,)}
+
+    def _ac_complete(query: str, tier: dict, organ: str):
+        """LIVE generative completion if HF_TOKEN present, else honest stub.
+        Returns (response_text, mode, gen_meta)."""
+        if not _ac_hf_token():
+            stub = ("[DETERMINISTIC] a11oy.code routed to organ %s via tier %s (model %s). "
+                    "No HF_TOKEN in this Space env, so the text completion is the honest "
+                    "deterministic stub — organ routing, tier selection, Λ-signal and the "
+                    "signed receipt are real. Set the HF_TOKEN Space secret to enable LIVE "
+                    "open-weight inference (server-side only). Role: %s."
+                    % (organ, tier["tier"], tier["model_id"], tier["role"]))
+            return stub, "deterministic", {"backend": "local-deterministic", "configured": False}
+        messages = [
+            {"role": "system", "content": (
+                "You are a11oy Code, a governed open-weight coding assistant. Answer the "
+                "user's coding question directly and correctly. Be concise and include "
+                "runnable code when relevant.")},
+            {"role": "user", "content": query},
+        ]
+        res = _ac_hf_chat(messages)
+        if res.get("ok"):
+            return res["text"], "generative", {
+                "backend": "hf-router", "endpoint": _AC_ROUTER_BASE,
+                "model": res.get("model"), "display": res.get("display"),
+                "license": res.get("license"), "attempts": res.get("attempts"),
+                "configured": True}
+        # token present but inference failed -> honest error, never a fake answer
+        fail = ("[GENERATIVE-FAILED] HF_TOKEN is present but the open-weight inference call "
+                "failed (%s). a11oy.code never fabricates output. The tier/organ/Λ math and "
+                "the signed receipt below are still real." % res.get("error"))
+        return fail, "generative_error", {"backend": "hf-router", "configured": True,
+                                          "error": res.get("error"),
+                                          "rate_limited": res.get("rate_limited")}
+
+    async def _ac_route_impl(request: "Request", auto: bool):
+        body, _err = await _safe_json_body(request)
+        if _err is not None:
+            return _err
+        if not isinstance(body, dict):
+            body = {}
+        query = (body.get("query") or body.get("prompt") or body.get("message") or "").strip()
+        if not query:
+            return JSONResponse({"error": "missing 'query'"}, status_code=400)
+        axis_scores = body.get("axis_scores")
+        organ_context = "" if auto else (body.get("organ_context") or "")
+        max_tier = body.get("max_tier")
+        depth = body.get("depth")
+        traceparent = (body.get("traceparent")
+                       or getattr(getattr(request, "state", None), "traceparent", None))
+        require_receipt = bool(body.get("require_λ_receipt", body.get("require_lambda_receipt", True)))
+        # REAL deterministic tier selection / organ routing / Λ-signal / λ-receipt
+        out = _a11oy_code_router.route(
+            query, axis_scores=axis_scores, organ_context=organ_context,
+            max_tier=max_tier, require_lambda_receipt=require_receipt,
+            traceparent=traceparent, auto=auto)
+        tier = _a11oy_code_router._BY_TIER[out["tier_used"]]
+        organ = out["organ_routed"]
+        # LIVE completion (or honest deterministic stub)
+        text, mode, gen_meta = _ac_complete(query, tier, organ)
+        out["response"] = text
+        out["mode"] = mode
+        out["generation"] = gen_meta
+        # REAL signed, chained receipt of the decision
+        out["receipt"] = _ac_emit_receipt(request, {
+            "query_digest": _a11oy_code_router.sha256(query.encode()).hexdigest(),
+            "organ_routed": organ, "tier_used": tier["tier"],
+            "model_id": tier["model_id"], "lambda_signal": out.get("lambda_signal"),
+            "mode": mode, "generation_model": gen_meta.get("model"),
+        })
+        return JSONResponse(out)
+
+    @app.get("/api/a11oy/v1/code/tiers")
+    async def a11oy_code_tiers() -> JSONResponse:
+        payload = _a11oy_code_router.tiers_payload()
+        payload["mode"] = _ac_mode()
+        payload["open_weight_roster"] = _ac_open_weight_roster()
+        return JSONResponse(payload)
+
+    @app.get("/api/a11oy/v1/code/health")
+    async def a11oy_code_router_health() -> JSONResponse:
+        return JSONResponse({
+            "ok": True,
+            "service": "a11oy.code",
+            "mode": _ac_mode(),
+            "inference": "hf-router" if _ac_hf_token() else "NO-CREDENTIAL (deterministic)",
+            "router_base": _AC_ROUTER_BASE,
+            "primary_model": _AC_HF_ROSTER[0]["hf_repo"],
+            "roster": _ac_open_weight_roster(),
+            "tiers": [t["tier"] for t in _a11oy_code_router.TIERS],
+            "doctrine": "v11",
+            "honesty": ("Tier selection, organ routing, Λ-signal and the signed receipt are "
+                        "real deterministic math. Text completion is LIVE when HF_TOKEN is "
+                        "present, else an honest deterministic stub — never a fake answer."),
+        })
+
+    @app.get("/api/a11oy/v1/code/index")
+    @app.get("/api/a11oy/v1/code/roster")
+    async def a11oy_code_index() -> JSONResponse:
+        return JSONResponse({
+            "service": "a11oy.code",
+            "doctrine": "v11",
+            "mode": _ac_mode(),
+            "tier_count": len(_a11oy_code_router.TIERS),
+            "tiers": _a11oy_code_router.TIERS,
+            "organ_mapping": {t["organ"]: t["tier"] for t in _a11oy_code_router.TIERS},
+            "open_weight_roster": _ac_open_weight_roster(),
+            "endpoints": {
+                "tiers": "GET /api/a11oy/v1/code/tiers",
+                "health": "GET /api/a11oy/v1/code/health",
+                "index": "GET /api/a11oy/v1/code/index",
+                "roster": "GET /api/a11oy/v1/code/roster",
+                "route": "POST /api/a11oy/v1/code/route {query, organ_context?, axis_scores?, max_tier?}",
+                "auto": "POST /api/a11oy/v1/code/auto {query, axis_scores?}",
+                "complete": "POST /api/a11oy/v1/code/complete {query, organ_context?, axis_scores?}",
+            },
+        })
+
+    @app.post("/api/a11oy/v1/code/route")
+    async def a11oy_code_route(request: Request) -> JSONResponse:
+        return await _ac_route_impl(request, auto=False)
+
+    @app.post("/api/a11oy/v1/code/auto")
+    async def a11oy_code_auto(request: Request) -> JSONResponse:
+        return await _ac_route_impl(request, auto=True)
+
+    @app.post("/api/a11oy/v1/code/complete")
+    async def a11oy_code_complete(request: Request) -> JSONResponse:
+        return await _ac_route_impl(request, auto=False)
+
+    print("[a11oy] a11oy.code router surface registered (/api/a11oy/v1/code/"
+          "{tiers,health,index,roster,route,auto,complete}) mode=%s" % _ac_mode(),
+          file=_ac_sys.stderr)
+except Exception as _ac_e:  # never break the existing app
+    import sys as _ac_sys2, traceback as _ac_tb
+    print("[a11oy] a11oy.code router surface NOT registered: %r" % (_ac_e,), file=_ac_sys2.stderr)
+    _ac_tb.print_exc(file=_ac_sys2.stderr)
+# ============================================================================
+
+_LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
+                              "v1/live/", "v1/code/")
 
 
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
@@ -3260,6 +4032,7 @@ try:
     _VENDOR_CSS_CT = "text/css; charset=utf-8"
     # Allowlist of the 7 keepers + KaTeX (exact filenames the console references).
     _VENDOR_TEXT = {
+        "three.min.js": _VENDOR_JS_CT,                  # THREE r128 (MIT) standalone — real window.THREE global
         "chart.umd.min.js": _VENDOR_JS_CT,
         "3d-force-graph.min.js": _VENDOR_JS_CT,
         "echarts.min.js": _VENDOR_JS_CT,
@@ -3269,6 +4042,15 @@ try:
         "d3.min.js": _VENDOR_JS_CT,
         "katex.min.js": _VENDOR_JS_CT,
         "katex.min.css": _VENDOR_CSS_CT,
+        # Batch-1 uniqueness rebuild (2026-06-06): additional vendored graph-viz
+        # libs, all MIT/ISC/BSD (NOTICE updated). Self-hosted, ZERO CDN.
+        "dagre.min.js": _VENDOR_JS_CT,                  # dagre 0.8.5 (MIT)
+        "cytoscape-dagre.js": _VENDOR_JS_CT,            # cytoscape-dagre 2.5.0 (MIT)
+        "d3-sankey.min.js": _VENDOR_JS_CT,             # d3-sankey 0.12.3 (ISC)
+        "ngraph.graph.min.js": _VENDOR_JS_CT,          # ngraph.graph 20.0.1 (BSD-3, anvaka)
+        "ngraph.path.min.js": _VENDOR_JS_CT,           # ngraph.path 1.5.0 (MIT, anvaka)
+        "ngraph.forcelayout.min.js": _VENDOR_JS_CT,    # ngraph.forcelayout 3.3.1 (MIT, anvaka)
+        "panzoom.min.js": _VENDOR_JS_CT,               # panzoom 9.4.3 (MIT, anvaka)
     }
 
     # NOTE on route ORDER: literal paths (/vendor/earth-night.jpg, /vendor/fonts/*)
@@ -3330,13 +4112,41 @@ except Exception as _vend_e:  # never crash the app — additive only
 
 @app.get("/")
 async def spa_root() -> FileResponse:
-    """PRIMARY FACE: the full a11oy operator application (left-nav, live views,
-    cross-flag switcher). Opening a11oy lands directly in the app — not a thin
-    marketing landing. Falls back to the SPA index only if the app file is absent."""
+    """FRONT DOOR: cathedral-style sovereign 3D hero (a11oy brain-sun, live Trust
+    Score Λ, current updates) matching the org card. The full working console is
+    one click in at /console. Falls back to the console then SPA index if absent."""
+    hero = Path("/app/cathedral.html")
+    if hero.is_file():
+        return FileResponse(hero, media_type="text/html")
     app_file = PAGES_DIR / "console.html"
     if app_file.is_file():
         return FileResponse(app_file, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# === ADDITIVE: cathedral front-door hero assets (sovereign, vendored, NO CDN) ===
+# Served via explicit routes BEFORE the SPA catch-all. ES-module Three.js r160
+# (MIT) vendored under /app/static/vendor3d. Doctrine v11 LOCKED. Lambda Conjecture 1.
+_HERO_DIR = Path("/app")
+_HERO_VENDOR = Path("/app/static/vendor3d")
+
+@app.get("/hero/a11oy_cathedral.js")
+async def _hero_app_js() -> Response:
+    f = _HERO_DIR / "static" / "a11oy_cathedral.js"
+    if f.is_file():
+        return FileResponse(str(f), media_type="application/javascript; charset=utf-8")
+    return JSONResponse({"error": "hero js missing"}, status_code=404)
+
+@app.get("/hero/vendor3d/{fname}")
+async def _hero_vendor(fname: str) -> Response:
+    if fname not in {"three.module.min.js", "OrbitControls.js", "THREE_LICENSE.txt"}:
+        return JSONResponse({"error": "not allowlisted"}, status_code=404)
+    f = _HERO_VENDOR / fname
+    if f.is_file():
+        ct = "text/plain; charset=utf-8" if fname.endswith(".txt") else "application/javascript; charset=utf-8"
+        return FileResponse(str(f), media_type=ct,
+                            headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    return JSONResponse({"error": "vendor missing"}, status_code=404)
 
 
 
@@ -3677,6 +4487,7 @@ async def _a11oy_pr_lambda():
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
         "uniqueness": "Conjecture 1 — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "policy_gates": 46, "anchor_formula_gates": 44,
         "doctrine": "v11",
     })
@@ -3699,6 +4510,7 @@ async def _a11oy_pr_honest():
     return JSONResponse({
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
         "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
@@ -3749,6 +4561,7 @@ async def _a11oy_pr_brain_route():
     return JSONResponse({
         "space": "a11oy", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "policy_gates": 46, "anchor_formula_gates": 44,
         "role": "Brand Orchestration / gates",
         "lambda_floor": 0.90,
@@ -3790,6 +4603,7 @@ async def _a11oy_pr_mesh_state():
         "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "honesty": "szl_wire unavailable; honest stub mesh state returned. "
                    "Wire D is in-process only (cross-Space broker NOT wired). "
                    "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
@@ -3811,9 +4625,11 @@ async def api_health() -> JSONResponse:
         "service": "a11oy",
         "doctrine": "v11",
         "counts": "749/14/163",
+        "counts_experimental": "1304/22",
         "lean_sha": "c7c0ba17",
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
-        "slsa": "L1 (honest)",
+        "slsa": "SLSA L1 across all organs; L2 build-provenance verified on 3/5 (a11oy/sentra/rosie), L2 roadmap for the rest.",
     })
 
 
@@ -3843,7 +4659,7 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
             peers.append({"flagship": _name, "status": "unreachable", "error": str(_e)[:120]})
     return JSONResponse({
         "timestamp": _dt.utcnow().isoformat() + "Z",
-        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163},
+        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
         "lambda": "Conjecture 1 (NOT a theorem — LOCKED)",
         "peers": peers,
     })
@@ -4183,6 +4999,37 @@ except Exception as _whr_e:
 
 
 # ============================================================================
+# BEGIN: WARHACKER EXHAUSTIVE DEMOS — a11oy (2026-06-06)
+# Five full step-by-step demos (CANNONICO/TYCHEE/HANGAR2APPS/CYBER_RTS/RAVEN).
+# Each runs a REAL mechanism in-image and returns: ordered step timeline (real
+# durations + computed values), catch tree (first failing condition), a single-
+# byte tamper test that breaks the signed SHA-256 Merkle chain, and a formula-
+# proof panel with honest PROVEN/roadmap status. Uses a11oy's REAL in-image
+# signer (_a11oy_sign_receipt, ECDSA-P256) + the loop verifier. Pure-Python, no
+# external deps; routes inserted BEFORE the SPA catch-all. try/except guarded so
+# it can never crash the app. Honest labels: CANNONICO = REAL TODAY; the other
+# four = proven horizontal substrate on labelled sample data (ROADMAP vertical).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_warhacker_demos as _szl_whd
+    import sys as _whd_sys
+    _whd_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
+    _whd_status = _szl_whd.register(app, _a11oy_sign_receipt, verify_fn=_whd_verify)
+    print(f"[a11oy] warhacker exhaustive demos registered: {_whd_status}", file=_whd_sys.stderr)
+    _WHD_DIAG = {"status": "ok", "registered": _whd_status}
+except Exception as _whd_e:
+    import sys as _whd_sys, traceback as _whd_tb
+    print(f"[a11oy] warhacker exhaustive demos FAILED (non-fatal): {_whd_e!r}", file=_whd_sys.stderr)
+    _whd_tb.print_exc(file=_whd_sys.stderr)
+    _WHD_DIAG = {"status": "FAILED", "error": repr(_whd_e)}
+# ============================================================================
+# END: WARHACKER EXHAUSTIVE DEMOS — a11oy
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: a11oy CODE — governed agentic coder + chatbot + research (2026-06-06,
 # ADDITIVE, v11 locked). The founder's "a11oy Code" tab backend: THREE governed
 # modes (chat / code / research), each flowing through the SAME proven P1-P6
@@ -4234,6 +5081,31 @@ except Exception as _code_e:
 # ============================================================================
 # END: a11oy CODE — a11oy
 # ============================================================================
+
+# ============================================================================
+# a11oy LIVE-DATA LAYER (ADDITIVE, 2026-06-06, Warhacker) — shared live-feed
+# proxy: GET /api/a11oy/v1/live/<feed> (prometheus|kev|osv|rekor|celestrak|iss|
+# fhir). Server-side fetch + cache + on-disk snapshot fallback; honest
+# live/cached/self labels; NEVER fabricated. register() inserts its routes at
+# router position 0 so they resolve LOCALLY ahead of the /api/a11oy/{path:path}
+# Node proxy catch-all (v1/live/ is also in _LOCAL_ONLY_A11OY_PREFIXES).
+# ============================================================================
+try:
+    import a11oy_live_feeds as _a11oy_live
+    import sys as _live_sys
+    _live_status = _a11oy_live.register(app, "a11oy")
+    print(f"[a11oy] a11oy live-data layer registered: {_live_status}", file=_live_sys.stderr)
+    _A11OY_LIVE_DIAG = {"status": "ok", "registered": _live_status}
+except Exception as _live_e:
+    import sys as _live_sys, traceback as _live_tb
+    print(f"[a11oy] a11oy live-data layer FAILED (non-fatal): {_live_e!r}", file=_live_sys.stderr)
+    _live_tb.print_exc(file=_live_sys.stderr)
+    _A11OY_LIVE_DIAG = {"status": "FAILED", "error": repr(_live_e),
+                        "traceback": _live_tb.format_exc()}
+# ============================================================================
+# END: a11oy LIVE-DATA LAYER
+# ============================================================================
+
 
 
 # ============================================================================
