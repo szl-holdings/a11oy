@@ -70,6 +70,17 @@ COPY szl_parity_gaps.py ./szl_parity_gaps.py
 # omitted it, so import a11oy_warhacker_obs failed and /warhacker + /observability 404'd.
 COPY a11oy_warhacker_obs.py ./a11oy_warhacker_obs.py
 COPY serve.py ./serve.py
+# ADDITIVE (cathedral front-door hero): sovereign 3D landing matching the org card.
+# Served at / by serve.py (console one click in at /console). Placed AFTER
+# `COPY console/ ./static/` (line 65) so vendor3d + hero js are not clobbered.
+# ES-module Three.js r160 (MIT) vendored locally — NO CDN. Doctrine v11 LOCKED.
+COPY cathedral.html ./cathedral.html
+COPY static/a11oy_cathedral.js ./static/a11oy_cathedral.js
+COPY static/vendor3d/three.module.min.js ./static/vendor3d/three.module.min.js
+COPY static/vendor3d/OrbitControls.js ./static/vendor3d/OrbitControls.js
+COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
+# ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
+COPY szl_b2_secdata.py ./szl_b2_secdata.py
 COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
 COPY a11oy_code_orchestrator.py ./a11oy_code_orchestrator.py
@@ -179,6 +190,15 @@ COPY static-vendor/cytoscape.min.js ./static-vendor/cytoscape.min.js
 COPY static-vendor/d3.min.js ./static-vendor/d3.min.js
 COPY static-vendor/katex.min.js ./static-vendor/katex.min.js
 COPY static-vendor/katex.min.css ./static-vendor/katex.min.css
+# Batch-1 uniqueness rebuild (2026-06-06): additional vendored graph-viz libs
+# (MIT/ISC/BSD; NOTICE updated). Per-file COPY (this Dockerfile uses no COPY . .).
+COPY static-vendor/dagre.min.js ./static-vendor/dagre.min.js
+COPY static-vendor/cytoscape-dagre.js ./static-vendor/cytoscape-dagre.js
+COPY static-vendor/d3-sankey.min.js ./static-vendor/d3-sankey.min.js
+COPY static-vendor/ngraph.graph.min.js ./static-vendor/ngraph.graph.min.js
+COPY static-vendor/ngraph.path.min.js ./static-vendor/ngraph.path.min.js
+COPY static-vendor/ngraph.forcelayout.min.js ./static-vendor/ngraph.forcelayout.min.js
+COPY static-vendor/panzoom.min.js ./static-vendor/panzoom.min.js
 COPY _vendor_blobs.py ./_vendor_blobs.py
 
 # ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
@@ -302,12 +322,30 @@ COPY szl_formula_wiring.py ./szl_formula_wiring.py
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY a11oy_code_engine.py ./a11oy_code_engine.py
 
+# a11oy.code 7-tier organ->model router (TIERS + route() + tiers_payload()).
+# Per-file COPY (this Dockerfile never uses `COPY . .`) -- without this
+# `import a11oy_code` fails at boot and the /api/a11oy/v1/code/{tiers,health,
+# index,roster,route,auto,complete} router surface (registered in serve.py before
+# the catch-all) silently no-ops, so the /code UI's GET /tiers + POST /route|/auto
+# calls 404 and the chat cannot answer. Imports only stdlib (math/time/hashlib).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY a11oy_code.py ./a11oy_code.py
+
 # Warhacker mission tabs backend (5 investor-facing surfaces; reuses
 # szl_agentic_loop primitives + the in-image signer). Per-file COPY
 # (this Dockerfile never uses `COPY . .`) — without this
 # `import szl_warhacker_real` fails at boot.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY szl_warhacker_real.py ./szl_warhacker_real.py
+
+# Warhacker EXHAUSTIVE demos backend (5 full step-by-step demos: step timeline,
+# catch tree, single-byte tamper test, formula-proof panel). Pure-Python, no
+# external deps; reuses the in-image signer + loop verifier. Per-file COPY
+# (this Dockerfile never uses `COPY . .`) — without this
+# `import szl_warhacker_demos` fails at boot.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY szl_warhacker_demos.py ./szl_warhacker_demos.py
+COPY NOTICE_warhacker_demos.txt ./NOTICE_warhacker_demos.txt
 
 # ---------------------------------------------------------------------------
 # OPEN-WEIGHT ALLOY MODEL LAYER (model-integration squad, 2026-06-06, ADDITIVE)
@@ -340,6 +378,51 @@ RUN pip install --no-cache-dir "llama-cpp-python>=0.2.79" \
 RUN mkdir -p /app/models && python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF', filename='qwen2.5-coder-0.5b-instruct-q4_k_m.gguf', local_dir='/app/models')" \
     || echo "[a11oy] GGUF fetch skipped/failed -> alloy demo tier falls back to honest tower-side label"
 ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+
+# ADDITIVE (Live-Data Layer, 2026-06-06, Warhacker): SHARED live-feed proxy module
+# a11oy_live_feeds.py exposes GET /api/a11oy/v1/live/<feed> (server-side fetch+cache,
+# CORS-safe same-origin, honest live/cached/self labels, NEVER fabricated). The
+# bundled live_snapshots/ are the in-image fallback served labelled 'cached' when an
+# upstream feed is unreachable. Per-file COPY (this Dockerfile never uses `COPY . .`)
+# -- without these the import fails and the /v1/live/* routes fall through to the SPA.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY a11oy_live_feeds.py ./a11oy_live_feeds.py
+COPY live_snapshots/ ./live_snapshots/
+
+# ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained operator surfaces,
+# each adopting a PERMISSIVELY-licensed PATTERN (NOTICE updated) and evolving it into
+# an a11oy-native mechanism. Stdlib-only (no torch/numpy/CDN). Per-file COPY (this
+# Dockerfile never uses `COPY . .`) -- without these the imports fail and the
+# /governance-gateway, /abacus-verify, /decision-uncertainty, /gor-audit routes
+# fall through to the SPA shell. serve.py imports them try/except-guarded.
+COPY szl_governance_gateway.py ./szl_governance_gateway.py
+COPY szl_abacus_verify.py ./szl_abacus_verify.py
+COPY szl_decision_uncertainty.py ./szl_decision_uncertainty.py
+COPY szl_gor_audit.py ./szl_gor_audit.py
+
+# ADDITIVE (RE-SWEEP WAVE 2, 2026-06, Yachay): four MORE operator surfaces from the
+# P0 re-sweep backlog, each adopting a PERMISSIVE pattern (MIT/Apache; NOTICE updated)
+# and evolving it into an a11oy-native mechanism. Stdlib-only (no torch/numpy/CDN);
+# graph tabs render with the already-vendored cytoscape. Per-file COPY (this Dockerfile
+# never uses `COPY . .`) -- without these the imports fail and /sovereign-search,
+# /consensus-clusters, /mission-ledger, /budget-router fall through to the SPA shell.
+# serve.py imports them try/except-guarded.
+COPY szl_sovereign_search.py ./szl_sovereign_search.py
+COPY szl_consensus_clusters.py ./szl_consensus_clusters.py
+COPY szl_mission_ledger.py ./szl_mission_ledger.py
+COPY szl_budget_router.py ./szl_budget_router.py
+
+# ADDITIVE (WAVE9/10 INSTILLATION, 2026-06): the "Proven Formulas (experimental)"
+# surface wiring a11oy-targeted lutar-lean Wave9+Wave10 theorems as honest cards with
+# verbatim #print axioms + real in-image checks (Gershgorin matrix-health, Ville
+# anytime-alarm, replay-determinism+tamper-localize, quorum-intersection, DSSE
+# injectivity). Stdlib-only (no torch/numpy/CDN). Per-file COPY (this Dockerfile never
+# uses `COPY . .`) -- without this the import fails and /proven-formulas +
+# /api/a11oy/v1/proven/* fall through to the SPA shell, and the governance-gateway
+# matrix-health pre-flight reports the module missing. serve.py + szl_governance_gateway
+# import it try/except-guarded. LOCKED-proven stays EXACTLY 5; Lambda=Conjecture 1.
+COPY szl_wave910_proofs.py ./szl_wave910_proofs.py
 
 CMD ["python", "serve.py"]
 
