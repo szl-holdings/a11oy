@@ -1353,42 +1353,47 @@ except Exception as _obs_e:  # pragma: no cover - defensive, additive-only
 
 
 # ===========================================================================
-# Wire I — Rosie-companion (ADDITIVE, Doctrine v11). Signed: Yachay.
-# Founder directive 2026-06-01 ~02:52 EDT: "Make sure Rosie is wired in the
-# backend of each flag and wherever needed to be."
-# a11oy (gate) gains a Rosie-shadow it can call as a deep-reasoning co-pilot.
-# /api/a11oy/v1/rosie-companion/* proxies to Rosie /v1/brain/jack-a11oy and
-# returns Rosie reasoning + a Khipu cross-flagship receipt. The a11oy.code chat
-# router escalates T4/T5 (deep-reasoning) tiers to the Rosie-shadow.
-# Rosie is co-pilot, NOT pilot: she proposes; a11oy's gates + 2-person Yuyay
-# gate decide. evolve ops require two distinct approvers. ZERO BANDAID.
-# Registered BEFORE the /api/a11oy/{path} catch-all proxy so they are not
-# shadowed by the Node backend proxy. NEVER crash the existing app.
+# Wire I — Companion (ADDITIVE, Doctrine v11). Signed: Yachay.
+# a11oy (gate) gains a deep-reasoning Companion co-pilot it can call.
+# /api/a11oy/v1/companion/* (user-visible) and /api/a11oy/v1/rosie-companion/*
+# (legacy alias, kept ONLY so existing callers do not break) both proxy to the
+# deep-reasoning brain endpoint and return reasoning + a Khipu cross-flagship
+# receipt. The a11oy.code chat router escalates T4/T5 (deep-reasoning) tiers to
+# the Companion. DOCTRINE: NO user-visible codename is emitted — every response
+# string says "Companion"/"deep-reasoning tier"; the internal import
+# (szl_rosie_companion / RosieShadow) is kept intact for wiring only and is
+# never rendered to the user. Companion is co-pilot, NOT pilot: it proposes;
+# a11oy's gates + 2-person Yuyay gate decide. evolve ops require two distinct
+# approvers. Registered BEFORE the /api/a11oy/{path} catch-all proxy so they are
+# not shadowed by the Node backend proxy. NEVER crash the existing app.
 # ===========================================================================
 try:
     import sys as _sys_rc
-    import szl_rosie_companion as _rc
+    import szl_rosie_companion as _rc  # internal wiring only; never user-visible
 
-    _A11OY_SHADOW = _rc.RosieShadow("a11oy")
+    _A11OY_SHADOW = _rc.RosieShadow("a11oy")  # internal handle; label is "Companion"
 
     def _a11oy_router_tier_to_deep(tier: str) -> bool:
         """a11oy.code router escalation rule: deep-reasoning tiers T4/T5 consult
         the deep-reasoning co-pilot. T0-T3 stay on the local unified-LLM router."""
         return str(tier).upper() in ("T4", "T5")
 
-    @app.get("/api/a11oy/v1/rosie-companion")
-    async def a11oy_rosie_companion_info() -> JSONResponse:
+    @app.get("/api/a11oy/v1/companion")
+    @app.get("/api/a11oy/v1/rosie-companion")  # legacy alias (non-breaking)
+    async def a11oy_companion_info() -> JSONResponse:
         return JSONResponse({
             "wire": "I", "flagship": "a11oy", "organ": "gate",
-            "rosie_endpoint": _A11OY_SHADOW.jack_url,
+            "companion": "deep-reasoning tier",
+            "companion_endpoint": _A11OY_SHADOW.jack_url,
             "ops": ["ponder", "synthesize", "evolve", "brain_jack"],
-            "router_rule": "a11oy.code T4/T5 (deep reasoning) -> Rosie-shadow; T0-T3 local",
+            "router_rule": "a11oy.code T4/T5 (deep reasoning) -> Companion; T0-T3 local",
             "doctrine": "v11",
-            "honesty": "Rosie is co-pilot, not pilot. She proposes; a11oy gates + 2-person Yuyay gate decide.",
+            "honesty": "The Companion is co-pilot, not pilot. It proposes; a11oy gates + 2-person Yuyay gate decide.",
         })
 
-    @app.post("/api/a11oy/v1/rosie-companion/ponder")
-    async def a11oy_rosie_ponder(request: Request) -> JSONResponse:
+    @app.post("/api/a11oy/v1/companion/ponder")
+    @app.post("/api/a11oy/v1/rosie-companion/ponder")  # legacy alias
+    async def a11oy_companion_ponder(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
@@ -1398,8 +1403,9 @@ try:
         r = _A11OY_SHADOW.ponder(body.get("context", body), traceparent=tp)
         return JSONResponse(r.to_dict())
 
-    @app.post("/api/a11oy/v1/rosie-companion/synthesize")
-    async def a11oy_rosie_synthesize(request: Request) -> JSONResponse:
+    @app.post("/api/a11oy/v1/companion/synthesize")
+    @app.post("/api/a11oy/v1/rosie-companion/synthesize")  # legacy alias
+    async def a11oy_companion_synthesize(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
@@ -1409,8 +1415,9 @@ try:
         r = _A11OY_SHADOW.synthesize(body.get("events", []), traceparent=tp)
         return JSONResponse(r.to_dict())
 
-    @app.post("/api/a11oy/v1/rosie-companion/evolve")
-    async def a11oy_rosie_evolve(request: Request) -> JSONResponse:
+    @app.post("/api/a11oy/v1/companion/evolve")
+    @app.post("/api/a11oy/v1/rosie-companion/evolve")  # legacy alias
+    async def a11oy_companion_evolve(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
@@ -1421,8 +1428,9 @@ try:
                                  approvers=body.get("approvers", []), traceparent=tp)
         return JSONResponse(p.to_dict())
 
-    @app.post("/api/a11oy/v1/rosie-companion/brain-jack")
-    async def a11oy_rosie_brain_jack(request: Request) -> JSONResponse:
+    @app.post("/api/a11oy/v1/companion/brain-jack")
+    @app.post("/api/a11oy/v1/rosie-companion/brain-jack")  # legacy alias
+    async def a11oy_companion_brain_jack(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
@@ -1476,10 +1484,10 @@ try:
             "deep_tier_consulted": False, "doctrine": "v11", "wire": "I",
         })
 
-    print("[a11oy] Wire I rosie-companion registered (T4/T5 -> Rosie-shadow)", file=_sys_rc.stderr)
+    print("[a11oy] Wire I Companion registered (T4/T5 -> deep-reasoning Companion)", file=_sys_rc.stderr)
 except Exception as _rc_e:  # never break the existing app
     import sys as _sys_rc2
-    print(f"[a11oy] Wire I rosie-companion NOT registered: {_rc_e!r}", file=_sys_rc2.stderr)
+    print(f"[a11oy] Wire I Companion NOT registered: {_rc_e!r}", file=_sys_rc2.stderr)
 
 # ===========================================================================
 # AGENTIC CODEX KERNELS (ADDITIVE, Doctrine v11 §15) — 9 living kernels for a11oy:
@@ -2254,7 +2262,7 @@ async def _a11oy_pr_honest_v2():
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
-        "slsa": "SLSA L1 across all organs; L2 build-provenance verified on 3/5 (a11oy/sentra/rosie), L2 roadmap for the rest.",
+        "slsa": "SLSA L1 honest across all organs; L2 build-provenance is roadmap (not yet claimed).",
         "slsa_evidence": {
             "level": "L2",
             "image_tag": "uds-v0.2.0",
@@ -2276,7 +2284,7 @@ async def _a11oy_pr_honest_v2():
             "No Iron Bank / FedRAMP / CMMC certification claimed",
             "Section 889 = exactly 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua)",
             "HNSW formula endpoint is an HONEST in-process retrieval stub; BLS returns an honest backend-availability flag (real verify only when py_ecc present).",
-            "Builds are SLSA Level 2 (isolated GitHub-hosted build service + signed provenance). NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC.",
+            "SLSA L1 honest across all organs (cosign-signed images, Sigstore + Rekor verifiable); L2 build-provenance is roadmap (not yet claimed). NOT L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC.",
         ],
         "role": "Brand Orchestration / gates",
     })
@@ -3158,6 +3166,98 @@ try:
          "proves": "Builds a per-action provenance chain binding an autonomous action to the exact "
                    "agent version, the operator delegation, the inputs, and the policy gate vector, "
                    "then verifies all links. Tamper forges the delegation -> the named link FAILS."},
+        # --- 18 NEW unique live-wired demos (a11oy 7 -> 25). Each runs REAL in-image
+        # compute, emits a DSSE-signed Khipu receipt, and has a tamper variant that
+        # fails CRYPTOGRAPHICALLY (nominal receipt id differs from tamper). ---
+        {"id": "P8", "key": "p2-gate-soundness", "title": "P2 gate-soundness bypass attempt",
+         "capability": "Policy/Safety",
+         "proves": "Proves the conjunctive policy gate is SOUND: a high (unsound) weighted mean cannot "
+                   "authorize a request when any single axis is < 0. Tamper inflates 5 axes but drives "
+                   "one negative -> mean passes, AND-gate REJECTS; decision signed + chained."},
+        {"id": "P9", "key": "p3-prompt-injection", "title": "P3 prompt-injection non-interference",
+         "capability": "Reasoning",
+         "proves": "Differential evaluation: an injected instruction in the untrusted (low) channel must "
+                   "not change the high-integrity decision. Tamper leaks the injection -> decisions diverge "
+                   "-> non-interference VIOLATED; flagged + signed + chained."},
+        {"id": "P10", "key": "receipt-chain-tamper", "title": "CP-1/AU-1 receipt-chain tamper localization",
+         "capability": "Receipts",
+         "proves": "Seals a 5-event decision ledger then localizes a single-byte edit by replay: the first "
+                   "seq whose recomputed chain hash mismatches is the tampered entry; Merkle root no longer "
+                   "matches. Tamper edits seq 2 -> LOCALIZED + provable."},
+        {"id": "P11", "key": "model-router-envelope", "title": "C20/W7-5 model-router envelope breach",
+         "capability": "Operator",
+         "proves": "Conjunctive admission over the routing envelope (model allowlist, cost budget, context "
+                   "window, jurisdiction, eval floor). Tamper requests an out-of-envelope model -> ROUTE "
+                   "REJECTED on the named dimensions; breach signed + chained."},
+        {"id": "P12", "key": "conformal-miscoverage", "title": "W5-3/W7-4 conformal miscoverage breach",
+         "capability": "Reasoning",
+         "proves": "Computes a finite-sample conformal interval (never 100%) from calibration residuals and "
+                   "checks coverage. Tamper pushes the residual outside the band -> MISCOVERAGE -> downstream "
+                   "action withheld; signed + chained."},
+        {"id": "P13", "key": "quorum-split-brain", "title": "C1/CN-1 quorum split-brain",
+         "capability": "Policy/Safety",
+         "proves": "BFT quorum (n>=3f+1) tally; a single proposal must reach 2f+1 to commit. Tamper splits "
+                   "the votes into two sub-quorum partitions -> SPLIT-BRAIN blocked, no commit; signed + chained."},
+        {"id": "P14", "key": "gershgorin-command", "title": "MA1 Gershgorin command-matrix degeneracy",
+         "capability": "Reasoning",
+         "proves": "Computes Gershgorin discs of the command-mixing matrix; if none contains 0 the matrix is "
+                   "provably invertible (non-degenerate). Tamper weakens a diagonal so a disc reaches 0 -> "
+                   "DEGENERATE -> command rejected; signed + chained."},
+        {"id": "P15", "key": "stl-robustness", "title": "RA-1 STL robustness violation",
+         "capability": "Policy/Safety",
+         "proves": "STL robustness rho = min over time of the per-conjunct margin over a real signal trace; "
+                   "rho>=0 satisfied, rho<0 localizes the binding violation time. Tamper breaches speed/sep -> "
+                   "rho<0 -> loop halts; breach signed + chained."},
+        {"id": "P16", "key": "covariance-intersection", "title": "OE-2 covariance-intersection PSD violation",
+         "capability": "Reasoning",
+         "proves": "Fuses two sensor covariances by covariance-intersection and verifies the fused matrix is "
+                   "PSD via Sylvester's criterion. Tamper uses an out-of-range weight -> non-PSD (inconsistent) "
+                   "estimate -> fusion REJECTED; signed + chained."},
+        {"id": "P17", "key": "mesh-k1-failure", "title": "MR-1 mesh k-1 failure",
+         "capability": "Operator",
+         "proves": "Checks the control mesh's k-1 resilience by removing each node and testing connectivity; a "
+                   "cut vertex means a single failure partitions the mesh. Tamper uses a bridge topology -> cut "
+                   "vertex found -> k-1 FAILS; flagged + signed + chained."},
+        {"id": "P18", "key": "dsse-forgery", "title": "DSSE signature forgery",
+         "capability": "Provenance",
+         "proves": "Builds a real DSSE PAE and signs it; verification recomputes the MAC. Tamper alters the "
+                   "body but reuses the old signature -> recomputed MAC differs -> FORGERY rejected by "
+                   "constant-time compare; also signed + chained."},
+        {"id": "P19", "key": "kb-poisoning-rag", "title": "KB poisoning vs grounded-RAG refusal",
+         "capability": "Reasoning",
+         "proves": "Each retrieved document is hashed and checked against a trusted allowlist; the model answers "
+                   "only when every doc is grounded. Tamper injects a poisoned doc (hash off the allowlist) -> "
+                   "grounded REFUSAL instead of an unsafe answer; signed + chained."},
+        {"id": "P20", "key": "trust-score-floor", "title": "Trust-score floor evasion",
+         "capability": "Policy/Safety",
+         "proves": "Composes trust as a geometric mean of signed component scores (conjunctive) and compares to "
+                   "the policy floor. Tamper inflates the arithmetic mean but one component is low -> geomean "
+                   "below floor -> evasion BLOCKED; signed + chained."},
+        {"id": "P21", "key": "merkle-replay-localize", "title": "Receipt-chain replay localization",
+         "capability": "Receipts",
+         "proves": "Each signed receipt carries a monotonic nonce; the verifier localizes the first duplicate as "
+                   "a replayed receipt (distinct from byte-level tamper). Tamper replays a stale nonce -> "
+                   "REPLAY localized -> rejected; signed + chained."},
+        {"id": "P22", "key": "egress-exfil", "title": "CHAPAQ egress-inspector exfiltration breach",
+         "capability": "Policy/Safety",
+         "proves": "The CHAPAQ egress inspector scans the outbound payload for classified markers and enforces a "
+                   "byte budget as a conjunctive DLP gate. Tamper embeds a classified marker + oversize payload "
+                   "-> egress BLOCKED; breach signed + chained."},
+        {"id": "P23", "key": "rate-limit-quota", "title": "Token-bucket rate-limit / quota breach",
+         "capability": "Operator",
+         "proves": "Simulates a real token-bucket over a request-arrival trace; a request is served only if a "
+                   "token is available. Tamper sends a burst that empties the bucket -> requests DENIED "
+                   "(rate-limit enforced); signed + chained."},
+        {"id": "P24", "key": "delegation-scope", "title": "Operator delegation scope-creep",
+         "capability": "Policy/Safety",
+         "proves": "Checks the requested capability set is a subset of the operator's delegated scope (least "
+                   "privilege). Tamper requests an out-of-scope capability (e.g. weapons:release) -> SCOPE CREEP "
+                   "blocked; signed + chained."},
+        {"id": "P25", "key": "knowledge-ontology-drift", "title": "Knowledge-ontology consistency / schema-drift gate",
+         "capability": "Provenance",
+         "proves": "Validates the knowledge ontology as a typed DAG: a cycle or an unknown relation type is "
+                   "schema drift. Tamper introduces a cycle + an unknown relation -> ingestion REJECTED; "
+                   "signed + chained."},
     ]
     _WH_BY_KEY = {d["key"]: d for d in _WH_DEMOS}
     _WH_AXES = {"soundness": 0.95, "calibration": 0.92, "robustness": 0.94,
@@ -3186,7 +3286,7 @@ try:
                           "launch_at": "/api/a11oy/v1/warhacker/launch/" + d["key"]}
                          for d in _WH_DEMOS],
             "lambda_status": "Conjecture 1 (advisory, not a pass/fail oracle)",
-            "slsa": "SLSA L1 across all organs; L2 build-provenance verified on 3/5 (a11oy/sentra/rosie), L2 roadmap for the rest.",
+            "slsa": "SLSA L1 honest across all organs; L2 build-provenance is roadmap (not yet claimed).",
         })
 
     # Map the launch keys to the REAL exhaustive-demo engine keys (the demos
@@ -3197,6 +3297,15 @@ try:
                           "ai-sbom": "ai-sbom", "ai_sbom": "ai-sbom",
                           "agentic-provenance": "agentic-provenance",
                           "agentic_provenance": "agentic-provenance"}
+    # The 18 new demos use identical engine keys; map each to itself so the launch
+    # endpoint delegates straight into szl_warhacker_demos._DEMOS[key].
+    for _wh_k in ("p2-gate-soundness", "p3-prompt-injection", "receipt-chain-tamper",
+                  "model-router-envelope", "conformal-miscoverage", "quorum-split-brain",
+                  "gershgorin-command", "stl-robustness", "covariance-intersection",
+                  "mesh-k1-failure", "dsse-forgery", "kb-poisoning-rag",
+                  "trust-score-floor", "merkle-replay-localize", "egress-exfil",
+                  "rate-limit-quota", "delegation-scope", "knowledge-ontology-drift"):
+        _WH_LAUNCH_TO_DEMO[_wh_k] = _wh_k
 
     @app.post("/api/a11oy/v1/warhacker/launch/{problem}")
     @app.post("/v1/warhacker/launch/{problem}")
@@ -4629,7 +4738,7 @@ async def api_health() -> JSONResponse:
         "lean_sha": "c7c0ba17",
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
-        "slsa": "SLSA L1 across all organs; L2 build-provenance verified on 3/5 (a11oy/sentra/rosie), L2 roadmap for the rest.",
+        "slsa": "SLSA L1 honest across all organs; L2 build-provenance is roadmap (not yet claimed).",
     })
 
 
