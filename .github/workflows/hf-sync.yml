@@ -7,15 +7,29 @@ name: Sync to HuggingFace Space
 # commits; (3) the upload_folder variant pushed the GitHub README verbatim with
 # NO Space front-matter, which CONFIG_ERROR'd the Space. create_commit of a
 # front-matter-prepended README needs no git history and no LFS, so it avoids all
-# three. Deployed app files already live on the Space and are NOT re-synced here.
-# Front-matter is base64 (FM_B64) so the python here-doc stays fully indented
-# inside the YAML block scalar (the indentation pitfall flagged in sentra).
+# three. Front-matter is base64 (FM_B64) so the python here-doc stays fully
+# indented inside the YAML block scalar (the indentation pitfall flagged in sentra).
+#
+# front-door sync (drift-fix 2026-06-07): the README-only sync let the served
+# front-door HTML drift — an edit to pages/console.html / console/index.html on
+# GitHub would silently disappear on the next HF factory rebuild (the Space kept
+# its own older copy), forcing a manual second push to both repos. The
+# "Sync front-door files" step below now mirrors the plain-text front-door files
+# (pages/*.html, pages/*.js, console/*.html, console/*.js) to the Space via the
+# same git-free create_commit path. It deliberately EXCLUDES the built SPA
+# bundles (console/assets/**, console/static/**) — those are large/possibly-LFS
+# deployed artifacts that already live on the Space, and re-syncing them would
+# reintroduce the LFS/pre-receive failures documented above. Timestamped
+# *.bak-* backups are skipped.
 
 on:
   push:
     branches: [main]
     paths:
       - "README.md"
+      - "pages/**"
+      - "console/*.html"
+      - "console/*.js"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
@@ -93,4 +107,59 @@ jobs:
                                   "Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>"),
           )
           print("HF commit:", commit.oid, "->", space)
+          PYEOF
+      - name: Sync front-door files to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: SZLHOLDINGS/a11oy
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN secret is not set on this repo — cannot push to the HuggingFace Space."
+            exit 1
+          fi
+          python3 <<'PYEOF'
+          import os, glob
+          from huggingface_hub import HfApi, CommitOperationAdd
+
+          # Plain-text front-door files served directly by serve.py (pages/console.html
+          # is the home page at "/", console/index.html is the SPA history fallback).
+          # EXCLUDES console/assets/** and console/static/** — those are the built SPA
+          # bundles (large / possibly LFS) that already live on the Space; re-syncing
+          # them reintroduces the documented LFS/pre-receive failures.
+          patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js"]
+          paths = []
+          for pat in patterns:
+              paths.extend(glob.glob(pat))
+          # Regular files only; skip timestamped *.bak-* backups.
+          paths = sorted(
+              p for p in set(paths)
+              if os.path.isfile(p) and ".bak" not in os.path.basename(p)
+          )
+
+          ops = []
+          for p in paths:
+              with open(p, "rb") as fh:
+                  ops.append(CommitOperationAdd(path_in_repo=p, path_or_fileobj=fh.read()))
+
+          if not ops:
+              print("No front-door files found to sync.")
+          else:
+              api = HfApi(token=os.environ["HF_TOKEN"])
+              space = os.environ["SPACE_ID"]
+              commit = api.create_commit(
+                  repo_id=space,
+                  repo_type="space",
+                  operations=ops,
+                  commit_message="chore(sync): mirror front-door files to Space (hf-sync)",
+                  commit_description=(
+                      "Automated front-door sync from szl-holdings/a11oy main via hf-sync.\n"
+                      "Files: " + ", ".join(p for p in paths) + "\n\n"
+                      "Keeps the served front-door (pages/*.html, console/*.html) identical\n"
+                      "to GitHub main so an HF factory rebuild never drops a GitHub edit."
+                  ),
+              )
+              print("HF commit:", commit.oid, "->", space, "files:", len(ops))
+              for p in paths:
+                  print("  synced:", p)
           PYEOF
