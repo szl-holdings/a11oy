@@ -483,6 +483,27 @@ except Exception as _w910_e:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (LIVE DATA + RESEARCH INSTILLATION, 2026-06): server-side public-feed
+# fan-out so the browser never makes cross-origin calls (no CORS, single egress).
+# Wires NVD 2.0 CVE + CISA KEV + arXiv as LIVE feeds (cached briefly, labelled
+# source+timestamp, honest labelled-sample fallback if unreachable) and surfaces
+# the in-image knowledge.json corpus as ONE consolidated research endpoint (no
+# fabrication). Key-gated feeds (AISStream, ADSBexchange) return a 'needs API key'
+# placeholder. SOVEREIGNTY: these are live DATA fetches (data, not code) done
+# server-side; 0 runtime CDN for libs/assets is unaffected. stdlib-only,
+# registered BEFORE the SPA catch-all, try/except-guarded so it can NEVER take
+# the Space down. Mounts:
+#   GET /api/a11oy/v1/live/cve|kev|arxiv|feeds  +  /api/a11oy/v1/research/corpus
+# ---------------------------------------------------------------------------
+try:
+    import szl_a11oy_live_feeds as _a11oy_live
+    _a11oy_live_status = _a11oy_live.register(app, ns="a11oy")
+    print(f"[a11oy] LIVE feeds + research corpus registered: {_a11oy_live_status}", file=sys.stderr)
+except Exception as _alf_e:  # additive: never break the Space
+    print(f"[a11oy] LIVE feeds NOT registered: {_alf_e!r}; SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Load gates manifest at startup
 # ---------------------------------------------------------------------------
 
@@ -1373,6 +1394,42 @@ try:
 
     _A11OY_SHADOW = _rc.RosieShadow("a11oy")  # internal handle; label is "Companion"
 
+    # DOCTRINE: the internal co-pilot module renders some keys/strings that carry
+    # the legacy 'rosie' codename (e.g. rosie_receipt, szl.rosie_companion.*,
+    # [rosie-shadow STUB ...], /api/rosie/v1/...). a11oy MUST never surface an
+    # internal codename in rendered JSON, so every Companion response is scrubbed
+    # to the public "deep-reasoning tier" vocabulary before it leaves the Space.
+    # Pure string/key rewrite — does not touch the internal wiring or receipts'
+    # cryptographic content (only the human-readable labels).
+    import re as _cmp_re
+    _CMP_SUBS = [
+        ("szl.rosie_companion", "szl.deep_reasoning"),
+        ("rosie_companion", "deep_reasoning"),
+        ("rosie-shadow", "deep-reasoning-tier"),
+        ("Rosie-shadow", "deep-reasoning tier"),
+        ("rosie_receipt", "deep_tier_receipt"),
+        ("rosie_endpoint", "deep_tier_endpoint"),
+        ("/api/rosie/v1", "/api/deep-reasoning/v1"),
+        ("szlholdings-rosie.hf.space", "deep-reasoning-tier"),
+        ("Rosie", "the deep-reasoning tier"),
+        ("ROSIE", "DEEP-REASONING-TIER"),
+        ("rosie", "deep-reasoning-tier"),
+    ]
+
+    def _companion_scrub(obj):
+        """Recursively rewrite any internal codename in keys/strings to the public
+        Companion / deep-reasoning-tier vocabulary. Doctrine: 0 user-visible codenames."""
+        if isinstance(obj, str):
+            out = obj
+            for _a, _b in _CMP_SUBS:
+                out = out.replace(_a, _b)
+            return out
+        if isinstance(obj, dict):
+            return {_companion_scrub(k): _companion_scrub(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_companion_scrub(x) for x in obj]
+        return obj
+
     def _a11oy_router_tier_to_deep(tier: str) -> bool:
         """a11oy.code router escalation rule: deep-reasoning tiers T4/T5 consult
         the deep-reasoning co-pilot. T0-T3 stay on the local unified-LLM router."""
@@ -1401,7 +1458,7 @@ try:
             body = {"context": body}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.ponder(body.get("context", body), traceparent=tp)
-        return JSONResponse(r.to_dict())
+        return JSONResponse(_companion_scrub(r.to_dict()))
 
     @app.post("/api/a11oy/v1/companion/synthesize")
     @app.post("/api/a11oy/v1/rosie-companion/synthesize")  # legacy alias
@@ -1413,7 +1470,7 @@ try:
             body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.synthesize(body.get("events", []), traceparent=tp)
-        return JSONResponse(r.to_dict())
+        return JSONResponse(_companion_scrub(r.to_dict()))
 
     @app.post("/api/a11oy/v1/companion/evolve")
     @app.post("/api/a11oy/v1/rosie-companion/evolve")  # legacy alias
@@ -1426,7 +1483,7 @@ try:
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         p = _A11OY_SHADOW.evolve(body.get("strategy", {}),
                                  approvers=body.get("approvers", []), traceparent=tp)
-        return JSONResponse(p.to_dict())
+        return JSONResponse(_companion_scrub(p.to_dict()))
 
     @app.post("/api/a11oy/v1/companion/brain-jack")
     @app.post("/api/a11oy/v1/rosie-companion/brain-jack")  # legacy alias
@@ -1440,7 +1497,7 @@ try:
         r = _A11OY_SHADOW.brain_jack(body.get("query", ""),
                                      depth=int(body.get("depth", 1)),
                                      axis_scores=body.get("axis_scores"), traceparent=tp)
-        return JSONResponse(r.to_dict())
+        return JSONResponse(_companion_scrub(r.to_dict()))
 
     @app.post("/api/a11oy/v1/code/chat-deep")
     async def a11oy_code_chat_deep(request: Request) -> JSONResponse:
@@ -2417,8 +2474,9 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # shape the scene's normalizeStats() consumes. Registered at BOTH the root path
 # (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
 # proxy + SPA, matching the existing /v4/fleet dual-registration pattern.
-# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA Build L2 attested (signed
-# slsa.dev/provenance/v0.2 .att on the GHCR image; never L3) — unchanged.
+# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1 honest (cosign-signed
+# GHCR image, Sigstore + Rekor verifiable); SLSA L2 build-provenance is roadmap
+# (NOT yet claimed); never L3/FedRAMP/Iron Bank/CMMC — unchanged.
 # ===========================================================================
 import time as _rtr_time
 
@@ -2570,26 +2628,29 @@ except Exception as _elite_e:
 @app.get("/api/a11oy/v4/fleet")
 @app.get("/v4/fleet")
 async def api_a11oy_v4_fleet_early() -> JSONResponse:
-    """Fleet status panel — live health of all SZL flagship Spaces.
-    Registered before /api/a11oy/{path:path} proxy so route ordering wins."""
+    """Fleet status panel — live health of the SZL flagship Spaces.
+    Registered before /api/a11oy/{path:path} proxy so route ordering wins.
+    Peers are surfaced under generic capability labels — no internal codenames
+    or dead *.hf.space targets are ever user-visible."""
     import urllib.request as _ureq, json as _json
     from datetime import datetime as _dt
+    # (display_label, health_url) — only LIVE flagships; deprecated organ
+    # endpoints (e.g. the retired companion Space) are intentionally omitted.
     _peers_cfg = [
-        ("a11oy",    "https://szlholdings-a11oy.hf.space/api/health"),
-        ("sentra",   "https://szlholdings-sentra.hf.space/api/health"),
-        ("amaru",    "https://szlholdings-amaru.hf.space/api/health"),
-        ("rosie",    "https://szlholdings-rosie.hf.space/api/health"),
-        ("killinchu","https://szlholdings-killinchu.hf.space/api/health"),
+        ("Orchestration", "https://szlholdings-a11oy.hf.space/api/health"),
+        ("Policy / Safety", "https://szlholdings-sentra.hf.space/api/health"),
+        ("Reasoning", "https://szlholdings-amaru.hf.space/api/health"),
+        ("Intelligence", "https://szlholdings-killinchu.hf.space/api/health"),
     ]
     peers = []
-    for _name, _url in _peers_cfg:
+    for _label, _url in _peers_cfg:
         try:
             _req = _ureq.Request(_url, headers={"User-Agent": "szl-fleet-probe/1.0"})
             with _ureq.urlopen(_req, timeout=5) as _r:
                 _body = _json.loads(_r.read())
-            peers.append({"flagship": _name, "status": "ok", "http_code": 200, **_body})
+            peers.append({"capability": _label, "status": "ok", "http_code": 200, **_body})
         except Exception as _e:
-            peers.append({"flagship": _name, "status": "unreachable", "error": str(_e)[:120]})
+            peers.append({"capability": _label, "status": "unreachable", "error": str(_e)[:120]})
     return JSONResponse({
         "timestamp": _dt.utcnow().isoformat() + "Z",
         "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
@@ -3431,7 +3492,8 @@ except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
 # pack registry, business observability. Registered BEFORE the SPA catch-all.
 #
 # HONESTY: Λ = Conjecture 1 (advisory, never a pass/fail oracle). 5 proven
-# formulas {F1,F11,F12,F18,F19}. SLSA L2 (NOT L3/FedRAMP/Iron Bank). No
+# formulas {F1,F11,F12,F18,F19}. SLSA L1 honest; L2 build-provenance roadmap
+# (not yet claimed); NOT L3/FedRAMP/Iron Bank/CMMC. No
 # cross-origin organ dependencies — a11oy is fully self-contained.
 # The DSSE key below is a REAL ephemeral ECDSA P-256 key generated in-image
 # at boot (resets on rebuild). Receipts signed with it verify PASS in-browser
@@ -4747,25 +4809,28 @@ async def api_health() -> JSONResponse:
 @app.get("/api/a11oy/v4/fleet")
 @app.get("/v4/fleet")
 async def api_a11oy_v4_fleet() -> JSONResponse:
-    """Fleet status panel — live health of all SZL flagship Spaces."""
+    """Fleet status panel — live health of the SZL flagship Spaces.
+    Peers are surfaced under generic capability labels — no internal codenames
+    or dead *.hf.space targets are ever user-visible."""
     import asyncio, urllib.request as _ureq, json as _json
     from datetime import datetime as _dt
+    # (display_label, health_url) — only LIVE flagships; deprecated organ
+    # endpoints (e.g. the retired companion Space) are intentionally omitted.
     _peers_cfg = [
-        ("a11oy",    "https://szlholdings-a11oy.hf.space/api/health"),
-        ("sentra",   "https://szlholdings-sentra.hf.space/api/health"),
-        ("amaru",    "https://szlholdings-amaru.hf.space/api/health"),
-        ("rosie",    "https://szlholdings-rosie.hf.space/api/health"),
-        ("killinchu","https://szlholdings-killinchu.hf.space/api/health"),
+        ("Orchestration", "https://szlholdings-a11oy.hf.space/api/health"),
+        ("Policy / Safety", "https://szlholdings-sentra.hf.space/api/health"),
+        ("Reasoning", "https://szlholdings-amaru.hf.space/api/health"),
+        ("Intelligence", "https://szlholdings-killinchu.hf.space/api/health"),
     ]
     peers = []
-    for _name, _url in _peers_cfg:
+    for _label, _url in _peers_cfg:
         try:
             _req = _ureq.Request(_url, headers={"User-Agent": "szl-fleet-probe/1.0"})
             with _ureq.urlopen(_req, timeout=5) as _r:
                 _body = _json.loads(_r.read())
-            peers.append({"flagship": _name, "status": "ok", "http_code": 200, **_body})
+            peers.append({"capability": _label, "status": "ok", "http_code": 200, **_body})
         except Exception as _e:
-            peers.append({"flagship": _name, "status": "unreachable", "error": str(_e)[:120]})
+            peers.append({"capability": _label, "status": "unreachable", "error": str(_e)[:120]})
     return JSONResponse({
         "timestamp": _dt.utcnow().isoformat() + "Z",
         "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
