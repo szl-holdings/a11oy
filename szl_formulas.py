@@ -494,7 +494,14 @@ def dsse_envelope_real(
     bundle_json = json.loads(bundle.to_json())
     dsse_part = bundle_json.get("dsseEnvelope", {})
 
-    log_entry = bundle.log_entry
+    # Rekor inclusion data lives in the bundle's verificationMaterial. Read it from
+    # the canonical JSON (camelCase, public) rather than a private SDK attribute,
+    # so the recorded log index / integrated time stay correct across SDK versions.
+    tlog_entries = (bundle_json.get("verificationMaterial", {}) or {}).get("tlogEntries", []) or []
+    tlog0 = tlog_entries[0] if tlog_entries else {}
+    rekor_log_index = tlog0.get("logIndex")
+    rekor_integrated_time = tlog0.get("integratedTime")
+
     cert = bundle.signing_certificate
     cert_fpr = sha256(cert.public_bytes(Encoding.DER)).hexdigest()
 
@@ -516,8 +523,8 @@ def dsse_envelope_real(
         "_sigstore": {
             "bundle": bundle_json,
             "certificate_fpr_sha256": cert_fpr,
-            "rekor_log_index": getattr(log_entry, "log_index", None),
-            "rekor_integrated_time": getattr(log_entry, "integrated_time", None),
+            "rekor_log_index": rekor_log_index,
+            "rekor_integrated_time": rekor_integrated_time,
             "oidc_issuer": _SIGSTORE_OIDC_ISSUER,
         },
     }
