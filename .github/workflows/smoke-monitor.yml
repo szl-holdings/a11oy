@@ -1,8 +1,19 @@
 # smoke-monitor.yml — Synthetic monitoring for SZL Holdings flagship HF Spaces
 # Runs every 5 minutes via cron; logs results; closes C-05 gap.
 # Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
+#
+# 2026-06-07 (restore + dedup): the org consolidated sentra/amaru/rosie INTO a11oy,
+# so those three Spaces no longer exist (HF returned 404 "Repository not found" and
+# the monitor filed a fresh duplicate issue every 5 min). The live flagship organs
+# are now exactly TWO: a11oy and killinchu. This rewrite:
+#   1. Probes only the organs that actually exist (a11oy, killinchu).
+#   2. Follows redirects (curl -L) so killinchu's intentional `/` -> `/elite`
+#      front-door 307 is counted as the healthy 200 it resolves to (NOT a mute:
+#      /elite is the real served surface and returns 200).
+#   3. Maintains ONE rolling incident issue PER ORGAN instead of creating a new
+#      issue on every failing run — it reopens+comments an existing incident, and
+#      auto-closes the incident when the organ recovers.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 
 name: Synthetic Smoke Monitor
 
@@ -27,69 +38,116 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Smoke test all 5 HF Spaces
+      - name: Smoke test live flagship HF Spaces
         id: smoke
         run: |
           set +e
+
+          # -L follows redirects and reports the FINAL status code, so a
+          # by-design front-door redirect (killinchu / -> /elite, 200) is healthy.
+          probe() {
+            curl -L -o /dev/null -s -w '%{http_code}' --max-time 15 "$1"
+          }
+
+          # Aggregate pass/fail PER ORGAN. An organ is healthy only if every one
+          # of its advertised routes returns 200 (after redirects).
+          declare -A ORGAN_OK
+          declare -A ORGAN_DETAIL
           PASS=0
           FAIL=0
-          FAILURES=""
 
           check() {
-            local name="$1"
-            local url="$2"
-            local code
-            code=$(curl -o /dev/null -s -w '%{http_code}' --max-time 15 "$url")
+            local organ="$1" name="$2" url="$3" code
+            code=$(probe "$url")
             if [ "$code" = "200" ]; then
               echo "  PASS: $name => $code"
               PASS=$((PASS+1))
             else
               echo "  FAIL: $name => $code"
               FAIL=$((FAIL+1))
-              FAILURES="$FAILURES\n- $name: HTTP $code"
+              ORGAN_OK[$organ]=0
+              ORGAN_DETAIL[$organ]="${ORGAN_DETAIL[$organ]}- $name: HTTP $code\n"
             fi
+            : "${ORGAN_OK[$organ]:=1}"
           }
 
-          check "a11oy /" "https://szlholdings-a11oy.hf.space/"
-          check "a11oy /v1/lambda" "https://szlholdings-a11oy.hf.space/v1/lambda"
-          check "a11oy /v1/honest" "https://szlholdings-a11oy.hf.space/v1/honest"
-          check "a11oy /api/a11oy/v4/fleet" "https://szlholdings-a11oy.hf.space/api/a11oy/v4/fleet"
-          check "sentra /" "https://szlholdings-sentra.hf.space/"
-          check "sentra /api/sentra/v1/lambda" "https://szlholdings-sentra.hf.space/api/sentra/v1/lambda"
-          check "sentra /api/sentra/v1/verdict" "https://szlholdings-sentra.hf.space/api/sentra/v1/verdict"
-          check "amaru /" "https://szlholdings-amaru.hf.space/"
-          check "amaru /api/amaru/v1/lambda" "https://szlholdings-amaru.hf.space/api/amaru/v1/lambda"
-          check "amaru /api/amaru/v1/brain" "https://szlholdings-amaru.hf.space/api/amaru/v1/brain"
-          check "rosie /" "https://szlholdings-rosie.hf.space/"
-          check "rosie /api/rosie/v1/lambda" "https://szlholdings-rosie.hf.space/api/rosie/v1/lambda"
-          check "rosie /api/rosie/v1/honest" "https://szlholdings-rosie.hf.space/api/rosie/v1/honest"
-          check "killinchu /" "https://szlholdings-killinchu.hf.space/"
-          check "killinchu /api/killinchu/v1/lambda" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/lambda"
-          check "killinchu /api/killinchu/v1/honest" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest"
+          # --- a11oy (governance + receipt substrate; consolidated organ) ---
+          check a11oy "a11oy /"                    "https://szlholdings-a11oy.hf.space/"
+          check a11oy "a11oy /v1/lambda"           "https://szlholdings-a11oy.hf.space/v1/lambda"
+          check a11oy "a11oy /v1/honest"           "https://szlholdings-a11oy.hf.space/v1/honest"
+          check a11oy "a11oy /api/a11oy/v4/fleet"  "https://szlholdings-a11oy.hf.space/api/a11oy/v4/fleet"
+
+          # --- killinchu (Andean drone intelligence) ---
+          check killinchu "killinchu /"                          "https://szlholdings-killinchu.hf.space/"
+          check killinchu "killinchu /api/killinchu/v1/lambda"   "https://szlholdings-killinchu.hf.space/api/killinchu/v1/lambda"
+          check killinchu "killinchu /api/killinchu/v1/honest"   "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest"
 
           echo "PASS=$PASS FAIL=$FAIL"
-          echo "pass=$PASS" >> $GITHUB_OUTPUT
-          echo "fail=$FAIL" >> $GITHUB_OUTPUT
 
-          if [ "$FAIL" -gt 0 ]; then
-            echo "failures<<EOF" >> $GITHUB_OUTPUT
-            echo -e "$FAILURES" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          # Emit a per-organ JSON status object the issue-manager step consumes.
+          ORGANS="a11oy killinchu"
+          json="{"
+          first=1
+          for o in $ORGANS; do
+            ok="${ORGAN_OK[$o]:-1}"
+            detail="${ORGAN_DETAIL[$o]:-}"
+            [ "$first" = 1 ] || json="$json,"
+            first=0
+            # JSON-escape the detail (it only ever contains route names + codes).
+            esc=$(printf '%s' "$detail" | sed 's/"/\\"/g')
+            if [ "$ok" = 1 ]; then
+              json="$json\"$o\":{\"ok\":true,\"detail\":\"\"}"
+            else
+              json="$json\"$o\":{\"ok\":false,\"detail\":\"$esc\"}"
+            fi
+          done
+          json="$json}"
+          echo "organs=$json" >> "$GITHUB_OUTPUT"
+          echo "$json"
 
-      - name: Open issue on failure
-        if: failure()
+      - name: Reconcile rolling incident issues (one per organ)
+        if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const failures = `${{ steps.smoke.outputs.failures }}`;
-            const title = `[SMOKE ALERT] Flagship endpoint failure detected ${new Date().toISOString()}`;
-            const body = `## Smoke Monitor Alert\n\nThe following endpoints failed:\n${failures}\n\n**Doctrine v11 LOCKED 749/14/163** | Run: ${{ github.run_id }}`;
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body,
-              labels: ['smoke-alert', 'incident'],
-            });
+            const organs = JSON.parse(`${{ steps.smoke.outputs.organs }}` || '{}');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            // Stable per-organ marker so each organ maps to exactly ONE incident.
+            const marker = (o) => `<!-- smoke-incident:${o} -->`;
+
+            async function findIncident(o) {
+              // Search the most recent issue (open or closed) carrying this organ's marker.
+              const q = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker(o)}" label:smoke-alert`;
+              const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
+              return res.data.items.find(i => !i.pull_request) || null;
+            }
+
+            for (const [o, st] of Object.entries(organs)) {
+              const existing = await findIncident(o);
+              if (!st.ok) {
+                const detail = (st.detail || '').replace(/\\n/g, '\n');
+                const body = `## Smoke Monitor Incident — \`${o}\`\n\n${marker(o)}\n` +
+                  `**Organ:** ${o}\n**State:** DOWN\n**Last failing run:** ${runUrl}\n**Detected:** ${new Date().toISOString()}\n\n` +
+                  `Failing routes:\n${detail}\n\nThis is a single rolling incident; it updates in place each cycle and auto-closes on recovery.`;
+                if (existing) {
+                  if (existing.state === 'closed') {
+                    await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
+                  }
+                  await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                    body: `Still DOWN as of ${new Date().toISOString()}.\n\nFailing routes:\n${detail}\nRun: ${runUrl}` });
+                } else {
+                  await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                    title: `[SMOKE] ${o} flagship endpoint(s) down`, body, labels: ['smoke-alert', 'incident'] });
+                }
+              } else if (existing && existing.state === 'open') {
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Recovered: \`${o}\` is healthy again (all routes 200) as of ${new Date().toISOString()}. Auto-closing this rolling incident.\nRun: ${runUrl}` });
+                await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+              }
+            }
+
+      - name: Fail the run if any organ is down
+        if: always()
+        run: |
+          echo '${{ steps.smoke.outputs.organs }}' | grep -q '"ok":false' && { echo "One or more organs down"; exit 1; } || echo "All organs healthy"
