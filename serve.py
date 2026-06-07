@@ -3942,10 +3942,32 @@ try:
                        or os.environ.get("HF_ROUTER_BASE")
                        or "https://router.huggingface.co/v1").rstrip("/")
 
+    # Candidate secret names, in priority order. HF Space secrets are sometimes
+    # saved under a non-standard key (e.g. 'Token'), so we read a broad set and
+    # strip stray quotes/whitespace. Server-side only; never sent to the browser.
+    _AC_TOKEN_NAMES = ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HF_ROUTER_TOKEN",
+                       "HF_API_TOKEN", "HUGGINGFACE_TOKEN", "HUGGINGFACEHUB_API_TOKEN",
+                       "Token")
+
+    def _ac_token_source() -> str:
+        # Returns the NAME of the secret that supplied the token (never the value),
+        # for honest non-sensitive diagnostics on the health endpoint.
+        for _name in _AC_TOKEN_NAMES:
+            _v = os.environ.get(_name)
+            if _v and _v.strip().strip('"').strip("'").strip():
+                return _name
+        return ""
+
     def _ac_hf_token() -> str:
         # Read at RUNTIME so a founder-provisioned Space secret is honoured
         # without a code change. Server-side only; never sent to the browser.
-        return os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or ""
+        for _name in _AC_TOKEN_NAMES:
+            _v = os.environ.get(_name)
+            if _v:
+                _v = _v.strip().strip('"').strip("'").strip()
+                if _v:
+                    return _v
+        return ""
 
     def _ac_mode() -> str:
         return "generative" if _ac_hf_token() else "deterministic"
@@ -4104,6 +4126,8 @@ try:
             "service": "a11oy.code",
             "mode": _ac_mode(),
             "inference": "hf-router" if _ac_hf_token() else "NO-CREDENTIAL (deterministic)",
+            "token_source": _ac_token_source() or None,
+            "token_candidates": list(_AC_TOKEN_NAMES),
             "router_base": _AC_ROUTER_BASE,
             "primary_model": _AC_HF_ROSTER[0]["hf_repo"],
             "roster": _ac_open_weight_roster(),
