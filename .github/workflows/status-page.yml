@@ -1,8 +1,12 @@
 # status-page.yml — Update STATUS.md based on live endpoint checks.
 # Runs every 15 minutes. Provides public status visibility (C-09).
 # Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+#
+# 2026-06-07: sentra/amaru/rosie were consolidated INTO a11oy and their Spaces
+# removed; the live flagship organs are now a11oy and killinchu only. Probes use
+# `curl -L` so killinchu's by-design `/` -> `/elite` front-door redirect is
+# recorded as the healthy 200 it resolves to.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
 
 name: Status Page Update
 
@@ -33,7 +37,7 @@ jobs:
             local name="$1"
             local url="$2"
             local code
-            code=$(curl -o /dev/null -s -w '%{http_code}' --max-time 15 "$url")
+            code=$(curl -L -o /dev/null -s -w '%{http_code}' --max-time 15 "$url")
             if [ "$code" = "200" ]; then
               echo "| $name | OK $code | Operational |"
             else
@@ -50,23 +54,17 @@ jobs:
             echo ""
             echo "## Flagship Endpoints"
             echo ""
+            echo "_Flagship organs: a11oy (governance + receipt substrate; sentra/amaru/rosie consolidated in) and killinchu (Andean drone intelligence)._"
+            echo ""
             echo "| Endpoint | Status | State |"
             echo "|----------|--------|-------|"
             check_endpoint "a11oy root" "https://szlholdings-a11oy.hf.space/"
             check_endpoint "a11oy lambda" "https://szlholdings-a11oy.hf.space/v1/lambda"
             check_endpoint "a11oy honest" "https://szlholdings-a11oy.hf.space/v1/honest"
             check_endpoint "a11oy fleet" "https://szlholdings-a11oy.hf.space/api/a11oy/v4/fleet"
-            check_endpoint "sentra root" "https://szlholdings-sentra.hf.space/"
-            check_endpoint "sentra lambda" "https://szlholdings-sentra.hf.space/api/sentra/v1/lambda"
-            check_endpoint "sentra verdict" "https://szlholdings-sentra.hf.space/api/sentra/v1/verdict"
-            check_endpoint "amaru root" "https://szlholdings-amaru.hf.space/"
-            check_endpoint "amaru lambda" "https://szlholdings-amaru.hf.space/api/amaru/v1/lambda"
-            check_endpoint "amaru brain" "https://szlholdings-amaru.hf.space/api/amaru/v1/brain"
-            check_endpoint "rosie root" "https://szlholdings-rosie.hf.space/"
-            check_endpoint "rosie lambda" "https://szlholdings-rosie.hf.space/api/rosie/v1/lambda"
-            check_endpoint "rosie honest" "https://szlholdings-rosie.hf.space/api/rosie/v1/honest"
             check_endpoint "killinchu root" "https://szlholdings-killinchu.hf.space/"
             check_endpoint "killinchu lambda" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/lambda"
+            check_endpoint "killinchu honest" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest"
             echo ""
             echo "## Doctrine Invariants"
             echo ""
