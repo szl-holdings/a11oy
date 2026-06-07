@@ -17,11 +17,13 @@ Doctrine v11 (Wire B a11oy↔sentra LIVE, Wire C a11oy↔rosie LIVE already).
 
   Wire F — a11oy↔vessels receipts.  Every a11oy gate decision emits a receipt
            that vessels' Khipu DAG ingests via POST /api/vessels/v1/receipts/ingest.
-           Honest: DSSE signature is the PLACEHOLDER (Sigstore CI not wired).
+           Honest: the receipt is DSSE-signed at ingest — a REAL Sigstore keyless
+           signature in CI (id-token: write), the honest placeholder otherwise.
 
 HONESTY: trace IDs are real W3C-format ids; the event buses are in-memory ring
 buffers (no Kafka/NATS in a static HF Space), labeled as such.  Receipt signatures
-are PLACEHOLDER.  Nothing here fabricates cross-process delivery it cannot do.
+are REAL Sigstore keyless in CI (id-token: write) and the honest placeholder in
+the HF Space / box.  Nothing here fabricates cross-process delivery it cannot do.
 """
 # ---------------------------------------------------------------------------
 # DEVELOPER ORIENTATION (added by Perplexity Computer Agent, 2026-06)
@@ -33,7 +35,8 @@ are PLACEHOLDER.  Nothing here fabricates cross-process delivery it cannot do.
 # Related mods:  szl_khipu.py (receipt chain), szl_dsse.py (signing),
 #                serve.py (mount point)
 # Doctrine note: Wire E event bus is an IN-MEMORY ring buffer (no Kafka/NATS).
-#                Wire F receipt signatures are PLACEHOLDER until CI signing lands.
+#                Wire F receipt signatures are REAL Sigstore keyless in CI
+#                (id-token: write) and the honest placeholder otherwise (#203).
 #                Both are honest disclosures — nothing fabricates delivery.
 # ---------------------------------------------------------------------------
 from __future__ import annotations
@@ -173,8 +176,36 @@ def _digest(payload: dict[str, Any], parents: list[str]) -> str:
     return h.hexdigest()
 
 
+def sign_receipt_dsse(receipt: dict[str, Any]) -> dict[str, Any]:
+    """Sign a gate-decision receipt as a DSSE envelope.
+
+    CI-capable path: inside a GitHub Actions job with `id-token: write`, this mints
+    a GENUINE Sigstore keyless signature (Fulcio ephemeral ECDSA-P256 cert + Rekor
+    transparency entry) via szl_formulas.dsse_envelope_real(). In the HF Space / box
+    runtime there is no ambient OIDC token, so it falls back to the HONEST placeholder
+    (never a fabricated signature). The returned dict is always a DSSE envelope whose
+    `_mode` is "SIGSTORE-KEYLESS" or "PLACEHOLDER".
+    """
+    import json as _json
+    payload = _json.dumps(receipt, sort_keys=True).encode()
+    try:
+        from szl_formulas import sign_dsse_or_placeholder
+    except Exception:
+        # szl_formulas not importable here — keep the honest legacy placeholder shape.
+        return {"payloadType": "application/vnd.szl.receipt+json",
+                "signatures": [{"sig": SIGNATURE_PLACEHOLDER, "keyid": "PENDING"}],
+                "_mode": "PLACEHOLDER"}
+    return sign_dsse_or_placeholder(
+        payload, payload_type="application/vnd.szl.receipt+json",
+        subject_name="szl-gate-decision-receipt",
+    )
+
+
 def ingest_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
-    """vessels side of Wire F: append an a11oy gate-decision receipt to the Khipu Merkle DAG."""
+    """vessels side of Wire F: append an a11oy gate-decision receipt to the Khipu Merkle DAG.
+
+    The receipt is DSSE-signed at ingest time: a REAL Sigstore keyless signature in CI
+    (id-token: write), the honest placeholder otherwise. See sign_receipt_dsse()."""
     parents = [_KHIPU_DAG[-1]["digest"]] if _KHIPU_DAG else []
     node = {
         "index": len(_KHIPU_DAG),
@@ -183,8 +214,7 @@ def ingest_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
         "sink": "vessels",
         "receipt": receipt,
         "parents": parents,
-        "dsse": {"payloadType": "application/vnd.szl.receipt+json",
-                 "signatures": [{"sig": SIGNATURE_PLACEHOLDER, "keyid": "PENDING"}]},
+        "dsse": sign_receipt_dsse(receipt),
         "ts_utc": datetime.now(timezone.utc).isoformat(),
     }
     node["digest"] = _digest(receipt, parents)
@@ -238,5 +268,5 @@ def mesh_status() -> dict[str, Any]:
         "coexists_with": "a11oy /wires (sibling Doctrine-v11 surface): /wires is the canonical honest status board (Wire D shown there as NOT YET cross-Space). /mesh adds the in-process traceparent + cortex-SSE + Khipu-receipt live views. No duplication: /mesh LINKS to /wires.",
         "honesty": "In-memory ring buffers (no external broker in a static HF Space). "
                    "Trace IDs are real W3C ids generated + propagated in-process; cross-Space distributed tracing is NOT wired. "
-                   "Receipt signatures are PLACEHOLDER (Sigstore CI not wired). Numbers 749/14/163 per Doctrine v11.",
+                   "Receipt signatures are REAL Sigstore keyless in CI (id-token: write) and the honest placeholder otherwise (#203). Numbers 749/14/163 per Doctrine v11.",
     }

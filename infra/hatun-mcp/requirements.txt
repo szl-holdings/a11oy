@@ -9,3 +9,4 @@ cryptography>=48      # was >=42; latest 48.0.0
 py_ecc>=7.0           # BLS12-381 aggregate signatures (real curve; honest Merkle fallback if absent)
 pytest>=8.0           # test suite (test_server, test_quorum, test_adapters, test_governance)
 pytest-asyncio>=0.23  # async test support
+sigstore>=2.0.0       # Tier B (issue #203): REAL Sigstore keyless DSSE signatures (Fulcio cert + Rekor) for governance receipts; CI-only, honest placeholder otherwise

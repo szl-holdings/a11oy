@@ -9,3 +9,9 @@ vsp-otel>=0.1
 # signatures over the Khipu chain (a11oy.formulas.bls_aggregate). Optional at runtime —
 # the module returns an HONEST error + ECDSA fallback if absent (never a fake 'verified').
 py_ecc>=6.0
+# ADDITIVE (Tier B, issue #203): GENUINE Sigstore keyless signing for deploy/
+# governance receipts (szl_formulas.dsse_envelope_real). Fulcio ephemeral
+# ECDSA-P256 cert + Rekor transparency log. Optional at runtime — only CI jobs
+# with `id-token: write` can mint a real signature; every other runtime keeps the
+# HONEST dsse_envelope() placeholder (DsseSigningUnavailable, never a fake sig).
+sigstore>=2.0.0
