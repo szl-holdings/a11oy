@@ -5534,6 +5534,36 @@ except Exception as _devb_e:
 # ============================================================================
 
 
+# ============================================================================
+# BEGIN: a11oy Provenance & Trust Anchor layer (5 tabs: Public-Ledger Anchor,
+# Post-Quantum Signing, Receipt Provenance Graph 3D, Tamper/Audit Verifier,
+# Anchor Health). ADDITIVE. Namespace /api/a11oy/v1/provenance/* — no overlap
+# with dev1 (/v1/wow), dev2 (/v1/vert), deva (/v1/deva), devb (/v1/devb),
+# code (/v1/code) or operator. register() moves its routes to the FRONT of
+# app.router.routes so they win over the /api/a11oy/{path:path} Node proxy +
+# /{full_path:path} SPA catch-all. Reuses governed_turn + the hash-chained,
+# DSSE-signed receipt ledger (szl_khipu / szl_dsse). Live sources: Google
+# Argon/Xenon CT + Cloudflare Nimbus signed tree heads, mempool.space /
+# blockstream.info Bitcoin tip. PQC posture honest (classical ECDSA-P256 DSSE
+# LIVE; ML-DSA/ML-KEM/SLH-DSA ROADMAP). 0 fabricated data, 0 runtime CDN.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_amaru_feeds as _a11oy_amaru
+    import sys as _amaru_sys
+    _amaru_status = _a11oy_amaru.register(app)
+    print(f"[a11oy] Provenance & Trust Anchor registered: {_amaru_status}", file=_amaru_sys.stderr)
+    _A11OY_AMARU_DIAG = {"status": "ok", "registered": _amaru_status}
+except Exception as _amaru_e:
+    import sys as _amaru_sys, traceback as _amaru_tb
+    print(f"[a11oy] Provenance & Trust Anchor FAILED (non-fatal): {_amaru_e!r}", file=_amaru_sys.stderr)
+    _amaru_tb.print_exc(file=_amaru_sys.stderr)
+    _A11OY_AMARU_DIAG = {"status": "FAILED", "error": repr(_amaru_e)}
+# ============================================================================
+# END: a11oy Provenance & Trust Anchor layer
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
