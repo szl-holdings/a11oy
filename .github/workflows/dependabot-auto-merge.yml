@@ -1,17 +1,17 @@
 name: Dependabot auto-merge
 
-# Automatically enable GitHub auto-merge on low-risk Dependabot PRs
-# (patch and minor version bumps) so routine fixes land without manual
-# toil. GitHub still waits for all required branch-protection status
-# checks to pass before completing the merge. Major-version bumps are
-# intentionally left for manual review.
+# Automatically enable GitHub auto-merge on low-risk Dependabot PRs so
+# routine fixes land without manual toil. GitHub still waits for all
+# required branch-protection status checks to pass before completing the
+# merge. Anything that is not unambiguously patch/minor (major bumps, or
+# updates whose semver level can't be determined) is left for manual review.
 #
-# How it works:
-#   1. dependabot/fetch-metadata classifies the update (semver-patch /
-#      -minor / -major). For grouped PRs it reports the HIGHEST bump in
-#      the group, so a group containing any major bump is not auto-merged.
-#   2. `gh pr merge --auto --squash` queues the merge; GitHub completes it
-#      only once the required "check" status (and any others) succeeds.
+# Why per-dependency parsing instead of the top-level `update-type`:
+# this repo groups its Dependabot updates (see .github/dependabot.yml), and
+# for grouped PRs `dependabot/fetch-metadata` reports `update-type: null`.
+# We therefore inspect `updated-dependencies-json` and require EVERY updated
+# dependency in the PR to be semver-patch or semver-minor. A group that
+# contains any major (or any dependency with an unknown level) is not merged.
 
 on: pull_request
 
@@ -35,16 +35,35 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge for patch and minor updates
-        if: >-
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+      - name: Classify update (all deps must be patch/minor)
+        id: classify
+        env:
+          DEPS_JSON: ${{ steps.metadata.outputs.updated-dependencies-json }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPS_JSON:-}" ] || [ "$DEPS_JSON" = "null" ]; then
+            echo "No dependency metadata available; leaving for manual review."
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          total=$(jq 'length' <<<"$DEPS_JSON")
+          unsafe=$(jq '[.[] | select(.updateType != "version-update:semver-patch" and .updateType != "version-update:semver-minor")] | length' <<<"$DEPS_JSON")
+          echo "Updated dependencies ($total):"
+          jq -r '.[] | "  - \(.dependencyName): \(.updateType // "unknown")"' <<<"$DEPS_JSON"
+          echo "unsafe (major/unknown) count: $unsafe"
+          if [ "$total" -gt 0 ] && [ "$unsafe" -eq 0 ]; then
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enable auto-merge (all updates are patch/minor)
+        if: steps.classify.outputs.merge == 'true'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Note major-version bumps left for manual review
-        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
-        run: |
-          echo "Major-version bump (${{ steps.metadata.outputs.dependency-names }}) — leaving for manual review."
+      - name: Leave for manual review
+        if: steps.classify.outputs.merge != 'true'
+        run: echo "PR contains a major or unclassified update — leaving for manual review."
