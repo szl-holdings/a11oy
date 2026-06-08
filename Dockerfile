@@ -427,6 +427,19 @@ COPY live_snapshots/ ./live_snapshots/
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY a11oy_dev1_endpoints.py ./a11oy_dev1_endpoints.py
 
+# ADDITIVE (Vertical Packs Layer, 2026-06-08, Dev2): a11oy_vertical_feeds.py exposes
+# the 5 vertical packs (Defense/Gov, Finance, Legal, Enterprise/Cyber, Real Estate)
+# under /api/a11oy/v1/vert/* -- real live server-side feeds (CISA KEV, NVD, Federal
+# Register, CourtListener, Yahoo, Coinbase, Frankfurter FX, GitHub events, NYC HPD/DOB,
+# Treasury), each running the governed loop (szl_governance_gateway) + emitting
+# DSSE-signed receipts (szl_dsse + szl_khipu, all already COPY'd above). Honest
+# labels, 0 fabricated data, 0 CDN. Per-file COPY (this Dockerfile never uses
+# `COPY . .`) -- without it the import fails and the /v1/vert/* routes fall through
+# to the SPA. serve.py imports it try/except-guarded; register() self-reorders its
+# routes to the front of the router so they beat the proxy + SPA catch-all.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY a11oy_vertical_feeds.py ./a11oy_vertical_feeds.py
+
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained operator surfaces,
 # each adopting a PERMISSIVELY-licensed PATTERN (NOTICE updated) and evolving it into
 # an a11oy-native mechanism. Stdlib-only (no torch/numpy/CDN). Per-file COPY (this
