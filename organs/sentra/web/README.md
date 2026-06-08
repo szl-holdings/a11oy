@@ -2,7 +2,7 @@
 
 > Threat monitoring, AI-assisted incident triage, security posture scoring, and policy-gated response — governed cybersecurity command for enterprise security teams.
 
-[![CI](https://github.com/szl-holdings/sentra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szl-holdings/sentra/actions/workflows/ci.yml)
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/license-Proprietary-red?style=flat-square)](../LICENSE)
 [![Doctrine](https://img.shields.io/badge/Doctrine-v7-7c5cff?style=flat-square)](https://github.com/szl-holdings/.github/blob/main/doctrine/DOCTRINE_V7.md)

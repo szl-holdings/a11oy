@@ -110,7 +110,7 @@ the loop from *claim* to *cryptographic provenance*.
 - **[01 — Verify a receipt end-to-end](01-verify-a-receipt-end-to-end.md)** — verify the receipts this cites.
 - **[10 — Cardano-anchored DSSE blood ledger](10-cardano-dsse-blood-ledger.md)** — anchor the chain.
 - **[08 — Receipt knot algebra](08-receipt-knot-algebra.md)** — the chain's topology.
-- Live: [amaru](https://szlholdings-amaru.hf.space) · Repo: [amaru](https://github.com/szl-holdings/amaru)
+- Live: [amaru](https://szlholdings-amaru.hf.space) · Repo: amaru
 
 ## Cite this recipe
 

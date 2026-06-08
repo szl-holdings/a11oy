@@ -86,8 +86,8 @@ In two sentences: this component is part of SZL's governed-AI mesh — it enforc
 > Every agent decision produces a COSE_Sign1-wrapped dual-witness receipt connecting governance policy to execution trace.
 
 > **Thesis cross-reference:** The mathematical foundations for this repository are developed
-> in the [Ouroboros Thesis v18.0](https://github.com/szl-holdings/ouroboros-thesis) (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)).
-> Source for the published thesis is in [`szl-holdings/ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis).
+> in the Ouroboros Thesis v18.0 (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)).
+> Source for the published thesis is in `szl-holdings/ouroboros-thesis`.
 > Concept DOI (always-latest): [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
 
 ## On Hugging Face
@@ -176,9 +176,9 @@ The `CITATION.cff` in this repository root is the authoritative citation source.
 
 | Repository | Role |
 |-----------|------|
-| [szl-holdings/ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis) | Formal thesis (v18.0, DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)) |
+| szl-holdings/ouroboros-thesis | Formal thesis (v18.0, DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)) |
 | [szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean) | Lean 4 proofs of Λ uniqueness and bounds |
-| [szl-holdings/amaru](https://github.com/szl-holdings/amaru) | Cardano-anchored receipt minting |
+| szl-holdings/amaru | Cardano-anchored receipt minting |
 | [szl-holdings/vsp-otel](https://github.com/szl-holdings/vsp-otel) | OpenTelemetry exporter for audit fibers |
 
 ## License
@@ -194,17 +194,17 @@ Copyright 2026 SZL Holdings. ORCID: [0009-0001-0110-4173](https://orcid.org/0009
 The 13 substrate repos cross-link reciprocally. This footer is maintained by GH Admin #1 (org-wide).
 
 - [`a11oy`](https://github.com/szl-holdings/a11oy) — vertical alignment substrate (policy · measurement · knowledge · QEC-integrity)
-- [`amaru`](https://github.com/szl-holdings/amaru) — Shor-encoded receipt minting (Cardano-anchored)
-- [`rosie`](https://github.com/szl-holdings/rosie) — CSS-ingress receipt orchestration
-- [`sentra`](https://github.com/szl-holdings/sentra) — Kitaev-surface drift detection on audit fibers
+- `amaru` — Shor-encoded receipt minting (Cardano-anchored)
+- `rosie` — CSS-ingress receipt orchestration
+- `sentra` — Kitaev-surface drift detection on audit fibers
 - [`uds-mesh`](https://github.com/szl-holdings/uds-mesh) — UDS span schemas + governance receipts
 - [`lutar-lean`](https://github.com/szl-holdings/lutar-lean) — Lean 4 + Mathlib v4.13.0 kernel proofs (32 GREEN modules · 749 declarations · 163 sorries · canonical @ `c7c0ba17`)
 - [`ouroboros`](https://github.com/szl-holdings/ouroboros) — bounded-recursion runtime
-- [`ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis) — DOI-pinned thesis substrate (v3 → v18)
+- `ouroboros-thesis` — DOI-pinned thesis substrate (v3 → v18)
 - [`platform`](https://github.com/szl-holdings/platform) — composing monorepo (76 packages, 1,220 tests)
 - [`szl-brand`](https://github.com/szl-holdings/szl-brand) — anatomy + visual doctrine (PDFs hosted in-repo)
 - [`szl-cookbook`](https://github.com/szl-holdings/szl-cookbook) — governed-AI recipes
-- [`agi-forecast`](https://github.com/szl-holdings/agi-forecast) — PAC-Bayes governance-trajectory forecasts
+- `agi-forecast` — PAC-Bayes governance-trajectory forecasts
 - [`vsp-otel`](https://github.com/szl-holdings/vsp-otel) — OpenTelemetry exporter for Λ-axis spans
 
 Org page: [github.com/szl-holdings](https://github.com/szl-holdings) · Doctrine v11 · 15 axioms (14 unique) · 749 declarations · 163 sorries · 32 GREEN modules · v18.0 DOI [`10.5281/zenodo.20434276`](https://doi.org/10.5281/zenodo.20434276)

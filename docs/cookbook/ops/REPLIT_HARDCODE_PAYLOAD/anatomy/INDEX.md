@@ -1,6 +1,6 @@
 # Anatomy Bundle — 16 Files
 
-**Source of truth:** [szl-holdings/ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis) on branch `feat/anatomy/full-bundle-16-figures` (PR #46).
+**Source of truth:** szl-holdings/ouroboros-thesis on branch `feat/anatomy/full-bundle-16-figures` (PR #46).
 **Date snapshot:** 2026-05-16
 **Author:** Stephen P. Lutar Jr. — `stephen@szlholdings.com` — ORCID 0009-0001-0110-4173 — SZL Holdings
 
@@ -29,7 +29,7 @@ This bundle contains the canonical visual anatomy of the SZL Holdings runtime: 8
 
 ## Doctrine V6 honesty note
 
-Per `truth_audit/TRUTH_AUDIT_RECORD.md` D14 cross-reference and the corrected manifest on [ouroboros-thesis#46](https://github.com/szl-holdings/ouroboros-thesis/pull/46): this bundle is **documentation only**. It does not constitute runtime evidence. The runtime claims must be verified against the live system, not against the figures.
+Per `truth_audit/TRUTH_AUDIT_RECORD.md` D14 cross-reference and the corrected manifest on ouroboros-thesis#46: this bundle is **documentation only**. It does not constitute runtime evidence. The runtime claims must be verified against the live system, not against the figures.
 
 The figures are pedagogically useful and visually canonical, but they are anatomical *diagrams* — they show how the parts fit together, not that they are implemented. Some parts (sentra, vsp-otel, agi-forecast) are still scaffolds.
 

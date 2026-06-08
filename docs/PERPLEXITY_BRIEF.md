@@ -17,14 +17,8 @@ Active showcase:
 - <https://github.com/szl-holdings/platform>
 - <https://github.com/szl-holdings/ouroboros>
 - <https://github.com/szl-holdings/lutar-lean>
-- <https://github.com/szl-holdings/ouroboros-thesis>
-- <https://github.com/szl-holdings/rosie>
-- <https://github.com/szl-holdings/amaru>
-- <https://github.com/szl-holdings/sentra>
 - <https://github.com/szl-holdings/uds-mesh>
 - <https://github.com/szl-holdings/vsp-otel>
-- <https://github.com/szl-holdings/vessels>
-- <https://github.com/szl-holdings/agi-forecast>
 - <https://github.com/szl-holdings/szl-trust>
 - <https://github.com/szl-holdings/szl-brand>
 - <https://github.com/szl-holdings/szl-cookbook>
@@ -32,9 +26,6 @@ Active showcase:
 
 Excluded from active-demo claims until funded:
 
-- <https://github.com/szl-holdings/counsel>
-- <https://github.com/szl-holdings/terra>
-- <https://github.com/szl-holdings/carlota-jo>
 
 ## Canonical evidence to request
 

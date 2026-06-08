@@ -64,7 +64,7 @@ Formal proofs live here. The runtime that emits DSSE-signed receipts proving the
 > Lean 4 + Mathlib v4.13.0 formal proofs underpinning the Ouroboros Thesis — 749 declarations, 15 axioms (14 unique), 163 sorries (112 baseline + 51 Putnam).  
 > Doctrine v11 · DOI [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)
 
-**lutar-lean** contains the machine-checked Lean 4 proofs for the Λ-gate theorems, audit-fiber invariants, and knot-calculus / Feynman-grafts of the [Ouroboros Thesis](https://github.com/szl-holdings/ouroboros-thesis). It provides the formal verification substrate for all SZL runtime governance claims.
+**lutar-lean** contains the machine-checked Lean 4 proofs for the Λ-gate theorems, audit-fiber invariants, and knot-calculus / Feynman-grafts of the Ouroboros Thesis. It provides the formal verification substrate for all SZL runtime governance claims.
 
 > [!NOTE]
 > **`lake build` builds clean on `main` @ `c7c0ba17`** (canonical HEAD 2026-05-31; 749 declarations / 163 sorries). PRs #98–#102 are merged.
@@ -162,8 +162,8 @@ lake test
 
 ## Cross-references
 
-- **[ouroboros-thesis v21 — The PURIQ-OS Substrate](https://github.com/szl-holdings/ouroboros-thesis/tree/main/papers/v21)** (release tag [`paper-v21-1.0.0`](https://github.com/szl-holdings/ouroboros-thesis/releases/tag/paper-v21-1.0.0)) — documents 23 agentic formulas, **5 proved in Lean 4 with no `sorry` and no external axioms** (F1, F11, F12, F18, F19; see `PuriqFormulaLean.lean`), 18 tagged `SORRY_PURIQ_OPEN`. The Λ-aggregator is **Conjecture 1 — NOT a theorem**. Version DOI minted by Zenodo on release under Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
-- [ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis) — thesis source (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276))
+- **ouroboros-thesis v21 — The PURIQ-OS Substrate** (release tag `paper-v21-1.0.0`) — documents 23 agentic formulas, **5 proved in Lean 4 with no `sorry` and no external axioms** (F1, F11, F12, F18, F19; see `PuriqFormulaLean.lean`), 18 tagged `SORRY_PURIQ_OPEN`. The Λ-aggregator is **Conjecture 1 — NOT a theorem**. Version DOI minted by Zenodo on release under Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
+- ouroboros-thesis — thesis source (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276))
 - [ouroboros](https://github.com/szl-holdings/ouroboros) — runtime reference implementation
 - Concept DOI (always-latest): [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
 

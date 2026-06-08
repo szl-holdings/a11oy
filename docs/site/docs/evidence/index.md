@@ -63,7 +63,7 @@ A complete, versioned list is maintained in the thesis repository's `CITATION.cf
 ## Thesis PDFs (v18–v20)
 
 The Ouroboros Thesis is the mathematical spine. Source and built PDFs live in
-[`szl-holdings/ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis) under
+`szl-holdings/ouroboros-thesis` under
 `papers/`. v18.0 corresponds to the versioned DOI above; v19/v20 are the active
 revision line.
 

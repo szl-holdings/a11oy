@@ -95,7 +95,7 @@ A11oy routes every decision through these three layers before generating a proof
 
 ## Reproducibility, citation, and license
 
-**Reference implementation:** `packages/ouroboros-integrations/src/sovereign-engine.ts` in [github.com/szl-holdings/szl-holdings-platform](https://github.com/szl-holdings/szl-holdings-platform). Classes: `EPRBellValidator`, `GeometricCoherenceEngine`. API routes: `artifacts/api-server/src/routes/ouroboros.ts`.
+**Reference implementation:** `packages/ouroboros-integrations/src/sovereign-engine.ts` in github.com/szl-holdings/szl-holdings-platform. Classes: `EPRBellValidator`, `GeometricCoherenceEngine`. API routes: `artifacts/api-server/src/routes/ouroboros.ts`.
 
 **API verification:** All 48 sovereign engine endpoints return valid responses. Tested on 2026-05-04.
 

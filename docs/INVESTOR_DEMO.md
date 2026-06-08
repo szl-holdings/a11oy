@@ -39,7 +39,7 @@ provenance contract.
 | Hugging Face payload generation | Demo-ready | `pnpm payload:huggingface` |
 | Operational tarball bundle | Demo-ready | `pnpm payload:bundle` and `pnpm payload:bundle:verify` |
 | UDS/Zarf handoff | Demo-ready as package/operator proof point | `artifacts/a11oy-uds/README.md`, `artifacts/a11oy-uds/docs/*`, `deploy/zarf.yaml` |
-| Vessels vertical | Active vertical demo wedge | `https://github.com/szl-holdings/vessels` and `uds-v0.2.0` release |
+| Vessels vertical | Active vertical demo wedge | `github.com/szl-holdings/vessels` and `uds-v0.2.0` release |
 
 ## What is intentionally not in the active demo
 

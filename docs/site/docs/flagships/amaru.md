@@ -39,7 +39,7 @@ so iterating $T$ converges to a unique fixed point — the canonical synced ledg
 ## API / install
 
 ```sh
-git clone https://github.com/szl-holdings/amaru.git
+git clone github.com/szl-holdings/amaru.git
 cd amaru
 pnpm install
 pnpm test
@@ -68,8 +68,8 @@ lands (see [Compliance](/compliance)).
 
 ## Source & evidence
 
-- **Repo:** [github.com/szl-holdings/amaru](https://github.com/szl-holdings/amaru)
-- **Spec:** [ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis)
+- **Repo:** github.com/szl-holdings/amaru
+- **Spec:** ouroboros-thesis
 - **Proofs:** [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 - **DOI (versioned):** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) · **Concept DOI:** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
 - **License:** Apache-2.0

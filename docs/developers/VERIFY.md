@@ -65,9 +65,9 @@ claimed.** See §3 for the canonical `cosign verify` of the deployed image.
 | Repo | Digest (latest) | Attestation ID | Rekor log index | Sigstore instance |
 |---|---|---|---|---|
 | a11oy | `sha256:1cfd28e0...` | [29916789](https://github.com/szl-holdings/a11oy/attestations/29916789) | [1723769508](https://search.sigstore.dev/?logIndex=1723769508) | Public Good |
-| sentra | `sha256:e745deac...` | [29917249](https://github.com/szl-holdings/sentra/attestations/29917249) | [1723794608](https://search.sigstore.dev/?logIndex=1723794608) | Public Good |
-| amaru | `sha256:ad595555...` | [29917085](https://github.com/szl-holdings/amaru/attestations/29917085) | [1723784350](https://search.sigstore.dev/?logIndex=1723784350) | Public Good |
-| rosie | `sha256:4045609d...` | [29901651](https://github.com/szl-holdings/rosie/attestations/29901651) | [1722745939](https://search.sigstore.dev/?logIndex=1722745939) | Public Good |
+| sentra | `sha256:e745deac...` | 29917249 | [1723794608](https://search.sigstore.dev/?logIndex=1723794608) | Public Good |
+| amaru | `sha256:ad595555...` | 29917085 | [1723784350](https://search.sigstore.dev/?logIndex=1723784350) | Public Good |
+| rosie | `sha256:4045609d...` | 29901651 | [1722745939](https://search.sigstore.dev/?logIndex=1722745939) | Public Good |
 | killinchu | `sha256:85f92bd2...` | [29917005](https://github.com/szl-holdings/killinchu/attestations/29917005) | N/A (private repo) | GitHub Sigstore |
 
 ### Verify command

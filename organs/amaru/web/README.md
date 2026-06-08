@@ -54,8 +54,8 @@ The loop is bounded by `LoopKernel` from `@workspace/ouroboros`, depth-allocated
 
 ## Source
 
-This README mirrors the artifact at `artifacts/conduit/` inside [`szl-holdings/szl-holdings-platform`](https://github.com/szl-holdings/szl-holdings-platform). The platform monorepo is the source of truth; this repository is a public showcase.
+This README mirrors the artifact at `artifacts/conduit/` inside `szl-holdings/szl-holdings-platform`. The platform monorepo is the source of truth; this repository is a public showcase.
 
 ---
 
-© SZL Holdings. Powered by the Ouroboros runtime — see [`szl-holdings/ouroboros`](https://github.com/szl-holdings/ouroboros) and the thesis at [`szl-holdings/ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis).
+© SZL Holdings. Powered by the Ouroboros runtime — see [`szl-holdings/ouroboros`](https://github.com/szl-holdings/ouroboros) and the thesis at `szl-holdings/ouroboros-thesis`.

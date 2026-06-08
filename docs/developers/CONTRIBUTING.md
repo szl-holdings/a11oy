@@ -28,7 +28,7 @@ Thanks for your interest in building on and improving the SZL substrate. Doctrin
 
 Do **not** open a public issue for vulnerabilities. Follow the coordinated-disclosure process in
 `SECURITY.md` (org `.github` repo): email `stephen@szlholdings.com`. See also the
-[compliance-posture](https://github.com/szl-holdings/compliance-posture) repo.
+compliance-posture repo.
 
 ## Code of conduct
 

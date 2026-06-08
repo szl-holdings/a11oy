@@ -14,9 +14,9 @@ All notable changes across the five SZL flagships are documented here. The forma
 
 Coordinated v1.0.0 launch of the five flagships. Per-flagship GitHub releases:
 [a11oy](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0) ·
-[sentra](https://github.com/szl-holdings/sentra/releases/tag/v1.0.0) ·
-[amaru](https://github.com/szl-holdings/amaru/releases/tag/v1.0.0) ·
-[rosie](https://github.com/szl-holdings/rosie/releases/tag/v1.0.0) ·
+sentra ·
+amaru ·
+rosie ·
 [killinchu](https://github.com/szl-holdings/killinchu/releases/tag/v1.0.0).
 
 ### Added

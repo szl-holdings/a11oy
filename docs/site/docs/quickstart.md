@@ -58,7 +58,7 @@ console.log(decision.passed, decision.continuumHash)
 Banach contraction; provenance hashes are Shor-9-qubit encoded before anchoring.
 
 ```sh
-git clone https://github.com/szl-holdings/amaru.git && cd amaru
+git clone github.com/szl-holdings/amaru.git && cd amaru
 pnpm install && pnpm test
 ```
 
@@ -83,7 +83,7 @@ append-only delta log, Shor encoding, and Lamport ordering are live today.
 ground state.
 
 ```bash
-git clone https://github.com/szl-holdings/sentra.git && cd sentra
+git clone github.com/szl-holdings/sentra.git && cd sentra
 pnpm install && pnpm test
 ```
 
@@ -121,7 +121,7 @@ curl -s -X POST https://szlholdings-killinchu.hf.space/api/killinchu/v1/remote-i
 `rootValue = Σ pendantValues = Σ Σ decisionValues` is formally verified in `lutar-lean`.
 
 ```bash
-git clone https://github.com/szl-holdings/rosie.git && cd rosie
+git clone github.com/szl-holdings/rosie.git && cd rosie
 pnpm install && pnpm test   # 10 runtime tests incl. TH11 failure modes
 ```
 

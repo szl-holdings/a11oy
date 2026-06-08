@@ -499,7 +499,6 @@ export interface QubitState {
  * DARUAN activation: L layers of Rz(φ·x) Rx(θ) data re-uploading
  * Correct real-arithmetic single-qubit circuit simulation.
  * Output: expectation value ⟨Z⟩ = |α|² - |β|² ∈ [-1, +1]
- *
  * State: [re(α), im(α), re(β), im(β)] for |ψ⟩ = α|0⟩ + β|1⟩
  * Rz(φ): α *= e^{-iφ/2}, β *= e^{+iφ/2}
  * Rx(θ): [[cos(θ/2), -i·sin(θ/2)], [-i·sin(θ/2), cos(θ/2)]]
@@ -768,8 +767,8 @@ These three items have GitHub releases live but no Zenodo DOI yet. Once the Zeno
 | Item | GitHub Release | Target Zenodo Title | Where to Land in This Payload |
 |---|---|---|---|
 | `lutar-lean v0.1.0` | [github.com/szl-holdings/lutar-lean/releases/tag/v0.1.0](https://github.com/szl-holdings/lutar-lean/releases/tag/v0.1.0) | lutar-lean — Lean 4 Formalization of the Lutar Invariant Family v0.1.0 | Part 1.8 (lutar-lean spine, V01–V13); Part 9.3 (DOI 18) |
-| `v13-exhaustive — Anatomy as Architecture` | [release tag paper-v13-exhaustive-1.0.0](https://github.com/szl-holdings/ouroboros-thesis/releases/tag/paper-v13-exhaustive-1.0.0) | v13-exhaustive: Anatomy as Architecture — Organs, Invariants, and Formal Proofs | Part 1 (full anatomy map); Part 9.3 (DOI 19) |
-| `v14 arXiv submission package` | [release draft paper-v14-1.0.0-draft](https://github.com/szl-holdings/ouroboros-thesis/releases/tag/paper-v14-1.0.0-draft) | The SZL Anatomy v14 — Quantum Governance with Second Temple Foundations | Part 2 (DARUAN+QKAN-FWP); Part 9.3 (DOI 20) |
+| `v13-exhaustive — Anatomy as Architecture` | release tag paper-v13-exhaustive-1.0.0 | v13-exhaustive: Anatomy as Architecture — Organs, Invariants, and Formal Proofs | Part 1 (full anatomy map); Part 9.3 (DOI 19) |
+| `v14 arXiv submission package` | release draft paper-v14-1.0.0-draft | The SZL Anatomy v14 — Quantum Governance with Second Temple Foundations | Part 2 (DARUAN+QKAN-FWP); Part 9.3 (DOI 20) |
 
 **Mint command (run once token unblocks):**
 ```bash
@@ -2206,7 +2205,6 @@ function clamp01(x: number): number { return Math.max(0, Math.min(1, x)); }
 /**
  * Raz Nihyeh opacity score — monotone non-decreasing in shellDepth
  * Lean proved: ∀ d₁ ≤ d₂. score(d₁) ≤ score(d₂)
- * 
  * Base formula: score = clamp01(shellDepth / MAX_DEPTH + jurisdictionPenalty)
  */
 export function razNihyehScore(node: OwnershipNode): RazNihyehScore {

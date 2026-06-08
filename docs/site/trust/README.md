@@ -72,13 +72,13 @@ cat runs/E4-codex-kernel-2026-04-29/trace.jsonl | jq '[.decision_receipt.mocked]
 | Repo | Role |
 |------|------|
 | [ouroboros](https://github.com/szl-holdings/ouroboros) | Runtime that generates the receipts |
-| [ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis) | Formal research paper (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)) |
+| ouroboros-thesis | Formal research paper (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)) |
 | [lutar-lean](https://github.com/szl-holdings/lutar-lean) | Lean 4 proofs — 749 decls / 14 unique axioms (15 raw, 1 dup) / 163 sorries @ HEAD c7c0ba17 |
 | [uds-mesh](https://github.com/szl-holdings/uds-mesh) | UDS service mesh integration |
 | [vsp-otel](https://github.com/szl-holdings/vsp-otel) | OTel + DSSE exporter |
 | [a11oy](https://github.com/szl-holdings/a11oy) | Flagship governance app |
-| [amaru](https://github.com/szl-holdings/amaru) | Cardano anchoring layer |
-| [sentra](https://github.com/szl-holdings/sentra) | Policy enforcement engine |
+| amaru | Cardano anchoring layer |
+| sentra | Policy enforcement engine |
 | Hatun Doctrine Specification | [szl-holdings/platform/docs/a11oy/spec/hatun-doctrine-spec/](https://github.com/szl-holdings/platform/tree/main/docs/a11oy/spec/hatun-doctrine-spec/) |
 
 ## Citation

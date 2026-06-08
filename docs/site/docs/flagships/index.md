@@ -27,10 +27,10 @@ flowchart LR
 | Flagship | Etymology | Role | Source |
 |----------|-----------|------|--------|
 | [a11oy](/flagships/a11oy) | *alloy* — blended hardened substrate | Governed execution fabric (7 layers) | [repo](https://github.com/szl-holdings/a11oy) |
-| [amaru](/flagships/amaru) | Quechua *amaru* = serpent | Cardano-anchored provenance | [repo](https://github.com/szl-holdings/amaru) |
-| [sentra](/flagships/sentra) | from *sentry* | Kitaev-surface drift detection | [repo](https://github.com/szl-holdings/sentra) |
+| [amaru](/flagships/amaru) | Quechua *amaru* = serpent | Cardano-anchored provenance | repo |
+| [sentra](/flagships/sentra) | from *sentry* | Kitaev-surface drift detection | repo |
 | [killinchu](/flagships/killinchu) | Quechua *killinchu* = kestrel | Counter-UAS drone intelligence | [repo](https://github.com/szl-holdings/killinchu) |
-| [rosie](/flagships/rosie) | ROSIE acronym | Receipt-DAG orchestration | [repo](https://github.com/szl-holdings/rosie) |
+| [rosie](/flagships/rosie) | ROSIE acronym | Receipt-DAG orchestration | repo |
 
 ::: info Honesty note on SLSA
 Some repo badges historically read "SLSA 3". The **doctrine-correct, honest level is

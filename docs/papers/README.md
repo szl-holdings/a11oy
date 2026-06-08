@@ -15,10 +15,10 @@ Doctrine v11 LOCKED 749/14/163 · kernel commit `c7c0ba17`
 
 | Directory | Contents | Source |
 |-----------|---------|--------|
-| [`preprints/puriq/`](preprints/puriq/) | PURIQ preprint — Λ-aggregator formal spec | [puriq-preprint](https://github.com/szl-holdings/puriq-preprint) |
-| [`thesis/ouroboros/`](thesis/ouroboros/) | Ouroboros thesis — receipt DAG lineage | [ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis) |
+| [`preprints/puriq/`](preprints/puriq/) | PURIQ preprint — Λ-aggregator formal spec | puriq-preprint |
+| [`thesis/ouroboros/`](thesis/ouroboros/) | Ouroboros thesis — receipt DAG lineage | ouroboros-thesis |
 | [`bounty/`](bounty/) | Lambda bounty problems — open mathematical challenges | [lambda-bounty](https://github.com/szl-holdings/lambda-bounty) |
-| [`prior-art/`](prior-art/) | Prior-art disclosures for IP protection | [prior-art-disclosures](https://github.com/szl-holdings/prior-art-disclosures) |
+| [`prior-art/`](prior-art/) | Prior-art disclosures for IP protection | prior-art-disclosures |
 
 ---
 

@@ -5,8 +5,8 @@
 **Date:** 2026-05-17
 **Repos audited:**
 - [`szl-holdings/vsp-otel`](https://github.com/szl-holdings/vsp-otel) — VSP spine over OpenTelemetry
-- [`szl-holdings/agi-forecast`](https://github.com/szl-holdings/agi-forecast) — forecast gauge runtime
-- [`szl-holdings/sentra`](https://github.com/szl-holdings/sentra) — runtime th2-th5 scaffold
+- `szl-holdings/agi-forecast` — forecast gauge runtime
+- `szl-holdings/sentra` — runtime th2-th5 scaffold
 - [`szl-holdings/ouroboros`](https://github.com/szl-holdings/ouroboros) — runtime th1-th7 scaffold + a11oy core
 
 **Evidence basis:** All findings derive exclusively from source code, READMEs, CITATION.cff files, test files, type definitions, operational contract JSONs, and documentation read directly from the above repositories via GitHub API. No extrapolation. Gaps are explicitly named.
@@ -121,7 +121,7 @@ graph TD
 
 | Signal | Status | Evidence |
 |--------|--------|----------|
-| Metrics (gauge variables) | **ABSENT** | [`agi-forecast/README.md`](https://github.com/szl-holdings/agi-forecast/blob/main/README.md): "Status: Pre-implementation (proposal stage)". Repo root: `.github`, `CITATION.cff`, `LICENSE`, `README.md` — no source. |
+| Metrics (gauge variables) | **ABSENT** | `agi-forecast/README.md`: "Status: Pre-implementation (proposal stage)". Repo root: `.github`, `CITATION.cff`, `LICENSE`, `README.md` — no source. |
 | Receipt emission | **ABSENT** | `forecast.summary@YYYY-MM-DD` named in README; no code. |
 | Brier-score ledger | **ABSENT** | Named in README; no code. |
 | Loop frequency | **ABSENT** | README says "daily" — no implementation. |
@@ -201,7 +201,7 @@ This is design intent. No `LambdaSpanEmitter`, no attribute schema, no span-name
 
 | Dimension | Finding | Source |
 |-----------|---------|--------|
-| Loop frequency | "daily" — no implementation | [`agi-forecast/README.md`](https://github.com/szl-holdings/agi-forecast/blob/main/README.md) |
+| Loop frequency | "daily" — no implementation | `agi-forecast/README.md` |
 | Input data source | 12 upstream URLs listed (METR, Epoch AI, ARC Prize, Apollo Research, AISI, Anthropic, OpenAI, DeepMind, Stanford HAI, Metaculus) | README table; no HTTP client exists |
 | Current values | Hand-curated prose in README (e.g., `ARC-AGI-2-SOTA-pct = 95%`, `METR-th50-hours = ≥16h`) | README; marked "May 2026" — static, not live |
 | Backtest harness | Absent | No source files |
@@ -497,9 +497,9 @@ All findings are derived exclusively from the following sources read via GitHub 
 |--------|-----|
 | vsp-otel README | https://github.com/szl-holdings/vsp-otel/blob/main/README.md |
 | vsp-otel CITATION.cff | https://github.com/szl-holdings/vsp-otel/blob/main/CITATION.cff |
-| agi-forecast README | https://github.com/szl-holdings/agi-forecast/blob/main/README.md |
-| agi-forecast CITATION.cff | https://github.com/szl-holdings/agi-forecast/blob/main/CITATION.cff |
-| sentra README | https://github.com/szl-holdings/sentra/blob/main/README.md |
+| agi-forecast README | github.com/szl-holdings/agi-forecast/blob/main/README.md |
+| agi-forecast CITATION.cff | github.com/szl-holdings/agi-forecast/blob/main/CITATION.cff |
+| sentra README | github.com/szl-holdings/sentra/blob/main/README.md |
 | ouroboros README | https://github.com/szl-holdings/ouroboros/blob/main/README.md |
 | ouroboros LUTAR_EVIDENCE.md | https://github.com/szl-holdings/ouroboros/blob/main/LUTAR_EVIDENCE.md |
 | ouroboros src/types.ts | https://github.com/szl-holdings/ouroboros/blob/main/src/types.ts |

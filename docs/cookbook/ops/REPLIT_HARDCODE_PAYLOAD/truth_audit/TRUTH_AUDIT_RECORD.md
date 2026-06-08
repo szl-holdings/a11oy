@@ -27,7 +27,7 @@ Plus 2 `sorry` + 2 `admit` in `Lutar/DoctrineV3/{Measurability,Moral}*.lean` (mi
 
 **Public correction:**
 - [lutar-lean#18 comment](https://github.com/szl-holdings/lutar-lean/pull/18#issuecomment-4467391875)
-- [ouroboros-thesis#44 comment](https://github.com/szl-holdings/ouroboros-thesis/pull/44#issuecomment-4467393182)
+- ouroboros-thesis#44 comment
 
 **Source:** `phd_pods/math_pod_report.md` §"Sorry Census"
 
@@ -74,7 +74,7 @@ const pass = scores.every((s, i) => s >= thresholds[i]);
 
 The 9-axis enumeration, the conjunctive MIN, the threshold theorem (`Λ ≥ 0.90 ⟺ all axes ≥ 0.90`), and the special ≥ 0.95 floor for `moralGrounding`/`measurabilityHonesty` are **none of them formalized in kernel-compiled Lean**.
 
-**Public correction:** [ouroboros-thesis#44](https://github.com/szl-holdings/ouroboros-thesis/pull/44#issuecomment-4467393182)
+**Public correction:** ouroboros-thesis#44
 
 **Source:** `phd_pods/math_pod_report.md` §"Λ Formalization Verdict"
 
@@ -91,7 +91,7 @@ PR vsp-otel#4 and agi-forecast#4 ("feat/runtime/...") contain no runtime — the
 
 **Public corrections:**
 - [vsp-otel#4](https://github.com/szl-holdings/vsp-otel/pull/4#issuecomment-4467395214)
-- [agi-forecast#4](https://github.com/szl-holdings/agi-forecast/pull/4#issuecomment-4467395270)
+- agi-forecast#4
 
 **Source:** `phd_pods/systems_pod_report.md` §"vsp-otel inventory", `phd_pods/dev_pod_report.md` §"agi-forecast"
 
@@ -263,12 +263,12 @@ This appendix records the second close-out sweep run after the initial truth-aud
 
 | # | Defect | Action | Result |
 |---|--------|--------|--------|
-| 1 | D15 | Patched `agi-forecast/README.md` to rename "Current Value (May 2026)" → "Snapshot Value · As of 2026-05-16" and added an explicit honesty banner | [agi-forecast#9](https://github.com/szl-holdings/agi-forecast/pull/9) — draft, ready for operator review |
+| 1 | D15 | Patched `agi-forecast/README.md` to rename "Current Value (May 2026)" → "Snapshot Value · As of 2026-05-16" and added an explicit honesty banner | agi-forecast#9 — draft, ready for operator review |
 | 2 | D16 | Patched `runtime-contract.v3.json` in ouroboros (`"SZL Consulting LTD"` → `"SZL Holdings"`) | [ouroboros#33](https://github.com/szl-holdings/ouroboros/pull/33) — draft |
-| 3 | D16 | Patched 3 runtime-contract files in ouroboros-thesis | [ouroboros-thesis#47](https://github.com/szl-holdings/ouroboros-thesis/pull/47) — draft |
+| 3 | D16 | Patched 3 runtime-contract files in ouroboros-thesis | ouroboros-thesis#47 — draft |
 | 4 | D2/D3/D11/D12 | Consolidated truth-correction comment on lutar-lean#18 with specific evidence: TH8/ not in lakefile, weight_eq tautology, TH8b_grade_one_unique proves True, sha256_inj is mathematically false | [lutar-lean#18 comment](https://github.com/szl-holdings/lutar-lean/pull/18#issuecomment-4467522329) |
-| 5 | D9 (GAP-AXIS) | Posted axis-by-axis diff between `platform/.../lambda.ts` (production) and `ouroboros-thesis/papers/v3/v3-canonical.md` (paper). **5 of 9 axis names differ.** Including a polarity-reversed one (`non_measurability` vs `measurabilityHonesty`) | [ouroboros#31](https://github.com/szl-holdings/ouroboros/pull/31#issuecomment-4467525726) + [ouroboros-thesis#44](https://github.com/szl-holdings/ouroboros-thesis/pull/44#issuecomment-4467525771) |
-| 6 | D14 | sentra is doc-only — posted framing-fix asks on sentra#22 and sentra#20 | [sentra#22](https://github.com/szl-holdings/sentra/pull/22#issuecomment-4467521037), [sentra#20](https://github.com/szl-holdings/sentra/pull/20#issuecomment-4467521090) |
+| 5 | D9 (GAP-AXIS) | Posted axis-by-axis diff between `platform/.../lambda.ts` (production) and `ouroboros-thesis/papers/v3/v3-canonical.md` (paper). **5 of 9 axis names differ.** Including a polarity-reversed one (`non_measurability` vs `measurabilityHonesty`) | [ouroboros#31](https://github.com/szl-holdings/ouroboros/pull/31#issuecomment-4467525726) + ouroboros-thesis#44 |
+| 6 | D14 | sentra is doc-only — posted framing-fix asks on sentra#22 and sentra#20 | sentra#22, sentra#20 |
 
 ### D9 — full per-axis diff (final canonical record)
 

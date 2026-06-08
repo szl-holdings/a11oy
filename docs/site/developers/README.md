@@ -59,7 +59,7 @@ You can verify any receipt against the organ's public key (`/khipu/pubkey`). Dep
 
 ## Related repos
 
-- **[szl-holdings/compliance-posture](https://github.com/szl-holdings/compliance-posture)** — security questionnaire, DPA/MSA/NDA, SOC2/FedRAMP roadmaps
+- **szl-holdings/compliance-posture** — security questionnaire, DPA/MSA/NDA, SOC2/FedRAMP roadmaps
 - **[szl-holdings/platform](https://github.com/szl-holdings/platform)** — substrate monorepo (`packages/`)
 - **[szl-holdings/hatun-mcp](https://github.com/szl-holdings/hatun-mcp)** — the 16-tool MCP server
 - **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)** — Lean 4 / Mathlib formalization (749/14/163)

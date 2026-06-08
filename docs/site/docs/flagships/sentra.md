@@ -54,7 +54,7 @@ hand-tuned alert threshold — drift is measured against a topological ground st
 ## API / install
 
 ```bash
-git clone https://github.com/szl-holdings/sentra.git
+git clone github.com/szl-holdings/sentra.git
 cd sentra
 pnpm install
 pnpm test
@@ -75,7 +75,7 @@ report.events
 
 ## Source & evidence
 
-- **Repo:** [github.com/szl-holdings/sentra](https://github.com/szl-holdings/sentra)
-- **Model:** Kitaev-surface basis in [ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis), `Lutar/QEC/KitaevSurface`
+- **Repo:** github.com/szl-holdings/sentra
+- **Model:** Kitaev-surface basis in ouroboros-thesis, `Lutar/QEC/KitaevSurface`
 - **DOI:** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 - **License:** Proprietary

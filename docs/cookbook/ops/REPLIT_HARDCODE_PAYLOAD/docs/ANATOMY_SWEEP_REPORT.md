@@ -26,7 +26,7 @@ Three tasks were executed in sequence under CTO Doctrine V6 authority. Task 1 sy
 | Push SHA (full) | `5389ef9782398ce6ee48ed0cc50481e79d16176d` |
 | Conflicts encountered | **None** — auto-merged via `ort` strategy |
 | Files brought in from main | 18 files (1,276 insertions, 54 deletions) — CITATION.cff updates, workflow, arxiv_pkg, phd_thesis, zenodo_pkg |
-| PR comment URL | https://github.com/szl-holdings/ouroboros-thesis/pull/39#issuecomment-4467297472 |
+| PR comment URL | github.com/szl-holdings/ouroboros-thesis/pull/39#issuecomment-4467297472 |
 
 **Evidence commands:**
 ```

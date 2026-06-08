@@ -24,15 +24,15 @@ the live GitHub inventory as additional Replit exports arrive.
 | Repo | Role | Default branch | Primary language |
 | --- | --- | --- | --- |
 | [`lutar-lean`](https://github.com/szl-holdings/lutar-lean) | Lean 4 + Mathlib kernel proofs for the governance framework, including Lambda-gate theorems and audit-fiber invariants. | `main` | Lean |
-| [`ouroboros-thesis`](https://github.com/szl-holdings/ouroboros-thesis) | DOI-pinned thesis substrate for formal AI governance through Lambda-axis scoring, audit fibers, and provable receipts. | `main` | Lean |
+| `ouroboros-thesis` | DOI-pinned thesis substrate for formal AI governance through Lambda-axis scoring, audit fibers, and provable receipts. | `main` | Lean |
 
 ## Receipts, telemetry, and adapters
 
 | Repo | Role | Default branch | Primary language |
 | --- | --- | --- | --- |
-| [`amaru`](https://github.com/szl-holdings/amaru) | Cardano-anchored governance receipt minting and Shor-encoded provenance. | `main` | TypeScript |
-| [`rosie`](https://github.com/szl-holdings/rosie) | Receipt orchestration for CSS-ingress and canonical receipt byte-string emission. | `main` | TypeScript |
-| [`sentra`](https://github.com/szl-holdings/sentra) | Sensor and telemetry adapter for audit fibers, including Kitaev-surface drift detection. | `main` | TypeScript |
+| `amaru` | Cardano-anchored governance receipt minting and Shor-encoded provenance. | `main` | TypeScript |
+| `rosie` | Receipt orchestration for CSS-ingress and canonical receipt byte-string emission. | `main` | TypeScript |
+| `sentra` | Sensor and telemetry adapter for audit fibers, including Kitaev-surface drift detection. | `main` | TypeScript |
 | [`uds-mesh`](https://github.com/szl-holdings/uds-mesh) | Unified Data System span schemas and governance receipts for OTEL-style observability. | `main` | Shell |
 | [`vsp-otel`](https://github.com/szl-holdings/vsp-otel) | OpenTelemetry exporter for SZL audit fibers and Lambda-axis spans. | `main` | TypeScript |
 
@@ -40,10 +40,10 @@ the live GitHub inventory as additional Replit exports arrive.
 
 | Repo | Role | Default branch | Primary language |
 | --- | --- | --- | --- |
-| [`vessels`](https://github.com/szl-holdings/vessels) | Maritime fleet intelligence for sanctions screening, dark-vessel detection, ownership graphs, and voyage analytics. | `main` | TypeScript |
-| [`counsel`](https://github.com/szl-holdings/counsel) | Legal matter command scaffold for policy-gated AI workflows, document review, obligation mapping, and proof-chain delivery. | `main` | Not yet classified |
-| [`terra`](https://github.com/szl-holdings/terra) | Real estate intelligence scaffold for deal-pipeline scoring, portfolio analytics, and AI-assisted underwriting. | `main` | Not yet classified |
-| [`carlota-jo`](https://github.com/szl-holdings/carlota-jo) | Private advisory operations scaffold for concierge workflow, proof-chain delivery, and multi-party coordination. | `main` | Not yet classified |
+| `vessels` | Maritime fleet intelligence for sanctions screening, dark-vessel detection, ownership graphs, and voyage analytics. | `main` | TypeScript |
+| `counsel` | Legal matter command scaffold for policy-gated AI workflows, document review, obligation mapping, and proof-chain delivery. | `main` | Not yet classified |
+| `terra` | Real estate intelligence scaffold for deal-pipeline scoring, portfolio analytics, and AI-assisted underwriting. | `main` | Not yet classified |
+| `carlota-jo` | Private advisory operations scaffold for concierge workflow, proof-chain delivery, and multi-party coordination. | `main` | Not yet classified |
 
 ## Trust, knowledge transfer, and organization operations
 
@@ -52,7 +52,7 @@ the live GitHub inventory as additional Replit exports arrive.
 | [`szl-trust`](https://github.com/szl-holdings/szl-trust) | Public Trust Portal for Covenant Proof Standard run artifacts and deterministic replay. | `main` | Not yet classified |
 | [`szl-cookbook`](https://github.com/szl-holdings/szl-cookbook) | Recipes for building governed AI systems on the SZL substrate. | `main` | TypeScript |
 | [`szl-brand`](https://github.com/szl-holdings/szl-brand) | Brand assets, logos, social-preview templates, and visual doctrine. | `main` | Python |
-| [`agi-forecast`](https://github.com/szl-holdings/agi-forecast) | Forecasting models and scenario library for AI governance trajectories. | `main` | TypeScript |
+| `agi-forecast` | Forecasting models and scenario library for AI governance trajectories. | `main` | TypeScript |
 | [`.github`](https://github.com/szl-holdings/.github) | Organization profile and community health files. | `main` | Not yet classified |
 
 ## Local workspace checkout

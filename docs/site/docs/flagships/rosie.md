@@ -65,7 +65,7 @@ not hash-collision resistance alone. This is formally verified in
 ## API / install
 
 ```bash
-git clone https://github.com/szl-holdings/rosie.git
+git clone github.com/szl-holdings/rosie.git
 cd rosie
 pnpm install
 pnpm test   # 10 runtime tests
@@ -84,7 +84,7 @@ verifyDualAttestation(root)   // P6 + P8 of A8: two distinct signers required
 
 ## Source & evidence
 
-- **Repo:** [github.com/szl-holdings/rosie](https://github.com/szl-holdings/rosie)
+- **Repo:** github.com/szl-holdings/rosie
 - **Live 3D showcase:** [Rosie-3D](/anatomy/3d-showcases#rosie-3d)
 - **Proof:** `Lutar/Khipu/SummationInvariant.lean` in [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 - **DOI:** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)

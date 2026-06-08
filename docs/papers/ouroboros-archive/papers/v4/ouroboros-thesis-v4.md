@@ -7,7 +7,7 @@
   **Date:** 4 May 2026
   **Version:** v4
   **Companion papers:** v1 [10.5281/zenodo.19867281](https://doi.org/10.5281/zenodo.19867281), v2 [10.5281/zenodo.19934129](https://doi.org/10.5281/zenodo.19934129), v3 [10.5281/zenodo.19983066](https://doi.org/10.5281/zenodo.19983066)
-  **Reference implementation:** [github.com/szl-holdings/szl-holdings-platform](https://github.com/szl-holdings/szl-holdings-platform) -- `packages/ouroboros-integrations/src/sovereign-engine.ts` (classes: `EPRBellValidator`, `GeometricCoherenceEngine`, `SovereignEngine`)
+  **Reference implementation:** github.com/szl-holdings/szl-holdings-platform -- `packages/ouroboros-integrations/src/sovereign-engine.ts` (classes: `EPRBellValidator`, `GeometricCoherenceEngine`, `SovereignEngine`)
   **API endpoints:** `POST /sovereign/eval`, `GET /sovereign/innovations`, `POST /sovereign/fuse`
   **License:** CC BY 4.0
 
@@ -313,7 +313,7 @@
 
   ## 10. Reproducibility, Citation, and License
 
-  **Reference implementation:** `packages/ouroboros-integrations/src/sovereign-engine.ts` in [github.com/szl-holdings/szl-holdings-platform](https://github.com/szl-holdings/szl-holdings-platform). Classes: `EPRBellValidator`, `GeometricCoherenceEngine`. API routes: `artifacts/api-server/src/routes/ouroboros.ts`.
+  **Reference implementation:** `packages/ouroboros-integrations/src/sovereign-engine.ts` in github.com/szl-holdings/szl-holdings-platform. Classes: `EPRBellValidator`, `GeometricCoherenceEngine`. API routes: `artifacts/api-server/src/routes/ouroboros.ts`.
 
   **API verification:** All 48 sovereign engine endpoints return valid responses. Tested on 2026-05-04.
 

@@ -26,7 +26,7 @@ ecosystem-stage: "operational"
 [![SLSA L1 honest](https://img.shields.io/badge/SLSA-L1%20honest%20(L2%20roadmap)-555?style=flat-square)](.compliance/SLSA_LEVEL.md)
 [![cosign signed](https://img.shields.io/badge/cosign-keyless%20signed-blueviolet?style=flat-square)](https://search.sigstore.dev/?logIndex=1723794608)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
-[![CI](https://github.com/szl-holdings/sentra/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/sentra/actions)
+
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 
 **749 declarations · 14 axioms · 163 sorries · Doctrine v11 LOCKED · kernel `c7c0ba17`**
@@ -42,7 +42,7 @@ ecosystem-stage: "operational"
 - Space URL: https://szlholdings-sentra.hf.space
 - Health: `curl -s https://szlholdings-sentra.hf.space/api/sentra/v1/honest | jq .doctrine` → `"v11"`
 - Docs: https://docs.szlholdings.com/flagships/sentra
-- Release: [v1.0.0](https://github.com/szl-holdings/sentra/releases/tag/v1.0.0)
+- Release: v1.0.0
 
 ---
 

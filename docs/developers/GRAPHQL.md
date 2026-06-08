@@ -7,7 +7,7 @@ a Khipu receipt chain — so the GraphQL surface is itself an auditable log.
 Doctrine v11 · Apache-2.0.
 
 > **⚠️ STATUS: ROADMAP — NOT YET DEPLOYED.** The gateway source exists in
-> [`szl-holdings/graphql-gateway`](https://github.com/szl-holdings/graphql-gateway) (Strawberry +
+> `szl-holdings/graphql-gateway` (Strawberry +
 > FastAPI), but **no public Space is live yet** — the URLs below currently return `404`. Do **not**
 > demo these as live endpoints. Until the Space ships, query the flagships directly via their REST
 > surfaces in [API_REFERENCE.md](./API_REFERENCE.md). This page documents the *planned* unified schema.

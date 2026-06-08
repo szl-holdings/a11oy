@@ -23,11 +23,11 @@ All five flagship `/healthz` endpoints return Doctrine v11 verbatim:
 
 All flagship repos run CI, CodeQL, SBOM, and DCO workflows on `main`:
 
-- [a11oy](https://github.com/szl-holdings/a11oy) · [amaru](https://github.com/szl-holdings/amaru) ·
-  [sentra](https://github.com/szl-holdings/sentra) · [killinchu](https://github.com/szl-holdings/killinchu) ·
-  [rosie](https://github.com/szl-holdings/rosie)
+- [a11oy](https://github.com/szl-holdings/a11oy) · amaru ·
+  sentra · [killinchu](https://github.com/szl-holdings/killinchu) ·
+  rosie
 - [lutar-lean](https://github.com/szl-holdings/lutar-lean) (kernel) ·
-  [ouroboros-thesis](https://github.com/szl-holdings/ouroboros-thesis) ·
+  ouroboros-thesis ·
   [szl-cookbook](https://github.com/szl-holdings/szl-cookbook) ·
   [szl-brand](https://github.com/szl-holdings/szl-brand)
 

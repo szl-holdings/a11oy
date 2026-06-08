@@ -65,5 +65,5 @@ air-gapped demos.
 ## A repo that installs with zero auth
 
 If you want to see a fully green clone-and-build with no token at all, the
-[`rosie`](https://github.com/szl-holdings/rosie) repository has no private
+`rosie` repository has no private
 dependencies and installs clean.

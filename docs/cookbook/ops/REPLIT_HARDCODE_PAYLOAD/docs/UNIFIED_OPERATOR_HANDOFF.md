@@ -66,9 +66,9 @@ Legend: ✅ clean · ⚠️ has open draft fix · ❌ needs operator action · C
 | vsp-otel | [#6](https://github.com/szl-holdings/vsp-otel/pull/6) | add `.github/CODEOWNERS` | hygiene |
 | vsp-otel | [#7](https://github.com/szl-holdings/vsp-otel/pull/7) | fix CITATION.cff given-names format | citation |
 | vsp-otel | [#8](https://github.com/szl-holdings/vsp-otel/pull/8) | add `.github/dependabot.yml` | scorecard |
-| agi-forecast | [#6](https://github.com/szl-holdings/agi-forecast/pull/6) | add `.github/CODEOWNERS` | hygiene |
-| agi-forecast | [#7](https://github.com/szl-holdings/agi-forecast/pull/7) | fix CITATION.cff given-names format | citation |
-| agi-forecast | [#8](https://github.com/szl-holdings/agi-forecast/pull/8) | add `.github/dependabot.yml` | scorecard |
+| agi-forecast | #6 | add `.github/CODEOWNERS` | hygiene |
+| agi-forecast | #7 | fix CITATION.cff given-names format | citation |
+| agi-forecast | #8 | add `.github/dependabot.yml` | scorecard |
 | szl-trust | [#13](https://github.com/szl-holdings/szl-trust/pull/13) | pin `actions/checkout@v6` → SHA | ci/pin-bump |
 | szl-cookbook | [#12](https://github.com/szl-holdings/szl-cookbook/pull/12) | pin `actions/checkout@v6` → SHA | ci/pin-bump |
 | szl-brand | [#16](https://github.com/szl-holdings/szl-brand/pull/16) | pin `actions/checkout@v6` → SHA | ci/pin-bump |

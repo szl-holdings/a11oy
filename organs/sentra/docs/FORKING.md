@@ -39,7 +39,7 @@ The rest of this document is Option 2.
 ## One-time setup
 
 ```bash
-# 1. Fork on GitHub UI: https://github.com/szl-holdings/sentra → Fork → <your-org>/sentra
+# 1. Fork on GitHub UI: github.com/szl-holdings/sentra → Fork → <your-org>/sentra
 git clone https://github.com/<your-org>/sentra
 cd sentra
 
@@ -56,7 +56,7 @@ node --version     # expect v20+
 
 ```bash
 # 1. Sync from upstream (or cherry-pick the commits you want)
-git remote add upstream https://github.com/szl-holdings/sentra
+git remote add upstream github.com/szl-holdings/sentra
 git fetch upstream
 git merge upstream/main          # or rebase, or cherry-pick
 
@@ -98,7 +98,7 @@ PUBLIC_BASE=https://github.com/<your-org>/sentra/releases/download/uds-vX.Y.Z \
 
 ## What you should NOT change
 
-- The doctrine code under `packages/sentra-core/` — these are the invariants we collectively rely on. If you find a doctrine bug, file it upstream as a [doctrine question](https://github.com/szl-holdings/sentra/issues/new?template=doctrine_question.yml) and we will respond on the science.
+- The doctrine code under `packages/sentra-core/` — these are the invariants we collectively rely on. If you find a doctrine bug, file it upstream as a doctrine question and we will respond on the science.
 - The KS-18 cover, POVM constructions, Fisher–Rao implementation, or Bohr floor — these are not optional knobs.
 - The reference citations and derivations in `docs/`. If you disagree with a citation, file an upstream issue.
 
