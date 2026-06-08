@@ -1,0 +1,168 @@
+# rekor-recheck.yml — Continuously re-verify PUBLISHED governance receipts.
+#
+# Issue #195. dsse-receipts.yml verifies a receipt at MINT time (same job that
+# signs it). That proves signing works, but gives no ongoing assurance that
+# receipts published in the past still verify against the public Sigstore trust
+# root + Rekor transparency log over time — which is what gives the signatures
+# their long-term audit value.
+#
+# This scheduled monitor walks every published envelope under
+# attestations/governance/*.dsse.json and re-runs the SAME independent
+# verification (Fulcio cert chain + Rekor inclusion + DSSE signature, pinned to
+# the signer identity) via scripts/recheck_rekor_receipts.py. If any receipt no
+# longer verifies it fails LOUDLY and raises a rolling incident issue.
+#
+# HONESTY: this re-checks SIGNATURES only; the SLSA claim is unchanged (L1).
+# PLACEHOLDER envelopes are reported and skipped (never claimed verifiable).
+#
+# Org policy: only github-owned / verified actions are allowed, and Sigstore is
+# driven by `pip install sigstore` + the repo's own scripts (no third-party
+# signing/verification action). Action SHAs are pinned.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Rekor Receipt Re-check
+
+on:
+  schedule:
+    - cron: '17 6 * * *'  # daily at 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual re-check'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: rekor-recheck
+  cancel-in-progress: false
+
+jobs:
+  recheck:
+    name: Re-verify published receipts against Rekor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install sigstore SDK
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "sigstore>=2.0.0"
+
+      - name: Re-verify all published governance receipts
+        id: recheck
+        run: |
+          set +e
+          python scripts/recheck_rekor_receipts.py \
+            --dir attestations/governance \
+            --summary-out attestations/governance/.rekor-recheck-summary.json \
+            | tee recheck.out
+          status=${PIPESTATUS[0]}
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+
+          # Surface a structured object for the issue-manager step + a human
+          # summary on the run page.
+          if [ -f attestations/governance/.rekor-recheck-summary.json ]; then
+            checked=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['checked'])")
+            passed=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['passed'])")
+            failed=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['failed'])")
+            skipped=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['skipped'])")
+          else
+            checked=0; passed=0; failed=0; skipped=0
+          fi
+          echo "checked=${checked}" >> "$GITHUB_OUTPUT"
+          echo "passed=${passed}"   >> "$GITHUB_OUTPUT"
+          echo "failed=${failed}"   >> "$GITHUB_OUTPUT"
+          echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Rekor receipt re-check"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Checked | ${checked} |"
+            echo "| Verified | ${passed} |"
+            echo "| **Failed** | ${failed} |"
+            echo "| Skipped (placeholder) | ${skipped} |"
+            echo ""
+            echo '```'
+            cat recheck.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0  # never abort here; the explicit gate below owns pass/fail
+
+      - name: Upload re-check summary
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: rekor-recheck-summary
+          path: attestations/governance/.rekor-recheck-summary.json
+          if-no-files-found: ignore
+
+      - name: Reconcile rolling re-check incident issue
+        if: always()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          EXIT_CODE: ${{ steps.recheck.outputs.exit_code }}
+          CHECKED: ${{ steps.recheck.outputs.checked }}
+          FAILED: ${{ steps.recheck.outputs.failed }}
+          PASSED: ${{ steps.recheck.outputs.passed }}
+          SKIPPED: ${{ steps.recheck.outputs.skipped }}
+        with:
+          script: |
+            const failed = Number(process.env.FAILED || '0') > 0 ||
+                           Number(process.env.EXIT_CODE || '0') === 1;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const marker = '<!-- rekor-recheck-incident -->';
+
+            // Find the single rolling incident (open or closed) by stable marker.
+            const q = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:rekor-recheck`;
+            const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
+            const existing = res.data.items.find(i => !i.pull_request) || null;
+
+            const stats = `checked=${process.env.CHECKED} verified=${process.env.PASSED} failed=${process.env.FAILED} skipped=${process.env.SKIPPED}`;
+            const now = new Date().toISOString();
+
+            if (failed) {
+              const body = `## Rekor Re-check Incident\n\n${marker}\n` +
+                `**State:** FAILING\n**Detected:** ${now}\n**Run:** ${runUrl}\n\n` +
+                `One or more PUBLISHED governance receipts no longer verify against the ` +
+                `public Rekor transparency log.\n\n\`${stats}\`\n\n` +
+                `See the run summary for the per-receipt breakdown. This is a single ` +
+                `rolling incident; it updates in place and auto-closes on recovery.`;
+              if (existing) {
+                if (existing.state === 'closed') {
+                  await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
+                }
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Still FAILING as of ${now}.\n\n\`${stats}\`\nRun: ${runUrl}` });
+              } else {
+                await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                  title: '[REKOR] Published governance receipt(s) no longer verify', body, labels: ['rekor-recheck', 'incident'] });
+              }
+            } else if (existing && existing.state === 'open') {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                body: `Recovered: all published receipts verify against Rekor again as of ${now}.\n\n\`${stats}\`\nAuto-closing this rolling incident.\nRun: ${runUrl}` });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+            }
+
+      - name: Fail the run if any published receipt no longer verifies
+        if: always()
+        run: |
+          code="${{ steps.recheck.outputs.exit_code }}"
+          if [ "${code}" = "1" ]; then
+            echo "::error::One or more published governance receipts no longer verify against Rekor."
+            exit 1
+          fi
+          if [ "${code}" != "0" ]; then
+            echo "::error::Re-check script errored (exit ${code})."
+            exit 1
+          fi
+          echo "All published receipts still verify against Rekor (or none published yet)."
