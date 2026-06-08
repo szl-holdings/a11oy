@@ -13,9 +13,15 @@ updates:
       - "security"
     open-pull-requests-limit: 5
     groups:
+      # Group only the low-risk patch/minor bumps so they can auto-merge.
+      # Major bumps are excluded here and arrive as separate, individually
+      # reviewable PRs.
       actions:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Python pip dependencies
   - package-ecosystem: "pip"
@@ -32,6 +38,9 @@ updates:
       python-deps:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Docker dependencies
   - package-ecosystem: "docker"
@@ -73,3 +82,6 @@ updates:
       npm-deps:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
