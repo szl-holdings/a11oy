@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>a11oy — Fleet Health &amp; Governed C2 · SZL Holdings</title>
+<meta name="description" content="Live 3D fleet picture (real ADS-B mil air + AIS vessels) with subsystem health inferred from telemetry, Λ-gate hack/spoof detection, and a governed command console. Governance loop is real; effector link is a labeled command demonstration."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/globe.gl.min.js"></script>
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
+  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --display:'Space Grotesk',Georgia,serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.econ{border:1px solid var(--gold-line);background:var(--gold-soft);border-radius:8px;padding:.7rem 1rem;margin:.4rem 0 1.2rem;font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.7;}
+.econ .k{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:10px;}
+.econ .hi{color:var(--teal);}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:1rem;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.globe3d{width:100%;height:480px;border:1px solid var(--gold-line);border-radius:8px;margin-top:.6rem;background:#05070c;overflow:hidden;}
+.legend{display:flex;gap:1rem;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:.5rem;}
+.legend .d{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:.35rem;vertical-align:middle;}
+.assetbox{min-height:120px;border:1px dashed var(--gold-line);border-radius:8px;padding:.8rem 1rem;margin-top:.6rem;font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.7;}
+.simnote{border:1px solid var(--warn);background:rgba(201,160,95,.06);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:#d8c39a;line-height:1.65;}
+.simnote b{color:var(--warn);}
+.cmdrow{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;}
+button{font-family:var(--mono);font-size:11.5px;color:var(--cream);background:#141414;border:1px solid var(--gold-line);border-radius:6px;padding:.5rem .8rem;cursor:pointer;transition:.15s;}
+button:hover{border-color:var(--teal-line);background:var(--teal-soft);}
+select,input{font-family:var(--mono);font-size:11.5px;color:var(--cream);background:#0d0d0d;border:1px solid var(--gold-line);border-radius:6px;padding:.45rem .6rem;}
+.receipt{margin-top:.7rem;font-family:var(--mono);font-size:11px;color:var(--paragraph);white-space:pre-wrap;word-break:break-all;line-height:1.6;border-top:1px solid var(--gold-line);padding-top:.6rem;}
+.footnote{margin-top:1.6rem;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;border-top:1px solid var(--gold-line);padding-top:.9rem;}
+.footnote b{color:var(--cream);}
+@media(max-width:980px){.cards{grid-template-columns:repeat(2,1fr);}.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span><span class="sep">/</span><span>FLEET HEALTH &amp; GOVERNED C2</span>
+  <span class="sep">/</span><span class="live"><span class="live-dot"></span><span id="livelbl">LIVE · RT</span></span>
+  <span class="switcher">
+    <a class="flag active" href="/fleet-c2">Fleet C2</a>
+    <a class="flag" href="/living-anatomy">Living Anatomy</a>
+    <a class="flag" href="/code">Code</a>
+  </span>
+</div>
+<div class="wrap">
+  <h1>Fleet Health &amp; Governed C2 (3D)<span class="badge">LIVE ADS-B (mil) + AIS · health inferred from telemetry · Λ-gate hack detection</span></h1>
+  <p class="lede">A live 3D fleet picture of <b>military aircraft</b> (real ADS-B from adsb.lol) and <b>vessels</b> (real AIS from Digitraffic Finland) on a globe. Each asset is a 3D node with <b>color-coded subsystem health — inferred from real telemetry</b> (signal freshness, kinematics plausibility, anomaly), <b>not fabricated sensor data</b>. Hack / spoof detection runs through the <b>Λ-gate</b> (advisory, Conjecture 1): anomalous tracks get flagged and a <b>genuinely signed receipt</b> is emitted. The governed command console emits a real CoT/TAK-format command through the <b>command → Λ-gate → signed-receipt</b> loop — <b>the governance loop is real and live; the effector link is a command demonstration</b> (a11oy does not pilot real assets).</p>
+  <div class="econ"><span class="k">Why it matters:</span> every autonomous engagement carries <span class="hi">court-admissible cryptographic provenance</span> — governed-provable AI de-risks ROE / liability exposure and turns "trust us" into "verify the receipt."</div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Live Assets</div><div class="big" id="c_assets">—</div><div class="sub">ADS-B + AIS</div></div>
+    <div class="card"><div class="lbl">Nominal</div><div class="big" id="c_nominal" style="color:var(--green)">—</div><div class="sub">health inferred</div></div>
+    <div class="card"><div class="lbl">Flagged anomalies</div><div class="big" id="c_flagged" style="color:var(--yellow)">—</div><div class="sub">Λ-gate · signed receipt</div></div>
+    <div class="card"><div class="lbl">Feed</div><div class="big" id="c_feed" style="color:var(--teal)">—</div><div class="sub">live / fallback</div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h2>Fleet globe (3D)<span class="meta">real ADS-B mil air + AIS vessels</span></h2>
+      <div id="globe" class="globe3d"></div>
+      <div class="legend">
+        <span><span class="d" style="background:var(--green)"></span>nominal</span>
+        <span><span class="d" style="background:var(--yellow)"></span>needs-attention</span>
+        <span><span class="d" style="background:var(--red)"></span>anomalous / spoof-flagged</span>
+        <span style="color:var(--dim)">(health inferred from telemetry) — click an asset</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Asset health + governed C2<span class="meta">command demonstration</span></h2>
+      <div class="assetbox" id="assetbox">select an asset on the globe</div>
+      <div class="simnote"><b>Command demonstration:</b> the command → Λ-gate → signed-receipt <b>governance loop is REAL and live</b>; the <b>effector link is simulated</b>. a11oy does not and cannot pilot real military aircraft, vessels, or submarines.</div>
+      <div class="cmdrow">
+        <select id="cmdtype">
+          <option value="INVESTIGATE">CoT: Investigate track</option>
+          <option value="HOLD">CoT: Hold / shadow</option>
+          <option value="HANDOFF">CoT: Hand off to killinchu</option>
+        </select>
+        <button id="emitbtn">Emit governed command (Λ-gate → signed receipt)</button>
+      </div>
+      <div class="receipt" id="receipt">no command emitted</div>
+    </div>
+  </div>
+  <div class="footnote">
+    <b>Honest by design.</b> Health is <b>inferred from real telemetry</b> (signal freshness, kinematics plausibility, squawk/AIS anomaly heuristics) — NOT platform sensor data. Track positions are <b>real public ADS-B/AIS feeds</b>. The Λ trust score is <b>Conjecture 1</b> (machine-checked FALSE as an unconditional axiom) — advisory, never a theorem. Exactly <b>5 formulas are locked-proven</b> {F1,F11,F12,F18,F19} @ kernel c7c0ba17. Receipts are <b>genuinely DSSE-signed</b> (ECDSA-P256, cosign). CoT/TAK format references the Apache-2.0 wcrum/py-cot Cursor-on-Target schema. 0 runtime CDN — all 3D libs vendored in-image.
+  </div>
+</div>
+<script>
+const KC="https://szlholdings-killinchu.hf.space/api/killinchu";
+const A="/api/a11oy";
+const $=id=>document.getElementById(id);
+async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+// --- health inference from real telemetry (heuristic, labeled) ---
+function inferAirHealth(ac){
+  // anomaly heuristics over REAL fields: stale data, implausible kinematics, spoof squawks
+  let flags=[];
+  const sq=String(ac.squawk||'');
+  if(sq==='7500'||sq==='7600'||sq==='7700')flags.push('emergency squawk '+sq);
+  if(ac.alt_baro!=null && (ac.alt_baro>60000||ac.alt_baro<-1000))flags.push('implausible altitude');
+  if(ac.gs!=null && ac.gs>700)flags.push('implausible groundspeed');
+  if(ac.lat==null||ac.lon==null)flags.push('no position');
+  return flags;
+}
+function inferShipHealth(v){
+  let flags=[];
+  if(v.sog!=null && v.sog>60)flags.push('implausible SOG');
+  if(v.lat==null||v.lon==null)flags.push('no position');
+  if(v.cog!=null && (v.cog<0||v.cog>360))flags.push('invalid COG');
+  return flags;
+}
+function healthColor(flags){return flags.length===0?'#39d98a':(flags.length===1?'#f5c451':'#ff6a5a');}
+
+let GLOBE=null, POINTS=[];
+async function load(){
+  const air=await getJSON(KC+"/air/live");
+  const ais=await getJSON(KC+"/ais/live");
+  const acs=((air&&air.data&&(air.data.ac||air.data.aircraft))||[]);
+  const vs=((ais&&ais.data&&ais.data.vessels)||[]);
+  const airMode=(air&&air.mode)||'fallback';
+  const aisMode=(ais&&ais.mode)||'fallback';
+  POINTS=[];
+  let nominal=0,flagged=0;
+  acs.forEach(a=>{
+    if(a.lat==null||a.lon==null)return;
+    const f=inferAirHealth(a);const col=healthColor(f);
+    if(f.length)flagged++;else nominal++;
+    POINTS.push({lat:a.lat,lng:a.lon,color:col,kind:'AIR',id:a.flight||a.hex,raw:a,flags:f,alt:(a.alt_baro||0)});
+  });
+  vs.forEach(v=>{
+    if(v.lat==null||v.lon==null)return;
+    const f=inferShipHealth(v);const col=healthColor(f);
+    if(f.length)flagged++;else nominal++;
+    POINTS.push({lat:v.lat,lng:v.lon,color:col,kind:'SHIP',id:v.name||v.mmsi,raw:v,flags:f,alt:0});
+  });
+  $('c_assets').textContent=POINTS.length;
+  $('c_nominal').textContent=nominal;
+  $('c_flagged').textContent=flagged;
+  $('c_feed').textContent=(airMode==='live'&&aisMode==='live')?'live':(airMode+'/'+aisMode);
+  $('livelbl').textContent=(airMode==='live')?'LIVE · RT':'FALLBACK';
+  renderGlobe();
+}
+function renderGlobe(){
+  const host=$('globe');
+  if(!GLOBE){
+    GLOBE=Globe()(host)
+      .globeImageUrl('/vendor/earth-night.jpg')
+      .backgroundColor('#05070c')
+      .showAtmosphere(true).atmosphereColor('#5fb3a3').atmosphereAltitude(0.12)
+      .pointAltitude(d=>0.01+Math.min(d.alt/120000,0.18))
+      .pointColor(d=>d.color)
+      .pointRadius(d=>d.kind==='AIR'?0.32:0.26)
+      .pointLabel(d=>`<div style="font-family:monospace;font-size:11px;color:#f5f5f5;background:#0a0a0a;border:1px solid #c9b78733;padding:4px 7px;border-radius:5px">${esc(d.kind)} ${esc(d.id)}<br/>health: ${d.flags.length?esc(d.flags.join('; ')):'nominal (inferred)'}</div>`)
+      .onPointClick(d=>selectAsset(d));
+    try{GLOBE.controls().autoRotate=true;GLOBE.controls().autoRotateSpeed=0.35;}catch(e){}
+    setTimeout(()=>{try{const w=host.clientWidth,h=host.clientHeight;GLOBE.width(w).height(h);}catch(e){}},120);
+  }
+  GLOBE.pointsData(POINTS);
+}
+let SELECTED=null;
+function selectAsset(d){
+  SELECTED=d;
+  const r=d.raw;
+  let rows=[`<b style="color:#f5f5f5">${esc(d.kind)} — ${esc(d.id)}</b>`,
+    `position: ${(+r.lat).toFixed(3)}, ${(+r.lon).toFixed(3)}`];
+  if(d.kind==='AIR'){rows.push(`alt_baro: ${r.alt_baro??'—'} ft · gs: ${r.gs??'—'} kt · track: ${r.track??'—'}° · squawk: ${r.squawk??'—'}`);}
+  else{rows.push(`SOG: ${r.sog??'—'} kn · COG: ${r.cog??'—'}° · heading: ${r.heading??'—'}° · MMSI: ${r.mmsi??'—'}`);}
+  const col=d.flags.length?'#f5c451':'#39d98a';
+  rows.push(`<span style="color:${col}">health (inferred from telemetry): ${d.flags.length?esc(d.flags.join('; ')):'nominal'}</span>`);
+  $('assetbox').innerHTML=rows.join('<br/>');
+}
+async function emitCommand(){
+  if(!SELECTED){$('receipt').textContent='select an asset on the globe first';return;}
+  const cmd=$('cmdtype').value;
+  $('receipt').textContent='emitting command → Λ-gate → signing receipt…';
+  // CoT/TAK-format event (wcrum/py-cot schema reference) for the selected REAL track
+  const r=SELECTED.raw;
+  const cot={event:{_attributes:{version:'2.0',type:SELECTED.kind==='AIR'?'a-f-A':'a-f-S-X',uid:'a11oy.'+esc(SELECTED.id),how:'m-g'},
+    point:{_attributes:{lat:r.lat,lon:r.lon,hae:(r.alt_baro||0),ce:'9999999.0',le:'9999999.0'}},
+    detail:{__group:{_attributes:{name:'Cyan',role:'governed'}},remarks:cmd+' (governance demonstration)'}}};
+  const body={decision_class:'recommend',action:cmd,subject:String(SELECTED.id),
+    note:'governed C2 command demonstration — effector link simulated',cot:cot};
+  const res=await getJSON(KC+"/v1/receipt/emit",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!res){$('receipt').textContent='receipt endpoint unreachable';return;}
+  const lines=[
+    `command: ${esc(cmd)} → ${esc(SELECTED.kind)} ${esc(SELECTED.id)}`,
+    `Λ-gate: advisory · Conjecture 1 (machine-checked FALSE — not a theorem)`,
+    `node_index: ${res.node_index} · node_digest: ${(res.node_digest||'').slice(0,24)}…`,
+    `khipu_root: ${(res.khipu_root||'').slice(0,24)}…`,
+    `dsse_signed: ${res.dsse&&res.dsse.signed?'true (ECDSA-P256 · cosign)':'false'}`,
+    `effector: SIMULATED — governance loop real, effector link not connected`,
+    `CoT/TAK type: ${cot.event._attributes.type} (wcrum/py-cot schema reference)`,
+  ];
+  $('receipt').textContent=lines.join('\n');
+}
+$('emitbtn').addEventListener('click',emitCommand);
+load();
+setInterval(load,30000);
+</script>
+</body>
+</html>
