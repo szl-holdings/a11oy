@@ -45,6 +45,22 @@ _METHOD = {
     "bls": ("GET", ""),
     "reidemeister": ("GET", ""),
     "hnsw": ("GET", ""),
+    # Wave15-18 additions (CF-22 / CF-23 / R–J aftershock).
+    "kl": ("POST", ""),                  # CF-22: POST {p,q} simplex vectors
+    "pinsker": ("GET", "?p=0.6&q=0.5"),  # CF-23: binary Pinsker margin
+    "aftershock": ("GET", "?mainshock_mag=6.0&target_mag=5.0&days=1.0"),  # R–J live-data
+}
+
+# Default JSON bodies for POST "Try it" buttons (honest, side-effect-free demos).
+_POST_BODY = {
+    "kl": {"p": [0.5, 0.3, 0.2], "q": [0.4, 0.4, 0.2]},
+}
+
+# Maturity tier label per formula (honest doctrine tiers). Absent = legacy/proved.
+_TIER = {
+    "kl": "experimental",
+    "pinsker": "experimental",
+    "aftershock": "live-data",
 }
 
 # Lean file path per formula (relative inside lutar-lean), parsed from _INDEX label.
@@ -58,6 +74,9 @@ _LEAN_PATH = {
     "bls": "Lutar/FrontierBLSAggregation.lean",
     "reidemeister": "Lutar/KnotCalculus.lean",
     "hnsw": "Lutar/FrontierHNSWNavigability.lean",
+    "kl": "Lutar/Wave15/DPOKLSimplex.lean",        # CF-22
+    "pinsker": "Lutar/Wave17/BinaryPinsker.lean",  # CF-23
+    # aftershock has NO Lean theorem (generic-parameter R–J model) -> repo root link.
 }
 
 
@@ -83,9 +102,21 @@ def _card(item: dict, ns: str) -> str:
     method, qs = _METHOD.get(name, ("GET", ""))
     ep = f"/api/{ns}/v1/formula/{name}{qs}"
     perm = _lean_permalink(name)
+    # Honest maturity badge. _INDEX may carry an explicit tier (Wave15-18 cards);
+    # else infer from the theorem label (scaffolding/conjecture => not-proved).
+    tier = (item.get("tier") or _TIER.get(name) or "").lower()
     scaffold = "scaffolding" in theorem.lower() or "conjecture" in theorem.lower()
-    badge = ('<span class="badge warn">honest: not a proved theorem</span>'
-             if scaffold else '<span class="badge ok">proved</span>')
+    if tier == "experimental":
+        badge = '<span class="badge exp">experimental (CI-green, not in locked-5)</span>'
+    elif tier == "live-data":
+        badge = '<span class="badge live">live-data (generic-parameter, not a theorem)</span>'
+    elif scaffold:
+        badge = '<span class="badge warn">honest: not a proved theorem</span>'
+    else:
+        badge = '<span class="badge ok">proved</span>'
+    # POST endpoints carry their demo body inline so the button can replay it.
+    body = _POST_BODY.get(name)
+    body_attr = (f' data-body=\'{_html.escape(json.dumps(body))}\'' if body else "")
     return f"""
     <article class="fcard" id="f-{_html.escape(name)}">
       <header><h3>{_html.escape(name)}</h3>{badge}</header>
@@ -93,7 +124,7 @@ def _card(item: dict, ns: str) -> str:
       <p class="lean">∎ <code>{_html.escape(theorem)}</code></p>
       <div class="row">
         <a class="lean-link" href="{_html.escape(perm)}" target="_blank" rel="noopener">Lean permalink ↗</a>
-        <button class="tryit" data-ep="{_html.escape(ep)}" data-method="{method}">Try it ({method})</button>
+        <button class="tryit" data-ep="{_html.escape(ep)}" data-method="{method}"{body_attr}>Try it ({method})</button>
       </div>
       <pre class="out" id="out-{_html.escape(name)}" hidden></pre>
     </article>"""
@@ -128,6 +159,8 @@ def _page_html(ns: str) -> str:
   .badge {{ font-size:.62rem; padding:.18rem .5rem; border-radius:999px; letter-spacing:.06em; text-transform:uppercase; }}
   .badge.ok {{ background:rgba(63,174,122,.16); color:var(--ok); border:1px solid rgba(63,174,122,.4); }}
   .badge.warn {{ background:rgba(200,137,60,.16); color:var(--warn); border:1px solid rgba(200,137,60,.4); }}
+  .badge.exp {{ background:rgba(120,140,210,.16); color:#9fb0e6; border:1px solid rgba(120,140,210,.45); }}
+  .badge.live {{ background:rgba(63,174,122,.12); color:#6fc79a; border:1px solid rgba(63,174,122,.35); }}
   .cite {{ color:var(--muted); font-size:.82rem; margin:.65rem 0 .25rem; }}
   .lean code {{ color:var(--gold); font-size:.78rem; word-break:break-word; }}
   .row {{ display:flex; gap:.6rem; align-items:center; margin-top:.85rem; flex-wrap:wrap; }}
@@ -158,6 +191,11 @@ document.querySelectorAll('.tryit').forEach(function(btn) {{
     out.hidden = false; out.textContent = 'calling ' + method + ' ' + ep + ' …';
     try {{
       var opts = {{ method: method, headers: {{ 'Accept': 'application/json' }} }};
+      var bodyAttr = btn.getAttribute('data-body');
+      if (method === 'POST' && bodyAttr) {{
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = bodyAttr;
+      }}
       var r = await fetch(ep, opts);
       var t = await r.text();
       try {{ out.textContent = '[' + r.status + '] ' + JSON.stringify(JSON.parse(t), null, 2); }}
