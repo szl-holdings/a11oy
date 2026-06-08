@@ -416,6 +416,17 @@ ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 COPY a11oy_live_feeds.py ./a11oy_live_feeds.py
 COPY live_snapshots/ ./live_snapshots/
 
+# ADDITIVE (Investor-WOW Layer, 2026-06-08, Dev1): a11oy_dev1_endpoints.py exposes
+# the four founder-approved WOW surfaces: POST /v1/wow/govern (Drop-on-Anything
+# governed turn + ungoverned-vs-governed catch), GET /v1/wow/ledger (unified
+# cross-vertical tamper-evident receipt chain), /v1/wow/roi (cost-of-failure model,
+# labeled assumptions), /v1/wow/router-latency (live router topology). Self-contained,
+# DSSE-signed receipts, honest labels, 0 fabricated data, 0 CDN. Per-file COPY (this
+# Dockerfile never uses `COPY . .`) -- without it the import fails and the /v1/wow/*
+# routes fall through to the SPA. serve.py imports it try/except-guarded.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+COPY a11oy_dev1_endpoints.py ./a11oy_dev1_endpoints.py
+
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained operator surfaces,
 # each adopting a PERMISSIVELY-licensed PATTERN (NOTICE updated) and evolving it into
 # an a11oy-native mechanism. Stdlib-only (no torch/numpy/CDN). Per-file COPY (this
