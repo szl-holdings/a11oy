@@ -4664,7 +4664,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        CHAPAQ) or generic capability labels; approved Quechua organ names are
        kept verbatim. The backend keys may still be amaru/sentra/rosie; this map
        is the ONLY thing the user sees. */
-    var LABEL={amaru:'YACHAY',sentra:'CHAPAQ',rosie:'Companion',vessels:'Vessels',killinchu:'Intelligence',kanchay:'kanchay',wayra:'wayra',puriq:'puriq',yuyay:'yuyay',hukla:'hukla',khipu:'khipu',lambda_spine:'\u03bb-spine',yawar:'yawar',tinkuy:'tinkuy'};
+    /* Backend now emits HONEST ROLE KEYS (reasoning/policy/operator/field_node)
+       — the codename leak in raw /v1/ayni + /v1/tinkuy is fixed at the source
+       (ayni_os_serve.py honest-role remap). Legacy codename keys are kept here
+       only as a defensive fallback; both resolve to the same display label. */
+    var LABEL={reasoning:'YACHAY',policy:'CHAPAQ',operator:'Companion',field_node:'Intelligence',amaru:'YACHAY',sentra:'CHAPAQ',rosie:'Companion',vessels:'Vessels',killinchu:'Intelligence',kanchay:'kanchay',wayra:'wayra',puriq:'puriq',yuyay:'yuyay',hukla:'hukla',khipu:'khipu',lambda_spine:'\u03bb-spine',yawar:'yawar',tinkuy:'tinkuy'};
     function aColor(a){ if(a==null) return DIM; if(a<0.45) return RED; if(a<0.5) return AMBER; return TEAL; }
 
     function drawKuramoto(id, phases, r, psi){
