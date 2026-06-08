@@ -27,9 +27,21 @@ HONESTY
     scheduled workflow turns red and an alert is raised.
   - This does NOT change the SLSA claim (still L1). It re-checks signatures only.
 
+Emptied-ledger guard (issue #320):
+  The published `governance-receipts` ledger is append-only. Once it has been
+  populated, "zero receipts found" is no longer an honest soft pass — it means
+  the ledger branch was wiped or the fetch step silently failed, which would
+  otherwise let this monitor go green with nothing to re-check and mask a real
+  regression. A checked-in baseline (`--baseline` / `--min-receipts`) records
+  the minimum number of receipts that must always be present; if the live
+  re-check finds fewer than that, it fails LOUDLY. A genuine empty-on-first-use
+  state (no baseline recorded, or a baseline of 0) is still tolerated.
+
 Exit codes:
-  0  every real receipt re-verified (or there were none to check)
-  1  at least one real receipt FAILED to re-verify
+  0  every real receipt re-verified (or there were none to check, and the
+     baseline floor — if any — is satisfied)
+  1  at least one real receipt FAILED to re-verify, OR the ledger dropped below
+     its recorded baseline (a wipe / broken fetch)
   2  usage / environment error
 """
 from __future__ import annotations
@@ -46,6 +58,36 @@ sys.path.insert(0, str(REPO_ROOT))
 _SIGSTORE_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 _REAL_MODE = "SIGSTORE-KEYLESS"
 _PLACEHOLDER_MODE = "PLACEHOLDER"
+
+_DEFAULT_BASELINE = REPO_ROOT / ".github" / "rekor-recheck-baseline.json"
+
+
+def load_baseline(path: str | os.PathLike[str] | None) -> int:
+    """Return the minimum number of receipts that must always be present.
+
+    The published `governance-receipts` ledger is append-only, so once it is
+    populated the live re-check must never find fewer receipts than the recorded
+    baseline. A *missing* baseline file means the floor has not been recorded yet
+    (genuine first-use) and returns 0, preserving the empty-on-first-use soft
+    pass. A *present but malformed* baseline is a loud environment error (exit 2)
+    rather than a silent min=0 — silently disabling the guard would re-open the
+    exact "go green with nothing to check" hole this floor exists to close.
+    """
+    if not path:
+        return 0
+    p = Path(path)
+    if not p.exists():
+        return 0
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return int(data.get("min_receipts", 0) or 0)
+    except Exception as exc:  # noqa: BLE001 - corrupt checked-in config must be loud
+        print(
+            f"[recheck] ERROR: baseline file {p} is present but unreadable/"
+            f"malformed: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
 
 
 def _default_identity() -> str:
@@ -179,10 +221,36 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="optional path to write the JSON summary to (for status surfacing)",
     )
+    ap.add_argument(
+        "--baseline",
+        default=None,
+        help=(
+            "path to a JSON baseline file ({\"min_receipts\": N}). If the live "
+            "ledger holds fewer receipts than N, fail loudly (guards against a "
+            "wiped governance-receipts ledger branch or a silently-broken "
+            "fetch). A missing file = no floor (empty-on-first-use is tolerated)."
+        ),
+    )
+    ap.add_argument(
+        "--min-receipts",
+        type=int,
+        default=0,
+        help=(
+            "minimum number of receipts that must be present (floor). The larger "
+            "of this and --baseline wins. 0 (default) keeps the "
+            "empty-on-first-use soft pass."
+        ),
+    )
     args = ap.parse_args(argv)
 
     receipts_dir = Path(args.dir)
     summary = recheck_dir(receipts_dir, identity=args.identity, issuer=args.issuer)
+
+    # Emptied-ledger guard (issue #320): record/honour a minimum receipt floor.
+    min_expected = max(args.min_receipts, load_baseline(args.baseline))
+    summary["min_expected"] = min_expected
+    summary["baseline_ok"] = summary["checked"] >= min_expected
+
     _print_summary(summary)
 
     if args.summary_out:
@@ -190,6 +258,17 @@ def main(argv: list[str] | None = None) -> int:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
         print(f"[recheck] wrote summary: {out}")
+
+    if not summary["baseline_ok"]:
+        print(
+            f"[recheck] FAILURE: the published ledger reports "
+            f"{summary['checked']} receipt(s) but the recorded baseline requires "
+            f"at least {min_expected}. The governance-receipts ledger branch may "
+            f"have been wiped or the fetch step silently failed — refusing to "
+            f"pass green with nothing to re-check.",
+            file=sys.stderr,
+        )
+        return 1
 
     if summary["checked"] == 0:
         print(
