@@ -113,6 +113,17 @@ jobs:
             echo "${k}=${!k}" >> "$GITHUB_OUTPUT"
           done
 
+          # Names (+reason) of every published asset that no longer verifies
+          # (FAIL or UNVERIFIABLE), so the direct alert can name the failing
+          # receipt(s). Multi-line output via the heredoc delimiter form.
+          {
+            echo "failed_files<<__RELVERIFY_EOF__"
+            if [ -f release-receipts/.release-verify-summary.json ]; then
+              python -c "import json; s=json.load(open('release-receipts/.release-verify-summary.json')); [print('- '+r['file']+(' ('+r['reason']+')' if r.get('reason') else '')) for r in s.get('results',[]) if r.get('status') in ('FAIL','UNVERIFIABLE')]"
+            fi
+            echo "__RELVERIFY_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
           {
             echo "## Release receipt verification"
             echo ""
@@ -144,6 +155,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Reconcile rolling verification incident issue
+        id: incident
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
@@ -176,6 +188,7 @@ jobs:
                 `placeholder / unexpected signer).\n\n\`${stats}\`\n\n` +
                 `See the run summary for the per-asset breakdown. This is a single ` +
                 `rolling incident; it updates in place and auto-closes on recovery.`;
+              let incident = existing;
               if (existing) {
                 if (existing.state === 'closed') {
                   await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
@@ -183,14 +196,84 @@ jobs:
                 await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
                   body: `Still FAILING as of ${now}.\n\n\`${stats}\`\nRun: ${runUrl}` });
               } else {
-                await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
                   title: '[RELEASE] Published release receipt(s) no longer verify', body, labels: ['release-receipt-verify', 'incident'] });
+                incident = created.data;
+              }
+              // Surface the incident issue so the direct-alert step can link it.
+              if (incident) {
+                core.setOutput('issue_number', String(incident.number));
+                core.setOutput('issue_url', incident.html_url);
               }
             } else if (existing && existing.state === 'open') {
               await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
                 body: `Recovered: all published release receipts verify again as of ${now}.\n\n\`${stats}\`\nAuto-closing this rolling incident.\nRun: ${runUrl}` });
               await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
             }
+
+      # Direct push notification so a silently-broken PUBLISHED release-asset
+      # receipt is noticed immediately, not just buried in a red run / rolling
+      # issue. Fires ONLY when a published asset no longer verifies (same
+      # condition the incident issue uses); the all-pass path sends nothing.
+      # Posts to a Slack-compatible incoming webhook via curl (no third-party
+      # action, so it stays within the org's github-owned/verified-actions-only
+      # policy). If no webhook secret is configured it logs a notice and
+      # soft-skips — the red run + incident issue still stand.
+      - name: Alert the team directly on release-receipt verification failure
+        if: ${{ always() && (steps.verify.outputs.failed != '0' || steps.verify.outputs.unverifiable != '0' || steps.verify.outputs.exit_code == '1') }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
+          ISSUE_NUMBER: ${{ steps.incident.outputs.issue_number }}
+          REPO: ${{ github.repository }}
+          REL_TAG: ${{ steps.download.outputs.tag }}
+          CHECKED: ${{ steps.verify.outputs.checked }}
+          PASSED: ${{ steps.verify.outputs.passed }}
+          FAILED: ${{ steps.verify.outputs.failed }}
+          UNVERIFIABLE: ${{ steps.verify.outputs.unverifiable }}
+          FAILED_FILES: ${{ steps.verify.outputs.failed_files }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the rolling release-receipt-verify incident issue still stand."
+            exit 0
+          fi
+
+          if [ -n "${ISSUE_URL}" ]; then
+            issue_line="Incident issue: #${ISSUE_NUMBER} ${ISSUE_URL}"
+          else
+            issue_line="Incident issue: (could not be resolved this run)"
+          fi
+
+          files="${FAILED_FILES}"
+          if [ -z "${files}" ]; then
+            files="(verifier errored before a per-asset breakdown was produced)"
+          fi
+
+          # Compose the message (real newlines), then JSON-encode it safely with
+          # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. Slack renders \n and *bold* in the `text` field.
+          text=":rotating_light: *Release receipt verification FAILED* — published release-asset receipt(s) no longer verify in ${REPO}.
+          *Release:* ${REL_TAG}
+          *Counts:* checked=${CHECKED} verified=${PASSED} failed=${FAILED} unverifiable=${UNVERIFIABLE}
+          *Failing receipt(s):*
+          ${files}
+          *Failing run:* ${RUN_URL}
+          *${issue_line}*"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting release-receipt-failure alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
 
       - name: Fail the run if any published release receipt no longer verifies
         if: always()
