@@ -1,6 +1,7 @@
 ---
 title: "a11oy — Governance Substrate"
 emoji: "🔬"
+thumbnail: "https://a11oy.net/og-card.png"
 colorFrom: indigo
 colorTo: gray
 sdk: docker
