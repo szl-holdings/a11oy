@@ -248,6 +248,13 @@ try:
     app.add_api_route("/a11oy/papers", _ptg_serve("papers.html"),   methods=["GET"], include_in_schema=False)
     app.add_api_route("/feedback-loop", _ptg_serve("feedback-loop.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/feedback-loop", _ptg_serve("feedback-loop.html"), methods=["GET"], include_in_schema=False)
+    # FRONTIER WAVE (2026-06-08): two founder tabs — Fleet Health & Governed C2,
+    # Living Anatomy. Standalone sovereign pages (vendored 3D, 0 CDN), bind to live
+    # killinchu ADS-B/AIS + receipt/emit + uds healthz and the shared anatomy Space.
+    app.add_api_route("/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
