@@ -56,6 +56,25 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "sigstore>=2.0.0"
 
+      # Published receipts live on the dedicated `governance-receipts` ledger
+      # branch (dsse-receipts.yml appends them there; main's branch ruleset
+      # blocks the in-CI token from committing to main). Pull them into the
+      # working tree. Tolerant of the branch / path not existing yet (no
+      # receipts published => nothing to re-check => honest soft pass).
+      - name: Fetch published receipts ledger
+        run: |
+          set +e
+          mkdir -p attestations/governance
+          git fetch origin governance-receipts >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            git checkout origin/governance-receipts -- attestations/governance >/dev/null 2>&1 \
+              && echo "Ledger fetched." || echo "Ledger branch present but no receipts yet."
+          else
+            echo "No governance-receipts ledger branch yet — nothing published to re-check."
+          fi
+          echo "Receipts present:"
+          ls -1 attestations/governance/*.dsse.json 2>/dev/null || echo "  (none)"
+
       - name: Re-verify all published governance receipts
         id: recheck
         run: |
