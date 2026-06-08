@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 # Authored by Yachay (CTO). Co-Authored-By: Perplexity Computer Agent.
-# Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1+L2
+# Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap
 """
 tests/test_dsse_real_signing.py — proves the DSSE signer flips from
 `signatures: []` (honest UNSIGNED) to a REAL ECDSA-P256-SHA256 signature
