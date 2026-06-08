@@ -222,6 +222,13 @@ COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
 COPY operator_shell_v4.py ./operator_shell_v4.py
 COPY web/operator.html ./web/operator.html
 
+# ADDITIVE (Frontier wave, 2026-06-08): two founder tabs served from /app/web/
+# via serve.py _ptg_serve. Sovereign pages, vendored 3D (globe.gl + three from
+# static-vendor; earth-night texture from _vendor_blobs.py /vendor route), 0 CDN.
+# Per-file COPY (this Dockerfile uses no COPY . .).
+COPY web/fleet-c2.html ./web/fleet-c2.html
+COPY web/living-anatomy.html ./web/living-anatomy.html
+
 # ADDITIVE (Cross-Harness Receipt Bridge — Hermes + OpenClaw; 2026-06-01, Yachay /
 # Perplexity Computer Agent; closeout PR superseding #198 runtime files). serve.py
 # already imports szl_bridge + a11oy_v4_agent and calls .register(app) BEFORE the
