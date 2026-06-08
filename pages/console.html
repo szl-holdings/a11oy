@@ -777,6 +777,8 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
           <div class="row"><span class="badge b-teal">GATE</span><span>Deny-by-default safety + advisory trust floor before anything runs (P2/P4).</span></div>
           <div class="row"><span class="badge b-teal">SANDBOX</span><span id="cd-iso">Real restricted-subprocess isolation: no network, CPU/mem/time limits.</span></div>
           <div class="row"><span class="badge b-teal">RECEIPT</span><span>Every hop is hash-chained and the run is ECDSA-P256 signed; flip a byte \u2192 verify fails (P5/P6).</span></div>
+          <div class="row"><span class="badge b-gold">OURO</span><span>Ouroboros KV-cache-fix: stable-by-construction decode loop (clean-room, MIT, see THIRD_PARTY_NOTICES). <span class="mono dim">EXPERIMENTAL \u00b7 CI-green \u00b7 not a locked-5 claim</span></span></div>
+          <div class="row"><span class="badge b-gold">DEQ / EqR</span><span>Fixed-point (equilibrium) reasoning receipt \u2014 the answer is a verified fixed point of the reasoning map (Banach iteration to a residual floor). <span class="mono dim">EXPERIMENTAL \u00b7 clean-room \u00b7 MIT \u00b7 not a locked-5 claim</span></span></div>
           <div class="row"><span class="badge b-teal">HALTS</span><span>The run provably finishes in bounded steps (F-G5 bounded-frontier).</span></div></div></div>
       <details class="raw"><summary>raw governed-turn run + signed receipt</summary><pre class="out" id="cd-raw">\u2014</pre></details>${HONEST}`;window.codetab_load();}},
 
@@ -3342,7 +3344,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
     /* ---- FORECAST: conformal prediction interval band (W5-3, NOT Hoeffding) ---- */
     var _origForecast=V.forecast;
-    V.forecast={title:'Forecast',badge:'CONFORMAL PI BAND \u00b7 W5-3',sub:'A distribution-free conformal prediction interval (W5-3 coverage + W7-4 rank-count p-value) \u2014 NOT Hoeffding. The observed series is plotted against the live conformal interval band; points outside the band flag in red. Coverage and the p-value floor are annotated, and we never report 100% certainty.',
+    V.forecast={title:'Forecast',badge:'CONFORMAL PI \u00b7 W5-3  +  SEISMIC AFTERSHOCK \u00b7 USGS',sub:'Two honest forecasters. (1) A distribution-free conformal prediction interval (W5-3 coverage + W7-4 rank-count p-value) \u2014 NOT Hoeffding, never 100% certainty. (2) A LIVE seismic aftershock forecast: the published Reasenberg-Jones / Omori-Utsu rate model evaluated against the real-time USGS feed for the largest recent quake. The seismic panel is a STATISTICAL FORECAST \u2014 NOT certainty, and is never a locked-proven claim.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
         +'<div class="kpi"><div class="k">Interval</div><div class="v teal" id="fc-int">\u2014</div><div class="d">distribution-free</div></div>'
         +'<div class="kpi"><div class="k">Coverage</div><div class="v" id="fc-cov">\u2014</div><div class="d">= 1 \u2212 miscoverage</div></div>'
@@ -3351,7 +3353,18 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="card"><div class="card-h"><span class="card-t">Observed series vs conformal prediction interval</span><span class="card-ep">live /formulas/selftest</span></div>'
         +'<div class="echart" id="fc-band"></div>'
         +'<div class="brain-note" id="fc-note">Gray band = conformal PI; red points = band violations. '+chip('W5-3 conformal coverage','PROVEN')+' '+chip('W7-4 rank-count p-value','PROVEN')+'</div></div>'
-        +'<details class="raw"><summary>raw conformal block</summary><pre class="out" id="fc-raw">loading\u2026</pre></details>'+B1.honestBlock();
+        // ---- LIVE seismic aftershock forecast (USGS + Reasenberg-Jones/Omori) ----
+        +'<div class="kpis">'
+        +'<div class="kpi"><div class="k">Mainshock</div><div class="v" id="sq-mm">\u2014</div><div class="d" id="sq-place">largest recent</div></div>'
+        +'<div class="kpi"><div class="k">Target M\u2265</div><div class="v teal" id="sq-tgt">\u2014</div><div class="d">aftershock mag</div></div>'
+        +'<div class="kpi"><div class="k">P(\u22651) 7d</div><div class="v" id="sq-p7">\u2014</div><div class="d">Poisson</div></div>'
+        +'<div class="kpi"><div class="k">E[count] 7d</div><div class="v warn" id="sq-n7">\u2014</div><div class="d">95% range</div></div></div>'
+        +'<div class="card"><div class="card-h"><span class="card-t">Seismic aftershock forecast \u2014 LIVE USGS, Reasenberg-Jones / Omori-Utsu</span><span class="card-ep">live /api/a11oy/v1/seismic/forecast</span></div>'
+        +'<div class="echart" id="sq-chart" style="min-height:240px"></div>'
+        +'<div id="sq-tbl" class="mono" style="font-size:.78rem;margin-top:.4rem"></div>'
+        +'<div class="brain-note" id="sq-note">'+chip('STATISTICAL FORECAST \u2014 NOT certainty','EXPERIMENTAL')+' '+chip('generic R&J prior (disclosed)','CI-GREEN')+' Source: U.S. Geological Survey (public domain). Not a locked-proven claim; never folded into the locked-5.</div></div>'
+        +'<details class="raw"><summary>raw conformal block</summary><pre class="out" id="fc-raw">loading\u2026</pre></details>'
+        +'<details class="raw"><summary>raw seismic forecast (live USGS + R&J/Omori)</summary><pre class="out" id="sq-raw">loading\u2026</pre></details>'+B1.honestBlock();
         try{ var st=await gj('/api/a11oy/v1/formulas/selftest'); var ci=st.reasoning&&st.reasoning.conformal_interval;
           if(ci){ var lo=ci.interval[0], hi=ci.interval[1], pt=ci.point;
             T('fc-int','['+lo+', '+hi+']'); T('fc-cov',(ci.coverage*100).toFixed(0)+'%'); T('fc-pf',ci.p_value_floor.toFixed(4)); T('fc-meth', ci.theorem||'conformal');
@@ -3361,6 +3374,28 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var raw=E('fc-raw'); if(raw)raw.textContent=JSON.stringify(ci,null,2);
           } else { H('fc-note','conformal block unavailable'); }
         }catch(e){ T('fc-int','offline'); }
+        // ---- seismic loader (server-side honest forecast over live USGS) ----
+        try{ var sf=await gj('/api/a11oy/v1/seismic/forecast?level=4.5&window=week');
+          if(sf&&sf.ok){ var ms=sf.mainshock||{}; var F=sf.forecasts||{};
+            T('sq-mm','M'+(ms.mag!=null?Number(ms.mag).toFixed(1):'\u2014')); T('sq-place',(ms.place||'')+(ms.time_iso?(' \u00b7 '+String(ms.time_iso).slice(0,10)):''));
+            T('sq-tgt','M'+(sf.target_min_magnitude!=null?sf.target_min_magnitude:'\u2014'));
+            var f7=F.next_7d||{}; T('sq-p7',(f7.prob_at_least_one!=null?(f7.prob_at_least_one*100).toFixed(1)+'%':'\u2014'));
+            var rng=f7.count_95pct_range||[0,0]; T('sq-n7',(f7.expected_count!=null?f7.expected_count.toFixed(1):'\u2014')+'  ['+rng[0]+'\u2013'+rng[1]+']');
+            // bar chart: P(>=1) per horizon + expected count band
+            var hz=[['24 h',F.next_24h],['7 d',F.next_7d],['30 d',F.next_30d]].filter(function(x){return x[1];});
+            mkEchart('sq-chart',{tooltip:{trigger:'axis',formatter:function(ps){var d=ps[0]&&ps[0].data&&ps[0].data._fc;if(!d)return '';return d.h+'<br/>P(\u22651)='+(d.p*100).toFixed(1)+'%<br/>E[count]='+d.n.toFixed(2)+'<br/>95% range ['+d.r[0]+', '+d.r[1]+']';}},
+              legend:{textStyle:{color:'#9a9a9a'},data:['P(\u22651 aftershock)','Expected count']},
+              grid:{left:50,right:50,top:30,bottom:30},
+              xAxis:{type:'category',data:hz.map(function(x){return x[0];}),axisLabel:{color:'#9a9a9a'},axisLine:{lineStyle:{color:'#444'}}},
+              yAxis:[{type:'value',name:'P(\u22651)',min:0,max:1,axisLabel:{color:'#9a9a9a',formatter:function(v){return (v*100)+'%';}},splitLine:{lineStyle:{color:'rgba(201,183,135,0.08)'}}},
+                     {type:'value',name:'E[count]',axisLabel:{color:'#9a9a9a'},splitLine:{show:false}}],
+              series:[{name:'P(\u22651 aftershock)',type:'bar',yAxisIndex:0,itemStyle:{color:TEAL},barWidth:'34%',data:hz.map(function(x){var d=x[1];return {value:d.prob_at_least_one,_fc:{h:x[0],p:d.prob_at_least_one,n:d.expected_count,r:d.count_95pct_range}};})},
+                      {name:'Expected count',type:'line',yAxisIndex:1,smooth:true,symbolSize:8,lineStyle:{color:GOLD,width:2},itemStyle:{color:GOLD},data:hz.map(function(x){return x[1].expected_count;})}]});
+            var rows=hz.map(function(x){var d=x[1];return '<div class="row"><span class="badge b-gold">'+x[0]+'</span><span>P(\u22651 M\u2265'+sf.target_min_magnitude+') = <b>'+(d.prob_at_least_one*100).toFixed(1)+'%</b></span><span class="spacer dim">E='+d.expected_count.toFixed(2)+' &nbsp; 95% ['+d.count_95pct_range[0]+'\u2013'+d.count_95pct_range[1]+']</span></div>';}).join('');
+            H('sq-tbl',rows);
+            var sraw=E('sq-raw'); if(sraw)sraw.textContent=JSON.stringify(sf,null,2);
+          } else { H('sq-note','USGS seismic feed unavailable right now \u2014 no fabricated forecast shown. '+chip('honest fail','CI-GREEN')); T('sq-mm','offline'); var sr=E('sq-raw'); if(sr)sr.textContent=JSON.stringify(sf,null,2); }
+        }catch(e){ T('sq-mm','offline'); H('sq-note','seismic forecast endpoint unreachable: '+esc(e.message)); }
       }};
 
     /* ---- DECISION: P1-P6 step Gantt + boolean cascade (clean baseline) ---- */
@@ -4620,7 +4655,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var V=window.VIEWS; if(!V) return;
     var T=window.setTxt, E=window.el, H=window.setHTML, gj=window.getJSON;
     var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', DIM='#666', CREAM='#f5f5f5';
-    var LABEL={amaru:'amaru',sentra:'sentra',rosie:'rosie',vessels:'vessels',killinchu:'killinchu',kanchay:'kanchay',wayra:'wayra',puriq:'puriq',yuyay:'yuyay',hukla:'hukla',khipu:'khipu',lambda_spine:'\u03bb-spine',yawar:'yawar',tinkuy:'tinkuy'};
+    /* Doctrine v13: user-visible labels only. Banned internal codenames
+       (amaru/sentra/rosie) are mapped to approved capability names (YACHAY /
+       CHAPAQ) or generic capability labels; approved Quechua organ names are
+       kept verbatim. The backend keys may still be amaru/sentra/rosie; this map
+       is the ONLY thing the user sees. */
+    var LABEL={amaru:'YACHAY',sentra:'CHAPAQ',rosie:'Companion',vessels:'Vessels',killinchu:'Intelligence',kanchay:'kanchay',wayra:'wayra',puriq:'puriq',yuyay:'yuyay',hukla:'hukla',khipu:'khipu',lambda_spine:'\u03bb-spine',yawar:'yawar',tinkuy:'tinkuy'};
     function aColor(a){ if(a==null) return DIM; if(a<0.45) return RED; if(a<0.5) return AMBER; return TEAL; }
 
     function drawKuramoto(id, phases, r, psi){
