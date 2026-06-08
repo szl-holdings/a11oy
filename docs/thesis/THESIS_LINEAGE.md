@@ -5,7 +5,7 @@ traces to a versioned, DOI-pinned thesis. This is the canonical timeline.
 
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
 [![Λ Conjecture 1](https://img.shields.io/badge/Λ-Conjecture_1_(NOT_theorem)-blue.svg)](https://github.com/szl-holdings/lutar-lean)
-[![SLSA L1+L2](https://img.shields.io/badge/SLSA-L1%2BL2_attested_(NOT_L3)-green.svg)](https://slsa.dev)
+[![SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20(Rekor)%20%C2%B7%20L3%2B%20roadmap-2C5F2D?style=flat-square)](https://slsa.dev)
 [![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
 
 **Author:** Stephen P. Lutar Jr. · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
@@ -40,7 +40,7 @@ traces to a versioned, DOI-pinned thesis. This is the canonical timeline.
 | **v19** | — | *(no release — version gap; v18 → v20)* | — |
 | **v20** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.19944926) | "The Culmination" — formally-verified anatomical substrate |
 | **v21** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.19944926) | **The PURIQ-OS Substrate** — 12-organ runtime, 23 agentic formulas (5 proved in Lean 4) |
-| **v22** | 2026-06-03 | **DOI pending (founder mint)** | **"Convergence"** — A5 axiom merge; VCG truthfulness; Cauchy_ND partial closure; SLSA L2; Rounds 10–11; Sim2Real Walrus-parallel (α=0.10) |
+| **v22** | 2026-06-03 | **DOI pending (founder mint)** | **"Convergence"** — A5 axiom merge; VCG truthfulness; Cauchy_ND partial closure; SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap; Rounds 10–11; Sim2Real Walrus-parallel (α=0.10) |
 
 > **v19 gap:** intentionally skipped. Numbering jumped v18 → v20 during the late-May
 > consolidation. There is no v19 paper or DOI; this is documented, not a missing artifact.
@@ -104,8 +104,7 @@ Honest status — only A5 is merged to `main`; the rest are **on-branch / in rev
    (#175); functional-analysis closed `multiplicative_monotone_isPow` with **1 honest sorry** on the
    t=0 degenerate case (#173); symmetric branch closed with A5 dependency (#174). Combined path
    (A5 + Cauchy + topology + symmetric) is the full Λ-uniqueness chain — **not yet complete on main**.
-4. **SLSA L2 achieved.** 5/5 GHCR images empirically verified via `slsa-verifier`. **L1 + L2
-   attested; NOT L3.**
+4. **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap.** 5/5 GHCR images carry build-attestation with Rekor evidence, verifiable via `cosign verify-attestation`. **L1 honest; L2 build-attested; NOT L2-verified / L3.**
 5. **Innovation Rounds 10–11 — in review / in flight.** R10 Physics (#177), Quantum (#176),
    CS (#178), Crypto (#179); R9 anatomy (#170); R10 distsys (PR pending); R11 formula frontier.
 6. **Sim2Real Walrus-parallel benchmark (draft).** Λ-axis pretrains on locked doctrine, fine-tunes
