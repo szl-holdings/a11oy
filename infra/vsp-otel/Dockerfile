@@ -1,5 +1,5 @@
 # vsp-otel — Λ-signed OpenTelemetry collector exporter shim
-# Layer 4 of the SZL 7-layer architecture. SLSA L1+L2 target.
+# Layer 4 of the SZL 7-layer architecture. SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap target.
 #
 # Per-file COPY only (SZL Doctrine v11 §build). No `COPY . .`.
 FROM python:3.12-slim AS base
