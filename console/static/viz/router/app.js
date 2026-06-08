@@ -1,12 +1,19 @@
-// LLM-Router Live — SZL Holdings
-// 3D node graph: organs at center, 7 router tiers (T0..T6) as concentric rings, 30+ open LLMs on outer ring.
-// Polls a11oy /v1/router/stats every 1s. Served routes light up; active models glow; edge width = throughput.
+// LLM-Router Live (GRAPH ROUTER) — SZL Holdings
+// 3D bipartite routing graph: organs (query sources) at center, 7 router tiers
+// (T0..T6) as concentric rings, 30+ open LLMs (model nodes) on the outer ring.
+// Routing is GRAPH-BASED: each organ emits a task mix, every task is scored
+// against all model nodes by a transparent edge-affinity weight
+// (quality x ctx-fit x cost x license-pref), and the top-affinity edges are lit.
+// Clean-room implementation inspired by GraphRouter (MIT), Router-R1 (Apache-2.0)
+// and LLMRouter (MIT) — concept only, no code copied (see THIRD_PARTY_NOTICES).
+// Prefers live /v1/router/stats when present; otherwise shows the SAME graph
+// decision locally (labelled "GRAPH ROUTER", never fabricated served-QPS).
 // "Sovereign mode" greys all non-GREEN models (router contract: governanceTier=sovereign -> GREEN-only).
 // Three.js r171, WebGPURenderer baseline + WebGL2 fallback, Kanchay tokens.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TIERS, ORGANS, MODELS } from './models.js';
+import { TIERS, ORGANS, MODELS, TASKS, ORGAN_TASKMIX, edgeAffinity, rankForTask } from './models.js';
 // SZL canonical mobile layer (additive).
 import { SZLMobileControls } from './szl-mobile-controls.js';
 const SZL_MOBILE = SZLMobileControls.isMobileDevice();
@@ -116,26 +123,33 @@ function lightRoute(organId, tier, modelName, throughput){
   tn.material.emissiveIntensity = 1.2;
 }
 
-// ---------- DEMO route generator (deterministic-ish, labelled DEMO) ----------
-function demoStats(){
-  // emulate /v1/router/stats: per-route counts following the deterministic tier rules
+// ---------- GRAPH-ROUTER local route generator (labelled GRAPH) ----------
+// No live /v1/router/stats? We DON'T fabricate measured traffic. Instead we run
+// the SAME graph-router decision that the platform uses: every organ emits a
+// task mix (query nodes), each task is scored against all model nodes by
+// edgeAffinity(), and the top-affinity edges are the routes shown. Throughput is
+// derived from affinity x task weight (a transparent decision signal, NOT a
+// claim of real served QPS) so the picture is honest + reproducible.
+function graphStats(){
   const routes=[]; let served=0;
-  const taskByOrgan = { a11oy:'code', amaru:'general', sentra:'classify', rosie:'general', vessels:'document_vision', killinchu:'general' };
-  ORGANS.forEach((o,i)=>{
-    const tc = taskByOrgan[o[0]];
-    let tier = o[2];
-    if(tc==='code') tier='T3'; else if(tc==='document_vision') tier='T6'; else if(tc==='classify') tier='T1';
-    const cands = MODELS.filter(m=>m.tier===tier);
-    // NOTE: Date.now()/250 exceeds 2^31, so `|0` would overflow to a negative int
-    // and corrupt served/poll. Use Math.floor + non-negative modulo instead.
-    const tick7 = Math.floor(Date.now()/700);
-    const tick2 = Math.floor(Date.now()/250);
-    const pick = cands[(((tick7 + i) % cands.length) + cands.length) % Math.max(1,cands.length)] || MODELS[0];
-    const tp = 12 + (((tick2 + i*7) % 70) + 70) % 70;
-    routes.push({ organ:o[0], tier, model:pick.name, throughput:tp, license:pick.license });
-    served += tp;
+  const TOPK = 2;                               // top-K models per (organ,task)
+  ORGANS.forEach(o=>{
+    const mix = ORGAN_TASKMIX[o[0]] || { general:1 };
+    Object.entries(mix).forEach(([taskId, share])=>{
+      const task = TASKS.find(t=>t.id===taskId); if(!task) return;
+      const ranked = rankForTask(task, MODELS, sovereign).slice(0, TOPK);
+      ranked.forEach((r, k)=>{
+        // edge load = organ task share x model affinity x rank-decay, scaled.
+        const load = +(share * r.aff.score * (k===0?1:0.5) * 120).toFixed(1);
+        if(load <= 0) return;
+        routes.push({ organ:o[0], tier:r.m.tier, model:r.m.name,
+                      throughput:load, license:r.m.license,
+                      task:task.label, affinity:+r.aff.score.toFixed(3) });
+        served += load;
+      });
+    });
   });
-  return { mode:'demo', routes, servedThisWindow:served, tiers:TIERS.map(t=>t[0]) };
+  return { mode:'graph', routes, servedThisWindow:Math.round(served), tiers:TIERS.map(t=>t[0]) };
 }
 
 function normalizeStats(j){
@@ -157,11 +171,11 @@ async function poll(){
     stats = { routes: normalizeStats(j), servedThisWindow: j.servedThisWindow||j.served||0 };
     live=true;
   }catch(e){
-    stats = demoStats();
+    stats = graphStats();   // honest graph-router decision, not fabricated traffic
   }
   const pill=document.getElementById('livePill');
   if(live){ pill.textContent='LIVE · /v1/router/stats'; pill.className='pill live'; }
-  else { pill.textContent='DEMO MODE'; pill.className='pill demo'; }
+  else { pill.textContent='GRAPH ROUTER · local affinity'; pill.className='pill demo'; }
   document.getElementById('lastPoll').textContent='last poll '+new Date().toLocaleTimeString();
   document.getElementById('qps').textContent = stats.servedThisWindow|0;
 
@@ -198,8 +212,11 @@ function pick(ev){
   const hit=ray.intersectObjects(modelMeshes,false);
   if(hit.length){
     const m=hit[0].object.userData.model;
+    // surface the model's single best task-node affinity in the tooltip
+    let best=null; TASKS.forEach(t=>{ const s=edgeAffinity(t,m).score; if(!best||s>best.s) best={t,s}; });
     tip.hidden=false; tip.style.left=(ev.clientX+12)+'px'; tip.style.top=(ev.clientY+12)+'px';
-    tip.innerHTML=`<b>${m.name}</b> · ${m.tier}<br>${m.license} · ${m.ctx}`;
+    tip.innerHTML=`<b>${m.name}</b> · ${m.tier}<br>${m.license} · ${m.ctx}`+
+      (best?`<br>best fit: ${best.t.label} ${Math.round(best.s*100)}%`:'');
   } else tip.hidden=true;
 }
 function clickPick(ev){
@@ -218,6 +235,12 @@ function clickPick(ev){
     `<tr><td>provider</td><td>${m.prov}</td></tr>`+
     `<tr><td>license class</td><td>${m.license} ${m.license==='GREEN'?'(Apache/MIT)':m.license==='AMBER'?'(community/Llama/TII)':'(research-only, API)'}</td></tr>`+
     `</table>`+
+    // graph-router edge affinities: this model's fit across every task node
+    `<div class="aff"><b>graph-router affinity</b> <small>(heuristic, from public model-card features — not measured online)</small><table>`+
+    TASKS.map(t=>{ const a=edgeAffinity(t,m).score; const pct=Math.round(a*100);
+      return `<tr><td>${t.label}</td><td><span style="display:inline-block;height:7px;width:${Math.max(3,pct)}%;background:${c};border-radius:3px"></span> ${pct}%</td></tr>`;
+    }).join('')+
+    `</table></div>`+
     (m.hf?`<a href="https://huggingface.co/${m.hf}" target="_blank" rel="noopener">huggingface.co/${m.hf}</a>`:'');
   card.hidden=false;
 }
