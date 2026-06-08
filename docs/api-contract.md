@@ -1,5 +1,5 @@
 # API Contract — a11oy v1.0
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Version: 1.0.0**  
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap | Version: 1.0.0**  
 **Updated:** 2026-06-03
 
 This document is the canonical API contract for the `a11oy` flagship.
@@ -95,7 +95,7 @@ Flagship-specific endpoints (see per-flagship docs below).
 
 ## SLSA Level
 
-**SLSA L1 + L2 (verified).** The published image is cosign-signed (L1) and carries a
+**SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (verified).** The published image is cosign-signed (L1) and carries a
 signed SLSA provenance attestation that verifies downstream via
 `cosign verify-attestation --type slsaprovenance` (keyless Fulcio+Rekor, strict
 per-organ identity) — independently verified across all 5 organ images. L3 is not
