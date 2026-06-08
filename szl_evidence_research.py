@@ -343,6 +343,8 @@ _LOCK = threading.Lock()
 _TTL = 1800            # 30 min — GitHub repo-stat freshness window
 _MICRO = 180           # 3 min — a paper result fetched this recently is still "live"
 _ARXIV_COOLDOWN = 900  # 15 min — skip arXiv after it rate-limits / errors
+_LIVENESS_TTL = 900    # 15 min — source-URL reachability badge freshness window
+_LIVENESS_TIMEOUT = 8  # 8 s — per-source HEAD/GET probe timeout
 _WARM_INTERVAL = int(os.environ.get("SZL_EVIDENCE_WARM_INTERVAL", "1500") or "1500")
 _DISK = os.environ.get(
     "SZL_EVIDENCE_CACHE",
@@ -583,6 +585,103 @@ def _github(repo: str) -> Dict[str, Any]:
                 "stars": None, "mode": "unreachable", "error": str(ex)[:120]}
 
 
+# --- source-URL reachability (honest live/cached/unreachable badge) ----------
+
+def _probe_url(url: str, timeout: int = _LIVENESS_TIMEOUT):
+    """Reachability probe for one curated source URL.
+
+    Returns (reachable: bool, http_status: int | None). Many origins reject a
+    HEAD (400/403/405/501) even though the page is fine, so we retry with GET
+    before judging. A server that answers with ANY HTTP status counts as
+    reachable for the badge (the real status is surfaced alongside)."""
+    def _attempt(method: str):
+        try:
+            req = urllib.request.Request(
+                url, method=method, headers={"User-Agent": _UA})
+            with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec - public read-only
+                return True, (getattr(r, "status", None) or r.getcode())
+        except urllib.error.HTTPError as ex:
+            # The origin answered with an HTTP error — it IS reachable; let the
+            # caller decide (HEAD-hostile origins are retried with GET below).
+            return None, ex.code
+        except Exception:  # noqa: BLE001 - DNS/timeout/conn refused = not reachable
+            return None, None
+
+    ok, status = _attempt("HEAD")
+    if ok:
+        return True, status
+    # HEAD blocked/rejected by many origins → retry GET before judging.
+    gok, gstatus = _attempt("GET")
+    if gok:
+        return True, gstatus
+    # GET produced a real HTTP status (e.g. 403/404) → the server answered.
+    if gstatus is not None:
+        return True, gstatus
+    if status is not None:
+        return True, status
+    return False, None
+
+
+def _liveness(url: str) -> Dict[str, Any]:
+    """Cached reachability badge for a single source URL.
+
+    mode: live (freshly probed) | cached (last-good badge) | unreachable.
+    A failed fresh probe degrades to the last-known-good cached badge, else to
+    an honest unreachable — never an invented status."""
+    if not url:
+        return {"url": url, "reachable": False, "http_status": None,
+                "mode": "unreachable", "checked_at": _now_iso()}
+    _disk_load()
+    key = "live:" + url
+    now = time.time()
+    hit = _CACHE.get(key)
+    if hit and now - hit.get("_t", 0) < _LIVENESS_TTL:
+        return {**hit["v"], "mode": "cached", "checked_at": hit["at"]}
+    reachable, status = _probe_url(url)
+    if reachable or status is not None:
+        val = {"url": url, "reachable": bool(reachable), "http_status": status}
+        at = _now_iso()
+        _store(key, val, at, live=True)
+        return {**val, "mode": "live", "checked_at": at}
+    # Probe failed entirely (DNS/timeout/refused): serve last-good if we have it.
+    if hit:
+        return {**hit["v"], "mode": "cached", "checked_at": hit["at"],
+                "note": "live reachability check failed; serving last-good cached badge"}
+    return {"url": url, "reachable": False, "http_status": None,
+            "mode": "unreachable", "checked_at": _now_iso()}
+
+
+def _sources_live(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Concurrent reachability sweep over a claim's curated sources."""
+    n = len(sources)
+    out: List[Optional[Dict[str, Any]]] = [None] * n
+    if n == 0:
+        return []
+
+    def _fallback(s: Dict[str, Any]) -> Dict[str, Any]:
+        return {"url": s.get("url", ""), "reachable": False, "http_status": None,
+                "mode": "unreachable", "checked_at": _now_iso()}
+
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(8, n)) as ex:
+            futs = {ex.submit(_liveness, s.get("url", "")): i
+                    for i, s in enumerate(sources)}
+            for f, i in futs.items():
+                try:
+                    out[i] = f.result()
+                except Exception:  # noqa: BLE001
+                    out[i] = _fallback(sources[i])
+    except Exception:  # noqa: BLE001 - degrade to sequential probing
+        for i, s in enumerate(sources):
+            try:
+                out[i] = _liveness(s.get("url", ""))
+            except Exception:  # noqa: BLE001
+                out[i] = _fallback(s)
+    return [o if o is not None else _fallback(sources[i])
+            for i, o in enumerate(out)]
+
+
 # --- background warmer: keep every claim's papers fresh in cache -------------
 
 def _warm_loop() -> None:
@@ -598,6 +697,10 @@ def _warm_loop() -> None:
                     seen.add(q)
                     try:
                         _papers(q, limit=5)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    try:
+                        _sources_live(c.get("sources", []))
                     except Exception:  # noqa: BLE001
                         pass
                     time.sleep(5)  # polite spacing between upstream hits
@@ -651,19 +754,29 @@ def register(app, ns: str = "a11oy") -> None:
     async def _evidence_index():  # noqa: ANN202
         claims = _claims_for(ns)
         out = []
+        reachable_total = src_total = 0
         for c in claims:
+            liveness = _sources_live(c["sources"])
+            sources_out = [{**s, "liveness": lv}
+                           for s, lv in zip(c["sources"], liveness)]
+            n_ok = sum(1 for lv in liveness if lv.get("reachable"))
+            reachable_total += n_ok
+            src_total += len(sources_out)
             out.append({
                 "id": c["id"], "tab": c.get("tab"), "claim": c["claim"],
                 "maturity": c.get("maturity"),
-                "sources": c["sources"],
+                "sources": sources_out,
+                "sources_reachable": n_ok, "sources_total": len(sources_out),
                 "github_repos": c.get("github", []),
                 "arxiv_query": c.get("arxiv_query"),
                 "live_endpoint": "%s/%s/live" % (base, c["id"]),
+                "sources_live_endpoint": "%s/%s/sources/live" % (base, c["id"]),
             })
         return JSONResponse({
             "layer": "%s evidence & research" % ns,
             "honest": _HONEST,
             "count": len(out),
+            "sources_reachable": reachable_total, "sources_total": src_total,
             "claims": out,
         })
 
@@ -674,12 +787,35 @@ def register(app, ns: str = "a11oy") -> None:
             return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
         papers = _arxiv(claim.get("arxiv_query", claim["claim"]))
         repos = [_github(r) for r in claim.get("github", [])]
+        liveness = _sources_live(claim["sources"])
+        sources_out = [{**s, "liveness": lv}
+                       for s, lv in zip(claim["sources"], liveness)]
+        reachable = sum(1 for lv in liveness if lv.get("reachable"))
         return JSONResponse({
             "id": claim["id"], "claim": claim["claim"], "tab": claim.get("tab"),
             "honest": _HONEST,
-            "sources": claim["sources"],
+            "sources": sources_out,
+            "sources_reachable": reachable, "sources_total": len(sources_out),
             "arxiv": papers,
             "github": repos,
+        })
+
+    @app.get(base + "/{claim_id}/sources/live")
+    async def _evidence_sources_live(claim_id: str):  # noqa: ANN202
+        claim = next((c for c in _claims_for(ns) if c["id"] == claim_id), None)
+        if not claim:
+            return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
+        liveness = _sources_live(claim["sources"])
+        rows = [{"kind": s.get("kind"), "title": s.get("title"),
+                 "url": s.get("url"), "note": s.get("note", ""), "liveness": lv}
+                for s, lv in zip(claim["sources"], liveness)]
+        reachable = sum(1 for lv in liveness if lv.get("reachable"))
+        return JSONResponse({
+            "id": claim["id"], "claim": claim["claim"], "tab": claim.get("tab"),
+            "honest": _HONEST,
+            "sources": rows,
+            "sources_reachable": reachable, "sources_total": len(rows),
+            "checked_at": _now_iso(),
         })
 
     @app.get(base + "/refresh")
@@ -688,10 +824,12 @@ def register(app, ns: str = "a11oy") -> None:
         rows = []
         for c in claims:
             p = _arxiv(c.get("arxiv_query", c["claim"]), limit=2)
+            lv = _sources_live(c["sources"])
             rows.append({
                 "id": c["id"], "claim": c["claim"],
                 "arxiv_count": p.get("count", 0), "arxiv_mode": p.get("mode"),
                 "n_sources": len(c["sources"]), "n_repos": len(c.get("github", [])),
+                "sources_reachable": sum(1 for x in lv if x.get("reachable")),
             })
         return JSONResponse({
             "layer": "%s evidence freshness sweep" % ns,
