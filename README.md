@@ -63,7 +63,7 @@ a11oy is a **full left-nav application** — not a landing page or a single cons
 | **Observability** | MELT + distributed tracing where every span is a signed Khipu receipt (vs New Relic / Datadog / OTel) |
 | **Capabilities** | The built-in a11oy capability fabric — reasoning, policy, and operator paths wired into the receipt substrate |
 | **Services** | Live service reachability — real probes, honest when a service is unreachable |
-| **Formulas** | The PURIQ formula set — **5 locked-proven in Lean 4 {F1, F11, F12, F18, F19}** + **~36 experimental** theorems CI-green on main `@7885fd9` (e.g. M2 hash-chain tamper-evidence, CP1 split-conformal coverage); remaining formulas are Roadmap |
+| **Formulas** | The PURIQ formula set — **5 locked-proven in Lean 4 {F1, F11, F12, F18, F19}** (this count never moves) + a larger **experimental** tier, kernel-clean & CI-green on main `@b910c276` through **Wave 14** (Wave 11 CF-1/2/3/5; Wave 12 CUT-2 + CF-13 DEQ input-Lipschitz + CF-17 fp-summation stability; Wave 13 replay-root + non-Byzantine quorum + HM-bottleneck; Wave 14 CF-18 Madhava remainder, CF-19 Reed–Solomon MDS lower bound, CF-20 VCG, CF-21 log-sum/Gibbs). Λ-uniqueness is proven only **conditionally** (CUT-2, separability, axiom-free); remaining formulas are Roadmap |
 | **Evidence** | Body-of-evidence export — DSSE Khipu receipts, replayable and tamper-evident |
 | **LLM Router** | The governed LLM routing surface |
 
@@ -152,7 +152,7 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 | DSSE Khipu receipts | ✅ — ECDSA P-256-SHA256 |
 | Lean 749/14/163 @ `c7c0ba17` | ✅ |
 | Locked-proven PURIQ formulas | ✅ Exactly **5** — F1, F11, F12, F18, F19 (Lean 4, depend on **no** axioms; machine-enforced `locked_count_five`). |
-| Experimental theorems (main `@7885fd9`) | ✅ **~36** CI-green, kernel-verified results (waves 5/6/7/8 + agentic P1–P6 + coder + the strengthened-axiom Λ set, where Λ-uniqueness remains **Conjecture 1**). **NOT** in the locked count. Key: M2 tamper-evidence (`#print axioms = [propext]` only), CP1 split-conformal coverage (not Hoeffding). |
+| Experimental theorems (main `@b910c276`) | ✅ CI-green, kernel-verified results through **Wave 14** (waves 5–14 + agentic P1–P6 + coder; all `#print axioms ⊆ {propext, Classical.choice, Quot.sound}`). **NOT** in the locked count. Wave 11 CF-1/2/3/5 (24 thms); Wave 12 CUT-2 + CF-13 + CF-17; Wave 13 replay-root + single-valued non-Byzantine vote + HM-bottleneck; Wave 14 CF-18 Madhava remainder, CF-19 Reed–Solomon MDS **lower bound only**, CF-20 VCG, CF-21 log-sum/Gibbs. Λ-uniqueness proven CONDITIONAL on separability (CUT-2, axiom-free); unconditional = Conjecture 1. Key: M2 tamper-evidence, CP1 split-conformal coverage (not Hoeffding). |
 | Λ-uniqueness | ⚠️ **Conjecture 1** (F23 open bounty) — never a theorem |
 | SLSA L3 | ❌ Not claimed |
 | FedRAMP / CMMC | ❌ Not claimed |
