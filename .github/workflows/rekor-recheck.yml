@@ -101,6 +101,17 @@ jobs:
           echo "failed=${failed}"   >> "$GITHUB_OUTPUT"
           echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
 
+          # Names (+reason) of every receipt that no longer verifies, so the
+          # direct alert can name the failing receipt(s). Multi-line output via
+          # the heredoc delimiter form. Empty when nothing failed.
+          {
+            echo "failed_files<<__RECHECK_EOF__"
+            if [ -f attestations/governance/.rekor-recheck-summary.json ]; then
+              python -c "import json; s=json.load(open('attestations/governance/.rekor-recheck-summary.json')); [print('- '+r['file']+(' ('+r['reason']+')' if r.get('reason') else '')) for r in s.get('results',[]) if r.get('status')=='FAIL']"
+            fi
+            echo "__RECHECK_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
           {
             echo "## Rekor receipt re-check"
             echo ""
@@ -126,6 +137,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Reconcile rolling re-check incident issue
+        id: incident
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
@@ -156,6 +168,7 @@ jobs:
                 `public Rekor transparency log.\n\n\`${stats}\`\n\n` +
                 `See the run summary for the per-receipt breakdown. This is a single ` +
                 `rolling incident; it updates in place and auto-closes on recovery.`;
+              let incident = existing;
               if (existing) {
                 if (existing.state === 'closed') {
                   await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
@@ -163,14 +176,82 @@ jobs:
                 await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
                   body: `Still FAILING as of ${now}.\n\n\`${stats}\`\nRun: ${runUrl}` });
               } else {
-                await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
                   title: '[REKOR] Published governance receipt(s) no longer verify', body, labels: ['rekor-recheck', 'incident'] });
+                incident = created.data;
+              }
+              // Surface the incident issue so the direct-alert step can link it.
+              if (incident) {
+                core.setOutput('issue_number', String(incident.number));
+                core.setOutput('issue_url', incident.html_url);
               }
             } else if (existing && existing.state === 'open') {
               await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
                 body: `Recovered: all published receipts verify against Rekor again as of ${now}.\n\n\`${stats}\`\nAuto-closing this rolling incident.\nRun: ${runUrl}` });
               await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
             }
+
+      # Direct push notification so a silently-broken transparency record is
+      # noticed immediately, not just buried in a red run / rolling issue.
+      # Fires ONLY when a published receipt no longer verifies (same condition
+      # the incident issue uses); the all-pass path sends nothing. Posts to a
+      # Slack-compatible incoming webhook via curl (no third-party action, so it
+      # stays within the org's github-owned/verified-actions-only policy). If no
+      # webhook secret is configured it logs a notice and soft-skips — the red
+      # run + incident issue still stand.
+      - name: Alert the team directly on re-check failure
+        if: ${{ always() && (steps.recheck.outputs.failed != '0' || steps.recheck.outputs.exit_code == '1') }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
+          ISSUE_NUMBER: ${{ steps.incident.outputs.issue_number }}
+          REPO: ${{ github.repository }}
+          CHECKED: ${{ steps.recheck.outputs.checked }}
+          PASSED: ${{ steps.recheck.outputs.passed }}
+          FAILED: ${{ steps.recheck.outputs.failed }}
+          SKIPPED: ${{ steps.recheck.outputs.skipped }}
+          FAILED_FILES: ${{ steps.recheck.outputs.failed_files }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the rolling rekor-recheck incident issue still stand."
+            exit 0
+          fi
+
+          if [ -n "${ISSUE_URL}" ]; then
+            issue_line="Incident issue: #${ISSUE_NUMBER} ${ISSUE_URL}"
+          else
+            issue_line="Incident issue: (could not be resolved this run)"
+          fi
+
+          files="${FAILED_FILES}"
+          if [ -z "${files}" ]; then
+            files="(re-check script errored before a per-receipt breakdown was produced)"
+          fi
+
+          # Compose the message (real newlines), then JSON-encode it safely with
+          # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. Slack renders \n and *bold* in the `text` field.
+          text=":rotating_light: *Rekor receipt re-check FAILED* — published governance receipt(s) no longer verify in ${REPO}.
+          *Counts:* checked=${CHECKED} verified=${PASSED} failed=${FAILED} skipped=${SKIPPED}
+          *Failing receipt(s):*
+          ${files}
+          *Failing run:* ${RUN_URL}
+          *${issue_line}*"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting receipt-failure alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
 
       - name: Fail the run if any published receipt no longer verifies
         if: always()
