@@ -224,4 +224,35 @@ jobs:
           echo "  --bundle ${{ steps.pkg.outputs.bundle }} \\"
           echo "  ${{ steps.pkg.outputs.tarball }}"
 
+  # Issue #194: the zarf package build also mints REAL Sigstore keyless DSSE
+  # signatures over the governance decision log AND the vessels Khipu-ingest consumer
+  # receipt, uploaded to the same founder-named release. Signature-only upgrade —
+  # the SLSA claim is unchanged (still L1). Runs after the package release exists.
+  sign-receipts:
+    name: Sign governance + Khipu receipts (Sigstore keyless)
+    needs: build-sign-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # upload signed envelope to the founder-named release
+      id-token: write     # REQUIRED: mints the ambient OIDC token Fulcio exchanges for a cert
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Sign + verify receipts
+        uses: ./.github/actions/sign-receipts
+      - name: Upload signed receipts to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REL="${{ inputs.release_name }}"
+          mapfile -t FILES < <(ls attestations/governance/*.dsse.json attestations/khipu/*.dsse.json attestations/khipu/*.node.json 2>/dev/null)
+          echo "Uploading ${#FILES[@]} signed receipt files to release ${REL}"
+          gh release upload "${REL}" "${FILES[@]}" --clobber --repo szl-holdings/a11oy
+      - name: Upload signed receipts as a workflow artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: signed-receipts
+          path: attestations/**/*.json
+          if-no-files-found: error
+
 

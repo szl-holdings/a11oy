@@ -129,3 +129,47 @@ jobs:
           echo ""
           echo "Or with the GitHub CLI (uses the repo attestations API + Rekor):"
           echo "  gh attestation verify a11oy-uds-${VERSION}.tar.zst --repo szl-holdings/a11oy"
+
+  # Issue #194: alongside the SLSA provenance, mint a REAL Sigstore keyless DSSE
+  # signature over the governance decision log AND the vessels Khipu-ingest consumer
+  # receipt, and distribute the signed envelopes. Signature-only upgrade — the SLSA
+  # claim is unchanged (still Build L1).
+  sign-receipts:
+    name: Sign governance + Khipu receipts (Sigstore keyless)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write     # OIDC token -> Sigstore Fulcio keyless signing
+      contents: write     # upload signed envelope to the release
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag_name }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+      - name: Sign + verify receipts
+        uses: ./.github/actions/sign-receipts
+      - name: Upload signed receipts to the release (distribute to consumers)
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          mapfile -t FILES < <(ls attestations/governance/*.dsse.json attestations/khipu/*.dsse.json attestations/khipu/*.node.json 2>/dev/null)
+          echo "Uploading ${#FILES[@]} signed receipt files to release ${TAG}"
+          gh release upload "${TAG}" "${FILES[@]}" --clobber --repo szl-holdings/a11oy
+      - name: Upload signed receipts as a workflow artifact (dispatch runs)
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-receipts
+          path: attestations/**/*.json
+          retention-days: 90
+          if-no-files-found: error
