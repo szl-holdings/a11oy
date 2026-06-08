@@ -91,7 +91,7 @@ jobs:
                 LINE="OK | ${passed}/${checked} published release receipt(s) verify"
               fi
             elif [ "$CONCLUSION" = "success" ]; then
-              LINE="OK | Published release receipts verify (summary artifact unavailable)"
+              LINE="OK | Latest re-check passed (summary counts unavailable)"
             else
               LINE="ERR ${CONCLUSION} | Re-verification FAILED"
             fi
