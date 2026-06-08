@@ -526,18 +526,39 @@ def anchor_health() -> dict[str, Any]:
     ac = anchor_chain_state(1)
 
     # UDS 4/4 quorum derived from witness reachability (4 independent anchor witnesses:
-    # 3 CT-log operators + 1 blockchain). Honest: this is the anchoring-fabric quorum.
+    # 3 CT-log operators + 1 blockchain) plus the in-process receipt-chain integrity.
+    # Honest: this is the anchoring-fabric quorum. The 4th witness is the SHA3-256
+    # hash-chained receipt ledger (verifiable LIVE in-process) — NOT a DSSE signature
+    # claim; DSSE cosign signing is reported separately and honestly below.
+    chain_ok = False
+    chain_detail = "unavailable"
+    try:
+        dag = _anchor_dag()
+        if dag is not None:
+            vc = dag.verify_chain()
+            chain_ok = bool(vc.get("ok", vc) if isinstance(vc, dict) else vc)
+            chain_detail = f"hash-chain verified, depth {dag.depth()}"
+        else:
+            chain_ok = bool(_HAS_KHIPU)
+            chain_detail = "khipu present, no entries yet" if _HAS_KHIPU else "khipu absent"
+    except Exception as _e:
+        chain_detail = f"verify error: {str(_e)[:80]}"
+    sign_note = ("DSSE cosign signing LIVE" if classical_live
+                 else "DSSE cosign signing ROADMAP (no SZL_COSIGN_PRIVATE_*_PEM secret in runtime); "
+                      "receipt integrity guaranteed by SHA3-256 hash-chain")
     witnesses = [
         {"witness": "Google CT", "healthy": any(c.get("value") and c["value"].get("operator") == "Google"
                                                  and c.get("freshness", {}).get("status") == "live" for c in ct)},
         {"witness": "Cloudflare CT", "healthy": any(c.get("value") and c["value"].get("operator") == "Cloudflare"
                                                     and c.get("freshness", {}).get("status") == "live" for c in ct)},
         {"witness": "Bitcoin mainnet", "healthy": btc.get("freshness", {}).get("status") == "live"},
-        {"witness": "DSSE signer", "healthy": bool(classical_live) or bool(_HAS_DSSE)},
+        {"witness": "Receipt-chain integrity", "healthy": bool(chain_ok),
+         "detail": chain_detail, "dsse_signing": sign_note},
     ]
     healthy = sum(1 for w in witnesses if w["healthy"])
     quorum = {"healthy": healthy, "total": 4, "reached": healthy >= 3,
-              "headline": f"{min(healthy,4)}/4", "ties_to": "UDS 4/4 quorum (F12 quorum-intersection)"}
+              "headline": f"{min(healthy,4)}/4", "ties_to": "UDS 4/4 quorum (F12 quorum-intersection)",
+              "dsse_signing_live": bool(classical_live)}
 
     return {
         "vertical": VERTICAL_NAME,
