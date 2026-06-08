@@ -74,6 +74,15 @@ except ImportError:
 
 app = FastAPI(title="a11oy — Brand Orchestration Layer", version="2.0.0")
 
+# ── Evidence & Research layer (evidence-research-185) — curated + live arXiv/GitHub citations.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import szl_evidence_research as _szl_evidence_research
+    _szl_evidence_research.register(app, ns="a11oy")
+    print("[a11oy] Evidence & Research registered: /api/a11oy/v1/evidence/research", file=__import__("sys").stderr)
+except Exception as _szl_ev_e:  # pragma: no cover
+    print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
+
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
 # /api/a11oy/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
@@ -4181,8 +4190,59 @@ except Exception as _ac_e:  # never break the existing app
     _ac_tb.print_exc(file=_ac_sys2.stderr)
 # ============================================================================
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (Doctrine v13, 2026-06-08, Yachay): SEISMIC forecast surface.
+# Honest Reasenberg-Jones / Omori-Utsu aftershock-rate forecasting evaluated
+# against LIVE USGS public feeds. This is a NEW frontier (statistical earth
+# science), NOT a locked-proven claim, and is never folded into the locked-5.
+# Clean-room (MIT), public-domain science, NO third-party code copied, 0 CDN
+# (server fetches the public USGS API; the SPA renders it with attribution).
+# Wrapped in try/except so a feed/dep issue can never take down the SPA.
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_seismic as _a11oy_seismic
+
+    @app.get("/api/a11oy/v1/seismic/quakes")
+    async def a11oy_seismic_quakes(level: str = "4.5", window: str = "day") -> JSONResponse:
+        """Live USGS catalog (no fabrication; honest error if the feed is down)."""
+        import anyio
+        out = await anyio.to_thread.run_sync(_a11oy_seismic.fetch_quakes, level, window)
+        return JSONResponse(out, status_code=200 if out.get("ok") else 502)
+
+    @app.get("/api/a11oy/v1/seismic/forecast")
+    async def a11oy_seismic_forecast(level: str = "4.5", window: str = "week",
+                                     m_min: float | None = None) -> JSONResponse:
+        """Honest aftershock forecast for the largest recent live USGS event.
+        Labelled 'statistical forecast - not certainty'; never a locked claim."""
+        import anyio
+        out = await anyio.to_thread.run_sync(
+            _a11oy_seismic.forecast_for_largest, level, window, m_min)
+        return JSONResponse(out, status_code=200 if out.get("ok") else 502)
+
+    @app.get("/api/a11oy/v1/seismic/health")
+    async def a11oy_seismic_health() -> JSONResponse:
+        return JSONResponse({
+            "ok": True, "service": "a11oy.seismic",
+            "method": "Reasenberg-Jones (1994) + Modified Omori (Utsu 1961)",
+            "parameters": {"a": _a11oy_seismic.RJ_A, "b": _a11oy_seismic.RJ_B,
+                           "c": _a11oy_seismic.RJ_C, "p": _a11oy_seismic.RJ_P,
+                           "kind": "generic prior (disclosed)"},
+            "data_source": "live USGS Earthquake Hazards Program (public domain)",
+            "maturity": "EXPERIMENTAL · statistical forecast — NOT certainty, NOT a locked-proven claim",
+            "endpoints": {
+                "quakes": "GET /api/a11oy/v1/seismic/quakes?level=4.5&window=day",
+                "forecast": "GET /api/a11oy/v1/seismic/forecast?level=4.5&window=week",
+            },
+        })
+
+    print("[a11oy] seismic forecast surface registered (/api/a11oy/v1/seismic/"
+          "{quakes,forecast,health}) — live USGS, honest R&J/Omori", file=sys.stderr)
+except Exception as _sx_e:  # never break the existing app
+    print("[a11oy] seismic surface NOT registered: %r" % (_sx_e,), file=sys.stderr)
+# ============================================================================
+
 _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
-                              "v1/live/", "v1/code/")
+                              "v1/live/", "v1/code/", "v1/seismic/")
 
 
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
