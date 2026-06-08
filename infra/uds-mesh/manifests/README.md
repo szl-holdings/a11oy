@@ -20,7 +20,7 @@ UDS Mesh, ACCEPTED 2026-06-03).
   Λ-gate exporter from **vsp-otel PR #61** (`feat/real-otlp-exporter`). Cross-repo
   composition, not a reimplementation.
 - Section 889 vendor list unchanged: {Huawei, ZTE, Hytera, Hikvision, Dahua}. No
-  Iron Bank / FedRAMP / CMMC L2+ / SWFT / Mission Owner claims. SLSA L1+L2 only.
+  Iron Bank / FedRAMP / CMMC L2+ / SWFT / Mission Owner claims. SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap only.
 
 ## Offline validation
 
