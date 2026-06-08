@@ -123,5 +123,5 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
 #   This endpoint exposes the PROVED, sorry-free Lean theorem
 #   Lutar.Round12.AyniQuorum.quorum_intersection_honest (Round-12 PR #181). It does NOT
 #   elevate Λ and does NOT claim the open ubuntu_quorum_safety (Khipu Conjecture 2).
-#   SLSA L1+L2 (never L3). Motivating philosophers cited above (real works only).
+#   SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (never L3). Motivating philosophers cited above (real works only).
 # ---------------------------------------------------------------------------
