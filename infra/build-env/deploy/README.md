@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<!-- © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1+L2 -->
+<!-- © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap -->
 
 # SZL Organ Deployments — Cosign Signing Key Wiring
 
