@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
-[![SLSA L1+L2](https://img.shields.io/badge/SLSA-L1_+_L2-22c55e.svg)](https://slsa.dev/spec/v1.0/levels)
+[![SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20(Rekor)%20%C2%B7%20L3%2B%20roadmap-2C5F2D?style=flat-square)](https://slsa.dev)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg)](SECURITY.md)
 
 **Five airgap-deployable Zarf bundles for the SZL governed agentic mesh — built on Unified Defense Stack (UDS) Core v1.5.0.**
@@ -76,11 +76,11 @@ kubectl get doctrinelock -n szl-a11oy
 
 ---
 
-## Per-organ provenance matrix (SLSA L1 + L2 — all organs)
+## Per-organ provenance matrix (SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap — all organs)
 
 Each organ image is referenced in this bundle by **immutable digest** (not a floating tag).
-**Honest doctrine:** All five organ images are **SLSA L1 + L2**. Each organ has GitHub
-Actions-generated build provenance (cosign keyless-signed, Rekor-anchored), and its L2 SLSA
+**Honest doctrine:** All five organ images are **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap**. Each organ has GitHub
+Actions-generated build provenance (cosign keyless-signed, Rekor-anchored), and its build-attested (Rekor) SLSA
 provenance attestation cryptographically verifies via `cosign verify-attestation --type
 slsaprovenance <organ-image> --certificate-identity-regexp "https://github.com/szl-holdings/<organ>/"
 --certificate-oidc-issuer "https://token.actions.githubusercontent.com"`. **L3 is NOT claimed**
@@ -98,7 +98,7 @@ The published mesh bundle artifact is `oci://ghcr.io/szl-holdings/szl-uds-bundle
 
 ## Honest disclosure
 
-- **Organ images: SLSA Build L2.** All five organ images are **SLSA Build L1 + L2** — each has GitHub Actions-generated build provenance (cosign keyless-signed, Rekor-anchored) and its L2 SLSA provenance attestation verifies via `cosign verify-attestation --type slsaprovenance` under strict per-organ identity. **L3 is NOT claimed anywhere** (doctrine: L3 is banned; no FedRAMP, Iron Bank, or CMMC).
+- **Organ images: SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap.** All five organ images are **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap** — each has GitHub Actions-generated build provenance (cosign keyless-signed, Rekor-anchored) and its build-attested (Rekor) SLSA provenance attestation verifies via `cosign verify-attestation --type slsaprovenance` under strict per-organ identity. **L3 is NOT claimed anywhere** (doctrine: L3 is banned; no FedRAMP, Iron Bank, or CMMC).
 - **Bundle artifact: signed, NOT yet attested.** The mesh bundle `szl-uds-bundle:uds-v0.2.0` is real and deployable, but the **bundle artifact itself is not yet SLSA-attested** (owner-only GHCR package-write grant pending). The attestations that verify are on the organ images, not the bundle.
 - **Λ = Conjecture 1**, NOT a theorem — Lake Verifier testing the proof; 163 sorries open
 - **Proved PURIQ formulas = exactly 5** — F1, F11, F12, F18, F19 (Lean 4, zero-sorry); the remaining 18 are Roadmap
