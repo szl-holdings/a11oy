@@ -4538,6 +4538,20 @@ async def marketing_landing_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# /company — SZL Holdings story folded into a11oy.net (the holding-company front
+# door: "Governed AI, proven in Lean", the PURIQ doctrine, the five flagships, and
+# the evidence/proof framing). Replaces the retired standalone szlholdings.com site.
+# Served from pages/company.html (COPYed wholesale by the Dockerfile). Registered
+# BEFORE the SPA catch-all so it returns the real page, not the SPA soft-404.
+@app.get("/company")
+@app.get("/a11oy/company")
+async def company_page() -> Response:
+    f = PAGES_DIR / "company.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/wires")
 async def wires_page() -> Response:
     f = PAGES_DIR / "wires.html"
