@@ -21,6 +21,15 @@ name: Sync to HuggingFace Space
 # deployed artifacts that already live on the Space, and re-syncing them would
 # reintroduce the LFS/pre-receive failures documented above. Timestamped
 # *.bak-* backups are skipped.
+#
+# front-door deletion sync (drift-fix 2026-06-08): the add/update-only path above
+# left a stale copy on the Space whenever a front-door file was DELETED or RENAMED
+# on GitHub main — the old page lingered and kept being served after an HF rebuild.
+# The step now also diffs the Space's current front-door file list
+# (HfApi.list_repo_files, filtered to the same pages/*.{html,js} + console/*.{html,js}
+# set) against the local files and emits CommitOperationDelete for any that are gone.
+# The same exclusions apply: built SPA bundles (console/assets/**, console/static/**)
+# and *.bak-* backups are NEVER deleted.
 
 on:
   push:
@@ -120,7 +129,7 @@ jobs:
           fi
           python3 <<'PYEOF'
           import os, glob
-          from huggingface_hub import HfApi, CommitOperationAdd
+          from huggingface_hub import HfApi, CommitOperationAdd, CommitOperationDelete
 
           # Plain-text front-door files served directly by serve.py (pages/console.html
           # is the home page at "/", console/index.html is the SPA history fallback).
@@ -136,17 +145,41 @@ jobs:
               p for p in set(paths)
               if os.path.isfile(p) and ".bak" not in os.path.basename(p)
           )
+          local_set = set(paths)
+
+          # A Space path is "managed" by this front-door sync iff it sits DIRECTLY in
+          # pages/ or console/ with an .html/.js extension — i.e. it mirrors the glob
+          # set above (dirname must be exactly "pages"/"console", so console/assets/**
+          # and console/static/** are excluded), and it is not a *.bak-* backup.
+          def is_front_door(p):
+              base = os.path.basename(p)
+              if ".bak" in base:
+                  return False
+              d = os.path.dirname(p)
+              return d in ("pages", "console") and (p.endswith(".html") or p.endswith(".js"))
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["SPACE_ID"]
 
           ops = []
           for p in paths:
               with open(p, "rb") as fh:
                   ops.append(CommitOperationAdd(path_in_repo=p, path_or_fileobj=fh.read()))
 
+          # Deletion side of the drift fix: any front-door file present on the Space
+          # but no longer on GitHub main (deleted/renamed) must be removed, otherwise
+          # the stale page lingers and keeps being served after an HF factory rebuild.
+          # Diff the Space's current front-door file list against the local set.
+          space_files = api.list_repo_files(repo_id=space, repo_type="space")
+          delete_paths = sorted(
+              p for p in space_files if is_front_door(p) and p not in local_set
+          )
+          for p in delete_paths:
+              ops.append(CommitOperationDelete(path_in_repo=p))
+
           if not ops:
-              print("No front-door files found to sync.")
+              print("No front-door files to sync or delete.")
           else:
-              api = HfApi(token=os.environ["HF_TOKEN"])
-              space = os.environ["SPACE_ID"]
               commit = api.create_commit(
                   repo_id=space,
                   repo_type="space",
@@ -154,12 +187,17 @@ jobs:
                   commit_message="chore(sync): mirror front-door files to Space (hf-sync)",
                   commit_description=(
                       "Automated front-door sync from szl-holdings/a11oy main via hf-sync.\n"
-                      "Files: " + ", ".join(p for p in paths) + "\n\n"
+                      "Added/updated: " + (", ".join(paths) or "(none)") + "\n"
+                      "Deleted (gone from GitHub main): " + (", ".join(delete_paths) or "(none)") + "\n\n"
                       "Keeps the served front-door (pages/*.html, console/*.html) identical\n"
-                      "to GitHub main so an HF factory rebuild never drops a GitHub edit."
+                      "to GitHub main so an HF factory rebuild never drops a GitHub edit or\n"
+                      "keeps serving a page that was deleted on GitHub."
                   ),
               )
-              print("HF commit:", commit.oid, "->", space, "files:", len(ops))
+              print("HF commit:", commit.oid, "->", space,
+                    "added:", len(paths), "deleted:", len(delete_paths))
               for p in paths:
                   print("  synced:", p)
+              for p in delete_paths:
+                  print("  deleted:", p)
           PYEOF
