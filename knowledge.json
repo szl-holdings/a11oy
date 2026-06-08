@@ -120,6 +120,15 @@
    "source_file": "ouroboros v6.3.0 release",
    "maturity": "measured",
    "citation": "https://doi.org/10.5281/zenodo.20119582"
+  },
+  {
+   "id": "TH_L5",
+   "name": "khipu_quorum_safety_conditional",
+   "statement": "Conjecture 2 (Khipu BFT safety) — CONDITIONAL agreement / no-split-brain is PROVEN axiom-free: under {n >= 3f+1, |faulty| <= f, quorum size >= n-f, honest non-equivocation under signed votes}, two quorums certifying v1, v2 imply v1 = v2. Votes modeled as a relation (Byzantine organs MAY equivocate). UNCONDITIONAL BFT safety STAYS Conjecture 2 at the sharp boundary (dropping n>=3f+1 or non-equivocation re-admits split-brain).",
+   "source_file": "lutar-lean Lutar/Wave23/QuorumSafety.lean (PR #214, merged main @ 43bcabb7)",
+   "maturity": "experimental (CI-green, axiom-clean; NOT in locked-5)",
+   "axioms": "subset of {propext, Classical.choice, Quot.sound}; no sorry; no new axiom",
+   "lean_permalink": "https://github.com/szl-holdings/lutar-lean/blob/main/Lutar/Wave23/QuorumSafety.lean"
   }
  ],
  "formulas": [
@@ -2034,9 +2043,25 @@
     "status": "CI-green; 1 declared axiom (P5)"
    },
    "total_new_experimental_theorems": 60,
-   "note": "These 60 new experimental theorems are SEPARATE from the locked 5. Locked proven count is UNCHANGED at 5. Lambda (F23) is Conjecture 1 unconditionally."
+   "note": "These 60 new experimental theorems are SEPARATE from the locked 5. Locked proven count is UNCHANGED at 5. Lambda (F23) is Conjecture 1 unconditionally.",
+   "wave23": {
+    "new_theorems": 5,
+    "pr": 214,
+    "status": "CI-green / axiom-clean",
+    "result": "conditional BFT safety (Conjecture 2 conditional)"
+   }
   },
-  "lambda_conjecture_status": "Lambda (F23) = Conjecture 1 unconditionally. Unconditional uniqueness is FALSE (wave-4 counterexample in-tree). A conditional/strengthened-class uniqueness theorem (under A6') is CI-green and is the only proven uniqueness claim. No unconditional uniqueness claimed."
+  "lambda_conjecture_status": "Lambda (F23) = Conjecture 1 unconditionally. Unconditional uniqueness is FALSE (wave-4 counterexample in-tree). A conditional/strengthened-class uniqueness theorem (under A6') is CI-green and is the only proven uniqueness claim. No unconditional uniqueness claimed.",
+  "conjecture_2_status": "Khipu BFT safety = Conjecture 2. UNCONDITIONAL stays OPEN/conjecture. CONDITIONAL agreement (no-split-brain) is PROVEN axiom-free (Wave23, khipu_quorum_safety_conditional) under n>=3f+1 + honest non-equivocation. Locked-proven STAYS EXACTLY 5; Lambda STAYS Conjecture 1.",
+  "wave23": {
+   "campaign": "prove-wave-23: conditional Khipu BFT safety (agreement under honest non-equivocation)",
+   "new_theorems": 5,
+   "pr": 214,
+   "merged_commit": "43bcabb7",
+   "status": "CI-green / axiom-clean (subset propext,Classical.choice,Quot.sound)",
+   "honest_residual": "unconditional Byzantine BFT safety stays Conjecture 2 (sharp boundary)",
+   "source_report": "team/BFT_WAVE23_REPORT.md"
+  }
  },
  "puriq_formulas": [
   {
@@ -2762,7 +2787,7 @@
    }
   }
  ],
- "instill_wave": "instill-wave (locked 5 {F1,F11,F12,F18,F19} + wave5 11 + wave6 11 + wave7 10 + agentic-loop 28 [1 declared axiom] experimental sorry-free, separate from locked; Lambda=Conjecture 1; capability anatomy a11oy-internal). SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap.",
+ "instill_wave": "instill-wave (locked 5 {F1,F11,F12,F18,F19} + wave5 11 + wave6 11 + wave7 10 + agentic-loop 28 [1 declared axiom] experimental sorry-free, separate from locked; Lambda=Conjecture 1; capability anatomy a11oy-internal). SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap. | Wave23: conditional Khipu BFT safety (Conjecture 2 conditional) instilled — axiom-clean, n>=3f+1 + honest non-equivocation; unconditional stays open.",
  "capability_anatomy": {
   "note": "a11oy is one governance substrate. The reasoning, policy and operator capabilities are INTERNAL a11oy functions (formerly separate services). No user-visible service split.",
   "capabilities": [
