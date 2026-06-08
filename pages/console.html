@@ -5699,12 +5699,17 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     window._vertReg = window._vertReg || {};
     var map = {}; tabs.forEach(function(t){ map[t.k]=t.render; });
     window._vertReg[vk] = {map:map, order:tabs.map(function(t){return t.k;})};
-    window._vertTab(vk, tabs[0].k);
+    // honor a deep-linked sub-tab from the hash: #<viewkey>/<subtab> (e.g. #vdefense/decision)
+    var initial = tabs[0].k;
+    try{ var hp=(location.hash||'').slice(1).split('/'); if(hp.length>1 && map[hp[1]]) initial=hp[1]; }catch(e){}
+    window._vertTab(vk, initial, true);
   }
-  window._vertTab = function(vk, tk){
+  window._vertTab = function(vk, tk, _fromBoot){
     _vertClear();
     var reg = (window._vertReg||{})[vk]; if(!reg) return;
     (reg.order||[]).forEach(function(k){ var b=document.getElementById('vtab-'+vk+'-'+k); if(b)b.classList.toggle('on', k===tk); });
+    // reflect the active sub-tab in the hash so it is deep-linkable / screenshotable
+    try{ if(history.replaceState) history.replaceState(null,'','#'+vk+'/'+tk); }catch(e){}
     var host = document.getElementById('vert-'+vk+'-body'); if(!host) return;
     host.innerHTML='';
     try{ reg.map[tk](host); }catch(e){ host.innerHTML='<div class="row mono dim">render error: '+(e&&e.message)+'</div>'; }
@@ -6145,7 +6150,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   // ---- register the 5 views into window.VIEWS -------------------------------
   function reg(key, title, badge, sub, fn){
-    if(window.VIEWS){ window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; }
+    if(window.VIEWS){
+      var V={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
+      window.VIEWS[key]=V;
+      // Deep-link alias keys so go('<vk>/<subtab>') from a hash like #vdefense/decision
+      // resolves to the same view; vertPack reads the hash to open the right sub-tab.
+      ['feed','decision','ledger','risk','kpi'].forEach(function(sk){ window.VIEWS[key+'/'+sk]=V; });
+    }
   }
   reg('vdefense','Defense / Gov \u2014 Command','LIVE · CISA KEV + NVD',
     'Governed mesh for defense & government AI decisions. Live CISA Known-Exploited + NVD CVE feeds, the proven governed loop, signed receipts, and a Warhacker payload/mesh bridge. Honest labels; 0 runtime CDN.',
