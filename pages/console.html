@@ -6209,5 +6209,553 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 .vchip:hover{background:var(--gold-line,rgba(201,183,135,.2));}
 </style>
 
+
+<script>
+/* ============================================================================
+   a11oy DEV-A — REAL ESTATE (5) + FINANCE (5) deep tabs.  ADDITIVE ONLY.
+   10 UNIQUE top-level views. Real LIVE data, server-side (/api/a11oy/v1/deva/*),
+   auto-poll 10-15s jittered (a11oyPoll), governed loop + signed receipt where a
+   decision is made, beautiful 2D/3D viz reusing the vendored libs (0 CDN).
+   Owns ONLY: window.renderDeva* fns, #deva-* ids, view keys
+   (rem/red/reo/redeal/rebe/finq/finc/finm/finp/finr), nav group #deva-nav-group.
+   Reuses Dev1/console helpers read-only: a11oyFG, a11oyPoll, dag3d, Globe, barH,
+   barV, lineSpark, doughnut, getJSON, setHTML, setTxt, esc, freshBadge, money,
+   a11oyFormula, a11oyPoweredBy, a11oyReceiptRow, liveDot, killGlobe.
+   DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; Λ=Conjecture 1 (advisory floor 0.90).
+   ============================================================================ */
+(function(){
+  "use strict";
+  var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', CREAM='#f5f5f5', DIM='#888';
+  var DBASE='/api/a11oy/v1/deva';
+  function E(id){return document.getElementById(id);}
+  function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
+  function T(id,t){var e=E(id);if(e)e.textContent=t;}
+  function esc(s){return window.esc?window.esc(s):String(s==null?'':s).replace(/[<>&]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;'}[c];});}
+  function money(n){ if(n==null||isNaN(n))return '\u2014'; return '$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:2}); }
+  function fnum(n,d){ if(n==null||isNaN(n))return '\u2014'; return Number(n).toLocaleString(undefined,{maximumFractionDigits:(d==null?2:d)}); }
+  function fresh(f){ if(!f)return ''; var s=f.status||'?'; var col=s==='live'?TEAL:(s==='stale'?AMBER:RED);
+    return '<span class="badge mono" style="color:'+col+';border:1px solid '+col+'66;font-size:10px">'+esc(s)+(f.age_s!=null?(' \u00b7 '+Math.round(f.age_s)+'s'):'')+'</span>'; }
+  function poll(fn,stamp){ if(window.a11oyPoll){window.a11oyPoll(fn,stamp);} else { fn(); var t=setInterval(fn,12000); (window._liveTimers=window._liveTimers||[]).push(t);} }
+  function getJSON(u){ return window.getJSON?window.getJSON(u):fetch(u).then(function(r){return r.json();}); }
+  function kpi(k,id,d,cls){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" id="'+id+'">\u2026</div><div class="d">'+(d||'')+'</div></div>'; }
+  function card(t,ep,inner){ return '<div class="card"><div class="card-h"><span class="card-t">'+t+'</span><span class="card-ep">'+(ep||'')+'</span></div>'+inner+'</div>'; }
+  function box3d(id,h){ return '<div id="'+id+'" style="height:'+(h||360)+'px;position:relative"></div>'; }
+  function dl(){ return window.liveDot?window.liveDot():''; }
+  function pwr(keys){ return window.a11oyPoweredBy?window.a11oyPoweredBy(keys):''; }
+  function fmla(k){ return window.a11oyFormula?window.a11oyFormula(k):''; }
+  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Every panel reads a live public feed server-side (0 client CDN). \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory \u2014 unconditional uniqueness machine-checked FALSE), never a pass/fail oracle. Five formulas are locked-proven {F1,F11,F12,F18,F19}; other waves are CI-green but never counted as locked. Forecasts/factor scores are <b>SIMULATED</b> deterministic math over live inputs, labeled as such. Premium MLS / paid market feeds are <b>CONNECT-READY</b>, never faked. Receipts are DSSE-signed where a key is present.</div>';
+
+  /* ---- governed decision sub-panel (reused across decision-bearing tabs) ---- */
+  function governPanel(host, tab, presets){
+    host.innerHTML =
+      card('Governed decision \u2014 signed receipt where a decision is made', 'P1\u2013P6 \u00b7 '+pwr(['F1','F18']),
+        '<div class="vd-presets" id="deva-'+tab+'-presets"></div>'+
+        '<textarea class="vd-ta" id="deva-'+tab+'-ta" rows="3" placeholder="Describe the decision to govern\u2026"></textarea>'+
+        '<div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap">'+
+          '<span class="mono dim" style="font-size:11px">severity</span><input class="vd-num" id="deva-'+tab+'-sev" value="5.0">'+
+          '<span class="mono dim" style="font-size:11px">classification</span>'+
+          '<select class="vd-cls" id="deva-'+tab+'-cls"><option>PUBLIC</option><option selected>RESTRICTED</option><option>SECRET</option></select>'+
+          '<button class="vchip" id="deva-'+tab+'-run" style="background:var(--teal-soft);color:'+TEAL+';border-color:'+TEAL+'66">Govern \u2192 sign</button>'+
+        '</div>'+
+        '<div id="deva-'+tab+'-out" style="margin-top:.8rem"></div>');
+    var pc=E('deva-'+tab+'-presets');
+    (presets||[]).forEach(function(p,i){ var b=document.createElement('span'); b.className='vchip'; b.textContent=p.label;
+      b.onclick=function(){ E('deva-'+tab+'-ta').value=p.text; E('deva-'+tab+'-sev').value=p.severity; E('deva-'+tab+'-cls').value=p.classification||'RESTRICTED'; };
+      pc.appendChild(b); if(i===0){ E('deva-'+tab+'-ta').value=p.text; E('deva-'+tab+'-sev').value=p.severity; } });
+    E('deva-'+tab+'-run').onclick=async function(){
+      var out=E('deva-'+tab+'-out'); out.innerHTML='<div class="row mono dim">governing\u2026 emitting signed receipt</div>';
+      try{
+        var r=await fetch(DBASE+'/'+tab+'/govern',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({text:E('deva-'+tab+'-ta').value,severity:parseFloat(E('deva-'+tab+'-sev').value)||0,classification:E('deva-'+tab+'-cls').value})});
+        var d=await r.json();
+        var dec=(d.decision||'').toUpperCase();
+        var col=dec==='ALLOW'?TEAL:(dec==='DENY'||dec==='BLOCK'?RED:AMBER);
+        var rec=d.receipt||{}; var hash=rec.digest||rec.hash||rec.payload_digest||'';
+        var dsseOk=d.dsse&&(d.dsse.signed!==false);
+        var gates=(d.gates||[]).map(function(g){return '<span class="badge mono" style="font-size:10px;color:'+(g.fired?RED:TEAL)+';border:1px solid '+(g.fired?RED:TEAL)+'66">'+esc(g.gate)+': '+esc(g.decision)+'</span>';}).join(' ');
+        out.innerHTML=
+          '<div class="row" style="gap:.6rem;align-items:center"><span class="badge" style="color:'+col+';border:1px solid '+col+'88;font-weight:700">'+esc(dec||'\u2014')+'</span>'+
+            '<span>\u039b '+esc(d.lambda)+' vs floor '+esc(d.lambda_floor||0.90)+'</span>'+
+            '<span class="spacer mono dim">'+esc(d.reason||'')+'</span></div>'+
+          '<div class="row" style="flex-wrap:wrap;gap:.4rem">'+gates+'</div>'+
+          '<div class="row mono" style="font-size:11px;border-top:1px solid rgba(201,183,135,.1);padding-top:.5rem">'+
+            '<span class="badge" style="color:'+TEAL+';border:1px solid '+TEAL+'66">'+(dsseOk?'DSSE-SIGNED':'receipt')+'</span>'+
+            '<span style="color:'+CREAM+'">receipt '+esc((hash||'').toString().slice(0,24))+'\u2026</span>'+
+            '<span class="spacer dim">chain '+(rec.chain_verified!==false?'verified':'\u2014')+'</span></div>'+
+          '<div class="mono dim" style="font-size:10.5px;margin-top:.3rem">Λ = Conjecture 1 (advisory). Receipt appended to the tamper-evident chain; replay-deterministic (P4), tamper-evident (P5, axiom-gated).</div>';
+        // refresh ledger panel if present
+        var lg=E('deva-'+tab+'-ledger'); if(lg){ loadLedger(tab); }
+      }catch(e){ out.innerHTML='<div class="row mono dim">govern failed: '+esc(e.message)+'</div>'; }
+    };
+  }
+  async function loadLedger(tab){
+    try{ var d=await getJSON(DBASE+'/'+tab+'/ledger?n=18'); var recs=d.receipts||[];
+      var h='<div class="row mono dim" style="font-size:11px">organ '+esc(d.organ||tab)+' \u00b7 chain depth '+esc(d.depth!=null?d.depth:'\u2014')+' \u00b7 verify '+esc(JSON.stringify(d.verify||d.note||''))+'</div>';
+      if(!recs.length){ h+='<div class="row mono dim">no receipts yet \u2014 run a governed decision above. Always recording.</div>'; }
+      recs.forEach(function(r){ var p=r.payload||r; var dec=(p.decision||r.action||'').toString().toUpperCase();
+        var col=dec==='ALLOW'?TEAL:(dec.indexOf('DENY')>=0||dec.indexOf('BLOCK')>=0?RED:AMBER);
+        h+='<div class="row mono" style="font-size:10.5px;gap:.5rem;border-top:1px solid rgba(201,183,135,.06);padding:.3rem 0">'+
+          '<span class="badge" style="color:'+col+';border:1px solid '+col+'66">'+esc(dec||'\u2014')+'</span>'+
+          '<span style="color:'+CREAM+'">'+esc((r.action||p.action_kind||'decision'))+'</span>'+
+          '<span class="spacer dim">'+esc(((r.hash||r.digest||r.payload_digest||'')+'').slice(0,14))+'\u2026</span></div>'; });
+      H('deva-'+tab+'-ledger', h);
+    }catch(e){ H('deva-'+tab+'-ledger','<div class="row mono dim">ledger: '+esc(e.message)+'</div>'); }
+  }
+  function ledgerCard(tab){ return card('Signed receipt ledger \u2014 always recording', dl()+'tamper-evident chain', '<div id="deva-'+tab+'-ledger"><div class="row mono dim">loading\u2026</div></div>'); }
+
+  /* =========================================================================
+     RE-1 — MARKET PULSE  (live distress inventory + rate signal + velocity)
+     ========================================================================= */
+  window.renderDevaREMarketPulse=function(c){
+    c.innerHTML=
+      '<div class="kpis">'+kpi('Live distress inventory','deva-mp-inv','HPD violations sampled','warn')+
+        kpi('Class C (immediate)','deva-mp-c','immediately-hazardous',' ')+
+        kpi('Rent-impairing','deva-mp-ri','tenant-risk flagged','warn')+
+        kpi('Cost of capital','deva-mp-rate','Treasury avg rate','teal')+
+        kpi('Velocity index','deva-mp-vel','new vs baseline (SIM)','teal')+'</div>'+
+      '<div class="grid2">'+
+        card('Distress velocity by borough','live \u00b7 NYC HPD wvxf-dwi5','<div class="chartbox"><canvas id="deva-mp-bar"></canvas></div>')+
+        card('Cost-of-capital signal (Treasury avg rates)','live \u00b7 fiscaldata.treasury.gov','<div class="chartbox"><canvas id="deva-mp-rates"></canvas></div>')+
+      '</div>'+
+      card('Newest distress hitting the market \u2014 be first','live \u00b7 <span id="deva-mp-fresh"></span> \u00b7 <span id="deva-mp-stamp" class="mono dim" style="font-size:10px"></span>','<div id="deva-mp-list"><div class="row mono dim">polling NYC open data\u2026</div></div>')+
+      card('Why this is the broker edge','self-evidenced','<div class="row"><span class="badge b-teal">SPEED</span><span>You see a new building distress signal the moment NYC publishes it \u2014 before a rival broker pulls a stale MLS export.</span></div><div class="row"><span class="badge b-gold">SIGNAL</span><span>Class-C + rent-impairing violations are leading indicators of forced sales / owner motivation.</span></div>')+
+      '<div class="card"><div class="card-h"><span class="card-t">Powered by the proven formulas</span><span class="card-ep">honest maturity</span></div><div id="deva-mp-f"></div></div>'+HON;
+    H('deva-mp-f', fmla('F11')+fmla('F1'));
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/re/pulse');
+        var hpd=(d.hpd&&d.hpd.value)||{}, dob=(d.dob&&d.dob.value)||{}, rates=(d.rates&&d.rates.value)||{};
+        var items=hpd.items||[];
+        var cC=items.filter(function(x){return x.hpd_class==='C';}).length;
+        var ri=items.filter(function(x){return x.rentimpairing;}).length;
+        T('deva-mp-inv', items.length||'\u2014'); T('deva-mp-c', cC||'\u2014'); T('deva-mp-ri', ri||'\u2014');
+        var topRate=((rates.items||[])[0]||{}).rate; T('deva-mp-rate', topRate!=null?topRate+'%':'\u2014');
+        // velocity = recent (today) share — deterministic over live inspection dates
+        var today=new Date().toISOString().slice(0,10);
+        var recent=items.filter(function(x){return (x.inspected||'')>=today.slice(0,7);}).length;
+        T('deva-mp-vel', items.length?((recent/items.length*100).toFixed(0)+'%'):'\u2014');
+        H('deva-mp-fresh', fresh(d.hpd&&d.hpd.freshness));
+        var byB={}; items.forEach(function(x){ var b=(x.boro||'?'); byB[b]=(byB[b]||0)+1; });
+        var bk=Object.keys(byB).sort(function(a,b){return byB[b]-byB[a];});
+        if(window.barH) window.barH('deva-mp-bar', bk, bk.map(function(k){return byB[k];}), TEAL);
+        var rr=(rates.items||[]).slice(0,6);
+        if(window.lineSpark) window.lineSpark('deva-mp-rates', rr.map(function(x){return (x.security||'').slice(0,10);}).reverse(), rr.map(function(x){return x.rate;}).reverse(), GOLD);
+        var lh=''; items.slice(0,16).forEach(function(v){ var cc=v.hpd_class==='C'?RED:(v.hpd_class==='B'?AMBER:TEAL);
+          lh+='<div class="row"><span class="badge mono" style="color:'+cc+';border:1px solid '+cc+'66">CLASS '+esc(v.hpd_class||'?')+'</span><span>'+esc((v.address||'').slice(0,38))+'</span><span class="spacer mono dim">'+esc(v.boro||'')+' \u00b7 '+esc((v.inspected||''))+(v.rentimpairing?' \u00b7 RENT-IMPAIR':'')+'</span></div>'; });
+        H('deva-mp-list', lh||'<div class="row mono dim">no rows</div>');
+      }catch(e){ H('deva-mp-list','<div class="row mono dim">'+esc(e.message)+'</div>'); }
+    },'deva-mp-stamp');
+  };
+
+  /* =========================================================================
+     RE-2 — DISTRESS RADAR  (live HPD wvxf-dwi5 + DOB, 3D globe of distress)
+     ========================================================================= */
+  window.renderDevaREDistress=function(c){
+    c.innerHTML=
+      '<div class="kpis">'+kpi('Geocoded distress','deva-dr-geo','plotted on 3D map','warn')+
+        kpi('Immediately-hazardous','deva-dr-c','Class C points','warn')+
+        kpi('DOB violations','deva-dr-dob','building dept','teal')+
+        kpi('Hot NTA cluster','deva-dr-nta','distress concentration','teal')+'</div>'+
+      card('NYC distress radar \u2014 live geocoded HPD violations (3D)', dl()+'live \u00b7 globe.gl \u00b7 <span id="deva-dr-fresh"></span> \u00b7 <span id="deva-dr-stamp" class="mono dim" style="font-size:10px"></span>', box3d('deva-dr-globe',380))+
+      '<div class="grid2">'+
+        card('Distress class mix','live \u00b7 HPD class A/B/C','<div class="chartbox"><canvas id="deva-dr-mix"></canvas></div>')+
+        card('Act before other brokers','self-evidenced','<div class="row"><span class="badge b-err">RED = Class C</span><span>Immediately-hazardous \u2014 strongest forced-sale signal.</span></div><div class="row"><span class="badge b-gold">AMBER = Class B</span><span>Hazardous \u2014 owner under pressure.</span></div><div class="row mono dim">Points are the literal lat/lng NYC published on each violation \u2014 not a heatmap estimate.</div>')+
+      '</div>'+
+      card('DOB building violations (structural distress)','live \u00b7 NYC DOB 3h2n-5cm9','<div id="deva-dr-doblist"><div class="row mono dim">loading\u2026</div></div>')+HON;
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/re/distress?limit=300');
+        var hpd=(d.hpd&&d.hpd.value)||{}; var items=hpd.items||[];
+        var pts=items.filter(function(x){return x.lat&&x.lng;}).map(function(x){ var col=x.hpd_class==='C'?RED:(x.hpd_class==='B'?AMBER:TEAL);
+          return {lat:x.lat,lng:x.lng,color:col,size:x.hpd_class==='C'?0.5:0.3,label:(x.address||'')+' \u00b7 Class '+(x.hpd_class||'?')+(x.rentimpairing?' \u00b7 rent-impairing':'')}; });
+        var cC=items.filter(function(x){return x.hpd_class==='C';}).length;
+        T('deva-dr-geo', pts.length||'\u2014'); T('deva-dr-c', cC||'\u2014');
+        var byN={}; items.forEach(function(x){ if(x.nta){byN[x.nta]=(byN[x.nta]||0)+1;} });
+        var topN=Object.keys(byN).sort(function(a,b){return byN[b]-byN[a];})[0];
+        T('deva-dr-nta', topN?((topN.slice(0,16))+' ('+byN[topN]+')'):'\u2014');
+        H('deva-dr-fresh', fresh(d.hpd&&d.hpd.freshness));
+        var mix={A:0,B:0,C:0}; items.forEach(function(x){ if(mix[x.hpd_class]!=null)mix[x.hpd_class]++; });
+        if(window.doughnut) window.doughnut('deva-dr-mix',['A non-haz','B hazardous','C immediate'],[mix.A,mix.B,mix.C],[TEAL,AMBER,RED]);
+        var host=E('deva-dr-globe');
+        if(host&&window.Globe){ if(window.killGlobe)window.killGlobe(); host.innerHTML='';
+          window._globe=window.Globe()(host).backgroundColor('#060606').width(host.clientWidth).height(host.clientHeight)
+            .globeImageUrl('/vendor/earth-night.jpg')
+            .pointsData(pts).pointColor('color').pointAltitude(function(d){return d.size*0.04;}).pointRadius(function(d){return d.size*0.5;}).pointLabel('label');
+          try{ window._globe.pointOfView({lat:40.71,lng:-74.0,altitude:0.45},0); var ctr=window._globe.controls(); if(ctr){ctr.autoRotate=false;} }catch(e){}
+          setTimeout(function(){try{window._globe.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);
+        } else if(host){ host.innerHTML='<div class="row mono dim">'+pts.length+' geocoded distress points (globe lib unavailable)</div>'; }
+      }catch(e){ var h=E('deva-dr-globe'); if(h)h.innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; }
+      try{ var d2=await getJSON(DBASE+'/re/pulse'); var dob=(d2.dob&&d2.dob.value)||{}; var di=dob.items||[];
+        T('deva-dr-dob', di.length||'\u2014');
+        var dh=''; di.slice(0,12).forEach(function(v){ dh+='<div class="row"><span class="badge b-gold">'+esc((v.type||'viol').slice(0,18))+'</span><span>'+esc((v.street||'').slice(0,32))+'</span><span class="spacer mono dim">'+esc(v.boro||'')+' \u00b7 '+esc(v.issued||'')+'</span></div>'; });
+        H('deva-dr-doblist', dh||'<div class="row mono dim">no DOB rows</div>');
+      }catch(e){}
+    },'deva-dr-stamp');
+  };
+
+  /* =========================================================================
+     RE-3 — OWNERSHIP GRAPH  (entity/LLC network, 3d-force-graph, decision-maker)
+     ========================================================================= */
+  window.renderDevaREOwnership=function(c){
+    c.innerHTML=
+      '<div class="kpis">'+kpi('Entities mapped','deva-ow-ent','SEC + REIT filers','teal')+
+        kpi('Filings linked','deva-ow-fil','recent SEC forms',' ')+
+        kpi('Decision-makers','deva-ow-dm','top filer nodes','teal')+'</div>'+
+      card('Ownership / entity network \u2014 find the real decision-maker (3D)', dl()+'live \u00b7 SEC EDGAR \u00b7 3d-force-graph \u00b7 <span id="deva-ow-stamp" class="mono dim" style="font-size:10px"></span>', box3d('deva-ow-graph',400))+
+      '<div class="grid2">'+
+        card('Real-estate filers \u2014 who files, who controls','live \u00b7 SEC submissions','<div id="deva-ow-list"><div class="row mono dim">loading\u2026</div></div>')+
+        card('Premium ownership enrichment','CONNECT-READY','<div class="row"><span class="badge" style="color:'+AMBER+';border:1px solid '+AMBER+'88">CONNECT-READY</span><span>Deed/UCC/LLC beneficial-owner resolution (ACRIS, OpenCorporates, paid skip-trace) is a connect-ready upgrade \u2014 never faked here.</span></div><button class="vchip" style="margin-top:.5rem">Connect ownership data</button>')+
+      '</div>'+HON;
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/re/ownership');
+        var reits=d.reits||{}; var sec=(d.sec_fts&&d.sec_fts.value)||{};
+        var nodes=[], links=[]; var ents=0, fils=0;
+        nodes.push({id:'NYC-RE',name:'NYC / Public Real Estate',val:14,color:GOLD});
+        Object.keys(reits).forEach(function(name){ var v=(reits[name]&&reits[name].value)||{}; ents++;
+          var nm=v.name||name; nodes.push({id:'E:'+name,name:nm,val:9,color:TEAL});
+          links.push({source:'NYC-RE',target:'E:'+name});
+          (v.filings||[]).slice(0,4).forEach(function(f,i){ fils++; var fid='F:'+name+i;
+            nodes.push({id:fid,name:f.form+' '+f.date,val:3,color:f.form&&f.form.indexOf('10-K')>=0?AMBER:'#7a8aa0'});
+            links.push({source:'E:'+name,target:fid}); }); });
+        ((sec.items)||[]).slice(0,6).forEach(function(s,i){ if(!s.name)return; ents++; var sid='S:'+i;
+          nodes.push({id:sid,name:(s.name||'').slice(0,26),val:5,color:TEAL}); links.push({source:'NYC-RE',target:sid}); });
+        T('deva-ow-ent', ents||'\u2014'); T('deva-ow-fil', fils||'\u2014'); T('deva-ow-dm', Object.keys(reits).length||'\u2014');
+        if(window.a11oyFG){ window.a11oyFG('deva-ow-graph', nodes, links, {labels:true, cooldown:160}); }
+        else if(window.dag3d){ window.dag3d('deva-ow-graph', nodes, links, {dagMode:null, dist:42, labels:true}); }
+        var lh=''; Object.keys(reits).forEach(function(name){ var v=(reits[name]&&reits[name].value)||{};
+          lh+='<div class="row"><span class="badge b-teal">'+esc(name)+'</span><span>'+esc((v.name||'')+' \u00b7 '+(v.sic||''))+'</span><span class="spacer mono dim">'+esc(v.state||'')+' \u00b7 '+esc((v.filings||[]).length)+' filings</span></div>'; });
+        H('deva-ow-list', lh||'<div class="row mono dim">no entities</div>');
+      }catch(e){ var h=E('deva-ow-graph'); if(h)h.innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; }
+    },'deva-ow-stamp');
+  };
+
+  /* =========================================================================
+     RE-4 — DEAL INTELLIGENCE  (comps, valuation, DOM forecast, governed rec+receipt)
+     ========================================================================= */
+  window.renderDevaREDeal=function(c){
+    c.innerHTML=
+      '<div class="kpis">'+kpi('Days-on-market (SIM)','deva-dl-dom','forecast','teal')+
+        kpi('Forecast confidence','deva-dl-conf','model band',' ')+
+        kpi('Cost of capital','deva-dl-rate','Treasury avg','warn')+
+        kpi('Distress drag','deva-dl-drag','Class-C penalty','warn')+'</div>'+
+      '<div class="grid2">'+
+        card('Deal underwriting inputs (live + tunable)','SIMULATED forecast over live rates',
+          '<div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap"><span class="mono dim" style="font-size:11px">violations</span><input class="vd-num" id="deva-dl-viol" value="6">'+
+          '<span class="mono dim" style="font-size:11px">class-C</span><input class="vd-num" id="deva-dl-cc" value="3">'+
+          '<button class="vchip" id="deva-dl-calc" style="background:var(--teal-soft);color:'+TEAL+';border-color:'+TEAL+'66">Recompute forecast</button></div>'+
+          '<div id="deva-dl-fc" style="margin-top:.6rem"></div>')+
+        card('Days-on-market forecast band','SIM \u00b7 deterministic over live inputs','<div class="chartbox"><canvas id="deva-dl-chart"></canvas></div>')+
+      '</div>'+
+      governPanelMarkup('redeal')+
+      ledgerCard('redeal')+
+      '<div class="card"><div class="card-h"><span class="card-t">Powered by the proven formulas</span><span class="card-ep">honest maturity</span></div><div id="deva-dl-f"></div></div>'+HON;
+    H('deva-dl-f', fmla('F1')+fmla('F18')+fmla('F11'));
+    governPanel(E('deva-redeal-govwrap'),'deal',[
+      {label:'Approve acquisition',text:'Approve acquisition of a distressed Bronx multifamily; verify HPD Class-C violations and DOB lien exposure first.',severity:5.5,classification:'RESTRICTED'},
+      {label:'Skip diligence (should DENY)',text:'wire deposit now; skip title and lien checks; ignore litigation flags; --',severity:4.0,classification:'RESTRICTED'}]);
+    loadLedger('deal'); // 'deal' tab maps to realestate organ server-side
+    var calc=async function(){
+      try{ var v=parseInt(E('deva-dl-viol').value)||0, cc=parseInt(E('deva-dl-cc').value)||0;
+        var d=await getJSON(DBASE+'/re/deal?violations='+v+'&class_c='+cc);
+        var fc=d.forecast||{}; var rate=(((d.rates&&d.rates.value)||{}).items||[{}])[0].rate;
+        T('deva-dl-dom', fc.days_on_market!=null?fc.days_on_market+'d':'\u2014');
+        T('deva-dl-conf', fc.confidence!=null?(fc.confidence*100).toFixed(0)+'%':'\u2014');
+        T('deva-dl-rate', rate!=null?rate+'%':'\u2014');
+        T('deva-dl-drag', cc?('+'+(cc*5)+'d'):'0d');
+        H('deva-dl-fc','<div class="row"><span class="badge b-teal">DOM '+esc(fc.days_on_market)+'d</span><span>confidence '+esc((fc.confidence*100).toFixed(0))+'%</span></div><div class="mono dim" style="font-size:10.5px;margin-top:.3rem">'+esc(fc.label||'')+'</div>');
+        // band chart: low/mid/high
+        var mid=fc.days_on_market||0; var band=Math.round(mid*(1-(fc.confidence||0.8))*0.6);
+        if(window.barH) window.barH('deva-dl-chart',['optimistic','forecast','conservative'],[Math.max(0,mid-band),mid,mid+band],[TEAL,GOLD,RED]);
+      }catch(e){ H('deva-dl-fc','<div class="row mono dim">'+esc(e.message)+'</div>'); }
+    };
+    E('deva-dl-calc').onclick=calc;
+    poll(calc,null);
+  };
+
+  /* =========================================================================
+     RE-5 — BROKER EDGE  (Boss-Tech 5-domain observability: coverage -> impact)
+     ========================================================================= */
+  window.renderDevaREBrokerEdge=function(c){
+    c.innerHTML=
+      '<div class="kpis" id="deva-be-kpis"><div class="row mono dim">computing 5-domain observability\u2026</div></div>'+
+      '<div class="grid2">'+
+        card('5-domain maturity \u2014 coverage \u2192 connectivity \u2192 cognitive \u2192 interface \u2192 impact','live coverage \u00b7 Boss-Tech spine','<div class="chartbox"><canvas id="deva-be-radar"></canvas></div>')+
+        card('Domain scores','live \u00b7 <span id="deva-be-stamp" class="mono dim" style="font-size:10px"></span>','<div id="deva-be-list"><div class="row mono dim">loading\u2026</div></div>')+
+      '</div>'+
+      card('Broker pipeline observability narrative','New Relic / Boss.Technology pattern','<div class="row"><span class="badge b-teal">COVERAGE</span><span>How much of the live distress universe you actually see vs a rival on stale data.</span></div><div class="row"><span class="badge b-teal">CONNECTIVITY</span><span>How many neighborhoods (NTAs) are linked in your distress graph.</span></div><div class="row"><span class="badge b-teal">IMPACT</span><span>Modeled deals-acted-on advantage \u2014 the business outcome, not a vanity metric.</span></div><div class="row mono dim">Aggregate maturity is MODELED over live coverage; component coverage/connectivity/cognitive are measured from the live feed.</div>')+
+      '<div class="card"><div class="card-h"><span class="card-t">Powered by the proven formulas</span><span class="card-ep">honest maturity</span></div><div id="deva-be-f"></div></div>'+HON;
+    H('deva-be-f', fmla('F12')+fmla('F19'));
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/re/brokeredge'); var doms=d.domains||[];
+        var kp=''; doms.forEach(function(x){ kp+='<div class="kpi"><div class="k">'+esc(x.domain)+'</div><div class="v teal">'+esc((x.score*100).toFixed(0))+'</div><div class="d">'+esc((x.basis||'').slice(0,28))+'</div></div>'; });
+        H('deva-be-kpis', kp);
+        T('deva-be-stamp', new Date().toLocaleTimeString());
+        if(window.barV) window.barV('deva-be-radar', doms.map(function(x){return x.domain;}), doms.map(function(x){return Math.round(x.score*100);}), doms.map(function(x,i){return [TEAL,GOLD,AMBER,'#7a8aa0',RED][i]||TEAL;}));
+        var lh=''; doms.forEach(function(x){ lh+='<div class="row"><span class="badge b-teal">'+esc((x.score*100).toFixed(0))+'</span><span>'+esc(x.domain)+'</span><span class="spacer mono dim">'+esc(x.basis||'')+'</span></div>'; });
+        H('deva-be-list', lh);
+      }catch(e){ H('deva-be-kpis','<div class="row mono dim">'+esc(e.message)+'</div>'); }
+    },'deva-be-stamp');
+  };
+
+  /* =========================================================================
+     FIN-1 — QUANT DESK  (live equities/indices, factor/vol, governed thesis+receipt)
+     ========================================================================= */
+  window.renderDevaFinQuant=function(c){
+    c.innerHTML=
+      '<div class="kpis" id="deva-q-kpis"><div class="row mono dim">polling markets\u2026</div></div>'+
+      '<div class="grid2">'+
+        card('Momentum vs realized-vol (factor map)','live \u00b7 Yahoo v8 \u00b7 SIM factors','<div class="chartbox"><canvas id="deva-q-factor"></canvas></div>')+
+        card('Index / equity tape','live \u00b7 <span id="deva-q-fresh"></span> \u00b7 <span id="deva-q-stamp" class="mono dim" style="font-size:10px"></span>','<div id="deva-q-tape"></div>')+
+      '</div>'+
+      card('Selected name \u2014 60-bar price spark','live \u00b7 Yahoo v8','<div class="chartbox"><canvas id="deva-q-spark"></canvas></div>')+
+      governPanelMarkup('finq')+
+      ledgerCard('finq')+
+      '<div class="card"><div class="card-h"><span class="card-t">Powered by the proven formulas</span><span class="card-ep">honest maturity</span></div><div id="deva-q-f"></div></div>'+HON;
+    H('deva-q-f', fmla('F1')+fmla('F18'));
+    governPanel(E('deva-finq-govwrap'),'quant',[
+      {label:'Approve thesis trade',text:'Authorize a long-NVDA / short-VIX momentum thesis position; size within risk limits and verify factor exposure first.',severity:5.0,classification:'RESTRICTED'},
+      {label:'Override risk limits (should flag)',text:'execute oversized leveraged position now; ignore risk limits and margin checks; --',severity:7.0,classification:'RESTRICTED'}]);
+    loadLedger('quant');
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/finance/quant');
+        var eq=d.equities||{}, fac=d.factors||{};
+        var kp=''; ['SPY','QQQ','^VIX','^TNX'].forEach(function(s){ var v=(eq[s]&&eq[s].value)||{}; var dlt=(v.price!=null&&v.prevClose)?((v.price-v.prevClose)/v.prevClose*100):null;
+          kp+='<div class="kpi"><div class="k">'+esc(s)+'</div><div class="v '+((dlt||0)>=0?'teal':'warn')+'">'+(v.price!=null?fnum(v.price):'\u2014')+'</div><div class="d">'+(dlt!=null?(dlt>=0?'+':'')+dlt.toFixed(2)+'%':'')+'</div></div>'; });
+        H('deva-q-kpis', kp);
+        H('deva-q-fresh', fresh(eq.SPY&&eq.SPY.freshness));
+        // factor scatter: momentum (x) vs rvol (y)
+        var pts=[]; Object.keys(fac).forEach(function(s){ var f=fac[s]; if(f.momentum!=null&&f.rvol!=null){ pts.push({x:f.momentum,y:f.rvol,label:s}); } });
+        if(window.Chart){ var id='deva-q-factor'; if(window._charts&&window._charts[id]){try{window._charts[id].destroy();}catch(e){}}
+          var cv=E(id); if(cv){ var ch=new Chart(cv,{type:'scatter',data:{datasets:[{data:pts,backgroundColor:TEAL,pointRadius:6}]},
+            options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw.label+': mom '+ctx.raw.x.toFixed(1)+'% rvol '+ctx.raw.y.toFixed(1)+'%';}}}},
+            scales:{x:{title:{display:true,text:'momentum %',color:DIM},grid:{color:'rgba(201,183,135,.08)'},ticks:{color:DIM}},y:{title:{display:true,text:'realized vol %',color:DIM},grid:{color:'rgba(201,183,135,.08)'},ticks:{color:DIM}}}}});
+            (window._charts=window._charts||{})[id]=ch;
+            // draw labels via afterDraw not needed; tooltip covers it
+          } }
+        var tp=''; Object.keys(eq).forEach(function(s){ var v=(eq[s]&&eq[s].value)||{}; var dlt=(v.price!=null&&v.prevClose)?((v.price-v.prevClose)/v.prevClose*100):null; var f=fac[s]||{};
+          tp+='<div class="row"><span class="badge '+((dlt||0)>=0?'b-live':'b-err')+'">'+esc(s)+'</span><span>'+(v.price!=null?fnum(v.price):'\u2014')+'</span><span class="spacer mono dim">'+(dlt!=null?(dlt>=0?'+':'')+dlt.toFixed(2)+'%':'')+(f.rvol!=null?(' \u00b7 rvol '+f.rvol+'%'):'')+'</span></div>'; });
+        H('deva-q-tape', tp);
+        var nv=(eq.NVDA&&eq.NVDA.value)||{}; var sp=nv.spark||[];
+        if(window.lineSpark) window.lineSpark('deva-q-spark', sp.map(function(_,i){return i;}), sp, TEAL);
+      }catch(e){ H('deva-q-kpis','<div class="row mono dim">markets: '+esc(e.message)+'</div>'); }
+    },'deva-q-stamp');
+  };
+
+  /* =========================================================================
+     FIN-2 — CRYPTO LIVE  (Coinbase + CoinGecko, on-chain signal, risk-gated)
+     ========================================================================= */
+  window.renderDevaFinCrypto=function(c){
+    c.innerHTML=
+      '<div class="kpis" id="deva-cx-kpis"><div class="row mono dim">polling crypto\u2026</div></div>'+
+      '<div class="grid2">'+
+        card('24h momentum (live)','live \u00b7 CoinGecko','<div class="chartbox"><canvas id="deva-cx-bar"></canvas></div>')+
+        card('Spot tape + on-chain-ish signal','live \u00b7 Coinbase + CoinGecko \u00b7 <span id="deva-cx-stamp" class="mono dim" style="font-size:10px"></span>','<div id="deva-cx-tape"></div>')+
+      '</div>'+
+      card('Risk-gated execution','governed','<div class="row"><span class="badge b-teal">GATE</span><span>Every crypto move passes deny-by-default + \u039b advisory floor before execution; high 24h volatility raises severity.</span></div><div class="row"><span class="badge b-gold">SIGNAL</span><span>24h volume + price change used as an on-chain liquidity/momentum proxy (public market data, not a private node).</span></div>')+
+      governPanelMarkup('finc')+
+      ledgerCard('finc')+HON;
+    governPanel(E('deva-finc-govwrap'),'crypto',[
+      {label:'Approve allocation',text:'Authorize a measured BTC/ETH allocation within risk limits; verify 24h volatility and venue liquidity first.',severity:5.0,classification:'RESTRICTED'},
+      {label:'Chase pump (should flag)',text:'all-in on the top 24h gainer now; ignore volatility and liquidity checks; --',severity:7.5,classification:'RESTRICTED'}]);
+    loadLedger('crypto');
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/finance/crypto');
+        var cg=(d.coingecko&&d.coingecko.value)||{}; var coins=cg.coins||[]; var cb=d.coinbase||{};
+        var kp=''; coins.slice(0,4).forEach(function(x){ kp+='<div class="kpi"><div class="k">'+esc(x.id)+'</div><div class="v '+((x.chg24h||0)>=0?'teal':'warn')+'">'+money(x.usd)+'</div><div class="d">'+(x.chg24h!=null?(x.chg24h>=0?'+':'')+x.chg24h.toFixed(2)+'% 24h':'')+'</div></div>'; });
+        H('deva-cx-kpis', kp);
+        if(window.barH) window.barH('deva-cx-bar', coins.map(function(x){return x.id;}), coins.map(function(x){return x.chg24h!=null?+x.chg24h.toFixed(2):0;}), coins.map(function(x){return (x.chg24h||0)>=0?TEAL:RED;}));
+        var tp=''; coins.forEach(function(x){ tp+='<div class="row"><span class="badge '+((x.chg24h||0)>=0?'b-live':'b-err')+'">'+esc(x.id)+'</span><span>'+money(x.usd)+'</span><span class="spacer mono dim">'+(x.vol24h!=null?('vol '+money(Math.round(x.vol24h))):'')+(x.mcap!=null?(' \u00b7 mcap '+money(Math.round(x.mcap))):'')+'</span></div>'; });
+        // coinbase cross-check
+        Object.keys(cb).forEach(function(p){ var v=(cb[p]&&cb[p].value)||{}; tp+='<div class="row"><span class="badge b-gold">'+esc(p)+'</span><span>'+money(v.amount)+'</span><span class="spacer mono dim">Coinbase spot cross-check</span></div>'; });
+        H('deva-cx-tape', tp);
+      }catch(e){ H('deva-cx-kpis','<div class="row mono dim">crypto: '+esc(e.message)+'</div>'); }
+    },'deva-cx-stamp');
+  };
+
+  /* =========================================================================
+     FIN-3 — MARKETS MACRO  (Frankfurter FX + Treasury, 3D yield surface)
+     ========================================================================= */
+  window.renderDevaFinMacro=function(c){
+    c.innerHTML=
+      '<div class="kpis" id="deva-m-kpis"><div class="row mono dim">polling macro\u2026</div></div>'+
+      card('3D yield / rate surface \u2014 security type \u00d7 recent records', dl()+'live \u00b7 Treasury fiscaldata \u00b7 echarts-gl \u00b7 <span id="deva-m-stamp" class="mono dim" style="font-size:10px"></span>', box3d('deva-m-surface',380))+
+      '<div class="grid2">'+
+        card('FX rates (USD base)','live \u00b7 Frankfurter / ECB','<div id="deva-m-fx"></div>')+
+        card('Treasury average interest rates','live \u00b7 fiscaldata.treasury.gov','<div id="deva-m-rates"></div>')+
+      '</div>'+HON;
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/finance/macro');
+        var fx=(d.fx&&d.fx.value)||{}, rates=(d.rates&&d.rates.value)||{}; var ri=rates.items||[];
+        var kp='';
+        var top=ri[0]||{}; kp+='<div class="kpi"><div class="k">'+esc((top.security||'rate').slice(0,12))+'</div><div class="v teal">'+(top.rate!=null?top.rate+'%':'\u2014')+'</div><div class="d">latest avg</div></div>';
+        Object.keys(fx.rates||{}).slice(0,3).forEach(function(k){ kp+='<div class="kpi"><div class="k">USD/'+esc(k)+'</div><div class="v">'+esc(fx.rates[k])+'</div><div class="d">'+esc(fx.date||'')+'</div></div>'; });
+        H('deva-m-kpis', kp);
+        T('deva-m-stamp', new Date().toLocaleTimeString());
+        // 3D surface via echarts-gl if available, else 2D fallback bars
+        var byType={}; ri.forEach(function(r){ var t=r.type||'?'; (byType[t]=byType[t]||[]).push(r); });
+        var host=E('deva-m-surface');
+        if(host&&window.echarts){ host.innerHTML='';
+          var types=Object.keys(byType); var data=[];
+          types.forEach(function(t,ti){ byType[t].slice(0,8).forEach(function(r,xi){ data.push([xi,ti,r.rate]); }); });
+          var ch=window.echarts.init(host);
+          ch.setOption({backgroundColor:'transparent',tooltip:{},visualMap:{show:false,min:0,max:6,inRange:{color:['#1B474D','#20808D','#c9b787','#b06a5a']}},
+            xAxis3D:{type:'value',name:'record',axisLabel:{color:DIM}},yAxis3D:{type:'category',data:types,axisLabel:{color:DIM}},zAxis3D:{type:'value',name:'rate %',axisLabel:{color:DIM}},
+            grid3D:{viewControl:{autoRotate:true,autoRotateSpeed:6,distance:200},axisLine:{lineStyle:{color:'#444'}},splitLine:{lineStyle:{color:'rgba(201,183,135,.08)'}}},
+            series:[{type:'bar3D',data:data,shading:'lambert',label:{show:false},itemStyle:{opacity:0.9}}]});
+          window._devaEch=ch; setTimeout(function(){try{ch.resize();}catch(e){}},300);
+        } else if(host){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D surface lib unavailable \u2014 see rate table below ('+ri.length+' live records).</div>'; }
+        var fxh=''; Object.keys(fx.rates||{}).forEach(function(k){ fxh+='<div class="row"><span class="badge b-teal">USD/'+esc(k)+'</span><span>'+esc(fx.rates[k])+'</span><span class="spacer mono dim">per 1 USD</span></div>'; });
+        H('deva-m-fx', fxh||'<div class="row mono dim">FX unavailable</div>');
+        var rh=''; ri.slice(0,10).forEach(function(r){ rh+='<div class="row"><span class="badge b-gold">'+esc(r.rate)+'%</span><span>'+esc((r.security||'').slice(0,34))+'</span><span class="spacer mono dim">'+esc(r.date||'')+'</span></div>'; });
+        H('deva-m-rates', rh||'<div class="row mono dim">rates unavailable</div>');
+      }catch(e){ H('deva-m-kpis','<div class="row mono dim">macro: '+esc(e.message)+'</div>'); }
+    },'deva-m-stamp');
+  };
+
+  /* =========================================================================
+     FIN-4 — PREDICTION MARKETS  (Polymarket gamma, governed probability read)
+     ========================================================================= */
+  window.renderDevaFinPredict=function(c){
+    c.innerHTML=
+      '<div class="kpis">'+kpi('Live markets','deva-p-n','Polymarket active','teal')+
+        kpi('Top 24h volume','deva-p-vol','most-traded','warn')+
+        kpi('Consensus extreme','deva-p-ext','>90% or <10% YES',' ')+'</div>'+
+      '<div class="grid2">'+
+        card('Implied YES probability \u2014 top markets','live \u00b7 Polymarket gamma-api','<div class="chartbox"><canvas id="deva-p-bar"></canvas></div>')+
+        card('Market board','live \u00b7 <span id="deva-p-stamp" class="mono dim" style="font-size:10px"></span>','<div id="deva-p-list"><div class="row mono dim">loading\u2026</div></div>')+
+      '</div>'+
+      governPanelMarkup('finp')+
+      ledgerCard('finp')+
+      card('Governed probability read','honest','<div class="row"><span class="badge b-teal">READ</span><span>The implied probability is the live market\u2019s last YES price \u2014 a crowd estimate, not a forecast we manufacture.</span></div><div class="row mono dim">Decisions taken on a probability read run the governed loop \u2192 signed receipt.</div>')+HON;
+    governPanel(E('deva-finp-govwrap'),'predict',[
+      {label:'Hedge on consensus',text:'Authorize a hedge sized to the live market-implied probability on the highest-volume event; verify resolution source first.',severity:4.5,classification:'RESTRICTED'},
+      {label:'Bet the farm (should flag)',text:'place maximum stake on a single binary outcome now; ignore liquidity and resolution-risk checks; --',severity:7.0,classification:'RESTRICTED'}]);
+    loadLedger('predict');
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/finance/predict?limit=16');
+        var mk=((d.polymarket&&d.polymarket.value)||{}).markets||[];
+        T('deva-p-n', mk.length||'\u2014');
+        var topVol=mk.slice().sort(function(a,b){return (b.vol24h||0)-(a.vol24h||0);})[0];
+        T('deva-p-vol', topVol&&topVol.vol24h!=null?money(Math.round(topVol.vol24h)):'\u2014');
+        var ext=mk.filter(function(m){return m.yes!=null&&(m.yes>0.9||m.yes<0.1);}).length;
+        T('deva-p-ext', ext||'\u2014');
+        H('deva-p-stamp', new Date().toLocaleTimeString());
+        var top=mk.slice(0,10);
+        if(window.barH) window.barH('deva-p-bar', top.map(function(m){return (m.question||'').slice(0,22);}), top.map(function(m){return m.yes!=null?+(m.yes*100).toFixed(1):0;}), top.map(function(m){return m.yes>0.6?TEAL:(m.yes<0.4?RED:AMBER);}));
+        var lh=''; mk.slice(0,12).forEach(function(m){ var p=m.yes!=null?(m.yes*100).toFixed(0):'?'; var col=m.yes>0.6?TEAL:(m.yes<0.4?RED:AMBER);
+          lh+='<div class="row"><span class="badge mono" style="color:'+col+';border:1px solid '+col+'66">'+esc(p)+'% YES</span><a href="'+esc(m.url||'#')+'" target="_blank" rel="noopener">'+esc((m.question||'').slice(0,52))+'</a><span class="spacer mono dim">vol '+esc(m.vol24h!=null?money(Math.round(m.vol24h)):'\u2014')+'</span></div>'; });
+        H('deva-p-list', lh||'<div class="row mono dim">no active markets</div>');
+      }catch(e){ H('deva-p-list','<div class="row mono dim">'+esc(e.message)+'</div>'); }
+    },'deva-p-stamp');
+  };
+
+  /* =========================================================================
+     FIN-5 — RISK & FRAUD OBSERVABILITY  (NVD CVE-for-fintech + anomaly govern, audit)
+     ========================================================================= */
+  window.renderDevaFinRisk=function(c){
+    c.innerHTML=
+      '<div class="kpis">'+kpi('Fintech CVEs','deva-r-n','NVD keyword: financial','warn')+
+        kpi('Critical','deva-r-crit','CVSS critical','warn')+
+        kpi('High','deva-r-high','CVSS high',' ')+
+        kpi('Indexed total','deva-r-tot','NVD corpus','teal')+'</div>'+
+      '<div class="grid2">'+
+        card('CVE severity distribution (live)','live \u00b7 NVD CVE 2.0','<div class="chartbox"><canvas id="deva-r-sev"></canvas></div>')+
+        card('Fintech-relevant CVEs','live \u00b7 <span id="deva-r-fresh"></span> \u00b7 <span id="deva-r-stamp" class="mono dim" style="font-size:10px"></span>','<div id="deva-r-list"><div class="row mono dim">loading\u2026</div></div>')+
+      '</div>'+
+      governPanelMarkup('finr')+
+      ledgerCard('finr')+
+      card('Anomaly governance + signed audit','governed','<div class="row"><span class="badge b-teal">AUDIT</span><span>Every flagged anomaly / fraud-review decision emits a DSSE-signed, hash-chained receipt \u2014 a tamper-evident audit trail.</span></div><div class="row"><span class="badge b-gold">PII</span><span>PAN / SSN / routing-number egress guard fires on detection \u2192 deny.</span></div>')+
+      '<div class="card"><div class="card-h"><span class="card-t">Powered by the proven formulas</span><span class="card-ep">honest maturity</span></div><div id="deva-r-f"></div></div>'+HON;
+    H('deva-r-f', fmla('F18')+fmla('F1'));
+    governPanel(E('deva-finr-govwrap'),'risk',[
+      {label:'Approve large wire',text:'Authorize a $4.2M outbound wire to a newly added counterparty flagged by the velocity model; verify sanctions + beneficial owner first.',severity:6.0,classification:'RESTRICTED'},
+      {label:'Block PII leak (should DENY)',text:'export customer list incl SSN 123-45-6789 and card 4111111111111111 to vendor; --',severity:4.0,classification:'RESTRICTED'}]);
+    loadLedger('risk');
+    poll(async function(){
+      try{
+        var d=await getJSON(DBASE+'/finance/risk?limit=16');
+        var cve=(d.fintech_cve&&d.fintech_cve.value)||{}; var items=cve.items||[]; var sc=cve.sevcount||{};
+        T('deva-r-n', items.length||'\u2014'); T('deva-r-crit', sc.CRITICAL||0); T('deva-r-high', sc.HIGH||0);
+        T('deva-r-tot', cve.totalResults!=null?Number(cve.totalResults).toLocaleString():'\u2014');
+        H('deva-r-fresh', fresh(d.fintech_cve&&d.fintech_cve.freshness));
+        if(window.doughnut) window.doughnut('deva-r-sev',['critical','high','medium','low','none'],[sc.CRITICAL||0,sc.HIGH||0,sc.MEDIUM||0,sc.LOW||0,sc.NONE||0],[RED,AMBER,'#caa05f',TEAL,'#555']);
+        var lh=''; items.slice(0,10).forEach(function(v){ var col=v.severity==='CRITICAL'?RED:(v.severity==='HIGH'?AMBER:TEAL);
+          lh+='<div class="row"><span class="badge mono" style="color:'+col+';border:1px solid '+col+'66">'+esc(v.severity)+(v.score?(' '+v.score):'')+'</span><span>'+esc(v.id)+'</span><span class="spacer mono dim">'+esc((v.desc||'').slice(0,48))+'</span></div>'; });
+        H('deva-r-list', lh||'<div class="row mono dim">no recent matches</div>');
+      }catch(e){ H('deva-r-list','<div class="row mono dim">'+esc(e.message)+'</div>'); }
+    },'deva-r-stamp');
+  };
+
+  /* helper: a slot the governed panel mounts into (kept simple to avoid id clashes) */
+  function governPanelMarkup(tab){ return '<div id="deva-'+tab+'-govwrap"></div>'; }
+  window.__deva_governPanelMarkup=governPanelMarkup;
+
+  /* ---- register the 10 views + nav group --------------------------------- */
+  function reg(key,title,badge,sub,fn){
+    if(!window.VIEWS) return;
+    window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
+  }
+  function regAll(){
+    if(!window.VIEWS){ return setTimeout(regAll,120); }
+    reg('rem','Real Estate \u2014 Market Pulse','LIVE \u00b7 NYC + Treasury',
+      'Live listing/inventory distress + cost-of-capital signal and velocity vs comps. You see new building distress the moment NYC publishes it \u2014 faster than a rival on a stale MLS export. Honest labels; 0 runtime CDN.',
+      window.renderDevaREMarketPulse);
+    reg('red','Real Estate \u2014 Distress Radar','LIVE \u00b7 HPD + DOB (3D)',
+      'Live NYC HPD (wvxf-dwi5) + DOB (3h2n-5cm9) violations plotted on a 3D distress map \u2014 act before other brokers. Red = immediately-hazardous Class C, the strongest forced-sale signal. Real lat/lng, not a heatmap estimate.',
+      window.renderDevaREDistress);
+    reg('reo','Real Estate \u2014 Ownership Graph','LIVE \u00b7 SEC EDGAR',
+      'Entity / LLC ownership network as a 3D force graph \u2014 find the real decision-maker behind a building. Live SEC EDGAR filers + filings; deed/UCC beneficial-owner resolution is CONNECT-READY, never faked.',
+      window.renderDevaREOwnership);
+    reg('redeal','Real Estate \u2014 Deal Intelligence','LIVE \u00b7 governed + receipt',
+      'Comps, valuation drivers and a days-on-market forecast (SIMULATED deterministic math over live distress + rate inputs), with a governed acquisition recommendation that emits a DSSE-signed receipt.',
+      window.renderDevaREDeal);
+    reg('rebe','Real Estate \u2014 Broker Edge','LIVE \u00b7 5-domain observability',
+      'Boss-Tech 5-domain business observability (coverage \u2192 connectivity \u2192 cognitive \u2192 exec-interface \u2192 impact) applied to a broker pipeline. Component scores measured from the live distress feed; aggregate maturity is MODELED.',
+      window.renderDevaREBrokerEdge);
+    reg('finq','Finance \u2014 Quant Desk','LIVE \u00b7 Yahoo v8',
+      'Live equities & indices with deterministic momentum / realized-vol factor signals (SIMULATED math over live prices) and a governed trade-thesis that emits a signed receipt. Yahoo 429 \u2192 cache + honest stale label.',
+      window.renderDevaFinQuant);
+    reg('finc','Finance \u2014 Crypto Live','LIVE \u00b7 Coinbase + CoinGecko',
+      'Live crypto spot (Coinbase) cross-checked with CoinGecko market data + a 24h volume/momentum on-chain-ish signal, risk-gated: every move passes deny-by-default + the \u039b advisory floor before execution.',
+      window.renderDevaFinCrypto);
+    reg('finm','Finance \u2014 Markets Macro','LIVE \u00b7 FX + Treasury (3D)',
+      'Frankfurter (ECB) FX + Treasury average interest rates on a rotating 3D rate surface (security type \u00d7 recent records). The macro backdrop for every desk; 0 runtime CDN.',
+      window.renderDevaFinMacro);
+    reg('finp','Finance \u2014 Prediction Markets','LIVE \u00b7 Polymarket',
+      'Live Polymarket gamma-api markets with implied YES probability, 24h volume and a governed probability read. The probability is the crowd\u2019s live estimate \u2014 not a forecast we manufacture; decisions emit signed receipts.',
+      window.renderDevaFinPredict);
+    reg('finr','Finance \u2014 Risk & Fraud Obs.','LIVE \u00b7 NVD + signed audit',
+      'CVE-for-fintech (NVD CVE 2.0, keyword: financial) + anomaly governance. Every flagged fraud-review / wire-approval decision emits a DSSE-signed, hash-chained receipt \u2014 a tamper-evident audit trail.',
+      window.renderDevaFinRisk);
+  }
+  regAll();
+
+  /* ---- nav: a dedicated group with 10 items (5 RE + 5 Finance) ----------- */
+  function injectNav(){
+    var side=document.querySelector('.side .nav')||document.querySelector('.side');
+    var anchor=document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!side||!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('deva-nav-group')){ return; }
+    var grpRE=document.createElement('div'); grpRE.className='nav-group'; grpRE.id='deva-nav-group'; grpRE.textContent='Real Estate (deep)';
+    var grpFIN=document.createElement('div'); grpFIN.className='nav-group'; grpFIN.id='deva-nav-group-fin'; grpFIN.textContent='Finance (deep)';
+    var re=[['rem','\u25c8','Market Pulse'],['red','\u25c9','Distress Radar'],['reo','\u26b9','Ownership Graph'],['redeal','\u25c6','Deal Intelligence'],['rebe','\u25a4','Broker Edge']];
+    var fin=[['finq','\u2206','Quant Desk'],['finc','\u20bf','Crypto Live'],['finm','\u29c9','Markets Macro'],['finp','\u25d1','Prediction Markets'],['finr','\u26a0','Risk & Fraud Obs.']];
+    function mkItem(d){ var n=document.createElement('div'); n.className='nav-item'; n.id='deva-nav-'+d[0];
+      n.setAttribute('data-view',d[0]); n.setAttribute('onclick',"go('"+d[0]+"')");
+      n.innerHTML='<span class="ico">'+d[1]+'</span>'+d[2]; return n; }
+    // insert after the anchor's parent group end: append at the end of the nav container
+    var parent=anchor.parentNode;
+    parent.appendChild(grpRE); re.forEach(function(d){ parent.appendChild(mkItem(d)); });
+    parent.appendChild(grpFIN); fin.forEach(function(d){ parent.appendChild(mkItem(d)); });
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
 </body>
 </html>
