@@ -84,6 +84,10 @@ COPY szl_b2_secdata.py ./szl_b2_secdata.py
 COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
 COPY a11oy_code_orchestrator.py ./a11oy_code_orchestrator.py
+# ADDITIVE: a11oy Code IDE page (served by orchestrator GET /api/a11oy/code/ide as a
+# sibling of a11oy_code_orchestrator.py). Self-contained (vendored CodeMirror, 0 runtime
+# CDN). Explicit per-file COPY (this Dockerfile does not use `COPY . .`).
+COPY a11oy_code_ide.html ./a11oy_code_ide.html
 # ADDITIVE (WAYRA organ): explicit per-file COPY (this Dockerfile does not use COPY . .).
 # serve.py mounts wayra_serve.router -> /wayra, /wayra-digest, /api/a11oy/v1/wayra/*.
 COPY wayra_serve.py ./wayra_serve.py
