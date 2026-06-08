@@ -7884,18 +7884,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             '<div class="mono" style="font-size:11px;margin-top:.4rem;line-height:1.5;color:'+CREAM+'">'+esc(n.detail||'')+'</div>'+
             (n.depth!=null?('<div class="mono dim" style="font-size:10.5px;margin-top:.3rem">chain depth: '+esc(n.depth)+'</div>'):'')+
             '<div class="mono dim" style="font-size:9.5px;margin-top:.5rem;cursor:pointer" onclick="this.parentNode.style.display=\'none\'">\u00d7 close</div>'; };
-        if(window.a11oyFG){
-          var fg=window.a11oyFG('pva-gr-graph', nodes, links, {labels:true, cooldown:220, onNode:onNode});
-          // Guarantee framing: the helper already fits on engineStop; we add a few extra
-          // zoomToFit passes (with a wider pad) as the layout settles so the 16-node DAG
-          // fills the frame. NO simulation reheat / d3Force mutation (that races the
-          // engine teardown on tab-switch/reload and throws an async 'tick' error).
-          if(fg){
-            var ghost=document.getElementById('pva-gr-graph');
-            var refit=function(){ try{ if(ghost&&ghost.clientWidth) fg.width(ghost.clientWidth).height(ghost.clientHeight); if((fg.graphData().nodes||[]).length) fg.zoomToFit(700,70);}catch(_){} };
-            setTimeout(refit,1400); setTimeout(refit,3000); setTimeout(refit,5000);
-          }
-        }
+        if(window.a11oyFG){ window.a11oyFG('pva-gr-graph', nodes, links, {labels:true, cooldown:170, onNode:onNode}); }
         else if(window.dag3d){ window.dag3d('pva-gr-graph', nodes, links, {dagMode:null, dist:46, labels:true}); }
       }catch(e){ var h=E('pva-gr-graph'); if(h)h.innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; }
     },'pva-gr-stamp');
@@ -8035,6 +8024,79 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   }
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
 })();
+</script>
+
+<script>
+/* evidence-tab-patch-185 — curated + live research/evidence layer with honest source-liveness badges */
+(function(){
+  window.__ev_ns="a11oy";
+  function esc2(s){ return (window.esc?window.esc(String(s==null?'':s)):String(s==null?'':s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];})); }
+  /* source-liveness-badge — honest reachable/unreachable label from real HTTP probe (no fabricated state) */
+  window.ev_livebadge=function(lv){
+    if(!lv) return '<span class="badge" style="border:1px solid #6b6b6b;color:#9a9a9a" title="liveness not checked">\u2026 checking</span>';
+    var st=(lv.http_status!=null)?(' '+lv.http_status):'';
+    if(lv.reachable){
+      if(lv.mode==='cached') return '<span class="badge" style="border:1px solid #5aa0d0;color:#7ab8e6" title="reachable (from cache \u00b7 '+esc2(lv.checked_at||'')+')">\u25cf cached'+esc2(st)+'</span>';
+      return '<span class="badge b-teal" title="reachable now ('+esc2(lv.checked_at||'')+')">\u25cf live'+esc2(st)+'</span>';
+    }
+    return '<span class="badge b-err" title="unreachable: '+esc2(lv.error||'no HTTP response')+' ('+esc2(lv.checked_at||'')+')">\u25cf unreachable</span>';
+  };
+  window.evidence_live=async function(id){
+    var box=document.getElementById('ev-live-'+id); if(!box) return;
+    box.innerHTML='<div class="row mono dim">fetching live arXiv + GitHub\u2026</div>';
+    try{
+      var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research/'+id+'/live');
+      var d=await r.json(); var h=''; var ax=d.arxiv||{};
+      h+='<div class="row mono dim" style="margin:.3rem 0">arXiv ['+esc2(ax.mode||'?')+(ax.fetched_at?(' \u00b7 '+esc2(ax.fetched_at)):'')+']</div>';
+      (ax.papers||[]).forEach(function(p){ h+='<div class="row"><a href="'+esc2(p.url||'#')+'" target="_blank" rel="noopener">'+esc2(p.title||'(untitled)')+'</a> <span class="dim">'+esc2(p.published||'')+'</span></div>'; });
+      if(!((ax.papers||[]).length)) h+='<div class="row dim">no live papers ('+esc2(ax.mode||'')+') \u2014 curated sources above remain valid</div>';
+      h+='<div class="row mono dim" style="margin:.5rem 0 .3rem">GitHub</div>';
+      (d.github||[]).forEach(function(g){ var meta=(g.stars!=null?('\u2605 '+g.stars):'')+(g.license?(' \u00b7 '+esc2(g.license)):'')+(g.pushed_at?(' \u00b7 pushed '+esc2(g.pushed_at)):'')+' ['+esc2(g.mode||'')+']'; h+='<div class="row"><a href="'+esc2(g.url||'#')+'" target="_blank" rel="noopener">'+esc2(g.repo||'')+'</a> <span class="dim">'+meta+'</span></div>'; });
+      box.innerHTML=h;
+    }catch(e){ box.innerHTML='<div class="row dim">live evidence unavailable: '+esc2(e.message||e)+' \u2014 curated sources above remain valid</div>'; }
+  };
+  window.evidence_render=async function(c){
+    c.innerHTML='<div class="card"><div class="row mono dim">loading curated evidence\u2026</div></div>';
+    try{
+      var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research');
+      var d=await r.json(); var h='';
+      if(d.honest) h+='<div class="card"><div class="row mono dim">'+esc2(d.honest)+'</div></div>';
+      if(d.sources_total!=null) h+='<div class="row mono dim" style="margin:.2rem 0 .5rem">overall source liveness: '+esc2(String(d.sources_reachable))+'/'+esc2(String(d.sources_total))+' reachable (real HTTP probe \u00b7 live/cached/unreachable, never faked)</div>';
+      (d.claims||[]).forEach(function(cl){
+        h+='<div class="card"><div class="card-h"><span class="card-t">'+esc2(cl.claim||'')+'</span><span class="card-ep">'+(cl.maturity?esc2(cl.maturity):'')+(cl.tab?(' \u00b7 \u2192 '+esc2(cl.tab)+' tab'):'')+'</span></div>';
+        h+='<div class="row mono dim" style="margin:.45rem 0 .25rem">Cited sources</div>';
+        (cl.sources||[]).forEach(function(s){
+          h+='<div class="row"><span class="badge">'+esc2(s.kind||'src')+'</span> '+window.ev_livebadge(s.liveness)+' <a href="'+esc2(s.url||'#')+'" target="_blank" rel="noopener">'+esc2(s.title||'')+'</a>'+(s.note?(' <span class="dim">\u2014 '+esc2(s.note)+'</span>'):'')+'</div>';
+        });
+        if(cl.sources_total!=null) h+='<div class="row dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc2(String(cl.sources_reachable))+'/'+esc2(String(cl.sources_total))+' reachable</div>';
+        h+='<div class="row" style="margin-top:.55rem"><button class="badge b-teal ev-live-btn" data-ev="'+esc2(cl.id)+'" style="cursor:pointer">\u27f3 Load live arXiv + GitHub</button></div>';
+        h+='<div id="ev-live-'+esc2(cl.id)+'" style="margin-top:.5rem"></div></div>';
+      });
+      c.innerHTML=h||'<div class="card"><div class="row dim">no claims registered.</div></div>';
+      Array.prototype.forEach.call(c.querySelectorAll('.ev-live-btn'),function(b){ b.addEventListener('click',function(){ window.evidence_live(b.getAttribute('data-ev')); }); });
+    }catch(e){ c.innerHTML='<div class="card"><div class="row dim">evidence layer unavailable: '+esc2(e.message||e)+'</div></div>'; }
+  };
+  function regEv(){
+    if(!window.VIEWS){ return setTimeout(regEv,150); }
+    window.VIEWS['evidence']={title:'Evidence & Research',badge:'CURATED CITATIONS \u00b7 LIVE SOURCE PROBE',
+      sub:'Every headline claim is grounded in real, resolvable sources \u2014 official standards, public datasets and GitHub repositories. Each source carries an <b>honest liveness badge</b> (live / cached / unreachable + HTTP status) from a real reachability probe; arXiv + GitHub stats load live and degrade to curated citations, never to invented figures.',
+      render:async function(c){ window.evidence_render(c); }};
+  }
+  regEv();
+  function injectEvNav(){
+    var anchor=document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectEvNav,250); }
+    if(document.getElementById('ev-nav-evidence')){ return; }
+    var parent=anchor.parentNode;
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='ev-nav-group'; grp.textContent='Evidence & Research';
+    var n=document.createElement('div'); n.className='nav-item'; n.id='ev-nav-evidence';
+    n.setAttribute('data-view','evidence'); n.setAttribute('onclick',"go('evidence')");
+    n.innerHTML='<span class="ico">\u269c</span>Evidence & Research';
+    parent.appendChild(grp); parent.appendChild(n);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectEvNav); } else { injectEvNav(); }
+})();
+/* end evidence-tab-patch-185 */
 </script>
 
 </body>
