@@ -191,7 +191,9 @@ function animate(){
   renderer.toneMappingExposure = 1.2 - 0.16*scrollP;
 
   renderer.render(scene,camera);
+  if(!_shown){ _shown=true; requestAnimationFrame(()=>canvas.classList.add('on')); }
 }
+let _shown=false;
 animate();
 
 addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
@@ -204,6 +206,6 @@ addEventListener('scroll', navState, {passive:true}); navState();
 const io=new IntersectionObserver((es)=>{ es.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } }); }, {threshold:0.16});
 document.querySelectorAll('.reveal').forEach((el,i)=>{ el.style.transitionDelay=(Math.min(i,6)*70)+'ms'; io.observe(el); });
 
-const boot=document.getElementById('boot');
-function hideBoot(){ boot.classList.add('hide'); setTimeout(()=>boot.style.display='none', 850); }
-setTimeout(hideBoot, REDUCED?200:700);
+/* boot overlay removed: editorial hero paints instantly; the 3D canvas fades in
+   on its first rendered frame (see #scene.on). Safety net if WebGL never starts: */
+setTimeout(()=>canvas.classList.add('on'), 1800);
