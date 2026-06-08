@@ -247,7 +247,6 @@ details.raw[open] summary{color:var(--muted);}
     <a class="flag active" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
   </nav>
   <nav class="extlinks" aria-label="Project links">
-    <a class="flag" href="/company" title="SZL Holdings — the company behind a11oy">◆ Company</a>
     <a class="flag" href="https://huggingface.co/spaces/szlholdings/a11oy" target="_blank" rel="noopener noreferrer" title="a11oy Space on Hugging Face">🤗 a11oy</a>
     <a class="flag" href="https://huggingface.co/spaces/szlholdings/killinchu" target="_blank" rel="noopener noreferrer" title="killinchu Space on Hugging Face">🤗 killinchu</a>
   </nav>
@@ -7392,9 +7391,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       // prefer /code/run (gen+exec+receipt); fall back to /code/turn mode:code
       try{ run=await pj(CODE+'/run',body); }
       catch(e1){ run=await pj(CODE+'/turn',{mode:'code',prompt:prompt,language:lang}); }
-      var code=run.code||run.generated_code||run.answer||run.text||'';
-      var stdout=run.stdout||(run.execution&&run.execution.stdout)||(run.run&&run.run.stdout)||'';
-      var stderr=run.stderr||(run.execution&&run.execution.stderr)||(run.run&&run.run.stderr)||'';
+      // /code/run returns code as a nested object {code,language,description};
+      // /code/turn may return a string. Normalize both.
+      var code=run.code;
+      if(code&&typeof code==='object'){ code=code.code||code.source||code.text||''; }
+      code=code||run.generated_code||run.answer||run.text||'';
+      var sb=run.sandbox||run.execution||run.run||{};
+      var stdout=run.stdout||sb.stdout||'';
+      var stderr=run.stderr||sb.stderr||'';
       var dec=(run.decision||'').toUpperCase();
       // if /run returned a structured answer that's prose, still show it
       E('kmy-code').textContent=code||'(no code field returned \u2014 model output below)\n\n'+(run.answer||run.text||'');
@@ -7405,7 +7409,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       E('kmy-out').textContent=outTxt;
       window.setHTML('kmy-dec',decisionBadge(dec));
       window.__kmyRuns=(window.__kmyRuns||0)+(doRun?1:0); window.setTxt('kmy-runs',window.__kmyRuns);
-      var exitc=(run.exit_code!=null?run.exit_code:(run.execution&&run.execution.exit_code));
+      var exitc=(run.exit_code!=null?run.exit_code:(sb.exit!=null?sb.exit:(sb.exit_code!=null?sb.exit_code:null)));
       E('kmy-gov').innerHTML=
         '<div class="row">'+decisionBadge(dec)+'<span>'+esc(run.reason||(dec==='ALLOW'||!dec?'governed code generation authorized':''))+'</span></div>'+
         '<div class="row"><span class="badge b-teal">\u039b '+esc(run.lambda!=null?run.lambda:'\u2014')+'</span><span class="mono dim">vs advisory floor '+esc(run.lambda_floor!=null?run.lambda_floor:'0.90')+' \u00b7 Conjecture 1</span></div>'+
