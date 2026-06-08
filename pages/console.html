@@ -303,7 +303,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="threatgraph" onclick="go('threatgraph')"><span class="ico">⩟</span>Threat Graph</div>
     <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
     <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
-    <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>5 locked-proven + 80+ experimental CI-green<br>SLSA Build L2 · 5 services<br>Verifiable receipts · honest by design</div>
+    <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>5 locked-proven + 80+ experimental CI-green<br>SLSA Build L1 (honest) · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -791,7 +791,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading\u2026</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function \u2014 it is a research conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 2.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 1 (honest) — images cosign-signed; Level 2 verification is on the roadmap, never claimed as L2-verified/attested.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
       </div>
@@ -969,10 +969,10 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       </div>
       <div class="card" id="tg-detail"><div class="row mono dim">Click any node to see its severity, the gate that screens it, and (for KEV-lit nodes) the known-exploited CVE driving the toxic path.</div></div>${HONEST}`;window.threatgraph_load();}},
 
-  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L1 (L2 roadmap)',sub:'Ship it air-gapped, prove it offline. The deployment posture of the governed substrate \u2014 a cosign-signed UDS/Zarf bundle of the organ images, each carrying SLSA Build L2 provenance (.att) and a signature (.sig). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker #2 (Tychee air-gap) and #5 (Raven edge): offline-verifiable bundle.',
+  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L1 (L2 roadmap)',sub:'Ship it air-gapped, prove it offline. The deployment posture of the governed substrate \u2014 a cosign-signed UDS/Zarf bundle of the organ images, each carrying a cosign signature (.sig) and an in-toto build-provenance attestation (.att) — SLSA Level 1 honest; Level 2 verification is on the roadmap (never claimed as L2-attested). See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker #2 (Tychee air-gap) and #5 (Raven edge): offline-verifiable bundle.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Organ images</div><div class="v" id="dp-n">\u2014</div><div class="d">in the bundle</div></div>
-      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">Build L2</div><div class="d">.att provenance</div></div>
+      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">Build L1 (honest)</div><div class="d">.sig + .att; L2 verification on roadmap</div></div>
       <div class="kpi"><div class="k">Signed</div><div class="v teal">cosign</div><div class="d">.sig on GHCR</div></div>
       <div class="kpi"><div class="k">Air-gap</div><div class="v" id="dp-ag">offline-verifiable</div><div class="d">P5 / W5-4</div></div></div>
       <div class="grid2">
@@ -1233,7 +1233,7 @@ async function mcp_call(name){try{setOut('o-mcp','invoking '+name+'\u2026');cons
 // What we claim (a11oy honest)
 async function honest_load(){try{const d=await getJSON(API+'/v1/honest');const dl=d.doctrine_lock||{};setHTML('ho-host','');
   addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 2</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 1 (honest) · L2 roadmap</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Verifiable receipts</span><span class="spacer b-live badge">yes (own in-image ECDSA P-256 key)</span></div>`);
   setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
@@ -1774,7 +1774,7 @@ function lineage_export(){
       axioms: (kb.axioms||[]).length,
       theorems: (kb.theorems||[]).length,
       dois: (kb.dois||[]).map(d=>d.doi),
-      build_provenance:'SLSA Build L2 (in-toto v1, cosign keyless, Rekor 1723794608)',
+      build_provenance:'SLSA Build L1 honest (images cosign-signed, in-toto v1 predicate, Rekor 1723794608); L2 verification on roadmap, never claimed as L2-attested',
       note:'Λ (trust-score uniqueness) is Conjecture 1, advisory — not a proven theorem.'
     };
     const blob=new Blob([JSON.stringify(aibom,null,2)],{type:'application/json'});
@@ -2363,7 +2363,7 @@ async function deploy_load(){
       'cosign verify ghcr.io/szl-holdings/a11oy@<digest> \\\n'+
       '  --certificate-identity-regexp "github.com/szl-holdings" \\\n'+
       '  --certificate-oidc-issuer https://token.actions.githubusercontent.com\n\n'+
-      '# 2) SLSA Build L2 provenance attestation (.att):\n'+
+      '# 2) SLSA Build provenance attestation (.att) [L1 honest; L2 verification on roadmap]:\n'+
       'slsa-verifier verify-image ghcr.io/szl-holdings/a11oy@<digest> \\\n'+
       '  --source-uri github.com/szl-holdings/a11oy\n\n'+
       '# 3) Air-gapped policy + ledger replay (no network):\n'+
