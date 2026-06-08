@@ -5493,6 +5493,32 @@ except Exception as _hfa_e:
 # END: a11oy dev3 HF ASSETS INSTILL layer
 # ============================================================================
 
+# ============================================================================
+# BEGIN: a11oy DEV B layer (Counsel/Legal 5 + Enterprise 5 + UDS quorum).
+# ADDITIVE. Namespace /api/a11oy/v1/devb/* — no overlap with dev1 (/v1/wow),
+# dev2 (/v1/vert), deva (/v1/deva), code (/v1/code) or warhacker. register()
+# moves its routes to the FRONT of app.router.routes so they win over the
+# /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all.
+# Reuses governed_turn + the hash-chained, DSSE-signed receipt ledger.
+# Live sources: CourtListener v4, Federal Register, SEC EDGAR (honest UA),
+# GitHub events, public statuspage JSON. 0 fabricated data, 0 runtime CDN.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_devb_endpoints as _a11oy_devb
+    import sys as _devb_sys
+    _devb_status = _a11oy_devb.register(app)
+    print(f"[a11oy] dev B (Counsel+Enterprise+UDS) registered: {_devb_status}", file=_devb_sys.stderr)
+    _A11OY_DEVB_DIAG = {"status": "ok", "registered": _devb_status}
+except Exception as _devb_e:
+    import sys as _devb_sys, traceback as _devb_tb
+    print(f"[a11oy] dev B FAILED (non-fatal): {_devb_e!r}", file=_devb_sys.stderr)
+    _devb_tb.print_exc(file=_devb_sys.stderr)
+    _A11OY_DEVB_DIAG = {"status": "FAILED", "error": repr(_devb_e)}
+# ============================================================================
+# END: a11oy DEV B layer
+# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn
