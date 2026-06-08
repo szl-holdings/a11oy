@@ -15,7 +15,7 @@ jobs:
   sbom:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.3
       - name: Install Syft
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin v1.5.0
@@ -24,7 +24,7 @@ jobs:
           syft . -o spdx-json > sbom.spdx.json
           echo "SBOM generated: $(wc -l < sbom.spdx.json) lines"
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: sbom-spdx
           path: sbom.spdx.json
