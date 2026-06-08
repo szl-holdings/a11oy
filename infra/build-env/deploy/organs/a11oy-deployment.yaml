@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-# Doctrine v11 LOCKED 749/14/163 · Lambda Conjecture 1 · SLSA L1+L2
+# Doctrine v11 LOCKED 749/14/163 · Lambda Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap
 # a11oy organ Deployment — cosign private key mounted as an ENV VAR (not a file).
 # The secret is optional: when absent the organ emits honest UNSIGNED receipts.
 apiVersion: apps/v1
