@@ -11,7 +11,7 @@ UDS cross-component span schemas + DSSE governance receipts onto the Khipu Merkl
 
 [![tests](https://github.com/szl-holdings/uds-mesh/actions/workflows/tests.yml/badge.svg)](https://github.com/szl-holdings/uds-mesh/actions/workflows/tests.yml)
 [![scorecard](https://github.com/szl-holdings/uds-mesh/actions/workflows/scorecard.yml/badge.svg)](https://github.com/szl-holdings/uds-mesh/actions/workflows/scorecard.yml)
-&nbsp;Doctrine **v11 LOCKED** · 749 / 14 / 163 · SLSA L1+L2 attested · DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
+&nbsp;Doctrine **v11 LOCKED** · 749 / 14 / 163 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 
 ---
 
@@ -110,4 +110,4 @@ Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 
 *Canonical-home declaration — see [`CANONICAL.md`](CANONICAL.md) and ADR-0001.*
 
-Doctrine v11 — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (never a theorem) · SLSA L1+L2 · HONESTY OVER CHECKLIST
+Doctrine v11 — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (never a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · HONESTY OVER CHECKLIST
