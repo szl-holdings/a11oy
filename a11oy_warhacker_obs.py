@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L2 (organ images).
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 · SLSA L1 honest (organ images).
 """
 a11oy_warhacker_obs.py — a11oy as the orchestrating BRAIN.
 
@@ -25,7 +25,7 @@ Two ADDITIVE capability blocks, mounted by `register(app, ns="a11oy")`:
         POST /api/a11oy/v1/observability/drift       — score reasoning vs Λ-gate
 
 HONESTY (LOCKED): Λ = Conjecture 1 (not a theorem); proved formula count = 5;
-SLSA L2 build-provenance on the 5 organ IMAGES (cosign .att), NOT the bundle;
+SLSA L1 honest build-provenance on the 5 organ IMAGES (cosign .att), NOT the bundle;
 no L3 / FedRAMP / Iron Bank / CMMC. Receipt signature is real only when the
 cosign/HMAC key is present; otherwise the envelope is labelled UNSIGNED /
 DSSE_PLACEHOLDER. telemetry = unauthenticated claim; receipt = attested.
@@ -51,7 +51,7 @@ from fastapi.responses import JSONResponse
 
 DOCTRINE = "v11"
 LAMBDA_STATUS = "Conjecture 1 (NOT a theorem — LOCKED)"
-SLSA_NOTE = "SLSA L2 build-provenance on the 5 organ images (cosign .att), not the bundle. No L3/FedRAMP/Iron Bank/CMMC."
+SLSA_NOTE = "SLSA L1 honest build-provenance on the 5 organ images (cosign .att), not the bundle. No L3/FedRAMP/Iron Bank/CMMC."
 
 # Live organ base URLs. Overridable by env for air-gap / mirror / cluster deploys.
 # Resolution order per organ (first non-empty wins):
