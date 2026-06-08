@@ -34,7 +34,7 @@ companion PR `chore/uds-mesh-pointer` on `uds-bundles`.
 
 *License: Apache-2.0 · © 2026 Lutar, Stephen P. — SZL Holdings*
 
-Doctrine v11 — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (never a theorem) · SLSA L1+L2 · HONESTY OVER CHECKLIST
+Doctrine v11 — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (never a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · HONESTY OVER CHECKLIST
 
 Signed-off-by: Yachay <yachay@szlholdings.ai>
 Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
