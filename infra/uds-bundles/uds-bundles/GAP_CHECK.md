@@ -28,7 +28,7 @@ Honest accounting against the directive. No bandaid, no fabricated proof.
 ## Hard-rule compliance
 - ✅ Founder-token HfApi for SZLHOLDINGS write (not connector); gh CLI for GitHub.
 - ✅ Doctrine v11 LOCKED numbers preserved verbatim in every serve.py + bundle descriptions
-  (749/14/163, 13-axis yuyay_v3, replay bacf5443…631fc5, A2=IsHomogeneous, A4=IsBounded, SLSA L1 + L2, Λ Conjecture 1).
+  (749/14/163, 13-axis yuyay_v3, replay bacf5443…631fc5, A2=IsHomogeneous, A4=IsBounded, SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap, Λ Conjecture 1).
 - ✅ Apache-2.0 license (SPDX headers on every file + LICENSE in GitHub repo).
 - ✅ ADDITIVE only — no HF Space modified; new HF dataset path + new GitHub repo.
 - ✅ Signed as Yachay (commit author + report signatures).
