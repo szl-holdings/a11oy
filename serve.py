@@ -2687,16 +2687,63 @@ async def api_a11oy_v4_fleet_early() -> JSONResponse:
 # ---------------------------------------------------------------------------
 @app.get("/api/a11oy/v1/mcp/tools")
 async def a11oy_mcp_tools_inline():
-    """MCP tools manifest — local (Ken agent pattern, bypasses Node proxy)."""
+    """MCP tools manifest — a11oy-native tools PLUS the live MCP surface of any
+    sibling flagship Space that genuinely exposes one (Ken agent pattern,
+    bypasses Node proxy).
+
+    Honesty rules:
+      * a11oy's own tools are served in-process (always present).
+      * Sibling flagship tools are fetched LIVE from that flagship's own
+        /v1/mcp/tools endpoint and tagged with its flagship name. Nothing is
+        fabricated: a flagship that does not expose an MCP surface, or is
+        unreachable, is simply omitted. Retired/consolidated organs
+        (sentra/amaru/rosie are now served in-process by a11oy) have no
+        standalone MCP endpoint and therefore contribute no separate cluster.
+      * Counts reflect exactly what was reachable at request time — no padding.
+    """
     tools = [
         {"name": "a11oy_gate", "description": "Run a11oy policy gate on an action plan", "flagship": "a11oy"},
         {"name": "lambda_score", "description": "Compute Λ-score for a set of axes", "flagship": "a11oy"},
         {"name": "khipu_sign", "description": "Sign a receipt with Khipu DAG", "flagship": "a11oy"},
         {"name": "khipu_verify", "description": "Verify a Khipu DAG receipt", "flagship": "a11oy"},
     ]
+    # Live-merge sibling flagship MCP surfaces. Only flagships that ACTUALLY
+    # publish a /v1/mcp/tools manifest are pulled; each is timeout-guarded and
+    # failures are swallowed so this endpoint can never go down or fabricate.
+    import urllib.request as _mcp_ureq
+    import json as _mcp_json
+    _siblings = [
+        ("killinchu", "https://szlholdings-killinchu.hf.space/api/killinchu/v1/mcp/tools"),
+    ]
+    _sources = ["a11oy (in-process)"]
+    for _flag, _url in _siblings:
+        try:
+            _req = _mcp_ureq.Request(_url, headers={"User-Agent": "a11oy-mcp-merge/1.0"})
+            with _mcp_ureq.urlopen(_req, timeout=6) as _resp:
+                _data = _mcp_json.loads(_resp.read().decode("utf-8"))
+            _added = 0
+            for _t in (_data.get("tools") or []):
+                _name = _t.get("name")
+                if not _name:
+                    continue
+                tools.append({
+                    "name": _name,
+                    "description": _t.get("description", ""),
+                    "flagship": _flag,
+                })
+                _added += 1
+            if _added:
+                _sources.append(f"{_flag} ({_url})")
+        except Exception:
+            # Sibling unreachable — omit honestly, never fabricate a cluster.
+            pass
+    _flagships = sorted({t["flagship"] for t in tools})
     return JSONResponse({
         "count": len(tools), "tools": tools, "doctrine": "v11",
-        "flagship": "a11oy", "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
+        "flagship": "a11oy",  # host flagship (backward-compatible field)
+        "flagships": _flagships,  # every flagship that contributed live tools
+        "sources": _sources,
+        "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
     })
 
