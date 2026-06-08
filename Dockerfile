@@ -445,6 +445,17 @@ COPY a11oy_dev1_endpoints.py ./a11oy_dev1_endpoints.py
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY a11oy_vertical_feeds.py ./a11oy_vertical_feeds.py
 
+# ADDITIVE (Deep Feeds Layer, 2026-06-08, Dev-A): a11oy_deva_feeds.py exposes the 10
+# deep tabs (RealEstate 5: Market Pulse, Distress Radar, Ownership Graph, Deal Intel,
+# Broker Edge; Finance 5: Quant Desk, Crypto Live, Markets Macro, Prediction Markets,
+# Risk & Fraud Obs.) under /api/a11oy/v1/deva/* -- granular live server-side feeds
+# (Yahoo v8, Coinbase, CoinGecko, Frankfurter FX, Treasury, NYC HPD wvxf-dwi5 + DOB,
+# Polymarket gamma, SEC EDGAR, NVD), reusing a11oy_vertical_feeds governed_turn/_ledger
+# + szl_khipu/szl_dsse for signed receipts. Honest labels, 0 fabricated data, 0 CDN.
+# Per-file COPY (this Dockerfile never uses `COPY . .`); register() front-moves its
+# routes so they beat the proxy + SPA catch-all.
+COPY a11oy_deva_feeds.py ./a11oy_deva_feeds.py
+
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained operator surfaces,
 # each adopting a PERMISSIVELY-licensed PATTERN (NOTICE updated) and evolving it into
 # an a11oy-native mechanism. Stdlib-only (no torch/numpy/CDN). Per-file COPY (this
