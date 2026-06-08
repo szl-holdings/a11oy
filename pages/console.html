@@ -379,7 +379,7 @@ function _frameFG(fg,host,emptyMsg){
         // vertical margins. ONCE, pull the camera ~30% closer so the chain fills the frame.
         if(!_tightened){ _tightened=true; setTimeout(function(){ try{
           var p=fg.cameraPosition();
-          fg.cameraPosition({x:p.x*0.7,y:p.y*0.7,z:p.z*0.7}, undefined, 500);
+          fg.cameraPosition({x:p.x*0.62,y:p.y*0.62,z:p.z*0.62}, undefined, 500);
         }catch(e){} }, 760); }
       }
       else if(emptyMsg){ /* loader paints its own empty-state */ }
@@ -478,7 +478,7 @@ function tearDownAll(){Object.keys(_charts).forEach(killChart);Object.keys(_echa
 function _labelSprite(text,color){
   try{
     var cv=document.createElement('canvas');var ctx=cv.getContext('2d');
-    var fs=44; ctx.font='600 '+fs+'px "Space Grotesk", system-ui, sans-serif';
+    var fs=52; ctx.font='600 '+fs+'px "Space Grotesk", system-ui, sans-serif';
     var w=Math.ceil(ctx.measureText(text).width)+24; cv.width=w; cv.height=fs+24;
     ctx.font='600 '+fs+'px "Space Grotesk", system-ui, sans-serif';
     ctx.fillStyle='rgba(10,10,10,0.66)';
@@ -486,7 +486,7 @@ function _labelSprite(text,color){
     ctx.fillStyle=color||'#e7e9ec'; ctx.textBaseline='middle'; ctx.fillText(text,12,cv.height/2);
     var tex=new THREE.CanvasTexture(cv); tex.minFilter=THREE.LinearFilter;
     var spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
-    var sc=cv.width/cv.height; spr.scale.set(20*sc,20,1); spr.position.set(0,11,0);
+    var sc=cv.width/cv.height; spr.scale.set(24*sc,24,1); spr.position.set(0,11,0);
     return spr;
   }catch(e){return null;}
 }
