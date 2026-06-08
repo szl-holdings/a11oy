@@ -79,8 +79,15 @@ jobs:
         id: recheck
         run: |
           set +e
+          # --baseline: the checked-in floor (issue #320). The governance-receipts
+          # ledger is append-only; once populated, finding fewer receipts than the
+          # recorded baseline means the ledger branch was wiped or this fetch step
+          # silently failed, and the re-check fails LOUDLY instead of passing green
+          # with nothing to check. An unrecorded baseline (file absent) = no floor,
+          # so the genuine empty-on-first-use state is still tolerated.
           python scripts/recheck_rekor_receipts.py \
             --dir attestations/governance \
+            --baseline .github/rekor-recheck-baseline.json \
             --summary-out attestations/governance/.rekor-recheck-summary.json \
             | tee recheck.out
           status=${PIPESTATUS[0]}
@@ -93,21 +100,32 @@ jobs:
             passed=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['passed'])")
             failed=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['failed'])")
             skipped=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['skipped'])")
+            # Emptied-ledger guard fields (issue #320). Tolerant of older summaries
+            # that predate these keys.
+            min_expected=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json')).get('min_expected',0))")
+            baseline_ok=$(python -c "import json;print(str(json.load(open('attestations/governance/.rekor-recheck-summary.json')).get('baseline_ok',True)).lower())")
           else
-            checked=0; passed=0; failed=0; skipped=0
+            checked=0; passed=0; failed=0; skipped=0; min_expected=0; baseline_ok=true
           fi
           echo "checked=${checked}" >> "$GITHUB_OUTPUT"
           echo "passed=${passed}"   >> "$GITHUB_OUTPUT"
           echo "failed=${failed}"   >> "$GITHUB_OUTPUT"
           echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+          echo "min_expected=${min_expected}" >> "$GITHUB_OUTPUT"
+          echo "baseline_ok=${baseline_ok}"   >> "$GITHUB_OUTPUT"
 
           # Names (+reason) of every receipt that no longer verifies, so the
           # direct alert can name the failing receipt(s). Multi-line output via
-          # the heredoc delimiter form. Empty when nothing failed.
+          # the heredoc delimiter form. When the failure is an emptied/regressed
+          # ledger (baseline violation) there are no per-receipt rows, so emit an
+          # explicit line naming that condition instead.
           {
             echo "failed_files<<__RECHECK_EOF__"
             if [ -f attestations/governance/.rekor-recheck-summary.json ]; then
               python -c "import json; s=json.load(open('attestations/governance/.rekor-recheck-summary.json')); [print('- '+r['file']+(' ('+r['reason']+')' if r.get('reason') else '')) for r in s.get('results',[]) if r.get('status')=='FAIL']"
+            fi
+            if [ "${baseline_ok}" = "false" ]; then
+              echo "- (ledger emptied/regressed: ${checked} receipt(s) present, baseline requires >= ${min_expected} — wiped ledger branch or broken fetch)"
             fi
             echo "__RECHECK_EOF__"
           } >> "$GITHUB_OUTPUT"
@@ -121,6 +139,8 @@ jobs:
             echo "| Verified | ${passed} |"
             echo "| **Failed** | ${failed} |"
             echo "| Skipped (placeholder) | ${skipped} |"
+            echo "| Baseline (min required) | ${min_expected} |"
+            echo "| Baseline satisfied | ${baseline_ok} |"
             echo ""
             echo '```'
             cat recheck.out
@@ -146,10 +166,13 @@ jobs:
           FAILED: ${{ steps.recheck.outputs.failed }}
           PASSED: ${{ steps.recheck.outputs.passed }}
           SKIPPED: ${{ steps.recheck.outputs.skipped }}
+          MIN_EXPECTED: ${{ steps.recheck.outputs.min_expected }}
+          BASELINE_OK: ${{ steps.recheck.outputs.baseline_ok }}
         with:
           script: |
             const failed = Number(process.env.FAILED || '0') > 0 ||
                            Number(process.env.EXIT_CODE || '0') === 1;
+            const baselineViolated = String(process.env.BASELINE_OK || 'true') === 'false';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const marker = '<!-- rekor-recheck-incident -->';
 
@@ -158,14 +181,24 @@ jobs:
             const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
             const existing = res.data.items.find(i => !i.pull_request) || null;
 
-            const stats = `checked=${process.env.CHECKED} verified=${process.env.PASSED} failed=${process.env.FAILED} skipped=${process.env.SKIPPED}`;
+            const stats = `checked=${process.env.CHECKED} verified=${process.env.PASSED} failed=${process.env.FAILED} skipped=${process.env.SKIPPED} baseline(min)=${process.env.MIN_EXPECTED} baseline_ok=${process.env.BASELINE_OK}`;
             const now = new Date().toISOString();
+
+            // The emptied-ledger guard (issue #320) and the per-receipt
+            // verification failure share one rolling incident; name whichever
+            // condition tripped so the reader is not misled.
+            const cause = baselineViolated
+              ? `The published governance-receipts ledger unexpectedly dropped below its recorded ` +
+                `baseline (found ${process.env.CHECKED}, require >= ${process.env.MIN_EXPECTED}). The ledger ` +
+                `branch was likely wiped or the fetch step silently failed — the re-check refuses to pass ` +
+                `green with nothing to check.`
+              : `One or more PUBLISHED governance receipts no longer verify against the ` +
+                `public Rekor transparency log.`;
 
             if (failed) {
               const body = `## Rekor Re-check Incident\n\n${marker}\n` +
                 `**State:** FAILING\n**Detected:** ${now}\n**Run:** ${runUrl}\n\n` +
-                `One or more PUBLISHED governance receipts no longer verify against the ` +
-                `public Rekor transparency log.\n\n\`${stats}\`\n\n` +
+                `${cause}\n\n\`${stats}\`\n\n` +
                 `See the run summary for the per-receipt breakdown. This is a single ` +
                 `rolling incident; it updates in place and auto-closes on recovery.`;
               let incident = existing;
@@ -211,6 +244,8 @@ jobs:
           PASSED: ${{ steps.recheck.outputs.passed }}
           FAILED: ${{ steps.recheck.outputs.failed }}
           SKIPPED: ${{ steps.recheck.outputs.skipped }}
+          MIN_EXPECTED: ${{ steps.recheck.outputs.min_expected }}
+          BASELINE_OK: ${{ steps.recheck.outputs.baseline_ok }}
           FAILED_FILES: ${{ steps.recheck.outputs.failed_files }}
         run: |
           set -euo pipefail
@@ -230,11 +265,19 @@ jobs:
             files="(re-check script errored before a per-receipt breakdown was produced)"
           fi
 
+          # Name the actual condition: an emptied/regressed ledger (issue #320)
+          # vs. a per-receipt verification failure.
+          if [ "${BASELINE_OK}" = "false" ]; then
+            headline="published governance-receipts ledger emptied/regressed (found ${CHECKED}, require >= ${MIN_EXPECTED}) — wiped branch or broken fetch"
+          else
+            headline="published governance receipt(s) no longer verify"
+          fi
+
           # Compose the message (real newlines), then JSON-encode it safely with
           # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
           # payload. Slack renders \n and *bold* in the `text` field.
-          text=":rotating_light: *Rekor receipt re-check FAILED* — published governance receipt(s) no longer verify in ${REPO}.
-          *Counts:* checked=${CHECKED} verified=${PASSED} failed=${FAILED} skipped=${SKIPPED}
+          text=":rotating_light: *Rekor receipt re-check FAILED* — ${headline} in ${REPO}.
+          *Counts:* checked=${CHECKED} verified=${PASSED} failed=${FAILED} skipped=${SKIPPED} baseline(min)=${MIN_EXPECTED}
           *Failing receipt(s):*
           ${files}
           *Failing run:* ${RUN_URL}
