@@ -126,6 +126,19 @@ This is re-checked automatically every month by
 [`.github/workflows/docs-toolchain-review.yml`](../../.github/workflows/docs-toolchain-review.yml),
 which runs `npm audit` against this site and reports whether the 2.x exit criteria are met.
 
+Rather than just printing a job-summary line a human has to read, the scheduled run turns each
+signal into a tracked, deduplicated GitHub issue:
+
+- When **both** exit criteria above are met, it opens (or refreshes) a single
+  **"VitePress 2.x is ready — drop the docs/site security override"** issue, and auto-closes it
+  if the criteria stop being met.
+- When `npm audit` finds a vulnerability **beyond** the known/overridden chain, it opens (or
+  refreshes) a **"docs/site npm audit found new vulnerabilities"** issue, and auto-closes it once
+  `npm audit` is clean again.
+
+`pull_request` runs only gate the audit (they don't open issues); issue management happens on the
+monthly schedule and on manual `workflow_dispatch`.
+
 ---
 
 ## Project layout
