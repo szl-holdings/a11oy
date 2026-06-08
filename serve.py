@@ -5382,6 +5382,29 @@ except Exception as _live_e:
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
+# ============================================================================
+# ADDITIVE — Dev1 investor-WOW endpoints (Drop-on-Anything govern, unified
+# cross-vertical receipt ledger, ROI / cost-of-failure, live router latency).
+# Registered BEFORE the entry point so routes resolve LOCALLY (before SPA
+# catch-all). Self-contained, signed receipts, honest labels, 0 fabricated data.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_dev1_endpoints as _a11oy_dev1
+    import sys as _dev1_sys
+    _dev1_status = _a11oy_dev1.register(app, ns="a11oy")
+    print(f"[a11oy] dev1 WOW layer registered: {_dev1_status}", file=_dev1_sys.stderr)
+    _A11OY_DEV1_DIAG = {"status": "ok", "registered": _dev1_status}
+except Exception as _dev1_e:
+    import sys as _dev1_sys, traceback as _dev1_tb
+    print(f"[a11oy] dev1 WOW layer FAILED (non-fatal): {_dev1_e!r}", file=_dev1_sys.stderr)
+    _dev1_tb.print_exc(file=_dev1_sys.stderr)
+    _A11OY_DEV1_DIAG = {"status": "FAILED", "error": repr(_dev1_e)}
+# ============================================================================
+# END: a11oy dev1 WOW layer
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
