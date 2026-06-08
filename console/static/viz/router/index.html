@@ -6,8 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#0a0e14" />
-<title>LLM-Router Live — SZL Holdings</title>
-<meta name="description" content="3D node graph: organs at center, 7 router tiers as rings, 30+ open LLMs on the outer ring. Lights up served routes. Polls a11oy /v1/router/stats every 1s." />
+<title>LLM Graph-Router Live — SZL Holdings</title>
+<meta name="description" content="3D bipartite graph router: organs (query sources) at center, 7 tiers as rings, 30+ open LLMs as model nodes on the outer ring. Edges are weighted by a transparent affinity (quality x ctx-fit x cost x license). Clean-room concept after GraphRouter/Router-R1/LLMRouter. Prefers live /v1/router/stats; else shows the same graph decision locally." />
 <link rel="stylesheet" href="style.css" />
 <script type="importmap">
 {
@@ -23,8 +23,8 @@
 <div id="root"></div>
 <div id="hud">
   <header>
-    <span class="brand">LLM-ROUTER&nbsp;LIVE</span>
-    <span id="livePill" class="pill demo">DEMO MODE</span>
+    <span class="brand">LLM&nbsp;GRAPH-ROUTER</span>
+    <span id="livePill" class="pill demo">GRAPH ROUTER · local affinity</span>
     <span id="renderPill" class="pill">init…</span>
     <label class="sov"><input type="checkbox" id="sov"/> Sovereign mode <small>(GREEN-only)</small></label>
   </header>
@@ -39,7 +39,7 @@
     </div>
   </div>
   <footer>
-    <span>organs · 7 tier rings · 30+ LLMs · edge width = throughput · glow = active</span>
+    <span>query organs · 7 tier rings · 30+ model nodes · edge weight = affinity × task share · glow = top-route</span>
     <span id="lastPoll">—</span>
   </footer>
 </div>
