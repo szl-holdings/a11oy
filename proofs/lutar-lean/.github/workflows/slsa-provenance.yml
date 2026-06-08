@@ -57,8 +57,8 @@ jobs:
           TARBALL="${{ steps.package.outputs.tarball }}"
           echo "hashes=$(sha256sum "$TARBALL" | base64 -w0)" >> "$GITHUB_OUTPUT"
 
-  # SLSA build provenance generation (SLSA L2 attested — hosted GitHub builder).
-  # Doctrine v11: claim SLSA L2 (verifiable via slsa-verifier), NEVER L3.
+  # SLSA build provenance generation (SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap — hosted GitHub builder).
+  # Doctrine v11: claim SLSA L1 honest (verifiable via slsa-verifier), NEVER L3.
   # Runs on GitHub-hosted infrastructure; attestation is signed by Sigstore Fulcio.
   provenance:
     needs: [build]
