@@ -9,7 +9,7 @@
 - **Public formula count = 5** (the live API truth from a11oy `proved_count`). The Lean
   `lake` build may show more targets green, but the served set is 5 until `serve.py` is
   updated to read the proved set and redeployed.
-- **SLSA Build L2 = verified on 5/5 organ images.** True statement:
+- **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap = verified on 5/5 organ images.** True statement:
   *"SLSA L2 provenance attestation cryptographically verifies (cosign verify-attestation,
   keyless Fulcio+Rekor, strict per-organ identity) on all 5 organ images: a11oy, sentra,
   amaru, rosie, killinchu."* SLSA L1 holds on all. The **bundle**
