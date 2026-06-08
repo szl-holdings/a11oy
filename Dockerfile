@@ -107,6 +107,10 @@ COPY szl_puriq_formulas.py ./szl_puriq_formulas.py
 # LOCKED preserved: 749/14/163, 13-axis yuyay_v3, replay bacf5443…631fc5. Pure additive.
 COPY ayni_os_serve.py ./ayni_os_serve.py
 COPY ayni_os/ ./ayni_os/
+# ayni_os_serve event-sources its ledger from the real signed-receipt corpus; it
+# must be in the image or the loader honestly falls back to synthetic. Per-file
+# Dockerfile (no `COPY . .`), so copy the corpus explicitly.
+COPY infra/receipts-samples/ ./infra/receipts-samples/
 COPY pages/ ./pages/
 
 # ADDITIVE (Live 3D Wires / PURIQ Doctrine v12, Yachay): explicit per-file COPY.

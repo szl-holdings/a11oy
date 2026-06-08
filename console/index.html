@@ -199,6 +199,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
     <div class="nav-group">The Brain (3D)</div>
     <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
+    <div class="nav-item" data-view="ayni" onclick="go('ayni')"><span class="ico">♺</span>Reciprocity</div>
     <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
     <div class="nav-item" data-view="pulse" onclick="go('pulse')"><span class="ico">◍</span>Global Pulse</div>
     <div class="nav-item" data-view="trustspace" onclick="go('trustspace')"><span class="ico">⁂</span>Trust Space</div>
@@ -582,6 +583,15 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="card"><div class="card-h"><span class="card-t">By severity</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="th-bars"></canvas></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Pattern list</span><span class="card-ep">live</span></div><div id="th-host" style="max-height:260px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;window.threats_load();}},
 
+  ayni:{title:'Reciprocity (Ayni)',badge:'LIVE \u00b7 EVENT-SOURCED FROM SIGNED RECEIPTS',sub:'Per-organ reciprocity balance (Ayni coefficient \u03b1) and empire-wide synchrony (Kuramoto order parameter r), event-sourced live from the platform\u2019s signed KIPU receipt stream \u2014 not hand-typed seeds. \u03b1 = In/(In+Out) per organ (Axelrod\u2013Hamilton 1981 direct reciprocity); r is the Kuramoto (1975) order parameter over organ control-loop phases. Honest: the shipped receipt corpus is a labelled sample stream, and the data source is shown on every panel.',
+    render:async(c)=>{c.innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="k">Synchrony r</div><div class="v teal" id="ay-r">loading\u2026</div><div class="d">Kuramoto order parameter</div></div>
+      <div class="kpi"><div class="k">Flow state</div><div class="v" id="ay-flow">\u2014</div><div class="d">r &gt; 0.85 = TINKUY</div></div>
+      <div class="kpi"><div class="k">Organs balanced</div><div class="v" id="ay-bal">\u2014</div><div class="d">\u03b1 \u2265 0.45 (no T24 drain)</div></div>
+      <div class="kpi"><div class="k">Receipts ingested</div><div class="v" id="ay-rcpt">\u2014</div><div class="d" id="ay-src">source</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Empire synchrony \u2014 Kuramoto phase circle</span><span class="card-ep">live \u00b7 r\u00b7e^{i\u03c8}</span></div><div id="ay-circle" style="display:flex;justify-content:center;padding:.4rem 0"></div><div class="brain-note">Each dot is an organ on the unit circle at its control-loop phase \u03b8. The gold arrow is the mean resultant r\u00b7e^{i\u03c8} \u2014 longer = more phase-locked (coherent \u201cflow\u201d). Phases are recomputed live from each organ\u2019s real receipt activity on every request.</div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Per-organ reciprocity balance (\u03b1)</span><span class="card-ep">In/(In+Out) \u00b7 event-sourced</span></div><div id="ay-bars"><div class="row mono dim">loading reciprocity ledger\u2026</div></div><div class="brain-note">\u03b1 = 0.5 is balanced; \u03b1 &lt; 0.45 = net-drained (HUKLLA T24 tripwire fires). Each organ\u2019s In (signed attestations given) and Out (compute consumed) are replayed from its real signed receipts.</div></div>${HONEST}`;window.ayni_load();}},
+
   cve:{title:'CVE Watch',badge:'LIVE · NVD',sub:'The newest published software vulnerabilities, pulled live from the U.S. National Vulnerability Database (NVD CVE API 2.0). Real CVE IDs, real CVSS severities \u2014 the external threat surface the platform screens against. Source: services.nvd.nist.gov.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">CVEs loaded</div><div class="v" id="cv-n">loading\u2026</div><div class="d">live NVD feed</div></div>
@@ -951,6 +961,78 @@ async function chain_load(){
   try{const led=await orgGet('core','/api/a11oy/v1/operator/ledger');setTxt('ch-led',led.count??(led.receipts||[]).length);}catch(e){setTxt('ch-led','\u2014');}
   // verify a11oy's DSSE signature in-browser so the chain shows a real, checked signature
   try{const pem=await getText(API+'/cosign.pub');const env=await getJSON(API+'/v1/receipt/export');const res=await verifyReceipt(env,pem,false);setHTML('ch-sig',res.ok?'<span class="live">verified</span>':'<span class="warn">invalid</span>');}catch(e){setHTML('ch-sig','<span class="warn">\u2014</span>');}}
+
+// Reciprocity (Ayni) \u2014 live, event-sourced from signed receipts (/v1/ayni,/v1/tinkuy)
+async function ayni_load(){
+  try{
+    const [ay,tk]=await Promise.all([getJSON('/v1/ayni'),getJSON('/v1/tinkuy')]);
+    const r=(tk&&typeof tk.r==='number')?tk.r:0;
+    setTxt('ay-r',r.toFixed(3));
+    const flow=!!(tk&&tk.in_tinkuy);
+    setTxt('ay-flow',flow?'TINKUY (coherent)':'forming');
+    const fe=el('ay-flow'); if(fe)fe.className='v '+(flow?'teal':'warn');
+    const alphas=(ay&&ay.alphas)||{};
+    const organs=Object.keys(alphas);
+    const balanced=organs.filter(o=>alphas[o]>=0.45).length;
+    setTxt('ay-bal',organs.length?(balanced+' / '+organs.length):'\u2014');
+    setTxt('ay-rcpt',(ay&&ay.receipts_ingested!=null)?String(ay.receipts_ingested):'\u2014');
+    setTxt('ay-src',((ay&&ay.live)?'live \u00b7 ':'fallback \u00b7 ')+((ay&&ay.data_source)||'\u2014'));
+    drawKuramoto('ay-circle',tk);
+    drawAyniBars('ay-bars',alphas,(ay&&ay.deficits)||[]);
+  }catch(e){
+    setHTML('ay-bars','<div class="row mono dim">live reciprocity unavailable: '+esc(e.message)+'</div>');
+    setTxt('ay-r','\u2014'); setTxt('ay-flow','\u2014');
+  }
+}
+window.ayni_load=ayni_load;
+function drawKuramoto(id,tk){
+  const host=el(id); if(!host)return;
+  const S=340,c=S/2,R=S/2-42;
+  const ph=(tk&&tk.phases)||{};
+  const organs=Object.keys(ph);
+  const r=(tk&&typeof tk.r==='number')?tk.r:0;
+  const psi=(tk&&typeof tk.psi==='number')?tk.psi:0;
+  let s='<svg width="'+S+'" height="'+S+'" viewBox="0 0 '+S+' '+S+'" style="max-width:100%">';
+  s+='<defs><marker id="ayarrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#c9b787"/></marker></defs>';
+  s+='<circle cx="'+c+'" cy="'+c+'" r="'+R+'" fill="none" stroke="rgba(201,183,135,0.28)" stroke-width="1.2"/>';
+  s+='<circle cx="'+c+'" cy="'+c+'" r="'+(R*0.5)+'" fill="none" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3 5"/>';
+  s+='<line x1="'+(c-R)+'" y1="'+c+'" x2="'+(c+R)+'" y2="'+c+'" stroke="rgba(255,255,255,0.06)"/>';
+  s+='<line x1="'+c+'" y1="'+(c-R)+'" x2="'+c+'" y2="'+(c+R)+'" stroke="rgba(255,255,255,0.06)"/>';
+  organs.forEach(function(o){
+    const th=ph[o]||0; const x=c+R*Math.cos(th), y=c-R*Math.sin(th);
+    s+='<line x1="'+c+'" y1="'+c+'" x2="'+x.toFixed(2)+'" y2="'+y.toFixed(2)+'" stroke="rgba(95,179,163,0.16)" stroke-width="1"/>';
+    s+='<circle cx="'+x.toFixed(2)+'" cy="'+y.toFixed(2)+'" r="6" fill="#0e0f10" stroke="#5fb3a3" stroke-width="1.8"><title>'+esc(o)+' \u00b7 \u03b8='+th.toFixed(3)+'</title></circle>';
+  });
+  const rx=c+R*r*Math.cos(psi), ry=c-R*r*Math.sin(psi);
+  s+='<line x1="'+c+'" y1="'+c+'" x2="'+rx.toFixed(2)+'" y2="'+ry.toFixed(2)+'" stroke="#c9b787" stroke-width="2.6" marker-end="url(#ayarrow)"><animate attributeName="opacity" values="0.55;1;0.55" dur="2.6s" repeatCount="indefinite"/></line>';
+  s+='<circle cx="'+c+'" cy="'+c+'" r="3" fill="#c9b787"/>';
+  s+='<text x="'+c+'" y="'+(S-8)+'" text-anchor="middle" fill="#c9b787" font-size="12" font-family="monospace">r = '+r.toFixed(3)+'</text>';
+  s+='</svg>';
+  host.innerHTML=s;
+}
+function drawAyniBars(id,alphas,deficits){
+  const host=el(id); if(!host)return;
+  const drained=new Set((deficits||[]).map(function(d){return d.organ;}));
+  const entries=Object.entries(alphas).sort(function(a,b){return b[1]-a[1];});
+  if(!entries.length){host.innerHTML='<div class="row mono dim">no ledger entries</div>';return;}
+  let h='<div style="display:flex;flex-direction:column;gap:6px">';
+  entries.forEach(function(kv){
+    const o=kv[0], a=kv[1];
+    const pct=Math.max(0,Math.min(1,a))*100;
+    const col=a<0.45?'#b06a5a':(a<0.5?'#c9b787':'#5fb3a3');
+    h+='<div style="display:flex;align-items:center;gap:8px">'
+      +'<div class="mono dim" style="width:104px;text-align:right;font-size:12px">'+esc(o)+'</div>'
+      +'<div style="flex:1;background:rgba(255,255,255,0.05);border-radius:6px;height:16px;position:relative;overflow:hidden">'
+      +'<div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.28)"></div>'
+      +'<div style="height:100%;width:'+pct.toFixed(1)+'%;background:'+col+';border-radius:6px 0 0 6px;transition:width .6s"></div>'
+      +'</div>'
+      +'<div class="mono" style="width:52px;font-size:12px;color:'+col+'">'+a.toFixed(3)+'</div>'
+      +(drained.has(o)?'<span class="mono" style="border:1px solid #b06a5a;color:#b06a5a;font-size:10px;border-radius:4px;padding:0 4px">T24</span>':'<span style="width:34px;display:inline-block"></span>')
+      +'</div>';
+  });
+  h+='</div>';
+  host.innerHTML=h;
+}
 
 // Global Pulse \u2014 live USGS earthquakes on a globe, arcs \u2192 a11oy US hub
 async function pulse_load(){
