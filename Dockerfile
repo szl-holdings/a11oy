@@ -64,6 +64,15 @@ COPY packages/policy/src/gates /app/a11oy-src/packages/policy/src/gates
 # index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
 COPY console/ ./static/
 
+# Build cache-bust 2026-06-08T23:30Z (Wave23 instillation): knowledge.json was
+# NEVER explicitly COPYed into the image, so /knowledge.json (SPA Formulas tab +
+# /api/a11oy/v1/research/corpus) served a STALE in-layer copy. Pin it freshly into
+# BOTH the static root (catch-all serves /app/static/knowledge.json) and /app root
+# (research-corpus endpoint reads /app/knowledge.json). Wave23 = conditional Khipu
+# BFT safety (Conjecture 2 conditional); locked-5 + Lambda Conjecture 1 UNCHANGED.
+COPY knowledge.json ./static/knowledge.json
+COPY knowledge.json ./knowledge.json
+
 # Copy serve orchestrator and gates manifest
 COPY szl_parity_gaps.py ./szl_parity_gaps.py
 # ADDITIVE (live-ops): orchestration + AI-observability module — per-file COPY Dockerfile
