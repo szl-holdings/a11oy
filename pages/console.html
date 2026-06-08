@@ -7886,19 +7886,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             '<div class="mono dim" style="font-size:9.5px;margin-top:.5rem;cursor:pointer" onclick="this.parentNode.style.display=\'none\'">\u00d7 close</div>'; };
         if(window.a11oyFG){
           var fg=window.a11oyFG('pva-gr-graph', nodes, links, {labels:true, cooldown:220, onNode:onNode});
-          // Spread the DAG out + guarantee framing: stronger charge/link distance,
-          // then re-fit a few times as the layout settles (helper already fits, this
-          // widens the cluster so the 16-node graph fills the frame nicely).
-          try{
-            if(fg){
-              if(fg.d3Force){ var ch=fg.d3Force('charge'); if(ch&&ch.strength) ch.strength(-140);
-                              var lk=fg.d3Force('link'); if(lk&&lk.distance) lk.distance(48); }
-              if(fg.d3ReheatSimulation) fg.d3ReheatSimulation();
-              var host=document.getElementById('pva-gr-graph');
-              var refit=function(){ try{ if(host) fg.width(host.clientWidth).height(host.clientHeight); fg.zoomToFit(700,70);}catch(_){} };
-              setTimeout(refit,1200); setTimeout(refit,2600); setTimeout(refit,4200);
-            }
-          }catch(_){}
+          // Guarantee framing: the helper already fits on engineStop; we add a few extra
+          // zoomToFit passes (with a wider pad) as the layout settles so the 16-node DAG
+          // fills the frame. NO simulation reheat / d3Force mutation (that races the
+          // engine teardown on tab-switch/reload and throws an async 'tick' error).
+          if(fg){
+            var ghost=document.getElementById('pva-gr-graph');
+            var refit=function(){ try{ if(ghost&&ghost.clientWidth) fg.width(ghost.clientWidth).height(ghost.clientHeight); if((fg.graphData().nodes||[]).length) fg.zoomToFit(700,70);}catch(_){} };
+            setTimeout(refit,1400); setTimeout(refit,3000); setTimeout(refit,5000);
+          }
         }
         else if(window.dag3d){ window.dag3d('pva-gr-graph', nodes, links, {dagMode:null, dist:46, labels:true}); }
       }catch(e){ var h=E('pva-gr-graph'); if(h)h.innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; }
