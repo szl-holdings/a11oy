@@ -455,6 +455,7 @@ COPY a11oy_vertical_feeds.py ./a11oy_vertical_feeds.py
 # Per-file COPY (this Dockerfile never uses `COPY . .`); register() front-moves its
 # routes so they beat the proxy + SPA catch-all.
 COPY a11oy_deva_feeds.py ./a11oy_deva_feeds.py
+COPY a11oy_devb_endpoints.py ./a11oy_devb_endpoints.py
 
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained operator surfaces,
 # each adopting a PERMISSIVELY-licensed PATTERN (NOTICE updated) and evolving it into
