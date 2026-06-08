@@ -446,7 +446,11 @@ def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
 # (HF Space secrets are sometimes saved as 'Token', 'HF_ROUTER_TOKEN', etc.). Values are
 # stripped of stray whitespace/quotes. Server-side only; never sent to the browser.
 def _detect_hf_token() -> str:
-    for _name in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HF_ROUTER_TOKEN",
+    # NOTE: this list MUST stay aligned with a11oy_code_orchestrator.py's HF_TOKEN
+    # fallback chain (the founder may store the credential under the secret name
+    # 'Forge'). Without 'Forge' here the orchestrator finds the token but the live
+    # /v1/code/turn engine path silently does not -> codetab cannot generate.
+    for _name in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "Forge", "HF_ROUTER_TOKEN",
                   "HF_API_TOKEN", "HUGGINGFACE_TOKEN", "HUGGINGFACEHUB_API_TOKEN", "Token"):
         _v = os.environ.get(_name)
         if _v:
