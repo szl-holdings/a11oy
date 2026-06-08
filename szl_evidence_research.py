@@ -10,6 +10,9 @@ static prose. For every headline claim a console tab makes, this module ships:
   * a LIVE overlay pulled at request time from the arXiv API (papers) and the
     GitHub REST API (repo stars / last-push / license) so the panel is
     refreshable, not frozen prose;
+  * a LIVE reachability probe (HEAD, falling back to GET) for every curated
+    standard / dataset / project source URL, so each cited page carries an
+    honest reachable | unreachable badge — not just the GitHub repos;
   * honest mode labels (live | cached | curated) on every block — a down feed
     degrades to the curated bundle, NEVER to fabricated figures.
 
@@ -35,9 +38,11 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 _UA = "szl-evidence-research/1.0 (+https://a11oy.net; research-evidence layer)"
@@ -400,12 +405,76 @@ def _github(repo: str) -> Dict[str, Any]:
                 "stars": None, "mode": "unreachable", "error": str(ex)[:120]}
 
 
+_LIVE_TTL = 900  # 15 min — source reachability is checked more often than papers
+
+
+def _liveness(url: str, timeout: int = 8) -> Dict[str, Any]:
+    """HEAD-then-GET reachability probe for a curated source URL.
+
+    Returns an honest reachable/unreachable badge with the HTTP status and check
+    time. A cached successful result is reused for _LIVE_TTL; if a fresh check
+    fails but the URL was reachable before, we degrade to the cached badge rather
+    than fabricate. Never invents a status — unreachable means unreachable.
+    """
+    key = "live:" + url
+    now = time.time()
+    hit = _CACHE.get(key)
+    if hit and now - hit["_t"] < _LIVE_TTL:
+        return {**hit["v"], "mode": "cached"}
+    status: Optional[int] = None
+    ok = False
+    err: Optional[str] = None
+    for method in ("HEAD", "GET"):
+        try:
+            req = urllib.request.Request(
+                url, method=method, headers={"User-Agent": _UA})
+            with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec - public read-only
+                status = int(getattr(r, "status", None) or r.getcode())
+            ok = 200 <= status < 400
+            if ok:
+                break
+        except urllib.error.HTTPError as he:  # noqa: PERF203
+            status = int(he.code)
+            # Many CDNs/origins reject HEAD; retry once with GET before judging.
+            if method == "HEAD" and he.code in (400, 403, 405, 501):
+                err = "HTTP %s on HEAD" % he.code
+                continue
+            ok = 200 <= he.code < 400
+            err = "HTTP %s" % he.code
+            break
+        except Exception as ex:  # noqa: BLE001
+            err = str(ex)[:120]
+            continue
+    at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    if ok:
+        val = {"url": url, "reachable": True, "http_status": status, "checked_at": at}
+        _CACHE[key] = {"v": val, "_t": now}
+        return {**val, "mode": "live"}
+    if hit:  # fresh check failed but we have a last-known-good — degrade, don't lie
+        return {**hit["v"], "mode": "cached",
+                "note": "live check failed; showing last-known reachable"}
+    return {"url": url, "reachable": False, "http_status": status,
+            "error": err, "checked_at": at, "mode": "unreachable"}
+
+
+def _sources_live(sources: List[Dict[str, Any]],
+                  max_workers: int = 6) -> List[Dict[str, Any]]:
+    """Probe a claim's curated sources concurrently, attaching a liveness badge."""
+    if not sources:
+        return []
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(sources))) as ex:
+        badges = list(ex.map(lambda s: _liveness(s["url"]), sources))
+    return [{**s, "liveness": b} for s, b in zip(sources, badges)]
+
+
 _HONEST = (
     "Evidence layer: every source below is a real, resolvable citation — an "
     "official standard, a public dataset, or a GitHub repository. Paper lists "
-    "and repo stats are fetched live from the arXiv and GitHub APIs and labelled "
-    "live/cached/unreachable; a down feed degrades to the curated citations, "
-    "never to fabricated figures. No synthetic numbers are introduced here."
+    "and repo stats are fetched live from the arXiv and GitHub APIs, and every "
+    "standard/dataset/project source URL is probed live (HEAD/GET) for a "
+    "reachable/unreachable badge — all labelled live/cached/unreachable. A down "
+    "feed degrades to the curated citations, never to fabricated figures. No "
+    "synthetic numbers are introduced here."
 )
 
 
@@ -449,12 +518,31 @@ def register(app, ns: str = "a11oy") -> None:
             return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
         papers = _arxiv(claim.get("arxiv_query", claim["claim"]))
         repos = [_github(r) for r in claim.get("github", [])]
+        sources = _sources_live(claim["sources"])
         return JSONResponse({
             "id": claim["id"], "claim": claim["claim"], "tab": claim.get("tab"),
             "honest": _HONEST,
-            "sources": claim["sources"],
+            "sources": sources,
+            "sources_reachable": sum(
+                1 for s in sources if s.get("liveness", {}).get("reachable")),
             "arxiv": papers,
             "github": repos,
+        })
+
+    @app.get(base + "/{claim_id}/sources/live")
+    async def _evidence_sources_live(claim_id: str):  # noqa: ANN202
+        claim = next((c for c in _claims_for(ns) if c["id"] == claim_id), None)
+        if not claim:
+            return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
+        sources = _sources_live(claim["sources"])
+        return JSONResponse({
+            "id": claim["id"], "claim": claim["claim"], "tab": claim.get("tab"),
+            "honest": _HONEST,
+            "sources": sources,
+            "n_sources": len(sources),
+            "reachable": sum(
+                1 for s in sources if s.get("liveness", {}).get("reachable")),
+            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
 
     @app.get(base + "/refresh")
@@ -463,10 +551,14 @@ def register(app, ns: str = "a11oy") -> None:
         rows = []
         for c in claims:
             p = _arxiv(c.get("arxiv_query", c["claim"]), limit=2)
+            src = _sources_live(c["sources"])
             rows.append({
                 "id": c["id"], "claim": c["claim"],
                 "arxiv_count": p.get("count", 0), "arxiv_mode": p.get("mode"),
-                "n_sources": len(c["sources"]), "n_repos": len(c.get("github", [])),
+                "n_sources": len(c["sources"]),
+                "sources_reachable": sum(
+                    1 for s in src if s.get("liveness", {}).get("reachable")),
+                "n_repos": len(c.get("github", [])),
             })
         return JSONResponse({
             "layer": "%s evidence freshness sweep" % ns,
