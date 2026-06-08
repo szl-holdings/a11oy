@@ -457,6 +457,17 @@ COPY a11oy_vertical_feeds.py ./a11oy_vertical_feeds.py
 COPY a11oy_deva_feeds.py ./a11oy_deva_feeds.py
 COPY a11oy_devb_endpoints.py ./a11oy_devb_endpoints.py
 
+# ADDITIVE (Provenance & Trust Anchor, 2026-06-08): a11oy_amaru_feeds.py exposes the
+# 5 trust tabs (Public-Ledger Anchor LIVE, Post-Quantum Signing PQC, Receipt
+# Provenance Graph 3D, Tamper/Audit Verifier, Anchor Health) under
+# /api/a11oy/v1/provenance/* -- live CT signed tree heads (Google Argon/Xenon,
+# Cloudflare Nimbus) + Bitcoin tip (mempool.space/blockstream), reusing
+# a11oy_vertical_feeds governed_turn + szl_khipu/szl_dsse for signed receipts.
+# Honest PQC labels (classical ECDSA-P256 live; ML-DSA/ML-KEM/SLH-DSA roadmap),
+# 0 fabricated data, 0 CDN. Per-file COPY; register() front-moves its routes so
+# they beat the proxy + SPA catch-all.
+COPY a11oy_amaru_feeds.py ./a11oy_amaru_feeds.py
+
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained operator surfaces,
 # each adopting a PERMISSIVELY-licensed PATTERN (NOTICE updated) and evolving it into
 # an a11oy-native mechanism. Stdlib-only (no torch/numpy/CDN). Per-file COPY (this
