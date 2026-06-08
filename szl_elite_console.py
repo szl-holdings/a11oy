@@ -40,7 +40,7 @@ DOCTRINE = "v11"
 _KERNEL_COMMIT = "c7c0ba17"
 _LAMBDA_FLOOR = 0.90
 
-# SLSA Build L2 is genuinely earned: the published GHCR image carries a signed
+# SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap is genuinely earned: the published GHCR image carries a signed
 # slsa.dev/provenance/v0.2 attestation (.att referrer). The Rekor transparency-log
 # index, however, is per-signing and must NOT be hardcoded (DOCTRINE_NO_HALLUCINATION:
 # never assert a specific Rekor inclusion we cannot resolve at runtime). CI injects the
@@ -169,7 +169,7 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
     # seed a few honest info-level events
     _add_alert("info", "Space started", "a11oy elite console initialised", "system")
     _ri = _rekor_log_index()
-    _add_alert("info", "SLSA Build L2 attested",
+    _add_alert("info", "SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap",
                (f"Rekor logIndex {_ri} confirmed" if _ri is not None
                 else "signed slsa.dev/provenance/v0.2 .att on GHCR image; Rekor index resolved at verify time"),
                "slsa")
