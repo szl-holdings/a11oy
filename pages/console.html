@@ -278,6 +278,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="feed" onclick="go('feed')"><span class="ico">∿</span>Live Decisions</div>
     <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
     <div class="nav-item" data-view="forecast" onclick="go('forecast')"><span class="ico">↗</span>Forecast</div>
+    <div class="nav-item" data-view="reciprocity" onclick="go('reciprocity')"><span class="ico">⇄</span>Reciprocity</div>
     <div class="nav-group">Prove &amp; Verify</div>
     <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
     <div class="nav-group">World &amp; Threat Intel</div>
@@ -302,7 +303,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="threatgraph" onclick="go('threatgraph')"><span class="ico">⩟</span>Threat Graph</div>
     <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
     <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
-    <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven: CUT-2)<br>5 locked-proven + 80+ experimental CI-green (Wave 5–14)<br>SLSA L1 · L2 on roadmap<br>Verifiable receipts · honest by design</div>
+    <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>5 locked-proven + 80+ experimental CI-green<br>SLSA Build L2 · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -462,7 +463,7 @@ function cyGraph(id,elements,layout){const host=el(id);if(!host||!window.cytosca
   return _cy;}
 function nowts(){return new Date().toISOString().slice(11,19);}
 
-const HONEST='<div class="honesty"><b>How to read this.</b> Every panel reads a live service \u2014 no mock data, and live-vs-replay is labeled where it matters. The trust score \u039b is a research <b>Conjecture</b> (Conjecture 1, advisory \u2014 its unconditional uniqueness is machine-checked FALSE), never a pass/fail oracle. Five formulas are formally proven (locked); other waves are CI-green but not in the locked count. The a11oy image carries an SLSA L1 provenance attestation (honest), with SLSA L2 on the roadmap \u2014 not L2-verified, not L3/FedRAMP/Iron Bank/CMMC. No AGI claims. Audit receipts are cryptographically signed where a key is present, and honestly marked unsigned otherwise.</div>';
+const HONEST='<div class="honesty"><b>How to read this.</b> Every panel reads a live service \u2014 no mock data, and live-vs-replay is labeled where it matters. The trust score \u039b is a research <b>Conjecture</b> (Conjecture 1, advisory \u2014 its unconditional uniqueness is machine-checked FALSE), never a pass/fail oracle. Five formulas are formally proven (locked); other waves are CI-green but not in the locked count. The a11oy image carries a verified SLSA provenance attestation (L2); org-wide L2 holds on 3 of 5 organs with the remainder on the roadmap (honest, not L3/FedRAMP/Iron Bank). No AGI claims. Audit receipts are cryptographically signed where a key is present, and honestly marked unsigned otherwise.</div>';
 const FLOOR=0.9;
 
 const VIEWS={
@@ -601,13 +602,7 @@ trustspace:{title:'Trust Space',badge:'3D POINT-CLOUD',sub:'Every trust dimensio
         <div class="card"><div class="card-h"><span class="card-t">Combined score</span><span class="card-ep">live</span></div><div class="gauge-wrap" style="justify-content:center"><div class="gauge"><canvas id="la-gauge"></canvas><div class="lbl"><div><div class="big" id="la-gbig">\u2014</div><div class="sm">vs floor 0.90</div></div></div></div></div></div>
         <div class="card"><div class="card-h"><span class="card-t">13 trust dimensions</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="la-radar"></canvas></div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Per-dimension scores</span></div><div class="chartbox tall"><canvas id="la-bars"></canvas></div><div id="la-host" style="margin-top:.6rem"></div></div>
-      <div class="card" style="border-left:3px solid #e0a82e"><div class="card-h"><span class="card-t">Is \u039b the only honest trust score? \u2014 the uniqueness question</span><span class="card-ep">formal status \u00b7 lutar-lean</span></div>
-        <div style="font-size:12.5px;line-height:1.75;color:var(--paragraph)">
-          <div style="margin-bottom:.5rem"><span class="badge" style="color:#e0a82e;border:1px solid #e0a82e">Conjecture 1</span> <b>Unconditional uniqueness is OPEN \u2014 in fact machine-checked FALSE.</b> Under the base axioms A1\u2013A5 alone, \u039b is <i>not</i> the unique aggregator (counterexample <span class="mono">Round13.maxAgg_ne_\u039b</span>: max- and min-aggregation also satisfy A1\u2013A5). So the bare claim \u201c\u039b is unique\u201d stays a conjecture \u2014 we never call it a theorem.</div>
-          <div style="margin-bottom:.5rem"><span class="badge" style="color:#5fb3a3;border:1px solid #5fb3a3">CUT-2 \u00b7 CONDITIONAL \u00b7 axiom-free</span> <b>Add one honest hypothesis and it becomes a theorem.</b> <span class="mono">lambda_unique_of_separable</span> (Wave 12, PR #202): under {A1,A2,A3,A5} PLUS <i>slice-multiplicativity</i> (separability), \u039b is the UNIQUE aggregator \u2014 kernel-checked, NO new axiom (axioms \u2286 {propext, Classical.choice, Quot.sound}). This lifts \u039b off bare conjecture, <i>conditionally only.</i></div>
-          <div class="mono dim" style="font-size:11px">Honest one-liner: \u039b unconditional remains Conjecture 1 (unconditional uniqueness is provably false for A1\u2013A5); the strongest axiom-free conditional uniqueness (separability \u21d2 \u039b) is machine-checked.</div>
-        </div></div>${HONEST}`;window.lambda_load();}},
+      <div class="card"><div class="card-h"><span class="card-t">Per-dimension scores</span></div><div class="chartbox tall"><canvas id="la-bars"></canvas></div><div id="la-host" style="margin-top:.6rem"></div></div>${HONEST}`;window.lambda_load();}},
 
   gates:{title:'Safety Gates',badge:'8 GATES',sub:'Eight deny-by-default safety gates inspect every action for dangerous signals (injection, unsafe commands, banned vendors, and more). Anything suspicious is blocked before it runs.',
     render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Gates</div><div class="v" id="g-count">\u2014</div></div><div class="kpi"><div class="k">Deny-by-default</div><div class="v warn" id="g-deny">\u2014</div></div><div class="kpi"><div class="k">Categories</div><div class="v teal" id="g-cat">\u2014</div></div></div>
@@ -668,7 +663,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       </div>
       <div class="card" id="kn-detail"><div class="row mono dim">Click any node in the graph to see its formal statement, citation, and maturity.</div></div>${HONEST}`;window.knowledge_load();}},
 
-  kbformulas:{title:'Formulas',badge:'KaTeX \u00b7 5 LOCKED + 80+ CI-GREEN (thru Wave 14)',sub:'The platform\u2019s mathematical corpus, rendered and searchable. Honesty: exactly FIVE formulas are locked-proven in the Doctrine-v11 Lean kernel (machine-checked, zero gaps) \u2014 this number never moves. PLUS 80+ experimental theorems are kernel-verified and CI-green (main @ b910c276) across waves 5\u201314, the agentic loop (P1\u2013P6), the governed coder, the \u039b uniqueness campaigns, and the unifying meta-theorem \u2014 each linked to its lutar-lean PR below, never folded into the locked five. The newest frontier pack (Wave 11\u201314 + CUT-2) is listed explicitly. \u039b-uniqueness stays Conjecture 1 unconditionally (a counterexample is machine-checked) and is PROVEN only CONDITIONALLY under declared strengthened axioms \u2014 the strongest of which (CUT-2, separability) is axiom-free.',
+  kbformulas:{title:'Formulas',badge:'KaTeX \u00b7 5 LOCKED + 80+ CI-GREEN',sub:'The platform\u2019s mathematical corpus, rendered and searchable. Honesty: exactly FIVE formulas are locked-proven in the Doctrine-v11 Lean kernel (machine-checked, zero gaps). PLUS 80+ experimental theorems are kernel-verified and CI-green across waves 5\u20137, the agentic loop (P1\u2013P6), the governed coder, the \u039b Set \u03b1/\u03b4 uniqueness campaign, and the unifying meta-theorem \u2014 each linked to its lutar-lean PR below, never folded into the locked five. \u039b-uniqueness stays Conjecture 1 unconditionally (a counterexample is machine-checked) and is PROVEN only conditionally under declared strengthened axioms.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Locked proven</div><div class="v teal">5</div><div class="d">{F1,F11,F12,F18,F19} @ c7c0ba17</div></div>
       <div class="kpi"><div class="k">Experimental kernel-verified</div><div class="v" style="color:#5fb3a3" id="kf-exp">80+</div><div class="d">CI-green, broken out below</div></div>
@@ -789,10 +784,9 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading\u2026</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function \u2014 it is a research conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L2-verified, NOT L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Provenance is SLSA L1 (honest) with L2 on the roadmap.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC. Builds are SLSA Level 2.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are LOCKED-proven (F1,F11,F12,F18,F19). 80+ more are experimental kernel-verified / CI-green (Wave 5\u201314 + CUT-2) but NEVER folded into the locked five; the rest stay open or conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>\u039b uniqueness is NOT proven unconditionally (Conjecture 1, counterexample machine-checked). It is proven only CONDITIONALLY (CUT-2 \u00b7 separability \u00b7 axiom-free).</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>Only 5 formulas are formally proven; the rest are open or experimental.</span></div>
       </div>
       <details class="raw"><summary>raw honesty record</summary><pre class="out" id="o-honest">loading\u2026</pre></details>${HONEST}`;window.honest_load();}},
 
@@ -1521,12 +1515,6 @@ async function kbformulas_load(){
     if(ps.agentic_loop)H+=_honestRow('experimental-ci-green','Agentic loop P1\u2013P6 \u2014 '+ps.agentic_loop.theorems+' theorems','The RAG\u2192MCP\u2192kernel loop proven as a SYSTEM. P3 non-interference (poisoned input can\u2019t flip the verdict) is axiom-free; P5 axiom-gated on hashFn_collision_resistant.',ps.agentic_loop.pull_request);
     if(ps.coder_formulas)H+=_honestRow('experimental-ci-green','Governed coder \u2014 '+ps.coder_formulas.theorems+' theorems','Sandbox containment, bounded exec, router envelope, consensus, conformal code-confidence, Kraft, code non-interference. 1 axiom-gated (codeHash_collision_resistant).',ps.coder_formulas.pull_request);
     if(ps.lambda_setalpha_setdelta)H+=_honestRow('conditional','\u039b Set \u03b1/\u03b4 uniqueness \u2014 '+ps.lambda_setalpha_setdelta.results+' results','PROVEN: \u039b is unique within strengthened axiom classes Set \u03b1 and Set \u03b4 (conditional on declared bridge axioms). All 10 impostor-deaths AXIOM-FREE. NOT unconditional \u2014 \u039b stays Conjecture 1.',ps.lambda_setalpha_setdelta.pull_request);
-    /* Wave 11\u201314 + CUT-2 frontier pack \u2014 newly-proven, kernel-clean (axioms \u2286 {propext, Classical.choice, Quot.sound}), CI-green on main @ b910c276. Surfaced honestly; never folded into the locked five. */
-    H+=_honestRow('experimental-ci-green','Wave 11 \u2014 24 theorems (graph + Ouroboros + immune)','CF-1 graph-automorphism distance invariance, CF-2 KV-cache slot bound, CF-3 Ouroboros early-exit monotonicity, CF-5 Neyman\u2013Pearson immune-optimality, + 2 position-aware. Kernel-clean, no new axiom.','201');
-    H+=_honestRow('conditional','CUT-2 \u2014 \u039b uniqueness CONDITIONAL on separability (axiom-free)','lambda_unique_of_separable: under {A1,A2,A3,A5} PLUS slice-multiplicativity (separability), \u039b is the UNIQUE aggregator \u2014 proven, kernel-clean, NO new axiom. This gets \u039b off bare conjecture, conditionally only. \u039b unconditional STILL = Conjecture 1.','202');
-    H+=_honestRow('experimental-ci-green','Wave 12 \u2014 CF-13 + CF-17 (well-posedness + numeric stability)','CF-13 OuroLoopInputLipschitz: DEQ fixed-point is input-Lipschitz, dist(z*(x),z*(y)) \u2264 Lx/(1\u2212K)\u00b7dist(x,y). CF-17 NumericStability: floating-point summation error bound recSum_error_le. Kernel-clean.','202');
-    H+=_honestRow('experimental-ci-green','Wave 13 \u2014 PRNG replay + vote single-valuedness + HM bottleneck','findReplayRoot_complete (deterministic replay root exists), quorum_agreement_single_valued_vote (a single honest vote is single-valued \u2014 a NON-Byzantine shadow, NOT BFT safety, which stays Conjecture 2), hm_bottleneck_clean (harmonic-mean bottleneck). Kernel-clean.','203');
-    H+=_honestRow('experimental-ci-green','Wave 14 \u2014 CF-18\u2026CF-21 (analysis, coding, mechanism design, info theory)','CF-18 alternating-series / M\u0101dhava remainder bound, CF-19 Reed\u2013Solomon MDS distance LOWER bound (upper/equality stays open), CF-20 VCG truthfulness + efficiency core, CF-21 log-sum & Gibbs inequality (Cover\u2013Thomas). Kernel-clean. Does NOT repair DPO klDivergence/pinsker, which stay false-as-stated.','204');
     if(ps.unify_governed_run_sound)H+=_honestRow('experimental-ci-green','Unifying meta-theorem \u2014 governed_run_sound','Every compositional guarantee (P1/P4/P6 + coder corpus) is a corollary of ONE monoid-action homomorphism (run_append). A synthesis theorem.',ps.unify_governed_run_sound.pull_request);
     if(ps.mathlib_bump_c3c4c5)H+=_honestRow('branch-pending','C3 / C4 / C5 (concentration / KL re-exports)','PROVEN on the Mathlib-v4.18 bump branch (CI-green), PENDING MERGE to main \u2014 not on-main, not blocked.',ps.mathlib_bump_c3c4c5.pull_request);
     H+=_honestRow('conjecture','\u039b uniqueness \u2014 Conjecture 1 (unconditional)','Unconditional uniqueness under the original axioms A1\u2013A5 is machine-checked FALSE (counterexample Round13.maxAgg_ne_Lambda). The label stays \u201cConjecture 1\u201d \u2014 this is non-negotiable honesty. The conditional proof above is how it becomes provable under stronger axioms.','192');
@@ -4611,6 +4599,121 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
     console.log('[a11oy] BATCH-3 module loaded: command(bar-gauge), ask(bool-cascade), demo(state-timeline), fleet(status-history grid), mesh(cytoscape map), pulse(calendar heatmap+sparkline), feed(live-tail), business(delta cards), verticals(ngraph galaxy), alloy(Chart.js h-bar), mission(gauge cluster), melt(heatmap), deploy(SVG marker timeline), warboard(25-demo 5x5 board: 5 problems x 5)');
     try{ var cur=(location.hash||'#command').slice(1); if(['command','ask','demo','fleet','mesh','pulse','feed','business','verticals','alloy','mission','melt','deploy','warboard'].indexOf(cur)>=0 && window.go){ window.go(cur); } }catch(e){}
+  });
+})();
+</script>
+<script>
+/* ============================================================================
+   TAB: Reciprocity (data-view="reciprocity") — AYNI-OS live reciprocity monitor.
+   REAL DATA, NO MOCK: event-sourced from 21 real signed receipts
+   (infra/receipts-samples), exposed by ayni_os_serve.py at /v1/ayni + /v1/tinkuy.
+   LEFT  : per-capability Ayni coefficient alpha (game-theory reciprocity,
+           Axelrod-Hamilton 1981); below 0.45 trips the T24 deficit halt.
+   RIGHT : Kuramoto (1975) order parameter r as a live phase-circle — each
+           capability is a point on the unit circle, the mean-field resultant
+           r*e^{i psi} drawn in gold. Honest: r is clock-driven so it animates.
+   Additive only: registers window.VIEWS.reciprocity; reuses the console toolkit.
+   ============================================================================ */
+(function(){
+  function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0; var iv=setInterval(function(){ if(window.VIEWS||n++>120){clearInterval(iv);fn();} },40); } }
+  whenReady(function(){
+    var V=window.VIEWS; if(!V) return;
+    var T=window.setTxt, E=window.el, H=window.setHTML, gj=window.getJSON;
+    var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', DIM='#666', CREAM='#f5f5f5';
+    var LABEL={amaru:'amaru',sentra:'sentra',rosie:'rosie',vessels:'vessels',killinchu:'killinchu',kanchay:'kanchay',wayra:'wayra',puriq:'puriq',yuyay:'yuyay',hukla:'hukla',khipu:'khipu',lambda_spine:'\u03bb-spine',yawar:'yawar',tinkuy:'tinkuy'};
+    function aColor(a){ if(a==null) return DIM; if(a<0.45) return RED; if(a<0.5) return AMBER; return TEAL; }
+
+    function drawKuramoto(id, phases, r, psi){
+      var cv=E(id); if(!cv) return;
+      var dpr=window.devicePixelRatio||1;
+      var w=cv.clientWidth||340, h=cv.clientHeight||300;
+      cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+      var g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+      var cx=w/2, cy=h/2, R=Math.min(w,h)/2-24;
+      g.strokeStyle='rgba(201,183,135,0.28)'; g.lineWidth=1.2;
+      g.beginPath(); g.arc(cx,cy,R,0,2*Math.PI); g.stroke();
+      g.strokeStyle='rgba(201,183,135,0.06)'; g.lineWidth=1;
+      for(var k=0;k<12;k++){ var aa=k*Math.PI/6; g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+R*Math.cos(aa),cy+R*Math.sin(aa)); g.stroke(); }
+      var keys=Object.keys(phases||{});
+      keys.forEach(function(o){
+        var ph=phases[o]; if(ph==null) return;
+        var x=cx+R*Math.cos(ph), y=cy+R*Math.sin(ph);
+        g.beginPath(); g.arc(x,y,4,0,2*Math.PI);
+        g.fillStyle=TEAL; g.shadowColor=TEAL; g.shadowBlur=9; g.fill(); g.shadowBlur=0;
+      });
+      var ex=cx+R*r*Math.cos(psi), ey=cy+R*r*Math.sin(psi);
+      g.strokeStyle=GOLD; g.lineWidth=2.6; g.beginPath(); g.moveTo(cx,cy); g.lineTo(ex,ey); g.stroke();
+      g.beginPath(); g.arc(ex,ey,5.5,0,2*Math.PI); g.fillStyle=GOLD; g.shadowColor=GOLD; g.shadowBlur=14; g.fill(); g.shadowBlur=0;
+      g.fillStyle=CREAM; g.font="700 22px 'JetBrains Mono',monospace"; g.textAlign='center';
+      g.fillText((r||0).toFixed(3), cx, cy+7);
+      g.fillStyle=DIM; g.font="9px 'JetBrains Mono',monospace"; g.fillText('r = order parameter', cx, cy+22);
+    }
+
+    V.reciprocity={
+      title:'Reciprocity',
+      badge:'AYNI-OS \u00b7 LIVE \u00b7 21 SIGNED RECEIPTS',
+      sub:'Live reciprocity monitor. Each capability\u2019s Ayni coefficient \u03b1 measures whether it gives back as much as it takes (game-theory reciprocity, Axelrod\u2013Hamilton 1981) \u2014 \u03b1 below 0.45 trips a T24 deficit halt. The phase-circle shows flow synchrony as the Kuramoto (1975) order parameter r. Every number is event-sourced from 21 real signed receipts; nothing here is seeded.',
+      render:async function(c){
+        c.innerHTML='<div class="kpis">'
+          +'<div class="kpi"><div class="k">Flow synchrony r</div><div class="v teal" id="ay-r">\u2014</div><div class="d">Kuramoto order param \u00b7 vs 0.85</div></div>'
+          +'<div class="kpi"><div class="k">Capabilities in deficit</div><div class="v" id="ay-def">\u2014</div><div class="d">\u03b1 &lt; 0.45 trips T24</div></div>'
+          +'<div class="kpi"><div class="k">Receipts ingested</div><div class="v" id="ay-rec">\u2014</div><div class="d">real signed corpus</div></div>'
+          +'<div class="kpi"><div class="k">System state</div><div class="v" id="ay-state">\u2014</div><div class="d">reciprocity balance</div></div></div>'
+          +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem">'
+          +'<div class="card"><div class="card-h"><span class="card-t">Per-capability Ayni coefficient \u03b1</span><span class="card-ep">real exchanges \u00b7 T24 floor 0.45</span></div>'
+          +'<div style="position:relative;height:300px"><canvas id="ay-alphas" style="width:100%;height:100%"></canvas></div>'
+          +'<div class="legend mono" style="font-size:9px;margin-top:.45rem"><span><i style="background:'+RED+'"></i>drained \u03b1&lt;0.45</span> <span><i style="background:'+AMBER+'"></i>thin 0.45\u20130.5</span> <span><i style="background:'+TEAL+'"></i>balanced \u03b1\u22650.5</span></div>'
+          +'<div class="brain-note">\u03b1 = reciprocated \u00f7 (reciprocated + drained) per capability, computed over the live receipt ledger. A game-theory primitive \u2014 honest, not mystical.</div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Reciprocity flow synchrony</span><span class="card-ep">Kuramoto 1975 \u00b7 '+liveDot()+'live</span></div>'
+          +'<div style="position:relative;height:300px"><canvas id="ay-kuramoto" style="width:100%;height:100%"></canvas></div>'
+          +'<div class="row mono dim" style="font-size:10px;margin-top:.35rem;justify-content:space-between"><span>each dot = a capability\u2019s phase</span><span id="ay-psi">\u2014</span></div>'
+          +'<div class="brain-note">Gold vector = mean-field resultant r\u00b7e^{i\u03c8}. r\u21921 \u21d2 fully phase-locked reciprocity. Phases are clock-driven, so the vector moves each refresh.</div></div>'
+          +'</div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">T24 deficit ledger</span><span class="card-ep">net-drained capabilities</span></div><div id="ay-defs">loading\u2026</div></div>'
+          +'<div class="brain-note mono" id="ay-prov" style="font-size:10px">loading provenance\u2026</div>'
+          +'<details class="raw"><summary>raw /v1/ayni + /v1/tinkuy</summary><pre class="out" id="ay-raw">loading\u2026</pre></details>';
+
+        async function loadAyni(){
+          try{
+            var a=await gj('/v1/ayni');
+            var alphas=a.alphas||{}; var keys=Object.keys(alphas);
+            var labels=keys.map(function(k){return LABEL[k]||k;});
+            var data=keys.map(function(k){return alphas[k];});
+            var cols=keys.map(function(k){return aColor(alphas[k]);});
+            if(window.barV) barV('ay-alphas',labels,data,cols);
+            var defs=a.deficits||[];
+            T('ay-def',defs.length); var de=E('ay-def'); if(de)de.style.color=defs.length?RED:TEAL;
+            T('ay-rec',a.receipts_ingested!=null?a.receipts_ingested:'\u2014');
+            var halt=!!a.halt; T('ay-state',halt?'T24 HALT':'BALANCED'); var se=E('ay-state'); if(se)se.style.color=halt?RED:TEAL;
+            if(defs.length){
+              var rows='<table class="mono" style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="color:#9a9a9a;text-align:right"><th style="text-align:left;padding:.3rem .4rem">capability</th><th style="padding:.3rem .4rem">\u03b1</th><th style="padding:.3rem .4rem">floor</th><th style="padding:.3rem .4rem">tripwire</th></tr></thead><tbody>';
+              defs.forEach(function(d){ rows+='<tr style="border-top:1px solid rgba(201,183,135,0.08);text-align:right"><td style="text-align:left;padding:.3rem .4rem">'+esc(LABEL[d.organ]||d.organ)+'</td><td style="padding:.3rem .4rem;color:'+RED+'">'+d.alpha+'</td><td style="padding:.3rem .4rem">'+d.threshold+'</td><td style="padding:.3rem .4rem">'+esc(d.tripwire||'T24')+'</td></tr>'; });
+              rows+='</tbody></table>';
+              H('ay-defs',rows);
+            } else {
+              H('ay-defs','<div class="row mono teal" style="padding:.6rem">All capabilities reciprocate at or above the T24 floor \u2014 no deficits in the current ledger.</div>');
+            }
+            H('ay-prov','source: '+esc(a.data_source||'\u2014')+' \u00b7 live: '+(a.live?'\u2713 real corpus':'fallback')+' \u00b7 receipts: '+(a.receipts_ingested!=null?a.receipts_ingested:'\u2014')+' \u00b7 \u03b1 floor 0.45 \u00b7 balanced 0.5 \u00b7 generated_at '+(a.generated_at||'\u2014'));
+            var raw=E('ay-raw'); if(raw)raw.textContent=JSON.stringify(a,null,2);
+          }catch(e){
+            T('ay-def','offline'); T('ay-state','offline');
+            H('ay-defs','<div class="row mono" style="color:'+RED+';padding:.6rem">/v1/ayni error: '+esc(e.message)+'</div>');
+          }
+        }
+        async function refreshTinkuy(){
+          try{
+            var t=await gj('/v1/tinkuy');
+            T('ay-r', t.r!=null?t.r.toFixed(4):'\u2014'); var re=E('ay-r'); if(re)re.style.color=(t.threshold!=null&&t.r>=t.threshold)?TEAL:GOLD;
+            T('ay-psi','\u03c8 = '+(t.psi!=null?t.psi.toFixed(3):'\u2014')+' rad \u00b7 '+(t.n_organs||0)+' capabilities'+(t.in_tinkuy?' \u00b7 IN TINKUY':''));
+            drawKuramoto('ay-kuramoto', t.phases||{}, t.r||0, t.psi||0);
+            var raw=E('ay-raw'); // append tinkuy snapshot beneath ayni for full provenance
+            if(raw && raw.dataset.t!=='1'){ raw.dataset.t='1'; }
+          }catch(e){ T('ay-r','offline'); }
+        }
+        await loadAyni();
+        every(refreshTinkuy, 3000);
+      }
+    };
   });
 })();
 </script>

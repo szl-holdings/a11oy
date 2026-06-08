@@ -242,6 +242,24 @@ def _provenance():
             "generated_at": round(time.time(), 3)}
 
 
+def _json_safe(o):
+    """Recursively replace non-finite floats (inf/-inf/nan) with None.
+
+    The deployed Space wraps responses in a strict JSON encoder (allow_nan=False)
+    that raises on inf/nan. With the real corpus, get_ayni()'s T24 deficits carry
+    a scan window of (-inf, inf) ("all of history"); null is the honest JSON
+    encoding of an unbounded edge. Python's stdlib json defaults to allow_nan=True
+    so this only bit under strict serialization.
+    """
+    if isinstance(o, float):
+        return o if math.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: _json_safe(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_json_safe(v) for v in o]
+    return o
+
+
 @router.get("/v1/ayni/healthz")
 def ayni_healthz():
     return {
@@ -262,7 +280,7 @@ def ayni():
         return JSONResponse({"error": "AYNI-OS unavailable"}, status_code=503)
     d = _SVC.get_ayni()
     d.update(_provenance())
-    return d
+    return _json_safe(d)
 
 
 @router.get("/v1/replay")
@@ -271,7 +289,7 @@ def replay(at: float = Query(..., description="target unix timestamp T")):
         return JSONResponse({"error": "AYNI-OS unavailable"}, status_code=503)
     d = _SVC.get_replay(at)
     d.update(_provenance())
-    return d
+    return _json_safe(d)
 
 
 @router.get("/v1/tinkuy")
@@ -286,4 +304,4 @@ def tinkuy():
     except Exception:
         d["phases"] = {}
     d.update(_provenance())
-    return d
+    return _json_safe(d)
