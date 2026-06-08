@@ -3624,7 +3624,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="echart tall" id="ar-pc"></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Sovereignty capability \u2014 open-weight vs API</span><span class="card-ep">bar</span></div>'
         +'<div class="echart" id="ar-bar"></div>'
-        +'<div class="brain-note">Sovereignty axis = can it run on local GPU (open-weight=high). '+chip('eval harness','SAMPLE')+'</div></div>'+honest();
+        +'<div class="brain-note">Sovereignty axis = can it run on local GPU (open-weight=high). '+chip('eval harness','SAMPLE')+'</div></div>'
+        +'<div class="card"><div class="card-h"><span class="card-t">Governance eval \u2014 5 scenarios \u00d7 7 dimensions</span><span class="card-ep" id="ar-gov-badge" style="color:'+GOLD+'">RECORDED</span></div>'
+        +'<div class="btns" style="margin:.1rem 0 .5rem"><button class="btn teal" id="ar-gov-rerun">\u25b6 Re-run live</button></div>'
+        +'<div class="brain-note mono" id="ar-gov-status">A recorded, content-hashed run from the SZL eval harness. Click \u201cRe-run live\u201d to re-execute a11oy\u2019s own governance primitives in-image now.</div>'
+        +'<div class="echart tall" id="ar-gov-pc"></div>'
+        +'<div id="ar-gov-list"><div class="row mono dim">loading\u2026</div></div>'
+        +'<details class="raw"><summary>raw governance eval run</summary><pre class="out" id="ar-gov-raw">loading\u2026</pre></details></div>'+honest();
         try{ var d=await gj('/api/a11oy/v1/llm/registry'); var models=(d.models||[]).slice(0,12); T('ar-n',models.length);
           if(!window.echarts){ return; }
           // deterministic sample scores derived from tier/context (labelled sample) — no random
@@ -3651,6 +3657,46 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             series:[{type:'bar',data:sov.map(function(s){return {value:s.sov,itemStyle:{color:s.open?TEAL:GOLD}};}),barWidth:'60%'}]});
           window.addEventListener('resize',function(){ch.resize();bar.resize();},{passive:true});
         }catch(e){ T('ar-n','offline'); }
+        // ---- Governance eval — recorded run + live re-run (no fabricated numbers) ----
+        var GOV_DIMS=['correctness','evidence_completeness','approval_compliance','replay_completeness','policy_adherence','hallucination_resistance','tool_efficiency'];
+        function arenaGovRender(d,isLive){
+          var res=(d.results||[]); var dims=(d.dimensions&&d.dimensions.length?d.dimensions:GOV_DIMS);
+          var labels=dims.map(function(s){return String(s).replace(/_/g,' ');});
+          if(window.echarts){
+            var host=E('ar-gov-pc'); if(host){ try{var old=echarts.getInstanceByDom(host); if(old)old.dispose();}catch(_x){}
+              var ch=echarts.init(host,null,{renderer:'canvas'});
+              ch.setOption({backgroundColor:'transparent',
+                parallelAxis:labels.map(function(nm,i){return {dim:i,name:nm,min:0,max:100,nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLine:{lineStyle:{color:'#444'}},axisLabel:{color:'#777',fontSize:8}};}),
+                parallel:{left:'5%',right:'15%',top:30,bottom:18,parallelAxisDefault:{type:'value'}},
+                tooltip:{trigger:'item'},
+                series:[{type:'parallel',lineStyle:{width:1.6,opacity:0.7},
+                  data:res.map(function(r){var v=dims.map(function(k){return Math.round((((r.dimensions||{})[k])||0)*100);});
+                    return {value:v,name:r.scenario,lineStyle:{color:r.pass?(isLive?TEAL:GOLD):RED}};})}]});
+              window.addEventListener('resize',function(){try{ch.resize();}catch(_x){}},{passive:true});
+            }
+          }
+          var html=res.map(function(r){return '<div class="row"><span class="badge '+(r.pass?'b-live':'b-err')+'">'+(r.pass?'pass':'fail')+'</span><span>'+esc(r.scenario)+'</span><span class="spacer mono dim">'+esc(r.domain||'')+' \u00b7 overall '+esc(r.overall)+(r.chain_links_verified?(' \u00b7 chain '+esc(r.chain_links_verified)):'')+'</span></div>';}).join('');
+          var lb=(d.leaderboard||[])[0]||{};
+          html+='<div class="row"><span class="badge b-gold">leaderboard</span><span>'+esc(lb.agent||'')+'</span><span class="spacer mono dim">score '+esc(lb.score)+'</span></div>';
+          H('ar-gov-list',html);
+          var raw=E('ar-gov-raw'); if(raw)raw.textContent=JSON.stringify(d,null,2);
+        }
+        async function arenaGov(mode){
+          var badge=E('ar-gov-badge'), status=E('ar-gov-status'), btn=E('ar-gov-rerun');
+          try{
+            if(mode==='live'){ if(status)status.textContent='Re-running the eval harness live in-image\u2026'; if(btn)btn.disabled=true; }
+            var url=(mode==='live')?'/api/a11oy/v1/eval-arena/rerun':'/api/a11oy/v1/eval-arena';
+            var d=await gj(url); var isLive=(d.mode==='live');
+            arenaGovRender(d,isLive);
+            if(badge){ badge.textContent=isLive?'LIVE':'RECORDED'; badge.style.color=isLive?TEAL:GOLD; }
+            if(status)status.innerHTML=esc(String(d.honesty||'').slice(0,260))+(d.live_error?(' \u2014 '+esc(d.live_error)):'');
+          }catch(e){
+            if(status)status.textContent='Live re-run unavailable ('+esc(e.message)+') \u2014 showing the recorded run.';
+            if(mode==='live'){ try{var d2=await gj('/api/a11oy/v1/eval-arena'); arenaGovRender(d2,false); if(badge){badge.textContent='RECORDED';badge.style.color=GOLD;}}catch(_e){} }
+          }finally{ if(btn)btn.disabled=false; }
+        }
+        var govBtn=E('ar-gov-rerun'); if(govBtn)govBtn.onclick=function(){arenaGov('live');};
+        arenaGov('recorded');
       }};
 
     /* codetab override REMOVED (Warhacker, 2026-06-06): the static SVG P1-P6 DAG
