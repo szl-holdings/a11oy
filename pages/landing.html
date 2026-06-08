@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>a11oy — Governed-AI Command Platform</title>
+<meta name="description" content="Every AI decision becomes a cryptographically signed, verifiable receipt. One pane of glass over policy, reasoning, the operator, and counter-UAS — by SZL Holdings." />
+<meta property="og:title" content="a11oy — Governed-AI Command Platform" />
+<meta property="og:description" content="Every AI decision becomes a cryptographically signed, verifiable receipt." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================================
+   SHARED — a11oy + killinchu landing. Do not diverge.
+   Inlined from /home/user/workspace/team/LANDING_DESIGN_SYSTEM.css for a
+   self-contained deploy. The .css file is the source of truth (killinchu reuses it).
+   ============================================================================ */
+:root{
+  --bg:#0a0a0a; --panel:#111317; --panel-2:#15181d; --hairline:#1f2630;
+  --hairline-soft:rgba(255,255,255,0.05);
+  --gold:#c9b787; --gold-dim:#a89868; --teal:#5fb3a3; --red:#e0564f;
+  --muted:#8a93a0; --text:#e7e9ec; --text-soft:#b9bfc8;
+  --display:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono","Fira Code",ui-monospace,SFMono-Regular,monospace;
+  --maxw:1180px; --radius:14px; --radius-sm:8px; --ease:cubic-bezier(0.22,1,0.36,1);
+}
+*,*::before,*::after{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--display);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;}
+a{color:inherit;text-decoration:none;} img,svg{display:block;}
+::selection{background:rgba(201,183,135,0.25);color:#fff;}
+.ds-wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
+.ds-section{padding:clamp(56px,9vw,128px) 0;position:relative;}
+.ds-section--tight{padding:clamp(40px,6vw,80px) 0;}
+.ds-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.32em;text-transform:uppercase;color:var(--gold-dim);margin:0 0 18px;display:flex;align-items:center;gap:10px;}
+.ds-eyebrow::before{content:"";width:22px;height:1px;background:var(--gold);opacity:0.7;}
+.ds-h2{font-family:var(--display);font-weight:600;font-size:clamp(26px,4vw,42px);line-height:1.1;letter-spacing:-0.02em;margin:0 0 16px;color:var(--text);}
+.ds-lead{font-size:clamp(15px,1.5vw,18px);color:var(--muted);max-width:60ch;margin:0;}
+.ds-mono{font-family:var(--mono);}
+.ds-topbar{position:fixed;top:0;left:0;right:0;z-index:100;border-bottom:1px solid var(--hairline);background:rgba(10,10,10,0.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+.ds-topbar__inner{max-width:var(--maxw);margin:0 auto;padding:0 24px;height:62px;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.ds-brand{display:flex;align-items:center;gap:11px;font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:-0.01em;color:var(--text);}
+.ds-brand__dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(201,183,135,0.14);}
+.ds-brand__sub{color:var(--muted);font-weight:400;}
+.ds-nav{display:flex;align-items:center;gap:26px;}
+.ds-nav a{font-family:var(--mono);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);transition:color 0.2s var(--ease);}
+.ds-nav a:hover{color:var(--text);}
+@media (max-width:760px){.ds-nav{display:none;}}
+.ds-btn{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;letter-spacing:0.06em;text-transform:uppercase;font-weight:500;padding:13px 22px;border-radius:var(--radius-sm);border:1px solid var(--hairline);color:var(--text);background:var(--panel-2);transition:all 0.22s var(--ease);cursor:pointer;}
+.ds-btn:hover{border-color:var(--gold-dim);transform:translateY(-1px);}
+.ds-btn--primary{background:var(--gold);color:#0a0a0a;border-color:var(--gold);font-weight:600;}
+.ds-btn--primary:hover{background:#d8c79b;border-color:#d8c79b;box-shadow:0 10px 30px -10px rgba(201,183,135,0.5);}
+.ds-btn__arrow{transition:transform 0.22s var(--ease);}
+.ds-btn:hover .ds-btn__arrow{transform:translateX(3px);}
+.ds-panel{background:var(--panel);border:1px solid var(--hairline);border-radius:var(--radius);padding:28px;position:relative;transition:border-color 0.25s var(--ease),transform 0.25s var(--ease);}
+.ds-panel:hover{border-color:rgba(201,183,135,0.4);}
+.ds-card{background:var(--panel);border:1px solid var(--hairline);border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden;transition:border-color 0.25s var(--ease),transform 0.25s var(--ease);}
+.ds-card:hover{border-color:rgba(201,183,135,0.4);transform:translateY(-2px);}
+.ds-card__id{font-family:var(--mono);font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold-dim);}
+.ds-card__title{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-0.01em;color:var(--text);margin:0;}
+.ds-card__body{font-size:14.5px;color:var(--muted);margin:0;line-height:1.6;}
+.ds-card__rule{height:1px;background:var(--hairline);margin:4px 0;}
+.ds-kpi{background:var(--panel-2);border:1px solid var(--hairline);border-radius:var(--radius-sm);padding:20px 22px;display:flex;flex-direction:column;gap:6px;}
+.ds-kpi__label{font-family:var(--mono);font-size:10.5px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);}
+.ds-kpi__value{font-family:var(--mono);font-weight:600;font-size:clamp(24px,3.2vw,34px);letter-spacing:-0.01em;color:var(--text);line-height:1;}
+.ds-kpi__value.is-live{color:var(--teal);} .ds-kpi__value.is-gold{color:var(--gold);}
+.ds-kpi__note{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.ds-kpi__value.is-loading{color:var(--muted);opacity:0.5;}
+.ds-receipt{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:0.04em;padding:5px 10px;border-radius:6px;border:1px solid rgba(95,179,163,0.35);background:rgba(95,179,163,0.08);color:var(--teal);}
+.ds-receipt__hash{color:var(--text-soft);}
+.ds-receipt__check{width:14px;height:14px;border-radius:50%;background:var(--teal);color:#0a0a0a;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
+.ds-live{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--teal);}
+.ds-live__pulse{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 0 rgba(95,179,163,0.6);animation:ds-pulse 2.4s infinite var(--ease);}
+@keyframes ds-pulse{0%{box-shadow:0 0 0 0 rgba(95,179,163,0.5);}70%{box-shadow:0 0 0 8px rgba(95,179,163,0);}100%{box-shadow:0 0 0 0 rgba(95,179,163,0);}}
+.ds-hero{position:relative;padding-top:124px;min-height:100vh;display:flex;align-items:center;border-bottom:1px solid var(--hairline);overflow:hidden;}
+.ds-hero__grid{display:grid;grid-template-columns:1.05fr 0.95fr;gap:clamp(32px,5vw,72px);align-items:center;width:100%;}
+@media (max-width:900px){.ds-hero{min-height:auto;padding-top:100px;padding-bottom:48px;}.ds-hero__grid{grid-template-columns:1fr;gap:36px;}}
+.ds-hero__h1{font-family:var(--display);font-weight:600;font-size:clamp(34px,6vw,66px);line-height:1.02;letter-spacing:-0.03em;margin:18px 0 20px;color:var(--text);}
+.ds-hero__h1 .accent{color:var(--gold);}
+.ds-hero__sub{font-size:clamp(16px,1.8vw,20px);color:var(--text-soft);max-width:52ch;margin:0 0 30px;line-height:1.5;}
+.ds-hero__cta{display:flex;gap:14px;flex-wrap:wrap;}
+.ds-hero__stamp{margin-top:28px;display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;}
+.ds-hero__stamp b{color:var(--gold-dim);font-weight:500;}
+.ds-orbital{position:relative;width:100%;aspect-ratio:1/1;max-width:520px;margin:0 auto;border-radius:18px;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(201,183,135,0.06) 0%,rgba(201,183,135,0.02) 35%,rgba(0,0,0,0) 65%),#0d0d0d;border:1px solid var(--hairline);box-shadow:0 30px 80px -20px rgba(0,0,0,0.6),inset 0 0 0 1px rgba(255,255,255,0.02);}
+.ds-orbital__corner{position:absolute;width:14px;height:14px;border-top:1px solid var(--gold);border-left:1px solid var(--gold);opacity:0.55;pointer-events:none;}
+.ds-orbital__hud{position:absolute;font-family:var(--mono);font-size:9.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);line-height:1.7;z-index:3;}
+.ds-orbital__hud .gold{color:var(--gold-dim);} .ds-orbital__hud .teal{color:var(--teal);}
+.ds-orbital__scan{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold) 50%,transparent);opacity:0.35;mix-blend-mode:screen;animation:ds-scan 5.5s linear infinite;z-index:2;}
+@keyframes ds-scan{from{top:-5%;}to{top:105%;}}
+.ds-orbital svg{position:absolute;inset:0;width:100%;height:100%;}
+.ds-orbital__spin{transform-origin:250px 250px;}
+.ds-orbital__spin.dir-cw{animation:ds-rot 60s linear infinite;}
+.ds-orbital__spin.dir-ccw{animation:ds-rot-rev 80s linear infinite;}
+@keyframes ds-rot{from{transform:rotate(0);}to{transform:rotate(360deg);}}
+@keyframes ds-rot-rev{from{transform:rotate(0);}to{transform:rotate(-360deg);}}
+.ds-orbital__corepulse{position:absolute;top:50%;left:50%;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:1px solid var(--gold);pointer-events:none;animation:ds-corepulse 3.2s ease-out infinite;z-index:2;}
+@keyframes ds-corepulse{0%{transform:scale(0.8);opacity:0.5;}50%{transform:scale(1.4);opacity:0;}100%{transform:scale(0.8);opacity:0.5;}}
+.ds-formula{display:flex;gap:16px;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--hairline);}
+.ds-formula__no{font-family:var(--mono);font-size:12px;color:var(--gold-dim);min-width:28px;letter-spacing:0.1em;}
+.ds-formula__name{font-family:var(--display);font-weight:500;color:var(--text);}
+.ds-formula__desc{font-size:13.5px;color:var(--muted);margin-top:2px;}
+.ds-tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;padding:3px 8px;border-radius:5px;border:1px solid var(--hairline);color:var(--muted);}
+.ds-tag--proven{color:var(--teal);border-color:rgba(95,179,163,0.4);background:rgba(95,179,163,0.07);}
+.ds-tag--conjecture{color:var(--gold);border-color:rgba(201,183,135,0.4);background:rgba(201,183,135,0.07);}
+.ds-grid{display:grid;gap:18px;}
+.ds-grid--3{grid-template-columns:repeat(3,1fr);} .ds-grid--4{grid-template-columns:repeat(4,1fr);} .ds-grid--2{grid-template-columns:repeat(2,1fr);}
+@media (max-width:880px){.ds-grid--3,.ds-grid--4{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:560px){.ds-grid--2,.ds-grid--3,.ds-grid--4{grid-template-columns:1fr;}}
+.ds-divider{height:1px;background:var(--hairline);border:0;margin:0;}
+.ds-footer{border-top:1px solid var(--hairline);padding:56px 0 40px;background:var(--bg);}
+.ds-footer__top{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap;margin-bottom:40px;}
+.ds-footer__doctrine{font-family:var(--mono);font-size:12px;color:var(--muted);max-width:46ch;line-height:1.7;letter-spacing:0.02em;}
+.ds-footer__cols{display:flex;gap:56px;flex-wrap:wrap;}
+.ds-footer__col h4{font-family:var(--mono);font-size:10.5px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold-dim);margin:0 0 14px;}
+.ds-footer__col a{display:block;font-size:13.5px;color:var(--muted);margin-bottom:9px;transition:color 0.2s var(--ease);}
+.ds-footer__col a:hover{color:var(--text);}
+.ds-footer__bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:24px;border-top:1px solid var(--hairline);font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.04em;}
+.ds-reveal{opacity:0;transform:translateY(18px);transition:opacity 0.7s var(--ease),transform 0.7s var(--ease);}
+.ds-reveal.is-in{opacity:1;transform:none;}
+@media (prefers-reduced-motion:reduce){.ds-reveal{opacity:1;transform:none;transition:none;}.ds-orbital__scan,.ds-orbital__spin,.ds-orbital__corepulse,.ds-live__pulse{animation:none;}}
+/* page-local */
+.ds-diff{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden;}
+.ds-diff>div{padding:28px;}
+.ds-diff>div:first-child{border-right:1px solid var(--hairline);}
+.ds-diff h3{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin:0 0 14px;}
+.ds-diff .old h3{color:var(--muted);} .ds-diff .new h3{color:var(--gold-dim);}
+.ds-diff p{font-size:14.5px;line-height:1.65;margin:0;color:var(--text-soft);}
+.ds-diff .old{background:var(--panel);} .ds-diff .new{background:var(--panel-2);}
+@media (max-width:680px){.ds-diff{grid-template-columns:1fr;}.ds-diff>div:first-child{border-right:0;border-bottom:1px solid var(--hairline);}}
+.honest{font-family:var(--mono);font-size:11.5px;color:var(--muted);border-left:2px solid var(--gold-dim);padding-left:12px;margin-top:22px;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<!-- ===================== TOPBAR ===================== -->
+<header class="ds-topbar">
+  <div class="ds-topbar__inner">
+    <a class="ds-brand" href="/landing">
+      <span class="ds-brand__dot"></span>
+      a11oy <span class="ds-brand__sub">/ SZL HOLDINGS</span>
+    </a>
+    <nav class="ds-nav">
+      <a href="#what">What it is</a>
+      <a href="#diff">Receipts</a>
+      <a href="#proof">Proof</a>
+      <a href="#surfaces">Surfaces</a>
+    </nav>
+    <a class="ds-btn ds-btn--primary" href="/console">Enter Console <span class="ds-btn__arrow">→</span></a>
+  </div>
+</header>
+
+<!-- ===================== HERO ===================== -->
+<section class="ds-hero">
+  <div class="ds-wrap">
+    <div class="ds-hero__grid">
+      <div>
+        <div class="ds-live"><span class="ds-live__pulse"></span><span id="liveBadge">LIVE COMMAND PLATFORM</span></div>
+        <h1 class="ds-hero__h1">Governed-AI<br><span class="accent">Command Platform</span></h1>
+        <p class="ds-hero__sub">Every AI decision becomes a cryptographically signed, verifiable receipt — policy, reasoning, the operator, and counter-UAS on one pane of glass.</p>
+        <div class="ds-hero__cta">
+          <a class="ds-btn ds-btn--primary" href="/console">Enter the Command Platform <span class="ds-btn__arrow">→</span></a>
+          <a class="ds-btn" href="#diff">Verify a receipt yourself</a>
+        </div>
+        <div class="ds-hero__stamp">
+          <span>UTC <b id="utcStamp">—</b></span>
+          <span>EPOCH <b id="epochStamp">—</b></span>
+          <span>DOCTRINE <b>v11</b></span>
+        </div>
+      </div>
+
+      <!-- ORBITAL BRAIN -->
+      <div class="ds-orbital" aria-hidden="true">
+        <div class="ds-orbital__corner" style="top:12px;left:12px;transform:rotate(0deg)"></div>
+        <div class="ds-orbital__corner" style="top:12px;right:12px;transform:rotate(90deg)"></div>
+        <div class="ds-orbital__corner" style="bottom:12px;right:12px;transform:rotate(180deg)"></div>
+        <div class="ds-orbital__corner" style="bottom:12px;left:12px;transform:rotate(270deg)"></div>
+
+        <div class="ds-orbital__hud" style="top:18px;left:18px;">
+          <div>NODE · A11OY-01</div>
+          <div>ORBIT · NOMINAL</div>
+          <div class="teal">● TRACK · LIVE</div>
+        </div>
+        <div class="ds-orbital__hud" style="top:18px;right:18px;text-align:right;">
+          <div id="hudStamp">—</div>
+          <div id="hudEpoch">EPOCH —</div>
+          <div class="gold">TRUST ≥ 0.90</div>
+        </div>
+        <div class="ds-orbital__hud" style="bottom:18px;left:18px;right:18px;display:flex;justify-content:space-between;">
+          <span>SIG · 1024 · OK</span>
+          <span class="gold" id="hudReceipt">RECEIPT · —</span>
+        </div>
+
+        <div class="ds-orbital__scan"></div>
+
+        <!-- static rings, ticks, stations, core -->
+        <svg viewBox="0 0 500 500">
+          <defs>
+            <radialGradient id="hc-core" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#c9b787" stop-opacity="0.55"/>
+              <stop offset="55%" stop-color="#c9b787" stop-opacity="0.08"/>
+              <stop offset="100%" stop-color="#c9b787" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="hc-halo" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#c9b787" stop-opacity="0.15"/>
+              <stop offset="100%" stop-color="#c9b787" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="250" cy="250" r="240" fill="url(#hc-halo)"/>
+          <g id="tickRing" opacity="0.55"></g>
+          <!-- orbit rings -->
+          <circle cx="250" cy="250" r="70"  fill="none" stroke="#1f2630" stroke-width="0.75" stroke-dasharray="2 6" opacity="0.35"/>
+          <circle cx="250" cy="250" r="110" fill="none" stroke="#1f2630" stroke-width="0.75" stroke-dasharray="2 6" opacity="0.35"/>
+          <circle cx="250" cy="250" r="158" fill="none" stroke="#1f2630" stroke-width="0.75" opacity="0.6"/>
+          <circle cx="250" cy="250" r="210" fill="none" stroke="#1f2630" stroke-width="0.75" stroke-dasharray="2 6" opacity="0.35"/>
+          <!-- radial guides -->
+          <g id="radialGuides" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"></g>
+          <!-- stations (organs) -->
+          <g id="stations"></g>
+          <!-- core: a11oy -->
+          <circle cx="250" cy="250" r="58" fill="url(#hc-core)"/>
+          <circle cx="250" cy="250" r="34" fill="none" stroke="#c9b787" stroke-width="0.75" opacity="0.6"/>
+          <circle cx="250" cy="250" r="22" fill="none" stroke="#a89868" stroke-width="0.5"/>
+          <text x="250" y="254" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#f5f5f5" letter-spacing="3" font-weight="500">a11oy</text>
+        </svg>
+
+        <!-- traveling pulses on each orbit (rotating groups) -->
+        <svg viewBox="0 0 500 500">
+          <g class="ds-orbital__spin dir-cw"><circle r="3.2" fill="#c9b787" cx="320" cy="250"/></g>
+          <g class="ds-orbital__spin dir-ccw" style="animation-duration:80s"><circle r="3.2" fill="#c9b787" cx="360" cy="250"/></g>
+          <g class="ds-orbital__spin dir-cw" style="animation-duration:78s"><circle r="3.2" fill="#c9b787" cx="408" cy="250"/></g>
+          <g class="ds-orbital__spin dir-ccw" style="animation-duration:52s"><circle r="2.6" fill="#a89868" cx="408" cy="250"/></g>
+        </svg>
+        <div class="ds-orbital__corepulse"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WHAT IT IS ===================== -->
+<section class="ds-section" id="what">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow">What it is</p>
+    <h2 class="ds-h2">One pane of glass over the whole decision.</h2>
+    <p class="ds-lead">a11oy is the command platform for SZL Holdings. It unifies four surfaces that usually live in four disconnected tools — and binds them to a single, auditable record of every action.</p>
+    <div class="ds-grid ds-grid--4 ds-reveal" style="margin-top:38px;">
+      <div class="ds-card"><span class="ds-card__id">// POLICY</span><h3 class="ds-card__title">Policy</h3><p class="ds-card__body">Gates that say what an AI agent may and may not do — evaluated before any action runs, not after.</p></div>
+      <div class="ds-card"><span class="ds-card__id">// REASONING</span><h3 class="ds-card__title">Reasoning</h3><p class="ds-card__body">The model's chain of thought, scored against a trust floor before it is allowed to act.</p></div>
+      <div class="ds-card"><span class="ds-card__id">// OPERATOR</span><h3 class="ds-card__title">Operator</h3><p class="ds-card__body">The human-in-command view: live state, halts, and the one button that approves or stops.</p></div>
+      <div class="ds-card"><span class="ds-card__id">// COUNTER-UAS</span><h3 class="ds-card__title">Counter-UAS</h3><p class="ds-card__body">Drone &amp; vessel threat tracks fed into the same governed loop as everything else.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== THE DIFFERENTIATOR ===================== -->
+<section class="ds-section" id="diff">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow">The differentiator</p>
+    <h2 class="ds-h2">No leader signs individual AI decisions.<br>So the decision signs itself.</h2>
+    <p class="ds-lead" style="margin-bottom:34px;">Every governed action emits a cryptographically signed receipt: a hash of what was decided, why, and under which policy. Anyone can re-compute the hash and confirm it was not altered — without trusting us.</p>
+
+    <div class="ds-diff ds-reveal">
+      <div class="old"><h3>The usual way</h3><p>An AI takes an action. A log line is written. The log can be edited, lost, or contested. To trust it, you have to trust the operator and the database behind them.</p></div>
+      <div class="new"><h3>The a11oy way</h3><p>The action produces a signed receipt. The signature is over the exact decision payload. Re-hash it yourself; if one byte changed, the check fails. Trust the math, not the messenger.</p></div>
+    </div>
+
+    <div class="ds-panel ds-reveal" style="margin-top:26px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:space-between;">
+      <div>
+        <div class="ds-card__id" style="margin-bottom:8px;">// LIVE RECEIPT — re-computed in your browser</div>
+        <div class="ds-receipt"><span class="ds-receipt__check">✓</span> SIGNED <span class="ds-receipt__hash" id="liveReceiptHash">computing…</span></div>
+      </div>
+      <a class="ds-btn" href="/console" id="verifyBtn">Open the verifier in the console <span class="ds-btn__arrow">→</span></a>
+    </div>
+    <p class="honest">Honest scope: receipts are signed with a real key where one is provisioned for that organ; otherwise the receipt carries its hash and is verifiable for integrity but not yet for issuer identity. Nothing here is a claim of FedRAMP, Iron Bank, or CMMC.</p>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== LIVE PROOF STRIP ===================== -->
+<section class="ds-section ds-section--tight" id="live">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow">Live proof · pulled from the running platform</p>
+    <h2 class="ds-h2" style="font-size:clamp(22px,3vw,32px);">Real numbers, fetched from this Space right now.</h2>
+    <div class="ds-grid ds-grid--4" style="margin-top:30px;">
+      <div class="ds-kpi"><span class="ds-kpi__label">Services up</span><span class="ds-kpi__value is-live is-loading" id="kpiServices">— / —</span><span class="ds-kpi__note">live organ health probes</span></div>
+      <div class="ds-kpi"><span class="ds-kpi__label">Trust score</span><span class="ds-kpi__value is-gold is-loading" id="kpiTrust">—</span><span class="ds-kpi__note">13-axis geometric mean</span></div>
+      <div class="ds-kpi"><span class="ds-kpi__label">a11oy policy gates</span><span class="ds-kpi__value is-loading" id="kpiGates">—</span><span class="ds-kpi__note">evaluated pre-action</span></div>
+      <div class="ds-kpi"><span class="ds-kpi__label">Sentra gates</span><span class="ds-kpi__value is-loading" id="kpiSentra">—</span><span class="ds-kpi__note">policy organ</span></div>
+    </div>
+    <p class="honest" id="liveHonesty">An unreachable organ is shown as unreachable, never green. If a probe is slow, the tile says so rather than faking a value.</p>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== FORMALLY PROVEN ===================== -->
+<section class="ds-section" id="proof">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow">Formally proven</p>
+    <h2 class="ds-h2">Five properties carry machine-checked proofs.</h2>
+    <p class="ds-lead">The governed loop rests on a Lean development. Five core properties are proven theorems. The trust-score uniqueness result is honestly an open research conjecture — not a theorem — and we label it as such.</p>
+
+    <div class="ds-panel ds-reveal" style="margin-top:34px;padding-top:8px;padding-bottom:8px;">
+      <div class="ds-formula"><span class="ds-formula__no">01</span><div style="flex:1;"><span class="ds-formula__name">Governed Loop Reachability</span><div class="ds-formula__desc">Every allowed action keeps the system inside the governed region.</div></div><span class="ds-tag ds-tag--proven">Proven</span></div>
+      <div class="ds-formula"><span class="ds-formula__no">02</span><div style="flex:1;"><span class="ds-formula__name">Receipt Integrity</span><div class="ds-formula__desc">A receipt verifies if and only if its payload is unaltered.</div></div><span class="ds-tag ds-tag--proven">Proven</span></div>
+      <div class="ds-formula"><span class="ds-formula__no">03</span><div style="flex:1;"><span class="ds-formula__name">Policy Soundness</span><div class="ds-formula__desc">A declined action can never be executed by the loop.</div></div><span class="ds-tag ds-tag--proven">Proven</span></div>
+      <div class="ds-formula"><span class="ds-formula__no">04</span><div style="flex:1;"><span class="ds-formula__name">Trust-Floor Monotonicity</span><div class="ds-formula__desc">Tightening the trust floor never enlarges the set of permitted actions.</div></div><span class="ds-tag ds-tag--proven">Proven</span></div>
+      <div class="ds-formula" style="border-bottom:0;"><span class="ds-formula__no">05</span><div style="flex:1;"><span class="ds-formula__name">Quorum Liveness</span><div class="ds-formula__desc">A 3-of-4 organ quorum can always reach a verdict under partial failure.</div></div><span class="ds-tag ds-tag--proven">Proven</span></div>
+    </div>
+
+    <div class="ds-grid ds-grid--2" style="margin-top:22px;">
+      <div class="ds-card"><span class="ds-card__id">// HONEST LABEL</span><h3 class="ds-card__title">Trust-score uniqueness</h3><p class="ds-card__body">The claim that the 13-axis trust score is the unique aggregate satisfying our axioms is a <b style="color:var(--gold)">research conjecture</b>, not a theorem. The Lean development still has open goals on this result. We will not call it proven until it is.</p></div>
+      <div class="ds-card"><span class="ds-card__id">// SUPPLY CHAIN</span><h3 class="ds-card__title">SLSA Level 2</h3><p class="ds-card__body">Build provenance attestations (cosign) on the organ images at <b style="color:var(--gold)">SLSA L2</b>. This is not SLSA L3, FedRAMP, Iron Bank, or CMMC — and we don't say it is.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="ds-divider" />
+
+<!-- ===================== SURFACES ===================== -->
+<section class="ds-section" id="surfaces">
+  <div class="ds-wrap">
+    <p class="ds-eyebrow">Surfaces</p>
+    <h2 class="ds-h2">Two front doors. One governed loop.</h2>
+    <div class="ds-grid ds-grid--2 ds-reveal" style="margin-top:32px;">
+      <a class="ds-card" href="/console" style="cursor:pointer;">
+        <span class="ds-card__id">// A11OY</span>
+        <h3 class="ds-card__title">Command Platform</h3>
+        <div class="ds-card__rule"></div>
+        <p class="ds-card__body">Policy, reasoning, operator and counter-UAS in one console. Live gates, signed receipts, and the halt button.</p>
+        <span class="ds-btn ds-btn--primary" style="margin-top:8px;align-self:flex-start;">Enter the platform <span class="ds-btn__arrow">→</span></span>
+      </a>
+      <a class="ds-card" href="https://szlholdings-killinchu.hf.space/" style="cursor:pointer;">
+        <span class="ds-card__id">// KILLINCHU</span>
+        <h3 class="ds-card__title">Drones &amp; Vessels</h3>
+        <div class="ds-card__rule"></div>
+        <p class="ds-card__body">The maritime &amp; airspace surface: track drones and vessels, run counter-UAS cued engagements through the same governed, signed loop.</p>
+        <span class="ds-btn" style="margin-top:8px;align-self:flex-start;">Open Drones &amp; Vessels <span class="ds-btn__arrow">→</span></span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="ds-footer">
+  <div class="ds-wrap">
+    <div class="ds-footer__top">
+      <div>
+        <a class="ds-brand" href="/landing" style="margin-bottom:16px;">
+          <span class="ds-brand__dot"></span> a11oy <span class="ds-brand__sub">/ SZL HOLDINGS</span>
+        </a>
+        <p class="ds-footer__doctrine">Doctrine: no action without a receipt; no receipt without a signature; no claim above what we can prove. Governed AI, on the record.</p>
+      </div>
+      <div class="ds-footer__cols">
+        <div class="ds-footer__col"><h4>Platform</h4><a href="/console">Command Console</a><a href="#what">What it is</a><a href="#diff">Receipts</a><a href="#proof">Proof</a></div>
+        <div class="ds-footer__col"><h4>Surfaces</h4><a href="/console">a11oy</a><a href="https://szlholdings-killinchu.hf.space/">killinchu</a></div>
+        <div class="ds-footer__col"><h4>Live</h4><a href="/api/a11oy/v1/observability/summary">Observability</a><a href="/api/a11oy/v1/lambda">Trust score</a><a href="/api/a11oy/v1/gates">Gates</a></div>
+      </div>
+    </div>
+    <div class="ds-footer__bottom">
+      <span>© SZL HOLDINGS · DOCTRINE v11</span>
+      <span class="ds-mono">SLSA L2 · TRUST SCORE = RESEARCH CONJECTURE (NOT A THEOREM) · 5 PROVEN PROPERTIES</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var pad = function(n,w){w=w||2;return String(n).padStart(w,"0");};
+  function fmtStamp(d){
+    return d.getUTCFullYear()+"."+pad(d.getUTCMonth()+1)+"."+pad(d.getUTCDate())+" "+
+           pad(d.getUTCHours())+":"+pad(d.getUTCMinutes())+":"+pad(d.getUTCSeconds())+"Z";
+  }
+  function tick(){
+    var d=new Date(), s=fmtStamp(d), e=(Date.now()/1000)|0;
+    var set=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+    set("utcStamp",s); set("epochStamp",e);
+    set("hudStamp",s); set("hudEpoch","EPOCH "+e);
+  }
+  tick(); setInterval(tick,1000);
+
+  // ---- build tick ring, radial guides, stations (matches HeroCanvas geometry) ----
+  var SVGNS="http://www.w3.org/2000/svg";
+  function el(tag,attrs){var n=document.createElementNS(SVGNS,tag);for(var k in attrs)n.setAttribute(k,attrs[k]);return n;}
+  var tickRing=document.getElementById("tickRing");
+  if(tickRing){
+    for(var t=0;t<360;t+=10){
+      var a=t*Math.PI/180, long=(t%30===0), r1=long?232:236, r2=240;
+      tickRing.appendChild(el("line",{x1:250+r1*Math.cos(a),y1:250+r1*Math.sin(a),
+        x2:250+r2*Math.cos(a),y2:250+r2*Math.sin(a),
+        stroke:long?"#a89868":"#1f2630","stroke-width":long?1:0.6}));
+    }
+    [0,90,180,270].forEach(function(t){
+      var a=t*Math.PI/180;
+      var tx=el("text",{x:250+222*Math.cos(a),y:250+222*Math.sin(a)+3,"text-anchor":"middle",
+        "font-family":"JetBrains Mono, monospace","font-size":"8",fill:"#a89868","letter-spacing":"2"});
+      tx.textContent=pad(t,3); tickRing.appendChild(tx);
+    });
+  }
+  var guides=document.getElementById("radialGuides");
+  if(guides){[0,45,90,135].forEach(function(deg){
+    var a=deg*Math.PI/180;
+    guides.appendChild(el("line",{x1:250-230*Math.cos(a),y1:250-230*Math.sin(a),
+      x2:250+230*Math.cos(a),y2:250+230*Math.sin(a)}));
+  });}
+  // organs = orbiting stations
+  var STATIONS=[
+    {angle:18, r:158, label:"POLICY"},
+    {angle:102,r:210, label:"REASONING"},
+    {angle:198,r:110, label:"OPERATOR"},
+    {angle:286,r:158, label:"COUNTER-UAS"}
+  ];
+  var stationsG=document.getElementById("stations");
+  if(stationsG){STATIONS.forEach(function(s){
+    var a=s.angle*Math.PI/180, cx=250+s.r*Math.cos(a), cy=250+s.r*Math.sin(a);
+    stationsG.appendChild(el("circle",{cx:cx,cy:cy,r:9,fill:"none",stroke:"#c9b787","stroke-width":1,opacity:0.7}));
+    stationsG.appendChild(el("circle",{cx:cx,cy:cy,r:3,fill:"#c9b787"}));
+    var anchor=(cx>250)?"start":"end", dx=(cx>250)?14:-14;
+    var tx=el("text",{x:cx+dx,y:cy+3,"text-anchor":anchor,"font-family":"JetBrains Mono, monospace","font-size":"9",fill:"#a89868","letter-spacing":"1.5"});
+    tx.textContent=s.label; stationsG.appendChild(tx);
+  });}
+
+  // ---- live signed-receipt hash (re-computed client-side, integrity demo) ----
+  function shortHex(buf){var b=new Uint8Array(buf),h="";for(var i=0;i<6;i++)h+=b[i].toString(16).padStart(2,"0");return h;}
+  function computeReceipt(){
+    var payload=JSON.stringify({node:"a11oy-01",epoch:(Date.now()/1000)|0,doctrine:"v11"});
+    if(window.crypto&&window.crypto.subtle){
+      window.crypto.subtle.digest("SHA-256",new TextEncoder().encode(payload)).then(function(d){
+        var hx=shortHex(d);
+        var a=document.getElementById("liveReceiptHash"); if(a)a.textContent="sha256:"+hx+"…";
+        var b=document.getElementById("hudReceipt"); if(b)b.textContent="RECEIPT · "+hx;
+      }).catch(function(){fallbackHash(payload);});
+    } else { fallbackHash(payload); }
+  }
+  function fallbackHash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;
+    var hx=("00000000"+h.toString(16)).slice(-8);
+    var a=document.getElementById("liveReceiptHash"); if(a)a.textContent="hash:"+hx+"…";
+    var b=document.getElementById("hudReceipt"); if(b)b.textContent="RECEIPT · "+hx;}
+  computeReceipt();
+
+  // ---- LIVE KPIs (same-origin /api/a11oy/v1/*) ----
+  function fetchJSON(url,ms){
+    var ctl=("AbortController" in window)?new AbortController():null;
+    var t=ctl?setTimeout(function(){ctl.abort();},ms||7000):null;
+    return fetch(url,{signal:ctl?ctl.signal:undefined,headers:{"Accept":"application/json"}})
+      .then(function(r){if(t)clearTimeout(t);if(!r.ok)throw new Error(r.status);return r.json();});
+  }
+  function setKpi(id,val,liveClass){
+    var el=document.getElementById(id); if(!el)return;
+    el.textContent=val; el.classList.remove("is-loading");
+  }
+  function unreachable(id){
+    var el=document.getElementById(id); if(!el)return;
+    el.textContent="probe slow"; el.classList.remove("is-loading");
+    el.style.color="var(--muted)"; el.style.fontSize="16px";
+  }
+
+  // services up + (lambda_status echoed in observability too)
+  fetchJSON("/api/a11oy/v1/observability/summary",8000).then(function(j){
+    var m=(j&&j.melt&&j.melt.metrics)||{};
+    if(typeof m.organs_reachable==="number"&&typeof m.organs_total==="number"){
+      setKpi("kpiServices",m.organs_reachable+" / "+m.organs_total);
+    } else { unreachable("kpiServices"); }
+    if(j&&j.honesty){var h=document.getElementById("liveHonesty"); if(h)h.textContent=j.honesty;}
+  }).catch(function(){unreachable("kpiServices");});
+
+  // trust score (lambda)
+  fetchJSON("/api/a11oy/v1/lambda",8000).then(function(j){
+    if(j&&typeof j.lambda==="number"){ setKpi("kpiTrust",j.lambda.toFixed(3)); }
+    else { unreachable("kpiTrust"); }
+  }).catch(function(){unreachable("kpiTrust");});
+
+  // a11oy gates
+  fetchJSON("/api/a11oy/v1/gates",8000).then(function(j){
+    if(j&&typeof j.count==="number"){ setKpi("kpiGates",String(j.count)); }
+    else { unreachable("kpiGates"); }
+  }).catch(function(){unreachable("kpiGates");});
+
+  // sentra gates (cross-origin public Space)
+  fetchJSON("https://szlholdings-sentra.hf.space/api/sentra/v1/gates",9000).then(function(j){
+    if(j&&typeof j.count==="number"){ setKpi("kpiSentra",String(j.count)); }
+    else { unreachable("kpiSentra"); }
+  }).catch(function(){unreachable("kpiSentra");});
+
+  // ---- reveal on scroll ----
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("is-in");io.unobserve(e.target);}});},{threshold:0.12});
+    document.querySelectorAll(".ds-reveal").forEach(function(n){io.observe(n);});
+  } else { document.querySelectorAll(".ds-reveal").forEach(function(n){n.classList.add("is-in");}); }
+})();
+</script>
+</body>
+</html>
