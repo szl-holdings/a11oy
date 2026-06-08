@@ -5404,6 +5404,30 @@ except Exception as _dev1_e:
 # END: a11oy dev1 WOW layer
 # ============================================================================
 
+# ============================================================================
+# BEGIN: a11oy dev2 VERTICAL PACKS layer (additive)
+# 5 vertical feed + governed-loop + signed-receipt endpoints under
+# /api/a11oy/v1/vert/*. The register() call self-reorders its routes to the
+# FRONT of app.router.routes so they resolve LOCALLY ahead of the
+# /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all.
+# Self-contained, real live data, honest labels, 0 fabricated data, 0 CDN.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_vertical_feeds as _a11oy_vert
+    import sys as _dev2_sys
+    _dev2_status = _a11oy_vert.register(app, ns="a11oy")
+    print(f"[a11oy] dev2 vertical packs registered: {_dev2_status}", file=_dev2_sys.stderr)
+    _A11OY_DEV2_DIAG = {"status": "ok", "registered": _dev2_status}
+except Exception as _dev2_e:
+    import sys as _dev2_sys, traceback as _dev2_tb
+    print(f"[a11oy] dev2 vertical packs FAILED (non-fatal): {_dev2_e!r}", file=_dev2_sys.stderr)
+    _dev2_tb.print_exc(file=_dev2_sys.stderr)
+    _A11OY_DEV2_DIAG = {"status": "FAILED", "error": repr(_dev2_e)}
+# ============================================================================
+# END: a11oy dev2 VERTICAL PACKS layer
+# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn
