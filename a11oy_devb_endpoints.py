@@ -417,19 +417,36 @@ def uds_quorum() -> dict[str, Any]:
     """4/4 Byzantine-style quorum over the live governed mesh. We poll the
     in-image capabilities mesh and the local health surfaces; quorum reached
     when >= ceil(2/3 * n)+1 nodes are healthy (n>=3f+1 BFT honest framing)."""
-    base = os.environ.get("A11OY_SELF_BASE", "http://127.0.0.1:7860")
+    # Try several base URLs: explicit env, loopback (may be blocked in some
+    # runtimes), then the public Space URL as a last-resort live fallback.
+    bases = []
+    if os.environ.get("A11OY_SELF_BASE"):
+        bases.append(os.environ["A11OY_SELF_BASE"])
+    bases += ["http://127.0.0.1:7860", "http://localhost:7860",
+              "https://szlholdings-a11oy.hf.space"]
     nodes = []
-    try:
-        with httpx.Client(timeout=8.0, headers=UA) as cl:
-            r = cl.get(base + "/api/a11oy/v1/capabilities/mesh")
-            r.raise_for_status()
-            mesh = r.json()
-            for n in (mesh.get("nodes") or [])[:8]:
-                nodes.append({"id": n.get("id"), "ok": bool(n.get("ok")),
-                              "http": n.get("http"), "role": n.get("role")})
-    except Exception as e:
+    last_err = None
+    for base in bases:
+        try:
+            with httpx.Client(timeout=8.0, headers=UA, follow_redirects=True) as cl:
+                r = cl.get(base + "/api/a11oy/v1/capabilities/mesh")
+                r.raise_for_status()
+                mesh = r.json()
+                got = []
+                for n in (mesh.get("nodes") or [])[:8]:
+                    got.append({"id": n.get("id"),
+                                "ok": bool(n.get("ok") if n.get("ok") is not None
+                                            else (n.get("healthy") or n.get("http") == 200)),
+                                "http": n.get("http"), "role": n.get("role")})
+                if got:
+                    nodes = got
+                    break
+        except Exception as e:
+            last_err = str(e)[:120]
+            continue
+    if not nodes:
         # honest degrade: report what we could not reach
-        nodes = [{"id": "mesh", "ok": False, "error": str(e)[:120]}]
+        nodes = [{"id": "mesh", "ok": False, "error": last_err or "mesh unreachable"}]
     healthy = sum(1 for n in nodes if n.get("ok"))
     total = len(nodes)
     # BFT: tolerate f faults with n >= 3f+1; quorum = 2f+1
@@ -437,7 +454,9 @@ def uds_quorum() -> dict[str, Any]:
     quorum_need = 2 * f + 1 if total else 1
     reached = healthy >= quorum_need and total > 0
     # The headline "4/4" view: pick the 4 governance-critical roles
-    critical = [n for n in nodes if n.get("role") in ("governance", "cortex", "policy", "receipts")][:4]
+    # The 4 governance-critical roles in the live a11oy organ mesh.
+    _crit_roles = ("governance", "cortex", "immune", "ledger", "policy", "receipts")
+    critical = [n for n in nodes if n.get("role") in _crit_roles][:4]
     crit_ok = sum(1 for n in critical if n.get("ok"))
     return {
         "nodes": nodes, "total": total, "healthy": healthy,
