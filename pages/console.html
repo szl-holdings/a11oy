@@ -3409,7 +3409,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="kpi"><div class="k">Stages</div><div class="v">6</div><div class="d">P1\u2013P6</div></div>'
         +'<div class="kpi"><div class="k">Bundle</div><div class="v teal" id="dc-bundle">\u2014</div><div class="d">governed_run_sound</div></div>'
         +'<div class="kpi"><div class="k">Status</div><div class="v" id="dc-stat">\u2014</div></div></div>'
-        +'<div class="card"><div class="card-h"><span class="card-t">Governed loop P1\u2192P6 \u2014 step timeline</span><span class="card-ep">live /selftest durations</span></div>'
+        +'<div class="card"><div class="card-h"><span class="card-t">Governed loop P1\u2192P6 \u2014 step timeline</span><span class="card-ep">live /selftest states \u00b7 illustrative durations</span></div>'
         +'<div id="dc-gantt" style="min-height:200px"></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Boolean cascade \u2014 conditions at the active stage</span><span class="card-ep">first \u2717 auto-expanded</span></div>'
         +'<div id="dc-casc"></div></div>'+B1.honestBlock();
@@ -3443,7 +3443,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="card"><div class="card-h"><span class="card-t">Reasoning run-tree \u2014 span waterfall</span><span class="card-ep">depth-indented \u00b7 time on X</span></div>'
         +'<div class="row" style="margin-bottom:.5rem"><input type="range" id="rp-scrub" min="0" max="7" value="7" style="flex:1"><span class="mono dim" id="rp-pos">full</span></div>'
         +'<div id="rp-wf" style="min-height:230px"></div>'
-        +'<div class="brain-note">Each row is one reasoning span with its real wall-clock duration. '+chip('P4 replay-determinism','PROVEN')+'</div></div>'+B1.honestBlock();
+        +'<div class="brain-note" id="rp-note">Each row is one reasoning span; the waterfall structure and scrubber are real, but the per-span durations shown here are an illustrative sample (no live per-span timing source). '+chip('span durations','SAMPLE')+' '+chip('P4 replay-determinism','PROVEN')+'</div></div>'+B1.honestBlock();
         var spans=[
           {label:'root: governed run',depth:0,start:0,dur:240,type:'root'},
           {label:'retrieve evidence',depth:1,start:8,dur:62,type:'retrieval'},
@@ -3596,35 +3596,34 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        P1-P6 receipt chain + verify/tamper) as the single source of truth. */
 
     /* ===================== mcp — ngraph.forcelayout + THREE GPU tool galaxy ===================== */
-    V.mcp={title:'MCP Galaxy',badge:'GPU TOOL GALAXY \u00b7 ngraph+THREE',sub:'The MCP tool surface as a GPU point+line galaxy: 12 MCP tools plus their server groupings and dependency edges, laid out by ngraph.forcelayout, rendered with THREE. Distinct from the knowledge graph (vocabulary = tools/servers, not axioms) and modelatlas (edges = deps, not benchmark similarity).',
+    V.mcp={title:'MCP Galaxy',badge:'GPU TOOL GALAXY \u00b7 LIVE MANIFEST',sub:'The MCP tool surface as a GPU point+line galaxy: the live MCP tool manifest plus flagship groupings, laid out by ngraph.forcelayout, rendered with THREE. Tools, descriptions and counts are pulled live from /v1/mcp/tools \u2014 no fabricated tool list. Distinct from the knowledge graph (vocabulary = tools/servers, not axioms) and modelatlas (edges = deps, not benchmark similarity).',
       render:async function(c){ c.innerHTML='<div class="kpis">'
-        +'<div class="kpi"><div class="k">MCP tools</div><div class="v" id="mc-n">\u2014</div><div class="d">canonical 12</div></div>'
-        +'<div class="kpi"><div class="k">Servers</div><div class="v teal" id="mc-s">\u2014</div></div>'
+        +'<div class="kpi"><div class="k">MCP tools</div><div class="v" id="mc-n">\u2014</div><div class="d">live manifest</div></div>'
+        +'<div class="kpi"><div class="k">Flagships</div><div class="v teal" id="mc-s">\u2014</div></div>'
         +'<div class="kpi"><div class="k">Renderer</div><div class="v">GPU galaxy</div><div class="d">ngraph+THREE</div></div>'
-        +'<div class="kpi"><div class="k">Edges</div><div class="v" id="mc-e">\u2014</div><div class="d">tool\u2192server deps</div></div></div>'
+        +'<div class="kpi"><div class="k">Edges</div><div class="v" id="mc-e">\u2014</div><div class="d">tool\u2192flagship</div></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">MCP tool galaxy \u2014 GPU point cloud</span><span class="card-ep">ngraph.forcelayout (MIT) + THREE</span></div>'
         +'<div class="graph3d hero" id="mc-gpu"></div>'
-        +'<div class="legend mono" style="font-size:9px;margin-top:.4rem"><span><i style="background:'+GOLD+'"></i>server</span> <span><i style="background:'+TEAL+'"></i>tool</span></div>'
-        +'<div class="brain-note" id="mc-note">Tools cluster around the server that exposes them. '+chip('12 MCP tools','CI-GREEN')+'</div></div>'+honest();
+        +'<div class="legend mono" style="font-size:9px;margin-top:.4rem"><span><i style="background:'+GOLD+'"></i>flagship</span> <span><i style="background:'+TEAL+'"></i>tool</span></div>'
+        +'<div class="brain-note" id="mc-note">Tools cluster around the flagship that exposes them. '+chip('live MCP manifest','CI-GREEN')+'</div></div>'
+        +'<div class="card"><div class="card-h"><span class="card-t">Tools \u2014 live</span><span class="card-ep">/v1/mcp/tools</span></div><div id="mc-list"><div class="row mono dim">loading\u2026</div></div>'
+        +'<details class="raw"><summary>raw MCP manifest</summary><pre class="out" id="mc-raw">loading\u2026</pre></details></div>'+honest();
         try{
-          // canonical MCP tools (doctrine: 12) grouped by server. Sample groupings, labelled.
-          var servers=[{id:'srv_khipu',name:'khipu (receipts)'},{id:'srv_yuyay',name:'yuyay (gates)'},{id:'srv_ayni',name:'ayni (reason)'},{id:'srv_wayra',name:'wayra (intel)'}];
-          var tools=[
-            {id:'t_sign',name:'sign_receipt',srv:'srv_khipu'},{id:'t_verify',name:'verify_receipt',srv:'srv_khipu'},{id:'t_chain',name:'chain_append',srv:'srv_khipu'},
-            {id:'t_gate',name:'eval_gate',srv:'srv_yuyay'},{id:'t_lambda',name:'compute_lambda',srv:'srv_yuyay'},{id:'t_policy',name:'policy_check',srv:'srv_yuyay'},
-            {id:'t_reason',name:'governed_reason',srv:'srv_ayni'},{id:'t_replay',name:'replay_run',srv:'srv_ayni'},{id:'t_conformal',name:'conformal_pi',srv:'srv_ayni'},
-            {id:'t_digest',name:'wayra_digest',srv:'srv_wayra'},{id:'t_route',name:'route_model',srv:'srv_wayra'},{id:'t_mine',name:'mine_frontier',srv:'srv_wayra'}
-          ];
-          T('mc-n',tools.length); T('mc-s',servers.length); T('mc-e',tools.length);
+          var d=await gj('/api/a11oy/v1/mcp/tools'); var tools=d.tools||[];
+          // group live tools by their declared flagship (no fabricated servers)
+          var flags={}; tools.forEach(function(t){ var f=t.flagship||'a11oy'; (flags[f]=flags[f]||[]).push(t); });
+          var flagIds=Object.keys(flags);
+          T('mc-n',(d.count!=null?d.count:tools.length)); T('mc-s',flagIds.length);
           var nodes=[], edges=[];
-          servers.forEach(function(s){ nodes.push({id:s.id,type:'theorem',name:s.name}); }); // 'theorem' color=gold
-          tools.forEach(function(t){ nodes.push({id:t.id,type:'formula',name:t.name}); edges.push({from:t.srv,to:t.id}); }); // 'formula' color=teal
-          // cross-server deps (sample): reason uses gate+sign; route uses lambda
-          edges.push({from:'t_reason',to:'t_gate'}); edges.push({from:'t_reason',to:'t_sign'}); edges.push({from:'t_route',to:'t_lambda'}); edges.push({from:'t_replay',to:'t_verify'});
+          flagIds.forEach(function(f){ nodes.push({id:'srv_'+f,type:'theorem',name:f+' (flagship)'}); }); // gold
+          tools.forEach(function(t,i){ var f=t.flagship||'a11oy'; nodes.push({id:'t'+i,type:'formula',name:t.name}); edges.push({from:'srv_'+f,to:'t'+i}); }); // teal
+          T('mc-e',edges.length);
           if(B1.gpuKnowledgeGraph){ var r=B1.gpuKnowledgeGraph('mc-gpu',nodes,edges); if(r)T('mc-e',r.edgeCount); }
           else H('mc-gpu','<div class="row mono dim" style="padding:1rem">GPU graph unavailable</div>');
-          H('mc-note', E('mc-note').innerHTML + srcline({data_kind:'sample',source:'canonical 12 MCP tools + sample server groupings'}));
-        }catch(e){ T('mc-n','offline'); }
+          H('mc-list', tools.map(function(t){ return '<div class="row"><span class="badge b-teal">'+esc(t.name)+'</span><span>'+esc(t.description||'')+'</span><span class="spacer mono dim">'+esc(t.flagship||'')+'</span></div>'; }).join('') || '<div class="row mono dim">no tools in manifest</div>');
+          var raw=E('mc-raw'); if(raw)raw.textContent=JSON.stringify(d,null,2);
+          H('mc-note', E('mc-note').innerHTML + srcline({data_kind:'live',source:'/api/a11oy/v1/mcp/tools'}));
+        }catch(e){ T('mc-n','offline'); H('mc-gpu','<div class="row mono dim" style="padding:1rem">MCP manifest unreachable: '+esc(e.message)+'</div>'); H('mc-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); }
       }};
 
     /* ===================== modelatlas — ngraph.forcelayout SVG galaxy (benchmark similarity) ===================== */
