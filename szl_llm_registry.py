@@ -7,7 +7,7 @@
 szl_llm_registry — a11oy is THE LLM Hub for the SZL ecosystem.
 
 Every model a11oy can route to is declared here as the canonical Model Registry.
-CHAPAQ, YACHAY, and killinchu mirror a11oy's model-access by importing this roster
+Policy, Reasoning, and killinchu mirror a11oy's model-access by importing this roster
 via /api/a11oy/v1/llm/registry (the "forum" — shared receipt/decision substrate).
 
 KEY DESIGN DECISIONS (from founder):
@@ -30,7 +30,7 @@ NEW ENDPOINTS (ADDITIVE — registered before Node proxy + SPA catch-all):
   POST /api/a11oy/v1/llm/route                 — Λ-gated tier selection + receipt
   GET  /api/a11oy/v1/llm/forum                 — shared receipt forum (last-N routing events)
   POST /api/a11oy/v1/llm/forum/ingest          — ingest a receipt from Operator / organ mirror
-  GET  /api/a11oy/v1/llm/ecosystem-mirror      — manifest for CHAPAQ/YACHAY/killinchu to mirror
+  GET  /api/a11oy/v1/llm/ecosystem-mirror      — manifest for Policy/Reasoning/killinchu to mirror
 
 Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem).
 """
@@ -78,7 +78,7 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "modalities": ["text"],
         "streaming": True,
         "operator_mirrored": True,
-        "ecosystem_mirror": ["chapaq", "yachay", "killinchu"],
+        "ecosystem_mirror": ["policy", "reasoning", "killinchu"],
         "lean_gate": "soundnessAxiom",
         "notes": "Primary workhorse. Operator uses this as default. All organs mirror tier-0.",
         "honest_stub": True,  # no key wired in HF Space
@@ -101,9 +101,9 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "modalities": ["text", "image", "audio"],
         "streaming": True,
         "operator_mirrored": True,
-        "ecosystem_mirror": ["chapaq", "yachay"],
+        "ecosystem_mirror": ["policy", "reasoning"],
         "lean_gate": "calibration",
-        "notes": "YACHAY (retrieval) delegates research queries here via a11oy routing.",
+        "notes": "Reasoning (retrieval) delegates research queries here via a11oy routing.",
         "honest_stub": True,
     },
     # ── TIER 2: Math / structured logic (GPT-5.4 — best at structured reasoning) ──
@@ -124,7 +124,7 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "modalities": ["text", "code"],
         "streaming": True,
         "operator_mirrored": True,
-        "ecosystem_mirror": ["chapaq", "yachay", "killinchu"],
+        "ecosystem_mirror": ["policy", "reasoning", "killinchu"],
         "lean_gate": "soundnessAxiom",
         "notes": "Preferred for Λ-score evaluation and Lean proof citation tasks.",
         "honest_stub": True,
@@ -147,7 +147,7 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "modalities": ["text", "code"],
         "streaming": True,
         "operator_mirrored": True,
-        "ecosystem_mirror": ["chapaq", "operator"],
+        "ecosystem_mirror": ["policy", "operator"],
         "lean_gate": "provenance",
         "notes": "Operator's brain-jack uses Opus for adversarial synthesis. Wire I routes here.",
         "honest_stub": True,
@@ -193,7 +193,7 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "modalities": ["text"],
         "streaming": True,
         "operator_mirrored": False,
-        "ecosystem_mirror": ["chapaq", "yachay", "killinchu"],
+        "ecosystem_mirror": ["policy", "reasoning", "killinchu"],
         "lean_gate": "deterministicReplay",
         "notes": "Bundled as zarf.yaml `images: [ghcr.io/szl-holdings/sovereign-llm:v0.1.0]`. "
                  "Requires SZL_LOCAL_LLM_URL env. Honest: NOT currently wired in HF Spaces.",
@@ -217,9 +217,9 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "modalities": ["text"],
         "streaming": True,
         "operator_mirrored": False,
-        "ecosystem_mirror": ["yachay"],
+        "ecosystem_mirror": ["reasoning"],
         "lean_gate": "freshness",
-        "notes": "Wayra (news intelligence) delegates search-augmented queries here. YACHAY mirrors for retrieval.",
+        "notes": "Wayra (news intelligence) delegates search-augmented queries here. Reasoning mirrors for retrieval.",
         "honest_stub": True,
     },
 ]
@@ -228,7 +228,7 @@ _MODEL_BY_ID: dict[str, dict] = {m["model_id"]: m for m in MODEL_REGISTRY}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Forum: shared receipt log that a11oy + Operator both write to
-# Other organs (CHAPAQ, YACHAY, killinchu) can ingest via /llm/forum/ingest
+# Other organs (Policy, Reasoning, killinchu) can ingest via /llm/forum/ingest
 # ─────────────────────────────────────────────────────────────────────────────
 
 _FORUM_LOG: list[dict] = []
@@ -303,7 +303,7 @@ def register(app: FastAPI) -> dict:
                 if t.get("tier") is not None
             },
             "routing_policy": "Λ-gated: Λ≥0.90→tier0, [0.75,0.90)→tier2, <0.75→tier3. task_hint overrides.",
-            "ecosystem_mirror": "CHAPAQ, YACHAY, killinchu mirror a11oy's roster via /llm/ecosystem-mirror",
+            "ecosystem_mirror": "Policy, Reasoning, killinchu mirror a11oy's roster via /llm/ecosystem-mirror",
             "forum_endpoint": "/api/a11oy/v1/llm/forum",
             "route_endpoint": "/api/a11oy/v1/llm/route",
             "doctrine": DOCTRINE,
@@ -453,7 +453,7 @@ def register(app: FastAPI) -> dict:
     async def llm_forum_ingest(request: Request) -> JSONResponse:
         """Ingest a routing receipt from Operator / organ mirror.
 
-        Body: {"source": "operator"|"chapaq"|…, "receipt": {...}, "model_id": "…"}
+        Body: {"source": "operator"|"policy"|…, "receipt": {...}, "model_id": "…"}
         """
         try:
             body = await request.json()
@@ -480,20 +480,20 @@ def register(app: FastAPI) -> dict:
 
     @app.get("/api/a11oy/v1/llm/ecosystem-mirror")
     async def llm_ecosystem_mirror() -> JSONResponse:
-        """Manifest for CHAPAQ/YACHAY/killinchu to mirror a11oy's model access.
+        """Manifest for Policy/Reasoning/killinchu to mirror a11oy's model access.
 
         Each organ calls this endpoint to discover which models to register locally,
         which tier to use for a given Λ-score, and where to emit receipts.
         """
         mirror_manifest = {
-            "chapaq": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "chapaq" in m.get("ecosystem_mirror", [])],
+            "policy": {
+                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "policy" in m.get("ecosystem_mirror", [])],
                 "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
                 "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
                 "mirror_policy": "delegate_to_a11oy",
             },
-            "yachay": {
-                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "yachay" in m.get("ecosystem_mirror", [])],
+            "reasoning": {
+                "models": [_enrich_model(m) for m in MODEL_REGISTRY if "reasoning" in m.get("ecosystem_mirror", [])],
                 "receipt_ingest_url": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/forum/ingest",
                 "routing_endpoint": "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route",
                 "mirror_policy": "delegate_to_a11oy",
