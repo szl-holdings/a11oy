@@ -1,5 +1,5 @@
 # szl-build-env — local 5-organ + Istio ambient + OTel stack on kind
-# Doctrine v11 LOCKED 749/14/163 @ kernel c7c0ba17. NOT Iron Bank. SLSA L1 honest + L2 attested.
+# Doctrine v11 LOCKED 749/14/163 @ kernel c7c0ba17. NOT Iron Bank. SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
