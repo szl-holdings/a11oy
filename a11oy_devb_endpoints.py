@@ -413,37 +413,90 @@ def forecast(scenario: str, horizon_q: int = 4, base: float = 100.0,
 # ===========================================================================
 # UDS 4/4 quorum — derived LIVE from the capabilities mesh node health.
 # ===========================================================================
+# App reference captured at register() time so we can invoke peer routes
+# (e.g. the in-image capabilities mesh) IN-PROCESS without any HTTP/loopback.
+_APP: Any = None
+
+
+def _mesh_in_process() -> dict | None:
+    """Read /api/a11oy/v1/capabilities/mesh by invoking its registered route
+    handler directly in-process. Returns the parsed dict, or None if it cannot
+    be resolved (caller then falls back to an HTTP probe)."""
+    app = _APP
+    if app is None:
+        return None
+    try:
+        import asyncio
+        import json as _json
+        target = "/api/a11oy/v1/capabilities/mesh"
+        endpoint = None
+        for r in getattr(app.router, "routes", []):
+            if getattr(r, "path", None) == target and getattr(r, "endpoint", None):
+                methods = getattr(r, "methods", None) or set()
+                if (not methods) or ("GET" in methods):
+                    endpoint = r.endpoint
+                    break
+        if endpoint is None:
+            return None
+        res = endpoint()
+        if asyncio.iscoroutine(res):
+            try:
+                loop = asyncio.new_event_loop()
+                res = loop.run_until_complete(res)
+                loop.close()
+            except RuntimeError:
+                # already inside a running loop: run in a fresh thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                    res = ex.submit(lambda: asyncio.run(endpoint())).result()
+        # res is typically a starlette JSONResponse; pull its body
+        body = getattr(res, "body", None)
+        if body is not None:
+            return _json.loads(body.decode() if isinstance(body, (bytes, bytearray)) else body)
+        if isinstance(res, dict):
+            return res
+    except Exception:
+        return None
+    return None
+
+
 def uds_quorum() -> dict[str, Any]:
     """4/4 Byzantine-style quorum over the live governed mesh. We poll the
     in-image capabilities mesh and the local health surfaces; quorum reached
     when >= ceil(2/3 * n)+1 nodes are healthy (n>=3f+1 BFT honest framing)."""
-    # Try several base URLs: explicit env, loopback (may be blocked in some
-    # runtimes), then the public Space URL as a last-resort live fallback.
-    bases = []
-    if os.environ.get("A11OY_SELF_BASE"):
-        bases.append(os.environ["A11OY_SELF_BASE"])
-    bases += ["http://127.0.0.1:7860", "http://localhost:7860",
-              "https://szlholdings-a11oy.hf.space"]
-    nodes = []
+    nodes: list[dict] = []
+    src = None
     last_err = None
-    for base in bases:
-        try:
-            with httpx.Client(timeout=8.0, headers=UA, follow_redirects=True) as cl:
-                r = cl.get(base + "/api/a11oy/v1/capabilities/mesh")
-                r.raise_for_status()
-                mesh = r.json()
-                got = []
-                for n in (mesh.get("nodes") or [])[:8]:
-                    got.append({"id": n.get("id"),
-                                "ok": bool(n.get("ok") if n.get("ok") is not None
-                                            else (n.get("healthy") or n.get("http") == 200)),
-                                "http": n.get("http"), "role": n.get("role")})
-                if got:
-                    nodes = got
+    # PRIMARY (most reliable): read the in-image capabilities mesh IN-PROCESS by
+    # invoking the registered FastAPI route handler directly. No network, no
+    # loopback — works even when the Space runtime blocks self HTTP.
+    mesh = _mesh_in_process()
+    if mesh is not None:
+        src = "in-process"
+    else:
+        # FALLBACK: HTTP probe (env base, loopback, then public Space URL).
+        bases = []
+        if os.environ.get("A11OY_SELF_BASE"):
+            bases.append(os.environ["A11OY_SELF_BASE"])
+        bases += ["http://127.0.0.1:7860", "http://localhost:7860",
+                  "https://szlholdings-a11oy.hf.space"]
+        for b in bases:
+            try:
+                with httpx.Client(timeout=8.0, headers=UA, follow_redirects=True) as cl:
+                    rr = cl.get(b + "/api/a11oy/v1/capabilities/mesh")
+                    rr.raise_for_status()
+                    mesh = rr.json()
+                    src = "http:" + b
                     break
-        except Exception as e:
-            last_err = str(e)[:120]
-            continue
+            except Exception as e:
+                last_err = str(e)[:120]
+                continue
+    if mesh:
+        for n in (mesh.get("nodes") or [])[:8]:
+            nodes.append({"id": n.get("id"),
+                          "ok": bool(n.get("ok") if n.get("ok") is not None
+                                     else (n.get("healthy") or n.get("http") == 200)),
+                          "http": n.get("http"), "role": n.get("role")})
     if not nodes:
         # honest degrade: report what we could not reach
         nodes = [{"id": "mesh", "ok": False, "error": last_err or "mesh unreachable"}]
@@ -464,7 +517,8 @@ def uds_quorum() -> dict[str, Any]:
         "headline": {"label": f"{crit_ok}/{max(4, len(critical)) if critical else 4}",
                      "critical_ok": crit_ok, "critical_total": max(4, len(critical)) if critical else 4},
         "bft_note": "Byzantine quorum honest framing: n>=3f+1 tolerates f faults; quorum=2f+1. "
-                    "Node health probed LIVE from the in-image capabilities mesh.",
+                    "Node health read LIVE from the in-image capabilities mesh.",
+        "source": src or "degraded",
         "doctrine": DOCTRINE, "ts": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -473,6 +527,8 @@ def uds_quorum() -> dict[str, Any]:
 # REGISTER — front-move pattern so routes win over /api proxy + SPA catch-all.
 # ===========================================================================
 def register(app: FastAPI) -> dict[str, Any]:
+    global _APP
+    _APP = app  # captured for in-process peer-route invocation (uds quorum)
     base = "/api/a11oy/v1/devb"
     _n_before = len(app.router.routes)
 
