@@ -1,7 +1,7 @@
 name: ci
 
 # Hatun-MCP CI — run the test suite, build the container, push to GHCR on main.
-# SLSA L1 honest + L2 attested (actions/attest-build-provenance on the pushed image).
+# SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (actions/attest-build-provenance on the pushed image).
 # Doctrine v11 LOCKED 749/14/163 · receipts.in ≡ receipts.out
 #
 # Hermetic tests: HATUN_MCP_DISABLE_DYNAMIC=true so the suite never depends on a
@@ -42,14 +42,14 @@ jobs:
             tests/test_adapters.py tests/test_governance.py -q
 
   build-and-push:
-    name: build container + push to GHCR (main only) + SLSA L2 attest
+    name: build container + push to GHCR (main only) + SLSA L1 honest attest
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      id-token: write          # for build-provenance attestation (SLSA L2)
+      id-token: write          # for build-provenance attestation (SLSA L1 honest)
       attestations: write
     steps:
       - uses: actions/checkout@v6
@@ -75,7 +75,7 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
           provenance: true       # SLSA provenance attached by buildkit
 
-      - name: Attest build provenance (SLSA L2)
+      - name: Attest build provenance (SLSA L1 honest)
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ env.IMAGE }}
@@ -83,6 +83,6 @@ jobs:
           push-to-registry: true
 
 # Doctrine footer:
-#   Doctrine v11 LOCKED — 749 / 14 / 163 · Λ = Conjecture 1 · SLSA L1 honest + L2 attested
+#   Doctrine v11 LOCKED — 749 / 14 / 163 · Λ = Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap
 #   Signed-off-by: Yachay <yachay@szlholdings.ai>
 #   Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
