@@ -84,13 +84,18 @@ PROVIDER_KEYS = {
     "cerebras": os.environ.get("CEREBRAS_API_KEY", ""),
 }
 
-# Flagship organ base URLs (in-Space these are relative; orchestrator proxies).
+# Governed SZL service-role base URLs (in-Space these are relative; orchestrator
+# proxies). Keys are the honest role names exposed to the model/UI; env-var names
+# are kept internal/legacy for deployment compatibility (never user-visible).
 FLAGSHIP_BASES = {
-    "amaru": os.environ.get("AMARU_BASE", ""),
-    "sentra": os.environ.get("SENTRA_BASE", ""),
-    "rosie": os.environ.get("ROSIE_BASE", ""),
-    "killinchu": os.environ.get("KILLINCHU_BASE", ""),
+    "reasoning": os.environ.get("AMARU_BASE", ""),
+    "policy": os.environ.get("SENTRA_BASE", ""),
+    "operator": os.environ.get("ROSIE_BASE", ""),
+    "field-node": os.environ.get("KILLINCHU_BASE", ""),
 }
+# Accept role aliases used in the tool enum -> canonical FLAGSHIP_BASES key.
+_ROLE_ALIASES = {"governance": "reasoning", "field-node": "field-node",
+                 "policy": "policy", "operator": "operator", "reasoning": "reasoning"}
 
 router = APIRouter(prefix="/api/a11oy/code", tags=["a11oy.code"])
 
@@ -143,15 +148,15 @@ MODEL_CATALOG = [
 ]
 
 DEFAULT_SYSTEM_PROMPT = (
-    "You are a11oy.code, the SZL Holdings conversational orchestrator. You answer "
-    "at the highest available quality (Opus-4.8 target) using a unified open-LLM "
-    "router. You can orchestrate the SZL flagships (Amaru governance, Sentra "
-    "security, Rosie orchestration, Killinchu maritime/drone) and reach outside "
-    "via GitHub, Hugging Face, web search/fetch/browse, a sandboxed shell, and a "
-    "sandboxed filesystem - all of which are exposed to you as tools. Every action "
-    "you take is gated by PURIQ (Yuyay 13-axis wisdom + HUKLLA tripwires) and "
-    "receipted on the Khipu chain. Be precise, cite sources, refuse cleanly when a "
-    "gate denies, and prefer streaming. Never fabricate tool results."
+    "You are a11oy.code, the SZL Holdings conversational coding orchestrator. You "
+    "answer at the highest available quality using a unified open-LLM router. You "
+    "can orchestrate governed SZL services (Governance, Policy, Operator, Field-Node "
+    "roles) and reach outside via GitHub, Hugging Face, web search/fetch/browse, a "
+    "sandboxed shell, and a sandboxed filesystem - all of which are exposed to you "
+    "as tools. Every action you take is gated by PURIQ (Yuyay 13-axis wisdom + "
+    "HUKLLA tripwires) and receipted on the Khipu chain. Be precise, write clear "
+    "code, cite sources, refuse cleanly when a gate denies, and prefer streaming. "
+    "Never fabricate tool results."
 )
 
 # ---------------------------------------------------------------------------
@@ -258,7 +263,7 @@ def _hukla_check(action: str, context: dict[str, Any]) -> tuple[int, list[str], 
     if not context.get("chain_verified", True):
         fired.append("T01")
         hard_halt = True
-    # T05 PII (very rough heuristic; real PII filter is sentra's job)
+    # T05 PII (very rough heuristic; the dedicated egress/immune filter owns full PII)
     if re.search(r"\b\d{3}-\d{2}-\d{4}\b", text):
         fired.append("T05")
     # T06 cost ceiling
@@ -440,6 +445,34 @@ def _inference_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"}
 
 
+def has_inference_credential() -> bool:
+    """True iff a real inference credential is present (HF router or a provider key)."""
+    return bool(HF_TOKEN) or any(PROVIDER_KEYS.values())
+
+
+def honest_stub_text(user_msg: str, decision: dict[str, Any]) -> str:
+    """Deterministic, CLEARLY-LABELED stub. NEVER a fabricated model answer.
+
+    Emitted only when NO inference credential is present. It states plainly that
+    the model text is unavailable and that routing / Lambda / receipts are the
+    real, deterministic parts. It does NOT invent a code answer.
+    """
+    snippet = (user_msg or "").strip().replace("\n", " ")[:160]
+    return (
+        "**[deterministic stub \u2014 inference token not yet set]**\n\n"
+        "a11oy.code received your request"
+        + (f" (\u201c{snippet}\u201d)" if snippet else "")
+        + f" and routed it to tier **{decision.get('tier')}** \u2192 model "
+        f"`{decision.get('model')}` (license {decision.get('license_class')}). "
+        "The PURIQ \u039b-gate, tier selection and the signed Khipu receipt below are "
+        "REAL deterministic math. The **model completion itself is unavailable** because no "
+        "inference credential is configured on this Space \u2014 so no answer is fabricated "
+        "(Zero-Bandaid Law).\n\n"
+        "_To enable live generation, paste a valid token into the Space secret_ `HF_TOKEN` "
+        "_(Settings \u2192 Variables and secrets). Generation then goes live instantly \u2014 no redeploy._"
+    )
+
+
 async def _call_model_stream(client: httpx.AsyncClient, model: str, payload: dict[str, Any]
                              ) -> AsyncGenerator[bytes, None]:
     body = dict(payload)
@@ -521,9 +554,9 @@ TOOL_SCHEMAS = [
         "name": "hf_read_space", "description": "List files / read metadata of a Hugging Face Space.",
         "parameters": {"type": "object", "properties": {"repo_id": {"type": "string"}}, "required": ["repo_id"]}}},
     {"type": "function", "function": {
-        "name": "flagship_call", "description": "Call an SZL flagship endpoint (amaru/sentra/rosie/killinchu).",
+        "name": "flagship_call", "description": "Call a governed SZL service role (governance/policy/operator/field-node).",
         "parameters": {"type": "object", "properties": {
-            "organ": {"type": "string", "enum": ["amaru", "sentra", "rosie", "killinchu"]},
+            "organ": {"type": "string", "enum": ["governance", "policy", "operator", "field-node"]},
             "path": {"type": "string"}, "method": {"type": "string", "default": "GET"},
             "json": {"type": "object"}}, "required": ["organ", "path"]}}},
     {"type": "function", "function": {
@@ -544,6 +577,71 @@ TOOL_SCHEMAS = [
 ]
 
 SHELL_ALLOWLIST = {"ls", "cat", "echo", "wc", "head", "tail", "grep", "find", "python3", "node", "sort", "uniq"}
+
+# ---------------------------------------------------------------------------
+# Sandboxed code runner for the IDE "Run" button. HONEST safety boundary:
+#  - only python3 / node interpreters (no arbitrary binaries)
+#  - executed inside SANDBOX_DIR with a minimal PATH, NO network reachability is
+#    promised (the Space process MAY have egress; we do NOT sandbox the network
+#    at the kernel level here, so we LABEL that honestly rather than claim it)
+#  - 8s wall-clock timeout, output truncated
+# This is a constrained-interpreter runner, NOT a hardened multi-tenant jail.
+# The label returned to the UI states the boundary plainly (no fake claims).
+# ---------------------------------------------------------------------------
+RUN_INTERPRETERS = {
+    "python": ["python3", "-I", "-S"],   # -I isolated, -S no site
+    "javascript": ["node"],
+    "shell": None,   # shell handled via the allow-listed _tool_shell path only
+}
+RUN_BOUNDARY = (
+    "sandbox: isolated dir + 8s timeout + interpreter-only (python3/node). "
+    "Network is NOT kernel-isolated in this Space \u2014 do not run untrusted code "
+    "expecting egress containment. Honest boundary, not a hardened jail."
+)
+
+
+def run_code(language: str, code: str) -> dict[str, Any]:
+    """Execute editor code in the constrained sandbox. Returns stdout/stderr/code.
+    NO fake run: if the language is unsupported we say so honestly."""
+    SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
+    lang = (language or "python").lower()
+    if lang in ("text/x-csrc", "c"):
+        return {"error": "C execution is not enabled in this sandbox (no compiler in image). "
+                         "Honest limitation \u2014 Python and JavaScript run live.",
+                "boundary": RUN_BOUNDARY, "code": None}
+    if lang == "shell":
+        return {"error": "Shell is restricted to the allow-listed shell_exec tool, not the Run button.",
+                "boundary": RUN_BOUNDARY, "code": None}
+    interp = RUN_INTERPRETERS.get(lang)
+    if not interp:
+        return {"error": f"unsupported language '{language}'", "boundary": RUN_BOUNDARY, "code": None}
+    suffix = {"python": ".py", "javascript": ".js"}[lang]
+    src = SANDBOX_DIR / f"_run_{uuid.uuid4().hex[:8]}{suffix}"
+    try:
+        src.write_text(code, "utf-8")
+        t0 = time.time()
+        out = subprocess.run(
+            [*interp, str(src)], capture_output=True, text=True, timeout=8,
+            cwd=str(SANDBOX_DIR),
+            env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(SANDBOX_DIR),
+                 "PYTHONIOENCODING": "utf-8"},
+        )
+        elapsed = int((time.time() - t0) * 1000)
+        rec = khipu_emit("code.run", {"language": lang, "bytes": len(code), "exit": out.returncode})
+        return {"stdout": out.stdout[:8000], "stderr": out.stderr[:4000], "code": out.returncode,
+                "elapsed_ms": elapsed, "boundary": RUN_BOUNDARY,
+                "khipu_hash": rec["hash"]}
+    except subprocess.TimeoutExpired:
+        return {"error": "timeout (8s wall-clock)", "boundary": RUN_BOUNDARY, "code": 124}
+    except FileNotFoundError as exc:
+        return {"error": f"interpreter not available in image: {exc}", "boundary": RUN_BOUNDARY, "code": None}
+    except Exception as exc:
+        return {"error": str(exc)[:400], "boundary": RUN_BOUNDARY, "code": None}
+    finally:
+        try:
+            src.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def _gate_context_for_tool(name: str, args: dict[str, Any], attested: bool) -> dict[str, Any]:
@@ -598,7 +696,7 @@ async def _dispatch_tool(name: str, args: dict[str, Any], client: httpx.AsyncCli
     if name == "fs_write":
         return _tool_fs_write(args["path"], args["content"])
     if name == "drone_command":
-        return await _tool_flagship(client, "killinchu", f"/drones/{args['drone_id']}/command",
+        return await _tool_flagship(client, "field-node", f"/drones/{args['drone_id']}/command",
                                     "POST", {"command": args["command"]})
     raise ValueError(f"unknown tool {name}")
 
@@ -644,10 +742,11 @@ def _tool_hf_space(repo_id: str) -> Any:
 
 
 async def _tool_flagship(client: httpx.AsyncClient, organ: str, path: str, method: str, payload: Any) -> Any:
-    base = FLAGSHIP_BASES.get(organ, "")
+    role = _ROLE_ALIASES.get(organ, organ)
+    base = FLAGSHIP_BASES.get(role, "")
     if not base:
-        return {"error": f"flagship '{organ}' base URL not configured",
-                "hint": f"set {organ.upper()}_BASE env when the {organ} Space ships.",
+        return {"error": f"service role '{role}' base URL not configured",
+                "hint": f"configure the '{role}' service base when that Space ships.",
                 "gap": True}
     resp = await client.request(method, f"{base}{path}", json=payload, timeout=60.0)
     try:
@@ -830,9 +929,12 @@ def _get_client() -> httpx.AsyncClient:
 async def code_healthz() -> JSONResponse:
     return JSONResponse({
         "status": "ok", "component": "a11oy.code orchestrator", "doctrine": "v12 (v11+PURIQ)",
-        "inference": "hf-router" if HF_TOKEN else "NO-CREDENTIAL",
+        "inference": "hf-router" if has_inference_credential() else "NO-CREDENTIAL",
+        "mode": "live" if has_inference_credential() else "deterministic_stub",
         "tiers": list(TIERS.keys()), "tools": [t["function"]["name"] for t in TOOL_SCHEMAS],
         "puriq_threshold": PURIQ_THRESHOLD, "memory": "sqlite", "signed": "Yachay",
+        "ide": "/api/a11oy/code/ide", "run": "/api/a11oy/code/run",
+        "token_secret": "HF_TOKEN",
         "built_by": "Perplexity Computer Agent",
     })
 
@@ -851,6 +953,49 @@ async def code_tools() -> JSONResponse:
 @router.get("/metrics")
 async def code_metrics() -> PlainTextResponse:
     return PlainTextResponse(_metrics_text(), media_type="text/plain; version=0.0.4")
+
+
+# ---------------------------------------------------------------------------
+# IDE page (full-screen coding assistant). Self-contained HTML with vendored
+# CodeMirror (0 runtime CDN). Served from a sibling file so it can be edited
+# without touching this module.
+# ---------------------------------------------------------------------------
+_IDE_HTML_PATH = Path(__file__).with_name("a11oy_code_ide.html")
+
+
+@router.get("/ide")
+async def code_ide():
+    """Serve the full IDE-style Code tab page (streaming chat + editor + run +
+    receipts). 0 runtime CDN \u2014 all assets inlined."""
+    try:
+        html = _IDE_HTML_PATH.read_text("utf-8")
+    except Exception as exc:  # honest failure, never a fake page
+        return PlainTextResponse(
+            f"a11oy.code IDE page not found on this Space ({exc}). "
+            "The orchestrator API is live at /api/a11oy/code/* regardless.",
+            status_code=404)
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(html)
+
+
+@router.post("/run")
+async def code_run(request: Request) -> JSONResponse:
+    """Execute editor code in the constrained sandbox. Honest safety boundary is
+    returned in the response (see RUN_BOUNDARY). PURIQ-gated + Khipu-receipted."""
+    body = await request.json()
+    language = body.get("language", "python")
+    code = body.get("code", "")
+    if not isinstance(code, str) or not code.strip():
+        return JSONResponse({"error": "empty code", "boundary": RUN_BOUNDARY, "code": None})
+    # Gate the run as a sandboxed exec action.
+    gate = puriq_decide("shell_exec", _gate_context_for_tool("shell_exec", {"run": language}, attested=True))
+    if not gate["allow"]:
+        _METRICS["gate_denied_total"] += 1
+        return JSONResponse({"error": f"PURIQ gate denied: {gate['reason']}",
+                             "boundary": RUN_BOUNDARY, "code": None})
+    result = await asyncio.get_event_loop().run_in_executor(None, run_code, language, code)
+    result["gate"] = {"allow": gate["allow"], "score": gate["score"], "lambda": gate["lambda"]}
+    return JSONResponse(result)
 
 
 @router.post("/v1/router")
@@ -1028,6 +1173,34 @@ async def chat_stream(request: Request):
                             "model": decision["model"], "license_class": decision["license_class"],
                             "reason": decision["reason"]})
         t0 = time.time()
+
+        # ----------------------------------------------------------------
+        # HONEST-STUB BRANCH: if there is NO inference credential, do NOT
+        # error out and do NOT fabricate. Stream a clearly-labeled stub plus
+        # the real signed receipt, then finish cleanly. This keeps the tab
+        # fully operational (routing + Lambda + receipt) while being honest
+        # that the model text is unavailable until a token is pasted.
+        # ----------------------------------------------------------------
+        if not has_inference_credential():
+            stub = honest_stub_text(user_msg, decision)
+            for word in re.findall(r"\S+\s*", stub):
+                yield sse("token", {"text": word})
+                await asyncio.sleep(0)
+            latency_ms = int((time.time() - t0) * 1000)
+            y13 = yuyay13_response_score(stub, None, latency_ms)
+            rec = khipu_emit("chat.completion.stub", {
+                "conversation_id": conv_id, "model": decision["model"],
+                "tier": decision["tier"], "mode": "deterministic_stub", "yuyay13": y13})
+            mem_add_message(conv_id, "assistant", stub, model=decision["model"],
+                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
+                            yuyay13=y13, khipu_hash=rec["hash"])
+            yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
+                               "model": decision["model"], "license_class": decision["license_class"],
+                               "latency_ms": latency_ms, "cost_usd": 0.0, "yuyay13": y13,
+                               "khipu_hash": rec["hash"], "chain_verified": True,
+                               "mode": "deterministic_stub"})
+            return
+
         payload = {"messages": history, "max_tokens": body.get("max_tokens", 1500),
                    "temperature": body.get("temperature", 0.7)}
         if enable_tools:
