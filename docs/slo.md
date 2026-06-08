@@ -1,5 +1,5 @@
 # SLI/SLO/Error Budget — SZL Holdings Flagship Services
-**Doctrine v11 LOCKED 749/14/163 | SLSA L1 + L2 | Generated: 2026-06-03**
+**Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap | Generated: 2026-06-03**
 
 ## Service Level Indicators (SLIs)
 
@@ -46,7 +46,7 @@ SZL Holdings flagships run on HuggingFace Spaces (cpu-basic tier). Honest disclo
 | `sorries_total: 163` | 100% | Automated check |
 | `kernel_commit: c7c0ba17` | 100% | Automated check |
 | Λ = Conjecture 1 (not theorem) | 100% | Automated check |
-| SLSA L1 + L2 (not L3) | 100% | Automated check |
+| SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (not L3) | 100% | Automated check |
 | Section 889 = exactly 5 vendors | 100% | Automated check |
 
 **Signed-off-by: Yachay <yachay@szlholdings.ai>**  
