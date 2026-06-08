@@ -82,6 +82,52 @@ Node tooling the rest of the SZL stack already uses.
 
 ---
 
+## Toolchain pin & security review
+
+VitePress 1.6.x natively depends on **Vite 5**, which in turn pulls **esbuild ≤ 0.24.2**.
+That esbuild line carries [GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)
+(dev-server request-smuggling, moderate), and there is **no fix available through the
+dependency chain** while we stay on VitePress 1.x. To keep `npm audit` clean we force a
+maintained Vite + esbuild via the `overrides` block in `package.json`:
+
+```jsonc
+"overrides": {
+  "vite": "^6.4.2",     // VitePress 1.x ships Vite 5; force a maintained line
+  "esbuild": "^0.25.0"  // patches GHSA-67mh-4wv8-2f99
+}
+```
+
+**Decision: keep the override (do not "upgrade off it") for now.** The audit evidence:
+
+| Config | Resolved | `npm audit` |
+| --- | --- | --- |
+| No override (native VitePress 1.6.x) | vite 5.4.x + esbuild 0.21.x | **4 moderate** |
+| esbuild-only override | vite 5.4.x + esbuild 0.25.x | **3 moderate** (audit still flags vite 5 itself) |
+| **vite + esbuild override (current)** | vite 6.4.x + esbuild 0.25.x | **0 vulnerabilities** ✅ |
+
+The natural "supported toolchain" upgrade — **VitePress 2.x**, which ships Vite 7 — is **not
+viable yet**:
+
+- VitePress 2.x is published only under the `next` dist-tag (`2.0.0-alpha.*`); there is no
+  stable 2.x release for a production docs site.
+- `vitepress-plugin-mermaid` (latest `2.0.17`) declares a peer dependency of
+  `vitepress: ^1.0.0 || ^1.0.0-alpha` — it does **not** support VitePress 2.x, so a 2.x
+  bump would break the Mermaid diagrams this site relies on.
+
+**Exit criteria — remove/shrink the override when *both* are true:**
+
+1. `npm view vitepress dist-tags.latest` is a stable `2.x` (no `-alpha`/`-beta`), **and**
+2. `vitepress-plugin-mermaid` (or a replacement) supports VitePress 2.x in its peer deps.
+
+When that happens, upgrade `vitepress` (and the mermaid plugin) and delete the `overrides`
+block — VitePress 2.x's native Vite 7 / esbuild 0.25+ is already non-vulnerable.
+
+This is re-checked automatically every month by
+[`.github/workflows/docs-toolchain-review.yml`](../../.github/workflows/docs-toolchain-review.yml),
+which runs `npm audit` against this site and reports whether the 2.x exit criteria are met.
+
+---
+
 ## Project layout
 
 ```

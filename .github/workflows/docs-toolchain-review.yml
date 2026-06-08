@@ -1,0 +1,88 @@
+name: Docs toolchain security review
+
+# Recurring review of the docs/site toolchain pin.
+#
+# docs/site runs VitePress 1.6.x, which natively depends on Vite 5 / esbuild <=0.24.2
+# (GHSA-67mh-4wv8-2f99, no fix available through that chain). We keep it clean by forcing
+# vite ^6.4.2 + esbuild ^0.25.0 via the `overrides` block in docs/site/package.json.
+# The proper "supported toolchain" upgrade (VitePress 2.x, which ships Vite 7) is not
+# viable yet: 2.x is alpha-only and vitepress-plugin-mermaid does not support it.
+#
+# This job re-checks both halves every month so the pin never silently rots:
+#   1. `npm audit` on docs/site must stay clean (catches NEW advisories the override misses).
+#   2. Report whether the VitePress 2.x exit criteria are met (stable 2.x + mermaid support),
+#      i.e. whether we can finally drop the override.
+# See docs/site/README.md -> "Toolchain pin & security review".
+
+on:
+  schedule:
+    - cron: '0 7 1 * *'  # 07:00 UTC on the 1st of every month
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/site/package.json'
+      - 'docs/site/package-lock.json'
+      - '.github/workflows/docs-toolchain-review.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: docs/site npm audit + VitePress 2.x readiness
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install (uses package.json overrides)
+        run: npm install --no-audit --no-fund
+
+      - name: npm audit (must be clean)
+        run: |
+          echo "## docs/site npm audit" >> "$GITHUB_STEP_SUMMARY"
+          if npm audit >> "$GITHUB_STEP_SUMMARY" 2>&1; then
+            echo "audit clean" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::npm audit found vulnerabilities in docs/site — the override may need bumping."
+            npm audit
+            exit 1
+          fi
+
+      - name: VitePress 2.x exit-criteria check
+        if: always()
+        run: |
+          echo "## VitePress 2.x upgrade readiness" >> "$GITHUB_STEP_SUMMARY"
+          LATEST="$(npm view vitepress version 2>/dev/null || echo unknown)"  # latest = dist-tag 'latest'
+          MERMAID_PEER="$(npm view vitepress-plugin-mermaid peerDependencies.vitepress 2>/dev/null || echo unknown)"
+          echo "- vitepress dist-tag \`latest\`: \`$LATEST\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- vitepress-plugin-mermaid peer \`vitepress\`: \`$MERMAID_PEER\`" >> "$GITHUB_STEP_SUMMARY"
+
+          STABLE2=false
+          case "$LATEST" in
+            2.*) case "$LATEST" in *-*) STABLE2=false ;; *) STABLE2=true ;; esac ;;
+          esac
+          MERMAID_OK=false
+          case "$MERMAID_PEER" in *2.*|*"^2"*) MERMAID_OK=true ;; esac
+
+          if [ "$STABLE2" = true ] && [ "$MERMAID_OK" = true ]; then
+            echo "::warning::VitePress 2.x is now stable AND vitepress-plugin-mermaid supports it — time to upgrade docs/site and drop the overrides block."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**ACTION:** Both exit criteria met. Upgrade vitepress + mermaid plugin and remove the \`overrides\` block in docs/site/package.json." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Exit criteria not yet met — keep the \`overrides\` pin. (stable 2.x: $STABLE2, mermaid supports 2.x: $MERMAID_OK)" >> "$GITHUB_STEP_SUMMARY"
+          fi
