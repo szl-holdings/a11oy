@@ -335,6 +335,17 @@ COPY a11oy_code_engine.py ./a11oy_code_engine.py
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 COPY a11oy_code.py ./a11oy_code.py
 
+# a11oy Seismic forecaster (Doctrine v13): honest Reasenberg-Jones (1994) +
+# Modified-Omori (Utsu 1961) aftershock-rate model over the LIVE public USGS
+# feeds. Per-file COPY (this Dockerfile never uses `COPY . .`) -- without this,
+# `import a11oy_seismic` fails at boot and the /api/a11oy/v1/seismic/{quakes,
+# forecast,health} routes (registered in serve.py before the catch-all) silently
+# no-op and fall through to the proxy (404). Stdlib only (math/urllib/json);
+# clean-room MIT, public-domain science, NO third-party code, 0 runtime CDN.
+# Statistical forecast -- NOT certainty, NOT a locked-proven claim.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+COPY a11oy_seismic.py ./a11oy_seismic.py
+
 # Warhacker mission tabs backend (5 investor-facing surfaces; reuses
 # szl_agentic_loop primitives + the in-image signer). Per-file COPY
 # (this Dockerfile never uses `COPY . .`) — without this
@@ -427,6 +438,7 @@ COPY szl_budget_router.py ./szl_budget_router.py
 # matrix-health pre-flight reports the module missing. serve.py + szl_governance_gateway
 # import it try/except-guarded. LOCKED-proven stays EXACTLY 5; Lambda=Conjecture 1.
 COPY szl_wave910_proofs.py ./szl_wave910_proofs.py
+COPY szl_evidence_research.py ./szl_evidence_research.py
 
 CMD ["python", "serve.py"]
 
