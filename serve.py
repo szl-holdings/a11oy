@@ -3475,7 +3475,7 @@ except Exception as _wh_sc_e:  # pragma: no cover - additive, defensive
 # being shadowed by the proxy (which would 503 when the Node backend is absent).
 # try/except-guarded: can NEVER take down the host app. Honest by construction —
 # an unreachable organ is reported 'unreachable', never fabricated.
-# Λ = Conjecture 1; proved=5; SLSA L2 organ images (not bundle); no L3/FedRAMP.
+# Λ = Conjecture 1; proved=5; SLSA L1 honest organ images (not bundle); no L3/FedRAMP.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # ===========================================================================
 try:
