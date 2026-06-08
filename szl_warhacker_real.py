@@ -14,7 +14,7 @@ produces REAL output on REAL wiring, demoable live on Hugging Face:
                          record. Re-verify on-screen: PASS, and tamper -> FAIL.
   2. Deploy Posture   -> live GHCR check of the real signed a11oy.uds bundle
                          (cosign .sig, SBOM, UDS Package CR, deploy command,
-                         honest SLSA L1+L2).
+                         honest SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap).
   3. Mission Health   -> real-time readiness dashboard computed in-image over a
                          real personnel-readiness record set (deterministic).
   4. Trajectory Picture-> ingest ANY pasted trajectory/orbit rows -> normalized,
@@ -39,7 +39,7 @@ DESIGN / COORDINATION
   overwriting their /api/<ns>/... routes.
 - Purely ADDITIVE. try/except guarded by the caller. No organ codenames
   (amaru/sentra/rosie/killinchu) are ever emitted. Lambda = Conjecture 1
-  (advisory). SLSA L1 honest + L2 attested on organ images (NOT bundle, NOT L3).
+  (advisory). SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap on organ images (NOT bundle, NOT L3).
 """
 from __future__ import annotations
 
@@ -757,7 +757,7 @@ def register(app, sign_fn, verify_fn=None):
                  "blurb": "The whole governed decision running on the device itself, with no connection required."},
             ],
             "lambda_status": "Conjecture 1 (advisory, not a pass/fail oracle)",
-            "slsa": "Build L2 on the organ images (honest L1 + L2 attested); not the bundle, not L3.",
+            "slsa": "Build L2 on the organ images (honest SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap); not the bundle, not L3.",
             "loop_reused": _LOOP_OK,
         })
 
