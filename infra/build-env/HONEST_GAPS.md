@@ -38,7 +38,7 @@
 
 ## 3. SLSA: L1 honest, L2 only where provenance exists
 
-- Per doctrine: **SLSA L1 honest + L2 attested**. We are **not** Iron Bank,
+- Per doctrine: **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap**. We are **not** Iron Bank,
   **not** FedRAMP, **not** CMMC L2+.
 - `verify/cosign-init.sh` runs `slsa-verifier verify-image` against every organ.
   Where a provenance attestation exists, it is enforced (L2). Where none exists,
