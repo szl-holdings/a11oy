@@ -36,6 +36,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -53,7 +54,7 @@ UA = {"User-Agent": "hf-module-drift-check/1.0"}
 # --------------------------------------------------------------------------- #
 # HTTP helpers (stdlib, with retry + redirect following)
 # --------------------------------------------------------------------------- #
-def _http(url, headers=None, want_headers=False, retries=4):
+def _http(url, headers=None, want_headers=False, retries=7):
     last = None
     hdrs = dict(UA)
     if headers:
@@ -73,9 +74,19 @@ def _http(url, headers=None, want_headers=False, retries=4):
                     return e.code, b"", dict(e.headers or {})
                 return e.code, b"", None
             last = e
+            # 429 / 5xx are transient (HF rate-limits hard when sibling repos
+            # poll at once). Honor Retry-After, else exponential backoff + jitter.
+            if e.code == 429 or 500 <= e.code < 600:
+                ra = (e.headers or {}).get("Retry-After")
+                try:
+                    delay = float(ra) if ra else min(60.0, 2.0 * (2 ** attempt))
+                except ValueError:
+                    delay = min(60.0, 2.0 * (2 ** attempt))
+                time.sleep(delay + random.uniform(0, 1.5))
+                continue
         except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
             last = e
-        time.sleep(1.5 * (attempt + 1))
+        time.sleep(1.5 * (attempt + 1) + random.uniform(0, 0.75))
     raise RuntimeError(f"GET failed after {retries} tries: {url}: {last}")
 
 
