@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>Operator — Live Infrastructure Topology · a11oy</title>
+<style>
+  :root { --ground:#0a0a0a; --panel:rgba(12,12,12,0.9); --gold:#c9b787; --gold-bright:#d6c69a; --cream:#f5f5f5; --paragraph:#9a9a9a; --live:#5a8a6e; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--ground);
+    font-family:'Space Grotesk',Georgia,system-ui,sans-serif; color:var(--cream); -webkit-font-smoothing:antialiased; }
+  #scene { position:fixed; inset:0; }
+  .mono { font-family:'JetBrains Mono',ui-monospace,Menlo,monospace; }
+  .pend { color:#c7a14a; font-weight:700; }
+
+  #panel { position:fixed; top:14px; left:14px; z-index:10; background:var(--panel);
+    border:1px solid rgba(201,183,135,0.28); border-radius:12px; padding:13px 16px;
+    backdrop-filter:blur(9px); font-size:13px; min-width:252px; }
+  #panel h1 { font-size:13px; margin:0 0 4px; letter-spacing:1.2px; color:var(--gold); text-transform:uppercase; }
+  #panel .desc { font-size:10.5px; color:var(--paragraph); margin:0 0 9px; line-height:1.4; }
+  #panel .row { display:flex; justify-content:space-between; padding:2px 0; font-size:12px; }
+  #panel .row b { color:var(--cream); font-variant-numeric:tabular-nums; }
+  #panel .sub { font-size:10px; color:#777; margin-top:7px; line-height:1.4; }
+
+  #controls { position:fixed; top:14px; right:14px; z-index:10; background:var(--panel);
+    border:1px solid rgba(201,183,135,0.28); border-radius:12px; padding:11px 13px; backdrop-filter:blur(9px); }
+  button { background:#1a1a16; color:var(--cream); border:1px solid rgba(201,183,135,0.35);
+    border-radius:8px; padding:7px 12px; font-size:12px; cursor:pointer; transition:.15s; font-family:inherit; }
+  button:hover { background:#242018; }
+
+  #status { position:fixed; bottom:14px; left:14px; z-index:10; background:var(--panel);
+    border:1px solid rgba(201,183,135,0.2); border-radius:12px; padding:11px 14px; backdrop-filter:blur(9px); width:280px; }
+  #status h3 { font-size:10px; margin:0 0 7px; letter-spacing:1px; color:var(--paragraph); text-transform:uppercase; }
+  .orow { display:flex; align-items:center; gap:8px; font-size:11.5px; padding:3px 0; }
+  .od { width:9px; height:9px; border-radius:50%; flex:none; }
+  .od.up { background:#5a8a6e; box-shadow:0 0 7px #5a8a6e; }
+  .od.warn { background:#c7a14a; }
+  .od.down { background:#9a4a4a; }
+  .ot { margin-left:auto; opacity:.55; font-size:9.5px; }
+  .hint { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:9; font-size:10px; opacity:.4; }
+  a { color:var(--gold-bright); }
+</style>
+</head>
+<body>
+  <div id="scene"></div>
+
+  <div id="panel">
+    <h1>Operator · Infrastructure</h1>
+    <p class="desc">Live topology of the governed platform: the Operator core orchestrating the trust gate, reasoning cortex, receipt bus, telemetry, service mesh, and fleet C2.</p>
+    <div class="row"><span>Clock (UTC)</span><b id="opClock" class="mono">—</b></div>
+    <div class="row"><span>Topology source</span><b id="opMode" class="pend">PENDING</b></div>
+    <div class="row"><span>Service nodes</span><b id="opNodes">—</b></div>
+    <div class="row"><span>Healthy now</span><b id="opAlive">—</b></div>
+    <div class="row"><span>FPS</span><b id="opFps" class="mono">—</b></div>
+    <p class="sub">Doctrine v11 · locked-proven = 5 {F1,F11,F12,F18,F19} · Λ = Conjecture 1 · 0 runtime CDN (Three.js vendored locally).</p>
+  </div>
+
+  <div id="controls">
+    <button id="btnReset">Reset view</button>
+  </div>
+
+  <div id="status">
+    <h3>Governed-service health</h3>
+    <div id="opList"><div class="orow"><span class="od warn"></span><span class="pend">PENDING — loading topology…</span></div></div>
+  </div>
+
+  <div class="hint">drag = orbit · scroll = zoom · live wires flow when a service is healthy</div>
+
+  <script type="importmap">
+  { "imports": { "three": "/hero/vendor3d/three.module.min.js", "three/addons/": "/hero/vendor3d/" } }
+  </script>
+  <script type="module" src="/operator-organ/app.js"></script>
+</body>
+</html>

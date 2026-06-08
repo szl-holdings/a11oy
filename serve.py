@@ -5428,6 +5428,49 @@ except Exception as _dev2_e:
 # END: a11oy dev2 VERTICAL PACKS layer
 # ============================================================================
 
+# ============================================================================
+# BEGIN: a11oy dev3 OPERATOR ORGAN layer (ingested 3D infra-viz capability)
+# ADDITIVE. Path namespace /operator-organ — no overlap with dev1/dev2 blocks.
+# Routes are moved to the FRONT of the router inside register() so they win
+# over the proxy + SPA catch-alls. 0 runtime CDN (Three.js vendored locally).
+# ============================================================================
+try:
+    import a11oy_operator_organ as _a11oy_operator
+    import sys as _op_sys
+    _op_status = _a11oy_operator.register(app, ns="a11oy")
+    print(f"[a11oy] dev3 Operator organ registered: {_op_status}", file=_op_sys.stderr)
+    _A11OY_DEV3_DIAG = {"status": "ok", "registered": _op_status}
+except Exception as _op_e:
+    import sys as _op_sys, traceback as _op_tb
+    print(f"[a11oy] dev3 Operator organ FAILED (non-fatal): {_op_e!r}", file=_op_sys.stderr)
+    _op_tb.print_exc(file=_op_sys.stderr)
+    _A11OY_DEV3_DIAG = {"status": "FAILED", "error": repr(_op_e)}
+# ============================================================================
+# END: a11oy dev3 OPERATOR ORGAN layer
+# ============================================================================
+
+# ============================================================================
+# BEGIN: a11oy dev3 HF ASSETS INSTILL layer (Knowledge/Brain/Evidence/RAG)
+# ADDITIVE. Namespace /api/a11oy/v1/assets/* — no overlap with dev1/dev2 blocks.
+# Server-side fetch of REAL SZLHOLDINGS/* dataset resolve URLs; honest
+# live|cached|pending degrade; routes moved to FRONT to win over SPA catch-all.
+# 0 runtime browser CDN (this is a server-side fetch, not a browser CDN load).
+# ============================================================================
+try:
+    import a11oy_hf_assets as _a11oy_hf_assets
+    import sys as _hfa_sys
+    _hfa_status = _a11oy_hf_assets.register(app, ns="a11oy")
+    print(f"[a11oy] dev3 HF assets instill registered: {_hfa_status}", file=_hfa_sys.stderr)
+    _A11OY_DEV3_HFA_DIAG = {"status": "ok", "registered": _hfa_status}
+except Exception as _hfa_e:
+    import sys as _hfa_sys, traceback as _hfa_tb
+    print(f"[a11oy] dev3 HF assets instill FAILED (non-fatal): {_hfa_e!r}", file=_hfa_sys.stderr)
+    _hfa_tb.print_exc(file=_hfa_sys.stderr)
+    _A11OY_DEV3_HFA_DIAG = {"status": "FAILED", "error": repr(_hfa_e)}
+# ============================================================================
+# END: a11oy dev3 HF ASSETS INSTILL layer
+# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn

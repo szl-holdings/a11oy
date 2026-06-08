@@ -76,6 +76,11 @@ COPY serve.py ./serve.py
 # ES-module Three.js r160 (MIT) vendored locally — NO CDN. Doctrine v11 LOCKED.
 COPY cathedral.html ./cathedral.html
 COPY static/a11oy_cathedral.js ./static/a11oy_cathedral.js
+# Operator organ (Dev3) — ingested 3D infra-viz, vendored-three (0 CDN)
+COPY static/a11oy_operator_organ.js ./static/a11oy_operator_organ.js
+COPY a11oy_operator_organ.py ./a11oy_operator_organ.py
+COPY a11oy_hf_assets.py ./a11oy_hf_assets.py
+# (pages/operator_organ.html is copied below via `COPY pages/ ./pages/`)
 COPY static/vendor3d/three.module.min.js ./static/vendor3d/three.module.min.js
 COPY static/vendor3d/OrbitControls.js ./static/vendor3d/OrbitControls.js
 COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
