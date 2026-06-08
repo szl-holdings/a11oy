@@ -22,7 +22,7 @@ chain, mechanism truthfulness, and sim-to-real doctrine transfer.
   counterexample and a 13-paper literature review.
 - **Cauchy_ND uniqueness chain — partial closure (in review, PRs #173/#174/#175).**
 - **VCG truthfulness proven on branch (PR #172).**
-- **SLSA L2 achieved** — 5/5 GHCR images verified via `slsa-verifier` (L1 + L2; **NOT L3**).
+- **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap** — 5/5 GHCR images verified via `slsa-verifier` (L1 + L2; **NOT L3**).
 - **Innovation Rounds 10–11** — physics, quantum, CS, crypto, distsys frontier formalizations
   (in review); formula frontier in flight.
 - **Sim-to-Real doctrine-transfer benchmark** — Walrus parallel, measured mean α-gap **0.10**.
@@ -32,7 +32,7 @@ chain, mechanism truthfulness, and sim-to-real doctrine transfer.
 - The **Λ-aggregator is Conjecture 1 — NOT a theorem.** The uniqueness chain is complete only when
   every Cauchy_ND sorry closes on `main`; it has not.
 - **A5 is a structure field, not a new axiom.** Unique-axiom count stays **14**.
-- **SLSA L1 + L2 attested; NOT L3.**
+- **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap; NOT L3.**
 - In-review PRs are labeled as such and never presented as landed theorems.
 
 ## Doctrine v11 (LOCKED @ `c7c0ba17`)
