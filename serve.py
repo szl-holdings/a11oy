@@ -5429,6 +5429,28 @@ except Exception as _dev2_e:
 # ============================================================================
 
 # ============================================================================
+# BEGIN: a11oy DEV-A DEEP FEEDS layer (RealEstate 5 + Finance 5, 10 tabs)
+# ADDITIVE. Path namespace /api/a11oy/v1/deva — no overlap with dev1 (/v1/wow),
+# dev2 (/v1/vert), or dev3 (/operator-organ). Routes are FRONT-MOVED inside
+# register() so they win over the /api proxy + SPA catch-alls. 0 runtime CDN.
+# Reuses a11oy_vertical_feeds governed_turn/_ledger when present (honest degrade).
+# ============================================================================
+try:
+    import a11oy_deva_feeds as _a11oy_deva
+    import sys as _deva_sys
+    _deva_status = _a11oy_deva.register(app, ns="a11oy")
+    print(f"[a11oy] devA deep feeds registered: {_deva_status}", file=_deva_sys.stderr)
+    _A11OY_DEVA_DIAG = {"status": "ok", "registered": _deva_status}
+except Exception as _deva_e:
+    import sys as _deva_sys, traceback as _deva_tb
+    print(f"[a11oy] devA deep feeds FAILED (non-fatal): {_deva_e!r}", file=_deva_sys.stderr)
+    _deva_tb.print_exc(file=_deva_sys.stderr)
+    _A11OY_DEVA_DIAG = {"status": "FAILED", "error": repr(_deva_e)}
+# ============================================================================
+# END: a11oy DEV-A DEEP FEEDS layer
+# ============================================================================
+
+# ============================================================================
 # BEGIN: a11oy dev3 OPERATOR ORGAN layer (ingested 3D infra-viz capability)
 # ADDITIVE. Path namespace /operator-organ — no overlap with dev1/dev2 blocks.
 # Routes are moved to the FRONT of the router inside register() so they win
