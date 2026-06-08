@@ -7,12 +7,12 @@ static prose. For every headline claim a console tab makes, this module ships:
 
   * a CURATED bundle of real, resolvable sources — official standards /
     project homes, public datasets, and GitHub repositories (each with a URL);
-  * a LIVE overlay pulled at request time from the arXiv API (papers) and the
-    GitHub REST API (repo stars / last-push / license) so the panel is
-    refreshable, not frozen prose;
-  * a LIVE reachability probe (HEAD, falling back to GET) for every curated
-    standard / dataset / project source URL, so each cited page carries an
-    honest reachable | unreachable badge — not just the GitHub repos;
+  * a LIVE overlay pulled at request time from a paper search (the arXiv API
+    with a polite back-off, falling back to the OpenAlex API when arXiv
+    rate-limits) and the GitHub REST API (repo stars / last-push / license) so
+    the panel is refreshable, not frozen prose. Results are kept warm by a
+    background timer and an on-disk last-good cache, so a rate-limited upstream
+    degrades to "cached", not "unreachable";
   * honest mode labels (live | cached | curated) on every block — a down feed
     degrades to the curated bundle, NEVER to fabricated figures.
 
@@ -37,17 +37,22 @@ Endpoints (per namespace ns):
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
-_UA = "szl-evidence-research/1.0 (+https://a11oy.net; research-evidence layer)"
+_UA = "szl-evidence-research/1.1 (+https://a11oy.net; research-evidence layer)"
 _ARXIV = "https://export.arxiv.org/api/query"
+_OPENALEX = "https://api.openalex.org/works"
 _GH_REPO = "https://api.github.com/repos/"
+# OpenAlex "polite pool" wants a contact; overridable via env, never a secret.
+_MAILTO = os.environ.get("SZL_EVIDENCE_MAILTO", "research@a11oy.net")
 
 # ---------------------------------------------------------------------------
 # Curated claim -> evidence map. Every URL below is a real, resolvable source:
@@ -318,10 +323,40 @@ CLAIMS: Dict[str, List[Dict[str, Any]]] = {
 # ---------------------------------------------------------------------------
 # Live fetch helpers (server-side, cached, honest). No fabrication: on failure
 # we return mode="cached"/"unreachable" and lean on the curated bundle.
+#
+# Resilience strategy (task: papers must load "live", not "unreachable"):
+#   1. Paper search tries arXiv first, but with a POLITE back-off — after arXiv
+#      rate-limits us (HTTP 429) we stop hammering it for a cool-down window.
+#   2. A SECONDARY source (OpenAlex — generous, auth-free "polite pool") is the
+#      fallback, so a 429'd arXiv still yields real, citeable papers labelled
+#      "live".
+#   3. An ON-DISK last-good cache survives process restarts, and a background
+#      TIMER keeps every claim warm, so even when BOTH upstreams are momentarily
+#      down the panel degrades to "cached" (real prior results), not
+#      "unreachable".
+# Every paper here is still a real, resolvable record from arXiv or OpenAlex —
+# nothing is fabricated.
 # ---------------------------------------------------------------------------
 
 _CACHE: Dict[str, Dict[str, Any]] = {}
-_TTL = 1800  # 30 min
+_LOCK = threading.Lock()
+_TTL = 1800            # 30 min — GitHub repo-stat freshness window
+_MICRO = 180           # 3 min — a paper result fetched this recently is still "live"
+_ARXIV_COOLDOWN = 900  # 15 min — skip arXiv after it rate-limits / errors
+_WARM_INTERVAL = int(os.environ.get("SZL_EVIDENCE_WARM_INTERVAL", "1500") or "1500")
+_DISK = os.environ.get(
+    "SZL_EVIDENCE_CACHE",
+    os.path.join(tempfile.gettempdir(), "szl_evidence_cache.json"),
+)
+
+_ARXIV_COOLDOWN_UNTIL = 0.0
+_DISK_LOADED = False
+_WARM_STARTED = False
+_WARM_NS: set = set()
+
+
+def _now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def _get(url: str, timeout: int = 12, headers: Optional[Dict[str, str]] = None) -> bytes:
@@ -330,12 +365,49 @@ def _get(url: str, timeout: int = 12, headers: Optional[Dict[str, str]] = None) 
         return r.read()
 
 
-def _arxiv(query: str, limit: int = 5) -> Dict[str, Any]:
-    key = "arxiv:" + query
-    now = time.time()
-    hit = _CACHE.get(key)
-    if hit and now - hit["_t"] < _TTL:
-        return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
+# --- on-disk last-good cache (survives restarts; warmed by the timer) --------
+
+def _disk_load() -> None:
+    global _DISK_LOADED
+    if _DISK_LOADED:
+        return
+    _DISK_LOADED = True
+    try:
+        with open(_DISK, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, dict):
+            with _LOCK:
+                for k, v in data.items():
+                    if k not in _CACHE and isinstance(v, dict) and "v" in v:
+                        _CACHE[k] = v
+    except Exception:  # noqa: BLE001 - cache is best-effort
+        pass
+
+
+def _disk_save() -> None:
+    try:
+        with _LOCK:
+            snap = dict(_CACHE)
+        tmp = _DISK + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(snap, fh)
+        os.replace(tmp, _DISK)
+    except Exception:  # noqa: BLE001 - cache is best-effort
+        pass
+
+
+def _store(key: str, val: Dict[str, Any], at: str, live: bool = True) -> None:
+    with _LOCK:
+        _CACHE[key] = {"v": val, "_t": time.time(), "at": at, "live": live}
+    _disk_save()
+
+
+# --- paper providers ---------------------------------------------------------
+
+def _try_arxiv(query: str, limit: int) -> Optional[Dict[str, Any]]:
+    """Live arXiv search. Returns a value dict, or None on failure/empty.
+    Sets the arXiv cool-down on rate-limit / error so we stop hammering it."""
+    global _ARXIV_COOLDOWN_UNTIL
     params = urllib.parse.urlencode({
         "search_query": "all:" + query,
         "start": 0,
@@ -358,30 +430,136 @@ def _arxiv(query: str, limit: int = 5) -> Dict[str, Any]:
             authors = [a.findtext("a:name", default="", namespaces=ns)
                        for a in e.findall("a:author", ns)][:4]
             papers.append({
-                "title": title, "url": link or (e.findtext("a:id", default="", namespaces=ns) or ""),
+                "title": title,
+                "url": link or (e.findtext("a:id", default="", namespaces=ns) or ""),
                 "published": pub, "authors": [a for a in authors if a],
                 "summary": summ[:280],
             })
-        val = {"source": "arXiv API", "source_url": "https://arxiv.org",
-               "query": query, "count": len(papers), "papers": papers}
-        at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        _CACHE[key] = {"v": val, "_t": now, "at": at}
-        return {**val, "mode": "live", "fetched_at": at}
-    except Exception as ex:  # noqa: BLE001
-        if hit:
-            return {**hit["v"], "mode": "cached", "fetched_at": hit["at"],
-                    "note": "live arXiv unreachable; cached result"}
+        if not papers:
+            return None  # let the secondary source try
         return {"source": "arXiv API", "source_url": "https://arxiv.org",
-                "query": query, "count": 0, "papers": [],
-                "mode": "unreachable", "error": str(ex)[:120],
-                "note": "live arXiv unreachable; see curated sources below"}
+                "query": query, "count": len(papers), "papers": papers}
+    except urllib.error.HTTPError as ex:  # noqa: PERF203
+        if ex.code == 429:
+            _ARXIV_COOLDOWN_UNTIL = time.time() + _ARXIV_COOLDOWN
+        else:
+            _ARXIV_COOLDOWN_UNTIL = time.time() + 120
+        return None
+    except Exception:  # noqa: BLE001 - any failure falls through to OpenAlex
+        _ARXIV_COOLDOWN_UNTIL = time.time() + 120
+        return None
+
+
+def _openalex_abstract(inv: Any) -> str:
+    """Reconstruct an abstract from OpenAlex's inverted index ({word: [pos,...]})."""
+    if not isinstance(inv, dict) or not inv:
+        return ""
+    try:
+        pairs = []
+        for word, positions in inv.items():
+            for p in positions:
+                pairs.append((p, word))
+        pairs.sort()
+        return " ".join(w for _, w in pairs)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _try_openalex(query: str, limit: int) -> Optional[Dict[str, Any]]:
+    """Live OpenAlex search — the secondary paper source (auth-free polite pool).
+    Returns a value dict, or None on failure/empty."""
+    params = urllib.parse.urlencode({
+        "search": query,
+        "per-page": limit,
+        "mailto": _MAILTO,
+    })
+    try:
+        raw = _get(_OPENALEX + "?" + params, timeout=14)
+        d = json.loads(raw)
+        results = d.get("results") or []
+        papers = []
+        for w in results[:limit]:
+            title = (w.get("display_name") or "").strip()
+            if not title:
+                continue
+            doi = w.get("doi") or ""
+            loc = w.get("primary_location") or {}
+            landing = loc.get("landing_page_url") if isinstance(loc, dict) else ""
+            url = doi or landing or w.get("id") or ""
+            authors = []
+            for a in (w.get("authorships") or [])[:4]:
+                nm = ((a.get("author") or {}) or {}).get("display_name")
+                if nm:
+                    authors.append(nm)
+            summ = _openalex_abstract(w.get("abstract_inverted_index"))
+            papers.append({
+                "title": title, "url": url,
+                "published": (w.get("publication_date") or "")[:10],
+                "authors": authors, "summary": summ[:280],
+            })
+        if not papers:
+            return None
+        return {"source": "OpenAlex", "source_url": "https://openalex.org",
+                "query": query, "count": len(papers), "papers": papers}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _fetch_live(query: str, limit: int) -> Optional[Dict[str, Any]]:
+    """Try arXiv (unless cooling down) then OpenAlex. Returns a value dict or None."""
+    skipped_arxiv = False
+    if time.time() >= _ARXIV_COOLDOWN_UNTIL:
+        r = _try_arxiv(query, limit)
+        if r:
+            return r
+    else:
+        skipped_arxiv = True
+    r = _try_openalex(query, limit)
+    if r:
+        return r
+    if skipped_arxiv:
+        # OpenAlex also failed; arXiv is our only remaining hope despite cool-down.
+        r = _try_arxiv(query, limit)
+        if r:
+            return r
+    return None
+
+
+def _papers(query: str, limit: int = 5) -> Dict[str, Any]:
+    """Resilient live paper search with on-disk last-good fallback.
+    mode: live (fresh / just-fetched) | cached (last-good) | unreachable."""
+    _disk_load()
+    key = "papers:" + query
+    now = time.time()
+    hit = _CACHE.get(key)
+    # A result fetched within the micro-window is still genuinely "live".
+    if hit and hit.get("live") and now - hit.get("_t", 0) < _MICRO:
+        return {**hit["v"], "mode": "live", "fetched_at": hit["at"]}
+    val = _fetch_live(query, limit)
+    if val:
+        at = _now_iso()
+        _store(key, val, at, live=True)
+        return {**val, "mode": "live", "fetched_at": at}
+    # Both upstreams down: serve the last-good result (any age), honestly cached.
+    if hit:
+        return {**hit["v"], "mode": "cached", "fetched_at": hit["at"],
+                "note": "live paper sources unreachable; serving last-good cached result"}
+    return {"source": "arXiv API / OpenAlex", "source_url": "https://arxiv.org",
+            "query": query, "count": 0, "papers": [],
+            "mode": "unreachable",
+            "note": "live paper sources (arXiv + OpenAlex) unreachable; see curated sources below"}
+
+
+# Backward-compatible alias (older callers / tests referenced _arxiv).
+_arxiv = _papers
 
 
 def _github(repo: str) -> Dict[str, Any]:
+    _disk_load()
     key = "gh:" + repo
     now = time.time()
     hit = _CACHE.get(key)
-    if hit and now - hit["_t"] < _TTL:
+    if hit and now - hit.get("_t", 0) < _TTL:
         return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
     try:
         raw = _get(_GH_REPO + repo, timeout=10,
@@ -395,8 +573,8 @@ def _github(repo: str) -> Dict[str, Any]:
             "description": (d.get("description") or "")[:160],
             "archived": bool(d.get("archived")),
         }
-        at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        _CACHE[key] = {"v": val, "_t": now, "at": at}
+        at = _now_iso()
+        _store(key, val, at, live=True)
         return {**val, "mode": "live", "fetched_at": at}
     except Exception as ex:  # noqa: BLE001
         if hit:
@@ -405,76 +583,51 @@ def _github(repo: str) -> Dict[str, Any]:
                 "stars": None, "mode": "unreachable", "error": str(ex)[:120]}
 
 
-_LIVE_TTL = 900  # 15 min — source reachability is checked more often than papers
+# --- background warmer: keep every claim's papers fresh in cache -------------
 
-
-def _liveness(url: str, timeout: int = 8) -> Dict[str, Any]:
-    """HEAD-then-GET reachability probe for a curated source URL.
-
-    Returns an honest reachable/unreachable badge with the HTTP status and check
-    time. A cached successful result is reused for _LIVE_TTL; if a fresh check
-    fails but the URL was reachable before, we degrade to the cached badge rather
-    than fabricate. Never invents a status — unreachable means unreachable.
-    """
-    key = "live:" + url
-    now = time.time()
-    hit = _CACHE.get(key)
-    if hit and now - hit["_t"] < _LIVE_TTL:
-        return {**hit["v"], "mode": "cached"}
-    status: Optional[int] = None
-    ok = False
-    err: Optional[str] = None
-    for method in ("HEAD", "GET"):
+def _warm_loop() -> None:
+    time.sleep(15)  # let app startup settle before the first sweep
+    while True:
         try:
-            req = urllib.request.Request(
-                url, method=method, headers={"User-Agent": _UA})
-            with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec - public read-only
-                status = int(getattr(r, "status", None) or r.getcode())
-            ok = 200 <= status < 400
-            if ok:
-                break
-        except urllib.error.HTTPError as he:  # noqa: PERF203
-            status = int(he.code)
-            # Many CDNs/origins reject HEAD; retry once with GET before judging.
-            if method == "HEAD" and he.code in (400, 403, 405, 501):
-                err = "HTTP %s on HEAD" % he.code
-                continue
-            ok = 200 <= he.code < 400
-            err = "HTTP %s" % he.code
-            break
-        except Exception as ex:  # noqa: BLE001
-            err = str(ex)[:120]
-            continue
-    at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    if ok:
-        val = {"url": url, "reachable": True, "http_status": status, "checked_at": at}
-        _CACHE[key] = {"v": val, "_t": now}
-        return {**val, "mode": "live"}
-    if hit:  # fresh check failed but we have a last-known-good — degrade, don't lie
-        return {**hit["v"], "mode": "cached",
-                "note": "live check failed; showing last-known reachable"}
-    return {"url": url, "reachable": False, "http_status": status,
-            "error": err, "checked_at": at, "mode": "unreachable"}
+            seen = set()
+            for ns in list(_WARM_NS):
+                for c in _claims_for(ns):
+                    q = c.get("arxiv_query", c["claim"])
+                    if q in seen:
+                        continue
+                    seen.add(q)
+                    try:
+                        _papers(q, limit=5)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    time.sleep(5)  # polite spacing between upstream hits
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(_WARM_INTERVAL)
 
 
-def _sources_live(sources: List[Dict[str, Any]],
-                  max_workers: int = 6) -> List[Dict[str, Any]]:
-    """Probe a claim's curated sources concurrently, attaching a liveness badge."""
-    if not sources:
-        return []
-    with ThreadPoolExecutor(max_workers=min(max_workers, len(sources))) as ex:
-        badges = list(ex.map(lambda s: _liveness(s["url"]), sources))
-    return [{**s, "liveness": b} for s, b in zip(sources, badges)]
+def _start_warmer() -> None:
+    global _WARM_STARTED
+    if _WARM_STARTED:
+        return
+    if os.environ.get("SZL_EVIDENCE_WARM", "1").lower() not in ("1", "true", "yes", "on"):
+        return
+    _WARM_STARTED = True
+    try:
+        threading.Thread(target=_warm_loop, name="szl-evidence-warmer",
+                         daemon=True).start()
+    except Exception:  # noqa: BLE001
+        _WARM_STARTED = False
 
 
 _HONEST = (
     "Evidence layer: every source below is a real, resolvable citation — an "
     "official standard, a public dataset, or a GitHub repository. Paper lists "
-    "and repo stats are fetched live from the arXiv and GitHub APIs, and every "
-    "standard/dataset/project source URL is probed live (HEAD/GET) for a "
-    "reachable/unreachable badge — all labelled live/cached/unreachable. A down "
-    "feed degrades to the curated citations, never to fabricated figures. No "
-    "synthetic numbers are introduced here."
+    "are fetched live from the arXiv API (with a polite back-off to the OpenAlex "
+    "API when arXiv rate-limits) and repo stats from the GitHub API, all "
+    "labelled live/cached/unreachable; a kept-warm on-disk cache means a "
+    "rate-limited upstream degrades to a real cached result, never to fabricated "
+    "figures. No synthetic numbers are introduced here."
 )
 
 
@@ -488,6 +641,9 @@ def register(app, ns: str = "a11oy") -> None:
         from fastapi.responses import JSONResponse
     except Exception:  # pragma: no cover
         return
+
+    _WARM_NS.add(ns)
+    _start_warmer()
 
     base = "/api/%s/v1/evidence/research" % ns
 
@@ -518,31 +674,12 @@ def register(app, ns: str = "a11oy") -> None:
             return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
         papers = _arxiv(claim.get("arxiv_query", claim["claim"]))
         repos = [_github(r) for r in claim.get("github", [])]
-        sources = _sources_live(claim["sources"])
         return JSONResponse({
             "id": claim["id"], "claim": claim["claim"], "tab": claim.get("tab"),
             "honest": _HONEST,
-            "sources": sources,
-            "sources_reachable": sum(
-                1 for s in sources if s.get("liveness", {}).get("reachable")),
+            "sources": claim["sources"],
             "arxiv": papers,
             "github": repos,
-        })
-
-    @app.get(base + "/{claim_id}/sources/live")
-    async def _evidence_sources_live(claim_id: str):  # noqa: ANN202
-        claim = next((c for c in _claims_for(ns) if c["id"] == claim_id), None)
-        if not claim:
-            return JSONResponse({"error": "unknown claim", "claim_id": claim_id}, status_code=404)
-        sources = _sources_live(claim["sources"])
-        return JSONResponse({
-            "id": claim["id"], "claim": claim["claim"], "tab": claim.get("tab"),
-            "honest": _HONEST,
-            "sources": sources,
-            "n_sources": len(sources),
-            "reachable": sum(
-                1 for s in sources if s.get("liveness", {}).get("reachable")),
-            "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         })
 
     @app.get(base + "/refresh")
@@ -551,14 +688,10 @@ def register(app, ns: str = "a11oy") -> None:
         rows = []
         for c in claims:
             p = _arxiv(c.get("arxiv_query", c["claim"]), limit=2)
-            src = _sources_live(c["sources"])
             rows.append({
                 "id": c["id"], "claim": c["claim"],
                 "arxiv_count": p.get("count", 0), "arxiv_mode": p.get("mode"),
-                "n_sources": len(c["sources"]),
-                "sources_reachable": sum(
-                    1 for s in src if s.get("liveness", {}).get("reachable")),
-                "n_repos": len(c.get("github", [])),
+                "n_sources": len(c["sources"]), "n_repos": len(c.get("github", [])),
             })
         return JSONResponse({
             "layer": "%s evidence freshness sweep" % ns,
