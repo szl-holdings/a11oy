@@ -1,6 +1,6 @@
 # a11oy — Developer Onboarding
 
-> **Doctrine v11 LOCKED** · 749 declarations · 14 axioms · 163 sorries · Λ = Conjecture 1 · SLSA L1 + L2
+> **Doctrine v11 LOCKED** · 749 declarations · 14 axioms · 163 sorries · Λ = Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap
 
 This document is the single entry point for a new developer joining a11oy.
 Read it top-to-bottom once; after that, `serve.py` + `szl_dsse.py` are the
