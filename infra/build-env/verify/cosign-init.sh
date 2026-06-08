@@ -8,7 +8,7 @@
 #   2. As the in-pod init container logic (mirrored inline in manifests/organs/*.yaml):
 #      the pod fails to start if cosign verify fails.
 #
-# Doctrine: SLSA L1 honest + L2 attested. We DO NOT fake an L2 attestation. If an
+# Doctrine: SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap. We DO NOT fake an L2 attestation. If an
 # image has no provenance, we say so (L1 honest) rather than printing a green check.
 set -uo pipefail
 
@@ -58,7 +58,7 @@ verify_one() {
   # 2) slsa-verifier — L2 attested where present, L1 honest otherwise.
   if slsa-verifier verify-image "$image" \
        --source-uri "github.com/szl-holdings/${organ}" >/tmp/slsa.${organ}.out 2>&1; then
-    green "   [OK]   SLSA L2 provenance verified"
+    green "   [OK]   SLSA L1 honest · L2 build-attested (Rekor) Provenance verified"
   elif grep -qi "no matching\|no provenance\|no attestation" /tmp/slsa.${organ}.out; then
     yellow "   [L1]   no SLSA provenance attestation — honest L1 (cosign sig still valid)"
   else
