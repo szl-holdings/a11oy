@@ -1,0 +1,215 @@
+{
+  "copy_sources": 123,
+  "error_count": 0,
+  "files_compared": 239,
+  "findings": [
+    {
+      "ahead": "huggingface",
+      "github_date": "2026-06-06T08:18:13Z",
+      "github_sha": "2f92220850e842f114d2931e9a6c96e08c45b203",
+      "hf_date": "2026-06-06T16:24:26.000Z",
+      "hf_oid": "fdcd595b0f1f577853ade6ebe14927d59979fd1e",
+      "kind": "drift",
+      "path": "_vendor_blobs.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-06T08:18:13Z | hf 2026-06-06T16:24:26.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "huggingface",
+      "github_date": "2026-06-01T11:41:09Z",
+      "github_sha": "500177495e02146e89795c86f6a316ee67aafc51",
+      "hf_date": "2026-06-07T03:46:56.000Z",
+      "hf_oid": "3b06138d280a1521863a4a59ebc21989c36b31e2",
+      "kind": "drift",
+      "path": "a11oy_code.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-01T11:41:09Z | hf 2026-06-07T03:46:56.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "huggingface",
+      "github_date": "2026-06-03T04:50:21Z",
+      "github_sha": "bbc08bc1d1b52f5764c5552aedd4d27ea5cb8360",
+      "hf_date": "2026-06-06T01:23:03.000Z",
+      "hf_oid": "dd3b8c7a8b54c4b47196fe785fdb9f06393bccf8",
+      "kind": "drift",
+      "path": "a11oy_frontier_patch.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-03T04:50:21Z | hf 2026-06-06T01:23:03.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "huggingface",
+      "github_date": "2026-06-03T14:37:36Z",
+      "github_sha": "300b2efea968c6b02b827668589708bf1e4795dd",
+      "hf_date": "2026-06-08T06:34:06.000Z",
+      "hf_oid": "42098661727dbf5c71d5e3bcc80c3675d21dd798",
+      "kind": "drift",
+      "path": "a11oy_v4_formulas.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-03T14:37:36Z | hf 2026-06-08T06:34:06.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-08T03:51:13Z",
+      "github_sha": "c265045cb306a93b1c8d35115301e2921412ea11",
+      "hf_date": "2026-06-07T03:46:56.000Z",
+      "hf_oid": "86a56a5b0ab926063c5dc269ca39f39a7115dec6",
+      "kind": "drift",
+      "path": "a11oy_warhacker_obs.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:51:13Z | hf 2026-06-07T03:46:56.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "detail": "present on GitHub, MISSING on the live HF Space",
+      "kind": "missing-hf",
+      "path": "infra/receipts-samples/receipt_schema.json",
+      "reason": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "detail": "present on GitHub, MISSING on the live HF Space",
+      "kind": "missing-hf",
+      "path": "infra/receipts-samples/receipts_sample.jsonl.HARVEST_NOTE.txt",
+      "reason": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "detail": "present on GitHub, MISSING on the live HF Space",
+      "kind": "missing-hf",
+      "path": "infra/receipts-samples/span_schema.json",
+      "reason": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "detail": "present on GitHub, MISSING on the live HF Space",
+      "kind": "missing-hf",
+      "path": "packages/policy/src/gates/DualStreamRouting.lean",
+      "reason": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "detail": "present on GitHub, MISSING on the live HF Space",
+      "kind": "missing-hf",
+      "path": "packages/policy/src/gates/HierarchicalLinearization.lean",
+      "reason": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "detail": "present on GitHub, MISSING on the live HF Space",
+      "kind": "missing-hf",
+      "path": "packages/policy/src/gates/InternalFeedback.lean",
+      "reason": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-04T21:23:55Z",
+      "github_sha": "3958bb7b8684036b60d233ee9433c51dd67316d4",
+      "hf_date": "2026-06-04T17:42:50.000Z",
+      "hf_oid": "8079e2ee00c1f4ed50c6f28e76f412743aa81185",
+      "kind": "drift",
+      "path": "src/a11oy/__init__.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T21:23:55Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-08T08:45:00Z",
+      "github_sha": "9c5507b125c5b92702eebd5530142659c285f897",
+      "hf_date": "2026-06-07T18:29:51.000Z",
+      "hf_oid": "173c837f1ae19bee15824da1903bb790d3a219f7",
+      "kind": "drift",
+      "path": "static/a11oy_cathedral.js",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T08:45:00Z | hf 2026-06-07T18:29:51.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-08T03:52:02Z",
+      "github_sha": "9d496a505a35859e6f062190d5ad2cae77903f47",
+      "hf_date": "2026-06-04T17:44:37.000Z",
+      "hf_oid": "686fae0ac144fc419662c3f054619d6bb9f63b1c",
+      "kind": "drift",
+      "path": "szl_ayni_quorum.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:52:02Z | hf 2026-06-04T17:44:37.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "huggingface",
+      "github_date": "2026-06-04T19:30:03Z",
+      "github_sha": "22f8c2bf5ae11ece12b55d9de652baa234060d69",
+      "hf_date": "2026-06-07T14:19:30.000Z",
+      "hf_oid": "c5c3b5c7c120ea2c26a485be3072a94683094dfa",
+      "kind": "drift",
+      "path": "szl_be_hardening.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-04T19:30:03Z | hf 2026-06-07T14:19:30.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-04T19:30:03Z",
+      "github_sha": "08c0dc58cc6dc42e4de348a307f3911332f82dc9",
+      "hf_date": "2026-06-04T17:42:50.000Z",
+      "hf_oid": "d79ba530754c0a562904aa70747ea0c7a0e06db5",
+      "kind": "drift",
+      "path": "szl_dsse.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:30:03Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-08T03:51:10Z",
+      "github_sha": "7771cfd9b4696c011717dd0c22ca90f94c5990bc",
+      "hf_date": "2026-06-06T08:58:48.000Z",
+      "hf_oid": "c3de2dcb2352c78df10419c3af85b59818e2ac85",
+      "kind": "drift",
+      "path": "szl_elite_console.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:51:10Z | hf 2026-06-06T08:58:48.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-04T19:30:03Z",
+      "github_sha": "035287cfe2568f3d2de08b2451668b9ca39ad3d0",
+      "hf_date": "2026-06-04T17:42:50.000Z",
+      "hf_oid": "6563a486e2d4e394f16fe275319e547e316637d7",
+      "kind": "drift",
+      "path": "szl_khipu.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:30:03Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-04T21:23:55Z",
+      "github_sha": "3fd9355459391865614b2afe6c3af123c21ae8ff",
+      "hf_date": "2026-06-04T17:42:50.000Z",
+      "hf_oid": "ca44abc437241a2187164b3f2d1c7fd378b9f65f",
+      "kind": "drift",
+      "path": "szl_provenance.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T21:23:55Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    },
+    {
+      "ahead": "github",
+      "github_date": "2026-06-08T03:52:32Z",
+      "github_sha": "77dd43d592408fa1404517f3b4f4ea345a9d0421",
+      "hf_date": "2026-06-06T07:40:47.000Z",
+      "hf_oid": "410c1956b5eee6f5eef1bcf9cf5fcc40fbf95574",
+      "kind": "drift",
+      "path": "szl_warhacker_real.py",
+      "reason": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:52:32Z | hf 2026-06-06T07:40:47.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
+      "severity": "warn"
+    }
+  ],
+  "generated_utc": "2026-06-08T22:00:45Z",
+  "github_repo": "szl-holdings/a11oy",
+  "hf_repo": "SZLHOLDINGS/a11oy",
+  "ref": "main",
+  "schema": 1,
+  "warn_count": 20
+}
