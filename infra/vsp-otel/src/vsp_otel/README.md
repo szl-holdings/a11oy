@@ -78,7 +78,7 @@ Dockerfile                       # per-file COPY, minimal slim image
 
 ---
 
-*Doctrine v11 LOCKED — 749 / 14 / 163 · replay hash c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem) · SLSA L1 honest + L2 attested · per-file Dockerfile COPY · DCO. HONESTY OVER CHECKLIST.*
+*Doctrine v11 LOCKED — 749 / 14 / 163 · replay hash c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · per-file Dockerfile COPY · DCO. HONESTY OVER CHECKLIST.*
 
 *Signed-off-by: Yachay <yachay@szlholdings.ai>*
 *Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>*
