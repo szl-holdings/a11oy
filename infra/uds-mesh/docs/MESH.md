@@ -4,7 +4,7 @@
 # UDS-Mesh — architecture, wires, and honest gaps
 
 **Canonical home:** `szl-holdings/uds-mesh` (ADR-0001, ACCEPTED 2026-06-03).
-**Doctrine:** v11 LOCKED — 749/14/163 @ `c7c0ba17` · Λ = **Conjecture 1** (never a theorem) · SLSA L1 honest + L2 attested where `slsa-verifier` confirms · **HONESTY OVER CHECKLIST**.
+**Doctrine:** v11 LOCKED — 749/14/163 @ `c7c0ba17` · Λ = **Conjecture 1** (never a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap where `slsa-verifier` confirms · **HONESTY OVER CHECKLIST**.
 
 This document describes what is actually wired in `main` today, the protocol on each
 wire, the thesis-v22 formula behind each organ, and the boundaries that are **not** yet
@@ -146,7 +146,7 @@ substrate self-test **275 tests GREEN**.
 
 *License: Apache-2.0 · © 2026 Lutar, Stephen P. — SZL Holdings*
 
-Doctrine v11 LOCKED — 749/14/163 @ `c7c0ba17` · Λ = Conjecture 1 (never a theorem) · SLSA L1+L2 · HONESTY OVER CHECKLIST
+Doctrine v11 LOCKED — 749/14/163 @ `c7c0ba17` · Λ = Conjecture 1 (never a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · HONESTY OVER CHECKLIST
 
 Signed-off-by: stephenlutar2-hash <stephenlutar2-hash@users.noreply.github.com>
 Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
