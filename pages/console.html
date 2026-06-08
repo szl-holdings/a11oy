@@ -4914,14 +4914,26 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         if(opts.labels!==false){
           fg.nodeThreeObjectExtend(true).nodeThreeObject(function(n){
             var spr=window._labelSprite?window._labelSprite(n.name||n.id, n.color||GOLD):null;
-            if(spr){ var idx=(typeof n.__li==='number')?n.__li:(n.__li=(window._lblSeq=(window._lblSeq||0)+1)); spr.position.set(0,(idx%2?13:-13),0); }
+            if(spr){ var idx=(typeof n.__li==='number')?n.__li:(n.__li=(window._lblSeq=(window._lblSeq||0)+1)); var yo=(idx%4)*9-13; spr.position.set(0,yo,0); }
             return spr;
           });
         }
         if(opts.onNode) fg.onNodeClick(opts.onNode);
-        // framed fit: zoomToFit(600,60) after the force layout settles + fallbacks
+        // framed fit: zoomToFit(600,60) after the force layout settles + fallbacks.
+        // For SMALL graphs zoomToFit zooms in so tightly that labels collide, so we
+        // floor the camera distance (pull back) proportional to the node count so
+        // labels stay legible and nodes don't cluster on the centre/bottom edge.
         function fit(){ try{ fg.width(host.clientWidth).height(host.clientHeight);
-            if((fg.graphData().nodes||[]).length>0){ fg.zoomToFit(600,60); } }catch(e){} }
+            var nN=(fg.graphData().nodes||[]).length;
+            if(nN>0){ fg.zoomToFit(600,60);
+              // pull the camera back to a minimum distance for small graphs
+              setTimeout(function(){ try{
+                var cp=fg.cameraPosition(); var d=Math.sqrt(cp.x*cp.x+cp.y*cp.y+cp.z*cp.z);
+                var floor = nN<=4?260 : nN<=7?320 : nN<=12?380 : 0;
+                if(floor && d<floor){ var s=floor/(d||1);
+                  fg.cameraPosition({x:cp.x*s,y:cp.y*s,z:cp.z*s}, undefined, 600); }
+              }catch(e){} }, 50);
+            } }catch(e){} }
         try{ fg.onEngineStop(function(){ fit(); }); }catch(e){}
         setTimeout(function(){ try{fg.width(host.clientWidth).height(host.clientHeight);}catch(e){} },200);
         setTimeout(fit,900); setTimeout(fit,1700);
