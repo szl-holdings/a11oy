@@ -19,7 +19,7 @@ FastAPI if available; falls back to a stdlib http.server so the shim runs anywhe
 
 SPDX-License-Identifier: Apache-2.0
 Author: Yachay (CTO authority) · Built by Perplexity Computer Agent · SZL Holdings
-Doctrine v11 LOCKED — 749 / 14 / 163. SLSA L1+L2.
+Doctrine v11 LOCKED — 749 / 14 / 163. SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap.
 """
 from __future__ import annotations
 
