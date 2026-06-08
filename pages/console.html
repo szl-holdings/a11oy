@@ -360,12 +360,35 @@ function lineSpark(id,labels,data,color){mkChart(id,{type:'line',data:{labels,da
 function doughnut(id,labels,data,colors){mkChart(id,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#0a0a0a',borderWidth:2}]},
   options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{enabled:true}},responsive:true,maintainAspectRatio:false}});}
 let _fg=null;
+/* ===== FRAMING DOCTRINE §A — center & frame EVERY 3d-force-graph =====
+   The force simulation places nodes around the origin but the default camera
+   leaves them off-center / clustered at the canvas edge until the layout
+   settles. Fix: after graphData is set AND the engine reports it has stopped
+   (onEngineStop), call zoomToFit so ALL nodes are centered+framed; also a
+   belt-and-suspenders setTimeout fallback in case the engine never emits stop
+   (e.g. single-node graphs / very fast cooldown). Idempotent: a guard prevents
+   the fit from fighting the user once they manually orbit. */
+function _frameFG(fg,host,emptyMsg){
+  if(!fg||!host)return;
+  var _fitted=false;
+  function fit(){ if(_fitted)return; _fitted=true;
+    try{ fg.width(host.clientWidth).height(host.clientHeight);
+      var nc=(fg.graphData&&fg.graphData().nodes||[]).length;
+      if(nc>0){ fg.zoomToFit(700,60); }
+      else if(emptyMsg){ /* leave the canvas; loader paints its own empty-state */ }
+    }catch(e){} }
+  // primary: fit once the force layout settles
+  try{ fg.onEngineStop(function(){ fit(); }); }catch(e){}
+  // fallback: fit after a fixed settle window even if onEngineStop never fires
+  setTimeout(function(){ try{ fg.width(host.clientWidth).height(host.clientHeight); }catch(e){} }, 200);
+  setTimeout(function(){ fit(); }, 1500);
+}
 function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';
   try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
     .graphData({nodes,links}).nodeLabel('name').nodeColor(n=>n.color||TEAL).nodeVal(n=>n.val||4)
     .linkColor(()=>'rgba(201,183,135,0.45)').linkWidth(1.2).linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(()=>TEAL)
     .showNavInfo(false);
-  setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);}catch(e){}},300);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
+  _frameFG(_fg,host);}catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
 
 // ===== GENIUS VISUAL HELPERS (echarts / globe.gl / cytoscape / d3) =====
 const RED='#b06a5a',AMBER='#c9a05f';
@@ -446,7 +469,7 @@ function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGra
     .linkColor(()=>'rgba(95,179,163,0.55)').linkWidth(1).linkDirectionalParticles(1).linkDirectionalParticleSpeed(0.012).linkDirectionalParticleColor(()=>TEAL)
     .showNavInfo(false).cooldownTicks(opts.cooldown||120);
     if(opts.onNode)_fg.onNodeClick(opts.onNode);
-    setTimeout(()=>{try{_fg.width(host.clientWidth).height(host.clientHeight);_fg.zoomToFit&&_fg.zoomToFit(600);}catch(e){}},400);
+    _frameFG(_fg,host);
   }catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
 // cytoscape 2D graph in house style
 function cyGraph(id,elements,layout){const host=el(id);if(!host||!window.cytoscape)return null;killCy();host.innerHTML='';
@@ -2435,7 +2458,7 @@ function mesh3dClick(id,nodes,links,onNode){
       .linkColor(function(){return 'rgba(201,183,135,0.45)';}).linkWidth(1.2)
       .linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(function(){return TEAL;})
       .showNavInfo(false).onNodeClick(function(n){ try{ onNode&&onNode(n); }catch(e){} });
-    setTimeout(function(){ try{ _fg.width(host.clientWidth).height(host.clientHeight); _fg.zoomToFit&&_fg.zoomToFit(500); }catch(e){} },350);
+    _frameFG(_fg,host);
   }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+esc(e.message)+'</div>'; }
 }
 
