@@ -506,7 +506,7 @@ input, button, select { font:inherit }
   </div>
   <div class="header-spacer"></div>
   <div class="slsa-badge" id="slsaBadge">
-    <span>✓</span> <span>SLSA L2 VERIFIED</span>
+    <span>✓</span> <span>SLSA L1 honest · L2 build-attested (Rekor)</span>
   </div>
 </header>
 
@@ -572,7 +572,7 @@ input, button, select { font:inherit }
     </div>
     <div class="grid g-3" style="margin-top:16px">
       <div class="card">
-        <div class="card-head"><span class="icon">🔏</span>SLSA L2 Provenance<span class="pill">/v1/version</span></div>
+        <div class="card-head"><span class="icon">🔏</span>SLSA L1 honest · L2 build-attested (Rekor) Provenance<span class="pill">/v1/version</span></div>
         <div class="card-body" id="ov-prov-body"><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
       </div>
       <div class="card">
@@ -982,7 +982,7 @@ input, button, select { font:inherit }
       <div class="card">
         <div class="card-head"><span class="icon">✔</span>What We Claim</div>
         <div class="card-body" style="font:11px/1.9 var(--mono);color:var(--text-dim)">
-          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA BUILD L2 ATTESTED</div><br>
+          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap</div><br>
           ✓ signed slsa.dev/provenance/v0.2 .att on the GHCR image<br>
           ✓ Rekor index resolved at verify time (cosign verify-attestation)<br>
           ✓ Fulcio issuer: sigstore.dev (public-good)<br>
@@ -1009,7 +1009,7 @@ input, button, select { font:inherit }
       <div class="card-head"><span class="icon">⚙</span>SLSA Verify Command</div>
       <div class="card-body">
         <div class="codeblock">
-<span class="cmt"># Verify the SLSA Build L2 provenance attestation on the published image</span>
+<span class="cmt"># Verify the SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap provenance attestation on the published image</span>
 <span class="kw">cosign</span> verify-attestation \
   --type <span class="str">slsaprovenance</span> \
   --certificate-identity-regexp <span class="str">github.com/szl-holdings</span> \
@@ -1080,7 +1080,7 @@ input, button, select { font:inherit }
 <footer class="honest-footer">
   <b>a11oy Elite Console</b> — 20 tabs · zero mocks · every surface bound to a real <code>/api/a11oy/…</code> endpoint ·
   W3C traceparent on every panel · skeletons over spinners · 3D where it adds value (Three.js r128 vendored)<br>
-  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA Build L2 attested (signed slsa.dev/provenance/v0.2 .att; never L3)</b><br>
+  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (signed slsa.dev/provenance/v0.2 .att; never L3)</b><br>
   HONEST: Wires G+H not live · audit log resets on rebuild · no FedRAMP/Iron Bank/CMMC · no L3<br>
   Sign: Yachay &lt;yachay@szlholdings.ai&gt; ·
   Co-Authored-By: <a href="https://perplexity.ai">Perplexity Computer Agent</a> ·
