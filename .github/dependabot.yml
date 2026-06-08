@@ -45,3 +45,31 @@ updates:
       - "dependencies"
       - "security"
     open-pull-requests-limit: 3
+
+  # npm / Node dependencies.
+  # Security updates (Dependabot alerts -> auto-fix PRs) apply to every manifest
+  # below. Version updates are grouped and run weekly. Directories listed are the
+  # standalone Node manifests NOT covered by the root pnpm workspace lockfile:
+  #   "/"                    -> root pnpm workspace (incl. packages/a11oy-knowledge)
+  #   "/web/console"         -> standalone Vite console app
+  #   "/docs/site"           -> standalone VitePress docs site
+  #   "/runtime/ouroboros"   -> standalone ouroboros runtime package
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/web/console"
+      - "/docs/site"
+      - "/runtime/ouroboros"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+      - "security"
+    open-pull-requests-limit: 10
+    groups:
+      npm-deps:
+        patterns:
+          - "*"
