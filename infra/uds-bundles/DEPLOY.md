@@ -3,7 +3,7 @@
 **Bundle:** `szl-mesh:0.4.0` (current published OCI; also tagged `v0.4.0`/`latest`). Legacy alias: `szl-uds-bundle:uds-v0.2.x`.  
 **Repo:** `szl-holdings/uds-bundles`  
 **Updated:** 2026-06-05  
-**Doctrine:** v11 LOCKED 749/14/163 · SLSA L1 + L2 (organ images, `.att` = slsa.dev/provenance/v0.2); bundle cosign-**signed** (build-provenance attestation NOT yet earned on the bundle) · Λ = Conjecture 1  
+**Doctrine:** v11 LOCKED 749/14/163 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap; bundle cosign-**signed** (build-provenance attestation NOT yet earned on the bundle) · Λ = Conjecture 1  
 **Signed-off-by:** stephenlutar2-hash \<stephenlutar2@gmail.com\>
 
 ---
