@@ -1,0 +1,6 @@
+{
+  "min_receipts": 3,
+  "recorded": "2026-06-08",
+  "issue": "#320",
+  "note": "Emptied-ledger floor for scripts/recheck_rekor_receipts.py. The published governance-receipts ledger is append-only, so the live re-check must never find fewer than this many *.dsse.json receipts. Fewer means the ledger branch was wiped or the fetch silently failed, and the monitor fails loudly instead of passing green with nothing to re-check. Bump this only upward as the ledger grows; never lower it."
+}
