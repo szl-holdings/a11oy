@@ -42,7 +42,7 @@ ecosystem-stage: "operational"
 - **Primary face — the full application:** https://szlholdings-a11oy.hf.space/ (also at `/console`)
 - Space URL: https://szlholdings-a11oy.hf.space
 - Health: `curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
-- Docs: https://docs.szlholdings.com/flagships/a11oy
+- Docs: https://szl-holdings.github.io/docs-site/flagships/a11oy
 - Release: [v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0)
 
 ---
