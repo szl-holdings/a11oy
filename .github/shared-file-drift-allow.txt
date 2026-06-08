@@ -1,0 +1,33 @@
+# Shared-file drift allow-list  (a11oy <-> killinchu)
+# -----------------------------------------------------------------------------
+# Read by .github/shared-file-drift-check.py. One repo-relative path per line;
+# blank lines and `#` comments ignored. KEEP THIS FILE IDENTICAL IN BOTH REPOS.
+#
+# A path here is a file that BOTH repos ship and that the guard would otherwise
+# require to be byte-identical, but which is *currently* allowed to differ. The
+# guard is a ratchet:
+#   * Files NOT listed here must stay byte-identical across the two repos, or the
+#     build FAILS (this blocks NEW drift).
+#   * Files listed here are reported but do not fail the build (pre-existing,
+#     accepted-pending-reconciliation drift).
+#   * When a listed file becomes identical again, the guard WARNS so this entry
+#     can be removed — tightening the ratchet over time.
+#
+# To accept a deliberate divergence: add the path with a short reason.
+# To reconcile a divergence: sync the file in both repos, then delete its line.
+#
+# Seeded 2026-06-08 with the drift that already existed when the guard was added.
+# These ARE meant to be shared modules; they have silently diverged and should be
+# reconciled (sync the canonical copy into both repos) when convenient.
+a11oy_code_engine.py
+live_wires_3d.js
+operator_shell_v4.py
+szl_alloy_models.py
+szl_brain.py
+szl_formulas.py
+szl_khipu_consensus.py
+szl_khipu_lmdb.py
+szl_live_wires.py
+szl_llm_registry.py
+szl_provenance.py
+szl_rag.py
