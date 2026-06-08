@@ -151,7 +151,7 @@ HATUN_MCP_DISABLE_DYNAMIC=true python -m pytest tests/ -q
 
 <sub>
 
-**Doctrine v11 LOCKED — 749 / 14 / 163 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 honest + L2 attested**
+**Doctrine v11 LOCKED — 749 / 14 / 163 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap**
 `receipts.in ≡ receipts.out`
 
 Signed-off-by: Yachay &lt;yachay@szlholdings.ai&gt;
