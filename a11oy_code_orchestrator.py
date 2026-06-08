@@ -68,7 +68,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 # ---------------------------------------------------------------------------
 
 HF_ROUTER_BASE = os.environ.get("HF_ROUTER_BASE", "https://router.huggingface.co/v1")
-HF_TOKEN = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or ""
+HF_TOKEN = (os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+            or os.environ.get("Forge") or os.environ.get("HF_ROUTER_TOKEN")
+            or os.environ.get("HF_API_TOKEN") or os.environ.get("Token") or "")
 PURIQ_THRESHOLD = float(os.environ.get("A11OY_PURIQ_THRESHOLD", "0.62"))
 PURIQ_BETA = float(os.environ.get("A11OY_PURIQ_BETA", "4.0"))
 DB_PATH = os.environ.get("A11OY_CODE_DB", "/app/data/a11oy_code.db")
