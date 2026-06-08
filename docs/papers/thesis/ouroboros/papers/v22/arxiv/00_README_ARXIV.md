@@ -49,7 +49,7 @@ Type-3 bitmap fonts, no nonstandard font packages (arXiv-safe).
 ## Doctrine guardrails honored in this bundle
 - Λ = **Conjecture 1, NEVER a theorem** — stated as such in title-block banner, abstract, §2, §3.
 - A5 is a **structure field**, not a new axiom — unique-axiom count stays **14**.
-- SLSA **L1 + L2 attested; NOT L3.**
+- SLSA **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap; NOT L3.**
 - Doctrine v11 LOCKED **749/14/163 @ c7c0ba17** — not bumped.
 - No fabricated citations; every open `sorry` is honestly classified.
 
