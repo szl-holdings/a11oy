@@ -359,7 +359,7 @@ function lineSpark(id,labels,data,color){mkChart(id,{type:'line',data:{labels,da
   options:{scales:{x:{display:false},y:{display:false}},plugins:{legend:{display:false},tooltip:{enabled:false}},responsive:true,maintainAspectRatio:false}});}
 function doughnut(id,labels,data,colors){mkChart(id,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#0a0a0a',borderWidth:2}]},
   options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{enabled:true}},responsive:true,maintainAspectRatio:false}});}
-let _fg=null;
+let _fg=null, _lblSeq=0;
 /* ===== FRAMING DOCTRINE §A — center & frame EVERY 3d-force-graph =====
    The force simulation places nodes around the origin but the default camera
    leaves them off-center / clustered at the canvas edge until the layout
@@ -370,18 +370,26 @@ let _fg=null;
    the fit from fighting the user once they manually orbit. */
 function _frameFG(fg,host,emptyMsg){
   if(!fg||!host)return;
-  var _fitted=false;
-  function fit(){ if(_fitted)return; _fitted=true;
+  var _fits=0, _tightened=false;
+  function fit(){
     try{ fg.width(host.clientWidth).height(host.clientHeight);
       var nc=(fg.graphData&&fg.graphData().nodes||[]).length;
-      if(nc>0){ fg.zoomToFit(700,60); }
-      else if(emptyMsg){ /* leave the canvas; loader paints its own empty-state */ }
+      if(nc>0){ fg.zoomToFit(700,40); _fits++;
+        // zoomToFit frames the bounding SPHERE; a wide/flat dag then sits small with big
+        // vertical margins. ONCE, pull the camera ~30% closer so the chain fills the frame.
+        if(!_tightened){ _tightened=true; setTimeout(function(){ try{
+          var p=fg.cameraPosition();
+          fg.cameraPosition({x:p.x*0.7,y:p.y*0.7,z:p.z*0.7}, undefined, 500);
+        }catch(e){} }, 760); }
+      }
+      else if(emptyMsg){ /* loader paints its own empty-state */ }
     }catch(e){} }
-  // primary: fit once the force layout settles
+  // primary: fit once the force layout settles (re-fit, since label sprites change the bbox)
   try{ fg.onEngineStop(function(){ fit(); }); }catch(e){}
-  // fallback: fit after a fixed settle window even if onEngineStop never fires
+  // belt-and-suspenders: progressive fits cover fast-cooldown / single-node / no-stop cases
   setTimeout(function(){ try{ fg.width(host.clientWidth).height(host.clientHeight); }catch(e){} }, 200);
-  setTimeout(function(){ fit(); }, 1500);
+  setTimeout(function(){ if(_fits===0) fit(); }, 900);
+  setTimeout(function(){ fit(); }, 1600);   // final authoritative fit after sprites mount
 }
 function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';
   try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
@@ -461,13 +469,43 @@ function tearDownAll(){Object.keys(_charts).forEach(killChart);Object.keys(_echa
   if(_fg){try{_fg._destructor&&_fg._destructor();}catch(e){}_fg=null;}killGlobe();killCy();
   if(window._resizeHook){window.removeEventListener('resize',window._resizeHook);window._resizeHook=null;}
   if(window._tailTimers){window._tailTimers.forEach(t=>clearTimeout(t));window._tailTimers=[];}if(window._liveTimers){window._liveTimers.forEach(t=>clearInterval(t));window._liveTimers=[];}}
-// dag-mode 3d force graph (hash-chain hero)
+/* ===== always-on node label sprite (investor-grade legibility) =====
+   3d-force-graph only shows nodeLabel on hover; for a stage/loop graph the
+   operator must read every stage at a glance. We build a small text sprite
+   (SpriteMaterial + canvas texture) anchored above the node sphere, plus the
+   sphere itself, so each node shows its name without interaction. Uses the
+   SAME vendored THREE (no new lib, 0 CDN). */
+function _labelSprite(text,color){
+  try{
+    var cv=document.createElement('canvas');var ctx=cv.getContext('2d');
+    var fs=44; ctx.font='600 '+fs+'px "Space Grotesk", system-ui, sans-serif';
+    var w=Math.ceil(ctx.measureText(text).width)+24; cv.width=w; cv.height=fs+24;
+    ctx.font='600 '+fs+'px "Space Grotesk", system-ui, sans-serif';
+    ctx.fillStyle='rgba(10,10,10,0.66)';
+    if(ctx.roundRect){ctx.beginPath();ctx.roundRect(0,0,cv.width,cv.height,12);ctx.fill();}else{ctx.fillRect(0,0,cv.width,cv.height);}
+    ctx.fillStyle=color||'#e7e9ec'; ctx.textBaseline='middle'; ctx.fillText(text,12,cv.height/2);
+    var tex=new THREE.CanvasTexture(cv); tex.minFilter=THREE.LinearFilter;
+    var spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
+    var sc=cv.width/cv.height; spr.scale.set(20*sc,20,1); spr.position.set(0,11,0);
+    return spr;
+  }catch(e){return null;}
+}
+// dag-mode 3d force graph (hash-chain hero / governed stage loop)
 function dag3d(id,nodes,links,opts){const host=el(id);if(!host||!window.ForceGraph3D)return;host.innerHTML='';opts=opts||{};
+  var showLabels = opts.labels!==false; // default ON for legibility
   try{_fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
     .graphData({nodes,links}).dagMode(opts.dagMode||'lr').dagLevelDistance(opts.dist||40)
-    .nodeLabel(n=>n.name||n.id).nodeColor(n=>n.color||GOLD).nodeVal(n=>n.val||3)
-    .linkColor(()=>'rgba(95,179,163,0.55)').linkWidth(1).linkDirectionalParticles(1).linkDirectionalParticleSpeed(0.012).linkDirectionalParticleColor(()=>TEAL)
+    .nodeLabel(n=>n.name||n.id).nodeColor(n=>n.color||GOLD).nodeVal(n=>n.val||3).nodeOpacity(0.95)
+    .linkColor(()=>'rgba(95,179,163,0.7)').linkWidth(1.6).linkDirectionalParticles(2).linkDirectionalParticleWidth(2).linkDirectionalParticleSpeed(0.012).linkDirectionalParticleColor(()=>GOLD)
     .showNavInfo(false).cooldownTicks(opts.cooldown||120);
+    if(showLabels){
+      // alternate label above/below consecutive nodes so adjacent labels don't overlap
+      _fg.nodeThreeObjectExtend(true).nodeThreeObject(function(n){
+        var spr=_labelSprite(n.name||n.id, n.color||GOLD);
+        if(spr){ var idx=(typeof n.__lblIdx==='number')?n.__lblIdx:(n.__lblIdx=(_lblSeq=(_lblSeq||0)+1)); spr.position.set(0, (idx%2? 13 : -13), 0); }
+        return spr;
+      });
+    }
     if(opts.onNode)_fg.onNodeClick(opts.onNode);
     _frameFG(_fg,host);
   }catch(e){host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+e.message+'</div>';}}
@@ -2157,15 +2195,17 @@ function govatlas_detail(n){
    Warhacker #1 BULLSEYE.                                                          */
 function oversight_init(){
   var stages=[
-    {id:'s1',name:'1 \u00b7 signals in',color:'#7aa0d0'},
-    {id:'s2',name:'2 \u00b7 reason (score)',color:TEAL},
-    {id:'s3',name:'3 \u00b7 policy gate',color:'#c9a05f'},
-    {id:'s4',name:'4 \u00b7 recommend',color:GOLD},
-    {id:'s5',name:'5 \u00b7 sign receipt',color:'#b06a5a'},
-    {id:'s6',name:'6 \u00b7 append to chain',color:'#5a8a6e'}
+    {id:'s1',name:'1 \u00b7 signals in',color:'#7aa0d0',val:9},
+    {id:'s2',name:'2 \u00b7 reason (score)',color:TEAL,val:9},
+    {id:'s3',name:'3 \u00b7 policy gate',color:'#c9a05f',val:12},
+    {id:'s4',name:'4 \u00b7 recommend',color:GOLD,val:10},
+    {id:'s5',name:'5 \u00b7 sign receipt',color:'#b06a5a',val:10},
+    {id:'s6',name:'6 \u00b7 append to chain',color:'#5a8a6e',val:11}
   ];
+  // 6-stage governed pipeline 1->2->3->4->5->6 (kept acyclic for stable dag-LR layout;
+  // the "loop" is the operational cycle: stage 6's appended receipt seeds the next run's signals).
   var links=[{source:'s1',target:'s2'},{source:'s2',target:'s3'},{source:'s3',target:'s4'},{source:'s4',target:'s5'},{source:'s5',target:'s6'}];
-  dag3d('ov-3d',stages,links,{dagMode:'lr',dist:46,cooldown:120});
+  dag3d('ov-3d',stages,links,{dagMode:'lr',dist:62,cooldown:140,labels:true});
   // prime KPIs from a clean run
   oversight_run(false);
 }
