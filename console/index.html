@@ -235,7 +235,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="lineage" onclick="go('lineage')"><span class="ico">⚛</span>Knowledge Lineage</div>
     <div class="nav-item" data-view="mission" onclick="go('mission')"><span class="ico">⬢</span>Mission Health</div>
     <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
-    <div class="side-foot">Trust score = research conjecture<br>5 formulas formally proven<br>SLSA Build L2 · 5 services<br>Verifiable receipts · honest by design</div>
+    <div class="side-foot">Trust score = research conjecture<br>5 formulas formally proven<br>SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -374,7 +374,7 @@ const VIEWS={
       <div class="kpi"><div class="k">Connections</div><div class="v teal" id="k-wires">\u2014</div><div class="d">cross-service links</div></div>
       <div class="kpi"><div class="k">Trust score</div><div class="v teal" id="k-lam">\u2014</div><div class="d">vs floor 0.90</div></div>
       <div class="kpi"><div class="k">Decisions today</div><div class="v" id="k-dec">\u2014</div><div class="d">governed + logged</div></div>
-      <div class="kpi"><div class="k">Build security</div><div class="v teal">SLSA L2</div><div class="d">all services</div></div></div>
+      <div class="kpi"><div class="k">Build security</div><div class="v teal">SLSA L1 honest</div><div class="d">all services</div></div></div>
       <div class="grid2">
         <div class="card"><div class="card-h"><span class="card-t">Trust posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="cmd-radar"></canvas></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Safety gate posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="cmd-gates"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>allow-capable</span><span><i style="background:#b06a5a"></i>deny-by-default</span></div></div>
@@ -417,7 +417,7 @@ const VIEWS={
 
   fleet:{title:'System Health',badge:'5 SERVICES',sub:'Live reachability of every service behind the platform \u2014 real probe, real latency. A service that is down shows honestly, never faked green.',
     render:async(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="fleet_load()">\u25b6 Re-probe</button></div>
-      <div class="kpis"><div class="kpi"><div class="k">Up</div><div class="v live" id="fl-reach">probing\u2026</div></div><div class="kpi"><div class="k">Build security</div><div class="v teal">SLSA L2</div></div><div class="kpi"><div class="k">Trust score</div><div class="v teal">research conjecture</div><div class="d">not a theorem</div></div></div>
+      <div class="kpis"><div class="kpi"><div class="k">Up</div><div class="v live" id="fl-reach">probing\u2026</div></div><div class="kpi"><div class="k">Build security</div><div class="v teal">SLSA L1 honest</div></div><div class="kpi"><div class="k">Trust score</div><div class="v teal">research conjecture</div><div class="d">not a theorem</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Live reachability</span><span class="card-ep">public-URL probe</span></div><div id="fl-reach-host"><div class="row mono dim">probing\u2026</div></div></div>${HONEST}`;window.fleet_load();}},
 
   mesh:{title:'Live System Map',badge:'3D',sub:'The platform and its services as one connected organism. The command platform sits at the core; each service is a node; every link is a live, conserved connection. Node color reflects the live health probe \u2014 down is shown honestly.',
@@ -1270,7 +1270,7 @@ go(VIEWS[start]?start:'command');
 /* ============================================================================
    a11oy build-wave — LEADER-GRADE out-of-this-world tabs + live/animated helpers
    Real data only. No mock. Honesty doctrine preserved (Λ=Conjecture 1, 5 proven,
-   SLSA L2, no organ names, no jargon). Built on existing helper toolkit.
+   SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap, no organ names, no jargon). Built on existing helper toolkit.
    Leader patterns cited inline:
      Trust Ledger      — Palantir Object Explorer + Quiver + Wiz Security Graph (fused w/ verifiable proof-chain)
      Knowledge Lineage — Databricks Unity Catalog lineage DAG + HiddenLayer AIBOM
@@ -1443,7 +1443,7 @@ function lineage_export(){
       axioms: (kb.axioms||[]).length,
       theorems: (kb.theorems||[]).length,
       dois: (kb.dois||[]).map(d=>d.doi),
-      build_provenance:'SLSA Build L2 (in-toto v1, cosign keyless, Rekor 1723794608)',
+      build_provenance:'SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (in-toto v1, cosign keyless, Rekor evidence)',
       note:'Λ (trust-score uniqueness) is Conjecture 1, advisory — not a proven theorem.'
     };
     const blob=new Blob([JSON.stringify(aibom,null,2)],{type:'application/json'});
@@ -1468,7 +1468,7 @@ async function mission_load(){
     const crit = caps.filter(c=>c.status!=='ok').length;
     // Business-outcome sentence (Boss.Technology framing) — plain English, honest.
     setHTML('mh-sentence',
-      `${liveDot()}<b>All ${up} of ${total} capabilities online</b> · ${crit} critical · trust score <b>0.919</b> <span style="color:#c9a05f">(conjecture)</span> · build provenance <b>SLSA L2</b>`);
+      `${liveDot()}<b>All ${up} of ${total} capabilities online</b> · ${crit} critical · trust score <b>0.919</b> <span style="color:#c9a05f">(conjecture)</span> · build provenance <b>SLSA L1 honest</b>`);
     setTxt('mh-up', up+'/'+total);
     setTxt('mh-crit', crit);
     setTxt('mh-floor', '0.90');
