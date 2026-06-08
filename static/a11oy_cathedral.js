@@ -1,166 +1,209 @@
 /* ============================================================================
- * a11oy_cathedral.js — a11oy front-door sovereign 3D hero (vendored Three.js).
- * Brain-sun (a11oy) + 3 internal capabilities orbiting + inspectable.
- * Honesty: locked proven = 5; experimental main 1304/22; Λ = Conjecture 1;
- * conformal (never 100%) not Hoeffding; SLSA L1 honest / L2 roadmap.
- * Live /healthz + /lambda (13-axis Trust Score). No fakery; honest fallback.
+ * a11oy_cathedral.js — "The Sovereign Lattice" front-door hero (vendored Three.js).
+ * A luminous gold lattice-core (a11oy) with three governed faculties orbiting it,
+ * in deep sovereign space. Cinematic: layered additive bloom, multi-depth starfield,
+ * faint nebula, pointer parallax, scroll-driven camera. Live /healthz + Λ.
+ * Honesty: locked proven = 5; Λ = Conjecture 1. No fakery; honest fallback.
  * Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
  * ========================================================================== */
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/OrbitControls.js';
 
-const CAPABILITIES = [
-  { id:'reasoning', title:'Reasoning & Provenance', color:0x5cc4bf, angle:0,
-    plain:'Grounded reasoning, memory/recall and provenance over a signed knowledge base — an internal a11oy function.',
-    functions:['grounded ask (cites its source, refuses to fabricate)','13-axis Trust Score (geometric-mean aggregate, floor 0.90)','knowledge ontology (axioms → theorems → formulas)','model router (5-tier, cost-aware)'],
-    proof:['Trust-Score CI from CONFORMAL (W5-3 + W7-4) — distribution-free, anti-overconfidence floor (never 100%, NOT Hoeffding)','Model-Router stability C20 + PAC-Bayes/router envelope W7-5 (min ≤ avg ≤ max)','Ontology label-invariance: F-G2 / F-G4 / F-G6 / W7-1 (graph substrate)'] },
-  { id:'policy', title:'Policy & Compliance', color:0xd7b96b, angle:2.094,
-    plain:'Deny-by-default safety gates and full ALLOW/DENY verdicts with signed receipts — an internal a11oy function.',
-    functions:['8 deny-by-default safety gates','full verdict (ALLOW / DENY) with signals + receipt hash','30-signature threat corpus (MITRE ATT&CK + CVSS)','readiness / compliance (NIST / STIG / ISO)'],
-    proof:['Gate-soundness P2 — no action without BOTH policy AND kernel/doctrine check; a single DENY is absorbing','Agentic-loop P3 non-interference — poisoned input provably cannot flip a DENY into an ALLOW'] },
-  { id:'operator', title:'Operator · Ask / Act / Approvals', color:0xe58e54, angle:4.189,
-    plain:'The governed run loop: ask, act with approvals, and emit replayable signed receipts — an internal a11oy function.',
-    functions:['governed run loop P1–P6 (sign → gate → chain → memory → replay)','human approvals gate for high-impact actions','replayable, hash-chained receipts (Khipu)','a11oy Code — governed agentic coder (P1–P6), open-weight models'],
-    proof:['Agentic-loop P1–P6: 28 kernel-verified theorems — run is auditable, gate-sound, injection-resistant end-to-end','P5 replay-determinism gated only by declared hashFn_collision_resistant axiom (named, not a hardness proof)'] }
-];
-
-const A11OY = {
-  id:'a11oy', title:'a11oy — Command Platform (the brain)',
-  plain:'The orchestrating governance substrate: one brain coordinating reasoning, policy and operator capabilities. Live: /healthz.',
-  functions:['command center + five superpowers + 25-demo Warhacker board (5×5 live)','a11oy Code (governed agentic coder, P1–P6, open-weight router)','one governance substrate (capabilities are internal, no service split)','13-axis Trust Score aggregate (yuyay_v3, geometric mean, floor 0.90)','/proven: 9 wave 9/10 formula cards (5 with live runtime checks)','signed Khipu receipts for every governed action'],
-  proof:['Locked proven kernel = 5 {F1,F11,F12,F18,F19} @ c7c0ba17 (749/14/163) — machine-enforced count','Experimental main: 1304 decl / 22 axioms, waves 3–10 CI-green (~36–44 theorems), excluded from locked count','Λ-Aggregator uniqueness (F23) = Conjecture 1 — NOT a theorem (unconditional uniqueness machine-checked FALSE)'],
-  url:'/console'
-};
-
-const ENDPOINTS = { health:'/healthz', lambda:'/api/a11oy/v1/lambda' };
-
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.9));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x070815, 0.0019);
-const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 4000);
-camera.position.set(0, 70, 320);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.dampingFactor = 0.06;
-controls.minDistance = 90; controls.maxDistance = 1000;
-controls.autoRotate = true; controls.autoRotateSpeed = 0.45;
+scene.fog = new THREE.FogExp2(0x05060f, 0.0016);
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 6000);
 
-scene.add(new THREE.AmbientLight(0x33304a, 0.9));
-scene.add(new THREE.PointLight(0xffe6a8, 2.4, 1600, 1.4));
-const rim = new THREE.DirectionalLight(0x5c8fd1, 0.5); rim.position.set(-200,120,-150); scene.add(rim);
+// composition: core sits on the right; hero text breathes on the left
+const HOME = new THREE.Vector3(46, 16, 250);
+const LOOK = new THREE.Vector3(64, 6, 0);
+camera.position.copy(HOME);
 
-(function backdrop(){
-  const N=2600, pos=new Float32Array(N*3);
-  for(let i=0;i<N;i++){ const r=1400+Math.random()*1600, t=Math.random()*Math.PI*2, p=Math.acos(2*Math.random()-1);
+scene.add(new THREE.AmbientLight(0x2a2942, 0.85));
+const keyLight = new THREE.PointLight(0xffe2a0, 2.7, 2200, 1.5); keyLight.position.set(70, 30, 40); scene.add(keyLight);
+const rim = new THREE.DirectionalLight(0x6d8fd6, 0.55); rim.position.set(-220, 120, -120); scene.add(rim);
+const fill = new THREE.DirectionalLight(0x7fd6d1, 0.18); fill.position.set(120, -80, 120); scene.add(fill);
+
+/* ---- faint nebula: large additive gradient sprites ---- */
+function radialSprite(c1, c2, sz, op){
+  const cv=document.createElement('canvas'); cv.width=cv.height=256; const g=cv.getContext('2d');
+  const grd=g.createRadialGradient(128,128,0,128,128,128);
+  grd.addColorStop(0,c1); grd.addColorStop(0.45,c2); grd.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=grd; g.fillRect(0,0,256,256);
+  const tex=new THREE.CanvasTexture(cv);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false }));
+  s.scale.set(sz,sz,1); return s;
+}
+const neb1=radialSprite('rgba(215,185,107,0.5)','rgba(120,90,30,0.18)',1500,0.5); neb1.position.set(160,40,-500); scene.add(neb1);
+const neb2=radialSprite('rgba(60,80,150,0.5)','rgba(30,40,90,0.16)',1900,0.45); neb2.position.set(-380,-120,-820); scene.add(neb2);
+const neb3=radialSprite('rgba(127,214,209,0.32)','rgba(20,90,90,0.1)',1000,0.4); neb3.position.set(-180,180,-360); scene.add(neb3);
+
+/* ---- multi-depth starfield ---- */
+function starLayer(n, rMin, rMax, size, col, op){
+  const pos=new Float32Array(n*3);
+  for(let i=0;i<n;i++){ const r=rMin+Math.random()*(rMax-rMin), t=Math.random()*Math.PI*2, p=Math.acos(2*Math.random()-1);
     pos[i*3]=r*Math.sin(p)*Math.cos(t); pos[i*3+1]=r*Math.cos(p); pos[i*3+2]=r*Math.sin(p)*Math.sin(t); }
   const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3));
-  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0x8a90c0, size:1.4, sizeAttenuation:true, transparent:true, opacity:0.55 })));
-})();
+  const pts=new THREE.Points(g, new THREE.PointsMaterial({ color:col, size, sizeAttenuation:true, transparent:true, opacity:op, depthWrite:false }));
+  scene.add(pts); return pts;
+}
+const stars1=starLayer(1700, 700, 1500, 1.1, 0x9aa0d0, 0.55);
+const stars2=starLayer(1100, 1400, 2800, 2.2, 0xcdbb8e, 0.5);
+const stars3=starLayer(500, 380, 900, 1.5, 0x7fd6d1, 0.32);
 
-const interactables=[];
-function registerBody(mesh,data){ mesh.userData.inspect=data; interactables.push(mesh); }
+/* ---- the sovereign lattice-core (a11oy) ---- */
+const core=new THREE.Group(); core.position.copy(LOOK); scene.add(core);
 
-const sunGroup=new THREE.Group(); scene.add(sunGroup);
-const sunCore=new THREE.Mesh(new THREE.IcosahedronGeometry(36,4),
-  new THREE.MeshStandardMaterial({ color:0xffce6e, emissive:0xd79a2e, emissiveIntensity:1.5, roughness:0.35, metalness:0.1 }));
-sunGroup.add(sunCore); registerBody(sunCore, A11OY);
-const sunGlow=new THREE.Mesh(new THREE.SphereGeometry(50,32,32),
-  new THREE.MeshBasicMaterial({ color:0xffd98a, transparent:true, opacity:0.10, side:THREE.BackSide }));
-sunGroup.add(sunGlow);
-const brainLattice=new THREE.Mesh(new THREE.IcosahedronGeometry(42,2),
-  new THREE.MeshBasicMaterial({ color:0xffe6a8, wireframe:true, transparent:true, opacity:0.22 }));
-sunGroup.add(brainLattice);
-sunGroup.add(makeLabel('a11oy', 0xffe6a8, 66));
+const coreMesh=new THREE.Mesh(new THREE.IcosahedronGeometry(34,5),
+  new THREE.MeshStandardMaterial({ color:0xffcf73, emissive:0xe0a536, emissiveIntensity:1.55, roughness:0.34, metalness:0.12, flatShading:true }));
+core.add(coreMesh);
 
-const ORBIT_R=150; const capBodies=[];
-CAPABILITIES.forEach((cap)=>{
-  const grp=new THREE.Group();
-  const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(15,2),
-    new THREE.MeshStandardMaterial({ color:cap.color, emissive:cap.color, emissiveIntensity:0.55, roughness:0.5, metalness:0.2 }));
-  grp.add(mesh);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(22,0.7,8,64), new THREE.MeshBasicMaterial({ color:cap.color, transparent:true, opacity:0.35 }));
-  ring.rotation.x=Math.PI/2; grp.add(ring);
-  grp.add(makeLabel(cap.title.split(/[ &·]/)[0], cap.color, 30));
-  scene.add(grp); registerBody(mesh, cap);
-  const tether=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),
-    new THREE.LineBasicMaterial({ color:cap.color, transparent:true, opacity:0.28 }));
-  scene.add(tether);
-  capBodies.push({ grp, mesh, cap, baseAngle:cap.angle, tether });
+const latticeA=new THREE.Mesh(new THREE.IcosahedronGeometry(44,2),
+  new THREE.MeshBasicMaterial({ color:0xffe6a8, wireframe:true, transparent:true, opacity:0.26 }));
+core.add(latticeA);
+const latticeB=new THREE.Mesh(new THREE.IcosahedronGeometry(56,1),
+  new THREE.MeshBasicMaterial({ color:0xd7b96b, wireframe:true, transparent:true, opacity:0.12 }));
+core.add(latticeB);
+
+// layered additive bloom halos
+for(const [r,o] of [[64,0.16],[92,0.09],[140,0.05]]){
+  const h=new THREE.Mesh(new THREE.SphereGeometry(r,32,32),
+    new THREE.MeshBasicMaterial({ color:0xffd98a, transparent:true, opacity:o, side:THREE.BackSide, blending:THREE.AdditiveBlending, depthWrite:false }));
+  core.add(h);
+}
+const flare=radialSprite('rgba(255,222,150,0.95)','rgba(224,165,54,0.35)',360,0.9); core.add(flare);
+
+// inner sparks orbiting inside the core
+const sparkN=80, sparkPos=new Float32Array(sparkN*3), sparkSeed=[];
+for(let i=0;i<sparkN;i++){ sparkSeed.push({a:Math.random()*Math.PI*2,b:Math.random()*Math.PI,r:20+Math.random()*22,s:0.4+Math.random()}); }
+const sparkGeo=new THREE.BufferGeometry(); sparkGeo.setAttribute('position',new THREE.BufferAttribute(sparkPos,3));
+core.add(new THREE.Points(sparkGeo, new THREE.PointsMaterial({ color:0xfff0c8, size:1.7, transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false })));
+
+/* ---- three orbiting faculties ---- */
+const FAC=[
+  {color:0x7fd6d1, angle:0.2,  rx:120, rz:120, tilt:0.12},
+  {color:0xd7b96b, angle:2.25, rx:138, rz:128, tilt:-0.22},
+  {color:0xe58e54, angle:4.2,  rx:128, rz:140, tilt:0.30},
+];
+const facBodies=[];
+FAC.forEach((f)=>{
+  const g=new THREE.Group();
+  const m=new THREE.Mesh(new THREE.IcosahedronGeometry(11,2),
+    new THREE.MeshStandardMaterial({ color:f.color, emissive:f.color, emissiveIntensity:0.7, roughness:0.45, metalness:0.25 }));
+  g.add(m);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(17,0.5,8,72),
+    new THREE.MeshBasicMaterial({ color:f.color, transparent:true, opacity:0.4 })); ring.rotation.x=Math.PI/2; g.add(ring);
+  g.add(radialSprite(`rgba(${(f.color>>16)&255},${(f.color>>8)&255},${f.color&255},0.8)`,'rgba(0,0,0,0)',70,0.7));
+  scene.add(g);
+  // curved tether (core -> faculty) as a tube we rebuild each frame
+  const tetherMat=new THREE.MeshBasicMaterial({ color:f.color, transparent:true, opacity:0.16, blending:THREE.AdditiveBlending, depthWrite:false });
+  let tetherMesh=null;
+  facBodies.push({ f, g, m, tetherMat, get tether(){return tetherMesh;}, set tether(v){tetherMesh=v;} });
 });
 
-function makeLabel(text,color,size){
-  const c=document.createElement('canvas'); c.width=256; c.height=64; const ctx=c.getContext('2d');
-  ctx.font='700 34px ui-monospace, Menlo, Consolas, monospace';
-  ctx.fillStyle='#'+new THREE.Color(color).getHexString();
-  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.shadowColor='rgba(0,0,0,0.8)'; ctx.shadowBlur=8;
-  ctx.fillText(text,128,34);
-  const tex=new THREE.CanvasTexture(c); tex.anisotropy=4;
-  const spr=new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false }));
-  spr.scale.set(size*2,size*0.5,1); spr.position.y=size*0.9; spr.userData.isLabel=true; return spr;
-}
-
-const ray=new THREE.Raycaster(); const ptr=new THREE.Vector2();
-canvas.addEventListener('click',(e)=>{
-  const r=canvas.getBoundingClientRect();
-  ptr.x=((e.clientX-r.left)/r.width)*2-1; ptr.y=-((e.clientY-r.top)/r.height)*2+1;
-  ray.setFromCamera(ptr,camera);
-  const hits=ray.intersectObjects(interactables,false);
-  if(hits.length) openInspector(hits[0].object.userData.inspect);
-});
-
-const insp=document.getElementById('inspector');
-document.getElementById('insp-close').addEventListener('click',()=>insp.classList.remove('show'));
-function openInspector(d){
-  if(!d) return;
-  document.getElementById('insp-title').textContent=d.title;
-  document.getElementById('insp-plain').textContent=d.plain;
-  let html='<div class="ih">Functions</div><ul>'+d.functions.map(f=>`<li>${esc(f)}</li>`).join('')+'</ul>';
-  if(d.proof) html+='<div class="ih">Proof support (honest)</div><ul>'+d.proof.map(p=>`<li class="proof">${esc(p)}</li>`).join('')+'</ul>';
-  if(d.url) html+=`<div class="ih">Open</div><ul><li><a href="${d.url}" style="color:#5cc4bf">Enter the working app ↗</a></li></ul>`;
-  document.getElementById('insp-body').innerHTML=html; insp.classList.add('show');
-}
-function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-let liveState={ a11oy:'…' }, feedSource='connecting…', liveLambda=null;
-async function getJSON(url,ms){
-  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), ms||7000);
-  try{ const r=await fetch(url,{ signal:ctrl.signal, headers:{accept:'application/json'} }); if(!r.ok) throw 0; return await r.json(); }
-  finally{ clearTimeout(t); }
-}
+/* ---- live mesh: /healthz + Λ ---- */
+const lamDot=document.getElementById('lam-dot'), lamText=document.getElementById('lam-text');
+async function getJSON(url,ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms||7000);
+  try{ const r=await fetch(url,{signal:c.signal,headers:{accept:'application/json'}}); if(!r.ok) throw 0; return await r.json(); } finally{ clearTimeout(t); } }
+let lambda=null, alive=false;
 async function poll(){
-  try{ const h=await getJSON(ENDPOINTS.health,7000); liveState.a11oy=(h&&(h.status==='ok'||h.ok))?'LIVE':'DEGRADED'; }
-  catch(_){ liveState.a11oy='OFFLINE'; }
-  try{ const lam=await getJSON(ENDPOINTS.lambda,7000); if(lam&&typeof lam.lambda==='number'){ liveLambda=lam.lambda; feedSource='LIVE a11oy Λ='+lam.lambda.toFixed(3)+' (13-axis Trust Score)'; } }
-  catch(_){ if(liveLambda===null) feedSource='Λ feed reconnecting…'; }
-  paintHUD();
+  try{ const h=await getJSON('/healthz',7000); alive=!!(h&&(h.status==='ok'||h.ok)); }catch(_){ alive=false; }
+  try{ const l=await getJSON('/api/a11oy/v1/lambda',7000); if(l&&typeof l.lambda==='number') lambda=l.lambda; }catch(_){}
+  paint();
 }
-function paintHUD(){
-  const cls=liveState.a11oy==='LIVE'?'live':(liveState.a11oy==='OFFLINE'?'off':'seed');
-  let rows=`<div class="row"><span class="dot ${cls}"></span><span>a11oy · brain</span><span class="meta">${liveState.a11oy}</span></div>`;
-  if(liveLambda!==null){ const v=liveLambda>=0.9?'green':(liveLambda>=0.5?'amber':'red'); const col=v==='green'?'#4fd18b':(v==='amber'?'#d7b96b':'#c0392b');
-    rows+=`<div class="row"><span class="dot" style="background:${col};box-shadow:0 0 9px ${col}"></span><span>Trust Score Λ</span><span class="meta">${liveLambda.toFixed(3)}</span></div>`; }
-  document.getElementById('status-rows').innerHTML=rows;
-  document.getElementById('feed-src').textContent=feedSource;
+function paint(){
+  if(!lamDot) return;
+  if(alive){ lamDot.classList.add('live'); }else{ lamDot.classList.remove('live'); }
+  if(lambda!==null) lamText.innerHTML = `<b>Λ ${lambda.toFixed(3)}</b> · live trust score · 13-axis`;
+  else lamText.textContent = alive ? 'mesh live · Λ reconnecting…' : 'live mesh offline · honest fallback';
 }
+paint(); poll(); setInterval(poll, 8000);
 
-let tms=0;
+/* ---- pointer parallax + scroll ---- */
+let px=0, py=0, tpx=0, tpy=0;
+if(!REDUCED) addEventListener('pointermove',(e)=>{ tpx=(e.clientX/innerWidth-0.5); tpy=(e.clientY/innerHeight-0.5); }, {passive:true});
+let scrollP=0;
+function onScroll(){ const max=document.body.scrollHeight-innerHeight; scrollP = max>0 ? Math.min(1, scrollY/max) : 0; }
+addEventListener('scroll', onScroll, {passive:true}); onScroll();
+
+/* ---- intro dolly ---- */
+let intro=REDUCED?1:0;
+
+const _v=new THREE.Vector3();
+const _look=new THREE.Vector3();
+let t=0;
 function animate(){
-  requestAnimationFrame(animate); tms+=0.004;
-  sunCore.rotation.y+=0.0015; brainLattice.rotation.y-=0.0011; brainLattice.rotation.x+=0.0006;
-  sunGlow.material.opacity=0.08+0.04*Math.sin(tms*2);
-  capBodies.forEach((cb,i)=>{ const a=cb.baseAngle+tms*0.6; const x=Math.cos(a)*ORBIT_R, z=Math.sin(a)*ORBIT_R, y=Math.sin(a*1.3+i)*22;
-    cb.grp.position.set(x,y,z); cb.mesh.rotation.y+=0.01;
-    cb.tether.geometry.setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(x,y,z)]); cb.tether.geometry.attributes.position.needsUpdate=true; });
-  controls.update(); renderer.render(scene,camera);
+  requestAnimationFrame(animate);
+  t+=0.0045;
+  if(intro<1){ intro=Math.min(1, intro+0.012); }
+  const e=intro<1 ? 1-Math.pow(1-intro,3) : 1; // easeOutCubic
+
+  // core motion
+  coreMesh.rotation.y+=0.0016; coreMesh.rotation.x+=0.0005;
+  latticeA.rotation.y-=0.0012; latticeA.rotation.x+=0.0007;
+  latticeB.rotation.y+=0.0009; latticeB.rotation.z-=0.0006;
+  const pulse=1+0.012*Math.sin(t*2.0); core.scale.setScalar(pulse);
+  flare.material.opacity=0.78+0.12*Math.sin(t*1.7);
+
+  // inner sparks
+  for(let i=0;i<sparkN;i++){ const s=sparkSeed[i]; const a=s.a+t*s.s; const b=s.b+t*0.3*s.s; const r=s.r;
+    sparkPos[i*3]=r*Math.sin(b)*Math.cos(a); sparkPos[i*3+1]=r*Math.cos(b); sparkPos[i*3+2]=r*Math.sin(b)*Math.sin(a); }
+  sparkGeo.attributes.position.needsUpdate=true;
+
+  // faculties orbit + curved tethers
+  facBodies.forEach((fb,i)=>{
+    const f=fb.f; const a=f.angle + t*0.22*(i%2?-1:1);
+    const x=LOOK.x+Math.cos(a)*f.rx;
+    const z=LOOK.z+Math.sin(a)*f.rz;
+    const y=LOOK.y+Math.sin(a*1.4+i)*26 + f.tilt*40*Math.cos(a*0.7);
+    fb.g.position.set(x,y,z); fb.m.rotation.y+=0.012;
+    const mid=new THREE.Vector3((LOOK.x+x)/2,(LOOK.y+y)/2+24,(LOOK.z+z)/2);
+    const curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(LOOK.x,LOOK.y,LOOK.z), mid, new THREE.Vector3(x,y,z));
+    if(fb.tether){ fb.tether.geometry.dispose(); core.parent.remove(fb.tether); }
+    fb.tether=new THREE.Mesh(new THREE.TubeGeometry(curve,20,0.45,6,false), fb.tetherMat); scene.add(fb.tether);
+  });
+
+  // starfield drift
+  stars1.rotation.y+=0.00012; stars2.rotation.y-=0.00007; stars3.rotation.y+=0.0002;
+
+  // camera: parallax + gentle idle + scroll framing.
+  // We aim LEFT of the core so it sits in the right third (text breathes on the
+  // left). As you scroll we push the core toward the right edge (no zoom-in that
+  // would swamp the headlines) and pull back slightly so it reads as an accent.
+  px+=(tpx-px)*0.04; py+=(tpy-py)*0.04;
+  const frameX = 60 + 84*scrollP;        // aim offset: larger -> core further right
+  const frameY = 4 + 14*scrollP;
+  const camHome=HOME.clone();
+  camHome.y += 24*scrollP;               // gentle lift
+  camHome.z += 30*scrollP;               // pull back (core smaller) instead of zoom-in
+  camHome.x += 14*scrollP;
+  const idleX=Math.sin(t*0.5)*5, idleY=Math.cos(t*0.4)*4;
+  _v.set(camHome.x + px*32 + idleX, camHome.y - py*22 + idleY, camHome.z);
+  camera.position.lerp(_v, e<1?0.06*e+0.02:0.06);
+  const look=_look.set(LOOK.x - frameX + px*12, LOOK.y + frameY - py*6, LOOK.z);
+  camera.lookAt(look);
+  renderer.toneMappingExposure = 1.2 - 0.16*scrollP;
+
+  renderer.render(scene,camera);
 }
-window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
-paintHUD(); animate();
-(function(){ var b=document.getElementById('boot'); b.classList.add('hide');
-  b.addEventListener('transitionend', function(){ b.style.display='none'; });
-  setTimeout(function(){ b.style.display='none'; }, 1200); })();
-poll(); setInterval(poll, 8000);
-controls.addEventListener('start',()=>{ controls.autoRotate=false; });
+animate();
+
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+
+/* ---- nav stuck + scroll reveals + boot ---- */
+const nav=document.getElementById('nav');
+function navState(){ if(scrollY>24) nav.classList.add('stuck'); else nav.classList.remove('stuck'); }
+addEventListener('scroll', navState, {passive:true}); navState();
+
+const io=new IntersectionObserver((es)=>{ es.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } }); }, {threshold:0.16});
+document.querySelectorAll('.reveal').forEach((el,i)=>{ el.style.transitionDelay=(Math.min(i,6)*70)+'ms'; io.observe(el); });
+
+const boot=document.getElementById('boot');
+function hideBoot(){ boot.classList.add('hide'); setTimeout(()=>boot.style.display='none', 850); }
+setTimeout(hideBoot, REDUCED?200:700);
