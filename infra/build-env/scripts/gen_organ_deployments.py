@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-# Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1+L2
+# Doctrine v11 LOCKED 749/14/163 · Λ Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap
 """Generate per-organ Deployment manifests that mount the cosign private key
 as the SZL_COSIGN_PRIVATE_KEY_PEM env var (optional: true — honest fallback).
 
@@ -16,7 +16,7 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "deploy", "organs")
 
 TEMPLATE = """# SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-# Doctrine v11 LOCKED 749/14/163 · Lambda Conjecture 1 · SLSA L1+L2
+# Doctrine v11 LOCKED 749/14/163 · Lambda Conjecture 1 · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap
 # {organ} organ Deployment — cosign private key mounted as an ENV VAR (not a file).
 # The secret is optional: when absent the organ emits honest UNSIGNED receipts.
 apiVersion: apps/v1
