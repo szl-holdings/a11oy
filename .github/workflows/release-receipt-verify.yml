@@ -137,6 +137,10 @@ jobs:
         with:
           name: release-receipt-verify-summary
           path: release-receipts/.release-verify-summary.json
+          # The summary is a dot-prefixed file; upload-artifact@v4 excludes
+          # hidden files by default, which would silently drop it (total_count 0)
+          # and starve the status page's release-receipt provenance row.
+          include-hidden-files: true
           if-no-files-found: ignore
 
       - name: Reconcile rolling verification incident issue
