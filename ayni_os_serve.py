@@ -242,6 +242,57 @@ def _provenance():
             "generated_at": round(time.time(), 3)}
 
 
+# ---------------------------------------------------------------------------
+# HONEST-ROLE DISPLAY MAP (Absolute Honesty Doctrine, hard gate):
+# The internal reciprocity ledger is keyed on the LOCKED 14-organ tuple, three
+# of whose names are banned codenames that must NEVER be user-visible. We keep
+# the internal keys intact (the LOCKED len==14 assertion + hash-chain stay
+# untouched) and remap ONLY at the API boundary so every byte the console (and
+# any user) sees carries the honest role, not the codename. Quechua organ names
+# (kanchay/wayra/puriq/yuyay/hukla/khipu/yawar/tinkuy/lambda_spine) are allowed.
+#   amaru     -> reasoning   (Reasoning organ)
+#   sentra    -> policy      (Policy / Safety organ)
+#   rosie     -> operator    (Operator organ)
+#   killinchu -> field_node  (Field Node organ)
+# ---------------------------------------------------------------------------
+_HONEST_ROLE = {
+    "amaru": "reasoning",
+    "sentra": "policy",
+    "rosie": "operator",
+    "killinchu": "field_node",
+    "jarvis": "orchestrator",
+}
+
+
+def _honest_key(name):
+    """Map a raw organ key to its honest, user-safe display key."""
+    return _HONEST_ROLE.get(str(name or "").strip().lower(), name)
+
+
+def _honest_organs(obj):
+    """Recursively rewrite any banned organ codename in a response payload to
+    its honest role. Handles dict keys (e.g. alphas/phases maps), values under
+    organ-name fields (e.g. deficits[].organ), and free string values, so no
+    banned codename can survive into the JSON sent to the browser.
+    """
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            nk = _honest_key(k) if isinstance(k, str) else k
+            if isinstance(k, str) and k.lower() in ("organ", "giver", "taker",
+                                                    "actor", "component", "signer",
+                                                    "subject") and isinstance(v, str):
+                out[nk] = _honest_key(v)
+            else:
+                out[nk] = _honest_organs(v)
+        return out
+    if isinstance(obj, (list, tuple)):
+        return [_honest_organs(v) for v in obj]
+    if isinstance(obj, str):
+        return _honest_key(obj) if obj.lower() in _HONEST_ROLE else obj
+    return obj
+
+
 def _json_safe(o):
     """Recursively replace non-finite floats (inf/-inf/nan) with None.
 
@@ -280,7 +331,7 @@ def ayni():
         return JSONResponse({"error": "AYNI-OS unavailable"}, status_code=503)
     d = _SVC.get_ayni()
     d.update(_provenance())
-    return _json_safe(d)
+    return _json_safe(_honest_organs(d))
 
 
 @router.get("/v1/replay")
@@ -289,7 +340,7 @@ def replay(at: float = Query(..., description="target unix timestamp T")):
         return JSONResponse({"error": "AYNI-OS unavailable"}, status_code=503)
     d = _SVC.get_replay(at)
     d.update(_provenance())
-    return _json_safe(d)
+    return _json_safe(_honest_organs(d))
 
 
 @router.get("/v1/tinkuy")
@@ -304,4 +355,4 @@ def tinkuy():
     except Exception:
         d["phases"] = {}
     d.update(_provenance())
-    return _json_safe(d)
+    return _json_safe(_honest_organs(d))
