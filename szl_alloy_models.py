@@ -648,7 +648,7 @@ def unify_into_registry() -> dict:
                 **m,
                 "tier_name": "alloy_" + m["tier_band"],
                 "tier": 90,  # alloy band sits outside the legacy 0-5 closed tiers
-                "rosie_mirrored": False,
+                "operator_mirrored": False,
                 "ecosystem_mirror": ["killinchu"],
                 "honest_stub": (not _production_eligible(m)) or (m["tier_band"] != "demo_cpu"),
                 "notes": "open-weight alloy; " + m.get("serving", ""),
