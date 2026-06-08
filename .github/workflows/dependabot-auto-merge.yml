@@ -1,0 +1,50 @@
+name: Dependabot auto-merge
+
+# Automatically enable GitHub auto-merge on low-risk Dependabot PRs
+# (patch and minor version bumps) so routine fixes land without manual
+# toil. GitHub still waits for all required branch-protection status
+# checks to pass before completing the merge. Major-version bumps are
+# intentionally left for manual review.
+#
+# How it works:
+#   1. dependabot/fetch-metadata classifies the update (semver-patch /
+#      -minor / -major). For grouped PRs it reports the HIGHEST bump in
+#      the group, so a group containing any major bump is not auto-merged.
+#   2. `gh pr merge --auto --squash` queues the merge; GitHub completes it
+#      only once the required "check" status (and any others) succeeds.
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    # Only act on PRs raised by Dependabot.
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2.5.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for patch and minor updates
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Note major-version bumps left for manual review
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          echo "Major-version bump (${{ steps.metadata.outputs.dependency-names }}) — leaving for manual review."
