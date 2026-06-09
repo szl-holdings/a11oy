@@ -1,0 +1,19 @@
+name: Lockfile Registry Check
+
+# Fails fast on the PR/push that introduces a lockfile referencing a
+# Replit-internal registry host (e.g. package-firewall.replit.local). Such hosts
+# do not resolve on GitHub runners and break npm/pnpm install. The shared check
+# lives in szl-holdings/.github; the org-wide scheduled sweep is the catch-all.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lockfiles:
+    uses: szl-holdings/.github/.github/workflows/reusable-lockfile-registry-check.yml@main
