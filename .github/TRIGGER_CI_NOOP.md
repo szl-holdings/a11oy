@@ -1,5 +1,3 @@
-# CI Trigger v4.2
+# CI trigger
 
-No-op commit to trigger doctrine-check run after v4.2 fix (Inv3 roadmap case + Inv5 negation).
-
-Timestamp: 2026-06-03T13:36:11Z
+Last: 2026-06-09T05:15Z — verify doctrine+drift green after INV1 exclusion, YACHAY Conjecture-1 fix, cathedral/serve allowlist, HF realign.
