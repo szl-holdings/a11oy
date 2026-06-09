@@ -5,7 +5,7 @@
 # cosign keyid: szlholdings-cosign
 #
 # WHAT THIS DOES (real working enforcement, not a policy doc):
-#   During the freeze window [2026-06-09 .. 2026-06-20] (UTC), ANY push or PR
+#   During the freeze window [2026-06-13 .. 2026-06-20] (UTC), ANY push or PR
 #   whose head branch is NOT `hotfix/*` is REJECTED with a clear error.
 #   Outside that window this job is a no-op PASS, so it never breaks existing flows.
 #   This workflow is purely ADDITIVE: it adds one required check, touches nothing else.
@@ -37,8 +37,8 @@ jobs:
       - name: Evaluate demo-freeze window
         shell: bash
         env:
-          # Freeze window (UTC, inclusive). T-7 = 2026-06-09, demo end = 2026-06-20.
-          FREEZE_START: '2026-06-09'
+          # Freeze window (UTC, inclusive). T-3 = 2026-06-13, demo end = 2026-06-20.
+          FREEZE_START: '2026-06-13'
           FREEZE_END: '2026-06-20'
         run: |
           set -euo pipefail
