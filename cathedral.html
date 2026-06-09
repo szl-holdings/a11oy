@@ -264,8 +264,9 @@ footer{position:relative;z-index:10;border-top:1px solid var(--line);padding:40p
         <div class="metrics">
           <div class="metric reveal"><div class="n">5</div><div class="k">Locked proven formulas</div><div class="c">{F1, F11, F12, F18, F19} kernel-verified @ c7c0ba17 · machine-enforced count</div></div>
           <div class="metric reveal"><div class="n">28</div><div class="k">Kernel-verified loop theorems</div><div class="c">P1–P6 governed run loop — gate-sound, injection-resistant, auditable end-to-end</div></div>
-          <div class="metric reveal"><div class="n">1304 / 22</div><div class="k">Experimental decl / axioms</div><div class="c">waves 3–10 CI-green (~36–44 theorems) · excluded from the locked count</div></div>
-          <div class="metric warn reveal"><div class="n">Λ = Conj. 1</div><div class="k">Aggregator uniqueness</div><div class="c">a named conjecture, NOT a theorem — unconditional uniqueness machine-checked false</div></div>
+          <div class="metric reveal"><div class="n">~190</div><div class="k">Experimental CI-green theorems</div><div class="c">waves 11–23 · labelled experimental, excluded from the locked count · conditional Λ uniqueness IS proven axiom-free (Wave 22)</div></div>
+          <div class="metric warn reveal"><div class="n">Λ = Conj. 1</div><div class="k">Aggregator uniqueness</div><div class="c">a named conjecture, NOT a theorem — <em>unconditional</em> uniqueness machine-checked false; conditional uniqueness proven axiom-free</div></div>
+          <div class="metric warn reveal"><div class="n">Khipu BFT = Conj. 2</div><div class="k">Consensus safety</div><div class="c">Wave 23 <code>khipu_quorum_safety_conditional</code> proves <em>conditional</em> agreement / no split-brain under n ≥ 3f+1 + honest non-equivocation, axiom-clean — unconditional safety stays a named conjecture</div></div>
         </div>
       </div>
     </section>
