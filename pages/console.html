@@ -8085,5 +8085,366 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 
+
+
+<!-- ===================================================================== -->
+<!-- CYBER DEFENSE (5) - threat intel + posture drift + attack-surface +    -->
+<!-- signed incident receipts + zero-trust mesh. ADDITIVE. Owns ONLY        -->
+<!-- window.renderCyb* fns, #cyb-* ids, view keys cybThreat/cybPosture/      -->
+<!-- cybSurface/cybIncident/cybZero, nav group #cyb-nav-group. Reads LIVE    -->
+<!-- /api/sentra/v1/* + /api/a11oy/v1/* feeds (0 client CDN). UI never shows -->
+<!-- the codename; the vertical is "Cyber Defense" everywhere.               -->
+<!-- DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; Lambda=Conjecture 1 (advisory).-->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', CREAM='#f5f5f5', DIM='#888', SLATE='#7a8aa0';
+  var SB='/api/sentra/v1', AB='/api/a11oy/v1';
+
+  function E(id){return document.getElementById(id);}
+  function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
+  function esc(s){return window.esc?window.esc(s):String(s==null?'':s).replace(/[<>&]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;'}[c];});}
+  function fnum(n,d){ if(n==null||isNaN(n))return '\u2014'; return Number(n).toLocaleString(undefined,{maximumFractionDigits:(d==null?0:d)}); }
+  function poll(fn,stamp){ if(window.a11oyPoll){window.a11oyPoll(fn,stamp);} else { fn(); var t=setInterval(fn,12000); (window._liveTimers=window._liveTimers||[]).push(t);} }
+  function getJSON(u){ return window.getJSON?window.getJSON(u):fetch(u).then(function(r){return r.json();}); }
+  function kpi(k,id,d,cls){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" id="'+id+'">\u2026</div><div class="d">'+(d||'')+'</div></div>'; }
+  function card(t,ep,inner){ return '<div class="card"><div class="card-h"><span class="card-t">'+t+'</span><span class="card-ep">'+(ep||'')+'</span></div>'+inner+'</div>'; }
+  function box3d(id,h){ return '<div id="'+id+'" style="height:'+(h||360)+'px;position:relative"></div>'; }
+  function dl(){ return window.liveDot?window.liveDot():''; }
+  function fmla(k){ return window.a11oyFormula?window.a11oyFormula(k):''; }
+  function sh(h){ h=(h||'').toString(); return h.length>18?(h.slice(0,10)+'\u2026'+h.slice(-6)):h; }
+  function sevcol(s){ s=(s||'').toLowerCase(); return s.indexOf('crit')>=0?RED:(s.indexOf('high')>=0?AMBER:(s.indexOf('med')>=0?GOLD:TEAL)); }
+  function tbl(heads,rows){ var h='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-family:var(--mono,monospace);font-size:11px">';
+    h+='<thead><tr>'+heads.map(function(x){return '<th style="text-align:left;padding:.35rem .5rem;border-bottom:1px solid rgba(201,183,135,.2);color:'+GOLD+';font-weight:600">'+esc(x)+'</th>';}).join('')+'</tr></thead><tbody>';
+    h+=rows.map(function(r){return '<tr>'+r.map(function(c){return '<td style="padding:.32rem .5rem;border-bottom:1px solid rgba(201,183,135,.06);color:var(--cream,#ddd);vertical-align:top">'+c+'</td>';}).join('')+'</tr>';}).join('');
+    return h+'</tbody></table></div>'; }
+  function err(id,e){ H(id,'<div class="row mono dim">feed unavailable: '+esc((e&&e.message)||e)+'</div>'); }
+
+  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Threat corpus is <b>real MITRE ATT&CK</b> (STIX 2.1, ATT&CK v14) with live CVSS; CVE severity is <b>live NVD/CISA-KEV</b>-class data \u2014 all fetched server-side (0 client CDN), freshness labeled. Containment receipts are hash-chained and <b>DSSE-signed</b> when the cosign key is present, honestly marked unsigned otherwise \u2014 never a fabricated signature. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail or legal oracle). Five formulas are locked-proven {F1,F11,F12,F18,F19}; other waves are CI-green, never counted as locked. Post-quantum signing is <b>ROADMAP</b>, labeled as such.</div>';
+
+  /* ---- Tab 1: Threat Intelligence ---- */
+  window.renderCybThreat=function(c){
+    c.innerHTML=
+      card('Threat Intelligence \u2014 live MITRE ATT&CK + CVSS '+dl(),'GET '+SB+'/threats/full',
+        '<div class="kpis">'+kpi('Techniques','cyb-ti-total','STIX 2.1 corpus')+kpi('ATT&CK','cyb-ti-ver','MITRE version')+
+         kpi('Critical+High','cyb-ti-crit','by CVSS severity')+kpi('Updated','cyb-ti-upd','last refresh')+'</div>'+
+        '<div id="cyb-ti-sev" style="margin:.6rem 0"></div>')+
+      card('Technique corpus','signature \u00b7 tactic \u00b7 CVSS','<div id="cyb-ti-tbl"><div class="row mono dim">loading\u2026</div></div>')+
+      '<div class="mono dim" style="font-size:11px">'+'<span id="cyb-ti-parity"></span></div>'+HON;
+    poll(function(){ getJSON(SB+'/threats/full').then(function(d){
+      var corp=d.corpus||[];
+      var crit=corp.filter(function(x){var s=(x.severity||'').toLowerCase();return s.indexOf('crit')>=0||s.indexOf('high')>=0;}).length;
+      H('cyb-ti-total',fnum(d.total!=null?d.total:corp.length)); H('cyb-ti-ver',esc(d.mitre_attack_version||'\u2014'));
+      H('cyb-ti-crit',fnum(crit)); H('cyb-ti-upd',esc((d.last_updated||'').slice(0,10)||'\u2014'));
+      var buckets={Critical:0,High:0,Medium:0,Low:0};
+      corp.forEach(function(x){var s=(x.severity||'').toLowerCase(); if(s.indexOf('crit')>=0)buckets.Critical++;else if(s.indexOf('high')>=0)buckets.High++;else if(s.indexOf('med')>=0)buckets.Medium++;else buckets.Low++;});
+      if(window.barH) window.barH('cyb-ti-sev',Object.keys(buckets),Object.keys(buckets).map(function(k){return buckets[k];}),[RED,AMBER,GOLD,TEAL]);
+      var rows=corp.slice(0,30).map(function(x){ return [
+        '<span style="color:'+CREAM+'">'+esc(x.signature||'\u2014')+'</span>',
+        esc(x.category||''),
+        '<span class="badge mono" style="color:'+sevcol(x.severity)+';border:1px solid '+sevcol(x.severity)+'66">'+esc(x.severity||'?')+'</span>',
+        esc(x.cvss_base!=null?x.cvss_base:'\u2014'),
+        '<span class="dim">'+esc(x.mitre_tactic||'')+'</span> / '+esc(x.mitre_technique||'') ]; });
+      H('cyb-ti-tbl',tbl(['signature','category','sev','CVSS','tactic / technique'],rows));
+      H('cyb-ti-parity',d.parity?('Parity target: '+esc(d.parity)):'');
+    }).catch(function(e){err('cyb-ti-tbl',e);}); },'cyb-ti');
+  };
+
+  /* ---- Tab 2: Posture & Compliance Drift ---- */
+  window.renderCybPosture=function(c){
+    c.innerHTML=
+      card('Posture & Compliance Drift \u2014 governed gate verification '+dl(),'GET '+AB+'/gates',
+        '<div class="kpis">'+kpi('Gates','cyb-po-count','policy gates live')+kpi('Lean-verified','cyb-po-ver','machine-checked')+
+         kpi('Declarations','cyb-po-decl','kernel canonical')+kpi('Axioms','cyb-po-ax','raw axioms')+'</div>'+
+        '<div id="cyb-po-don" style="margin:.6rem 0"></div>')+
+      card('Gate ledger','formula \u00b7 lean theorem \u00b7 status','<div id="cyb-po-tbl"><div class="row mono dim">loading\u2026</div></div>')+
+      card('Citation audit','honest provenance','<div id="cyb-po-audit" class="row mono dim">\u2026</div>')+HON;
+    poll(function(){ getJSON(AB+'/gates').then(function(d){
+      var gates=d.gates||[]; var ver=gates.filter(function(g){return g.lean_verified;}).length; var can=d.canonical||{};
+      H('cyb-po-count',fnum(d.count!=null?d.count:gates.length)); H('cyb-po-ver',fnum(ver)+' / '+fnum(gates.length));
+      H('cyb-po-decl',fnum(can.declarations)); H('cyb-po-ax',fnum(can.axioms));
+      if(window.barH) window.barH('cyb-po-don',['lean-verified','deferred'],[ver,Math.max(0,gates.length-ver)],[TEAL,AMBER]);
+      var rows=gates.slice(0,40).map(function(g){ var ok=g.lean_verified; return [
+        '<span style="color:'+CREAM+'">'+esc(g.name||'\u2014')+'</span>',
+        '<span class="dim">'+esc(g.formula||'')+'</span>',
+        esc(g.lean_theorem||'\u2014'),
+        '<span class="badge mono" style="color:'+(ok?TEAL:AMBER)+';border:1px solid '+(ok?TEAL:AMBER)+'66">'+esc(ok?'verified':(g.lean_status||'deferred'))+'</span>' ]; });
+      H('cyb-po-tbl',tbl(['gate','formula','lean theorem','status'],rows));
+      var a=d.lean_citation_audit||{};
+      H('cyb-po-audit','Verified against <b>'+esc(a.verified_against||'\u2014')+'</b> \u00b7 real theorem citations: '+fnum(a.real_theorem_citations)+' \u00b7 deferred (no theorem yet): '+fnum(a.deferred_no_theorem)+' \u00b7 phantom refs: '+fnum(a.phantom_Lutar_Gate_dir_refs)+'. Sorries: '+fnum(can.sorries)+'. Honest doctrine v11 \u2014 verified gates are machine-checked, deferred gates are labeled, never claimed proven.');
+    }).catch(function(e){err('cyb-po-tbl',e);}); },'cyb-po');
+  };
+
+  /* ---- Tab 3: Attack-Surface Graph (3D) ---- */
+  window.renderCybSurface=function(c){
+    c.innerHTML=
+      card('Attack-Surface Graph \u2014 tactic \u2192 technique exposure (3D) '+dl(),'GET '+SB+'/threats/full',
+        '<div class="kpis">'+kpi('Tactics','cyb-as-tac','ATT&CK tactics')+kpi('Techniques','cyb-as-tech','mapped nodes')+
+         kpi('Critical nodes','cyb-as-crit','crit/high CVSS')+'</div>'+box3d('cyb-as-3d',380))+
+      card('Surface by tactic','exposure count','<div id="cyb-as-tbl"><div class="row mono dim">loading\u2026</div></div>')+HON;
+    poll(function(){ getJSON(SB+'/threats/full').then(function(d){
+      var corp=d.corpus||[]; var tac={}; var nodes=[]; var links=[]; var seenT={}; var crit=0;
+      corp.forEach(function(x){ var t=x.mitre_tactic||x.category||'unmapped'; tac[t]=(tac[t]||0)+1;
+        if(!seenT[t]){ seenT[t]=true; nodes.push({id:'T:'+t,name:t,color:GOLD,val:9}); }
+        var s=(x.severity||'').toLowerCase(); if(s.indexOf('crit')>=0||s.indexOf('high')>=0)crit++;
+        var tid='K:'+(x.signature||x.mitre_technique||Math.random());
+        nodes.push({id:tid,name:(x.mitre_technique||x.signature||''),color:sevcol(x.severity),val:4});
+        links.push({source:'T:'+t,target:tid}); });
+      H('cyb-as-tac',fnum(Object.keys(tac).length)); H('cyb-as-tech',fnum(corp.length)); H('cyb-as-crit',fnum(crit));
+      if(window.a11oyFG) window.a11oyFG('cyb-as-3d',nodes,links,{cooldown:160,labels:nodes.length<=26});
+      var rows=Object.keys(tac).sort(function(a,b){return tac[b]-tac[a];}).map(function(t){return [
+        '<span style="color:'+CREAM+'">'+esc(t)+'</span>',
+        '<span class="badge mono" style="color:'+GOLD+';border:1px solid '+GOLD+'66">'+fnum(tac[t])+'</span>' ]; });
+      H('cyb-as-tbl',tbl(['tactic','exposed techniques'],rows));
+    }).catch(function(e){err('cyb-as-tbl',e);}); },'cyb-as');
+  };
+
+  /* ---- Tab 4: Signed Incident Receipts ---- */
+  window.renderCybIncident=function(c){
+    c.innerHTML=
+      card('Governed Containment \u2014 decision \u2192 signed receipt','GET '+AB+'/governed-decision \u00b7 '+fmla('F1'),
+        '<button class="vchip" id="cyb-ic-run" style="background:var(--teal-soft);color:'+TEAL+';border-color:'+TEAL+'66">Govern containment \u2192 sign</button>'+
+        '<div id="cyb-ic-out" class="row mono dim" style="margin-top:.6rem">Run a governed containment decision; the recommendation is sealed with a DSSE receipt where a key is present.</div>')+
+      card('Live incident verdict feed '+dl(),'GET '+SB+'/verdict/feed','<div id="cyb-ic-feed"><div class="row mono dim">loading\u2026</div></div>')+HON;
+    function run(){ H('cyb-ic-out','<div class="row mono dim">governing\u2026</div>');
+      getJSON(AB+'/governed-decision').then(function(d){ var r=d.recommendation||{}; var rc=d.receipt||{};
+        var signed=!!(rc._pae_sha256); var col=signed?TEAL:AMBER;
+        H('cyb-ic-out',
+          '<div class="row"><span class="badge mono" style="color:'+col+';border:1px solid '+col+'66">'+(signed?'DSSE-SIGNED':'UNSIGNED (no key)')+'</span><span style="color:'+CREAM+'">'+esc(r.title||d.brief||'\u2014')+'</span></div>'+
+          '<div class="row mono" style="font-size:11px;gap:.6rem"><span class="dim">owner</span>'+esc(r.owner||'\u2014')+'<span class="dim">confidence</span>'+esc(r.confidence!=null?r.confidence:'\u2014')+'<span class="dim">human-approval</span>'+esc(r.requires_human_approval?'required':'not required')+'</div>'+
+          '<div class="row mono" style="font-size:11px;gap:.6rem"><span class="dim">next</span>'+esc(r.next_action||'\u2014')+'<span class="dim">rollback</span>'+esc(r.rollback_path||'\u2014')+'</div>'+
+          '<div class="row mono" style="font-size:11px;gap:.6rem"><span class="dim">\u039b advisory</span>'+esc(d.lambda_advisory!=null?d.lambda_advisory:'\u2014')+'<span class="dim">'+esc(d.lambda_status||'')+'</span></div>'+
+          '<div class="row mono dim" style="font-size:10.5px">receipt '+esc(rc.payloadType||'')+' \u00b7 PAE sha256 '+esc(sh(rc._pae_sha256||''))+' \u00b7 '+esc(rc._dsse||'')+' \u00b7 signed '+esc((rc._signed_at||'').slice(0,19))+'</div>'+
+          '<div class="row mono dim" style="font-size:10px">model: '+esc(r.model||'')+'</div>'); }).catch(function(e){err('cyb-ic-out',e);}); }
+    var b=E('cyb-ic-run'); if(b) b.onclick=run;
+    poll(function(){ getJSON(SB+'/verdict/feed').then(function(d){ var v=d.verdicts||[];
+      H('cyb-ic-feed', (v.length?'':'<div class="row mono dim">no verdicts buffered</div>')+v.slice(0,14).map(function(x){
+        return window.a11oyReceiptRow?window.a11oyReceiptRow({decision:x.decision,vertical:x.agent,action:x.action,hash:x.receipt_hash}):
+        ('<div class="row mono" style="font-size:10.5px"><span>'+esc(x.decision)+'</span><span>'+esc(x.agent)+'</span><span>'+esc(x.action)+'</span></div>'); }).join('')+
+        '<div class="row mono dim" style="font-size:10px;margin-top:.4rem">'+esc(d.note||'')+' \u00b7 buffered '+fnum(d.total_buffered)+'</div>'); }).catch(function(e){err('cyb-ic-feed',e);}); },'cyb-ic');
+  };
+
+  /* ---- Tab 5: Zero-Trust Mesh Map ---- */
+  window.renderCybZero=function(c){
+    c.innerHTML=
+      card('Zero-Trust Mesh \u2014 BFT quorum over independent witnesses (3D) '+dl(),'GET '+AB+'/capabilities/mesh \u00b7 '+fmla('F12'),
+        '<div class="kpis">'+kpi('Witnesses','cyb-zt-w','healthy / required')+kpi('Quorum','cyb-zt-q','BFT permitted')+
+         kpi('Bound','cyb-zt-b','fault tolerance')+kpi('Enforcement','cyb-zt-g','policy gates')+'</div>'+box3d('cyb-zt-3d',360))+
+      card('Trust nodes','role \u00b7 health \u00b7 \u039b','<div id="cyb-zt-tbl"><div class="row mono dim">loading\u2026</div></div>')+HON;
+    poll(function(){ getJSON(AB+'/capabilities/mesh').then(function(d){ var nodes=d.nodes||[]; var edges=d.edges||[];
+      H('cyb-zt-w',fnum(d.healthy_witnesses)+' / '+fnum(d.n_required)); H('cyb-zt-q',(d.quorum_permitted?'PERMITTED':'DENIED'));
+      H('cyb-zt-b',esc(d.bft_bound||'\u2014'));
+      var fgn=nodes.map(function(n){return {id:n.id,name:n.id+' ('+(n.role||'')+')',color:n.ok?TEAL:RED,val:n.ok?7:4};});
+      var fgl=edges.map(function(e){return {source:e.from,target:e.to};});
+      if(window.a11oyFG) window.a11oyFG('cyb-zt-3d',fgn,fgl,{cooldown:150,labels:true});
+      var rows=nodes.map(function(n){return [
+        '<span style="color:'+CREAM+'">'+esc(n.id)+'</span>', esc(n.role||''),
+        '<span class="badge mono" style="color:'+(n.ok?TEAL:RED)+';border:1px solid '+(n.ok?TEAL:RED)+'66">'+(n.ok?'trusted '+esc(n.http):'unreachable')+'</span>',
+        esc(n.lambda||''), 'mcp:'+esc(n.mcp_tools!=null?n.mcp_tools:'\u2014') ]; });
+      H('cyb-zt-tbl',tbl(['node','role','health','\u039b','tools'],rows));
+    }).catch(function(e){err('cyb-zt-tbl',e);});
+    getJSON(SB+'/gates').then(function(g){ H('cyb-zt-g',fnum((g.gates||[]).length)); }).catch(function(){}); },'cyb-zt');
+  };
+
+  /* ---- register + nav ---- */
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS) return; window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; }
+  function regAll(){ if(!window.VIEWS){ return setTimeout(regAll,120); }
+    reg('cybThreat','Cyber Defense \u2014 Threat Intelligence','LIVE \u00b7 MITRE ATT&CK + CVSS','Live MITRE ATT&CK (STIX 2.1, v14) technique corpus with CVSS severity and CVE/KEV-class signals, fetched server-side. Severity histogram + full technique ledger. Honest labels, 0 client CDN.',window.renderCybThreat);
+    reg('cybPosture','Cyber Defense \u2014 Posture & Compliance Drift','LIVE \u00b7 governed gates','Posture from real governed policy gates: how many are Lean machine-verified vs deferred, kernel-canonical declaration/axiom counts, and an honest citation audit. Drift = verified-vs-deferred over time.',window.renderCybPosture);
+    reg('cybSurface','Cyber Defense \u2014 Attack-Surface Graph','LIVE \u00b7 tactic \u2192 technique DAG','3D attack-surface graph built from the live ATT&CK corpus: tactics linked to their techniques, nodes colored by CVSS severity. 3d-force-graph (MIT, 0 CDN), framed; exposure table by tactic.',window.renderCybSurface);
+    reg('cybIncident','Cyber Defense \u2014 Signed Incident Receipts','LIVE \u00b7 governed + DSSE','Run a governed containment decision through the P1\u2013P6 loop and seal it with a DSSE-signed receipt where a key is present. Live incident verdict feed from the real in-memory audit ring.',window.renderCybIncident);
+    reg('cybZero','Cyber Defense \u2014 Zero-Trust Mesh','LIVE \u00b7 BFT quorum','Zero-trust mesh map: independent witness nodes, BFT quorum (F12 quorum-intersection, n\u22653f+1), per-node trust/health/\u039b, and policy-gate enforcement points. Live 3D graph, auto-poll.',window.renderCybZero);
+  }
+  regAll();
+  function injectNav(){ var anchor=document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); } if(document.getElementById('cyb-nav-group')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='cyb-nav-group'; grp.textContent='Cyber Defense';
+    var items=[['cybThreat','\u2726','Threat Intelligence'],['cybPosture','\u25c9','Posture & Drift'],['cybSurface','\u2727','Attack-Surface Graph'],['cybIncident','\u26a0','Signed Incidents'],['cybZero','\u26d3','Zero-Trust Mesh']];
+    function mk(d){ var n=document.createElement('div'); n.className='nav-item'; n.id='cyb-nav-'+d[0]; n.setAttribute('data-view',d[0]); n.setAttribute('onclick',"go('"+d[0]+"')"); n.innerHTML='<span class="ico">'+d[1]+'</span>'+d[2]; return n; }
+    var parent=anchor.parentNode; parent.appendChild(grp); items.forEach(function(d){ parent.appendChild(mk(d)); }); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+
+
+<!-- ===================================================================== -->
+<!-- AI-FLEET (5) - fleet topology + decision-receipt stream + orchestration-->
+<!-- + governance-gate status + per-agent observability. ADDITIVE. Owns     -->
+<!-- ONLY window.renderFlt* fns, #flt-* ids, view keys fltTopo/fltReceipts/  -->
+<!-- fltOrch/fltGov/fltObs, nav group #flt-nav-group. Reads LIVE            -->
+<!-- /api/rosie/v1/*, /api/a11oy/v4/fleet, /api/a11oy/v1/* feeds (0 CDN).    -->
+<!-- UI never shows the codename; the vertical is "AI-Fleet" everywhere.     -->
+<!-- DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; Lambda=Conjecture 1 (advisory).-->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', CREAM='#f5f5f5', DIM='#888', SLATE='#7a8aa0';
+  var RB='/api/rosie/v1', AB='/api/a11oy/v1', V4='/api/a11oy/v4';
+
+  function E(id){return document.getElementById(id);}
+  function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
+  function esc(s){return window.esc?window.esc(s):String(s==null?'':s).replace(/[<>&]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;'}[c];});}
+  function fnum(n,d){ if(n==null||isNaN(n))return '\u2014'; return Number(n).toLocaleString(undefined,{maximumFractionDigits:(d==null?0:d)}); }
+  function poll(fn,stamp){ if(window.a11oyPoll){window.a11oyPoll(fn,stamp);} else { fn(); var t=setInterval(fn,12000); (window._liveTimers=window._liveTimers||[]).push(t);} }
+  function getJSON(u){ return window.getJSON?window.getJSON(u):fetch(u).then(function(r){return r.json();}); }
+  function kpi(k,id,d,cls){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" id="'+id+'">\u2026</div><div class="d">'+(d||'')+'</div></div>'; }
+  function card(t,ep,inner){ return '<div class="card"><div class="card-h"><span class="card-t">'+t+'</span><span class="card-ep">'+(ep||'')+'</span></div>'+inner+'</div>'; }
+  function box3d(id,h){ return '<div id="'+id+'" style="height:'+(h||360)+'px;position:relative"></div>'; }
+  function dl(){ return window.liveDot?window.liveDot():''; }
+  function fmla(k){ return window.a11oyFormula?window.a11oyFormula(k):''; }
+  function sh(h){ h=(h||'').toString(); return h.length>18?(h.slice(0,10)+'\u2026'+h.slice(-6)):h; }
+  function sevcol(s){ s=(s||'').toLowerCase(); return s.indexOf('crit')>=0?RED:(s.indexOf('high')>=0?AMBER:(s.indexOf('med')>=0?GOLD:TEAL)); }
+  function tbl(heads,rows){ var h='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-family:var(--mono,monospace);font-size:11px">';
+    h+='<thead><tr>'+heads.map(function(x){return '<th style="text-align:left;padding:.35rem .5rem;border-bottom:1px solid rgba(201,183,135,.2);color:'+GOLD+';font-weight:600">'+esc(x)+'</th>';}).join('')+'</tr></thead><tbody>';
+    h+=rows.map(function(r){return '<tr>'+r.map(function(c){return '<td style="padding:.32rem .5rem;border-bottom:1px solid rgba(201,183,135,.06);color:var(--cream,#ddd);vertical-align:top">'+c+'</td>';}).join('')+'</tr>';}).join('');
+    return h+'</tbody></table></div>'; }
+  function err(id,e){ H(id,'<div class="row mono dim">feed unavailable: '+esc((e&&e.message)||e)+'</div>'); }
+
+  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Fleet topology, health, \u039b status and MCP-tool counts are probed <b>live in-process</b> from the real capabilities mesh (0 client CDN), freshness labeled. The decision ledger is a <b>real hash-chained</b> receipt store (SHA-chain, tamper-evident), DSSE-signed where a key is present \u2014 never a fabricated signature. Router throughput is a <b>live in-memory counter</b>, labeled as such; it is not a billing meter. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail oracle). Five formulas are locked-proven {F1,F11,F12,F18,F19}; other waves are CI-green, never counted as locked. SLSA L1 honest build-provenance.</div>';
+
+  /* ---- Tab 1: Fleet Topology & Health ---- */
+  window.renderFltTopo=function(c){
+    c.innerHTML=
+      card('Fleet Topology & Health \u2014 capabilities mesh (3D) '+dl(),'GET '+RB+'/mesh/3d \u00b7 '+fmla('F12'),
+        '<div class="kpis">'+kpi('Agents','flt-tp-n','mesh nodes')+kpi('Healthy','flt-tp-h','reachable witnesses')+
+         kpi('Quorum','flt-tp-q','BFT permitted')+kpi('Bound','flt-tp-b','fault tolerance')+'</div>'+box3d('flt-tp-3d',380))+
+      card('Agent nodes','role \u00b7 health \u00b7 \u039b \u00b7 tools','<div id="flt-tp-tbl"><div class="row mono dim">loading\u2026</div></div>')+
+      card('Peer capabilities','GET '+V4+'/fleet','<div id="flt-tp-peers" class="row mono dim">\u2026</div>')+HON;
+    poll(function(){ getJSON(RB+'/mesh/3d').then(function(d){ var nodes=d.nodes||[]; var edges=d.edges||[];
+      H('flt-tp-n',fnum(nodes.length)); H('flt-tp-h',fnum(d.healthy_witnesses)+' / '+fnum(d.n_required));
+      H('flt-tp-q',d.quorum_permitted?'PERMITTED':'DENIED'); H('flt-tp-b',esc(d.bft_bound||'\u2014'));
+      var fgn=nodes.map(function(n){return {id:n.id,name:n.id+' ('+(n.role||'')+')',color:n.ok?TEAL:RED,val:n.ok?7:4};});
+      var fgl=edges.map(function(e){return {source:e.from,target:e.to};});
+      if(window.a11oyFG) window.a11oyFG('flt-tp-3d',fgn,fgl,{cooldown:150,labels:true});
+      var rows=nodes.map(function(n){return [
+        '<span style="color:'+CREAM+'">'+esc(n.id)+'</span>', esc(n.role||''),
+        '<span class="badge mono" style="color:'+(n.ok?TEAL:RED)+';border:1px solid '+(n.ok?TEAL:RED)+'66">'+(n.ok?'ok '+esc(n.http):'down')+'</span>',
+        esc(n.lambda||''), esc(n.mcp_tools!=null?n.mcp_tools:'\u2014') ]; });
+      H('flt-tp-tbl',tbl(['agent','role','health','\u039b','tools'],rows));
+    }).catch(function(e){err('flt-tp-tbl',e);});
+    getJSON(V4+'/fleet').then(function(d){ var p=d.peers||[];
+      H('flt-tp-peers', p.map(function(x){ var ok=(x.http_code===200||x.status==='ok'||x.status==='live');
+        return '<div class="row mono" style="font-size:11px;gap:.5rem"><span class="badge mono" style="color:'+(ok?TEAL:AMBER)+';border:1px solid '+(ok?TEAL:AMBER)+'66">'+esc(x.status||'?')+'</span><span style="color:'+CREAM+'">'+esc(x.capability||x.service||'\u2014')+'</span><span class="dim">'+esc(x.counts||x.slsa||'')+'</span></div>'; }).join('')); }).catch(function(){}); },'flt-tp');
+  };
+
+  /* ---- Tab 2: Decision-Receipt Stream + Chain Integrity ---- */
+  window.renderFltReceipts=function(c){
+    c.innerHTML=
+      card('Decision Ledger \u2014 hash-chained receipts '+dl(),'GET '+RB+'/ledger',
+        '<div class="kpis">'+kpi('Head seq','flt-rc-seq','chain length')+kpi('Receipts','flt-rc-cnt','this window')+
+         kpi('Root hash','flt-rc-root','chain root')+kpi('Integrity','flt-rc-int','prior-hash link')+'</div>'+
+        '<div id="flt-rc-tbl"><div class="row mono dim">loading\u2026</div></div>')+
+      card('Live governed decision feed '+dl(),'GET '+AB+'/policy/decisions/feed','<div id="flt-rc-feed"><div class="row mono dim">loading\u2026</div></div>')+HON;
+    poll(function(){ getJSON(RB+'/ledger').then(function(d){ var rs=d.receipts||[];
+      H('flt-rc-seq',fnum(d.head_seq)); H('flt-rc-cnt',fnum(d.count!=null?d.count:rs.length));
+      H('flt-rc-root','<span class="mono" style="font-size:11px">'+esc(sh(d.root_hash||''))+'</span>');
+      var linked=true; for(var i=1;i<rs.length;i++){ if(rs[i].prior_hash==null){ linked=false; break; } }
+      H('flt-rc-int','<span style="color:'+(linked?TEAL:AMBER)+'">'+(linked?'\u2713 linked':'partial')+'</span>');
+      var rows=rs.map(function(r){return [
+        esc(r.seq), '<span style="color:'+CREAM+'">'+esc(r.action||'\u2014')+'</span>',
+        '<span class="mono dim">'+esc(sh(r.receipt_id||''))+'</span>',
+        '<span class="mono dim">'+esc(sh(r.prior_hash||''))+'</span>',
+        esc((r.timestamp_utc||'').slice(0,19)) ]; });
+      H('flt-rc-tbl',tbl(['seq','action','receipt id','prior hash','timestamp'],rows));
+    }).catch(function(e){err('flt-rc-tbl',e);});
+    getJSON(AB+'/policy/decisions/feed').then(function(d){ var v=d.verdicts||[];
+      H('flt-rc-feed',(v.length?'':'<div class="row mono dim">no decisions buffered</div>')+v.slice(0,14).map(function(x){
+        return window.a11oyReceiptRow?window.a11oyReceiptRow({decision:x.decision,vertical:x.agent,action:x.action,hash:x.receipt_hash}):''; }).join('')); }).catch(function(){}); },'flt-rc');
+  };
+
+  /* ---- Tab 3: Orchestration & Routing ---- */
+  window.renderFltOrch=function(c){
+    c.innerHTML=
+      card('Orchestration & Routing \u2014 model tier router '+dl(),'GET '+AB+'/router/stats',
+        '<div class="kpis">'+kpi('Mode','flt-or-mode','router state')+kpi('Served','flt-or-served','this window')+
+         kpi('Tiers','flt-or-tiers','routing tiers')+kpi('Routes','flt-or-routes','organ\u2192model')+'</div>'+
+        '<div id="flt-or-bar" style="margin:.6rem 0"></div>')+
+      card('Route table','organ \u00b7 tier \u00b7 model \u00b7 throughput','<div id="flt-or-tbl"><div class="row mono dim">loading\u2026</div></div>')+
+      '<div class="mono dim" style="font-size:11px" id="flt-or-hon"></div>'+HON;
+    poll(function(){ getJSON(AB+'/router/stats').then(function(d){ var routes=d.routes||[];
+      H('flt-or-mode',esc(d.mode||'\u2014')); H('flt-or-served',fnum(d.servedThisWindow));
+      H('flt-or-tiers',fnum((d.tiers||[]).length)); H('flt-or-routes',fnum(routes.length));
+      if(window.barH) window.barH('flt-or-bar',routes.map(function(r){return r.organ;}),routes.map(function(r){return r.throughput||0;}),[TEAL,GOLD,SLATE,AMBER,RED]);
+      var rows=routes.map(function(r){return [
+        '<span style="color:'+CREAM+'">'+esc(r.organ||'\u2014')+'</span>',
+        '<span class="badge mono" style="color:'+GOLD+';border:1px solid '+GOLD+'66">'+esc(r.tier||'')+'</span>',
+        esc(r.model||''), fnum(r.throughput), '<span class="dim">'+esc(r.license||'')+'</span>' ]; });
+      H('flt-or-tbl',tbl(['organ','tier','model','throughput','license'],rows));
+      H('flt-or-hon','Source: '+esc(d.source||'')+' \u00b7 '+esc(d.honesty||''));
+    }).catch(function(e){err('flt-or-tbl',e);}); },'flt-or');
+  };
+
+  /* ---- Tab 4: Governance-Gate Status ---- */
+  window.renderFltGov=function(c){
+    c.innerHTML=
+      card('Governance Gates \u2014 deny-by-default policy '+dl(),'GET '+AB+'/gates \u00b7 '+fmla('F1'),
+        '<div class="kpis">'+kpi('Gates','flt-gv-n','policy gates')+kpi('Lean-verified','flt-gv-v','machine-checked')+
+         kpi('Declarations','flt-gv-d','kernel canonical')+kpi('MCP tools','flt-gv-m','exposed tools')+'</div>'+
+        '<div id="flt-gv-don" style="margin:.6rem 0"></div>')+
+      card('Govern a fleet action \u2192 signed receipt','GET '+AB+'/governed-decision',
+        '<button class="vchip" id="flt-gv-run" style="background:var(--teal-soft);color:'+TEAL+';border-color:'+TEAL+'66">Govern \u2192 sign</button>'+
+        '<div id="flt-gv-out" class="row mono dim" style="margin-top:.6rem">Run a governed fleet decision; \u039b advisory floor + human-approval flag + DSSE receipt.</div>')+
+      card('Gate ledger','formula \u00b7 status','<div id="flt-gv-tbl"><div class="row mono dim">loading\u2026</div></div>')+HON;
+    poll(function(){ getJSON(AB+'/gates').then(function(d){ var gates=d.gates||[]; var ver=gates.filter(function(g){return g.lean_verified;}).length; var can=d.canonical||{};
+      H('flt-gv-n',fnum(d.count!=null?d.count:gates.length)); H('flt-gv-v',fnum(ver)+' / '+fnum(gates.length));
+      H('flt-gv-d',fnum(can.declarations)); H('flt-gv-m',fnum(can.mcp_tools));
+      if(window.barH) window.barH('flt-gv-don',['lean-verified','deferred'],[ver,Math.max(0,gates.length-ver)],[TEAL,AMBER]);
+      var rows=gates.slice(0,40).map(function(g){ var ok=g.lean_verified; return [
+        '<span style="color:'+CREAM+'">'+esc(g.name||'\u2014')+'</span>', '<span class="dim">'+esc(g.formula||'')+'</span>',
+        '<span class="badge mono" style="color:'+(ok?TEAL:AMBER)+';border:1px solid '+(ok?TEAL:AMBER)+'66">'+esc(ok?'verified':(g.lean_status||'deferred'))+'</span>' ]; });
+      H('flt-gv-tbl',tbl(['gate','formula','status'],rows));
+    }).catch(function(e){err('flt-gv-tbl',e);}); },'flt-gv');
+    function run(){ H('flt-gv-out','<div class="row mono dim">governing\u2026</div>');
+      getJSON(AB+'/governed-decision').then(function(d){ var r=d.recommendation||{}; var rc=d.receipt||{}; var signed=!!(rc._pae_sha256); var col=signed?TEAL:AMBER;
+        H('flt-gv-out',
+          '<div class="row"><span class="badge mono" style="color:'+col+';border:1px solid '+col+'66">'+(signed?'DSSE-SIGNED':'UNSIGNED (no key)')+'</span><span style="color:'+CREAM+'">'+esc(r.title||d.brief||'\u2014')+'</span></div>'+
+          '<div class="row mono" style="font-size:11px;gap:.6rem"><span class="dim">confidence</span>'+esc(r.confidence!=null?r.confidence:'\u2014')+'<span class="dim">human-approval</span>'+esc(r.requires_human_approval?'required':'not required')+'<span class="dim">\u039b</span>'+esc(d.lambda_advisory!=null?d.lambda_advisory:'\u2014')+'</div>'+
+          '<div class="row mono dim" style="font-size:10.5px">PAE sha256 '+esc(sh(rc._pae_sha256||''))+' \u00b7 '+esc(rc._dsse||'')+' \u00b7 '+esc(d.lambda_status||'')+'</div>'); }).catch(function(e){err('flt-gv-out',e);}); }
+    var b=E('flt-gv-run'); if(b) b.onclick=run;
+  };
+
+  /* ---- Tab 5: Per-Agent Observability ---- */
+  window.renderFltObs=function(c){
+    c.innerHTML=
+      card('Per-Agent Observability \u2014 MELT, signed '+dl(),'GET '+AB+'/observability/summary',
+        '<div class="kpis">'+kpi('DAG depth','flt-ob-dag','trace depth')+kpi('Organs','flt-ob-org','reachable / total')+
+         kpi('Signed spans','flt-ob-sp','events')+kpi('Chain','flt-ob-chain','trace verified')+'</div>'+
+        '<div class="mono dim" style="font-size:11px" id="flt-ob-pitch"></div>')+
+      card('Mesh reachability','organ \u00b7 status \u00b7 latency','<div id="flt-ob-tbl"><div class="row mono dim">loading\u2026</div></div>')+HON;
+    poll(function(){ getJSON(AB+'/observability/summary').then(function(d){ var m=(d.melt||{}); var met=(m.metrics||{}); var reach=d.mesh_reach||[];
+      H('flt-ob-dag',fnum(met.dag_depth)); H('flt-ob-org',fnum(met.organs_reachable)+' / '+fnum(met.organs_total));
+      H('flt-ob-sp',fnum((m.events||{}).signed_spans)); var cv=(m.traces||{}).chain_verified;
+      H('flt-ob-chain','<span style="color:'+(cv?TEAL:AMBER)+'">'+(cv?'\u2713 verified':'unverified')+'</span>');
+      H('flt-ob-pitch',esc(d.pitch||'')+' \u00b7 '+esc(d.honesty||''));
+      var rows=reach.map(function(x){ var ok=(x.http_code===200||x.status==='ok'||x.status==='live'); return [
+        '<span style="color:'+CREAM+'">'+esc(x.organ||'\u2014')+'</span>',
+        '<span class="badge mono" style="color:'+(ok?TEAL:RED)+';border:1px solid '+(ok?TEAL:RED)+'66">'+esc(x.status||'?')+' '+esc(x.http_code!=null?x.http_code:'')+'</span>',
+        esc(x.latency_ms!=null?(fnum(x.latency_ms,1)+'ms'):'\u2014'), '<span class="dim">'+esc(x.probed_path||x.url||'')+'</span>' ]; });
+      H('flt-ob-tbl',tbl(['agent / organ','status','latency','probe'],rows));
+    }).catch(function(e){err('flt-ob-tbl',e);}); },'flt-ob');
+  };
+
+  /* ---- register + nav ---- */
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS) return; window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; }
+  function regAll(){ if(!window.VIEWS){ return setTimeout(regAll,120); }
+    reg('fltTopo','AI-Fleet \u2014 Topology & Health','LIVE \u00b7 capabilities mesh','3D fleet topology of the governed agent mesh: per-agent role, health, \u039b status, MCP-tool counts, BFT quorum (F12), and peer capabilities \u2014 probed live in-process. 0 client CDN, auto-poll.',window.renderFltTopo);
+    reg('fltReceipts','AI-Fleet \u2014 Decision-Receipt Stream','LIVE \u00b7 hash-chained ledger','The real hash-chained decision ledger: head sequence, chain root, per-receipt prior-hash linkage (tamper-evident) and a live governed-decision feed. DSSE-signed where a key is present.',window.renderFltReceipts);
+    reg('fltOrch','AI-Fleet \u2014 Orchestration & Routing','LIVE \u00b7 tier router','Model-tier orchestration: which organ routes to which tier/model, live in-memory throughput per route, served-this-window counter, and licensing posture. Throughput labeled live counter, not a billing meter.',window.renderFltOrch);
+    reg('fltGov','AI-Fleet \u2014 Governance-Gate Status','LIVE \u00b7 deny-by-default','Governance gates that fence every fleet action: how many are Lean machine-verified, kernel-canonical counts, and a governed fleet decision run sealed with a DSSE receipt. \u039b advisory + human-approval flag.',window.renderFltGov);
+    reg('fltObs','AI-Fleet \u2014 Per-Agent Observability','LIVE \u00b7 signed MELT','Signed observability across the fleet: MELT metrics (DAG depth, organs reachable, signed spans, chain-verified traces) and live mesh reachability + latency per agent. New-Relic-but-signed.',window.renderFltObs);
+  }
+  regAll();
+  function injectNav(){ var anchor=document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); } if(document.getElementById('flt-nav-group')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='flt-nav-group'; grp.textContent='AI-Fleet';
+    var items=[['fltTopo','\u2725','Topology & Health'],['fltReceipts','\u26d3','Decision Receipts'],['fltOrch','\u25f0','Orchestration'],['fltGov','\u2696','Governance Gates'],['fltObs','\u25f7','Observability']];
+    function mk(d){ var n=document.createElement('div'); n.className='nav-item'; n.id='flt-nav-'+d[0]; n.setAttribute('data-view',d[0]); n.setAttribute('onclick',"go('"+d[0]+"')"); n.innerHTML='<span class="ico">'+d[1]+'</span>'+d[2]; return n; }
+    var parent=anchor.parentNode; parent.appendChild(grp); items.forEach(function(d){ parent.appendChild(mk(d)); }); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+
 </body>
 </html>
