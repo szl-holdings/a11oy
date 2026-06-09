@@ -284,6 +284,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-group">Prove &amp; Verify</div>
     <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
     <div class="nav-item" data-view="putnam" onclick="go('putnam')"><span class="ico">∮</span>Putnam 2025</div>
+    <div class="nav-item" data-view="putnamsampler" onclick="go('putnamsampler')"><span class="ico">∑</span>Putnam Sampler</div>
     <div class="nav-group">World &amp; Threat Intel</div>
     <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
     <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
@@ -9513,6 +9514,90 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   reg();
 })();
 /* end putnam-2025-tab-patch */
+
+/* putnam-sampler-tab-patch :: Task #569 :: honest EXPERIMENTAL branch-scoped sampler snapshot */
+(function(){
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
+    var BR='sampler-putnam-10';
+    var SHA='df027bc5ba46f73f6e2621c4abce09dcb42c138c';
+    var SHORT='df027bc';
+    var COMPUTED='2026-06-09';
+    var RUN='https://github.com/szl-holdings/lutar-lean/actions/runs/27241395346';
+    var TREE='https://github.com/szl-holdings/lutar-lean/tree/'+BR+'/Lutar/Putnam/Sampler';
+    var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Putnam/Sampler/';
+    var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98', WARN='#e0a82e';
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function pill(txt,col){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+col+';border:1px solid '+col+';background:'+col+'1a;">'+esc(txt)+'</span>'; }
+    var PROBS=[
+      ['P01','P01.lean','Inequality \u2014 AM\u2013GM with structure (a,b,c>0, abc=1).',''],
+      ['P02','P02.lean','Inequality \u2014 Cauchy\u2013Schwarz: x\u00b2+y\u00b2+z\u00b2=1 \u21d2 (x+y+z)\u00b2 \u2264 3.',''],
+      ['P03','P03.lean','Number theory \u2014 no integer n with n\u00b2 \u2261 2 (mod 4) (quadratic residues).',''],
+      ['P04','P04.lean','Number theory \u2014 infinitely many primes p \u2261 3 (mod 4), from Mathlib Dirichlet machinery.','NEW \u00b7 was OPEN'],
+      ['P05','P05.lean','Functional equation \u2014 additive + continuous-at-0 \u21d2 \u211d-linear (Cauchy).','NEW \u00b7 was OPEN'],
+      ['P06','P06.lean','Combinatorics \u2014 coin-flip parity invariant (PDF statement was incomplete; faithful restatement proven).',''],
+      ['P07','P07.lean','Analysis \u2014 partial harmonic sum dominates the logarithm.',''],
+      ['P08','P08.lean','Geometry \u2014 parallelogram law in \u211d\u207f.',''],
+      ['P09','P09.lean','Polynomial FE p(x)\u00b2=p(x\u00b2) \u2014 see honesty note below.','NEW \u00b7 was OPEN \u00b7 RESTATED'],
+      ['P10','P10.lean','Combinatorics \u2014 pigeonhole on residues: among n+1 integers, two differ by a multiple of n.','']
+    ];
+    var nGREEN=PROBS.length;
+
+    function render(c){
+      var H='<div style="max-width:980px;">';
+      H+='<div style="font-family:var(--mono,monospace);font-size:11px;color:'+GOLD+';margin:0 0 14px;">'
+        +'\u25c8 EXPERIMENTAL SNAPSHOT \u00b7 doctrine-v11 \u00b7 kernel verdict from '
+        +'<a href="'+TREE+'" target="_blank" rel="noopener" style="color:'+GOLD+';">lutar-lean branch '+esc(BR)+' @'+SHORT+'</a>'
+        +' \u00b7 '+COMPUTED+' \u2014 full <code>lake build</code> + drift gate green in '
+        +'<a href="'+RUN+'" target="_blank" rel="noopener" style="color:'+GOLD+';">CI run #27241395346</a>.</div>';
+      H+='<div style="border:1px solid '+WARN+';border-radius:10px;padding:11px 15px;margin:0 0 16px;background:'+WARN+'10;font-size:12.5px;line-height:1.65;color:var(--cream,#e8e6df);">'
+        +'<b style="color:'+WARN+';">Scope &mdash; read this first.</b> The sampler pack lives on the '
+        +'<b>branch '+esc(BR)+'</b>, <b>not on lutar-lean main</b>, and is <b>EXPERIMENTAL</b>: it is '
+        +'<b>never folded into the locked-5</b> {F1,F11,F12,F18,F19} and never counted in the v11 baseline numbers '
+        +'(the drift gate path-excludes <code>Lutar/Putnam/Sampler/</code>). \u201cCI-green\u201d here means each file is '
+        +'kernel-checked, sorry-free, with <code>#print axioms</code> within the declared core \u2014 verified live in the CI run linked above.</div>';
+      H+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;">';
+      H+='<div style="flex:1;min-width:140px;text-align:center;padding:12px;border:1px solid '+TEAL+';border-radius:10px;background:'+TEAL+'12;"><div style="font-size:30px;font-weight:800;color:'+TEAL+';">'+nGREEN+'</div><div style="font-family:var(--mono,monospace);font-size:10px;letter-spacing:.12em;color:'+TEAL+';">CI-GREEN / '+nGREEN+'</div></div>';
+      H+='<div style="flex:1;min-width:140px;text-align:center;padding:12px;border:1px solid '+DIM+';border-radius:10px;background:'+DIM+'12;"><div style="font-size:30px;font-weight:800;color:'+DIM+';">0</div><div style="font-family:var(--mono,monospace);font-size:10px;letter-spacing:.12em;color:'+DIM+';">OPEN</div></div>';
+      H+='</div>';
+      H+='<div style="font-size:12px;color:var(--dim,#8a8f98);margin:0 0 16px;line-height:1.6;">'
+        +'Putnam-style + textbook sampler (P01\u2013P10). The three previously-open problems \u2014 <b>P04</b> (primes \u2261 3 mod 4), '
+        +'<b>P05</b> (Cauchy functional equation), <b>P09</b> (polynomial functional equation) \u2014 are now kernel-checked, '
+        +'taking the pack from 7 CI-green to <b style="color:'+TEAL+';">'+nGREEN+' CI-green</b>.</div>';
+      H+='<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+      H+='<thead><tr style="text-align:left;color:var(--dim,#8a8f98);font-family:var(--mono,monospace);font-size:10px;letter-spacing:.1em;">'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">#</th>'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">LEAN FILE</th>'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">STATUS</th>'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">PROBLEM</th></tr></thead><tbody>';
+      PROBS.forEach(function(p){
+        H+='<tr>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);font-weight:700;">'+esc(p[0])+'</td>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);font-family:var(--mono,monospace);font-size:11px;"><a href="'+BASE+esc(p[1])+'" target="_blank" rel="noopener" style="color:var(--teal,#3ddc97);">'+esc(p[1])+'</a></td>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);white-space:nowrap;">'+pill('CI-GREEN',TEAL)+(p[3]?' '+pill(p[3],GOLD):'')+'</td>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);color:var(--dim,#8a8f98);">'+esc(p[2])+'</td>'
+          +'</tr>';
+      });
+      H+='</tbody></table>';
+      H+='<div style="border:1px solid var(--line,#2a2f37);border-left:3px solid '+WARN+';border-radius:8px;padding:12px 16px;margin:16px 0 0;font-size:12.5px;line-height:1.7;">'
+        +'<div style="font-family:var(--mono,monospace);font-size:10px;letter-spacing:.12em;color:'+WARN+';margin-bottom:6px;">P09 \u2014 HONESTY NOTE</div>'
+        +'The problem as transcribed (\u201cno real polynomial with p(0)=0, p(1)=1, p(x)\u00b2=p(x\u00b2)\u201d) is <b>FALSE</b>: '
+        +'the solution set of p(x)\u00b2=p(x\u00b2) is exactly {0}\u222a{x\u207f}, and p=X is an explicit witness. We surface that as a '
+        +'kernel-checked counterexample (<code>p09_original_refuted</code>) rather than fabricating a proof \u2014 the same way '
+        +'\u039b-uniqueness is surfaced as machine-FALSE (Conjecture\u00a01). We then prove the <b>faithful impossibility</b> the '
+        +'equation actually implies: it forces p(1)\u2208{0,1}, so there is no such polynomial with p(1)=2 (<code>p09</code>). '
+        +'Both are kernel-checked, sorry-free.</div>';
+      H+='<div style="font-size:11px;color:var(--dim,#8a8f98);margin-top:14px;line-height:1.6;">'
+        +'No fabricated proofs. Every row links to its exact source file at the verified commit; the headline count equals the '
+        +'CI kernel run exactly. To promote the pack into the main numbers it must land on lutar-lean main and pass the v11 drift gate.</div>';
+      H+='</div>';
+      c.innerHTML=H;
+    }
+    V.putnamsampler={ title:'Putnam Sampler', badge:(nGREEN+' CI-GREEN \u00b7 EXPERIMENTAL \u00b7 @'+SHORT), sub:'Honest, doctrine-v11 per-problem verdict for the Putnam-style sampler pack (P01\u2013P10) on lutar-lean branch sampler-putnam-10. EXPERIMENTAL and branch-scoped \u2014 kernel-checked and CI-green, never folded into the locked-5 and never counted in the v11 baseline numbers.', render:render };
+  }
+  reg();
+})();
+/* end putnam-sampler-tab-patch */
 
 </script>
 </body>
