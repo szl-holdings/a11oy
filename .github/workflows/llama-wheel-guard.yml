@@ -1,0 +1,87 @@
+name: llama-cpp wheel guard
+
+# Catches a SILENT regression in the OPTIONAL local-model ("alloy") demo tier.
+# The root Dockerfile installs the pinned prebuilt llama-cpp-python CPU wheel
+# with a trailing `|| echo ...`, so the image build stays GREEN even if the
+# prebuilt cp312/linux_x86_64 wheel disappears for the pinned version (older
+# 0.3.2x releases, for example, ship cp312 wheels only for aarch64/riscv64 —
+# NOT x86_64). When that happens the demo tier silently degrades to the honest
+# tower-side label with no red signal, and a bad version bump goes unnoticed.
+#
+# This guard re-runs the EXACT pinned install parsed from the Dockerfile on the
+# same platform the image targets (cp312 / linux_x86_64), but WITHOUT the
+# `|| echo` mask and WITH `--only-binary` so pip refuses any from-source
+# compile. A vanished prebuilt wheel therefore turns the silent fallback into a
+# RED CI failure here, while the Dockerfile keeps its honest `|| echo` fallback
+# for genuinely unsupported platforms. This guard only asserts that the wheel
+# a11oy actually ships on (cp312 linux_x86_64) still exists for the pinned
+# version — it does not break the legitimate honest-fallback behavior.
+#
+# DCO: Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/llama-wheel-guard.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/llama-wheel-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel-guard:
+    # ubuntu-latest is linux_x86_64 — the same arch the published image ships on.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          # cp312 — same interpreter family as the Dockerfile's python:3.12-slim base.
+          python-version: '3.12'
+
+      - name: Parse pinned wheel version + CPU index from Dockerfile
+        id: parse
+        run: |
+          set -euo pipefail
+          VER="$(grep -oE 'llama-cpp-python==[0-9][0-9.]*' Dockerfile | head -n1 | sed 's/.*==//')"
+          URL="$(grep -oE 'extra-index-url[[:space:]]+[^ \\]+' Dockerfile | head -n1 | awk '{print $2}')"
+          if [ -z "${VER}" ] || [ -z "${URL}" ]; then
+            echo "::error::Could not parse the pinned 'llama-cpp-python==<ver>' install or its --extra-index-url from the Dockerfile. If the install line moved or changed shape, update this guard in lockstep."
+            exit 1
+          fi
+          echo "version=${VER}" >> "${GITHUB_OUTPUT}"
+          echo "index=${URL}" >> "${GITHUB_OUTPUT}"
+          echo "Parsed llama-cpp-python==${VER} from index ${URL}"
+
+      - name: Assert prebuilt cp312 linux_x86_64 wheel installs (no source build)
+        run: |
+          set -euo pipefail
+          VER="${{ steps.parse.outputs.version }}"
+          URL="${{ steps.parse.outputs.index }}"
+          # --only-binary=llama-cpp-python forbids ANY from-source compile of the
+          # target package. If the prebuilt cp312/linux_x86_64 wheel has vanished
+          # for this version, pip ERRORS here instead of silently degrading the
+          # way the Dockerfile's `|| echo` does. (Deps still resolve normally.)
+          set +e
+          pip install --no-cache-dir --only-binary=llama-cpp-python \
+            --extra-index-url "${URL}" \
+            "llama-cpp-python==${VER}" 2>&1 | tee pip.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "${rc}" -ne 0 ]; then
+            echo "::error::pip could NOT install the prebuilt llama-cpp-python==${VER} wheel for cp312/linux_x86_64. The Dockerfile masks this with '|| echo', so the demo tier would silently degrade. Pick a version that publishes a cp312 linux_x86_64 wheel on ${URL}."
+            exit 1
+          fi
+          if ! grep -Eq "llama_cpp_python-${VER}-cp312-cp312-linux_x86_64\.whl" pip.log; then
+            echo "::error::Expected the cp312 linux_x86_64 prebuilt wheel (llama_cpp_python-${VER}-cp312-cp312-linux_x86_64.whl) in the pip log but it was not downloaded. The wheel set for this version may have changed."
+            exit 1
+          fi
+          python -c "import llama_cpp; print('llama_cpp import OK, version', getattr(llama_cpp, '__version__', 'unknown'))"
+          echo "OK: prebuilt llama-cpp-python==${VER} cp312/linux_x86_64 wheel downloads, installs, and imports."

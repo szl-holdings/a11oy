@@ -429,6 +429,12 @@ COPY szl_alloy_models.py ./szl_alloy_models.py
 # official CPU wheel index, so this resolves deterministically with NO from-source
 # build. The `|| echo` stays ONLY as a final safety net for a platform without a
 # matching prebuilt wheel (honest tower-side fallback, never fabricated output).
+# GUARD: because the `|| echo` keeps the image build GREEN even if this wheel
+# vanishes for cp312/linux_x86_64 (a silent demo-tier degrade), CI workflow
+# .github/workflows/llama-wheel-guard.yml re-runs this exact pinned install
+# (parsed from this line) on cp312/linux_x86_64 WITHOUT the mask and with
+# --only-binary, failing loudly if the prebuilt wheel is gone. When bumping the
+# version below, that guard verifies — does not assume — the new wheel exists.
 RUN pip install --no-cache-dir \
       --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
       "llama-cpp-python==0.3.19" \
