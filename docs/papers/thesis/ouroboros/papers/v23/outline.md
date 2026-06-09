@@ -8,7 +8,7 @@
 **Proposed arXiv class:** cs.LO (primary), cross-list math.OC, math.CA (functional equations), cs.CR.
 **MSC2020:** 39B22 (functional equations, single variable), 39B72 (functional inequalities), 26E60 (means), 68V20 (formalization of mathematics).
 
-> SCOPE NOTE. v23 is a **standalone paper / thesis increment** built on the single big event since v22: the Λ conditional-uniqueness theorem and the A1–A5 insufficiency counterexample are now machine-checked on `lutar-lean` `main`. This outline drives an arXiv-ready manuscript whose full LaTeX is completed *after* the Cauchy_ND Frontier squad reports its closure attempt. Target readiness at bootstrap: 80%.
+> SCOPE NOTE. v23 is a **standalone paper / thesis increment** built on the single big event since v22: the Λ conditional-uniqueness result (Λ remains Conjecture 1, NOT a theorem) and the A1–A5 insufficiency counterexample are now machine-checked on `lutar-lean` `main`. This outline drives an arXiv-ready manuscript whose full LaTeX is completed *after* the Cauchy_ND Frontier squad reports its closure attempt. Target readiness at bootstrap: 80%.
 
 ---
 
