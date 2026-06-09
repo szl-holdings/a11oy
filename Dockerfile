@@ -538,6 +538,12 @@ COPY szl_readiness.py ./szl_readiness.py
 # liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;
 # without this per-file COPY the import fails and /api/a11oy/v1/contracting 404s.
 COPY szl_contracting.py ./szl_contracting.py
+# ADDITIVE (Open-Problem Bounty Board, bounties-tab-patch): stdlib-only bounty module
+# + the canonical bounty YAMLs (single source of truth, copied byte-identical from
+# szl-holdings/lutar-lean). Per-file/dir COPY (this Dockerfile never uses `COPY . .`)
+# -- without these the import fails and /api/a11oy/v1/bounties 404s.
+COPY szl_bounties.py ./szl_bounties.py
+COPY bounties/ ./bounties/
 
 CMD ["python", "serve.py"]
 

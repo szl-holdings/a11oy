@@ -123,6 +123,20 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[a11oy] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# ── Open-Problem Bounty Board (bounties-tab-patch) — OPEN proof bounties
+# (Conjecture 1 Λ-aggregator uniqueness, Conjecture 2 Khipu BFT safety) rendered
+# from bounties/*.yaml (single source of truth, copied byte-identical from
+# szl-holdings/lutar-lean, kept in lockstep by bounties-drift.yml). Public recruiting
+# funnel for proofs; renders ONLY status==OPEN, reward is the literal "founder-set",
+# Λ stays "Conjecture 1" (never a theorem). Additive, try/except-guarded, registered
+# EARLY (before the SPA catch-all). Pure stdlib (no PyYAML).
+try:
+    import szl_bounties as _szl_bounties
+    _szl_bounties.register(app, ns="a11oy")
+    print("[a11oy] Open-Problem Bounty Board registered: /api/a11oy/v1/bounties", file=__import__("sys").stderr)
+except Exception as _szl_bn_e:  # pragma: no cover
+    print(f"[a11oy] Open-Problem Bounty Board NOT registered: {_szl_bn_e!r}", file=__import__("sys").stderr)
+
 # ── Readiness tab-matrix endpoint (readiness-harness) — a11oy console contract.
 # Kept HERE in serve.py (a11oy-only) rather than in the shared szl_readiness.py so
 # that module stays byte-identical with killinchu (shared-source drift guard). Serves

@@ -8824,6 +8824,94 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 /* end contracting-tab-patch */
 </script>
+<!-- bounties-tab-patch — OPEN-problem proof bounties (Conjecture 1 Λ-uniqueness,
+     Conjecture 2 Khipu BFT safety), generated from bounties/*.yaml (single source of
+     truth, copied byte-identical from szl-holdings/lutar-lean, kept in lockstep by
+     bounties-drift.yml). Public recruiting funnel for proofs. Renders ONLY
+     status==OPEN; reward is the literal "founder-set" (never a figure); Λ stays
+     "Conjecture 1", never a theorem. Reads /api/{ns}/v1/bounties live. -->
+<script>
+(function(){
+  window.__bn_ns = (window.__rd_ns || (location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
+  function bn_esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function bn_ago(iso){ if(!iso) return ''; try{ var t=new Date(iso).getTime(); if(!t) return ''; var s=Math.max(0,(Date.now()-t)/1000); if(s<60) return Math.round(s)+'s ago'; if(s<3600) return Math.round(s/60)+'m ago'; if(s<86400) return Math.round(s/3600)+'h ago'; return Math.round(s/86400)+'d ago'; }catch(e){ return ''; } }
+  function bn_badge(text,color,title){ return '<span class="badge" title="'+bn_esc(title||'')+'" style="border-color:'+color+';color:'+color+'">'+bn_esc(text)+'</span>'; }
+  function bn_para(txt){ var parts=String(txt||'').split(/\n\s*\n/).map(function(p){return p.replace(/\n/g,' ').trim();}).filter(Boolean); return parts.map(function(p){return '<p style="margin:.35rem 0">'+bn_esc(p)+'</p>';}).join(''); }
+  function bn_link(url,label){ if(!url) return ''; return '<a href="'+bn_esc(url)+'" target="_blank" rel="noopener">'+bn_esc(label||url)+'</a>'; }
+  var GOLD='#d8b34a', TEAL='#5fb3a3', RED='#c66';
+
+  function bn_section(title,body){ if(!body) return ''; return '<div style="margin-top:.6rem"><div class="dim" style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.15rem">'+bn_esc(title)+'</div>'+body+'</div>'; }
+
+  function bn_card(b){
+    var conj = b.conjecture!=null ? ('Conjecture '+b.conjecture) : 'OPEN conjecture';
+    var h='<div class="card">';
+    h+='<div class="card-h"><span class="card-t">'+bn_esc(b.title||conj)+'</span><span class="card-ep">'+bn_badge('OPEN',RED,'genuinely open problem')+'</span></div>';
+    h+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin:.1rem 0 .4rem">';
+    h+=bn_badge(conj,GOLD,'an open conjecture under public axiom audit \u2014 NOT a theorem');
+    if(b.formula) h+=' '+bn_badge(b.formula,TEAL,'SZL formula id');
+    if(b.doctrine) h+=' '+bn_badge('doctrine '+b.doctrine,'#8a8f98','honesty doctrine version');
+    h+=' '+bn_badge('reward: '+((b.reward&&b.reward.label)||'founder-set'),GOLD,'reward is founder-set \u2014 this board never invents a figure');
+    h+='</div>';
+    if(b.summary) h+='<div class="dim" style="font-size:12.5px;margin-bottom:.2rem">'+bn_para(b.summary)+'</div>';
+    h+=bn_section('Problem statement', bn_para(b.problem_statement));
+    h+=bn_section('The open gap', bn_para(b.the_gap));
+    if(b.already_proven_do_not_reclaim){ h+=bn_section('Already proven \u2014 do NOT re-claim','<div style="border-left:2px solid '+GOLD+';padding-left:.5rem;color:'+GOLD+'">'+bn_para(b.already_proven_do_not_reclaim)+'</div>'); }
+    if(b.target && (b.target.theorem_name||b.target.file)){ var t=b.target; h+=bn_section('Target obligation','<div class="mono" style="font-size:12px">'+bn_esc(t.theorem_name||'')+(t.file?(' \u00b7 '+bn_esc(t.file)):'')+(t.repo?(' \u00b7 '+bn_esc(t.repo)):'')+'</div>'); }
+    var crit=b.acceptance_criteria||[];
+    if(crit.length){ var ci=crit.map(function(c){ return '<div class="row" style="display:block;padding:.3rem 0;border-top:1px solid rgba(255,255,255,.06)">'+bn_badge(c.id||'criterion',TEAL,'acceptance criterion')+' <span style="font-size:12.5px">'+bn_esc(c.check||'')+'</span></div>'; }).join(''); h+=bn_section('Acceptance criteria (all must hold)', ci); }
+    if(b.verification && (b.verification.arbiter||b.verification.signal)){ var v=b.verification, vb=''; if(v.arbiter) vb+='<div style="font-size:12.5px"><b>Arbiter:</b> '+bn_esc(v.arbiter)+'</div>'; if(v.signal) vb+='<div class="dim" style="font-size:12px;margin-top:.15rem">'+bn_esc(v.signal)+'</div>'; h+=bn_section('Verification', vb); }
+    var rw=b.reward||{}; var rwb='<div style="font-size:12.5px">'+bn_badge('founder-set',GOLD,'reward is founder-set')+' '+bn_esc(rw.note||'The monetary award is founder-set and published in the bounty repo\u2019s pinned issue.')+'</div>';
+    if(rw.extras && rw.extras.length){ rwb+='<ul style="margin:.25rem 0 0 1rem;padding:0;font-size:12px" class="dim">'+rw.extras.map(function(x){return '<li>'+bn_esc(x)+'</li>';}).join('')+'</ul>'; }
+    h+=bn_section('Reward', rwb);
+    var sub=b.submission||{}; var sb='';
+    if(sub.webhook){ sb+='<div style="font-size:12.5px;margin-bottom:.2rem">'+bn_esc(sub.webhook)+'</div>'; }
+    if(sub.pull_request){ sb+='<div style="font-size:12.5px;margin-bottom:.2rem">'+bn_esc(sub.pull_request)+'</div>'; }
+    var links=[];
+    if(sub.intake_repo) links.push(bn_link(sub.intake_repo,'Intake repo \u2197'));
+    if(sub.template) links.push(bn_link(sub.template,'Submission template \u2197'));
+    if(sub.schema) links.push(bn_link(sub.schema,'Webhook schema \u2197'));
+    if(links.length){ sb+='<div style="display:flex;gap:.8rem;flex-wrap:wrap;font-size:12.5px">'+links.join('')+'</div>'; }
+    if(sub.intake_repo){ sb+='<div style="margin-top:.45rem"><a class="btn" href="'+bn_esc(sub.intake_repo)+'" target="_blank" rel="noopener" style="display:inline-block">Claim / submit a proof \u2192</a></div>'; }
+    h+=bn_section('Submission &amp; claim', sb);
+    if(b.references && b.references.length){ h+=bn_section('References','<div class="mono dim" style="font-size:11px">'+b.references.map(bn_esc).join('<br>')+'</div>'); }
+    if(b.honesty){ h+='<div class="honesty" style="margin-top:.6rem">'+bn_esc(b.honesty)+'</div>'; }
+    h+='</div>';
+    return h;
+  }
+
+  window.bounties_render=async function(c){
+    c.innerHTML='<div class="card"><div class="dim">loading open-problem bounties from bounties/*.yaml\u2026</div></div>';
+    try{
+      var r=await fetch('/api/'+window.__bn_ns+'/v1/bounties');
+      var d=await r.json(); var h='';
+      if(d.honest) h+='<div class="honesty">'+bn_esc(d.honest)+'</div>';
+      h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
+      h+=bn_badge('OPEN bounties '+(d.count||0),GOLD,'genuinely open problems');
+      h+=' '+bn_badge('reward: founder-set',GOLD,'this board never invents a figure');
+      h+=' '+bn_badge('doctrine '+(d.doctrine||'v11'),'#8a8f98','honesty doctrine');
+      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">Generated from <b>'+bn_esc(d.source||'bounties/*.yaml')+'</b> \u00b7 '+(d.board?bn_link(d.board,'bounty board \u2197')+' \u00b7 ':'')+'checked '+bn_esc(bn_ago(d.checked_at)||'just now')+'</div></div>';
+      (d.bounties||[]).forEach(function(b){ h+=bn_card(b); });
+      if(!(d.bounties||[]).length){ h+='<div class="card"><div class="dim">No OPEN bounties right now \u2014 every conjecture on the board has been settled.</div></div>'; }
+      c.innerHTML=h;
+    }catch(e){ c.innerHTML='<div class="card"><div class="dim">bounty board unavailable: '+bn_esc((e&&e.message)||e)+'</div></div>'; }
+  };
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
+    V['bounties']={title:'Open Bounties',badge:'OPEN PROOFS \u00b7 \u039b Conjecture 1 + Khipu BFT',sub:'Genuinely OPEN problems \u2014 a public recruiting funnel for proofs. Each bounty is <b>generated from</b> the canonical <span class="mono">bounties/*.yaml</span> in <span class="mono">szl-holdings/lutar-lean</span> (single source of truth; the page cannot drift from the kernel repo) and only <b>status: OPEN</b> conjectures are shown. \u039b unconditional uniqueness is <b>Conjecture 1 \u2014 NOT a theorem</b> (machine-checked FALSE under the bare axioms); unconditional Khipu BFT safety is <b>Conjecture 2</b>. The reward is the literal <b>founder-set</b> \u2014 this board never invents a figure. Submit a kernel-checked proof via the intake links; eligibility is decided solely by the verify-proof CI.',render:async function(c){ window.bounties_render(c); }};
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="contracting"]')||document.querySelector('.nav-item[data-view="readiness"]')||document.querySelector('.nav-item[data-view="knowledge"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="bounties"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','bounties'); n.setAttribute('onclick',"go('bounties')");
+    n.innerHTML='<span class="ico">\u25c8</span>Open Bounties';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+/* end bounties-tab-patch */
+</script>
 
 
 <script>

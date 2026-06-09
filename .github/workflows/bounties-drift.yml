@@ -1,0 +1,75 @@
+# bounties-drift — keep a11oy's bounty board in lockstep with the canonical
+# single source of truth (szl-holdings/lutar-lean bounties/*.yaml). The console
+# "Open Bounties" tab is GENERATED from a11oy's local bounties/*.yaml copies; this
+# guard fails if any of those copies drifts from the kernel repo. lutar-lean is
+# public, so no token is needed.
+name: bounties-drift
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bounties/**"
+      - "szl_bounties.py"
+      - ".github/workflows/bounties-drift.yml"
+  pull_request:
+    paths:
+      - "bounties/**"
+      - "szl_bounties.py"
+      - ".github/workflows/bounties-drift.yml"
+  schedule:
+    - cron: "37 6 * * 1"   # weekly drift sweep (Mon 06:37 UTC)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout a11oy
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Verify bounty YAMLs are byte-identical to lutar-lean (single source of truth)
+        shell: bash
+        run: |
+          set -euo pipefail
+          RAW="https://raw.githubusercontent.com/szl-holdings/lutar-lean/main/bounties"
+          fail=0
+          shopt -s nullglob
+          local_files=(bounties/*.yaml bounties/*.yml)
+          if [ ${#local_files[@]} -eq 0 ]; then
+            echo "::error::no bounties/*.yaml in a11oy — the board would be empty"; exit 1
+          fi
+          for f in "${local_files[@]}"; do
+            name="$(basename "$f")"
+            echo "checking $name against canonical lutar-lean copy…"
+            code="$(curl -fsS -o canonical.yaml -w '%{http_code}' "$RAW/$name" || echo 000)"
+            if [ "$code" != "200" ]; then
+              echo "::error::canonical lutar-lean bounties/$name not reachable (HTTP $code)"; fail=1; continue
+            fi
+            if ! diff -u canonical.yaml "$f"; then
+              echo "::error::$name has DRIFTED from szl-holdings/lutar-lean — re-copy the canonical YAML (single source of truth, must not drift)"; fail=1
+            else
+              echo "  ok: $name is byte-identical"
+            fi
+          done
+          rm -f canonical.yaml
+          [ "$fail" = "0" ] || exit 1
+      - name: Sanity-check the renderer only surfaces OPEN bounties (stdlib-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("szl_bounties", "szl_bounties.py")
+          m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+          ob = m._open_bounties()
+          assert ob, "no OPEN bounties rendered"
+          import re
+          for b in ob:
+              assert str(b["status"]).upper() == "OPEN", b["id"]
+              lbl = b["reward"]["label"]
+              assert not re.search(r"\d", lbl), f"reward leaked a figure: {lbl!r}"
+              assert lbl == "founder-set", f"reward must be founder-set, got {lbl!r}"
+          print(f"OK: {len(ob)} OPEN bounties, all reward=founder-set")
+          PY

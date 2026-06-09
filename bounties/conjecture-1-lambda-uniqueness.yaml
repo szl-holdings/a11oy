@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: Apache-2.0
+# SZL Holdings — Open-Problem Bounty Board · Doctrine v11
+id: conjecture-1-lambda-uniqueness
+title: "Λ-Aggregator Unconditional Uniqueness — Conjecture 1 (OPEN)"
+status: OPEN
+conjecture: 1
+formula: F23
+doctrine: v11
+
+summary: >
+  Λ unconditional uniqueness is Conjecture 1 — it is NOT a theorem. Prove, in
+  machine-checked Lean 4, that the 9-axis geometric-mean trust aggregator Λ is the
+  unique aggregator satisfying the published axiom set strengthened by the missing
+  bisymmetry/continuity assumption.
+
+problem_statement: |
+  Λ is the 9-axis geometric-mean trust aggregator at the apex of the SZL mesh
+  anatomy: it collapses a 9-axis trust vector to a single trust scalar, with one
+  defining behaviour — a single fully-failed axis vetoes trust (weakest-link /
+  zero-absorption).
+
+  Conjecture 1 (Λ-Aggregator Uniqueness): any two aggregators satisfying the
+  governing axioms agree on every input. The target obligation is the open `sorry`
+  in `lambda_aggregator_unique` (lambda-bounty `Lambda/Lambda.lean`); partial
+  in-tree progress (Aczel 1966 / Cauchy 1821 strategy, the n-D `CAUCHY_ND`
+  residual) lives in `Lutar/Uniqueness.lean`.
+
+the_gap: |
+  The four published natural axioms (idempotence, monotonicity, symmetry,
+  zero-absorption) DO NOT single out the geometric mean: `min` satisfies all four
+  yet `min` is not the geometric mean. Unconditional uniqueness under the bare
+  axioms is therefore machine-checked FALSE (the `maxAgg`/`min` counterexample,
+  `Lutar/Round13/Lambda_Uniqueness.lean`). A provable uniqueness result additionally
+  needs the missing structural hypothesis — bisymmetry (and/or continuity /
+  homogeneity) — after which the n-D Cauchy step closes the argument. Which
+  strengthening to adopt (candidate A5 bisymmetry, A6 continuity, A7 homogeneity)
+  is a founder decision recorded in BOUNTY.md; the live A6 bisymmetry assumption is
+  the front-running candidate.
+
+missing_assumption: "bisymmetry — candidate A5 bisymmetry / A6 continuity / A7 homogeneity strengthening (founder decision; see BOUNTY.md)"
+already_proven_do_not_reclaim: |
+  The conditional result CUT-2 (`lambda_unique_of_separable`) is already proven,
+  axiom-free: any axiom-satisfying aggregator with multiplicative, separable
+  per-axis slices equals Λ. This bounty is ONLY the UNCONDITIONAL gap. Do not
+  represent the conditional proof as settling Conjecture 1.
+
+target:
+  theorem_name: lambda_aggregator_unique
+  file: "Lambda/Lambda.lean"
+  repo: szl-holdings/lambda-bounty
+
+acceptance_criteria:
+  - id: lake-build-green
+    check: "`lake build` is green on Lean v4.13.0 + Mathlib v4.13.0."
+  - id: no-sorry
+    check: "No `sorry` / `sorryAx` anywhere under `Lambda/`."
+  - id: axiom-allowlist
+    check: "`#print axioms lambda_aggregator_unique` is a subset of [propext, Quot.sound, Classical.choice]."
+  - id: no-new-axiom
+    check: "No new `axiom` declarations and no `native_decide` trust escape hatches."
+  - id: becomes-real
+    check: "The proof is REAL: kernel-checked, zero `sorry`, in-policy axioms only."
+
+verification:
+  arbiter: "verify-proof CI in szl-holdings/lambda-bounty — sole, automated, no-bypass arbiter."
+  must_become_real: true
+  signal: "Until a submission makes verify-proof green, lambda-bounty `main` intentionally fails its proof gate; that red state is the public signal Conjecture 1 is still open."
+
+reward:
+  amount: founder-set
+  currency: USD
+  note: >
+    The monetary award is founder-set and published in the lambda-bounty pinned
+    issue. This board never invents a figure.
+  extras:
+    - "Lean co-author credit on the SZL Holdings thesis."
+    - "Materially-advancing partial submissions (e.g. discharging the CAUCHY_ND residual) are eligible for pro-rata recognition at founder discretion."
+
+submission:
+  intake_repo: https://github.com/szl-holdings/lambda-bounty
+  pull_request: "Fork lambda-bounty, discharge the `sorry`, open a PR using submissions/SUBMISSION_TEMPLATE.md. CI runs automatically; green = eligible."
+  webhook: "POST https://szlholdings-a11oy.hf.space/api/lambda-bounty/submit — live intake receiver; emits a hash-chained Khipu intake receipt. Acknowledges INTAKE ONLY; eligibility is decided solely by verify-proof CI on a PR."
+  template: https://github.com/szl-holdings/lambda-bounty/blob/main/submissions/SUBMISSION_TEMPLATE.md
+  schema: https://github.com/szl-holdings/lambda-bounty/blob/main/webhook/submission.schema.json
+
+references:
+  - "../BOUNTY.md"
+  - "../README.md (section: The Λ line — Conjecture 1)"
+  - "Lutar/Uniqueness.lean"
+  - "Lutar/Round13/Lambda_Uniqueness.lean"
+  - "https://github.com/szl-holdings/lambda-bounty/blob/main/Lambda/Lambda.lean"
+
+honesty: >
+  Λ unconditional uniqueness is Conjecture 1 — it is NOT a theorem. Unconditional
+  uniqueness under the bare axioms is machine-checked FALSE (maxAgg/min
+  counterexample). A submission clears the bar only when the kernel verifies it
+  (REAL); never represent this OPEN conjecture as proved.
