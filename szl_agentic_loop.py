@@ -59,6 +59,20 @@ except Exception:  # pragma: no cover - additive fallback, never crash the loop
     _FW = None
 
 # ----------------------------------------------------------------------------
+# CANONICAL FORMULA REGISTRY + RUN-ENGINE (ADDITIVE 2026-06 / Forge): exposes the
+# authoritative SZL formula list, a real run-one executor, and the honest proof
+# status per formula as first-class MCP tools (list_formulas / run_formula /
+# formula_proof_status). Backed by szl_anatomy_routes -> szl_formulas REGISTRY /
+# PROOF_STATUS, so proof status is authoritative (doctrine v11) and never
+# inflated. Imported with a graceful fallback so a host without the module (e.g.
+# killinchu until parity) simply does not advertise the formula tools.
+# ----------------------------------------------------------------------------
+try:
+    import szl_anatomy_routes as _ANAT
+except Exception:  # pragma: no cover - additive fallback, never crash the loop
+    _ANAT = None
+
+# ----------------------------------------------------------------------------
 # REAL in-image governance corpus (the thing the RAG hop retrieves over).
 # These are real doctrine/governance statements that ground the agent's tool
 # choice and the policy gate. No external dataset / no fabricated chunks.
@@ -144,7 +158,7 @@ def _trust_score(axes: dict) -> float:
 # ----------------------------------------------------------------------------
 def _tool_catalog(ns: str):
     field = "drone/vessel field operations" if ns == "killinchu" else "governed AI operations"
-    return [
+    tools = [
         {"name": "retrieve_context",
          "title": "Retrieve context",
          "description": f"Search the in-image governance corpus for {field} guidance.",
@@ -176,6 +190,35 @@ def _tool_catalog(ns: str):
          "inputSchema": {"type": "object", "properties": {
              "receipt": {"type": "object"}}, "required": ["receipt"]}},
     ]
+    # ADDITIVE: canonical formula tools — only advertised when the formula
+    # registry is actually importable in-process (honest: never list a tool that
+    # cannot run). proof_status is authoritative per the honesty doctrine (v11).
+    if _ANAT is not None:
+        tools += [
+            {"name": "list_formulas",
+             "title": "List canonical formulas",
+             "description": "List the canonical SZL formula registry: each entry's "
+                            "name, signature, one-line doc, chakra binding and "
+                            "authoritative proof status (doctrine v11).",
+             "inputSchema": {"type": "object", "properties": {}}},
+            {"name": "run_formula",
+             "title": "Run a canonical formula",
+             "description": "Execute one canonical formula on real positional args; "
+                            "returns the computed result, a Λ-receipt hash, and the "
+                            "formula's honest proof status. No result is fabricated.",
+             "inputSchema": {"type": "object", "properties": {
+                 "name": {"type": "string"},
+                 "args": {"type": "array", "items": {}}},
+                 "required": ["name"]}},
+            {"name": "formula_proof_status",
+             "title": "Formula proof status",
+             "description": "Return the authoritative honesty/proof status for a "
+                            "named formula (e.g. LOCKED kernel-verified, experimental, "
+                            "conditional). Never inflated beyond doctrine v11.",
+             "inputSchema": {"type": "object", "properties": {
+                 "name": {"type": "string"}}, "required": ["name"]}},
+        ]
+    return tools
 
 
 # ----------------------------------------------------------------------------
@@ -671,6 +714,40 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 except Exception as e:
                     return {"signature_valid": False, "detail": str(e)}
             return {"signature_valid": bool(env.get("signed"))}
+        # --- canonical formula tools (reuse szl_anatomy_routes -> szl_formulas) ---
+        if name == "list_formulas":
+            if _ANAT is None:
+                return {"_error": True, "detail": "formula registry not available in this image"}
+            reg = _ANAT.registry_json()
+            return {"count": len(reg), "formulas": reg, "doctrine": "v11",
+                    "note": "proof_status is authoritative — not inflated"}
+        if name == "run_formula":
+            if _ANAT is None:
+                return {"_error": True, "detail": "formula registry not available in this image"}
+            fname = args.get("name", "")
+            fargs = args.get("args")
+            if fargs is None:
+                fargs = []
+            elif not isinstance(fargs, list):
+                fargs = [fargs]
+            try:
+                res = _ANAT.run_one(fname, fargs)
+            except Exception as e:
+                return {"_error": True, "detail": str(e)}
+            if not res.get("ok", True):
+                res = dict(res)
+                res["_error"] = True
+            return res
+        if name == "formula_proof_status":
+            if _ANAT is None:
+                return {"_error": True, "detail": "formula registry not available in this image"}
+            fname = args.get("name", "")
+            ps = _ANAT.S.PROOF_STATUS.get(fname)
+            if ps is None:
+                return {"_error": True, "detail": "unknown formula: %s" % fname,
+                        "known": sorted(_ANAT.S.REGISTRY.keys())}
+            return {"name": fname, "proof_status": ps, "doctrine": "v11",
+                    "note": "authoritative per the honesty doctrine — not inflated"}
         return {"_error": True, "detail": "unknown tool: %s" % name}
 
     async def _mcp_get(request: Request):

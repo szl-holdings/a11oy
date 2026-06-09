@@ -2836,6 +2836,18 @@ async def a11oy_mcp_tools_inline():
         {"name": "khipu_sign", "description": "Sign a receipt with Khipu DAG", "flagship": "a11oy"},
         {"name": "khipu_verify", "description": "Verify a Khipu DAG receipt", "flagship": "a11oy"},
     ]
+    # ADDITIVE (Forge 2026-06): canonical formula tools, only advertised when the
+    # registry actually imports in-process (honest — never list what cannot run).
+    # Backed by szl_anatomy_routes -> szl_formulas; proof_status is authoritative.
+    try:
+        import szl_anatomy_routes as _anat_mcp  # noqa
+        tools += [
+            {"name": "list_formulas", "description": "List the canonical SZL formula registry (name, proof status, chakra)", "flagship": "a11oy"},
+            {"name": "run_formula", "description": "Run one canonical formula on real args -> result + Λ-receipt + honest proof status", "flagship": "a11oy"},
+            {"name": "formula_proof_status", "description": "Authoritative honesty/proof status for a named formula (doctrine v11)", "flagship": "a11oy"},
+        ]
+    except Exception:
+        pass
     # Live-merge sibling flagship MCP surfaces. Only flagships that ACTUALLY
     # publish a /v1/mcp/tools manifest are pulled; each is timeout-guarded and
     # failures are swallowed so this endpoint can never go down or fabricate.
@@ -2885,6 +2897,35 @@ async def a11oy_mcp_call_inline(request: Request):
     if not isinstance(body, dict):
         return JSONResponse({"error": "body must be a JSON object with a 'name' field"}, status_code=400)
     tool_name = body.get("name", "")
+    args = body.get("arguments") if isinstance(body.get("arguments"), dict) else body
+    # ADDITIVE (Forge 2026-06): the canonical formula tools genuinely EXECUTE here
+    # via szl_anatomy_routes -> szl_formulas (no stub). Honest errors are surfaced.
+    if tool_name in ("list_formulas", "run_formula", "formula_proof_status"):
+        try:
+            import szl_anatomy_routes as _anat_call
+        except Exception as _e:
+            return JSONResponse({"tool": tool_name, "error": f"formula registry not available: {_e}"}, status_code=503)
+        if tool_name == "list_formulas":
+            reg = _anat_call.registry_json()
+            return JSONResponse({"tool": tool_name, "status": "ok", "count": len(reg),
+                                 "formulas": reg, "doctrine": "v11", "kernel_commit": "c7c0ba17"})
+        if tool_name == "run_formula":
+            fname = args.get("name", "")
+            fargs = args.get("args")
+            if fargs is None:
+                fargs = []
+            elif not isinstance(fargs, list):
+                fargs = [fargs]
+            res = _anat_call.run_one(fname, fargs)
+            return JSONResponse({"tool": tool_name, "status": "ok" if res.get("ok", True) else "error",
+                                 "result": res, "doctrine": "v11", "kernel_commit": "c7c0ba17"})
+        fname = args.get("name", "")
+        ps = _anat_call.S.PROOF_STATUS.get(fname)
+        if ps is None:
+            return JSONResponse({"tool": tool_name, "error": f"unknown formula: {fname}",
+                                 "known": sorted(_anat_call.S.REGISTRY.keys())}, status_code=404)
+        return JSONResponse({"tool": tool_name, "status": "ok", "name": fname,
+                             "proof_status": ps, "doctrine": "v11", "kernel_commit": "c7c0ba17"})
     known = {"a11oy_gate", "lambda_score", "khipu_sign", "khipu_verify"}
     if tool_name not in known:
         return JSONResponse({"error": f"Tool '{tool_name}' not found"}, status_code=404)
