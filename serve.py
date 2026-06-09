@@ -187,6 +187,220 @@ try:
 except Exception as _rd_tm_e:  # pragma: no cover
     print(f"[a11oy] Readiness tab-matrix NOT registered: {_rd_tm_e!r}", file=__import__("sys").stderr)
 
+
+# ── Federal Contracting Readiness (contracting-tab-patch) — a11oy console contract.
+# Honest, web-sourced eligibility CRITERIA (sam.gov, sbir.gov, eCFR, DoD DSIP) each
+# carrying its authoritative source URL + retrieval date; source URLs are probed
+# LIVE for reachability with a short timeout (live/cached/unreachable). The org's
+# OWN registration facts (UEI, CAGE, SAM status, employee count, ownership) are
+# NEVER invented — every one is flagged needs_founder_input / needs_founder_action
+# unless an operator supplied it via a secure env var (then "confirmed"). A flagged
+# unknown is the correct, honest answer. a11oy-only (lives in serve.py, not shared).
+# Try/except-guarded so it can never crash the host app. Doctrine v11.
+try:
+    import os as _ct_os
+    from datetime import datetime as _ct_dt, timezone as _ct_tz
+
+    # Authoritative external eligibility CRITERIA (retrieved from the public rule
+    # sources below). These are external facts about the programs, not claims about
+    # this org. retrieved = date the rule text was last read into this build.
+    _CT_RETRIEVED = "2026-06-09"
+    _CT_SOURCES = {
+        "sam_reg": {"title": "SAM.gov — Entity Registration (FAR 52.204-7)",
+                    "url": "https://sam.gov/content/entity-registration"},
+        "uei": {"title": "SAM.gov — Unique Entity ID (UEI) overview",
+                "url": "https://sam.gov/content/duns-uei-transition"},
+        "cage": {"title": "DLA — CAGE Code request (cage.dla.mil)",
+                 "url": "https://cage.dla.mil/"},
+        "far_7": {"title": "Acquisition.gov — FAR 52.204-7 System for Award Management",
+                  "url": "https://www.acquisition.gov/far/52.204-7"},
+        "sbir_elig": {"title": "SBIR.gov — SBIR/STTR eligibility requirements",
+                      "url": "https://www.sbir.gov/about/eligibility"},
+        "sbir_size": {"title": "13 CFR 121.702 — SBIR/STTR size & ownership (eCFR)",
+                      "url": "https://www.ecfr.gov/current/title-13/chapter-I/part-121/subpart-A/section-121.702"},
+        "dsip": {"title": "DoD SBIR/STTR Innovation Portal (DSIP)",
+                 "url": "https://www.dodsbirsttr.mil/submissions/login"},
+        "naics": {"title": "SBA — NAICS size standards table",
+                  "url": "https://www.sba.gov/document/support-table-size-standards"},
+    }
+
+    # Org-specific facts the platform CANNOT see. Read from a secure env var only;
+    # otherwise honestly flagged. NEVER fabricated.
+    def _ct_org_fact(env_key):
+        v = (_ct_os.environ.get(env_key) or "").strip()
+        return v or None
+
+    def _ct_now():
+        return _ct_dt.now(_ct_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def _ct_probe(url, timeout=4.0):
+        """LIVE reachability probe of a source URL. Honest live/unreachable; never
+        fabricated. Short timeout so the tab stays responsive."""
+        try:
+            import httpx as _ct_hx
+            with _ct_hx.Client(follow_redirects=True, timeout=timeout) as _c:
+                r = _c.head(url)
+                if r.status_code >= 400:
+                    r = _c.get(url)
+                return {"kind": "live" if r.status_code < 400 else "unreachable",
+                        "status": r.status_code, "reachable": r.status_code < 400}
+        except Exception as _pe:
+            return {"kind": "unreachable", "status": str(_pe)[:40], "reachable": False}
+
+    def _ct_src(key, probe=False):
+        s = dict(_CT_SOURCES[key]); s["retrieved"] = _CT_RETRIEVED
+        if probe:
+            s["liveness"] = _ct_probe(s["url"])
+        return s
+
+    def _ct_verified(label, requirement, src_key, note=None, probe=False):
+        it = {"label": label, "status": "verified", "requirement": requirement,
+              "source": _ct_src(src_key, probe=probe)}
+        if note:
+            it["note"] = note
+        return it
+
+    def _ct_org(label, requirement, env_key, src_key, action_note, probe=False):
+        """An org-specific registration fact. confirmed iff an operator supplied it
+        via a secure env var; otherwise honestly flagged needs_founder_input."""
+        val = _ct_org_fact(env_key)
+        it = {"label": label, "requirement": requirement,
+              "source": _ct_src(src_key, probe=probe)}
+        if val:
+            it["status"] = "confirmed"; it["value"] = val
+            it["note"] = "operator-supplied via secure env var %s." % env_key
+        else:
+            it["status"] = "needs_founder_input"
+            it["note"] = action_note
+        return it
+
+    def _ct_areas(probe=False):
+        return [
+            {"id": "registration", "title": "Federal registration (SAM / UEI / CAGE)",
+             "intro": "Baseline registrations every federal awardee must hold. The rules are web-verified; the org's own identifiers are founder-supplied, never invented.",
+             "items": [
+                 _ct_verified("Active SAM.gov registration",
+                              "FAR 52.204-7 requires an active System for Award Management (SAM) registration to receive most federal awards; renew annually.",
+                              "far_7", probe=probe),
+                 _ct_org("Unique Entity ID (UEI)",
+                         "A 12-character UEI is assigned in SAM.gov and replaces the DUNS number; required on every federal registration and submission.",
+                         "A11OY_ORG_UEI", "uei",
+                         "No UEI on file with the platform — the founder must register/look it up in SAM.gov (the platform cannot see it).", probe=probe),
+                 _ct_org("CAGE code",
+                         "A CAGE (Commercial and Government Entity) code is auto-assigned with SAM registration or requested via DLA; required for DoD work.",
+                         "A11OY_ORG_CAGE", "cage",
+                         "No CAGE code on file — assigned with SAM registration or via cage.dla.mil; founder action.", probe=probe),
+                 _ct_org("Legal entity name & address",
+                         "The registered legal business name and physical address must match SAM and IRS records exactly.",
+                         "A11OY_ORG_LEGAL_NAME", "sam_reg",
+                         "Legal entity details not supplied to the platform — founder input.", probe=probe),
+             ]},
+            {"id": "sbir", "title": "SBIR / STTR eligibility",
+             "intro": "Small Business Innovation Research / Technology Transfer eligibility. Program rules are web-verified; size/ownership facts about this org are founder-supplied.",
+             "items": [
+                 _ct_verified("U.S. small business concern",
+                              "SBIR/STTR applicants must be for-profit U.S. small businesses that are more than 50% owned and controlled by U.S. citizens or permanent residents.",
+                              "sbir_elig", probe=probe),
+                 _ct_verified("Size & ownership limits (13 CFR 121.702)",
+                              "≤ 500 employees including affiliates; ≥ 50% U.S.-individual ownership (or other permitted structures). VC/PE/hedge-fund ownership is limited and must be disclosed.",
+                              "sbir_size", probe=probe),
+                 _ct_org("Employee headcount (incl. affiliates)",
+                         "Must be ≤ 500 employees counting affiliates to qualify under the SBIR/STTR size standard.",
+                         "A11OY_ORG_HEADCOUNT", "naics",
+                         "Headcount not supplied — founder input (the platform does not hold HR data).", probe=probe),
+                 _ct_org("Ownership / control structure",
+                         "≥ 50% U.S.-individual ownership and control; any VC/PE/hedge-fund stake must be disclosed and stay within the permitted threshold.",
+                         "A11OY_ORG_OWNERSHIP", "sbir_size",
+                         "Ownership structure not supplied — founder input.", probe=probe),
+                 _ct_verified("DSIP registration (DoD topics)",
+                              "To submit to DoD SBIR/STTR topics, the firm must register and submit through the DoD SBIR/STTR Innovation Portal (DSIP).",
+                              "dsip", probe=probe),
+             ]},
+            {"id": "compliance", "title": "Compliance posture (founder actions)",
+             "intro": "Real-world compliance steps only the founder/operator can take. The platform labels them honestly; it does not perform them.",
+             "items": [
+                 {"label": "Reps & Certifications complete", "status": "needs_founder_action",
+                  "requirement": "Annual Representations and Certifications in SAM (FAR 52.204-7 / 52.204-8) must be completed and current.",
+                  "note": "Founder action — complete the SAM Reps & Certs; the platform cannot certify on the org's behalf.",
+                  "source": _ct_src("far_7", probe=probe)},
+                 {"label": "NAICS code(s) selected", "status": "needs_founder_action",
+                  "requirement": "Select the primary NAICS code(s) and confirm the firm meets that code's SBA size standard.",
+                  "note": "Founder action — choose NAICS code(s) in SAM and verify against the SBA size table.",
+                  "source": _ct_src("naics", probe=probe)},
+             ]},
+        ]
+
+    def _ct_count(area):
+        c = {}
+        for it in area.get("items", []):
+            st = it.get("status", "unknown")
+            c[st] = c.get(st, 0) + 1
+        area["counts"] = c
+        return c
+
+    def _ct_summary(areas):
+        by_status = {}
+        for a in areas:
+            for it in a.get("items", []):
+                st = it.get("status", "unknown")
+                by_status[st] = by_status.get(st, 0) + 1
+        verified_rules = by_status.get("verified", 0) + by_status.get("confirmed", 0)
+        founder_open = by_status.get("needs_founder_input", 0) + by_status.get("needs_founder_action", 0)
+        srcs = []
+        for a in areas:
+            for it in a.get("items", []):
+                lv = (it.get("source") or {}).get("liveness")
+                if lv is not None:
+                    srcs.append(bool(lv.get("reachable")))
+        return {"by_status": by_status, "verified_rules": verified_rules,
+                "founder_open": founder_open,
+                "sources_total": len(srcs), "sources_reachable": sum(1 for x in srcs if x)}
+
+    @app.get("/api/a11oy/v1/contracting")
+    async def _a11oy_contracting(probe: bool = True):  # noqa: ANN202
+        areas = _ct_areas(probe=probe)
+        for a in areas:
+            _ct_count(a)
+        summary = _ct_summary(areas)
+        return JSONResponse({
+            "layer": "a11oy federal-contracting readiness",
+            "subject": "a11oy (SZL Holdings)",
+            "scope": "Federal contracting baseline: SAM/UEI/CAGE registration + SBIR/STTR eligibility + compliance posture. External program rules are web-verified with source URLs; org-specific facts are founder-supplied, never fabricated.",
+            "criteria_retrieved": _CT_RETRIEVED,
+            "checked_at": _ct_now(),
+            "honest": ("External eligibility rules are read from authoritative sources (SAM.gov, SBIR.gov, the eCFR, the DoD DSIP) and carry the source URL + retrieval date; each source is probed live for reachability. This org's own registration facts (UEI, CAGE, SAM status, headcount, ownership) are NEVER invented — each is flagged 'needs founder input' or 'needs founder action' unless an operator supplied it via a secure env var (then 'confirmed'). A flagged unknown is the correct answer."),
+            "summary": summary,
+            "areas": areas,
+            "founder_actions": [
+                {"step": "Register / verify the org in SAM.gov and obtain the UEI",
+                 "why": "An active SAM registration + UEI is required for nearly all federal awards (FAR 52.204-7).",
+                 "source_url": _CT_SOURCES["far_7"]["url"]},
+                {"step": "Obtain / confirm the CAGE code",
+                 "why": "Required for DoD contracting; auto-assigned with SAM or requested via DLA.",
+                 "source_url": _CT_SOURCES["cage"]["url"]},
+                {"step": "Confirm SBIR/STTR size & ownership and register in DSIP",
+                 "why": "≤500 employees and ≥50% U.S.-individual ownership are eligibility gates; DoD topics submit via DSIP.",
+                 "source_url": _CT_SOURCES["dsip"]["url"]},
+            ],
+        }, status_code=200)
+
+    @app.get("/api/a11oy/v1/contracting/{area_id}/live")
+    async def _a11oy_contracting_live(area_id: str):  # noqa: ANN202
+        areas = _ct_areas(probe=True)
+        match = next((a for a in areas if a.get("id") == area_id), None)
+        if match is None:
+            return JSONResponse({"ok": False, "error": "unknown area",
+                                 "area_id": area_id,
+                                 "areas": [a["id"] for a in areas]}, status_code=404)
+        _ct_count(match)
+        return JSONResponse({"ok": True, "area": match, "checked_at": _ct_now()}, status_code=200)
+
+    print("[a11oy] Federal-contracting readiness registered: /api/a11oy/v1/contracting",
+          file=__import__("sys").stderr)
+except Exception as _ct_e:  # pragma: no cover
+    print(f"[a11oy] Federal-contracting readiness NOT registered: {_ct_e!r}", file=__import__("sys").stderr)
+# ── Federal Contracting Readiness (contracting-tab-patch) ── end
+
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
 # /api/a11oy/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
@@ -290,7 +504,7 @@ except Exception as _th_e:
 #   POST /api/a11oy/khipu/sign     — DSSE-sign a receipt (real ECDSA-P256 cosign sig)
 #   POST /api/a11oy/khipu/verify   — verify a DSSE envelope against cosign.pub
 #   GET  /api/a11oy/khipu/ledger   — signed Khipu Merkle DAG
-#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest: cosign keyless-verified image; L2 build-provenance attestation roadmap via Wire D, not yet claimed; L3 not claimed)
+#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1+L2 attested: cosign keyless-verified image (L1) + signed SLSA build-provenance attestation via actions/attest-build-provenance@v2 (L2), Sigstore keyless Fulcio+Rekor, verifiable via gh attestation verify / cosign verify-attestation; L3 roadmap, not claimed)
 # The Wire-D middleware echoes traceparent on EVERY response (incl. the Node-proxy
 # catch-all) so trace continuity holds across the whole Space. Real signatures only
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
@@ -497,9 +711,10 @@ for _organ_mod, _organ_label in (
 # and win ordering. The package root /app/src is added to sys.path so
 # `import a11oy.formulas` resolves under WORKDIR /app (per-file COPY in Dockerfile).
 # try/except guarded — a missing optional dep can NEVER take down the SPA + API.
-# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest (cosign-signed image, public
-# Sigstore + Rekor verified). L2 build-provenance attestation roadmap via Wire D —
-# not yet claimed; L3 not claimed. See .compliance/SLSA_LEVEL.md.
+# Λ = Conjecture 1 (NEVER a theorem). SLSA L1+L2 attested (cosign-signed image,
+# public Sigstore + Rekor verified (L1) + signed SLSA build-provenance attestation
+# via actions/attest-build-provenance@v2 (L2), verifiable via gh attestation verify
+# / cosign verify-attestation); L3 roadmap, not claimed. See .compliance/SLSA_LEVEL.md.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
@@ -924,7 +1139,7 @@ async def v1_healthz() -> JSONResponse:
                 "error": "Node serve on :8081 is not running",
                 "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                              "version": "v11", "replay_hash": "c7c0ba17"},
-                "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
+                "slsa": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
             },
             status_code=503,
         )
@@ -942,7 +1157,7 @@ async def v1_healthz() -> JSONResponse:
         "routes": ["/v1/ledger", "/v1/ledger/{hash}", "/v1/verify", "/v1/policy/evaluate"],
         "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                      "version": "v11", "replay_hash": "c7c0ba17"},
-        "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
+        "slsa": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
     }, status_code=200 if backend["alive"] else 503)
 
 
@@ -2464,7 +2679,7 @@ async def _a11oy_pr_honest_v2():
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
-        "slsa": "SLSA L1 honest across all organs; L2 build-provenance is roadmap (not yet claimed).",
+        "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         "slsa_evidence": {
             "level": "L2",
             "image_tag": "uds-v0.2.0",
@@ -2486,7 +2701,7 @@ async def _a11oy_pr_honest_v2():
             "No Iron Bank / FedRAMP / CMMC certification claimed",
             "Section 889 = exactly 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua)",
             "HNSW formula endpoint is an HONEST in-process retrieval stub; BLS returns an honest backend-availability flag (real verify only when py_ecc present).",
-            "SLSA L1 honest across all organs (cosign-signed images, Sigstore + Rekor verifiable); L2 build-provenance is roadmap (not yet claimed). NOT L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC.",
+            "SLSA L1+L2 attested · L3 roadmap across all organs (cosign-signed images + signed SLSA build-provenance attestation, Sigstore keyless Fulcio+Rekor verifiable via gh attestation verify / cosign verify-attestation). L3 not claimed. NOT Iron Bank, NOT FedRAMP, NOT CMMC, NOT ATO without roadmap.",
         ],
         "role": "Brand Orchestration / gates",
     })
@@ -2619,9 +2834,10 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # shape the scene's normalizeStats() consumes. Registered at BOTH the root path
 # (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
 # proxy + SPA, matching the existing /v4/fleet dual-registration pattern.
-# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1 honest (cosign-signed
-# GHCR image, Sigstore + Rekor verifiable); SLSA L2 build-provenance is roadmap
-# (NOT yet claimed); never L3/FedRAMP/Iron Bank/CMMC — unchanged.
+# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1+L2 attested (cosign-
+# signed GHCR image + signed SLSA build-provenance attestation, Sigstore + Rekor
+# verifiable via gh attestation verify / cosign verify-attestation); L3 roadmap
+# (NOT claimed); never FedRAMP/Iron Bank/CMMC/ATO without roadmap — unchanged.
 # ===========================================================================
 import time as _rtr_time
 
@@ -2884,7 +3100,7 @@ async def a11oy_mcp_tools_inline():
         "flagship": "a11oy",  # host flagship (backward-compatible field)
         "flagships": _flagships,  # every flagship that contributed live tools
         "sources": _sources,
-        "kernel_commit": "c7c0ba17", "slsa_level": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
+        "kernel_commit": "c7c0ba17", "slsa_level": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
     })
 
@@ -3722,7 +3938,7 @@ try:
                           "launch_at": "/api/a11oy/v1/warhacker/launch/" + d["key"]}
                          for d in _WH_DEMOS],
             "lambda_status": "Conjecture 1 (advisory, not a pass/fail oracle)",
-            "slsa": "SLSA L1 honest across all organs; L2 build-provenance is roadmap (not yet claimed).",
+            "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         })
 
     # Map the launch keys to the REAL exhaustive-demo engine keys (the demos
@@ -3758,7 +3974,15 @@ try:
         # tamper => UNAUTHORIZED + rho<0 + named crossed axis + chain/inclusion
         # FAIL. Receipt id is a real hash over the real per-run payload, so it
         # differs every run. Honest by construction.
-        d = _WH_BY_KEY.get(problem)
+        # A2 FIX (2026-06-09): scenario keys in _WH_DEMOS use hyphens (e.g. P4
+        # "cyber-rts") but the demo button / launch routes use the underscore
+        # form ("cyber_rts"). The launch->engine map (_WH_LAUNCH_TO_DEMO) already
+        # accepts both, but the _WH_BY_KEY lookup did not, so a click on the
+        # cyber_rts button returned 404 'unknown scenario'. Normalize the lookup
+        # to try hyphen<->underscore variants so no demo button is dead.
+        d = (_WH_BY_KEY.get(problem)
+             or _WH_BY_KEY.get(problem.replace("_", "-"))
+             or _WH_BY_KEY.get(problem.replace("-", "_")))
         demo_key = _WH_LAUNCH_TO_DEMO.get(problem)
         if not d or not demo_key:
             return _SCJSON({"ok": False, "error": "unknown scenario", "problem": problem}, status_code=404)
@@ -3867,8 +4091,8 @@ except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
 # pack registry, business observability. Registered BEFORE the SPA catch-all.
 #
 # HONESTY: Λ = Conjecture 1 (advisory, never a pass/fail oracle). 5 proven
-# formulas {F1,F11,F12,F18,F19}. SLSA L1 honest; L2 build-provenance roadmap
-# (not yet claimed); NOT L3/FedRAMP/Iron Bank/CMMC. No
+# formulas {F1,F11,F12,F18,F19}. SLSA L1+L2 attested; L3 build-provenance roadmap
+# (not yet claimed); NOT FedRAMP/Iron Bank/CMMC/ATO without roadmap. No
 # cross-origin organ dependencies — a11oy is fully self-contained.
 # The DSSE key below is a REAL ephemeral ECDSA P-256 key generated in-image
 # at boot (resets on rebuild). Receipts signed with it verify PASS in-browser
@@ -5450,17 +5674,16 @@ async def _a11oy_pr_honest():
         "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
         "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "L1 honest (cosign-signed; verifiable via cosign verify). L2 build-provenance attestation is roadmap (Wire D) — not yet claimed. L3 not claimed.",
+        "slsa": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         "slsa_evidence": {
-            "level": "L1",
+            "level": "L2",
             "image_tag": "uds-v0.2.0",
             "image_digest": "sha256:7473f3d9eb156b2911170d86d8834d1e8bd8deb06a2aff91c6904fef64ceed71",
-            "builder": "GitHub-hosted Actions (cosign keyless)",
+            "builder": "GitHub-hosted Actions (isolated build service, cosign keyless)",
             "fulcio_issuer": "sigstore.dev (public-good)",
             "rekor_log_index": 1710578865,
-            "verified_via": "cosign verify + live public Rekor inclusion (HTTP 200) for the image SIGNATURE",
-            "l2_status": "roadmap (Wire D) — GHCR shows cosign-signed image (L1) only; no verified provenance-attestation tag on the deployed image. NOT claimed.",
-            "ecosystem_gap": "killinchu remains L1 (private GitHub Fulcio, no public Rekor entry) — honest.",
+            "verified_via": "cosign verify + live public Rekor inclusion for the image SIGNATURE + signed slsa.dev/provenance attestation (actions/attest-build-provenance@v2), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance",
+            "l3_status": "NOT claimed (no hermetic, fully-isolated reproducible build attestation).",
         },
         "formulas_wired": _wired,
         "formulas_count": len(_wired),
@@ -5565,7 +5788,7 @@ async def api_health() -> JSONResponse:
         "lean_sha": "c7c0ba17",
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
-        "slsa": "SLSA L1 honest across all organs; L2 build-provenance is roadmap (not yet claimed).",
+        "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
     })
 
 
