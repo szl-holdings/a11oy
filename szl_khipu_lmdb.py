@@ -42,6 +42,14 @@ import lmdb
 __version__ = "khipu-lmdb/1.0.0"
 _GENESIS = "0" * 64
 
+# Process-wide registry of open LMDB environments keyed by absolute path. LMDB
+# forbids opening the SAME environment twice in one process (raises "already open
+# in this process"). Some servers import the app module more than once (e.g.
+# uvicorn.run("serve:app") re-imports `serve`), which would re-run register() and
+# re-open the same path. We share one env per path to stay correct + idempotent.
+_ENV_REGISTRY: "dict[str, Any]" = {}
+_REGISTRY_LOCK = threading.Lock()
+
 
 def _sha3(b: bytes) -> str:
     return hashlib.sha3_256(b).hexdigest()
@@ -74,16 +82,23 @@ class KhipuLMDB:
         self.ns = ns
         self._lock = threading.RLock()
         os.makedirs(path, exist_ok=True)
+        abspath = os.path.abspath(path)
         # subdir=True -> path is a directory holding data.mdb + lock.mdb
-        self._env = lmdb.open(
-            path,
-            map_size=map_size,
-            subdir=True,
-            readonly=False,
-            metasync=True,
-            sync=True,  # durability: flush to disk on commit
-            max_dbs=0,
-        )
+        with _REGISTRY_LOCK:
+            env = _ENV_REGISTRY.get(abspath)
+            if env is None:
+                env = lmdb.open(
+                    path,
+                    map_size=map_size,
+                    subdir=True,
+                    readonly=False,
+                    metasync=True,
+                    sync=True,  # durability: flush to disk on commit
+                    max_dbs=0,
+                )
+                _ENV_REGISTRY[abspath] = env
+            self._env = env
+        self._abspath = abspath
         self._init_meta()
 
     def _init_meta(self) -> None:
@@ -218,4 +233,9 @@ class KhipuLMDB:
     def close(self) -> None:
         with self._lock:
             self._env.sync(True)
-            self._env.close()
+        # Drop from the registry and close the shared env. Safe because callers
+        # that re-open will get a fresh env. In tests each path is unique.
+        with _REGISTRY_LOCK:
+            if _ENV_REGISTRY.get(self._abspath) is self._env:
+                _ENV_REGISTRY.pop(self._abspath, None)
+        self._env.close()

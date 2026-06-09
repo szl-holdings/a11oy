@@ -1,33 +1,45 @@
 # Shared-file drift allow-list  (a11oy <-> killinchu)
 # -----------------------------------------------------------------------------
-# Read by .github/shared-file-drift-check.py. One repo-relative path per line;
-# blank lines and `#` comments ignored. KEEP THIS FILE IDENTICAL IN BOTH REPOS.
+# Read by .github/shared-file-drift-check.py. One path per line; text after a
+# `#` is ignored, so each path may carry an inline reason. KEEP THIS FILE
+# IDENTICAL IN BOTH REPOS.
 #
 # A path here is a file that BOTH repos ship and that the guard would otherwise
 # require to be byte-identical, but which is *currently* allowed to differ. The
 # guard is a ratchet:
 #   * Files NOT listed here must stay byte-identical across the two repos, or the
 #     build FAILS (this blocks NEW drift).
-#   * Files listed here are reported but do not fail the build (pre-existing,
-#     accepted-pending-reconciliation drift).
+#   * Files listed here are reported but do not fail the build.
 #   * When a listed file becomes identical again, the guard WARNS so this entry
 #     can be removed — tightening the ratchet over time.
 #
 # To accept a deliberate divergence: add the path with a short reason.
 # To reconcile a divergence: sync the file in both repos, then delete its line.
 #
-# Seeded 2026-06-08 with the drift that already existed when the guard was added.
-# These ARE meant to be shared modules; they have silently diverged and should be
-# reconciled (sync the canonical copy into both repos) when convenient.
-a11oy_code_engine.py
-live_wires_3d.js
-operator_shell_v4.py
-szl_alloy_models.py
-szl_brain.py
-szl_formulas.py
-szl_khipu_consensus.py
-szl_khipu_lmdb.py
-szl_live_wires.py
-szl_llm_registry.py
-szl_provenance.py
-szl_rag.py
+# Seeded 2026-06-08 with the drift that existed when the guard was added.
+# 2026-06-09 reconciliation pass: szl_rag.py and szl_khipu_lmdb.py were synced to
+# a single canonical copy in BOTH repos and removed from this list. The remaining
+# entries are GENUINE, intentional app-specific divergences (one-line reason each)
+# kept on purpose — the two demos are NOT meant to be byte-identical here, so they
+# are documented rather than force-synced.
+
+# --- Organ-naming consolidation: a11oy uses the new Operator/Policy/Reasoning
+#     vocabulary; killinchu still uses the legacy Rosie/Sentra/Amaru codenames.
+#     A staged, multi-repo rename across live cosign-signed organs — do NOT
+#     blind-sync; reconcile only when the whole consolidation lands in both.
+szl_alloy_models.py        # operator_mirrored (a11oy) vs rosie_mirrored (killinchu)
+szl_llm_registry.py        # Operator/Policy/Reasoning (a11oy) vs Rosie/Sentra/Amaru (killinchu)
+
+# --- App-specific feature sets: each demo ships features the other does not.
+a11oy_code_engine.py       # a11oy-only HF-router roster + multi-name token detection for the Code tab
+operator_shell_v4.py       # killinchu-only POST /inbox drone-telemetry handler (P2 spec)
+live_wires_3d.js           # killinchu-only SISTER_LABELS honest organ-name render layer
+szl_khipu_consensus.py     # killinchu-only honest theorem-provenance / lake_receipt on consensus payloads
+
+# --- Doctrine / honesty-claim state that differs per demo.
+szl_brain.py               # Doctrine v10 + model_weight_sha256 (a11oy) vs Doctrine v11 (killinchu)
+szl_formulas.py            # a11oy carries extra dev-orientation + DSSE base64 payload fix
+szl_provenance.py          # SLSA self-assessment note differs (a11oy L1-honest vs killinchu L2)
+
+# --- Server execution model differs.
+szl_live_wires.py          # a11oy async (await asyncio.sleep) vs killinchu blocking (time.sleep)
