@@ -461,7 +461,7 @@ def register(app):
             "lambda": round(min(lam, 0.999), 5),  # trust never 100%
             "kind": kind, "p": p, "axes": xs, "variants": variants,
             "am_gm_hm_ordering_holds": ordered,
-            "maturity": "Λ = CONJECTURE 1 (advisory, NEVER a theorem)",
+            "maturity": "Λ = Conjecture 1 (advisory, never a theorem)",
             "lean": "Lutar/Lambda.lean::lambda_geomean_wellformed (F19, locked-proven well-formedness only)",
             "honest": "Quasi-arithmetic (Kolmogorov–Nagumo) mean family. Λ generator = geometric (F19). "
                       "Uniqueness is Conjecture 1 (machine-checked FALSE unconditionally).",
