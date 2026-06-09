@@ -30,7 +30,7 @@ traces to a versioned, DOI-pinned thesis. This is the canonical timeline.
 | **v9** | 2026-05-05 | [zenodo.20053148](https://doi.org/10.5281/zenodo.20053148) | Unified-Operational — the Lutar Invariant family |
 | **v10** | 2026-05-05 | [zenodo.20053163](https://doi.org/10.5281/zenodo.20053163) | Exhaustive-Audit — the audit-closure operator Λ |
 | **v11** | 2026-05-11 | [zenodo.20119582](https://doi.org/10.5281/zenodo.20119582) | Applied Λ — measured per-request governance overhead |
-| **v12** | 2026-05-14 | [concept](https://doi.org/10.5281/zenodo.19944926) | The Λ-Ouroboros substrate — first four machine-verified theorems |
+| **v12** | 2026-05-14 | [concept](https://doi.org/10.5281/zenodo.19944926) | The Λ-Ouroboros substrate — first four machine-verified theorems (Λ itself stays Conjecture 1, NOT a theorem) |
 | **v13** | 2026-05-18 | [concept](https://doi.org/10.5281/zenodo.19944926) | Anatomy as architecture (exhaustive) |
 | **v14** | 2026-05-28 | [zenodo.20173912](https://doi.org/10.5281/zenodo.20173912) | Verifiable multi-agent anatomy — Lutar Calculus; **Λ downgraded to Conjecture 1** |
 | **v15** | 2026-05-28 | [zenodo.20195368](https://doi.org/10.5281/zenodo.20195368) | Knot calculus for governed decision receipts |
@@ -112,7 +112,7 @@ Honest status — only A5 is merged to `main`; the rest are **on-branch / in rev
    adversarial α=0.50). Design paper with partial empirical results (N=60).
 
 > **Λ remains Conjecture 1.** The uniqueness chain is *complete only when all Cauchy_ND sorries
-> close on `main`.* They have not. No thesis text elevates Λ to a theorem.
+> close on `main`.* They have not. No thesis text elevates Λ to a theorem — Λ is Conjecture 1.
 
 ---
 
