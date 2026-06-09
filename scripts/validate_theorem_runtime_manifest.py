@@ -17,6 +17,10 @@ VALID_STATUSES = {
     "lean-backed-needs-runtime",
     "historical-roadmap",
     "roadmap",
+    # staged-advisory: honest, NOT-proven status (SZL Doctrine v11). The gate
+    # ships enforced:false/severity:warning while its Lean proof is pending, so
+    # it must never be counted as proven. Honesty semantics enforced below.
+    "staged-advisory",
 }
 
 
@@ -49,6 +53,24 @@ def main() -> int:
 
         if status == "verified-runtime" and not entry.get("validationCommand"):
             errors.append(f"{entry_id}: verified-runtime requires validationCommand")
+
+        if status == "staged-advisory":
+            # Honesty guard (SZL Doctrine v11): staged-advisory entries are NOT
+            # proven. They must self-identify as advisory and carry a caveat so
+            # they can never be silently promoted into a proven claim.
+            if entry.get("stagedAdvisory") is not True:
+                errors.append(
+                    f"{entry_id}: staged-advisory requires stagedAdvisory: true"
+                )
+            if not entry.get("caveat"):
+                errors.append(
+                    f"{entry_id}: staged-advisory requires a caveat"
+                )
+            if entry.get("leanStatus") in {"proven", "verified", "lean-proven"}:
+                errors.append(
+                    f"{entry_id}: staged-advisory cannot have leanStatus "
+                    f"{entry.get('leanStatus')!r} (not yet proven)"
+                )
 
     if errors:
         print("Theorem runtime manifest failed:")
