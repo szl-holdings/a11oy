@@ -6,10 +6,10 @@
   "generatedAt": "2026-06-09T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 102,
+    "tabs": 103,
     "endpoints": 38,
     "tabsWithCitations": 20,
-    "staticTabs": 24
+    "staticTabs": 25
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -1013,6 +1013,21 @@
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
         "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "bounties",
+      "title": "bounties",
+      "group": "Console",
+      "route": "/console#bounties",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
       }
     },
     {
