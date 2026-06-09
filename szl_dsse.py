@@ -93,7 +93,7 @@ def pae(payload_type: str, body: bytes) -> bytes:
 # SZL_COSIGN_PRIVATE_KEY_PEM (Kubernetes secretKeyRef + GitHub org secret); the
 # established SZL_COSIGN_PRIVATE_PEM is kept as a backward-compatible fallback.
 # NEITHER is ever committed — both are runtime-only secrets.
-PRIVATE_KEY_ENV_VARS = ("SZL_COSIGN_PRIVATE_KEY_PEM", "SZL_COSIGN_PRIVATE_PEM")
+PRIVATE_KEY_ENV_VARS = ("SZL_COSIGN_PRIVATE_KEY_PEM", "SZL_COSIGN_PRIVATE_PEM", "szlcosig", "szlcosig1", "SZLCOSIG", "SZLCOSIG1")
 
 
 def _load_private_key():
