@@ -32,7 +32,7 @@ ecosystem-stage: "operational"
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
 **Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1** (axiom-free CUT-2 conditional proven; unconditional uniqueness machine-checked false). Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
-[Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status)
+[Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status) · [Service status](https://szl-holdings.github.io/a11oy/)
 
 ---
 
@@ -45,6 +45,7 @@ ecosystem-stage: "operational"
 - Health: `curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
 - Docs: https://szl-holdings.github.io/docs-site/flagships/a11oy
 - Release: [v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0)
+- **Service status:** https://szl-holdings.github.io/a11oy/ — continuously published live service-status board
 
 ---
 
