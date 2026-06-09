@@ -1,4 +1,6 @@
 {
+  "doctrine": "v11",
+  "lambda_uniqueness": "Conjecture 1 — NOT a theorem (Λ-Aggregator Uniqueness is open; machine-checked-false unconditionally, conditional-only). Provenance marker for this E4 codex-kernel historical run receipt.",
   "last_receipt": {
     "decision_type": "cycle_advance",
     "summary": "Advanced one synodic cycle (+584d).",
