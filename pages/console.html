@@ -283,6 +283,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="reciprocity" onclick="go('reciprocity')"><span class="ico">⇄</span>Reciprocity</div>
     <div class="nav-group">Prove &amp; Verify</div>
     <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
+    <div class="nav-item" data-view="putnam" onclick="go('putnam')"><span class="ico">∮</span>Putnam 2025</div>
     <div class="nav-group">World &amp; Threat Intel</div>
     <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
     <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
@@ -9416,5 +9417,103 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* end DEV-WIRE-A tab wiring */
 </script>
 
+<script>
+/* putnam-2025-tab-patch :: Task #578 :: honest kernel verdict snapshot */
+(function(){
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
+    var SHA='b7c3e382d56f6548945d93895c9d78c6411c40f8';
+    var SHORT='b7c3e38';
+    var COMPUTED='2026-06-09';
+    var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Putnam/';
+    var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98';
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function statusColor(s){ return s==='REAL'?TEAL:(s==='DEMO'?GOLD:DIM); }
+    function pill(s){ var c=statusColor(s); return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.08em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a;">'+esc(s)+'</span>'; }
+    var PROBS=[
+      ['A1','P_A1.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['A2','P_A2.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['A3','P_A3.lean','OPEN','statement only (True-shell); official answer withheld pending a real proof'],
+      ['A4','P_A4.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['A5','P_A5.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['A6','P_A6.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['B1','P_B1.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['B2','P_B2.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['B3','P_B3.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['B4','P_B4.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['B5','P_B5.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas'],
+      ['B6','P_B6.lean','DEMO','formalized statement; proof uses sorry/unproven lemmas']
+    ];
+    var nREAL=0,nDEMO=0,nOPEN=0;
+    PROBS.forEach(function(p){ if(p[2]==='REAL')nREAL++; else if(p[2]==='DEMO')nDEMO++; else nOPEN++; });
+
+    function render(c){
+      var H='';
+      H+='<div style="max-width:980px;">';
+      // cached source line (honest: this is a snapshot, not a live fetch)
+      H+='<div style="font-family:var(--mono,monospace);font-size:11px;color:'+GOLD+';margin:0 0 14px;">'
+        +'\u25c8 CACHED SNAPSHOT \u00b7 doctrine-v11 kernel verdict computed from '
+        +'<a href="https://github.com/szl-holdings/lutar-lean/tree/'+SHA+'" target="_blank" rel="noopener" style="color:'+GOLD+';">lutar-lean main @'+SHORT+'</a>'
+        +' \u00b7 '+COMPUTED+' \u2014 numbers match the CI kernel run exactly; re-deploy to refresh.</div>';
+      // bridge paragraph VERBATIM
+      H+='<blockquote style="margin:0 0 18px;padding:14px 18px;border-left:3px solid '+TEAL+';background:rgba(61,220,151,.06);font-size:14px;line-height:1.6;">'
+        +'We are not doing "drones solve Putnam." We are doing: Intelligence \u2192 Structure \u2192 Conjecture \u2192 Certificate. '
+        +'killinchu supplies intelligence (tracking, fusion, ROE decisions, signed receipts). '
+        +'We extract mathematical structure (graphs, constraints, optimization instances). '
+        +'We pose Putnam-grade + SZL-native problems. '
+        +'We ship certificates (Lean-verified REAL theorems, reproducible benchmarks, provenance).'
+        +'</blockquote>';
+      // headline tally (REAL = the honest headline number)
+      H+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;">';
+      H+='<div style="flex:1;min-width:120px;text-align:center;padding:12px;border:1px solid '+TEAL+';border-radius:10px;background:'+TEAL+'12;"><div style="font-size:30px;font-weight:800;color:'+TEAL+';">'+nREAL+'</div><div style="font-family:var(--mono,monospace);font-size:10px;letter-spacing:.12em;color:'+TEAL+';">REAL</div></div>';
+      H+='<div style="flex:1;min-width:120px;text-align:center;padding:12px;border:1px solid '+GOLD+';border-radius:10px;background:'+GOLD+'12;"><div style="font-size:30px;font-weight:800;color:'+GOLD+';">'+nDEMO+'</div><div style="font-family:var(--mono,monospace);font-size:10px;letter-spacing:.12em;color:'+GOLD+';">DEMO</div></div>';
+      H+='<div style="flex:1;min-width:120px;text-align:center;padding:12px;border:1px solid '+DIM+';border-radius:10px;background:'+DIM+'12;"><div style="font-size:30px;font-weight:800;color:'+DIM+';">'+nOPEN+'</div><div style="font-family:var(--mono,monospace);font-size:10px;letter-spacing:.12em;color:'+DIM+';">OPEN</div></div>';
+      H+='</div>';
+      H+='<div style="font-size:12px;color:var(--dim,#8a8f98);margin:0 0 18px;">Canonical Putnam 2025 set (86th Putnam, Dec 6 2025): A1\u2013A6, B1\u2013B6. The headline number is the count of <b style="color:'+TEAL+';">REAL</b> Lean-kernel-checked theorems. SZL-native originals are <b>pending upstream</b> (not yet on lutar-lean main).</div>';
+      // doctrine-v11 labels VERBATIM
+      H+='<div style="border:1px solid var(--line,#2a2f37);border-radius:10px;padding:12px 16px;margin:0 0 18px;font-size:13px;line-height:1.8;">'
+        +'<div style="font-family:var(--mono,monospace);font-size:10px;letter-spacing:.14em;color:var(--dim,#8a8f98);margin-bottom:6px;">DOCTRINE-V11 LABELS</div>'
+        +'<div>'+pill('REAL')+' &nbsp;= Lean-kernel checked, no sorry, no extra axioms beyond declared</div>'
+        +'<div>'+pill('DEMO')+' &nbsp;= compiles but uses sorry/unproven lemmas</div>'
+        +'<div>'+pill('OPEN')+' &nbsp;= statement only</div>'
+        +'</div>';
+      // per-problem table
+      H+='<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+      H+='<thead><tr style="text-align:left;color:var(--dim,#8a8f98);font-family:var(--mono,monospace);font-size:10px;letter-spacing:.1em;">'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">PROBLEM</th>'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">LEAN PROOF FILE</th>'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">STATUS</th>'
+        +'<th style="padding:6px 8px;border-bottom:1px solid var(--line,#2a2f37);">NOTE</th></tr></thead><tbody>';
+      PROBS.forEach(function(p){
+        H+='<tr>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);font-weight:700;">'+esc(p[0])+'</td>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);font-family:var(--mono,monospace);font-size:11px;"><a href="'+BASE+esc(p[1])+'" target="_blank" rel="noopener" style="color:var(--teal,#3ddc97);">'+esc(p[1])+'</a></td>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);">'+pill(p[2])+'</td>'
+          +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);color:var(--dim,#8a8f98);">'+esc(p[3])+'</td>'
+          +'</tr>';
+      });
+      // SZL-native pending row
+      H+='<tr>'
+        +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);font-weight:700;">SZL-12A / SZL-12B</td>'
+        +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);font-family:var(--mono,monospace);font-size:11px;color:var(--dim,#8a8f98);">\u2014 not yet on main</td>'
+        +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);">'+pill('OPEN').replace('OPEN','PENDING')+'</td>'
+        +'<td style="padding:7px 8px;border-bottom:1px solid var(--line,#1e2229);color:var(--dim,#8a8f98);">SZL-native originals \u2014 pending upstream kernel work</td>'
+        +'</tr>';
+      H+='</tbody></table>';
+      H+='<div style="font-size:11px;color:var(--dim,#8a8f98);margin-top:14px;line-height:1.6;">'
+        +'A3 is OPEN (statement-only True-shell); the official 2025 A3 answer is intentionally withheld here until a REAL proof exists. '
+        +'No problem is currently REAL: each DEMO file formalizes the statement but discharges the proof with <code>sorry</code> or unproven lemmas. '
+        +'This page surfaces the honest current state \u2014 it will show REAL counts the moment the kernel run lands verified proofs.'
+        +'</div>';
+      H+='</div>';
+      c.innerHTML=H;
+    }
+    V.putnam={ title:'Putnam 2025', badge:(nREAL+' REAL \u00b7 '+nDEMO+' DEMO \u00b7 '+nOPEN+' OPEN \u00b7 @'+SHORT), sub:'Honest, doctrine-v11 per-problem verdict for the canonical Putnam 2025 set (A1\u2013A6, B1\u2013B6), computed from the Lean kernel on lutar-lean main. The headline is the count of REAL (kernel-checked) theorems; SZL-native originals are pending upstream.', render:render };
+  }
+  reg();
+})();
+/* end putnam-2025-tab-patch */
+
+</script>
 </body>
 </html>
