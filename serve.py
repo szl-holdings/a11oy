@@ -83,6 +83,17 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# ── Operational Readiness layer (readiness-tab-patch) — deployed-vs-repo reality.
+# Live site/endpoint liveness, HF Space build status, repo/org drift with honest
+# live/cached/unreachable labels. Same resilience pattern as evidence module.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import szl_readiness as _szl_readiness
+    _szl_readiness.register(app, ns="a11oy")
+    print("[a11oy] Operational Readiness registered: /api/a11oy/v1/readiness", file=__import__("sys").stderr)
+except Exception as _szl_rd_e:  # pragma: no cover
+    print(f"[a11oy] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
+
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
 # /api/a11oy/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
