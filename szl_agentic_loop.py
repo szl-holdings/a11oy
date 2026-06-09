@@ -677,7 +677,9 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                                  "result": {"tools": _tool_catalog(ns)}})
         if method in ("tools/call", "call_tool"):
             name = params.get("name", "")
-            args = params.get("arguments") or {}
+            args = params.get("arguments")
+            if not isinstance(args, dict):
+                args = {}
             result = _mcp_tool_call(name, args)
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
                 "content": [{"type": "text", "text": json.dumps(result)}],
