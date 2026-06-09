@@ -176,6 +176,7 @@ npm test --prefix packages/receipt-substrate
 | `SBOM` / `.github/workflows/sbom.yml` | CycloneDX/SPDX SBOM generation and filesystem scanning are part of release evidence. |
 | `DCO` / `.github/workflows/dco.yml` | Commits carry sign-off provenance for PR review. |
 | `Publish Hugging Face Payload` / `.github/workflows/huggingface.yml` | Regenerates and publishes the HF mirror from tracked source when `HF_TOKEN` is configured. |
+| `Eval Arena Negative Control Guard` / `.github/workflows/eval-arena-negative-control.yml` | Boots the real in-image eval (`serve.py` → `_a11oy_eval_run_live()`, no fabricated numbers) and fails unless the live arena keeps both a passing scenario AND a policy-rejected negative control (`pass=False`, `overall<0.85`, non-empty `policy_signals`) — so the red fail line can never be silently dropped. Self-tests its validator against degenerate runs first. |
 
 ## Investor FAQ
 

@@ -1,0 +1,91 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# eval-arena-negative-control.yml — keep the live Eval Arena honest by ensuring
+# it always carries BOTH a passing example AND a deliberately-failing one.
+#
+# Why this exists
+# ---------------
+# The live Eval Arena re-runs a11oy's own governance primitives against a set of
+# scenarios and derives every score from a real operation performed now. The
+# honesty story depends on the arena showing not only green "pass" rows but at
+# least one RED "fail" row: a malicious "negative control" scenario whose action
+# trips the policy gate, so overall < 0.85 with a populated policy_signals list
+# and pass=False. That row proves the gate REJECTS bad decisions (the red fail
+# line / b-err badge) instead of rubber-stamping them.
+#
+# That negative control has already been silently lost once — it was added as the
+# 6th _A11OY_ARENA_SCENARIOS entry, then accidentally dropped when a later commit
+# rewrote that region, leaving an all-green arena. Nothing caught it. This guard
+# does: it boots the REAL in-image code (imports serve.py, calls
+# _a11oy_eval_run_live()) and fails unless the run has >=1 passing AND >=1
+# policy-rejected failing scenario. No fabricated numbers.
+#
+# A self-test job feeds the pure validator degenerate runs (all-pass,
+# fail-without-signals, fail-above-threshold, no-pass, empty) and asserts it
+# REJECTS each before the guard job trusts it (org guard pattern; cf.
+# release-receipt-summary-guard.yml / status-page-guard.yml). Org policy:
+# github-owned actions only, SHAs pinned.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Eval Arena Negative Control Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "serve.py"
+      - "scripts/check_eval_arena_negative_control.py"
+      - ".github/workflows/eval-arena-negative-control.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "serve.py"
+      - "scripts/check_eval_arena_negative_control.py"
+      - ".github/workflows/eval-arena-negative-control.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-arena-negative-control-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Prove the validator still rejects degenerate runs (i.e. is not silently
+  # passing) before the guard job trusts it against the real live eval.
+  self-test:
+    name: Self-test the validator (fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Validator rejects degenerate runs, accepts a good one
+        run: python3 scripts/check_eval_arena_negative_control.py --selftest
+
+  # Boot the REAL in-image eval and assert the arena keeps both examples.
+  guard:
+    name: Live eval keeps a pass AND a policy-rejected fail
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install serve.py runtime deps (subset of the image; optional modules are guarded)
+        run: |
+          python3 -m pip install --no-cache-dir \
+            "fastapi>=0.111.0,<1.0.0" \
+            "httpx>=0.27.0,<1.0.0" \
+            "starlette>=0.37.0" \
+            "cryptography>=42.0.0" \
+            "python-multipart>=0.0.9"
+      - name: Self-test the validator before trusting it
+        run: python3 scripts/check_eval_arena_negative_control.py --selftest
+      - name: Run the live Eval Arena in-image and assert pass + negative-control fail
+        run: python3 scripts/check_eval_arena_negative_control.py
