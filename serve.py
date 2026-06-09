@@ -2916,7 +2916,11 @@ async def a11oy_mcp_call_inline(request: Request):
                 fargs = []
             elif not isinstance(fargs, list):
                 fargs = [fargs]
-            res = _anat_call.run_one(fname, fargs)
+            try:
+                res = _anat_call.run_one(fname, fargs)
+            except Exception as _re:
+                return JSONResponse({"tool": tool_name, "status": "error", "error": str(_re),
+                                     "doctrine": "v11", "kernel_commit": "c7c0ba17"}, status_code=400)
             return JSONResponse({"tool": tool_name, "status": "ok" if res.get("ok", True) else "error",
                                  "result": res, "doctrine": "v11", "kernel_commit": "c7c0ba17"})
         fname = args.get("name", "")
