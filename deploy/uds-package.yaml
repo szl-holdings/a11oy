@@ -25,6 +25,11 @@ metadata:
     szl.io/section-889: "Huawei,ZTE,Hytera,Hikvision,Dahua"
 spec:
   network:
+    # Istio service mesh mode. UDS Core defaults to Ambient (sidecar-less) since v1.2.0;
+    # set explicitly to remove ambiguity and match the hardened content_B PER_BUNDLE set.
+    # https://uds.defenseunicorns.com/reference/configuration/uds-operator/package/
+    serviceMesh:
+      mode: ambient
     allow:
       - direction: Egress
         selector:
