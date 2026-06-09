@@ -194,6 +194,7 @@ COPY a11oy_v4_formulas.py ./a11oy_v4_formulas.py
 COPY web/formulas.html ./web/formulas.html
 COPY static-vendor/three.min.js ./static-vendor/three.min.js
 COPY szl_anatomy_3d.py ./szl_anatomy_3d.py
+COPY szl_anatomy_routes.py ./szl_anatomy_routes.py
 
 # ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
 # VENDORING. The operator console (pages/console.html) loads the 7 viz libs +

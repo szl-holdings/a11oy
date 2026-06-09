@@ -533,6 +533,29 @@ except Exception as _fp_e:  # additive: never break the Space
     print(f"[a11oy] Formulas section NOT registered: {_fp_e!r}; SPA + API unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (Anatomy run-engine, 2026-06 / Forge): resurrect szl_anatomy_routes so
+# the FULL canonical formula registry runs LIVE. JSON API lands on `app`:
+#   GET  /api/a11oy/v1/formulas            - registry (name, proof_status, chakra)
+#   POST /api/a11oy/v1/formulas/{name}     - run one formula -> result + receipt
+#   POST /api/a11oy/v1/composer/run        - chain formulas -> ReceiptChain
+#   GET  /api/a11oy/chakra/{n}, /api/a11oy/v1/axes, /api/a11oy/formulas/immune ...
+# The colliding HTML pages (/formulas already owned by szl_puriq_formulas; /composer;
+# /chakras) are diverted onto a SUB-APP mounted at /anatomy so nothing is overridden.
+# Registered BEFORE the SPA catch-all, try/except-guarded. Honesty v11: every
+# proof_status comes straight from szl_formulas' authoritative docstrings
+# (PROVEN/AXIOM/SORRY); Lambda uniqueness = Conjecture 1 (machine-FALSE). No fabrication.
+# ---------------------------------------------------------------------------
+try:
+    from fastapi import FastAPI as _AnatFA
+    import szl_anatomy_routes as _anat_mod
+    _anat_html_app = _AnatFA()
+    _anat_paths = _anat_mod.register(app, ns="a11oy", api_app=None, html_app=_anat_html_app)
+    app.mount("/anatomy", _anat_html_app)
+    print(f"[a11oy] anatomy run-engine wired ({len(_anat_paths)} routes; HTML at /anatomy/*): {_anat_paths}", file=sys.stderr)
+except Exception as _anat_e:  # additive: never break the Space
+    print(f"[a11oy] anatomy run-engine NOT wired ({_anat_e!r}); SPA + API unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained, dependency-free
 # operator surfaces, each adopting a PERMISSIVELY-licensed PATTERN from a founder-
 # followed GitHub repo and EVOLVING it into an a11oy-native mechanism (NOTICE
