@@ -79,6 +79,9 @@ COPY szl_parity_gaps.py ./szl_parity_gaps.py
 # omitted it, so import a11oy_warhacker_obs failed and /warhacker + /observability 404'd.
 COPY a11oy_warhacker_obs.py ./a11oy_warhacker_obs.py
 COPY serve.py ./serve.py
+# DEV-WIRE-A (2026-06-09): additive pure-stdlib tab-upgrade metrics module imported
+# by serve.py (try/except-guarded). NO numpy/scipy/networkx. Per-file COPY.
+COPY a11oy_wireA_metrics.py ./a11oy_wireA_metrics.py
 # ADDITIVE (cathedral front-door hero): sovereign 3D landing matching the org card.
 # Served at / by serve.py (console one click in at /console). Placed AFTER
 # `COPY console/ ./static/` (line 65) so vendor3d + hero js are not clobbered.
@@ -222,6 +225,9 @@ COPY static-vendor/ngraph.graph.min.js ./static-vendor/ngraph.graph.min.js
 COPY static-vendor/ngraph.path.min.js ./static-vendor/ngraph.path.min.js
 COPY static-vendor/ngraph.forcelayout.min.js ./static-vendor/ngraph.forcelayout.min.js
 COPY static-vendor/panzoom.min.js ./static-vendor/panzoom.min.js
+# DEV-WIRE-A (2026-06-09): anvaka graph-stack completion (0-CDN, in-image). BSD-3, anvaka.
+COPY static-vendor/vivagraph.min.js ./static-vendor/vivagraph.min.js
+COPY static-vendor/ngraph.events.umd.js ./static-vendor/ngraph.events.umd.js
 COPY _vendor_blobs.py ./_vendor_blobs.py
 
 # ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
