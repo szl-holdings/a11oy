@@ -1,3 +1,9 @@
+> **Live service status:** the auto-generated, continuously-refreshed status board lives on the
+> [`status` branch](https://github.com/szl-holdings/a11oy/blob/status/STATUS.md) and renders at
+> <https://szl-holdings.github.io/a11oy/>. **This file is a hand-authored doctrine / proof-state
+> snapshot**, not the live endpoint health board — the `status-page.yml` workflow no longer
+> overwrites it.
+
 # STATUS.md — a11oy (Governance Layer)
 
 **Updated:** 2026-06-08
