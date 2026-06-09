@@ -8823,5 +8823,307 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* end contracting-tab-patch */
 </script>
 
+
+<script>
+/* constellation-tab-patch — 3D navigation constellation + 2D decision graphs (a11oy console).
+   100% real data: readiness tab-matrix (contract + probe verdict), readiness index sections,
+   mcp tools, provenance, and killinchu watchlists/timeline/alerts/db-health. NO Math.random —
+   every coordinate is a deterministic Fibonacci-sphere layout; every value traces to a live
+   endpoint and is labelled live/cached/unreachable in the Proof Drawer. Fails soft + honest. */
+(function(){
+  "use strict";
+  function esc(s){ return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  var KB='https://killinchu.a11oy.net';
+  var COL={good:['#4fb37f','#5fe39a'],warn:['#c0a05a','#e6c87a'],bad:['#c06a5a','#ff7b6b'],info:['#5aa0d0','#7ab8e6'],dim:['#6b6b6b','#9a9a9a']};
+  var TYPECOL={service:'#7ab8e6',source:'#9a8fe0',endpoint:'#5fe39a',tab:'#e6c87a',watchlist:'#e08fb0',event:'#7ab8e6',alert:'#ff7b6b'};
+  function badge(text,kind,title){ var c=COL[kind||'dim']; return '<span class="badge" style="border:1px solid '+c[0]+';color:'+c[1]+'"'+(title?(' title="'+esc(title)+'"'):'')+'>'+esc(text)+'</span>'; }
+  function ago(iso){ if(!iso) return ''; var t=Date.parse(iso); if(isNaN(t)) return ''; var s=Math.round((Date.now()-t)/1000); if(s<0)s=0; if(s<5)return 'just now'; if(s<60)return s+'s ago'; var m=Math.floor(s/60); if(m<60)return m+'m ago'; var h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+  function sevKind(s){ s=String(s==null?'':s).toLowerCase(); if(s==='critical'||s==='high'||s==='error')return'bad'; if(s==='warn'||s==='warning'||s==='medium')return'warn'; if(s==='info'||s==='low')return'info'; return'dim'; }
+
+  /* ── honest fetch: records url, status, latency, checked_at, error ── */
+  function cn_fetch(url){
+    var t0=(window.performance&&performance.now)?performance.now():Date.now();
+    return fetch(url,{cache:'no-store'}).then(function(r){
+      var lat=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-t0);
+      return r.text().then(function(txt){
+        var body=null,perr=null; try{ body=JSON.parse(txt); }catch(e){ perr='non-JSON response'; }
+        return {url:url,ok:r.ok,status:r.status,latency_ms:lat,body:body,error:(r.ok?perr:('HTTP '+r.status)),checked_at:new Date().toISOString()};
+      });
+    }).catch(function(e){
+      var lat=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-t0);
+      return {url:url,ok:false,status:0,latency_ms:lat,body:null,error:(e&&e.message)||String(e),checked_at:new Date().toISOString()};
+    });
+  }
+  function cn_loadAll(force){
+    if(window.__cn_cache && !force && (Date.now()-window.__cn_cache._t<20000)) return Promise.resolve(window.__cn_cache);
+    return Promise.all([
+      cn_fetch('/api/a11oy/v1/readiness/tab-matrix'),
+      cn_fetch('/api/a11oy/v1/readiness'),
+      cn_fetch('/api/a11oy/v1/mcp/tools'),
+      cn_fetch('/api/a11oy/provenance'),
+      cn_fetch(KB+'/api/killinchu/watchlists'),
+      cn_fetch(KB+'/api/killinchu/timeline'),
+      cn_fetch(KB+'/api/killinchu/alerts/recent'),
+      cn_fetch(KB+'/api/killinchu/db/health')
+    ]).then(function(r){
+      var m={tabmatrix:r[0],readiness:r[1],mcp:r[2],prov:r[3],kwatch:r[4],ktime:r[5],kalert:r[6],kdb:r[7],_t:Date.now()};
+      window.__cn_cache=m; return m;
+    });
+  }
+
+  /* ── graph model strictly from real payloads ── */
+  function secStatus(sec){
+    if(sec.kind==='endpoints'){ if(sec.total) return sec.reachable>=sec.total?'good':(sec.reachable>0?'warn':'bad'); }
+    if(sec.kind==='parity'){ var b=sec.build||{}; if(b.behind_by!=null) return b.behind_by>0?'warn':'good'; return (b.status==='current')?'good':'warn'; }
+    return 'good';
+  }
+  function epStatus(v){ if(!v) return 'dim'; if(v.lie) return 'bad'; if(v.unreachable) return 'bad'; if(v.throttled) return 'warn'; return (v.status>=200&&v.status<300)?'good':'warn'; }
+  function cn_build(m){
+    var nodes=[],edges=[],byId={};
+    function add(n){ if(byId[n.id])return byId[n.id]; n.deg=0; nodes.push(n); byId[n.id]=n; return n; }
+    function link(a,b,kind){ if(!byId[a]||!byId[b])return; edges.push({a:a,b:b,kind:kind}); byId[a].deg++; byId[b].deg++; }
+    add({id:'svc:a11oy',type:'service',label:'a11oy service',status:(m.readiness.ok||m.tabmatrix.ok)?'good':'bad',raw:{mcp_tools:(m.mcp.body&&m.mcp.body.tools)||m.mcp.body,provenance:m.prov.body},src:m.prov});
+    var dbb=(m.kdb.body&&m.kdb.body.db)||{};
+    add({id:'svc:killinchu',type:'service',label:'killinchu service',status:(m.kdb.ok&&dbb.ping_ok!==false)?'good':'bad',raw:m.kdb.body,src:m.kdb});
+    var rd=m.readiness.body||{};
+    (rd.sections||[]).forEach(function(sec){ var id='src:'+sec.id; add({id:id,type:'source',label:sec.title||sec.id,status:secStatus(sec),raw:sec,src:m.readiness}); link('svc:a11oy',id,'backed-by'); });
+    var tmw=(m.tabmatrix.body&&m.tabmatrix.body.matrix)||null;
+    var vd=(m.tabmatrix.body&&m.tabmatrix.body.verdict)||null;
+    var vmap={}; if(vd&&vd.results){ vd.results.forEach(function(r){ vmap[r.path]=r; }); }
+    if(tmw){
+      Object.keys(tmw.endpoints||{}).forEach(function(p){ var ep=tmw.endpoints[p]; var v=vmap[p]||null; var id='ep:'+p;
+        add({id:id,type:'endpoint',label:p,status:epStatus(v),ep:ep,verdict:v,raw:{contract:ep,probe:v},src:m.tabmatrix});
+        link(id,(p.indexOf('/api/killinchu')===0?'svc:killinchu':'svc:a11oy'),'served-by');
+      });
+      (tmw.tabs||[]).forEach(function(t){ var id='tab:'+t.key; add({id:id,type:'tab',label:t.title||t.key,group:t.group||'',tabkey:t.key,status:(t.endpoints&&t.endpoints.length)?'good':'dim',raw:t,src:m.tabmatrix});
+        (t.endpoints||[]).forEach(function(p){ link(id,'ep:'+p,'reads'); });
+      });
+    }
+    var watch=(m.kwatch.body&&m.kwatch.body.watchlists)||[];
+    var events=(m.ktime.body&&m.ktime.body.events)||[];
+    var alerts=(m.kalert.body&&m.kalert.body.alerts)||[];
+    watch.forEach(function(w,i){ var id='wl:'+(w.id!=null?w.id:i); add({id:id,type:'watchlist',label:w.name||w.title||('watchlist '+i),status:'good',raw:w,src:m.kwatch}); link(id,'svc:killinchu','watched-by'); });
+    events.forEach(function(e,i){ var id='ev:'+(e.id!=null?e.id:i); add({id:id,type:'event',label:e.title||('event '+i),status:sevKind(e.severity),raw:e,src:m.ktime}); link('svc:killinchu',id,'observed');
+      watch.forEach(function(w){ var wid='wl:'+(w.id!=null?w.id:''); if(byId[wid]&&w.source&&e.source&&w.source===e.source) link(wid,id,'triggers'); });
+    });
+    alerts.forEach(function(a,i){ var id='al:'+(a.id!=null?a.id:i); add({id:id,type:'alert',label:a.title||('alert '+i),status:sevKind(a.severity||'warn'),raw:a,src:m.kalert});
+      var linked=false; events.forEach(function(e){ if(e.source_url&&a.source_url&&e.source_url===a.source_url){ link('ev:'+(e.id!=null?e.id:''),id,'raised'); linked=true; } });
+      if(!linked) link('svc:killinchu',id,'raised');
+    });
+    return {nodes:nodes,edges:edges,byId:byId,model:m,verdict:vd,matrix:tmw};
+  }
+
+  /* deterministic Fibonacci-sphere unit vector — reproducible, never random */
+  function fib(i,n){ if(n<=1) return [0,0,0]; var off=2/n, y=i*off-1+off/2; var r=Math.sqrt(Math.max(0,1-y*y)); var phi=i*Math.PI*(3-Math.sqrt(5)); return [Math.cos(phi)*r,y,Math.sin(phi)*r]; }
+  function cn_layout(g){
+    var R={service:38,source:98,watchlist:128,event:150,alert:172,endpoint:205,tab:280};
+    var groups={}; g.nodes.forEach(function(n){ (groups[n.type]||(groups[n.type]=[])).push(n); });
+    Object.keys(groups).forEach(function(tp){ var arr=groups[tp],n=arr.length,rad=R[tp]||160; arr.forEach(function(nd,i){ var v=fib(i,n); nd.x=v[0]*rad; nd.y=v[1]*rad*0.78; nd.z=v[2]*rad; }); });
+  }
+
+  /* ── Proof Drawer ── */
+  function drawerEl(){ var d=document.getElementById('cn-drawer'); if(d) return d;
+    d=document.createElement('div'); d.id='cn-drawer';
+    d.style.cssText='position:fixed;top:0;right:0;height:100%;width:min(420px,92vw);background:#0c0f14;border-left:1px solid rgba(255,255,255,.12);box-shadow:-12px 0 40px rgba(0,0,0,.55);z-index:9999;overflow:auto;transform:translateX(110%);transition:transform .22s ease;padding:0';
+    document.body.appendChild(d); return d;
+  }
+  window.cn_drawerClose=function(){ var d=document.getElementById('cn-drawer'); if(d) d.style.transform='translateX(110%)'; };
+  function srcRow(s){ if(!s) return ''; var kind=s.ok?(s.latency_ms!=null?'good':'good'):'bad'; var lab=s.ok?('● live '+s.status):'● unreachable';
+    return '<div style="margin:.2rem 0">'+badge(lab,kind,(s.error||'reachable'))+' <span class="dim" style="font-size:11px">'+esc(s.latency_ms!=null?(s.latency_ms+'ms'):'')+' · '+esc(ago(s.checked_at)||'')+'</span><div class="dim" style="font-size:11px;word-break:break-all"><a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.url||'')+'</a></div>'+(s.error?('<div style="font-size:11px;color:#ff7b6b">last error: '+esc(s.error)+'</div>'):'')+'</div>';
+  }
+  function kv(k,v){ if(v==null||v==='') return ''; if(v===true)v='yes'; if(v===false)v='no'; return '<div style="display:flex;gap:.6rem;margin:.12rem 0"><span class="dim" style="min-width:150px;display:inline-block">'+esc(k)+'</span><span style="word-break:break-word">'+esc(String(v))+'</span></div>'; }
+  function citeRows(cits){ if(!cits||!cits.length) return ''; var h='<div class="dim" style="margin:.5rem 0 .2rem;font-size:11px">citations</div>'; cits.forEach(function(ci){ h+='<div style="font-size:12px;margin:.1rem 0">'+badge(ci.kind||'src','info','')+' <a href="'+esc(ci.url||'#')+'" target="_blank" rel="noopener">'+esc(ci.title||ci.url||'')+'</a>'+(ci.note?('<div class="dim" style="font-size:11px">'+esc(ci.note)+'</div>'):'')+'</div>'; }); return h; }
+  window.cn_openDrawer=function(node){
+    if(!node) return; var d=drawerEl(); var r=node.raw||{}; var h='';
+    h+='<div style="position:sticky;top:0;background:#0c0f14;padding:.9rem 1rem;border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">';
+    h+='<div><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:'+(TYPECOL[node.type]||'#9a9a9a')+'">'+esc(node.type)+'</div><div style="font-weight:600;word-break:break-word">'+esc(node.label)+'</div><div style="margin-top:.3rem">'+badge(node.status,node.status,'node status')+'</div></div>';
+    h+='<button onclick="window.cn_drawerClose()" class="btn" style="font-size:14px;padding:.1rem .5rem">✕</button></div>';
+    h+='<div style="padding:1rem">';
+    h+='<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#9a9a9a;margin-bottom:.2rem">source / provenance</div>'+srcRow(node.src);
+    if(node.type==='tab'){
+      h+='<div style="margin-top:.6rem">'+kv('key',r.key)+kv('group',r.group)+kv('route',r.route)+kv('static',r.static)+kv('citations required',r.citationsRequired)+kv('endpoints',(r.endpoints||[]).length)+'</div>';
+      (r.endpoints||[]).forEach(function(p){ h+='<div style="font-size:12px;margin:.1rem 0"><span class="dim">reads</span> <a href="javascript:void(0)" onclick="window.cn_openDrawerForId(\'ep:'+esc(p)+'\')">'+esc(p)+'</a></div>'; });
+      if(r.tabkey||r.key) h+='<div style="margin-top:.7rem"><button class="btn" onclick="window.cn_drawerClose();go(\''+esc(r.key)+'\')">↪ Open this tab</button></div>';
+    } else if(node.type==='endpoint'){
+      var ep=r.contract||{},v=r.probe||null;
+      h+='<div style="margin-top:.6rem">'+kv('method',ep.method)+kv('schema',ep.schema)+kv('freshness SLA',ep.freshnessSLA!=null?(ep.freshnessSLA+'s'):'none')+kv('citations required',ep.citationsRequired)+'</div>';
+      if(ep.note) h+='<div class="dim" style="font-size:12px;margin:.3rem 0">'+esc(ep.note)+'</div>';
+      if(v){ h+='<div class="dim" style="margin:.5rem 0 .2rem;font-size:11px">probe verdict</div>';
+        h+=kv('status',v.status)+kv('p50',(v.p50!=null?v.p50+'ms':'—'))+kv('p95',(v.p95!=null?v.p95+'ms':'—'))+kv('samples',v.samples)+kv('schema ok',v.schemaOk)+kv('citation ok',v.citationOk)+kv('fresh ok',v.freshOk)+kv('age',(v.ageSec!=null?v.ageSec+'s':'—'))+kv('throttled',v.throttled)+kv('lie',v.lie);
+        if(v.lies&&v.lies.length) h+='<div style="font-size:12px;color:#ff7b6b">flagged: '+esc(v.lies.join(', '))+'</div>';
+        if(v.error) h+='<div style="font-size:12px;color:#ff7b6b">last error: '+esc(v.error)+'</div>';
+      } else { h+='<div class="dim" style="font-size:12px">no probe verdict bundled for this endpoint (honest gap).</div>'; }
+    } else if(node.type==='source'){
+      h+='<div style="margin-top:.6rem">'+kv('section id',r.id)+kv('kind',r.kind)+kv('target',r.target)+kv('reachable',(r.total!=null?(r.reachable+'/'+r.total):null))+kv('fetched',(r.fetched_at?ago(r.fetched_at):null))+'</div>';
+      if(r.build) h+=kv('build',r.build.status)+kv('behind_by',r.build.behind_by);
+    } else if(node.type==='service'){
+      if(node.id==='svc:killinchu'&&r.db){ h+='<div style="margin-top:.6rem">'+kv('backend',r.db.backend)+kv('durable',r.db.durable)+kv('ping ok',r.db.ping_ok)+kv('ping ms',r.db.ping_ms)+'</div>'; }
+      else { var tools=(r.mcp_tools||[]); h+='<div style="margin-top:.6rem">'+kv('mcp tools',Array.isArray(tools)?tools.length:'—')+'</div>'; }
+    } else if(node.type==='event'||node.type==='alert'){
+      h+='<div style="margin-top:.6rem">'+kv('kind',r.kind)+kv('severity',r.severity)+kv('source',r.source)+kv('when',(r.ts?ago(r.ts):null))+'</div>';
+      if(r.detail) h+='<div class="dim" style="font-size:12px;margin:.3rem 0">'+esc(r.detail)+'</div>';
+      if(r.source_url) h+='<div style="font-size:12px"><a href="'+esc(r.source_url)+'" target="_blank" rel="noopener">'+esc(r.source_url)+' ↗</a></div>';
+    }
+    var cits=(node.src&&node.src.body&&node.src.body.citations)||r.citations||null; h+=citeRows(cits);
+    var traceId=r.trace_id||r.traceId||(r.probe&&r.probe.trace_id)||null;
+    h+='<div class="dim" style="margin:.6rem 0 .2rem;font-size:11px">trace id</div><div style="font-size:12px">'+(traceId?esc(traceId):'<span class="dim">— not provided by this source</span>')+'</div>';
+    h+='<div class="dim" style="margin:.7rem 0 .2rem;font-size:11px">raw record (verbatim)</div>';
+    h+='<pre style="white-space:pre-wrap;word-break:break-word;font-size:11px;background:#070a0e;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:.6rem;max-height:300px;overflow:auto">'+esc(JSON.stringify(node.raw,null,2))+'</pre>';
+    h+='</div>';
+    d.innerHTML=h; d.style.transform='translateX(0)';
+  };
+  window.cn_openDrawerForId=function(id){ var g=window.__cn_graph; if(g&&g.byId[id]) window.cn_openDrawer(g.byId[id]); };
+
+  /* ── honesty banner ── */
+  function honesty(m){
+    var parts=[]; function tag(name,r){ parts.push(name+': '+(r&&r.ok?('live '+r.status+' ·'+r.latency_ms+'ms'):('unreachable'+(r&&r.error?(' ('+r.error+')'):'')))); }
+    tag('tab-matrix',m.tabmatrix); tag('readiness',m.readiness); tag('killinchu/timeline',m.ktime);
+    var vd=(m.tabmatrix.body&&m.tabmatrix.body.verdict)||null; var probe= vd&&vd.checkedAt?('probe ran '+ago(vd.checkedAt)):'no probe verdict bundled';
+    return '<div class="honesty"><b>How to read this.</b> Every node and bar is read from a live a11oy/killinchu endpoint — there are no synthetic or random values. Coordinates are a deterministic Fibonacci-sphere layout. Endpoint latency/freshness/lie verdicts come from the readiness probe ('+esc(probe)+'); source reachability is read live. Click anything to open the Proof Drawer with the verbatim record, its source URL, freshness and last error. Surfaces: '+esc(parts.join(' · '))+'.</div>';
+  }
+
+  /* ── 3D constellation tab ── */
+  window.cn_renderConstellation=function(c){
+    c.innerHTML='<div class="card"><div class="dim">loading real topology from readiness + killinchu…</div></div>';
+    cn_loadAll(false).then(function(m){
+      var g=cn_build(m); cn_layout(g); window.__cn_graph=g;
+      var counts={}; g.nodes.forEach(function(n){ counts[n.type]=(counts[n.type]||0)+1; });
+      var legend=['service','source','endpoint','tab','watchlist','event','alert'].filter(function(t){return counts[t];}).map(function(t){
+        return '<span style="display:inline-flex;align-items:center;gap:.3rem;margin-right:.8rem"><span style="width:10px;height:10px;border-radius:50%;background:'+TYPECOL[t]+';display:inline-block"></span>'+t+' <span class="dim">'+counts[t]+'</span></span>'; }).join('');
+      var h='';
+      h+=honesty(m);
+      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div style="font-size:13px">'+legend+'</div>';
+      h+='<div style="display:flex;gap:.4rem;align-items:center"><input id="cn-search" placeholder="filter nodes…" style="background:#070a0e;border:1px solid rgba(255,255,255,.15);color:#ddd;border-radius:5px;padding:.2rem .5rem;font-size:12px"><button class="btn" id="cn-rot" style="font-size:11px">⏸ pause</button><button class="btn" id="cn-reset" style="font-size:11px">reset</button><button class="btn" id="cn-reload" style="font-size:11px">↻ reload</button></div></div>';
+      h+='<div style="position:relative"><canvas id="cn-canvas" style="width:100%;height:560px;display:block;cursor:grab;border-radius:8px;background:radial-gradient(ellipse at 50% 40%,#0d1622 0%,#070a0e 70%)"></canvas>';
+      h+='<div id="cn-tip" style="position:absolute;pointer-events:none;display:none;background:#0c0f14;border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:.3rem .5rem;font-size:11px;max-width:280px;z-index:5"></div></div>';
+      h+='<div class="dim" style="font-size:11px;margin-top:.4rem">'+g.nodes.length+' nodes · '+g.edges.length+' edges · drag to rotate, scroll to zoom, click a node for its Proof Drawer.</div></div>';
+      c.innerHTML=h;
+      cn_initCanvas(c,g);
+    }).catch(function(e){ c.innerHTML='<div class="card"><div class="dim">constellation unavailable: '+esc((e&&e.message)||e)+'</div></div>'; });
+  };
+  function cn_initCanvas(c,g){
+    var cv=c.querySelector('#cn-canvas'); if(!cv) return; var ctx=cv.getContext('2d');
+    var tip=c.querySelector('#cn-tip');
+    var ax=-0.35, ay=0.6, auto=true, focal=520, zoom=1, W=0,H=0,dpr=Math.min(2,window.devicePixelRatio||1);
+    var drag=false,lastx=0,lasty=0,proj=[],hover=null,filter='';
+    function resize(){ var rect=cv.getBoundingClientRect(); W=rect.width; H=rect.height; cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+    function rot(p){ var cy=Math.cos(ay),sy=Math.sin(ay),cx=Math.cos(ax),sx=Math.sin(ax);
+      var x=p.x*cy - p.z*sy, z=p.x*sy + p.z*cy, y=p.y*cx - z*sx, z2=p.y*sx + z*cx; return [x,y,z2]; }
+    function frame(){
+      if(!document.body.contains(cv)){ return; }
+      if(auto && !drag) ay+=0.0016;
+      ctx.clearRect(0,0,W,H); var cx=W/2, cyy=H/2; proj=[];
+      var pts=g.nodes.map(function(n){ var r=rot(n); var sc=focal/(focal-(r[2]*zoom)); return {n:n,sx:cx+r[0]*zoom*sc,sy:cyy+r[1]*zoom*sc,sc:sc,z:r[2]}; });
+      var pmap={}; pts.forEach(function(p){ pmap[p.n.id]=p; });
+      ctx.lineWidth=1;
+      g.edges.forEach(function(e){ var a=pmap[e.a],b=pmap[e.b]; if(!a||!b)return; var hl=hover&&(hover.id===e.a||hover.id===e.b);
+        ctx.strokeStyle=hl?'rgba(150,200,255,.55)':'rgba(150,170,200,.10)'; ctx.beginPath(); ctx.moveTo(a.sx,a.sy); ctx.lineTo(b.sx,b.sy); ctx.stroke(); });
+      pts.sort(function(p,q){ return p.z-q.z; });
+      pts.forEach(function(p){ var n=p.n; var rad=Math.max(2.5,(3+Math.min(8,n.deg))*p.sc*0.55); proj.push({id:n.id,x:p.sx,y:p.sy,r:rad,n:n});
+        var dim=filter && n.label.toLowerCase().indexOf(filter)<0 && n.type.indexOf(filter)<0;
+        var base=TYPECOL[n.type]||'#9a9a9a'; var sc=COL[n.status]?COL[n.status][1]:base;
+        ctx.globalAlpha=dim?0.12:(0.55+0.45*Math.min(1,Math.max(0,(p.z+300)/600)));
+        ctx.beginPath(); ctx.arc(p.sx,p.sy,rad,0,6.2832); ctx.fillStyle=base; ctx.fill();
+        ctx.lineWidth=(hover&&hover.id===n.id)?2.5:1; ctx.strokeStyle=sc; ctx.stroke();
+        if((hover&&hover.id===n.id)|| (n.type==='service')||(n.type==='source'&&!dim)){ ctx.globalAlpha=dim?0.2:0.9; ctx.fillStyle='#cdd6e0'; ctx.font='11px ui-monospace,monospace'; ctx.fillText(n.label.replace(/^\/api\/(a11oy|killinchu)\//,'…/'),p.sx+rad+3,p.sy+3); }
+        ctx.globalAlpha=1;
+      });
+      requestAnimationFrame(frame);
+    }
+    function pick(mx,my){ var best=null,bd=1e9; proj.forEach(function(p){ var dx=p.x-mx,dy=p.y-my,d=dx*dx+dy*dy; if(d<bd && d<(p.r+8)*(p.r+8)){ bd=d; best=p; } }); return best; }
+    cv.addEventListener('mousedown',function(e){ drag=true; lastx=e.clientX; lasty=e.clientY; cv.style.cursor='grabbing'; });
+    window.addEventListener('mouseup',function(){ drag=false; cv.style.cursor='grab'; });
+    cv.addEventListener('mousemove',function(e){ var rect=cv.getBoundingClientRect(); var mx=e.clientX-rect.left,my=e.clientY-rect.top;
+      if(drag){ ay+=(e.clientX-lastx)*0.006; ax+=(e.clientY-lasty)*0.006; lastx=e.clientX; lasty=e.clientY; return; }
+      var p=pick(mx,my); hover=p?p.n:null;
+      if(p){ tip.style.display='block'; tip.style.left=Math.min(W-260,mx+12)+'px'; tip.style.top=(my+12)+'px';
+        tip.innerHTML='<b style="color:'+(TYPECOL[p.n.type]||'#ddd')+'">'+esc(p.n.type)+'</b> '+esc(p.n.label)+' <span class="dim">'+esc(p.n.status)+'</span>'; cv.style.cursor='pointer'; }
+      else { tip.style.display='none'; if(!drag) cv.style.cursor='grab'; }
+    });
+    cv.addEventListener('click',function(e){ var rect=cv.getBoundingClientRect(); var p=pick(e.clientX-rect.left,e.clientY-rect.top); if(p) window.cn_openDrawer(p.n); });
+    cv.addEventListener('wheel',function(e){ e.preventDefault(); zoom*=(e.deltaY<0?1.08:0.93); zoom=Math.max(0.4,Math.min(3,zoom)); },{passive:false});
+    var rb=c.querySelector('#cn-rot'); if(rb) rb.addEventListener('click',function(){ auto=!auto; rb.textContent=auto?'⏸ pause':'▶ play'; });
+    var rs=c.querySelector('#cn-reset'); if(rs) rs.addEventListener('click',function(){ ax=-0.35; ay=0.6; zoom=1; });
+    var rl=c.querySelector('#cn-reload'); if(rl) rl.addEventListener('click',function(){ cn_loadAll(true).then(function(){ window.cn_renderConstellation(c); }); });
+    var sb=c.querySelector('#cn-search'); if(sb) sb.addEventListener('input',function(){ filter=sb.value.toLowerCase().trim(); });
+    window.addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
+  }
+
+  /* ── 2D decision graphs tab ── */
+  function latColor(ms){ if(ms==null) return COL.dim[0]; if(ms<300) return '#2f7d54'; if(ms<800) return '#4fb37f'; if(ms<1500) return '#c0a05a'; if(ms<2500) return '#c47a3a'; return '#c06a5a'; }
+  function card(title,sub,inner){ return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap"><b>'+esc(title)+'</b><span class="dim" style="font-size:11px">'+esc(sub)+'</span></div><div style="margin-top:.5rem">'+inner+'</div></div>'; }
+  window.cn_renderGraphs=function(c){
+    c.innerHTML='<div class="card"><div class="dim">loading real decision data…</div></div>';
+    cn_loadAll(false).then(function(m){
+      var g=cn_build(m); window.__cn_graph=g; var vd=g.verdict, tmw=g.matrix; var h=honesty(m);
+      /* 1. freshness by tab */
+      var ftabs=[]; if(tmw){ var vmap={}; (vd&&vd.results||[]).forEach(function(r){vmap[r.path]=r;});
+        (tmw.tabs||[]).filter(function(t){return t.endpoints&&t.endpoints.length;}).forEach(function(t){ var tot=t.endpoints.length,fresh=0,worst=null;
+          t.endpoints.forEach(function(p){ var v=vmap[p]; if(v){ if(v.freshOk)fresh++; if(v.ageSec!=null&&(worst==null||v.ageSec>worst))worst=v.ageSec; } });
+          ftabs.push({key:t.key,tot:tot,fresh:fresh,worst:worst}); });
+        ftabs.sort(function(a,b){return (a.fresh/a.tot)-(b.fresh/b.tot);}); }
+      var f1=''; if(ftabs.length){ ftabs.slice(0,18).forEach(function(t){ var pct=Math.round(100*t.fresh/t.tot); var col=pct===100?'#4fb37f':(pct>=50?'#c0a05a':'#c06a5a');
+        f1+='<div class="cn-bar" data-id="tab:'+esc(t.key)+'" style="cursor:pointer;display:flex;align-items:center;gap:.5rem;margin:.18rem 0"><span style="min-width:120px;font-size:12px" class="mono">'+esc(t.key)+'</span><span style="flex:1;background:#0a0f15;border-radius:4px;overflow:hidden;height:14px"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></span><span class="dim" style="font-size:11px;min-width:90px">'+t.fresh+'/'+t.tot+' fresh'+(t.worst!=null?(' · '+t.worst+'s'):'')+'</span></div>'; });
+      } else f1='<div class="dim">no tab-matrix verdict bundled on this deploy yet (rebuild pending) — nothing fabricated.</div>';
+      /* 2. latency heatmap */
+      var f2=''; if(vd&&vd.results&&vd.results.length){ f2='<div style="display:flex;flex-wrap:wrap;gap:4px">'; vd.results.slice().sort(function(a,b){return (b.p95||0)-(a.p95||0);}).forEach(function(r){ var sn=r.path.replace(/^\/api\/(a11oy|killinchu)\//,''); f2+='<div class="cn-cell" data-id="ep:'+esc(r.path)+'" title="'+esc(r.path)+' · p50 '+esc(r.p50)+'ms p95 '+esc(r.p95)+'ms" style="cursor:pointer;background:'+latColor(r.p95)+';color:#08120c;border-radius:4px;padding:.3rem .4rem;font-size:10px;min-width:78px"><div style="font-weight:600">'+esc(r.p95!=null?r.p95+'ms':'—')+'</div><div style="opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px">'+esc(sn)+'</div></div>'; }); f2+='</div><div class="dim" style="font-size:11px;margin-top:.3rem">p95 latency · green &lt;300ms → red ≥2.5s</div>';
+      } else f2='<div class="dim">no probe verdict bundled yet — latency comes only from a real probe run.</div>';
+      /* 3. source success rate */
+      var f3=''; if(vd&&vd.summary){ var s=vd.summary; var segs=[['ok',s.ok,'#4fb37f'],['throttled',s.throttled,'#c0a05a'],['lies',s.lies,'#c06a5a'],['unreachable',s.unreachable,'#7a3a3a']].filter(function(x){return x[1];}); var tot=s.endpoints||1;
+        f3+='<div style="display:flex;height:18px;border-radius:5px;overflow:hidden;margin-bottom:.3rem">'; segs.forEach(function(x){ f3+='<span title="'+esc(x[0])+': '+esc(x[1])+'" style="width:'+(100*x[1]/tot)+'%;background:'+x[2]+'"></span>'; }); f3+='</div>';
+        f3+='<div class="dim" style="font-size:11px">'+segs.map(function(x){return x[1]+' '+x[0];}).join(' · ')+' of '+tot+' endpoints · probe '+esc(ago(vd.checkedAt)||'')+'</div>'; }
+      else f3='<div class="dim">no endpoint probe summary bundled yet.</div>';
+      f3+='<div style="margin-top:.6rem">'; g.nodes.filter(function(n){return n.type==='source';}).forEach(function(n){ var r=n.raw; var pct=(r.total)?Math.round(100*r.reachable/r.total):null; var col=n.status==='good'?'#4fb37f':(n.status==='warn'?'#c0a05a':'#c06a5a');
+        f3+='<div class="cn-bar" data-id="'+esc(n.id)+'" style="cursor:pointer;display:flex;align-items:center;gap:.5rem;margin:.16rem 0"><span style="min-width:150px;font-size:12px">'+esc(n.label)+'</span><span style="flex:1;background:#0a0f15;border-radius:4px;overflow:hidden;height:12px"><span style="display:block;height:100%;width:'+(pct!=null?pct:100)+'%;background:'+col+'"></span></span><span class="dim" style="font-size:11px;min-width:80px">'+(pct!=null?(r.reachable+'/'+r.total):esc(n.status))+'</span></div>'; }); f3+='</div>';
+      /* 4. alert timeline */
+      var ev=((m.ktime.body&&m.ktime.body.events)||[]).map(function(e){e._k='event';return e;});
+      var al=((m.kalert.body&&m.kalert.body.alerts)||[]).map(function(a){a._k='alert';return a;});
+      var tl=ev.concat(al).filter(function(x){return x.ts;}).sort(function(a,b){return Date.parse(a.ts)-Date.parse(b.ts);});
+      var f4=''; if(tl.length){ var t0=Date.parse(tl[0].ts),t1=Date.parse(tl[tl.length-1].ts),span=Math.max(1,t1-t0);
+        f4='<div style="position:relative;height:60px;border-bottom:1px solid rgba(255,255,255,.12);margin:.3rem 0 .2rem">';
+        tl.forEach(function(x){ var left=span?((Date.parse(x.ts)-t0)/span*94+3):50; var col=COL[sevKind(x.severity)][1]; var pre=(x._k==='alert'?'al:':'ev:')+(x.id!=null?x.id:'');
+          f4+='<div class="cn-dot" data-id="'+esc(pre)+'" title="'+esc((x.title||'')+' · '+(x.ts||''))+'" style="cursor:pointer;position:absolute;left:'+left+'%;top:'+(x._k==='alert'?'8px':'30px')+';width:12px;height:12px;border-radius:50%;background:'+col+';transform:translateX(-50%);border:1px solid #0c0f14"></div>'; });
+        f4+='</div><div class="dim" style="font-size:11px">'+esc(new Date(t0).toISOString().slice(0,16).replace('T',' '))+' → '+esc(new Date(t1).toISOString().slice(0,16).replace('T',' '))+' · '+ev.length+' events / '+al.length+' alerts (top row=alerts)</div>';
+      } else f4='<div class="dim">no killinchu events or alerts in the live feed right now (honest empty state).</div>';
+      /* 5. crawl coverage */
+      var byKind={}; ev.forEach(function(e){ var k=e.kind||'other'; byKind[k]=(byKind[k]||0)+1; });
+      var dbb=(m.kdb.body&&m.kdb.body.db)||{}; var f5='';
+      var maxk=Math.max(1,Math.max.apply(null,Object.keys(byKind).map(function(k){return byKind[k];}).concat([1])));
+      Object.keys(byKind).forEach(function(k){ var n=byKind[k]; f5+='<div style="display:flex;align-items:center;gap:.5rem;margin:.16rem 0"><span style="min-width:120px;font-size:12px" class="mono">'+esc(k)+'</span><span style="flex:1;background:#0a0f15;border-radius:4px;overflow:hidden;height:14px"><span style="display:block;height:100%;width:'+Math.round(100*n/maxk)+'%;background:#7ab8e6"></span></span><span class="dim" style="font-size:11px;min-width:60px">'+n+'</span></div>'; });
+      if(!Object.keys(byKind).length) f5='<div class="dim">no crawl events recorded yet.</div>';
+      f5+='<div class="dim" style="font-size:11px;margin-top:.4rem">store: '+esc(dbb.backend||'—')+' · durable '+esc(String(dbb.durable))+' · ping '+esc(dbb.ping_ms!=null?dbb.ping_ms+'ms':'—')+(m.kdb.body&&m.kdb.body.fetchedAt?(' · read '+esc(ago(m.kdb.body.fetchedAt))):'')+'</div>';
+
+      c.innerHTML=h
+        +card('Freshness by tab','readiness probe · freshOk per endpoint',f1)
+        +card('Latency heatmap','readiness probe · p95 per endpoint',f2)
+        +card('Source success rate','probe summary + live readiness sections',f3)
+        +card('Alert timeline','killinchu /timeline + /alerts/recent',f4)
+        +card('Crawl coverage','killinchu /timeline + /db/health',f5);
+      Array.prototype.forEach.call(c.querySelectorAll('.cn-bar,.cn-cell,.cn-dot'),function(el){ el.addEventListener('click',function(){ window.cn_openDrawerForId(el.getAttribute('data-id')); }); });
+    }).catch(function(e){ c.innerHTML='<div class="card"><div class="dim">decision graphs unavailable: '+esc((e&&e.message)||e)+'</div></div>'; });
+  };
+
+  /* ── register both tabs + nav ── */
+  function reg(){ var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
+    V['constellation']={title:'Constellation',badge:'LIVE · 3D navigation map',sub:'A live 3D constellation of the whole console wired from real surfaces only: every tab, every probed endpoint, every backing service and source, plus killinchu watchlists → events → alerts. Edges are the real contract (tab → endpoint → service → source) and the real intel chain. Node colour is live status; click any node for a Proof Drawer with the verbatim record, its source URL, freshness, latency and last error. Coordinates are a deterministic layout — no random placement, no fabricated values.',render:async function(c){ window.cn_renderConstellation(c); }};
+    V['decisiongraphs']={title:'Decision Graphs',badge:'LIVE · 2D drill-down charts',sub:'Five 2D decision graphs, each backed strictly by a real endpoint and each drilling into the same Proof Drawer: freshness-by-tab and a latency heatmap from the readiness probe verdict, source success-rate from the probe summary + live readiness sections, and an alert timeline + crawl coverage from the killinchu feed. Empty states are shown honestly; nothing is invented.',render:async function(c){ window.cn_renderGraphs(c); }};
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="readiness"]')||document.querySelector('.nav-item[data-view="contracting"]')||document.querySelector('.nav-item[data-view="evidence"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('cn-nav-group')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='cn-nav-group'; grp.textContent='Navigation';
+    var parent=anchor.parentNode; parent.appendChild(grp);
+    [['constellation','✦','Constellation'],['decisiongraphs','◫','Decision Graphs']].forEach(function(d){
+      if(document.querySelector('.nav-item[data-view="'+d[0]+'"]')) return;
+      var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view',d[0]); n.setAttribute('onclick',"go('"+d[0]+"')");
+      n.innerHTML='<span class="ico">'+d[1]+'</span>'+d[2]; parent.appendChild(n);
+    });
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+/* end constellation-tab-patch */
+</script>
 </body>
 </html>
