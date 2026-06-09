@@ -123,7 +123,7 @@ and were verified to resolve at those commits.
   signature is fabricated.**
 - **SLSA scope.** SLSA **L1 (honest) + L2 (attested via public Sigstore + Rekor) only**,
   and only where `slsa-verifier` actually confirms. No Iron Bank / FedRAMP / CMMC L2+ /
-  SWFT / Mission Owner claims. Section-889 vendor list unchanged.
+  No SWFT / Mission Owner claims (none held, not pursued). Section-889 vendor list unchanged.
 - **BLS keys are demo-derived.** Per-organ BLS secret keys are derived deterministically
   from the organ id for reproducibility; in production each organ holds its own
   HSM-backed key. The crypto (pairings, aggregate verification) is real either way.
