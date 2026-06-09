@@ -76,7 +76,7 @@ business value — Andrew Greene hates security theater.
 
 `Mythos` (use **Hatun-Willay**), `Jarvis`, `Bo11y`/`Bolly`, `Computacenter`,
 `"45 gates"`, `"11 MCP tools"`. Never claim Sigstore signing is live. Never claim
-Λ-uniqueness is a theorem. Never invent flagship statuses or numbers.
+Λ-uniqueness is Conjecture 1 (NOT a theorem). Never invent flagship statuses or numbers.
 
 ### The Khipu receipt is the differentiator
 
