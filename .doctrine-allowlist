@@ -146,3 +146,9 @@ organs/amaru/
 # (explaining WHY each path is exempt). The list IS the documentation, not a
 # marketing violation — same enumeration-for-detection rationale as above.
 .doctrine-allowlist
+
+# CISA Known Exploited Vulnerabilities (KEV) catalog snapshot — verbatim
+# third-party US-government feed. Every flagged "leading" is technical CVE
+# prose ("leading to remote code execution") quoted directly from CISA, not
+# SZL-authored marketing. Same third-party-data rationale as wayra_snapshot.json.
+live_snapshots/kev.json
