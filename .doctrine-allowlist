@@ -77,6 +77,27 @@ __tests__/compliance/
 a11oy_v4_hickok.py
 
 # ----------------------------------------------------------------------------
+# Doctrine grep-gate exemptions (2026-06-09, founder-authorized).
+# Two server-side runtime files legitimately contain a flagged token for a
+# NON-marketing reason. Neither emits the token to any user-facing surface.
+# ----------------------------------------------------------------------------
+
+# ayni_os_serve.py - contains the HONEST-REMAP table `_HONEST_ROLE` which maps
+# the internal codename `jarvis` -> the honest role `orchestrator` at the API
+# boundary, so the codename is NEVER user-visible. The codename is enumerated
+# here precisely to SUPPRESS it (enumeration-for-remapping), same rationale as
+# serve.py / szl_yachay_organ.py. Not a marketing-hype claim.
+ayni_os_serve.py
+
+# szl_warhacker_demos.py - two source comments enumerate the banned codenames
+# ("No user-visible codenames (amaru/sentra/rosie/jarvis)") as a doctrine-
+# compliance assertion (the list IS the rule), and several lines use the
+# mathematical term "leading principal minors" (Sylvester's PSD criterion) in a
+# covariance-intersection demo. Both are technical/enumeration usages, not
+# marketing prose; the codenames are explicitly kept internal (not user-visible).
+szl_warhacker_demos.py
+
+# ----------------------------------------------------------------------------
 # Doctrine grep-gate exemptions (2026-06-07, founder-authorized).
 # Each path below legitimately contains a flagged token for a NON-marketing
 # reason: enumeration-for-detection, archived papers, vendored third-party
