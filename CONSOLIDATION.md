@@ -39,6 +39,6 @@ top-level directories listed above.
 
 - Trust score = **Conjecture 1** (a conjecture, not a proven theorem).
 - **5 proven formulas** in the cookbook.
-- Supply-chain posture: **SLSA Level 2**.
+- Supply-chain posture: **SLSA L1 + L2** (L2 attested on the 5 organ images; L3 not claimed).
 
 — Stephen P. Lutar Jr. · SZL Holdings
