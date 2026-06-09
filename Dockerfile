@@ -413,8 +413,19 @@ COPY szl_alloy_models.py ./szl_alloy_models.py
 # the wheel build or download fails on this hardware, the alloy layer falls back
 # to the HONEST tower-side label and NEVER fakes output. We never redistribute
 # the weight in our repo — it is fetched from the original HF repo at build time.
-RUN pip install --no-cache-dir "llama-cpp-python>=0.2.79" \
-    || echo "[a11oy] llama-cpp-python unavailable on this hardware -> alloy demo tier falls back to honest tower-side label"
+# OPTIONAL live CPU demo tier wheel — PINNED PREBUILT (no source compile).
+# Previously `pip install "llama-cpp-python>=0.2.79"` built the wheel FROM SOURCE,
+# which fails to compile on CPU-only CI/hardware and was silently swallowed by the
+# trailing `|| echo`, so the alloy demo tier always degraded to the tower-side label.
+# python:3.12-slim is cp312 and the CI runner + box are linux_x86_64, and version
+# 0.3.19 publishes a matching cp312 linux_x86_64 prebuilt wheel on llama-cpp-python's
+# official CPU wheel index, so this resolves deterministically with NO from-source
+# build. The `|| echo` stays ONLY as a final safety net for a platform without a
+# matching prebuilt wheel (honest tower-side fallback, never fabricated output).
+RUN pip install --no-cache-dir \
+      --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
+      "llama-cpp-python==0.3.19" \
+    || echo "[a11oy] llama-cpp-python prebuilt wheel unavailable on this platform -> alloy demo tier falls back to honest tower-side label"
 RUN mkdir -p /app/models && python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF', filename='qwen2.5-coder-0.5b-instruct-q4_k_m.gguf', local_dir='/app/models')" \
     || echo "[a11oy] GGUF fetch skipped/failed -> alloy demo tier falls back to honest tower-side label"
 ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
