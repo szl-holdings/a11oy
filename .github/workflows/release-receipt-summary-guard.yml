@@ -1,0 +1,145 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# release-receipt-summary-guard.yml — catch it in CI if release-receipt-verify.yml
+# stops PUBLISHING its summary artifact.
+#
+# Why this exists
+# ---------------
+# The public status board's release-receipt provenance row reads its counts from
+# the `release-receipt-verify-summary` artifact (`.release-verify-summary.json`)
+# produced by release-receipt-verify.yml. That summary is a DOT-PREFIXED (hidden)
+# file, and actions/upload-artifact@v4 excludes hidden files by default — so the
+# upload once silently produced an artifact with total_count 0 on an otherwise
+# green run, starving the status row of counts. It was fixed with
+# `include-hidden-files: true`, but nothing stopped that from regressing (an action
+# bump, a path rename, or someone dropping the flag).
+#
+# This guard audits the ACTUAL artifact a completed release-receipt-verify run
+# published. It downloads `release-receipt-verify-summary` — which FAILS if the run
+# produced no such artifact (total_count 0) — and asserts the summary parses with
+# the expected checked/passed/failed/unverifiable keys. It is independent of
+# whether the release currently carries receipt assets: the verifier writes a
+# soft-pass summary (checked=0) either way, so the artifact must always be present.
+#
+# A self-test job proves the validator still FAILS on missing / empty / malformed
+# fixtures before the audit job trusts it against the real run (org guard pattern;
+# cf. status-page-guard.yml). Org policy: github-owned actions only, SHAs pinned.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Release Receipt Summary Guard
+
+on:
+  workflow_run:
+    workflows: ["Release Receipt Verify"]
+    types: [completed]
+  pull_request:
+    paths:
+      - ".github/workflows/release-receipt-summary-guard.yml"
+      - "scripts/check_release_receipt_summary.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-receipt-summary-guard.yml"
+      - "scripts/check_release_receipt_summary.py"
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'release-receipt-verify run id to audit (default: latest completed run)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-receipt-summary-guard-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  # Prove the validator still rejects missing / empty / malformed summaries (i.e.
+  # is not silently passing) before the audit job trusts it. Runs on PR/push that
+  # touch the guard or its validator, and on manual dispatch.
+  self-test:
+    name: Self-test the summary validator (fixtures)
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Prove the validator rejects missing/empty/malformed summaries
+        run: python scripts/check_release_receipt_summary.py --selftest
+
+  # Audit the artifact an actual release-receipt-verify run published. Runs when
+  # that workflow completes (success or failure both reach the upload step), and
+  # on manual dispatch (optionally against a specific run id).
+  audit:
+    name: Audit the published release-receipt summary artifact
+    if: >-
+      (github.event_name == 'workflow_run' &&
+        (github.event.workflow_run.conclusion == 'success' ||
+         github.event.workflow_run.conclusion == 'failure')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Self-test the validator before trusting it
+        run: python scripts/check_release_receipt_summary.py --selftest
+
+      - name: Resolve the release-receipt-verify run to audit
+        id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPATCH_RUN_ID: ${{ github.event.inputs.run_id }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          RID="${DISPATCH_RUN_ID:-}"
+          if [ -z "${RID}" ]; then RID="${WORKFLOW_RUN_ID:-}"; fi
+          if [ -z "${RID}" ]; then
+            echo "No run id supplied — resolving the latest completed release-receipt-verify run."
+            RID="$(gh run list --repo "${GITHUB_REPOSITORY}" \
+                     --workflow release-receipt-verify.yml \
+                     --status completed --limit 1 \
+                     --json databaseId -q '.[0].databaseId' 2>/dev/null || true)"
+          fi
+          if [ -z "${RID}" ] || [ "${RID}" = "null" ]; then
+            echo "::error::Could not resolve a release-receipt-verify run to audit."
+            exit 1
+          fi
+          echo "Auditing release-receipt-verify run ${RID}."
+          echo "run_id=${RID}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the release-receipt-verify-summary artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RID: ${{ steps.target.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p summary-artifact
+          if ! gh run download "${RID}" \
+                --repo "${GITHUB_REPOSITORY}" \
+                --name release-receipt-verify-summary \
+                --dir summary-artifact; then
+            echo "::error::release-receipt-verify run ${RID} did NOT publish a 'release-receipt-verify-summary' artifact (total_count 0). The status page's release-receipt row would be starved. Most likely cause: the summary upload lost 'include-hidden-files: true', the artifact name/path changed, or upload-artifact was bumped to a version that re-excludes hidden files."
+            exit 1
+          fi
+          echo "Downloaded artifact contents:"
+          find summary-artifact -type f -printf '  %p (%s bytes)\n'
+
+      - name: Assert the summary is non-empty and well-formed
+        run: python scripts/check_release_receipt_summary.py --dir summary-artifact
+
+      - name: Release-receipt summary artifact is intact
+        run: echo "release-receipt-verify published a non-empty, well-formed summary artifact."
