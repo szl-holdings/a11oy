@@ -5,18 +5,29 @@
 // Layer 6 — a11oy policy gate for BekensteinEntropyMeasure (T4)
 //
 // Policy rationale:
-//   H(R_n) ≤ k·A / (4 ln 2). A registry of sizeBytes bytes admits
-//   a chain entropy of at most 8·sizeBytes bits. This gate validates that
-//   the Shannon-estimated chain entropy falls within the bound.
+//   H(R_n) ≤ 8·sizeBytes bits. A receipt chain of sizeBytes bytes admits a
+//   Shannon entropy of at most 8·sizeBytes bits (max-entropy of a uniform
+//   distribution over 2^(8·sizeBytes) symbols; processing cannot increase it
+//   — Data Processing Inequality). This gate validates that the
+//   Shannon-estimated chain entropy falls within that elementary byte bound.
+//
+//   HONESTY (SZL Doctrine v11): this is the elementary DPI byte-count bound,
+//   NOT the physical Bekenstein entropy-area bound S ≤ 2πkRE/(ℏc) — that
+//   physical bound has no counterpart in the SZL codebase (F1-4 errata; see
+//   Lutar/DPI/DPIBound.lean, where the byte bound's positivity/monotonicity
+//   are the proven theorem TH6).
 //
 //   Lean derivation cited: `bekensteinEntropyMeasure` (T4)
 //   Lean file: Lutar/Gate/BekensteinEntropyMeasure.lean
-//   Lean commit SHA: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
-//   Lean status: theorem (conjectured — formal proof pending)
+//   PHANTOM CITATION: this lean_file is a planned/aspirational proof
+//   obligation and does NOT yet exist in szl-holdings/lutar-lean. The
+//   TypeScript gate is live and runtime-enforced; the Lean formalization is
+//   NOT machine-checked. Disclosed per SZL Doctrine v11. The elementary byte
+//   bound it computes is structurally backed by TH6 (Lutar/DPI/DPIBound.lean).
 //
 // References:
+//   Cover & Thomas, Elements of Information Theory (2006), §2.8 (DPI)
 //   Zenodo: https://doi.org/10.5281/zenodo.19944926
-//   INNOVATIONS.md §2 T4: Bekenstein entropy bound derivation
 
 export interface BekensteinEntropyMeasureGateConfig {
   /** Bits per byte bound multiplier. Default: 8. */

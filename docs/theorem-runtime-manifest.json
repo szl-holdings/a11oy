@@ -349,7 +349,7 @@
       "id": "RUNTIME-T4-BEKENSTEIN-ENTROPY-MEASURE",
       "theorem": "bekensteinEntropyMeasure",
       "formula": "BekensteinEntropyMeasure",
-      "lineage": "Bekenstein 1973 PRD7 entropy-area proportionality; bounded by TH6 DPI",
+      "lineage": "Elementary DPI byte-count bound (Cover-Thomas, Elements of Information Theory 2006, sec 2.8.1): chain entropy <= 8*sizeBytes; structurally backed by TH6 DPI. NOT the physical Bekenstein entropy-area proportionality, which has no SZL counterpart (F1-4 errata).",
       "leanFile": "Lutar/Gate/BekensteinEntropyMeasure.lean",
       "leanStatus": "conjectured",
       "runtimeFile": "packages/policy/src/gates/bekensteinEntropyMeasure_gate.ts",
@@ -358,7 +358,7 @@
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Lean proof conjectured; runtime numeric predicate is independently testable."
+      "caveat": "Runtime numeric predicate is independently testable; the cited Lean file Lutar/Gate/BekensteinEntropyMeasure.lean is a phantom/planned obligation (does not exist in lutar-lean). The elementary byte bound's structural properties (positivity, monotonicity) are the proven theorem TH6 (Lutar/DPI/DPIBound.lean)."
     },
     {
       "id": "RUNTIME-T5-REPLAY-DETERMINISM",
