@@ -123,18 +123,69 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[a11oy] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
-# ── Contracting Readiness layer (contracting-tab-patch) — SAM/CAGE + SBIR/STTR
-# federal-contracting posture grounded in real web-sourced eligibility criteria
-# (each line carries a source URL + retrieval date, probed live for reachability)
-# with honest verified/confirmed/needs_founder_input/needs_founder_action labels.
-# NO fabricated registration numbers/dates/verdicts — unknowns are flagged.
-# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+# ── Readiness tab-matrix endpoint (readiness-harness) — a11oy console contract.
+# Kept HERE in serve.py (a11oy-only) rather than in the shared szl_readiness.py so
+# that module stays byte-identical with killinchu (shared-source drift guard). Serves
+# the contract matrix tools/readiness-harness/tabs.json plus the optional probe
+# verdict; fails soft + honest when an artifact isn't bundled with the deploy.
 try:
-    import szl_contracting as _szl_contracting
-    _szl_contracting.register(app, ns="a11oy")
-    print("[a11oy] Contracting Readiness registered: /api/a11oy/v1/contracting", file=__import__("sys").stderr)
-except Exception as _szl_ct_e:  # pragma: no cover
-    print(f"[a11oy] Contracting Readiness NOT registered: {_szl_ct_e!r}", file=__import__("sys").stderr)
+    import os as _rd_os, json as _rd_json
+    from datetime import datetime as _rd_dt, timezone as _rd_tz
+    from fastapi.responses import JSONResponse as _RDJSON
+
+    _RD_HARNESS_DIR = _rd_os.path.join(
+        _rd_os.path.dirname(_rd_os.path.abspath(__file__)),
+        "tools", "readiness-harness")
+
+    def _rd_load(_paths):
+        for _p in _paths:
+            if not _p:
+                continue
+            try:
+                with open(_p, "r", encoding="utf-8") as _f:
+                    return _rd_json.load(_f)
+            except (OSError, ValueError):
+                continue
+        return None
+
+    @app.get("/api/a11oy/v1/readiness/tab-matrix")
+    async def _a11oy_readiness_tab_matrix():  # noqa: ANN202
+        matrix = _rd_load((
+            _rd_os.environ.get("SZL_TAB_MATRIX_PATH", ""),
+            _rd_os.path.join(_RD_HARNESS_DIR, "tabs.json"),
+        ))
+        verdict = _rd_load((
+            _rd_os.environ.get("SZL_PROBE_VERDICT_PATH", ""),
+            _rd_os.path.join(_RD_HARNESS_DIR, "readiness-verdict.json"),
+        ))
+        _now = _rd_dt.now(_rd_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if matrix is None:
+            return _RDJSON({
+                "layer": "a11oy readiness tab-matrix",
+                "honest": True,
+                "available": False,
+                "note": ("tabs.json not bundled with this deploy; generate it with "
+                         "tools/readiness-harness/gen_tabs_matrix.py"),
+                "checked_at": _now,
+            }, status_code=200)
+        if verdict is not None:
+            verdict = dict(verdict)
+            verdict["available"] = True
+        return _RDJSON({
+            "layer": "a11oy readiness tab-matrix",
+            "honest": True,
+            "available": True,
+            "matrix": matrix,
+            "verdict": verdict or {
+                "available": False,
+                "note": "probe not yet run on this deploy (no readiness-verdict.json)",
+            },
+            "checked_at": _now,
+        }, status_code=200)
+    print("[a11oy] Readiness tab-matrix registered: /api/a11oy/v1/readiness/tab-matrix",
+          file=__import__("sys").stderr)
+except Exception as _rd_tm_e:  # pragma: no cover
+    print(f"[a11oy] Readiness tab-matrix NOT registered: {_rd_tm_e!r}", file=__import__("sys").stderr)
 
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
