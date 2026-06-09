@@ -1,9 +1,18 @@
 # ============================================================================
-# FRONTIER PATCH — sentra (2026-06-03T05:00Z)
-# FRONTIER: Rekor public log query in /api/sentra/v1/verdict/provenance
+# FRONTIER PATCH — Policy capability (vendored infra mirror; NOT user-served)
+# Honest role: this module is the POLICY / SAFETY capability. "sentra" here is a
+# legacy internal codename retained ONLY in the route path of this vendored infra
+# mirror (organs/) so the mirror's own self-contained tests + imports keep working;
+# it is NOT mounted by the live a11oy app, which serves the honest Policy routes
+# (/api/a11oy/v1/policy/*) instead. User-visible surfaces say "Policy", never the
+# codename. Renaming the dir/route here would break the vendored mirror's imports,
+# so per the organs/ reframing policy the name is kept but the role is documented.
+# FRONTIER: Rekor public log query (Policy verdict provenance surface)
 # Queries sigstore Rekor (public instance) for artifact provenance entries.
 # Real cosign verify path — no secrets required for Rekor reads.
-# ADDITIVE ONLY. Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17. SLSA L1.
+# ADDITIVE ONLY. Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17.
+# SLSA L1+L2 attested (cosign-signed image + signed build-provenance attestation
+# via actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor); L3 roadmap.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ============================================================================
@@ -17,15 +26,18 @@ import hashlib, json as _json, urllib.request, urllib.error
 
 _DOCTRINE = "v11"; _KERNEL = "c7c0ba17"
 _DECLS = 749; _AXIOMS = 14; _SORRIES = 163
-_SLSA = "L1 (honest)"; _LAMBDA = "Conjecture 1 (NOT a theorem)"
+_SLSA = "L1+L2 attested (L3 roadmap)"; _LAMBDA = "Conjecture 1 (NOT a theorem)"
 _REKOR_BASE = "https://rekor.sigstore.dev/api/v1"
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 async def _sentra_frontier_verdict_provenance(request: Request):
     """
-    FRONTIER: /api/sentra/v1/verdict/provenance
+    FRONTIER: Policy verdict-provenance surface (vendored infra mirror route).
+    Honest role: Policy / Safety capability. The /api/sentra/v1/... path is a
+    legacy internal codename kept only in this non-user-served infra mirror; the
+    live a11oy app exposes the honest Policy route instead.
     Queries Rekor public log for provenance entries matching a given artifact hash.
-    This is the investor-facing cosign verify surface: "show me the provenance."
+    This is the cosign verify surface: "show me the provenance."
     Body: { "subject": "<sha256_or_artifact_uri>", "hash": "<sha256>" }
     Falls back to a curated SZL provenance entry if Rekor unavailable.
     """
