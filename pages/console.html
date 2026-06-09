@@ -8446,5 +8446,127 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 
+<script>
+/* evidence-tab-patch-185 — curated + live research/evidence layer (a11oy console tab) */
+(function(){
+  "use strict";
+  function esc(s){ return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  window.__ev_ns="a11oy";
+  /* source-liveness-badge — honest reachable/unreachable label from real HTTP probe (no fabricated state) */
+  window.ev_livebadge=function(lv){
+    if(!lv) return '<span class="badge" style="border:1px solid #6b6b6b;color:#9a9a9a" title="liveness not checked">… checking</span>';
+    var st=(lv.http_status!=null)?(' '+lv.http_status):'';
+    if(lv.reachable){
+      if(lv.mode==='cached') return '<span class="badge" style="border:1px solid #5aa0d0;color:#7ab8e6" title="reachable (from cache · '+esc(lv.checked_at||'')+')">● cached'+esc(st)+'</span>';
+      return '<span class="badge" style="border:1px solid #4fb37f;color:#5fe39a" title="reachable now ('+esc(lv.checked_at||'')+')">● live'+esc(st)+'</span>';
+    }
+    return '<span class="badge" style="border:1px solid #c06a5a;color:#ff7b6b" title="unreachable: '+esc(lv.error||'no HTTP response')+' ('+esc(lv.checked_at||'')+')">● unreachable</span>';
+  };
+  /* relative "checked Xm ago" from an ISO timestamp — honest, empty when no real timestamp */
+  window.ev_ago=function(iso){
+    if(!iso) return '';
+    var t=Date.parse(iso); if(isNaN(t)) return '';
+    var s=Math.round((Date.now()-t)/1000); if(s<0) s=0;
+    if(s<5) return 'just now';
+    if(s<60) return s+'s ago';
+    var m=Math.floor(s/60); if(m<60) return m+'m ago';
+    var h=Math.floor(m/60); if(h<24) return h+'h ago';
+    return Math.floor(h/24)+'d ago';
+  };
+  /* one cited-source row (shared by initial render + in-place re-check) */
+  window.ev_source_row=function(s){
+    var lv=s.liveness||null; var ca=(lv&&lv.checked_at)||''; var ago=window.ev_ago(ca);
+    var agohtml=ca?(' <span class="dim ev-checked" data-checked="'+esc(ca)+'" title="last reachability check: '+esc(ca)+'">· checked '+esc(ago)+'</span>'):'';
+    return '<div class="row"><span class="badge">'+esc(s.kind||'src')+'</span> '+window.ev_livebadge(lv)+agohtml+' <a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.title||'')+'</a>'+(s.note?(' <span class="dim">— '+esc(s.note)+'</span>'):'')+'</div>';
+  };
+  /* re-tick the relative "checked Xm ago" labels in place — no network */
+  window.ev_tick=function(root){
+    Array.prototype.forEach.call((root||document).querySelectorAll('.ev-checked'),function(n){
+      var ago=window.ev_ago(n.getAttribute('data-checked')); if(ago) n.textContent='· checked '+ago;
+    });
+  };
+  /* re-check one claim's curated sources via the focused /sources/live sweep; update badges in place */
+  window.evidence_recheck=async function(id,btn){
+    var box=document.getElementById('ev-sources-'+id); if(!box) return;
+    var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='⟳ re-checking…'; }
+    try{
+      var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research/'+id+'/sources/live');
+      var d=await r.json(); var rows=d.sources||[]; var h='';
+      rows.forEach(function(s){ h+=window.ev_source_row(s); });
+      if(d.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(d.sources_reachable))+'/'+esc(String(d.sources_total))+' reachable · swept '+esc(window.ev_ago(d.checked_at)||'just now')+'</div>';
+      box.innerHTML=h; window.ev_tick(box);
+    }catch(e){
+      var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
+      note.textContent='re-check failed: '+((e&&e.message)||e)+' — showing last-known badges'; box.appendChild(note);
+    }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'⟳ Re-check sources'; } }
+  };
+  window.evidence_live=async function(id){
+    var box=document.getElementById('ev-live-'+id); if(!box) return;
+    box.innerHTML='<div class="dim">fetching live arXiv + GitHub…</div>';
+    try{
+      var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research/'+id+'/live');
+      var d=await r.json(); var h=''; var ax=d.arxiv||{};
+      h+='<div class="dim" style="margin:.3rem 0">arXiv ['+esc(ax.mode||'?')+(ax.fetched_at?(' · '+esc(ax.fetched_at)):'')+']</div>';
+      (ax.papers||[]).forEach(function(p){
+        h+='<div class="row"><a href="'+esc(p.url||'#')+'" target="_blank" rel="noopener">'+esc(p.title||'(untitled)')+'</a> <span class="dim">'+esc(p.published||'')+'</span></div>';
+      });
+      if(!((ax.papers||[]).length)) h+='<div class="dim">no live papers ('+esc(ax.mode||'')+') — curated sources above remain valid</div>';
+      h+='<div class="dim" style="margin:.5rem 0 .3rem">GitHub</div>';
+      (d.github||[]).forEach(function(g){
+        var meta=(g.stars!=null?('★ '+g.stars):'')+(g.license?(' · '+esc(g.license)):'')+(g.pushed_at?(' · pushed '+esc(g.pushed_at)):'')+' ['+esc(g.mode||'')+']';
+        h+='<div class="row"><a href="'+esc(g.url||'#')+'" target="_blank" rel="noopener">'+esc(g.repo||'')+'</a> <span class="dim">'+meta+'</span></div>';
+      });
+      box.innerHTML=h;
+    }catch(e){ box.innerHTML='<div class="dim">live evidence unavailable: '+esc((e&&e.message)||e)+' — curated sources above remain valid</div>'; }
+  };
+  window.evidence_render=async function(c){
+    c.innerHTML='<div class="card"><div class="dim">loading curated evidence…</div></div>';
+    try{
+      var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research');
+      var d=await r.json(); var h='';
+      if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
+      (d.claims||[]).forEach(function(cl){
+        h+='<div class="card"><div><b>'+esc(cl.claim||'')+'</b>'+(cl.maturity?(' <span class="badge">'+esc(cl.maturity)+'</span>'):'')+(cl.tab?(' <span class="dim">→ '+esc(cl.tab)+' tab</span>'):'')+'</div>';
+        h+='<div class="dim" style="margin:.45rem 0 .25rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">Cited sources <button class="btn ev-recheck-btn" data-ev="'+esc(cl.id)+'" title="re-probe these source URLs now" style="font-size:10px;padding:.12rem .5rem">⟳ Re-check sources</button></div>';
+        h+='<div id="ev-sources-'+esc(cl.id)+'">';
+        (cl.sources||[]).forEach(function(s){ h+=window.ev_source_row(s); });
+        if(cl.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(cl.sources_reachable))+'/'+esc(String(cl.sources_total))+' reachable</div>';
+        h+='</div>';
+        h+='<div style="margin-top:.55rem"><button class="btn ev-live-btn" data-ev="'+esc(cl.id)+'">⟳ Load live arXiv + GitHub</button></div>';
+        h+='<div id="ev-live-'+esc(cl.id)+'" style="margin-top:.5rem"></div></div>';
+      });
+      c.innerHTML=h||'<div class="card"><div class="dim">no claims registered.</div></div>';
+      Array.prototype.forEach.call(c.querySelectorAll('.ev-live-btn'),function(b){
+        b.addEventListener('click',function(){ window.evidence_live(b.getAttribute('data-ev')); });
+      });
+      Array.prototype.forEach.call(c.querySelectorAll('.ev-recheck-btn'),function(b){
+        b.addEventListener('click',function(){ window.evidence_recheck(b.getAttribute('data-ev'),b); });
+      });
+      window.ev_tick(c);
+      if(window.__ev_timer) clearInterval(window.__ev_timer);
+      window.__ev_timer=setInterval(function(){
+        if(document.body.contains(c)){ window.ev_tick(c); } else { clearInterval(window.__ev_timer); window.__ev_timer=null; }
+      },15000);
+    }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+  };
+  /* register the view + inject a nav item (window.VIEWS+go() framework) */
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
+    V['evidence']={title:'Evidence & Research',badge:'CURATED CITATIONS · LIVE arXiv + GitHub',sub:'Every headline claim below is grounded in real, resolvable sources — official standards, public datasets and GitHub repositories. Each cited source carries a live reachability badge with a "checked Xm ago" stamp; use Re-check sources to re-probe on demand. Paper lists and repo stats are fetched <b>live</b> from the arXiv + GitHub APIs and labelled live/cached; if a feed is down the panel degrades to the curated citations, never to invented figures.',render:async function(c){ window.evidence_render(c); }};
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="kbformulas"]')||document.querySelector('.nav-item[data-view="knowledge"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="evidence"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','evidence'); n.setAttribute('onclick',"go('evidence')");
+    n.innerHTML='<span class="ico">\u29c9</span>Evidence &amp; Research';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+/* end evidence-tab-patch-185 */
+</script>
+
 </body>
 </html>
