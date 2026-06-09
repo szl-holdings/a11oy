@@ -6,10 +6,10 @@
   "generatedAt": "2026-06-09T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 103,
+    "tabs": 104,
     "endpoints": 38,
     "tabsWithCitations": 20,
-    "staticTabs": 25
+    "staticTabs": 26
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -2118,6 +2118,21 @@
       "citationsRequired": false,
       "sampleLabelAllowed": false,
       "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "putnam",
+      "title": "putnam",
+      "group": "Console",
+      "route": "/console#putnam",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
