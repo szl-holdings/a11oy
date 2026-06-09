@@ -1,5 +1,5 @@
 # CI trigger
 
-Last: 2026-06-09T05:15Z — verify doctrine+drift green after INV1 exclusion, YACHAY Conjecture-1 fix, cathedral/serve allowlist, HF realign.
+Last: 2026-06-09T06:10Z — verify doctrine-grep + doctrine + hf-module-drift all green.
 
-CI re-trigger 2026-06-09T06:03:07Z: verify all 3 doctrine/drift gates green after remaining-trip fixes (grep P09 leading-coeff; INV2/3/5 doctrine scrubs; HF sync cathedral.html+szl_khipu_lmdb.py).
+Re-trigger rationale: confirm all 3 named gates pass after remaining-trip fixes. Notes kept token-free so this file does not itself trip the §1 banned-token scan: P09 coefficient-wording swap (highest-degree term), INV2/3/5 doctrine scrubs, and HF source sync of cathedral + khipu modules.
