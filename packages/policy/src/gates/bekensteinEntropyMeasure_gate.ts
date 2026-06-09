@@ -17,13 +17,15 @@
 //   Lutar/DPI/DPIBound.lean, where the byte bound's positivity/monotonicity
 //   are the proven theorem TH6).
 //
-//   Lean derivation cited: `bekensteinEntropyMeasure` (T4)
-//   Lean file: Lutar/Gate/BekensteinEntropyMeasure.lean
-//   PHANTOM CITATION: this lean_file is a planned/aspirational proof
-//   obligation and does NOT yet exist in szl-holdings/lutar-lean. The
-//   TypeScript gate is live and runtime-enforced; the Lean formalization is
-//   NOT machine-checked. Disclosed per SZL Doctrine v11. The elementary byte
-//   bound it computes is structurally backed by TH6 (Lutar/DPI/DPIBound.lean).
+//   Lean derivation cited: TH6 — the elementary byte bound's structural
+//   properties (positivity + monotonicity) are kernel-checked in lutar-lean.
+//   Lean theorem: Lutar.DPI.dpi_bound_monotone (with Lutar.DPI.dpi_bound_positive)
+//   Lean file: Lutar/DPI/DPIBound.lean
+//   Lean status: REAL — machine-checked by the Lean 4 kernel (zero `sorry`) in
+//   szl-holdings/lutar-lean at the cited commit. `dpiEntropyBound r = sizeBytes * 8`
+//   is proven strictly positive and monotone; this gate enforces that same byte
+//   bound at runtime. (Replaces the prior phantom citation
+//   Lutar/Gate/BekensteinEntropyMeasure.lean, which never existed in lutar-lean.)
 //
 // References:
 //   Cover & Thomas, Elements of Information Theory (2006), §2.8 (DPI)
@@ -54,9 +56,9 @@ export interface BekensteinEntropyMeasureDecision {
   lambdaScore:        number;
 }
 
-const LEAN_THEOREM = "bekensteinEntropyMeasure";
-const LEAN_FILE    = "Lutar/Gate/BekensteinEntropyMeasure.lean";
-const LEAN_COMMIT  = "1dca00032dfc9aa8559cc6c2e4b63192fcf52371";
+const LEAN_THEOREM = "Lutar.DPI.dpi_bound_monotone";
+const LEAN_FILE    = "Lutar/DPI/DPIBound.lean";
+const LEAN_COMMIT  = "5bfeddf7e6fa5ef1bcdd96e01f565d64f6ac0fee";
 const DEFAULT_BPB  = 8;
 
 export function bekensteinEntropyMeasureGate(

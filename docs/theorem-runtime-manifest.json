@@ -347,18 +347,18 @@
     },
     {
       "id": "RUNTIME-T4-BEKENSTEIN-ENTROPY-MEASURE",
-      "theorem": "bekensteinEntropyMeasure",
+      "theorem": "Lutar.DPI.dpi_bound_monotone",
       "formula": "BekensteinEntropyMeasure",
-      "lineage": "Elementary DPI byte-count bound (Cover-Thomas, Elements of Information Theory 2006, sec 2.8.1): chain entropy <= 8*sizeBytes; structurally backed by TH6 DPI. NOT the physical Bekenstein entropy-area proportionality, which has no SZL counterpart (F1-4 errata).",
-      "leanFile": "Lutar/Gate/BekensteinEntropyMeasure.lean",
-      "leanStatus": "conjectured",
+      "lineage": "Elementary DPI byte-count bound (Cover-Thomas, Elements of Information Theory 2006, sec 2.8.1): chain entropy <= 8*sizeBytes; the bound's positivity and monotonicity are the proven theorem TH6 (Lutar/DPI/DPIBound.lean). NOT the physical Bekenstein entropy-area proportionality, which has no SZL counterpart (F1-4 errata).",
+      "leanFile": "Lutar/DPI/DPIBound.lean",
+      "leanStatus": "theorem",
       "runtimeFile": "packages/policy/src/gates/bekensteinEntropyMeasure_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Runtime numeric predicate is independently testable; the cited Lean file Lutar/Gate/BekensteinEntropyMeasure.lean is a phantom/planned obligation (does not exist in lutar-lean). The elementary byte bound's structural properties (positivity, monotonicity) are the proven theorem TH6 (Lutar/DPI/DPIBound.lean)."
+      "caveat": "Runtime numeric predicate is independently testable; the byte bound dpiEntropyBound r = sizeBytes * 8 is kernel-checked (zero sorry) as theorem TH6 in Lutar/DPI/DPIBound.lean (dpi_bound_positive, dpi_bound_monotone). The prior phantom citation Lutar/Gate/BekensteinEntropyMeasure.lean never existed in lutar-lean and has been removed."
     },
     {
       "id": "RUNTIME-T5-REPLAY-DETERMINISM",

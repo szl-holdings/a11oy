@@ -50,13 +50,13 @@
     "name": "bekensteinEntropyMeasure",
     "file": "bekensteinEntropyMeasure_gate.ts",
     "description": "a11oy policy gate for BekensteinEntropyMeasure (T4)",
-    "lean_theorem": "bekensteinEntropyMeasure",
-    "lean_file": "Lutar/Gate/BekensteinEntropyMeasure.lean",
-    "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
+    "lean_theorem": "Lutar.DPI.dpi_bound_monotone",
+    "lean_file": "Lutar/DPI/DPIBound.lean",
+    "lean_commit_sha": "5bfeddf7e6fa5ef1bcdd96e01f565d64f6ac0fee",
     "formula": "BekensteinEntropyMeasure",
     "rationale": "H(R_n) \u2264 8\u00b7sizeBytes bits. A registry of sizeBytes bytes admits a chain entropy of at most 8\u00b7sizeBytes bits (elementary DPI byte-count bound: max-entropy of a uniform distribution over 2^(8\u00b7sizeBytes) symbols, non-increasing under processing). This gate validates that the Shannon-estimated chain entropy falls within that bound. This is NOT the physical Bekenstein entropy-area bound S <= 2*pi*k*R*E/(hbar*c), which has no SZL counterpart (F1-4 errata).",
-    "lean_status": "phantom",
-    "lean_status_note": "PHANTOM CITATION: this lean_file is a planned/aspirational proof obligation and does NOT yet exist in szl-holdings/lutar-lean. The TypeScript gate is live and runtime-enforced; the Lean formalization is NOT machine-checked. Disclosed honestly per SZL Doctrine v11 (honesty over checklist) \u2014 NOT counted toward the locked 749 declarations / 14 axioms / 163 sorries at kernel c7c0ba17. No .lean stub created to avoid mutating the LOCKED Lean corpus."
+    "lean_status": "real",
+    "lean_status_note": "REAL: the elementary byte bound dpiEntropyBound r = sizeBytes * 8 is kernel-checked in szl-holdings/lutar-lean at Lutar/DPI/DPIBound.lean (theorem TH6), proven strictly positive (dpi_bound_positive) and monotone (dpi_bound_monotone), zero sorry. The runtime gate enforces that same byte bound. Replaces the prior phantom citation Lutar/Gate/BekensteinEntropyMeasure.lean, which never existed in lutar-lean."
   },
   {
     "name": "bekensteinSoundness",
