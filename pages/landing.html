@@ -288,7 +288,7 @@ a{color:inherit;text-decoration:none;} img,svg{display:block;}
       <div class="ds-kpi"><span class="ds-kpi__label">Services up</span><span class="ds-kpi__value is-live is-loading" id="kpiServices">— / —</span><span class="ds-kpi__note">live organ health probes</span></div>
       <div class="ds-kpi"><span class="ds-kpi__label">Trust score</span><span class="ds-kpi__value is-gold is-loading" id="kpiTrust">—</span><span class="ds-kpi__note">13-axis geometric mean</span></div>
       <div class="ds-kpi"><span class="ds-kpi__label">a11oy policy gates</span><span class="ds-kpi__value is-loading" id="kpiGates">—</span><span class="ds-kpi__note">evaluated pre-action</span></div>
-      <div class="ds-kpi"><span class="ds-kpi__label">Sentra gates</span><span class="ds-kpi__value is-loading" id="kpiSentra">—</span><span class="ds-kpi__note">policy organ</span></div>
+      <div class="ds-kpi"><span class="ds-kpi__label">Policy verdicts</span><span class="ds-kpi__value is-loading" id="kpiPolicy">—</span><span class="ds-kpi__note">a11oy gate · allow/deny ledger</span></div>
     </div>
     <p class="honest" id="liveHonesty">An unreachable organ is shown as unreachable, never green. If a probe is slow, the tile says so rather than faking a value.</p>
   </div>
@@ -313,7 +313,7 @@ a{color:inherit;text-decoration:none;} img,svg{display:block;}
 
     <div class="ds-grid ds-grid--2" style="margin-top:22px;">
       <div class="ds-card"><span class="ds-card__id">// HONEST LABEL</span><h3 class="ds-card__title">Trust-score uniqueness</h3><p class="ds-card__body">The claim that the 13-axis trust score is the unique aggregate satisfying our axioms is a <b style="color:var(--gold)">research conjecture</b>, not a theorem. The Lean development still has open goals on this result. We will not call it proven until it is.</p></div>
-      <div class="ds-card"><span class="ds-card__id">// SUPPLY CHAIN</span><h3 class="ds-card__title">SLSA Level 2</h3><p class="ds-card__body">Build provenance attestations (cosign) on the organ images at <b style="color:var(--gold)">SLSA L2</b>. This is not SLSA L3, FedRAMP, Iron Bank, or CMMC — and we don't say it is.</p></div>
+      <div class="ds-card"><span class="ds-card__id">// SUPPLY CHAIN</span><h3 class="ds-card__title">SLSA L1 honest · L2 roadmap</h3><p class="ds-card__body">Build provenance attestations (cosign) ship on the organ images today at <b style="color:var(--gold)">SLSA L1 (honest)</b>; SLSA L2 is on the <b style="color:var(--gold)">roadmap</b>. This is not SLSA L3, FedRAMP, Iron Bank, or CMMC — and we don't say it is.</p></div>
     </div>
   </div>
 </section>
@@ -362,7 +362,7 @@ a{color:inherit;text-decoration:none;} img,svg{display:block;}
     </div>
     <div class="ds-footer__bottom">
       <span>© SZL HOLDINGS · DOCTRINE v11</span>
-      <span class="ds-mono">SLSA L2 · TRUST SCORE = RESEARCH CONJECTURE (NOT A THEOREM) · 5 PROVEN PROPERTIES</span>
+      <span class="ds-mono">SLSA L1 HONEST / L2 ROADMAP · TRUST SCORE = RESEARCH CONJECTURE (NOT A THEOREM) · 5 LOCKED-PROVEN FORMULAS</span>
     </div>
   </div>
 </footer>
@@ -480,11 +480,11 @@ a{color:inherit;text-decoration:none;} img,svg{display:block;}
     else { unreachable("kpiGates"); }
   }).catch(function(){unreachable("kpiGates");});
 
-  // sentra gates (cross-origin public Space)
-  fetchJSON("https://szlholdings-sentra.hf.space/api/sentra/v1/gates",9000).then(function(j){
-    if(j&&typeof j.count==="number"){ setKpi("kpiSentra",String(j.count)); }
-    else { unreachable("kpiSentra"); }
-  }).catch(function(){unreachable("kpiSentra");});
+  // policy verdict ledger (live a11oy gate — Policy role; no dead cross-origin Space)
+  fetchJSON("/api/a11oy/v1/gates",9000).then(function(j){
+    if(j&&typeof j.count==="number"){ setKpi("kpiPolicy",String(j.count)); }
+    else { unreachable("kpiPolicy"); }
+  }).catch(function(){unreachable("kpiPolicy");});
 
   // ---- reveal on scroll ----
   if("IntersectionObserver" in window){
