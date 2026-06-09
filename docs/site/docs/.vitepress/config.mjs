@@ -21,7 +21,7 @@ export default withMermaid(defineConfig({
   lang: 'en-US',
   title: 'SZL Holdings Docs',
   description:
-    'Unified documentation for SZL Holdings — math-grounded, Quechua-rooted governed-AI anatomy. Five flagships, twelve organs, PURIQ agentic layer, Doctrine v11/v12.',
+    'Unified documentation for SZL Holdings — math-grounded, Quechua-rooted governed-AI anatomy. Two shipping flagships (a11oy, killinchu) plus frontier roles, twelve organs, PURIQ agentic layer, Doctrine v11/v12.',
   cleanUrls: false,
   lastUpdated: true,
   ignoreDeadLinks: true,
@@ -50,7 +50,7 @@ export default withMermaid(defineConfig({
   },
 
   themeConfig: {
-    // Inca animated avatar (Amaru) as the navbar logo. Static szl-mark.svg
+    // Animated Inca-serpent avatar as the navbar logo. Static szl-mark.svg
     // retained on disk at /img/szl-mark.svg (additive — not removed).
     logo: '/img/szl-avatar-animated.gif',
     siteTitle: 'SZL Holdings',
@@ -62,10 +62,10 @@ export default withMermaid(defineConfig({
         text: 'Flagships',
         items: [
           { text: 'a11oy — execution fabric', link: '/flagships/a11oy' },
-          { text: 'amaru — provenance anchor', link: '/flagships/amaru' },
-          { text: 'sentra — drift detector', link: '/flagships/sentra' },
           { text: 'killinchu — drone intelligence', link: '/flagships/killinchu' },
-          { text: 'rosie — receipt orchestration', link: '/flagships/rosie' }
+          { text: 'Provenance Anchor', link: '/flagships/amaru' },
+          { text: 'Operator — receipt orchestration', link: '/flagships/rosie' },
+          { text: 'Policy — drift detector', link: '/flagships/sentra' }
         ]
       },
       {
@@ -113,10 +113,10 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Overview', link: '/flagships/' },
             { text: 'a11oy', link: '/flagships/a11oy' },
-            { text: 'amaru', link: '/flagships/amaru' },
-            { text: 'sentra', link: '/flagships/sentra' },
             { text: 'killinchu', link: '/flagships/killinchu' },
-            { text: 'rosie', link: '/flagships/rosie' }
+            { text: 'Provenance Anchor', link: '/flagships/amaru' },
+            { text: 'Operator', link: '/flagships/rosie' },
+            { text: 'Policy', link: '/flagships/sentra' }
           ]
         }
       ],
