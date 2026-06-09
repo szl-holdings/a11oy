@@ -83,7 +83,15 @@ EOF
     fi
     pushln="$(cgrep '\bgit[[:space:]]+push\b[^#]*:[[:space:]]*status\b' | head -1 | cut -d: -f1)"
     [ -n "$pushln" ] || fail "no status push found to evaluate"
-    start=$(( pushln > 80 ? pushln - 80 : 1 ))
+    # Anchor the lookback to the START of the step that contains the push (the
+    # nearest preceding `- name:` step header), not a brittle fixed line count.
+    # The publish step body grows over time (e.g. an inline Markdown renderer was
+    # added), so a hardcoded N-line window would silently drift off the step's
+    # `set -e` and fail on a perfectly-correct workflow. Scoping to the step is
+    # STRICTER: the `set -e` must live in the SAME step as the push, not just
+    # somewhere within N lines of it.
+    start="$(sed -n "1,${pushln}p" "$WF" | grep -nE '^[[:space:]]*-[[:space:]]+name:' | tail -1 | cut -d: -f1)"
+    [ -n "$start" ] || start=1
     if ! sed -n "${start},${pushln}p" "$WF" | grep -qE '\bset[[:space:]]+-[a-z]*e'; then
       fail "the publish step does not 'set -e' above the status push — a rejected push would not fail the job"
     fi
