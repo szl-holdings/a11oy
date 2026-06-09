@@ -3580,22 +3580,45 @@ import json as _jsonv2
 from datetime import datetime as _dtv2, timezone as _tzv2
 from fastapi.responses import PlainTextResponse
 
-# ---- In-image ephemeral ECDSA P-256 signing key (real, generated at boot) ----
-_A11OY_KEYID = "a11oy-inimage-ecdsa-p256"
+# ---- a11oy receipt-signing key (PERSISTENT identity, ephemeral fallback) ----
+# Prefer a permanent ECDSA P-256 key mounted from a Kubernetes Secret so that
+# /cosign.pub survives pod restarts and receipts stay verifiable across them.
+# Falls back to a boot-generated ephemeral key (the legacy behaviour) when no
+# Secret is mounted. Curve stays ECDSA P-256 to match cosign.pub + all verify
+# code. See a11oy_signing_key.load_signing_key().
 _A11OY_PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 _A11OY_PRIV = None
 _A11OY_PUB_PEM = None
 _A11OY_KEY_ERR = None
+_A11OY_KEY_SOURCE = "unavailable"
 try:
     from cryptography.hazmat.primitives.asymmetric import ec as _ecv2
     from cryptography.hazmat.primitives import hashes as _hashesv2, serialization as _serv2
-    _A11OY_PRIV = _ecv2.generate_private_key(_ecv2.SECP256R1())
-    _A11OY_PUB_PEM = _A11OY_PRIV.public_key().public_bytes(
-        encoding=_serv2.Encoding.PEM,
-        format=_serv2.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
+    try:
+        from a11oy_signing_key import load_signing_key as _a11oy_load_signing_key
+        _A11OY_PRIV, _A11OY_PUB_PEM, _A11OY_KEY_SOURCE, _kerr = _a11oy_load_signing_key()
+        if _kerr:
+            _A11OY_KEY_ERR = _kerr
+        if _A11OY_PRIV is None:
+            raise RuntimeError(_kerr or "load_signing_key returned no key")
+    except Exception as _le:
+        # Loader unavailable / failed — preserve legacy ephemeral behaviour.
+        _A11OY_PRIV = _ecv2.generate_private_key(_ecv2.SECP256R1())
+        _A11OY_PUB_PEM = _A11OY_PRIV.public_key().public_bytes(
+            encoding=_serv2.Encoding.PEM,
+            format=_serv2.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("ascii")
+        _A11OY_KEY_SOURCE = "ephemeral"
+        _A11OY_KEY_ERR = None
 except Exception as _e:  # pragma: no cover
     _A11OY_KEY_ERR = str(_e)
+
+# True when serve.py is signing with a persistent key mounted from a Secret.
+_A11OY_KEY_PERSISTENT = isinstance(_A11OY_KEY_SOURCE, str) and \
+    _A11OY_KEY_SOURCE.startswith("persistent:")
+# keyid encodes provenance so a verifier can tell persistent vs ephemeral.
+_A11OY_KEYID = ("a11oy-secret-ecdsa-p256" if _A11OY_KEY_PERSISTENT
+                else "a11oy-inimage-ecdsa-p256")
 
 
 def _a11oy_pae(payload_type: str, body: bytes) -> bytes:
@@ -3631,9 +3654,17 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     sig = _A11OY_PRIV.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
     env["signatures"] = [{"sig": _b64v2.b64encode(sig).decode("ascii"), "keyid": _A11OY_KEYID}]
     env["signed"] = True
-    env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
-                      "in-image key generated at server boot. Verify in-browser "
-                      "against /cosign.pub; a tampered byte fails. Key resets on rebuild.")
+    env["key_source"] = "persistent" if _A11OY_KEY_PERSISTENT else "ephemeral"
+    if _A11OY_KEY_PERSISTENT:
+        env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by a "
+                          "PERSISTENT key mounted from a Kubernetes Secret. The same "
+                          "public key verifies receipts across pod restarts. Verify "
+                          "in-browser against /cosign.pub; a tampered byte fails.")
+    else:
+        env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
+                          "in-image key generated at server boot. Verify in-browser "
+                          "against /cosign.pub; a tampered byte fails. Key resets on "
+                          "rebuild (no persistent signing Secret mounted).")
     return env
 
 
@@ -3679,7 +3710,10 @@ def _a11oy_build_chain(n: int = 24) -> dict:
         "genesis_hash": receipts[0]["hash"] if receipts else "",
         "final_hash": receipts[-1]["hash"] if receipts else "",
         "receipts": receipts,
-        "signing": "in-image ECDSA P-256 (ephemeral, generated at boot)",
+        "signing": ("persistent ECDSA P-256 (mounted from Secret, survives restarts)"
+                    if _A11OY_KEY_PERSISTENT
+                    else "in-image ECDSA P-256 (ephemeral, generated at boot)"),
+        "key_source": "persistent" if _A11OY_KEY_PERSISTENT else "ephemeral",
         "key_fingerprint": _a11oy_pubkey_fpr(),
     }
 
