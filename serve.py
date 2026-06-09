@@ -4970,6 +4970,9 @@ try:
         "ngraph.path.min.js": _VENDOR_JS_CT,           # ngraph.path 1.5.0 (MIT, anvaka)
         "ngraph.forcelayout.min.js": _VENDOR_JS_CT,    # ngraph.forcelayout 3.3.1 (MIT, anvaka)
         "panzoom.min.js": _VENDOR_JS_CT,               # panzoom 9.4.3 (MIT, anvaka)
+        # DEV-WIRE-A (2026-06-09): anvaka graph-stack completion (0-CDN, in-image).
+        "vivagraph.min.js": _VENDOR_JS_CT,             # VivaGraphJS (BSD-3, anvaka) — global Viva
+        "ngraph.events.umd.js": _VENDOR_JS_CT,         # ngraph.events (BSD-3, anvaka) — global ngraphEvents
     }
 
     # NOTE on route ORDER: literal paths (/vendor/earth-night.jpg, /vendor/fonts/*)
@@ -6218,6 +6221,33 @@ except Exception as _amaru_e:
     _A11OY_AMARU_DIAG = {"status": "FAILED", "error": repr(_amaru_e)}
 # ============================================================================
 # END: a11oy Provenance & Trust Anchor layer
+# ============================================================================
+
+# ============================================================================
+# DEV-WIRE-A (2026-06-09): tab-upgrade metrics layer. ADDITIVE, pure-stdlib
+# (math/sqlite3/hashlib only — NO numpy/scipy/networkx/torch), try/except-guarded,
+# routes pushed to the FRONT of app.router.routes so they win over the generic
+# /api/a11oy/{path:path} Node proxy + the SPA catch-all. Real computed metrics:
+# deterministic graph metrics (clustering, degree centrality, DAG integrity,
+# Fiedler λ2), split-conformal coverage, Brier/CRPS/ECE + reliability + Pareto,
+# transparent GraphRouter reward (Perf/Balanced/Cost presets, receipted), SQLite
+# FTS5 search, quasi-arithmetic Λ panel (Λ = Conjecture 1, advisory), info-geometry
+# KL trust gap, calibrated anomaly percentiles. 0 runtime CDN. Trust never 100%.
+# Per-file COPY in Dockerfile (this Dockerfile does NOT use COPY . .).
+# ============================================================================
+try:
+    import a11oy_wireA_metrics as _wirea_mod
+    import sys as _wirea_sys
+    _wirea_status = _wirea_mod.register(app)
+    print(f"[a11oy] DEV-WIRE-A metrics registered ({len(_wirea_status)} routes): {_wirea_status}", file=_wirea_sys.stderr)
+    _A11OY_WIREA_DIAG = {"status": "ok", "routes": _wirea_status}
+except Exception as _wirea_e:
+    import sys as _wirea_sys, traceback as _wirea_tb
+    print(f"[a11oy] DEV-WIRE-A metrics FAILED (non-fatal): {_wirea_e!r}", file=_wirea_sys.stderr)
+    _wirea_tb.print_exc(file=_wirea_sys.stderr)
+    _A11OY_WIREA_DIAG = {"status": "FAILED", "error": repr(_wirea_e)}
+# ============================================================================
+# END: DEV-WIRE-A metrics layer
 # ============================================================================
 
 
