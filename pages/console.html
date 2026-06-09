@@ -8527,6 +8527,22 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       var ago=window.ev_ago(n.getAttribute('data-checked')); if(ago) n.textContent='· checked '+ago;
     });
   };
+  /* evidence-autorecheck-539 — bounded, staggered background re-probe of cited-source badges.
+     Reuses the focused /sources/live sweep via window.evidence_recheck(id); one claim per tick
+     so it never bursts; pauses while the tab is hidden and self-clears once it leaves the DOM. */
+  window.ev_start_autorecheck=function(root,ids){
+    if(window.__ev_auto){ clearInterval(window.__ev_auto); window.__ev_auto=null; }
+    if(!ids||!ids.length) return;
+    var PERIOD=180000;                                       /* re-probe each claim roughly every 3 min */
+    var STEP=Math.max(15000,Math.floor(PERIOD/ids.length));  /* stagger: one claim per tick, never a burst */
+    var i=0;
+    window.__ev_auto=setInterval(function(){
+      if(!document.body.contains(root)){ clearInterval(window.__ev_auto); window.__ev_auto=null; return; } /* tab left DOM → stop */
+      if(document.hidden) return;                            /* tab not visible → pause, don't hammer backend */
+      var id=ids[i%ids.length]; i++;
+      if(document.getElementById('ev-sources-'+id)) window.evidence_recheck(id); /* honest live/cached/unreachable badges */
+    },STEP);
+  };
   /* re-check one claim's curated sources via the focused /sources/live sweep; update badges in place */
   window.evidence_recheck=async function(id,btn){
     var box=document.getElementById('ev-sources-'+id); if(!box) return;
@@ -8589,6 +8605,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       window.__ev_timer=setInterval(function(){
         if(document.body.contains(c)){ window.ev_tick(c); } else { clearInterval(window.__ev_timer); window.__ev_timer=null; }
       },15000);
+      /* evidence-autorecheck-539 — keep the live/cached/unreachable badges current without manual clicks */
+      var __ev_ids=Array.prototype.map.call(c.querySelectorAll('.ev-recheck-btn'),function(b){ return b.getAttribute('data-ev'); }).filter(Boolean);
+      window.ev_start_autorecheck(c,__ev_ids);
     }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
   };
   /* register the view + inject a nav item (window.VIEWS+go() framework) */
