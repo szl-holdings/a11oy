@@ -2936,7 +2936,7 @@
       "pillars": [
         {
           "id": "PDD",
-          "pillar": "Protocol-Driven Development",
+          "pillar": "Protocol-Bounded Execution",
           "szl_component": "a11oy governed-decision loop + YUYAY 13-axis conjunctive gate (deny-by-default)",
           "live_tab": "decision",
           "proof": "Lean: gate soundness over locked F-set (A1 soundnessAxiom)",
@@ -2945,7 +2945,7 @@
         },
         {
           "id": "VAI",
-          "pillar": "Verifiable Agentic Infrastructure",
+          "pillar": "Verifiable Intent-to-Execution",
           "szl_component": "DSSE-signed receipt chain + Lean-theorem trace (Provable-Interdiction)",
           "live_tab": "receipts",
           "proof": "Receipt: ECDSA-P256 signed, SHA-256 hash-chain tamper-evident",
@@ -2954,7 +2954,7 @@
         },
         {
           "id": "ASCP",
-          "pillar": "Autonomous State Control Planes",
+          "pillar": "Bounded-Recursion Control Planes",
           "szl_component": "Ouroboros bounded-recursion loop (P1-P6) + sandboxed agent + mission ledger",
           "live_tab": "mission",
           "proof": "Lean: loop invariants proven (agentic-loop wave)",
@@ -3028,14 +3028,14 @@
           "zenodo": "19867281",
           "date": "2026-04-28",
           "doi": "https://doi.org/10.5281/zenodo.19867281",
-          "grounds": "Autonomous State Control Planes (Ouroboros P1-P6 bounded-recursion loop)"
+          "grounds": "Bounded-Recursion Control Planes (Ouroboros P1-P6 bounded-recursion loop)"
         },
         {
           "title": "The Loop Is the Product (v2): Empirical Companion",
           "zenodo": "19934129",
           "date": "2026-04-30",
           "doi": "https://doi.org/10.5281/zenodo.19934129",
-          "grounds": "Autonomous State Control Planes (empirical loop behavior)"
+          "grounds": "Bounded-Recursion Control Planes (empirical loop behavior)"
         },
         {
           "title": "Lineage-Aware Retrieval-Augmented Generation (v5): Prisca-GraphRAG",
@@ -3049,7 +3049,7 @@
           "zenodo": "20020845",
           "date": "2026-05-04",
           "doi": "https://doi.org/10.5281/zenodo.20020845",
-          "grounds": "Protocol-Driven Development (governed-decision loop + YUYAY gate)"
+          "grounds": "Protocol-Bounded Execution (governed-decision loop + YUYAY gate)"
         },
         {
           "title": "The Lutar Omega Formalism (v4)",
