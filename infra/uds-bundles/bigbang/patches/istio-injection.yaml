@@ -1,8 +1,0 @@
-# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
-# Ensure the szl-system namespace gets Big Bang Istio sidecar injection.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: szl-system
-  labels:
-    istio-injection: enabled

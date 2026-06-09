@@ -1,3 +1,0 @@
-{{- if .Values.apps.a11oy.enabled }}
-{{ include "szl-fleet.package" (dict "name" "a11oy" "app" .Values.apps.a11oy "global" .Values.global "Chart" .Chart) }}
-{{- end }}
