@@ -81,7 +81,7 @@
       "ver": "v12",
       "date": "2026-05-14",
       "doi": "https://doi.org/10.5281/zenodo.19944926",
-      "contribution": "The Λ-Ouroboros substrate — first four machine-verified theorems"
+      "contribution": "The Λ-Ouroboros substrate — first four machine-verified theorems (Λ itself stays Conjecture 1, not a theorem)"
     },
     {
       "ver": "v13",
@@ -142,7 +142,7 @@
       "date": "2026-06-03",
       "doi": null,
       "doi_status": "DOI pending (founder mint)",
-      "contribution": "\"Convergence\" — A5 axiom merge; VCG truthfulness; Cauchy_ND partial closure; SLSA L2; Rounds 10–11; Sim2Real Walrus-parallel (α=0.10)"
+      "contribution": "\"Convergence\" — A5 axiom merge; VCG truthfulness; Cauchy_ND partial closure; SLSA L2 on organ images; Rounds 10–11; Sim2Real Walrus-parallel (α=0.10)"
     }
   ],
   "proof_summary": {
