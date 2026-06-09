@@ -414,12 +414,12 @@ COPY szl_llm_registry.py ./szl_llm_registry.py
 COPY szl_elite_console.py ./szl_elite_console.py
 COPY szl_alloy_models.py ./szl_alloy_models.py
 
-# OPTIONAL live CPU demo tier: try to install llama.cpp + fetch ONE tiny
-# Apache-2.0 GGUF (Qwen2.5-Coder-0.5B-Instruct Q4_K_M) so the demo tier can
-# serve REAL output on cpu-basic. Both steps are NON-FATAL (`|| echo ...`): if
-# the wheel build or download fails on this hardware, the alloy layer falls back
-# to the HONEST tower-side label and NEVER fakes output. We never redistribute
-# the weight in our repo — it is fetched from the original HF repo at build time.
+# LIVE CPU demo tier: install llama.cpp + fetch ONE tiny Apache-2.0 GGUF
+# (Qwen2.5-Coder-0.5B-Instruct Q4_K_M) so the demo tier serves REAL output on
+# cpu-basic. The wheel install stays best-effort (honest tower-side fallback if
+# no prebuilt wheel), but the GGUF weight below is now RELIABLY fetched (pinned
+# revision + retry + integrity verify) so the published image always carries it.
+# We never redistribute the weight in our repo — it is fetched from the HF repo.
 # OPTIONAL live CPU demo tier wheel — PINNED PREBUILT (no source compile).
 # Previously `pip install "llama-cpp-python>=0.2.79"` built the wheel FROM SOURCE,
 # which fails to compile on CPU-only CI/hardware and was silently swallowed by the
@@ -439,8 +439,71 @@ RUN pip install --no-cache-dir \
       --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
       "llama-cpp-python==0.3.19" \
     || echo "[a11oy] llama-cpp-python prebuilt wheel unavailable on this platform -> alloy demo tier falls back to honest tower-side label"
-RUN mkdir -p /app/models && python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF', filename='qwen2.5-coder-0.5b-instruct-q4_k_m.gguf', local_dir='/app/models')" \
-    || echo "[a11oy] GGUF fetch skipped/failed -> alloy demo tier falls back to honest tower-side label"
+# GGUF weight — RELIABLY PRESENT (pinned revision + retry + integrity verify), NOT best-effort.
+# Previously a single best-effort `hf_hub_download(...) || echo` step: a transient download
+# failure silently shipped an image with NO model, so the alloy demo tier always degraded to
+# the tower-side label. Now we pin the EXACT repo revision, retry with backoff, and HARD-VERIFY
+# the downloaded file's byte size + sha256 against the published LFS digest. The build FAILS LOUD
+# if the weight is not reliably present, so every published image genuinely carries the GGUF and
+# the demo tier serves REAL on-CPU output. The honest tower-side fallback in szl_alloy_models.py
+# remains for any runtime where the weight is absent (e.g. local dev / bring-your-own-weights).
+# Apache-2.0 weight; fetched from the original HF repo, never redistributed in this repo.
+ARG A11OY_ALLOY_GGUF_REPO=Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF
+ARG A11OY_ALLOY_GGUF_FILE=qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+ARG A11OY_ALLOY_GGUF_REV=ebb2015119c907b064c512bf053e945850b5875f
+ARG A11OY_ALLOY_GGUF_SHA256=1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32
+ARG A11OY_ALLOY_GGUF_SIZE=491400064
+RUN python3 <<'GGUFPY'
+import hashlib, os, sys, time
+from huggingface_hub import hf_hub_download
+
+repo      = os.environ["A11OY_ALLOY_GGUF_REPO"]
+fname     = os.environ["A11OY_ALLOY_GGUF_FILE"]
+rev       = os.environ["A11OY_ALLOY_GGUF_REV"]
+want_sha  = os.environ["A11OY_ALLOY_GGUF_SHA256"].lower()
+want_size = int(os.environ["A11OY_ALLOY_GGUF_SIZE"])
+dest      = "/app/models"
+os.makedirs(dest, exist_ok=True)
+
+def verify(p):
+    if not p or not os.path.exists(p):
+        return "missing"
+    sz = os.path.getsize(p)
+    if sz != want_size:
+        return "size %d != expected %d" % (sz, want_size)
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    got = h.hexdigest()
+    if got != want_sha:
+        return "sha256 %s != expected %s" % (got, want_sha)
+    return None
+
+last = None
+for attempt in range(1, 7):
+    try:
+        p = hf_hub_download(repo_id=repo, filename=fname, revision=rev, local_dir=dest)
+        last = verify(p)
+        if last is None:
+            print("[a11oy] GGUF verified present: %s (%d bytes, sha256 ok, rev %s)"
+                  % (fname, want_size, rev[:12]), flush=True)
+            sys.exit(0)
+        print("[a11oy] attempt %d: integrity check failed: %s" % (attempt, last), flush=True)
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    except Exception as e:
+        last = "%s: %s" % (type(e).__name__, str(e)[:200])
+        print("[a11oy] attempt %d: download failed: %s" % (attempt, last), flush=True)
+    time.sleep(min(60, 5 * attempt))
+
+sys.stderr.write("[a11oy] FATAL: could not obtain a verified GGUF after retries: %s\n" % last)
+sys.exit(1)
+GGUFPY
+# Drop transient download metadata; the real weight stays at /app/models/<file>.
+RUN rm -rf /app/models/.cache /root/.cache/huggingface 2>/dev/null || true
 ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 
 # ADDITIVE (Live-Data Layer, 2026-06-06, Warhacker): SHARED live-feed proxy module
