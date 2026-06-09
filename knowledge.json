@@ -92,9 +92,8 @@
     {
       "id": "TH_L1",
       "name": "Λ_uniqueness",
-      "statement": "Conjecture 1 (OPEN): the Lutar Invariant Λ_k (weighted geometric mean with Egyptian unit-fraction weights) is the unique aggregator satisfying axioms A1-A5. This UNCONDITIONAL statement is NOT a theorem — it is machine-checked FALSE under A1-A5 (counterexample maxAgg_ne_Lambda: the max-aggregator satisfies A1-A5 yet differs from Λ at the canonical audit probe (4,1)), so Λ-uniqueness stays Conjecture 1, OPEN. CONDITIONAL uniqueness is Theorem U (TheoremU_LambdaUnique): any two aggregators meeting the Identifiability Assumptions are ≈Λ-equivalent (equal on the canonical audit invariant), with corollaries U₁ (CorollaryU1_LambdaUnique_Separable, separable slices) and U₂ (CorollaryU2_LambdaUnique_Factors, power-law factorization Φ x = ∏ x_i^α_i) — each reducing to the on-main proven lambda_unique_of_separable / lambda_unique_of_factors (CI-green, axiom-clean). The operational equality/equivalence check reuses the kernel Decidable ≈Λ relation (LambdaEquiv via instDecidableLambdaEquiv — same audit-invariant semantics, not a hand-rolled approximation); strict = is recoverable from ≈Λ only under the documented Anchored/Normalized gauge (lambda_equiv_to_eq_of_anchored). Closing the UNCONDITIONAL conjecture still needs a declared bisymmetry axiom A6 (Kolmogorov-Nagumo-Aczel).",
-      "source_file": "lutar-lean/Lutar/Uniqueness/TheoremU.lean (Theorem U / U₁ / U₂; conditional core Lutar/Round13/Lambda_Uniqueness.lean)",
-      "theorem_u": "TheoremU_LambdaUnique + CorollaryU1_LambdaUnique_Separable + CorollaryU2_LambdaUnique_Factors; operational check = LambdaEquiv (≈Λ) with instDecidableLambdaEquiv; gauge = Anchored/Normalized (lambda_equiv_to_eq_of_anchored). CI-green, axiom-clean (no new axiom). Unconditional uniqueness stays Conjecture 1 (OPEN).",
+      "statement": "Conjecture 1: the Lutar Invariant Λ_k (weighted geometric mean with Egyptian unit-fraction weights) is the unique aggregator satisfying axioms A1-A5. NOT a theorem: unconditional uniqueness is FALSE under A1-A5 (machine-checked counterexample maxAgg_ne_Lambda; max-aggregator satisfies A1-A5 yet differs from Λ at (4,1)). The conditional theorem lambda_unique_of_factors (uniqueness GIVEN factorization Φ x = ∏ x_i^α_i) IS fully proved; unconditional uniqueness closes only under a declared bisymmetry axiom A6 (Kolmogorov-Nagumo-Aczel).",
+      "source_file": "lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean",
       "maturity": "conjectured",
       "citation": "https://doi.org/10.5281/zenodo.20053148"
     },
@@ -2291,7 +2290,7 @@
     {
       "id": "F23",
       "name": "Lambda-Aggregator Uniqueness",
-      "statement": "CONJECTURE 1 (OPEN, NOT a theorem). Unconditional uniqueness is machine-checked FALSE under A1-A5 (maxAgg counterexample at audit probe (4,1)). CONDITIONAL uniqueness is Theorem U (TheoremU_LambdaUnique): Identifiability-Assumption solutions are ≈Λ-equivalent, with corollaries U₁ (CorollaryU1_LambdaUnique_Separable) and U₂ (CorollaryU2_LambdaUnique_Factors, reducing to the proven lambda_unique_of_factors). Operational equivalence reuses the kernel Decidable ≈Λ relation (LambdaEquiv / instDecidableLambdaEquiv); strict = only under the Anchored/Normalized gauge. Unconditional uniqueness stays Conjecture 1 (OPEN) and closes only under a declared bisymmetry axiom A6_bisymmetric.",
+      "statement": "CONJECTURE 1 (NOT a theorem). Unconditional uniqueness is FALSE under A1-A5 (maxAgg counterexample). Conditional `lambda_unique_of_factors` IS proved; unconditional uniqueness closes only under declared axiom A6_bisymmetric.",
       "maturity": "conjectured",
       "lean_ref": "f23_lambda_aggregator_sound",
       "lean_repo": "szl-holdings/lutar-lean",
@@ -2451,7 +2450,7 @@
       "regulations": [
         "NIST SP 800-53 Rev 5",
         "CMMC 2.0",
-        "FedRAMP High",
+        "FedRAMP High (target regime reference, not held)",
         "DISA STIGs"
       ],
       "required_attestors": [
@@ -3067,7 +3066,7 @@
           "grounds": "Admissibility / Lambda canonical trust axes"
         }
       ],
-      "honest_note": "Governed Post-Determinism is SZL's own framework, grounded entirely in SZL's prior DOI-stamped published work (Zenodo, Apr 28 - May 14 2026). Locked-proven stays exactly 5; Lambda-uniqueness = Conjecture 1 (OPEN — unconditional uniqueness machine-checked FALSE), with conditional uniqueness = Theorem U (corollaries U₁/U₂) modulo the kernel Decidable ≈Λ relation (CI-green, axiom-clean), strict equality only under the Anchored/Normalized gauge; Semantic Quorum Assurance safety = Wave23 CONDITIONAL theorem (unconditional = Conjecture 2); full Epistemic State Replication semantics = open R&D (roadmap). Failure-guard detectors not yet live are labeled design/roadmap."
+      "honest_note": "Governed Post-Determinism is SZL's own framework, grounded entirely in SZL's prior DOI-stamped published work (Zenodo, Apr 28 - May 14 2026). Locked-proven stays exactly 5; Lambda = Conjecture 1; Semantic Quorum Assurance safety = Wave23 CONDITIONAL theorem (unconditional = Conjecture 2); full Epistemic State Replication semantics = open R&D (roadmap). Failure-guard detectors not yet live are labeled design/roadmap."
     }
   ]
 }
