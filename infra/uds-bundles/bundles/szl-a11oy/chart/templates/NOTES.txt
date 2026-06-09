@@ -1,5 +1,0 @@
-{{/* NOTES */}}
-SZL a11oy deployed to namespace {{ .Values.namespace }}.
-Health:  kubectl -n {{ .Values.namespace }} port-forward svc/a11oy 8080:8080
-         curl http://localhost:8080/api/a11oy/healthz
-Operational: pull the network cable — it still serves. Doctrine v11 LOCKED 749/14/163.

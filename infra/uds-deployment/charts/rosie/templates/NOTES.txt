@@ -1,9 +1,0 @@
-SZL rosie (uds-v0.2.0) deployed to namespace {{ .Values.namespace }}.
-
-  Image:   {{ .Values.image.repository }}:{{ .Values.image.tag }}  (cosign-signed)
-  Service: szl-rosie.{{ .Values.namespace }}.svc:{{ .Values.service.port }}
-  mTLS:    {{ if .Values.istio.strictMtls }}STRICT (Istio PeerAuthentication){{ else }}permissive{{ end }}
-  Receipt key: Secret {{ .Values.receiptKeySecret }} (auto-generated pre-install unless BYOK)
-
-Part of the SZL UDS mesh. Verify the image signature:
-  cosign verify --key rosie.pub {{ .Values.image.repository }}:{{ .Values.image.tag }}

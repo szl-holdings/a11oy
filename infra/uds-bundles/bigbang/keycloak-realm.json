@@ -1,9 +1,0 @@
-{
-  "_comment": "Big Bang Keycloak realm client for SZL — CONFIGURED, NOT deployed. Operator imports into the bigbang realm. Author: Yachay (DCO signed).",
-  "realm": "baby-yoda",
-  "clients": [
-    {"clientId": "szl-killinchu", "protocol": "openid-connect", "publicClient": false,
-     "redirectUris": ["https://killinchu.dev.bigbang.mil/*"], "webOrigins": ["+"],
-     "standardFlowEnabled": true, "directAccessGrantsEnabled": false}
-  ]
-}

@@ -1,7 +1,0 @@
-apiVersion: v2
-name: rosie
-description: rosie governed decision fabric Helm chart (UDS / Zarf)
-type: application
-version: 0.3.1
-appVersion: "uds-v0.3.1"
-# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0

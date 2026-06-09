@@ -1,9 +1,0 @@
-# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: amaru
-  labels:
-    app.kubernetes.io/part-of: szl-mesh
-    istio-injection: enabled
-    pod-security.kubernetes.io/enforce: restricted
