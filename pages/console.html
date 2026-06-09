@@ -8721,5 +8721,97 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* end readiness-tab-patch */
 </script>
 
+
+<!-- ===================================================================== -->
+<!-- PUTNAM SAMPLER TAB (putnam-sampler-tab). Additive, self-contained.     -->
+<!-- Surfaces the 10 formalized PDF Putnam-sampler problems in lutar-lean    -->
+<!-- with HONEST per-problem status from a REAL `lake build` CI verdict.     -->
+<!-- 7 kernel-verified (sorry-free) + 3 honest labeled-sorry open attempts.  -->
+<!-- Does NOT touch any existing V.<key>. 0 CDN.                             -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  var TEAL=(window.TEAL||'#5fb3a3'), GOLD=(window.GOLD||'#c9b787'), AMBER=(window.AMBER||'#d8a657'), GRAY='#8a8a8a';
+  function esc(s){ return window.esc?window.esc(String(s)):String(s); }
+  function chip(label,status){
+    var col = (status==='CI-GREEN')?TEAL : (status==='OPEN')?AMBER : GRAY;
+    return '<span class="badge" style="color:'+col+';border:1px solid '+col+';background:transparent;font-family:var(--mono);font-size:10px;letter-spacing:.04em">'+esc(label)+'</span>';
+  }
+  var REPO='https://github.com/szl-holdings/lutar-lean';
+  var COMMIT='1373f72e356780605e2005c41e69bc67f7225bc6';
+  var RUN='27184884516';
+  var BRANCH='sampler-putnam-10';
+  // Per-problem status mirrors the real lake-build CI verdict (run #27184884516, success).
+  var PROBLEMS=[
+    {id:'P01', t:'a,b,c>0, abc=1 \u21d2 \u03a3 (a\u22121)\u00b2/(a+b+c) \u2265 0', area:'Inequality', s:'CI-GREEN', m:'div_nonneg + sq_nonneg + linarith'},
+    {id:'P02', t:'x\u00b2+y\u00b2+z\u00b2=1 \u21d2 (x+y+z)\u00b2 \u2264 3', area:'Inequality (Cauchy\u2013Schwarz)', s:'CI-GREEN', m:'nlinarith [sq_nonneg (x\u2212y), \u2026]'},
+    {id:'P03', t:'no integer n with n\u00b2 \u2261 2 (mod 4)', area:'Number theory', s:'CI-GREEN', m:'even/odd split + omega'},
+    {id:'P04', t:'infinitely many primes p \u2261 3 (mod 4)', area:'Number theory', s:'OPEN', m:'honest labeled sorry (Euclid/Dirichlet, not yet closed)'},
+    {id:'P05', t:'additive f, continuous \u21d2 f x = c\u00b7x (linear)', area:'Functional equation', s:'OPEN', m:'honest labeled sorry (\u211a-linear \u2192 density, not yet closed)'},
+    {id:'P06', t:'coin-flip head-count parity invariant (PDF restated precisely)', area:'Combinatorics', s:'CI-GREEN', m:'induction on moves + omega (runMoves)'},
+    {id:'P07', t:'harmonic \u03a3_{k=1}^{n} 1/k \u2265 ln(n+1)', area:'Analysis', s:'CI-GREEN', m:'telescoping Real.log_le_sub_one_of_pos'},
+    {id:'P08', t:'\u2016u+v\u2016\u00b2 + \u2016u\u2212v\u2016\u00b2 = 2\u2016u\u2016\u00b2 + 2\u2016v\u2016\u00b2 in \u211d\u207f', area:'Geometry', s:'CI-GREEN', m:'parallelogram_law_with_norm \u211d'},
+    {id:'P09', t:'no polynomial p: p(0)=0, p(1)=1, p(x)\u00b2=p(x\u00b2)', area:'Algebra', s:'OPEN', m:'honest labeled sorry (degree/leading-coeff, not yet closed)'},
+    {id:'P10', t:'among n+1 integers, two differ by a multiple of n', area:'Combinatorics (pigeonhole)', s:'CI-GREEN', m:'Fintype pigeonhole over ZMod n'}
+  ];
+  function render(c){
+    var verified=PROBLEMS.filter(function(p){return p.s==='CI-GREEN';}).length;
+    var open=PROBLEMS.length-verified;
+    var rows=PROBLEMS.map(function(p){
+      return '<tr style="border-top:1px solid var(--gold-line)">'+
+        '<td style="padding:.5rem .6rem;font-family:var(--mono);color:'+TEAL+'">'+esc(p.id)+'</td>'+
+        '<td style="padding:.5rem .6rem">'+esc(p.t)+'<div class="dim" style="font-size:11px">'+esc(p.area)+'</div></td>'+
+        '<td style="padding:.5rem .6rem;white-space:nowrap">'+chip(p.s==='CI-GREEN'?'CI-GREEN':'OPEN', p.s)+'</td>'+
+        '<td style="padding:.5rem .6rem;font-family:var(--mono);font-size:11px;color:var(--paragraph)">'+esc(p.m)+'</td>'+
+      '</tr>';
+    }).join('');
+    c.innerHTML=
+      '<div class="kpis">'+
+        '<div class="kpi"><div class="k">Formalized</div><div class="v teal">'+PROBLEMS.length+'</div><div class="d">PDF Putnam-sampler problems</div></div>'+
+        '<div class="kpi"><div class="k">Kernel-verified</div><div class="v" style="color:'+TEAL+'">'+verified+'</div><div class="d">sorry-free, `lake build` green</div></div>'+
+        '<div class="kpi"><div class="k">Honest open</div><div class="v" style="color:'+AMBER+'">'+open+'</div><div class="d">explicitly-labeled sorry</div></div>'+
+        '<div class="kpi"><div class="k">New axioms</div><div class="v" style="color:'+TEAL+'">0</div><div class="d">locked-5 untouched</div></div>'+
+      '</div>'+
+      '<div class="card"><div class="card-h"><span class="card-t">Per-problem status</span><span class="card-ep">real CI verdict \u00b7 Lean 4.18.0 + Mathlib</span></div>'+
+        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'+
+          '<thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">'+
+            '<th style="padding:.4rem .6rem">#</th><th style="padding:.4rem .6rem">Statement</th><th style="padding:.4rem .6rem">Status</th><th style="padding:.4rem .6rem">Proof method</th></tr></thead>'+
+          '<tbody>'+rows+'</tbody></table></div></div>'+
+      '<div class="card"><div class="card-h"><span class="card-t">Provenance \u2014 verify independently</span><span class="card-ep">nothing here is asserted without a checkable source</span></div>'+
+        '<div class="row mono" style="font-size:12px">Repo: <a href="'+REPO+'" target="_blank" rel="noopener" style="color:'+TEAL+'">szl-holdings/lutar-lean</a></div>'+
+        '<div class="row mono" style="font-size:12px">Branch: '+esc(BRANCH)+'</div>'+
+        '<div class="row mono" style="font-size:12px">Commit: <a href="'+REPO+'/commit/'+COMMIT+'" target="_blank" rel="noopener" style="color:'+TEAL+'">'+COMMIT.slice(0,12)+'</a></div>'+
+        '<div class="row mono" style="font-size:12px">CI verdict: <a href="'+REPO+'/actions/runs/'+RUN+'" target="_blank" rel="noopener" style="color:'+TEAL+'">lake build run #'+RUN+' \u2014 success</a> (strict whole-library build + drift gate)</div>'+
+      '</div>'+
+      '<div class="honesty">'+
+        '<b>Honesty doctrine \u2014 intact.</b> These 10 problems live in an <b>EXPERIMENTAL</b> scope (Lutar/Putnam/Sampler/), excluded from the v11 baseline numbers, so the locked-proven set stays <b>exactly 5</b> {F1, F11, F12, F18, F19}; \u039b unconditional uniqueness stays <b>Conjecture 1</b> (machine-checked FALSE); unconditional Byzantine BFT safety stays <b>Conjecture 2</b>. '+
+        'The '+verified+' \u201cCI-GREEN\u201d problems are <b>kernel-verified and sorry-free</b> \u2014 the strict `lake build` compiled and the Lean kernel accepted them with no new axiom token. The '+open+' \u201cOPEN\u201d problems carry a <b>single explicitly-labeled `sorry`</b> each (P04, P05, P09); they are honest open attempts, <b>not</b> claimed as proven and <b>not</b> hidden. P06\u2019s PDF statement was incomplete \u2014 its well-posed core (a coin-flip parity invariant) was restated precisely before proof. '+
+        'No \u201cproven\u201d label is shown for any unclosed problem.'+
+      '</div>';
+  }
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
+    V['putnam']={
+      title:'Putnam Sampler',
+      badge:'LEAN 4.18 \u00b7 7 CI-GREEN \u00b7 3 OPEN',
+      sub:'Ten PDF Putnam-sampler problems formalized as Lean 4 theorems in lutar-lean (Lean 4.18.0 + Mathlib), each with an HONEST per-problem status taken from a real `lake build` CI verdict. Seven are kernel-verified and sorry-free; three carry a single explicitly-labeled `sorry` as an honest open attempt. Additive EXPERIMENTAL scope \u2014 the locked-5, \u039b=Conjecture 1 and BFT=Conjecture 2 are untouched, and no new axiom is introduced.',
+      render:function(c){ render(c); }
+    };
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="warboard"]')||document.querySelector('.nav-item[data-view="lambda"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="putnam"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','putnam'); n.setAttribute('onclick',"go('putnam')");
+    n.innerHTML='<span class="ico">\u2713</span>Putnam Sampler';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+/* end putnam-sampler-tab */
+</script>
+
 </body>
 </html>
