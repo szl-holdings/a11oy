@@ -10,14 +10,14 @@
   `lake` build may show more targets green, but the served set is 5 until `serve.py` is
   updated to read the proved set and redeployed.
 - **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap = verified on 5/5 organ images.** True statement:
-  *"SLSA L2 provenance attestation cryptographically verifies (cosign verify-attestation,
+  *"SLSA Build L2 provenance attestation cryptographically verifies (cosign verify-attestation,
   keyless Fulcio+Rekor, strict per-organ identity) on all 5 organ images: a11oy, sentra,
   amaru, rosie, killinchu."* SLSA L1 holds on all. The **bundle**
   (`szl-uds-bundle:uds-v0.2.1`) is **signed** (cosign keyless, Fulcio+Rekor) **and carries a
   build-provenance attestation** produced via `actions/attest-build-provenance` — verify with
   `gh attestation verify oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.1 --owner szl-holdings`
   (run from a non-GHES host; the sandbox proxy is detected as GHES and `gh attestation` refuses).
-- **No L3 / FedRAMP / Iron Bank / CMMC.** None of these are claimed or held.
+- **No L3 / FedRAMP / Iron Bank / CMMC.** Not claimed, not held, not pursued.
 
 ---
 
