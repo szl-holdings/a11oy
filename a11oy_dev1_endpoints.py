@@ -55,24 +55,41 @@ except Exception:  # pragma: no cover
     except Exception:
         Request = None  # type: ignore
 
-# ---- optional crypto (DSSE ECDSA P-256). Honest UNSIGNED fallback if absent. ----
+# ---- DSSE ECDSA P-256 signer (PERSISTENT identity, ephemeral fallback). ----
+# Loads a permanent signing key mounted from a Kubernetes Secret so the wow
+# /api/a11oy/v1/wow/cosign.pub public key survives pod restarts. Falls back to
+# an ephemeral boot-generated key (the legacy behaviour) when no Secret is
+# mounted. Honest UNSIGNED fallback if crypto is entirely unavailable.
 _PRIV = None
 _PUB_PEM = ""
 _KEYID = "—"
 _KEY_ERR = ""
+_KEY_SOURCE = "unavailable"
 try:
     from cryptography.hazmat.primitives import hashes as _ch_hashes
     from cryptography.hazmat.primitives import serialization as _ch_ser
     from cryptography.hazmat.primitives.asymmetric import ec as _ch_ec
 
-    _PRIV = _ch_ec.generate_private_key(_ch_ec.SECP256R1())
-    _pub = _PRIV.public_key()
-    _PUB_PEM = _pub.public_bytes(
-        _ch_ser.Encoding.PEM, _ch_ser.PublicFormat.SubjectPublicKeyInfo
-    ).decode("ascii")
+    try:
+        from a11oy_signing_key import load_signing_key as _a11oy_load_signing_key
+        _PRIV, _PUB_PEM, _KEY_SOURCE, _err = _a11oy_load_signing_key()
+        if _err:
+            raise RuntimeError(_err)
+        if _PRIV is None:
+            raise RuntimeError("load_signing_key returned no key")
+    except Exception:
+        # Loader unavailable / failed — preserve legacy ephemeral behaviour.
+        _PRIV = _ch_ec.generate_private_key(_ch_ec.SECP256R1())
+        _PUB_PEM = _PRIV.public_key().public_bytes(
+            _ch_ser.Encoding.PEM, _ch_ser.PublicFormat.SubjectPublicKeyInfo
+        ).decode("ascii")
+        _KEY_SOURCE = "ephemeral"
     _KEYID = hashlib.sha256(_PUB_PEM.strip().encode()).hexdigest()[:16]
 except Exception as _e:  # pragma: no cover
     _KEY_ERR = repr(_e)
+
+# True when the wow signer uses a persistent key mounted from a Secret.
+_KEY_PERSISTENT = isinstance(_KEY_SOURCE, str) and _KEY_SOURCE.startswith("persistent:")
 
 _PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 _LOCK = threading.Lock()
@@ -118,9 +135,17 @@ def _sign(payload_obj) -> dict:
     sig = _PRIV.sign(to_sign, _ch_ec.ECDSA(_ch_hashes.SHA256()))
     env["signatures"] = [{"sig": base64.b64encode(sig).decode("ascii"), "keyid": _KEYID}]
     env["signed"] = True
-    env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
-                      "in-image key generated at server boot. Verify in-browser "
-                      "against /cosign.pub; a tampered byte fails. Key resets on rebuild.")
+    env["key_source"] = "persistent" if _KEY_PERSISTENT else "ephemeral"
+    if _KEY_PERSISTENT:
+        env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by a "
+                          "PERSISTENT key mounted from a Kubernetes Secret. The same "
+                          "public key verifies receipts across pod restarts. Verify "
+                          "against /api/a11oy/v1/wow/cosign.pub; a tampered byte fails.")
+    else:
+        env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
+                          "in-image key generated at server boot. Verify in-browser "
+                          "against /cosign.pub; a tampered byte fails. Key resets on "
+                          "rebuild (no persistent signing Secret mounted).")
     return env
 
 
