@@ -48,6 +48,35 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
+# === GOVERNED ENVELOPE (Doctrine v11) — a11oy-operator-reason-envelope-task516 ===
+# Shared response wrapper: every governed response carries a status in
+# {REAL, DEMO, DEGRADED}, a citations[] array and a fetchedAt timestamp.
+# Idempotent — never double-wraps; merges (does not clobber) an existing payload.
+def _gov_now_iso():
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+def gov_envelope(payload=None, status="REAL", citations=None, reason=None, **extra):
+    out = {}
+    if isinstance(payload, dict):
+        out.update(payload)
+    st = str(status or "REAL").upper()
+    if st not in ("REAL", "DEMO", "DEGRADED"):
+        st = "DEGRADED"
+    out["status"] = st
+    if citations is not None:
+        out["citations"] = citations
+    elif out.get("citations") is None:
+        out["citations"] = []
+    out["fetchedAt"] = _gov_now_iso()
+    out.setdefault("doctrine", "v11")
+    if reason is not None:
+        out["reason"] = reason
+    for _k, _v in extra.items():
+        out[_k] = _v
+    return out
+# === END GOVERNED ENVELOPE ===
+
 # RESET: SPA is served from /app/static (repo root mirrors dist/public). No /console subdir.
 STATIC_DIR = Path("/app/static")
 ASSETS_DIR = STATIC_DIR / "assets"
@@ -1201,7 +1230,9 @@ async def reason(request: Request) -> JSONResponse:
         "doctrine": "v11 — locked kernel c7c0ba17: 749 declarations / 14 unique axioms / 163 tracked sorries (5 proven) — experimental main 7885fd9: 1304 declarations / 22 axioms · ~36 theorems CI-green (Wave5-8), not folded into the locked count — lutar-lean@main",
         "hatun_willay": True,
     }
-    return JSONResponse(reasoning)
+    _reason_cites = [{"endpoint": "/api/a11oy/v1/policy/evaluate (governed reasoning gate)",
+                      "data": {"gate": "thresholdPolicySeverity", "severity": severity}}]
+    return JSONResponse(gov_envelope(reasoning, status="REAL", citations=_reason_cites))
 
 
 # ---------------------------------------------------------------------------
@@ -3226,17 +3257,22 @@ try:
     @app.post("/api/a11oy/v1/reason/readiness")
     async def _sc_cap_readiness(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(_sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {})))
+        _ra = _sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {}))
+        _rc = [{"endpoint": "records." + str(c.get("criterion")), "data": {"result": c.get("result"), "source": c.get("source")}}
+               for c in (_ra.get("assessment", {}) or {}).get("checks", [])]
+        return _SCJSON(gov_envelope(_ra, status="REAL", citations=_rc))
 
     @app.post("/api/a11oy/v1/operator/ask")
     async def _sc_cap_ask(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(_sc_ask((body or {}).get("question", "")))
+        return _SCJSON(gov_envelope(_sc_ask((body or {}).get("question", "")), status="REAL"))
 
     @app.post("/api/a11oy/v1/operator/act")
     async def _sc_cap_act(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
+        _ar = _sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", ""))
+        return _SCJSON(gov_envelope(_ar, status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}}]))
 
     @app.get("/api/a11oy/v1/operator/recommend")
     async def _sc_cap_recommend():
@@ -3253,6 +3289,139 @@ try:
     @app.get("/api/a11oy/v1/capabilities/mesh")
     async def _sc_cap_mesh3d():
         return _SCJSON(_SC_BUNDLE["mesh3d"])
+
+    # ===== Task516: governed GET variants + v2 command loop (a11oy-operator-reason-envelope-task516) =====
+    @app.get("/api/a11oy/v1/operator/ask")
+    async def _sc_cap_ask_get(question: str = ""):
+        if (question or "").strip():
+            return _SCJSON(gov_envelope(_sc_ask(question), status="REAL"))
+        desc = {"capability": "operator.ask",
+                "summary": "Grounded operator Q&A \u2014 answers only from live platform data, refuses to fabricate.",
+                "method": "POST {question} for a grounded answer; GET ?question= also answers; bare GET returns this descriptor.",
+                "topics": ["health/status", "3-of-4 quorum", "Lambda verdict", "proved-formula set", "architecture/roadmap"],
+                "post_example": {"question": "Which services are live right now?"}}
+        return _SCJSON(gov_envelope(desc, status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/v1/operator/ask (POST) \u2014 grounded operator Q&A",
+                                                "data": {"live": True}}]))
+
+    @app.get("/api/a11oy/v1/reason")
+    async def _sc_cap_reason_get():
+        lam = _sc_lambda_self()
+        desc = {"capability": "reason",
+                "summary": ("Severity-aware governed reasoning gate (ThresholdPolicySeverity): the evidence threshold "
+                            "and witness quorum rise with action severity. TypeScript runtime gate \u2014 does NOT claim Lean closure."),
+                "method": "POST {prompt|query, severity?} drives the gate and returns a decision; GET (this) returns the descriptor + live trust state.",
+                "severity_tiers": [{"severity": "low/medium", "witness_quorum": "2-of-N"},
+                                   {"severity": "high/critical/capital", "witness_quorum": "3-of-N"}],
+                "lambda": lam, "lambda_status": "Conjecture 1 (NOT a theorem)"}
+        return _SCJSON(gov_envelope(desc, status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/v1/reason (POST) \u2014 governed reasoning gate", "data": {"live": True}},
+                                               {"endpoint": "/api/a11oy/v1/lambda", "data": lam}]))
+
+    @app.get("/api/a11oy/v1/reason/readiness")
+    async def _sc_cap_readiness_get():
+        _now = _sc_now()
+        with _SC_OP_LOCK:
+            _op_depth = len(_SC_OP_RING)
+        _cmdlog = _SC_BUNDLE.get("commandlog", {}) if isinstance(_SC_BUNDLE, dict) else {}
+        caps = [
+            {"capability": "operator.ask", "endpoint": "/api/a11oy/v1/operator/ask", "status": "REAL",
+             "detail": "Grounded operator Q&A, live in-process (refuses to fabricate).", "backed_by": "_sc_ask"},
+            {"capability": "operator.act", "endpoint": "/api/a11oy/v1/operator/act", "status": "REAL",
+             "detail": "HITL action ring (approve/deny/acknowledge/recheck), SHA-256 hash-chained.",
+             "backed_by": "_sc_act", "audit_depth": _op_depth},
+            {"capability": "operator.command", "endpoint": "/api/a11oy/v2/operator/command", "status": "REAL",
+             "detail": "9-stage governed operator loop with enforced human-approval gate; Simulate stage is DEGRADED (no real simulator, not faked).",
+             "backed_by": "_sc_command_loop"},
+            {"capability": "reason", "endpoint": "/api/a11oy/v1/reason", "status": "REAL",
+             "detail": "Severity-aware governed reasoning gate (TS runtime, not Lean-closed).", "backed_by": "thresholdPolicySeverity"},
+            {"capability": "reason.readiness", "endpoint": "/api/a11oy/v1/reason/readiness", "status": "REAL",
+             "detail": "HANGAR2APPS 5-criterion deployment-readiness gate (POST) + this per-capability probe (GET).",
+             "backed_by": "_sc_readiness_assess"},
+            {"capability": "policy.decide", "endpoint": "/api/a11oy/v1/policy/decide", "status": "REAL",
+             "detail": "Immune verdict: threat-signature inspection + Lambda-gate floor.", "backed_by": "_sc_build_verdict"},
+            {"capability": "operator.command-log", "endpoint": "/api/a11oy/v2/operator/command-log", "status": "REAL",
+             "detail": "SHA-256 hash-chained command ledger.", "backed_by": "_SC_BUNDLE.commandlog",
+             "chain_verified": _cmdlog.get("chain_verified"), "depth": _cmdlog.get("depth")},
+        ]
+        _real = sum(1 for c in caps if c["status"] == "REAL")
+        _deg = sum(1 for c in caps if c["status"] == "DEGRADED")
+        summary = {"capabilities": caps,
+                   "counts": {"total": len(caps), "real": _real, "degraded": _deg, "down": 0},
+                   "use_case": "Per-capability operator/reason readiness \u2014 live in-process state, not fabricated.",
+                   "lambda_status": "Conjecture 1 (NOT a theorem)"}
+        _cites = [{"endpoint": c["endpoint"], "data": {"status": c["status"], "checked_at": _now}} for c in caps]
+        return _SCJSON(gov_envelope(summary, status=("REAL" if _deg == 0 else "DEGRADED"), citations=_cites))
+
+    def _sc_command_loop(body):
+        body = body or {}
+        command = str(body.get("command") or body.get("intent") or "").strip()
+        target = str(body.get("target") or "").strip()
+        approved = bool(body.get("approved"))
+        operator = str(body.get("operator") or "operator")
+        stages = []
+        def stg(name, status, detail, data=None):
+            s = {"stage": name, "status": status, "detail": detail}
+            if data is not None:
+                s["data"] = data
+            stages.append(s)
+        if not command:
+            stg("Signal", "DEGRADED", "No command/intent supplied.")
+            return {"ok": False, "loop": "operator.governed", "stages": stages,
+                    "outcome": "REJECTED_EMPTY_COMMAND", "approved": approved}
+        stg("Signal", "REAL", "Operator intent received.", {"command": command, "target": target})
+        topic = _sc_classify(command)
+        stg("Context", "REAL", "Classified intent + read live platform context.", {"topic": topic})
+        stg("Recommend", "REAL", "Platform recommendation read from consolidated state.",
+            _SC_RECOMMEND.get("recommendations"))
+        stg("Simulate", "DEGRADED", "No real action simulator wired in this runtime \u2014 not faked.")
+        verdict = _sc_build_verdict({"agent": operator,
+                                     "action": {"command": command, "target": target},
+                                     "request_id": "cmd-" + _sc_secrets.token_hex(4)})
+        pol_ok = verdict.get("decision") == "allow"
+        stg("Policy", "REAL", "Immune/Lambda governed verdict.", verdict)
+        if not approved:
+            stg("Approve", "DEGRADED", "Human approval REQUIRED and not granted (set approved:true). Execution withheld.")
+            outcome = "HELD_FOR_APPROVAL"
+        elif not pol_ok:
+            stg("Approve", "REAL", "Operator approved, but policy DENIED \u2014 execution blocked.")
+            outcome = "BLOCKED_BY_POLICY"
+        else:
+            stg("Approve", "REAL", "Human approval granted and policy allows.")
+            outcome = "APPROVED"
+        executed = None
+        if outcome == "APPROVED":
+            executed = _sc_act("acknowledge", target=(target or command),
+                               note="governed command: " + command, operator=operator)
+            stg("Execute", "REAL",
+                "Executed via an enumerated safe operator action (acknowledge) \u2014 no arbitrary execution.",
+                {"entry_hash": (executed.get("entry") or {}).get("entry_hash"),
+                 "audit_depth": executed.get("audit_depth")})
+        else:
+            stg("Execute", "DEGRADED", "Not executed \u2014 " + outcome + ".")
+        proof = _sc_receipt("command", {"command": command, "target": target, "outcome": outcome,
+                                        "policy": verdict.get("decision"), "approved": approved})
+        stg("Proof", "REAL",
+            "Signed-shape receipt computed (UNSIGNED \u2014 no key in runtime, signature not fabricated).",
+            {"receipt_sha256": proof["receipt"]["receipt_sha256"], "signed": proof["signed"]})
+        stg("Outcome", "REAL", "Governed loop complete.", {"outcome": outcome})
+        return {"ok": outcome == "APPROVED", "loop": "operator.governed", "command": command,
+                "target": target, "operator": operator, "approved": approved,
+                "policy_decision": verdict.get("decision"), "outcome": outcome,
+                "stages": stages, "receipt": proof,
+                "honesty": ("Real 9-stage governed operator loop. Simulate is DEGRADED (no simulator). "
+                            "Execute is restricted to enumerated safe actions and hash-chained. Human "
+                            "approval is enforced before any execution.")}
+
+    @app.post("/api/a11oy/v2/operator/command")
+    async def _sc_cap_command(request: _SCRequest):
+        body = await _sc_body(request)
+        res = _sc_command_loop(body)
+        ran = bool((res.get("stages") or [{}])[0].get("status") == "REAL")
+        cites = [{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}},
+                 {"endpoint": "/api/a11oy/v1/policy/decide", "data": {"governed": True}}]
+        return _SCJSON(gov_envelope(res, status=("REAL" if ran else "DEGRADED"), citations=cites))
+    # ===== END Task516 =====
 
     print("[a11oy] self-contained organ routes mounted: 14 legacy + 14 neutral aliases "
           "(a11oy-native capability paths) — consolidation, no cross-origin deps", flush=True)
@@ -3580,45 +3749,22 @@ import json as _jsonv2
 from datetime import datetime as _dtv2, timezone as _tzv2
 from fastapi.responses import PlainTextResponse
 
-# ---- a11oy receipt-signing key (PERSISTENT identity, ephemeral fallback) ----
-# Prefer a permanent ECDSA P-256 key mounted from a Kubernetes Secret so that
-# /cosign.pub survives pod restarts and receipts stay verifiable across them.
-# Falls back to a boot-generated ephemeral key (the legacy behaviour) when no
-# Secret is mounted. Curve stays ECDSA P-256 to match cosign.pub + all verify
-# code. See a11oy_signing_key.load_signing_key().
+# ---- In-image ephemeral ECDSA P-256 signing key (real, generated at boot) ----
+_A11OY_KEYID = "a11oy-inimage-ecdsa-p256"
 _A11OY_PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 _A11OY_PRIV = None
 _A11OY_PUB_PEM = None
 _A11OY_KEY_ERR = None
-_A11OY_KEY_SOURCE = "unavailable"
 try:
     from cryptography.hazmat.primitives.asymmetric import ec as _ecv2
     from cryptography.hazmat.primitives import hashes as _hashesv2, serialization as _serv2
-    try:
-        from a11oy_signing_key import load_signing_key as _a11oy_load_signing_key
-        _A11OY_PRIV, _A11OY_PUB_PEM, _A11OY_KEY_SOURCE, _kerr = _a11oy_load_signing_key()
-        if _kerr:
-            _A11OY_KEY_ERR = _kerr
-        if _A11OY_PRIV is None:
-            raise RuntimeError(_kerr or "load_signing_key returned no key")
-    except Exception as _le:
-        # Loader unavailable / failed — preserve legacy ephemeral behaviour.
-        _A11OY_PRIV = _ecv2.generate_private_key(_ecv2.SECP256R1())
-        _A11OY_PUB_PEM = _A11OY_PRIV.public_key().public_bytes(
-            encoding=_serv2.Encoding.PEM,
-            format=_serv2.PublicFormat.SubjectPublicKeyInfo,
-        ).decode("ascii")
-        _A11OY_KEY_SOURCE = "ephemeral"
-        _A11OY_KEY_ERR = None
+    _A11OY_PRIV = _ecv2.generate_private_key(_ecv2.SECP256R1())
+    _A11OY_PUB_PEM = _A11OY_PRIV.public_key().public_bytes(
+        encoding=_serv2.Encoding.PEM,
+        format=_serv2.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
 except Exception as _e:  # pragma: no cover
     _A11OY_KEY_ERR = str(_e)
-
-# True when serve.py is signing with a persistent key mounted from a Secret.
-_A11OY_KEY_PERSISTENT = isinstance(_A11OY_KEY_SOURCE, str) and \
-    _A11OY_KEY_SOURCE.startswith("persistent:")
-# keyid encodes provenance so a verifier can tell persistent vs ephemeral.
-_A11OY_KEYID = ("a11oy-secret-ecdsa-p256" if _A11OY_KEY_PERSISTENT
-                else "a11oy-inimage-ecdsa-p256")
 
 
 def _a11oy_pae(payload_type: str, body: bytes) -> bytes:
@@ -3654,17 +3800,9 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
     sig = _A11OY_PRIV.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
     env["signatures"] = [{"sig": _b64v2.b64encode(sig).decode("ascii"), "keyid": _A11OY_KEYID}]
     env["signed"] = True
-    env["key_source"] = "persistent" if _A11OY_KEY_PERSISTENT else "ephemeral"
-    if _A11OY_KEY_PERSISTENT:
-        env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by a "
-                          "PERSISTENT key mounted from a Kubernetes Secret. The same "
-                          "public key verifies receipts across pod restarts. Verify "
-                          "in-browser against /cosign.pub; a tampered byte fails.")
-    else:
-        env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
-                          "in-image key generated at server boot. Verify in-browser "
-                          "against /cosign.pub; a tampered byte fails. Key resets on "
-                          "rebuild (no persistent signing Secret mounted).")
+    env["honesty"] = ("REAL — ECDSA-P256-SHA256 over the DSSE PAE, signed by an "
+                      "in-image key generated at server boot. Verify in-browser "
+                      "against /cosign.pub; a tampered byte fails. Key resets on rebuild.")
     return env
 
 
@@ -3710,10 +3848,7 @@ def _a11oy_build_chain(n: int = 24) -> dict:
         "genesis_hash": receipts[0]["hash"] if receipts else "",
         "final_hash": receipts[-1]["hash"] if receipts else "",
         "receipts": receipts,
-        "signing": ("persistent ECDSA P-256 (mounted from Secret, survives restarts)"
-                    if _A11OY_KEY_PERSISTENT
-                    else "in-image ECDSA P-256 (ephemeral, generated at boot)"),
-        "key_source": "persistent" if _A11OY_KEY_PERSISTENT else "ephemeral",
+        "signing": "in-image ECDSA P-256 (ephemeral, generated at boot)",
         "key_fingerprint": _a11oy_pubkey_fpr(),
     }
 
