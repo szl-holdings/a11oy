@@ -1,25 +1,23 @@
-# amaru — provenance anchor
+# Provenance Anchor
 
-<div class="quechua">
-<strong>Etymology.</strong> Quechua <strong><em>amaru</em></strong> = <strong>serpent</strong>
-(the Andean serpent of rivers and continuity). The metaphor is the unbroken chain: amaru
-threads governance receipts into a single, continuous, anchored line. Gloss:
-<a href="https://kaikki.org/eswiktionary/">kaikki.org Quechua lexicon</a>.
-</div>
+> **Naming note.** This component was previously tracked under the internal codename
+> *amaru* (Quechua for *serpent* — the Andean serpent of rivers and continuity, evoking the
+> unbroken receipt chain). The honest, user-facing name is **Provenance Anchor**; the codename
+> is retired and retained here only as historical context.
 
 ## Overview
 
-`amaru` handles **blockchain anchoring of governance receipts** with **Shor-encoded
-provenance**: provenance hashes are encoded with the 9-qubit Shor code before Cardano
-anchoring, giving single-qubit error correction on the immutable receipt chain. It performs
-convergent multi-source data sync with append-only delta logs and bounded-loop convergence
-guarantees.
+The **Provenance Anchor** handles **blockchain anchoring of governance receipts** with
+**Shor-encoded provenance**: provenance hashes are encoded with the 9-qubit Shor code before
+Cardano anchoring, giving single-qubit error correction on the immutable receipt chain. It
+performs convergent multi-source data sync with append-only delta logs and bounded-loop
+convergence guarantees.
 
-> **Frontier capability.** First Shor-encoded + Cardano-anchored governance-receipt minting
-> pipeline.
+> **Frontier capability (roadmap).** A Shor-encoded + Cardano-anchored governance-receipt
+> minting pipeline. Cardano mainnet anchoring is roadmap (see the development note below).
 
-**Anatomy mapping:** amaru sits across [Yawar](/anatomy/#yawar) (the receipt ledger) and
-the [Khipu](/anatomy/#khipu) DAG, providing the durable external anchor.
+**Anatomy mapping:** the Provenance Anchor sits across [Yawar](/anatomy/#yawar) (the receipt
+ledger) and the [Khipu](/anatomy/#khipu) DAG, providing the durable external anchor.
 
 ## Mathematical foundation
 
@@ -36,19 +34,10 @@ $$ d\big(T(x), T(y)\big) \le q \cdot d(x, y), $$
 
 so iterating $T$ converges to a unique fixed point — the canonical synced ledger state.
 
-## API / install
-
-```sh
-git clone github.com/szl-holdings/amaru.git
-cd amaru
-pnpm install
-pnpm test
-```
-
 ## Example — mint a receipt
 
 ```ts
-import { mintReceipt } from '@szl/amaru'
+import { mintReceipt } from '@szl/provenance-anchor'
 
 const receipt = mintReceipt({
   payload: { decisionId: 'd-001', value: 1, organ: 'a11oy.policy' },
@@ -60,15 +49,14 @@ console.log(receipt.shorBlock)// Shor-9 encoded provenance block
 ```
 
 ::: warning In development
-**Cardano mainnet anchoring** is in development (target: Series-A milestone). The local
-append-only delta log, Shor encoding, and Lamport ordering are **live today** and tested
-via `pnpm test`. The DSSE receipt **signature** field is a PLACEHOLDER until Sigstore CI
-lands (see [Compliance](/compliance)).
+**Cardano mainnet anchoring** is roadmap (target: Series-A milestone). The local
+append-only delta log, Shor encoding, and Lamport ordering are **live today** and tested.
+The DSSE receipt **signature** field is a PLACEHOLDER until Sigstore CI lands (see
+[Compliance](/compliance)).
 :::
 
 ## Source & evidence
 
-- **Repo:** github.com/szl-holdings/amaru
 - **Spec:** ouroboros-thesis
 - **Proofs:** [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 - **DOI (versioned):** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) · **Concept DOI:** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
