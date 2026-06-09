@@ -1,0 +1,75 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# status-page-guard.yml — keep the public status board's publish step from
+# silently regressing.
+#
+# Why this exists
+# ---------------
+# status-page.yml was silently broken for a long time: it committed the generated
+# STATUS.md to the checked-out *default* branch and pushed it. Branch protection
+# rejected that push, but the failure surfaced only as a non-fatal log line, so
+# the "public" status board never updated — it lived only inside the workflow run
+# logs. The fix force-pushes a single orphan commit (STATUS.md + a Pages-ready
+# index.html) to the dedicated, UNPROTECTED `status` branch each run.
+#
+# A future edit could quietly revert any piece of that. This lightweight, text-
+# only guard (no network, no git, no cluster) FAILS if status-page.yml:
+#   chk1  no longer force-pushes to the `status` branch
+#   chk2  pushes to the default branch (or uses an ambiguous bare push)
+#   chk3  swallows the publish error (|| true / continue-on-error / no set -e)
+#
+# Mirrors the org guard pattern (teardown-guard.yml, zarf-action-var-guard.yml):
+# a self-test job proves each check still FAILS on a broken fixture before the
+# guard job trusts it against the real workflow.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Status Page Guard
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/status-page.yml"
+      - ".github/workflows/status-page-guard.yml"
+      - "scripts/status-page-guard-checks.sh"
+      - "scripts/status-page-guard-checks.test.sh"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/status-page.yml"
+      - ".github/workflows/status-page-guard.yml"
+      - "scripts/status-page-guard-checks.sh"
+      - "scripts/status-page-guard-checks.test.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Prove each check still FAILS on a deliberately-broken fixture (i.e. is not
+  # silently passing). The guard job depends on this so a neutered check blocks
+  # the build before it can wave a regression through.
+  self-test:
+    name: Self-test the guard checks (negative fixtures)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Run negative-fixture self-test
+        run: bash scripts/status-page-guard-checks.test.sh
+
+  guard:
+    name: Assert status-page publish step is intact
+    runs-on: ubuntu-latest
+    needs: self-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check 1 — force-push to the status branch is present
+        run: bash scripts/status-page-guard-checks.sh chk1 .github/workflows/status-page.yml
+      - name: Check 2 — no push targets the default branch
+        run: bash scripts/status-page-guard-checks.sh chk2 .github/workflows/status-page.yml
+      - name: Check 3 — publish failures are fatal (not swallowed)
+        run: bash scripts/status-page-guard-checks.sh chk3 .github/workflows/status-page.yml
+      - name: Status page publish step is intact
+        run: echo "status-page.yml publishes to the public 'status' branch and fails loudly on error."
