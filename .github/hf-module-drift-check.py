@@ -154,7 +154,7 @@ def parse_copy_sources(dockerfile_text):
             continue
         # Last token is the destination.
         sources.extend(clean[:-1])
-    # Normalise: drop leading "./", dedupe, keep order.
+    # Normalise: drop "./" prefix, dedupe, keep order.
     out = []
     seen = set()
     for s in sources:
