@@ -1,0 +1,139 @@
+name: Readiness harness
+
+# Proves "every tab is real" (doctrine v11, no mock theater):
+#  - contract: tabs.json must match the console (drift gate) + typo/link gate
+#  - probe:    throttled API probe -> per-tab "Lies?" verdict (status/p50/p95/
+#              schema/citations/freshness), uploaded as an artifact + job summary
+#  - stress:   k6 suite over the GET contract endpoints (manual dispatch)
+#  - sweep:    Playwright tab sweep of the live console (manual dispatch)
+#
+# Only GitHub-owned actions are used (org allowed_actions policy blocks the
+# pnpm/playwright/k6 marketplace actions); pnpm-free, stdlib-only generator.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/readiness-harness/**'
+      - 'pages/console.html'
+      - 'szl_readiness.py'
+      - '.github/workflows/readiness-harness.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/readiness-harness/**'
+      - 'pages/console.html'
+      - 'szl_readiness.py'
+      - '.github/workflows/readiness-harness.yml'
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Base URL to probe / sweep / stress'
+        required: false
+        default: 'https://a11oy.net'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HARNESS: tools/readiness-harness
+
+jobs:
+  contract:
+    name: Contract matrix + link gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+      - name: Contract matrix drift gate (tabs.json == console)
+        run: python3 "$HARNESS/gen_tabs_matrix.py" --check
+      - name: Typo / link gate (szl-holdings, a11oy.net, github)
+        run: node "$HARNESS/link_check.mjs"
+      - name: Probe runner syntax check
+        run: node -c "$HARNESS/probe_runner.mjs"
+
+  probe:
+    name: API probe ("Lies?" verdict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+      - name: Probe live endpoints (soft — reports lies, never fakes a pass)
+        # --soft: the build does not go red on a pre-existing broken tab (those
+        # are reported honestly in the verdict + summary). Endpoint implementation
+        # is out of scope for the harness; the verdict is the deliverable.
+        run: |
+          BASE="${{ github.event.inputs.base || 'https://a11oy.net' }}"
+          node "$HARNESS/probe_runner.mjs" --base "$BASE" --samples 1 --concurrency 2 --retries 2 --soft
+      - name: Verdict -> job summary
+        if: always()
+        run: |
+          V="$HARNESS/readiness-verdict.json"
+          if [ -f "$V" ]; then
+            node -e '
+              const v=require("./"+process.env.HARNESS+"/readiness-verdict.json");
+              const s=v.summary||{};
+              let o="## Readiness probe — \"is every tab real?\"\n\n";
+              o+=`base \`${v.base}\` · ${v.checkedAt}\n\n`;
+              o+=`| real | lies | unreachable | throttled | endpoints |\n|--:|--:|--:|--:|--:|\n`;
+              o+=`| ${s.ok} | ${s.lies} | ${s.unreachable||0} | ${s.throttled||0} | ${s.endpoints} |\n\n`;
+              const flagged=(v.results||[]).filter(r=>r.lie||r.unreachable);
+              if(flagged.length){o+="### Flagged\n\n";for(const r of flagged){o+=`- \`${r.path}\` — ${r.lie?("LIE: "+r.lies.join("; ")):("unreachable ("+(r.error||r.status)+")")}\n`;}}
+              else o+="All probed endpoints real.\n";
+              require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,o);
+            '
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: readiness-verdict
+          path: tools/readiness-harness/readiness-verdict.json
+          if-no-files-found: warn
+
+  stress:
+    name: k6 stress (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Install k6 (official apt repo, no marketplace action)
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Smoke profile
+        run: |
+          BASE="${{ github.event.inputs.base || 'https://a11oy.net' }}"
+          k6 run -e A11OY_BASE="$BASE" -e PROFILE=smoke "$HARNESS/stress/warhacker.js"
+
+  sweep:
+    name: Playwright tab sweep (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+      - name: Install Playwright + chromium
+        working-directory: tools/readiness-harness
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm install --no-save @playwright/test
+          npx playwright install --with-deps chromium
+      - name: Sweep every tab of the live console
+        working-directory: tools/readiness-harness
+        run: |
+          BASE="${{ github.event.inputs.base || 'https://a11oy.net' }}"
+          A11OY_BASE="$BASE" npx playwright test tab_sweeper.spec.ts

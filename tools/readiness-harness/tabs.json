@@ -1,0 +1,2642 @@
+{
+  "version": "1",
+  "doctrine": "v11",
+  "organ": "a11oy",
+  "consoleRoute": "/console",
+  "generatedAt": "2026-06-09T00:00:00Z",
+  "generator": "tools/readiness-harness/gen_tabs_matrix.py",
+  "summary": {
+    "tabs": 101,
+    "endpoints": 38,
+    "tabsWithCitations": 20,
+    "staticTabs": 23
+  },
+  "endpoints": {
+    "/api/a11oy/v1/lambda": {
+      "method": "GET",
+      "schema": "lambda",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Λ governance score — derived/deterministic, Conjecture-1 honest."
+    },
+    "/api/a11oy/v1/gates": {
+      "method": "GET",
+      "schema": "gates",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/formulas/selftest": {
+      "method": "GET",
+      "schema": "selftest",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Kernel-gated proven-formula self-test."
+    },
+    "/api/a11oy/v1/mcp/tools": {
+      "method": "GET",
+      "schema": "mcp_tools",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Returns the 4 real flagship tools; never the fabricated 12."
+    },
+    "/api/a11oy/v1/llm/registry": {
+      "method": "GET",
+      "schema": "llm_registry",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/reason/tiers": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/reason/readiness": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/policy/decide": {
+      "method": "POST",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Governed decision; empty body validates."
+    },
+    "/api/a11oy/v1/operator/ask": {
+      "method": "POST",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Operator ask; empty body validates."
+    },
+    "/api/a11oy/provenance": {
+      "method": "GET",
+      "schema": "provenance",
+      "freshnessSLA": 86400,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Combined provenance board (note: /provenance, NOT /v1/provenance)."
+    },
+    "/api/a11oy/v1/ledger": {
+      "method": "GET",
+      "schema": "ledger",
+      "freshnessSLA": 86400,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/receipt/export": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/cosign.pub": {
+      "method": "GET",
+      "schema": "text",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Public signing key for offline receipt verification."
+    },
+    "/api/a11oy/v1/eval-arena/history": {
+      "method": "GET",
+      "schema": "arena_history",
+      "freshnessSLA": 86400,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/observability/summary": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/observability/business": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/mesh/state": {
+      "method": "GET",
+      "schema": "mesh",
+      "freshnessSLA": 300,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/capabilities/mesh": {
+      "method": "GET",
+      "schema": "mesh",
+      "freshnessSLA": 300,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/operator/ledger": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/operator/recommend": {
+      "method": "POST",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v2/operator/command-log": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Append-only command log; quiet != stale, so no freshness SLA."
+    },
+    "/api/a11oy/v1/policy/compliance": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/policy/gates": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/policy/threats": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Curated, citation-gated policy threat catalog (not a live feed); judged on citations, not freshness."
+    },
+    "/api/a11oy/v1/policy/decisions/feed": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/sec/cve": {
+      "method": "GET",
+      "schema": "generic_list",
+      "freshnessSLA": 86400,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Live CVE feed (NVD)."
+    },
+    "/api/a11oy/v1/sec/kev": {
+      "method": "GET",
+      "schema": "generic_list",
+      "freshnessSLA": 86400,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Live CISA KEV catalog."
+    },
+    "/api/a11oy/v1/sec/attack": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 86400,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/sec/threats": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/sec/threatgraph": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/vertical-packs": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/vert/finance/feed": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."
+    },
+    "/api/a11oy/v1/deva/healthz": {
+      "method": "GET",
+      "schema": "deva_health",
+      "freshnessSLA": 300,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "deva feed health — lists the live tabs[]; warm before judging deep tabs."
+    },
+    "/api/a11oy/v1/devb/healthz": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 300,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/seismic/forecast": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/warhacker/index": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/readiness": {
+      "method": "GET",
+      "schema": "readiness",
+      "freshnessSLA": 300,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": ""
+    },
+    "/api/a11oy/v1/readiness/tab-matrix": {
+      "method": "GET",
+      "schema": "tab_matrix",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "This contract, served live — the harness verifies served == repo."
+    }
+  },
+  "schemas": {
+    "text": {
+      "type": "string"
+    },
+    "generic_obj": {
+      "type": "object"
+    },
+    "generic_list": {
+      "anyOf": [
+        {
+          "type": "array"
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "lambda": {
+      "type": "object",
+      "anyKey": [
+        "lambda",
+        "value",
+        "score",
+        "Λ",
+        "conjecture",
+        "floor"
+      ]
+    },
+    "gates": {
+      "type": "object",
+      "anyKey": [
+        "gates",
+        "manifest",
+        "passed",
+        "results"
+      ]
+    },
+    "selftest": {
+      "type": "object",
+      "anyKey": [
+        "invariants",
+        "invariants_all_hold",
+        "reasoning",
+        "policy",
+        "operator",
+        "unifying",
+        "passed",
+        "results"
+      ]
+    },
+    "mcp_tools": {
+      "type": "object",
+      "anyKey": [
+        "tools",
+        "count",
+        "items"
+      ]
+    },
+    "llm_registry": {
+      "type": "object",
+      "anyKey": [
+        "models",
+        "registry",
+        "tiers",
+        "providers"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "anyKey": [
+        "receipts",
+        "chain",
+        "anchor",
+        "entries",
+        "items",
+        "slsa",
+        "doctrine",
+        "khipu_dsse",
+        "self_attesting",
+        "space"
+      ]
+    },
+    "ledger": {
+      "type": "object",
+      "anyKey": [
+        "entries",
+        "ledger",
+        "items",
+        "rows",
+        "receipts",
+        "count"
+      ]
+    },
+    "arena_history": {
+      "type": "object",
+      "anyKey": [
+        "runs",
+        "history",
+        "items"
+      ]
+    },
+    "mesh": {
+      "type": "object",
+      "anyKey": [
+        "nodes",
+        "state",
+        "quorum",
+        "health",
+        "mesh_organs",
+        "wires",
+        "khipu_nodes"
+      ]
+    },
+    "deva_health": {
+      "type": "object",
+      "required": [
+        "tabs"
+      ]
+    },
+    "readiness": {
+      "type": "object",
+      "required": [
+        "sections"
+      ]
+    },
+    "tab_matrix": {
+      "type": "object",
+      "required": [
+        "tabs",
+        "endpoints"
+      ]
+    }
+  },
+  "tabs": [
+    {
+      "key": "alloy",
+      "title": "alloy",
+      "group": "Console",
+      "route": "/console#alloy",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "arena",
+      "title": "arena",
+      "group": "Console",
+      "route": "/console#arena",
+      "endpoints": [
+        "/api/a11oy/v1/eval-arena/history"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "ask",
+      "title": "ask",
+      "group": "Console",
+      "route": "/console#ask",
+      "endpoints": [
+        "/api/a11oy/v1/operator/ask"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "attack",
+      "title": "attack",
+      "group": "Console",
+      "route": "/console#attack",
+      "endpoints": [
+        "/api/a11oy/v1/sec/attack"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "brain2",
+      "title": "brain2",
+      "group": "Console",
+      "route": "/console#brain2",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "business",
+      "title": "business",
+      "group": "Console",
+      "route": "/console#business",
+      "endpoints": [
+        "/api/a11oy/v1/observability/business"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "chain",
+      "title": "chain",
+      "group": "Console",
+      "route": "/console#chain",
+      "endpoints": [
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "chat",
+      "title": "Chat — Governed Assistant",
+      "group": "Console",
+      "route": "/console#chat",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "codetab",
+      "title": "codetab",
+      "group": "Console",
+      "route": "/console#codetab",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "command",
+      "title": "command",
+      "group": "Console",
+      "route": "/console#command",
+      "endpoints": [
+        "/api/a11oy/v2/operator/command-log"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "cve",
+      "title": "cve",
+      "group": "Console",
+      "route": "/console#cve",
+      "endpoints": [
+        "/api/a11oy/v1/sec/cve"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "cybIncident",
+      "title": "Signed Incidents",
+      "group": "Console",
+      "route": "/console#cybIncident",
+      "endpoints": [
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "cybPosture",
+      "title": "Posture & Drift",
+      "group": "Console",
+      "route": "/console#cybPosture",
+      "endpoints": [
+        "/api/a11oy/v1/policy/compliance"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "cybSurface",
+      "title": "Attack-Surface Graph",
+      "group": "Console",
+      "route": "/console#cybSurface",
+      "endpoints": [
+        "/api/a11oy/v1/sec/threatgraph",
+        "/api/a11oy/v1/sec/attack"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "cybThreat",
+      "title": "Threat Intelligence",
+      "group": "Console",
+      "route": "/console#cybThreat",
+      "endpoints": [
+        "/api/a11oy/v1/sec/threats",
+        "/api/a11oy/v1/sec/cve"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "cybZero",
+      "title": "Zero-Trust Mesh",
+      "group": "Console",
+      "route": "/console#cybZero",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "decision",
+      "title": "decision",
+      "group": "Console",
+      "route": "/console#decision",
+      "endpoints": [
+        "/api/a11oy/v1/policy/decisions/feed"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "demo",
+      "title": "demo",
+      "group": "Console",
+      "route": "/console#demo",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "deploy",
+      "title": "deploy",
+      "group": "Console",
+      "route": "/console#deploy",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "entCockpit",
+      "title": "Enterprise — Exec Cockpit",
+      "group": "Console",
+      "route": "/console#entCockpit",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz",
+        "/api/a11oy/v1/observability/summary"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "entComms",
+      "title": "Enterprise — Comms Pulse",
+      "group": "Console",
+      "route": "/console#entComms",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "entForecast",
+      "title": "Enterprise — Forecast Engine",
+      "group": "Console",
+      "route": "/console#entForecast",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "entIncident",
+      "title": "Enterprise — Incident & Reliability",
+      "group": "Console",
+      "route": "/console#entIncident",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "entRevenue",
+      "title": "Enterprise — Revenue & CRM",
+      "group": "Console",
+      "route": "/console#entRevenue",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "evidence",
+      "title": "evidence",
+      "group": "Console",
+      "route": "/console#evidence",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "feed",
+      "title": "feed",
+      "group": "Console",
+      "route": "/console#feed",
+      "endpoints": [
+        "/api/a11oy/v1/policy/decisions/feed"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "finc",
+      "title": "Crypto Live",
+      "group": "Console",
+      "route": "/console#finc",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "finm",
+      "title": "Markets Macro",
+      "group": "Console",
+      "route": "/console#finm",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "finp",
+      "title": "Prediction Markets",
+      "group": "Console",
+      "route": "/console#finp",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "finq",
+      "title": "Quant Desk",
+      "group": "Console",
+      "route": "/console#finq",
+      "endpoints": [
+        "/api/a11oy/v1/vert/finance/feed",
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "finr",
+      "title": "Risk & Fraud Obs.",
+      "group": "Console",
+      "route": "/console#finr",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "fleet",
+      "title": "fleet",
+      "group": "Console",
+      "route": "/console#fleet",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state",
+        "/api/a11oy/v1/operator/ledger"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "fltGov",
+      "title": "Governance Gates",
+      "group": "Console",
+      "route": "/console#fltGov",
+      "endpoints": [
+        "/api/a11oy/v1/policy/gates"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "fltObs",
+      "title": "Observability",
+      "group": "Console",
+      "route": "/console#fltObs",
+      "endpoints": [
+        "/api/a11oy/v1/observability/summary"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "fltOrch",
+      "title": "Orchestration",
+      "group": "Console",
+      "route": "/console#fltOrch",
+      "endpoints": [
+        "/api/a11oy/v1/llm/registry"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "fltReceipts",
+      "title": "Decision Receipts",
+      "group": "Console",
+      "route": "/console#fltReceipts",
+      "endpoints": [
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "fltTopo",
+      "title": "Topology & Health",
+      "group": "Console",
+      "route": "/console#fltTopo",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "forecast",
+      "title": "forecast",
+      "group": "Console",
+      "route": "/console#forecast",
+      "endpoints": [
+        "/api/a11oy/v1/seismic/forecast"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "gates",
+      "title": "gates",
+      "group": "Console",
+      "route": "/console#gates",
+      "endpoints": [
+        "/api/a11oy/v1/gates"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "govatlas",
+      "title": "govatlas",
+      "group": "Console",
+      "route": "/console#govatlas",
+      "endpoints": [
+        "/api/a11oy/v1/policy/gates"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "govern",
+      "title": "govern",
+      "group": "Console",
+      "route": "/console#govern",
+      "endpoints": [
+        "/api/a11oy/v1/policy/decide",
+        "/api/a11oy/v1/gates"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "honest",
+      "title": "honest",
+      "group": "Console",
+      "route": "/console#honest",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "kamay",
+      "title": "KAMAY — Agentic Coding",
+      "group": "Console",
+      "route": "/console#kamay",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "kbformulas",
+      "title": "kbformulas",
+      "group": "Console",
+      "route": "/console#kbformulas",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "kev",
+      "title": "kev",
+      "group": "Console",
+      "route": "/console#kev",
+      "endpoints": [
+        "/api/a11oy/v1/sec/kev"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "knowledge",
+      "title": "knowledge",
+      "group": "Console",
+      "route": "/console#knowledge",
+      "endpoints": [
+        "/api/a11oy/v1/formulas/selftest"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "lambda",
+      "title": "lambda",
+      "group": "Console",
+      "route": "/console#lambda",
+      "endpoints": [
+        "/api/a11oy/v1/lambda"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "ledger3d",
+      "title": "ledger3d",
+      "group": "Console",
+      "route": "/console#ledger3d",
+      "endpoints": [
+        "/api/a11oy/v1/ledger"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "legDefense",
+      "title": "Counsel — Defense Builder",
+      "group": "Console",
+      "route": "/console#legDefense",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "legExposure",
+      "title": "Counsel — Exposure Graph",
+      "group": "Console",
+      "route": "/console#legExposure",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "legInsure",
+      "title": "Counsel — Insurance & Wills",
+      "group": "Console",
+      "route": "/console#legInsure",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "legMatter",
+      "title": "Counsel — Matter Command",
+      "group": "Console",
+      "route": "/console#legMatter",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "legReg",
+      "title": "Counsel — Regulatory Watch",
+      "group": "Console",
+      "route": "/console#legReg",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "lineage",
+      "title": "lineage",
+      "group": "Console",
+      "route": "/console#lineage",
+      "endpoints": [
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "llm",
+      "title": "llm",
+      "group": "Console",
+      "route": "/console#llm",
+      "endpoints": [
+        "/api/a11oy/v1/llm/registry"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "mcp",
+      "title": "mcp",
+      "group": "Console",
+      "route": "/console#mcp",
+      "endpoints": [
+        "/api/a11oy/v1/mcp/tools"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "melt",
+      "title": "melt",
+      "group": "Console",
+      "route": "/console#melt",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "mesh",
+      "title": "mesh",
+      "group": "Console",
+      "route": "/console#mesh",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state",
+        "/api/a11oy/v1/capabilities/mesh"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "mission",
+      "title": "mission",
+      "group": "Console",
+      "route": "/console#mission",
+      "endpoints": [
+        "/api/a11oy/v1/operator/ledger"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "modelatlas",
+      "title": "modelatlas",
+      "group": "Console",
+      "route": "/console#modelatlas",
+      "endpoints": [
+        "/api/a11oy/v1/llm/registry"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "ontology",
+      "title": "ontology",
+      "group": "Console",
+      "route": "/console#ontology",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "organheart",
+      "title": "organheart",
+      "group": "Console",
+      "route": "/console#organheart",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "organism",
+      "title": "organism",
+      "group": "Console",
+      "route": "/console#organism",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "organnervous",
+      "title": "organnervous",
+      "group": "Console",
+      "route": "/console#organnervous",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "organskeleton",
+      "title": "organskeleton",
+      "group": "Console",
+      "route": "/console#organskeleton",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "organyawar",
+      "title": "organyawar",
+      "group": "Console",
+      "route": "/console#organyawar",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "oversight",
+      "title": "oversight",
+      "group": "Console",
+      "route": "/console#oversight",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "policies",
+      "title": "policies",
+      "group": "Console",
+      "route": "/console#policies",
+      "endpoints": [
+        "/api/a11oy/v1/policy/compliance",
+        "/api/a11oy/v1/policy/gates"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "pulse",
+      "title": "pulse",
+      "group": "Console",
+      "route": "/console#pulse",
+      "endpoints": [
+        "/api/a11oy/v1/observability/summary"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "pvaAnchor",
+      "title": "Public-Ledger Anchor",
+      "group": "Console",
+      "route": "/console#pvaAnchor",
+      "endpoints": [
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "pvaGraph",
+      "title": "Receipt Graph (3D)",
+      "group": "Console",
+      "route": "/console#pvaGraph",
+      "endpoints": [
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "pvaHealth",
+      "title": "Anchor Health",
+      "group": "Console",
+      "route": "/console#pvaHealth",
+      "endpoints": [
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "pvaPqc",
+      "title": "Post-Quantum Signing",
+      "group": "Console",
+      "route": "/console#pvaPqc",
+      "endpoints": [
+        "/api/a11oy/cosign.pub"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "pvaVerify",
+      "title": "Tamper / Audit Verifier",
+      "group": "Console",
+      "route": "/console#pvaVerify",
+      "endpoints": [
+        "/api/a11oy/v1/receipt/export",
+        "/api/a11oy/cosign.pub"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "readiness",
+      "title": "readiness",
+      "group": "Console",
+      "route": "/console#readiness",
+      "endpoints": [
+        "/api/a11oy/v1/readiness",
+        "/api/a11oy/v1/readiness/tab-matrix"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "rebe",
+      "title": "Broker Edge",
+      "group": "Console",
+      "route": "/console#rebe",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "receipts",
+      "title": "receipts",
+      "group": "Console",
+      "route": "/console#receipts",
+      "endpoints": [
+        "/api/a11oy/provenance",
+        "/api/a11oy/v1/receipt/export",
+        "/api/a11oy/cosign.pub"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "reciprocity",
+      "title": "reciprocity",
+      "group": "Console",
+      "route": "/console#reciprocity",
+      "endpoints": [
+        "/api/a11oy/v1/ledger"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "red",
+      "title": "Distress Radar",
+      "group": "Console",
+      "route": "/console#red",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "redeal",
+      "title": "Deal Intelligence",
+      "group": "Console",
+      "route": "/console#redeal",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "rem",
+      "title": "Market Pulse",
+      "group": "Console",
+      "route": "/console#rem",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "reo",
+      "title": "Ownership Graph",
+      "group": "Console",
+      "route": "/console#reo",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "replay",
+      "title": "replay",
+      "group": "Console",
+      "route": "/console#replay",
+      "endpoints": [
+        "/api/a11oy/v1/eval-arena/history"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "threatgraph",
+      "title": "threatgraph",
+      "group": "Console",
+      "route": "/console#threatgraph",
+      "endpoints": [
+        "/api/a11oy/v1/sec/threatgraph"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "threats",
+      "title": "threats",
+      "group": "Console",
+      "route": "/console#threats",
+      "endpoints": [
+        "/api/a11oy/v1/sec/threats"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "trustspace",
+      "title": "trustspace",
+      "group": "Console",
+      "route": "/console#trustspace",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "udsMesh",
+      "title": "Warhacker — UDS 4/4 Quorum",
+      "group": "Console",
+      "route": "/console#udsMesh",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "vcyber",
+      "title": "Cyber Resilience",
+      "group": "Console",
+      "route": "/console#vcyber",
+      "endpoints": [
+        "/api/a11oy/v1/sec/threats",
+        "/api/a11oy/v1/sec/threatgraph"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "vdefense",
+      "title": "Defense / Gov",
+      "group": "Console",
+      "route": "/console#vdefense",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "verticals",
+      "title": "verticals",
+      "group": "Console",
+      "route": "/console#verticals",
+      "endpoints": [
+        "/api/a11oy/v1/vertical-packs"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "vfinance",
+      "title": "Finance",
+      "group": "Console",
+      "route": "/console#vfinance",
+      "endpoints": [
+        "/api/a11oy/v1/vert/finance/feed",
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "vlegal",
+      "title": "Legal Matter",
+      "group": "Console",
+      "route": "/console#vlegal",
+      "endpoints": [
+        "/api/a11oy/v1/devb/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "vrealestate",
+      "title": "Real Estate",
+      "group": "Console",
+      "route": "/console#vrealestate",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "warboard",
+      "title": "warboard",
+      "group": "Console",
+      "route": "/console#warboard",
+      "endpoints": [
+        "/api/a11oy/v1/lambda",
+        "/api/a11oy/v1/gates",
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "whCannonico",
+      "title": "Warhacker — Cannonico",
+      "group": "Console",
+      "route": "/console#whCannonico",
+      "endpoints": [
+        "/api/a11oy/v1/warhacker/index"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "whHero",
+      "title": "Warhacker — Provable Interdiction",
+      "group": "Console",
+      "route": "/console#whHero",
+      "endpoints": [
+        "/api/a11oy/v1/warhacker/index"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "whTamper",
+      "title": "Warhacker — Tamper & Determinism",
+      "group": "Console",
+      "route": "/console#whTamper",
+      "endpoints": [
+        "/api/a11oy/v1/warhacker/index"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "wowdrop",
+      "title": "wowdrop",
+      "group": "Console",
+      "route": "/console#wowdrop",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "wowledger",
+      "title": "wowledger",
+      "group": "Console",
+      "route": "/console#wowledger",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "wowroi",
+      "title": "wowroi",
+      "group": "Console",
+      "route": "/console#wowroi",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "wowtoggle",
+      "title": "wowtoggle",
+      "group": "Console",
+      "route": "/console#wowtoggle",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": true,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,441 @@
+#!/usr/bin/env python3
+"""Generate tabs.json — the Tab Contract Matrix for the a11oy console.
+
+This is the single source of truth that proves "every tab is real". It maps every
+console tab -> route -> backing endpoints -> response schema -> freshness SLA ->
+citations-required -> degraded rules. The harness (Playwright sweeper, API probe
+runner, link-check, stress suite) all consume this file.
+
+Design:
+- The TAB list is extracted from the live console source (pages/console.html) so it
+  can never silently drift away from what actually ships.
+- The ENDPOINT contract registry (schemas, freshness SLAs, citation + degraded
+  rules) is curated here and grounded in the real /api/a11oy/v1/* surface. This is
+  the part a human reviews; it encodes the doctrine-v11 honesty contract.
+- Tabs are attached to endpoints by an explicit per-tab map (preferred) falling back
+  to a family-prefix heuristic, so a new tab is never left un-contracted.
+
+Run:  python3 tools/readiness-harness/gen_tabs_matrix.py
+      python3 tools/readiness-harness/gen_tabs_matrix.py --check   # CI: fail on drift
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+from datetime import datetime, timezone
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
+CONSOLE = os.path.join(REPO, "pages", "console.html")
+OUT = os.path.join(HERE, "tabs.json")
+
+ORGAN = "a11oy"
+CONSOLE_ROUTE = "/console"
+
+# ── Endpoint contract registry ─────────────────────────────────────────────
+# freshnessSLA: max acceptable age (seconds) of the data the endpoint returns;
+#   null  -> static/derived, no freshness obligation.
+# citationsRequired: the response MUST carry at least one citation/source when it
+#   claims live external data (doctrine v11: "no mock theater").
+# degraded: which honest states the harness tolerates without failing the build.
+#   allowStatuses are the only HTTP codes that count as "up"; anything else
+#   (4xx/5xx) is an undeclared breakage and fails. allowLabels are the honest
+#   data_kind/status labels a tab may carry (live, cached, degraded, sample…).
+# liesIf: response shapes that count as a "lie" (stale/mock/uncited) -> fail.
+def ep(method="GET", schema=None, sla=None, citations=False,
+       allow_statuses=(200,), allow_labels=("live", "cached"),
+       lies_if=("mock", "fabricated", "placeholder"), note=""):
+    return {
+        "method": method,
+        "schema": schema,
+        "freshnessSLA": sla,
+        "citationsRequired": citations,
+        "degradedRules": {
+            "allowStatuses": list(allow_statuses),
+            "allowLabels": list(allow_labels),
+            "liesIf": list(lies_if),
+        },
+        "note": note,
+    }
+
+
+DAY = 86400
+HOUR = 3600
+MIN = 60
+
+ENDPOINTS = {
+    # ── Core honesty / governance spine ──
+    "/api/a11oy/v1/lambda": ep(schema="lambda", sla=None,
+        note="Λ governance score — derived/deterministic, Conjecture-1 honest."),
+    "/api/a11oy/v1/gates": ep(schema="gates", sla=None),
+    "/api/a11oy/v1/formulas/selftest": ep(schema="selftest", sla=None,
+        note="Kernel-gated proven-formula self-test."),
+    "/api/a11oy/v1/mcp/tools": ep(schema="mcp_tools", sla=None,
+        note="Returns the 4 real flagship tools; never the fabricated 12."),
+    "/api/a11oy/v1/llm/registry": ep(schema="llm_registry", sla=None),
+    "/api/a11oy/v1/reason/tiers": ep(schema="generic_obj", sla=None),
+    "/api/a11oy/v1/reason/readiness": ep(schema="generic_obj", sla=None),
+
+    # ── Governed decision endpoints (POST; empty body legitimately 400/422) ──
+    "/api/a11oy/v1/policy/decide": ep(method="POST", schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422), note="Governed decision; empty body validates."),
+    "/api/a11oy/v1/operator/ask": ep(method="POST", schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422), note="Operator ask; empty body validates."),
+
+    # ── Provenance / receipts ──
+    # NOTE: the console calls /api/a11oy/provenance (NO /v1/). /v1/provenance is 404.
+    "/api/a11oy/provenance": ep(schema="provenance", sla=DAY, citations=True,
+        note="Combined provenance board (note: /provenance, NOT /v1/provenance)."),
+    "/api/a11oy/v1/ledger": ep(schema="ledger", sla=DAY),
+    "/api/a11oy/v1/receipt/export": ep(schema="generic_obj", sla=None),
+    "/api/a11oy/cosign.pub": ep(schema="text", sla=None,
+        note="Public signing key for offline receipt verification."),
+
+    # ── Eval arena ──
+    "/api/a11oy/v1/eval-arena/history": ep(schema="arena_history", sla=DAY),
+
+    # ── Observability ──
+    "/api/a11oy/v1/observability/summary": ep(schema="generic_obj", sla=HOUR),
+    "/api/a11oy/v1/observability/business": ep(schema="generic_obj", sla=HOUR),
+
+    # ── Mesh / capabilities ──
+    "/api/a11oy/v1/mesh/state": ep(schema="mesh", sla=5 * MIN),
+    "/api/a11oy/v1/capabilities/mesh": ep(schema="mesh", sla=5 * MIN),
+
+    # ── Operator (rosie) ──
+    "/api/a11oy/v1/operator/ledger": ep(schema="generic_obj", sla=HOUR),
+    "/api/a11oy/v1/operator/recommend": ep(method="POST", schema="generic_obj", sla=None),
+    "/api/a11oy/v2/operator/command-log": ep(schema="generic_obj", sla=None,
+        note="Append-only command log; quiet != stale, so no freshness SLA."),
+
+    # ── Policy (sentra) ──
+    "/api/a11oy/v1/policy/compliance": ep(schema="generic_obj", sla=HOUR),
+    "/api/a11oy/v1/policy/gates": ep(schema="generic_obj", sla=None),
+    "/api/a11oy/v1/policy/threats": ep(schema="generic_obj", sla=None, citations=True,
+        note="Curated, citation-gated policy threat catalog (not a live feed); judged on citations, not freshness."),
+    "/api/a11oy/v1/policy/decisions/feed": ep(schema="generic_obj", sla=HOUR),
+
+    # ── Security feeds (live external OSINT) ──
+    "/api/a11oy/v1/sec/cve": ep(schema="generic_list", sla=DAY, citations=True,
+        note="Live CVE feed (NVD)."),
+    "/api/a11oy/v1/sec/kev": ep(schema="generic_list", sla=DAY, citations=True,
+        note="Live CISA KEV catalog."),
+    "/api/a11oy/v1/sec/attack": ep(schema="generic_obj", sla=DAY, citations=True),
+    "/api/a11oy/v1/sec/threats": ep(schema="generic_obj", sla=HOUR, citations=True),
+    "/api/a11oy/v1/sec/threatgraph": ep(schema="generic_obj", sla=HOUR, citations=True),
+
+    # ── Vertical packs / deva (finance, live external) ──
+    "/api/a11oy/v1/vertical-packs": ep(schema="generic_obj", sla=None),
+    "/api/a11oy/v1/vert/finance/feed": ep(schema="generic_obj", sla=HOUR, citations=True,
+        note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
+    "/api/a11oy/v1/deva/healthz": ep(schema="deva_health", sla=5 * MIN,
+        note="deva feed health — lists the live tabs[]; warm before judging deep tabs."),
+
+    # ── devb (legal + enterprise, live external) ──
+    "/api/a11oy/v1/devb/healthz": ep(schema="generic_obj", sla=5 * MIN),
+
+    # ── seismic ──
+    "/api/a11oy/v1/seismic/forecast": ep(schema="generic_obj", sla=HOUR, citations=True),
+
+    # ── warhacker ──
+    "/api/a11oy/v1/warhacker/index": ep(schema="generic_obj", sla=None),
+
+    # ── readiness (self) ──
+    "/api/a11oy/v1/readiness": ep(schema="readiness", sla=5 * MIN),
+    "/api/a11oy/v1/readiness/tab-matrix": ep(schema="tab_matrix", sla=None,
+        note="This contract, served live — the harness verifies served == repo."),
+}
+
+# JSON-schema-lite shapes the probe runner validates against. Intentionally
+# permissive on extra keys, strict on the keys that prove the response is real.
+SCHEMAS = {
+    "text": {"type": "string"},
+    "generic_obj": {"type": "object"},
+    "generic_list": {"anyOf": [{"type": "array"}, {"type": "object"}]},
+    "lambda": {"type": "object", "anyKey": ["lambda", "value", "score", "Λ", "conjecture", "floor"]},
+    "gates": {"type": "object", "anyKey": ["gates", "manifest", "passed", "results"]},
+    "selftest": {"type": "object",
+                 "anyKey": ["invariants", "invariants_all_hold", "reasoning",
+                            "policy", "operator", "unifying", "passed", "results"]},
+    "mcp_tools": {"type": "object", "anyKey": ["tools", "count", "items"]},
+    "llm_registry": {"type": "object", "anyKey": ["models", "registry", "tiers", "providers"]},
+    "provenance": {"type": "object",
+                   "anyKey": ["receipts", "chain", "anchor", "entries", "items",
+                              "slsa", "doctrine", "khipu_dsse", "self_attesting", "space"]},
+    "ledger": {"type": "object", "anyKey": ["entries", "ledger", "items", "rows", "receipts", "count"]},
+    "arena_history": {"type": "object", "anyKey": ["runs", "history", "items"]},
+    "mesh": {"type": "object",
+             "anyKey": ["nodes", "state", "quorum", "health", "mesh_organs", "wires", "khipu_nodes"]},
+    "deva_health": {"type": "object", "required": ["tabs"]},
+    "readiness": {"type": "object", "required": ["sections"]},
+    "tab_matrix": {"type": "object", "required": ["tabs", "endpoints"]},
+}
+
+# Explicit per-tab endpoint attachment (authoritative where present). Keys missing
+# here fall back to the family heuristic below.
+TAB_ENDPOINTS = {
+    "warboard": ["/api/a11oy/v1/lambda", "/api/a11oy/v1/gates", "/api/a11oy/provenance"],
+    "lambda": ["/api/a11oy/v1/lambda"],
+    "gates": ["/api/a11oy/v1/gates"],
+    "mcp": ["/api/a11oy/v1/mcp/tools"],
+    "llm": ["/api/a11oy/v1/llm/registry"],
+    "modelatlas": ["/api/a11oy/v1/llm/registry"],
+    "arena": ["/api/a11oy/v1/eval-arena/history"],
+    "replay": ["/api/a11oy/v1/eval-arena/history"],
+    "mesh": ["/api/a11oy/v1/mesh/state", "/api/a11oy/v1/capabilities/mesh"],
+    "trustspace": ["/api/a11oy/v1/mesh/state"],
+    "ledger3d": ["/api/a11oy/v1/ledger"],
+    "receipts": ["/api/a11oy/provenance", "/api/a11oy/v1/receipt/export", "/api/a11oy/cosign.pub"],
+    "chain": ["/api/a11oy/provenance"],
+    "lineage": ["/api/a11oy/provenance"],
+    "reciprocity": ["/api/a11oy/v1/ledger"],
+    "govern": ["/api/a11oy/v1/policy/decide", "/api/a11oy/v1/gates"],
+    "govatlas": ["/api/a11oy/v1/policy/gates"],
+    "policies": ["/api/a11oy/v1/policy/compliance", "/api/a11oy/v1/policy/gates"],
+    "decision": ["/api/a11oy/v1/policy/decisions/feed"],
+    "threats": ["/api/a11oy/v1/sec/threats"],
+    "threatgraph": ["/api/a11oy/v1/sec/threatgraph"],
+    "attack": ["/api/a11oy/v1/sec/attack"],
+    "cve": ["/api/a11oy/v1/sec/cve"],
+    "kev": ["/api/a11oy/v1/sec/kev"],
+    "fleet": ["/api/a11oy/v1/mesh/state", "/api/a11oy/v1/operator/ledger"],
+    "ask": ["/api/a11oy/v1/operator/ask"],
+    "command": ["/api/a11oy/v2/operator/command-log"],
+    "mission": ["/api/a11oy/v1/operator/ledger"],
+    "pulse": ["/api/a11oy/v1/observability/summary"],
+    "business": ["/api/a11oy/v1/observability/business"],
+    "forecast": ["/api/a11oy/v1/seismic/forecast"],
+    "feed": ["/api/a11oy/v1/policy/decisions/feed"],
+    "verticals": ["/api/a11oy/v1/vertical-packs"],
+    "knowledge": ["/api/a11oy/v1/formulas/selftest"],
+    "readiness": ["/api/a11oy/v1/readiness", "/api/a11oy/v1/readiness/tab-matrix"],
+    # Vertical command + deep tabs
+    "vfinance": ["/api/a11oy/v1/vert/finance/feed", "/api/a11oy/v1/deva/healthz"],
+    "finq": ["/api/a11oy/v1/vert/finance/feed", "/api/a11oy/v1/deva/healthz"],
+    "finc": ["/api/a11oy/v1/deva/healthz"],
+    "finm": ["/api/a11oy/v1/deva/healthz"],
+    "finp": ["/api/a11oy/v1/deva/healthz"],
+    "finr": ["/api/a11oy/v1/deva/healthz"],
+    "vrealestate": ["/api/a11oy/v1/deva/healthz"],
+    "rem": ["/api/a11oy/v1/deva/healthz"],
+    "red": ["/api/a11oy/v1/deva/healthz"],
+    "reo": ["/api/a11oy/v1/deva/healthz"],
+    "redeal": ["/api/a11oy/v1/deva/healthz"],
+    "rebe": ["/api/a11oy/v1/deva/healthz"],
+    "vlegal": ["/api/a11oy/v1/devb/healthz"],
+    "legMatter": ["/api/a11oy/v1/devb/healthz"],
+    "legDefense": ["/api/a11oy/v1/devb/healthz"],
+    "legReg": ["/api/a11oy/v1/devb/healthz"],
+    "legInsure": ["/api/a11oy/v1/devb/healthz"],
+    "legExposure": ["/api/a11oy/v1/devb/healthz"],
+    "entCockpit": ["/api/a11oy/v1/devb/healthz", "/api/a11oy/v1/observability/summary"],
+    "entComms": ["/api/a11oy/v1/devb/healthz"],
+    "entRevenue": ["/api/a11oy/v1/devb/healthz"],
+    "entIncident": ["/api/a11oy/v1/devb/healthz"],
+    "entForecast": ["/api/a11oy/v1/devb/healthz"],
+    "vcyber": ["/api/a11oy/v1/sec/threats", "/api/a11oy/v1/sec/threatgraph"],
+    "cybThreat": ["/api/a11oy/v1/sec/threats", "/api/a11oy/v1/sec/cve"],
+    "cybSurface": ["/api/a11oy/v1/sec/threatgraph", "/api/a11oy/v1/sec/attack"],
+    "cybZero": ["/api/a11oy/v1/mesh/state"],
+    "cybPosture": ["/api/a11oy/v1/policy/compliance"],
+    "cybIncident": ["/api/a11oy/provenance"],
+    "vdefense": ["/api/a11oy/v1/mesh/state"],
+    "fltTopo": ["/api/a11oy/v1/mesh/state"],
+    "fltObs": ["/api/a11oy/v1/observability/summary"],
+    "fltOrch": ["/api/a11oy/v1/llm/registry"],
+    "fltReceipts": ["/api/a11oy/provenance"],
+    "fltGov": ["/api/a11oy/v1/policy/gates"],
+    "pvaAnchor": ["/api/a11oy/provenance"],
+    "pvaGraph": ["/api/a11oy/provenance"],
+    "pvaHealth": ["/api/a11oy/provenance"],
+    "pvaPqc": ["/api/a11oy/cosign.pub"],
+    "pvaVerify": ["/api/a11oy/v1/receipt/export", "/api/a11oy/cosign.pub"],
+    "whHero": ["/api/a11oy/v1/warhacker/index"],
+    "udsMesh": ["/api/a11oy/v1/mesh/state"],
+    "whTamper": ["/api/a11oy/v1/warhacker/index"],
+    "whCannonico": ["/api/a11oy/v1/warhacker/index"],
+}
+
+# Tabs that present clearly-labelled SAMPLE/MODELED/CONNECT-READY content by design
+# (doctrine-compliant when labelled). The sweeper still requires the explicit label.
+SAMPLE_OK_TABS = {
+    "entComms", "entRevenue", "entForecast", "replay", "demo", "wowdrop",
+    "wowledger", "wowroi", "wowtoggle", "melt", "brain2",
+}
+
+# Tabs that legitimately render without a network call (pure explainer / static UI).
+STATIC_TABS = {
+    "demo", "knowledge", "ontology", "honest", "kbformulas", "codetab",
+    "docs", "sdk", "deploy", "organism", "organheart", "organnervous",
+    "organskeleton", "organyawar", "wowtoggle", "oversight",
+}
+
+
+def _decode(s: str) -> str:
+    """Decode \\uXXXX escapes that appear in the JS source string literals."""
+    try:
+        return s.encode("utf-8").decode("unicode_escape")
+    except Exception:
+        return s
+
+
+def extract_tabs(html: str):
+    """Extract ONLY genuine console tabs. A tab is real iff it is one of:
+      (a) a top-level nav target  data-view="key"
+      (b) a registered view       reg('key','Title', ...)
+      (c) a direct view override  V.key = ...  (legacy/core tabs)
+      (d) a deep vertical def      ['key','Title','badge','desc', R.renderXxx]
+      (e) a vertical-command def   ['key','\\uXXXX','Label']   (icon = unicode glyph)
+    The narrow patterns avoid pulling in proof/formula/ticker data arrays
+    (F1, P1, SPY, …) that merely look like ['x','y',...] elsewhere in the page.
+    """
+    tabs = {}  # key -> {title, group}
+
+    def put(k, title=None, override=False):
+        if k not in tabs:
+            tabs[k] = {"title": title or k, "group": "Console"}
+        elif override and title:
+            tabs[k]["title"] = title
+
+    # (a) data-view nav targets
+    for k in sorted(set(re.findall(r'data-view="([a-zA-Z0-9_]+)"', html))):
+        put(k)
+
+    # (b) reg('key','Title', ...)
+    for k, t in re.findall(r"reg\('([a-zA-Z0-9_-]+)','([^']*)'", html):
+        put(k, _decode(t), override=True)
+
+    # (c) V.key = ...  (then V.key = mk('Title' for the title)
+    for k in sorted(set(re.findall(r"\bV\.([a-zA-Z0-9_]+)\s*=", html))):
+        put(k)
+    for k, t in re.findall(r"\bV\.([a-zA-Z0-9_]+)\s*=\s*mk\('([^']*)'", html):
+        put(k, _decode(t), override=True)
+
+    # (d) deep vertical defs: 5-element entry terminating in R.renderXxx
+    for k, t in re.findall(
+        r"\['([a-zA-Z0-9_-]+)',\s*'([^']*)',\s*'[^']*',\s*'[^']*',\s*R\.render",
+        html,
+    ):
+        put(k, _decode(t), override=True)
+
+    # (e) vertical-command defs: ['key','\uXXXX','Label']
+    for k, t in re.findall(r"\['([a-zA-Z0-9_-]+)',\s*'\\u[0-9a-fA-F]{4}',\s*'([^']*)'\]", html):
+        put(k, _decode(t), override=True)
+
+    return tabs
+
+
+FAMILY_PREFIX = [
+    ("fin", ["/api/a11oy/v1/deva/healthz"]),
+    ("re", ["/api/a11oy/v1/deva/healthz"]),
+    ("leg", ["/api/a11oy/v1/devb/healthz"]),
+    ("ent", ["/api/a11oy/v1/devb/healthz"]),
+    ("cyb", ["/api/a11oy/v1/sec/threats"]),
+    ("flt", ["/api/a11oy/v1/mesh/state"]),
+    ("pva", ["/api/a11oy/provenance"]),
+    ("wh", ["/api/a11oy/v1/warhacker/index"]),
+    ("uds", ["/api/a11oy/v1/mesh/state"]),
+    ("org", []),
+    ("wow", []),
+]
+
+
+def endpoints_for(key: str):
+    if key in TAB_ENDPOINTS:
+        return TAB_ENDPOINTS[key]
+    for pref, eps in FAMILY_PREFIX:
+        if key.startswith(pref):
+            return eps
+    return []
+
+
+def build():
+    if not os.path.exists(CONSOLE):
+        print("FATAL: console.html not found at %s" % CONSOLE, file=sys.stderr)
+        sys.exit(2)
+    with open(CONSOLE, "r", encoding="utf-8", errors="replace") as f:
+        html = f.read()
+
+    raw = extract_tabs(html)
+    tabs = []
+    for key in sorted(raw):
+        info = raw[key]
+        eps = endpoints_for(key)
+        is_static = key in STATIC_TABS or (not eps)
+        sample_ok = key in SAMPLE_OK_TABS
+        # citationsRequired for the tab = any backing endpoint requires citations
+        cit = any(ENDPOINTS.get(e, {}).get("citationsRequired") for e in eps)
+        tabs.append({
+            "key": key,
+            "title": info["title"],
+            "group": info["group"],
+            "route": "%s#%s" % (CONSOLE_ROUTE, key),
+            "endpoints": eps,
+            "citationsRequired": bool(cit),
+            "sampleLabelAllowed": sample_ok,
+            "static": is_static,
+            # degradedRules at tab level: tolerate honest cached/degraded but never
+            # unlabeled placeholder data or undeclared 5xx.
+            "degradedRules": {
+                "allowSampleLabel": sample_ok,
+                "failOnUnlabeledPlaceholder": True,
+                "failOnMissingCitation": bool(cit),
+            },
+        })
+
+    matrix = {
+        "version": "1",
+        "doctrine": "v11",
+        "organ": ORGAN,
+        "consoleRoute": CONSOLE_ROUTE,
+        "generatedAt": os.environ.get("SOURCE_DATE_EPOCH_ISO")
+        or datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z"),
+        "generator": "tools/readiness-harness/gen_tabs_matrix.py",
+        "summary": {
+            "tabs": len(tabs),
+            "endpoints": len(ENDPOINTS),
+            "tabsWithCitations": sum(1 for t in tabs if t["citationsRequired"]),
+            "staticTabs": sum(1 for t in tabs if t["static"]),
+        },
+        "endpoints": ENDPOINTS,
+        "schemas": SCHEMAS,
+        "tabs": tabs,
+    }
+    return matrix
+
+
+def main():
+    matrix = build()
+    text = json.dumps(matrix, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+    if "--check" in sys.argv:
+        if not os.path.exists(OUT):
+            print("DRIFT: tabs.json missing — run the generator.", file=sys.stderr)
+            sys.exit(1)
+        with open(OUT, "r", encoding="utf-8") as f:
+            cur = f.read()
+        # compare modulo the generatedAt line (date is informational, not drift)
+        def strip_date(s):
+            return re.sub(r'"generatedAt":\s*"[^"]*"', '"generatedAt":""', s)
+        if strip_date(cur) != strip_date(text):
+            print("DRIFT: tabs.json is stale vs the console — regenerate.", file=sys.stderr)
+            sys.exit(1)
+        print("OK: tabs.json matches the console (%d tabs)." % matrix["summary"]["tabs"])
+        return
+    with open(OUT, "w", encoding="utf-8") as f:
+        f.write(text)
+    # Emit a GET-only target list for the k6 stress suite (warhacker.js reads it).
+    stress_targets = sorted(
+        p for p, spec in ENDPOINTS.items() if (spec.get("method") or "GET") == "GET"
+    )
+    stress_path = os.path.join(os.path.dirname(OUT), "stress", "stress-targets.json")
+    os.makedirs(os.path.dirname(stress_path), exist_ok=True)
+    with open(stress_path, "w", encoding="utf-8") as f:
+        f.write(json.dumps(stress_targets, indent=2) + "\n")
+    print("wrote %s (%d tabs, %d endpoints, %d stress targets)" %
+          (OUT, matrix["summary"]["tabs"], matrix["summary"]["endpoints"], len(stress_targets)))
+
+
+if __name__ == "__main__":
+    main()
