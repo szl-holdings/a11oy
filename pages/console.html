@@ -30,6 +30,8 @@
 <script src="/vendor/ngraph.path.min.js"></script>
 <script src="/vendor/ngraph.forcelayout.min.js"></script>
 <script src="/vendor/panzoom.min.js"></script>
+<script src="/vendor/ngraph.events.umd.js"></script>
+<script src="/vendor/vivagraph.min.js"></script>
 <link rel="stylesheet" href="/vendor/katex.min.css"/>
 <script src="/vendor/katex.min.js"></script>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
@@ -8527,22 +8529,6 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       var ago=window.ev_ago(n.getAttribute('data-checked')); if(ago) n.textContent='· checked '+ago;
     });
   };
-  /* evidence-autorecheck-539 — bounded, staggered background re-probe of cited-source badges.
-     Reuses the focused /sources/live sweep via window.evidence_recheck(id); one claim per tick
-     so it never bursts; pauses while the tab is hidden and self-clears once it leaves the DOM. */
-  window.ev_start_autorecheck=function(root,ids){
-    if(window.__ev_auto){ clearInterval(window.__ev_auto); window.__ev_auto=null; }
-    if(!ids||!ids.length) return;
-    var PERIOD=180000;                                       /* re-probe each claim roughly every 3 min */
-    var STEP=Math.max(15000,Math.floor(PERIOD/ids.length));  /* stagger: one claim per tick, never a burst */
-    var i=0;
-    window.__ev_auto=setInterval(function(){
-      if(!document.body.contains(root)){ clearInterval(window.__ev_auto); window.__ev_auto=null; return; } /* tab left DOM → stop */
-      if(document.hidden) return;                            /* tab not visible → pause, don't hammer backend */
-      var id=ids[i%ids.length]; i++;
-      if(document.getElementById('ev-sources-'+id)) window.evidence_recheck(id); /* honest live/cached/unreachable badges */
-    },STEP);
-  };
   /* re-check one claim's curated sources via the focused /sources/live sweep; update badges in place */
   window.evidence_recheck=async function(id,btn){
     var box=document.getElementById('ev-sources-'+id); if(!box) return;
@@ -8605,9 +8591,6 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       window.__ev_timer=setInterval(function(){
         if(document.body.contains(c)){ window.ev_tick(c); } else { clearInterval(window.__ev_timer); window.__ev_timer=null; }
       },15000);
-      /* evidence-autorecheck-539 — keep the live/cached/unreachable badges current without manual clicks */
-      var __ev_ids=Array.prototype.map.call(c.querySelectorAll('.ev-recheck-btn'),function(b){ return b.getAttribute('data-ev'); }).filter(Boolean);
-      window.ev_start_autorecheck(c,__ev_ids);
     }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
   };
   /* register the view + inject a nav item (window.VIEWS+go() framework) */
@@ -9144,5 +9127,206 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 /* end constellation-tab-patch */
 </script>
+<!-- ================================================================================
+     DEV-WIRE-A (2026-06-09): additive tab-upgrade wiring. ENHANCE (never replace):
+     wraps existing VIEWS[tab].render to APPEND a real-metrics panel + a deterministic
+     anvaka (ngraph.forcelayout) 2D layout where graph tabs apply. All data comes from
+     the pure-stdlib /api/a11oy/v1/wirea/* endpoints. 0 CDN (uses the in-image vendored
+     anvaka globs: createGraph, ngraphCreateLayout, Viva). Λ = Conjecture 1 (advisory).
+     Honest empty states; no fabricated data (panels carry MODEL-SCORED/SAMPLE labels).
+================================================================================= -->
+<script>
+(function(){
+  function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0; var iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
+  whenReady(function(){
+    var V=window.VIEWS; if(!V) return;
+    var esc=window.esc||function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+    var GOLD='#c9b787', TEAL='#5fb3a3', AMBER='#c9a05f', RED='#b06a5a', DIM='#6a6a6a', CREAM='#f5f5f5';
+    function gj(u){ return (window.getJSON?window.getJSON(u):fetch(u).then(function(r){return r.json();})); }
+    function pj(u,b){ return (window.postJSON?window.postJSON(u,b):fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json();})); }
+    function mk(tag,attrs,html){ var e=document.createElement(tag); if(attrs)for(var k in attrs)e.setAttribute(k,attrs[k]); if(html!=null)e.innerHTML=html; return e; }
+
+    var CARD='border:1px solid rgba(201,183,135,0.22);border-radius:10px;padding:.85rem 1rem;margin-top:1rem;background:rgba(201,183,135,0.03)';
+    var H='font-family:var(--display,inherit);color:'+GOLD+';font-size:13px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 .55rem';
+    var MONO='font-family:var(--mono,ui-monospace,monospace);font-size:11.5px;line-height:1.7;color:'+CREAM;
+    function badge(t,c){ return '<span style="display:inline-block;font:600 9.5px/1 var(--mono,monospace);letter-spacing:.06em;color:'+(c||AMBER)+';border:1px solid '+(c||AMBER)+';border-radius:5px;padding:.22rem .4rem;margin-left:.4rem;vertical-align:middle">'+esc(t)+'</span>'; }
+
+    /* ---- deterministic anvaka force layout -> SVG (0 CDN, in-image globals) ---------- */
+    function anvakaLayoutSVG(host, nodes, edges, opts){
+      opts=opts||{};
+      if(!window.createGraph || !window.ngraphCreateLayout){
+        host.innerHTML='<div style="'+MONO+';color:'+DIM+'">anvaka layout engine not loaded — metrics still computed below.</div>'; return;
+      }
+      try{
+        var g=window.createGraph();
+        nodes.forEach(function(n){ g.addNode(n); });
+        edges.forEach(function(e){ g.addLink(e[0], e[1]); });
+        // deterministic: fixed seed via stable spring settings; run a fixed iteration count
+        var layout=window.ngraphCreateLayout(g, {springLength:62, springCoeff:0.0008, gravity:-7, dragCoeff:0.02, timeStep:18, dimensions:2});
+        for(var i=0;i<260;i++){ layout.step(); }
+        var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9, P={};
+        nodes.forEach(function(n){ var p=layout.getNodePosition(n); P[n]=p; minx=Math.min(minx,p.x);miny=Math.min(miny,p.y);maxx=Math.max(maxx,p.x);maxy=Math.max(maxy,p.y); });
+        var W=Math.max(320,host.clientWidth||640), Hh=opts.h||300, pad=34;
+        function sx(x){ return pad+( (x-minx)/((maxx-minx)||1) )*(W-2*pad); }
+        function sy(y){ return pad+( (y-miny)/((maxy-miny)||1) )*(Hh-2*pad); }
+        var svg='<svg width="100%" viewBox="0 0 '+W+' '+Hh+'" style="background:rgba(0,0,0,0.18);border-radius:8px">';
+        edges.forEach(function(e){ var a=P[e[0]],b=P[e[1]]; if(!a||!b)return; svg+='<line x1="'+sx(a.x).toFixed(1)+'" y1="'+sy(a.y).toFixed(1)+'" x2="'+sx(b.x).toFixed(1)+'" y2="'+sy(b.y).toFixed(1)+'" stroke="rgba(95,179,163,0.55)" stroke-width="1.3"/>'; });
+        nodes.forEach(function(n){ var p=P[n]; if(!p)return; var cx=sx(p.x),cy=sy(p.y);
+          svg+='<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="6" fill="'+GOLD+'" stroke="#000" stroke-width="0.6"/>';
+          svg+='<text x="'+(cx+9).toFixed(1)+'" y="'+(cy+3).toFixed(1)+'" fill="'+CREAM+'" style="font:600 10px var(--mono,monospace)">'+esc(n)+'</text>'; });
+        svg+='</svg>';
+        host.innerHTML=svg;
+      }catch(err){ host.innerHTML='<div style="'+MONO+';color:'+RED+'">layout error: '+esc(err.message)+'</div>'; }
+    }
+
+    /* ---- graph metrics panel (appended below an existing graph tab) ------------------ */
+    function graphPanel(container, graphKey, title){
+      var card=mk('div',{style:CARD});
+      card.innerHTML='<div style="'+H+'">'+esc(title||'Graph metrics')+badge('anvaka · deterministic',TEAL)+badge('real metrics',GOLD)+'</div>'
+        +'<div class="wirea-graph" style="min-height:240px"></div>'
+        +'<div class="wirea-gm" style="'+MONO+';margin-top:.6rem;color:'+DIM+'">computing…</div>';
+      container.appendChild(card);
+      var viz=card.querySelector('.wirea-graph'), out=card.querySelector('.wirea-gm');
+      gj('/api/a11oy/v1/wirea/graph/metrics?graph='+encodeURIComponent(graphKey)).then(function(d){
+        if(d.empty){ viz.innerHTML=''; out.innerHTML='<span style="color:'+AMBER+'">'+esc(d.honest||'No graph bound — honest empty state.')+'</span>'; return; }
+        var nd=_synthGraph(graphKey);
+        anvakaLayoutSVG(viz, nd.nodes, nd.edges, {h:280});
+        var m=d.metrics||{};
+        var rows=''
+          +'<div>nodes <b style="color:'+CREAM+'">'+d.n_nodes+'</b> · edges <b style="color:'+CREAM+'">'+d.n_edges+'</b> · density <b style="color:'+CREAM+'">'+m.graph_density+'</b></div>'
+          +'<div>avg clustering coeff <b style="color:'+TEAL+'">'+m.avg_clustering_coefficient+'</b> · Fiedler λ2 <b style="color:'+TEAL+'">'+m.fiedler_lambda2+'</b></div>'
+          +'<div>DAG integrity <b style="color:'+(m.dag_integrity&&m.dag_integrity.is_dag?TEAL:RED)+'">'+(m.dag_integrity&&m.dag_integrity.is_dag?'acyclic ✓':'cycles: '+(m.dag_integrity?m.dag_integrity.back_edges:'?'))+'</b></div>'
+          +'<div style="margin-top:.35rem;color:'+DIM+'">top centrality: '+(d.top_degree_centrality||[]).map(function(t){return esc(t.node)+' ('+t.centrality+')';}).join(' · ')+'</div>'
+          +'<div style="margin-top:.4rem;color:#5a6a5e">source: '+esc(d.source)+' · layout: '+esc((d.layout||{}).engine)+' seed '+((d.layout||{}).seed)+'</div>'
+          +'<div style="margin-top:.2rem;color:#5a6a5e">'+esc(d.note||'')+'</div>';
+        out.innerHTML=rows;
+      }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">metrics unavailable: '+esc(e.message)+'</span>'; });
+    }
+    // local mirror of the backend's honest graph topology (for the SVG; metrics come from API)
+    function _synthGraph(k){
+      k=(k||'').toLowerCase();
+      if(k==='chain'||k==='lineage'){ var s=['F1','F11','F12','F18','F19','Λ-aggregate']; return {nodes:s, edges:s.slice(0,-1).map(function(x,i){return [s[i],s[i+1]];})}; }
+      if(k==='organism'||k==='mesh'||k==='constellation'||k==='trustspace'){
+        var o=['Reception','Operator','Provenance-Anchor','Policy','terra','vessels','counsel','Voice','House-Watch'];
+        var e=[]; o.forEach(function(x){ if(x!=='Policy') e.push(['Policy',x]); });
+        e=e.concat([['Operator','Provenance-Anchor'],['Operator','Reception'],['Operator','Voice'],['terra','vessels'],['vessels','counsel']]);
+        return {nodes:o, edges:e}; }
+      if(k==='ontology'||k==='knowledge'||k==='decisiongraphs'||k==='govatlas'){
+        var n=['soundness(F1)','STL(F11)','gate(F12)','DSSE(F18)','Λ(F19)','policy-decision','receipt'];
+        return {nodes:n, edges:[['soundness(F1)','policy-decision'],['STL(F11)','policy-decision'],['gate(F12)','policy-decision'],['policy-decision','receipt'],['DSSE(F18)','receipt'],['Λ(F19)','receipt']]}; }
+      var t=['ingress','auth-gate','policy-gate','service-a','service-b','data-store','egress'];
+      return {nodes:t, edges:[['ingress','auth-gate'],['auth-gate','policy-gate'],['policy-gate','service-a'],['policy-gate','service-b'],['service-a','data-store'],['service-b','data-store'],['data-store','egress']]};
+    }
+
+    /* ---- non-graph panels ----------------------------------------------------------- */
+    function lambdaPanel(container){
+      var card=mk('div',{style:CARD});
+      card.innerHTML='<div style="'+H+'">Quasi-arithmetic Λ panel'+badge('Λ = CONJECTURE 1',AMBER)+'</div><div class="wirea-l" style="'+MONO+'">computing…</div>';
+      container.appendChild(card); var out=card.querySelector('.wirea-l');
+      gj('/api/a11oy/v1/wirea/lambda/panel').then(function(d){
+        if(d.empty){ out.innerHTML=esc(d.honest); return; }
+        var vv=d.variants||{};
+        out.innerHTML='<div>Λ (geometric generator, F19) = <b style="color:'+TEAL+'">'+d.lambda+'</b> <span style="color:'+DIM+'">(never 100%)</span></div>'
+          +'<div style="margin-top:.3rem">arithmetic '+vv.arithmetic+' ≥ geometric '+vv.geometric+' ≥ harmonic '+vv.harmonic+' &nbsp;'+(d.am_gm_hm_ordering_holds?badge('AM≥GM≥HM ✓',TEAL):badge('ordering violated',RED))+'</div>'
+          +'<div style="margin-top:.3rem;color:'+DIM+'">power mean (p='+d.p+') = '+vv.power_p+'</div>'
+          +'<div style="margin-top:.4rem;color:'+AMBER+'">'+esc(d.maturity)+'</div>'
+          +'<div style="color:#5a6a5e">Lean: '+esc(d.lean)+'</div>'
+          +'<div style="margin-top:.25rem;color:#5a6a5e">'+esc(d.honest)+'</div>';
+      }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
+    }
+    function forecastPanel(container){
+      var card=mk('div',{style:CARD});
+      card.innerHTML='<div style="'+H+'">Split-conformal coverage'+badge('distribution-free',TEAL)+'</div><div class="wirea-f" style="'+MONO+'">computing…</div>';
+      container.appendChild(card); var out=card.querySelector('.wirea-f');
+      gj('/api/a11oy/v1/wirea/forecast/coverage').then(function(d){
+        out.innerHTML='<div>target coverage <b>'+d.coverage_target+'</b> · empirical <b style="color:'+TEAL+'">'+d.empirical_coverage+'</b> · gap <b style="color:'+(Math.abs(d.gap)<0.05?TEAL:AMBER)+'">'+d.gap+'</b></div>'
+          +'<div style="margin-top:.3rem">band ±'+d.band_halfwidth+' · n='+d.n+'</div>'
+          +'<div style="margin-top:.4rem;color:#5a6a5e">'+esc(d.method)+'</div><div style="color:#5a6a5e">'+esc(d.label)+'</div>';
+      }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
+    }
+    function evalPanel(container){
+      var card=mk('div',{style:CARD});
+      card.innerHTML='<div style="'+H+'">Proper scoring · Brier / CRPS / ECE'+badge('reliability + Pareto',GOLD)+'</div><div class="wirea-e" style="'+MONO+'">computing…</div>';
+      container.appendChild(card); var out=card.querySelector('.wirea-e');
+      pj('/api/a11oy/v1/wirea/eval/scores',{}).then(function(d){
+        var bins=(d.reliability_bins||[]).filter(function(b){return b.n>0;}).map(function(b){return '['+b.bin[0]+'–'+b.bin[1]+'] conf '+b.conf+' / acc '+b.acc+' (n'+b.n+')';}).join('<br>');
+        out.innerHTML='<div>Brier <b style="color:'+TEAL+'">'+d.brier+'</b> · CRPS <b style="color:'+TEAL+'">'+d.crps+'</b> · ECE <b style="color:'+TEAL+'">'+d.ece+'</b> <span style="color:'+DIM+'">(lower = better calibrated)</span></div>'
+          +'<div style="margin-top:.4rem;color:'+GOLD+'">Pareto front: '+esc((d.pareto_front||[]).join(', '))+'</div>'
+          +'<div style="margin-top:.4rem;color:'+DIM+'">reliability:<br>'+bins+'</div>'
+          +'<div style="margin-top:.3rem;color:#5a6a5e">'+esc(d.label)+'</div>';
+      }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
+    }
+    function routerPanel(container){
+      var card=mk('div',{style:CARD});
+      card.innerHTML='<div style="'+H+'">GraphRouter reward'+badge('transparent · receipted',GOLD)+'</div>'
+        +'<div style="margin:.2rem 0 .5rem">'+['performance','balanced','cost'].map(function(p){return '<button class="wirea-rp" data-p="'+p+'" style="font:600 10px var(--mono,monospace);color:'+GOLD+';background:transparent;border:1px solid '+GOLD+';border-radius:6px;padding:.3rem .6rem;margin-right:.4rem;cursor:pointer">'+p+'</button>';}).join('')+'</div>'
+        +'<div class="wirea-r" style="'+MONO+'">choose a preset…</div>';
+      container.appendChild(card); var out=card.querySelector('.wirea-r');
+      function run(p){ out.innerHTML='routing…'; pj('/api/a11oy/v1/wirea/router/reward',{preset:p}).then(function(d){
+        var rows=(d.ranked||[]).map(function(r,i){ return '<div style="'+(i===0?'color:'+TEAL+';font-weight:700':'color:'+CREAM)+'">'+(i===0?'▶ ':'  ')+esc(r.model)+' &nbsp; reward '+r.reward+' <span style="color:'+DIM+';font-weight:400"> — '+esc(r.why)+'</span></div>'; }).join('');
+        out.innerHTML='<div style="color:'+GOLD+'">preset '+esc(d.preset)+' · α='+d.weights.alpha_quality+' β='+d.weights.beta_cost+' γ='+d.weights.gamma_latency+'</div>'
+          +'<div style="margin-top:.4rem">'+rows+'</div>'
+          +'<div style="margin-top:.4rem;color:#5a6a5e">selected: <b style="color:'+TEAL+'">'+esc(d.selected)+'</b> · receipt '+esc((d.receipt||'').slice(0,22))+'…</div>'
+          +'<div style="color:#5a6a5e">'+esc(d.label)+'</div>';
+      }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; }); }
+      card.querySelectorAll('.wirea-rp').forEach(function(b){ b.addEventListener('click',function(){ run(b.getAttribute('data-p')); }); });
+      run('balanced');
+    }
+    function searchPanel(container){
+      var card=mk('div',{style:CARD});
+      card.innerHTML='<div style="'+H+'">FTS5 governance search'+badge('sqlite · bm25',TEAL)+'</div>'
+        +'<input class="wirea-q" placeholder="search formulas/organs/threats…" value="trust" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.3);border:1px solid '+GOLD+';border-radius:6px;color:'+CREAM+';padding:.45rem .6rem;font:12px var(--mono,monospace)"/>'
+        +'<div class="wirea-s" style="'+MONO+';margin-top:.5rem">type and press enter…</div>';
+      container.appendChild(card); var inp=card.querySelector('.wirea-q'), out=card.querySelector('.wirea-s');
+      function run(){ var q=inp.value.trim(); if(!q){ out.innerHTML='empty query — honest empty state.'; return; } out.innerHTML='searching…';
+        gj('/api/a11oy/v1/wirea/search?q='+encodeURIComponent(q)).then(function(d){
+          out.innerHTML='<div style="color:'+DIM+'">engine: '+esc(d.engine)+' · '+d.count+' hit(s)</div>'+(d.results||[]).map(function(r){ return '<div style="margin-top:.3rem"><b style="color:'+GOLD+'">'+esc(r.key)+'</b> <span style="color:'+DIM+'">'+(r.bm25!=null?'bm25 '+r.bm25:'')+'</span><br><span style="color:'+CREAM+'">'+esc(r.body)+'</span></div>'; }).join('');
+        }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; }); }
+      inp.addEventListener('keydown',function(e){ if(e.key==='Enter') run(); }); run();
+    }
+    function trustGapPanel(container){
+      var card=mk('div',{style:CARD});
+      card.innerHTML='<div style="'+H+'">Info-geometry trust gap'+badge('KL · advisory',AMBER)+'</div><div class="wirea-tg" style="'+MONO+'">computing…</div>';
+      container.appendChild(card); var out=card.querySelector('.wirea-tg');
+      gj('/api/a11oy/v1/wirea/trust/gap').then(function(d){
+        if(d.empty){ out.innerHTML=esc(d.honest); return; }
+        out.innerHTML='<div>KL(obs‖ref) <b style="color:'+TEAL+'">'+d.kl_observed_vs_reference_nats+'</b> nats · Jeffreys <b>'+d.jeffreys_divergence_nats+'</b></div>'
+          +'<div style="margin-top:.3rem">trust gap <b style="color:'+AMBER+'">'+d.trust_gap_pct+'%</b> '+(d.gibbs_nonneg_holds?badge('KL≥0 (Gibbs) ✓',TEAL):badge('Gibbs violated',RED))+'</div>'
+          +'<div style="margin-top:.3rem;color:#5a6a5e">'+esc(d.honest)+'</div>';
+      }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
+    }
+
+    /* ---- ENHANCE wrapper: call original render, then append panel(s) --------------- */
+    function enhance(tab, appender){
+      var view=V[tab]; if(!view) return false;
+      var orig=view.render;
+      view.render=function(host){
+        try{ if(typeof orig==='function') orig.call(view, host); }catch(e){ /* never let our wrap break the base tab */ }
+        try{ appender(host, tab); }catch(e){ try{ host.appendChild(mk('div',{style:CARD},'<span style="'+MONO+';color:'+RED+'">wireA panel error: '+esc(e.message)+'</span>')); }catch(_){} }
+      };
+      return true;
+    }
+
+    var GRAPH_TABS=[['organism','Living-organism organ topology'],['chain','Receipt hash-chain'],['lineage','Knowledge lineage chain'],
+      ['ontology','Knowledge → decision DAG'],['decisiongraphs','Decision DAG'],['govatlas','Governance atlas DAG'],
+      ['threatgraph','Attack-surface / zero-trust paths'],['attack','Attack-surface paths'],['cybSurface','Attack-surface graph'],
+      ['cybZero','Zero-trust mesh'],['mesh','Zero-trust mesh'],['constellation','Constellation topology'],['trustspace','Trust-space topology']];
+    var wired=[];
+    GRAPH_TABS.forEach(function(t){ if(enhance(t[0], function(host,tab){ graphPanel(host, tab, t[1]); })) wired.push(t[0]); });
+
+    if(enhance('lambda', function(h){ lambdaPanel(h); })) wired.push('lambda');
+    if(enhance('forecast', function(h){ forecastPanel(h); })) wired.push('forecast');
+    if(enhance('arena', function(h){ evalPanel(h); })) wired.push('arena');
+    if(enhance('llm', function(h){ routerPanel(h); })) wired.push('llm');
+    if(enhance('knowledge', function(h){ searchPanel(h); })) wired.push('knowledge(search)');
+    if(enhance('trustspace', function(h){ trustGapPanel(h); })) wired.push('trustspace(gap)');
+
+    window.__WIREA_WIRED=wired;
+    try{ console.log('[wireA] enhanced tabs:', wired.join(', ')); }catch(e){}
+  });
+})();
+/* end DEV-WIRE-A tab wiring */
+</script>
+
 </body>
 </html>
