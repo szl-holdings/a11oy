@@ -22,7 +22,7 @@ contains 72 named theorem environments and 4 corollaries across eight chapters.
 Of the 31 theorems in Chapter 2 and 16 in Chapter 6, the Lean Czar audit
 (Chapter 7) certifies: 17 lake-verified with no `sorry` and no new axiom;
 22 skeleton-pending with honest `sorry` markers; 1 open-problem-axiomatic (SBOM
-Lambda-chain total order, conditional on A15); and 1 pure metatheorem (Lean
+Λ-chain total order is Conjecture 1, conditional on A15); and 1 pure metatheorem (Lean
 kernel soundness). The TH-V18 catalogue (16 stubs, TH-V18-01 through TH-V18-16)
 builds clean under `lake build Lutar.Thesis` with 13 axiom declarations and
 8 in-code `sorry` tactics, each enumerable by `grep` at the chapter-bind tag
