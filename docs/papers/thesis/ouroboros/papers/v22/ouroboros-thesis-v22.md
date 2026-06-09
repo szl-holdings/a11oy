@@ -145,7 +145,7 @@ downstream accuracy of physical foundation models. Full draft: `team/sim2real-co
 - **Λ status:** **Conjecture 1 — NOT a theorem.**
 - **Supply chain:** **SLSA L1 honest** (cosign-signed, verifiable via `cosign verify`); L2 roadmap, not yet claimed; L3 not claimed.
 - **Section 889 vendors:** Huawei, ZTE, Hytera, Hikvision, Dahua (exactly 5).
-- **No** Iron Bank / FedRAMP / CMMC L2+ / SWFT / Mission-Owner claims.
+- No Iron Bank / FedRAMP / CMMC L2+ / SWFT / Mission-Owner claims (none held, none pursued).
 
 ---
 
