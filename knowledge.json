@@ -2984,12 +2984,12 @@
         {
           "class": "Semantic Drift",
           "szl_detector": "Lambda-axis drift monitor (conformal band on trust axes over time)",
-          "status": "live"
+          "status": "roadmap"
         },
         {
           "class": "Correlated Reasoning Failure",
           "szl_detector": "model-router diversity check (flag when N agents share one model family/inference)",
-          "status": "live"
+          "status": "roadmap"
         },
         {
           "class": "Intent Loss",
