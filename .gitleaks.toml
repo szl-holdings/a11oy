@@ -13,6 +13,13 @@
 #   • `keyid` labels (e.g. "szl-pepr-mldsa65-v1", "szlholdings-ec-p256") —
 #     these name a key, they are not key material
 #   • PLACEHOLDER / test signature stubs (sig bytes are 0xAB fill / "PLACEHOLDER")
+#   • `receiptKeySecret: <name>` — the NAME of a Kubernetes Secret resource (the
+#     real key material lives in the cluster Secret / Vault, never in git)
+#   • a single DOCUMENTED demo HMAC key in AGENTS.md (base64 decodes to the
+#     literal string "szl-dev-demo-key-2026-warhacker" — a throwaway demo value)
+#   • problem-catalog slugs in serve.py ("key": "mesh-k1-failure" etc.) — these
+#     are short kebab-case identifiers in a static problem list, not credentials
+#   • test-fixture private keys under testdata/ (*.test.key) — mock keys
 #
 # Real credentials (tokens, private keys, cloud secrets) remain fully detected.
 
@@ -21,16 +28,19 @@ useDefault = true
 
 [allowlist]
 description = "SZL non-secret identifiers and test/placeholder stubs"
-# Match the allowlist regexes against the whole matched line, so `keyid` labels
-# and public DIDs are exempted regardless of how the rule captured them.
 regexTarget = "line"
 
 regexes = [
   # Public DID key identifiers (did:key multibase, public by definition).
   '''did:key:z6Mk[1-9A-HJ-NP-Za-km-z]+''',
   # `keyid` / key-id LABELS — these NAME a key, they are not key material.
-  # Covers: keyid, SZL_KEY_ID, signing_key_id, key_id, listingKey (MLS listing id).
   '''(?i)(keyid|key[_-]?id|signing_key_id|listingkey)["']?\s*[:=]\s*["'`]?[A-Za-z0-9._-]+["'`]?''',
+  # `receiptKeySecret: <name>` names a Kubernetes Secret resource, not a secret.
+  '''(?i)receiptKeySecret["']?\s*:\s*["'`]?[A-Za-z0-9._-]+["'`]?''',
+  # Static problem-catalog slugs in serve.py (kebab-case ids, not credentials).
+  '''"id":\s*"P\d+",\s*"key":\s*"[a-z0-9][a-z0-9-]*"''',
+  # Single DOCUMENTED demo HMAC key (decodes to "szl-dev-demo-key-2026-warhacker").
+  '''SZL_HMAC_KEY=c3psLWRldi1kZW1vLWtleS0yMDI2LXdhcmhhY2tlcg==''',
   # Explicit placeholder / unsigned stub markers.
   '''PLACEHOLDER-NOT-SIGNED''',
 ]
@@ -42,4 +52,6 @@ paths = [
   '''.*_test\.py$''',
   '''.*/test/.*''',
   '''.*/tests/.*''',
+  '''.*/testdata/.*''',
+  '''.*\.test\.key$''',
 ]
