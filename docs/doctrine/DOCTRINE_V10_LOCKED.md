@@ -119,7 +119,7 @@ These are confirmed real and are UN-BANNED (in addition to everything v9 un-bann
 | **Bolly** | Legacy identity |
 | **Computacenter** | Founder hard rule ("our secret") |
 | **"45 gates"** | Never real; real is 44 (anchor) / 46 (policy modules) |
-| **"SLSA L3"** | FALSE — honest level is L1 (platform PR #235). Must always be L1. |
+| **"SLSA L3"** | FALSE — honest level is L1 (platform PR #235); "SLSA L3" is BANNED. Must always be L1. |
 | **"zero sorry / zero open axioms"** | FACTUALLY FALSE — 163 sorries, 14 axioms. The founder's own HONESTY CORRECTION retired this claim. |
 | **"fully verified" (unscoped)** | Only permitted scoped to a specific zero-sorry lemma. |
 | **Bare "Mythos" (internal)** | Rename rule: internal → `Hatun-Willay`. External Anthropic/OpenMythos citations OK. |
@@ -136,7 +136,7 @@ When sweeping any live surface, replace:
 - `168` (as locked sorry count) → `163` at tag, note "~168 on moving main"
 - `"fully verified"` (unscoped) → `"163 sorries tracked honestly"`
 - `"Theorem 1"` (Λ-uniqueness) → `"Conjecture 1 (depends on CAUCHY_ND sorry)"`
-- any `"SLSA L3"` → `"SLSA L1 (honest)"`
+- any `"SLSA L3"` (BANNED) → `"SLSA L1 (honest)"`
 - A2 `"zero-pinning"` → `"IsHomogeneous (positive homogeneity deg 1)"`
 - A4 `"page-curve concavity"` → `"IsBounded (bounded by max axis)"`
 
