@@ -63,18 +63,21 @@ packages:
 
   # ── Layer 3: szl-receipts — the one real SZL application ────────────────────
   # Source of truth: szl-holdings/szl-uds-deployment packages/szl-receipts
-  # (kind: ZarfPackageConfig; real chart charts/szl-receipts + namespace manifest;
-  #  stock images python:3.12-slim + nginx:1.27-alpine).
+  # (kind: ZarfPackageConfig; real chart charts/szl-receipts + namespace manifest).
   #
-  # STAGED (honest): until the szl-receipts Zarf package is published to GHCR,
-  # build this bundle from a local checkout of szl-uds-deployment by swapping the
-  # `repository`+`ref` below for:
+  # PUBLISHED: this points at the real, keyless-signed Zarf package on GHCR
+  # (ghcr.io/szl-holdings/szl-receipts:0.4.0-upstream — GHCR probe 2026-06-09:
+  # HTTP 200), so `uds create` / `uds deploy` run as written with no local
+  # checkout. To build from a local checkout instead, swap repository+ref for:
   #     path: ../../../szl-uds-deployment/packages/szl-receipts
-  # The published-OCI form is shown so this bundle is correct once the package is
-  # pushed. GHCR probe 2026-05-30: szl-receipts:0.3.1 → 403 (not yet published).
+  #
+  # The prior ref ghcr.io/szl-holdings/packages/szl-receipts:0.3.1 was never
+  # published (403) and is replaced here. Receipts are now signed with an Ed25519
+  # key auto-provisioned at first deploy (szl-key-init); the old RECEIPT_HMAC_KEY
+  # variable was removed from the chart and is no longer bound below.
   - name: szl-receipts
-    repository: ghcr.io/szl-holdings/packages/szl-receipts
-    ref: 0.3.1
+    repository: ghcr.io/szl-holdings/szl-receipts
+    ref: 0.4.0-upstream
     overrides:
       szl-receipts:
         szl-receipts:
@@ -83,10 +86,6 @@ packages:
               description: "Cluster domain (must match UDS Core DOMAIN)"
               path: global.domain
               default: "uds.dev"
-            - name: RECEIPT_HMAC_KEY
-              description: "HMAC-SHA-256 signing key (base64-encoded, 32+ bytes)"
-              path: server.hmacKey
-              sensitive: true
             - name: RECEIPTS_REPLICAS
               description: "Receipt server replica count"
               path: server.replicas
@@ -98,5 +97,3 @@ packages:
               value: true
             - path: ingress.host
               value: "receipts.uds.dev"
-            - path: podSecurityStandard.enforce
-              value: "restricted"

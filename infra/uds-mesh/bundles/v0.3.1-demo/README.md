@@ -9,7 +9,7 @@
 |-------|---------|--------|
 | 1 | `init` | `ghcr.io/defenseunicorns/packages/init:v0.77.0` (Zarf v0.77.0) |
 | 2 | `core-slim-dev` | `ghcr.io/defenseunicorns/packages/uds/core:0.34.0-slim-dev` (Istio + Pepr + Keycloak + Prometheus) |
-| 3 | `szl-receipts` | `szl-holdings/szl-uds-deployment` → `packages/szl-receipts` (DSSE receipt service) |
+| 3 | `szl-receipts` | `ghcr.io/szl-holdings/szl-receipts:0.4.0-upstream` (published, keyless-signed; built from `szl-holdings/szl-uds-deployment` → `packages/szl-receipts`, DSSE receipt service) |
 
 `szl-receipts` is the only SZL workload with a correct UDS `Package` CR (SSO/authservice selector, Istio tenant expose, NetworkPolicy allow-rules, OTLP egress) and a real chart + images. It deploys on uds-core slim-dev.
 
@@ -30,8 +30,10 @@ Wiring them into a real interconnect (a11oy as orchestrator, Package CRs, Istio 
 ## Build / deploy / verify
 
 ```bash
-# Build (uds-cli v0.31.0). Until szl-receipts is published to GHCR, build from a
-# local checkout by swapping the szl-receipts repository+ref for a path: ref.
+# Build (uds-cli v0.31.0). szl-receipts is published to GHCR
+# (ghcr.io/szl-holdings/szl-receipts:0.4.0-upstream), so this runs as written —
+# no local checkout needed. To build from a local checkout instead, swap the
+# szl-receipts repository+ref for a path: ref.
 uds create bundles/v0.3.1-demo --confirm
 
 # Deploy onto a slim-dev cluster
@@ -43,9 +45,9 @@ uds inspect uds-bundle-szl-receipts-demo-amd64-0.3.1.tar.zst
 
 ## Staged / honesty markers
 
-- `szl-receipts:0.3.1` image not yet on GHCR (`403`); build from a local `path:` ref until published.
+- `szl-receipts` is published to GHCR as `ghcr.io/szl-holdings/szl-receipts:0.4.0-upstream` (keyless cosign-signed; GHCR probe 2026-06-09 → `200`). The earlier `packages/szl-receipts:0.3.1` ref was never published (`403`) and has been replaced.
 - Bundle cosign signing pending org key provisioning.
-- Receipt chain currently in an `emptyDir` on a single replica (not durable); HMAC uses a demo key. Both are documented limitations, not production posture.
+- Receipts are signed with an Ed25519 key auto-provisioned at first deploy (`szl-key-init`); the chart bakes no private key material. The receipt chain is PVC-backed (survives reschedule) on a single replica. These are the demo defaults, documented as such.
 
 ## References
 
