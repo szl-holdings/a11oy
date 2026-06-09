@@ -8722,5 +8722,106 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* end readiness-tab-patch */
 </script>
 
+<!-- contracting-tab-patch — SAM/CAGE + SBIR/STTR contracting readiness, web-sourced,
+     honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
+     liveness probes, 0 fabricated org values. Reads /api/{ns}/v1/contracting live. -->
+<script>
+(function(){
+  window.__ct_ns = (window.__rd_ns || (location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
+  function ct_esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function ct_ago(iso){ if(!iso) return ''; try{ var t=new Date(iso).getTime(); if(!t) return ''; var s=Math.max(0,(Date.now()-t)/1000); if(s<60) return Math.round(s)+'s ago'; if(s<3600) return Math.round(s/60)+'m ago'; if(s<86400) return Math.round(s/3600)+'h ago'; return Math.round(s/86400)+'d ago'; }catch(e){ return ''; } }
+  var CT_STATUS={
+    verified:{label:'verified',color:'#5fb3a3',desc:'web-verified external rule'},
+    confirmed:{label:'confirmed',color:'#5fb3a3',desc:'operator-supplied value'},
+    needs_founder_input:{label:'needs founder input',color:'#d8b34a',desc:'org fact the system cannot see'},
+    needs_founder_action:{label:'needs founder action',color:'#d99a4e',desc:'real-world step only the founder can take'}
+  };
+  function ct_badge(text,color,title){ return '<span class="badge" title="'+ct_esc(title||'')+'" style="border-color:'+color+';color:'+color+'">'+ct_esc(text)+'</span>'; }
+  function ct_status_badge(st){ var m=CT_STATUS[st]||{label:st||'unknown',color:'#8a8f98',desc:''}; return ct_badge(m.label,m.color,m.desc); }
+  function ct_live_badge(lv){ if(!lv) return ct_badge('unprobed','#8a8f98','source not yet probed'); var k=lv.kind||(lv.reachable?'live':'unreachable'); var col=(k==='live'?'#5fb3a3':(k==='cached'?'#d8b34a':'#c66')); return ct_badge(k+(lv.status?(' '+lv.status):''),col,'source URL reachability ('+ct_esc(k)+')'); }
+  function ct_source(src){ if(!src) return ''; var u=src.url||'#'; var r=src.retrieved?(' \u00b7 retrieved '+ct_esc(src.retrieved)):''; return '<div class="dim" style="font-size:11px;margin-top:.15rem">source: <a href="'+ct_esc(u)+'" target="_blank" rel="noopener">'+ct_esc(src.title||u)+'</a> '+ct_live_badge(src.liveness)+r+'</div>'; }
+  function ct_item(it){
+    var h='<div class="row" style="display:block;padding:.5rem 0;border-top:1px solid rgba(255,255,255,.06)">';
+    h+='<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center"><b>'+ct_esc(it.label)+'</b> '+ct_status_badge(it.status);
+    if(it.value){ h+=' '+ct_badge('= '+String(it.value),'#5fb3a3','operator-supplied value'); }
+    h+='</div>';
+    h+='<div class="dim" style="font-size:12px;margin-top:.2rem">'+ct_esc(it.requirement)+'</div>';
+    if(it.note){ h+='<div style="font-size:12px;margin-top:.2rem;color:'+((CT_STATUS[it.status]||{}).color||'#8a8f98')+'">'+ct_esc(it.note)+'</div>'; }
+    h+=ct_source(it.source);
+    h+='</div>';
+    return h;
+  }
+  function ct_area(a){
+    var c=a.counts||{};
+    var h='<div class="card"><div class="card-h"><span class="card-t">'+ct_esc(a.title)+'</span>';
+    h+='<span class="card-ep"><button class="btn" style="font-size:11px" onclick="window.contracting_area_live(\''+ct_esc(a.id)+'\',this)">\u21bb re-check sources</button></span></div>';
+    h+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin:.1rem 0 .4rem">';
+    if(c.verified) h+=ct_status_badge('verified');
+    if(c.confirmed) h+=ct_status_badge('confirmed');
+    if(c.needs_founder_input) h+=ct_badge('input \u00d7'+c.needs_founder_input,CT_STATUS.needs_founder_input.color,'needs founder input');
+    if(c.needs_founder_action) h+=ct_badge('action \u00d7'+c.needs_founder_action,CT_STATUS.needs_founder_action.color,'needs founder action');
+    h+='</div>';
+    h+='<div class="dim" style="font-size:12px;margin-bottom:.3rem">'+ct_esc(a.intro)+'</div>';
+    h+='<div id="ct-area-'+ct_esc(a.id)+'">'+(a.items||[]).map(ct_item).join('')+'</div>';
+    h+='</div>';
+    return h;
+  }
+  window.contracting_area_live=async function(id,btn){
+    var host=document.getElementById('ct-area-'+id); if(!host) return;
+    var old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='\u27f3 re-reading\u2026'; }
+    try{
+      var r=await fetch('/api/'+window.__ct_ns+'/v1/contracting/'+id+'/live');
+      var d=await r.json(); if(d.area&&d.area.items){ host.innerHTML=d.area.items.map(ct_item).join(''); }
+    }catch(e){
+      var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
+      note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; host.appendChild(note);
+    }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'\u21bb re-check sources'; } }
+  };
+  window.contracting_render=async function(c){
+    c.innerHTML='<div class="card"><div class="dim">reading contracting-eligibility criteria + probing sources\u2026</div></div>';
+    try{
+      var r=await fetch('/api/'+window.__ct_ns+'/v1/contracting');
+      var d=await r.json(); var h='';
+      if(d.honest) h+='<div class="honesty">'+ct_esc(d.honest)+'</div>';
+      var s=d.summary||{}; var bs=s.by_status||{};
+      h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
+      h+=ct_badge('verified rules '+(s.verified_rules||0),'#5fb3a3','web-verified + operator-confirmed lines');
+      h+=' '+ct_badge('founder open '+(s.founder_open||0),'#d8b34a','lines needing founder input or action');
+      h+=' '+ct_badge('sources '+(s.sources_reachable||0)+'/'+(s.sources_total||0),(s.sources_reachable===s.sources_total&&s.sources_total)?'#5fb3a3':'#d8b34a','source URLs reachable now');
+      h+='</div><div class="dim" style="font-size:11px;margin-top:.4rem">'+ct_esc(d.subject||'')+' \u00b7 criteria retrieved '+ct_esc(d.criteria_retrieved||'\u2014')+' \u00b7 checked '+ct_esc(ct_ago(d.checked_at)||'just now')+'</div>';
+      h+='<div class="dim" style="font-size:11px;margin-top:.2rem">'+ct_esc(d.scope||'')+'</div></div>';
+      (d.areas||[]).forEach(function(a){ h+=ct_area(a); });
+      var fa=d.founder_actions||[];
+      if(fa.length){
+        h+='<div class="card"><div class="card-h"><span class="card-t">Founder action list</span><span class="card-ep">'+fa.length+' steps</span></div>';
+        fa.forEach(function(a,i){
+          h+='<div class="row" style="display:block;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.06)"><div><b>'+(i+1)+'.</b> '+ct_esc(a.step)+'</div>';
+          h+='<div class="dim" style="font-size:12px;margin-top:.15rem">'+ct_esc(a.why||'');
+          if(a.source_url){ h+=' \u00b7 <a href="'+ct_esc(a.source_url)+'" target="_blank" rel="noopener">source \u2197</a>'; }
+          h+='</div></div>';
+        });
+        h+='</div>';
+      }
+      c.innerHTML=h||'<div class="card"><div class="dim">no contracting criteria.</div></div>';
+    }catch(e){ c.innerHTML='<div class="card"><div class="dim">contracting layer unavailable: '+ct_esc((e&&e.message)||e)+'</div></div>'; }
+  };
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
+    V['contracting']={title:'Contracting Readiness',badge:'LIVE \u00b7 SAM/CAGE + SBIR/STTR \u00b7 web-sourced',sub:'Federal-contracting posture grounded in real, web-sourced eligibility criteria. Every <b>requirement</b> is read from an authoritative source (sam.gov, sbir.gov, the eCFR, the DoD DSIP) and carries that source URL plus the date it was retrieved; each source is probed live for reachability. The org\u2019s own registration facts (UEI, CAGE, SAM status, employee count, ownership) are never invented \u2014 each is flagged <b>needs founder input</b> or <b>needs founder action</b>, unless an operator supplied it via a secure env var (then <b>confirmed</b>). A flagged unknown is the correct answer.',render:async function(c){ window.contracting_render(c); }};
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="readiness"]')||document.querySelector('.nav-item[data-view="evidence"]')||document.querySelector('.nav-item[data-view="knowledge"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="contracting"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','contracting'); n.setAttribute('onclick',"go('contracting')");
+    n.innerHTML='<span class="ico">\u2696</span>Contracting Readiness';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+/* end contracting-tab-patch */
+</script>
+
 </body>
 </html>

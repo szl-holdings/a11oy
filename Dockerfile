@@ -526,6 +526,11 @@ COPY szl_evidence_research.py ./szl_evidence_research.py
 # serve.py imports this try/except-guarded; without this per-file COPY the import
 # fails and /api/a11oy/v1/readiness 404s (falls through to the SPA shell).
 COPY szl_readiness.py ./szl_readiness.py
+# Contracting Readiness backend (SAM/CAGE + SBIR/STTR eligibility, web-sourced,
+# honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
+# liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;
+# without this per-file COPY the import fails and /api/a11oy/v1/contracting 404s.
+COPY szl_contracting.py ./szl_contracting.py
 
 CMD ["python", "serve.py"]
 

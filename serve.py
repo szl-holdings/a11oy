@@ -123,6 +123,19 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[a11oy] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# ── Contracting Readiness layer (contracting-tab-patch) — SAM/CAGE + SBIR/STTR
+# federal-contracting posture grounded in real web-sourced eligibility criteria
+# (each line carries a source URL + retrieval date, probed live for reachability)
+# with honest verified/confirmed/needs_founder_input/needs_founder_action labels.
+# NO fabricated registration numbers/dates/verdicts — unknowns are flagged.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import szl_contracting as _szl_contracting
+    _szl_contracting.register(app, ns="a11oy")
+    print("[a11oy] Contracting Readiness registered: /api/a11oy/v1/contracting", file=__import__("sys").stderr)
+except Exception as _szl_ct_e:  # pragma: no cover
+    print(f"[a11oy] Contracting Readiness NOT registered: {_szl_ct_e!r}", file=__import__("sys").stderr)
+
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
 # /api/a11oy/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
