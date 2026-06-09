@@ -36,7 +36,7 @@
 - Organs must also actually emit `szl.dsse.receipt` attributes for the chain to
   populate; the demo prints whatever is emitted and says so if empty.
 
-## 3. SLSA: L1 honest, L2 only where provenance exists
+## 3. SLSA: L1 + L2 only where provenance exists (attested)
 
 - Per doctrine: **SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap**. We are **not** Iron Bank,
   **not** FedRAMP, **not** CMMC L2+.
