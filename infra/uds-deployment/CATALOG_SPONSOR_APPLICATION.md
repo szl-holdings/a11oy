@@ -66,7 +66,7 @@ maps directly to a Lean-verified policy gate decision — proof, not promise.
 
 We are not claiming what we have not earned:
 
-- **SLSA: L1 honest.** L3 was incorrectly badged on 13 repos earlier — purged
+- **SLSA: L1 honest.** L3 was mis-claimed on 13 repos earlier (now BANNED) — purged
   this session, see `fix/slsa-truth-l3-to-l1-2026-05-30` merge across all repos.
 - **Putnam discharge: 2/12 Lean-proved (P_A1, P_A3); 10/12 structural coverage**
   with proof obligations open. Numina-Lean-Agent (arXiv:2601.14027) has 12/12 —
