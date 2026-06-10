@@ -21,13 +21,15 @@ ecosystem-stage: "operational"
 
 # a11oy 🔬
 
-> **The signed-receipt substrate. Every AI decision leaves a DSSE Khipu receipt. `receipts.in ≡ receipts.out`.**
+> **Governed autonomy with a checkable receipt for every decision.**
+> The signed-receipt substrate: every AI action leaves a DSSE Khipu receipt. `receipts.in ≡ receipts.out`.
 
-[![SLSA L1 honest · L2 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20roadmap-2C5F2D?style=flat-square)](.compliance/SLSA_LEVEL.md)
+[![SLSA L1 honest · L2 build-attested · L3 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20%C2%B7%20L3%20roadmap-c9b787?style=flat-square)](.compliance/SLSA_LEVEL.md)
 [![cosign signed](https://img.shields.io/badge/cosign-keyless%20signed-blueviolet?style=flat-square)](https://search.sigstore.dev/?logIndex=1710578865)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
 [![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/a11oy/actions)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](LICENSE)
+[![Λ Conjecture 1](https://img.shields.io/badge/%CE%9B-Conjecture%201%20(conditional%20Theorem%20U)-B79BD6?style=flat-square)](https://github.com/szl-holdings/lutar-lean/blob/main/BOUNTY.md)
 
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
 **Proof posture (two-tier):** 5 locked-proven `{F1, F11, F12, F18, F19}` + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1** (axiom-free CUT-2 conditional proven; unconditional uniqueness machine-checked false). Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
@@ -109,10 +111,10 @@ See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platfo
 curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .kernel_commit
 # => "c7c0ba17"
 
-# 2. Verify the cosign keyless signature on the published image (SLSA Build L1, honest).
-#    GHCR verification shows a cosign keyless-signed, Rekor-anchored image.
-#    SLSA L2 (verified build-provenance attestation under isolated builders) is on
-#    the roadmap — see .compliance/SLSA_LEVEL.md. We do NOT claim L2-verified today.
+# 2. Verify the cosign keyless signature + build-provenance attestation on the image.
+#    SLSA L1 honest · L2 build-attested: container provenance via
+#    attest-build-provenance (Sigstore keyless, Fulcio + Rekor). Verify with
+#    `cosign verify-attestation`. SLSA L3 is roadmap — see .compliance/SLSA_LEVEL.md.
 cosign verify ghcr.io/szl-holdings/a11oy:uds-v0.2.0 \
   --certificate-identity-regexp="^https://github.com/szl-holdings/" \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
@@ -133,7 +135,7 @@ graph TD
     A[Incoming action] --> PL[Policy layer\n/v1/policy/evaluate\ndeny-by-default]
     PL --> KD[Khipu DAG\nDSSE P-256 signed\nSHA-256 hash-linked]
     KD --> LDG[Ledger /v1/ledger\nreplayable, tamper-evident]
-    KD --> UDS[(GHCR\nSigned OCI\ncosign keyless-signed · SLSA L1 honest)]
+    KD --> UDS[(GHCR\nSigned OCI\ncosign keyless · SLSA L1+L2 build-attested)]
     KD --> REKOR[(Rekor transparency log\nindex 1710578865)]
 ```
 
@@ -145,7 +147,7 @@ graph TD
 |---|---|---|---|
 | Policy enforcement | ✅ | ✅ `/v1/policy/evaluate` | — |
 | Audit trail | ✅ logs | ✅ **signed receipts** | Palantir logs are not individually verifiable cryptographic artifacts |
-| Supply-chain provenance | — | ✅ **cosign keyless-signed, Rekor-anchored (SLSA Build L1, honest)** | `cosign verify` on every image; verifiable transparency-log entry. SLSA L2 verified-provenance is on the roadmap. |
+| Supply-chain provenance | — | ✅ **cosign keyless-signed + build-attested (SLSA L1 honest · L2 build-attested)** | `cosign verify-attestation` on every image; container provenance via attest-build-provenance, Rekor-anchored. SLSA L3 is roadmap. |
 | Formal math substrate | — | ✅ Lean 4 / 749 decl | Open, machine-checkable |
 | Air-gap deployment | ✅ (proprietary) | ✅ **one UDS command** | Open-source, reproducible |
 | Receipt multi-party witness | — | ✅ BFT quorum-capable | — |
@@ -165,8 +167,8 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 | Claim | Status |
 |---|---|
 | Live HF Space (HTTP 200) | ✅ |
-| SLSA Build **L1 (honest)** | ✅ — cosign keyless-signed image, verifiable via `cosign verify`; Rekor [1710578865](https://search.sigstore.dev/?logIndex=1710578865). See [.compliance/SLSA_LEVEL.md](.compliance/SLSA_LEVEL.md). |
-| SLSA Build **L2** | 🛣️ **Roadmap** — verified build-provenance attestation under isolated builders. **Not claimed as achieved today.** |
+| SLSA **L1 honest · L2 build-attested** | ✅ — cosign keyless-signed image + container build-provenance attestation (attest-build-provenance, Sigstore keyless), verifiable via `cosign verify-attestation`; Rekor [1710578865](https://search.sigstore.dev/?logIndex=1710578865). See [.compliance/SLSA_LEVEL.md](.compliance/SLSA_LEVEL.md). |
+| SLSA **L3** | 🛣️ **Roadmap** — hardened/isolated builder + non-falsifiable provenance. **Not claimed as achieved today.** |
 | cosign keyless signed | ✅ |
 | UDS bundle (`szl-uds-bundle:uds-v0.2.0`) | ✅ Real, deployable mesh bundle (cosign-signed, Rekor-anchored). |
 | DSSE Khipu receipts | ✅ — ECDSA P-256-SHA256 |
@@ -179,7 +181,9 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 
 ---
 
-<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA Build L1 honest (L2 roadmap; L3 / FedRAMP / Iron Bank / CMMC not claimed) · 5 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Apache-2.0 · DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)</sub>
+> Not affiliated with Defense Unicorns. SZL mark USPTO Serial 99831122. No production ATO claimed.
+
+<sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 / FedRAMP / Iron Bank / CMMC / ATO roadmap · 5 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Apache-2.0 · DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)</sub>
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 
