@@ -101,6 +101,18 @@ COPY szl_b2_secdata.py ./szl_b2_secdata.py
 COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
 COPY a11oy_code_orchestrator.py ./a11oy_code_orchestrator.py
+# ADDITIVE (a11oy Code agentic core, 2026-06-10): the GENUINELY-agentic loop + agentic
+# RAG + MCP client that a11oy_code_orchestrator.py imports (try/except-guarded). All three
+# are stdlib-only at import time (szl_brain/szl_rag/httpx/faiss are lazy + guarded), so they
+# ship BYTE-IDENTICAL into both a11oy & killinchu images. Without these per-file COPYs
+# (this Dockerfile never uses `COPY . .`) the agentic=true /chat/stream path, the
+# /api/a11oy/code/agent/* and /rag/* endpoints degrade and the imports fail.
+# szl_rag.py exists in the repo but was never COPY'd into the a11oy image; it backs the
+# BAAI/bge vector recall in a11oy_org_rag (honest FTS5-only degradation without it).
+COPY a11oy_agent_loop.py ./a11oy_agent_loop.py
+COPY a11oy_org_rag.py ./a11oy_org_rag.py
+COPY a11oy_mcp_client.py ./a11oy_mcp_client.py
+COPY szl_rag.py ./szl_rag.py
 # ADDITIVE: a11oy Code IDE page (served by orchestrator GET /api/a11oy/code/ide as a
 # sibling of a11oy_code_orchestrator.py). Self-contained (vendored CodeMirror, 0 runtime
 # CDN). Explicit per-file COPY (this Dockerfile does not use `COPY . .`).
