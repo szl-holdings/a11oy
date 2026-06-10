@@ -1635,6 +1635,11 @@ async function policies_load(){
   }catch(e){const h=el('pv-list');if(h)h.innerHTML='<div class="row mono dim">policy bundle unavailable: '+esc(e.message)+'</div>';setTxt('pv-n','\u2014');}}
 
 function go(view){
+  // Defensive null-guard: an unknown/empty tab key must be a graceful no-op (keep the
+  // current view) — never a thrown TypeError reading .title on a missing VIEWS entry,
+  // which could wedge navigation. Guard BEFORE any teardown/DOM mutation so the current
+  // view is fully preserved.
+  if(!VIEWS[view]){ console.warn('unknown tab: '+view); return; }
   // tear down ALL live visuals (Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape) before switching
   tearDownAll();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
