@@ -1308,8 +1308,8 @@ async function receipts_verify(tamper,quiet){const out=el('rc-vout');
 
 // Proof & formulas (a11oy)
 async function formulas_load(){try{const d=await getJSON(API+'/v1/puriq/formulas');setOut('f-out',d);const n=d.summary?.n_agents||23;setTxt('f-n',n);
-  doughnut('f-donut',['proven','open','conjecture'],[5,Math.max(0,n-6),1],[TEAL,GOLD,'#b06a5a']);
-  setHTML('f-host',`<div class="row"><span>Formally proven (locked)</span><span class="spacer b-live badge">5</span></div><div class="row"><span>Proven set</span><span class="spacer mono dim">F1, F4, F7, F11, F12, F18, F19, F22</span></div><div class="row"><span>Trust-score uniqueness</span><span class="spacer b-err badge">open conjecture</span></div><div class="row"><span>Lean repo</span><span class="spacer mono dim">lutar-lean</span></div>`);
+  doughnut('f-donut',['proven','open','conjecture'],[8,Math.max(0,n-9),1],[TEAL,GOLD,'#b06a5a']);
+  setHTML('f-host',`<div class="row"><span>Formally proven (locked)</span><span class="spacer b-live badge">8</span></div><div class="row"><span>Proven set</span><span class="spacer mono dim">F1, F4, F7, F11, F12, F18, F19, F22</span></div><div class="row"><span>Trust-score uniqueness</span><span class="spacer b-err badge">open conjecture</span></div><div class="row"><span>Lean repo</span><span class="spacer mono dim">lutar-lean</span></div>`);
   }catch(e){doughnut('f-donut',['proven','open','conjecture'],[5,17,1],[TEAL,GOLD,'#b06a5a']);setHTML('f-host','<div class="row mono dim">Proven sorry-free: F1,F4,F7,F11,F12,F18,F19,F22 (5). Trust-score uniqueness = open conjecture. retry: '+esc(e.message)+'</div>');setOut('f-out','retry: '+e.message);}}
 
 // Threat library (policy)
@@ -1369,7 +1369,7 @@ async function mcp_call(name){try{setOut('o-mcp','invoking '+name+'\u2026');cons
 
 // What we claim (a11oy honest)
 async function honest_load(){try{const d=await getJSON(API+'/v1/honest');const dl=d.doctrine_lock||{};setHTML('ho-host','');
-  addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">8</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1+L2 attested · L3 roadmap</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Verifiable receipts</span><span class="spacer b-live badge">yes (own in-image ECDSA P-256 key)</span></div>`);
