@@ -4705,7 +4705,14 @@ def _a11oy_eval_hist_append(run: dict) -> dict:
             "avg_overall": ((run.get("leaderboard") or [{}])[0] or {}).get("score"),
             "scenarios": [{"scenario": r.get("scenario"),
                            "overall": r.get("overall"),
-                           "pass": r.get("pass")}
+                           "pass": r.get("pass"),
+                           # policy_signals are deterministic, non-secret policy
+                           # signature labels (e.g. "exfiltrate", "size-guard:...").
+                           # Persisting them keeps the recorded summary guardable:
+                           # the eval-arena-negative-control check can re-validate
+                           # the latest recorded run and catch a degraded timeline
+                           # that dropped its policy-rejected negative control.
+                           "policy_signals": r.get("policy_signals")}
                           for r in (run.get("results") or [])],
             "receipt_signed": bool(rcpt.get("signed")),
             "receipt_keyid": rcpt.get("keyid"),

@@ -89,3 +89,10 @@ jobs:
         run: python3 scripts/check_eval_arena_negative_control.py --selftest
       - name: Run the live Eval Arena in-image and assert pass + negative-control fail
         run: python3 scripts/check_eval_arena_negative_control.py
+      - name: Validate the latest RECORDED run (history ring) with the same validator
+        # The arena also persists a capped ring of recorded run summaries that the
+        # console renders as a trend strip. A degraded recorded run could surface an
+        # all-green history even when live is fine. This seeds the ring with one real
+        # live run, reads the recorded summary back, and runs the SAME validate_run()
+        # over it (soft-skips honestly if the history is genuinely empty).
+        run: python3 scripts/check_eval_arena_negative_control.py --recorded
