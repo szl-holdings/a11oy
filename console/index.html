@@ -901,7 +901,7 @@ async function mcp_call(name){try{setOut('o-mcp','invoking '+name+'\u2026');cons
 
 // What we claim (a11oy honest)
 async function honest_load(){try{const d=await getJSON(API+'/v1/honest');const dl=d.doctrine_lock||{};setHTML('ho-host','');
-  addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">5</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">8</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA Level 2</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Verifiable receipts</span><span class="spacer b-live badge">yes (own in-image ECDSA P-256 key)</span></div>`);
