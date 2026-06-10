@@ -5622,6 +5622,11 @@ try:
         # DEV-WIRE-A (2026-06-09): anvaka graph-stack completion (0-CDN, in-image).
         "vivagraph.min.js": _VENDOR_JS_CT,             # VivaGraphJS (BSD-3, anvaka) — global Viva
         "ngraph.events.umd.js": _VENDOR_JS_CT,         # ngraph.events (BSD-3, anvaka) — global ngraphEvents
+        # OPERATOR WIDGET (2026-06-10): the a11oy floating governed-operator surface
+        # ("Chaski"). Self-hosted in-image (0 CDN). Honest naming — NO character
+        # codenames. Wired to the LIVE substrate: /api/a11oy/code/chat|agent + v4 ledger.
+        "a11oy-operator-widget.js": _VENDOR_JS_CT,     # SZL Apache-2.0 — global window.A11oyOperator
+        "a11oy-operator-widget.css": _VENDOR_CSS_CT,   # optional palette tokens (JS self-styles)
     }
 
     # NOTE on route ORDER: literal paths (/vendor/earth-night.jpg, /vendor/fonts/*)
@@ -5667,6 +5672,73 @@ except Exception as _vend_e:  # never crash the app — additive only
     import sys as _vend_sys, traceback as _vend_tb
     print(f"[a11oy] AIR-GAP vendor routes NOT registered: {_vend_e!r}", file=_vend_sys.stderr)
     _vend_tb.print_exc()
+
+# ===========================================================================
+# ADDITIVE (2026-06-10, Yachay + Perplexity Computer Agent): OPERATOR WIDGET
+# INJECTION. Consolidates the floating governed-operator surface ("Chaski")
+# across EVERY served a11oy HTML surface (console, all genius tabs, SPA routes).
+#
+# WHY a middleware (not per-file <script>): the served surfaces are a mix of
+# standalone HTML files (_ptg_serve) and the React SPA shell (index.html). A
+# single response middleware injects the vendored widget into ALL of them with
+# zero per-file edits and zero risk of missing a route. The widget is SELF-
+# HOSTED at /vendor/a11oy-operator-widget.js (0 CDN, Tychee air-gap clean) and
+# auto-detects the host organ, calling SAME-ORIGIN live endpoints.
+#
+# HONEST NAMING: the widget is the "a11oy operator" / agent surface "Chaski".
+# NO character codenames anywhere. Doctrine v11 LOCKED 749/14/163. Lambda =
+# Conjecture 1. locked-proven = 8. ADDITIVE ONLY — never rewrites page content,
+# only appends one <script defer> before </body>, and is idempotent.
+# ===========================================================================
+try:
+    from starlette.middleware.base import BaseHTTPMiddleware as _OPW_Base
+    from starlette.responses import Response as _OPW_Response
+
+    _OPW_TAG = (
+        b'<script src="/vendor/a11oy-operator-widget.js" '
+        b'data-surface="a11oy" defer></script>'
+    )
+    _OPW_MARKER = b'a11oy-operator-widget.js'
+
+    class _OperatorWidgetInjector(_OPW_Base):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                ct = (resp.headers.get("content-type") or "").lower()
+                # Only touch full HTML documents (skip JSON/SSE/assets/etc).
+                if "text/html" not in ct:
+                    return resp
+                # Never inject into the widget asset route itself, or API/SSE.
+                p = request.url.path
+                if p.startswith("/vendor/") or p.startswith("/api/") or p.startswith("/assets/"):
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                # Idempotent: if already present, pass through unchanged.
+                if _OPW_MARKER in body:
+                    new_body = body
+                elif b"</body>" in body:
+                    new_body = body.replace(b"</body>", _OPW_TAG + b"</body>", 1)
+                elif b"</html>" in body:
+                    new_body = body.replace(b"</html>", _OPW_TAG + b"</html>", 1)
+                else:
+                    new_body = body + _OPW_TAG
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return _OPW_Response(content=new_body, status_code=resp.status_code,
+                                    headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    app.add_middleware(_OperatorWidgetInjector)
+    print("[a11oy] OPERATOR WIDGET injector registered: /vendor/a11oy-operator-widget.js "
+          "appended to every served HTML surface (Chaski, 0 CDN, live-wired)", file=__import__("sys").stderr)
+except Exception as _opw_e:  # never crash the app — additive only
+    import sys as _opw_sys, traceback as _opw_tb
+    print(f"[a11oy] OPERATOR WIDGET injector NOT registered: {_opw_e!r}", file=_opw_sys.stderr)
+    _opw_tb.print_exc()
+# === end OPERATOR WIDGET INJECTION ===
 # === end AIR-GAP vendoring ===
 
 
