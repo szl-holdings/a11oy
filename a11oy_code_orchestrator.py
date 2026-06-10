@@ -64,6 +64,33 @@ from fastapi import APIRouter, Header, HTTPException, Request, UploadFile, File
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 
 # ---------------------------------------------------------------------------
+# Additive agentic core (NEW shared modules). Guarded so a missing module can
+# never break the existing orchestrator routes (Zero-Bandaid: degrade honestly).
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_agent_loop as _agent  # governed FSM
+except Exception as _exc:  # pragma: no cover
+    _agent = None
+    _AGENT_IMPORT_ERROR = str(_exc)
+else:
+    _AGENT_IMPORT_ERROR = ""
+try:
+    import a11oy_org_rag as _orgrag  # agentic RAG over the org
+except Exception as _exc:  # pragma: no cover
+    _orgrag = None
+    _ORGRAG_IMPORT_ERROR = str(_exc)
+else:
+    _ORGRAG_IMPORT_ERROR = ""
+try:
+    import szl_llm_registry as _llmreg  # A11OY_CODE_LLM_KEY resolver
+except Exception:  # pragma: no cover
+    _llmreg = None
+try:
+    import a11oy_mcp_client as _mcp  # Streamable-HTTP MCP client to hatun-mcp
+except Exception:  # pragma: no cover
+    _mcp = None
+
+# ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
@@ -98,6 +125,17 @@ FLAGSHIP_BASES = {
 # Accept role aliases used in the tool enum -> canonical FLAGSHIP_BASES key.
 _ROLE_ALIASES = {"governance": "reasoning", "field-node": "field-node",
                  "policy": "policy", "operator": "operator", "reasoning": "reasoning"}
+
+# Command-bus bases for cross-app orchestration (operator_shell_v4 POST
+# /api/<organ>/v4/command). Keyed by organ/app name. Empty ⇒ honest gap until
+# that Space ships its base URL secret.
+APP_COMMAND_BASES = {
+    "killinchu": os.environ.get("KILLINCHU_BASE", ""),
+    "operator": os.environ.get("ROSIE_BASE", ""),
+    "policy": os.environ.get("SENTRA_BASE", ""),
+    "reasoning": os.environ.get("AMARU_BASE", ""),
+    "governance": os.environ.get("AMARU_BASE", ""),
+}
 
 router = APIRouter(prefix="/api/a11oy/code", tags=["a11oy.code"])
 
@@ -210,6 +248,8 @@ YUYAY_AXES = [
 STATE_CHANGING_TOOLS = {
     "github_open_issue", "github_open_pr", "hf_push_file", "fs_write",
     "shell_exec", "flagship_call", "drone_command",
+    # NEW agentic state-changing tools (higher bar + 2-person Yuyay gate):
+    "apply_patch", "app_command",
 }
 # Tools that must hard-fail if they would touch IP-HOLD / locked surfaces.
 HARD_DENY_PATTERNS = [
@@ -501,6 +541,56 @@ async def _call_model(client: httpx.AsyncClient, model: str, payload: dict[str, 
     return resp.json()
 
 
+async def agent_model_complete(messages: list[dict], **kw) -> dict[str, Any]:
+    """model_complete callable injected into the agent loop's FINALIZE step.
+
+    If a real inference credential is present, calls the live model (resilient
+    fallback walk). Otherwise returns the CLEARLY-LABELED deterministic stub —
+    the agentic control-flow already ran for real (Zero-Bandaid Law)."""
+    if not has_inference_credential():
+        last = next((m.get("content") for m in reversed(messages)
+                     if m.get("role") == "user"), "")
+        snippet = (last if isinstance(last, str) else json.dumps(last)).strip()[:160]
+        return {"text": (
+            "**[deterministic stub — inference token not yet set]**\n\n"
+            "The a11oy Code agent's governed control-flow (plan DAG, per-step Λ-gate, "
+            "PURIQ gate, typed evidence, signed Khipu receipts) executed FOR REAL. The "
+            "model-authored synthesis is unavailable because no inference credential is "
+            f"configured on this Space (set the secret {_code_secret_name()}), so no answer "
+            "is fabricated (Zero-Bandaid Law)."
+            + (f" Request: \u201c{snippet}\u201d." if snippet else "")),
+            "model": "deterministic-stub", "stub": True}
+    client = _get_client()
+    decision = route(messages, "router-auto", "standard", None)
+    payload = {"messages": messages, "max_tokens": kw.get("max_tokens", 1200),
+               "temperature": kw.get("temperature", 0.4)}
+    candidates = [decision["model"], *decision.get("fallbacks", [])]
+    try:
+        data, model_used = await _call_model_resilient(client, candidates, payload)
+        text = (data.get("choices", [{}])[0].get("message", {}) or {}).get("content", "") or ""
+        return {"text": text, "model": model_used, "stub": False}
+    except Exception as exc:
+        return {"text": f"[honest error: live model call failed: {str(exc)[:200]}]",
+                "model": "error", "stub": True}
+
+
+def _code_secret_name() -> str:
+    if _llmreg is not None:
+        try:
+            return _llmreg.code_llm_secret_name()
+        except Exception:
+            pass
+    return "A11OY_CODE_LLM_KEY"
+
+
+def _agent_rag_query(q: str, **kw) -> dict[str, Any]:
+    """rag_query callable injected into the agent loop's RETRIEVE step."""
+    if _orgrag is None:
+        return {"ok": False, "i_dont_know": True,
+                "honest_error": "a11oy_org_rag not importable (honest)"}
+    return _orgrag.query(q, k=kw.get("k", 6), emit_receipt=khipu_emit)
+
+
 async def _call_model_resilient(
     client: httpx.AsyncClient, models: list[str], payload: dict[str, Any]
 ) -> tuple[dict[str, Any], str]:
@@ -576,6 +666,41 @@ TOOL_SCHEMAS = [
         "parameters": {"type": "object", "properties": {
             "drone_id": {"type": "string"}, "command": {"type": "string"}},
             "required": ["drone_id", "command"]}}},
+    # ---- NEW agentic tools (each routed to a REAL backend; NO mocks) ----
+    {"type": "function", "function": {
+        "name": "repo_map", "description": "Aider-style repo map: files + symbols ranked by Λ-weighted graph centrality (a11oy_org_rag).",
+        "parameters": {"type": "object", "properties": {"repo": {"type": "string"}}, "required": ["repo"]}}},
+    {"type": "function", "function": {
+        "name": "code_search", "description": "Agentic RAG over the whole org (FTS5 + vector + Λ re-rank + HyDE). Low support ⇒ i_dont_know.",
+        "parameters": {"type": "object", "properties": {
+            "query": {"type": "string"}, "k": {"type": "integer", "default": 6},
+            "repo": {"type": "string"}, "hyde": {"type": "string"}}, "required": ["query"]}}},
+    {"type": "function", "function": {
+        "name": "github_open_pr", "description": "Open a GitHub pull request (state-changing; 2-person gate).",
+        "parameters": {"type": "object", "properties": {
+            "repo": {"type": "string"}, "title": {"type": "string"}, "head": {"type": "string"},
+            "base": {"type": "string", "default": "main"}, "body": {"type": "string"}},
+            "required": ["repo", "title", "head"]}}},
+    {"type": "function", "function": {
+        "name": "apply_patch", "description": "Apply a unified diff to a file in the sandboxed workspace (state-changing).",
+        "parameters": {"type": "object", "properties": {
+            "path": {"type": "string"}, "diff": {"type": "string"}}, "required": ["path", "diff"]}}},
+    {"type": "function", "function": {
+        "name": "run_tests", "description": "Run a test command in the constrained sandbox (python3/pytest/node). Honest boundary.",
+        "parameters": {"type": "object", "properties": {
+            "command": {"type": "string", "default": "python3 -m pytest -q"}}, "required": []}}},
+    {"type": "function", "function": {
+        "name": "formula_call", "description": "Call a governed formula tool on hatun-mcp (e.g. szl_lean_verify, szl_puriq_evaluate) via the MCP client.",
+        "parameters": {"type": "object", "properties": {
+            "tool": {"type": "string"}, "args": {"type": "object"}}, "required": ["tool"]}}},
+    {"type": "function", "function": {
+        "name": "khipu_verify", "description": "Verify a Khipu receipt chain hash via hatun-mcp szl_khipu_verify.",
+        "parameters": {"type": "object", "properties": {"receipt_hash": {"type": "string"}}, "required": ["receipt_hash"]}}},
+    {"type": "function", "function": {
+        "name": "app_command", "description": "Orchestrate another SZL app via the real command bus POST /api/<organ>/v4/command.",
+        "parameters": {"type": "object", "properties": {
+            "app": {"type": "string", "description": "organ/app name, e.g. killinchu, operator, policy"},
+            "command": {"type": "string"}, "args": {"type": "object"}}, "required": ["app", "command"]}}},
 ]
 
 SHELL_ALLOWLIST = {"ls", "cat", "echo", "wc", "head", "tail", "grep", "find", "python3", "node", "sort", "uniq"}
@@ -700,7 +825,157 @@ async def _dispatch_tool(name: str, args: dict[str, Any], client: httpx.AsyncCli
     if name == "drone_command":
         return await _tool_flagship(client, "field-node", f"/drones/{args['drone_id']}/command",
                                     "POST", {"command": args["command"]})
+    # ---- NEW agentic tools (REAL backends) ----
+    if name == "repo_map":
+        return _tool_repo_map(args["repo"])
+    if name == "code_search":
+        return _tool_code_search(args["query"], args.get("k", 6), args.get("repo"), args.get("hyde"))
+    if name == "github_open_pr":
+        return _tool_github_pr(args["repo"], args["title"], args["head"],
+                               args.get("base", "main"), args.get("body", ""))
+    if name == "apply_patch":
+        return _tool_apply_patch(args["path"], args["diff"])
+    if name == "run_tests":
+        return _tool_run_tests(args.get("command", "python3 -m pytest -q"))
+    if name == "formula_call":
+        return _tool_formula_call(args["tool"], args.get("args", {}))
+    if name == "khipu_verify":
+        return _tool_khipu_verify(args["receipt_hash"])
+    if name == "app_command":
+        return await _tool_app_command(client, args["app"], args["command"], args.get("args", {}))
     raise ValueError(f"unknown tool {name}")
+
+
+# ---------------------------------------------------------------------------
+# NEW agentic tool implementations. Each hits a REAL backend or returns an
+# honest, labeled error/gap — NEVER a fabricated success (Zero-Bandaid Law).
+# ---------------------------------------------------------------------------
+def _tool_repo_map(repo: str) -> Any:
+    if _orgrag is None:
+        return {"error": "a11oy_org_rag module not importable in this runtime (honest)."}
+    return _orgrag.repo_map(repo)
+
+
+def _tool_code_search(query: str, k: int, repo: str | None, hyde: str | None) -> Any:
+    if _orgrag is None:
+        return {"error": "a11oy_org_rag module not importable (honest).", "i_dont_know": True}
+    return _orgrag.query(query, k=k, repo=repo, hyde_text=hyde, emit_receipt=khipu_emit)
+
+
+def _tool_github_pr(repo: str, title: str, head: str, base: str, body: str) -> Any:
+    out = subprocess.run(
+        ["gh", "pr", "create", "-R", repo, "-t", title, "-H", head, "-B", base,
+         "-b", body or "Opened by a11oy.code (Chaski)"],
+        capture_output=True, text=True, timeout=45, env={**os.environ})
+    if out.returncode != 0:
+        return {"error": out.stderr.strip()[:400],
+                "hint": "gh CLI needs a github credential in the Space env to open a PR."}
+    return {"created": out.stdout.strip()}
+
+
+def _tool_apply_patch(path: str, diff: str) -> Any:
+    """Apply a unified diff to a sandboxed file using `patch` if available, else a
+    minimal pure-python fallback. State-changing; gated upstream."""
+    try:
+        p = _safe_sandbox_path(path)
+    except Exception as exc:
+        return {"error": f"path rejected: {str(exc)[:200]}"}
+    p.parent.mkdir(parents=True, exist_ok=True)
+    patch_file = SANDBOX_DIR / f"_patch_{uuid.uuid4().hex[:8]}.diff"
+    try:
+        patch_file.write_text(diff, "utf-8")
+        out = subprocess.run(["patch", str(p), str(patch_file)], capture_output=True,
+                             text=True, timeout=15, cwd=str(SANDBOX_DIR))
+        if out.returncode == 0:
+            rec = khipu_emit("tool.apply_patch", {"path": path, "bytes": len(diff)})
+            return {"path": path, "applied": True, "stdout": out.stdout[:1000],
+                    "khipu_hash": rec["hash"]}
+        return {"path": path, "applied": False, "error": (out.stderr or out.stdout)[:600],
+                "honest_note": "patch did not apply cleanly; no partial write claimed."}
+    except FileNotFoundError:
+        return {"error": "`patch` binary not in image (honest). Use fs_write with full "
+                         "file contents instead.", "applied": False}
+    except Exception as exc:
+        return {"error": str(exc)[:300], "applied": False}
+    finally:
+        try:
+            patch_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _tool_run_tests(command: str) -> Any:
+    """Run an allow-listed test command in the sandbox (python3/pytest/node)."""
+    parts = command.strip().split()
+    if not parts:
+        return {"error": "empty command"}
+    head = parts[0]
+    if head not in ("python3", "node", "pytest"):
+        return {"error": f"test runner '{head}' not allow-listed (python3/pytest/node only).",
+                "boundary": RUN_BOUNDARY}
+    SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        out = subprocess.run(parts, capture_output=True, text=True, timeout=30,
+                             cwd=str(SANDBOX_DIR),
+                             env={"PATH": os.environ.get("PATH", ""), "HOME": str(SANDBOX_DIR)})
+        rec = khipu_emit("tool.run_tests", {"command": command, "exit": out.returncode})
+        return {"command": command, "exit": out.returncode, "code": out.returncode,
+                "stdout": out.stdout[:6000], "stderr": out.stderr[:3000],
+                "boundary": RUN_BOUNDARY, "khipu_hash": rec["hash"]}
+    except subprocess.TimeoutExpired:
+        return {"error": "timeout (30s)", "command": command, "boundary": RUN_BOUNDARY}
+    except FileNotFoundError as exc:
+        return {"error": f"runner not in image: {exc}", "boundary": RUN_BOUNDARY}
+
+
+def _tool_formula_call(tool: str, args: dict[str, Any]) -> Any:
+    """Call a governed formula tool on hatun-mcp via the MCP client."""
+    if _mcp is None:
+        return {"error": "a11oy_mcp_client not importable (honest)."}
+    try:
+        return _mcp.call_tool(tool, args or {})
+    except Exception as exc:
+        return {"error": f"hatun-mcp call '{tool}' failed: {str(exc)[:300]}",
+                "honest_note": "no fabricated formula result returned."}
+
+
+def _tool_khipu_verify(receipt_hash: str) -> Any:
+    if _mcp is None:
+        return {"error": "a11oy_mcp_client not importable (honest)."}
+    try:
+        return _mcp.verify_receipt(receipt_hash)
+    except Exception as exc:
+        return {"error": f"szl_khipu_verify failed: {str(exc)[:300]}"}
+
+
+async def _tool_app_command(client: httpx.AsyncClient, app: str, command: str,
+                            args: dict[str, Any]) -> Any:
+    """Orchestrate another SZL app via the REAL command bus:
+    POST /api/<organ>/v4/command  body {command, args}. Returns the signed DSSE
+    receipt the bus emits, or an honest error if the bus base is unconfigured."""
+    organ = (app or "").strip().lower()
+    base = APP_COMMAND_BASES.get(organ, "")
+    if not base:
+        # In-Space self-call for the local organ (relative), else honest gap.
+        if organ in ("a11oy", "self", ""):
+            base = os.environ.get("A11OY_SELF_BASE", "http://127.0.0.1:7860")
+        else:
+            return {"error": f"command-bus base for app '{organ}' not configured",
+                    "hint": f"set {organ.upper()}_BASE when that Space ships.",
+                    "gap": True, "bus_path": f"/api/{organ}/v4/command"}
+    url = f"{base}/api/{organ}/v4/command"
+    try:
+        resp = await client.post(url, json={"command": command, "args": args or {}}, timeout=60.0)
+        rec = khipu_emit("tool.app_command", {"app": organ, "command": command,
+                                              "status": resp.status_code})
+        try:
+            data = resp.json()
+        except Exception:
+            data = {"status": resp.status_code, "text": resp.text[:2000]}
+        return {"app": organ, "command": command, "bus_url": url, "response": data,
+                "khipu_hash": rec["hash"]}
+    except Exception as exc:
+        return {"error": f"command bus call failed: {str(exc)[:300]}", "bus_url": url}
 
 
 async def _tool_proxy(client: httpx.AsyncClient, method: str, path: str, **kw) -> Any:
@@ -936,7 +1211,14 @@ async def code_healthz() -> JSONResponse:
         "tiers": list(TIERS.keys()), "tools": [t["function"]["name"] for t in TOOL_SCHEMAS],
         "puriq_threshold": PURIQ_THRESHOLD, "memory": "sqlite", "signed": "Yachay",
         "ide": "/api/a11oy/code/ide", "run": "/api/a11oy/code/run",
-        "token_secret": "HF_TOKEN",
+        "token_secret": _code_secret_name(),
+        "token_secret_fallbacks": ["OPENROUTER_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+                                   "DEEPSEEK_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "HF_TOKEN"],
+        "agentic": _agent is not None,
+        "org_rag": _orgrag is not None,
+        "mcp_client": _mcp is not None,
+        "key_resolution": (_llmreg.resolve_code_llm_key()
+                           if _llmreg is not None else {"wired": has_inference_credential()}),
         "built_by": "Perplexity Computer Agent",
     })
 
@@ -955,6 +1237,144 @@ async def code_tools() -> JSONResponse:
 @router.get("/metrics")
 async def code_metrics() -> PlainTextResponse:
     return PlainTextResponse(_metrics_text(), media_type="text/plain; version=0.0.4")
+
+
+# ===========================================================================
+# AGENTIC RAG ENDPOINTS (a11oy_org_rag) — for the UI + the agent's RETRIEVE step.
+# ===========================================================================
+@router.post("/rag/index")
+async def rag_index(request: Request) -> JSONResponse:
+    """Build/refresh the org graph + FTS5/vector index. Receipted. Honest error
+    if a11oy_org_rag is unavailable or no GitHub credential is present."""
+    if _orgrag is None:
+        return JSONResponse({"ok": False, "error": f"a11oy_org_rag not importable: {_ORGRAG_IMPORT_ERROR}"},
+                            status_code=503)
+    body = await request.json() if await request.body() else {}
+    repos = body.get("repos")
+    out = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _orgrag.build_index(repos=repos, emit_receipt=khipu_emit))
+    return JSONResponse(out, status_code=200 if out.get("ok") else 502)
+
+
+@router.post("/rag/query")
+async def rag_query(request: Request) -> JSONResponse:
+    """Two-stage Λ-weighted agentic RAG query (HyDE + FTS5/vector + graph re-rank).
+    Low support ⇒ i_dont_know (never fabricates)."""
+    if _orgrag is None:
+        return JSONResponse({"ok": False, "i_dont_know": True,
+                             "error": "a11oy_org_rag not importable"}, status_code=503)
+    body = await request.json()
+    q = body.get("query") or body.get("q", "")
+    if not q:
+        return JSONResponse({"ok": False, "error": "missing 'query'"}, status_code=400)
+    out = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _orgrag.query(q, k=body.get("k", 6), repo=body.get("repo"),
+                                    hyde_text=body.get("hyde"), emit_receipt=khipu_emit))
+    return JSONResponse(out)
+
+
+@router.get("/rag/graph")
+async def rag_graph() -> JSONResponse:
+    """Org graph (nodes/edges) for the 3D UI. Honest empty state if not built."""
+    if _orgrag is None:
+        return JSONResponse({"built": False, "nodes": [], "edges": [],
+                             "error": "a11oy_org_rag not importable"}, status_code=503)
+    return JSONResponse(_orgrag.graph_dict())
+
+
+@router.get("/rag/status")
+async def rag_status() -> JSONResponse:
+    if _orgrag is None:
+        return JSONResponse({"ok": False, "error": "a11oy_org_rag not importable"}, status_code=503)
+    return JSONResponse(_orgrag.status())
+
+
+# ===========================================================================
+# AGENT ENDPOINTS (a11oy_agent_loop) — status + a non-chat run/stream surface
+# the UI can call directly. The primary agentic surface is POST /chat/stream
+# with {"agentic": true}; these add an explicit, named agent API.
+# ===========================================================================
+@router.get("/agent/status")
+async def agent_status() -> JSONResponse:
+    """Agent availability + guard configuration + recent Reflexion lessons."""
+    if _agent is None:
+        return JSONResponse({"available": False, "error": f"a11oy_agent_loop not importable: {_AGENT_IMPORT_ERROR}"},
+                            status_code=503)
+    return JSONResponse({
+        "available": True,
+        "surface_name": "Chaski",
+        "states": [_agent.S_INTAKE, _agent.S_PLAN, _agent.S_RETRIEVE, _agent.S_ACT,
+                   _agent.S_OBSERVE, _agent.S_VERIFY, _agent.S_REFLECT,
+                   _agent.S_FINALIZE, _agent.S_HALT],
+        "evidence_kinds": list(_agent.EVIDENCE_KINDS),
+        "guards": {"max_steps": _agent.MAX_STEPS,
+                   "max_reflect_depth": _agent.MAX_REFLECT_DEPTH,
+                   "lambda_floor": _agent.LAMBDA_FLOOR},
+        "mode": "live" if has_inference_credential() else "deterministic_stub",
+        "token_secret": _code_secret_name(),
+        "recent_reflections": _agent.recent_reflections(limit=10),
+    })
+
+
+@router.post("/agent/run")
+async def agent_run(request: Request) -> JSONResponse:
+    """Run the governed FSM once and return the FULL machine-readable trace
+    (every step's state, Λ, gate decision, evidence, Khipu hash). Non-streaming."""
+    if _agent is None:
+        return JSONResponse({"ok": False, "error": "a11oy_agent_loop not importable"}, status_code=503)
+    body = await request.json()
+    task = body.get("task") or body.get("message", "")
+    if not task:
+        return JSONResponse({"ok": False, "error": "missing 'task'"}, status_code=400)
+    client = _get_client()
+    result = await _agent.run_agent(
+        task, history=body.get("history", []),
+        khipu_emit=khipu_emit, puriq_decide=puriq_decide,
+        execute_tool=(lambda n, a, **kw: execute_tool(n, a, client, **kw)),
+        model_complete=agent_model_complete, rag_query=_agent_rag_query,
+        two_person_attested=bool(body.get("two_person_attested", False)))
+    return JSONResponse(result)
+
+
+@router.post("/agent/stream")
+async def agent_stream(request: Request):
+    """Stream the governed FSM step-by-step as SSE `agent_step` events, then a
+    final `done` event. Same envelope the agentic /chat/stream emits, but a
+    dedicated agent surface for the UI."""
+    if _agent is None:
+        raise HTTPException(status_code=503, detail="a11oy_agent_loop not importable")
+    body = await request.json()
+    task = body.get("task") or body.get("message", "")
+    two_person = bool(body.get("two_person_attested", False))
+    history = body.get("history", [])
+    client = _get_client()
+
+    async def gen() -> AsyncGenerator[bytes, None]:
+        def sse(event: str, data: dict) -> bytes:
+            return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n".encode()
+        if not task:
+            yield sse("error", {"error": "missing 'task'"})
+            return
+        _q: list[tuple[str, dict]] = []
+        result = await _agent.run_agent(
+            task, history=history,
+            khipu_emit=khipu_emit, puriq_decide=puriq_decide,
+            execute_tool=(lambda n, a, **kw: execute_tool(n, a, client, **kw)),
+            model_complete=agent_model_complete, rag_query=_agent_rag_query,
+            two_person_attested=two_person,
+            emit=lambda ev, d: _q.append((ev, d)))
+        for ev, d in _q:
+            yield sse(ev, d)
+            await asyncio.sleep(0)
+        yield sse("done", {"ok": result.get("ok"), "final_state": result.get("final_state"),
+                           "answer": result.get("answer"), "stub": result.get("stub"),
+                           "i_dont_know": result.get("i_dont_know"),
+                           "step_count": result.get("step_count"),
+                           "khipu_hash": result.get("khipu_hash"),
+                           "chain_verified": result.get("chain_verified", True),
+                           "guards": result.get("guards")})
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 # ---------------------------------------------------------------------------
@@ -1118,6 +1538,10 @@ async def chat_stream(request: Request):
     enable_tools = _tools_flag not in (False, "none", "off", None)
     two_person = bool(body.get("two_person_attested", False))
     governance_tier = body.get("governance_tier", "standard")
+    # Agentic mode: run the governed FSM (plan/retrieve/act/observe/verify/
+    # reflect/finalize) instead of the single-shot tool loop. Default OFF so the
+    # existing chat behavior is byte-for-byte unchanged unless explicitly asked.
+    agentic = bool(body.get("agentic", False)) and _agent is not None
 
     # ------------------------------------------------------------------
     # Message contract: the browser tab POSTs an OpenAI-style `messages`
@@ -1175,6 +1599,56 @@ async def chat_stream(request: Request):
                             "model": decision["model"], "license_class": decision["license_class"],
                             "reason": decision["reason"]})
         t0 = time.time()
+
+        # ----------------------------------------------------------------
+        # AGENTIC BRANCH (agentic=true): run the governed FSM. EVERY step is
+        # Λ-gated + PURIQ-gated + Khipu-receipted FOR REAL, regardless of whether
+        # a model credential is present. Each transition is streamed as an
+        # `agent_step` SSE event for the UI; the final synthesis streams as
+        # `token` events and a `done` event — identical envelope to normal chat.
+        # ----------------------------------------------------------------
+        if agentic:
+            _queue: list[tuple[str, dict]] = []
+            def _agent_emit(event: str, data: dict) -> None:
+                _queue.append((event, data))
+            try:
+                result = await _agent.run_agent(
+                    user_msg, history=history,
+                    khipu_emit=khipu_emit, puriq_decide=puriq_decide,
+                    execute_tool=(lambda n, a, **kw: execute_tool(n, a, client, **kw)),
+                    model_complete=agent_model_complete, rag_query=_agent_rag_query,
+                    two_person_attested=two_person, emit=_agent_emit)
+            except Exception as exc:
+                yield sse("error", {"error": f"agent loop failed: {str(exc)[:300]}"})
+                return
+            # Drain buffered step events (the loop ran to completion synchronously).
+            for ev, data in _queue:
+                yield sse(ev, data)
+                await asyncio.sleep(0)
+            answer = result.get("answer") or (
+                f"[agent halted: {result.get('halt_reason')}]" if not result.get("ok") else "")
+            for word in re.findall(r"\S+\s*", answer):
+                yield sse("token", {"text": word})
+                await asyncio.sleep(0)
+            latency_ms = int((time.time() - t0) * 1000)
+            y13 = yuyay13_response_score(answer, None, latency_ms)
+            mem_add_message(conv_id, "assistant", answer, model=result.get("model"),
+                            tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
+                            yuyay13=y13, khipu_hash=result.get("khipu_hash"))
+            yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
+                               "model": result.get("model"), "license_class": decision["license_class"],
+                               "latency_ms": latency_ms, "cost_usd": 0.0, "yuyay13": y13,
+                               "khipu_hash": result.get("khipu_hash"),
+                               "chain_verified": result.get("chain_verified", True),
+                               "mode": "agentic", "agentic": True,
+                               "final_state": result.get("final_state"),
+                               "step_count": result.get("step_count"),
+                               "i_dont_know": result.get("i_dont_know"),
+                               "reflect_depth": result.get("reflect_depth"),
+                               "stub": result.get("stub"),
+                               "grounded_evidence": result.get("grounded_evidence"),
+                               "guards": result.get("guards")})
+            return
 
         # ----------------------------------------------------------------
         # HONEST-STUB BRANCH: if there is NO inference credential, do NOT
