@@ -3574,6 +3574,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
   function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
   async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  async function gjLiveFirst(livePath, snapPath){ try{ var d=await gj(livePath); if(d && ((d.vulnerabilities&&d.vulnerabilities.length)||(d.cves&&d.cves.length))) return d; }catch(e){} return gj(snapPath); } /* RERUN: BATCH-2-local live-first */
   var B1=window.B1||{};
   function chip(label,status){ var col=(status==='PROVEN'||status==='CI-GREEN')?TEAL:(status==='CONJECTURE'||status==='SAMPLE')?GOLD:(status==='FALSE')?RED:GRAY;
     return '<span class="mono" style="display:inline-block;padding:1px 6px;border:1px solid '+col+';border-radius:3px;color:'+col+';font-size:9px;margin:1px 2px">'+esc(label)+(status?' \u00b7 '+esc(status):'')+'</span>'; }
