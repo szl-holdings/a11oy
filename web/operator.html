@@ -209,7 +209,7 @@ function KhipuSpine(stage) {
 }
 
 /* =========================================================================
- * sentra — "The Immune Cathedral": geodesic sphere shell + small core.
+ * Yawar (Immune Cathedral) — geodesic sphere shell + small core.
  * Particles fly in; malicious -> rose flare; benign -> green trail; ambiguous
  * -> amber held in suspension. Noise rule: only signatures fired today shown.
  * ====================================================================== */
@@ -251,12 +251,12 @@ function ImmuneCathedral(stage) {
 }
 
 /* =========================================================================
- * amaru — "The 13-Axis Cortex": 3D radial spike chart, Λ pulsing at center.
- * 7 chakra spheres orbit at heights. F1-F23 formula cards float as a
- * constellation — only formulas with recent activity OR PROVED (F1,F11,F12,
- * F18,F19) are shown (noise rule).
+ * Yuyay (Cortex) — "The 13-Axis Cortex": 3D radial spike chart, Λ pulsing at
+ * center. 7 chakra spheres orbit at heights. F1-F23 formula cards float as a
+ * constellation — only formulas with recent activity OR locked-proven
+ * (F1,F4,F7,F11,F12,F18,F19,F22 — the 8) are shown (noise rule).
  * ====================================================================== */
-const PROVED = new Set(["F1", "F11", "F12", "F18", "F19"]);
+const PROVED = new Set(["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]);
 function Cortex(stage) {
   const group = new THREE.Group(); stage.scene.add(group);
   const lambda = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 2), new THREE.MeshStandardMaterial({ color: TOKENS.gold, emissive: TOKENS.gold, emissiveIntensity: 1.0 }));
@@ -305,7 +305,7 @@ function Cortex(stage) {
 
 /* =========================================================================
  * killinchu — "Earth + Command Orbit": Cesium globe preserved in the page;
- * here we render the 4 superhero orbital cards (Sentra/Amaru/a11oy/Rosie)
+ * here we render the 4 organ orbital cards (Policy/Cortex/a11oy/Operator)
  * whose orbit distance is dynamic by activity (busy = closer). Tracks/threats
  * on a globe proxy. Noise rule: only tracks updated in last 60s shown.
  * (Used as an overlay layer above the Cesium canvas, or standalone proxy globe.)
@@ -366,7 +366,7 @@ function pick(stage, group, ev) {
 }
 
 /* ---- scene registry by organ ------------------------------------------- */
-const SCENES = { a11oy: KhipuSpine, sentra: ImmuneCathedral, amaru: Cortex, killinchu: CommandOrbit };
+const SCENES = { a11oy: KhipuSpine, yawar: ImmuneCathedral, sentra: ImmuneCathedral, yuyay: Cortex, amaru: Cortex, killinchu: CommandOrbit };
 
 /* =============================================================================
  * operator-shell / shared / zones.js
