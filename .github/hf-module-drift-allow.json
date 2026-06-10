@@ -25,29 +25,5 @@
     ".br",
     ".map"
   ],
-  "accepted_divergences": {
-    "_vendor_blobs.py": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-06T08:18:13Z | hf 2026-06-06T16:24:26.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "a11oy_amaru_feeds.py": "GitHub-ahead drift from the 2026-06-10 'instill locked-8' push (ahead: github; github 2026-06-10T13:31:57Z | hf 2026-06-08T20:59:24.000Z); GitHub is source-of-truth and the live HF Space mirrors README + front-door only, so this module reaches the Space on the next Docker rebuild -- seeded 2026-06-10, reconcile then remove this entry so re-divergence fails",
-    "a11oy_code.py": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-01T11:41:09Z | hf 2026-06-07T03:46:56.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "a11oy_dev1_endpoints.py": "GitHub-ahead drift from the 2026-06-10 'instill locked-8' push (ahead: github; github 2026-06-10T13:32:03Z | hf 2026-06-09T06:41:14.000Z); GitHub is source-of-truth and the live HF Space mirrors README + front-door only, so this module reaches the Space on the next Docker rebuild -- seeded 2026-06-10, reconcile then remove this entry so re-divergence fails",
-    "a11oy_frontier_patch.py": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-03T04:50:21Z | hf 2026-06-06T01:23:03.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "a11oy_v4_formulas.py": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-03T14:37:36Z | hf 2026-06-08T06:34:06.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "a11oy_warhacker_obs.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:51:13Z | hf 2026-06-07T03:46:56.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "infra/receipts-samples/receipt_schema.json": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "infra/receipts-samples/receipts_sample.jsonl.HARVEST_NOTE.txt": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "infra/receipts-samples/span_schema.json": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "knowledge.json": "GitHub-ahead drift from the 2026-06-10 'instill locked-8' push (ahead: github; github 2026-06-10T13:32:53Z | hf 2026-06-09T22:55:16.000Z); GitHub is source-of-truth and the live HF Space mirrors README + front-door only, so this file reaches the Space on the next Docker rebuild -- seeded 2026-06-10, reconcile then remove this entry so re-divergence fails",
-    "packages/policy/src/gates/DualStreamRouting.lean": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "packages/policy/src/gates/HierarchicalLinearization.lean": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "packages/policy/src/gates/InternalFeedback.lean": "pre-existing one-sided divergence [missing-hf] (ahead: github); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "src/a11oy/__init__.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T21:23:55Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "static/a11oy_cathedral.js": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T08:45:00Z | hf 2026-06-07T18:29:51.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_ayni_quorum.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:52:02Z | hf 2026-06-04T17:44:37.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_be_hardening.py": "pre-existing GitHub<->HF content drift (ahead: huggingface; github 2026-06-04T19:30:03Z | hf 2026-06-07T14:19:30.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_dsse.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:30:03Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_elite_console.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:51:10Z | hf 2026-06-06T08:58:48.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_khipu.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T19:30:03Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_provenance.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-04T21:23:55Z | hf 2026-06-04T17:42:50.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails",
-    "szl_warhacker_real.py": "pre-existing GitHub<->HF content drift (ahead: github; github 2026-06-08T03:52:32Z | hf 2026-06-06T07:40:47.000Z); seeded 2026-06-08 -- reconcile then remove this entry so re-divergence fails"
-  }
+  "accepted_divergences": {}
 }
