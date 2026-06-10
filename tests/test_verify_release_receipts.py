@@ -168,3 +168,94 @@ def test_real_envelope_failing_verification_fails_loudly(tmp_path, monkeypatch):
     )
     rc = script.main(["--dir", str(tmp_path)])
     assert rc == 1
+
+
+# --- multi-release tree (issue #403): re-verify EVERY release, not just latest ---
+
+
+def _kw(script):
+    return dict(
+        repo="szl-holdings/a11oy",
+        allowed_workflows=script._DEFAULT_PRODUCER_WORKFLOWS,
+        issuer=script._SIGSTORE_OIDC_ISSUER,
+    )
+
+
+def test_release_tree_aggregates_across_all_releases(tmp_path):
+    """One subdir per release tag: counts AGGREGATE and each result is tagged.
+
+    This is the heart of #403 — an older release's receipt is re-checked, not
+    skipped because it is not the latest.
+    """
+    script = _load_script()
+    for tag in ("v0.1.44", "v0.1.45"):
+        d = tmp_path / tag
+        d.mkdir()
+        _write(d, "a.dsse.json", {"_mode": "PLACEHOLDER"})
+
+    summary = script.verify_release_tree(tmp_path, **_kw(script))
+
+    assert summary["checked"] == 2
+    assert summary["unverifiable"] == 2
+    assert summary["passed"] == 0
+    assert summary["releases_checked"] == 2
+    # Aggregate top-level int keys (status-page / summary-guard contract) survive.
+    for k in ("checked", "passed", "failed", "unverifiable"):
+        assert isinstance(summary[k], int)
+    assert isinstance(summary["results"], list) and len(summary["results"]) == 2
+    # Every flat result is annotated with the release it came from.
+    assert {r["release"] for r in summary["results"]} == {"v0.1.44", "v0.1.45"}
+    assert {rel["tag"] for rel in summary["releases"]} == {"v0.1.44", "v0.1.45"}
+
+
+def test_release_tree_skips_releases_without_assets(tmp_path):
+    """A release dir carrying no *.dsse.json is not counted (honest)."""
+    script = _load_script()
+    (tmp_path / "v0.1.43").mkdir()  # no assets
+    d = tmp_path / "v0.1.44"
+    d.mkdir()
+    _write(d, "a.dsse.json", {"_mode": "PLACEHOLDER"})
+
+    summary = script.verify_release_tree(tmp_path, **_kw(script))
+    assert summary["releases_checked"] == 1
+    assert summary["checked"] == 1
+
+
+def test_release_tree_absorbs_flat_root_for_backward_compat(tmp_path):
+    """Flat *.dsse.json directly under root still works (legacy layout)."""
+    script = _load_script()
+    _write(tmp_path, "a.dsse.json", {"_mode": "PLACEHOLDER"})
+
+    summary = script.verify_release_tree(tmp_path, **_kw(script))
+    assert summary["checked"] == 1
+    assert summary["releases_checked"] == 1
+    assert summary["results"][0]["release"] == "(root)"
+
+
+def test_release_tree_empty_is_soft_pass(tmp_path):
+    """No release carries assets -> checked 0 -> honest soft pass."""
+    script = _load_script()
+    summary = script.verify_release_tree(tmp_path, **_kw(script))
+    assert summary["checked"] == 0
+    assert summary["releases_checked"] == 0
+    rc = script.main(["--dir", str(tmp_path)])
+    assert rc == 0
+
+
+def test_main_over_multi_release_tree_fails_and_writes_summary(tmp_path):
+    """End-to-end: main() walks the tree, fails loudly, and the written summary
+    keeps the top-level int contract that the status page consumes."""
+    script = _load_script()
+    for tag in ("v0.1.44", "v0.1.45"):
+        d = tmp_path / tag
+        d.mkdir()
+        _write(d, "a.dsse.json", {"_mode": "PLACEHOLDER"})
+    out = tmp_path / ".release-verify-summary.json"
+    rc = script.main(["--dir", str(tmp_path), "--summary-out", str(out)])
+    assert rc == 1
+    data = json.loads(out.read_text(encoding="utf-8"))
+    for k in ("checked", "passed", "failed", "unverifiable"):
+        assert isinstance(data[k], int)
+    assert data["checked"] == 2
+    assert isinstance(data["results"], list)
+    assert data["releases_checked"] == 2
