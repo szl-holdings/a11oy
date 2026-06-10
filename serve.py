@@ -112,6 +112,21 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# ── UDS fleet-trust layer (uds-fleet-patch) — the Defense Unicorns / Unicorn
+# Delivery Service fleet story told with direct attribution + links to the public
+# UDS repos and the Air & Space Forces Magazine coverage, mapping each fleet
+# trust/provenance/drift gap to a real a11oy capability; plus a live signal feed
+# pulling REAL public data from the Defense Unicorns / UDS GitHub org (repo meta,
+# latest release/tag, release cadence) with honest live/cached/unreachable labels.
+# PATTERN ONLY — no UDS source copied (uds-core/cli/common AGPL-3.0). a11oy-only.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). Pure stdlib.
+try:
+    import szl_uds_fleet as _szl_uds_fleet
+    _szl_uds_fleet.register(app, ns="a11oy")
+    print("[a11oy] UDS fleet-trust registered: /api/a11oy/v1/uds", file=__import__("sys").stderr)
+except Exception as _szl_uds_e:  # pragma: no cover
+    print(f"[a11oy] UDS fleet-trust NOT registered: {_szl_uds_e!r}", file=__import__("sys").stderr)
+
 # ── Operational Readiness layer (readiness-tab-patch) — deployed-vs-repo reality.
 # Live site/endpoint liveness, HF Space build status, repo/org drift with honest
 # live/cached/unreachable labels. Same resilience pattern as evidence module.

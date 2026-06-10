@@ -8641,6 +8641,120 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
 
 <script>
+/* uds-tab-patch — UDS fleet-trust layer (a11oy console tab).
+   Honest narrative (Defense Unicorns / UDS fleet gaps -> real a11oy capabilities,
+   direct attribution + public-repo links + Air & Space Forces Magazine coverage)
+   plus a LIVE signal feed from the public Defense Unicorns / UDS GitHub org.
+   PATTERN ONLY — references public work, copies no UDS source. Reuses the global
+   ev_livebadge / ev_ago / ev_source_row helpers from evidence-tab-patch-185. */
+(function(){
+  "use strict";
+  function esc(s){ return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  window.__uds_ns="a11oy";
+  function srow(s){ return (window.ev_source_row?window.ev_source_row(s):('<div class="row"><a href="'+esc(s.url||'#')+'" target="_blank" rel="noopener">'+esc(s.title||'')+'</a></div>')); }
+  function statusBadge(st){
+    var map={'LIVE':['#4fb37f','#5fe39a','shipped & verifiable now'],'CI-GREEN':['#5aa0d0','#7ab8e6','enforced in CI / on-box watchers'],'ROADMAP':['#c0a05a','#e6c87a','stated next step, not yet shipped']};
+    var c=map[st]||['#6b6b6b','#9a9a9a','status']; return '<span class="badge" style="border:1px solid '+c[0]+';color:'+c[1]+'" title="'+esc(c[2])+'">'+esc(st||'?')+'</span>';
+  }
+  function modeBadge(m){
+    if(m==='live') return '<span class="badge" style="border:1px solid #4fb37f;color:#5fe39a" title="fetched live from GitHub now">● live</span>';
+    if(m==='cached') return '<span class="badge" style="border:1px solid #5aa0d0;color:#7ab8e6" title="last-good cached value (GitHub busy/rate-limited)">● cached</span>';
+    return '<span class="badge" style="border:1px solid #c06a5a;color:#ff7b6b" title="GitHub unreachable; no fabricated figure shown">● unreachable</span>';
+  }
+  /* re-probe one gap's source URLs via the focused /sources/live sweep; fill badges in place */
+  window.uds_recheck=async function(){
+    try{
+      var r=await fetch('/api/'+window.__uds_ns+'/v1/uds/sources/live');
+      var d=await r.json();
+      (d.gaps||[]).forEach(function(g){
+        var box=document.getElementById('uds-src-'+g.id); if(!box) return;
+        var h=''; (g.sources||[]).forEach(function(s){ h+=srow(s); });
+        if(g.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(g.sources_reachable))+'/'+esc(String(g.sources_total))+' reachable · swept '+esc((window.ev_ago&&window.ev_ago(d.checked_at))||'just now')+'</div>';
+        box.innerHTML=h; if(window.ev_tick) window.ev_tick(box);
+      });
+    }catch(e){ /* keep last-known badges */ }
+  };
+  /* live GitHub signal feed for the UDS / Defense Unicorns repos */
+  window.uds_live=async function(){
+    var box=document.getElementById('uds-live'); if(!box) return;
+    box.innerHTML='<div class="dim">fetching live repo metadata + releases from the public GitHub API…</div>';
+    try{
+      var r=await fetch('/api/'+window.__uds_ns+'/v1/uds/live');
+      var d=await r.json(); var h='';
+      h+='<div class="dim" style="margin:.2rem 0 .4rem">'+esc(String(d.repos_live))+'/'+esc(String(d.repos_total))+' repos live · fetched '+esc((window.ev_ago&&window.ev_ago(d.fetched_at))||'just now')+'</div>';
+      (d.signals||[]).forEach(function(g){
+        var rel=g.release||{};
+        var meta=(g.stars!=null?('★ '+esc(String(g.stars))):'')+(g.license?(' · '+esc(g.license)):'')+(g.pushed_at?(' · pushed '+esc(g.pushed_at)):'')+(g.archived?(' · <span style="color:#ff7b6b">archived</span>'):'');
+        var relline='';
+        if(rel.latest_tag){
+          relline='latest '+esc(rel.kind==='tag'?'tag':'release')+': <b>'+esc(rel.latest_tag)+'</b>'+(rel.published_at?(' <span class="dim">('+esc(rel.published_at)+(rel.age_days!=null?(' · '+esc(String(rel.age_days))+'d ago'):'')+')</span>'):'')+(rel.releases_90d!=null?(' <span class="dim">· '+esc(String(rel.releases_90d))+' release'+(rel.releases_90d===1?'':'s')+' in 90d</span>'):'');
+        } else { relline='<span class="dim">no published release/tag</span>'; }
+        h+='<div class="card" style="padding:.55rem .7rem"><div><a href="'+esc(g.url||'#')+'" target="_blank" rel="noopener"><b>'+esc(g.repo||'')+'</b></a> '+modeBadge(g.mode)+(g.error?(' <span class="dim">— '+esc(g.error)+'</span>'):'')+'</div>';
+        if(g.role) h+='<div class="dim" style="margin:.2rem 0">'+esc(g.role)+(g.note?(' <i>('+esc(g.note)+')</i>'):'')+'</div>';
+        h+='<div style="font-size:12px;margin-top:.2rem">'+relline+'</div>';
+        if(meta) h+='<div class="dim" style="font-size:11px;margin-top:.15rem">'+meta+'</div>';
+        h+='</div>';
+      });
+      if(d.honest) h+='<div class="honesty" style="margin-top:.4rem">'+esc(d.honest)+'</div>';
+      box.innerHTML=h;
+    }catch(e){ box.innerHTML='<div class="dim">live signal unavailable: '+esc((e&&e.message)||e)+' — the narrative + repo links above remain valid</div>'; }
+  };
+  window.uds_render=async function(c){
+    c.innerHTML='<div class="card"><div class="dim">loading UDS fleet-trust layer…</div></div>';
+    try{
+      var r=await fetch('/api/'+window.__uds_ns+'/v1/uds');
+      var d=await r.json(); var h='';
+      if(d.attribution) h+='<div class="honesty">'+esc(d.attribution)+'</div>';
+      var sub=d.subject||{};
+      h+='<div class="card"><div><b>'+esc(sub.name||'Unicorn Delivery Service (UDS)')+'</b></div><div class="dim" style="margin-top:.3rem;display:flex;gap:.6rem;flex-wrap:wrap">';
+      if(sub.site) h+='<a href="'+esc(sub.site)+'" target="_blank" rel="noopener">Defense Unicorns ↗</a>';
+      if(sub.docs) h+='<a href="'+esc(sub.docs)+'" target="_blank" rel="noopener">UDS docs ↗</a>';
+      if(sub.article) h+='<a href="'+esc(sub.article)+'" target="_blank" rel="noopener">Air &amp; Space Forces Magazine coverage ↗</a>';
+      h+='</div></div>';
+      /* narrative: fleet gap -> a11oy capability */
+      h+='<div class="dim" style="margin:.6rem 0 .3rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">Fleet trust gaps mapped to a11oy capabilities <button class="btn" id="uds-recheck-btn" title="re-probe the cited source URLs now" style="font-size:10px;padding:.12rem .5rem">⟳ Re-check source links</button></div>';
+      (d.gaps||[]).forEach(function(g){
+        h+='<div class="card"><div><b>Fleet gap: '+esc(g.gap||'')+'</b> '+statusBadge(g.capability_status)+'</div>';
+        h+='<div class="dim" style="margin:.4rem 0">'+esc(g.fleet_context||'')+'</div>';
+        h+='<div style="margin:.3rem 0"><span style="color:#5fe39a">→ a11oy:</span> '+esc(g.a11oy_capability||'')+'</div>';
+        if(g.status_note) h+='<div class="dim" style="font-size:11px">'+esc(g.status_note)+'</div>';
+        if((g.github||[]).length){ h+='<div class="dim" style="font-size:11px;margin-top:.2rem">related UDS repos: '; g.github.forEach(function(rp,i){ h+=(i?' · ':'')+'<a href="https://github.com/'+esc(rp)+'" target="_blank" rel="noopener">'+esc(rp)+'</a>'; }); h+='</div>'; }
+        h+='<div class="dim" style="font-size:11px;margin:.35rem 0 .1rem">Cited sources</div>';
+        h+='<div id="uds-src-'+esc(g.id)+'">'; (g.sources||[]).forEach(function(s){ h+=srow(s); }); h+='</div>';
+        h+='</div>';
+      });
+      /* live signal feed */
+      h+='<div style="margin:.6rem 0 .3rem"><button class="btn" id="uds-live-btn">⟳ Load live signal (GitHub release cadence + repo health)</button></div>';
+      h+='<div id="uds-live"></div>';
+      c.innerHTML=h;
+      var rb=document.getElementById('uds-recheck-btn'); if(rb) rb.addEventListener('click',function(){ rb.disabled=true; var o=rb.textContent; rb.textContent='⟳ re-checking…'; window.uds_recheck().finally(function(){ rb.disabled=false; rb.textContent=o; }); });
+      var lb=document.getElementById('uds-live-btn'); if(lb) lb.addEventListener('click',function(){ window.uds_live(); });
+      window.uds_recheck();   /* auto-fill source liveness badges on open */
+      if(window.ev_tick) window.ev_tick(c);
+      if(window.__uds_timer) clearInterval(window.__uds_timer);
+      window.__uds_timer=setInterval(function(){ if(document.body.contains(c)){ if(window.ev_tick) window.ev_tick(c); } else { clearInterval(window.__uds_timer); window.__uds_timer=null; } },15000);
+    }catch(e){ c.innerHTML='<div class="card"><div class="dim">UDS fleet-trust layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+  };
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
+    V['uds']={title:'UDS Fleet-Trust',badge:'DEFENSE UNICORNS / UDS · LIVE GITHUB SIGNAL',sub:'How the Unicorn Delivery Service (UDS) fleet-delivery problem maps to capabilities a11oy has already shipped — provenance, offline verification, tamper-evident receipts and drift detection. Defense Unicorns / UDS is a <b>separate</b> company &amp; open-source project; this references their public work and reimplements <b>patterns only</b> (no source copied). The live signal feed pulls <b>real</b> public data from the Defense Unicorns / UDS GitHub org; every figure is labelled live/cached/unreachable, never fabricated.',render:async function(c){ window.uds_render(c); }};
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="evidence"]')||document.querySelector('.nav-item[data-view="kbformulas"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="uds"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','uds'); n.setAttribute('onclick',"go('uds')");
+    n.innerHTML='<span class="ico">\u26ed</span>UDS Fleet-Trust';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+/* end uds-tab-patch */
+</script>
+
+
+<script>
 /* readiness-tab-patch — live Operational Readiness layer (a11oy console tab) */
 (function(){
   "use strict";

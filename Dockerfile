@@ -607,6 +607,7 @@ COPY szl_budget_router.py ./szl_budget_router.py
 # import it try/except-guarded. LOCKED-proven stays EXACTLY 5; Lambda=Conjecture 1.
 COPY szl_wave910_proofs.py ./szl_wave910_proofs.py
 COPY szl_evidence_research.py ./szl_evidence_research.py
+COPY szl_uds_fleet.py ./szl_uds_fleet.py
 # Operational Readiness backend (deployed-vs-repo reality, live/cached/unreachable).
 # serve.py imports this try/except-guarded; without this per-file COPY the import
 # fails and /api/a11oy/v1/readiness 404s (falls through to the SPA shell).
