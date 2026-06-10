@@ -3,12 +3,12 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-06-09T00:00:00Z",
+  "generatedAt": "2026-06-10T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 105,
-    "endpoints": 38,
-    "tabsWithCitations": 20,
+    "tabs": 109,
+    "endpoints": 41,
+    "tabsWithCitations": 22,
     "staticTabs": 27
   },
   "endpoints": {
@@ -772,6 +772,69 @@
       },
       "note": ""
     },
+    "/api/a11oy/v1/feeds/pulse": {
+      "method": "GET",
+      "schema": "feeds_pulse",
+      "freshnessSLA": 300,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Live data-feed liveness/provenance heartbeat; each item cites source_url."
+    },
+    "/api/a11oy/v1/sec/kevgate": {
+      "method": "GET",
+      "schema": "kevgate",
+      "freshnessSLA": 86400,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."
+    },
+    "/api/a11oy/v1/router/stats": {
+      "method": "GET",
+      "schema": "router_stats",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Live LLM-router per-tier stats from szl_brain.TIERS; throughput is an honest in-memory counter."
+    },
     "/api/a11oy/v1/readiness": {
       "method": "GET",
       "schema": "readiness",
@@ -932,6 +995,30 @@
       "type": "object",
       "required": [
         "tabs"
+      ]
+    },
+    "feeds_pulse": {
+      "type": "object",
+      "anyKey": [
+        "items",
+        "feed_count",
+        "live_count"
+      ]
+    },
+    "kevgate": {
+      "type": "object",
+      "anyKey": [
+        "items",
+        "gate_catalog",
+        "count"
+      ]
+    },
+    "router_stats": {
+      "type": "object",
+      "anyKey": [
+        "routes",
+        "servedThisWindow",
+        "tiers"
       ]
     },
     "readiness": {
@@ -1411,6 +1498,23 @@
       }
     },
     {
+      "key": "feedpulse",
+      "title": "feedpulse",
+      "group": "Console",
+      "route": "/console#feedpulse",
+      "endpoints": [
+        "/api/a11oy/v1/feeds/pulse"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
       "key": "finc",
       "title": "Crypto Live",
       "group": "Console",
@@ -1720,6 +1824,23 @@
       "route": "/console#kev",
       "endpoints": [
         "/api/a11oy/v1/sec/kev"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "kevgate",
+      "title": "kevgate",
+      "group": "Console",
+      "route": "/console#kevgate",
+      "endpoints": [
+        "/api/a11oy/v1/sec/kevgate"
       ],
       "citationsRequired": true,
       "sampleLabelAllowed": false,
@@ -2397,6 +2518,24 @@
       }
     },
     {
+      "key": "routerarena",
+      "title": "routerarena",
+      "group": "Console",
+      "route": "/console#routerarena",
+      "endpoints": [
+        "/api/a11oy/v1/router/stats",
+        "/api/a11oy/v1/llm/registry"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
       "key": "threatgraph",
       "title": "threatgraph",
       "group": "Console",
@@ -2435,6 +2574,23 @@
       "title": "trustspace",
       "group": "Console",
       "route": "/console#trustspace",
+      "endpoints": [
+        "/api/a11oy/v1/mesh/state"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "uds",
+      "title": "uds",
+      "group": "Console",
+      "route": "/console#uds",
       "endpoints": [
         "/api/a11oy/v1/mesh/state"
       ],
