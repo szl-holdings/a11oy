@@ -1289,6 +1289,49 @@ async def rag_status() -> JSONResponse:
     return JSONResponse(_orgrag.status())
 
 
+@router.get("/rag/corpus")
+async def rag_corpus() -> JSONResponse:
+    """The SEVEN-category SZL corpus manifest (founder mandate) + live build_state.
+    Single source of truth for WHICH sources a11oy Code indexes and HOW it cites
+    them (corpus category + gh:<repo>|hf:<space> source + path + sha256)."""
+    if _orgrag is None:
+        return JSONResponse({"ok": False, "error": "a11oy_org_rag not importable"}, status_code=503)
+    return JSONResponse({"ok": True, "corpus": _orgrag.corpus_manifest(),
+                         "build_state": _orgrag.build_state()})
+
+
+@router.post("/rag/refresh")
+async def rag_refresh(request: Request) -> JSONResponse:
+    """Operational corpus build/refresh (founder mandate). Lays down a REAL, labeled
+    SEED index synchronously (so the agent is never empty) and ingests the FULL
+    seven-category corpus on a receipted background tick — pulling live via the
+    GitHub Contents/Trees API + the HF Spaces file API. ``{"background": false}``
+    runs the full ingest synchronously (CLI/cron). Never claims a fake 'full'."""
+    if _orgrag is None:
+        return JSONResponse({"ok": False, "error": f"a11oy_org_rag not importable: {_ORGRAG_IMPORT_ERROR}"},
+                            status_code=503)
+    body = await request.json() if await request.body() else {}
+    background = bool(body.get("background", True))
+    if background:
+        # start_background_build returns immediately with the seed + in-flight phase.
+        out = _orgrag.start_background_build(emit_receipt=khipu_emit, seed_first=True)
+    else:
+        out = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _orgrag.refresh_tick(emit_receipt=khipu_emit, background=False))
+    return JSONResponse(out, status_code=200 if out.get("ok") else 502)
+
+
+@router.post("/rag/seed")
+async def rag_seed() -> JSONResponse:
+    """Build ONLY the labeled SEED index synchronously (small real subset of each
+    of the seven corpus categories). Honest error if no corpus file is reachable."""
+    if _orgrag is None:
+        return JSONResponse({"ok": False, "error": "a11oy_org_rag not importable"}, status_code=503)
+    out = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _orgrag.build_seed_index(emit_receipt=khipu_emit))
+    return JSONResponse(out, status_code=200 if out.get("ok") else 502)
+
+
 # ===========================================================================
 # AGENT ENDPOINTS (a11oy_agent_loop) — status + a non-chat run/stream surface
 # the UI can call directly. The primary agentic surface is POST /chat/stream
