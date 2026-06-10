@@ -1,23 +1,27 @@
-# Provenance Anchor
+# a11oy Memory — provenance anchor
 
-> **Naming note.** This component was previously tracked under the internal codename
-> *amaru* (Quechua for *serpent* — the Andean serpent of rivers and continuity, evoking the
-> unbroken receipt chain). The honest, user-facing name is **Provenance Anchor**; the codename
-> is retired and retained here only as historical context.
+> **a11oy Memory** is the provenance & receipt-anchoring vertical of [a11oy](/flagships/a11oy). *(Internal codename: `amaru`.)*
+
+<div class="quechua">
+<strong>Name origin.</strong> The internal codename <strong><em>amaru</em></strong> is Quechua for
+<strong>serpent</strong> (the Andean serpent of rivers and continuity). The metaphor is the unbroken
+chain: a11oy Memory threads governance receipts into a single, continuous, anchored line. Gloss:
+<a href="https://kaikki.org/eswiktionary/">kaikki.org Quechua lexicon</a>.
+</div>
 
 ## Overview
 
-The **Provenance Anchor** handles **blockchain anchoring of governance receipts** with
-**Shor-encoded provenance**: provenance hashes are encoded with the 9-qubit Shor code before
-Cardano anchoring, giving single-qubit error correction on the immutable receipt chain. It
-performs convergent multi-source data sync with append-only delta logs and bounded-loop
-convergence guarantees.
+**a11oy Memory** handles **blockchain anchoring of governance receipts** with **Shor-encoded
+provenance**: provenance hashes are encoded with the 9-qubit Shor code before Cardano
+anchoring, giving single-qubit error correction on the immutable receipt chain. It performs
+convergent multi-source data sync with append-only delta logs and bounded-loop convergence
+guarantees.
 
-> **Frontier capability (roadmap).** A Shor-encoded + Cardano-anchored governance-receipt
-> minting pipeline. Cardano mainnet anchoring is roadmap (see the development note below).
+> **Frontier capability.** First Shor-encoded + Cardano-anchored governance-receipt minting
+> pipeline.
 
-**Anatomy mapping:** the Provenance Anchor sits across [Yawar](/anatomy/#yawar) (the receipt
-ledger) and the [Khipu](/anatomy/#khipu) DAG, providing the durable external anchor.
+**Anatomy mapping:** a11oy Memory sits across [Yawar](/anatomy/#yawar) (the receipt ledger) and
+the [Khipu](/anatomy/#khipu) DAG, providing the durable external anchor.
 
 ## Mathematical foundation
 
@@ -34,10 +38,19 @@ $$ d\big(T(x), T(y)\big) \le q \cdot d(x, y), $$
 
 so iterating $T$ converges to a unique fixed point — the canonical synced ledger state.
 
+## API / install
+
+```sh
+git clone github.com/szl-holdings/a11oy.git
+cd a11oy
+pnpm install
+pnpm test
+```
+
 ## Example — mint a receipt
 
 ```ts
-import { mintReceipt } from '@szl/provenance-anchor'
+import { mintReceipt } from '@szl/a11oy'
 
 const receipt = mintReceipt({
   payload: { decisionId: 'd-001', value: 1, organ: 'a11oy.policy' },
@@ -49,14 +62,15 @@ console.log(receipt.shorBlock)// Shor-9 encoded provenance block
 ```
 
 ::: warning In development
-**Cardano mainnet anchoring** is roadmap (target: Series-A milestone). The local
-append-only delta log, Shor encoding, and Lamport ordering are **live today** and tested.
-The DSSE receipt **signature** field is a PLACEHOLDER until Sigstore CI lands (see
-[Compliance](/compliance)).
+**Cardano mainnet anchoring** is in development (target: Series-A milestone). The local
+append-only delta log, Shor encoding, and Lamport ordering are **live today** and tested
+via `pnpm test`. The DSSE receipt **signature** field is a PLACEHOLDER until Sigstore CI
+lands (see [Compliance](/compliance)).
 :::
 
 ## Source & evidence
 
+- **Repo:** github.com/szl-holdings/a11oy
 - **Spec:** ouroboros-thesis
 - **Proofs:** [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 - **DOI (versioned):** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) · **Concept DOI:** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)

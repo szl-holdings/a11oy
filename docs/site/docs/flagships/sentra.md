@@ -1,23 +1,26 @@
-# Policy — Drift Detector
+# a11oy Sentinel — drift detector
 
-> **Naming note.** This component was previously tracked under the internal codename *sentra*
-> (a coinage on the English *sentry* — never a Quechua word). The honest, user-facing name is
-> **Policy** (the posture / drift-detection surface); the codename is retired and kept here only
-> as historical context.
+> **a11oy Sentinel** is the security-posture & observability vertical of [a11oy](/flagships/a11oy). *(Internal codename: `sentra`.)*
+
+<div class="quechua">
+<strong>Name origin.</strong> The internal codename <em>sentra</em> is a coinage on the English
+<strong>sentry</strong> (the guard who watches a boundary), styled to sit alongside the Quechua
+organ names. It is not a Quechua word and is labelled honestly as such. Its job matches the name:
+a11oy Sentinel watches the cyber-posture surface and raises a flag when it drifts.
+</div>
 
 ## Overview
 
-The **Policy** drift detector is the **anomaly-detection and observability substrate** of the
-SZL governed platform. It models enterprise cyber posture as a **Kitaev surface** — security
-state is a topological surface, and drift is the deviation from the ground-state configuration.
+**a11oy Sentinel** is the **anomaly-detection and observability substrate** of a11oy. It models
+enterprise cyber posture as a **Kitaev surface** — security state is a topological surface, and
+drift is the deviation from the ground-state configuration.
 
-> **Frontier capability.** A Kitaev-surface posture-drift detector on a Λ-axis-governed
+> **Frontier capability.** First Kitaev-surface posture-drift detector on a Λ-axis-governed
 > observability fiber — `Lutar/QEC/KitaevSurface` formal lattice basis
 > ([Ouroboros Thesis DOI 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)).
 
-**Anatomy mapping:** the Policy drift detector is the operational face of the
-[Hukulla](/anatomy/#hukulla) immune system and the [OTel-VSP](/anatomy/#otel-vsp)
-nervous/observability fiber.
+**Anatomy mapping:** a11oy Sentinel is the operational face of the [Hukulla](/anatomy/#hukulla)
+immune system and the [OTel-VSP](/anatomy/#otel-vsp) nervous/observability fiber.
 
 ```mermaid
 flowchart TD
@@ -50,10 +53,19 @@ flowchart TD
 The Kitaev-surface stability model gives an objective stability scalar rather than a
 hand-tuned alert threshold — drift is measured against a topological ground state.
 
+## API / install
+
+```bash
+git clone github.com/szl-holdings/a11oy.git
+cd a11oy
+pnpm install
+pnpm test
+```
+
 ## Example — score posture drift
 
 ```ts
-import { driftScore } from '@szl/policy-drift'
+import { driftScore } from '@szl/a11oy'
 
 const report = driftScore({ baseline: surfaceA, observed: surfaceB })
 
@@ -65,6 +77,7 @@ report.events
 
 ## Source & evidence
 
+- **Repo:** github.com/szl-holdings/a11oy
 - **Model:** Kitaev-surface basis in ouroboros-thesis, `Lutar/QEC/KitaevSurface`
 - **DOI:** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 - **License:** Proprietary
