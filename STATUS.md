@@ -15,8 +15,10 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/a11oy>
 
 ## Proof state (honest, never inflate)
 
-- **LOCKED-PROVEN (kernel-verified) = EXACTLY 5** — F1, F11, F12, F18, F19 @ `c7c0ba17`
-  (749 / 14 / 163). This is the *only* "locked" claim. Never fold anything else in.
+- **LOCKED-PROVEN (kernel-verified) = EXACTLY 8** — F1, F4, F7, F11, F12, F18, F19, F22 @ `c7c0ba17`
+  (749 / 14 / 163). This is the *only* "locked" claim. Never fold anything else in. (Grew from 5 to 8 on
+  2026-06-10 when F4/F7 were upgraded from vacuous placeholders to genuine non-vacuous proofs, joining
+  the already-genuine F22; machine-enforced by `Lutar.Wave8.AxiomDisclosure.locked_count_eight`, no axioms.)
 - **Λ (F23)** — unconditional uniqueness is machine-checked **FALSE** for A1–A5, so it stays
   **Conjecture 1**, unconditionally. We *have* proved the strongest axiom-free **conditional**
   uniqueness: slice-multiplicativity (separability) ⇒ Λ, machine-checked (Wave12), and as of
@@ -24,7 +26,7 @@ HF Space: <https://huggingface.co/spaces/SZLHOLDINGS/a11oy>
   `(C-order)` gap-shift ordering remains an **honest structural hypothesis** (documented, not faked).
 - **Khipu Byzantine BFT safety** — **Conjecture 2**, open (a faulty organ can equivocate).
 
-## Experimental · CI-green tier (separate from the locked 5 — NEVER folded in)
+## Experimental · CI-green tier (separate from the locked 8 — NEVER folded in)
 
 - `main @ 880c803e` — Wave19 / 20 / 21 merged; Phase-1 stabilize gate cleared; CI
   (`lake build + numbers` + DCO + doctrine) green on main.
