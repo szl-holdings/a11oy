@@ -230,7 +230,7 @@
       "name": "khipu_quorum_safety_conditional",
       "statement": "Conjecture 2 (Khipu BFT safety) — CONDITIONAL agreement / no-split-brain is PROVEN axiom-free: under {n >= 3f+1, |faulty| <= f, quorum size >= n-f, honest non-equivocation under signed votes}, two quorums certifying v1, v2 imply v1 = v2. Votes modeled as a relation (Byzantine organs MAY equivocate). UNCONDITIONAL BFT safety STAYS Conjecture 2 at the sharp boundary (dropping n>=3f+1 or non-equivocation re-admits split-brain).",
       "source_file": "lutar-lean Lutar/Wave23/QuorumSafety.lean (PR #214, merged main @ 43bcabb7)",
-      "maturity": "experimental (CI-green, axiom-clean; NOT in locked-5)",
+      "maturity": "experimental (CI-green, axiom-clean; NOT in locked-8)",
       "axioms": "subset of {propext, Classical.choice, Quot.sound}; no sorry; no new axiom",
       "lean_permalink": "https://github.com/szl-holdings/lutar-lean/blob/main/Lutar/Wave23/QuorumSafety.lean"
     }
@@ -1800,14 +1800,23 @@
     "10.5281/zenodo.20162352"
   ],
   "proof_summary": {
-    "locked_proven": 5,
+    "locked_proven": 8,
     "locked_ids": [
       "F1",
+      "F4",
+      "F7",
       "F11",
       "F12",
       "F18",
-      "F19"
+      "F19",
+      "F22"
     ],
+    "locked_count_theorem": "locked_count_eight",
+    "newly_proven": {
+      "F4": {"name": "Khipu DAG acyclicity preservation", "plain": "Appending a fresh node to the Khipu DAG preserves acyclicity — no receipt can ever cycle back on itself."},
+      "F7": {"name": "Chaski FIFO reception ordering", "plain": "Messages drain from the Chaski channel in exactly the order sent (reception order = send order)."},
+      "F22": {"name": "Khipu emit append-only monotonicity", "plain": "Every Khipu emit strictly increases the ledger index — append-only, never rewrites history."}
+    },
     "experimental_sorry_free": 21,
     "axiom_gated": 3,
     "axiom_gated_detail": {
@@ -1925,7 +1934,7 @@
       ],
       "ci_pending_detail": "C1 tsirelson_inequality / C2 CHSH_inequality_of_comm / C6 ConvexOn.map_sum_le re-exports. Signatures verified VERBATIM vs pinned Mathlib d731765, but wiring Tier1Mathlib into the compiled root reproducibly red-lights lake build (bisected: a4299fb/52d9bf5 un-wired = green). Exact error not retrievable (CI log download proxy-blocked). File stays in-tree, NOT imported; NOT claimed proven.",
       "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED",
-      "locked_proven": 5,
+      "locked_proven": 8,
       "canonical_numbers": {
         "declarations": 1182,
         "axioms_raw": 20,
@@ -1977,7 +1986,7 @@
       "axiom_disclosure": "Mathlib-dependent re-exports use the standard Mathlib trio [propext, Classical.choice, Quot.sound] (NO sorryAx, NO declared Lutar axioms); their #print axioms are emitted in the CI build log (blob log download proxy-blocked here, but the build is green and they are pure term-mode instantiations of axiom-clean Mathlib theorems). Mathlib-free theorems' #print axioms pasted verbatim in PROVE_WAVE5_REPORT.md section 3 (bare lean 4.13.0, exit 0).",
       "not_available_at_pinned_mathlib": "C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) — verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.",
       "lambda_status": "Lambda (F23) STAYS Conjecture 1 unconditionally. W5-1 AM-GM is a building block Lambda relies on; it does NOT prove uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).",
-      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-5 work is experimental scope (counter-excluded).",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}. All wave-5 work is experimental scope (counter-excluded).",
       "canonical_numbers": {
         "declarations": 1189,
         "axioms_raw": 20,
@@ -1997,7 +2006,7 @@
         "Doob (1953) Stochastic Processes [optional stopping]"
       ]
     },
-    "experimental_sorry_free_note": "Tonight's experimental kernel-verified additions (NOT in the locked 5): wave5 (11, PR#186), wave6 (11, PR#189), wave7 (10, PR#190), agentic-loop P1-P6 (28, PR#188; 1 declared hash-collision axiom on P5). All sorry-free; Mathlib-dependent items CI-green, Mathlib-free items bare-lean exit 0. PRIOR: wave5 adds 11 kernel-verified experimental theorems (6 Mathlib-dependent CI-green: C1/C2/C6 + W5-1/W5-1b/W5-2; 5 Mathlib-free bare-lean: W5-3a/b/c, W5-4, W5-5). Prior experimental_sorry_free baseline was 21 (wave-2 F-pack ceiling).",
+    "experimental_sorry_free_note": "Tonight's experimental kernel-verified additions (NOT in the locked 8): wave5 (11, PR#186), wave6 (11, PR#189), wave7 (10, PR#190), agentic-loop P1-P6 (28, PR#188; 1 declared hash-collision axiom on P5). All sorry-free; Mathlib-dependent items CI-green, Mathlib-free items bare-lean exit 0. PRIOR: wave5 adds 11 kernel-verified experimental theorems (6 Mathlib-dependent CI-green: C1/C2/C6 + W5-1/W5-1b/W5-2; 5 Mathlib-free bare-lean: W5-3a/b/c, W5-4, W5-5). Prior experimental_sorry_free baseline was 21 (wave-2 F-pack ceiling).",
     "wave5_proven_count": {
       "mathlib_dependent_ci_green": 6,
       "mathlib_free_bare_lean": 5,
@@ -2016,7 +2025,7 @@
       "maturity_label": "proven sorry-free (experimental); 5 Mathlib-dependent CI-green + 6 Mathlib-free bare-lean",
       "new_theorems": 11,
       "lambda_status": "Lambda (F23) STAYS Conjecture 1 unconditionally. F-G4 proves Lambda_graph is an isomorphism INVARIANT (structural stability), NOT uniqueness.",
-      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. Wave-6 is experimental scope (excluded from locked baseline).",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}. Wave-6 is experimental scope (excluded from locked baseline).",
       "canonical_numbers": {
         "declarations": 1217,
         "axioms_raw": 20,
@@ -2046,7 +2055,7 @@
       "maturity_label": "proven sorry-free (experimental); 5 Mathlib-dependent CI-green + 5 Mathlib-free bare-lean (W7-6a/W7-6 axiom-free)",
       "new_theorems": 10,
       "lambda_status": "Lambda (F23) STAYS Conjecture 1; untouched by this wave.",
-      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. Wave-7 is experimental scope.",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}. Wave-7 is experimental scope.",
       "canonical_numbers": {
         "declarations": 1203,
         "axioms_raw": 20,
@@ -2109,7 +2118,7 @@
       },
       "ecosystem_use": "P1-P6 underwrite the governed-run / signed-receipts story: P1 receipt completeness + P6 monotone auditability = the receipt chain; P2 gate-soundness = the policy + kernel deny path; P3 non-interference = injection-resistant tool calls; P4 = deterministic replay; P5 = tamper-evident receipts.",
       "lambda_status": "Lambda (F23) STAYS Conjecture 1; untouched.",
-      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. Experimental scope (Lutar.Agentic.Pipeline, not imported into Lutar.lean).",
+      "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}. Experimental scope (Lutar.Agentic.Pipeline, not imported into Lutar.lean).",
       "citations": [
         "Goguen & Meseguer (1982) IEEE S&P, doi:10.1109/SP.1982.10014 (non-interference)",
         "Merkle (1987) CRYPTO '87, LNCS 293, doi:10.1007/3-540-48184-2_32",
@@ -2119,7 +2128,7 @@
       ]
     },
     "maturity_legend": {
-      "proven (locked)": "Kernel-verified in the locked Doctrine-v11 corpus (749/14/163 @ c7c0ba17). Exactly 5: F1, F11, F12, F18, F19.",
+      "proven (locked)": "Kernel-verified in the locked Doctrine-v11 corpus (749/14/163 @ c7c0ba17). Exactly 8: F1, F4, F7, F11, F12, F18, F19, F22.",
       "proven sorry-free (experimental)": "Kernel-verified sorry-free this session on a PR branch (CI-green or bare-lean exit 0); NOT in the locked count.",
       "axiom-gated (declared)": "Proven modulo a single named, disclosed idealization (e.g. hash collision-resistance); the axiom is #print-axioms-visible.",
       "CI-pending": "Compiles locally but CI confirmation not yet green.",
@@ -2147,7 +2156,7 @@
         "status": "CI-green; 1 declared axiom (P5)"
       },
       "total_new_experimental_theorems": 60,
-      "note": "These 60 new experimental theorems are SEPARATE from the locked 5. Locked proven count is UNCHANGED at 5. Lambda (F23) is Conjecture 1 unconditionally.",
+      "note": "These 60 new experimental theorems are SEPARATE from the locked 8. Locked proven count is 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Lambda (F23) is Conjecture 1 unconditionally.",
       "wave23": {
         "new_theorems": 5,
         "pr": 214,
@@ -2156,7 +2165,7 @@
       }
     },
     "lambda_conjecture_status": "Lambda (F23) = Conjecture 1 unconditionally. Unconditional uniqueness is FALSE (wave-4 counterexample in-tree). A conditional/strengthened-class uniqueness theorem (under A6') is CI-green and is the only proven uniqueness claim. No unconditional uniqueness claimed.",
-    "conjecture_2_status": "Khipu BFT safety = Conjecture 2. UNCONDITIONAL stays OPEN/conjecture. CONDITIONAL agreement (no-split-brain) is PROVEN axiom-free (Wave23, khipu_quorum_safety_conditional) under n>=3f+1 + honest non-equivocation. Locked-proven STAYS EXACTLY 5; Lambda STAYS Conjecture 1.",
+    "conjecture_2_status": "Khipu BFT safety = Conjecture 2. UNCONDITIONAL stays OPEN/conjecture. CONDITIONAL agreement (no-split-brain) is PROVEN axiom-free (Wave23, khipu_quorum_safety_conditional) under n>=3f+1 + honest non-equivocation. Locked-proven = EXACTLY 8; Lambda STAYS Conjecture 1.",
     "wave23": {
       "campaign": "prove-wave-23: conditional Khipu BFT safety (agreement under honest non-equivocation)",
       "new_theorems": 5,
@@ -2891,7 +2900,7 @@
       }
     }
   ],
-  "instill_wave": "instill-wave (locked 5 {F1,F11,F12,F18,F19} + wave5 11 + wave6 11 + wave7 10 + agentic-loop 28 [1 declared axiom] experimental sorry-free, separate from locked; Lambda=Conjecture 1; capability anatomy a11oy-internal). SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap. | Wave23: conditional Khipu BFT safety (Conjecture 2 conditional) instilled — axiom-clean, n>=3f+1 + honest non-equivocation; unconditional stays open.",
+  "instill_wave": "instill-wave (locked 8 {F1,F4,F7,F11,F12,F18,F19,F22} + wave5 11 + wave6 11 + wave7 10 + agentic-loop 28 [1 declared axiom] experimental sorry-free, separate from locked; Lambda=Conjecture 1; capability anatomy a11oy-internal). SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap. | Wave23: conditional Khipu BFT safety (Conjecture 2 conditional) instilled — axiom-clean, n>=3f+1 + honest non-equivocation; unconditional stays open.",
   "capability_anatomy": {
     "note": "a11oy is one governance substrate. The reasoning, policy and operator capabilities are INTERNAL a11oy functions (formerly separate services). No user-visible service split.",
     "capabilities": [
@@ -3170,7 +3179,7 @@
           "grounds": "Admissibility / Lambda canonical trust axes"
         }
       ],
-      "honest_note": "Governed Post-Determinism is SZL's own framework, grounded entirely in SZL's prior DOI-stamped published work (Zenodo, Apr 28 - May 14 2026). Locked-proven stays exactly 5; Lambda = Conjecture 1; Semantic Quorum Assurance safety = Wave23 CONDITIONAL theorem (unconditional = Conjecture 2); full Epistemic State Replication semantics = open R&D (roadmap). Failure-guard detectors not yet live are labeled design/roadmap."
+      "honest_note": "Governed Post-Determinism is SZL's own framework, grounded entirely in SZL's prior DOI-stamped published work (Zenodo, Apr 28 - May 14 2026). Locked-proven = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda = Conjecture 1; Semantic Quorum Assurance safety = Wave23 CONDITIONAL theorem (unconditional = Conjecture 2); full Epistemic State Replication semantics = open R&D (roadmap). Failure-guard detectors not yet live are labeled design/roadmap."
     }
   ]
 }
