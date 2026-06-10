@@ -45,7 +45,7 @@ HONESTY / LEGAL DOCTRINE (absolute):
   - Patterns reimplemented as OUR OWN code (study of OpenHands/SWE-agent/Aider/
     Cline patterns — patterns are free; no GPL/AGPL/proprietary source copied).
   - NO "AGI" claims. "A governed agentic coder you can mathematically trust."
-    Lambda (trust score) = Conjecture 1, advisory, never the gate. Locked proven=5.
+    Lambda (trust score) = Conjecture 1, advisory, never the gate. Locked proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}.
 
 FORMULA WIRING (the moat — cited in code, plain-language to the user):
   - C20  Softmax 1/2-Lipschitz (order/argmax-stable core)  -> model ROUTER stability.
