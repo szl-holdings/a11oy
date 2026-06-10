@@ -41,7 +41,7 @@ so iterating $T$ converges to a unique fixed point — the canonical synced ledg
 ## API / install
 
 ```sh
-git clone github.com/szl-holdings/a11oy.git
+git clone https://github.com/szl-holdings/a11oy.git
 cd a11oy
 pnpm install
 pnpm test
@@ -70,8 +70,8 @@ lands (see [Compliance](/compliance)).
 
 ## Source & evidence
 
-- **Repo:** github.com/szl-holdings/a11oy
-- **Spec:** ouroboros-thesis
+- **Repo:** [`a11oy`](https://github.com/szl-holdings/a11oy)
+- **Spec:** Ouroboros Thesis ([10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276))
 - **Proofs:** [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 - **DOI (versioned):** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) · **Concept DOI:** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
 - **License:** Apache-2.0

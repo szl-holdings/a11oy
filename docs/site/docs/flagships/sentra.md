@@ -56,7 +56,7 @@ hand-tuned alert threshold — drift is measured against a topological ground st
 ## API / install
 
 ```bash
-git clone github.com/szl-holdings/a11oy.git
+git clone https://github.com/szl-holdings/a11oy.git
 cd a11oy
 pnpm install
 pnpm test
@@ -77,7 +77,7 @@ report.events
 
 ## Source & evidence
 
-- **Repo:** github.com/szl-holdings/a11oy
-- **Model:** Kitaev-surface basis in ouroboros-thesis, `Lutar/QEC/KitaevSurface`
+- **Repo:** [`a11oy`](https://github.com/szl-holdings/a11oy)
+- **Model:** Kitaev-surface basis in the Ouroboros Thesis ([10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)), `Lutar/QEC/KitaevSurface`
 - **DOI:** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 - **License:** Proprietary

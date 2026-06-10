@@ -1,11 +1,13 @@
 # Quickstart — five minutes to your first call
 
-This page gets you from zero to a verifiable result against each of the five flagships.
-Everything here is **real** — the endpoints, repos, and commands all exist today. Where a
-piece is not yet end-to-end wired, it is labelled **in development** with an honest note.
+This page gets you from zero to a verifiable result against the **two shipping flagships**,
+a11oy and killinchu. Everything in those sections is **real** — the endpoints, repos, and
+commands all exist today. The Provenance Anchor, Operator, and Policy roles (internal
+codenames *amaru*, *rosie*, *sentra* — retired) are **roadmap/frontier** and are documented
+honestly below; they are not yet released as cloneable repos or published packages.
 
 ::: tip Prerequisites
-- **Node 18+** and **pnpm** for the TypeScript fabric repos (a11oy, amaru, rosie, sentra).
+- **Node 18+** and **pnpm** for the a11oy TypeScript fabric.
 - **Python 3.11+** for killinchu and the math/receipt tooling.
 - A clone of the relevant repo from [`github.com/szl-holdings`](https://github.com/szl-holdings).
 :::
@@ -26,8 +28,11 @@ echo "Lean: $DECL declarations / $AXIOM_UNIQ unique axioms / $SORRY sorries"
 
 The Doctrine v11 LOCKED snapshot is <span class="locked">749 declarations</span> /
 <span class="locked">14 unique axioms</span> / <span class="locked">163 sorries</span>
-at tag `lutar-v18.0.0`. The corpus is living; see [Evidence](/evidence/) for the
-single source of truth and the live snapshot.
+at tag `lutar-v18.0.0`, kernel `c7c0ba17`. The corpus is living; see [Evidence](/evidence/)
+for the single source of truth and the live snapshot. Note: exactly **8** formulas are
+locked-proven {F1, F4, F7, F11, F12, F18, F19, F22}; Λ unconditional is **Conjecture 1** (machine-checked
+false, never a theorem); the conditional Λ result is axiom-free PROVEN (Wave 22); Khipu BFT
+is **Conjecture 2** (Wave 23 `khipu_quorum_safety_conditional` is conditional-only).
 
 ## 1 · a11oy — evaluate a policy gate
 
@@ -52,50 +57,13 @@ console.log(decision.passed, decision.continuumHash)
 // → false unless all 13 axes clear their floors (conjunctive AND, no compensation)
 ```
 
-## 2 · amaru — mint a provenance receipt
-
-`amaru` anchors governance receipts. Convergence of its append-only sync is guaranteed by a
-Banach contraction; provenance hashes are Shor-9-qubit encoded before anchoring.
-
-```sh
-git clone github.com/szl-holdings/amaru.git && cd amaru
-pnpm install && pnpm test
-```
-
-```ts
-import { mintReceipt } from '@szl/amaru'
-
-const receipt = mintReceipt({
-  payload: { decisionId: 'd-001', value: 1 },
-  // anchor: 'cardano' is in development for mainnet; local Merkle anchoring is live
-})
-console.log(receipt.sha256, receipt.lamport)
-```
-
-::: warning In development
-Cardano **mainnet** anchoring is in development (target: Series-A milestone). The local
-append-only delta log, Shor encoding, and Lamport ordering are live today.
-:::
-
-## 3 · sentra — score posture drift
-
-`sentra` models cyber posture as a Kitaev surface and scores topological drift from the
-ground state.
+You can also hit the live Space directly:
 
 ```bash
-git clone github.com/szl-holdings/sentra.git && cd sentra
-pnpm install && pnpm test
+curl -s https://szlholdings-a11oy.hf.space/healthz | jq .   # → doctrine v11 · 749/14/163
 ```
 
-```ts
-import { driftScore } from '@szl/sentra'
-
-const report = driftScore({ baseline: surfaceA, observed: surfaceB })
-console.log(report.stability, report.events)
-// drift events ranked by CVSS-weighted severity; remediation passes the Covenant gate
-```
-
-## 4 · killinchu — decode a Remote-ID frame
+## 2 · killinchu — decode a Remote-ID frame
 
 `killinchu` is the drone-intelligence flagship. The honest counter-UAS path: decode a real
 broadcast self-ID, run the haversine geofence + 13-axis Λ-gate, emit a Khipu receipt.
@@ -112,25 +80,24 @@ curl -s -X POST https://szlholdings-killinchu.hf.space/api/killinchu/v1/remote-i
 ::: tip Honest by construction
 `GET /api/killinchu/v1/honest` returns the Doctrine v11 disclosure as JSON: Λ is a
 **Conjecture**, DSSE signatures are **PLACEHOLDER**, broadcast Remote-ID/ADS-B/MAVLink are
-**unauthenticated and spoofable**. Malformed input returns an honest error, never a silent pass.
+**unauthenticated and spoofable**, and the effector path is a **command demonstration,
+simulated**. Malformed input returns an honest error, never a silent pass.
 :::
 
-## 5 · rosie — verify a receipt-DAG invariant
+## Roadmap roles (not yet released)
 
-`rosie` ships the Khipu-indexed receipt DAG. Its summation invariant
-`rootValue = Σ pendantValues = Σ Σ decisionValues` is formally verified in `lutar-lean`.
+The following roles are on the roadmap. They are **not** cloneable repos or published
+packages today — the commands and imports below describe the intended shape, not a current
+release. See [Flagships](/flagships/) for honest status.
 
-```bash
-git clone github.com/szl-holdings/rosie.git && cd rosie
-pnpm install && pnpm test   # 10 runtime tests incl. TH11 failure modes
-```
-
-```ts
-import { KhipuRoot, verifySumInvariant } from './src/khipu-receipt'
-
-const root = KhipuRoot.from(organReceipts)
-console.log(verifySumInvariant(root)) // true ⇔ sum-of-sums holds end to end
-```
+- **Provenance Anchor** *(internal codename amaru, retired)* — append-only governance-receipt
+  sync with a Banach-contraction convergence bound; Cardano mainnet anchoring is **in
+  development**. Local Merkle anchoring is the live primitive inside a11oy today.
+- **Operator** *(internal codename rosie, retired)* — Khipu-indexed receipt-DAG console. Its
+  summation invariant `rootValue = Σ pendantValues = Σ Σ decisionValues` is formally verified
+  in `lutar-lean`; the standalone console is roadmap.
+- **Policy** *(internal codename sentra, retired)* — Kitaev-surface posture-drift detector.
+  Roadmap cyber-resilience pack; the live policy gate ships inside a11oy.
 
 ## Next steps
 

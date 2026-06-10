@@ -7,21 +7,20 @@ Maintained by Yachay `<yachay@szlholdings.dev>` · Founder: Stephen Paul Lutar J
 
 SZL Holdings builds a **formally-verified governance gate for agentic AI**. This repo is the
 developer-facing entry point: quickstart, full API reference, MCP integration, and runnable examples.
-Build your own "organ" on the same substrate the five flagships use.
+Build your own "organ" on the same substrate the shipping flagships use.
 
 ---
 
-## The five flagship organs
+## The shipping flagships
 
-| Organ | Role | Live base URL |
-|-------|------|---------------|
-| **a11oy** | Λ-gate router / policy + receipt substrate; hosts the 16-tool Hatun-MCP server | `https://szlholdings-a11oy.hf.space` |
-| **killinchu** | Defense vertical — counter-UAS / drone intelligence (12 superpowers) | `https://szlholdings-killinchu.hf.space` |
-| **rosie** | Personal aide / operator console (16-command catalog) | `https://szlholdings-rosie.hf.space` |
-| **sentra** | Cross-cutting immune system — dual-use + injection filter | `https://szlholdings-sentra.hf.space` |
-| **amaru** | Memory cortex — every inference cites its source | `https://szlholdings-amaru.hf.space` |
+Two flagships ship today with live `/healthz`:
 
-All five return Doctrine v11 verbatim from `/healthz`: `749 declarations / 14 unique axioms / 163 tracked sorries`, locked at `c7c0ba17`. Λ uniqueness is **Conjecture 1 (NOT a theorem)** — stated honestly. SLSA **L1 (honest)**.
+| Flagship | Role | Live base URL |
+|----------|------|---------------|
+| **a11oy** | Λ-gate router / policy + receipt substrate; hosts the Hatun-MCP catalog. Bundles the **Sentinel** (policy / immune), **Memory** (provenance anchoring) and **Operator** (receipt-DAG) verticals — internal codenames *sentra*, *amaru*, *rosie*, retired as standalone Spaces and consolidated here. | `https://szlholdings-a11oy.hf.space` |
+| **killinchu** | Defense vertical — counter-UAS / drone intelligence | `https://szlholdings-killinchu.hf.space` |
+
+Both shipping flagships return Doctrine v11 verbatim from `/healthz`: `749 declarations / 14 unique axioms / 163 tracked sorries`, locked at `c7c0ba17`. Λ uniqueness is **Conjecture 1 (NOT a theorem)** — stated honestly. SLSA **L1 (honest)**.
 
 ---
 
@@ -30,9 +29,9 @@ All five return Doctrine v11 verbatim from `/healthz`: `749 declarations / 14 un
 | Doc | What it covers |
 |-----|----------------|
 | [QUICKSTART.md](./QUICKSTART.md) | 5-minute walkthrough: install client, list tools, dispatch a command, verify a receipt |
-| [API_REFERENCE.md](./API_REFERENCE.md) | Every public endpoint across the five flagships |
+| [API_REFERENCE.md](./API_REFERENCE.md) | Every public endpoint across the shipping flagships |
 | [MCP_INTEGRATION.md](./MCP_INTEGRATION.md) | Add the Hatun-MCP server to Claude Desktop / Cursor |
-| [GRAPHQL.md](./GRAPHQL.md) | Unified GraphQL surface across the five flagships — example queries, Apollo Client, MCP-vs-GraphQL |
+| [GRAPHQL.md](./GRAPHQL.md) | Unified GraphQL surface across the shipping flagships — example queries, Apollo Client, MCP-vs-GraphQL |
 | [SUBSTRATE_PACKAGES.md](./SUBSTRATE_PACKAGES.md) | Monorepo `platform/packages/` — build your own organ |
 | [SDK_DROP_IN.md](./SDK_DROP_IN.md) | **Agentic Mesh SDK** — wrap *any* app (Next.js/FastAPI/Express/Go/CLI) in 3 lines |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute |
@@ -49,7 +48,7 @@ All five return Doctrine v11 verbatim from `/healthz`: `749 declarations / 14 un
 
 ## The provenance model in one paragraph
 
-You call a flagship endpoint. **sentra** evaluates the input deny-by-default. The decision is wrapped
+You call a flagship endpoint. The a11oy **Sentinel** policy gate evaluates the input deny-by-default. The decision is wrapped
 in a **DSSE** (Dead Simple Signing Envelope) signed with ECDSA-P256-SHA256, and chained onto the
 **Khipu Merkle DAG** — a hash-linked, summation-checked ledger that is **replay-verifiable offline.**
 You can verify any receipt against the organ's public key (`/khipu/pubkey`). Deploy the whole thing
@@ -59,7 +58,6 @@ You can verify any receipt against the organ's public key (`/khipu/pubkey`). Dep
 
 ## Related repos
 
-- **szl-holdings/compliance-posture** — security questionnaire, DPA/MSA/NDA, SOC2/FedRAMP roadmaps
 - **[szl-holdings/platform](https://github.com/szl-holdings/platform)** — substrate monorepo (`packages/`)
 - **[szl-holdings/hatun-mcp](https://github.com/szl-holdings/hatun-mcp)** — the 16-tool MCP server
 - **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)** — Lean 4 / Mathlib formalization (749/14/163)

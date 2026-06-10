@@ -3,8 +3,10 @@
 This map organizes the public `szl-holdings` GitHub organization around the
 current build center: `a11oy`, the vertical alignment substrate. It is intended
 to be the first navigation layer before pulling code from sibling repositories.
-The categorized tables are a curated snapshot; use the clone helper to discover
-the live GitHub inventory as additional Replit exports arrive.
+The categorized tables are a curated snapshot of **active** repositories; use the
+clone helper to discover the live GitHub inventory as it changes. Repositories
+that have been retired or consolidated into `a11oy` are listed separately at the
+end and should not be cloned.
 
 ## Build center
 
@@ -24,26 +26,21 @@ the live GitHub inventory as additional Replit exports arrive.
 | Repo | Role | Default branch | Primary language |
 | --- | --- | --- | --- |
 | [`lutar-lean`](https://github.com/szl-holdings/lutar-lean) | Lean 4 + Mathlib kernel proofs for the governance framework, including Lambda-gate theorems and audit-fiber invariants. | `main` | Lean |
-| `ouroboros-thesis` | DOI-pinned thesis substrate for formal AI governance through Lambda-axis scoring, audit fibers, and provable receipts. | `main` | Lean |
+
+The formal thesis (formerly the `ouroboros-thesis` repo) is now published via Zenodo
+DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276); its Lean kernel
+lives in [`lutar-lean`](https://github.com/szl-holdings/lutar-lean).
 
 ## Receipts, telemetry, and adapters
 
 | Repo | Role | Default branch | Primary language |
 | --- | --- | --- | --- |
-| `amaru` | Cardano-anchored governance receipt minting and Shor-encoded provenance. | `main` | TypeScript |
-| `rosie` | Receipt orchestration for CSS-ingress and canonical receipt byte-string emission. | `main` | TypeScript |
-| `sentra` | Sensor and telemetry adapter for audit fibers, including Kitaev-surface drift detection. | `main` | TypeScript |
 | [`uds-mesh`](https://github.com/szl-holdings/uds-mesh) | Unified Data System span schemas and governance receipts for OTEL-style observability. | `main` | Shell |
 | [`vsp-otel`](https://github.com/szl-holdings/vsp-otel) | OpenTelemetry exporter for SZL audit fibers and Lambda-axis spans. | `main` | TypeScript |
 
-## Product and vertical applications
-
-| Repo | Role | Default branch | Primary language |
-| --- | --- | --- | --- |
-| `vessels` | Maritime fleet intelligence for sanctions screening, dark-vessel detection, ownership graphs, and voyage analytics. | `main` | TypeScript |
-| `counsel` | Legal matter command scaffold for policy-gated AI workflows, document review, obligation mapping, and proof-chain delivery. | `main` | Not yet classified |
-| `terra` | Real estate intelligence scaffold for deal-pipeline scoring, portfolio analytics, and AI-assisted underwriting. | `main` | Not yet classified |
-| `carlota-jo` | Private advisory operations scaffold for concierge workflow, proof-chain delivery, and multi-party coordination. | `main` | Not yet classified |
+The receipt-minting, receipt-orchestration, and drift-detection verticals (internal
+codenames `amaru`, `rosie`, `sentra`) are consolidated into `a11oy` — see the
+retired/consolidated section below.
 
 ## Trust, knowledge transfer, and organization operations
 
@@ -52,8 +49,21 @@ the live GitHub inventory as additional Replit exports arrive.
 | [`szl-trust`](https://github.com/szl-holdings/szl-trust) | Public Trust Portal for Covenant Proof Standard run artifacts and deterministic replay. | `main` | Not yet classified |
 | [`szl-cookbook`](https://github.com/szl-holdings/szl-cookbook) | Recipes for building governed AI systems on the SZL substrate. | `main` | TypeScript |
 | [`szl-brand`](https://github.com/szl-holdings/szl-brand) | Brand assets, logos, social-preview templates, and visual doctrine. | `main` | Python |
-| `agi-forecast` | Forecasting models and scenario library for AI governance trajectories. | `main` | TypeScript |
 | [`.github`](https://github.com/szl-holdings/.github) | Organization profile and community health files. | `main` | Not yet classified |
+
+## Retired and consolidated repositories
+
+These earlier repositories have been retired or folded into `a11oy`. They are listed
+for provenance only; they are **not** active repositories and cannot be cloned.
+
+| Former repo | Status | Where it lives now |
+| --- | --- | --- |
+| amaru | Consolidated into `a11oy` | a11oy **Memory** vertical — Cardano-anchored governance-receipt minting and Shor-encoded provenance. |
+| rosie | Consolidated into `a11oy` | a11oy **Operator** vertical — receipt-DAG orchestration; summation invariant proven in [`lutar-lean`](https://github.com/szl-holdings/lutar-lean). |
+| sentra | Consolidated into `a11oy` | a11oy **Sentinel** vertical — telemetry adapter and Kitaev-surface drift detection. |
+| ouroboros-thesis | Retired repo | Published via Zenodo DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276); Lean kernel in [`lutar-lean`](https://github.com/szl-holdings/lutar-lean). |
+| vessels · counsel · terra · carlota-jo | Retired | Product/vertical scaffolds, not currently public. |
+| agi-forecast | Retired | Forecasting / scenario scaffold, not currently public. |
 
 ## Local workspace checkout
 

@@ -68,7 +68,7 @@ not hash-collision resistance alone. This is formally verified in
 ## API / install
 
 ```bash
-git clone github.com/szl-holdings/a11oy.git
+git clone https://github.com/szl-holdings/a11oy.git
 cd a11oy
 pnpm install
 pnpm test   # 10 runtime tests
@@ -87,7 +87,7 @@ verifyDualAttestation(root)   // P6 + P8 of A8: two distinct signers required
 
 ## Source & evidence
 
-- **Repo:** github.com/szl-holdings/a11oy
+- **Repo:** [`a11oy`](https://github.com/szl-holdings/a11oy)
 - **Live 3D showcase:** [Rosie-3D](/anatomy/3d-showcases#rosie-3d)
 - **Proof:** `Lutar/Khipu/SummationInvariant.lean` in [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
 - **DOI:** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
