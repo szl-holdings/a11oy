@@ -749,7 +749,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       </div>
       <div class="card" id="kn-detail"><div class="row mono dim">Click any node in the graph to see its formal statement, citation, and maturity.</div></div>${HONEST}`;window.knowledge_load();}},
 
-  kbformulas:{title:'Formulas',badge:'KaTeX \u00b7 5 LOCKED + 80+ CI-GREEN',sub:'The platform\u2019s mathematical corpus, rendered and searchable. Honesty: exactly EIGHT formulas are locked-proven in the Doctrine-v11 Lean kernel (machine-checked, zero gaps). PLUS 80+ experimental theorems are kernel-verified and CI-green across waves 5\u20137, the agentic loop (P1\u2013P6), the governed coder, the \u039b Set \u03b1/\u03b4 uniqueness campaign, and the unifying meta-theorem \u2014 each linked to its lutar-lean PR below, never folded into the locked five. \u039b-uniqueness stays Conjecture 1 unconditionally (a counterexample is machine-checked) and is PROVEN only conditionally under declared strengthened axioms.',
+  kbformulas:{title:'Formulas',badge:'KaTeX \u00b7 8 LOCKED + 80+ CI-GREEN',sub:'The platform\u2019s mathematical corpus, rendered and searchable. Honesty: exactly EIGHT formulas are locked-proven in the Doctrine-v11 Lean kernel (machine-checked, zero gaps). PLUS 80+ experimental theorems are kernel-verified and CI-green across waves 5\u20137, the agentic loop (P1\u2013P6), the governed coder, the \u039b Set \u03b1/\u03b4 uniqueness campaign, and the unifying meta-theorem \u2014 each linked to its lutar-lean PR below, never folded into the locked eight. \u039b-uniqueness stays Conjecture 1 unconditionally (a counterexample is machine-checked) and is PROVEN only conditionally under declared strengthened axioms.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Locked proven</div><div class="v teal">8</div><div class="d">{F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17</div></div>
       <div class="kpi"><div class="k">Experimental kernel-verified</div><div class="v" style="color:#5fb3a3" id="kf-exp">80+</div><div class="d">CI-green, broken out below</div></div>
@@ -1863,7 +1863,7 @@ async function lineage_load(){
     // wire axioms->theorems
     th.slice(0,6).forEach((t,i)=>{ const a=ax[i%Math.max(1,ax.length)]; if(a) elems.push({data:{id:'e_'+a.id+'_'+t.id,source:a.id,target:t.id}}); });
     // proven formulas (locked 8) as proven leaves
-    const lockedIds=(ps.locked_ids||['F1','F11','F12','F18','F19']);
+    const lockedIds=(ps.locked_ids||['F1','F4','F7','F11','F12','F18','F19','F22']);
     const puriq=(kb.puriq_formulas||[]);
     puriq.filter(p=>lockedIds.includes(p.id)).forEach((p,i)=>{
       elems.push({data:{id:p.id,label:p.id,tier:'formula',mat:'proven',name:p.name||p.id,stmt:p.statement||'',cite:'Lean kernel-verified ('+(p.lean_file||'')+')'}});
@@ -1909,7 +1909,7 @@ function lineage_export(){
     const aibom={
       format:'a11oy-provenance-AIBOM/1.0',
       generated_at:new Date().toISOString(),
-      proven_locked: ps.locked_ids||['F1','F11','F12','F18','F19'],
+      proven_locked: ps.locked_ids||['F1','F4','F7','F11','F12','F18','F19','F22'],
       conjecture: ps.conjecture||['F23'],
       proven_count: ps.locked_proven||8,
       formulas: (kb.formulas||[]).length,
@@ -3818,9 +3818,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           var nodes=[], links=[];
           ax.forEach(function(a){nodes.push({id:a.id,name:a.id,mat:'axiom',depth:0});});
           th.forEach(function(t){nodes.push({id:t.id,name:t.id,mat:(t.maturity==='proven'?'proven':'measured'),depth:1});});
-          fm.forEach(function(f){var locked=['F1','F11','F12','F18','F19'].indexOf(f.id)>=0; nodes.push({id:f.id,name:f.id,mat:(locked?'proven':'conjecture'),depth:2});});
+          fm.forEach(function(f){var locked=['F1','F4','F7','F11','F12','F18','F19','F22'].indexOf(f.id)>=0; nodes.push({id:f.id,name:f.id,mat:(locked?'proven':'conjecture'),depth:2});});
           th.forEach(function(t,i){ var s=ax[i%Math.max(1,ax.length)]; if(s)links.push({source:s.id,target:t.id,value:2,cat:'proven'}); });
-          fm.forEach(function(f,i){ var s=th[i%Math.max(1,th.length)]; if(s)links.push({source:s.id,target:f.id,value:1,cat:(['F1','F11','F12','F18','F19'].indexOf(f.id)>=0?'proven':'conjecture')}); });
+          fm.forEach(function(f,i){ var s=th[i%Math.max(1,th.length)]; if(s)links.push({source:s.id,target:f.id,value:1,cat:(['F1','F4','F7','F11','F12','F18','F19','F22'].indexOf(f.id)>=0?'proven':'conjecture')}); });
           if(nodes.length<3){ // labelled sample
             nodes=[{id:'A1',name:'A1 soundness',mat:'axiom',depth:0},{id:'A6',name:'A6 hashChain',mat:'axiom',depth:0},
                    {id:'T1',name:'T1',mat:'proven',depth:1},{id:'T2',name:'T2',mat:'measured',depth:1},
@@ -5370,7 +5370,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     /* ===== FORMULA INSTILLATION =====================================================
        Surface the proven/CI-green formulas wherever a tab references one, with the
        correct Lean name + HONEST maturity label. locked-8 = {F1,F4,F7,F11,F12,F18,F19,F22}. */
-    var LOCKED5={F1:1,F11:1,F12:1,F18:1,F19:1};
+    var LOCKED5={F1:1,F4:1,F7:1,F11:1,F12:1,F18:1,F19:1,F22:1};
     var MAT={
       'locked-proven':{c:TEAL,bg:'rgba(95,179,163,0.14)',bd:'rgba(95,179,163,0.5)',t:'LOCKED-PROVEN'},
       'experimental':{c:GOLD,bg:'rgba(201,183,135,0.08)',bd:'rgba(201,183,135,0.4)',t:'EXPERIMENTAL · CI-GREEN'},
@@ -5850,14 +5850,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        ============================================================================ */
 
     /* ---- Canonical honest formula corpus accessor (zero new fetch) -------------- */
-    var LOCKED_IDS={F1:1,F11:1,F12:1,F18:1,F19:1};
+    var LOCKED_IDS={F1:1,F4:1,F7:1,F11:1,F12:1,F18:1,F19:1,F22:1};
     window.a11oyKB=function(){ return window.__KB__||{}; };
     // Build a normalized, honestly-tiered formula list from the live KB + canonical doctrine.
     window.A11OY_KB_FORMULAS=(function(){
       var kb=window.__KB__||{}; var ps=kb.proof_summary||{};
       var out=[];
       // 1) the LOCKED-8 (kernel-verified) — the only "locked" claim
-      var locked=ps.locked_ids||['F1','F11','F12','F18','F19'];
+      var locked=ps.locked_ids||['F1','F4','F7','F11','F12','F18','F19','F22'];
       // 2) puriq F1..F23 carry the named statements + lean_ref + maturity
       var puriq=kb.puriq_formulas||[];
       puriq.forEach(function(f){
@@ -5906,7 +5906,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +kpi('Policy+anchor gates','brn-gates','46 + 44','')
           +'</div>'
           +'<div class="grid2">'
-          +card('Locked-5 — the ONLY locked claim','kernel-verified @ c7c0ba17 · '+window.a11oyPoweredBy(['F1','F19','F18']),'<div id="brn-lockedlist"></div>')
+          +card('Locked-8 — the ONLY locked claim','kernel-verified @ c7c0ba17 · '+window.a11oyPoweredBy(['F1','F19','F18']),'<div id="brn-lockedlist"></div>')
           +card('Λ honesty','doctrine-exact','<div id="brn-lambda"></div>'
               +'<div class="honesty" style="margin-top:.5rem"><b>Λ (F23) = Conjecture 1.</b> Unconditional uniqueness over A1–A5 is machine-checked <b>FALSE</b>. The strongest result is an <b>axiom-free CONDITIONAL</b> uniqueness (<code>Lutar.Round13.lambda_unique_of_separable</code>, Wave12, #print axioms ⊆ {propext, Classical.choice, Quot.sound}). Advisory, never a pass/fail oracle.</div>')
           +'</div>'
@@ -5948,7 +5948,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     };
 
     /* ============================================================================
-       HEART / Λ-GATE — where the governed decision is gated. The LOCKED 5 live here.
+       HEART / Λ-GATE — where the governed decision is gated. The LOCKED 8 live here.
        Live: /v1/policy/gates (deny-by-default gates) + /v1/lambda (13-axis Λ).
        ============================================================================ */
     V.organheart={ title:'Heart · Λ-Gate (locked-8)', badge:'LIVE · DENY-BY-DEFAULT · LOCKED-8',
@@ -5962,12 +5962,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'</div>'
           +'<div class="grid2">'
           +card('13-axis Λ (the heartbeat)','live · '+window.a11oyPoweredBy(['F19','F1']),'<div class="chartbox" style="height:360px"><canvas id="oh-radar"></canvas></div>')
-          +card('Locked-5 — the gate kernel','kernel-verified','<div id="oh-locked"></div>')
+          +card('Locked-8 — the gate kernel','kernel-verified','<div id="oh-locked"></div>')
           +'</div>'
           +card('Deny-by-default policy gates','live /v1/policy/gates · every action AND-composed','<div id="oh-gatelist"><div class="row mono dim">loading…</div></div>')
           +'<div class="brain-note">AND-compose: a decision passes only if EVERY fired gate passes (conjunctive safety) AND Λ ≥ 0.90. Adding a gate can only lower or keep Λ (monotone, TH8). Λ is advisory (Conjecture 1) — it informs, it does not certify.</div>'
           +HON;
-        H('oh-locked', window.a11oyFormula('F1')+window.a11oyFormula('F11')+window.a11oyFormula('F12')+window.a11oyFormula('F18')+window.a11oyFormula('F19'));
+        H('oh-locked', window.a11oyFormula('F1')+window.a11oyFormula('F4')+window.a11oyFormula('F7')+window.a11oyFormula('F11')+window.a11oyFormula('F12')+window.a11oyFormula('F18')+window.a11oyFormula('F19')+window.a11oyFormula('F22'));
         T('oh-comp','AND · monotone'); T('oh-floor','0.90');
         try{ var d=await gj(API+'/v1/lambda'); var ax=d.axes||[];
           T('oh-lam',(d.lambda||0).toFixed?d.lambda.toFixed(4):d.lambda);
@@ -8605,7 +8605,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       card('Threat Intelligence \u2014 live MITRE ATT&CK + CVSS '+dl(),'GET '+SB+'/threats',
         '<div class="kpis">'+kpi('Techniques','cyb-ti-total','STIX 2.1 corpus')+kpi('ATT&CK','cyb-ti-ver','MITRE version')+
          kpi('Critical+High','cyb-ti-crit','by CVSS severity')+kpi('Updated','cyb-ti-upd','last refresh')+'</div>'+
-        '<div id="cyb-ti-sev" style="margin:.6rem 0"></div>')+
+        '<div class="chartbox" style="height:160px;margin:.6rem 0"><canvas id="cyb-ti-sev"></canvas></div>')+
       card('Technique corpus','signature \u00b7 tactic \u00b7 CVSS','<div id="cyb-ti-tbl"><div class="row mono dim">loading\u2026</div></div>')+
       '<div class="mono dim" style="font-size:11px">'+'<span id="cyb-ti-parity"></span></div>'+HON;
     poll(function(){ getJSON(SB+'/threats').then(function(d){
@@ -8633,7 +8633,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       card('Posture & Compliance Drift \u2014 governed gate verification '+dl(),'GET '+AB+'/gates',
         '<div class="kpis">'+kpi('Gates','cyb-po-count','policy gates live')+kpi('Lean-verified','cyb-po-ver','machine-checked')+
          kpi('Declarations','cyb-po-decl','kernel canonical')+kpi('Axioms','cyb-po-ax','raw axioms')+'</div>'+
-        '<div id="cyb-po-don" style="margin:.6rem 0"></div>')+
+        '<div class="chartbox" style="height:120px;margin:.6rem 0"><canvas id="cyb-po-don"></canvas></div>')+
       card('Gate ledger','formula \u00b7 lean theorem \u00b7 status','<div id="cyb-po-tbl"><div class="row mono dim">loading\u2026</div></div>')+
       card('Citation audit','honest provenance','<div id="cyb-po-audit" class="row mono dim">\u2026</div>')+HON;
     poll(function(){ getJSON(AB+'/gates').then(function(d){
@@ -8836,7 +8836,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       card('Orchestration & Routing \u2014 model tier router '+dl(),'GET '+AB+'/router/stats',
         '<div class="kpis">'+kpi('Mode','flt-or-mode','router state')+kpi('Served','flt-or-served','this window')+
          kpi('Tiers','flt-or-tiers','routing tiers')+kpi('Routes','flt-or-routes','organ\u2192model')+'</div>'+
-        '<div id="flt-or-bar" style="margin:.6rem 0"></div>')+
+        '<div class="chartbox" style="height:160px;margin:.6rem 0"><canvas id="flt-or-bar"></canvas></div>')+
       card('Route table','organ \u00b7 tier \u00b7 model \u00b7 throughput','<div id="flt-or-tbl"><div class="row mono dim">loading\u2026</div></div>')+
       '<div class="mono dim" style="font-size:11px" id="flt-or-hon"></div>'+HON;
     poll(function(){ getJSON(AB+'/router/stats').then(function(d){ var routes=d.routes||[];
@@ -8858,7 +8858,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       card('Governance Gates \u2014 deny-by-default policy '+dl(),'GET '+AB+'/gates \u00b7 '+fmla('F1'),
         '<div class="kpis">'+kpi('Gates','flt-gv-n','policy gates')+kpi('Lean-verified','flt-gv-v','machine-checked')+
          kpi('Declarations','flt-gv-d','kernel canonical')+kpi('MCP tools','flt-gv-m','exposed tools')+'</div>'+
-        '<div id="flt-gv-don" style="margin:.6rem 0"></div>')+
+        '<div class="chartbox" style="height:120px;margin:.6rem 0"><canvas id="flt-gv-don"></canvas></div>')+
       card('Govern a fleet action \u2192 signed receipt','GET '+AB+'/governed-decision',
         '<button class="vchip" id="flt-gv-run" style="background:var(--teal-soft);color:'+TEAL+';border-color:'+TEAL+'66">Govern \u2192 sign</button>'+
         '<div id="flt-gv-out" class="row mono dim" style="margin-top:.6rem">Run a governed fleet decision; \u039b advisory floor + human-approval flag + DSSE receipt.</div>')+
@@ -9883,7 +9883,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     // local mirror of the backend's honest graph topology (for the SVG; metrics come from API)
     function _synthGraph(k){
       k=(k||'').toLowerCase();
-      if(k==='chain'||k==='lineage'){ var s=['F1','F11','F12','F18','F19','Λ-aggregate']; return {nodes:s, edges:s.slice(0,-1).map(function(x,i){return [s[i],s[i+1]];})}; }
+      if(k==='chain'||k==='lineage'){ var s=['F1','F4','F7','F11','F12','F18','F19','F22','Λ-aggregate']; return {nodes:s, edges:s.slice(0,-1).map(function(x,i){return [s[i],s[i+1]];})}; }
       if(k==='organism'||k==='mesh'||k==='constellation'||k==='trustspace'){
         var o=['Reception','Operator','Provenance-Anchor','Policy','terra','vessels','counsel','Voice','House-Watch'];
         var e=[]; o.forEach(function(x){ if(x!=='Policy') e.push(['Policy',x]); });
@@ -10281,13 +10281,24 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="kpi"><div class="k">Catalog</div><div class="v teal" id="kg-ver">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Ransomware-assoc.</div><div class="v warn" id="kg-rw">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Feed</div><div class="v" id="kg-mode">\u2014</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">KEV exploitation velocity \u2014 weekly additions + forecast</span><span class="card-ep" id="kg-fc-ep">EWMA + Holt-trend \u00b7 conformal band</span></div>'
+          +'<div class="kpis" style="margin-bottom:.4rem">'
+            +'<div class="kpi"><div class="k">Live weekly rate</div><div class="v teal" id="kg-fc-now">\u2014</div><div class="d">CVEs/week (last full wk)</div></div>'
+            +'<div class="kpi"><div class="k">Forecast (+4 wk)</div><div class="v" id="kg-fc-next">\u2014</div><div class="d" id="kg-fc-method">EWMA \u03b1=0.4 + Holt trend</div></div>'
+            +'<div class="kpi"><div class="k">Band coverage</div><div class="v" id="kg-fc-cov">\u2014</div><div class="d">conformal \u2014 never 100%</div></div>'
+            +'<div class="kpi"><div class="k">Trend</div><div class="v" id="kg-fc-trend">\u2014</div><div class="d">slope/week</div></div>'
+          +'</div>'
+          +'<div class="chartbox" style="height:260px"><canvas id="kg-fc-cv"></canvas></div>'
+          +'<div class="row mono dim" id="kg-fc-note" style="font-size:10px;margin-top:.3rem"></div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">Live KEV \u2192 deny-by-default gate engagement</span><span class="card-ep" id="kg-src">CISA KEV \u00b7 a11oy gates</span></div>'
           +'<div id="kg-tbl" style="overflow:auto;max-height:520px"><div class="row mono dim">loading live CISA KEV feed\u2026</div></div></div>'
-          +honestNote('Each row is a live exploited CVE; the gate set is the REAL a11oy gate catalog. <b>gates_fired</b> is the live engine result when reachable; <b>gates_mapped</b> is a deterministic mapping derived from real KEV fields (ransomware / CWE / severity).');
+          +honestNote('Each row is a live exploited CVE; the gate set is the REAL a11oy gate catalog. <b>gates_fired</b> is the live engine result when reachable; <b>gates_mapped</b> is a deterministic mapping derived from real KEV fields (ransomware / CWE / severity). The velocity chart aggregates the REAL <code>dateAdded</code> of live KEV CVEs into ISO-week buckets; the forecast is an honest EWMA + Holt-linear-trend with a split-conformal band (coverage floor 1\u22121/(n+1)). Gate-engagement counts use '+window.a11oyPoweredBy?window.a11oyPoweredBy(['F12']):'F12 monotone gate'+' \u2014 adding a gate can only tighten denial (monotone). Forecast = MODEL estimate, not a guarantee.');
         try{
-          var d=await gj('/api/a11oy/v1/sec/kevgate?limit=40');
-          var items=d.items||[]; T('kg-n',items.length); T('kg-ver',d.catalogVersion||'\u2014');
-          T('kg-rw',items.filter(function(x){return x.ransomware==='Known';}).length);
+          var d=await gj('/api/a11oy/v1/sec/kevgate?limit=400');
+          var allItems=d.items||[];
+          kgForecast(allItems);
+          var items=allItems.slice(0,40); T('kg-n',allItems.length); T('kg-ver',d.catalogVersion||'\u2014');
+          T('kg-rw',allItems.filter(function(x){return x.ransomware==='Known';}).length);
           var modeLive=(d.mode==='live'); T('kg-mode',d.mode||'\u2014');
           var me=E('kg-mode'); if(me) me.className='v '+(modeLive?'teal':'warn');
           H('kg-src', esc(d.source||'CISA KEV')+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?(' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z'):''));
@@ -10308,7 +10319,69 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               +'<td style="padding:4px 7px">'+chips+(live?' '+badge('engine','b-live'):' '+badge('field-derived','b-gold'))+'</td></tr>');
           });
           h.push('</tbody></table>'); H('kg-tbl',h.join(''));
-        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">live KEV feed unavailable: '+esc(e.message)+'</div>'); T('kg-n','offline'); }
+        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">live KEV feed unavailable: '+esc(e.message)+'</div>'); T('kg-n','offline'); H('kg-fc-note','velocity forecast unavailable: '+esc(e.message)); }
+
+        /* --- KEV exploitation-velocity forecast: honest EWMA + Holt trend + split-conformal band --- */
+        function kgForecast(rows){
+          try{
+            var dates=rows.map(function(x){return x.dateAdded;}).filter(Boolean).sort();
+            if(dates.length<8){ H('kg-fc-note','insufficient dated KEV history ('+dates.length+' pts) for an honest forecast.'); return; }
+            // ISO-week bucket (Mon-anchored) keyed by epoch-week index
+            function wkIdx(s){ var dt=new Date(s+'T00:00:00Z'); return Math.floor((dt.getTime()/86400000 + 3)/7); } // +3 aligns Thu, ISO-ish
+            var minW=wkIdx(dates[0]), maxW=wkIdx(dates[dates.length-1]);
+            var counts={}; dates.forEach(function(s){ var w=wkIdx(s); counts[w]=(counts[w]||0)+1; });
+            var labels=[], series=[];
+            for(var w=minW; w<=maxW; w++){ var d0=new Date((w*7-3)*86400000); labels.push(d0.toISOString().slice(5,10)); series.push(counts[w]||0); }
+            // drop a trailing partial week (current week likely incomplete) from training
+            var train=series.slice(0, Math.max(2, series.length-1));
+            var n=train.length;
+            // EWMA level + Holt linear trend (additive)
+            var a=0.4, b=0.25; var L=train[0], Tr=(train[1]||train[0])-train[0]; var fitted=[L];
+            for(var i=1;i<n;i++){ var prevL=L; L=a*train[i]+(1-a)*(L+Tr); Tr=b*(L-prevL)+(1-b)*Tr; fitted.push(L); }
+            // one-step-ahead residuals for split-conformal band
+            var resid=[]; var fl=train[0], ft=(train[1]||train[0])-train[0];
+            for(var j=1;j<n;j++){ var pred=fl+ft; resid.push(Math.abs(train[j]-pred)); var pl=fl; fl=a*train[j]+(1-a)*(fl+ft); ft=b*(fl-pl)+(1-b)*ft; }
+            resid.sort(function(p,q){return p-q;});
+            var m=resid.length; var cov=1-1/(m+1); // conformal floor coverage, never 100%
+            var qIdx=Math.min(m-1, Math.ceil((m+1)*Math.min(cov,0.9))-1); qIdx=Math.max(0,qIdx);
+            var qhat=resid.length?resid[qIdx]:1;
+            // 4-week-ahead forecast points
+            var H4=4; var fc=[], lo=[], hi=[]; var fL=L, fT=Tr;
+            for(var k=1;k<=H4;k++){ var p=fL+fT*k; var widen=qhat*Math.sqrt(k); fc.push(Math.max(0,p)); lo.push(Math.max(0,p-widen)); hi.push(Math.max(0,p+widen)); }
+            var fcLabels=[]; for(var k2=1;k2<=H4;k2++){ var fwd=new Date((maxW*7-3+k2*7)*86400000); fcLabels.push('+'+k2+'w'); }
+            var lastRate=train[n-1];
+            T('kg-fc-now', lastRate);
+            T('kg-fc-next', fc[H4-1].toFixed(1));
+            T('kg-fc-cov', (cov*100).toFixed(0)+'%');
+            var tEl=E('kg-fc-trend'); if(tEl){ tEl.textContent=(Tr>=0?'+':'')+Tr.toFixed(2); tEl.className='v '+(Tr>0?'warn':'teal'); }
+            T('kg-fc-method','EWMA \u03b1='+a+' + Holt \u03b2='+b);
+            H('kg-fc-note','Real KEV <code>dateAdded</code> over '+series.length+' ISO-weeks ('+labels[0]+'\u2192'+labels[labels.length-1]+'). Forecast = Holt(level+trend) on '+n+' full weeks; band = split-conformal |residual| q-hat='+qhat.toFixed(2)+', coverage floor '+(cov*100).toFixed(0)+'% (1\u22121/(n+1), never 100%). MODEL estimate \u2014 not a guarantee.');
+            // unique viz: historical bars + EWMA fit line + forecast band ribbon + forecast spline
+            var C=window.Chart; var cv=E('kg-fc-cv'); if(!C||!cv) return;
+            if(window.__kgFcChart){ try{window.__kgFcChart.destroy();}catch(_e){} }
+            var allLabels=labels.concat(fcLabels);
+            var pad=function(arr,head){ var z=[]; for(var i=0;i<head;i++)z.push(null); return z.concat(arr); };
+            var histBars=series.concat(fc.map(function(){return null;}));
+            var ewmaLine=fitted.concat([null]); // align to train
+            // pad ewma to full hist length
+            while(ewmaLine.length<series.length) ewmaLine.push(null);
+            ewmaLine=ewmaLine.slice(0,series.length).concat(fc.map(function(){return null;}));
+            var fcLine=series.map(function(){return null;}); fcLine[series.length-1]=lastRate; fcLine=fcLine.concat(fc);
+            var loLine=series.map(function(){return null;}); loLine[series.length-1]=lastRate; loLine=loLine.concat(lo);
+            var hiLine=series.map(function(){return null;}); hiLine[series.length-1]=lastRate; hiLine=hiLine.concat(hi);
+            window.__kgFcChart=new C(cv.getContext('2d'),{type:'bar',data:{labels:allLabels,datasets:[
+              {type:'bar',label:'KEV adds/wk (live)',data:histBars,backgroundColor:'rgba(95,179,163,0.45)',borderColor:TEAL,borderWidth:1,barThickness:'flex',maxBarThickness:14,order:4},
+              {type:'line',label:'EWMA fit',data:ewmaLine,borderColor:GOLD,borderWidth:1.6,pointRadius:0,tension:0.3,order:3},
+              {type:'line',label:'conformal hi',data:hiLine,borderColor:'rgba(201,160,95,0.0)',backgroundColor:'rgba(201,160,95,0.16)',fill:'+1',pointRadius:0,tension:0.3,order:2},
+              {type:'line',label:'conformal lo',data:loLine,borderColor:'rgba(201,160,95,0.0)',pointRadius:0,tension:0.3,order:2},
+              {type:'line',label:'forecast',data:fcLine,borderColor:'#c9805a',borderWidth:2,borderDash:[5,3],pointRadius:2,pointBackgroundColor:'#c9805a',tension:0.3,order:1}
+            ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+              plugins:{legend:{display:true,labels:{color:DIM,font:{size:9},boxWidth:10,filter:function(l){return l.text!=='conformal lo';}}},
+                tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+(ctx.parsed.y==null?'\u2014':Number(ctx.parsed.y).toFixed(1));}}}},
+              scales:{x:{grid:{color:GRID},ticks:{color:DIM,font:{size:8},maxRotation:0,autoSkip:true,maxTicksLimit:12}},
+                y:{grid:{color:GRID},ticks:{color:DIM,font:{size:9}},title:{display:true,text:'CVEs / week',color:DIM,font:{size:9}},beginAtZero:true}}}});
+          }catch(fe){ H('kg-fc-note','forecast compute error: '+esc(fe.message)); }
+        }
       }};
 
     /* ===== feedpulse — real-time data-feed liveness/provenance monitor ===== */
