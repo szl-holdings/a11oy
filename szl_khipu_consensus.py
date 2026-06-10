@@ -61,10 +61,10 @@ DOCTRINE_PUBLIC = "v11 LOCKED · 749/14/163"
 
 # ---------------------------------------------------------------------------
 # THEOREM PROVENANCE (HONEST) — wired into every UDS consensus decision payload.
-# Locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19} @ kernel c7c0ba17 (axiom-clean).
+# Locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17 (axiom-clean).
 # A Khipu Byzantine consensus decision is backed by Khipu Conjecture 2, which is
 # OPEN (stated, NOT a theorem). Never inflate. Experimental-tier theorems
-# (CF-22/CF-23/CUT-2) live on main 044eb098, CI-green, NOT folded into locked-5.
+# (CF-22/CF-23/CUT-2) live on main 044eb098, CI-green, NOT folded into locked-8.
 # Lambda (Λ) = Conjecture 1, machine-checked FALSE as an unconditional axiom.
 # ---------------------------------------------------------------------------
 LOCKED_KERNEL_SHA = "c7c0ba17"
@@ -84,8 +84,8 @@ _CONSENSUS_THEOREM_REF = {
 def _consensus_lake_receipt() -> dict:
     """Honest lake_receipt for a Khipu consensus decision payload.
 
-    locked-5 = exactly 5; Λ = Conjecture 1; Byzantine BFT = Conjecture 2 OPEN.
-    Only the locked-5 are asserted axiom-clean at c7c0ba17.
+    locked-8 = exactly 8; Λ = Conjecture 1; Byzantine BFT = Conjecture 2 OPEN.
+    Only the locked-8 are asserted axiom-clean at c7c0ba17.
     """
     return {
         "locked_kernel_sha": LOCKED_KERNEL_SHA,
@@ -93,10 +93,10 @@ def _consensus_lake_receipt() -> dict:
         "locked_proven_formulas": list(LOCKED_FIVE),
         "locked_proven_count": len(LOCKED_FIVE),
         "print_axioms_assertion": (
-            "#print axioms over the locked-5 {F1,F11,F12,F18,F19} @ c7c0ba17 reports "
+            "#print axioms over the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 reports "
             "NO sorryAx / NO extra axioms (axiom-clean). The consensus decision class "
             "is backed by Khipu Conjecture 2 (Byzantine quorum safety) which is OPEN "
-            "(044eb098, NOT in locked-5, NOT asserted axiom-clean). \u039b = Conjecture 1 "
+            "(044eb098, NOT in locked-8, NOT asserted axiom-clean). \u039b = Conjecture 1 "
             "(machine-checked FALSE). Byzantine BFT = Conjecture 2 (OPEN)."
         ),
         "cited": [{
