@@ -650,6 +650,23 @@ COPY szl_bounties.py ./szl_bounties.py
 COPY szl_putnam.py ./szl_putnam.py
 COPY bounties/ ./bounties/
 
+# ---------------------------------------------------------------------------
+# SZL Enterprise Connector Framework. serve.py imports szl_connectors_serve
+# (which imports the szl_connectors/ package + szl_connector_mcp) and calls
+# register(app, "a11oy") to mount /api/a11oy/connectors + per-connector
+# health/read/write/oauth + the /integrations page. Per-file/dir COPY (this
+# Dockerfile never uses `COPY . .`) -- without these the import fails and the
+# connector routes fall through to the SPA. pages/integrations.html is already
+# shipped by the wholesale `COPY pages/ ./pages/` above, so no extra page COPY
+# is needed. 52 connectors (13 live-now / 38 credential-READY / 1 SAMPLE).
+# Doctrine v11: honest states, no fabricated records, Lambda-gated+DSSE writes.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+COPY szl_connectors/ ./szl_connectors/
+COPY szl_connectors_serve.py ./szl_connectors_serve.py
+COPY szl_connector_mcp.py ./szl_connector_mcp.py
+
 CMD ["python", "serve.py"]
 
 
