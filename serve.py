@@ -4821,6 +4821,81 @@ def _a11oy_eval_run_live() -> dict:
     return out
 
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (auto-fill eval-arena history): a small in-image background
+# scheduler that periodically runs the SAME live eval path the "Re-run live"
+# button uses (_a11oy_eval_run_live), so /api/a11oy/v1/eval-arena/history is
+# never empty and the console trend strip renders a real sparkline WITHOUT a
+# human clicking the button. Honest: these are LIVE in-image runs (no
+# fabrication); the ring buffer + best-effort on-disk NDJSON still reset on
+# Space rebuild (already disclosed in the endpoint honesty note) and the run is
+# deterministic by design, so the trend only moves when governance state moves.
+# Daemon thread, fail-soft -- a run error is swallowed and retried next cycle;
+# it can never block startup or take down the app. The image is single-process
+# (CMD ["python","serve.py"] -> one uvicorn worker), so exactly one scheduler
+# runs; a module-level guard also prevents a double-start. Cadence + warm-up
+# are env-tunable:
+#   A11OY_EVAL_AUTORUN_INTERVAL_SEC      (default 86400 = daily; <=0 disables)
+#   A11OY_EVAL_AUTORUN_INITIAL_DELAY_SEC (default 45 -> seeds one run shortly
+#                                         after boot so the trend is never empty)
+# ---------------------------------------------------------------------------
+_A11OY_EVAL_AUTORUN_STARTED = False
+
+
+def _a11oy_eval_autorun_interval() -> int:
+    try:
+        return int(os.environ.get("A11OY_EVAL_AUTORUN_INTERVAL_SEC", "86400"))
+    except Exception:
+        return 86400
+
+
+def _a11oy_eval_autorun_loop() -> None:
+    import time as _t
+    try:
+        initial = int(os.environ.get("A11OY_EVAL_AUTORUN_INITIAL_DELAY_SEC", "45"))
+    except Exception:
+        initial = 45
+    _t.sleep(max(0, initial))
+    while True:
+        interval = _a11oy_eval_autorun_interval()
+        if interval <= 0:
+            return
+        try:
+            run = _a11oy_eval_run_live()
+            try:
+                print("[a11oy] eval-arena autorun: appended %s" % (run.get("run_id")),
+                      file=sys.stderr)
+            except Exception:
+                pass
+        except Exception as _e:  # pragma: no cover - fail-soft, retry next cycle
+            try:
+                print("[a11oy] eval-arena autorun skipped: %r" % _e, file=sys.stderr)
+            except Exception:
+                pass
+        _t.sleep(interval)
+
+
+def _a11oy_eval_autorun_start() -> None:
+    global _A11OY_EVAL_AUTORUN_STARTED
+    if _A11OY_EVAL_AUTORUN_STARTED:
+        return
+    if _a11oy_eval_autorun_interval() <= 0:
+        print("[a11oy] eval-arena autorun disabled (interval<=0)", file=sys.stderr)
+        return
+    try:
+        import threading as _th
+        _th.Thread(target=_a11oy_eval_autorun_loop, name="a11oy-eval-autorun",
+                   daemon=True).start()
+        _A11OY_EVAL_AUTORUN_STARTED = True
+        print("[a11oy] eval-arena autorun scheduler started "
+              "(interval=%ss)" % _a11oy_eval_autorun_interval(), file=sys.stderr)
+    except Exception as _e:  # pragma: no cover
+        print("[a11oy] eval-arena autorun failed to start: %r" % _e, file=sys.stderr)
+
+
+_a11oy_eval_autorun_start()
+
+
 @app.get("/api/a11oy/v1/eval-arena/history")
 @app.get("/v1/eval-arena/history")
 async def a11oy_eval_arena_history_v2(limit: int = 20) -> JSONResponse:
