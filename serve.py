@@ -930,6 +930,33 @@ except Exception as _alf_e:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# SZL Enterprise Connector Framework (szl_connectors + szl_connectors_serve).
+# ADDITIVE & GUARDED (same discipline as szl_a11oy_live_feeds): mounts the
+# honest connector mesh BEFORE the SPA catch-all. Mounts:
+#   GET  /api/a11oy/connectors                         (honest manifest + scoreboard)
+#   GET  /api/a11oy/v1/connectors                      (versioned alias)
+#   GET  /api/a11oy/v1/connectors/{cid}/health|read    (live | READY | SAMPLE; never faked)
+#   POST /api/a11oy/v1/connectors/{cid}/write          (Lambda-gated + DSSE-receipted)
+#   GET  /api/a11oy/v1/connectors/{cid}/oauth/start|callback  (PKCE signed-state flow)
+#   GET  /integrations                                 (standalone Enterprise Mesh page)
+# 52 connectors: 13 live-now (free/keyless: CISA KEV/NVD/EPSS/MITRE/EDGAR/arXiv/
+# HF Hub/GitHub/Wikidata/USGS/NOAA/Overpass + Odoo/ERPNext free ERPs), 38
+# credential-READY (real clients; set the named SZL_* secret to activate), 1
+# labelled SAMPLE (historical AIS — no free tier). Doctrine v11: honest states
+# only, no fabricated records, no committed keys, writes Lambda-gated + receipted.
+# Per-file COPY in Dockerfile (this Dockerfile never uses `COPY . .`) — without
+# the szl_connectors/ package + szl_connectors_serve.py COPY lines the import
+# fails and these routes fall through to the SPA.
+# ---------------------------------------------------------------------------
+try:
+    import szl_connectors_serve as _szl_connectors
+    _szl_connectors_status = _szl_connectors.register(app, ns="a11oy")
+    print(f"[a11oy] Enterprise Connector mesh registered: {_szl_connectors_status}", file=sys.stderr)
+except Exception as _scx_e:  # additive: never break the Space
+    print(f"[a11oy] Enterprise Connector mesh NOT registered: {_scx_e!r}; SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Load gates manifest at startup
 # ---------------------------------------------------------------------------
 
