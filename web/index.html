@@ -59,16 +59,13 @@
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
-  
-  <!-- Rosie floating operator widget (additive). Canonical source:
-       SZLHOLDINGS/README assets/rosie. Set data-a11oy-base / data-amaru-base to the
-       live substrate endpoints (or inject at build time) when available; until then
-       Rosie appears and is honest that she is not wired to a backend on this surface. -->
-  <link rel="stylesheet" href="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.css">
-  <script src="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.js"
-          data-surface="a11oy"
-          data-a11oy-base=""
-          data-amaru-base=""
-          defer></script>
+
+  <!-- a11oy operator widget ("Chaski") — floating governed-operator surface.
+       Self-hosted in-image (0 runtime CDN), same-origin, auto-detects the host
+       organ and routes to the LIVE substrate (/api/a11oy/code/chat|agent + v4
+       ledger). Honest when a backend is unreachable — never fabricates. The
+       server-side injector in serve.py also appends this on every served HTML
+       surface; the tag here is idempotent (the injector skips if already present). -->
+  <script src="/vendor/a11oy-operator-widget.js" data-surface="a11oy" defer></script>
 </body>
 </html>
