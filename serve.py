@@ -152,6 +152,18 @@ try:
 except Exception as _szl_bn_e:  # pragma: no cover
     print(f"[a11oy] Open-Problem Bounty Board NOT registered: {_szl_bn_e!r}", file=__import__("sys").stderr)
 
+# ── Putnam 2025 canonical-set honest verdict (putnam-2025-tab-patch). Serves the
+# per-problem REAL/DEMO/OPEN verdict for the canonical Putnam 2025 set (A1-A6,
+# B1-B6) plus 3 kernel-clean SZL-native originals, transcribed faithfully from
+# the `Honest status:` label in each Lean source on lutar-lean branch
+# putnam-2025-canonical-set @baf483b. Additive, try/except-guarded. Pure stdlib.
+try:
+    import szl_putnam as _szl_putnam
+    _szl_putnam.register(app, ns="a11oy")
+    print("[a11oy] Putnam 2025 honest verdict registered: /api/a11oy/v1/putnam", file=__import__("sys").stderr)
+except Exception as _szl_putnam_e:  # pragma: no cover
+    print(f"[a11oy] Putnam 2025 honest verdict NOT registered: {_szl_putnam_e!r}", file=__import__("sys").stderr)
+
 # ── Readiness tab-matrix endpoint (readiness-harness) — a11oy console contract.
 # Kept HERE in serve.py (a11oy-only) rather than in the shared szl_readiness.py so
 # that module stays byte-identical with killinchu (shared-source drift guard). Serves

@@ -647,6 +647,7 @@ COPY szl_contracting.py ./szl_contracting.py
 # szl-holdings/lutar-lean). Per-file/dir COPY (this Dockerfile never uses `COPY . .`)
 # -- without these the import fails and /api/a11oy/v1/bounties 404s.
 COPY szl_bounties.py ./szl_bounties.py
+COPY szl_putnam.py ./szl_putnam.py
 COPY bounties/ ./bounties/
 
 CMD ["python", "serve.py"]
