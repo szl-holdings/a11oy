@@ -5377,6 +5377,48 @@ try:
             "shortDescription": (v.get("shortDescription","") or "")[:240],
         }
 
+    # --- REAL EPSS overlay (FIRST.org) -------------------------------------
+    # CISA KEV publishes NO EPSS, so the rows carry a derived-sample proxy by
+    # default. This fetches the GENUINE EPSS exploit-probability + percentile
+    # from the public FIRST.org EPSS API (batched, cached 6h) and overlays it
+    # onto the returned rows. Per-row epss_src distinguishes "first.org" (live)
+    # from "derived" (proxy). Any failure -> rows keep the derived value.
+    _KL_EPSS_CACHE = {"ts": 0.0, "map": {}}
+    _KL_EPSS_TTL = 6 * 3600
+
+    def _kl_epss_map(cves):
+        import time as _t, json as _j
+        import urllib.request as _u, urllib.parse as _up
+        now = _t.time()
+        if _KL_EPSS_CACHE["map"] and (now - _KL_EPSS_CACHE["ts"]) < _KL_EPSS_TTL:
+            return _KL_EPSS_CACHE["map"]
+        out = {}
+        try:
+            uniq = [c for c in dict.fromkeys(cves) if c]
+            for i in range(0, len(uniq), 100):
+                batch = uniq[i:i+100]
+                try:
+                    url = ("https://api.first.org/data/v1/epss?pretty=false&cve="
+                           + _up.quote(",".join(batch)))
+                    req = _u.Request(url, headers={"User-Agent": "a11oy-sec/1.0"})
+                    with _u.urlopen(req, timeout=12) as r:
+                        payload = _j.loads(r.read().decode("utf-8", "replace"))
+                    for d in (payload.get("data") or []):
+                        try:
+                            out[d.get("cve")] = (float(d.get("epss")),
+                                                 float(d.get("percentile")))
+                        except Exception:
+                            pass
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        if out:
+            _KL_EPSS_CACHE["map"] = out
+            _KL_EPSS_CACHE["ts"] = now
+            return out
+        return _KL_EPSS_CACHE["map"] or {}
+
     def _kl_live_rows(limit=None):
         """Return (rows, meta). rows shaped for the tabs; meta carries honest
         mode/source. Live CISA KEV first; snapshot fallback on failure."""
@@ -5389,6 +5431,26 @@ try:
                 # newest first by dateAdded
                 rows.sort(key=lambda r: (r.get("dateAdded",""),), reverse=True)
                 if limit: rows = rows[:limit]
+                # Overlay REAL EPSS (FIRST.org) onto the rows actually returned.
+                _emap = _kl_epss_map([r.get("cveID","") for r in rows])
+                _epss_live = 0
+                for r in rows:
+                    _hit = _emap.get(r.get("cveID",""))
+                    if _hit:
+                        r["epss"] = round(_hit[0], 5)
+                        r["epss_pctl"] = round(_hit[1], 5)
+                        r["epss_src"] = "first.org"
+                        _epss_live += 1
+                    else:
+                        r["epss_src"] = "derived"
+                if _epss_live:
+                    _dk = ("live KEV IDs/dates/vendors + LIVE EPSS (FIRST.org EPSS API, "
+                           "%d/%d rows); CVSS/severity = derived-sample (CISA KEV does "
+                           "not publish CVSS)" % (_epss_live, len(rows)))
+                else:
+                    _dk = ("live KEV IDs/dates/vendors; EPSS live unavailable -> "
+                           "derived-sample; CVSS/severity = derived-sample (CISA KEV "
+                           "does not publish CVSS/EPSS)")
                 return rows, {
                     "source": "CISA Known Exploited Vulnerabilities catalog (LIVE feed)",
                     "source_url": _kl_live._SOURCE["kev"][1],
@@ -5397,7 +5459,8 @@ try:
                     "catalogVersion": data.get("catalogVersion"),
                     "dateReleased": data.get("dateReleased"),
                     "total_in_catalog": data.get("count") or len(vulns),
-                    "data_kind": "live KEV IDs/dates/vendors; CVSS/EPSS/severity = derived-sample (CISA KEV does not publish CVSS/EPSS)",
+                    "epss_live_rows": _epss_live,
+                    "data_kind": _dk,
                 }
         except Exception as _e:
             _kl_meta_err = repr(_e)
