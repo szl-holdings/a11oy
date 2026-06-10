@@ -18,7 +18,7 @@
 # always available in both Spaces and air-gapped UDS bundles.
 #
 # HONESTY DOCTRINE (never violated):
-#   - Locked-proven = exactly 5 {F1,F11,F12,F18,F19}; this module is EXPERIMENTAL
+#   - Locked-proven = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}; this module is EXPERIMENTAL
 #     scope and never touches that count.
 #   - Λ (F23) = Conjecture 1 unconditionally. The AM-GM mechanism enforces the
 #     no-inflation bound (GM <= AM) but NEVER claims Λ unique/proven.
@@ -643,20 +643,29 @@ def self_test() -> dict:
 # CANONICAL PROOF SUMMARY + CAPABILITY MAP (single source of truth, byte-
 # identical across a11oy + killinchu). Both apps serve this via
 # /api/{ns}/v1/formulas/proof-summary so the two renderers CANNOT diverge.
-# locked_proven=5 {F1,F11,F12,F18,F19} and conjecture=[F23] are INVARIANT.
+# locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22} and conjecture=[F23] are INVARIANT.
 # proof_summary blocks authored by the count/display owner; capability_map (the
 # theorem->mechanism wiring) added by the wiring owner. Kept in sync here.
 # ============================================================================
 import json as _json
 PROOF_SUMMARY = _json.loads(r'''{
-"locked_proven": 5,
+"locked_proven": 8,
 "locked_ids": [
 "F1",
+"F4",
+"F7",
 "F11",
 "F12",
 "F18",
-"F19"
+"F19",
+"F22"
 ],
+"locked_count_theorem": "locked_count_eight",
+"newly_proven": {
+"F4": {"name": "Khipu DAG acyclicity preservation", "lean": ["f4_khipu_dag_acyclic_preserved", "f4_khipu_no_cycle", "f4_khipu_reach_decreases", "f4_khipu_append_preserves"], "plain": "Appending a fresh node to the Khipu DAG preserves acyclicity — no receipt can ever cycle back on itself."},
+"F7": {"name": "Chaski FIFO reception ordering", "lean": ["f7_chaski_fifo_order", "f7_chaski_fifo_positional", "f7_chaski_drain_eq"], "plain": "Messages drain from the Chaski channel in exactly the order sent (reception order = send order)."},
+"F22": {"name": "Khipu emit append-only monotonicity", "lean": ["f22_khipu_emit_monotone", "f22_emit_appends_length", "f22_emit_strictly_greater"], "plain": "Every Khipu emit strictly increases the ledger index — append-only, never rewrites history."}
+},
 "experimental_sorry_free": 21,
 "axiom_gated": 3,
 "axiom_gated_detail": {
@@ -667,7 +676,7 @@ PROOF_SUMMARY = _json.loads(r'''{
 "conjecture": [
 "F23"
 ],
-"note": "Locked kernel proven=5; experimental scope Lutar/Puriq/Formulas has 21 sorry-free (excluded from locked count); F23 = Conjecture 1, NOT a theorem.",
+"note": "Locked kernel proven=8 {F1,F4,F7,F11,F12,F18,F19,F22} (lutar-lean #219 + platform #321 merged 2026-06-10; the count is itself the no-axiom theorem locked_count_eight, kernel c7c0ba17, Doctrine v11); experimental scope Lutar/Puriq/Formulas stays experimental (excluded from locked count); F23 = Conjecture 1, NOT a theorem.",
 "lean_repo": "szl-holdings/lutar-lean",
 "lean_files": [
 "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
@@ -774,7 +783,7 @@ PROOF_SUMMARY = _json.loads(r'''{
 ],
 "ci_pending_detail": "C1 tsirelson_inequality / C2 CHSH_inequality_of_comm / C6 ConvexOn.map_sum_le re-exports. Signatures verified VERBATIM vs pinned Mathlib d731765, but wiring Tier1Mathlib into the compiled root reproducibly red-lights lake build (bisected: a4299fb/52d9bf5 un-wired = green). Exact error not retrievable (CI log download proxy-blocked). File stays in-tree, NOT imported; NOT claimed proven.",
 "locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED",
-"locked_proven": 5,
+"locked_proven": 8,
 "canonical_numbers": {
 "declarations": 1182,
 "axioms_raw": 20,
@@ -826,7 +835,7 @@ PROOF_SUMMARY = _json.loads(r'''{
 "axiom_disclosure": "Mathlib-dependent re-exports use the standard Mathlib trio [propext, Classical.choice, Quot.sound] (NO sorryAx, NO declared Lutar axioms); their #print axioms are emitted in the CI build log (blob log download proxy-blocked here, but the build is green and they are pure term-mode instantiations of axiom-clean Mathlib theorems). Mathlib-free theorems' #print axioms pasted verbatim in PROVE_WAVE5_REPORT.md section 3 (bare lean 4.13.0, exit 0).",
 "not_available_at_pinned_mathlib": "C3 Hoeffding / C4 Azuma (Mathlib.Probability.Moments.SubGaussian) and C5 KL>=0 (Mathlib.InformationTheory.KullbackLeibler.Basic) modules DO NOT EXIST at the pinned rev d7317655 (v4.13.0) — verified HTTP 404. They cannot be re-exported on this toolchain; deferred to a future Mathlib bump. Honestly NOT claimed.",
 "lambda_status": "Lambda (F23) STAYS Conjecture 1 unconditionally. W5-1 AM-GM is a building block Lambda relies on; it does NOT prove uniqueness. Unconditional uniqueness remains FALSE (wave-4 counterexample in-tree).",
-"locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=5 UNCHANGED. All wave-5 work is experimental scope (counter-excluded).",
+"locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED. locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}. All wave-5 work is experimental scope (counter-excluded).",
 "canonical_numbers": {
 "declarations": 1189,
 "axioms_raw": 20,
@@ -958,7 +967,7 @@ PROOF_SUMMARY = _json.loads(r'''{
 "what_proven": "Lambda (geometric mean) is UNIQUE within Set alpha {A1,A2,A3,A4,A5' multiplicativity} (cond. on setAlpha_cauchy) and within Set delta {d1..d4,d5' multiplicativity} (cond. on KS_theorem_1_1+setDelta_stage2). All 10 impostor-deaths AXIOM-FREE.",
 "what_NOT_claimed": "NOT unconditional uniqueness under original A1-A5 (machine-checked FALSE: Round13.maxAgg_ne_Lambda). Lambda STAYS Conjecture 1.",
 "maturity": "conditional (axiom-gated bridge); Lambda = Conjecture 1 unconditionally",
-"locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; locked_proven STAYS 5"
+"locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}"
 },
 "mathlib_bump_c3c4c5": {
 "campaign": "Mathlib v4.18 bump — concentration/KL re-exports C3/C4/C5",
@@ -1000,7 +1009,7 @@ PROOF_SUMMARY = _json.loads(r'''{
 "conditional",
 "conjecture"
 ],
-"experimental_total_note": "LOCKED proven = exactly 5 {F1,F11,F12,F18,F19} @ c7c0ba17 (749/14/163), UNCHANGED. PLUS 80+ experimental kernel-verified theorems (all CI-green, never folded into the locked 5): wave5 (11, PR#186), wave6 (11, PR#189), wave7 (10, PR#190), agentic-loop P1-P6 (28, PR#188), coder formulas (27, PR#193), Lambda Set alpha/delta (22 results / ~12 theorems, PR#192), unify governed_run_sound (PR#194). C3/C4/C5 proven on the Mathlib-v4.18 bump branch (PR#187), pending merge to main. Lambda = Conjecture 1 unconditionally (uniqueness machine-checked FALSE) + PROVEN conditionally under declared strengthened Set alpha/delta axioms (PR#192).",
+"experimental_total_note": "LOCKED proven = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 (749/14/163); count is the no-axiom theorem locked_count_eight (lutar-lean #219 + platform #321 merged 2026-06-10). PLUS 80+ experimental kernel-verified theorems (all CI-green, never folded into the locked 8): wave5 (11, PR#186), wave6 (11, PR#189), wave7 (10, PR#190), agentic-loop P1-P6 (28, PR#188), coder formulas (27, PR#193), Lambda Set alpha/delta (22 results / ~12 theorems, PR#192), unify governed_run_sound (PR#194). C3/C4/C5 proven on the Mathlib-v4.18 bump branch (PR#187), pending merge to main. Lambda = Conjecture 1 unconditionally (uniqueness machine-checked FALSE) + PROVEN conditionally under declared strengthened Set alpha/delta axioms (PR#192).",
 "experimental_count_min": 80,
 "capability_map": {
 "module": "szl_formula_wiring.py (shared, byte-identical across a11oy + killinchu) + szl_agentic_loop.py",
@@ -1326,11 +1335,11 @@ PROOF_SUMMARY = _json.loads(r'''{
 ]
 },
 "wiring_version": "wire-all-80 v1",
-"wiring_note": "capability_map wires each kernel-verified theorem to a REAL, executed mechanism in szl_formula_wiring.py / szl_agentic_loop.py (shared, byte-identical), or marks it SKIP with a reason. Live at /api/{ns}/v1/formulas/proof-summary. Trust interval is conformal (W5-3/W7-4), NOT Hoeffding. governed_run_sound (PR#194) is headline Lean-core; P5 axiom-gated. locked_proven=5; F23 = Conjecture 1."
+"wiring_note": "capability_map wires each kernel-verified theorem to a REAL, executed mechanism in szl_formula_wiring.py / szl_agentic_loop.py (shared, byte-identical), or marks it SKIP with a reason. Live at /api/{ns}/v1/formulas/proof-summary. Trust interval is conformal (W5-3/W7-4), NOT Hoeffding. governed_run_sound (PR#194) is headline Lean-core; P5 axiom-gated. locked_proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}; F23 = Conjecture 1."
 }''')
 
-assert PROOF_SUMMARY["locked_proven"] == 5
-assert PROOF_SUMMARY["locked_ids"] == ["F1", "F11", "F12", "F18", "F19"]
+assert PROOF_SUMMARY["locked_proven"] == 8
+assert PROOF_SUMMARY["locked_ids"] == ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 assert PROOF_SUMMARY["conjecture"] == ["F23"]
 
 
