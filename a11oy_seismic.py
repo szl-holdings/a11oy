@@ -5,7 +5,7 @@
 # (Utsu 1961) aftershock-rate model, which is public-domain science.
 #
 # DOCTRINE: This is a STATISTICAL FORECAST, NOT A CERTAINTY and NOT a locked
-# proven claim. It is never folded into the locked-5. Every response is
+# proven claim. It is never folded into the locked-8. Every response is
 # labelled "statistical forecast — not certainty". Data is fetched LIVE from
 # the public USGS Earthquake Hazards Program feeds (no fabrication; on a feed
 # failure we return an honest error/stale marker, never invented numbers).
