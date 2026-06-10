@@ -275,7 +275,10 @@ def _ledger(vertical: str, n: int = 25) -> dict[str, Any]:
 # LIVE FEED PARSERS — all SERVER-SIDE, all real sources (see LIVE_SOURCES_VERIFIED.md)
 # ===========================================================================
 def feed_cisa_kev(limit: int = 40) -> dict[str, Any]:
-    url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    # CISA's own host 403s datacenter/Hetzner egress IPs; the cisagov GitHub mirror
+    # carries the identical authoritative catalog (same schema) and is reachable
+    # server-side, so the KEV feed reports genuinely LIVE instead of DEGRADED.
+    url = "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"
     def parse(d):
         vulns = d.get("vulnerabilities", [])
         vulns_sorted = sorted(vulns, key=lambda v: v.get("dateAdded", ""), reverse=True)

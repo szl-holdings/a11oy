@@ -1109,8 +1109,40 @@ except Exception as _bv3_e:  # never crash the app
 # Health / Readiness
 # ---------------------------------------------------------------------------
 
+import time as _hz_time
+_A11OY_START_TIME = _hz_time.time()
+# Last-known dependency (Node :8081) ping, cached so /healthz stays dependency-light
+# and NEVER 5xx; any failure degrades honestly instead of faking green (Doctrine v11).
+_HEALTHZ_DEP_CACHE: dict[str, Any] = {"status": "unknown", "backend_alive": None, "checked_at": None}
+
+
+async def _healthz_dep_ping(ttl: float = 30.0) -> dict:
+    now = _hz_time.time()
+    ca = _HEALTHZ_DEP_CACHE.get("checked_at")
+    if ca is not None and (now - ca) < ttl:
+        return _HEALTHZ_DEP_CACHE
+    try:
+        resp = await _http_client.get(f"{A11OY_BACKEND_URL}/healthz", timeout=2.0)
+        _HEALTHZ_DEP_CACHE.update({
+            "status": "ok" if resp.status_code == 200 else "degraded",
+            "backend_alive": resp.status_code == 200,
+            "status_code": resp.status_code,
+            "checked_at": now,
+        })
+    except Exception as exc:
+        _HEALTHZ_DEP_CACHE.update({
+            "status": "unreachable",
+            "backend_alive": False,
+            "error": type(exc).__name__,
+            "checked_at": now,
+        })
+    return _HEALTHZ_DEP_CACHE
+
+
 @app.get("/api/a11oy/healthz")
 async def healthz() -> JSONResponse:
+    dep = await _healthz_dep_ping()
+    _ca = dep.get("checked_at")
     return JSONResponse({
         "status": "ok",
         "service": "a11oy",
@@ -1118,6 +1150,8 @@ async def healthz() -> JSONResponse:
         "surface": "Brand Orchestration Layer",
         "base_path": "/",
         "doctrine": "v11",
+        "uptime_s": round(_hz_time.time() - _A11OY_START_TIME, 1),
+        "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
         "gates": len(_gates_list),
         "declarations": 749,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
