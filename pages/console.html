@@ -10684,5 +10684,112 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
 })();
 </script>
+<script>
+/* capability-fsm-tab (B4) — governed capability lifecycle as an explicit finite-state
+   machine, after the research-town "engine" pattern (ulab-uiuc, Yu/Zhu). Every a11oy
+   capability follows IDLE -> INVOKED -> EXECUTING -> COMPLETING -> HANDOFF -> IDLE, and
+   each transition is meant to write a Khipu receipt, making mesh execution auditable +
+   replayable. This view maps the LIVE capability mesh (real /v1/capabilities/mesh health)
+   onto that FSM: the lifecycle relation is the governed MODEL (clearly labelled), node
+   readiness is LIVE health. Extends F7 (FIFO ordering per agent) + F22 (emit monotonicity
+   — transitions are monotone). Honest: this is the lifecycle model + live readiness, NOT a
+   claim that per-invocation transitions are already receipted in this image. 0 runtime CDN.
+   Additive IIFE: one VIEWS entry + one nav item, idempotent. */
+(function(){
+  "use strict";
+  var E=window.el, esc=window.esc, getPublic=window.getPublic;
+  var TEAL=(window.TEAL||'#5fb3a3'), GOLD=(window.GOLD||'#c9b787'), RED='#b06a5a', DIM='#8a8a8a';
+  function H(id,h){ var e=E&&E(id); if(e) e.innerHTML=h; }
+
+  var STATES=['IDLE','INVOKED','EXECUTING','COMPLETING','HANDOFF'];
+  var TRANS=[
+    ['IDLE','INVOKED','routing envelope from Chaski'],
+    ['INVOKED','EXECUTING','capability initialised'],
+    ['EXECUTING','COMPLETING','partial / final result'],
+    ['COMPLETING','HANDOFF','receipt sealed (Khipu)'],
+    ['HANDOFF','IDLE','next capability invoked / done']
+  ];
+
+  function fsmDiagram(){
+    // horizontal state ribbon with labelled transitions (SVG, no lib)
+    var W=720, Hh=120, n=STATES.length, padL=46, padR=46, y=58;
+    var step=(W-padL-padR)/(n-1);
+    var svg='<svg width="100%" height="'+Hh+'" viewBox="0 0 '+W+' '+Hh+'" style="font-family:JetBrains Mono,monospace">';
+    for(var i=0;i<n-1;i++){ var x1=padL+i*step+18, x2=padL+(i+1)*step-18;
+      svg+='<line x1="'+x1+'" y1="'+y+'" x2="'+x2+'" y2="'+y+'" stroke="rgba(95,179,163,0.5)" stroke-width="1.4" marker-end="url(#fa)"/>';
+      svg+='<text x="'+((x1+x2)/2)+'" y="'+(y-10)+'" fill="'+DIM+'" font-size="7.5" text-anchor="middle">'+esc(TRANS[i][2])+'</text>'; }
+    for(var j=0;j<n;j++){ var cx=padL+j*step;
+      svg+='<circle cx="'+cx+'" cy="'+y+'" r="16" fill="#0e0e0e" stroke="'+(j===0?GOLD:TEAL)+'" stroke-width="1.6"/>';
+      svg+='<text x="'+cx+'" y="'+(y+30)+'" fill="#aab" font-size="8.5" text-anchor="middle">'+esc(STATES[j])+'</text>'; }
+    svg+='<defs><marker id="fa" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="rgba(95,179,163,0.7)"/></marker></defs>';
+    svg+='</svg>';
+    return svg;
+  }
+
+  window.renderCapFSM=function(c){
+    c.innerHTML='<div class="kpis">'
+      +'<div class="kpi"><div class="k">Capabilities</div><div class="v teal" id="fsm-n">\u2014</div><div class="d">live mesh</div></div>'
+      +'<div class="kpi"><div class="k">Ready (IDLE)</div><div class="v teal" id="fsm-ready">\u2014</div><div class="d">healthy + reachable</div></div>'
+      +'<div class="kpi"><div class="k">Degraded</div><div class="v warn" id="fsm-deg">\u2014</div><div class="d">unreachable / error</div></div>'
+      +'<div class="kpi"><div class="k">FSM states</div><div class="v">5</div><div class="d">lifecycle model</div></div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Governed capability lifecycle \u2014 finite-state machine</span>'
+      +'<span class="card-ep">research-town engine pattern \u00b7 transitions \u2192 Khipu receipts</span></div>'
+      +'<div id="fsm-diagram" style="padding:.5rem 0"></div>'
+      +'<div class="brain-note">Every capability invocation traverses this FSM; each transition is meant to seal a Khipu receipt (auditable + replayable). '
+      +'The transition relation is the governed <b>model</b>; node readiness below is <b>live</b> health. Extends F7 (FIFO order per agent) + F22 (emit monotonicity). '
+      +'This is the lifecycle + live readiness \u2014 not a claim that per-invocation transitions are already receipted in this image.</div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Per-capability readiness (live)</span><span class="card-ep" id="fsm-fresh">\u2014</span></div>'
+      +'<div id="fsm-tbl"><div class="row mono dim">loading\u2026</div></div></div>'
+      +(window.HONEST||'');
+    H('fsm-diagram', fsmDiagram());
+    (function(){
+      function go(){
+        getPublic('/api/a11oy/v1/capabilities/mesh',12000).then(function(d){
+          var nodes=(d.nodes||[]); H('fsm-n', nodes.length);
+          var ready=0, deg=0;
+          var rows=nodes.map(function(n){
+            var ok=(n.ok!==false && (n.http==null || n.http<400));
+            if(ok) ready++; else deg++;
+            var st = ok ? 'IDLE \u00b7 ready' : 'DEGRADED';
+            var col = ok ? TEAL : RED;
+            return '<tr>'
+              +'<td class="mono">'+esc(n.id||'?')+'</td>'
+              +'<td class="mono dim">'+esc(n.role||'\u2014')+'</td>'
+              +'<td><span class="badge" style="border:1px solid '+col+';color:'+col+'">'+esc(st)+'</span></td>'
+              +'<td class="mono dim">'+esc(n.http!=null?('HTTP '+n.http):'\u2014')+'</td>'
+              +'<td class="mono dim">'+esc(n.mcp_tools!=null?(n.mcp_tools+' tools'):'\u2014')+'</td>'
+              +'<td class="mono dim">'+esc(n.lambda||'\u2014')+'</td></tr>';
+          }).join('');
+          H('fsm-ready', ready); H('fsm-deg', deg);
+          H('fsm-tbl','<table class="tbl"><thead><tr><th>capability</th><th>role</th><th>FSM state</th><th>health</th><th>MCP</th><th>\u039b</th></tr></thead><tbody>'+rows+'</tbody></table>');
+          H('fsm-fresh','<span class="badge b-live">live</span>');
+        }).catch(function(e){ H('fsm-tbl','<div class="row mono dim">live mesh unavailable: '+esc(e.message)+'</div>'); H('fsm-n','offline'); });
+      }
+      if(window.a11oyPoll){ window.a11oyPoll(go); } else { go(); }
+    })();
+  };
+
+  function reg(){ if(!window.VIEWS){ return setTimeout(reg,120); }
+    if(window.VIEWS.capfsm) return;
+    window.VIEWS.capfsm={
+      title:'Capability Lifecycle FSM',
+      badge:'GOVERNED FSM \u00b7 IDLE\u2192INVOKED\u2192EXECUTING\u2192COMPLETING\u2192HANDOFF',
+      sub:'Every governed capability runs as an explicit finite-state machine (after the research-town engine pattern, ulab-uiuc): each transition is meant to seal a Khipu receipt, making mesh execution auditable + replayable. The FSM relation is the governed model; per-capability readiness is live mesh health. Extends F7 (FIFO order) + F22 (emit monotonicity). Honest: lifecycle + live readiness, not a claim that per-invocation transitions are receipted yet.',
+      render:async function(c){ window.renderCapFSM(c); }
+    };
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="mesh"]')||document.querySelector('.nav-item[data-view="receiptfp"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('fsm-nav')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.id='fsm-nav';
+    n.setAttribute('data-view','capfsm'); n.setAttribute('onclick',"go('capfsm')");
+    n.innerHTML='<span class="ico">\u25f0</span>Capability FSM';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
 </body>
 </html>
