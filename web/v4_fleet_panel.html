@@ -278,8 +278,8 @@ table.rcpt tr:hover td{background:rgba(30,30,40,.7)}
 
 <!-- Wire status -->
 <div class="wires" role="region" aria-label="Wire status">
-  <div class="wc live"><div class="wc-dot"></div><span class="wc-lbl">Wire B: a11oy↔sentra immune — LIVE</span></div>
-  <div class="wc live"><div class="wc-dot"></div><span class="wc-lbl">Wire C: a11oy↔rosie receipts — LIVE</span></div>
+  <div class="wc live"><div class="wc-dot"></div><span class="wc-lbl">Wire B: Orchestrator↔Policy immune — LIVE</span></div>
+  <div class="wc live"><div class="wc-dot"></div><span class="wc-lbl">Wire C: Orchestrator↔Operator receipts — LIVE</span></div>
   <div class="wc pend"><div class="wc-dot"></div><span class="wc-lbl">Wire D: W3C traceparent — PENDING</span></div>
 </div>
 
@@ -316,16 +316,13 @@ table.rcpt tr:hover td{background:rgba(30,30,40,.7)}
    Sign: Yachay <yachay@szlholdings.ai>
    Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai> */
 
+// Only the two REAL, deployed services are shown (a11oy + killinchu). The retired
+// 404 Spaces (no sentra/amaru/rosie Space exists) are NOT probed — no fabricated or
+// permanently-offline peers. Display names are honest governance-role labels.
 const PEERS=[
-  {id:"a11oy",    q:"Yachay",     role:"Policy Gate · AI Constitution",
+  {id:"a11oy",    name:"Orchestrator (a11oy)", q:"Yachay",    role:"Policy Gate · AI Constitution",
    api:"/api/a11oy/healthz",      href:"https://szlholdings-a11oy.hf.space"},
-  {id:"sentra",   q:"Musquy",     role:"Immune System · SOC",
-   api:"https://szlholdings-sentra.hf.space/api/health",    href:"https://szlholdings-sentra.hf.space"},
-  {id:"amaru",    q:"Amaru",      role:"Data Convergence Fabric",
-   api:"https://szlholdings-amaru.hf.space/api/health",     href:"https://szlholdings-amaru.hf.space"},
-  {id:"rosie",    q:"Yuyay",      role:"Command · God-View",
-   api:"https://szlholdings-rosie.hf.space/api/health",     href:"https://szlholdings-rosie.hf.space"},
-  {id:"killinchu",q:"Killinchu",  role:"C-UAS · Drone Intelligence",
+  {id:"killinchu",name:"Field Node (killinchu)", q:"Killinchu", role:"C-UAS · Drone Intelligence",
    api:"https://szlholdings-killinchu.hf.space/api/health", href:"https://szlholdings-killinchu.hf.space"},
 ];
 
@@ -364,8 +361,8 @@ function peerCard(p,probe){
     :`<span class="down-txt">HTTP ${probe.code||"ERR"} DEGRADED</span>`;
   const b=probe.body||{};
   const doc=b.counts||b.doctrine?`v${b.doctrine||"11"} · ${b.counts||"749/14/163"}`:"—";
-  return`<div class="peer ${cls}" role="article" aria-label="${p.id} peer status">
-    <div class="p-name"><div class="p-dot"></div>${p.id}</div>
+  return`<div class="peer ${cls}" role="article" aria-label="${p.name||p.id} peer status">
+    <div class="p-name"><div class="p-dot"></div>${p.name||p.id}</div>
     <div class="p-q">${p.q} — ${p.role}</div>
     <div class="p-doc">Doctrine ${doc}</div>
     <div class="p-http">${httpTxt}</div>
