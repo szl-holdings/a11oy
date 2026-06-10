@@ -22,7 +22,7 @@ ROUTES (all GET, additive):
                                        health, with an honest source flag
                                        (live | cached). 0 fabricated telemetry.
 
-Doctrine v11: locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19} @ c7c0ba17; Λ =
+Doctrine v11: locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17; Λ =
 Conjecture 1; SLSA L1 honest + L2 build-attestation present. 0 runtime CDN.
 Signed-off-by: Opus 4.8 (Dev3 — Operator-organ ingest). Co-Authored-By: SZL Holdings.
 """
