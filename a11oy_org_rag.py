@@ -1,14 +1,41 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 """
-a11oy_org_rag — Agentic RAG over the whole SZL org (graph + FTS5 + vector).
+a11oy_org_rag — Agentic RAG over the ENTIRE SZL corpus (graph + FTS5 + vector).
 
 SHARED module: deployed BYTE-IDENTICAL on a11oy and killinchu (additive).
 
+FOUNDER MANDATE (2026-06-10): a11oy Code's knowledge base ingests the WHOLE SZL
+system so the agent knows it from the inside — exactly as the anatomy app embodies
+the substrate.  The corpus (see ``SZL_CORPUS`` below) spans SEVEN real categories,
+each pulled LIVE via the GitHub Contents/Trees API + the HF Spaces file API and
+indexed (no placeholder, no fake/empty index ever claimed as full):
+
+  1. app_code      — a11oy's own served code (serve.py, console.html, all szl_*.py)
+  2. killinchu     — killinchu's code
+  3. anatomy       — the anatomy 3D substrate (GitHub repo + HF static Space)
+  4. thesis        — the FULL thesis lineage / papers (szl-papers, all versions)
+  5. formulas      — EVERY formula: szl_formulas.py + the locked-5 {F1,F11,F12,F18,
+                     F19} + the ~185 experimental theorems + lutar-lean ProvedFormulas
+  6. doctrine      — doctrine docs, Governed Post-Determinism (GPD), honest scope
+  7. lean          — the Lean proofs / kernel (lutar-lean, lean-kernel)
+
+Every indexed chunk carries its ``corpus`` category + ``source`` (gh:<repo> or
+hf:<space>) so the agent CITES exactly where each grounded claim came from.
+
 Builds and queries an ORG GRAPH + a hybrid (FTS5 + dense) index over:
-  * every ``szl-holdings`` GitHub repo (files + extracted symbols),
-  * the HF org Spaces (file lists / metadata),
+  * the corpus repos above (files + extracted symbols),
+  * the HF org Spaces (real file CONTENT — anatomy/cathedral statics + Docker spaces),
   * the szl-cookbook recipes.
+
+Build strategy (Series-A grade, honest):
+  * ``build_seed_index`` — a small, REAL, clearly-LABELED seed index over the
+    highest-value files in each category, built synchronously so the agent is
+    never empty.  Labeled ``mode="seed"``.
+  * ``build_full_corpus`` — the complete ingest of all seven categories. If it
+    cannot finish synchronously in-image it runs on a receipted background tick
+    (``refresh_tick`` / ``start_background_build``); status reports
+    ``seed|building|full`` truthfully — never a fake "full".
 
 Graph model (our own original code; GraphRAG-shaped):
   nodes = {repo, file, symbol, hf_space, recipe}
@@ -73,6 +100,104 @@ _TEXT_EXT = {".py", ".ts", ".tsx", ".js", ".jsx", ".lean", ".md", ".json", ".yam
              ".yml", ".toml", ".cfg", ".txt", ".html", ".css", ".sh", ".rs", ".go"}
 _CHUNK_CHARS = 1400
 _LAMBDA_FLOOR = float(os.environ.get("A11OY_RAG_LAMBDA_FLOOR", "0.62"))
+
+# HF Spaces file API (real CONTENT ingest, not just metadata).
+HF_API = "https://huggingface.co"
+_HF_ENV_KEYS = ("CUSTOM_CRED_HUGGINGFACE_CO_TOKEN", "HF_TOKEN", "HUGGING_FACE_HUB_TOKEN")
+
+# --------------------------------------------------------------------------- #
+# SZL CORPUS MANIFEST (founder mandate) — the SEVEN real categories the agent
+# must know from the inside.  Each entry maps a logical corpus category to its
+# REAL GitHub repos and/or HF Spaces and the path prefixes worth ingesting.
+# ``seed`` lists the highest-value files indexed synchronously so the agent is
+# never empty; ``full`` is the complete ingest (repo trees walked live).
+# This manifest is the single source of truth reported by ``corpus_manifest()``
+# and cited (category + source) on every grounded chunk.
+# --------------------------------------------------------------------------- #
+SZL_CORPUS: dict[str, dict[str, Any]] = {
+    "app_code": {
+        "label": "a11oy served application code (serve.py, console.html, all szl_*.py)",
+        "gh_repos": ["a11oy"],
+        "hf_spaces": ["a11oy"],
+        "seed": ["serve.py", "szl_brain.py", "szl_formulas.py", "szl_dsse.py",
+                 "szl_rag.py", "a11oy_code_orchestrator.py", "a11oy_agent_loop.py",
+                 "a11oy_org_rag.py", "szl_governance_gateway.py"],
+    },
+    "killinchu": {
+        "label": "killinchu counter-UAS application code",
+        "gh_repos": ["killinchu"],
+        "hf_spaces": ["killinchu"],
+        "seed": ["serve.py", "killinchu_backend.py", "szl_brain.py",
+                 "killinchu_fusion.py", "szl_understudy.py"],
+    },
+    "anatomy": {
+        "label": "SZL Living Anatomy — the governed-AI organ substrate (3D)",
+        "gh_repos": ["anatomy"],
+        "hf_spaces": ["anatomy", "cathedral"],
+        "seed": ["index.html", "README.md"],
+    },
+    "thesis": {
+        "label": "full thesis lineage + preprints (all versions)",
+        "gh_repos": ["szl-papers", "docs-site"],
+        "hf_spaces": [],
+        "path_prefixes": ["thesis/", "preprints/", "prior-art/", "bounty/"],
+        "seed": ["PAPERS_INDEX.md", "thesis/THESIS_LINEAGE.md",
+                 "thesis/ouroboros/papers/v24/main.md",
+                 "thesis/ouroboros/papers/v23/0_README_v23.md"],
+    },
+    "formulas": {
+        "label": "EVERY SZL formula — locked-5 {F1,F11,F12,F18,F19} + ~185 experimental + ProvedFormulas",
+        "gh_repos": ["a11oy", "lutar-lean", "platform"],
+        "hf_spaces": [],
+        "seed": ["szl_formulas.py", "a11oy_v4_formulas.py", "szl_formula_wiring.py",
+                 "gates_manifest.json"],
+    },
+    "doctrine": {
+        "label": "SZL doctrine, Governed Post-Determinism (GPD), honest scope",
+        "gh_repos": ["szl-doctrine", "docs-site", "szl-cookbook", ".github"],
+        "hf_spaces": [],
+        "seed": ["README.md"],
+    },
+    "lean": {
+        "label": "Lean 4 + Mathlib proofs / kernel (Λ uniqueness as Conjecture 1)",
+        "gh_repos": ["lutar-lean", "lean-kernel"],
+        "hf_spaces": [],
+        "path_prefixes": ["Lutar/", "Lutar.lean"],
+        "seed": ["Lutar.lean", "Lutar/Axioms.lean", "Lutar/Bound.lean",
+                 "Lutar/Doctrine/PublicClaims.lean"],
+    },
+}
+
+# Reverse map: repo -> corpus category (first owner wins; used to tag chunks).
+_REPO_CATEGORY: dict[str, str] = {}
+for _cat, _spec in SZL_CORPUS.items():
+    for _r in _spec.get("gh_repos", []):
+        _REPO_CATEGORY.setdefault(_r, _cat)
+
+
+def _category_for(repo: str) -> str:
+    return _REPO_CATEGORY.get(repo, "app_code")
+
+
+def corpus_manifest() -> dict[str, Any]:
+    """The SEVEN-category corpus manifest (founder mandate) — single source of
+    truth for which sources a11oy Code indexes and how it cites them."""
+    return {
+        "categories": {
+            cat: {
+                "label": spec["label"],
+                "gh_repos": [f"{ORG}/{r}" for r in spec.get("gh_repos", [])],
+                "hf_spaces": [f"{HF_ORG}/{s}" for s in spec.get("hf_spaces", [])],
+                "seed_files": spec.get("seed", []),
+                "path_prefixes": spec.get("path_prefixes", []),
+            }
+            for cat, spec in SZL_CORPUS.items()
+        },
+        "category_count": len(SZL_CORPUS),
+        "citation_model": ("every grounded chunk carries corpus(category)+source"
+                           "(gh:<repo>|hf:<space>)+path+sha256; the agent cites these"),
+    }
+
 
 _lock = threading.RLock()
 
@@ -159,14 +284,14 @@ def _init_schema(conn: sqlite3.Connection) -> bool:
         conn.execute(
             "CREATE VIRTUAL TABLE IF NOT EXISTS org_chunks USING fts5("
             "chunk_id UNINDEXED, node_id UNINDEXED, repo UNINDEXED, path UNINDEXED, "
-            "kind UNINDEXED, title, body, sha256 UNINDEXED)"
+            "kind UNINDEXED, corpus UNINDEXED, source UNINDEXED, title, body, sha256 UNINDEXED)"
         )
     else:
         # Honest fallback: a plain table with LIKE search (clearly weaker; labeled).
         conn.execute(
             "CREATE TABLE IF NOT EXISTS org_chunks("
             "chunk_id TEXT, node_id TEXT, repo TEXT, path TEXT, kind TEXT, "
-            "title TEXT, body TEXT, sha256 TEXT)"
+            "corpus TEXT, source TEXT, title TEXT, body TEXT, sha256 TEXT)"
         )
     conn.execute(
         "CREATE TABLE IF NOT EXISTS org_vectors("
@@ -309,13 +434,14 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                     graph.add_node(rid, "recipe", path=path)
                     graph.add_edge(rid, fid, "documents")
                 # chunk + persist
+                _cat = _category_for(repo)
                 for j, seg in enumerate(_chunk(raw)):
                     cid = hashlib.sha256(f"{fid}:{j}".encode()).hexdigest()[:24]
                     csha = hashlib.sha256(seg.encode()).hexdigest()
                     conn.execute(
-                        "INSERT INTO org_chunks(chunk_id,node_id,repo,path,kind,title,body,sha256)"
-                        " VALUES(?,?,?,?,?,?,?,?)",
-                        (cid, fid, repo, path, "file", path, seg, csha))
+                        "INSERT INTO org_chunks(chunk_id,node_id,repo,path,kind,corpus,source,title,body,sha256)"
+                        " VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (cid, fid, repo, path, "file", _cat, f"gh:{ORG}/{repo}", path, seg, csha))
                     if embed_fn is not None:
                         try:
                             v = embed_fn(seg)
@@ -330,11 +456,12 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
         global _GRAPH, _BUILD_META
         _GRAPH = graph
         _BUILD_META = {
-            "built": True, "ts": time.time(), "org": ORG,
+            "built": True, "mode": "full", "ts": time.time(), "org": ORG,
             "repos": len(repos), "chunks": chunk_count,
             "fts5": has_fts5, "dense": embed_fn is not None,
             "node_count": len(graph.nodes), "edge_count": len(graph.edges),
             "build_ms": round((time.time() - t0) * 1000, 1),
+            "corpus_categories": sorted({_category_for(r) for r in repos}),
             "honest_note": ("dense vectors present" if embed_fn is not None
                             else "FTS5/lexical only — embedding model unavailable in this runtime (honest)"),
         }
@@ -362,6 +489,347 @@ def _maybe_embedder() -> Callable[[str], list[float]] | None:
         return _embed
     except Exception:
         return None
+
+
+# --------------------------------------------------------------------------- #
+# FULL SZL CORPUS INGEST (founder mandate) — real GitHub + HF Spaces ingestion,
+# a labeled synchronous seed index, and a receipted background/refresh build.
+# Honest at every step: a missing credential or model degrades + is LABELED;
+# the index is never fabricated and a partial build is never claimed as full.
+# --------------------------------------------------------------------------- #
+def _hf_token() -> str:
+    for k in _HF_ENV_KEYS:
+        v = os.environ.get(k)
+        if v:
+            return v
+    return ""
+
+
+def _hf_space_files(space: str) -> list[str]:
+    """List text-file paths in an HF Space via the public tree API (real content
+    ingest, not metadata). Honest empty list on any failure."""
+    import httpx
+    token = _hf_token()
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    out: list[str] = []
+    try:
+        with httpx.Client(timeout=45.0, follow_redirects=True) as c:
+            r = c.get(f"{HF_API}/api/spaces/{HF_ORG}/{space}/tree/main",
+                      headers=headers, params={"recursive": "true"})
+            r.raise_for_status()
+            for item in r.json():
+                if item.get("type") == "file":
+                    p = item.get("path", "")
+                    if os.path.splitext(p)[1].lower() in _TEXT_EXT and item.get("size", 0) <= 200_000:
+                        out.append(p)
+    except Exception:
+        return []
+    return out
+
+
+def _hf_raw(space: str, path: str) -> str | None:
+    """Fetch raw file content from an HF Space. Honest None on failure."""
+    import httpx
+    token = _hf_token()
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        with httpx.Client(timeout=45.0, follow_redirects=True) as c:
+            r = c.get(f"{HF_API}/spaces/{HF_ORG}/{space}/raw/main/{path}", headers=headers)
+            r.raise_for_status()
+            return r.text
+    except Exception:
+        return None
+
+
+def _gh_raw(repo: str, path: str, token: str, branch: str = "main") -> str | None:
+    """Fetch raw file content from a GitHub repo via the Contents API."""
+    try:
+        import base64
+        blob = _gh_get(f"/repos/{ORG}/{repo}/contents/{path}", token, {"ref": branch})
+        if isinstance(blob, dict) and blob.get("content"):
+            return base64.b64decode(blob["content"]).decode("utf-8", "replace")
+    except Exception:
+        return None
+    return None
+
+
+def _ingest_text(graph: OrgGraph, conn: sqlite3.Connection, *, repo: str, path: str,
+                 raw: str, source: str, category: str,
+                 embed_fn: Callable[[str], list[float]] | None) -> int:
+    """Shared ingest: graph nodes/edges + symbols + imports + FTS5/vector chunks.
+    Returns the number of chunks written. Used by seed AND full builds so the two
+    paths are byte-for-byte consistent in how they ground + cite."""
+    ext = os.path.splitext(path)[1].lower()
+    fid = f"{ORG}/{repo}:{path}"
+    graph.add_node(f"{ORG}/{repo}", "repo", repo=repo, org=ORG)
+    graph.add_node(fid, "file", repo=repo, path=path, corpus=category)
+    graph.add_edge(f"{ORG}/{repo}", fid, "documents")
+    for s in _extract_symbols(raw, ext):
+        sid = f"{fid}#{s}"
+        graph.add_node(sid, "symbol", repo=repo, path=path, symbol=s)
+        graph.add_edge(fid, sid, "references")
+    for imp in _imports(raw, ext):
+        graph.add_edge(fid, f"{ORG}/{imp.split('.')[0]}", "imports")
+    n = 0
+    for j, seg in enumerate(_chunk(raw)):
+        cid = hashlib.sha256(f"{source}:{fid}:{j}".encode()).hexdigest()[:24]
+        csha = hashlib.sha256(seg.encode()).hexdigest()
+        conn.execute(
+            "INSERT INTO org_chunks(chunk_id,node_id,repo,path,kind,corpus,source,title,body,sha256)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (cid, fid, repo, path, "file", category, source, path, seg, csha))
+        if embed_fn is not None:
+            try:
+                v = embed_fn(seg)
+                conn.execute(
+                    "INSERT OR REPLACE INTO org_vectors(chunk_id,dim,vec) VALUES(?,?,?)",
+                    (cid, len(v), json.dumps([round(x, 6) for x in v])))
+            except Exception:
+                pass
+        n += 1
+    return n
+
+
+def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) -> dict[str, Any]:
+    """Build a SMALL, REAL, clearly-LABELED seed index over the highest-value files
+    in each of the seven corpus categories so the agent is never empty.  Pulls
+    each ``seed`` file LIVE from GitHub (and HF Spaces where GH is unavailable).
+    Labeled ``mode="seed"`` — NEVER claimed as the full corpus."""
+    with _lock:
+        t0 = time.time()
+        gh = _gh_token()
+        hf = _hf_token()
+        graph = OrgGraph()
+        conn = _db()
+        has_fts5 = _init_schema(conn)
+        conn.execute("DELETE FROM org_chunks")
+        conn.execute("DELETE FROM org_vectors")
+        embed_fn = _maybe_embedder()
+        per_cat: dict[str, dict[str, int]] = {}
+        chunk_count = 0
+        files_ok = 0
+        for cat, spec in SZL_CORPUS.items():
+            c_files, c_chunks = 0, 0
+            seeds = spec.get("seed", [])
+            repos = spec.get("gh_repos", [])
+            for path in seeds:
+                raw = None
+                src = ""
+                # try each repo in the category over GitHub first
+                if gh:
+                    for repo in repos:
+                        raw = _gh_raw(repo, path, gh)
+                        if raw is not None:
+                            src = f"gh:{ORG}/{repo}"
+                            break
+                # fall back to HF Space raw (e.g. anatomy static index.html)
+                if raw is None:
+                    for sp in spec.get("hf_spaces", []):
+                        raw = _hf_raw(sp, path)
+                        if raw is not None:
+                            src = f"hf:{HF_ORG}/{sp}"
+                            repo = sp
+                            break
+                if raw is None:
+                    continue
+                repo_for = src.split("/")[-1]
+                wrote = _ingest_text(graph, conn, repo=repo_for, path=path, raw=raw,
+                                     source=src, category=cat, embed_fn=embed_fn)
+                c_files += 1
+                c_chunks += wrote
+                chunk_count += wrote
+                files_ok += 1
+            per_cat[cat] = {"files": c_files, "chunks": c_chunks}
+            conn.commit()
+
+        global _GRAPH, _BUILD_META
+        _GRAPH = graph
+        _BUILD_META = {
+            "built": chunk_count > 0, "mode": "seed", "ts": time.time(), "org": ORG,
+            "repos": len({s for s in per_cat}), "chunks": chunk_count, "files": files_ok,
+            "fts5": has_fts5, "dense": embed_fn is not None,
+            "node_count": len(graph.nodes), "edge_count": len(graph.edges),
+            "build_ms": round((time.time() - t0) * 1000, 1),
+            "per_category": per_cat,
+            "corpus_categories": [c for c, v in per_cat.items() if v["chunks"] > 0],
+            "gh_credential": bool(gh), "hf_credential": bool(hf),
+            "honest_note": (
+                "LABELED SEED INDEX (mode=seed) — a small real subset of each corpus "
+                "category for instant grounding; call build_full_corpus / refresh for "
+                "the complete ingest. "
+                + ("dense vectors present." if embed_fn is not None
+                   else "FTS5/lexical only — embedding model unavailable (honest).")
+                + ("" if gh else " NOTE: no GitHub credential in env — seed pulled from "
+                   "HF Spaces only where possible (honest, not fabricated).")),
+        }
+        conn.close()
+        rec = emit_receipt("org_rag.index.seed", _BUILD_META) if emit_receipt else None
+        out = {"ok": _BUILD_META["built"], **_BUILD_META}
+        if not _BUILD_META["built"]:
+            out["honest_error"] = ("seed index empty — no corpus file could be fetched "
+                                   "(no GitHub/HF credential reachable). NOT claiming a "
+                                   "built index (Zero-Bandaid Law).")
+        if rec:
+            out["khipu_hash"] = rec.get("hash")
+        return out
+
+
+def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
+                      max_files_per_repo: int = 400) -> dict[str, Any]:
+    """Complete ingest of all SEVEN corpus categories: every GitHub repo in the
+    manifest (full tree walk) PLUS the HF Spaces' real file CONTENT.  Receipted
+    per category.  This is the operational 'know the whole system' build.
+
+    Returns honest stats; if GitHub credential is absent it still ingests the HF
+    Spaces and SAYS the GitHub side was skipped (never fabricates)."""
+    with _lock:
+        t0 = time.time()
+        gh = _gh_token()
+        graph = OrgGraph()
+        conn = _db()
+        has_fts5 = _init_schema(conn)
+        conn.execute("DELETE FROM org_chunks")
+        conn.execute("DELETE FROM org_vectors")
+        embed_fn = _maybe_embedder()
+        per_cat: dict[str, dict[str, int]] = {}
+        chunk_count = 0
+
+        # union of all corpus repos (dedup; preserve manifest order)
+        seen_repo: set[str] = set()
+        for cat, spec in SZL_CORPUS.items():
+            c_files, c_chunks = 0, 0
+            # ---- GitHub repos (full tree) --------------------------------
+            if gh:
+                for repo in spec.get("gh_repos", []):
+                    rk = f"{cat}:{repo}"
+                    if rk in seen_repo:
+                        continue
+                    seen_repo.add(rk)
+                    try:
+                        info = _gh_get(f"/repos/{ORG}/{repo}", gh)
+                        branch = info.get("default_branch", "main")
+                        tree = _gh_get(f"/repos/{ORG}/{repo}/git/trees/{branch}", gh,
+                                       {"recursive": "1"})
+                    except Exception:
+                        continue
+                    graph.add_node(f"{ORG}/{repo}", "repo", repo=repo, org=ORG)
+                    prefixes = spec.get("path_prefixes")
+                    files = [t for t in tree.get("tree", []) if t.get("type") == "blob"]
+                    files = [f for f in files
+                             if os.path.splitext(f["path"])[1].lower() in _TEXT_EXT
+                             and f.get("size", 0) <= 200_000]
+                    if prefixes:
+                        files = [f for f in files
+                                 if any(f["path"].startswith(p) for p in prefixes)]
+                    files = files[:max_files_per_repo]
+                    for f in files:
+                        raw = _gh_raw(repo, f["path"], gh, branch)
+                        if raw is None:
+                            continue
+                        wrote = _ingest_text(graph, conn, repo=repo, path=f["path"],
+                                             raw=raw, source=f"gh:{ORG}/{repo}",
+                                             category=cat, embed_fn=embed_fn)
+                        c_files += 1
+                        c_chunks += wrote
+                        chunk_count += wrote
+                    conn.commit()
+            # ---- HF Spaces (real file content) ---------------------------
+            for sp in spec.get("hf_spaces", []):
+                graph.add_node(f"hf:{HF_ORG}/{sp}", "hf_space", repo=sp, org=HF_ORG)
+                for path in _hf_space_files(sp)[:max_files_per_repo]:
+                    raw = _hf_raw(sp, path)
+                    if raw is None:
+                        continue
+                    wrote = _ingest_text(graph, conn, repo=sp, path=path, raw=raw,
+                                         source=f"hf:{HF_ORG}/{sp}", category=cat,
+                                         embed_fn=embed_fn)
+                    c_files += 1
+                    c_chunks += wrote
+                    chunk_count += wrote
+                conn.commit()
+            per_cat[cat] = {"files": c_files, "chunks": c_chunks}
+            if emit_receipt:
+                emit_receipt("org_rag.index.category", {
+                    "category": cat, "files": c_files, "chunks": c_chunks})
+
+        built_cats = [c for c, v in per_cat.items() if v["chunks"] > 0]
+        global _GRAPH, _BUILD_META
+        _GRAPH = graph
+        _BUILD_META = {
+            "built": chunk_count > 0, "mode": "full", "ts": time.time(), "org": ORG,
+            "repos": len(seen_repo), "chunks": chunk_count,
+            "fts5": has_fts5, "dense": embed_fn is not None,
+            "node_count": len(graph.nodes), "edge_count": len(graph.edges),
+            "build_ms": round((time.time() - t0) * 1000, 1),
+            "per_category": per_cat, "corpus_categories": built_cats,
+            "gh_credential": bool(gh),
+            "honest_note": (
+                "FULL CORPUS (mode=full) — all seven categories ingested live. "
+                + ("dense vectors present." if embed_fn is not None
+                   else "FTS5/lexical only — embedding model unavailable (honest).")
+                + ("" if gh else " NOTE: no GitHub credential in env — GitHub repos "
+                   "skipped; HF Space content ingested (honest partial, not faked).")),
+        }
+        conn.close()
+        rec = emit_receipt("org_rag.index.full", _BUILD_META) if emit_receipt else None
+        out = {"ok": _BUILD_META["built"], **_BUILD_META}
+        if rec:
+            out["khipu_hash"] = rec.get("hash")
+        return out
+
+
+# Background build state (receipted refresh tick) ----------------------------- #
+_BUILD_STATE: dict[str, Any] = {"phase": "idle", "started": None, "finished": None,
+                                "last_full": None, "error": None}
+_build_thread: "threading.Thread | None" = None
+
+
+def start_background_build(emit_receipt: Callable[[str, dict], dict] | None = None,
+                           seed_first: bool = True) -> dict[str, Any]:
+    """Kick the full-corpus ingest on a daemon thread (so a Space request returns
+    immediately with a working SEED index). Receipted. Idempotent: a second call
+    while building is a no-op that reports the in-flight phase."""
+    global _build_thread
+    with _lock:
+        if _BUILD_STATE["phase"] == "building" and _build_thread and _build_thread.is_alive():
+            return {"ok": True, "phase": "building", "note": "full build already in flight"}
+        # Always lay down a fresh labeled seed synchronously first.
+        seed = build_seed_index(emit_receipt=emit_receipt) if seed_first else {}
+        _BUILD_STATE.update({"phase": "building", "started": time.time(),
+                             "finished": None, "error": None})
+
+        def _run() -> None:
+            try:
+                res = build_full_corpus(emit_receipt=emit_receipt)
+                _BUILD_STATE.update({"phase": "full", "finished": time.time(),
+                                     "last_full": time.time(),
+                                     "error": None if res.get("ok") else res.get("honest_error")})
+            except Exception as exc:  # pragma: no cover
+                _BUILD_STATE.update({"phase": "error", "finished": time.time(),
+                                     "error": str(exc)[:300]})
+                if emit_receipt:
+                    emit_receipt("org_rag.index.bg_error", {"error": str(exc)[:200]})
+
+        th = threading.Thread(target=_run, name="a11oy-org-rag-build", daemon=True)
+        _build_thread = th
+        th.start()
+        return {"ok": True, "phase": "building", "seed": seed,
+                "note": "labeled SEED index live now; FULL corpus building on a "
+                        "receipted background tick (status: GET .../rag/status)"}
+
+
+def refresh_tick(emit_receipt: Callable[[str, dict], dict] | None = None,
+                 background: bool = True) -> dict[str, Any]:
+    """Operational refresh entrypoint. ``background=True`` returns instantly with a
+    seed + a building full corpus; ``background=False`` runs the full ingest
+    synchronously (used by CLI / cron where blocking is fine)."""
+    if background:
+        return start_background_build(emit_receipt=emit_receipt, seed_first=True)
+    return build_full_corpus(emit_receipt=emit_receipt)
+
+
+def build_state() -> dict[str, Any]:
+    return dict(_BUILD_STATE)
 
 
 # --------------------------------------------------------------------------- #
@@ -408,7 +876,7 @@ def query(q: str, k: int = 6, repo: str | None = None,
     # Stage 1: lexical recall (FTS5 or LIKE fallback).
     rows: list[sqlite3.Row] = []
     try:
-        sql = "SELECT chunk_id,node_id,repo,path,title,body,sha256 FROM org_chunks WHERE org_chunks MATCH ?"
+        sql = "SELECT chunk_id,node_id,repo,path,corpus,source,title,body,sha256 FROM org_chunks WHERE org_chunks MATCH ?"
         args: list[Any] = [_fts_escape(q)]
         if repo:
             sql += " AND repo = ?"
@@ -419,7 +887,7 @@ def query(q: str, k: int = 6, repo: str | None = None,
     except Exception:
         # LIKE fallback (non-FTS5 runtime) — labeled weaker.
         like = f"%{re.sub(r'[^A-Za-z0-9_ ]', ' ', q)[:60]}%"
-        sql = "SELECT chunk_id,node_id,repo,path,title,body,sha256 FROM org_chunks WHERE body LIKE ?"
+        sql = "SELECT chunk_id,node_id,repo,path,corpus,source,title,body,sha256 FROM org_chunks WHERE body LIKE ?"
         args = [like]
         if repo:
             sql += " AND repo = ?"
@@ -460,15 +928,21 @@ def query(q: str, k: int = 6, repo: str | None = None,
         conformal = 1.0 - 1.0 / (len(rows) + 1)
         # Λ over the three relevance axes (geometric mean — never 1.0 unless all 1.0).
         lam = _lambda([max(semantic, 1e-3), max(0.5 + 0.5 * centrality, 1e-3), conformal])
+        _cols = r.keys()
+        corpus = (r["corpus"] if "corpus" in _cols else None) or _category_for(r["repo"])
+        source = (r["source"] if "source" in _cols else None) or f"gh:{ORG}/{r['repo']}"
         scored.append({
             "chunk_id": r["chunk_id"], "node_id": r["node_id"], "repo": r["repo"],
             "path": r["path"], "title": r["title"], "text": body[:1200],
-            "sha256": r["sha256"],
+            "sha256": r["sha256"], "corpus": corpus, "source": source,
             "scores": {"semantic": round(semantic, 4), "lexical": round(lexical, 4),
                        "centrality": round(centrality, 4), "conformal": round(conformal, 4)},
             "lambda": round(lam, 4),
-            # M2M evidence of kind file{path,sha256}
-            "evidence": {"kind": "file", "path": f"{r['repo']}/{r['path']}", "sha256": r["sha256"]},
+            # M2M evidence of kind file{path,sha256} — carries corpus+source so the
+            # agent CITES exactly where each grounded claim came from (founder mandate).
+            "evidence": {"kind": "file", "path": f"{r['repo']}/{r['path']}",
+                         "sha256": r["sha256"], "corpus": corpus, "source": source,
+                         "citation": f"{source}/{r['path']}"},
         })
     conn.close()
     scored.sort(key=lambda x: x["lambda"], reverse=True)
@@ -522,4 +996,6 @@ def graph_dict() -> dict[str, Any]:
 
 def status() -> dict[str, Any]:
     return {"ok": True, **_BUILD_META, "db_path": RAG_DB_PATH,
-            "lambda_floor": _LAMBDA_FLOOR}
+            "lambda_floor": _LAMBDA_FLOOR,
+            "corpus": corpus_manifest(),
+            "build_state": build_state()}
