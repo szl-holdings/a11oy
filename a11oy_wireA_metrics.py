@@ -231,13 +231,13 @@ def register(app):
         """Return (nodes, undirected_edges, directed_edges, label, source). Honest empty
         state when the structure is unknown."""
         name = (name or "organism").lower()
-        # Receipt / khipu hash-chain: linear DAG of the locked-5 formulas + aggregate.
+        # Receipt / khipu hash-chain: linear DAG of the locked-8 formulas + aggregate.
         if name in ("chain", "lineage", "receiptchain"):
             seq = ["F1", "F11", "F12", "F18", "F19", "Λ-aggregate"]
             nodes = list(seq)
             de = [(seq[i], seq[i + 1]) for i in range(len(seq) - 1)]
             ue = list(de)
-            return nodes, ue, de, "Receipt hash-chain (locked-5 → Λ)", "Khipu-DSSE ledger (in-image, hash-chained)"
+            return nodes, ue, de, "Receipt hash-chain (locked-8 → Λ)", "Khipu-DSSE ledger (in-image, hash-chained)"
         # Living organism: organ topology (Quechua/honest names; NO banned codenames).
         if name in ("organism", "mesh", "constellation", "trustspace"):
             organs = ["Reception", "Operator", "Provenance-Anchor", "Policy",
@@ -408,7 +408,7 @@ def register(app):
         ("F19", "Λ aggregate 13-axis geometric mean trust advisory locked-proven"),
         ("F23", "Λ uniqueness conditional slice multiplicativity axiom-free conjecture-1 unconditional"),
         ("organism", "living organism organ topology Reception Operator Provenance-Anchor Policy"),
-        ("chain", "receipt hash-chain Khipu DSSE ledger locked-5 aggregate"),
+        ("chain", "receipt hash-chain Khipu DSSE ledger locked-8 aggregate"),
         ("threat", "attack surface zero-trust path ingress auth-gate policy-gate egress"),
         ("router", "GraphRouter multi-objective reward quality cost latency presets"),
         ("forecast", "split-conformal coverage residual quantile distribution-free band"),
