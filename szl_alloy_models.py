@@ -68,7 +68,7 @@ LEGAL / HONESTY (ABSOLUTE)
 * NO closed weights. GPT / Claude / Gemini are unobtainable open weights — this
   module never claims them. (The legacy szl_llm_registry closed-tier entries are
   honest API stubs owned by the build squad; the alloy tier is open-weight only.)
-* NO "AGI" claims. Λ = Conjecture 1. Locked proven = 5 (F1,F11,F12,F18,F19).
+* NO "AGI" claims. Λ = Conjecture 1. Locked proven = 8 (F1,F4,F7,F11,F12,F18,F19,F22).
   C20/W5-3/W7-4/W7-5/C10/C11/C12 are "proven sorry-free (EXPERIMENTAL)".
 * NEVER fabricate model output or benchmarks. If the CPU env cannot serve a model
   live, we return an HONEST tower-side label — never a fake completion.
@@ -89,7 +89,7 @@ from typing import Any, Optional
 # Honest doctrine constants (match knowledge.json / CANONICAL_PROOF_SUMMARY).
 # ---------------------------------------------------------------------------
 DOCTRINE = "v11"
-LOCKED_PROVEN = ["F1", "F11", "F12", "F18", "F19"]   # locked_proven = 5
+LOCKED_PROVEN = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]   # locked_proven = 8 (locked_count_eight)
 LAMBDA_STATUS = "Conjecture 1 (F23) — NEVER a theorem"
 PROVEN_EXPERIMENTAL = {
     "router_stability": "C20 (proven sorry-free, experimental; Mathlib-free order-preservation core)",
