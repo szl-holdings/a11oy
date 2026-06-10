@@ -10543,5 +10543,146 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 
+<script>
+/* receipt-fingerprint-tab (B3) — P-GNN anchor-set structural fingerprints over the
+   LIVE Khipu receipt DAG, rendered as a D3 force graph. Adapts the anchor-set
+   distance-encoding idea from P-GNN (You/Ying/Leskovec, ICML 2019, arXiv:1906.04817)
+   to give every receipt a position-aware structural fingerprint h_v, used for
+   fork detection / anomalous-agent (structurally isolated) detection / capability
+   similarity. HONEST: the fingerprint is a structural HEURISTIC, never a proof; it
+   does NOT change the locked-8 set and is not a trust oracle. 0 runtime CDN (d3 is
+   vendored in-image). Reads REAL receipts; if none are present it says so. Additive
+   only — registers one new VIEWS entry + one nav item, idempotent. */
+(function(){
+  "use strict";
+  var E=window.el, esc=window.esc, getPublic=window.getPublic;
+  var TEAL=(window.TEAL||'#5fb3a3'), GOLD=(window.GOLD||'#c9b787'), RED='#b06a5a';
+  function H(id,h){ var e=E&&E(id); if(e) e.innerHTML=h; }
+
+  /* ---- anchor-set fingerprint math (P-GNN-style) -------------------------- */
+  // Build an undirected adjacency over the receipt DAG (prev_hash -> hash edges),
+  // pick k anchors (genesis + evenly-spaced checkpoints), BFS hop-distance to each
+  // anchor, fingerprint = [ 1/(1+d_i) ] per anchor (the P-GNN distance kernel
+  // w_phi(d)=1/(1+d)). Cosine similarity between fingerprints = structural affinity.
+  function buildGraph(recs){
+    var byHash={}, nodes=[], idx={};
+    recs.forEach(function(r,i){ var id=r.hash||('seq'+(r.seq!=null?r.seq:i));
+      nodes.push({id:id,seq:(r.seq!=null?r.seq:i),kind:r.kind||'rcpt',prev:r.prev_hash||null});
+      byHash[id]=i; idx[id]=i; });
+    var adj=nodes.map(function(){return [];});
+    nodes.forEach(function(n,i){ if(n.prev!=null && idx[n.prev]!=null){ var j=idx[n.prev];
+      adj[i].push(j); adj[j].push(i); } });
+    return {nodes:nodes,adj:adj,idx:idx};
+  }
+  function bfsDist(adj,src){ var d=adj.map(function(){return Infinity;}); d[src]=0;
+    var q=[src]; while(q.length){ var u=q.shift(); adj[u].forEach(function(v){ if(d[v]===Infinity){ d[v]=d[u]+1; q.push(v); } }); } return d; }
+  function pickAnchors(n,k){ if(n<=0) return []; k=Math.min(k,n); var a=[];
+    for(var i=0;i<k;i++){ a.push(Math.round(i*(n-1)/Math.max(1,k-1))); } // genesis..head, evenly spaced
+    return Array.from(new Set(a)); }
+  function fingerprints(g,k){
+    var n=g.nodes.length; var anchors=pickAnchors(n,k);
+    var dmaps=anchors.map(function(a){ return bfsDist(g.adj,a); });
+    var fps=g.nodes.map(function(_,i){ return anchors.map(function(_,ai){ var d=dmaps[ai][i];
+      return isFinite(d)?(1/(1+d)):0; }); });
+    return {anchors:anchors,fps:fps};
+  }
+  function cosine(a,b){ var dot=0,na=0,nb=0; for(var i=0;i<a.length;i++){ dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; }
+    return (na&&nb)?(dot/(Math.sqrt(na)*Math.sqrt(nb))):0; }
+
+  /* ---- render ------------------------------------------------------------- */
+  window.renderReceiptFP=function(c){
+    c.innerHTML='<div class="kpis">'
+      +'<div class="kpi"><div class="k">Receipts</div><div class="v teal" id="rfp-n">\u2014</div><div class="d">live command-log</div></div>'
+      +'<div class="kpi"><div class="k">Anchor set</div><div class="v" id="rfp-k">\u2014</div><div class="d">P-GNN anchors</div></div>'
+      +'<div class="kpi"><div class="k">Chain</div><div class="v" id="rfp-ch">\u2014</div><div class="d">hash-chain re-walk</div></div>'
+      +'<div class="kpi"><div class="k">Structural flags</div><div class="v warn" id="rfp-flag">\u2014</div><div class="d">heuristic only</div></div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Receipt fingerprint graph \u2014 anchor-set structural embedding</span>'
+      +'<span class="card-ep">P-GNN distance kernel \u00b7 d3-force (BSD/ISC, vendored)</span></div>'
+      +'<div id="rfp-svg" style="height:460px;border:1px solid rgba(201,183,135,0.12);border-radius:8px;overflow:hidden;background:#080a09"></div>'
+      +'<div class="brain-note" id="rfp-note"><span style="color:'+GOLD+'">gold ring = anchor receipt</span>, '
+      +'<span style="color:'+TEAL+'">teal = ordinary receipt</span>, <span style="color:'+RED+'">red = structurally isolated (anomaly heuristic)</span>. '
+      +'Edge drawn where fingerprint cosine \u2265 0.92 (structural affinity). This is a structural <b>heuristic</b> for fork / spoof / isolated-agent detection \u2014 <b>not</b> a proof and not a trust oracle. '
+      +'\u039b remains Conjecture 1; locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
+      +(window.HONEST||'');
+    (function(){
+      function go(){
+        getPublic('/api/a11oy/v2/operator/command-log',12000).then(function(cl){
+          var recs=(cl.receipts||[]).slice(-80);
+          H('rfp-n', recs.length); H('rfp-ch', cl.chain_verified?('verified \u00b7 depth '+(cl.depth!=null?cl.depth:'')):'unverified');
+          var host=E('rfp-svg'); if(!host) return;
+          if(!recs.length){ host.innerHTML='<div class="row mono dim" style="padding:1rem">no receipts emitted in this runtime yet \u2014 nothing to fingerprint (honest empty state)</div>';
+            H('rfp-k','0'); H('rfp-flag','0'); return; }
+          var g=buildGraph(recs); var k=Math.min(5,Math.max(2,Math.round(Math.sqrt(g.nodes.length))));
+          var R=fingerprints(g,k); H('rfp-k', R.anchors.length);
+          // edges by fingerprint cosine affinity (plus the real prev_hash chain edges)
+          var anchorSet={}; R.anchors.forEach(function(a){ anchorSet[a]=true; });
+          var links=[]; var deg=g.nodes.map(function(){return 0;});
+          // real chain edges
+          g.nodes.forEach(function(n,i){ if(n.prev!=null && g.idx[n.prev]!=null){ links.push({source:i,target:g.idx[n.prev],kind:'chain'}); deg[i]++; deg[g.idx[n.prev]]++; } });
+          // structural-affinity edges
+          for(var i=0;i<g.nodes.length;i++){ for(var j=i+1;j<g.nodes.length;j++){
+            if(cosine(R.fps[i],R.fps[j])>=0.92){ links.push({source:i,target:j,kind:'affinity'}); deg[i]++; deg[j]++; } } }
+          var isolated=[]; g.nodes.forEach(function(n,i){ if(deg[i]===0 && !anchorSet[i]) isolated.push(i); });
+          H('rfp-flag', isolated.length);
+          H('rfp-note', E('rfp-note').innerHTML + (isolated.length?(' <b style="color:'+RED+'">'+isolated.length+' structurally isolated receipt(s) flagged.</b>'):' No structural anomalies in this window.'));
+          drawD3(host, g, R, links, anchorSet, isolated);
+        }).catch(function(e){ var host=E('rfp-svg'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
+          H('rfp-n','offline'); });
+      }
+      if(window.a11oyPoll){ window.a11oyPoll(go); } else { go(); }
+    })();
+  };
+
+  function drawD3(host, g, R, links, anchorSet, isolated){
+    host.innerHTML='';
+    if(!window.d3 || !d3.forceSimulation){ host.innerHTML='<div class="row mono dim" style="padding:1rem">d3-force unavailable</div>'; return; }
+    var W=host.clientWidth||720, Hh=460;
+    var iso={}; isolated.forEach(function(i){ iso[i]=true; });
+    var nodes=g.nodes.map(function(n,i){ return {i:i,seq:n.seq,kind:n.kind,anchor:!!anchorSet[i],iso:!!iso[i]}; });
+    var svg=d3.select(host).append('svg').attr('width','100%').attr('height','100%').attr('viewBox','0 0 '+W+' '+Hh);
+    var lsel=svg.append('g').selectAll('line').data(links).enter().append('line')
+      .attr('stroke',function(d){return d.kind==='chain'?'rgba(201,183,135,0.30)':'rgba(95,179,163,0.18)';})
+      .attr('stroke-width',function(d){return d.kind==='chain'?1.1:0.7;});
+    var nsel=svg.append('g').selectAll('circle').data(nodes).enter().append('circle')
+      .attr('r',function(d){return d.anchor?9:5;})
+      .attr('fill',function(d){return d.iso?RED:(d.anchor?'transparent':TEAL);})
+      .attr('stroke',function(d){return d.iso?RED:(d.anchor?GOLD:TEAL);})
+      .attr('stroke-width',function(d){return d.anchor?2:1.2;});
+    nsel.append('title').text(function(d){return '#'+d.seq+' '+(d.kind||'')+(d.anchor?' (anchor)':'')+(d.iso?' (isolated)':'');});
+    var sim=d3.forceSimulation(nodes)
+      .force('link',d3.forceLink(links).distance(function(d){return d.kind==='chain'?34:60;}).strength(0.4))
+      .force('charge',d3.forceManyBody().strength(-60))
+      .force('center',d3.forceCenter(W/2,Hh/2))
+      .on('tick',function(){
+        lsel.attr('x1',function(d){return d.source.x;}).attr('y1',function(d){return d.source.y;})
+            .attr('x2',function(d){return d.target.x;}).attr('y2',function(d){return d.target.y;});
+        nsel.attr('cx',function(d){return d.x=Math.max(10,Math.min(W-10,d.x));}).attr('cy',function(d){return d.y=Math.max(10,Math.min(Hh-10,d.y));});
+      });
+    setTimeout(function(){ try{ sim.stop(); }catch(e){} }, 4200); // settle then freeze (no perpetual CPU)
+  }
+
+  /* ---- register + nav (idempotent, waits for VIEWS) ----------------------- */
+  function reg(){ if(!window.VIEWS){ return setTimeout(reg,120); }
+    if(window.VIEWS.receiptfp) return;
+    window.VIEWS.receiptfp={
+      title:'Receipt Fingerprint Graph',
+      badge:'P-GNN ANCHOR-SET \u00b7 STRUCTURAL FINGERPRINT',
+      sub:'Position-aware structural fingerprints over the live Khipu receipt DAG (anchor-set distance encoding, after P-GNN \u2014 You/Ying/Leskovec, ICML 2019). Each receipt gets a fingerprint from its hop-distances to anchor receipts; structural affinity (cosine \u2265 0.92) and isolation surface fork / spoof / anomalous-agent signals. A structural heuristic \u2014 never a proof, never a trust oracle; \u039b stays Conjecture 1, locked-proven stays 8.',
+      render:async function(c){ window.renderReceiptFP(c); }
+    };
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="ledger3d"]')||document.querySelector('.nav-item[data-view="chain"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('rfp-nav')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.id='rfp-nav';
+    n.setAttribute('data-view','receiptfp'); n.setAttribute('onclick',"go('receiptfp')");
+    n.innerHTML='<span class="ico">\u25c9</span>Receipt Fingerprint';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
 </body>
 </html>
