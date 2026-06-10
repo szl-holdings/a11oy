@@ -19,6 +19,12 @@ name: Sync backend to HuggingFace Space
 # elsewhere (front-door sync) or already baked on the Space — re-syncing them here
 # would reintroduce the documented LFS/pre-receive failures.
 #
+# The push logic lives in .github/scripts/hf_sync_backend.py (extracted from the old
+# inline heredoc) so the SAME code is exercised by the network-free self-test
+# .github/scripts/test_hf_sync_backend.py (run in tests.yml). The self-test proves
+# the OID-diff selection only pushes changed files — the push path is no longer
+# observed solely on the "already in sync -> no-op" branch.
+#
 # Credential: the SAME repo secret hf-sync.yml uses (HF_TOKEN — HF write token with
 # org write to SZLHOLDINGS). Git-free create_commit path (no LFS, no git history).
 
@@ -30,6 +36,7 @@ on:
       - "*.py"
       - "Dockerfile"
       - ".github/workflows/hf-sync-backend.yml"
+      - ".github/scripts/hf_sync_backend.py"
   workflow_dispatch: {}
 
 permissions:
@@ -59,94 +66,4 @@ jobs:
             echo "::error::Founder action required: add repo secret HF_TOKEN (HF write token with org write to SZLHOLDINGS)."
             exit 1
           fi
-          python3 <<'PYEOF'
-          import os, glob, hashlib
-          from huggingface_hub import HfApi, CommitOperationAdd
-
-          def git_blob_sha1(data: bytes) -> str:
-              h = hashlib.sha1()
-              h.update(b"blob %d\0" % len(data))
-              h.update(data)
-              return h.hexdigest()
-
-          # ---- Parse the Dockerfile for every COPY <src...> <dest> directive -------
-          # The Space is built from THIS repo's Dockerfile, so the files it COPYs are
-          # exactly the backend the image runs. We mirror the .py among them so the
-          # Space never builds from a stale backend, plus the Dockerfile itself (so a
-          # newly-added module's COPY line reaches the Space and gets baked in).
-          copy_srcs = []
-          with open("Dockerfile", "r", encoding="utf-8") as fh:
-              for raw in fh:
-                  s = raw.strip()
-                  if not s.upper().startswith("COPY "):
-                      continue
-                  toks = [t for t in s.split()[1:] if not t.startswith("--")]
-                  if len(toks) < 2:
-                      continue
-                  copy_srcs.extend(toks[:-1])  # everything but the dest is a source
-
-          # ---- Expand sources to the concrete set of .py files in the checkout -----
-          py_files = set()
-          for src in copy_srcs:
-              if any(ch in src for ch in "*?[]"):
-                  for m in glob.glob(src, recursive=True):
-                      if m.endswith(".py") and os.path.isfile(m):
-                          py_files.add(os.path.normpath(m))
-              elif os.path.isfile(src):
-                  if src.endswith(".py"):
-                      py_files.add(os.path.normpath(src))
-              elif os.path.isdir(src):
-                  for root, _, files in os.walk(src):
-                      for f in files:
-                          if f.endswith(".py"):
-                              py_files.add(os.path.normpath(os.path.join(root, f)))
-
-          mirror = set(py_files)
-          mirror.add("Dockerfile")                     # so new COPY lines reach the Space
-          if os.path.isfile("serve.py"):
-              mirror.add("serve.py")                   # primary backend entrypoint
-          mirror = sorted(p for p in mirror if os.path.isfile(p))
-          print(f"Candidate backend files to mirror: {len(mirror)}")
-
-          api = HfApi(token=os.environ["HF_TOKEN"])
-          space = os.environ["SPACE_ID"]
-
-          # ---- Map the Space's current files to their git-blob OIDs ----------------
-          # For non-LFS files (all .py + Dockerfile are small text) the HF blob_id IS
-          # the git blob sha1, so we can detect "already in sync" without downloading.
-          space_oid = {}
-          for it in api.list_repo_tree(repo_id=space, repo_type="space", recursive=True):
-              path = getattr(it, "path", None)
-              if path is not None:
-                  space_oid[path] = getattr(it, "blob_id", None)
-
-          # ---- Commit only the files whose content actually differs ----------------
-          ops, changed = [], []
-          for p in mirror:
-              with open(p, "rb") as fh:
-                  data = fh.read()
-              if space_oid.get(p) == git_blob_sha1(data):
-                  continue  # byte-identical on the Space already
-              ops.append(CommitOperationAdd(path_in_repo=p, path_or_fileobj=data))
-              changed.append(p)
-
-          if not ops:
-              print("Backend (.py + Dockerfile) already in sync with the Space — nothing to push.")
-          else:
-              commit = api.create_commit(
-                  repo_id=space,
-                  repo_type="space",
-                  operations=ops,
-                  commit_message="chore(sync): mirror backend .py + Dockerfile to Space (hf-sync-backend)",
-                  commit_description=(
-                      "Automated backend sync from szl-holdings/a11oy main via hf-sync-backend.\n"
-                      "Updated (differed from the Space): " + ", ".join(changed) + "\n\n"
-                      "Keeps the Space-built backend (serve.py + the Dockerfile-COPY'd .py\n"
-                      "modules) identical to GitHub main so the Space never rebuilds from a\n"
-                      "stale backend and new endpoints don't 404 there."
-                  ),
-              )
-              print("HF commit:", commit.oid, "->", space, "changed:", len(changed))
-              for p in changed:
-                  print("  synced:", p)
-          PYEOF
+          python3 .github/scripts/hf_sync_backend.py
