@@ -26,7 +26,7 @@ This module powers four founder-approved WOW investor features:
   GET  /api/a11oy/v1/wow/router-latency — live router topology + per-tier latency
        for the Model Router 3D scene (in-memory counter, resets on rebuild).
 
-Doctrine: locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19} @ c7c0ba17; Λ = Conjecture 1
+Doctrine: locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17; Λ = Conjecture 1
 (unconditional uniqueness machine-checked FALSE; conditional axiom-free); SLSA L1
 honest / L2 attestation present / L2-verified+L3 = roadmap; a11oy Code = "best
 GOVERNED LLM". NO user-visible banned codenames. SIMULATED inputs labeled.
