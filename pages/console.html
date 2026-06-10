@@ -1715,6 +1715,11 @@ function go(view){
   tearDownAll();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const v=VIEWS[view];const c=el('content');
+  // Stash the requested view key (which may carry a deep-linked sub-tab, e.g.
+  // 'vdefense/decision') BEFORE render. vertPack reads this to open the correct
+  // sub-tab — location.hash is not updated until after render (below), so a
+  // vertical sub-view would otherwise always fall back to its first tab (feed).
+  window._requestedView = view;
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
   if(history.replaceState)history.replaceState(null,'','#'+view);
@@ -6220,9 +6225,19 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     window._vertReg = window._vertReg || {};
     var map = {}; tabs.forEach(function(t){ map[t.k]=t.render; });
     window._vertReg[vk] = {map:map, order:tabs.map(function(t){return t.k;})};
-    // honor a deep-linked sub-tab from the hash: #<viewkey>/<subtab> (e.g. #vdefense/decision)
+    // honor a deep-linked sub-tab: prefer the just-requested view key (set by go()
+    // BEFORE render), then fall back to location.hash for direct page loads.
+    // Format: <viewkey>/<subtab> (e.g. vdefense/decision). location.hash alone is
+    // unreliable here because go() updates it only AFTER render, so a fresh
+    // navigation to .../decision would otherwise always default to tabs[0] (feed).
     var initial = tabs[0].k;
-    try{ var hp=(location.hash||'').slice(1).split('/'); if(hp.length>1 && map[hp[1]]) initial=hp[1]; }catch(e){}
+    try{
+      var srcs=[String(window._requestedView||''), (location.hash||'').slice(1)];
+      for(var si=0; si<srcs.length; si++){
+        var hp=srcs[si].split('/');
+        if(hp.length>1 && map[hp[1]]){ initial=hp[1]; break; }
+      }
+    }catch(e){}
     window._vertTab(vk, initial, true);
   }
   window._vertTab = function(vk, tk, _fromBoot){
@@ -7314,7 +7329,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     c.innerHTML='<div class="vtabbar" id="db-'+pk+'-bar">'+bar+'</div><div id="db-'+pk+'-body"><div class="row mono dim">loading…</div></div>';
     window._dbReg=window._dbReg||{}; var map={}; tabs.forEach(function(t){ map[t.k]=t.render; });
     window._dbReg[pk]={map:map,order:tabs.map(function(t){return t.k;})};
-    var initial=tabs[0].k; try{ var hp=(location.hash||'').slice(1).split('/'); if(hp.length>1&&map[hp[1]]) initial=hp[1]; }catch(e){}
+    // prefer the just-requested view key (set by go() before render), then fall
+    // back to location.hash for direct page loads (hash is updated only after render).
+    var initial=tabs[0].k;
+    try{
+      var srcs=[String(window._requestedView||''), (location.hash||'').slice(1)];
+      for(var si=0; si<srcs.length; si++){ var hp=srcs[si].split('/'); if(hp.length>1&&map[hp[1]]){ initial=hp[1]; break; } }
+    }catch(e){}
     window._dbTab(pk, initial, true);
   }
   window._dbPack=pack;
