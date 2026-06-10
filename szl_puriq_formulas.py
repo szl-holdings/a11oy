@@ -12,7 +12,10 @@ stdlib). The Space recomputes a live value + a fresh Khipu receipt chain on each
 request (so the tab shows live data, not a static snapshot). Proof status and the
 numeric-harness baseline are embedded from the verified offline run
 (szl_formula_os, pytest 54/54; Lean self-prove sprint F1/F11/F12/F18/F19 PROVED
-via local lean v4.13.0, axioms: F11/F12 use propext, others none).
+via local lean v4.13.0, axioms: F11/F12 use propext, others none). Locked-proven is
+now EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}: F4 (Khipu DAG acyclicity), F7 (Chaski
+FIFO ordering) and F22 (Khipu emit append-only monotonicity) joined via lutar-lean
+#219 + platform #321 (merged 2026-06-10; count = no-axiom theorem locked_count_eight).
 
 Doctrine v11 LOCKED numbers preserved (referenced, never mutated):
   749 declarations / 14 unique axioms / 163 sorries.
@@ -39,11 +42,11 @@ DOCTRINE_V11_LOCKED = {"declarations": 749, "unique_axioms": 14, "sorries": 163,
                        "lambda_status": "Conjecture 1 (NOT a theorem)"}
 
 # ADDITIVE (instill-wave 2026-06-06): experimental kernel-verified proof waves.
-# These are SEPARATE from the locked 5 {F1,F11,F12,F18,F19}. Locked count UNCHANGED.
+# These are SEPARATE from the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Locked count is 8 (locked_count_eight).
 # Lambda (F23) remains Conjecture 1 unconditionally. Honest maturity labels only.
 EXPERIMENTAL_WAVES = {
-    "locked_proven": 5,
-    "locked_ids": ["F1", "F11", "F12", "F18", "F19"],
+    "locked_proven": 8,
+    "locked_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
     "waves": [
         {"id": "wave5", "new_theorems": 11, "pr": 186,
          "label": "proven sorry-free (experimental)",
@@ -658,7 +661,7 @@ code{{color:#79c0ff}}
 <div class="kpi"><b>+{ew_total}</b>experimental kernel-verified (separate from locked)</div>
 </div>
 <div class="note" style="margin-top:0">
-<b>Experimental kernel-verified waves</b> (NOT in the locked count of 5; honest maturity labels):<br>
+<b>Experimental kernel-verified waves</b> (NOT in the locked count of 8; honest maturity labels):<br>
 {ew_rows}
 <br><b>Trust Score interval:</b> sourced from <b>CONFORMAL</b> (W5-3 + W7-4) \u2014 distribution-free, with an anti-overconfidence floor (we never report 100%). NOT Hoeffding/PAC-Bayes (those are NOT proven at the pinned Mathlib v4.13.0).<br>
 <b>Deferred (not proven at pin):</b> C3 Hoeffding, C4 Azuma, C5 KL\u22650, C15, C16, C18, C19.
