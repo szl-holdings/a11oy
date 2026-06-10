@@ -37,9 +37,15 @@ live_wires_3d.js           # killinchu-only SISTER_LABELS honest organ-name rend
 szl_khipu_consensus.py     # killinchu-only honest theorem-provenance / lake_receipt on consensus payloads
 
 # --- Doctrine / honesty-claim state that differs per demo.
-szl_brain.py               # Doctrine v10 + model_weight_sha256 (a11oy) vs Doctrine v11 (killinchu)
-szl_formulas.py            # a11oy carries extra dev-orientation + DSSE base64 payload fix
+# 2026-06-10: szl_brain.py and szl_formulas.py were union-merged to a single
+#   canonical byte-identical copy in BOTH repos tonight, so they are removed from
+#   this list to tighten the ratchet (they are now ENFORCED identical).
 szl_provenance.py          # SLSA self-assessment note differs (a11oy L1-honest vs killinchu L2)
+
+# --- Vendored binary-asset blob bundle: each demo vendors a different set of
+#     fonts / 3D / chart assets as base64 blobs, so this file legitimately
+#     differs (a11oy ~1.52MB vs killinchu ~1.30MB). NOT a shared logic module.
+_vendor_blobs.py           # per-app vendored asset blob bundle (different asset sets)
 
 # --- Server execution model differs.
 szl_live_wires.py          # a11oy async (await asyncio.sleep) vs killinchu blocking (time.sleep)
