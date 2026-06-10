@@ -1,3 +1,0 @@
-{{- if .Values.apps.sentra.enabled }}
-{{ include "szl-fleet.package" (dict "name" "sentra" "app" .Values.apps.sentra "global" .Values.global "Chart" .Chart) }}
-{{- end }}

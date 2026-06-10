@@ -1,3 +1,0 @@
-{{- if .Values.apps.rosie.enabled }}
-{{ include "szl-fleet.package" (dict "name" "rosie" "app" .Values.apps.rosie "global" .Values.global "Chart" .Chart) }}
-{{- end }}

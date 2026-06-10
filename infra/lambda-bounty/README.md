@@ -1,7 +1,10 @@
-# lambda-bounty (MOVED)
+# Removed — single source of truth lives in the canonical repo
 
-Contents merged into [`szl-papers/bounty/`](https://github.com/szl-holdings/szl-papers/tree/main/bounty) on 2026-06-03.
+The full lambda-bounty (Λ-uniqueness proof bounty) sources that used to be vendored here have been removed.
+Vendoring a complete copy of an external szl-holdings repo into a11oy created a
+duplicate that silently drifted from canonical and re-introduced stale guidance
+after the canonical repo was fixed.
 
-Update bookmarks. This repo is preserved for git-history continuity, archived, no further commits.
+**Canonical source: https://github.com/szl-holdings/lambda-bounty**
 
-Signed-off-by: Yachay <yachay@szlholdings.ai>
+Do not re-vendor these files into a11oy. Reference the canonical repo above instead.

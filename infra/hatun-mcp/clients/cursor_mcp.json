@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "hatun-mcp": {
-      "url": "https://szlholdings-hatun-mcp.hf.space/mcp",
-      "headers": { "Authorization": "Bearer szl_YOUR_KEY" }
-    }
-  }
-}

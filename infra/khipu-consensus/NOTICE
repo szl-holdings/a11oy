@@ -1,9 +1,0 @@
-khipu-consensus
-Copyright 2026 Lutar, Stephen P. — SZL Holdings (ORCID 0009-0001-0110-4173)
-
-This product includes software developed at SZL Holdings.
-Authored by Yachay <yachay@szlholdings.dev>.
-Co-Authored-By: Perplexity Computer Agent.
-
-"Khipu" is used as a brand name (Inka knotted-cord record). The protocol is
-standard DSSE (secure-systems-lab/dsse) + Sigstore Cosign + BFT quorum counting.
