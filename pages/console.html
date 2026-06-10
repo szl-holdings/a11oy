@@ -7671,9 +7671,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     return {rid:rid,auth:auth,intact:((sv.ok===true)||(sv.intact===true))};
   }
   window._whTamperRun=async function(){
-    var scn=E('wht-scn').value;
-    E('wht-nom').innerHTML='<div class="row mono dim">running nominal\u2026</div>';
-    E('wht-tam').innerHTML='<div class="row mono dim">running tamper\u2026</div>';
+    var _wScn=E('wht-scn'), _wNom=E('wht-nom'), _wTam=E('wht-tam'); if(!_wScn||!_wNom||!_wTam) return;
+    var scn=_wScn.value;
+    _wNom.innerHTML='<div class="row mono dim">running nominal\u2026</div>';
+    _wTam.innerHTML='<div class="row mono dim">running tamper\u2026</div>';
     try{
       var rn=await pj(WH+'/launch/'+scn,{mode:'nominal'}); var rt=await pj(WH+'/launch/'+scn,{mode:'tamper'});
       var n=_whCard(E('wht-nom'),rn.organ_response||rn,'nominal');
@@ -7681,11 +7682,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       var idsDiffer=n.rid&&t.rid&&n.rid!==t.rid;
       var nomOk=n.auth&&n.intact; var tamCaught=(!t.auth)||(!t.intact);
       var ok=idsDiffer&&nomOk&&tamCaught;
-      E('wht-verdict').innerHTML='<div class="card-h"><span class="card-t">Determinism &amp; tamper verdict</span><span class="card-ep">'+esc(scn)+'</span></div>'+
+      var _wV=E('wht-verdict'); if(_wV) _wV.innerHTML='<div class="card-h"><span class="card-t">Determinism &amp; tamper verdict</span><span class="card-ep">'+esc(scn)+'</span></div>'+
         '<div class="row"><span class="badge '+(idsDiffer?'b-live':'b-err')+'">'+(idsDiffer?'receipt ids DIFFER':'ids identical (bad)')+'</span><span class="mono dim">per-run hash over real payload</span></div>'+
         '<div class="row"><span class="badge '+(nomOk?'b-live':'b-err')+'">nominal PASS</span><span class="badge '+(tamCaught?'b-live':'b-err')+'">tamper CAUGHT</span></div>'+
         '<div class="row mono dim">'+(ok?'\u2713 Honest by construction: nominal authorizes with an intact chain; the tampered run is caught (unauthorized or broken chain) and produces a different receipt id.':'\u26a0 Unexpected \u2014 inspect the per-run cards above.')+'</div>';
-    }catch(e){ E('wht-verdict').innerHTML='<div class="row"><span class="badge b-err">error</span><span>'+esc(e.message)+'</span></div>'; }
+    }catch(e){ var _wVe=E('wht-verdict'); if(_wVe) _wVe.innerHTML='<div class="row"><span class="badge b-err">error</span><span>'+esc(e.message)+'</span></div>'; }
   };
 
   // =========================================================================
