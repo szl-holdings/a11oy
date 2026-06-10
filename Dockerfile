@@ -115,6 +115,10 @@ COPY wayra_digests_7d.json ./wayra_digests_7d.json
 # mounts GET/POST /api/a11oy/v1/khipu-os/{stats,verify,checkpoint,archive}. Self-driving
 # Merkle DAG + Reed-Solomon erasure (reedsolo optional; honest, NOT holographic/quantum).
 COPY szl_khipu_os_routes.py ./szl_khipu_os_routes.py
+# ADDITIVE (drift-heal parity, 2026-06-10): shared canonical szl_khipu_consensus.py must be
+# byte-identical and present in BOTH a11oy & killinchu images (killinchu COPYs it; a11oy lacked
+# the line). Additive per-file COPY only (no content edit; this Dockerfile does not use COPY . .).
+COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
 # ADDITIVE (PURIQ Agentic Formulas, 2026-06-01, Yachay): explicit per-file COPY
 # (this Dockerfile does not use COPY . .). serve.py imports szl_puriq_formulas and
 # calls .register(app) -> GET /formulas + /api/a11oy/v1/puriq/formulas*. Doctrine v11 LOCKED.
