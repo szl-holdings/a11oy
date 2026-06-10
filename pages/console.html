@@ -9467,6 +9467,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   "use strict";
   function esc(s){ return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var KB='https://killinchu.a11oy.net';
+  var CN_REFRESH_MS=30000;
+  function cnAutoOn(){ return window.__cn_auto!==false; }
   var COL={good:['#4fb37f','#5fe39a'],warn:['#c0a05a','#e6c87a'],bad:['#c06a5a','#ff7b6b'],info:['#5aa0d0','#7ab8e6'],dim:['#6b6b6b','#9a9a9a']};
   var TYPECOL={service:'#7ab8e6',source:'#9a8fe0',endpoint:'#5fe39a',tab:'#e6c87a',watchlist:'#e08fb0',event:'#7ab8e6',alert:'#ff7b6b'};
   function badge(text,kind,title){ var c=COL[kind||'dim']; return '<span class="badge" style="border:1px solid '+c[0]+';color:'+c[1]+'"'+(title?(' title="'+esc(title)+'"'):'')+'>'+esc(text)+'</span>'; }
@@ -9612,26 +9614,54 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var parts=[]; function tag(name,r){ parts.push(name+': '+(r&&r.ok?('live '+r.status+' ·'+r.latency_ms+'ms'):('unreachable'+(r&&r.error?(' ('+r.error+')'):'')))); }
     tag('tab-matrix',m.tabmatrix); tag('readiness',m.readiness); tag('killinchu/timeline',m.ktime);
     var vd=(m.tabmatrix.body&&m.tabmatrix.body.verdict)||null; var probe= vd&&vd.checkedAt?('probe ran '+ago(vd.checkedAt)):'no probe verdict bundled';
-    return '<div class="honesty"><b>How to read this.</b> Every node and bar is read from a live a11oy/killinchu endpoint — there are no synthetic or random values. Coordinates are a deterministic Fibonacci-sphere layout. Endpoint latency/freshness/lie verdicts come from the readiness probe ('+esc(probe)+'); source reachability is read live. Click anything to open the Proof Drawer with the verbatim record, its source URL, freshness and last error. Surfaces: '+esc(parts.join(' · '))+'.</div>';
+    return '<div class="honesty" id="cn-honesty"><b>How to read this.</b> Every node and bar is read from a live a11oy/killinchu endpoint — there are no synthetic or random values. Coordinates are a deterministic Fibonacci-sphere layout. Endpoint latency/freshness/lie verdicts come from the readiness probe ('+esc(probe)+'); source reachability is read live. Click anything to open the Proof Drawer with the verbatim record, its source URL, freshness and last error. Surfaces: '+esc(parts.join(' · '))+'.</div>';
+  }
+
+  /* ── soft refresh: re-poll real sources + swap graph data WITHOUT tearing down the
+     canvas, so camera/zoom state is preserved. Honest empty/unreachable states are
+     kept; on an error/empty state with no canvas we do a full retry. ── */
+  window.cn_softRefreshConstellation=function(c){
+    if(!c||!document.body.contains(c)) return Promise.resolve();
+    if(!c.querySelector('#cn-canvas')) return window.cn_renderConstellation(c,{force:true});
+    return cn_loadAll(true).then(function(m){
+      var g=cn_build(m); cn_layout(g); window.__cn_graph=g;
+      var hon=c.querySelector('#cn-honesty'); if(hon){ var tmp=document.createElement('div'); tmp.innerHTML=honesty(m); var nn=tmp.querySelector('#cn-honesty'); if(nn) hon.innerHTML=nn.innerHTML; }
+      var counts={}; g.nodes.forEach(function(n){ counts[n.type]=(counts[n.type]||0)+1; });
+      var leg=c.querySelector('#cn-legend'); if(leg){ leg.innerHTML=['service','source','endpoint','tab','watchlist','event','alert'].filter(function(t){return counts[t];}).map(function(t){ return '<span style="display:inline-flex;align-items:center;gap:.3rem;margin-right:.8rem"><span style="width:10px;height:10px;border-radius:50%;background:'+TYPECOL[t]+';display:inline-block"></span>'+t+' <span class="dim">'+counts[t]+'</span></span>'; }).join(''); }
+      var foot=c.querySelector('#cn-foot'); if(foot){ foot.textContent=g.nodes.length+' nodes \u00b7 '+g.edges.length+' edges \u00b7 drag to rotate, scroll to zoom, click a node for its Proof Drawer.'; }
+      var up=c.querySelector('#cn-updated'); if(up) up.textContent='\u00b7 updated just now';
+    }).catch(function(){ var up=c.querySelector('#cn-updated'); if(up) up.textContent='\u00b7 refresh failed \u2014 kept last good view'; });
+  };
+  function cn_setupConRefresh(c){
+    if(typeof setInterval!=='function') return;
+    if(window.__cn_con_timer){ clearInterval(window.__cn_con_timer); }
+    window.__cn_con_timer=setInterval(function(){
+      if(!document.body.contains(c)){ clearInterval(window.__cn_con_timer); window.__cn_con_timer=null; return; }
+      if(!cnAutoOn()) return;
+      window.cn_softRefreshConstellation(c);
+    }, CN_REFRESH_MS);
   }
 
   /* ── 3D constellation tab ── */
-  window.cn_renderConstellation=function(c){
-    c.innerHTML='<div class="card"><div class="dim">loading real topology from readiness + killinchu…</div></div>';
-    cn_loadAll(false).then(function(m){
+  window.cn_renderConstellation=function(c,opts){
+    opts=opts||{};
+    if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">loading real topology from readiness + killinchu…</div></div>';
+    cn_loadAll(!!opts.force).then(function(m){
       var g=cn_build(m); cn_layout(g); window.__cn_graph=g;
       var counts={}; g.nodes.forEach(function(n){ counts[n.type]=(counts[n.type]||0)+1; });
       var legend=['service','source','endpoint','tab','watchlist','event','alert'].filter(function(t){return counts[t];}).map(function(t){
         return '<span style="display:inline-flex;align-items:center;gap:.3rem;margin-right:.8rem"><span style="width:10px;height:10px;border-radius:50%;background:'+TYPECOL[t]+';display:inline-block"></span>'+t+' <span class="dim">'+counts[t]+'</span></span>'; }).join('');
       var h='';
       h+=honesty(m);
-      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div style="font-size:13px">'+legend+'</div>';
-      h+='<div style="display:flex;gap:.4rem;align-items:center"><input id="cn-search" placeholder="filter nodes…" style="background:#070a0e;border:1px solid rgba(255,255,255,.15);color:#ddd;border-radius:5px;padding:.2rem .5rem;font-size:12px"><button class="btn" id="cn-rot" style="font-size:11px">⏸ pause</button><button class="btn" id="cn-reset" style="font-size:11px">reset</button><button class="btn" id="cn-reload" style="font-size:11px">↻ reload</button></div></div>';
+      h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div id="cn-legend" style="font-size:13px">'+legend+'</div>';
+      h+='<div style="display:flex;gap:.4rem;align-items:center"><input id="cn-search" placeholder="filter nodes…" style="background:#070a0e;border:1px solid rgba(255,255,255,.15);color:#ddd;border-radius:5px;padding:.2rem .5rem;font-size:12px"><button class="btn" id="cn-rot" style="font-size:11px">⏸ pause</button><button class="btn" id="cn-reset" style="font-size:11px">reset</button><button class="btn" id="cn-reload" style="font-size:11px">↻ reload</button><button class="btn" id="cn-auto" style="font-size:11px" title="auto-refresh re-polls the same real endpoints every '+(CN_REFRESH_MS/1000)+'s; camera/zoom preserved">⟳ auto: '+(cnAutoOn()?'on':'off')+'</button><span id="cn-updated" class="dim" style="font-size:11px"></span></div></div>';
       h+='<div style="position:relative"><canvas id="cn-canvas" style="width:100%;height:560px;display:block;cursor:grab;border-radius:8px;background:radial-gradient(ellipse at 50% 40%,#0d1622 0%,#070a0e 70%)"></canvas>';
       h+='<div id="cn-tip" style="position:absolute;pointer-events:none;display:none;background:#0c0f14;border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:.3rem .5rem;font-size:11px;max-width:280px;z-index:5"></div></div>';
-      h+='<div class="dim" style="font-size:11px;margin-top:.4rem">'+g.nodes.length+' nodes · '+g.edges.length+' edges · drag to rotate, scroll to zoom, click a node for its Proof Drawer.</div></div>';
+      h+='<div id="cn-foot" class="dim" style="font-size:11px;margin-top:.4rem">'+g.nodes.length+' nodes · '+g.edges.length+' edges · drag to rotate, scroll to zoom, click a node for its Proof Drawer.</div></div>';
       c.innerHTML=h;
       cn_initCanvas(c,g);
+      var up=c.querySelector('#cn-updated'); if(up) up.textContent='· updated just now';
+      cn_setupConRefresh(c);
     }).catch(function(e){ c.innerHTML='<div class="card"><div class="dim">constellation unavailable: '+esc((e&&e.message)||e)+'</div></div>'; });
   };
   function cn_initCanvas(c,g){
@@ -9644,12 +9674,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       var x=p.x*cy - p.z*sy, z=p.x*sy + p.z*cy, y=p.y*cx - z*sx, z2=p.y*sx + z*cx; return [x,y,z2]; }
     function frame(){
       if(!document.body.contains(cv)){ return; }
+      var G=window.__cn_graph||g;
       if(auto && !drag) ay+=0.0016;
       ctx.clearRect(0,0,W,H); var cx=W/2, cyy=H/2; proj=[];
-      var pts=g.nodes.map(function(n){ var r=rot(n); var sc=focal/(focal-(r[2]*zoom)); return {n:n,sx:cx+r[0]*zoom*sc,sy:cyy+r[1]*zoom*sc,sc:sc,z:r[2]}; });
+      var pts=G.nodes.map(function(n){ var r=rot(n); var sc=focal/(focal-(r[2]*zoom)); return {n:n,sx:cx+r[0]*zoom*sc,sy:cyy+r[1]*zoom*sc,sc:sc,z:r[2]}; });
       var pmap={}; pts.forEach(function(p){ pmap[p.n.id]=p; });
       ctx.lineWidth=1;
-      g.edges.forEach(function(e){ var a=pmap[e.a],b=pmap[e.b]; if(!a||!b)return; var hl=hover&&(hover.id===e.a||hover.id===e.b);
+      G.edges.forEach(function(e){ var a=pmap[e.a],b=pmap[e.b]; if(!a||!b)return; var hl=hover&&(hover.id===e.a||hover.id===e.b);
         ctx.strokeStyle=hl?'rgba(150,200,255,.55)':'rgba(150,170,200,.10)'; ctx.beginPath(); ctx.moveTo(a.sx,a.sy); ctx.lineTo(b.sx,b.sy); ctx.stroke(); });
       pts.sort(function(p,q){ return p.z-q.z; });
       pts.forEach(function(p){ var n=p.n; var rad=Math.max(2.5,(3+Math.min(8,n.deg))*p.sc*0.55); proj.push({id:n.id,x:p.sx,y:p.sy,r:rad,n:n});
@@ -9677,7 +9708,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     cv.addEventListener('wheel',function(e){ e.preventDefault(); zoom*=(e.deltaY<0?1.08:0.93); zoom=Math.max(0.4,Math.min(3,zoom)); },{passive:false});
     var rb=c.querySelector('#cn-rot'); if(rb) rb.addEventListener('click',function(){ auto=!auto; rb.textContent=auto?'⏸ pause':'▶ play'; });
     var rs=c.querySelector('#cn-reset'); if(rs) rs.addEventListener('click',function(){ ax=-0.35; ay=0.6; zoom=1; });
-    var rl=c.querySelector('#cn-reload'); if(rl) rl.addEventListener('click',function(){ cn_loadAll(true).then(function(){ window.cn_renderConstellation(c); }); });
+    var rl=c.querySelector('#cn-reload'); if(rl) rl.addEventListener('click',function(){ window.cn_softRefreshConstellation(c); });
+    var ab=c.querySelector('#cn-auto'); if(ab) ab.addEventListener('click',function(){ window.__cn_auto=!cnAutoOn(); ab.textContent='⟳ auto: '+(cnAutoOn()?'on':'off'); });
     var sb=c.querySelector('#cn-search'); if(sb) sb.addEventListener('input',function(){ filter=sb.value.toLowerCase().trim(); });
     window.addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
   }
@@ -9685,10 +9717,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   /* ── 2D decision graphs tab ── */
   function latColor(ms){ if(ms==null) return COL.dim[0]; if(ms<300) return '#2f7d54'; if(ms<800) return '#4fb37f'; if(ms<1500) return '#c0a05a'; if(ms<2500) return '#c47a3a'; return '#c06a5a'; }
   function card(title,sub,inner){ return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap"><b>'+esc(title)+'</b><span class="dim" style="font-size:11px">'+esc(sub)+'</span></div><div style="margin-top:.5rem">'+inner+'</div></div>'; }
-  window.cn_renderGraphs=function(c){
-    c.innerHTML='<div class="card"><div class="dim">loading real decision data…</div></div>';
-    cn_loadAll(false).then(function(m){
+  window.cn_renderGraphs=function(c,opts){
+    opts=opts||{};
+    if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">loading real decision data…</div></div>';
+    cn_loadAll(!!opts.force).then(function(m){
       var g=cn_build(m); window.__cn_graph=g; var vd=g.verdict, tmw=g.matrix; var h=honesty(m);
+      var ctrl='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every '+(CN_REFRESH_MS/1000)+'s \u2014 live re-poll of the same real endpoints; honest empty states preserved. <span id="cn-gr-updated">updated just now</span></span><span style="display:flex;gap:.4rem"><button class="btn" id="cn-gr-auto" style="font-size:11px">\u27f3 auto: '+(cnAutoOn()?'on':'off')+'</button><button class="btn" id="cn-gr-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       /* 1. freshness by tab */
       var ftabs=[]; if(tmw){ var vmap={}; (vd&&vd.results||[]).forEach(function(r){vmap[r.path]=r;});
         (tmw.tabs||[]).filter(function(t){return t.endpoints&&t.endpoints.length;}).forEach(function(t){ var tot=t.endpoints.length,fresh=0,worst=null;
@@ -9726,13 +9760,23 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       if(!Object.keys(byKind).length) f5='<div class="dim">no crawl events recorded yet.</div>';
       f5+='<div class="dim" style="font-size:11px;margin-top:.4rem">store: '+esc(dbb.backend||'—')+' · durable '+esc(String(dbb.durable))+' · ping '+esc(dbb.ping_ms!=null?dbb.ping_ms+'ms':'—')+(m.kdb.body&&m.kdb.body.fetchedAt?(' · read '+esc(ago(m.kdb.body.fetchedAt))):'')+'</div>';
 
-      c.innerHTML=h
+      c.innerHTML=h+ctrl
         +card('Freshness by tab','readiness probe · freshOk per endpoint',f1)
         +card('Latency heatmap','readiness probe · p95 per endpoint',f2)
         +card('Source success rate','probe summary + live readiness sections',f3)
         +card('Alert timeline','killinchu /timeline + /alerts/recent',f4)
         +card('Crawl coverage','killinchu /timeline + /db/health',f5);
       Array.prototype.forEach.call(c.querySelectorAll('.cn-bar,.cn-cell,.cn-dot'),function(el){ el.addEventListener('click',function(){ window.cn_openDrawerForId(el.getAttribute('data-id')); }); });
+      var grl=c.querySelector('#cn-gr-reload'); if(grl) grl.addEventListener('click',function(){ window.cn_renderGraphs(c,{silent:true,force:true}); });
+      var gab=c.querySelector('#cn-gr-auto'); if(gab) gab.addEventListener('click',function(){ window.__cn_auto=!cnAutoOn(); gab.textContent='\u27f3 auto: '+(cnAutoOn()?'on':'off'); });
+      if(!opts.silent && typeof setInterval==='function'){
+        if(window.__cn_gr_timer){ clearInterval(window.__cn_gr_timer); }
+        window.__cn_gr_timer=setInterval(function(){
+          if(!document.body.contains(c)){ clearInterval(window.__cn_gr_timer); window.__cn_gr_timer=null; return; }
+          if(!cnAutoOn()) return;
+          window.cn_renderGraphs(c,{silent:true,force:true});
+        }, CN_REFRESH_MS);
+      }
     }).catch(function(e){ c.innerHTML='<div class="card"><div class="dim">decision graphs unavailable: '+esc((e&&e.message)||e)+'</div></div>'; });
   };
 
