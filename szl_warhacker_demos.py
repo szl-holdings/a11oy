@@ -3281,7 +3281,7 @@ def _demo25_index_payload():
         "demo_formulas": {
             "locked_kernel_verified": ["F11 STL (locked)"],
             "experimental_ci_green": ["M2 Hash-Chain", "CP1 Conformal", "G1 CPA", "S2 Simplex", "B1 Byzantine"],
-            "note": "locked-proven = exactly 5 {F1,F11,F12,F18,F19} (kernel-verified). The Wave8 "
+            "note": "locked-proven = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} (kernel-verified). The Wave8 "
                     "formulas these demos exercise (M2/CP1/G1/S2/B1) are EXPERIMENTAL, CI-green on main "
                     "@ 7885fd9 - NOT locked. Labeled honestly per SZL doctrine.",
         },
@@ -3376,8 +3376,8 @@ def register25(app, sign_fn, verify_fn=None):
 # tamper — the always-on _std_tail tamper_test flips 1 byte and the same
 # Merkle/chain/inclusion mechanism reports the break; AND each demo's own
 # tamper-mode payload differs from nominal so the receipt id differs per run).
-# Lambda = Conjecture 1 (NEVER a theorem). locked-proven = exactly 5
-# {F1,F11,F12,F18,F19}; M2/CP1/W5-3/B1 etc. labeled EXPERIMENTAL CI-green.
+# Lambda = Conjecture 1 (NEVER a theorem). locked-proven = exactly 8
+# {F1,F4,F7,F11,F12,F18,F19,F22}; M2/CP1/W5-3/B1 etc. labeled EXPERIMENTAL CI-green.
 # No user-visible codenames (amaru/sentra/rosie/jarvis). SLSA L1 honest.
 # ===========================================================================
 
