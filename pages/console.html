@@ -293,7 +293,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-group">Models &amp; Tools</div>
     <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
     <div class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</div>
-    <div class="nav-item" data-view="codetab" onclick="go('codetab')"><span class="ico">⌨</span>a11oy Code</div>
+    <div class="nav-item" data-view="codetab" onclick="go('codetab')"><span class="ico">⌨</span>a11oy Code — Chaski</div>
     <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
     <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
     <div class="nav-group">Leader-Grade (NEW)</div>
@@ -826,7 +826,62 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="card"><div class="card-h"><span class="card-t">Registry</span></div><div id="mcp-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;window.mcp_list();}},
 
   codetab:{title:'a11oy Code',badge:'CHAT \u00b7 CODE \u00b7 RESEARCH \u00b7 GOVERNED',sub:'A governed agentic coder you can mathematically trust \u2014 NOT AGI. Three modes (chat, run code, research), and EVERY turn flows through the proven P1\u2013P6 governed loop and emits a signed, re-verifiable receipt. Code actually runs in a real governed sandbox (restricted subprocess: no network, CPU/memory/time limits). The model roster is OPEN-WEIGHT only (Qwen2.5-Coder, Phi, Gemma, Mistral-Nemo, StarCoder2, DeepSeek-Coder, Codestral, Llama) \u2014 nothing closed is ever claimed as baked in. The router pick is stability-bounded (C20), bracketed best\u2013worst (W7-5), and the confidence is conformal (W5-3/W7-4) so it never reports 100%.',
-    render:async(c)=>{c.innerHTML=`<div class="kpis">
+    render:async(c)=>{c.innerHTML=`
+      <div class="btns" id="cd-subtabs" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="btn teal" id="cd-sub-chaski" onclick="codetab_sub('chaski')">\u2691 Chaski \u2014 agentic surface</button>
+        <button class="btn" id="cd-sub-turn" onclick="codetab_sub('turn')">\u232b Governed turn (P1\u2013P6)</button>
+        <span class="mono dim" id="cd-sub-hint" style="font-size:11px;align-self:center">Chaski runs the live agent loop \u2014 plan, retrieve, act, verify \u2014 a receipt for every step</span>
+      </div>
+      <!-- ============ CHASKI AGENTIC SURFACE (additive, 0-CDN) ============ -->
+      <div id="cd-pane-chaski">
+      <div class="kpis">
+        <div class="kpi"><div class="k">FSM state</div><div class="v teal" id="ck-state">IDLE</div><div class="d">9-state governed engine</div></div>
+        <div class="kpi"><div class="k">Step</div><div class="v" id="ck-step">0 / 12</div><div class="d">vs max_steps guard</div></div>
+        <div class="kpi"><div class="k">Step \u039b</div><div class="v teal" id="ck-lambda">\u2014</div><div class="d">advisory \u00b7 never 1.00 (Conjecture 1)</div></div>
+        <div class="kpi"><div class="k">Chain</div><div class="v live" id="ck-chain">\u2014</div><div class="d">DSSE Khipu \u00b7 re-verifiable</div></div>
+      </div>
+      <div class="card" style="margin-bottom:12px"><div class="card-h"><span class="card-t">Brain &amp; corpus</span><span class="card-ep" id="ck-mode-ep">honest</span></div>
+        <div class="row" id="ck-brain"><span class="mono dim">probing brain state\u2026</span></div>
+        <div class="row" id="ck-corpus-head" style="margin-top:6px"><span class="mono dim">loading corpus status\u2026</span></div>
+        <div id="ck-corpus" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+        <div class="btns" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn" id="ck-refresh-btn" onclick="chaski_refresh()">\u21bb Refresh corpus index</button><span class="mono dim" id="ck-refresh-note" style="font-size:11px;align-self:center"></span></div>
+      </div>
+      <div class="card"><div class="card-h"><span class="card-t">Ask Chaski</span><span class="card-ep">live \u00b7 agentic \u00b7 governed</span></div>
+        <textarea id="ck-input" class="in" style="width:100%;min-height:72px;padding:10px;background:#0d1411;border:1px solid #1c2a24;color:#cfe;border-radius:6px;font-family:ui-monospace,monospace;font-size:13px">List the repos in the szl-holdings org and summarise what a11oy does.</textarea>
+        <div class="btns" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+          <label class="mono dim" style="font-size:11px;align-self:center;display:inline-flex;align-items:center;gap:6px">tier
+            <select id="ck-tier" style="background:#0d1411;border:1px solid #1c2a24;color:#cfe;border-radius:6px;font-family:ui-monospace,monospace;font-size:11px;padding:4px 6px"><option value="T1">FAST (T1)</option><option value="T2">HEART (T2)</option><option value="T3">PRIME (T3)</option><option value="T5">FRONTIER (T5)</option></select></label>
+          <button class="btn teal" id="ck-run-btn" onclick="chaski_run()">\u25b6 Run agentic turn</button>
+          <button class="btn" id="ck-stop-btn" onclick="chaski_stop()" disabled>\u25a0 Stop</button>
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="card"><div class="card-h"><span class="card-t">Live agent loop \u2014 the agent thinking</span><span class="card-ep" id="ck-loop-ep">FSM</span></div>
+          <div id="ck-steps" style="max-height:420px;overflow-y:auto"><div class="row mono dim">\u2014 run a turn to watch Chaski plan, retrieve, act, verify \u2014 each step Λ-scored + receipted \u2014</div></div>
+        </div>
+        <div class="card"><div class="card-h"><span class="card-t">3D org-knowledge graph \u00b7 traversed live</span><span class="card-ep">RETRIEVE \u2192 nodes light up</span></div>
+          <div id="ck-3d" style="width:100%;height:360px;border-radius:10px;background:radial-gradient(circle at 50% 40%,rgba(11,31,58,0.6),rgba(0,0,0,0.0))"></div>
+          <div class="row mono dim" id="ck-3d-legend" style="font-size:10px;margin-top:6px"><span style="color:#c9b787">\u25cf repo</span> &nbsp; <span style="color:#5fb3a3">\u25cf file/symbol</span> &nbsp; <span style="color:#B79BD6">\u25cf retrieved (Λ-grounded)</span> &nbsp; gold path = the agent\u2019s traversal</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px"><div class="card-h"><span class="card-t">Chaski\u2019s answer</span><span class="card-ep" id="ck-answer-ep">\u2014</span></div>
+        <div id="ck-answer"><div class="row mono dim">\u2014</div></div>
+        <div class="row mono dim" id="ck-done" style="margin-top:8px;font-size:11px"></div>
+      </div>
+      <div class="card" style="margin-top:12px"><div class="card-h"><span class="card-t">Orchestration \u00b7 dispatch a governed command across apps</span><span class="card-ep">operator_shell_v4 command bus</span></div>
+        <div class="row mono dim" style="font-size:11px;margin-bottom:6px">a11oy Code is the manager; killinchu is reached over the byte-identical <span class="mono">/v4/command</span> bus. State-changing commands return a DSSE receipt (UNSIGNED honestly when no cosign key).</div>
+        <div class="btns" style="gap:8px;flex-wrap:wrap">
+          <label class="mono dim" style="font-size:11px;align-self:center;display:inline-flex;align-items:center;gap:6px">app
+            <select id="ck-app" style="background:#0d1411;border:1px solid #1c2a24;color:#cfe;border-radius:6px;font-family:ui-monospace,monospace;font-size:11px;padding:4px 6px"><option value="killinchu">killinchu</option><option value="a11oy">a11oy</option></select></label>
+          <input id="ck-cmd" class="in" placeholder="slash command, e.g. /status" value="/status" style="flex:1;min-width:200px;padding:8px;background:#0d1411;border:1px solid #1c2a24;color:#cfe;border-radius:6px;font-size:12px"/>
+          <button class="btn teal" id="ck-disp-btn" onclick="chaski_dispatch()">\u2197 Dispatch governed command</button>
+        </div>
+        <pre class="out" id="ck-orch" style="max-height:200px;margin-top:8px">\u2014 dispatch a command to see its DSSE receipt \u2014</pre>
+      </div>
+      <div class="honesty" style="margin-top:12px"><b>How to read Chaski.</b> Every step you see is REAL: a live FSM transition, a real Λ gate verdict (advisory floor 0.90 \u2014 Λ is Conjecture 1, never a pass/fail oracle, never shown as 1.00), and a real DSSE/Khipu receipt hash. Locked-proven formulas = exactly 5 {F1, F11, F12, F18, F19} @ kernel c7c0ba17; Khipu BFT safety = Conjecture 2 (open). When no model credential is set, the loop still runs for real and the model text is a <b>labeled stub</b> \u2014 never fabricated. Patterns inspired by ReAct, Reflexion, Self-RAG, GraphRAG, Aider repo-map, Anthropic/OpenAI/LangGraph agent loops, ULab GraphRouter \u2014 reimplemented as SZL\u2019s own governed code (see /NOTICE).</div>
+      </div>
+      <!-- ============ GOVERNED-TURN PANE (existing, preserved) ============ -->
+      <div id="cd-pane-turn" style="display:none"><div class="kpis">
       <div class="kpi"><div class="k">Routed model</div><div class="v teal" id="cd-model">\u2014</div><div class="d">C20-stable open-weight pick</div></div>
       <div class="kpi"><div class="k">Decision</div><div class="v" id="cd-decision">\u2014</div><div class="d">deny-by-default gate</div></div>
       <div class="kpi"><div class="k">Confidence</div><div class="v" id="cd-conf">\u2014</div><div class="d">conformal \u00b7 never 100%</div></div>
@@ -861,7 +916,8 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
           <div class="row"><span class="badge b-gold">OURO</span><span>Ouroboros KV-cache-fix: stable-by-construction decode loop (clean-room, MIT, see THIRD_PARTY_NOTICES). <span class="mono dim">EXPERIMENTAL \u00b7 CI-green \u00b7 not a locked-5 claim</span></span></div>
           <div class="row"><span class="badge b-gold">DEQ / EqR</span><span>Fixed-point (equilibrium) reasoning receipt \u2014 the answer is a verified fixed point of the reasoning map (Banach iteration to a residual floor). <span class="mono dim">EXPERIMENTAL \u00b7 clean-room \u00b7 MIT \u00b7 not a locked-5 claim</span></span></div>
           <div class="row"><span class="badge b-teal">HALTS</span><span>The run provably finishes in bounded steps (F-G5 bounded-frontier).</span></div></div></div>
-      <details class="raw"><summary>raw governed-turn run + signed receipt</summary><pre class="out" id="cd-raw">\u2014</pre></details>${HONEST}`;window.codetab_load();}},
+      <details class="raw"><summary>raw governed-turn run + signed receipt</summary><pre class="out" id="cd-raw">\u2014</pre></details>
+      </div><!-- /cd-pane-turn -->${HONEST}`;window.codetab_sub(window._cd_sub||'chaski');window.codetab_load();window.chaski_load();}},
 
   honest:{title:'What We Claim',badge:'NO BANDAIDS',sub:'The single source of truth for what this platform does and does NOT claim \u2014 published, not marketed. If it is not proven, we say so.',
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading\u2026</div></div></div>
@@ -2127,6 +2183,347 @@ async function codetab_tamper(){
 }
 window.codetab_load=codetab_load;window.codetab_run=codetab_run;window.codetab_mode=codetab_mode;
 window.codetab_verify=codetab_verify;window.codetab_tamper=codetab_tamper;
+
+/* ============================================================================
+   CHASKI — the agentic operational surface (additive, 0 runtime CDN).
+   Drives the LIVE agentic backend: POST /api/a11oy/code/chat/stream {agentic:true}
+   emitting route / agent_step / token / done SSE events. Renders the agent
+   thinking in real time: FSM state, plan DAG, each tool call + typed evidence,
+   per-step Λ + DSSE Khipu receipt hash. 3D org-knowledge graph (vendored
+   ForceGraph3D + THREE r128) lights up as the agent RETRIEVEs. Honest stub
+   labeled; Λ never 1.00; no user-visible codenames. Null-guards every deferred
+   DOM write via the house el()/setHTML()/setTxt() helpers (never bare innerHTML
+   on a possibly-missing node in an async path).
+   ============================================================================ */
+window._cd_sub='chaski';
+window._ck_abort=null;
+window._ck_nodes={};   // id -> node (for the 3D graph)
+window._ck_links=[];
+window._ck_retrieved={}; // ids lit up this turn
+const CK_VIOLET='#B79BD6';
+function codetab_sub(which){
+  window._cd_sub=which;
+  const pc=el('cd-pane-chaski'),pt=el('cd-pane-turn');
+  if(pc)pc.style.display=(which==='chaski')?'':'none';
+  if(pt)pt.style.display=(which==='turn')?'':'none';
+  const bc=el('cd-sub-chaski'),bt=el('cd-sub-turn');
+  if(bc)bc.className='btn'+(which==='chaski'?' teal':'');
+  if(bt)bt.className='btn'+(which==='turn'?' teal':'');
+  const h=el('cd-sub-hint');
+  if(h)h.textContent=(which==='chaski')
+    ? 'Chaski runs the live agent loop \u2014 plan, retrieve, act, verify \u2014 a receipt for every step'
+    : 'Governed turn \u2014 single P1\u2013P6 governed run with signed receipt chain + tamper test';
+  // (re)seed the 3D graph when the Chaski pane becomes visible
+  if(which==='chaski'){ try{ chaski_seed_graph(); }catch(e){} }
+}
+window.codetab_sub=codetab_sub;
+
+/* ---- honest brain state + live corpus (7 categories) ---- */
+async function chaski_load(){
+  // brain state from /api/a11oy/code/healthz (mode + key_resolution honesty)
+  try{
+    const hz=await getJSON('/api/a11oy/code/healthz');
+    const kr=hz.key_resolution||{};
+    const wired=kr.wired===true;
+    const secret=hz.token_secret||'A11OY_CODE_LLM_KEY';
+    let bh;
+    if(wired){
+      bh='<span class="badge b-teal">BRAIN LIVE</span><span>model credential resolved \u00b7 provider <b>'+esc(kr.provider||'\u2014')+'</b> \u00b7 live reasoning enabled \u00b7 mode <b>'+esc(hz.mode||'')+'</b></span>';
+    }else{
+      bh='<span class="badge" style="border:1px solid '+AMBER+';color:'+AMBER+'">LABELED STUB</span><span>no self-hosted brain wired \u2014 set the Space secret <b class="mono">'+esc(secret)+'</b> (or any provider key) to enable live reasoning. The agent loop still runs for real (gates + receipts); model text degrades to a <b>labeled stub</b>, never fabricated.</span>';
+    }
+    setHTML('ck-brain',bh);
+    const ep=el('ck-mode-ep'); if(ep)ep.textContent=wired?'brain: live':'brain: labeled stub';
+  }catch(e){ setHTML('ck-brain','<span class="badge" style="border:1px solid '+AMBER+';color:'+AMBER+'">brain status unavailable</span><span class="mono dim">'+esc(e.message)+'</span>'); }
+  // corpus status (7 categories, chunk counts)
+  await chaski_corpus();
+  // seed the 3D org-knowledge graph from the corpus categories + repos
+  try{ chaski_seed_graph(); }catch(e){}
+}
+window.chaski_load=chaski_load;
+
+async function chaski_corpus(){
+  try{
+    const st=await getJSON('/api/a11oy/code/rag/status');
+    const per=st.per_category||{};
+    const cats=(st.corpus&&st.corpus.categories)?st.corpus.categories:{};
+    const allKeys=Object.keys(cats).length?Object.keys(cats):Object.keys(per);
+    // cache live categories so the 3D org-knowledge graph reflects the REAL corpus (7 categories)
+    if(Object.keys(cats).length)window.__ck_cats=cats;
+    const ncat=(st.corpus&&st.corpus.category_count)||allKeys.length;
+    const chunks=st.chunks!=null?st.chunks:'\u2014';
+    const nodes=st.node_count!=null?st.node_count:'\u2014';
+    const head='<span class="badge b-teal">CORPUS</span><span><b>'+esc(String(ncat))+' categories</b> \u00b7 <b class="teal">'+esc(String(chunks))+'</b> chunks \u00b7 '+esc(String(nodes))+' graph nodes \u00b7 '+esc(String(st.repos!=null?st.repos:''))+' repos \u00b7 '+(st.dense?'dense+FTS5':'FTS5/lexical')+' \u00b7 <span class="dim">'+esc(st.mode||'')+'</span></span>';
+    setHTML('ck-corpus-head',head);
+    const host=el('ck-corpus'); if(host){host.innerHTML='';
+      allKeys.forEach(k=>{
+        const p=per[k]||{}; const lbl=(cats[k]&&cats[k].label)||k;
+        const ch=p.chunks!=null?p.chunks:0; const fi=p.files!=null?p.files:0;
+        const has=ch>0; const col=has?TEAL:AMBER;
+        const chip=document.createElement('span'); chip.className='badge'; chip.title=String(lbl);
+        chip.style.cssText='font-size:10px;border:1px solid '+(has?'rgba(95,179,163,.45)':'rgba(201,160,95,.45)')+';color:'+col;
+        chip.innerHTML=esc(k)+' \u00b7 '+esc(String(ch))+' ch'+(has?'':' (empty)');
+        host.appendChild(chip);
+      });
+      // honest note about ingest coverage
+      const note=document.createElement('div'); note.className='row mono dim'; note.style.cssText='font-size:10px;width:100%;margin-top:4px';
+      note.textContent=(st.honest_note||'').slice(0,220);
+      host.appendChild(note);
+    }
+  }catch(e){ setHTML('ck-corpus-head','<span class="badge" style="border:1px solid '+AMBER+';color:'+AMBER+'">corpus status unavailable</span><span class="mono dim">'+esc(e.message)+'</span>'); }
+}
+
+async function chaski_refresh(){
+  const btn=el('ck-refresh-btn'); if(btn)btn.disabled=true;
+  setTxt('ck-refresh-note','refreshing index\u2026');
+  try{
+    const r=await fetch('/api/a11oy/code/rag/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const j=await r.json().catch(()=>({}));
+    setTxt('ck-refresh-note', r.ok?('refreshed \u00b7 '+((j.chunks!=null?j.chunks+' chunks':'')||'ok')):('HTTP '+r.status));
+    await chaski_corpus(); chaski_seed_graph();
+  }catch(e){ setTxt('ck-refresh-note','refresh unavailable: '+e.message); }
+  if(btn)btn.disabled=false;
+}
+window.chaski_refresh=chaski_refresh;
+
+/* ---- 3D org-knowledge graph (vendored ForceGraph3D + THREE, 0 CDN) ---- */
+function chaski_seed_graph(){
+  const host=el('ck-3d'); if(!host) return;
+  if(!window.ForceGraph3D){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D engine (ForceGraph3D) not present</div>'; return; }
+  // Build org-knowledge graph: org root -> repos (from corpus categories) -> seed files.
+  const nodes={}, links=[];
+  nodes['org']={id:'org',name:'szl-holdings',color:GOLD,val:14,kind:'org'};
+  const cats=(window.__ck_cats||null);
+  // pull categories synchronously from a cached corpus if present; else minimal known repos
+  const seed = cats || {
+    app_code:{label:'a11oy app code',gh_repos:['szl-holdings/a11oy'],seed_files:['serve.py','szl_brain.py','a11oy_code_orchestrator.py','a11oy_agent_loop.py','a11oy_org_rag.py']},
+    killinchu:{label:'killinchu',gh_repos:['szl-holdings/killinchu'],seed_files:['serve.py','killinchu_backend.py','szl_brain.py']},
+    anatomy:{label:'anatomy',gh_repos:['szl-holdings/anatomy'],seed_files:['index.html','README.md']},
+    thesis:{label:'thesis',gh_repos:['szl-holdings/szl-papers'],seed_files:['PAPERS_INDEX.md']},
+    formulas:{label:'formulas',gh_repos:['szl-holdings/lutar-lean'],seed_files:['szl_formulas.py']},
+    doctrine:{label:'doctrine',gh_repos:['szl-holdings/szl-doctrine'],seed_files:['README.md']},
+    lean:{label:'lean kernel',gh_repos:['szl-holdings/lean-kernel'],seed_files:['Lutar.lean']}
+  };
+  Object.keys(seed).forEach(cat=>{
+    const c=seed[cat]||{};
+    const repos=c.gh_repos||[];
+    const rid='cat:'+cat;
+    nodes[rid]={id:rid,name:cat,color:TEAL,val:8,kind:'category'};
+    links.push({source:'org',target:rid});
+    (repos).forEach(rp=>{
+      const repoName=String(rp).split('/').pop();
+      const repoId='repo:'+repoName;
+      if(!nodes[repoId])nodes[repoId]={id:repoId,name:repoName,color:GOLD,val:6,kind:'repo'};
+      links.push({source:rid,target:repoId});
+      (c.seed_files||[]).slice(0,6).forEach(f=>{
+        const fid='file:'+repoName+'/'+f;
+        nodes[fid]={id:fid,name:f,color:'rgba(95,179,163,0.7)',val:2.5,kind:'file'};
+        links.push({source:repoId,target:fid});
+      });
+    });
+  });
+  window._ck_nodes=nodes; window._ck_links=links; window._ck_retrieved={};
+  chaski_render_graph();
+}
+function chaski_render_graph(){
+  const host=el('ck-3d'); if(!host||!window.ForceGraph3D) return;
+  host.innerHTML='';
+  const data={nodes:Object.values(window._ck_nodes||{}),links:(window._ck_links||[]).slice()};
+  try{
+    // reuse the shared _fg slot so tearDownAll() disposes it on tab switch
+    if(_fg){try{_fg._destructor&&_fg._destructor();}catch(e){}_fg=null;}
+    _fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight||360)
+      .graphData(data)
+      .nodeLabel(n=>n.name+(n.kind?(' \u00b7 '+n.kind):''))
+      .nodeColor(n=>window._ck_retrieved[n.id]?CK_VIOLET:(n.color||GOLD))
+      .nodeVal(n=>window._ck_retrieved[n.id]?(n.val*1.8):n.val).nodeOpacity(0.92)
+      .linkColor(l=>{const t=(l.target&&l.target.id)||l.target;return window._ck_retrieved[t]?GOLD:'rgba(95,179,163,0.35)';})
+      .linkWidth(l=>{const t=(l.target&&l.target.id)||l.target;return window._ck_retrieved[t]?2.2:0.8;})
+      .linkDirectionalParticles(l=>{const t=(l.target&&l.target.id)||l.target;return window._ck_retrieved[t]?3:0;})
+      .linkDirectionalParticleWidth(2).linkDirectionalParticleColor(()=>GOLD)
+      .showNavInfo(false).cooldownTicks(120);
+    if(typeof _frameFG==='function')_frameFG(_fg,host);
+  }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D init: '+esc(e.message)+'</div>'; }
+}
+/* light up nodes whose repo/file matches a retrieved evidence ref, refresh colors */
+function chaski_light(refs){
+  if(!refs||!refs.length) return;
+  let changed=false;
+  refs.forEach(ref=>{
+    const r=String(ref||'');
+    // ref looks like 'a11oy/path/to/file.py' or 'killinchu/...': map to repo + file nodes
+    const repoName=r.split('/')[0];
+    const repoId='repo:'+repoName;
+    if(window._ck_nodes[repoId]&&!window._ck_retrieved[repoId]){window._ck_retrieved[repoId]=true;changed=true;}
+    // light the matching category too
+    Object.keys(window._ck_nodes).forEach(id=>{
+      if(id.indexOf('file:'+repoName+'/')===0){
+        const fname=id.split('/').slice(1).join('/');
+        if(r.indexOf(fname)>=0&&!window._ck_retrieved[id]){window._ck_retrieved[id]=true;changed=true;}
+      }
+    });
+  });
+  if(changed&&_fg){ try{ _fg.nodeColor(_fg.nodeColor()); }catch(e){} }
+}
+
+/* ---- the live agentic turn (SSE stream parser) ---- */
+const CK_STATE_COLOR={INTAKE:TEAL,PLAN:GOLD,RETRIEVE:CK_VIOLET,ACT:TEAL,OBSERVE:'#6FA8DC',VERIFY:GOLD,REFLECT:AMBER,FINALIZE:TEAL,HALT:RED};
+function _ck_lambdaBadge(lam,allow){
+  const v=(lam!=null)?Number(lam).toFixed(3):'\u2014';
+  const col=allow?TEAL:RED;
+  return '<span class="badge" style="border:1px solid '+col+';color:'+col+'">\u039b '+v+'</span>';
+}
+async function chaski_run(){
+  if(window._ck_abort){try{window._ck_abort.abort();}catch(e){}}
+  const prompt=(el('ck-input')||{}).value||'';
+  const tier=(el('ck-tier')||{}).value||'T1';
+  const stepsHost=el('ck-steps'); if(stepsHost)stepsHost.innerHTML='';
+  setHTML('ck-answer','<div class="row mono dim">\u2026 the agent is thinking \u2014 watch the loop \u2014</div>');
+  setTxt('ck-done','');
+  setTxt('ck-state','INTAKE'); setTxt('ck-step','0 / 12'); setTxt('ck-lambda','\u2014'); setTxt('ck-chain','\u2026');
+  const runBtn=el('ck-run-btn'),stopBtn=el('ck-stop-btn');
+  if(runBtn)runBtn.disabled=true; if(stopBtn)stopBtn.disabled=false;
+  // reset graph highlights
+  window._ck_retrieved={}; chaski_render_graph();
+  let answer='';
+  const ctrl=new AbortController(); window._ck_abort=ctrl;
+  try{
+    const resp=await fetch('/api/a11oy/code/chat/stream',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agentic:true,tier:tier,messages:[{role:'user',content:prompt}]}),
+      signal:ctrl.signal});
+    if(!resp.ok||!resp.body)throw new Error('HTTP '+resp.status);
+    const reader=resp.body.getReader(); const dec=new TextDecoder(); let buf='';
+    while(true){
+      const {value,done}=await reader.read(); if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      let idx;
+      while((idx=buf.indexOf('\n\n'))>=0){
+        const raw=buf.slice(0,idx); buf=buf.slice(idx+2);
+        let evt='message',dataStr='';
+        raw.split('\n').forEach(line=>{
+          if(line.indexOf('event:')===0)evt=line.slice(6).trim();
+          else if(line.indexOf('data:')===0)dataStr+=line.slice(5).trim();
+        });
+        if(!dataStr)continue;
+        let d; try{d=JSON.parse(dataStr);}catch(e){continue;}
+        if(evt==='route'){
+          if(stepsHost)stepsHost.insertAdjacentHTML('beforeend',
+            '<div class="row"><span class="badge b-teal">ROUTE</span><span>tier <b>'+esc(d.tier||'')+'</b> \u00b7 model <b>'+esc(d.model||'')+'</b> \u00b7 license '+esc(d.license_class||'')+' <span class="dim mono" style="font-size:10px">'+esc(d.reason||'')+'</span></span></div>');
+        }else if(evt==='agent_step'){
+          chaski_render_step(d); answer='';
+        }else if(evt==='token'){
+          answer+=(d.text||'');
+          setHTML('ck-answer','<div class="row"><span class="badge b-teal">FINALIZE</span><span style="white-space:pre-wrap">'+esc(answer)+'</span></div>');
+        }else if(evt==='done'){
+          chaski_render_done(d);
+        }
+      }
+    }
+  }catch(e){
+    if(e.name!=='AbortError'){ if(stepsHost)stepsHost.insertAdjacentHTML('beforeend','<div class="row mono dim">stream error: '+esc(e.message)+'</div>'); }
+  }
+  if(runBtn)runBtn.disabled=false; if(stopBtn)stopBtn.disabled=true; window._ck_abort=null;
+}
+window.chaski_run=chaski_run;
+function chaski_stop(){ if(window._ck_abort){try{window._ck_abort.abort();}catch(e){}} const rb=el('ck-run-btn'),sb=el('ck-stop-btn'); if(rb)rb.disabled=false; if(sb)sb.disabled=true; }
+window.chaski_stop=chaski_stop;
+
+function chaski_render_step(d){
+  const stepsHost=el('ck-steps'); if(!stepsHost)return;
+  const st=d.state||'?'; const col=CK_STATE_COLOR[st]||GOLD;
+  // KPIs
+  setTxt('ck-state',st);
+  const sEl=el('ck-state'); if(sEl)sEl.style.color=col;
+  setTxt('ck-step',(d.step!=null?d.step:'?')+' / 12');
+  if(d.lambda!=null){ const lv=Math.min(0.999,Number(d.lambda)); setTxt('ck-lambda',lv.toFixed(3)); }
+  if(d.khipu_hash)setTxt('ck-chain',String(d.khipu_hash).slice(0,12)+'\u2026');
+  // evidence rendering (typed M2M evidence)
+  let evHtml='';
+  const refs=[];
+  (d.evidence||[]).forEach(ev=>{
+    const k=ev.kind||'?';
+    let icon=k==='url'?'\ud83d\udd17':k==='file'?'\ud83d\udcc4':k==='formula'?'\u2211':k==='test'?'\u2713':k==='i_dont_know'?'\u2300':'\u2022';
+    const kcol=k==='i_dont_know'?AMBER:TEAL;
+    let det=''; const dd=ev.detail||{};
+    if(dd.citation)det=esc(dd.citation);
+    else if(dd.note)det=esc(dd.note);
+    else if(ev.ref)det=esc(ev.ref);
+    let lamd=dd.lambda!=null?(' <span class="dim mono" style="font-size:9px">\u039b '+Number(dd.lambda).toFixed(3)+'</span>'):'';
+    evHtml+='<div class="row" style="margin-left:14px"><span class="badge" style="font-size:9px;border:1px solid '+kcol+';color:'+kcol+'">'+icon+' '+esc(k)+'</span><span class="dim" style="font-size:11px;word-break:break-all">'+det+lamd+'</span></div>';
+    if(k==='file'&&ev.ref)refs.push(ev.ref);
+  });
+  if(refs.length)chaski_light(refs);
+  // plan DAG mini-render for PLAN state
+  let planHtml='';
+  if(st==='PLAN'&&d.args&&d.args.nodes){
+    const ns=d.args.nodes||[]; const order=d.args.order||ns;
+    planHtml='<div class="row" style="margin-left:14px;flex-wrap:wrap;gap:4px"><span class="dim mono" style="font-size:10px">plan DAG ('+(d.args.edges||0)+' edges):</span>'+
+      order.map((n,i)=>'<span class="badge" style="font-size:9px;border:1px solid '+GOLD+';color:'+GOLD+'">'+esc(String(n))+'</span>'+(i<order.length-1?'<span class="dim">\u2192</span>':'')).join('')+'</div>';
+  }
+  const tool=d.tool?(' \u00b7 tool <b class="mono">'+esc(d.tool)+'</b>'):'';
+  const gate=d.gate_allow?('<span class="dim mono" style="font-size:10px;color:'+TEAL+'">'+esc(d.gate_reason||'ALLOW')+'</span>')
+                          :('<span class="dim mono" style="font-size:10px;color:'+RED+'">'+esc(d.gate_reason||'DENY')+'</span>');
+  const noteH=d.note?('<div class="dim" style="font-size:11px;margin-left:14px">'+esc(d.note)+'</div>'):'';
+  const html='<div class="row" style="margin-top:6px"><span class="badge" style="border:1px solid '+col+';color:'+col+'">#'+(d.step!=null?d.step:'')+' '+esc(st)+'</span>'+
+    '<span>'+esc(d.intent||'')+tool+'</span></div>'+
+    '<div class="row" style="margin-left:14px;gap:6px">'+_ck_lambdaBadge(d.lambda,d.gate_allow)+gate+
+      (d.conformal?(' <span class="dim mono" style="font-size:10px">conformal '+Number(d.conformal).toFixed(3)+'</span>'):'')+
+      (d.khipu_hash?(' <span class="dim mono" style="font-size:10px">khipu '+esc(String(d.khipu_hash).slice(0,16))+'\u2026</span>'):'')+'</div>'+
+    planHtml+noteH+evHtml;
+  stepsHost.insertAdjacentHTML('beforeend',html);
+  stepsHost.scrollTop=stepsHost.scrollHeight;
+}
+function chaski_render_done(d){
+  setTxt('ck-state',d.final_state||'FINALIZE');
+  if(d.khipu_hash)setTxt('ck-chain',String(d.khipu_hash).slice(0,12)+'\u2026');
+  const stub=d.stub===true;
+  const cv=d.chain_verified===true;
+  const idk=d.i_dont_know===true;
+  let html='<span class="badge '+(cv?'b-teal':'')+'" style="'+(cv?'':'border:1px solid '+AMBER+';color:'+AMBER)+'">chain '+(cv?'VERIFIED':'UNVERIFIED')+'</span>';
+  html+=' <span class="badge b-teal">'+esc(String(d.step_count||0))+' steps</span>';
+  html+=' <span class="dim mono" style="font-size:10px">model '+esc(d.model||'')+' \u00b7 '+esc(d.license_class||'')+' \u00b7 '+esc(String(d.latency_ms||0))+'ms \u00b7 reflect '+esc(String(d.reflect_depth||0))+'/3 \u00b7 yuyay13 '+esc(String(d.yuyay13!=null?Number(d.yuyay13).toFixed(3):''))+'</span>';
+  if(stub)html+=' <span class="badge" style="border:1px solid '+AMBER+';color:'+AMBER+'">LABELED STUB</span>';
+  if(idk)html+=' <span class="badge" style="border:1px solid '+AMBER+';color:'+AMBER+'">i_dont_know</span>';
+  setHTML('ck-done',html);
+  const ep=el('ck-answer-ep'); if(ep)ep.textContent=(stub?'labeled stub':'grounded')+' \u00b7 \u039b-gated \u00b7 receipted';
+  // final grounded-evidence list lights the graph
+  const ge=d.grounded_evidence||[]; const refs=[];
+  ge.forEach(ev=>{ if(ev.kind==='file'&&ev.ref)refs.push(ev.ref); });
+  if(refs.length)chaski_light(refs);
+}
+
+/* ---- orchestration: governed command across apps (operator_shell_v4 bus) ---- */
+async function chaski_dispatch(){
+  const app=(el('ck-app')||{}).value||'killinchu';
+  const cmd=(el('ck-cmd')||{}).value||'/status';
+  const btn=el('ck-disp-btn'); if(btn)btn.disabled=true;
+  setOut('ck-orch','dispatching '+cmd+' \u2192 '+app+' /v4/command\u2026');
+  // try same-origin command bus first; then the cross-app HF Space origin as honest fallback
+  const bases=[ '/api/'+app+'/v4/command' ];
+  if(app==='killinchu')bases.push('https://szlholdings-killinchu.hf.space/api/'+app+'/v4/command');
+  let okj=null,lastErr='';
+  for(const url of bases){
+    try{
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd,args:{}})});
+      if(r.ok){ okj=await r.json(); break; } else { lastErr='HTTP '+r.status+' @ '+url; }
+    }catch(e){ lastErr=e.message+' @ '+url; }
+  }
+  if(okj){
+    const rcpt=okj.receipt||okj.dsse||{};
+    const signed=(rcpt.signatures&&rcpt.signatures.length)||okj.signed===true;
+    const hash=okj.receipt_hash||rcpt.hash||rcpt.payload_digest||'';
+    let head='<span class="badge '+(signed?'b-teal':'')+'" style="'+(signed?'':'border:1px solid '+AMBER+';color:'+AMBER)+'">receipt '+(signed?'SIGNED':'UNSIGNED (honest \u2014 no cosign key)')+'</span>';
+    if(hash)head+=' <span class="dim mono" style="font-size:10px">'+esc(String(hash).slice(0,24))+'\u2026</span>';
+    setHTML('ck-orch','<div class="row">'+head+'</div>');
+    addHTML('ck-orch','');
+    const pre=el('ck-orch'); if(pre){const p=document.createElement('pre');p.className='out';p.style.maxHeight='160px';p.style.marginTop='6px';p.textContent=JSON.stringify(okj,null,2);pre.appendChild(p);}
+  }else{
+    setOut('ck-orch','command bus unavailable (honest): '+lastErr+'\n\nThe operator_shell_v4 /v4/command bus is byte-identical across apps; this surface dispatches a real governed command and shows its DSSE receipt when the bus is reachable.');
+  }
+  if(btn)btn.disabled=false;
+}
+window.chaski_dispatch=chaski_dispatch;
 
 
 /* ===== FRONTIER TAB LOADERS (injected) ===== */
