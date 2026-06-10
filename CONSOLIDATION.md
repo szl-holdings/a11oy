@@ -16,8 +16,12 @@ remote services.
   `app.py`, `src/rosie/`, `packages/`, and `szl_router/`.
 - **`mcp/`** — shared **MCP** (Model Context Protocol) infra: `mcp_server.py`,
   `test_mcp_stdio.py`, MCP client config, and integration docs.
-- **`infra/vsp_otel/`** — shared **OpenTelemetry** middleware (`vsp-otel`): cross-pod
-  W3C traceparent propagation + OTLP/gRPC spans, vendored uniformly mesh-wide.
+- **`infra/`** — pointer READMEs to the canonical szl-holdings repos. Full external
+  repo sources are **not** vendored here (they silently drifted from canonical);
+  reference the canonical repo each `infra/<name>/README.md` links to instead.
+  The shared **vsp-otel** OpenTelemetry middleware lives at
+  `github.com/szl-holdings/vsp-otel`; a11oy's own importable copy is the
+  root-level `vsp_otel/` package (left intact).
 
 a11oy's own existing files (`serve.py`, `pages/`, `vsp_otel/`, top-level `szl_*.py`,
 etc.) are left intact. The ingested organ source is added strictly under the new
