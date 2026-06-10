@@ -1,5 +1,8 @@
 # Build a UDS bundle from scratch
 
+<!-- RETIRED-ORGANS-NOTICE -->
+> **⚠️ Retired organs notice.** `amaru`, `sentra`, and `rosie` have been retired and consolidated into the **[a11oy](https://github.com/szl-holdings/a11oy)** flagship (Memory, Sentinel, and Operator verticals). Their standalone `szl-holdings/{amaru,sentra,rosie}` GitHub repositories and `szlholdings-{amaru,sentra,rosie}.hf.space` Hugging Face Spaces **no longer exist**; only the signed GHCR images persist, for supply-chain verification. Any amaru/sentra/rosie Space URLs, repo links, or endpoints referenced below are **historical and not live** — use a11oy instead.
+
 > **Start with one organ's Zarf package, prove it deploys, then grow the `uds-bundle.yaml` to all five flagships — the inverse of recipe 02.**
 >
 > **Headline number: 1 organ → 5 organs in one bundle, all doctrine-locked.**

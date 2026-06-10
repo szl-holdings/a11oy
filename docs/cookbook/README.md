@@ -101,10 +101,10 @@ plus 9 [`claude-code` skills](skills/).
 | Organ | Role | Space | Cookbook recipes |
 |---|---|---|---|
 | **a11oy** 🔬 | Governance gate / policy + receipt substrate | [Space](https://szlholdings-a11oy.hf.space) | 01, 02, 06, 08, 09 |
-| **sentra** 🛡️ | 8-gate deny-by-default immune system | [Space](https://szlholdings-sentra.hf.space) | 01, 03, 11, 12 |
-| **amaru** 🐍 | Memory cortex with receipted reasoning | [Space](https://szlholdings-amaru.hf.space) | 01, 05, 10 |
+| **sentra** 🛡️ _(retired → a11oy Sentinel)_ | 8-gate deny-by-default immune system | [a11oy](https://szlholdings-a11oy.hf.space) | 01, 03, 11, 12 |
+| **amaru** 🐍 _(retired → a11oy Memory)_ | Memory cortex with receipted reasoning | [a11oy](https://szlholdings-a11oy.hf.space) | 01, 05, 10 |
 | **killinchu** 🦅 | Counter-UAS Λ-gate (Remote-ID/ADS-B/MAVLink) | [Space](https://szlholdings-killinchu.hf.space) | 03, 04, 11, 14 |
-| **rosie** 🔄 | Operator console / nervous system | [Space](https://szlholdings-rosie.hf.space) | 02, 07, 12, 13 |
+| **rosie** 🔄 _(retired → a11oy Operator)_ | Operator console / nervous system | [a11oy](https://szlholdings-a11oy.hf.space) | 02, 07, 12, 13 |
 
 Each flagship exposes `/v1/honest` reporting the same locked doctrine.
 

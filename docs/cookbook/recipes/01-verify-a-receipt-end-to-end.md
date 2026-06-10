@@ -1,5 +1,8 @@
 # Verify a receipt end-to-end
 
+<!-- RETIRED-ORGANS-NOTICE -->
+> **⚠️ Retired organs notice.** `amaru`, `sentra`, and `rosie` have been retired and consolidated into the **[a11oy](https://github.com/szl-holdings/a11oy)** flagship (Memory, Sentinel, and Operator verticals). Their standalone `szl-holdings/{amaru,sentra,rosie}` GitHub repositories and `szlholdings-{amaru,sentra,rosie}.hf.space` Hugging Face Spaces **no longer exist**; only the signed GHCR images persist, for supply-chain verification. Any amaru/sentra/rosie Space URLs, repo links, or endpoints referenced below are **historical and not live** — use a11oy instead.
+
 > **Pull a real Khipu receipt from `szl-lake`, validate its ECDSA-P256 DSSE signature against the org cosign key, then re-check it through `a11oy /v1/verify` and read the doctrine posture from `sentra`.**
 >
 > **Headline number: 1 receipt → 1 cryptographic VALID in < 60 seconds, zero credentials.**

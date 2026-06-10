@@ -1,4 +1,7 @@
 # SZL Holdings — Anatomy Evolution + Replit Payload
+
+<!-- ARCHIVED-THESIS-NOTICE -->
+> **⚠️ Archived thesis notice.** The `szl-holdings/ouroboros-thesis` repository has been retired; the Ouroboros Thesis is now archived at Zenodo DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276). Any `ouroboros-thesis` references below are **historical and not live**.
 ## Version: anatomy-evolved-v1 · May 2026
 **Canonical Author:** Stephen P. Lutar Jr., SZL Holdings  
 **ORCID:** [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)  

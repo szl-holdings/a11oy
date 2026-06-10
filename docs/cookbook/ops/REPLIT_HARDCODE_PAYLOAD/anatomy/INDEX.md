@@ -1,5 +1,8 @@
 # Anatomy Bundle — 16 Files
 
+<!-- ARCHIVED-THESIS-NOTICE -->
+> **⚠️ Archived thesis notice.** The `szl-holdings/ouroboros-thesis` repository has been retired; the Ouroboros Thesis is now archived at Zenodo DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276). Any `ouroboros-thesis` references below are **historical and not live**.
+
 **Source of truth:** szl-holdings/ouroboros-thesis on branch `feat/anatomy/full-bundle-16-figures` (PR #46).
 **Date snapshot:** 2026-05-16
 **Author:** Stephen P. Lutar Jr. — `stephen@szlholdings.com` — ORCID 0009-0001-0110-4173 — SZL Holdings

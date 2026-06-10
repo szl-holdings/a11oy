@@ -1,5 +1,8 @@
 # Verify Everything Yourself — SZL Holdings Proof Guide
 
+<!-- RETIRED-ORGANS-NOTICE -->
+> **⚠️ Retired organs notice.** `amaru`, `sentra`, and `rosie` have been retired and consolidated into the **[a11oy](https://github.com/szl-holdings/a11oy)** flagship (Memory, Sentinel, and Operator verticals). Their standalone `szl-holdings/{amaru,sentra,rosie}` GitHub repositories and `szlholdings-{amaru,sentra,rosie}.hf.space` Hugging Face Spaces **no longer exist**; only the signed GHCR images persist, for supply-chain verification. Any amaru/sentra/rosie Space URLs, repo links, or endpoints referenced below are **historical and not live** — use a11oy instead.
+
 > This document is the **"prove we built it" artifact** for SZL Holdings. Every claim made in SZL's GitHub and Hugging Face presence can be independently verified using the commands below. No trust required — run them yourself on your own hardware with public tooling.
 
 **Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · Λ = Conjecture 1 (not a theorem)**

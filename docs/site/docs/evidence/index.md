@@ -1,5 +1,8 @@
 # Evidence
 
+<!-- ARCHIVED-THESIS-NOTICE -->
+> **⚠️ Archived thesis notice.** The `szl-holdings/ouroboros-thesis` repository has been retired; the Ouroboros Thesis is now archived at Zenodo DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276). Any `ouroboros-thesis` references below are **historical and not live**.
+
 Every claim on this site is meant to be checked. This page is the evidence index: the DOIs,
 commit anchors, Lean kernel, thesis PDFs, evaluation results, and example receipts that back
 the [flagships](/flagships/), the [anatomy](/anatomy/), and the [doctrine](/doctrine/v11-v12).

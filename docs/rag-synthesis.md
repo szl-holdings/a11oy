@@ -1,5 +1,8 @@
 # 99 — a11oy Λ-RAG Synthesis: The One-of-One Frontier
 
+<!-- ARCHIVED-THESIS-NOTICE -->
+> **⚠️ Archived thesis notice.** The `szl-holdings/ouroboros-thesis` repository has been retired; the Ouroboros Thesis is now archived at Zenodo DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276). Any `ouroboros-thesis` references below are **historical and not live**.
+
 **Author:** Stephen P. Lutar Jr. (SZL Holdings) — orchestrator synthesis under doctrine v2
 **Date:** 2026-05-13
 **Scope:** 8 RAG dossiers + cross-pollination with Cursor (3 dossiers), NVIDIA Driver Stack (10 dossiers), Earth-2 Deep Dive, DGX Spark Research

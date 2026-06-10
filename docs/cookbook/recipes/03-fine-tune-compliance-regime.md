@@ -1,5 +1,8 @@
 # Fine-tune a customer compliance regime
 
+<!-- RETIRED-ORGANS-NOTICE -->
+> **⚠️ Retired organs notice.** `amaru`, `sentra`, and `rosie` have been retired and consolidated into the **[a11oy](https://github.com/szl-holdings/a11oy)** flagship (Memory, Sentinel, and Operator verticals). Their standalone `szl-holdings/{amaru,sentra,rosie}` GitHub repositories and `szlholdings-{amaru,sentra,rosie}.hf.space` Hugging Face Spaces **no longer exist**; only the signed GHCR images persist, for supply-chain verification. Any amaru/sentra/rosie Space URLs, repo links, or endpoints referenced below are **historical and not live** — use a11oy instead.
+
 > **Take the doctrine pretrain set, project new receipts through `sentra`'s σ-algebra of governance signals, and emit a customer-specific Λ-extension that runs as an overlay — without touching the locked kernel.**
 >
 > **Headline number: 1 customer regime, 0 changes to 749/14/163.**
