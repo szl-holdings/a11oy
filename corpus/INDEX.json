@@ -1,0 +1,264 @@
+{
+  "note": "In-image mirror of GitHub-only corpus files. Each entry traces to a REAL GitHub blob (blob_sha) at a REAL commit (commit_sha). Bundled because the HF Space cannot reach api.github.com (egress-blocked). Builder reads these when GitHub is unreachable; source citation = bundled:<repo>@<commit_sha>:<orig_path>.",
+  "files": {
+    "corpus/thesis/szl-papers__thesis__THESIS_LINEAGE.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "thesis/THESIS_LINEAGE.md",
+      "blob_sha": "0a1554c5d0e49be39ae65d1f3dabe45718648e80",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__thesis__v24__main.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "thesis/v24/main.md",
+      "blob_sha": "cbf7deeead209ceb27646e628882c97f2f4cdeae",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__thesis__v24__refs.bib": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "thesis/v24/refs.bib",
+      "blob_sha": "2b057cb5920f7c36ef258dc683c333a0ccbd9033",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__thesis__v23__main.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "thesis/v23/main.md",
+      "blob_sha": "eb5c82cb20762aa309922564d164e0ddac527b86",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__thesis__ouroboros__papers__v25__unified-gpd-thesis-v25.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "thesis/ouroboros/papers/v25/unified-gpd-thesis-v25.md",
+      "blob_sha": "fec513c107c2895e58e027d2bcb532f074d9dd63",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__thesis__ouroboros__papers__v24__main.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "thesis/ouroboros/papers/v24/main.md",
+      "blob_sha": "da0104a48f85157a905f44f242b039ce1d435374",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__thesis__ouroboros__README.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "thesis/ouroboros/README.md",
+      "blob_sha": "05e5f1cdb928d39b2b1cec8f8c011fde2fc35699",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__README.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "README.md",
+      "blob_sha": "535ff740f82eba01c15566babb5e971e7e60283b",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/thesis/szl-papers__preprints__puriq__README.md": {
+      "category": "thesis",
+      "repo": "szl-papers",
+      "orig_path": "preprints/puriq/README.md",
+      "blob_sha": "5a52f98e95b54c11056089ea101e88b27b5bfe6e",
+      "commit_sha": "d26c6b1e6b945c9971ac519622f4c7bdd3b996d7"
+    },
+    "corpus/formulas/a11oy__szl_formulas.py": {
+      "category": "formulas",
+      "repo": "a11oy",
+      "orig_path": "szl_formulas.py",
+      "blob_sha": "c103128601db5f95cd27f16857f6f6df9240ddec",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/formulas/a11oy__a11oy_v4_formulas.py": {
+      "category": "formulas",
+      "repo": "a11oy",
+      "orig_path": "a11oy_v4_formulas.py",
+      "blob_sha": "300b2efea968c6b02b827668589708bf1e4795dd",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/formulas/a11oy__szl_formula_wiring.py": {
+      "category": "formulas",
+      "repo": "a11oy",
+      "orig_path": "szl_formula_wiring.py",
+      "blob_sha": "90e9109aa9f8a5e0aa8e3b0cf4b4830131105ab6",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/formulas/a11oy__szl_puriq_formulas.py": {
+      "category": "formulas",
+      "repo": "a11oy",
+      "orig_path": "szl_puriq_formulas.py",
+      "blob_sha": "365830b2a8fe6301427407413a552549ca20dece",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/formulas/a11oy__gates_manifest.json": {
+      "category": "formulas",
+      "repo": "a11oy",
+      "orig_path": "gates_manifest.json",
+      "blob_sha": "d5126c8974b64874401ecefe8ae434ce7f4be97b",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/formulas/a11oy__docs__theorem-runtime-manifest.json": {
+      "category": "formulas",
+      "repo": "a11oy",
+      "orig_path": "docs/theorem-runtime-manifest.json",
+      "blob_sha": "066e5f66a130c540158ec9d5e8b0479753f5e8c3",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/formulas/lutar-lean__PROVEN_FORMULAS.md": {
+      "category": "formulas",
+      "repo": "lutar-lean",
+      "orig_path": "PROVEN_FORMULAS.md",
+      "blob_sha": "59375820ffa760a0fe20f03cf0365e2bbf8ba6cc",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/formulas/lutar-lean__Lutar__Puriq__Formulas__ProvedFormulas.lean": {
+      "category": "formulas",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+      "blob_sha": "02dd40690e0b6c56aeca02869569af7ffdf009bd",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/doctrine/a11oy__docs__doctrine__DOCTRINE_V11_LOCKED.md": {
+      "category": "doctrine",
+      "repo": "a11oy",
+      "orig_path": "docs/doctrine/DOCTRINE_V11_LOCKED.md",
+      "blob_sha": "7c55b5a23df273bf4870848d3f174873640fa58d",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/doctrine/a11oy__docs__doctrine__DOCTRINE_V10_LOCKED.md": {
+      "category": "doctrine",
+      "repo": "a11oy",
+      "orig_path": "docs/doctrine/DOCTRINE_V10_LOCKED.md",
+      "blob_sha": "b1149a08854031f6922f5c2a981b4cc745767ba9",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/doctrine/a11oy__docs__doctrine__CANONICAL_WEDGE.md": {
+      "category": "doctrine",
+      "repo": "a11oy",
+      "orig_path": "docs/doctrine/CANONICAL_WEDGE.md",
+      "blob_sha": "64febad29a1baea4dedd41893c6c732e31fe9997",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/doctrine/a11oy__docs__doctrine__README.md": {
+      "category": "doctrine",
+      "repo": "a11oy",
+      "orig_path": "docs/doctrine/README.md",
+      "blob_sha": "e54a99f4faaec8ac66f1ecc92db4e08445d54aa5",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/doctrine/a11oy__HONEST_DISCLOSURE.md": {
+      "category": "doctrine",
+      "repo": "a11oy",
+      "orig_path": "HONEST_DISCLOSURE.md",
+      "blob_sha": "deac302b8a92db9267b7634e14df94db2a4775eb",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/doctrine/a11oy__docs__AUTONOMOUS_LEARNING_DOCTRINE.md": {
+      "category": "doctrine",
+      "repo": "a11oy",
+      "orig_path": "docs/AUTONOMOUS_LEARNING_DOCTRINE.md",
+      "blob_sha": "c8897ddbeda29455740ea13ba12756fe1e77ce19",
+      "commit_sha": "bcaee393511aef2323fc9945d6e39ceeeb22bf60"
+    },
+    "corpus/doctrine/docs-site__docs__doctrine__puriq.md": {
+      "category": "doctrine",
+      "repo": "docs-site",
+      "orig_path": "docs/doctrine/puriq.md",
+      "blob_sha": "5da8a325cbff7224a3bbcd9f4ca39dc0702d1928",
+      "commit_sha": "2a9bc2a16363f26a2e68e6c2450188c22fea635e"
+    },
+    "corpus/doctrine/docs-site__docs__doctrine__v11-v12.md": {
+      "category": "doctrine",
+      "repo": "docs-site",
+      "orig_path": "docs/doctrine/v11-v12.md",
+      "blob_sha": "e64c51c089c5071883be972e934704f84474305b",
+      "commit_sha": "2a9bc2a16363f26a2e68e6c2450188c22fea635e"
+    },
+    "corpus/doctrine/docs-site__docs__proof.md": {
+      "category": "doctrine",
+      "repo": "docs-site",
+      "orig_path": "docs/proof.md",
+      "blob_sha": "8a2c09db864d06017a251eb6a9a01e723dd17163",
+      "commit_sha": "2a9bc2a16363f26a2e68e6c2450188c22fea635e"
+    },
+    "corpus/doctrine/szl-doctrine__README.md": {
+      "category": "doctrine",
+      "repo": "szl-doctrine",
+      "orig_path": "README.md",
+      "blob_sha": "158df02540245fce15de80f78f5260ff4b88bb27",
+      "commit_sha": "e54f1a87c71e85a7f252270ad150456eae144f3c"
+    },
+    "corpus/lean/lutar-lean__VERIFIED_THEOREMS.md": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "VERIFIED_THEOREMS.md",
+      "blob_sha": "36619b28b33fb9650afca8fcef60ac98cd1b8e1d",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__PROVEN_FORMULAS.md": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "PROVEN_FORMULAS.md",
+      "blob_sha": "59375820ffa760a0fe20f03cf0365e2bbf8ba6cc",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__Lutar__Puriq__Formulas__ProvedFormulas.lean": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+      "blob_sha": "02dd40690e0b6c56aeca02869569af7ffdf009bd",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__Lutar.lean": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar.lean",
+      "blob_sha": "ec13078e8ba29e97164b214aa4a3009d2e161bdc",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__Lutar__Round13__Lambda_Uniqueness.lean": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar/Round13/Lambda_Uniqueness.lean",
+      "blob_sha": "b0f2c24d8b7fd4c9c87ad24eb2ed115a75288504",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__Lutar__Round13__CauchyND_Closure.lean": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar/Round13/CauchyND_Closure.lean",
+      "blob_sha": "935271caeb75692cd49503243b82f3ceed509da1",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__Lutar__Khipu__SummationInvariant.lean": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar/Khipu/SummationInvariant.lean",
+      "blob_sha": "c1bee9704c86165da928a6dc5ec5a448b884f4c6",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__Lutar__Doctrine__PublicClaims.lean": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar/Doctrine/PublicClaims.lean",
+      "blob_sha": "60240764c883a998b21a16e533290ca2347b0ab9",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__Lutar__Uniqueness.lean": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "Lutar/Uniqueness.lean",
+      "blob_sha": "5347a6b8b40e8c586a4c37ced38c5b6600f72863",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    },
+    "corpus/lean/lutar-lean__README.md": {
+      "category": "lean",
+      "repo": "lutar-lean",
+      "orig_path": "README.md",
+      "blob_sha": "00f0dd335ddb298c89f0d9e180aa2f471a48745c",
+      "commit_sha": "ea7326497b312e2ffa4a4d8b90b176dc534b265e"
+    }
+  }
+}

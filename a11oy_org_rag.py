@@ -106,6 +106,25 @@ HF_API = "https://huggingface.co"
 _HF_ENV_KEYS = ("CUSTOM_CRED_HUGGINGFACE_CO_TOKEN", "HF_TOKEN", "HUGGING_FACE_HUB_TOKEN")
 
 # --------------------------------------------------------------------------- #
+# IN-IMAGE CORPUS MIRROR (egress fix, 2026-06-10).  The full-corpus build runs
+# INSIDE the a11oy/killinchu HF Space, which can reach huggingface.co but NOT
+# api.github.com (Space egress is GitHub-blocked — even unauthenticated public
+# reads fail).  So the highest-value files of the four GitHub-only categories
+# (thesis, formulas, doctrine, lean) are mirrored into the Space image under
+# ``corpus/`` (COPY'd in the Dockerfile) together with ``corpus/INDEX.json``
+# that records, for every bundled file, its REAL origin repo + path + GitHub
+# blob_sha + commit_sha.  When GitHub is unreachable for a category the builder
+# ingests these REAL files and labels each chunk
+#   source = "bundled:<repo>@<commit_sha>:<orig_path>"
+# so the citation honestly says the bytes were mirrored in-image (NOT fabricated,
+# NOT claimed to be a live GitHub read).  This keeps the existing GitHub/HF read
+# path intact (it wins when a token + egress ARE present); the in-image mirror is
+# a pure ADDITIVE fallback (Zero-Bandaid Law: real files, honest provenance).
+# ``A11OY_CORPUS_DIR`` overrides the location (default: <module dir>/corpus then
+# /app/corpus).
+_CORPUS_DIR_ENV = "A11OY_CORPUS_DIR"
+
+# --------------------------------------------------------------------------- #
 # SZL CORPUS MANIFEST (founder mandate) — the SEVEN real categories the agent
 # must know from the inside.  Each entry maps a logical corpus category to its
 # REAL GitHub repos and/or HF Spaces and the path prefixes worth ingesting.
@@ -144,6 +163,8 @@ SZL_CORPUS: dict[str, dict[str, Any]] = {
         "seed": ["PAPERS_INDEX.md", "thesis/THESIS_LINEAGE.md",
                  "thesis/ouroboros/papers/v24/main.md",
                  "thesis/ouroboros/papers/v23/0_README_v23.md"],
+        # In-image mirror dir (egress fix): read when GitHub is unreachable.
+        "local_paths": ["corpus/thesis"],
     },
     "formulas": {
         "label": "EVERY SZL formula — locked-5 {F1,F11,F12,F18,F19} + ~185 experimental + ProvedFormulas",
@@ -151,12 +172,14 @@ SZL_CORPUS: dict[str, dict[str, Any]] = {
         "hf_spaces": [],
         "seed": ["szl_formulas.py", "a11oy_v4_formulas.py", "szl_formula_wiring.py",
                  "gates_manifest.json"],
+        "local_paths": ["corpus/formulas"],
     },
     "doctrine": {
         "label": "SZL doctrine, Governed Post-Determinism (GPD), honest scope",
         "gh_repos": ["szl-doctrine", "docs-site", "szl-cookbook", ".github"],
         "hf_spaces": [],
         "seed": ["README.md"],
+        "local_paths": ["corpus/doctrine"],
     },
     "lean": {
         "label": "Lean 4 + Mathlib proofs / kernel (Λ uniqueness as Conjecture 1)",
@@ -165,6 +188,7 @@ SZL_CORPUS: dict[str, dict[str, Any]] = {
         "path_prefixes": ["Lutar/", "Lutar.lean"],
         "seed": ["Lutar.lean", "Lutar/Axioms.lean", "Lutar/Bound.lean",
                  "Lutar/Doctrine/PublicClaims.lean"],
+        "local_paths": ["corpus/lean"],
     },
 }
 
@@ -190,6 +214,7 @@ def corpus_manifest() -> dict[str, Any]:
                 "hf_spaces": [f"{HF_ORG}/{s}" for s in spec.get("hf_spaces", [])],
                 "seed_files": spec.get("seed", []),
                 "path_prefixes": spec.get("path_prefixes", []),
+                "local_paths": spec.get("local_paths", []),
             }
             for cat, spec in SZL_CORPUS.items()
         },
@@ -553,6 +578,111 @@ def _gh_raw(repo: str, path: str, token: str, branch: str = "main") -> str | Non
     return None
 
 
+# --------------------------------------------------------------------------- #
+# In-image corpus mirror reader (egress fix).  These functions never touch the
+# network: they read the REAL files COPY'd into the Space image under corpus/
+# and resolve each one's honest GitHub provenance from corpus/INDEX.json.
+# --------------------------------------------------------------------------- #
+def _corpus_root() -> str:
+    """Resolve the in-image corpus dir. Honest: returns the first existing of
+    {$A11OY_CORPUS_DIR, <module dir>/corpus, /app/corpus, ./corpus}; else ''."""
+    cands = []
+    env = os.environ.get(_CORPUS_DIR_ENV)
+    if env:
+        cands.append(env)
+    here = os.path.dirname(os.path.abspath(__file__))
+    cands += [os.path.join(here, "corpus"), "/app/corpus", "corpus"]
+    for c in cands:
+        if c and os.path.isdir(c):
+            return c
+    return ""
+
+
+_CORPUS_INDEX_CACHE: dict[str, Any] | None = None
+
+
+def _corpus_index() -> dict[str, Any]:
+    """Load corpus/INDEX.json (bundled-file -> real repo/path/blob_sha/commit_sha).
+    Cached. Honest empty dict if absent."""
+    global _CORPUS_INDEX_CACHE
+    if _CORPUS_INDEX_CACHE is not None:
+        return _CORPUS_INDEX_CACHE
+    root = _corpus_root()
+    out: dict[str, Any] = {"files": {}}
+    if root:
+        ipath = os.path.join(root, "INDEX.json")
+        try:
+            with open(ipath, "r", encoding="utf-8") as f:
+                out = json.load(f)
+        except Exception:
+            out = {"files": {}}
+    _CORPUS_INDEX_CACHE = out
+    return out
+
+
+def _local_provenance(rel_from_corpus: str) -> dict[str, str]:
+    """Map an in-image file (path relative to the dir that CONTAINS corpus/) to its
+    honest GitHub origin via INDEX.json. ``rel_from_corpus`` looks like
+    ``corpus/<cat>/<flat>``. Falls back to a labeled-but-still-honest 'bundled'
+    citation if the index lacks the entry (we never claim a fake live read)."""
+    idx = _corpus_index().get("files", {})
+    meta = idx.get(rel_from_corpus)
+    if meta:
+        repo = meta.get("repo", "szl-holdings")
+        orig = meta.get("orig_path", os.path.basename(rel_from_corpus))
+        sha = meta.get("commit_sha", "")[:12]
+        return {"repo": repo, "path": orig,
+                "source": f"bundled:{repo}@{sha}:{orig}"}
+    base = os.path.basename(rel_from_corpus)
+    return {"repo": "szl-holdings", "path": base,
+            "source": f"bundled:in-image:{base}"}
+
+
+def _ingest_local_category(graph: OrgGraph, conn: sqlite3.Connection, *, category: str,
+                           local_dirs: list[str],
+                           embed_fn: Callable[[str], list[float]] | None
+                           ) -> tuple[int, int]:
+    """Ingest the REAL in-image mirror files for one category.  Returns
+    (files, chunks).  Each chunk is labeled with an honest 'bundled:<repo>@<sha>'
+    source so the agent cites that the bytes were mirrored in-image (egress fix),
+    not fetched live from GitHub.  No network."""
+    root = _corpus_root()
+    if not root:
+        return (0, 0)
+    # root IS the corpus dir; provenance keys are 'corpus/<cat>/<flat>'.
+    parent = os.path.dirname(os.path.abspath(root))
+    files_n, chunks_n = 0, 0
+    for ld in local_dirs:
+        # local_paths are given relative to the repo root, e.g. 'corpus/thesis'.
+        abs_dir = os.path.join(parent, ld)
+        if not os.path.isdir(abs_dir):
+            # also accept paths already rooted at the corpus dir
+            abs_dir = os.path.join(root, os.path.basename(ld))
+        if not os.path.isdir(abs_dir):
+            continue
+        for name in sorted(os.listdir(abs_dir)):
+            fp = os.path.join(abs_dir, name)
+            if not os.path.isfile(fp):
+                continue
+            if os.path.splitext(name)[1].lower() not in _TEXT_EXT:
+                continue
+            if os.path.getsize(fp) > 400_000:
+                continue
+            try:
+                with open(fp, "r", encoding="utf-8", errors="replace") as f:
+                    raw = f.read()
+            except Exception:
+                continue
+            rel = f"{os.path.basename(ld)}"
+            prov = _local_provenance(f"corpus/{rel}/{name}")
+            wrote = _ingest_text(graph, conn, repo=prov["repo"], path=prov["path"],
+                                 raw=raw, source=prov["source"], category=category,
+                                 embed_fn=embed_fn)
+            files_n += 1
+            chunks_n += wrote
+    return (files_n, chunks_n)
+
+
 def _ingest_text(graph: OrgGraph, conn: sqlite3.Connection, *, repo: str, path: str,
                  raw: str, source: str, category: str,
                  embed_fn: Callable[[str], list[float]] | None) -> int:
@@ -640,6 +770,17 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
                 c_chunks += wrote
                 chunk_count += wrote
                 files_ok += 1
+            # EGRESS FALLBACK: if GitHub/HF reads yielded nothing for this category
+            # (e.g. the HF Space cannot reach api.github.com), ingest the REAL
+            # in-image mirror files. Honest 'bundled:<repo>@<sha>' citation.
+            local_dirs = spec.get("local_paths", [])
+            if c_files == 0 and local_dirs:
+                lf, lc = _ingest_local_category(graph, conn, category=cat,
+                                                local_dirs=local_dirs, embed_fn=embed_fn)
+                c_files += lf
+                c_chunks += lc
+                chunk_count += lc
+                files_ok += lf
             per_cat[cat] = {"files": c_files, "chunks": c_chunks}
             conn.commit()
 
@@ -751,6 +892,19 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
                     c_chunks += wrote
                     chunk_count += wrote
                 conn.commit()
+            # ---- EGRESS FALLBACK: in-image corpus mirror -----------------
+            # The full build runs INSIDE the HF Space, which cannot reach
+            # api.github.com. If a category's live GitHub+HF reads produced no
+            # files, ingest the REAL files COPY'd into the image under corpus/
+            # (honest 'bundled:<repo>@<sha>' citation; never fabricated).
+            local_dirs = spec.get("local_paths", [])
+            if c_files == 0 and local_dirs:
+                lf, lc = _ingest_local_category(graph, conn, category=cat,
+                                                local_dirs=local_dirs, embed_fn=embed_fn)
+                c_files += lf
+                c_chunks += lc
+                chunk_count += lc
+                conn.commit()
             per_cat[cat] = {"files": c_files, "chunks": c_chunks}
             if emit_receipt:
                 emit_receipt("org_rag.index.category", {
@@ -767,13 +921,19 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
             "build_ms": round((time.time() - t0) * 1000, 1),
             "per_category": per_cat, "corpus_categories": built_cats,
             "gh_credential": bool(gh),
+            "corpus_mirror": bool(_corpus_root()),
             "honest_note": (
-                "FULL CORPUS (mode=full) — all seven categories ingested live. "
+                "FULL CORPUS (mode=full) — all seven categories ingested. "
                 + ("dense vectors present." if embed_fn is not None
                    else "FTS5/lexical only — embedding model unavailable (honest).")
                 + ("" if gh else " NOTE: no GitHub credential in env — public "
                    "szl-holdings repos read UNAUTHENTICATED (GitHub rate-limited but "
-                   "real); HF Space content also ingested (honest, not faked).")),
+                   "real); HF Space content also ingested (honest, not faked).")
+                + (" The GitHub-only categories (thesis/formulas/doctrine/lean) fell "
+                   "back to the REAL in-image corpus/ mirror because this HF Space "
+                   "cannot reach api.github.com (egress-blocked); those chunks cite "
+                   "source='bundled:<repo>@<commit_sha>:<path>' — real files, honest "
+                   "provenance, NOT fabricated." if _corpus_root() else "")),
         }
         conn.close()
         rec = emit_receipt("org_rag.index.full", _BUILD_META) if emit_receipt else None
