@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 -->
+<!-- INTEGRATIONS / ENTERPRISE MESH surface. ADDITIVE. 0 runtime CDN. Honest states only. -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Enterprise Mesh — Integrations</title>
+<style>
+:root{
+  --navy:#0b1220;--navy2:#0e1626;--panel:#111c30;--ink:#eaf0f7;--mut:#8da0b8;
+  --teal:#3fd0c9;--teal-dim:#1d6b67;--gold:#e8b95c;--gold-dim:#5a4824;
+  --ok:#54d18c;--ready:#7cc4ff;--sample:#ffcf5c;--bad:#ff6b6b;
+  --line:#1f2c44;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 80% -10%,#10203a,var(--navy));color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh}
+a{color:var(--teal);text-decoration:none}a:hover{color:var(--gold)}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 18px 90px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:800;letter-spacing:.5px;font-size:18px}
+.brand .gold{color:var(--gold)}
+.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;color:var(--mut)}.nav a:hover{color:var(--teal)}
+h1{font-size:27px;margin:22px 0 4px}h1 .gold{color:var(--gold)}
+.sub{color:var(--mut);margin:0 0 14px;max-width:760px}
+.scoreboard{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
+.score{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-width:118px}
+.score .n{font-size:24px;font-weight:800;font-family:var(--mono)}
+.score .l{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+.score.connected{border-left:3px solid var(--ok)}.score.connected .n{color:var(--ok)}
+.score.ready{border-left:3px solid var(--ready)}.score.ready .n{color:var(--ready)}
+.score.sample{border-left:3px solid var(--sample)}.score.sample .n{color:var(--sample)}
+.score.total{border-left:3px solid var(--gold)}.score.total .n{color:var(--gold)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 4px}
+.filters button{background:var(--navy2);color:var(--mut);border:1px solid var(--line);border-radius:999px;
+  padding:6px 14px;font-size:12.5px;cursor:pointer;font-family:var(--mono)}
+.filters button.on{background:var(--teal-dim);color:var(--ink);border-color:var(--teal)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;
+  border-left:3px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.card.s-connected{border-left-color:var(--ok)}
+.card.s-ready{border-left-color:var(--ready)}
+.card.s-sample{border-left-color:var(--sample)}
+.card.s-error{border-left-color:var(--bad)}
+.card .h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.card .name{font-weight:700;font-size:15.5px}
+.card .cat{font-size:11px;color:var(--mut);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px}
+.badge{font-family:var(--mono);font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.badge.connected{background:#0f2a1c;color:var(--ok)}
+.badge.ready{background:#0d1f33;color:var(--ready)}
+.badge.sample{background:#2b260f;color:var(--sample)}
+.badge.error{background:#2b1212;color:var(--bad)}
+.card .detail{font-size:12.5px;color:var(--mut);min-height:18px}
+.card .secrets{font-family:var(--mono);font-size:11.5px;color:var(--gold);word-break:break-all}
+.card .meta{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--mut);font-family:var(--mono)}
+.chip{background:var(--navy2);border:1px solid var(--line);border-radius:8px;padding:2px 8px}
+.chip.write{color:var(--gold);border-color:var(--gold-dim)}
+.card .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.card .acts button,.card .acts a{background:var(--navy2);color:var(--teal);border:1px solid var(--line);
+  border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:var(--mono)}
+.card .acts button:hover{border-color:var(--teal)}
+pre{width:100%;background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+  font-family:var(--mono);font-size:11.5px;padding:9px;overflow:auto;max-height:220px;
+  white-space:pre-wrap;word-break:break-word;margin:4px 0 0}
+.honest{background:var(--navy2);border:1px solid var(--gold-dim);border-left:3px solid var(--gold);
+  border-radius:10px;padding:13px 16px;margin:20px 0;font-size:13px}
+.honest b{color:var(--gold)}
+code{font-family:var(--mono);color:var(--teal);font-size:12px}
+footer{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+.loading{color:var(--mut);font-family:var(--mono);font-size:13px;padding:24px 0}
+@media (max-width:520px){.wrap{padding:18px 12px 70px}h1{font-size:22px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><span class="brand">a11oy <span class="gold">·</span> Enterprise Mesh</span>
+      <span class="tag">· Doctrine v11 · honest states only · 0 runtime CDN</span></div>
+    <div class="nav"><a href="/">home</a><a href="/console">console</a><a href="/chaski">chaski</a><a href="/integrations">integrations</a></div>
+  </div>
+
+  <h1>Integrations <span class="gold">/</span> Connector Mesh</h1>
+  <p class="sub">One honest abstraction meshes a11oy into any enterprise CRM / ERP / identity /
+    comms / ITSM / warehouse / storage / observability stack — and is live-connected now to
+    free, no-signup intelligence sources. Every tile shows its <b>real</b> state:
+    <span style="color:var(--ok)">CONNECTED</span> (live data),
+    <span style="color:var(--ready)">READY</span> (provide the named secret to activate),
+    <span style="color:var(--sample)">SAMPLE</span> (labelled — no free tier). Records are never fabricated.</p>
+
+  <div class="scoreboard" id="scoreboard"></div>
+  <div class="filters" id="filters"></div>
+  <div id="grid" class="grid"><div class="loading">loading connector manifest…</div></div>
+
+  <div class="honest">
+    <b>Honesty &amp; doctrine.</b> States are computed by the framework's <code>resolve_state()</code>
+    core from live credential presence + provider reachability — not hand-set. READY tiles name the
+    exact <code>SZL_*</code> Space-secret(s) required; the instant a secret lands the tile flips to
+    CONNECTED and renders the customer's live data. Every <span class="chip write">write</span> is
+    Λ-gated (Λ&nbsp;never&nbsp;1.0) and DSSE/Khipu-receipted; receipts carry credential
+    <i>fingerprint hashes</i>, never the key. Verify any tile yourself with its
+    <code>read</code> button (hits the live API) or its docs link.
+  </div>
+
+  <footer>
+    a11oy Enterprise Connector Framework · <code>GET /api/a11oy/connectors</code> ·
+    © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 LOCKED — 749/14/163 — Λ = Conjecture 1.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var API = "/api/a11oy/connectors";
+  var READ = function(id){ return "/api/a11oy/v1/connectors/" + encodeURIComponent(id) + "/read?limit=4"; };
+  var state = { all: [], filter: "all" };
+
+  function el(tag, cls, txt){
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+  function safeText(v){ return (v == null) ? "" : String(v); }
+
+  function badge(st){
+    var b = el("span", "badge " + safeText(st), safeText(st).toUpperCase() || "?");
+    return b;
+  }
+
+  function renderScoreboard(m){
+    var sb = document.getElementById("scoreboard");
+    if (!sb) return;
+    sb.textContent = "";
+    var sc = (m && m.scoreboard) || {};
+    var defs = [
+      ["total", "connectors", (m && m.count) || 0],
+      ["connected", "live now", sc.connected || 0],
+      ["ready", "ready (creds)", sc.ready || 0],
+      ["sample", "sample", sc.sample || 0]
+    ];
+    defs.forEach(function(d){
+      var box = el("div", "score " + d[0]);
+      box.appendChild(el("div", "n", String(d[2])));
+      box.appendChild(el("div", "l", d[1]));
+      sb.appendChild(box);
+    });
+  }
+
+  function renderFilters(){
+    var fc = document.getElementById("filters");
+    if (!fc) return;
+    fc.textContent = "";
+    var cats = {};
+    state.all.forEach(function(c){ if (c && c.category) cats[c.category] = (cats[c.category]||0)+1; });
+    var keys = Object.keys(cats).sort();
+    var defs = [["all", "all (" + state.all.length + ")"]];
+    keys.forEach(function(k){ defs.push([k, k + " (" + cats[k] + ")"]); });
+    defs.forEach(function(d){
+      var b = el("button", state.filter === d[0] ? "on" : "", d[1]);
+      b.addEventListener("click", function(){ state.filter = d[0]; renderFilters(); renderGrid(); });
+      fc.appendChild(b);
+    });
+  }
+
+  function renderGrid(){
+    var grid = document.getElementById("grid");
+    if (!grid) return;
+    grid.textContent = "";
+    var items = state.all.filter(function(c){
+      return state.filter === "all" || (c && c.category === state.filter);
+    });
+    if (!items.length){
+      grid.appendChild(el("div", "loading", "no connectors in this category."));
+      return;
+    }
+    items.forEach(function(c){
+      if (!c) return;
+      var st = safeText(c.state) || "error";
+      var card = el("div", "card s-" + st);
+
+      var head = el("div", "h");
+      var left = el("div");
+      left.appendChild(el("div", "name", safeText(c.label) || safeText(c.id)));
+      left.appendChild(el("div", "cat", safeText(c.category) + " · " + safeText(c.auth_kind)));
+      head.appendChild(left);
+      head.appendChild(badge(st));
+      card.appendChild(head);
+
+      card.appendChild(el("div", "detail", safeText(c.detail) || safeText(c.sample_reason) || ""));
+
+      if (st === "ready" && c.missing_env && c.missing_env.length){
+        card.appendChild(el("div", "secrets", "set: " + c.missing_env.join(", ")));
+      }
+
+      var meta = el("div", "meta");
+      if (c.free_tier) meta.appendChild(el("span", "chip", "free tier"));
+      if (c.writable) meta.appendChild(el("span", "chip write", "Λ-gated write"));
+      if (c.mcp_tool) meta.appendChild(el("span", "chip", "mcp"));
+      card.appendChild(meta);
+
+      var acts = el("div", "acts");
+      var rb = el("button", "", "read ▸");
+      var out = el("pre");
+      out.style.display = "none";
+      rb.addEventListener("click", function(){
+        rb.textContent = "reading…";
+        fetch(READ(c.id)).then(function(r){ return r.json(); }).then(function(j){
+          out.style.display = "block";
+          out.textContent = JSON.stringify(j, null, 2);
+          rb.textContent = "read ▸";
+        }).catch(function(e){
+          out.style.display = "block";
+          out.textContent = "read error: " + safeText(e && e.message);
+          rb.textContent = "read ▸";
+        });
+      });
+      acts.appendChild(rb);
+      if (c.docs_url){
+        var a = el("a", "", "docs ↗");
+        a.href = c.docs_url; a.target = "_blank"; a.rel = "noopener noreferrer";
+        acts.appendChild(a);
+      }
+      card.appendChild(acts);
+      card.appendChild(out);
+      grid.appendChild(card);
+    });
+  }
+
+  function boot(){
+    fetch(API).then(function(r){ return r.json(); }).then(function(m){
+      state.all = (m && m.connectors) || [];
+      renderScoreboard(m);
+      renderFilters();
+      renderGrid();
+    }).catch(function(e){
+      var grid = document.getElementById("grid");
+      if (grid){
+        grid.textContent = "";
+        grid.appendChild(el("div", "loading", "could not load /api/a11oy/connectors — " + safeText(e && e.message)));
+      }
+    });
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>
