@@ -19,6 +19,18 @@ name: Sync backend to HuggingFace Space
 # elsewhere (front-door sync) or already baked on the Space — re-syncing them here
 # would reintroduce the documented LFS/pre-receive failures.
 #
+# delete-aware backend sync (drift-fix): the mirror used to be add/update-only, so a
+# backend module DELETED from the repo AND dropped from the Dockerfile COPY set left a
+# stale .py lingering in the Space tree forever (harmless to the built image, but the
+# Space tree drifts from GitHub and confuses hf-module-drift-check). hf_sync_backend.py
+# now also diffs the Space's current .py tree against the computed mirror set and emits
+# a delete (in the SAME create_commit) for any backend .py no longer in the mirror.
+# Deletion is scoped to backend .py ONLY — files whose directory this sync actually
+# populates (derived from the mirror set itself), never README, the front-door
+# pages/*.{html,js} + console/*.{html,js} owned by hf-sync.yml, the built SPA bundles
+# (console/assets, console/static), or LFS/vendor blobs (static/vendor3d, etc.). An
+# in-sync repo stays a true no-op (no changes + no deletions => no commit).
+#
 # The push logic lives in .github/scripts/hf_sync_backend.py (extracted from the old
 # inline heredoc) so the SAME code is exercised by the network-free self-test
 # .github/scripts/test_hf_sync_backend.py (run in tests.yml). The self-test proves

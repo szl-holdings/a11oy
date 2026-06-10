@@ -4,7 +4,9 @@
 The hf-sync-backend workflow was only ever observed on the "already in sync -> no-op"
 path. This exercises the actual push path end-to-end with fakes (no network, no live
 Space touched): it imports the SAME module the workflow runs and asserts the OID-diff
-selection only pushes files whose content differs and leaves identical files untouched.
+selection only pushes files whose content differs, leaves identical files untouched,
+and (delete-aware) removes backend .py orphaned on the Space while never touching
+README / front-door / built-asset / vendor paths.
 
 Run by file path (the .github/scripts dir is not an importable package):
     python3 .github/scripts/test_hf_sync_backend.py
@@ -27,6 +29,13 @@ class FakeOp:
     def __init__(self, path_in_repo, path_or_fileobj):
         self.path_in_repo = path_in_repo
         self.path_or_fileobj = path_or_fileobj
+
+
+class FakeDelete:
+    """Stand-in for huggingface_hub.CommitOperationDelete (records its path)."""
+
+    def __init__(self, path_in_repo):
+        self.path_in_repo = path_in_repo
 
 
 class FakeCommit:
@@ -85,8 +94,45 @@ class SelectChangedFilesTest(unittest.TestCase):
         self.assertEqual([p for p, _ in changed], ["szl_stable.py"])
 
 
+class SelectDeletionsTest(unittest.TestCase):
+    """The delete pass removes orphaned backend .py and NOTHING else."""
+
+    def setUp(self):
+        # The mirror this run keeps in sync: root modules + a packaged subdir module.
+        self.mirror = ["Dockerfile", "pkg/keep.py", "serve.py", "szl_keep.py"]
+
+    def test_orphaned_backend_py_selected(self):
+        space_paths = [
+            "serve.py",            # in mirror -> keep
+            "szl_keep.py",         # in mirror -> keep
+            "szl_orphan.py",       # root backend .py NOT in mirror -> delete
+            "pkg/keep.py",         # in mirror -> keep
+            "pkg/gone.py",         # subdir backend .py NOT in mirror -> delete
+        ]
+        self.assertEqual(
+            hsb.select_deletions(self.mirror, space_paths),
+            ["pkg/gone.py", "szl_orphan.py"],
+        )
+
+    def test_never_touches_non_backend_or_unmanaged_dirs(self):
+        space_paths = [
+            "README.md",                       # not .py
+            "pages/console.html",              # front-door (hf-sync.yml)
+            "console/index.js",                # front-door (hf-sync.yml)
+            "console/assets/app.py",           # built-asset dir we never populate
+            "static/vendor3d/three.py",        # vendor dir we never populate
+            "szl_orphan.py.bak-20260601",      # timestamped backup
+            "szl_orphan.py",                   # the ONLY real delete candidate
+        ]
+        self.assertEqual(hsb.select_deletions(self.mirror, space_paths), ["szl_orphan.py"])
+
+    def test_in_sync_tree_yields_no_deletions(self):
+        space_paths = ["Dockerfile", "serve.py", "szl_keep.py", "pkg/keep.py"]
+        self.assertEqual(hsb.select_deletions(self.mirror, space_paths), [])
+
+
 class SyncToSpacePushTest(unittest.TestCase):
-    """End-to-end: assert create_commit gets EXACTLY the changed files, not the rest."""
+    """End-to-end: assert create_commit gets EXACTLY the changed/deleted files."""
 
     def setUp(self):
         self.blobs = {
@@ -104,10 +150,12 @@ class SyncToSpacePushTest(unittest.TestCase):
 
     def test_commit_contains_only_changed_file(self):
         api = FakeApi()
-        changed = hsb.sync_to_space(
-            self.mirror, self.space_oid, self.read_bytes, api, FakeOp, "SZLHOLDINGS/a11oy"
+        changed, deleted = hsb.sync_to_space(
+            self.mirror, self.space_oid, self.read_bytes, api, FakeOp,
+            "SZLHOLDINGS/a11oy", op_delete=FakeDelete,
         )
         self.assertEqual(changed, ["serve.py"])
+        self.assertEqual(deleted, [])
         self.assertEqual(len(api.calls), 1, "exactly one commit for a non-empty change set")
         ops = api.calls[0]["operations"]
         committed = [op.path_in_repo for op in ops]
@@ -120,14 +168,45 @@ class SyncToSpacePushTest(unittest.TestCase):
         self.assertEqual(api.calls[0]["repo_type"], "space")
         self.assertEqual(api.calls[0]["repo_id"], "SZLHOLDINGS/a11oy")
 
+    def test_commit_deletes_orphaned_backend_py(self):
+        api = FakeApi()
+        # Everything is byte-identical on the Space, but an orphaned backend .py lingers.
+        in_sync = {p: oid(d) for p, d in self.blobs.items()}
+        in_sync["szl_orphan.py"] = oid(b"# old module removed from the repo\n")
+        changed, deleted = hsb.sync_to_space(
+            self.mirror, in_sync, self.read_bytes, api, FakeOp,
+            "SZLHOLDINGS/a11oy", op_delete=FakeDelete,
+        )
+        self.assertEqual(changed, [], "no content changes — only a deletion")
+        self.assertEqual(deleted, ["szl_orphan.py"])
+        self.assertEqual(len(api.calls), 1, "a deletion-only change set still commits once")
+        ops = api.calls[0]["operations"]
+        self.assertEqual(len(ops), 1)
+        self.assertIsInstance(ops[0], FakeDelete)
+        self.assertEqual(ops[0].path_in_repo, "szl_orphan.py")
+
     def test_no_commit_when_everything_in_sync(self):
         api = FakeApi()
         in_sync = {p: oid(d) for p, d in self.blobs.items()}
-        changed = hsb.sync_to_space(
-            self.mirror, in_sync, self.read_bytes, api, FakeOp, "SZLHOLDINGS/a11oy"
+        changed, deleted = hsb.sync_to_space(
+            self.mirror, in_sync, self.read_bytes, api, FakeOp,
+            "SZLHOLDINGS/a11oy", op_delete=FakeDelete,
         )
         self.assertEqual(changed, [])
+        self.assertEqual(deleted, [])
         self.assertEqual(api.calls, [], "an in-sync run must never create a commit")
+
+    def test_delete_pass_skipped_without_op_delete(self):
+        # Legacy add/update-only behaviour: orphan on the Space, but no op_delete given.
+        api = FakeApi()
+        in_sync = {p: oid(d) for p, d in self.blobs.items()}
+        in_sync["szl_orphan.py"] = oid(b"# lingering\n")
+        changed, deleted = hsb.sync_to_space(
+            self.mirror, in_sync, self.read_bytes, api, FakeOp, "SZLHOLDINGS/a11oy",
+        )
+        self.assertEqual(changed, [])
+        self.assertEqual(deleted, [])
+        self.assertEqual(api.calls, [], "no op_delete => no delete pass, in-sync is a no-op")
 
 
 class DockerfileParseTest(unittest.TestCase):
