@@ -1,0 +1,33 @@
+name: Bundle Reference Check
+
+# Fail-fast guard against the Task #546 drift: a UDS bundle YAML in this repo
+# pointing packages[].repository + ref at a GHCR package/tag that was never
+# published (e.g. ghcr.io/szl-holdings/packages/<name>:<tag>, 403/404), which
+# breaks `uds create`/`uds deploy` for anyone following the public docs.
+#
+# Delegates to the org guard so the probing logic + allowlist live in one place
+# (szl-holdings/.github). An unreachable SZL-owned ref fails this PR/push; an
+# unreachable external upstream ref only warns. The org's scheduled sweep
+# (szl-holdings/.github → bundle-ref-check.yml) is the catch-all safety net.
+
+on:
+  pull_request:
+    paths:
+      - "**/uds-bundle.yaml"
+      - "**/uds-bundle.yml"
+      - ".github/workflows/bundle-ref-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/uds-bundle.yaml"
+      - "**/uds-bundle.yml"
+      - ".github/workflows/bundle-ref-check.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-refs:
+    uses: szl-holdings/.github/.github/workflows/reusable-bundle-ref-check.yml@main
+    secrets: inherit
