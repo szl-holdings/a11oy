@@ -527,6 +527,11 @@ COPY live_snapshots/ ./live_snapshots/
 # routes fall through to the SPA. serve.py imports it try/except-guarded.
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY a11oy_dev1_endpoints.py ./a11oy_dev1_endpoints.py
+# ADDITIVE (persistent signing identity, #293 follow-up): the wow signer
+# imports a11oy_signing_key.load_signing_key; without this per-file COPY the
+# import fails and a11oy silently falls back to an ephemeral key (no persistent
+# identity across restarts). Per-file COPY (this Dockerfile never uses COPY . .).
+COPY a11oy_signing_key.py ./a11oy_signing_key.py
 
 # ADDITIVE (Vertical Packs Layer, 2026-06-08, Dev2): a11oy_vertical_feeds.py exposes
 # the 5 vertical packs (Defense/Gov, Finance, Legal, Enterprise/Cyber, Real Estate)
