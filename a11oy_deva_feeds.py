@@ -25,7 +25,7 @@ DATA RULES (verified team/LIVE_SOURCES_VERIFIED.md, all HTTP 200 from this egres
 All SERVER-SIDE (0 client CDN). Warm cache with honest freshness labels. Synthetic
 enrichment (forecasts, factor scores) is DETERMINISTIC + SIMULATED-labeled, never faked live.
 
-DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; Λ=Conjecture 1 (advisory floor 0.90, NOT a theorem);
+DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (advisory floor 0.90, NOT a theorem);
 SLSA L1 honest; no fabricated data; premium feeds = CONNECT-READY (never faked).
 """
 
