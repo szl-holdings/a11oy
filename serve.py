@@ -894,8 +894,8 @@ for _resweep_mod in (
 # (Gershgorin MA1, Merkle CP-1, Ville MC-4, RobustDeclass IF2, PAC-Bayes PB1,
 # Quorum-Intersection CN-1, DSSE-Token TE-3, NI-Composition IF-3, Replay AU-1)
 # as HONEST cards. Each carries the verbatim #print axioms + an
-# "EXPERIMENTAL · CI-green on main" chip; LOCKED-proven stays EXACTLY 5
-# {F1,F11,F12,F18,F19}; Λ = Conjecture 1. Where a check is cheap it RUNS a REAL
+# "EXPERIMENTAL · CI-green on main" chip; LOCKED-proven stays EXACTLY 8
+# {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1. Where a check is cheap it RUNS a REAL
 # in-image computation (Gershgorin matrix-health, Ville anytime-alarm, replay-
 # determinism + tamper-localize, quorum-intersection, DSSE injectivity). stdlib-
 # only, 0 CDN, registered BEFORE the SPA catch-all, try/except-guarded.
@@ -1220,7 +1220,7 @@ async def healthz() -> JSONResponse:
         "dependency": {"node_backend": {"status": dep.get("status"), "backend_alive": dep.get("backend_alive"), "last_checked_age_s": round(_hz_time.time() - _ca, 1) if _ca else None}},
         "gates": len(_gates_list),
         "declarations": 749,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "axioms": 14,
         "sorries": 163,
         "mcp_tools": 12,
@@ -1350,7 +1350,7 @@ async def list_gates() -> JSONResponse:
         "count": len(summary),
         "gates": summary,
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": 12, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": 12, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "lean_citation_audit": {
             "verified_against": "LEAN_PROOF_CITATION_MATRIX.csv",
             "real_theorem_citations": verified,
@@ -1490,7 +1490,7 @@ async def evidence() -> JSONResponse:
         "source": "ouroboros/LUTAR_EVIDENCE.md",
         "lean_repo": "https://github.com/szl-holdings/lutar-lean",
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "date": "2026-05-02",
         "total_assertions": 22,
         "passed": 22,
@@ -1610,7 +1610,7 @@ async def ouroboros_run_all() -> JSONResponse:
         "duration_ms": duration_ms,
         "verdict": "GREEN" if tests_fail == 0 else "RED",
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "receipts": receipts,
     })
 
@@ -1658,7 +1658,7 @@ async def reason(request: Request) -> JSONResponse:
         "policy_result": gate_result,
         "context": body.get("context", ""),
         "all_gates_count": len(_gates_list),
-        "doctrine": "v11 — locked kernel c7c0ba17: 749 declarations / 14 unique axioms / 163 tracked sorries (5 proven) — experimental main 7885fd9: 1304 declarations / 22 axioms · ~36 theorems CI-green (Wave5-8), not folded into the locked count — lutar-lean@main",
+        "doctrine": "v11 — locked kernel c7c0ba17: 749 declarations / 14 unique axioms / 163 tracked sorries (8 locked-proven) — experimental main 7885fd9: 1304 declarations / 22 axioms · ~36 theorems CI-green (Wave5-8), not folded into the locked count — lutar-lean@main",
         "hatun_willay": True,
     }
     _reason_cites = [{"endpoint": "/api/a11oy/v1/policy/evaluate (governed reasoning gate)",
@@ -2655,7 +2655,7 @@ async def _a11oy_pr_lambda_v2():
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
         "uniqueness": "Conjecture 1 — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "doctrine": "v11",
     })
 
@@ -2805,7 +2805,7 @@ async def _a11oy_pr_honest_v2():
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
         "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
@@ -2857,7 +2857,7 @@ async def _a11oy_pr_brain_route_v2():
     return JSONResponse({
         "space": "a11oy", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "policy_gates": 46, "anchor_formula_gates": 44,
         "role": "Brand Orchestration / gates",
         "lambda_floor": 0.90,
@@ -2939,7 +2939,7 @@ async def _a11oy_pr_mesh_state_v2():
         "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "honesty": "szl_wire unavailable; honest stub mesh state returned. "
                    "Wire D is in-process only (cross-Space broker NOT wired). "
                    "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
@@ -3147,7 +3147,7 @@ async def api_a11oy_v4_fleet_early() -> JSONResponse:
             peers.append({"capability": _label, "status": "unreachable", "error": str(_e)[:120]})
     return JSONResponse({
         "timestamp": _dt.utcnow().isoformat() + "Z",
-        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
+        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "lambda": "Conjecture 1 (NOT a theorem — LOCKED)",
         "peers": peers,
     })
@@ -3567,7 +3567,7 @@ try:
             answer = ("PROVED formulas (Lean, sorry-free) = {" + ", ".join(_SC_PROVED_FORMULAS) + "} = "
                       + str(len(_SC_PROVED_FORMULAS)) + " total. All other F-numbers are roadmap / open sorry. "
                       "Lambda is Conjecture 1. Locked kernel @ c7c0ba17: 749 declarations / 14 unique axioms / 163 sorries (doctrine v11). "
-                      "Experimental main @ 7885fd9: 1304 declarations / 22 axioms, ~36 theorems CI-green (Wave5-8) — labeled experimental, NOT folded into the locked count of 5.")
+                      "Experimental main @ 7885fd9: 1304 declarations / 22 axioms, ~36 theorems CI-green (Wave5-8) — labeled experimental, NOT folded into the locked count of 8.")
             cites = [{"endpoint": "szl_brain.CANONICAL", "data": {"proved": _SC_PROVED_FORMULAS, "count": len(_SC_PROVED_FORMULAS), "doctrine": "v11", "kernel_commit": "c7c0ba17"}}]
         elif topic == "roadmap":
             answer = ("a11oy is fully self-contained: it is the orchestrator, receipt substrate and LLM hub, "
@@ -4223,8 +4223,8 @@ except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
 # governed-decision loop, eval arena, calibrated forecast baseline, vertical
 # pack registry, business observability. Registered BEFORE the SPA catch-all.
 #
-# HONESTY: Λ = Conjecture 1 (advisory, never a pass/fail oracle). 5 proven
-# formulas {F1,F11,F12,F18,F19}. SLSA L1+L2 attested; L3 build-provenance roadmap
+# HONESTY: Λ = Conjecture 1 (advisory, never a pass/fail oracle). 8 proven
+# formulas {F1,F4,F7,F11,F12,F18,F19,F22}. SLSA L1+L2 attested; L3 build-provenance roadmap
 # (not yet claimed); NOT FedRAMP/Iron Bank/CMMC/ATO without roadmap. No
 # cross-origin organ dependencies — a11oy is fully self-contained.
 # The DSSE key below is a REAL ephemeral ECDSA P-256 key generated in-image
@@ -5268,7 +5268,7 @@ except Exception as _ac_e:  # never break the existing app
 # ADDITIVE (Doctrine v13, 2026-06-08, Yachay): SEISMIC forecast surface.
 # Honest Reasenberg-Jones / Omori-Utsu aftershock-rate forecasting evaluated
 # against LIVE USGS public feeds. This is a NEW frontier (statistical earth
-# science), NOT a locked-proven claim, and is never folded into the locked-5.
+# science), NOT a locked-proven claim, and is never folded into the locked-8.
 # Clean-room (MIT), public-domain science, NO third-party code copied, 0 CDN
 # (server fetches the public USGS API; the SPA renders it with attribution).
 # Wrapped in try/except so a feed/dep issue can never take down the SPA.
@@ -6144,7 +6144,7 @@ async def _a11oy_pr_lambda():
         "aggregate": "geometric mean (yuyay_v3 canonical, 13-axis)",
         "uniqueness": "Conjecture 1 — NOT a Theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "policy_gates": 46, "anchor_formula_gates": 44,
         "doctrine": "v11",
     })
@@ -6167,7 +6167,7 @@ async def _a11oy_pr_honest():
     return JSONResponse({
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
         "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
@@ -6217,7 +6217,7 @@ async def _a11oy_pr_brain_route():
     return JSONResponse({
         "space": "a11oy", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "policy_gates": 46, "anchor_formula_gates": 44,
         "role": "Brand Orchestration / gates",
         "lambda_floor": 0.90,
@@ -6259,7 +6259,7 @@ async def _a11oy_pr_mesh_state():
         "mesh_organs": ["a11oy", "Reasoning", "Policy / Safety", "Operator", "Receipts", "Knowledge"],
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "honesty": "szl_wire unavailable; honest stub mesh state returned. "
                    "Wire D is in-process only (cross-Space broker NOT wired). "
                    "Wires G (brain-jack mesh) and H (lean-verify proxy) are NOT "
@@ -6283,7 +6283,7 @@ async def api_health() -> JSONResponse:
         "counts": "749/14/163",
         "counts_experimental": "1304/22",
         "lean_sha": "c7c0ba17",
-        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"},
+        "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
         "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
     })
@@ -6322,7 +6322,7 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
             peers.append({"capability": _label, "status": "unreachable", "error": str(_e)[:120]})
     return JSONResponse({
         "timestamp": _dt.utcnow().isoformat() + "Z",
-        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 5; Λ stays Conjecture 1"}},
+        "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "lambda": "Conjecture 1 (NOT a theorem — LOCKED)",
         "peers": peers,
     })
