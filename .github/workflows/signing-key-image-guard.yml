@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings
+#
+# Signing Key Image Guard.
+#
+# a11oy signs its release/decision receipts with a PERSISTENT ECDSA P-256
+# (secp256r1) key that a11oy_signing_key.py::load_signing_key() reads from a
+# mounted Secret. a11oy_dev1_endpoints.py imports that loader, and this Dockerfile
+# never uses `COPY . .`. If `COPY a11oy_signing_key.py ...` is dropped, the module
+# is absent from the image, the import fails, and serve.py silently falls back to
+# a THROWAWAY in-process key that changes on every restart — breaking offline
+# verification of every receipt a11oy ever signed. This guard fails the build when
+# a11oy_signing_key.py is not present in the image (or load_signing_key cannot be
+# imported). Mirrors dockerfile-copy-guard.yml.
+
+name: Signing Key Image Guard
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "a11oy_signing_key.py"
+      - ".github/signing-key-image-check.py"
+      - ".github/workflows/signing-key-image-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "a11oy_signing_key.py"
+      - ".github/signing-key-image-check.py"
+      - ".github/workflows/signing-key-image-guard.yml"
+  workflow_dispatch:
+  schedule:
+    # Weekly: build the actual image and assert the module is importable INSIDE it.
+    - cron: "37 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Static guard (every push/PR touching the relevant files) ────────────────
+  # No Docker: parses the Dockerfile to confirm a11oy_signing_key.py is COPY'd,
+  # confirms the file exists, and imports load_signing_key() to confirm it works.
+  static-check:
+    name: Dockerfile COPYs a11oy_signing_key.py + loader imports
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2  # 11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Set up Python
+        uses: actions/setup-python@v5.6.0  # a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+      - name: Install cryptography (needed by load_signing_key)
+        run: python3 -m pip install --quiet cryptography
+      - name: Self-test the Dockerfile-COPY parser (negative fixtures)
+        run: python3 .github/signing-key-image-check.py --self-test
+      - name: Assert image will carry a working signing-key loader
+        run: python3 .github/signing-key-image-check.py
+
+  # ── In-image guard (weekly / manual) ────────────────────────────────────────
+  # Builds the real image and asserts a11oy_signing_key is present AND importable
+  # INSIDE the container — the failure mode the static check can only approximate.
+  image-build-check:
+    name: a11oy_signing_key present + importable in the built image
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2  # 11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build a11oy image
+        run: docker build -t a11oy:signing-key-guard .
+      - name: Assert a11oy_signing_key is importable inside the image
+        run: |
+          set -euo pipefail
+          docker run --rm a11oy:signing-key-guard python3 -c "
+          import a11oy_signing_key
+          priv, pub, src, err = a11oy_signing_key.load_signing_key()
+          assert not err, 'load_signing_key error: %s' % err
+          assert priv is not None and pub, 'no usable key (source=%s)' % src
+          print('OK: a11oy_signing_key importable in image; key source=%s' % src)
+          "

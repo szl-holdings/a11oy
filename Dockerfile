@@ -526,6 +526,15 @@ COPY live_snapshots/ ./live_snapshots/
 # Dockerfile never uses `COPY . .`) -- without it the import fails and the /v1/wow/*
 # routes fall through to the SPA. serve.py imports it try/except-guarded.
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+#
+# Signing-key loader (a11oy_signing_key.py): load_signing_key() reads a11oy's
+# PERSISTENT ECDSA P-256 receipt key from the mounted Secret. a11oy_dev1_endpoints.py
+# imports it, so it MUST be COPY'd into the image (this Dockerfile never uses
+# `COPY . .`). Without this line the import fails, the loader never runs, and
+# serve.py silently falls back to a throwaway in-process key that changes on every
+# restart -- which breaks offline verification of every receipt a11oy ever signed.
+# Guarded by .github/workflows/signing-key-image-guard.yml.
+COPY a11oy_signing_key.py ./a11oy_signing_key.py
 COPY a11oy_dev1_endpoints.py ./a11oy_dev1_endpoints.py
 
 # ADDITIVE (Vertical Packs Layer, 2026-06-08, Dev2): a11oy_vertical_feeds.py exposes
