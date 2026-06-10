@@ -30,6 +30,14 @@ name: Sync to HuggingFace Space
 # set) against the local files and emits CommitOperationDelete for any that are gone.
 # The same exclusions apply: built SPA bundles (console/assets/**, console/static/**)
 # and *.bak-* backups are NEVER deleted.
+#
+# cathedral front-door coverage (drift-fix 2026-06-10): the redesigned a11oy.net
+# hero is served from cathedral.html (repo ROOT) + static/a11oy_cathedral.js, which
+# fall OUTSIDE the pages/console glob above — so an edit to either on GitHub main was
+# NOT auto-mirrored to the Space and the two copies drifted (they only matched because
+# the launch pushed them by hand). Both exact paths are now part of on.push.paths, the
+# add/update glob, and the delete-aware is_front_door() set (matched as an EXACT pair,
+# NOT a broad static/* glob, so the Space's other static/ vendor blobs are untouched).
 
 on:
   push:
@@ -39,6 +47,8 @@ on:
       - "pages/**"
       - "console/*.html"
       - "console/*.js"
+      - "cathedral.html"
+      - "static/a11oy_cathedral.js"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
@@ -136,7 +146,15 @@ jobs:
           # EXCLUDES console/assets/** and console/static/** — those are the built SPA
           # bundles (large / possibly LFS) that already live on the Space; re-syncing
           # them reintroduces the documented LFS/pre-receive failures.
-          patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js"]
+          #
+          # CATHEDRAL_FILES: the redesigned a11oy.net hero (cathedral.html at the repo
+          # root + static/a11oy_cathedral.js) is served at "/" too but lives OUTSIDE the
+          # pages/console glob. These two EXACT paths are mirrored as well. They are
+          # matched as an exact pair (never a broad static/* glob), so the Space's other
+          # static/ vendor blobs (vendor3d/, knowledge.json, etc.) are never touched.
+          CATHEDRAL_FILES = ["cathedral.html", "static/a11oy_cathedral.js"]
+          patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js",
+                      *CATHEDRAL_FILES]
           paths = []
           for pat in patterns:
               paths.extend(glob.glob(pat))
@@ -155,6 +173,10 @@ jobs:
               base = os.path.basename(p)
               if ".bak" in base:
                   return False
+              # Cathedral hero files are managed as an EXACT pair so the delete pass
+              # never sweeps the Space's other static/ vendor blobs.
+              if p in CATHEDRAL_FILES:
+                  return True
               d = os.path.dirname(p)
               return d in ("pages", "console") and (p.endswith(".html") or p.endswith(".js"))
 
