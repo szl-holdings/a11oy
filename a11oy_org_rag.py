@@ -615,13 +615,14 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
             for path in seeds:
                 raw = None
                 src = ""
-                # try each repo in the category over GitHub first
-                if gh:
-                    for repo in repos:
-                        raw = _gh_raw(repo, path, gh)
-                        if raw is not None:
-                            src = f"gh:{ORG}/{repo}"
-                            break
+                # try each repo in the category over GitHub first.
+                # szl-holdings corpus repos are PUBLIC, so reads work even with an
+                # empty token (unauthenticated, rate-limited) — never gate on `gh`.
+                for repo in repos:
+                    raw = _gh_raw(repo, path, gh)
+                    if raw is not None:
+                        src = f"gh:{ORG}/{repo}"
+                        break
                 # fall back to HF Space raw (e.g. anatomy static index.html)
                 if raw is None:
                     for sp in spec.get("hf_spaces", []):
@@ -659,8 +660,9 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
                 "the complete ingest. "
                 + ("dense vectors present." if embed_fn is not None
                    else "FTS5/lexical only — embedding model unavailable (honest).")
-                + ("" if gh else " NOTE: no GitHub credential in env — seed pulled from "
-                   "HF Spaces only where possible (honest, not fabricated).")),
+                + ("" if gh else " NOTE: no GitHub credential in env — public "
+                   "szl-holdings repos read UNAUTHENTICATED (rate-limited but real); "
+                   "HF Spaces also ingested (honest, not fabricated).")),
         }
         conn.close()
         rec = emit_receipt("org_rag.index.seed", _BUILD_META) if emit_receipt else None
@@ -699,8 +701,10 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
         for cat, spec in SZL_CORPUS.items():
             c_files, c_chunks = 0, 0
             # ---- GitHub repos (full tree) --------------------------------
-            if gh:
-                for repo in spec.get("gh_repos", []):
+            # szl-holdings corpus repos are PUBLIC: full-tree reads work even with
+            # an empty token (unauthenticated, GitHub rate-limited) — never gate on
+            # `gh`. A token, when present, just lifts the rate limit.
+            for repo in spec.get("gh_repos", []):
                     rk = f"{cat}:{repo}"
                     if rk in seen_repo:
                         continue
@@ -767,8 +771,9 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
                 "FULL CORPUS (mode=full) — all seven categories ingested live. "
                 + ("dense vectors present." if embed_fn is not None
                    else "FTS5/lexical only — embedding model unavailable (honest).")
-                + ("" if gh else " NOTE: no GitHub credential in env — GitHub repos "
-                   "skipped; HF Space content ingested (honest partial, not faked).")),
+                + ("" if gh else " NOTE: no GitHub credential in env — public "
+                   "szl-holdings repos read UNAUTHENTICATED (GitHub rate-limited but "
+                   "real); HF Space content also ingested (honest, not faked).")),
         }
         conn.close()
         rec = emit_receipt("org_rag.index.full", _BUILD_META) if emit_receipt else None
