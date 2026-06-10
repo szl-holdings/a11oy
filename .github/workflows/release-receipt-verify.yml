@@ -217,7 +217,7 @@ jobs:
             const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
             const existing = res.data.items.find(i => !i.pull_request) || null;
 
-            const stats = `release=${process.env.REL_TAG} checked=${process.env.CHECKED} verified=${process.env.PASSED} failed=${process.env.FAILED} unverifiable=${process.env.UNVERIFIABLE}`;
+            const stats = `releases=${process.env.REL_INFO} checked=${process.env.CHECKED} verified=${process.env.PASSED} failed=${process.env.FAILED} unverifiable=${process.env.UNVERIFIABLE}`;
             const now = new Date().toISOString();
 
             if (failed) {
