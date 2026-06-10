@@ -143,3 +143,53 @@ jobs:
 
       - name: Release-receipt summary artifact is intact
         run: echo "release-receipt-verify published a non-empty, well-formed summary artifact."
+
+      # Direct push notification so a regressed/absent summary artifact is noticed
+      # immediately, not just buried in a red run on the Actions tab. Fires ONLY
+      # when an earlier audit step failed (failure()) — the normal soft-pass
+      # (checked=0) path and self-test-only PR/push runs never reach this job, so
+      # they cannot page. Posts to a Slack-compatible incoming webhook via curl
+      # (no third-party action, staying within the org's github-owned-actions-only
+      # policy); ntfy renders the {text} payload. If no webhook secret is
+      # configured it logs a notice and soft-skips — the red run still stands.
+      - name: Alert the team on summary-guard failure
+        if: ${{ failure() && (github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch') }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          TARGET_RID: ${{ steps.target.outputs.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands."
+            exit 0
+          fi
+
+          if [ -n "${TARGET_RID}" ] && [ "${TARGET_RID}" != "null" ]; then
+            verify_line="Audited release-receipt-verify run: ${TARGET_RID} (${SERVER_URL}/${REPO}/actions/runs/${TARGET_RID})"
+          else
+            verify_line="Audited release-receipt-verify run: (could not be resolved this run)"
+          fi
+
+          # Compose the message (real newlines), then JSON-encode it safely with
+          # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. ntfy renders the Slack-style {text} field.
+          text=":rotating_light: *Release-receipt summary guard FAILED* in ${REPO}.
+          A release-receipt-verify run published no / an empty / a malformed summary artifact, so the status board's release-receipt provenance row would be starved of counts.
+          ${verify_line}
+          *Failing guard run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting summary-guard failure alert to webhook..."
+          code=$(curl -sS -o /tmp/alert_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/alert_resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
