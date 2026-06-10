@@ -142,6 +142,21 @@ ENDPOINTS = {
     # ── warhacker ──
     "/api/a11oy/v1/warhacker/index": ep(schema="generic_obj", sla=None),
 
+    # ── New live tabs (2026-06-10 agent/Chaski/router build) ──
+    # feedpulse: real-time server-side liveness probe of every upstream evidence
+    #   feed (kev/osv/rekor/iss/celestrak/prometheus/fhir). Each item carries a
+    #   source + source_url, so citations are required; data must be fresh.
+    "/api/a11oy/v1/feeds/pulse": ep(schema="feeds_pulse", sla=5 * MIN, citations=True,
+        note="Live data-feed liveness/provenance heartbeat; each item cites source_url."),
+    # kevgate: live CISA KEV CVEs mapped through the REAL governed policy engine.
+    "/api/a11oy/v1/sec/kevgate": ep(schema="kevgate", sla=DAY, citations=True,
+        note="Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."),
+    # router/stats: live per-tier router stats derived from the real szl_brain.TIERS
+    #   catalog. Throughput is an honest in-memory counter (resets on rebuild), so
+    #   it is deterministic/derived -> no freshness SLA and no external citation.
+    "/api/a11oy/v1/router/stats": ep(schema="router_stats", sla=None,
+        note="Live LLM-router per-tier stats from szl_brain.TIERS; throughput is an honest in-memory counter."),
+
     # ── readiness (self) ──
     "/api/a11oy/v1/readiness": ep(schema="readiness", sla=5 * MIN),
     "/api/a11oy/v1/readiness/tab-matrix": ep(schema="tab_matrix", sla=None,
@@ -169,6 +184,9 @@ SCHEMAS = {
     "mesh": {"type": "object",
              "anyKey": ["nodes", "state", "quorum", "health", "mesh_organs", "wires", "khipu_nodes"]},
     "deva_health": {"type": "object", "required": ["tabs"]},
+    "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
+    "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
+    "router_stats": {"type": "object", "anyKey": ["routes", "servedThisWindow", "tiers"]},
     "readiness": {"type": "object", "required": ["sections"]},
     "tab_matrix": {"type": "object", "required": ["tabs", "endpoints"]},
 }
@@ -253,6 +271,11 @@ TAB_ENDPOINTS = {
     "pvaPqc": ["/api/a11oy/cosign.pub"],
     "pvaVerify": ["/api/a11oy/v1/receipt/export", "/api/a11oy/cosign.pub"],
     "whHero": ["/api/a11oy/v1/warhacker/index"],
+    # New live tabs (2026-06-10): contract them to their real backing endpoints so
+    # the probe judges them honestly instead of treating live tabs as static.
+    "feedpulse": ["/api/a11oy/v1/feeds/pulse"],
+    "kevgate": ["/api/a11oy/v1/sec/kevgate"],
+    "routerarena": ["/api/a11oy/v1/router/stats", "/api/a11oy/v1/llm/registry"],
     "udsMesh": ["/api/a11oy/v1/mesh/state"],
     "whTamper": ["/api/a11oy/v1/warhacker/index"],
     "whCannonico": ["/api/a11oy/v1/warhacker/index"],
