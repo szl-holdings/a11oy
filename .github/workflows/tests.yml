@@ -83,3 +83,23 @@ jobs:
         # HfApi/CommitOperationAdd — no network, no HF_TOKEN, the live Space is never
         # touched. Run by file path: the .github/scripts dir is not an importable package.
         run: python3 .github/scripts/test_hf_sync_backend.py
+
+  theorem-manifest-honesty-selftest:
+    name: Theorem-manifest honesty-guard self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run theorem-manifest validator honesty-guard self-test
+        # Negative-fixture self-test that gates scripts/validate_theorem_runtime_manifest.py:
+        # feeds the REAL validator tampered staged-advisory manifests (stagedAdvisory:false,
+        # missing/empty caveat, a "proven" leanStatus) and asserts it FAILS on each, plus an
+        # honest fixture that must PASS. Proves the SZL Doctrine v11 honesty guard can't be
+        # silently loosened to let a not-yet-proven claim be promoted to "proven". Pure stdlib
+        # (unittest), no network, no live manifest touched. Run by file path: the scripts dir
+        # is not an importable package.
+        run: python3 scripts/test_validate_theorem_runtime_manifest.py
