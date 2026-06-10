@@ -152,3 +152,30 @@ organs/amaru/
 # prose ("leading to remote code execution") quoted directly from CISA, not
 # SZL-authored marketing. Same third-party-data rationale as wayra_snapshot.json.
 live_snapshots/kev.json
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemptions (2026-06-10, founder-authorized).
+# Tonight's a11oy push added an in-image corpus/ mirror and rewired the
+# console's honest codename-remap. Both legitimately enumerate flagged tokens
+# for a NON-marketing reason; neither emits a banned token to a user surface.
+# ----------------------------------------------------------------------------
+
+# corpus/ — in-image mirror (corpus/INDEX.json) of REAL GitHub blobs bundled so
+# the HF Space can cite sources when api.github.com egress is blocked. Every
+# flagged corpus file is BYTE-IDENTICAL (verified same git-blob-sha) to a file
+# already allowlisted in its home path: corpus/doctrine/*V10/V11_LOCKED.md ==
+# docs/doctrine/*_LOCKED.md (these ENUMERATE the banned identities Jarvis/Bo11y/
+# Bolly as "still banned" -- the list IS the rule), and
+# corpus/formulas/a11oy__szl_formulas.py == szl_formulas.py (uses "leading 4
+# bytes" in a cryptographic commitment-prefix sense, not marketing). Same
+# verbatim-mirror / enumeration-for-detection rationale as docs/doctrine/ and
+# szl_formulas.py above. First-party files remain fully scanned.
+corpus/
+
+# pages/console.html - contains the HONEST codename-remap (`_honestOrgan` JS map
+# rosie=Operator, jarvis=Orchestrator and a comment documenting it). The
+# codename `jarvis` is enumerated here precisely to REMAP it to the honest role
+# at the render boundary so it is NEVER user-visible -- this code is what
+# ENFORCES the "no user-visible codenames" rule. Enumeration-for-remapping, same
+# rationale as ayni_os_serve.py's _HONEST_ROLE table. Not a marketing-hype claim.
+pages/console.html
