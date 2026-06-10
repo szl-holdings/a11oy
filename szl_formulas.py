@@ -1164,3 +1164,39 @@ def verify_chain(chain: ReceiptChain, calls: List[FormulaCall]) -> bool:
     return _approx(lam, chain["lambda_aggregate"])
 
 
+
+
+# ---------------------------------------------------------------------------
+# Ported from killinchu (drift-heal union-merge, 2026-06-10): SLO budget burn-rate.
+# Kept so the shared canonical module is a true superset across both apps.
+# ---------------------------------------------------------------------------
+def slo_burn_rate(error_rate: float, window_seconds: int, budget_seconds: int) -> dict:
+    """Honeycomb-lift: SLO budget burn rate (high-cardinality observability pattern).
+    
+    burn_rate = error_rate / (1 - SLO_target)
+    exhaustion_eta = budget_remaining / current_consumption_rate
+    alert = burn_rate > 14.4  (5% budget consumed in 1 hour = multi-window burn)
+    
+    Doctrine v11 LOCKED. Lambda = Conjecture 1 (NOT a theorem).
+    """
+    SLO_TARGET = 0.999  # 99.9% availability target
+    if window_seconds <= 0 or budget_seconds <= 0:
+        return {"burn_rate": 0.0, "exhaustion_eta": budget_seconds, "alert": False,
+                "doctrine": "v11", "note": "Invalid window/budget — returning safe defaults."}
+    error_budget_fraction = 1.0 - SLO_TARGET
+    burn_rate = error_rate / error_budget_fraction if error_budget_fraction > 0 else 0.0
+    budget_consumed = error_rate * window_seconds
+    budget_remaining = max(0.0, budget_seconds * error_budget_fraction - budget_consumed)
+    consumption_rate = error_rate * error_budget_fraction if error_budget_fraction > 0 else 0.0
+    exhaustion_eta = int(budget_remaining / consumption_rate) if consumption_rate > 0 else budget_seconds
+    alert = burn_rate > 14.4  # multi-window burn threshold (Google SRE Workbook)
+    return {
+        "burn_rate": round(burn_rate, 4),
+        "exhaustion_eta_seconds": exhaustion_eta,
+        "alert": alert,
+        "slo_target": SLO_TARGET,
+        "error_budget_fraction": error_budget_fraction,
+        "doctrine": "v11",
+        "lambda_axis": "reliability",
+        "note": "Honeycomb-lift: SLO burn rate. Lambda=Conjecture 1 (NOT a theorem).",
+    }
