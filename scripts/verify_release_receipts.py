@@ -227,7 +227,125 @@ def verify_dir(
     return summary
 
 
+def verify_release_tree(
+    root: Path,
+    *,
+    repo: str,
+    allowed_workflows: tuple[str, ...],
+    issuer: str,
+) -> dict:
+    """Verify receipts laid out as one subdirectory per release tag under ``root``.
+
+    Layout produced by release-receipt-verify.yml::
+
+        root/<tag-a>/*.dsse.json
+        root/<tag-b>/*.dsse.json
+
+    This is the multi-release counterpart of :func:`verify_dir`: instead of
+    re-verifying only the single latest release, it walks EVERY release directory
+    so that an older release's published envelope can never silently rot
+    unnoticed (issue #403). Flat ``*.dsse.json`` files placed directly under
+    ``root`` are still accepted and grouped under the pseudo-release ``(root)``,
+    preserving backward compatibility with the original single-release layout.
+
+    The returned summary keeps the SAME top-level integer keys
+    (``checked`` / ``passed`` / ``failed`` / ``unverifiable``) as
+    :func:`verify_dir` — they are the AGGREGATE across releases — plus a flat
+    ``results`` list (each entry annotated with its ``release``) and a per-release
+    ``releases`` breakdown. Status-page / summary-guard consumers that read the
+    top-level counts therefore keep working unchanged.
+
+    An empty tree (no release carries receipt assets) yields ``checked == 0`` —
+    the same honest soft pass as before.
+    """
+    releases: list[dict] = []
+    flat_results: list[dict] = []
+
+    def _absorb(tag: str, sub_summary: dict) -> None:
+        if sub_summary["checked"] == 0:
+            return  # a release with no *.dsse.json assets — nothing to re-check
+        for r in sub_summary["results"]:
+            annotated = dict(r)
+            annotated["release"] = tag
+            flat_results.append(annotated)
+        releases.append(
+            {
+                "tag": tag,
+                "checked": sub_summary["checked"],
+                "passed": sub_summary["passed"],
+                "failed": sub_summary["failed"],
+                "unverifiable": sub_summary["unverifiable"],
+                "results": sub_summary["results"],
+            }
+        )
+
+    # One subdirectory per release tag (sorted for deterministic output).
+    subdirs = sorted(p for p in root.iterdir() if p.is_dir()) if root.exists() else []
+    for sub in subdirs:
+        _absorb(
+            sub.name,
+            verify_dir(
+                sub, repo=repo, allowed_workflows=allowed_workflows, issuer=issuer
+            ),
+        )
+
+    # Flat *.dsse.json directly under root (legacy single-release layout). This
+    # glob is non-recursive, so receipts already counted inside subdirectories
+    # are not double-counted here.
+    _absorb(
+        "(root)",
+        verify_dir(root, repo=repo, allowed_workflows=allowed_workflows, issuer=issuer),
+    )
+
+    summary = {
+        "directory": str(root),
+        "repo": repo,
+        "allowed_workflows": list(allowed_workflows),
+        "releases_checked": len(releases),
+        "checked": sum(r["checked"] for r in releases),
+        "passed": sum(r["passed"] for r in releases),
+        "failed": sum(r["failed"] for r in releases),
+        "unverifiable": sum(r["unverifiable"] for r in releases),
+        "releases": releases,
+        "results": flat_results,
+    }
+    return summary
+
+
 def _print_summary(summary: dict) -> None:
+    if "releases" in summary:
+        _print_aggregate_summary(summary)
+        return
+    _print_dir_summary(summary)
+
+
+def _print_aggregate_summary(summary: dict) -> None:
+    print(f"[release-verify] root: {summary['directory']}")
+    print(f"[release-verify] repo: {summary['repo']}")
+    print(
+        f"[release-verify] {summary['releases_checked']} release(s) with assets, "
+        f"{summary['checked']} asset(s): {summary['passed']} verified, "
+        f"{summary['failed']} FAILED, {summary['unverifiable']} UNVERIFIABLE"
+    )
+    for rel in summary["releases"]:
+        print(
+            f"  release {rel['tag']}: {rel['checked']} asset(s) — "
+            f"{rel['passed']} verified, {rel['failed']} FAILED, "
+            f"{rel['unverifiable']} UNVERIFIABLE"
+        )
+        for r in rel["results"]:
+            tag = {"PASS": "✔", "FAIL": "✗", "UNVERIFIABLE": "✗"}.get(r["status"], "?")
+            line = f"    {tag} {r['status']:12} {r['file']}"
+            if r.get("rekor_log_index") is not None:
+                line += f"  rekor#{r['rekor_log_index']}"
+            if r.get("signer_identity"):
+                line += f"  signer={r['signer_identity']}"
+            if r.get("reason"):
+                line += f"  ({r['reason']})"
+            print(line)
+
+
+def _print_dir_summary(summary: dict) -> None:
     print(f"[release-verify] directory: {summary['directory']}")
     print(f"[release-verify] repo: {summary['repo']}")
     print(
@@ -283,7 +401,10 @@ def main(argv: list[str] | None = None) -> int:
     allowed = tuple(args.allow_workflow) if args.allow_workflow else _DEFAULT_PRODUCER_WORKFLOWS
 
     receipts_dir = Path(args.dir)
-    summary = verify_dir(
+    # Re-verify EVERY release directory under the root (issue #403), not just the
+    # latest. A flat directory of *.dsse.json is still accepted (grouped as the
+    # pseudo-release "(root)"), so this is backward compatible.
+    summary = verify_release_tree(
         receipts_dir, repo=args.repo, allowed_workflows=allowed, issuer=args.issuer
     )
     _print_summary(summary)
@@ -296,7 +417,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if summary["checked"] == 0:
         print(
-            "[release-verify] no published receipt assets found on this release — "
+            "[release-verify] no published receipt assets found on any release — "
             "nothing to re-verify (not a failure)."
         )
         return 0
