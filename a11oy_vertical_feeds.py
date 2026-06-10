@@ -19,7 +19,7 @@ RECEIPTS reusing the EXISTING machinery:
   - szl_dsse.sign_khipu_receipt(receipt)               -> real ECDSA-P256 DSSE envelope (cosign.pub verifiable)
   - szl_governance_gateway.classify/route              -> sensitivity + model-route decision
 
-DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1 (advisory floor 0.90, NOT a theorem);
+DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1 (advisory floor 0.90, NOT a theorem);
 SLSA L1 honest; no fabricated data — any synthetic enrichment is SIMULATED-labeled; 0 runtime CDN.
 All live sources verified in team/LIVE_SOURCES_VERIFIED.md (all HTTP 200).
 """
