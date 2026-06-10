@@ -113,8 +113,17 @@ footer{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;color:v
 <script>
 (function(){
   "use strict";
-  var API = "/api/a11oy/connectors";
-  var READ = function(id){ return "/api/a11oy/v1/connectors/" + encodeURIComponent(id) + "/read?limit=4"; };
+  // Namespace auto-detect: the same byte-identical page ships to both a11oy and
+  // killinchu Spaces. Derive ns from the host (szlholdings-<ns>.hf.space) so each
+  // Space hits its OWN mounted manifest; default a11oy. No CDN, no build-time edit.
+  var NS = "a11oy";
+  try {
+    var h = (location.hostname || "").toLowerCase();
+    if (h.indexOf("killinchu") !== -1) { NS = "killinchu"; }
+    else if (h.indexOf("a11oy") !== -1) { NS = "a11oy"; }
+  } catch (e) { /* keep default */ }
+  var API = "/api/" + NS + "/connectors";
+  var READ = function(id){ return "/api/" + NS + "/v1/connectors/" + encodeURIComponent(id) + "/read?limit=4"; };
   var state = { all: [], filter: "all" };
 
   function el(tag, cls, txt){
@@ -239,7 +248,7 @@ footer{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;color:v
       var grid = document.getElementById("grid");
       if (grid){
         grid.textContent = "";
-        grid.appendChild(el("div", "loading", "could not load /api/a11oy/connectors — " + safeText(e && e.message)));
+        grid.appendChild(el("div", "loading", "could not load " + API + " — " + safeText(e && e.message)));
       }
     });
   }
