@@ -222,6 +222,76 @@ MODEL_REGISTRY: list[dict[str, Any]] = [
         "notes": "Wayra (news intelligence) delegates search-augmented queries here. Reasoning mirrors for retrieval.",
         "honest_stub": True,
     },
+    # ── ADDITIONAL: OpenRouter aggregator (one key → many models) ──
+    {
+        "model_id": "openrouter_auto",
+        "display_name": "OpenRouter (aggregator)",
+        "provider": "OpenRouter",
+        "provider_slug": "openrouter",
+        "tier": 2,
+        "tier_name": "structured",
+        "context_window": 128_000,
+        "use_case": "Provider-agnostic routing for a11oy Code agent (one key, many models)",
+        "why": "Single OpenAI-compatible endpoint fans out to 200+ models; ideal A11OY_CODE_LLM_KEY backend",
+        "routing_condition": "A11OY_CODE_LLM_KEY present and provider=openrouter",
+        "api_env_var": "OPENROUTER_API_KEY",
+        "api_base": "https://openrouter.ai/api/v1/chat/completions",
+        "model_slug": "openrouter/auto",
+        "modalities": ["text"],
+        "streaming": True,
+        "operator_mirrored": False,
+        "ecosystem_mirror": ["policy", "reasoning", "killinchu"],
+        "lean_gate": "none",
+        "notes": "OpenAI-API-compatible. Resolvable via the provider-agnostic A11OY_CODE_LLM_KEY "
+                 "resolver. Honest: NOT wired in HF Spaces unless the key is set.",
+        "honest_stub": True,
+    },
+    # ── ADDITIONAL: Mistral (hosted) ──
+    {
+        "model_id": "mistral_large_2",
+        "display_name": "Mistral Large 2",
+        "provider": "Mistral AI",
+        "provider_slug": "mistral",
+        "tier": 2,
+        "tier_name": "structured",
+        "context_window": 128_000,
+        "use_case": "Structured coding / tool-calling for the a11oy Code agent",
+        "why": "Strong code + function-calling; Apache-friendly weights lineage",
+        "routing_condition": "A11OY_CODE_LLM_KEY present and provider=mistral",
+        "api_env_var": "MISTRAL_API_KEY",
+        "api_base": "https://api.mistral.ai/v1/chat/completions",
+        "model_slug": "mistral-large-latest",
+        "modalities": ["text"],
+        "streaming": True,
+        "operator_mirrored": False,
+        "ecosystem_mirror": ["reasoning", "killinchu"],
+        "lean_gate": "none",
+        "notes": "OpenAI-API-compatible chat endpoint. Honest: NOT wired in HF Spaces unless key set.",
+        "honest_stub": True,
+    },
+    # ── ADDITIONAL: DeepSeek (hosted) ──
+    {
+        "model_id": "deepseek_v3",
+        "display_name": "DeepSeek V3",
+        "provider": "DeepSeek",
+        "provider_slug": "deepseek",
+        "tier": 2,
+        "tier_name": "structured",
+        "context_window": 64_000,
+        "use_case": "Cost-efficient code + reasoning for the a11oy Code agent",
+        "why": "Strong code performance at low cost; OpenAI-compatible API",
+        "routing_condition": "A11OY_CODE_LLM_KEY present and provider=deepseek",
+        "api_env_var": "DEEPSEEK_API_KEY",
+        "api_base": "https://api.deepseek.com/v1/chat/completions",
+        "model_slug": "deepseek-chat",
+        "modalities": ["text"],
+        "streaming": True,
+        "operator_mirrored": False,
+        "ecosystem_mirror": ["reasoning", "killinchu"],
+        "lean_gate": "none",
+        "notes": "OpenAI-API-compatible. Honest: NOT wired in HF Spaces unless key set.",
+        "honest_stub": True,
+    },
 ]
 
 _MODEL_BY_ID: dict[str, dict] = {m["model_id"]: m for m in MODEL_REGISTRY}
@@ -253,6 +323,86 @@ def _api_key_wired(env_var: str) -> bool:
     """Check if an API key env var is set (real check, not mocked)."""
     val = os.environ.get(env_var, "").strip()
     return bool(val and val != "NOT_SET" and len(val) > 8)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A11OY_CODE_LLM_KEY — the canonical, provider-agnostic credential for the
+# a11oy Code agent. ONE secret resolves the agent's model backend.
+#
+# Resolution order (first hit wins; all REAL env reads, NO fabricated keys):
+#   1. A11OY_CODE_LLM_KEY            (canonical, provider hinted by A11OY_CODE_LLM_PROVIDER)
+#   2. OPENROUTER_API_KEY            → openrouter aggregator (OpenAI-compatible)
+#   3. ANTHROPIC_API_KEY             → anthropic
+#   4. OPENAI_API_KEY                → openai
+#   5. DEEPSEEK_API_KEY              → deepseek
+#   6. GROQ_API_KEY                  → groq
+#   7. MISTRAL_API_KEY               → mistral
+#   8. HF_TOKEN / HUGGING_FACE_HUB_TOKEN → hf-router (OpenAI-compatible fan-out)
+#
+# This is the SINGLE honest model-key fallback boundary: if NOTHING resolves,
+# the agent's PLAN / Λ-gate / PURIQ / tools / receipts STILL run for real and the
+# model TEXT degrades to a clearly-labeled deterministic stub (Zero-Bandaid Law).
+# ─────────────────────────────────────────────────────────────────────────────
+A11OY_CODE_LLM_KEY_ENV = "A11OY_CODE_LLM_KEY"
+
+# (env_var, provider_slug, OpenAI-compatible base URL)
+_CODE_KEY_RESOLUTION_ORDER: list[tuple[str, str, str]] = [
+    ("OPENROUTER_API_KEY", "openrouter", "https://openrouter.ai/api/v1"),
+    ("ANTHROPIC_API_KEY", "anthropic", "https://api.anthropic.com/v1"),
+    ("OPENAI_API_KEY", "openai", "https://api.openai.com/v1"),
+    ("DEEPSEEK_API_KEY", "deepseek", "https://api.deepseek.com/v1"),
+    ("GROQ_API_KEY", "groq", "https://api.groq.com/openai/v1"),
+    ("MISTRAL_API_KEY", "mistral", "https://api.mistral.ai/v1"),
+    ("HF_TOKEN", "hf-router", "https://router.huggingface.co/v1"),
+    ("HUGGING_FACE_HUB_TOKEN", "hf-router", "https://router.huggingface.co/v1"),
+]
+
+_PROVIDER_BASE = {
+    "openrouter": "https://openrouter.ai/api/v1",
+    "anthropic": "https://api.anthropic.com/v1",
+    "openai": "https://api.openai.com/v1",
+    "deepseek": "https://api.deepseek.com/v1",
+    "groq": "https://api.groq.com/openai/v1",
+    "mistral": "https://api.mistral.ai/v1",
+    "hf-router": "https://router.huggingface.co/v1",
+}
+
+
+def resolve_code_llm_key() -> dict[str, Any]:
+    """Resolve the a11oy Code agent's model credential, provider-agnostically.
+
+    Returns a dict ALWAYS (never raises): {wired, provider, base_url, env_used,
+    key (only an opaque bool-ish presence flag — NEVER the secret value), honest_note}.
+    The raw key value is NEVER returned or logged (never commit/expose a key).
+    """
+    # 1. canonical single secret (provider hinted, default openrouter).
+    canonical = os.environ.get(A11OY_CODE_LLM_KEY_ENV, "").strip()
+    if canonical and len(canonical) > 8:
+        provider = os.environ.get("A11OY_CODE_LLM_PROVIDER", "openrouter").strip().lower()
+        base = os.environ.get("A11OY_CODE_LLM_BASE",
+                              _PROVIDER_BASE.get(provider, _PROVIDER_BASE["openrouter"]))
+        return {"wired": True, "provider": provider, "base_url": base,
+                "env_used": A11OY_CODE_LLM_KEY_ENV, "key_present": True,
+                "honest_note": f"resolved via {A11OY_CODE_LLM_KEY_ENV} (provider={provider})"}
+    # 2..8 provider-specific fallbacks.
+    for env_var, provider, base in _CODE_KEY_RESOLUTION_ORDER:
+        val = os.environ.get(env_var, "").strip()
+        if val and val != "NOT_SET" and len(val) > 8:
+            return {"wired": True, "provider": provider, "base_url": base,
+                    "env_used": env_var, "key_present": True,
+                    "honest_note": f"resolved via fallback {env_var} (provider={provider})"}
+    # nothing resolved → honest stub mode.
+    return {"wired": False, "provider": None, "base_url": None,
+            "env_used": None, "key_present": False,
+            "honest_note": ("no model credential resolved. Set the Space secret "
+                            f"{A11OY_CODE_LLM_KEY_ENV} (or any provider key). The agent loop "
+                            "still runs for real; model text degrades to a labeled stub "
+                            "(Zero-Bandaid Law).")}
+
+
+def code_llm_secret_name() -> str:
+    """The canonical secret name the UI / healthz should display."""
+    return A11OY_CODE_LLM_KEY_ENV
 
 def _enrich_model(m: dict) -> dict:
     """Add live runtime fields to a model dict (non-mutating)."""
