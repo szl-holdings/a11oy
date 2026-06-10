@@ -253,6 +253,10 @@ COPY static-vendor/panzoom.min.js ./static-vendor/panzoom.min.js
 # DEV-WIRE-A (2026-06-09): anvaka graph-stack completion (0-CDN, in-image). BSD-3, anvaka.
 COPY static-vendor/vivagraph.min.js ./static-vendor/vivagraph.min.js
 COPY static-vendor/ngraph.events.umd.js ./static-vendor/ngraph.events.umd.js
+# OPERATOR WIDGET (2026-06-10): a11oy floating governed-operator surface ("Chaski"),
+# self-hosted in-image (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py.
+COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js
+COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
 COPY _vendor_blobs.py ./_vendor_blobs.py
 
 # ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
