@@ -15,8 +15,8 @@ indexed (no placeholder, no fake/empty index ever claimed as full):
   2. killinchu     — killinchu's code
   3. anatomy       — the anatomy 3D substrate (GitHub repo + HF static Space)
   4. thesis        — the FULL thesis lineage / papers (szl-papers, all versions)
-  5. formulas      — EVERY formula: szl_formulas.py + the locked-5 {F1,F11,F12,F18,
-                     F19} + the ~185 experimental theorems + lutar-lean ProvedFormulas
+  5. formulas      — EVERY formula: szl_formulas.py + the locked-8 {F1,F4,F7,F11,F12,
+                     F18,F19,F22} + the ~185 experimental theorems + lutar-lean ProvedFormulas
   6. doctrine      — doctrine docs, Governed Post-Determinism (GPD), honest scope
   7. lean          — the Lean proofs / kernel (lutar-lean, lean-kernel)
 
@@ -167,7 +167,7 @@ SZL_CORPUS: dict[str, dict[str, Any]] = {
         "local_paths": ["corpus/thesis"],
     },
     "formulas": {
-        "label": "EVERY SZL formula — locked-5 {F1,F11,F12,F18,F19} + ~185 experimental + ProvedFormulas",
+        "label": "EVERY SZL formula — locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} + ~185 experimental + ProvedFormulas",
         "gh_repos": ["a11oy", "lutar-lean", "platform"],
         "hf_spaces": [],
         "seed": ["szl_formulas.py", "a11oy_v4_formulas.py", "szl_formula_wiring.py",
