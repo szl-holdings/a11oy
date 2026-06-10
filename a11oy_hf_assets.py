@@ -19,7 +19,7 @@ ROUTES (all GET, additive; namespace /api/<ns>/v1/assets/*):
   /api/<ns>/v1/assets/{key}             -> server-side fetch of the asset's
                                             primary resolve URL (honest degrade)
 
-Doctrine v11: locked-proven = EXACTLY 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1;
+Doctrine v11: locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1;
 SLSA L1 honest + L2 build-attestation present; no fabricated data; 0 runtime CDN
 (this is a server-side fetch, not a browser CDN load).
 Signed-off-by: Opus 4.8 (Dev3 — HF assets instill). Apache-2.0.
@@ -133,7 +133,7 @@ def asset_status(key: str) -> dict[str, Any]:
         "resolve": a["resolve"], "kind": a["kind"], "source": source,
         "fetch_status": st, "preview": preview,
         "doctrine": {"version": "v11", "lambda": "Conjecture 1",
-                     "locked_proven": ["F1", "F11", "F12", "F18", "F19"]},
+                     "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]},
     }
 
 
@@ -144,7 +144,7 @@ def manifest() -> dict[str, Any]:
                        "resolve": v["resolve"], "kind": v["kind"]} for k, v in ASSETS.items()},
         "note": "Server-side fetched on demand; honest live|cached|pending. 0 browser CDN.",
         "doctrine": {"version": "v11", "lambda": "Conjecture 1",
-                     "locked_proven": ["F1", "F11", "F12", "F18", "F19"]},
+                     "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]},
     }
 
 
