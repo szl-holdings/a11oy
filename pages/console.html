@@ -7871,8 +7871,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       card('Anchor confirmations \u2014 entries appended since witness','live \u00b7 CT tree-size growth','<div class="chartbox"><canvas id="pva-an-bar"></canvas></div>')+
       '<div class="card"><div class="card-h"><span class="card-t">Powered by the proven formulas</span><span class="card-ep">honest maturity</span></div><div id="pva-an-f"></div></div>'+HON;
     H('pva-an-f', fmla('F1')+fmla('F18'));
-    E('pva-an-go').onclick=async function(){
-      var out=E('pva-an-out'); out.innerHTML='<div class="row mono dim">anchoring \u2014 witnessing against live CT + BTC, emitting signed receipt\u2026</div>';
+    var _pvaAnGo=E('pva-an-go'); if(_pvaAnGo) _pvaAnGo.onclick=async function(){
+      var out=E('pva-an-out'); if(out) out.innerHTML='<div class="row mono dim">anchoring \u2014 witnessing against live CT + BTC, emitting signed receipt\u2026</div>';
       try{
         var d=await postJSON(PB+'/anchor/anchor',{});
         var rec=d.receipt||{}; var dsse=d.dsse||{}; var w=(rec.payload&&rec.payload.witness)||{};
@@ -7938,8 +7938,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       '</div>'+
       '<div class="card"><div class="card-h"><span class="card-t">Powered by the proven formulas</span><span class="card-ep">honest maturity</span></div><div id="pva-pq-f"></div></div>'+HON;
     H('pva-pq-f', fmla('F18')+fmla('F1'));
-    E('pva-pq-sign').onclick=async function(){
-      var out=E('pva-pq-out'); out.innerHTML='<div class="row mono dim">signing\u2026</div>';
+    var _pvaPqSign=E('pva-pq-sign'); if(_pvaPqSign) _pvaPqSign.onclick=async function(){
+      var out=E('pva-pq-out'); if(out) out.innerHTML='<div class="row mono dim">signing\u2026</div>';
       try{
         var d=await postJSON(PB+'/pqc/sign',{text:E('pva-pq-ta').value});
         var he=d.hybrid_envelope||{}; var cl=he.classical||{}; var pq=he.pqc||{};
@@ -8057,10 +8057,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       if(tam){ T('pva-vf-tamper', ok?'\u2717 still valid?!':'fails (correct)'); T('pva-vf-caught', caught?'\u2713 YES':'\u2014'); }
       T('pva-vf-chain', (d.anchor_chain&&d.anchor_chain.verify&&d.anchor_chain.verify.ok!==false)?'verified':'\u2014');
     }
-    E('pva-vf-clean-btn').onclick=async function(){ E('pva-vf-out').innerHTML='<div class="row mono dim">verifying clean receipt\u2026</div>';
-      try{ showVerdict(await getJSON(PB+'/verify/demo?tamper=false')); }catch(e){ E('pva-vf-out').innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; } };
-    E('pva-vf-tamper-btn').onclick=async function(){ E('pva-vf-out').innerHTML='<div class="row mono dim">flipping a byte, re-verifying\u2026</div>';
-      try{ showVerdict(await getJSON(PB+'/verify/demo?tamper=true')); }catch(e){ E('pva-vf-out').innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; } };
+    var _pvaVfClean=E('pva-vf-clean-btn'); if(_pvaVfClean) _pvaVfClean.onclick=async function(){ var o=E('pva-vf-out'); if(o) o.innerHTML='<div class="row mono dim">verifying clean receipt\u2026</div>';
+      try{ showVerdict(await getJSON(PB+'/verify/demo?tamper=false')); }catch(e){ var o2=E('pva-vf-out'); if(o2) o2.innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; } };
+    var _pvaVfTamper=E('pva-vf-tamper-btn'); if(_pvaVfTamper) _pvaVfTamper.onclick=async function(){ var o=E('pva-vf-out'); if(o) o.innerHTML='<div class="row mono dim">flipping a byte, re-verifying\u2026</div>';
+      try{ showVerdict(await getJSON(PB+'/verify/demo?tamper=true')); }catch(e){ var o2=E('pva-vf-out'); if(o2) o2.innerHTML='<div class="row mono dim">'+esc(e.message)+'</div>'; } };
     // auto-poll: run both tests so KPIs + 'always recording' stay live
     poll(async function(){
       try{ var clean=await getJSON(PB+'/verify/demo?tamper=false'); var tam=await getJSON(PB+'/verify/demo?tamper=true');
