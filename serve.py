@@ -255,9 +255,16 @@ try:
 
     # Org-specific facts the platform CANNOT see. Read from a secure env var only;
     # otherwise honestly flagged. NEVER fabricated.
-    def _ct_org_fact(env_key):
-        v = (_ct_os.environ.get(env_key) or "").strip()
-        return v or None
+    def _ct_org_fact(env_keys):
+        # Canonical name or ordered list (canonical first, legacy alias
+        # second). Returns (value, matched_key); value None when unset.
+        if isinstance(env_keys, str):
+            env_keys = (env_keys,)
+        for _k in env_keys:
+            _v = (_ct_os.environ.get(_k) or "").strip()
+            if _v:
+                return (_v, _k)
+        return (None, env_keys[0])
 
     def _ct_now():
         return _ct_dt.now(_ct_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -292,12 +299,12 @@ try:
     def _ct_org(label, requirement, env_key, src_key, action_note, probe=False):
         """An org-specific registration fact. confirmed iff an operator supplied it
         via a secure env var; otherwise honestly flagged needs_founder_input."""
-        val = _ct_org_fact(env_key)
+        val, matched = _ct_org_fact(env_key)
         it = {"label": label, "requirement": requirement,
               "source": _ct_src(src_key, probe=probe)}
         if val:
             it["status"] = "confirmed"; it["value"] = val
-            it["note"] = "operator-supplied via secure env var %s." % env_key
+            it["note"] = "operator-supplied via secure env var %s." % matched
         else:
             it["status"] = "needs_founder_input"
             it["note"] = action_note
@@ -313,16 +320,28 @@ try:
                               "far_7", probe=probe),
                  _ct_org("Unique Entity ID (UEI)",
                          "A 12-character UEI is assigned in SAM.gov and replaces the DUNS number; required on every federal registration and submission.",
-                         "A11OY_ORG_UEI", "uei",
+                         ("SZL_CONTRACTING_UEI", "A11OY_ORG_UEI"), "uei",
                          "No UEI on file with the platform — the founder must register/look it up in SAM.gov (the platform cannot see it).", probe=probe),
                  _ct_org("CAGE code",
                          "A CAGE (Commercial and Government Entity) code is auto-assigned with SAM registration or requested via DLA; required for DoD work.",
-                         "A11OY_ORG_CAGE", "cage",
+                         ("SZL_CONTRACTING_CAGE", "A11OY_ORG_CAGE"), "cage",
                          "No CAGE code on file — assigned with SAM registration or via cage.dla.mil; founder action.", probe=probe),
                  _ct_org("Legal entity name & address",
                          "The registered legal business name and physical address must match SAM and IRS records exactly.",
                          "A11OY_ORG_LEGAL_NAME", "sam_reg",
                          "Legal entity details not supplied to the platform — founder input.", probe=probe),
+                 _ct_org("SAM.gov registration status",
+                         "Your SAM registration must be Active (not just Submitted/Expired) to receive most federal awards.",
+                         ("SZL_CONTRACTING_SAM_STATUS",), "far_7",
+                         "SAM status not supplied — founder input (check the live SAM.gov record).", probe=probe),
+                 _ct_org("SAM registration expiration",
+                         "SAM registrations expire annually and must be renewed before the expiration date to stay eligible.",
+                         ("SZL_CONTRACTING_SAM_EXPIRES",), "sam_reg",
+                         "SAM expiration date not supplied — founder input.", probe=probe),
+                 _ct_org("Eligible legal form",
+                         "A for-profit legal form (e.g. LLC, C-Corp, S-Corp) organized in the U.S. is required for SBIR/STTR and most set-asides.",
+                         ("SZL_CONTRACTING_LEGAL_FORM",), "sbir_elig",
+                         "Legal form not supplied — founder input.", probe=probe),
              ]},
             {"id": "sbir", "title": "SBIR / STTR eligibility",
              "intro": "Small Business Innovation Research / Technology Transfer eligibility. Program rules are web-verified; size/ownership facts about this org are founder-supplied.",
@@ -335,12 +354,20 @@ try:
                               "sbir_size", probe=probe),
                  _ct_org("Employee headcount (incl. affiliates)",
                          "Must be ≤ 500 employees counting affiliates to qualify under the SBIR/STTR size standard.",
-                         "A11OY_ORG_HEADCOUNT", "naics",
+                         ("SZL_CONTRACTING_EMPLOYEES", "A11OY_ORG_HEADCOUNT"), "naics",
                          "Headcount not supplied — founder input (the platform does not hold HR data).", probe=probe),
                  _ct_org("Ownership / control structure",
                          "≥ 50% U.S.-individual ownership and control; any VC/PE/hedge-fund stake must be disclosed and stay within the permitted threshold.",
-                         "A11OY_ORG_OWNERSHIP", "sbir_size",
+                         ("SZL_CONTRACTING_US_OWNERSHIP_PCT", "A11OY_ORG_OWNERSHIP"), "sbir_size",
                          "Ownership structure not supplied — founder input.", probe=probe),
+                 _ct_org("For-profit, U.S. place of business",
+                         "SBIR/STTR and most small-business programs require a for-profit concern with its principal place of business in the U.S.",
+                         ("SZL_CONTRACTING_FORPROFIT_US",), "sbir_elig",
+                         "For-profit / US place of business not confirmed — founder input.", probe=probe),
+                 _ct_org("SBA Small Business profile (SBC control ID)",
+                         "An SBA Small Business (SBC) profile / control ID supports size-status representations for set-asides.",
+                         ("SZL_CONTRACTING_SBC_CONTROL_ID",), "sbir_elig",
+                         "SBC control ID not supplied — founder input.", probe=probe),
                  _ct_verified("DSIP registration (DoD topics)",
                               "To submit to DoD SBIR/STTR topics, the firm must register and submit through the DoD SBIR/STTR Innovation Portal (DSIP).",
                               "dsip", probe=probe),
