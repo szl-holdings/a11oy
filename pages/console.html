@@ -307,6 +307,10 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="threatgraph" onclick="go('threatgraph')"><span class="ico">⩟</span>Threat Graph</div>
     <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
     <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
+    <div class="nav-group">Live Intel (RERUN)</div>
+    <div class="nav-item" data-view="kevgate" onclick="go('kevgate')"><span class="ico">⛨</span>CVE → Gate Impact</div>
+    <div class="nav-item" data-view="feedpulse" onclick="go('feedpulse')"><span class="ico">❣</span>Feed Liveness</div>
+    <div class="nav-item" data-view="routerarena" onclick="go('routerarena')"><span class="ico">⚡</span>Routing Arena</div>
     <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>5 locked-proven + 80+ experimental CI-green<br>SLSA L1+L2 attested · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
@@ -4076,7 +4080,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="card"><div class="card-h"><span class="card-t">CVE register \u2014 severity heat table (click header to sort)</span><span class="card-ep">CISA KEV \u00b7 sovereign</span></div>'
         +'<div id="cv-tbl" style="overflow-x:auto;max-height:480px;overflow-y:auto"></div>'
         +'<div class="brain-note" id="cv-note">CVE IDs + KEV metadata real; CVSS/EPSS labelled sample enrichment. '+chip('CISA KEV','SAMPLE')+'</div></div>'+honest();
-        try{ var d=await gj('/api/a11oy/v1/sec/cve'); var rows=d.cves||[]; T('cv-n',rows.length);
+        try{ var d=await gjLiveFirst('/api/a11oy/v1/sec/cve_live','/api/a11oy/v1/sec/cve'); var rows=d.cves||[]; T('cv-n',rows.length);
           T('cv-crit',rows.filter(function(r){return r.severity==='CRITICAL';}).length);
           T('cv-rw',rows.filter(function(r){return r.ransomware==='Known';}).length);
           var sortKey='cvss', sortDir=-1;
@@ -4114,7 +4118,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="card"><div class="card-h"><span class="card-t">KEV exploitation timeline \u2014 dateAdded \u00d7 CVSS, EPSS-sized</span><span class="card-ep">ECharts \u00b7 CISA KEV</span></div>'
         +'<div class="echart tall" id="kv-sc"></div>'
         +'<div class="brain-note" id="kv-note">Bubble = EPSS; gold ring = ransomware-associated. '+chip('CISA KEV','SAMPLE')+'</div></div>'+honest();
-        try{ var d=await gj('/api/a11oy/v1/sec/kev'); var rows=d.vulnerabilities||[]; T('kv-n',rows.length); T('kv-ver',d.catalogVersion||'\u2014');
+        try{ var d=await gjLiveFirst('/api/a11oy/v1/sec/kev_live','/api/a11oy/v1/sec/kev'); var rows=d.vulnerabilities||[]; T('kv-n',rows.length); T('kv-ver',d.catalogVersion||'\u2014');
           var cv=rows.map(function(r){return r.cvss;}).sort(function(a,b){return a-b;}); T('kv-med', cv.length?cv[Math.floor(cv.length/2)].toFixed(1):'\u2014');
           T('kv-rw',rows.filter(function(r){return r.ransomware==='Known';}).length);
           if(!window.echarts){ return; }
@@ -4196,12 +4200,20 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
   function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
   async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  // RERUN 2026-06-10: live-first KEV/CVE fetch. Prefer the LIVE CISA feed
+  // (/sec/*_live); honestly fall back to the bundled snapshot (/sec/*) so the
+  // tab still renders if upstream is unreachable. Same row shape either way.
+  async function gjLiveFirst(livePath, snapPath){
+    try{ var d=await gj(livePath); if(d && ((d.vulnerabilities&&d.vulnerabilities.length)||(d.cves&&d.cves.length))) return d; }catch(e){}
+    return gj(snapPath);
+  }
   var B1=window.B1||{};
   function chip(label,status){ var col=(status==='PROVEN'||status==='CI-GREEN'||status==='LIVE')?TEAL:(status==='CONJECTURE'||status==='SAMPLE'||status==='ROADMAP')?GOLD:(status==='FALSE'||status==='DOWN')?RED:GRAY;
     return '<span class="mono" style="display:inline-block;padding:1px 6px;border:1px solid '+col+';border-radius:3px;color:'+col+';font-size:9px;margin:1px 2px">'+esc(label)+(status?' \u00b7 '+esc(status):'')+'</span>'; }
   function honest(){ return (B1.honestBlock?B1.honestBlock():'<div class="honesty"><b>How to read this.</b> Live or clearly-labelled sample data. \u039b is Conjecture 1 (unconditional uniqueness machine-checked FALSE). Five formulas locked-proven {F1,F11,F12,F18,F19}; other waves CI-green on main (@958c09f9). Conformal = W5-3 distribution-free (NOT Hoeffding). SLSA L1+L2 attested · L3 roadmap; no AGI claims.</div>'); }
-  function srcline(d){ if(!d)return ''; var kind=(d.data_kind||'live'); var col=kind==='sample'?GOLD:TEAL;
-    return '<div class="row mono" style="font-size:9px;margin-top:.3rem;color:'+DIM+'">data: <span style="color:'+col+'">'+esc(kind.toUpperCase())+'</span> \u00b7 '+esc(d.source||'same-origin')+'</div>'; }
+  function srcline(d){ if(!d)return ''; var kind=(d.data_kind||'live'); var mode=(d.mode||''); var live=(mode==='live'); var col=live?TEAL:(String(kind).indexOf('sample')>=0||String(kind).indexOf('snapshot')>=0?GOLD:TEAL);
+    var modeb = mode?(' <span class="badge '+(live?'b-live':'b-gold')+'">'+esc(mode)+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z':'')+'</span>'):'';
+    return '<div class="row mono" style="font-size:9px;margin-top:.3rem;color:'+DIM+'">data: <span style="color:'+col+'">'+esc(String(kind).toUpperCase())+'</span>'+modeb+(d.catalogVersion?(' \u00b7 catalog '+esc(d.catalogVersion)):'')+' \u00b7 '+esc(d.source||'same-origin')+'</div>'; }
   function statusColor(s){ s=String(s||'').toLowerCase(); if(s==='ok'||s==='live'||s==='up'||s==='real'||s==='allow') return TEAL; if(s==='stub'||s==='roadmap'||s==='degraded'||s==='attention') return GOLD; if(s==='down'||s==='deny'||s==='error'||s==='fail') return RED; return GRAY; }
 
   function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0; var iv=setInterval(function(){ if(window.VIEWS||n++>120){clearInterval(iv);fn();} },40); } }
@@ -9611,5 +9623,172 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* end putnam-sampler-tab-patch */
 
 </script>
+
+<!-- ============================================================================
+     RERUN 2026-06-10 (Opus 4.8) — THREE NET-NEW LIVE-DATA TABS.
+     ADDITIVE ONLY. Each tab is backed end-to-end by a REAL live data source and
+     does exactly what its label claims. 0 runtime CDN (reuses vendored echarts /
+     cytoscape already at /vendor). 0 fabricated numbers; derived/sample values
+     honestly labelled. Registered into window.VIEWS once it exists; window.go
+     and the existing nav (data-view) already resolve these keys.
+       kevgate     — live CISA KEV CVE -> policy-gate impact mapper (/v1/sec/kevgate
+                     + real /v1/policy/decide engine output where reachable)
+       feedpulse   — real-time data-feed liveness/provenance heartbeat (/v1/feeds/pulse)
+       routerarena — live model-routing cost/latency arena (/v1/router/stats + /v1/llm/registry)
+     ============================================================================ -->
+<script>
+(function(){
+  function _ready(fn){ if(window.VIEWS && typeof window.go==='function'){fn();} else { var n=0; var iv=setInterval(function(){ if((window.VIEWS&&typeof window.go==='function')||n++>200){clearInterval(iv); if(window.VIEWS)fn();} },40);} }
+  function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function E(id){return document.getElementById(id);}
+  function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
+  function T(id,t){var e=E(id);if(e)e.textContent=t;}
+  async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  async function pj(p,b){var r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  var TEAL='#5fb3a3', GOLD='#c9b787', RED='#b06a5a', DIM='#8a8f98', GRID='rgba(120,120,120,0.16)';
+  var SEV={CRITICAL:RED,HIGH:'#c9805a',MEDIUM:GOLD,LOW:'#7a8aa0'};
+  function badge(txt,cls){ return '<span class="badge '+(cls||'b-teal')+'">'+esc(txt)+'</span>'; }
+  function honestNote(t){ return '<div class="honesty" style="margin-top:.6rem"><b>How to read this.</b> '+t+' \u039b is Conjecture 1 (NEVER a theorem); trust never 100%. No fabricated data \u2014 live values are labelled live, derived enrichment labelled SAMPLE/derived.</div>'; }
+
+  _ready(function(){
+    var V=window.VIEWS;
+
+    /* ===== kevgate — live CVE -> policy-gate impact mapper ===== */
+    V.kevgate={ title:'CVE \u2192 Gate Impact', badge:'LIVE CISA KEV \u00b7 real policy gates', sub:'Real-time map from the LIVE CISA Known-Exploited-Vulnerabilities feed to a11oy\u2019s deny-by-default policy gates: each currently-exploited CVE is treated as a governed remediation action and run against the gate catalog, showing which gates engage. This is the governed-AI value proposition made literal \u2014 live threat intel \u2192 the exact governance controls it triggers.',
+      render: async function(c){
+        c.innerHTML='<div class="kpis">'
+          +'<div class="kpi"><div class="k">Live KEV CVEs mapped</div><div class="v" id="kg-n">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Catalog</div><div class="v teal" id="kg-ver">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Ransomware-assoc.</div><div class="v warn" id="kg-rw">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Feed</div><div class="v" id="kg-mode">\u2014</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Live KEV \u2192 deny-by-default gate engagement</span><span class="card-ep" id="kg-src">CISA KEV \u00b7 a11oy gates</span></div>'
+          +'<div id="kg-tbl" style="overflow:auto;max-height:520px"><div class="row mono dim">loading live CISA KEV feed\u2026</div></div></div>'
+          +honestNote('Each row is a live exploited CVE; the gate set is the REAL a11oy gate catalog. <b>gates_fired</b> is the live engine result when reachable; <b>gates_mapped</b> is a deterministic mapping derived from real KEV fields (ransomware / CWE / severity).');
+        try{
+          var d=await gj('/api/a11oy/v1/sec/kevgate?limit=40');
+          var items=d.items||[]; T('kg-n',items.length); T('kg-ver',d.catalogVersion||'\u2014');
+          T('kg-rw',items.filter(function(x){return x.ransomware==='Known';}).length);
+          var modeLive=(d.mode==='live'); T('kg-mode',d.mode||'\u2014');
+          var me=E('kg-mode'); if(me) me.className='v '+(modeLive?'teal':'warn');
+          H('kg-src', esc(d.source||'CISA KEV')+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?(' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z'):''));
+          var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
+          ['CVE','Vendor','Product','CVSS','Sev','Ransomware','Gates engaged'].forEach(function(t){h.push('<th style="position:sticky;top:0;background:#11110f;color:'+GOLD+';text-align:left;padding:5px 7px;border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
+          h.push('</tr></thead><tbody>');
+          items.forEach(function(x){
+            var gates=(x.gates_fired&&x.gates_fired.length?x.gates_fired:x.gates_mapped)||[];
+            var live=(x.gates_fired&&x.gates_fired.length);
+            var chips=gates.map(function(g){return '<span class="badge '+(live?'b-live':'b-gold')+'" style="margin:1px">'+esc(g)+'</span>';}).join(' ');
+            h.push('<tr style="border-bottom:1px solid #1c1c1a">'
+              +'<td style="padding:4px 7px;color:'+TEAL+'">'+esc(x.cveID)+'</td>'
+              +'<td style="padding:4px 7px;color:#cdd2d8">'+esc(x.vendorProject)+'</td>'
+              +'<td style="padding:4px 7px;color:#9aa0a8">'+esc(x.product)+'</td>'
+              +'<td style="padding:4px 7px"><span style="display:inline-block;padding:1px 6px;border-radius:3px;background:'+(SEV[x.severity]||'#777')+';color:#0b0b0b;font-weight:600">'+(x.cvss!=null?Number(x.cvss).toFixed(1):'\u2014')+'</span></td>'
+              +'<td style="padding:4px 7px;color:'+(SEV[x.severity]||'#888')+'">'+esc(x.severity)+'</td>'
+              +'<td style="padding:4px 7px;color:'+(x.ransomware==='Known'?RED:'#777')+'">'+esc(x.ransomware)+'</td>'
+              +'<td style="padding:4px 7px">'+chips+(live?' '+badge('engine','b-live'):' '+badge('field-derived','b-gold'))+'</td></tr>');
+          });
+          h.push('</tbody></table>'); H('kg-tbl',h.join(''));
+        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">live KEV feed unavailable: '+esc(e.message)+'</div>'); T('kg-n','offline'); }
+      }};
+
+    /* ===== feedpulse — real-time data-feed liveness/provenance monitor ===== */
+    V.feedpulse={ title:'Feed Liveness', badge:'REAL-TIME provenance heartbeat', sub:'A governed-AI system must know whether its evidence feeds are actually live. This tab probes every upstream data feed a11oy proxies (CISA KEV, OSV.dev, Sigstore Rekor, ISS position, CelesTrak, Prometheus, FHIR) in real time and reports measured mode (live / cached / down), round-trip latency, and payload size \u2014 nothing fabricated.',
+      render: async function(c){
+        c.innerHTML='<div class="kpis">'
+          +'<div class="kpi"><div class="k">Feeds probed</div><div class="v" id="fp-n">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">LIVE now</div><div class="v teal" id="fp-live">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Cached / fallback</div><div class="v warn" id="fp-cache">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Down</div><div class="v" id="fp-down">\u2014</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Live upstream evidence-feed heartbeat</span><span class="card-ep" id="fp-ts">probing\u2026</span></div>'
+          +'<div class="echart" id="fp-lat" style="height:240px"></div>'
+          +'<div id="fp-tbl" style="overflow:auto;margin-top:.5rem"><div class="row mono dim">probing live feeds\u2026</div></div>'
+          +'<div class="row" style="margin-top:.5rem;border:0"><button class="btn" id="fp-refresh">\u21bb Re-probe live</button></div></div>'
+          +honestNote('Every row is a live server-side fetch this second; mode and latency are measured.');
+        async function load(){
+          T('fp-ts','probing\u2026');
+          try{
+            var d=await gj('/api/a11oy/v1/feeds/pulse');
+            var items=d.items||[]; T('fp-n',d.feed_count); T('fp-live',d.live_count); T('fp-cache',d.cached_count); T('fp-down',d.down_count);
+            T('fp-ts','probed '+esc(String(d.probed_at||'').slice(11,19))+'Z');
+            var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
+            ['Feed','Mode','Latency','Payload','Fetched','Source'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
+            h.push('</tr></thead><tbody>');
+            items.forEach(function(x){
+              var cls=x.mode==='live'?'b-live':(x.mode==='cached'?'b-gold':'b-err');
+              h.push('<tr style="border-bottom:1px solid #1c1c1a">'
+                +'<td style="padding:4px 7px;color:'+TEAL+'">'+esc(x.feed)+'</td>'
+                +'<td style="padding:4px 7px">'+badge(x.mode||'?',cls)+'</td>'
+                +'<td style="padding:4px 7px;color:#cdd2d8">'+(x.latency_ms!=null?x.latency_ms+' ms':'\u2014')+'</td>'
+                +'<td style="padding:4px 7px;color:#9aa0a8">'+(x.payload_bytes?(Math.round(x.payload_bytes/1024)+' KB'):'\u2014')+'</td>'
+                +'<td style="padding:4px 7px;color:#777">'+esc(x.fetched_at?String(x.fetched_at).slice(11,19):(x.error||'\u2014'))+'</td>'
+                +'<td style="padding:4px 7px;color:#9aa0a8">'+esc((x.source||'').slice(0,40))+'</td></tr>');
+            });
+            h.push('</tbody></table>'); H('fp-tbl',h.join(''));
+            if(window.echarts){
+              var host=E('fp-lat'); if(host){ var ch=echarts.init(host,null,{renderer:'canvas'});
+                ch.setOption({backgroundColor:'transparent',grid:{left:48,right:18,top:18,bottom:50},
+                  tooltip:{trigger:'axis'},
+                  xAxis:{type:'category',data:items.map(function(x){return x.feed;}),axisLabel:{color:'#9aa0a8',fontSize:9,rotate:30}},
+                  yAxis:{type:'value',name:'latency ms',nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLabel:{color:'#777',fontSize:8},splitLine:{lineStyle:{color:GRID}}},
+                  series:[{type:'bar',data:items.map(function(x){return {value:x.latency_ms||0,itemStyle:{color:x.mode==='live'?TEAL:(x.mode==='cached'?GOLD:RED)}};}),barWidth:'48%'}]});
+                window.addEventListener('resize',function(){ch.resize();},{passive:true});
+              }
+            }
+          }catch(e){ H('fp-tbl','<div class="row mono dim" style="padding:1rem">feed pulse unavailable: '+esc(e.message)+'</div>'); T('fp-n','offline'); }
+        }
+        var rb=E('fp-refresh'); if(rb) rb.onclick=load;
+        load();
+      }};
+
+    /* ===== routerarena — live model-routing cost/latency arena ===== */
+    V.routerarena={ title:'Routing Arena', badge:'LIVE router stats \u00b7 0 codenames', sub:'Live model-routing arena: a11oy routes each organ\u2019s task through the Λ-gate to a tier of open + closed models. This pulls the live router stats and model registry and shows, per organ/tier, the routed model, measured throughput, and license posture (GREEN = open-weight) \u2014 the governed routing decision made visible. No user-visible codenames; trust never 100%.',
+      render: async function(c){
+        c.innerHTML='<div class="kpis">'
+          +'<div class="kpi"><div class="k">Active routes</div><div class="v" id="ra-n">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Models in registry</div><div class="v teal" id="ra-m">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Open-weight (GREEN)</div><div class="v" id="ra-g">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Router</div><div class="v" id="ra-mode">\u2014</div></div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Live organ \u2192 tier \u2192 model routing &amp; throughput</span><span class="card-ep">router/stats \u00b7 llm/registry</span></div>'
+          +'<div class="echart" id="ra-chart" style="height:300px"></div>'
+          +'<div id="ra-tbl" style="overflow:auto;margin-top:.5rem"><div class="row mono dim">loading live router stats\u2026</div></div></div>'
+          +honestNote('Routes + throughput are read live from the router; license GREEN = open-weight. Λ-gate routing is real deterministic math.');
+        try{
+          var st=await gj('/api/a11oy/v1/router/stats');
+          var routes=st.routes||[]; T('ra-n',routes.length); T('ra-mode',st.mode||'\u2014');
+          var me=E('ra-mode'); if(me) me.className='v '+(st.mode==='live'?'teal':'warn');
+          T('ra-g',routes.filter(function(r){return (r.license||'')==='GREEN';}).length);
+          try{ var reg=await gj('/api/a11oy/v1/llm/registry'); T('ra-m',reg.model_count||reg.count||(reg.models&&reg.models.length)||'\u2014'); }catch(e){ T('ra-m','\u2014'); }
+          // chart: throughput per route, colored by license
+          if(window.echarts){
+            var host=E('ra-chart'); if(host){ var ch=echarts.init(host,null,{renderer:'canvas'});
+              ch.setOption({backgroundColor:'transparent',grid:{left:54,right:18,top:18,bottom:64},
+                tooltip:{trigger:'axis',formatter:function(p){var r=routes[p[0].dataIndex];return esc(r.organ+' / '+r.tier)+'<br>'+esc(r.model)+'<br>throughput '+r.throughput+'<br>license '+esc(r.license);}},
+                xAxis:{type:'category',data:routes.map(function(r){return r.organ+'\u00b7'+r.tier;}),axisLabel:{color:'#9aa0a8',fontSize:8,rotate:34}},
+                yAxis:{type:'value',name:'throughput',nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLabel:{color:'#777',fontSize:8},splitLine:{lineStyle:{color:GRID}}},
+                series:[{type:'bar',data:routes.map(function(r){return {value:r.throughput||0,itemStyle:{color:(r.license==='GREEN'?TEAL:GOLD)}};}),barWidth:'52%'}]});
+              window.addEventListener('resize',function(){ch.resize();},{passive:true});
+            }
+          }
+          var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
+          ['Organ','Tier','Routed model','Throughput','License'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
+          h.push('</tr></thead><tbody>');
+          routes.forEach(function(r){
+            h.push('<tr style="border-bottom:1px solid #1c1c1a">'
+              +'<td style="padding:4px 7px;color:'+TEAL+'">'+esc(r.organ)+'</td>'
+              +'<td style="padding:4px 7px;color:#cdd2d8">'+esc(r.tier)+'</td>'
+              +'<td style="padding:4px 7px;color:#9aa0a8">'+esc(r.model)+'</td>'
+              +'<td style="padding:4px 7px;color:#cdd2d8">'+esc(r.throughput)+'</td>'
+              +'<td style="padding:4px 7px">'+badge(r.license||'\u2014',(r.license==='GREEN'?'b-live':'b-gold'))+'</td></tr>');
+          });
+          h.push('</tbody></table>'); H('ra-tbl',h.join(''));
+        }catch(e){ H('ra-tbl','<div class="row mono dim" style="padding:1rem">router stats unavailable: '+esc(e.message)+'</div>'); T('ra-n','offline'); }
+      }};
+
+    console.log('[a11oy] RERUN net-new tabs registered: kevgate, feedpulse, routerarena');
+    try{ var cur=(location.hash||'').slice(1); if(['kevgate','feedpulse','routerarena'].indexOf(cur)>=0) window.go(cur); }catch(e){}
+  });
+})();
+</script>
+
 </body>
 </html>
