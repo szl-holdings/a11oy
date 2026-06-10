@@ -63,7 +63,7 @@ EXPERIMENTAL_WAVES = {
     ],
     "total_new_experimental_theorems": 60,
     "maturity_legend": {
-        "proven (locked)": "In the locked Doctrine-v11 kernel (749/14/163 @ c7c0ba17). Exactly 5.",
+        "proven (locked)": "In the locked Doctrine-v11 kernel (749/14/163 @ c7c0ba17). Exactly 8.",
         "proven sorry-free (experimental)": "Kernel-verified sorry-free this session on a PR branch (CI-green or bare-lean exit 0); NOT in the locked count.",
         "axiom-gated (declared)": "Proven modulo one named disclosed idealization (e.g. hash collision-resistance).",
         "conjectured": "Open / not a theorem. Lambda (F23) uniqueness is Conjecture 1 unconditionally.",
