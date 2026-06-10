@@ -43,7 +43,7 @@ LIVE SOURCES (verified reachable from this egress class, all public GET, no key)
     confirmation depth.
 All SERVER-SIDE (0 client CDN). Warm cache with honest live/stale/degraded labels.
 
-DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; Λ=Conjecture 1 (advisory floor 0.90, NOT a
+DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (advisory floor 0.90, NOT a
 theorem); SLSA L1 honest; no fabricated data; PQC posture labeled live-vs-roadmap;
 premium feeds = CONNECT-READY (never faked).
 """
