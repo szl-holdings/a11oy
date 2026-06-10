@@ -7704,7 +7704,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     setTimeout(function(){window._whcRun('nominal');},120);
   }
   window._whcRun=async function(mode){
-    E('whc-recpt').innerHTML='<div class="row mono dim">launching '+esc(mode)+'\u2026</div>';
+    var _whcR=E('whc-recpt'); if(!_whcR) return; _whcR.innerHTML='<div class="row mono dim">launching '+esc(mode)+'\u2026</div>';
     try{ var r=await pj(WH+'/launch/cannonico',{mode:mode}); var resp=r.organ_response||r;
       var dec=resp.decision||{}, sc=resp.scenario||{}, rc=resp.receipt||{};
       var auth=resp.authorized===true||dec.authorized===true;
@@ -7724,7 +7724,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         '<div class="row"><span class="badge '+(sig?'b-live':'b-gold')+'">'+(sig?'DSSE signed':'unsigned')+'</span><span class="mono dim">'+esc(rc.receipt_id||'')+'</span></div>'+
         '<div class="row"><span class="badge b-teal">merkle '+esc(String(((resp.chain||{}).merkle_root)||'').slice(0,20))+'\u2026</span><span class="mono dim">PAE '+esc(String(((rc.dsse||{}).pae_sha256)||'').slice(0,16))+'\u2026</span></div>'+
         '<div class="row mono dim">verify at '+esc(rc.public_key||'/cosign.pub')+' \u00b7 a tampered byte fails. Key resets on rebuild.</div>');
-    }catch(e){ E('whc-recpt').innerHTML='<div class="row"><span class="badge b-err">error</span><span>'+esc(e.message)+'</span></div>'; }
+    }catch(e){ var _whcE=E('whc-recpt'); if(_whcE) _whcE.innerHTML='<div class="row"><span class="badge b-err">error</span><span>'+esc(e.message)+'</span></div>'; }
   };
 
   window.renderWhHero=renderWhHero; window.renderUdsMesh=renderUdsMesh;
