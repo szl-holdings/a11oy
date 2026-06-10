@@ -1,0 +1,78 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# constellation-honesty-guard.yml — keep the a11oy console's 3D constellation +
+# 2D decision-graph block (marker `constellation-tab-patch` in pages/console.html)
+# from silently regressing to fabricated data.
+#
+# Why this exists
+# ---------------
+# The constellation/graph visualizations are required (Doctrine v11) to be wired
+# ONLY from real surfaces: deterministic Fibonacci-sphere coordinates, every
+# node/edge traced to a live readiness/killinchu payload — no Math.random, no
+# NaN/Infinity positions, no edges pointing at nodes that don't exist. That was
+# verified once by a throwaway harness in /tmp, so a later edit to the ~1MB
+# console.html could quietly reintroduce fake data with nothing to catch it.
+#
+# This guard ports those assertions into a committed check that:
+#   1. STATIC  — asserts the constellation block contains no `Math.random`
+#                (comments stripped first; coordinates must be deterministic).
+#   2. DYNAMIC — executes the REAL block in a minimal DOM/fetch sandbox against
+#                seeded fixtures and asserts the resulting graph has zero
+#                non-finite coordinates and zero dangling edges.
+#
+# A self-test job first feeds the validators degenerate inputs (injected
+# Math.random, planted NaN/Infinity, planted dangling edge) and asserts each is
+# REJECTED before the guard trusts them against the live block — the org guard
+# pattern (cf. eval-arena-negative-control.yml / status-page-guard.yml).
+#
+# Node is preinstalled on ubuntu-latest (no extra action needed); the harness is
+# pure stdlib (node:fs / node:vm). Org policy: github-owned actions, SHA-pinned.
+# Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+
+name: Constellation Honesty Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pages/console.html"
+      - "tools/constellation-honesty/check_constellation_honesty.mjs"
+      - ".github/workflows/constellation-honesty-guard.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "pages/console.html"
+      - "tools/constellation-honesty/check_constellation_honesty.mjs"
+      - ".github/workflows/constellation-honesty-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: constellation-honesty-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Prove the validators still reject degenerate inputs before trusting them.
+  self-test:
+    name: Self-test the validators (fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Validators reject Math.random / NaN / dangling-edge, accept the real block
+        run: node tools/constellation-honesty/check_constellation_honesty.mjs --selftest
+
+  # Run the honesty assertions against the live constellation block.
+  guard:
+    name: Constellation block uses only real data
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Self-test the validators before trusting them
+        run: node tools/constellation-honesty/check_constellation_honesty.mjs --selftest
+      - name: No Math.random + finite coords + no dangling edges (seeded fixtures)
+        run: node tools/constellation-honesty/check_constellation_honesty.mjs pages/console.html
