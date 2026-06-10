@@ -8972,7 +8972,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       if(d.sources_total!=null) h+='<div class="dim" style="font-size:11px;margin:.15rem 0 .25rem">source liveness: '+esc(String(d.sources_reachable))+'/'+esc(String(d.sources_total))+' reachable · swept '+esc(window.ev_ago(d.checked_at)||'just now')+'</div>';
       box.innerHTML=h; window.ev_tick(box);
     }catch(e){
-      var note=document.createElement('div'); note.className='dim'; note.style.marginTop='.25rem';
+      var prev=box.querySelector('.ev-recheck-note'); if(prev) prev.remove();
+      var note=document.createElement('div'); note.className='dim ev-recheck-note'; note.style.marginTop='.25rem';
       note.textContent='re-check failed: '+((e&&e.message)||e)+' — showing last-known badges'; box.appendChild(note);
     }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'⟳ Re-check sources'; } }
   };
@@ -8995,12 +8996,43 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       box.innerHTML=h;
     }catch(e){ box.innerHTML='<div class="dim">live evidence unavailable: '+esc((e&&e.message)||e)+' — curated sources above remain valid</div>'; }
   };
+  window.__EV_RECHECK_MS=window.__EV_RECHECK_MS||180000; window.ev_last_sweep=window.ev_last_sweep||null; window.ev_sweeping=false;
+  /* evidence-autorecheck-539 — subtle 'auto-refreshing' status pill + gentle background source re-probe (paused when tab hidden) */
+  window.ev_ensure_style=function(){
+    if(document.getElementById('ev-autostyle')) return;
+    var st=document.createElement('style'); st.id='ev-autostyle';
+    st.textContent='.ev-autodot{width:7px;height:7px;border-radius:50%;background:#3a4a40;display:inline-block;vertical-align:middle}.ev-autodot.on{background:#5fe39a;animation:ev-pulse 2.2s infinite}@keyframes ev-pulse{0%{box-shadow:0 0 0 0 rgba(95,227,154,.45)}70%{box-shadow:0 0 0 6px rgba(95,227,154,0)}100%{box-shadow:0 0 0 0 rgba(95,227,154,0)}}';
+    (document.head||document.documentElement).appendChild(st);
+  };
+  window.ev_update_autostat=function(){
+    var el=document.getElementById('ev-autostat'); if(!el) return;
+    var dot=el.querySelector('.ev-autodot'), lbl=el.querySelector('.ev-autolbl');
+    if(document.hidden){ if(dot) dot.classList.remove('on'); if(lbl) lbl.textContent='auto-refresh paused — tab hidden'; return; }
+    if(dot) dot.classList.add('on');
+    var ago=window.ev_last_sweep?window.ev_ago(window.ev_last_sweep):'';
+    if(lbl) lbl.textContent='auto-refreshing'+(ago?(' · sources re-checked '+ago):' · checking…');
+  };
+  window.ev_sweep=async function(){
+    if(window.ev_sweeping||document.hidden) return;
+    var btns=document.querySelectorAll('.ev-recheck-btn'); if(!btns.length) return;
+    window.ev_sweeping=true;
+    try{
+      for(var i=0;i<btns.length;i++){
+        if(document.hidden||!document.getElementById('ev-autostat')) break;
+        try{ await window.evidence_recheck(btns[i].getAttribute('data-ev')); }catch(e){}
+      }
+      window.ev_last_sweep=new Date().toISOString();
+      window.ev_update_autostat();
+    } finally { window.ev_sweeping=false; }
+  };
   window.evidence_render=async function(c){
+    window.ev_ensure_style();
     c.innerHTML='<div class="card"><div class="dim">loading curated evidence…</div></div>';
     try{
       var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research');
       var d=await r.json(); var h='';
       if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
+      h+='<div id="ev-autostat" class="dim" style="display:flex;align-items:center;gap:.45rem;font-size:11px;margin:.15rem 0 .55rem" title="Source reachability badges are silently re-probed in the background every '+Math.round((window.__EV_RECHECK_MS||180000)/1000)+'s while this tab is visible — honest live/cached/unreachable labels are unchanged."><span class="ev-autodot"></span><span class="ev-autolbl">auto-refreshing</span></div>';
       (d.claims||[]).forEach(function(cl){
         h+='<div class="card"><div><b>'+esc(cl.claim||'')+'</b>'+(cl.maturity?(' <span class="badge">'+esc(cl.maturity)+'</span>'):'')+(cl.tab?(' <span class="dim">→ '+esc(cl.tab)+' tab</span>'):'')+'</div>';
         h+='<div class="dim" style="margin:.45rem 0 .25rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">Cited sources <button class="btn ev-recheck-btn" data-ev="'+esc(cl.id)+'" title="re-probe these source URLs now" style="font-size:10px;padding:.12rem .5rem">⟳ Re-check sources</button></div>';
@@ -9018,11 +9050,18 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       Array.prototype.forEach.call(c.querySelectorAll('.ev-recheck-btn'),function(b){
         b.addEventListener('click',function(){ window.evidence_recheck(b.getAttribute('data-ev'),b); });
       });
-      window.ev_tick(c);
+      window.ev_tick(c); window.ev_update_autostat();
       if(window.__ev_timer) clearInterval(window.__ev_timer);
       window.__ev_timer=setInterval(function(){
-        if(document.body.contains(c)){ window.ev_tick(c); } else { clearInterval(window.__ev_timer); window.__ev_timer=null; }
+        if(document.body.contains(c)){ window.ev_tick(c); window.ev_update_autostat(); } else { clearInterval(window.__ev_timer); window.__ev_timer=null; if(window.__ev_recheck){ clearInterval(window.__ev_recheck); window.__ev_recheck=null; } }
       },15000);
+      /* evidence-autorecheck-539 — background source re-probe timer (paused when tab hidden) */
+      if(window.__ev_recheck) clearInterval(window.__ev_recheck);
+      window.__ev_recheck=setInterval(function(){
+        if(!document.body.contains(c)){ clearInterval(window.__ev_recheck); window.__ev_recheck=null; return; }
+        window.ev_sweep();
+      },window.__EV_RECHECK_MS||180000);
+      if(!window.__ev_vis_bound){ window.__ev_vis_bound=true; document.addEventListener('visibilitychange',function(){ window.ev_update_autostat(); if(!document.hidden) window.ev_sweep(); }); }
     }catch(e){ c.innerHTML='<div class="card"><div class="dim">evidence layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
   };
   /* register the view + inject a nav item (window.VIEWS+go() framework) */
