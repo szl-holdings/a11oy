@@ -11,8 +11,8 @@ citation.
 
 HONESTY DOCTRINE (machine-relevant):
   * These 12 theorems are EXPERIMENTAL · kernel-verified · CI-green on lutar-lean main
-    — they are NOT in the LOCKED baseline. LOCKED-proven stays EXACTLY 5
-    {F1, F11, F12, F18, F19}. Λ = Conjecture 1 (NEVER a theorem). Nothing here relabels
+    — they are NOT in the LOCKED baseline. LOCKED-proven = EXACTLY 8
+    {F1, F4, F7, F11, F12, F18, F19, F22}. Λ = Conjecture 1 (NEVER a theorem). Nothing here relabels
     that. Each card carries the verbatim `#print axioms` line from the proof reports and
     an explicit "EXPERIMENTAL · CI-green on main" chip.
   * Where a candidate is PARTIAL-core (PB1) or has a ROADMAP remainder (Ville
@@ -630,7 +630,7 @@ def _manifest() -> dict[str, Any]:
         "doctrine": DOCTRINE,
         "experimental_note": ("These theorems are EXPERIMENTAL · kernel-verified · "
                               "CI-green on lutar-lean main. They are NOT in the LOCKED "
-                              "baseline. LOCKED-proven = EXACTLY 5 {F1,F11,F12,F18,F19}. "
+                              "baseline. LOCKED-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}. "
                               "Λ = Conjecture 1."),
         "lean_repo": LEAN_REPO,
         "count": len(CARDS),
@@ -746,8 +746,8 @@ Where a check is cheap we <b>RUN it live in-image</b> and show the result.
 
 <div class="honest">
 <b>Honesty:</b> these {n} theorems are <b>EXPERIMENTAL · kernel-verified · CI-green on lutar-lean main</b>
-— they are <b>NOT</b> in the LOCKED baseline. LOCKED-proven stays <b>EXACTLY 5</b>
-<code>{{F1, F11, F12, F18, F19}}</code>. <b>Λ = Conjecture 1</b> (never a theorem).
+— they are <b>NOT</b> in the LOCKED baseline. LOCKED-proven stays <b>EXACTLY 8</b>
+<code>{{F1, F4, F7, F11, F12, F18, F19, F22}}</code>. <b>Λ = Conjecture 1</b> (never a theorem).
 PARTIAL-core / ROADMAP remainders are labeled per card. Sovereign · 0 CDN.
 </div>
 
