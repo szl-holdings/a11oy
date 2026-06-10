@@ -337,6 +337,12 @@ async function orgGet(organ,path){const r=await fetch(ORG[organ]+path);if(!r.ok)
 async function orgPost(organ,path,body){const r=await fetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 async function postJSON(p,b){const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+/* Doctrine v13 display-layer honesty: map any banned internal codename to its honest
+   role for USER-VISIBLE labels only (backend keys/data are untouched). Quechua organ
+   names and all other labels pass through verbatim. amaru=Reasoning, sentra=Policy,
+   rosie=Operator, jarvis=Orchestrator. Used by fltObs + organnervous agent/organ lists
+   which render live mesh_reach names that may still carry legacy codenames. */
+window._honestOrgan=function(s){var k=String(s==null?'':s);var low=k.toLowerCase();var M={amaru:'Reasoning',sentra:'Policy',rosie:'Operator',jarvis:'Orchestrator'};if(M[low])return M[low];return k.replace(/\b(amaru|sentra|rosie|jarvis)\b/gi,function(w){return M[w.toLowerCase()]||w;});};
 function el(id){return document.getElementById(id);}
 function setOut(id,obj){const e=el(id);if(e)e.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,2);}
 function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
@@ -5625,7 +5631,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             // mesh_reach can be a list (live) — render rows
             var mr=d.mesh_reach||[]; var rows=(Array.isArray(mr)?mr:Object.keys(mr).map(function(k){return mr[k];}));
             var html=rows.map(function(p){ var up=(p.status||'ok')==='ok';
-              return '<div class="row"><span class="badge '+(up?'b-live':'b-err')+'">'+(up?'UP':'DOWN')+'</span><span style="color:'+CREAM+'">'+esc(p.name||p.organ||'')+'</span><span class="spacer mono dim">'+(p.latency_ms!=null?Math.round(p.latency_ms)+'ms':'')+'</span></div>'; }).join('');
+              return '<div class="row"><span class="badge '+(up?'b-live':'b-err')+'">'+(up?'UP':'DOWN')+'</span><span style="color:'+CREAM+'">'+esc(window._honestOrgan(p.name||p.organ||''))+'</span><span class="spacer mono dim">'+(p.latency_ms!=null?Math.round(p.latency_ms)+'ms':'')+'</span></div>'; }).join('');
             H('on-reachlist', html||'<div class="row mono dim">no probe data</div>');
             var me=E('on-melt'); if(me) me.textContent=JSON.stringify(melt,null,2);
             if(d.slsa) { var se=E('on-hon'); /* keep honesty text static */ }
@@ -8470,7 +8476,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       H('flt-ob-chain','<span style="color:'+(cv?TEAL:AMBER)+'">'+(cv?'\u2713 verified':'unverified')+'</span>');
       H('flt-ob-pitch',esc(d.pitch||'')+' \u00b7 '+esc(d.honesty||''));
       var rows=reach.map(function(x){ var ok=(x.http_code===200||x.status==='ok'||x.status==='live'); return [
-        '<span style="color:'+CREAM+'">'+esc(x.organ||'\u2014')+'</span>',
+        '<span style="color:'+CREAM+'">'+esc(window._honestOrgan(x.organ)||'\u2014')+'</span>',
         '<span class="badge mono" style="color:'+(ok?TEAL:RED)+';border:1px solid '+(ok?TEAL:RED)+'66">'+esc(x.status||'?')+' '+esc(x.http_code!=null?x.http_code:'')+'</span>',
         esc(x.latency_ms!=null?(fnum(x.latency_ms,1)+'ms'):'\u2014'), '<span class="dim">'+esc(x.probed_path||x.url||'')+'</span>' ]; });
       H('flt-ob-tbl',tbl(['agent / organ','status','latency','probe'],rows));
