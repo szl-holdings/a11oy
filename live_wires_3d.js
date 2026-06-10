@@ -24,7 +24,7 @@
     D: { color: 0xfacc15, factor: "\\mathrm{OTel}(x)", role: "W3C traceparent" },
     E: { color: 0x3b82f6, factor: "\\text{Yuyay}_{13}(a)", role: "cortex publish / Yuyay gate" },
     F: { color: 0xef4444, factor: "\\text{Khipu}_{\\text{new}}(a)", role: "receipt ingest" },
-    G: { color: 0xa855f7, factor: "\\mathrm{Amaru}(\\text{query})", role: "RAG / brain-jack" },
+    G: { color: 0xa855f7, factor: "\\mathrm{YACHAY}(\\text{query})", role: "RAG / reasoning retrieval" },
     H: { color: 0xfbbf24, factor: "P(x,t)=\\arg\\max_{a}[\\Lambda\\cdot\\text{Yuyay}_{13}\\cdot e^{-\\beta H}\\cdot\\prod_i K_i]", role: "cross-Space orchestration" },
   };
 
@@ -38,6 +38,9 @@
   };
 
   const SISTERS = ["a11oy", "amaru", "sentra", "killinchu", "rosie", "vessels"];
+  // Honest display labels for the sister-node rim (routing keys above stay internal;
+  // only these governance-role / Quechua-organ names are ever rendered to the user).
+  const SISTER_LABELS = { a11oy:"A11OY", amaru:"YACHAY", sentra:"CHAPAQ", killinchu:"KILLINCHU", rosie:"OPERATOR", vessels:"VESSELS" };
   const YUYAY_BAND = (s) => (s == null ? 0xffffff : s < 0.5 ? 0xef4444 : s <= 0.85 ? 0xf59e0b : 0x22c55e);
 
   function mount(opts) {
@@ -93,7 +96,7 @@
       const orb = new THREE.Mesh(new THREE.SphereGeometry(1.1, 24, 24),
         new THREE.MeshStandardMaterial({ color: 0x9aa4b2, emissive: 0x1b2330, roughness: 0.4 }));
       orb.position.copy(p); orb.userData.sister = s; nodeGroup.add(orb);
-      labelSprite(THREE, nodeGroup, s.toUpperCase(), p.clone().add(new THREE.Vector3(0, 1.7, 0)));
+      labelSprite(THREE, nodeGroup, (SISTER_LABELS[s] || s.toUpperCase()), p.clone().add(new THREE.Vector3(0, 1.7, 0)));
     });
 
     // one CatmullRomCurve3 per wire letter from a sister into the cortex
