@@ -297,7 +297,65 @@ def register(app, organ: str, web_dir: str | None = None) -> dict[str, Any]:
 
     @app.get(f"{p}/inbox")
     async def _inbox():
-        return JSONResponse(_INBOX.get(organ, []))  # active items only; empty -> calm UI
+        items = _INBOX.get(organ, [])
+        return JSONResponse({
+            "inbox": items,
+            "total": len(items),
+            "doctrine": DOCTRINE["version"],
+            "note": "Active inbox items only — empty when no live events (honest idle state).",
+        })  # wrapped object per P2 spec; active items only; empty -> calm UI
+
+    @app.post(f"{p}/inbox")
+    async def _inbox_post(req: Request):
+        """POST drone telemetry event or Wire B event into organ inbox. Returns DSSE receipt."""
+        import hashlib as _hl, uuid as _uuid
+        from datetime import datetime as _dtp, timezone as _tzp
+        body: dict = {}
+        try:
+            body = await req.json()
+        except Exception:
+            pass
+        if not isinstance(body, dict):
+            body = {}
+        protocol = body.get("protocol", "unknown")
+        raw = body.get("raw", "")
+        ts_in = body.get("ts", _dtp.now(_tzp.utc).isoformat())
+        # Minimal decode stub (CLAIM — not attested)
+        decoded = {
+            "message_type": "CLAIM",
+            "ua_type": "CLAIM",
+            "id_type": "CLAIM",
+            "protocol": protocol,
+            "note": "Decoded fields are CLAIMS from unauthenticated broadcast — not attested truth.",
+        }
+        payload_sha = _hl.sha256(str(body).encode()).hexdigest()
+        receipt = {
+            "hash": payload_sha,
+            "signature": "PLACEHOLDER — Sigstore CI not yet wired",
+            "ts": _dtp.now(_tzp.utc).isoformat(),
+        }
+        event = {
+            "event_id": str(_uuid.uuid4()),
+            "protocol": protocol,
+            "raw": raw[:64] if raw else "",
+            "decoded": decoded,
+            "receipt": receipt,
+            "ts": ts_in,
+        }
+        # Append to inbox ring
+        if organ not in _INBOX:
+            _INBOX[organ] = []
+        _INBOX[organ].append(event)
+        if len(_INBOX[organ]) > 200:
+            _INBOX[organ] = _INBOX[organ][-200:]
+        return JSONResponse({
+            "received": True,
+            "protocol": protocol,
+            "decoded": decoded,
+            "receipt": receipt,
+            "note": "Decoded fields are CLAIMS from unauthenticated broadcast — not attested truth.",
+            "doctrine": DOCTRINE["version"],
+        })
 
     @app.get(f"{p}/map/state")
     async def _state():
@@ -305,7 +363,12 @@ def register(app, organ: str, web_dir: str | None = None) -> dict[str, Any]:
 
     @app.post(f"{p}/command")
     async def _command(req: Request):
-        body = await req.json()
+        try:
+            body = await req.json()
+        except Exception:
+            return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
         return JSONResponse(_handle_command(organ, body.get("command", ""), body.get("args", {})))
 
     @app.get(f"{p}/receipts")
@@ -316,7 +379,12 @@ def register(app, organ: str, web_dir: str | None = None) -> dict[str, Any]:
                  "receipt_sha": e.get("receipt_sha"), "verify": bool(e.get("signed")),
                  "lean_sha": DOCTRINE["lean_sha"], "doctrine": DOCTRINE["version"]}
                 for e in ring if e.get("receipt_sha")]
-        return JSONResponse(rows)
+        return JSONResponse({
+            "receipts": rows,
+            "total": len(rows),
+            "note": "PLACEHOLDER signing — Sigstore CI not yet wired per Doctrine v11. Signatures are PLACEHOLDER.",
+            "doctrine": DOCTRINE["version"],
+        })
 
     @app.get(f"{p}/replay/{{chain_hash}}")
     async def _replay(chain_hash: str, frame: int = 0):
