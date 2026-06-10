@@ -21,6 +21,8 @@ ecosystem-stage: "operational"
 
 # amaru 🐍
 
+> **⚠️ Archived — retired & consolidated into [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy).** The `amaru` codename has been retired; its capabilities now ship as the **Memory** vertical inside the a11oy flagship. The standalone `szl-holdings/amaru` GitHub repository and the `szlholdings-amaru.hf.space` Hugging Face Space **no longer exist**. The clone URLs, Space links, badges, and deploy commands below are preserved for historical reference only and are **not live** — use [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy) instead.
+
 > **Reasoning that refuses to fabricate. Every answer cites a real source or declines. Every memory op wrapped in a DSSE Khipu receipt.**
 
 [![SLSA L1 honest](https://img.shields.io/badge/SLSA-L1%20honest%20(L2%20roadmap)-555?style=flat-square)](.compliance/SLSA_LEVEL.md)

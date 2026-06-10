@@ -21,6 +21,8 @@ ecosystem-stage: "operational"
 
 # sentra 🛡️
 
+> **⚠️ Archived — retired & consolidated into [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy).** The `sentra` codename has been retired; its capabilities now ship as the **Sentinel** vertical inside the a11oy flagship. The standalone `szl-holdings/sentra` GitHub repository and the `szlholdings-sentra.hf.space` Hugging Face Space **no longer exist**. The clone URLs, Space links, badges, and deploy commands below are preserved for historical reference only and are **not live** — use [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy) instead.
+
 > **Deny-by-default policy immune system. 8 gates. Every verdict signed, traced, and chained.**
 
 [![SLSA L1 honest](https://img.shields.io/badge/SLSA-L1%20honest%20(L2%20roadmap)-555?style=flat-square)](.compliance/SLSA_LEVEL.md)

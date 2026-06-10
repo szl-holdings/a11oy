@@ -1,5 +1,5 @@
 # SDK Deep Dive — Innovation & Evolution Memo
 
-> **Canonical location:** `szl-holdings/ouroboros-thesis` › `docs/sdk-innovation.md`
+> **Canonical location:** archived. The former `szl-holdings/ouroboros-thesis` repository has been retired; the Ouroboros Thesis is now archived at Zenodo DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276), and its runtime lives under [`runtime/ouroboros/`](../) in this repository.
 
-This document is maintained in the `ouroboros-thesis` repository as the canonical source. See the link above for the full content.
+This document was previously maintained in the `ouroboros-thesis` repository, which no longer exists. See the Zenodo DOI above for the canonical, citable source.
