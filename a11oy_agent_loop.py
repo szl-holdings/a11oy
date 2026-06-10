@@ -424,11 +424,17 @@ class AgentLoop:
                              detail={"note": str(result.get("error")
                                               or result.get("honest_note")
                                               or f"tool reported failure (exit={result.get('exit', result.get('code'))})")[:200]})]
-        # RAG grounded chunks → file evidence.
+        # RAG grounded chunks → file evidence. Carry the SZL-corpus category +
+        # source + citation (founder mandate: the agent CITES exactly where each
+        # grounded claim came from — gh:<repo>|hf:<space>/<path>@sha256).
         for ch in (result.get("chunks") or [])[:6]:
             e = ch.get("evidence") or {}
             ev.append(Evidence(kind="file", ref=e.get("path") or ch.get("path", ""),
-                               detail={"lambda": ch.get("lambda")}, sha256=e.get("sha256") or ch.get("sha256")))
+                               detail={"lambda": ch.get("lambda"),
+                                       "corpus": e.get("corpus") or ch.get("corpus"),
+                                       "source": e.get("source") or ch.get("source"),
+                                       "citation": e.get("citation")},
+                               sha256=e.get("sha256") or ch.get("sha256")))
         # explicit URLs.
         for u in (result.get("results") or [])[:5]:
             if isinstance(u, dict) and u.get("url"):
