@@ -9,12 +9,16 @@
 #
 # rekor-recheck.yml (issue #195) covers the receipts persisted on the
 # governance-receipts ledger branch. This monitor is its release-asset
-# counterpart: it downloads the latest release's attestations (*.dsse.json
-# assets) and re-runs the SAME independent verification (Fulcio cert chain +
-# Rekor inclusion + DSSE signature) via scripts/verify_release_receipts.py, which
-# pins the signer identity PER PRODUCING WORKFLOW by reading the SAN from each
-# embedded Fulcio certificate. If any published envelope no longer verifies it
-# fails LOUDLY and raises a rolling incident issue.
+# counterpart: it downloads the receipt attestations (*.dsse.json assets) from
+# ALL recent releases that carry them — not just the latest (issue #403) — and
+# re-runs the SAME independent verification (Fulcio cert chain + Rekor inclusion
+# + DSSE signature) via scripts/verify_release_receipts.py, which pins the signer
+# identity PER PRODUCING WORKFLOW by reading the SAN from each embedded Fulcio
+# certificate. Older releases' published envelopes are what downstream consumers
+# may still be fetching, so re-checking only the latest would let an older
+# release's receipt rot silently while the status row still read green. If any
+# published envelope on any checked release no longer verifies it fails LOUDLY
+# and raises a rolling incident issue.
 #
 # HONESTY: this re-checks SIGNATURES only; the SLSA claim is unchanged (L1).
 # A PLACEHOLDER asset is reported as UNVERIFIABLE and FAILS — never a soft pass.
@@ -32,9 +36,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to verify (default: latest release)'
+        description: 'Single release tag to verify (default: scan recent releases)'
         required: false
         default: ''
+      max_releases:
+        description: 'How many most-recent releases to re-verify (0 = all). Ignored when a single tag is given.'
+        required: false
+        default: '10'
 
 permissions:
   contents: read
@@ -60,36 +68,66 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "sigstore>=2.0.0"
 
-      # Resolve which release to verify, then download only the receipt assets
-      # (*.dsse.json). Tolerant of "no releases yet" and "release carries no
-      # receipt assets yet" — both mean nothing to re-check (honest soft pass).
-      - name: Download published receipt assets from the latest release
+      # Resolve which releases to verify, then download each one's receipt assets
+      # (*.dsse.json) into a per-release subdirectory release-receipts/<tag>/.
+      # Re-verifies ALL recent releases that carry receipts (issue #403), not just
+      # the latest, so an older release's published envelope can't rot unnoticed.
+      # Tolerant of "no releases yet" and "release carries no receipt assets yet"
+      # — both mean nothing to re-check there (honest soft pass).
+      - name: Download published receipt assets across recent releases
         id: download
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_MAX: ${{ github.event.inputs.max_releases }}
         run: |
           set +e
           mkdir -p release-receipts
-          TAG="${INPUT_TAG}"
-          if [ -z "${TAG}" ]; then
-            TAG="$(gh release view --repo "${GITHUB_REPOSITORY}" --json tagName -q .tagName 2>/dev/null)"
+
+          # Build the ordered list of release tags to re-verify. An explicit tag
+          # input pins a single release; otherwise scan the N most-recent
+          # releases (MAX<=0 means all).
+          MAX="${INPUT_MAX:-10}"
+          if [ -n "${INPUT_TAG}" ]; then
+            TAGS="${INPUT_TAG}"
+          elif [ "${MAX}" -le 0 ] 2>/dev/null; then
+            TAGS="$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1000 --json tagName -q '.[].tagName' 2>/dev/null)"
+          else
+            TAGS="$(gh release list --repo "${GITHUB_REPOSITORY}" --limit "${MAX}" --json tagName -q '.[].tagName' 2>/dev/null)"
           fi
-          if [ -z "${TAG}" ]; then
+
+          if [ -z "${TAGS}" ]; then
             echo "No releases found — nothing published to re-check."
-            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "tags=" >> "$GITHUB_OUTPUT"
+            echo "releases_with_assets=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "Target release: ${TAG}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          gh release download "${TAG}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --pattern '*.dsse.json' \
-            --dir release-receipts >/dev/null 2>&1 \
-            && echo "Downloaded receipt assets." \
-            || echo "Release ${TAG} carries no *.dsse.json assets yet."
-          echo "Receipt assets present:"
-          ls -1 release-receipts/*.dsse.json 2>/dev/null || echo "  (none)"
+
+          checked_tags=""
+          asset_releases=0
+          while IFS= read -r TAG; do
+            [ -z "${TAG}" ] && continue
+            dest="release-receipts/${TAG}"
+            mkdir -p "${dest}"
+            gh release download "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern '*.dsse.json' \
+              --dir "${dest}" >/dev/null 2>&1
+            n=$(ls -1 "${dest}"/*.dsse.json 2>/dev/null | wc -l | tr -d ' ')
+            if [ "${n}" -gt 0 ]; then
+              echo "Release ${TAG}: ${n} receipt asset(s)."
+              asset_releases=$((asset_releases + 1))
+              checked_tags="${checked_tags}${TAG} "
+            else
+              echo "Release ${TAG}: no *.dsse.json assets — skipping."
+              rmdir "${dest}" 2>/dev/null
+            fi
+          done <<< "${TAGS}"
+
+          checked_tags="$(echo ${checked_tags})"  # trim
+          echo "tags=${checked_tags}" >> "$GITHUB_OUTPUT"
+          echo "releases_with_assets=${asset_releases}" >> "$GITHUB_OUTPUT"
+          echo "Releases carrying receipt assets: ${asset_releases} (${checked_tags:-none})"
 
       - name: Re-verify all published release receipts
         id: verify
@@ -113,13 +151,14 @@ jobs:
             echo "${k}=${!k}" >> "$GITHUB_OUTPUT"
           done
 
-          # Names (+reason) of every published asset that no longer verifies
-          # (FAIL or UNVERIFIABLE), so the direct alert can name the failing
-          # receipt(s). Multi-line output via the heredoc delimiter form.
+          # Names (+release +reason) of every published asset that no longer
+          # verifies (FAIL or UNVERIFIABLE), so the direct alert can name the
+          # failing receipt(s) AND the release they belong to. Multi-line output
+          # via the heredoc delimiter form.
           {
             echo "failed_files<<__RELVERIFY_EOF__"
             if [ -f release-receipts/.release-verify-summary.json ]; then
-              python -c "import json; s=json.load(open('release-receipts/.release-verify-summary.json')); [print('- '+r['file']+(' ('+r['reason']+')' if r.get('reason') else '')) for r in s.get('results',[]) if r.get('status') in ('FAIL','UNVERIFIABLE')]"
+              python -c "import json; s=json.load(open('release-receipts/.release-verify-summary.json')); [print('- '+(r.get('release','?')+'/' if r.get('release') else '')+r['file']+(' ('+r['reason']+')' if r.get('reason') else '')) for r in s.get('results',[]) if r.get('status') in ('FAIL','UNVERIFIABLE')]"
             fi
             echo "__RELVERIFY_EOF__"
           } >> "$GITHUB_OUTPUT"
@@ -127,10 +166,11 @@ jobs:
           {
             echo "## Release receipt verification"
             echo ""
-            echo "Release: \`${{ steps.download.outputs.tag }}\`"
+            echo "Releases re-checked: **${{ steps.download.outputs.releases_with_assets }}** (\`${{ steps.download.outputs.tags }}\`)"
             echo ""
             echo "| Metric | Count |"
             echo "|--------|-------|"
+            echo "| Releases with receipts | ${{ steps.download.outputs.releases_with_assets }} |"
             echo "| Checked | ${checked} |"
             echo "| Verified | ${passed} |"
             echo "| **Failed** | ${failed} |"
@@ -164,7 +204,7 @@ jobs:
           PASSED: ${{ steps.verify.outputs.passed }}
           FAILED: ${{ steps.verify.outputs.failed }}
           UNVERIFIABLE: ${{ steps.verify.outputs.unverifiable }}
-          REL_TAG: ${{ steps.download.outputs.tag }}
+          REL_INFO: ${{ steps.download.outputs.releases_with_assets }} release(s) [${{ steps.download.outputs.tags }}]
         with:
           script: |
             const failed = Number(process.env.FAILED || '0') > 0 ||
@@ -227,7 +267,7 @@ jobs:
           ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
           ISSUE_NUMBER: ${{ steps.incident.outputs.issue_number }}
           REPO: ${{ github.repository }}
-          REL_TAG: ${{ steps.download.outputs.tag }}
+          REL_INFO: ${{ steps.download.outputs.releases_with_assets }} release(s) [${{ steps.download.outputs.tags }}]
           CHECKED: ${{ steps.verify.outputs.checked }}
           PASSED: ${{ steps.verify.outputs.passed }}
           FAILED: ${{ steps.verify.outputs.failed }}
@@ -255,7 +295,7 @@ jobs:
           # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
           # payload. Slack renders \n and *bold* in the `text` field.
           text=":rotating_light: *Release receipt verification FAILED* — published release-asset receipt(s) no longer verify in ${REPO}.
-          *Release:* ${REL_TAG}
+          *Releases checked:* ${REL_INFO}
           *Counts:* checked=${CHECKED} verified=${PASSED} failed=${FAILED} unverifiable=${UNVERIFIABLE}
           *Failing receipt(s):*
           ${files}
