@@ -133,6 +133,7 @@ pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--pa
 .honesty{margin-top:1.2rem;padding:1rem 1.2rem;border:1px solid var(--gold-line);border-radius:9px;background:var(--gold-soft);font-size:11.5px;color:var(--paragraph);line-height:1.7;}
 .honesty b{color:var(--gold);}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;}
+.grid2>*{min-width:0;}/* grid-blowout guard: let cells shrink below intrinsic content width (mobile no-overflow) */
 .muted{color:var(--muted);} .mono.dim{color:var(--dim);}
 
 /* ===== MOBILE / TABLET RESPONSIVE (Framing Doctrine §C) ===== */
@@ -147,6 +148,8 @@ pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--pa
   .menu-btn{display:inline-flex!important;}
   /* full-width single column + readable viz on portrait */
   .grid2,.split2{grid-template-columns:1fr!important;}
+  .grid2>*,.split2>*{min-width:0!important;max-width:100%;}
+  #cd-pane-chaski pre.out{max-width:100%;overflow-x:auto;}
   .kpis{grid-template-columns:repeat(auto-fit,minmax(46%,1fr));}
   .view-title{font-size:1.35rem;}
   .view-sub{font-size:12px;}
