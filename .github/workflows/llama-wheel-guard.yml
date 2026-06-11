@@ -1,32 +1,35 @@
 name: llama-cpp wheel guard
 
 # Catches a SILENT regression in the OPTIONAL local-model ("alloy") demo tier.
-# The root Dockerfile installs the pinned prebuilt llama-cpp-python CPU wheel
-# with a trailing `|| echo ...`, so the image build stays GREEN even if the
-# prebuilt cp312/linux_x86_64 wheel disappears for the pinned version (older
-# 0.3.2x releases, for example, ship cp312 wheels only for aarch64/riscv64 —
-# NOT x86_64). When that happens the demo tier silently degrades to the honest
-# tower-side label with no red signal, and a bad version bump goes unnoticed.
+# The root Dockerfile BUILDS llama-cpp-python FROM SOURCE against the glibc
+# python:3.12-slim base, because abetlen's prebuilt CPU wheel index ships the
+# recent, Qwen2.5-capable 0.3.x cp312 linux_x86_64 wheels built against MUSL
+# libc — their bundled libllama.so NEEDs libc.musl-x86_64.so.1 and CANNOT load
+# on glibc, so a prebuilt-wheel install would silently degrade the demo tier to
+# the honest tower-side label. The only glibc (manylinux) prebuilt cp312 wheels
+# on that index are 0.2.6x, far too old to load the Qwen2.5 GGUF architecture.
 #
-# This guard re-runs the EXACT pinned install parsed from the Dockerfile on the
-# same platform the image targets (cp312 / linux_x86_64), but WITHOUT the
-# `|| echo` mask and WITH `--only-binary` so pip refuses any from-source
-# compile. A vanished prebuilt wheel therefore turns the silent fallback into a
-# RED CI failure here, while the Dockerfile keeps its honest `|| echo` fallback
-# for genuinely unsupported platforms. This guard only asserts that the wheel
-# a11oy actually ships on (cp312 linux_x86_64) still exists for the pinned
-# version — it does not break the legitimate honest-fallback behavior.
+# This guard re-builds the EXACT pinned llama-cpp-python version parsed from the
+# Dockerfile FROM SOURCE on the same platform the image targets (cp312 /
+# linux_x86_64) and asserts (a) it imports and (b) the resulting libllama.so is
+# glibc-linked (NEEDs libc.so.6) and NOT musl-linked. If a version bump silently
+# regresses the contract — the pinned version no longer compiles on glibc, or a
+# packaging change produces a non-glibc libllama.so — this turns the otherwise
+# silent demo-tier degrade into a RED CI failure. The ghcr-build-push workflow's
+# "Demo tier serves REAL local model" step is the end-to-end authority (it boots
+# the published image and proves genuine local generation); this guard is the
+# fast, source-only contract check that runs on Dockerfile edits and on a
+# schedule even when nobody touches the repo.
 #
-# The wheel can vanish from the upstream index (abetlen.github.io) without
-# anyone editing the repo, in which case the push/PR-only triggers never fire
-# and the demo tier degrades silently until the next Dockerfile change. The
-# weekly `schedule:` re-verifies the install contract against the LIVE index on
-# a cadence; a scheduled-run failure pages the team through the shared
-# a11oy-uptime ntfy alert path (the same SLACK_WEBHOOK_URL relay the other a11oy
-# CI alert workflows use). PR failures are NOT paged — a red check already shows
-# on the PR — mirroring the receipts-pin-drift-guard convention.
+# The pinned version can stop compiling on glibc (toolchain/source drift) without
+# anyone editing the repo, in which case the push/PR-only triggers never fire.
+# The weekly `schedule:` re-verifies the source-build contract on a cadence; a
+# scheduled-run failure pages the team through the shared a11oy-uptime ntfy alert
+# path (the same SLACK_WEBHOOK_URL relay the other a11oy CI alert workflows use).
+# PR failures are NOT paged — a red check already shows on the PR — mirroring the
+# receipts-pin-drift-guard convention.
 #
-# DCO: Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+# DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 
 on:
   push:
@@ -40,8 +43,8 @@ on:
       - 'Dockerfile'
       - '.github/workflows/llama-wheel-guard.yml'
   schedule:
-    # Weekly, Mondays 06:17 UTC — re-verify the pinned wheel still exists on the
-    # live upstream index even when nobody touches the Dockerfile.
+    # Weekly, Mondays 06:17 UTC — re-verify the pinned version still compiles
+    # from source on glibc even when nobody touches the Dockerfile.
     - cron: '17 6 * * 1'
   workflow_dispatch:
 
@@ -59,51 +62,63 @@ jobs:
           # cp312 — same interpreter family as the Dockerfile's python:3.12-slim base.
           python-version: '3.12'
 
-      - name: Parse pinned wheel version + CPU index from Dockerfile
+      - name: Parse pinned llama-cpp-python version from Dockerfile
         id: parse
         run: |
           set -euo pipefail
           VER="$(grep -oE 'llama-cpp-python==[0-9][0-9.]*' Dockerfile | head -n1 | sed 's/.*==//')"
-          URL="$(grep -oE 'extra-index-url[[:space:]]+[^ \\]+' Dockerfile | head -n1 | awk '{print $2}')"
-          if [ -z "${VER}" ] || [ -z "${URL}" ]; then
-            echo "::error::Could not parse the pinned 'llama-cpp-python==<ver>' install or its --extra-index-url from the Dockerfile. If the install line moved or changed shape, update this guard in lockstep."
+          if [ -z "${VER}" ]; then
+            echo "::error::Could not parse the pinned 'llama-cpp-python==<ver>' install from the Dockerfile. If the install line moved or changed shape, update this guard in lockstep."
             exit 1
           fi
           echo "version=${VER}" >> "${GITHUB_OUTPUT}"
-          echo "index=${URL}" >> "${GITHUB_OUTPUT}"
-          echo "Parsed llama-cpp-python==${VER} from index ${URL}"
+          echo "Parsed llama-cpp-python==${VER}"
 
-      - name: Assert prebuilt cp312 linux_x86_64 wheel installs (no source build)
+      - name: Install build toolchain (glibc source build)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build
+
+      - name: Build pinned version from source and assert glibc-linked libllama.so
         run: |
           set -euo pipefail
           VER="${{ steps.parse.outputs.version }}"
-          URL="${{ steps.parse.outputs.index }}"
-          # --only-binary=llama-cpp-python forbids ANY from-source compile of the
-          # target package. If the prebuilt cp312/linux_x86_64 wheel has vanished
-          # for this version, pip ERRORS here instead of silently degrading the
-          # way the Dockerfile's `|| echo` does. (Deps still resolve normally.)
+          # Build FROM SOURCE (no prebuilt wheel) exactly as the Dockerfile does.
+          # A musl-only upstream wheel cannot satisfy this, and a glibc source
+          # build is what the published image actually relies on.
           set +e
-          pip install --no-cache-dir --only-binary=llama-cpp-python \
-            --extra-index-url "${URL}" \
+          CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python \
             "llama-cpp-python==${VER}" 2>&1 | tee pip.log
           rc=${PIPESTATUS[0]}
           set -e
           if [ "${rc}" -ne 0 ]; then
-            echo "::error::pip could NOT install the prebuilt llama-cpp-python==${VER} wheel for cp312/linux_x86_64. The Dockerfile masks this with '|| echo', so the demo tier would silently degrade. Pick a version that publishes a cp312 linux_x86_64 wheel on ${URL}."
+            echo "::error::Could NOT build llama-cpp-python==${VER} from source on cp312/glibc. The Dockerfile relies on this exact source build for the alloy demo tier; pick a version that compiles, or fix the toolchain pins."
             exit 1
           fi
-          if ! grep -Eq "llama_cpp_python-${VER}-cp312-cp312-linux_x86_64\.whl" pip.log; then
-            echo "::error::Expected the cp312 linux_x86_64 prebuilt wheel (llama_cpp_python-${VER}-cp312-cp312-linux_x86_64.whl) in the pip log but it was not downloaded. The wheel set for this version may have changed."
-            exit 1
-          fi
-          python -c "import llama_cpp; print('llama_cpp import OK, version', getattr(llama_cpp, '__version__', 'unknown'))"
-          echo "OK: prebuilt llama-cpp-python==${VER} cp312/linux_x86_64 wheel downloads, installs, and imports."
+          python - <<'PY'
+          import llama_cpp, os, glob, sys
+          base = os.path.dirname(llama_cpp.__file__)
+          so = glob.glob(os.path.join(base, "**", "libllama.so"), recursive=True)
+          if not so:
+              print("::error::libllama.so not found under %s after the source build." % base)
+              sys.exit(1)
+          data = open(so[0], "rb").read()
+          glibc = b"libc.so.6" in data
+          musl = b"libc.musl-x86_64.so.1" in data
+          print("libllama.so=%s glibc=%s musl=%s" % (so[0], glibc, musl))
+          if musl or not glibc:
+              print("::error::libllama.so is not glibc-linked (glibc=%s musl=%s). It would fail to load on the python:3.12-slim (glibc) base and the demo tier would silently degrade." % (glibc, musl))
+              sys.exit(1)
+          print("import OK, version", getattr(llama_cpp, "__version__", "unknown"))
+          PY
+          echo "OK: llama-cpp-python==${VER} builds from source on glibc and yields a glibc-linked, importable libllama.so."
 
       - name: Page the team on scheduled-run failure (ntfy via relay)
         # Fire ONLY on the unattended weekly scheduled run when a prior step
-        # failed — i.e. the pinned wheel vanished from the live upstream index
-        # with no repo change to trigger the push/PR paths. PR/push failures are
-        # not paged (the red check is already visible). Mirrors the
+        # failed — i.e. the pinned version stopped compiling on glibc with no
+        # repo change to trigger the push/PR paths. PR/push failures are not
+        # paged (the red check is already visible). Mirrors the
         # receipts-pin-drift-guard alert convention. This step never masks the
         # failure: the job is already red from the failing step above.
         if: ${{ failure() && github.event_name == 'schedule' }}
@@ -117,7 +132,7 @@ jobs:
             echo "::warning::SLACK_WEBHOOK_URL is not set — cannot page; the failing run remains the source of truth."
             exit 0
           fi
-          export MSG=":rotating_light: a11oy llama-cpp wheel guard FAILED on its weekly scheduled re-verification. The pinned cp312/linux_x86_64 llama-cpp-python==${VER:-?} prebuilt wheel may have vanished from the upstream index, so the local-model demo tier is silently degrading behind the Dockerfile's '|| echo' mask. Run: ${RUN_URL} . Fix: pin a llama-cpp-python version that still publishes a cp312 linux_x86_64 wheel on the configured --extra-index-url."
+          export MSG=":rotating_light: a11oy llama-cpp wheel guard FAILED on its weekly scheduled re-verification. The pinned llama-cpp-python==${VER:-?} no longer builds from source into a glibc-linked libllama.so on cp312/linux_x86_64, so the local-model demo tier would silently degrade behind the honest tower-side label. Run: ${RUN_URL} . Fix: pin a llama-cpp-python version that compiles from source on glibc (recent enough to load the Qwen2.5 GGUF)."
           payload="$(python3 -c 'import json,os; print(json.dumps({"text": os.environ["MSG"]}))')"
           code="$(curl -sS -o /tmp/relay.out -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "${payload}" "${SLACK_WEBHOOK_URL}" || echo 000)"
           echo "alert relay responded HTTP ${code}"

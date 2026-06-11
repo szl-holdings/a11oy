@@ -449,25 +449,31 @@ COPY szl_alloy_models.py ./szl_alloy_models.py
 # no prebuilt wheel), but the GGUF weight below is now RELIABLY fetched (pinned
 # revision + retry + integrity verify) so the published image always carries it.
 # We never redistribute the weight in our repo — it is fetched from the HF repo.
-# OPTIONAL live CPU demo tier wheel — PINNED PREBUILT (no source compile).
-# Previously `pip install "llama-cpp-python>=0.2.79"` built the wheel FROM SOURCE,
-# which fails to compile on CPU-only CI/hardware and was silently swallowed by the
-# trailing `|| echo`, so the alloy demo tier always degraded to the tower-side label.
-# python:3.12-slim is cp312 and the CI runner + box are linux_x86_64, and version
-# 0.3.19 publishes a matching cp312 linux_x86_64 prebuilt wheel on llama-cpp-python's
-# official CPU wheel index, so this resolves deterministically with NO from-source
-# build. The `|| echo` stays ONLY as a final safety net for a platform without a
-# matching prebuilt wheel (honest tower-side fallback, never fabricated output).
-# GUARD: because the `|| echo` keeps the image build GREEN even if this wheel
-# vanishes for cp312/linux_x86_64 (a silent demo-tier degrade), CI workflow
-# .github/workflows/llama-wheel-guard.yml re-runs this exact pinned install
-# (parsed from this line) on cp312/linux_x86_64 WITHOUT the mask and with
-# --only-binary, failing loudly if the prebuilt wheel is gone. When bumping the
-# version below, that guard verifies — does not assume — the new wheel exists.
-RUN pip install --no-cache-dir \
-      --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
-      "llama-cpp-python==0.3.19" \
-    || echo "[a11oy] llama-cpp-python prebuilt wheel unavailable on this platform -> alloy demo tier falls back to honest tower-side label"
+# CPU demo-tier llama.cpp — BUILT FROM SOURCE against glibc (NOT a prebuilt wheel).
+# WHY: abetlen's CPU wheel index ships the recent, Qwen2.5-capable 0.3.x cp312
+# linux_x86_64 wheels built against MUSL libc — their bundled libllama.so NEEDs
+# libc.musl-x86_64.so.1, which CANNOT load on this glibc python:3.12-slim base
+# (dlopen fails: "libc.musl-x86_64.so.1: cannot open shared object file"), so the
+# demo tier silently degrades to the honest tower-side label. The only glibc
+# (manylinux) prebuilt cp312 wheels on that index are 0.2.6x — far too old to load
+# the Qwen2.5 GGUF architecture. So we compile llama-cpp-python==0.3.19 from source
+# here: recent enough to load the Qwen2.5-Coder GGUF AND producing a glibc-linked
+# libllama.so that actually loads. NO `|| echo` mask — the demo tier is a HARD
+# requirement of the published image (the ghcr-build-push "Demo tier serves REAL
+# local model" step boots the image and fails the build if the alloy demo tier does
+# not serve genuine local llama.cpp output), so a failed compile must fail LOUD.
+# GUARD: .github/workflows/llama-wheel-guard.yml re-builds this exact pinned version
+# from source on cp312/linux_x86_64 and asserts the resulting libllama.so links
+# glibc (not musl) and imports — verifying, not assuming, the contract on each bump.
+# GGML_NATIVE=OFF keeps the build portable (no -march=native) across CI + box CPUs.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends build-essential cmake ninja-build git libgomp1 libstdc++6; \
+    CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19"; \
+    python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp built from source OK (glibc):', so[0], getattr(llama_cpp,'__version__','?'))"; \
+    apt-get purge -y build-essential cmake ninja-build git; \
+    apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/*
 # GGUF weight — RELIABLY PRESENT (pinned revision + retry + integrity verify), NOT best-effort.
 # Previously a single best-effort `hf_hub_download(...) || echo` step: a transient download
 # failure silently shipped an image with NO model, so the alloy demo tier always degraded to
