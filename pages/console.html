@@ -12327,5 +12327,252 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
 })();
 </script>
+<!-- ===================================================================== -->
+<!-- SZL SOVEREIGNTY / ALLODIAL LATTICE (living-3D) - Allodial AI doctrine,    -->
+<!-- driven LIVE by /api/a11oy/v1/allodial/* (szl_allodial.py, byte-identical   -->
+<!-- a11oy<->killinchu). Hero = Denning 1976 control lattice as a 3D graph     -->
+<!-- (top = allodial, feudal chains strictly lower). Score gauge = EU CSF 2025 -->
+<!-- + HHI (PROPOSED). 3-layer feudal/allodial comparator. Goguen-Meseguer     -->
+<!-- 1982 non-interference witness. Mandatory honest-limit panel (allodial !=  -->
+<!-- above the law). EXPERIMENTAL-tier: adds NOTHING to the locked 8           -->
+<!-- {{F1,F4,F7,F11,F12,F18,F19,F22}}; Lambda stays Conjecture 1; Allodial is   -->
+<!-- PROPOSED, NOT the formal Lambda; trust never 100%. 0 runtime CDN -         -->
+<!-- vendored 3d-force-graph/echarts/three only. Rejects sovereign-citizen     -->
+<!-- 'land-patent' framing. Every borrowed formula cited to its real author.   -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  /* ==== SOVEREIGNTY / ALLODIAL LATTICE tab body (shared template). a11oy replaced per app. ====
+     All five visuals draw from the LIVE /api/a11oy/v1/allodial/* endpoints (szl_allodial.py,
+     byte-identical a11oy<->killinchu). EXPERIMENTAL-tier: adds NOTHING to the locked 8
+     {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda stays Conjecture 1; the Allodial gate is PROPOSED,
+     NOT the formal Lambda; trust never 100%. 0 runtime CDN — vendored 3d-force-graph/echarts only.
+     Null-safe every async path (E()/ex()/setHTML). Rejects sovereign-citizen "land-patent" framing:
+     the claim is architectural + governance, anchored to real statutes & standards. */
+  var SAPI=(window.location.origin)+'/api/a11oy/v1';
+  var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function E(id){ var e=document.getElementById(id); if(e) return e; if(!E._d) E._d=document.createElement('div'); return E._d; }
+  function ex(id){ return document.getElementById(id); }
+  function setHTML(id,html){ var e=document.getElementById(id); if(e) e.innerHTML=html; }
+  function H(id,html){ var e=document.getElementById(id); if(e) e.innerHTML=html; }
+  function elS(id){ return document.getElementById(id); }
+  function fmt(n,d){ if(n==null||isNaN(n)) return '\u2014'; return Number(n).toFixed(d==null?1:d); }
+  function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+  function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+  async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+  function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
+  function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
+  function proposedBox(txt){ return '<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.03em;color:'+WARN+'">'+txt+'</div>'; }
+  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 8 locked formulas; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); the Allodial sovereignty gate is <b>PROPOSED, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed formula is cited to its real author; SZL claims none as its own discovery. We <b>reject</b> the sovereign-citizen / "land-patent" pseudolegal fringe \u2014 this is an architectural + governance claim, anchored to real statutes & standards.</div>'; }
+
+  // ───────────── VISUAL 1 (HERO) — DENNING CONTROL LATTICE (3D) ─────────────
+  function renderLattice(c){
+    c.innerHTML='<div class="hero" style="border:1px solid '+GOLD+'55;border-radius:14px;padding:1rem 1.1rem;background:radial-gradient(ellipse at top left,'+GOLD+'10,transparent 70%);margin-bottom:.8rem">'
+      +'<div class="card-t" style="font-size:15px">'+dot()+'Most AI is <b>feudal</b>. SZL is <b>allodial</b> \u2014 the Denning control lattice</div>'
+      +'<div class="mono dim" style="font-size:12px;margin-top:.3rem">Denning (1976) proved information-flow control classes form a <b>complete lattice</b> with a top element \u22a4. SZL maps \u22a4 to the <b>allodial position</b>: full operator control, no critical external dependency (SEAL-4). Every feudal dependency is a <i>strictly lower</i> node \u2014 a chain that still answers to an overlord. Each node\u2019s position is a live <code>/allodial/lattice?seal=</code> call.</div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">SEAL ladder \u2192 lattice position (live)</span><span class="card-ep">vendored 3d-force-graph \u00b7 \u22a4 = allodial</span></div>'
+      +'<div class="kpis" id="lat-gate">'+kpi('\u22a4 (top / allodial)','lat-top','SEAL-4 node',GOLD)+kpi('Feudal chain nodes','lat-feud','SEAL 0\u20133',RISK)+kpi('Lattice','lat-kind','Denning complete lattice',TEAL)+kpi('Current posture','lat-pos','\u2014',INFO)+'</div>'
+      +'<div id="lat-3d" style="height:clamp(340px,52vh,520px);border-radius:10px;background:#050608;margin-top:.6rem"></div>'
+      +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Gold node = \u22a4 (allodial / SEAL-4, no overlord). Teal/amber/red nodes = strictly-lower feudal chain (SEAL 3\u21920). Edges point <b>up</b> the dominance order; a feudal node can never dominate \u22a4 (le_top).</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Lattice author: </span>'+cite('https://doi.org/10.1145/360051.360056','Denning 1976, "A Lattice Model of Secure Information Flow", CACM 19(5) \u2014 DOI:10.1145/360051.360056')+' &nbsp; '+cite('https://en.wikipedia.org/wiki/Allodial_title','Allodial title (concept)')+'</div>'
+      +'<details class="raw"><summary>raw /allodial/lattice samples (SEAL 0\u20134)</summary><pre class="out" id="lat-raw">\u2014</pre></details>'
+      +honesty('A SEAL-4 configuration sits at \u22a4 (\u2295SC): it can be influenced by everything below but dominates nothing it must answer to \u2014 the allodial element. Lower SEAL = a feudal chain that still reports to an overlord. The graph redraws exactly the lattice positions the live endpoint returns; the Lean gate (allodial_dominance / allodial_unique / feudal_has_overlord) is PROPOSED-tier, no sorry, Mathlib axioms only.');
+    (async function(){
+      var raw=[]; var nodes=[]; var links=[];
+      var colByS={4:GOLD,3:TEAL,2:'#8fae7a',1:WARN,0:RISK};
+      for(var s=4;s>=0;s--){ try{ var d=await J(SAPI+'/allodial/lattice?seal='+s); raw.push(d);
+        nodes.push({id:'seal-'+s,name:(s===4?'\u22a4 SEAL-4 \u2014 ALLODIAL (no overlord)':'SEAL-'+s+' \u2014 '+(d.position||'feudal chain')),val:(s===4?9:5),color:colByS[s]});
+      }catch(e){} }
+      // dominance edges: each lower node flows up toward top
+      for(var s=0;s<4;s++){ links.push({source:'seal-'+s,target:'seal-'+(s+1)}); }
+      if(ex('lat-raw')) ex('lat-raw').textContent=JSON.stringify(raw,null,2);
+      var top=raw.filter(function(r){return r.is_top;}).length;
+      var feud=raw.filter(function(r){return !r.is_top;}).length;
+      E('lat-top').textContent=top?('\u22a4 present'):'\u2014'; E('lat-top').style.color=GOLD;
+      E('lat-feud').textContent=feud+' nodes'; E('lat-feud').style.color=RISK;
+      var cur=raw.filter(function(r){return r.seal===4;})[0];
+      E('lat-pos').textContent=(cur?cur.position:'\u2014'); E('lat-pos').style.color=cur&&cur.is_top?LIVE:INFO;
+      if(window.dag3d && nodes.length){ window.dag3d('lat-3d',nodes,links,{dagMode:'td',dist:64,labels:true,cooldown:140}); }
+      else { var h=ex('lat-3d'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">3d-force-graph (window.dag3d) not present \u2014 lattice positions still listed in raw panel below (honest fallback)</div>'; }
+    })();
+  }
+
+  // ───────────── VISUAL 2 — ALLODIAL SCORE GAUGE (interactive) ─────────────
+  function renderScore(c){
+    var dims=['model_weights','inference_compute','data_residency','chain_of_title','governance_keys'];
+    var labels=['Model weights','Inference compute','Data residency','Chain-of-title','Governance keys'];
+    var seals=[4,4,4,4,4]; var deps=[1]; // dep shares; start single-dep (max lock-in) toggle off
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Allodial Sovereignty Score \ud835\udc9c (live, interactive)</span><span class="card-ep">EU CSF 2025 + HHI</span></div>'
+      +proposedBox('<b>PROPOSED engineering gate \u2014 NOT the formal \u039b.</b> \ud835\udc9c = [\u03a3 w_k\u00b7SEAL_k/4] \u00d7 (1\u2212DCI) \u00d7 100. Built entirely from EU Cloud Sovereignty Framework (weighted SEAL sum) + the Herfindahl-Hirschman Index (the (1\u2212DCI) lock-in penalty). Dimension weights need empirical calibration.')
+      +'<div class="grid2"><div>'
+      +'<div class="kpis" id="sco-gate">'+kpi('Score \ud835\udc9c','sco-a','0\u2013100',GOLD)+kpi('Posture','sco-post','allodial / mixed / feudal',TEAL)+kpi('SEAL term','sco-seal','\u03a3 w\u00b7SEAL/4',INFO)+kpi('DCI lock-in','sco-dci','HHI \u00b7 penalty (1\u2212DCI)',RISK)+'</div>'
+      +'<div id="sco-chart" style="height:clamp(220px,30vh,300px);margin-top:.4rem"></div>'
+      +'</div><div>'
+      +'<div class="mono dim" style="font-size:11px;margin-bottom:.4rem">Vary each dimension\u2019s <b>SEAL</b> (0 feudal \u2192 4 allodial) and the external <b>dependency concentration</b>. Watch \ud835\udc9c move and the DCI lock-in penalty bite.</div>'
+      +'<div id="sco-sliders"></div>'
+      +'<div style="margin-top:.6rem"><label class="mono dim" style="font-size:11px">External dependency shares (comma-sep; one big share = single-overlord lock-in):</label>'
+      +'<input id="sco-dep" value="1" class="mono" style="width:100%;margin-top:.25rem;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.35rem .5rem;font-size:12px"/>'
+      +'<div class="row" style="gap:.4rem;margin-top:.4rem;flex-wrap:wrap">'
+      +'<button id="sco-locked" class="mono" style="border:1px solid '+RISK+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+RISK+'">single-vendor lock-in (DCI=1)</button>'
+      +'<button id="sco-distrib" class="mono" style="border:1px solid '+LIVE+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+LIVE+'">distributed (4 equal)</button>'
+      +'<button id="sco-allod" class="mono" style="border:1px solid '+GOLD+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+GOLD+'">fully allodial (SEAL-4, no dep)</button>'
+      +'</div></div></div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Formula lineage: </span>'+cite('https://digital-strategy.ec.europa.eu/en/policies/cloud-sovereignty-framework','EU Cloud Sovereignty Framework 2025 (SEAL / SovScore)')+' &nbsp; '+cite('https://en.wikipedia.org/wiki/Herfindahl%E2%80%93Hirschman_index','Herfindahl-Hirschman Index (DCI)')+'</div>'
+      +'<details class="raw"><summary>raw /allodial/score</summary><pre class="out" id="sco-raw">\u2014</pre></details>'
+      +honesty('\ud835\udc9c=100 means SEAL-4 on every dimension AND zero dependency concentration (DCI=0). A single-vendor lock-in (DCI=1) zeroes the score even at SEAL-4 \u2014 lock-in destroys sovereignty no matter how good the controls look. Recomputed live on every change; weights are PROPOSED and require calibration.');
+    // build sliders
+    var sh='';
+    for(var i=0;i<dims.length;i++){ sh+='<div class="row" style="align-items:center;gap:.5rem;margin:.2rem 0"><span class="mono" style="font-size:11px;min-width:120px;color:'+INFO+'">'+esc(labels[i])+'</span>'
+      +'<input type="range" min="0" max="4" step="1" value="4" id="sco-s'+i+'" style="flex:1"/>'
+      +'<span class="mono" id="sco-sv'+i+'" style="font-size:11px;min-width:46px;color:'+GOLD+'">SEAL 4</span></div>'; }
+    setHTML('sco-sliders',sh);
+    async function recompute(){
+      var sv=[]; for(var i=0;i<dims.length;i++){ var r=ex('sco-s'+i); var v=r?parseInt(r.value,10):4; sv[i]=v; var lbl=ex('sco-sv'+i); if(lbl) lbl.textContent='SEAL '+v; }
+      seals=sv; var depEl=ex('sco-dep'); var depStr=depEl?depEl.value:'1';
+      try{
+        var d=await J(SAPI+'/allodial/score?seals='+seals.join(',')+'&dep='+encodeURIComponent(depStr));
+        if(ex('sco-raw')) ex('sco-raw').textContent=JSON.stringify(d,null,2);
+        var sc=d.score||0; E('sco-a').textContent=fmt(sc,1); E('sco-a').style.color=(sc>=80?GOLD:(sc>=40?WARN:RISK));
+        E('sco-post').textContent=(d.posture||'\u2014'); E('sco-post').style.color=(d.posture==='allodial'?LIVE:(d.posture==='mixed'?WARN:RISK));
+        E('sco-seal').textContent=fmt(d.seal_term,3); E('sco-seal').style.color=INFO;
+        E('sco-dci').textContent=fmt(d.dci,3)+'  (\u00d7'+fmt(1-(d.dci||0),3)+')'; E('sco-dci').style.color=((d.dci||0)>0.4?RISK:LIVE);
+        if(window.mkEchart) window.mkEchart('sco-chart',{backgroundColor:'transparent',
+          series:[{type:'gauge',startAngle:210,endAngle:-30,min:0,max:100,radius:'92%',progress:{show:true,width:14,itemStyle:{color:(sc>=80?GOLD:(sc>=40?WARN:RISK))}},
+            axisLine:{lineStyle:{width:14,color:[[0.4,RISK],[0.8,WARN],[1,GOLD]]}},axisTick:{show:false},splitLine:{length:10,lineStyle:{color:'#2a2a2a'}},
+            axisLabel:{color:'#8a8f98',fontSize:9,distance:-44},pointer:{width:5,itemStyle:{color:'#cfcfcf'}},
+            detail:{valueAnimation:true,formatter:'{value}',color:'#f0f0f0',fontSize:26,offsetCenter:[0,'40%']},
+            title:{show:true,offsetCenter:[0,'74%'],color:'#8a8f98',fontSize:11},
+            data:[{value:Number(sc.toFixed(1)),name:(d.posture||'')+' \u00b7 PROPOSED'}]}]});
+      }catch(e){ if(ex('sco-raw')) ex('sco-raw').textContent='retry: '+e.message; }
+    }
+    for(var i=0;i<dims.length;i++){ (function(i){ var r=ex('sco-s'+i); if(r) r.addEventListener('input',recompute); })(i); }
+    var dep=ex('sco-dep'); if(dep) dep.addEventListener('input',recompute);
+    var bl=ex('sco-locked'); if(bl) bl.addEventListener('click',function(){ ex('sco-dep').value='1'; recompute(); });
+    var bd=ex('sco-distrib'); if(bd) bd.addEventListener('click',function(){ ex('sco-dep').value='1,1,1,1'; recompute(); });
+    var ba=ex('sco-allod'); if(ba) ba.addEventListener('click',function(){ for(var i=0;i<dims.length;i++){var r=ex('sco-s'+i); if(r) r.value=4;} ex('sco-dep').value='0'; recompute(); });
+    ex('sco-dep').value='1,1,1,1'; recompute();
+  }
+
+  // ───────────── VISUAL 3 — FEUDAL-vs-ALLODIAL 3-LAYER COMPARATOR ─────────────
+  function renderLayers(c){
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Feudal tenure vs allodial title \u2014 the three layers (live)</span><span class="card-ep">/allodial/summary</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Digital sovereignty is standardly three layers \u2014 <b>infrastructure</b>, <b>code/standards</b>, <b>data</b>. Feudal AI <i>rents</i> each from an overlord who keeps real title; allodial AI <b>holds each outright</b>. The rows below are read live from the summary endpoint.</div>'
+      +'<div id="lay-table"></div>'
+      +'<div id="lay-3d" style="height:clamp(280px,40vh,380px);border-radius:10px;background:#050608;margin-top:.6rem"></div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Layer model + chain-of-title standards: </span>'
+      +cite('https://www.weforum.org/stories/2025/01/europe-digital-sovereignty/','WEF \u2014 three layers of digital sovereignty')+' &nbsp; '+cite('https://in-toto.io','in-toto')+' &nbsp; '+cite('https://slsa.dev','SLSA')+' &nbsp; '+cite('https://www.sigstore.dev','Sigstore (cosign/Rekor)')+'</div>'
+      +'<details class="raw"><summary>raw /allodial/summary</summary><pre class="out" id="lay-raw">\u2014</pre></details>'
+      +honesty('The "land / deed / allodium" mapping is the classical allodial-title analogue applied to infrastructure / chain-of-title / data+model. SZL holds each outright (on-prem + UDS mesh + signed images; in-toto/SLSA/cosign/Rekor receipts; local data+model). The differentiator is <b>L6</b> \u2014 a machine-checked cryptographic chain-of-title receipt; industry players operate at L1\u2013L5, none operationalize L6.');
+    (async function(){
+      try{
+        var d=await J(SAPI+'/allodial/summary');
+        if(ex('lay-raw')) ex('lay-raw').textContent=JSON.stringify(d,null,2);
+        var L=d.layers||{};
+        var rows=[['The land','infrastructure',L.land||'\u2014','Feudal: rented from a hyperscaler landlord (they meter & can revoke).'],
+                  ['The deed / chain of title','code + standards',L.deed||'\u2014','Feudal: provenance held by the vendor; you cannot independently verify ownership.'],
+                  ['The allodium','data + model',L.allodium||'\u2014','Feudal: your data & "your" model live on the overlord\u2019s ground.']];
+        var html='<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:'+DIM+'"><th style="text-align:left;padding:5px 8px">Allodial layer</th><th style="text-align:left;padding:5px 8px">Sovereignty layer</th><th style="text-align:left;padding:5px 8px;color:'+GOLD+'">SZL holds outright (allodial)</th><th style="text-align:left;padding:5px 8px;color:'+RISK+'">Feudal default (rented)</th></tr>';
+        rows.forEach(function(r){ html+='<tr style="border-top:1px solid #1c2230"><td style="padding:6px 8px;color:'+TEAL+';font-weight:600">'+esc(r[0])+'</td><td style="padding:6px 8px;color:'+INFO+'">'+esc(r[1])+'</td><td style="padding:6px 8px;color:#cfcfcf">'+esc(r[2])+'</td><td style="padding:6px 8px;color:'+DIM+'">'+esc(r[3])+'</td></tr>'; });
+        html+='</table><div class="mono" style="font-size:11px;margin-top:.5rem;color:'+GOLD+'">Differentiator: '+esc(d.differentiator||'')+'</div>';
+        setHTML('lay-table',html);
+        // 3D: a small held-outright stack (allodial, gold) vs an overlord chain (feudal, red)
+        var nodes=[{id:'operator',name:'OPERATOR (allodial holder)',val:9,color:GOLD},
+                   {id:'land',name:'land \u2014 infra (held)',val:6,color:TEAL},
+                   {id:'deed',name:'deed \u2014 chain-of-title (held)',val:6,color:TEAL},
+                   {id:'allodium',name:'allodium \u2014 data+model (held)',val:6,color:TEAL},
+                   {id:'overlord',name:'OVERLORD (feudal landlord)',val:8,color:RISK},
+                   {id:'rent',name:'rented tenancy (revocable)',val:5,color:WARN}];
+        var links=[{source:'land',target:'operator'},{source:'deed',target:'operator'},{source:'allodium',target:'operator'},
+                   {source:'rent',target:'overlord'},{source:'overlord',target:'rent'}];
+        if(window.dag3d) window.dag3d('lay-3d',nodes,links,{dagMode:'radialout',dist:60,labels:true,cooldown:120});
+        else { var h=ex('lay-3d'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">3d-force-graph not present \u2014 layer table above is authoritative (honest fallback)</div>'; }
+      }catch(e){ setHTML('lay-table','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); }
+    })();
+  }
+
+  // ───────────── VISUAL 4 — NON-INTERFERENCE WITNESS ─────────────
+  function renderNI(c){
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Non-interference witness \u2014 can the overlord influence your outputs? (live)</span><span class="card-ep">Goguen-Meseguer 1982, Def. 4</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Goguen & Meseguer (1982) defined <b>non-interference</b>: a system is secure iff <b>purging</b> the external actor\u2019s inputs leaves the protected outputs <b>unchanged</b>. Allodial = the commercial overlord literally cannot influence your operator-visible outputs. Edit the traces and check it live.</div>'
+      +'<div class="grid2"><div><label class="mono dim" style="font-size:11px">Operator outputs (full trace, with overlord inputs present):</label>'
+      +'<input id="ni-op" value="1,2,3" class="mono" style="width:100%;margin-top:.25rem;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.35rem .5rem;font-size:12px"/></div>'
+      +'<div><label class="mono dim" style="font-size:11px">Operator outputs after PURGING the overlord\u2019s inputs:</label>'
+      +'<input id="ni-pg" value="1,2,3" class="mono" style="width:100%;margin-top:.25rem;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.35rem .5rem;font-size:12px"/></div></div>'
+      +'<div class="row" style="gap:.4rem;margin-top:.5rem;flex-wrap:wrap">'
+      +'<button id="ni-holds" class="mono" style="border:1px solid '+LIVE+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+LIVE+'">allodial (purge \u2192 same outputs)</button>'
+      +'<button id="ni-leak" class="mono" style="border:1px solid '+RISK+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+RISK+'">feudal leakage (overlord changed an output)</button></div>'
+      +'<div id="ni-verdict" style="margin-top:.7rem;padding:.7rem .9rem;border-radius:10px;border:1px solid #2a2a2a;font-family:var(--mono,monospace);font-size:13px">\u2014</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Definition author: </span>'+cite('https://ieeexplore.ieee.org/document/6234468','Goguen & Meseguer (1982), "Security Policies and Security Models", IEEE S&P \u2014 non-interference Def. 4')+'</div>'
+      +'<details class="raw"><summary>raw /allodial/noninterference</summary><pre class="out" id="ni-raw">\u2014</pre></details>'
+      +honesty('The check is the operationalized Goguen-Meseguer Def. 4: [[w]]_op == [[purge_ext(w)]]_op. Equality (green) means the overlord cannot influence your protected outputs on this trace \u2014 formally allodial here. Inequality (red) is feudal leakage. This is a per-trace operational witness; the full proof is the PROPOSED-tier Lean AllodialNI gate, not a blanket guarantee.');
+    async function check(){
+      var op=ex('ni-op'), pg=ex('ni-pg');
+      try{
+        var d=await J(SAPI+'/allodial/noninterference?op='+encodeURIComponent(op?op.value:'')+'&purged='+encodeURIComponent(pg?pg.value:''));
+        if(ex('ni-raw')) ex('ni-raw').textContent=JSON.stringify(d,null,2);
+        var holds=d.noninterference_holds;
+        var v=ex('ni-verdict');
+        if(v){ v.style.borderColor=holds?LIVE:RISK; v.style.background=(holds?LIVE:RISK)+'14'; v.style.color=holds?LIVE:RISK;
+          v.innerHTML='<b>'+(holds?'\u2713 NON-INTERFERENCE HOLDS \u2014 allodial on this trace':'\u2717 LEAKAGE \u2014 feudal on this trace')+'</b><div style="color:#cfcfcf;margin-top:.3rem;font-size:12px">'+esc(d.interpretation||'')+'</div><div class="dim" style="margin-top:.3rem;font-size:11px">'+esc(d.definition||'')+'</div>'; }
+      }catch(e){ var v=ex('ni-verdict'); if(v) v.innerHTML='retry: '+esc(e.message); }
+    }
+    var op=ex('ni-op'), pg=ex('ni-pg');
+    if(op) op.addEventListener('input',check); if(pg) pg.addEventListener('input',check);
+    var bh=ex('ni-holds'); if(bh) bh.addEventListener('click',function(){ ex('ni-op').value='1,2,3'; ex('ni-pg').value='1,2,3'; check(); });
+    var bl=ex('ni-leak'); if(bl) bl.addEventListener('click',function(){ ex('ni-op').value='1,2,3'; ex('ni-pg').value='1,9,3'; check(); });
+    check();
+  }
+
+  // ───────────── VISUAL 5 — HONEST-LIMIT PANEL (MANDATORY) ─────────────
+  function renderHonest(c){
+    c.innerHTML='<div class="card" style="border:1px solid '+WARN+'88;border-left:4px solid '+WARN+'">'
+      +'<div class="card-h"><span class="card-t">'+pill('HONEST LIMIT',WARN)+' &nbsp; Allodial \u2260 above the law</span><span class="card-ep">doctrine: trust never 100%</span></div>'
+      +'<div style="font-size:13px;line-height:1.6;color:#d8d8d8;padding:.3rem .1rem">'
+      +'<p>Even allodial land is <b>not literally absolute</b> \u2014 eminent domain, police power, escheat, and criminal forfeiture still reach it. The same honesty applies to Allodial AI: it gives the operator <b>maximal sovereign control</b>, but <b>lawful authority</b> (regulatory compliance, lawful process, forfeiture, eminent-domain-style state power) still applies.</p>'
+      +'<p style="margin-top:.5rem"><b>Allodial = no commercial overlord. NOT above the law.</b></p>'
+      +'<p style="margin-top:.5rem">We explicitly <b>reject and avoid</b> the sovereign-citizen / "allodial land-patent" pseudolegal fringe. SZL\u2019s claim is <b>architectural + governance-based</b>, anchored to real statutes and standards \u2014 not a pseudolegal escape from law.</p>'
+      +'<p id="ho-doc" class="mono dim" style="margin-top:.6rem;font-size:11px">loading live doctrine&#8230;</p>'
+      +'</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Sources: </span>'+cite('https://en.wikipedia.org/wiki/Allodial_title','Allodial title \u2014 eminent domain / escheat / forfeiture still apply')+' &nbsp; '+cite('https://www.leg.state.nv.us/nrs/nrs-361.html','Nevada NRS 361.900\u2013361.920 (statutory allodial title)')+'</div>'
+      +honesty('This panel is mandatory and never hidden. Allodial AI maximizes operator sovereignty against a <i>commercial</i> overlord; it does not place the operator above lawful authority.');
+    (async function(){ try{ var d=await J(SAPI+'/allodial/summary'); var doc=(d&&d.doctrine)||{};
+      var t=ex('ho-doc'); if(t) t.textContent='live doctrine \u00b7 tier='+(doc.tier||'?')+' \u00b7 \u039b='+(doc.lambda||'?')+' \u00b7 allodial_is_formal_lambda='+String(doc.allodial_is_formal_lambda)+' \u00b7 trust_never_100='+String(doc.trust_never_100);
+    }catch(e){ var t=ex('ho-doc'); if(t) t.textContent='doctrine endpoint unavailable (honest fallback): allodial is PROPOSED, NOT formal \u039b; \u039b stays Conjecture 1; trust never 100%.'; } })();
+  }
+
+  function mountSovereignty(c){
+    c.innerHTML='<div class="row" id="sov-tabs" style="gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem"></div><div id="sov-body"></div>';
+    var tabs=[['lattice','Control lattice \u2605',renderLattice],['score','Allodial score',renderScore],['layers','Feudal vs allodial',renderLayers],['ni','Non-interference',renderNI],['honest','Honest limit',renderHonest]];
+    function paint(idx){ var host=ex('sov-body'); if(!host) return; tabs.forEach(function(t,i){ var b=ex('sov-tab-'+i); if(b){ b.style.background=(i===idx)?TEAL+'22':'transparent'; b.style.color=(i===idx)?TEAL:DIM; b.style.borderColor=(i===idx)?TEAL:'#2a2a2a'; } }); host.innerHTML=''; var sub=document.createElement('div'); sub.id='sov-sub'; host.appendChild(sub); tabs[idx][2](sub); }
+    var bar=ex('sov-tabs');
+    tabs.forEach(function(t,i){ var b=document.createElement('button'); b.id='sov-tab-'+i; b.className='mono'; b.textContent=t[1]; b.style.cssText='border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM; b.addEventListener('click',function(){ paint(i); }); if(bar) bar.appendChild(b); });
+    paint(0); // open on the HERO (Denning control lattice) first
+  }
+  var SOV_TITLE='Sovereignty (Allodial)';
+  var SOV_BADGE='EXPERIMENTAL \u00b7 ALLODIAL AI \u00b7 PROPOSED gate';
+  var SOV_SUB='Living view of the <b>Allodial AI</b> doctrine \u2014 most AI is <b>feudal</b> (rented from an overlord who holds real title); SZL is <b>allodial</b> (operator holds the substrate outright). Hero: <b>Denning 1976</b> control lattice in 3D (\u22a4 = allodial, feudal chains strictly lower). Interactive <b>Allodial Score</b> (EU CSF 2025 + HHI, PROPOSED). The three-layer <b>feudal-vs-allodial</b> comparator (land/deed/allodium). A <b>Goguen-Meseguer 1982</b> non-interference witness. A mandatory <b>honest-limit</b> panel (allodial \u2260 above the law). All visuals recomputed live from <code>/api/a11oy/v1/allodial/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; the Allodial gate is <b>PROPOSED, NOT the formal \u039b</b>. Every borrowed formula cited to its real author.';
+
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
+    window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
+    try{ console.log('[a11oy] Sovereignty tab registered: '+key); }catch(e){}
+  }
+  function regSov(){ reg('sovereignty','Sovereignty (Allodial)',SOV_BADGE,SOV_SUB,mountSovereignty); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',regSov); } else { regSov(); }
+  function injectNav(){
+    var side=document.querySelector('.side .nav')||document.querySelector('.side');
+    var anchor=document.querySelector('.nav-item[data-view="scaling"]')||document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!side||!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('sovereignty-nav-item')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='sovereignty-nav-group'; grp.textContent='Sovereignty (EXPERIMENTAL)';
+    var n=document.createElement('div'); n.className='nav-item'; n.id='sovereignty-nav-item'; n.setAttribute('data-view','sovereignty'); n.setAttribute('onclick',"go('sovereignty')");
+    n.setAttribute('title','Allodial AI sovereignty: Denning 1976 control lattice (3D), Allodial Score (EU CSF 2025 + HHI, PROPOSED), feudal-vs-allodial 3-layer comparator, Goguen-Meseguer 1982 non-interference witness, honest-limit panel. Live from /api/a11oy/v1/allodial/*. EXPERIMENTAL-tier; allodial is PROPOSED NOT the formal Lambda; Lambda stays Conjecture 1.');
+    n.innerHTML='<span class="ico">\u265a</span>Sovereignty (Allodial)';
+    var parent=anchor.parentNode; parent.appendChild(grp); parent.appendChild(n);
+    try{ console.log('[a11oy] Sovereignty nav injected'); }catch(e){}
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
 </body>
 </html>
