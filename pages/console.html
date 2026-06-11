@@ -11266,10 +11266,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       nodes.push({ id:id, name:'#'+(r.seq!=null?r.seq:i)+' '+(r.kind||'rcpt'), seq:(r.seq!=null?r.seq:i),
         kind:r.kind||'rcpt', conv:conv, live:live, finalized:finalized,
         color:domainColor(r.kind||r.role), val: finalized?5:3 });
-      byHash[id]=i;
+      byHash[id]=id;   // map hash -> node id (3d-force-graph matches links by node id, NOT array index)
     });
-    // real chain edges (prev_hash → hash) — these honour F4 acyclicity (append-only)
-    recs.forEach(function(r,i){ var pv=r.prev_hash; if(pv!=null && byHash[pv]!=null){ links.push({source:byHash[pv], target:i, kind:'chain'}); } });
+    // real chain edges (prev_hash → hash) — these honour F4 acyclicity (append-only).
+    // source/target MUST be node ids (the hash strings), never array indices.
+    recs.forEach(function(r,i){ var pv=r.prev_hash; var id=r.hash||('seq'+(r.seq!=null?r.seq:i));
+      if(pv!=null && byHash[pv]!=null && byHash[id]!=null){ links.push({source:pv, target:id, kind:'chain'}); } });
     return {nodes:nodes, links:links, hasVotes: nodes.some(function(x){return x.live;})};
   }
 
