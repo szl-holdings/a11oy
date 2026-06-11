@@ -14,27 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check PR title follows Conventional Commits
-        uses: amannn/action-semantic-pull-request@0723387faaf9b38adef4775cd42cfd5155ed6017 # v5.5.3
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
+          # Passed via env (never interpolated into the script) to avoid injection.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
           # Conventional Commits types allowed
-          types: |
-            feat
-            fix
-            docs
-            style
-            refactor
-            perf
-            test
-            build
-            ci
-            chore
-            revert
-          # Require scope (optional but encouraged)
-          requireScope: false
-          # Disallow breaking change in title without BREAKING CHANGE footer
-          subjectPattern: ^(?![A-Z]).+$
-          subjectPatternError: |
-            The subject "{subject}" does not match the required pattern.
-            Please use lower-case for the subject.
+          types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+
+          # <type>(optional-scope)(optional !): <subject>
+          header_re="^(${types})(\([a-z0-9._/-]+\))?(!)?: .+$"
+
+          if [[ ! "${PR_TITLE}" =~ ${header_re} ]]; then
+            echo "::error::PR title \"${PR_TITLE}\" is not a valid Conventional Commit."
+            echo "Expected format: <type>(optional-scope): <subject>"
+            echo "Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+            exit 1
+          fi
+
+          # Subject must not start with an upper-case letter
+          subject="${PR_TITLE#*: }"
+          if [[ "${subject}" =~ ^[A-Z] ]]; then
+            echo "::error::The subject \"${subject}\" does not match the required pattern. Please use lower-case for the subject."
+            exit 1
+          fi
+
+          echo "PR title OK: ${PR_TITLE}"
