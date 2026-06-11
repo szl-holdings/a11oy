@@ -245,7 +245,7 @@ ENDPOINTS = {
     # NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. RIGOROUS (cited):
     # Hebb 1949 / Oja 1982 / BCM 1982 / Bi-Poo 1998 / Hubel-Wiesel 1981 / Dohare-Sutton
     # Nature 2024 / Sokar ReDo 2023 / Kirkpatrick EWC 2017. The predictive-coding↔Hebbian
-    # unifier (Millidge 2022) is a PROPOSED lens, NOT a Λ theorem. Every rule cited. ──
+    # unifier (Millidge 2022) is a PROPOSED lens, NOT a theorem (Λ = Conjecture 1). Every rule cited. ──
     "/api/a11oy/v1/neuro/summary": ep(schema="generic_obj", sla=None,
         note="Neuroplasticity module summary: honest_frame + tiers (Hebb/Oja/BCM/STDP/scaling=RIGOROUS; loss-of-plasticity/ReDo/EWC=RIGOROUS recent; predictive-coding↔Hebbian unifier=PROPOSED lens), doctrine (locked_count_unchanged, lambda=Conjecture 1, trust_never_100, tier=EXPERIMENTAL/PROPOSED), cites. PROPOSED, NOT the formal Λ."),
     "/api/a11oy/v1/neuro/hebb": ep(schema="generic_obj", sla=None,

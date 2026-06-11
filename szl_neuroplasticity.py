@@ -11,7 +11,7 @@ LOSS OF PLASTICITY in continual learning (Dohare/Sutton, Nature 2024) — a real
 problem for any long-running agent — addressed clean-room with continual-backprop
 + dormant-neuron + synaptic-scaling style utilities. The rigorous unifying identity
 (Friston/predictive-coding ↔ Hebbian, Millidge et al. 2022) is noted but NOT claimed
-as SZL's; it is a PROPOSED lens, never a Λ theorem.
+as SZL's; it is a PROPOSED lens, never a theorem (Λ-uniqueness = Conjecture 1).
 
 Honest tiering:
   * Hebb / Oja / BCM / STDP / synaptic scaling : RIGOROUS (classical, cited).
@@ -169,7 +169,7 @@ def summary() -> dict:
         "honest_frame": ("Rigorous, cited learning-rule math (Hebb/Oja/BCM/STDP/scaling) "
                          "+ the modern loss-of-plasticity frontier (Dohare-Sutton Nature "
                          "2024) for long-running agents. The PC↔Hebbian unifying identity "
-                         "(Millidge 2022) is a PROPOSED lens, NOT a Λ theorem."),
+                         "(Millidge 2022) is a PROPOSED lens — never a Λ theorem; Λ stays Conjecture 1."),
         "rules": ["hebb", "oja", "bcm", "stdp", "synaptic_scaling",
                   "plasticity_health", "ewc", "critical_period"],
         "tiers": {
