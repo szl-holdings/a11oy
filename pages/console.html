@@ -10779,5 +10779,71 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
 })();
 </script>
+<script>
+/* anatomy-map-tab-patch :: SZL Anatomy — single honest map (formulas + agentic capabilities) ::
+   Additive, self-contained, NS-aware. Snapshot mirror of the standalone deck
+   (a11oy.net/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
+   8 LOCKED formulas {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1. No fabricated live pills. */
+(function(){
+  var NS=(window.__rd_ns||(location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
+  var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98', WARN='#e0a82e', RED='#b06a5a';
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function pill(txt,col){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+col+';border:1px solid '+col+';background:'+col+'1a;">'+esc(txt)+'</span>'; }
+  function statCol(s){ return s==='LIVE'?TEAL:(s==='CI-GREEN'?GOLD:(s==='LIVE-GATED'?WARN:DIM)); }
+  var CAPS=[
+    {k:'rag', n:'Agentic Lineage-Aware RAG', s:'LIVE',
+     p:'Retrieval that carries provenance/lineage into the gate, so untrusted context provably cannot flip DENY\u2192ALLOW (Goguen\u2013Meseguer non-interference, P3). The reasoning cortex reads frozen snapshots \u2014 never writes the record.',
+     e:'szl_rag.py (a11oy superset, shared w/ killinchu) \u00b7 YACHAY temporal retrieval', f:'P3, P1'},
+    {k:'mcp', n:'Agentic MCP tool surface (hatun-mcp)', s:'LIVE',
+     p:'The canonical SZL formula registry + flagship ops as agentic MCP tools (list/run/proof_status, a11oy_gate, lambda_score, khipu_sign/verify; killinchu detect/evaluate/cue/halt_drone). proof_status passed VERBATIM, never inflated. Live: 11 tools (7 a11oy + 4 killinchu).',
+     e:'GET /api/a11oy/v1/mcp/tools \u2192 count:11 \u00b7 hatun-mcp adapter', f:'Ph1'},
+    {k:'ouroboros', n:'Ouroboros governed loop', s:'CI-GREEN',
+     p:'The governed loop: propose \u2192 13-axis gate \u2192 act \u2192 chained receipt. One chained receipt per hop, no drop/reorder (P1); replay is byte-identical (P4); any single mutation makes re-verify reject (P5, axiom-gated); untrusted retrieval cannot flip DENY\u2192ALLOW (P3).',
+     e:'ouroboros runtime/* (category, glr, bekenstein, closure, lambda-gate) \u00b7 HATUN orchestrator', f:'P1, P3, P4, P5'},
+    {k:'khipu', n:'Khipu DAG + BFT consensus', s:'LIVE',
+     p:'Append-only SIGNED receipt DAG (Khipu) + quorum consensus: acyclic (F4 locked), FIFO-ordered (F7 locked), emit-monotone (F22 locked), CONDITIONAL Byzantine safety under 3-of-4 quorum. Unconditional safety stays Conjecture 2.',
+     e:'szl_khipu_lmdb.py \u00b7 MCP khipu_sign / khipu_verify (live)', f:'F4, F7, F22 (locked) \u00b7 B2 quorum'},
+    {k:'receipts', n:'Receipt store (YAWAR / szl-receipts)', s:'LIVE',
+     p:'Append-only SHA-256 receipt bus: h=sha256(canonical(packet)), never mutated/deleted. Ed25519/DSSE signing, Merkle inclusion (F18 locked), receipt-completeness (P1), replay-determinism, hash-chain tamper-evidence (P5). Live chain at a11oy.net/receipts.',
+     e:'YAWAR bus \u00b7 szl-receipts server + Pepr webhook (repo PRIVATE) \u00b7 a11oy.net/receipts/', f:'F1, F18 (locked) \u00b7 P1, P5'},
+    {k:'mesh', n:'Mesh + OTel observability (UDS / VSP)', s:'CI-GREEN',
+     p:'UDS Core ambient mesh (Istio, restricted PSA) carrying W3C TraceContext span lineage across brain\u2192effectors (efferent / afferent / proprioceptive). Replay verifier checks child.parent_span_id == parent.span_id over a cycle (P4); Menger cut/path + reachability monotonicity back the resilience claims.',
+     e:'szl-uds-deployment (k3d uds-szl-demo) \u00b7 vsp-otel \u00b7 HUKLLA deadman reflex', f:'P4, F1 \u00b7 W9_MENGER, W10_REACH'},
+    {k:'math', n:'Math \u00b7 AP-12 generator + Putnam benchmark', s:'LIVE-GATED',
+     p:'AP-12 deterministic seedable generator + Lean-kernel benchmark scorecards with HONEST REAL/DEMO/OPEN verdicts. Putnam 2025: 0 REAL / 11 DEMO / 1 OPEN (doctrine v11). The locked-8 ladder and \u039b=Conjecture 1 are unchanged by this surface.',
+     e:'/api/math + /api/v1/math (box pm2 alloy-api; auth-gated \u2192 401, surface exists) \u00b7 lutar-lean kernel', f:'F1, F4, F7, F11, F12, F18, F19, F22 (locked-8)'}
+  ];
+  function render(host){
+    var h='';
+    h+='<div style="border:1px solid #2a2f37;border-radius:10px;padding:14px 16px;margin-bottom:14px;background:#11151a">'
+      +'<div style="font-family:var(--mono,monospace);font-size:11px;color:'+DIM+';letter-spacing:.08em">SINGLE HONEST MAP</div>'
+      +'<div style="font-size:13px;color:#cfd4da;margin-top:6px;line-height:1.5">Every agentic capability mapped to the <b>real</b> app(s)/repo(s) that implement it, alongside the formula/theorem ladder. Snapshot mirror of the full interactive deck \u2014 '
+      +'<a href="https://a11oy.net/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a11oy.net/anatomy-map</a> \u00b7 '
+      +'<a href="https://szlholdings-anatomy.static.hf.space/" target="_blank" rel="noopener" style="color:'+TEAL+'">HF static Space</a>. '
+      +'Honesty: <b>8 LOCKED</b> kernel-verified formulas {F1, F4, F7, F11, F12, F18, F19, F22}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
+    CAPS.forEach(function(c){
+      h+='<div style="border:1px solid #232830;border-radius:9px;padding:12px 14px;margin-bottom:10px;background:#0e1217">'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<span style="font-weight:700;color:#e6eaee;font-size:14px">'+esc(c.n)+'</span>'+pill(c.s,statCol(c.s))+'</div>'
+        +'<div style="font-size:12.5px;color:#b6bcc4;margin-top:7px;line-height:1.55">'+esc(c.p)+'</div>'
+        +'<div style="font-family:var(--mono,monospace);font-size:10.5px;color:'+DIM+';margin-top:8px">evidence: '+esc(c.e)+'</div>'
+        +'<div style="font-family:var(--mono,monospace);font-size:10.5px;color:'+GOLD+';margin-top:3px">formulas: '+esc(c.f)+'</div>'
+        +'</div>';
+    });
+    h+='<div style="font-family:var(--mono,monospace);font-size:10px;color:'+DIM+';margin-top:6px">'
+      +'Static honest snapshot \u00b7 NS='+esc(NS)+' \u00b7 no fabricated live pills \u00b7 statuses reflect real surface state at snapshot time.</div>';
+    host.innerHTML=h;
+  }
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
+    V.anatomymap={ title:'Anatomy Map', badge:(CAPS.length+' capabilities \u00b7 8 LOCKED'),
+      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a11oy.net/anatomy-map deck. 8 LOCKED formulas; \u039b = Conjecture 1.',
+      render:render };
+  }
+  reg();
+})();
+/* end anatomy-map-tab-patch */
+</script>
+
 </body>
 </html>
