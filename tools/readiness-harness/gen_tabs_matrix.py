@@ -198,6 +198,16 @@ ENDPOINTS = {
         allow_statuses=(200, 400, 422),
         note="SZL unified Φ (WBE network × MTE/PMF activation × coherence); requires ?M=<kg>. status=PROPOSED, note carries 'Λ=Conjecture 1'. PROPOSED engineering construct, NOT the formal Λ, NOT in the locked 8."),
 
+    # ── Allodial AI sovereignty (szl_allodial.py — DETERMINISTIC; PROPOSED engineering
+    # gate, NOT the formal Λ; Λ stays Conjecture 1; adds NOTHING to the locked 8). Every
+    # formula derived from cited prior art (Denning 1976 lattice / Goguen-Meseguer 1982
+    # non-interference / EU-CSF SEAL+SovScore / HHI). SZL claims none as its own. ──
+    "/api/a11oy/v1/allodial/summary": ep(schema="generic_obj", sla=None,
+        note="Allodial doctrine summary: thesis, 3 layers (land/deed/allodium), SEAL scale, doctrine gates (tier=EXPERIMENTAL/PROPOSED, lambda=Conjecture 1, allodial_is_formal_lambda=False, trust_never_100=True), cites. PROPOSED, NOT the formal Λ."),
+    "/api/a11oy/v1/allodial/score": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Allodial Sovereignty Score A=[Σ w_k·SEAL_k/4]×(1−DCI)×100 from ?seals=&weights=&dep=. EU-CSF weighted SEAL + HHI lock-in penalty (both cited). tier=PROPOSED (weights need calibration), NOT the formal Λ."),
+
     # ── readiness (self) ──
     "/api/a11oy/v1/readiness": ep(schema="readiness", sla=5 * MIN),
     "/api/a11oy/v1/readiness/tab-matrix": ep(schema="tab_matrix", sla=None,
@@ -330,6 +340,10 @@ TAB_ENDPOINTS = {
                 "/api/a11oy/v1/scaling/compute", "/api/a11oy/v1/scaling/kleiber",
                 "/api/a11oy/v1/scaling/mte", "/api/a11oy/v1/scaling/heart",
                 "/api/a11oy/v1/scaling/unified"],
+    # Allodial AI doctrine + interactive sovereignty-score tab: contract it to the real
+    # szl_allodial.py endpoints so it is judged as a genuine declared (non-static) tab.
+    # PROPOSED engineering gate; Λ stays Conjecture 1; deterministic, prior-art-cited.
+    "allodialai": ["/api/a11oy/v1/allodial/summary", "/api/a11oy/v1/allodial/score"],
     "whTamper": ["/api/a11oy/v1/warhacker/index"],
     "whCannonico": ["/api/a11oy/v1/warhacker/index"],
 }
