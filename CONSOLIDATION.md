@@ -41,8 +41,9 @@ top-level directories listed above.
 
 ## Doctrine (unchanged, kept honest)
 
-- Trust score = **Conjecture 1** (a conjecture, not a proven theorem).
-- **5 proven formulas** in the cookbook.
-- Supply-chain posture: **SLSA L1 + L2** (L2 attested on the 5 organ images; L3 not claimed).
+- **Λ-uniqueness = Conjecture 1** (machine-checked FALSE unconditionally; a conjecture, NOT a proven theorem). Khipu BFT = Conjecture 2.
+- **8 locked-proven formulas** {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel `c7c0ba17` (749 declarations / 14 unique axioms / 163 sorries). Source of truth: `.github/.github/data/lean_numbers.json` (`locked_formula_count: 8`) + `lutar-lean@main`.
+- Supply-chain posture: **SLSA L1 honest** (L2 attested only on the a11oy/killinchu container images; L3/FedRAMP/Iron Bank/CMMC = roadmap, not claimed).
+- Honesty doctrine **v11** — never overclaim.
 
 — Stephen P. Lutar Jr. · SZL Holdings
