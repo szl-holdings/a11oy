@@ -11,7 +11,7 @@ LOSS OF PLASTICITY in continual learning (Dohare/Sutton, Nature 2024) — a real
 problem for any long-running agent — addressed clean-room with continual-backprop
 + dormant-neuron + synaptic-scaling style utilities. The rigorous unifying identity
 (Friston/predictive-coding ↔ Hebbian, Millidge et al. 2022) is noted but NOT claimed
-as SZL's; it is a PROPOSED lens, never a Λ theorem.
+as SZL's; it is a PROPOSED lens, never a theorem about Λ (Λ stays Conjecture 1).
 
 Honest tiering:
   * Hebb / Oja / BCM / STDP / synaptic scaling : RIGOROUS (classical, cited).
