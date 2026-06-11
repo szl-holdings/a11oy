@@ -40,6 +40,51 @@ STATUS_LEGEND = {
     "VERIFIED": "deterministic computation reproduces a documented numeric on call",
     "PROPOSED": "SZL construct (unified Φ / compute-allometry); NOT in locked 8; Λ stays Conjecture 1",
     "SAMPLE": "illustrative values from public datasets (AnAge/PanTHERIA), attributed, not invented",
+    "PROVEN_CORE": "the MATHEMATICAL CORE of this item is a sorry-free, kernel-verified Lean theorem "
+                   "in lutar-lean (Mathlib v4.18, axioms [propext, Classical.choice, Quot.sound]). "
+                   "This proves a PROPERTY of the function (positivity / monotonicity / an algebraic "
+                   "identity) — NOT the empirical law itself, which stays cited & experimental. Λ stays Conjecture 1.",
+}
+
+# Lean cores proven for the scaling items (lutar-lean Lutar/Scaling/MetabolicScaling.lean).
+# Each entry maps an item to the EXACT sorry-free theorem proving its mathematical core,
+# plus an honest scope line. Empirical laws remain experimental; only the named theorem is
+# 'proven'. Source of truth: lutar-lean@main + szl-lake anchor.
+LEAN_THEOREMS = {
+    "power_law": {
+        "theorems": ["Lutar.Scaling.powerLaw_pos", "Lutar.Scaling.powerLaw_strictMono"],
+        "proves": "B0·M^β > 0 and strictly increasing for β>0",
+        "not_proven": "that any real organism obeys Kleiber's 3/4 exponent (empirical; Kleiber 1932 / WBE 1997)",
+    },
+    "heart": {
+        "theorems": ["Lutar.Scaling.lifetime_heartbeats_invariant"],
+        "proves": "(f0·M^(-1/4))·(L0·M^(1/4)) = f0·L0 — lifetime heartbeats independent of mass M (algebraic identity; the ±1/4 exponents cancel)",
+        "not_proven": "that mammalian heart-rate/lifespan exponents are exactly ±1/4 in nature (empirical; MTE 2004)",
+    },
+    "compute": {
+        "theorems": ["Lutar.Scaling.computeLoss_pos", "Lutar.Scaling.computeLoss_strictAnti"],
+        "proves": "L0·N^(-α) is positive and strictly decreasing on (0,∞) for α>0",
+        "not_proven": "that LM loss follows N^(-0.076) (empirical; Kaplan et al. 2020 — we claim only the allometric FRAMING)",
+    },
+    "exponents": {
+        "theorems": ["Lutar.Scaling.exponent_additivity"],
+        "proves": "M^a·M^b = M^(a+b) for M>0 — the composition/cancellation law underpinning the exponent comparator",
+        "not_proven": "that the tabulated cross-domain exponents are physically correct (each cited to its author)",
+    },
+    "unified": {
+        "theorems": ["Lutar.Scaling.szlPhi_pos", "Lutar.Scaling.szlPhi_strictMono_pmf"],
+        "proves": "SZL-Φ (our construct) is > 0 and strictly increases with the proton-motive force Δp (structural properties)",
+        "not_proven": "that Φ predicts real reaction rates (PROPOSED engineering construct, NOT the formal Λ; Λ stays Conjecture 1)",
+    },
+}
+LEAN_PROVENANCE = {
+    "repo": "szl-holdings/lutar-lean",
+    "file": "Lutar/Scaling/MetabolicScaling.lean",
+    "toolchain": "Lean 4.18.0 + Mathlib v4.18.0",
+    "axiom_footprint": ["propext", "Classical.choice", "Quot.sound"],
+    "status": "sorry-free, kernel-verified",
+    "pr": "https://github.com/szl-holdings/lutar-lean/pull/228",
+    "doctrine": "v11 — these prove function PROPERTIES, not empirical laws; Λ = Conjecture 1",
 }
 
 SOURCES = {
@@ -143,7 +188,8 @@ def szl_phi(M_kg: float, T_kelvin: float, delta_p_mV: float, tau_c: float,
                       "delta_p_eV": round(delta_p_eV, 6)},
             "inputs": {"M_kg": M_kg, "T_K": T_kelvin, "delta_p_mV": delta_p_mV, "tau_c": tau_c},
             "status": "PROPOSED",
-            "note": "SZL unification (WBE network × MTE/PMF activation × coherence); Λ=Conjecture 1"}
+            "note": "SZL unification (WBE network × MTE/PMF activation × coherence); Λ=Conjecture 1",
+            "lean_core": {"theorems": ["Lutar.Scaling.szlPhi_pos","Lutar.Scaling.szlPhi_strictMono_pmf"], "proves": "Phi>0 and strictly increases with PMF Delta-p (structural)", "not_proven": "that Phi predicts real rates; Phi is PROPOSED, not the formal Lambda"}}
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +208,7 @@ def szl_compute_allometry(params_B: float, alpha: float = 0.076,
     return {"params_billions": params_B, "predicted_loss": round(loss, 6),
             "exponent_alpha": alpha, "cite": "Kaplan et al. 2020 arXiv:2001.08361",
             "framing": "compute capability as metabolic-network allometry (PROPOSED analogy)",
+            "lean_core": {"theorems": ["Lutar.Scaling.computeLoss_pos","Lutar.Scaling.computeLoss_strictAnti"], "proves": "L0*N^(-alpha) positive + strictly decreasing on (0,inf)", "not_proven": "the N^(-0.076) law itself (Kaplan 2020)"},
             "status": "PROPOSED"}
 
 
@@ -190,6 +237,22 @@ def summary() -> dict[str, Any]:
             "szl_phi_demo": szl_phi(70.0, 310.0, 121.5, 6.05),
         },
         "universal_exponents": UNIVERSAL_EXPONENTS,
+        "lean_proven_cores": LEAN_THEOREMS,
+        "lean_provenance": LEAN_PROVENANCE,
+    }
+
+
+def proven_cores() -> dict[str, Any]:
+    """The experimental->PROVEN-CORE promotion record. Each scaling item is mapped to the
+    EXACT sorry-free Lean theorem(s) proving its mathematical core, with an explicit
+    not_proven scope line. Honesty doctrine v11: only the named theorem is proven; the
+    empirical law stays cited & experimental; Λ stays Conjecture 1."""
+    return {
+        "status": "PROVEN_CORE",
+        "legend": STATUS_LEGEND["PROVEN_CORE"],
+        "items": LEAN_THEOREMS,
+        "provenance": LEAN_PROVENANCE,
+        "doctrine": "v11 — locked-proven=8; Λ=Conjecture 1; these cores prove function PROPERTIES, never the empirical laws.",
     }
 
 
@@ -212,7 +275,11 @@ def register(app, ns: str) -> None:
                       methods=["GET"])
     app.add_api_route(f"{base}/compute",
                       lambda params="70": szl_compute_allometry(float(params)), methods=["GET"])
-    app.add_api_route(f"{base}/exponents", lambda: {"exponents": UNIVERSAL_EXPONENTS}, methods=["GET"])
+    app.add_api_route(f"{base}/exponents",
+                      lambda: {"exponents": UNIVERSAL_EXPONENTS,
+                               "lean_core": LEAN_THEOREMS["exponents"]}, methods=["GET"])
+    # Experimental->PROVEN-CORE promotion record (the Lean-theorem tags per item).
+    app.add_api_route(f"{base}/proven", lambda: proven_cores(), methods=["GET"])
 
 
 def _selftest() -> None:
