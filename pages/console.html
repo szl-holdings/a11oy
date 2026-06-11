@@ -1396,12 +1396,36 @@ async function decision_load(){try{const d=await getJSON(API+'/v1/governed-decis
   }catch(e){setHTML('gd-rec','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('gd-raw','retry: '+e.message);}}
 
 // Eval Arena \u2014 recorded run from the SZL eval harness (content-hashed)
+// Data-driven map of eval-arena policy-signal prefixes -> plain-English reasons.
+// Lets a non-technical viewer read WHY a decision was rejected without us
+// fabricating anything: each label only explains the raw signal the gate fired.
+// Checked in order; the first prefix that matches the signal wins.
+var ARENA_SIGNAL_REASONS=[
+  {p:'size-guard',label:'Blocked: request body exceeded the 1MB safety limit'},
+  {p:'approval-guard',label:'Blocked: high-impact action is missing required operator approval'},
+  {p:'threat-signature',label:'Blocked: prompt-injection / data-exfiltration pattern detected'}
+];
+function arenaSignalReason(sig){
+  var s=String(sig||'');
+  for(var i=0;i<ARENA_SIGNAL_REASONS.length;i++){ if(s.indexOf(ARENA_SIGNAL_REASONS[i].p)===0) return ARENA_SIGNAL_REASONS[i].label; }
+  // Bare threat tokens (e.g. "exfiltrate", "rm -rf", "drop table", "ignore
+  // previous") carry no prefix; they are all prompt-injection / exfiltration
+  // signatures, so they map to the same plain-English reason.
+  return 'Blocked: prompt-injection / data-exfiltration pattern detected';
+}
+// Render each fired policy signal of a failed scenario as a one-line plain-English
+// reason next to its raw token. Returns '' for passing rows / no signals.
+function arenaReasonRows(r){
+  if(!r||r.pass)return '';
+  var sigs=(r.policy_signals||[]); if(!sigs.length)return '';
+  return sigs.map(function(s){return '<div class="row" style="padding-left:1.6rem"><span class="badge b-err">\u2298</span><span>'+esc(arenaSignalReason(s))+'</span><span class="spacer mono dim">'+esc(s)+'</span></div>';}).join('');
+}
 async function arena_load(){try{const d=await getJSON(API+'/v1/eval-arena');
   setTxt('ar-n',d.scenarios_total??(d.results||[]).length);setTxt('ar-pass',d.scenarios_passed??'\u2014');
   const lb=(d.leaderboard||[])[0]||{};setTxt('ar-top',lb.score!=null?lb.score:'\u2014');
   setTxt('ar-date',String(d.timestamp||'').slice(0,10));
   const res=d.results||[];barV('ar-bars',res.map(r=>r.scenario),res.map(r=>r.overall),res.map(r=>r.overall>=0.9?TEAL:GOLD));
-  setHTML('ar-host','');res.forEach(r=>addHTML('ar-host',`<div class="row"><span class="badge ${r.pass?'b-live':'b-err'}">${r.pass?'pass':'fail'}</span><span>${esc(r.scenario)}</span><span class="spacer mono dim">${esc(r.domain||'')} \u00b7 overall ${esc(r.overall)}</span></div>`));
+  setHTML('ar-host','');res.forEach(r=>addHTML('ar-host',`<div class="row"><span class="badge ${r.pass?'b-live':'b-err'}">${r.pass?'pass':'fail'}</span><span>${esc(r.scenario)}</span><span class="spacer mono dim">${esc(r.domain||'')} \u00b7 overall ${esc(r.overall)}</span></div>`+arenaReasonRows(r)));
   addHTML('ar-host',`<div class="row mono dim">${esc(d.honesty||'')}</div>`);
   addHTML('ar-host',`<div class="row"><span class="badge b-gold">leaderboard</span><span>${esc(lb.agent||'')}</span><span class="spacer mono dim">score ${esc(lb.score)} \u00b7 rank ${esc(lb.rank)}</span></div>`);
   setOut('ar-raw',d);
@@ -4106,7 +4130,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               window.addEventListener('resize',function(){try{ch.resize();}catch(_x){}},{passive:true});
             }
           }
-          var html=res.map(function(r){return '<div class="row"><span class="badge '+(r.pass?'b-live':'b-err')+'">'+(r.pass?'pass':'fail')+'</span><span>'+esc(r.scenario)+'</span><span class="spacer mono dim">'+esc(r.domain||'')+' \u00b7 overall '+esc(r.overall)+(r.chain_links_verified?(' \u00b7 chain '+esc(r.chain_links_verified)):'')+'</span></div>';}).join('');
+          var html=res.map(function(r){return '<div class="row"><span class="badge '+(r.pass?'b-live':'b-err')+'">'+(r.pass?'pass':'fail')+'</span><span>'+esc(r.scenario)+'</span><span class="spacer mono dim">'+esc(r.domain||'')+' \u00b7 overall '+esc(r.overall)+(r.chain_links_verified?(' \u00b7 chain '+esc(r.chain_links_verified)):'')+'</span></div>'+arenaReasonRows(r);}).join('');
           var lb=(d.leaderboard||[])[0]||{};
           html+='<div class="row"><span class="badge b-gold">leaderboard</span><span>'+esc(lb.agent||'')+'</span><span class="spacer mono dim">score '+esc(lb.score)+'</span></div>';
           H('ar-gov-list',html);
