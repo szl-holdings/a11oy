@@ -193,6 +193,18 @@ try:
 except Exception as _szl_bn_e:  # pragma: no cover
     print(f"[a11oy] Open-Problem Bounty Board NOT registered: {_szl_bn_e!r}", file=__import__("sys").stderr)
 
+# ── Conjecture Factory (conjecture-factory-tab-patch). Honest live board of
+# factory-generated OPEN conjectures read from the real disclosure ledger
+# (szl-lake khipu, kind=conjecture-disclosure-anchor). A conjecture is NEVER a
+# theorem; every item stays OPEN until independently verified; Conjecture 1
+# (Λ uniqueness) is and remains OPEN. Additive, try/except-guarded. Pure stdlib.
+try:
+    import szl_conjecture_factory as _szl_conjecture_factory
+    _szl_conjecture_factory.register(app, ns="a11oy")
+    print("[a11oy] Conjecture Factory registered: /api/a11oy/v1/conjecture-factory", file=__import__("sys").stderr)
+except Exception as _szl_cf_e:  # pragma: no cover
+    print(f"[a11oy] Conjecture Factory NOT registered: {_szl_cf_e!r}", file=__import__("sys").stderr)
+
 # ── Putnam 2025 canonical-set honest verdict (putnam-2025-tab-patch). Serves the
 # per-problem REAL/DEMO/OPEN verdict for the canonical Putnam 2025 set (A1-A6,
 # B1-B6) plus 3 kernel-clean SZL-native originals, transcribed faithfully from
