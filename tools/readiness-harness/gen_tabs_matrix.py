@@ -214,6 +214,32 @@ ENDPOINTS = {
         allow_statuses=(200, 400, 422),
         note="Goguen-Meseguer 1982 non-interference witness (IEEE S&P): purged-op equivalence over the lattice. Deterministic; cited prior art; PROPOSED, NOT the formal Λ."),
 
+    # ── szl_entanglement.py: 2-qubit entanglement measures + the PROPOSED coherence→
+    # entanglement-capacity bridge E_max(t) ≤ C0·exp(−γt). PURE STDLIB, deterministic,
+    # byte-identical a11oy↔killinchu. EXPERIMENTAL tier; adds NOTHING to the locked 8;
+    # Λ stays Conjecture 1; the capacity bound is a PROPOSED engineering gate, NOT the
+    # formal Λ; trust never 100%. Every borrowed formula cited to its real author. ──
+    "/api/a11oy/v1/entangle/summary": ep(schema="generic_obj", sla=None,
+        note="Entanglement module summary: honest verdict + tiers (RIGOROUS bridge / monogamy STRUCTURAL / QBA NARRATIVE / avian ACTIVE / FMO CONTESTED / Orch-OR SPECULATIVE), measures, doctrine (locked_count_unchanged, lambda=Conjecture 1, trust_never_100, tier=EXPERIMENTAL/PROPOSED), cites. PROPOSED, NOT the formal Λ."),
+    "/api/a11oy/v1/entangle/capacity_bound": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="HERO bridge: E_max(t) ≤ C0·exp(−γt) tying SZL Λ-v5 coherence decay to entanglement-generating CAPACITY (Streltsov 2015, RMP 89:041003) composed with the merged-Lean coherence curve. Deterministic; PROPOSED engineering gate, NOT the formal Λ; Λ stays Conjecture 1."),
+    "/api/a11oy/v1/entangle/entropy": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="von Neumann entanglement entropy (bits) for state=bell|product. Bell=1 bit, product=0. Cited (von Neumann). Deterministic."),
+    "/api/a11oy/v1/entangle/concurrence": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Wootters 1998 concurrence + entanglement of formation for state=bell|product. Bell concurrence=1, product=0. Cited (Wootters, PRL 80:2245). Deterministic."),
+    "/api/a11oy/v1/entangle/negativity": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Vidal-Werner 2002 negativity + logarithmic negativity for state=bell|product. Bell negativity=0.5, product=0. Cited (Vidal-Werner, PRA 65:032314). Deterministic."),
+    "/api/a11oy/v1/entangle/chsh": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="CHSH 1969 S value vs classical bound 2 vs Tsirelson 1980 bound 2√2 from ?corr=c1,c2,c3,c4; flags local-realism violation. Cited (CHSH PRL 23:880 / Tsirelson). Deterministic."),
+    "/api/a11oy/v1/entangle/monogamy": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="CKW 2000 monogamy Σ τ_pairwise ≤ τ_global from ?pairwise=&total= — the STRUCTURAL no-leak / trust<100% primitive tying to Khipu. Cited (Coffman-Kundu-Wootters, PRA 61:052306). Deterministic."),
+
     # ── readiness (self) ──
     "/api/a11oy/v1/readiness": ep(schema="readiness", sla=5 * MIN),
     "/api/a11oy/v1/readiness/tab-matrix": ep(schema="tab_matrix", sla=None,
@@ -355,6 +381,15 @@ TAB_ENDPOINTS = {
     # summary + interactive score. PROPOSED engineering view; Λ stays Conjecture 1.
     "sovereignty": ["/api/a11oy/v1/allodial/summary", "/api/a11oy/v1/allodial/score",
                     "/api/a11oy/v1/allodial/lattice", "/api/a11oy/v1/allodial/noninterference"],
+    # Living-3D "Entanglement" tab (EXPERIMENTAL): contract it to the real deterministic
+    # szl_entanglement.py family so the probe judges it as a genuine declared tab (NOT
+    # silently bucketed static). HERO = the PROPOSED capacity bound E_max(t) ≤ C0·exp(−γt)
+    # (Streltsov 2015 ∘ SZL Λ-v5); Bell-vs-product comparator; CHSH meter; CKW monogamy →
+    # Khipu; honest-tiering panel. PROPOSED engineering gate; Λ stays Conjecture 1.
+    "entangle": ["/api/a11oy/v1/entangle/summary", "/api/a11oy/v1/entangle/capacity_bound",
+                 "/api/a11oy/v1/entangle/concurrence", "/api/a11oy/v1/entangle/negativity",
+                 "/api/a11oy/v1/entangle/entropy", "/api/a11oy/v1/entangle/chsh",
+                 "/api/a11oy/v1/entangle/monogamy"],
     "whTamper": ["/api/a11oy/v1/warhacker/index"],
     "whCannonico": ["/api/a11oy/v1/warhacker/index"],
 }
