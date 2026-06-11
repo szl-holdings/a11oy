@@ -197,8 +197,8 @@ STANDARDS_ROADMAP = {
         "cite_url": "https://arxiv.org/abs/2606.04193",
     },
     "doctrine": ("PROPOSED/roadmap only — these standards are CITED prior art (not SZL's). "
-                 "Nothing here is claimed live; SLSA is never claimed bare-L3 without "
-                 "'roadmap'; Λ stays Conjecture 1; trust never 100%."),
+                 "Nothing here is claimed live; per the roadmap, SLSA L3 is never claimed bare (always "
+                 "scoped as roadmap); Λ stays Conjecture 1; trust never 100%."),
 }
 
 
