@@ -480,22 +480,17 @@ COPY szl_alloy_models.py ./szl_alloy_models.py
 # HF Space reliably bootable. No fabricated data either way.
 ARG A11OY_REQUIRE_LOCAL_LLM=0
 RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends build-essential cmake ninja-build git libgomp1 libstdc++6; \
-    if CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19" \
-       && python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp built from source OK (glibc):', so[0], getattr(llama_cpp,'__version__','?'))"; then \
-      echo '[a11oy] local llama.cpp demo tier: BUILT (real on-CPU output available)'; \
+    if [ "${A11OY_REQUIRE_LOCAL_LLM}" != "1" ]; then \
+      echo '[a11oy] A11OY_REQUIRE_LOCAL_LLM!=1 (constrained builder, e.g. HF cpu-basic): SKIPPING the heavy from-source llama.cpp compile to keep this build fast + reliable. The demo tier serves the HONEST tower-side label (szl_alloy_models.py, served_locally=False, never fake output). The strict GHCR-published image sets =1 and DOES compile + boot-verify real local output.'; \
     else \
-      if [ "${A11OY_REQUIRE_LOCAL_LLM}" = "1" ]; then \
-        echo '[a11oy] FATAL: llama_cpp source build failed and A11OY_REQUIRE_LOCAL_LLM=1 (published-image contract)'; exit 1; \
-      else \
-        echo '[a11oy] NOTE: llama_cpp source build unavailable on this constrained builder; demo tier will serve the HONEST tower-side label (no fake output). App boots normally.'; \
-        pip uninstall -y llama-cpp-python 2>/dev/null || true; \
-      fi; \
-    fi; \
-    apt-get purge -y build-essential cmake ninja-build git; \
-    apt-get autoremove -y; \
-    rm -rf /var/lib/apt/lists/*
+      apt-get update; \
+      apt-get install -y --no-install-recommends build-essential cmake ninja-build git libgomp1 libstdc++6; \
+      CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19"; \
+      python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp built from source OK (glibc):', so[0], getattr(llama_cpp,'__version__','?'))"; \
+      apt-get purge -y build-essential cmake ninja-build git; \
+      apt-get autoremove -y; \
+      rm -rf /var/lib/apt/lists/*; \
+    fi
 # GGUF weight — RELIABLY PRESENT (pinned revision + retry + integrity verify), NOT best-effort.
 # Previously a single best-effort `hf_hub_download(...) || echo` step: a transient download
 # failure silently shipped an image with NO model, so the alloy demo tier always degraded to
@@ -516,6 +511,13 @@ RUN python3 <<'GGUFPY'
 import hashlib, os, sys, time
 from huggingface_hub import hf_hub_download
 
+# RESILIENCE: on a constrained builder (A11OY_REQUIRE_LOCAL_LLM!=1, e.g. HF cpu-basic)
+# the llama.cpp compile was skipped, so the 491MB GGUF is dead weight + slows the build.
+# Skip the download too; the demo tier serves the HONEST tower-side label. The strict
+# GHCR image sets =1 and DOES fetch + sha/size-verify the weight (boot-tested in CI).
+if os.environ.get("A11OY_REQUIRE_LOCAL_LLM") != "1":
+    print("[a11oy] A11OY_REQUIRE_LOCAL_LLM!=1: skipping GGUF weight fetch (demo tier = honest tower-side label). App boots normally.", flush=True)
+    sys.exit(0)
 repo      = os.environ["A11OY_ALLOY_GGUF_REPO"]
 fname     = os.environ["A11OY_ALLOY_GGUF_FILE"]
 rev       = os.environ["A11OY_ALLOY_GGUF_REV"]
