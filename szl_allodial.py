@@ -22,8 +22,12 @@ Citations (real, verified):
   * EU Cloud Sovereignty Framework (2025) — SovScore = Σ (Score(SOVn)/Max(SOVn))·wn,
     SEAL 0-4 assurance scale.
   * Herfindahl-Hirschman Index (HHI) = Σ sᵢ²  — dependency-concentration measure.
+  * SLSA v1.1 (Approved Apr 2025) — adds Verification Summary Attestation (VSA):
+    https://slsa.dev/spec/v1.1/verification_summary ; announce: https://slsa.dev/blog
+  * Sello / "Notarized Agents: Receiver-Attested Confidential Receipts for AI Agent
+    Actions", Juan Figuera, arXiv:2606.04193 (2026): https://arxiv.org/abs/2606.04193
 
-Routes:  GET /api/<ns>/v1/allodial/{summary,score,dci,seal,noninterference,lattice}
+Routes:  GET /api/<ns>/v1/allodial/{summary,score,dci,seal,noninterference,lattice,standards}
 """
 from __future__ import annotations
 
@@ -156,6 +160,66 @@ def lattice_position(seal: int) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# CHAIN-OF-TITLE STANDARDS ROADMAP (ADDITIVE, honest, PROPOSED/roadmap tier).
+# These are the external provenance standards SZL's chain-of-title REFERENCES as
+# its L6 direction. They are CITED prior art; SZL claims none of them as its own,
+# and does NOT claim any of them is live here. PROPOSED/roadmap tier only.
+# ---------------------------------------------------------------------------
+STANDARDS_ROADMAP = {
+    "tier": "PROPOSED / roadmap (NOT live; not in the locked-8; Λ stays Conjecture 1)",
+    "slsa_v1_1_vsa": {
+        "what": "SLSA v1.1 (Approved Apr 2025) adds the Verification Summary Attestation "
+                "(VSA): a verifier attests that an artifact met a named policy AT "
+                "VERIFICATION TIME (verifierName/version, policyUri, verificationResult), "
+                "not just at build time. Backwards-compatible with v1.0.",
+        "szl_direction": "Emit VSAs alongside the build-time chain-of-title receipts so a "
+                         "downstream consumer can see WHAT POLICY the build passed — promoting "
+                         "the chain-of-title toward an L2+VSA tier. ROADMAP, not yet live.",
+        "honest_limit": "SLSA is necessary but NOT sufficient: build-identity attestations "
+                        "(even bare L3) can be forged via OIDC-token theft (e.g. Shai-Hulud, "
+                        "2026) — trust no single provenance signal; require behavioral "
+                        "corroboration. SLSA L3 is roadmap, never claimed live or bare.",
+        "cite": "SLSA v1.1, Apr 2025 (Verification Summary Attestation)",
+        "cite_url": "https://slsa.dev/spec/v1.1/verification_summary",
+    },
+    "sello_receipts": {
+        "what": "Sello (\"Notarized Agents: Receiver-Attested Confidential Receipts for AI "
+                "Agent Actions\", Juan Figuera, arXiv:2606.04193, 2026) closes a gap SLSA/"
+                "Sigstore do not cover — they attest BUILDS, not AGENT ACTIONS at runtime. "
+                "Four properties: P1 receiver-side signing, P2 HPKE encryption to the agent-"
+                "owner key, P3 publication to a witness-cosigned Merkle transparency log, "
+                "P4 owner-side discovery by SHA-256(authorization-token).",
+        "szl_direction": "Adopt the Sello P1–P4 receiver-attested-receipt pattern as the L6 "
+                         "direction for the agent-action chain-of-title (receiver-signed, "
+                         "owner-encrypted, Merkle-anchored receipts). PROPOSED, not implemented.",
+        "cite": "Juan Figuera, Sello / Notarized Agents, arXiv:2606.04193 (2026)",
+        "cite_url": "https://arxiv.org/abs/2606.04193",
+    },
+    "doctrine": ("PROPOSED/roadmap only — these standards are CITED prior art (not SZL's). "
+                 "Nothing here is claimed live; SLSA is never claimed bare-L3 without "
+                 "'roadmap'; Λ stays Conjecture 1; trust never 100%."),
+}
+
+
+def standards() -> dict:
+    """Honest, PROPOSED/roadmap note on the external provenance standards the
+    chain-of-title REFERENCES as its L6 direction: SLSA v1.1 VSA (Apr 2025) and the
+    Sello receiver-attested-receipt protocol (arXiv:2606.04193). Cited prior art;
+    SZL claims none as its own and claims none is live. [PROPOSED / roadmap]"""
+    return {
+        "title": "SZL chain-of-title — provenance standards roadmap (PROPOSED; prior art cited)",
+        "l6_direction": ("L6 = machine-checked cryptographic chain-of-title receipt. The "
+                         "external standards below are the CITED direction toward it; none "
+                         "is live in this image yet."),
+        "standards": STANDARDS_ROADMAP,
+        "cites": [
+            "SLSA v1.1 (Apr 2025) Verification Summary Attestation — https://slsa.dev/spec/v1.1/verification_summary",
+            "Sello / Notarized Agents (Juan Figuera) arXiv:2606.04193 — https://arxiv.org/abs/2606.04193",
+        ],
+    }
+
+
 def summary() -> dict:
     return {
         "title": "SZL Allodial AI — sovereignty formulas (PROPOSED; prior art cited)",
@@ -172,6 +236,19 @@ def summary() -> dict:
         "doctrine": DOCTRINE,
         "differentiator": "L6 — machine-checked cryptographic chain-of-title receipt "
                           "(industry players operate at L1-L5; none operationalize L6).",
+        "standards_roadmap": {
+            "tier": "PROPOSED / roadmap (cited prior art; none live; none claimed as SZL's)",
+            "slsa_v1_1_vsa": "SLSA v1.1 (Apr 2025) Verification Summary Attestation — "
+                             "verifier-attested 'what policy did this pass'; roadmap, not live. "
+                             "SLSA never claimed bare-L3 without 'roadmap'. See /standards.",
+            "sello_receipts": "Sello receiver-attested confidential receipts for AI agent "
+                              "actions (arXiv:2606.04193) — the L6 direction for agent-action "
+                              "provenance; PROPOSED, not implemented. See /standards.",
+            "cites": [
+                "SLSA v1.1 Apr 2025 (VSA) — https://slsa.dev/spec/v1.1/verification_summary",
+                "Sello / Notarized Agents arXiv:2606.04193 — https://arxiv.org/abs/2606.04193",
+            ],
+        },
         "status_legend": {
             "VERIFIED": "deterministic computation reproduces a documented formula",
             "PROPOSED": "engineering gate; SZL composition of cited prior art",
@@ -216,6 +293,8 @@ def register(app, ns: str) -> None:
         methods=["GET"])
     app.add_api_route(f"{base}/lattice",
                       lambda seal="4": lattice_position(int(seal)), methods=["GET"])
+    # ADDITIVE: honest PROPOSED/roadmap standards note (SLSA v1.1 VSA + Sello receipts).
+    app.add_api_route(f"{base}/standards", lambda: standards(), methods=["GET"])
 
 
 def _selftest() -> None:
@@ -247,7 +326,13 @@ def _selftest() -> None:
     # Out-of-domain guards
     assert allodial_score([], None, [0])["status"] == "out_of_domain"
     assert summary()["doctrine"]["allodial_is_formal_lambda"] is False
-    print("szl_allodial: ALL OK (14 checks)")
+    # Standards roadmap note: present, PROPOSED/roadmap, cited, none claimed live
+    st = standards()
+    assert "slsa_v1_1_vsa" in st["standards"] and "sello_receipts" in st["standards"], st
+    assert "roadmap" in st["standards"]["tier"].lower(), st
+    assert st["standards"]["sello_receipts"]["cite_url"] == "https://arxiv.org/abs/2606.04193"
+    assert "roadmap" in summary()["standards_roadmap"]["tier"].lower()
+    print("szl_allodial: ALL OK (18 checks)")
 
 
 if __name__ == "__main__":
