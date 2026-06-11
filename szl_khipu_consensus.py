@@ -69,7 +69,13 @@ DOCTRINE_PUBLIC = "v11 LOCKED · 749/14/163"
 # ---------------------------------------------------------------------------
 LOCKED_KERNEL_SHA = "c7c0ba17"
 EXPERIMENTAL_KERNEL_SHA = "044eb098"
-LOCKED_FIVE = ["F1", "F11", "F12", "F18", "F19"]
+# Locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 — the count is
+# itself the no-axiom theorem locked_count_eight (lutar-lean #219 + platform #321,
+# merged 2026-06-10). The legacy 5-element list under-reported the locked set and
+# contradicted this module's own print_axioms_assertion prose (which already names all
+# 8). Name kept for back-compat (canonical alias below). Never inflate.
+LOCKED_FIVE = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
+LOCKED_EIGHT = LOCKED_FIVE  # canonical alias
 
 _CONSENSUS_THEOREM_REF = {
     "decision_class": "consensus",
