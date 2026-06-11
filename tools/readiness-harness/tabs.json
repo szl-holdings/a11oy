@@ -6,10 +6,10 @@
   "generatedAt": "2026-06-11T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 111,
+    "tabs": 116,
     "endpoints": 41,
     "tabsWithCitations": 22,
-    "staticTabs": 28
+    "staticTabs": 33
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -1037,10 +1037,40 @@
   },
   "tabs": [
     {
+      "key": "abacus_manifold",
+      "title": "Numeric Routing Manifold",
+      "group": "Console",
+      "route": "/console#abacus_manifold",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
       "key": "alloy",
       "title": "alloy",
       "group": "Console",
       "route": "/console#alloy",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "anatomymap",
+      "title": "anatomymap",
+      "group": "Console",
+      "route": "/console#anatomymap",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
@@ -1222,6 +1252,21 @@
       "citationsRequired": false,
       "sampleLabelAllowed": false,
       "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "consensus_basin",
+      "title": "Khipu Consensus Attractor Basin",
+      "group": "Console",
+      "route": "/console#consensus_basin",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
@@ -1753,6 +1798,21 @@
       }
     },
     {
+      "key": "gemstones_frontier",
+      "title": "Scaling Frontier (Router Sizing)",
+      "group": "Console",
+      "route": "/console#gemstones_frontier",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
       "key": "govatlas",
       "title": "govatlas",
       "group": "Console",
@@ -2200,6 +2260,21 @@
       "title": "organyawar",
       "group": "Console",
       "route": "/console#organyawar",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "ouro_spiral",
+      "title": "Reasoning Depth Spiral",
+      "group": "Console",
+      "route": "/console#ouro_spiral",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
