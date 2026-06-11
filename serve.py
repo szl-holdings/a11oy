@@ -178,6 +178,20 @@ try:
 except Exception as _szl_cuas_e:  # pragma: no cover
     print(f"[a11oy] CUAS formulas NOT registered: {_szl_cuas_e!r}", file=__import__("sys").stderr)
 
+# ── SZL allometric / metabolic scaling (scaling-formula-patch) — WBE network
+# scaling (West-Brown-Enquist 1997) + Banavar transport exponent + MTE temperature
+# (Brown 2004) + Demetrius-Tuszynski proton-motive-force quantum-metabolism bridge
+# (2010), unified into the PROPOSED SZL-Φ engineering gate. Cites every borrowed
+# formula to its real author; claims NONE as SZL's discovery. EXPERIMENTAL-tier —
+# adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Shared
+# module byte-identical a11oy↔killinchu. Additive, try/except-guarded.
+try:
+    import szl_scaling as _szl_scaling
+    _szl_scaling.register(app, ns="a11oy")
+    print("[a11oy] Scaling formulas registered: /api/a11oy/v1/scaling/*", file=__import__("sys").stderr)
+except Exception as _szl_scaling_e:  # pragma: no cover
+    print(f"[a11oy] Scaling formulas NOT registered: {_szl_scaling_e!r}", file=__import__("sys").stderr)
+
 
 # ── Open-Problem Bounty Board (bounties-tab-patch) — OPEN proof bounties
 # (Conjecture 1 Λ-aggregator uniqueness, Conjecture 2 Khipu BFT safety) rendered
@@ -192,18 +206,6 @@ try:
     print("[a11oy] Open-Problem Bounty Board registered: /api/a11oy/v1/bounties", file=__import__("sys").stderr)
 except Exception as _szl_bn_e:  # pragma: no cover
     print(f"[a11oy] Open-Problem Bounty Board NOT registered: {_szl_bn_e!r}", file=__import__("sys").stderr)
-
-# ── Conjecture Factory (conjecture-factory-tab-patch). Honest live board of
-# factory-generated OPEN conjectures read from the real disclosure ledger
-# (szl-lake khipu, kind=conjecture-disclosure-anchor). A conjecture is NEVER a
-# theorem; every item stays OPEN until independently verified; Conjecture 1
-# (Λ uniqueness) is and remains OPEN. Additive, try/except-guarded. Pure stdlib.
-try:
-    import szl_conjecture_factory as _szl_conjecture_factory
-    _szl_conjecture_factory.register(app, ns="a11oy")
-    print("[a11oy] Conjecture Factory registered: /api/a11oy/v1/conjecture-factory", file=__import__("sys").stderr)
-except Exception as _szl_cf_e:  # pragma: no cover
-    print(f"[a11oy] Conjecture Factory NOT registered: {_szl_cf_e!r}", file=__import__("sys").stderr)
 
 # ── Putnam 2025 canonical-set honest verdict (putnam-2025-tab-patch). Serves the
 # per-problem REAL/DEMO/OPEN verdict for the canonical Putnam 2025 set (A1-A6,
