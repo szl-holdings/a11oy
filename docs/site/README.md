@@ -266,7 +266,7 @@ contract. NO BANDAID. Math-grounded, Quechua-rooted.
 
 ## SZL Holdings
 
-![SZL Holdings](./branding/szl-avatar-animated.gif)
+![SZL Holdings](./docs/public/img/szl-mark.svg)
 
 *Amaru — the Inca avatar of SZL Holdings. Animated mark (400×400, 16fps loop). Signed Yachay.*
 
