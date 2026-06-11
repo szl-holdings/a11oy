@@ -638,7 +638,7 @@ except Exception as _th_e:
 #   POST /api/a11oy/khipu/sign     — DSSE-sign a receipt (real ECDSA-P256 cosign sig)
 #   POST /api/a11oy/khipu/verify   — verify a DSSE envelope against cosign.pub
 #   GET  /api/a11oy/khipu/ledger   — signed Khipu Merkle DAG
-#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1+L2 attested: cosign keyless-verified image (L1) + signed SLSA build-provenance attestation via actions/attest-build-provenance@v2 (L2), Sigstore keyless Fulcio+Rekor, verifiable via gh attestation verify / cosign verify-attestation; L3 roadmap, not claimed)
+#   GET  /api/a11oy/provenance     — combined honest board (SLSA L1 honest; L2 .att emitted (not independently verified): cosign keyless-verified image (L1) + signed SLSA build-provenance attestation via actions/attest-build-provenance@v2 (L2), Sigstore keyless Fulcio+Rekor, verifiable via gh attestation verify / cosign verify-attestation; L3 roadmap, not claimed)
 # The Wire-D middleware echoes traceparent on EVERY response (incl. the Node-proxy
 # catch-all) so trace continuity holds across the whole Space. Real signatures only
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
@@ -845,7 +845,7 @@ for _organ_mod, _organ_label in (
 # and win ordering. The package root /app/src is added to sys.path so
 # `import a11oy.formulas` resolves under WORKDIR /app (per-file COPY in Dockerfile).
 # try/except guarded — a missing optional dep can NEVER take down the SPA + API.
-# Λ = Conjecture 1 (NEVER a theorem). SLSA L1+L2 attested (cosign-signed image,
+# Λ = Conjecture 1 (NEVER a theorem). SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-signed image,
 # public Sigstore + Rekor verified (L1) + signed SLSA build-provenance attestation
 # via actions/attest-build-provenance@v2 (L2), verifiable via gh attestation verify
 # / cosign verify-attestation); L3 roadmap, not claimed. See .compliance/SLSA_LEVEL.md.
@@ -1334,7 +1334,7 @@ async def v1_healthz() -> JSONResponse:
                 "error": "Node serve on :8081 is not running",
                 "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                              "version": "v11", "replay_hash": "c7c0ba17"},
-                "slsa": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+                "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
             },
             status_code=503,
         )
@@ -1352,7 +1352,7 @@ async def v1_healthz() -> JSONResponse:
         "routes": ["/v1/ledger", "/v1/ledger/{hash}", "/v1/verify", "/v1/policy/evaluate"],
         "doctrine": {"declarations": 749, "axioms": 14, "sorries": 163,
                      "version": "v11", "replay_hash": "c7c0ba17"},
-        "slsa": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
     }, status_code=200 if backend["alive"] else 503)
 
 
@@ -2874,7 +2874,7 @@ async def _a11oy_pr_honest_v2():
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
-        "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         "slsa_evidence": {
             "level": "L2",
             "image_tag": "uds-v0.2.0",
@@ -2896,7 +2896,7 @@ async def _a11oy_pr_honest_v2():
             "No Iron Bank / FedRAMP / CMMC certification claimed",
             "Section 889 = exactly 5 vendors (Huawei, ZTE, Hytera, Hikvision, Dahua)",
             "HNSW formula endpoint is an HONEST in-process retrieval stub; BLS returns an honest backend-availability flag (real verify only when py_ecc present).",
-            "SLSA L1+L2 attested · L3 roadmap across all organs (cosign-signed images + signed SLSA build-provenance attestation, Sigstore keyless Fulcio+Rekor verifiable via gh attestation verify / cosign verify-attestation). L3 not claimed. NOT Iron Bank, NOT FedRAMP, NOT CMMC, NOT ATO without roadmap.",
+            "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs (cosign-signed images + signed SLSA build-provenance attestation, Sigstore keyless Fulcio+Rekor verifiable via gh attestation verify / cosign verify-attestation). L3 not claimed. NOT Iron Bank, NOT FedRAMP, NOT CMMC, NOT ATO without roadmap.",
         ],
         "role": "Brand Orchestration / gates",
     })
@@ -3029,7 +3029,7 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # shape the scene's normalizeStats() consumes. Registered at BOTH the root path
 # (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
 # proxy + SPA, matching the existing /v4/fleet dual-registration pattern.
-# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1+L2 attested (cosign-
+# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-
 # signed GHCR image + signed SLSA build-provenance attestation, Sigstore + Rekor
 # verifiable via gh attestation verify / cosign verify-attestation); L3 roadmap
 # (NOT claimed); never FedRAMP/Iron Bank/CMMC/ATO without roadmap — unchanged.
@@ -3299,7 +3299,7 @@ async def a11oy_mcp_tools_inline():
         "flagship": "a11oy",  # host flagship (backward-compatible field)
         "flagships": _flagships,  # every flagship that contributed live tools
         "sources": _sources,
-        "kernel_commit": "c7c0ba17", "slsa_level": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "kernel_commit": "c7c0ba17", "slsa_level": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
     })
 
@@ -4141,7 +4141,7 @@ try:
                           "launch_at": "/api/a11oy/v1/warhacker/launch/" + d["key"]}
                          for d in _WH_DEMOS],
             "lambda_status": "Conjecture 1 (advisory, not a pass/fail oracle)",
-            "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+            "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         })
 
     # Map the launch keys to the REAL exhaustive-demo engine keys (the demos
@@ -4294,7 +4294,7 @@ except Exception as _wh_obs_e:  # pragma: no cover - additive, defensive
 # pack registry, business observability. Registered BEFORE the SPA catch-all.
 #
 # HONESTY: Λ = Conjecture 1 (advisory, never a pass/fail oracle). 8 proven
-# formulas {F1,F4,F7,F11,F12,F18,F19,F22}. SLSA L1+L2 attested; L3 build-provenance roadmap
+# formulas {F1,F4,F7,F11,F12,F18,F19,F22}. SLSA L1 honest; L2 .att emitted (not independently verified); L3 build-provenance roadmap
 # (not yet claimed); NOT FedRAMP/Iron Bank/CMMC/ATO without roadmap. No
 # cross-origin organ dependencies — a11oy is fully self-contained.
 # The DSSE key below is a REAL ephemeral ECDSA P-256 key generated in-image
@@ -6386,7 +6386,7 @@ async def _a11oy_pr_honest():
         "sorries_baseline": 112, "sorries_putnam": 51, "trust_axes": 13,
         "policy_gates": 46, "anchor_formula_gates": 44, "mcp_tools": 12,
         "lambda_uniqueness": "Conjecture 1 — NOT a closed theorem (open CAUCHY_ND sorry + missing symmetry axiom)",
-        "slsa": "SLSA L1+L2 attested · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap. L1: cosign-signed image (verifiable via cosign verify). L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via `gh attestation verify` / `cosign verify-attestation --type slsaprovenance`. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
         "slsa_evidence": {
             "level": "L2",
             "image_tag": "uds-v0.2.0",
@@ -6500,7 +6500,7 @@ async def api_health() -> JSONResponse:
         "lean_sha": "c7c0ba17",
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
-        "slsa": "SLSA L1+L2 attested · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
+        "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap across all organs. L1: cosign-signed images. L2: signed SLSA build-provenance attestation (actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation. L3 not claimed. Not Iron Bank / FedRAMP / CMMC / ATO without roadmap.",
     })
 
 

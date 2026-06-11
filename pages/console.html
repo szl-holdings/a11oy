@@ -317,7 +317,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="kevgate" onclick="go('kevgate')"><span class="ico">⛨</span>CVE → Gate Impact</div>
     <div class="nav-item" data-view="feedpulse" onclick="go('feedpulse')"><span class="ico">❣</span>Feed Liveness</div>
     <div class="nav-item" data-view="routerarena" onclick="go('routerarena')"><span class="ico">⚡</span>Routing Arena</div>
-    <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1+L2 attested · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
+    <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -929,7 +929,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Honest claims</span><span class="card-ep">live</span></div><div id="ho-host"><div class="row mono dim">loading\u2026</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">What we do NOT claim</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>The trust score is NOT a proven-unique function \u2014 it is a research conjecture.</span></div>
-        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC, NOT ATO without roadmap. Builds are SLSA L1+L2 attested — images cosign-signed (L1) and carry a signed SLSA build-provenance attestation (L2) via actions/attest-build-provenance@v2 (Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance; L3 verification is on the roadmap.</span></div>
+        <div class="row"><span class="badge b-err">NOT</span><span>NOT SLSA L3, NOT FedRAMP, NOT Iron Bank, NOT CMMC, NOT ATO without roadmap. Builds are SLSA L1 honest; L2 .att emitted (not independently verified) — images cosign-signed (L1) and carry a signed SLSA build-provenance attestation (L2) via actions/attest-build-provenance@v2 (Sigstore keyless Fulcio+Rekor), verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance; L3 verification is on the roadmap.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>NOT a third-party audit. Compliance coverage is self-evidenced with hashes.</span></div>
         <div class="row"><span class="badge b-err">NOT</span><span>Only 8 formulas are formally proven (locked); the rest are open or experimental.</span></div>
       </div>
@@ -1032,7 +1032,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
      OUR OWN code on REAL in-image / public data, governed by the founder's formulas.
      Viz libs vendored (3d-force-graph / globe.gl MIT, vasturiano; echarts-gl Apache-2.0).
      Honesty: Λ=Conjecture 1; locked-proven=8; experimental waves CI-green w/ maturity chips;
-     trust interval = CONFORMAL (W5-3/W7-4) NOT Hoeffding; SLSA L1+L2 attested · L3 roadmap; no fabricated data.
+     trust interval = CONFORMAL (W5-3/W7-4) NOT Hoeffding; SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap; no fabricated data.
      ========================================================================== */
   govatlas:{title:'Governance Atlas',badge:'3D ENTITY-LINK · EDGE-PARTICLE LIVE FLOW',sub:'The whole governed substrate as one live, animated 3D entity-link graph \u2014 policies, decisions, evidence, capabilities and signed receipts fused into a single explorable map, with edge particles tracing live event flow. Click any node for its provenance panel: inputs, the gate verdict, the trust score (advisory conjecture), and its receipt chip. Reimplements the anvaka / vasturiano 3d-force-graph interaction model (MIT) on our real /mesh, /observability and /knowledge data. The mesh-health score is provably label-invariant (graph theorem F-G4). Answers Warhacker #1 (autonomous-system oversight): every governed object is on one auditable surface.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -1107,10 +1107,10 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       </div>
       <div class="card" id="tg-detail"><div class="row mono dim">Click any node to see its severity, the gate that screens it, and (for KEV-lit nodes) the known-exploited CVE driving the toxic path.</div></div>${HONEST}`;window.threatgraph_load();}},
 
-  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L1+L2 attested · L3 roadmap',sub:'Ship it air-gapped, prove it offline. The deployment posture of the governed substrate \u2014 a cosign-signed UDS/Zarf bundle of the organ images, each carrying a cosign signature (.sig) and an in-toto build-provenance attestation (.att) — SLSA Level 1+2 attested (cosign-signed image + signed build-provenance attestation via actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor; verify with gh attestation verify / cosign verify-attestation); Level 3 is roadmap. See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker #2 (Tychee air-gap) and #5 (Raven edge): offline-verifiable bundle.',
+  deploy:{title:'Deploy Posture',badge:'SIGNED UDS BUNDLE · COSIGN · SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap',sub:'Ship it air-gapped, prove it offline. The deployment posture of the governed substrate \u2014 a cosign-signed UDS/Zarf bundle of the organ images, each carrying a cosign signature (.sig) and an in-toto build-provenance attestation (.att) — SLSA Level 1+2 attested (cosign-signed image + signed build-provenance attestation via actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor; verify with gh attestation verify / cosign verify-attestation); Level 3 is roadmap. See the bundle composition, the verify-it-yourself commands, and the tamper-evident guarantee: a duplicate receipt is a hash collision (W5-4) and any payload mutation makes re-verify reject (P5, axiom-gated). Reimplements the Defense Unicorns UDS deploy-posture pattern \u2014 PATTERN ONLY (uds-core is AGPL; no code copied). Answers Warhacker #2 (Tychee air-gap) and #5 (Raven edge): offline-verifiable bundle.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Organ images</div><div class="v" id="dp-n">\u2014</div><div class="d">in the bundle</div></div>
-      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">Build L1+L2 attested</div><div class="d">.sig + .att; verify via gh attestation verify / cosign verify-attestation; L3 roadmap</div></div>
+      <div class="kpi"><div class="k">SLSA level</div><div class="v teal">Build: SLSA L1; L2 .att emitted (not independently verified)</div><div class="d">.sig + .att; verify via gh attestation verify / cosign verify-attestation; L3 roadmap</div></div>
       <div class="kpi"><div class="k">Signed</div><div class="v teal">cosign</div><div class="d">.sig on GHCR</div></div>
       <div class="kpi"><div class="k">Air-gap</div><div class="v" id="dp-ag">offline-verifiable</div><div class="d">P5 / W5-4</div></div></div>
       <div class="grid2">
@@ -1371,7 +1371,7 @@ async function mcp_call(name){try{setOut('o-mcp','invoking '+name+'\u2026');cons
 // What we claim (a11oy honest)
 async function honest_load(){try{const d=await getJSON(API+'/v1/honest');const dl=d.doctrine_lock||{};setHTML('ho-host','');
   addHTML('ho-host',`<div class="row"><span>Formally proven formulas</span><span class="spacer b-live badge">8</span></div>`);
-  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1+L2 attested · L3 roadmap</span></div>`);
+  addHTML('ho-host',`<div class="row"><span>Build security</span><span class="spacer b-teal badge">SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Trust score</span><span class="spacer b-err badge">research conjecture</span></div>`);
   addHTML('ho-host',`<div class="row"><span>Verifiable receipts</span><span class="spacer b-live badge">yes (own in-image ECDSA P-256 key)</span></div>`);
   setOut('o-honest',d);}catch(e){setHTML('ho-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
@@ -1773,7 +1773,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 /* ============================================================================
    a11oy build-wave — LEADER-GRADE out-of-this-world tabs + live/animated helpers
    Real data only. No mock. Honesty doctrine preserved (Λ=Conjecture 1, 8 proven,
-   SLSA L1+L2 attested · L3 roadmap, no organ names, no jargon). Built on existing helper toolkit.
+   SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap, no organ names, no jargon). Built on existing helper toolkit.
    Leader patterns cited inline:
      Trust Ledger      — Palantir Object Explorer + Quiver + Wiz Security Graph (fused w/ verifiable proof-chain)
      Knowledge Lineage — Databricks Unity Catalog lineage DAG + HiddenLayer AIBOM
@@ -1946,7 +1946,7 @@ function lineage_export(){
       axioms: (kb.axioms||[]).length,
       theorems: (kb.theorems||[]).length,
       dois: (kb.dois||[]).map(d=>d.doi),
-      build_provenance:'SLSA Build L1+L2 attested · L3 roadmap (images cosign-signed + signed SLSA build-provenance attestation via actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor, in-toto v1 predicate; verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance); L3 roadmap',
+      build_provenance:'SLSA Build: SLSA L1; L2 .att emitted (not independently verified) · L3 roadmap (images cosign-signed + signed SLSA build-provenance attestation via actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor, in-toto v1 predicate; verifiable via gh attestation verify / cosign verify-attestation --type slsaprovenance); L3 roadmap',
       note:'Λ (trust-score uniqueness) is Conjecture 1, advisory — not a proven theorem.'
     };
     const blob=new Blob([JSON.stringify(aibom,null,2)],{type:'application/json'});
@@ -1971,7 +1971,7 @@ async function mission_load(){
     const crit = caps.filter(c=>c.status!=='ok').length;
     // Business-outcome sentence (Boss.Technology framing) — plain English, honest.
     setHTML('mh-sentence',
-      `${liveDot()}<b>All ${up} of ${total} capabilities online</b> · ${crit} critical · trust score <b>0.919</b> <span style="color:#c9a05f">(conjecture)</span> · build provenance <b>SLSA L1+L2 attested · L3 roadmap</b>`);
+      `${liveDot()}<b>All ${up} of ${total} capabilities online</b> · ${crit} critical · trust score <b>0.919</b> <span style="color:#c9a05f">(conjecture)</span> · build provenance <b>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap</b>`);
     setTxt('mh-up', up+'/'+total);
     setTxt('mh-crit', crit);
     setTxt('mh-floor', '0.90');
@@ -2568,7 +2568,7 @@ window.chaski_dispatch=chaski_dispatch;
    reimplemented as OUR OWN code on REAL in-image / public data, governed by the
    founder's proven formulas. Honesty doctrine: Λ=Conjecture 1 (advisory only);
    locked-proven=8 {F1,F4,F7,F11,F12,F18,F19,F22}; trust interval = CONFORMAL (W7-4) not
-   Hoeffding; SLSA L1+L2 attested · L3 roadmap; no fabricated data; no organ user-visible names.
+   Hoeffding; SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap; no fabricated data; no organ user-visible names.
    Viz: 3d-force-graph / globe.gl MIT (vasturiano); echarts-gl Apache-2.0 — vendored.
    ========================================================================== */
 
@@ -2878,7 +2878,7 @@ async function deploy_load(){
       'cosign verify ghcr.io/szl-holdings/a11oy@<digest> \\\n'+
       '  --certificate-identity-regexp "github.com/szl-holdings" \\\n'+
       '  --certificate-oidc-issuer https://token.actions.githubusercontent.com\n\n'+
-      '# 2) SLSA Build provenance attestation (.att) [L1+L2 attested via actions/attest-build-provenance@v2; verify: gh attestation verify / cosign verify-attestation --type slsaprovenance; L3 roadmap]:\n'+
+      '# 2) SLSA Build provenance attestation (.att) [L1 honest; L2 .att emitted (not independently verified) via actions/attest-build-provenance@v2; verify: gh attestation verify / cosign verify-attestation --type slsaprovenance; L3 roadmap]:\n'+
       'slsa-verifier verify-image ghcr.io/szl-holdings/a11oy@<digest> \\\n'+
       '  --source-uri github.com/szl-holdings/a11oy\n\n'+
       '# 3) Air-gapped policy + ledger replay (no network):\n'+
@@ -2975,7 +2975,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        conjunctively → signed receipt or rejection) + the action pipeline trace
        + the shared killinchu YAWAR/span mesh reference.
    Honesty doctrine preserved: Λ=Conjecture 1 (advisory, never the gate);
-   8 locked-proven; SLSA L1+L2 attested \u00b7 L3 roadmap; live-vs-replay labeled.
+   8 locked-proven; SLSA L1 honest; L2 .att emitted (not independently verified) \u00b7 L3 roadmap; live-vs-replay labeled.
    Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
    ============================================================================ */
 (function(){
@@ -3301,7 +3301,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
   var HONEST=(window.HONEST_DOCTRINE||document.querySelector('.honesty'))?'':'';
   // reuse the page's HONEST block string by cloning from an existing one at render time
-  function honestBlock(){return '<div class="honesty"><b>How to read this.</b> Live data, no mock. The trust score \u039b is a research <b>Conjecture</b> (Conjecture 1, advisory \u2014 unconditional uniqueness machine-checked FALSE). Eight formulas are formally proven/locked {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green on main (@958c09f9) but not in the locked count. Conformal intervals use W5-3 distribution-free coverage (NOT Hoeffding). SLSA L1+L2 attested · L3 roadmap on the a11oy image (cosign-signed + signed build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation). No AGI claims.</div>';}
+  function honestBlock(){return '<div class="honesty"><b>How to read this.</b> Live data, no mock. The trust score \u039b is a research <b>Conjecture</b> (Conjecture 1, advisory \u2014 unconditional uniqueness machine-checked FALSE). Eight formulas are formally proven/locked {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green on main (@958c09f9) but not in the locked count. Conformal intervals use W5-3 distribution-free coverage (NOT Hoeffding). SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap on the a11oy image (cosign-signed + signed build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation). No AGI claims.</div>';}
 
   // ngraph.graph UMD exposes global as `createGraph` (g.createGraph=f()); alias to the
   // name this module references so gpuKnowledgeGraph/chainDagre/sankeyLineage resolve it.
@@ -4643,7 +4643,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   var B1=window.B1||{};
   function chip(label,status){ var col=(status==='PROVEN'||status==='CI-GREEN'||status==='LIVE')?TEAL:(status==='CONJECTURE'||status==='SAMPLE'||status==='ROADMAP')?GOLD:(status==='FALSE'||status==='DOWN')?RED:GRAY;
     return '<span class="mono" style="display:inline-block;padding:1px 6px;border:1px solid '+col+';border-radius:3px;color:'+col+';font-size:9px;margin:1px 2px">'+esc(label)+(status?' \u00b7 '+esc(status):'')+'</span>'; }
-  function honest(){ return (B1.honestBlock?B1.honestBlock():'<div class="honesty"><b>How to read this.</b> Live or clearly-labelled sample data. \u039b is Conjecture 1 (unconditional uniqueness machine-checked FALSE). Eight formulas locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves CI-green on main (@958c09f9). Conformal = W5-3 distribution-free (NOT Hoeffding). SLSA L1+L2 attested · L3 roadmap; no AGI claims.</div>'); }
+  function honest(){ return (B1.honestBlock?B1.honestBlock():'<div class="honesty"><b>How to read this.</b> Live or clearly-labelled sample data. \u039b is Conjecture 1 (unconditional uniqueness machine-checked FALSE). Eight formulas locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves CI-green on main (@958c09f9). Conformal = W5-3 distribution-free (NOT Hoeffding). SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap; no AGI claims.</div>'); }
   function srcline(d){ if(!d)return ''; var kind=(d.data_kind||'live'); var mode=(d.mode||''); var live=(mode==='live'); var col=live?TEAL:(String(kind).indexOf('sample')>=0||String(kind).indexOf('snapshot')>=0?GOLD:TEAL);
     var modeb = mode?(' <span class="badge '+(live?'b-live':'b-gold')+'">'+esc(mode)+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z':'')+'</span>'):'';
     return '<div class="row mono" style="font-size:9px;margin-top:.3rem;color:'+DIM+'">data: <span style="color:'+col+'">'+esc(String(kind).toUpperCase())+'</span>'+modeb+(d.catalogVersion?(' \u00b7 catalog '+esc(d.catalogVersion)):'')+' \u00b7 '+esc(d.source||'same-origin')+'</div>'; }
@@ -5085,7 +5085,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* =============== deploy — SVG deployment-marker timeline =============== */
-    V.deploy={title:'Deploy Posture',badge:'DEPLOY-MARKER TIMELINE \u00b7 COSIGN \u00b7 SLSA L1+L2 attested \u00b7 L3 roadmap',sub:'Ship it air-gapped, prove it offline. The deploy posture as a deployment-marker timeline (build \u2192 SBOM \u2192 cosign sign \u2192 SLSA attest \u2192 UDS bundle \u2192 air-gap verify), each marker carrying its artifact + status. Konva not vendored \u2014 implemented as SVG/Canvas to keep the NOTICE unchanged. Any payload mutation makes re-verify reject (P5).',
+    V.deploy={title:'Deploy Posture',badge:'DEPLOY-MARKER TIMELINE \u00b7 COSIGN \u00b7 SLSA L1 honest; L2 .att emitted (not independently verified) \u00b7 L3 roadmap',sub:'Ship it air-gapped, prove it offline. The deploy posture as a deployment-marker timeline (build \u2192 SBOM \u2192 cosign sign \u2192 SLSA attest \u2192 UDS bundle \u2192 air-gap verify), each marker carrying its artifact + status. Konva not vendored \u2014 implemented as SVG/Canvas to keep the NOTICE unchanged. Any payload mutation makes re-verify reject (P5).',
       render:async function(c){ c.innerHTML='<div class="kpis">'
         +'<div class="kpi"><div class="k">Bundle</div><div class="v teal">UDS/Zarf</div><div class="d">cosign-signed</div></div>'
         +'<div class="kpi"><div class="k">Provenance</div><div class="v">SLSA L1+L2</div><div class="d">attested · L3 roadmap</div></div>'
@@ -5103,7 +5103,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             {n:'build',label:'Docker per-file COPY build',ok:true},
             {n:'sbom',label:'CycloneDX SBOM ('+organs+' images)',ok:true},
             {n:'sign',label:'cosign sign each image',ok:true},
-            {n:'attest',label:'SLSA L1+L2 attested (cosign-signed + .att build-provenance); L3 roadmap',ok:true},
+            {n:'attest',label:'SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-signed + .att build-provenance); L3 roadmap',ok:true},
             {n:'bundle',label:'UDS/Zarf air-gap bundle',ok:true},
             {n:'verify',label:'offline re-verify (P5 gate)',ok:true}
           ];
@@ -5146,7 +5146,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<button id="wb-allt" style="background:transparent;border:1px solid '+RED+';color:'+RED+';border-radius:8px;padding:.55rem 1.2rem;cursor:pointer;font-weight:700">\u25b6 Launch all 25 \u00b7 tamper</button>'
           +'<span class="mono" id="wb-prog" style="font-size:10px;color:'+DIM+';align-self:center"></span></div>'
           +'<div id="wb-board" style="margin-top:.7rem"><div class="row mono dim">loading the 25-demo index\u2026</div></div>'
-          +'<div class="brain-note" id="wb-note">Each card runs in-image and records a signed receipt of the decision. nominal \u2192 ADMIT/within; tamper \u2192 CAUGHT (verdict flips, chain breaks, receipt id differs). '+chip('locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}','PROVEN')+chip('\u039b advisory','CONJECTURE')+chip('SLSA L1+L2 attested · L3 roadmap','ATTESTED')+chip('0 runtime CDN','LIVE')+'</div></div>'
+          +'<div class="brain-note" id="wb-note">Each card runs in-image and records a signed receipt of the decision. nominal \u2192 ADMIT/within; tamper \u2192 CAUGHT (verdict flips, chain breaks, receipt id differs). '+chip('locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}','PROVEN')+chip('\u039b advisory','CONJECTURE')+chip('SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap','ATTESTED')+chip('0 runtime CDN','LIVE')+'</div></div>'
           +honest();
         var idx={}, problems=[];
         try{ idx=await gj('/api/a11oy/v1/warhacker/index'); problems=idx.problems||[]; }
@@ -5385,7 +5385,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
    console toolkit (el/getJSON/postJSON/dag3d/_frameFG/_labelSprite/every/liveDot/
    Chart helpers). Keeps a11oy's existing dark GOLD/TEAL brand. 0 CDN.
    Doctrine: locked=EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (uncond FALSE;
-   conditional axiom-free); SLSA L1+L2 attested (cosign verify + cosign verify-attestation --type slsaprovenance) · L3 roadmap+
+   conditional axiom-free); SLSA L1 honest; L2 .att emitted (not independently verified) (cosign verify + cosign verify-attestation --type slsaprovenance) · L3 roadmap+
    L3=roadmap; a11oy Code = best GOVERNED LLM; SIMULATED labeled; no banned codenames.
    ============================================================================ */
 (function(){
@@ -5521,7 +5521,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +kpi('Trust score Λ','cc-lam','vs floor 0.90','teal')
           +kpi('Decisions today','cc-dec','governed + logged')
           +kpi('Chain depth','cc-chain','unified receipt ledger','teal')
-          +kpi('Build security','cc-slsa','SLSA L1+L2 attested · L3 roadmap','teal')
+          +kpi('Build security','cc-slsa','SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap','teal')
           +'</div>'
           +'<div class="grid2">'
           +card('Trust posture (13-axis Λ)','live '+window.a11oyPoweredBy(['F19','F1']),'<div class="chartbox"><canvas id="cc-radar"></canvas></div>')
@@ -6068,14 +6068,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +card('Mesh reachability (live probe)','live · <span id="on-stamp" class="mono dim" style="font-size:10px"></span>','<div id="on-reachlist"><div class="row mono dim">probing…</div></div>')
           +card('MELT telemetry','live /v1/observability/summary','<pre class="out" id="on-melt" style="max-height:320px">loading…</pre>')
           +'</div>'
-          +'<div class="brain-note" id="on-hon">Nodes are a11oy\'s own in-image capabilities, not external services (labeled honestly). Trace IDs are real W3C ids generated + propagated in-process; cross-Space distributed tracing is NOT yet wired (roadmap). SLSA L1+L2 attested (cosign-signed image + signed build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation); L3 = roadmap.</div>'
+          +'<div class="brain-note" id="on-hon">Nodes are a11oy\'s own in-image capabilities, not external services (labeled honestly). Trace IDs are real W3C ids generated + propagated in-process; cross-Space distributed tracing is NOT yet wired (roadmap). SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-signed image + signed build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation); L3 = roadmap.</div>'
           +HON;
         window.a11oyPoll(async function(){
           try{ var d=await gj(API+'/v1/observability/summary');
             var melt=d.melt||{}; var m=melt.metrics||{};
             T('on-reach',(m.organs_reachable!=null?m.organs_reachable:'—')+' / '+(m.organs_total!=null?m.organs_total:'—'));
             T('on-depth', m.dag_depth!=null?m.dag_depth:'—'); T('on-spans', d.spans_available?'YES':'no');
-            T('on-slsa','L1+L2 attested');
+            T('on-slsa','L1 honest; L2 .att emitted (not independently verified)');
             // mesh_reach can be a list (live) — render rows
             var mr=d.mesh_reach||[]; var rows=(Array.isArray(mr)?mr:Object.keys(mr).map(function(k){return mr[k];}));
             var html=rows.map(function(p){ var up=(p.status||'ok')==='ok';
@@ -7343,7 +7343,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function poll(fn){ if(window.a11oyPoll){ window.a11oyPoll(fn); } else { fn(); } }
   window._devbPoll = poll;
 
-  var HON = window.HONEST || '<div class="honesty"><b>How to read this.</b> Every panel reads a REAL live public source — no mock data; freshness is labeled live/cached/stale. The trust score Λ is a research <b>Conjecture</b> (Conjecture 1, advisory floor 0.90 — never a pass/fail oracle). Eight formulas are formally proven (locked: F1, F4, F7, F11, F12, F18, F19, F22). SLSA L1+L2 attested (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation); L3 verification is roadmap. Receipts are hash-chained and ECDSA-P256 signed where a cosign key is present, honestly marked unsigned otherwise. Premium connectors (Salesforce/M365/Slack) are CONNECT-READY — never fabricated. Modeled values are labeled. 0 runtime CDN.</div>';
+  var HON = window.HONEST || '<div class="honesty"><b>How to read this.</b> Every panel reads a REAL live public source — no mock data; freshness is labeled live/cached/stale. The trust score Λ is a research <b>Conjecture</b> (Conjecture 1, advisory floor 0.90 — never a pass/fail oracle). Eight formulas are formally proven (locked: F1, F4, F7, F11, F12, F18, F19, F22). SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation); L3 verification is roadmap. Receipts are hash-chained and ECDSA-P256 signed where a cosign key is present, honestly marked unsigned otherwise. Premium connectors (Salesforce/M365/Slack) are CONNECT-READY — never fabricated. Modeled values are labeled. 0 runtime CDN.</div>';
 
   // ---- shared sub-tab pack (own registry; tears down via go() wrapper) -------
   var _dbTimersWrapped = window._dbWrapped;
@@ -8824,7 +8824,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     return h+'</tbody></table></div>'; }
   function err(id,e){ H(id,'<div class="row mono dim">feed unavailable: '+esc((e&&e.message)||e)+'</div>'); }
 
-  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Fleet topology, health, \u039b status and MCP-tool counts are probed <b>live in-process</b> from the real capabilities mesh (0 client CDN), freshness labeled. The decision ledger is a <b>real hash-chained</b> receipt store (SHA-chain, tamper-evident), DSSE-signed where a key is present \u2014 never a fabricated signature. Router throughput is a <b>live in-memory counter</b>, labeled as such; it is not a billing meter. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail oracle). Eight formulas are locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green, never counted as locked. SLSA L1+L2 attested build-provenance · L3 roadmap (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation).</div>';
+  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Fleet topology, health, \u039b status and MCP-tool counts are probed <b>live in-process</b> from the real capabilities mesh (0 client CDN), freshness labeled. The decision ledger is a <b>real hash-chained</b> receipt store (SHA-chain, tamper-evident), DSSE-signed where a key is present \u2014 never a fabricated signature. Router throughput is a <b>live in-memory counter</b>, labeled as such; it is not a billing meter. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail oracle). Eight formulas are locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green, never counted as locked. SLSA L1 honest; L2 .att emitted (not independently verified) build-provenance · L3 roadmap (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation).</div>';
 
   /* ---- Tab 1: Fleet Topology & Health ---- */
   window.renderFltTopo=function(c){

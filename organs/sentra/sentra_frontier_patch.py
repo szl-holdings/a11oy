@@ -11,7 +11,7 @@
 # Queries sigstore Rekor (public instance) for artifact provenance entries.
 # Real cosign verify path — no secrets required for Rekor reads.
 # ADDITIVE ONLY. Doctrine v11 LOCKED 749/14/163. Kernel c7c0ba17.
-# SLSA L1+L2 attested (cosign-signed image + signed build-provenance attestation
+# SLSA L1 honest; L2 .att emitted (not independently verified) (cosign-signed image + signed build-provenance attestation
 # via actions/attest-build-provenance@v2, Sigstore keyless Fulcio+Rekor); L3 roadmap.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
@@ -26,7 +26,7 @@ import hashlib, json as _json, urllib.request, urllib.error
 
 _DOCTRINE = "v11"; _KERNEL = "c7c0ba17"
 _DECLS = 749; _AXIOMS = 14; _SORRIES = 163
-_SLSA = "L1+L2 attested (L3 roadmap)"; _LAMBDA = "Conjecture 1 (NOT a theorem)"
+_SLSA = "L1 honest; L2 .att emitted (not independently verified) (L3 roadmap)"; _LAMBDA = "Conjecture 1 (NOT a theorem)"
 _REKOR_BASE = "https://rekor.sigstore.dev/api/v1"
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
