@@ -1,0 +1,151 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# phantom-required-check-guard.yml — warn when a "required" merge check can never
+# pass.
+#
+# Why this exists
+# ---------------
+# Task #313 stayed invisible for weeks: `main` required a status check literally
+# named `check` that NO workflow emits on pull_request events
+# (readme-frontmatter-check.yml emits `check` only on push; doctrine.yml emits
+# `check / doctrine`). So every Dependabot PR sat at mergeStateStatus=BLOCKED
+# forever, silently waiting for a human. Branch protection happily "required" a
+# context that could never go green.
+#
+# This scheduled guard lists every EFFECTIVE required status check on `main` (the
+# union of classic protection AND rulesets, read from /repos/<repo>/rules/branches
+# and cross-checked against GraphQL `isRequired`) and flags any required context
+# that has not been reported on any recent pull_request run — a phantom that can
+# never pass. On a phantom it alerts the team (shared ntfy webhook) and FAILS the
+# run so the misconfiguration is loud instead of silently stalling automation.
+#
+# Org policy compliance: github-owned actions only, SHA-pinned; checker is
+# stdlib-only Python (no pip install); alert posts a Slack-compatible payload via
+# raw curl to the shared webhook (soft-skips if the secret is unset — the red run
+# still stands as the signal). Mirrors a11oy-api-health.yml / status-page-guard.yml.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Phantom Required-Check Guard
+
+on:
+  schedule:
+    - cron: '17 7 * * *'   # daily 07:17 UTC
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+  # Re-validate whenever the guard or its checker changes.
+  pull_request:
+    paths:
+      - ".github/workflows/phantom-required-check-guard.yml"
+      - "scripts/check_phantom_required_checks.py"
+      - "scripts/test_check_phantom_required_checks.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/phantom-required-check-guard.yml"
+      - "scripts/check_phantom_required_checks.py"
+      - "scripts/test_check_phantom_required_checks.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  self-test:
+    name: Validator self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Run validator self-test (proves it catches the phantom `check`)
+        run: python3 scripts/test_check_phantom_required_checks.py
+
+  scan:
+    name: Phantom required-check scan
+    needs: self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Scan effective required checks vs recent PR rollups
+        id: scan
+        env:
+          # Default GITHUB_TOKEN can read branch protection / rulesets / PRs on
+          # this repo. If a PAT with broader scope is configured it is preferred.
+          GH_TOKEN: ${{ secrets.PHANTOM_CHECK_TOKEN || github.token }}
+        run: |
+          set +e
+          python3 scripts/check_phantom_required_checks.py \
+            --repo "${{ github.repository }}" \
+            --branch main \
+            --pr-sample 20 \
+            --summary-file /tmp/phantom.json | tee /tmp/scan.log
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ -f /tmp/phantom.json ]; then
+            phantoms=$(python3 -c "import json;print(','.join(json.load(open('/tmp/phantom.json'))['phantoms']) or '(none)')")
+            echo "phantoms=$phantoms" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### Phantom required-check guard"
+            echo ""
+            echo '```'
+            cat /tmp/scan.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Do NOT fail here — the final gate fails the run, so the alert step
+          # (gated on this exit_code) always gets a chance to run first.
+          exit 0
+
+      - name: Alert the team on a phantom required check
+        if: ${{ always() && steps.scan.outputs.exit_code == '1' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          PHANTOMS: ${{ steps.scan.outputs.phantoms }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands as the signal."
+            exit 0
+          fi
+          text=":rotating_light: *Phantom required merge check on ${REPO}* — \`main\` requires status check(s) that NO workflow reports on pull_request runs, so every PR will sit BLOCKED forever (the task #313 failure mode).
+          *Phantom context(s):* ${PHANTOMS}
+          *Fix:* drop the stale required context from branch protection / the ruleset, or make a workflow emit it on pull_request.
+          *Run:* ${RUN_URL}"
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          echo "Posting phantom-required-check alert to the shared webhook..."
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run on a phantom required check
+        if: always()
+        run: |
+          code="${{ steps.scan.outputs.exit_code }}"
+          if [ "$code" = "1" ]; then
+            echo "::error::Phantom required check(s) found: ${{ steps.scan.outputs.phantoms }} — a required context never reports on PRs, so PRs can never merge. See the run summary."
+            exit 1
+          fi
+          if [ "$code" != "0" ]; then
+            echo "::error::Phantom required-check guard could not complete (exit $code)."
+            exit 1
+          fi
+          echo "No phantom required checks."
