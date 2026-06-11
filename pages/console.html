@@ -12578,5 +12578,327 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
 })();
 </script>
+<!-- ===================================================================== -->
+<!-- ===================================================================== -->
+<!-- SZL ENTANGLEMENT (living-3D) - 2-qubit entanglement measures + the     -->
+<!-- RIGOROUS Lambda-v5 coherence -> entanglement-capacity bridge, driven    -->
+<!-- LIVE by /api/a11oy/v1/entangle/* (szl_entanglement.py, byte-identical  -->
+<!-- a11oy<->killinchu, PURE STDLIB). Hero = the capacity bound              -->
+<!-- E_max(t) <= C0*exp(-gamma t) (Streltsov 2015 composed with SZL Lambda-v5 -->
+<!-- coherence decay, merged Lean) over the coherence curve. Bell-vs-product  -->
+<!-- comparator (Wootters 1998 / Vidal-Werner 2002 / von Neumann). CHSH meter -->
+<!-- (CHSH 1969 / Tsirelson 1980). Monogamy -> Khipu no-leak (CKW 2000).      -->
+<!-- Honest-tiering panel rendered verbatim from summary (RIGOROUS/STRUCTURAL/ -->
+<!-- NARRATIVE/ACTIVE/CONTESTED/SPECULATIVE) - the honesty is the point.      -->
+<!-- EXPERIMENTAL-tier: adds NOTHING to the locked 8                         -->
+<!-- {{F1,F4,F7,F11,F12,F18,F19,F22}}; Lambda stays Conjecture 1; the         -->
+<!-- capacity bound is a PROPOSED engineering gate, NOT the formal Lambda;    -->
+<!-- trust never 100%. 0 runtime CDN - vendored 3d-force-graph/echarts only.  -->
+<!-- Every borrowed formula cited to its real author; SZL claims none as its  -->
+<!-- own. Does NOT overclaim 'ties everything' - presents the honest verdict. -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  /* ==== ENTANGLEMENT tab body (shared template; a11oy replaced per app). ====
+     All visuals draw from the LIVE /api/a11oy/v1/entangle/* endpoints
+     (szl_entanglement.py, byte-identical a11oy<->killinchu, PURE STDLIB no numpy).
+     EXPERIMENTAL-tier: adds NOTHING to the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22};
+     Lambda stays Conjecture 1; the coherence->capacity bound is a PROPOSED engineering
+     gate, NOT the formal Lambda; trust never 100%. 0 runtime CDN - vendored
+     3d-force-graph/echarts only. Null-safe every async path (E()/ex()/setHTML()/elS()).
+     Does NOT overclaim: entanglement does NOT replace SZL's pillars - it adds ONE
+     rigorous unifying bound + a monogamy primitive. Honest tiers surfaced verbatim. */
+  var EAPI=(window.location.origin)+'/api/a11oy/v1/entangle';
+  var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function E(id){ var e=document.getElementById(id); if(e) return e; if(!E._d) E._d=document.createElement('div'); return E._d; }
+  function ex(id){ return document.getElementById(id); }
+  function setHTML(id,html){ var e=document.getElementById(id); if(e){ e.innerHTML=html; return true; } return false; }
+  function H(id,html){ var e=document.getElementById(id); if(e){ e.innerHTML=html; return e; } if(!H._d) H._d=document.createElement('div'); return H._d; }
+  function elS(id){ return document.getElementById(id)||null; }
+  function fmt(n,d){ if(n==null||isNaN(n)) return '\u2014'; return Number(n).toFixed(d==null?1:d); }
+  function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+  function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+  async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+  function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
+  function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
+  function proposedBox(txt){ return '<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.03em;color:'+WARN+'">'+txt+'</div>'; }
+  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 8 locked formulas {F1,F4,F7,F11,F12,F18,F19,F22}; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); the coherence\u2192capacity bound is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed formula is cited to its real author (Wootters, Vidal-Werner, CKW, CHSH, Tsirelson, Streltsov, von Neumann); SZL claims none as its own discovery. Entanglement does <b>not</b> \u201ctie everything\u201d \u2014 it adds one rigorous bound plus a monogamy primitive.</div>'; }
+
+  // ===================== VISUAL 1 (HERO) - THE CAPACITY-BOUND BRIDGE =====================
+  function renderBridge(c){
+    if(!c) return;
+    c.innerHTML='<div class="hero" style="border:1px solid '+GOLD+'55;border-radius:14px;padding:1rem 1.1rem;background:radial-gradient(ellipse at top left,'+GOLD+'10,transparent 70%);margin-bottom:.8rem">'
+      +'<div class="card-t" style="font-size:15px">'+dot()+'The bridge \u2014 entanglement capacity is bounded by SZL\u2019s proven coherence decay</div>'
+      +'<div class="mono dim" style="font-size:12px;margin-top:.3rem">Streltsov et&nbsp;al. (2015) proved the l\u2081-coherence of a state <b>upper-bounds the entanglement it can generate</b>. SZL\u2019s machine-checked \u039b-v5 decay law gives coherence <code>C(t)=C\u2080\u00b7exp(\u2212\u03b3t)</code> (Wave24, merged Lean). Compose them and you get the <b>rigorous bridge</b> <code>E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t)</code>: entanglement-generating capacity decays no slower than the proven coherence envelope. Each point below is a live <code>/entangle/capacity_bound?C0=&amp;gamma=&amp;t=</code> call.</div>'
+      +'<div style="margin-top:.6rem">'+pill('RIGOROUS BRIDGE',GOLD)+' &nbsp;'+pill('Streltsov 2015 \u2218 SZL \u039b-v5 (merged Lean)',TEAL)+' &nbsp;'+pill('PROPOSED GATE',WARN)+' &nbsp;'+pill('\u039b = CONJECTURE 1',INFO)+'</div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t) over the \u039b-v5 coherence curve (live)</span><span class="card-ep">vendored echarts \u00b7 PROPOSED gate</span></div>'
+      +proposedBox('<b>PROPOSED engineering gate \u2014 NOT the formal \u039b.</b> The decaying envelope is a capacity <i>upper bound</i> (Streltsov 2015), composed with SZL\u2019s in-tree \u039b-v5 coherence decay. It is staged for Lean, not a claim about \u039b uniqueness. \u039b stays <b>Conjecture 1</b>.')
+      +'<div class="kpis" id="cap-gate">'+kpi('C\u2080 (t=0 capacity)','cap-c0','coherence at t=0',GOLD)+kpi('\u03b3 (decay rate)','cap-gamma','\u039b-v5 Wave24',INFO)+kpi('E_max(t) bound','cap-et','capacity upper bound',TEAL)+kpi('relation','cap-rel','the bridge',VIOLET)+'</div>'
+      +'<div class="row" style="gap:.6rem;align-items:center;margin:.5rem 0;flex-wrap:wrap"><span class="mono dim" style="font-size:11px">C\u2080</span><input type="range" id="cap-s-c0" min="0" max="1" step="0.05" value="1" style="flex:1"/><span class="mono" id="cap-c0v" style="color:'+GOLD+';font-size:11px;min-width:38px;text-align:right">1.00</span>'
+      +'<span class="mono dim" style="font-size:11px;margin-left:.6rem">\u03b3</span><input type="range" id="cap-s-g" min="0.02" max="0.6" step="0.005" value="0.165" style="flex:1"/><span class="mono" id="cap-gv" style="color:'+INFO+';font-size:11px;min-width:46px;text-align:right">0.165</span></div>'
+      +'<div id="cap-chart" style="height:clamp(300px,44vh,440px);border-radius:10px;background:#050608;margin-top:.4rem"></div>'
+      +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Gold curve = coherence C(t)=C\u2080\u00b7exp(\u2212\u03b3t) (proven \u039b-v5 decay). The shaded region under it is the <b>entanglement capacity ceiling</b> \u2014 no protocol can create entanglement above the curve. As coherence decays, so must the capacity. Curve redrawn from live endpoint samples, never asserted.</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Bridge lineage: </span>'+cite('https://doi.org/10.1103/PhysRevLett.115.020403','Streltsov et al. 2015, PRL 115 020403 \u2014 coherence upper-bounds entanglement-generating capacity')+' &nbsp; '+cite('https://doi.org/10.5281/zenodo.20119582','SZL \u039b-v5 CoherenceDecay (Wave24, merged Lean)')+'</div>'
+      +'<details class="raw"><summary>raw /entangle/capacity_bound samples</summary><pre class="out" id="cap-raw">\u2014</pre></details>'
+      +honesty('The envelope is a genuine upper bound: Streltsov 2015 proves coherence bounds entanglement-generating capacity, and SZL\u2019s \u039b-v5 decay is machine-checked. Their composition is the rigorous bridge \u2014 but it is a <b>capacity bound</b>, staged for Lean, not a proof of \u039b uniqueness.');
+    var raw=[];
+    async function redraw(){
+      var c0El=ex('cap-s-c0'), gEl=ex('cap-s-g');
+      var C0=c0El?parseFloat(c0El.value):1.0; var gamma=gEl?parseFloat(gEl.value):0.165;
+      if(ex('cap-c0v')) ex('cap-c0v').textContent=fmt(C0,2); if(ex('cap-gv')) ex('cap-gv').textContent=fmt(gamma,3);
+      raw=[]; var ts=[]; var ys=[];
+      for(var i=0;i<=24;i++){ var t=i*0.5;
+        try{ var d=await J(EAPI+'/capacity_bound?C0='+C0+'&gamma='+gamma+'&t='+t); raw.push(d); ts.push(t.toFixed(1)); ys.push(d.entanglement_capacity_upper_bound); }catch(e){}
+      }
+      if(ex('cap-raw')) ex('cap-raw').textContent=JSON.stringify(raw.slice(0,6),null,2)+'\n\u2026('+raw.length+' samples)';
+      var d0=raw[0]||{}; var dmid=raw[12]||{};
+      E('cap-c0').textContent=fmt(C0,2); E('cap-c0').style.color=GOLD;
+      E('cap-gamma').textContent=fmt(gamma,3); E('cap-gamma').style.color=INFO;
+      E('cap-et').textContent=(dmid.entanglement_capacity_upper_bound!=null?fmt(dmid.entanglement_capacity_upper_bound,4)+' @ t=6.0':'\u2014'); E('cap-et').style.color=TEAL;
+      E('cap-rel').textContent=(d0.relation||'E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t)'); E('cap-rel').style.color=VIOLET;
+      if(window.mkEchart){ window.mkEchart('cap-chart',{backgroundColor:'transparent',grid:{left:48,right:24,top:30,bottom:40},
+        legend:{data:['C(t) coherence (\u039b-v5, proven)','E_max(t) capacity ceiling (\u2264 C(t))'],textStyle:{color:'#A8B6CC',fontSize:10},top:2},
+        tooltip:{trigger:'axis'},
+        xAxis:{type:'category',data:ts,name:'t',nameLocation:'middle',nameGap:24,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},axisLine:{lineStyle:{color:'#1c2230'}}},
+        yAxis:{type:'value',name:'capacity / coherence',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},splitLine:{lineStyle:{color:'#15191f'}}},
+        series:[
+          {name:'C(t) coherence (\u039b-v5, proven)',type:'line',smooth:true,symbol:'none',lineStyle:{color:GOLD,width:2.5},areaStyle:{color:GOLD,opacity:0.12},data:ys},
+          {name:'E_max(t) capacity ceiling (\u2264 C(t))',type:'line',smooth:true,symbol:'none',lineStyle:{color:TEAL,width:2,type:'dashed'},data:ys}
+        ]}); }
+      else { var h=ex('cap-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts (window.mkEchart) not present \u2014 capacity-bound samples listed in raw panel below (honest fallback)</div>'; }
+    }
+    var c0e=ex('cap-s-c0'), ge=ex('cap-s-g');
+    if(c0e) c0e.addEventListener('input',function(){ if(redraw._t) clearTimeout(redraw._t); redraw._t=setTimeout(redraw,120); });
+    if(ge) ge.addEventListener('input',function(){ if(redraw._t) clearTimeout(redraw._t); redraw._t=setTimeout(redraw,120); });
+    redraw();
+  }
+
+  // ===================== VISUAL 2 - BELL vs PRODUCT COMPARATOR =====================
+  function renderComparator(c){
+    if(!c) return;
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Maximally-entangled Bell vs separable product (live)</span><span class="card-ep">/entropy \u00b7 /concurrence \u00b7 /negativity</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Three standard measures, computed live for the Bell state |\u03a6\u207a\u27e9 (maximally entangled) vs the product state |00\u27e9 (separable). A maximally-entangled state hits <b>concurrence 1</b>, <b>negativity 0.5</b>, <b>entanglement entropy 1 bit</b>; a product state is <b>0</b> on all three. Recomputed by the backend, not asserted.</div>'
+      +'<div class="kpis" id="cmp-gate">'+kpi('Concurrence','cmp-conc','Bell=1 \u00b7 product=0',TEAL)+kpi('Negativity','cmp-neg','Bell=0.5 \u00b7 product=0',GOLD)+kpi('Entropy (bits)','cmp-ent','Bell=1 \u00b7 product=0',INFO)+kpi('E_of_formation','cmp-eof','Bell=1 \u00b7 product=0',VIOLET)+'</div>'
+      +'<div id="cmp-chart" style="height:clamp(260px,36vh,360px);border-radius:10px;background:#050608;margin-top:.5rem"></div>'
+      +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Bars = the three measures for Bell (teal) vs product (dim). The gap <i>is</i> the entanglement \u2014 zero for the separable state, maximal for the Bell pair.</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Measure authors: </span>'+cite('https://doi.org/10.1103/PhysRevLett.80.2245','Wootters 1998 \u2014 concurrence, PRL 80 2245')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevA.65.032314','Vidal-Werner 2002 \u2014 negativity, PRA 65 032314')+' &nbsp; '+cite('https://en.wikipedia.org/wiki/Von_Neumann_entropy','von Neumann entropy')+'</div>'
+      +'<details class="raw"><summary>raw /entropy /concurrence /negativity (bell + product)</summary><pre class="out" id="cmp-raw">\u2014</pre></details>'
+      +honesty('Bell vs product is the textbook sanity check: maximal vs zero entanglement. The values come straight from the live measures (Wootters concurrence, Vidal-Werner negativity, von Neumann entropy) \u2014 nothing fabricated.');
+    (async function(){
+      var out={};
+      try{
+        var states=['bell','product'];
+        for(var k=0;k<states.length;k++){ var s=states[k];
+          out[s]={ conc: await J(EAPI+'/concurrence?state='+s), neg: await J(EAPI+'/negativity?state='+s), ent: await J(EAPI+'/entropy?state='+s) };
+        }
+        if(ex('cmp-raw')) ex('cmp-raw').textContent=JSON.stringify(out,null,2);
+        var b=out.bell||{}, p=out.product||{};
+        E('cmp-conc').textContent=fmt((b.conc||{}).concurrence,3)+' / '+fmt((p.conc||{}).concurrence,3);
+        E('cmp-neg').textContent=fmt((b.neg||{}).negativity,3)+' / '+fmt((p.neg||{}).negativity,3);
+        E('cmp-ent').textContent=fmt((b.ent||{}).von_neumann_entropy_bits,3)+' / '+fmt((p.ent||{}).von_neumann_entropy_bits,3);
+        E('cmp-eof').textContent=fmt((b.conc||{}).entanglement_of_formation,3)+' / '+fmt((p.conc||{}).entanglement_of_formation,3);
+        var cats=['Concurrence','Negativity','Entropy (bits)','E_formation'];
+        var bell=[ (b.conc||{}).concurrence, (b.neg||{}).negativity, (b.ent||{}).von_neumann_entropy_bits, (b.conc||{}).entanglement_of_formation ];
+        var prod=[ (p.conc||{}).concurrence, (p.neg||{}).negativity, (p.ent||{}).von_neumann_entropy_bits, (p.conc||{}).entanglement_of_formation ];
+        if(window.mkEchart){ window.mkEchart('cmp-chart',{backgroundColor:'transparent',grid:{left:44,right:18,top:30,bottom:36},
+          legend:{data:['Bell |\u03a6\u207a\u27e9 (entangled)','product |00\u27e9 (separable)'],textStyle:{color:'#A8B6CC',fontSize:10},top:2},
+          tooltip:{trigger:'axis'},
+          xAxis:{type:'category',data:cats,axisLabel:{color:'#A8B6CC',fontSize:10},axisLine:{lineStyle:{color:'#1c2230'}}},
+          yAxis:{type:'value',max:1.05,axisLabel:{color:'#8a8f98',fontSize:9},splitLine:{lineStyle:{color:'#15191f'}}},
+          series:[ {name:'Bell |\u03a6\u207a\u27e9 (entangled)',type:'bar',itemStyle:{color:TEAL},data:bell},
+                   {name:'product |00\u27e9 (separable)',type:'bar',itemStyle:{color:DIM},data:prod} ]}); }
+        else { var h=ex('cmp-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts not present \u2014 KPIs above carry the Bell/product values (honest fallback)</div>'; }
+      }catch(e){ if(ex('cmp-raw')) ex('cmp-raw').textContent='retry: '+esc(e.message); }
+    })();
+  }
+
+  // ===================== VISUAL 3 - CHSH METER =====================
+  function renderCHSH(c){
+    if(!c) return;
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'CHSH meter \u2014 does it violate local realism? (live)</span><span class="card-ep">/entangle/chsh</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">The CHSH quantity <code>S = |E(a,b) \u2212 E(a,b\u2032) + E(a\u2032,b) + E(a\u2032,b\u2032)|</code>. Any <b>local hidden-variable</b> theory obeys <b>S \u2264 2</b>; quantum mechanics can reach the <b>Tsirelson bound 2\u221a2 \u2248 2.828</b>. Set the four correlators and watch the verdict update live.</div>'
+      +'<div class="grid2"><div>'
+      +'<div class="kpis" id="chsh-gate">'+kpi('S','chsh-s','CHSH value',GOLD)+kpi('Classical bound','chsh-cl','S \u2264 2',DIM)+kpi('Tsirelson bound','chsh-ts','S \u2264 2\u221a2',INFO)+kpi('Verdict','chsh-v','local-realism?',TEAL)+'</div>'
+      +'<div id="chsh-chart" style="height:clamp(200px,28vh,280px);margin-top:.4rem"></div>'
+      +'</div><div>'
+      +'<div class="mono dim" style="font-size:11px;margin-bottom:.3rem">Correlators E(a,b), E(a,b\u2032), E(a\u2032,b), E(a\u2032,b\u2032) \u2208 [\u22121,1]:</div>'
+      +'<input id="chsh-corr" value="0.707106781,-0.707106781,0.707106781,0.707106781" class="mono" style="width:100%;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.4rem .5rem;font-size:12px"/>'
+      +'<div class="row" style="gap:.4rem;margin-top:.5rem;flex-wrap:wrap">'
+      +'<button id="chsh-tsi" class="mono" style="border:1px solid '+GOLD+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+GOLD+'">Tsirelson optimum (2\u221a2)</button>'
+      +'<button id="chsh-cls" class="mono" style="border:1px solid '+DIM+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+DIM+'">classical (S=2)</button>'
+      +'<button id="chsh-loc" class="mono" style="border:1px solid '+LIVE+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+LIVE+'">local (S=1)</button></div>'
+      +'<div id="chsh-verdict" style="margin-top:.7rem;padding:.7rem .9rem;border-radius:10px;border:1px solid #2a2a2a;font-family:var(--mono,monospace);font-size:13px">\u2014</div>'
+      +'</div></div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Inequality + quantum bound: </span>'+cite('https://doi.org/10.1103/PhysRevLett.23.880','Clauser-Horne-Shimony-Holt 1969, PRL 23 880')+' &nbsp; '+cite('https://doi.org/10.1007/BF00417500','Tsirelson 1980 \u2014 quantum bound 2\u221a2')+'</div>'
+      +'<details class="raw"><summary>raw /entangle/chsh</summary><pre class="out" id="chsh-raw">\u2014</pre></details>'
+      +honesty('S>2 is an experimentally-confirmed violation of local realism (Bell tests); S\u22642\u221a2 respects the Tsirelson quantum ceiling. The endpoint computes S directly from your correlators \u2014 no hidden assumptions.');
+    async function recompute(){
+      var el=ex('chsh-corr'); var corr=el?el.value:'';
+      try{
+        var d=await J(EAPI+'/chsh?corr='+encodeURIComponent(corr));
+        if(ex('chsh-raw')) ex('chsh-raw').textContent=JSON.stringify(d,null,2);
+        if(d.status==='out_of_domain'){ E('chsh-s').textContent='need 4'; var vv=ex('chsh-verdict'); if(vv){vv.innerHTML='<b style="color:'+RISK+'">enter exactly 4 correlators</b>';} return; }
+        var S=d.S; var viol=d.violates_local_realism; var within=d.within_quantum;
+        E('chsh-s').textContent=fmt(S,4); E('chsh-s').style.color=(viol?GOLD:DIM);
+        E('chsh-cl').textContent=fmt(d.classical_bound,1); E('chsh-cl').style.color=DIM;
+        E('chsh-ts').textContent=fmt(d.tsirelson_bound,4); E('chsh-ts').style.color=INFO;
+        E('chsh-v').textContent=(viol?'VIOLATED':'classical'); E('chsh-v').style.color=(viol?GOLD:LIVE);
+        var v=ex('chsh-verdict');
+        if(v){ var col=viol?GOLD:LIVE; v.style.borderColor=col; v.style.background=col+'14'; v.style.color=col;
+          v.innerHTML='<b>'+(viol?'\u2713 S = '+fmt(S,4)+' > 2 \u2014 LOCAL REALISM VIOLATED':'S = '+fmt(S,4)+' \u2264 2 \u2014 classical / local-realistic')+'</b>'
+            +'<div style="color:#cfcfcf;margin-top:.3rem;font-size:12px">'+(within?'Within the Tsirelson quantum bound 2\u221a2 \u2248 2.828.':'<span style="color:'+RISK+'">Above 2\u221a2 \u2014 super-quantum (non-physical for QM).</span>')+'</div>'
+            +'<div class="dim" style="margin-top:.3rem;font-size:11px">'+esc(d.cite||'CHSH 1969; Tsirelson 1980')+'</div>'; }
+        if(window.mkEchart){ window.mkEchart('chsh-chart',{backgroundColor:'transparent',
+          series:[{type:'gauge',startAngle:210,endAngle:-30,min:0,max:3,radius:'94%',
+            progress:{show:true,width:13,itemStyle:{color:(viol?GOLD:LIVE)}},
+            axisLine:{lineStyle:{width:13,color:[[2/3,DIM],[2*Math.SQRT2/3,GOLD],[1,RISK]]}},
+            axisTick:{show:false},splitLine:{length:9,lineStyle:{color:'#2a2a2a'}},
+            axisLabel:{color:'#8a8f98',fontSize:8,distance:-40},pointer:{width:5,itemStyle:{color:'#cfcfcf'}},
+            detail:{valueAnimation:true,formatter:'{value}',color:'#f0f0f0',fontSize:22,offsetCenter:[0,'42%']},
+            title:{show:true,offsetCenter:[0,'74%'],color:'#8a8f98',fontSize:10},
+            data:[{value:Number((S||0).toFixed(3)),name:(viol?'violation':'classical')+' \u00b7 2|2\u221a2'}]}]}); }
+        else { var h=ex('chsh-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts not present \u2014 S value + verdict shown above (honest fallback)</div>'; }
+      }catch(e){ if(ex('chsh-raw')) ex('chsh-raw').textContent='retry: '+esc(e.message); }
+    }
+    var ce=ex('chsh-corr'); if(ce) ce.addEventListener('input',function(){ if(recompute._t) clearTimeout(recompute._t); recompute._t=setTimeout(recompute,140); });
+    var bt=ex('chsh-tsi'); if(bt) bt.addEventListener('click',function(){ ex('chsh-corr').value='0.707106781,-0.707106781,0.707106781,0.707106781'; recompute(); });
+    var bc=ex('chsh-cls'); if(bc) bc.addEventListener('click',function(){ ex('chsh-corr').value='0.5,0.5,0.5,0.5'; recompute(); });
+    var bl=ex('chsh-loc'); if(bl) bl.addEventListener('click',function(){ ex('chsh-corr').value='0.25,0.25,0.25,0.25'; recompute(); });
+    recompute();
+  }
+
+  // ===================== VISUAL 4 - MONOGAMY -> KHIPU =====================
+  function renderMonogamy(c){
+    if(!c) return;
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'CKW monogamy \u2192 Khipu no-leak primitive (live)</span><span class="card-ep">/entangle/monogamy</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Coffman-Kundu-Wootters (2000) proved entanglement is <b>monogamous</b>: <code>\u03a3\u2096 \u03c4(A\u2081,A\u2096) \u2264 \u03c4(A\u2081 ; rest)</code>. A qubit can\u2019t be maximally entangled with two partners at once \u2014 the total \u201ctangle\u201d is bounded. This mirrors Khipu\u2019s <b>no-leak</b> doctrine: trust budget is conserved and never exceeds the global bound (<b>trust&nbsp;&lt;&nbsp;100%</b>). Set pairwise tangles + the global tangle; the backend checks the bound live.</div>'
+      +'<div class="grid2"><div>'
+      +'<div class="kpis" id="mono-gate">'+kpi('\u03a3 pairwise \u03c4','mono-sum','sum of shared tangles',GOLD)+kpi('Global \u03c4','mono-glob','total tangle budget',INFO)+kpi('Monogamy','mono-ok','\u03a3 \u2264 global?',TEAL)+kpi('Headroom','mono-head','no-leak slack',VIOLET)+'</div>'
+      +'<div id="mono-3d" style="height:clamp(260px,36vh,360px);border-radius:10px;background:#050608;margin-top:.5rem"></div>'
+      +'</div><div>'
+      +'<div class="mono dim" style="font-size:11px;margin-bottom:.3rem">Pairwise tangles \u03c4(A\u2081,A\u2096) (comma-sep):</div>'
+      +'<input id="mono-pw" value="0.3,0.3" class="mono" style="width:100%;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.4rem .5rem;font-size:12px"/>'
+      +'<div class="mono dim" style="font-size:11px;margin:.5rem 0 .3rem">Global tangle \u03c4(A\u2081 ; rest):</div>'
+      +'<input id="mono-g" value="1.0" class="mono" style="width:100%;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.4rem .5rem;font-size:12px"/>'
+      +'<div class="row" style="gap:.4rem;margin-top:.5rem;flex-wrap:wrap">'
+      +'<button id="mono-ok-btn" class="mono" style="border:1px solid '+LIVE+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+LIVE+'">no-leak (\u03a3 \u2264 global)</button>'
+      +'<button id="mono-leak-btn" class="mono" style="border:1px solid '+RISK+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+RISK+'">leak (\u03a3 > global)</button></div>'
+      +'<div id="mono-verdict" style="margin-top:.7rem;padding:.7rem .9rem;border-radius:10px;border:1px solid #2a2a2a;font-family:var(--mono,monospace);font-size:13px">\u2014</div>'
+      +'</div></div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Monogamy author: </span>'+cite('https://doi.org/10.1103/PhysRevA.61.052306','Coffman-Kundu-Wootters 2000, PRA 61 052306 \u2014 distributed entanglement (CKW)')+'</div>'
+      +'<details class="raw"><summary>raw /entangle/monogamy</summary><pre class="out" id="mono-raw">\u2014</pre></details>'
+      +honesty('Monogamy is the <b>STRUCTURAL primitive</b> (formalizable) mirroring Khipu\u2019s no-leak / trust&lt;100% doctrine: entanglement (like trust) is a conserved, bounded resource that cannot be shared without limit. This is a structural analogy made precise by CKW \u2014 not a claim that Khipu BFT safety (Conjecture 2) is proven.');
+    async function check(){
+      var pwEl=ex('mono-pw'), gEl=ex('mono-g');
+      var pw=pwEl?pwEl.value:'0.3,0.3'; var g=gEl?gEl.value:'1.0';
+      try{
+        var d=await J(EAPI+'/monogamy?pairwise='+encodeURIComponent(pw)+'&total='+encodeURIComponent(g));
+        if(ex('mono-raw')) ex('mono-raw').textContent=JSON.stringify(d,null,2);
+        var ok=d.monogamy_satisfied;
+        var sum=d.pairwise_tangle_sum, glob=d.global_tangle, head=(glob-sum);
+        E('mono-sum').textContent=fmt(sum,3); E('mono-sum').style.color=GOLD;
+        E('mono-glob').textContent=fmt(glob,3); E('mono-glob').style.color=INFO;
+        E('mono-ok').textContent=(ok?'SATISFIED':'VIOLATED'); E('mono-ok').style.color=(ok?LIVE:RISK);
+        E('mono-head').textContent=fmt(head,3); E('mono-head').style.color=(head>=0?LIVE:RISK);
+        var v=ex('mono-verdict');
+        if(v){ var col=ok?LIVE:RISK; v.style.borderColor=col; v.style.background=col+'14'; v.style.color=col;
+          v.innerHTML='<b>'+(ok?'\u2713 MONOGAMY HOLDS \u2014 no-leak (Khipu trust<100%)':'\u2717 CKW BOUND VIOLATED \u2014 over-shared (would leak)')+'</b>'
+            +'<div style="color:#cfcfcf;margin-top:.3rem;font-size:12px">'+esc(d.interpretation||'')+'</div>'
+            +'<div class="dim" style="margin-top:.3rem;font-size:11px">'+esc(d.cite||'CKW 2000')+'</div>'; }
+        // 3D: a central qubit A1 sharing tangle with partners, all bounded by the global budget node
+        var pwArr=(pw||'').split(',').map(function(x){return parseFloat(x)||0;}).filter(function(x){return !isNaN(x);});
+        var nodes=[{id:'A1',name:'A\u2081 (central qubit)',val:9,color:GOLD},{id:'budget',name:'global \u03c4 budget = '+fmt(glob,2)+(ok?' (no-leak)':' (EXCEEDED)'),val:8,color:(ok?LIVE:RISK)}];
+        var links=[{source:'A1',target:'budget'}];
+        for(var i=0;i<pwArr.length;i++){ nodes.push({id:'p'+i,name:'A'+(i+2)+' \u00b7 \u03c4='+fmt(pwArr[i],2),val:4+4*pwArr[i],color:TEAL}); links.push({source:'p'+i,target:'A1'}); }
+        if(window.dag3d) window.dag3d('mono-3d',nodes,links,{dagMode:'radialout',dist:60,labels:true,cooldown:120});
+        else { var h=ex('mono-3d'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">3d-force-graph not present \u2014 KPIs + verdict above carry the monogamy check (honest fallback)</div>'; }
+      }catch(e){ if(ex('mono-raw')) ex('mono-raw').textContent='retry: '+esc(e.message); }
+    }
+    var pwe=ex('mono-pw'), ge=ex('mono-g');
+    if(pwe) pwe.addEventListener('input',function(){ if(check._t) clearTimeout(check._t); check._t=setTimeout(check,140); });
+    if(ge) ge.addEventListener('input',function(){ if(check._t) clearTimeout(check._t); check._t=setTimeout(check,140); });
+    var bo=ex('mono-ok-btn'); if(bo) bo.addEventListener('click',function(){ ex('mono-pw').value='0.3,0.3'; ex('mono-g').value='1.0'; check(); });
+    var bk=ex('mono-leak-btn'); if(bk) bk.addEventListener('click',function(){ ex('mono-pw').value='0.8,0.8'; ex('mono-g').value='1.0'; check(); });
+    check();
+  }
+
+  // ===================== VISUAL 5 - HONEST-TIERING PANEL (MANDATORY, VERBATIM) =====================
+  var TIER_COLOR={ 'RIGOROUS':LIVE, 'STRUCTURAL':TEAL, 'NARRATIVE':INFO, 'ACTIVE':GOLD, 'ACTIVE-RESEARCH':GOLD, 'CONTESTED':WARN, 'SPECULATIVE':RISK };
+  function tierTone(v){ var u=String(v||'').toUpperCase(); for(var k in TIER_COLOR){ if(u.indexOf(k)>=0) return TIER_COLOR[k]; } return DIM; }
+  function renderTiers(c){
+    if(!c) return;
+    c.innerHTML='<div class="card" style="border:1px solid '+WARN+'88;border-left:4px solid '+WARN+'">'
+      +'<div class="card-h"><span class="card-t">'+pill('HONEST TIERS',WARN)+' &nbsp; What is rigorous vs what is narrative \u2014 verbatim, never hidden</span><span class="card-ep">/entangle/summary</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.3rem 0 .5rem">This is the point of the module: it grades each claim honestly. The bridge is <b>RIGOROUS</b>; monogamy is a <b>STRUCTURAL</b> primitive; the rest is <b>NARRATIVE / ACTIVE-RESEARCH / CONTESTED / SPECULATIVE</b>. SZL surfaces these tiers verbatim and does <b>not</b> overclaim that entanglement \u201cties everything together\u201d.</div>'
+      +'<div id="tier-verdict" class="mono dim" style="font-size:12px;line-height:1.55;margin-bottom:.6rem">loading honest verdict\u2026</div>'
+      +'<div id="tier-rows"></div>'
+      +'<div class="kpis" id="tier-gate" style="margin-top:.6rem">'+kpi('Tier','tier-tier','module maturity',WARN)+kpi('\u039b','tier-lambda','governance',INFO)+kpi('Locked-8 unchanged','tier-locked','{F1,F4,F7,F11,F12,F18,F19,F22}',TEAL)+kpi('Trust','tier-trust','never 100%',GOLD)+'</div>'
+      +'</div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Cited prior art (SZL claims none as its own): </span><br/>'
+      +cite('https://doi.org/10.1103/PhysRevLett.80.2245','Wootters 1998 (concurrence)')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevA.65.032314','Vidal-Werner 2002 (negativity)')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevA.61.052306','CKW 2000 (monogamy)')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevLett.23.880','CHSH 1969')+' &nbsp; '+cite('https://doi.org/10.1007/BF00417500','Tsirelson 1980')+' &nbsp; '+cite('https://doi.org/10.1103/PhysRevLett.115.020403','Streltsov 2015')+'</div>'
+      +'<details class="raw"><summary>raw /entangle/summary</summary><pre class="out" id="tier-raw">\u2014</pre></details>'
+      +honesty('The tiering panel is mandatory and verbatim. RIGOROUS = the coherence\u2192capacity bridge; STRUCTURAL = the monogamy primitive; NARRATIVE / ACTIVE-RESEARCH / CONTESTED / SPECULATIVE grade the rest. SZL\u2019s own \u039b-v5 Lindblad model <i>refutes</i> Orch-OR (SPECULATIVE) \u2014 we keep that honest too.');
+    (async function(){
+      try{
+        var d=await J(EAPI+'/summary');
+        if(ex('tier-raw')) ex('tier-raw').textContent=JSON.stringify(d,null,2);
+        setHTML('tier-verdict','<b style="color:#cfcfcf">Honest verdict:</b> '+esc(d.honest_verdict||''));
+        var tiers=d.tiers||{}; var rows='';
+        var labels={ lambda_v5_coherence_to_entanglement:'\u039b-v5 coherence \u2192 entanglement capacity (the bridge)',
+          monogamy_to_khipu_noleak:'CKW monogamy \u2192 Khipu no-leak',
+          quantum_byzantine_agreement_to_khipu:'Quantum Byzantine Agreement \u2192 Khipu',
+          avian_radical_pair_entanglement:'Avian radical-pair entanglement',
+          fmo_electronic_coherence:'FMO \u201celectronic coherence\u201d',
+          posner_orch_or_quantum_mind:'Posner / Orch-OR quantum mind' };
+        for(var key in tiers){ if(!tiers.hasOwnProperty(key)) continue; var val=tiers[key]; var col=tierTone(val);
+          rows+='<div class="row" style="justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem .2rem;border-bottom:1px solid #1c2230">'
+            +'<span style="color:#cfcfcf;font-size:12.5px">'+esc(labels[key]||key)+'</span>'
+            +'<span style="display:inline-block;padding:2px 10px;border-radius:999px;font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;color:'+col+';border:1px solid '+col+';background:'+col+'1a;white-space:nowrap">'+esc(val)+'</span></div>';
+        }
+        setHTML('tier-rows',rows||'<div class="mono dim">no tiers returned</div>');
+        var doc=d.doctrine||{};
+        E('tier-tier').textContent=doc.tier||'EXPERIMENTAL/PROPOSED'; E('tier-tier').style.color=WARN;
+        E('tier-lambda').textContent=doc.lambda||'Conjecture 1'; E('tier-lambda').style.color=INFO;
+        E('tier-locked').textContent=(doc.locked_count_unchanged?'YES (still 8)':String(doc.locked_count_unchanged)); E('tier-locked').style.color=TEAL;
+        E('tier-trust').textContent=(doc.trust_never_100?'never 100%':'\u2014'); E('tier-trust').style.color=GOLD;
+      }catch(e){ setHTML('tier-verdict','<span style="color:'+RISK+'">summary unavailable: '+esc(e.message)+'</span>'); }
+    })();
+  }
+
+  function mountEntangle(c){
+    if(!c) return;
+    c.innerHTML='<div class="row" id="ent-tabs" style="gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem"></div><div id="ent-body"></div>';
+    var tabs=[['bridge','The bridge \u2605',renderBridge],['comparator','Bell vs product',renderComparator],['chsh','CHSH meter',renderCHSH],['monogamy','Monogamy \u2192 Khipu',renderMonogamy],['tiers','Honest tiers',renderTiers]];
+    function paint(idx){ var host=ex('ent-body'); if(!host) return; tabs.forEach(function(t,i){ var b=ex('ent-tab-'+i); if(b){ b.style.background=(i===idx)?TEAL+'22':'transparent'; b.style.color=(i===idx)?TEAL:DIM; b.style.borderColor=(i===idx)?TEAL:'#2a2a2a'; } }); host.innerHTML=''; var sub=document.createElement('div'); sub.id='ent-sub'; host.appendChild(sub); tabs[idx][2](sub); }
+    var bar=ex('ent-tabs');
+    tabs.forEach(function(t,i){ var b=document.createElement('button'); b.id='ent-tab-'+i; b.className='mono'; b.textContent=t[1]; b.style.cssText='border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM; b.addEventListener('click',function(){ paint(i); }); if(bar) bar.appendChild(b); });
+    paint(0); // open on the HERO (capacity-bound bridge) first
+  }
+  var ENT_BADGE='EXPERIMENTAL \u00b7 RIGOROUS BRIDGE \u00b7 PROPOSED gate \u00b7 \u039b=CONJECTURE 1';
+  var ENT_SUB='Living view of SZL\u2019s entanglement layer. Hero: the <b>rigorous bridge</b> <code>E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t)</code> \u2014 Streltsov 2015 (coherence upper-bounds entanglement capacity) composed with SZL\u2019s machine-checked <b>\u039b-v5</b> coherence decay (merged Lean). A <b>Bell-vs-product</b> comparator (Wootters 1998 / Vidal-Werner 2002 / von Neumann). A <b>CHSH meter</b> (CHSH 1969 / Tsirelson 1980) \u2014 set correlators, see local-realism violation. A <b>monogamy\u2192Khipu</b> no-leak primitive (CKW 2000). A mandatory <b>honest-tiering</b> panel rendering the module\u2019s own RIGOROUS/STRUCTURAL/NARRATIVE/ACTIVE/CONTESTED/SPECULATIVE grades verbatim. All visuals recomputed live from <code>/api/a11oy/v1/entangle/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; the capacity bound is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>. Every borrowed formula cited to its real author. Does not overclaim.';
+
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
+    window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
+    try{ console.log('[a11oy] Entanglement tab registered: '+key); }catch(e){}
+  }
+  function regEnt(){ if(window.VIEWS && window.VIEWS['entangle']){ return; } reg('entangle','Entanglement',ENT_BADGE,ENT_SUB,mountEntangle); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',regEnt); } else { regEnt(); }
+  function injectNav(){
+    var side=document.querySelector('.side .nav')||document.querySelector('.side');
+    var anchor=document.querySelector('.nav-item[data-view="sovereignty"]')||document.querySelector('.nav-item[data-view="scaling"]')||document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!side||!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('entangle-nav-item')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='entangle-nav-group'; grp.textContent='Entanglement (EXPERIMENTAL)';
+    var n=document.createElement('div'); n.className='nav-item'; n.id='entangle-nav-item'; n.setAttribute('data-view','entangle'); n.setAttribute('onclick',"go('entangle')");
+    n.setAttribute('title','SZL Entanglement: the rigorous bridge E_max(t) <= C0*exp(-gamma t) (Streltsov 2015 composed with SZL Lambda-v5 coherence decay), Bell-vs-product comparator (Wootters/Vidal-Werner), CHSH meter (CHSH 1969/Tsirelson 1980), CKW monogamy -> Khipu no-leak, honest-tiering panel. Live from /api/a11oy/v1/entangle/*. EXPERIMENTAL-tier; the capacity bound is PROPOSED NOT the formal Lambda; Lambda stays Conjecture 1.');
+    n.innerHTML='<span class="ico">\u269b</span>Entanglement';
+    var parent=anchor.parentNode; parent.appendChild(grp); parent.appendChild(n);
+    try{ console.log('[a11oy] Entanglement nav injected'); }catch(e){}
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+
 </body>
 </html>
