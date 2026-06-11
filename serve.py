@@ -150,6 +150,18 @@ try:
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
 
+# ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
+# Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
+# Python with the ORIGINAL author cited; SZL borrows methodological structure only (no result
+# reclaimed). coherence_crossing is PROPOSED (mirrors lutar-lean CoherenceDecay, Wave24 merged).
+# Shared module byte-identical a11oy↔killinchu. Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_unified_formulas as _szl_unified
+    _szl_unified.register(app, ns="a11oy")
+    print("[a11oy] Unified formulas registered: /api/a11oy/v1/unified/*", file=__import__("sys").stderr)
+except Exception as _szl_uf_e:  # pragma: no cover
+    print(f"[a11oy] Unified formulas NOT registered: {_szl_uf_e!r}", file=__import__("sys").stderr)
+
 # ── Open-Problem Bounty Board (bounties-tab-patch) — OPEN proof bounties
 # (Conjecture 1 Λ-aggregator uniqueness, Conjecture 2 Khipu BFT safety) rendered
 # from bounties/*.yaml (single source of truth, copied byte-identical from
