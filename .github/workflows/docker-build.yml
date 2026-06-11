@@ -116,10 +116,17 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
-          echo "=== --version ==="
-          docker run --rm "${TAG}" --version
-          echo "=== --help ==="
-          docker run --rm "${TAG}" --help
+          echo "=== boot container + probe /api/a11oy/healthz ==="
+          CID="$(docker run -d -e PORT=7860 -p 7860:7860 "${TAG}")"
+          cleanup() { echo "--- container logs (tail) ---"; docker logs "${CID}" 2>&1 | tail -60 || true; docker rm -f "${CID}" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          ok=0
+          for i in $(seq 1 120); do
+            code="$(curl -sS -o /tmp/a11oy_healthz.json -w '%{http_code}' "http://127.0.0.1:7860/api/a11oy/healthz" 2>/dev/null || true)"
+            if [ "${code}" = "200" ]; then ok=1; echo "healthz 200 after ${i}s:"; cat /tmp/a11oy_healthz.json; echo; break; fi
+            sleep 1
+          done
+          if [ "${ok}" != "1" ]; then echo "::error::a11oy image failed /api/a11oy/healthz smoke after 120s"; exit 1; fi
 
       # FIX (Yachay, empire-reliability 2026-06-01): the SBOM step previously always
       # referenced the pushed main tag `:sha-<sha7>`. On pull_request builds the image

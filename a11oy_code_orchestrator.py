@@ -238,9 +238,46 @@ DEFAULT_SYSTEM_PROMPT = (
 _KHIPU_GENESIS = "0" * 64
 _khipu_tip = _KHIPU_GENESIS
 
+# Reference to the host FastAPI app, captured in attach(app), so khipu_emit can
+# co-sign receipts through the REAL DSSE signer (app.state.szl_emit_signed_receipt,
+# wired by szl_provenance). Stays None outside the served app (CLI/tests), in
+# which case receipts are the sha256 hash-chain only — still real, just not
+# ECDSA-co-signed. NEVER fabricates a signature.
+_app = None  # type: ignore[var-annotated]
+
+
+def _dsse_cosign(body: dict[str, Any]) -> dict[str, Any]:
+    """Best-effort DSSE co-sign of a Khipu receipt via the host signer.
+
+    Honest by construction: the signer (szl_dsse via szl_provenance) labels the
+    envelope UNSIGNED when no SZL_COSIGN_PRIVATE_PEM key is present, and produces
+    a real ECDSA-P256/DSSE signature when it is. Returns {} when no signer is
+    wired (CLI/test) so the sha256 chain stands alone. Never raises.
+    """
+    if _app is None:
+        return {}
+    emit = getattr(getattr(_app, "state", None), "szl_emit_signed_receipt", None)
+    if not callable(emit):
+        return {}
+    try:
+        node = emit({"schema": "szl.a11oy.code_receipt/v1", "op": body.get("action"),
+                     "khipu_hash": body.get("hash"), "receipt_id": body.get("receipt_id")})
+        return {"dsse_digest": node.get("digest"),
+                "dsse_signed": bool(node.get("signed")),
+                "dsse_index": node.get("index")}
+    except Exception:
+        return {}  # never break the turn over a signing hiccup
+
 
 def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """Emit a chain-verified Khipu receipt. prod_i Khipu_i(a) requires chain_verified."""
+    """Emit a chain-verified Khipu receipt. prod_i Khipu_i(a) requires chain_verified.
+
+    The sha256 hash-chain is the integrity backbone. When the host app's DSSE
+    signer is wired (served runtime), the receipt is ALSO co-signed (real
+    ECDSA-P256 when the cosign key is present, honestly UNSIGNED otherwise) and
+    the dsse_* fields are attached — making the 'signed receipt' label on live
+    turns genuinely true rather than aspirational.
+    """
     global _khipu_tip
     ts = time.time()
     body = {
@@ -254,6 +291,7 @@ def khipu_emit(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     body["hash"] = h
     body["chain_verified"] = True
     _khipu_tip = h
+    body.update(_dsse_cosign(body))  # additive: dsse_digest/dsse_signed if a signer is wired
     try:
         _db_write_receipt(body)
     except Exception:
@@ -1845,7 +1883,9 @@ async def chat_stream(request: Request):
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
                                "model": model_used, "license_class": decision["license_class"],
                                "latency_ms": latency_ms, "cost_usd": cost, "yuyay13": y13,
-                               "khipu_hash": rec["hash"], "chain_verified": True})
+                               "khipu_hash": rec["hash"], "chain_verified": True,
+                               "dsse_digest": rec.get("dsse_digest"),
+                               "dsse_signed": rec.get("dsse_signed")})
         except Exception as exc:
             _METRICS["errors_total"] += 1
             yield sse("error", {"error": str(exc)})
@@ -1941,6 +1981,8 @@ async def voice_stt(file: UploadFile = File(...)) -> JSONResponse:
 
 def attach(app) -> None:
     """Called by serve.py to mount this router additively."""
+    global _app
+    _app = app  # capture host app so khipu_emit can DSSE-co-sign via app.state
     init_db()
     SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
     app.include_router(router)
