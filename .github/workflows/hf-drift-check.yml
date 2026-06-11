@@ -1,7 +1,7 @@
 name: HF README drift check
 
 # hf-drift-check: detect when the HuggingFace Space card (README.md) has drifted
-# away from the canonical GitHub README on szl-holdings/a11oy.
+# away from what the canonical GitHub README on szl-holdings/a11oy would sync.
 #
 # WHY
 #   hf-sync.yml is one-way (GitHub -> HF) and only fires when README.md (or the
@@ -9,23 +9,38 @@ name: HF README drift check
 #   huggingface.co, the two silently diverge until the next GitHub push happens
 #   to clobber it. This scheduled job catches that drift proactively. The
 #   flagship a11oy Space has the identical exposure as killinchu, so it gets the
-#   same guard (see szl-holdings/killinchu/.github/workflows/hf-drift-check.yml).
+#   same guard (template: szl-holdings/killinchu/.github/workflows/hf-drift-check.yml).
+#
+# IMPORTANT — a11oy does NOT sync the README verbatim
+#   Unlike killinchu (which pushes README.md byte-for-byte), a11oy's hf-sync.yml
+#   TRANSFORMS the README before pushing it to the Space card: it strips the
+#   GitHub front-matter, prepends a fixed Space front-matter block (the base64
+#   `FM_B64` env in hf-sync.yml, needed because the Space is sdk: docker), injects
+#   a one-line "front-matter is required" HTML note, then appends the body. So a
+#   naive byte-for-byte README.md vs Space-card comparison would be PERMANENTLY
+#   red even in steady state and would be a useless guard.
+#
+#   This check therefore RECONSTRUCTS exactly what hf-sync would push — applying
+#   the same transformation to the current GitHub README — and compares THAT to
+#   the live Space card. To stay in lockstep with hf-sync, it reads the `FM_B64`
+#   value straight out of hf-sync.yml at runtime (so a legitimate front-matter
+#   change in hf-sync.yml does not false-positive here). The injected note string
+#   is mirrored below; if hf-sync.yml ever changes that note, update it here too.
 #
 # BEHAVIOUR
 #   * Daily (and on demand) it fetches the live Space card and compares it,
-#     byte-for-byte, with the canonical GitHub README. hf-sync pushes the README
-#     verbatim, so in steady state the two are byte-identical; any difference is
-#     real drift.
+#     byte-for-byte, with the reconstructed (hf-sync-equivalent) GitHub card. In
+#     steady state the two are byte-identical; any difference is real drift.
 #   * On drift it FAILS LOUDLY and writes a diff to the job summary so a human
 #     can reconcile. It NEVER auto-overwrites either side (respects the
 #     anti-shrink / no-silent-clobber principle) — reconciliation is a human
 #     decision: re-run hf-sync to push GitHub -> HF, or copy the Space edit back
 #     into GitHub if the Space is the intended source of truth.
-#   * On drift (or a fetch failure) it ALSO pages the team's watched channel via
-#     the shared SLACK_WEBHOOK_URL secret (the a11oy-uptime ntfy topic, behind
-#     the szl-alert-relay), mirroring killinchu-api-health.yml — a failed
-#     scheduled run otherwise only emails the actor and can go unnoticed for
-#     days. The alert only fires on failure (no daily green-run noise).
+#   * On drift (or a fetch/reconstruct failure) it ALSO pages the team's watched
+#     channel via the shared SLACK_WEBHOOK_URL secret (the a11oy-uptime ntfy
+#     topic, behind the szl-alert-relay), mirroring killinchu-api-health.yml — a
+#     failed scheduled run otherwise only emails the actor and can go unnoticed
+#     for days. The alert only fires on failure (no daily green-run noise).
 #
 # NOTE
 #   SPACE_ID uses the canonical uppercase org casing (SZLHOLDINGS/a11oy). The
@@ -53,7 +68,7 @@ jobs:
         with:
           fetch-depth: 1
           lfs: false
-      - name: Compare GitHub README with the live HuggingFace Space card
+      - name: Compare the GitHub-synced card with the live HuggingFace Space card
         id: compare
         env:
           SPACE_ID: SZLHOLDINGS/a11oy
@@ -92,21 +107,40 @@ jobs:
             exit 0
           fi
 
-          gh_bytes=$(wc -c < README.md)
+          # Reconstruct exactly what hf-sync would push to the Space card from the
+          # current GitHub README, reading FM_B64 straight out of hf-sync.yml so
+          # the two stay in lockstep. See the header note for why this is needed.
+          if ! python3 .github/scripts/reconstruct_hf_card.py \
+                 README.md .github/workflows/hf-sync.yml expected_README.md; then
+            echo "status=recon-fail" >> "$GITHUB_OUTPUT"
+            echo "::error title=HF card reconstruct failed::Could not reconstruct the hf-sync card from README.md + hf-sync.yml (FM_B64 missing or unreadable)."
+            {
+              echo "## HF README drift check — could not run"
+              echo
+              echo "Could not reconstruct the hf-sync Space card from the GitHub"
+              echo "\`README.md\` and \`.github/workflows/hf-sync.yml\`. The \`FM_B64\`"
+              echo "front-matter block may have been removed or renamed in hf-sync.yml."
+              echo "Fix the reconstruction logic so this guard keeps matching hf-sync."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          gh_bytes=$(wc -c < expected_README.md)
           hf_bytes=$(wc -c < hf_README.md)
           {
             echo "gh_bytes=${gh_bytes}"
             echo "hf_bytes=${hf_bytes}"
           } >> "$GITHUB_OUTPUT"
 
-          if cmp -s README.md hf_README.md; then
+          if cmp -s expected_README.md hf_README.md; then
             echo "status=insync" >> "$GITHUB_OUTPUT"
-            echo "In sync: GitHub README and HF Space card are byte-identical ($gh_bytes bytes)."
+            echo "In sync: the hf-sync-equivalent GitHub card and the live HF Space card are byte-identical ($gh_bytes bytes)."
             {
               echo "## HF README drift check — in sync"
               echo
-              echo "The GitHub \`README.md\` and the live HuggingFace Space card are"
-              echo "byte-identical (\`$gh_bytes\` bytes)."
+              echo "The hf-sync-equivalent GitHub card (front-matter swapped + note"
+              echo "injected, exactly as hf-sync pushes it) and the live HuggingFace"
+              echo "Space card are byte-identical (\`$gh_bytes\` bytes)."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -116,32 +150,32 @@ jobs:
           {
             echo "## HF README drift detected"
             echo
-            echo "The HuggingFace Space card has **diverged** from the canonical"
-            echo "GitHub \`README.md\`. This usually means someone edited the Space"
-            echo "card directly on huggingface.co."
+            echo "The HuggingFace Space card has **diverged** from what hf-sync would"
+            echo "push from the canonical GitHub \`README.md\`. This usually means"
+            echo "someone edited the Space card directly on huggingface.co."
             echo
             echo "| Source | Bytes |"
             echo "| --- | --- |"
-            echo "| GitHub \`main\` (\`README.md\`) | $gh_bytes |"
+            echo "| GitHub \`main\` (hf-sync-equivalent card) | $gh_bytes |"
             echo "| HF Space ([raw card]($RAW_URL)) | $hf_bytes |"
             echo
-            echo "### Diff (\`-\` GitHub  vs  \`+\` HF Space)"
+            echo "### Diff (\`-\` GitHub hf-sync-equivalent  vs  \`+\` HF Space)"
             echo
             echo '```diff'
-            diff -u README.md hf_README.md | head -300 || true
+            diff -u expected_README.md hf_README.md | head -300 || true
             echo '```'
             echo
             echo "**How to reconcile (no auto-overwrite happens here):**"
             echo "- If GitHub is correct: run the \`Sync to HuggingFace Space\` workflow"
             echo "  (\`hf-sync\`) via *workflow_dispatch* to push GitHub → HF."
             echo "- If the Space edit is intended: copy it back into GitHub"
-            echo "  \`README.md\` and commit, so the canonical source matches."
+            echo "  \`README.md\` (the body) and commit, so the canonical source matches."
           } >> "$GITHUB_STEP_SUMMARY"
 
-          echo "::error title=HF README drift::GitHub README ($gh_bytes B) differs from the HF Space card ($hf_bytes B). See the job summary to reconcile."
+          echo "::error title=HF README drift::GitHub hf-sync card ($gh_bytes B) differs from the HF Space card ($hf_bytes B). See the job summary to reconcile."
           exit 0
 
-      - name: Alert the team on README drift (or fetch failure)
+      - name: Alert the team on README drift (or fetch/reconstruct failure)
         if: ${{ always() && steps.compare.outputs.status != 'insync' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -168,6 +202,9 @@ jobs:
           The Space may be down, renamed, or made private.
           *Card:* ${RAW_URL:-?}
           *Run:* ${RUN_URL}"
+          elif [ "${STATUS:-}" = "recon-fail" ]; then
+            text=":rotating_light: *HF README drift check could not run* — could not reconstruct the hf-sync card for *${SPACE_ID:-SZLHOLDINGS/a11oy}* in ${REPO} (FM_B64 missing in hf-sync.yml?).
+          *Run:* ${RUN_URL}"
           else
             text=":rotating_light: *HF README drift detected* — the HuggingFace Space card for *${SPACE_ID:-SZLHOLDINGS/a11oy}* has diverged from the canonical GitHub README in ${REPO}.
           *Bytes:* GitHub=${GH_BYTES:-?} HF=${HF_BYTES:-?}
@@ -188,7 +225,7 @@ jobs:
           fi
           echo "Direct alert delivered."
 
-      - name: Fail the run on drift or fetch failure
+      - name: Fail the run on drift or fetch/reconstruct failure
         if: always()
         run: |
           status="${{ steps.compare.outputs.status }}"
@@ -196,4 +233,4 @@ jobs:
             echo "::error::HF README drift check failed (status=${status:-unknown}) — see the run summary to reconcile."
             exit 1
           fi
-          echo "HF README drift check passed — GitHub and HF Space card are in sync."
+          echo "HF README drift check passed — GitHub hf-sync card and HF Space card are in sync."
