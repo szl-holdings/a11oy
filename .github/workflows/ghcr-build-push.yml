@@ -19,6 +19,24 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      # The published image stacks many layers; the runner's default overlay2
+      # graphdriver caps lower dirs at 128 and `docker pull` fails with
+      # "failed to register layer: max depth exceeded". Switch the daemon to the
+      # containerd image store (no 128-layer cap) BEFORE buildx/build so we can
+      # pull + boot the freshly built image for the demo-tier proof below.
+      - name: Enable containerd image store (avoid overlay2 128-layer limit)
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /etc/docker
+          if [ -s /etc/docker/daemon.json ]; then
+            sudo jq '.features."containerd-snapshotter" = true' /etc/docker/daemon.json > /tmp/daemon.json
+            sudo mv /tmp/daemon.json /etc/docker/daemon.json
+          else
+            echo '{"features":{"containerd-snapshotter":true}}' | sudo tee /etc/docker/daemon.json
+          fi
+          sudo systemctl restart docker
+          for i in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+          docker info -f '{{ .DriverStatus }}'
       - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ghcr.io
