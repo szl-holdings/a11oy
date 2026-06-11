@@ -11844,8 +11844,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +honesty('B = B\u2080\u00b7M^\u00be (B\u2080\u224870 kcal/day, mammals) is <b>Kleiber 1932</b>; the 3/4 exponent is explained by <b>West, Brown &amp; Enquist 1997</b> (fractal distribution networks). The curve redraws exactly the values the live endpoint returns.');
     poll('kle-gate', async function(){
       var pts=[]; var raw=[];
-      for(var i=0;i<MASSES.length;i++){ var d=await J(SAPI+'/scaling/kleiber?M='+MASSES[i]); pts.push([d.M_kg, d.B_kcal_day]); raw.push(d); }
+      for(var i=0;i<MASSES.length;i++){ try{ var d=await J(SAPI+'/scaling/kleiber?M='+MASSES[i]); pts.push([d.M_kg, d.B_kcal_day]); raw.push(d); }catch(e){} await new Promise(function(r){setTimeout(r,60);}); }
       if(ex('kle-raw')) ex('kle-raw').textContent=JSON.stringify(raw,null,2);
+      if(pts.length<2) return;
       // empirical slope from first/last log-log
       var x0=Math.log10(pts[0][0]), x1=Math.log10(pts[pts.length-1][0]);
       var y0=Math.log10(pts[0][1]), y1=Math.log10(pts[pts.length-1][1]);
@@ -11859,8 +11860,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         xAxis:{type:'log',name:'body mass M (kg)',nameLocation:'middle',nameGap:30,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
         yAxis:{type:'log',name:'metabolic rate B (kcal/day)',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#A8B6CC'},splitLine:{lineStyle:{color:'#1c2230'}}},
         series:[{type:'line',smooth:false,symbolSize:9,data:pts,lineStyle:{color:TEAL,width:2.4},itemStyle:{color:GOLD},
-          markPoint:{symbolSize:1,label:{show:true,formatter:function(p){return massLabel(p.value[0])||'';},color:GOLD,fontSize:11},
-            data:pts.filter(function(p){return massLabel(p[0]);}).map(function(p){return {coord:p};})}}]});
+          markPoint:{symbol:'circle',symbolSize:10,itemStyle:{color:GOLD},label:{show:true,position:'top',formatter:function(p){return (p&&p.name)||'';},color:GOLD,fontSize:11},
+            data:pts.filter(function(p){return massLabel(p[0]);}).map(function(p){return {name:massLabel(p[0]),coord:p,value:p[1]};})}}]});
     });
   }
 
@@ -11878,8 +11879,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +honesty('Heart-rate f = 241\u00b7M^(\u2212\u00bc) bpm and lifespan L = 11.8\u00b7M^(+\u00bc) yr are the <b>WBE/MTE</b> allometries; their product (lifetime beats) is near-mass-invariant by construction. Values are recomputed live, not asserted.');
     poll('hrt-gate', async function(){
       var rows=[]; var raw=[];
-      for(var i=0;i<MASSES.length;i++){ var d=await J(SAPI+'/scaling/heart?M='+MASSES[i]); rows.push(d); raw.push(d); }
+      for(var i=0;i<MASSES.length;i++){ try{ var d=await J(SAPI+'/scaling/heart?M='+MASSES[i]); rows.push(d); raw.push(d); }catch(e){} await new Promise(function(r){setTimeout(r,60);}); }
       if(ex('hrt-raw')) ex('hrt-raw').textContent=JSON.stringify(raw,null,2);
+      if(rows.length<1) return;
       function at(M){ for(var i=0;i<rows.length;i++){ if(Math.abs(rows[i].M_kg-M)<1e-9) return rows[i].lifetime_beats_billion; } return null; }
       var bm=at(0.02), bh=at(70), be=at(6000);
       E('hrt-m').textContent=fmt(bm,3); E('hrt-h').textContent=fmt(bh,3); E('hrt-e').textContent=fmt(be,3);
@@ -11973,8 +11975,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var PARAMS=[0.1,0.5,1,3,7,13,30,70,175,400,700];
     poll('cmp-gate', async function(){
       var pts=[]; var raw=[];
-      for(var i=0;i<PARAMS.length;i++){ var d=await J(SAPI+'/scaling/compute?params='+PARAMS[i]); pts.push([d.params_billions, d.predicted_loss]); raw.push(d); }
+      for(var i=0;i<PARAMS.length;i++){ try{ var d=await J(SAPI+'/scaling/compute?params='+PARAMS[i]); pts.push([d.params_billions, d.predicted_loss]); raw.push(d); }catch(e){} await new Promise(function(r){setTimeout(r,60);}); }
       if(ex('cmp-raw')) ex('cmp-raw').textContent=JSON.stringify(raw,null,2);
+      if(pts.length<1) return;
       var alpha=raw.length?raw[0].exponent_alpha:null;
       E('cmp-a').textContent=fmt(alpha,3);
       function at(P){ for(var i=0;i<raw.length;i++){ if(Math.abs(raw[i].params_billions-P)<1e-9) return raw[i].predicted_loss; } return null; }
