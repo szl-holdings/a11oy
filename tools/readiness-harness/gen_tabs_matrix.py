@@ -207,6 +207,12 @@ ENDPOINTS = {
     "/api/a11oy/v1/allodial/score": ep(schema="generic_obj", sla=None,
         allow_statuses=(200, 400, 422),
         note="Allodial Sovereignty Score A=[Σ w_k·SEAL_k/4]×(1−DCI)×100 from ?seals=&weights=&dep=. EU-CSF weighted SEAL + HHI lock-in penalty (both cited). tier=PROPOSED (weights need calibration), NOT the formal Λ."),
+    "/api/a11oy/v1/allodial/lattice": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Denning-1976 access-control lattice (DOI:10.1145/360051.360056) rendered as a 3D DAG: ⊤=SEAL-4 allodial top, feudal chains strictly lower. Deterministic; PROPOSED engineering view, NOT the formal Λ."),
+    "/api/a11oy/v1/allodial/noninterference": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Goguen-Meseguer 1982 non-interference witness (IEEE S&P): purged-op equivalence over the lattice. Deterministic; cited prior art; PROPOSED, NOT the formal Λ."),
 
     # ── readiness (self) ──
     "/api/a11oy/v1/readiness": ep(schema="readiness", sla=5 * MIN),
@@ -344,6 +350,11 @@ TAB_ENDPOINTS = {
     # szl_allodial.py endpoints so it is judged as a genuine declared (non-static) tab.
     # PROPOSED engineering gate; Λ stays Conjecture 1; deterministic, prior-art-cited.
     "allodialai": ["/api/a11oy/v1/allodial/summary", "/api/a11oy/v1/allodial/score"],
+    # Living-3D sovereignty/allodial-lattice visualization tab (Dev 2). Distinct from
+    # allodialai; same szl_allodial.py endpoints — lattice + non-interference witness +
+    # summary + interactive score. PROPOSED engineering view; Λ stays Conjecture 1.
+    "sovereignty": ["/api/a11oy/v1/allodial/summary", "/api/a11oy/v1/allodial/score",
+                    "/api/a11oy/v1/allodial/lattice", "/api/a11oy/v1/allodial/noninterference"],
     "whTamper": ["/api/a11oy/v1/warhacker/index"],
     "whCannonico": ["/api/a11oy/v1/warhacker/index"],
 }
