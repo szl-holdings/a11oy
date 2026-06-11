@@ -10248,10 +10248,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
     var BR='sampler-putnam-10';
-    var SHA='df027bc5ba46f73f6e2621c4abce09dcb42c138c';
-    var SHORT='df027bc';
-    var COMPUTED='2026-06-09';
-    var RUN='https://github.com/szl-holdings/lutar-lean/actions/runs/27241395346';
+    var SHA='b0d0f1b929542d1888b6e2897b2584b20e2bed26';
+    var SHORT='b0d0f1b';
+    var COMPUTED='2026-06-11';
+    var RUN='https://github.com/szl-holdings/lutar-lean/actions/runs/27321295283';
     var TREE='https://github.com/szl-holdings/lutar-lean/tree/'+BR+'/Lutar/Putnam/Sampler';
     var BASE='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Putnam/Sampler/';
     var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98', WARN='#e0a82e';
@@ -10266,7 +10266,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       ['P06','P06.lean','Combinatorics \u2014 coin-flip parity invariant (PDF statement was incomplete; faithful restatement proven).',''],
       ['P07','P07.lean','Analysis \u2014 partial harmonic sum dominates the logarithm.',''],
       ['P08','P08.lean','Geometry \u2014 parallelogram law in \u211d\u207f.',''],
-      ['P09','P09.lean','Polynomial FE p(x)\u00b2=p(x\u00b2) \u2014 see honesty note below.','NEW \u00b7 was OPEN \u00b7 RESTATED'],
+      ['P09','P09.lean','Polynomial FE p(x)\u00b2=p(x\u00b2) \u2014 full classification: solutions are exactly {0}\u222a{X\u207f}. See honesty note below.','NEW \u00b7 was OPEN \u00b7 CLASSIFIED'],
       ['P10','P10.lean','Combinatorics \u2014 pigeonhole on residues: among n+1 integers, two differ by a multiple of n.','']
     ];
     var nGREEN=PROBS.length;
@@ -10314,7 +10314,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'kernel-checked counterexample (<code>p09_original_refuted</code>) rather than fabricating a proof \u2014 the same way '
         +'\u039b-uniqueness is surfaced as machine-FALSE (Conjecture\u00a01). We then prove the <b>faithful impossibility</b> the '
         +'equation actually implies: it forces p(1)\u2208{0,1}, so there is no such polynomial with p(1)=2 (<code>p09</code>). '
-        +'Both are kernel-checked, sorry-free.</div>';
+        +'Both are kernel-checked, sorry-free. The full characterization is now itself a kernel-checked theorem '
+        +'(<code>p09_classification</code>): over \u211d[X], p(x)\u00b2=p(x\u00b2) holds for all x <b>iff</b> p=0 or p=X\u207f for some n\u22650 \u2014 '
+        +'turning the earlier \u201crefute + restate\u201d into the complete result.</div>';
       H+='<div style="font-size:11px;color:var(--dim,#8a8f98);margin-top:14px;line-height:1.6;">'
         +'No fabricated proofs. Every row links to its exact source file at the verified commit; the headline count equals the '
         +'CI kernel run exactly. To promote the pack into the main numbers it must land on lutar-lean main and pass the v11 drift gate.</div>';
