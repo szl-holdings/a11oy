@@ -61,6 +61,11 @@ def _assert_envelope(body):
     ("/api/a11oy/v1/operator/ask", {"question": "which services are live?"}),
     ("/api/a11oy/v1/reason", None),
     ("/api/a11oy/v1/reason/readiness", None),
+    # --- Task #751: sibling operator capability GETs registered in the same
+    #     defensive block — also guard them against 404 + envelope-stripping.
+    ("/api/a11oy/v1/operator/recommend", None),
+    ("/api/a11oy/v1/operator/ledger", None),
+    ("/api/a11oy/v2/operator/command-log", None),
 ])
 def test_get_surface_200_and_governed(client, path, params):
     r = client.get(path, params=params) if params else client.get(path)
@@ -76,11 +81,43 @@ def test_get_surface_200_and_governed(client, path, params):
     ("/api/a11oy/v1/reason", {"action": {"severity": "medium"}}),
     ("/api/a11oy/v1/reason/readiness", {"subject": "demo-deploy"}),
     ("/api/a11oy/v2/operator/command", {"command": "acknowledge alert", "target": "demo", "approved": False}),
+    # --- Task #751: governed policy verdict surface (same defensive block).
+    ("/api/a11oy/v1/policy/decide", {"agent": "regression-test", "action": {"value": "noop"}, "request_id": "task751"}),
 ])
 def test_post_surface_200_and_governed(client, path, payload):
     r = client.post(path, json=payload)
     assert r.status_code == 200, f"POST {path} regressed to {r.status_code}"
     _assert_envelope(r.json())
+
+
+# --- Task #751: the policy verdict must keep its decision payload under the
+#     envelope (the envelope must wrap, never replace, the governed verdict).
+def test_policy_decide_carries_verdict_under_envelope(client):
+    r = client.post("/api/a11oy/v1/policy/decide",
+                    json={"agent": "regression-test", "action": {"value": "noop"}, "request_id": "task751"})
+    assert r.status_code == 200
+    body = r.json()
+    _assert_envelope(body)
+    assert body.get("decision") in ("allow", "deny"), \
+        f"policy/decide dropped its verdict: {body.get('decision')!r}"
+    assert isinstance(body.get("receipt_hash"), str) and body["receipt_hash"], \
+        "policy/decide must keep its receipt_hash under the envelope"
+
+
+# --- Task #751: the operator ledger / command-log must keep their records
+#     under the envelope (wrap, never replace, the governed payload).
+def test_ledger_and_cmdlog_keep_records_under_envelope(client):
+    rl = client.get("/api/a11oy/v1/operator/ledger")
+    assert rl.status_code == 200
+    bl = rl.json()
+    _assert_envelope(bl)
+    assert isinstance(bl.get("receipts"), list), "operator/ledger dropped its receipts list"
+
+    rc = client.get("/api/a11oy/v2/operator/command-log")
+    assert rc.status_code == 200
+    bc = rc.json()
+    _assert_envelope(bc)
+    assert isinstance(bc.get("receipts"), list), "operator/command-log dropped its receipts list"
 
 
 # --- v2 governed operator loop: human-approval gate must hold --------------

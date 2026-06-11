@@ -3740,7 +3740,9 @@ try:
 
     @app.post("/api/a11oy/v1/policy/decide")
     async def _sc_cap_decide(request: _SCRequest):
-        return _SCJSON(_sc_build_verdict(await _sc_body(request)))
+        _v = _sc_build_verdict(await _sc_body(request))
+        return _SCJSON(gov_envelope(_v, status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/v1/policy/decisions/feed", "data": {"governed": True}}]))
 
     @app.post("/api/a11oy/v1/policy/compliance")
     async def _sc_cap_compliance(request: _SCRequest):
@@ -3781,15 +3783,17 @@ try:
 
     @app.get("/api/a11oy/v1/operator/recommend")
     async def _sc_cap_recommend():
-        return _SCJSON(_SC_RECOMMEND)
+        return _SCJSON(gov_envelope(_SC_RECOMMEND, status="REAL"))
 
     @app.get("/api/a11oy/v1/operator/ledger")
     async def _sc_cap_ledger():
-        return _SCJSON(_SC_BUNDLE["ledger"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["ledger"], status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/khipu/ledger", "data": {"signed": True}}]))
 
     @app.get("/api/a11oy/v2/operator/command-log")
     async def _sc_cap_cmdlog():
-        return _SCJSON(_SC_BUNDLE["commandlog"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["commandlog"], status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}}]))
 
     @app.get("/api/a11oy/v1/capabilities/mesh")
     async def _sc_cap_mesh3d():
