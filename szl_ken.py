@@ -405,9 +405,22 @@ def make_ken_router(flagship, tools_manifest, dispatch_fn=None, khipu_store=None
     async def _mcp_call(body: dict):
         tool_name = body.get("name", "")
         args = body.get("arguments", {})
-        known = {t["name"] for t in tools_manifest}
-        if tool_name not in known:
+        spec = next((t for t in tools_manifest if t.get("name") == tool_name), None)
+        if spec is None:
             raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
+        # Deny-by-default: a tool advertised requires_two_person:true MUST carry a
+        # two-person attestation in the call body, else it is refused (fail-closed).
+        # Honest: this enforces the manifest's stated control instead of advertising
+        # an unenforced gate. NOT a claim of cryptographic co-signing.
+        if spec.get("requires_two_person"):
+            attested = bool(body.get("two_person_attested") or body.get("attestation"))
+            if not attested:
+                return JSONResponse(status_code=403,
+                    content={"error": "two_person_required",
+                             "tool": tool_name,
+                             "reason": "State-changing tool requires a two-person attestation "
+                                       "(set two_person_attested:true with a second-operator attestation). Refused.",
+                             "doctrine": DOCTRINE})
         plan = {"action": "tool_call", "tool": tool_name, "args": args, "reasoning": "mcp-call"}
         dummy = init_state(f"mcp:{tool_name}", flagship, 1)
         gate = await a11oy_gate(plan, dummy)
