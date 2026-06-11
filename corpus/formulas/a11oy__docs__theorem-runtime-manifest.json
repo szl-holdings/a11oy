@@ -6,7 +6,7 @@
   "wiredGateCount": 35,
   "claimedGateCount": 35,
   "gapCount": 0,
-  "gapNote": "All 35 anchor formula gates now have TypeScript runtime files in packages/policy/src/gates/. 30 gates added in feat/policy-gates-instill-anchor-g1-g35. 4 gates are STAGED-ADVISORY where Lean proof has open sorries.",
+  "gapNote": "All 35 anchor formula gates have TypeScript runtime files in packages/policy/src/gates/ (runtime claims are test-backed). Lean proof status is scoped separately: see leanCitationAudit. Per SZL Doctrine v11, gates whose cited leanFile does not exist in szl-holdings/lutar-lean are honestly marked leanStatus=phantom (undisclosed phantom citations were corrected 2026-06-11, Task #695) or, for the 3 open-proof gates, stagedAdvisory=true.",
   "stagedAdvisoryGates": [
     "A7-BekensteinBound",
     "TH4-LambdaCategoryComposability",
@@ -111,14 +111,14 @@
       "formula": "SoundnessAxiom",
       "lineage": "SZL Doctrine v6 A1: conjunctive Lambda floor >=0.90",
       "leanFile": "Lutar/Gate/SoundnessAxiom.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/soundnessAxiom_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Enforces conjunctive 9-axis Lambda floor; no open sorries in gate Lean file."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Enforces conjunctive 9-axis Lambda floor; no open sorries in gate Lean file."
     },
     {
       "id": "RUNTIME-A2-MORAL-GROUNDING-FLOOR",
@@ -126,14 +126,14 @@
       "formula": "MoralGroundingFloor",
       "lineage": "SZL Doctrine v6 A2: moral grounding >= 0.95 with ORCID requirement",
       "leanFile": "Lutar/Gate/MoralGrounding.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/moralGroundingFloor_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "ORCID absence collapses moral grounding score to 0."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: ORCID absence collapses moral grounding score to 0."
     },
     {
       "id": "RUNTIME-A3-MEASURABILITY-HONESTY-FLOOR",
@@ -141,14 +141,14 @@
       "formula": "MeasurabilityHonestyFloor",
       "lineage": "SZL Doctrine v6 A3: honesty floor with unsupported-claim penalty",
       "leanFile": "Lutar/Gate/MeasurabilityHonesty.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/measurabilityHonestyFloor_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Each unsupported claim subtracts 0.05 from effective score."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Each unsupported claim subtracts 0.05 from effective score."
     },
     {
       "id": "RUNTIME-A4-DUAL-WITNESS-DISJOINTNESS",
@@ -156,14 +156,14 @@
       "formula": "DualWitnessDisjointness",
       "lineage": "SZL Doctrine v6 A4: two witnesses must be distinct identities",
       "leanFile": "Lutar/Gate/DualWitness.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/dualWitnessDisjointness_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Identity disjointness checked by string comparison of witness IDs."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Identity disjointness checked by string comparison of witness IDs."
     },
     {
       "id": "RUNTIME-A5-DETERMINISTIC-REPLAY",
@@ -171,14 +171,14 @@
       "formula": "DeterministicReplay",
       "lineage": "SZL Doctrine v6 A5: N replay runs must produce identical root hashes",
       "leanFile": "Lutar/Gate/DeterministicReplay.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/deterministicReplay_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Replay determinism enforced over configurable number of runs."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Replay determinism enforced over configurable number of runs."
     },
     {
       "id": "RUNTIME-A6-HASH-CHAIN-INTEGRITY",
@@ -186,14 +186,14 @@
       "formula": "HashChainIntegrity",
       "lineage": "SZL Doctrine v6 A6: SHA-256 hash chain over receipt sequence",
       "leanFile": "Lutar/Gate/HashChainIntegrity.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/hashChainIntegrity_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "SHA-256 collision resistance is assumed (axiom), not Lean-proven."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: SHA-256 collision resistance is assumed (axiom), not Lean-proven."
     },
     {
       "id": "STAGED-A7-BEKENSTEIN-BOUND",
@@ -216,14 +216,14 @@
       "formula": "IngestDiscipline",
       "lineage": "SZL Doctrine v6 A8: bounded ingest queue with epoch timestamps",
       "leanFile": "Lutar/Gate/IngestDiscipline.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/ingestDiscipline_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Ingest queue depth and epoch freshness enforced at gate boundary."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Ingest queue depth and epoch freshness enforced at gate boundary."
     },
     {
       "id": "RUNTIME-A9-DOCTRINE-COMPLETENESS",
@@ -231,14 +231,14 @@
       "formula": "DoctrineCompleteness",
       "lineage": "SZL Doctrine v6 A9: all required doctrine clauses present in receipt",
       "leanFile": "Lutar/Gate/DoctrineCompleteness.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/doctrineCompleteness_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Checks presence of all required doctrine clause fields; no content validation."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Checks presence of all required doctrine clause fields; no content validation."
     },
     {
       "id": "RUNTIME-A10-TEMPORAL-CONSISTENCY",
@@ -246,14 +246,14 @@
       "formula": "TemporalConsistency",
       "lineage": "SZL Doctrine v6 A10: receipt timestamps must be causally ordered",
       "leanFile": "Lutar/Gate/TemporalConsistency.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/temporalConsistency_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Causal ordering enforced over receipt timestamp sequence."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Causal ordering enforced over receipt timestamp sequence."
     },
     {
       "id": "RUNTIME-A11-CAUSAL-SEPARABILITY",
@@ -261,14 +261,14 @@
       "formula": "CausalSeparability",
       "lineage": "SZL Doctrine v6 A11: decisions may not carry unexplained causal loops",
       "leanFile": "Lutar/Gate/CausalSeparability.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/causalSeparability_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Causal loop detection is structural (DAG check), not semantic."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Causal loop detection is structural (DAG check), not semantic."
     },
     {
       "id": "RUNTIME-A12-CONSTRUCTIVE-TRANSPARENCY",
@@ -276,14 +276,14 @@
       "formula": "ConstructiveTransparency",
       "lineage": "SZL Doctrine v6 A12: every decision must cite a constructive evidence chain",
       "leanFile": "Lutar/Gate/ConstructiveTransparency.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/constructiveTransparency_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Evidence chain field presence checked; content provenance is a separate concern."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Evidence chain field presence checked; content provenance is a separate concern."
     },
     {
       "id": "RUNTIME-A14-ECONOMIC-GROUNDING",
@@ -291,14 +291,14 @@
       "formula": "EconomicGrounding",
       "lineage": "SZL Doctrine v6 A14: decision must have an economic cost receipt above floor",
       "leanFile": "Lutar/Gate/EconomicGrounding.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/economicGrounding_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Economic cost floor enforced; currency normalization is caller responsibility."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Economic cost floor enforced; currency normalization is caller responsibility."
     },
     {
       "id": "RUNTIME-T1-RHO-CLOSURE-COMPOSITION",
@@ -306,14 +306,14 @@
       "formula": "RhoClosureComposition",
       "lineage": "Category-theoretic rho-closure: composed organs inherit closure property",
       "leanFile": "Lutar/Gate/RhoClosureComposition.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/rhoClosureComposition_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Closure composition checked over finite organ list."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Closure composition checked over finite organ list."
     },
     {
       "id": "RUNTIME-T2-LAMBDA-MONOTONICITY",
@@ -321,14 +321,14 @@
       "formula": "LambdaMonotonicity",
       "lineage": "Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean; Lambda monotone in each argument",
       "leanFile": "Lutar/Gate/LambdaMonotonicity.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/lambdaMonotonicity_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Pointwise vector comparison; geometric mean used as Lambda proxy."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Pointwise vector comparison; geometric mean used as Lambda proxy."
     },
     {
       "id": "RUNTIME-T3-MERKLE-DAG-BATCH",
@@ -336,14 +336,14 @@
       "formula": "MerkleDagBatch",
       "lineage": "Merkle/SCITT receipt DAG: acyclic batch hash chain",
       "leanFile": "Lutar/Gate/MerkleDagBatch.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/merkleDagBatch_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "DAG acyclicity checked; full Merkle proof path verification is separate."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: DAG acyclicity checked; full Merkle proof path verification is separate."
     },
     {
       "id": "RUNTIME-T4-BEKENSTEIN-ENTROPY-MEASURE",
@@ -366,14 +366,14 @@
       "formula": "ReplayDeterminism",
       "lineage": "K10v2 PRNG replay: deterministic root produces identical receipt stream",
       "leanFile": "Lutar/Gate/ReplayDeterminism.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/replayDeterminism_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Replay hash comparison; PRNG seed handling is caller responsibility."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Replay hash comparison; PRNG seed handling is caller responsibility."
     },
     {
       "id": "RUNTIME-T6-CONJUNCTIVE-GATE-COUNTEREXAMPLE",
@@ -381,14 +381,14 @@
       "formula": "ConjunctiveGateCounterexample",
       "lineage": "Logical gate composition: counterexample witness for non-trivial conjunctive failure",
       "leanFile": "Lutar/Gate/ConjunctiveGate.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/conjunctiveGateCounterexample_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Counterexample witnesses are logged to receipt for audit."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Counterexample witnesses are logged to receipt for audit."
     },
     {
       "id": "RUNTIME-T7-PRIVACY-MASK",
@@ -396,14 +396,14 @@
       "formula": "PrivacyMask",
       "lineage": "Lutar/DPI/SCITTMaskEntropy.lean: DPI H(mask(X)) <= H(X)",
       "leanFile": "Lutar/Gate/PrivacyMask.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/privacyMask_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Redaction field masking enforced; entropy monotonicity is the formal backing."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Redaction field masking enforced; entropy monotonicity is the formal backing."
     },
     {
       "id": "RUNTIME-T8-SINGLE-WITNESS-EXCLUSION",
@@ -411,14 +411,14 @@
       "formula": "SingleWitnessExclusion",
       "lineage": "SZL Doctrine v6 T8: single witness insufficient for high-stakes decisions",
       "leanFile": "Lutar/Gate/SingleWitnessExclusion.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/singleWitnessExclusion_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Minimum witness count enforced at gate boundary."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Minimum witness count enforced at gate boundary."
     },
     {
       "id": "RUNTIME-T9-CROSS-REGION-POLICY",
@@ -426,14 +426,14 @@
       "formula": "CrossRegionPolicy",
       "lineage": "SZL Doctrine v6 T9: decisions spanning regions require multi-region receipts",
       "leanFile": "Lutar/Gate/CrossRegionPolicy.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/crossRegionPolicy_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Region tags checked for coverage; actual data residency is a separate enforcement."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Region tags checked for coverage; actual data residency is a separate enforcement."
     },
     {
       "id": "RUNTIME-T10-DOCTRINE-ENFORCEMENT",
@@ -441,14 +441,14 @@
       "formula": "DoctrineEnforcement",
       "lineage": "SZL Doctrine v6 T10: enforcement clauses must be flagged and receipt-anchored",
       "leanFile": "Lutar/Gate/DoctrineEnforcement.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/doctrineEnforcement_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Enforcement clause flags checked; content of flags is caller responsibility."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Enforcement clause flags checked; content of flags is caller responsibility."
     },
     {
       "id": "RUNTIME-TH1-COMPOSABILITY",
@@ -456,14 +456,14 @@
       "formula": "Composability",
       "lineage": "Lutar/Composition/CompositionOverhead.lean: linear overhead bound for N composed systems",
       "leanFile": "Lutar/Gate/Composability.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/composability_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Linear overhead bound enforced; asymptotic claim is the formal backing."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Linear overhead bound enforced; asymptotic claim is the formal backing."
     },
     {
       "id": "RUNTIME-TH2-REPLAY-DOI-DUALITY",
@@ -471,14 +471,14 @@
       "formula": "ReplayDoiDuality",
       "lineage": "SZL Doctrine v6 TH2: DOI citation and replay root must be paired",
       "leanFile": "Lutar/Gate/ReplayDoiDuality.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/replayDoiDuality_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "DOI format and replay root presence checked; DOI resolution is not performed at gate time."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: DOI format and replay root presence checked; DOI resolution is not performed at gate time."
     },
     {
       "id": "RUNTIME-TH3-ANATOMY-REDUCTION",
@@ -486,14 +486,14 @@
       "formula": "AnatomyReduction",
       "lineage": "SZL Doctrine v6 TH3: 7-layer anatomy reduces to verifiable receipt chain",
       "leanFile": "Lutar/Gate/AnatomyReduction.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/anatomyReduction_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Layer coverage checked; layer content validation is a separate concern."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Layer coverage checked; layer content validation is a separate concern."
     },
     {
       "id": "STAGED-TH4-LAMBDA-CATEGORY-COMPOSABILITY",
@@ -516,14 +516,14 @@
       "formula": "ReceiptChainConfluence",
       "lineage": "Church-Rosser confluence: concurrent receipt chains reduce to same root",
       "leanFile": "Lutar/Gate/ReceiptChainConfluence.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/receiptChainConfluence_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Confluence enforced by deterministic hash ordering; formal confluence proof is the backing."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Confluence enforced by deterministic hash ordering; formal confluence proof is the backing."
     },
     {
       "id": "RUNTIME-TH6-BEKENSTEIN-ENTROPY-DPI",
@@ -546,14 +546,14 @@
       "formula": "CurryHowardReceiptCalculus",
       "lineage": "Curry-Howard: receipt terms are proofs; proof terms are programs",
       "leanFile": "Lutar/Gate/CurryHowardReceiptCalculus.lean",
-      "leanStatus": "theorem",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/curryHowardReceiptCalculus_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Receipt term structure checked; full type-theoretic correspondence is lineage."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Receipt term structure checked; full type-theoretic correspondence is lineage."
     },
     {
       "id": "CONJECTURE-THL1-LAMBDA-UNIQUENESS",
@@ -578,15 +578,15 @@
       "theorem": "lambdaMinMaxBounds",
       "formula": "LambdaMinMaxBounds",
       "lineage": "Lambda min/max bounds: floor <= Lambda(v) <= ceil for all valid v",
-      "leanFile": "Lutar/Gate/LambdaMinMaxBounds.lean",
-      "leanStatus": "theorem-with-2-tracked-sorries-in-wider-repo",
+      "leanFile": "Lutar/Bound.lean",
+      "leanStatus": "theorem",
       "runtimeFile": "packages/policy/src/gates/lambdaMinMaxBounds_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Gate Lean file has 0 sorries; 2 sorries exist elsewhere in lutar-lean (not in this gate's proof)."
+      "caveat": "Repointed from the phantom path Lutar/Gate/LambdaMinMaxBounds.lean to the real kernel-checked theorem lambdaMinMaxBounds in Lutar/Bound.lean (lean_status=real in gates_manifest.json). Gate Lean file has 0 sorries; 2 sorries exist elsewhere in lutar-lean (not in this gate's proof)."
     },
     {
       "id": "STAGED-THL3-BEKENSTEIN-SOUNDNESS",
@@ -609,14 +609,14 @@
       "formula": "RhoClosureProduction",
       "lineage": "Measured: 100% rho-closure rate over 8000 ouroboros v6.3.0 production calls",
       "leanFile": "Lutar/Gate/RhoClosureProduction.lean",
-      "leanStatus": "measured-empirical",
+      "leanStatus": "phantom",
       "runtimeFile": "packages/policy/src/gates/rhoClosureProduction_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Empirically measured 100% closure; gate enforces minimum closure rate."
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Empirically measured 100% closure; gate enforces minimum closure rate."
     },
     {
       "id": "RUNTIME-THRESHOLD-POLICY-SEVERITY",
@@ -706,5 +706,16 @@
       "stagedAdvisory": true,
       "caveat": "Citation lineage is real; audit-Reidemeister invariance remains conjectural/tracked. Not counted in the 35 anchor gates."
     }
-  ]
+  ],
+  "leanCitationAudit": {
+    "auditedAgainst": "szl-holdings/lutar-lean main",
+    "auditedAt": "2026-06-11",
+    "task": "#695",
+    "rule": "A leanFile is honest only when it (a) resolves to a real file in lutar-lean, or (b) is explicitly marked leanStatus=phantom / stagedAdvisory=true.",
+    "verifiedExisting": 10,
+    "repointedToRealProof": 1,
+    "relabeledPhantom": 27,
+    "stagedAdvisory": 3,
+    "nonLeanOrGlob": 5
+  }
 }
