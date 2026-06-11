@@ -162,6 +162,23 @@ try:
 except Exception as _szl_uf_e:  # pragma: no cover
     print(f"[a11oy] Unified formulas NOT registered: {_szl_uf_e!r}", file=__import__("sys").stderr)
 
+# ── SZL Counter-UAS C2 formulas (cuas-formula-patch) — six OUR-OWN deterministic
+# constructs (proportional-navigation engageability, GNSS-plausibility chi-square,
+# covariance-intersection track-fusion, urgency-weighted graph-Laplacian swarm
+# consensus, weapon-target-assignment triage, post-quantum SHA3 receipt bus). Each
+# cites its classical inspiration (Zarchan/Palumbo, Joerger, Julier-Uhlmann,
+# Bar-Shalom, Olfati-Saber/Zelazo, Manne, NIST PQC) and claims none as SZL's own
+# discovery. EXPERIMENTAL-tier — adds NOTHING to the locked 8; Λ stays Conjecture 1;
+# effector stays SIMULATED; trust never 100%. Shared module byte-identical
+# a11oy↔killinchu. Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_cuas_formulas as _szl_cuas
+    _szl_cuas.register(app, ns="a11oy")
+    print("[a11oy] CUAS formulas registered: /api/a11oy/v1/cuas/*", file=__import__("sys").stderr)
+except Exception as _szl_cuas_e:  # pragma: no cover
+    print(f"[a11oy] CUAS formulas NOT registered: {_szl_cuas_e!r}", file=__import__("sys").stderr)
+
+
 # ── Open-Problem Bounty Board (bounties-tab-patch) — OPEN proof bounties
 # (Conjecture 1 Λ-aggregator uniqueness, Conjecture 2 Khipu BFT safety) rendered
 # from bounties/*.yaml (single source of truth, copied byte-identical from
