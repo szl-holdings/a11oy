@@ -12328,6 +12328,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 <!-- ===================================================================== -->
+<!-- ===================================================================== -->
 <!-- SZL SOVEREIGNTY / ALLODIAL LATTICE (living-3D) - Allodial AI doctrine,    -->
 <!-- driven LIVE by /api/a11oy/v1/allodial/* (szl_allodial.py, byte-identical   -->
 <!-- a11oy<->killinchu). Hero = Denning 1976 control lattice as a 3D graph     -->
@@ -12485,7 +12486,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                    {id:'rent',name:'rented tenancy (revocable)',val:5,color:WARN}];
         var links=[{source:'land',target:'operator'},{source:'deed',target:'operator'},{source:'allodium',target:'operator'},
                    {source:'rent',target:'overlord'},{source:'overlord',target:'rent'}];
-        if(window.dag3d) window.dag3d('lay-3d',nodes,links,{dagMode:'radialout',dist:60,labels:true,cooldown:120});
+        // free force layout (NOT dagMode): the feudal rent<->overlord cycle is intentional, so no DAG hierarchy is imposed (avoids a benign 'cycle' warning)
+        if(window.dag3d) window.dag3d('lay-3d',nodes,links,{dist:60,labels:true,cooldown:120});
         else { var h=ex('lay-3d'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">3d-force-graph not present \u2014 layer table above is authoritative (honest fallback)</div>'; }
       }catch(e){ setHTML('lay-table','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); }
     })();
