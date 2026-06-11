@@ -157,6 +157,47 @@ ENDPOINTS = {
     "/api/a11oy/v1/router/stats": ep(schema="router_stats", sla=None,
         note="Live LLM-router per-tier stats from szl_brain.TIERS; throughput is an honest in-memory counter."),
 
+    # ── Metabolic scaling (szl_scaling.py — DETERMINISTIC, reproduces documented numerics) ──
+    # These are pure closed-form computations of published allometric/scaling laws,
+    # NOT a live external feed: same inputs -> same output every call, so there is no
+    # freshness obligation (sla=None/static). Each response already carries the author
+    # attributions (Kleiber 1932, West-Brown-Enquist 1997, Banavar-Maritan-Rinaldo 1999,
+    # Brown et al. 2004 MTE, Demetrius-Tuszynski 2010, Kaplan et al. 2020) in its body —
+    # see /scaling/summary.sources. Honest labels: the reproduced classical numerics are
+    # VERIFIED-deterministic; the SZL unified Φ (and compute-allometry analogy) are
+    # explicitly PROPOSED — Φ is an engineering construct, NOT in the locked 8 and NOT
+    # the formal Λ (Λ stays Conjecture 1). citationsRequired stays False because these
+    # are derived computations (like /v1/lambda), not a live-data "no-mock-theater" feed;
+    # the citations ride along as documentation, not as a freshness/liveness obligation.
+    #
+    # 200-on-bare-GET family: summary/exponents/compute take no required params.
+    "/api/a11oy/v1/scaling/summary": ep(schema="scaling", sla=None,
+        note="Deterministic scaling overview: status legend + author sources (Kleiber 1932 / WBE 1997 / Banavar 1999 / Brown 2004 / Demetrius-Tuszynski 2010 / Kaplan 2020) + worked examples. VERIFIED reproductions; SZL-Φ PROPOSED, NOT formal Λ."),
+    "/api/a11oy/v1/scaling/exponents": ep(schema="scaling", sla=None,
+        note="Deterministic catalog of universal scaling exponents, each row attributed (cite=). VERIFIED documented values."),
+    "/api/a11oy/v1/scaling/compute": ep(schema="scaling", sla=None,
+        note="Compute-capability-as-allometry mapping (Kaplan et al. 2020 neural scaling); status=PROPOSED analogy, NOT formal Λ."),
+    # M-required family: kleiber/mte/heart/unified require ?M=<mass_kg>; calling without
+    # the required query param legitimately validates (400/422) — that is honest input
+    # validation (same pattern as the governed POST endpoints), NOT an undeclared break.
+    # schema=generic_obj (not the strict scaling schema) because the probe runner hits
+    # these bare (no ?M=) and validates the body of whatever status it allows; the
+    # 200 result AND the honest 400/422 validation body are both JSON objects (same
+    # pattern as the governed POST endpoints), so generic_obj passes both without
+    # branding legitimate input-validation a schema lie.
+    "/api/a11oy/v1/scaling/kleiber": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Kleiber 1932 B=B0·M^(3/4) basal metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 1694.03 kcal/day)."),
+    "/api/a11oy/v1/scaling/mte": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Brown et al. 2004 MTE Boltzmann-factor metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic."),
+    "/api/a11oy/v1/scaling/heart": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="MTE-derived heart-rate/lifespan allometry; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 83.32 bpm)."),
+    "/api/a11oy/v1/scaling/unified": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="SZL unified Φ (WBE network × MTE/PMF activation × coherence); requires ?M=<kg>. status=PROPOSED, note carries 'Λ=Conjecture 1'. PROPOSED engineering construct, NOT the formal Λ, NOT in the locked 8."),
+
     # ── readiness (self) ──
     "/api/a11oy/v1/readiness": ep(schema="readiness", sla=5 * MIN),
     "/api/a11oy/v1/readiness/tab-matrix": ep(schema="tab_matrix", sla=None,
@@ -187,6 +228,11 @@ SCHEMAS = {
     "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
     "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
     "router_stats": {"type": "object", "anyKey": ["routes", "servedThisWindow", "tiers"]},
+    # scaling: deterministic metabolic/allometric/compute-scaling computations. Strict
+    # on at least one distinctive real key across the family, permissive on extras.
+    "scaling": {"type": "object",
+                "anyKey": ["sources", "examples", "universal_exponents", "exponents",
+                           "B_kcal_day", "bpm", "phi", "predicted_loss", "status_legend"]},
     "readiness": {"type": "object", "required": ["sections"]},
     "tab_matrix": {"type": "object", "required": ["tabs", "endpoints"]},
 }
@@ -277,6 +323,13 @@ TAB_ENDPOINTS = {
     "kevgate": ["/api/a11oy/v1/sec/kevgate"],
     "routerarena": ["/api/a11oy/v1/router/stats", "/api/a11oy/v1/llm/registry"],
     "udsMesh": ["/api/a11oy/v1/mesh/state"],
+    # New living-3D tab (Metabolic Scaling): explicitly contract it to the real
+    # deterministic szl_scaling.py family so it is judged as a genuine declared tab
+    # (NOT silently bucketed static). VERIFIED reproductions + PROPOSED SZL-Φ.
+    "scaling": ["/api/a11oy/v1/scaling/summary", "/api/a11oy/v1/scaling/exponents",
+                "/api/a11oy/v1/scaling/compute", "/api/a11oy/v1/scaling/kleiber",
+                "/api/a11oy/v1/scaling/mte", "/api/a11oy/v1/scaling/heart",
+                "/api/a11oy/v1/scaling/unified"],
     "whTamper": ["/api/a11oy/v1/warhacker/index"],
     "whCannonico": ["/api/a11oy/v1/warhacker/index"],
 }
