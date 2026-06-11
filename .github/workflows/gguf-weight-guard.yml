@@ -1,0 +1,240 @@
+name: GGUF weight guard
+
+# Catches a SILENT regression in the local-model ("alloy") demo tier weight.
+# The root Dockerfile fetches ONE pinned, size/sha256-verified GGUF weight
+# (Qwen2.5-Coder-0.5B-Instruct Q4_K_M) and currently FAILS LOUD if that weight
+# is not verified-present — there is deliberately NO best-effort `|| echo` mask
+# on the fetch (unlike the optional llama-cpp wheel above it). History: the
+# fetch USED to be a single best-effort `hf_hub_download(...) || echo`, so a
+# transient download failure silently shipped an image with NO model and the
+# alloy demo tier always degraded to the honest tower-side label with no red
+# signal.
+#
+# This is the GGUF twin of llama-wheel-guard.yml. It re-executes the EXACT
+# pinned + verified GGUF fetch parsed from the Dockerfile, OUTSIDE the Docker
+# build, and fails RED if the weight cannot be obtained and integrity-verified.
+# Two things make a future regression fail loudly here instead of silently
+# shipping a model-less image:
+#   1. The fetch runs UNMASKED. Even if a future edit reintroduces a
+#      best-effort `|| echo` / `|| true` on the Dockerfile fetch (re-hiding a
+#      missing weight inside the image build), this standalone guard still
+#      hard-fails when the weight is not verified-present. The guard also
+#      statically asserts the Dockerfile GGUF fetch itself stays fail-closed
+#      (no `|| echo`/`|| true` mask, non-zero exit on failure).
+#   2. rev / size / sha256 are kept in LOCKSTEP. The guard downloads at the
+#      pinned REVISION and verifies the bytes against the pinned SIZE and
+#      SHA256. Changing any ONE of the three without the matching others (e.g.
+#      bumping the rev but not the digest, or editing the sha by a character)
+#      makes the verify mismatch and the guard fails CLOSED.
+#
+# The weight can also vanish / be force-pushed on the upstream HF repo without
+# anyone editing this repo, in which case the push/PR-only triggers never fire.
+# The weekly `schedule:` re-verifies the fetch contract against the LIVE HF repo
+# on a cadence; a scheduled-run failure pages the team through the shared
+# a11oy-uptime ntfy alert path (the same SLACK_WEBHOOK_URL relay the other a11oy
+# CI alert workflows use). PR/push failures are NOT paged — a red check already
+# shows — mirroring the receipts-pin-drift-guard / llama-wheel-guard convention.
+#
+# DCO: Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/gguf-weight-guard.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/gguf-weight-guard.yml'
+  schedule:
+    # Weekly, Mondays 06:41 UTC — re-verify the pinned weight still exists and
+    # matches its digest on the live upstream HF repo even when nobody touches
+    # the Dockerfile. Offset from the wheel guard (06:17) to avoid a thundering
+    # herd against the same hosts.
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gguf-guard:
+    # ubuntu-latest is linux_x86_64 — the same arch the published image ships on.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          # cp312 — same interpreter family as the Dockerfile's python:3.12-slim base.
+          python-version: '3.12'
+
+      - name: Install huggingface_hub (matches the Dockerfile pin)
+        run: |
+          set -euo pipefail
+          # The Dockerfile installs "huggingface_hub>=0.25.0"; mirror that so the
+          # guard fetches via the exact same client the image build uses.
+          pip install --no-cache-dir "huggingface_hub>=0.25.0"
+
+      - name: Parse pinned GGUF repo/file/rev/sha256/size from Dockerfile
+        id: parse
+        run: |
+          set -euo pipefail
+          arg() {
+            # Extract the value of `ARG <NAME>=<value>` (first occurrence).
+            grep -oE "ARG[[:space:]]+$1=[^[:space:]]+" Dockerfile | head -n1 | sed "s/.*$1=//"
+          }
+          REPO="$(arg A11OY_ALLOY_GGUF_REPO)"
+          FILE="$(arg A11OY_ALLOY_GGUF_FILE)"
+          REV="$(arg A11OY_ALLOY_GGUF_REV)"
+          SHA="$(arg A11OY_ALLOY_GGUF_SHA256)"
+          SIZE="$(arg A11OY_ALLOY_GGUF_SIZE)"
+
+          if [ -z "${REPO}" ] || [ -z "${FILE}" ] || [ -z "${REV}" ] || [ -z "${SHA}" ] || [ -z "${SIZE}" ]; then
+            echo "::error::Could not parse all five pinned GGUF ARGs (A11OY_ALLOY_GGUF_REPO/FILE/REV/SHA256/SIZE) from the Dockerfile. If the pin block moved or changed shape, update this guard in lockstep."
+            exit 1
+          fi
+
+          # Shape checks so a malformed bump (e.g. a truncated sha) fails closed
+          # here rather than during a 25-minute image build.
+          if ! printf '%s' "${REV}" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::A11OY_ALLOY_GGUF_REV='${REV}' is not a 40-hex commit revision. A loose pin (e.g. a branch/tag) lets the weight move under the digest — pin the exact commit sha."
+            exit 1
+          fi
+          if ! printf '%s' "${SHA}" | grep -qE '^[0-9a-f]{64}$'; then
+            echo "::error::A11OY_ALLOY_GGUF_SHA256='${SHA}' is not a 64-hex sha256 digest."
+            exit 1
+          fi
+          if ! printf '%s' "${SIZE}" | grep -qE '^[0-9]+$'; then
+            echo "::error::A11OY_ALLOY_GGUF_SIZE='${SIZE}' is not an integer byte count."
+            exit 1
+          fi
+
+          {
+            echo "repo=${REPO}"
+            echo "file=${FILE}"
+            echo "rev=${REV}"
+            echo "sha=${SHA}"
+            echo "size=${SIZE}"
+          } >> "${GITHUB_OUTPUT}"
+          echo "Parsed ${REPO}/${FILE} @ ${REV} (size ${SIZE}, sha256 ${SHA})"
+
+      - name: Assert the Dockerfile GGUF fetch stays fail-closed (no mask)
+        run: |
+          set -euo pipefail
+          # Bound the GGUF fetch region: from the first pinned ARG to the ENV
+          # that records the on-disk weight path. Reintroducing a best-effort
+          # mask (the original silent-degrade bug) anywhere in this region — or
+          # dropping the non-zero exit on failure — is the regression we forbid.
+          REGION="$(awk '/ARG[[:space:]]+A11OY_ALLOY_GGUF_REPO=/{f=1} f{print} /^ENV[[:space:]]+A11OY_ALLOY_GGUF=/{if(f)exit}' Dockerfile)"
+          if [ -z "${REGION}" ]; then
+            echo "::error::Could not locate the GGUF fetch region (ARG A11OY_ALLOY_GGUF_REPO ... ENV A11OY_ALLOY_GGUF) in the Dockerfile. Update this guard in lockstep with the pin block."
+            exit 1
+          fi
+          # The trailing `rm -rf ... || true` cleanup line legitimately uses
+          # `|| true`; exclude it so only the FETCH itself is policed.
+          FETCH="$(printf '%s\n' "${REGION}" | grep -vE 'rm -rf .*/\.cache')"
+          if printf '%s\n' "${FETCH}" | grep -qE '\|\|[[:space:]]*(echo|true|:)'; then
+            echo "::error::The Dockerfile GGUF fetch reintroduced a best-effort '|| echo'/'|| true' mask. That silently ships a model-less image (the original demo-tier degrade bug). The weight fetch MUST fail closed."
+            printf '%s\n' "${FETCH}" | grep -nE '\|\|[[:space:]]*(echo|true|:)' || true
+            exit 1
+          fi
+          if ! printf '%s\n' "${FETCH}" | grep -qE 'sys\.exit\(1\)'; then
+            echo "::error::The Dockerfile GGUF fetch no longer exits non-zero on failure (expected a 'sys.exit(1)' on the unverified path). It must fail the build loudly when the weight cannot be verified."
+            exit 1
+          fi
+          echo "OK: Dockerfile GGUF fetch is unmasked and fails closed."
+
+      - name: Re-execute the pinned + verified GGUF fetch (unmasked)
+        env:
+          GGUF_REPO: ${{ steps.parse.outputs.repo }}
+          GGUF_FILE: ${{ steps.parse.outputs.file }}
+          GGUF_REV: ${{ steps.parse.outputs.rev }}
+          GGUF_SHA256: ${{ steps.parse.outputs.sha }}
+          GGUF_SIZE: ${{ steps.parse.outputs.size }}
+        run: |
+          set -euo pipefail
+          # Mirror of the Dockerfile fetch+verify, run OUTSIDE the image build and
+          # WITHOUT any `|| echo` mask. Downloads at the pinned REVISION and
+          # verifies the bytes against the pinned SIZE and SHA256, so rev/size/sha
+          # are enforced in lockstep: change one without the others and this fails.
+          python3 - <<'PY'
+          import hashlib, os, sys, time
+          from huggingface_hub import hf_hub_download
+
+          repo      = os.environ["GGUF_REPO"]
+          fname     = os.environ["GGUF_FILE"]
+          rev       = os.environ["GGUF_REV"]
+          want_sha  = os.environ["GGUF_SHA256"].lower()
+          want_size = int(os.environ["GGUF_SIZE"])
+          dest      = os.path.abspath("gguf-guard-dl")
+          os.makedirs(dest, exist_ok=True)
+
+          def verify(p):
+              if not p or not os.path.exists(p):
+                  return "missing"
+              sz = os.path.getsize(p)
+              if sz != want_size:
+                  return "size %d != expected %d" % (sz, want_size)
+              h = hashlib.sha256()
+              with open(p, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              got = h.hexdigest()
+              if got != want_sha:
+                  return "sha256 %s != expected %s" % (got, want_sha)
+              return None
+
+          last = None
+          for attempt in range(1, 7):
+              try:
+                  p = hf_hub_download(repo_id=repo, filename=fname, revision=rev, local_dir=dest)
+                  last = verify(p)
+                  if last is None:
+                      print("[gguf-guard] GGUF verified present: %s (%d bytes, sha256 ok, rev %s)"
+                            % (fname, want_size, rev[:12]), flush=True)
+                      sys.exit(0)
+                  print("[gguf-guard] attempt %d: integrity check failed: %s" % (attempt, last), flush=True)
+                  try:
+                      os.remove(p)
+                  except OSError:
+                      pass
+              except Exception as e:
+                  last = "%s: %s" % (type(e).__name__, str(e)[:200])
+                  print("[gguf-guard] attempt %d: download failed: %s" % (attempt, last), flush=True)
+              time.sleep(min(60, 5 * attempt))
+
+          sys.stderr.write("::error::The pinned GGUF weight could NOT be obtained and verified after retries: %s. "
+                           "The Dockerfile would ship a model-less image (or, if a '|| echo' mask is reintroduced, "
+                           "do so silently). Fix the pin so rev/size/sha256 point at a present, matching weight.\n" % last)
+          sys.exit(1)
+          PY
+
+      - name: Page the team on scheduled-run failure (ntfy via relay)
+        # Fire ONLY on the unattended weekly scheduled run when a prior step
+        # failed — i.e. the pinned weight vanished / changed digest on the live
+        # upstream HF repo with no repo change to trigger the push/PR paths.
+        # PR/push failures are not paged (the red check is already visible).
+        # Mirrors the llama-wheel-guard / receipts-pin-drift-guard convention.
+        # This step never masks the failure: the job is already red above.
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ steps.parse.outputs.repo }}
+          FILE: ${{ steps.parse.outputs.file }}
+          REV: ${{ steps.parse.outputs.rev }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL is not set — cannot page; the failing run remains the source of truth."
+            exit 0
+          fi
+          export MSG=":rotating_light: a11oy GGUF weight guard FAILED on its weekly scheduled re-verification. The pinned ${REPO:-?}/${FILE:-?} @ ${REV:-?} weight could not be obtained and size/sha256-verified, so the alloy demo tier would ship a model-less image (silently, if a '|| echo' mask is ever reintroduced on the Dockerfile fetch). Run: ${RUN_URL} . Fix: re-pin rev/size/sha256 in lockstep to a present, matching GGUF on the upstream HF repo."
+          payload="$(python3 -c 'import json,os; print(json.dumps({"text": os.environ["MSG"]}))')"
+          code="$(curl -sS -o /tmp/relay.out -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "${payload}" "${SLACK_WEBHOOK_URL}" || echo 000)"
+          echo "alert relay responded HTTP ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "::warning::Alert relay did not return 200 (got ${code}); the failing run itself remains the source of truth."
+          fi
