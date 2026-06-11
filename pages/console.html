@@ -290,6 +290,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
     <div class="nav-item" data-view="putnam" onclick="go('putnam')"><span class="ico">∮</span>Putnam 2025</div>
     <div class="nav-item" data-view="putnamsampler" onclick="go('putnamsampler')"><span class="ico">∑</span>Putnam Sampler</div>
+    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
     <div class="nav-group">World &amp; Threat Intel</div>
     <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
     <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
@@ -10325,6 +10326,112 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   reg();
 })();
 /* end putnam-sampler-tab-patch */
+
+/* frontier-tab-patch :: Task #730 :: live intelligence (killinchu ADS-B) -> kernel-verified math (EXPERIMENTAL) */
+(function(){
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
+    var BR='task730-frontier-killinchu';
+    var SHA='01c86789835131cf59368863fcf5aad4d10f6354';
+    var SHORT='01c8678';
+    var GEN='2026-06-11T02:35:53Z';
+    var PRURL='https://github.com/szl-holdings/lutar-lean/pull/223';
+    var RUN_K='https://github.com/szl-holdings/lutar-lean/actions/runs/27320587783';
+    var RUN_L='https://github.com/szl-holdings/lutar-lean/actions/runs/27320587771';
+    var TREE='https://github.com/szl-holdings/lutar-lean/tree/'+BR+'/Lutar/Frontier';
+    var LEAN='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Frontier/Killinchu.lean';
+    var PROV='https://github.com/szl-holdings/lutar-lean/blob/'+SHA+'/Lutar/Frontier/provenance.json';
+    var SRC='https://api.adsb.lol/v2/mil';
+    var RAWSHA='2c1b4bc0255d0a799bdbb3db4b60d7d8fc0622843861fb7d8091203c539c4b24';
+    var GOLD='#c9b787', TEAL='#3ddc97', BLUE='#6ea8fe', WARN='#e0a82e', DIM='#8a8f98', CREAM='#e8e6df';
+    var SWATCH=['#3ddc97','#c9b787','#6ea8fe','#e0a82e'];
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function pill(txt,col){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+col+';border:1px solid '+col+';background:'+col+'1a;">'+esc(txt)+'</span>'; }
+    function swatch(ci){ var col=SWATCH[ci]||DIM; return '<span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+col+';vertical-align:-1px;margin-right:6px;"></span><span style="font-family:var(--mono,monospace);">'+ci+'</span>'; }
+    var AC=[
+      ['0','adff6a','T-38','64-13202','34.5727, -86.9612','3000'],
+      ['1','adff9c','T-38','68-8211','34.5484, -86.7659','3725'],
+      ['2','ae0200','TEX2','98-3540','34.6896, -86.7813','1250'],
+      ['3','ae0890','TEX2','99-3563','34.3501, -86.8858','10000'],
+      ['4','ae1129','TEX2','02-3654','34.6069, -87.0690','9975'],
+      ['5','ae1739','TEX2','06-3839','34.8650, -86.7713','5975']
+    ];
+    var COLOR=[0,1,2,0,1,3];
+    var CLIQUE=[0,1,2,5];
+    var EDGES=[[0,1],[0,2],[0,5],[1,2],[1,5],[2,5],[3,4],[3,5],[4,5]];
+    function inClique(v){ return CLIQUE.indexOf(v)>=0; }
+    var THMS=[
+      ['killinchu_coloring_proper','no conflict edge is monochromatic (the coloring is proper)'],
+      ['killinchu_upper_bound','the proper coloring uses exactly 4 colors  =>  \u03c7 \u2264 4'],
+      ['killinchu_clique_valid','vertices {0,1,2,5} are pairwise adjacent (a real clique)'],
+      ['killinchu_lower_bound','the clique has size 4  =>  \u03c7 \u2265 4'],
+      ['killinchu_chromatic_exact','lower bound meets upper bound  =>  \u03c7(G) = 4, exactly']
+    ];
+    function card(big,small,col){
+      return '<div style="flex:1;min-width:130px;text-align:center;padding:12px;border:1px solid '+col+';border-radius:10px;background:'+col+'12;"><div style="font-family:var(--mono,monospace);font-size:24px;font-weight:800;color:'+col+';">'+big+'</div><div style="font-size:10.5px;letter-spacing:.05em;color:'+DIM+';margin-top:3px;text-transform:uppercase;">'+small+'</div></div>';
+    }
+    function render(c){
+      var H='<div style="max-width:980px;">';
+      H+='<div style="font-family:var(--mono,monospace);font-size:11px;color:'+GOLD+';margin:0 0 14px;line-height:1.6;">\u25c8 EXPERIMENTAL \u00b7 live intelligence \u2192 verified math \u00b7 kernel verdict from <a href="'+TREE+'" target="_blank" rel="noopener" style="color:'+GOLD+';">lutar-lean branch '+esc(BR)+' @'+SHORT+'</a> &mdash; <a href="'+RUN_K+'" target="_blank" rel="noopener" style="color:'+GOLD+';">Lean kernel check \u2713</a> + <a href="'+RUN_L+'" target="_blank" rel="noopener" style="color:'+GOLD+';">Lake build \u2713</a> (PR <a href="'+PRURL+'" target="_blank" rel="noopener" style="color:'+GOLD+';">#223</a>).</div>';
+      H+='<div style="border:1px solid '+WARN+';border-radius:10px;padding:11px 15px;margin:0 0 16px;background:'+WARN+'10;font-size:12.5px;line-height:1.65;color:'+CREAM+';"><b style="color:'+WARN+';">What this is &mdash; and is not.</b> One <b>frozen, reproducible</b> instance: a real <a href="'+SRC+'" target="_blank" rel="noopener" style="color:'+WARN+';">adsb.lol military ADS-B</a> snapshot (the same public feed killinchu scrapes) turned into a graph-coloring (chromatic-number) problem and <b>kernel-checked in Lean 4</b> &mdash; Mathlib-free, every theorem closes by <code>decide</code>, sorry-free. It lives under the <b>EXPERIMENTAL</b> scope <code>Lutar/Frontier/</code>: drift-gate excluded, <b>never folded into the locked-8</b> {F1,F4,F7,F11,F12,F18,F19,F22} and never counted in the v11 baseline. The <b>\u03c7=4 equality is asserted only because the kernel verified BOTH a 4-clique and a proper 4-coloring</b> below; for any instance whose clique is smaller than its coloring, the exact value stays <b>OPEN</b> and no equality is claimed. No fabricated witnesses.</div>';
+      H+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;">'+card('6','vertices (contacts)',TEAL)+card('9','conflict edges',BLUE)+card('\u03c7 = 4','chromatic number (exact)',GOLD)+'</div>';
+      // provenance facts
+      H+='<div style="border:1px solid #2a2d34;border-radius:10px;padding:13px 15px;margin:0 0 16px;font-size:12px;line-height:1.85;color:'+CREAM+';">';
+      H+='<div style="color:'+GOLD+';font-family:var(--mono,monospace);font-size:11px;letter-spacing:.05em;margin-bottom:6px;">PROVENANCE (frozen / reproducible)</div>';
+      H+='<div><span style="color:'+DIM+';">source&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> <a href="'+SRC+'" target="_blank" rel="noopener" style="color:'+BLUE+';">'+esc(SRC)+'</a> &mdash; airborne military contacts (public broadcast)</div>';
+      H+='<div><span style="color:'+DIM+';">raw sha256</span> <code style="word-break:break-all;color:'+CREAM+';">'+esc(RAWSHA)+'</code></div>';
+      H+='<div><span style="color:'+DIM+';">generated&nbsp;</span> '+esc(GEN)+'</div>';
+      H+='<div><span style="color:'+DIM+';">model&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> vertex = a contact with valid lat/lon/alt; edge = two contacts within <b>50 nm horizontally AND 5000 ft vertically</b>; subset = largest connected component (cap 32, ordered by ICAO hex).</div>';
+      H+='<div><span style="color:'+DIM+';">selection&nbsp;</span> 40 positioned contacts in the snapshot \u2192 a 6-vertex conflict component.</div>';
+      H+='</div>';
+      // coloring + clique table
+      H+='<div style="color:'+TEAL+';font-family:var(--mono,monospace);font-size:11px;letter-spacing:.05em;margin:0 0 7px;">WITNESS 1 &mdash; proper 4-coloring &nbsp;&middot;&nbsp; WITNESS 2 &mdash; 4-clique {0,1,2,5}</div>';
+      H+='<div style="overflow-x:auto;margin:0 0 16px;"><table style="border-collapse:collapse;width:100%;font-size:12px;">';
+      H+='<thead><tr style="color:'+DIM+';text-align:left;border-bottom:1px solid #2a2d34;">'
+        +'<th style="padding:6px 8px;">v</th><th style="padding:6px 8px;">ICAO</th><th style="padding:6px 8px;">type</th><th style="padding:6px 8px;">reg</th>'
+        +'<th style="padding:6px 8px;">lat, lon</th><th style="padding:6px 8px;">alt (ft)</th><th style="padding:6px 8px;">color</th><th style="padding:6px 8px;">in clique</th></tr></thead><tbody>';
+      for(var i=0;i<AC.length;i++){ var a=AC[i];
+        H+='<tr style="border-bottom:1px solid #1d2026;color:'+CREAM+';">'
+          +'<td style="padding:6px 8px;font-family:var(--mono,monospace);">'+esc(a[0])+'</td>'
+          +'<td style="padding:6px 8px;font-family:var(--mono,monospace);">'+esc(a[1])+'</td>'
+          +'<td style="padding:6px 8px;">'+esc(a[2])+'</td>'
+          +'<td style="padding:6px 8px;font-family:var(--mono,monospace);">'+esc(a[3])+'</td>'
+          +'<td style="padding:6px 8px;font-family:var(--mono,monospace);">'+esc(a[4])+'</td>'
+          +'<td style="padding:6px 8px;font-family:var(--mono,monospace);">'+esc(a[5])+'</td>'
+          +'<td style="padding:6px 8px;">'+swatch(COLOR[i])+'</td>'
+          +'<td style="padding:6px 8px;">'+(inClique(i)?'<span style="color:'+GOLD+';">\u25cf yes</span>':'<span style="color:'+DIM+';">\u2014</span>')+'</td></tr>';
+      }
+      H+='</tbody></table></div>';
+      // edges
+      var es=EDGES.map(function(e){ return e[0]+'\u2013'+e[1]; }).join(', ');
+      H+='<div style="font-size:11.5px;color:'+DIM+';margin:0 0 16px;"><span style="color:'+BLUE+';">conflict edges</span> &nbsp; '+esc(es)+'</div>';
+      // theorems verified
+      H+='<div style="color:'+GOLD+';font-family:var(--mono,monospace);font-size:11px;letter-spacing:.05em;margin:0 0 7px;">KERNEL-VERIFIED THEOREMS (all close by <code>decide</code>, sorry-free)</div>';
+      H+='<div style="border:1px solid #2a2d34;border-radius:10px;padding:6px 4px;margin:0 0 16px;">';
+      for(var k=0;k<THMS.length;k++){
+        H+='<div style="display:flex;gap:10px;padding:7px 12px;border-bottom:'+(k<THMS.length-1?'1px solid #1d2026':'none')+';font-size:12px;align-items:baseline;">'
+          +'<span style="color:'+TEAL+';">\u2713</span>'
+          +'<code style="color:'+CREAM+';white-space:nowrap;">'+esc(THMS[k][0])+'</code>'
+          +'<span style="color:'+DIM+';">'+THMS[k][1]+'</span></div>';
+      }
+      H+='</div>';
+      // links
+      H+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px;">'
+        +'<a href="'+LEAN+'" target="_blank" rel="noopener" style="text-decoration:none;">'+pill('Lean source \u2197',GOLD)+'</a>'
+        +'<a href="'+PROV+'" target="_blank" rel="noopener" style="text-decoration:none;">'+pill('provenance.json \u2197',GOLD)+'</a>'
+        +'<a href="'+TREE+'" target="_blank" rel="noopener" style="text-decoration:none;">'+pill('branch tree \u2197',DIM)+'</a>'
+        +'<a href="'+PRURL+'" target="_blank" rel="noopener" style="text-decoration:none;">'+pill('PR #223 \u2197',DIM)+'</a>'
+        +'<a href="'+RUN_K+'" target="_blank" rel="noopener" style="text-decoration:none;">'+pill('kernel run \u2713',TEAL)+'</a>'
+        +'<a href="'+RUN_L+'" target="_blank" rel="noopener" style="text-decoration:none;">'+pill('lake build \u2713',TEAL)+'</a></div>';
+      H+='<div style="font-size:11px;color:'+DIM+';margin-top:12px;line-height:1.6;">Pipeline: killinchu ADS-B snapshot \u2192 conflict graph \u2192 Lean 4 statement under <code>Lutar.Frontier.Killinchu</code> \u2192 kernel-checked. To promote into the main numbers it must land on lutar-lean main and pass the v11 drift gate. Unproven instances stay OPEN \u2014 never &ldquo;proven&rdquo;.</div>';
+      H+='</div>';
+      c.innerHTML=H;
+    }
+    V.frontier={ title:'Frontier Pipeline', badge:'\u03c7=4 KERNEL-PROVEN \u00b7 CI-GREEN \u00b7 EXPERIMENTAL', sub:'Live killinchu ADS-B intelligence compiled into a Lean 4 chromatic-number instance and kernel-checked (sorry-free, Mathlib-free) on lutar-lean branch task730-frontier-killinchu. EXPERIMENTAL and branch-scoped \u2014 never folded into the locked-8 or the v11 baseline; unproven cases stay OPEN, never \u201cproven\u201d.', render:render };
+  }
+  reg();
+})();
+/* end frontier-tab-patch */
 
 </script>
 
