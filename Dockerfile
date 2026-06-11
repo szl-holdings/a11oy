@@ -69,7 +69,7 @@ COPY console/ ./static/
 # /api/a11oy/v1/research/corpus) served a STALE in-layer copy. Pin it freshly into
 # BOTH the static root (catch-all serves /app/static/knowledge.json) and /app root
 # (research-corpus endpoint reads /app/knowledge.json). Wave23 = conditional Khipu
-# BFT safety (Conjecture 2 conditional); locked-5 + Lambda Conjecture 1 UNCHANGED.
+# BFT safety (Conjecture 2 conditional); locked-8 + Lambda Conjecture 1 UNCHANGED.
 COPY knowledge.json ./static/knowledge.json
 COPY knowledge.json ./knowledge.json
 
@@ -671,7 +671,7 @@ COPY szl_budget_router.py ./szl_budget_router.py
 # uses `COPY . .`) -- without this the import fails and /proven-formulas +
 # /api/a11oy/v1/proven/* fall through to the SPA shell, and the governance-gateway
 # matrix-health pre-flight reports the module missing. serve.py + szl_governance_gateway
-# import it try/except-guarded. LOCKED-proven stays EXACTLY 5; Lambda=Conjecture 1.
+# import it try/except-guarded. LOCKED-proven stays EXACTLY 8; Lambda=Conjecture 1.
 COPY szl_wave910_proofs.py ./szl_wave910_proofs.py
 COPY szl_evidence_research.py ./szl_evidence_research.py
 COPY szl_uds_fleet.py ./szl_uds_fleet.py
