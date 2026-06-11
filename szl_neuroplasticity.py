@@ -169,7 +169,7 @@ def summary() -> dict:
         "honest_frame": ("Rigorous, cited learning-rule math (Hebb/Oja/BCM/STDP/scaling) "
                          "+ the modern loss-of-plasticity frontier (Dohare-Sutton Nature "
                          "2024) for long-running agents. The PC↔Hebbian unifying identity "
-                         "(Millidge 2022) is a PROPOSED lens, NOT a Λ theorem."),
+                         "(Millidge 2022) is a PROPOSED lens — never a Λ theorem; Λ stays Conjecture 1."),
         "rules": ["hebb", "oja", "bcm", "stdp", "synaptic_scaling",
                   "plasticity_health", "ewc", "critical_period"],
         "tiers": {
