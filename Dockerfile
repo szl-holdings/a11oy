@@ -71,36 +71,37 @@ COPY console/ ./static/
 # (research-corpus endpoint reads /app/knowledge.json). Wave23 = conditional Khipu
 # BFT safety (Conjecture 2 conditional); locked-8 + Lambda Conjecture 1 UNCHANGED.
 COPY knowledge.json ./static/knowledge.json
-COPY knowledge.json ./knowledge.json
+# ---------------------------------------------------------------------------
+# CONSOLIDATED ROOT-FILE COPY LAYERS (segment A: pre-LLM-gate) — Docker max-depth fix, Opus 4.8.
+# One image layer per COPY; collapsed root-file->same-name COPYs into grouped
+# multi-source COPYs landing at the /app WORKDIR root. IDENTICAL file set ships
+# to IDENTICAL paths (set-equality proven). Never `COPY . .`; subpath/dir COPYs
+# untouched; A11OY_REQUIRE_LOCAL_LLM gate + demo-tier RUN logic untouched.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# ---------------------------------------------------------------------------
+COPY knowledge.json szl_parity_gaps.py a11oy_warhacker_obs.py serve.py a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py ./
+COPY szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_dsse.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py ./
+COPY _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py ./
+COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py ./
 
 # Copy serve orchestrator and gates manifest
-COPY szl_parity_gaps.py ./szl_parity_gaps.py
 # ADDITIVE (live-ops): orchestration + AI-observability module — per-file COPY Dockerfile
 # omitted it, so import a11oy_warhacker_obs failed and /warhacker + /observability 404'd.
-COPY a11oy_warhacker_obs.py ./a11oy_warhacker_obs.py
-COPY serve.py ./serve.py
 # DEV-WIRE-A (2026-06-09): additive pure-stdlib tab-upgrade metrics module imported
 # by serve.py (try/except-guarded). NO numpy/scipy/networkx. Per-file COPY.
-COPY a11oy_wireA_metrics.py ./a11oy_wireA_metrics.py
 # ADDITIVE (cathedral front-door hero): sovereign 3D landing matching the org card.
 # Served at / by serve.py (console one click in at /console). Placed AFTER
 # `COPY console/ ./static/` (line 65) so vendor3d + hero js are not clobbered.
 # ES-module Three.js r160 (MIT) vendored locally — NO CDN. Doctrine v11 LOCKED.
-COPY cathedral.html ./cathedral.html
 COPY static/a11oy_cathedral.js ./static/a11oy_cathedral.js
 # Operator organ (Dev3) — ingested 3D infra-viz, vendored-three (0 CDN)
 COPY static/a11oy_operator_organ.js ./static/a11oy_operator_organ.js
-COPY a11oy_operator_organ.py ./a11oy_operator_organ.py
-COPY a11oy_hf_assets.py ./a11oy_hf_assets.py
 # (pages/operator_organ.html is copied below via `COPY pages/ ./pages/`)
 COPY static/vendor3d/three.module.min.js ./static/vendor3d/three.module.min.js
 COPY static/vendor3d/OrbitControls.js ./static/vendor3d/OrbitControls.js
 COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
 # ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
-COPY szl_b2_secdata.py ./szl_b2_secdata.py
-COPY gates_manifest.json ./gates_manifest.json
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
-COPY a11oy_code_orchestrator.py ./a11oy_code_orchestrator.py
 # ADDITIVE (a11oy Code agentic core, 2026-06-10): the GENUINELY-agentic loop + agentic
 # RAG + MCP client that a11oy_code_orchestrator.py imports (try/except-guarded). All three
 # are stdlib-only at import time (szl_brain/szl_rag/httpx/faiss are lazy + guarded), so they
@@ -109,8 +110,6 @@ COPY a11oy_code_orchestrator.py ./a11oy_code_orchestrator.py
 # /api/a11oy/code/agent/* and /rag/* endpoints degrade and the imports fail.
 # szl_rag.py exists in the repo but was never COPY'd into the a11oy image; it backs the
 # BAAI/bge vector recall in a11oy_org_rag (honest FTS5-only degradation without it).
-COPY a11oy_agent_loop.py ./a11oy_agent_loop.py
-COPY a11oy_org_rag.py ./a11oy_org_rag.py
 # EGRESS FIX (2026-06-10): the org-RAG full build runs INSIDE this HF Space,
 # which can reach huggingface.co but NOT api.github.com (Space egress is
 # GitHub-blocked). Bundle the REAL highest-value files of the four GitHub-only
@@ -120,30 +119,21 @@ COPY a11oy_org_rag.py ./a11oy_org_rag.py
 # (real files, honest provenance, NOT fabricated). BYTE-IDENTICAL across a11oy &
 # killinchu. Per-file/dir COPY (this Dockerfile does not use COPY . .).
 COPY corpus/ ./corpus/
-COPY a11oy_mcp_client.py ./a11oy_mcp_client.py
-COPY szl_rag.py ./szl_rag.py
 # ADDITIVE: a11oy Code IDE page (served by orchestrator GET /api/a11oy/code/ide as a
 # sibling of a11oy_code_orchestrator.py). Self-contained (vendored CodeMirror, 0 runtime
 # CDN). Explicit per-file COPY (this Dockerfile does not use `COPY . .`).
-COPY a11oy_code_ide.html ./a11oy_code_ide.html
 # ADDITIVE (WAYRA organ): explicit per-file COPY (this Dockerfile does not use COPY . .).
 # serve.py mounts wayra_serve.router -> /wayra, /wayra-digest, /api/a11oy/v1/wayra/*.
-COPY wayra_serve.py ./wayra_serve.py
-COPY wayra_snapshot.json ./wayra_snapshot.json
-COPY wayra_digests_7d.json ./wayra_digests_7d.json
 # ADDITIVE (KHIPU-OS agentic DAG organ, 2026-06-01, Yachay): explicit per-file COPY
 # (this Dockerfile does not use COPY . .). serve.py imports szl_khipu_os_routes and
 # mounts GET/POST /api/a11oy/v1/khipu-os/{stats,verify,checkpoint,archive}. Self-driving
 # Merkle DAG + Reed-Solomon erasure (reedsolo optional; honest, NOT holographic/quantum).
-COPY szl_khipu_os_routes.py ./szl_khipu_os_routes.py
 # ADDITIVE (drift-heal parity, 2026-06-10): shared canonical szl_khipu_consensus.py must be
 # byte-identical and present in BOTH a11oy & killinchu images (killinchu COPYs it; a11oy lacked
 # the line). Additive per-file COPY only (no content edit; this Dockerfile does not use COPY . .).
-COPY szl_khipu_consensus.py ./szl_khipu_consensus.py
 # ADDITIVE (PURIQ Agentic Formulas, 2026-06-01, Yachay): explicit per-file COPY
 # (this Dockerfile does not use COPY . .). serve.py imports szl_puriq_formulas and
 # calls .register(app) -> GET /formulas + /api/a11oy/v1/puriq/formulas*. Doctrine v11 LOCKED.
-COPY szl_puriq_formulas.py ./szl_puriq_formulas.py
 
 # ADDITIVE (Yachay / AYNI-OS, 2026-06-01): reciprocity organism + event-sourced replay
 # + Tinkuy (Kuramoto) flow. Explicit per-file COPY (this Dockerfile does not use COPY . .).
@@ -151,7 +141,6 @@ COPY szl_puriq_formulas.py ./szl_puriq_formulas.py
 # /ayni tab from /app/pages/ayni.html. HONEST: replay=event-sourcing (NOT time-travel);
 # Ayni=game-theory primitive (Axelrod-Hamilton 1981, NOT mystical); Tinkuy=Kuramoto 1975.
 # LOCKED preserved: 749/14/163, 13-axis yuyay_v3, replay bacf5443…631fc5. Pure additive.
-COPY ayni_os_serve.py ./ayni_os_serve.py
 COPY ayni_os/ ./ayni_os/
 # ayni_os_serve event-sources its ledger from the real signed-receipt corpus; it
 # must be in the image or the loader honestly falls back to synthetic. Per-file
@@ -163,9 +152,6 @@ COPY pages/ ./pages/
 # This Dockerfile uses per-file COPY (no `COPY . .`), so the live-wires module +
 # its static assets must be copied explicitly or `import szl_live_wires` 404s and
 # /live-wires falls through to the SPA shell. serve.py registers these FIRST.
-COPY szl_live_wires.py ./szl_live_wires.py
-COPY live_wires.html ./live_wires.html
-COPY live_wires_3d.js ./live_wires_3d.js
 
 # ADDITIVE (Provenance Hardening / Wire D + DSSE Cosign REAL signing, 2026-06-01, Yachay):
 # explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
@@ -175,12 +161,9 @@ COPY live_wires_3d.js ./live_wires_3d.js
 # through to the Node :8081 proxy (503). cryptography (added above) backs the real
 # ECDSA-P256-SHA256 cosign signatures. Real signatures only when SZL_COSIGN_PRIVATE_PEM
 # runtime secret is present (else honestly UNSIGNED). SLSA L1 honest (signing live); L2 roadmap via Wire D; L3 NOT claimed.
-COPY szl_dsse.py ./szl_dsse.py
-COPY szl_provenance.py ./szl_provenance.py
 
 ENV PORT=7860
 # BE hardening (Greene) — per-file COPY (this Dockerfile uses per-file COPY).
-COPY szl_be_hardening.py ./szl_be_hardening.py
 
 EXPOSE 7860
 
@@ -189,13 +172,8 @@ EXPOSE 7860
 # szl_unay_routes and calls .register(app, ns="a11oy") -> /api/a11oy/v2/unay/* +
 # /api/a11oy/v2/khipu/lmdb/*. Real durable lmdb + real sqlite-vss (honest cosine-
 # fallback if the .so cannot load in the slim image). a11oy carries Khipu-LMDB PRIMARY.
-COPY szl_unay.py ./szl_unay.py
-COPY szl_khipu_lmdb.py ./szl_khipu_lmdb.py
-COPY szl_khipu_replicate.py ./szl_khipu_replicate.py
-COPY szl_unay_routes.py ./szl_unay_routes.py
 # ADDITIVE (Warhacker aliases, Yachay 2026-06-01): top-level /healthz + /khipu/* + /wires/D.
 # Per-file COPY (no `COPY . .`) — without this `import szl_warhacker_aliases` fails.
-COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
 # ADDITIVE (Hickok dual-stream ingest, 2026-06-01, Yachay / Perplexity Computer Agent):
 # explicit per-file COPY (this Dockerfile does not use `COPY . .`). serve.py imports
 # a11oy_v4_hickok and calls .register(app, ns="a11oy") -> POST /api/a11oy/v4/{dorsal,
@@ -206,7 +184,6 @@ COPY szl_warhacker_aliases.py ./szl_warhacker_aliases.py
 # anchor files (DualStreamRouting/InternalFeedback/HierarchicalLinearization.lean) arrive
 # via the sparse-checkout of packages/policy/src/gates above (no explicit COPY needed).
 # Grounded in Hickok & Poeppel 2007 (DOI 10.1038/nrn2113). Doctrine v11 LOCKED 749/14/163.
-COPY a11oy_v4_hickok.py ./a11oy_v4_hickok.py
 
 # ADDITIVE (Anatomy 3D + live formula wiring, 2026-06-02, Yachay / Perplexity
 # Computer Agent): explicit per-file COPY (this Dockerfile does not use `COPY . .`).
@@ -216,13 +193,8 @@ COPY a11oy_v4_hickok.py ./a11oy_v4_hickok.py
 # Receipts sign via szl_dsse (already COPYed) using szl_khipu + szl_formulas. Without
 # these COPYs the imports fail and the pages/endpoints fall through to the SPA shell.
 # Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). NO external CDN.
-COPY szl_khipu.py ./szl_khipu.py
-COPY szl_formulas.py ./szl_formulas.py
-COPY a11oy_v4_formulas.py ./a11oy_v4_formulas.py
 COPY web/formulas.html ./web/formulas.html
 COPY static-vendor/three.min.js ./static-vendor/three.min.js
-COPY szl_anatomy_3d.py ./szl_anatomy_3d.py
-COPY szl_anatomy_routes.py ./szl_anatomy_routes.py
 
 # ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
 # VENDORING. The operator console (pages/console.html) loads the 7 viz libs +
@@ -257,7 +229,6 @@ COPY static-vendor/ngraph.events.umd.js ./static-vendor/ngraph.events.umd.js
 # self-hosted in-image (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py.
 COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js
 COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
-COPY _vendor_blobs.py ./_vendor_blobs.py
 
 # ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
 # explicit per-file COPY (this Dockerfile does not use COPY . .).
@@ -267,9 +238,7 @@ COPY _vendor_blobs.py ./_vendor_blobs.py
 # v4_fleet_panel.html: canonical fleet panel served at /fleet
 # operator_shell_v4.py: Unified Operator Shell v4 endpoints (fix import failure)
 # web/operator.html: operator shell desktop cockpit HTML
-COPY szl_v4_fleet.py ./szl_v4_fleet.py
 COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
-COPY operator_shell_v4.py ./operator_shell_v4.py
 COPY web/operator.html ./web/operator.html
 
 # ADDITIVE (Frontier wave, 2026-06-08): two founder tabs served from /app/web/
@@ -289,12 +258,8 @@ COPY web/living-anatomy.html ./web/living-anatomy.html
 # szl_bridge imports szl_bridge_schemas (JSON Schema 2020-12 tool registry) and reuses
 # the already-COPY'd szl_dsse + szl_receipt_substrate signing/ledger modules. Doctrine
 # v11 LOCKED 749/14/163 UNCHANGED.
-COPY szl_bridge.py ./szl_bridge.py
-COPY szl_bridge_schemas.py ./szl_bridge_schemas.py
-COPY agent.html ./agent.html
 # a11oy-bridge CLI (sign --from hermes/openclaw, verify --receipt-id). Standalone
 # operator tool; not imported at boot but shipped so it is runnable in-container.
-COPY a11oy_bridge_cli.py ./a11oy_bridge_cli.py
 
 
 # ADDITIVE (SZL Ken Agent Pattern v1, CTO Yachay Convergence Cycle 1, 2026-06-03):
@@ -304,7 +269,6 @@ COPY a11oy_bridge_cli.py ./a11oy_bridge_cli.py
 # ADDITIVE ONLY — zero existing routes touched. Doctrine v11 LOCKED 749/14/163.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY szl_ken.py ./szl_ken.py
 
 
 # ADDITIVE (Formulas → Ecosystem instillation, Opus 4.8, 2026-06-03):
@@ -328,13 +292,11 @@ COPY src/a11oy/formulas/bloom_filter.py ./src/a11oy/formulas/bloom_filter.py
 COPY src/a11oy/formulas/kalman.py ./src/a11oy/formulas/kalman.py
 COPY src/a11oy/formulas/hnsw_retrieval.py ./src/a11oy/formulas/hnsw_retrieval.py
 COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
-COPY a11oy_formula_endpoints.py ./a11oy_formula_endpoints.py
 # ADDITIVE (Formulas SECTION page — closeout): serve.py imports a11oy_formulas_page
 # and calls .register(app) BEFORE the SPA catch-all, mounting GET /formulas/wired
 # (premium Inca-palette list of every live formula + thesis citation + Lean permalink
 # + "Try it") and GET /api/a11oy/v1/formulas/page-manifest. Per-file COPY (never
 # `COPY . .`); without it the import fails and the route falls through to the SPA.
-COPY a11oy_formulas_page.py ./a11oy_formulas_page.py
 
 # ADDITIVE (Missing modules fix, 2026-06-04, Perplexity Computer Agent):
 # The following .py files exist in the repo and are imported via try/except
@@ -342,12 +304,6 @@ COPY a11oy_formulas_page.py ./a11oy_formulas_page.py
 # imports fail silently and the associated routes/tabs are unavailable.
 # Per-file COPY (this Dockerfile never uses `COPY . .`).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY a11oy_frontier_patch.py ./a11oy_frontier_patch.py
-COPY a11oy_v4_agent.py ./a11oy_v4_agent.py
-COPY szl_brain.py ./szl_brain.py
-COPY szl_wire.py ./szl_wire.py
-COPY szl_hub.py ./szl_hub.py
-COPY szl_rosie_companion.py ./szl_rosie_companion.py
 
 # ADDITIVE (Parity Gaps + Receipt Substrate fix, 2026-06-05, Orchestrator Squad):
 # szl_parity_gaps.py was MISSING from the Dockerfile despite being imported by
@@ -363,12 +319,8 @@ COPY szl_rosie_companion.py ./szl_rosie_companion.py
 # NOTE: szl_parity_gaps.py is already COPY'd at line 68 (above serve.py).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY szl_receipt_substrate.py ./szl_receipt_substrate.py
-COPY szl_alloy_embed_fabric.py ./szl_alloy_embed_fabric.py
-COPY szl_ayni_quorum.py ./szl_ayni_quorum.py
 
 # Governed agent loop module (RAG->tool-call->policy/trust->signed-receipt + canonical /mcp/).
-COPY szl_agentic_loop.py ./szl_agentic_loop.py
 
 # Formula-wiring module (ADDITIVE 2026-06-06): registers the kernel-verified theorem
 # mechanisms as live executable checks + the /api/<ns>/v1/formulas/* endpoints
@@ -377,7 +329,6 @@ COPY szl_agentic_loop.py ./szl_agentic_loop.py
 # `import szl_formula_wiring` fails at boot and the formula endpoints 404. Imports
 # stdlib only; no weights, no keys.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY szl_formula_wiring.py ./szl_formula_wiring.py
 
 # a11oy Code engine (governed chat/code/research; C20/W7-5 router; W5-3/W7-4 conformal;
 # C10-C12 consensus; REAL restricted-subprocess sandbox). Per-file COPY (this Dockerfile
@@ -385,7 +336,6 @@ COPY szl_formula_wiring.py ./szl_formula_wiring.py
 # /api/a11oy/v1/code/* routes fall through to the SPA. Imports only stdlib + the already-
 # present szl_agentic_loop primitives; OPEN-WEIGHT roster only, NO closed weights, NO keys.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY a11oy_code_engine.py ./a11oy_code_engine.py
 
 # a11oy.code 7-tier organ->model router (TIERS + route() + tiers_payload()).
 # Per-file COPY (this Dockerfile never uses `COPY . .`) -- without this
@@ -394,7 +344,6 @@ COPY a11oy_code_engine.py ./a11oy_code_engine.py
 # the catch-all) silently no-ops, so the /code UI's GET /tiers + POST /route|/auto
 # calls 404 and the chat cannot answer. Imports only stdlib (math/time/hashlib).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY a11oy_code.py ./a11oy_code.py
 
 # a11oy Seismic forecaster (Doctrine v13): honest Reasenberg-Jones (1994) +
 # Modified-Omori (Utsu 1961) aftershock-rate model over the LIVE public USGS
@@ -405,14 +354,12 @@ COPY a11oy_code.py ./a11oy_code.py
 # clean-room MIT, public-domain science, NO third-party code, 0 runtime CDN.
 # Statistical forecast -- NOT certainty, NOT a locked-proven claim.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY a11oy_seismic.py ./a11oy_seismic.py
 
 # Warhacker mission tabs backend (5 investor-facing surfaces; reuses
 # szl_agentic_loop primitives + the in-image signer). Per-file COPY
 # (this Dockerfile never uses `COPY . .`) — without this
 # `import szl_warhacker_real` fails at boot.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY szl_warhacker_real.py ./szl_warhacker_real.py
 
 # Warhacker EXHAUSTIVE demos backend (5 full step-by-step demos: step timeline,
 # catch tree, single-byte tamper test, formula-proof panel). Pure-Python, no
@@ -420,8 +367,6 @@ COPY szl_warhacker_real.py ./szl_warhacker_real.py
 # (this Dockerfile never uses `COPY . .`) — without this
 # `import szl_warhacker_demos` fails at boot.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-COPY szl_warhacker_demos.py ./szl_warhacker_demos.py
-COPY NOTICE_warhacker_demos.txt ./NOTICE_warhacker_demos.txt
 
 # ---------------------------------------------------------------------------
 # OPEN-WEIGHT ALLOY MODEL LAYER (model-integration squad, 2026-06-06, ADDITIVE)
@@ -439,9 +384,6 @@ COPY NOTICE_warhacker_demos.txt ./NOTICE_warhacker_demos.txt
 # runtime / tower-side).
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY szl_llm_registry.py ./szl_llm_registry.py
-COPY szl_elite_console.py ./szl_elite_console.py
-COPY szl_alloy_models.py ./szl_alloy_models.py
 
 # LIVE CPU demo tier: install llama.cpp + fetch ONE tiny Apache-2.0 GGUF
 # (Qwen2.5-Coder-0.5B-Instruct Q4_K_M) so the demo tier serves REAL output on
@@ -581,7 +523,16 @@ ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 # -- without these the import fails and the /v1/live/* routes fall through to the SPA.
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY a11oy_live_feeds.py ./a11oy_live_feeds.py
+# ---------------------------------------------------------------------------
+# CONSOLIDATED ROOT-FILE COPY LAYERS (segment B: post-LLM-gate) — Docker max-depth fix, Opus 4.8.
+# One image layer per COPY; collapsed root-file->same-name COPYs into grouped
+# multi-source COPYs landing at the /app WORKDIR root. IDENTICAL file set ships
+# to IDENTICAL paths (set-equality proven). Never `COPY . .`; subpath/dir COPYs
+# untouched; A11OY_REQUIRE_LOCAL_LLM gate + demo-tier RUN logic untouched.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# ---------------------------------------------------------------------------
+COPY a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_endpoints.py a11oy_vertical_feeds.py a11oy_deva_feeds.py a11oy_devb_endpoints.py a11oy_amaru_feeds.py szl_governance_gateway.py szl_abacus_verify.py szl_decision_uncertainty.py szl_gor_audit.py szl_sovereign_search.py szl_consensus_clusters.py szl_mission_ledger.py szl_budget_router.py szl_wave910_proofs.py szl_evidence_research.py szl_uds_fleet.py szl_readiness.py szl_quantum_bio.py ./
+COPY szl_unified_formulas.py szl_cuas_formulas.py szl_contracting.py szl_bounties.py szl_putnam.py szl_connectors_serve.py szl_connector_mcp.py ./
 COPY live_snapshots/ ./live_snapshots/
 
 # ADDITIVE (Investor-WOW Layer, 2026-06-08, Dev1): a11oy_dev1_endpoints.py exposes
@@ -601,8 +552,6 @@ COPY live_snapshots/ ./live_snapshots/
 # serve.py silently falls back to a throwaway in-process key that changes on every
 # restart -- which breaks offline verification of every receipt a11oy ever signed.
 # Guarded by .github/workflows/signing-key-image-guard.yml.
-COPY a11oy_signing_key.py ./a11oy_signing_key.py
-COPY a11oy_dev1_endpoints.py ./a11oy_dev1_endpoints.py
 
 # ADDITIVE (Vertical Packs Layer, 2026-06-08, Dev2): a11oy_vertical_feeds.py exposes
 # the 5 vertical packs (Defense/Gov, Finance, Legal, Enterprise/Cyber, Real Estate)
@@ -615,7 +564,6 @@ COPY a11oy_dev1_endpoints.py ./a11oy_dev1_endpoints.py
 # to the SPA. serve.py imports it try/except-guarded; register() self-reorders its
 # routes to the front of the router so they beat the proxy + SPA catch-all.
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY a11oy_vertical_feeds.py ./a11oy_vertical_feeds.py
 
 # ADDITIVE (Deep Feeds Layer, 2026-06-08, Dev-A): a11oy_deva_feeds.py exposes the 10
 # deep tabs (RealEstate 5: Market Pulse, Distress Radar, Ownership Graph, Deal Intel,
@@ -626,8 +574,6 @@ COPY a11oy_vertical_feeds.py ./a11oy_vertical_feeds.py
 # + szl_khipu/szl_dsse for signed receipts. Honest labels, 0 fabricated data, 0 CDN.
 # Per-file COPY (this Dockerfile never uses `COPY . .`); register() front-moves its
 # routes so they beat the proxy + SPA catch-all.
-COPY a11oy_deva_feeds.py ./a11oy_deva_feeds.py
-COPY a11oy_devb_endpoints.py ./a11oy_devb_endpoints.py
 
 # ADDITIVE (Provenance & Trust Anchor, 2026-06-08): a11oy_amaru_feeds.py exposes the
 # 5 trust tabs (Public-Ledger Anchor LIVE, Post-Quantum Signing PQC, Receipt
@@ -638,7 +584,6 @@ COPY a11oy_devb_endpoints.py ./a11oy_devb_endpoints.py
 # Honest PQC labels (classical ECDSA-P256 live; ML-DSA/ML-KEM/SLH-DSA roadmap),
 # 0 fabricated data, 0 CDN. Per-file COPY; register() front-moves its routes so
 # they beat the proxy + SPA catch-all.
-COPY a11oy_amaru_feeds.py ./a11oy_amaru_feeds.py
 
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained operator surfaces,
 # each adopting a PERMISSIVELY-licensed PATTERN (NOTICE updated) and evolving it into
@@ -646,10 +591,6 @@ COPY a11oy_amaru_feeds.py ./a11oy_amaru_feeds.py
 # Dockerfile never uses `COPY . .`) -- without these the imports fail and the
 # /governance-gateway, /abacus-verify, /decision-uncertainty, /gor-audit routes
 # fall through to the SPA shell. serve.py imports them try/except-guarded.
-COPY szl_governance_gateway.py ./szl_governance_gateway.py
-COPY szl_abacus_verify.py ./szl_abacus_verify.py
-COPY szl_decision_uncertainty.py ./szl_decision_uncertainty.py
-COPY szl_gor_audit.py ./szl_gor_audit.py
 
 # ADDITIVE (RE-SWEEP WAVE 2, 2026-06, Yachay): four MORE operator surfaces from the
 # P0 re-sweep backlog, each adopting a PERMISSIVE pattern (MIT/Apache; NOTICE updated)
@@ -658,10 +599,6 @@ COPY szl_gor_audit.py ./szl_gor_audit.py
 # never uses `COPY . .`) -- without these the imports fail and /sovereign-search,
 # /consensus-clusters, /mission-ledger, /budget-router fall through to the SPA shell.
 # serve.py imports them try/except-guarded.
-COPY szl_sovereign_search.py ./szl_sovereign_search.py
-COPY szl_consensus_clusters.py ./szl_consensus_clusters.py
-COPY szl_mission_ledger.py ./szl_mission_ledger.py
-COPY szl_budget_router.py ./szl_budget_router.py
 
 # ADDITIVE (WAVE9/10 INSTILLATION, 2026-06): the "Proven Formulas (experimental)"
 # surface wiring a11oy-targeted lutar-lean Wave9+Wave10 theorems as honest cards with
@@ -672,31 +609,21 @@ COPY szl_budget_router.py ./szl_budget_router.py
 # /api/a11oy/v1/proven/* fall through to the SPA shell, and the governance-gateway
 # matrix-health pre-flight reports the module missing. serve.py + szl_governance_gateway
 # import it try/except-guarded. LOCKED-proven stays EXACTLY 8; Lambda=Conjecture 1.
-COPY szl_wave910_proofs.py ./szl_wave910_proofs.py
-COPY szl_evidence_research.py ./szl_evidence_research.py
-COPY szl_uds_fleet.py ./szl_uds_fleet.py
 # Operational Readiness backend (deployed-vs-repo reality, live/cached/unreachable).
 # serve.py imports this try/except-guarded; without this per-file COPY the import
 # fails and /api/a11oy/v1/readiness 404s (falls through to the SPA shell).
-COPY szl_readiness.py ./szl_readiness.py
 # Quantum-Bio Λ-v5 backend (quantum-bio-v5): VERIFIED quantum-biology models
 # (Mitchell pmf + two-ion, Lindblad coherence, radical-pair compass, Λ-v5 gate).
 # serve.py imports this try/except-guarded; without this per-file COPY the import
 # fails and /api/a11oy/v1/qbio/* 404s. Pure stdlib (+optional numpy already present).
-COPY szl_quantum_bio.py ./szl_quantum_bio.py
-COPY szl_unified_formulas.py ./szl_unified_formulas.py
-COPY szl_cuas_formulas.py ./szl_cuas_formulas.py
 # Contracting Readiness backend (SAM/CAGE + SBIR/STTR eligibility, web-sourced,
 # honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
 # liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;
 # without this per-file COPY the import fails and /api/a11oy/v1/contracting 404s.
-COPY szl_contracting.py ./szl_contracting.py
 # ADDITIVE (Open-Problem Bounty Board, bounties-tab-patch): stdlib-only bounty module
 # + the canonical bounty YAMLs (single source of truth, copied byte-identical from
 # szl-holdings/lutar-lean). Per-file/dir COPY (this Dockerfile never uses `COPY . .`)
 # -- without these the import fails and /api/a11oy/v1/bounties 404s.
-COPY szl_bounties.py ./szl_bounties.py
-COPY szl_putnam.py ./szl_putnam.py
 COPY bounties/ ./bounties/
 
 # ---------------------------------------------------------------------------
@@ -713,8 +640,6 @@ COPY bounties/ ./bounties/
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
 COPY szl_connectors/ ./szl_connectors/
-COPY szl_connectors_serve.py ./szl_connectors_serve.py
-COPY szl_connector_mcp.py ./szl_connector_mcp.py
 
 CMD ["python", "serve.py"]
 
