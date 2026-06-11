@@ -205,6 +205,26 @@ try:
 except Exception as _szl_allodial_e:  # pragma: no cover
     print(f"[a11oy] Allodial formulas NOT registered: {_szl_allodial_e!r}", file=__import__("sys").stderr)
 
+# ── SZL Entanglement measures + the Λ-v5 coherence→entanglement bridge
+# (entanglement-wire-patch) — standard 2-qubit entanglement measures plus the
+# RIGOROUS unifying bound E_max(t) ≤ C0·exp(−γ t) composing SZL's machine-checked
+# Λ-v5 coherence decay (merged Lean, Wave24) with Streltsov 2015 (l1-coherence
+# upper-bounds entanglement-generating capacity), and a CKW monogamy primitive
+# mirroring Khipu's no-leak / trust<100% doctrine. Every borrowed formula cites its
+# real author (Wootters 1998 concurrence; Vidal-Werner 2002 negativity; CKW 2000
+# monogamy; CHSH 1969 / Tsirelson 1980; Streltsov 2015; von Neumann entropy); SZL
+# claims NONE as its own. EXPERIMENTAL/PROPOSED engineering gate — NOT formal Λ;
+# adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Honest
+# tiers (RIGOROUS/STRUCTURAL/NARRATIVE/ACTIVE/CONTESTED/SPECULATIVE) surfaced in
+# summary(). Pure stdlib. Shared module byte-identical a11oy↔killinchu. Additive,
+# try/except-guarded.
+try:
+    import szl_entanglement as _szl_entanglement
+    _szl_entanglement.register(app, ns="a11oy")
+    print("[a11oy] Entanglement formulas registered: /api/a11oy/v1/entangle/*", file=__import__("sys").stderr)
+except Exception as _szl_entanglement_e:  # pragma: no cover
+    print(f"[a11oy] Entanglement formulas NOT registered: {_szl_entanglement_e!r}", file=__import__("sys").stderr)
+
 
 # ── Open-Problem Bounty Board (bounties-tab-patch) — OPEN proof bounties
 # (Conjecture 1 Λ-aggregator uniqueness, Conjecture 2 Khipu BFT safety) rendered
