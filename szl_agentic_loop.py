@@ -113,6 +113,88 @@ _CORPUS = [
 ]
 
 
+# ----------------------------------------------------------------------------
+# GOVERNED-LOOP ↔ EXTERNAL STANDARDS MAP (ADDITIVE 2026, honest, PROPOSED/roadmap).
+# Maps SZL's governed-AI loop to the OWASP Agentic Top-10 2026 taxonomy (ASI01–
+# ASI10) and references Microsoft's Agent Governance Toolkit + Google A2A as CITED
+# PRIOR ART (NOT SZL's, NOT installed in the image — no heavy dep added). Each ASI
+# row notes the in-loop control that already exists. PROPOSED/roadmap tier; no
+# claim of compliance, no claim these external projects are SZL's.
+# ----------------------------------------------------------------------------
+_OWASP_ASI_MAP = [
+    {"id": "ASI01", "risk": "Goal Hijacking",
+     "szl_control": "Deny-by-default safety gate scores severity/confidence/reversibility "
+                    "and grounds tool choice on the in-image governance corpus (DOC-001)."},
+    {"id": "ASI02", "risk": "Tool Misuse",
+     "szl_control": "Agents act ONLY through governed tool calls; the gate runs between the "
+                    "tool call and any real-world effect (DOC-005)."},
+    {"id": "ASI03", "risk": "Identity Abuse",
+     "szl_control": "Each step emits a signed receipt; the run is re-verifiable offline "
+                    "against the public key (DOC-003)."},
+    {"id": "ASI04", "risk": "Supply Chain Risks",
+     "szl_control": "Chain-of-title provenance receipts (in-toto/SLSA/cosign/Rekor); SLSA "
+                    "v1.1 VSA + Sello receipts are the roadmap (see allodial /standards)."},
+    {"id": "ASI05", "risk": "Code Execution Risks",
+     "szl_control": "Irreversible / high-severity actions require human approval and a higher "
+                    "trust floor; denied on low confidence (DOC-004)."},
+    {"id": "ASI06", "risk": "Memory & Context Poisoning",
+     "szl_control": "Retrieval is over a fixed in-image corpus (no external/dynamic chunks); "
+                    "untrusted_input is isolated from the policy decision."},
+    {"id": "ASI07", "risk": "Insecure Communications",
+     "szl_control": "Receipts are hash-chained and signed; tamper is detectable on re-verify."},
+    {"id": "ASI08", "risk": "Cascading Failures",
+     "szl_control": "Graceful fallbacks (never crash the loop); per-run soundness checks "
+                    "unified into governed_run_sound."},
+    {"id": "ASI09", "risk": "Human-Agent Trust Exploitation",
+     "szl_control": "Trust score is explicitly ADVISORY (Conjecture 1, not a proven oracle); "
+                    "it informs but does not replace the gate (DOC-002)."},
+    {"id": "ASI10", "risk": "Rogue Agents",
+     "szl_control": "Nothing is emitted unless the deny-by-default gate allows it; every action "
+                    "is recorded in the tamper-evident trace."},
+]
+
+_GOVERNANCE_STANDARDS = {
+    "tier": "PROPOSED / roadmap — honest mapping; no compliance claimed; Λ stays Conjecture 1",
+    "owasp_agentic_top10_2026": {
+        "what": "OWASP Top 10 for Agentic Applications 2026 (ASI01–ASI10), the community "
+                "taxonomy of autonomous-agent risks (published Dec 2025).",
+        "szl_mapping": _OWASP_ASI_MAP,
+        "cite": "OWASP GenAI — Top 10 for Agentic Applications 2026",
+        "cite_url": "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/",
+    },
+    "prior_art": [
+        {"name": "Microsoft Agent Governance Toolkit",
+         "what": "Open-source runtime-security toolkit addressing the OWASP Agentic Top-10 "
+                 "(policy engine, agent identity/trust, execution isolation). CITED prior "
+                 "art — NOT SZL's, NOT installed in this image (no heavy dep added).",
+         "cite_url": "https://github.com/microsoft/agent-governance-toolkit"},
+        {"name": "Google Agent2Agent (A2A) Protocol",
+         "what": "Linux Foundation agent-to-agent interop standard (Agent Cards, JSON-RPC "
+                 "task lifecycle). CITED prior art — NOT SZL's; a possible interop direction "
+                 "for the governed loop's multi-agent surface.",
+         "cite_url": "https://github.com/a2aproject/A2A"},
+    ],
+    "doctrine": ("PROPOSED/roadmap only. OWASP ASI mapping documents EXISTING in-loop "
+                 "controls; it is NOT a compliance certification. Microsoft AGT and Google "
+                 "A2A are CITED prior art, NOT SZL's and NOT installed (no pip install / no "
+                 "heavy dep). Trust stays advisory (Conjecture 1); trust never 100%."),
+}
+
+
+def governance_standards_note() -> dict:
+    """Honest PROPOSED/roadmap note: how SZL's governed-AI loop maps to the OWASP
+    Agentic Top-10 2026 (ASI01–ASI10), with Microsoft Agent Governance Toolkit and
+    Google A2A as CITED prior art (not SZL's, not installed). No heavy dependency is
+    added to the image. [PROPOSED / roadmap]"""
+    return {
+        "title": "SZL governed loop — OWASP Agentic Top-10 2026 mapping (PROPOSED; prior art cited)",
+        "standards": _GOVERNANCE_STANDARDS,
+        "note": ("Documentation/note only. No agent-governance-toolkit (or any heavy dep) is "
+                 "installed in this image; the toolkit and A2A are referenced as cited prior "
+                 "art, not vendored."),
+    }
+
+
 def _retrieve(query: str, top_k: int = 3):
     """Real keyword + token-overlap retrieval over the in-image corpus.
     Deterministic, dependency-free, always available. Returns scored chunks."""
@@ -786,6 +868,9 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse({"tools": _tool_catalog(ns), "count": len(_tool_catalog(ns)),
                              "canonical_mcp": "/mcp/", "doctrine": "v11"})
 
+    async def _agent_governance_standards(request: Request):
+        return JSONResponse(governance_standards_note())
+
     async def _agent_verify(request: Request):
         try:
             b = await request.json()
@@ -809,6 +894,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         Route("/mcp", _mcp_any, methods=["GET", "POST"], name="%s_mcp_noslash" % ns),
         Route("/api/%s/v1/agent/run" % ns, _agent_run, methods=["POST"], name="%s_agent_run" % ns),
         Route("/api/%s/v1/agent/tools" % ns, _agent_tools, methods=["GET"], name="%s_agent_tools" % ns),
+        Route("/api/%s/v1/agent/governance-standards" % ns, _agent_governance_standards,
+              methods=["GET"], name="%s_agent_gov_standards" % ns),
         Route("/api/%s/v1/agent/verify-chain" % ns, _agent_verify, methods=["POST"], name="%s_agent_verify" % ns),
         Route("/ask-and-act", _ask_and_act_ui, methods=["GET"], name="%s_ask_and_act" % ns),
         Route("/governed-run", _ask_and_act_ui, methods=["GET"], name="%s_governed_run" % ns),
@@ -1011,3 +1098,25 @@ function showVerify(v,isTamper){
 }
 </script>
 </div></body></html>"""
+
+
+def _selftest() -> None:
+    # Governance-standards note: full OWASP ASI01–ASI10 map, PROPOSED/roadmap, prior art
+    # cited (Microsoft AGT + Google A2A), and NO heavy dep claimed/installed.
+    note = governance_standards_note()
+    std = note["standards"]
+    ids = [r["id"] for r in std["owasp_agentic_top10_2026"]["szl_mapping"]]
+    assert ids == ["ASI%02d" % i for i in range(1, 11)], ids
+    assert "roadmap" in std["tier"].lower()
+    names = [p["name"] for p in std["prior_art"]]
+    assert any("Agent Governance Toolkit" in n for n in names), names
+    assert any("A2A" in n for n in names), names
+    assert "github.com/microsoft/agent-governance-toolkit" in \
+        " ".join(p["cite_url"] for p in std["prior_art"])
+    # honest: explicitly not installed / no heavy dep
+    assert "not installed" in std["doctrine"].lower() or "no pip" in std["doctrine"].lower()
+    print("szl_agentic_loop: ALL OK (governance-standards note, 6 checks)")
+
+
+if __name__ == "__main__":
+    _selftest()
