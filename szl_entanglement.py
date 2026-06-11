@@ -197,7 +197,7 @@ def _eig_real_nonneg_4(M):
 
 
 def _durand_kerner(coeffs: List[float]) -> List[float]:
-    """Real roots of a degree-n monic-ish polynomial (coeffs[0]=leading). Returns
+    """Real roots of a degree-n monic-ish polynomial (coeffs[0]=highest-degree coeff). Returns
     real parts (this module only calls it on polynomials with real spectra)."""
     deg = len(coeffs) - 1
     a = [coeffs[i] / coeffs[0] for i in range(len(coeffs))]  # monic
