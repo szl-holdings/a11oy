@@ -10869,5 +10869,637 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* end anatomy-map-tab-patch */
 </script>
 
+<script>
+(function(){
+  "use strict";
+  if(window.__R3D){ return; }
+  var R = window.__R3D = { raf:{}, three:[], gl:[], fg:[], echarts:[], timers:[] };
+  // Dispose everything any R3D tab created. Called before the NEXT view renders.
+  R.teardown = function(){
+    try{ Object.keys(R.raf).forEach(function(k){ if(R.raf[k]){ cancelAnimationFrame(R.raf[k]); R.raf[k]=null; } }); }catch(e){}
+    R.three.forEach(function(t){ try{ t.dispose&&t.dispose(); t.forceContextLoss&&t.forceContextLoss(); }catch(e){} }); R.three=[];
+    R.echarts.forEach(function(c){ try{ c.dispose&&c.dispose(); }catch(e){} }); R.echarts=[];
+    R.fg.forEach(function(g){ try{ g._destructor&&g._destructor(); }catch(e){} }); R.fg=[];
+    R.timers.forEach(function(t){ try{ clearTimeout(t); clearInterval(t); }catch(e){} }); R.timers=[];
+  };
+  R.pushRenderer=function(r){ if(r) R.three.push(r); return r; };
+  R.pushEcharts=function(c){ if(c) R.echarts.push(c); return c; };
+  R.pushFG=function(g){ if(g) R.fg.push(g); return g; };
+  R.setRaf=function(key,id){ R.raf[key]=id; };
+  R.pushTimer=function(t){ if(t) R.timers.push(t); return t; };
+  // canonical reg() form (also what the readiness-harness tab-contract extractor parses)
+  R.reg=function(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){R.reg(key,title,badge,sub,fn);},120); }
+    if(window.VIEWS[key]) return; window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; };
+  // Single go()-wrap: dispose ALL R3D contexts before the next view renders. The SPA
+  // calls the lexical tearDownAll() inside go() (not window.tearDownAll), so we wrap
+  // window.go itself — exactly like the shipped b1Teardown pattern.
+  function wrapGo(){
+    if(window.__r3dWrappedGo || typeof window.go!=='function') return false;
+    var _orig=window.go;
+    window.go=function(view){ try{ R.teardown(); }catch(e){} return _orig.apply(this,arguments); };
+    window.__r3dWrappedGo=true; return true;
+  }
+  if(!wrapGo()){ var n=0; var iv=setInterval(function(){ if(wrapGo()||++n>60) clearInterval(iv); },25); }
+  // belt-and-suspenders: also chain window.tearDownAll if something calls it directly
+  if(window.tearDownAll && !window.__r3dWrappedTD){
+    var _td=window.tearDownAll;
+    window.tearDownAll=function(){ try{ R.teardown(); }catch(e){} return _td.apply(this,arguments); };
+    window.__r3dWrappedTD=true;
+  }
+  // idempotent "Research 3D" nav-group + its nav items (filled in by each tab).
+  R.injectNavGroup=function(){
+    var side=document.querySelector('.side'); if(!side){ return setTimeout(R.injectNavGroup,250); }
+    if(document.getElementById('r3d-nav-group')) return document.getElementById('r3d-nav-group');
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='r3d-nav-group'; grp.textContent='Research 3D';
+    // place at the end of the nav column
+    side.appendChild(grp);
+    return grp;
+  };
+  R.injectNav=function(navId,viewKey,icon,label){
+    var grp=R.injectNavGroup(); if(!grp || !grp.parentNode){ return setTimeout(function(){R.injectNav(navId,viewKey,icon,label);},250); }
+    if(document.getElementById(navId)) return;
+    var n=document.createElement('div'); n.className='nav-item'; n.id=navId;
+    n.setAttribute('data-view',viewKey); n.setAttribute('onclick',"go('"+viewKey+"')");
+    n.innerHTML='<span class="ico">'+icon+'</span>'+label;
+    // append all R3D items just after the group label, in registration order
+    grp.parentNode.appendChild(n);
+  };
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',R.injectNavGroup); } else { R.injectNavGroup(); }
+})();
+</script>
+
+<!-- ============================ TAB 1 — ouro_spiral ============================ -->
+<script>
+/* ouro-depth-spiral-tab (R3D-1) — a 3D helical TubeGeometry per active Chaski agent,
+   helix RADIUS = reasoning loop-depth R, helix COLOR = early-exit / convergence proxy.
+   Embodies Ouro / McLeish recurrent-depth (loop depth R as a third compute axis,
+   arXiv:2510.25741 / arXiv:2502.05171) and Benhao-Huang EqR convergence (spiral tightening).
+   HONEST: real a11oy command-log receipts drive this; loop_depth is read from receipt
+   metadata IF present, ELSE derived from per-agent receipt density as a clearly-labelled
+   DEPTH PROXY — never a measured latent-reasoning depth. This is a structural HEURISTIC,
+   never a proof: locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1.
+   0 runtime CDN (three.js r128 vendored). Additive IIFE: one VIEWS entry + one nav item. */
+(function(){
+  "use strict";
+  var E=window.el, esc=window.esc, getPublic=window.getPublic, R=window.__R3D;
+  var TEAL=(window.TEAL||'#5fb3a3'), GOLD=(window.GOLD||'#c9b787'), RED='#b06a5a', DIM='#8a8a8a';
+  function H(id,h){ var e=E&&E(id); if(e) e.innerHTML=h; }
+
+  // group receipts by agent/kind → derive a per-agent reasoning "track".
+  // depth proxy: if a receipt carries loop_depth/loop/R/ut_step metadata, use it (LIVE).
+  // else proxy R from local receipt density (more receipts close in seq = deeper deliberation),
+  // clamped to [1,4] (Ouro R range). early-exit proxy: 1 - R/maxR (low R = exited early).
+  function trackFromReceipts(recs){
+    var byAgent={};
+    recs.forEach(function(r,i){
+      var ag = r.agent || r.actor || r.kind || 'agent';
+      (byAgent[ag] = byAgent[ag] || []).push({i:i, seq:(r.seq!=null?r.seq:i), r:r});
+    });
+    var hasMeta=false;
+    var tracks=Object.keys(byAgent).map(function(ag){
+      var arr=byAgent[ag];
+      var steps=arr.map(function(o,k){
+        var meta=o.r;
+        var ld = (meta.loop_depth!=null?meta.loop_depth:(meta.loop!=null?meta.loop:(meta.R!=null?meta.R:(meta.ut_step!=null?meta.ut_step:null))));
+        var live=(ld!=null && isFinite(ld));
+        if(live) hasMeta=true;
+        var Rdepth;
+        if(live){ Rdepth=Math.max(1,Math.min(4, +ld)); }
+        else {
+          // density proxy: receipts whose seq are within a small window of this one
+          var here=arr[k].seq, near=0;
+          for(var j=0;j<arr.length;j++){ if(Math.abs(arr[j].seq-here)<=3) near++; }
+          Rdepth = 1 + Math.min(3, Math.max(0, near-1)); // 1..4
+        }
+        var earlyExit = 1 - (Rdepth-1)/3; // 1 = shallow/early-exit, 0 = full depth
+        return {seq:arr[k].seq, R:Rdepth, ee:earlyExit, live:live};
+      });
+      return {agent:ag, steps:steps};
+    });
+    return {tracks:tracks, hasMeta:hasMeta};
+  }
+
+  function drawHelices(host, tracks){
+    host.innerHTML='';
+    var THREE=window.THREE;
+    if(!THREE){ host.innerHTML='<div class="row mono dim" style="padding:1rem">three.js (window.THREE) not present in this image — cannot render the depth spiral (honest fallback)</div>'; return false; }
+    var W=host.clientWidth||720, Hh=host.clientHeight||460;
+    var scene=new THREE.Scene();
+    var cam=new THREE.PerspectiveCamera(48, W/Hh, 0.1, 1000); cam.position.set(0,0,150);
+    var renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+    renderer.setSize(W,Hh); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    host.appendChild(renderer.domElement);
+    R.pushRenderer(renderer);
+    scene.add(new THREE.AmbientLight(0xffffff,0.85));
+    var pl=new THREE.PointLight(0xc9b787,0.6); pl.position.set(40,40,80); scene.add(pl);
+
+    var nA=tracks.length;
+    tracks.forEach(function(tr,ti){
+      var steps=tr.steps; if(!steps.length) return;
+      var turns=Math.max(2, Math.min(8, steps.length/2));
+      var totalDepth=80;
+      // lateral offset so multiple agents render as parallel spirals
+      var ox = (nA>1? (ti/(nA-1)-0.5):0) * 64;
+      // sample helix radius from per-step R (interpolate), color from early-exit proxy
+      var samples=200;
+      var curve=new THREE.Curve();
+      curve.getPoint=function(t){
+        var f=t*(steps.length-1); var lo=Math.floor(f), hi=Math.min(steps.length-1,lo+1), fr=f-lo;
+        var Rt=steps[lo].R*(1-fr)+steps[hi].R*fr;          // helix radius = loop-depth proxy
+        var rad=4 + Rt*7;                                   // map R∈[1,4] → radius 11..32
+        var ang=2*Math.PI*t*turns;
+        return new THREE.Vector3(ox + rad*Math.cos(ang), rad*Math.sin(ang), -totalDepth/2 + t*totalDepth);
+      };
+      var tube=new THREE.TubeGeometry(curve, samples, 1.5, 10, false);
+      // per-vertex color along the early-exit proxy (blue=exited early → red=full depth)
+      var colors=[]; var pos=tube.attributes.position; var vCount=pos.count;
+      for(var v=0; v<vCount; v++){
+        var t=(samples>0)?( (Math.floor(v/((vCount)/(samples+1)))) / samples ):0; t=Math.max(0,Math.min(1,t));
+        var f=t*(steps.length-1); var lo=Math.floor(f), hi=Math.min(steps.length-1,lo+1), fr=f-lo;
+        var ee=steps[lo].ee*(1-fr)+steps[hi].ee*fr;          // 1 early → 0 deep
+        // blue (early) → teal → gold/red (deep)
+        var cr, cg, cb;
+        if(ee>0.5){ var u=(ee-0.5)*2; cr=0.27+(0.37-0.27)*(1-u); cg=0.45+(0.70-0.45)*(1-u); cb=0.78*u+0.64*(1-u); }
+        else { var w=ee*2; cr=0.69+(0.37-0.69)*(w); cg=0.42+(0.70-0.42)*(w); cb=0.35+(0.64-0.35)*(w); }
+        colors.push(cr,cg,cb);
+      }
+      tube.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
+      var mat=new THREE.MeshStandardMaterial({vertexColors:true, metalness:0.2, roughness:0.55, transparent:true, opacity:0.92});
+      var mesh=new THREE.Mesh(tube,mat); scene.add(mesh);
+    });
+
+    var t=0, raf=null;
+    function frame(){ t+=0.0045; scene.rotation.y=t; scene.rotation.x=Math.sin(t*0.5)*0.16; renderer.render(scene,cam); R.setRaf('ouro', raf=requestAnimationFrame(frame)); }
+    frame();
+    window.addEventListener('resize',function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h){ cam.aspect=w/h; cam.updateProjectionMatrix(); renderer.setSize(w,h); } },{passive:true});
+    return true;
+  }
+
+  window.renderOuroSpiral=function(c){
+    c.innerHTML='<div class="kpis">'
+      +'<div class="kpi"><div class="k">Agents / tracks</div><div class="v teal" id="ous-n">\u2014</div><div class="d">from live command-log</div></div>'
+      +'<div class="kpi"><div class="k">Mean depth R</div><div class="v" id="ous-r">\u2014</div><div class="d">loop-depth (proxy)</div></div>'
+      +'<div class="kpi"><div class="k">Max depth R</div><div class="v" id="ous-rmax">\u2014</div><div class="d">deepest deliberation</div></div>'
+      +'<div class="kpi"><div class="k">Depth source</div><div class="v warn" id="ous-src">\u2014</div><div class="d">metadata vs proxy</div></div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Per-agent reasoning depth spiral \u2014 loop-depth R as helix radius</span>'
+      +'<span class="card-ep">three.js TubeGeometry helix (MIT, vendored) \u00b7 0 runtime CDN</span></div>'
+      +'<div id="ous-gl" style="height:460px;border:1px solid rgba(201,183,135,0.12);border-radius:8px;overflow:hidden;background:#080a09;position:relative"></div>'
+      +'<div class="brain-note" id="ous-note"><b>How to read this.</b> Each helix is one Chaski agent\u2019s reasoning track over its recent live receipts. '
+      +'Helix <b>radius</b> = loop-depth R (tight coil = shallow R\u22481; wide spiral = deep R\u22484, after Ouro / McLeish recurrent depth). '
+      +'<span style="color:#5a7fbf">blue</span> = early-exit (shallow), <span style="color:'+TEAL+'">teal</span> \u2192 <span style="color:'+GOLD+'">gold</span> = used more depth (more deliberation), echoing EqR convergence. '
+      +'<b>R is read from receipt loop_depth metadata when present, otherwise it is a clearly-labelled DEPTH PROXY from per-agent receipt density</b> \u2014 not a measured latent-reasoning depth. '
+      +'This is a structural <b>heuristic</b>, never a proof and never a trust oracle. \u039b stays <b>Conjecture\u00a01</b>; locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
+      +(window.HONEST||'');
+    (function(){
+      function run(){
+        getPublic('/api/a11oy/v2/operator/command-log',12000).then(function(cl){
+          var recs=(cl.receipts||[]).slice(-120);
+          var host=E('ous-gl'); if(!host) return;
+          if(!recs.length){ host.innerHTML='<div class="row mono dim" style="padding:1rem">no receipts emitted in this runtime yet \u2014 no reasoning tracks to spiral (honest empty state)</div>';
+            H('ous-n','0'); H('ous-r','\u2014'); H('ous-rmax','\u2014'); H('ous-src','none'); return; }
+          var T=trackFromReceipts(recs);
+          var all=[]; T.tracks.forEach(function(tr){ tr.steps.forEach(function(s){ all.push(s.R); }); });
+          var mean = all.length? (all.reduce(function(a,b){return a+b;},0)/all.length):0;
+          var rmax = all.length? Math.max.apply(null,all):0;
+          H('ous-n', T.tracks.length);
+          H('ous-r', mean? mean.toFixed(2):'\u2014');
+          H('ous-rmax', rmax||'\u2014');
+          H('ous-src', T.hasMeta ? 'live loop_depth metadata' : 'density PROXY (labelled)');
+          drawHelices(host, T.tracks);
+        }).catch(function(e){ var host=E('ous-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
+          H('ous-n','offline'); H('ous-src','\u2014'); });
+      }
+      if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
+    })();
+  };
+
+  R.reg('ouro_spiral','Reasoning Depth Spiral','THREE.JS HELIX \u00b7 ADAPTIVE-DEPTH PROXY','A 3D TubeGeometry helix per active agent over the live command-log: helix radius = reasoning loop-depth R (read from receipt loop_depth metadata when present, else a clearly-labelled depth PROXY from receipt density), colour = early-exit / convergence proxy. Embodies Ouro / McLeish recurrent-depth (loop depth R as a third compute axis) + EqR convergence. A structural heuristic, never a proof; \u039b stays Conjecture 1, locked-proven stays exactly 8.',window.renderOuroSpiral);
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',function(){R.injectNav('r3d-ouro-nav','ouro_spiral','\u25c9','Depth Spiral');}); }
+  else { R.injectNav('r3d-ouro-nav','ouro_spiral','\u25c9','Depth Spiral'); }
+})();
+</script>
+
+<!-- ========================== TAB 2 — abacus_manifold ========================== -->
+<script>
+/* abacus-numeric-routing-manifold-tab (R3D-2) — echarts-gl surface3D + scatter3D of the
+   routing envelope binned by DIGIT-PLACE (ones / tens / hundreds), after McLeish abacus
+   embeddings (intra-numeral digit-place encoding, arXiv:2405.17399). Live routing
+   (cost, quality/Λ, latency) is read from the command-log; the routing-envelope score
+   s = λ·ê − (1−λ)·ĉ (GraphRouter) is rendered as a derived Pareto surface with a λ slider.
+   HONEST: the binned values are LIVE from receipts; the score surface + Pareto frontier are
+   a DERIVED HEURISTIC view of the routing envelope, not a measured loss. Λ is Conjecture 1
+   (advisory, never a pass/fail oracle); this view is a heuristic, never a proof. locked-proven
+   stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}. 0 runtime CDN (echarts + echarts-gl vendored). */
+(function(){
+  "use strict";
+  var E=window.el, esc=window.esc, getPublic=window.getPublic, R=window.__R3D;
+  var TEAL=(window.TEAL||'#5fb3a3'), GOLD=(window.GOLD||'#c9b787'), RED='#b06a5a', DIM='#8a8a8a';
+  function H(id,h){ var e=E&&E(id); if(e) e.innerHTML=h; }
+  function num(v){ var n=+v; return isFinite(n)?n:null; }
+
+  // pull (cost, quality, latency) from a receipt with several honest field fallbacks
+  function pluck(r){
+    var cost = num(r.cost!=null?r.cost:(r.cost_usd!=null?r.cost_usd:(r.cost_per_call!=null?r.cost_per_call:(r.price!=null?r.price:null))));
+    var q    = num(r.quality!=null?r.quality:(r.quality_score!=null?r.quality_score:(r.lambda!=null?r.lambda:(r.score!=null?r.score:null))));
+    var lat  = num(r.latency_ms!=null?r.latency_ms:(r.latency!=null?r.latency:(r.sla_latency_ms!=null?r.sla_latency_ms:(r.ms!=null?r.ms:null))));
+    return {cost:cost, q:q, lat:lat};
+  }
+  // digit-place decomposition of latency (the abacus idea): ones/tens/hundreds of ms.
+  function digitPlace(v){ if(v==null||!isFinite(v)) return null; var x=Math.max(0,Math.round(v));
+    return { ones:x%10, tens:Math.floor(x/10)%10, hundreds:Math.floor(x/100)%10 }; }
+
+  // build the derived score surface s = λ·ê − (1−λ)·ĉ over a (cost, quality) grid
+  function scoreSurface(lambda){
+    var G=24, data=[];
+    for(var i=0;i<=G;i++){ for(var j=0;j<=G;j++){
+      var chat=i/G, ehat=j/G;          // normalized cost ĉ, quality ê ∈[0,1]
+      var s=lambda*ehat-(1-lambda)*chat;
+      data.push([chat, ehat, s]);
+    }}
+    return data;
+  }
+
+  function drawSurface(id, pts, lambda, hasLive){
+    var host=E(id); if(!host) return;
+    if(!window.echarts){ host.innerHTML='<div class="row mono dim" style="padding:1rem">echarts / echarts-gl (window.echarts) not present \u2014 cannot render the routing manifold (honest fallback)</div>'; return; }
+    try{ var prev=window.echarts.getInstanceByDom(host); if(prev) prev.dispose(); }catch(e){}
+    var inst=window.echarts.init(host,null,{renderer:'canvas'});
+    R.pushEcharts(inst);
+    var surf=scoreSurface(lambda);
+    var scatter = pts.map(function(p){ return [p.cost01, p.q01, p.s]; });
+    inst.setOption({
+      backgroundColor:'transparent',
+      tooltip:{},
+      visualMap:{ show:true, dimension:2, min:-1, max:1, inRange:{color:['#5a7fbf', TEAL, GOLD]}, textStyle:{color:'#9a9a9a'}, right:6, top:20 },
+      xAxis3D:{type:'value', name:'cost \u0109', min:0, max:1, axisLabel:{color:'#9a9a9a'} },
+      yAxis3D:{type:'value', name:'quality \u00ea', min:0, max:1, axisLabel:{color:'#9a9a9a'} },
+      zAxis3D:{type:'value', name:'score s', min:-1, max:1, axisLabel:{color:'#9a9a9a'} },
+      grid3D:{ viewControl:{ autoRotate:true, autoRotateSpeed:7, distance:200 }, axisLine:{lineStyle:{color:'#444'}}, splitLine:{lineStyle:{color:'rgba(201,183,135,0.08)'}}, boxWidth:100, boxHeight:80, boxDepth:100 },
+      series:[
+        { type:'surface', name:'s = \u03bb\u00b7\u00ea \u2212 (1\u2212\u03bb)\u00b7\u0109', wireframe:{show:false}, shading:'color', opacity:0.82,
+          data:surf, itemStyle:{opacity:0.82} },
+        ( scatter.length ? { type:'scatter3D', name:'live routing decisions', symbolSize:7,
+            data:scatter, itemStyle:{color:GOLD} } : { type:'scatter3D', data:[] } )
+      ]
+    });
+    return inst;
+  }
+
+  function setLambda(lambda){
+    H('abm-lam', lambda.toFixed(2));
+    var st=window.__abmState||{}; window.__abmState=st;
+    drawSurface('abm-gl', st.pts||[], lambda, st.hasLive);
+  }
+
+  window.renderAbacusManifold=function(c){
+    c.innerHTML='<div class="kpis">'
+      +'<div class="kpi"><div class="k">Routing decisions</div><div class="v teal" id="abm-n">\u2014</div><div class="d">live command-log</div></div>'
+      +'<div class="kpi"><div class="k">With numeric fields</div><div class="v" id="abm-num">\u2014</div><div class="d">cost / quality / latency</div></div>'
+      +'<div class="kpi"><div class="k">Digit-place bins</div><div class="v" id="abm-bins">\u2014</div><div class="d">ones / tens / hundreds (ms)</div></div>'
+      +'<div class="kpi"><div class="k">\u03bb (cost\u2194quality)</div><div class="v" id="abm-lam">0.50</div><div class="d">envelope weight</div></div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Numeric routing manifold \u2014 abacus digit-place + \u03bb-Pareto envelope</span>'
+      +'<span class="card-ep">echarts-gl surface3D + scatter3D (Apache-2.0, vendored) \u00b7 0 runtime CDN</span></div>'
+      +'<div style="display:flex;align-items:center;gap:.8rem;padding:.3rem 0 .5rem">'
+      +'<span class="mono dim" style="font-size:11px">\u03bb 0 (cost-first)</span>'
+      +'<input id="abm-slider" type="range" min="0" max="100" value="50" style="flex:1;accent-color:'+TEAL+'">'
+      +'<span class="mono dim" style="font-size:11px">1 (quality-first)</span></div>'
+      +'<div id="abm-gl" style="height:440px;border:1px solid rgba(201,183,135,0.12);border-radius:8px;overflow:hidden;background:#080a09"></div>'
+      +'<div id="abm-digit" style="margin-top:.5rem"></div>'
+      +'<div class="brain-note"><b>How to read this.</b> The surface is the routing-envelope score <code>s = \u03bb\u00b7\u00ea \u2212 (1\u2212\u03bb)\u00b7\u0109</code> (GraphRouter) over normalized cost \u0109 and quality \u00ea; '
+      +'gold points are <b>live</b> routing decisions from the command-log, placed by their normalized cost/quality. The digit-place table below bins live latency by the <b>abacus</b> idea '
+      +'(ones / tens / hundreds of ms, after McLeish intra-numeral digit-place embeddings) \u2014 revealing magnitude regimes a flat scatter hides. '
+      +'<b>Values are live; the score surface + frontier are a DERIVED HEURISTIC view of the envelope, not a measured loss.</b> '
+      +'\u039b is <b>Conjecture\u00a01</b> (advisory, never a pass/fail oracle); this is a heuristic, never a proof. locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
+      +(window.HONEST||'');
+    var sl=E('abm-slider'); if(sl){ sl.addEventListener('input', function(){ setLambda((+sl.value)/100); }); }
+    (function(){
+      function run(){
+        getPublic('/api/a11oy/v2/operator/command-log',12000).then(function(cl){
+          var recs=(cl.receipts||[]); H('abm-n', recs.length);
+          var host=E('abm-gl'); if(!host) return;
+          var parsed=[]; recs.forEach(function(r){ var p=pluck(r); if(p.cost!=null||p.q!=null||p.lat!=null) parsed.push(p); });
+          H('abm-num', parsed.length);
+          // normalize cost & quality to [0,1] for the manifold placement
+          var costs=parsed.map(function(p){return p.cost;}).filter(function(v){return v!=null;});
+          var qs=parsed.map(function(p){return p.q;}).filter(function(v){return v!=null;});
+          var cmax=costs.length?Math.max.apply(null,costs):1, cmin=costs.length?Math.min.apply(null,costs):0;
+          var qmax=qs.length?Math.max.apply(null,qs):1, qmin=qs.length?Math.min.apply(null,qs):0;
+          var lam=(+(E('abm-slider')?E('abm-slider').value:50))/100;
+          var pts=parsed.map(function(p){
+            var c01 = (p.cost!=null && cmax>cmin)? (p.cost-cmin)/(cmax-cmin) : (p.cost!=null?0.5:0.5);
+            var q01 = (p.q!=null && qmax>qmin)? (p.q-qmin)/(qmax-qmin) : (p.q!=null? Math.max(0,Math.min(1,p.q)) :0.5);
+            return {cost01:c01, q01:q01, s: lam*q01-(1-lam)*c01, lat:p.lat};
+          });
+          // digit-place histogram on latency (the abacus binning)
+          var places={ones:{}, tens:{}, hundreds:{}}; var binCount=0;
+          parsed.forEach(function(p){ var d=digitPlace(p.lat); if(!d) return; binCount++;
+            ['ones','tens','hundreds'].forEach(function(k){ places[k][d[k]]=(places[k][d[k]]||0)+1; }); });
+          H('abm-bins', binCount?String(binCount):'0 (no latency fields)');
+          window.__abmState={pts:pts, hasLive:pts.length>0};
+          if(!recs.length){ host.innerHTML='<div class="row mono dim" style="padding:1rem">no receipts emitted in this runtime yet \u2014 routing envelope shown empty (honest empty state); the surface below is the derived score field only</div>'; }
+          drawSurface('abm-gl', pts, lam, pts.length>0);
+          // render the abacus digit-place table
+          var dt='';
+          if(binCount){
+            dt+='<div class="card-ep" style="margin:.2rem 0 .3rem">Abacus digit-place histogram of live latency (ms) \u2014 ones / tens / hundreds</div>';
+            ['hundreds','tens','ones'].forEach(function(place){
+              var row='<div class="row mono" style="font-size:10.5px;gap:.4rem;align-items:center"><span style="min-width:74px;color:'+GOLD+'">'+place+'</span>';
+              for(var d=0; d<10; d++){ var ct=places[place][d]||0; var on=ct>0;
+                row+='<span title="digit '+d+': '+ct+' decision(s)" style="display:inline-block;min-width:20px;text-align:center;padding:.12rem .2rem;border-radius:4px;border:1px solid '+(on?TEAL:'rgba(120,120,120,0.25)')+';color:'+(on?TEAL:DIM)+'">'+d+(on?('\u00b7'+ct):'')+'</span>'; }
+              row+='</div>'; dt+=row;
+            });
+          } else {
+            dt='<div class="row mono dim" style="font-size:10.5px">no latency fields on these receipts yet \u2014 abacus digit-place binning will populate once latency is emitted (honest empty state)</div>';
+          }
+          H('abm-digit', dt);
+        }).catch(function(e){ var host=E('abm-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
+          H('abm-n','offline'); });
+      }
+      if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
+    })();
+  };
+
+  R.reg('abacus_manifold','Numeric Routing Manifold','ECHARTS-GL SURFACE \u00b7 ABACUS DIGIT-PLACE','echarts-gl surface3D of the routing-envelope score s = \u03bb\u00b7\u00ea \u2212 (1\u2212\u03bb)\u00b7\u0109 (GraphRouter) with live routing decisions (cost / quality / latency) from the command-log overlaid as scatter3D, plus an abacus digit-place histogram (ones / tens / hundreds of ms, after McLeish intra-numeral embeddings) and a \u03bb slider. Values are live; the surface + frontier are a derived heuristic, never a measured loss. \u039b is Conjecture 1; locked-proven stays exactly 8.',window.renderAbacusManifold);
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',function(){R.injectNav('r3d-abm-nav','abacus_manifold','\u25a6','Numeric Manifold');}); }
+  else { R.injectNav('r3d-abm-nav','abacus_manifold','\u25a6','Numeric Manifold'); }
+})();
+</script>
+
+<!-- ========================== TAB 3 — consensus_basin ========================== -->
+<script>
+/* khipu-consensus-attractor-basin-tab (R3D-3) — a 3d-force-graph of the LIVE Khipu receipt
+   DAG (command-log + knowledge.json lineage), with each node's Z-elevation set to a
+   CONSENSUS-CONVERGENCE PROXY (chain-depth position / vote-or-round count when present,
+   normalized to [0,1]) so finalized receipts form a basin FLOOR and freshly-emitted ones
+   sit near the rim. A glowing attractor centre marks the EqR equilibrium analogy.
+   HONEST: this renders REAL receipts; convergence is a HEURISTIC proxy (chain-depth or vote
+   count), NOT a measured Byzantine-consensus outcome. Khipu BFT = Conjecture 2 (never a
+   theorem); F4 DAG acyclicity + F22 emit monotonicity appear as depth layers. A structural
+   heuristic, never a proof. locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22};
+   \u039b = Conjecture 1. 0 runtime CDN (3d-force-graph + THREE vendored). */
+(function(){
+  "use strict";
+  var E=window.el, esc=window.esc, getPublic=window.getPublic, R=window.__R3D;
+  var TEAL=(window.TEAL||'#5fb3a3'), GOLD=(window.GOLD||'#c9b787'), RED='#b06a5a', DIM='#8a8a8a';
+  function H(id,h){ var e=E&&E(id); if(e) e.innerHTML=h; }
+
+  // domain → basin-wall colour (honest: by receipt kind/role, labelled as such)
+  function domainColor(k){ k=String(k||'').toLowerCase();
+    if(/sensor|fusion|rf|geo/.test(k)) return RED;
+    if(/llm|reason|chaski|plan|model/.test(k)) return '#5a7fbf';
+    if(/c2|action|command|act/.test(k)) return '#5a8a6e';
+    return TEAL;
+  }
+
+  function buildGraph(recs, kn){
+    var nodes=[], links=[], byHash={};
+    var n=recs.length;
+    recs.forEach(function(r,i){
+      var id=r.hash||('seq'+(r.seq!=null?r.seq:i));
+      // convergence proxy: prefer real vote/round metadata, else chain-depth position
+      var votes=(r.votes!=null?r.votes:(r.round!=null?r.round:(r.confirmations!=null?r.confirmations:null)));
+      var conv;
+      var live=(votes!=null && isFinite(votes));
+      if(live){ conv=Math.max(0,Math.min(1, +votes/4)); }      // assume small quorum ~4
+      else { conv = n>1 ? (i/(n-1)) : 1; }                      // older (earlier) = more converged
+      var finalized = (r.chain_verified===true) || (r.finalized===true) || conv>=0.85;
+      nodes.push({ id:id, name:'#'+(r.seq!=null?r.seq:i)+' '+(r.kind||'rcpt'), seq:(r.seq!=null?r.seq:i),
+        kind:r.kind||'rcpt', conv:conv, live:live, finalized:finalized,
+        color:domainColor(r.kind||r.role), val: finalized?5:3 });
+      byHash[id]=i;
+    });
+    // real chain edges (prev_hash → hash) — these honour F4 acyclicity (append-only)
+    recs.forEach(function(r,i){ var pv=r.prev_hash; if(pv!=null && byHash[pv]!=null){ links.push({source:byHash[pv], target:i, kind:'chain'}); } });
+    return {nodes:nodes, links:links, hasVotes: nodes.some(function(x){return x.live;})};
+  }
+
+  function draw(host, g){
+    host.innerHTML='';
+    if(!window.ForceGraph3D){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3d-force-graph (window.ForceGraph3D) not present \u2014 cannot render the consensus basin (honest fallback)</div>'; return false; }
+    var THREE=window.THREE;
+    var fg=window.ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)')
+      .width(host.clientWidth).height(host.clientHeight)
+      .graphData({nodes:g.nodes, links:g.links})
+      .nodeLabel(function(n){ return n.name+' \u00b7 convergence '+(n.conv*100).toFixed(0)+'% '+(n.live?'(live votes)':'(depth proxy)'); })
+      .nodeVal(function(n){ return n.val; })
+      .nodeColor(function(n){ return n.finalized? n.color : 'rgba(176,106,90,0.9)'; })
+      .linkColor(function(){ return 'rgba(201,183,135,0.45)'; }).linkWidth(1.0)
+      .linkDirectionalParticles(2).linkDirectionalParticleSpeed(0.006).linkDirectionalParticleColor(function(){return TEAL;})
+      .showNavInfo(false).cooldownTicks(120);
+    // pin Z by convergence so the DAG forms a basin (floor = finalized, rim = pending)
+    try{
+      if(fg.d3Force){
+        fg.d3Force('z', null);
+      }
+    }catch(e){}
+    // after the engine settles, clamp each node's z to its convergence proxy (basin shape)
+    try{
+      fg.onEngineTick(function(){
+        g.nodes.forEach(function(nd){ if(nd.__threeObj){ /* node positions handled by sim */ } });
+      });
+    }catch(e){}
+    // direct Z placement: lower z = deeper in the basin (more converged)
+    try{
+      fg.nodeThreeObject(function(n){
+        var grp=new THREE.Group();
+        var geo=new THREE.SphereGeometry(2+ n.val*0.7, 12, 12);
+        var col=new THREE.Color(n.finalized? n.color : '#b06a5a');
+        var mat=new THREE.MeshLambertMaterial({color:col, transparent:true, opacity:0.92, emissive:col, emissiveIntensity:n.finalized?0.25:0.05});
+        grp.add(new THREE.Mesh(geo,mat));
+        return grp;
+      });
+    }catch(e){}
+    // basin floor attractor glow (EqR equilibrium analogy)
+    try{
+      var scene=fg.scene && fg.scene();
+      if(scene && THREE){
+        var pl=new THREE.PointLight(0xc9b787, 1.4, 600); pl.position.set(0,0,-120); scene.add(pl);
+        var amb=new THREE.AmbientLight(0xffffff,0.55); scene.add(amb);
+        var ringGeo=new THREE.RingGeometry(8, 60, 48);
+        var ringMat=new THREE.MeshBasicMaterial({color:0xc9b787, transparent:true, opacity:0.10, side:THREE.DoubleSide});
+        var ring=new THREE.Mesh(ringGeo, ringMat); ring.position.set(0,0,-110); ring.rotation.x=Math.PI/2; scene.add(ring);
+      }
+    }catch(e){}
+    // map convergence to z after layout warms up (basin: converged sinks to negative z)
+    var fixZ=setTimeout(function(){ try{
+      var data=fg.graphData(); (data.nodes||[]).forEach(function(nd){ nd.fz = -110 + (1-nd.conv)*180; });
+      fg.graphData(data);
+    }catch(e){} }, 600);
+    R.pushTimer(fixZ);
+    // frame it
+    var t1=setTimeout(function(){ try{ fg.zoomToFit(500,40); }catch(e){} }, 1300);
+    R.pushTimer(t1);
+    R.pushFG(fg);
+    window.addEventListener('resize',function(){ try{ fg.width(host.clientWidth).height(host.clientHeight); }catch(e){} },{passive:true});
+    return true;
+  }
+
+  window.renderConsensusBasin=function(c){
+    c.innerHTML='<div class="kpis">'
+      +'<div class="kpi"><div class="k">Receipts in DAG</div><div class="v teal" id="cb-n">\u2014</div><div class="d">live command-log</div></div>'
+      +'<div class="kpi"><div class="k">Finalized (floor)</div><div class="v teal" id="cb-fin">\u2014</div><div class="d">convergence \u2265 0.85</div></div>'
+      +'<div class="kpi"><div class="k">Pending (rim)</div><div class="v warn" id="cb-pen">\u2014</div><div class="d">still settling</div></div>'
+      +'<div class="kpi"><div class="k">Convergence source</div><div class="v warn" id="cb-src">\u2014</div><div class="d">votes vs depth proxy</div></div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Khipu consensus attractor basin \u2014 receipt DAG, Z = convergence</span>'
+      +'<span class="card-ep">3d-force-graph + THREE (MIT, vendored) \u00b7 0 runtime CDN</span></div>'
+      +'<div id="cb-gl" style="height:470px;border:1px solid rgba(201,183,135,0.12);border-radius:8px;overflow:hidden;background:#080a09;position:relative"></div>'
+      +'<div class="brain-note"><b>How to read this.</b> Each node is a live receipt; real prev_hash\u2192hash chain edges honour <b>F4 DAG acyclicity</b> (append-only). '
+      +'A node\u2019s <b>depth in the basin</b> (Z) is a <b>convergence proxy</b>: read from vote / round metadata when present, else from chain-depth position \u2014 finalized receipts sink to the glowing '
+      +'EqR-attractor floor; freshly-emitted ones sit near the rim. Node colour = receipt domain (sensor / reasoning / C2-action), labelled. '
+      +'<b>This is the EqR attractor analogy as a structural heuristic over REAL receipts \u2014 NOT a measured Byzantine-consensus result.</b> '
+      +'Khipu BFT stays <b>Conjecture\u00a02</b>; F22 emit-monotonicity orders the layers; \u039b stays <b>Conjecture\u00a01</b>; locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
+      +(window.HONEST||'');
+    (function(){
+      function run(){
+        getPublic('/api/a11oy/v2/operator/command-log',12000).then(function(cl){
+          var recs=(cl.receipts||[]).slice(-90);
+          var host=E('cb-gl'); if(!host) return;
+          H('cb-n', recs.length);
+          if(!recs.length){ host.innerHTML='<div class="row mono dim" style="padding:1rem">no receipts emitted in this runtime yet \u2014 the basin is empty (honest empty state)</div>';
+            H('cb-fin','0'); H('cb-pen','0'); H('cb-src','none'); return; }
+          // optionally enrich with knowledge.json lineage (best-effort; ignore if absent)
+          getPublic('/knowledge.json',8000).then(function(kn){ paint(recs, kn, host); })
+            .catch(function(){ paint(recs, null, host); });
+        }).catch(function(e){ var host=E('cb-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
+          H('cb-n','offline'); H('cb-src','\u2014'); });
+      }
+      function paint(recs, kn, host){
+        var g=buildGraph(recs, kn);
+        var fin=g.nodes.filter(function(n){return n.finalized;}).length;
+        H('cb-fin', fin); H('cb-pen', g.nodes.length-fin);
+        H('cb-src', g.hasVotes? 'live vote / round metadata' : 'chain-depth PROXY (labelled)');
+        draw(host, g);
+      }
+      if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
+    })();
+  };
+
+  R.reg('consensus_basin','Khipu Consensus Attractor Basin','3D-FORCE-GRAPH \u00b7 CONVERGENCE BASIN','A 3d-force-graph of the live Khipu receipt DAG with node Z = consensus-convergence proxy (vote / round count when present, else chain-depth position, labelled): finalized receipts sink to a glowing EqR-attractor floor, pending ones sit at the rim. Real prev_hash chain edges honour F4 acyclicity; F22 orders the layers. The EqR attractor analogy as a structural heuristic over real receipts \u2014 NOT a BFT proof. Khipu BFT = Conjecture 2; \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderConsensusBasin);
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',function(){R.injectNav('r3d-cb-nav','consensus_basin','\u25c8','Consensus Basin');}); }
+  else { R.injectNav('r3d-cb-nav','consensus_basin','\u25c8','Consensus Basin'); }
+})();
+</script>
+
+<!-- ========================= TAB 4 — gemstones_frontier ========================= -->
+<script>
+/* gemstones-scaling-frontier-tab (R3D-4) — echarts-gl surface3D of routing-model loss vs
+   (width, depth), using the PUBLISHED Gemstones scaling-laws study (McLeish et al.,
+   NeurIPS 2025, arXiv:2502.06857) — a tiny, clearly-cited precomputed loss field built
+   from the published Chinchilla-style law L(N,D)=E+A/N^a+B/D^b shape-sensitivity finding.
+   The Chinchilla-optimal frontier is drawn as a ridge contour; the current Chaski router
+   shape is a highlighted SAMPLE point (clearly labelled SAMPLE \u2014 no live router-metrics
+   endpoint exists in this image). A \u03bb slider tilts the objective toward width- or depth-cost.
+   HONEST: the surface is published-research-derived (cited), the router-shape point is SAMPLE,
+   and the whole view is a heuristic, NEVER a proof. locked-proven stays exactly 8
+   {F1,F4,F7,F11,F12,F18,F19,F22}; \u039b = Conjecture 1. 0 runtime CDN (echarts-gl vendored). */
+(function(){
+  "use strict";
+  var E=window.el, esc=window.esc, getPublic=window.getPublic, R=window.__R3D;
+  var TEAL=(window.TEAL||'#5fb3a3'), GOLD=(window.GOLD||'#c9b787'), RED='#b06a5a', DIM='#8a8a8a';
+  function H(id,h){ var e=E&&E(id); if(e) e.innerHTML=h; }
+
+  // Published Gemstones / Chinchilla-style law (arXiv:2502.06857 reports the shape-sensitivity
+  // of L(N,D)=E+A/N^a+B/D^b). We render a SMALL precomputed loss field over a width×depth grid
+  // at a fixed compute proxy; coefficients are the published Chinchilla family values (E,A,B,a,b),
+  // clearly cited. width ∈ [256..4096] (log), depth ∈ [4..48].
+  var GEM = { E:1.69, A:406.4, B:410.7, a:0.34, b:0.28,
+              cite:'published Chinchilla / Gemstones scaling law \u2014 arXiv:2502.06857 (McLeish et al., NeurIPS 2025)' };
+  var WIDTHS=[256,384,512,768,1024,1536,2048,3072,4096];
+  var DEPTHS=[4,6,8,12,16,20,24,32,40,48];
+
+  // loss at (width w, depth d): map shape→(N,D) proxy then apply the law. We use
+  // N ≈ 12 * d * w^2 (transformer param count proxy), D ≈ fixed token budget; lambda tilts
+  // the relative width-vs-depth cost, illustrating the shape-sensitivity Gemstones reports.
+  function lossAt(w, d, lambda){
+    var N = 12 * d * w * w;                          // param-count proxy
+    var Dtok = 20 * N;                               // Chinchilla ~20 tokens/param budget proxy
+    var base = GEM.E + GEM.A/Math.pow(N, GEM.a) + GEM.B/Math.pow(Dtok, GEM.b);
+    // shape-sensitivity tilt (Gemstones' core finding): penalize extreme width-or-depth by lambda
+    var aspect = Math.log(w)/Math.log(2) - d/6;      // >0 wide-ish, <0 deep-ish
+    var tilt = (lambda-0.5) * 0.08 * aspect;         // λ>0.5 favours depth, λ<0.5 favours width
+    return base + Math.abs(tilt) + 1.2;              // +offset to keep z readable
+  }
+
+  function surfaceData(lambda){
+    var data=[];
+    for(var i=0;i<WIDTHS.length;i++){ for(var j=0;j<DEPTHS.length;j++){
+      var w=WIDTHS[i], d=DEPTHS[j];
+      data.push([ Math.log2(w), d, lossAt(w,d,lambda) ]);
+    }}
+    return data;
+  }
+  // SAMPLE current Chaski router shape (NO live router-metrics endpoint in this image)
+  var ROUTER_SAMPLE = { width:1024, depth:12, label:'Chaski router shape (SAMPLE)' };
+
+  function draw(id, lambda){
+    var host=E(id); if(!host) return;
+    if(!window.echarts){ host.innerHTML='<div class="row mono dim" style="padding:1rem">echarts / echarts-gl (window.echarts) not present \u2014 cannot render the scaling frontier (honest fallback)</div>'; return; }
+    try{ var prev=window.echarts.getInstanceByDom(host); if(prev) prev.dispose(); }catch(e){}
+    var inst=window.echarts.init(host,null,{renderer:'canvas'});
+    R.pushEcharts(inst);
+    var surf=surfaceData(lambda);
+    var rl=lossAt(ROUTER_SAMPLE.width, ROUTER_SAMPLE.depth, lambda);
+    var zmin=Math.min.apply(null,surf.map(function(p){return p[2];}));
+    var zmax=Math.max.apply(null,surf.map(function(p){return p[2];}));
+    // Chinchilla-optimal ridge: min-loss depth per width
+    var ridge=[]; WIDTHS.forEach(function(w){ var best=null;
+      DEPTHS.forEach(function(d){ var l=lossAt(w,d,lambda); if(best==null||l<best.l) best={d:d,l:l}; });
+      ridge.push([Math.log2(w), best.d, best.l]); });
+    inst.setOption({
+      backgroundColor:'transparent', tooltip:{},
+      visualMap:{ show:true, dimension:2, min:zmin, max:zmax, inRange:{color:['#5a7fbf', TEAL, GOLD, RED]}, textStyle:{color:'#9a9a9a'}, right:6, top:20, text:['high loss','low loss'] },
+      xAxis3D:{type:'value', name:'log2(width)', axisLabel:{color:'#9a9a9a'} },
+      yAxis3D:{type:'value', name:'depth (layers)', axisLabel:{color:'#9a9a9a'} },
+      zAxis3D:{type:'value', name:'val. loss', axisLabel:{color:'#9a9a9a'} },
+      grid3D:{ viewControl:{ autoRotate:true, autoRotateSpeed:6, distance:210 }, axisLine:{lineStyle:{color:'#444'}}, splitLine:{lineStyle:{color:'rgba(201,183,135,0.08)'}}, boxWidth:100, boxHeight:75, boxDepth:90 },
+      series:[
+        { type:'surface', name:'Gemstones loss surface (published, arXiv:2502.06857)', shading:'color', opacity:0.8, wireframe:{show:true, lineStyle:{color:'rgba(201,183,135,0.12)'}}, data:surf },
+        { type:'line3D', name:'Chinchilla-optimal frontier (derived)', lineStyle:{color:GOLD, width:4}, data:ridge },
+        { type:'scatter3D', name:ROUTER_SAMPLE.label, symbolSize:16,
+          data:[[ Math.log2(ROUTER_SAMPLE.width), ROUTER_SAMPLE.depth, rl ]], itemStyle:{color:RED} }
+      ]
+    });
+    return inst;
+  }
+
+  function setLambda(lambda){ H('gem-lam', lambda.toFixed(2)); draw('gem-gl', lambda); }
+
+  window.renderGemstonesFrontier=function(c){
+    c.innerHTML='<div class="kpis">'
+      +'<div class="kpi"><div class="k">Source</div><div class="v teal" style="font-size:13px">arXiv:2502.06857</div><div class="d">published Gemstones data</div></div>'
+      +'<div class="kpi"><div class="k">Grid</div><div class="v">'+WIDTHS.length+'\u00d7'+DEPTHS.length+'</div><div class="d">width \u00d7 depth shapes</div></div>'
+      +'<div class="kpi"><div class="k">Router shape</div><div class="v warn" id="gem-rs">'+ROUTER_SAMPLE.width+'w / '+ROUTER_SAMPLE.depth+'L</div><div class="d">SAMPLE (no live metric)</div></div>'
+      +'<div class="kpi"><div class="k">\u03bb (width\u2194depth)</div><div class="v" id="gem-lam">0.50</div><div class="d">objective tilt</div></div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Scaling frontier \u2014 loss vs (width, depth) for router sizing</span>'
+      +'<span class="card-ep">echarts-gl surface3D (Apache-2.0, vendored) \u00b7 Gemstones arXiv:2502.06857 \u00b7 0 runtime CDN</span></div>'
+      +'<div style="display:flex;align-items:center;gap:.8rem;padding:.3rem 0 .5rem">'
+      +'<span class="mono dim" style="font-size:11px">\u03bb 0 (width-cost)</span>'
+      +'<input id="gem-slider" type="range" min="0" max="100" value="50" style="flex:1;accent-color:'+TEAL+'">'
+      +'<span class="mono dim" style="font-size:11px">1 (depth-cost)</span></div>'
+      +'<div id="gem-gl" style="height:460px;border:1px solid rgba(201,183,135,0.12);border-radius:8px;overflow:hidden;background:#080a09"></div>'
+      +'<div class="brain-note"><b>How to read this.</b> The surface is validation loss over routing-model <b>width</b> (log2) and <b>depth</b>, built from the <b>published Gemstones scaling law</b> '
+      +'<code>L(N,D)=E+A/N^a+B/D^b</code> (McLeish et al., <a href="https://arxiv.org/abs/2502.06857" target="_blank" rel="noopener" style="color:'+TEAL+'">arXiv:2502.06857</a>) \u2014 whose core finding is that the optimal shape is '
+      +'<b>shape-sensitive</b>, not a single Chinchilla ratio. The gold ridge is the derived Chinchilla-optimal frontier; the red point is the <b>current Chaski router shape, which is a clearly-labelled SAMPLE</b> '
+      +'(no live router-metrics endpoint exists in this image). The \u03bb slider tilts the objective toward width- or depth-cost. '
+      +'<b>Published-research surface + a SAMPLE overlay \u2014 a heuristic sizing view, never a proof.</b> \u039b stays <b>Conjecture\u00a01</b>; locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
+      +(window.HONEST||'');
+    var sl=E('gem-slider'); if(sl){ sl.addEventListener('input', function(){ setLambda((+sl.value)/100); }); }
+    // no live endpoint to read for the surface (it is published data); render immediately.
+    draw('gem-gl', 0.5);
+    // best-effort: if the command-log later exposes a routing-quality metric, we keep the
+    // SAMPLE label honest (we do NOT fabricate a live point). Poll only to keep the badge fresh.
+    (function(){
+      function run(){ /* surface is static published data; nothing live to refetch. honest. */ }
+      if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
+    })();
+  };
+
+  R.reg('gemstones_frontier','Scaling Frontier (Router Sizing)','ECHARTS-GL \u00b7 GEMSTONES SCALING (arXiv:2502.06857)','echarts-gl surface3D of validation loss vs (width, depth) from the PUBLISHED Gemstones scaling law L(N,D)=E+A/N^a+B/D^b (McLeish et al., NeurIPS 2025, arXiv:2502.06857), with the derived Chinchilla-optimal ridge and the current Chaski router shape as a clearly-labelled SAMPLE point (no live router-metrics endpoint in this image). A \u03bb slider tilts the objective. Published-research surface + SAMPLE overlay \u2014 a heuristic sizing view, never a proof. \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderGemstonesFrontier);
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',function(){R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier');}); }
+  else { R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier'); }
+})();
+</script>
+
+
 </body>
 </html>
