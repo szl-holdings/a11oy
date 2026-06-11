@@ -240,6 +240,17 @@ ENDPOINTS = {
         allow_statuses=(200, 400, 422),
         note="CKW 2000 monogamy Σ τ_pairwise ≤ τ_global from ?pairwise=&total= — the STRUCTURAL no-leak / trust<100% primitive tying to Khipu. Cited (Coffman-Kundu-Wootters, PRA 61:052306). Deterministic."),
 
+    # ── szl_unified_formulas.py + szl_cuas_formulas.py module-level /summary cards.
+    # These two module summaries back the Formula Atlas index tab. Bare-GET 200,
+    # deterministic, each carries its own author citations + doctrine block in-body
+    # (sources cited to origin; locked_proven=8; lambda=Conjecture 1; trust never 100%;
+    # cuas effector=SIMULATED). PROPOSED/ANALOGY engineering constructs, NOT the formal
+    # Λ; Λ stays Conjecture 1. No live-feed freshness obligation (sla=None). ──
+    "/api/a11oy/v1/unified/summary": ep(schema="generic_obj", sla=None,
+        note="Unified-formulas (thesis v6) summary: borrowed structure cited to origin (Sherman-Morgan/NASA/Tsiolkovsky, LS12/Cuk-Stewart/Lock-Stewart, Lindblad 1976, Baumgratz-Cramer-Plenio 2014), status_legend VERIFIED/PROPOSED/ANALOGY, doctrine (locked_proven=8, lambda=Conjecture 1, lambda_v5=PROPOSED engineering gate, trust never 100%). PROPOSED/ANALOGY, NOT the formal Λ."),
+    "/api/a11oy/v1/cuas/summary": ep(schema="generic_obj", sla=None,
+        note="Counter-UAS C2 summary: SZL constructs with classical inspirations cited (Zarchan/Palumbo PN, Joerger GNSS χ², Julier-Uhlmann CI, Bar-Shalom, Olfati-Saber/Zelazo consensus, Manne WTA, NIST PQC FIPS 203/204/205), status_legend SIMULATED/VERIFIED/EXPERIMENTAL, doctrine (locked_proven=8, lambda=Conjecture 1, effector=SIMULATED, trust never 100%). EXPERIMENTAL; effector SIMULATED, never actuates."),
+
     # ── readiness (self) ──
     "/api/a11oy/v1/readiness": ep(schema="readiness", sla=5 * MIN),
     "/api/a11oy/v1/readiness/tab-matrix": ep(schema="tab_matrix", sla=None,
@@ -390,6 +401,14 @@ TAB_ENDPOINTS = {
                  "/api/a11oy/v1/entangle/concurrence", "/api/a11oy/v1/entangle/negativity",
                  "/api/a11oy/v1/entangle/entropy", "/api/a11oy/v1/entangle/chsh",
                  "/api/a11oy/v1/entangle/monogamy"],
+    # Formula Atlas — the unified investor-readable INDEX of all 5 live formula
+    # modules. Contract it to each module's live /summary so it is judged as a
+    # genuine declared (non-static) tab, NOT silently bucketed static. Pure index
+    # view: reads every /summary live for tier + citations (never upgraded), with
+    # clickable live routes. Additive; Λ stays Conjecture 1; locked-proven stays 8.
+    "atlas": ["/api/a11oy/v1/scaling/summary", "/api/a11oy/v1/allodial/summary",
+              "/api/a11oy/v1/entangle/summary", "/api/a11oy/v1/unified/summary",
+              "/api/a11oy/v1/cuas/summary"],
     "whTamper": ["/api/a11oy/v1/warhacker/index"],
     "whCannonico": ["/api/a11oy/v1/warhacker/index"],
 }
