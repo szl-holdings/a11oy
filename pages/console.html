@@ -10978,6 +10978,110 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 /* end anatomy-map-tab-patch */
 </script>
 
+
+<script>
+/* conjecture-factory-tab-patch :: SZL Conjecture Factory — honest live disclosure board ::
+   Additive, self-contained, NS-aware. Renders factory-generated OPEN conjectures from the
+   real disclosure-ledger (szl-lake khipu, kind=conjecture-disclosure-anchor) via
+   /api/{ns}/v1/conjecture-factory. Honesty doctrine v11 by construction: a conjecture is
+   NEVER called a theorem; every item stays OPEN until independently verified; novelty is an
+   advisory screen; a signature attests timestamp + content, not truth; Conjecture 1
+   (unconditional Λ uniqueness) is and remains OPEN. No fabricated live pills. */
+(function(){
+  var NS=(window.__rd_ns||(location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
+  var TEAL='#3ddc97', GOLD='#c9b787', DIM='#8a8f98', WARN='#e0a82e', RED='#b06a5a', BLUE='#5aa0d0';
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function ago(iso){ if(!iso) return ''; try{ var t=new Date(iso).getTime(); if(!t) return ''; var s=Math.max(0,(Date.now()-t)/1000); if(s<60) return Math.round(s)+'s ago'; if(s<3600) return Math.round(s/60)+'m ago'; if(s<86400) return Math.round(s/3600)+'h ago'; return Math.round(s/86400)+'d ago'; }catch(e){ return ''; } }
+  function pill(txt,col,title){ return '<span title="'+esc(title||'')+'" style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+col+';border:1px solid '+col+';background:'+col+'1a;">'+esc(txt)+'</span>'; }
+  function link(url,label,col){ if(!url) return ''; return '<a href="'+esc(url)+'" target="_blank" rel="noopener" style="color:'+(col||TEAL)+'">'+esc(label||url)+'</a>'; }
+  /* novelty is advisory only — never a claim of originality */
+  function novCol(n){ n=String(n||'').toLowerCase(); if(n==='novel-candidate') return TEAL; if(n==='known-restatement'||n==='duplicate') return WARN; return DIM; }
+  /* difficulty/grade come from a bounded solver run; OPEN = neither solved nor refuted in budget */
+  function diffCol(d){ d=String(d||'').toLowerCase(); if(d==='refuted') return RED; if(d==='verified-finite') return TEAL; if(d==='open-resistant'||d==='hard') return GOLD; return DIM; }
+  function gradeCol(g){ g=String(g||'').toUpperCase(); if(g==='REFUTED') return RED; if(g==='VERIFIED-FINITE') return TEAL; return GOLD; }
+  function stageCol(s){ s=String(s||'').toLowerCase(); if(s==='solution') return TEAL; if(s==='statement') return BLUE; return DIM; }
+  function statusBadge(st){ st=String(st||'').toLowerCase(); if(st==='live') return pill('\u25cf live',TEAL,'fetched live from the disclosure ledger'); if(st==='cached') return pill('\u25cf cached',BLUE,'served from last good cache'); return pill('\u25cf unreachable',RED,'ledger unreachable'); }
+
+  function card(c){
+    var rec=c.receipt||{}, hon=c.honesty||{};
+    var grade=String(c.grade||'OPEN').toUpperCase();
+    var openLbl = c.is_open ? 'OPEN' : grade;
+    var h='<div style="border:1px solid #232830;border-radius:9px;padding:12px 14px;margin-bottom:10px;background:#0e1217">';
+    h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<span style="font-weight:700;color:#e6eaee;font-size:14px">'+esc(c.title||'(untitled conjecture)')+'</span>'
+      +pill(openLbl, c.is_open?RED:gradeCol(grade), c.is_open?'a genuinely OPEN conjecture \u2014 NOT a theorem; stays OPEN until independently verified':'bounded-solver grade')
+      +'</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px">';
+    if(c.novelty) h+=pill('novelty: '+c.novelty,novCol(c.novelty),'advisory novelty screen \u2014 not a proof of originality');
+    if(c.difficulty) h+=' '+pill('difficulty: '+c.difficulty,diffCol(c.difficulty),'from a bounded solver run');
+    h+=' '+pill('grade: '+grade,gradeCol(grade),'OPEN = neither solved nor refuted within the solver budget');
+    if(c.release_stage) h+=' '+pill('stage: '+c.release_stage,stageCol(c.release_stage),'release stage (teaser / statement / solution)');
+    h+='</div>';
+    if(c.statement) h+='<div style="font-size:12.5px;color:#b6bcc4;margin-top:8px;line-height:1.55"><span style="color:'+DIM+';font-family:var(--mono,monospace);font-size:10px;letter-spacing:.08em">STATEMENT</span><br>'+esc(c.statement)+'</div>';
+    /* disclosure-ledger receipt — link/badge; signature attests timestamp+content, not truth */
+    var rlinks=[];
+    if(rec.rekor_log_index!=null) rlinks.push(link('https://search.sigstore.dev/?logIndex='+encodeURIComponent(rec.rekor_log_index),'Rekor #'+rec.rekor_log_index+' \u2197',TEAL));
+    if(rec.source_run_url) rlinks.push(link(rec.source_run_url,(rec.source_run_workflow||'source run')+' \u2197',DIM));
+    var rid=rec.receipt_id||c.id||'';
+    var recline='';
+    if(rid) recline+=pill('receipt '+String(rid).slice(0,12),DIM,'disclosure-ledger receipt id');
+    if(rec.signing_mode) recline+=' '+pill(rec.signing_mode,DIM,'signing mode \u2014 attests timestamp + content, not truth');
+    if(rec.chain_index!=null) recline+=' '+pill('chain #'+rec.chain_index,DIM,'append-only chain index');
+    if(recline||rlinks.length){
+      h+='<div style="margin-top:9px;padding-top:8px;border-top:1px solid #1c2128">'
+        +'<div style="font-family:var(--mono,monospace);font-size:10px;color:'+DIM+';letter-spacing:.08em;margin-bottom:4px">DISCLOSURE-LEDGER RECEIPT</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+recline
+        +(rlinks.length?('<span style="font-size:12px;margin-left:4px">'+rlinks.join(' \u00b7 ')+'</span>'):'')
+        +'</div>'
+        +'<div style="font-family:var(--mono,monospace);font-size:10px;color:'+DIM+';margin-top:5px">A signature attests <b>timestamp + content</b> of the disclosure \u2014 it is not evidence the conjecture is true.</div>'
+        +'</div>';
+    }
+    h+='</div>';
+    return h;
+  }
+
+  window.conjecturefactory_render=async function(host){
+    host.innerHTML='<div class="card"><div class="dim">loading factory conjectures from the disclosure ledger\u2026</div></div>';
+    try{
+      var r=await fetch('/api/'+NS+'/v1/conjecture-factory',{cache:'no-store'});
+      var d=await r.json();
+      var items=d.conjectures||[];
+      var h='';
+      h+='<div style="border:1px solid #2a2f37;border-radius:10px;padding:14px 16px;margin-bottom:14px;background:#11151a">'
+        +'<div style="font-family:var(--mono,monospace);font-size:11px;color:'+DIM+';letter-spacing:.08em">CONJECTURE FACTORY \u00b7 HONEST OUTPUT</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:7px">'
+        +statusBadge(d.status)
+        +' '+pill((d.count||0)+' OPEN conjecture'+((d.count===1)?'':'s'),GOLD,'generated, not proven')
+        +' '+pill('doctrine '+(d.doctrine||'v11'),DIM,'honesty doctrine')
+        +'</div>'
+        +'<div style="font-size:12.5px;color:#cfd4da;margin-top:9px;line-height:1.5">'+esc(d.honest||'')+'</div>'
+        +'<div style="font-family:var(--mono,monospace);font-size:10px;color:'+DIM+';margin-top:7px">source: '+(d.source?link(d.source,'disclosure ledger \u2197',TEAL):'(unreachable)')+' \u00b7 checked '+esc(ago(d.checked_at)||'just now')+'</div>'
+        +'</div>';
+      items.forEach(function(c){ h+=card(c); });
+      if(!items.length){ h+='<div class="card"><div class="dim">No factory conjectures on the ledger yet \u2014 this board shows only signed, disclosed OPEN conjectures.</div></div>'; }
+      host.innerHTML=h;
+    }catch(e){ host.innerHTML='<div class="card"><div class="dim">conjecture factory unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
+  };
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
+    V.conjecturefactory={ title:'Conjecture Factory', badge:'OPEN \u00b7 generated, not proven \u00b7 signed disclosure',
+      sub:'Factory-generated <b>OPEN conjectures</b>, read live from the real disclosure ledger (szl-lake khipu, <span class="mono">kind=conjecture-disclosure-anchor</span>). Each item carries an advisory <b>novelty</b> screen, a bounded-solver <b>difficulty grade</b> (OPEN = neither solved nor refuted in budget), a <b>release stage</b>, the conjecture <b>statement</b>, and a link/badge to its signed disclosure-ledger receipt. A conjecture is <b>never</b> a theorem; it stays OPEN until a solution is independently verified; a signature attests timestamp + content, not truth. \u039b unconditional uniqueness is <b>Conjecture 1</b> \u2014 OPEN, never proved.',
+      render:async function(c){ window.conjecturefactory_render(c); } };
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="bounties"]')||document.querySelector('.nav-item[data-view="anatomymap"]')||document.querySelector('.nav-item[data-view="readiness"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="conjecturefactory"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','conjecturefactory'); n.setAttribute('onclick',"go('conjecturefactory')");
+    n.innerHTML='<span class="ico">\u2697</span>Conjecture Factory';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+/* end conjecture-factory-tab-patch */
+</script>
+
 <script>
 (function(){
   "use strict";
