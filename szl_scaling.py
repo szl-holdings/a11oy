@@ -23,9 +23,11 @@ Citations (cited, NOT reclaimed):
   - Brown, Gillooly, Allen, Savage, West 2004, Ecology 85:1771 (MTE, Boltzmann factor): https://doi.org/10.1890/03-9000
   - Demetrius & Tuszynski 2010, J R Soc Interface (quantum metabolism / PMF bridge): https://pmc.ncbi.nlm.nih.gov/articles/PMC2842802/
   - Kaplan et al. 2020, arXiv:2001.08361 (neural scaling laws — compute analogue): https://arxiv.org/abs/2001.08361
+  - Wang & Zhao 2025, Biology (Basel) 15(1):84 (hierarchical, scale-dependent MTE;
+    species-specific exponent SD≈0.072): https://doi.org/10.3390/biology15010084
 
 Register:  register(app, ns="a11oy")  /  register(app, ns="killinchu")
-Routes:    GET /api/<ns>/v1/scaling/{summary,kleiber,mte,unified,heart,compute,exponents}
+Routes:    GET /api/<ns>/v1/scaling/{summary,kleiber,hierarchical,mte,unified,heart,compute,exponents}
 """
 from __future__ import annotations
 import math
@@ -94,8 +96,18 @@ SOURCES = {
     "Brown et al. 2004 MTE (Boltzmann factor)": "https://doi.org/10.1890/03-9000",
     "Demetrius-Tuszynski 2010 (quantum metabolism/PMF)": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2842802/",
     "Kaplan et al. 2020 (neural scaling laws)": "https://arxiv.org/abs/2001.08361",
+    "Wang & Zhao 2025 (hierarchical scale-dependent MTE; SD(b)\u22480.072)": "https://doi.org/10.3390/biology15010084",
     "AnAge / HAGR dataset": "https://genomics.senescence.info/species/",
 }
+
+# Wang & Zhao 2025 (Biology 15(1):84): mixed-effects analysis across 7 fish species
+# shows metabolic scaling is HIERARCHICAL and scale-dependent — the mass exponent b is
+# NOT a single universal constant. Mean intraspecific b=0.760±0.012 (≈ interspecific
+# b=0.768±0.023) BUT the species-specific exponent distribution has SD(b)≈0.072
+# (CV≈0.094). Cited, NOT reclaimed; SZL adds only an OPTIONAL species-specific-exponent
+# entry point alongside the unchanged β=3/4 Kleiber form. [VERIFIED-where-deterministic]
+HIERARCHICAL_EXPONENT_SD = 0.072   # Wang & Zhao 2025, species-specific SD(b)
+HIERARCHICAL_EXPONENT_MEAN = 0.760  # Wang & Zhao 2025, mean intraspecific b
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +119,41 @@ def kleiber(M_kg: float, B0: float = 70.0, beta: float = 0.75) -> float:
     if M_kg <= 0:
         return 0.0
     return B0 * (M_kg ** beta)
+
+
+def kleiber_hierarchical(M_kg: float, b: float = 0.75, B0: float = 70.0) -> dict[str, Any]:
+    """Hierarchical / scale-dependent Kleiber form  B = B0 · M^b  with a species-specific
+    exponent b (DEFAULT 0.75, the canonical Kleiber/WBE value — so the default reproduces
+    kleiber() exactly). Unlike the fixed-β kleiber(), this accepts a caller-supplied b to
+    reflect that metabolic scaling is HIERARCHICALLY scale-dependent: the mass exponent
+    varies across (and within) species rather than being a single universal constant. The
+    species-specific exponent distribution has SD(b)≈0.072 (CV≈0.094) per Wang & Zhao 2025.
+
+    ADDITIVE: this does NOT change or remove kleiber() (β=3/4 stays the canonical default);
+    it is an OPTIONAL companion that exposes b as a first-class, honestly-uncertain input.
+    Cite Wang & Zhao 2025, Biology 15(1):84, doi:10.3390/biology15010084 (hierarchical MTE).
+    Empirical scale-dependence is cited to its authors; SZL reclaims none of it.
+    [VERIFIED model — deterministic B=B0·M^b; the scale-dependence claim is cited prior art]"""
+    if M_kg <= 0:
+        return {"M_kg": M_kg, "b": b, "B_kcal_day": 0.0, "status": "out_of_domain"}
+    B = B0 * (M_kg ** b)
+    return {
+        "M_kg": float(M_kg),
+        "b": float(b),
+        "B0": float(B0),
+        "B_kcal_day": round(B, 6),
+        "b_default": 0.75,
+        "exponent_sd": HIERARCHICAL_EXPONENT_SD,
+        "exponent_mean_intraspecific": HIERARCHICAL_EXPONENT_MEAN,
+        "note": ("Metabolic scaling is hierarchically scale-dependent: the mass exponent b "
+                 "is not a single universal constant (species-specific SD(b)≈0.072, "
+                 "CV≈0.094). Default b=0.75 reproduces canonical Kleiber/WBE."),
+        "cite": "Wang & Zhao 2025, Biology (Basel) 15(1):84, doi:10.3390/biology15010084",
+        "cite_url": "https://doi.org/10.3390/biology15010084",
+        "baseline_cite": "Kleiber 1932 / West-Brown-Enquist 1997 (β=3/4 canonical)",
+        "status": "VERIFIED",
+        "tier": "VERIFIED-where-deterministic (computation exact); scale-dependence is cited prior art",
+    }
 
 
 def banavar_exponent(D: int = 3) -> float:
@@ -261,6 +308,9 @@ def register(app, ns: str) -> None:
     base = f"/api/{ns}/v1/scaling"
     app.add_api_route(f"{base}/summary", lambda: summary(), methods=["GET"])
     app.add_api_route(f"{base}/kleiber", lambda M: {"M_kg": float(M), "B_kcal_day": kleiber(float(M))}, methods=["GET"])
+    # ADDITIVE (Wang & Zhao 2025): species-specific hierarchical exponent b (default 0.75).
+    app.add_api_route(f"{base}/hierarchical",
+                      lambda M, b="0.75": kleiber_hierarchical(float(M), float(b)), methods=["GET"])
     app.add_api_route(f"{base}/mte",
                       lambda M, T="310": {"M_kg": float(M), "T_K": float(T), "B": mte_rate(float(M), float(T))},
                       methods=["GET"])
@@ -307,9 +357,17 @@ def _selftest() -> None:
     assert szl_phi(70.0, 310.0, 121.5, 12.0)["phi"] > szl_phi(70.0, 310.0, 121.5, 3.0)["phi"]
     # compute allometry: bigger model -> lower loss
     assert szl_compute_allometry(700)["predicted_loss"] < szl_compute_allometry(7)["predicted_loss"]
+    # hierarchical Kleiber (Wang & Zhao 2025): default b=0.75 reproduces kleiber() exactly
+    kh = kleiber_hierarchical(70.0)
+    assert abs(kh["B_kcal_day"] - kleiber(70.0)) < 1e-6, kh
+    assert kh["status"] == "VERIFIED" and abs(kh["exponent_sd"] - 0.072) < 1e-12, kh
+    # a higher species-specific exponent yields a higher B at the same mass (>1 kg)
+    assert kleiber_hierarchical(70.0, 0.82)["B_kcal_day"] > kleiber_hierarchical(70.0, 0.75)["B_kcal_day"]
+    # out-of-domain guard
+    assert kleiber_hierarchical(0.0)["status"] == "out_of_domain"
     # out-of-domain guards
     assert szl_phi(0, 310, 121.5, 6.05)["status"] == "out_of_domain"
-    print("szl_scaling: ALL OK (11 checks)")
+    print("szl_scaling: ALL OK (15 checks)")
 
 
 if __name__ == "__main__":
