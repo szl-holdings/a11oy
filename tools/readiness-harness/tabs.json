@@ -6,8 +6,8 @@
   "generatedAt": "2026-06-11T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 124,
-    "endpoints": 52,
+    "tabs": 125,
+    "endpoints": 59,
     "tabsWithCitations": 22,
     "staticTabs": 38
   },
@@ -1080,6 +1080,165 @@
       },
       "note": "Goguen-Meseguer 1982 non-interference witness (IEEE S&P): purged-op equivalence over the lattice. Deterministic; cited prior art; PROPOSED, NOT the formal Λ."
     },
+    "/api/a11oy/v1/entangle/summary": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Entanglement module summary: honest verdict + tiers (RIGOROUS bridge / monogamy STRUCTURAL / QBA NARRATIVE / avian ACTIVE / FMO CONTESTED / Orch-OR SPECULATIVE), measures, doctrine (locked_count_unchanged, lambda=Conjecture 1, trust_never_100, tier=EXPERIMENTAL/PROPOSED), cites. PROPOSED, NOT the formal Λ."
+    },
+    "/api/a11oy/v1/entangle/capacity_bound": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "HERO bridge: E_max(t) ≤ C0·exp(−γt) tying SZL Λ-v5 coherence decay to entanglement-generating CAPACITY (Streltsov 2015, RMP 89:041003) composed with the merged-Lean coherence curve. Deterministic; PROPOSED engineering gate, NOT the formal Λ; Λ stays Conjecture 1."
+    },
+    "/api/a11oy/v1/entangle/entropy": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "von Neumann entanglement entropy (bits) for state=bell|product. Bell=1 bit, product=0. Cited (von Neumann). Deterministic."
+    },
+    "/api/a11oy/v1/entangle/concurrence": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Wootters 1998 concurrence + entanglement of formation for state=bell|product. Bell concurrence=1, product=0. Cited (Wootters, PRL 80:2245). Deterministic."
+    },
+    "/api/a11oy/v1/entangle/negativity": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Vidal-Werner 2002 negativity + logarithmic negativity for state=bell|product. Bell negativity=0.5, product=0. Cited (Vidal-Werner, PRA 65:032314). Deterministic."
+    },
+    "/api/a11oy/v1/entangle/chsh": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "CHSH 1969 S value vs classical bound 2 vs Tsirelson 1980 bound 2√2 from ?corr=c1,c2,c3,c4; flags local-realism violation. Cited (CHSH PRL 23:880 / Tsirelson). Deterministic."
+    },
+    "/api/a11oy/v1/entangle/monogamy": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "CKW 2000 monogamy Σ τ_pairwise ≤ τ_global from ?pairwise=&total= — the STRUCTURAL no-leak / trust<100% primitive tying to Khipu. Cited (Coffman-Kundu-Wootters, PRA 61:052306). Deterministic."
+    },
     "/api/a11oy/v1/readiness": {
       "method": "GET",
       "schema": "readiness",
@@ -1858,6 +2017,29 @@
       "static": false,
       "degradedRules": {
         "allowSampleLabel": true,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "entangle",
+      "title": "Entanglement",
+      "group": "Console",
+      "route": "/console#entangle",
+      "endpoints": [
+        "/api/a11oy/v1/entangle/summary",
+        "/api/a11oy/v1/entangle/capacity_bound",
+        "/api/a11oy/v1/entangle/concurrence",
+        "/api/a11oy/v1/entangle/negativity",
+        "/api/a11oy/v1/entangle/entropy",
+        "/api/a11oy/v1/entangle/chsh",
+        "/api/a11oy/v1/entangle/monogamy"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
         "failOnMissingCitation": false
       }
