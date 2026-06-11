@@ -112,7 +112,7 @@ Cross-Space OTLP broker is roadmap (documented in `org_roadmap_synthesis.md`).
 | Λ = Theorem | ❌ Conjecture 1 only (open CAUCHY_ND sorry) |
 | Λ = Conjecture 1 | ✅ Honest |
 | 749/14/163 @ c7c0ba17 | ✅ Locked |
-| PROVED = {F1,F11,F12,F18,F19} | ✅ Canonical |
+| PROVED = {F1,F4,F7,F11,F12,F18,F19,F22} | ✅ Canonical |
 | F23 = Conjecture 1 | ✅ Open bounty, NOT a theorem |
 
 Doctrine v11 LOCKED. HONESTY OVER CHECKLIST.
