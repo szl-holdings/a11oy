@@ -50,6 +50,13 @@ jobs:
           push: true
           provenance: false
           sbom: false
+          # PUBLISHED-IMAGE CONTRACT: enforce the hard real-local-model requirement on
+          # the GHCR build (ample RAM+time). The Dockerfile defaults this to 0 so a
+          # CONSTRAINED HF Spaces rebuild degrades to the honest tower-side label instead
+          # of bricking; here we set 1 so a failed llama compile / missing GGUF fails the
+          # published build loud (also boot-verified by the step below).
+          build-args: |
+            A11OY_REQUIRE_LOCAL_LLM=1
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
