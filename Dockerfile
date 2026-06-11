@@ -466,11 +466,33 @@ COPY szl_alloy_models.py ./szl_alloy_models.py
 # from source on cp312/linux_x86_64 and asserts the resulting libllama.so links
 # glibc (not musl) and imports — verifying, not assuming, the contract on each bump.
 # GGML_NATIVE=OFF keeps the build portable (no -march=native) across CI + box CPUs.
+#
+# BUILD-ENV RESILIENCE (a11oy-build-resilience): the from-source compile is heavy.
+# On the strict PUBLISHED-image path (GHCR / GitHub Actions, ample RAM+time) it MUST
+# succeed and is verified glibc-linked + boot-tested by ghcr-build-push's "Demo tier
+# serves REAL local model" step + llama-wheel-guard.yml. On a CONSTRAINED rebuild
+# (HF Spaces cpu-basic rebuilds this Dockerfile from scratch and was OOM/timing-out
+# -> BUILD_ERROR, bricking the whole Space), a compile failure must NOT brick the app:
+# szl_alloy_models.py already returns an HONEST tower-side label (served_locally=False,
+# never a fake completion) when llama_cpp is absent. So: fail-loud when
+# A11OY_REQUIRE_LOCAL_LLM=1 (set in GHCR CI), else best-effort with an honest skip.
+# This preserves the published image's hard real-model guarantee while keeping the
+# HF Space reliably bootable. No fabricated data either way.
+ARG A11OY_REQUIRE_LOCAL_LLM=0
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends build-essential cmake ninja-build git libgomp1 libstdc++6; \
-    CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19"; \
-    python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp built from source OK (glibc):', so[0], getattr(llama_cpp,'__version__','?'))"; \
+    if CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19" \
+       && python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp built from source OK (glibc):', so[0], getattr(llama_cpp,'__version__','?'))"; then \
+      echo '[a11oy] local llama.cpp demo tier: BUILT (real on-CPU output available)'; \
+    else \
+      if [ "${A11OY_REQUIRE_LOCAL_LLM}" = "1" ]; then \
+        echo '[a11oy] FATAL: llama_cpp source build failed and A11OY_REQUIRE_LOCAL_LLM=1 (published-image contract)'; exit 1; \
+      else \
+        echo '[a11oy] NOTE: llama_cpp source build unavailable on this constrained builder; demo tier will serve the HONEST tower-side label (no fake output). App boots normally.'; \
+        pip uninstall -y llama-cpp-python 2>/dev/null || true; \
+      fi; \
+    fi; \
     apt-get purge -y build-essential cmake ninja-build git; \
     apt-get autoremove -y; \
     rm -rf /var/lib/apt/lists/*
@@ -488,6 +510,8 @@ ARG A11OY_ALLOY_GGUF_FILE=qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 ARG A11OY_ALLOY_GGUF_REV=ebb2015119c907b064c512bf053e945850b5875f
 ARG A11OY_ALLOY_GGUF_SHA256=1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32
 ARG A11OY_ALLOY_GGUF_SIZE=491400064
+ARG A11OY_REQUIRE_LOCAL_LLM=0
+ENV A11OY_REQUIRE_LOCAL_LLM=${A11OY_REQUIRE_LOCAL_LLM}
 RUN python3 <<'GGUFPY'
 import hashlib, os, sys, time
 from huggingface_hub import hf_hub_download
@@ -534,8 +558,14 @@ for attempt in range(1, 7):
         print("[a11oy] attempt %d: download failed: %s" % (attempt, last), flush=True)
     time.sleep(min(60, 5 * attempt))
 
-sys.stderr.write("[a11oy] FATAL: could not obtain a verified GGUF after retries: %s\n" % last)
-sys.exit(1)
+# RESILIENCE (a11oy-build-resilience): fail-loud on the strict published-image path
+# (A11OY_REQUIRE_LOCAL_LLM=1 in GHCR CI), else honest skip so a constrained HF rebuild
+# still boots (demo tier shows the tower-side label, never fake output).
+if os.environ.get("A11OY_REQUIRE_LOCAL_LLM") == "1":
+    sys.stderr.write("[a11oy] FATAL: could not obtain a verified GGUF after retries: %s\n" % last)
+    sys.exit(1)
+sys.stderr.write("[a11oy] NOTE: GGUF weight not obtained (%s); demo tier will serve the HONEST tower-side label. App boots normally.\n" % last)
+sys.exit(0)
 GGUFPY
 # Drop transient download metadata; the real weight stays at /app/models/<file>.
 RUN rm -rf /app/models/.cache /root/.cache/huggingface 2>/dev/null || true
