@@ -12902,5 +12902,244 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 
+<script>
+/* ============================================================================
+   SZL FORMULA ATLAS — unified index of all 5 live engineering formula modules.
+   ADDITIVE ONLY. Owns ONLY: view key 'atlas', #atlas-* DOM ids, nav group
+   #atlas-nav-group, window.renderFormulaAtlas. Reuses console helpers read-only
+   (esc, setHTML). 0 runtime CDN (no external libs — pure DOM + fetch).
+   Namespace auto-detected (a11oy vs killinchu) so the SAME block is byte-identical
+   across both apps. Reads every module's /summary LIVE; tiers/citations are read
+   from the live payload, never invented, never upgraded.
+   DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (never theorem);
+   Λ-v5 / allodial / entanglement-capacity = PROPOSED, NOT the formal Λ; trust never
+   100%; DOI = thesis v8 mint pending (Zenodo, founder-gated) — never fabricated;
+   killinchu effector SIMULATED.
+   ============================================================================ */
+(function(){
+  "use strict";
+  var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', CREAM='#f5f5f5',
+      DIM='#8b93a3', INFO='#8fb3c9', PANEL='#12151b', LINE='#1f2632';
+  // Namespace: killinchu /elite vs a11oy /console. Same block, both apps.
+  var NS = (String(location.hostname).indexOf('killinchu')>=0) ? 'killinchu' : 'a11oy';
+  var BASE = (location.origin||'') + '/api/' + NS + '/v1';
+  function E(id){ return document.getElementById(id); }
+  function H(id,h){ var e=E(id); if(e) e.innerHTML=h; }
+  function esc(s){ return window.esc ? window.esc(s) : String(s==null?'':s).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];}); }
+  function getJSON(u){ return window.getJSON ? window.getJSON(u) : fetch(u).then(function(r){ return r.json(); }); }
+
+  // ---- tier vocabulary + tone (honest; never an upgrade) --------------------
+  function tone(t){
+    var s=String(t||'').toUpperCase();
+    if(s.indexOf('VERIFIED')>=0||s.indexOf('RIGOROUS')>=0||s.indexOf('MERGED')>=0) return TEAL;
+    if(s.indexOf('PROPOSED')>=0||s.indexOf('GATE')>=0) return AMBER;
+    if(s.indexOf('EXPERIMENTAL')>=0||s.indexOf('SIMULATED')>=0) return RED;
+    return INFO;
+  }
+  function badge(t){ var col=tone(t); return '<span class="atlas-badge" style="color:'+col+';border-color:'+col+';background:'+col+'1a">'+esc(t)+'</span>'; }
+
+  // ---- the 5 live modules. tierFrom() reads the LIVE /summary doctrine/tier;
+  //      we NEVER hardcode a tier higher than what the module itself reports. ----
+  var MODULES = [
+    { key:'scaling', name:'Metabolic Scaling',
+      purpose:'Reproduces documented allometric scaling laws (Kleiber / WBE / MTE) and composes them into SZL\u2019s own unified \u03a6 (network \u00d7 PMF activation \u00d7 coherence).',
+      tierFrom:function(d){ return 'EXPERIMENTAL \u00b7 VERIFIED-deterministic reproductions + SZL-\u03a6 PROPOSED'; },
+      routes:['summary','exponents','compute','kleiber?M=70','mte?M=70','heart?M=70','unified?M=70'],
+      lean:'\u2014 (deterministic reproductions; no Lean obligation)',
+      citesFrom:function(d){ return Object.keys(d.sources||{}).map(function(k){ return {label:k, url:(d.sources||{})[k]}; }); } },
+    { key:'allodial', name:'Allodial AI \u2014 Sovereignty',
+      purpose:'Sovereignty / chain-of-title formulas (SEAL / SovScore / DCI / non-interference / lattice): operator holds the substrate outright (L6 machine-checked chain-of-title), not rented from an overlord.',
+      tierFrom:function(d){ return (d.doctrine&&d.doctrine.tier) ? d.doctrine.tier : 'EXPERIMENTAL / PROPOSED engineering gate'; },
+      routes:['summary','score','dci','seal','noninterference','lattice'],
+      lean:'\u2713 Lean MERGED \u2014 lutar-lean #229 (non-interference)',
+      citesFrom:function(d){ return (d.cites||[]).map(function(s){ return {label:s, url:null}; }); } },
+    { key:'entangle', name:'Entanglement',
+      purpose:'Entanglement measures (von Neumann entropy, concurrence, negativity, CHSH) + the \u039b-v5 coherence\u2192entanglement capacity bridge E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t), and a CKW-monogamy \u2192 Khipu no-leak primitive.',
+      tierFrom:function(d){ return (d.doctrine&&d.doctrine.tier) ? d.doctrine.tier : 'EXPERIMENTAL/PROPOSED'; },
+      routes:['summary','entropy','concurrence','negativity','chsh','capacity_bound','monogamy'],
+      lean:'\u2713 Lean MERGED \u2014 lutar-lean #230 (capacity bound E_max(t) \u2264 C\u2080\u00b7exp(\u2212\u03b3t))',
+      citesFrom:function(d){ return (d.cites||[]).map(function(s){ return {label:s, url:null}; }); } },
+    { key:'unified', name:'Unified Formulas (thesis v6)',
+      purpose:'Borrowed engineering structure cited to origin: density-impulse / Tsiolkovsky, LS12 / Cuk-Stewart giant-impact, Lindblad open-system + l1 coherence \u2014 adapted as governance/routing analogues, never claimed as new theorems.',
+      tierFrom:function(d){ return 'EXPERIMENTAL \u00b7 VERIFIED reproductions + PROPOSED/ANALOGY (\u039b-v5 PROPOSED gate)'; },
+      routes:['summary'],
+      lean:'\u2713 Wave24 coherence merged (coherence_crossing \u2192 VERIFIED on green build, lutar-lean #225)',
+      citesFrom:function(d){ return Object.keys(d.sources||{}).map(function(k){ return {label:k, url:(d.sources||{})[k]}; }); } },
+    { key:'cuas', name:'Counter-UAS C2',
+      purpose:'Counter-UAS command-and-control feasibility math (proportional-navigation engageability, GNSS spoof \u03c7\u00b2, covariance-intersection fusion, urgency-weighted Laplacian consensus, weapon\u2013target assignment, PQ receipt bus). Computes solutions only \u2014 the effector is SIMULATED, never actuates.',
+      tierFrom:function(d){ return 'EXPERIMENTAL \u00b7 effector SIMULATED (never actuates)'; },
+      routes:['summary','engage?N=3.5&closing=80&accel=21&amax=200','plausibility','fusion?var_a=4&var_b=9&omega=0.5','consensus','wta','pqbus'],
+      lean:'\u2014 (engineering constructs; no Lean obligation)',
+      citesFrom:function(d){ return Object.keys(d.sources||{}).map(function(k){ return {label:k, url:(d.sources||{})[k]}; }); } }
+  ];
+
+  function citesHTML(list){
+    if(!list||!list.length) return '<span class="atlas-dim">no citations returned by /summary</span>';
+    return list.map(function(c){
+      if(c.url && /^https?:\/\//.test(c.url)) return '<a class="atlas-cite" href="'+esc(c.url)+'" target="_blank" rel="noopener noreferrer">'+esc(c.label)+'</a>';
+      return '<span class="atlas-cite atlas-cite-static">'+esc(c.label)+'</span>';
+    }).join('');
+  }
+
+  function routeBtns(mod){
+    return mod.routes.map(function(r){
+      var path='/'+mod.key+'/'+r;
+      var full=BASE+path;
+      // onclick fetches LIVE JSON and shows it in the module's <pre>
+      return '<button class="atlas-route" data-mod="'+esc(mod.key)+'" data-url="'+esc(full)+'" title="GET '+esc(full)+'">'+esc(path.split('?')[0])+'</button>';
+    }).join('');
+  }
+
+  function fetchInto(mod, url){
+    var pre=E('atlas-json-'+mod.key);
+    if(pre){ pre.textContent='\u2026 GET '+url; pre.style.display='block'; }
+    getJSON(url).then(function(d){
+      if(pre) pre.textContent='GET '+url+'\n\n'+JSON.stringify(d,null,2);
+    }).catch(function(e){
+      if(pre) pre.textContent='GET '+url+'\n\nfetch failed: '+esc(e&&e.message||String(e));
+    });
+  }
+
+  function renderModuleCard(mod){
+    return '<div class="atlas-card" id="atlas-card-'+esc(mod.key)+'">'+
+      '<div class="atlas-card-head">'+
+        '<div class="atlas-card-title"><span class="atlas-mod-key">'+esc(mod.key)+'</span> '+esc(mod.name)+'</div>'+
+        '<span class="atlas-tier" id="atlas-tier-'+esc(mod.key)+'"><span class="atlas-dim">reading /summary\u2026</span></span>'+
+      '</div>'+
+      '<div class="atlas-purpose">'+esc(mod.purpose)+'</div>'+
+      '<div class="atlas-meta">'+
+        '<div class="atlas-meta-row"><span class="atlas-meta-k">Lean</span><span id="atlas-lean-'+esc(mod.key)+'">'+esc(mod.lean)+'</span></div>'+
+        '<div class="atlas-meta-row"><span class="atlas-meta-k">DOI</span><span class="atlas-dim">thesis v8 DOI mint pending (Zenodo, founder-gated)</span></div>'+
+        '<div class="atlas-meta-row"><span class="atlas-meta-k">Base</span><span class="atlas-mono">'+esc(BASE+'/'+mod.key)+'/*</span></div>'+
+      '</div>'+
+      '<details class="atlas-detail">'+
+        '<summary>Routes &amp; live citations</summary>'+
+        '<div class="atlas-routes">'+routeBtns(mod)+'</div>'+
+        '<div class="atlas-section-k">Citations (read live from /summary \u2014 every formula cited to its real author)</div>'+
+        '<div class="atlas-cites" id="atlas-cites-'+esc(mod.key)+'"><span class="atlas-dim">reading\u2026</span></div>'+
+        '<pre class="atlas-json" id="atlas-json-'+esc(mod.key)+'" style="display:none"></pre>'+
+      '</details>'+
+    '</div>';
+  }
+
+  function header(){
+    return '<div class="atlas-honest">'+
+      '<div class="atlas-honest-lead"><b>Formula Atlas \u2014 the single honest index of everything SZL computes.</b> '+
+      'Five live engineering formula modules, each surfaced from its own running endpoints. '+
+      'Every formula is cited to its real author; <b>SZL claims none as its own discovery.</b></div>'+
+      '<div class="atlas-honest-tiers">'+
+        '<span class="atlas-badge" style="color:'+TEAL+';border-color:'+TEAL+';background:'+TEAL+'1a">VERIFIED</span> reproduces a documented result &nbsp;\u00b7&nbsp; '+
+        '<span class="atlas-badge" style="color:'+AMBER+';border-color:'+AMBER+';background:'+AMBER+'1a">PROPOSED</span> engineering gate (cited prior art, not a theorem) &nbsp;\u00b7&nbsp; '+
+        '<span class="atlas-badge" style="color:'+RED+';border-color:'+RED+';background:'+RED+'1a">EXPERIMENTAL</span> active construct'+
+      '</div>'+
+      '<div class="atlas-honest-doc">\u039b uniqueness = <b>Conjecture\u00a01</b> (never a theorem). '+
+      '\u039b-v5 / allodial / entanglement-capacity are <b>PROPOSED, NOT the formal \u039b</b>. '+
+      'Locked-proven formulas stay exactly <b>8</b> {F1,F4,F7,F11,F12,F18,F19,F22}. '+
+      'Thesis v8 DOI mint is <b>pending (Zenodo, founder-gated)</b> \u2014 no DOI is fabricated. '+
+      'Trust is <b>never 100%</b>. Tiers below are read <b>live</b> from each module\u2019s <code>/summary</code> and never upgraded.</div>'+
+    '</div>';
+  }
+
+  window.renderFormulaAtlas = function(c){
+    if(!c) return;
+    c.innerHTML =
+      header() +
+      '<div class="atlas-grid" id="atlas-grid">' +
+        MODULES.map(renderModuleCard).join('') +
+      '</div>' +
+      '<div class="atlas-foot">Namespace <code>'+esc(NS)+'</code> \u00b7 base <code>'+esc(BASE)+'</code> \u00b7 all routes are live (GET \u2192 real JSON). 0 runtime CDN.</div>';
+
+    // Wire per-route live fetch buttons (delegation; null-safe)
+    var grid=E('atlas-grid');
+    if(grid){
+      grid.addEventListener('click', function(ev){
+        var t=ev.target;
+        if(t && t.classList && t.classList.contains('atlas-route')){
+          var key=t.getAttribute('data-mod'), url=t.getAttribute('data-url');
+          var mod=null; for(var i=0;i<MODULES.length;i++){ if(MODULES[i].key===key){ mod=MODULES[i]; break; } }
+          if(mod) fetchInto(mod, url);
+        }
+      });
+    }
+
+    // Read every module's /summary LIVE for tier + citations (never upgrade).
+    MODULES.forEach(function(mod){
+      getJSON(BASE+'/'+mod.key+'/summary').then(function(d){
+        d=d||{};
+        var tier=mod.tierFrom(d);
+        H('atlas-tier-'+mod.key, badge(tier));
+        H('atlas-cites-'+mod.key, citesHTML(mod.citesFrom(d)));
+      }).catch(function(e){
+        H('atlas-tier-'+mod.key, '<span class="atlas-badge" style="color:'+RED+';border-color:'+RED+';background:'+RED+'1a">/summary unavailable</span>');
+        H('atlas-cites-'+mod.key, '<span class="atlas-dim">summary fetch failed: '+esc(e&&e.message||String(e))+'</span>');
+      });
+    });
+  };
+
+  // ---- register the view ----------------------------------------------------
+  var ATLAS_BADGE='HONEST INDEX \u00b7 5 LIVE MODULES \u00b7 \u039b=CONJECTURE 1 \u00b7 TRUST NEVER 100%';
+  var ATLAS_SUB='One investor-readable index of every live SZL engineering formula module \u2014 metabolic scaling, allodial sovereignty, entanglement, unified (thesis v6) and Counter-UAS C2. For each: purpose, live clickable routes (GET \u2192 real JSON), the honest tier read <b>live</b> from <code>/summary</code> (never upgraded), real author citations, Lean merge status where real, and honest DOI status. Every formula is cited to its origin; SZL claims none as its own discovery. \u039b uniqueness stays <b>Conjecture\u00a01</b>; \u039b-v5 / allodial / entanglement-capacity are <b>PROPOSED, NOT the formal \u039b</b>; locked-proven stays exactly 8; trust is never 100%; the Counter-UAS effector is <b>SIMULATED</b>.';
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
+    if(window.VIEWS[key]){ return; }
+    window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
+    try{ console.log('[atlas] Formula Atlas tab registered: '+key); }catch(e){}
+  }
+  function regAtlas(){ reg('atlas','Formula Atlas',ATLAS_BADGE,ATLAS_SUB,window.renderFormulaAtlas); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',regAtlas); } else { regAtlas(); }
+
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="entangle"]')||document.querySelector('.nav-item[data-view="sovereignty"]')||document.querySelector('.nav-item[data-view="scaling"]')||document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('atlas-nav-item')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='atlas-nav-group'; grp.textContent='Formula Atlas';
+    var n=document.createElement('div'); n.className='nav-item'; n.id='atlas-nav-item'; n.setAttribute('data-view','atlas'); n.setAttribute('onclick',"go('atlas')");
+    n.setAttribute('title','Formula Atlas: one honest index of all 5 live SZL formula modules (scaling, allodial, entangle, unified, cuas). Per-module purpose, live routes (GET real JSON), tier read live from /summary (never upgraded), real citations, Lean status, honest DOI status. Lambda stays Conjecture 1; trust never 100%; effector SIMULATED.');
+    n.innerHTML='<span class="ico">\u2318</span>Formula Atlas';
+    var parent=anchor.parentNode; parent.insertBefore(grp, anchor); parent.insertBefore(n, anchor);
+    try{ console.log('[atlas] Formula Atlas nav injected'); }catch(e){}
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+<style>
+/* Formula Atlas — scoped, brand-aligned, 0 CDN */
+.atlas-honest{border:1px solid var(--gold-line,rgba(201,183,135,.22));background:linear-gradient(180deg,rgba(201,183,135,.05),rgba(0,0,0,0));border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.1rem;}
+.atlas-honest-lead{font-size:13.5px;color:var(--cream,#f0f0f0);line-height:1.7;}
+.atlas-honest-lead b{color:var(--gold,#c9b787);}
+.atlas-honest-tiers{margin-top:.7rem;font-size:12px;color:#aeb6c2;line-height:2.1;}
+.atlas-honest-doc{margin-top:.7rem;font-size:12px;color:#9aa3b1;line-height:1.8;border-top:1px solid rgba(255,255,255,.06);padding-top:.6rem;}
+.atlas-honest-doc b{color:#cfd6df;} .atlas-honest-doc code{color:var(--teal,#5fb3a3);font-family:var(--mono,monospace);}
+.atlas-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;border:1px solid;white-space:nowrap;}
+.atlas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:1rem;}
+.atlas-card{border:1px solid var(--gold-line,rgba(201,183,135,.18));background:var(--panel,#12151b);border-radius:12px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.55rem;}
+.atlas-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;flex-wrap:wrap;}
+.atlas-card-title{font-family:var(--display,inherit);font-size:15px;color:var(--cream,#f0f0f0);font-weight:600;}
+.atlas-mod-key{font-family:var(--mono,monospace);font-size:11px;color:var(--teal,#5fb3a3);background:rgba(95,179,163,.1);padding:1px 7px;border-radius:6px;border:1px solid rgba(95,179,163,.3);}
+.atlas-purpose{font-size:12.5px;color:var(--paragraph,#b6bdc8);line-height:1.7;}
+.atlas-meta{display:flex;flex-direction:column;gap:.25rem;font-size:11.5px;}
+.atlas-meta-row{display:flex;gap:.6rem;align-items:baseline;}
+.atlas-meta-k{min-width:42px;color:var(--teal,#5fb3a3);font-family:var(--mono,monospace);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;}
+.atlas-meta-row span:last-child{color:#bcc4cf;}
+.atlas-mono{font-family:var(--mono,monospace);}
+.atlas-detail{margin-top:.3rem;border-top:1px solid rgba(255,255,255,.06);padding-top:.5rem;}
+.atlas-detail>summary{cursor:pointer;font-size:11.5px;color:var(--gold,#c9b787);font-family:var(--mono,monospace);list-style:none;}
+.atlas-detail>summary::-webkit-details-marker{display:none;}
+.atlas-detail>summary:before{content:'\25B8 ';color:var(--gold,#c9b787);}
+.atlas-detail[open]>summary:before{content:'\25BE ';}
+.atlas-routes{display:flex;flex-wrap:wrap;gap:.35rem;margin:.6rem 0;}
+.atlas-route{font-family:var(--mono,monospace);font-size:10.5px;padding:.28rem .55rem;border-radius:6px;cursor:pointer;background:rgba(143,179,201,.08);color:var(--info,#8fb3c9);border:1px solid rgba(143,179,201,.3);transition:.12s;}
+.atlas-route:hover{background:rgba(143,179,201,.2);color:#cfe0ec;}
+.atlas-section-k{font-size:10.5px;color:#8b93a3;text-transform:uppercase;letter-spacing:.04em;margin:.5rem 0 .3rem;font-family:var(--mono,monospace);}
+.atlas-cites{display:flex;flex-wrap:wrap;gap:.4rem;}
+.atlas-cite{font-size:11px;padding:.22rem .55rem;border-radius:6px;background:rgba(201,183,135,.07);color:var(--gold,#c9b787);border:1px solid rgba(201,183,135,.25);text-decoration:none;}
+.atlas-cite:hover{background:rgba(201,183,135,.18);}
+.atlas-cite-static{color:#aeb6c2;border-color:rgba(174,182,194,.25);background:rgba(174,182,194,.06);cursor:default;}
+.atlas-json{margin-top:.6rem;background:#0b0d11;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:.7rem;font-family:var(--mono,monospace);font-size:10.5px;color:#bcc4cf;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;}
+.atlas-dim{color:#7d8593;font-size:11px;}
+.atlas-foot{margin-top:1rem;font-size:11px;color:#7d8593;font-family:var(--mono,monospace);}
+.atlas-foot code{color:var(--teal,#5fb3a3);}
+.atlas-tier .atlas-dim{font-family:var(--mono,monospace);}
+</style>
+
 </body>
 </html>
