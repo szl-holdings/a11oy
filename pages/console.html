@@ -173,6 +173,87 @@ pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--pa
   .content{padding:.85rem .85rem 1.6rem;}
   .card{padding:.85rem .9rem;}
 }
+/* ============ RESPONSIVE HARDENING v2 (2026-06 · VISUAL/LAYOUT ONLY) ============
+   Mobile-first polish across phone/tablet/desktop/large display. Additive only —
+   no content/doctrine changes. Breakpoints at 480 / 768 / 1024px. */
+
+/* (A) GLOBAL OVERFLOW + CANVAS GUARD — every viz canvas/svg fits its container,
+   never blows past the viewport or inflates document width. */
+.graph3d canvas,.globe3d canvas,.cyto canvas,.echart canvas,.chartbox canvas,
+.graph3d svg,.globe3d svg,.cyto svg,.echart svg,.chartbox svg,
+.tl-graphbox canvas,.ln-dagbox canvas,.honey canvas{max-width:100%!important;}
+.graph3d,.globe3d,.cyto,.echart,.chartbox,.tl-graphbox,.ln-dagbox{max-width:100%;overflow:hidden;}
+img,svg,canvas,video{max-width:100%;}
+
+/* (B) TABLES — wrap every data table in a horizontal-scroll container so a wide
+   track-board / formula list / exponent comparator scrolls INSIDE its card and
+   never overflows the page. .dtbl tables get a scroll-host via display:block. */
+.tbl-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+@media (max-width:1024px){
+  .card>table,.card .dtbl,table.dtbl{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;}
+  .card>table thead,.card .dtbl thead{white-space:nowrap;}
+}
+
+/* (C) FLOATING WIDGET SAFE-AREA — the deploy-injected reliability/Chaski badge
+   (#a11oy-rel-badge and any .szl-float widget) must sit inside the safe-area
+   inset, shrink on phones, and never sit ON TOP of card content. We reserve
+   bottom padding on .content so the last card clears the widget, and add a
+   dismissible class hook (.szl-float-hidden) toggled by the JS shim below. */
+#a11oy-rel-badge,.szl-float{
+  right:calc(env(safe-area-inset-right,0px) + 12px)!important;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 12px)!important;
+  z-index:100!important;max-width:calc(100vw - 24px);}
+.szl-float-hidden{display:none!important;}
+.szl-float-dismiss{position:absolute;top:-8px;right:-8px;width:20px;height:20px;line-height:18px;
+  text-align:center;border-radius:50%;border:1px solid var(--gold-line);background:var(--panel);
+  color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer;z-index:1;padding:0;}
+@media (max-width:768px){
+  /* shrink badge text + give the scroll content room so it is never permanently hidden */
+  #a11oy-rel-badge{font-size:10px!important;padding:.3rem .5rem!important;}
+  .content{padding-bottom:4.5rem!important;}
+}
+
+/* (D) NAV — collapsible groups + comfortable touch targets on phone/tablet.
+   The 50+ tab list becomes a set of tappable section headers; the active group
+   and 'Operate' stay open. Nav still scrolls; no dead micro-targets. */
+@media (max-width:1024px){
+  .side{padding-bottom:2rem;}
+  .nav-group{margin:.5rem .4rem .25rem;padding:.55rem .55rem;cursor:pointer;position:relative;
+    border-radius:7px;display:flex;align-items:center;justify-content:space-between;min-height:40px;
+    background:var(--gold-soft);border:1px solid var(--gold-line);}
+  .nav-group::after{content:'▾';font-size:11px;color:var(--gold);transition:transform .18s;opacity:.8;}
+  .nav-group.collapsed::after{transform:rotate(-90deg);}
+  .nav-item.nav-hidden{display:none!important;}
+  .nav-item{min-height:44px;padding:.7rem .65rem;font-size:14px;}
+  .nav-item .ico{font-size:14px;width:18px;}
+}
+@media (max-width:768px){
+  /* sidebar drawer: tighter so it is a clear overlay, not ~80% of a small phone.
+     It is already position:fixed with a scrim (overlay, not push). */
+  .side{width:min(78vw,288px);padding-left:calc(env(safe-area-inset-left,0px) + .7rem);}
+  .menu-btn{min-width:44px;min-height:34px;padding:.35rem .6rem;font-size:14px;}
+  .topbar{padding-left:calc(env(safe-area-inset-left,0px) + .8rem);
+          padding-right:calc(env(safe-area-inset-right,0px) + .8rem);}
+}
+
+/* (E) TABLET (768–1024) — two-up KPIs, comfortable cards. */
+@media (min-width:769px) and (max-width:1024px){
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}
+}
+
+/* (F) LANDSCAPE PHONE — short viewport: cap viz height to avoid a tall canvas
+   eating the whole fold; keep tap targets. */
+@media (max-height:520px) and (orientation:landscape){
+  .graph3d,.graph3d.hero,.graph3d.tall,.globe3d,.cyto{height:min(82vh,300px)!important;}
+  .echart,.echart.tall{height:min(72vh,260px)!important;}
+  .chartbox,.chartbox.tall{height:min(64vh,220px)!important;}
+}
+
+/* (G) LARGE DISPLAY (>=1600px) — keep content readable, don't let it sprawl. */
+@media (min-width:1600px){
+  .content{max-width:1500px;margin-left:auto;margin-right:auto;}
+}
+/* ============ END RESPONSIVE HARDENING v2 ============ */
 .menu-btn{display:none;background:none;border:1px solid var(--gold-line);color:var(--gold);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-family:var(--mono);font-size:11px;}
 /* ===== VISUALS =====
    Heights use clamp(min, fold-relative, max) so the PRIMARY viz of each tab
@@ -1758,6 +1839,54 @@ function toggleSide(force){
   const mb=document.querySelector('.menu-btn');if(mb)mb.setAttribute('aria-expanded',String(open));
 }
 window.toggleSide=toggleSide;
+/* ===== RESPONSIVE HARDENING v2 SHIM (VISUAL/LAYOUT ONLY) =====
+   (1) Collapsible nav-groups on touch viewports so the 50+ tab rail is scannable.
+   (2) Defensive hardening of the deploy-injected floating reliability/Chaski badge:
+       add a dismiss control + keep it inside the safe-area. No content changes. */
+(function szlRespHarden(){
+  var MQ='(max-width:1024px)';
+  function isTouch(){return window.matchMedia&&window.matchMedia(MQ).matches;}
+  function groupItems(g){var out=[],n=g.nextElementSibling;while(n&&!n.classList.contains('nav-group')){if(n.classList.contains('nav-item'))out.push(n);n=n.nextElementSibling;}return out;}
+  function setGroup(g,collapsed){g.classList.toggle('collapsed',collapsed);groupItems(g).forEach(function(it){it.classList.toggle('nav-hidden',collapsed&&isTouch());});}
+  function buildNavCollapse(){
+    var groups=document.querySelectorAll('.side .nav-group');
+    groups.forEach(function(g,i){
+      if(g.dataset.collapseBound)return; g.dataset.collapseBound='1';
+      g.setAttribute('role','button'); g.setAttribute('tabindex','0');
+      // keep the group that holds the active item (and the first group) open by default
+      var hasActive=groupItems(g).some(function(it){return it.classList.contains('active');});
+      var startCollapsed=isTouch()&&i>0&&!hasActive;
+      setGroup(g,startCollapsed);
+      function toggle(){setGroup(g,!g.classList.contains('collapsed'));}
+      g.addEventListener('click',toggle);
+      g.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+    });
+  }
+  function syncNavForViewport(){
+    var touch=isTouch();
+    document.querySelectorAll('.side .nav-group').forEach(function(g){
+      if(!touch){groupItems(g).forEach(function(it){it.classList.remove('nav-hidden');});}
+      else{groupItems(g).forEach(function(it){it.classList.toggle('nav-hidden',g.classList.contains('collapsed'));});}
+    });
+  }
+  function hardenFloat(){
+    var b=document.getElementById('a11oy-rel-badge');
+    if(b&&!b.dataset.szlHardened){b.dataset.szlHardened='1';
+      if(getComputedStyle(b).position==='static')b.style.position='fixed';
+      if(!b.querySelector('.szl-float-dismiss')){
+        var x=document.createElement('button');x.className='szl-float-dismiss';x.type='button';
+        x.setAttribute('aria-label','Dismiss reliability badge');x.textContent='×';
+        x.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();b.classList.add('szl-float-hidden');});
+        b.style.position='fixed';b.appendChild(x);
+      }
+    }
+  }
+  function init(){buildNavCollapse();hardenFloat();}
+  if(document.readyState!=='loading')init();else document.addEventListener('DOMContentLoaded',init);
+  // the badge + extra nav items are injected late by deploy/batch scripts — re-run a few times
+  var t=0,iv=setInterval(function(){t++;buildNavCollapse();hardenFloat();if(t>10)clearInterval(iv);},700);
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(syncNavForViewport,150);});
+})();
 /* Expose the VIEWS registry + go() so the additive batch-1 module (a later script block)
    can override VIEWS[tab].render. const bindings do NOT auto-attach to window, so we do it
    explicitly here. This is the single source of truth the batch module mutates in place. */
