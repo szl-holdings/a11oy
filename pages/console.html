@@ -10662,16 +10662,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   }
 
   /* ---- register + nav (idempotent, waits for VIEWS) ----------------------- */
-  function reg(){ if(!window.VIEWS){ return setTimeout(reg,120); }
-    if(window.VIEWS.receiptfp) return;
-    window.VIEWS.receiptfp={
-      title:'Receipt Fingerprint Graph',
-      badge:'P-GNN ANCHOR-SET \u00b7 STRUCTURAL FINGERPRINT',
-      sub:'Position-aware structural fingerprints over the live Khipu receipt DAG (anchor-set distance encoding, after P-GNN \u2014 You/Ying/Leskovec, ICML 2019). Each receipt gets a fingerprint from its hop-distances to anchor receipts; structural affinity (cosine \u2265 0.92) and isolation surface fork / spoof / anomalous-agent signals. A structural heuristic \u2014 never a proof, never a trust oracle; \u039b stays Conjecture 1, locked-proven stays 8.',
-      render:async function(c){ window.renderReceiptFP(c); }
-    };
-  }
-  reg();
+  // canonical reg() form (also what the readiness-harness tab-contract extractor parses)
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},120); }
+    if(window.VIEWS[key]) return; window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; }
+  reg('receiptfp','Receipt Fingerprint Graph','P-GNN ANCHOR-SET \u00b7 STRUCTURAL FINGERPRINT','Position-aware structural fingerprints over the live Khipu receipt DAG (anchor-set distance encoding, after P-GNN \u2014 You/Ying/Leskovec, ICML 2019). Each receipt gets a fingerprint from its hop-distances to anchor receipts; structural affinity (cosine \u2265 0.92) and isolation surface fork / spoof / anomalous-agent signals. A structural heuristic \u2014 never a proof, never a trust oracle; \u039b stays Conjecture 1, locked-proven stays 8.',window.renderReceiptFP);
   function injectNav(){
     var anchor=document.querySelector('.nav-item[data-view="ledger3d"]')||document.querySelector('.nav-item[data-view="chain"]')||document.querySelector('.nav-item');
     if(!anchor){ return setTimeout(injectNav,250); }
@@ -10769,16 +10763,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     })();
   };
 
-  function reg(){ if(!window.VIEWS){ return setTimeout(reg,120); }
-    if(window.VIEWS.capfsm) return;
-    window.VIEWS.capfsm={
-      title:'Capability Lifecycle FSM',
-      badge:'GOVERNED FSM \u00b7 IDLE\u2192INVOKED\u2192EXECUTING\u2192COMPLETING\u2192HANDOFF',
-      sub:'Every governed capability runs as an explicit finite-state machine (after the research-town engine pattern, ulab-uiuc): each transition is meant to seal a Khipu receipt, making mesh execution auditable + replayable. The FSM relation is the governed model; per-capability readiness is live mesh health. Extends F7 (FIFO order) + F22 (emit monotonicity). Honest: lifecycle + live readiness, not a claim that per-invocation transitions are receipted yet.',
-      render:async function(c){ window.renderCapFSM(c); }
-    };
-  }
-  reg();
+  // canonical reg() form (also what the readiness-harness tab-contract extractor parses)
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},120); }
+    if(window.VIEWS[key]) return; window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; }
+  reg('capfsm','Capability Lifecycle FSM','GOVERNED FSM \u00b7 IDLE\u2192INVOKED\u2192EXECUTING\u2192COMPLETING\u2192HANDOFF','Every governed capability runs as an explicit finite-state machine (after the research-town engine pattern, ulab-uiuc): each transition is meant to seal a Khipu receipt, making mesh execution auditable + replayable. The FSM relation is the governed model; per-capability readiness is live mesh health. Extends F7 (FIFO order) + F22 (emit monotonicity). Honest: lifecycle + live readiness, not a claim that per-invocation transitions are receipted yet.',window.renderCapFSM);
   function injectNav(){
     var anchor=document.querySelector('.nav-item[data-view="mesh"]')||document.querySelector('.nav-item[data-view="receiptfp"]')||document.querySelector('.nav-item');
     if(!anchor){ return setTimeout(injectNav,250); }
