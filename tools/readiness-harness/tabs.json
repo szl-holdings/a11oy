@@ -6,8 +6,8 @@
   "generatedAt": "2026-06-11T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 125,
-    "endpoints": 59,
+    "tabs": 126,
+    "endpoints": 61,
     "tabsWithCitations": 22,
     "staticTabs": 38
   },
@@ -1239,6 +1239,48 @@
       },
       "note": "CKW 2000 monogamy Σ τ_pairwise ≤ τ_global from ?pairwise=&total= — the STRUCTURAL no-leak / trust<100% primitive tying to Khipu. Cited (Coffman-Kundu-Wootters, PRA 61:052306). Deterministic."
     },
+    "/api/a11oy/v1/unified/summary": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Unified-formulas (thesis v6) summary: borrowed structure cited to origin (Sherman-Morgan/NASA/Tsiolkovsky, LS12/Cuk-Stewart/Lock-Stewart, Lindblad 1976, Baumgratz-Cramer-Plenio 2014), status_legend VERIFIED/PROPOSED/ANALOGY, doctrine (locked_proven=8, lambda=Conjecture 1, lambda_v5=PROPOSED engineering gate, trust never 100%). PROPOSED/ANALOGY, NOT the formal Λ."
+    },
+    "/api/a11oy/v1/cuas/summary": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Counter-UAS C2 summary: SZL constructs with classical inspirations cited (Zarchan/Palumbo PN, Joerger GNSS χ², Julier-Uhlmann CI, Bar-Shalom, Olfati-Saber/Zelazo consensus, Manne WTA, NIST PQC FIPS 203/204/205), status_legend SIMULATED/VERIFIED/EXPERIMENTAL, doctrine (locked_proven=8, lambda=Conjecture 1, effector=SIMULATED, trust never 100%). EXPERIMENTAL; effector SIMULATED, never actuates."
+    },
     "/api/a11oy/v1/readiness": {
       "method": "GET",
       "schema": "readiness",
@@ -1541,6 +1583,27 @@
       "route": "/console#ask",
       "endpoints": [
         "/api/a11oy/v1/operator/ask"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "atlas",
+      "title": "Formula Atlas",
+      "group": "Console",
+      "route": "/console#atlas",
+      "endpoints": [
+        "/api/a11oy/v1/scaling/summary",
+        "/api/a11oy/v1/allodial/summary",
+        "/api/a11oy/v1/entangle/summary",
+        "/api/a11oy/v1/unified/summary",
+        "/api/a11oy/v1/cuas/summary"
       ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
