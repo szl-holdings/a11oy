@@ -1,0 +1,127 @@
+# hetzner-currency.yml — Hetzner (a11oy.net) currency monitor vs HF Space
+# Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+#
+# WHY THIS EXISTS
+# The a11oy backend is served from TWO places: the canonical Hugging Face Space
+# (szlholdings-a11oy.hf.space, auto-rebuilt from main) and the Hetzner box
+# (a11oy.net, rebuilt only by a sudo-gated `a11oy-rebuild` on the box). When a
+# new module ships to main, HF picks it up automatically but the box can fall
+# BEHIND until someone runs the rebuild by hand. That stale state was previously
+# only ever discovered by manual probing (e.g. scaling/allodial endpoints 404ing
+# on a11oy.net while 200 on HF).
+#
+# This monitor compares a curated set of "freshness canary" endpoints across
+# BOTH surfaces and emits an HONEST WARNING when the Hetzner box is behind HF
+# (HF serves 200 but a11oy.net does not). It is intentionally NOT a hard gate:
+# the remedy (box `a11oy-rebuild`) is sudo-gated and cannot run from CI, so a
+# red X here would be permanently un-actionable from GitHub. The run's warning
+# annotations + Job Summary are the signal — "trips a WARN instead of being
+# discovered by hand."
+#
+# Canary set is deliberately small + fast + deterministic. Endpoints that do
+# slow live external probing (e.g. /readiness) or whose path differs by surface
+# are excluded so the monitor stays low-noise.
+
+name: Hetzner Currency Monitor
+
+on:
+  schedule:
+    - cron: '20 */6 * * *'  # every 6 hours, offset from smoke-monitor (0 */6)
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  currency:
+    name: a11oy.net vs HF currency
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Compare canary endpoints across HF and Hetzner
+        run: |
+          set +e
+          HF="https://szlholdings-a11oy.hf.space"
+          HZ="https://a11oy.net"
+
+          # Freshness canaries: must be fast + deterministic + 200 on a healthy,
+          # up-to-date deploy. scaling/allodial are the modules that were the
+          # actual drift gap; healthz/console prove the front door is alive.
+          PATHS=(
+            "/healthz"
+            "/console"
+            "/api/a11oy/v1/scaling/summary"
+            "/api/a11oy/v1/allodial/summary"
+          )
+
+          # Tolerant probe: retry so a transient rebuild (502/503/000) on either
+          # surface is not mistaken for a currency gap. Only a SUSTAINED non-200
+          # counts.
+          probe() {
+            local base="$1"; local path="$2"; local code=""
+            for attempt in 1 2 3 4 5; do
+              code=$(curl -o /dev/null -s -w '%{http_code}' --max-time 20 "$base$path")
+              if [ "$code" = "200" ]; then echo "200"; return; fi
+              sleep 12
+            done
+            echo "$code"
+          }
+
+          GAPS=0
+          HF_DOWN=0
+          SUMMARY="| Endpoint | HF Space | a11oy.net (Hetzner) | Verdict |\n|---|---|---|---|"
+
+          for p in "${PATHS[@]}"; do
+            hf_code=$(probe "$HF" "$p")
+            hz_code=$(probe "$HZ" "$p")
+            verdict="OK"
+            if [ "$hf_code" != "200" ]; then
+              # Canonical surface itself not 200 → cannot judge currency for this
+              # path this run (likely HF rebuilding). Note, do not count as gap.
+              verdict="HF-not-200 (skip)"
+              HF_DOWN=$((HF_DOWN+1))
+            elif [ "$hz_code" != "200" ]; then
+              verdict="**STALE: Hetzner behind**"
+              GAPS=$((GAPS+1))
+            fi
+            echo "  $p  HF=$hf_code  HZ=$hz_code  -> $verdict"
+            SUMMARY="$SUMMARY\n| \`$p\` | $hf_code | $hz_code | $verdict |"
+          done
+
+          {
+            echo "## Hetzner currency monitor"
+            echo ""
+            echo -e "$SUMMARY"
+            echo ""
+            if [ "$GAPS" -gt 0 ]; then
+              echo "### ⚠️ Hetzner box (a11oy.net) is STALE on $GAPS/${#PATHS[@]} canaries"
+              echo ""
+              echo "HF serves these but a11oy.net does not — the Hetzner box is behind \`main\`."
+              echo "Remedy (sudo-gated, run ON the box): \`/opt/szl/szl-uds-deployment/box-scripts/a11oy-rebuild\`"
+            elif [ "$HF_DOWN" -gt 0 ]; then
+              echo "### ℹ️ Inconclusive — HF not 200 on $HF_DOWN canary(ies) this run (likely rebuilding)."
+            else
+              echo "### ✅ In sync — a11oy.net matches HF on all canaries."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$GAPS" -gt 0 ]; then
+            echo "::warning::Hetzner box a11oy.net is STALE on $GAPS/${#PATHS[@]} canaries vs HF — run a11oy-rebuild on the box (167.233.50.75)."
+          fi
+
+          # Honest WARN, never a hard gate: redeploy is sudo-gated on the box and
+          # cannot be performed from CI, so this job always succeeds. The warning
+          # annotation + Job Summary are the actionable signal.
+          echo "currency check complete: gaps=$GAPS hf_down=$HF_DOWN"
+          exit 0
