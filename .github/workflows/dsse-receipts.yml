@@ -92,6 +92,7 @@ jobs:
       # core sign+verify job — if it can't write the ledger, the worst case is
       # the monitor simply has nothing new to re-check (an honest soft pass).
       - name: Publish signed receipt to ledger branch
+        id: publish
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -106,8 +107,10 @@ jobs:
             const envelope = JSON.parse(fs.readFileSync(path, 'utf8'));
             if (envelope._mode !== 'SIGSTORE-KEYLESS') {
               core.info(`Envelope mode is '${envelope._mode}', not a real signature — not publishing.`);
+              core.setOutput('skipped', 'true');
               return;
             }
+            core.setOutput('skipped', 'false');
             // Record the signer identity so the re-check monitor verifies each
             // receipt against the exact workflow SAN + issuer that produced it.
             envelope._signer_identity =
@@ -148,6 +151,10 @@ jobs:
               core.warning('No Rekor logIndex on the envelope — falling back to the content-hash name, which may overwrite a prior receipt.');
             }
             const repoPath = `attestations/governance/${fileName}`;
+            // Record what we are about to write so the follow-up verification step
+            // can confirm this exact receipt actually landed on the ledger branch.
+            core.setOutput('repo_path', repoPath);
+            core.setOutput('file_name', fileName);
             const content = Buffer.from(JSON.stringify(envelope, null, 2) + '\n', 'utf8').toString('base64');
 
             // The Rekor index is unique per minting, so distinct signings never
@@ -165,4 +172,130 @@ jobs:
               message: `chore(receipts): publish signed governance receipt ${fileName}\n\nSigned-off-by: Yachay <yachay@szlholdings.ai>`,
               content,
             });
+            core.setOutput('published', 'true');
             core.info(`Published ${repoPath} to '${branch}'.`);
+
+      # The publish step above is continue-on-error: a failed ledger write must
+      # never fail the core sign+verify job. But before this step that meant a
+      # dropped write passed GREEN silently — the signed receipt simply never
+      # reached the monitor. This step closes that gap: it confirms the exact
+      # receipt we just signed is actually present on the governance-receipts
+      # branch. Honest soft-pass is preserved for the two legitimate no-ops:
+      #   - non-push events (the whole step is push/main-gated, like publish), and
+      #   - placeholder envelopes (publish set skipped=true and wrote nothing).
+      # Anything else — a 404 for the receipt, an errored publish that produced
+      # no target path, or an API error checking the branch — is a REAL failure
+      # we surface (annotation + alert + red run), never swallow.
+      - name: Verify the signed receipt actually recorded on the ledger
+        id: verifyledger
+        if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          SKIPPED: ${{ steps.publish.outputs.skipped }}
+          REPO_PATH: ${{ steps.publish.outputs.repo_path }}
+        with:
+          script: |
+            const branch = 'governance-receipts';
+            const { owner, repo } = context.repo;
+            const skipped = process.env.SKIPPED;
+            const repoPath = process.env.REPO_PATH;
+
+            // Honest soft-pass: a placeholder (non-SIGSTORE-KEYLESS) envelope was
+            // intentionally not published, so there is nothing to verify.
+            if (skipped === 'true') {
+              core.info('Publish was intentionally skipped (placeholder envelope) — nothing to verify. Honest soft pass.');
+              core.setOutput('verify_failed', 'false');
+              return;
+            }
+
+            // The publish step errored before it could even compute a target path
+            // (e.g. could not read/parse the envelope). That IS a real miss.
+            if (!repoPath) {
+              core.setOutput('verify_failed', 'true');
+              core.setOutput('reason', 'the publish step failed before it could compute or attempt a ledger write (no target path was produced)');
+              core.error('The signed receipt was NOT recorded on the governance-receipts branch: publish produced no target path.');
+              return;
+            }
+
+            // Confirm the just-signed receipt is on the ledger branch. Retry a few
+            // times to absorb read-after-write replication lag and avoid a flaky
+            // false alarm on a write that genuinely succeeded.
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            let lastErr;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                await github.rest.repos.getContent({ owner, repo, path: repoPath, ref: branch });
+                core.info(`Confirmed: ${repoPath} is present on '${branch}'. Ledger write verified (attempt ${attempt}).`);
+                core.setOutput('verify_failed', 'false');
+                return;
+              } catch (e) {
+                lastErr = e;
+                if (e.status === 404) {
+                  if (attempt < 3) { core.info(`${repoPath} not yet visible on '${branch}' (attempt ${attempt}/3) — retrying…`); await sleep(5000); continue; }
+                  core.setOutput('verify_failed', 'true');
+                  core.setOutput('reason', `signed receipt ${repoPath} is missing from the '${branch}' branch after publish (checked 3×)`);
+                  core.error(`The signed receipt ${repoPath} is NOT on '${branch}' after publish — the transparency monitor will have nothing new to re-check.`);
+                  return;
+                }
+                // Non-404 API error: surface it rather than swallow it.
+                core.setOutput('verify_failed', 'true');
+                core.setOutput('reason', `error checking '${branch}' for ${repoPath}: ${e.status || ''} ${e.message}`);
+                core.error(`Could not verify the ledger write for ${repoPath}: ${e.status || ''} ${e.message}`);
+                return;
+              }
+            }
+
+      # Direct push notification, mirroring rekor-recheck.yml: a silently-dropped
+      # ledger write is noticed immediately, not just buried in a red run. Posts
+      # to a Slack-compatible incoming webhook via curl (no third-party action, so
+      # it stays within the org github-owned/verified-actions-only policy). If no
+      # webhook secret is configured it logs a notice and soft-skips — the red run
+      # + annotation still stand.
+      - name: Alert the team directly if the receipt failed to record
+        if: ${{ always() && steps.verifyledger.outputs.verify_failed == 'true' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          REPO_PATH: ${{ steps.publish.outputs.repo_path }}
+          REASON: ${{ steps.verifyledger.outputs.reason }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the annotation above still stand."
+            exit 0
+          fi
+
+          path_line="${REPO_PATH:-(no target path was produced)}"
+
+          # Compose the message (real newlines), then JSON-encode it safely with
+          # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. Slack renders \n and *bold* in the `text` field.
+          text=":rotating_light: *Signed governance receipt failed to record on the ledger* in ${REPO}.
+          *Receipt:* ${path_line}
+          *Ledger branch:* governance-receipts
+          *Reason:* ${REASON}
+          *Failing run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting ledger-write-failure alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      # Honest red run: a real signing whose receipt never reached the ledger is a
+      # failure, not a green pass. This fires ONLY for genuine misses — non-push
+      # events and placeholder envelopes set verify_failed=false above and never
+      # reach here.
+      - name: Fail the run if the signed receipt did not record on the ledger
+        if: ${{ always() && steps.verifyledger.outputs.verify_failed == 'true' }}
+        run: |
+          echo "::error::A signed governance receipt was minted but did NOT record on the governance-receipts ledger (${{ steps.verifyledger.outputs.reason }}). See the alert/annotation above."
+          exit 1
