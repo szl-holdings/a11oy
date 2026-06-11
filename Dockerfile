@@ -685,6 +685,7 @@ COPY szl_readiness.py ./szl_readiness.py
 # fails and /api/a11oy/v1/qbio/* 404s. Pure stdlib (+optional numpy already present).
 COPY szl_quantum_bio.py ./szl_quantum_bio.py
 COPY szl_unified_formulas.py ./szl_unified_formulas.py
+COPY szl_cuas_formulas.py ./szl_cuas_formulas.py
 # Contracting Readiness backend (SAM/CAGE + SBIR/STTR eligibility, web-sourced,
 # honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
 # liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;
