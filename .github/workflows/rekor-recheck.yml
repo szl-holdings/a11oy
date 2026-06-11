@@ -65,7 +65,10 @@ jobs:
         run: |
           set +e
           mkdir -p attestations/governance
-          git fetch origin governance-receipts >/dev/null 2>&1
+          # Fetch into an explicit remote-tracking ref so origin/governance-receipts
+          # resolves for both the checkout below and the `git show` of the dynamic
+          # baseline in the next step.
+          git fetch origin "+refs/heads/governance-receipts:refs/remotes/origin/governance-receipts" >/dev/null 2>&1
           if [ $? -eq 0 ]; then
             git checkout origin/governance-receipts -- attestations/governance >/dev/null 2>&1 \
               && echo "Ledger fetched." || echo "Ledger branch present but no receipts yet."
@@ -79,15 +82,30 @@ jobs:
         id: recheck
         run: |
           set +e
-          # --baseline: the checked-in floor (issue #320). The governance-receipts
-          # ledger is append-only; once populated, finding fewer receipts than the
-          # recorded baseline means the ledger branch was wiped or this fetch step
-          # silently failed, and the re-check fails LOUDLY instead of passing green
-          # with nothing to check. An unrecorded baseline (file absent) = no floor,
-          # so the genuine empty-on-first-use state is still tolerated.
+          # --baseline: the checked-in STATIC floor (issue #320) on main. The
+          # governance-receipts ledger is append-only; once populated, finding
+          # fewer receipts than the recorded floor means the ledger branch was
+          # wiped or this fetch step silently failed, and the re-check fails LOUDLY
+          # instead of passing green with nothing to check.
+          #
+          # --min-receipts: the DYNAMIC high-water mark. dsse-receipts.yml raises a
+          # baseline on the governance-receipts branch to the total receipt count
+          # after each publish (task: keep the floor current automatically). Read
+          # it from that branch and feed it as an additional floor; the script
+          # enforces the larger of the two. Absent (not recorded yet) => 0 => only
+          # the static floor applies, so the genuine empty-on-first-use state stays
+          # tolerated.
+          ledger_min=0
+          if git show origin/governance-receipts:.github/rekor-recheck-baseline.json > /tmp/ledger-baseline.json 2>/dev/null; then
+            ledger_min=$(python -c "import json;print(int((json.load(open('/tmp/ledger-baseline.json')).get('min_receipts',0)) or 0))" 2>/dev/null || echo 0)
+            echo "Dynamic ledger high-water baseline: min_receipts=${ledger_min}"
+          else
+            echo "No dynamic ledger baseline recorded yet — using the static floor only."
+          fi
           python scripts/recheck_rekor_receipts.py \
             --dir attestations/governance \
             --baseline .github/rekor-recheck-baseline.json \
+            --min-receipts "${ledger_min}" \
             --summary-out attestations/governance/.rekor-recheck-summary.json \
             | tee recheck.out
           status=${PIPESTATUS[0]}
