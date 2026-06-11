@@ -87,6 +87,12 @@ DOCTRINE_LOCK = {
     "commit": "c7c0ba17",
     "lambda": "Conjecture 1",
     "lambda_note": "Λ-Aggregator Uniqueness — Conjecture 1, NOT a closed theorem.",
+    # Locked-proven formulas = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17.
+    # The count itself is the no-axiom theorem locked_count_eight (lutar-lean #219 +
+    # platform #321, merged 2026-06-10). Surfaced here so /honest carries the canonical
+    # locked-8 (count + IDs), not just 749/14/163 + Λ. Additive; never inflate.
+    "locked_formula_count": 8,
+    "locked_formula_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
 }
 DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
