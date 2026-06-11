@@ -12124,5 +12124,208 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 
+<script>
+/* ── SZL Allodial AI — doctrine + interactive sovereignty score (allodial-doctrine-surface)
+   Self-contained, additive, 0 runtime CDN (vendored helpers only). Tab key: 'allodialai'
+   (distinct from the Dev-2 living-3D sovereignty tab). Reads /api/a11oy/v1/allodial/*.
+   EXPERIMENTAL-tier; PROPOSED engineering gate; adds NOTHING to the locked 8; Λ stays
+   Conjecture 1; trust never 100%. Every borrowed concept cited to its real author. */
+(function(){
+  function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0; var iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
+  var AAPI=(window.location.origin)+'/api/a11oy/v1/allodial';
+  var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+  /* null-safe DOM helpers (async DOM may not be mounted yet) */
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function elS(id){ return document.getElementById(id)||null; }
+  function H(id){ var e=document.getElementById(id); if(e) return e; if(!H._d) H._d=document.createElement('div'); return H._d; }
+  function setHTML(id,html){ var e=document.getElementById(id); if(e){ e.innerHTML=html; return true; } return false; }
+  function fmt(n,d){ if(n==null||isNaN(n)) return '\u2014'; return Number(n).toFixed(d==null?1:d); }
+  function dot(c){ c=c||TEAL; return '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+c+';box-shadow:0 0 8px '+c+';margin-right:6px;vertical-align:middle"></span>'; }
+  function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+  function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
+  function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
+  async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+
+  /* The 5 allodial sovereignty dimensions (SZL's AI-relevant dimension choice;
+     scoring math itself is EU-CSF weighted SEAL + HHI prior art). */
+  var DIMS=[
+    ['model_weights','Model weights','Operator holds the weights (self-hostable / open)'],
+    ['inference_compute','Inference compute','Runs on operator hardware (on-prem / air-gap)'],
+    ['data_residency','Data residency','Data never leaves the jurisdictional boundary'],
+    ['chain_of_title','Chain of title','Verifiable provenance receipts (in-toto/SLSA/cosign/Rekor)'],
+    ['governance_keys','Governance keys','Operator holds signing/policy keys; enforced locally']
+  ];
+  var SEAL_LABEL={0:'feudal extreme',1:'contractual residency',2:'operational controls',3:'strong operator control',4:'allodial analogue'};
+
+  function honestLimit(){
+    return '<div id="aa-honest-limit" class="honesty" style="margin-top:.8rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:8px;padding:.7rem .9rem;background:'+WARN+'12;color:'+WARN+'">'
+      +'<b>Honest limit \u2014 allodial \u2260 above the law.</b> Even allodial land is not literally absolute: eminent domain, police power, escheat and criminal forfeiture still reach it. The same honesty applies to Allodial AI \u2014 it gives the operator <b>maximal sovereign control</b>, but <b>lawful authority</b> (regulatory compliance, lawful process, forfeiture) still applies. Allodial = <b>no commercial overlord</b>, NOT above the law. '
+      +'SZL explicitly <b>rejects the sovereign-citizen / \u201cland-patent\u201d pseudolegal fringe</b> \u2014 this claim is architectural &amp; governance-based, anchored to real statutes and standards. '
+      +cite('https://en.wikipedia.org/wiki/Allodial_title','allodial title (concept) \u2014 en.wikipedia.org')+'</div>';
+  }
+  function doctrineNote(){
+    return '<div class="honesty" style="margin-top:.7rem"><b>Doctrine-honest.</b> EXPERIMENTAL-tier positioning + a <b>PROPOSED</b> sovereignty formula set. Adds <b>nothing</b> to the 8 locked formulas; \u039b = <b>Conjecture 1</b> (advisory, never a theorem); the Allodial frame is a <b>PROPOSED engineering gate, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN. No fabricated data (every value is recomputed live or labelled PROPOSED/VERIFIED). Every borrowed formula cited to its real author; SZL claims none as its own discovery.</div>';
+  }
+
+  /* ───────────── SECTION A — DOCTRINE (one line, layers, live summary) ───────────── */
+  function renderDoctrine(c){
+    if(!c) return;
+    c.innerHTML=''
+      +'<div class="hero" style="border:1px solid '+GOLD+'55;border-radius:14px;padding:1.05rem 1.15rem;background:radial-gradient(ellipse at top left,'+GOLD+'12,transparent 70%);margin-bottom:.85rem">'
+        +'<div style="font-size:21px;font-weight:700;letter-spacing:.01em;color:#e8e6df">Most AI is feudal. <span style="color:'+TEAL+'">SZL is allodial.</span></div>'
+        +'<div class="mono dim" style="font-size:12px;margin-top:.45rem;line-height:1.55">Today\u2019s dominant AI is <b>feudal by architecture</b>: you rent intelligence from a hyperscaler or foundation-model overlord who holds the real title \u2014 they see your data, set the terms, meter access, and can change or revoke the deal. SZL offers the <b>allodial</b> alternative: the operator holds the governed-AI substrate (model + weights + data) <b>outright</b>, on-prem / air-gap-capable via UDS mesh, with verifiable provenance receipts as the digital chain of title. No overlord.</div>'
+        +'<div style="margin-top:.6rem">'+pill('EXPERIMENTAL',WARN)+' &nbsp;'+pill('PROPOSED ENGINEERING GATE',GOLD)+' &nbsp;'+pill('\u039b = CONJECTURE 1',INFO)+'</div>'
+      +'</div>'
+      /* 3-layer table */
+      +'<div class="card"><div class="card-h"><span class="card-t">The three allodial layers \u2014 we hold each outright</span><span class="card-ep mono dim" style="font-size:11px">digital sovereignty: infra \u00b7 code/standards \u00b7 data</span></div>'
+        +'<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:.5rem">'
+          +'<tr style="color:'+DIM+'"><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #2a2a2a">Allodial analogue</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #2a2a2a">SZL realization</th></tr>'
+          +'<tr><td style="padding:7px 8px;vertical-align:top;color:'+TEAL+'"><b>The land</b> <span class="mono dim">(infrastructure, no landlord)</span></td><td style="padding:7px 8px;vertical-align:top">Operator\u2019s own hardware + UDS Core mesh + cosign-signed organ images; air-gap-capable, no cloud landlord.</td></tr>'
+          +'<tr><td style="padding:7px 8px;vertical-align:top;color:'+GOLD+'"><b>The deed / chain of title</b> <span class="mono dim">(code + standards)</span></td><td style="padding:7px 8px;vertical-align:top">Verifiable provenance receipts (<code>szl.yarqa.receipt</code>) \u2014 in-toto + SLSA + cosign/Rekor transparency \u2014 the digital land-registry proving unencumbered ownership.</td></tr>'
+          +'<tr><td style="padding:7px 8px;vertical-align:top;color:'+VIOLET+'"><b>The allodium</b> <span class="mono dim">(the property: data + model)</span></td><td style="padding:7px 8px;vertical-align:top">a11oy / killinchu run locally; data never leaves the jurisdictional boundary; the intelligence layer is sovereign, not rented.</td></tr>'
+        +'</table>'
+        +'<div class="mono dim" style="font-size:11px;margin-top:.55rem">Standard three-layer digital-sovereignty framing (infrastructure / code+standards / data). '
+          +cite('https://www.weforum.org/stories/2025/01/europe-digital-sovereignty/','WEF \u2014 Europe digital sovereignty (2025)')+' &nbsp; '
+          +cite('https://in-toto.io','in-toto')+' &nbsp; '+cite('https://slsa.dev','SLSA')+' &nbsp; '+cite('https://www.sigstore.dev','Sigstore/cosign')+'</div>'
+      +'</div>'
+      /* live summary readout */
+      +'<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Live doctrine readout</span><span class="card-ep mono dim" style="font-size:11px" id="aa-sum-ep">/api/a11oy/v1/allodial/summary</span></div>'
+        +'<div class="kpis" id="aa-sum-kpis">'+kpi('Tier','aa-sum-tier','PROPOSED engineering gate',WARN)+kpi('\u039b','aa-sum-lambda','formula governance',INFO)+kpi('Allodial = formal \u039b?','aa-sum-formal','doctrine gate',GOLD)+kpi('Trust','aa-sum-trust','never 100%',TEAL)+'</div>'
+        +'<div id="aa-sum-thesis" class="mono dim" style="font-size:12px;margin-top:.5rem;line-height:1.5">loading live summary\u2026</div>'
+        +'<details class="raw" style="margin-top:.5rem"><summary>raw /allodial/summary</summary><pre class="out" id="aa-sum-raw">\u2014</pre></details>'
+      +'</div>'
+      /* citations */
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Cited prior art (SZL claims none as its own discovery): </span><br/>'
+        +cite('https://en.wikipedia.org/wiki/Allodial_title','allodial title \u2014 Nevada NRS 361.900-361.920')+' &nbsp; '
+        +cite('https://doi.org/10.1109/SP.1982.10014','Goguen & Meseguer 1982 \u2014 non-interference (IEEE S&P)')+' &nbsp; '
+        +cite('https://doi.org/10.1145/360051.360056','Denning 1976 \u2014 lattice model, DOI:10.1145/360051.360056')+' &nbsp; '
+        +cite('https://digital-strategy.ec.europa.eu/en/policies/cloud-sovereignty-framework','EU Cloud Sovereignty Framework 2025 (SEAL/SovScore)')+' &nbsp; '
+        +cite('https://en.wikipedia.org/wiki/Herfindahl%E2%80%93Hirschman_index','Herfindahl-Hirschman Index (DCI)')+'</div>'
+      +honestLimit()
+      +doctrineNote();
+    /* live summary fetch (null-safe) */
+    (async function(){
+      try{
+        var d=await J(AAPI+'/summary');
+        if(elS('aa-sum-raw')) elS('aa-sum-raw').textContent=JSON.stringify(d,null,2);
+        var doc=d&&d.doctrine||{};
+        if(elS('aa-sum-tier')) elS('aa-sum-tier').textContent=doc.tier||'PROPOSED';
+        if(elS('aa-sum-lambda')) elS('aa-sum-lambda').textContent=doc.lambda||'Conjecture 1';
+        if(elS('aa-sum-formal')){ elS('aa-sum-formal').textContent=(doc.allodial_is_formal_lambda===false?'NO (PROPOSED gate)':String(doc.allodial_is_formal_lambda)); elS('aa-sum-formal').style.color=GOLD; }
+        if(elS('aa-sum-trust')) elS('aa-sum-trust').textContent=(doc.trust_never_100?'never 100%':'\u2014');
+        setHTML('aa-sum-thesis','<b style="color:#cfcfcf">'+esc(d&&d.thesis||'')+'</b><br/><span style="color:'+DIM+'">Differentiator: '+esc(d&&d.differentiator||'')+'</span>');
+      }catch(e){ setHTML('aa-sum-thesis','<span style="color:'+RISK+'">live summary unavailable: '+esc(e.message)+'</span>'); }
+    })();
+  }
+
+  /* ───────────── SECTION B — INTERACTIVE ALLODIAL SCORE ───────────── */
+  function renderScore(c){
+    if(!c) return;
+    var ctrls='';
+    for(var i=0;i<DIMS.length;i++){
+      ctrls+='<div style="margin:.5rem 0;padding:.5rem .7rem;border:1px solid #222;border-radius:8px">'
+        +'<div class="row" style="justify-content:space-between;align-items:baseline"><span style="color:#cfcfcf;font-size:12.5px"><b>'+esc(DIMS[i][1])+'</b> <span class="mono dim" style="font-size:10.5px">'+esc(DIMS[i][2])+'</span></span>'
+          +'<span class="mono" id="aa-seal-val-'+i+'" style="color:'+TEAL+';font-size:12px">SEAL 4</span></div>'
+        +'<div class="row" style="gap:.6rem;align-items:center;margin-top:.35rem">'
+          +'<input type="range" min="0" max="4" step="1" value="4" id="aa-seal-'+i+'" style="flex:1" aria-label="SEAL level for '+esc(DIMS[i][1])+'"/>'
+          +'<span class="mono dim" style="font-size:10.5px;min-width:150px;text-align:right" id="aa-seal-lab-'+i+'">'+esc(SEAL_LABEL[4])+'</span></div>'
+        +'<div class="row" style="gap:.5rem;align-items:center;margin-top:.3rem"><span class="mono dim" style="font-size:10.5px">external dependency share</span>'
+          +'<input type="range" min="0" max="100" step="1" value="0" id="aa-dep-'+i+'" style="flex:1" aria-label="External dependency share for '+esc(DIMS[i][1])+'"/>'
+          +'<span class="mono" id="aa-dep-val-'+i+'" style="color:'+WARN+';font-size:11px;min-width:38px;text-align:right">0%</span></div>'
+      +'</div>';
+    }
+    c.innerHTML=''
+      +'<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Interactive Allodial Sovereignty Score \u2014 \ud835\udc9c \u2208 [0,100]</span><span class="card-ep mono dim" style="font-size:11px" id="aa-score-ep">/api/a11oy/v1/allodial/score</span></div>'
+        +'<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;color:'+WARN+'"><b>PROPOSED engineering gate \u2014 NOT the formal \u039b.</b> \u039b = Conjecture 1. The score composes EU-CSF weighted SEAL with the HHI dependency lock-in penalty; dimension weights require empirical calibration. Move the sliders \u2014 every \ud835\udc9c value is recomputed live by the backend, never asserted.</div>'
+        +'<div class="kpis" id="aa-score-kpis">'+kpi('\ud835\udc9c score (0-100)','aa-score-v','live from /allodial/score',TEAL)+kpi('Posture','aa-score-posture','allodial / mixed / feudal',GOLD)+kpi('SEAL term','aa-score-seal','\u03a3 w\u00b7SEAL/4',INFO)+kpi('DCI (HHI)','aa-score-dci','dependency concentration',VIOLET)+'</div>'
+        +'<div class="grid2" style="margin-top:.6rem"><div>'+ctrls
+          +'<div class="row" style="gap:.5rem;margin-top:.5rem"><button id="aa-preset-allodial" class="mono" style="border:1px solid '+TEAL+';color:'+TEAL+';background:'+TEAL+'14;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:11px">preset: fully allodial</button>'
+            +'<button id="aa-preset-feudal" class="mono" style="border:1px solid '+RISK+';color:'+RISK+';background:'+RISK+'14;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:11px">preset: fully feudal</button>'
+            +'<button id="aa-preset-mixed" class="mono" style="border:1px solid '+WARN+';color:'+WARN+';background:'+WARN+'14;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:11px">preset: mixed tenancy</button></div></div>'
+          +'<div><div class="card-h"><span class="card-t">Lattice position (Denning 1976)</span><span class="card-ep mono dim" style="font-size:11px">\u22a4 = allodial / maximal</span></div>'
+            +'<div id="aa-lattice" class="mono" style="font-size:12px;margin-top:.4rem;line-height:1.7;color:'+DIM+'">\u2014</div>'
+            +'<div class="card-h" style="margin-top:.7rem"><span class="card-t">Live formula</span></div>'
+            +'<div class="mono" style="font-size:12px;color:'+INFO+';margin-top:.3rem">\ud835\udc9c = [ \u03a3 w\u2096\u00b7(SEAL\u2096/4) ] \u00d7 (1 \u2212 DCI) \u00d7 100</div>'
+            +'<div class="mono dim" style="font-size:10.5px;margin-top:.3rem">DCI = HHI = \u03a3 s\u1d62\u00b2 over external dependency shares. \ud835\udc9c=100 \u2192 SEAL-4 everywhere &amp; DCI=0 (fully allodial); \ud835\udc9c=0 \u2192 fully feudal.</div></div></div>'
+        +'<details class="raw" style="margin-top:.6rem"><summary>raw /allodial/score request + response</summary><pre class="out" id="aa-score-raw">\u2014</pre></details>'
+        +'<div class="card" style="padding:.7rem .9rem;margin-top:.6rem"><span class="mono dim" style="font-size:11px">Scoring math (prior art, cited): </span>'
+          +cite('https://digital-strategy.ec.europa.eu/en/policies/cloud-sovereignty-framework','EU Cloud Sovereignty Framework 2025 \u2014 SovScore / SEAL 0-4')+' &nbsp; '
+          +cite('https://en.wikipedia.org/wiki/Herfindahl%E2%80%93Hirschman_index','HHI \u2014 dependency-concentration index')+' &nbsp; '
+          +cite('https://doi.org/10.1145/360051.360056','Denning 1976 lattice \u2014 \u22a4 = allodial')+'</div>'
+      +'</div>'
+      +honestLimit();
+
+    var deb=null;
+    async function recompute(){
+      var seals=[], deps=[];
+      for(var i=0;i<DIMS.length;i++){
+        var sEl=elS('aa-seal-'+i), dEl=elS('aa-dep-'+i);
+        var sv=sEl?parseInt(sEl.value,10):4; var dv=dEl?parseInt(dEl.value,10):0;
+        seals.push(sv); deps.push(dv);
+        if(elS('aa-seal-val-'+i)) elS('aa-seal-val-'+i).textContent='SEAL '+sv;
+        if(elS('aa-seal-lab-'+i)) elS('aa-seal-lab-'+i).textContent=SEAL_LABEL[sv];
+        if(elS('aa-dep-val-'+i)) elS('aa-dep-val-'+i).textContent=dv+'%';
+      }
+      /* if every dependency share is 0, pass a single 0 so DCI=0 (no lock-in) */
+      var depParam = deps.some(function(x){return x>0;}) ? deps.join(',') : '0';
+      var url=AAPI+'/score?seals='+seals.join(',')+'&dep='+depParam;
+      try{
+        var d=await J(url);
+        if(elS('aa-score-raw')) elS('aa-score-raw').textContent='GET '+url+'\n\n'+JSON.stringify(d,null,2);
+        if(d.status==='out_of_domain'){ if(elS('aa-score-v')) elS('aa-score-v').textContent='out of domain'; return; }
+        var col = d.posture==='allodial'?TEAL:(d.posture==='mixed'?WARN:RISK);
+        if(elS('aa-score-v')){ elS('aa-score-v').textContent=fmt(d.score,1); elS('aa-score-v').style.color=col; }
+        if(elS('aa-score-posture')){ elS('aa-score-posture').textContent=(d.posture||'\u2014').toUpperCase(); elS('aa-score-posture').style.color=col; }
+        if(elS('aa-score-seal')) elS('aa-score-seal').textContent=fmt(d.seal_term,3);
+        if(elS('aa-score-dci')) elS('aa-score-dci').textContent=fmt(d.dci,3);
+        /* lattice readout from the min SEAL */
+        var minSeal=Math.min.apply(null,seals);
+        try{ var L=await J(AAPI+'/lattice?seal='+minSeal);
+          setHTML('aa-lattice','<b style="color:'+(L.is_top?TEAL:WARN)+'">'+esc(L.position)+'</b><br/><span class="dim">'+esc(L.lattice)+'</span><br/><span class="dim" style="font-size:10.5px">'+esc(L.cite)+'</span>');
+        }catch(e2){}
+      }catch(e){ if(elS('aa-score-v')) elS('aa-score-v').textContent='err'; if(elS('aa-score-raw')) elS('aa-score-raw').textContent='GET '+url+'\n\nerror: '+esc(e.message); }
+    }
+    function schedule(){ if(deb) clearTimeout(deb); deb=setTimeout(recompute,120); }
+    function preset(sealVal, depVal){ for(var i=0;i<DIMS.length;i++){ var s=elS('aa-seal-'+i), d=elS('aa-dep-'+i); if(s) s.value=sealVal; if(d) d.value=depVal; } recompute(); }
+    for(var i=0;i<DIMS.length;i++){ var s=elS('aa-seal-'+i), d=elS('aa-dep-'+i); if(s) s.addEventListener('input',schedule); if(d) d.addEventListener('input',schedule); }
+    var pa=elS('aa-preset-allodial'); if(pa) pa.addEventListener('click',function(){ preset(4,0); });
+    var pf=elS('aa-preset-feudal'); if(pf) pf.addEventListener('click',function(){ for(var i=0;i<DIMS.length;i++){ var s=elS('aa-seal-'+i); if(s) s.value=0; } var d0=elS('aa-dep-0'); if(d0) d0.value=100; for(var j=1;j<DIMS.length;j++){ var dj=elS('aa-dep-'+j); if(dj) dj.value=0; } recompute(); });
+    var pm=elS('aa-preset-mixed'); if(pm) pm.addEventListener('click',function(){ var sv=[2,3,2,4,3]; var dv=[30,10,20,5,15]; for(var i=0;i<DIMS.length;i++){ var s=elS('aa-seal-'+i), d=elS('aa-dep-'+i); if(s) s.value=sv[i]; if(d) d.value=dv[i]; } recompute(); });
+    recompute();
+  }
+
+  /* tab body: two least-cluttering sub-sections (Doctrine | Interactive score) */
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS) return; window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; }
+  whenReady(function(){
+    if(window.VIEWS && window.VIEWS['allodialai']){ return; }
+    reg('allodialai','Allodial AI','EXPERIMENTAL \u00b7 PROPOSED GATE \u00b7 \u039b=CONJECTURE 1',
+      'The SZL sovereignty doctrine \u2014 <b>most AI is feudal; SZL is allodial</b>. The three allodial layers (land / deed / allodium), a live readout from <code>/api/a11oy/v1/allodial/summary</code>, and an interactive <b>Allodial Sovereignty Score</b> (vary SEAL levels + dependency shares \u2192 live \ud835\udc9c \u2208 [0,100] + posture from <code>/allodial/score</code>). PROPOSED engineering gate \u2014 NOT the formal \u039b; \u039b stays Conjecture 1. Every borrowed formula cited to its real author.',
+      function(c){
+        if(!c) return;
+        c.innerHTML='<div class="row" id="aa-tabs" style="gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem"></div><div id="aa-body"></div>';
+        var subs=[['Doctrine \u00b7 layers \u00b7 live summary',renderDoctrine],['Interactive Allodial Score',renderScore]];
+        function paint(idx){ var host=elS('aa-body'); if(!host) return; for(var i=0;i<subs.length;i++){ var b=elS('aa-tab-'+i); if(b){ b.style.background=(i===idx)?TEAL+'22':'transparent'; b.style.color=(i===idx)?TEAL:DIM; b.style.borderColor=(i===idx)?TEAL:'#2a2a2a'; } } host.innerHTML=''; var sub=document.createElement('div'); sub.id='aa-sub'; host.appendChild(sub); subs[idx][1](sub); }
+        var bar=elS('aa-tabs');
+        for(var i=0;i<subs.length;i++){ (function(i){ var b=document.createElement('button'); b.id='aa-tab-'+i; b.className='mono'; b.textContent=subs[i][0]; b.style.cssText='border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM; b.addEventListener('click',function(){ paint(i); }); if(bar) bar.appendChild(b); })(i); }
+        paint(0);
+      });
+    try{ console.log('[a11oy] Allodial AI tab registered: allodialai'); }catch(e){}
+  });
+
+  function injectNav(){
+    var side=document.querySelector('.side .nav')||document.querySelector('.side');
+    var anchor=document.querySelector('.nav-item[data-view="scaling"]')||document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!side||!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('allodialai-nav-item')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='allodialai-nav-group'; grp.textContent='Allodial AI (EXPERIMENTAL)';
+    var n=document.createElement('div'); n.className='nav-item'; n.id='allodialai-nav-item'; n.setAttribute('data-view','allodialai'); n.setAttribute('onclick',"go('allodialai')");
+    n.setAttribute('title','Allodial AI sovereignty doctrine: most AI is feudal, SZL is allodial. 3 layers (land/deed/allodium), live /allodial/summary, interactive Allodial Score (SEAL + dependency shares \u2192 live A from /allodial/score). PROPOSED engineering gate; \u039b stays Conjecture 1; allodial \u2260 above the law.');
+    n.innerHTML='<span class="ico">\ud83c\udff0</span>Allodial AI';
+    var parent=anchor.parentNode; parent.appendChild(grp); parent.appendChild(n);
+    try{ console.log('[a11oy] Allodial AI nav registered: allodialai'); }catch(e){}
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
 </body>
 </html>
