@@ -238,10 +238,11 @@ def szl_pq_receipt(command: str, prev_hash: str = "0" * 64) -> dict[str, Any]:
             "status": "EXPERIMENTAL"}
 
 
-def summary() -> dict[str, Any]:
-    """Headline of all six SZL counter-UAS formulas + honest provenance/legend."""
+def summary(ns: str = "killinchu") -> dict[str, Any]:
+    """Headline of all six SZL counter-UAS formulas + honest provenance/legend.
+    `ns` names the serving app so the title is accurate on both killinchu and a11oy."""
     return {
-        "title": "SZL Counter-UAS C2 Formulas (killinchu) — our own constructs, classical inspirations cited",
+        "title": f"SZL Counter-UAS C2 Formulas ({ns}) — our own constructs, classical inspirations cited",
         "status_legend": STATUS_LEGEND, "sources": SOURCES,
         "doctrine": {"locked_proven": 8, "lambda": "Conjecture 1", "khipu_bft": "Conjecture 2",
                      "effector": "SIMULATED", "trust": "never 100%"},
@@ -264,7 +265,7 @@ def summary() -> dict[str, Any]:
 def register(app, ns: str) -> None:
     """Attach the counter-UAS routes under /api/<ns>/v1/cuas/* via add_api_route."""
     base = f"/api/{ns}/v1/cuas"
-    app.add_api_route(f"{base}/summary", lambda: summary(), methods=["GET"])
+    app.add_api_route(f"{base}/summary", lambda: summary(ns), methods=["GET"])
     app.add_api_route(f"{base}/engage",
                       lambda N, Vc, los_rate, t_go, a_max: szl_engageability(
                           float(N), float(Vc), float(los_rate), float(t_go), float(a_max)),
