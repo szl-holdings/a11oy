@@ -2,7 +2,7 @@
 """Reconstruct the HuggingFace Space card exactly as hf-sync.yml would push it.
 
 a11oy's hf-sync.yml does NOT mirror README.md verbatim to the Space card. It:
-  1. strips any leading front-matter from the GitHub README body,
+  1. strips any front-matter from the start of the GitHub README body,
   2. prepends a fixed Space front-matter block (the base64 ``FM_B64`` env declared
      in hf-sync.yml — required because the Space is ``sdk: docker``),
   3. injects a one-line "front-matter is required" HTML note,
