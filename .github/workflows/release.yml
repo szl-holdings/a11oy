@@ -23,14 +23,14 @@ jobs:
           output-file: ${{ github.event.repository.name }}-sbom.cdx.json
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
           subject-path: |
             ${{ github.event.repository.name }}-sbom.cdx.json
           push-to-registry: false
 
       - name: Attest SBOM
-        uses: actions/attest-sbom@v4
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4
         with:
           subject-path: '${{ github.event.repository.name }}-sbom.cdx.json'
           sbom-path: '${{ github.event.repository.name }}-sbom.cdx.json'
