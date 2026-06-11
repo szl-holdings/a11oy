@@ -129,6 +129,17 @@ a{color:inherit;text-decoration:none;} img,svg{display:block;}
 .ds-diff .old{background:var(--panel);} .ds-diff .new{background:var(--panel-2);}
 @media (max-width:680px){.ds-diff{grid-template-columns:1fr;}.ds-diff>div:first-child{border-right:0;border-bottom:1px solid var(--hairline);}}
 .honest{font-family:var(--mono);font-size:11.5px;color:var(--muted);border-left:2px solid var(--gold-dim);padding-left:12px;margin-top:22px;line-height:1.6;}
+/* ===== RESPONSIVE HARDENING v2 (VISUAL/LAYOUT ONLY) ===== */
+/* safe-area for notched phones + media never overflows its container */
+img,svg,canvas,video{max-width:100%;height:auto;}
+.ds-topbar__inner{padding-left:calc(env(safe-area-inset-left,0px) + 24px);padding-right:calc(env(safe-area-inset-right,0px) + 24px);}
+@media (max-width:480px){
+  .ds-topbar__inner{height:56px;padding-left:calc(env(safe-area-inset-left,0px) + 16px);padding-right:calc(env(safe-area-inset-right,0px) + 16px);gap:10px;}
+  .ds-brand{font-size:15px;gap:8px;}
+  .ds-btn{padding:11px 15px;font-size:11.5px;gap:7px;min-height:44px;}
+  .ds-hero{padding-top:90px;}
+}
+@media (min-width:1600px){body{} .ds-section,.ds-topbar__inner{margin-left:auto;margin-right:auto;}}
 </style>
 </head>
 <body>
