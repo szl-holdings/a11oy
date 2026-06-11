@@ -1,6 +1,8 @@
 [
   "/api/a11oy/cosign.pub",
   "/api/a11oy/provenance",
+  "/api/a11oy/v1/allodial/score",
+  "/api/a11oy/v1/allodial/summary",
   "/api/a11oy/v1/capabilities/mesh",
   "/api/a11oy/v1/deva/healthz",
   "/api/a11oy/v1/devb/healthz",
