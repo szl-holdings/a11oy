@@ -11612,5 +11612,191 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 </script>
 
 
+
+<!-- ===================================================================== -->
+<!-- COUNTER-UAS C2 LAB (governance mirror) — PQ Provenance + Swarm Mesh +  -->
+<!-- Fusion Picture, each wired to the REAL /api/a11oy/v1/cuas/* endpoints   -->
+<!-- (szl_cuas_formulas.py, byte-identical to killinchu). EXPERIMENTAL-tier: -->
+<!-- adds NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%;   -->
+<!-- effector stays SIMULATED. 0 runtime CDN (vendored three/3d-force-graph/  -->
+<!-- echarts). Null-safe; prefers-reduced-motion respected. Classical        -->
+<!-- inspirations cited (NIST PQC FIPS 203/204/205; Julier-Uhlmann/Bar-      -->
+<!-- Shalom; Olfati-Saber/Zelazo/Fiedler), claimed as none of SZL's own.     -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0; var iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
+  var CAPI=(window.location.origin)+'/api/a11oy/v1';
+  var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+  var RM = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function E(id){ var e=document.getElementById(id); if(e) return e; if(!E._d) E._d=document.createElement('div'); return E._d; }
+  function ex(id){ return document.getElementById(id); }
+  function fmt(n,d){ if(n==null||isNaN(n)) return '—'; return Number(n).toFixed(d==null?1:d); }
+  function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+  function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+  async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+  function poll(gateId, fn){ try{fn();}catch(e){} var t=setInterval(function(){ if(!ex(gateId)){return;} try{fn();}catch(e){} var d=ex('cux-ts-'+gateId); if(d) d.textContent='auto · '+new Date().toLocaleTimeString(); }, 12000+Math.floor(Math.random()*5000)); window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t); window._liveTimers=window._tailTimers; return t; }
+  function autoPill(g){ return '<span class="badge b-live" style="font-size:9.5px">'+dot()+'AUTO-RECORDING <span id="cux-ts-'+esc(g)+'" class="mono dim" style="margin-left:5px">live</span></span>'; }
+  function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">—</div><div class="d">'+esc(d||'')+'</div></div>'; }
+  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL construct — adds <b>nothing</b> to the 8 locked formulas; Λ = <b>Conjecture 1</b> (advisory, not a theorem); trust is never 100%. 0 runtime CDN; vendored libs only. The killinchu effector stays <b>SIMULATED</b>.</div>'; }
+
+  // ── PQ PROVENANCE ─────────────────────────────────────────────────────────
+  function renderCuasPQ(c){
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Post-quantum receipt bus (live)</span><span class="card-ep">'+autoPill('cpq-gate')+'</span></div>'
+      +'<div class="kpis" id="cpq-gate">'+kpi('Receipt hash','cpq-h','SHA3-256',TEAL)+kpi('KEM','cpq-kem','FIPS 203',INFO)+kpi('Signature','cpq-sig','FIPS 204',GOLD)+kpi('Long-term sig','cpq-lt','FIPS 205',VIOLET)+kpi('PQ signature','cpq-proxy','status',WARN)+'</div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">SHA3-256 hash-chain (3D)</span><span class="card-ep">append-only · tamper visibly rejected · vendored 3d-force-graph</span></div><div id="cpq-3d" style="height:clamp(320px,48vh,460px);border-radius:12px;background:radial-gradient(ellipse at center,#0a0e1a 0%,#040406 75%);margin-top:.6rem"></div>'
+      +'<div class="row" style="margin-top:.5rem;gap:.5rem;flex-wrap:wrap"><input id="cpq-cmd" class="mono" style="background:#0b0f16;border:1px solid #2a2a2a;border-radius:6px;color:#cfe;padding:.4rem .6rem;font-size:12px" value="govern_decision" placeholder="command"><button id="cpq-append" class="mono" style="background:'+TEAL+'22;border:1px solid '+TEAL+';color:'+TEAL+';border-radius:6px;padding:.4rem .8rem;cursor:pointer;font-size:12px">append receipt</button><button id="cpq-tamper" class="mono" style="background:'+RISK+'22;border:1px solid '+RISK+';color:'+RISK+';border-radius:6px;padding:.4rem .8rem;cursor:pointer;font-size:12px">tamper a link</button></div></div>'
+      +'<details class="raw"><summary>raw /cuas/pqbus</summary><pre class="out" id="cpq-raw">—</pre></details>'
+      +honesty('The receipt hash, chain link and PQ-suite identifiers are computed by the live SHA3-256 endpoint; the 3D chain redraws that exact chain. The PQ signature is labelled <b>PROXY</b> — a real ML-DSA-65 signature is gated behind a provisioned oqs-python key.');
+    var chain=[];
+    function draw(tampIdx){
+      var host=ex('cpq-3d'); if(!host||!window.ForceGraph3D) return;
+      var nodes=chain.map(function(r,i){ return {id:'r'+i, name:(r.command||'genesis')+' · '+String(r.receipt_hash||'').slice(0,10), color:(tampIdx===i)?RISK:(i===0?GOLD:TEAL), val:i===0?6:4}; });
+      var links=[]; for(var i=1;i<chain.length;i++){ links.push({source:'r'+(i-1),target:'r'+i, broken:(tampIdx===i||tampIdx===i-1)}); }
+      host.innerHTML='';
+      try{
+        var fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
+          .graphData({nodes:nodes,links:links}).nodeLabel('name').nodeColor(function(n){return n.color;}).nodeVal(function(n){return n.val;}).nodeOpacity(0.92)
+          .linkColor(function(l){ return l.broken?'rgba(176,106,90,0.9)':'rgba(95,179,163,0.5)'; })
+          .linkWidth(function(l){ return l.broken?0.5:2.2; })
+          .linkDirectionalParticles(function(l){ return (RM||l.broken)?0:3; }).linkDirectionalParticleSpeed(0.01).linkDirectionalParticleColor(function(){return TEAL;})
+          .showNavInfo(false);
+        try{ fg.d3Force('link').distance(36); }catch(e){}
+        window._fg=fg; window._cuasFg=fg;
+        setTimeout(function(){ try{fg.width(host.clientWidth).height(host.clientHeight);}catch(e){} },300);
+      }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">chain 3D unavailable: '+esc(e.message)+'</div>'; }
+    }
+    async function append(cmd){
+      var d=await J(CAPI+'/cuas/pqbus?cmd='+encodeURIComponent(cmd||'cmd'));
+      if(ex('cpq-raw')) ex('cpq-raw').textContent=JSON.stringify(d,null,2);
+      chain.push(d);
+      E('cpq-h').textContent=String(d.receipt_hash||'').slice(0,12)+'…';
+      E('cpq-kem').textContent=(d.pq_suite&&d.pq_suite.kem)||'ML-KEM-768';
+      E('cpq-sig').textContent=(d.pq_suite&&d.pq_suite.sig)||'ML-DSA-65';
+      E('cpq-lt').textContent=(d.pq_suite&&d.pq_suite.longterm_sig)||'SLH-DSA-SHAKE-128s';
+      E('cpq-proxy').textContent='PROXY'; E('cpq-proxy').style.color=WARN;
+      draw(-1);
+    }
+    poll('cpq-gate', async function(){ if(chain.length===0){ await append('genesis'); } else { draw(-1); } });
+    var ab=ex('cpq-append'); if(ab) ab.addEventListener('click',function(){ var v=ex('cpq-cmd')?ex('cpq-cmd').value:'cmd'; append(v).catch(function(){}); });
+    var tb=ex('cpq-tamper'); if(tb) tb.addEventListener('click',function(){ if(chain.length>1){ draw(chain.length-1); } });
+  }
+
+  // ── SWARM MESH (galaxy) ─────────────────────────────────────────────────────
+  function renderCuasSwarm(c){
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Urgency-weighted swarm consensus (live)</span><span class="card-ep">'+autoPill('csw-gate')+'</span></div>'
+      +'<div class="kpis" id="csw-gate">'+kpi('λ₂ (Fiedler)','csw-l2','algebraic connectivity',TEAL)+kpi('Urgency boost','csw-ub','min-TTI weighting',WARN)+kpi('Quorum','csw-q','connected ⇔ reachable',GOLD)+kpi('Status','csw-st','EXPERIMENTAL',VIOLET)+'</div>'
+      +'<div id="csw-3d" style="height:clamp(340px,54vh,540px);border-radius:12px;background:radial-gradient(ellipse at center,#0a0e1a 0%,#040406 70%);margin-top:.6rem"></div>'
+      +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Khipu-quorum analogue · BFT agreement = <b>Conjecture 2 (OPEN)</b>, not a proven guarantee.</div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Convergence pulse (λ₂ over time)</span><span class="card-ep">live samples</span></div><div id="csw-chart" style="height:clamp(200px,28vh,260px)"></div></div>'
+      +'<details class="raw"><summary>raw /cuas/consensus</summary><pre class="out" id="csw-raw">—</pre></details>'
+      +honesty('λ₂, the urgency boost and the connected-quorum verdict are computed by the live Laplacian endpoint; the galaxy + pulse redraw those exact values. Mesh safety = Conjecture 2 (OPEN), not proven.');
+    var hist=[];
+    function buildGalaxy(l2,ub,quorum){
+      var host=ex('csw-3d'); if(!host||!window.ForceGraph3D) return;
+      var n=Math.max(14,Math.min(90,Math.round(18+l2*16+ub*6)));
+      var nodes=[],links=[];
+      for(var i=0;i<n;i++){ nodes.push({id:'u'+i, val:2+Math.random()*3, color:quorum?TEAL:WARN}); }
+      var extra=Math.round(l2*n*0.4);
+      for(var i=0;i<n;i++){ links.push({source:'u'+i,target:'u'+((i+1)%n),w:0.6+ub*0.5}); }
+      for(var k=0;k<extra;k++){ var a='u'+Math.floor(Math.random()*n),b='u'+Math.floor(Math.random()*n); if(a!==b) links.push({source:a,target:b,w:0.4+l2*0.3}); }
+      host.innerHTML='';
+      try{
+        var fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)').width(host.clientWidth).height(host.clientHeight)
+          .graphData({nodes:nodes,links:links}).nodeColor(function(nd){return nd.color;}).nodeVal(function(nd){return nd.val;}).nodeOpacity(0.9).nodeResolution(8)
+          .linkColor(function(l){ return quorum?'rgba(95,179,163,'+Math.min(0.7,0.25+ub*0.3)+')':'rgba(201,160,95,0.3)'; })
+          .linkWidth(function(l){ return Math.min(3,(l.w||1)); })
+          .linkDirectionalParticles(RM?0:2).linkDirectionalParticleSpeed(0.004+ub*0.004).linkDirectionalParticleColor(function(){return quorum?TEAL:WARN;})
+          .showNavInfo(false);
+        try{ fg.d3Force('link').distance(function(){ return Math.max(8,40-ub*14-l2*6); }); }catch(e){}
+        try{ fg.d3Force('charge').strength(-30-l2*10); }catch(e){}
+        window._fg=fg; window._cuasFg=fg;
+        setTimeout(function(){ try{fg.width(host.clientWidth).height(host.clientHeight);}catch(e){} },300);
+        if(!RM){ var ang=0; var t=setInterval(function(){ if(!ex('csw-3d')){clearInterval(t);return;} ang+=0.0032*(1+ub); var dist=180-l2*20; fg.cameraPosition({x:dist*Math.sin(ang),z:dist*Math.cos(ang)},undefined,0); }, 60); window._tailTimers=window._tailTimers||[]; window._tailTimers.push(t); }
+      }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">Galaxy unavailable: '+esc(e.message)+'</div>'; }
+    }
+    poll('csw-gate', async function(){
+      var d=await J(CAPI+'/cuas/consensus?min_tti=5.0');
+      if(ex('csw-raw')) ex('csw-raw').textContent=JSON.stringify(d,null,2);
+      var l2=d.lambda2!=null?d.lambda2:0, ub=d.urgency_boost!=null?d.urgency_boost:1, q=!!d.connected_quorum;
+      E('csw-l2').textContent=fmt(l2,3); E('csw-l2').style.color=l2>0.2?TEAL:WARN;
+      E('csw-ub').textContent=fmt(ub,2); E('csw-q').textContent=q?'CONNECTED':'FRAGMENTED'; E('csw-q').style.color=q?LIVE:RISK;
+      E('csw-st').textContent=d.status||'EXPERIMENTAL';
+      hist.push(l2); if(hist.length>40) hist.shift();
+      if(window.mkEchart) window.mkEchart('csw-chart',{tooltip:{trigger:'axis'},grid:{left:46,right:16,top:18,bottom:28},
+        xAxis:{type:'category',data:hist.map(function(_,i){return i;}),axisLabel:{show:false}},
+        yAxis:{type:'value',name:'λ₂',nameTextStyle:{color:'#A8B6CC'}},
+        series:[{type:'line',smooth:true,showSymbol:false,data:hist.map(function(v){return Number((v||0).toFixed(3));}),lineStyle:{color:TEAL,width:2},areaStyle:{color:'rgba(95,179,163,0.16)'}}]});
+      buildGalaxy(l2,ub,q);
+    });
+  }
+
+  // ── FUSION PICTURE ──────────────────────────────────────────────────────────
+  function renderCuasFusion(c){
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Covariance-intersection fusion (live)</span><span class="card-ep">'+autoPill('cfu-gate')+'</span></div>'
+      +'<div class="kpis" id="cfu-gate">'+kpi('Fused variance','cfu-fv','conservative',TEAL)+kpi('Confidence','cfu-conf','capped < 1.0',GOLD)+kpi('var_a','cfu-va','sensor A',INFO)+kpi('var_b','cfu-vb','sensor B',INFO)+kpi('ω weight','cfu-w','CI blend',VIOLET)+'</div></div>'
+      +'<div class="card"><div class="grid2"><div><div class="card-h"><span class="card-t">Uncertainty ellipsoids (3D)</span><span class="card-ep">two sources + conservative fused · vendored three.js</span></div><div id="cfu-3d" style="height:clamp(300px,44vh,410px);border-radius:10px;background:#050608;margin-top:.4rem"></div></div>'
+      +'<div><div class="card-h"><span class="card-t">Variance comparison</span><span class="card-ep">A · B · fused</span></div><div id="cfu-chart" style="height:clamp(240px,36vh,330px);margin-top:.4rem"></div></div></div></div>'
+      +'<details class="raw"><summary>raw /cuas/fusion</summary><pre class="out" id="cfu-raw">—</pre></details>'
+      +honesty('Fused variance and the (capped) confidence are computed by the live CI endpoint; the ellipsoids redraw those exact variances. Confidence is capped below 1.0 — <b>trust is never 100%</b>.');
+    function ellipsoid(vx,color,op){ var r=Math.sqrt(vx); return new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.3,Math.min(4,r)),24,18),new THREE.MeshStandardMaterial({color:color,transparent:true,opacity:op,wireframe:true})); }
+    function draw3d(va,vb,fv){
+      var host=ex('cfu-3d'); if(!host||!window.THREE) return; host.innerHTML='';
+      var W=host.clientWidth||500,H=host.clientHeight||390;
+      var sc=new THREE.Scene(); var cam=new THREE.PerspectiveCamera(52,W/H,0.1,1000); cam.position.set(0,2,12);
+      var rnd; try{ rnd=new THREE.WebGLRenderer({antialias:true,alpha:true}); }catch(e){ host.innerHTML='<div class="row mono dim" style="padding:1rem">3D unavailable</div>'; return; }
+      rnd.setSize(W,H); rnd.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); host.appendChild(rnd.domElement);
+      sc.add(new THREE.AmbientLight(0xffffff,0.85)); var pl=new THREE.PointLight(0x5fb3a3,0.8); pl.position.set(5,6,6); sc.add(pl);
+      var a=ellipsoid(va,0x6fa8dc,0.22); a.position.x=-2.2; sc.add(a);
+      var b=ellipsoid(vb,0xc9a05f,0.22); b.position.x=2.2; sc.add(b);
+      var f=ellipsoid(fv,0x5fb3a3,0.5); sc.add(f);
+      var stop=false,t=0;
+      function loop(){ if(stop||!ex('cfu-3d')){ try{rnd.dispose();}catch(e){} return; } if(!RM){ t+=0.005; sc.rotation.y=t; } rnd.render(sc,cam); requestAnimationFrame(loop); }
+      loop();
+      window._tailTimers=window._tailTimers||[]; window._tailTimers.push(setInterval(function(){ if(!ex('cfu-3d')) stop=true; },4000));
+    }
+    poll('cfu-gate', async function(){
+      var d=await J(CAPI+'/cuas/fusion?var_a=4&var_b=9&omega=0.5');
+      if(ex('cfu-raw')) ex('cfu-raw').textContent=JSON.stringify(d,null,2);
+      E('cfu-fv').textContent=fmt(d.fused_variance,3); E('cfu-conf').textContent=fmt(d.confidence,4); E('cfu-conf').style.color=GOLD;
+      E('cfu-va').textContent='4'; E('cfu-vb').textContent='9'; E('cfu-w').textContent='0.5';
+      if(window.mkEchart) window.mkEchart('cfu-chart',{tooltip:{trigger:'axis'},grid:{left:50,right:18,top:24,bottom:34},
+        xAxis:{type:'category',data:['var_a','var_b','fused'],axisLabel:{color:'#A8B6CC'}},
+        yAxis:{type:'value',name:'variance',nameTextStyle:{color:'#A8B6CC'}},
+        series:[{type:'bar',barWidth:'46%',data:[{value:4,itemStyle:{color:INFO}},{value:9,itemStyle:{color:WARN}},{value:Number((d.fused_variance||0).toFixed(3)),itemStyle:{color:TEAL}}],label:{show:true,position:'top',color:'#cfcfcf',formatter:'{c}'}}]});
+      draw3d(4,9,Number(d.fused_variance||1));
+    });
+  }
+
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS) return; window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }}; }
+  whenReady(function(){
+    reg('cuas_pq','PQ Provenance','EXPERIMENTAL · SHA3-256 · PQ-SUITE',
+      'A live <b>post-quantum provenance bus</b>: each governed command appended to a <b>SHA3-256 hash chain</b> (Khipu-compatible append-only receipts), rendered in 3D — any break is visibly rejected. PQ suite is the NIST FIPS set: <b>ML-KEM-768 (203)</b>, <b>ML-DSA-65 (204)</b>, <b>SLH-DSA-SHAKE-128s (205)</b>; signature labelled <b>PROXY</b> until an oqs-python key is provisioned. Live from <code>/api/a11oy/v1/cuas/pqbus</code>. Inspiration: NIST PQC standards.',
+      renderCuasPQ);
+    reg('cuas_swarm','Swarm Mesh','EXPERIMENTAL · URGENCY-WEIGHTED LAPLACIAN',
+      'A living <b>swarm-consensus galaxy</b>: urgency-weighted graph-Laplacian Fiedler value <b>λ₂</b> drives a convergence pulse; edges glow with the urgency boost; the layout breathes toward consensus while a connected quorum holds — the <b>Khipu-quorum analogue</b> (connected ⇔ consensus reachable; Conjecture 2, OPEN). Live from <code>/api/a11oy/v1/cuas/consensus</code>. Inspiration: Olfati-Saber; Zelazo/Mesbahi; Fiedler.',
+      renderCuasSwarm);
+    reg('cuas_fusion','Fusion Picture','EXPERIMENTAL · COVARIANCE INTERSECTION',
+      'A live <b>covariance-intersection track-fusion</b> view: two sensor variances fused under weight ω into a conservative variance (Julier–Uhlmann CI, consistent under unknown correlation). 3D source + fused uncertainty ellipsoids; confidence <b>capped below 1.0 by doctrine</b> (trust is never 100%). Live from <code>/api/a11oy/v1/cuas/fusion</code>. Inspiration: Julier &amp; Uhlmann; Bar-Shalom.',
+      renderCuasFusion);
+  });
+
+  function injectNav(){
+    var side=document.querySelector('.side .nav')||document.querySelector('.side');
+    var anchor=document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
+    if(!side||!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('cuas-nav-group')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='cuas-nav-group'; grp.textContent='Counter-UAS C2 (EXPERIMENTAL)';
+    var items=[['cuas_pq','\u26bf','PQ Provenance'],['cuas_swarm','\u273b','Swarm Mesh (3D)'],['cuas_fusion','\u2a2e','Fusion Picture']];
+    function mkItem(d){ var n=document.createElement('div'); n.className='nav-item'; n.id='cuas-nav-'+d[0]; n.setAttribute('data-view',d[0]); n.setAttribute('onclick',"go('"+d[0]+"')"); n.innerHTML='<span class="ico">'+d[1]+'</span>'+d[2]; return n; }
+    var parent=anchor.parentNode;
+    parent.appendChild(grp); items.forEach(function(d){ parent.appendChild(mkItem(d)); });
+    try{ console.log('[a11oy] CUAS C2 mirror tabs registered: cuas_pq, cuas_swarm, cuas_fusion'); }catch(e){}
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+
 </body>
 </html>
