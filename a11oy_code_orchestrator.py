@@ -95,9 +95,41 @@ except Exception:  # pragma: no cover
 # ---------------------------------------------------------------------------
 
 HF_ROUTER_BASE = os.environ.get("HF_ROUTER_BASE", "https://router.huggingface.co/v1")
-HF_TOKEN = (os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-            or os.environ.get("Forge") or os.environ.get("HF_ROUTER_TOKEN")
-            or os.environ.get("HF_API_TOKEN") or os.environ.get("Token") or "")
+
+# Candidate Space-secret names for the HF inference credential, in priority
+# order. HF Spaces sometimes save the token under a non-standard key (e.g.
+# 'Token'), so we read a broad set and strip stray quotes/whitespace. This list
+# mirrors serve.py's _AC_TOKEN_NAMES so BOTH the public v1/code surface and this
+# orchestrator resolve the SAME secret. Server-side only; never sent to browser.
+_HF_TOKEN_NAMES = ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HF_ROUTER_TOKEN",
+                   "HF_API_TOKEN", "HUGGINGFACE_TOKEN", "HUGGINGFACEHUB_API_TOKEN",
+                   "Token")
+
+
+def _resolve_hf_token() -> str:
+    """Resolve the HF inference token at RUNTIME (read os.environ on every call).
+
+    TOKEN-FLIP FIX: HF Space secrets pasted into the secret store must take
+    effect the INSTANT they are present, with zero code change. Reading the
+    token at import time froze it to its startup value, so a token set after
+    process start would never be seen by has_inference_credential() and Chaski
+    would stay in the deterministic stub forever. Resolving live (like
+    serve.py's _ac_hf_token) closes that gap. Strips stray quotes/whitespace.
+    Honest: returns "" when genuinely absent (never fabricates a key).
+    """
+    for _name in _HF_TOKEN_NAMES:
+        _v = os.environ.get(_name)
+        if _v:
+            _v = _v.strip().strip('"').strip("'").strip()
+            if _v:
+                return _v
+    return ""
+
+
+# Backward-compat snapshot of the token at import (some legacy call sites and
+# diagnostics still reference the module global). Runtime decisions MUST use
+# _resolve_hf_token() so a later-pasted secret is honoured without a redeploy.
+HF_TOKEN = _resolve_hf_token()
 PURIQ_THRESHOLD = float(os.environ.get("A11OY_PURIQ_THRESHOLD", "0.62"))
 PURIQ_BETA = float(os.environ.get("A11OY_PURIQ_BETA", "4.0"))
 DB_PATH = os.environ.get("A11OY_CODE_DB", "/app/data/a11oy_code.db")
@@ -480,16 +512,29 @@ def route(messages: list[dict[str, Any]], model: Optional[str], governance_tier:
 # ---------------------------------------------------------------------------
 
 def _inference_headers() -> dict[str, str]:
-    if not HF_TOKEN:
+    token = _resolve_hf_token()  # runtime read so a later-pasted secret works
+    if not token:
         raise HTTPException(status_code=503, detail=(
             "No inference credential present. Set HF_TOKEN (or a provider key) as a "
             "Space secret. No fake key is used (Zero-Bandaid Law)."))
-    return {"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"}
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+
+def _resolve_provider_keys() -> dict[str, str]:
+    """Read optional direct-provider keys at RUNTIME (token-flip parity)."""
+    return {k: os.environ.get(env, "") for k, env in (
+        ("together", "TOGETHER_API_KEY"), ("groq", "GROQ_API_KEY"),
+        ("fireworks", "FIREWORKS_API_KEY"), ("deepinfra", "DEEPINFRA_API_KEY"),
+        ("cerebras", "CEREBRAS_API_KEY"))}
 
 
 def has_inference_credential() -> bool:
-    """True iff a real inference credential is present (HF router or a provider key)."""
-    return bool(HF_TOKEN) or any(PROVIDER_KEYS.values())
+    """True iff a real inference credential is present (HF router or a provider key).
+
+    Resolved at RUNTIME: the live/stub branch must flip the INSTANT a token is
+    pasted into the Space secret store, with zero code change (token-flip law).
+    """
+    return bool(_resolve_hf_token()) or any(_resolve_provider_keys().values())
 
 
 def honest_stub_text(user_msg: str, decision: dict[str, Any]) -> str:
@@ -1011,7 +1056,7 @@ def _tool_github_issue(repo: str, title: str, body: str) -> Any:
 def _tool_hf_space(repo_id: str) -> Any:
     try:
         from huggingface_hub import HfApi
-        api = HfApi(token=HF_TOKEN or None)
+        api = HfApi(token=_resolve_hf_token() or None)
         files = api.list_repo_files(repo_id=repo_id, repo_type="space")
         return {"repo_id": repo_id, "files": files[:200], "count": len(files)}
     except Exception as exc:
@@ -1512,7 +1557,8 @@ def _check_api_key(authorization: Optional[str]) -> Optional[str]:
     if not authorization or not authorization.lower().startswith("bearer "):
         return None
     key = authorization.split(" ", 1)[1].strip()
-    if key == HF_TOKEN and HF_TOKEN:
+    _tok = _resolve_hf_token()
+    if _tok and key == _tok:
         return "internal"
     with closing(_db()) as c:
         row = c.execute("SELECT owner,active FROM api_keys WHERE key=?", (key,)).fetchone()
@@ -1868,14 +1914,15 @@ async def issue_key(request: Request, authorization: Optional[str] = Header(None
 
 @router.post("/voice/stt")
 async def voice_stt(file: UploadFile = File(...)) -> JSONResponse:
-    if not HF_TOKEN:
+    _tok = _resolve_hf_token()
+    if not _tok:
         return JSONResponse({"error": "STT requires HF_TOKEN for Whisper inference (no fake key)."},
                             status_code=503)
     audio = await file.read()
     client = _get_client()
     url = "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
     try:
-        resp = await client.post(url, headers={"Authorization": f"Bearer {HF_TOKEN}"},
+        resp = await client.post(url, headers={"Authorization": f"Bearer {_tok}"},
                                  content=audio, timeout=120.0)
         if resp.status_code != 200:
             return JSONResponse({"error": f"whisper {resp.status_code}: {resp.text[:200]}"}, status_code=502)
