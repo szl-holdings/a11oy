@@ -31,6 +31,7 @@ import os
 from datetime import datetime, timezone
 
 from starlette.routing import Route
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 try:
@@ -151,7 +152,7 @@ def _f(req, key, default):
         return float(default)
 
 
-def _h_pmf(req):
+def _h_pmf(req: Request):
     d_psi = _f(req, "d_psi", 150.0); d_pH = _f(req, "d_pH", 0.5); d_pK = _f(req, "d_pK", -0.2); w = _f(req, "w", 0.18)
     single = round(pmf(d_psi, d_pH), 2)
     two = round(pmf_two_ion(d_psi, d_pH, d_pK, w), 2)
@@ -167,7 +168,7 @@ def _h_pmf(req):
     })
 
 
-def _h_coherence(req):
+def _h_coherence(req: Request):
     tau_c = _f(req, "tau_c", 6.05); steps = int(_f(req, "steps", 60))
     s = lindblad_coherence_series(tau_c, max(2, min(steps, 400)))
     return JSONResponse({
@@ -178,7 +179,7 @@ def _h_coherence(req):
     })
 
 
-def _h_compass(req):
+def _h_compass(req: Request):
     B = _f(req, "B_uT", 50.0)
     raw = req.query_params.get("angles", "0,30,60,90")
     try:
@@ -193,7 +194,7 @@ def _h_compass(req):
     return JSONResponse(out)
 
 
-def _h_lambda(req):
+def _h_lambda(req: Request):
     C = _f(req, "C", 0.9); dp = _f(req, "dp", 121.5); dp0 = _f(req, "dp0", 130.0); lam_min = _f(req, "lam_min", 0.25)
     out = lambda_v5(C, dp, dp0, lam_min)
     out.update({"model": "SZL Λ-v5 closure gate", "status": "PROPOSED",
@@ -203,7 +204,7 @@ def _h_lambda(req):
     return JSONResponse(out)
 
 
-def _h_summary(req):
+def _h_summary(req: Request):
     return JSONResponse({
         "title": "SZL Quantum-Bio Master Payload (v5) — verified results",
         "status_legend": {"VERIFIED": "executed model, reproduces on call",
@@ -224,18 +225,25 @@ def _h_summary(req):
 
 
 def register(app, ns="a11oy"):
-    """Wire the qbio endpoints onto the app under /api/<ns>/v1/qbio/*. Additive."""
+    """Wire the qbio endpoints onto the app under /api/<ns>/v1/qbio/*. Additive.
+    Uses FastAPI's add_api_route when available (matches the other szl_* modules'
+    @app.get registration so resolution order is correct vs the SPA catch-all);
+    falls back to Starlette route append for a bare Starlette app."""
     base = f"/api/{ns}/v1/qbio"
-    routes = [
-        Route(f"{base}/pmf", _h_pmf),
-        Route(f"{base}/coherence", _h_coherence),
-        Route(f"{base}/compass", _h_compass),
-        Route(f"{base}/lambda", _h_lambda),
-        Route(f"{base}/summary", _h_summary),
+    handlers = [
+        (f"{base}/pmf", _h_pmf),
+        (f"{base}/coherence", _h_coherence),
+        (f"{base}/compass", _h_compass),
+        (f"{base}/lambda", _h_lambda),
+        (f"{base}/summary", _h_summary),
     ]
-    for r in routes:
-        app.router.routes.append(r)
-    return [r.path for r in routes]
+    add_api_route = getattr(app, "add_api_route", None)
+    for path, fn in handlers:
+        if callable(add_api_route):
+            app.add_api_route(path, fn, methods=["GET"])
+        else:
+            app.router.routes.append(Route(path, fn))
+    return [p for p, _ in handlers]
 
 
 if __name__ == "__main__":
