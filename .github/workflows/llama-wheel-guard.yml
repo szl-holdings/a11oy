@@ -17,6 +17,15 @@ name: llama-cpp wheel guard
 # a11oy actually ships on (cp312 linux_x86_64) still exists for the pinned
 # version — it does not break the legitimate honest-fallback behavior.
 #
+# The wheel can vanish from the upstream index (abetlen.github.io) without
+# anyone editing the repo, in which case the push/PR-only triggers never fire
+# and the demo tier degrades silently until the next Dockerfile change. The
+# weekly `schedule:` re-verifies the install contract against the LIVE index on
+# a cadence; a scheduled-run failure pages the team through the shared
+# a11oy-uptime ntfy alert path (the same SLACK_WEBHOOK_URL relay the other a11oy
+# CI alert workflows use). PR failures are NOT paged — a red check already shows
+# on the PR — mirroring the receipts-pin-drift-guard convention.
+#
 # DCO: Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
 
 on:
@@ -30,6 +39,10 @@ on:
     paths:
       - 'Dockerfile'
       - '.github/workflows/llama-wheel-guard.yml'
+  schedule:
+    # Weekly, Mondays 06:17 UTC — re-verify the pinned wheel still exists on the
+    # live upstream index even when nobody touches the Dockerfile.
+    - cron: '17 6 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -85,3 +98,29 @@ jobs:
           fi
           python -c "import llama_cpp; print('llama_cpp import OK, version', getattr(llama_cpp, '__version__', 'unknown'))"
           echo "OK: prebuilt llama-cpp-python==${VER} cp312/linux_x86_64 wheel downloads, installs, and imports."
+
+      - name: Page the team on scheduled-run failure (ntfy via relay)
+        # Fire ONLY on the unattended weekly scheduled run when a prior step
+        # failed — i.e. the pinned wheel vanished from the live upstream index
+        # with no repo change to trigger the push/PR paths. PR/push failures are
+        # not paged (the red check is already visible). Mirrors the
+        # receipts-pin-drift-guard alert convention. This step never masks the
+        # failure: the job is already red from the failing step above.
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          VER: ${{ steps.parse.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL is not set — cannot page; the failing run remains the source of truth."
+            exit 0
+          fi
+          export MSG=":rotating_light: a11oy llama-cpp wheel guard FAILED on its weekly scheduled re-verification. The pinned cp312/linux_x86_64 llama-cpp-python==${VER:-?} prebuilt wheel may have vanished from the upstream index, so the local-model demo tier is silently degrading behind the Dockerfile's '|| echo' mask. Run: ${RUN_URL} . Fix: pin a llama-cpp-python version that still publishes a cp312 linux_x86_64 wheel on the configured --extra-index-url."
+          payload="$(python3 -c 'import json,os; print(json.dumps({"text": os.environ["MSG"]}))')"
+          code="$(curl -sS -o /tmp/relay.out -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "${payload}" "${SLACK_WEBHOOK_URL}" || echo 000)"
+          echo "alert relay responded HTTP ${code}"
+          if [ "${code}" != "200" ]; then
+            echo "::warning::Alert relay did not return 200 (got ${code}); the failing run itself remains the source of truth."
+          fi
