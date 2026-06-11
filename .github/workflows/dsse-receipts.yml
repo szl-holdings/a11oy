@@ -274,6 +274,80 @@ jobs:
               }
             }
 
+      # Keep the re-check baseline (high-water mark) current as receipts grow.
+      #
+      # The scheduled rekor-recheck.yml monitor enforces a minimum receipt floor
+      # so a wiped ledger branch / silently-broken fetch can't pass green with
+      # nothing to re-check. That floor used to be a single hand-maintained value
+      # in main's .github/rekor-recheck-baseline.json (issue #320), so until
+      # someone bumped it by hand it only caught a near-total wipe — not a partial
+      # regression after the ledger had grown. This step keeps it tight
+      # automatically: after a real receipt is published it raises a high-water
+      # mark to the new TOTAL number of receipts on the ledger and records it on
+      # the governance-receipts branch (the in-CI token can write that branch; it
+      # cannot write main). It NEVER lowers the value — the ledger is append-only
+      # — and the genuine empty-on-first-use state stays a soft pass because the
+      # mark is simply absent until the first publish. rekor-recheck.yml then
+      # enforces the larger of this dynamic mark and main's static floor.
+      #
+      # continue-on-error: like the publish step, maintaining the baseline is
+      # best-effort and must never fail the core sign+verify job.
+      - name: Raise the re-check baseline high-water mark
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.publish.outputs.skipped == 'false' && steps.verifyledger.outputs.verify_failed != 'true' }}
+        continue-on-error: true
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const branch = 'governance-receipts';
+            const baselinePath = '.github/rekor-recheck-baseline.json';
+            const { owner, repo } = context.repo;
+
+            // Count every published receipt currently on the ledger branch. The
+            // receipt we just published + verified is included. The directory
+            // listing is flat and small; cap-safe for the foreseeable ledger size.
+            let total = 0;
+            try {
+              const dir = await github.rest.repos.getContent({ owner, repo, path: 'attestations/governance', ref: branch });
+              if (!Array.isArray(dir.data)) { core.warning('Ledger path is not a directory listing — skipping baseline update.'); return; }
+              total = dir.data.filter((e) => e.type === 'file' && e.name.endsWith('.dsse.json')).length;
+            } catch (e) {
+              core.warning(`Could not list the ledger to count receipts (${e.status || ''} ${e.message}) — skipping baseline update.`);
+              return;
+            }
+
+            // Read the current recorded high-water mark on the ledger branch.
+            let currentMin = 0;
+            let sha;
+            try {
+              const cur = await github.rest.repos.getContent({ owner, repo, path: baselinePath, ref: branch });
+              sha = cur.data.sha;
+              const parsed = JSON.parse(Buffer.from(cur.data.content, 'base64').toString('utf8'));
+              currentMin = Number(parsed.min_receipts || 0) || 0;
+            } catch (e) {
+              if (e.status !== 404) { core.warning(`Could not read the ledger baseline (${e.status || ''} ${e.message}) — skipping.`); return; }
+            }
+
+            // Append-only ledger: never lower, and don't rewrite when unchanged.
+            const newMin = Math.max(currentMin, total);
+            if (newMin <= currentMin) {
+              core.info(`Baseline high-water mark unchanged (recorded ${currentMin}, ledger holds ${total}).`);
+              return;
+            }
+
+            const payload = {
+              min_receipts: newMin,
+              recorded: new Date().toISOString().slice(0, 10),
+              source: 'auto: dsse-receipts.yml high-water mark on publish',
+              note: "Auto-maintained high-water mark of published *.dsse.json receipts on the governance-receipts ledger branch. Raised by .github/workflows/dsse-receipts.yml after each successful publish; never lowered (the ledger is append-only). The static floor in main's .github/rekor-recheck-baseline.json (issue #320) is the manual minimum; rekor-recheck.yml enforces the larger of the two.",
+            };
+            const content = Buffer.from(JSON.stringify(payload, null, 2) + '\n', 'utf8').toString('base64');
+            await github.rest.repos.createOrUpdateFileContents({
+              owner, repo, path: baselinePath, branch, sha,
+              message: `chore(receipts): raise re-check baseline high-water mark to ${newMin}\n\nSigned-off-by: Yachay <yachay@szlholdings.ai>`,
+              content,
+            });
+            core.info(`Raised re-check baseline high-water mark ${currentMin} -> ${newMin} on '${branch}'.`);
+
       # Direct push notification, mirroring rekor-recheck.yml: a silently-dropped
       # ledger write is noticed immediately, not just buried in a red run. Posts
       # to a Slack-compatible incoming webhook via curl (no third-party action, so
