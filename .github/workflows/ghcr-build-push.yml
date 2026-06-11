@@ -37,6 +37,73 @@ jobs:
           tags: |
             ghcr.io/szl-holdings/${{ github.event.repository.name }}:uds-v0.3.0
             ghcr.io/szl-holdings/${{ github.event.repository.name }}:latest
+      # Boot the freshly built image and PROVE the "alloy" demo tier serves genuine
+      # llama.cpp output from the bundled GGUF — NOT the honest tower-side fallback.
+      # Task #590 made the GGUF reliably present (pinned rev + retry + sha/size verify)
+      # and pinned the prebuilt llama-cpp-python wheel; this step is the runtime proof
+      # that the published image ACTUALLY answers locally. Runs BEFORE signing so a
+      # broken demo tier is never cosign-signed / attested. Fails loud if the weight is
+      # missing, llama.cpp can't load, or the served result is the tower-side fallback.
+      - name: Demo tier serves REAL local model (not tower-side fallback)
+        timeout-minutes: 8
+        env:
+          IMG: ghcr.io/szl-holdings/${{ github.event.repository.name }}
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker pull "${IMG}@${DIGEST}"
+          docker run --rm -i --entrypoint python3 "${IMG}@${DIGEST}" - <<'PYEOF'
+          import sys, json
+          import szl_alloy_models as m
+
+          errors = []
+
+          # The demo_cpu tier is the only one that can serve locally on CPU.
+          demo = [x for x in m.ALLOY_ROSTER if x.get("tier_band") == "demo_cpu"]
+          if not demo:
+              errors.append("no demo_cpu tier model present in ALLOY_ROSTER")
+
+          # 1) Backend must be GENUINELY available: GGUF present + llama.cpp loads.
+          path = m._gguf_path()
+          avail = m.backend_available()
+          sha = m._gguf_sha(path)
+          print("gguf_path=%r backend_available=%s gguf_sha256_fp=%s backend_error=%r"
+                % (path, avail, sha, m._LLAMA_ERR), flush=True)
+          if not path:
+              errors.append("no GGUF weight in image (A11OY_ALLOY_GGUF / /app/models/*.gguf missing)")
+          if not avail:
+              errors.append("llama.cpp backend unavailable: %s" % (m._LLAMA_ERR,))
+
+          # 2) The demo tier must serve REAL local output, not the honest tower-side label.
+          #    _local_generate is the exact serving path alloy_governed_suggest uses when the
+          #    chosen model is tier_band == "demo_cpu".
+          gen = m._local_generate("Write a Python function add(a, b) that returns their sum.",
+                                  max_tokens=48)
+          safe = {k: (v[:200] if (k == "text" and isinstance(v, str)) else v)
+                  for k, v in gen.items()}
+          print("generation=" + json.dumps(safe), flush=True)
+
+          if not gen.get("served_locally"):
+              errors.append("served_locally=False -> tower-side fallback was taken")
+          if gen.get("tower_side"):
+              errors.append("tower_side=True -> fallback path")
+          if gen.get("backend") != "llama.cpp":
+              errors.append("backend=%r, expected 'llama.cpp'" % gen.get("backend"))
+          if gen.get("honest_label"):
+              errors.append("generation carried honest_label (fallback marker): %r"
+                            % gen.get("honest_label"))
+          text = (gen.get("text") or "").strip()
+          if not text:
+              errors.append("generation text was empty")
+
+          if errors:
+              print("\n[FAIL] demo-tier local-model assertion FAILED:", flush=True)
+              for e in errors:
+                  print("  - " + e, flush=True)
+              sys.exit(1)
+          print("\n[OK] alloy demo tier served genuine llama.cpp output from the bundled "
+                "GGUF (served_locally=True, backend=llama.cpp, %d chars)." % len(text), flush=True)
+          PYEOF
       - name: Attest build provenance (GitHub Attestations API + Rekor)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
