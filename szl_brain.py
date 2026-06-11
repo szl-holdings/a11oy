@@ -69,7 +69,7 @@ SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doct
 TIERS: list[dict[str, Any]] = [
     {"id": "claude_sonnet_4_6", "rank": 0, "use": "default reasoning / explain-this-Space / casual Q&A", "why": "200K context, fast, cost-efficient"},
     {"id": "gemini_3_1_pro",    "rank": 1, "use": "long-form research / multi-source synthesis",          "why": "cost-efficient research"},
-    {"id": "gpt_5_4",           "rank": 2, "use": "math / structured logic / Λ-gate eval / theorem citation", "why": "best at structured reasoning + math"},
+    {"id": "gpt_5_4",           "rank": 2, "use": "math / structured logic / theorem citation / Λ-gate eval", "why": "best at structured reasoning + math"},
     {"id": "claude_opus_4_8",   "rank": 3, "use": "complex multi-step orchestration / PRs / Lean proofs",  "why": "top-tier reasoning, 200K context"},
     {"id": "gpt_5_5",           "rank": 4, "use": "highest-stakes investor diligence answers",             "why": "top quality (tie with opus_4_8)"},
 ]
