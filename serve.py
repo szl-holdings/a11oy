@@ -233,7 +233,7 @@ except Exception as _szl_entanglement_e:  # pragma: no cover
 # (critical periods). RIGOROUS (recent, cited): Dohare-Sutton Nature 2024 + Sokar ReDo
 # 2023 (loss of plasticity in continual learning — the honest frontier tie-in for any
 # long-running agent); Kirkpatrick 2017 EWC. The predictive-coding↔Hebbian unifier
-# (Millidge 2022) is a PROPOSED lens, NOT a Λ theorem. Every borrowed rule cites its
+# (Millidge 2022) is a PROPOSED lens, NOT a theorem (Λ-uniqueness = Conjecture 1). Every borrowed rule cites its
 # real author; SZL claims NONE as its own. EXPERIMENTAL/PROPOSED — NOT formal Λ; adds
 # NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. Pure stdlib. Shared
 # module byte-identical a11oy↔killinchu. Additive, try/except-guarded.
