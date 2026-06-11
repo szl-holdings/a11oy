@@ -679,6 +679,11 @@ COPY szl_uds_fleet.py ./szl_uds_fleet.py
 # serve.py imports this try/except-guarded; without this per-file COPY the import
 # fails and /api/a11oy/v1/readiness 404s (falls through to the SPA shell).
 COPY szl_readiness.py ./szl_readiness.py
+# Quantum-Bio Λ-v5 backend (quantum-bio-v5): VERIFIED quantum-biology models
+# (Mitchell pmf + two-ion, Lindblad coherence, radical-pair compass, Λ-v5 gate).
+# serve.py imports this try/except-guarded; without this per-file COPY the import
+# fails and /api/a11oy/v1/qbio/* 404s. Pure stdlib (+optional numpy already present).
+COPY szl_quantum_bio.py ./szl_quantum_bio.py
 # Contracting Readiness backend (SAM/CAGE + SBIR/STTR eligibility, web-sourced,
 # honest verified/confirmed/needs_founder_input/needs_founder_action labels, source
 # liveness probes, 0 fabricated org values). serve.py imports this try/except-guarded;
