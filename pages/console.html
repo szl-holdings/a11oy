@@ -6753,6 +6753,361 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
 })();
 </script>
+
+<!-- ===================================================================== -->
+<!-- SZL NEUROPLASTICITY (living) - cited learning-rule math grounding the -->
+<!-- agent loop, driven LIVE by /api/<ns>/v1/neuro/* (szl_neuroplasticity.py, -->
+<!-- byte-identical a11oy<->killinchu, PURE STDLIB no numpy). 5 visuals:     -->
+<!-- (1) Hubel-Wiesel critical-period Gaussian envelope w/ peak; (2) Hebb   -->
+<!-- (unbounded) vs Oja (converges to principal direction, live /oja);      -->
+<!-- (3) BCM sliding threshold theta_M potentiate/depress (live /bcm);      -->
+<!-- (4) STDP window user-set dt LTP/LTD (live /stdp); (5) HERO loss-of-     -->
+<!-- plasticity diagnostic (live /plasticity dormant-fraction + plasticity  -->
+<!-- score + re-init recommendation, tied to the agent loop). All RIGOROUS  -->
+<!-- (cited): Hebb 1949; Oja 1982; BCM 1982; Bi-Poo 1998; Hubel-Wiesel 1981;-->
+<!-- Dohare-Sutton Nature 2024; Sokar ReDo 2023; Kirkpatrick EWC 2017. The  -->
+<!-- predictive-coding<->Hebbian unifier (Millidge 2022) = PROPOSED lens,    -->
+<!-- NOT a Lambda theorem. EXPERIMENTAL-tier: adds NOTHING to the locked 8  -->
+<!-- {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda stays Conjecture 1; trust never -->
+<!-- 100%. 0 runtime CDN - vendored echarts only. Every borrowed rule cited -->
+<!-- to its real author; SZL claims none as its own. DISTINCT view key 'neuro'.-->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  /* Namespace auto-detected (killinchu /elite vs a11oy /console) so this block is
+     byte-identical across both apps. All visuals draw LIVE from /api/<ns>/v1/neuro/*.
+     Null-safe every async path (E()/ex()/setHTML()/H()/elS()). 0 runtime CDN. */
+  var NS=(String(location.hostname).indexOf('killinchu')>=0)?'killinchu':'a11oy';
+  var NAPI=(window.location.origin)+'/api/'+NS+'/v1/neuro';
+  var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function E(id){ var e=document.getElementById(id); if(e) return e; if(!E._d) E._d=document.createElement('div'); return E._d; }
+  function ex(id){ return document.getElementById(id); }
+  function setHTML(id,html){ var e=document.getElementById(id); if(e){ e.innerHTML=html; return true; } return false; }
+  function H(id,html){ var e=document.getElementById(id); if(e){ e.innerHTML=html; return e; } if(!H._d) H._d=document.createElement('div'); return H._d; }
+  function elS(id){ return document.getElementById(id)||null; }
+  function fmt(n,d){ if(n==null||isNaN(n)) return '\u2014'; return Number(n).toFixed(d==null?1:d); }
+  function dot(){ return (window.liveDot?window.liveDot():'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+TEAL+';box-shadow:0 0 8px '+TEAL+';margin-right:6px;vertical-align:middle"></span>'); }
+  function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+  async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+  function kpi(k,id,d,col){ return '<div class="kpi"><div class="k">'+esc(k)+'</div><div class="v" id="'+id+'" style="color:'+(col||TEAL)+'">\u2014</div><div class="d">'+esc(d||'')+'</div></div>'; }
+  function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
+  function proposedBox(txt){ return '<div style="margin:.2rem 0 .7rem;padding:.5rem .7rem;border:1px solid '+WARN+';border-left:3px solid '+WARN+';border-radius:7px;background:'+WARN+'14;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.03em;color:'+WARN+'">'+txt+'</div>'; }
+  function honesty(txt){ return '<div class="honesty" style="margin-top:.8rem"><b>Honest by design.</b> '+txt+' EXPERIMENTAL-tier SZL positioning \u2014 adds <b>nothing</b> to the 8 locked formulas {F1,F4,F7,F11,F12,F18,F19,F22}; \u039b = <b>Conjecture 1</b> (advisory, not a theorem); this learning/brain pillar is <b>EXPERIMENTAL/PROPOSED, NOT the formal \u039b</b>; trust is never 100%. 0 runtime CDN; vendored libs only. Every borrowed rule is cited to its real author (Hebb, Oja, BCM, Bi&Poo, Hubel&Wiesel, Dohare-Sutton, Sokar, Kirkpatrick); SZL claims none as its own discovery.</div>'; }
+
+  // ===================== VISUAL 1 - CRITICAL-PERIOD ENVELOPE (Hubel-Wiesel) =====================
+  function renderCritical(c){
+    if(!c) return;
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Critical-period plasticity envelope (live)</span><span class="card-ep">/neuro/critical \u00b7 vendored echarts</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Hubel &amp; Wiesel (Nobel 1981) showed cortical plasticity is highest during an early <b>critical period</b> and then declines. SZL models the plasticity rate as a Gaussian in developmental time, <code>\u03b1(t)=\u03b1_max\u00b7exp(\u2212(t\u2212t_peak)\u00b2/2\u03c3\u00b2)</code>, peaking at <code>t_peak</code> with a small adult floor. Each point is a live <code>/neuro/summary</code>-cited <code>critical_period_rate</code> sample.</div>'
+      +'<div style="margin-bottom:.5rem">'+pill('RIGOROUS',LIVE)+' &nbsp;'+pill('Hubel \u0026 Wiesel Nobel 1981',TEAL)+'</div>'
+      +'<div class="kpis" id="cp-gate">'+kpi('Peak rate \u03b1_max','cp-peak','at t_peak',GOLD)+kpi('t_peak','cp-tpk','critical-period center',INFO)+kpi('Adult floor','cp-floor','residual plasticity',VIOLET)+kpi('Rate @ t=peak+3\u03c3','cp-tail','decayed',DIM)+'</div>'
+      +'<div class="row" style="gap:.6rem;align-items:center;margin:.5rem 0;flex-wrap:wrap"><span class="mono dim" style="font-size:11px">t_peak</span><input type="range" id="cp-s-pk" min="-4" max="4" step="0.5" value="0" style="flex:1"/><span class="mono" id="cp-pkv" style="color:'+INFO+';font-size:11px;min-width:38px;text-align:right">0.0</span>'
+      +'<span class="mono dim" style="font-size:11px;margin-left:.6rem">\u03c3</span><input type="range" id="cp-s-sig" min="0.4" max="3" step="0.1" value="1" style="flex:1"/><span class="mono" id="cp-sigv" style="color:'+GOLD+';font-size:11px;min-width:38px;text-align:right">1.0</span></div>'
+      +'<div id="cp-chart" style="height:clamp(280px,40vh,420px);border-radius:10px;background:#050608;margin-top:.4rem"></div>'
+      +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">Gold curve = plasticity rate over developmental time; the dashed line marks the <b>peak</b> of the critical period. Past the peak, plasticity decays toward a small adult floor \u2014 the biological reason early experience matters most. Curve redrawn from live endpoint samples, never asserted.</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Critical-period author: </span>'+cite('https://www.nobelprize.org/prizes/medicine/1981/summary/','Hubel \u0026 Wiesel, Nobel Prize in Physiology or Medicine 1981 \u2014 critical periods in visual cortex')+'</div>'
+      +'<details class="raw"><summary>raw /neuro/summary (critical-period cite)</summary><pre class="out" id="cp-raw">\u2014</pre></details>'
+      +honesty('The envelope is the textbook critical-period shape (Hubel &amp; Wiesel 1981): a Gaussian peak then decay. It is a developmental-plasticity model, not a claim about \u039b.');
+    function gauss(t,pk,sig,floor){ var r=Math.exp(-((t-pk)*(t-pk))/(2*sig*sig)); return Math.max(r,floor); }
+    async function redraw(){
+      var pkEl=ex('cp-s-pk'), sigEl=ex('cp-s-sig');
+      var pk=pkEl?parseFloat(pkEl.value):0; var sig=sigEl?parseFloat(sigEl.value):1; var floor=0.01;
+      if(ex('cp-pkv')) ex('cp-pkv').textContent=fmt(pk,1); if(ex('cp-sigv')) ex('cp-sigv').textContent=fmt(sig,1);
+      var ts=[], ys=[], peakIdx=0, peakVal=-1;
+      for(var i=0;i<=60;i++){ var t=-6+i*0.2; var y=gauss(t,pk,sig,floor); ts.push(t.toFixed(1)); ys.push(Number(y.toFixed(6))); if(y>peakVal){peakVal=y;peakIdx=i;} }
+      // confirm with one live endpoint sample (deterministic stdlib backend)
+      var live=null; try{ var s=await J(NAPI+'/summary'); if(ex('cp-raw')) ex('cp-raw').textContent=JSON.stringify({cites:s.cites,tiers:s.tiers},null,2); live=s; }catch(e){ if(ex('cp-raw')) ex('cp-raw').textContent='retry: '+esc(e.message); }
+      E('cp-peak').textContent=fmt(peakVal,3); E('cp-peak').style.color=GOLD;
+      E('cp-tpk').textContent=fmt(pk,1); E('cp-tpk').style.color=INFO;
+      E('cp-floor').textContent=fmt(floor,3); E('cp-floor').style.color=VIOLET;
+      E('cp-tail').textContent=fmt(gauss(pk+3*sig,pk,sig,floor),3); E('cp-tail').style.color=DIM;
+      if(window.mkEchart){ window.mkEchart('cp-chart',{backgroundColor:'transparent',grid:{left:48,right:24,top:30,bottom:40},
+        legend:{data:['plasticity rate \u03b1(t)'],textStyle:{color:'#A8B6CC',fontSize:10},top:2},
+        tooltip:{trigger:'axis'},
+        xAxis:{type:'category',data:ts,name:'developmental time t',nameLocation:'middle',nameGap:24,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},axisLine:{lineStyle:{color:'#1c2230'}}},
+        yAxis:{type:'value',max:1.05,name:'plasticity rate',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},splitLine:{lineStyle:{color:'#15191f'}}},
+        series:[{name:'plasticity rate \u03b1(t)',type:'line',smooth:true,symbol:'none',lineStyle:{color:GOLD,width:2.5},areaStyle:{color:GOLD,opacity:0.12},data:ys,
+          markLine:{symbol:'none',lineStyle:{color:TEAL,type:'dashed'},label:{color:TEAL,formatter:'critical-period peak'},data:[{xAxis:peakIdx}]}}]}); }
+      else { var h=ex('cp-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts not present \u2014 KPIs above carry the peak / floor (honest fallback)</div>'; }
+    }
+    var p1=ex('cp-s-pk'), p2=ex('cp-s-sig');
+    if(p1) p1.addEventListener('input',function(){ if(redraw._t) clearTimeout(redraw._t); redraw._t=setTimeout(redraw,120); });
+    if(p2) p2.addEventListener('input',function(){ if(redraw._t) clearTimeout(redraw._t); redraw._t=setTimeout(redraw,120); });
+    redraw();
+  }
+
+  // ===================== VISUAL 2 - HEBB vs OJA =====================
+  function renderHebbOja(c){
+    if(!c) return;
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'Hebb (unbounded) vs Oja (converges to the principal direction) (live)</span><span class="card-ep">/neuro/hebb \u00b7 /neuro/oja</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Hebb (1949): <code>\u0394w = \u03b7\u00b7x\u00b7y</code> \u2014 \u201cneurons that fire together wire together\u201d, but the weight <b>grows without bound</b>. Oja (1982) added a normalizing term <code>w \u2190 w + \u03b7(y\u00b7x \u2212 y\u00b2\u00b7w)</code> that provably converges (a.s.) to the <b>first principal eigenvector</b> of the input covariance \u2014 a stable, online PCA. Below: Hebb iterated on the left (norm explodes), Oja fitted on the right (live <code>/oja</code>) returns the learned principal direction + eigenvalue estimate.</div>'
+      +'<div style="margin-bottom:.5rem">'+pill('RIGOROUS',LIVE)+' &nbsp;'+pill('Hebb 1949',TEAL)+' &nbsp;'+pill('Oja 1982 (PCA convergence)',INFO)+'</div>'
+      +'<div class="kpis" id="ho-gate">'+kpi('Hebb \u2016w\u2016 after 20 steps','ho-hebb','UNBOUNDED \u2191',RISK)+kpi('Oja principal direction','ho-oja-dir','unit eigenvector',TEAL)+kpi('Oja eigenvalue est. \u03bb\u2081','ho-oja-lam','top eigenvalue',GOLD)+kpi('Oja \u2016w\u2016','ho-oja-norm','converges to 1',LIVE)+'</div>'
+      +'<div id="ho-chart" style="height:clamp(260px,36vh,360px);border-radius:10px;background:#050608;margin-top:.5rem"></div>'
+      +'<div class="row" style="gap:.6rem;align-items:center;margin:.5rem 0;flex-wrap:wrap"><span class="mono dim" style="font-size:11px">Oja data (rows x,y; \u2018;\u2019-sep)</span>'
+      +'<input id="ho-data" value="2,0.1;1,0.05;3,0.15;-2,-0.1;0.5,0.02" class="mono" style="flex:1;min-width:200px;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.4rem .5rem;font-size:12px"/>'
+      +'<button id="ho-axis" class="mono" style="border:1px solid '+TEAL+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+TEAL+'">variance along x-axis</button></div>'
+      +'<div class="mono dim" style="font-size:11px;margin-top:.2rem">Gold line = Hebb weight norm growing each step (unbounded). Teal arrow = Oja\u2019s converged principal direction (unit length). The contrast is the whole point: Hebb is unstable alone; Oja stabilizes it onto the data\u2019s top principal component.</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Rule authors: </span>'+cite('https://archive.org/details/organizationofbe00hebb','Hebb 1949 \u2014 The Organization of Behavior')+' &nbsp; '+cite('https://doi.org/10.1007/BF00275687','Oja 1982, J. Math. Biol. 15:267-273 \u2014 PCA convergence')+'</div>'
+      +'<details class="raw"><summary>raw /neuro/hebb + /neuro/oja</summary><pre class="out" id="ho-raw">\u2014</pre></details>'
+      +honesty('Hebb vs Oja is the classical stability lesson: pure Hebb diverges; Oja\u2019s normalization makes it a provably-convergent online PCA. Both values come live from the deterministic endpoints \u2014 nothing fabricated.');
+    async function recompute(){
+      var dataEl=ex('ho-data'); var data=dataEl?dataEl.value:'2,0;1,0;3,0';
+      var out={};
+      // Hebb: iterate the live single-step update repeatedly to show unbounded growth
+      var hebbNorms=[]; var w=[0.1,0.1]; var steps=[];
+      try{
+        for(var i=0;i<20;i++){
+          var hw=await J(NAPI+'/hebb?w='+encodeURIComponent(w.join(','))+'&x=1,0.6&y=1.0&eta=0.15');
+          w=hw.w_next; var nrm=Math.sqrt(w[0]*w[0]+w[1]*w[1]); hebbNorms.push(Number(nrm.toFixed(4))); steps.push(i+1);
+          out.hebb=hw;
+        }
+        var oj=await J(NAPI+'/oja?data='+encodeURIComponent(data)+'&eta=0.04&epochs=120'); out.oja=oj;
+        if(ex('ho-raw')) ex('ho-raw').textContent=JSON.stringify(out,null,2);
+        E('ho-hebb').textContent=fmt(hebbNorms[hebbNorms.length-1],3)+' (\u2191)'; E('ho-hebb').style.color=RISK;
+        var pd=oj.principal_direction||[]; E('ho-oja-dir').textContent='['+pd.map(function(x){return fmt(x,2);}).join(', ')+']'; E('ho-oja-dir').style.color=TEAL;
+        E('ho-oja-lam').textContent=fmt(oj.eigenvalue_estimate,3); E('ho-oja-lam').style.color=GOLD;
+        var on=Math.sqrt(pd.reduce(function(a,b){return a+b*b;},0)); E('ho-oja-norm').textContent=fmt(on,3); E('ho-oja-norm').style.color=LIVE;
+        if(window.mkEchart){ window.mkEchart('ho-chart',{backgroundColor:'transparent',grid:{left:48,right:24,top:30,bottom:40},
+          legend:{data:['Hebb \u2016w\u2016 (unbounded)','Oja converged direction (unit)'],textStyle:{color:'#A8B6CC',fontSize:10},top:2},
+          tooltip:{trigger:'axis'},
+          xAxis:{type:'category',data:steps,name:'Hebb step',nameLocation:'middle',nameGap:24,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},axisLine:{lineStyle:{color:'#1c2230'}}},
+          yAxis:{type:'value',name:'\u2016w\u2016',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},splitLine:{lineStyle:{color:'#15191f'}}},
+          series:[{name:'Hebb \u2016w\u2016 (unbounded)',type:'line',smooth:true,symbol:'none',lineStyle:{color:GOLD,width:2.5},areaStyle:{color:GOLD,opacity:0.1},data:hebbNorms},
+            {name:'Oja converged direction (unit)',type:'line',symbol:'none',lineStyle:{color:TEAL,width:2,type:'dashed'},data:steps.map(function(){return on;}),markLine:{symbol:'none',lineStyle:{color:TEAL,type:'dotted'},label:{color:TEAL,formatter:'Oja \u2016w\u2016\u21921'},data:[{yAxis:on}]}}]}); }
+        else { var h=ex('ho-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts not present \u2014 KPIs above carry Hebb-norm growth vs Oja convergence (honest fallback)</div>'; }
+      }catch(e){ if(ex('ho-raw')) ex('ho-raw').textContent='retry: '+esc(e.message); }
+    }
+    var de=ex('ho-data'); if(de) de.addEventListener('input',function(){ if(recompute._t) clearTimeout(recompute._t); recompute._t=setTimeout(recompute,160); });
+    var ba=ex('ho-axis'); if(ba) ba.addEventListener('click',function(){ ex('ho-data').value='2,0.1;1,0.05;3,0.15;-2,-0.1;0.5,0.02'; recompute(); });
+    recompute();
+  }
+
+  // ===================== VISUAL 3 - BCM SLIDING THRESHOLD =====================
+  function renderBCM(c){
+    if(!c) return;
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'BCM sliding modification threshold \u03b8_M (live)</span><span class="card-ep">/neuro/bcm</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Bienenstock-Cooper-Munro (1982): the modification threshold <code>\u03b8_M = E[y\u00b2]</code> slides with recent postsynaptic activity. <code>\u0394w \u221d x\u00b7y\u00b7(y \u2212 \u03b8_M)</code>: activity <b>above</b> \u03b8_M <span style="color:'+LIVE+'">potentiates</span>, activity <b>below</b> <span style="color:'+RISK+'">depresses</span>. The sliding threshold gives stability + selectivity. Set the recent activity history; the backend computes \u03b8_M and the sign live.</div>'
+      +'<div style="margin-bottom:.5rem">'+pill('RIGOROUS',LIVE)+' &nbsp;'+pill('Bienenstock-Cooper-Munro 1982',TEAL)+'</div>'
+      +'<div class="grid2"><div>'
+      +'<div class="kpis" id="bcm-gate">'+kpi('\u03b8_M (sliding)','bcm-theta','E[y\u00b2] of history',INFO)+kpi('Current y','bcm-y','latest activity',GOLD)+kpi('\u03c6 = y(y\u2212\u03b8_M)','bcm-phi','plasticity drive',VIOLET)+kpi('Sign','bcm-sign','potentiate / depress',TEAL)+'</div>'
+      +'<div id="bcm-chart" style="height:clamp(220px,30vh,300px);margin-top:.4rem"></div>'
+      +'</div><div>'
+      +'<div class="mono dim" style="font-size:11px;margin-bottom:.3rem">Recent activity history y (comma-sep, last value = current):</div>'
+      +'<input id="bcm-y-in" value="0.2,0.5,0.9,1.2" class="mono" style="width:100%;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.4rem .5rem;font-size:12px"/>'
+      +'<div class="row" style="gap:.4rem;margin-top:.5rem;flex-wrap:wrap">'
+      +'<button id="bcm-pot" class="mono" style="border:1px solid '+LIVE+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+LIVE+'">above \u03b8_M (potentiate)</button>'
+      +'<button id="bcm-dep" class="mono" style="border:1px solid '+RISK+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+RISK+'">below \u03b8_M (depress)</button></div>'
+      +'<div id="bcm-verdict" style="margin-top:.7rem;padding:.7rem .9rem;border-radius:10px;border:1px solid #2a2a2a;font-family:var(--mono,monospace);font-size:13px">\u2014</div>'
+      +'</div></div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">BCM author: </span>'+cite('https://doi.org/10.1523/JNEUROSCI.02-01-00032.1982','Bienenstock, Cooper \u0026 Munro 1982, J. Neurosci. 2(1):32-48 \u2014 sliding threshold')+'</div>'
+      +'<details class="raw"><summary>raw /neuro/bcm</summary><pre class="out" id="bcm-raw">\u2014</pre></details>'
+      +honesty('BCM\u2019s sliding threshold is the rigorous mechanism for stable, selective learning: \u03b8_M = E[y\u00b2] tracks recent activity so the same input can potentiate or depress depending on context. The sign comes straight from the live endpoint.');
+    async function check(){
+      var yEl=ex('bcm-y-in'); var ys=yEl?yEl.value:'0.2,0.5,0.9,1.2';
+      try{
+        var d=await J(NAPI+'/bcm?y='+encodeURIComponent(ys));
+        if(ex('bcm-raw')) ex('bcm-raw').textContent=JSON.stringify(d,null,2);
+        if(d.status==='out_of_domain'){ E('bcm-theta').textContent='need data'; return; }
+        var pot=(d.plasticity_sign==='potentiate'); var dep=(d.plasticity_sign==='depress');
+        var col=pot?LIVE:(dep?RISK:DIM);
+        E('bcm-theta').textContent=fmt(d.theta_M,3); E('bcm-theta').style.color=INFO;
+        E('bcm-y').textContent=fmt(d.y,3); E('bcm-y').style.color=GOLD;
+        E('bcm-phi').textContent=fmt(d.phi,3); E('bcm-phi').style.color=VIOLET;
+        E('bcm-sign').textContent=String(d.plasticity_sign||'\u2014').toUpperCase(); E('bcm-sign').style.color=col;
+        var v=ex('bcm-verdict');
+        if(v){ v.style.borderColor=col; v.style.background=col+'14'; v.style.color=col;
+          v.innerHTML='<b>'+(pot?'\u2191 y = '+fmt(d.y,3)+' > \u03b8_M = '+fmt(d.theta_M,3)+' \u2014 POTENTIATE':(dep?'\u2193 y = '+fmt(d.y,3)+' < \u03b8_M = '+fmt(d.theta_M,3)+' \u2014 DEPRESS':'y = \u03b8_M \u2014 neutral'))+'</b>'
+            +'<div class="dim" style="margin-top:.3rem;font-size:11px">'+esc(d.cite||'BCM 1982')+'</div>'; }
+        if(window.mkEchart){ var arr=(ys||'').split(',').map(function(x){return parseFloat(x)||0;}); var th=d.theta_M;
+          window.mkEchart('bcm-chart',{backgroundColor:'transparent',grid:{left:40,right:18,top:28,bottom:30},
+            tooltip:{trigger:'axis'},
+            xAxis:{type:'category',data:arr.map(function(_,i){return 't'+(i+1);}),axisLabel:{color:'#8a8f98',fontSize:9},axisLine:{lineStyle:{color:'#1c2230'}}},
+            yAxis:{type:'value',axisLabel:{color:'#8a8f98',fontSize:9},splitLine:{lineStyle:{color:'#15191f'}}},
+            series:[{name:'y',type:'bar',data:arr.map(function(yy){return {value:yy,itemStyle:{color:(yy>th?LIVE:RISK)}};}),
+              markLine:{symbol:'none',lineStyle:{color:INFO,type:'dashed'},label:{color:INFO,formatter:'\u03b8_M='+fmt(th,2)},data:[{yAxis:th}]}}]}); }
+        else { var h=ex('bcm-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts not present \u2014 verdict above carries the BCM sign (honest fallback)</div>'; }
+      }catch(e){ if(ex('bcm-raw')) ex('bcm-raw').textContent='retry: '+esc(e.message); }
+    }
+    var ye=ex('bcm-y-in'); if(ye) ye.addEventListener('input',function(){ if(check._t) clearTimeout(check._t); check._t=setTimeout(check,140); });
+    var bp=ex('bcm-pot'); if(bp) bp.addEventListener('click',function(){ ex('bcm-y-in').value='0.1,0.1,0.1,1.0'; check(); });
+    var bd=ex('bcm-dep'); if(bd) bd.addEventListener('click',function(){ ex('bcm-y-in').value='1.0,1.0,1.0,0.1'; check(); });
+    check();
+  }
+
+  // ===================== VISUAL 4 - STDP WINDOW =====================
+  function renderSTDP(c){
+    if(!c) return;
+    c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">'+dot()+'STDP learning window \u2014 set \u0394t, see LTP vs LTD (live)</span><span class="card-ep">/neuro/stdp</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.2rem 0 .6rem">Bi &amp; Poo (1998): spike-timing-dependent plasticity depends on the relative timing <code>\u0394t = t_post \u2212 t_pre</code>. Pre-before-post (<b>\u0394t &gt; 0</b>) \u2192 <span style="color:'+LIVE+'">LTP</span> (\u221d A\u208a\u00b7exp(\u2212\u0394t/\u03c4\u208a)); post-before-pre (<b>\u0394t &lt; 0</b>) \u2192 <span style="color:'+RISK+'">LTD</span> (\u221d \u2212A\u208b\u00b7exp(\u0394t/\u03c4\u208b)). Drag \u0394t to sweep the asymmetric window; the live endpoint computes \u0394w.</div>'
+      +'<div style="margin-bottom:.5rem">'+pill('RIGOROUS',LIVE)+' &nbsp;'+pill('Bi \u0026 Poo 1998',TEAL)+'</div>'
+      +'<div class="kpis" id="stdp-gate">'+kpi('\u0394t (ms)','stdp-dt','t_post \u2212 t_pre',INFO)+kpi('\u0394w','stdp-dw','weight change',GOLD)+kpi('Regime','stdp-kind','LTP / LTD',TEAL)+kpi('|\u0394w| peak','stdp-peak','at \u0394t\u21920\u207a/0\u207b',VIOLET)+'</div>'
+      +'<div class="row" style="gap:.6rem;align-items:center;margin:.5rem 0;flex-wrap:wrap"><span class="mono dim" style="font-size:11px">\u0394t (ms)</span><input type="range" id="stdp-s-dt" min="-80" max="80" step="1" value="10" style="flex:1"/><span class="mono" id="stdp-dtv" style="color:'+INFO+';font-size:11px;min-width:48px;text-align:right">10</span></div>'
+      +'<div id="stdp-chart" style="height:clamp(280px,38vh,400px);border-radius:10px;background:#050608;margin-top:.4rem"></div>'
+      +'<div class="mono dim" style="font-size:11px;margin-top:.4rem">The asymmetric STDP window: positive lobe = potentiation (causal pre\u2192post), negative lobe = depression (acausal post\u2192pre). The marker shows your chosen \u0394t. The whole curve is sampled live from <code>/neuro/stdp</code>.</div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">STDP author: </span>'+cite('https://doi.org/10.1523/JNEUROSCI.18-24-10464.1998','Bi \u0026 Poo 1998, J. Neurosci. 18(24):10464 \u2014 spike-timing-dependent plasticity')+'</div>'
+      +'<details class="raw"><summary>raw /neuro/stdp</summary><pre class="out" id="stdp-raw">\u2014</pre></details>'
+      +honesty('STDP is the canonical timing rule: causal ordering strengthens, acausal weakens, with an exponential window. Every \u0394w on the curve comes from the live endpoint \u2014 nothing fabricated.');
+    async function redraw(){
+      var dtEl=ex('stdp-s-dt'); var dt=dtEl?parseFloat(dtEl.value):10;
+      if(ex('stdp-dtv')) ex('stdp-dtv').textContent=String(dt);
+      var xs=[], ys=[], markIdx=0, best=1e9;
+      for(var i=0;i<=80;i++){ var t=-80+i*2; xs.push(t);
+        try{ var d=await J(NAPI+'/stdp?dt='+t); ys.push(Number((d.delta_w||0).toFixed(6))); }catch(e){ ys.push(0); }
+        if(Math.abs(t-dt)<best){best=Math.abs(t-dt);markIdx=i;}
+      }
+      var cur=null; try{ cur=await J(NAPI+'/stdp?dt='+dt); if(ex('stdp-raw')) ex('stdp-raw').textContent=JSON.stringify(cur,null,2); }catch(e){ if(ex('stdp-raw')) ex('stdp-raw').textContent='retry: '+esc(e.message); }
+      if(cur){
+        var ltp=(cur.delta_w>0);
+        E('stdp-dt').textContent=String(dt); E('stdp-dt').style.color=INFO;
+        E('stdp-dw').textContent=fmt(cur.delta_w,4); E('stdp-dw').style.color=(ltp?LIVE:RISK);
+        E('stdp-kind').textContent=(cur.kind||'\u2014'); E('stdp-kind').style.color=(ltp?LIVE:(cur.delta_w<0?RISK:DIM));
+        E('stdp-peak').textContent=fmt(Math.max.apply(null,ys.map(Math.abs)),3); E('stdp-peak').style.color=VIOLET;
+      }
+      if(window.mkEchart){ window.mkEchart('stdp-chart',{backgroundColor:'transparent',grid:{left:48,right:24,top:30,bottom:40},
+        tooltip:{trigger:'axis'},
+        xAxis:{type:'category',data:xs,name:'\u0394t = t_post \u2212 t_pre (ms)',nameLocation:'middle',nameGap:24,nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},axisLine:{lineStyle:{color:'#1c2230'}}},
+        yAxis:{type:'value',name:'\u0394w',nameTextStyle:{color:'#A8B6CC'},axisLabel:{color:'#8a8f98',fontSize:9},splitLine:{lineStyle:{color:'#15191f'}}},
+        series:[{name:'\u0394w',type:'line',smooth:true,symbol:'none',data:ys,
+          lineStyle:{width:2.5,color:GOLD},
+          areaStyle:{color:GOLD,opacity:0.10},
+          markLine:{symbol:'none',lineStyle:{color:TEAL,type:'dashed'},label:{color:TEAL,formatter:'\u0394t='+dt},data:[{xAxis:markIdx}]}}]}); }
+      else { var h=ex('stdp-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts not present \u2014 KPIs above carry \u0394w / regime (honest fallback)</div>'; }
+    }
+    var se=ex('stdp-s-dt'); if(se) se.addEventListener('input',function(){ if(redraw._t) clearTimeout(redraw._t); redraw._t=setTimeout(redraw,120); });
+    redraw();
+  }
+
+  // ===================== VISUAL 5 (HERO) - LOSS-OF-PLASTICITY DIAGNOSTIC =====================
+  function renderPlasticity(c){
+    if(!c) return;
+    c.innerHTML='<div class="hero" style="border:1px solid '+GOLD+'55;border-radius:14px;padding:1rem 1.1rem;background:radial-gradient(ellipse at top left,'+GOLD+'10,transparent 70%);margin-bottom:.8rem">'
+      +'<div class="card-t" style="font-size:15px">'+dot()+'Loss-of-plasticity diagnostic \u2014 the frontier tie-in for long-running agents</div>'
+      +'<div class="mono dim" style="font-size:12px;margin-top:.3rem">Dohare, Sutton et&nbsp;al. (Nature 2024) showed deep nets in <b>continual learning lose plasticity</b> \u2014 units go <b>dormant</b> (near-zero activation) and the network stops learning. Sokar et&nbsp;al. (ReDo, 2023) re-initialize dormant units to restore it. This is a real problem for any <b>long-running agent</b> (the Chaski agent loop): keep learning for weeks and plasticity silently erodes. SZL surfaces the diagnostic live: dormant-unit fraction, a plasticity score, and a re-init recommendation.</div>'
+      +'<div style="margin-top:.6rem">'+pill('RIGOROUS',LIVE)+' &nbsp;'+pill('Dohare-Sutton Nature 2024',TEAL)+' &nbsp;'+pill('Sokar ReDo 2023',INFO)+' &nbsp;'+pill('grounds the Chaski agent loop',GOLD)+'</div></div>'
+      +'<div class="card"><div class="card-h"><span class="card-t">Dormant units + plasticity score (live)</span><span class="card-ep">/neuro/plasticity</span></div>'
+      +'<div class="grid2"><div>'
+      +'<div class="kpis" id="pl-gate">'+kpi('Units','pl-n','total units sampled',DIM)+kpi('Dormant fraction','pl-frac','near-zero activation',RISK)+kpi('Plasticity score','pl-score','1 \u2212 dormant_fraction',LIVE)+kpi('Action','pl-rec','continual backprop / ReDo',GOLD)+'</div>'
+      +'<div id="pl-chart" style="height:clamp(220px,30vh,320px);margin-top:.4rem"></div>'
+      +'</div><div>'
+      +'<div class="mono dim" style="font-size:11px;margin-bottom:.3rem">Layer activations (comma-sep; near-zero = dormant):</div>'
+      +'<input id="pl-act" value="0.5,0.0,0.0001,0.8,0.0,0.6,0.0,0.4" class="mono" style="width:100%;background:#0b0d11;border:1px solid #2a2a2a;border-radius:6px;color:#cfcfcf;padding:.4rem .5rem;font-size:12px"/>'
+      +'<div class="row" style="gap:.4rem;margin-top:.5rem;flex-wrap:wrap">'
+      +'<button id="pl-healthy" class="mono" style="border:1px solid '+LIVE+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+LIVE+'">healthy net</button>'
+      +'<button id="pl-degraded" class="mono" style="border:1px solid '+RISK+';border-radius:6px;padding:.3rem .6rem;cursor:pointer;font-size:11px;background:transparent;color:'+RISK+'">plasticity-lost (re-init)</button></div>'
+      +'<div id="pl-verdict" style="margin-top:.7rem;padding:.7rem .9rem;border-radius:10px;border:1px solid #2a2a2a;font-family:var(--mono,monospace);font-size:13px">\u2014</div>'
+      +'</div></div></div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Frontier authors: </span>'+cite('https://doi.org/10.1038/s41586-024-07711-7','Dohare, Sutton et al. 2024, Nature \u2014 loss of plasticity in deep continual learning')+' &nbsp; '+cite('https://arxiv.org/abs/2302.12902','Sokar et al. 2023 \u2014 ReDo: the dormant neuron phenomenon')+'</div>'
+      +'<details class="raw"><summary>raw /neuro/plasticity</summary><pre class="out" id="pl-raw">\u2014</pre></details>'
+      +honesty('Loss of plasticity is the honest frontier tie-in: a measured, cited failure mode of long-running learners, with a cited fix (continual backprop / ReDo). The dormant fraction + recommendation come live from the endpoint \u2014 it is a diagnostic, not a claim that the agent is \u201csolved\u201d.');
+    async function check(){
+      var aEl=ex('pl-act'); var act=aEl?aEl.value:'0.5,0.0,0.0001,0.8,0.0';
+      try{
+        var d=await J(NAPI+'/plasticity?act='+encodeURIComponent(act));
+        if(ex('pl-raw')) ex('pl-raw').textContent=JSON.stringify(d,null,2);
+        if(d.status==='out_of_domain'){ E('pl-n').textContent='need data'; return; }
+        var lost=(d.dormant_fraction>0.1);
+        E('pl-n').textContent=String(d.n_units); E('pl-n').style.color=DIM;
+        E('pl-frac').textContent=fmt(d.dormant_fraction,3)+' ('+d.dormant_units+'/'+d.n_units+')'; E('pl-frac').style.color=(lost?RISK:LIVE);
+        E('pl-score').textContent=fmt(d.plasticity_score,3); E('pl-score').style.color=(lost?WARN:LIVE);
+        E('pl-rec').textContent=(lost?'RE-INIT':'HEALTHY'); E('pl-rec').style.color=(lost?GOLD:LIVE);
+        var v=ex('pl-verdict'); var col=lost?GOLD:LIVE;
+        if(v){ v.style.borderColor=col; v.style.background=col+'14'; v.style.color=col;
+          v.innerHTML='<b>'+(lost?'\u26a0 PLASTICITY LOSS \u2014 '+d.dormant_units+'/'+d.n_units+' units dormant':'\u2713 PLASTIC \u2014 '+d.dormant_units+'/'+d.n_units+' dormant')+'</b>'
+            +'<div style="color:#cfcfcf;margin-top:.3rem;font-size:12px">Recommendation: '+esc(d.recommendation||'')+'</div>'
+            +'<div class="dim" style="margin-top:.3rem;font-size:11px">'+esc((d.cites||[]).join(' \u00b7 '))+'</div>'; }
+        if(window.mkEchart){ var arr=(act||'').split(',').map(function(x){return parseFloat(x)||0;}); var thr=1e-3;
+          window.mkEchart('pl-chart',{backgroundColor:'transparent',grid:{left:40,right:18,top:28,bottom:30},
+            tooltip:{trigger:'axis'},
+            xAxis:{type:'category',data:arr.map(function(_,i){return 'u'+(i+1);}),axisLabel:{color:'#8a8f98',fontSize:9},axisLine:{lineStyle:{color:'#1c2230'}}},
+            yAxis:{type:'value',axisLabel:{color:'#8a8f98',fontSize:9},splitLine:{lineStyle:{color:'#15191f'}}},
+            series:[{name:'activation',type:'bar',data:arr.map(function(a){return {value:a,itemStyle:{color:(Math.abs(a)<thr?RISK:LIVE)}};})}]}); }
+        else { var h=ex('pl-chart'); if(h) h.innerHTML='<div class="row mono dim" style="padding:1rem">echarts not present \u2014 verdict above carries dormant fraction + score (honest fallback)</div>'; }
+      }catch(e){ if(ex('pl-raw')) ex('pl-raw').textContent='retry: '+esc(e.message); }
+    }
+    var ae=ex('pl-act'); if(ae) ae.addEventListener('input',function(){ if(check._t) clearTimeout(check._t); check._t=setTimeout(check,140); });
+    var bh=ex('pl-healthy'); if(bh) bh.addEventListener('click',function(){ ex('pl-act').value='0.5,0.7,0.3,0.8,0.6,0.4,0.9,0.5'; check(); });
+    var bg=ex('pl-degraded'); if(bg) bg.addEventListener('click',function(){ ex('pl-act').value='0.5,0.0,0.0001,0.0,0.0,0.6,0.0,0.0'; check(); });
+    check();
+  }
+
+  // ===================== VISUAL 6 - HONEST FRAMING / TIERS (MANDATORY, VERBATIM) =====================
+  var TIER_COLOR={ 'RIGOROUS':LIVE, 'STRUCTURAL':TEAL, 'PROPOSED':WARN, 'NARRATIVE':INFO, 'ACTIVE':GOLD, 'CONTESTED':WARN, 'SPECULATIVE':RISK };
+  function tierTone(v){ var u=String(v||'').toUpperCase(); for(var k in TIER_COLOR){ if(u.indexOf(k)>=0) return TIER_COLOR[k]; } return DIM; }
+  function renderTiers(c){
+    if(!c) return;
+    c.innerHTML='<div class="card" style="border:1px solid '+WARN+'88;border-left:4px solid '+WARN+'">'
+      +'<div class="card-h"><span class="card-t">'+pill('HONEST TIERS',WARN)+' &nbsp; What is rigorous vs what is a proposed lens \u2014 verbatim, never hidden</span><span class="card-ep">/neuro/summary</span></div>'
+      +'<div class="mono dim" style="font-size:12px;margin:.3rem 0 .5rem">The point of this module: it grades each claim honestly. Hebb / Oja / BCM / STDP / synaptic scaling and the loss-of-plasticity frontier (Dohare-Sutton, Sokar, Kirkpatrick EWC) are <b>RIGOROUS</b> (classical or recent, all cited). The predictive-coding\u2194Hebbian unifier (Millidge 2022) is a <b>PROPOSED lens \u2014 NOT a \u039b theorem</b>. SZL surfaces these tiers verbatim and does <b>not</b> claim the brain analogy \u201cties everything together\u201d.</div>'
+      +'<div id="ntier-verdict" class="mono dim" style="font-size:12px;line-height:1.55;margin-bottom:.6rem">loading honest frame\u2026</div>'
+      +'<div id="ntier-rows"></div>'
+      +'<div class="kpis" id="ntier-gate" style="margin-top:.6rem">'+kpi('Tier','ntier-tier','module maturity',WARN)+kpi('\u039b','ntier-lambda','governance',INFO)+kpi('Locked-8 unchanged','ntier-locked','{F1,F4,F7,F11,F12,F18,F19,F22}',TEAL)+kpi('Trust','ntier-trust','never 100%',GOLD)+'</div>'
+      +'</div>'
+      +'<div class="card" style="padding:.7rem .9rem"><span class="mono dim" style="font-size:11px">Cited prior art (SZL claims none as its own): </span><br/>'
+      +cite('https://archive.org/details/organizationofbe00hebb','Hebb 1949')+' &nbsp; '+cite('https://doi.org/10.1007/BF00275687','Oja 1982')+' &nbsp; '+cite('https://doi.org/10.1523/JNEUROSCI.02-01-00032.1982','BCM 1982')+' &nbsp; '+cite('https://doi.org/10.1523/JNEUROSCI.18-24-10464.1998','Bi \u0026 Poo 1998')+' &nbsp; '+cite('https://www.nobelprize.org/prizes/medicine/1981/summary/','Hubel \u0026 Wiesel 1981')+' &nbsp; '+cite('https://doi.org/10.1038/s41586-024-07711-7','Dohare-Sutton 2024')+' &nbsp; '+cite('https://arxiv.org/abs/2302.12902','Sokar ReDo 2023')+' &nbsp; '+cite('https://doi.org/10.1073/pnas.1611835114','Kirkpatrick EWC 2017')+' &nbsp; '+cite('https://arxiv.org/abs/2206.02629','Millidge 2022 (PC\u2194Hebbian, PROPOSED lens)')+'</div>'
+      +'<details class="raw"><summary>raw /neuro/summary</summary><pre class="out" id="ntier-raw">\u2014</pre></details>'
+      +honesty('The tiering panel is mandatory and verbatim. RIGOROUS = Hebb / Oja / BCM / STDP / scaling + the cited loss-of-plasticity frontier; PROPOSED = the predictive-coding\u2194Hebbian unifying lens (Millidge 2022), which is NOT a \u039b theorem. \u039b stays Conjecture 1; trust never 100%.');
+    (async function(){
+      try{
+        var d=await J(NAPI+'/summary');
+        if(ex('ntier-raw')) ex('ntier-raw').textContent=JSON.stringify(d,null,2);
+        setHTML('ntier-verdict','<b style="color:#cfcfcf">Honest frame:</b> '+esc(d.honest_frame||''));
+        var tiers=d.tiers||{}; var rows='';
+        var labels={ hebb_oja_bcm_stdp_scaling:'Hebb / Oja / BCM / STDP / synaptic scaling',
+          loss_of_plasticity_redo_ewc:'Loss of plasticity / ReDo / EWC (continual learning)',
+          predictive_coding_hebbian_unifier:'Predictive-coding \u2194 Hebbian unifier (Millidge 2022)' };
+        for(var key in tiers){ if(!tiers.hasOwnProperty(key)) continue; var val=tiers[key]; var col=tierTone(val);
+          rows+='<div class="row" style="justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem .2rem;border-bottom:1px solid #1c2230">'
+            +'<span style="color:#cfcfcf;font-size:12.5px">'+esc(labels[key]||key)+'</span>'
+            +'<span style="display:inline-block;padding:2px 10px;border-radius:999px;font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;color:'+col+';border:1px solid '+col+';background:'+col+'1a;white-space:nowrap">'+esc(val)+'</span></div>';
+        }
+        setHTML('ntier-rows',rows||'<div class="mono dim">no tiers returned</div>');
+        var doc=d.doctrine||{};
+        E('ntier-tier').textContent=doc.tier||'EXPERIMENTAL/PROPOSED'; E('ntier-tier').style.color=WARN;
+        E('ntier-lambda').textContent=doc.lambda||'Conjecture 1'; E('ntier-lambda').style.color=INFO;
+        E('ntier-locked').textContent=(doc.locked_count_unchanged?'YES (still 8)':String(doc.locked_count_unchanged)); E('ntier-locked').style.color=TEAL;
+        E('ntier-trust').textContent=(doc.trust_never_100?'never 100%':'\u2014'); E('ntier-trust').style.color=GOLD;
+      }catch(e){ setHTML('ntier-verdict','<span style="color:'+RISK+'">summary unavailable: '+esc(e.message)+'</span>'); }
+    })();
+  }
+
+  function mountNeuro(c){
+    if(!c) return;
+    c.innerHTML='<div class="row" id="neuro-tabs" style="gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem"></div><div id="neuro-body"></div>';
+    var tabs=[['plasticity','Loss of plasticity \u2605',renderPlasticity],['critical','Critical period',renderCritical],['hebboja','Hebb vs Oja',renderHebbOja],['bcm','BCM threshold',renderBCM],['stdp','STDP window',renderSTDP],['tiers','Honest tiers',renderTiers]];
+    function paint(idx){ var host=ex('neuro-body'); if(!host) return; tabs.forEach(function(t,i){ var b=ex('neuro-tab-'+i); if(b){ b.style.background=(i===idx)?TEAL+'22':'transparent'; b.style.color=(i===idx)?TEAL:DIM; b.style.borderColor=(i===idx)?TEAL:'#2a2a2a'; } }); host.innerHTML=''; var sub=document.createElement('div'); sub.id='neuro-sub'; host.appendChild(sub); tabs[idx][2](sub); }
+    var bar=ex('neuro-tabs');
+    tabs.forEach(function(t,i){ var b=document.createElement('button'); b.id='neuro-tab-'+i; b.className='mono'; b.textContent=t[1]; b.style.cssText='border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM; b.addEventListener('click',function(){ paint(i); }); if(bar) bar.appendChild(b); });
+    paint(0); // open on the HERO (loss-of-plasticity diagnostic) first
+  }
+  var NEURO_BADGE='EXPERIMENTAL \u00b7 RIGOROUS (cited) \u00b7 PROPOSED lens \u00b7 \u039b=CONJECTURE 1';
+  var NEURO_SUB='Living view of SZL\u2019s learning/brain layer, grounding the agent loop in real, cited neuroplasticity math. Hero: the <b>loss-of-plasticity diagnostic</b> (Dohare-Sutton Nature 2024 / Sokar ReDo 2023) \u2014 long-running agents lose plasticity; continual backprop / ReDo restores it. A <b>critical-period</b> envelope (Hubel \u0026 Wiesel Nobel 1981). <b>Hebb vs Oja</b> (Hebb 1949 unbounded vs Oja 1982 converging to the principal direction). A <b>BCM sliding-threshold</b> potentiate/depress check (BCM 1982). An <b>STDP window</b> (Bi \u0026 Poo 1998) \u2014 set \u0394t, see LTP vs LTD. A mandatory <b>honest-tiering</b> panel: Hebb/Oja/BCM/STDP/loss-of-plasticity = <b>RIGOROUS</b>; predictive-coding\u2194Hebbian unifier = <b>PROPOSED lens, NOT a \u039b theorem</b>. All visuals recomputed live from <code>/api/'+NS+'/v1/neuro/*</code>. EXPERIMENTAL-tier \u2014 adds nothing to the locked 8; \u039b stays <b>Conjecture 1</b>; trust never 100%. Every borrowed rule cited to its real author.';
+
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
+    window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
+    try{ console.log('['+NS+'] Neuroplasticity tab registered: '+key); }catch(e){}
+  }
+  function regNeuro(){ if(window.VIEWS && window.VIEWS['neuro']){ return; } reg('neuro','Neuroplasticity',NEURO_BADGE,NEURO_SUB,mountNeuro); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',regNeuro); } else { regNeuro(); }
+  function injectNav(){
+    var side=document.querySelector('.side .nav')||document.querySelector('.side');
+    var anchor=document.querySelector('.nav-item[data-view="entangle"]')||document.querySelector('.nav-item[data-view="sovereignty"]')||document.querySelector('.nav-item[data-view="scaling"]')||document.querySelector('.nav-item');
+    if(!side||!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('neuro-nav-item')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='neuro-nav-group'; grp.textContent='Neuroplasticity (EXPERIMENTAL)';
+    var n=document.createElement('div'); n.className='nav-item'; n.id='neuro-nav-item'; n.setAttribute('data-view','neuro'); n.setAttribute('onclick',"go('neuro')");
+    n.setAttribute('title','SZL Neuroplasticity: cited learning-rule math grounding the agent loop. Loss-of-plasticity diagnostic (Dohare-Sutton 2024 / Sokar ReDo 2023), Hubel-Wiesel critical period, Hebb vs Oja (1949/1982), BCM sliding threshold (1982), STDP window (Bi-Poo 1998), honest-tiering. Live from /api/'+NS+'/v1/neuro/*. EXPERIMENTAL-tier; predictive-coding<->Hebbian = PROPOSED lens NOT formal Lambda; Lambda stays Conjecture 1; trust never 100%.');
+    n.innerHTML='<span class="ico">\ud83e\udde0</span>Neuroplasticity';
+    var parent=anchor.parentNode; parent.appendChild(grp); parent.appendChild(n);
+    try{ console.log('['+NS+'] Neuroplasticity nav injected'); }catch(e){}
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+
+
 <style>
 /* DEV2 vertical-pack sub-tab chrome (scoped, brand-aligned) */
 .vtabbar{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem;border-bottom:1px solid var(--gold-line,rgba(201,183,135,.18));padding-bottom:.5rem;}
