@@ -1,0 +1,135 @@
+# a11oy-api-health.yml — standing health check for a11oy's LIVE demo API.
+# Doctrine v11 | SLSA L1 honest
+# Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+#
+# a11oy auto-syncs serve.py from GitHub main to the HF Space (hf-sync-backend.yml)
+# and hf-module-drift.yml confirms the files match by OID. But a sync can succeed
+# yet a LIVE endpoint still 500 or drop its governed envelope, and smoke-monitor.yml
+# only asserts HTTP 200 on the Space front-door — it would stay green while every
+# /api/a11oy/* path quietly served the SPA HTML shell with a 200. This monitor
+# probes the governed operator/reason capability surface (marker
+# a11oy-operator-reason-envelope-task516 in serve.py) and FAILS if any endpoint
+# regresses to non-200, non-JSON (SPA HTML), an unparseable body, or a missing
+# contract key. It mirrors killinchu-api-health.yml.
+#
+# Org policy compliance: github-owned actions only, SHA-pinned; checker is
+# stdlib-only Python (no pip install, no third-party action); alert posts a
+# Slack-compatible payload via raw curl to the shared webhook (soft-skips if the
+# secret is unset — the red run still stands as the signal).
+
+name: a11oy API Health
+
+on:
+  schedule:
+    - cron: '35 */6 * * *'   # every 6h, offset from smoke-monitor (0 */6)
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  self-test:
+    name: Validator self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Run validator self-test (proves it catches SPA-HTML / missing-key)
+        run: python3 scripts/test_check_a11oy_api_health.py
+
+  health:
+    name: Live API health (HF Space + box)
+    needs: self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Probe live a11oy API on both targets
+        id: probe
+        run: |
+          set +e
+          python3 scripts/check_a11oy_api_health.py \
+            --target "hf=https://szlholdings-a11oy.hf.space" \
+            --target "box=https://a11oy.net" \
+            --summary-file /tmp/a11oy-api-health.json | tee /tmp/probe.log
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ -f /tmp/a11oy-api-health.json ]; then
+            checked=$(python3 -c "import json;print(json.load(open('/tmp/a11oy-api-health.json'))['checked'])")
+            passed=$(python3 -c "import json;print(json.load(open('/tmp/a11oy-api-health.json'))['passed'])")
+            failed=$(python3 -c "import json;print(json.load(open('/tmp/a11oy-api-health.json'))['failed'])")
+            echo "checked=$checked" >> "$GITHUB_OUTPUT"
+            echo "passed=$passed" >> "$GITHUB_OUTPUT"
+            echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### a11oy live API health"
+            echo ""
+            echo '```'
+            cat /tmp/probe.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Do NOT fail here — the final gate fails the run, so the alert step
+          # (gated on this exit_code) always gets a chance to run first.
+          exit 0
+
+      - name: Alert the team on sustained API failure
+        if: ${{ always() && steps.probe.outputs.exit_code != '0' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          CHECKED: ${{ steps.probe.outputs.checked }}
+          PASSED: ${{ steps.probe.outputs.passed }}
+          FAILED: ${{ steps.probe.outputs.failed }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands as the signal."
+            exit 0
+          fi
+
+          fails="$(python3 -c "import json;d=json.load(open('/tmp/a11oy-api-health.json'));print(chr(10).join('- %s %s %s: %s' % (f['target'], f.get('method','GET'), f['path'], f['reason']) for f in d['failures']))" 2>/dev/null || echo '(per-check breakdown unavailable)')"
+
+          # Compose with real newlines, then JSON-encode safely with jq
+          # (preinstalled on ubuntu-latest). The shared webhook is the team ntfy
+          # channel (via the szl-alert-relay); it renders the `text` field.
+          text=":rotating_light: *a11oy live API health FAILED* — one or more /api/a11oy/* demo endpoints stopped returning a valid governed JSON envelope in ${REPO}.
+          *Counts:* checked=${CHECKED:-?} passed=${PASSED:-?} failed=${FAILED:-?}
+          *Failing checks:*
+          ${fails}
+          *Run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          echo "Posting a11oy-api-health alert to the shared webhook..."
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run on sustained API failure
+        if: always()
+        run: |
+          code="${{ steps.probe.outputs.exit_code }}"
+          if [ "$code" != "0" ]; then
+            echo "::error::a11oy live API health check failed — see the run summary for the per-check breakdown."
+            exit 1
+          fi
+          echo "a11oy live API healthy on all targets."
