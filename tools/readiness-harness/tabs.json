@@ -6,8 +6,8 @@
   "generatedAt": "2026-06-11T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 123,
-    "endpoints": 50,
+    "tabs": 124,
+    "endpoints": 52,
     "tabsWithCitations": 22,
     "staticTabs": 38
   },
@@ -1033,6 +1033,52 @@
         ]
       },
       "note": "Allodial Sovereignty Score A=[Σ w_k·SEAL_k/4]×(1−DCI)×100 from ?seals=&weights=&dep=. EU-CSF weighted SEAL + HHI lock-in penalty (both cited). tier=PROPOSED (weights need calibration), NOT the formal Λ."
+    },
+    "/api/a11oy/v1/allodial/lattice": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Denning-1976 access-control lattice (DOI:10.1145/360051.360056) rendered as a 3D DAG: ⊤=SEAL-4 allodial top, feudal chains strictly lower. Deterministic; PROPOSED engineering view, NOT the formal Λ."
+    },
+    "/api/a11oy/v1/allodial/noninterference": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Goguen-Meseguer 1982 non-interference witness (IEEE S&P): purged-op equivalence over the lattice. Deterministic; cited prior art; PROPOSED, NOT the formal Λ."
     },
     "/api/a11oy/v1/readiness": {
       "method": "GET",
@@ -2961,6 +3007,26 @@
         "/api/a11oy/v1/scaling/mte",
         "/api/a11oy/v1/scaling/heart",
         "/api/a11oy/v1/scaling/unified"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "sovereignty",
+      "title": "Sovereignty (Allodial)",
+      "group": "Console",
+      "route": "/console#sovereignty",
+      "endpoints": [
+        "/api/a11oy/v1/allodial/summary",
+        "/api/a11oy/v1/allodial/score",
+        "/api/a11oy/v1/allodial/lattice",
+        "/api/a11oy/v1/allodial/noninterference"
       ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
