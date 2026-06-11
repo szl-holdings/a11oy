@@ -6,8 +6,8 @@
   "generatedAt": "2026-06-11T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 126,
-    "endpoints": 61,
+    "tabs": 127,
+    "endpoints": 68,
     "tabsWithCitations": 22,
     "staticTabs": 38
   },
@@ -1238,6 +1238,165 @@
         ]
       },
       "note": "CKW 2000 monogamy Σ τ_pairwise ≤ τ_global from ?pairwise=&total= — the STRUCTURAL no-leak / trust<100% primitive tying to Khipu. Cited (Coffman-Kundu-Wootters, PRA 61:052306). Deterministic."
+    },
+    "/api/a11oy/v1/neuro/summary": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Neuroplasticity module summary: honest_frame + tiers (Hebb/Oja/BCM/STDP/scaling=RIGOROUS; loss-of-plasticity/ReDo/EWC=RIGOROUS recent; predictive-coding↔Hebbian unifier=PROPOSED lens), doctrine (locked_count_unchanged, lambda=Conjecture 1, trust_never_100, tier=EXPERIMENTAL/PROPOSED), cites. PROPOSED, NOT the formal Λ."
+    },
+    "/api/a11oy/v1/neuro/hebb": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Hebb 1949 update Δw=η·x·y (unstable alone, grows unbounded). Cited (Hebb, The Organization of Behavior 1949). Deterministic."
+    },
+    "/api/a11oy/v1/neuro/oja": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Oja 1982 rule fitted over ?data= — returns the learned principal_direction + eigenvalue_estimate (provably converges to the top principal eigenvector). Cited (Oja, J. Math. Biol. 15:267-273). Deterministic."
+    },
+    "/api/a11oy/v1/neuro/bcm": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "BCM 1982 sliding modification threshold θ_M=E[y²] from ?y=history; reports potentiate/depress sign. Cited (Bienenstock-Cooper-Munro, J. Neurosci. 2(1):32-48). Deterministic."
+    },
+    "/api/a11oy/v1/neuro/stdp": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Bi-Poo 1998 STDP window Δw(Δt) from ?dt= ms: Δt>0 LTP, Δt<0 LTD (asymmetric exponential). Cited (Bi & Poo, J. Neurosci. 18(24):10464). Deterministic."
+    },
+    "/api/a11oy/v1/neuro/plasticity": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "HERO loss-of-plasticity diagnostic from ?act=activations: dormant-unit fraction + plasticity score + re-init recommendation (continual backprop / ReDo) — the honest frontier tie-in for long-running agents. Cited (Dohare-Sutton Nature 2024 DOI:10.1038/s41586-024-07711-7; Sokar ReDo 2023 arXiv:2302.12902). Deterministic."
+    },
+    "/api/a11oy/v1/neuro/ewc": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Kirkpatrick 2017 EWC penalty L=(λ/2)Σ Fᵢ(θᵢ−θ*ᵢ)² from ?theta=&star=&fisher= — mitigates catastrophic forgetting in continual learning. Cited (Kirkpatrick et al. PNAS DOI:10.1073/pnas.1611835114). Deterministic."
     },
     "/api/a11oy/v1/unified/summary": {
       "method": "GET",
@@ -2767,6 +2926,29 @@
       "route": "/console#modelatlas",
       "endpoints": [
         "/api/a11oy/v1/llm/registry"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "neuro",
+      "title": "Neuroplasticity",
+      "group": "Console",
+      "route": "/console#neuro",
+      "endpoints": [
+        "/api/a11oy/v1/neuro/summary",
+        "/api/a11oy/v1/neuro/hebb",
+        "/api/a11oy/v1/neuro/oja",
+        "/api/a11oy/v1/neuro/bcm",
+        "/api/a11oy/v1/neuro/stdp",
+        "/api/a11oy/v1/neuro/plasticity",
+        "/api/a11oy/v1/neuro/ewc"
       ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
