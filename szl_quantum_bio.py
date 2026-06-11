@@ -153,7 +153,7 @@ def _f(req, key, default):
 
 
 def _h_pmf(req: Request):
-    d_psi = _f(req, "d_psi", 150.0); d_pH = _f(req, "d_pH", 0.5); d_pK = _f(req, "d_pK", -0.2); w = _f(req, "w", 0.18)
+    d_psi = _f(req, "d_psi", 150.0); d_pH = _f(req, "d_pH", 0.5); d_pK = _f(req, "d_pK", 0.30); w = _f(req, "w", 0.18)
     single = round(pmf(d_psi, d_pH), 2)
     two = round(pmf_two_ion(d_psi, d_pH, d_pK, w), 2)
     return JSONResponse({
@@ -213,7 +213,7 @@ def _h_summary(req: Request):
         "results": [
             {"quantity": "Lindblad τ_c", "value": 6.05, "status": "VERIFIED"},
             {"quantity": "pmf single-ion (mV)", "value": round(pmf(150.0, 0.5), 1), "status": "VERIFIED"},
-            {"quantity": "pmf two-ion K+/H+ (mV)", "value": round(pmf_two_ion(150.0, 0.5, -0.2), 1), "status": "PROPOSED"},
+            {"quantity": "pmf two-ion K+/H+ (mV)", "value": round(pmf_two_ion(150.0, 0.5, 0.30), 1), "status": "PROPOSED"},
             {"quantity": "compass angular contrast", "value": compass(50.0)["angular_contrast"], "status": "VERIFIED"},
             {"quantity": "Λ-v5 gate", "value": "coherent AND charged -> execute; else recharge", "status": "PROPOSED"},
             {"quantity": "Lean closure theorems", "value": 3, "status": "VERIFIED (proofs, no sorry)"},
