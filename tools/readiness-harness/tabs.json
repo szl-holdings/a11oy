@@ -3,13 +3,13 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-06-10T00:00:00Z",
+  "generatedAt": "2026-06-11T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 109,
+    "tabs": 111,
     "endpoints": 41,
     "tabsWithCitations": 22,
-    "staticTabs": 27
+    "staticTabs": 28
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -1143,6 +1143,21 @@
       "citationsRequired": false,
       "sampleLabelAllowed": false,
       "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "capfsm",
+      "title": "Capability Lifecycle FSM",
+      "group": "Console",
+      "route": "/console#capfsm",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
@@ -2384,6 +2399,23 @@
       "title": "Broker Edge",
       "group": "Console",
       "route": "/console#rebe",
+      "endpoints": [
+        "/api/a11oy/v1/deva/healthz"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "receiptfp",
+      "title": "Receipt Fingerprint Graph",
+      "group": "Console",
+      "route": "/console#receiptfp",
       "endpoints": [
         "/api/a11oy/v1/deva/healthz"
       ],
