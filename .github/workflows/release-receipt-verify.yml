@@ -43,6 +43,11 @@ on:
         description: 'How many most-recent releases to re-verify (0 = all). Ignored when a single tag is given.'
         required: false
         default: '10'
+      test_alert:
+        description: 'Send a [TEST-ignore] alert through the webhook to prove delivery end to end, then exit (no real re-verify, no incident issue).'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -53,8 +58,58 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Manual delivery test (workflow_dispatch with test_alert=true). Posts a
+  # clearly-labelled [TEST-ignore] message through the SAME Slack-compatible
+  # webhook the real failure alert uses, so the team can prove the alert path
+  # works end to end after wiring SLACK_WEBHOOK_URL — without waiting for a
+  # genuine release-receipt failure. It does NOT download/verify any release
+  # assets, does NOT touch the rolling release-receipt-verify incident issue,
+  # and does NOT mark any receipt as failing. Soft-skips with a ::warning::
+  # (identical to the real alert path) when no webhook secret is configured.
+  test-alert:
+    name: Send a test receipt-failure alert (no real re-verify)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_alert == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post a [TEST-ignore] alert through the same webhook
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — cannot send the test alert. Wire the secret, then re-run this manual test."
+            exit 0
+          fi
+
+          # Same compose -> jq-encode -> curl delivery the real alert uses, but
+          # the payload is unmistakably a test and names no failing receipt.
+          text=":test_tube: *[TEST-ignore] Release receipt verify — alert delivery test* for ${REPO}.
+          This is a MANUAL test of the release-receipt-failure alert path, triggered by ${ACTOR}.
+          No published release receipt is failing and no incident issue was opened. If you can read this, the webhook is wired correctly.
+          *Test run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting [TEST-ignore] alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Test alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Test alert delivered — the release-receipt-failure alert path works end to end."
+
   verify:
     name: Re-verify published release-asset receipts
+    # The manual delivery test (test_alert=true) must not run the real re-verify
+    # or touch the rolling incident issue; it only exercises webhook delivery.
+    if: ${{ inputs.test_alert != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
