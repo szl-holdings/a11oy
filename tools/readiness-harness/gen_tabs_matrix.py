@@ -240,6 +240,33 @@ ENDPOINTS = {
         allow_statuses=(200, 400, 422),
         note="CKW 2000 monogamy Σ τ_pairwise ≤ τ_global from ?pairwise=&total= — the STRUCTURAL no-leak / trust<100% primitive tying to Khipu. Cited (Coffman-Kundu-Wootters, PRA 61:052306). Deterministic."),
 
+    # ── szl_neuroplasticity.py: cited learning-rule math grounding the agent loop.
+    # PURE STDLIB, deterministic, byte-identical a11oy↔killinchu. EXPERIMENTAL tier; adds
+    # NOTHING to the locked 8; Λ stays Conjecture 1; trust never 100%. RIGOROUS (cited):
+    # Hebb 1949 / Oja 1982 / BCM 1982 / Bi-Poo 1998 / Hubel-Wiesel 1981 / Dohare-Sutton
+    # Nature 2024 / Sokar ReDo 2023 / Kirkpatrick EWC 2017. The predictive-coding↔Hebbian
+    # unifier (Millidge 2022) is a PROPOSED lens, NOT a Λ theorem. Every rule cited. ──
+    "/api/a11oy/v1/neuro/summary": ep(schema="generic_obj", sla=None,
+        note="Neuroplasticity module summary: honest_frame + tiers (Hebb/Oja/BCM/STDP/scaling=RIGOROUS; loss-of-plasticity/ReDo/EWC=RIGOROUS recent; predictive-coding↔Hebbian unifier=PROPOSED lens), doctrine (locked_count_unchanged, lambda=Conjecture 1, trust_never_100, tier=EXPERIMENTAL/PROPOSED), cites. PROPOSED, NOT the formal Λ."),
+    "/api/a11oy/v1/neuro/hebb": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Hebb 1949 update Δw=η·x·y (unstable alone, grows unbounded). Cited (Hebb, The Organization of Behavior 1949). Deterministic."),
+    "/api/a11oy/v1/neuro/oja": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Oja 1982 rule fitted over ?data= — returns the learned principal_direction + eigenvalue_estimate (provably converges to the top principal eigenvector). Cited (Oja, J. Math. Biol. 15:267-273). Deterministic."),
+    "/api/a11oy/v1/neuro/bcm": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="BCM 1982 sliding modification threshold θ_M=E[y²] from ?y=history; reports potentiate/depress sign. Cited (Bienenstock-Cooper-Munro, J. Neurosci. 2(1):32-48). Deterministic."),
+    "/api/a11oy/v1/neuro/stdp": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Bi-Poo 1998 STDP window Δw(Δt) from ?dt= ms: Δt>0 LTP, Δt<0 LTD (asymmetric exponential). Cited (Bi & Poo, J. Neurosci. 18(24):10464). Deterministic."),
+    "/api/a11oy/v1/neuro/plasticity": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="HERO loss-of-plasticity diagnostic from ?act=activations: dormant-unit fraction + plasticity score + re-init recommendation (continual backprop / ReDo) — the honest frontier tie-in for long-running agents. Cited (Dohare-Sutton Nature 2024 DOI:10.1038/s41586-024-07711-7; Sokar ReDo 2023 arXiv:2302.12902). Deterministic."),
+    "/api/a11oy/v1/neuro/ewc": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Kirkpatrick 2017 EWC penalty L=(λ/2)Σ Fᵢ(θᵢ−θ*ᵢ)² from ?theta=&star=&fisher= — mitigates catastrophic forgetting in continual learning. Cited (Kirkpatrick et al. PNAS DOI:10.1073/pnas.1611835114). Deterministic."),
+
     # ── szl_unified_formulas.py + szl_cuas_formulas.py module-level /summary cards.
     # These two module summaries back the Formula Atlas index tab. Bare-GET 200,
     # deterministic, each carries its own author citations + doctrine block in-body
@@ -401,6 +428,16 @@ TAB_ENDPOINTS = {
                  "/api/a11oy/v1/entangle/concurrence", "/api/a11oy/v1/entangle/negativity",
                  "/api/a11oy/v1/entangle/entropy", "/api/a11oy/v1/entangle/chsh",
                  "/api/a11oy/v1/entangle/monogamy"],
+    # Living "Neuroplasticity" tab (EXPERIMENTAL): contract it to the real deterministic
+    # szl_neuroplasticity.py family so the probe judges it as a genuine declared tab (NOT
+    # silently bucketed static). HERO = the loss-of-plasticity diagnostic (Dohare-Sutton
+    # Nature 2024 / Sokar ReDo 2023) grounding the agent loop; Hubel-Wiesel critical period;
+    # Hebb vs Oja; BCM sliding threshold; STDP window; honest-tiering panel. RIGOROUS (cited)
+    # for the rules; predictive-coding↔Hebbian unifier is a PROPOSED lens; Λ stays Conjecture 1.
+    "neuro": ["/api/a11oy/v1/neuro/summary", "/api/a11oy/v1/neuro/hebb",
+              "/api/a11oy/v1/neuro/oja", "/api/a11oy/v1/neuro/bcm",
+              "/api/a11oy/v1/neuro/stdp", "/api/a11oy/v1/neuro/plasticity",
+              "/api/a11oy/v1/neuro/ewc"],
     # Formula Atlas — the unified investor-readable INDEX of all 5 live formula
     # modules. Contract it to each module's live /summary so it is judged as a
     # genuine declared (non-static) tab, NOT silently bucketed static. Pure index
