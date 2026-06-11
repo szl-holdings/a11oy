@@ -6,10 +6,10 @@
   "generatedAt": "2026-06-11T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 116,
-    "endpoints": 41,
+    "tabs": 122,
+    "endpoints": 48,
     "tabsWithCitations": 22,
-    "staticTabs": 33
+    "staticTabs": 38
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -835,6 +835,161 @@
       },
       "note": "Live LLM-router per-tier stats from szl_brain.TIERS; throughput is an honest in-memory counter."
     },
+    "/api/a11oy/v1/scaling/summary": {
+      "method": "GET",
+      "schema": "scaling",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Deterministic scaling overview: status legend + author sources (Kleiber 1932 / WBE 1997 / Banavar 1999 / Brown 2004 / Demetrius-Tuszynski 2010 / Kaplan 2020) + worked examples. VERIFIED reproductions; SZL-Φ PROPOSED, NOT formal Λ."
+    },
+    "/api/a11oy/v1/scaling/exponents": {
+      "method": "GET",
+      "schema": "scaling",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Deterministic catalog of universal scaling exponents, each row attributed (cite=). VERIFIED documented values."
+    },
+    "/api/a11oy/v1/scaling/compute": {
+      "method": "GET",
+      "schema": "scaling",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Compute-capability-as-allometry mapping (Kaplan et al. 2020 neural scaling); status=PROPOSED analogy, NOT formal Λ."
+    },
+    "/api/a11oy/v1/scaling/kleiber": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Kleiber 1932 B=B0·M^(3/4) basal metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 1694.03 kcal/day)."
+    },
+    "/api/a11oy/v1/scaling/mte": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Brown et al. 2004 MTE Boltzmann-factor metabolic rate; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic."
+    },
+    "/api/a11oy/v1/scaling/heart": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "MTE-derived heart-rate/lifespan allometry; requires ?M=<kg>. Empty M validates (400/422). VERIFIED deterministic (70kg -> 83.32 bpm)."
+    },
+    "/api/a11oy/v1/scaling/unified": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "SZL unified Φ (WBE network × MTE/PMF activation × coherence); requires ?M=<kg>. status=PROPOSED, note carries 'Λ=Conjecture 1'. PROPOSED engineering construct, NOT the formal Λ, NOT in the locked 8."
+    },
     "/api/a11oy/v1/readiness": {
       "method": "GET",
       "schema": "readiness",
@@ -1019,6 +1174,20 @@
         "routes",
         "servedThisWindow",
         "tiers"
+      ]
+    },
+    "scaling": {
+      "type": "object",
+      "anyKey": [
+        "sources",
+        "examples",
+        "universal_exponents",
+        "exponents",
+        "B_kcal_day",
+        "bpm",
+        "phi",
+        "predicted_loss",
+        "status_legend"
       ]
     },
     "readiness": {
@@ -1259,6 +1428,21 @@
       }
     },
     {
+      "key": "conjecturefactory",
+      "title": "conjecturefactory",
+      "group": "Console",
+      "route": "/console#conjecturefactory",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
       "key": "consensus_basin",
       "title": "Khipu Consensus Attractor Basin",
       "group": "Console",
@@ -1278,6 +1462,51 @@
       "title": "contracting",
       "group": "Console",
       "route": "/console#contracting",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "cuas_fusion",
+      "title": "Fusion Picture",
+      "group": "Console",
+      "route": "/console#cuas_fusion",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "cuas_pq",
+      "title": "PQ Provenance",
+      "group": "Console",
+      "route": "/console#cuas_pq",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "cuas_swarm",
+      "title": "Swarm Mesh (3D)",
+      "group": "Console",
+      "route": "/console#cuas_swarm",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
@@ -1778,6 +2007,21 @@
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
         "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "frontier",
+      "title": "frontier",
+      "group": "Console",
+      "route": "/console#frontier",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
       }
     },
     {
@@ -2632,6 +2876,29 @@
       "endpoints": [
         "/api/a11oy/v1/router/stats",
         "/api/a11oy/v1/llm/registry"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "scaling",
+      "title": "Metabolic Scaling",
+      "group": "Console",
+      "route": "/console#scaling",
+      "endpoints": [
+        "/api/a11oy/v1/scaling/summary",
+        "/api/a11oy/v1/scaling/exponents",
+        "/api/a11oy/v1/scaling/compute",
+        "/api/a11oy/v1/scaling/kleiber",
+        "/api/a11oy/v1/scaling/mte",
+        "/api/a11oy/v1/scaling/heart",
+        "/api/a11oy/v1/scaling/unified"
       ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
