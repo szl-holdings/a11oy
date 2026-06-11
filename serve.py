@@ -138,6 +138,18 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[a11oy] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# Quantum-Bio Λ-v5 layer (quantum-bio-v5): VERIFIED quantum-biology models served as
+# real same-origin endpoints (Mitchell pmf + two-ion, Lindblad coherence, radical-pair
+# compass, Λ-v5 closure gate). Honest VERIFIED/PROPOSED/NARRATIVE tags; Λ-v5 is an
+# engineering gate (PROPOSED), NOT the formal uniqueness Λ (Conjecture 1). Additive,
+# try/except-guarded, pure stdlib (+optional numpy). Registered before the SPA catch-all.
+try:
+    import szl_quantum_bio as _szl_quantum_bio
+    _szl_quantum_bio.register(app, ns="a11oy")
+    print("[a11oy] Quantum-Bio Λ-v5 registered: /api/a11oy/v1/qbio/*", file=__import__("sys").stderr)
+except Exception as _szl_qb_e:  # pragma: no cover
+    print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
+
 # ── Open-Problem Bounty Board (bounties-tab-patch) — OPEN proof bounties
 # (Conjecture 1 Λ-aggregator uniqueness, Conjecture 2 Khipu BFT safety) rendered
 # from bounties/*.yaml (single source of truth, copied byte-identical from
