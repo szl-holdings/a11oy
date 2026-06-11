@@ -11683,7 +11683,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     c.innerHTML='<div class="kpis">'
       +'<div class="kpi"><div class="k">Source</div><div class="v teal" style="font-size:13px">arXiv:2502.06857</div><div class="d">published Gemstones data</div></div>'
       +'<div class="kpi"><div class="k">Grid</div><div class="v">'+WIDTHS.length+'\u00d7'+DEPTHS.length+'</div><div class="d">width \u00d7 depth shapes</div></div>'
-      +'<div class="kpi"><div class="k">Router shape</div><div class="v warn" id="gem-rs">'+ROUTER_SAMPLE.width+'w / '+ROUTER_SAMPLE.depth+'L</div><div class="d">SAMPLE (no live metric)</div></div>'
+      +'<div class="kpi"><div class="k">Router shape</div><div class="v warn" id="gem-rs">'+ROUTER_SAMPLE.width+'w / '+ROUTER_SAMPLE.depth+'L</div><div class="d">width/depth SAMPLE</div></div>'
+      +'<div class="kpi"><div class="k">Live router</div><div class="v teal" id="gem-fleet-k">\u2026</div><div class="d">/router/stats LIVE</div></div>'
       +'<div class="kpi"><div class="k">\u03bb (width\u2194depth)</div><div class="v" id="gem-lam">0.50</div><div class="d">objective tilt</div></div></div>'
       +'<div class="card"><div class="card-h"><span class="card-t">Scaling frontier \u2014 loss vs (width, depth) for router sizing</span>'
       +'<span class="card-ep">echarts-gl surface3D (Apache-2.0, vendored) \u00b7 Gemstones arXiv:2502.06857 \u00b7 0 runtime CDN</span></div>'
@@ -11692,10 +11693,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +'<input id="gem-slider" type="range" min="0" max="100" value="50" style="flex:1;accent-color:'+TEAL+'">'
       +'<span class="mono dim" style="font-size:11px">1 (depth-cost)</span></div>'
       +'<div id="gem-gl" style="height:460px;border:1px solid rgba(201,183,135,0.12);border-radius:8px;overflow:hidden;background:#080a09"></div>'
+      +'<div id="gem-fleet" class="row mono dim" style="margin-top:.5rem;font-size:11px">live router fleet \u2014 loading\u2026</div>'
       +'<div class="brain-note"><b>How to read this.</b> The surface is validation loss over routing-model <b>width</b> (log2) and <b>depth</b>, built from the <b>published Gemstones scaling law</b> '
       +'<code>L(N,D)=E+A/N^a+B/D^b</code> (McLeish et al., <a href="https://arxiv.org/abs/2502.06857" target="_blank" rel="noopener" style="color:'+TEAL+'">arXiv:2502.06857</a>) \u2014 whose core finding is that the optimal shape is '
       +'<b>shape-sensitive</b>, not a single Chinchilla ratio. The gold ridge is the derived Chinchilla-optimal frontier; the red point is the <b>current Chaski router shape, which is a clearly-labelled SAMPLE</b> '
-      +'(no live router-metrics endpoint exists in this image). The \u03bb slider tilts the objective toward width- or depth-cost. '
+      +'(the live <code>/router/stats</code> endpoint reports per-tier throughput/model/license \u2014 shown below \u2014 but does not carry model width/depth shape, so this surface point stays a clearly-labelled SAMPLE). The \u03bb slider tilts the objective toward width- or depth-cost. '
       +'<b>Published-research surface + a SAMPLE overlay \u2014 a heuristic sizing view, never a proof.</b> \u039b stays <b>Conjecture\u00a01</b>; locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
       +(window.HONEST||'');
     var sl=E('gem-slider'); if(sl){ sl.addEventListener('input', function(){ setLambda((+sl.value)/100); }); }
@@ -11704,12 +11706,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     // best-effort: if the command-log later exposes a routing-quality metric, we keep the
     // SAMPLE label honest (we do NOT fabricate a live point). Poll only to keep the badge fresh.
     (function(){
-      function run(){ /* surface is static published data; nothing live to refetch. honest. */ }
+      function run(){ try{ getPublic('/api/a11oy/v1/router/stats',12000).then(function(j){ var el1=document.getElementById('gem-fleet'), elk=document.getElementById('gem-fleet-k'); if(!j||!j.routes){ if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; return; } var rows=j.routes.map(function(r){ return (r.organ||'?')+' '+(r.tier||'')+' \u00b7 '+(r.model||'?')+' \u00b7 '+(r.throughput!=null?r.throughput+' tok/s':'')+' \u00b7 '+(r.license||''); }); if(el1) el1.innerHTML='<b>LIVE</b> /router/stats ('+esc(j.mode||'')+') \u2014 '+j.routes.length+' tiers: '+esc(rows.join('  |  ')); if(elk) elk.textContent=j.routes.length+' tiers'; }).catch(function(){ var el1=document.getElementById('gem-fleet'); if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; }); }catch(e){} }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
   };
 
-  R.reg('gemstones_frontier','Scaling Frontier (Router Sizing)','ECHARTS-GL \u00b7 GEMSTONES SCALING (arXiv:2502.06857)','echarts-gl surface3D of validation loss vs (width, depth) from the PUBLISHED Gemstones scaling law L(N,D)=E+A/N^a+B/D^b (McLeish et al., NeurIPS 2025, arXiv:2502.06857), with the derived Chinchilla-optimal ridge and the current Chaski router shape as a clearly-labelled SAMPLE point (no live router-metrics endpoint in this image). A \u03bb slider tilts the objective. Published-research surface + SAMPLE overlay \u2014 a heuristic sizing view, never a proof. \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderGemstonesFrontier);
+  R.reg('gemstones_frontier','Scaling Frontier (Router Sizing)','ECHARTS-GL \u00b7 GEMSTONES SCALING (arXiv:2502.06857)','echarts-gl surface3D of validation loss vs (width, depth) from the PUBLISHED Gemstones scaling law L(N,D)=E+A/N^a+B/D^b (McLeish et al., NeurIPS 2025, arXiv:2502.06857), with the derived Chinchilla-optimal ridge and the current Chaski router shape as a clearly-labelled SAMPLE point (live /router/stats reports per-tier throughput but no width/depth shape). A \u03bb slider tilts the objective. Published-research surface + SAMPLE overlay \u2014 a heuristic sizing view, never a proof. \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderGemstonesFrontier);
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',function(){R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier');}); }
   else { R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier'); }
 })();
