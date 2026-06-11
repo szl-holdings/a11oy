@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11/v12
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 # Authored by Yachay (CTO) — Provenance Hardening layer.
 """
 szl_provenance — ADDITIVE mesh provenance layer for every SZL Space.
@@ -55,7 +55,7 @@ from fastapi.responses import JSONResponse
 
 import szl_dsse
 
-DOCTRINE = "v12"
+DOCTRINE = "v11"
 SLSA_LEVEL = "L1"
 
 # ---------------------------------------------------------------------------
