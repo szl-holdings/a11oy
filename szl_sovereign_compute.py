@@ -78,13 +78,23 @@ def _self_base(ns: str) -> str:
 
 
 def _brain_capability(base: str, ns: str) -> dict:
-    data, code = _get_json(f"{base}/api/{ns}/v1/code/health")
-    if not data:
-        return {"id": "brain", "name": "Agent brain (code/chat completion)",
-                "tier": "UNREACHABLE", "probe_http": code,
-                "note": "code/health did not return 200 from loopback."}
+    # IN-PROCESS probe (no loopback HTTP): a synchronous self-HTTP call from
+    # inside an async handler deadlocks the single uvicorn worker and times out.
+    # The orchestrator's _sovereign_inference_state() IS the authoritative
+    # backend classifier (same logic the /api/a11oy/code/healthz route returns),
+    # so we call it directly. Honest on any failure.
+    data, code = None, None
+    try:
+        import a11oy_code_orchestrator as _orch  # type: ignore
+        data = _orch._sovereign_inference_state()
+    except Exception as e:  # noqa: BLE001
+        # Fallback: loopback the real orchestrator healthz path (NOT /v1/code/health).
+        data, code = _get_json(f"{base}/api/{ns}/code/healthz")
+        if not data:
+            return {"id": "brain", "name": "Agent brain (code/chat completion)",
+                    "tier": "UNREACHABLE", "probe_http": code or type(e).__name__,
+                    "note": "orchestrator backend state unavailable in-process and via loopback."}
     inf = data.get("inference", "")
-    model = data.get("primary_model")
     if inf == "self-hosted-gpu":
         tier = "LIVE-SOVEREIGN"
     elif inf == "hf-router":
@@ -92,20 +102,28 @@ def _brain_capability(base: str, ns: str) -> dict:
     else:
         tier = "HONEST-STUB"
     return {"id": "brain", "name": "Agent brain (code/chat completion)", "tier": tier,
-            "inference": inf, "mode": data.get("mode"), "primary_model": model,
-            "router_base": data.get("router_base"), "token_source": data.get("token_source"),
+            "inference": inf, "mode": data.get("mode"), "backend": data.get("backend"),
+            "sovereign": data.get("sovereign"), "gpu": data.get("gpu"),
             "note": ("Running on our own GPU." if tier == "LIVE-SOVEREIGN"
                      else "Live via managed HF Router." if tier == "LIVE-MANAGED"
                      else "Up in honest deterministic stub (no live model credential).")}
 
 
 def _embed_capability(base: str, ns: str) -> dict:
-    data, code = _get_json(f"{base}/api/{ns}/v1/alloy-embed-fabric/health")
-    if not data:
-        return {"id": "embeddings", "name": "Vertical retrieval embeddings",
-                "tier": "UNREACHABLE", "probe_http": code,
-                "note": "embed-fabric health did not return 200 from loopback."}
-    b = data.get("backend", {})
+    # IN-PROCESS probe (no loopback HTTP self-call deadlock). _embed_backend()
+    # is the same function the /api/a11oy/v1/alloy-embed-fabric/health route
+    # returns; it does its own real /embeddings reachability probe when wired.
+    b = None
+    try:
+        import szl_alloy_embed_fabric as _aef  # type: ignore
+        b = _aef._embed_backend()
+    except Exception as e:  # noqa: BLE001
+        data, code = _get_json(f"{base}/api/{ns}/v1/alloy-embed-fabric/health")
+        if not data:
+            return {"id": "embeddings", "name": "Vertical retrieval embeddings",
+                    "tier": "UNREACHABLE", "probe_http": code or type(e).__name__,
+                    "note": "embed-fabric backend unavailable in-process and via loopback."}
+        b = data.get("backend", {})
     kind = b.get("kind", "")
     if kind == "self-hosted-gpu" and b.get("reachable"):
         tier = "LIVE-SOVEREIGN"
