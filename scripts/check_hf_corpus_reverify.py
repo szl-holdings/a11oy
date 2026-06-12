@@ -195,13 +195,13 @@ def fetch_corpus(cfg, token):
     shards = []
     if head and isinstance(head.get("shards"), list) and head["shards"]:
         shards = head["shards"]
-    if not shards:
-        # Fall back to listing-free convention: a single dated shard may exist;
-        # without a shard list we cannot enumerate, so head must list them.
-        shards = []
+    # szl_hf_bucket writes each shard path REPO-ROOT-RELATIVE (e.g.
+    # "receipts/2026-06-12.ndjson"), so it already carries the prefix; do NOT
+    # prepend it again or the URL double-prefixes and 404s. Tolerate a bare
+    # filename too, for forward-compat.
     for shard in shards:
-        url = common.resolve_url(cfg["hf_resolve_base"], repo_id,
-                                 "%s/%s" % (prefix, shard))
+        path = shard if "/" in shard else "%s/%s" % (prefix, shard)
+        url = common.resolve_url(cfg["hf_resolve_base"], repo_id, path)
         recs = common.fetch_ndjson(url, token)
         if recs:
             records.extend(recs)

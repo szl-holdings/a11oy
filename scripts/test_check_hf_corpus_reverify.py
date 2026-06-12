@@ -128,6 +128,7 @@ def main():
           code == EXIT_VIOLATION and any("scheme" in f for f in rep["findings"]))
 
     real_crypto_path()
+    fetch_corpus_shard_path()
 
     print()
     if FAILURES:
@@ -135,6 +136,45 @@ def main():
         return 1
     print("REVERIFY SELF-TEST PASSED")
     return 0
+
+
+def fetch_corpus_shard_path():
+    """fetch_corpus must NOT double-prefix repo-root-relative shard paths.
+
+    Regression: head.json from szl_hf_bucket lists shards as
+    "receipts/2026-06-12.ndjson" (already prefixed). Re-prepending the prefix
+    produced "receipts/receipts/..." -> 404 -> a false 'empty corpus'.
+    """
+    cfg = {
+        "hf_resolve_base":
+            "https://hf/datasets/{repo_id}/resolve/main/{path}",
+        "reverify": {"repo_id": "SZLHOLDINGS/a11oy-verifiable-corpus",
+                     "prefix": "receipts"},
+    }
+    requested = []
+
+    def fake_json(url, token):
+        requested.append(url)
+        return {"count": 1, "shards": ["receipts/2026-06-12.ndjson"]}
+
+    def fake_ndjson(url, token):
+        requested.append(url)
+        # only the correctly-built (single-prefix) URL yields records
+        if url.endswith("/resolve/main/receipts/2026-06-12.ndjson"):
+            return [{"id": "x"}]
+        return None
+
+    orig_j, orig_n = common.fetch_json, common.fetch_ndjson
+    common.fetch_json, common.fetch_ndjson = fake_json, fake_ndjson
+    try:
+        records, head = rv.fetch_corpus(cfg, None)
+    finally:
+        common.fetch_json, common.fetch_ndjson = orig_j, orig_n
+
+    check("fetch_corpus does not double-prefix shard path",
+          all("receipts/receipts/" not in u for u in requested))
+    check("fetch_corpus enumerates the real shard -> 1 record",
+          len(records) == 1)
 
 
 def real_crypto_path():
