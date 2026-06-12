@@ -9789,6 +9789,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     try{
       var r=await fetch('/api/'+window.__ev_ns+'/v1/evidence/research');
       var d=await r.json(); var h='';
+      /* honest degradation: a non-200 (e.g. 60/min IP rate limit) returns {error:{...}} with no claims — show a real, retryable message instead of a frozen autostat-only panel */
+      if(!r.ok || (d&&d.error)){
+        var emsg=(d&&d.error&&(d.error.message||d.error.code))||('HTTP '+r.status);
+        c.innerHTML='<div class="card"><div class="dim">evidence layer temporarily unavailable ('+esc(emsg)+') — the curated citations are real but the live endpoint is rate-limited or down right now. <button class="btn" onclick="window.evidence_render(document.getElementById(&quot;vbody&quot;))" style="font-size:11px;padding:.15rem .55rem;margin-left:.4rem">↻ Retry</button></div></div>';
+        return;
+      }
       if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
       h+='<div id="ev-autostat" class="dim" style="display:flex;align-items:center;gap:.45rem;font-size:11px;margin:.15rem 0 .55rem" title="Source reachability badges are silently re-probed in the background every '+Math.round((window.__EV_RECHECK_MS||180000)/1000)+'s while this tab is visible — honest live/cached/unreachable labels are unchanged."><span class="ev-autodot"></span><span class="ev-autolbl">auto-refreshing</span></div>';
       (d.claims||[]).forEach(function(cl){
