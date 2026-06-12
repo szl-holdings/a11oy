@@ -1,0 +1,253 @@
+# hf-corpus-reverify.yml — Continuously RE-VERIFY the a11oy verifiable-corpus
+# signed receipts straight from the published HF dataset (Task #775).
+#
+# rekor-recheck.yml re-checks Rekor transparency-log INCLUSION of the receipts
+# published to the governance-receipts ledger branch. This guard is a different,
+# self-contained assurance: it pulls the receipts that are PUBLISHED INTO THE
+# PUBLIC HF DATASET (SZLHOLDINGS/a11oy-verifiable-corpus) and re-checks, against
+# the pinned cosign public key + the szl-holdings signer identity, that each one:
+#   * still content-address-verifies (id == sha256(canon{source,kind,content})),
+#   * its DSSE signature still verifies over its PAE
+#     (ecdsa-p256-dsse-pae vs pinned cosign.pub; sigstore-keyless-dsse vs leaf
+#      cert + SAN regex),
+#   * head.count / head.last_id are consistent and there are no duplicate ids,
+#   * total >= the baseline floor (an emptied corpus must NOT pass green).
+# Empty corpus + no floor = honest soft-pass.
+#
+# killinchu-osint-corpus is intentionally NOT re-verified here: it carries
+# unsigned third-party OSINT claims (content-addressed only), so it has the
+# freshness + card-honesty guards but no signature to re-verify.
+#
+# Fails LOUDLY on any tamper / signature failure / floor regression: a single
+# rolling incident issue (edge-triggered) + a direct webhook alert routed to
+# szl-alert-relay -> ntfy. workflow_dispatch test_alert=true proves the alert
+# path end to end without running a real re-check. Auth/unreachable is exit 2.
+#
+# Org policy: only github-owned / SHA-pinned actions; Sigstore/crypto via pip +
+# the repo's own scripts; webhook via curl. workflow_dispatch only from default.
+# Signed-off-by: Forge (Replit task agent) <forge@szl-holdings>
+
+name: HF Corpus Re-verify
+
+on:
+  schedule:
+    - cron: '47 6 * * *'  # daily at 06:47 UTC
+  push:
+    paths:
+      - 'scripts/check_hf_corpus_reverify.py'
+      - 'scripts/szl_corpus_guard_common.py'
+      - '.github/hf-corpus-guards.json'
+      - '.github/workflows/hf-corpus-reverify.yml'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual re-verify'
+      test_alert:
+        description: 'Send a [TEST-ignore] alert through the webhook to prove delivery end to end, then exit (no real re-verify, no incident issue).'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hf-corpus-reverify
+  cancel-in-progress: false
+
+jobs:
+  # Manual delivery test (workflow_dispatch with test_alert=true). Posts a
+  # clearly-labelled [TEST-ignore] message through the SAME webhook the real
+  # failure alert uses; does NOT run the re-verify or touch the rolling incident.
+  test-alert:
+    name: Send a test re-verify-failure alert (no real re-verify)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_alert == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post a [TEST-ignore] alert through the same webhook
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — cannot send the test alert. Wire the secret, then re-run this manual test."
+            exit 0
+          fi
+          text=":test_tube: *[TEST-ignore] HF corpus re-verify — alert delivery test* for ${REPO}.
+          This is a MANUAL test of the re-verify-failure alert path, triggered by ${ACTOR}.
+          No published receipt is failing and no incident issue was opened. If you can read this, the webhook is wired correctly.
+          *Test run:* ${RUN_URL}"
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Test alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Test alert delivered — the re-verify-failure alert path works end to end."
+
+  reverify:
+    name: Re-verify a11oy corpus signed receipts
+    if: ${{ inputs.test_alert != true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install cryptography (DSSE signature re-verify)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "cryptography>=42.0.0"
+
+      - name: Re-verify published a11oy receipts
+        id: guard
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+        run: |
+          set +e
+          python3 scripts/check_hf_corpus_reverify.py \
+            --summary-out reverify-summary.json | tee guard.out
+          status=${PIPESTATUS[0]}
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "findings<<__EOF__"
+            python3 scripts/emit_corpus_guard_findings.py reverify-summary.json
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## HF corpus re-verify (a11oy signed receipts)"
+            echo ""
+            echo '```'
+            cat guard.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0  # the explicit gate below owns pass/fail
+
+      - name: Upload re-verify summary
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: hf-corpus-reverify-summary
+          path: reverify-summary.json
+          if-no-files-found: ignore
+
+      - name: Reconcile rolling re-verify incident issue
+        id: incident
+        if: always()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          EXIT_CODE: ${{ steps.guard.outputs.exit_code }}
+          FINDINGS: ${{ steps.guard.outputs.findings }}
+        with:
+          script: |
+            const failed = Number(process.env.EXIT_CODE || '0') !== 0;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const marker = '<!-- hf-corpus-reverify-incident -->';
+            const items = (process.env.FINDINGS || '').trim() || '(see run summary)';
+            const now = new Date().toISOString();
+
+            const q = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:hf-corpus-reverify`;
+            const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
+            const existing = res.data.items.find(i => !i.pull_request) || null;
+
+            if (failed) {
+              const body = `## HF Corpus Re-verify Incident\n\n${marker}\n` +
+                `**State:** FAILING\n**Detected:** ${now}\n**Run:** ${runUrl}\n\n` +
+                `One or more PUBLISHED a11oy corpus receipts no longer re-verify ` +
+                `(content-address tamper / signature failure / head mismatch), or ` +
+                `the corpus dropped below its baseline floor:\n\n${items}\n\n` +
+                `Single rolling incident; updates in place and auto-closes on recovery.`;
+              let incident = existing;
+              if (existing) {
+                if (existing.state === 'closed') {
+                  await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
+                }
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Still FAILING as of ${now}.\n\n${items}\nRun: ${runUrl}` });
+              } else {
+                const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                  title: '[HF-CORPUS] Published a11oy receipt(s) no longer re-verify', body, labels: ['hf-corpus-reverify', 'incident'] });
+                incident = created.data;
+              }
+              if (incident) {
+                core.setOutput('issue_number', String(incident.number));
+                core.setOutput('issue_url', incident.html_url);
+              }
+            } else if (existing && existing.state === 'open') {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                body: `Recovered: all published a11oy receipts re-verify again as of ${now}.\nAuto-closing this rolling incident.\nRun: ${runUrl}` });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+            }
+
+      - name: Alert the team directly on re-verify failure
+        if: ${{ always() && steps.guard.outputs.exit_code != '0' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
+          ISSUE_NUMBER: ${{ steps.incident.outputs.issue_number }}
+          REPO: ${{ github.repository }}
+          EXIT_CODE: ${{ steps.guard.outputs.exit_code }}
+          FINDINGS: ${{ steps.guard.outputs.findings }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the rolling incident issue still stand."
+            exit 0
+          fi
+          if [ -n "${ISSUE_URL}" ]; then
+            issue_line="Incident issue: #${ISSUE_NUMBER} ${ISSUE_URL}"
+          else
+            issue_line="Incident issue: (could not be resolved this run)"
+          fi
+          if [ "${EXIT_CODE}" = "2" ]; then
+            headline="the a11oy corpus is UNREACHABLE or auth-failing (could not re-verify receipts)"
+          else
+            headline="published a11oy receipt(s) no longer re-verify (tamper / signature failure / floor regression)"
+          fi
+          items="${FINDINGS}"
+          [ -z "${items}" ] && items="(see run summary)"
+          text=":rotating_light: *HF corpus re-verify FAILED* — ${headline} in ${REPO}.
+          *Findings:*
+          ${items}
+          *Failing run:* ${RUN_URL}
+          *${issue_line}*"
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run on any re-verify violation or error
+        if: always()
+        run: |
+          code="${{ steps.guard.outputs.exit_code }}"
+          if [ "${code}" = "1" ]; then
+            echo "::error::A published a11oy receipt no longer re-verifies, or the corpus dropped below its baseline floor."
+            exit 1
+          fi
+          if [ "${code}" != "0" ]; then
+            echo "::error::Re-verify guard errored (exit ${code}) — auth/unreachable."
+            exit 1
+          fi
+          echo "All published a11oy receipts re-verify (or honest soft-pass on empty)."

@@ -1,0 +1,58 @@
+{
+  "_comment": "Config for the HF verifiable-corpus guard layer (freshness + re-verify + card-honesty) over BOTH flagship public datasets. max_age_hours = each stream's expected cadence (a11oy prefixes append only on real signing events -> generous outer bound; the min_records floor is what catches an emptied dataset). killinchu intel is a live ~daily stream -> tight window. cosign_pub_pem is pinned so re-verify is self-contained and does not depend on an expiring artifact; cosign_pub_url is cross-checked when reachable.",
+  "hf_resolve_base": "https://huggingface.co/datasets/{repo_id}/resolve/main/{path}",
+  "cosign_pub_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/Jlv9FnwJ13l4QIZpr4IbTBUtVZ2\ni+O7Jai/s7xsdXvOjmZGYhd36VxNQQahTSjWoYpPrSNhXbt/n7lsgi61xA==\n-----END PUBLIC KEY-----\n",
+  "cosign_pub_url": "https://raw.githubusercontent.com/szl-holdings/.github/main/cosign.pub",
+  "sigstore_identity_regex": "^https://github.com/szl-holdings/.*",
+  "datasets": {
+    "a11oy-verifiable-corpus": {
+      "repo_id": "SZLHOLDINGS/a11oy-verifiable-corpus",
+      "card_path": "README.md",
+      "prefixes": {
+        "receipts": {"max_age_hours": 8760, "min_records": 2},
+        "theorems": {"max_age_hours": 8760, "min_records": 1},
+        "formulas": {"max_age_hours": 8760, "min_records": 22}
+      },
+      "card_honesty": {
+        "deny": [
+          {"all": ["theorem u", "proven"], "none": ["conditional"], "msg": "Theorem U described as proven without 'conditional'"},
+          {"all": ["conjecture 1", "proven"], "none": ["open", "false", "never", "cannot"], "msg": "Conjecture 1 described as proven"},
+          {"all": ["unconditionally proven"], "none": ["not unconditionally proven"], "msg": "unconditional proof claim"},
+          {"all": ["all proven"], "none": ["not", "never"], "msg": "'all proven' ladder-collapse claim"},
+          {"all": ["lambda-uniqueness", "proven"], "none": ["conjecture", "open"], "msg": "Lambda-uniqueness claimed proven"}
+        ],
+        "require": [
+          "real but conditional",
+          "machine-checked false",
+          "locked-proven ladder is not collapsed",
+          "verify it yourself"
+        ]
+      }
+    },
+    "killinchu-osint-corpus": {
+      "repo_id": "SZLHOLDINGS/killinchu-osint-corpus",
+      "card_path": "README.md",
+      "prefixes": {
+        "intel": {"max_age_hours": 72, "min_records": 1}
+      },
+      "card_honesty": {
+        "deny": [
+          {"all": ["proven"], "none": ["no \"proven\"", "not", "never"], "msg": "'proven' claim made about OSINT items"},
+          {"all": ["attested truth"], "none": ["not attested truth", "not"], "msg": "claims records are attested truth"},
+          {"all": ["signature"], "none": ["not a dsse", "not a", "content-address", "is not"], "msg": "record id described as a signature"}
+        ],
+        "require": [
+          "third-party claim",
+          "not a dsse / ed25519 signature",
+          "no \"proven\" or \"verified\" claim is made"
+        ]
+      }
+    }
+  },
+  "reverify": {
+    "repo_id": "SZLHOLDINGS/a11oy-verifiable-corpus",
+    "prefix": "receipts",
+    "min_receipts": 2,
+    "allowed_schemes": ["ecdsa-p256-dsse-pae", "sigstore-keyless-dsse"]
+  }
+}
