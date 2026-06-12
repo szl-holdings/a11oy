@@ -1341,6 +1341,27 @@ def _get_client() -> httpx.AsyncClient:
 # ENDPOINTS
 # ===========================================================================
 
+async def _safe_body(request: Request) -> tuple[Any, Optional[JSONResponse]]:
+    """Parse a JSON request body, tolerating empty/malformed/over-nested input.
+
+    Returns (body_dict, error_response). On a parse failure the caller returns
+    error_response (a graceful 400) instead of letting request.json() raise — an
+    unguarded raise becomes an opaque HTTP 500, which is both a poor judge/demo
+    experience and an error-shape leak. An empty body parses to {}. QA-hardened
+    (mirrors serve.py::_safe_json_body). Doctrine v12 (v11+PURIQ).
+    """
+    try:
+        raw = await request.body()
+    except Exception:
+        return None, JSONResponse({"error": "could not read request body"}, status_code=400)
+    if not raw:
+        return {}, None
+    try:
+        return await request.json(), None
+    except Exception:
+        return None, JSONResponse({"error": "invalid JSON body"}, status_code=400)
+
+
 @router.get("/healthz")
 async def code_healthz() -> JSONResponse:
     _sov = _sovereign_inference_state()
@@ -1392,7 +1413,9 @@ async def rag_index(request: Request) -> JSONResponse:
     if _orgrag is None:
         return JSONResponse({"ok": False, "error": f"a11oy_org_rag not importable: {_ORGRAG_IMPORT_ERROR}"},
                             status_code=503)
-    body = await request.json() if await request.body() else {}
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     repos = body.get("repos")
     out = await asyncio.get_event_loop().run_in_executor(
         None, lambda: _orgrag.build_index(repos=repos, emit_receipt=khipu_emit))
@@ -1406,7 +1429,9 @@ async def rag_query(request: Request) -> JSONResponse:
     if _orgrag is None:
         return JSONResponse({"ok": False, "i_dont_know": True,
                              "error": "a11oy_org_rag not importable"}, status_code=503)
-    body = await request.json()
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     q = body.get("query") or body.get("q", "")
     if not q:
         return JSONResponse({"ok": False, "error": "missing 'query'"}, status_code=400)
@@ -1453,7 +1478,9 @@ async def rag_refresh(request: Request) -> JSONResponse:
     if _orgrag is None:
         return JSONResponse({"ok": False, "error": f"a11oy_org_rag not importable: {_ORGRAG_IMPORT_ERROR}"},
                             status_code=503)
-    body = await request.json() if await request.body() else {}
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     background = bool(body.get("background", True))
     if background:
         # start_background_build returns immediately with the seed + in-flight phase.
@@ -1508,7 +1535,9 @@ async def agent_run(request: Request) -> JSONResponse:
     (every step's state, Λ, gate decision, evidence, Khipu hash). Non-streaming."""
     if _agent is None:
         return JSONResponse({"ok": False, "error": "a11oy_agent_loop not importable"}, status_code=503)
-    body = await request.json()
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     task = body.get("task") or body.get("message", "")
     if not task:
         return JSONResponse({"ok": False, "error": "missing 'task'"}, status_code=400)
@@ -1529,7 +1558,9 @@ async def agent_stream(request: Request):
     dedicated agent surface for the UI."""
     if _agent is None:
         raise HTTPException(status_code=503, detail="a11oy_agent_loop not importable")
-    body = await request.json()
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     task = body.get("task") or body.get("message", "")
     two_person = bool(body.get("two_person_attested", False))
     history = body.get("history", [])
@@ -1590,7 +1621,9 @@ async def code_ide():
 async def code_run(request: Request) -> JSONResponse:
     """Execute editor code in the constrained sandbox. Honest safety boundary is
     returned in the response (see RUN_BOUNDARY). PURIQ-gated + Khipu-receipted."""
-    body = await request.json()
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     language = body.get("language", "python")
     code = body.get("code", "")
     if not isinstance(code, str) or not code.strip():
@@ -1609,7 +1642,9 @@ async def code_run(request: Request) -> JSONResponse:
 @router.post("/v1/router")
 async def v1_router(request: Request) -> JSONResponse:
     """7-tier router. Returns OpenAI-compatible response + Khipu receipt."""
-    body = await request.json()
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     messages = body.get("messages", [])
     model = body.get("model")
     governance_tier = body.get("governance_tier", "standard")
@@ -1674,7 +1709,9 @@ async def v1_chat_completions(request: Request, authorization: Optional[str] = H
     owner = _check_api_key(authorization)
     if owner is None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key. Issue one via /v1/keys (admin).")
-    body = await request.json()
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     messages = body.get("messages", [])
     model = body.get("model", "router-auto")
     stream = bool(body.get("stream", False))
@@ -1716,7 +1753,9 @@ async def chat_stream(request: Request):
     """Browser SSE chat endpoint with full orchestration: PURIQ gate, tool loop,
     badges. Emits SSE events: route, token, tool_call, tool_result, done.
     """
-    body = await request.json()
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     conv_id = body.get("conversation_id") or str(uuid.uuid4())
     user_id = body.get("user_id", "founder")
     model = body.get("model") or "router-auto"
@@ -1972,7 +2011,9 @@ async def get_profile(user_id: str) -> JSONResponse:
 
 @router.post("/profile/{user_id}")
 async def set_profile(user_id: str, request: Request) -> JSONResponse:
-    b = await request.json()
+    b, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     mem_set_profile(user_id, b.get("prefs", {}), b.get("projects", []), b.get("doctrine_state", "v12"))
     return JSONResponse({"ok": True})
 
@@ -1999,7 +2040,9 @@ async def export_conv(conv_id: str, fmt: str = "markdown"):
 async def issue_key(request: Request, authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not ADMIN_KEY or not authorization or authorization.split(" ")[-1] != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="admin key required (set A11OY_CODE_ADMIN_KEY).")
-    b = await request.json()
+    b, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
     key = "a11oy-" + secrets.token_urlsafe(24)
     with closing(_db()) as c:
         c.execute("INSERT INTO api_keys(key,owner,created,rpm,active) VALUES(?,?,?,?,1)",
