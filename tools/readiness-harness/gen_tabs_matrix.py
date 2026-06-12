@@ -267,6 +267,25 @@ ENDPOINTS = {
         allow_statuses=(200, 400, 422),
         note="Kirkpatrick 2017 EWC penalty L=(λ/2)Σ Fᵢ(θᵢ−θ*ᵢ)² from ?theta=&star=&fisher= — mitigates catastrophic forgetting in continual learning. Cited (Kirkpatrick et al. PNAS DOI:10.1073/pnas.1611835114). Deterministic."),
 
+    # ── szl_chain_of_title.py: the L6 chain-of-title receipt assembler. PURE STDLIB,
+    # deterministic, byte-identical a11oy↔killinchu. EXPERIMENTAL/PROPOSED tier; adds
+    # NOTHING to the locked 8; Λ stays Conjecture 1 (never a theorem); trust never 100%.
+    # Assembles software (cosign+Rekor+in-toto/SLSA — target SLSA L2/L3 is roadmap)
+    # ∧ science (Zenodo DOI) ∧ math (lake-verified Lean) into one offline-verifiable
+    # receipt; signing is founder-gated so unsigned strands are labeled PROXY/UNSIGNED.
+    # Cites in-toto (CNCF), SLSA v1.1, Sigstore/cosign/Rekor, SCITT (IETF), Zenodo,
+    # lutar-lean. The bound math refs are the 3 merged EXPERIMENTAL theorems #229/#230/#231. ──
+    "/api/a11oy/v1/chain/summary": ep(schema="generic_obj", sla=None,
+        note="L6 chain-of-title summary: differentiator (industry L1-L5 vs SZL L6), levels ladder, honest_limit (signing founder-gated), doctrine (locked_unchanged, lambda=Conjecture 1, trust_never_100, tier=EXPERIMENTAL/PROPOSED), cites. PROPOSED, NOT the formal Λ."),
+    "/api/a11oy/v1/chain/levels": ep(schema="generic_obj", sla=None,
+        note="The six sovereignty maturity levels: L1-L5 = industry (residency → governed ops), L6 = SZL differentiator (verifiable software∧science∧math receipt). Deterministic."),
+    "/api/a11oy/v1/chain/assemble": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Assembles an L6 receipt from ?artifact=&image=&rekor=&doi=&lean= — software shown PROXY/UNSIGNED (cosign/Rekor signing founder-gated), DOI shown pending (founder-gated) when unminted (never faked), math = real lake-verified Lean refs. Content-addressed SHA-256; fully_signed always false (gated). Cited (Sigstore/in-toto/SLSA/Zenodo/lutar-lean). Deterministic."),
+    "/api/a11oy/v1/chain/verify": ep(schema="generic_obj", sla=None,
+        allow_statuses=(200, 400, 422),
+        note="Offline STRUCTURE verification of an assembled receipt: schema_ok + content_address_intact (SHA-256 recompute) + is_signed=false. Honest caveat: STRUCTURE verify ≠ cryptographic verify — cosign/Rekor verify is the founder-gated step. Cited (SCITT receipt model, IETF). Deterministic."),
+
     # ── szl_unified_formulas.py + szl_cuas_formulas.py module-level /summary cards.
     # These two module summaries back the Formula Atlas index tab. Bare-GET 200,
     # deterministic, each carries its own author citations + doctrine block in-body
@@ -438,6 +457,15 @@ TAB_ENDPOINTS = {
               "/api/a11oy/v1/neuro/oja", "/api/a11oy/v1/neuro/bcm",
               "/api/a11oy/v1/neuro/stdp", "/api/a11oy/v1/neuro/plasticity",
               "/api/a11oy/v1/neuro/ewc"],
+    # Living "Chain of Title" tab (EXPERIMENTAL, view key 'l6chain' — DISTINCT from the
+    # legacy provenance 'chain' tab): contract it to the real deterministic
+    # szl_chain_of_title.py family so the probe judges it as a genuine declared tab (NOT
+    # silently bucketed static). HERO = the live /assemble binding software (PROXY/UNSIGNED,
+    # signing founder-gated) ∧ science (Zenodo DOI pending, founder-gated) ∧ math (3 real
+    # lake-verified Lean refs); L6 ladder; /verify offline STRUCTURE check; the 3 merged
+    # EXPERIMENTAL theorems #229/#230/#231 (NOT locked-8, NOT about Λ — Λ stays Conjecture 1).
+    "l6chain": ["/api/a11oy/v1/chain/summary", "/api/a11oy/v1/chain/levels",
+                "/api/a11oy/v1/chain/assemble", "/api/a11oy/v1/chain/verify"],
     # Formula Atlas — the unified investor-readable INDEX of all 5 live formula
     # modules. Contract it to each module's live /summary so it is judged as a
     # genuine declared (non-static) tab, NOT silently bucketed static. Pure index
