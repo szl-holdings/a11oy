@@ -1357,9 +1357,16 @@ async def _safe_body(request: Request) -> tuple[Any, Optional[JSONResponse]]:
     if not raw:
         return {}, None
     try:
-        return await request.json(), None
+        parsed = await request.json()
     except Exception:
         return None, JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    # A JSON array or scalar parses without raising, but every caller does
+    # body.get(...) — an unguarded .get() on a non-dict would 500. Reject any
+    # non-object body with a graceful 400 so the error path stays 4xx, never 5xx.
+    if not isinstance(parsed, dict):
+        return None, JSONResponse(
+            {"error": "request body must be a JSON object"}, status_code=400)
+    return parsed, None
 
 
 @router.get("/healthz")
