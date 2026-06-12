@@ -1,0 +1,186 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# kev-feed-guard.yml — keep the server-side CISA KEV feed from silently going
+# DEGRADED again.
+#
+# Why this exists
+# ---------------
+# www.cisa.gov 403s Hetzner/datacenter egress IPs (Akamai bot/geo block), so the
+# box-hosted server-side feed_cisa_kev() (in a11oy_vertical_feeds.py) reported
+# DEGRADED (freshness.status:"unavailable", count null) whenever its URL pointed
+# at a cisa.gov host. The fix repointed it to the cisagov GitHub mirror
+#   https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json
+# which carries the identical authoritative catalog and IS reachable server-side.
+#
+# A future edit could quietly revert that URL back to a cisa.gov host with no test
+# catching it. This guard has two layers:
+#   1. STATIC (PR + push): a text-only grep guard that FAILS if feed_cisa_kev()
+#      drops the cisagov mirror or re-references a cisa.gov host. A self-test job
+#      proves each check still FAILS on a broken fixture before the guard trusts
+#      it (mirrors hf-sync-cathedral-guard.yml / status-page-guard.yml).
+#   2. LIVE (scheduled): probes /api/a11oy/v1/vert/cyber/feed on the live targets
+#      and FAILS if kev.freshness.status is not "live", alerting via the shared
+#      ntfy relay webhook (mirrors a11oy-api-health.yml / killinchu-api-health.yml).
+#
+# Org policy compliance: github-owned actions only, SHA-pinned; checks are
+# stdlib-only (bash/python, no pip install); alert posts a Slack-compatible
+# payload via raw curl to the shared webhook (soft-skips if the secret is unset —
+# the red run still stands as the signal).
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: KEV Feed Guard
+
+on:
+  pull_request:
+    paths:
+      - "a11oy_vertical_feeds.py"
+      - ".github/workflows/kev-feed-guard.yml"
+      - "scripts/kev-feed-guard-checks.sh"
+      - "scripts/kev-feed-guard-checks.test.sh"
+  push:
+    branches: [main]
+    paths:
+      - "a11oy_vertical_feeds.py"
+      - ".github/workflows/kev-feed-guard.yml"
+      - "scripts/kev-feed-guard-checks.sh"
+      - "scripts/kev-feed-guard-checks.test.sh"
+  schedule:
+    - cron: '25 */6 * * *'   # every 6h, offset from smoke-monitor + a11oy-api-health
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---- STATIC: source-pin guard (PR + push + schedule + dispatch) ----
+  self-test:
+    name: Self-test the guard checks (negative fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Run negative-fixture self-test
+        run: bash scripts/kev-feed-guard-checks.test.sh
+
+  guard:
+    name: Assert KEV feed uses the reachable cisagov mirror
+    runs-on: ubuntu-latest
+    needs: self-test
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Check 1 — feed_cisa_kev() sources from the cisagov GitHub mirror
+        run: bash scripts/kev-feed-guard-checks.sh chk1 a11oy_vertical_feeds.py
+      - name: Check 2 — feed_cisa_kev() references no blocked cisa.gov host
+        run: bash scripts/kev-feed-guard-checks.sh chk2 a11oy_vertical_feeds.py
+      - name: KEV feed source is pinned to the reachable mirror
+        run: echo "feed_cisa_kev() still sources from raw.githubusercontent.com/cisagov/kev-data and references no datacenter-blocked cisa.gov host."
+
+  # ---- LIVE: scheduled reachability check (schedule + dispatch only) ----
+  live:
+    name: Live KEV feed freshness (HF Space + box)
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe /vert/cyber/feed and assert kev freshness=live
+        id: probe
+        env:
+          TARGETS: "hf=https://szlholdings-a11oy.hf.space box=https://a11oy.net"
+        run: |
+          set +e
+          python3 - "$TARGETS" <<'PY' | tee /tmp/kev-probe.log
+          import json, sys, urllib.request
+
+          targets = []
+          for tok in sys.argv[1].split():
+              name, _, base = tok.partition("=")
+              targets.append((name, base.rstrip("/")))
+
+          failures = []
+          for name, base in targets:
+              url = base + "/api/a11oy/v1/vert/cyber/feed?limit=5"
+              try:
+                  req = urllib.request.Request(url, headers={"User-Agent": "szl-kev-feed-guard"})
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      raw = r.read().decode("utf-8", "replace")
+                  data = json.loads(raw)
+              except Exception as e:
+                  failures.append(f"{name} {url}: fetch/parse error: {type(e).__name__}: {str(e)[:160]}")
+                  print(f"FAIL {name}: {type(e).__name__}: {str(e)[:160]}")
+                  continue
+              kev = (data or {}).get("kev") or {}
+              status = ((kev.get("freshness") or {}).get("status"))
+              count = (kev.get("value") or {}).get("count")
+              if status == "live":
+                  print(f"OK   {name}: kev freshness=live count={count}")
+              else:
+                  failures.append(f"{name} {url}: kev freshness={status!r} (expected 'live'), count={count}")
+                  print(f"FAIL {name}: kev freshness={status!r} count={count}")
+
+          summary = {"checked": len(targets), "failed": len(failures), "failures": failures}
+          json.dump(summary, open("/tmp/kev-feed-health.json", "w"))
+          sys.exit(1 if failures else 0)
+          PY
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          {
+            echo "### a11oy KEV feed live freshness"
+            echo ""
+            echo '```'
+            cat /tmp/kev-probe.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Do NOT fail here — the final gate fails the run, so the alert step
+          # (gated on this exit_code) always gets a chance to run first.
+          exit 0
+
+      - name: Alert the team on KEV feed degradation
+        if: ${{ always() && steps.probe.outputs.exit_code != '0' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands as the signal."
+            exit 0
+          fi
+          fails="$(python3 -c "import json;d=json.load(open('/tmp/kev-feed-health.json'));print(chr(10).join('- '+f for f in d['failures']))" 2>/dev/null || echo '(per-check breakdown unavailable)')"
+          text=":rotating_light: *a11oy KEV feed DEGRADED* — /api/a11oy/v1/vert/cyber/feed no longer reports kev freshness=live in ${REPO}.
+          *Failing targets:*
+          ${fails}
+          *Run:* ${RUN_URL}"
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run on KEV feed degradation
+        if: always()
+        run: |
+          code="${{ steps.probe.outputs.exit_code }}"
+          if [ "$code" != "0" ]; then
+            echo "::error::a11oy KEV feed live freshness check failed — see the run summary for the per-target breakdown."
+            exit 1
+          fi
+          echo "a11oy KEV feed reports freshness=live on all targets."
