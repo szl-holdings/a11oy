@@ -801,7 +801,7 @@ def register(app, ns: str = "a11oy") -> None:
     base = "/api/%s/v1/readiness" % ns
 
     @app.get(base)
-    async def _readiness_index():  # noqa: ANN202
+    def _readiness_index():  # noqa: ANN202
         cfg = _cfg_for(ns)
         sections = [_SECTIONS[sid](cfg) for sid in _SECTION_ORDER]
         return JSONResponse({
@@ -818,7 +818,7 @@ def register(app, ns: str = "a11oy") -> None:
         })
 
     @app.get(base + "/{section_id}/live")
-    async def _readiness_section_live(section_id: str):  # noqa: ANN202
+    def _readiness_section_live(section_id: str):  # noqa: ANN202
         cfg = _cfg_for(ns)
         fn = _SECTIONS.get(section_id)
         if not fn:
@@ -832,7 +832,7 @@ def register(app, ns: str = "a11oy") -> None:
         })
 
     @app.get(base + "/refresh")
-    async def _readiness_refresh():  # noqa: ANN202
+    def _readiness_refresh():  # noqa: ANN202
         cfg = _cfg_for(ns)
         sections = [_SECTIONS[sid](cfg) for sid in _SECTION_ORDER]
         return JSONResponse({
