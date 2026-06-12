@@ -73,6 +73,47 @@ COMPONENTS = [
 VERSION = "alloy-embed-fabric-surface-v1 (Doctrine v11 LOCKED 749/14/163)"
 
 
+def _embed_backend() -> dict:
+    """Honest status of the embedding backend. When A11OY_EMBED_BASE_URL is set
+    (e.g. a self-hosted TEI / vLLM embeddings server on the RTX 5000 Hetzner GPU
+    node, OpenAI-compatible /embeddings), report 'self-hosted-gpu' and probe it.
+    With no endpoint configured, report the honest 'catalog-only' state — the
+    fabric is documented + runnable on platform, but no live embedder is wired to
+    THIS surface. Never claims a live embedder that isn't there.
+    """
+    import os
+    base = (os.environ.get("A11OY_EMBED_BASE_URL")
+            or os.environ.get("EMBED_BASE_URL") or "").rstrip("/")
+    model = os.environ.get("A11OY_EMBED_MODEL") or "BAAI/bge-large-en-v1.5"
+    if not base:
+        return {"wired": False, "kind": "catalog-only", "base": None, "model": None,
+                "note": ("No A11OY_EMBED_BASE_URL configured. This surface catalogs the "
+                         "Alloy Embedding Fabric (real embedder lives in "
+                         "apps/alloy-embedding-api on platform); set A11OY_EMBED_BASE_URL "
+                         "to a self-hosted TEI/vLLM /embeddings endpoint to wire a live "
+                         "GPU embedder here. Honest: not live until then.")}
+    kind = "self-hosted-gpu" if ("huggingface.co" not in base.lower()) else "hf-router"
+    reachable, http = False, None
+    try:
+        import urllib.request as _u, json as _j
+        token = (os.environ.get("A11OY_EMBED_TOKEN") or os.environ.get("A11OY_GPU_TOKEN")
+                 or os.environ.get("VLLM_API_KEY") or "").strip()
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = "Bearer " + token
+        body = _j.dumps({"model": model, "input": "healthz"}).encode()
+        req = _u.Request(base + "/embeddings", data=body, headers=headers, method="POST")
+        with _u.urlopen(req, timeout=8) as r:  # noqa: S310
+            http = r.status
+            reachable = (r.status == 200)
+    except Exception as e:  # noqa: BLE001
+        http = type(e).__name__
+    return {"wired": True, "kind": kind, "base": base, "model": model,
+            "reachable": reachable, "probe_http": http,
+            "note": ("Live embedder wired. 'reachable' reflects a real /embeddings probe — "
+                     "never claims live unless the probe returned 200.")}
+
+
 def _html() -> str:
     cards = "".join(f"""
       <article class="card">
@@ -137,10 +178,19 @@ def register(app, ns: str = "a11oy") -> dict:
 
     @app.get(f"/api/{ns}/v1/alloy-embed-fabric")
     async def _aef_json():  # noqa: ANN202
-        return JSONResponse({"version": VERSION, "count": len(COMPONENTS), "components": COMPONENTS})
+        return JSONResponse({"version": VERSION, "count": len(COMPONENTS),
+                             "components": COMPONENTS, "backend": _embed_backend()})
+
+    @app.get(f"/api/{ns}/v1/alloy-embed-fabric/health")
+    async def _aef_health():  # noqa: ANN202
+        # Honest live status of the embedding backend (catalog-only vs
+        # self-hosted-gpu vs hf-router), with a real /embeddings probe.
+        return JSONResponse({"service": "alloy-embed-fabric", "doctrine": "v11",
+                             "backend": _embed_backend()})
 
     return {"ok": True, "version": VERSION, "components": len(COMPONENTS),
-            "routes": ["/alloy-embed-fabric", f"/api/{ns}/v1/alloy-embed-fabric"]}
+            "routes": ["/alloy-embed-fabric", f"/api/{ns}/v1/alloy-embed-fabric",
+                       f"/api/{ns}/v1/alloy-embed-fabric/health"]}
 
 
 if __name__ == "__main__":
