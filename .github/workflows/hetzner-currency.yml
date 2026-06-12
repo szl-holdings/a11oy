@@ -56,13 +56,14 @@ jobs:
           HZ="https://a11oy.net"
 
           # Freshness canaries: must be fast + deterministic + 200 on a healthy,
-          # up-to-date deploy. scaling/allodial are the modules that were the
+          # up-to-date deploy. scaling/allodial/entangle are the modules that were the
           # actual drift gap; healthz/console prove the front door is alive.
           PATHS=(
             "/healthz"
             "/console"
             "/api/a11oy/v1/scaling/summary"
             "/api/a11oy/v1/allodial/summary"
+            "/api/a11oy/v1/entangle/summary"
           )
 
           # Tolerant probe: retry so a transient rebuild (502/503/000) on either
