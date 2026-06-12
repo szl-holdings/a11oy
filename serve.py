@@ -5937,14 +5937,20 @@ try:
         return _VendResponse(content=data, media_type="image/jpeg",
                              headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
-    # KaTeX woff2 math fonts, decoded from base64 text.
+    # KaTeX math fonts, decoded from base64 text. woff2 is the primary; the
+    # woff/ttf fallbacks are ALSO vendored (0-CDN / air-gap: katex.min.css's
+    # @font-face declares all three formats, so an air-gapped or older browser
+    # that skips woff2 still resolves the fallback locally instead of 404ing).
+    # Content-type is chosen by extension so every format is served correctly.
+    _FONT_CT = {"woff2": "font/woff2", "woff": "font/woff", "ttf": "font/ttf"}
     @app.get("/vendor/fonts/{fname}")
     async def _vendor_font(fname: str):
         import _vendor_blobs as _vb
         data = _vb.get(f"fonts/{fname}")
         if not data:
             return JSONResponse({"error": "font blob missing", "file": fname}, status_code=404)
-        return _VendResponse(content=data, media_type="font/woff2",
+        _ext = fname.rsplit(".", 1)[-1].lower()
+        return _VendResponse(content=data, media_type=_FONT_CT.get(_ext, "font/woff2"),
                              headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
     @app.get("/vendor/{fname}")
