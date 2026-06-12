@@ -350,8 +350,12 @@ def pinsker_kl_bound(p: List[float], q: List[float]) -> float:
 
     Returns the Pinsker RHS bound 2·TV(p,q)² so callers can assert KL ≥ this.
 
-    THEOREM: Pinsker (1964); `pinsker` is a named Lean axiom.
-    PROOF-STATUS: AXIOM (`pinsker`).
+    THEOREM: Pinsker (1964). Kernel-proven CONDITIONALLY in lutar-lean Wave17
+    (`binary_pinsker`, two-bin; `multiclass_pinsker`, k-bin under a non-degenerate
+    partition with strictly-positive p, q) via the log-sum / data-processing
+    reduction - NO new axiom, NO sorry. The in-tree DPO axiom `pinsker` is
+    false-as-stated and is NOT relied upon here.
+    PROOF-STATUS: PROVEN(conditional: Wave17.multiclass_pinsker).
     """
     if len(p) != len(q):
         raise ValueError("p and q must have equal length")
@@ -589,7 +593,7 @@ PROOF_STATUS = {
     "dsse_envelope": "PROVEN(structure); signature PLACEHOLDER",
     "gleason_quantum_lambda": "AXIOM(gleason_length_mod_8)",
     "hoeffding_tail": "PROVEN(MomentSubGaussian)",
-    "pinsker_kl_bound": "AXIOM(pinsker)",
+    "pinsker_kl_bound": "PROVEN(conditional: Wave17.multiclass_pinsker)",
     "fisher_rao_distance": "PROVEN(closed-form)",
     "bohr_complementarity_floor": "PROVEN(inequality)",
     "kochen_specker_18vector_witness": "AXIOM(KS-18 scaffold)",
