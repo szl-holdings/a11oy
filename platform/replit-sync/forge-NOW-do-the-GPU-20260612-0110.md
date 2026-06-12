@@ -56,3 +56,16 @@ When `sovereign:true` and `gpu:"NVIDIA RTX 5000 @ Hetzner"` appear, screenshot i
 
 ## UPDATE (02:55 EDT) — contract now wired end-to-end
 I closed a gap: the orchestrator /api/a11oy/code/healthz now emits inference:"self-hosted-gpu", backend:"generative", sovereign:true, gpu:<label> WHENEVER A11OY_MODEL_BASE_URL is a non-router endpoint (commit 1af88fe0, byte-identical HF, doctrine-green). Verified honest today (still hf-router, sovereign:false). So the moment you set A11OY_MODEL_BASE_URL + A11OY_GPU_LABEL on the a11oy.net deploy and restart, BOTH the healthz AND the new szl_sovereign_compute pane (LIVE-MANAGED -> LIVE-SOVEREIGN) flip automatically — no further code needed. Just the 2 env vars + the vLLM container. The whole chain is staged.
+
+## UPDATE (05:40 EDT) — a11oy.net is serving a STALE build; one redeploy fixes 3 things at once
+I re-verified a11oy.net live just now. It is UP + healthy (`mode:live`), but it is running an OLDER image than `main`. Evidence:
+- `/api/a11oy/code/healthz` has **no `backend`/`sovereign`/`gpu` keys** — my commit `1af88fe0` (which always emits those, even in hf-router state) is NOT on the box yet.
+- `/v1/deploy/posture` still shows the **mesh bundle `digest_matches_expected:false`** — the box has the stale `b2e4980f` expect-digest pin; I already re-pinned it to the live `50ebc519…` in commit `1bed19fa` (the **HF Space already shows `true`** — only a11oy.net is behind).
+- The new **Sovereign Compute pane** (`/api/a11oy/v1/sovereign-compute`, wired in commits `ed42065b`+`b7a24ea5`+`6a15f9ae`) is live on the HF Space but absent on a11oy.net.
+
+**So: when you redeploy a11oy.net from current `main` (HEAD `aee6ff88` or later) — the SAME deploy where you set the two GPU env vars — you get all of this in one shot:**
+1. healthz starts emitting `backend/sovereign/gpu` (and flips to `self-hosted-gpu`/`sovereign:true` once `A11OY_MODEL_BASE_URL` points at vLLM),
+2. deploy-posture mesh `digest_matches_expected` flips to **true** (correct, signed bundle),
+3. the honest **Sovereign Compute** single-pane goes live (LIVE-MANAGED now → LIVE-SOVEREIGN on GPU).
+
+No code work for you — just `git pull` on the box / re-pull the image to `main`, set the 2 env vars, restart. Everything is already committed, CI-green, byte-identical HF, doctrine-clean. The HF Space is the reference for "what a11oy.net should look like after redeploy."
