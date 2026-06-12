@@ -244,6 +244,31 @@ try:
 except Exception as _szl_neuroplasticity_e:  # pragma: no cover
     print(f"[a11oy] Neuroplasticity formulas NOT registered: {_szl_neuroplasticity_e!r}", file=__import__("sys").stderr)
 
+# ── SZL L6 Chain-of-Title receipt assembler (chain-of-title-wire-patch) — the
+# genuine sovereignty differentiator the research found: industry sovereign-AI
+# operates L1-L5 (residency -> governed ops); SZL's L6 binds, in ONE offline-
+# verifiable receipt, the SOFTWARE attestation (cosign image digest + Rekor entry +
+# in-toto/SLSA provenance), the SCIENCE (Zenodo DOI), and the MATH (lake-verified
+# Lean theorem refs). This module ASSEMBLES + STRUCTURE-verifies that receipt
+# (deterministic, offline, content-addressed); it does NOT sign. The cryptographic
+# cosign/Rekor SIGNING step is founder-gated, so unsigned strands are honestly
+# labeled PROXY/UNSIGNED and the DOI is shown pending (founder-gated) — never faked.
+# Cites every standard to its real spec: in-toto (CNCF) in-toto.io; SLSA v1.1
+# slsa.dev (target SLSA L2/L3 is roadmap, not asserted today); Sigstore/cosign/Rekor
+# sigstore.dev; SCITT (IETF) Signed Statements + Receipts; Zenodo DOI; lutar-lean
+# (Lean 4/Mathlib). The bound math refs are the 3 merged EXPERIMENTAL-tier theorems
+# (Lutar.Allodial #229 / Lutar.Entanglement #230 / Lutar.Neuroplasticity #231) — they
+# are NOT about Λ (Λ-aggregator uniqueness stays Conjecture 1, never a theorem) and do
+# NOT join the locked-8. EXPERIMENTAL/PROPOSED — adds NOTHING to the locked 8; trust
+# never 100%. Pure stdlib. Shared module byte-identical a11oy<->killinchu. Additive,
+# try/except-guarded.
+try:
+    import szl_chain_of_title as _szl_chain_of_title
+    _szl_chain_of_title.register(app, ns="a11oy")
+    print("[a11oy] Chain-of-Title (L6) registered: /api/a11oy/v1/chain/*", file=__import__("sys").stderr)
+except Exception as _szl_chain_of_title_e:  # pragma: no cover
+    print(f"[a11oy] Chain-of-Title (L6) NOT registered: {_szl_chain_of_title_e!r}", file=__import__("sys").stderr)
+
 
 
 # ── Open-Problem Bounty Board (bounties-tab-patch) — OPEN proof bounties
