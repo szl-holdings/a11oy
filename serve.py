@@ -7304,6 +7304,37 @@ except Exception as _wirea_e:
 # END: DEV-WIRE-A metrics layer
 # ============================================================================
 
+# ============================================================================
+# SOVEREIGN COMPUTE single-pane (#320): ADDITIVE, pure-stdlib, try/except-guarded.
+# Honest single-pane readiness for the sovereign-AI substrate — each capability
+# tier (LIVE-SOVEREIGN / LIVE-MANAGED / HONEST-STUB / ROADMAP) is derived from a
+# LIVE loopback probe of an already-shipped health endpoint, NEVER asserted.
+# Auto-flips to LIVE-SOVEREIGN the moment the orchestrator healthz reports
+# inference:self-hosted-gpu (i.e. when the RTX-5000 vLLM endpoint is wired).
+# szl_sovereign_compute.register() uses @app.get (appends), so we then move its
+# two routes to the FRONT of app.router.routes to win over the /{full_path:path}
+# SPA catch-all + the /api/a11oy/{path:path} Node proxy. 0 runtime CDN.
+# ============================================================================
+try:
+    import szl_sovereign_compute as _szl_sovcomp
+    import sys as _sovcomp_sys
+    _sovcomp_status = _szl_sovcomp.register(app, ns="a11oy")
+    _sovcomp_paths = {"/api/a11oy/v1/sovereign-compute", "/sovereign-compute"}
+    for _r in [_rt for _rt in app.router.routes
+               if getattr(_rt, "path", None) in _sovcomp_paths]:
+        app.router.routes.remove(_r)
+        app.router.routes.insert(0, _r)
+    print(f"[a11oy] Sovereign Compute registered (front-moved): {_sovcomp_status}", file=_sovcomp_sys.stderr)
+    _A11OY_SOVCOMP_DIAG = {"status": "ok", "routes": _sovcomp_status}
+except Exception as _sovcomp_e:
+    import sys as _sovcomp_sys, traceback as _sovcomp_tb
+    print(f"[a11oy] Sovereign Compute NOT registered (non-fatal): {_sovcomp_e!r}", file=_sovcomp_sys.stderr)
+    _sovcomp_tb.print_exc(file=_sovcomp_sys.stderr)
+    _A11OY_SOVCOMP_DIAG = {"status": "FAILED", "error": repr(_sovcomp_e)}
+# ============================================================================
+# END: Sovereign Compute single-pane
+# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn
