@@ -148,13 +148,19 @@ def check_corpus(records, head, *, pubkey_pem, identity_regex, min_receipts,
         if rid in seen_ids:
             findings.append("duplicate record id %s" % rid[:16])
         seen_ids.add(rid)
-        # content-address integrity
-        recomputed = common.content_address(src, kind, payload)
+        # content-address integrity.
+        # szl_corpus_publish appends receipts with an explicit dedup_key of the
+        # receipt_uid, so szl_hf_bucket.make_record content-addresses the id over
+        # {source,kind,content=receipt_uid} -- NOT the full payload. We mirror
+        # that dedup basis here (falling back to the payload for any record that
+        # carries no receipt_uid) so a legitimately-published receipt verifies.
+        uid = payload.get("receipt_uid")
+        basis = uid if uid is not None else payload
+        recomputed = common.content_address(src, kind, basis)
         if recomputed != rid:
             findings.append("record %d id mismatch (tamper): %s != %s"
                             % (i, rid[:16], recomputed[:16]))
             continue
-        uid = payload.get("receipt_uid")
         if uid is not None:
             if uid in seen_uids:
                 findings.append("duplicate receipt_uid %s" % str(uid)[:16])

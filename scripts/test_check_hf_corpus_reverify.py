@@ -33,7 +33,12 @@ def check(name, cond):
 
 
 def make_rec(source, kind, payload):
-    return {"id": common.content_address(source, kind, payload),
+    # Mirror szl_corpus_publish: receipts are appended with an explicit
+    # dedup_key of the receipt_uid, so the content-address basis is the uid
+    # (not the full payload). Fall back to the payload when no uid is present.
+    basis = payload.get("receipt_uid") if isinstance(payload, dict) \
+        and payload.get("receipt_uid") is not None else payload
+    return {"id": common.content_address(source, kind, basis),
             "source": source, "kind": kind, "payload": payload}
 
 
