@@ -7237,6 +7237,218 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 </script>
 
 
+<!-- ===================================================================== -->
+<!-- SZL L6 CHAIN-OF-TITLE (chain-of-title-wire-patch) - the genuine        -->
+<!-- sovereignty differentiator: industry sovereign-AI operates L1-L5;      -->
+<!-- SZL's L6 binds SOFTWARE (cosign+Rekor+in-toto/SLSA) AND SCIENCE        -->
+<!-- (Zenodo DOI) AND MATH (lake-verified Lean) in ONE offline-verifiable   -->
+<!-- receipt. This tab draws LIVE from /api/<ns>/v1/chain/* (summary,        -->
+<!-- levels, assemble, verify). Honest by construction: cosign/Rekor        -->
+<!-- SIGNING is founder-gated, so software shows PROXY/UNSIGNED and the DOI  -->
+<!-- shows pending (founder-gated) - never faked. Cites every standard:     -->
+<!-- in-toto (CNCF), SLSA v1.1 (target SLSA L2/L3 is roadmap), Sigstore/    -->
+<!-- cosign/Rekor, SCITT (IETF), Zenodo, lutar-lean. The 3 bound math refs   -->
+<!-- (Lutar.Allodial #229 / Entanglement #230 / Neuroplasticity #231) are    -->
+<!-- merged EXPERIMENTAL-tier theorems, lake-verified (no sorry, no new      -->
+<!-- axioms); they are NOT about Lambda (Lambda stays Conjecture 1, never a  -->
+<!-- theorem) and do NOT join the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}.   -->
+<!-- EXPERIMENTAL/PROPOSED; trust never 100%. 0 runtime CDN. DISTINCT view   -->
+<!-- key 'chain'. Byte-identical a11oy<->killinchu (NS auto-detected).       -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  /* NS auto-detected (killinchu /elite vs a11oy /console) so this block is
+     byte-identical across both apps. All panels draw LIVE from
+     /api/<ns>/v1/chain/*. Null-safe every async path. 0 runtime CDN. */
+  var NS=(String(location.hostname).indexOf('killinchu')>=0)?'killinchu':'a11oy';
+  var CAPI=(window.location.origin)+'/api/'+NS+'/v1/chain';
+  var TEAL='#5fb3a3', GOLD='#c9b787', RISK='#b06a5a', WARN='#c9a05f', INFO='#6FA8DC', VIOLET='#B79BD6', DIM='#8a8f98', LIVE='#5a8a6e';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function ex(id){ return document.getElementById(id); }
+  function setHTML(id,html){ var e=document.getElementById(id); if(e){ e.innerHTML=html; return true; } return false; }
+  function pill(t,c){ return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-family:var(--mono,monospace);font-size:10px;letter-spacing:.06em;font-weight:700;color:'+c+';border:1px solid '+c+';background:'+c+'1a">'+esc(t)+'</span>'; }
+  function cite(href,label){ return '<a href="'+esc(href)+'" target="_blank" rel="noopener" class="mono" style="color:'+INFO+';text-decoration:none;font-size:11px">'+esc(label)+' \u2197</a>'; }
+  async function J(p){ var r=await fetch(p); if(!r.ok) throw new Error('HTTP '+r.status); var ct=r.headers.get('content-type')||''; if(ct.indexOf('text/html')>=0) throw new Error('route missing'); return r.json(); }
+  function panel(inner){ return '<div style="border:1px solid #2a2a2a;border-radius:10px;padding:.9rem 1rem;background:#12151aaa;margin-bottom:.7rem">'+inner+'</div>'; }
+  function kv(k,v,c){ return '<div style="display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;border-bottom:1px solid #20242b"><span class="mono" style="color:'+DIM+';font-size:12px">'+esc(k)+'</span><span class="mono" style="color:'+(c||'#cfd3da')+';font-size:12px;text-align:right;word-break:break-all">'+v+'</span></div>'; }
+
+  /* ---- L6 ladder: industry L1-L5 vs SZL L6 (from /levels) ---- */
+  function renderLevels(c){
+    if(!c) return;
+    c.innerHTML='<div id="l6c-lvl-head"></div><div id="l6c-lvl-body">loading levels\u2026</div>';
+    (async function(){
+      try{
+        var d=await J(CAPI+'/levels'); var L=(d&&d.levels)||{};
+        setHTML('l6c-lvl-head','<div style="margin-bottom:.6rem">'+pill('SOVEREIGNTY MATURITY',GOLD)+' &nbsp; '+pill('L1-L5 = INDUSTRY',DIM)+' &nbsp; '+pill('L6 = SZL DIFFERENTIATOR (PROPOSED)',TEAL)+'</div>');
+        var rows='';
+        Object.keys(L).forEach(function(k){
+          var isSix=(k==='L6');
+          var col=isSix?TEAL:DIM; var tag=isSix?'SZL L6 (PROPOSED)':'industry';
+          rows+='<div style="display:flex;gap:.8rem;align-items:flex-start;padding:.55rem .2rem;border-bottom:1px solid #20242b">'
+              +'<span class="mono" style="min-width:34px;font-weight:700;color:'+col+'">'+esc(k)+'</span>'
+              +'<span style="flex:1;color:'+(isSix?'#e7eef0':'#bcc0c7')+';font-size:13px;line-height:1.5">'+esc(L[k])+'</span>'
+              +'<span style="min-width:130px;text-align:right">'+pill(tag,col)+'</span></div>';
+        });
+        setHTML('l6c-lvl-body',panel(rows)
+          +'<div class="mono" style="color:'+DIM+';font-size:11.5px;line-height:1.6">Industry sovereign-AI players stop at L5 (governed operations). SZL\u2019s <b style="color:'+TEAL+'">L6</b> binds, in <b>one</b> offline-verifiable receipt, the software attestation \u2227 the citable science \u2227 the machine-checked math \u2014 the digital allodial chain of title. This is a <b>PROPOSED</b> differentiator, EXPERIMENTAL-tier; it adds nothing to the locked-8 and Lambda stays Conjecture 1 (never a theorem). '+cite('https://slsa.dev','SLSA v1.1')+' &nbsp; '+cite('https://in-toto.io','in-toto (CNCF)')+' &nbsp; '+cite('https://www.sigstore.dev','Sigstore/cosign/Rekor')+'</div>');
+      }catch(e){ setHTML('l6c-lvl-body','<span style="color:'+RISK+'">levels unavailable: '+esc(e.message)+'</span>'); }
+    })();
+  }
+
+  /* ---- HERO: live /assemble binding the 3 strands ---- */
+  function renderAssemble(c){
+    if(!c) return;
+    c.innerHTML=''
+      +'<div style="margin-bottom:.6rem">'+pill('L6 RECEIPT \u2605 HERO',TEAL)+' &nbsp; '+pill('software \u2227 science \u2227 math',GOLD)+' &nbsp; '+pill('UNSIGNED \u2014 signing founder-gated',WARN)+'</div>'
+      +'<div class="mono" style="color:'+DIM+';font-size:11.5px;margin-bottom:.6rem;line-height:1.6">Assembled LIVE from <code>/api/'+NS+'/v1/chain/assemble</code>. The demo binds the SOFTWARE strand (a PROXY cosign digest + Rekor index, shown <b>UNSIGNED</b> because cosign/Rekor signing is founder-gated), the SCIENCE strand (a Zenodo DOI, shown <b>pending (founder-gated)</b> if unminted \u2014 never faked), and the MATH strand (the 3 REAL merged lake-verified Lean theorem refs). Toggle the proxy strands to see honest status flips.</div>'
+      +'<div class="row" style="gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem">'
+        +'<button id="l6c-asm-empty" class="mono" style="border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM+'">math only (3 Lean refs)</button>'
+        +'<button id="l6c-asm-proxy" class="mono" style="border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM+'">+ PROXY software + DOI</button>'
+      +'</div>'
+      +'<div id="l6c-asm-body">assembling\u2026</div>';
+    function load(withProxy){
+      (async function(){
+        try{
+          var q='?artifact=szl-mesh&lean=Lutar.Allodial,Lutar.Entanglement,Lutar.Neuroplasticity';
+          if(withProxy){ q+='&image=sha256:'+Array(65).join('a')+'&rekor=PROXY-DEMO&doi=10.5281/zenodo.20020841'; }
+          var d=await J(CAPI+'/assemble'+q);
+          var sw=d.software_attestation||{}, sci=d.science||{}, ma=d.math||{}, comp=d.completeness||{}, doc=d.doctrine||{};
+          var swCol=(sw.status==='REFERENCED')?WARN:RISK;
+          var leanRows=(ma.lean_theorems||[]).map(function(t){ return '<div class="mono" style="color:'+TEAL+';font-size:12px;padding:.15rem 0">\u2713 '+esc(t)+'</div>'; }).join('')||'<span style="color:'+DIM+'">none</span>';
+          var html=''
+            +panel('<div style="font-weight:700;color:'+INFO+';margin-bottom:.4rem">\u2780 SOFTWARE attestation '+pill(sw.status||'?',swCol)+'</div>'
+                +kv('image_digest', esc(sw.image_digest||'\u2014 (none / PROXY)'), sw.image_digest?WARN:DIM)
+                +kv('rekor_log_index', esc(sw.rekor_log_index||'\u2014 (none / PROXY)'), sw.rekor_log_index?WARN:DIM)
+                +kv('in-toto/SLSA', esc(sw.intoto_slsa||'\u2014'), DIM)
+                +kv('honest status', (sw.status==='REFERENCED'?'REFERENCED but UNSIGNED (cosign/Rekor signing founder-gated)':'PROXY / UNSIGNED'), swCol)
+                +'<div class="mono" style="color:'+DIM+';font-size:11px;margin-top:.4rem">'+cite('https://www.sigstore.dev','Sigstore/cosign/Rekor')+' &nbsp; '+cite('https://in-toto.io','in-toto')+' &nbsp; '+cite('https://slsa.dev','SLSA v1.1 (L2/L3 roadmap)')+'</div>')
+            +panel('<div style="font-weight:700;color:'+VIOLET+';margin-bottom:.4rem">\u2781 SCIENCE '+pill(sci.doi?'DOI '+(sci.doi_status||''):'pending (founder-gated)', sci.doi?WARN:RISK)+'</div>'
+                +kv('doi', esc(sci.doi||'\u2014 (none)'), sci.doi?WARN:DIM)
+                +kv('doi_status', esc(sci.doi_status||'\u2014'), sci.doi?WARN:RISK)
+                +'<div class="mono" style="color:'+DIM+';font-size:11px;margin-top:.4rem">'+cite('https://zenodo.org','Zenodo concept+version DOI')+' \u00b7 RO-Crate / W3C PROV</div>')
+            +panel('<div style="font-weight:700;color:'+TEAL+';margin-bottom:.4rem">\u2782 MATH '+pill('REAL \u00b7 lake-verified \u00b7 EXPERIMENTAL',TEAL)+'</div>'
+                +leanRows
+                +kv('verification', esc(ma.verification||'\u2014'), TEAL)
+                +kv('locked-8 unchanged', (ma.locked_unchanged?'true':'\u2014'), GOLD)
+                +'<div class="mono" style="color:'+DIM+';font-size:11px;margin-top:.4rem">'+cite('https://github.com/szl-holdings/lutar-lean','lutar-lean (Lean 4/Mathlib)')+' \u2014 merged PRs #229 / #230 / #231</div>')
+            +panel('<div style="font-weight:700;color:'+GOLD+';margin-bottom:.4rem">RECEIPT</div>'
+                +kv('receipt_digest', esc(d.receipt_digest||'\u2014'), GOLD)
+                +kv('strands present', (comp.strands_present!=null?(comp.strands_present+' / '+comp.of):'\u2014'), TEAL)
+                +kv('fully_signed', (comp.fully_signed?'true':'false (signing founder-gated)'), RISK)
+                +kv('tier', esc(doc.tier||'\u2014'), WARN)
+                +kv('lambda', esc(doc.lambda||'\u2014'), GOLD)
+                +kv('trust', (doc.trust_never_100?'never 100%':'\u2014'), GOLD));
+          setHTML('l6c-asm-body',html);
+        }catch(e){ setHTML('l6c-asm-body','<span style="color:'+RISK+'">assemble unavailable: '+esc(e.message)+'</span>'); }
+      })();
+    }
+    var be=ex('l6c-asm-empty'), bp=ex('l6c-asm-proxy');
+    function sel(which){ if(be){ be.style.color=(which==='e')?TEAL:DIM; be.style.borderColor=(which==='e')?TEAL:'#2a2a2a'; } if(bp){ bp.style.color=(which==='p')?TEAL:DIM; bp.style.borderColor=(which==='p')?TEAL:'#2a2a2a'; } }
+    if(be) be.addEventListener('click',function(){ sel('e'); load(false); });
+    if(bp) bp.addEventListener('click',function(){ sel('p'); load(true); });
+    sel('p'); load(true);
+  }
+
+  /* ---- /verify: offline STRUCTURE verification (honest caveat) ---- */
+  function renderVerify(c){
+    if(!c) return;
+    c.innerHTML='<div style="margin-bottom:.6rem">'+pill('OFFLINE STRUCTURE VERIFY',TEAL)+' &nbsp; '+pill('cryptographic verify = GATED',WARN)+'</div><div id="l6c-vfy-body">verifying\u2026</div>';
+    (async function(){
+      try{
+        var d=await J(CAPI+'/verify?artifact=szl-mesh');
+        var ok=!!d.valid;
+        var html=panel(
+            kv('schema_ok', (d.schema_ok?'true':'false'), d.schema_ok?TEAL:RISK)
+          +kv('content_address_intact', (d.content_address_intact?'true (SHA-256 recomputed)':'false'), d.content_address_intact?TEAL:RISK)
+          +kv('is_signed', (d.is_signed?'true':'false (this module never signs)'), RISK)
+          +kv('verification_scope', esc(d.verification_scope||'\u2014'), WARN)
+          +kv('valid (structure)', (ok?'true':'false'), ok?TEAL:RISK))
+          +'<div class="mono" style="color:'+DIM+';font-size:11.5px;line-height:1.6">This is an <b style="color:'+TEAL+'">offline STRUCTURE check</b> \u2014 the receipt is content-addressed (SHA-256 over the canonical body) and tamper-evident. Honest caveat: STRUCTURE verification is <b style="color:'+WARN+'">not</b> cryptographic verification. The signed+logged proof (cosign signature + Rekor inclusion) is the <b style="color:'+WARN+'">founder-gated</b> step; until then the receipt is labeled UNSIGNED. '+cite('https://datatracker.ietf.org/wg/scitt/about/','SCITT receipt model (IETF)')+'</div>';
+        setHTML('l6c-vfy-body',html);
+      }catch(e){ setHTML('l6c-vfy-body','<span style="color:'+RISK+'">verify unavailable: '+esc(e.message)+'</span>'); }
+    })();
+  }
+
+  /* ---- the 3 merged EXPERIMENTAL Lean theorems (TASK C, honest) ---- */
+  var THEOREMS=[
+    ['Lutar.Allodial','#229','allodial chain-of-title / unencumbered-ownership lemma'],
+    ['Lutar.Entanglement','#230','2-qubit entanglement-measure lemma'],
+    ['Lutar.Neuroplasticity','#231','Oja-rule / learning-dynamics lemma']
+  ];
+  function renderLean(c){
+    if(!c) return;
+    var rows=THEOREMS.map(function(t){
+      return panel('<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.3rem">'
+        +'<span class="mono" style="color:'+TEAL+';font-weight:700">'+esc(t[0])+'</span>'
+        +'<span>'+pill('lutar-lean '+t[1],INFO)+' '+pill('EXPERIMENTAL',WARN)+'</span></div>'
+        +'<div style="color:#bcc0c7;font-size:12.5px;line-height:1.5">'+esc(t[2])+'</div>'
+        +'<div class="mono" style="color:'+DIM+';font-size:11px;margin-top:.35rem">lake-verified \u00b7 no sorry \u00b7 no new axioms \u00b7 '+cite('https://github.com/szl-holdings/lutar-lean/pull/'+t[1].replace('#',''),'PR '+t[1])+'</div>');
+    }).join('');
+    c.innerHTML='<div style="margin-bottom:.6rem">'+pill('EXPERIMENTAL machine-checked',WARN)+' &nbsp; '+pill('NOT locked-8',RISK)+' &nbsp; '+pill('NOT about Lambda',GOLD)+'</div>'
+      +'<div class="mono" style="color:'+DIM+';font-size:11.5px;margin-bottom:.7rem;line-height:1.6">Three theorems merged to <code>lutar-lean</code> main, lake-green. They are <b style="color:'+WARN+'">EXPERIMENTAL-tier</b>, machine-checked (no sorry, no new axioms). They do <b style="color:'+RISK+'">NOT</b> join the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22} and prove <b style="color:'+GOLD+'">nothing</b> about Lambda \u2014 Lambda-aggregator uniqueness stays Conjecture 1 (never a theorem). They are the MATH strand the L6 receipt binds.</div>'
+      +rows;
+  }
+
+  /* ---- honest framing ---- */
+  function renderHonest(c){
+    if(!c) return;
+    c.innerHTML='<div id="l6c-hon-head"></div><div id="l6c-hon-body">loading\u2026</div>';
+    (async function(){
+      try{
+        var d=await J(CAPI+'/summary'); var doc=d.doctrine||{};
+        setHTML('l6c-hon-head','<div style="margin-bottom:.6rem">'+pill('HONEST FRAMING',GOLD)+'</div>');
+        setHTML('l6c-hon-body',panel(
+            kv('differentiator','industry = L1-L5; SZL L6 binds software \u2227 science \u2227 math in one verifiable receipt',TEAL)
+          +kv('signing','cosign/Rekor SIGNING is founder-gated (receipt is UNSIGNED until signed)',WARN)
+          +kv('science','Zenodo DOI shown pending (founder-gated) when unminted \u2014 never faked',WARN)
+          +kv('math','3 merged Lean theorems = EXPERIMENTAL machine-checked, NOT locked-8',WARN)
+          +kv('locked-8 unchanged',(doc.locked_unchanged?'true {F1,F4,F7,F11,F12,F18,F19,F22}':'\u2014'),GOLD)
+          +kv('lambda',esc(doc.lambda||'Conjecture 1 (never theorem)'),GOLD)
+          +kv('tier',esc(doc.tier||'EXPERIMENTAL/PROPOSED'),WARN)
+          +kv('trust',(doc.trust_never_100?'never 100%':'\u2014'),GOLD))
+          +'<div class="mono" style="color:'+DIM+';font-size:11.5px;line-height:1.6">Cites every standard to its real spec: '
+          +cite('https://in-toto.io','in-toto (CNCF)')+' \u00b7 '+cite('https://slsa.dev','SLSA v1.1 (L2/L3 roadmap)')+' \u00b7 '+cite('https://www.sigstore.dev','Sigstore/cosign/Rekor')+' \u00b7 '+cite('https://datatracker.ietf.org/wg/scitt/about/','SCITT (IETF)')+' \u00b7 '+cite('https://zenodo.org','Zenodo')+' \u00b7 '+cite('https://leanprover.github.io','Lean 4/Mathlib')+'.</div>');
+      }catch(e){ setHTML('l6c-hon-body','<span style="color:'+RISK+'">summary unavailable: '+esc(e.message)+'</span>'); }
+    })();
+  }
+
+  function mountChain(c){
+    if(!c) return;
+    c.innerHTML='<div class="row" id="l6c-tabs" style="gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem"></div><div id="l6c-body"></div>';
+    var tabs=[['assemble','Assemble receipt \u2605',renderAssemble],['levels','L6 ladder',renderLevels],['verify','Verify (structure)',renderVerify],['lean','Lean theorems (3)',renderLean],['honest','Honest framing',renderHonest]];
+    function paint(idx){ var host=ex('l6c-body'); if(!host) return; tabs.forEach(function(t,i){ var b=ex('l6c-tab-'+i); if(b){ b.style.background=(i===idx)?TEAL+'22':'transparent'; b.style.color=(i===idx)?TEAL:DIM; b.style.borderColor=(i===idx)?TEAL:'#2a2a2a'; } }); host.innerHTML=''; var sub=document.createElement('div'); sub.id='l6c-sub'; host.appendChild(sub); tabs[idx][2](sub); }
+    var bar=ex('l6c-tabs');
+    tabs.forEach(function(t,i){ var b=document.createElement('button'); b.id='l6c-tab-'+i; b.className='mono'; b.textContent=t[1]; b.style.cssText='border:1px solid #2a2a2a;border-radius:7px;padding:.4rem .8rem;cursor:pointer;font-size:12px;background:transparent;color:'+DIM; b.addEventListener('click',function(){ paint(i); }); if(bar) bar.appendChild(b); });
+    paint(0); // open on the HERO (live L6 receipt assemble) first
+  }
+  var CHAIN_BADGE='EXPERIMENTAL \u00b7 L6 (PROPOSED) \u00b7 SIGNING FOUNDER-GATED \u00b7 \u039b=CONJECTURE 1';
+  var CHAIN_SUB='SZL\u2019s <b>L6 chain-of-title</b>: where industry sovereign-AI stops at L1-L5, L6 binds the SOFTWARE attestation (cosign+Rekor+in-toto/SLSA), the SCIENCE (Zenodo DOI) and the MATH (3 lake-verified Lean theorems) into <b>one</b> offline-verifiable receipt \u2014 the digital allodial deed. Hero: a <b>live /assemble</b> binding all three strands, honest by construction (software shown <b>PROXY/UNSIGNED</b>, DOI <b>pending (founder-gated)</b>, math <b>REAL</b>). An <b>L6 ladder</b> (L1-L5 industry vs L6 SZL), a <b>/verify</b> offline STRUCTURE check (cryptographic cosign/Rekor verify is the gated step), the <b>3 merged EXPERIMENTAL theorems</b> (#229/#230/#231, NOT locked-8, NOT about \u039b which stays Conjecture 1 \u2014 never a theorem) and an <b>honest-framing</b> panel. All LIVE from <code>/api/'+NS+'/v1/chain/*</code>. EXPERIMENTAL/PROPOSED; adds nothing to the locked 8; trust never 100%. Every standard cited to its real spec.';
+
+  function reg(key,title,badge,sub,fn){ if(!window.VIEWS){ return setTimeout(function(){reg(key,title,badge,sub,fn);},80); }
+    window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ fn(c); }};
+    try{ console.log('['+NS+'] Chain-of-Title tab registered: '+key); }catch(e){}
+  }
+  function regChain(){ if(window.VIEWS && window.VIEWS['l6chain']){ return; } reg('l6chain','Chain of Title',CHAIN_BADGE,CHAIN_SUB,mountChain); }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',regChain); } else { regChain(); }
+  function injectNav(){
+    var side=document.querySelector('.side .nav')||document.querySelector('.side');
+    var anchor=document.querySelector('.nav-item[data-view="neuro"]')||document.querySelector('.nav-item[data-view="entangle"]')||document.querySelector('.nav-item[data-view="sovereignty"]')||document.querySelector('.nav-item');
+    if(!side||!anchor){ return setTimeout(injectNav,250); }
+    if(document.getElementById('l6c-nav-item')){ return; }
+    var grp=document.createElement('div'); grp.className='nav-group'; grp.id='l6c-nav-group'; grp.textContent='Chain of Title (L6 \u00b7 EXPERIMENTAL)';
+    var n=document.createElement('div'); n.className='nav-item'; n.id='l6c-nav-item'; n.setAttribute('data-view','l6chain'); n.setAttribute('onclick',"go('l6chain')");
+    n.setAttribute('title','SZL L6 chain-of-title: binds software (cosign+Rekor+in-toto/SLSA), science (Zenodo DOI) and math (3 lake-verified Lean theorems) into one offline-verifiable receipt. Live /assemble + /verify + L6 ladder. Honest: signing founder-gated (UNSIGNED), DOI pending; 3 theorems EXPERIMENTAL NOT locked-8, NOT about Lambda (Lambda stays Conjecture 1, never a theorem). Live from /api/'+NS+'/v1/chain/*. EXPERIMENTAL/PROPOSED; trust never 100%.');
+    n.innerHTML='<span class="ico">\ud83d\udcdc</span>Chain of Title';
+    var parent=anchor.parentNode; parent.appendChild(grp); parent.appendChild(n);
+    try{ console.log('['+NS+'] Chain-of-Title nav injected'); }catch(e){}
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+
+
+
 <style>
 /* DEV2 vertical-pack sub-tab chrome (scoped, brand-aligned) */
 .vtabbar{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem;border-bottom:1px solid var(--gold-line,rgba(201,183,135,.18));padding-bottom:.5rem;}
