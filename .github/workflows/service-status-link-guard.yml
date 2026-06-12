@@ -1,0 +1,72 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# service-status-link-guard.yml — keep the in-app "Service status" link from
+# silently disappearing out of the a11oy console.
+#
+# Why this exists
+# ---------------
+# The a11oy console's top-bar "Project links" nav (`<nav class="extlinks">` in
+# pages/console.html) carries a "Service status" link pointing at the public live
+# status board (https://szl-holdings.github.io/a11oy/), tagged in the source with
+# the comment marker `service-status-link-patch`. But pages/console.html is a
+# large (~1.1MB) served file that is concurrently edited by sibling agents and
+# periodically rewritten by CI auto-commits — a future edit could drop the link
+# without anyone noticing, leaving users with no in-app path to the status board.
+# This lightweight, text-only guard (no network, no git, no cluster) FAILS if
+# pages/console.html loses either half of the link:
+#   chk1  the `service-status-link-patch` marker comment
+#   chk2  an <a> anchor whose href is exactly https://szl-holdings.github.io/a11oy/
+#
+# Mirrors the org guard pattern (status-page-guard.yml, hf-sync-cathedral-guard.yml):
+# a self-test job proves each check still FAILS on a broken fixture before the
+# guard job trusts it against the real file.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Service Status Link Guard
+
+on:
+  pull_request:
+    paths:
+      - "pages/console.html"
+      - ".github/workflows/service-status-link-guard.yml"
+      - "scripts/service-status-link-guard-checks.sh"
+      - "scripts/service-status-link-guard-checks.test.sh"
+  push:
+    branches: [main]
+    paths:
+      - "pages/console.html"
+      - ".github/workflows/service-status-link-guard.yml"
+      - "scripts/service-status-link-guard-checks.sh"
+      - "scripts/service-status-link-guard-checks.test.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Prove each check still FAILS on a deliberately-broken fixture (i.e. is not
+  # silently passing). The guard job depends on this so a neutered check blocks
+  # the build before it can wave a regression through.
+  self-test:
+    name: Self-test the guard checks (negative fixtures)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Run negative-fixture self-test
+        run: bash scripts/service-status-link-guard-checks.test.sh
+
+  guard:
+    name: Assert the in-app Service status link is intact
+    runs-on: ubuntu-latest
+    needs: self-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Check 1 — the service-status-link-patch marker is present
+        run: bash scripts/service-status-link-guard-checks.sh chk1 pages/console.html
+      - name: Check 2 — the live status-board anchor is present
+        run: bash scripts/service-status-link-guard-checks.sh chk2 pages/console.html
+      - name: Service status link is intact
+        run: echo "pages/console.html still carries the service-status-link-patch marker and the live status-board anchor."
