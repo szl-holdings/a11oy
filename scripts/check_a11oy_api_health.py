@@ -60,6 +60,16 @@ CHECKS = [
         "body": {"command": "acknowledge alert", "target": "demo", "approved": False},
         "required": ENVELOPE + ["outcome"],
     },
+    # --- console DATA tabs ------------------------------------------------------
+    # These back the live /console tabs. They do NOT carry the governed reasoning
+    # envelope; each has its own JSON contract. Several carry an ``honest`` flag
+    # (the doctrine honesty marker) — requiring it here means a tab that quietly
+    # drops its honesty disclosure also turns the check red, not just a 500.
+    {"method": "GET", "path": "/api/a11oy/v1/formulas", "required": ["count", "formulas"]},
+    {"method": "GET", "path": "/api/a11oy/v1/bounties", "required": ["count", "bounties", "honest"]},
+    {"method": "GET", "path": "/api/a11oy/v1/contracting", "required": ["areas", "summary", "honest"]},
+    {"method": "GET", "path": "/api/a11oy/v1/readiness", "required": ["sections", "summary", "honest"]},
+    {"method": "GET", "path": "/api/a11oy/v1/evidence", "required": ["claims", "total_assertions", "status_counts"]},
 ]
 
 
