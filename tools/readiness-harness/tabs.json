@@ -3,11 +3,11 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-06-11T00:00:00Z",
+  "generatedAt": "2026-06-12T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 127,
-    "endpoints": 68,
+    "tabs": 128,
+    "endpoints": 72,
     "tabsWithCitations": 22,
     "staticTabs": 38
   },
@@ -1398,6 +1398,94 @@
       },
       "note": "Kirkpatrick 2017 EWC penalty L=(λ/2)Σ Fᵢ(θᵢ−θ*ᵢ)² from ?theta=&star=&fisher= — mitigates catastrophic forgetting in continual learning. Cited (Kirkpatrick et al. PNAS DOI:10.1073/pnas.1611835114). Deterministic."
     },
+    "/api/a11oy/v1/chain/summary": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "L6 chain-of-title summary: differentiator (industry L1-L5 vs SZL L6), levels ladder, honest_limit (signing founder-gated), doctrine (locked_unchanged, lambda=Conjecture 1, trust_never_100, tier=EXPERIMENTAL/PROPOSED), cites. PROPOSED, NOT the formal Λ."
+    },
+    "/api/a11oy/v1/chain/levels": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "The six sovereignty maturity levels: L1-L5 = industry (residency → governed ops), L6 = SZL differentiator (verifiable software∧science∧math receipt). Deterministic."
+    },
+    "/api/a11oy/v1/chain/assemble": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Assembles an L6 receipt from ?artifact=&image=&rekor=&doi=&lean= — software shown PROXY/UNSIGNED (cosign/Rekor signing founder-gated), DOI shown pending (founder-gated) when unminted (never faked), math = real lake-verified Lean refs. Content-addressed SHA-256; fully_signed always false (gated). Cited (Sigstore/in-toto/SLSA/Zenodo/lutar-lean). Deterministic."
+    },
+    "/api/a11oy/v1/chain/verify": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200,
+          400,
+          422
+        ],
+        "allowLabels": [
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Offline STRUCTURE verification of an assembled receipt: schema_ok + content_address_intact (SHA-256 recompute) + is_signed=false. Honest caveat: STRUCTURE verify ≠ cryptographic verify — cosign/Rekor verify is the founder-gated step. Cited (SCITT receipt model, IETF). Deterministic."
+    },
     "/api/a11oy/v1/unified/summary": {
       "method": "GET",
       "schema": "generic_obj",
@@ -2693,6 +2781,26 @@
       "citationsRequired": false,
       "sampleLabelAllowed": false,
       "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "l6chain",
+      "title": "Chain of Title",
+      "group": "Console",
+      "route": "/console#l6chain",
+      "endpoints": [
+        "/api/a11oy/v1/chain/summary",
+        "/api/a11oy/v1/chain/levels",
+        "/api/a11oy/v1/chain/assemble",
+        "/api/a11oy/v1/chain/verify"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
