@@ -1,0 +1,79 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# hf-sync-cathedral-guard.yml — keep hf-sync.yml's cathedral front-door coverage
+# from silently regressing.
+#
+# Why this exists
+# ---------------
+# The redesigned a11oy.net hero is served from cathedral.html (repo ROOT) +
+# static/a11oy_cathedral.js, which fall OUTSIDE the pages/console glob that
+# hf-sync.yml mirrors to the public HuggingFace Space. Coverage for them lives in
+# THREE places inside hf-sync.yml:
+#   1. the on.push.paths trigger list   (so an edit fires the sync at all)
+#   2. the add/update `patterns` glob    (so the file is mirrored to the Space)
+#   3. the CATHEDRAL_FILES exact-match set consulted by is_front_door()
+#      (so the delete-aware pass treats them as managed and never sweeps them off)
+#
+# A future edit could quietly drop any of the three, re-opening the original drift
+# gap (a GitHub-main edit silently failing to reach the Space) with no warning.
+# This lightweight, text-only guard (no network, no git, no cluster) FAILS if
+# hf-sync.yml loses cathedral coverage in any of those three places:
+#   chk1  cathedral.html / static/a11oy_cathedral.js missing from on.push.paths
+#   chk2  the patterns glob no longer covers the cathedral files
+#   chk3  CATHEDRAL_FILES drops a file, or is_front_door() stops consulting it
+#
+# Mirrors the org guard pattern (status-page-guard.yml, teardown-guard.yml):
+# a self-test job proves each check still FAILS on a broken fixture before the
+# guard job trusts it against the real workflow.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: HF Sync Cathedral Guard
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hf-sync.yml"
+      - ".github/workflows/hf-sync-cathedral-guard.yml"
+      - "scripts/hf-sync-cathedral-guard-checks.sh"
+      - "scripts/hf-sync-cathedral-guard-checks.test.sh"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hf-sync.yml"
+      - ".github/workflows/hf-sync-cathedral-guard.yml"
+      - "scripts/hf-sync-cathedral-guard-checks.sh"
+      - "scripts/hf-sync-cathedral-guard-checks.test.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Prove each check still FAILS on a deliberately-broken fixture (i.e. is not
+  # silently passing). The guard job depends on this so a neutered check blocks
+  # the build before it can wave a regression through.
+  self-test:
+    name: Self-test the guard checks (negative fixtures)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Run negative-fixture self-test
+        run: bash scripts/hf-sync-cathedral-guard-checks.test.sh
+
+  guard:
+    name: Assert hf-sync.yml keeps cathedral front-door coverage
+    runs-on: ubuntu-latest
+    needs: self-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Check 1 — cathedral files are in on.push.paths
+        run: bash scripts/hf-sync-cathedral-guard-checks.sh chk1 .github/workflows/hf-sync.yml
+      - name: Check 2 — cathedral files are in the add/update patterns glob
+        run: bash scripts/hf-sync-cathedral-guard-checks.sh chk2 .github/workflows/hf-sync.yml
+      - name: Check 3 — CATHEDRAL_FILES set is intact and used by is_front_door()
+        run: bash scripts/hf-sync-cathedral-guard-checks.sh chk3 .github/workflows/hf-sync.yml
+      - name: hf-sync cathedral coverage is intact
+        run: echo "hf-sync.yml still triggers on, mirrors, and protects cathedral.html + static/a11oy_cathedral.js."
