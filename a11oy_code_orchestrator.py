@@ -99,6 +99,28 @@ HF_ROUTER_BASE = os.environ.get("HF_ROUTER_BASE", "https://router.huggingface.co
 # Honest backend classification for /healthz. The agent runs on our own GPU when
 # A11OY_MODEL_BASE_URL points at a NON-router endpoint (Hetzner RTX 5000 via vLLM),
 # matching a11oy_code_engine.py's adapter. Never claims sovereign while still routing.
+def _local_endpoint_reachable(base: str, timeout: float = 2.0) -> bool:
+    """Quick liveness probe of a configured local/sovereign model endpoint.
+
+    HONESTY GATE: setting A11OY_MODEL_BASE_URL is an INTENT, not proof the GPU is
+    actually serving. We only claim sovereign:true when the endpoint's OpenAI-
+    compatible /models (or root) actually answers. If it's set but unreachable
+    (e.g. a tailnet endpoint the Space can't reach), we honestly report a router
+    fallback instead of a false sovereign banner. Pure stdlib, short timeout,
+    never raises. NOTE: this reflects ENDPOINT liveness; the chat-serving path
+    wiring to this endpoint is tracked separately (see #324)."""
+    import urllib.request as _u
+    for path in ("/models", ""):
+        try:
+            req = _u.Request(base.rstrip("/") + path, method="GET")
+            with _u.urlopen(req, timeout=timeout) as r:  # noqa: S310 (trusted op-set base)
+                if 200 <= getattr(r, "status", r.getcode()) < 500:
+                    return True
+        except Exception:  # noqa: BLE001 - any failure => not reachable, stay honest
+            continue
+    return False
+
+
 def _sovereign_inference_state() -> dict:
     base = (os.environ.get("A11OY_MODEL_BASE_URL") or os.environ.get("HF_ROUTER_BASE")
             or "https://router.huggingface.co/v1").rstrip("/")
@@ -108,10 +130,24 @@ def _sovereign_inference_state() -> dict:
         return {"inference": "NO-CREDENTIAL", "mode": "deterministic_stub",
                 "backend": "local-deterministic", "sovereign": False, "base_url": base}
     if is_local:
-        d = {"inference": "self-hosted-gpu", "mode": "live", "backend": "generative",
-             "sovereign": True, "base_url": base}
+        # Only claim sovereign when the configured local endpoint actually answers.
+        if _local_endpoint_reachable(base):
+            d = {"inference": "self-hosted-gpu", "mode": "live", "backend": "generative",
+                 "sovereign": True, "base_url": base}
+            if gpu:
+                d["gpu"] = gpu
+            return d
+        # Configured for local but unreachable -> stay HONEST: we're not sovereign,
+        # and the live serving path falls back to the HF Router.
+        d = {"inference": "hf-router-fallback", "mode": "live", "backend": "hf-router",
+             "sovereign": False, "base_url": "https://router.huggingface.co/v1",
+             "configured_local_base": base,
+             "honest_note": ("A11OY_MODEL_BASE_URL is set to a local endpoint but it "
+                             "is not reachable from this process right now, so turns "
+                             "serve via the HF Router. NOT sovereign until the local "
+                             "endpoint answers (see #324).")}
         if gpu:
-            d["gpu"] = gpu
+            d["configured_gpu_label"] = gpu
         return d
     return {"inference": "hf-router", "mode": "live", "backend": "hf-router",
             "sovereign": False, "base_url": base}
