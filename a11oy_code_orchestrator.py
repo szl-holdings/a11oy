@@ -96,6 +96,26 @@ except Exception:  # pragma: no cover
 
 HF_ROUTER_BASE = os.environ.get("HF_ROUTER_BASE", "https://router.huggingface.co/v1")
 
+# Honest backend classification for /healthz. The agent runs on our own GPU when
+# A11OY_MODEL_BASE_URL points at a NON-router endpoint (Hetzner RTX 5000 via vLLM),
+# matching a11oy_code_engine.py's adapter. Never claims sovereign while still routing.
+def _sovereign_inference_state() -> dict:
+    base = (os.environ.get("A11OY_MODEL_BASE_URL") or os.environ.get("HF_ROUTER_BASE")
+            or "https://router.huggingface.co/v1").rstrip("/")
+    gpu = (os.environ.get("A11OY_GPU_LABEL") or "").strip()
+    is_local = "router.huggingface.co" not in base
+    if not has_inference_credential() and not is_local:
+        return {"inference": "NO-CREDENTIAL", "mode": "deterministic_stub",
+                "backend": "local-deterministic", "sovereign": False, "base_url": base}
+    if is_local:
+        d = {"inference": "self-hosted-gpu", "mode": "live", "backend": "generative",
+             "sovereign": True, "base_url": base}
+        if gpu:
+            d["gpu"] = gpu
+        return d
+    return {"inference": "hf-router", "mode": "live", "backend": "hf-router",
+            "sovereign": False, "base_url": base}
+
 # Candidate Space-secret names for the HF inference credential, in priority
 # order. HF Spaces sometimes save the token under a non-standard key (e.g.
 # 'Token'), so we read a broad set and strip stray quotes/whitespace. This list
@@ -1287,10 +1307,14 @@ def _get_client() -> httpx.AsyncClient:
 
 @router.get("/healthz")
 async def code_healthz() -> JSONResponse:
+    _sov = _sovereign_inference_state()
     return JSONResponse({
         "status": "ok", "component": "a11oy.code orchestrator", "doctrine": "v12 (v11+PURIQ)",
-        "inference": "hf-router" if has_inference_credential() else "NO-CREDENTIAL",
-        "mode": "live" if has_inference_credential() else "deterministic_stub",
+        "inference": _sov["inference"],
+        "mode": _sov["mode"],
+        "backend": _sov["backend"],
+        "sovereign": _sov["sovereign"],
+        **({"gpu": _sov["gpu"]} if _sov.get("gpu") else {}),
         "tiers": list(TIERS.keys()), "tools": [t["function"]["name"] for t in TOOL_SCHEMAS],
         "puriq_threshold": PURIQ_THRESHOLD, "memory": "sqlite", "signed": "Yachay",
         "ide": "/api/a11oy/code/ide", "run": "/api/a11oy/code/run",
