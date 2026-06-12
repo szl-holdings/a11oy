@@ -3932,6 +3932,54 @@ try:
     async def _sc_cap_mesh3d():
         return _SCJSON(_SC_BUNDLE["mesh3d"])
 
+    # ---- a11oy-vertical aliases (Memory / Sentinel / Operator) — Task #801 ----
+    # Brand consolidation: the three internal organ codenames are folded into
+    # a11oy as verticals — amaru -> a11oy Memory, sentra -> a11oy Sentinel,
+    # rosie -> a11oy Operator. These a11oy-branded addresses respond IDENTICALLY
+    # to the codename routes above because they reuse the SAME handler functions,
+    # so consumers can migrate gradually. The codename routes (/api/{amaru,sentra,
+    # rosie}/v1/*) stay live for backward-compat until every consumer has moved.
+    # Additive + collision-aware: any path already served (e.g. the neutral
+    # /api/a11oy/v1/operator/{ledger,...} surface from Task #516/#751) is left
+    # untouched — FastAPI is first-match-wins, so a duplicate registration would
+    # be dead code anyway; the pre-existing a11oy-branded route already covers it.
+    # This block stays inside the same defensive try/except and BEFORE the generic
+    # /api/a11oy/{path:path} Node proxy, so these explicit paths resolve locally.
+    # Marker: a11oy-vertical-aliases-task801.
+    _A11OY_VERTICAL_ALIASES = [
+        # (methods, a11oy-vertical path, handler mirrored from the codename route)
+        # --- a11oy Sentinel  (sentra: policy / safety / compliance / forecast / threats) ---
+        (["GET"],  "/api/a11oy/v1/sentinel/gates",            _sc_sentra_gates),
+        (["GET"],  "/api/a11oy/v1/sentinel/threats/full",     _sc_sentra_threats),
+        (["GET"],  "/api/a11oy/v1/sentinel/verdict/feed",     _sc_sentra_feed),
+        (["POST"], "/api/a11oy/v1/sentinel/verdict",          _sc_sentra_verdict),
+        (["POST"], "/api/a11oy/v1/sentinel/elite/compliance", _sc_sentra_compliance),
+        (["GET"],  "/api/a11oy/v1/sentinel/forecast/run",     _sc_sentra_forecast),
+        # --- a11oy Memory   (amaru: reasoning / readiness / llm tiers) ---
+        (["GET"],  "/api/a11oy/v1/memory/llm/tiers",          _sc_amaru_tiers),
+        (["POST"], "/api/a11oy/v1/memory/readiness/assess",   _sc_amaru_readiness),
+        # --- a11oy Operator (rosie: operator ask / act / recommend / ledger / command-log / mesh) ---
+        (["POST"], "/api/a11oy/v1/operator/jarvis/ask",       _sc_rosie_ask),
+        (["POST"], "/api/a11oy/v1/operator/jarvis/act",       _sc_rosie_act),
+        (["GET"],  "/api/a11oy/v1/operator/jarvis/recommend", _sc_rosie_recommend),
+        (["GET"],  "/api/a11oy/v1/operator/ledger",           _sc_rosie_ledger),
+        (["GET"],  "/api/a11oy/v2/operator/command-log",      _sc_rosie_cmdlog),
+        (["GET"],  "/api/a11oy/v1/operator/mesh/3d",          _sc_rosie_mesh3d),
+    ]
+    _sc_existing_paths = {getattr(_r, "path", None) for _r in app.routes}
+    _sc_vert_registered, _sc_vert_skipped = [], []
+    for _sc_methods, _sc_vpath, _sc_vfn in _A11OY_VERTICAL_ALIASES:
+        if _sc_vpath in _sc_existing_paths:
+            _sc_vert_skipped.append(_sc_vpath)
+            continue
+        app.add_api_route(_sc_vpath, _sc_vfn, methods=_sc_methods)
+        _sc_vert_registered.append(_sc_vpath)
+    import sys as _sc_vert_sys
+    print("[a11oy] a11oy-vertical aliases (amaru->memory, sentra->sentinel, "
+          "rosie->operator): " + str(len(_sc_vert_registered)) + " registered, "
+          + str(len(_sc_vert_skipped)) + " already present (codename routes kept "
+          "live for backward-compat)", file=_sc_vert_sys.stderr)
+
     # ===== Task516: governed GET variants + v2 command loop (a11oy-operator-reason-envelope-task516) =====
     @app.get("/api/a11oy/v1/operator/ask")
     async def _sc_cap_ask_get(question: str = ""):
