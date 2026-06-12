@@ -5258,7 +5258,12 @@ try:
     # Candidate secret names, in priority order. HF Space secrets are sometimes
     # saved under a non-standard key (e.g. 'Token'), so we read a broad set and
     # strip stray quotes/whitespace. Server-side only; never sent to the browser.
-    _AC_TOKEN_NAMES = ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HF_ROUTER_TOKEN",
+    # Includes self-hosted-GPU token names (vLLM/TGI on the RTX 5000 Hetzner node
+    # can be served with --api-key); checked alongside the HF names so pointing
+    # A11OY_MODEL_BASE_URL at the local endpoint + setting A11OY_GPU_TOKEN is a
+    # pure env switch (no code change).
+    _AC_TOKEN_NAMES = ("A11OY_GPU_TOKEN", "LOCAL_LLM_TOKEN", "VLLM_API_KEY",
+                       "HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "HF_ROUTER_TOKEN",
                        "HF_API_TOKEN", "HUGGINGFACE_TOKEN", "HUGGINGFACEHUB_API_TOKEN",
                        "Token")
 
@@ -5281,6 +5286,19 @@ try:
                 if _v:
                     return _v
         return ""
+
+    def _ac_inference_kind() -> str:
+        # Honest backend label derived from the configured base URL. A non-HF
+        # base (e.g. a self-hosted vLLM/TGI OpenAI endpoint on the RTX 5000
+        # Hetzner GPU node) reports 'self-hosted-gpu'; the HF Router reports
+        # 'hf-router'; no credential reports the deterministic stub. Never lies
+        # about where inference runs.
+        if not _ac_hf_token():
+            return "NO-CREDENTIAL (deterministic)"
+        base = _AC_ROUTER_BASE.lower()
+        if "router.huggingface.co" in base or "huggingface.co" in base:
+            return "hf-router"
+        return "self-hosted-gpu"
 
     def _ac_mode() -> str:
         return "generative" if _ac_hf_token() else "deterministic"
@@ -5438,7 +5456,7 @@ try:
             "ok": True,
             "service": "a11oy.code",
             "mode": _ac_mode(),
-            "inference": "hf-router" if _ac_hf_token() else "NO-CREDENTIAL (deterministic)",
+            "inference": _ac_inference_kind(),
             "token_source": _ac_token_source() or None,
             "token_candidates": list(_AC_TOKEN_NAMES),
             "router_base": _AC_ROUTER_BASE,
