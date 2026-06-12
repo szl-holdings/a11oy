@@ -1795,6 +1795,10 @@ async def reason(request: Request) -> JSONResponse:
     except Exception:
         return JSONResponse({"error": "invalid JSON body"}, status_code=400)
 
+    # A JSON array/scalar parses without raising; body.get() on a non-dict would
+    # 500. Reject any non-object body with a graceful 400 before touching .get().
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "expected {action: {...}} or flat action object"}, status_code=400)
     action = body.get("action", body)
     if not isinstance(action, dict):
         return JSONResponse({"error": "expected {action: {...}} or flat action object"}, status_code=400)
@@ -2742,6 +2746,10 @@ try:
             else:
                 body = {"proposal": request.query_params.get("proposal", "")}
         except Exception:
+            body = {}
+        # A JSON array/scalar parses without raising; coerce any non-dict to {}
+        # so the .get() calls below stay a clean path instead of a 500.
+        if not isinstance(body, dict):
             body = {}
         proposal = body.get("proposal") or body.get("text") or ""
         ctx = body.get("axes") or body.get("context") or {}
