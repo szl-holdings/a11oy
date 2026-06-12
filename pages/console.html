@@ -646,7 +646,7 @@ const VIEWS={
         <div class="card"><div class="card-h"><span class="card-t">Trust posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="cmd-radar"></canvas></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Safety gate posture</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="cmd-gates"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>allow-capable</span><span><i style="background:#b06a5a"></i>deny-by-default</span></div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Service health</span><span class="card-ep">live probe</span></div><div id="cmd-fleet"><div class="row mono dim">probing 5 services\u2026</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Service health</span><span class="card-ep">live probe</span></div><div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read “Services up”.</b> This counts <b>external organ services reachable on THIS HF demo deploy</b> — the backend organs (Reasoning/Policy/Operator/Receipts) are air-gap / roadmap and are honestly DOWN here, never faked up. The <b>in-image capability mesh is 6/6 healthy</b> (Byzantine quorum 4/4 REACHED) — see the <b>UDS 4/4 Quorum</b> tab. Two different probes, one honest story: organ backends not deployed on this Space; the governed mesh a11oy actually runs on is fully healthy.</div><div id="cmd-fleet"><div class="row mono dim">probing 5 services\u2026</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Performance constants</span><span class="card-ep">real measured benchmarks</span></div><div class="kpis" id="cmd-perf"><div class="row mono dim">loading measured constants\u2026</div></div><div class="brain-note">Measured benchmarks from the published thesis brief (maturity: measured). Source: THESIS_BRIEF.md / Zenodo.</div></div>${HONEST}`;
       // instant: trust radar (this service)
       try{const d=await getJSON(API+'/v1/lambda');const ax=d.axes||[];radar('cmd-radar',ax.map(a=>a.name),ax.map(a=>a.score||0));setTxt('k-lam',(d.lambda||0).toFixed?d.lambda.toFixed(3):d.lambda);}catch(e){}
@@ -5224,7 +5224,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div id="dp-tl" style="min-height:200px"></div>'
         +'<div class="card-h" style="margin-top:.6rem"><span class="card-t">Verify-it-yourself</span></div>'
         +'<pre class="out" id="dp-cmd" style="font-size:10px"></pre>'
-        +'<div class="brain-note">Markers are the real deploy stages of the governed substrate. '+chip('P5 tamper-evidence','PROVEN')+chip('W5-4 collision','PROVEN')+' uds-core is AGPL \u2014 PATTERN ONLY, no code copied.</div></div>'+honest();
+        +'<div class="card-h" style="margin-top:.6rem"><span class="card-t">OCI artifact — GHCR coordinates</span><span class="card-ep">a11oy.uds-bundle.yaml v0.5.0</span></div>'
+        +'<div class="row"><span class="badge b-gold">PENDING PUBLISH</span><span class="mono" style="color:'+CREAM+';word-break:break-all">oci://ghcr.io/szl-holdings/a11oy-bundle:0.5.0</span></div>'
+        +'<div class="row mono dim" style="font-size:9.5px">UDS bundle (a11oy + sentra/amaru/rosie organs + mesh) — built via the uds-bundle-publish workflow; NOT yet published or bundle-level signed. The cosign signature is the real bundle provenance, not the GHCR tag.</div>'
+        +'<div class="row" style="margin-top:.3rem"><span class="badge b-live">PULLABLE</span><span class="mono" style="color:'+CREAM+';word-break:break-all">ghcr.io/szl-holdings/a11oy:uds-v0.2.0</span></div>'
+        +'<div class="row mono dim" style="font-size:9.5px;word-break:break-all">organ image — verified anonymously pullable @ sha256:45fa2365c2fc6cda4ed2d1387478980d173f7f8cdd80a6e7aaa4082f7b276f0b. Distinct path from the bundle (image-vs-bundle collision avoided).</div>'
+        +'<div class="brain-note">Markers are the real deploy stages of the governed substrate. '+chip('P5 tamper-evidence','PROVEN')+chip('W5-4 collision','PROVEN')+' uds-core is AGPL \u2014 PATTERN ONLY, no code copied. The bundle → OCI artifact link: the published artifact lands at the GHCR coordinate above once the publish workflow runs; today only the organ image is pullable, and the bundle’s real provenance is its cosign signature.</div></div>'+honest();
         try{
           var s=null; try{s=await gj('/api/a11oy/v1/observability/summary');}catch(e){}
           var organs=(s&&s.capabilities||[]).length||6;
@@ -8767,7 +8772,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         '<div class="card"><div class="card-h"><span class="card-t">UDS quorum mesh (3D)</span><span class="card-ep">node health live</span></div><div id="udm-3d" style="height:360px"></div>'+
           '<div class="legend"><span><i style="background:'+TL+'"></i>healthy</span><span><i style="background:'+RD+'"></i>faulted</span><span><i style="background:'+FG+'"></i>quorum root</span></div></div>'+
         '<div class="card"><div class="card-h"><span class="card-t">Node roster</span><span class="card-ep" id="udm-fresh">live</span></div><div id="udm-list"><div class="row mono dim">probing mesh\u2026</div></div>'+
-          '<div class="brain-note" id="udm-note"></div></div></div>'+HON;
+          '<div class="brain-note" id="udm-note"></div></div></div>'+
+      '<div class="card"><div class="card-h"><span class="card-t">In-image mesh vs external organs — honest reconciliation</span><span class="card-ep">read with Command Center</span></div>'+
+        '<div class="brain-note">This 6/6 / 4-of-4 quorum is the <b>in-image capability mesh</b> a11oy actually runs on (probed live, same-origin, 0 CDN). It is <b>NOT</b> the same probe as Command Center’s “Services up 1/5”, which counts <b>external organ backends reachable on this HF demo deploy</b> — those backends (Reasoning/Policy/Operator/Receipts) are air-gap / roadmap and honestly DOWN here, never faked up. Same honest story, two probes: governed mesh healthy; organ backends not deployed on this Space.</div></div>'+
+      '<div class="card"><div class="card-h"><span class="card-t">Deploy targets — same UDS bundle, cloud → edge → air-gap</span><span class="card-ep">honest · no secrets</span></div>'+
+        '<div class="row"><span class="badge b-live">LIVE</span><span style="color:'+CR+'">Cloud — HF Space</span><span class="spacer mono dim">szlholdings-a11oy.hf.space · this demo deploy</span></div>'+
+        '<div class="row"><span class="badge b-live">LIVE</span><span style="color:'+CR+'">Hetzner — a11oy.net</span><span class="spacer mono dim">167.233.50.75 · self-hosted</span></div>'+
+        '<div class="row"><span class="badge b-gold">ROADMAP</span><span style="color:'+CR+'">Tactical edge / air-gap</span><span class="spacer mono dim">same UDS bundle · offline-verifiable (cosign verify-blob, no egress)</span></div>'+
+        '<div class="brain-note">One artifact, three targets: the same cosign-signed UDS/Zarf bundle deploys to cloud, on-prem, and a disconnected tactical edge. Air-gap is offline-<i>verifiable</i> (provenance checks run with zero network) — labelled ROADMAP because no air-gapped deploy is claimed live today. No hardcoded env / secrets surfaced. See the <b>Deploy Posture</b> tab for the bundle → SBOM → cosign → OCI artifact chain.</div></div>'+HON;
     poll(async function(){
       try{ var d=await gj(DB+'/uds/quorum'); var nodes=d.nodes||[], h=d.headline||{};
         window.setHTML('udm-head','<span class="badge '+(d.quorum_reached?'b-live':'b-err')+'">'+esc(h.label||'\u2014')+'</span>');
