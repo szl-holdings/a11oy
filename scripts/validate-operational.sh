@@ -27,7 +27,7 @@ npm test --prefix packages/receipt-substrate
 log "receipt substrate CLI smoke"
 rm -f "${RECEIPT_JSONL}"
 npm run smoke --prefix packages/receipt-substrate
-node --experimental-strip-types packages/receipt-substrate/src/cli.ts   --out "${RECEIPT_JSONL}"   --actor did:example:operator   --tool receipted_retrieval   --payload-json '{"query":"followup","limit":1}'
+node packages/receipt-substrate/src/cli.ts   --out "${RECEIPT_JSONL}"   --actor did:example:operator   --tool receipted_retrieval   --payload-json '{"query":"followup","limit":1}'
 node --input-type=module -e "import { readFileSync } from 'node:fs'; const lines = readFileSync(process.env.RECEIPT_JSONL || '${RECEIPT_JSONL}', 'utf8').trim().split(/\n/); if (lines.length !== 2) throw new Error('expected 2 receipt JSONL lines, got ' + lines.length); console.log('[validate-operational] receipt JSONL lines=' + lines.length);"
 
 log "UDS fallback build with manifest + attestations"

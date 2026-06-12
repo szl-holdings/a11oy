@@ -9,11 +9,11 @@
   "author": "Stephen P. Lutar",
   "repository": "github:szl-holdings/a11oy",
   "scripts": {
-    "test": "node --experimental-strip-types src/receipt_substrate.test.ts",
-    "test:serve": "node --experimental-strip-types --test src/serve.test.ts",
-    "smoke": "node --experimental-strip-types src/cli.ts --out /tmp/a11oy-operational-receipts.jsonl --actor did:example:operator --tool receipted_retrieval --payload-json '{\"query\":\"status\",\"limit\":3}'",
-    "selftest": "node --experimental-strip-types src/selftest.ts",
-    "serve": "node --experimental-strip-types src/serve.ts"
+    "test": "node src/receipt_substrate.test.ts",
+    "test:serve": "node --test src/serve.test.ts",
+    "smoke": "node src/cli.ts --out /tmp/a11oy-operational-receipts.jsonl --actor did:example:operator --tool receipted_retrieval --payload-json '{\"query\":\"status\",\"limit\":3}'",
+    "selftest": "node src/selftest.ts",
+    "serve": "node src/serve.ts"
   },
   "files": [
     "dist"

@@ -9,7 +9,7 @@
   "author": "Stephen P. Lutar",
   "repository": "github:szl-holdings/a11oy",
   "scripts": {
-    "test": "node --experimental-strip-types src/index.test.ts"
+    "test": "node src/index.test.ts"
   },
   "files": [
     "dist"

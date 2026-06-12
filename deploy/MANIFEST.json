@@ -3,7 +3,7 @@
   "payloadRoot": "deploy",
   "generator": "scripts/payload_manifest.py",
   "fileCount": 8,
-  "aggregateSha256": "7ad1af5f2edec520600cf24222ab4787f7cd212e09c649fe3c00c930a640642f",
+  "aggregateSha256": "c6823fdc4adbaf5898de95f290e163fc00245c322f499b8dad1e8cbf2004c94f",
   "files": [
     {
       "path": "attestations.jsonl",
@@ -37,13 +37,13 @@
     },
     {
       "path": "uds-package.yaml",
-      "size": 1877,
-      "sha256": "b433765c369bcd2ee1f8b3ee45ec848861adc5f04631cb95b9ebce658eea23f3"
+      "size": 2177,
+      "sha256": "77d3ac99c4670dea9143e95809684f2d0e3f2fa68e064718f21e878e91e30b48"
     },
     {
       "path": "zarf.yaml",
-      "size": 1809,
-      "sha256": "670a7e9cb55ed50bdcc96876d3f5f73809a3b692785df9460ea968f2f1b3c1ea"
+      "size": 1792,
+      "sha256": "561215d366afd3c9d29a095845c97c6beee089e64b27849c2ce4e9d5df101bde"
     }
   ]
 }
