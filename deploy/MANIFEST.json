@@ -2,8 +2,8 @@
   "manifestVersion": 1,
   "payloadRoot": "deploy",
   "generator": "scripts/payload_manifest.py",
-  "fileCount": 8,
-  "aggregateSha256": "c6823fdc4adbaf5898de95f290e163fc00245c322f499b8dad1e8cbf2004c94f",
+  "fileCount": 9,
+  "aggregateSha256": "345dd7483fa884db6c84fc98c3240781f9fc70ad5a326295156b3974546492c3",
   "files": [
     {
       "path": "attestations.jsonl",
@@ -24,6 +24,11 @@
       "path": "manifests/a11oy-service.yaml",
       "size": 310,
       "sha256": "a99b1877a51195720a8f249bccd59b836d4f85461b6418428115b4beb6a41a47"
+    },
+    {
+      "path": "manifests/a11oy-sovereign-env.patch.yaml",
+      "size": 1696,
+      "sha256": "0813370e6a2a100d835e6483dd836db50311d4cecda3ef8f3304211307e772b9"
     },
     {
       "path": "manifests/proof-ledger-pvc.yaml",
