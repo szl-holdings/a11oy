@@ -958,7 +958,7 @@ PROOF_SUMMARY = _json.loads(r'''{
 "what_proven": "Lambda (geometric mean) is UNIQUE within Set alpha {A1,A2,A3,A4,A5' multiplicativity} (cond. on setAlpha_cauchy) and within Set delta {d1..d4,d5' multiplicativity} (cond. on KS_theorem_1_1+setDelta_stage2). All 10 impostor-deaths AXIOM-FREE.",
 "what_NOT_claimed": "NOT unconditional uniqueness under original A1-A5 (machine-checked FALSE: Round13.maxAgg_ne_Lambda). Lambda STAYS Conjecture 1.",
 "maturity": "conditional (axiom-gated bridge); Lambda = Conjecture 1 unconditionally",
-"locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; locked_proven STAYS 5"
+"locked_kernel": "749/14/163 @ c7c0ba17 UNCHANGED; locked_proven STAYS 8"
 },
 "mathlib_bump_c3c4c5": {
 "campaign": "Mathlib v4.18 bump — concentration/KL re-exports C3/C4/C5",
