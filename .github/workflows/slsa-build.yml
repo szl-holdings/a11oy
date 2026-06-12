@@ -68,4 +68,12 @@ jobs:
     with:
       base64-subjects: "${{ needs.build.outputs.digest }}"
       provenance-name: "${{ needs.build.outputs.artifact }}.intoto.jsonl"
-      upload-assets: true
+      # Only attach the signed provenance to a GitHub Release when this run IS a
+      # published-release event. On a bare tag push (no Release object) the
+      # generator's upload-to-release step has no target and fails the run's
+      # "Final outcome" — even though provenance was still generated AND
+      # Sigstore-signed (Fulcio keyless + Rekor). Gating the OPTIONAL upload on
+      # the release event makes a tag-only run honest-green without weakening
+      # any signing: provenance is signed + Rekor-logged regardless; only the
+      # release-asset attachment is conditional. (parity with killinchu #113.)
+      upload-assets: ${{ github.event_name == 'release' }}
