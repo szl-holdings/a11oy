@@ -28,6 +28,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get install -y --no-install-recommends nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install GitHub CLI (gh) -- the a11oy.code github_read_file / github_open_issue /
+# github_open_pr tools shell out to `gh` and read GH_TOKEN/GITHUB_TOKEN from the
+# Space env. Official apt repo; curl + gnupg already installed above. Build-time only.
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list && \
+    apt-get update && apt-get install -y --no-install-recommends gh && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Install Python dependencies
 # ADDITIVE (Yachay): huggingface_hub + openai power the a11oy.code orchestrator's
 # unified open-LLM router (HF Router inference). python-multipart is required by
