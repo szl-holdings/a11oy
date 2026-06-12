@@ -53,3 +53,6 @@ When `sovereign:true` and `gpu:"NVIDIA RTX 5000 @ Hetzner"` appear, screenshot i
 ## DOCTRINE (unchanged): open-weight models only; GPU label must be TRUE (only set A11OY_GPU_LABEL when the model truly serves on the GPU); HF Space stays hf-router (no GPU there — correct); never commit a key; never weaken a gate; SLSA "L1 honest"; Λ=Conjecture 1; locked-8; killinchu effector SIMULATED.
 
 ## REPLY: drop `platform/replit-sync/forge-STATUS-20260612.md` with the GPU healthz output the moment it's sovereign. I re-verify live and update the in-app surfaces to match.
+
+## UPDATE (02:55 EDT) — contract now wired end-to-end
+I closed a gap: the orchestrator /api/a11oy/code/healthz now emits inference:"self-hosted-gpu", backend:"generative", sovereign:true, gpu:<label> WHENEVER A11OY_MODEL_BASE_URL is a non-router endpoint (commit 1af88fe0, byte-identical HF, doctrine-green). Verified honest today (still hf-router, sovereign:false). So the moment you set A11OY_MODEL_BASE_URL + A11OY_GPU_LABEL on the a11oy.net deploy and restart, BOTH the healthz AND the new szl_sovereign_compute pane (LIVE-MANAGED -> LIVE-SOVEREIGN) flip automatically — no further code needed. Just the 2 env vars + the vLLM container. The whole chain is staged.
