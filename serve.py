@@ -3959,9 +3959,13 @@ try:
         (["GET"],  "/api/a11oy/v1/memory/llm/tiers",          _sc_amaru_tiers),
         (["POST"], "/api/a11oy/v1/memory/readiness/assess",   _sc_amaru_readiness),
         # --- a11oy Operator (rosie: operator ask / act / recommend / ledger / command-log / mesh) ---
-        (["POST"], "/api/a11oy/v1/operator/jarvis/ask",       _sc_rosie_ask),
-        (["POST"], "/api/a11oy/v1/operator/jarvis/act",       _sc_rosie_act),
-        (["GET"],  "/api/a11oy/v1/operator/jarvis/recommend", _sc_rosie_recommend),
+        # NOTE: the public operator verbs are served by the honest, codename-free
+        # /api/a11oy/v1/operator/{ask,act,recommend} handlers defined above
+        # (_sc_cap_ask/_sc_cap_act/_sc_cap_recommend, same underlying logic, with
+        # gov_envelope). The legacy /api/rosie/v1/jarvis/* internal aliases remain
+        # for backward-compat (serve.py is doctrine-allowlisted for those). We do
+        # NOT register a user-visible /operator/jarvis/* path: 'jarvis' is a banned
+        # codename and must never appear in a public endpoint.
         (["GET"],  "/api/a11oy/v1/operator/ledger",           _sc_rosie_ledger),
         (["GET"],  "/api/a11oy/v2/operator/command-log",      _sc_rosie_cmdlog),
         (["GET"],  "/api/a11oy/v1/operator/mesh/3d",          _sc_rosie_mesh3d),
