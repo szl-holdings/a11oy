@@ -1981,6 +1981,19 @@ except Exception as _aef_e:  # pragma: no cover
     print(f"[a11oy] szl_alloy_embed_fabric NOT registered ({_aef_e!r}); existing routes unaffected", file=sys.stderr)
 
 
+# Sovereign Compute single-pane (ADDITIVE). One honest endpoint + mobile panel
+# that probes the already-shipped brain (/code/health, #319) + embeddings
+# (/alloy-embed-fabric/health, #320) backends via loopback and reports each as
+# LIVE-SOVEREIGN (our GPU) / LIVE-MANAGED (hf-router) / HONEST-STUB / ROADMAP.
+# Never asserts a tier — derives it from a live probe. DEFENSIVE — never crashes.
+try:
+    import szl_sovereign_compute as _sc
+    _sc_info = _sc.register(app, ns="a11oy")
+    print(f"[a11oy] szl_sovereign_compute registered: {_sc_info.get('routes')}", file=sys.stderr)
+except Exception as _sc_e:  # pragma: no cover
+    print(f"[a11oy] szl_sovereign_compute NOT registered ({_sc_e!r}); existing routes unaffected", file=sys.stderr)
+
+
 # ===========================================================================
 # a11oy OBSERVABILITY (ADDITIVE, 2026-06-01, Yachay / Perplexity Computer Agent).
 # Business observability instilled as a NATIVE a11oy capability — NOT a separate
