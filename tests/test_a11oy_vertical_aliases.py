@@ -50,9 +50,9 @@ def client():
     ("GET",  "/api/a11oy/v1/sentinel/forecast/run", None),
     ("GET",  "/api/a11oy/v1/memory/llm/tiers", None),
     ("POST", "/api/a11oy/v1/memory/readiness/assess", {"subject": "demo", "records": {}}),
-    ("POST", "/api/a11oy/v1/operator/jarvis/ask", {"question": "which services are live?"}),
-    ("POST", "/api/a11oy/v1/operator/jarvis/act", {"action": "acknowledge", "target": "demo"}),
-    ("GET",  "/api/a11oy/v1/operator/jarvis/recommend", None),
+    ("POST", "/api/a11oy/v1/operator/ask", {"question": "which services are live?"}),
+    ("POST", "/api/a11oy/v1/operator/act", {"action": "acknowledge", "target": "demo"}),
+    ("GET",  "/api/a11oy/v1/operator/recommend", None),
     ("GET",  "/api/a11oy/v1/operator/mesh/3d", None),
 ])
 def test_vertical_route_is_live(client, method, path, payload):
@@ -80,7 +80,7 @@ def test_codename_route_still_live(client, method, path, payload):
     ("/api/sentra/v1/threats/full", "/api/a11oy/v1/sentinel/threats/full"),
     ("/api/sentra/v1/forecast/run", "/api/a11oy/v1/sentinel/forecast/run"),
     ("/api/amaru/v1/llm/tiers",     "/api/a11oy/v1/memory/llm/tiers"),
-    ("/api/rosie/v1/jarvis/recommend", "/api/a11oy/v1/operator/jarvis/recommend"),
+    ("/api/rosie/v1/jarvis/recommend", "/api/a11oy/v1/operator/recommend"),
     ("/api/rosie/v1/mesh/3d",       "/api/a11oy/v1/operator/mesh/3d"),
 ])
 def test_deterministic_get_is_identical(client, codename, vertical):
@@ -132,7 +132,7 @@ def test_sentinel_verdict_matches_codename_logic(client):
 def test_operator_ask_matches_codename_logic(client):
     payload = {"question": "what is the lambda verdict?"}
     rc = client.post("/api/rosie/v1/jarvis/ask", json=payload)
-    rv = client.post("/api/a11oy/v1/operator/jarvis/ask", json=payload)
+    rv = client.post("/api/a11oy/v1/operator/ask", json=payload)
     assert rc.status_code == rv.status_code == 200
     bc, bv = rc.json(), rv.json()
     assert bc["topic"] == bv["topic"]
