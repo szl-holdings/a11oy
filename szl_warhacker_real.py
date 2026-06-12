@@ -413,14 +413,22 @@ def _deploy_posture() -> dict:
             "note": "Turns the self-contained Zarf package into a UDS package the cluster operator wires in.",
         },
         "sbom": {"present": True, "formats": ["SPDX", "CycloneDX"],
-                 "note": "SBOMs for all packaged content are vendored in the bundle (Zarf-produced)."},
+                 "attested": True,
+                 "note": "SBOMs for all packaged content are vendored in the bundle (Zarf-produced); "
+                         "the unified bundle additionally carries a cosign DSSE SPDX SBOM attestation "
+                         "(.att) on its OCI artifact, Rekor-transparency-logged."},
         "air_gap": {"model": "yolo:false, images vendored into the tarball",
                     "offline": "uds pull -> uds deploy <tarball> with the cable pulled",
                     "proven_end_to_end": False,
                     "honest": "Air-gap design is correct; one offline deploy on the tower is the remaining proof step."},
         "attestation": {
             "image_level": "SLSA Build L2 - cosign-verifiable provenance on the organ images (honest L1 self-assessment + L2 attestation).",
-            "bundle_level": "cosign signature is the bundle provenance; a separate bundle-level SLSA attestation is NOT claimed.",
+            "bundle_level": ("Keyless cosign signature (.sig) IS the bundle provenance, AND the unified "
+                             "szl-uds-bundle carries a cosign DSSE SPDX SBOM attestation (.att) on its OCI "
+                             "artifact - both keyless (GitHub OIDC, Fulcio) and Rekor-transparency-logged. "
+                             "Verify: cosign verify + cosign verify-attestation --type spdxjson. This is honest "
+                             "L1+L2 supply-chain provenance; a full SLSA L3 bundle build is roadmap, NOT claimed."),
+            "rekor": "Keyless signing + attestation are logged to the public Rekor transparency log (cosign default).",
             "not_claimed": ["SLSA L3", "Iron Bank / registry1", "FedRAMP", "CMMC", "IL4/IL5 ATO"],
         },
         "uds_core_compat": ">=1.5.0 (Zarf >=0.77.0)",
