@@ -354,7 +354,7 @@ _BUNDLES = [
      "expect_digest": "sha256:e59921332c37408fb5a62b270eeeafb1f1ab44aebb350f18662c37aa2c67426f"},
     {"key": "mesh", "repo": "szl-uds-bundle", "tag": "uds-v0.3.0",
      "name": "unified UDS mesh bundle (a11oy + sentra + amaru + killinchu + rosie)",
-     "expect_digest": "sha256:b2e4980f24fa55a09332595def5cc4e63388bbbab27314915f393085ab9de4b5"},
+     "expect_digest": "sha256:50ebc5196f937ff2bcf669cea2e6d510a80fa71df40d13814d601ce00a10656a"},
 ]
 
 
