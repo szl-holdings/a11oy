@@ -461,6 +461,10 @@ def _detect_hf_token() -> str:
 
 _HF_TOKEN = _detect_hf_token()
 _LOCAL_MODEL_CMD = os.environ.get("A11OY_LOCAL_MODEL_CMD") or ""
+# Optional honest hardware label surfaced ONLY when a real local/GPU endpoint is
+# configured (e.g. "NVIDIA RTX 5000 @ Hetzner"). Pure display; never fabricates a
+# backend — if no custom endpoint is set this label is ignored.
+_GPU_LABEL = (os.environ.get("A11OY_GPU_LABEL") or "").strip()
 
 # ---------------------------------------------------------------------------
 # MODEL-ENDPOINT ADAPTER (sovereign, swappable).
@@ -555,14 +559,22 @@ def _backend_label() -> dict:
         return {"backend": "local-weights", "model_serving": "real local model (LOCAL_MODEL_CMD)",
                 "offline": True, "honest": "Running your plugged-in local open-weight model."}
     if _model_configured():
-        tgt = "local model (A11OY_MODEL_BASE_URL)" if "router.huggingface.co" not in _MODEL_BASE_URL else "Hugging Face Router"
-        return {"backend": "generative", "endpoint": _MODEL_BASE_URL,
-                "model_serving": "%s — open-weight serverless (token present, server-side only)" % tgt,
+        _is_local = "router.huggingface.co" not in _MODEL_BASE_URL
+        tgt = "local model (A11OY_MODEL_BASE_URL)" if _is_local else "Hugging Face Router"
+        if _is_local and _GPU_LABEL:
+            tgt = "local open-weight model on %s (sovereign, A11OY_MODEL_BASE_URL)" % _GPU_LABEL
+        lab = {"backend": "generative", "endpoint": _MODEL_BASE_URL,
+                "model_serving": "%s — open-weight (server-side only)" % tgt,
                 "primary_model": _HF_ROSTER[0]["hf_repo"], "configured": True,
-                "offline": False,
-                "honest": "Real generative inference via the OpenAI-compatible endpoint with the "
-                          "present HF_TOKEN (disclosed, never sent to browser). 2x retry + roster "
-                          "fallback. No token => honest 'configure HF_TOKEN' state, never a fake answer."}
+                "offline": bool(_is_local),
+                "honest": "Real generative inference via the OpenAI-compatible endpoint"
+                          + ((" served locally on %s — sovereign, no third-party router." % _GPU_LABEL) if (_is_local and _GPU_LABEL)
+                             else " with the present HF_TOKEN (disclosed, never sent to browser).")
+                          + " 2x retry + roster fallback; never a fabricated answer."}
+        if _is_local and _GPU_LABEL:
+            lab["gpu"] = _GPU_LABEL
+            lab["sovereign"] = True
+        return lab
     if _HF_TOKEN:
         return {"backend": "hf-router", "model_serving": "Hugging Face Router (token present)",
                 "configured": True, "offline": False,
