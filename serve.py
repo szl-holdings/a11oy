@@ -613,6 +613,31 @@ except Exception as _ct_e:  # pragma: no cover
     print(f"[a11oy] Federal-contracting readiness NOT registered: {_ct_e!r}", file=__import__("sys").stderr)
 # ── Federal Contracting Readiness (contracting-tab-patch) ── end
 
+# ── Verifiable-corpus live stats (corpus-stats-patch · Task #774) ── begin
+# Proves the public HF dataset SZLHOLDINGS/a11oy-verifiable-corpus is the REAL
+# backing store (not write-only): reads receipt count + chain head + verified-
+# theorem count straight BACK from HF with honest live/cached/unreachable
+# labels. HF-unreachable tolerant; never fabricates a number.
+try:
+    @app.get("/api/a11oy/v1/corpus")
+    async def _a11oy_corpus_stats():  # noqa: ANN202
+        try:
+            import szl_corpus_publish as _cp
+            return JSONResponse(_cp.corpus_stats(), status_code=200)
+        except Exception as _e:  # pragma: no cover
+            return JSONResponse(
+                {"ok": False, "mode": "unreachable",
+                 "repo": "SZLHOLDINGS/a11oy-verifiable-corpus",
+                 "browse_url": "https://huggingface.co/datasets/SZLHOLDINGS/a11oy-verifiable-corpus",
+                 "viewer_url": "https://huggingface.co/datasets/SZLHOLDINGS/a11oy-verifiable-corpus/viewer",
+                 "receipt_count": None, "chain_head": None, "verified_theorems": None,
+                 "error": "%s: %s" % (type(_e).__name__, _e)},
+                status_code=200)
+    print("[a11oy] Verifiable-corpus stats registered: /api/a11oy/v1/corpus", file=__import__("sys").stderr)
+except Exception as _corpus_e:  # pragma: no cover
+    print(f"[a11oy] Verifiable-corpus stats NOT registered: {_corpus_e!r}", file=__import__("sys").stderr)
+# ── Verifiable-corpus live stats (corpus-stats-patch · Task #774) ── end
+
 # ── BE hardening (Greene) — szl_be_hardening ──
 # Backend hardening: pydantic validation, 60/min/IP rate limit, real OpenAPI at
 # /api/a11oy/openapi.json, /healthz + /readyz (Khipu chain check), JSON logs
