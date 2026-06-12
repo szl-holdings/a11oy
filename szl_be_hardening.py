@@ -99,6 +99,37 @@ DOCTRINE_FOOTER = "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 
 _GENESIS = "0" * 64
 RATE_LIMIT_PER_MIN = 60
 
+# ---------------------------------------------------------------------------
+# 8. SECURITY RESPONSE HEADERS — conservative, non-breaking baseline applied to
+#    EVERY response by the trace/log middleware. We deliberately do NOT emit a
+#    restrictive Content-Security-Policy here: the SZL consoles are self-
+#    contained SPAs with inlined scripts/styles (0 runtime CDN), and a blanket
+#    CSP would break them. These four headers are safe for an HTTPS-only app:
+#      - X-Content-Type-Options: nosniff   (no MIME sniffing)
+#      - X-Frame-Options: SAMEORIGIN       (clickjacking; consoles self-frame)
+#      - Referrer-Policy: strict-origin-when-cross-origin
+#      - Strict-Transport-Security          (hf.space is HTTPS-only)
+#    Additive only; never overwrites a header an organ already set. The HF Space
+#    proxy was verified NOT to inject these, so the served app owns them.
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+}
+
+
+def _apply_security_headers(resp: Any) -> Any:
+    """Set the conservative security-header baseline on `resp` without clobbering
+    any header an organ route already chose to set. Never raises."""
+    try:
+        for k, v in _SECURITY_HEADERS.items():
+            if k not in resp.headers:
+                resp.headers[k] = v
+    except Exception:
+        pass
+    return resp
+
 
 # ---------------------------------------------------------------------------
 # Pydantic request models — defined at MODULE scope so FastAPI can resolve the
@@ -352,7 +383,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             r = _envelope("http_error", str(he.detail), trace_id, he.status_code)
             r.headers["X-Trace-Id"] = trace_id
             r.headers["X-Span-Id"] = span_id
-            return r
+            return _apply_security_headers(r)
         except Exception as exc:  # unhandled -> uniform 500 envelope
             dt = round((time.time() - t0) * 1000, 2)
             logger.error(f"unhandled:{exc!r}", extra={"trace_id": trace_id,
@@ -361,10 +392,11 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             r = _envelope("internal_error", "internal server error", trace_id, 500)
             r.headers["X-Trace-Id"] = trace_id
             r.headers["X-Span-Id"] = span_id
-            return r
+            return _apply_security_headers(r)
         dt = round((time.time() - t0) * 1000, 2)
         resp.headers["X-Trace-Id"] = trace_id
         resp.headers["X-Span-Id"] = span_id
+        _apply_security_headers(resp)
         logger.info("request", extra={"trace_id": trace_id, "span_id": span_id,
             "method": request.method, "path": request.url.path,
             "status": resp.status_code, "latency_ms": dt})
