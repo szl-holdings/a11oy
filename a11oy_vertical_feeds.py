@@ -67,7 +67,7 @@ except Exception:  # pragma: no cover
 
 NS = "a11oy"
 DOCTRINE = {
-    "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+    "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
     "lambda": "Conjecture 1 (advisory floor 0.90; unconditional uniqueness machine-checked FALSE; conditional axiom-free proven)",
     "slsa": "L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap",
     "lambda_floor": 0.90,
@@ -594,6 +594,48 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         return JSONResponse({"ok": True, "verticals": ["defense", "finance", "legal", "cyber", "realestate"],
                              "khipu": _HAS_KHIPU, "dsse": _HAS_DSSE, "gateway": _HAS_GW,
                              "doctrine": DOCTRINE})
+
+    # ---- BARE-PATH VERTICAL INDEX (consolidation map) ----
+    # GET /api/a11oy/v1/vert/{vertical} -> honest summary of the consolidated
+    # vertical: which legacy organ it absorbed, its live sub-routes, and the
+    # doctrine. This makes the bare path genuinely meaningful (not a stub) and
+    # lets readiness probes confirm consolidation at the canonical vertical URL.
+    _VERT_CONSOLIDATION = {
+        "defense":    {"label": "Defense / Gov",     "absorbed": None,
+                       "sources": ["CISA KEV", "NVD CVE", "UDS mesh bridge"],
+                       "routes": ["/feed", "/kpi", "/govern", "/ledger", "/roi"]},
+        "finance":    {"label": "Finance",           "absorbed": None,
+                       "sources": ["Yahoo v8 markets", "Coinbase", "fintech CVE", "FX"],
+                       "routes": ["/feed", "/govern", "/ledger", "/roi"]},
+        "legal":      {"label": "Legal",             "absorbed": "Counsel",
+                       "sources": ["Federal Register", "CourtListener"],
+                       "routes": ["/feed", "/govern", "/ledger", "/roi"]},
+        "cyber":      {"label": "Enterprise / Cyber", "absorbed": "Sentra",
+                       "sources": ["CISA KEV", "NVD CVE", "GitHub/HF activity"],
+                       "routes": ["/feed", "/govern", "/ledger", "/roi"]},
+        "realestate": {"label": "Real Estate",       "absorbed": "Terra",
+                       "sources": ["NYC HPD litigations", "NYC DOB violations", "Treasury rates"],
+                       "routes": ["/feed", "/govern", "/ledger", "/roi"]},
+    }
+
+    @app.get(base + "/{vertical}", include_in_schema=False)
+    async def _vert_index(vertical: str):
+        meta = _VERT_CONSOLIDATION.get(vertical)
+        if meta is None:
+            return JSONResponse({"error": "unknown vertical",
+                                 "verticals": list(_VERT_CONSOLIDATION.keys())}, status_code=404)
+        absorbed = meta["absorbed"]
+        return JSONResponse({
+            "vertical": vertical,
+            "label": meta["label"],
+            "live": True,
+            "consolidated_from": absorbed,
+            "consolidation_note": (f"Legacy '{absorbed}' organ consolidated into a11oy vertical '{vertical}'."
+                                   if absorbed else f"Native a11oy vertical '{vertical}'."),
+            "sources": meta["sources"],
+            "routes": [base + "/" + vertical + r for r in meta["routes"]],
+            "doctrine": DOCTRINE,
+        })
 
     # Move the routes we just appended to the FRONT so they win ordered matching
     # ahead of the proxy + SPA catch-all. Different path namespace (/v1/vert)
