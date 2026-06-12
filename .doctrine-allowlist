@@ -180,20 +180,10 @@ corpus/
 # rationale as ayni_os_serve.py's _HONEST_ROLE table. Not a marketing-hype claim.
 pages/console.html
 
-# serve.py — contains the HONEST codename-sanitization machinery itself:
-#   * _CMP_SUBS / _companion_scrub: the table that STRIPS legacy codenames from
-#     every Companion response before it leaves the Space (so nothing user-visible
-#     ever carries a codename), and
-#   * backward-compat internal API-alias routes (/api/{sentra,amaru,rosie}/v1/* ->
-#     honest in-process handlers), plus the in-code ban-regex _ban that REJECTS
-#     them. These are internal API-alias code + sanitization tables — exactly the
-#     contexts doctrine exempts (NOT user-visible product/role names). The served
-#     output is provably scrubbed; the gate still scans every other file. Adding
-#     here is the no-weaken fix for the line-based grep (mirrors the existing
-#     OUROBOROS_RUN_ALL.py / YACHAY_SYSTEM_PROMPT.md exemptions).
-serve.py
-
-# Test fixtures for the a11oy-vertical legacy API aliases: enumerate the
-# amaru->Memory / sentra->Sentinel / rosie->Operator mapping by design to prove
-# the legacy paths reuse the honest handlers and the public paths are codename-free.
+# tests/test_a11oy_vertical_aliases.py — backward-compat coverage for the legacy
+# internal API alias /api/rosie/v1/jarvis/* (Task #801). It enumerates the legacy
+# 'jarvis' path purely to assert the retired codename route still reuses the honest
+# /api/a11oy/v1/operator/* handler (codename-free public surface). Enumeration of a
+# banned token for regression coverage of the alias itself — same rationale as the
+# serve.py entry above; the public paths it asserts are codename-free. Not hype prose.
 tests/test_a11oy_vertical_aliases.py
