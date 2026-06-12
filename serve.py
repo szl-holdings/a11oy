@@ -7279,3 +7279,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "7860"))
     print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v11 — SPA at /", file=sys.stderr)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+# hf-sync-backend rebuild probe 20260612-task780 (auto-reverted)
