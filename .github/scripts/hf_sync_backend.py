@@ -12,6 +12,17 @@ the Space and gets baked in). We push ONLY the files whose content differs from 
 Space's current copy (git-blob-OID compare), so an unchanged set is a true no-op and
 never triggers a needless Space rebuild.
 
+auto factory-rebuild (drift-fix): an HF Space commit LANDS the new files but does NOT
+rebuild the running Docker container — the Space keeps serving the OLD image until a
+*factory* rebuild. So mirroring the backend via create_commit alone never makes the new
+code actually go live. After a real commit, main() now calls restart_space(
+factory_reboot=True) so the mirrored backend serves with no manual step. It is gated on
+a real commit: an in-sync run makes no commit and triggers NO rebuild (avoids a needless
+multi-minute Docker rebuild). The rebuild outcome is surfaced in the run log — success
+prints a ::notice:: with the resulting runtime stage; a failed request prints a loud
+::error:: (mirrored-but-stale) and re-raises so a silent rebuild failure can't leave the
+Space serving the old container.
+
 delete-aware backend sync (drift-fix): the add/update-only path above left a stale
 copy on the Space whenever a backend module was DELETED from the repo AND dropped from
 the Dockerfile COPY set — the orphaned .py lingered in the Space tree forever. It is
@@ -29,8 +40,8 @@ sync does not populate.
 
 Pure helpers (no huggingface_hub dependency): git_blob_sha1, parse_dockerfile_copy_srcs,
 expand_py_files, build_mirror_set, select_changed_files, managed_backend_dirs,
-select_deletions, sync_to_space. main() lazily imports huggingface_hub so the test
-suite can run network-free with pure stdlib.
+select_deletions, sync_to_space, factory_rebuild, sync_and_maybe_rebuild. main() lazily
+imports huggingface_hub so the test suite can run network-free with pure stdlib.
 """
 import glob
 import hashlib
@@ -201,6 +212,59 @@ def sync_to_space(mirror, space_oid, read_bytes, api, op_add, space_id, op_delet
     return changed_paths, deleted_paths
 
 
+def factory_rebuild(api, space_id):
+    """Trigger an HF Space factory rebuild so the just-mirrored backend actually serves.
+
+    An HF Space commit LANDS the new files but does NOT rebuild the running Docker
+    container — the Space keeps serving the OLD image until a *factory* rebuild. So
+    mirroring the backend via create_commit alone never makes the new code go live.
+    This calls restart_space(factory_reboot=True) (huggingface_hub, same HF_TOKEN, no
+    raw HTTP / no 3rd-party action) after a real commit so the change serves with no
+    human step.
+
+    The outcome is surfaced in the run log: on success a ::notice:: prints the resulting
+    runtime stage (e.g. RUNNING_BUILDING); on failure a loud ::error:: warns the backend
+    was mirrored but the running container was NOT rebuilt, and the exception re-raises so
+    a silent rebuild failure can't leave the Space on the old container.
+
+    Returns the resulting runtime stage string (or None if unavailable).
+    """
+    try:
+        info = api.restart_space(repo_id=space_id, factory_reboot=True)
+    except Exception as exc:  # noqa: BLE001 - surface ANY rebuild failure loudly, then re-raise
+        print(f"::error::Factory rebuild request FAILED for {space_id}: {exc}")
+        print("::error::The backend was mirrored to the Space but the running container "
+              "was NOT rebuilt — the Space may still serve the STALE backend until a "
+              "manual factory rebuild is triggered.")
+        raise
+    runtime = getattr(info, "runtime", None)
+    stage = getattr(runtime, "stage", None) if runtime is not None else None
+    print(f"::notice::Factory rebuild triggered for {space_id} — runtime stage: {stage}")
+    return stage
+
+
+def sync_and_maybe_rebuild(mirror, space_oid, read_bytes, api, op_add, space_id,
+                           op_delete=None, rebuild=factory_rebuild):
+    """Mirror changed/orphaned backend files, then factory-rebuild ONLY on a real commit.
+
+    This is the orchestration main() runs, extracted so the "rebuild iff a commit was
+    made" gate is provable network-free: with fakes injected, the self-test asserts a
+    change triggers exactly one rebuild and an in-sync run triggers none. rebuild is
+    injected (defaults to factory_rebuild) so tests can record the call without touching
+    a live Space.
+
+    Returns (changed_paths, deleted_paths).
+    """
+    changed, deleted = sync_to_space(
+        mirror, space_oid, read_bytes, api, op_add, space_id, op_delete=op_delete
+    )
+    if changed or deleted:
+        rebuild(api, space_id)
+    else:
+        print("No commit made — skipping factory rebuild (Space already current).")
+    return changed, deleted
+
+
 def main() -> int:
     from huggingface_hub import HfApi, CommitOperationAdd, CommitOperationDelete
 
@@ -225,8 +289,8 @@ def main() -> int:
         with open(p, "rb") as fh:
             return fh.read()
 
-    sync_to_space(mirror, space_oid, read_bytes, api, CommitOperationAdd, space_id,
-                  op_delete=CommitOperationDelete)
+    sync_and_maybe_rebuild(mirror, space_oid, read_bytes, api, CommitOperationAdd,
+                           space_id, op_delete=CommitOperationDelete)
     return 0
 
 

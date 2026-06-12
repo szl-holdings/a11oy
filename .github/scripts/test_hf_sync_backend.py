@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Network-free self-test for hf_sync_backend.py — proves the AUTO-PUSH path.
+"""Network-free self-test for hf_sync_backend.py — proves the AUTO-PUSH + REBUILD path.
 
 The hf-sync-backend workflow was only ever observed on the "already in sync -> no-op"
 path. This exercises the actual push path end-to-end with fakes (no network, no live
@@ -7,6 +7,10 @@ Space touched): it imports the SAME module the workflow runs and asserts the OID
 selection only pushes files whose content differs, leaves identical files untouched,
 and (delete-aware) removes backend .py orphaned on the Space while never touching
 README / front-door / built-asset / vendor paths.
+
+It also proves the auto factory-rebuild gate: a real commit triggers exactly one
+restart_space(factory_reboot=True), an in-sync run triggers none, and a failed rebuild
+request re-raises (so a silent rebuild failure can't leave the Space on the old image).
 
 Run by file path (the .github/scripts dir is not an importable package):
     python3 .github/scripts/test_hf_sync_backend.py
@@ -42,15 +46,34 @@ class FakeCommit:
     oid = "deadbeefcafe"
 
 
-class FakeApi:
-    """Records create_commit calls; fails the test if the no-op path commits."""
+class FakeRuntime:
+    def __init__(self, stage):
+        self.stage = stage
 
-    def __init__(self):
+
+class FakeSpaceInfo:
+    def __init__(self, stage):
+        self.runtime = FakeRuntime(stage)
+
+
+class FakeApi:
+    """Records create_commit + restart_space calls; fails if the no-op path commits."""
+
+    def __init__(self, rebuild_stage="RUNNING_BUILDING", rebuild_error=None):
         self.calls = []
+        self.restart_calls = []
+        self._rebuild_stage = rebuild_stage
+        self._rebuild_error = rebuild_error
 
     def create_commit(self, **kwargs):
         self.calls.append(kwargs)
         return FakeCommit()
+
+    def restart_space(self, **kwargs):
+        self.restart_calls.append(kwargs)
+        if self._rebuild_error is not None:
+            raise self._rebuild_error
+        return FakeSpaceInfo(self._rebuild_stage)
 
 
 class SelectChangedFilesTest(unittest.TestCase):
@@ -207,6 +230,102 @@ class SyncToSpacePushTest(unittest.TestCase):
         self.assertEqual(changed, [])
         self.assertEqual(deleted, [])
         self.assertEqual(api.calls, [], "no op_delete => no delete pass, in-sync is a no-op")
+
+
+class FactoryRebuildTest(unittest.TestCase):
+    """factory_rebuild() asks HF for a factory reboot and surfaces the outcome."""
+
+    def test_success_requests_factory_reboot_and_returns_stage(self):
+        api = FakeApi(rebuild_stage="RUNNING_BUILDING")
+        stage = hsb.factory_rebuild(api, "SZLHOLDINGS/a11oy")
+        self.assertEqual(stage, "RUNNING_BUILDING")
+        self.assertEqual(len(api.restart_calls), 1)
+        self.assertEqual(api.restart_calls[0]["repo_id"], "SZLHOLDINGS/a11oy")
+        # The whole point: it must be a FACTORY reboot, not a plain restart.
+        self.assertIs(api.restart_calls[0]["factory_reboot"], True)
+
+    def test_failed_rebuild_reraises(self):
+        api = FakeApi(rebuild_error=RuntimeError("HF 500"))
+        # A silent rebuild failure must NOT be swallowed — it has to fail the run.
+        with self.assertRaises(RuntimeError):
+            hsb.factory_rebuild(api, "SZLHOLDINGS/a11oy")
+        self.assertEqual(len(api.restart_calls), 1)
+
+    def test_missing_runtime_info_does_not_crash(self):
+        class NoRuntimeApi(FakeApi):
+            def restart_space(self, **kwargs):
+                self.restart_calls.append(kwargs)
+                return object()  # no .runtime attribute
+        api = NoRuntimeApi()
+        self.assertIsNone(hsb.factory_rebuild(api, "SZLHOLDINGS/a11oy"))
+
+
+class SyncAndMaybeRebuildTest(unittest.TestCase):
+    """The rebuild is gated on a real commit: change -> rebuild, no-op -> no rebuild."""
+
+    def setUp(self):
+        self.blobs = {
+            "serve.py": b"print('serve v2')\n",
+            "szl_stable.py": b"X = 1\n",
+            "Dockerfile": b"FROM python:3.12\n",
+        }
+        self.read_bytes = lambda p: self.blobs[p]
+        self.mirror = sorted(self.blobs)
+        self.changed_space = {
+            "serve.py": oid(b"print('serve v1')\n"),       # differs
+            "szl_stable.py": oid(self.blobs["szl_stable.py"]),
+            "Dockerfile": oid(self.blobs["Dockerfile"]),
+        }
+        self.in_sync_space = {p: oid(d) for p, d in self.blobs.items()}
+
+    def test_change_triggers_exactly_one_factory_rebuild(self):
+        api = FakeApi()
+        rebuilds = []
+        changed, _ = hsb.sync_and_maybe_rebuild(
+            self.mirror, self.changed_space, self.read_bytes, api, FakeOp,
+            "SZLHOLDINGS/a11oy", op_delete=FakeDelete,
+            rebuild=lambda a, s: rebuilds.append((a, s)),
+        )
+        self.assertEqual(changed, ["serve.py"])
+        self.assertEqual(len(rebuilds), 1, "a real commit must trigger one rebuild")
+        self.assertEqual(rebuilds[0][1], "SZLHOLDINGS/a11oy")
+
+    def test_deletion_only_still_triggers_rebuild(self):
+        api = FakeApi()
+        rebuilds = []
+        space = dict(self.in_sync_space)
+        space["szl_orphan.py"] = oid(b"# removed module still on Space\n")
+        changed, deleted = hsb.sync_and_maybe_rebuild(
+            self.mirror, space, self.read_bytes, api, FakeOp,
+            "SZLHOLDINGS/a11oy", op_delete=FakeDelete,
+            rebuild=lambda a, s: rebuilds.append(s),
+        )
+        self.assertEqual(changed, [])
+        self.assertEqual(deleted, ["szl_orphan.py"])
+        self.assertEqual(len(rebuilds), 1, "a deletion-only commit must still rebuild")
+
+    def test_in_sync_run_triggers_no_rebuild(self):
+        api = FakeApi()
+        rebuilds = []
+        changed, deleted = hsb.sync_and_maybe_rebuild(
+            self.mirror, self.in_sync_space, self.read_bytes, api, FakeOp,
+            "SZLHOLDINGS/a11oy", op_delete=FakeDelete,
+            rebuild=lambda a, s: rebuilds.append(s),
+        )
+        self.assertEqual(changed, [])
+        self.assertEqual(deleted, [])
+        self.assertEqual(api.calls, [], "no commit on an in-sync run")
+        self.assertEqual(rebuilds, [], "no commit => NO needless factory rebuild")
+
+    def test_default_rebuild_is_factory_rebuild(self):
+        # With the real default rebuild callable, a change drives api.restart_space.
+        api = FakeApi()
+        hsb.sync_and_maybe_rebuild(
+            self.mirror, self.changed_space, self.read_bytes, api, FakeOp,
+            "SZLHOLDINGS/a11oy", op_delete=FakeDelete,
+        )
+        self.assertEqual(len(api.restart_calls), 1)
+        self.assertIs(api.restart_calls[0]["factory_reboot"], True)
 
 
 class DockerfileParseTest(unittest.TestCase):
