@@ -118,6 +118,61 @@ class EvaluateTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("root_hash", reason)
 
+    # --- console DATA tab contracts (own shapes, no governed envelope) ---------
+    def test_formulas_contract_passes(self):
+        body = json.dumps({"count": 22, "formulas": []}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["count", "formulas"])
+        self.assertTrue(ok, reason)
+
+    def test_formulas_missing_formulas_fails(self):
+        body = json.dumps({"count": 22}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["count", "formulas"])
+        self.assertFalse(ok)
+        self.assertIn("formulas", reason)
+
+    def test_bounties_contract_passes(self):
+        body = json.dumps({"count": 2, "bounties": [], "honest": True}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["count", "bounties", "honest"])
+        self.assertTrue(ok, reason)
+
+    def test_bounties_missing_honest_flag_fails(self):
+        # A tab that drops its honesty disclosure must turn the check red.
+        body = json.dumps({"count": 2, "bounties": []}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["count", "bounties", "honest"])
+        self.assertFalse(ok)
+        self.assertIn("honest", reason)
+
+    def test_contracting_contract_passes(self):
+        body = json.dumps(
+            {"areas": [], "summary": "x", "honest": True, "founder_actions": []}
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["areas", "summary", "honest"])
+        self.assertTrue(ok, reason)
+
+    def test_readiness_contract_passes(self):
+        body = json.dumps(
+            {"sections": [], "summary": "x", "honest": True, "organ": "a11oy"}
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["sections", "summary", "honest"])
+        self.assertTrue(ok, reason)
+
+    def test_evidence_contract_passes(self):
+        body = json.dumps(
+            {"claims": [], "total_assertions": 13, "status_counts": {}, "passed": 13}
+        ).encode("utf-8")
+        ok, reason = evaluate(
+            200, "application/json", body, ["claims", "total_assertions", "status_counts"]
+        )
+        self.assertTrue(ok, reason)
+
+    def test_evidence_missing_status_counts_fails(self):
+        body = json.dumps({"claims": [], "total_assertions": 13}).encode("utf-8")
+        ok, reason = evaluate(
+            200, "application/json", body, ["claims", "total_assertions", "status_counts"]
+        )
+        self.assertFalse(ok)
+        self.assertIn("status_counts", reason)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
