@@ -384,6 +384,131 @@ def publish_theorems(*, flush: bool = True) -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# Read-back: live corpus stats (HF is the true backing store, not write-only)
+# --------------------------------------------------------------------------- #
+def _prefix_head(prefix: str) -> Optional[Dict[str, Any]]:
+    """Read a prefix's committed chain-state WITHOUT starting a flusher (this is
+    a read path). Returns None only if the bucket client can't be constructed at
+    all (missing repo/token/huggingface_hub) — callers degrade honestly."""
+    b = _get_bucket(prefix, start=False)
+    if b is None:
+        return None
+    try:
+        return b.head()
+    except Exception:
+        return {"count": None, "last_id": None, "last_ts": None,
+                "note": "head read failed"}
+
+
+def _head_mode(head: Optional[Dict[str, Any]]) -> str:
+    """Honest live/cached/unreachable label keyed on the COMMITTED head:
+
+    - live:        head.json is committed on HF (``count`` is a real integer).
+    - cached:      HF head unreachable but records are queued locally (pending).
+    - unreachable: no committed head and nothing pending.
+    """
+    if head is None:
+        return "unreachable"
+    if head.get("count") is not None:
+        return "live"
+    if head.get("pending"):
+        return "cached"
+    return "unreachable"
+
+
+def _verified_theorem_count() -> Dict[str, Any]:
+    """Surface the kernel-verified theorem-entry count from the most-recent
+    theorem record. Never upgrades a claim: the count is exactly what lutar-lean's
+    VERIFIED_THEOREMS list asserted, Theorem U stays CONDITIONAL and Conjecture 1
+    stays OPEN."""
+    b = _get_bucket(PREFIX_THEOREM, start=False)
+    if b is None:
+        return {"mode": "unreachable", "count": None}
+    try:
+        recs = b.read_recent(1)
+        head = b.head()
+    except Exception:
+        return {"mode": "unreachable", "count": None}
+    mode = _head_mode(head)
+    if not recs:
+        # Only a LIVE head with zero records is a truthful "0"; if the head is
+        # unreachable/cached we genuinely don't know the count → None, not 0.
+        return {"mode": mode,
+                "count": 0 if mode == "live" else None,
+                "note": ("no theorem record published yet" if mode == "live"
+                         else "theorem head unreachable — count unknown")}
+    payload = recs[-1].get("payload")
+    payload = payload if isinstance(payload, dict) else {}
+    summ = payload.get("summary")
+    summ = summ if isinstance(summ, dict) else {}
+    return {
+        "mode": mode,
+        "count": summ.get("theorem_entries"),
+        "lean_files": summ.get("lean_files"),
+        "locked_count_eight": summ.get("asserts_locked_count_eight"),
+        "conjecture1_open": summ.get("asserts_conjecture1_open"),
+        "content_sha256": payload.get("content_sha256"),
+        "source": payload.get("source"),
+        "honesty": ("count = kernel-verified theorem entries in the latest "
+                    "lutar-lean VERIFIED_THEOREMS list; Theorem U is CONDITIONAL "
+                    "and Conjecture 1 stays OPEN — counts, not upgraded claims"),
+    }
+
+
+def corpus_stats() -> Dict[str, Any]:
+    """Live read-back of the public verifiable corpus — proves HF is the real
+    backing store (not write-only). Per asset class (receipts/theorems/formulas):
+    record count + chain head (last record id) with an honest live/cached/
+    unreachable label; plus the headline numbers the console shows (receipt
+    count, chain head, verified-theorem count). HF-unreachable tolerant; never
+    fabricates a number."""
+    repo = corpus_repo()
+    prefixes: Dict[str, Any] = {}
+    modes: List[str] = []
+    for label in (PREFIX_RECEIPT, PREFIX_THEOREM, PREFIX_FORMULA):
+        head = _prefix_head(label)
+        mode = _head_mode(head)
+        modes.append(mode)
+        h = head or {}
+        prefixes[label] = {
+            "mode": mode,
+            "count": h.get("count"),
+            "chain_head": h.get("last_id"),
+            "last_ts": h.get("last_ts"),
+            "pending": h.get("pending"),
+            "browse_url": "https://huggingface.co/datasets/%s/tree/main/%s" % (repo, label),
+        }
+    if all(m == "live" for m in modes):
+        overall = "live"
+    elif all(m == "unreachable" for m in modes):
+        overall = "unreachable"
+    elif any(m == "live" for m in modes):
+        overall = "mixed"
+    else:
+        overall = "cached"
+    receipts = prefixes[PREFIX_RECEIPT]
+    return {
+        "ok": True,
+        "repo": repo,
+        "mode": overall,
+        "ts": _utcnow_iso(),
+        "browse_url": "https://huggingface.co/datasets/%s" % repo,
+        "viewer_url": "https://huggingface.co/datasets/%s/viewer" % repo,
+        # headline numbers for the console
+        "receipt_count": receipts.get("count"),
+        "chain_head": receipts.get("chain_head"),
+        "verified_theorems": _verified_theorem_count(),
+        # per asset-class detail
+        "prefixes": prefixes,
+        "note": ("counts + chain head read LIVE from the public HF dataset; every "
+                 "record is content-addressed (sha256) and receipts carry their own "
+                 "DSSE/Ed25519 signature verified at publish time. Labels: live = "
+                 "committed head.json on HF; cached = HF unreachable but records "
+                 "queued locally; unreachable = no committed head and nothing pending."),
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Full sync
 # --------------------------------------------------------------------------- #
 def full_sync() -> Dict[str, Any]:
@@ -406,6 +531,8 @@ def _main(argv: List[str]) -> int:
     cmd = argv[0] if argv else "full-sync"
     if cmd in ("full-sync", "sync", "full"):
         print(json.dumps(full_sync(), indent=2))
+    elif cmd in ("stats", "read", "read-back"):
+        print(json.dumps(corpus_stats(), indent=2))
     elif cmd == "formulas":
         print(json.dumps(publish_formulas(), indent=2))
     elif cmd == "theorems":
