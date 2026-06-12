@@ -219,6 +219,14 @@ def ingest_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
     }
     node["digest"] = _digest(receipt, parents)
     _KHIPU_DAG.append(node)
+    # Verifiable-corpus hook (additive, off hot path, never raises): publish the
+    # signed gate-decision receipt to the public dataset. on_new_receipt skips
+    # the honest PLACEHOLDER envelope and only publishes a real Sigstore one.
+    try:
+        import szl_corpus_publish as _corpus
+        _corpus.on_new_receipt(node["dsse"], extra={"surface": "wire-F", "digest": node["digest"]})
+    except Exception:
+        pass
     return node
 
 

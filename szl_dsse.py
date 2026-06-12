@@ -277,4 +277,11 @@ def sign_khipu_receipt(receipt: dict[str, Any],
         deduped.append(c)
     receipt["neuro_citations"] = deduped
     env = sign_payload(receipt, KHIPU_PAYLOAD_TYPE)
+    # Verifiable-corpus hook (additive, off hot path, never raises): publish the
+    # signed receipt to the public dataset. Skips unsigned/placeholder envelopes.
+    try:
+        import szl_corpus_publish as _corpus
+        _corpus.on_new_receipt(env, extra={"surface": "khipu"})
+    except Exception:
+        pass
     return {"receipt": receipt, "dsse": env}
