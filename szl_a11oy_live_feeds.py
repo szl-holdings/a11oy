@@ -16,7 +16,7 @@ vendored /static-vendor/* libraries.
 
 Free public feeds wired (no key):
   CVE      NVD 2.0   https://services.nvd.nist.gov/rest/json/cves/2.0
-  KEV      CISA      https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+  KEV      CISA      https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json
   RESEARCH arXiv     http://export.arxiv.org/api/query
 Key-gated upgrades are surfaced as explicit "needs API key" placeholders.
 
@@ -162,7 +162,7 @@ def fetch_kev(limit: int = 40) -> dict[str, Any]:
     cached = _cache_get(ck, ttl=900)
     if cached:
         return {**cached, "cached": True}
-    url = ("https://www.cisa.gov/sites/default/files/feeds/"
+    url = ("https://raw.githubusercontent.com/cisagov/kev-data/develop/"
            "known_exploited_vulnerabilities.json")
     try:
         raw = _get_json(url)
@@ -264,7 +264,7 @@ def feeds_manifest() -> dict[str, Any]:
              "source": "https://services.nvd.nist.gov/rest/json/cves/2.0",
              "key": "optional (higher rate)", "license": "public domain"},
             {"id": "kev", "name": "CISA KEV", "endpoint": "/api/a11oy/v1/live/kev",
-             "source": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+             "source": "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json",
              "key": "none", "license": "public domain"},
             {"id": "arxiv", "name": "arXiv research", "endpoint": "/api/a11oy/v1/live/arxiv",
              "source": "http://export.arxiv.org/api/query", "key": "none", "license": "arXiv terms"},
