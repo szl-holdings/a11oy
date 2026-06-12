@@ -56,8 +56,8 @@ _TTL = {
 _SOURCE = {
     "prometheus": ("Prometheus demo (node/caddy/blackbox exporters)",
                    "https://prometheus.demo.prometheus.io/api/v1/query"),
-    "kev": ("CISA Known Exploited Vulnerabilities catalog",
-            "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"),
+    "kev": ("CISA Known Exploited Vulnerabilities catalog (GitHub mirror)",
+            "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"),
     "osv": ("OSV.dev open-source vulnerability database",
             "https://api.osv.dev/v1/query"),
     "rekor": ("Sigstore Rekor transparency log",
