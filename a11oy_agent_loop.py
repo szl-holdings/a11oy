@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v12 (v11+PURIQ)
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11 (LOCKED) · v12 (v11+PURIQ) roadmap
 """
 a11oy_agent_loop — a GENUINELY agentic, governed finite-state machine.
 
