@@ -11711,6 +11711,105 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 <script>
+/* never-blank-organ-degrade-patch :: devS :: ADDITIVE, surgical, NS-aware ::
+   killinchu-grade bar = a viz box must NEVER go truly blank. The Organ-Substrate
+   render fns (DEV1: organheart/organyawar/organnervous/organskeleton) set a KPI to
+   'offline' on honest-degrade but leave their 3D containers EMPTY and their list/pre
+   boxes stuck on a loading placeholder ("loading…"/"probing…"). This patch decorates
+   (does NOT rewrite) those render fns: after the load window it injects a labeled
+   honest-degrade placeholder into any box still blank/stuck. Never fabricates data —
+   only replaces a blank/stuck box with an explicit "data offline · honest degrade"
+   state. Idempotent; touches no DEV1 code, no serve.py. Doctrine v11: organs are
+   EXPERIMENTAL; Λ = Conjecture 1; locked-proven stays 8. */
+(function(){
+  if(window.__devS_neverBlank) return; window.__devS_neverBlank=true;
+  function E(id){ return document.getElementById(id); }
+  // honest-degrade placeholder for an empty 3D / viz container
+  function vizDegrade(label, src){
+    return '<div class="row" style="display:flex;flex-direction:column;align-items:center;justify-content:center;'
+      +'height:100%;min-height:220px;gap:.5rem;text-align:center;padding:1.2rem;'
+      +'border:1px dashed rgba(201,183,135,0.22);border-radius:10px;background:rgba(95,179,163,0.03)">'
+      +'<div style="font-size:22px;opacity:.5">⚠</div>'
+      +'<div class="mono" style="color:#c9a05f;font-size:12.5px;letter-spacing:.04em">DATA OFFLINE · HONEST DEGRADE</div>'
+      +'<div class="mono dim" style="font-size:11px;max-width:30ch;line-height:1.5">'+label+'</div>'
+      +(src?('<div class="mono dim" style="font-size:10px;opacity:.7">source: '+src+'</div>'):'')
+      +'<div class="mono dim" style="font-size:10px;opacity:.7">no synthetic data shown — viz resumes when the endpoint returns</div>'
+      +'</div>';
+  }
+  // honest-degrade row for a stuck list/pre placeholder
+  function listDegrade(label){
+    return '<div class="row mono dim" style="padding:.5rem 0;color:#c9a05f">'
+      +'⚠ offline · honest degrade — '+label+' (no synthetic rows)</div>';
+  }
+  // a 3D container is "blank" if the loader never injected anything (no children, no canvas)
+  function isBlank3D(box){ return box && box.children.length===0 && !box.querySelector('canvas') && !(box.textContent||'').trim(); }
+  // a text box is "stuck" if it still shows exactly its loading placeholder
+  function isStuck(box, stuckTexts){ if(!box) return false; var t=(box.textContent||'').trim().toLowerCase();
+    return stuckTexts.some(function(s){ return t===s; }); }
+  // a blank <canvas> radar (canvas present but never drawn) — heuristic: still blank after window
+  function radarBlank(id){ var cv=E(id); if(!cv||cv.tagName!=='CANVAS') return false;
+    try{ var ctx=cv.getContext('2d'); if(!ctx) return false;
+      // Chart.js sets cv.style.display/height when it draws; if a chart instance exists, it's drawn
+      if(window.Chart && window.Chart.getChart && window.Chart.getChart(cv)) return false;
+      return true; // no chart instance bound → never drawn → blank
+    }catch(e){ return false; } }
+
+  // per-view degrade specs: which boxes to harden + their honest labels
+  var SPEC={
+    organheart:{
+      radar:[{id:'oh-radar',label:'13-axis Λ radar unavailable',src:'/v1/lambda'}],
+      list:[{id:'oh-gatelist',stuck:['loading…'],label:'deny-by-default policy gates',src:'/v1/policy/gates'}]
+    },
+    organyawar:{
+      box3d:[{id:'oy-3d',label:'operator receipt-chain DAG unavailable',src:'/v1/operator/ledger'}],
+      list:[{id:'oy-stream',stuck:['loading…'],label:'operator ledger stream',src:'/v1/operator/ledger'}]
+    },
+    organnervous:{
+      list:[{id:'on-reachlist',stuck:['probing…'],label:'mesh reachability probe',src:'/v1/observability/summary'},
+            {id:'on-melt',stuck:['loading…'],label:'MELT telemetry',src:'/v1/observability/summary'}]
+    },
+    organskeleton:{
+      box3d:[{id:'os-3d',label:'service-mesh 3D topology unavailable',src:'/v1/capabilities/mesh'}],
+      list:[{id:'os-nodelist',stuck:['loading…'],label:'node-health list',src:'/v1/capabilities/mesh'}]
+    }
+  };
+
+  function harden(viewKey){
+    var spec=SPEC[viewKey]; if(!spec) return;
+    (spec.box3d||[]).forEach(function(b){ var box=E(b.id); if(isBlank3D(box)){ box.innerHTML=vizDegrade(b.label,b.src); } });
+    (spec.radar||[]).forEach(function(b){ if(radarBlank(b.id)){ var cv=E(b.id); var host=cv&&cv.parentNode;
+      if(host && !host.querySelector('.devS-degrade')){ var d=document.createElement('div'); d.className='devS-degrade'; d.style.height='100%';
+        d.innerHTML=vizDegrade(b.label,b.src); cv.style.display='none'; host.appendChild(d); } } });
+    (spec.list||[]).forEach(function(b){ var box=E(b.id); if(isStuck(box,b.stuck)){
+      box.innerHTML=listDegrade(b.label); } });
+  }
+
+  // wrap a VIEWS[key].render so we harden AFTER its load/degrade window, without editing it
+  function wrap(viewKey){
+    var V=window.VIEWS; if(!V||!V[viewKey]||!V[viewKey].render) return false;
+    if(V[viewKey].__devSWrapped) return true; V[viewKey].__devSWrapped=true;
+    var orig=V[viewKey].render;
+    V[viewKey].render=async function(c){
+      var r=await orig.call(this,c);
+      // honest-degrade window: fetchTimeout is ~12s but organ gj() typically fails fast on 404.
+      // Re-check at 4s and 9s to cover both fast-fail and slow-timeout degrade paths.
+      setTimeout(function(){ harden(viewKey); }, 4000);
+      setTimeout(function(){ harden(viewKey); }, 9000);
+      return r;
+    };
+    return true;
+  }
+
+  function install(){
+    if(!window.VIEWS){ return setTimeout(install,300); }
+    var keys=['organheart','organyawar','organnervous','organskeleton'];
+    var ok=keys.every(function(k){ return wrap(k); });
+    if(!ok){ setTimeout(install,300); } // some organ views not registered yet — retry
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',install); } else { install(); }
+})();
+</script>
+<script>
 /* anatomy-map-tab-patch :: SZL Anatomy — single honest map (formulas + agentic capabilities) ::
    Additive, self-contained, NS-aware. Snapshot mirror of the standalone deck
    (a11oy.net/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
