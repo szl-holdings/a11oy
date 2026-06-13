@@ -66,6 +66,19 @@ import math
 import urllib.request
 from datetime import datetime, timezone
 
+# Single source of truth for the joules honesty label. Wrapped so a missing/broken
+# import can NEVER take down the loop — we degrade to the honest "sample" default.
+try:
+    from szl_joules_truth import (
+        joules_label as _joules_label,
+        joules_evidence as _joules_evidence,
+    )
+except Exception:  # pragma: no cover - defensive: doctrine default is always sample
+    def _joules_label(_exporter_sample, now=None):  # type: ignore
+        return "sample"
+    def _joules_evidence(_exporter_sample, now=None):  # type: ignore
+        return {}
+
 # ---------------------------------------------------------------------------
 # Doctrine constants (v11). These are the honest, fixed labels + physics floors.
 # ---------------------------------------------------------------------------
@@ -167,10 +180,14 @@ def _read_intake() -> dict:
 
     # A live FEED reading is informational only; it is NOT an on-box power meter.
     feed_measured_any = bool(raw.get("measured_any", False))
-    # Doctrine v11: joules are 'sample' off-box. Only a real on-box meter
-    # (explicit metered_onbox flag) may yield 'measured' — absent off-box.
-    metered_onbox = bool(raw.get("metered_onbox", False))
-    joules_label = MEASURED_LABEL if metered_onbox else SAMPLE_LABEL
+    # Doctrine v11: joules are 'sample' off-box. The label is decided by the
+    # SINGLE SOURCE OF TRUTH (szl_joules_truth) — "measured" ONLY when the source
+    # carries a REAL, FRESH on-box NVML exporter sample. A bare 'metered_onbox'
+    # flag is NO LONGER trusted on its own (that was the honesty bug); the source
+    # must hand us an actual exporter reading + timestamp. Absent -> "sample".
+    exporter_sample = raw.get("exporter_sample") or raw.get("joules_evidence")
+    joules_label = _joules_label(exporter_sample)
+    joules_evidence = _joules_evidence(exporter_sample)
     # grid price is only carried through if the live feed actually supplied one;
     # absence -> None (never a fabricated figure).
     grid_price = raw.get("grid_price_eur_mwh", None)
@@ -180,9 +197,9 @@ def _read_intake() -> dict:
         "grid_price_eur_mwh": grid_price,
         "wasted_energy_available": bool(raw.get("wasted_energy_available", False)),
         "joules_label": joules_label,
+        "joules_evidence": joules_evidence,   # self-verifying: present iff measured
         "source": raw.get("source", "live harvest posture"),
         "feed_measured_any": feed_measured_any,
-        "metered_onbox": metered_onbox,
     }
 
 
@@ -380,8 +397,13 @@ def run_loop(ns: str = "a11oy") -> dict:
             proven_credits=credits,     # proven via the receipt
         )
 
-        # joules_label is the loop-level honesty: measured ONLY if intake measured.
-        joules_label = MEASURED_LABEL if intake.get("joules_label") == MEASURED_LABEL else SAMPLE_LABEL
+        # joules_label is the loop-level honesty: re-derived from the intake's REAL
+        # exporter evidence via the single source of truth — "measured" only if that
+        # evidence still proves a fresh real sample. We do NOT just trust the intake
+        # label string; we re-verify it against its own evidence.
+        intake_evidence = intake.get("joules_evidence") or {}
+        joules_label = _joules_label(intake_evidence) if intake_evidence else SAMPLE_LABEL
+        joules_evidence = _joules_evidence(intake_evidence) if intake_evidence else {}
 
         beats_last_cycle = 1 if flowing or beat.get("beat_id") else 0
 
@@ -395,6 +417,7 @@ def run_loop(ns: str = "a11oy") -> dict:
                 "posture": intake.get("posture"),
                 "wasted_energy_available": bool(intake.get("wasted_energy_available", False)),
                 "joules_label": intake.get("joules_label", SAMPLE_LABEL),
+                "joules_evidence": intake.get("joules_evidence", {}),
             },
             "organs": organs,
             "beats_last_cycle": int(beats_last_cycle),
@@ -412,6 +435,7 @@ def run_loop(ns: str = "a11oy") -> dict:
                 "note": ayni.get("note", ""),
             },
             "joules_label": joules_label,
+            "joules_evidence": joules_evidence,   # self-verifying: present iff measured
             "honesty": (
                 "carries soaked WORK + receipts, NOT electrons; joules are SAMPLE off-box "
                 "(no power meter wired); organs are EXPERIMENTAL (never proven); Ayni balances "

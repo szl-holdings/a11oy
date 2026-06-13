@@ -66,6 +66,24 @@ except Exception as _harvest_import_err:
     _HARVEST_OK = False
     _HARVEST_IMPORT_ERR = repr(_harvest_import_err)
 
+# Single source of truth for the joules honesty label. Off-box this API has NO real
+# exporter sample, so the helper returns "sample" + empty evidence — making the
+# (already-hardcoded) "sample" label SELF-VERIFYING. Wrapped so it can never crash.
+try:
+    from szl_joules_truth import (
+        joules_label as _joules_truth_label,
+        joules_evidence as _joules_truth_evidence,
+    )
+except Exception:  # pragma: no cover - defensive: doctrine default is always sample
+    def _joules_truth_label(_exporter_sample, now=None):  # type: ignore
+        return "sample"
+    def _joules_truth_evidence(_exporter_sample, now=None):  # type: ignore
+        return {}
+
+# This off-box API never has a real NVML exporter sample. Passing None to the
+# single source of truth ALWAYS yields ("sample", {}) — doctrine-clean + verifiable.
+_NO_EXPORTER_SAMPLE = None
+
 # ---------------------------------------------------------------------------
 # Feed citation table (used in /index response)
 # ---------------------------------------------------------------------------
@@ -168,6 +186,10 @@ def handle_posture() -> dict:
             "timestamp_utc": p.timestamp_utc,
             "citation": p.citation,
             "doctrine": p.doctrine,
+            # joules honesty via the single source of truth. Off-box there is no real
+            # exporter sample -> label "sample", evidence {} (never fabricated).
+            "joules_label": _joules_truth_label(_NO_EXPORTER_SAMPLE),
+            "joules_evidence": _joules_truth_evidence(_NO_EXPORTER_SAMPLE),
             "joules_note": (
                 "joules_label is always 'sample' off-box; "
                 "MEASURED requires on-box NVML — this API does not run on the box"
@@ -244,8 +266,10 @@ def handle_receipt() -> dict:
         return _unavailable_response("receipt")
     try:
         prov = harvest_provenance()
-        # Enforce doctrine: joules_label MUST be "sample" (invariant, not configurable)
-        prov["joules_label"] = "sample"
+        # Enforce doctrine via the single source of truth: off-box there is no real
+        # exporter sample, so the label resolves to "sample" and evidence is {}.
+        prov["joules_label"] = _joules_truth_label(_NO_EXPORTER_SAMPLE)
+        prov["joules_evidence"] = _joules_truth_evidence(_NO_EXPORTER_SAMPLE)
         prov["joules_note"] = (
             "joules_label ALWAYS 'sample' off-box. "
             "MEASURED requires a real on-box NVML meter. "

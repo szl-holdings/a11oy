@@ -38,6 +38,19 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
+# Single source of truth for the joules honesty label. Wrapped so a missing/broken
+# import can NEVER take down the status aggregator — we degrade to honest "sample".
+try:
+    from szl_joules_truth import (
+        joules_label as _joules_truth_label,
+        joules_evidence as _joules_truth_evidence,
+    )
+except Exception:  # pragma: no cover - defensive: doctrine default is always sample
+    def _joules_truth_label(_exporter_sample, now=None):  # type: ignore
+        return "sample"
+    def _joules_truth_evidence(_exporter_sample, now=None):  # type: ignore
+        return {}
+
 # ---------------------------------------------------------------------------
 # Doctrine block — constant, stamped on every response.
 # ---------------------------------------------------------------------------
@@ -149,12 +162,27 @@ def _energy_from_budget(probe: dict[str, Any]) -> dict[str, Any]:
         energy["window"] = body.get("window")
         energy["source"] = body.get("source")
         energy["within_bound"] = body.get("within_bound")
-        # joules: MEASURED only when the feed explicitly says so; else SAMPLE/ESTIMATE.
-        raw_label = str(body.get("joules_label", body.get("label", "sample"))).lower()
-        label = "measured" if raw_label in ("measured", "metered", "real") else (
-            "estimate" if raw_label in ("estimate", "est") else "sample"
-        )
-        energy["joules"] = {"value": body.get("joules"), "label": label}
+        # joules honesty: the label is decided by the SINGLE SOURCE OF TRUTH
+        # (szl_joules_truth) — "measured" ONLY when the budget feed carries a REAL,
+        # FRESH on-box NVML exporter sample. A forwarded label STRING is NO LONGER
+        # trusted on its own (that was the honesty bug): a feed saying
+        # joules_label="measured" with no real exporter reading now degrades to
+        # "sample". The feed must supply an actual exporter_sample/joules_evidence.
+        exporter_sample = body.get("exporter_sample") or body.get("joules_evidence")
+        truth_label = _joules_truth_label(exporter_sample)
+        if truth_label == "measured":
+            label = "measured"
+        else:
+            # Preserve the honest finer-grained distinction between estimate/sample
+            # for non-measured feeds, but NEVER upgrade to measured here.
+            raw_label = str(body.get("joules_label", body.get("label", "sample"))).lower()
+            label = "estimate" if raw_label in ("estimate", "est") else "sample"
+        energy["joules"] = {
+            "value": body.get("joules"),
+            "label": label,
+            # self-verifying: real exporter evidence iff measured, else empty.
+            "evidence": _joules_truth_evidence(exporter_sample),
+        }
     energy["status"] = "ok"
     return energy
 
@@ -317,7 +345,16 @@ def _selftest() -> dict[str, Any]:
                               "inference": {"reachable": True, "model": "qwen"},
                               "gpu": {"name": "RTX 5000", "util": 0.4}}),
         ENERGY_ENDPOINT: (200, {"window": "off-peak", "source": "nvml",
-                                "joules": 1234.5, "joules_label": "measured", "within_bound": True}),
+                                "joules": 1234.5, "joules_label": "measured", "within_bound": True,
+                                # A REAL, FRESH on-box NVML exporter sample backs the
+                                # "measured" claim — without this the label degrades to
+                                # "sample" (the honesty fix). ts is now() => fresh.
+                                "exporter_sample": {
+                                    "joules_measured_total": 1234.5,
+                                    "exporter_node": "rig-0",
+                                    "exporter_last_seen_ts": __import__("time").time(),
+                                    "power_w_sample": 210.0,
+                                }}),
         SWARM_ENDPOINT: (200, {"nodes": 4, "served_by": "anchor"}),
     }
     for ep in ORGAN_ENDPOINTS.values():
@@ -335,6 +372,9 @@ def _selftest() -> dict[str, Any]:
     chk("A_organs_healthy_6", a["organs_healthy"] == 6 and a["organs_total"] == 6)
     chk("A_energy_measured", a["energy"]["joules"]["label"] == "measured")
     chk("A_energy_value", a["energy"]["joules"]["value"] == 1234.5)
+    # self-verifying: a measured label MUST carry real exporter evidence.
+    chk("A_energy_evidence_present", bool(a["energy"]["joules"].get("evidence")))
+    chk("A_energy_evidence_node", a["energy"]["joules"]["evidence"].get("exporter_node") == "rig-0")
     chk("A_energy_within_bound", a["energy"]["within_bound"] is True)
     chk("A_swarm_served_by", a["swarm"]["served_by"] == "anchor" and a["swarm"]["nodes"] == 4)
     chk("A_doctrine_lambda", a["doctrine"]["lambda"] == "Conjecture 1")
@@ -371,6 +411,26 @@ def _selftest() -> dict[str, Any]:
     e_table[ENERGY_ENDPOINT] = (200, {"window": "peak", "source": "off-peak-clock", "joules": 99.0})
     e = run(aggregate_status(make_fetch(e_table)))
     chk("E_joules_sample_default", e["energy"]["joules"]["label"] == "sample")
+
+    # ---- Scenario H: feed CLAIMS "measured" but ships NO real exporter sample ----
+    # This is the cross-module honesty bug: a bare label string must NOT be trusted.
+    # The single source of truth degrades it to "sample" with empty evidence.
+    h_table = dict(full_table)
+    h_table[ENERGY_ENDPOINT] = (200, {"window": "off-peak", "source": "claims-nvml",
+                                      "joules": 777.0, "joules_label": "measured"})
+    h = run(aggregate_status(make_fetch(h_table)))
+    chk("H_unbacked_measured_downgraded", h["energy"]["joules"]["label"] == "sample")
+    chk("H_no_fabricated_evidence", h["energy"]["joules"].get("evidence") == {})
+
+    # ---- Scenario I: feed ships a STALE exporter sample -> downgraded to sample ----
+    i_table = dict(full_table)
+    i_table[ENERGY_ENDPOINT] = (200, {"window": "off-peak", "source": "nvml", "joules": 555.0,
+                                      "joules_label": "measured",
+                                      "exporter_sample": {"joules_measured_total": 555.0,
+                                                          "exporter_node": "rig-1",
+                                                          "exporter_last_seen_ts": 1.0}})
+    i = run(aggregate_status(make_fetch(i_table)))
+    chk("I_stale_sample_downgraded", i["energy"]["joules"]["label"] == "sample")
 
     # ---- Scenario F: swarm absent -> reachable:false, never invented ----
     no_swarm = dict(full_table)

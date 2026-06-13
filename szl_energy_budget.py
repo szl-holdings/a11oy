@@ -49,6 +49,21 @@ from starlette.responses import JSONResponse
 # Honest label carried on every energy figure until a real meter exists.
 ENERGY_FIGURE_LABEL = "SAMPLE/ESTIMATE (no real power meter wired — doctrine v11/v12)"
 
+# Single source of truth for the joules honesty label. This budget layer estimates
+# draws (joules_est) and has NO real on-box NVML exporter, so the helper always
+# returns "sample" + {} here — making the SAMPLE/ESTIMATE posture self-verifying.
+# Wrapped so a missing/broken import can never take down the energy budget API.
+try:
+    from szl_joules_truth import (
+        joules_label as _joules_truth_label,
+        joules_evidence as _joules_truth_evidence,
+    )
+except Exception:  # pragma: no cover - defensive: doctrine default is always sample
+    def _joules_truth_label(_exporter_sample, now=None):  # type: ignore
+        return "sample"
+    def _joules_truth_evidence(_exporter_sample, now=None):  # type: ignore
+        return {}
+
 # In-memory ledger (process-local; resets on restart). A monotone append-only list
 # of receipts — mirrors the f19_budget_monotone / monotone-energy-ledger idea: the
 # running joules_est sum is non-decreasing because every draw is nonneg.
@@ -135,6 +150,10 @@ def track_task(
         "energy_source": str(energy_source),
         "joules_est": round(j_est, 6),
         "joules_est_label": ENERGY_FIGURE_LABEL,
+        # joules honesty via the single source of truth: no on-box exporter here, so
+        # label is "sample" and evidence is {} (never a fabricated measurement).
+        "joules_label": _joules_truth_label(None),
+        "joules_evidence": _joules_truth_evidence(None),
         "gate": "F19/TH6 Bekenstein: shannon_bits <= output_bytes*8",
         "ts": _now(),
     }
@@ -162,6 +181,9 @@ def budget_summary() -> dict:
         "gate": "F19/TH6 Bekenstein: Σ shannon_bits <= Σ output_bytes*8",
         "total_joules_est": round(total_joules, 6),
         "total_joules_est_label": ENERGY_FIGURE_LABEL,
+        # self-verifying joules honesty (no on-box exporter at this layer).
+        "joules_label": _joules_truth_label(None),
+        "joules_evidence": _joules_truth_evidence(None),
         "ledger_monotone": "running joules_est sum is non-decreasing (every draw nonneg) — mirrors f19_budget_monotone",
         "composes": ["F19 Bekenstein additivity (locked-8)", "TH6 DPI/Bekenstein runtime bound",
                      "F12 Kuramoto multi-node coupling", "coherence-decay honesty governor"],
