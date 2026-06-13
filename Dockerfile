@@ -130,6 +130,14 @@ COPY static/a11oy_operator_organ.js ./static/a11oy_operator_organ.js
 COPY static/vendor3d/three.module.min.js ./static/vendor3d/three.module.min.js
 COPY static/vendor3d/OrbitControls.js ./static/vendor3d/OrbitControls.js
 COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
+# ADDITIVE (cathedral unification, GitHub-aligned): the ONE canonical genius
+# cathedral served at /cathedral — IDENTICAL "Constellation · Khipu" scene as the
+# SZLHOLDINGS/cathedral HF static space. cathedral_genius.html is that HF
+# index.html byte-for-byte except its two asset paths (importmap -> /hero/vendor3d,
+# module src -> /cathedral/app.js). app.js is the canonical ES module, served
+# sovereign in-image. Reuses the vendor3d Three.js r160 above — 0 CDN.
+COPY cathedral_genius.html ./cathedral_genius.html
+COPY static/cathedral_app.js ./static/cathedral_app.js
 # ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
 # ADDITIVE (a11oy Code agentic core, 2026-06-10): the GENUINELY-agentic loop + agentic
