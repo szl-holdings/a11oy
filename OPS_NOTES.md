@@ -1,7 +1,7 @@
 # OPS_NOTES.md — a11oy operational notes
 
 Authored for SZL Holdings. Signed-off per repository DCO.
-Doctrine v7 compliant — no fake-green labels, no marketing superlatives.
+Doctrine v11 compliant — no fake-green labels, no marketing superlatives.
 
 ---
 
