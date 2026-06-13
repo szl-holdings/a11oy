@@ -143,6 +143,27 @@ except Exception as _szl_bh_e:  # pragma: no cover
     print(f"[a11oy] Backend hardening NOT registered: {_szl_bh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
 # ── Backend hardening (devJ) — szl_backend_hardening ── end
 
+# ── Resilience (devM) — szl_resilience ──
+# ADDITIVE on top of backend-hardening (#346) + prod-hardening (#345). Two proven
+# patterns, our own implementation: (1) a Hystrix-style CIRCUIT BREAKER that wraps
+# outbound calls to flaky deps (the GPU nodes — chaski especially) so a sustained
+# outage trips the breaker OPEN and the compute-pool FAILS FAST instead of paying
+# the per-node timeout at all (the deep fix beyond caching); (2) a Kubernetes-style
+# LIVENESS vs READINESS split — /health/live is a trivial 200 (process alive, no dep
+# logic) and /health/ready is 200 ONLY if core deps (dark-surface modules registered
+# + harvest reader responding + no breaker stuck OPEN) are healthy, else 503. The
+# readiness 503 is the gate that STOPS deploy flapping: a new image only becomes live
+# after /health/ready is 200. Honest: breaker state reflects real call outcomes,
+# readiness reflects real dependency checks; joules MEASURED only via exporter;
+# sovereign own-metal-only; locked=8; Λ=Conjecture 1; no key. try/except-guarded.
+try:
+    import szl_resilience as _szl_resilience
+    _szl_resilience.register(app, ns="a11oy")
+    print("[a11oy] Resilience registered: /health/live + /health/ready (+ /api/a11oy/v1/health/* + /api/a11oy/v1/resilience; Hystrix breaker + K8s liveness/readiness)", file=__import__("sys").stderr)
+except Exception as _szl_res_e:  # pragma: no cover
+    print(f"[a11oy] Resilience NOT registered: {_szl_res_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+# ── Resilience (devM) — szl_resilience ── end
+
 # ── UDS fleet-trust layer (uds-fleet-patch) — the Defense Unicorns / Unicorn
 # Delivery Service fleet story told with direct attribution + links to the public
 # UDS repos and the Air & Space Forces Magazine coverage, mapping each fleet

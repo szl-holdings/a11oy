@@ -97,6 +97,11 @@ COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py s
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
 COPY szl_energy_budget.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
+# ADDITIVE (devM resilience): szl_resilience is imported by serve.py for the Hystrix
+# circuit breaker + K8s liveness/readiness split. Per-file COPY (this Dockerfile does
+# not use `COPY . .`); without this line `import szl_resilience` would ModuleNotFound
+# at runtime and /health/live + /health/ready would 404 (the recurring dark-surface bug).
+COPY szl_resilience.py ./
 # ADDITIVE (verifiable-corpus): the publisher module imported lazily (try/except)
 # by szl_dsse + szl_wire to publish signed receipts to the public HF dataset
 # SZLHOLDINGS/a11oy-verifiable-corpus. Per-file COPY (this Dockerfile never uses
