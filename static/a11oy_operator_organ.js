@@ -13,7 +13,7 @@
  * additive-blend sprites (no postprocessing pass), so nothing un-vendored is
  * needed. Honest live/cached/pending states only — no fabricated telemetry.
  *
- * Doctrine v11: locked-proven = 5 {F1,F11,F12,F18,F19}; Λ = Conjecture 1.
+ * Doctrine v11: locked-proven = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1.
  * Signed-off-by: Opus 4.8 (Dev3 — Operator-organ ingest). Apache-2.0.
  * ========================================================================== */
 import * as THREE from 'three';
