@@ -7421,6 +7421,31 @@ except Exception as _sovcomp_e:
 # ============================================================================
 
 
+# ============================================================================
+# ADDITIVE: Prometheus /metrics exporter (szl-metrics-prom-patch)
+# Date: 2026-06-13 | Signed-off-by: Forge <forge@szlholdings.ai>
+# WHY: the UDS Package spec.monitor scrapes GET :7860/metrics, but with no metrics
+# route that path fell through to the SPA /{full_path:path} catch-all and returned
+# the app HTML shell (200 text/html) — so Prometheus harvested ZERO samples. This
+# serves REAL Prometheus exposition format at /metrics (process + HTTP request
+# counters/latency, all self-measured, none fabricated). Registered LAST (after
+# frontier_patch routes.clear()+extend) and FRONT-INSERTED so it beats the SPA
+# catch-all. Pure-stdlib, pass-through ASGI middleware (SSE-safe), try/except so it
+# can NEVER take the Space down. Shared module byte-identical a11oy<->killinchu.
+# ============================================================================
+try:
+    import szl_metrics_prom as _szl_prom
+    import sys as _prom_sys
+    _prom_status = _szl_prom.register(app, ns="a11oy")
+    print(f"[a11oy] szl_metrics_prom: {_prom_status}", file=_prom_sys.stderr)
+except Exception as _prom_e:  # pragma: no cover
+    print(f"[a11oy] szl_metrics_prom NOT registered (non-fatal): {_prom_e!r}",
+          file=__import__("sys").stderr)
+# ============================================================================
+# END: Prometheus /metrics exporter
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
