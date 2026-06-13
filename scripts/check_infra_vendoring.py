@@ -15,15 +15,16 @@ This guard stops that from silently coming back:
 
 It is intentionally additive: it does not fire on the existing legitimate
 pointer READMEs, nor on the vendored copies that already existed when the guard
-was added (allowlisted below and FROZEN — do not grow the allowlist; vendor
-nothing new).
+was added (allowlisted below). The allowlist is being shrunk toward empty as
+each grandfathered copy is reduced to a pointer — do not grow it; vendor
+nothing new.
 
 Usage:
   python3 scripts/check_infra_vendoring.py [--infra <dir>]
 
 Exit codes:
   0 — clean
-  1 — a re-vendored pointer dir or a new vendored repo copy was detected
+  1  a re-vendored pointer dir or a new vendored repo copy was detected
   2 — configuration / usage error
 """
 
@@ -41,20 +42,29 @@ POINTER_DIRS = {"uds-deployment", "uds-mesh", "uds-bundles"}
 # optional note). Anything more means someone re-vendored the repo.
 POINTER_MAX_FILES = int(os.environ.get("INFRA_POINTER_MAX_FILES", "2"))
 
-# Vendored copies that already existed when this guard was introduced. They are
-# FROZEN: do NOT add new entries here. The whole point of the guard is to stop
-# the set of vendored copies from growing — link to the canonical repo instead.
+# Vendored copies that were grandfathered in when this guard was introduced.
+# The allowlist is being SHRUNK toward empty: as each grandfathered copy is
+# reduced to a small pointer README (the same pattern Task #547 used for
+# uds-deployment / uds-mesh / uds-bundles), its name is dropped from here and it
+# then passes as an ordinary small pointer dir. Only entries that are GENUINELY
+# required by a11oy's own build/runtime remain.
+#
+# Still allowlisted:
+#   receipts-samples — this is NOT a vendored copy of an external repo. It is
+#     sample receipt/span data plus JSON schemas that a11oy itself ships and
+#     reads at runtime: it is COPY'd in the Dockerfile
+#     (`COPY infra/receipts-samples/ ./infra/receipts-samples/`) and loaded by
+#     ayni_os_serve.py / a11oy_hf_assets.py. It must stay, so it stays
+#     allowlisted (and is allowed to exceed the file-count threshold).
+#
+# Previously allowlisted and now removed (reduced to pointer READMEs, no
+# references anywhere in the repo): build-env, fleet-overlay, hatun-mcp,
+# khipu-consensus, lake, lambda-bounty, szl-mesh, vsp-otel, vsp_otel.
+#
+# Do NOT add new entries here — link to the canonical szl-holdings/<repo>
+# instead and leave only a small pointer README.
 ALLOWLISTED_VENDORED = {
-    "build-env",
-    "fleet-overlay",
-    "hatun-mcp",
-    "khipu-consensus",
-    "lake",
-    "lambda-bounty",
     "receipts-samples",
-    "szl-mesh",
-    "vsp-otel",
-    "vsp_otel",
 }
 
 # A non-pointer, non-allowlisted dir holding more than this many files looks
