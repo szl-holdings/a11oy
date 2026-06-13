@@ -9,7 +9,11 @@ and asserts the doctrine v11 invariants hold OFFLINE (no network, no serve.py):
   - joules_label == "sample" by default (off-box, no real meter wired);
   - ayni.balanced is True (reciprocal, never net-positive);
   - no "key" anywhere in the output (no leaked/secret key in the response);
-  - every organ carries "experimental" (organs are never claimed proven).
+  - every organ carries "experimental" (organs are never claimed proven);
+  - YARQA appears as the named CIRCULATORY organ INSIDE the unified loop
+    (the irrigation-canal / flow-router / vascular system), tagged EXPERIMENTAL,
+    with the heart as the pump and YARQA as the vessels of ONE circulatory
+    subsystem — the consolidation invariant (#yarqa-anatomy-consolidation).
 
 Pure stdlib. Run: python3 test_anatomy_loop.py
 """
@@ -74,6 +78,24 @@ def test_loop_invariants():
         assert "experimental" in organ["note"].lower(), organ
         assert "flowing" in organ and isinstance(organ["flowing"], bool)
 
+    # (5) CONSOLIDATION: YARQA is the named CIRCULATORY organ INSIDE this loop.
+    names = [o["name"] for o in out["organs"]]
+    assert "YARQA" in names, f"YARQA must be a named organ in the unified loop: {names}"
+    yarqa = next(o for o in out["organs"] if o["name"] == "YARQA")
+    # role names the circulatory function (flow-router / irrigation-canal).
+    assert "circulatory" in yarqa["role"].lower(), yarqa["role"]
+    # YARQA is EXPERIMENTAL — never claimed proven.
+    assert "experimental" in yarqa["note"].lower(), yarqa
+    # flowing is a real bool reflecting dispersal (not a fabricated truthy flag).
+    assert isinstance(yarqa["flowing"], bool), yarqa
+    # The unified body exposes ONE circulatory subsystem: heart = pump, YARQA = vessels.
+    assert out["circulatory"]["vessels"] == "YARQA", out["circulatory"]
+    assert "heart" in out["circulatory"]["pump"].lower(), out["circulatory"]
+    assert "circulatory" in out["circulatory"]["vessels_role"].lower(), out["circulatory"]
+    # ONE canonical loop surface + the standalone canal alias kept ALIVE.
+    assert "unified_loop" in out["surfaces"], out["surfaces"]
+    assert "/yarqa" in out["surfaces"]["standalone_canal"], out["surfaces"]
+
     # Shape sanity: required top-level keys present and honest.
     assert out["kind"] == "anatomy-circulation-loop"
     assert out["ns"] == "a11oy"
@@ -84,9 +106,44 @@ def test_loop_invariants():
     return out
 
 
+def test_yarqa_is_circulatory_organ():
+    """Focused consolidation assertion: YARQA is the circulatory organ, honest joules.
+
+    Asserts the founder-approved architecture: YARQA is the named circulatory
+    organ (vascular system) INSIDE the unified anatomy loop — not a sibling peer.
+    Also re-checks the doctrine v11 honesty floor: joules_label is MEASURED only
+    when a real on-box source is present, else SAMPLE (here, offline -> sample).
+    """
+    out = loop.run_loop(ns="a11oy")
+
+    # YARQA present, circulatory, EXPERIMENTAL.
+    yarqa = next((o for o in out["organs"] if o["name"] == "YARQA"), None)
+    assert yarqa is not None, [o["name"] for o in out["organs"]]
+    assert yarqa["role"] == "circulatory (flow-router / irrigation-canal)", yarqa["role"]
+    assert "experimental" in yarqa["note"].lower(), yarqa
+
+    # YARQA's flowing mirrors real dispersal; dispersed credits are 0 when idle.
+    assert isinstance(yarqa["flowing"], bool), yarqa
+    if not yarqa["flowing"]:
+        assert yarqa.get("dispersed_work_credits", 0) == 0, yarqa
+
+    # joules_label honest: MEASURED only with a real on-box source, else SAMPLE.
+    # This module runs offline in CI, so it MUST be sample (never fabricated).
+    assert out["joules_label"] in ("sample", "measured"), out["joules_label"]
+    assert out["joules_label"] == "sample", "offline must degrade to sample, never measured"
+
+    # Ayni balances — reciprocal, never net-positive.
+    assert out["ayni"]["balanced"] is True, out["ayni"]
+
+    # No "key" anywhere in the serialized output (no leaked secret).
+    assert "key" not in json.dumps(out).lower(), "output must not contain any 'key'"
+    return out
+
+
 if __name__ == "__main__":
     result = test_loop_invariants()
-    print("PASS — anatomy loop self-test")
+    yarqa_out = test_yarqa_is_circulatory_organ()
+    print("PASS — anatomy loop self-test (YARQA consolidated as circulatory organ)")
     print(json.dumps({
         "joules_label": result["joules_label"],
         "ayni_balanced": result["ayni"]["balanced"],
