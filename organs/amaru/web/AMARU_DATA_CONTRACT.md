@@ -61,7 +61,7 @@ The frontend client wrappers and TypeScript types live in
 
 The four GovernancePanels (Provenance / Evidence Ledger / Ownership / SLO+Status)
 are rendered in `src/components/GovernancePanels.tsx` and remain anchored to
-Doctrine V7 values (Λ floor 0.90, 9-axis AND, moral-grounding 0.95, repo
+Doctrine V11 values (Λ floor 0.90, 9-axis AND, moral-grounding 0.95, repo
 `szl-holdings/amaru`, ORCID `0009-0001-0110-4173`). These are static
 payload-grounded constants, not product copy.
 
