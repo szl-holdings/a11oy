@@ -6441,6 +6441,39 @@ async def _hero_vendor(fname: str) -> Response:
     return JSONResponse({"error": "vendor missing"}, status_code=404)
 
 
+# === ADDITIVE: /cathedral — the ONE canonical genius cathedral, GitHub-aligned. ===
+# Unifies the cathedral front door so a11oy.net/cathedral renders the IDENTICAL
+# "Constellation · Khipu" scene as the SZLHOLDINGS/cathedral HF static space and
+# killinchu/cathedral. The page (cathedral_genius.html at the repo root) is the
+# canonical HF index.html byte-for-byte EXCEPT its two asset paths, which are
+# repointed at sovereign in-image routes: the ES-module app at /cathedral/app.js
+# and the vendored Three.js r160 (MIT) at the existing /hero/vendor3d/* routes.
+# 0 runtime CDN; system-font stacks; Three.js vendored. Honesty doctrine v11:
+# locked-proven = 8, Λ = Conjecture 1 (advisory), Khipu BFT = Conjecture 2.
+# Registered BEFORE the SPA /{full_path:path} catch-all so it wins ordered match
+# (previously /cathedral fell through to the console SPA shell — the divergence).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+@app.get("/cathedral")
+async def cathedral_genius_page() -> Response:
+    f = Path("/app/cathedral_genius.html")
+    if f.is_file():
+        return FileResponse(str(f), media_type="text/html")
+    # Honest fallback: the Sovereign-Lattice front door, then the SPA shell.
+    hero = Path("/app/cathedral.html")
+    if hero.is_file():
+        return FileResponse(str(hero), media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+@app.get("/cathedral/app.js")
+async def _cathedral_app_js() -> Response:
+    f = Path("/app/static/cathedral_app.js")
+    if f.is_file():
+        return FileResponse(str(f), media_type="application/javascript; charset=utf-8",
+                            headers={"Cache-Control": "public, max-age=3600"})
+    return JSONResponse({"error": "cathedral app.js missing"}, status_code=404)
+# === end /cathedral canonical genius unification ===
+
+
 
 # --- Doctrine v13 organ page routes (ADDITIVE; explicit, win over SPA catch-all) ---
 PAGES_DIR = Path("/app/pages")
