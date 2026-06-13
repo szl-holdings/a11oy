@@ -7567,6 +7567,30 @@ except Exception as _sovcomp_e:
 
 
 # ============================================================================
+# REVENUE LAYER (feat/revenue-layer): ADDITIVE honest revenue ESTIMATORS.
+# Doctrine v11 LOCKED — revenue figures demand maximum honesty; no fabricated
+# numbers. Every output labeled ESTIMATE or PRICING_HYPOTHESIS, computed from
+# real inputs (live aWATTar grid price, NASA VIIRS flare volumes). Pure stdlib.
+# Endpoints:
+#   GET /api/a11oy/v1/revenue/estimate — live honest ESTIMATE breakdown
+#     (demand-response + arbitrage + flare-carbon-credit + verified-premium)
+#   GET /api/a11oy/v1/revenue/thesis   — market context + SZL differentiator
+# Registered before the SPA catch-all. try/except: can NEVER take down a route.
+# ============================================================================
+try:
+    import revenue_endpoints as _rev_endpoints
+    import sys as _rev_sys
+    _rev_status = _rev_endpoints.register(app, ns="a11oy")
+    print(f"[a11oy] Revenue layer registered: {_rev_status.get('routes')}", file=_rev_sys.stderr)
+except Exception as _rev_e:  # pragma: no cover
+    print(f"[a11oy] Revenue layer NOT registered (non-fatal): {_rev_e!r}",
+          file=__import__("sys").stderr)
+# ============================================================================
+# END: Revenue layer
+# ============================================================================
+
+
+# ============================================================================
 # ADDITIVE: Prometheus /metrics exporter (szl-metrics-prom-patch)
 # Date: 2026-06-13 | Signed-off-by: Forge <forge@szlholdings.ai>
 # WHY: the UDS Package spec.monitor scrapes GET :7860/metrics, but with no metrics
