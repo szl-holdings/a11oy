@@ -24,8 +24,15 @@ THE LOOP (one cycle):
                   bounded, honest unit of WORK — never free energy.
     -> heart/pulse a DSSE beat on the HEART σ-bus + BLOOD Merkle chain
                   (szl_heart_blood, #332), wrapping a provenance receipt.
-    -> YARQA      irrigation canal: disperse the beat to the organs
+                  The heart is the PUMP (the beat); see YARQA for the VESSELS.
+    -> YARQA      the CIRCULATORY organ of the body — the Quechua irrigation
+                  canal that divides/routes flow. YARQA is the vascular system:
+                  it takes the metabolized work_credits + the heart's beat and
+                  disperses flow to the downstream organs
                   WAQAYCHAQ (guard/store), KAMAY (act/animate), RIKUY (observe).
+                  heart (pump) + YARQA (vessels) = ONE circulatory subsystem.
+                  YARQA is NOT a sibling peer of the loop; it IS the loop's
+                  circulatory function, named here as a first-class organ.
     -> EnergyReservoir store the metabolized work_credits (a tank, not a battery
                   of electrons — it holds proven WORK + its receipt).
     -> provenance receipt  bind the cycle into the tamper-evident chain
@@ -81,11 +88,18 @@ _BOLTZMANN_K = 1.380649e-23          # J/K (CODATA)
 _ROOM_T_KELVIN = 300.0               # K — a labeled SAMPLE ambient, not metered
 LANDAUER_FLOOR_J = _BOLTZMANN_K * _ROOM_T_KELVIN * math.log(2)  # ~2.87e-21 J/bit
 
-# The three YARQA dispersal organs. EXPERIMENTAL tier — never claimed proven.
+# YARQA — the CIRCULATORY organ (flow-router / irrigation-canal). It is the
+# vascular system of the body: the function that takes metabolized work_credits
+# from KALLPA + the heart's beat and disperses flow to the downstream organs.
+# heart (pump) + YARQA (vessels) = ONE circulatory subsystem. EXPERIMENTAL tier.
+YARQA_NAME = "YARQA"
+YARQA_ROLE = "circulatory (flow-router / irrigation-canal)"
+
+# The downstream organs YARQA irrigates. EXPERIMENTAL tier — never claimed proven.
 _ORGAN_SPECS = (
-    ("WAQAYCHAQ", "guard/store — disperse the beat to the reservoir-guard organ (experimental)"),
-    ("KAMAY",     "act/animate — disperse the beat to the actuation organ (experimental)"),
-    ("RIKUY",     "observe — disperse the beat to the observation/telemetry organ (experimental)"),
+    ("WAQAYCHAQ", "guard/store — YARQA disperses the beat to the reservoir-guard organ (experimental)"),
+    ("KAMAY",     "act/animate — YARQA disperses the beat to the actuation organ (experimental)"),
+    ("RIKUY",     "observe — YARQA disperses the beat to the observation/telemetry organ (experimental)"),
 )
 
 # Candidate live posture surfaces, in attempt order: local box first, then public.
@@ -249,23 +263,46 @@ def _heart_beat(metab: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# YARQA — disperse the beat to the organs. EXPERIMENTAL tier (never proven).
+# YARQA — the CIRCULATORY organ. It IS the vascular system of the body: it takes
+# the metabolized work_credits + the heart's beat and disperses flow to the
+# downstream organs. heart (pump) + YARQA (vessels) = ONE circulatory subsystem.
+# YARQA is a first-class, named organ here — not a sibling peer of the loop.
+# EXPERIMENTAL tier (never proven).
 # ---------------------------------------------------------------------------
-def _yarqa_disperse(beat: dict, flowing: bool) -> list:
-    """YARQA: the irrigation canal. Disperse the beat to each organ.
+def _yarqa_disperse(beat: dict, flowing: bool, work_credits: int = 0) -> list:
+    """YARQA: the CIRCULATORY organ — the irrigation canal / vascular system.
+
+    YARQA takes the metabolized work_credits + the heart's beat and disperses
+    flow to the downstream organs (WAQAYCHAQ, KAMAY, RIKUY). It is itself the
+    FIRST organ returned, named as the circulatory (flow-router) organ, so the
+    unified loop view shows ONE body with the vascular system made explicit.
 
     Every organ is tagged EXPERIMENTAL — we make NO proven claim about any organ.
     flowing reflects whether this cycle actually soaked + beat (i.e. there was
-    wasted work to circulate); when nothing was soaked, the canal is idle (honest).
+    wasted work to circulate); when nothing was soaked, the canal is idle (honest)
+    and YARQA reports flowing=False — real dispersal, never a fabricated flow.
     """
     organs = []
+    # YARQA itself — the named circulatory organ (vessels), the flow-router that
+    # disperses the metabolized credits + beat. flowing mirrors REAL dispersal.
+    organs.append({
+        "name": YARQA_NAME,
+        "role": YARQA_ROLE,
+        "flowing": bool(flowing),
+        "dispersed_work_credits": int(work_credits) if flowing else 0,
+        "note": f"EXPERIMENTAL tier — YARQA is the circulatory organ (vascular system); "
+                f"the heart is the pump (beat {beat.get('beat_id','')}), YARQA is the vessels "
+                f"that route the flow to the downstream organs; carries soaked WORK + receipts, "
+                f"NOT electrons; never claimed proven",
+    })
+    # The downstream organs YARQA irrigates.
     for name, role in _ORGAN_SPECS:
         organs.append({
             "name": name,
             "role": role,
             "flowing": bool(flowing),
-            "note": f"EXPERIMENTAL tier — carries the beat {beat.get('beat_id','')}, not electrons; "
-                    f"never claimed proven",
+            "note": f"EXPERIMENTAL tier — irrigated by YARQA (circulatory); carries the beat "
+                    f"{beat.get('beat_id','')}, not electrons; never claimed proven",
         })
     return organs
 
@@ -365,9 +402,9 @@ def run_loop(ns: str = "a11oy") -> dict:
         metab = _kallpa_metabolize(soak)
         beat = _heart_beat(metab)
         flowing = bool(soak.get("soaked", False))
-        organs = _yarqa_disperse(beat, flowing)
-
         credits = int(metab.get("work_credits", 0))
+        # YARQA (circulatory organ) disperses the metabolized credits + beat.
+        organs = _yarqa_disperse(beat, flowing, work_credits=credits)
         reservoir = _RESERVOIR.store(credits)
         prov = _provenance_receipt(metab)
 
@@ -397,6 +434,28 @@ def run_loop(ns: str = "a11oy") -> dict:
                 "joules_label": intake.get("joules_label", SAMPLE_LABEL),
             },
             "organs": organs,
+            "circulatory": {
+                # ONE circulatory subsystem: the heart is the PUMP (the beat),
+                # YARQA is the VESSELS (the flow-router that routes the beat +
+                # metabolized credits to the downstream organs). EXPERIMENTAL.
+                "pump": "heart/pulse (the beat; szl_heart_blood #332)",
+                "vessels": YARQA_NAME,
+                "vessels_role": YARQA_ROLE,
+                "flowing": bool(flowing),
+                "dispersed_work_credits": int(credits) if flowing else 0,
+                "note": "EXPERIMENTAL tier — heart (pump) + YARQA (vessels) are ONE "
+                        "circulatory subsystem; YARQA is the named circulatory organ "
+                        "of the unified body, not a sibling peer; never claimed proven",
+            },
+            "surfaces": {
+                # ONE canonical loop view + the standalone canal alias.
+                "unified_loop": f"/api/{ns}/v1/anatomy/loop  (the unified organism — "
+                                f"SAMAY -> KALLPA -> heart/pulse + YARQA -> organs -> "
+                                f"reservoir -> receipt -> Ayni F11 -> repeat)",
+                "standalone_canal": "/yarqa  (the standalone irrigation-canal view of "
+                                    "the same circulatory organ; this /anatomy/loop is "
+                                    "the canonical unified-body view)",
+            },
             "beats_last_cycle": int(beats_last_cycle),
             "reservoir": {
                 "work_credits": reservoir.get("work_credits", 0),
@@ -413,11 +472,17 @@ def run_loop(ns: str = "a11oy") -> dict:
             },
             "joules_label": joules_label,
             "honesty": (
-                "carries soaked WORK + receipts, NOT electrons; joules are SAMPLE off-box "
-                "(no power meter wired); organs are EXPERIMENTAL (never proven); Ayni balances "
-                "(reciprocal, never net-positive); no free-energy claim; Λ = Conjecture 1; "
-                "sovereign stays false unless on own metal; degrades to a labeled SAMPLE "
-                "snapshot when no live feed is reachable — never fabricated."
+                "ONE unified body, ONE loop, ONE receipt chain, ONE Ayni balance: "
+                "SAMAY (lungs/intake) -> KALLPA (metabolism) -> heart/pulse (pump/beat) + "
+                "YARQA (circulatory/dispersal vessels) -> WAQAYCHAQ/KAMAY/RIKUY (organs) -> "
+                "EnergyReservoir (store) -> provenance receipt -> Ayni F11 close -> repeat; "
+                "YARQA is the named CIRCULATORY organ (flow-router / irrigation-canal), the "
+                "vessels to the heart's pump — not a sibling peer; carries soaked WORK + "
+                "receipts, NOT electrons; joules are SAMPLE off-box (no power meter wired); "
+                "organs are EXPERIMENTAL (never proven); Ayni balances (reciprocal, never "
+                "net-positive); no free-energy claim; Λ = Conjecture 1; sovereign stays false "
+                "unless on own metal; degrades to a labeled SAMPLE snapshot when no live feed "
+                "is reachable — never fabricated."
             ),
             "stages": {
                 "intake_source": intake.get("source", ""),
@@ -439,10 +504,28 @@ def run_loop(ns: str = "a11oy") -> dict:
             "intake": {"grid_price_eur_mwh": None, "posture": "sample",
                        "wasted_energy_available": False, "joules_label": SAMPLE_LABEL},
             "organs": [
+                {"name": YARQA_NAME, "role": YARQA_ROLE, "flowing": False,
+                 "dispersed_work_credits": 0,
+                 "note": "EXPERIMENTAL tier — YARQA is the circulatory organ (vessels); "
+                         "idle on a degraded cycle; never claimed proven"},
+            ] + [
                 {"name": n, "role": r, "flowing": False,
-                 "note": "EXPERIMENTAL tier — never claimed proven"}
+                 "note": "EXPERIMENTAL tier — irrigated by YARQA (circulatory); never claimed proven"}
                 for n, r in _ORGAN_SPECS
             ],
+            "circulatory": {
+                "pump": "heart/pulse (the beat; szl_heart_blood #332)",
+                "vessels": YARQA_NAME,
+                "vessels_role": YARQA_ROLE,
+                "flowing": False,
+                "dispersed_work_credits": 0,
+                "note": "EXPERIMENTAL tier — heart (pump) + YARQA (vessels) are ONE "
+                        "circulatory subsystem; idle on a degraded cycle; never claimed proven",
+            },
+            "surfaces": {
+                "unified_loop": f"/api/{ns}/v1/anatomy/loop",
+                "standalone_canal": "/yarqa",
+            },
             "beats_last_cycle": 0,
             "reservoir": {"work_credits": 0, "joules_label": SAMPLE_LABEL, "stored": False},
             "last_receipt_id": "",
@@ -496,8 +579,14 @@ def _selftest() -> dict:
     assert "kind" in out and out["kind"] == "anatomy-circulation-loop"
     for organ in out["organs"]:
         assert "experimental" in organ["note"].lower(), organ
+    # YARQA is the named CIRCULATORY organ inside the unified loop (not a peer).
+    yarqa = next((o for o in out["organs"] if o["name"] == YARQA_NAME), None)
+    assert yarqa is not None, out["organs"]
+    assert "circulatory" in yarqa["role"].lower(), yarqa
+    assert out["circulatory"]["vessels"] == YARQA_NAME, out["circulatory"]
     return {"ok": True, "joules_label": out["joules_label"],
-            "ayni_balanced": out["ayni"]["balanced"], "organs": len(out["organs"])}
+            "ayni_balanced": out["ayni"]["balanced"], "organs": len(out["organs"]),
+            "circulatory_vessels": out["circulatory"]["vessels"]}
 
 
 if __name__ == "__main__":
