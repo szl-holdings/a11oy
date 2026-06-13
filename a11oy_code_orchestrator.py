@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-# Doctrine v12 (= v11 + PURIQ). Signed: Yachay.
+# Doctrine v11 (LOCKED). v12 (v11+PURIQ) is an experimental roadmap, NOT locked. Signed: Yachay.
 # Built by: Perplexity Computer Agent.
 """
 a11oy.code Conversational Orchestrator - additive backend module.
@@ -1626,7 +1626,7 @@ async def _safe_body(request: Request) -> tuple[Any, Optional[JSONResponse]]:
     error_response (a graceful 400) instead of letting request.json() raise — an
     unguarded raise becomes an opaque HTTP 500, which is both a poor judge/demo
     experience and an error-shape leak. An empty body parses to {}. QA-hardened
-    (mirrors serve.py::_safe_json_body). Doctrine v12 (v11+PURIQ).
+    (mirrors serve.py::_safe_json_body). Doctrine v11 (LOCKED); v12 (v11+PURIQ) roadmap.
     """
     try:
         raw = await request.body()
@@ -1685,7 +1685,10 @@ def _honest_key_resolution() -> dict:
 async def code_healthz() -> JSONResponse:
     _sov = _sovereign_inference_state()
     return JSONResponse({
-        "status": "ok", "component": "a11oy.code orchestrator", "doctrine": "v12 (v11+PURIQ)",
+        "status": "ok", "component": "a11oy.code orchestrator",
+        "doctrine": "v11",
+        "doctrine_state": "LOCKED",
+        "doctrine_roadmap": "v12 (v11+PURIQ) — experimental, not locked",
         "inference": _sov["inference"],
         "mode": _sov["mode"],
         "backend": _sov["backend"],
@@ -2439,7 +2442,7 @@ def attach(app) -> None:
     init_db()
     SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
     app.include_router(router)
-    print("[a11oy.code] orchestrator mounted at /api/a11oy/code/* (Doctrine v12 PURIQ)", file=sys.stderr)
+    print("[a11oy.code] orchestrator mounted at /api/a11oy/code/* (Doctrine v11 LOCKED; v12 PURIQ roadmap)", file=sys.stderr)
 
 
 def _receipt_wiring_selftest() -> dict:
