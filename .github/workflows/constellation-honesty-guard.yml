@@ -38,12 +38,14 @@ on:
     paths:
       - "pages/console.html"
       - "tools/constellation-honesty/check_constellation_honesty.mjs"
+      - "tools/constellation-honesty/check_constellation_refresh.mjs"
       - ".github/workflows/constellation-honesty-guard.yml"
   pull_request:
     branches: [main]
     paths:
       - "pages/console.html"
       - "tools/constellation-honesty/check_constellation_honesty.mjs"
+      - "tools/constellation-honesty/check_constellation_refresh.mjs"
       - ".github/workflows/constellation-honesty-guard.yml"
   workflow_dispatch:
 
@@ -64,6 +66,8 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Validators reject Math.random / NaN / dangling-edge, accept the real block
         run: node tools/constellation-honesty/check_constellation_honesty.mjs --selftest
+      - name: Refresh probes reject frozen / leaking / unguarded intervals, accept the real block
+        run: node tools/constellation-honesty/check_constellation_refresh.mjs --selftest
 
   # Run the honesty assertions against the live constellation block.
   guard:
@@ -76,3 +80,7 @@ jobs:
         run: node tools/constellation-honesty/check_constellation_honesty.mjs --selftest
       - name: No Math.random + finite coords + no dangling edges (seeded fixtures)
         run: node tools/constellation-honesty/check_constellation_honesty.mjs pages/console.html
+      - name: Self-test the refresh probes before trusting them
+        run: node tools/constellation-honesty/check_constellation_refresh.mjs --selftest
+      - name: Auto-refresh re-polls on tick + tears down on leave + no-setInterval safe
+        run: node tools/constellation-honesty/check_constellation_refresh.mjs pages/console.html
