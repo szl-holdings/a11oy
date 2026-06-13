@@ -810,6 +810,10 @@ try:
     app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    # ENERGY ENGINE (2026-06-13): honest GPU + Bekenstein-budget dashboard. Standalone
+    # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
+    app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
