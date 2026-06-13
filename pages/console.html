@@ -4004,7 +4004,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           T('kn-ax',(kb.axioms||[]).length); T('kn-doi',(kb.dois||kb.zenodo_deposits||[]).length||(kb.axioms||[]).filter(function(a){return a.citation;}).length);
           var r=B1.gpuKnowledgeGraph('kn-gpu', nodes, edges);
           if(r){ T('kn-n',r.nodeCount); T('kn-e',r.edgeCount); }
-        }catch(e){ T('kn-n','offline'); }
+        }catch(e){ T('kn-n','unreachable'); T('kn-e','\u2014'); T('kn-ax','\u2014'); T('kn-doi','\u2014'); var host=E('kn-gpu'); if(host)host.innerHTML='<div class="row mono dim" style="padding:1.2rem;line-height:1.6">Knowledge base unreachable right now \u2014 shown honestly, not faked (no placeholder graph drawn).<div style="font-size:9px;margin-top:.3rem">'+esc(e.message)+'</div></div>'; }
       }};
 
     /* ---- CHAIN: cytoscape-dagre layered DAG + ngraph.path proof-path ---- */
@@ -4111,7 +4111,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="brain-note">Each node is a real signed ledger receipt; edges are parent links. '+chip('F-G4 label-invariant','CI-GREEN')+'</div></div>'+B1.honestBlock();
         try{ var d=await gj('/api/a11oy/v1/ledger'); var rec=(d.receipts||[]); T('l3-n',d.count||rec.length);
           B1.graphGL3d('l3-gl', rec);
-        }catch(e){ T('l3-n','offline'); }
+        }catch(e){ T('l3-n','unreachable'); var host=E('l3-gl'); if(host)host.innerHTML='<div class="row mono dim" style="padding:1.2rem;line-height:1.6">Live receipt ledger unreachable right now \u2014 shown honestly, not faked (no placeholder receipts drawn).<div style="font-size:9px;margin-top:.3rem">'+esc(e.message)+'</div></div>'; }
       }};
 
     /* ---- LINEAGE: d3-sankey + ngraph.path shortest derivation ---- */
@@ -4141,7 +4141,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             E('ln-sk').insertAdjacentHTML('afterend','<div class="row mono dim" style="font-size:9px">knowledge.json sparse \u2014 structural sample of the proof lineage</div>');
           }
           B1.sankeyLineage('ln-sk', nodes, links);
-        }catch(e){ T('ln-ax','offline'); }
+        }catch(e){ T('ln-ax','unreachable'); T('ln-th','\u2014'); T('ln-fm','\u2014'); var host=E('ln-sk'); if(host)host.innerHTML='<div class="row mono dim" style="padding:1.2rem;line-height:1.6">Knowledge base unreachable right now \u2014 shown honestly, not faked (no placeholder lineage drawn).<div style="font-size:9px;margin-top:.3rem">'+esc(e.message)+'</div></div>'; }
       }};
 
     /* ---- FORECAST: conformal prediction interval band (W5-3, NOT Hoeffding) ---- */
