@@ -668,6 +668,7 @@ COPY szl_connectors/ ./szl_connectors/
 # This Dockerfile never uses `COPY . .` — without this line `import
 # szl_hf_bucket` fails. Imported lazily by callers; no boot-time side effects.
 COPY szl_hf_bucket.py szl_metrics_prom.py ./
+COPY szl_anatomy_loop.py szl_dark_surfaces_register.py szl_research_infra.py ./
 
 CMD ["python", "serve.py"]
 
