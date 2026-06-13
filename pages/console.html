@@ -330,6 +330,111 @@ details.raw[open] summary{color:var(--muted);}
 .skel-row.w90{width:90%}.skel-row.w70{width:70%}.skel-row.w55{width:55%}
 .skel-caption{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em;margin-top:.35rem;opacity:.8}
 
+/* ============ MOBILE ELEGANCE PASS — 2026-06 (devA) · CSS-FIRST, ADDITIVE ============
+   Investor-grade phone polish in the SZL deep-space/teal+gold aesthetic. Visual/
+   layout only — no content, routing, 3D-scene or doctrine change. Enforces the
+   universal mobile checklist on every surface this console renders:
+     1 type floor (>=12px, body 14-16) · 2 touch targets (>=44px) ·
+     3 top-nav never clips on 360-390 · 4 fixed HUD reflow + safe-area ·
+     5 0px h-overflow at 320/360/390/768 · 6 reduced-motion + AA contrast.
+   Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com> */
+@media (max-width:768px){
+  /* (1) TOP NAV — never clip. Let it grow to two comfortable rows instead of a
+     39px nowrap strip that cut off "DRONES & VESSELS..."/"GOVERNED-AI...". The
+     long descriptive breadcrumb + redundant SURFACE label are hidden on phones;
+     brand, LIVE pill and the cross-surface switcher stay. */
+  .topbar{height:auto!important;min-height:48px!important;max-height:none!important;
+    flex-wrap:wrap!important;white-space:normal!important;overflow:visible!important;
+    row-gap:.35rem;column-gap:.6rem;font-size:12px!important;line-height:1.2;
+    padding-top:calc(env(safe-area-inset-top,0px) + .45rem)!important;
+    padding-bottom:.45rem!important;align-items:center;}
+  .topbar .tb-desc{display:none!important;}              /* the long descriptor */
+  .topbar .sep{display:none!important;}                  /* slashes add noise when wrapped */
+  .topbar .switcher .lbl,.topbar .extlinks{display:none!important;}
+  .topbar .switcher{margin-left:auto;gap:.4rem;flex-wrap:wrap;}
+  /* (2) TOUCH TARGETS in the bar — >=44px hit area via padding, text stays 12px */
+  .menu-btn{min-width:44px!important;min-height:44px!important;padding:.5rem .7rem!important;
+    font-size:16px!important;display:inline-flex!important;align-items:center;justify-content:center;}
+  .topbar .flag{min-height:44px;display:inline-flex;align-items:center;
+    padding:.55rem .7rem;border-radius:8px;font-size:12px!important;}
+  .topbar .flag.active{box-shadow:0 0 0 1px var(--gold) inset;}
+  .topbar .live{font-size:12px;}
+
+  /* (1) TYPE FLOOR — no caption/label below 12px on a phone. These classes are
+     9-11.5px on desktop by design; bumped to a readable 12px floor on mobile. */
+  .nav-group{font-size:12px!important;letter-spacing:.12em;}
+  .brand .role{font-size:12px!important;}                 /* small but >=11; brand sub */
+  .side-foot{font-size:12px!important;line-height:1.65;}
+  .kpi .k{font-size:12px!important;letter-spacing:.1em;}
+  .kpi .d{font-size:12px!important;}
+  .view-badge{font-size:12px!important;}
+  .card-ep{font-size:12px!important;}
+  .row .badge,.badge{font-size:12px!important;}
+  .btn{font-size:13px!important;}
+  pre.out,.feedtail,.frow,.an-step,.an-axis,.an-fail,.an-ok,.an-vrow,
+  .brain-note,.feed-pill,.honesty{font-size:12.5px!important;}
+  label{font-size:12px!important;}
+  input,select,textarea{font-size:16px!important;}        /* >=16 stops iOS zoom */
+  .dtbl,.dtbl td{font-size:12.5px!important;}
+  .dtbl th{font-size:12px!important;}
+  .gauge .lbl .sm,.legend{font-size:12px!important;}
+  .lp-rail-item{font-size:12px!important;}
+  details.raw summary{font-size:12px!important;}
+  .view-sub{font-size:14px!important;line-height:1.6;}     /* body 14-16 on mobile */
+  .row{font-size:13.5px;}
+  .card-t{font-size:1.1rem;}
+
+  /* (2) TOUCH TARGETS elsewhere — every interactive control >=44px tall */
+  details.raw summary{min-height:44px;display:flex;align-items:center;padding:.4rem 0;}
+  .lp-rail-item{min-height:44px;display:flex;align-items:center;justify-content:center;}
+  .btn{min-height:44px;}
+  .flag{min-height:44px;}
+  .switcher .flag{min-height:44px;}
+
+  /* (7) ELEGANT RHYTHM — consistent card radii + breathing room, AA contrast.
+     paragraph #9a9a9a on #0e0e0e = ~6.4:1; muted #888 on panel ~4.6:1 (AA body). */
+  .card{border-radius:12px;padding:1rem 1.05rem;margin-bottom:.85rem;}
+  .kpi{border-radius:10px;}
+  .content{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 4.5rem)!important;}
+}
+/* (4) very small phones — keep the bar tidy, never clip */
+@media (max-width:400px){
+  .topbar .switcher .flag{font-size:12px;padding:.5rem .5rem;}
+}
+/* (6) reduced motion — calm the live pulse + transitions for sensitive users */
+@media (prefers-reduced-motion:reduce){
+  .live-dot,.org-pulse{animation:none!important;}
+  *{transition-duration:.001ms!important;}
+}
+@media (max-width:768px){
+  /* a11oy-specific captions/controls */
+  .skel-caption{font-size:12px!important;}
+  .loopstep{font-size:12px!important;min-height:40px;display:inline-flex;align-items:center;}
+  .bigsentence{font-size:15px!important;}
+}
+/* ============ END MOBILE ELEGANCE PASS ============ */
+
+/* ---- MOBILE ELEGANCE PASS v2 (devA): tighten the 12px type floor so it also
+   wins over inline font-size on .mono/.mono.dim captions and small chart labels.
+   Stylesheet !important beats non-important inline styles. Visual-only/additive. ---- */
+@media (max-width:768px){
+  .mono,.mono.dim,.mono.dim *{font-size:12px!important;}
+  .feedtail .mono,.frow .mono{font-size:12px!important;}
+  /* inline-styled tiny badges/spans inside cards (formula genome F-badges, etc.) */
+  .card span[style*="font-size:9"],.card span[style*="font-size:10"],
+  .card span[style*="font-size:11"],.card div[style*="font-size:9"],
+  .card div[style*="font-size:10"],.card div[style*="font-size:11"],
+  span[style*="font-size:9px"],span[style*="font-size:10px"],
+  div[style*="font-size:9px"],div[style*="font-size:10px"]{font-size:12px!important;}
+  /* any button-like control floors to 12px and >=44px tall */
+  button,.btn,[role=button]{font-size:12px!important;min-height:44px;}
+  /* in-chart SVG micro-labels: lift the 9-10px axis/ring text to a 11px floor so
+     it is legible on a phone without disturbing chart geometry (clamped, not forced). */
+  svg text{font-size:12px!important;}
+}
+/* ---- END MOBILE ELEGANCE PASS v2 ---- */
+
+
 </style>
 </head>
 <body>
@@ -337,7 +442,7 @@ details.raw[open] summary{color:var(--muted);}
   <button class="menu-btn" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleSide()">☰</button>
   <span>SZL HOLDINGS</span><span class="sep">/</span>
   <span style="color:var(--teal)">a11oy</span><span class="sep">/</span>
-  <span>GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
+  <span class="tb-desc">GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
   <span class="live"><span class="live-dot"></span>LIVE</span>
   <nav class="switcher" aria-label="Surfaces">
     <span class="lbl">SURFACE</span>
