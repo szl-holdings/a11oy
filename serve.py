@@ -986,6 +986,23 @@ except Exception as _szl_hb_e:  # pragma: no cover - defensive, additive-only
 except Exception as _szl_ep_e:  # pragma: no cover
     print(f"[a11oy] Energy provenance chain NOT registered: {_szl_ep_e!r}", file=sys.stderr)
 
+# ── DARK-SURFACE AGGREGATOR (feat/wire-dark-tabs) — one additive call that wires
+# EVERY still-dark a11oy tab so it populates: energy/budget, engine/status,
+# formula/sovereign, energy/provenance, heart/pulse, ayni, anatomy/loop. Each
+# surface registers inside its OWN try/except inside the module, so a single
+# missing/broken module (e.g. szl_anatomy_loop before #341 merges) degrades
+# exactly one tab and never the SPA or the other six. Idempotent vs the explicit
+# registrations above (add_api_route is additive; a re-add is harmless). Registered
+# BEFORE the SPA catch-all so the v1 JSON routes resolve LOCALLY and win ordering.
+# Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; organs EXPERIMENTAL; joules
+# SAMPLE until on-box NVML; NO free-energy; sovereign only on own metal; no key.
+try:
+    import szl_dark_surfaces_register as _szl_dark_surfaces
+    _szl_dark_surfaces.register(app, ns="a11oy")
+    print("[a11oy] Dark-surface aggregator registered: energy/budget, engine/status, formula/sovereign, energy/provenance, heart/pulse, ayni, anatomy/loop", file=sys.stderr)
+except Exception as _szl_dark_e:  # pragma: no cover - defensive, additive-only
+    print(f"[a11oy] Dark-surface aggregator NOT registered: {_szl_dark_e!r}", file=sys.stderr)
+
 # ---------------------------------------------------------------------------
 # Doctrine v13 EDGE ORGANS chaski/wallpa/wasi (ADDITIVE, 2026-06-01, Yachay). Three edge organs registered EARLY
 # (before the SPA catch-all), exactly like WAYRA / a11oy.code. Each emits a Khipu
