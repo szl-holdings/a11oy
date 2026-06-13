@@ -97,6 +97,14 @@ COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py s
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
 COPY szl_energy_budget.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
+# ADDITIVE (joules-honesty #349): single-source joules_label helper + its consumers.
+# szl_joules_truth.py is imported by szl_energy_budget/szl_engine_status/revenue_endpoints/
+# a11oy_harvest_endpoints/szl_anatomy_loop/szl_prod_hardening; revenue_model.py backs
+# /revenue/estimate. Absent from every COPY line -> the guarded import fell back to the
+# local 'sample' stub and /revenue/estimate ModuleNotFound'd (#349 merged-but-not-live).
+# Per-file COPY (this Dockerfile never uses `COPY . .`); keeps the helper LIVE so 'measured'
+# is decided in ONE place. Mirrored byte-identical to the HF Space (hf-sync APP_FILES lockstep).
+COPY szl_joules_truth.py revenue_model.py szl_prod_hardening.py ./
 # ADDITIVE (devM resilience): szl_resilience is imported by serve.py for the Hystrix
 # circuit breaker + K8s liveness/readiness split. Per-file COPY (this Dockerfile does
 # not use `COPY . .`); without this line `import szl_resilience` would ModuleNotFound
