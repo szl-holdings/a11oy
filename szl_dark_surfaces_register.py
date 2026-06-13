@@ -19,7 +19,8 @@ DARK SURFACES WIRED (route -> module -> register kind):
   /api/<ns>/v1/formula/sovereign   a11oy_formula_endpoints  register(app, ns)
   /api/<ns>/v1/energy/provenance   szl_energy_provenance    register(app, ns)
   /api/<ns>/v1/heart/pulse         szl_heart_blood          register(app, ns)
-  /v1/ayni (+ /v1/replay,/tinkuy)  ayni_os_serve            include_router(router)
+  /api/<ns>/v1/ayni (+ replay,    ayni_os_serve            include_router(prefix=/api/<ns>)
+   tinkuy; legacy bare /v1/ayni kept)
   /api/<ns>/v1/anatomy/loop        szl_anatomy_loop         register(app, ns)  [#341]
 
 ADDITIVE — never replaces a route, never edits another module. Registered BEFORE
@@ -99,22 +100,41 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
             _stderr(line)
             status.append(line)
 
-    # AYNI-OS is mounted via include_router (self-contained APIRouter at /v1/ayni,
-    # /v1/replay, /v1/tinkuy), NOT register(app, ns) — own try/except below.
+    # AYNI-OS is a self-contained APIRouter whose routes declare bare paths
+    # (/v1/ayni, /v1/replay, /v1/tinkuy). The DOCUMENTED, dashboard-facing contract
+    # is /api/<ns>/v1/ayni (the same /api/<ns>/v1/* shape every other dark surface
+    # uses); mounting the router WITHOUT a prefix left it at /v1/ayni, so the
+    # documented /api/<ns>/v1/ayni 404'd (it fell through to the Node proxy, which
+    # answered {"error":"not found","path":"/v1/ayni"}). FIX: include the router under
+    # prefix=/api/<ns> so the documented /api/<ns>/v1/ayni path resolves LOCALLY and
+    # wins ordering (registered here, before the SPA catch-all / Node proxy). We ALSO
+    # keep the legacy bare /v1/ayni mount for back-compat — purely additive, so any
+    # existing caller of the old path is never broken. NOT register(app, ns) — own
+    # try/except below so AYNI absent never blocks the other six surfaces.
     try:
         from ayni_os_serve import router as _ayni_router  # type: ignore
         included = False
         include_router = getattr(app, "include_router", None)
         if callable(include_router):
+            # Documented path: /api/<ns>/v1/ayni (+ /replay, /tinkuy). Resolves LOCALLY.
+            app.include_router(_ayni_router, prefix=f"/api/{ns}")
+            # Legacy path: bare /v1/ayni — additive back-compat, breaks no caller.
             app.include_router(_ayni_router)
             included = True
         else:
-            # Bare Starlette fallback: splice the router's routes onto app.router.
+            # Bare Starlette fallback: splice the router's routes onto app.router at
+            # BOTH the documented /api/<ns> prefix and the legacy bare path.
+            from starlette.routing import Route as _Route
             for _r in getattr(_ayni_router, "routes", []):
+                _path = getattr(_r, "path", None)
+                _ep = getattr(_r, "endpoint", None)
+                _methods = list(getattr(_r, "methods", []) or ["GET"])
+                if _path is not None and _ep is not None:
+                    app.router.routes.append(_Route(f"/api/{ns}{_path}", _ep, methods=_methods))
                 app.router.routes.append(_r)
             included = True
         if included:
-            line = "[a11oy:dark] AYNI-OS mounted: /v1/ayni + /v1/replay + /v1/tinkuy"
+            line = f"[a11oy:dark] AYNI-OS mounted: /api/{ns}/v1/ayni + /api/{ns}/v1/replay + /api/{ns}/v1/tinkuy (legacy /v1/ayni kept)"
             _stderr(line)
             status.append(line)
     except Exception as exc:  # additive: AYNI absent never blocks the other six

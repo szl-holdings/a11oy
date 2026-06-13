@@ -338,6 +338,16 @@ COPY src/a11oy/formulas/bloom_filter.py ./src/a11oy/formulas/bloom_filter.py
 COPY src/a11oy/formulas/kalman.py ./src/a11oy/formulas/kalman.py
 COPY src/a11oy/formulas/hnsw_retrieval.py ./src/a11oy/formulas/hnsw_retrieval.py
 COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
+# FIX (formula/* 404 repair): a11oy_formula_endpoints.py imports a11oy.formulas.{allodial,
+# allodial_gate, entanglement} alongside the formulas above, but these three were NEVER
+# COPY'd into the image. The package import therefore raised at boot, register() returned
+# "formulas-unavailable", and EVERY /api/a11oy/v1/formula/* route (sovereign, quorum, holevo,
+# bloom, kalman, formulas/index, …) 404'd through the Node proxy. Per-file COPY (this
+# Dockerfile never uses `COPY . .`). Mirrored byte-identical to the HF Space (hf-sync
+# APP_FILES lockstep). EXPERIMENTAL frontier gates — Λ = Conjecture 1 (never a theorem).
+COPY src/a11oy/formulas/allodial.py ./src/a11oy/formulas/allodial.py
+COPY src/a11oy/formulas/allodial_gate.py ./src/a11oy/formulas/allodial_gate.py
+COPY src/a11oy/formulas/entanglement.py ./src/a11oy/formulas/entanglement.py
 COPY src/a11oy/harvest/__init__.py ./src/a11oy/harvest/__init__.py
 COPY src/a11oy/harvest/wasted_energy_harvest.py ./src/a11oy/harvest/wasted_energy_harvest.py
 COPY src/a11oy/harvest/harvest_budget.py ./src/a11oy/harvest/harvest_budget.py
