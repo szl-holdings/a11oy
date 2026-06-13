@@ -1,0 +1,237 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# alert-channel-watch.yml — warn the team if the shared alert channel is
+# silently switched off.
+#
+# Why this exists
+# ---------------
+# Multiple receipt-failure alert paths in this repo (e.g. rekor-recheck.yml and
+# release-receipt-summary-guard.yml) page the team by POSTing to the
+# SLACK_WEBHOOK_URL secret — the shared a11oy-uptime ntfy topic. Every one of
+# those paths soft-skips with just a ::warning:: when that secret is unset or
+# empty. So a SINGLE missing/expired secret silently disables ALL of those pages
+# at once, and nobody would find out until an incident went unannounced. Nothing
+# currently checks that the alert channel itself is alive.
+#
+# This scheduled (and dispatchable) monitor closes that hole. It cannot use the
+# webhook to warn about the webhook being down — that is the very thing under
+# test — so it fails the run LOUDLY and opens/updates a single rolling incident
+# issue whenever SLACK_WEBHOOK_URL is unset/empty (or, when it does post, the
+# webhook stops returning 2xx). On recovery it auto-closes that incident.
+#
+# Low-noise canary: to actually prove end-to-end delivery without spamming the
+# channel, it sends ONE clearly-labelled [canary-ignore] post at most once a
+# week (Mondays, on the schedule) or on demand (workflow_dispatch with
+# send_canary=true). Every other scheduled run only checks secret presence and
+# posts nothing to the channel.
+#
+# Org policy: only github-owned / verified actions are allowed and action SHAs
+# are pinned. The webhook is driven by plain curl + jq (no third-party action).
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Alert Channel Watch
+
+on:
+  schedule:
+    - cron: '37 7 * * *'  # daily at 07:37 UTC
+  workflow_dispatch:
+    inputs:
+      send_canary:
+        description: 'Send a real low-noise [canary-ignore] post through the webhook now to prove it returns 2xx end to end.'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: alert-channel-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Verify the shared alert channel is still wired
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      # 1) Presence check. This is the critical, zero-noise part: is the shared
+      #    alert-channel secret actually configured? An unset/empty secret is
+      #    exactly the silent failure this workflow exists to catch.
+      - name: Check the SLACK_WEBHOOK_URL secret is present
+        id: presence
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "channel_ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=SLACK_WEBHOOK_URL secret is UNSET or EMPTY — every receipt-failure alert path that posts to it (rekor-recheck, release-receipt-summary-guard, ...) is silently disabled." >> "$GITHUB_OUTPUT"
+            echo "::warning::SLACK_WEBHOOK_URL is unset/empty — the shared alert channel is OFF. Raising a rolling incident issue and failing this run (the channel itself cannot be used to warn about itself)."
+          else
+            echo "channel_ok=true" >> "$GITHUB_OUTPUT"
+            echo "reason=" >> "$GITHUB_OUTPUT"
+            echo "SLACK_WEBHOOK_URL secret is present."
+          fi
+
+      # 2) Low-noise canary. Only actually POSTs to the channel once a week
+      #    (Mondays, on the schedule) or on explicit dispatch with
+      #    send_canary=true — so routine daily runs add zero channel noise.
+      #    A skipped/not-posted canary counts as OK (presence already passed).
+      - name: Low-noise canary post (weekly, or on demand)
+        id: canary
+        if: ${{ steps.presence.outputs.channel_ok == 'true' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SEND_CANARY: ${{ github.event_name == 'workflow_dispatch' && inputs.send_canary == true }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          # Decide whether to actually POST. Keep the channel quiet: send a real
+          # canary at most weekly on the schedule, or whenever a maintainer asks
+          # for one via dispatch. Otherwise this step is a no-op (presence only).
+          dow="$(date -u +%u)"  # 1 = Monday
+          do_post=false
+          if [ "${SEND_CANARY}" = "true" ]; then do_post=true; fi
+          if [ "${GITHUB_EVENT_NAME:-}" = "schedule" ] && [ "${dow}" = "1" ]; then do_post=true; fi
+
+          if [ "${do_post}" != "true" ]; then
+            echo "canary_ok=true" >> "$GITHUB_OUTPUT"
+            echo "canary_code=skipped" >> "$GITHUB_OUTPUT"
+            echo "Presence check only this run — not posting a canary (stays low-noise). A real canary fires weekly (Mondays) or on dispatch with send_canary=true."
+            exit 0
+          fi
+
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # Compose with real newlines, then JSON-encode safely with jq so quotes
+          # / newlines can't break the payload. ntfy renders the Slack-style
+          # {text} field; the message is unmistakably an ignorable canary.
+          text=":satellite: *[canary-ignore] a11oy alert-channel canary* — ${REPO}.
+          Automated low-noise heartbeat proving the shared receipt-failure alert webhook is still wired and returns 2xx. Nothing is wrong; safe to ignore.
+          *Canary run:* ${RUN_URL}
+          *At:* ${now}"
+
+          payload="$(jq -n --arg text "$text" '{text: $text}')"
+
+          echo "Posting [canary-ignore] heartbeat to the alert webhook..."
+          code="$(curl -sS -o /tmp/canary_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")"
+          echo "Webhook responded HTTP ${code}."
+          echo "canary_code=${code}" >> "$GITHUB_OUTPUT"
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "canary_ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Alert-channel canary POST did NOT return 2xx (HTTP ${code}): $(cat /tmp/canary_resp.txt). The channel is configured but not delivering — raising a rolling incident issue and failing this run."
+          else
+            echo "canary_ok=true" >> "$GITHUB_OUTPUT"
+            echo "Canary delivered — the shared alert channel works end to end."
+          fi
+
+      # 3) Reconcile a single rolling incident issue. This is the actual alert
+      #    mechanism for a dead channel (the webhook can't warn about itself).
+      #    Opens/updates on failure, auto-closes on recovery — same pattern as
+      #    rekor-recheck.yml's rolling incident.
+      - name: Reconcile rolling alert-channel incident issue
+        id: incident
+        if: always()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          CHANNEL_OK: ${{ steps.presence.outputs.channel_ok }}
+          PRESENCE_REASON: ${{ steps.presence.outputs.reason }}
+          CANARY_OK: ${{ steps.canary.outputs.canary_ok }}
+          CANARY_CODE: ${{ steps.canary.outputs.canary_code }}
+        with:
+          script: |
+            const channelPresent = String(process.env.CHANNEL_OK || 'false') === 'true';
+            // canary_ok defaults to true when the canary step was skipped or did not post.
+            const canaryOk = String(process.env.CANARY_OK || 'true') === 'true';
+            const failing = !channelPresent || !canaryOk;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const marker = '<!-- alert-channel-watch-incident -->';
+            const now = new Date().toISOString();
+
+            // Find the single rolling incident (open or closed) by stable marker.
+            const q = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:alert-channel`;
+            const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
+            const existing = res.data.items.find(i => !i.pull_request) || null;
+
+            // Name whichever condition tripped so the reader is not misled.
+            let cause;
+            if (!channelPresent) {
+              cause = (process.env.PRESENCE_REASON || '').trim() ||
+                `The SLACK_WEBHOOK_URL secret is UNSET or EMPTY — every receipt-failure alert path ` +
+                `that posts to it is silently disabled.`;
+            } else {
+              cause = `The SLACK_WEBHOOK_URL secret is present, but the low-noise canary POST did not ` +
+                `return 2xx (HTTP ${process.env.CANARY_CODE || 'unknown'}). The channel is configured ` +
+                `but is not delivering messages.`;
+            }
+            const stats = `channel_present=${channelPresent} canary_ok=${canaryOk} canary_http=${process.env.CANARY_CODE || 'n/a'}`;
+
+            if (failing) {
+              const body = `## Shared Alert Channel Incident\n\n${marker}\n` +
+                `**State:** FAILING\n**Detected:** ${now}\n**Run:** ${runUrl}\n\n` +
+                `${cause}\n\n\`${stats}\`\n\n` +
+                `This means the shared receipt-failure alert channel is effectively OFF: pages from ` +
+                `rekor-recheck, release-receipt-summary-guard and friends would soft-skip unnoticed. ` +
+                `**Fix:** re-set the \`SLACK_WEBHOOK_URL\` repo/org secret to the a11oy-uptime ntfy ` +
+                `webhook, then re-run this workflow (or wait for the next scheduled run) to auto-close ` +
+                `this incident. The channel cannot warn about itself, so this rolling issue + the red ` +
+                `run are the alert.`;
+              let incident = existing;
+              if (existing) {
+                if (existing.state === 'closed') {
+                  await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
+                }
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Still FAILING as of ${now}.\n\n${cause}\n\n\`${stats}\`\nRun: ${runUrl}` });
+              } else {
+                const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                  title: '[ALERT-CHANNEL] Shared receipt-failure alert channel is OFF', body, labels: ['alert-channel', 'incident'] });
+                incident = created.data;
+              }
+              if (incident) {
+                core.setOutput('issue_number', String(incident.number));
+                core.setOutput('issue_url', incident.html_url);
+              }
+            } else if (existing && existing.state === 'open') {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                body: `Recovered: the shared alert channel is wired again as of ${now}.\n\n\`${stats}\`\nAuto-closing this rolling incident.\nRun: ${runUrl}` });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+            }
+
+      # 4) Run summary + the explicit pass/fail gate. Failing the run is half the
+      #    alert (a red scheduled run on a monitor people watch); the rolling
+      #    incident issue above is the other half.
+      - name: Fail loudly if the shared alert channel is down
+        if: always()
+        env:
+          CHANNEL_OK: ${{ steps.presence.outputs.channel_ok }}
+          CANARY_OK: ${{ steps.canary.outputs.canary_ok }}
+          CANARY_CODE: ${{ steps.canary.outputs.canary_code }}
+          ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Alert channel watch"
+            echo ""
+            echo "| Check | Result |"
+            echo "|-------|--------|"
+            echo "| SLACK_WEBHOOK_URL present | ${CHANNEL_OK} |"
+            echo "| Canary delivery | ${CANARY_OK:-true} (HTTP ${CANARY_CODE:-skipped}) |"
+            if [ -n "${ISSUE_URL:-}" ]; then echo "| Incident issue | ${ISSUE_URL} |"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${CHANNEL_OK}" != "true" ]; then
+            echo "::error::Shared alert channel is OFF: SLACK_WEBHOOK_URL is unset/empty. All receipt-failure pages are silently disabled. See the rolling [ALERT-CHANNEL] incident issue."
+            exit 1
+          fi
+          if [ "${CANARY_OK:-true}" != "true" ]; then
+            echo "::error::Shared alert channel is configured but the canary POST did not return 2xx (HTTP ${CANARY_CODE:-unknown}). See the rolling [ALERT-CHANNEL] incident issue."
+            exit 1
+          fi
+          echo "Shared alert channel is wired$([ "${CANARY_CODE:-skipped}" != "skipped" ] && echo " and returned 2xx" || echo " (presence check only this run)")."
