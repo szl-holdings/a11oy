@@ -14242,5 +14242,148 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 </script>
 <!-- end energy-harvest-tab-patch -->
 
+<!-- ============================================================================
+     GOVERNED ANOMALIES / DOMAIN-SUPERIORITY OVERSIGHT  (data-view="mzgov")
+     ----------------------------------------------------------------------------
+     a11oy is the orchestrating GOVERNANCE BRAIN over the SZL-Mosaic field detector
+     (szl_mosaic_core). This surface ingests each anomaly's provenance receipt
+     (schema szl.mosaic.receipt/v1) and shows the GOVERNED view: every anomaly with
+     its 13-axis Lambda ADVISORY verdict (allow/advisory/deny), its signed-or-
+     honestly-UNSIGNED provenance receipt, the human-approval gate for high-impact
+     ROE deny advisories, a fused Common-Operating-Picture roll-up, Khipu BFT 3-of-4
+     multi-witness confirmation (Conjecture 2), and conformal/bounded confidence.
+
+     Clean-room: inspired ONLY by the PUBLICLY DESCRIBED capability of True Anomaly's
+     "Mosaic" (SDA/C2/TW&A -> COP). No proprietary source/assets seen or copied.
+     HONEST (Doctrine v11): Lambda = Conjecture 1 (ADVISORY, never proven trust);
+     Khipu BFT = Conjecture 2 (open); detections are PROVABLE (signed) downstream,
+     marked honestly UNSIGNED here; SNAPSHOT clearly labeled when no live feed is
+     wired (verified=false, no live count or signature fabricated). Additive, reuses
+     existing .kpi/.card/.row/.badge classes (so it inherits the mobile floor:
+     fonts >=12px, taps >=44px, safe-area, 0 overflow, reduced-motion). 0 runtime CDN.
+     ============================================================================ -->
+<script>
+(function mzGovTab(){
+  var MZ_API='/api/a11oy/v1/mosaic/governed';
+  function E(s){return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function vClass(v){return v==='allow'?'b-live':(v==='advisory'?'b-gold':'b-err');}
+  function vLabel(v){return String(v||'').toUpperCase();}
+
+  /* Client-side HONEST SNAPSHOT fallback — used ONLY when the live endpoint 404s
+     (older deployed image). Same shape/labels as the server snapshot; verified=false;
+     no live count or signature fabricated. */
+  function clientSnapshot(){
+    var rows=[
+      {track_id:101,domain:'air',anomaly_score:0.12,khipu_witnesses:4,lambda_verdict:'allow',confidence_interval:[0.05,0.19]},
+      {track_id:102,domain:'air',anomaly_score:0.41,khipu_witnesses:4,lambda_verdict:'advisory',confidence_interval:[0.34,0.48]},
+      {track_id:103,domain:'maritime',anomaly_score:0.22,khipu_witnesses:3,lambda_verdict:'allow',confidence_interval:[0.15,0.29]},
+      {track_id:104,domain:'maritime',anomaly_score:0.71,khipu_witnesses:4,lambda_verdict:'deny',confidence_interval:[0.64,0.78]},
+      {track_id:105,domain:'air',anomaly_score:0.83,khipu_witnesses:4,lambda_verdict:'deny',confidence_interval:[0.76,0.90]},
+      {track_id:106,domain:'orbital',anomaly_score:0.34,khipu_witnesses:2,lambda_verdict:'allow',confidence_interval:[0.27,0.41]}
+    ];
+    rows.forEach(function(r){
+      r.schema='szl.mosaic.receipt/v1'; r.verified=false;
+      r.khipu_quorum='3-of-4'; r.khipu_quorum_reached=r.khipu_witnesses>=3;
+      r.requires_human_approval=r.lambda_verdict==='deny';
+      r.approval_state=r.lambda_verdict==='deny'?'PENDING_OPERATOR':'n/a';
+      r.signing='UNSIGNED \u2014 sign downstream via DSSE/Khipu in a11oy / khipu-consensus (BFT 3-of-4) on a SHA-256 Merkle DAG. real-DSSE-or-honestly-UNSIGNED; never silently fabricated.';
+    });
+    var bv={allow:0,advisory:0,deny:0},bd={},qok=0,pend=[];
+    rows.forEach(function(r){bv[r.lambda_verdict]++;bd[r.domain]=(bd[r.domain]||0)+1;if(r.khipu_quorum_reached)qok++;if(r.approval_state==='PENDING_OPERATOR')pend.push(r.track_id);});
+    return {status:'ok',ns:'a11oy',source:'snapshot',
+      source_note:'SNAPSHOT (client fallback) \u2014 the live /mosaic/governed endpoint is not on this deployed image yet. Deterministic illustrative population; verified=false; no live count or signature fabricated.',
+      cop:{tracks_total:rows.length,anomalies_scored:rows.length,by_verdict:bv,by_domain:bd,domains:['air','maritime','orbital (roadmap)'],khipu_quorum_reached:qok,khipu_quorum_total:rows.length,pending_operator_approvals:pend},
+      thresholds:{allow_below:0.35,deny_at_or_above:0.65},
+      receipts:rows};
+  }
+
+  function render(c){
+    c.innerHTML='<div id="mz-body"><div class="card"><div class="row mono dim">'+(window.liveDot?window.liveDot():'')+'reading the governed-anomaly fabric\u2026</div></div></div>';
+    function paint(d){
+      var cop=d.cop||{}; var bv=cop.by_verdict||{};
+      var rec=d.receipts||[];
+      var pending=(cop.pending_operator_approvals||[]);
+      var h='';
+      h+='<div class="kpis">'
+        +'<div class="kpi"><div class="k">Tracks fused (COP)</div><div class="v teal">'+E(cop.tracks_total!=null?cop.tracks_total:'\u2014')+'</div><div class="d">'+E((cop.domains||[]).join(' \u00b7 ')||'air \u00b7 maritime \u00b7 orbital')+'</div></div>'
+        +'<div class="kpi"><div class="k">Anomalies scored</div><div class="v">'+E(cop.anomalies_scored!=null?cop.anomalies_scored:'\u2014')+'</div><div class="d">detector ensemble \u00b7 advisory \u039b</div></div>'
+        +'<div class="kpi"><div class="k">\u039b verdicts</div><div class="v live">'+E(bv.allow||0)+'<span class="dim" style="font-size:.6em"> allow</span> \u00b7 <span style="color:var(--gold)">'+E(bv.advisory||0)+'</span><span class="dim" style="font-size:.6em"> adv</span> \u00b7 <span style="color:var(--err)">'+E(bv.deny||0)+'</span><span class="dim" style="font-size:.6em"> deny</span></div><div class="d">advisory \u2014 Conjecture 1, never proven trust</div></div>'
+        +'<div class="kpi"><div class="k">Khipu 3-of-4 quorum</div><div class="v teal">'+E(cop.khipu_quorum_reached!=null?cop.khipu_quorum_reached:'\u2014')+'<span class="dim" style="font-size:.6em">/'+E(cop.khipu_quorum_total!=null?cop.khipu_quorum_total:'\u2014')+'</span></div><div class="d">multi-witness \u2014 Conjecture 2 (open)</div></div>'
+        +'<div class="kpi"><div class="k">Operator approvals pending</div><div class="v warn">'+E(pending.length)+'</div><div class="d">high-impact deny advisories</div></div>'
+        +'</div>';
+
+      h+='<div class="card"><div class="card-h"><span class="card-t">Human-approval gate \u00b7 high-impact ROE</span><span class="card-ep">operator-on-the-loop</span></div>';
+      if(pending.length){
+        h+='<div class="brain-note" style="margin-top:.1rem">'+pending.length+' deny advisory'+(pending.length>1?'ies':'')+' require an explicit operator approval before any action propagates. a11oy records the advisory and quarantines it pending sign-off \u2014 it never auto-acts.</div>';
+        pending.forEach(function(tid){
+          h+='<div class="row"><span class="badge b-err">DENY \u00b7 PENDING</span><span>track <b>'+E(tid)+'</b></span><span class="spacer"></span>'
+            +'<button class="btn" type="button" disabled aria-disabled="true" title="Approval is a downstream signed action (operator credential + DSSE). Disabled in this read-only oversight view.">Approve (signed) \u25b8</button></div>';
+        });
+        h+='<div class="brain-note">Approve/deny is a downstream SIGNED action (operator credential + DSSE receipt into the Khipu DAG). Disabled here: this is a read-only oversight surface, not the action console.</div>';
+      } else {
+        h+='<div class="row mono dim">No high-impact deny advisories awaiting approval right now \u2014 shown honestly, not faked.</div>';
+      }
+      h+='</div>';
+
+      h+='<div class="card"><div class="card-h"><span class="card-t">Governed anomaly ledger</span><span class="card-ep">'+(d.source==='live'?'live receipts':'snapshot receipts')+'</span></div>'
+        +'<div class="tbl-scroll"><table class="dtbl" style="width:100%;border-collapse:collapse;font-size:13px">'
+        +'<thead><tr style="text-align:left;color:var(--muted);font-family:var(--mono);font-size:11px">'
+        +'<th style="padding:.4rem .5rem">track</th><th style="padding:.4rem .5rem">domain</th><th style="padding:.4rem .5rem">anomaly</th><th style="padding:.4rem .5rem">conf. interval</th><th style="padding:.4rem .5rem">\u039b verdict</th><th style="padding:.4rem .5rem">Khipu</th><th style="padding:.4rem .5rem">receipt</th></tr></thead><tbody>';
+      rec.forEach(function(r){
+        var ci=r.confidence_interval||[0,0];
+        h+='<tr style="border-top:1px solid rgba(201,183,135,.08)">'
+          +'<td style="padding:.45rem .5rem"><b>'+E(r.track_id)+'</b></td>'
+          +'<td style="padding:.45rem .5rem">'+E(r.domain)+'</td>'
+          +'<td style="padding:.45rem .5rem" class="mono">'+E((r.anomaly_score!=null?Number(r.anomaly_score).toFixed(2):'\u2014'))+'</td>'
+          +'<td style="padding:.45rem .5rem" class="mono dim">['+E(Number(ci[0]).toFixed(2))+', '+E(Number(ci[1]).toFixed(2))+']</td>'
+          +'<td style="padding:.45rem .5rem"><span class="badge '+vClass(r.lambda_verdict)+'">'+vLabel(r.lambda_verdict)+'</span></td>'
+          +'<td style="padding:.45rem .5rem"><span class="badge '+(r.khipu_quorum_reached?'b-teal':'b-gold')+'" title="BFT 3-of-4 multi-witness \u2014 Conjecture 2 (open)">'+E(r.khipu_witnesses)+'/4'+(r.khipu_quorum_reached?' \u2713':'')+'</span></td>'
+          +'<td style="padding:.45rem .5rem"><span class="badge '+(r.verified?'b-live':'b-gold')+'" title="'+E(r.signing||'')+'">'+(r.verified?'SIGNED':'UNSIGNED')+'</span></td>'
+          +'</tr>';
+      });
+      h+='</tbody></table></div>';
+      h+='<div class="brain-note">Every row is a provenance receipt (schema <code>szl.mosaic.receipt/v1</code>) from the SZL-Mosaic field detector. Detections are <b>PROVABLE</b>: each receipt is DSSE/Khipu-signable into a SHA-256 Merkle DAG. They are marked honestly <b>UNSIGNED</b> here because this Space holds no cosign key \u2014 never a fabricated signature. Confidence is a <b>bounded / split-conformal</b> interval (finite-sample), not a certainty claim (W7-4).</div></div>';
+
+      var srcLine = d.source==='live'
+        ? 'Live from <code>/api/a11oy/v1/mosaic/governed</code> on the a11oy fabric.'
+        : 'SNAPSHOT \u2014 '+E(d.source_note||'no live SZL-Mosaic engine feed is wired into this Space.')+' Deterministic, clearly labeled (verified=false); <b>no live count or signature is fabricated</b>.';
+      h+='<div class="honesty"><b>How to read this.</b> a11oy is the <b>governance brain</b> over the SZL-Mosaic field detector \u2014 it does not detect; it <b>governs</b> the detections. '+srcLine+' '
+        +'The trust score <b>\u039b is Conjecture 1</b> (advisory; allow/advisory/deny is a recommendation under <b>human-on-the-loop</b>, never autonomous authority and never \u201cproven trust\u201d). '
+        +'<b>Khipu BFT 3-of-4</b> multi-witness confirmation is <b>Conjecture 2 (open)</b> \u2014 it reduces single-sensor/spoof risk, it is not a proof of correctness. '
+        +'Eight formulas are locked-proven (F1,F4,F7,F11,F12,F18,F19,F22); organs are EXPERIMENTAL; SLSA L1 honest / L2 build-attested / L3 roadmap. Sovereign own-metal, <b>0 runtime CDN</b>. '
+        +'Clean-room: inspired only by the publicly described capability of True Anomaly\u2019s Mosaic \u2014 no proprietary source or assets seen or copied.</div>';
+
+      var bodyEl=document.getElementById('mz-body'); if(bodyEl){ bodyEl.innerHTML=h; }
+    }
+    (window.getJSON?window.getJSON(MZ_API):fetch(MZ_API).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}))
+      .then(function(d){ if(!d||!d.cop){ d=clientSnapshot(); } paint(d); })
+      .catch(function(){ paint(clientSnapshot()); });
+  }
+
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
+    V['mzgov']={
+      title:'Governed Anomalies',
+      badge:'DOMAIN-SUPERIORITY OVERSIGHT \u00b7 \u039b ADVISORY \u00b7 KHIPU 3-OF-4',
+      sub:'a11oy as the <b>governance brain</b> over the SZL-Mosaic field detector: every anomaly with its 13-axis <b>\u039b advisory verdict</b> (allow / advisory / deny), its <b>signed-or-honestly-UNSIGNED provenance receipt</b>, and the <b>human-approval gate</b> for high-impact ROE deny advisories. A fused <b>Common-Operating-Picture</b> roll-up (tracks / anomalies / verdicts across air \u00b7 maritime \u00b7 orbital-roadmap) with <b>Khipu BFT 3-of-4</b> multi-witness confirmation. Detections are PROVABLE (DSSE/Khipu-signable), not just asserted. Honest: \u039b = Conjecture\u00a01 (advisory, never proven trust); Khipu BFT = Conjecture\u00a02 (open); confidence is bounded/conformal. Clean-room capability inspired only by the publicly described True Anomaly Mosaic.',
+      render:async function(c){ render(c); }
+    };
+  }
+  reg();
+
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="govern"]')||document.querySelector('.nav-item[data-view="gates"]')||document.querySelector('.nav-item[data-view="lambda"]');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="mzgov"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','mzgov'); n.setAttribute('onclick',"go('mzgov')");
+    n.innerHTML='<span class="ico">\u25C8</span>Governed Anomalies';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+<!-- end governed-anomalies-mosaic-oversight -->
+
+
 </body>
 </html>

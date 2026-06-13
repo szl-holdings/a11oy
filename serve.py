@@ -112,6 +112,24 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# ── Mosaic governance-over-anomalies (feat/mosaic-governance-oversight) — a11oy is
+# the orchestrating governance brain over the SZL-Mosaic field detector
+# (szl_mosaic_core, sibling package). Adds GET /api/a11oy/v1/mosaic/governed:
+# the GOVERNED view of each anomaly receipt (13-axis Lambda advisory verdict
+# allow/advisory/deny, signed-or-honestly-UNSIGNED provenance receipt, the
+# human-approval gate for high-impact ROE deny advisories, a fused COP roll-up,
+# and Khipu BFT 3-of-4 multi-witness confirmation). Honest SNAPSHOT when no live
+# engine feed is wired into this Space (verified=false; no live count or signature
+# fabricated). Receipt SHAPE is byte-compatible with szl_mosaic_core's
+# ProvenanceReceipt (schema szl.mosaic.receipt/v1). Additive, try/except-guarded,
+# registered EARLY (before the SPA catch-all). Pure stdlib, no new deps, no network.
+try:
+    import szl_mosaic_governance as _szl_mosaic_governance
+    _szl_mosaic_governance.register(app, ns="a11oy")
+    print("[a11oy] Mosaic governance registered: /api/a11oy/v1/mosaic/governed", file=__import__("sys").stderr)
+except Exception as _szl_mz_e:  # pragma: no cover
+    print(f"[a11oy] Mosaic governance NOT registered: {_szl_mz_e!r}", file=__import__("sys").stderr)
+
 # ── Unified engine status (f3-status-api) — the ONE read-only feed the 3D hologram
 # (F1) and every dashboard read from: GET /api/a11oy/v1/engine/status aggregates the
 # WHOLE agentic-GPU organism (mind / 6 organs / energy / swarm / doctrine) into one
