@@ -843,6 +843,10 @@ try:
     # scheduler-status + energy/budget panels degrade honestly when not yet wired.
     app.add_api_route("/agentic-gpu", _ptg_serve("agentic-gpu.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/agentic-gpu", _ptg_serve("agentic-gpu.html"), methods=["GET"], include_in_schema=False)
+    # ENERGY ENGINE (2026-06-13): honest GPU + Bekenstein-budget dashboard. Standalone
+    # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
+    app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
@@ -969,6 +973,9 @@ try:
     print("[a11oy] Heart+Blood heartbeat registered: /api/a11oy/v1/heart/pulse", file=sys.stderr)
 except Exception as _szl_hb_e:  # pragma: no cover - defensive, additive-only
     print(f"[a11oy] Heart+Blood heartbeat NOT registered: {_szl_hb_e!r}", file=sys.stderr)
+
+except Exception as _szl_ep_e:  # pragma: no cover
+    print(f"[a11oy] Energy provenance chain NOT registered: {_szl_ep_e!r}", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # Doctrine v13 EDGE ORGANS chaski/wallpa/wasi (ADDITIVE, 2026-06-01, Yachay). Three edge organs registered EARLY
