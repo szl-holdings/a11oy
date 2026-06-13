@@ -378,7 +378,8 @@ def feed_coinbase(pair: str) -> dict[str, Any]:
     url = f"https://api.coinbase.com/v2/prices/{pair}/spot"
     def parse(d):
         return {"pair": pair, "amount": float(d.get("data", {}).get("amount", 0)),
-                "currency": d.get("data", {}).get("currency")}
+                "currency": d.get("data", {}).get("currency"),
+                "source": "Coinbase spot price", "leader": "Coinbase", "data_kind": "live"}
     return _cached_fetch("cb_" + pair, url, ttl=20, parser=parse)
 
 
@@ -386,7 +387,9 @@ def feed_fx(base: str = "USD", symbols: str = "EUR,GBP,JPY,CAD,CHF") -> dict[str
     url = f"https://api.frankfurter.dev/v1/latest?base={base}&symbols={symbols}"
     def parse(d):
         return {"base": d.get("base"), "date": d.get("date"),
-                "rates": d.get("rates", {})}
+                "rates": d.get("rates", {}),
+                "source": "ECB euro reference rates (via Frankfurter)",
+                "leader": "European Central Bank (ECB)", "data_kind": "live"}
     return _cached_fetch("fx_" + base, url, ttl=600, parser=parse)
 
 
@@ -512,6 +515,80 @@ def roi(vertical: str, governed_count: int, caught_count: int) -> dict[str, Any]
 
 
 # ===========================================================================
+# CITED LEADER SOURCES — every vertical carries ≥1 real, NAMED leader/standard
+# with a resolvable URL (mirrors the killinchu real-data + citation upgrade,
+# T-K4). These are the authoritative bodies behind each live feed; data_kind is
+# honest: 'live' = a real HTTP-200 feed we pull, 'unofficial-fallback' = Yahoo
+# v8 (yfinance-equivalent, not an official quote source), 'reference' = a cited
+# standard/leader we ground against but do not poll in this endpoint.
+# ===========================================================================
+CITED_LEADERS: dict[str, list[dict[str, str]]] = {
+    "defense": [
+        {"source": "Known Exploited Vulnerabilities (KEV) Catalog",
+         "leader": "CISA — Cybersecurity & Infrastructure Security Agency",
+         "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+         "data_kind": "live"},
+        {"source": "National Vulnerability Database (NVD 2.0)",
+         "leader": "NIST — National Institute of Standards and Technology",
+         "url": "https://nvd.nist.gov/", "data_kind": "live"},
+        {"source": "ATT&CK adversary technique corpus",
+         "leader": "MITRE", "url": "https://attack.mitre.org/", "data_kind": "reference"},
+    ],
+    "finance": [
+        {"source": "Euro foreign-exchange reference rates (served via Frankfurter)",
+         "leader": "European Central Bank (ECB)",
+         "url": "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html",
+         "data_kind": "live"},
+        {"source": "Spot crypto prices",
+         "leader": "Coinbase", "url": "https://docs.cdp.coinbase.com/", "data_kind": "live"},
+        {"source": "v8 chart endpoint (yfinance-equivalent)",
+         "leader": "Yahoo Finance", "url": "https://finance.yahoo.com/",
+         "data_kind": "unofficial-fallback"},
+        {"source": "Fintech CVE prioritisation",
+         "leader": "NIST NVD", "url": "https://nvd.nist.gov/", "data_kind": "live"},
+        {"source": "Official OHLC market data (key-gated)",
+         "leader": "Polygon.io", "url": "https://polygon.io/docs", "data_kind": "reference"},
+    ],
+    "legal": [
+        {"source": "Federal Register API",
+         "leader": "Office of the Federal Register — U.S. National Archives (NARA)",
+         "url": "https://www.federalregister.gov/developers/documentation/api/v1",
+         "data_kind": "live"},
+        {"source": "U.S. case law search API",
+         "leader": "Free Law Project — CourtListener",
+         "url": "https://www.courtlistener.com/help/api/rest/", "data_kind": "live"},
+    ],
+    "cyber": [
+        {"source": "Known Exploited Vulnerabilities (KEV) Catalog",
+         "leader": "CISA — Cybersecurity & Infrastructure Security Agency",
+         "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+         "data_kind": "live"},
+        {"source": "National Vulnerability Database (NVD 2.0)",
+         "leader": "NIST", "url": "https://nvd.nist.gov/", "data_kind": "live"},
+        {"source": "ATT&CK adversary technique corpus",
+         "leader": "MITRE", "url": "https://attack.mitre.org/", "data_kind": "reference"},
+    ],
+    "realestate": [
+        {"source": "HPD housing litigations + DOB violations (Socrata)",
+         "leader": "NYC Open Data — City of New York",
+         "url": "https://opendata.cityofnewyork.us/", "data_kind": "live"},
+        {"source": "Average interest rates on U.S. Treasury securities (Fiscal Data API)",
+         "leader": "U.S. Department of the Treasury — Bureau of the Fiscal Service",
+         "url": "https://fiscaldata.treasury.gov/datasets/average-interest-rates-treasury-securities/",
+         "data_kind": "live"},
+        {"source": "Housing & rate macro series (cited standard)",
+         "leader": "Federal Reserve Bank of St. Louis (FRED)",
+         "url": "https://fred.stlouisfed.org/", "data_kind": "reference"},
+    ],
+}
+
+
+def cited_leaders(vertical: str) -> list[dict[str, str]]:
+    """≥1 real, named leader source per vertical (honest data_kind labels)."""
+    return CITED_LEADERS.get(vertical, [])
+
+
+# ===========================================================================
 # REGISTER — additive routes BEFORE SPA catch-all.
 # ===========================================================================
 def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
@@ -528,7 +605,8 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     async def _def_feed(limit: int = 30):
         kev = feed_cisa_kev(limit)
         nvd = feed_nvd(min(limit, 20))
-        return JSONResponse({"vertical": "defense", "kev": kev, "nvd": nvd, "doctrine": DOCTRINE})
+        return JSONResponse({"vertical": "defense", "kev": kev, "nvd": nvd,
+                             "sources_cited": cited_leaders("defense"), "doctrine": DOCTRINE})
 
     @app.get(base + "/defense/kpi", include_in_schema=False)
     async def _def_kpi():
@@ -553,7 +631,8 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
                              "equities_note": ("equities_official = Polygon.io (official, key-gated); "
                                                "equities = Yahoo v8 (unofficial fallback)"),
                              "crypto": crypto,
-                             "fx": fx, "fintech_cve": cve, "doctrine": DOCTRINE})
+                             "fx": fx, "fintech_cve": cve,
+                             "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})
 
     # ---- LEGAL ----
     @app.get(base + "/legal/feed", include_in_schema=False)
@@ -561,7 +640,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         fr = feed_fedregister(limit)
         cl = feed_courtlistener("artificial intelligence", limit)
         return JSONResponse({"vertical": "legal", "federal_register": fr, "court_filings": cl,
-                             "doctrine": DOCTRINE})
+                             "sources_cited": cited_leaders("legal"), "doctrine": DOCTRINE})
 
     # ---- ENTERPRISE / CYBER ----
     @app.get(base + "/cyber/feed", include_in_schema=False)
@@ -572,7 +651,8 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         ghev = feed_gh_events("huggingface/transformers", 12)
         hf = feed_hf(8)
         return JSONResponse({"vertical": "cyber", "kev": kev, "nvd": nvd, "github": gh,
-                             "gh_events": ghev, "hf": hf, "doctrine": DOCTRINE})
+                             "gh_events": ghev, "hf": hf,
+                             "sources_cited": cited_leaders("cyber"), "doctrine": DOCTRINE})
 
     # ---- REAL ESTATE ----
     @app.get(base + "/realestate/feed", include_in_schema=False)
@@ -581,7 +661,8 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         dob = feed_nyc_dob(30)
         rates = feed_treasury(6)
         return JSONResponse({"vertical": "realestate", "hpd_litigations": hpd,
-                             "dob_violations": dob, "rates": rates, "doctrine": DOCTRINE})
+                             "dob_violations": dob, "rates": rates,
+                             "sources_cited": cited_leaders("realestate"), "doctrine": DOCTRINE})
 
     # ---- SHARED: governed turn, ledger, roi ----
     @app.post(base + "/{vertical}/govern", include_in_schema=False)
@@ -664,6 +745,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             "consolidation_note": (f"Legacy '{absorbed}' organ consolidated into a11oy vertical '{vertical}'."
                                    if absorbed else f"Native a11oy vertical '{vertical}'."),
             "sources": meta["sources"],
+            "sources_cited": cited_leaders(vertical),
             "routes": [base + "/" + vertical + r for r in meta["routes"]],
             "doctrine": DOCTRINE,
         })
