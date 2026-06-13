@@ -13892,5 +13892,91 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 .atlas-tier .atlas-dim{font-family:var(--mono,monospace);}
 </style>
 
+<!-- energy-harvest-tab-patch — live wasted-energy grid signal (a11oy console tab).
+     Additive: registers V['energy'] + injects a nav item. Fetches the ABSOLUTE public
+     a11oy.net harvest API so this tab renders identically on a11oy.net/console AND the
+     mirrored HuggingFace Space. Doctrine v11: real grid data only, joules SAMPLE,
+     sovereign untouched, no free-energy, honest degradation when feeds are down. -->
+<script>
+(function(){
+  "use strict";
+  function esc(s){ return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  var EH_API="https://a11oy.net/api/a11oy/v1/harvest";
+  function num(v,d){ d=(d==null?2:d); return (v==null||isNaN(v))?'—':Number(v).toFixed(d); }
+  var EH_POS={
+    "negative-price":{l:"NEGATIVE PRICE",c:"#5fe39a"},
+    "curtailed-renewable":{l:"CURTAILED RENEWABLE",c:"#5fe39a"},
+    "cheap":{l:"CHEAP",c:"#7ad6e6"},
+    "normal":{l:"NORMAL",c:"#7ab8e6"},
+    "expensive":{l:"EXPENSIVE",c:"#ff7b6b"},
+    "unknown":{l:"UNKNOWN",c:"#9a9a9a"}
+  };
+  function feedCard(title,src,live,body){
+    var b=live?'<span class="badge" style="border:1px solid #4fb37f;color:#5fe39a">● LIVE</span>'
+              :'<span class="badge" style="border:1px solid #c06a5a;color:#ff7b6b">● UNREACHABLE</span>';
+    return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>'+esc(title)+'</b>'+b+'</div><div class="dim" style="font-size:11px">'+esc(src)+'</div>'+body+'</div>';
+  }
+  window.energy_render=async function(c){
+    c.innerHTML='<div class="card"><div class="dim">reading live grid feeds…</div></div>';
+    try{
+      var r=await fetch(EH_API+"/posture",{cache:"no-store"});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      var d=await r.json();
+      var p=EH_POS[d.grid_price_posture]||EH_POS.unknown;
+      var soak=d.wasted_energy_available;
+      var h='';
+      if(d.honesty) h+='<div class="honesty">'+esc(d.honesty)+'</div>';
+      h+='<div class="card" style="display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap">'
+        +'<div style="font-size:34px;font-weight:800;letter-spacing:-.02em;color:'+p.c+'">'
+        +'<span style="width:11px;height:11px;border-radius:50%;background:'+p.c+';display:inline-block;margin-right:.5rem;vertical-align:middle"></span>'+esc(p.l)+'</div>'
+        +'<div class="dim" style="flex:1;min-width:240px;font-size:13px">'
+        +(soak
+          ? '<b style="color:#e6edf6">Wasted-energy window OPEN.</b> The grid is effectively paying us to absorb load — proactive/batch compute may soak ALREADY-WASTED energy now. Reactive turns always serve regardless.'
+          : 'No wasted-energy window right now. Proactive/batch soak is <b style="color:#e6edf6">off</b>; reactive turns always serve.'+(d.next_window_negative?' A negative-price window is forecast ahead.':''))
+        +'</div></div>';
+      var price=d.price_now_eur_mwh;
+      var pc=(price==null)?'#e6edf6':(price<0?'#5fe39a':(price>100?'#ff7b6b':(price<30?'#e6edf6':'#fbbf24')));
+      h+='<div class="grid3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.6rem;margin-top:.6rem">';
+      h+=feedCard("Wholesale price (DE)","api.awattar.de",(d.feeds_live>0&&price!=null),
+        '<div style="font-size:26px;font-weight:800;color:'+pc+';margin-top:.3rem">'+num(price)+' <span class="dim" style="font-size:12px">EUR/MWh</span></div>'
+        +'<div class="dim" style="font-size:11px">next-min '+num(d.next_min_eur_mwh)+' · neg windows ahead: '+esc(d.next_negative_windows==null?'—':d.next_negative_windows)+'</div>');
+      h+=feedCard("Renewable share (DE)","api.energy-charts.info",(d.renewable_share_pct!=null),
+        '<div style="font-size:26px;font-weight:800;margin-top:.3rem">'+num(d.renewable_share_pct,1)+'<span class="dim" style="font-size:12px">%</span></div>'
+        +'<div class="dim" style="font-size:11px">curtailment soak triggers at ≥100% of load</div>');
+      h+=feedCard("Carbon intensity (UK)","api.carbonintensity.org.uk",(d.uk_gco2_per_kwh!=null),
+        '<div style="font-size:26px;font-weight:800;margin-top:.3rem">'+num(d.uk_gco2_per_kwh,0)+'<span class="dim" style="font-size:12px"> gCO₂/kWh</span></div>'
+        +'<div class="dim" style="font-size:11px">grid index: '+esc(d.uk_carbon_index||'—')+'</div>');
+      h+='</div>';
+      var when=d.ts?new Date(d.ts*1000).toLocaleTimeString():'now';
+      h+='<div class="dim" style="font-size:11px;margin-top:.5rem">'+esc(d.feeds_live)+'/'+esc(d.feeds_total)+' feeds live · '+(d.cached?'cached':'fresh')+' · '+esc(when)
+        +' · <a href="'+EH_API+'/harvest" target="_blank" rel="noopener">raw API</a> · <a href="https://a11oy.net/energy/" target="_blank" rel="noopener">standalone page ↗</a></div>';
+      c.innerHTML=h;
+      if(window.__eh_timer) clearInterval(window.__eh_timer);
+      window.__eh_timer=setInterval(function(){
+        if(!document.body.contains(c)){ clearInterval(window.__eh_timer); window.__eh_timer=null; return; }
+        if(!document.hidden) window.energy_render(c);
+      },60000);
+    }catch(e){
+      c.innerHTML='<div class="card"><div class="dim">live harvest signal unavailable: '+esc((e&&e.message)||e)+' — no data is fabricated when feeds are down.</div></div>';
+    }
+  };
+  function reg(){
+    var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
+    V['energy']={title:'Energy Harvest',badge:'LIVE GRID SIGNAL · JOULES SAMPLE · SOVEREIGN UNCHANGED',sub:'When the grid is <b>paying to offload load</b> (negative wholesale price) or renewables exceed demand (curtailment), running our own compute soaks <b>already-wasted</b> energy. Live from three real, no-key public feeds (aWATTar DE, energy-charts, UK Carbon Intensity); honest live/cached/unreachable labels and degradation. No free-energy: <code>joules_label=sample</code> until an on-box NVML meter, and this grid signal <b>never</b> sets <code>sovereign:true</code>. Not one of the locked-8; Λ = Conjecture&nbsp;1.',render:async function(c){ window.energy_render(c); }};
+  }
+  reg();
+  function injectNav(){
+    var anchor=document.querySelector('.nav-item[data-view="evidence"]')||document.querySelector('.nav-item[data-view="readiness"]')||document.querySelector('.nav-item');
+    if(!anchor){ return setTimeout(injectNav,250); }
+    if(document.querySelector('.nav-item[data-view="energy"]')){ return; }
+    var n=document.createElement('div'); n.className='nav-item'; n.setAttribute('data-view','energy'); n.setAttribute('onclick',"go('energy')");
+    n.innerHTML='<span class="ico">\u26a1</span>Energy Harvest';
+    anchor.parentNode.insertBefore(n, anchor.nextSibling);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
+})();
+</script>
+<!-- end energy-harvest-tab-patch -->
+
 </body>
 </html>
