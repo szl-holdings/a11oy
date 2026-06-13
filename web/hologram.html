@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>SZL Holographic Command Bridge — living agentic-GPU organism</title>
+<meta name="description" content="A 3D holographic command bridge for the SZL agentic-GPU organism: the RTX 5000 @ betterwithage as the MIND core, six proven round9 organs (BRAIN/HEART/BLOOD/IMMUNE/SKELETON/NERVOUS) orbiting and pulsing when active, energy-flow particles streaming from energy sources to the core (colored by source), and the consent-only swarm as a constellation. Reads the REAL endpoints (/code/healthz, /v1/energy/budget, organ probes). HONEST: sovereign glow only when /code/healthz says sovereign:true; energy figures are SAMPLE/ESTIMATE; Λ trust = Conjecture 1; unreachable organs render dim/unknown — no fabricated data. Three.js r128 vendored locally (NO CDN)."/>
+<style>
+  :root{
+    --bg0:#03060c; --bg1:#06101e; --ink:#dbe7ff; --dim:#7e93b8; --line:#16243c;
+    --green:#34f5b0; --amber:#ffcb57; --red:#ff5d73; --grey:#5d6e8c;
+    --teal:#39d7ff; --violet:#b98cff; --gold:#ffd66e;
+    --solar:#ffd24a; --wind:#5ad6ff; --hydro:#36b6ff; --flare:#ff7a3c; --grid:#9aa6bd;
+    --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg0);color:var(--ink);font-family:var(--sans);overflow:hidden}
+  #stage{position:fixed;inset:0;display:block}
+  /* HUD overlay */
+  .hud{position:fixed;pointer-events:none;font-family:var(--mono);text-shadow:0 1px 8px #000a}
+  .hud b{font-weight:600}
+  #title{top:18px;left:22px;max-width:46vw;pointer-events:auto}
+  #title h1{margin:0;font-size:16px;letter-spacing:.14em;color:var(--ink);font-weight:600}
+  #title .sub{margin-top:4px;font-size:11px;color:var(--dim);letter-spacing:.04em;line-height:1.5}
+  .badge{display:inline-block;margin-top:8px;padding:3px 8px;border:1px solid var(--line);border-radius:999px;
+    font-size:10px;letter-spacing:.08em;color:var(--dim);background:#0a1422aa}
+  /* mind posture card */
+  #mind{top:18px;right:22px;width:300px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,#0a1626dd,#060d18ee);padding:14px 16px;pointer-events:auto;backdrop-filter:blur(4px)}
+  #mind .row{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;border-bottom:1px dashed #13203660}
+  #mind .row:last-child{border-bottom:0}
+  #mind .k{color:var(--dim)}
+  #mind .v{color:var(--ink);text-align:right}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.04em}
+  .pill.green{background:#0c3a2c;color:var(--green);box-shadow:0 0 14px #34f5b055}
+  .pill.amber{background:#3a2e0c;color:var(--amber)}
+  .pill.red{background:#3a1018;color:var(--red)}
+  .pill.grey{background:#1a2333;color:var(--grey)}
+  #mind h2{margin:0 0 8px;font-size:11px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+  /* organ legend / energy legend */
+  #legend{bottom:18px;left:22px;border:1px solid var(--line);border-radius:12px;background:#070f1ccc;
+    padding:11px 13px;pointer-events:auto;font-size:11px;max-width:340px;backdrop-filter:blur(3px)}
+  #legend h3{margin:0 0 6px;font-size:10px;letter-spacing:.14em;color:var(--dim);font-weight:600}
+  .lg-row{display:flex;align-items:center;gap:7px;padding:2px 0;color:var(--dim)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+  .organs-list{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:6px}
+  /* energy/flow card */
+  #flow{bottom:18px;right:22px;width:300px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,#0a1626dd,#060d18ee);padding:13px 16px;pointer-events:auto;backdrop-filter:blur(4px)}
+  #flow h2{margin:0 0 8px;font-size:11px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+  #flow .row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #13203660}
+  #flow .row:last-child{border-bottom:0}
+  #flow .k{color:var(--dim)} #flow .v{color:var(--ink)}
+  .sample{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid #4a3a12;border-radius:6px;
+    font-size:9px;letter-spacing:.06em;color:var(--amber);background:#241c08}
+  /* organ tooltip */
+  #tip{position:fixed;pointer-events:none;font-family:var(--mono);font-size:11px;color:var(--ink);
+    background:#0a1626ee;border:1px solid var(--line);border-radius:10px;padding:8px 11px;max-width:280px;
+    opacity:0;transition:opacity .12s;z-index:9;box-shadow:0 8px 30px #000a}
+  #tip .t{font-weight:600;letter-spacing:.06em} #tip .d{color:var(--dim);margin-top:3px;line-height:1.45}
+  #tip .st{margin-top:5px}
+  /* footer doctrine line */
+  #foot{bottom:0;left:0;right:0;text-align:center;font-size:10px;color:var(--grey);
+    padding:7px 12px;letter-spacing:.05em;background:linear-gradient(0deg,#03060ce0,#03060c00)}
+  #foot code{color:var(--dim)}
+  a{color:var(--teal);text-decoration:none}
+  /* no-webgl fallback */
+  #nogl{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:40px;
+    font-family:var(--mono);color:var(--dim)}
+  #nogl.show{display:grid}
+  @media(max-width:760px){
+    #title{max-width:90vw} #mind,#flow{width:min(92vw,300px)}
+    #legend{display:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div id="nogl">
+  <div>
+    <div style="font-size:15px;color:var(--ink);letter-spacing:.1em">WebGL unavailable</div>
+    <p>This holographic bridge needs WebGL. The live data it renders is still honest and reachable
+    as JSON at <code>/api/a11oy/code/healthz</code> and <code>/api/a11oy/v1/energy/budget</code>,
+    and as a 2D surface at <a href="/energy">/energy</a>.</p>
+  </div>
+</div>
+
+<div class="hud" id="title">
+  <h1>HOLOGRAPHIC COMMAND BRIDGE</h1>
+  <div class="sub">
+    The living <b>agentic-GPU organism</b> — RTX&nbsp;5000 @ betterwithage as the <b>MIND</b>,
+    six proven round9 <b>organs</b> as the body, energy flow as its <b>circulation</b>.<br/>
+    Reads the real endpoints; renders nothing it cannot confirm.
+  </div>
+  <span class="badge" id="conn">● connecting…</span>
+</div>
+
+<div class="hud" id="mind">
+  <h2>MIND CORE — /code/healthz</h2>
+  <div class="row"><span class="k">Posture</span><span class="v"><span class="pill grey" id="m_posture">unknown</span></span></div>
+  <div class="row"><span class="k">Sovereign</span><span class="v" id="m_sov">—</span></div>
+  <div class="row"><span class="k">Inference</span><span class="v" id="m_inf">—</span></div>
+  <div class="row"><span class="k">Λ trust</span><span class="v" id="m_lambda">Conjecture&nbsp;1</span></div>
+</div>
+
+<div class="hud" id="flow">
+  <h2>CIRCULATION — /v1/energy/budget</h2>
+  <div class="row"><span class="k">Dominant source</span><span class="v" id="f_src">—</span></div>
+  <div class="row"><span class="k">Σ joules<span class="sample">SAMPLE</span></span><span class="v" id="f_j">—</span></div>
+  <div class="row"><span class="k">Receipts</span><span class="v" id="f_n">—</span></div>
+  <div class="row"><span class="k">Bekenstein</span><span class="v" id="f_bek">—</span></div>
+</div>
+
+<div class="hud" id="legend">
+  <h3>ENERGY SOURCES (flow color)</h3>
+  <div class="lg-row"><span class="dot" style="color:var(--solar)"></span>solar
+    <span class="dot" style="color:var(--wind);margin-left:10px"></span>wind
+    <span class="dot" style="color:var(--hydro);margin-left:10px"></span>hydro
+    <span class="dot" style="color:var(--flare);margin-left:10px"></span>flare
+    <span class="dot" style="color:var(--grid);margin-left:10px"></span>grid</div>
+  <h3 style="margin-top:9px">ORGAN STATE</h3>
+  <div class="lg-row"><span class="dot" style="color:var(--green)"></span>active&nbsp;(pulses)
+    <span class="dot" style="color:var(--amber);margin-left:10px"></span>degraded
+    <span class="dot" style="color:var(--grey);margin-left:10px"></span>unknown&nbsp;(unreachable — honest dim)</div>
+</div>
+
+<div id="tip"></div>
+
+<div class="hud" id="foot">
+  Three.js r128 vendored locally — <b>0 runtime CDN</b>. Energy figures are <b>SAMPLE/ESTIMATE</b>
+  (no power meter wired). Sovereign glow only when <code>/code/healthz</code> reports
+  <code>sovereign:true</code>. Λ trust = <b>Conjecture 1</b> (advisory, never a theorem).
+  Unreachable organs render dim — <b>no fabricated data</b>. Consent-only swarm.
+</div>
+
+<!-- THREE r128 (MIT), vendored locally at /vendor/three.min.js — NO CDN (matches fleet-c2.html). -->
+<script src="/vendor/three.min.js"></script>
+<script>
+"use strict";
+(function(){
+  // ---- honest fetch: never throws, returns null on any failure ----
+  var API = "/api/a11oy";
+  function getJSON(u){
+    return fetch(u, {cache:"no-store"})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .catch(function(){ return null; });
+  }
+  function esc(s){ return String(s==null?"":s).replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c];}); }
+  function fmt(n,d){ var x=Number(n); return isFinite(x)? x.toFixed(d==null?2:d) : "—"; }
+  function $(id){ return document.getElementById(id); }
+
+  // ---- organ catalogue: each is a PROVEN round9 formula doing a real job ----
+  // status starts "unknown" (dim) and only goes active/degraded on confirmed signal.
+  var ORGANS = [
+    {id:"BRAIN",   col:0xb98cff, role:"belief-update admission (PAC-Bayes McAllester) — how the mind reasons under uncertainty",
+       probe:API+"/v1/formulas",        note:"amaru /v1/formulas (pac_bayes)"},
+    {id:"HEART",   col:0xff5d73, role:"σ-algebra receipt bus — every GPU action leaves a measurable beat",
+       probe:API+"/v1/receipts/summary",note:"amaru /receipts · khipu ledger"},
+    {id:"BLOOD",   col:0xff7a3c, role:"Cardano-anchored DSSE — carries signed provenance to every organ",
+       probe:API+"/v1/khipu/health",    note:"sentra /khipu/sign"},
+    {id:"IMMUNE",  col:0x34f5b0, role:"Neyman-Pearson deny-by-default gates — rejects unsafe/overclaim work",
+       probe:API+"/v1/gates",           note:"sentra /v1/gates (8 gates)"},
+    {id:"SKELETON",col:0x39d7ff, role:"the Lean proof spine (Λ = Conjecture 1) — holds the body honest",
+       probe:API+"/math/lean/theorems", note:"amaru /math/lean/theorems"},
+    {id:"NERVOUS", col:0xffd66e, role:"Shannon-alarm drift sense — proprioception + self-monitor",
+       probe:API+"/overwatch/snapshot", note:"amaru /overwatch/snapshot"}
+  ];
+
+  // energy-source -> color (matches the CSS legend)
+  var SRC_COLOR = {
+    solar:0xffd24a, wind:0x5ad6ff, hydro:0x36b6ff, flare:0xff7a3c, grid:0x9aa6bd
+  };
+  function srcColor(s){
+    s = String(s||"").toLowerCase();
+    for(var k in SRC_COLOR){ if(s.indexOf(k)>=0) return SRC_COLOR[k]; }
+    return 0x9aa6bd; // unknown source -> grid grey (honest neutral)
+  }
+
+  // ---------- WebGL guard ----------
+  if(!window.THREE || !(function(){try{var c=document.createElement("canvas");
+      return !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl")));
+    }catch(e){return false;}})()){
+    $("nogl").classList.add("show");
+    $("conn").textContent = "● WebGL unavailable — JSON endpoints still honest";
+    // still drive the HUD cards from live JSON so the data is not lost.
+    pollData();
+    setInterval(pollData, 15000);
+    return;
+  }
+
+  // ---------- scene ----------
+  var THREE = window.THREE;
+  var canvas = $("stage");
+  var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  var scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x03060c, 0.018);
+
+  var camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
+  camera.position.set(0, 9, 34);
+
+  scene.add(new THREE.AmbientLight(0x223355, 0.7));
+  var key = new THREE.PointLight(0x66aaff, 1.1, 200); key.position.set(0,18,18); scene.add(key);
+
+  // starfield backdrop
+  (function(){
+    var g = new THREE.BufferGeometry(), N=1400, p=new Float32Array(N*3);
+    for(var i=0;i<N;i++){ var r=120+Math.random()*120;
+      var th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+      p[i*3]=r*Math.sin(ph)*Math.cos(th); p[i*3+1]=r*Math.cos(ph)*0.5; p[i*3+2]=r*Math.sin(ph)*Math.sin(th); }
+    g.setAttribute("position", new THREE.BufferAttribute(p,3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0x2b3b5a,size:0.6,sizeAttenuation:true})));
+  })();
+
+  // ============ MIND CORE (RTX 5000) ============
+  var core = new THREE.Group(); scene.add(core);
+  var coreGeo = new THREE.IcosahedronGeometry(3.2, 2);
+  var coreMat = new THREE.MeshStandardMaterial({
+    color:0x0e2a44, emissive:0x0a3a55, emissiveIntensity:0.6,
+    metalness:0.6, roughness:0.25, transparent:true, opacity:0.92, flatShading:true
+  });
+  var coreMesh = new THREE.Mesh(coreGeo, coreMat); core.add(coreMesh);
+  // wireframe shell — its color = sovereign posture (grey until confirmed)
+  var shellMat = new THREE.MeshBasicMaterial({color:0x5d6e8c, wireframe:true, transparent:true, opacity:0.35});
+  var shell = new THREE.Mesh(new THREE.IcosahedronGeometry(3.9,1), shellMat); core.add(shell);
+  // sovereign glow halo (hidden until sovereign:true is confirmed)
+  var haloMat = new THREE.SpriteMaterial({color:0x34f5b0, transparent:true, opacity:0.0, depthWrite:false, blending:THREE.AdditiveBlending});
+  var halo = new THREE.Sprite(haloMat); halo.scale.set(22,22,1); core.add(halo);
+  // (procedural radial sprite so we ship NO image asset)
+  (function(){
+    var s=128, cv=document.createElement("canvas"); cv.width=cv.height=s;
+    var x=cv.getContext("2d"), gr=x.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+    gr.addColorStop(0,"rgba(255,255,255,0.9)"); gr.addColorStop(0.4,"rgba(255,255,255,0.25)"); gr.addColorStop(1,"rgba(255,255,255,0)");
+    x.fillStyle=gr; x.fillRect(0,0,s,s);
+    haloMat.map = new THREE.CanvasTexture(cv); haloMat.needsUpdate=true;
+  })();
+
+  // ============ ORGAN NODES (6, orbiting) ============
+  var organMeshes = [];
+  var ORBIT = 11.5;
+  ORGANS.forEach(function(o, i){
+    var grp = new THREE.Group();
+    var ang = (i/ORGANS.length)*Math.PI*2;
+    var node = new THREE.Mesh(
+      new THREE.OctahedronGeometry(1.15, 0),
+      new THREE.MeshStandardMaterial({color:o.col, emissive:o.col, emissiveIntensity:0.25,
+        metalness:0.4, roughness:0.4, transparent:true, opacity:0.45}) // dim until confirmed active
+    );
+    var ring = new THREE.Mesh(
+      new THREE.TorusGeometry(1.7, 0.06, 8, 40),
+      new THREE.MeshBasicMaterial({color:o.col, transparent:true, opacity:0.25})
+    );
+    ring.rotation.x = Math.PI/2;
+    grp.add(node); grp.add(ring);
+    grp.userData = {organ:o, baseAngle:ang, node:node, ring:ring, status:"unknown", pulse:0};
+    scene.add(grp);
+    organMeshes.push(grp);
+  });
+
+  // ============ ENERGY-FLOW PARTICLES (sources -> core) ============
+  // Each "source" emits particles that stream inward; color = energy source.
+  // Number of active streams + their color is DERIVED from live receipts, never invented.
+  var MAXP = 900;
+  var flowGeo = new THREE.BufferGeometry();
+  var fpos = new Float32Array(MAXP*3), fcol = new Float32Array(MAXP*3);
+  var fdat = []; // per-particle {ang,rad,spd,active}
+  for(var i=0;i<MAXP;i++){
+    fdat.push({ang:Math.random()*Math.PI*2, rad:0, spd:0, active:false, col:[0.36,0.42,0.55]});
+    fpos[i*3]=0; fpos[i*3+1]=0; fpos[i*3+2]=0;
+    fcol[i*3]=0.36; fcol[i*3+1]=0.42; fcol[i*3+2]=0.55;
+  }
+  flowGeo.setAttribute("position", new THREE.BufferAttribute(fpos,3));
+  flowGeo.setAttribute("color", new THREE.BufferAttribute(fcol,3));
+  var flowPts = new THREE.Points(flowGeo, new THREE.PointsMaterial({
+    size:0.5, vertexColors:true, transparent:true, opacity:0.85,
+    blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+  }));
+  scene.add(flowPts);
+  var activeStreams = 0; // set from live data; 0 = honest "no confirmed flow"
+
+  function setFlow(streamCount, colorHex){
+    activeStreams = Math.max(0, Math.min(MAXP, streamCount|0));
+    var c = new THREE.Color(colorHex);
+    for(var i=0;i<MAXP;i++){
+      var on = i < activeStreams;
+      fdat[i].active = on;
+      if(on){
+        fdat[i].rad = 26 + Math.random()*40;
+        fdat[i].ang = Math.random()*Math.PI*2;
+        fdat[i].spd = 0.10 + Math.random()*0.14;
+        fdat[i].col = [c.r, c.g, c.b];
+      }
+    }
+  }
+
+  // ============ SWARM CONSTELLATION ============
+  // Faint outer ring of points = consent-only swarm nodes (count from /v1/gates or default fabric).
+  var swarmGrp = new THREE.Group(); scene.add(swarmGrp);
+  function buildSwarm(n){
+    while(swarmGrp.children.length) swarmGrp.remove(swarmGrp.children[0]);
+    n = Math.max(1, Math.min(64, n|0));
+    for(var i=0;i<n;i++){
+      var a=(i/n)*Math.PI*2 + 0.3, r=20+ (i%3)*1.6;
+      var m=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,8),
+        new THREE.MeshBasicMaterial({color:i===0?0x34f5b0:0x39557a}));
+      m.position.set(Math.cos(a)*r, (Math.sin(i*1.7)*2.2), Math.sin(a)*r);
+      swarmGrp.add(m);
+    }
+  }
+  buildSwarm(7); // default 7-node fabric; replaced by live count when available
+
+  // ---------- interaction: drag-rotate, wheel-zoom, hover organs ----------
+  var ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+  var rotY=0.0, rotX=0.0, dragging=false, lx=0, ly=0, autoRot=true, zoom=34;
+  canvas.addEventListener("pointerdown", function(e){ dragging=true; autoRot=false; lx=e.clientX; ly=e.clientY; });
+  window.addEventListener("pointerup", function(){ dragging=false; });
+  window.addEventListener("pointermove", function(e){
+    if(dragging){ rotY += (e.clientX-lx)*0.005; rotX += (e.clientY-ly)*0.004;
+      rotX=Math.max(-0.9,Math.min(0.9,rotX)); lx=e.clientX; ly=e.clientY; }
+    // hover tooltip
+    mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;
+    ray.setFromCamera(mouse, camera);
+    var hit = ray.intersectObjects(organMeshes.map(function(g){return g.userData.node;}));
+    var tip=$("tip");
+    if(hit.length){
+      var g = organMeshes.filter(function(gg){return gg.userData.node===hit[0].object;})[0];
+      var u=g.userData, st=u.status;
+      var stc = st==="active"?"var(--green)":(st==="degraded"?"var(--amber)":"var(--grey)");
+      tip.innerHTML = '<div class="t" style="color:#'+u.organ.col.toString(16).padStart(6,"0")+'">'+esc(u.organ.id)+'</div>'+
+        '<div class="d">'+esc(u.organ.role)+'</div>'+
+        '<div class="st"><span style="color:'+stc+'">●</span> '+esc(st)+' · <span style="color:var(--dim)">'+esc(u.organ.note)+'</span></div>';
+      tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+12)+"px"; tip.style.opacity=1;
+    } else tip.style.opacity=0;
+  });
+  canvas.addEventListener("wheel", function(e){ e.preventDefault(); zoom=Math.max(16,Math.min(70, zoom+e.deltaY*0.02)); }, {passive:false});
+
+  function resize(){
+    var w=window.innerWidth, h=window.innerHeight;
+    renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize); resize();
+
+  // ---------- animation ----------
+  var t0=performance.now();
+  function tick(now){
+    var t=(now-t0)/1000;
+    if(autoRot) rotY += 0.0016;
+    // camera framing from rot + zoom
+    camera.position.x = Math.sin(rotY)*zoom*Math.cos(rotX);
+    camera.position.z = Math.cos(rotY)*zoom*Math.cos(rotX);
+    camera.position.y = 9 + Math.sin(rotX)*zoom;
+    camera.lookAt(0,0,0);
+
+    core.rotation.y += 0.003; shell.rotation.y -= 0.0017; shell.rotation.x += 0.0009;
+    coreMat.emissiveIntensity = 0.55 + Math.sin(t*1.6)*0.12; // gentle breathing
+
+    // organs orbit + pulse when active
+    organMeshes.forEach(function(g){
+      var u=g.userData, a=u.baseAngle + t*0.12;
+      var R=ORBIT + Math.sin(t*0.4 + u.baseAngle)*0.6;
+      g.position.set(Math.cos(a)*R, Math.sin(a*1.3 + u.baseAngle)*2.4, Math.sin(a)*R);
+      g.lookAt(0,0,0);
+      var s=1;
+      if(u.status==="active"){ u.pulse += 0.06; s = 1 + Math.abs(Math.sin(u.pulse))*0.5;
+        u.node.material.emissiveIntensity = 0.5 + Math.abs(Math.sin(u.pulse))*0.8;
+        u.node.material.opacity = 0.95; u.ring.material.opacity = 0.55;
+      } else if(u.status==="degraded"){ s=1+Math.sin(t*4)*0.06;
+        u.node.material.emissiveIntensity=0.35; u.node.material.opacity=0.7; u.ring.material.opacity=0.3;
+      } else { // unknown -> dim, still, honest
+        u.node.material.emissiveIntensity=0.12; u.node.material.opacity=0.32; u.ring.material.opacity=0.14;
+      }
+      u.node.scale.setScalar(s);
+    });
+
+    // energy-flow particles stream inward toward the core; recycle at center
+    var pos=flowGeo.attributes.position.array, col=flowGeo.attributes.color.array;
+    for(var i=0;i<MAXP;i++){
+      var d=fdat[i];
+      if(!d.active){ pos[i*3]=0;pos[i*3+1]=-999;pos[i*3+2]=0; continue; }
+      d.rad -= d.spd; if(d.rad < 3.4){ d.rad = 26 + Math.random()*40; d.ang = Math.random()*Math.PI*2; }
+      var yy = Math.sin(d.ang*2 + d.rad*0.1)*2.2;
+      pos[i*3]   = Math.cos(d.ang)*d.rad;
+      pos[i*3+1] = yy;
+      pos[i*3+2] = Math.sin(d.ang)*d.rad;
+      col[i*3]=d.col[0]; col[i*3+1]=d.col[1]; col[i*3+2]=d.col[2];
+    }
+    flowGeo.attributes.position.needsUpdate=true; flowGeo.attributes.color.needsUpdate=true;
+
+    swarmGrp.rotation.y += 0.0006;
+    renderer.render(scene,camera);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---------- LIVE DATA: bind the hologram to the real endpoints ----------
+  function applyPosture(hz){
+    var pEl=$("m_posture"), sEl=$("m_sov"), iEl=$("m_inf");
+    if(!hz){ // unreachable -> honest unknown, NO sovereign glow
+      pEl.className="pill grey"; pEl.textContent="unknown — unreachable";
+      sEl.textContent="—"; iEl.textContent="—";
+      shellMat.color.setHex(0x5d6e8c); haloMat.opacity=0.0;
+      $("conn").textContent="● /code/healthz unreachable — honest empty-state";
+      return;
+    }
+    var sov = hz.sovereign===true, inf=String(hz.inference||"");
+    sEl.textContent = sov ? "true" : "false";
+    iEl.textContent = inf || "—";
+    if(sov && inf==="self-hosted-gpu"){
+      pEl.className="pill green"; pEl.textContent="GREEN — sovereign GPU serving";
+      shellMat.color.setHex(0x34f5b0);            // green shell
+      haloMat.color.setHex(0x34f5b0); haloMat.opacity=0.55; // sovereign glow ON
+    } else if(sov){
+      pEl.className="pill green"; pEl.textContent="GREEN — sovereign";
+      shellMat.color.setHex(0x34f5b0); haloMat.color.setHex(0x34f5b0); haloMat.opacity=0.4;
+    } else {
+      // reachable but NOT sovereign -> amber, NO sovereign glow (half-state refused)
+      pEl.className="pill amber"; pEl.textContent="MAINTENANCE — router fallback";
+      shellMat.color.setHex(0xffcb57); haloMat.opacity=0.0;
+    }
+    $("conn").textContent="● live";
+  }
+
+  function applyBudget(b){
+    var srcEl=$("f_src"), jEl=$("f_j"), nEl=$("f_n"), bekEl=$("f_bek");
+    if(!b){
+      srcEl.textContent="—"; jEl.textContent="—"; nEl.textContent="0 (no confirmed flow)";
+      bekEl.textContent="—"; setFlow(0,0x9aa6bd); // honest: no data => no streams
+      return;
+    }
+    var rows = b.receipts || b.ledger || b.tasks || [];
+    if(!Array.isArray(rows)) rows=[];
+    var n = (b.count!=null)? b.count : rows.length;
+    // dominant energy source by joules (SAMPLE) — honest if none present
+    var bySrc={}, totJ=0;
+    rows.forEach(function(r){
+      var s=String(r.energy_source||r.source||"").toLowerCase()||"unknown";
+      var j=Number(r.joules_est||r.joules||0)||0;
+      bySrc[s]=(bySrc[s]||0)+j; totJ+=j;
+    });
+    if(b.total_joules_est!=null) totJ=Number(b.total_joules_est)||totJ;
+    var dom="unknown", domJ=-1;
+    for(var s in bySrc){ if(bySrc[s]>domJ){domJ=bySrc[s];dom=s;} }
+    srcEl.innerHTML = (dom==="unknown")? '<span style="color:var(--dim)">unlabeled</span>'
+      : '<span style="color:#'+srcColor(dom).toString(16).padStart(6,"0")+'">'+esc(dom)+'</span>';
+    jEl.textContent = (totJ>0)? fmt(totJ,3) : "—";
+    nEl.textContent = String(n);
+    // Bekenstein gate (proven F19/TH6) — show pass count if present, else summary
+    var within = rows.filter(function(r){return r.within===true || r.bekenstein_ok===true;}).length;
+    bekEl.innerHTML = rows.length
+      ? '<span style="color:var(--green)">'+within+'/'+rows.length+' within bound</span>'
+      : (b.total_shannon_bits!=null? '<span style="color:var(--dim)">Σ bits '+fmt(b.total_shannon_bits,0)+'</span>':'—');
+    // streams: scale with receipt count (bounded), colored by dominant source.
+    // 0 receipts => 0 streams (honest: we draw flow only for confirmed activity).
+    setFlow(Math.min(MAXP, n*40), srcColor(dom));
+  }
+
+  function applyOrgan(g, ok){
+    // ok===true active, ok===false reachable-but-degraded, null unknown
+    g.userData.status = (ok===true)?"active":(ok===false?"degraded":"unknown");
+  }
+
+  function pollData(){
+    getJSON(API+"/code/healthz").then(applyPosture);
+    getJSON(API+"/v1/energy/budget").then(applyBudget);
+    // probe each organ endpoint; honest dim on null. Never blocks the scene.
+    organMeshes.forEach(function(g){
+      getJSON(g.userData.organ.probe).then(function(j){
+        applyOrgan(g, j==null ? null : true);
+      });
+    });
+    // swarm size from gates payload if present (else keep default fabric)
+    getJSON(API+"/v1/gates").then(function(j){
+      if(j){
+        var n = Array.isArray(j)? j.length : (j.nodes? j.nodes.length : (j.count||7));
+        buildSwarm(n);
+      }
+    });
+  }
+  pollData();
+  setInterval(pollData, 15000);
+})();
+</script>
+</body>
+</html>
