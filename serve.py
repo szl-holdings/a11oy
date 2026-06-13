@@ -5131,8 +5131,12 @@ def _a11oy_arena_lambda_geo(vals):
 # the arena show drift over time: did a policy/key change move the numbers?
 # Stored fields are summaries only (run_id, timestamp, per-scenario overalls,
 # pass counts, the PUBLIC receipt keyid + signed flag) — never any payload,
-# secret, or key material. The disk file is best-effort and resets on Space
-# rebuild (honest disclosure); the in-memory ring is the source of truth.
+# secret, or key material. The on-disk NDJSON is written to a DURABLE
+# directory when one is mounted (env A11OY_EVAL_HIST_DIR, e.g. a bind-mount
+# on the box) so the trend survives a container restart and a full
+# a11oy-rebuild; with no durable mount (e.g. HF Space) it falls back to a
+# best-effort /tmp file that resets on rebuild (honest disclosure). The
+# in-memory ring is seeded from this file at boot.
 import collections as _aeh_collections
 import threading as _aeh_threading
 from pathlib import Path as _aeh_Path
@@ -5140,10 +5144,37 @@ from pathlib import Path as _aeh_Path
 _A11OY_EVAL_HIST_MAX = 50
 _A11OY_EVAL_HIST = _aeh_collections.deque(maxlen=_A11OY_EVAL_HIST_MAX)
 _A11OY_EVAL_HIST_LOCK = _aeh_threading.Lock()
+
+
+def _a11oy_eval_hist_resolve_dir():
+    """Pick a writable directory for the on-disk history NDJSON.
+    Durable-first: A11OY_EVAL_HIST_DIR (a bind-mounted volume on the box)
+    survives container restart AND a full a11oy-rebuild; falls back to
+    /tmp/a11oy_snapshots (best-effort, ephemeral) on surfaces with no
+    durable mount (e.g. the HF Space). Returns the first dir we can
+    actually create + write, or None. Never raises."""
+    cands = []
+    envd = (os.environ.get("A11OY_EVAL_HIST_DIR") or "").strip()
+    if envd:
+        cands.append(_aeh_Path(envd))
+    cands.append(_aeh_Path("/tmp/a11oy_snapshots"))
+    for d in cands:
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            _probe = d / ".write_test"
+            _probe.write_text("ok", "utf-8")
+            _probe.unlink()
+            return d
+        except Exception:
+            continue
+    return None
+
+
 try:
-    _A11OY_EVAL_HIST_DIR = _aeh_Path("/tmp/a11oy_snapshots")
-    _A11OY_EVAL_HIST_DIR.mkdir(parents=True, exist_ok=True)
-    _A11OY_EVAL_HIST_PATH = _A11OY_EVAL_HIST_DIR / "eval_arena_history.ndjson"
+    _A11OY_EVAL_HIST_DIR = _a11oy_eval_hist_resolve_dir()
+    _A11OY_EVAL_HIST_PATH = (
+        (_A11OY_EVAL_HIST_DIR / "eval_arena_history.ndjson")
+        if _A11OY_EVAL_HIST_DIR else None)
 except Exception:
     _A11OY_EVAL_HIST_PATH = None
 
@@ -5390,8 +5421,11 @@ async def a11oy_eval_arena_history_v2(limit: int = 20) -> JSONResponse:
     Each entry is a PII-free, secret-free summary appended when "Re-run live"
     executes; because every run reflects the in-image policy/key state at that
     moment, drift across runs tracks governance changes. In-memory ring buffer
-    (maxlen=50) backed by a best-effort on-disk NDJSON; both reset on Space
-    rebuild (honest disclosure) \u2014 this is a trend view, not an immutable
+    (maxlen=50) seeded at boot from an on-disk NDJSON. When a durable
+    directory is mounted (env A11OY_EVAL_HIST_DIR) the trend survives a
+    container restart and a full a11oy-rebuild; with no durable mount
+    (e.g. the HF Space) the file is best-effort and resets on rebuild
+    (honest disclosure) — this is a trend view, not an immutable
     audit log (the per-run DSSE receipts are the verifiable artifacts)."""
     try:
         n = max(1, min(int(limit), _A11OY_EVAL_HIST_MAX))
@@ -5409,7 +5443,9 @@ async def a11oy_eval_arena_history_v2(limit: int = 20) -> JSONResponse:
             "entry is a PII-free, secret-free summary appended when \u201cRe-run "
             "live\u201d executes; it reflects the in-image policy/key state at that "
             "moment, so drift across runs tracks governance changes. In-memory ring "
-            "buffer (best-effort on-disk NDJSON) that resets on Space rebuild \u2014 "
+            "buffer seeded at boot from an on-disk NDJSON; with a durable mount "
+            "(A11OY_EVAL_HIST_DIR) it survives container restart and a11oy-rebuild, "
+            "otherwise it is best-effort and resets on rebuild — "
             "a trend view, not an immutable audit log."),
     })
 
