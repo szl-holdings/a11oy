@@ -107,7 +107,7 @@ def _card(item: dict, ns: str) -> str:
     tier = (item.get("tier") or _TIER.get(name) or "").lower()
     scaffold = "scaffolding" in theorem.lower() or "conjecture" in theorem.lower()
     if tier == "experimental":
-        badge = '<span class="badge exp">experimental (CI-green, not in locked-5)</span>'
+        badge = '<span class="badge exp">experimental (CI-green, not in locked-8)</span>'
     elif tier == "live-data":
         badge = '<span class="badge live">live-data (generic-parameter, not a theorem)</span>'
     elif scaffold:
