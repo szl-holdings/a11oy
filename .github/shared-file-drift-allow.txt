@@ -35,6 +35,7 @@ a11oy_code_engine.py       # a11oy-only HF-router roster + multi-name token dete
 operator_shell_v4.py       # killinchu-only POST /inbox drone-telemetry handler (P2 spec)
 live_wires_3d.js           # killinchu-only SISTER_LABELS honest organ-name render layer
 szl_khipu_consensus.py     # killinchu-only honest theorem-provenance / lake_receipt on consensus payloads
+szl_evidence_research.py   # killinchu-only finance/real-estate/risk vertical CLAIMS (PR #115) absent from a11oy's organ console
 
 # --- Doctrine / honesty-claim state that differs per demo.
 # 2026-06-10: szl_brain.py and szl_formulas.py were union-merged to a single
