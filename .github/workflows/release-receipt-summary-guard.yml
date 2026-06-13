@@ -37,11 +37,13 @@ on:
     paths:
       - ".github/workflows/release-receipt-summary-guard.yml"
       - "scripts/check_release_receipt_summary.py"
+      - "scripts/check_summary_alert_gating.py"
   push:
     branches: [main]
     paths:
       - ".github/workflows/release-receipt-summary-guard.yml"
       - "scripts/check_release_receipt_summary.py"
+      - "scripts/check_summary_alert_gating.py"
   workflow_dispatch:
     inputs:
       run_id:
@@ -72,6 +74,17 @@ jobs:
           python-version: "3.12"
       - name: Prove the validator rejects missing/empty/malformed summaries
         run: python scripts/check_release_receipt_summary.py --selftest
+
+      # Prove the failure-only alert step never pages on a healthy run. The
+      # negative fixtures reject a gate weakened to always(), bare failure(),
+      # success(), a widened event guard or a missing `if:`; the audit then holds
+      # the LIVE alert `if:` in this very workflow to that same contract — so a
+      # future edit that would page on every green run goes RED here instead.
+      - name: Prove the alert step only pages on real failures (gating fixtures)
+        run: python scripts/check_summary_alert_gating.py --selftest
+
+      - name: Audit the live alert gating against the never-page-on-healthy-run contract
+        run: python scripts/check_summary_alert_gating.py --workflow .github/workflows/release-receipt-summary-guard.yml
 
   # Audit the artifact an actual release-receipt-verify run published. Runs when
   # that workflow completes (success or failure both reach the upload step), and
