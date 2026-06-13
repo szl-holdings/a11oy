@@ -368,7 +368,9 @@ def feed_yahoo(symbol: str) -> dict[str, Any]:
         quotes = (res.get("indicators", {}).get("quote") or [{}])[0]
         closes = [c for c in (quotes.get("close") or []) if c is not None]
         return {"symbol": symbol, "price": m.get("regularMarketPrice"), "prevClose": m.get("chartPreviousClose") or m.get("previousClose"),
-                "currency": m.get("currency"), "spark": closes[-30:], "ts": m.get("regularMarketTime")}
+                "currency": m.get("currency"), "spark": closes[-30:], "ts": m.get("regularMarketTime"),
+                "source": "Yahoo Finance (unofficial v8 endpoint — fallback)", "official": False,
+                "data_kind": "unofficial-fallback"}
     return _cached_fetch("yh_" + symbol, url, ttl=30, parser=parse)
 
 
