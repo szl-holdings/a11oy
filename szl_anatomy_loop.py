@@ -79,6 +79,44 @@ except Exception:  # pragma: no cover - defensive: doctrine default is always sa
     def _joules_evidence(_exporter_sample, now=None):  # type: ignore
         return {}
 
+# Resilience + latency-hardening helpers, ALREADY SHIPPED on main. We REUSE them —
+# we do NOT reinvent a breaker or a cache here. The intake probe hits the harvest
+# posture surface, which in turn reaches the sleeping GPU / offline chaski node; a
+# synchronous probe of a dead node pays the full per-URL TCP/HTTP timeout (~1.5s
+# each, three surfaces -> the ~3s dependency-wait this fix removes). We wrap that
+# ONE blocking dependency call with:
+#   (a) a Hystrix CIRCUIT BREAKER (szl_resilience) — after N consecutive failures
+#       it OPENs and fail-fasts, so a sustained sleeping node stops costing ANY
+#       timeout at all; and
+#   (b) a short hard-timeout probe + a TTLCache (szl_backend_hardening) — a slow or
+#       dead node is abandoned at a sub-second budget and the loop serves the LAST
+#       REAL posture (or an honest SAMPLE), never a hang.
+# Every import is wrapped so a missing/broken helper can NEVER take down the loop;
+# it degrades to today's behaviour (the existing _read_intake fallbacks).
+try:  # pragma: no cover - exercised via the offline tests with the helpers present
+    from szl_resilience import REGISTRY as _BREAKER_REGISTRY
+    _INTAKE_BREAKER = _BREAKER_REGISTRY.get_or_create(
+        # Small threshold + short cooldown: trip fast when the GPU-node-backed
+        # posture surface is sleeping, recover promptly when it wakes.
+        "anatomy-intake-probe", failure_threshold=3, cooldown=20.0, half_open_max=1
+    )
+except Exception:  # pragma: no cover - defensive: no breaker -> probe runs unwrapped
+    _INTAKE_BREAKER = None
+
+try:  # pragma: no cover
+    from szl_backend_hardening import probe_with_timeout as _probe_with_timeout, TTLCache as _TTLCache
+    # Short TTL: serve the last REAL posture briefly so repeat calls don't re-probe a
+    # dead node; re-probe once it expires (recovery is observed honestly).
+    _INTAKE_CACHE = _TTLCache(ttl=20.0)
+except Exception:  # pragma: no cover - defensive: no cache -> probe runs unwrapped
+    _probe_with_timeout = None  # type: ignore
+    _INTAKE_CACHE = None
+
+# Hard per-attempt budget for the intake probe. Even with no breaker/cache present,
+# the whole intake must return well under the <1s target; the network surfaces below
+# are also given a short per-URL timeout so the unwrapped fallback can't hang either.
+_INTAKE_PROBE_TIMEOUT_S = 0.6
+
 # ---------------------------------------------------------------------------
 # Doctrine constants (v11). These are the honest, fixed labels + physics floors.
 # ---------------------------------------------------------------------------
@@ -117,20 +155,29 @@ def _now() -> str:
 # INTAKE — read the live harvest posture, degrade HONESTLY to a SAMPLE snapshot.
 # Never fabricate a measured number; the SAMPLE snapshot is clearly labeled.
 # ---------------------------------------------------------------------------
-def _sample_posture() -> dict:
+def _sample_posture(gpu_state: str = "unreachable", reason: str = "") -> dict:
     """An honest, clearly-labeled SAMPLE intake snapshot (no live feed reached).
 
     Every field is labeled sample; no number here is claimed as metered. This is
     the doctrine-clean degrade path when neither the local box nor the public
-    surface is reachable.
+    surface is reachable (e.g. the GPU node is sleeping / chaski is offline, or the
+    intake breaker is OPEN and fail-fasting). `gpu_state` records WHY we degraded
+    ("sleeping" / "unreachable") so the posture is honest about the node, and
+    `reason` carries the breaker/timeout detail. We NEVER fabricate a measured
+    number; wasted_energy_available stays False (we assume nothing to soak).
     """
+    src = "SAMPLE snapshot (no live harvest feed reachable — doctrine v11)"
+    if reason:
+        src = f"{src}; {reason}"
     return {
         "ok": False,
         "posture": "sample",
+        "degraded": True,                  # honest: this is a degraded read, not live
+        "gpu_state": gpu_state,            # "sleeping" / "unreachable" — honest node posture
         "grid_price_eur_mwh": None,        # unknown off-box — NOT fabricated
         "wasted_energy_available": False,  # conservative: assume nothing to soak
         "joules_label": SAMPLE_LABEL,
-        "source": "SAMPLE snapshot (no live harvest feed reachable — doctrine v11)",
+        "source": src,
         "measured_any": False,
     }
 
@@ -147,8 +194,13 @@ def _try_in_process_posture():
     return None
 
 
-def _try_http_posture(timeout: float = 1.5):
-    """Attempt the live HTTP posture surfaces (local box, then public)."""
+def _try_http_posture(timeout: float = _INTAKE_PROBE_TIMEOUT_S):
+    """Attempt the live HTTP posture surfaces (local box, then public).
+
+    The per-URL timeout is SHORT (default _INTAKE_PROBE_TIMEOUT_S) so even the
+    unwrapped fallback path — if the resilience/hardening helpers are absent —
+    cannot pay the old multi-second per-surface wait against a sleeping node.
+    """
     for url in _POSTURE_URLS:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "a11oy-anatomy-loop"})
@@ -163,6 +215,92 @@ def _try_http_posture(timeout: float = 1.5):
     return None
 
 
+# A breaker-open fail-fast sentinel: an honest "didn't probe" marker. NOT a posture
+# and NOT fabricated data — it tells _read_intake to degrade to a labeled SAMPLE.
+_BREAKER_OPEN_SENTINEL = {"_intake_unavailable": True, "_reason": "breaker_open"}
+
+
+def _probe_posture_raw():
+    """The raw blocking dependency call: in-process organ, else the HTTP surfaces.
+
+    This is the ONE call that can reach the sleeping GPU / offline chaski node. It
+    is the thing we wrap with the breaker + short-timeout probe + cache. We raise on
+    an empty/failed probe so the breaker records a REAL failure (and trips after N),
+    rather than silently swallowing it.
+    """
+    raw = _try_in_process_posture() or _try_http_posture()
+    if not isinstance(raw, dict):
+        raise RuntimeError("intake posture unreachable (no live harvest feed)")
+    return raw
+
+
+def _probe_posture_guarded():
+    """Run the raw probe under a SHORT hard timeout (szl_backend_hardening).
+
+    Even if the underlying urllib call ignored its own timeout, probe_with_timeout
+    abandons the probe at _INTAKE_PROBE_TIMEOUT_S and returns fast. Raises on
+    timeout/failure so the surrounding breaker counts it as a real failure.
+    """
+    if _probe_with_timeout is not None:
+        env = _probe_with_timeout(_probe_posture_raw, timeout=_INTAKE_PROBE_TIMEOUT_S)
+        if not env.get("reachable"):
+            raise RuntimeError(f"intake probe unreachable ({env.get('detail')})")
+        result = env.get("result")
+        if not isinstance(result, dict):
+            raise RuntimeError("intake probe returned no posture")
+        return result
+    # No hardening helper present: fall back to the raw probe (which itself now uses
+    # a short per-URL timeout), so we still cannot hang on a sleeping node.
+    return _probe_posture_raw()
+
+
+def _fetch_posture_resilient():
+    """Fetch the harvest posture, FAIL-FAST and CACHED via the shipped helpers.
+
+    Wiring (reusing what's already on main, never reinventing):
+      1. CIRCUIT BREAKER (szl_resilience): the probe runs through the
+         'anatomy-intake-probe' breaker. After N consecutive failures the breaker
+         OPENs and subsequent calls fail-fast to the _BREAKER_OPEN_SENTINEL WITHOUT
+         probing — so a sustained sleeping node pays NO timeout at all.
+      2. SHORT-TIMEOUT PROBE (szl_backend_hardening.probe_with_timeout): each real
+         probe is hard-bounded to _INTAKE_PROBE_TIMEOUT_S, so a slow node is
+         abandoned sub-second instead of blocking ~3s.
+      3. TTLCache (szl_backend_hardening.TTLCache): a successful posture is cached
+         briefly so repeat calls don't re-probe; the cache only ever holds REAL
+         probe output (honest by construction).
+    Returns a real posture dict, or None to signal "degrade to honest SAMPLE".
+    """
+    # Cache fast-path: serve the last REAL posture if still fresh (no re-probe).
+    if _INTAKE_CACHE is not None:
+        cached = _INTAKE_CACHE.peek()
+        if isinstance(cached, dict):
+            return cached
+
+    def _fallback():
+        # Breaker OPEN -> fail-fast. We return an honest sentinel (NOT fabricated
+        # posture); _read_intake turns it into a labeled SAMPLE with gpu sleeping.
+        return dict(_BREAKER_OPEN_SENTINEL)
+
+    try:
+        if _INTAKE_BREAKER is not None:
+            posture = _INTAKE_BREAKER.call(_probe_posture_guarded, fallback=_fallback)
+        else:
+            posture = _probe_posture_guarded()
+    except Exception:
+        # Any real failure (and no fallback / no breaker) -> honest degrade.
+        return None
+
+    if not isinstance(posture, dict) or posture.get("_intake_unavailable"):
+        return None
+    # Cache only a REAL posture (never the sentinel, never a degrade).
+    if _INTAKE_CACHE is not None:
+        try:
+            _INTAKE_CACHE.get_or_compute(lambda: posture)
+        except Exception:
+            pass
+    return posture
+
+
 def _read_intake() -> dict:
     """INTAKE: live posture if reachable, else an honest SAMPLE snapshot.
 
@@ -173,10 +311,28 @@ def _read_intake() -> dict:
     requires on-box NVML'. So we only flip to measured when the source explicitly
     reports an on-box meter (metered_onbox), which never exists off-box. We NEVER
     upgrade a sample into a measurement, and we NEVER invent numbers.
+
+    LATENCY: the blocking dependency probe (which reaches the sleeping GPU / offline
+    chaski node) is fetched via _fetch_posture_resilient — circuit-broken + short-
+    timeout + cached — so a sleeping node degrades to an honest SAMPLE in <1s
+    instead of paying the ~3s synchronous dependency-wait. The degraded posture is
+    HONEST: gpu_state is flagged 'sleeping'/'unreachable', intake is marked degraded,
+    joules stay SAMPLE (never a fabricated measured value).
     """
-    raw = _try_in_process_posture() or _try_http_posture()
+    raw = _fetch_posture_resilient()
     if not isinstance(raw, dict):
-        return _sample_posture()
+        # The GPU-node-backed posture surface is sleeping/unreachable (or the intake
+        # breaker is OPEN and fail-fasting). Degrade HONESTLY — no hang, no fabrication.
+        gpu = "sleeping"
+        reason = "intake probe fail-fast (circuit-broken / short-timeout); GPU node sleeping"
+        if _INTAKE_BREAKER is not None:
+            try:
+                from szl_resilience import CircuitState as _CS
+                if _INTAKE_BREAKER.state is _CS.OPEN:
+                    reason = "anatomy-intake-probe breaker OPEN: failing fast, no probe paid"
+            except Exception:
+                pass
+        return _sample_posture(gpu_state=gpu, reason=reason)
 
     # A live FEED reading is informational only; it is NOT an on-box power meter.
     feed_measured_any = bool(raw.get("measured_any", False))
@@ -194,6 +350,8 @@ def _read_intake() -> dict:
     return {
         "ok": bool(raw.get("ok", False)),
         "posture": raw.get("posture", "unknown"),
+        "degraded": False,                 # a live posture was actually reached
+        "gpu_state": raw.get("gpu_state", "awake"),  # node posture, passed through if reported
         "grid_price_eur_mwh": grid_price,
         "wasted_energy_available": bool(raw.get("wasted_energy_available", False)),
         "joules_label": joules_label,
@@ -415,6 +573,8 @@ def run_loop(ns: str = "a11oy") -> dict:
             "intake": {
                 "grid_price_eur_mwh": intake.get("grid_price_eur_mwh"),
                 "posture": intake.get("posture"),
+                "degraded": bool(intake.get("degraded", False)),   # honest: live vs degraded read
+                "gpu_state": intake.get("gpu_state", "awake"),     # "sleeping"/"unreachable" when degraded
                 "wasted_energy_available": bool(intake.get("wasted_energy_available", False)),
                 "joules_label": intake.get("joules_label", SAMPLE_LABEL),
                 "joules_evidence": intake.get("joules_evidence", {}),
@@ -461,6 +621,7 @@ def run_loop(ns: str = "a11oy") -> dict:
             "ns": ns,
             "doctrine": DOCTRINE,
             "intake": {"grid_price_eur_mwh": None, "posture": "sample",
+                       "degraded": True, "gpu_state": "unreachable",
                        "wasted_energy_available": False, "joules_label": SAMPLE_LABEL},
             "organs": [
                 {"name": n, "role": r, "flowing": False,
