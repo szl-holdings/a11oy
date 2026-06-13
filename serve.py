@@ -908,6 +908,35 @@ try:
 except Exception as _e:  # pragma: no cover - defensive, additive-only
     print(f"[a11oy.code] orchestrator NOT mounted ({_e!r}); SPA + gates API unaffected", file=sys.stderr)
 
+# ── Energy PROVENANCE CHAIN (#331) — tamper-evident hash-linked ledger of the
+# Bekenstein-gated energy receipts (extends/complements szl_energy_budget #328).
+# GET /api/a11oy/v1/energy/provenance -> chain head + length + verify() status.
+# Tamper-EVIDENT, not "measured": joules stay SAMPLE/ESTIMATE; NO free-energy claims.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all. If #331 is not
+# yet present on this branch, the import simply logs and boot is unaffected.
+try:
+    import szl_energy_provenance as _szl_energy_prov
+    _szl_energy_prov.register(app, ns="a11oy")
+    print("[a11oy] Energy provenance chain registered: /api/a11oy/v1/energy/provenance", file=sys.stderr)
+except Exception as _szl_ep_e:  # pragma: no cover - defensive, additive-only
+    print(f"[a11oy] Energy provenance chain NOT registered: {_szl_ep_e!r}", file=sys.stderr)
+
+# ── HEART+BLOOD receipt heartbeat (anatomy shell) — every GPU/energy action is a
+# measurable BEAT on a σ-algebra receipt bus (HeartReceiptSigma round9) that BLOOD
+# signs + carries as a hash-linked DSSE-Merkle envelope (BloodDSSEMerkle round9).
+# WRAPS the energy provenance chain (#331): its receipts ARE the heartbeat's beats
+# (with a byte-shaped local fallback so it works before #331 merges).
+# GET /api/a11oy/v1/heart/pulse -> latest beats + verify() (sigma-bus closed +
+# DSSE-Merkle links + tamper check). SAMPLE placeholder signing — NO real key
+# committed; tamper-EVIDENT not "measured"; joules SAMPLE. Additive, try/except-
+# guarded, pure stdlib, registered BEFORE the SPA catch-all.
+try:
+    import szl_heart_blood as _szl_heart_blood
+    _szl_heart_blood.register(app, ns="a11oy")
+    print("[a11oy] Heart+Blood heartbeat registered: /api/a11oy/v1/heart/pulse", file=sys.stderr)
+except Exception as _szl_hb_e:  # pragma: no cover - defensive, additive-only
+    print(f"[a11oy] Heart+Blood heartbeat NOT registered: {_szl_hb_e!r}", file=sys.stderr)
+
 # ---------------------------------------------------------------------------
 # Doctrine v13 EDGE ORGANS chaski/wallpa/wasi (ADDITIVE, 2026-06-01, Yachay). Three edge organs registered EARLY
 # (before the SPA catch-all), exactly like WAYRA / a11oy.code. Each emits a Khipu
