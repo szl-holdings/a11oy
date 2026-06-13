@@ -545,6 +545,93 @@ def _h_loop(req):
     return JSONResponse(run_loop())
 
 
+_LOOP_PAGE_HTML = r'''<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anatomy · Circulation Loop — a11oy</title>
+<style>
+:root{--bg:#0b0d10;--panel:#13171c;--line:#222a31;--ink:#e9eef2;--mut:#8aa0ad;
+--gold:#d6a64c;--jade:#3fae8e;--flow:#4ea3ff;--warn:#caa14a;}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 50% -10%,#11161c,var(--bg));
+color:var(--ink);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+.wrap{max-width:980px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:.3px}
+.sub{color:var(--mut);margin:0 0 18px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 26px}
+.badge{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--mut);background:#0e1216}
+.badge b{color:var(--gold);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h3{margin:0 0 4px;font-size:15px}
+.card .role{color:var(--mut);font-size:12.5px;margin:0 0 10px}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin:5px 0}
+.row span:first-child{color:var(--mut)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.on{background:var(--jade);box-shadow:0 0 8px var(--jade)}
+.off{background:#3a4750}
+.note{color:var(--mut);font-size:12px;margin-top:9px;border-top:1px dashed var(--line);padding-top:8px}
+.vessel{border-color:var(--flow)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:0 0 22px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.kpi .k{color:var(--mut);font-size:12px}.kpi .v{font-size:18px;margin-top:3px}
+.foot{color:var(--mut);font-size:12px;margin-top:30px;line-height:1.7}
+a{color:var(--flow);text-decoration:none}a:hover{text-decoration:underline}
+.err{background:#2a1416;border:1px solid #57262b;color:#f0b8bd;padding:14px;border-radius:12px}
+</style></head><body><div class="wrap">
+<h1>Anatomy · Circulation Loop</h1>
+<p class="sub">YARQA is the circulatory organ that irrigates the unified a11oy organism in one Ayni-balanced energy loop.</p>
+<div class="badges">
+<span class="badge"><b>EXPERIMENTAL</b> tier</span>
+<span class="badge">doctrine <b id="b-doc">v11</b></span>
+<span class="badge">joules <b id="b-j">sample</b> (off-box)</span>
+<span class="badge">Λ = <b>Conjecture 1</b> (open)</span>
+<span class="badge">data <b><a href="/api/__NS__/v1/anatomy/loop">/api/__NS__/v1/anatomy/loop</a></b></span>
+</div>
+<div id="root"><p class="sub">Loading live loop…</p></div>
+<div class="foot">
+This page renders the LIVE state of <code>/api/__NS__/v1/anatomy/loop</code>. The loop is an
+EXPERIMENTAL anatomy demo; joule figures are SAMPLE until on-box NVML; Λ-uniqueness remains
+Conjecture&nbsp;1 (open, never a theorem). No free-energy claim; sovereign only on own metal.
+</div>
+</div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+async function load(){
+  const root=document.getElementById('root');
+  try{
+    const r=await fetch('/api/__NS__/v1/anatomy/loop',{headers:{'accept':'application/json'}});
+    if(!r.ok) throw new Error('API '+r.status);
+    const d=await r.json();
+    document.getElementById('b-doc').textContent=d.doctrine||'v11';
+    const intake=d.intake||{};
+    document.getElementById('b-j').textContent=intake.joules_label||'sample';
+    const ayni=d.ayni||{};
+    const circ=d.circulatory||{};
+    const summary=`
+      <div class="summary">
+        <div class="kpi"><div class="k">Ayni balance</div><div class="v">${ayni.balanced?'⚖️ balanced':'unbalanced'}</div></div>
+        <div class="kpi"><div class="k">Circulatory vessels</div><div class="v">${esc(circ.vessels||'YARQA')}</div></div>
+        <div class="kpi"><div class="k">Grid price (EUR/MWh)</div><div class="v">${intake.grid_price_eur_mwh==null?'—':esc(intake.grid_price_eur_mwh)}</div></div>
+        <div class="kpi"><div class="k">Posture</div><div class="v">${esc(intake.posture||'unknown')}</div></div>
+      </div>`;
+    const organs=(d.organs||[]).map(o=>{
+      const on=!!o.flowing;
+      const vessel=(o.name===(circ.vessels||'YARQA'))?' vessel':'';
+      return `<div class="card${vessel}">
+        <h3><span class="dot ${on?'on':'off'}"></span>${esc(o.name)}</h3>
+        <p class="role">${esc(o.role||'')}</p>
+        <div class="row"><span>flowing</span><span>${on?'yes':'no'}</span></div>
+        <div class="row"><span>dispersed work credits</span><span>${esc(o.dispersed_work_credits)}</span></div>
+        <div class="note">${esc(o.note||'')}</div>
+      </div>`;}).join('');
+    root.innerHTML=summary+'<div class="grid">'+organs+'</div>';
+  }catch(e){
+    root.innerHTML='<div class="err">Could not load the live loop ('+esc(e.message)+'). The data API is at <a href="/api/__NS__/v1/anatomy/loop">/api/__NS__/v1/anatomy/loop</a>.</div>';
+  }
+}
+load();
+</script></body></html>'''
+
+
 def register(app, ns="a11oy"):
     """Wire the loop read endpoint onto the app under /api/<ns>/v1/anatomy/loop.
 
@@ -568,6 +655,20 @@ def register(app, ns="a11oy"):
         else:
             from starlette.routing import Route
             app.router.routes.append(Route(path, fn))
+    # ADDITIVE (#341 closeout): also serve a human-visitable HTML page at
+    # /anatomy/loop. The /anatomy sub-app mount (szl_anatomy_routes) otherwise
+    # shadows the SPA catch-all for this path and 404s it. Registered on `app`
+    # here (the dark-surface aggregator runs BEFORE app.mount("/anatomy", ...)),
+    # so this explicit route wins Starlette ordering. Honest: EXPERIMENTAL tier,
+    # joules SAMPLE off-box, Lambda = Conjecture 1, doctrine v11. No fabrication.
+    def _loop_page(req=None):
+        from starlette.responses import HTMLResponse
+        return HTMLResponse(_LOOP_PAGE_HTML.replace("__NS__", ns))
+    if callable(add_api_route):
+        app.add_api_route("/anatomy/loop", _loop_page, methods=["GET"], include_in_schema=False)
+    else:
+        from starlette.routing import Route
+        app.router.routes.append(Route("/anatomy/loop", _loop_page))
     return [p for p, _ in handlers]
 
 
