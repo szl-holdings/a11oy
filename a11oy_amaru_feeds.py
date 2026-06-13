@@ -90,7 +90,7 @@ NS = "a11oy"
 VERTICAL_NAME = "Provenance & Trust Anchor"
 
 DOCTRINE = {
-    "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+    "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
     "lambda": "Conjecture 1 (advisory floor 0.90; unconditional uniqueness machine-checked FALSE; conditional axiom-free proven)",
     "slsa": "L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap",
     "lambda_floor": 0.90,
