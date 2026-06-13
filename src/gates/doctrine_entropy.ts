@@ -23,7 +23,7 @@
  *   - Shannon (1948) DOI 10.1002/j.1538-7305.1948.tb01338.x
  *   - Cover & Thomas (2006) ISBN 978-0-471-24195-9 (Kraft inequality)
  *
- * Doctrine v7: No new axioms. No sorries. STAGED label: FULLY WIRED.
+ * Doctrine v11: No new axioms. No sorries. STAGED label: FULLY WIRED.
  */
 
 import { createHash } from "crypto";
