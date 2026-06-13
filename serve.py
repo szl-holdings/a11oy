@@ -814,6 +814,15 @@ try:
     # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
     app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    # HOLOGRAPHIC COMMAND BRIDGE (2026-06-13): a 3D living-organism view of the
+    # agentic GPU — MIND core (RTX 5000 @ betterwithage) + 6 proven round9 organs
+    # orbiting/pulsing when active + energy-flow particles (colored by source) +
+    # consent-only swarm constellation. Three.js r128 vendored at /vendor/three.min.js
+    # (0 CDN). Binds to live /code/healthz, /v1/energy/budget and organ probes;
+    # HONEST: sovereign glow only when sovereign:true; SAMPLE energy labels; Λ =
+    # Conjecture 1; unreachable organs render dim (no fabricated data).
+    app.add_api_route("/hologram", _ptg_serve("hologram.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/hologram", _ptg_serve("hologram.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
