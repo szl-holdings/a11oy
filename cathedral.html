@@ -192,6 +192,17 @@ footer{position:relative;z-index:10;border-top:1px solid var(--line);padding:40p
 .legal .sha{color:var(--yuyay-300)}
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}.reveal{opacity:1;transform:none}}
+/* ---- MOBILE ELEGANCE PASS — 2026-06 (devA): type floor + touch targets on phones.
+   Additive, visual-only. No content/3D/doctrine change. Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com> ---- */
+@media(max-width:768px){
+  .foot .fh,.scrollcue{font-size:12px!important}
+  .legal,.legal .sha{font-size:12px!important}
+  .lam-pill{font-size:12px!important}
+  .card li{font-size:12px!important}
+  .navcta{min-height:44px;display:inline-flex;align-items:center}
+  .foot .fcol a{min-height:40px;display:inline-flex;align-items:center}
+  .btn{min-height:44px}
+}
 </style>
 </head>
 <body>
