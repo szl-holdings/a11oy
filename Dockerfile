@@ -590,7 +590,7 @@ ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 # untouched; A11OY_REQUIRE_LOCAL_LLM gate + demo-tier RUN logic untouched.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # ---------------------------------------------------------------------------
-COPY a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_endpoints.py a11oy_vertical_feeds.py a11oy_deva_feeds.py a11oy_devb_endpoints.py a11oy_amaru_feeds.py szl_governance_gateway.py szl_abacus_verify.py szl_decision_uncertainty.py szl_gor_audit.py szl_sovereign_search.py szl_consensus_clusters.py szl_mission_ledger.py szl_budget_router.py szl_wave910_proofs.py szl_evidence_research.py szl_uds_fleet.py szl_readiness.py szl_quantum_bio.py ./
+COPY a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_endpoints.py a11oy_vertical_feeds.py a11oy_deva_feeds.py a11oy_devb_endpoints.py a11oy_amaru_feeds.py szl_governance_gateway.py szl_abacus_verify.py szl_decision_uncertainty.py szl_gor_audit.py szl_sovereign_search.py szl_consensus_clusters.py szl_mission_ledger.py szl_budget_router.py szl_wave910_proofs.py szl_evidence_research.py szl_uds_fleet.py szl_readiness.py szl_quantum_bio.py szl_mosaic_governance.py ./
 COPY szl_unified_formulas.py szl_cuas_formulas.py szl_contracting.py szl_bounties.py szl_putnam.py szl_connectors_serve.py szl_connector_mcp.py szl_conjecture_factory.py ./
 COPY live_snapshots/ ./live_snapshots/
 
