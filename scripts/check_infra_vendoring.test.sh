@@ -54,9 +54,28 @@ CLEAN="$TMP/clean/infra"
 make_pointer "$CLEAN/uds-deployment"
 make_pointer "$CLEAN/uds-mesh"
 make_pointer "$CLEAN/uds-bundles"
-make_big "$CLEAN/fleet-overlay" 40          # allowlisted vendored copy — OK
+make_big "$CLEAN/receipts-samples" 40       # allowlisted vendored copy — OK
 mkdir -p "$CLEAN/new-pointer"; echo x > "$CLEAN/new-pointer/README.md"  # small new dir OK
 expect_pass "clean tree" "$CLEAN"
+
+# --- Fixture 1b: a de-allowlisted dir that stayed a pointer still passes ----
+# build-env (and the other 8) were removed from ALLOWLISTED_VENDORED once
+# reduced to a pointer README; as small dirs they must still pass.
+SLIM="$TMP/slim/infra"
+make_pointer "$SLIM/uds-deployment"
+make_pointer "$SLIM/uds-mesh"
+make_pointer "$SLIM/uds-bundles"
+make_pointer "$SLIM/build-env"
+make_pointer "$SLIM/lake"
+expect_pass "de-allowlisted dirs reduced to pointers" "$SLIM"
+
+# --- Fixture 1c: a former allowlist member re-vendored is now caught --------
+# Once de-allowlisted, re-vendoring build-env as a full repo copy must FAIL
+# (previously it would have been silently grandfathered).
+REGROW="$TMP/regrow/infra"
+make_pointer "$REGROW/uds-deployment"
+make_big "$REGROW/build-env" 30
+expect_fail "de-allowlisted dir re-vendored" "$REGROW"
 
 # --- Fixture 2: a pointer dir re-vendored ----------------------------------
 REV="$TMP/revendored/infra"
