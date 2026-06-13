@@ -16,7 +16,7 @@
  *   emit a DSSE receipt asserting whether the trace is halt-eligible.
  *   The 0.90 threshold matches A11OY_DOCTRINE_LAMBDA_FLOOR=0.90.
  *
- * Doctrine v7: No new axioms. No sorries. STAGED label: gate is FULLY WIRED.
+ * Doctrine v11: No new axioms. No sorries. STAGED label: gate is FULLY WIRED.
  */
 
 import { createHash } from "crypto";
