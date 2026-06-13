@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings
 # ORCID: 0009-0001-0110-4173
-# Doctrine v7
+# Doctrine v11
 """Unified server for Hugging Face Spaces — serves both the Amaru API and the built frontend.
 
 Round 2 additions (amaru_full_operational):
