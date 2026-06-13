@@ -22,7 +22,7 @@
  *     https://datatracker.ietf.org/doc/draft-ietf-scitt-architecture/
  *   - Cover & Thomas (2006) §2.8 DPI
  *
- * Doctrine v7: No new axioms. No sorries. STAGED label: FULLY WIRED.
+ * Doctrine v11: No new axioms. No sorries. STAGED label: FULLY WIRED.
  */
 
 import { createHash } from "crypto";
@@ -139,7 +139,7 @@ export function maskedEntropy(mask: MaskSpec, dist: StmtDist): number {
 /**
  * Verifies the SCITT mask entropy bound: H(mask(X)) ≤ H(X).
  *
- * Lean theorem `scitt_mask_entropy_bound` (Doctrine v7).
+ * Lean theorem `scitt_mask_entropy_bound` (Doctrine v11).
  *
  * @param mask - MaskSpec.
  * @param dist - Source distribution.
