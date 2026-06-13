@@ -88,7 +88,7 @@ def _build_topology(app) -> dict:
         "core": {"id": "operator", "name": "Operator Core", "role": "orchestrator", "healthy": True},
         "nodes": nodes,
         "source": "live" if any_measured else "cached",
-        "doctrine": {"version": "v11", "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+        "doctrine": {"version": "v11", "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
                      "lambda": "Conjecture 1", "kernel": "c7c0ba17"},
         "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "note": "Operator organ — ingested infra-viz capability. Health is best-effort "
