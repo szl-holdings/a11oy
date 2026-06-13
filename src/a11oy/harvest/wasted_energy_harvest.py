@@ -29,7 +29,11 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 
 UA = {"User-Agent": "szl-wasted-energy-harvest/1.0 (+https://a11oy.net)"}
-TIMEOUT = 12
+# Per-feed outbound timeout. Was 12s: with ~6 feeds fetched SEQUENTIALLY per posture
+# call, a single slow/dead public feed could stall the request past the edge proxy's
+# deadline -> intermittent HTTP 000. Bounded to <=3s so the worst case stays well
+# inside the proxy budget while every feed still honest-degrades to reachable:false.
+TIMEOUT = 3
 
 # Posture ordering (higher index = more wasted energy available to soak)
 POSTURE_RANK = {
