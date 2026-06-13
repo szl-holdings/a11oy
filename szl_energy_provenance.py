@@ -44,6 +44,7 @@ import hashlib
 import json
 from collections import Counter
 from datetime import datetime, timezone
+from starlette.requests import Request  # module-scope so add_api_route injects Request, not a 'req' query param (422 fix)
 
 # ---------------------------------------------------------------------------
 # Canonical SZL Bekenstein/Shannon math — reuse #328 if present, else fallback.
@@ -255,7 +256,7 @@ def append_receipt(**kwargs) -> dict:
 # ---------------------------------------------------------------------------
 # HTTP handler + registration (matches szl_energy_budget / szl_quantum_bio style).
 # ---------------------------------------------------------------------------
-def _h_provenance(req):
+def _h_provenance(req: Request):
     from starlette.responses import JSONResponse
     return JSONResponse(_CHAIN.summary())
 
