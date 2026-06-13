@@ -224,19 +224,67 @@ def _serving_base_selftest() -> dict:
         b1, l1 = _serving_base()
         assert (b1, l1) == (HF_ROUTER_BASE, False), f"unreachable-local path: {(b1, l1)}"
         out["bogus_local"] = [b1, l1]
-        # Header honesty: local => no HF bearer; mapping picks coder vs default.
-        assert "Authorization" not in _inference_headers(is_local=True)
+        # Header honesty (#324): local => no HF bearer; mapping picks coder vs default.
+        # The token-bearing local case is covered by _gpu_token_headers_selftest below.
+        saved_gpu = os.environ.get("A11OY_GPU_TOKEN")
+        try:
+            os.environ.pop("A11OY_GPU_TOKEN", None)
+            assert "Authorization" not in _inference_headers(is_local=True)
+        finally:
+            if saved_gpu is None:
+                os.environ.pop("A11OY_GPU_TOKEN", None)
+            else:
+                os.environ["A11OY_GPU_TOKEN"] = saved_gpu
         assert _map_model_for_local("Qwen/Qwen2.5-Coder-32B-Instruct") == \
             A11OY_LOCAL_MODEL_MAP["coder"]
         assert _map_model_for_local("meta-llama/Llama-3.1-8B-Instruct") == \
             A11OY_LOCAL_MODEL_MAP["default"]
         out["headers_local_no_bearer"] = True
+        out["gpu_token"] = _gpu_token_headers_selftest()
         out["ok"] = True
     finally:
         if saved is None:
             os.environ.pop("A11OY_MODEL_BASE_URL", None)
         else:
             os.environ["A11OY_MODEL_BASE_URL"] = saved
+    return out
+
+
+def _gpu_token_headers_selftest() -> dict:
+    """No-live-endpoint self-test for the #327 A11OY_GPU_TOKEN local-auth wiring.
+
+    forge_gpu_bringup.py emits an API-KEY-PROTECTED vLLM endpoint and tells the
+    operator to set that key as the a11oy Space secret A11OY_GPU_TOKEN. Proves:
+      - local + A11OY_GPU_TOKEN set -> Authorization: Bearer <token> sent.
+      - local + A11OY_GPU_TOKEN unset/empty -> NO auth header (Ollama/no-key).
+      - router path -> unchanged (still requires + sends the HF bearer).
+    Reads at runtime (token-flip law). NEVER returns the token value.
+    Raises AssertionError on any mismatch.
+    """
+    saved = os.environ.get("A11OY_GPU_TOKEN")
+    out = {}
+    try:
+        # (a) vLLM-with-key: token present -> Bearer sent (value never logged).
+        os.environ["A11OY_GPU_TOKEN"] = "vllm-selftest-sentinel-not-a-real-key"
+        h_key = _inference_headers(is_local=True)
+        assert h_key.get("Authorization") == \
+            "Bearer vllm-selftest-sentinel-not-a-real-key", "local+key must Bearer"
+        out["local_with_key_sends_bearer"] = True
+        # (b) Ollama/no-key: token absent -> no auth header at all.
+        os.environ.pop("A11OY_GPU_TOKEN", None)
+        h_nokey = _inference_headers(is_local=True)
+        assert "Authorization" not in h_nokey, "local+no-key must NOT send auth"
+        out["local_without_key_no_auth"] = True
+        # (c) empty/whitespace token treated as absent (no fabricated bearer).
+        os.environ["A11OY_GPU_TOKEN"] = "   "
+        assert "Authorization" not in _inference_headers(is_local=True), \
+            "empty token must NOT send auth"
+        out["local_empty_key_no_auth"] = True
+    finally:
+        if saved is None:
+            os.environ.pop("A11OY_GPU_TOKEN", None)
+        else:
+            os.environ["A11OY_GPU_TOKEN"] = saved
     return out
 
 # Candidate Space-secret names for the HF inference credential, in priority
@@ -693,11 +741,21 @@ def route(messages: list[dict[str, Any]], model: Optional[str], governance_tier:
 # ---------------------------------------------------------------------------
 
 def _inference_headers(is_local: bool = False) -> dict[str, str]:
-    # Local sovereign serving (#324): an on-box OpenAI-compatible server
-    # (Ollama/vLLM) needs NO HF bearer and would reject/ignore one. Send ONLY
-    # Content-Type. We never fabricate a key for it (Zero-Bandaid Law) and we
-    # never require an HF token to talk to our own GPU.
+    # Local sovereign serving (#324/#327): an on-box OpenAI-compatible server.
+    # Two supported box bring-up paths (forge_gpu_bringup.py is the recommended
+    # one and stands up an API-KEY-PROTECTED vLLM OpenAI endpoint, emitting the
+    # key as the a11oy Space secret A11OY_GPU_TOKEN):
+    #   - vLLM-with-key: A11OY_GPU_TOKEN is set -> send Authorization: Bearer
+    #     <that token> so the protected endpoint accepts the call (else 401).
+    #   - Ollama/no-auth: no A11OY_GPU_TOKEN -> send ONLY Content-Type.
+    # We NEVER fabricate a key (Zero-Bandaid Law) and NEVER require an HF token
+    # to talk to our own GPU. The token is read at RUNTIME so a later-pasted
+    # Space secret works with no redeploy (token-flip law).
     if is_local:
+        gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
+        if gpu_token:
+            return {"Authorization": f"Bearer {gpu_token}",
+                    "Content-Type": "application/json"}
         return {"Content-Type": "application/json"}
     token = _resolve_hf_token()  # runtime read so a later-pasted secret works
     if not token:
