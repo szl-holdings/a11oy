@@ -3,13 +3,13 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-06-12T00:00:00Z",
+  "generatedAt": "2026-06-13T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 128,
-    "endpoints": 72,
+    "tabs": 130,
+    "endpoints": 73,
     "tabsWithCitations": 22,
-    "staticTabs": 38
+    "staticTabs": 39
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -351,6 +351,29 @@
         ]
       },
       "note": ""
+    },
+    "/api/a11oy/v1/mosaic/governed": {
+      "method": "GET",
+      "schema": "mosaic_governed",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached",
+          "snapshot",
+          "sample"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Governed-anomaly COP oversight: per-track Λ advisory verdict (Conjecture 1), DSSE-shaped provenance receipt, Khipu BFT 3-of-4 (Conjecture 2), conformal CI, human-approval gate. Deterministic; source=snapshot/verified=false until Forge deploys the live fabric route."
     },
     "/api/a11oy/v1/mesh/state": {
       "method": "GET",
@@ -1714,6 +1737,18 @@
         "tiers"
       ]
     },
+    "mosaic_governed": {
+      "type": "object",
+      "anyKey": [
+        "cop",
+        "receipts",
+        "lambda_axes",
+        "thresholds",
+        "doctrine",
+        "status",
+        "source"
+      ]
+    },
     "scaling": {
       "type": "object",
       "anyKey": [
@@ -2235,6 +2270,21 @@
       "title": "deploy",
       "group": "Console",
       "route": "/console#deploy",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "energy",
+      "title": "energy",
+      "group": "Console",
+      "route": "/console#energy",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
@@ -3034,6 +3084,23 @@
       "route": "/console#modelatlas",
       "endpoints": [
         "/api/a11oy/v1/llm/registry"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "mzgov",
+      "title": "mzgov",
+      "group": "Console",
+      "route": "/console#mzgov",
+      "endpoints": [
+        "/api/a11oy/v1/mosaic/governed"
       ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,

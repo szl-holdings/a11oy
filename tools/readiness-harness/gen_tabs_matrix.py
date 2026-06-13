@@ -100,6 +100,19 @@ ENDPOINTS = {
     "/api/a11oy/v1/observability/summary": ep(schema="generic_obj", sla=HOUR),
     "/api/a11oy/v1/observability/business": ep(schema="generic_obj", sla=HOUR),
 
+    # ── Mosaic governance (szl_mosaic_governance.py — DETERMINISTIC governed view;
+    # a11oy governs killinchu's anomaly/SDA detections). Like /v1/lambda this is a
+    # derived/deterministic governance surface, NOT a live no-mock-theater external
+    # feed: same inputs -> same governed view, so there is no freshness obligation
+    # (sla=None) and no external-citation obligation. Λ is Conjecture-1 ADVISORY
+    # (allow<0.35 / advisory / deny>=0.65), Khipu BFT 3-of-4 is Conjecture 2, receipts
+    # are DSSE-shaped + UNSIGNED on snapshot, verified=false. The honest fallback label
+    # is "snapshot" (source="snapshot") — explicitly allowed so the honest degraded
+    # state is never branded a lie; the live a11oy fabric upgrades it when deployed. ──
+    "/api/a11oy/v1/mosaic/governed": ep(schema="mosaic_governed", sla=None,
+        allow_labels=("live", "cached", "snapshot", "sample"),
+        note="Governed-anomaly COP oversight: per-track Λ advisory verdict (Conjecture 1), DSSE-shaped provenance receipt, Khipu BFT 3-of-4 (Conjecture 2), conformal CI, human-approval gate. Deterministic; source=snapshot/verified=false until Forge deploys the live fabric route."),
+
     # ── Mesh / capabilities ──
     "/api/a11oy/v1/mesh/state": ep(schema="mesh", sla=5 * MIN),
     "/api/a11oy/v1/capabilities/mesh": ep(schema="mesh", sla=5 * MIN),
@@ -327,6 +340,9 @@ SCHEMAS = {
     "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
     "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
     "router_stats": {"type": "object", "anyKey": ["routes", "servedThisWindow", "tiers"]},
+    "mosaic_governed": {"type": "object",
+                        "anyKey": ["cop", "receipts", "lambda_axes", "thresholds",
+                                   "doctrine", "status", "source"]},
     # scaling: deterministic metabolic/allometric/compute-scaling computations. Strict
     # on at least one distinctive real key across the family, permissive on extras.
     "scaling": {"type": "object",
@@ -355,6 +371,7 @@ TAB_ENDPOINTS = {
     "lineage": ["/api/a11oy/provenance"],
     "reciprocity": ["/api/a11oy/v1/ledger"],
     "govern": ["/api/a11oy/v1/policy/decide", "/api/a11oy/v1/gates"],
+    "mzgov": ["/api/a11oy/v1/mosaic/governed"],
     "govatlas": ["/api/a11oy/v1/policy/gates"],
     "policies": ["/api/a11oy/v1/policy/compliance", "/api/a11oy/v1/policy/gates"],
     "decision": ["/api/a11oy/v1/policy/decisions/feed"],
