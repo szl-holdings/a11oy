@@ -143,6 +143,23 @@ except Exception as _szl_bh_e:  # pragma: no cover
     print(f"[a11oy] Backend hardening NOT registered: {_szl_bh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
 # ── Backend hardening (devJ) — szl_backend_hardening ── end
 
+# ── Observability / distributed tracing (devN) — szl_observability ──
+# OpenTelemetry-style distributed tracing: a single request becomes a SPAN TREE
+# so we can SEE which node/probe/feed ate the time (e.g. the compute-pool 7s).
+# trace_id reuses the prod-hardening X-Request-ID for 1:1 access-log correlation.
+# Adds read-only routes: /api/a11oy/v1/observability/{traces, trace/{id},
+# health-summary} (per-surface p50/p95 + error rate, RED method). Pure stdlib —
+# NO heavy otel SDK dep; bounded ring buffer (~200 traces); REAL measured
+# durations only; no secret/body in spans. ADDITIVE, try/except-guarded,
+# fail-open (tracing NEVER breaks a request); locked=8; Λ=Conjecture 1; no key.
+try:
+    import szl_observability as _szl_observability
+    _szl_observability.register(app, ns="a11oy")
+    print("[a11oy] Observability registered: /api/a11oy/v1/observability/{traces,trace/{id},health-summary} (OpenTelemetry-style tracing, stdlib)", file=__import__("sys").stderr)
+except Exception as _szl_obs_e:  # pragma: no cover
+    print(f"[a11oy] Observability NOT registered: {_szl_obs_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+# ── Observability / distributed tracing (devN) — szl_observability ── end
+
 # ── Resilience (devM) — szl_resilience ──
 # ADDITIVE on top of backend-hardening (#346) + prod-hardening (#345). Two proven
 # patterns, our own implementation: (1) a Hystrix-style CIRCUIT BREAKER that wraps

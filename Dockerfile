@@ -102,6 +102,12 @@ COPY szl_energy_budget.py szl_energy_provenance.py szl_heart_blood.py szl_engine
 # not use `COPY . .`); without this line `import szl_resilience` would ModuleNotFound
 # at runtime and /health/live + /health/ready would 404 (the recurring dark-surface bug).
 COPY szl_resilience.py ./
+# ADDITIVE (devN observability): szl_observability is imported by serve.py for the
+# OpenTelemetry-style distributed tracing + per-surface SLO summary. Per-file COPY
+# (this Dockerfile does not use `COPY . .`); without this line `import szl_observability`
+# would ModuleNotFound at runtime and /api/a11oy/v1/observability/* would 404 (the
+# recurring dark-surface bug). Pure stdlib; no new pip dep.
+COPY szl_observability.py ./
 # ADDITIVE (verifiable-corpus): the publisher module imported lazily (try/except)
 # by szl_dsse + szl_wire to publish signed receipts to the public HF dataset
 # SZLHOLDINGS/a11oy-verifiable-corpus. Per-file COPY (this Dockerfile never uses
