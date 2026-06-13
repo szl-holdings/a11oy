@@ -1,0 +1,387 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
+"""
+szl_engine_status — the UNIFIED STATUS API for the agentic-GPU organism.
+
+ONE read-only endpoint, GET /api/a11oy/v1/engine/status, aggregates the WHOLE
+living body into a single honest JSON the 3D hologram (F1) and every dashboard
+read from:
+
+    {
+      mind:    {sovereign, posture, inference, gpu, base_url}   # from /code/healthz
+      organs:  {brain, heart, blood, immune, skeleton, nervous} # each {reachable, status}
+      energy:  {window, source, joules{value,label}, within_bound}   # from the budget
+      swarm:   {nodes, served_by}                               # if available
+      doctrine:{lambda:"Conjecture 1", locked:8, half_state:"forbidden"}
+    }
+
+HONESTY (Doctrine v11/v12), enforced by construction:
+  - NEVER fabricate a status. Every sub-probe runs with a timeout and degrades to
+    {"reachable": false, "status": "unreachable", "error": ...}. A missing organ
+    is reported as down — never bluffed green.
+  - sovereign:true ONLY when /code/healthz says so. If the MIND probe fails or is
+    silent, sovereign is false. We never infer sovereignty from any other signal.
+  - joules carry an explicit label: "measured" ONLY when the budget feed reports a
+    real metered figure; otherwise "sample"/"estimate". No greenwashing.
+  - Λ = Conjecture 1 is stated in the payload (the skeleton's killer formula is
+    intentionally a conjecture — we say so); locked-8 untouched; half_state forbidden.
+  - No key, open-weight, pure-stdlib aggregation. The probes are read-only GETs.
+
+The endpoint is additive and try/except-guarded in serve.py, registered BEFORE the
+SPA catch-all. If httpx/FastAPI are absent at import time the module still parses
+and the self-test (which injects a fake fetcher) runs on pure stdlib.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable
+
+# ---------------------------------------------------------------------------
+# Doctrine block — constant, stamped on every response.
+# ---------------------------------------------------------------------------
+DOCTRINE: dict[str, Any] = {
+    "lambda": "Conjecture 1",          # the Λ-uniqueness killer formula is a CONJECTURE, said plainly
+    "locked": 8,                       # the locked-8 round9 organ formulas, untouched
+    "half_state": "forbidden",         # claiming sovereign while a non-sovereign router served = forbidden
+    "version": "v11/v12",
+}
+
+# ---------------------------------------------------------------------------
+# Organ map — each organ -> the live read-only endpoint that proves it.
+# Paths are relative to the Space root; the in-process probe prepends the base.
+# (BRAIN/SKELETON/NERVOUS live on amaru; HEART/BLOOD/IMMUNE on sentra; the a11oy
+# Space proxies organ paths, so a single base reaches them honestly. A probe that
+# 404s/refuses is reported reachable:false — never faked.)
+# ---------------------------------------------------------------------------
+ORGAN_ENDPOINTS: dict[str, str] = {
+    "brain":    "/api/amaru/v1/formulas",          # BrainBeliefUpdate (PAC-Bayes McAllester)
+    "heart":    "/api/amaru/receipts",             # HeartReceiptSigma (σ-algebra receipt bus)
+    "blood":    "/api/sentra/khipu/ledger",        # BloodDSSEMerkle (Cardano-anchored DSSE)
+    "immune":   "/api/sentra/v1/gates",            # ImmuneNeymanPearson (8 deny-by-default gates)
+    "skeleton": "/api/amaru/v1/math/lean/theorems", # SkeletonLambdaSpine (the Lean kernel; Λ=Conj1)
+    "nervous":  "/api/amaru/overwatch/snapshot",   # NervousShannonAlarm (Λ-signed OTEL + drift)
+}
+
+MIND_ENDPOINT = "/code/healthz"
+ENERGY_ENDPOINT = "/api/a11oy/v1/energy/budget"
+SWARM_ENDPOINT = "/api/a11oy/v1/swarm/status"
+
+DEFAULT_TIMEOUT = 3.0
+
+# A Fetcher is an async callable (path, timeout) -> (status_code, parsed_json|None).
+# The serve.py path wires the live httpx client; the self-test injects a fake one.
+Fetcher = Callable[[str, float], Awaitable["tuple[int, Any]"]]
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def _probe(fetch: Fetcher, path: str, timeout: float) -> dict[str, Any]:
+    """One honest probe. NEVER raises; NEVER fabricates a green status.
+
+    Returns {reachable, status, ...}. reachable is True ONLY on a real 2xx with a
+    body we could read. Any error/timeout/non-2xx -> reachable:false + the reason.
+    """
+    try:
+        code, body = await fetch(path, timeout)
+    except Exception as exc:  # timeout, connect-refused, anything — degrade honestly
+        return {"reachable": False, "status": "unreachable", "error": repr(exc)[:200], "endpoint": path}
+    if not (200 <= int(code) < 300):
+        return {"reachable": False, "status": f"http_{code}", "endpoint": path}
+    return {"reachable": True, "status": "ok", "http": int(code), "body": body, "endpoint": path}
+
+
+def _mind_from_healthz(probe: dict[str, Any], base_url: str) -> dict[str, Any]:
+    """Project /code/healthz into the MIND block. sovereign:true ONLY if healthz says so."""
+    mind: dict[str, Any] = {
+        "sovereign": False,          # default-false: never sovereign unless the MIND proves it
+        "posture": "unknown",
+        "inference": {"reachable": probe.get("reachable", False)},
+        "gpu": None,
+        "base_url": base_url,
+        "reachable": probe.get("reachable", False),
+    }
+    if not probe.get("reachable"):
+        mind["status"] = probe.get("status", "unreachable")
+        return mind
+    body = probe.get("body") or {}
+    if isinstance(body, dict):
+        # sovereign comes ONLY from the MIND's own report; coerce to a real bool.
+        mind["sovereign"] = bool(body.get("sovereign", False))
+        mind["posture"] = body.get("posture", body.get("status", "ok"))
+        mind["gpu"] = body.get("gpu")
+        infer = body.get("inference")
+        if infer is not None:
+            mind["inference"] = infer
+        else:
+            mind["inference"] = {"reachable": True}
+    mind["status"] = "ok"
+    return mind
+
+
+def _energy_from_budget(probe: dict[str, Any]) -> dict[str, Any]:
+    """Project the budget feed into the ENERGY block with an honest joules label."""
+    energy: dict[str, Any] = {
+        "reachable": probe.get("reachable", False),
+        "window": None,
+        "source": None,
+        "joules": {"value": None, "label": "unknown"},
+        "within_bound": None,
+    }
+    if not probe.get("reachable"):
+        energy["status"] = probe.get("status", "unreachable")
+        return energy
+    body = probe.get("body") or {}
+    if isinstance(body, dict):
+        energy["window"] = body.get("window")
+        energy["source"] = body.get("source")
+        energy["within_bound"] = body.get("within_bound")
+        # joules: MEASURED only when the feed explicitly says so; else SAMPLE/ESTIMATE.
+        raw_label = str(body.get("joules_label", body.get("label", "sample"))).lower()
+        label = "measured" if raw_label in ("measured", "metered", "real") else (
+            "estimate" if raw_label in ("estimate", "est") else "sample"
+        )
+        energy["joules"] = {"value": body.get("joules"), "label": label}
+    energy["status"] = "ok"
+    return energy
+
+
+def _swarm_from_probe(probe: dict[str, Any]) -> dict[str, Any]:
+    """Project the swarm feed if available. Absent/unreachable -> reachable:false."""
+    swarm: dict[str, Any] = {"reachable": probe.get("reachable", False), "nodes": None, "served_by": None}
+    if not probe.get("reachable"):
+        swarm["status"] = probe.get("status", "unavailable")
+        return swarm
+    body = probe.get("body") or {}
+    if isinstance(body, dict):
+        swarm["nodes"] = body.get("nodes", body.get("registered"))
+        swarm["served_by"] = body.get("served_by")
+    swarm["status"] = "ok"
+    return swarm
+
+
+async def aggregate_status(fetch: Fetcher, base_url: str = "", timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any]:
+    """Aggregate the WHOLE organism into one honest payload.
+
+    Every sub-probe is independent and honest-degrading: one organ down does NOT
+    take the aggregate down — it shows up as {reachable:false}. The MIND, energy,
+    and swarm probes run concurrently with the 6 organ probes.
+    """
+    organ_names = list(ORGAN_ENDPOINTS)
+    coros = (
+        [_probe(fetch, MIND_ENDPOINT, timeout)]
+        + [_probe(fetch, ORGAN_ENDPOINTS[name], timeout) for name in organ_names]
+        + [_probe(fetch, ENERGY_ENDPOINT, timeout)]
+        + [_probe(fetch, SWARM_ENDPOINT, timeout)]
+    )
+    results = await asyncio.gather(*coros)
+
+    mind_probe = results[0]
+    organ_probes = results[1:1 + len(organ_names)]
+    energy_probe = results[1 + len(organ_names)]
+    swarm_probe = results[2 + len(organ_names)]
+
+    organs: dict[str, Any] = {}
+    for name, pr in zip(organ_names, organ_probes):
+        # Dashboards want {reachable, status}; keep the endpoint for debuggability,
+        # drop the raw body to keep the aggregate lean and non-fabricating.
+        organs[name] = {
+            "reachable": pr.get("reachable", False),
+            "status": pr.get("status", "unreachable"),
+            "endpoint": pr.get("endpoint"),
+        }
+
+    mind = _mind_from_healthz(mind_probe, base_url)
+    healthy = sum(1 for o in organs.values() if o["reachable"])
+
+    return {
+        "schema": "szl.engine_status/v1",
+        "ts_utc": _now(),
+        "mind": mind,
+        "organs": organs,
+        "organs_healthy": healthy,
+        "organs_total": len(organs),
+        "energy": _energy_from_budget(energy_probe),
+        "swarm": _swarm_from_probe(swarm_probe),
+        "doctrine": dict(DOCTRINE),
+        "honesty": (
+            "Every sub-status is a live read-only probe; unreachable organs report "
+            "reachable:false (never bluffed green). sovereign:true ONLY from /code/healthz. "
+            "joules.label is 'measured' only on a real metered figure, else sample/estimate. "
+            "Λ=Conjecture 1; locked-8 untouched; half-state forbidden. No key; open-weight."
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# serve.py wiring — additive, try/except-guarded, BEFORE the SPA catch-all.
+# ---------------------------------------------------------------------------
+def _make_httpx_fetcher(http_client: Any, base_url: str) -> Fetcher:
+    """Build a real fetcher over the app's shared httpx.AsyncClient."""
+    async def _fetch(path: str, timeout: float) -> "tuple[int, Any]":
+        resp = await http_client.get(f"{base_url}{path}", timeout=timeout)
+        try:
+            body: Any = resp.json()
+        except Exception:
+            body = None
+        return resp.status_code, body
+    return _fetch
+
+
+def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = "") -> list[str]:
+    """ADDITIVE: attach GET /api/{ns}/v1/engine/status. Never replaces a route.
+
+    http_client — the app's shared httpx.AsyncClient (if None, resolved lazily from
+                  serve.py's module global so registration order doesn't matter).
+    base_url    — origin the organ paths are probed against; "" = same-origin loopback,
+                  which is correct since the a11oy Space serves/proxies all organ paths.
+    """
+    from fastapi.responses import JSONResponse  # local import: keeps module import-safe
+
+    paths: list[str] = []
+
+    @app.get(f"/api/{ns}/v1/engine/status")
+    async def _engine_status():  # noqa: ANN202
+        client = http_client
+        if client is None:
+            # Resolve the live client lazily from serve.py so this can register early.
+            try:
+                import serve as _serve  # type: ignore
+                client = getattr(_serve, "_http_client", None)
+            except Exception:
+                client = None
+        if client is None:
+            # No transport at all — honest, not fabricated: report the whole body unreachable.
+            async def _dead(_p: str, _t: float):
+                raise RuntimeError("no http client available for in-process organ probes")
+            payload = await aggregate_status(_dead, base_url=base_url)
+        else:
+            payload = await aggregate_status(_make_httpx_fetcher(client, base_url), base_url=base_url)
+        return JSONResponse(payload)
+
+    paths.append(f"/api/{ns}/v1/engine/status")
+    return paths
+
+
+# ---------------------------------------------------------------------------
+# Self-test — pure stdlib, no network, no FastAPI/httpx needed. Injects a fake
+# fetcher. Verifies: full aggregate; one organ down -> honest reachable:false;
+# sovereign ONLY when the mind says so; joules label honesty. Prints {ok:true}.
+# ---------------------------------------------------------------------------
+def _selftest() -> dict[str, Any]:
+    checks: list[tuple[str, bool]] = []
+
+    def chk(name: str, cond: bool) -> None:
+        checks.append((name, bool(cond)))
+
+    def run(coro):  # one fresh event loop per scenario; forward-compatible
+        return asyncio.run(coro)
+
+    # ---- Scenario A: everything healthy, MIND sovereign, joules MEASURED ----
+    def make_fetch(table: dict[str, "tuple[int, Any]"], dead: set[str] | None = None) -> Fetcher:
+        dead = dead or set()
+
+        async def _fetch(path: str, timeout: float) -> "tuple[int, Any]":
+            if path in dead:
+                raise TimeoutError(f"simulated timeout probing {path}")
+            if path not in table:
+                return 404, None
+            return table[path]
+        return _fetch
+
+    full_table: dict[str, "tuple[int, Any]"] = {
+        MIND_ENDPOINT: (200, {"sovereign": True, "posture": "green",
+                              "inference": {"reachable": True, "model": "qwen"},
+                              "gpu": {"name": "RTX 5000", "util": 0.4}}),
+        ENERGY_ENDPOINT: (200, {"window": "off-peak", "source": "nvml",
+                                "joules": 1234.5, "joules_label": "measured", "within_bound": True}),
+        SWARM_ENDPOINT: (200, {"nodes": 4, "served_by": "anchor"}),
+    }
+    for ep in ORGAN_ENDPOINTS.values():
+        full_table[ep] = (200, {"ok": True})
+
+    a = run(
+        aggregate_status(make_fetch(full_table), base_url="http://127.0.0.1:7860")
+    )
+    chk("A_schema", a["schema"] == "szl.engine_status/v1")
+    chk("A_mind_sovereign_true", a["mind"]["sovereign"] is True)
+    chk("A_mind_posture_green", a["mind"]["posture"] == "green")
+    chk("A_mind_base_url", a["mind"]["base_url"] == "http://127.0.0.1:7860")
+    chk("A_all_6_organs_present", set(a["organs"]) == set(ORGAN_ENDPOINTS))
+    chk("A_all_organs_reachable", all(o["reachable"] for o in a["organs"].values()))
+    chk("A_organs_healthy_6", a["organs_healthy"] == 6 and a["organs_total"] == 6)
+    chk("A_energy_measured", a["energy"]["joules"]["label"] == "measured")
+    chk("A_energy_value", a["energy"]["joules"]["value"] == 1234.5)
+    chk("A_energy_within_bound", a["energy"]["within_bound"] is True)
+    chk("A_swarm_served_by", a["swarm"]["served_by"] == "anchor" and a["swarm"]["nodes"] == 4)
+    chk("A_doctrine_lambda", a["doctrine"]["lambda"] == "Conjecture 1")
+    chk("A_doctrine_locked8", a["doctrine"]["locked"] == 8)
+    chk("A_doctrine_halfstate", a["doctrine"]["half_state"] == "forbidden")
+
+    # ---- Scenario B: ONE organ (immune) down -> honest reachable:false, rest fine ----
+    b = run(
+        aggregate_status(make_fetch(full_table, dead={ORGAN_ENDPOINTS["immune"]}))
+    )
+    chk("B_immune_unreachable", b["organs"]["immune"]["reachable"] is False)
+    chk("B_immune_status_labeled", b["organs"]["immune"]["status"] == "unreachable")
+    chk("B_others_still_reachable", b["organs"]["brain"]["reachable"] is True
+        and b["organs"]["heart"]["reachable"] is True)
+    chk("B_healthy_count_5", b["organs_healthy"] == 5)
+    chk("B_aggregate_did_not_fail", b["schema"] == "szl.engine_status/v1")
+
+    # ---- Scenario C: MIND down -> sovereign MUST be false (never fabricated) ----
+    no_mind = dict(full_table)
+    del no_mind[MIND_ENDPOINT]
+    c = run(aggregate_status(make_fetch(no_mind)))
+    chk("C_mind_unreachable", c["mind"]["reachable"] is False)
+    chk("C_sovereign_false_when_mind_down", c["mind"]["sovereign"] is False)
+
+    # ---- Scenario D: MIND reachable but reports sovereign:false -> stays false ----
+    d_table = dict(full_table)
+    d_table[MIND_ENDPOINT] = (200, {"sovereign": False, "posture": "degraded"})
+    d = run(aggregate_status(make_fetch(d_table)))
+    chk("D_sovereign_honest_false", d["mind"]["sovereign"] is False)
+    chk("D_mind_reachable_true", d["mind"]["reachable"] is True)
+
+    # ---- Scenario E: budget feed without a measured label -> joules labeled sample ----
+    e_table = dict(full_table)
+    e_table[ENERGY_ENDPOINT] = (200, {"window": "peak", "source": "off-peak-clock", "joules": 99.0})
+    e = run(aggregate_status(make_fetch(e_table)))
+    chk("E_joules_sample_default", e["energy"]["joules"]["label"] == "sample")
+
+    # ---- Scenario F: swarm absent -> reachable:false, never invented ----
+    no_swarm = dict(full_table)
+    del no_swarm[SWARM_ENDPOINT]
+    f = run(aggregate_status(make_fetch(no_swarm)))
+    chk("F_swarm_unreachable", f["swarm"]["reachable"] is False)
+    chk("F_swarm_served_by_none", f["swarm"]["served_by"] is None)
+
+    # ---- Scenario G: TOTAL outage (dead fetcher) -> nothing fabricated green ----
+    async def _dead(_p: str, _t: float):
+        raise ConnectionRefusedError("simulated full outage")
+    g = run(aggregate_status(_dead))
+    chk("G_mind_down", g["mind"]["reachable"] is False and g["mind"]["sovereign"] is False)
+    chk("G_no_organ_reachable", g["organs_healthy"] == 0)
+    chk("G_energy_down", g["energy"]["reachable"] is False)
+    chk("G_doctrine_still_present", g["doctrine"]["lambda"] == "Conjecture 1")
+
+    ok = all(passed for _, passed in checks)
+    return {
+        "ok": ok,
+        "checks": len(checks),
+        "failed": [name for name, passed in checks if not passed],
+        "sample_full": {
+            "mind_sovereign": a["mind"]["sovereign"],
+            "organs_healthy": a["organs_healthy"],
+            "energy_label": a["energy"]["joules"]["label"],
+            "swarm_served_by": a["swarm"]["served_by"],
+        },
+        "doctrine": dict(DOCTRINE),
+    }
+
+
+if __name__ == "__main__":
+    print(json.dumps(_selftest(), indent=2))

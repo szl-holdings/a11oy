@@ -112,6 +112,21 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# ── Unified engine status (f3-status-api) — the ONE read-only feed the 3D hologram
+# (F1) and every dashboard read from: GET /api/a11oy/v1/engine/status aggregates the
+# WHOLE agentic-GPU organism (mind / 6 organs / energy / swarm / doctrine) into one
+# honest JSON. Every sub-probe is a live read-only GET with timeout + honest-fallback
+# (unreachable -> {reachable:false}); sovereign:true ONLY from /code/healthz; joules
+# labeled measured only when real. The handler resolves the shared _http_client lazily,
+# so registering EARLY here (before the SPA catch-all + before startup builds the
+# client) is safe. Additive, try/except-guarded. Pure stdlib (+ in-process httpx probe).
+try:
+    import szl_engine_status as _szl_engine_status
+    _szl_engine_status.register(app, ns="a11oy")
+    print("[a11oy] Unified engine status registered: /api/a11oy/v1/engine/status", file=__import__("sys").stderr)
+except Exception as _szl_es_e:  # pragma: no cover
+    print(f"[a11oy] Unified engine status NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
+
 # ── UDS fleet-trust layer (uds-fleet-patch) — the Defense Unicorns / Unicorn
 # Delivery Service fleet story told with direct attribution + links to the public
 # UDS repos and the Air & Space Forces Magazine coverage, mapping each fleet
