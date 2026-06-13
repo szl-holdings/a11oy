@@ -17,7 +17,7 @@
  *   R_{i+1}.payload.prev_hash = hex(hash(R_i))
  *   R_0.payload.prev_hash = "GENESIS"
  *
- * Doctrine v7 — real code, no fake green.
+ * Doctrine v11 — real code, no fake green.
  * Signed-off-by: SZL Engineering <eng@szl-holdings.com>
  */
 
