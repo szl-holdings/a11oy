@@ -810,6 +810,11 @@ try:
     app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    # AGENTIC GPU OPERATOR tab — live sovereign posture (/code/healthz), reactive⇄
+    # proactive scheduler activity + energy window. Standalone sovereign page (0 CDN);
+    # scheduler-status + energy/budget panels degrade honestly when not yet wired.
+    app.add_api_route("/agentic-gpu", _ptg_serve("agentic-gpu.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/agentic-gpu", _ptg_serve("agentic-gpu.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
