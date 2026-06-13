@@ -2035,11 +2035,19 @@ async def chat_stream(request: Request):
         # it can never overclaim) report the on-box served tag — not the logical
         # router id — plus a sovereign/served_locally flag.
         _serve_base, _serve_local = _serving_base()
+        # R-RESILIENCE/R-FREEPOWER provenance: report WHO served + the REAL base_url +
+        # an energy_source field on EVERY turn (honest plumbing; "grid" today, real
+        # value once a stranded-energy node comes online). served_by stays coarse
+        # (local-gpu / hf-router); a future LiteLLM proxy can refine to tier-A/B/C/D.
+        _served_by = "local-gpu" if _serve_local else "hf-router"
+        _energy_source = "grid"
         _route_model = _map_model_for_local(decision["model"]) if _serve_local else decision["model"]
         yield sse("route", {"conversation_id": conv_id, "tier": decision["tier"],
                             "model": _route_model, "license_class": decision["license_class"],
                             "reason": decision["reason"],
-                            "served_locally": _serve_local, "sovereign": _serve_local})
+                            "served_locally": _serve_local, "sovereign": _serve_local,
+                            "served_by": _served_by, "base_url": _serve_base,
+                            "energy_source": _energy_source})
         t0 = time.time()
 
         # ----------------------------------------------------------------
@@ -2089,6 +2097,8 @@ async def chat_stream(request: Request):
                                "chain_verified": result.get("chain_verified", True),
                                "mode": "agentic", "agentic": True,
                                "served_locally": _ag_local, "sovereign": _ag_local,
+                               "served_by": ("local-gpu" if _ag_local else "hf-router"),
+                               "base_url": _serve_base, "energy_source": _energy_source,
                                "final_state": result.get("final_state"),
                                "step_count": result.get("step_count"),
                                "i_dont_know": result.get("i_dont_know"),
@@ -2211,6 +2221,8 @@ async def chat_stream(request: Request):
                                "latency_ms": latency_ms, "cost_usd": cost, "yuyay13": y13,
                                "khipu_hash": rec["hash"], "chain_verified": True,
                                "served_locally": _serve_local, "sovereign": _serve_local,
+                               "served_by": _served_by, "base_url": _serve_base,
+                               "energy_source": _energy_source,
                                "dsse_digest": rec.get("dsse_digest"),
                                "dsse_signed": rec.get("dsse_signed")})
         except Exception as exc:
