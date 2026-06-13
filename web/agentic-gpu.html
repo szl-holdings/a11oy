@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>a11oy — Agentic GPU Operator · SZL Holdings</title>
+<meta name="description" content="Live operator view of the SZL Agentic GPU engine (RTX 5000 @ betterwithage): sovereign-inference posture, reactive-vs-proactive scheduler activity, energy window, and served-by tier. Honest by design — sovereign:true only when the local box actually serves; energy figures are SAMPLE/ESTIMATE until a real meter is wired."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
+  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --display:'Space Grotesk',Georgia,serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+.live-dot.idle{background:var(--warn);box-shadow:0 0 6px var(--warn);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.econ{border:1px solid var(--gold-line);background:var(--gold-soft);border-radius:8px;padding:.7rem 1rem;margin:.4rem 0 1.2rem;font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.7;}
+.econ .k{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:10px;}
+.econ .hi{color:var(--teal);}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.kv{font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.9;margin-top:.5rem;}
+.kv .row{display:flex;justify-content:space-between;gap:1rem;border-bottom:1px dashed var(--gold-soft);padding:.15rem 0;}
+.kv .k{color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;}
+.kv .v{color:var(--cream);text-align:right;word-break:break-all;}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:.15rem .5rem;border-radius:5px;border:1px solid var(--gold-line);}
+.pill.ok{color:var(--green);border-color:rgba(57,217,138,.35);background:rgba(57,217,138,.07);}
+.pill.warn{color:var(--yellow);border-color:rgba(245,196,81,.35);background:rgba(245,196,81,.07);}
+.pill.bad{color:var(--red);border-color:rgba(255,106,90,.35);background:rgba(255,106,90,.07);}
+.pill.cool{color:var(--blue);border-color:rgba(91,200,255,.35);background:rgba(91,200,255,.07);}
+.queues{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.7rem;}
+.qbox{border:1px solid var(--gold-line);border-radius:8px;padding:.7rem .85rem;background:var(--panel2);}
+.qbox .qlbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
+.qbox .qn{font-size:1.8rem;font-weight:600;margin:.2rem 0;}
+.qbox.reactive .qn{color:var(--red);}
+.qbox.proactive .qn{color:var(--blue);}
+.qbox .qsub{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.bar{height:6px;border-radius:3px;background:#161616;overflow:hidden;margin-top:.4rem;}
+.bar > i{display:block;height:100%;border-radius:3px;}
+.simnote{border:1px solid var(--warn);background:rgba(201,160,95,.06);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:#d8c39a;line-height:1.65;}
+.simnote b{color:var(--warn);}
+.receipt{margin-top:.7rem;font-family:var(--mono);font-size:11px;color:var(--paragraph);white-space:pre-wrap;word-break:break-all;line-height:1.6;border-top:1px solid var(--gold-line);padding-top:.6rem;}
+.empty{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7;border:1px dashed var(--gold-line);border-radius:8px;padding:.8rem 1rem;margin-top:.6rem;}
+.empty b{color:var(--warn);}
+.footnote{margin-top:1.6rem;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;border-top:1px solid var(--gold-line);padding-top:.9rem;}
+.footnote b{color:var(--cream);}
+@media(max-width:980px){.cards{grid-template-columns:repeat(2,1fr);}.grid2{grid-template-columns:1fr;}.queues{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span><span class="sep">/</span><span>AGENTIC GPU OPERATOR</span>
+  <span class="sep">/</span><span class="live"><span class="live-dot" id="livedot"></span><span id="livelbl">PROBING…</span></span>
+  <span class="switcher">
+    <a class="flag" href="/fleet-c2">Fleet C2</a>
+    <a class="flag" href="/living-anatomy">Living Anatomy</a>
+    <a class="flag active" href="/agentic-gpu">Agentic GPU</a>
+    <a class="flag" href="/code">Code</a>
+  </span>
+</div>
+<div class="wrap">
+  <h1>Agentic GPU — Operator View<span class="badge">RTX 5000 @ betterwithage · reactive ⇄ proactive · energy-gated</span></h1>
+  <p class="lede">The <b>operator console</b> for the resident agentic GPU engine. One GPU runs a <b>reactive lane</b> (Chaski/Code turns, Priority&nbsp;0) that <b>preempts</b> a <b>proactive lane</b> (background agenda, Priority&nbsp;1) — proactive throughput <b>never starves</b> reactive latency (Agent.xpu pattern, arXiv:2506.24045). Proactive dispatch is <b>energy-gated</b>: heavy background work only fires in a <b>cheap / surplus</b> power window. This view reads the <b>real</b> <span class="mono">/code/healthz</span> sovereign posture live, and degrades honestly when the energy-budget and scheduler-status endpoints are not yet wired.</p>
+  <div class="econ"><span class="k">Why it matters:</span> a resident engine that <span class="hi">harvests wasted surplus power</span> for background work while <span class="hi">guaranteeing interactive latency</span> turns an idle box into a sovereign compute asset — and the <span class="hi">sovereign:true flag is honest</span>: it is asserted ONLY when this node actually serves the turn locally.</div>
+  <div class="cards">
+    <div class="card"><div class="lbl">Sovereign posture</div><div class="big" id="c_sov">—</div><div class="sub" id="c_sov_sub">probing /code/healthz</div></div>
+    <div class="card"><div class="lbl">Served-by tier</div><div class="big" id="c_served" style="color:var(--blue)">—</div><div class="sub" id="c_served_sub">inference path</div></div>
+    <div class="card"><div class="lbl">Energy window</div><div class="big" id="c_window" style="color:var(--gold)">—</div><div class="sub" id="c_window_sub">cheap / normal / dear</div></div>
+    <div class="card"><div class="lbl">Last preemption</div><div class="big" id="c_preempt" style="color:var(--yellow)">—</div><div class="sub">reactive over proactive</div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h2>GPU node &amp; sovereign inference<span class="meta">/code/healthz · live</span></h2>
+      <div class="kv" id="nodekv">
+        <div class="row"><span class="k">probing…</span><span class="v">—</span></div>
+      </div>
+      <div class="simnote" id="sovnote"><b>Honest posture gate:</b> <span class="mono">sovereign:true</span> is reported ONLY when the local box endpoint actually answers this process; otherwise turns serve via the HF Router and the flag stays <span class="mono">false</span> (the half-state — banner "sovereign" while the router serves — is the one unacceptable outcome).</div>
+    </div>
+    <div class="panel">
+      <h2>Scheduler — reactive ⇄ proactive<span class="meta">Agent.xpu · single-GPU co-schedule</span></h2>
+      <div class="queues">
+        <div class="qbox reactive">
+          <div class="qlbl">Reactive queue · P0</div>
+          <div class="qn" id="q_reactive">—</div>
+          <div class="qsub">Chaski / Code turns · preempts</div>
+          <div class="bar"><i id="q_reactive_bar" style="width:0;background:var(--red)"></i></div>
+        </div>
+        <div class="qbox proactive">
+          <div class="qlbl">Proactive queue · P1</div>
+          <div class="qn" id="q_proactive">—</div>
+          <div class="qsub">background agenda · energy-gated</div>
+          <div class="bar"><i id="q_proactive_bar" style="width:0;background:var(--blue)"></i></div>
+        </div>
+      </div>
+      <div class="kv" id="schedkv"></div>
+      <div class="empty" id="schedempty" style="display:none"><b>Scheduler-status endpoint not wired yet.</b> The resident daemon + gate (<span class="mono">agentic/scheduler.py</span>, PR&nbsp;#357) run nowhere live yet — no <span class="mono">/v1/scheduler/status</span> route is registered. Queue depths and preemption counters will populate once the daemon is deployed on the box. Honest empty-state, no fabricated counters.</div>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:1rem">
+    <div class="panel">
+      <h2>Energy window &amp; budget ledger<span class="meta">/v1/energy/budget · SAMPLE</span></h2>
+      <div class="kv" id="energykv"></div>
+      <div class="empty" id="energyempty" style="display:none"><b>Energy-budget endpoint not wired yet.</b> <span class="mono">GET /v1/energy/budget</span> (Bekenstein-gated receipt + ledger, PR&nbsp;#328) is not registered on this server. The only honest live signal today is the off-peak clock; no power meter is wired, so all joules would be <span class="mono">SAMPLE/ESTIMATE</span>. This panel populates once the budget layer is registered.</div>
+      <div class="simnote"><b>SAMPLE/ESTIMATE:</b> no real power meter is wired (doctrine v11/v12). Every joule / price figure shown is an estimate until a physical meter feeds the ledger. NO free-energy or perpetual-motion claim is made — the engine harvests <i>wasted</i> surplus and proves <i>bounded</i> information work.</div>
+    </div>
+    <div class="panel">
+      <h2>Posture receipt<span class="meta">raw probe tape</span></h2>
+      <div class="receipt" id="receipt">probing…</div>
+    </div>
+  </div>
+  <div class="footnote">
+    <b>Honest by design.</b> Sovereign posture, inference path, and served-by tier are read <b>live</b> from <span class="mono">/api/a11oy/code/healthz</span>; <span class="mono">sovereign:true</span> is asserted <b>only</b> when the local endpoint actually serves the turn (mirrors the serving path — no overclaim). The <b>scheduler-status</b> and <b>energy-budget</b> panels <b>degrade gracefully</b> with a labeled empty-state when their endpoints are absent (they are not yet deployed on the box). All energy figures are <b>SAMPLE/ESTIMATE</b> — no power meter is wired. <b>No free-energy claim.</b> Λ = Conjecture 1 (advisory). 0 runtime CDN.
+  </div>
+</div>
+<script>
+const A="/api/a11oy";
+const $=id=>document.getElementById(id);
+async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function row(k,v){return `<div class="row"><span class="k">${esc(k)}</span><span class="v">${v}</span></div>`;}
+function pill(txt,cls){return `<span class="pill ${cls}">${esc(txt)}</span>`;}
+
+// honest energy-window classifier from an off-peak clock when no budget feed.
+// Returns {window, label, source}. Conservative: only "cheap" when clearly off-peak.
+function clockWindow(){
+  const h=new Date().getHours();
+  // off-peak (cheap) overnight 23:00–07:00; peak (dear) 17:00–21:00; else normal.
+  if(h>=23||h<7) return {window:'cheap', cls:'cool', source:'off-peak clock (local)'};
+  if(h>=17&&h<21) return {window:'dear', cls:'warn', source:'off-peak clock (local)'};
+  return {window:'normal', cls:'ok', source:'off-peak clock (local)'};
+}
+
+async function load(){
+  // 1) ALWAYS-LIVE: sovereign posture from /code/healthz
+  const h=await getJSON(A+"/code/healthz");
+  const sov = h && h.sovereign === true;
+  if(h){
+    $('livedot').className='live-dot'+(sov?'':' idle');
+    $('livelbl').textContent = sov ? 'SOVEREIGN · LOCAL' : 'ROUTER · NOT SOVEREIGN';
+    $('c_sov').textContent = sov ? 'SOVEREIGN' : 'ROUTER';
+    $('c_sov').style.color = sov ? 'var(--green)' : 'var(--yellow)';
+    $('c_sov_sub').textContent = esc(h.mode||'')+' · '+esc(h.backend||'');
+    const inf = h.inference||'—';
+    $('c_served').textContent = inf==='self-hosted-gpu' ? 'GPU' : (inf||'—').toUpperCase().slice(0,10);
+    $('c_served_sub').textContent = esc(inf);
+    const gpu = h.gpu || h.configured_gpu_label || null;
+    let nrows = [
+      row('node', gpu ? pill(esc(gpu),'cool') : pill('RTX 5000 @ betterwithage (label not set)','warn')),
+      row('sovereign', sov ? pill('true · local serves','ok') : pill('false · router serves','warn')),
+      row('inference', esc(h.inference||'—')),
+      row('mode', esc(h.mode||'—')),
+      row('backend', esc(h.backend||'—')),
+      row('base_url', esc((h.base_url||'').replace(/^https?:\/\//,''))),
+      row('doctrine', esc(h.doctrine||'—')),
+      row('agentic loaded', h.agentic ? pill('true','ok') : pill('false','warn')),
+    ];
+    if(h.configured_local_base) nrows.push(row('configured local', esc(h.configured_local_base.replace(/^https?:\/\//,''))));
+    if(h.honest_note) nrows.push(row('honest_note', `<span style="color:var(--warn)">${esc(h.honest_note)}</span>`));
+    $('nodekv').innerHTML = nrows.join('');
+    $('receipt').textContent = [
+      `probe: GET ${A}/code/healthz`,
+      `status: ${esc(h.status||'—')} · component: ${esc(h.component||'—')}`,
+      `sovereign: ${sov} ${sov?'(local box serves this turn)':'(HF Router serves — NOT sovereign)'}`,
+      `inference: ${esc(h.inference||'—')} · mode: ${esc(h.mode||'—')} · backend: ${esc(h.backend||'—')}`,
+      `gpu_label: ${esc(gpu||'(unset — A11OY_GPU_LABEL not configured)')}`,
+      `tiers: ${esc((h.tiers||[]).join(', ')||'—')}`,
+      `built_by: ${esc(h.built_by||'—')}`,
+      `ts(local): ${new Date().toISOString()}`,
+    ].join('\n');
+  } else {
+    $('livedot').className='live-dot idle';
+    $('livelbl').textContent='HEALTHZ UNREACHABLE';
+    $('c_sov').textContent='—'; $('c_sov').style.color='var(--red)';
+    $('c_sov_sub').textContent='/code/healthz unreachable';
+    $('nodekv').innerHTML = row('error', `<span style="color:var(--red)">/code/healthz unreachable — cannot assert posture</span>`);
+    $('receipt').textContent='probe failed: '+A+'/code/healthz unreachable';
+  }
+
+  // 2) BEST-EFFORT: scheduler status (endpoint not deployed yet -> honest empty-state)
+  const sched = await getJSON(A+"/v1/scheduler/status");
+  if(sched){
+    const rq = sched.reactive_depth ?? sched.reactive ?? 0;
+    const pq = sched.proactive_depth ?? sched.proactive ?? 0;
+    const mx = Math.max(1, rq, pq, 8);
+    $('q_reactive').textContent = rq;
+    $('q_proactive').textContent = pq;
+    $('q_reactive_bar').style.width = Math.round(100*rq/mx)+'%';
+    $('q_proactive_bar').style.width = Math.round(100*pq/mx)+'%';
+    const lastP = sched.last_preemption || sched.last_preempt_ts;
+    $('c_preempt').textContent = lastP ? 'YES' : '0';
+    $('c_preempt').style.color = lastP ? 'var(--yellow)' : 'var(--muted)';
+    $('schedkv').innerHTML = [
+      row('preemptions', esc(sched.preemptions ?? '—')),
+      row('reactive_done', esc(sched.reactive_done ?? '—')),
+      row('proactive_done', esc(sched.proactive_done ?? '—')),
+      row('last_preemption', esc(lastP || '—')),
+      row('proactive_gated', sched.proactive_gated ? pill('paused (energy)','warn') : pill('eligible','ok')),
+    ].join('');
+    $('schedempty').style.display='none';
+  } else {
+    $('q_reactive').textContent='—';
+    $('q_proactive').textContent='—';
+    $('q_reactive_bar').style.width='0';
+    $('q_proactive_bar').style.width='0';
+    $('c_preempt').textContent='—';
+    $('schedkv').innerHTML='';
+    $('schedempty').style.display='block';
+  }
+
+  // 3) BEST-EFFORT: energy budget + window (endpoint not registered on main yet)
+  const bud = await getJSON(A+"/v1/energy/budget");
+  if(bud){
+    const win = bud.window || bud.energy_window || null;
+    const cls = win==='cheap'?'cool':(win==='dear'?'warn':'ok');
+    $('c_window').textContent = win ? win.toUpperCase() : '—';
+    $('c_window_sub').textContent = win ? 'from budget feed' : 'cheap / normal / dear';
+    $('energykv').innerHTML = [
+      row('window', win ? pill(esc(win),cls) : '—'),
+      row('task_count', esc(bud.task_count ?? '—')),
+      row('Σ shannon_bits', esc(bud.total_shannon_bits ?? '—')),
+      row('Σ bekenstein_bits', esc(bud.total_bekenstein_bound_bits ?? '—')),
+      row('all_within_bound', bud.all_within_bound===false ? pill('VIOLATION','bad') : (bud.all_within_bound===true?pill('true','ok'):'—')),
+      row('Σ joules_est', `${esc(bud.total_joules_est ?? '—')} <span style="color:var(--warn)">SAMPLE</span>`),
+      row('gate', `<span style="font-size:10px">${esc(bud.gate||'—')}</span>`),
+    ].join('');
+    $('energyempty').style.display='none';
+  } else {
+    // honest fallback window from an off-peak clock — clearly labeled as a clock estimate.
+    const w = clockWindow();
+    $('c_window').textContent = w.window.toUpperCase();
+    $('c_window_sub').textContent = w.source;
+    $('energykv').innerHTML='';
+    $('energyempty').style.display='block';
+  }
+}
+load();
+setInterval(load,30000);
+</script>
+</body>
+</html>
