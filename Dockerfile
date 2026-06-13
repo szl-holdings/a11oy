@@ -734,3 +734,6 @@ CMD ["python", "serve.py"]
 # tiny Apache-2.0 GGUF fetch for the live CPU demo tier (honest tower-side fallback).
 # UNIFIED into the existing LLM registry (one roster). DeepSeek-Coder-V2 = CODE_PRIMARY.
 # C20/W7-5 router, W5-3/W7-4 conformal, C10-C12 consensus; every call -> signed receipt.
+
+# --- INTENTIONAL CI TRIP TEST (lockstep guard) — to be deleted ---
+COPY this_file_does_not_exist_lockstep_trip.py ./
