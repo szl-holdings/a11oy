@@ -152,6 +152,93 @@ def _sovereign_inference_state() -> dict:
     return {"inference": "hf-router", "mode": "live", "backend": "hf-router",
             "sovereign": False, "base_url": base}
 
+
+def _serving_base() -> tuple[str, bool]:
+    """Return (base_url, is_local) for the ACTUAL serving call (#324).
+
+    Local ONLY when A11OY_MODEL_BASE_URL is a non-router endpoint AND it actually
+    answers right now. Otherwise the HF Router. This MIRRORS
+    _sovereign_inference_state's reachability gate so the SERVING path and the
+    REPORTED posture can never disagree (no overclaim): sovereign:true in healthz
+    <=> turns are actually served locally here. If a local base is configured but
+    unreachable (e.g. an HF Space with no GPU, or a tailnet endpoint this process
+    can't reach) we honestly fall back to the router AND report sovereign:false.
+    """
+    base = (os.environ.get("A11OY_MODEL_BASE_URL") or "").rstrip("/")
+    if base and "router.huggingface.co" not in base and _local_endpoint_reachable(base):
+        return base, True
+    return HF_ROUTER_BASE, False
+
+
+# Tier -> locally-served model tag. When serving locally (is_local True) we
+# translate the router model id to the tag the on-box server (Ollama/vLLM)
+# actually exposes. Env-overridable so the box can set its exact served tags
+# WITHOUT a code change (the only remaining step to flip a11oy.net sovereign).
+# The ROUTER path always keeps the original router model ids untouched.
+A11OY_LOCAL_MODEL_MAP = {
+    "coder": os.environ.get("A11OY_LOCAL_CODE_MODEL", "qwen2.5-coder:7b"),
+    "default": os.environ.get("A11OY_LOCAL_GENERAL_MODEL", "llama3.1:8b"),
+}
+try:  # full-map override, e.g. A11OY_LOCAL_MODEL_MAP_JSON='{"coder":"...","default":"..."}'
+    _lmm_json = os.environ.get("A11OY_LOCAL_MODEL_MAP_JSON", "").strip()
+    if _lmm_json:
+        _lmm_over = json.loads(_lmm_json)
+        if isinstance(_lmm_over, dict):
+            A11OY_LOCAL_MODEL_MAP.update({str(k): str(v) for k, v in _lmm_over.items()})
+except Exception:  # noqa: BLE001 - bad override never breaks serving; keep defaults
+    pass
+
+
+def _map_model_for_local(model: str) -> str:
+    """Map a router model id to the locally-served tag (used ONLY when is_local).
+
+    Code/high-tier coder models -> the coder tag; everything else -> the default
+    general tag. Substring match on the router id ('coder'/'code') mirrors the
+    A11OY_LOCAL_MODEL_MAP keys so the box can override tags via env.
+    """
+    low = (model or "").lower()
+    if "coder" in low or "code" in low:
+        return A11OY_LOCAL_MODEL_MAP.get("coder", model)
+    return A11OY_LOCAL_MODEL_MAP.get("default", model)
+
+
+def _serving_base_selftest() -> dict:
+    """No-live-endpoint self-test for the #324 serving resolver (Zero-Bandaid).
+
+    Exercises the two paths reachable WITHOUT a live GPU:
+      (a) A11OY_MODEL_BASE_URL unset            -> (HF_ROUTER_BASE, False)
+      (b) A11OY_MODEL_BASE_URL = bogus/unreach. -> (HF_ROUTER_BASE, False)
+    The local-reachable path (-> (local, True)) cannot be exercised here because
+    it requires an OpenAI-compatible server actually answering; that is the box
+    step. Returns a dict of results; raises AssertionError on any mismatch.
+    """
+    saved = os.environ.get("A11OY_MODEL_BASE_URL")
+    out = {}
+    try:
+        os.environ.pop("A11OY_MODEL_BASE_URL", None)
+        b0, l0 = _serving_base()
+        assert (b0, l0) == (HF_ROUTER_BASE, False), f"unset path: {(b0, l0)}"
+        out["unset"] = [b0, l0]
+        # Bogus-unreachable local URL: reserved-TEST-NET-1 IP never answers.
+        os.environ["A11OY_MODEL_BASE_URL"] = "http://192.0.2.1:11434/v1"
+        b1, l1 = _serving_base()
+        assert (b1, l1) == (HF_ROUTER_BASE, False), f"unreachable-local path: {(b1, l1)}"
+        out["bogus_local"] = [b1, l1]
+        # Header honesty: local => no HF bearer; mapping picks coder vs default.
+        assert "Authorization" not in _inference_headers(is_local=True)
+        assert _map_model_for_local("Qwen/Qwen2.5-Coder-32B-Instruct") == \
+            A11OY_LOCAL_MODEL_MAP["coder"]
+        assert _map_model_for_local("meta-llama/Llama-3.1-8B-Instruct") == \
+            A11OY_LOCAL_MODEL_MAP["default"]
+        out["headers_local_no_bearer"] = True
+        out["ok"] = True
+    finally:
+        if saved is None:
+            os.environ.pop("A11OY_MODEL_BASE_URL", None)
+        else:
+            os.environ["A11OY_MODEL_BASE_URL"] = saved
+    return out
+
 # Candidate Space-secret names for the HF inference credential, in priority
 # order. HF Spaces sometimes save the token under a non-standard key (e.g.
 # 'Token'), so we read a broad set and strip stray quotes/whitespace. This list
@@ -605,7 +692,13 @@ def route(messages: list[dict[str, Any]], model: Optional[str], governance_tier:
 # Bounded fallback walk: primary -> fb1 -> fb2 -> refuse.
 # ---------------------------------------------------------------------------
 
-def _inference_headers() -> dict[str, str]:
+def _inference_headers(is_local: bool = False) -> dict[str, str]:
+    # Local sovereign serving (#324): an on-box OpenAI-compatible server
+    # (Ollama/vLLM) needs NO HF bearer and would reject/ignore one. Send ONLY
+    # Content-Type. We never fabricate a key for it (Zero-Bandaid Law) and we
+    # never require an HF token to talk to our own GPU.
+    if is_local:
+        return {"Content-Type": "application/json"}
     token = _resolve_hf_token()  # runtime read so a later-pasted secret works
     if not token:
         raise HTTPException(status_code=503, detail=(
@@ -656,11 +749,12 @@ def honest_stub_text(user_msg: str, decision: dict[str, Any]) -> str:
 
 async def _call_model_stream(client: httpx.AsyncClient, model: str, payload: dict[str, Any]
                              ) -> AsyncGenerator[bytes, None]:
+    base, is_local = _serving_base()  # #324: serve local when reachable, else router
     body = dict(payload)
-    body["model"] = model
+    body["model"] = _map_model_for_local(model) if is_local else model
     body["stream"] = True
-    async with client.stream("POST", f"{HF_ROUTER_BASE}/chat/completions",
-                             headers=_inference_headers(), json=body, timeout=120.0) as resp:
+    async with client.stream("POST", f"{base}/chat/completions",
+                             headers=_inference_headers(is_local), json=body, timeout=120.0) as resp:
         if resp.status_code != 200:
             err = await resp.aread()
             raise RuntimeError(f"provider {resp.status_code}: {err[:200]!r}")
@@ -670,11 +764,12 @@ async def _call_model_stream(client: httpx.AsyncClient, model: str, payload: dic
 
 
 async def _call_model(client: httpx.AsyncClient, model: str, payload: dict[str, Any]) -> dict[str, Any]:
+    base, is_local = _serving_base()  # #324: serve local when reachable, else router
     body = dict(payload)
-    body["model"] = model
+    body["model"] = _map_model_for_local(model) if is_local else model
     body["stream"] = False
-    resp = await client.post(f"{HF_ROUTER_BASE}/chat/completions",
-                             headers=_inference_headers(), json=body, timeout=120.0)
+    resp = await client.post(f"{base}/chat/completions",
+                             headers=_inference_headers(is_local), json=body, timeout=120.0)
     if resp.status_code != 200:
         raise RuntimeError(f"provider {resp.status_code}: {resp.text[:200]}")
     return resp.json()
@@ -2097,3 +2192,7 @@ def attach(app) -> None:
     SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
     app.include_router(router)
     print("[a11oy.code] orchestrator mounted at /api/a11oy/code/* (Doctrine v12 PURIQ)", file=sys.stderr)
+
+
+if __name__ == "__main__":  # pragma: no cover - dev self-test for the #324 rewire
+    print("[#324 serving-path self-test]", _serving_base_selftest())
