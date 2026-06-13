@@ -550,7 +550,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc)}
       <h2>∀ Formula Registry — F1–F23</h2>
       <span class="note">Endpoint: GET /api/amaru/v1/formulas/index · Full ecosystem parity with a11oy + Rosie</span>
     </div>
-    <p style="font-size:12px;color:var(--mut);margin-bottom:12px">Complete F1–F23 canonical formula set. <span class="proved">PROVED={F1,F11,F12,F18,F19}</span>. <span class="conj">F23=Conjecture 1</span> (open bounty, NOT a theorem; CAUCHY_ND sorry Uniqueness.lean:120). All others: Roadmap (sorry/open). Lean pin: 749/14/163 @ c7c0ba17.</p>
+    <p style="font-size:12px;color:var(--mut);margin-bottom:12px">Complete F1–F23 canonical formula set. <span class="proved">PROVED={F1,F4,F7,F11,F12,F18,F19,F22}</span>. <span class="conj">F23=Conjecture 1</span> (open bounty, NOT a theorem; CAUCHY_ND sorry Uniqueness.lean:120). All others: Roadmap (sorry/open). Lean pin: 749/14/163 @ c7c0ba17.</p>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="btn primary" id="fm-load">Load Formulas</button>
     </div>
@@ -1068,10 +1068,10 @@ const FORMULA_STATIC = [
   {id:'F1',name:'Replay-hash determinism',organ:'YAWAR',lean:'PuriqFormulaLean.lean:L35-L53',status:'PROVED'},
   {id:'F2',name:'Scheduler liveness / round-robin fairness',organ:'AMARU',lean:'PuriqFormulaLean.lean:L132-L139',status:'Roadmap'},
   {id:'F3',name:'Organ boot gating soundness',organ:'HATUN',lean:'PuriqFormulaLean.lean:L137-L140',status:'Roadmap'},
-  {id:'F4',name:'Khipu DAG acyclicity preservation',organ:'KHIPU',lean:'PuriqFormulaLean.lean:L144-L149',status:'Roadmap'},
+  {id:'F4',name:'Khipu DAG acyclicity preservation',organ:'KHIPU',lean:'PuriqFormulaLean.lean:L144-L149',status:'PROVED'},
   {id:'F5',name:'Unay receipt-keyed recall correctness',organ:'UNAY',lean:'PuriqFormulaLean.lean:L150-L154',status:'Roadmap'},
   {id:'F6',name:'LMDB persistence durability',organ:'UNAY',lean:'PuriqFormulaLean.lean:L153-L154',status:'Roadmap'},
-  {id:'F7',name:'Chaski FIFO reception ordering',organ:'CHASKI',lean:'PuriqFormulaLean.lean:L156-L157',status:'Roadmap'},
+  {id:'F7',name:'Chaski FIFO reception ordering',organ:'CHASKI',lean:'PuriqFormulaLean.lean:L156-L157',status:'PROVED'},
   {id:'F8',name:'Wallpa governed-voice OSS-only safety',organ:'WALLPA',lean:'PuriqFormulaLean.lean:L159-L160',status:'Roadmap'},
   {id:'F9',name:'Wasi-Rikuq advisory non-interference',organ:'WASI-RIKUQ',lean:'PuriqFormulaLean.lean:L162-L163',status:'Roadmap'},
   {id:'F10',name:'Hatun-MCP tool-call idempotency',organ:'HATUN',lean:'PuriqFormulaLean.lean:L165-L166',status:'Roadmap'},
@@ -1086,7 +1086,7 @@ const FORMULA_STATIC = [
   {id:'F19',name:'Bekenstein additive scaffolding / budget monotonicity',organ:'LAMBDA SPINE',lean:'PuriqFormulaLean.lean:L109-L124',status:'PROVED'},
   {id:'F20',name:'Mobile input-event equivalence (touch/pointer)',organ:'KANCHAY',lean:'PuriqFormulaLean.lean:L183-L184',status:'Roadmap'},
   {id:'F21',name:'Genome TOML validation totality',organ:'HATUN',lean:'PuriqFormulaLean.lean:L186-L187',status:'Roadmap'},
-  {id:'F22',name:'Khipu emit append-only monotonicity',organ:'KHIPU',lean:'PuriqFormulaLean.lean:L189-L190',status:'Roadmap'},
+  {id:'F22',name:'Khipu emit append-only monotonicity',organ:'KHIPU',lean:'PuriqFormulaLean.lean:L189-L190',status:'PROVED'},
   {id:'F23',name:'Λ-aggregator soundness (9-axis geomean uniqueness)',organ:'LAMBDA SPINE',lean:'Uniqueness.lean:120 (CAUCHY_ND sorry)',status:'Conjecture 1'},
 ];
 document.getElementById('fm-load').addEventListener('click', async () => {
