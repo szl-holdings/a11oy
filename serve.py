@@ -965,6 +965,22 @@ except Exception as _formulas_exc:  # additive: never break the Space
     _a11oy_formulas_status = f"formulas-not-wired:{_formulas_exc!r}"
     print(f"[a11oy] formula endpoints NOT mounted ({_formulas_exc!r}); SPA + API unaffected", file=sys.stderr)
 
+# ---------------------------------------------------------------------------
+# ADDITIVE (Harvest API, feat/harvest-api 2026-06): real wasted-energy harvest
+# posture + formula-bounded soak plan via FREE no-key public feeds (aWATTar,
+# Energy-Charts/Fraunhofer, UK Carbon Intensity, Open-Meteo, CAISO).
+# joules_label ALWAYS "sample" off-box; MEASURED only on-box NVML.
+# Reactive turns NEVER gated. Locked-8 untouched. NO MOCKS.
+# Registered BEFORE the SPA catch-all. try/except so a11oy boots if import fails.
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_harvest_endpoints as _a11oy_harvest
+    _a11oy_harvest_status = _a11oy_harvest.register(app, ns="a11oy")
+    print(f"[a11oy] harvest API wired ({_a11oy_harvest_status}): /api/a11oy/v1/harvest/*", file=sys.stderr)
+except Exception as _harvest_exc:  # additive: never break the Space
+    _a11oy_harvest_status = f"harvest-not-wired:{_harvest_exc!r}"
+    print(f"[a11oy] harvest endpoints NOT mounted ({_harvest_exc!r}); SPA + API unaffected", file=sys.stderr)
+
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Formulas SECTION for the SPA navigation — closeout, A11oy Full-Stack
