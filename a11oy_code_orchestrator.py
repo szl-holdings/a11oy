@@ -89,6 +89,20 @@ try:
     import a11oy_mcp_client as _mcp  # Streamable-HTTP MCP client to hatun-mcp
 except Exception:  # pragma: no cover
     _mcp = None
+# Proven Energy Engine wiring (additive, fail-open). The energy-budget receipt
+# module lands via PR #328 (feat/energy-budget-receipt) and the energy-signal
+# feed via platform PR #356; import BOTH defensively so this orchestrator keeps
+# serving (and stays ast-clean / self-testable) on a tree where neither is yet
+# present. When they are, every governed turn emits a Bekenstein-gated receipt
+# carrying the real energy_source/window. Energy figures stay SAMPLE/ESTIMATE.
+try:
+    import szl_energy_budget as _energy_budget  # PR #328 receipt + Bekenstein gate
+except Exception:  # pragma: no cover - absent until #328 merges; degrade honestly
+    _energy_budget = None
+try:
+    import energy_signal as _energy_signal  # PR #356 honest power-window feed
+except Exception:  # pragma: no cover - absent until #356 merges; default grid
+    _energy_signal = None
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -858,27 +872,123 @@ async def agent_model_complete(messages: list[dict], **kw) -> dict[str, Any]:
         last = next((m.get("content") for m in reversed(messages)
                      if m.get("role") == "user"), "")
         snippet = (last if isinstance(last, str) else json.dumps(last)).strip()[:160]
-        return {"text": (
+        stub_text = (
             "**[deterministic stub — inference token not yet set]**\n\n"
             "The a11oy Code agent's governed control-flow (plan DAG, per-step Λ-gate, "
             "PURIQ gate, typed evidence, signed Khipu receipts) executed FOR REAL. The "
             "model-authored synthesis is unavailable because no inference credential is "
             f"configured on this Space (set the secret {_code_secret_name()}), so no answer "
             "is fabricated (Zero-Bandaid Law)."
-            + (f" Request: \u201c{snippet}\u201d." if snippet else "")),
-            "model": "deterministic-stub", "stub": True}
+            + (f" Request: \u201c{snippet}\u201d." if snippet else ""))
+        out = {"text": stub_text, "model": "deterministic-stub", "stub": True}
+        rcpt = _emit_turn_receipt(stub_text, "deterministic-stub", False, True)
+        if rcpt is not None:
+            out["energy_receipt"] = rcpt
+        return out
     client = _get_client()
     decision = route(messages, "router-auto", "standard", None)
     payload = {"messages": messages, "max_tokens": kw.get("max_tokens", 1200),
                "temperature": kw.get("temperature", 0.4)}
     candidates = [decision["model"], *decision.get("fallbacks", [])]
+    _, is_local = _serving_base()  # honest sovereign posture for the receipt
     try:
         data, model_used = await _call_model_resilient(client, candidates, payload)
         text = (data.get("choices", [{}])[0].get("message", {}) or {}).get("content", "") or ""
-        return {"text": text, "model": model_used, "stub": False}
+        out = {"text": text, "model": model_used, "stub": False}
+        rcpt = _emit_turn_receipt(text, model_used, is_local, False)
+        if rcpt is not None:
+            out["energy_receipt"] = rcpt
+        return out
     except Exception as exc:
-        return {"text": f"[honest error: live model call failed: {str(exc)[:200]}]",
-                "model": "error", "stub": True}
+        err_text = f"[honest error: live model call failed: {str(exc)[:200]}]"
+        out = {"text": err_text, "model": "error", "stub": True}
+        rcpt = _emit_turn_receipt(err_text, "error", is_local, True)
+        if rcpt is not None:
+            out["energy_receipt"] = rcpt
+        return out
+
+
+def _turn_energy_provenance(is_local: bool) -> dict:
+    """Honest energy provenance for one turn (SAMPLE/ESTIMATE; never measured).
+
+    Reads the live power WINDOW from the energy-signal feed (PR #356) when it is
+    importable — the off-peak clock is a real, locally-verifiable fact, while the
+    wholesale stub honestly stays "grid". When the feed is absent we default to
+    "grid"/"normal". joules_est is left None (no meter; see doctrine v11/v12).
+    Never raises.
+    """
+    if _energy_signal is not None:
+        try:
+            return _energy_signal.energy_provenance(joules_est=None)
+        except Exception:  # noqa: BLE001 - feed hiccup must never taint the turn
+            pass
+    return {
+        "energy_source": "grid",
+        "window": "normal",
+        "price_signal": None,
+        "joules_est": None,
+        "joules_est_label": "SAMPLE/ESTIMATE",
+        "signal_provider": "none (energy_signal feed not present)",
+        "honest_note": "energy_signal feed unavailable; conservative default.",
+    }
+
+
+def _emit_turn_receipt(text: str, model_used: str, is_local: bool,
+                       stub: bool) -> Optional[dict]:
+    """Record a Bekenstein-gated energy-budget receipt for ONE completed turn.
+
+    FAIL-OPEN by construction: any error here is swallowed (logged via a khipu
+    receipt only) so a receipt problem can NEVER break a user turn. Binds the
+    turn's output size to the F19/TH6 Bekenstein bound (output_bytes*8) and
+    attaches the honest energy_source/window from the signal feed. All energy
+    figures are SAMPLE/ESTIMATE. Returns the receipt dict, or None when the
+    energy-budget module (PR #328) is not present / on any failure.
+    """
+    if _energy_budget is None:
+        return None
+    try:
+        prov = _turn_energy_provenance(is_local)
+        out_bytes = len((text or "").encode("utf-8"))
+        receipt = _energy_budget.track_task(
+            output=text or "",
+            energy_source=prov.get("energy_source", "grid"),
+            joules_est=0.0,  # SAMPLE: no meter wired (joules_est_label carries it)
+            extra={
+                "turn": True,
+                "model": model_used,
+                "stub": bool(stub),
+                "sovereign_local": bool(is_local),
+                "window": prov.get("window", "normal"),
+                "signal_provider": prov.get("signal_provider", "unknown"),
+            },
+        )
+        # The Bekenstein gate is the PROVEN F19/TH6 inequality (shannon<=n*8);
+        # an honest receipt is always within_bound. Flag (never raise) if not.
+        if not receipt.get("within_bound", True):
+            khipu_emit("energy.receipt.overclaim", {
+                "task_hash": receipt.get("task_hash"),
+                "output_bytes": out_bytes,
+                "shannon_bits": receipt.get("shannon_bits"),
+                "bound": receipt.get("bekenstein_bound_bits"),
+            })
+        khipu_emit("energy.receipt", {
+            "task_hash": receipt.get("task_hash"),
+            "output_bytes": receipt.get("output_bytes"),
+            "shannon_bits": receipt.get("shannon_bits"),
+            "bekenstein_bound_bits": receipt.get("bekenstein_bound_bits"),
+            "within_bound": receipt.get("within_bound"),
+            "energy_source": receipt.get("energy_source"),
+            "window": prov.get("window", "normal"),
+            "joules_est": receipt.get("joules_est"),
+            "joules_est_label": receipt.get("joules_est_label"),
+        })
+        return receipt
+    except Exception as exc:  # noqa: BLE001 - NEVER break a turn over a receipt
+        try:
+            khipu_emit("energy.receipt.error", {"error": str(exc)[:200]})
+        except Exception:
+            pass
+        return None
 
 
 def _code_secret_name() -> str:
@@ -2320,5 +2430,54 @@ def attach(app) -> None:
     print("[a11oy.code] orchestrator mounted at /api/a11oy/code/* (Doctrine v12 PURIQ)", file=sys.stderr)
 
 
+def _receipt_wiring_selftest() -> dict:
+    """No-server self-test for the live energy-budget receipt wiring (Phase 1.3).
+
+    Proves, WITHOUT a model call or a server, that:
+      - _turn_energy_provenance never raises and always carries the SAMPLE label
+        and an energy_source (defaults honestly to "grid" when the feed is absent).
+      - _emit_turn_receipt is FAIL-OPEN: returns None (never raises) when the
+        energy-budget module (#328) is absent, and a within_bound receipt when it
+        is present. A receipt error can NEVER break a turn.
+    Returns a dict of results; raises AssertionError only on a wiring mismatch.
+    """
+    out: dict = {"energy_budget_present": _energy_budget is not None,
+                 "energy_signal_present": _energy_signal is not None}
+
+    # (a) provenance is always honest + labeled, regardless of feed presence.
+    prov = _turn_energy_provenance(is_local=False)
+    assert "energy_source" in prov and prov["energy_source"], prov
+    assert prov.get("joules_est_label") == "SAMPLE/ESTIMATE", prov
+    assert prov.get("joules_est") is None, "no meter -> joules_est must be None"
+    out["provenance_honest_labeled"] = True
+
+    # (b) emit is fail-open: with the module ABSENT it returns None; with it
+    #     present it returns a within_bound SAMPLE receipt. Either way: no raise.
+    rcpt = _emit_turn_receipt("hello energy engine", "selftest-model",
+                              is_local=False, stub=True)
+    if _energy_budget is None:
+        assert rcpt is None, "must degrade to None when #328 module is absent"
+        out["fail_open_without_module"] = True
+    else:
+        assert rcpt is not None and rcpt.get("within_bound") is True, rcpt
+        assert "SAMPLE/ESTIMATE" in rcpt.get("joules_est_label", ""), rcpt
+        assert rcpt.get("bekenstein_bound_bits") == len(
+            "hello energy engine".encode("utf-8")) * 8, rcpt
+        out["emits_within_bound_receipt"] = True
+
+    # (c) a receipt-layer error must NOT propagate (simulate by feeding a value
+    #     that would explode if track_task were called unguarded).
+    try:
+        _emit_turn_receipt(None, "x", is_local=True, stub=False)  # None text ok
+        out["fail_open_on_bad_input"] = True
+    except Exception as exc:  # pragma: no cover - this is the bug we forbid
+        raise AssertionError(f"receipt wiring must be fail-open, raised: {exc}")
+
+    out["ok"] = True
+    return out
+
+
 if __name__ == "__main__":  # pragma: no cover - dev self-test for the #324 rewire
     print("[#324 serving-path self-test]", _serving_base_selftest())
+    print("[#327 gpu-token self-test]", _gpu_token_headers_selftest())
+    print("[phase-1.3 receipt-wiring self-test]", _receipt_wiring_selftest())
