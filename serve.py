@@ -983,6 +983,23 @@ try:
 except Exception as _szl_hb_e:  # pragma: no cover - defensive, additive-only
     print(f"[a11oy] Heart+Blood heartbeat NOT registered: {_szl_hb_e!r}", file=sys.stderr)
 
+# ── Verified Research Infrastructure (process-verification only) — tamper-EVIDENT
+# pre-registration receipt (DSSE-style, time-stamped, content-hashed) + a hash-linked
+# trial-receipt ledger for consciousness/psi/quantum-bio experiments. Wires the existing
+# szl_dsse signer + the szl_energy_provenance hash-chain pattern into a research-grade
+# pre-registration + trial workflow, so a researcher can PROVE the analysis was fixed
+# before data, the trials were not selected/edited after the fact, and the analysis on
+# file is unchanged. Makes ZERO empirical claim about psi being real; demo trials are
+# SIMULATED; tamper-EVIDENT not tamper-proof; no key committed; Λ stays Conjecture 1.
+# POST /api/a11oy/v1/research/prereg, POST .../trial, GET .../verify/{experiment_id}.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_research_infra as _szl_research_infra
+    _szl_research_infra.register(app, ns="a11oy")
+    print("[a11oy] Verified research infra registered: /api/a11oy/v1/research/{prereg,trial,verify}", file=sys.stderr)
+except Exception as _szl_ri_e:  # pragma: no cover - defensive, additive-only
+    print(f"[a11oy] Verified research infra NOT registered: {_szl_ri_e!r}", file=sys.stderr)
+
 except Exception as _szl_ep_e:  # pragma: no cover
     print(f"[a11oy] Energy provenance chain NOT registered: {_szl_ep_e!r}", file=sys.stderr)
 
