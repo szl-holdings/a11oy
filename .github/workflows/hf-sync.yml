@@ -49,6 +49,11 @@ on:
       - "console/*.js"
       - "cathedral.html"
       - "static/a11oy_cathedral.js"
+      # copy-sync lockstep guard (CHECK 3): cathedral_genius.html + static/cathedral_app.js are
+      # per-file COPY'd in the Dockerfile but live OUTSIDE the bulk dirs, so they must be mirrored
+      # to the HF Space explicitly or the front door drifts (the original BUILD_ERROR incident).
+      - "cathedral_genius.html"
+      - "static/cathedral_app.js"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
@@ -152,7 +157,7 @@ jobs:
           # pages/console glob. These two EXACT paths are mirrored as well. They are
           # matched as an exact pair (never a broad static/* glob), so the Space's other
           # static/ vendor blobs (vendor3d/, knowledge.json, etc.) are never touched.
-          CATHEDRAL_FILES = ["cathedral.html", "static/a11oy_cathedral.js"]
+          CATHEDRAL_FILES = ["cathedral.html", "static/a11oy_cathedral.js", "cathedral_genius.html", "static/cathedral_app.js"]
           patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js",
                       *CATHEDRAL_FILES]
           paths = []

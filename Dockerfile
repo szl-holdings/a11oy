@@ -711,6 +711,13 @@ COPY szl_hf_bucket.py szl_metrics_prom.py ./
 # Forge fix: these modules are on main + imported by serve.py (try/except) but were NEVER COPY'd
 # into the image -> ModuleNotFoundError at startup -> /api/a11oy/v1/research/* + dark surfaces 404.
 COPY szl_research_infra.py szl_dark_surfaces_register.py szl_anatomy_loop.py ./
+# copy-sync lockstep guard (CHECK 2): these modules are on main + imported by serve.py
+# (try/except-guarded) but were NEVER COPY'd into the image, so the import silently fell
+# back to a STUB on the Space (the recurring "merged-but-not-live" failure). conduction_aphasia
+# backs /conduction; szl_a11oy_live_feeds backs the a11oy live-feeds organ; szl_jack is imported
+# transitively by szl_live_wires. Per-file COPY (this Dockerfile never uses `COPY . .`). They
+# auto-mirror to the HF Space via hf-sync-backend.yml (which parses these COPY lines).
+COPY conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py ./
 
 
 CMD ["python", "serve.py"]
