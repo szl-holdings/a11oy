@@ -810,6 +810,10 @@ try:
     app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    # ENERGY ENGINE (2026-06-13): honest GPU + Bekenstein-budget dashboard. Standalone
+    # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
+    app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
@@ -907,6 +911,19 @@ try:
     )
 except Exception as _e:  # pragma: no cover - defensive, additive-only
     print(f"[a11oy.code] orchestrator NOT mounted ({_e!r}); SPA + gates API unaffected", file=sys.stderr)
+
+# ── Energy PROVENANCE CHAIN (W7) — tamper-evident hash-linked ledger of the
+# Bekenstein-gated energy receipts (extends/complements szl_energy_budget #328).
+# GET /api/a11oy/v1/energy/provenance -> chain head + length + verify() status
+# (link integrity + every entry passed the Bekenstein gate). Tamper-EVIDENT, not
+# "measured": joules stay SAMPLE/ESTIMATE; NO free-energy claims. Additive,
+# try/except-guarded, pure stdlib, registered before the SPA catch-all.
+try:
+    import szl_energy_provenance as _szl_energy_prov
+    _szl_energy_prov.register(app, ns="a11oy")
+    print("[a11oy] Energy provenance chain registered: /api/a11oy/v1/energy/provenance", file=sys.stderr)
+except Exception as _szl_ep_e:  # pragma: no cover
+    print(f"[a11oy] Energy provenance chain NOT registered: {_szl_ep_e!r}", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # Doctrine v13 EDGE ORGANS chaski/wallpa/wasi (ADDITIVE, 2026-06-01, Yachay). Three edge organs registered EARLY
