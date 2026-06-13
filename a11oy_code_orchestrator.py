@@ -170,6 +170,20 @@ def _serving_base() -> tuple[str, bool]:
     return HF_ROUTER_BASE, False
 
 
+def _serving_provider() -> tuple[str, str]:
+    """Return (provider_label, base_url) for the ACTUAL serving path (#324).
+
+    Derived from _serving_base so the REPORTED provider can never contradict the
+    real serving call (the overclaim closed by #324): when turns are actually
+    served on the box GPU -> "self-hosted-gpu" + the local base; otherwise the HF
+    Router. This is the single source of truth for the per-turn `provider` label
+    in route() / the streaming receipt and for the honest provider in healthz
+    key_resolution. NO behaviour change to serving — label only.
+    """
+    base, is_local = _serving_base()
+    return ("self-hosted-gpu" if is_local else "hf-router"), base
+
+
 # Tier -> locally-served model tag. When serving locally (is_local True) we
 # translate the router model id to the tag the on-box server (Ollama/vLLM)
 # actually exposes. Env-overridable so the box can set its exact served tags
@@ -696,11 +710,12 @@ def has_image(messages: list[dict[str, Any]]) -> bool:
 def route(messages: list[dict[str, Any]], model: Optional[str], governance_tier: str,
           budget: dict[str, Any] | None) -> dict[str, Any]:
     """Pure deterministic route. Emits a Khipu route receipt."""
+    _provider, _ = _serving_provider()
     if model and model != "router-auto":
         tier = next((m["tier"] for m in MODEL_CATALOG if m["id"] == model), "T2")
         lic = next((m["license"] for m in MODEL_CATALOG if m["id"] == model), "AMBER")
         decision = {"tier": tier if tier != "auto" else "T2", "model": model,
-                    "provider": "hf-router", "license_class": lic,
+                    "provider": _provider, "license_class": lic,
                     "reason": "explicit model override"}
     else:
         ctx_tokens = estimate_context_tokens(messages)
@@ -727,7 +742,7 @@ def route(messages: list[dict[str, Any]], model: Optional[str], governance_tier:
                           if "deepseek" in fb.lower() or "mistral" in fb.lower() or "phi" in fb.lower()), None)
             chosen_model = green or "deepseek-ai/DeepSeek-V3-0324"
             chosen_lic = "GREEN"
-        decision = {"tier": tier, "model": chosen_model, "provider": "hf-router",
+        decision = {"tier": tier, "model": chosen_model, "provider": _provider,
                     "license_class": chosen_lic,
                     "reason": f"task={task} ctx={ctx_tokens} gov={governance_tier}"}
     decision["fallbacks"] = TIERS.get(decision["tier"], TIERS["T2"])["fallbacks"]
@@ -1522,6 +1537,40 @@ async def _safe_body(request: Request) -> tuple[Any, Optional[JSONResponse]]:
     return parsed, None
 
 
+def _honest_key_resolution() -> dict:
+    """key_resolution that can never contradict the actual serving path (#324).
+
+    Start from the registry's view (router credential resolution), then — when
+    _serving_base() reports we are genuinely serving LOCAL on the box GPU —
+    OVERRIDE the cosmetic hf-router/HF_TOKEN claim so the reported provider,
+    base_url and env_used honestly match where turns are served. Mirrors the
+    existing key_resolution shape (wired, provider, base_url, env_used,
+    key_present, honest_note). When serving via the router we leave the registry
+    result untouched. Never logs/returns a token value.
+    """
+    base = (_llmreg.resolve_code_llm_key() if _llmreg is not None
+            else {"wired": has_inference_credential()})
+    local_base, is_local = _serving_base()
+    if not is_local:
+        return base
+    gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
+    key_present = bool(gpu_token)
+    out = dict(base)
+    out.update({
+        "wired": True,
+        "provider": "self-hosted-gpu",
+        "base_url": local_base,
+        "env_used": "A11OY_GPU_TOKEN" if key_present else "none (local Ollama, no key)",
+        "key_present": key_present,
+        "honest_note": ("Serving locally on the box GPU (#324): provider reflects the "
+                        "actual local serving path, not the HF Router. "
+                        + ("Authenticated via A11OY_GPU_TOKEN (vLLM)."
+                           if key_present
+                           else "No key required (local Ollama / no-auth endpoint).")),
+    })
+    return out
+
+
 @router.get("/healthz")
 async def code_healthz() -> JSONResponse:
     _sov = _sovereign_inference_state()
@@ -1541,8 +1590,7 @@ async def code_healthz() -> JSONResponse:
         "agentic": _agent is not None,
         "org_rag": _orgrag is not None,
         "mcp_client": _mcp is not None,
-        "key_resolution": (_llmreg.resolve_code_llm_key()
-                           if _llmreg is not None else {"wired": has_inference_credential()}),
+        "key_resolution": _honest_key_resolution(),
         "built_by": "Perplexity Computer Agent",
     })
 
@@ -1832,7 +1880,8 @@ async def v1_router(request: Request) -> JSONResponse:
             y13 = yuyay13_response_score(text, tcs, latency_ms)
             rec = khipu_emit("router.completion", {"model": m, "tier": decision["tier"],
                                                    "latency_ms": latency_ms, "yuyay13": y13})
-            data["a11oy"] = {"tier": decision["tier"], "model": m, "provider": "hf-router",
+            data["a11oy"] = {"tier": decision["tier"], "model": m,
+                             "provider": decision.get("provider", _serving_provider()[0]),
                              "license_class": decision["license_class"], "latency_ms": latency_ms,
                              "yuyay13": y13,
                              "khipu_receipt": {"hash": rec["hash"], "chain_verified": True,
