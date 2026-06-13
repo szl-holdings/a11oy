@@ -4627,6 +4627,58 @@ async def a11oy_receipt_export_v2() -> JSONResponse:
     return JSONResponse(env)
 
 
+# ---- /receipt/{rid}/canonical — exact preimage bytes so a browser can re-hash & MATCH (B2) ----
+# receipt-canonical-patch (Forge 2026-06-13). The /api/a11oy/v1/ledger receipt_id is the
+# SHA-256 of a DETERMINISTIC preimage built by _a11oy_build_chain:
+#     receipt_id == sha256(f"{prev_hash}|{action}|{seq}".encode()).hexdigest()
+# This endpoint returns that EXACT preimage so a visitor's browser can recompute the digest
+# client-side and MATCH the ledger receipt_id. Honest: the bytes are the literal hash input,
+# nothing fabricated. Default text/plain (sha256(body) == receipt_id); ?format=json gives a
+# labeled envelope. Additive, pure-stdlib, fail-safe (404 on unknown id). CORS is global.
+@app.get("/api/a11oy/v1/receipt/{rid}/canonical")
+@app.get("/receipt/{rid}/canonical")
+async def a11oy_receipt_canonical_v2(rid: str, request: Request) -> Response:
+    try:
+        ch = _a11oy_build_chain(24)
+        match = None
+        for r in ch["receipts"]:
+            if r["hash"] == rid:
+                match = r
+                break
+        if match is None:
+            return JSONResponse(
+                {"error": "receipt_id not found",
+                 "receipt_id": rid,
+                 "hint": "GET /api/a11oy/v1/ledger for valid receipt_ids"},
+                status_code=404)
+        canonical = match["prev_hash"] + "|" + match["kind"] + "|" + str(match["seq"])
+        recomputed = _hashv2.sha256(canonical.encode("utf-8")).hexdigest()
+        if (request.query_params.get("format") or "").lower() == "json":
+            return JSONResponse({
+                "receipt_id": rid,
+                "seq": match["seq"],
+                "action": match["kind"],
+                "prev_hash": match["prev_hash"],
+                "canonical_bytes": canonical,
+                "encoding": "utf-8",
+                "hash_algorithm": "sha256-hex",
+                "preimage_format": "{prev_hash}|{action}|{seq}",
+                "recomputed_sha256": recomputed,
+                "matches": recomputed == rid,
+                "verify": "sha256(utf8(canonical_bytes)).hexdigest() == receipt_id",
+            }, headers={"x-receipt-id": rid, "x-hash-algorithm": "sha256-hex"})
+        # Default: the EXACT preimage bytes. sha256(response body) == receipt_id.
+        return PlainTextResponse(
+            canonical,
+            media_type="text/plain; charset=utf-8",
+            headers={"x-receipt-id": rid,
+                     "x-hash-algorithm": "sha256-hex",
+                     "x-verify": "sha256(body) == x-receipt-id"})
+    except Exception as exc:  # never break the surface
+        return JSONResponse({"error": "canonical lookup failed", "detail": str(exc)},
+                            status_code=500)
+
+
 # ---- /v1/observability/summary — SELF-CONTAINED (no cross-origin probes) ----
 # The 3 previously-black 3D scenes read this. It now returns a11oy's own
 # in-image capability map. NO amaru/sentra/rosie. Capabilities are a11oy's
