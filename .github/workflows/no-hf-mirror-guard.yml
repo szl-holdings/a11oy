@@ -1,0 +1,23 @@
+name: no-hf-mirror-guard
+
+# Fails if any stale `.hf-mirror/` snapshot directory returns to the tree.
+# `.hf-mirror/` dirs are dead HF-Space snapshots, not canonical source.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Self-test the checker (negative fixture)
+        run: python3 .github/scripts/check_no_hf_mirror.test.py
+      - name: No committed .hf-mirror snapshots
+        run: python3 .github/scripts/check_no_hf_mirror.py .
