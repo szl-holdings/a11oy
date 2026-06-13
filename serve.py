@@ -3783,7 +3783,7 @@ try:
                 "doctrine": "v11", "lambda_status": "Conjecture 1 (NOT a theorem)"}
 
     # ---- rosie: jarvis ask / act (ported, self-contained grounding) ----
-    _SC_PROVED_FORMULAS = ["F1", "F11", "F12", "F18", "F19"]
+    _SC_PROVED_FORMULAS = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
     _SC_OP_ACTIONS = {
         "approve": "HITL approve — operator approves a pending governed verdict / decision.",
         "deny": "HITL deny — operator denies a pending governed verdict / decision.",
