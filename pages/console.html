@@ -10035,11 +10035,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; body.appendChild(note);
     }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'\u21bb Re-check live'; } }
   };
-  window.readiness_render=async function(c){
-    c.innerHTML='<div class="card"><div class="dim">reading live deployment, repo and Space\u2026</div></div>';
+  window.readiness_render=async function(c,opts){
+    opts=opts||{};
+    if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">reading live deployment, repo and Space\u2026</div></div>';
     try{
       var r=await fetch('/api/'+window.__rd_ns+'/v1/readiness');
       var d=await r.json(); var h='';
+      h+='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every 30s \u2014 live re-poll of the same real surfaces; honest empty/unreachable states preserved.</span><span style="display:flex;gap:.4rem"><button class="btn" id="rd-auto" style="font-size:11px">\u27f3 auto: '+((window.__tabauto!==false)?'on':'off')+'</button><button class="btn" id="rd-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       if(d.honest) h+='<div class="honesty">'+esc(d.honest)+'</div>';
       var s=d.summary||{};
       h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
@@ -10053,6 +10055,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       Array.prototype.forEach.call(c.querySelectorAll('.rd-live-btn'),function(b){
         b.addEventListener('click',function(){ window.readiness_section_live(b.getAttribute('data-rd'),b); });
       });
+      var rdReload=c.querySelector('#rd-reload'); if(rdReload) rdReload.addEventListener('click',function(){ window.readiness_render(c,{silent:true}); });
+      var rdAuto=c.querySelector('#rd-auto'); if(rdAuto) rdAuto.addEventListener('click',function(){ window.__tabauto=!(window.__tabauto!==false); rdAuto.textContent='\u27f3 auto: '+((window.__tabauto!==false)?'on':'off'); });
+      if(!opts.silent && typeof setInterval==='function'){
+        if(window.__rd_timer){ clearInterval(window.__rd_timer); }
+        window.__rd_timer=setInterval(function(){
+          if(!document.body.contains(c)){ clearInterval(window.__rd_timer); window.__rd_timer=null; return; }
+          if((window.__tabauto!==false) && !document.hidden){ window.readiness_render(c,{silent:true}); }
+        }, 30000);
+      }
     }catch(e){ c.innerHTML='<div class="card"><div class="dim">readiness layer unavailable: '+esc((e&&e.message)||e)+'</div></div>'; }
   };
   function reg(){
@@ -10128,11 +10139,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       note.textContent='re-read failed: '+((e&&e.message)||e)+' \u2014 showing last-known values'; host.appendChild(note);
     }finally{ if(btn){ btn.disabled=false; btn.textContent=old||'\u21bb re-check sources'; } }
   };
-  window.contracting_render=async function(c){
-    c.innerHTML='<div class="card"><div class="dim">reading contracting-eligibility criteria + probing sources\u2026</div></div>';
+  window.contracting_render=async function(c,opts){
+    opts=opts||{};
+    if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">reading contracting-eligibility criteria + probing sources\u2026</div></div>';
     try{
       var r=await fetch('/api/'+window.__ct_ns+'/v1/contracting');
       var d=await r.json(); var h='';
+      h+='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every 30s \u2014 live re-poll of the same web sources; "needs founder input" stays a flagged unknown, never invented.</span><span style="display:flex;gap:.4rem"><button class="btn" id="ct-auto" style="font-size:11px">\u27f3 auto: '+((window.__tabauto!==false)?'on':'off')+'</button><button class="btn" id="ct-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       if(d.honest) h+='<div class="honesty">'+ct_esc(d.honest)+'</div>';
       var s=d.summary||{}; var bs=s.by_status||{};
       h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
@@ -10154,6 +10167,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         h+='</div>';
       }
       c.innerHTML=h||'<div class="card"><div class="dim">no contracting criteria.</div></div>';
+      var ctReload=c.querySelector('#ct-reload'); if(ctReload) ctReload.addEventListener('click',function(){ window.contracting_render(c,{silent:true}); });
+      var ctAuto=c.querySelector('#ct-auto'); if(ctAuto) ctAuto.addEventListener('click',function(){ window.__tabauto=!(window.__tabauto!==false); ctAuto.textContent='\u27f3 auto: '+((window.__tabauto!==false)?'on':'off'); });
+      if(!opts.silent && typeof setInterval==='function'){
+        if(window.__ct_timer){ clearInterval(window.__ct_timer); }
+        window.__ct_timer=setInterval(function(){
+          if(!document.body.contains(c)){ clearInterval(window.__ct_timer); window.__ct_timer=null; return; }
+          if((window.__tabauto!==false) && !document.hidden){ window.contracting_render(c,{silent:true}); }
+        }, 30000);
+      }
     }catch(e){ c.innerHTML='<div class="card"><div class="dim">contracting layer unavailable: '+ct_esc((e&&e.message)||e)+'</div></div>'; }
   };
   function reg(){
@@ -10228,11 +10250,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     return h;
   }
 
-  window.bounties_render=async function(c){
-    c.innerHTML='<div class="card"><div class="dim">loading open-problem bounties from bounties/*.yaml\u2026</div></div>';
+  window.bounties_render=async function(c,opts){
+    opts=opts||{};
+    if(!opts.silent) c.innerHTML='<div class="card"><div class="dim">loading open-problem bounties from bounties/*.yaml\u2026</div></div>';
     try{
       var r=await fetch('/api/'+window.__bn_ns+'/v1/bounties');
       var d=await r.json(); var h='';
+      h+='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><span class="dim" style="font-size:12px">Auto-refresh every 30s \u2014 live re-poll of bounties/*.yaml; only status:OPEN shown, reward stays founder-set, never a figure.</span><span style="display:flex;gap:.4rem"><button class="btn" id="bn-auto" style="font-size:11px">\u27f3 auto: '+((window.__tabauto!==false)?'on':'off')+'</button><button class="btn" id="bn-reload" style="font-size:11px">\u21bb reload</button></span></div>';
       if(d.honest) h+='<div class="honesty">'+bn_esc(d.honest)+'</div>';
       h+='<div class="card"><div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">';
       h+=bn_badge('OPEN bounties '+(d.count||0),GOLD,'genuinely open problems');
@@ -10242,6 +10266,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       (d.bounties||[]).forEach(function(b){ h+=bn_card(b); });
       if(!(d.bounties||[]).length){ h+='<div class="card"><div class="dim">No OPEN bounties right now \u2014 every conjecture on the board has been settled.</div></div>'; }
       c.innerHTML=h;
+      var bnReload=c.querySelector('#bn-reload'); if(bnReload) bnReload.addEventListener('click',function(){ window.bounties_render(c,{silent:true}); });
+      var bnAuto=c.querySelector('#bn-auto'); if(bnAuto) bnAuto.addEventListener('click',function(){ window.__tabauto=!(window.__tabauto!==false); bnAuto.textContent='\u27f3 auto: '+((window.__tabauto!==false)?'on':'off'); });
+      if(!opts.silent && typeof setInterval==='function'){
+        if(window.__bn_timer){ clearInterval(window.__bn_timer); }
+        window.__bn_timer=setInterval(function(){
+          if(!document.body.contains(c)){ clearInterval(window.__bn_timer); window.__bn_timer=null; return; }
+          if((window.__tabauto!==false) && !document.hidden){ window.bounties_render(c,{silent:true}); }
+        }, 30000);
+      }
     }catch(e){ c.innerHTML='<div class="card"><div class="dim">bounty board unavailable: '+bn_esc((e&&e.message)||e)+'</div></div>'; }
   };
   function reg(){
