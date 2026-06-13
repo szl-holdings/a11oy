@@ -50,7 +50,7 @@ Out of scope:
 
 ## Governance
 
-Vulnerability disclosures are governed by SZL Doctrine v7:
+Vulnerability disclosures are governed by SZL Doctrine v11:
 
 - No fake security claims; positive status must be verifiable.
 - `STAGED-ADVISORY` label for gates not yet machine-checked.
