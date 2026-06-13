@@ -114,7 +114,7 @@ def _client() -> httpx.Client:
     return httpx.Client(timeout=14.0, headers=UA, follow_redirects=True)
 
 
-def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live") -> dict[str, Any]:
+def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None) -> dict[str, Any]:
     """Return {value, freshness}. Serve warm cache if within TTL; else refetch.
     On error keep last-good and mark 'stale' — never fabricate."""
     rec = _CACHE.get(key)
@@ -123,7 +123,7 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live") -> 
         return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
     try:
         with _client() as cl:
-            r = cl.get(url)
+            r = cl.get(url, headers=headers) if headers else cl.get(url)
             r.raise_for_status()
             data = r.json()
         val = parser(data) if parser else data
@@ -388,6 +388,28 @@ def feed_fx(base: str = "USD", symbols: str = "EUR,GBP,JPY,CAD,CHF") -> dict[str
     return _cached_fetch("fx_" + base, url, ttl=600, parser=parse)
 
 
+def feed_polygon(symbol: str) -> dict[str, Any]:
+    """Official Polygon.io market data (key-gated). The API key is sent via an
+    Authorization header (never in the URL) so it cannot leak into cached error
+    strings. When POLYGON_API_KEY is unset we return an honest 'disabled'
+    payload — never a fabricated price. Live tick streaming (WebSocket) is a
+    roadmap item; this REST path serves the official previous-session OHLC."""
+    key = os.environ.get("POLYGON_API_KEY", "").strip()
+    if not key:
+        return {"value": {"symbol": symbol, "source": "polygon.io", "official": True,
+                          "status": "disabled", "reason": "POLYGON_API_KEY not set",
+                          "live_ticks": "websocket roadmap"},
+                "freshness": {"status": "unavailable", "error": "POLYGON_API_KEY not set"}}
+    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/prev?adjusted=true"
+    def parse(d):
+        r = (d.get("results") or [{}])[0]
+        return {"symbol": symbol, "source": "polygon.io", "official": True, "status": "live",
+                "open": r.get("o"), "high": r.get("h"), "low": r.get("l"),
+                "close": r.get("c"), "volume": r.get("v"), "ts": r.get("t")}
+    return _cached_fetch("poly_" + symbol, url, ttl=30, parser=parse,
+                         headers={"Authorization": f"Bearer {key}"})
+
+
 def feed_gh_events(repo: str = "huggingface/transformers", limit: int = 12) -> dict[str, Any]:
     url = f"https://api.github.com/repos/{repo}/events?per_page={limit}"
     def parse(d):
@@ -517,11 +539,18 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     @app.get(base + "/finance/feed", include_in_schema=False)
     async def _fin_feed():
         syms = ["SPY", "AAPL", "MSFT", "NVDA", "^VIX"]
-        eq = {s: feed_yahoo(s) for s in syms}
+        eq = {s: feed_yahoo(s) for s in syms}  # Yahoo v8 = unofficial fallback (yfinance-equivalent)
+        # Official source: Polygon.io (key-gated). ^VIX is an index, not a Polygon stock ticker.
+        official = {s: feed_polygon(s) for s in ["SPY", "AAPL", "MSFT", "NVDA"]}
         crypto = {p: feed_coinbase(p) for p in ["BTC-USD", "ETH-USD", "SOL-USD"]}
         cve = feed_nvd(12, keyword="financial")
         fx = feed_fx("USD", "EUR,GBP,JPY,CAD,CHF")
-        return JSONResponse({"vertical": "finance", "equities": eq, "crypto": crypto,
+        return JSONResponse({"vertical": "finance",
+                             "equities_official": official,
+                             "equities": eq,
+                             "equities_note": ("equities_official = Polygon.io (official, key-gated); "
+                                               "equities = Yahoo v8 (unofficial fallback)"),
+                             "crypto": crypto,
                              "fx": fx, "fintech_cve": cve, "doctrine": DOCTRINE})
 
     # ---- LEGAL ----
@@ -605,7 +634,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
                        "sources": ["CISA KEV", "NVD CVE", "UDS mesh bridge"],
                        "routes": ["/feed", "/kpi", "/govern", "/ledger", "/roi"]},
         "finance":    {"label": "Finance",           "absorbed": None,
-                       "sources": ["Yahoo v8 markets", "Coinbase", "fintech CVE", "FX"],
+                       "sources": ["Polygon.io (official, key-gated)", "Yahoo v8 (unofficial fallback)", "Coinbase", "Frankfurter ECB FX", "fintech CVE"],
                        "routes": ["/feed", "/govern", "/ledger", "/roi"]},
         "legal":      {"label": "Legal",             "absorbed": "Counsel",
                        "sources": ["Federal Register", "CourtListener"],
