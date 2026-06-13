@@ -13,7 +13,7 @@ Registers:
   GET /healthz                           — root healthz (SLSA L1 honest; L2 attestation roadmap)
 
 HONESTY ABSOLUTE:
-  PROVED = {F1, F11, F12, F18, F19}
+  PROVED = {F1, F4, F7, F11, F12, F18, F19, F22}
   F23 = Conjecture 1 (open CAUCHY_ND sorry; NOT a theorem)
   All others = Roadmap (sorry/open)
   SLSA L1 honest = cosign-signed GHCR image (cosign verify). An L2 build-provenance attestation is roadmap (NOT yet earned)
@@ -35,10 +35,10 @@ FORMULA_STATUS = {
     "F1":  "PROVED",
     "F2":  "Roadmap",
     "F3":  "Roadmap",
-    "F4":  "Roadmap",
+    "F4":  "PROVED",
     "F5":  "Roadmap",
     "F6":  "Roadmap",
-    "F7":  "Roadmap",
+    "F7":  "PROVED",
     "F8":  "Roadmap",
     "F9":  "Roadmap",
     "F10": "Roadmap",
@@ -53,7 +53,7 @@ FORMULA_STATUS = {
     "F19": "PROVED",
     "F20": "Roadmap",
     "F21": "Roadmap",
-    "F22": "Roadmap",
+    "F22": "PROVED",
     "F23": "Conjecture 1",
 }
 
@@ -154,7 +154,7 @@ def register(app: FastAPI) -> dict:
             "lambda_status": "Conjecture 1 — NOT a theorem (open CAUCHY_ND sorry Uniqueness.lean:120)",
             "doctrine": DOCTRINE,
             "formulas": FORMULAS,
-            "honesty": "PROVED={F1,F11,F12,F18,F19}. F23=Conjecture 1 (bounty open). All others=Roadmap. No overclaims.",
+            "honesty": "PROVED={F1,F4,F7,F11,F12,F18,F19,F22}. F23=Conjecture 1 (bounty open). All others=Roadmap. No overclaims.",
         })
 
     @app.get("/api/amaru/v1/formulas/{formula_id}", name="amaru_formula_single")
