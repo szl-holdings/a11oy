@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+# a11oy-rebuild — rebuild the a11oy.net Docker image from the PUBLISHED GitHub
+# source of truth (szl-holdings/a11oy), discarding any local working-tree drift,
+# then recreate the running container. Idempotent and safe to re-run.
+#
+# WHY THIS EXISTS:
+#   The box build tree (/opt/szl/a11oy) is routinely BEHIND GitHub main (stale
+#   remote-tracking ref + hand-patched files). The Docker image used to be built
+#   straight from that drifting tree, so the live a11oy.net image could silently
+#   diverge from the published source. This wrapper guarantees every rebuild
+#   starts from a clean checkout of origin/main, so the running container always
+#   reflects what is published. DO NOT hand-patch the tree and `docker build`
+#   directly — run this instead.
+#
+# USAGE:
+#   a11oy-rebuild           # fetch+reset to origin/main, build, recreate, verify
+#   a11oy-rebuild --verify-only   # just verify the running image vs origin/main
+#
+# OVERRIDES (env): A11OY_REPO_DIR A11OY_BRANCH A11OY_IMAGE A11OY_CONTAINER A11OY_PORT_BIND
+set -uo pipefail
+
+REPO_DIR="${A11OY_REPO_DIR:-/opt/szl/a11oy}"
+BRANCH="${A11OY_BRANCH:-main}"
+IMAGE="${A11OY_IMAGE:-a11oy:local}"
+CONTAINER="${A11OY_CONTAINER:-a11oy}"
+PORT_BIND="${A11OY_PORT_BIND:-127.0.0.1:7861:7860}"
+# contracting-env-file-patch: inject operator-supplied container env (org registration
+# facts / secrets) from a root-only file that is NEVER committed to git.
+# Absent file => no-op (honest unknowns). Holds SZL_CONTRACTING_* values.
+ENV_FILE="${A11OY_ENV_FILE:-/etc/szl-contracting.env}"
+# Published Hugging Face Space that holds the feature files never back-ported to
+# GitHub (real 3-way drift). Public repo → cloned anonymously, LFS smudge skipped
+# (the overlay files are plain .py/.json/.js/.txt, never LFS).
+HF_SPACE_URL="${A11OY_HF_SPACE_URL:-https://huggingface.co/spaces/szlholdings/a11oy}"
+HF_CACHE_DIR="${A11OY_HF_CACHE_DIR:-/opt/szl/hf-a11oy}"
+BACKUP_DIR="/root/a11oy-build-backups"
+TS="$(date +%Y%m%d-%H%M%S)"
+
+log(){ echo "[a11oy-rebuild $(date +%H:%M:%S)] $*"; }
+fail(){ echo "[a11oy-rebuild] FATAL: $*" >&2; exit "${2:-1}"; }
+
+# Curated high-value guard set: the live image MUST bake each of these files
+# byte-for-byte from origin/$BRANCH. The Dockerfile COPYs ~150 sources; verify()
+# used to guard only THREE (the two front-door HTML files + szl_evidence_research.py),
+# so a rebuild from a stale/wrong tree could silently DROP or regress ANY other
+# powered feature module and still pass verify. This curated subset extends the
+# guard across the high-value powered features — live OSINT/vertical feeds, the
+# governance gateway + audit, operational readiness / contracting / fleet, B2
+# security data, the bounty board, and the FastAPI app entry — grouped into
+# DISTINGUISHABLE categories so front-door drift, feed drift, governance drift, etc.
+# are each reported separately.
+# Format per entry: CATEGORY|<repo path>|<image path>
+# Dockerfile maps: pages/ -> /app/pages/ , console/ -> /app/static/ , root -> /app/ .
+GUARD_SPECS=(
+  "FRONT-DOOR|pages/console.html|/app/pages/console.html"          # cathedral UI front door
+  "FRONT-DOOR|console/index.html|/app/static/index.html"          # cathedral UI front door
+  "APP-ENTRY|serve.py|/app/serve.py"                              # FastAPI app entry / route registration
+  "LIVENESS|szl_evidence_research.py|/app/szl_evidence_research.py" # Evidence & Research /sources/live badges
+  "FEEDS|a11oy_live_feeds.py|/app/a11oy_live_feeds.py"            # live OSINT feed overlays
+  "FEEDS|a11oy_vertical_feeds.py|/app/a11oy_vertical_feeds.py"    # vertical-specific live feeds
+  "FEEDS|a11oy_deva_feeds.py|/app/a11oy_deva_feeds.py"           # dev-A live feeds
+  "FEEDS|a11oy_amaru_feeds.py|/app/a11oy_amaru_feeds.py"        # amaru (memory organ) feeds
+  "GOVERNANCE|szl_governance_gateway.py|/app/szl_governance_gateway.py" # governed operator/reason gateway
+  "GOVERNANCE|szl_abacus_verify.py|/app/szl_abacus_verify.py"   # abacus verification surface
+  "GOVERNANCE|szl_decision_uncertainty.py|/app/szl_decision_uncertainty.py" # decision uncertainty surface
+  "GOVERNANCE|szl_gor_audit.py|/app/szl_gor_audit.py"          # governance-of-record audit
+  "READINESS|szl_readiness.py|/app/szl_readiness.py"           # operational readiness console
+  "READINESS|szl_contracting.py|/app/szl_contracting.py"       # SAM/CAGE + SBIR/STTR contracting panel
+  "READINESS|szl_uds_fleet.py|/app/szl_uds_fleet.py"          # UDS fleet-trust console
+  "SECDATA|szl_b2_secdata.py|/app/szl_b2_secdata.py"          # B2 security-data feeds
+  "BOUNTIES|szl_bounties.py|/app/szl_bounties.py"             # open-problem bounty board
+  "BOUNTIES|szl_putnam.py|/app/szl_putnam.py"               # putnam showcase
+)
+
+# Compare every guarded file baked into $IMAGE against origin/$BRANCH byte-for-byte
+# (md5). Each file logs VERIFY OK/FAIL with its CATEGORY; a closing VERIFY SUMMARY
+# reports PASS/FAIL per category so drift stays distinguishable. A file genuinely
+# absent from origin/$BRANCH is reported VERIFY SKIP (it is not the image's drift).
+# Returns non-zero if ANY guarded file drifts (fails closed).
+verify(){
+  local rc=0 spec cat rest rp ip want got c
+  local cats=()
+  declare -A CAT_FAIL=() CAT_SEEN=()
+  for spec in "${GUARD_SPECS[@]}"; do
+    cat="${spec%%|*}"; rest="${spec#*|}"; rp="${rest%%|*}"; ip="${rest##*|}"
+    if [ -z "${CAT_SEEN[$cat]:-}" ]; then CAT_SEEN[$cat]=1; CAT_FAIL[$cat]=0; cats+=("$cat"); fi
+    want="$(git show "origin/$BRANCH:$rp" 2>/dev/null | md5sum | awk '{print $1}')"
+    got="$(docker run --rm --entrypoint cat "$IMAGE" "$ip" 2>/dev/null | md5sum | awk '{print $1}')"
+    if [ -z "$want" ]; then
+      log "VERIFY SKIP [$cat] $rp (not in origin/$BRANCH)"
+    elif [ "$want" = "$got" ]; then
+      log "VERIFY OK   [$cat] $rp == image:$ip  ($want)"
+    else
+      log "VERIFY FAIL [$cat] $rp ($want) != image:$ip ($got)"; rc=1; CAT_FAIL[$cat]=1
+    fi
+  done
+  local summary=""
+  for c in "${cats[@]}"; do
+    summary+=" $c=$([ "${CAT_FAIL[$c]}" -eq 0 ] && echo PASS || echo FAIL)"
+  done
+  log "VERIFY SUMMARY:$summary"
+  return $rc
+}
+
+# Refresh the cached HF Space clone and overlay any Dockerfile COPY source that is
+# missing from the GitHub build context (the ~19 feature files that live only on
+# the published HF Space). Fails loudly rather than shipping a degraded image.
+overlay_hf(){
+  local missing=()
+  while read -r src; do
+    [ -z "$src" ] && continue
+    local s="${src%/}"
+    [ -e "$s" ] || missing+=("$s")
+  done < <(grep -E '^COPY ' "$REPO_DIR/Dockerfile" | awk '{print $2}')
+
+  if [ "${#missing[@]}" -eq 0 ]; then
+    log "Overlay: no missing COPY sources — GitHub main is self-sufficient."
+    return 0
+  fi
+  log "Overlay: ${#missing[@]} COPY source(s) missing from GitHub build context; sourcing from published HF Space."
+
+  if [ -d "$HF_CACHE_DIR/.git" ]; then
+    log "Overlay: refreshing HF cache $HF_CACHE_DIR ..."
+    ( cd "$HF_CACHE_DIR" && GIT_LFS_SKIP_SMUDGE=1 GIT_TERMINAL_PROMPT=0 git fetch --depth 1 origin "$BRANCH" \
+        && git reset --hard "origin/$BRANCH" && git clean -fd ) \
+      || fail "HF cache refresh failed" 9
+  else
+    log "Overlay: cloning HF Space $HF_SPACE_URL (anon, LFS-skip) ..."
+    GIT_LFS_SKIP_SMUDGE=1 GIT_TERMINAL_PROMPT=0 git clone --depth 1 -b "$BRANCH" "$HF_SPACE_URL" "$HF_CACHE_DIR" \
+      || fail "HF Space clone failed" 9
+  fi
+
+  local still=()
+  for s in "${missing[@]}"; do
+    if [ -e "$HF_CACHE_DIR/$s" ]; then
+      mkdir -p "$REPO_DIR/$(dirname "$s")"
+      cp -a "$HF_CACHE_DIR/$s" "$REPO_DIR/$s"
+      log "Overlay: + $s"
+    else
+      still+=("$s")
+    fi
+  done
+  if [ "${#still[@]}" -gt 0 ]; then
+    printf '   STILL-MISSING: %s\n' "${still[@]}" >&2
+    fail "overlay incomplete — ${#still[@]} COPY source(s) absent from BOTH GitHub main and the HF Space (refusing to ship a degraded image)" 10
+  fi
+  log "Overlay: all missing COPY sources resolved from the published HF Space."
+}
+
+cd "$REPO_DIR" || fail "$REPO_DIR not found" 2
+mkdir -p "$BACKUP_DIR"
+
+log "Fetching origin/$BRANCH ..."
+git fetch --no-tags origin "$BRANCH" || fail "git fetch failed" 3
+
+if [ "${1:-}" = "--verify-only" ]; then
+  log "verify-only: comparing running $IMAGE against origin/$BRANCH"
+  verify && { log "verify-only: PASS"; exit 0; } || { log "verify-only: FAIL"; exit 5; }
+fi
+
+# Never silently lose local work: snapshot any uncommitted drift before discarding.
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  git diff HEAD > "$BACKUP_DIR/uncommitted-$TS.patch" 2>/dev/null || true
+  log "Backed up uncommitted drift -> $BACKUP_DIR/uncommitted-$TS.patch"
+fi
+
+log "Resetting working tree to origin/$BRANCH (discarding drift) ..."
+git reset --hard "origin/$BRANCH" || fail "git reset failed" 6
+git clean -fd || true
+
+HEAD_SHA="$(git rev-parse --short HEAD)"
+log "Build source pinned to published origin/$BRANCH = $HEAD_SHA"
+
+overlay_hf
+
+log "docker build -t $IMAGE . (this can take several minutes) ..."
+if docker build -t "$IMAGE" . ; then
+  log "docker build OK -> $IMAGE"
+else
+  fail "docker build failed (note: a non-fatal llama-cpp-python wheel ERROR is expected; only treat a non-zero build rc as failure)" 4
+fi
+
+log "Recreating container $CONTAINER ..."
+docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+ENV_ARGS=(); [ -f "$ENV_FILE" ] && ENV_ARGS+=(--env-file "$ENV_FILE")  # contracting-env-file-patch
+  GPU_ENV_FILE="${A11OY_GPU_ENV_FILE:-/etc/a11oy-gpu.env}"; [ -f "$GPU_ENV_FILE" ] && ENV_ARGS+=(--env-file "$GPU_ENV_FILE")  # gpu-env-file-patch (sovereign serving env, never committed)
+docker run -d --name "$CONTAINER" --restart unless-stopped -p "$PORT_BIND" "${ENV_ARGS[@]}" "$IMAGE" >/dev/null \
+  || fail "docker run failed" 7
+
+sleep 3
+log "Container state: $(docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null)"
+
+log "Verifying baked files (front-door + liveness module) match published origin/$BRANCH ..."
+if verify; then
+  log "DONE — $CONTAINER running from published $BRANCH@$HEAD_SHA, front door + liveness module match source."
+else
+  fail "rebuild completed but image verification FAILED (see per-category VERIFY SUMMARY above)" 8
+fi
