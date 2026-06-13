@@ -51,46 +51,172 @@ except Exception:  # pragma: no cover
 ISO = lambda: datetime.now(timezone.utc).isoformat()
 
 # --------------------------------------------------------------------------- #
-# Sovereign LLM (Warhacker directive, founder 2026-06-01): the Cmd-K
-# natural-language path routes to a LOCAL LLM ONLY (Qwen2.5-7B-Instruct AWQ via
-# vLLM on the 4060 Ti tower). NEVER a cloud API. If the local endpoint is
-# unreachable, return an honest deterministic stub + a signed fallback receipt.
-# Commercial cloud routing (a11oy.code) is intentionally NOT in this path.
+# Sovereign LLM routing (GPU-routing directive, founder 2026-06-13). ONE shared
+# client across a11oy + killinchu (this module is byte-identical in both Spaces).
+#
+# Resolution order — honest, never overclaim sovereign:
+#   (a) founder GPU over Tailscale  : if SZL_GPU_BASE_URL is set AND a short live
+#       health probe to it succeeds THIS request  -> sovereign=True,
+#       provider="self-hosted-gpu" (Qwen2.5-7B on the founder's box via vLLM).
+#   (b) honest fallback (HF router) : ONLY if SZL_LLM_FALLBACK_ALLOWED is truthy
+#       AND SZL_HF_ROUTER_BASE_URL is set        -> sovereign=False,
+#       provider="hf-router-fallback" + honest_note (compute is HF's, not the box).
+#   (c) neither reachable/allowed   : fail honestly                -> sovereign=False,
+#       provider="offline", online=False. NEVER fabricate a completion.
+#
+# The endpoint + any token live in the Space SECRET store (env), referenced by
+# NAME only — never committed. SZL_GPU_BASE_URL is a Tailscale MagicDNS name or
+# 100.x IP, e.g. http://<box-tailscale-name>:8000/v1 . The legacy Space-internal
+# default http://local-llm:8000/v1 is NOT the founder's GPU and is retained ONLY
+# as a last-resort local probe target, never as a sovereign claim.
 # --------------------------------------------------------------------------- #
-LOCAL_LLM_BASE = os.environ.get("SZL_LOCAL_LLM_BASE", "http://local-llm:8000/v1")
+
+# --- env-resolved endpoints (referenced by NAME only; never a committed key) --- #
+GPU_BASE_URL = (os.environ.get("SZL_GPU_BASE_URL") or "").strip().rstrip("/")
+GPU_TOKEN = os.environ.get("SZL_GPU_TOKEN") or os.environ.get("SZL_GPU_API_KEY") or ""
+HF_ROUTER_BASE_URL = (os.environ.get("SZL_HF_ROUTER_BASE_URL") or "").strip().rstrip("/")
+HF_ROUTER_TOKEN = os.environ.get("SZL_HF_ROUTER_TOKEN") or os.environ.get("HF_TOKEN") or ""
+_FALLBACK_ALLOWED = (os.environ.get("SZL_LLM_FALLBACK_ALLOWED", "").strip().lower()
+                     in ("1", "true", "yes", "on"))
+# Legacy local default — retained as a fallback PROBE target only (never sovereign).
+LOCAL_LLM_BASE = (os.environ.get("SZL_LOCAL_LLM_BASE") or "http://local-llm:8000/v1").rstrip("/")
 LOCAL_LLM_MODEL = os.environ.get("SZL_LOCAL_LLM_MODEL", "Qwen2.5-7B-Instruct-AWQ")
+GPU_PROBE_TIMEOUT = float(os.environ.get("SZL_GPU_PROBE_TIMEOUT", "1.5"))
+
+
+def _redact_base(url: str) -> str:
+    """Return host[:port] of a base_url (path/scheme/credentials stripped) so
+    healthz can disclose WHERE inference points without leaking a full secret URL."""
+    if not url:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        p = urlparse(url if "://" in url else "//" + url, scheme="http")
+        return p.netloc or p.path.split("/")[0]
+    except Exception:
+        return "set"
+
+
+def _probe(base: str, token: str = "", timeout: float | None = None) -> bool:
+    """Bounded GET {base}/models reachability probe. True only on HTTP 200.
+    Never raises; never a fabricated result. Used to gate every sovereign claim."""
+    if not base:
+        return False
+    try:
+        import urllib.request
+        req = urllib.request.Request(f"{base.rstrip('/')}/models", method="GET")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+        with urllib.request.urlopen(req, timeout=(timeout or GPU_PROBE_TIMEOUT)) as r:
+            return getattr(r, "status", r.getcode()) == 200
+    except Exception:
+        return False
+
+
+def resolve_llm(probe: bool = True) -> dict[str, Any]:
+    """Resolve the active LLM inference path HONESTLY. Returns a dict:
+        {provider, base_url, base_redacted, model, sovereign, gpu_reachable,
+         online, cloud, honest_note}
+    sovereign is True ONLY when a live probe to the founder GPU succeeded THIS
+    call. No probe success => never sovereign. This is the single source of
+    truth consumed by healthz, the posture endpoint and the NL command path."""
+    # (a) founder GPU over Tailscale — sovereign iff configured AND live-reachable.
+    if GPU_BASE_URL:
+        gpu_ok = _probe(GPU_BASE_URL, GPU_TOKEN) if probe else False
+        if gpu_ok:
+            return {"provider": "self-hosted-gpu", "base_url": GPU_BASE_URL,
+                    "base_redacted": _redact_base(GPU_BASE_URL), "model": LOCAL_LLM_MODEL,
+                    "sovereign": True, "gpu_reachable": True, "online": True, "cloud": False,
+                    "honest_note": "Inference on the founder GPU (Qwen2.5-7B via vLLM) over "
+                                   "Tailscale; verified by a live /models probe this request."}
+        # GPU configured but NOT reachable this request — fall through; never claim sovereign.
+        if _FALLBACK_ALLOWED and HF_ROUTER_BASE_URL:
+            return {"provider": "hf-router-fallback", "base_url": HF_ROUTER_BASE_URL,
+                    "base_redacted": _redact_base(HF_ROUTER_BASE_URL), "model": LOCAL_LLM_MODEL,
+                    "sovereign": False, "gpu_reachable": False, "online": True, "cloud": True,
+                    "honest_note": "Founder GPU configured but UNREACHABLE this request "
+                                   "(Tailscale link down/flapping). Degraded to the HF router "
+                                   "fallback (compute is Hugging Face's, NOT the founder box). "
+                                   "NOT sovereign."}
+        return {"provider": "offline", "base_url": GPU_BASE_URL,
+                "base_redacted": _redact_base(GPU_BASE_URL), "model": LOCAL_LLM_MODEL,
+                "sovereign": False, "gpu_reachable": False, "online": False, "cloud": False,
+                "honest_note": "Founder GPU configured but UNREACHABLE this request and no "
+                               "fallback allowed. Failing closed — no completion fabricated."}
+    # No GPU configured: honest fallback only if explicitly allowed; else fail closed.
+    if _FALLBACK_ALLOWED and HF_ROUTER_BASE_URL:
+        return {"provider": "hf-router-fallback", "base_url": HF_ROUTER_BASE_URL,
+                "base_redacted": _redact_base(HF_ROUTER_BASE_URL), "model": LOCAL_LLM_MODEL,
+                "sovereign": False, "gpu_reachable": False, "online": True, "cloud": True,
+                "honest_note": "SZL_GPU_BASE_URL not set. Using HF router fallback (compute is "
+                               "Hugging Face's, NOT the founder box). NOT sovereign."}
+    # Last resort: legacy local probe (Space-internal). Never sovereign, never fabricated.
+    local_ok = _probe(LOCAL_LLM_BASE) if probe else False
+    return {"provider": "offline", "base_url": LOCAL_LLM_BASE,
+            "base_redacted": _redact_base(LOCAL_LLM_BASE), "model": LOCAL_LLM_MODEL,
+            "sovereign": False, "gpu_reachable": False, "online": bool(local_ok), "cloud": False,
+            "honest_note": "SZL_GPU_BASE_URL not set and no fallback allowed. "
+                           + ("Legacy Space-internal local LLM reachable but it is NOT the "
+                              "founder GPU — NOT sovereign." if local_ok else
+                              "No reachable LLM. Failing closed — no completion fabricated.")}
+
+
+def posture(organ: str, probe: bool = True) -> dict[str, Any]:
+    """Per-organ inference posture: where inference runs RIGHT NOW.
+    where in {gpu | fallback | offline}. Honest, live-probed, additive."""
+    r = resolve_llm(probe=probe)
+    where = ("gpu" if r["provider"] == "self-hosted-gpu"
+             else "fallback" if r["provider"] == "hf-router-fallback"
+             else "offline")
+    return {"organ": organ, "where": where, "provider": r["provider"],
+            "sovereign": r["sovereign"], "gpu_reachable": r["gpu_reachable"],
+            "online": r["online"], "model": r["model"], "base_redacted": r["base_redacted"],
+            "gpu_configured": bool(GPU_BASE_URL), "fallback_allowed": _FALLBACK_ALLOWED,
+            "honest_note": r["honest_note"], "doctrine": DOCTRINE["version"], "ts": ISO()}
 
 
 def _local_llm_nl_to_command(text: str) -> dict[str, Any]:
-    """Map a natural-language phrase to a slash command using the LOCAL LLM only.
-    Returns {command, source, fallback}. On any failure -> deterministic stub
-    (keyword heuristic) with fallback=True so the caller signs a FALLBACK receipt."""
+    """Map a natural-language phrase to a slash command using the resolved LLM.
+    Routes to the founder GPU when reachable, else honest fallback/offline.
+    Returns {command, source, fallback, ...}. On any failure -> deterministic
+    stub (keyword heuristic) with fallback=True so the caller signs a FALLBACK
+    receipt. NEVER fabricates a model completion when no backend is reachable."""
     sys_prompt = ("You translate an operator phrase into ONE slash command from: "
                   "/sign /verify /inspect /replay /gate /khipu /filter /yuyay /track. "
                   "Reply with ONLY the command line, no prose.")
-    try:
-        import urllib.request
-        req = urllib.request.Request(
-            f"{LOCAL_LLM_BASE}/chat/completions",
-            data=json.dumps({"model": LOCAL_LLM_MODEL, "max_tokens": 32, "temperature": 0,
-                             "messages": [{"role": "system", "content": sys_prompt},
-                                          {"role": "user", "content": text}]}).encode(),
-            headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=4) as r:
-            out = json.loads(r.read())
-            cmd = out["choices"][0]["message"]["content"].strip().splitlines()[0]
-            return {"command": cmd, "source": f"local:{LOCAL_LLM_MODEL}", "fallback": False}
-    except Exception as e:
-        # Honest deterministic stub — NEVER a cloud call.
-        t = text.lower()
-        guess = "/inspect " + text.strip()
-        for kw, c in (("sign", "/sign"), ("verif", "/verify"), ("replay", "/replay"),
-                      ("gate", "/gate"), ("filter", "/filter"), ("track", "/track")):
-            if kw in t:
-                guess = c + " " + text.strip()
-                break
-        return {"command": guess, "source": "deterministic-stub", "fallback": True,
-                "note": f"Local LLM offline ({LOCAL_LLM_BASE}) — falling back to deterministic stub."}
+    r = resolve_llm(probe=True)
+    if r["online"] and r["provider"] in ("self-hosted-gpu", "hf-router-fallback"):
+        try:
+            import urllib.request
+            tok = GPU_TOKEN if r["provider"] == "self-hosted-gpu" else HF_ROUTER_TOKEN
+            headers = {"Content-Type": "application/json"}
+            if tok:
+                headers["Authorization"] = f"Bearer {tok}"
+            req = urllib.request.Request(
+                f"{r['base_url']}/chat/completions",
+                data=json.dumps({"model": r["model"], "max_tokens": 32, "temperature": 0,
+                                 "messages": [{"role": "system", "content": sys_prompt},
+                                              {"role": "user", "content": text}]}).encode(),
+                headers=headers)
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                out = json.loads(resp.read())
+                cmd = out["choices"][0]["message"]["content"].strip().splitlines()[0]
+                return {"command": cmd, "source": f"{r['provider']}:{r['model']}",
+                        "sovereign": r["sovereign"], "provider": r["provider"], "fallback": False}
+        except Exception:
+            pass  # fall through to deterministic stub — never a fabricated completion
+    # Honest deterministic stub — no reachable backend (offline) or a transient error.
+    t = text.lower()
+    guess = "/inspect " + text.strip()
+    for kw, c in (("sign", "/sign"), ("verif", "/verify"), ("replay", "/replay"),
+                  ("gate", "/gate"), ("filter", "/filter"), ("track", "/track")):
+        if kw in t:
+            guess = c + " " + text.strip()
+            break
+    return {"command": guess, "source": "deterministic-stub", "fallback": True,
+            "sovereign": False, "provider": r["provider"],
+            "note": f"LLM path '{r['provider']}' unavailable ({r['base_redacted'] or 'unset'}) "
+                    f"— falling back to deterministic stub. {r['honest_note']}"}
 PER_ORGAN_KEYID = {"a11oy": "a11oy-cosign", "sentra": "sentra-cosign",
                    "amaru": "amaru-cosign", "killinchu": "killinchu-cosign"}
 DOCTRINE = {"version": "v11", "counts": "749/14/163", "lean_sha": "c7c0ba17",
@@ -111,13 +237,10 @@ def _now_minus(seconds: float) -> float:
 
 
 def _local_llm_online() -> bool:
-    """Bounded local-only reachability probe (never a cloud call)."""
-    try:
-        import urllib.request
-        with urllib.request.urlopen(f"{LOCAL_LLM_BASE}/models", timeout=1.5) as r:
-            return r.status == 200
-    except Exception:
-        return False
+    """Back-compat shim: True iff the ACTIVE resolved LLM path is online this
+    request (founder GPU reachable, or an allowed fallback online). Probes the
+    real resolved endpoint — NOT a hardcoded Space-internal address."""
+    return bool(resolve_llm(probe=True).get("online"))
 
 
 # --------------------------------------------------------------------------- #
@@ -286,14 +409,34 @@ def register(app, organ: str, web_dir: str | None = None) -> dict[str, Any]:
 
     @app.get(f"{p}/healthz")
     async def _healthz():
+        # HONEST health: sovereign is True ONLY if a live GPU probe succeeded THIS
+        # request. base_url is redacted to host[:port]. gpu_reachable is the live
+        # probe bool. honest_note states exactly where inference runs and why.
+        r = resolve_llm(probe=True)
+        mode = ("sovereign-gpu" if r["provider"] == "self-hosted-gpu"
+                else "hf-router-fallback" if r["provider"] == "hf-router-fallback"
+                else "offline")
         return JSONResponse({"status": "ok", "service": organ, "shell": "operator-v4",
                              "doctrine": DOCTRINE["version"], "counts": DOCTRINE["counts"],
                              "lean_sha": DOCTRINE["lean_sha"], "keyid_label": PER_ORGAN_KEYID.get(organ),
                              "signing_available": (_dsse.signing_available() if _dsse else False),
-                             "sovereign": True,  # no cloud API in the demo path (founder directive)
-                             "llm": {"mode": "local-only", "base": LOCAL_LLM_BASE, "model": LOCAL_LLM_MODEL,
-                                     "cloud": False}, "local_llm_online": _local_llm_online(),
+                             "sovereign": r["sovereign"],  # gated on a LIVE probe — never asserted
+                             "inference": r["provider"],
+                             "gpu_reachable": r["gpu_reachable"],
+                             "gpu_configured": bool(GPU_BASE_URL),
+                             "fallback_allowed": _FALLBACK_ALLOWED,
+                             "llm": {"mode": mode, "provider": r["provider"],
+                                     "base": r["base_redacted"], "model": r["model"],
+                                     "cloud": r["cloud"]},
+                             "local_llm_online": r["online"],
+                             "honest_note": r["honest_note"],
                              "ts": ISO()})
+
+    @app.get(f"{p}/inference-posture")
+    async def _inference_posture():
+        # Ecosystem posture probe — where does THIS organ's inference run right now?
+        # where in {gpu | fallback | offline}. Wired to the live resolver only.
+        return JSONResponse(posture(organ, probe=True))
 
     @app.get(f"{p}/inbox")
     async def _inbox():
@@ -411,8 +554,16 @@ def register(app, organ: str, web_dir: str | None = None) -> dict[str, Any]:
     app.get(f"/{organ}/operator")(_serve_html)
     app.get("/operator")(_serve_html)
 
+    # Ecosystem-level inference-posture alias (stable path for the founder/demo to
+    # ask "where does inference run right now?" without knowing the organ prefix).
+    @app.get("/api/szl/v1/inference-posture")
+    async def _szl_inference_posture():
+        return JSONResponse(posture(organ, probe=True))
+
     return {"registered": True, "organ": organ, "base": p,
             "routes": [f"{p}/inbox", f"{p}/map/state", f"{p}/command", f"{p}/receipts",
                        f"{p}/replay/{{hash}}", f"{p}/stream", f"{p}/healthz",
+                       f"{p}/inference-posture", "/api/szl/v1/inference-posture",
                        f"/{organ}/operator", "/operator"],
+            "llm_posture": posture(organ, probe=False),
             "signing_available": (_dsse.signing_available() if _dsse else False)}
