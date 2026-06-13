@@ -17,7 +17,7 @@
  * that enforces lowercase snake_case at the point of registration — not
  * silently at comparison time.
  *
- * Doctrine v7 strict. Watunakuy active.
+ * Doctrine v11 strict. Watunakuy active.
  * © 2026 SZL Holdings, Inc. — Apache-2.0
  */
 
