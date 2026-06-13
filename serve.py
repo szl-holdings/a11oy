@@ -6053,6 +6053,188 @@ try:
             return out
         return _KL_EPSS_CACHE["map"] or {}
 
+    # --- REAL CVSS overlay (NVD) -------------------------------------------
+    # CISA KEV publishes NO CVSS, and NVD's free 2.0 API (~5 req/30s without a
+    # key) cannot cover the ~1612 KEV rows in one request. So a BACKGROUND warmer
+    # progressively pulls the GENUINE NVD CVSS base score / severity / vector into
+    # a DISK-PERSISTED cache (rate-limit aware, off the request hot path). Coverage
+    # grows across runs and survives restarts on a durable mount. _kl_live_rows
+    # overlays the cached real CVSS onto each row and tags cvss_src ("nvd" live |
+    # "derived" proxy); any miss keeps the honest derived-sample CVSS so the tab
+    # still renders (r.cvss.toFixed(1) needs a number). 0 fabricated NVD figures.
+    import threading as _kl_threading
+    from pathlib import Path as _kl_Path
+    _KL_CVSS = {}                  # cve -> {"cvss","severity","vector","src":"nvd","ts"}
+    _KL_CVSS_LOCK = _kl_threading.Lock()
+    _KL_CVSS_TTL = 30 * 24 * 3600  # re-verify a cached NVD score after ~30 days
+    _KL_CVSS_WARM_STARTED = False
+
+    def _kl_cvss_resolve_path():
+        """Writable, durable-first path for the NVD CVSS cache JSON. Durable
+        A11OY_CVSS_CACHE_DIR (or the eval-history dir) is a bind-mounted volume
+        on the box that survives a full a11oy-rebuild; falls back to
+        /tmp/a11oy_snapshots (ephemeral, e.g. the HF Space). None if unwritable."""
+        cands = []
+        for _ev in ("A11OY_CVSS_CACHE_DIR", "A11OY_EVAL_HIST_DIR"):
+            _d = (os.environ.get(_ev) or "").strip()
+            if _d:
+                cands.append(_kl_Path(_d))
+        cands.append(_kl_Path("/tmp/a11oy_snapshots"))
+        for d in cands:
+            try:
+                d.mkdir(parents=True, exist_ok=True)
+                _probe = d / ".cvss_write_test"
+                _probe.write_text("ok", "utf-8")
+                _probe.unlink()
+                return d / "nvd_cvss_cache.json"
+            except Exception:
+                continue
+        return None
+
+    _KL_CVSS_PATH = _kl_cvss_resolve_path()
+
+    def _kl_cvss_load():
+        """Best-effort: seed the in-memory cache from the on-disk JSON once."""
+        if not _KL_CVSS_PATH:
+            return
+        try:
+            if _KL_CVSS_PATH.is_file():
+                import json as _j
+                data = _j.loads(_KL_CVSS_PATH.read_text("utf-8"))
+                if isinstance(data, dict):
+                    with _KL_CVSS_LOCK:
+                        for k, v in data.items():
+                            if isinstance(v, dict) and v.get("cvss") is not None:
+                                _KL_CVSS[k] = v
+        except Exception:
+            pass
+
+    _kl_cvss_load()
+
+    def _kl_cvss_persist():
+        """Atomically write the cache to disk (temp file + os.replace). Never raises."""
+        if not _KL_CVSS_PATH:
+            return
+        try:
+            import json as _j
+            with _KL_CVSS_LOCK:
+                snap = dict(_KL_CVSS)
+            tmp = _KL_CVSS_PATH.with_name(_KL_CVSS_PATH.name + ".tmp")
+            tmp.write_text(_j.dumps(snap), "utf-8")
+            os.replace(str(tmp), str(_KL_CVSS_PATH))
+        except Exception:
+            pass
+
+    def _kl_cvss_fetch_one(cve):
+        """Fetch ONE CVE's REAL CVSS from the NVD 2.0 API. Prefers v3.1 > v3.0 >
+        v2. Returns {"cvss","severity","vector","src":"nvd","ts"} or None. Honors
+        an optional NVD_API_KEY (raises the rate limit). Never raises."""
+        import json as _j, time as _t
+        import urllib.request as _u, urllib.parse as _up
+        try:
+            url = ("https://services.nvd.nist.gov/rest/json/cves/2.0?cveId="
+                   + _up.quote(cve))
+            hdrs = {"User-Agent": "a11oy-sec/1.0"}
+            _key = (os.environ.get("NVD_API_KEY") or "").strip()
+            if _key:
+                hdrs["apiKey"] = _key
+            req = _u.Request(url, headers=hdrs)
+            with _u.urlopen(req, timeout=20) as r:
+                payload = _j.loads(r.read().decode("utf-8", "replace"))
+            vulns = payload.get("vulnerabilities") or []
+            if not vulns:
+                return None
+            metrics = ((vulns[0].get("cve") or {}).get("metrics")) or {}
+            for mk in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
+                arr = metrics.get(mk) or []
+                if not arr:
+                    continue
+                m = arr[0] or {}
+                cd = m.get("cvssData") or {}
+                score = cd.get("baseScore")
+                if score is None:
+                    continue
+                sev = (cd.get("baseSeverity") or m.get("baseSeverity") or "").upper()
+                if not sev:
+                    s = float(score)
+                    sev = ("CRITICAL" if s >= 9 else "HIGH" if s >= 7 else
+                           "MEDIUM" if s >= 4 else "LOW")
+                return {"cvss": round(float(score), 1), "severity": sev,
+                        "vector": cd.get("vectorString", ""), "src": "nvd",
+                        "ts": _t.time()}
+            return None
+        except Exception:
+            return None
+
+    def _kl_cvss_warm_loop():
+        """Background loop: progressively fill the NVD CVSS cache for every LIVE
+        KEV CVE, newest gaps first, then refresh stale entries. Rate-limit aware
+        (A11OY_NVD_CVSS_DELAY_SEC between requests) and persisted incrementally.
+        Off the request hot path entirely."""
+        import time as _t
+        try:
+            delay = float(os.environ.get("A11OY_NVD_CVSS_DELAY_SEC", "7"))
+        except Exception:
+            delay = 7.0
+        try:
+            initial = float(os.environ.get("A11OY_NVD_CVSS_INITIAL_DELAY_SEC", "60"))
+        except Exception:
+            initial = 60.0
+        _t.sleep(max(0.0, initial))
+        persist_every = 25
+        while True:
+            if delay <= 0:
+                return
+            try:
+                payload = _kl_live.get_feed("kev")
+                vulns = ((payload.get("data") or {}).get("vulnerabilities")) or []
+                cves = [v.get("cveID", "") for v in vulns if v.get("cveID")]
+            except Exception:
+                cves = []
+            now = _t.time()
+            with _KL_CVSS_LOCK:
+                todo = [c for c in cves if c not in _KL_CVSS]
+                stale = [c for c in cves if c in _KL_CVSS and
+                         (now - float(_KL_CVSS[c].get("ts", 0))) > _KL_CVSS_TTL]
+            queue = todo + stale
+            if not queue:
+                # Fully warm — idle-poll so newly-added KEV rows get covered.
+                _t.sleep(max(300.0, delay))
+                continue
+            done = 0
+            for c in queue:
+                if delay <= 0:
+                    break
+                rec = _kl_cvss_fetch_one(c)
+                if rec:
+                    with _KL_CVSS_LOCK:
+                        _KL_CVSS[c] = rec
+                    done += 1
+                    if done % persist_every == 0:
+                        _kl_cvss_persist()
+                _t.sleep(delay)
+            _kl_cvss_persist()
+
+    def _kl_cvss_warm_start():
+        global _KL_CVSS_WARM_STARTED
+        if _KL_CVSS_WARM_STARTED:
+            return
+        try:
+            if float(os.environ.get("A11OY_NVD_CVSS_DELAY_SEC", "7")) <= 0:
+                print("[a11oy] NVD CVSS warmer disabled (delay<=0)", file=_kl_sys.stderr)
+                return
+        except Exception:
+            pass
+        try:
+            _kl_threading.Thread(target=_kl_cvss_warm_loop,
+                                 name="a11oy-nvd-cvss-warm", daemon=True).start()
+            _KL_CVSS_WARM_STARTED = True
+            print("[a11oy] NVD CVSS warmer started (disk cache=%s, cached=%d)"
+                  % (_KL_CVSS_PATH, len(_KL_CVSS)), file=_kl_sys.stderr)
+        except Exception as _e:
+            print("[a11oy] NVD CVSS warmer failed to start: %r" % _e,
+                  file=_kl_sys.stderr)
+
     def _kl_live_rows(limit=None):
         """Return (rows, meta). rows shaped for the tabs; meta carries honest
         mode/source. Live CISA KEV first; snapshot fallback on failure."""
@@ -6077,14 +6259,34 @@ try:
                         _epss_live += 1
                     else:
                         r["epss_src"] = "derived"
-                if _epss_live:
-                    _dk = ("live KEV IDs/dates/vendors + LIVE EPSS (FIRST.org EPSS API, "
-                           "%d/%d rows); CVSS/severity = derived-sample (CISA KEV does "
-                           "not publish CVSS)" % (_epss_live, len(rows)))
+                # Overlay REAL CVSS (NVD) onto the rows actually returned, where
+                # the background warmer has already cached it. Misses keep the
+                # honest derived-sample CVSS so the tab still renders a number.
+                _cvss_live = 0
+                for r in rows:
+                    with _KL_CVSS_LOCK:
+                        _crec = _KL_CVSS.get(r.get("cveID",""))
+                    if _crec and _crec.get("cvss") is not None:
+                        r["cvss"] = _crec["cvss"]
+                        if _crec.get("severity"):
+                            r["severity"] = _crec["severity"]
+                        if _crec.get("vector"):
+                            r["cvss_vector"] = _crec["vector"]
+                        r["cvss_src"] = "nvd"
+                        _cvss_live += 1
+                    else:
+                        r["cvss_src"] = "derived"
+                _epss_part = (("LIVE EPSS (FIRST.org EPSS API, %d/%d rows)"
+                               % (_epss_live, len(rows))) if _epss_live
+                              else "EPSS = derived-sample (FIRST.org live unavailable)")
+                if _cvss_live:
+                    _cvss_part = ("LIVE CVSS (NVD, %d/%d rows; remainder derived-sample "
+                                  "while the background NVD warmer fills the cache)"
+                                  % (_cvss_live, len(rows)))
                 else:
-                    _dk = ("live KEV IDs/dates/vendors; EPSS live unavailable -> "
-                           "derived-sample; CVSS/severity = derived-sample (CISA KEV "
-                           "does not publish CVSS/EPSS)")
+                    _cvss_part = ("CVSS/severity = derived-sample (CISA KEV does not "
+                                  "publish CVSS; NVD warmer still filling the cache)")
+                _dk = "live KEV IDs/dates/vendors + " + _epss_part + "; " + _cvss_part
                 return rows, {
                     "source": "CISA Known Exploited Vulnerabilities catalog (LIVE feed)",
                     "source_url": _kl_live._SOURCE["kev"][1],
@@ -6094,6 +6296,7 @@ try:
                     "dateReleased": data.get("dateReleased"),
                     "total_in_catalog": data.get("count") or len(vulns),
                     "epss_live_rows": _epss_live,
+                    "cvss_live_rows": _cvss_live,
                     "data_kind": _dk,
                 }
         except Exception as _e:
@@ -6239,6 +6442,13 @@ try:
                      "never fabricated. A governed-AI system must know its feeds are live."),
             "items": items,
         })
+
+    # Kick off the background NVD CVSS warmer so the security tabs progressively
+    # gain REAL severity scores (off the request hot path, rate-limit aware).
+    try:
+        _kl_cvss_warm_start()
+    except Exception as _kl_cw_e:
+        print("[a11oy] NVD CVSS warmer start error: %r" % _kl_cw_e, file=_kl_sys.stderr)
 
     print("[a11oy] RERUN data-liveness routes registered: /v1/sec/kev_live, "
           "/v1/sec/cve_live, /v1/sec/kevgate, /v1/feeds/pulse", file=_kl_sys.stderr)
