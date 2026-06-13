@@ -314,6 +314,9 @@ COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
 COPY src/a11oy/formulas/allodial.py ./src/a11oy/formulas/allodial.py
 COPY src/a11oy/formulas/allodial_gate.py ./src/a11oy/formulas/allodial_gate.py
 COPY src/a11oy/formulas/entanglement.py ./src/a11oy/formulas/entanglement.py
+COPY src/a11oy/harvest/__init__.py ./src/a11oy/harvest/__init__.py
+COPY src/a11oy/harvest/wasted_energy_harvest.py ./src/a11oy/harvest/wasted_energy_harvest.py
+COPY src/a11oy/harvest/harvest_budget.py ./src/a11oy/harvest/harvest_budget.py
 # ADDITIVE (Formulas SECTION page — closeout): serve.py imports a11oy_formulas_page
 # and calls .register(app) BEFORE the SPA catch-all, mounting GET /formulas/wired
 # (premium Inca-palette list of every live formula + thesis citation + Lean permalink
