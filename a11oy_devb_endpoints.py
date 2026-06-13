@@ -25,7 +25,7 @@ User-Agent 'SZL Holdings research contact@szlholdings.com', GitHub events, publi
 status JSON). Premium (Salesforce/M365/Slack) = the frontend shows a CONNECT-READY
 OAuth button; this module NEVER fabricates premium data.
 
-DOCTRINE: locked=5 {F1,F11,F12,F18,F19}; Λ=Conjecture 1 (advisory floor 0.90);
+DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (advisory floor 0.90);
 SLSA L1 honest; no fabricated data — synthetic enrichment is SIMULATED-labeled; 0 CDN.
 Reuses a11oy_vertical_feeds.governed_turn + _ledger + _cached_fetch (signed receipts,
 DSSE, gateway route) so the governance machinery is identical, never re-implemented.
