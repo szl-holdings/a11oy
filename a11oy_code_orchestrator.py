@@ -2030,9 +2030,16 @@ async def chat_stream(request: Request):
         def sse(event: str, data: dict) -> bytes:
             return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n".encode()
 
+        # R0 honesty: reflect the ACTUAL serving target so route/done telemetry is
+        # truthful. When serving locally (reachability-gated by _serving_base, so
+        # it can never overclaim) report the on-box served tag — not the logical
+        # router id — plus a sovereign/served_locally flag.
+        _serve_base, _serve_local = _serving_base()
+        _route_model = _map_model_for_local(decision["model"]) if _serve_local else decision["model"]
         yield sse("route", {"conversation_id": conv_id, "tier": decision["tier"],
-                            "model": decision["model"], "license_class": decision["license_class"],
-                            "reason": decision["reason"]})
+                            "model": _route_model, "license_class": decision["license_class"],
+                            "reason": decision["reason"],
+                            "served_locally": _serve_local, "sovereign": _serve_local})
         t0 = time.time()
 
         # ----------------------------------------------------------------
@@ -2067,15 +2074,21 @@ async def chat_stream(request: Request):
                 await asyncio.sleep(0)
             latency_ms = int((time.time() - t0) * 1000)
             y13 = yuyay13_response_score(answer, None, latency_ms)
-            mem_add_message(conv_id, "assistant", answer, model=result.get("model"),
+            # R0 honesty: a locally-served agentic turn is served by the on-box tag
+            # (and costs nothing). Only remap when we actually served local AND the
+            # finalize step wasn't the no-credential deterministic stub.
+            _ag_local = _serve_local and not result.get("stub")
+            _ag_model = _map_model_for_local(result.get("model")) if _ag_local else result.get("model")
+            mem_add_message(conv_id, "assistant", answer, model=_ag_model,
                             tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
                             yuyay13=y13, khipu_hash=result.get("khipu_hash"))
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
-                               "model": result.get("model"), "license_class": decision["license_class"],
+                               "model": _ag_model, "license_class": decision["license_class"],
                                "latency_ms": latency_ms, "cost_usd": 0.0, "yuyay13": y13,
                                "khipu_hash": result.get("khipu_hash"),
                                "chain_verified": result.get("chain_verified", True),
                                "mode": "agentic", "agentic": True,
+                               "served_locally": _ag_local, "sovereign": _ag_local,
                                "final_state": result.get("final_state"),
                                "step_count": result.get("step_count"),
                                "i_dont_know": result.get("i_dont_know"),
@@ -2181,17 +2194,23 @@ async def chat_stream(request: Request):
                     await asyncio.sleep(0)
             latency_ms = int((time.time() - t0) * 1000)
             y13 = yuyay13_response_score(collected_text, None, latency_ms)
-            cost = round(len(collected_text) / 4 / 1_000_000 * TIERS.get(decision["tier"], TIERS["T2"])["cost_out"], 6)
-            rec = khipu_emit("chat.completion", {"conversation_id": conv_id, "model": model_used,
+            # R0 honesty: a locally-served turn is served by the on-box tag and
+            # costs nothing — report BOTH truthfully (no router id, no estimated
+            # cost). The router path keeps its real id + estimated cost.
+            served_model = _map_model_for_local(model_used) if _serve_local else model_used
+            cost = 0.0 if _serve_local else round(
+                len(collected_text) / 4 / 1_000_000 * TIERS.get(decision["tier"], TIERS["T2"])["cost_out"], 6)
+            rec = khipu_emit("chat.completion", {"conversation_id": conv_id, "model": served_model,
                                                  "tier": decision["tier"], "latency_ms": latency_ms, "yuyay13": y13})
-            mem_add_message(conv_id, "assistant", collected_text, model=model_used,
+            mem_add_message(conv_id, "assistant", collected_text, model=served_model,
                             tier=decision["tier"], latency_ms=latency_ms, cost_usd=cost,
                             yuyay13=y13, khipu_hash=rec["hash"])
             _METRICS["tokens_out_total"] += len(collected_text) // 4
             yield sse("done", {"conversation_id": conv_id, "tier": decision["tier"],
-                               "model": model_used, "license_class": decision["license_class"],
+                               "model": served_model, "license_class": decision["license_class"],
                                "latency_ms": latency_ms, "cost_usd": cost, "yuyay13": y13,
                                "khipu_hash": rec["hash"], "chain_verified": True,
+                               "served_locally": _serve_local, "sovereign": _serve_local,
                                "dsse_digest": rec.get("dsse_digest"),
                                "dsse_signed": rec.get("dsse_signed")})
         except Exception as exc:
