@@ -426,8 +426,15 @@ const ENDPOINTS = {
 /* ── helpers ──────────────────────────────────────────────────── */
 function q(id){ return document.getElementById(id); }
 
+/* investor-grade-polish (polish/console-investor-grade): fail-fast fetch. A short
+   abort timeout (1.8s) means a slow/asleep backend can never leave a harvest panel
+   stuck on its skeleton — it resolves to a real value or an honest null/labeled
+   state quickly. On failure we return null (the renderers already paint an honest
+   "unreachable"/SAMPLE state) — never a fabricated value. */
 function safeFetch(url, label){
-  return fetch(url, {cache:"no-store"})
+  const ctl = new AbortController();
+  const t = setTimeout(()=>{ try{ctl.abort();}catch(e){} }, 1800);
+  return fetch(url, {cache:"no-store", signal:ctl.signal})
     .then(r => {
       if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
       return r.json();
@@ -435,7 +442,8 @@ function safeFetch(url, label){
     .catch(e => {
       console.warn(`[harvest] ${label} failed:`, e.message);
       return null;
-    });
+    })
+    .finally(()=>clearTimeout(t));
 }
 
 function fmtNum(v){
