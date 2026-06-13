@@ -70,6 +70,16 @@ SWARM_ENDPOINT = "/api/a11oy/v1/swarm/status"
 
 DEFAULT_TIMEOUT = 3.0
 
+# Brief result cache: engine/status fans out concurrently with a per-probe timeout
+# (good), but it RE-PROBED the whole organism on EVERY request — a slow organ taxed
+# every caller (~2.3s observed). We cache the last REAL aggregate for STATUS_CACHE_TTL
+# seconds so repeat requests are served instantly; the payload carries cached_at so
+# the caller sees how fresh it is. HONEST: only ever caches a real aggregate output;
+# reachability still reflects the most recent real probe sweep, never fabricated.
+STATUS_CACHE_TTL = 20.0
+# (value, stored_at_monotonic) — module-level, shared across requests.
+_STATUS_CACHE: "dict[str, tuple[dict, float]]" = {}
+
 # A Fetcher is an async callable (path, timeout) -> (status_code, parsed_json|None).
 # The serve.py path wires the live httpx client; the self-test injects a fake one.
 Fetcher = Callable[[str, float], Awaitable["tuple[int, Any]"]]
@@ -245,6 +255,12 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
 
     @app.get(f"/api/{ns}/v1/engine/status")
     async def _engine_status():  # noqa: ANN202
+        import time as _time
+        # Fast path: a fresh cached aggregate -> serve WITHOUT re-probing the organism.
+        ent = _STATUS_CACHE.get("_")
+        if ent is not None and (_time.monotonic() - ent[1]) < STATUS_CACHE_TTL:
+            return JSONResponse(ent[0])
+
         client = http_client
         if client is None:
             # Resolve the live client lazily from serve.py so this can register early.
@@ -260,6 +276,10 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
             payload = await aggregate_status(_dead, base_url=base_url)
         else:
             payload = await aggregate_status(_make_httpx_fetcher(client, base_url), base_url=base_url)
+        # Stamp freshness + store the REAL aggregate for the brief TTL window.
+        if isinstance(payload, dict):
+            payload = {**payload, "cached_at": _now(), "cache_ttl_s": STATUS_CACHE_TTL}
+            _STATUS_CACHE["_"] = (payload, _time.monotonic())
         return JSONResponse(payload)
 
     paths.append(f"/api/{ns}/v1/engine/status")

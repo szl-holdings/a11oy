@@ -96,7 +96,7 @@ COPY _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bri
 COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py szl_sovereign_compute.py ./
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
-COPY szl_energy_budget.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
+COPY szl_energy_budget.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
 # ADDITIVE (verifiable-corpus): the publisher module imported lazily (try/except)
 # by szl_dsse + szl_wire to publish signed receipts to the public HF dataset
 # SZLHOLDINGS/a11oy-verifiable-corpus. Per-file COPY (this Dockerfile never uses

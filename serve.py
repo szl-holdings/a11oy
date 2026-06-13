@@ -127,6 +127,22 @@ try:
 except Exception as _szl_es_e:  # pragma: no cover
     print(f"[a11oy] Unified engine status NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
 
+# ── Backend hardening (devJ) — szl_backend_hardening ──
+# Reusable concurrent + short-timeout + TTL-cache helpers (probe_with_timeout,
+# probe_all_concurrent, TTLCache, probe_fabric_pool, cached_aggregate) that the
+# fabric/compute-pool + engine/status surfaces use to stay sub-second even when a
+# node (e.g. the unreachable chaski tailnet GPU) is down. Registers a strictly-
+# additive /api/a11oy/v1/compute-pool-hardened drop-in. ADDITIVE, try/except-guarded;
+# honest reachability (real probe only, never fabricated); joules MEASURED only via
+# exporter; locked=8; Λ=Conjecture 1; no key.
+try:
+    import szl_backend_hardening as _szl_be_hardening2
+    _szl_be_hardening2.register(app, ns="a11oy")
+    print("[a11oy] Backend hardening registered: /api/a11oy/v1/compute-pool-hardened (+ probe_fabric_pool/ttl_cache helpers)", file=__import__("sys").stderr)
+except Exception as _szl_bh_e:  # pragma: no cover
+    print(f"[a11oy] Backend hardening NOT registered: {_szl_bh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+# ── Backend hardening (devJ) — szl_backend_hardening ── end
+
 # ── UDS fleet-trust layer (uds-fleet-patch) — the Defense Unicorns / Unicorn
 # Delivery Service fleet story told with direct attribution + links to the public
 # UDS repos and the Air & Space Forces Magazine coverage, mapping each fleet
