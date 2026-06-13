@@ -59,7 +59,7 @@ Base: `https://szlholdings-a11oy.hf.space`
 | GET | `/healthz` | Health + doctrine numbers. |
 | POST | `/khipu/sign` · POST `/khipu/verify` · GET `/khipu/pubkey` | Receipt signing/verification (see common). |
 | GET/POST | `/wires/D` | Wire D traceparent surface. |
-| GET | `/api/a11oy/v1/puriq/formulas` | PURIQ formula catalog (master formula + axes). 5 PROVED ({F1,F11,F12,F18,F19}) recompute live with a fresh Khipu receipt chain. |
+| GET | `/api/a11oy/v1/puriq/formulas` | PURIQ formula catalog (master formula + axes). 8 PROVED ({F1,F4,F7,F11,F12,F18,F19,F22}) recompute live with a fresh Khipu receipt chain. |
 | GET | `/api/a11oy/v1/puriq/formulas/{id}` | One formula, recomputed live (e.g. `/F1`, `/F11`, `/F12`, `/F18`, `/F19`). |
 | POST | `/api/a11oy/v2/unay/recall` | Unay memory recall (semantic lookup over governed memory). |
 | GET | `/api/a11oy/v1/mcp/tools` · POST `/api/a11oy/v1/mcp/call` | **Canonical live MCP surface** — JSON tool catalog + tool invocation (currently 4 governed tools: `a11oy_gate`, `lambda_score`, …). |
