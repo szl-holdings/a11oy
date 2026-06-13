@@ -668,6 +668,10 @@ COPY szl_connectors/ ./szl_connectors/
 # This Dockerfile never uses `COPY . .` — without this line `import
 # szl_hf_bucket` fails. Imported lazily by callers; no boot-time side effects.
 COPY szl_hf_bucket.py szl_metrics_prom.py ./
+# Forge fix: these modules are on main + imported by serve.py (try/except) but were NEVER COPY'd
+# into the image -> ModuleNotFoundError at startup -> /api/a11oy/v1/research/* + dark surfaces 404.
+COPY szl_research_infra.py szl_dark_surfaces_register.py ./
+
 
 CMD ["python", "serve.py"]
 
