@@ -150,6 +150,19 @@ try:
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
 
+# ── Proven Energy Engine — energy-budget receipt layer (energy-budget-receipt).
+# Per compute task, a Bekenstein-GATED receipt binding Shannon info content to the
+# canonical N·8-bit Bekenstein bound (TH6 / locked-8 F19 additivity) and a labeled
+# SAMPLE/ESTIMATE energy draw. Proves compute did real, bounded work; never claims
+# free energy; all energy figures explicitly SAMPLE until a real meter is wired.
+# Additive, try/except-guarded, pure stdlib. Registered before the SPA catch-all.
+try:
+    import szl_energy_budget as _szl_energy_budget
+    _szl_energy_budget.register(app, ns="a11oy")
+    print("[a11oy] Energy-budget receipt registered: /api/a11oy/v1/energy/budget", file=__import__("sys").stderr)
+except Exception as _szl_eb_e:  # pragma: no cover
+    print(f"[a11oy] Energy-budget receipt NOT registered: {_szl_eb_e!r}", file=__import__("sys").stderr)
+
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
 # Python with the ORIGINAL author cited; SZL borrows methodological structure only (no result
