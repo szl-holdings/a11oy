@@ -6516,6 +6516,21 @@ async def throne_room_js() -> Response:
     return JSONResponse({"error": "throne-room.js not found"}, status_code=404)
 
 
+# --- Allodial Harvest Console (ADDITIVE; feat/harvest-console-ui) ---
+# Single-page founder UI for the /api/a11oy/v1/harvest/* endpoints.
+# Reads REAL backend: posture, plan, receipt, world, sovereign gate.
+# Honest labels: SAMPLE/MEASURED joules, sovereign/half-state banner,
+# no free-energy claim, Λ=Conjecture 1 advisory. 0 runtime CDN.
+# Served from /app/pages/harvest.html (COPYed wholesale by the Dockerfile).
+@app.get("/harvest")
+async def harvest_console_page() -> Response:
+    f = PAGES_DIR / "harvest.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+# --- End Allodial Harvest Console ---
+
+
 # --- Hatun-MCP tab (ADDITIVE; Doctrine v12 PURIQ / Yachay CTO, 2026-06-01) ---
 # Status + 16-tool list + recent-invocation view for the SZL agentic MCP server
 # (Space: SZLHOLDINGS/hatun-mcp). Client-side probes the live /healthz and

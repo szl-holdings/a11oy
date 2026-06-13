@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11+ -->
+<!--
+  Allodial Harvest Console — web/harvest.html
+  Honest labels only:
+    • posture → real /api/a11oy/v1/harvest/posture
+    • sovereign banner → real /api/a11oy/v1/formula/sovereign
+    • joules: SAMPLE until on-box NVML provides MEASURED
+    • Λ = Conjecture 1 (advisory, not proven)
+    • NO free-energy claim — harvests WASTED grid energy
+  0 runtime CDN — all CSS/JS inline.
+  Auto-refreshes every 30 s. Degrades honestly to "—" / "feed down" on 404/error.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Allodial Harvest Console</title>
+<style>
+/* ── design tokens ───────────────────────────────────────────── */
+:root{
+  --bg:#0a0b10; --panel:#12141d; --panel2:#171a26; --ink:#e8eaf0;
+  --mut:#9aa0b4; --line:#252938; --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+
+  /* posture colours */
+  --c-neg:#c94eff;   /* negative-price  – vivid purple */
+  --c-cur:#3fb950;   /* curtailed-renew  – green       */
+  --c-chp:#20808d;   /* cheap            – teal        */
+  --c-nor:#9aa0b4;   /* normal           – grey        */
+  --c-exp:#d29922;   /* expensive        – amber       */
+
+  /* semantic */
+  --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --gold:#d9b35c;
+
+  /* badges */
+  --badge-sample:#2a1f00;
+  --badge-sample-ink:#d29922;
+  --badge-measured:#0e2b0e;
+  --badge-measured-ink:#3fb950;
+  --badge-sovereign:#0e1e2b;
+  --badge-sovereign-ink:#7cc4ff;
+  --badge-half:#1c1620;
+  --badge-half-ink:#b090d0;
+  --badge-advisory:#231a00;
+  --badge-advisory-ink:#d9b35c;
+}
+
+/* ── reset & base ────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  min-height:100vh;
+}
+a{color:var(--gold);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── layout ──────────────────────────────────────────────────── */
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
+
+/* ── header ──────────────────────────────────────────────────── */
+header{
+  border-bottom:1px solid var(--line);
+  padding:14px 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:linear-gradient(180deg,#10121b,var(--bg));
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(6px);
+}
+.brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
+.brand span{font-weight:400;opacity:.6}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ts{font-size:12px;color:var(--mut);font-family:var(--mono)}
+button.refresh{
+  background:transparent;border:1px solid var(--line);color:var(--mut);
+  border-radius:8px;padding:5px 12px;font-size:12.5px;cursor:pointer;
+  transition:border-color .15s,color .15s;
+}
+button.refresh:hover{border-color:var(--gold);color:var(--gold)}
+.tick{font-size:11px;color:var(--mut);font-family:var(--mono)}
+
+/* ── nav ─────────────────────────────────────────────────────── */
+nav{
+  display:flex;flex-wrap:wrap;gap:8px;padding:10px 20px;
+  border-bottom:1px solid var(--line);background:var(--panel);
+}
+nav a{
+  font-size:12px;padding:4px 10px;border:1px solid var(--line);
+  border-radius:999px;color:var(--mut);transition:border-color .15s,color .15s;
+}
+nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
+nav a.here{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
+
+/* ── section spacing ─────────────────────────────────────────── */
+section{margin-top:28px}
+h2{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:.3px;text-transform:uppercase}
+
+/* ── badges ──────────────────────────────────────────────────── */
+.badge{
+  display:inline-block;padding:2px 9px;border-radius:999px;
+  font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  vertical-align:middle;
+}
+.badge-sample   {background:var(--badge-sample);color:var(--badge-sample-ink)}
+.badge-measured {background:var(--badge-measured);color:var(--badge-measured-ink)}
+.badge-sov      {background:var(--badge-sovereign);color:var(--badge-sovereign-ink)}
+.badge-half     {background:var(--badge-half);color:var(--badge-half-ink)}
+.badge-advisory {background:var(--badge-advisory);color:var(--badge-advisory-ink)}
+.badge-live     {background:rgba(63,185,80,.15);color:var(--ok)}
+.badge-down     {background:rgba(248,81,73,.15);color:var(--bad)}
+.badge-up       {background:rgba(63,185,80,.15);color:var(--ok)}
+
+/* ── status HERO ─────────────────────────────────────────────── */
+.hero{
+  border-radius:16px;padding:28px 28px 24px;margin-top:24px;
+  border:1px solid var(--line);position:relative;overflow:hidden;
+  transition:border-color .4s,background .4s;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  border-radius:16px;pointer-events:none;opacity:.08;
+}
+.hero.p-neg{border-color:var(--c-neg);background:linear-gradient(135deg,#180a22,#0a0b10)}
+.hero.p-neg::before{background:var(--c-neg)}
+.hero.p-cur{border-color:var(--c-cur);background:linear-gradient(135deg,#0d1f0f,#0a0b10)}
+.hero.p-cur::before{background:var(--c-cur)}
+.hero.p-chp{border-color:var(--c-chp);background:linear-gradient(135deg,#091a1d,#0a0b10)}
+.hero.p-chp::before{background:var(--c-chp)}
+.hero.p-nor{border-color:var(--line);background:var(--panel)}
+.hero.p-exp{border-color:var(--c-exp);background:linear-gradient(135deg,#1e1200,#0a0b10)}
+.hero.p-exp::before{background:var(--c-exp)}
+
+.hero-inner{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.hero-status{
+  font-size:28px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+  line-height:1.1;
+}
+.p-neg  .hero-status{color:var(--c-neg)}
+.p-cur  .hero-status{color:var(--c-cur)}
+.p-chp  .hero-status{color:var(--c-chp)}
+.p-nor  .hero-status{color:var(--c-nor)}
+.p-exp  .hero-status{color:var(--c-exp)}
+
+.hero-right{flex:1;min-width:220px}
+.hero-price{font-size:22px;font-weight:700;margin:4px 0;font-family:var(--mono)}
+.hero-note{font-size:13.5px;color:var(--mut);margin-bottom:10px}
+.drivers{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.driver{
+  font-size:11.5px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:6px;padding:3px 9px;color:var(--mut);
+}
+.hero-meta{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.soak-hard{
+  font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;
+  background:rgba(201,78,255,.12);color:var(--c-neg);border:1px solid rgba(201,78,255,.3);
+}
+.wasted{font-size:13px;color:var(--mut)}
+.hero-loading{font-size:16px;color:var(--mut)}
+
+/* ── sovereign banner ────────────────────────────────────────── */
+.sov-banner{
+  border-radius:12px;padding:14px 20px;margin-top:8px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  border:1px solid var(--line);transition:border-color .4s,background .4s;
+}
+.sov-banner.sov{
+  background:rgba(124,196,255,.05);border-color:rgba(124,196,255,.3);
+}
+.sov-banner.half{
+  background:rgba(176,144,208,.04);border-color:rgba(176,144,208,.3);
+}
+.sov-banner.loading{background:var(--panel)}
+.sov-icon{font-size:22px;line-height:1}
+.sov-text strong{font-size:15px;display:block}
+.sov-text p{font-size:12.5px;color:var(--mut);margin-top:2px}
+
+/* ── cards ────────────────────────────────────────────────────── */
+.card{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:18px 20px;margin-bottom:14px;
+}
+
+/* ── feeds panel ─────────────────────────────────────────────── */
+.feeds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.feed-row{
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;display:flex;align-items:flex-start;gap:12px;
+}
+.feed-dot{
+  width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0;
+}
+.feed-dot.live{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.feed-dot.down{background:var(--bad)}
+.feed-dot.loading{background:var(--mut);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.feed-name{font-size:13px;font-weight:600}
+.feed-val{font-family:var(--mono);font-size:14px;font-weight:700;margin:2px 0}
+.feed-unit{font-size:11.5px;color:var(--mut)}
+.feed-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.feed-note{font-size:11.5px;color:var(--mut);margin-top:4px;line-height:1.4}
+
+/* ── soak panel ──────────────────────────────────────────────── */
+.soak-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+.soak-kpi{
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;
+}
+.soak-kpi .k{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.soak-kpi .v{font-family:var(--mono);font-size:20px;font-weight:700;margin:4px 0;color:var(--ink)}
+.soak-kpi .d{font-size:11.5px;color:var(--mut);line-height:1.4}
+.soak-jobs{margin-top:12px}
+.soak-jobs h3{font-size:13px;font-weight:600;color:var(--mut);margin-bottom:8px}
+.job-list{display:flex;flex-wrap:wrap;gap:6px}
+.job-chip{
+  background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  font-family:var(--mono);font-size:11.5px;padding:3px 9px;color:var(--ink);
+}
+.soak-reason{
+  margin-top:12px;font-size:12.5px;color:var(--mut);
+  border-top:1px solid var(--line);padding-top:10px;
+}
+.soak-admit{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:600;padding:4px 12px;border-radius:8px;
+  background:rgba(63,185,80,.1);color:var(--ok);border:1px solid rgba(63,185,80,.25);
+  margin-bottom:10px;
+}
+.soak-admit.deny{
+  background:rgba(248,81,73,.1);color:var(--bad);border-color:rgba(248,81,73,.25);
+}
+
+/* ── receipt panel ───────────────────────────────────────────── */
+.receipt-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.receipt-table td,.receipt-table th{
+  padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;
+  text-align:left;
+}
+.receipt-table th{
+  color:var(--mut);font-size:11.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.4px;
+}
+.receipt-table td.lbl{color:var(--mut);width:44%}
+.receipt-table td.val{font-family:var(--mono);font-weight:600}
+.joules-row .val{font-size:16px}
+.receipt-note{
+  margin-top:12px;padding:10px 14px;border-left:3px solid var(--gold);
+  background:rgba(217,179,92,.05);border-radius:0 8px 8px 0;
+  font-size:12.5px;color:var(--mut);
+}
+
+/* ── world panel ─────────────────────────────────────────────── */
+.world-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.zone-card{
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:12px;text-align:center;transition:border-color .2s;
+}
+.zone-card.best{border-color:var(--ok);background:rgba(63,185,80,.05)}
+.zone-name{font-size:12px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.zone-share{font-family:var(--mono);font-size:20px;font-weight:700;margin:4px 0}
+.zone-card.best .zone-share{color:var(--ok)}
+.zone-best-tag{font-size:11px;color:var(--ok);margin-top:2px}
+
+/* ── lambda advisory ─────────────────────────────────────────── */
+.lambda-note{
+  font-size:12px;padding:10px 14px;border-left:3px solid var(--badge-advisory-ink);
+  background:rgba(217,179,92,.04);border-radius:0 8px 8px 0;color:var(--mut);
+  margin-top:14px;
+}
+
+/* ── error / empty states ────────────────────────────────────── */
+.feed-unavail{
+  font-size:13px;color:var(--mut);
+  padding:14px;text-align:center;
+  border:1px dashed var(--line);border-radius:10px;
+}
+.skeleton{background:var(--panel2);border-radius:6px;height:1em;animation:pulse 1.2s infinite}
+
+/* ── footer ──────────────────────────────────────────────────── */
+footer{
+  border-top:1px solid var(--line);color:var(--mut);
+  font-size:11.5px;padding:18px 20px;line-height:1.7;
+  margin-top:40px;
+}
+footer strong{color:var(--ink)}
+
+/* ── responsive ──────────────────────────────────────────────── */
+@media(max-width:600px){
+  .hero{padding:18px 16px 14px}
+  .hero-status{font-size:20px}
+  .hero-price{font-size:16px}
+  .sov-banner{padding:10px 14px}
+  .wrap{padding:0 12px 60px}
+  header{padding:10px 12px}
+  nav{padding:8px 12px}
+}
+
+/* ── reduced motion ──────────────────────────────────────────── */
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">a<span>11</span>oy</span>
+  <span style="color:var(--mut);font-size:13px">· Allodial Harvest Console</span>
+  <div class="hdr-right">
+    <span class="ts" id="ts">—</span>
+    <button class="refresh" id="btn-refresh" onclick="loadAll(true)">↻ Refresh</button>
+    <span class="tick" id="tick" title="next auto-refresh">—</span>
+  </div>
+</header>
+
+<nav>
+  <a href="/">home</a>
+  <a href="/hub">hub</a>
+  <a href="/status">status</a>
+  <a href="/console">console</a>
+  <a href="/harvest" class="here">harvest</a>
+  <a href="/formulas">formulas</a>
+</nav>
+
+<div class="wrap">
+
+  <!-- ────────────────────── STATUS HERO ───────────────────────── -->
+  <section id="sec-posture">
+    <div class="hero p-nor" id="hero">
+      <div class="hero-inner">
+        <div>
+          <div class="hero-status" id="hero-label">loading…</div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-price" id="hero-price">—</div>
+          <div class="hero-note" id="hero-note">fetching posture…</div>
+          <div class="drivers" id="drivers"></div>
+          <div class="hero-meta">
+            <span class="wasted" id="wasted-label">—</span>
+            <span id="soak-hard-badge"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────── SOVEREIGN BANNER ─────────────────── -->
+  <section id="sec-sovereign" style="margin-top:14px">
+    <div class="sov-banner loading" id="sov-banner">
+      <span class="sov-icon">⏳</span>
+      <div class="sov-text">
+        <strong id="sov-title">Checking sovereignty…</strong>
+        <p id="sov-desc">Reading /api/a11oy/v1/formula/sovereign</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────── FEEDS PANEL ──────────────────────── -->
+  <section id="sec-feeds">
+    <h2>Energy Feeds</h2>
+    <div class="feeds-grid" id="feeds-grid">
+      <!-- populated by JS -->
+      <div class="feed-unavail">Loading feed data…</div>
+    </div>
+  </section>
+
+  <!-- ────────────────────── SOAK PANEL ───────────────────────── -->
+  <section id="sec-soak">
+    <h2>Formula-Bounded Soak Plan</h2>
+    <div class="card" id="soak-card">
+      <div class="feed-unavail">Loading soak plan…</div>
+    </div>
+    <div class="lambda-note">
+      <span class="badge badge-advisory">Λ = Conjecture 1</span>
+      &nbsp;The Ouroboros iteration bound is derived from Λ, which is currently
+      <strong>advisory (conjecture)</strong> — not a proven theorem. Plans using
+      this bound are clearly labelled as best-effort estimates.
+    </div>
+  </section>
+
+  <!-- ────────────────────── RECEIPT PANEL ────────────────────── -->
+  <section id="sec-receipt">
+    <h2>Latest Receipt</h2>
+    <div class="card" id="receipt-card">
+      <div class="feed-unavail">Loading receipt…</div>
+    </div>
+  </section>
+
+  <!-- ────────────────────── WORLD PANEL ──────────────────────── -->
+  <section id="sec-world">
+    <h2>Follow the Wind — Global Zone Shares</h2>
+    <div class="card">
+      <div id="world-best" style="margin-bottom:14px;font-size:13.5px;color:var(--mut)">Loading…</div>
+      <div class="world-grid" id="world-grid"></div>
+    </div>
+  </section>
+
+</div><!-- .wrap -->
+
+<footer>
+  <strong>Allodial sovereign compute — harvests wasted grid energy, proves bounded work.</strong><br>
+  No free-energy claim. The tagline is "harvest WASTED grid energy" — not "free energy".<br>
+  Joules are <strong>SAMPLE</strong> until metered by on-box NVML; they become
+  <strong>MEASURED</strong> only on a sovereign GPU node.<br>
+  Λ = Conjecture 1 (advisory). sovereign:true only when a local node serves.
+  <span class="badge badge-advisory" style="margin-left:4px">Free to use</span><br><br>
+  <span style="font-family:var(--mono)">Doctrine v11+ · SLSA L1 (honest) · Apache-2.0 · SZL Holdings · a11oy</span>
+</footer>
+
+<script>
+/* ──────────────────────────────────────────────────────────────
+   Allodial Harvest Console — vanilla JS, 0 runtime CDN.
+   All data from REAL backend endpoints; degrades honestly.
+   ────────────────────────────────────────────────────────────── */
+"use strict";
+
+const BASE = "";   /* same-origin; no hard-coded host */
+const ENDPOINTS = {
+  posture  : "/api/a11oy/v1/harvest/posture",
+  plan     : "/api/a11oy/v1/harvest/plan?bytes=0",
+  receipt  : "/api/a11oy/v1/harvest/receipt",
+  world    : "/api/a11oy/v1/harvest/world",
+  sovereign: "/api/a11oy/v1/formula/sovereign",
+  healthz  : "/api/a11oy/healthz",
+};
+
+/* ── helpers ──────────────────────────────────────────────────── */
+function q(id){ return document.getElementById(id); }
+
+function safeFetch(url, label){
+  return fetch(url, {cache:"no-store"})
+    .then(r => {
+      if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return r.json();
+    })
+    .catch(e => {
+      console.warn(`[harvest] ${label} failed:`, e.message);
+      return null;
+    });
+}
+
+function fmtNum(v){
+  if(v == null || v === "") return "—";
+  const n = Number(v);
+  if(isNaN(n)) return String(v);
+  return n.toLocaleString("en-US", {maximumFractionDigits:4});
+}
+
+function esc(s){ /* XSS-safe text */
+  if(s == null) return "—";
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ── posture config ───────────────────────────────────────────── */
+const POSTURE_CFG = {
+  "negative-price"     : {cls:"p-neg", label:"HARVESTING NOW",       color:"var(--c-neg)", note:"The grid is paying to offload power — maximum harvest window."},
+  "curtailed-renewable": {cls:"p-cur", label:"RENEWABLE SURPLUS",    color:"var(--c-cur)", note:"Excess renewable generation curtailed — clean harvest opportunity."},
+  "cheap"              : {cls:"p-chp", label:"CHEAP ENERGY",         color:"var(--c-chp)", note:"Below-average grid price — cost-effective harvest window."},
+  "normal"             : {cls:"p-nor", label:"NORMAL CONDITIONS",    color:"var(--c-nor)", note:"Grid at normal price and mix — standard operating mode."},
+  "expensive"          : {cls:"p-exp", label:"EXPENSIVE — STANDING BY", color:"var(--c-exp)", note:"Grid price elevated — harvest paused to avoid wasteful spend."},
+};
+
+function getPostureCfg(p){
+  return POSTURE_CFG[p] || {cls:"p-nor", label: esc(p)||"UNKNOWN", color:"var(--c-nor)", note:"Posture value not recognised."};
+}
+
+/* ── posture hero ─────────────────────────────────────────────── */
+function renderPosture(d){
+  const hero = q("hero");
+  if(!d){
+    hero.className="hero p-nor";
+    q("hero-label").textContent="feed down";
+    q("hero-price").textContent="—";
+    q("hero-note").textContent="Posture feed unavailable — showing last known state.";
+    q("drivers").innerHTML="";
+    q("wasted-label").textContent="—";
+    q("soak-hard-badge").innerHTML="";
+    return;
+  }
+
+  const cfg = getPostureCfg(d.posture);
+  hero.className = "hero " + cfg.cls;
+  q("hero-label").textContent = cfg.label;
+
+  /* price */
+  let priceHtml = "—";
+  if(d.price != null && d.price_unit){
+    priceHtml = `<span style="color:${cfg.color}">${fmtNum(d.price)}</span> <span style="font-size:14px;color:var(--mut)">${esc(d.price_unit)}</span>`;
+  } else if(d.price != null){
+    priceHtml = `<span style="color:${cfg.color}">${fmtNum(d.price)}</span>`;
+  }
+  q("hero-price").innerHTML = priceHtml;
+  q("hero-note").textContent = cfg.note;
+
+  /* drivers */
+  const drvs = Array.isArray(d.drivers) ? d.drivers : [];
+  q("drivers").innerHTML = drvs.length
+    ? drvs.map(dr => `<span class="driver">${esc(typeof dr === "string" ? dr : JSON.stringify(dr))}</span>`).join("")
+    : '<span class="driver" style="color:var(--mut)">no drivers reported</span>';
+
+  /* wasted energy available */
+  if(d.wasted_energy_available != null){
+    q("wasted-label").textContent = `Wasted energy available: ${fmtNum(d.wasted_energy_available)} ${d.wasted_energy_unit||""}`;
+  } else {
+    q("wasted-label").textContent = "Wasted energy: not reported";
+  }
+
+  /* soak_hard flag */
+  if(d.soak_hard === true){
+    q("soak-hard-badge").innerHTML = '<span class="soak-hard">SOAK HARD</span>';
+  } else {
+    q("soak-hard-badge").innerHTML="";
+  }
+}
+
+/* ── sovereign banner ─────────────────────────────────────────── */
+function renderSovereign(d){
+  const banner = q("sov-banner");
+  if(!d){
+    banner.className="sov-banner loading";
+    q("sov-icon").textContent="⚠";
+    q("sov-title").textContent="Sovereignty gate unreachable";
+    q("sov-desc").textContent="Cannot verify sovereign state — feed down. Status: HALF-STATE assumed.";
+    return;
+  }
+
+  /* Accept both {sovereign:true/false} and {gate:{sovereign:...}} shapes */
+  const isSov = d.sovereign === true
+    || (d.gate && d.gate.sovereign === true)
+    || (d.result && d.result.sovereign === true);
+
+  if(isSov){
+    banner.className="sov-banner sov";
+    q("sov-icon").textContent="⚡";
+    q("sov-title").innerHTML = '<span class="badge badge-sov">SOVEREIGN</span> — running on own metal';
+    q("sov-desc").textContent = d.node_id
+      ? `Node: ${d.node_id}. Compute fully local — no external routing. Data stays on-prem.`
+      : "Compute fully local — no external routing. Data stays on-prem.";
+  } else {
+    banner.className="sov-banner half";
+    q("sov-icon").textContent="🔗";
+    q("sov-title").innerHTML = '<span class="badge badge-half">HALF-STATE</span> — routed externally';
+    q("sov-desc").textContent = "This request is handled via an external or managed node. Sovereignty not established. Joules will remain SAMPLE until a local sovereign GPU is active.";
+  }
+}
+
+/* ── feeds panel ──────────────────────────────────────────────── */
+const KNOWN_FEEDS = [
+  {feed:"awattar",         display:"aWATTar",               desc:"Real-time day-ahead electricity price (DE/AT market)"},
+  {feed:"energy_charts",   display:"Energy-Charts",         desc:"Renewable share + grid frequency (DE)"},
+  {feed:"uk_carbon",       display:"UK Carbon Intensity",   desc:"Real-time UK grid carbon intensity (gCO₂/kWh)"},
+  {feed:"open_meteo",      display:"Open-Meteo",            desc:"Weather (wind/solar irradiance) for harvest forecast"},
+  {feed:"caiso",           display:"CAISO",                 desc:"California ISO real-time system price (US West)"},
+];
+
+function renderFeeds(readings){
+  const grid = q("feeds-grid");
+  if(!readings || !Array.isArray(readings) || readings.length === 0){
+    grid.innerHTML = `<div class="feed-unavail">Posture feed down — no reading data available.</div>`;
+    return;
+  }
+
+  /* Build a lookup from actual readings */
+  const byFeed = {};
+  readings.forEach(r => { byFeed[(r.feed||"").toLowerCase()] = r; });
+
+  /* Merge known feeds + any extra returned */
+  const allFeedIds = new Set([
+    ...KNOWN_FEEDS.map(f => f.feed.toLowerCase()),
+    ...Object.keys(byFeed),
+  ]);
+
+  const rows = [];
+  KNOWN_FEEDS.forEach(kf => {
+    const key = kf.feed.toLowerCase();
+    allFeedIds.delete(key);
+    rows.push({display: kf.display, desc: kf.desc, data: byFeed[key] || null});
+  });
+  /* extras not in known list */
+  allFeedIds.forEach(id => {
+    rows.push({display: id, desc:"", data: byFeed[id]||null});
+  });
+
+  grid.innerHTML = rows.map(row => {
+    const r = row.data;
+    const reachable = r ? r.reachable !== false : false;
+    const dotCls = !r ? "loading" : reachable ? "live" : "down";
+    const statusBadge = !r
+      ? `<span class="badge" style="background:#1c2030;color:var(--mut)">no data</span>`
+      : reachable
+        ? `<span class="badge badge-live">LIVE</span>`
+        : `<span class="badge badge-down">DOWN</span>`;
+    const measuredBadge = r && r.measured === true
+      ? `<span class="badge badge-measured">MEASURED</span>`
+      : r ? `<span class="badge badge-sample">SAMPLE</span>` : "";
+    const val = r && r.value != null ? fmtNum(r.value) : "—";
+    const unit = r && r.unit ? esc(r.unit) : "";
+    const note = r && r.note ? `<div class="feed-note">${esc(r.note)}</div>` : (row.desc ? `<div class="feed-note">${esc(row.desc)}</div>` : "");
+
+    return `<div class="feed-row">
+      <span class="feed-dot ${dotCls}" title="${reachable ? "live" : "down"}"></span>
+      <div style="flex:1;min-width:0">
+        <div class="feed-name">${esc(row.display)}</div>
+        <div class="feed-val">${esc(val)} <span class="feed-unit">${unit}</span></div>
+        <div class="feed-badges">${statusBadge}${measuredBadge}</div>
+        ${note}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ── soak panel ───────────────────────────────────────────────── */
+function renderSoak(d){
+  const card = q("soak-card");
+  if(!d){
+    card.innerHTML = `<div class="feed-unavail">Soak plan feed unavailable — cannot determine formula-bounded plan. Will retry on next refresh.</div>`;
+    return;
+  }
+
+  const admitted = d.admit === true || d.admit === "true";
+  const admitHtml = admitted
+    ? `<span class="soak-admit">✓ ADMIT — wasted energy available, plan within bounds</span>`
+    : `<span class="soak-admit deny">✗ HOLD — soak not admitted (posture or bounds)</span>`;
+
+  const bekBits   = d.bekenstein_cap_bits   != null ? fmtNum(d.bekenstein_cap_bits)   : "—";
+  const landauJ   = d.landauer_floor_joules != null ? fmtNum(d.landauer_floor_joules) : "—";
+  const ouroboros = d.ouroboros_max_iters   != null ? fmtNum(d.ouroboros_max_iters)   : "—";
+  const soakVal   = d.soak != null ? esc(String(d.soak)) : "—";
+
+  const jobs = Array.isArray(d.admitted_ids) ? d.admitted_ids : [];
+  const jobsHtml = jobs.length
+    ? `<div class="soak-jobs"><h3>Admitted job IDs</h3><div class="job-list">${jobs.map(j=>`<span class="job-chip">${esc(String(j))}</span>`).join("")}</div></div>`
+    : `<div class="soak-jobs"><h3>Admitted job IDs</h3><div class="job-list"><span style="color:var(--mut);font-size:12.5px">none admitted</span></div></div>`;
+
+  const reasonHtml = d.reason
+    ? `<div class="soak-reason">Reason: ${esc(d.reason)}</div>`
+    : "";
+
+  card.innerHTML = `
+    ${admitHtml}
+    <div class="soak-grid">
+      <div class="soak-kpi">
+        <div class="k">Bekenstein Cap</div>
+        <div class="v">${bekBits}</div>
+        <div class="d">bits — max information throughput proven by the Bekenstein bound. We only run as much as the proven info budget allows.</div>
+      </div>
+      <div class="soak-kpi">
+        <div class="k">Landauer Floor</div>
+        <div class="v">${landauJ}</div>
+        <div class="d">joules — thermodynamic minimum energy per bit-erasure (kT ln2). Computations below this cost are physically impossible.</div>
+      </div>
+      <div class="soak-kpi">
+        <div class="k">Ouroboros Bound</div>
+        <div class="v">${ouroboros}</div>
+        <div class="d">max iterations — derived from Λ (Conjecture 1, advisory). Prevents unbounded self-modification loops. <span class="badge badge-advisory">Λ advisory</span></div>
+      </div>
+      <div class="soak-kpi">
+        <div class="k">Soak</div>
+        <div class="v">${soakVal}</div>
+        <div class="d">whether the system is soaking this cycle (consuming admitted wasted energy).</div>
+      </div>
+    </div>
+    ${jobsHtml}
+    ${reasonHtml}
+  `;
+}
+
+/* ── receipt panel ────────────────────────────────────────────── */
+function renderReceipt(d){
+  const card = q("receipt-card");
+  if(!d){
+    card.innerHTML = `<div class="feed-unavail">Receipt feed unavailable — no receipt data. Will retry.</div>`;
+    return;
+  }
+
+  const joulLabel = (d.joules_label||"").toLowerCase();
+  const joulMeasured = joulLabel === "measured";
+  const joulBadge = joulMeasured
+    ? `<span class="badge badge-measured">MEASURED</span>`
+    : `<span class="badge badge-sample">SAMPLE</span>`;
+  const joulsVal = d.joules_est != null ? fmtNum(d.joules_est) : "—";
+
+  const priceRow = d.price_measured != null
+    ? `<tr><td class="lbl">Price (measured)</td><td class="val">${esc(String(d.price_measured))}</td></tr>`
+    : "";
+
+  const rows = [
+    ["Energy source",   d.energy_source],
+    ["Posture",         d.posture],
+  ].map(([l,v]) => v != null
+    ? `<tr><td class="lbl">${esc(l)}</td><td class="val">${esc(String(v))}</td></tr>`
+    : ""
+  ).join("");
+
+  /* extra keys except the ones we've already shown */
+  const skip = new Set(["energy_source","posture","price_measured","joules_est","joules_label","status","fetchedAt","doctrine","citations"]);
+  const extras = Object.entries(d)
+    .filter(([k]) => !skip.has(k) && d[k] != null)
+    .map(([k,v]) => `<tr><td class="lbl">${esc(k)}</td><td class="val">${esc(typeof v==="object"?JSON.stringify(v):String(v))}</td></tr>`)
+    .join("");
+
+  card.innerHTML = `
+    <table class="receipt-table">
+      <thead><tr><th>Field</th><th>Value</th></tr></thead>
+      <tbody>
+        ${rows}
+        ${priceRow}
+        <tr class="joules-row">
+          <td class="lbl">Joules (estimated) ${joulBadge}</td>
+          <td class="val">${esc(joulsVal)}</td>
+        </tr>
+        ${extras}
+      </tbody>
+    </table>
+    <div class="receipt-note">
+      Joules become <strong>MEASURED</strong> only when on-box NVML is active on a sovereign GPU node.
+      Until then all joule readings are <strong>SAMPLE</strong> — statistically estimated, not directly metered.
+      This is an honest label, not a placeholder: the system does real work, the accounting is just not yet metered.
+    </div>
+  `;
+}
+
+/* ── world panel ──────────────────────────────────────────────── */
+function renderWorld(d){
+  const best = q("world-best");
+  const grid = q("world-grid");
+  if(!d || !d.shares){
+    best.textContent = "World feed unavailable — cannot show zone renewable shares.";
+    grid.innerHTML = "";
+    return;
+  }
+
+  const bz = d.best_zone || "—";
+  const bs = d.best_share != null ? Math.round(d.best_share*100)+"%" : "—";
+  best.innerHTML = `Best zone: <strong style="color:var(--ok)">${esc(bz)}</strong>
+    <span style="font-family:var(--mono);color:var(--ok);font-weight:700"> ${esc(bs)}</span>
+    renewable share — follow the wind to this zone for greenest harvest.`;
+
+  const zones = Object.entries(d.shares)
+    .sort((a,b) => (b[1]||0)-(a[1]||0));
+
+  grid.innerHTML = zones.map(([zone, share]) => {
+    const pct = share != null ? Math.round(share*100)+"%" : "—";
+    const isBest = zone === d.best_zone;
+    return `<div class="zone-card${isBest?" best":""}">
+      <div class="zone-name">${esc(zone)}</div>
+      <div class="zone-share">${esc(pct)}</div>
+      ${isBest ? `<div class="zone-best-tag">★ best</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+/* ── timestamp ────────────────────────────────────────────────── */
+function updateTs(){
+  const now = new Date();
+  q("ts").textContent = now.toUTCString().replace("GMT","UTC");
+}
+
+/* ── countdown tick ───────────────────────────────────────────── */
+let _nextRefresh = Date.now() + 30000;
+function startTick(){
+  setInterval(()=>{
+    const s = Math.max(0, Math.round((_nextRefresh - Date.now())/1000));
+    q("tick").textContent = `↺ ${s}s`;
+  }, 1000);
+}
+
+/* ── main load ────────────────────────────────────────────────── */
+async function loadAll(manual){
+  _nextRefresh = Date.now() + 30000;
+  updateTs();
+  q("btn-refresh").textContent = "loading…";
+  q("btn-refresh").disabled = true;
+
+  try {
+    /* parallel fetch all endpoints */
+    const [posture, plan, receipt, world, sovereign] = await Promise.all([
+      safeFetch(ENDPOINTS.posture,   "posture"),
+      safeFetch(ENDPOINTS.plan,      "plan"),
+      safeFetch(ENDPOINTS.receipt,   "receipt"),
+      safeFetch(ENDPOINTS.world,     "world"),
+      safeFetch(ENDPOINTS.sovereign, "sovereign"),
+    ]);
+
+    renderPosture(posture);
+    renderFeeds(posture ? posture.readings : null);
+    renderSovereign(sovereign);
+    renderSoak(plan);
+    renderReceipt(receipt);
+    renderWorld(world);
+    updateTs();
+  } finally {
+    q("btn-refresh").textContent = "↻ Refresh";
+    q("btn-refresh").disabled = false;
+  }
+}
+
+/* ── auto-refresh every 30 s ──────────────────────────────────── */
+function scheduleRefresh(){
+  setTimeout(async ()=>{
+    await loadAll(false);
+    scheduleRefresh();
+  }, 30000);
+}
+
+/* ── boot ─────────────────────────────────────────────────────── */
+(async()=>{
+  startTick();
+  await loadAll(false);
+  scheduleRefresh();
+})();
+</script>
+</body>
+</html>
