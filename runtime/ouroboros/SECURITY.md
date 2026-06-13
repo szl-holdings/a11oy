@@ -51,7 +51,7 @@ Out of scope:
 
 ## Governance
 
-All security disclosures are governed by **SZL Doctrine v7**: no fake security claims, STAGED-ADVISORY label for gates not yet machine-checked, DSSE receipts on every governance decision.
+All security disclosures are governed by **SZL Doctrine v11**: no fake security claims, STAGED-ADVISORY label for gates not yet machine-checked, DSSE receipts on every governance decision.
 
 ## Hall of Thanks
 
