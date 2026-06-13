@@ -183,10 +183,10 @@ def _map_state(organ: str) -> dict[str, Any]:
         # 13 axes from the most recent tick if present; PROVED formulas always visible
         last = recent[-1] if recent else {}
         axes = last.get("axes") or []
-        formulas = [{"id": f, "proved": True, "recent": False} for f in ("F1", "F11", "F12", "F18", "F19")]
+        formulas = [{"id": f, "proved": True, "recent": False} for f in ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")]
         for e in recent:
             fid = e.get("formula")
-            if fid and fid not in ("F1", "F11", "F12", "F18", "F19"):
+            if fid and fid not in ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"):
                 formulas.append({"id": fid, "proved": False, "recent": True})
         return {**base, "kind": "yuyay_cortex", "axes": axes,
                 "lambda": last.get("lambda"), "chakras": last.get("chakras") or [],
