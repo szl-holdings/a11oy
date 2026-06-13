@@ -20,6 +20,10 @@ Endpoints:
   GET  /api/a11oy/v1/formula/reidemeister?a=1,-1&b=    -> braid equivalence
   GET  /api/a11oy/v1/formula/hnsw                      -> honest Reasoning-delegate status
   GET  /api/a11oy/v1/formula/bls                       -> BLS backend availability (honest)
+  GET  /api/a11oy/v1/formula/allodial?elem=&top=&elements=&leq=  -> allodiality check (EXPERIMENTAL)
+  GET  /api/a11oy/v1/formula/entanglement?c0=&gamma=&t=          -> cap-bound (EXPERIMENTAL)
+  GET  /api/a11oy/v1/formula/sovereign?served_by=&base_url=&local_node_serving=  -> sovereignty gate (EXPERIMENTAL)
+  POST /api/a11oy/v1/formula/sovereign  {served_by, base_url, local_node_serving} -> sovereignty gate (EXPERIMENTAL)
   GET  /api/a11oy/v1/formulas/index                    -> list of wired formulas + citations
 
 Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem).
@@ -48,9 +52,12 @@ except Exception:  # pragma: no cover
 
 try:
     from a11oy.formulas import (
+        allodial,
+        allodial_gate,
         bloom_filter,
         bls_aggregate,
         byzantine_quorum,
+        entanglement,
         hnsw_retrieval,
         holevo_bound,
         kalman,
@@ -86,6 +93,19 @@ _INDEX = [
      "lean_theorem": "Wave17/BinaryPinsker.lean::binary_pinsker (CF-23)", "tier": "experimental"},
     {"name": "aftershock", "citation": "Reasenberg–Jones 1989; Gasperini–Lolli 2006 (α≈⅔b); USGS live feed",
      "lean_theorem": "(seismic forecast — not a Lean theorem; generic-parameter R–J model)", "tier": "live-data"},
+    # ---- EXPERIMENTAL frontier backbones (Lutar/Allodial.lean + Lutar/Entanglement.lean) ----
+    {"name": "allodial",
+     "citation": "Lutar/Allodial.lean (PR #229, merge 783a38d0)",
+     "lean_theorem": "Lutar/Allodial.lean::allodial_dominates_all / galois_preserves_allodial / ni_low_independent_of_high (EXPERIMENTAL — PROPOSED gate, not a locked theorem)",
+     "tier": "experimental"},
+    {"name": "entanglement",
+     "citation": "Lutar/Entanglement.lean (PR #230, merge 3a7f222ed3bb)",
+     "lean_theorem": "Lutar/Entanglement.lean::capBound_antitone / entanglement_decays_under_bound (EXPERIMENTAL — PROPOSED gate, not a locked theorem)",
+     "tier": "experimental"},
+    {"name": "sovereign",
+     "citation": "Lutar/Allodial.lean (PR #229, merge 783a38d0) — ni_low_independent_of_high",
+     "lean_theorem": "Lutar/Allodial.lean::ni_low_independent_of_high / allodial_iff_top (EXPERIMENTAL — PROPOSED gate, not a locked theorem)",
+     "tier": "experimental"},
 ]
 
 
@@ -262,6 +282,73 @@ def register(app, ns: str = "a11oy") -> str:
             "citation": bls_aggregate.CITATION,
             "lean_theorem": bls_aggregate.LEAN_THEOREM,
         })
+
+    # ---- EXPERIMENTAL frontier: Allodial order-theoretic sovereignty checks ----
+    @app.get(f"{base}/allodial")
+    async def _allodial(elem: str = "top", top: str = "top",
+                        elements: str = "bot,a,b,top",
+                        leq: str = "bot:a,bot:b,bot:top,a:b,a:top,b:top"):
+        """Allodial check on a finite control lattice (EXPERIMENTAL).
+
+        Pass `elem`, `top`, `elements` (comma-sep), and `leq` (comma-sep a:b pairs).
+        Returns the HONEST EXPERIMENTAL-tier allodiality assessment.
+        NOTE: EXPERIMENTAL backbone — Lutar/Allodial.lean PR #229, NOT locked-8, NOT a formal \u039b result.
+        """
+        try:
+            elems_list = [e.strip() for e in elements.split(",") if e.strip()]
+            leq_pairs = []
+            for pair in leq.split(","):
+                pair = pair.strip()
+                if ":" in pair:
+                    a_part, b_part = pair.split(":", 1)
+                    leq_pairs.append((a_part.strip(), b_part.strip()))
+            result = allodial.allodial_check(elem, top, elems_list, leq_pairs)
+            return JSONResponse(dict(result))
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+    # ---- EXPERIMENTAL frontier: Entanglement-generating-capacity bound ----
+    @app.get(f"{base}/entanglement")
+    async def _entanglement(c0: float = 1.0, gamma: float = 0.5, t: float = 1.0):
+        """Coherence\u2192entanglement-generating-capacity upper bound cap_bound(C\u2080,\u03b3,t) = C\u2080\u00b7exp(\u2212\u03b3t).
+
+        This is a CAPACITY UPPER BOUND, not a claimed entanglement rate.
+        NOTE: EXPERIMENTAL backbone \u2014 Lutar/Entanglement.lean PR #230, NOT locked-8, NOT a formal \u039b result.
+        """
+        try:
+            return JSONResponse(dict(entanglement.cap_bound_full(c0, gamma, t)))
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+    # ---- EXPERIMENTAL frontier: Sovereignty gate (half-state doctrine) ----
+    @app.get(f"{base}/sovereign")
+    async def _sovereign_get(served_by: str = "local", base_url: str = "",
+                             local_node_serving: bool = False):
+        """Sovereignty gate: returns sovereign:true ONLY when a local/owned node actually serves.
+
+        The half-state (banner claims sovereignty while routing to an external node) is the
+        ONLY unacceptable outcome and is flagged with half_state:true, sovereign:false.
+        Grounded in Lutar/Allodial.lean::ni_low_independent_of_high (EXPERIMENTAL).
+        """
+        return JSONResponse(dict(allodial_gate.sovereign_verdict(
+            served_by, base_url, local_node_serving
+        )))
+
+    @app.post(f"{base}/sovereign")
+    async def _sovereign_post(req: Request):
+        """Sovereignty gate via POST body {served_by, base_url, local_node_serving}.
+
+        The half-state (banner claims sovereignty while routing to an external node) is the
+        ONLY unacceptable outcome and is flagged with half_state:true, sovereign:false.
+        Grounded in Lutar/Allodial.lean::ni_low_independent_of_high (EXPERIMENTAL).
+        """
+        body = await req.json()
+        served_by = str(body.get("served_by", "local"))
+        base_url = str(body.get("base_url", ""))
+        local_node_serving = bool(body.get("local_node_serving", False))
+        return JSONResponse(dict(allodial_gate.sovereign_verdict(
+            served_by, base_url, local_node_serving
+        )))
 
     return f"formulas-wired:{len(_INDEX)}"
 
