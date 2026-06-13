@@ -311,6 +311,9 @@ COPY src/a11oy/formulas/bloom_filter.py ./src/a11oy/formulas/bloom_filter.py
 COPY src/a11oy/formulas/kalman.py ./src/a11oy/formulas/kalman.py
 COPY src/a11oy/formulas/hnsw_retrieval.py ./src/a11oy/formulas/hnsw_retrieval.py
 COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
+COPY src/a11oy/formulas/allodial.py ./src/a11oy/formulas/allodial.py
+COPY src/a11oy/formulas/allodial_gate.py ./src/a11oy/formulas/allodial_gate.py
+COPY src/a11oy/formulas/entanglement.py ./src/a11oy/formulas/entanglement.py
 # ADDITIVE (Formulas SECTION page — closeout): serve.py imports a11oy_formulas_page
 # and calls .register(app) BEFORE the SPA catch-all, mounting GET /formulas/wired
 # (premium Inca-palette list of every live formula + thesis citation + Lean permalink
