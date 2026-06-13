@@ -45,6 +45,7 @@ import hashlib
 import hmac
 import json
 from datetime import datetime, timezone
+from starlette.requests import Request  # module-scope so add_api_route injects Request, not a 'req' query param (422 fix)
 
 # ---------------------------------------------------------------------------
 # Wrap the EXISTING provenance chain (#331) — do NOT duplicate or replace it.
@@ -424,7 +425,7 @@ def emit_beat(output=None, energy_source: str = "grid", joules_est: float = 0.0)
 # ---------------------------------------------------------------------------
 # HTTP handler + registration (matches szl_energy_provenance / szl_* style).
 # ---------------------------------------------------------------------------
-def _h_pulse(req):
+def _h_pulse(req: Request):
     from starlette.responses import JSONResponse
     return JSONResponse(_HEART.pulse())
 
