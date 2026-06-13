@@ -34,6 +34,21 @@ import json
 import urllib.request
 from typing import Optional
 
+# Single source of truth for the joules honesty label. The revenue estimate runs
+# off-box (no on-box NVML exporter), so the helper always returns "sample" + {}
+# here — making the "joules SAMPLE off-box" claim self-verifying in the response.
+# Wrapped so a missing/broken import can never take down the revenue endpoints.
+try:
+    from szl_joules_truth import (
+        joules_label as _joules_truth_label,
+        joules_evidence as _joules_truth_evidence,
+    )
+except Exception:  # pragma: no cover - defensive: doctrine default is always sample
+    def _joules_truth_label(_exporter_sample, now=None):  # type: ignore
+        return "sample"
+    def _joules_truth_evidence(_exporter_sample, now=None):  # type: ignore
+        return {}
+
 # ---------------------------------------------------------------------------
 # Lazy import helpers (harvest posture + estimators)
 # ---------------------------------------------------------------------------
@@ -212,6 +227,11 @@ def _build_estimate(ns: str = "a11oy") -> dict:
         "label": "ESTIMATE — all figures computed from real inputs, clearly labeled",
         "fetched_at": fetched_at,
         "doctrine": "v11 — Λ = Conjecture 1; locked-8 untouched; no free-energy; joules SAMPLE off-box",
+        # Self-verifying joules honesty: this estimate has NO on-box exporter sample,
+        # so the single source of truth resolves to "sample" with empty evidence
+        # (never a fabricated measured value).
+        "joules_label": _joules_truth_label(None),
+        "joules_evidence": _joules_truth_evidence(None),
         "inputs_used": {
             "grid_price_eur_mwh": grid_price,
             "grid_price_source": price_source,

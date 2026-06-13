@@ -99,6 +99,16 @@ import uuid
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple
 
+# Single source of truth for the joules honesty label. This hardening layer has NO
+# on-box NVML exporter, so the helper resolves to "sample" — the doctrine echo below
+# uses it so the joules posture is decided in ONE place, never a stray literal.
+# Wrapped so a missing/broken import can never take down the hardening surface.
+try:
+    from szl_joules_truth import joules_label as _joules_truth_label
+except Exception:  # pragma: no cover - defensive: doctrine default is always sample
+    def _joules_truth_label(_exporter_sample, now=None):  # type: ignore
+        return "sample"
+
 # ---------------------------------------------------------------------------
 # Doctrine echo block — same shape the other szl_* surfaces emit, so any
 # response reusing this constant stays honesty-clean under the doctrine guards.
@@ -110,6 +120,9 @@ DOCTRINE = {
     "lambda": "Conjecture 1",          # OPEN — never a theorem, never "proven trust"
     "organs": "EXPERIMENTAL",
     "joules": "SAMPLE until on-box NVML",
+    # joules_label decided by the single source of truth (no on-box exporter here
+    # -> "sample"); never a hardcoded "measured" literal.
+    "joules_label": _joules_truth_label(None),
     "free_energy": False,
     "sovereign": "only on own metal",
     "key_committed": False,
