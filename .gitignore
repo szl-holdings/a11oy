@@ -12,3 +12,6 @@ artifacts/a11oy-uds/build-attestations/
 .lake/build/
 # Local-only TestClient harness (patches /app paths to repo root; NOT shipped)
 _localtest.py
+# Runtime-persisted energy ledger (hash-chained receipts written at run time; NOT shipped)
+szl_energy_ledger.jsonl
+*.ledger.jsonl
