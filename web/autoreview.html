@@ -19,6 +19,8 @@
 <script src="/vendor/chart.umd.min.js"></script>
 <script src="/static/shared/szl_label_engine.js"></script>
 <script src="/static/shared/szl_receipt_cosign.js"></script>
+<!-- F2: vendored F1 holographic kit (0 runtime CDN) for the optional 3D autonomy dial + verdict trust-sphere. -->
+<script src="/static/shared/szl_holo3d.js"></script>
 <style>
   :root{
     --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
@@ -95,6 +97,37 @@
   .explain{color:#cfd8e3;font-size:12px;margin-top:6px;border-top:1px dotted #1a2435;
            padding-top:6px}
   .selfc{color:var(--acc);font-size:11px;margin-top:4px}
+  /* F2 — 3D autonomy dial + verdict trust-sphere (additive; 2D content stays). */
+  #ar3d-toggle{background:#0e1622;border:1px solid var(--acc);color:var(--acc);border-radius:7px;
+    padding:6px 12px;font:12px ui-monospace,monospace;cursor:pointer;margin-top:8px}
+  #ar3d-panel{display:none;margin:16px 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  #ar3d-panel h2{margin:0 0 8px;font-size:14px;letter-spacing:.4px;color:var(--acc)}
+  .ar3d-stage{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+  @media(max-width:860px){.ar3d-stage{grid-template-columns:1fr}}
+  #ar3d-canvas{width:100%;height:400px;background:#070b12;border:1px solid var(--line);border-radius:8px;position:relative}
+  #ar3d-mode{position:absolute;top:8px;right:10px;font-size:10px;color:var(--mut);z-index:5}
+  .ar3d-side{display:flex;flex-direction:column;gap:10px}
+  .ar3d-box{background:#0e1622;border:1px solid var(--line);border-radius:8px;padding:10px}
+  .ar3d-box h3{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut)}
+  .ar3d-dialrow{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+  .ar3d-dlv{flex:1;min-width:42px;text-align:center;padding:6px 4px;border:1px solid var(--line);
+    border-radius:7px;background:#0b121c;cursor:pointer;font-size:11px}
+  .ar3d-dlv.sel{border-color:var(--acc);color:var(--acc);background:#0a201e}
+  .ar3d-ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+  .ar3d-ctl input{background:#0e1622;color:var(--ink);border:1px solid var(--line);border-radius:6px;
+    padding:6px 9px;font:12px ui-monospace,monospace}
+  .ar3d-ctl button{background:#0e1622;color:var(--ink);border:1px solid var(--line);border-radius:6px;
+    padding:6px 11px;font:12px ui-monospace,monospace;cursor:pointer}
+  .ar3d-ctl button:hover{border-color:var(--acc)}
+  #ar3d-verdict{font-size:12px;color:var(--ink);line-height:1.6;min-height:18px}
+  #ar3d-lam{font-size:30px;font-weight:700;letter-spacing:.5px}
+  .ar3d-board{display:flex;gap:6px;flex-wrap:wrap;min-height:30px;align-items:center}
+  .ar3d-rcpt{padding:3px 8px;border-radius:7px;border:1px solid var(--line);background:#0b121c;
+    font-size:10px;animation:ar3d-in .5s ease}
+  @keyframes ar3d-in{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+  .ar3d-rcpt.allow{border-color:var(--ok);color:var(--ok)}.ar3d-rcpt.narrow{border-color:var(--warn);color:var(--warn)}
+  .ar3d-rcpt.block-with-explanation{border-color:var(--err);color:var(--err)}.ar3d-rcpt.escalate{border-color:var(--road);color:var(--road)}
+  .ar3d-mut{color:var(--mut);font-size:11px}
 </style>
 </head>
 <body>
@@ -108,8 +141,51 @@
     <b>OPA/Rego</b> rules mapped to <b>OSCAL</b> controls + <b>NIST AI RMF MANAGE</b>, and
     conformal-calibrated. On block we return an explanation so the parent self-corrects;
     we escalate to a human only when truly needed. Effectors stay SIMULATED.</div>
+  <button id="ar3d-toggle" type="button">Show 3D autonomy</button>
 </header>
 <div class="wrap">
+
+  <!-- ===================== 3D AUTONOMY ENHANCEMENT (toggle; 2D below is the fallback) ===================== -->
+  <section id="ar3d-panel" aria-label="3D autonomy review">
+    <h2>3D AUTONOMY — dial L0–L5 drives a live Λ-gated verdict sphere</h2>
+    <div class="ar3d-stage">
+      <div id="ar3d-canvas"><div id="ar3d-mode">init…</div></div>
+      <div class="ar3d-side">
+        <div class="ar3d-box">
+          <h3>Autonomy dial (graded, not binary)</h3>
+          <div class="ar3d-dialrow" id="ar3d-dial"><span class="ar3d-mut">loading dial…</span></div>
+          <div id="ar3d-dialdesc" class="ar3d-mut"></div>
+        </div>
+        <div class="ar3d-box">
+          <h3>Classify an action (live /classify)</h3>
+          <div class="ar3d-ctl">
+            <input id="ar3d-intent" value="debug the auth flow" aria-label="intent" placeholder="intent"/>
+          </div>
+          <div class="ar3d-ctl">
+            <input id="ar3d-tool" value="shell" aria-label="tool" placeholder="tool" style="max-width:90px"/>
+            <input id="ar3d-input" value="cat .env api_key token" aria-label="tool input" placeholder="tool input"/>
+            <button id="ar3d-classify" type="button">▶ classify</button>
+          </div>
+          <div class="ar3d-mut" style="margin-bottom:6px">Verdict colors the trust-sphere by Λ-effective; each signed verdict animates a receipt chip onto the board below.</div>
+          <div id="ar3d-lam">Λ —</div>
+          <div id="ar3d-verdict" class="ar3d-mut">no verdict yet</div>
+        </div>
+        <div class="ar3d-box">
+          <h3>Signed-verdict receipts (board)</h3>
+          <div class="ar3d-board" id="ar3d-board"><span class="ar3d-mut">run a classify to sign verdicts onto the board</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cite" style="margin-top:10px">3D enhancement of the
+      <a href="https://cursor.com/blog/agent-autonomy-auto-review" target="_blank" rel="noopener">Cursor Auto-review</a>
+      autonomy-dial pattern, hardened with
+      <a href="https://github.com/invariantlabs-ai/invariant" target="_blank" rel="noopener">Invariant</a>-style
+      inline guardrails and
+      <a href="https://github.com/NVIDIA/NeMo-Guardrails" target="_blank" rel="noopener">NeMo Guardrails (Colang)</a>
+      dialogue rails. Each verdict stays Λ-gated (Conjecture 1, &lt; 1.0), DSSE-signed, never 100% safe.
+      Holographic kit vendored at <code>/static/shared/szl_holo3d.js</code> · 0 runtime CDN.</div>
+  </section>
+
   <div class="grid">
 
     <!-- AUTONOMY DIAL -->
@@ -374,6 +450,219 @@ try{ if(window.SZLLabels&&SZLLabels.auditText){
   const flags=SZLLabels.auditText(document.body.innerText||"");
   if(flags&&flags.length){console.warn("[autoreview] label audit flags:",flags);}
 }}catch(_){}
+</script>
+<script>
+/* F2 Auto-Review 3D (additive) */
+/* F2 — Auto-Review 3D controller (additive enhancement; 2D content is the fallback).
+ * 0 runtime CDN: kit is vendored at /static/shared/szl_holo3d.js (imported only).
+ * Reads LIVE /api/a11oy/v1/autoreview/{dial,classify}. Λ-gated (Conjecture 1, <1.0),
+ * DSSE-signed verdicts, trust < 100%. Never fabricates metrics. */
+(function () {
+  "use strict";
+  var BASE = "/api/a11oy/v1/autoreview";
+  var Q = function (id) { return document.getElementById(id); };
+  var ESC = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c];
+    });
+  };
+  // verdict -> board chip class (matches .ar3d-rcpt.<verdict> CSS)
+  var VCLASS = {
+    "allow": "allow", "narrow": "narrow",
+    "block-with-explanation": "block-with-explanation", "escalate": "escalate"
+  };
+
+  var scene = null, sphere = null, dial = 3, dialLevels = [], built = false, signed = 0;
+
+  function getj(u) {
+    return fetch(u).then(function (r) {
+      if (!r.ok) { throw new Error(u + " -> " + r.status); }
+      return r.json();
+    });
+  }
+  function postj(u, b) {
+    return fetch(u, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(b || {})
+    }).then(function (r) {
+      if (!r.ok) { throw new Error(u + " -> " + r.status); }
+      return r.json();
+    });
+  }
+
+  function setMode() {
+    var el = Q("ar3d-mode");
+    if (!el) { return; }
+    if (!window.SZLHolo) { el.textContent = "3D kit unavailable — using 2D content below"; return; }
+    try {
+      var caps = SZLHolo.capabilities();
+      el.textContent = "render: " + (caps.mode || "?") + (caps.webgl2 ? " (webgl2)" : "");
+    } catch (_) { el.textContent = "render: ready"; }
+  }
+
+  // ---- AUTONOMY DIAL (live /dial) ----
+  function loadDial() {
+    return getj(BASE + "/dial").then(function (d) {
+      dialLevels = d.levels || [];
+      dial = (d.default != null) ? d.default : 3;
+      renderDial();
+    }).catch(function (e) {
+      var r = Q("ar3d-dial");
+      if (r) { r.innerHTML = '<span class="ar3d-mut">dial unavailable: ' + ESC(e.message) + "</span>"; }
+    });
+  }
+  function renderDial() {
+    var row = Q("ar3d-dial");
+    if (!row) { return; }
+    row.innerHTML = dialLevels.map(function (l) {
+      return '<div class="ar3d-dlv' + (l.level === dial ? " sel" : "") +
+        '" data-lv="' + l.level + '">L' + l.level + "</div>";
+    }).join("");
+    var cells = row.querySelectorAll(".ar3d-dlv");
+    for (var i = 0; i < cells.length; i++) {
+      cells[i].addEventListener("click", function (ev) {
+        dial = parseInt(ev.currentTarget.getAttribute("data-lv"), 10);
+        renderDial();
+        describeDial();
+      });
+    }
+    describeDial();
+  }
+  function describeDial() {
+    var el = Q("ar3d-dialdesc");
+    if (!el) { return; }
+    var sel = null;
+    for (var i = 0; i < dialLevels.length; i++) {
+      if (dialLevels[i].level === dial) { sel = dialLevels[i]; break; }
+    }
+    sel = sel || {};
+    var label = (sel.label || "").replace(/^L\d+\s*[\u2014-]\s*/, "");
+    el.innerHTML = '<b style="color:var(--acc)">L' + dial + " — " + ESC(label) + "</b>: " +
+      ESC(sel.desc || sel.policy || sel.description || "");
+  }
+
+  // ---- 3D SCENE + verdict trust-sphere ----
+  function ensureScene() {
+    if (built) { return true; }
+    var mount = Q("ar3d-canvas");
+    if (!mount || !window.SZLHolo) { return false; }
+    try {
+      scene = SZLHolo.createScene(mount, { sample: false });
+      // verdict trust-sphere — starts at a neutral, honest sub-1.0 Λ
+      sphere = scene.addTrustSphere({ center: [0, 0, 0], radius: 0.8, lambda: 0.5, label: "VERDICT" });
+      scene.setLambda(0.5);
+      scene.start();
+      built = true;
+      setMode();
+      return true;
+    } catch (e) {
+      var el = Q("ar3d-mode");
+      if (el) { el.textContent = "3D init failed — 2D content below is intact"; }
+      return false;
+    }
+  }
+
+  // map a verdict to a board chip + animate it onto the board
+  function pushReceipt(d) {
+    var board = Q("ar3d-board");
+    if (!board) { return; }
+    if (signed === 0) { board.innerHTML = ""; }
+    signed += 1;
+    var v = d.verdict || "—";
+    var lam = (typeof d.lambda_effective === "number") ? d.lambda_effective : null;
+    var sig = d.receipt && d.receipt.envelope && d.receipt.envelope.signed;
+    var hash = (d.decision_hash || "").slice(0, 12);
+    var chip = document.createElement("div");
+    chip.className = "ar3d-rcpt " + (VCLASS[v] || "");
+    chip.innerHTML = "#" + signed + " " + ESC(v) +
+      (lam != null ? " · Λ" + lam.toFixed(2) : "") +
+      (sig ? " · ✔signed" : " · unsigned") +
+      (hash ? ' · <span style="opacity:.7">' + ESC(hash) + "…</span>" : "");
+    board.appendChild(chip);
+  }
+
+  // ---- CLASSIFY (live /classify) -> recolor sphere by Λ, sign receipt onto board ----
+  function classify() {
+    var btn = Q("ar3d-classify");
+    if (btn) { btn.disabled = true; }
+    var verdEl = Q("ar3d-verdict");
+    if (verdEl) { verdEl.textContent = "classifying…"; }
+    var body = {
+      intent: (Q("ar3d-intent") || {}).value || "",
+      tool: (Q("ar3d-tool") || {}).value || "",
+      tool_input: (Q("ar3d-input") || {}).value || "",
+      dial: dial,
+      workspace: "demo"
+    };
+    return postj(BASE + "/classify", body).then(function (d) {
+      var lam = (typeof d.lambda_effective === "number") ? d.lambda_effective : 0.5;
+      // honest: Λ stays < 1.0 (Conjecture 1) — clamp just under 1
+      if (lam >= 1.0) { lam = 0.999; }
+      if (sphere) { sphere.lambda = lam; }
+      if (scene) { scene.setLambda(lam); }
+      var lamEl = Q("ar3d-lam");
+      if (lamEl) {
+        lamEl.textContent = "Λ " + lam.toFixed(3);
+        if (window.SZLHolo && SZLHolo.lambdaColor) { lamEl.style.color = SZLHolo.lambdaColor(lam); }
+      }
+      if (verdEl) {
+        verdEl.innerHTML = "<b>" + ESC(d.verdict || "—") + "</b> (L" +
+          ESC(d.dial != null ? d.dial : dial) + ") · rule <b>" + ESC(d.rule_id || "—") +
+          "</b> · OSCAL " + ESC((d.oscal_controls || []).join(", ") || "—") +
+          "<br>" + ESC(d.explanation || "");
+        verdEl.className = "";
+      }
+      pushReceipt(d);
+    }).catch(function (e) {
+      if (verdEl) { verdEl.innerHTML = '<span style="color:var(--err)">classify failed: ' + ESC(e.message) + "</span>"; }
+    }).then(function () {
+      if (btn) { btn.disabled = false; }
+    });
+  }
+
+  // ---- TOGGLE (keeps 2D content as fallback) ----
+  function toggle() {
+    var panel = Q("ar3d-panel");
+    var btn = Q("ar3d-toggle");
+    if (!panel) { return; }
+    var showing = panel.style.display !== "none" && panel.style.display !== "";
+    if (showing) {
+      panel.style.display = "none";
+      if (btn) { btn.textContent = "Show 3D autonomy"; }
+      if (scene && scene.stop) { try { scene.stop(); } catch (_) {} }
+    } else {
+      panel.style.display = "block";
+      if (btn) { btn.textContent = "Hide 3D autonomy"; }
+      if (ensureScene() && scene && scene.start) { try { scene.start(); } catch (_) {} }
+    }
+  }
+
+  function init() {
+    var btn = Q("ar3d-toggle");
+    if (btn) { btn.addEventListener("click", toggle); }
+    var cb = Q("ar3d-classify");
+    if (cb) { cb.addEventListener("click", classify); }
+    loadDial();
+    setMode();
+    if (!window.SZLHolo) {
+      var el = Q("ar3d-mode");
+      if (el) { el.textContent = "3D kit unavailable — 2D content below is the fallback"; }
+    }
+    // expose hooks for live verification
+    window.__AR3D_toggle = toggle;
+    window.__AR3D_classify = classify;
+    window.__AR3D_state = function () {
+      return { built: built, dial: dial, signed: signed, lambda: sphere ? sphere.lambda : null };
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
 </script>
 </body>
 </html>
