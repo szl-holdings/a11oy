@@ -129,6 +129,63 @@ match the Rust SIMD original. Compression ratios shown are MEASURED on the actua
 bytes stored; recall is a MODELED design bound surfaced honestly (trust ceiling
 < 1.0 — never perfect).
 
+
+## Governed Multi-Model Audit Harness (YUPAY) — studied open work, made ours (attribution required)
+
+YUPAY (Quechua: *to count / to reckon / to audit*) is SZL Holdings' own governed
+multi-model **audit harness**. It runs the SAME audit task through MULTIPLE of OUR
+OWN governed open models, scores each on **issues-found / tokens / cost / latency**,
+and emits ONE **DSSE-signed comparison receipt** with a **Restraint verdict**. The
+signed multi-model comparison is the governed difference. Implemented in
+`szl_yupay.py`.
+
+### Kilo Code / André Lindenberg — audit methodology (INSPIRATION only)
+- **Source:** https://blog.kilo.ai/p/we-audited-the-same-codebase-with
+  ("We Audited the Same Codebase with Claude Opus 4.8 and MiniMax M3", 2026-06-05).
+- **What we studied:** the AUDIT METHODOLOGY — give every model the *identical*
+  audit task on a planted-bug codebase, then track issues-found, tokens, cost, and
+  time per run, and reason about cost-per-issue rather than naming a single winner.
+- **What we built (OURS):** `szl_yupay.py` runs that methodology over OUR OWN
+  governed open models (SZL-Nemo on a Qwen3-32B Apache-2.0 base; the HF-router
+  models a11oy already declares; mesh models when wired) on OUR OWN harness, and
+  **signs** the comparison (DSSE) plus attaches a Restraint verdict. We adopt the
+  methodology only; we make no claim of affiliation with or endorsement by Kilo
+  Code or André Lindenberg.
+- **Honest labeling (Doctrine v11, Zero-Bandaid Law):** no API key is wired in the
+  HF Space, so in-Space rows are **MODELED** (issues from the published benchmark;
+  cost = MODELED tokens × **published per-token rates, cited**). A row is
+  **MEASURED** only when a real run happens in-process. Unreachable models are
+  labeled **ROADMAP**. We never fabricate a benchmark.
+
+### MiniMax Sparse Attention paper (INSPIRATION only — NOT a model build)
+- **Source:** https://huggingface.co/papers/2606.13392 ("MiniMax Sparse Attention",
+  Lai et al., 2026-06-12) — blockwise sparse attention on Grouped-Query Attention
+  with group-specific top-k block selection and an exact-softmax main branch.
+- **What we take:** the *published technique* as INSPIRATION for OUR OWN
+  efficient-attention research path for SZL-Nemo on the clean OPEN Qwen3-32B
+  (Apache-2.0) base. See `team/AUDIT/frontier/YUPAY_SPARSE_ATTN_RESEARCH.md` and the
+  box-gated Forge order `team/AUDIT/frontier/FORGE_YUPAY_SPARSE_ATTN.md`. YUPAY
+  itself trains/serves NO model.
+
+### NO M3 WEIGHTS / NO M3 DERIVATIVE (defense-license + sovereignty)
+MiniMax M3 is open-weight, but its license **restricts military/defense use** and
+MiniMax is **PRC-based** (subject to the PRC National Intelligence Law). SZL
+Holdings demonstrates at the **Defense Unicorns Warhacker** event. Therefore SZL
+Holdings:
+- **NEVER** bases SZL-Nemo on M3 and **NEVER** ships an M3 derivative;
+- **NEVER** downloads, serves, or ingests M3 weights;
+- takes ONLY the open AUDIT METHODOLOGY and the published sparse-attention
+  TECHNIQUE (as inspiration) — applied to OUR own open Qwen3-32B Apache base.
+
+In YUPAY, MiniMax M3 appears solely as a **non-participating reference row** labeled
+**EXCLUDED-BY-DOCTRINE** — never run, never scored as if run. Reference figures
+shown (e.g. 13/17 issues at ~$0.07 from the Kilo writeup) are context only.
+
+**SZL-Nemo provenance:** SZL-Nemo is OUR governed model built **on an OPEN base**
+(default **Qwen3-32B, Apache-2.0**), never trained from scratch, never an M3
+derivative. Our contribution is the governed-MoE domain-expert router and the
+governed wrapper — not the base weights.
+
 ## Section 889 Declaration
 
 SZL Holdings does NOT use equipment or services from:
