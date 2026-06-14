@@ -122,6 +122,13 @@ COPY szl_willay_gateway.py a11oy_willay_nav.py ./
 # and /waqay 404s. szl_dsse.py / szl_provenance.py / a11oy_org_rag.py already COPYed above.
 # Per-file COPY (this Dockerfile uses no COPY . .).
 COPY szl_waqay.py a11oy_waqay_nav.py ./
+# YUPAY — governed multi-model audit harness (Quechua "to count/audit/reckon").
+# szl_yupay.py serves /yupay + /api/a11oy/v1/yupay/*; a11oy_yupay_nav.py attaches the
+# idempotent /console nav injector. MUST be COPY'd or serve.py's guarded imports fall back
+# and /yupay 404s. szl_dsse.py / szl_provenance.py already COPYed above. Audit methodology
+# inspired by the Kilo "same-codebase" audit + MiniMax sparse-attention paper (cited as
+# published ideas only); SZL-Nemo is governed Qwen3-32B Apache, never an M3 derivative.
+COPY szl_yupay.py a11oy_yupay_nav.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
