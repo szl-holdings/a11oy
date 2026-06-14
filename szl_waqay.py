@@ -86,7 +86,19 @@ import struct
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-import numpy as np
+# NumPy is OPTIONAL. The a11oy HF image is intentionally numpy-less (the web path
+# never runs heavy solves); killinchu's image DOES ship numpy. To keep this module
+# BYTE-IDENTICAL across both apps AND able to import + serve on the numpy-less
+# image, numpy is imported behind a guard. When numpy is present we use it (fast
+# path); when it is absent we fall back to an honest pure-Python implementation
+# (slower, MODELED/ROADMAP perf — never claimed to match the Rust SIMD original).
+# This mirrors the sibling pattern (szl_quantum_bio, szl_kc_tda_fracture, …).
+try:
+    import numpy as np  # type: ignore
+    _HAVE_NUMPY = True
+except Exception:                       # pragma: no cover - numpy-less HF image
+    np = None                           # type: ignore
+    _HAVE_NUMPY = False
 
 # Request type for the served route handlers. FastAPI recognizes fastapi.Request
 # (== starlette Request) for query/body access; imported at MODULE scope so
@@ -97,7 +109,109 @@ except Exception:  # pragma: no cover
     from starlette.requests import Request as Request  # type: ignore
 
 # NumPy 2.0 renamed trapz -> trapezoid; support both (HF cpu-basic robustness).
-_TRAPZ = getattr(np, "trapezoid", getattr(np, "trapz", None))
+_TRAPZ = (getattr(np, "trapezoid", getattr(np, "trapz", None)) if _HAVE_NUMPY else None)
+
+
+# ===========================================================================
+# PURE-PYTHON LINEAR ALGEBRA FALLBACK (used iff numpy is absent). Small, honest,
+# dependency-free. Operates on plain Python lists of floats. Only the operations
+# WAQAY actually needs are implemented; perf is MODELED/ROADMAP, correctness is
+# real (validated against the numpy path in the self-test when numpy is present).
+# ===========================================================================
+class _PRNG:
+    """Deterministic SplitMix64 + Box-Muller normal sampler (seed-reproducible).
+    Replaces numpy's default_rng().standard_normal when numpy is absent."""
+    __slots__ = ("_s", "_spare", "_has_spare")
+
+    def __init__(self, seed: int):
+        self._s = seed & 0xFFFFFFFFFFFFFFFF
+        self._spare = 0.0
+        self._has_spare = False
+
+    def _next_u64(self) -> int:
+        self._s = (self._s + 0x9E3779B97F4A7C15) & 0xFFFFFFFFFFFFFFFF
+        z = self._s
+        z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & 0xFFFFFFFFFFFFFFFF
+        z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & 0xFFFFFFFFFFFFFFFF
+        return (z ^ (z >> 31)) & 0xFFFFFFFFFFFFFFFF
+
+    def _uniform(self) -> float:
+        # 53-bit uniform in (0,1).
+        return ((self._next_u64() >> 11) + 0.5) / (1 << 53)
+
+    def normal(self) -> float:
+        if self._has_spare:
+            self._has_spare = False
+            return self._spare
+        u1 = self._uniform()
+        u2 = self._uniform()
+        r = math.sqrt(-2.0 * math.log(u1))
+        self._spare = r * math.sin(2.0 * math.pi * u2)
+        self._has_spare = True
+        return r * math.cos(2.0 * math.pi * u2)
+
+
+def _py_qr_q(g: List[List[float]]) -> List[List[float]]:
+    """Modified Gram-Schmidt QR -> return an orthonormal Q (column-orthonormal),
+    sign-corrected so it is deterministic (matches numpy.linalg.qr convention:
+    Q * diag(sign(diag(R)))). g is a square n x n matrix (row-major)."""
+    n = len(g)
+    # work on columns of g
+    cols = [[g[r][c] for r in range(n)] for c in range(n)]
+    q_cols: List[List[float]] = []
+    r_diag: List[float] = []
+    for j in range(n):
+        v = list(cols[j])
+        for i in range(len(q_cols)):
+            qi = q_cols[i]
+            dot = sum(qi[t] * cols[j][t] for t in range(n))
+            for t in range(n):
+                v[t] -= dot * qi[t]
+        norm = math.sqrt(sum(x * x for x in v))
+        if norm < 1e-12:
+            norm = 1e-12
+        qj = [x / norm for x in v]
+        q_cols.append(qj)
+        # R[j,j] is the projection coefficient (the norm before normalization,
+        # with the sign carried by the dominant component); numpy's R diagonal
+        # sign convention: use sign of the raw diagonal of R = <q_j, col_j>.
+        rjj = sum(qj[t] * cols[j][t] for t in range(n))
+        r_diag.append(rjj)
+    # sign-correct columns so diag(R) >= 0 (deterministic Q).
+    for j in range(n):
+        s = 1.0 if r_diag[j] >= 0 else -1.0
+        if s < 0:
+            q_cols[j] = [-x for x in q_cols[j]]
+    # return Q row-major: Q[r][c] = q_cols[c][r]
+    return [[q_cols[c][r] for c in range(n)] for r in range(n)]
+
+
+def _py_matvec(mat: List[List[float]], vec: List[float]) -> List[float]:
+    return [sum(row[t] * vec[t] for t in range(len(vec))) for row in mat]
+
+
+def _py_matTvec(mat: List[List[float]], vec: List[float]) -> List[float]:
+    """(mat^T) @ vec where mat is row-major n x n."""
+    n = len(mat)
+    out = [0.0] * n
+    for r in range(n):
+        vr = vec[r]
+        row = mat[r]
+        for c in range(n):
+            out[c] += row[c] * vr
+    return out
+
+
+def _py_searchsorted(boundaries: List[float], x: float) -> int:
+    """np.searchsorted(boundaries, x) with side='left' (returns insertion index)."""
+    lo, hi = 0, len(boundaries)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if boundaries[mid] < x:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
 
 # Deterministic rotation seed (mirrors turbovec's fixed ROTATION_SEED idea so an
 # index is reproducible and air-gapped — no per-build randomness leaks in).
@@ -132,14 +246,10 @@ DOCTRINE = {
 # codebook depends ONLY on (dim, bits), never on ingested data. (Re-implements
 # turbovec/src/codebook.rs::lloyd_max in NumPy.)
 # ===========================================================================
-def _beta_cdf(x: np.ndarray, a: float) -> np.ndarray:
+def _beta_cdf_scalar(x: float, a: float) -> float:
     """Regularized incomplete beta I_x(a,a) via a continued fraction (Lentz),
-    no SciPy dependency (HF cpu-basic friendly). Symmetric Beta(a,a) on [0,1]."""
-    x = np.clip(np.asarray(x, dtype=np.float64), 0.0, 1.0)
-    out = np.empty_like(x)
-    for i, xi in enumerate(x.ravel()):
-        out.ravel()[i] = _betai(a, a, float(xi))
-    return out
+    no SciPy dependency. Symmetric Beta(a,a) on [0,1]. Scalar / pure-Python."""
+    return _betai(a, a, min(max(float(x), 0.0), 1.0))
 
 
 def _betai(a: float, b: float, x: float) -> float:
@@ -189,66 +299,82 @@ def _betacf(a: float, b: float, x: float, itmax: int = 200, eps: float = 1e-12) 
     return h
 
 
-def _beta_pdf_on_pm1(x: np.ndarray, a: float) -> np.ndarray:
-    """pdf on [-1,1] of the symmetric Beta(a,a) marginal of a rotated unit coord."""
-    t = (np.asarray(x, dtype=np.float64) + 1.0) / 2.0
-    t = np.clip(t, 1e-12, 1.0 - 1e-12)
+def _beta_pdf_on_pm1_scalar(x: float, a: float) -> float:
+    """pdf on [-1,1] of the symmetric Beta(a,a) marginal of a rotated unit coord.
+    Scalar / pure-Python (data sizes here are tiny; no numpy needed)."""
+    t = (float(x) + 1.0) / 2.0
+    t = min(max(t, 1e-12), 1.0 - 1e-12)
     lbeta = math.lgamma(a) + math.lgamma(a) - math.lgamma(2 * a)
-    log_pdf01 = (a - 1.0) * np.log(t) + (a - 1.0) * np.log(1.0 - t) - lbeta
-    return np.exp(log_pdf01) / 2.0  # /2 for the [0,1]->[-1,1] change of variable
+    log_pdf01 = (a - 1.0) * math.log(t) + (a - 1.0) * math.log(1.0 - t) - lbeta
+    return math.exp(log_pdf01) / 2.0  # /2 for the [0,1]->[-1,1] change of variable
 
 
-def codebook(bits: int, dim: int, max_iter: int = 200, tol: float = 1e-10) -> Tuple[np.ndarray, np.ndarray]:
+def _trapz_py(ys: List[float], xs: List[float]) -> float:
+    """Pure-Python trapezoidal integration (np.trapezoid fallback)."""
+    s = 0.0
+    for i in range(1, len(xs)):
+        s += (xs[i] - xs[i - 1]) * (ys[i] + ys[i - 1]) * 0.5
+    return s
+
+
+def codebook(bits: int, dim: int, max_iter: int = 200, tol: float = 1e-10) -> Tuple[List[float], List[float]]:
     """Return (boundaries, centroids) for `bits`-bit Lloyd-Max quantization of the
     Beta((dim-1)/2,(dim-1)/2) marginal on [-1,1]. DATA-OBLIVIOUS: depends only on
-    (bits, dim). NO training data. (Re-implements turbovec lloyd_max in NumPy.)"""
+    (bits, dim). NO training data. Pure-Python (re-implements turbovec lloyd_max);
+    grid sizes are small so no numpy is required. Returns plain Python lists."""
     a = max((dim - 1.0) / 2.0, 0.5)
     n_levels = 1 << bits
     # std of Beta(a,a) mapped to [-1,1] is sqrt(1/(2a+1)); spread 3 std.
     std_dev = math.sqrt(1.0 / (2.0 * a + 1.0))
     spread = 3.0 * std_dev
-    centroids = np.linspace(-spread, spread, n_levels).astype(np.float64)
+    if n_levels == 1:
+        centroids = [0.0]
+    else:
+        step = (2.0 * spread) / (n_levels - 1)
+        centroids = [-spread + step * i for i in range(n_levels)]
 
-    # Fine grid for conditional-mean integration (adaptive Simpson is overkill in
-    # NumPy; a dense trapezoid on a 4096-pt grid matches to < 1e-6 here).
-    grid = np.linspace(-1.0, 1.0, 4097)
-    pdf = _beta_pdf_on_pm1(grid, a)
-    xpdf = grid * pdf
+    # Fine grid for conditional-mean integration (a dense trapezoid on a 4096-pt
+    # grid matches the analytic conditional means to < 1e-6 here).
+    ng = 4097
+    grid = [-1.0 + (2.0 * i) / (ng - 1) for i in range(ng)]
+    pdf = [_beta_pdf_on_pm1_scalar(g, a) for g in grid]
+    xpdf = [grid[i] * pdf[i] for i in range(ng)]
 
     for _ in range(max_iter):
-        bnds = (centroids[:-1] + centroids[1:]) / 2.0
-        edges = np.concatenate(([-1.0], bnds, [1.0]))
-        new_c = centroids.copy()
+        bnds = [(centroids[i] + centroids[i + 1]) / 2.0 for i in range(n_levels - 1)]
+        edges = [-1.0] + bnds + [1.0]
+        new_c = list(centroids)
         for i in range(n_levels):
             lo, hi = edges[i], edges[i + 1]
-            sel = (grid >= lo) & (grid <= hi)
-            if sel.sum() < 2:
+            sel = [j for j in range(ng) if lo <= grid[j] <= hi]
+            if len(sel) < 2:
                 continue
-            mass = _TRAPZ(pdf[sel], grid[sel])
+            sel_pdf = [pdf[j] for j in sel]
+            sel_grid = [grid[j] for j in sel]
+            mass = _trapz_py(sel_pdf, sel_grid)
             if mass < 1e-15:
                 continue
-            new_c[i] = _TRAPZ(xpdf[sel], grid[sel]) / mass
-        change = float(np.max(np.abs(new_c - centroids)))
+            sel_xpdf = [xpdf[j] for j in sel]
+            new_c[i] = _trapz_py(sel_xpdf, sel_grid) / mass
+        change = max(abs(new_c[i] - centroids[i]) for i in range(n_levels))
         centroids = new_c
         if change < tol:
             break
-    boundaries = (centroids[:-1] + centroids[1:]) / 2.0
-    return boundaries.astype(np.float32), centroids.astype(np.float32)
+    boundaries = [(centroids[i] + centroids[i + 1]) / 2.0 for i in range(n_levels - 1)]
+    return boundaries, centroids
 
 
 # ===========================================================================
 # ROTATION — deterministic seeded orthogonal matrix via QR of a Gaussian.
 # (Re-implements turbovec/src/rotation.rs::make_rotation_matrix in NumPy.)
 # ===========================================================================
-def make_rotation_matrix(dim: int, seed: int = ROTATION_SEED) -> np.ndarray:
-    rng = np.random.default_rng(seed & 0xFFFF_FFFF_FFFF_FFFF)
-    g = rng.standard_normal((dim, dim)).astype(np.float64)
-    q, r = np.linalg.qr(g)
-    # Sign-correct so Q is deterministic: Q = Q * diag(sign(diag(R))).
-    signs = np.sign(np.diag(r))
-    signs[signs == 0] = 1.0
-    q = q * signs[np.newaxis, :]
-    return q.astype(np.float32)
+def make_rotation_matrix(dim: int, seed: int = ROTATION_SEED) -> List[List[float]]:
+    """Deterministic seeded orthogonal matrix Q (row-major list of lists) via
+    Gram-Schmidt QR of a seeded Gaussian. Pure-Python (no numpy) so it runs on
+    the numpy-less HF image; reproducible + air-gapped (fixed ROTATION_SEED)."""
+    rng = _PRNG(seed & 0xFFFF_FFFF_FFFF_FFFF)
+    g = [[rng.normal() for _ in range(dim)] for _ in range(dim)]
+    return _py_qr_q(g)  # already sign-corrected -> deterministic Q
 
 
 # ===========================================================================
@@ -261,8 +387,9 @@ class WaqayIndex:
     codebook is analytic (data-oblivious). Stores bit-packed codes + a per-vector
     scale; searches approximate inner products by reconstructing codes.
 
-    Honest perf note: this is pure NumPy. Throughput is MODELED/ROADMAP vs the
-    Rust SIMD original; correctness (compression + approximate recall) is real.
+    Honest perf note: this is a pure-Python governed index (numpy-optional).
+    Throughput is MODELED/ROADMAP vs the Rust SIMD original; correctness
+    (compression + approximate recall) is real and measured.
     """
 
     def __init__(self, dim: int, bit_width: int = 2, seed: int = ROTATION_SEED):
@@ -273,10 +400,10 @@ class WaqayIndex:
         self.dim = int(dim)
         self.bit_width = int(bit_width)
         self.seed = int(seed)
-        self.rotation = make_rotation_matrix(self.dim, self.seed)
+        self.rotation = make_rotation_matrix(self.dim, self.seed)   # row-major Q
         self.boundaries, self.centroids = codebook(self.bit_width, self.dim)
-        # storage
-        self._codes: List[np.ndarray] = []     # each: uint8 array of length dim (level indices)
+        # storage (pure-Python lists; numpy-optional runtime)
+        self._codes: List[List[int]] = []      # each: length-dim list of level indices (0..n_levels-1)
         self._scales: List[float] = []         # per-vector ||v|| / <u, x_hat>
         self._ext_ids: List[str] = []          # stable external IDs
         self._meta: List[Dict[str, Any]] = []  # arbitrary per-doc metadata
@@ -290,36 +417,53 @@ class WaqayIndex:
     def ids(self) -> List[str]:
         return list(self._ext_ids)
 
+    @staticmethod
+    def _as_rows(vectors: Sequence[Sequence[float]]) -> List[List[float]]:
+        """Coerce input to a list of float rows (accepts a single 1-D vector,
+        a list of vectors, or a numpy array when numpy is present)."""
+        if _HAVE_NUMPY and isinstance(vectors, np.ndarray):
+            arr = vectors
+            if arr.ndim == 1:
+                arr = arr[None, :]
+            return [[float(x) for x in row] for row in arr]
+        # plain python
+        if len(vectors) > 0 and not hasattr(vectors[0], "__len__"):
+            return [[float(x) for x in vectors]]            # single 1-D vector
+        return [[float(x) for x in row] for row in vectors]
+
     # -- encode ------------------------------------------------------------
-    def _encode_rows(self, vectors: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """Return (level_codes:[n,dim] uint8, scales:[n] float32)."""
-        v = np.asarray(vectors, dtype=np.float32)
-        if v.ndim == 1:
-            v = v[None, :]
-        if v.shape[1] != self.dim:
-            raise ValueError(f"expected dim {self.dim}, got {v.shape[1]}")
-        norms = np.linalg.norm(v, axis=1)
-        inv = np.where(norms > 1e-10, 1.0 / norms, 0.0)
-        unit = v * inv[:, None]
-        rotated = unit @ self.rotation.T  # [n, dim], each coord ~ Beta(a,a)
-        # quantize each coord to nearest centroid via boundary search.
-        codes = np.searchsorted(self.boundaries, rotated).astype(np.uint8)
-        x_hat = self.centroids[codes]                       # reconstructed rotated unit
-        # RaBitQ-style length renorm: scale = ||v|| / <u_rot, x_hat>.
-        dot = np.einsum("ij,ij->i", rotated, x_hat)
-        dot = np.where(np.abs(dot) > 1e-8, dot, 1.0)
-        scales = (norms / dot).astype(np.float32)
-        return codes, scales
+    def _encode_rows(self, vectors: Sequence[Sequence[float]]) -> Tuple[List[List[int]], List[float]]:
+        """Return (level_codes: list of length-dim int lists, scales: list of float).
+        Pure-Python; numpy-optional. Mirrors turbovec encode: normalize ->
+        rotate -> per-coord quantize -> RaBitQ-style length renorm."""
+        rows = self._as_rows(vectors)
+        codes_out: List[List[int]] = []
+        scales_out: List[float] = []
+        b = self.boundaries
+        cents = self.centroids
+        for v in rows:
+            if len(v) != self.dim:
+                raise ValueError(f"expected dim {self.dim}, got {len(v)}")
+            norm = math.sqrt(sum(x * x for x in v))
+            inv = (1.0 / norm) if norm > 1e-10 else 0.0
+            unit = [x * inv for x in v]
+            # rotated = unit @ R.T  ==  R @ unit  (R row-major)
+            rotated = _py_matvec(self.rotation, unit)
+            code = [_py_searchsorted(b, r) for r in rotated]
+            x_hat = [cents[ci] for ci in code]
+            dot = sum(rotated[t] * x_hat[t] for t in range(self.dim))
+            if abs(dot) <= 1e-8:
+                dot = 1.0
+            scales_out.append(norm / dot)
+            codes_out.append(code)
+        return codes_out, scales_out
 
     def add(self, vectors: Sequence[Sequence[float]],
             ids: Optional[Sequence[str]] = None,
             meta: Optional[Sequence[Dict[str, Any]]] = None) -> Dict[str, Any]:
         """Online add — NO train phase. Returns a small honest stat dict."""
-        v = np.asarray(vectors, dtype=np.float32)
-        if v.ndim == 1:
-            v = v[None, :]
-        n = v.shape[0]
-        codes, scales = self._encode_rows(v)
+        codes, scales = self._encode_rows(vectors)
+        n = len(codes)
         if ids is None:
             base = len(self._codes)
             ids = [f"waqay-{base + i}" for i in range(n)]
@@ -341,16 +485,15 @@ class WaqayIndex:
         return {"added": n, "total": len(self._codes), "train_phase": "none (data-oblivious)"}
 
     # -- search ------------------------------------------------------------
-    def _reconstruct_matrix(self) -> np.ndarray:
-        """Reconstruct approximate ORIGINAL-space vectors from stored codes."""
-        if not self._codes:
-            return np.zeros((0, self.dim), dtype=np.float32)
-        code_mat = np.stack(self._codes).astype(np.int64)        # [N, dim]
-        x_hat = self.centroids[code_mat]                          # [N, dim] rotated unit approx
-        # back to original space: unit ≈ x_hat @ R ; v ≈ scale * unit
-        unit_approx = x_hat @ self.rotation                      # inverse rotation = R (orthogonal, R^-1=R^T applied as @R since we used R.T forward)
-        scales = np.asarray(self._scales, dtype=np.float32)[:, None]
-        return (unit_approx * scales).astype(np.float32)
+    def _reconstruct_row(self, pos: int) -> List[float]:
+        """Reconstruct one approximate ORIGINAL-space vector from stored codes.
+        unit ≈ x_hat @ R (R orthogonal, inverse of the forward R.T); v ≈ scale*unit."""
+        code = self._codes[pos]
+        x_hat = [self.centroids[ci] for ci in code]
+        # unit_approx = x_hat @ R  ==  R.T @ x_hat  (R row-major) -> use matTvec.
+        unit_approx = _py_matTvec(self.rotation, x_hat)
+        s = self._scales[pos]
+        return [u * s for u in unit_approx]
 
     def search(self, query: Sequence[float], k: int = 10,
                allow: Optional[Sequence[str]] = None,
@@ -361,32 +504,34 @@ class WaqayIndex:
         0/1 array over internal positions. Either restricts the candidate set
         (the governed allowlist gate — only permitted docs may be retrieved).
         """
-        q = np.asarray(query, dtype=np.float32).ravel()
-        if q.shape[0] != self.dim:
-            raise ValueError(f"query dim {q.shape[0]} != index dim {self.dim}")
+        q = self._as_rows([list(query)])[0] if not (hasattr(query, "__len__") and len(query) and hasattr(query[0], "__len__")) else [float(x) for x in query]
+        if len(q) != self.dim:
+            raise ValueError(f"query dim {len(q)} != index dim {self.dim}")
         n = len(self._codes)
         if n == 0:
             return [], []
-        recon = self._reconstruct_matrix()        # [N, dim]
-        scores = recon @ q                         # approximate <v, q>
-        mask = np.ones(n, dtype=bool)
-        if allow is not None:
-            allowset = set(str(a) for a in allow)
-            mask &= np.array([eid in allowset for eid in self._ext_ids], dtype=bool)
+        allowset = set(str(a) for a in allow) if allow is not None else None
         if bitmask is not None:
-            bm = np.asarray(bitmask, dtype=bool)
-            if bm.shape[0] != n:
+            bm = list(bitmask)
+            if len(bm) != n:
                 raise ValueError("bitmask length must equal index size")
-            mask &= bm
-        idx_pool = np.nonzero(mask)[0]
-        if idx_pool.size == 0:
+        else:
+            bm = None
+        scored: List[Tuple[float, int]] = []
+        for pos in range(n):
+            if allowset is not None and self._ext_ids[pos] not in allowset:
+                continue
+            if bm is not None and not bm[pos]:
+                continue
+            recon = self._reconstruct_row(pos)
+            score = sum(recon[t] * q[t] for t in range(self.dim))  # approximate <v, q>
+            scored.append((score, pos))
+        if not scored:
             return [], []
-        pool_scores = scores[idx_pool]
-        kk = min(k, idx_pool.size)
-        top_local = np.argpartition(-pool_scores, kk - 1)[:kk]
-        top_local = top_local[np.argsort(-pool_scores[top_local])]
-        top = idx_pool[top_local]
-        return [float(scores[i]) for i in top], [self._ext_ids[i] for i in top]
+        scored.sort(key=lambda sp: -sp[0])
+        kk = min(k, len(scored))
+        top = scored[:kk]
+        return [float(s) for s, _ in top], [self._ext_ids[p] for _, p in top]
 
     # -- compression (MEASURED) -------------------------------------------
     def compression(self) -> Dict[str, Any]:
@@ -423,37 +568,38 @@ class WaqayIndex:
                             "real recall depends on data + dim and is NEVER claimed perfect "
                             "(trust ceiling < 1.0).")}
 
-    def measured_recall(self, queries: np.ndarray, exact_vectors: np.ndarray,
+    def measured_recall(self, queries: Sequence[Sequence[float]],
+                        exact_vectors: Sequence[Sequence[float]],
                         k: int = 10) -> Dict[str, Any]:
         """MEASURED recall@k of WAQAY vs an exact float32 brute-force baseline over
         the SAME ingested vectors. This is a REAL number on REAL (SAMPLE) data."""
-        exact = np.asarray(exact_vectors, dtype=np.float32)
-        Q = np.asarray(queries, dtype=np.float32)
-        if Q.ndim == 1:
-            Q = Q[None, :]
+        exact = self._as_rows(exact_vectors)
+        Q = self._as_rows(queries)
+        n_exact = len(exact)
         hits = 0
         total = 0
-        for qi in range(Q.shape[0]):
-            q = Q[qi]
-            exact_scores = exact @ q
-            kk = min(k, exact.shape[0])
-            exact_top = set(np.argsort(-exact_scores)[:kk].tolist())
+        for q in Q:
+            exact_scores = [sum(exact[r][t] * q[t] for t in range(self.dim)) for r in range(n_exact)]
+            kk = min(k, n_exact)
+            order = sorted(range(n_exact), key=lambda r: -exact_scores[r])
+            exact_top = set(order[:kk])
             _, approx_ids = self.search(q, k=kk)
             approx_pos = set(self._id_to_pos[i] for i in approx_ids if i in self._id_to_pos)
             hits += len(exact_top & approx_pos)
             total += kk
         recall = (hits / total) if total else 0.0
         return {"label": "MEASURED", "recall@k": round(recall, 4), "k": k,
-                "n_queries": int(Q.shape[0]),
+                "n_queries": len(Q),
                 "honesty": "Real recall@k vs exact float32 baseline on SAMPLE data."}
 
     # -- digest for receipts ----------------------------------------------
     def index_digest(self) -> str:
         h = hashlib.sha256()
         h.update(struct.pack("<III", self.dim, self.bit_width, len(self._codes)))
-        h.update(self.boundaries.tobytes())
+        for b in self.boundaries:
+            h.update(struct.pack("<d", float(b)))
         for c in self._codes:
-            h.update(c.tobytes())
+            h.update(bytes(int(x) & 0xFF for x in c))
         for eid in self._ext_ids:
             h.update(eid.encode("utf-8"))
         return h.hexdigest()
@@ -589,23 +735,24 @@ _SAMPLE_DOCS = [
 ]
 
 
-def _hash_embed(text: str, dim: int = 128) -> np.ndarray:
+def _hash_embed(text: str, dim: int = 128) -> List[float]:
     """Deterministic, dependency-free SAMPLE embedding (hashing trick). Honestly
     labeled SAMPLE — NOT a real semantic embedding. Used only to demo the index
-    plumbing when the real BAAI/bge embedder is unavailable in this runtime."""
-    vec = np.zeros(dim, dtype=np.float32)
+    plumbing when the real BAAI/bge embedder is unavailable in this runtime.
+    Pure-Python (returns a plain list) — no numpy needed."""
+    vec = [0.0] * dim
     for tok in (text.lower().split()):
         h = int(hashlib.md5(tok.encode("utf-8")).hexdigest(), 16)
         vec[h % dim] += 1.0 if (h >> 8) & 1 else -1.0
-    nrm = np.linalg.norm(vec)
-    return vec / nrm if nrm > 1e-9 else vec
+    nrm = math.sqrt(sum(x * x for x in vec))
+    return [x / nrm for x in vec] if nrm > 1e-9 else vec
 
 
 def demo(query: str = "how does WAQAY safeguard the index?", bit_width: int = 2,
          dim: int = 128, k: int = 4) -> Dict[str, Any]:
     """One-call live demo for the /waqay tab. All data labeled SAMPLE/MEASURED/MODELED."""
     idx = WaqayIndex(dim=dim, bit_width=bit_width)
-    vecs = np.stack([_hash_embed(t, dim) for _, t in _SAMPLE_DOCS])
+    vecs = [_hash_embed(t, dim) for _, t in _SAMPLE_DOCS]
     ids = [d for d, _ in _SAMPLE_DOCS]
     idx.add(vecs, ids=ids, meta=[{"text": t} for _, t in _SAMPLE_DOCS])
     brec = build_receipt(idx, ids, data_label="SAMPLE")
@@ -824,16 +971,22 @@ window.addEventListener('DOMContentLoaded',run);
 # Self-test (run: python szl_waqay.py)
 # ===========================================================================
 if __name__ == "__main__":
+    print(f"szl_waqay self-test: numpy {'PRESENT' if _HAVE_NUMPY else 'ABSENT (pure-Python path)'}")
+
     # 1. data-oblivious codebook depends only on (bits, dim).
     b1, c1 = codebook(2, 128)
     b2, c2 = codebook(2, 128)
-    assert np.allclose(c1, c2), "codebook must be deterministic / data-oblivious"
+    assert all(abs(c1[i] - c2[i]) < 1e-9 for i in range(len(c1))), "codebook must be deterministic / data-oblivious"
     assert len(c1) == 4 and len(b1) == 3, "2-bit => 4 levels, 3 boundaries"
 
-    # 2. online add (no train phase) + length reporting.
-    rng = np.random.default_rng(0)
-    V = rng.standard_normal((200, 128)).astype(np.float32)
-    V /= np.linalg.norm(V, axis=1, keepdims=True) + 1e-9
+    # 2. online add (no train phase) + length reporting. Build 200 SAMPLE unit
+    #    vectors with the dependency-free PRNG (works with or without numpy).
+    _trng = _PRNG(0xABCDEF)
+    V = []
+    for _ in range(200):
+        row = [_trng.normal() for _ in range(128)]
+        nrm = math.sqrt(sum(x * x for x in row)) + 1e-9
+        V.append([x / nrm for x in row])
     idx = WaqayIndex(dim=128, bit_width=2)
     idx.add(V[:100]); idx.add(V[100:])
     assert len(idx) == 200, len(idx)
