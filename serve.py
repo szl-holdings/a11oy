@@ -263,6 +263,23 @@ try:
 except Exception as _szl_es_e:  # pragma: no cover
     print(f"[a11oy] Energy/Sovereign-Compute NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
 
+# ── PRESS-PLAY ENERGY OPERATOR daemon (Dev 1) — dispatches a CONTINUOUS stream of
+# REAL inference jobs to the reachable Ollama GPU nodes (rtx-betterwithage, chaski),
+# meters MEASURED joules per job off the EXISTING betterwithage NVML joule-meter, and
+# emits a JobRecord per completed job (the Dev2 receipts / Dev3 projection / Dev4
+# dashboard contract). Graceful start/stop, backpressure, ledger state-persistence so
+# a restart resumes counts. HONEST: unreachable node -> DEGRADED (never faked); stale
+# meter (>30s) -> SAMPLE energy excluded from billable; no node reachable -> a clearly
+# marked local STUB (real CPU work, SAMPLE energy only). Adds POST/GET
+# /api/a11oy/v1/energy/operator/{start,stop,status} (dual-registered under /v1/* too).
+# Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_energy_operator as _szl_energy_operator
+    _szl_energy_operator.register(app, ns="a11oy")
+    print("[a11oy] Energy Operator registered: /api/a11oy/v1/energy/operator/{start,stop,status}", file=__import__("sys").stderr)
+except Exception as _szl_op_e:  # pragma: no cover
+    print(f"[a11oy] Energy Operator NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
+
 # ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
 # a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
 # eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
