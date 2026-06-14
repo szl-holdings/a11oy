@@ -116,6 +116,12 @@ COPY szl_mbse_cosim.py szl_mbse_nav.py ./
 # attaches the idempotent /console nav injector. MUST be COPY'd or serve.py's guarded
 # imports fall back and /willay 404s. Per-file COPY (this Dockerfile uses no COPY . .).
 COPY szl_willay_gateway.py a11oy_willay_nav.py ./
+# WAQAY — governed quantized vector index (TurboQuant-inspired, signed receipts + Restraint).
+# szl_waqay.py serves /waqay + /api/a11oy/v1/waqay/*; a11oy_waqay_nav.py attaches the
+# idempotent /console nav injector. MUST be COPY'd or serve.py's guarded imports fall back
+# and /waqay 404s. szl_dsse.py / szl_provenance.py / a11oy_org_rag.py already COPYed above.
+# Per-file COPY (this Dockerfile uses no COPY . .).
+COPY szl_waqay.py a11oy_waqay_nav.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
