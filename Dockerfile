@@ -108,6 +108,11 @@ COPY a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py ./
 # module honestly serves a SAMPLE certificate until Forge writes real ones on the box.
 COPY szl_pinn_bounds.py ./
 COPY physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json ./
+# PNT / quantum-sensing mesh (pure-stdlib closed-form web path; serves /api/a11oy/v1/pnt/*).
+# szl_pnt_mesh.py loads the 4 engine modules dynamically via importlib, so ALL FIVE MUST be
+# COPY'd or serve.py's guarded import falls back to a stub (merged-but-not-live) in the HF
+# image. Heavy numpy/UKF/PINN solves are the Forge/GPU path; this web path never solves.
+COPY szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py ./
 # ADDITIVE (I4 gpu-quant): Sovereign VRAM-resident GPU-Quant engine (PCA-Risk / TDA-Fracture
 # / HJB-Kelly) backing /api/a11oy/v1/quant/* + the /quant tab. PURE-STDLIB (Jacobi eigen,
 # Gaussian solve, union-find Betti) so it runs in the numpy-less HF image; cuML/giotto-tda
