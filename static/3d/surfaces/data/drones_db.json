@@ -1,0 +1,1152 @@
+[
+  {
+    "id": "mq9",
+    "model": "MQ-9 Reaper",
+    "manufacturer": "General Atomics",
+    "country": "USA",
+    "side": "allied",
+    "role": "strike/ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "ADS-B",
+      "Link-16",
+      "SATCOM"
+    ],
+    "specs": {
+      "wingspan_m": 20.1,
+      "mtow_kg": 4760,
+      "speed_kmh": 482,
+      "ceiling_m": 15240,
+      "endurance_hr": 27,
+      "range_km": 1852,
+      "unit_cost_usd": 56500000
+    },
+    "notes": "MALE hunter-killer; AGM-114 Hellfire + GBU; AFSOC inv ~50 (Jan 2025).",
+    "source": "https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104470/mq-9-reaper/"
+  },
+  {
+    "id": "rq4",
+    "model": "RQ-4 Global Hawk",
+    "manufacturer": "Northrop Grumman",
+    "country": "USA",
+    "side": "allied",
+    "role": "ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM",
+      "SIGINT",
+      "IMINT",
+      "MTI"
+    ],
+    "specs": {
+      "wingspan_m": 39.9,
+      "mtow_kg": 14628,
+      "speed_kmh": 629,
+      "ceiling_m": 18288,
+      "endurance_hr": 34,
+      "range_km": 22800
+    },
+    "notes": "HALE unarmed ISR; Blocks 20/30/40; SAR + SIGINT.",
+    "source": "https://www.af.mil/About-Us/Fact-Sheets/Display/Article/104516/rq-4-global-hawk/"
+  },
+  {
+    "id": "mq4c",
+    "model": "MQ-4C Triton",
+    "manufacturer": "Northrop Grumman",
+    "country": "USA",
+    "side": "allied",
+    "role": "maritime ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM",
+      "AESA radar",
+      "SIGINT"
+    ],
+    "specs": {
+      "wingspan_m": 39.9,
+      "mtow_kg": 14628,
+      "speed_kmh": 610,
+      "ceiling_m": 17000,
+      "endurance_hr": 30,
+      "range_km": 15000
+    },
+    "notes": "Navy maritime variant of Global Hawk; 360\u00b0 maritime surveillance.",
+    "source": "https://en.wikipedia.org/wiki/Northrop_Grumman_MQ-4C_Triton"
+  },
+  {
+    "id": "rq170",
+    "model": "RQ-170 Sentinel",
+    "manufacturer": "Lockheed Martin",
+    "country": "USA",
+    "side": "allied",
+    "role": "stealth ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "LOS datalink (classified)"
+    ],
+    "specs": {
+      "wingspan_m": 20.0,
+      "ceiling_m": 15000,
+      "role_note": "low-observable flying wing"
+    },
+    "notes": "'Beast of Kandahar' stealth ISR; one captured by Iran 2011.",
+    "source": "https://en.wikipedia.org/wiki/Lockheed_Martin_RQ-170_Sentinel"
+  },
+  {
+    "id": "mq1c",
+    "model": "MQ-1C Gray Eagle",
+    "manufacturer": "General Atomics",
+    "country": "USA",
+    "side": "allied",
+    "role": "strike/ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "ADS-B",
+      "TCDL",
+      "SATCOM"
+    ],
+    "specs": {
+      "wingspan_m": 17.0,
+      "mtow_kg": 1633,
+      "speed_kmh": 309,
+      "ceiling_m": 8839,
+      "endurance_hr": 25,
+      "range_km": 370
+    },
+    "notes": "US Army ERMP; AGM-114; ~204 produced; IOC 2009.",
+    "source": "https://www.globalmilitary.net/compare/aircraft/mq-1c-gray-eagle-vs-rq-4-global-hawk/"
+  },
+  {
+    "id": "mq1",
+    "model": "MQ-1 Predator",
+    "manufacturer": "General Atomics",
+    "country": "USA",
+    "side": "allied",
+    "role": "strike/ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "Ku SATCOM",
+      "C-band LOS"
+    ],
+    "specs": {
+      "wingspan_m": 16.8,
+      "mtow_kg": 1020,
+      "speed_kmh": 217,
+      "ceiling_m": 7620,
+      "endurance_hr": 24,
+      "range_km": 1100
+    },
+    "notes": "Retired USAF 2018; first armed UAV (Hellfire). Predecessor to Reaper.",
+    "source": "https://en.wikipedia.org/wiki/General_Atomics_MQ-1_Predator"
+  },
+  {
+    "id": "mq8",
+    "model": "MQ-8 Fire Scout",
+    "manufacturer": "Northrop Grumman",
+    "country": "USA",
+    "side": "allied",
+    "role": "VTOL ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "TCDL",
+      "Link-16"
+    ],
+    "specs": {
+      "rotor_m": 8.4,
+      "mtow_kg": 1430,
+      "speed_kmh": 213,
+      "ceiling_m": 6100,
+      "endurance_hr": 8
+    },
+    "notes": "US Navy VTOL ISR (MQ-8B/C); shipboard.",
+    "source": "https://en.wikipedia.org/wiki/Northrop_Grumman_MQ-8_Fire_Scout"
+  },
+  {
+    "id": "rq7",
+    "model": "RQ-7B Shadow",
+    "manufacturer": "AAI / Textron",
+    "country": "USA",
+    "side": "allied",
+    "role": "tactical ISR",
+    "group": "Group 3",
+    "telemetry": [
+      "C-band LOS",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 4.3,
+      "mtow_kg": 208,
+      "speed_kmh": 204,
+      "ceiling_m": 4600,
+      "endurance_hr": 9,
+      "range_km": 125
+    },
+    "notes": "US Army brigade-level tactical ISR; catapult launched.",
+    "source": "https://en.wikipedia.org/wiki/AAI_RQ-7_Shadow"
+  },
+  {
+    "id": "rq21",
+    "model": "RQ-21 Blackjack",
+    "manufacturer": "Boeing / Insitu",
+    "country": "USA",
+    "side": "allied",
+    "role": "tactical ISR",
+    "group": "Group 3",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 4.9,
+      "mtow_kg": 61,
+      "speed_kmh": 167,
+      "ceiling_m": 4900,
+      "endurance_hr": 16
+    },
+    "notes": "USMC/Navy expeditionary ISR; runway-independent (catapult/Skyhook).",
+    "source": "https://en.wikipedia.org/wiki/Boeing_Insitu_RQ-21_Blackjack"
+  },
+  {
+    "id": "scaneagle",
+    "model": "ScanEagle",
+    "manufacturer": "Boeing / Insitu",
+    "country": "USA",
+    "side": "allied",
+    "role": "ISR",
+    "group": "Group 2",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 3.1,
+      "mtow_kg": 22,
+      "speed_kmh": 148,
+      "ceiling_m": 5950,
+      "endurance_hr": 24
+    },
+    "notes": "Long-endurance small ISR; widely exported to allies.",
+    "source": "https://en.wikipedia.org/wiki/Boeing_Insitu_ScanEagle"
+  },
+  {
+    "id": "vbat",
+    "model": "V-BAT",
+    "manufacturer": "Shield AI",
+    "country": "USA",
+    "side": "allied",
+    "role": "ISR",
+    "group": "Group 3",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR",
+      "Hivemind autonomy"
+    ],
+    "specs": {
+      "height_m": 2.7,
+      "mtow_kg": 57,
+      "speed_kmh": 167,
+      "ceiling_m": 6100,
+      "endurance_hr": 10
+    },
+    "notes": "VTOL tail-sitter; AI autonomy (Hivemind) for GPS-denied ops.",
+    "source": "https://en.wikipedia.org/wiki/UAS_groups_of_the_United_States_military"
+  },
+  {
+    "id": "rq11",
+    "model": "RQ-11B Raven",
+    "manufacturer": "AeroVironment",
+    "country": "USA",
+    "side": "allied",
+    "role": "ISR",
+    "group": "Group 1",
+    "telemetry": [
+      "analog/digital LOS",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 1.4,
+      "mtow_kg": 1.9,
+      "speed_kmh": 81,
+      "ceiling_m": 4267,
+      "endurance_hr": 1.5,
+      "range_km": 10
+    },
+    "notes": "Most-produced US military UAS; hand-launched.",
+    "source": "https://en.wikipedia.org/wiki/AeroVironment_RQ-11_Raven"
+  },
+  {
+    "id": "rq20",
+    "model": "RQ-20 Puma",
+    "manufacturer": "AeroVironment",
+    "country": "USA",
+    "side": "allied",
+    "role": "ISR",
+    "group": "Group 1",
+    "telemetry": [
+      "digital LOS",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 2.8,
+      "mtow_kg": 6.3,
+      "speed_kmh": 83,
+      "ceiling_m": 3000,
+      "endurance_hr": 2.5
+    },
+    "notes": "All-environment hand-launched ISR (land/maritime).",
+    "source": "https://en.wikipedia.org/wiki/AeroVironment_RQ-20_Puma"
+  },
+  {
+    "id": "wasp",
+    "model": "Wasp AE",
+    "manufacturer": "AeroVironment",
+    "country": "USA",
+    "side": "allied",
+    "role": "ISR",
+    "group": "Group 1",
+    "telemetry": [
+      "digital LOS",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 1.0,
+      "mtow_kg": 1.3,
+      "speed_kmh": 74,
+      "endurance_hr": 0.83
+    },
+    "notes": "Micro hand-launched ISR; squad-level.",
+    "source": "https://en.wikipedia.org/wiki/AeroVironment_Wasp_III"
+  },
+  {
+    "id": "sb300",
+    "model": "Switchblade 300 (Blk 20)",
+    "manufacturer": "AeroVironment",
+    "country": "USA",
+    "side": "allied",
+    "role": "loitering munition",
+    "group": "Group 1",
+    "telemetry": [
+      "encrypted RF",
+      "GPS",
+      "EO/IR"
+    ],
+    "specs": {
+      "length_cm": 49.5,
+      "mass_kg": 3.27,
+      "speed_kmh": 161,
+      "endurance_min": 20,
+      "range_km": 30,
+      "warhead": "frag/EFP"
+    },
+    "notes": ">700 sent to Ukraine; backpackable precision strike.",
+    "source": "https://www.avinc.com/solution/switchblade-300-block-20/"
+  },
+  {
+    "id": "sb600",
+    "model": "Switchblade 600",
+    "manufacturer": "AeroVironment",
+    "country": "USA",
+    "side": "allied",
+    "role": "loitering munition",
+    "group": "Group 2",
+    "telemetry": [
+      "encrypted RF",
+      "SAASM GPS",
+      "EO/IR",
+      "DDL"
+    ],
+    "specs": {
+      "length_cm": 130,
+      "mass_kg": 29.5,
+      "speed_kmh": 185,
+      "endurance_min": 40,
+      "range_km": 90,
+      "warhead": "anti-armor (Javelin-derived)"
+    },
+    "notes": "Anti-armor loitering munition; 90+ km w/ relay.",
+    "source": "https://www.avinc.com/solution/switchblade-600/"
+  },
+  {
+    "id": "phoenixghost",
+    "model": "Phoenix Ghost",
+    "manufacturer": "AEVEX Aerospace",
+    "country": "USA",
+    "side": "allied",
+    "role": "loitering munition",
+    "group": "Group 2",
+    "telemetry": [
+      "encrypted RF",
+      "EO/IR"
+    ],
+    "specs": {
+      "endurance_min": 360,
+      "warhead": "anti-personnel/light-armor"
+    },
+    "notes": "Developed with US for Ukraine; long-endurance loiter.",
+    "source": "https://en.wikipedia.org/wiki/Phoenix_Ghost"
+  },
+  {
+    "id": "altius600",
+    "model": "ALTIUS-600",
+    "manufacturer": "Anduril (Area-I)",
+    "country": "USA",
+    "side": "allied",
+    "role": "loitering ISR/strike",
+    "group": "Group 2",
+    "telemetry": [
+      "mesh datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "mass_kg": 12.7,
+      "endurance_hr": 4,
+      "range_km": 440
+    },
+    "notes": "Air-launched effect; tube-launched swarm-capable.",
+    "source": "https://en.wikipedia.org/wiki/Anduril_Industries"
+  },
+  {
+    "id": "altius700",
+    "model": "ALTIUS-700",
+    "manufacturer": "Anduril (Area-I)",
+    "country": "USA",
+    "side": "allied",
+    "role": "loitering strike",
+    "group": "Group 3",
+    "telemetry": [
+      "mesh datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "mass_kg": 50,
+      "endurance_hr": 4,
+      "warhead": "modular"
+    },
+    "notes": "Larger ALTIUS; heavier payload / standoff strike.",
+    "source": "https://en.wikipedia.org/wiki/Anduril_Industries"
+  },
+  {
+    "id": "tb2",
+    "model": "Bayraktar TB2",
+    "manufacturer": "Baykar",
+    "country": "Turkey",
+    "side": "dual-use",
+    "role": "strike/ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR",
+      "laser designator"
+    ],
+    "specs": {
+      "wingspan_m": 12.0,
+      "length_m": 6.5,
+      "mtow_kg": 1200,
+      "speed_kmh": 222,
+      "ceiling_m": 8239,
+      "range_km": 300,
+      "unit_cost_usd": 5000000
+    },
+    "notes": "Used by allies AND adversaries; MAM-L/MAM-C munitions.",
+    "source": "https://www.globalmilitary.net/compare/aircraft/bayraktar-tb2-vs-shahed-136/"
+  },
+  {
+    "id": "tb2akinci",
+    "model": "Bayraktar Akinci",
+    "manufacturer": "Baykar",
+    "country": "Turkey",
+    "side": "dual-use",
+    "role": "strike/ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM",
+      "AESA radar",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 20.0,
+      "mtow_kg": 5500,
+      "speed_kmh": 361,
+      "ceiling_m": 12190,
+      "endurance_hr": 24
+    },
+    "notes": "HALE strike; cruise-missile capable.",
+    "source": "https://en.wikipedia.org/wiki/Baykar_Bayraktar_Ak%C4%B1nc%C4%B1"
+  },
+  {
+    "id": "heron",
+    "model": "IAI Heron",
+    "manufacturer": "Israel Aerospace Industries",
+    "country": "Israel",
+    "side": "allied",
+    "role": "ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "SATCOM",
+      "EO/IR",
+      "SAR"
+    ],
+    "specs": {
+      "wingspan_m": 16.6,
+      "mtow_kg": 1150,
+      "speed_kmh": 207,
+      "ceiling_m": 10000,
+      "endurance_hr": 52
+    },
+    "notes": "MALE ISR; widely exported to allied nations.",
+    "source": "https://en.wikipedia.org/wiki/IAI_Heron"
+  },
+  {
+    "id": "hermes900",
+    "model": "Elbit Hermes 900",
+    "manufacturer": "Elbit Systems",
+    "country": "Israel",
+    "side": "allied",
+    "role": "ISR/strike",
+    "group": "Group 4",
+    "telemetry": [
+      "SATCOM",
+      "EO/IR",
+      "SAR/GMTI"
+    ],
+    "specs": {
+      "wingspan_m": 15.0,
+      "mtow_kg": 1180,
+      "speed_kmh": 220,
+      "ceiling_m": 9100,
+      "endurance_hr": 36
+    },
+    "notes": "MALE multi-payload ISR; allied export.",
+    "source": "https://en.wikipedia.org/wiki/Elbit_Hermes_900"
+  },
+  {
+    "id": "harop",
+    "model": "IAI Harop",
+    "manufacturer": "IAI",
+    "country": "Israel",
+    "side": "allied",
+    "role": "loitering munition",
+    "group": "Group 3",
+    "telemetry": [
+      "man-in-loop datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 3.0,
+      "speed_kmh": 417,
+      "endurance_hr": 6,
+      "range_km": 1000,
+      "warhead": "23 kg"
+    },
+    "notes": "Anti-radiation loitering munition; SEAD.",
+    "source": "https://en.wikipedia.org/wiki/IAI_Harop"
+  },
+  {
+    "id": "shahed136",
+    "model": "Shahed-136 / Geran-2",
+    "manufacturer": "HESA (Iran)",
+    "country": "Iran",
+    "side": "adversary",
+    "role": "loitering munition",
+    "group": "Group 3",
+    "telemetry": [
+      "INS",
+      "consumer GPS",
+      "RF link ~150km"
+    ],
+    "specs": {
+      "length_m": 3.5,
+      "wingspan_m": 2.5,
+      "mass_kg": 200,
+      "speed_kmh": 185,
+      "ceiling_m": 4000,
+      "range_km": 2500,
+      "warhead": "30-50 kg HE-frag"
+    },
+    "notes": "Russian-operated as Geran-2; salvo/swarm launch; MD-550 50hp pusher.",
+    "source": "https://armyrecognition.com/military-products/army/unmanned-systems/unmanned-aerial-vehicles/shahed-136-loitering-munition-kamikaze-suicide-drone-technical-data"
+  },
+  {
+    "id": "shahed131",
+    "model": "Shahed-131 / Geran-1",
+    "manufacturer": "HESA (Iran)",
+    "country": "Iran",
+    "side": "adversary",
+    "role": "loitering munition",
+    "group": "Group 2",
+    "telemetry": [
+      "INS",
+      "consumer GPS"
+    ],
+    "specs": {
+      "range_km": 900,
+      "warhead": "15 kg",
+      "speed_kmh": 150
+    },
+    "notes": "Smaller predecessor to Shahed-136; upward-only fin tips.",
+    "source": "https://en.wikipedia.org/wiki/Shahed_drones"
+  },
+  {
+    "id": "shahed129",
+    "model": "Shahed-129",
+    "manufacturer": "HESA (Iran)",
+    "country": "Iran",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 16.0,
+      "endurance_hr": 24,
+      "range_km": 1700,
+      "warhead": "Sadid bombs"
+    },
+    "notes": "Iranian MALE Reaper-analog.",
+    "source": "https://en.wikipedia.org/wiki/HESA_Shahed_129"
+  },
+  {
+    "id": "mohajer6",
+    "model": "Mohajer-6",
+    "manufacturer": "HESA / Qods (Iran)",
+    "country": "Iran",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 3",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 10.0,
+      "mtow_kg": 670,
+      "endurance_hr": 12,
+      "range_km": 200,
+      "warhead": "Qaem bombs"
+    },
+    "notes": "Iranian tactical strike/ISR; supplied to Russia.",
+    "source": "https://en.wikipedia.org/wiki/Mohajer-6"
+  },
+  {
+    "id": "lancet3",
+    "model": "Lancet-3 (Izdeliye-52)",
+    "manufacturer": "ZALA / Kalashnikov (Russia)",
+    "country": "Russia",
+    "side": "adversary",
+    "role": "loitering munition",
+    "group": "Group 1",
+    "telemetry": [
+      "RF datalink",
+      "TV terminal guidance"
+    ],
+    "specs": {
+      "mass_kg": 12,
+      "speed_kmh": 110,
+      "endurance_min": 40,
+      "range_km": 40,
+      "warhead": "3 kg HE/HE-frag"
+    },
+    "notes": "Catapult-launched; EO + TV terminal; anti-armor/artillery.",
+    "source": "https://armyrecognition.com/military-products/army/unmanned-systems/unmanned-aerial-vehicles/lancet-3-loitering-munition-kamikaze-drone-russia-data-fact-sheet"
+  },
+  {
+    "id": "lancet1",
+    "model": "Lancet-1",
+    "manufacturer": "ZALA (Russia)",
+    "country": "Russia",
+    "side": "adversary",
+    "role": "loitering munition",
+    "group": "Group 1",
+    "telemetry": [
+      "RF datalink",
+      "TV terminal"
+    ],
+    "specs": {
+      "mass_kg": 5,
+      "warhead": "1 kg",
+      "range_km": 40
+    },
+    "notes": "Smaller Lancet variant.",
+    "source": "https://armyrecognition.com/military-products/army/unmanned-systems/unmanned-aerial-vehicles/lancet-3-loitering-munition-kamikaze-drone-russia-data-fact-sheet"
+  },
+  {
+    "id": "orlan10",
+    "model": "Orlan-10",
+    "manufacturer": "STC (Russia)",
+    "country": "Russia",
+    "side": "adversary",
+    "role": "ISR/EW",
+    "group": "Group 2",
+    "telemetry": [
+      "RF datalink",
+      "EO/IR",
+      "Leer-3 EW"
+    ],
+    "specs": {
+      "wingspan_m": 3.1,
+      "mtow_kg": 18,
+      "speed_kmh": 150,
+      "ceiling_m": 5000,
+      "endurance_hr": 16,
+      "range_km": 120
+    },
+    "notes": "Russia's workhorse ISR/artillery-spotting UAV; EW variant.",
+    "source": "https://en.wikipedia.org/wiki/Orlan-10"
+  },
+  {
+    "id": "forpost",
+    "model": "Forpost-R",
+    "manufacturer": "UZGA (Russia)",
+    "country": "Russia",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 8.5,
+      "mtow_kg": 500,
+      "endurance_hr": 18,
+      "range_km": 250
+    },
+    "notes": "Russian licensed IAI Searcher derivative; now strike-capable.",
+    "source": "https://en.wikipedia.org/wiki/IAI_Searcher"
+  },
+  {
+    "id": "wingloong2",
+    "model": "Wing Loong II",
+    "manufacturer": "CAIG / CASC",
+    "country": "China",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM >1000km",
+      "EO/IR",
+      "SAR"
+    ],
+    "specs": {
+      "length_m": 11.0,
+      "wingspan_m": 20.5,
+      "mtow_kg": 4200,
+      "speed_kmh": 370,
+      "ceiling_m": 9900,
+      "endurance_hr": 32,
+      "range_km": 1000
+    },
+    "notes": "Chinese MALE; up to 480 kg ordnance; widely exported.",
+    "source": "https://en.wikipedia.org/wiki/CAIG_Wing_Loong_II"
+  },
+  {
+    "id": "wingloong1",
+    "model": "Wing Loong I",
+    "manufacturer": "CAIG / CASC",
+    "country": "China",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 4",
+    "telemetry": [
+      "LOS datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 14.0,
+      "mtow_kg": 1100,
+      "endurance_hr": 20,
+      "range_km": 4000
+    },
+    "notes": "Predator-class Chinese export drone.",
+    "source": "https://en.wikipedia.org/wiki/Chengdu_Pterodactyl_I"
+  },
+  {
+    "id": "ch4",
+    "model": "CH-4 Rainbow",
+    "manufacturer": "CASC",
+    "country": "China",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 18.0,
+      "mtow_kg": 1330,
+      "speed_kmh": 235,
+      "ceiling_m": 8000,
+      "endurance_hr": 40,
+      "range_km": 3500
+    },
+    "notes": "Reaper-class Chinese export; AR-1 missiles.",
+    "source": "https://en.wikipedia.org/wiki/CASC_Rainbow"
+  },
+  {
+    "id": "ch5",
+    "model": "CH-5 Rainbow",
+    "manufacturer": "CASC",
+    "country": "China",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM",
+      "EO/IR",
+      "SAR"
+    ],
+    "specs": {
+      "wingspan_m": 21.0,
+      "mtow_kg": 3300,
+      "endurance_hr": 60,
+      "range_km": 10000
+    },
+    "notes": "Large Chinese MALE; 1 t payload.",
+    "source": "https://en.wikipedia.org/wiki/CASC_Rainbow"
+  },
+  {
+    "id": "gj2",
+    "model": "GJ-2 (Wing Loong II PLA)",
+    "manufacturer": "CAIG",
+    "country": "China",
+    "side": "adversary",
+    "role": "strike/ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 20.5,
+      "mtow_kg": 4200,
+      "endurance_hr": 20
+    },
+    "notes": "PLA-operated armed Wing Loong II designation.",
+    "source": "https://en.wikipedia.org/wiki/CAIG_Wing_Loong_II"
+  },
+  {
+    "id": "wz7",
+    "model": "WZ-7 Soaring Dragon",
+    "manufacturer": "Guizhou",
+    "country": "China",
+    "side": "adversary",
+    "role": "HALE ISR",
+    "group": "Group 5",
+    "telemetry": [
+      "SATCOM",
+      "SAR",
+      "SIGINT"
+    ],
+    "specs": {
+      "wingspan_m": 25.0,
+      "ceiling_m": 18000,
+      "endurance_hr": 10
+    },
+    "notes": "Chinese HALE ISR; joined-wing config; Global Hawk analog.",
+    "source": "https://en.wikipedia.org/wiki/Guizhou_Soar_Dragon"
+  },
+  {
+    "id": "djimavic3",
+    "model": "DJI Mavic 3",
+    "manufacturer": "DJI",
+    "country": "China",
+    "side": "dual-use",
+    "role": "commercial ISR / improvised",
+    "group": "Group 1",
+    "telemetry": [
+      "OcuSync RF",
+      "DJI AeroScope",
+      "Remote ID"
+    ],
+    "specs": {
+      "mass_kg": 0.9,
+      "speed_kmh": 75,
+      "ceiling_m": 6000,
+      "endurance_min": 46,
+      "range_km": 15
+    },
+    "notes": "Dominant small-quad used by BOTH sides in Ukraine; munition drops.",
+    "source": "https://en.wikipedia.org/wiki/DJI_Mavic"
+  },
+  {
+    "id": "djimatrice300",
+    "model": "DJI Matrice 300 RTK",
+    "manufacturer": "DJI",
+    "country": "China",
+    "side": "dual-use",
+    "role": "commercial ISR",
+    "group": "Group 1",
+    "telemetry": [
+      "OcuSync RF",
+      "Remote ID"
+    ],
+    "specs": {
+      "mass_kg": 6.3,
+      "speed_kmh": 82,
+      "endurance_min": 55,
+      "range_km": 15
+    },
+    "notes": "Heavy-lift commercial quad; ISR + payload.",
+    "source": "https://en.wikipedia.org/wiki/DJI"
+  },
+  {
+    "id": "djimini",
+    "model": "DJI Mini 4 Pro",
+    "manufacturer": "DJI",
+    "country": "China",
+    "side": "dual-use",
+    "role": "commercial micro ISR",
+    "group": "Group 1",
+    "telemetry": [
+      "OcuSync RF",
+      "Remote ID"
+    ],
+    "specs": {
+      "mass_kg": 0.249,
+      "endurance_min": 34,
+      "range_km": 10
+    },
+    "notes": "Sub-250g micro; ubiquitous recon quad.",
+    "source": "https://en.wikipedia.org/wiki/DJI_Mini"
+  },
+  {
+    "id": "fpv7in",
+    "model": "FPV 7\" racing quad (kamikaze)",
+    "manufacturer": "various",
+    "country": "multi",
+    "side": "dual-use",
+    "role": "FPV strike",
+    "group": "Group 1",
+    "telemetry": [
+      "analog/digital VTX",
+      "ELRS RF"
+    ],
+    "specs": {
+      "mass_kg": 1.0,
+      "speed_kmh": 150,
+      "range_km": 10,
+      "warhead": "RPG/shaped charge"
+    },
+    "notes": "Mass-produced FPV kamikaze; defining threat of 2024-2026 attrition warfare.",
+    "source": "https://en.wikipedia.org/wiki/First-person_view_(radio_control)"
+  },
+  {
+    "id": "autel",
+    "model": "Autel EVO Max 4T",
+    "manufacturer": "Autel Robotics",
+    "country": "China",
+    "side": "dual-use",
+    "role": "commercial ISR",
+    "group": "Group 1",
+    "telemetry": [
+      "Autel SkyLink",
+      "Remote ID"
+    ],
+    "specs": {
+      "mass_kg": 1.6,
+      "endurance_min": 42,
+      "range_km": 20
+    },
+    "notes": "DJI alternative; thermal + visual ISR quad.",
+    "source": "https://en.wikipedia.org/wiki/Autel_Robotics"
+  },
+  {
+    "id": "leonidas",
+    "model": "Epirus Leonidas (HPM)",
+    "manufacturer": "Epirus",
+    "country": "USA",
+    "side": "counter-uas",
+    "role": "directed-energy C-UAS",
+    "group": "C-UAS",
+    "telemetry": [
+      "radar cue",
+      "Lattice C2"
+    ],
+    "specs": {
+      "effect": "high-power microwave",
+      "target": "swarms",
+      "mode": "area electronics kill"
+    },
+    "notes": "Solid-state HPM; defeats swarms; demoed w/ Anduril Lattice for USMC.",
+    "source": "https://www.epirusinc.com/electronic-warfare"
+  },
+  {
+    "id": "lattice",
+    "model": "Anduril Lattice",
+    "manufacturer": "Anduril",
+    "country": "USA",
+    "side": "counter-uas",
+    "role": "C2 / sensor fusion",
+    "group": "C-UAS",
+    "telemetry": [
+      "multi-sensor fusion",
+      "autonomy"
+    ],
+    "specs": {
+      "effect": "detect-track-classify-defeat C2",
+      "target": "all groups"
+    },
+    "notes": "Open C2 mesh tying sensors to effectors for counter-UAS.",
+    "source": "https://www.defenseone.com/business/2023/07/defense-startups-team-defeat-swarm-drones/388909/"
+  },
+  {
+    "id": "dronegun",
+    "model": "DroneShield DroneGun Mk4",
+    "manufacturer": "DroneShield",
+    "country": "Australia",
+    "side": "counter-uas",
+    "role": "RF jammer",
+    "group": "C-UAS",
+    "telemetry": [
+      "RF detection"
+    ],
+    "specs": {
+      "effect": "RF/GNSS jam",
+      "range_m": 1000,
+      "target": "Group 1-2"
+    },
+    "notes": "Handheld RF defeat; integrated w/ Epirus.",
+    "source": "https://uasmagazine.com/articles/droneshield-and-epirus-complete-integration"
+  },
+  {
+    "id": "skywiper",
+    "model": "SkyWiper EDM4S",
+    "manufacturer": "NT Service",
+    "country": "Lithuania",
+    "side": "counter-uas",
+    "role": "RF jammer",
+    "group": "C-UAS",
+    "telemetry": [
+      "RF detection"
+    ],
+    "specs": {
+      "effect": "GNSS+control jam",
+      "mass_kg": 5.5,
+      "target": "Group 1"
+    },
+    "notes": "Handheld RF jammer used in Ukraine.",
+    "source": "https://en.wikipedia.org/wiki/Counter-UAS"
+  },
+  {
+    "id": "coyote",
+    "model": "Raytheon Coyote Block 2",
+    "manufacturer": "Raytheon (RTX)",
+    "country": "USA",
+    "side": "counter-uas",
+    "role": "interceptor effector",
+    "group": "C-UAS",
+    "telemetry": [
+      "Ku radar (KuRFS) cue"
+    ],
+    "specs": {
+      "effect": "kinetic interceptor",
+      "target": "Group 1-3"
+    },
+    "notes": "Tube-launched interceptor; LIDS/FS-LIDS effector.",
+    "source": "https://en.wikipedia.org/wiki/Raytheon_Coyote"
+  },
+  {
+    "id": "kargu",
+    "model": "STM Kargu-2",
+    "manufacturer": "STM",
+    "country": "Turkey",
+    "side": "dual-use",
+    "role": "loitering munition (swarm)",
+    "group": "Group 1",
+    "telemetry": [
+      "RF datalink",
+      "EO",
+      "onboard AI"
+    ],
+    "specs": {
+      "mass_kg": 7,
+      "endurance_min": 30,
+      "warhead": "frag/shaped"
+    },
+    "notes": "Rotary loitering munition; cited in UN report on autonomous engagement (Libya 2020).",
+    "source": "https://en.wikipedia.org/wiki/STM_Kargu"
+  },
+  {
+    "id": "switchblade_blackwing",
+    "model": "Blackwing",
+    "manufacturer": "AeroVironment",
+    "country": "USA",
+    "side": "allied",
+    "role": "ISR (Switchblade family)",
+    "group": "Group 1",
+    "telemetry": [
+      "encrypted RF",
+      "EO/IR"
+    ],
+    "specs": {
+      "mass_kg": 1.8,
+      "endurance_min": 60,
+      "range_km": 8
+    },
+    "notes": "Unarmed ISR variant of Switchblade 300; submarine-launchable.",
+    "source": "https://en.wikipedia.org/wiki/AeroVironment_Switchblade"
+  },
+  {
+    "id": "bayraktar_tb3",
+    "model": "Bayraktar TB3",
+    "manufacturer": "Baykar",
+    "country": "Turkey",
+    "side": "dual-use",
+    "role": "strike/ISR (carrier)",
+    "group": "Group 4",
+    "telemetry": [
+      "SATCOM",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 14.0,
+      "mtow_kg": 1450,
+      "endurance_hr": 24
+    },
+    "notes": "Folding-wing carrier-capable TB2 successor.",
+    "source": "https://en.wikipedia.org/wiki/Baykar_Bayraktar_TB3"
+  },
+  {
+    "id": "geran3",
+    "model": "Geran-3 (jet Shahed)",
+    "manufacturer": "Russia (Shahed deriv.)",
+    "country": "Russia",
+    "side": "adversary",
+    "role": "loitering munition",
+    "group": "Group 3",
+    "telemetry": [
+      "INS",
+      "GNSS"
+    ],
+    "specs": {
+      "speed_kmh": 500,
+      "warhead": "~50 kg",
+      "note": "turbojet variant"
+    },
+    "notes": "Jet-powered Shahed-238 derivative; higher terminal speed.",
+    "source": "https://en.wikipedia.org/wiki/Shahed_drones"
+  },
+  {
+    "id": "zala421",
+    "model": "ZALA 421-16E",
+    "manufacturer": "ZALA Aero (Russia)",
+    "country": "Russia",
+    "side": "adversary",
+    "role": "ISR",
+    "group": "Group 2",
+    "telemetry": [
+      "RF datalink",
+      "EO/IR"
+    ],
+    "specs": {
+      "wingspan_m": 2.8,
+      "endurance_hr": 4,
+      "range_km": 50
+    },
+    "notes": "Russian ISR UAV; pairs with Lancet targeting.",
+    "source": "https://en.wikipedia.org/wiki/ZALA_Aero"
+  }
+]
