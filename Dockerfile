@@ -153,6 +153,11 @@ COPY szl_observability.py ./
 # SZLHOLDINGS/a11oy-verifiable-corpus. Per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it the lazy import is a no-op and receipts never publish.
 COPY szl_corpus_publish.py ./
+# NEMOTRON SIGNED-TRAJECTORY build (2026-06-14): DSSE-signed agent-trajectory
+# corpus pipeline (SZL-Nemo). Honest: DATASET property, not a model claim;
+# QLoRA-ready, training = ROADMAP (2x80GB GPU). nvidia/Nemotron-Agentic-v1
+# mapped under CC BY 4.0 attribution. Served at /signed-corpus.
+COPY szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py ./
 
 # Copy serve orchestrator and gates manifest
 # ADDITIVE (live-ops): orchestration + AI-observability module — per-file COPY Dockerfile
