@@ -31,6 +31,30 @@ Fetched from `unpkg.com/three@0.170.0/...` at vendor time; served locally foreve
 | `three/addons/shaders/LuminosityHighPassShader.js` | `examples/jsm/shaders/LuminosityHighPassShader.js` | 1147 | `9f4866f9abb2d96fd83eec46ba4bf2165b22155a7a37ff425c0f60eba18007cb` |
 | `three/addons/shaders/OutputShader.js` | `examples/jsm/shaders/OutputShader.js` | 1490 | `4944cecd49c0d4d1520a4d927bde8a590fd43f041ee913252b9451855a01d0f0` |
 
+## VENDORED NOW (Dev1 energy PR) — deck.gl r9.0.38 (MIT)
+
+Upstream: https://github.com/visgl/deck.gl (tag `v9.0.38`), MIT License.
+Fetched from `unpkg.com/deck.gl@9.0.38/dist.min.js` at vendor time (UMD global `deck`);
+served locally forever after at `/static/3d/vendor/deck.gl/dist.min.js`. License text
+committed alongside at `/static/3d/vendor/deck.gl/LICENSE`.
+
+| Path (under `/static/3d/vendor/`) | Upstream specifier | bytes | sha256 |
+|---|---|---|---|
+| `deck.gl/dist.min.js` | `deck.gl@9.0.38/dist.min.js` | 1245838 | `e0ec599ee202671085dfb418a11ca08f59bbc9c0168ecc47d84bdd04f22c7cf4` |
+
+**Rendering choice (Dev1, documented per Dev0 contract escape hatch):** the Energy
+surface (`surfaces/energy.js`) renders the Electricity-Maps + deck.gl *technique*
+(GPU column/hexbin grid + animated flow arcs + extruded negative-price columns +
+live joules reservoir) in **pure three.js r170 inside the shell-owned `ctx.stage.scene`**.
+Rationale: the szl3d shell hands each surface a single three.js Stage (one scene/camera/
+OrbitControls + the WebGPU-or-WebGL2 bloom pipeline). deck.gl needs its own GL context
+and a separate canvas, and its `ColumnLayer`/`ArcLayer`/`GPUGridLayer` are WebGL-only in
+v9 (no WebGPU) — layering a second deck.gl canvas would fight OrbitControls, the bloom
+composer, the WebGPU path, and the `clearScene()` lifecycle. three.js keeps the surface
+on the toolkit's WebGPU-with-WebGL2-fallback path and inside the shared scene graph.
+deck.gl is still vendored here (0-CDN, pinned, hashed) for Dev9's estate map / future
+geospatial surfaces per the contract.
+
 ### Import map (every holographic page MUST include this exact block)
 
 ```html
@@ -74,7 +98,7 @@ sha256 to this table, and extend the `_ALLOW` map in `szl3d_holographic.py`). Do
 
 | Lib | Owner (dev) | Pinned version | Upstream build to vendor | Target path |
 |---|---|---|---|---|
-| deck.gl | Dev1 (energy), Dev9 | `deck.gl@9.0.38` | `unpkg.com/deck.gl@9.0.38/dist.min.js` (UMD global `deck`) | `/static/3d/vendor/deck.gl/dist.min.js` |
+| ~~deck.gl~~ | ~~Dev1 (energy), Dev9~~ | `deck.gl@9.0.38` | **DONE — vendored by Dev1** (see "VENDORED NOW (Dev1 energy PR)" above) | `/static/3d/vendor/deck.gl/dist.min.js` |
 | CesiumJS | Dev4 (counter-uas) | `cesium@1.123` | `unpkg.com/cesium@1.123/Build/Cesium/Cesium.js` + `Build/Cesium/Workers`, `Assets`, `Widgets` dirs | `/static/3d/vendor/cesium/` |
 | 3d-force-graph | Dev2, Dev5 | (reuse) `static-vendor/3d-force-graph.min.js` | already vendored — served at `/vendor/3d-force-graph.min.js` | (reuse) |
 

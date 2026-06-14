@@ -186,6 +186,15 @@ shown (e.g. 13/17 issues at ~$0.07 from the Kilo writeup) are context only.
 derivative. Our contribution is the governed-MoE domain-expert router and the
 governed wrapper — not the base weights.
 
+### deck.gl
+- **License:** MIT (Copyright © Urban Computing Foundation / Open Visualization Foundation)
+- **Source:** https://github.com/visgl/deck.gl (v9.0.38)
+- **Usage:** Vendored 0-CDN at `static/3d/vendor/deck.gl/dist.min.js` (MIT LICENSE
+  committed alongside) for the holographic estate's geospatial energy/estate
+  surfaces. The energy surface additionally re-implements the deck.gl *visual
+  techniques* (GPUGridLayer / ColumnLayer / ArcLayer) in pure three.js inside the
+  shell-owned scene graph to share one GL canvas; 0 runtime CDN either way.
+
 ## Section 889 Declaration
 
 SZL Holdings does NOT use equipment or services from:
