@@ -58,6 +58,27 @@ import szl_dsse
 DOCTRINE = "v11"
 SLSA_LEVEL = "L1"
 
+# Honest cited provenance for the Provenance board / Khipu ledger tabs: REAL
+# in-tree lutar-lean theorems (kernel-verified in szl-holdings/lutar-lean) +
+# public standards / arXiv. PROVEN entries only; no Conjecture upgrades.
+_LUTAR_REPO = "https://github.com/szl-holdings/lutar-lean"
+CITATIONS = [
+    {"claim": "Merkle-DAG provenance build", "status": "PROVEN",
+     "lutar_theorem": "Lutar.DPI.MerkleDAGBuild",
+     "lutar_url": _LUTAR_REPO + "/blob/main/Lutar/DPI/MerkleDAGBuild.lean",
+     "standard": "RFC 6962 Merkle transparency; Sigstore Rekor (Apache-2.0)", "arxiv": "RFC 6962"},
+    {"claim": "DPI / provenance soundness", "status": "PROVEN",
+     "lutar_theorem": "Lutar.DPI.TH6_DPI_Soundness",
+     "lutar_url": _LUTAR_REPO + "/blob/main/Lutar/DPI/TH6_DPI_Soundness.lean",
+     "standard": "in-toto/DSSE; SLSA provenance framework", "arxiv": "arXiv:2406.10109"},
+    {"claim": "Composition soundness (W3C trace continuity)", "status": "PROVEN",
+     "lutar_theorem": "Lutar.Composition.TH1_Composition",
+     "lutar_url": _LUTAR_REPO + "/tree/main/Lutar/Composition",
+     "standard": "W3C Trace Context (traceparent)", "arxiv": "arXiv:2406.10109"},
+]
+CITATION_NOTE = ("Provenance/ledger tabs cite real in-tree lutar-lean theorems plus the public "
+                 "standard / arXiv they map to. All cited entries are kernel-verified (PROVEN).")
+
 # ---------------------------------------------------------------------------
 # Wire D — W3C Trace Context
 # ---------------------------------------------------------------------------
@@ -381,6 +402,8 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "pub_fingerprint_sha256": szl_dsse.public_key_fingerprint(),
             "verify_key_url": szl_dsse.PUB_KEY_URL,
             "nodes": nodes,
+            "citations": CITATIONS, "citation_note": CITATION_NOTE,
+            "anchor_health_at": f"/api/{space}/uds/v1/rekor/health",
             "honesty": ("DSSE signatures are REAL ECDSA-P256-SHA256 cosign sigs when the "
                         "SZL_COSIGN_PRIVATE_PEM runtime secret is present (else UNSIGNED, labelled). "
                         "DAG is in-memory per Space (non-persistent across restart). SLSA L1 honest; L2 roadmap via Wire D "
@@ -406,6 +429,8 @@ def register_provenance(app, space: str) -> dict[str, Any]:
                           "L3 = a hardened, isolated build pipeline (UDS Core), also not in place. "
                           "Honestly L1; L2/L3 not claimed."),
             "self_attesting": "every sign/verify op emits its own DSSE-signed Khipu receipt.",
+            "citations": CITATIONS, "citation_note": CITATION_NOTE,
+            "anchor_health_at": f"/api/{space}/uds/v1/rekor/health",
         })
 
     return {"space": space, "wire_D": "LIVE", "slsa": SLSA_LEVEL,
