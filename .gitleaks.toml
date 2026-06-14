@@ -20,6 +20,8 @@
 #   • problem-catalog slugs in serve.py ("key": "mesh-k1-failure" etc.) — these
 #     are short kebab-case identifiers in a static problem list, not credentials
 #   • test-fixture private keys under testdata/ (*.test.key) — mock keys
+#   • Python TYPE ANNOTATIONS naming a key class (e.g. `private_key:
+#     "Ed25519PrivateKey"`) — these are forward-ref type hints, NOT key material
 #
 # Real credentials (tokens, private keys, cloud secrets) remain fully detected.
 
@@ -43,6 +45,9 @@ regexes = [
   '''SZL_HMAC_KEY=c3psLWRldi1kZW1vLWtleS0yMDI2LXdhcmhhY2tlcg==''',
   # Explicit placeholder / unsigned stub markers.
   '''PLACEHOLDER-NOT-SIGNED''',
+  # Python type ANNOTATION naming a key class (forward-ref string hint), NOT a
+  # secret: e.g. `private_key: "Ed25519PrivateKey"` in a function signature.
+  '''(?i)private_key\s*:\s*["']Ed25519PrivateKey["']''',
 ]
 
 # Test fixtures legitimately carry mock key identifiers and stub signatures.
@@ -55,3 +60,4 @@ paths = [
   '''.*/testdata/.*''',
   '''.*\.test\.key$''',
 ]
+

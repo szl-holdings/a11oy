@@ -1735,7 +1735,7 @@
       "regulations": [
         "NIST SP 800-53 Rev 5",
         "CMMC 2.0",
-        "FedRAMP High",
+        "FedRAMP High (target regime reference, not held)",
         "DISA STIGs"
       ],
       "required_attestors": [
