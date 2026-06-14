@@ -27,7 +27,7 @@ DOCTRINE (hard gates honored here):
   G3  mesh is tamper-EVIDENT, not tamper-proof; BFT safety = Conjecture 2.
   G4  SLSA "L1 honest / L2 attested / L3 roadmap"; PQC roadmap-only; never bare-L3.
   G5  0 user-visible codenames (this module emits only YACHAY / Operator / CHAPAQ).
-  G7  honest labels; 0 runtime CDN (3D libs are vendored under /static-vendor + /static/vendor3d).
+  G7  honest labels; 0 runtime CDN (three.js is the app's locally-served UMD bundle at /vendor/three.min.js).
   G8  the half-state is the only unacceptable outcome - where a feed is unreachable or a
       signer is ephemeral, the surface says so honestly; it NEVER fabricates LIVE.
 
@@ -319,7 +319,7 @@ def build_ledger(ns: str) -> Dict[str, Any]:
 # HTML surfaces (vendored 3D, 0 CDN). Shared label engine pills via the served JS.
 # ---------------------------------------------------------------------------
 def _anatomy_html(ns: str) -> str:
-    # Tries vendored three.module.min.js (a11oy) then static-vendor/three.min.js.
+    # Loads the vendored UMD three.js from /vendor/three.min.js (0 runtime CDN).
     return """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SZL Estate - Living Organism (a11oy + killinchu)</title>
@@ -354,19 +354,20 @@ footer{padding:10px 16px;border-top:1px solid var(--line);font-size:11px;color:v
 <footer id="foot">Doctrine v11 &middot; locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}@c7c0ba17 &middot; SLSA L1 honest / L2 attested / L3 roadmap</footer>
 <script>
 var NS="__NS__";
-// Load THREE honestly from VENDORED files only (0 runtime CDN, G7). Try the
-// ES-module build via dynamic import() first (three.module.min.js is an ES
-// module, so a <script src> tag would NOT expose a global), then fall back to
-// a classic UMD-style <script> for static-vendor/three.min.js, then to the
-// honest 2D 'vendor unavailable' message. cb(THREE_or_null).
+// Load THREE honestly from the VENDORED UMD build only (0 runtime CDN, G7).
+// /vendor/three.min.js is the app's locally-served UMD bundle (sets window.THREE).
+// Walks a vendored fallback chain, then degrades to the honest 2D 'vendor
+// unavailable' message. cb(THREE_or_null) -- never a CDN, never a fake render.
 function loadThree(cb){
-  import('/static/vendor3d/three.module.min.js').then(function(mod){
-    var T=(mod&&(mod.Scene?mod:mod.default))||window.THREE; cb(T&&T.Scene?T:null);
-  }).catch(function(){
-    var s=document.createElement('script'); s.src='/static-vendor/three.min.js';
-    s.onload=function(){ cb((window.THREE&&window.THREE.Scene)?window.THREE:null); };
-    s.onerror=function(){ cb(null); }; document.head.appendChild(s);
-  });
+  var srcs=['/vendor/three.min.js','/static-vendor/three.min.js','/static/vendor3d/three.min.js'];
+  (function next(i){
+    if(i>=srcs.length){ cb(null); return; }
+    if(window.THREE&&window.THREE.Scene){ cb(window.THREE); return; }
+    var s=document.createElement('script'); s.src=srcs[i];
+    s.onload=function(){ (window.THREE&&window.THREE.Scene)?cb(window.THREE):next(i+1); };
+    s.onerror=function(){ next(i+1); };
+    document.head.appendChild(s);
+  })(0);
 }
 function organCard(o){
   var pct=Math.round((o.health||0)*100);
