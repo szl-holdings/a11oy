@@ -72,6 +72,14 @@ on:
       # set) so the lockstep mirror set explicitly records it and the guard stays
       # green. Restores Dev A wiring clobbered by a later stale-base integration push.
       - "a11oy_react_core.py"
+      # 3D substrate kit + energy pages (drift-fix 2026-06-14): static/3d/** is
+      # COPY'd whole into the image (Dockerfile `COPY static/3d/ ./static/3d/`) and
+      # web/energy{,-holographic}.html are per-file COPY'd, but NEITHER hf-sync.yml
+      # (front-door only) nor hf-sync-backend.yml (.py only) mirrored them, so all 33
+      # silently drifted (MISSING-HF) and kept hf-module-drift RED. Mirror them here.
+      - "static/3d/**"
+      - "web/energy.html"
+      - "web/energy-holographic.html"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
@@ -252,6 +260,82 @@ jobs:
                     "added:", len(paths), "deleted:", len(delete_paths))
               for p in paths:
                   print("  synced:", p)
+              for p in delete_paths:
+                  print("  deleted:", p)
+          PYEOF
+
+      - name: Sync 3D substrate kit + energy pages to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: SZLHOLDINGS/a11oy
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN secret is not set on this repo — cannot push to the HuggingFace Space."
+            exit 1
+          fi
+          python3 <<'PYEOF'
+          import os, glob
+          from huggingface_hub import HfApi, CommitOperationAdd, CommitOperationDelete
+
+          # static/3d/** is COPY'd whole into the Space image (Dockerfile
+          # `COPY static/3d/ ./static/3d/`) and web/energy{,-holographic}.html are
+          # per-file COPY'd, but neither sibling sync step mirrored them, so the
+          # entire 3D substrate kit drifted (MISSING-HF) and kept hf-module-drift RED.
+          # This step mirrors EXACTLY that managed set (GitHub = source of truth):
+          # add/update PLUS scoped delete (a 3D/energy file removed on GitHub main is
+          # removed on the Space too, so the trees never diverge). The managed set is
+          # tightly scoped to the "static/3d/" prefix + the two exact energy pages, so
+          # the Space's other front-door/vendor blobs are never touched. Timestamped
+          # *.bak-* backups are skipped.
+          ENERGY_FILES = ("web/energy.html", "web/energy-holographic.html")
+
+          def is_managed(p):
+              base = os.path.basename(p)
+              if ".bak" in base:
+                  return False
+              return p.startswith("static/3d/") or p in ENERGY_FILES
+
+          paths = [p for p in glob.glob("static/3d/**", recursive=True) if os.path.isfile(p)]
+          paths += [p for p in ENERGY_FILES if os.path.isfile(p)]
+          paths = sorted(p for p in set(paths) if is_managed(p))
+          local_set = set(paths)
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["SPACE_ID"]
+
+          ops = []
+          for p in paths:
+              with open(p, "rb") as fh:
+                  ops.append(CommitOperationAdd(path_in_repo=p, path_or_fileobj=fh.read()))
+
+          # Deletion side: any managed (static/3d/** or energy) file present on the
+          # Space but no longer on GitHub main must be removed in the SAME commit, or
+          # the stale copy lingers and keeps being served after an HF factory rebuild.
+          space_files = api.list_repo_files(repo_id=space, repo_type="space")
+          delete_paths = sorted(p for p in space_files if is_managed(p) and p not in local_set)
+          for p in delete_paths:
+              ops.append(CommitOperationDelete(path_in_repo=p))
+
+          if not ops:
+              print("No 3D/energy files to sync or delete.")
+          else:
+              commit = api.create_commit(
+                  repo_id=space,
+                  repo_type="space",
+                  operations=ops,
+                  commit_message="chore(sync): mirror static/3d kit + energy pages to Space (hf-sync)",
+                  commit_description=(
+                      "Automated 3D/energy asset sync from szl-holdings/a11oy main via hf-sync.\n"
+                      "Added/updated: " + str(len(paths)) + " file(s)\n"
+                      "Deleted (gone from GitHub main): " + (", ".join(delete_paths) or "(none)") + "\n\n"
+                      "Keeps static/3d/** and web/energy{,-holographic}.html identical to\n"
+                      "GitHub main so an HF factory rebuild never drops a GitHub edit (closes\n"
+                      "the chronic hf-module-drift red for the 3D substrate kit)."
+                  ),
+              )
+              print("HF commit:", commit.oid, "->", space,
+                    "added:", len(paths), "deleted:", len(delete_paths))
               for p in delete_paths:
                   print("  deleted:", p)
           PYEOF
