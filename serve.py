@@ -250,6 +250,24 @@ try:
 except Exception as _szl_eb_e:  # pragma: no cover
     print(f"[a11oy] Energy-budget receipt NOT registered: {_szl_eb_e!r}", file=__import__("sys").stderr)
 
+# ── Agentic PINN + Physical-Bounds Certifier MESH (pinn-bounds) — closes the audited
+# gap where the PINN / FE-NO Physics-ML verticals lived ONLY in `platform` and were
+# NOT in a11oy's governed /api/a11oy/v1/<name> route table. Adds /api/a11oy/v1/pinn/*:
+#   /pinn (index) /pinn/certify /pinn/certificate /pinn/solve /pinn/residual
+# The certificate is the HONEST INVERSE of a free-energy claim — it PROVES a real
+# compute job sits FAR BELOW the fundamental ceilings (Landauer/Margolus-Levitin/
+# Bremermann/Bekenstein/Bekenstein-Hawking; CITED, not claimed). Joules DERIVED only
+# from MEASURED power×time; Λ=Conjecture 1 (advisory, deny-by-default). PURE STDLIB —
+# the numpy agentic solver runs on SZL metal / Forge GPU and writes the artifacts this
+# mesh reads; the live web path never solves. Additive, try/except-guarded, before the
+# SPA catch-all. Math is byte-identical to agentic_pinn/physics_bounds.py.
+try:
+    import szl_pinn_bounds as _szl_pinn_bounds
+    _szl_pinn_bounds.register(app, ns="a11oy")
+    print("[a11oy] Agentic-PINN + physical-bounds mesh registered: /api/a11oy/v1/pinn/*", file=__import__("sys").stderr)
+except Exception as _szl_pinn_e:  # pragma: no cover
+    print(f"[a11oy] Agentic-PINN + physical-bounds mesh NOT registered: {_szl_pinn_e!r}", file=__import__("sys").stderr)
+
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
 # Python with the ORIGINAL author cited; SZL borrows methodological structure only (no result
