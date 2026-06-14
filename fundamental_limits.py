@@ -130,7 +130,10 @@ _SIBLING_DIRS = {
 
 # Candidate module names per kind (first importable wins).
 _MODULE_CANDIDATES = {
-    "compute_bounds": ["physics_bounds"],
+    # physics_bounds = the dev-tree name; szl_pinn_bounds = the byte-identical copy
+    # that is actually deployed (it serves /api/<ns>/v1/pinn/*). Either satisfies the
+    # compute pillar — discovery is honest, not a fabricated wired:true.
+    "compute_bounds": ["physics_bounds", "szl_pinn_bounds"],
     "quantum_sensor": ["quantum_sensing_limits", "quantum_imu", "dev1_quantum_sensing_limits"],
     "pnt_resilience": ["pnt_resilience", "spoof_detect", "dev2_pnt_resilience"],
     "nav_coasting": ["nav_coasting", "coasting", "dev3_nav_coasting"],
@@ -237,13 +240,19 @@ def _certify_compute_bounds(**kw) -> dict:
     mod, name = _try_import("compute_bounds")
     if mod is None:
         return _not_wired("compute_bounds")
-    # physics_bounds.py exposes MeasuredJob + certify(job) -> PhysicalBoundsCertificate.
+    # Two honest engine interfaces are accepted (first that is present wins):
+    #   (A) physics_bounds.py  : MeasuredJob + certify(job) -> PhysicalBoundsCertificate
+    #   (B) szl_pinn_bounds.py : certify_job(**explicit kwargs) -> certificate dict
+    # Both compute the byte-identical szl/physical-bounds-certificate/v1. If neither
+    # is present we return an HONEST incompatible-engine state — never a fabricated cert.
     MeasuredJob = getattr(mod, "MeasuredJob", None)
     certify_fn = getattr(mod, "certify", None)
-    if MeasuredJob is None or certify_fn is None:
+    certify_job_fn = getattr(mod, "certify_job", None)
+    if (MeasuredJob is None or certify_fn is None) and certify_job_fn is None:
         return _not_wired("compute_bounds", {
-            "note": (f"sibling '{name}' present but missing MeasuredJob/certify — honest "
-                     "incompatible-engine state, no number fabricated"),
+            "note": (f"sibling '{name}' present but exposes neither MeasuredJob/certify "
+                     "nor certify_job — honest incompatible-engine state, no number "
+                     "fabricated"),
         })
     # Honest SAMPLE defaults (mirror nvml_hook.sample_job); caller may override.
     defaults = dict(
@@ -254,8 +263,19 @@ def _certify_compute_bounds(**kw) -> dict:
         note="In-sandbox SAMPLE; on metal Forge feeds REAL NVML readings.",
     )
     defaults.update({k: v for k, v in kw.items() if k in defaults})
-    job = MeasuredJob(**defaults)
-    cert = certify_fn(job)
+    if MeasuredJob is not None and certify_fn is not None:
+        # Interface (A): dataclass job + certify(job).
+        job = MeasuredJob(**defaults)
+        cert = certify_fn(job)
+        engine_src = f"physics_bounds.certify (engine: {name})"
+    else:
+        # Interface (B): certify_job(**kwargs). Filter to its real signature so we
+        # never pass an unexpected kw (honest adaptation, not a shim that fabricates).
+        import inspect
+        accepted = set(inspect.signature(certify_job_fn).parameters)
+        call_kw = {k: v for k, v in defaults.items() if k in accepted}
+        cert = certify_job_fn(**call_kw)
+        engine_src = f"szl_pinn_bounds.certify_job (engine: {name})"
     # Normalise to a dict regardless of dataclass vs dict.
     if hasattr(cert, "__dict__") and not isinstance(cert, dict):
         try:
@@ -268,7 +288,7 @@ def _certify_compute_bounds(**kw) -> dict:
     label = "MEASURED" if defaults.get("label") == "MEASURED" else "SAMPLE"
     return _envelope(
         "compute_bounds", label, cert_d,
-        source=f"physics_bounds.certify (engine: {name})",
+        source=engine_src,
         attribution=getattr(mod, "BOUNDS_ATTRIBUTION", None),
         extra={"physically_bounded": cert_d.get("physically_bounded")},
     )
