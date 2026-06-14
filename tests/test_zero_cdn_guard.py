@@ -24,9 +24,17 @@ BANNED = [
 ]
 
 # Files that are SERVED to the browser and therefore must be 0-CDN.
+# 2026-06-14 (DEV-WIRE-A, additive): extended to the routed surfaces QA Team A's
+# full-tab walk had to catch by hand — /nemo, /estate-hologram (web/*.html baked &
+# served via _ptg_serve FileResponse) and /chaski (pages/chaski.html FileResponse).
+# These are individually named (NOT web/*.html) so unrouted build artifacts such as
+# web/console.html / web/operator.html are deliberately not pulled into the gate.
 SERVED_GLOBS = [
     "pages/console.html",
+    "pages/chaski.html",
     "console/*.html",
+    "web/nemo.html",
+    "web/estate-hologram.html",
     "static-vendor/*.js",
     "static-vendor/*.css",
 ]
