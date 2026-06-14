@@ -1453,8 +1453,14 @@ try:
     try:
         import szl_energy_operator as _eo_wire
         import szl_energy_ledger as _el_wire
-        _eo_wire.get_operator().subscribe(_el_wire.record_job)
-        print("[a11oy] energy operator->ledger receipts hook wired", file=sys.stderr)
+        # Wire the operator's per-job emit stream into the ledger so every completed
+        # JobRecord mints a signed JouleCharge receipt onto the hash chain. Backfills
+        # the running daemon's in-memory recent jobs so receipts show immediately;
+        # idempotency makes the replay safe. (Plain subscribe alone left the live box
+        # at 0 receipts: it crashed on SAMPLE jobs' joules_measured=None and never
+        # backfilled jobs the already-running operator had completed.)
+        _eo_wire_result = _el_wire.wire_operator_to_ledger(_eo_wire.get_operator())
+        print(f"[a11oy] energy operator->ledger receipts hook wired: {_eo_wire_result}", file=sys.stderr)
     except Exception as _eo_led_exc:
         print(f"[a11oy] energy operator->ledger hook NOT wired: {_eo_led_exc!r}", file=sys.stderr)
 except Exception as _ledger_exc:  # additive: never break the Space

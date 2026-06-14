@@ -101,9 +101,16 @@ class JobRecord:
 
     @staticmethod
     def from_dict(d: dict) -> "JobRecord":
+        # The operator emits joules_measured=None for every non-billable job (SAMPLE
+        # energy, stale meter, or stub mode). That is NOT an error — it is the honest
+        # "no measured joules" signal. Coerce it to 0.0 here so the receipt still mints
+        # (recorded with billable=false at the gate); NEVER let a None crash the
+        # subscriber, which would silently drop the job (the demo's 0-receipts bug).
+        raw_j = d.get("joules_measured")
+        joules_measured = 0.0 if raw_j is None else float(raw_j)
         return JobRecord(
             node=str(d["node"]),
-            joules_measured=float(d["joules_measured"]),
+            joules_measured=joules_measured,
             joules_label=str(d.get("joules_label", "sample")),
             tokens=int(d.get("tokens", 0)),
             wall_s=float(d.get("wall_s", 0.0)),
@@ -407,8 +414,85 @@ def get_ledger() -> EnergyLedger:
 
 def record_job(job_dict: dict) -> dict:
     """Convenience entrypoint for Dev1's operator: hand us a JobRecord dict, we build
-    the receipt, append to the chain, and return the append result."""
-    return get_ledger().append_job(JobRecord.from_dict(job_dict))
+    the receipt, append to the chain, and return the append result.
+
+    Defensive: a single malformed JobRecord must NEVER crash the operator's emit loop
+    (its subscriber dispatch swallows exceptions, so a raise here would silently DROP
+    the job — exactly the bug that left the live ledger at 0 receipts). On any parse
+    failure we record nothing and report it, rather than fabricating or crashing."""
+    try:
+        return get_ledger().append_job(JobRecord.from_dict(job_dict))
+    except Exception as exc:  # noqa: BLE001 — never let a bad record kill the emit loop
+        return {"appended": False, "duplicate": False, "error": str(exc)}
+
+
+def wire_operator_to_ledger(operator: Any, ledger: Optional["EnergyLedger"] = None,
+                            backfill: bool = True) -> dict:
+    """Wire an OperatorDaemon's completed-job emit stream into the hash-chained ledger.
+
+    This is THE wiring the demo needs: every completed JobRecord the operator emits is
+    minted into a signed JouleCharge receipt and appended to the chain. It:
+
+      1. Subscribes ``record_job`` so all FUTURE completed jobs mint a receipt.
+      2. If ``backfill`` and the operator is ALREADY running (the singleton on the box
+         started before this wiring), replays the jobs the operator is holding in its
+         in-memory recent-records buffer so the ledger shows receipts IMMEDIATELY rather
+         than only from the next job. The ledger's idempotency (same receipt digest never
+         double-appends) makes replay safe even if those jobs also arrive via the live
+         subscription — no double-charge, no double-receipt.
+
+    Honest about backfill limits: the operator persists only AGGREGATE counts across a
+    restart (not per-job records), so backfill can only replay jobs still in the live
+    in-memory buffer of a running daemon. Jobs from a PRIOR process are gone — we never
+    fabricate a per-job receipt for an aggregate we cannot itemize. New jobs always mint.
+
+    Idempotent wiring: calling this twice does not register ``record_job`` twice (the
+    operator's subscriber list would otherwise grow), guarded by a sentinel attribute.
+    """
+    led = ledger if ledger is not None else get_ledger()
+    result = {"subscribed": False, "backfilled": 0, "backfill_duplicates": 0,
+              "already_wired": False}
+
+    def _append(job_dict: dict) -> None:
+        # Subscriber callback: mint a receipt for each completed job onto THIS ledger.
+        # Must never raise — the operator's emit loop swallows subscriber exceptions, so
+        # a raise would silently drop the job (the 0-receipts bug). Bind to `led` so the
+        # live hook and the backfill target the same chain (the singleton in production).
+        try:
+            led.append_job(JobRecord.from_dict(job_dict))
+        except Exception:  # noqa: BLE001 — a bad record never breaks the emit loop
+            pass
+
+    # Idempotent subscribe: don't stack the callback twice on repeated wiring.
+    if getattr(operator, "_ledger_wired", False):
+        result["already_wired"] = True
+    else:
+        operator.subscribe(_append)
+        try:
+            operator._ledger_wired = True  # sentinel; harmless if it can't be set
+        except Exception:  # noqa: BLE001
+            pass
+        result["subscribed"] = True
+
+    if backfill:
+        # The operator keeps a rolling tail of recent completed JobRecord dicts. Replay
+        # them through the ledger; idempotency dedupes anything the live hook also caught.
+        recent: list = []
+        try:
+            recent = list(getattr(operator, "_last_records", []) or [])
+        except Exception:  # noqa: BLE001
+            recent = []
+        for job_dict in recent:
+            try:
+                out = led.append_job(JobRecord.from_dict(job_dict))
+            except Exception:  # noqa: BLE001 — a bad historical record never breaks wiring
+                continue
+            if out.get("appended"):
+                result["backfilled"] += 1
+            elif out.get("duplicate"):
+                result["backfill_duplicates"] += 1
+
+    return result
 
 
 # ---------------------------------------------------------------------------
