@@ -379,6 +379,8 @@ def _h_index(req: Request):
                                "(?avg_power_w=&wall_time_s=&temperature_k=&bit_operations="
                                "&bits_erased=&info_content_bits=&device_mass_kg=&device_radius_m=)",
             f"{base}/certificate": "latest pre-computed certificate artifact (SAMPLE if none wired)",
+            f"{base}/certificates": "auditable content-addressed history of certificates (?n=last N)",
+            f"{base}/verify": "re-verify all signatures for the current certificate bytes",
             f"{base}/solve": "governed agentic decision trail (per-round refine + Λ-gate)",
             f"{base}/residual": "compact per-round residual / rel-L2 summary",
         },
@@ -584,6 +586,107 @@ def _h_verify(req: Request):
     }, status_code=(200 if any_v else 503))
 
 
+# --------------------------------------------------------------------------- #
+# Certificate history - content-addressed, auditable over time.                #
+# Snapshots every physical-bounds certificate by its sha256 so the proof is    #
+# auditable across time, not just the latest. Each entry embeds the cert body  #
+# AND any signature that VERIFIED at archive time (sig + publicKey included),   #
+# so every historical entry is independently re-verifiable. Honest: never a    #
+# fabricated entry; an unsigned cert is archived with signed:false.            #
+# --------------------------------------------------------------------------- #
+_CERT_HISTORY_DIR = os.path.join(_ART_DIR, "cert_history")
+
+
+def _archive_current_certificate():
+    """Idempotently snapshot the CURRENT certificate into the content-addressed
+    history store (filename = its sha256 hex). No-op if no cert is wired or if the
+    current bytes are already archived. Returns the path or None."""
+    body = _cert_raw_bytes()
+    if body is None:
+        return None
+    shahex = hashlib.sha256(body).hexdigest()
+    path = os.path.join(_CERT_HISTORY_DIR, shahex + ".json")
+    if os.path.exists(path):
+        return path
+    try:
+        art = json.loads(body.decode())
+    except Exception:
+        art = None
+    cert = art if isinstance(art, dict) else {}
+    sigs = []
+    ed_obj, _env = _verified_signature(body)
+    if ed_obj:
+        sigs.append({"type": "ed25519_onmetal", **ed_obj})
+    co_obj = _verified_cosign_signature(body)
+    if co_obj:
+        sigs.append({"type": "cosign_anchored", **co_obj})
+    measured = cert.get("measured") if isinstance(cert.get("measured"), dict) else {}
+    entry = {
+        "cert_sha256": "sha256:" + shahex,
+        "archived_at": _now_iso(),
+        "signed": bool(sigs),
+        "signatures": sigs,
+        "energy_joules_derived": cert.get("energy_joules_derived"),
+        "label": measured.get("label", cert.get("label")),
+        "certificate": cert,
+    }
+    try:
+        os.makedirs(_CERT_HISTORY_DIR, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(entry, fh, separators=(",", ":"))
+        os.replace(tmp, path)
+    except Exception:
+        return None
+    return path
+
+
+def _h_certificates(req: Request):
+    """Auditable history of physical-bounds certificates, content-addressed by
+    sha256 (newest first; last N via ?n=, default 20, max 200). Each entry embeds
+    any signature that verified when it was archived, so the proof is auditable over
+    time - not just the latest. Honest: real archived certs only, never fabricated."""
+    _archive_current_certificate()  # idempotent: keep the latest in the audit trail
+    try:
+        n = int(req.query_params.get("n", "20"))
+    except Exception:
+        n = 20
+    n = max(1, min(n, 200))
+    entries = []
+    try:
+        for name in os.listdir(_CERT_HISTORY_DIR):
+            if not name.endswith(".json") or name.endswith(".tmp"):
+                continue
+            e = _read_json(os.path.join(_CERT_HISTORY_DIR, name))
+            if isinstance(e, dict) and e.get("cert_sha256"):
+                entries.append(e)
+    except Exception:
+        entries = []
+    entries.sort(key=lambda e: e.get("archived_at", ""), reverse=True)
+    sliced = entries[:n]
+    summary = [{
+        "cert_sha256": e.get("cert_sha256"),
+        "archived_at": e.get("archived_at"),
+        "signed": e.get("signed", False),
+        "signature_types": [s.get("type") for s in (e.get("signatures") or [])],
+        "energy_joules_derived": e.get("energy_joules_derived"),
+        "label": e.get("label"),
+    } for e in sliced]
+    return JSONResponse({
+        "model": "SZL Physical-Bounds Certifier - certificate history (auditable)",
+        "count": len(entries),
+        "returned": len(sliced),
+        "content_addressed": True,
+        "certificates": summary,
+        "detail": ("Content-addressed (sha256) snapshots of every physical-bounds "
+                   "certificate, each embedding the signatures that verified at archive "
+                   "time so the proof is auditable over time, not just the latest. "
+                   "Honest: real archived certs only, never a fabricated entry."),
+        "lambda_note": LAMBDA_NOTE,
+        "ts": _now_iso(),
+    })
+
+
 def register(app, ns="a11oy"):
     """Wire the PINN/bounds mesh onto the app under /api/<ns>/v1/pinn/*.
 
@@ -596,6 +699,7 @@ def register(app, ns="a11oy"):
         (base, _h_index),
         (f"{base}/certify", _h_certify),
         (f"{base}/certificate", _h_certificate),
+        (f"{base}/certificates", _h_certificates),
         (f"{base}/certificate.dsse", _h_certificate_dsse),
         (f"{base}/verify", _h_verify),
         (f"{base}/solve", _h_solve),
