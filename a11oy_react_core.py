@@ -752,6 +752,193 @@ class _ReActEngine:
 
 # ---------------------------------------------------------------------------
 # register(app, ns, sign_fn, verify_fn, pub_pem_fn) — mirrors szl_agentic_loop.
+# R2 additive: byte-identical embedded copy of web/agent-loop.html so the
+# /agent-loop trace UI (restraint-verdict column) renders even though the
+# asset is not baked by the Dockerfile. Decoded only as a last-resort
+# fallback after the on-disk paths. Generated from the committed file.
+_AGENTLOOP_HTML_B64 = (
+    "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ii8+CjxtZXRhIG5hbWU9InZpZXdwb3J0IiBjb250"
+    "ZW50PSJ3aWR0aD1kZXZpY2Utd2lkdGgsIGluaXRpYWwtc2NhbGU9MSIvPgo8dGl0bGU+YTExb3kg4oCUIEFnZW50IExvb3AgwrcgTWVtb3J5IMK3IFNraWxs"
+    "IExpYnJhcnk8L3RpdGxlPgo8IS0tIDAgcnVudGltZSBDRE46IHNoYXJlZCBlbmdpbmVzIHNlcnZlZCBsb2NhbGx5IGZyb20gL3N0YXRpYy9zaGFyZWQuIC0t"
+    "Pgo8c2NyaXB0IHNyYz0iL3N0YXRpYy9zaGFyZWQvc3psX2xhYmVsX2VuZ2luZS5qcyI+PC9zY3JpcHQ+CjxzY3JpcHQgc3JjPSIvc3RhdGljL3NoYXJlZC9z"
+    "emxfcmVjZWlwdF9jb3NpZ24uanMiPjwvc2NyaXB0Pgo8c3R5bGU+CiAgOnJvb3R7LS1iZzojMGIwZTE0Oy0tcGFuZWw6IzEyMTgyNjstLWluazojZTZlZGYz"
+    "Oy0tbXV0OiM4Yjk4YTk7LS1hY2M6IzViZDZmZjsKICAgICAgICAtLW9rOiMzZmQzN2Y7LS1iYWQ6I2ZmNmI2YjstLXdhcm46I2ZmY2U1YjstLWxpbmU6IzFm"
+    "MjkzNzt9CiAgKntib3gtc2l6aW5nOmJvcmRlci1ib3h9CiAgYm9keXttYXJnaW46MDtiYWNrZ3JvdW5kOnZhcigtLWJnKTtjb2xvcjp2YXIoLS1pbmspOwog"
+    "ICAgICAgZm9udDoxNHB4LzEuNSB1aS1tb25vc3BhY2UsU0ZNb25vLVJlZ3VsYXIsTWVubG8sQ29uc29sYXMsbW9ub3NwYWNlfQogIGhlYWRlcntwYWRkaW5n"
+    "OjE2cHggMjJweDtib3JkZXItYm90dG9tOjFweCBzb2xpZCB2YXIoLS1saW5lKTsKICAgICAgICAgZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmNlbnRlcjtn"
+    "YXA6MTRweDtmbGV4LXdyYXA6d3JhcH0KICBoMXtmb250LXNpemU6MTdweDttYXJnaW46MDtsZXR0ZXItc3BhY2luZzouM3B4fQogIC5zdWJ7Y29sb3I6dmFy"
+    "KC0tbXV0KTtmb250LXNpemU6MTJweH0KICAudGFic3tkaXNwbGF5OmZsZXg7Z2FwOjZweDtwYWRkaW5nOjEwcHggMThweDtib3JkZXItYm90dG9tOjFweCBz"
+    "b2xpZCB2YXIoLS1saW5lKX0KICAudGFie3BhZGRpbmc6N3B4IDE0cHg7Ym9yZGVyOjFweCBzb2xpZCB2YXIoLS1saW5lKTtib3JkZXItcmFkaXVzOjhweDsK"
+    "ICAgICAgIGJhY2tncm91bmQ6dmFyKC0tcGFuZWwpO2N1cnNvcjpwb2ludGVyO2NvbG9yOnZhcigtLW11dCl9CiAgLnRhYi5hY3RpdmV7Y29sb3I6dmFyKC0t"
+    "aW5rKTtib3JkZXItY29sb3I6dmFyKC0tYWNjKTtib3gtc2hhZG93OjAgMCAwIDFweCB2YXIoLS1hY2MpIGluc2V0fQogIG1haW57cGFkZGluZzoxOHB4IDIy"
+    "cHg7bWF4LXdpZHRoOjExODBweH0KICAudmlld3tkaXNwbGF5Om5vbmV9LnZpZXcuYWN0aXZle2Rpc3BsYXk6YmxvY2t9CiAgLmNhcmR7YmFja2dyb3VuZDp2"
+    "YXIoLS1wYW5lbCk7Ym9yZGVyOjFweCBzb2xpZCB2YXIoLS1saW5lKTtib3JkZXItcmFkaXVzOjEycHg7CiAgICAgICAgcGFkZGluZzoxNnB4O21hcmdpbjow"
+    "IDAgMTZweH0KICAucm93e2Rpc3BsYXk6ZmxleDtnYXA6MTBweDtmbGV4LXdyYXA6d3JhcDthbGlnbi1pdGVtczpjZW50ZXI7bWFyZ2luLWJvdHRvbToxMHB4"
+    "fQogIGlucHV0LHRleHRhcmVhLHNlbGVjdHtiYWNrZ3JvdW5kOiMwZDEzMjA7Ym9yZGVyOjFweCBzb2xpZCB2YXIoLS1saW5lKTsKICAgICAgICBjb2xvcjp2"
+    "YXIoLS1pbmspO2JvcmRlci1yYWRpdXM6OHB4O3BhZGRpbmc6OHB4IDEwcHg7Zm9udDppbmhlcml0fQogIGlucHV0W3R5cGU9dGV4dF17bWluLXdpZHRoOjM0"
+    "MHB4fQogIHRleHRhcmVhe3dpZHRoOjEwMCU7bWluLWhlaWdodDo2NHB4fQogIGJ1dHRvbntiYWNrZ3JvdW5kOnZhcigtLWFjYyk7Y29sb3I6IzA2MjIyYzti"
+    "b3JkZXI6MDtib3JkZXItcmFkaXVzOjhweDsKICAgICAgICBwYWRkaW5nOjhweCAxNHB4O2ZvbnQ6aW5oZXJpdDtmb250LXdlaWdodDo3MDA7Y3Vyc29yOnBv"
+    "aW50ZXJ9CiAgYnV0dG9uLmdob3N0e2JhY2tncm91bmQ6IzBkMTMyMDtjb2xvcjp2YXIoLS1pbmspO2JvcmRlcjoxcHggc29saWQgdmFyKC0tbGluZSk7Zm9u"
+    "dC13ZWlnaHQ6NTAwfQogIC5sYmx7Zm9udC1zaXplOjExcHg7Zm9udC13ZWlnaHQ6NzAwO3BhZGRpbmc6MnB4IDdweDtib3JkZXItcmFkaXVzOjZweDsKICAg"
+    "ICAgIGJvcmRlcjoxcHggc29saWQgdmFyKC0tbGluZSk7bWFyZ2luLWxlZnQ6NnB4fQogIC5ub2Rle2Rpc3BsYXk6aW5saW5lLWJsb2NrO21pbi13aWR0aDo5"
+    "NnB4O3RleHQtYWxpZ246Y2VudGVyO2JvcmRlci1yYWRpdXM6NnB4OwogICAgICAgIHBhZGRpbmc6MnB4IDhweDtmb250LXdlaWdodDo3MDA7Zm9udC1zaXpl"
+    "OjEycHh9CiAgLlRIT1VHSFR7YmFja2dyb3VuZDojMTIzMDRhO2NvbG9yOiM5ZmRjZmZ9CiAgLkFDVElPTntiYWNrZ3JvdW5kOiMzYTJhMTI7Y29sb3I6I2Zm"
+    "Y2U4YX0KICAuT0JTRVJWQVRJT057YmFja2dyb3VuZDojMTIzYTI0O2NvbG9yOiM4ZmYwYmJ9CiAgLkdFTkVTSVN7YmFja2dyb3VuZDojMjEyNjJkO2NvbG9y"
+    "OiM5ZmIyYzh9CiAgLm9re2NvbG9yOnZhcigtLW9rKX0uYmFke2NvbG9yOnZhcigtLWJhZCl9Lm11dHtjb2xvcjp2YXIoLS1tdXQpfQogIC5tb25ve2ZvbnQt"
+    "ZmFtaWx5OmluaGVyaXR9Lmhhc2h7Y29sb3I6dmFyKC0tbXV0KTtmb250LXNpemU6MTFweDt3b3JkLWJyZWFrOmJyZWFrLWFsbH0KICB0YWJsZXt3aWR0aDox"
+    "MDAlO2JvcmRlci1jb2xsYXBzZTpjb2xsYXBzZTtmb250LXNpemU6MTIuNXB4fQogIHRoLHRke3RleHQtYWxpZ246bGVmdDtwYWRkaW5nOjZweCA4cHg7Ym9y"
+    "ZGVyLWJvdHRvbToxcHggc29saWQgdmFyKC0tbGluZSk7dmVydGljYWwtYWxpZ246dG9wfQogIHRoe2NvbG9yOnZhcigtLW11dCk7Zm9udC13ZWlnaHQ6NjAw"
+    "fQogIC5iYXJ7aGVpZ2h0OjhweDtib3JkZXItcmFkaXVzOjRweDtiYWNrZ3JvdW5kOiMwZDEzMjA7b3ZlcmZsb3c6aGlkZGVuO21pbi13aWR0aDo5MHB4fQog"
+    "IC5iYXI+aXtkaXNwbGF5OmJsb2NrO2hlaWdodDoxMDAlO2JhY2tncm91bmQ6dmFyKC0tYWNjKX0KICBwcmV7d2hpdGUtc3BhY2U6cHJlLXdyYXA7d29yZC1i"
+    "cmVhazpicmVhay13b3JkO21hcmdpbjo2cHggMCAwO2NvbG9yOnZhcigtLW11dCk7Zm9udC1zaXplOjEycHh9CiAgLnBpbGx7Zm9udC1zaXplOjExcHg7Ym9y"
+    "ZGVyOjFweCBzb2xpZCB2YXIoLS1saW5lKTtib3JkZXItcmFkaXVzOjIwcHg7cGFkZGluZzoycHggOXB4O2NvbG9yOnZhcigtLW11dCl9CiAgY29kZXtiYWNr"
+    "Z3JvdW5kOiMwZDEzMjA7cGFkZGluZzoxcHggNXB4O2JvcmRlci1yYWRpdXM6NXB4fQo8L3N0eWxlPgo8L2hlYWQ+Cjxib2R5Pgo8aGVhZGVyPgogIDxoMT5h"
+    "MTFveSDCtyBBR0VOVElDIENPUkU8L2gxPgogIDxzcGFuIGlkPSJ0b3BiYWRnZXMiPjwvc3Bhbj4KICA8c3BhbiBjbGFzcz0ic3ViIj5SZUFjdCBncmFwaCDC"
+    "tyBzaWduZWQgcmVjZWlwdCBib3VuZGFyaWVzIMK3IFNxbGl0ZVNhdmVyIHJlc3VtZSDCtyBHZW5lcmF0aXZlLUFnZW50cyBtZW1vcnkgwrcgTGV0dGEgdGll"
+    "cmluZyDCtyBWb3lhZ2VyIHNraWxsczwvc3Bhbj4KPC9oZWFkZXI+CjxkaXYgY2xhc3M9InRhYnMiPgogIDxkaXYgY2xhc3M9InRhYiBhY3RpdmUiIGRhdGEt"
+    "dj0ibG9vcCI+QWdlbnQgTG9vcDwvZGl2PgogIDxkaXYgY2xhc3M9InRhYiIgZGF0YS12PSJtZW1vcnkiPk1lbW9yeTwvZGl2PgogIDxkaXYgY2xhc3M9InRh"
+    "YiIgZGF0YS12PSJza2lsbHMiPlNraWxsIExpYnJhcnk8L2Rpdj4KPC9kaXY+CjxtYWluPgoKPCEtLSA9PT09PT09PT09PT09PT09PT09PT0gQUdFTlQgTE9P"
+    "UCA9PT09PT09PT09PT09PT09PT09PT0gLS0+CjxzZWN0aW9uIGNsYXNzPSJ2aWV3IGFjdGl2ZSIgaWQ9InYtbG9vcCI+CiAgPGRpdiBjbGFzcz0iY2FyZCI+"
+    "CiAgICA8ZGl2IGNsYXNzPSJyb3ciPgogICAgICA8aW5wdXQgaWQ9ImdvYWwiIHR5cGU9InRleHQiIHBsYWNlaG9sZGVyPSJnb2FsLCBlLmcuICBpbXBsZW1l"
+    "bnQgYSBmdW5jdGlvbiB0aGF0IHZhbGlkYXRlcyBhbiBlbWFpbCBhZGRyZXNzIiB2YWx1ZT0iaW1wbGVtZW50IGEgZnVuY3Rpb24gdGhhdCB2YWxpZGF0ZXMg"
+    "YW4gZW1haWwgYWRkcmVzcyIvPgogICAgICA8bGFiZWwgY2xhc3M9InN1YiI+bWF4X3N0ZXBzIDxpbnB1dCBpZD0ibWF4c3RlcHMiIHR5cGU9Im51bWJlciIg"
+    "dmFsdWU9IjQiIHN0eWxlPSJ3aWR0aDo2NHB4Ii8+PC9sYWJlbD4KICAgICAgPGxhYmVsIGNsYXNzPSJzdWIiPjxpbnB1dCBpZD0ia2lsbCIgdHlwZT0iY2hl"
+    "Y2tib3giLz4ga2lsbCBtaWQtcnVuIChjcmFzaCBkZW1vKTwvbGFiZWw+CiAgICAgIDxidXR0b24gaWQ9ImJ0blJ1biI+UnVuIFJlQWN0PC9idXR0b24+CiAg"
+    "ICAgIDxidXR0b24gY2xhc3M9Imdob3N0IiBpZD0iYnRuUmVzdW1lIj5SZXN1bWUgbGFzdDwvYnV0dG9uPgogICAgPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJz"
+    "dWIiPkVhY2ggbm9kZSB0cmFuc2l0aW9uIChUaG91Z2h04oaSQWN0aW9u4oaST2JzZXJ2YXRpb24pIGlzIGEgaGFzaC1jaGFpbmVkLCBEU1NFLXNpZ25lZCBy"
+    "ZWNlaXB0LiBBIGNyYXNoIHJlc3VtZXMgZnJvbSB0aGUgbGFzdCBTcWxpdGVTYXZlciBjaGVja3BvaW50LiA8c3BhbiBpZD0icnVubGJsIj48L3NwYW4+PC9k"
+    "aXY+CiAgPC9kaXY+CiAgPGRpdiBjbGFzcz0iY2FyZCIgaWQ9InJ1bk1ldGEiIHN0eWxlPSJkaXNwbGF5Om5vbmUiPjwvZGl2PgogIDxkaXYgY2xhc3M9ImNh"
+    "cmQiIGlkPSJ0cmFjZUNhcmQiIHN0eWxlPSJkaXNwbGF5Om5vbmUiPgogICAgPGRpdiBjbGFzcz0icm93IiBzdHlsZT0ianVzdGlmeS1jb250ZW50OnNwYWNl"
+    "LWJldHdlZW4iPgogICAgICA8c3Ryb25nPkV4ZWN1dGlvbiB0cmFjZSArIHJlY2VpcHQgY2hhaW48L3N0cm9uZz4KICAgICAgPHNwYW4gaWQ9ImNoYWluU3Rh"
+    "dGUiPjwvc3Bhbj4KICAgIDwvZGl2PgogICAgPHRhYmxlIGlkPSJ0cmFjZVRibCI+PHRoZWFkPjx0cj4KICAgICAgPHRoPnNlcTwvdGg+PHRoPm5vZGU8L3Ro"
+    "Pjx0aD5ib2R5PC90aD48dGg+cmVzdHJhaW50PC90aD48dGg+bGluazwvdGg+PHRoPnNpZ25hdHVyZTwvdGg+PHRoPmhhc2g8L3RoPgogICAgPC90cj48L3Ro"
+    "ZWFkPjx0Ym9keT48L3Rib2R5PjwvdGFibGU+CiAgICA8ZGl2IGNsYXNzPSJzdWIiIHN0eWxlPSJtYXJnaW4tdG9wOjZweCI+QWN0aW9uIG5vZGVzIHRoYXQg"
+    "PHN0cm9uZz53cml0ZSBjb2RlPC9zdHJvbmc+IGFyZSBnYXRlZCB0aHJvdWdoIDxzdHJvbmc+YTExb3kgUmVzdHJhaW50PC9zdHJvbmc+ICh0aGUgUG9ueXRh"
+    "aWwtZGVyaXZlZCA2LXJ1bmcgZnJ1Z2FsaXR5IGxhZGRlciwgPGEgaHJlZj0iaHR0cHM6Ly9naXRodWIuY29tL0RpZXRyaWNoR2ViZXJ0L3Bvbnl0YWlsIiB0"
+    "YXJnZXQ9Il9ibGFuayIgcmVsPSJub29wZW5lciI+UG9ueXRhaWwgTUlUPC9hPiDigJQgYWRvcHRlZCArIGdvdmVybmVkKS4gVGhlIGNob3NlbiBydW5nICsg"
+    "c2lnbmVkIHJlc3RyYWludCByZWNlaXB0IGFyZSByZWNvcmRlZCBpbiB0aGF0IG5vZGUncyByZWNlaXB0LiA8c3Ryb25nPlIxIG93bnMgdGhlIGxhZGRlciBt"
+    "b2R1bGU8L3N0cm9uZz47IGhvbmVzdCA8c3Ryb25nPlBFTkRJTkc8L3N0cm9uZz4gdW50aWwgaXQgaXMgbGl2ZS48L2Rpdj4KICA8L2Rpdj4KICA8ZGl2IGNs"
+    "YXNzPSJjYXJkIiBpZD0iY3BDYXJkIiBzdHlsZT0iZGlzcGxheTpub25lIj4KICAgIDxzdHJvbmc+Q2hlY2twb2ludHMgKFNxbGl0ZVNhdmVyLXN0eWxlKTwv"
+    "c3Ryb25nPgogICAgPHRhYmxlIGlkPSJjcFRibCI+PHRoZWFkPjx0cj48dGg+c3RlcDwvdGg+PHRoPnByZXZfaGFzaDwvdGg+PHRoPnRzPC90aD48L3RyPjwv"
+    "dGhlYWQ+PHRib2R5PjwvdGJvZHk+PC90YWJsZT4KICA8L2Rpdj4KPC9zZWN0aW9uPgoKPCEtLSA9PT09PT09PT09PT09PT09PT09PT0gTUVNT1JZID09PT09"
+    "PT09PT09PT09PT09PT09PSAtLT4KPHNlY3Rpb24gY2xhc3M9InZpZXciIGlkPSJ2LW1lbW9yeSI+CiAgPGRpdiBjbGFzcz0iY2FyZCI+CiAgICA8ZGl2IGNs"
+    "YXNzPSJzdWIiPkdlbmVyYXRpdmUtQWdlbnRzIHJldHJpZXZhbDogPGNvZGU+c2NvcmUobSk9zrFfcmVjwrfOs17OlHQgKyDOsV9pbXDCt2ltcChtKSArIM6x"
+    "X3JlbMK3Y29zKHEsbSk8L2NvZGU+IChhclhpdiAyMzA0LjAzNDQyKS4gRW1iZWRkaW5ncyBhcmUgTE9DQUwgKGhhc2hpbmctdHJpY2ssIDAgQ0ROKSA8c3Bh"
+    "biBjbGFzcz0ibGJsIiBzdHlsZT0iYm9yZGVyLWNvbG9yOnZhcigtLXdhcm4pO2NvbG9yOnZhcigtLXdhcm4pIj5IRVVSSVNUSUM8L3NwYW4+PC9kaXY+CiAg"
+    "ICA8ZGl2IGNsYXNzPSJyb3ciIHN0eWxlPSJtYXJnaW4tdG9wOjEwcHgiPgogICAgICA8aW5wdXQgaWQ9Im1lbVRleHQiIHR5cGU9InRleHQiIHBsYWNlaG9s"
+    "ZGVyPSJhZGQgYSBtZW1vcnkgKG9ic2VydmF0aW9uIC8gZmFjdCAvIGxlc3NvbikiLz4KICAgICAgPGJ1dHRvbiBpZD0iYnRuTWVtQWRkIj5BZGQ8L2J1dHRv"
+    "bj4KICAgIDwvZGl2PgogICAgPGRpdiBjbGFzcz0icm93Ij4KICAgICAgPGlucHV0IGlkPSJtZW1RIiB0eXBlPSJ0ZXh0IiBwbGFjZWhvbGRlcj0icmV0cmll"
+    "dmUgcXVlcnksIGUuZy4gIGZ1ZWwgaWduaXRpb24gbGF1bmNoIi8+CiAgICAgIDxidXR0b24gaWQ9ImJ0bk1lbVNlYXJjaCI+UmV0cmlldmUgKHNjb3JlZCk8"
+    "L2J1dHRvbj4KICAgIDwvZGl2PgogIDwvZGl2PgogIDxkaXYgY2xhc3M9ImNhcmQiIGlkPSJtZW1DYXJkIiBzdHlsZT0iZGlzcGxheTpub25lIj4KICAgIDxz"
+    "dHJvbmc+U2NvcmVkIHJldHJpZXZhbDwvc3Ryb25nPgogICAgPHRhYmxlIGlkPSJtZW1UYmwiPjx0aGVhZD48dHI+CiAgICAgIDx0aD5zY29yZTwvdGg+PHRo"
+    "PnJlY2VuY3kgzrNezpR0PC90aD48dGg+aW1wPC90aD48dGg+Y29zKHEsbSk8L3RoPjx0aD50aWVyPC90aD48dGg+dGV4dDwvdGg+CiAgICA8L3RyPjwvdGhl"
+    "YWQ+PHRib2R5PjwvdGJvZHk+PC90YWJsZT4KICA8L2Rpdj4KICA8ZGl2IGNsYXNzPSJjYXJkIiBpZD0idGllckNhcmQiPgogICAgPGRpdiBjbGFzcz0icm93"
+    "IiBzdHlsZT0ianVzdGlmeS1jb250ZW50OnNwYWNlLWJldHdlZW4iPgogICAgICA8c3Ryb25nPkxldHRhIHRpZXJpbmcg4oCUIHdvcmtpbmcgKGluLWNvbnRl"
+    "eHQpICsgYXJjaGl2YWwgKHZlY3Rvcik8L3N0cm9uZz4KICAgICAgPGJ1dHRvbiBjbGFzcz0iZ2hvc3QiIGlkPSJidG5UaWVycyI+UmVmcmVzaCB0aWVyczwv"
+    "YnV0dG9uPgogICAgPC9kaXY+CiAgICA8ZGl2IGlkPSJ0aWVyQm9keSIgY2xhc3M9InN1YiI+d29ya2luZyBjYXAgPSBwYWdpbmcgYm91bmRhcnk7IGxlYXN0"
+    "LXJlY2VudGx5LXVzZWQgd29ya2luZyBpdGVtcyBwYWdlIG91dCB0byBhcmNoaXZhbC48L2Rpdj4KICA8L2Rpdj4KPC9zZWN0aW9uPgoKPCEtLSA9PT09PT09"
+    "PT09PT09PT09PT09PT0gU0tJTEwgTElCUkFSWSA9PT09PT09PT09PT09PT09PT09PT0gLS0+CjxzZWN0aW9uIGNsYXNzPSJ2aWV3IiBpZD0idi1za2lsbHMi"
+    "PgogIDxkaXYgY2xhc3M9ImNhcmQiPgogICAgPGRpdiBjbGFzcz0ic3ViIj5Wb3lhZ2VyIHNraWxsIGxpYnJhcnkgKGFyWGl2IDIzMDUuMTYyOTEpOiBhIHRv"
+    "b2wtcmVjaXBlIGlzIGFkbWl0dGVkIDxlbT5vbmx5PC9lbT4gYWZ0ZXIgYSA8c3Ryb25nPnZlcmlmaWVkIGV4ZWN1dGlvbiByZWNlaXB0PC9zdHJvbmc+LiBJ"
+    "bmRleGVkIGJ5IGxvY2FsIGVtYmVkZGluZy48L2Rpdj4KICAgIDxkaXYgY2xhc3M9InJvdyIgc3R5bGU9Im1hcmdpbi10b3A6MTBweCI+CiAgICAgIDxpbnB1"
+    "dCBpZD0ic2tOYW1lIiB0eXBlPSJ0ZXh0IiBwbGFjZWhvbGRlcj0ic2tpbGwgbmFtZSIgc3R5bGU9Im1pbi13aWR0aDoxODBweCIvPgogICAgICA8aW5wdXQg"
+    "aWQ9InNrUmVjaXBlIiB0eXBlPSJ0ZXh0IiBwbGFjZWhvbGRlcj0icmVjaXBlIChlLmcuIGNhbGMge2F9KntifSkiIHN0eWxlPSJtaW4td2lkdGg6MjIwcHgi"
+    "Lz4KICAgICAgPGlucHV0IGlkPSJza1J1biIgdHlwZT0idGV4dCIgcGxhY2Vob2xkZXI9InJ1bl9pZCBvZiBhIHZlcmlmaWVkIHJ1biIgc3R5bGU9Im1pbi13"
+    "aWR0aDoxODBweCIvPgogICAgICA8YnV0dG9uIGlkPSJidG5BZG1pdCI+QWRtaXQgKHJlY2VpcHQtZ2F0ZWQpPC9idXR0b24+CiAgICA8L2Rpdj4KICAgIDxk"
+    "aXYgaWQ9ImFkbWl0TXNnIiBjbGFzcz0ic3ViIj48L2Rpdj4KICA8L2Rpdj4KICA8ZGl2IGNsYXNzPSJjYXJkIj4KICAgIDxkaXYgY2xhc3M9InJvdyIgc3R5"
+    "bGU9Imp1c3RpZnktY29udGVudDpzcGFjZS1iZXR3ZWVuIj4KICAgICAgPHN0cm9uZz5BZG1pdHRlZCBza2lsbHM8L3N0cm9uZz4KICAgICAgPGJ1dHRvbiBj"
+    "bGFzcz0iZ2hvc3QiIGlkPSJidG5Ta2lsbHMiPlJlZnJlc2g8L2J1dHRvbj4KICAgIDwvZGl2PgogICAgPHRhYmxlIGlkPSJza1RibCI+PHRoZWFkPjx0cj4K"
+    "ICAgICAgPHRoPm5hbWU8L3RoPjx0aD5yZWNpcGU8L3RoPjx0aD5yZWNlaXB0PC90aD48dGg+dmVyaWZpZWQ8L3RoPjx0aD51c2VzPC90aD4KICAgIDwvdHI+"
+    "PC90aGVhZD48dGJvZHk+PC90Ym9keT48L3RhYmxlPgogIDwvZGl2Pgo8L3NlY3Rpb24+Cgo8L21haW4+CjxzY3JpcHQ+CmNvbnN0IEFQSSA9ICIvYXBpL2Ex"
+    "MW95L3YxL2FnZW50L3JlYWN0IjsKY29uc3QgTCA9ICh3aW5kb3cuU1pMTGFiZWxzICYmIHdpbmRvdy5TWkxMYWJlbHMuYmFkZ2VIVE1MKSA/IHdpbmRvdy5T"
+    "WkxMYWJlbHMuYmFkZ2VIVE1MIDogKGspPT4oIjxzcGFuIGNsYXNzPSdsYmwnPiIraysiPC9zcGFuPiIpOwpsZXQgTEFTVF9SVU4gPSBsb2NhbFN0b3JhZ2Uu"
+    "Z2V0SXRlbSgiYTExb3lfbGFzdF9ydW4iKSB8fCAiIjsKCmRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJ0b3BiYWRnZXMiKS5pbm5lckhUTUwgPSBMKCJFWFBF"
+    "UklNRU5UQUwiKSArICIgIiArIEwoIkhFVVJJU1RJQyIpOwoKLy8gdGFicwpkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCIudGFiIikuZm9yRWFjaCh0PT50"
+    "Lm9uY2xpY2s9KCk9PnsKICBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCIudGFiIikuZm9yRWFjaCh4PT54LmNsYXNzTGlzdC5yZW1vdmUoImFjdGl2ZSIp"
+    "KTsKICBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCIudmlldyIpLmZvckVhY2goeD0+eC5jbGFzc0xpc3QucmVtb3ZlKCJhY3RpdmUiKSk7CiAgdC5jbGFz"
+    "c0xpc3QuYWRkKCJhY3RpdmUiKTsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgidi0iK3QuZGF0YXNldC52KS5jbGFzc0xpc3QuYWRkKCJhY3RpdmUiKTsK"
+    "fSk7Cgphc3luYyBmdW5jdGlvbiBqcG9zdCh1LGIpe2NvbnN0IHI9YXdhaXQgZmV0Y2godSx7bWV0aG9kOiJQT1NUIixoZWFkZXJzOnsiQ29udGVudC1UeXBl"
+    "IjoiYXBwbGljYXRpb24vanNvbiJ9LGJvZHk6SlNPTi5zdHJpbmdpZnkoYnx8e30pfSk7cmV0dXJuIHtzdGF0dXM6ci5zdGF0dXMsanNvbjphd2FpdCByLmpz"
+    "b24oKX07fQphc3luYyBmdW5jdGlvbiBqZ2V0KHUpe2NvbnN0IHI9YXdhaXQgZmV0Y2godSk7cmV0dXJuIHtzdGF0dXM6ci5zdGF0dXMsanNvbjphd2FpdCBy"
+    "Lmpzb24oKX07fQpmdW5jdGlvbiBlc2Mocyl7cmV0dXJuIChzPT1udWxsPyIiOlN0cmluZyhzKSkucmVwbGFjZSgvWyY8Pl0vZyxjPT4oeyImIjoiJmFtcDsi"
+    "LCI8IjoiJmx0OyIsIj4iOiImZ3Q7In1bY10pKTt9CgovLyAtLS0tLS0tLS0tIEFnZW50IExvb3AgLS0tLS0tLS0tLQovLyBSZXN0cmFpbnQgdmVyZGljdCBj"
+    "ZWxsIGZvciBhIG5vZGUgYm9keS4gT25seSBjb2RlLXdyaXRpbmcgQUNUSU9OIG5vZGVzIGNhcnJ5Ci8vIGEgYHJlc3RyYWludGAgYmxvY2s7IGV2ZXJ5dGhp"
+    "bmcgZWxzZSBzaG93cyBhIGRpbSBlbS1kYXNoIChob25lc3QpLgpmdW5jdGlvbiByZXN0cmFpbnRDZWxsKGJvZHkpewogIGNvbnN0IHJzID0gYm9keSAmJiBi"
+    "b2R5LnJlc3RyYWludDsKICBpZighcnMpIHJldHVybiAiPHNwYW4gY2xhc3M9J211dCc+4oCUPC9zcGFuPiI7CiAgY29uc3QgbGl2ZSA9IHJzLnN0YXR1cz09"
+    "PSJMSVZFIjsKICBjb25zdCBiYWRnZSA9IGxpdmUgPyBMKCJMSVZFIikgOiAoTCgiUk9BRE1BUCIpKyIgPHNwYW4gY2xhc3M9J2xibCcgc3R5bGU9J2JvcmRl"
+    "ci1jb2xvcjp2YXIoLS13YXJuKTtjb2xvcjp2YXIoLS13YXJuKSc+UEVORElORzwvc3Bhbj4iKTsKICBpZihycy5zdG9wcGVkX2F0X3J1bmchPW51bGwpewog"
+    "ICAgY29uc3Qgc2F2ZWQgPSAocnMubGluZXNfc2F2ZWRfZXN0aW1hdGUhPW51bGwpCiAgICAgID8gKCIgwrcgc2F2ZWTiiYgiK3JzLmxpbmVzX3NhdmVkX2Vz"
+    "dGltYXRlKyIgTE9DICgiK2VzYyhycy5saW5lc19zYXZlZF9sYWJlbHx8Ik1PREVMRUQiKSsiKSIpIDogIiI7CiAgICBjb25zdCBsYW0gPSAocnMubGFtYmRh"
+    "X2Fkdmlzb3J5IT1udWxsKSA/ICgiIMK3IM6bICIrTnVtYmVyKHJzLmxhbWJkYV9hZHZpc29yeSkudG9GaXhlZCgzKSkgOiAiIjsKICAgIGNvbnN0IGNlaWwg"
+    "PSBycy5yZXN0cmFpbnRfY29tbWVudCA/ICgiPGRpdiBjbGFzcz0nbXV0JyBzdHlsZT0nZm9udC1zaXplOjExcHgnPjxjb2RlPiIrZXNjKHJzLnJlc3RyYWlu"
+    "dF9jb21tZW50KSsiPC9jb2RlPjwvZGl2PiIpIDogIiI7CiAgICByZXR1cm4gIjxkaXY+PHNwYW4gY2xhc3M9J29rJz5ydW5nICIrcnMuc3RvcHBlZF9hdF9y"
+    "dW5nKyI8L3NwYW4+ICIrZXNjKHJzLnJ1bmdfa2V5fHwiIikrIiAiK2JhZGdlKyI8L2Rpdj4iKwogICAgICAgICAgICI8ZGl2IGNsYXNzPSdtdXQnIHN0eWxl"
+    "PSdmb250LXNpemU6MTFweCc+Iitlc2MocnMucnVuZ19uYW1lfHwiIikrc2F2ZWQrbGFtKyI8L2Rpdj4iK2NlaWw7CiAgfQogIHJldHVybiAiPGRpdj4iK2Jh"
+    "ZGdlKyI8L2Rpdj48ZGl2IGNsYXNzPSdtdXQnIHN0eWxlPSdmb250LXNpemU6MTFweCc+Y29kZSBnYXRlZDsgcmVzdHJhaW50IG5vdCBsaXZlIHlldCAobm8g"
+    "cnVuZyBmYWJyaWNhdGVkKTwvZGl2PiI7Cn0KYXN5bmMgZnVuY3Rpb24gcmVuZGVyVHJhY2UocnVuSWQpewogIGNvbnN0IHtqc29uOnRyfSA9IGF3YWl0IGpn"
+    "ZXQoQVBJKyIvdHJhY2UvIitlbmNvZGVVUklDb21wb25lbnQocnVuSWQpKTsKICBpZih0ci5lcnJvcil7cmV0dXJuO30KICBkb2N1bWVudC5nZXRFbGVtZW50"
+    "QnlJZCgidHJhY2VDYXJkIikuc3R5bGUuZGlzcGxheT0iYmxvY2siOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJjaGFpblN0YXRlIikuaW5uZXJIVE1M"
+    "ID0KICAgICh0ci5jaGFpbl9pbnRhY3Q/IjxzcGFuIGNsYXNzPSdvayc+Y2hhaW4gaW50YWN0IOKckzwvc3Bhbj4iOiI8c3BhbiBjbGFzcz0nYmFkJz5jaGFp"
+    "biBCUk9LRU4g4pyXPC9zcGFuPiIpCiAgICArIiDCtyBkZXB0aCAiK3RyLmRlcHRoOwogIGNvbnN0IHRiPWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoIiN0cmFj"
+    "ZVRibCB0Ym9keSIpO3RiLmlubmVySFRNTD0iIjsKICB0ci5yZWNlaXB0cy5mb3JFYWNoKHI9PnsKICAgIGNvbnN0IHNpZyA9IHIuc2lnbmF0dXJlX3ZhbGlk"
+    "PT09dHJ1ZT8iPHNwYW4gY2xhc3M9J29rJz52ZXJpZmllZCDinJM8L3NwYW4+IgogICAgICA6KHIuc2lnbmVkPyI8c3BhbiBjbGFzcz0nYmFkJz5GQUlMIOKc"
+    "lzwvc3Bhbj4iOiI8c3BhbiBjbGFzcz0nbXV0Jz51bnNpZ25lZDwvc3Bhbj4iKTsKICAgIGNvbnN0IGxpbmsgPSByLmxpbmtfb2s/IjxzcGFuIGNsYXNzPSdv"
+    "ayc+4pyTPC9zcGFuPiI6IjxzcGFuIGNsYXNzPSdiYWQnPuKclzwvc3Bhbj4iOwogICAgdGIuaW5uZXJIVE1MICs9IGA8dHI+PHRkPiR7ci5zZXF9PC90ZD48"
+    "dGQ+PHNwYW4gY2xhc3M9Im5vZGUgJHtyLm5vZGV9Ij4ke3Iubm9kZX08L3NwYW4+PC90ZD4KICAgICAgPHRkPjxwcmU+JHtlc2MoSlNPTi5zdHJpbmdpZnko"
+    "ci5ib2R5KSl9PC9wcmU+PC90ZD48dGQ+JHtyZXN0cmFpbnRDZWxsKHIuYm9keSl9PC90ZD48dGQ+JHtsaW5rfTwvdGQ+PHRkPiR7c2lnfTwvdGQ+CiAgICAg"
+    "IDx0ZCBjbGFzcz0iaGFzaCI+JHtlc2MoKHIuaGFzaHx8IiIpLnNsaWNlKDAsMTgpKX3igKY8L3RkPjwvdHI+YDsKICB9KTsKICBpZih0ci5yZWZsZWN0aW9u"
+    "KXsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJydW5sYmwiKS5pbm5lckhUTUwgPQogICAgICAiIMK3IHJlZmxlY3Rpb24gKFJlZmxleGlvbik6IDxl"
+    "bT4iK2VzYyh0ci5yZWZsZWN0aW9uLnNsaWNlKDAsOTApKSsiPC9lbT4iOwogIH0KfQphc3luYyBmdW5jdGlvbiByZW5kZXJDcHMocnVuSWQpewogIGNvbnN0"
+    "IHtqc29uOmNwfT1hd2FpdCBqZ2V0KEFQSSsiL2NoZWNrcG9pbnRzLyIrZW5jb2RlVVJJQ29tcG9uZW50KHJ1bklkKSk7CiAgZG9jdW1lbnQuZ2V0RWxlbWVu"
+    "dEJ5SWQoImNwQ2FyZCIpLnN0eWxlLmRpc3BsYXk9ImJsb2NrIjsKICBjb25zdCB0Yj1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCIjY3BUYmwgdGJvZHkiKTt0"
+    "Yi5pbm5lckhUTUw9IiI7CiAgY3AuY2hlY2twb2ludHMuZm9yRWFjaChjPT50Yi5pbm5lckhUTUwrPWA8dHI+PHRkPiR7Yy5zdGVwfTwvdGQ+PHRkIGNsYXNz"
+    "PSJoYXNoIj4ke2VzYygoYy5wcmV2X2hhc2h8fCIiKS5zbGljZSgwLDE4KSl94oCmPC90ZD48dGQgY2xhc3M9Im11dCI+JHtlc2MoYy50cyl9PC90ZD48L3Ry"
+    "PmApOwp9CmZ1bmN0aW9uIHNob3dSdW5NZXRhKG8pewogIGNvbnN0IG09ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoInJ1bk1ldGEiKTttLnN0eWxlLmRpc3Bs"
+    "YXk9ImJsb2NrIjsKICBjb25zdCBzdCA9IG8uc3RhdHVzPT09ImNvbXBsZXRlZCI/Im9rIjooby5zdGF0dXM9PT0iaW50ZXJydXB0ZWQiPyJiYWQiOiJtdXQi"
+    "KTsKICBtLmlubmVySFRNTCA9IGA8c3Ryb25nPnJ1bjwvc3Ryb25nPiA8Y29kZT4ke2VzYyhvLnJ1bl9pZCl9PC9jb2RlPiDCtyBzdGF0dXMgPHNwYW4gY2xh"
+    "c3M9IiR7c3R9Ij4ke2VzYyhvLnN0YXR1cyl9PC9zcGFuPmAKICAgICsgKG8uYW5zd2VyP2AgwrcgYW5zd2VyIDxzcGFuIGNsYXNzPSJvayI+JHtlc2Moby5h"
+    "bnN3ZXIpfTwvc3Bhbj5gOiIiKQogICAgKyAoby5yZXN1bWVkP2AgwrcgPHNwYW4gY2xhc3M9InBpbGwiPnJlc3VtZWQgZnJvbSBzdGVwICR7by5yZXN1bWVk"
+    "X2Zyb21fY2hlY2twb2ludF9zdGVwfTwvc3Bhbj5gOiIiKQogICAgKyAiICIgKyBMKG8ubGFiZWx8fCJFWFBFUklNRU5UQUwiKTsKfQpkb2N1bWVudC5nZXRF"
+    "bGVtZW50QnlJZCgiYnRuUnVuIikub25jbGljaz1hc3luYygpPT57CiAgY29uc3QgZ29hbD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiZ29hbCIpLnZhbHVl"
+    "OwogIGNvbnN0IG1heF9zdGVwcz0rZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoIm1heHN0ZXBzIikudmFsdWU7CiAgY29uc3QgYm9keT17Z29hbCxtYXhfc3Rl"
+    "cHN9OwogIGlmKGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJraWxsIikuY2hlY2tlZCkgYm9keS5raWxsX2FmdGVyPTI7CiAgY29uc3Qge2pzb246b309YXdh"
+    "aXQganBvc3QoQVBJKyIvcnVuIixib2R5KTsKICBMQVNUX1JVTj1vLnJ1bl9pZDtsb2NhbFN0b3JhZ2Uuc2V0SXRlbSgiYTExb3lfbGFzdF9ydW4iLG8ucnVu"
+    "X2lkKTsKICBzaG93UnVuTWV0YShvKTthd2FpdCByZW5kZXJUcmFjZShvLnJ1bl9pZCk7YXdhaXQgcmVuZGVyQ3BzKG8ucnVuX2lkKTsKfTsKZG9jdW1lbnQu"
+    "Z2V0RWxlbWVudEJ5SWQoImJ0blJlc3VtZSIpLm9uY2xpY2s9YXN5bmMoKT0+ewogIGlmKCFMQVNUX1JVTil7YWxlcnQoInJ1biBzb21ldGhpbmcgZmlyc3Qi"
+    "KTtyZXR1cm47fQogIGNvbnN0IHtqc29uOm99PWF3YWl0IGpwb3N0KEFQSSsiL3Jlc3VtZSIse3J1bl9pZDpMQVNUX1JVTn0pOwogIHNob3dSdW5NZXRhKG8p"
+    "O2F3YWl0IHJlbmRlclRyYWNlKExBU1RfUlVOKTthd2FpdCByZW5kZXJDcHMoTEFTVF9SVU4pOwp9OwoKLy8gLS0tLS0tLS0tLSBNZW1vcnkgLS0tLS0tLS0t"
+    "LQpkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiYnRuTWVtQWRkIikub25jbGljaz1hc3luYygpPT57CiAgY29uc3QgdGV4dD1kb2N1bWVudC5nZXRFbGVtZW50"
+    "QnlJZCgibWVtVGV4dCIpLnZhbHVlO2lmKCF0ZXh0KXJldHVybjsKICBhd2FpdCBqcG9zdChBUEkrIi9tZW1vcnkvYWRkIix7dGV4dCx0aWVyOiJhcmNoaXZh"
+    "bCIscnVuX2lkOkxBU1RfUlVOfHwiYWRob2MifSk7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoIm1lbVRleHQiKS52YWx1ZT0iIjtsb2FkVGllcnMoKTsK"
+    "fTsKZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImJ0bk1lbVNlYXJjaCIpLm9uY2xpY2s9YXN5bmMoKT0+ewogIGNvbnN0IHF1ZXJ5PWRvY3VtZW50LmdldEVs"
+    "ZW1lbnRCeUlkKCJtZW1RIikudmFsdWU7aWYoIXF1ZXJ5KXJldHVybjsKICBjb25zdCB7anNvbjpvfT1hd2FpdCBqcG9zdChBUEkrIi9tZW1vcnkvc2VhcmNo"
+    "Iix7cXVlcnksdG9wX2s6OH0pOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJtZW1DYXJkIikuc3R5bGUuZGlzcGxheT0iYmxvY2siOwogIGNvbnN0IHRi"
+    "PWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoIiNtZW1UYmwgdGJvZHkiKTt0Yi5pbm5lckhUTUw9IiI7CiAgKG8ucmVzdWx0c3x8W10pLmZvckVhY2goaD0+ewog"
+    "ICAgY29uc3QgYz1oLmNvbXBvbmVudHM7CiAgICB0Yi5pbm5lckhUTUwrPWA8dHI+PHRkPjxzdHJvbmc+JHtoLnNjb3JlLnRvRml4ZWQoMyl9PC9zdHJvbmc+"
+    "PC90ZD4KICAgICAgPHRkPiR7Yy5yZWNlbmN5X2dhbW1hX2R0LnRvRml4ZWQoMyl9IDxzcGFuIGNsYXNzPSJtdXQiPijOlHQgJHtjLmRlbHRhX3RfaG91cnN9"
+    "aCk8L3NwYW4+PC90ZD4KICAgICAgPHRkPiR7Yy5pbXBvcnRhbmNlLnRvRml4ZWQoMil9PC90ZD48dGQ+JHtjLnJlbGV2YW5jZV9jb3MudG9GaXhlZCgzKX08"
+    "L3RkPgogICAgICA8dGQ+PHNwYW4gY2xhc3M9InBpbGwiPiR7ZXNjKGgudGllcil9PC9zcGFuPjwvdGQ+PHRkPiR7ZXNjKGgudGV4dCl9PC90ZD48L3RyPmA7"
+    "CiAgfSk7Cn07CmFzeW5jIGZ1bmN0aW9uIGxvYWRUaWVycygpewogIGNvbnN0IHUgPSBBUEkrIi9tZW1vcnkvdGllcnMiKyhMQVNUX1JVTj8oIj9ydW5faWQ9"
+    "IitlbmNvZGVVUklDb21wb25lbnQoTEFTVF9SVU4pKToiIik7CiAgY29uc3Qge2pzb246b309YXdhaXQgamdldCh1KTsKICBjb25zdCB0PW8udGllcnN8fHt9"
+    "OwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJ0aWVyQm9keSIpLmlubmVySFRNTCA9CiAgICBgd29ya2luZyA8c3Ryb25nPiR7dC53b3JraW5nfHwwfTwv"
+    "c3Ryb25nPiDCtyBhcmNoaXZhbCA8c3Ryb25nPiR7dC5hcmNoaXZhbHx8MH08L3N0cm9uZz4gwrcgY2FwICR7by53b3JraW5nX2NhcH0gYAogICAgKyBMKG8u"
+    "bGFiZWx8fCJFWFBFUklNRU5UQUwiKQogICAgKyBgPGRpdiBjbGFzcz0ibXV0IiBzdHlsZT0ibWFyZ2luLXRvcDo2cHgiPiR7ZXNjKG8uZGVzaWdufHwiIil9"
+    "PC9kaXY+YDsKfQpkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiYnRuVGllcnMiKS5vbmNsaWNrPWxvYWRUaWVyczsKCi8vIC0tLS0tLS0tLS0gU2tpbGxzIC0t"
+    "LS0tLS0tLS0KZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImJ0bkFkbWl0Iikub25jbGljaz1hc3luYygpPT57CiAgY29uc3QgbmFtZT1kb2N1bWVudC5nZXRF"
+    "bGVtZW50QnlJZCgic2tOYW1lIikudmFsdWU7CiAgY29uc3QgcmVjaXBlPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJza1JlY2lwZSIpLnZhbHVlOwogIGNv"
+    "bnN0IHJ1bl9pZD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgic2tSdW4iKS52YWx1ZXx8TEFTVF9SVU47CiAgY29uc3Qge3N0YXR1cyxqc29uOm99PWF3YWl0"
+    "IGpwb3N0KEFQSSsiL3NraWxscy9hZG1pdCIse25hbWUscmVjaXBlLHJ1bl9pZH0pOwogIGNvbnN0IGVsPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJhZG1p"
+    "dE1zZyIpOwogIGVsLmlubmVySFRNTCA9IChvLmFkbWl0dGVkPyI8c3BhbiBjbGFzcz0nb2snPiI6IjxzcGFuIGNsYXNzPSdiYWQnPiIpK2VzYyhvLnJlYXNv"
+    "bikrIjwvc3Bhbj4iOwogIGxvYWRTa2lsbHMoKTsKfTsKYXN5bmMgZnVuY3Rpb24gbG9hZFNraWxscygpewogIGNvbnN0IHtqc29uOm99PWF3YWl0IGpnZXQo"
+    "QVBJKyIvc2tpbGxzIik7CiAgY29uc3QgdGI9ZG9jdW1lbnQucXVlcnlTZWxlY3RvcigiI3NrVGJsIHRib2R5Iik7dGIuaW5uZXJIVE1MPSIiOwogIChvLnNr"
+    "aWxsc3x8W10pLmZvckVhY2gocz0+ewogICAgdGIuaW5uZXJIVE1MKz1gPHRyPjx0ZD48c3Ryb25nPiR7ZXNjKHMubmFtZSl9PC9zdHJvbmc+PC90ZD48dGQ+"
+    "PGNvZGU+JHtlc2Mocy5yZWNpcGUpfTwvY29kZT48L3RkPgogICAgICA8dGQgY2xhc3M9Imhhc2giPiR7ZXNjKChzLnJlY2VpcHRfaGFzaHx8IiIpLnNsaWNl"
+    "KDAsMTYpKX3igKY8L3RkPgogICAgICA8dGQ+JHtzLnJlY2VpcHRfdmVyaWZpZWQ/IjxzcGFuIGNsYXNzPSdvayc+4pyTPC9zcGFuPiI6IjxzcGFuIGNsYXNz"
+    "PSdiYWQnPuKclzwvc3Bhbj4ifTwvdGQ+CiAgICAgIDx0ZD4ke3MudXNlc308L3RkPjwvdHI+YDsKICB9KTsKfQpkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgi"
+    "YnRuU2tpbGxzIikub25jbGljaz1sb2FkU2tpbGxzOwoKLy8gYm9vdApsb2FkVGllcnMoKTtsb2FkU2tpbGxzKCk7Cjwvc2NyaXB0Pgo8L2JvZHk+CjwvaHRt"
+    "bD4K"
+)
+
 # Routes inserted at position 0 (Starlette Route) so they beat the SPA catch-all.
 # FREE sub-namespace /api/a11oy/v1/agent/react/* to avoid collisions with the
 # existing /run, /tools, /verify-chain, /governance-standards, /_diag, /loop.
@@ -759,9 +946,50 @@ class _ReActEngine:
 def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
              pub_pem_fn=None, signer_label: str = "in-image key"):
     from starlette.routing import Route
-    from starlette.responses import JSONResponse
+    from starlette.responses import JSONResponse, HTMLResponse
 
     _init_db()
+
+    # ----- /agent-loop trace UI (R2, additive) ----------------------------
+    # The committed web/agent-loop.html trace surface (restraint-verdict column)
+    # was never routed by serve.py (no add_api_route + no Dockerfile COPY), so
+    # /agent-loop fell through to the SPA catch-all and the restraint column
+    # was not user-visible. We serve it here from THIS module (owned file),
+    # reading the byte-identical committed HTML from known on-disk paths. Routes
+    # insert at position 0 so they beat the SPA catch-all. Fully additive; no
+    # shared file edited; honest 503 if the asset is genuinely absent.
+    _AGENTLOOP_PATHS = [
+        "/app/web/agent-loop.html",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "agent-loop.html"),
+        "web/agent-loop.html",
+    ]
+
+    def _agentloop_html():
+        for p in _AGENTLOOP_PATHS:
+            try:
+                if os.path.isfile(p):
+                    with open(p, "r", encoding="utf-8") as fh:
+                        return fh.read()
+            except Exception:
+                continue
+        try:
+            import base64 as _b64
+            return _b64.b64decode(_AGENTLOOP_HTML_B64).decode("utf-8")
+        except Exception:
+            return None
+
+    async def _agentloop_page(request):
+        html = _agentloop_html()
+        if html is None:
+            return HTMLResponse(
+                "<!doctype html><meta charset=utf-8><title>Agent Loop</title>"
+                "<body style='font:14px ui-monospace;background:#0b0e14;color:#e6edf3;"
+                "padding:32px'>Agent Loop trace UI asset not baked in this image. "
+                "The restraint-gated trace is live via "
+                "<code>GET /api/a11oy/v1/agent/react/trace?run_id=...</code> "
+                "(ACTION nodes carry the signed restraint verdict).</body>",
+                status_code=200)
+        return HTMLResponse(html)
     eng = _ReActEngine(sign_fn, verify_fn, pub_pem_fn, ns=ns)
 
     async def _read_json(request):
@@ -925,6 +1153,11 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
               name="%s_agent_cps_top" % ns),
         Route("/api/%s/v1/agent/checkpoints" % ns, _checkpoints, methods=["GET"],
               name="%s_agent_cps_top_q" % ns),
+        # R2 additive: serve the committed agent-loop trace UI (restraint column)
+        # at the canonical nav targets. insert(0) beats the SPA catch-all.
+        Route("/agent-loop", _agentloop_page, methods=["GET"], name="%s_agentloop_page" % ns),
+        Route("/a11oy/agent-loop", _agentloop_page, methods=["GET"],
+              name="%s_agentloop_page_alt" % ns),
     ]
     for r in routes:
         app.router.routes.insert(0, r)
