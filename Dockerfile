@@ -103,6 +103,14 @@ COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_h
 # (physical_bounds_certificate.json / agentic_decision_trail.json) are NOT baked — the
 # module honestly serves a SAMPLE certificate until Forge writes real ones on the box.
 COPY szl_pinn_bounds.py ./
+# ADDITIVE (I4 gpu-quant): Sovereign VRAM-resident GPU-Quant engine (PCA-Risk / TDA-Fracture
+# / HJB-Kelly) backing /api/a11oy/v1/quant/* + the /quant tab. PURE-STDLIB (Jacobi eigen,
+# Gaussian solve, union-find Betti) so it runs in the numpy-less HF image; cuML/giotto-tda
+# are RUNTIME-PROBED — absent → honest CPU-SAMPLE/ROADMAP labels. MUST be COPY'd or serve.py's
+# guarded import falls back to a stub (merged-but-not-live). Imports szl_dsse (already COPYed)
+# for REAL ECDSA receipts in-Space + szl_energy_sovereign (already COPYed) for the 2-GPU tier
+# panel. Per-file COPY (this Dockerfile never uses `COPY . .`). Mirrored byte-identical to HF.
+COPY szl_gpu_quant.py ./
 # ADDITIVE (joules-honesty #349): single-source joules_label helper + its consumers.
 # szl_joules_truth.py is imported by szl_energy_budget/szl_engine_status/revenue_endpoints/
 # a11oy_harvest_endpoints/szl_anatomy_loop/szl_prod_hardening; revenue_model.py backs

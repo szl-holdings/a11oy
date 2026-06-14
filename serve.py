@@ -263,6 +263,26 @@ try:
 except Exception as _szl_es_e:  # pragma: no cover
     print(f"[a11oy] Energy/Sovereign-Compute NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
 
+# ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
+# a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
+# eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
+# Fracture (correlation→distance d=√(2(1−ρ)), Betti β0/β1 at a COMMON fixed filtration
+# radius, fracture f_t=|Δβ0|+|Δβ1|, anomaly |z|>2.5; giotto-tda on GPU else stdlib union-
+# find), L3 HJB-Kelly (σ²_eff=σ²_PCA(1+γ|f_t|)(1+κ·1_{z>2.5}), w*=μ̄/σ²_eff). EVERY
+# result is a DSSE-SIGNED receipt (REAL ECDSA in-Space, honest UNSIGNED marker locally).
+# HONEST LABELS: SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED — NEVER live-trading,
+# NEVER a backtest not run. Adds /quant tab + /api/a11oy/v1/quant/{pca,tda,kelly,pipeline,
+# tiers,verify-claims}. tiers reuses Dev C szl_energy_sovereign.energy_fields_for_receipt()
+# and sovereign:true ONLY on a live gpu_reachable probe. Additive, try/except-guarded,
+# before the SPA catch-all. Cites Ledoit-Wolf, Laloux/Bouchaud/Potters, Gidea-Katz
+# (arXiv:1703.04385), RAPIDS/cuML, giotto-tda, Brodetsky.
+try:
+    import szl_gpu_quant as _szl_gpu_quant
+    _szl_gpu_quant.register(app, ns="a11oy")
+    print("[a11oy] GPU-Quant engine registered: /quant + /api/a11oy/v1/quant/*", file=__import__("sys").stderr)
+except Exception as _szl_gq_e:  # pragma: no cover
+    print(f"[a11oy] GPU-Quant engine NOT registered: {_szl_gq_e!r}", file=__import__("sys").stderr)
+
 # ── Agentic PINN + Physical-Bounds Certifier MESH (pinn-bounds) — closes the audited
 # gap where the PINN / FE-NO Physics-ML verticals lived ONLY in `platform` and were
 # NOT in a11oy's governed /api/a11oy/v1/<name> route table. Adds /api/a11oy/v1/pinn/*:
