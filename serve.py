@@ -393,7 +393,7 @@ try:
             "doctrine": ("Doctrine v11 — MEASURED only from a real run/exporter; MODELED "
                          "for clean-room structural physics; LIVE for served UI surfaces. "
                          "Λ = Conjecture 1 (advisory)."),
-            "ts": _e_dt.now(_e_tz).isoformat(),
+            "ts": _e_dt.now(_e_tz.utc).isoformat(),
         })
 
     app.add_api_route("/api/a11oy/v1/estate", _h_estate, methods=["GET"], include_in_schema=True)
