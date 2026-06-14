@@ -241,3 +241,24 @@ quantum_sensing_limits.py
 # ds3_overpower|ds4_seamless|ds7_matched_aligned` query values; these are the
 # shipped API enum identifiers, not marketing prose.
 szl_pnt_mesh.py
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemptions (2026-06-14, founder-authorized).
+# The WILLAY governance-layer merge added two source files whose only flagged
+# tokens are codename ENUMERATIONS used to ENFORCE the no-codename rule, not to
+# emit one. Same enumeration-for-detection rationale as szl_codename_gate.py /
+# szl_warhacker_demos.py above. Neither emits a banned token to a user surface.
+# ----------------------------------------------------------------------------
+
+# a11oy_willay_nav.py - WILLAY /willay nav injector; the flagged line is a SELF-
+# TEST asserting none of the banned codenames (amaru/rosie/sentra/jarvis) appear
+# in the injected nav markup. Enumeration-for-detection; the list IS the rule.
+# The markup it injects is codename-free and 0-CDN.
+a11oy_willay_nav.py
+
+# szl_willay_gateway.py - WILLAY governance gateway. Two hits: a doctrine hard-
+# gate header comment listing the banned codenames as a compliance assertion
+# ("No user-visible codenames (...)"), and a SELF-TEST loop asserting none of
+# those codenames appear in the served page HTML. Enumeration-for-detection /
+# doctrine-compliance assertion; neither emits a codename to any user surface.
+szl_willay_gateway.py
