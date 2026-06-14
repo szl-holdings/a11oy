@@ -8114,6 +8114,58 @@ except Exception as _gov_e:
 
 
 # ============================================================================
+# BEGIN: a11oy GOVERNED AUTO-REVIEW layer (Integration I2) — the keystone
+# autonomy layer: our GOVERNED + SIGNED evolution of Cursor's Auto-review.
+# ADDITIVE. Namespace /api/a11oy/v1/autoreview/* + page /autoreview — no overlap
+# with gov (/v1/gov), provenance (/v1/provenance), deva/devb, code, operator.
+# register() moves its routes to the FRONT of app.router.routes so they win over
+# the /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all.
+# A fast, context-aware classifier subagent runs INLINE before each Action node
+# of Dev A's ReAct loop. Verdict in {allow, narrow, block-with-explanation,
+# escalate}, intent-relative, workspace-aware (read-only inspection). On block we
+# return an explanation to the parent so it self-corrects; we escalate to a human
+# only when truly needed. Autonomy DIAL L0-L5 (graded, not binary).
+# MADE OURS: every verdict is (a) Lambda-gated (Conjecture 1, < 1.0 — never
+# "100% safe"), (b) DSSE-SIGNED into the node's receipt (reuses
+# _a11oy_sign_receipt + the same ECDSA-P256 in-image key as /cosign.pub),
+# (c) expressed as OPA/Rego rules mapped to OSCAL control IDs + NIST AI RMF
+# MANAGE subcategories, (d) conformal-calibrated (Dev B's szl_conformal) with an
+# ECE/Brier gate (szl_calibration) + repeated-run flapping detection. Block-rate
+# / interrupt-rate / flap-rate are MEASURED from the live decision log (labelled
+# ROADMAP until enough real runs accrue) — never fabricated. Effectors SIMULATED.
+# Pattern credit: https://cursor.com/blog/agent-autonomy-auto-review
+# DOCTRINE v11; Lambda=Conjecture 1; SLSA L1/L2 (L3 roadmap); trust<100%; 0 CDN.
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_autoreview as _a11oy_ar
+    import sys as _ar_sys
+    # reuse the SAME signer + verifier + pubkey the governed loop uses, so
+    # auto-review verdicts are signed by the identical in-image ECDSA-P256 key
+    # served at /cosign.pub. Fall back gracefully if the loop block didn't run.
+    _ar_verify_fn = globals().get("_a11oy_loop_verify")
+    _ar_pubpem_fn = globals().get("_a11oy_loop_pubpem")
+    _ar_status = _a11oy_ar.register(
+        app, "a11oy",
+        _a11oy_sign_receipt,
+        verify_fn=_ar_verify_fn,
+        pub_pem_fn=_ar_pubpem_fn,
+        signer_label=("in-image ephemeral ECDSA-P256 (same key as the governed "
+                      "loop; verifiable vs /cosign.pub)"),
+    )
+    print(f"[a11oy] Governed Auto-Review registered: {_ar_status}", file=_ar_sys.stderr)
+    _A11OY_AR_DIAG = {"status": "ok", "registered": _ar_status}
+except Exception as _ar_e:
+    import sys as _ar_sys, traceback as _ar_tb
+    print(f"[a11oy] Governed Auto-Review FAILED (non-fatal): {_ar_e!r}", file=_ar_sys.stderr)
+    _ar_tb.print_exc(file=_ar_sys.stderr)
+    _A11OY_AR_DIAG = {"status": "FAILED", "error": repr(_ar_e)}
+# ============================================================================
+# END: a11oy GOVERNED AUTO-REVIEW layer
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: a11oy Provenance & Trust Anchor layer (5 tabs: Public-Ledger Anchor,
 # Post-Quantum Signing, Receipt Provenance Graph 3D, Tamper/Audit Verifier,
 # Anchor Health). ADDITIVE. Namespace /api/a11oy/v1/provenance/* — no overlap

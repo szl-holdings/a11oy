@@ -757,6 +757,16 @@ COPY a11oy_governance_endpoints.py szl_tau_eval.py szl_calibration.py szl_confor
 COPY policy/colang/roe_core.co ./policy/colang/roe_core.co
 COPY policy/colang/killinchu_threat.co ./policy/colang/killinchu_threat.co
 COPY web/governance.html ./web/governance.html
+# GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
+# signed evolution of Cursor's Auto-review. The classifier module runs INLINE
+# before each Action node; verdicts are Lambda-gated, DSSE-signed, mapped to
+# OPA/Rego + OSCAL + NIST AI RMF MANAGE, conformal-calibrated, with flapping
+# detection. autoreview.html is served at /autoreview (0 runtime CDN; uses the
+# already-vendored /vendor/chart.umd.min.js + in-image shared label/receipt
+# engines). These COPY lines are parsed by the backend HF-sync workflow so the
+# files reach the Space (avoids the recurring "merged-but-not-live" failure).
+COPY a11oy_autoreview.py ./
+COPY web/autoreview.html ./web/autoreview.html
 COPY scripts/check_tau_eval.py ./scripts/check_tau_eval.py
 # Lean4Agent workflow-invariant scaffold (ROADMAP / EXPERIMENTAL — not a verified
 # proof yet; rendered as ROADMAP in the UI). Shipped so the .lean source is in
