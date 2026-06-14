@@ -187,7 +187,7 @@ def _snapshot():
         "ns": "a11oy",
         "source": "snapshot",
         "source_note": (
-            "SNAPSHOT - no live SZL-Mosaic engine feed is wired into this Space. "
+            "SNAPSHOT - no live SZL \u00d1awi engine feed is wired into this Space. "
             "Deterministic illustrative population; verified=false; no live count "
             "or signature is fabricated. Wire szl_mosaic_core receipts here to go live."
         ),
