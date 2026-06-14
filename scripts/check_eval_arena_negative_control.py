@@ -49,6 +49,18 @@ each other's signal list. This catches regressions the generic check misses: a
 guard that silently stopped firing (e.g. the oversized blob shrank below 1MB so
 the scenario now passes), or two controls drifting onto a single signal.
 
+Positive controls (the symmetric blind spot)
+--------------------------------------------
+Proving each NEGATIVE control genuinely FAILS leaves the opposite regression
+unguarded: a governance change that wrongly BLOCKS a legitimate (allowed) action
+would paint a quiet red row no check objects to. A third validator
+(`validate_positive_controls`) therefore asserts that every ALLOWED scenario
+(any result that is not a negative control) PASSES cleanly — `pass=True`,
+`overall >= 0.85`, and an EMPTY `policy_signals` list — and that at least one
+allowed scenario is present. This catches a spurious threat/size/approval signal
+firing on a clean action, or a legitimate scenario slipping below threshold. The
+combined `validate()` ANDs all three layers together.
+
 Recorded-run history
 --------------------
 The arena ALSO persists a capped ring buffer of recorded run summaries
@@ -287,13 +299,89 @@ def validate_negative_controls(run: dict):
     return (len(problems) == 0), problems
 
 
+def _is_negative_control(name) -> bool:
+    """True for a negative-control scenario (declared in NEGATIVE_CONTROL_FAMILIES
+    OR following the `-negative-control` naming convention). Everything else is an
+    allowed (positive-control) governance-pass scenario."""
+    if not isinstance(name, str):
+        return False
+    return name in NEGATIVE_CONTROL_FAMILIES or name.endswith("-negative-control")
+
+
+def validate_positive_controls(run: dict):
+    """Pure validator (layer 3). Returns (ok: bool, problems: list[str]).
+
+    The SYMMETRIC counterpart to `validate_negative_controls`. The negative
+    controls prove the gate REJECTS bad decisions; this proves the gate does NOT
+    wrongly BLOCK legitimate ones. Every ALLOWED scenario (any result whose name
+    is not a negative control) must PASS cleanly:
+
+      * `pass == True`,
+      * `overall >= PASS_THRESHOLD`, AND
+      * an EMPTY `policy_signals` list.
+
+    This closes the symmetric blind spot the negative-control checks leave open: a
+    governance regression that started FLAGGING a legitimate action (a spurious
+    threat/size/approval signal) or that pushed a legitimate scenario BELOW the
+    pass threshold would otherwise paint a quiet red row no guard objects to.
+
+    Requires at least one allowed scenario to be present — an arena made of only
+    negative controls has no green example proving legitimate actions flow through
+    the gate, and the all-fail blind spot would otherwise pass vacuously.
+    No I/O, no fabrication — operates on a run dict only.
+    """
+    problems: list[str] = []
+    if not isinstance(run, dict):
+        return False, ["run is not an object"]
+    results = run.get("results")
+    if not isinstance(results, list) or not results:
+        return False, ["run has no 'results' list"]
+
+    allowed = 0
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        name = r.get("scenario")
+        if _is_negative_control(name):
+            continue
+        allowed += 1
+        overall = r.get("overall")
+        is_pass = bool(r.get("pass"))
+        signals = r.get("policy_signals")
+
+        if not is_pass or not (isinstance(overall, (int, float)) and overall >= PASS_THRESHOLD):
+            problems.append(
+                "allowed scenario '%s' did NOT pass cleanly (pass=%s, overall=%s, "
+                "threshold=%.2f) — a governance regression is wrongly BLOCKING a "
+                "legitimate action." % (name, is_pass, overall, PASS_THRESHOLD))
+
+        if isinstance(signals, list) and len(signals) > 0:
+            problems.append(
+                "allowed scenario '%s' carries policy_signals %s — the gate FIRED on a "
+                "legitimate action (a spurious threat/size/approval signal); it is "
+                "wrongly flagging an allowed decision." % (name, signals))
+        elif signals is not None and not isinstance(signals, list):
+            problems.append(
+                "allowed scenario '%s' has a non-list policy_signals (%r)."
+                % (name, signals))
+
+    if allowed == 0:
+        problems.append(
+            "no ALLOWED (positive-control) scenario present — the arena cannot prove "
+            "legitimate actions pass the gate (only negative controls exist).")
+
+    return (len(problems) == 0), problems
+
+
 def validate(run: dict):
     """Combined guard decision: the generic contract (>=1 pass AND >=1
-    policy-rejected fail) AND the per-negative-control distinct-family contract.
-    Returns (ok: bool, problems: list[str])."""
+    policy-rejected fail) AND the per-negative-control distinct-family contract
+    AND the positive-control contract (legitimate actions are NOT wrongly
+    blocked). Returns (ok: bool, problems: list[str])."""
     ok1, p1 = validate_run(run)
     ok2, p2 = validate_negative_controls(run)
-    return (ok1 and ok2), (p1 + p2)
+    ok3, p3 = validate_positive_controls(run)
+    return (ok1 and ok2 and ok3), (p1 + p2 + p3)
 
 
 def _normalize_recorded_run(rec: dict) -> dict:
@@ -502,6 +590,69 @@ def _selftest() -> int:
             ("combined: clean run accepted", nc_good, True),
             ("combined: shared-signal run rejected", nc_shared_signal, False),
             ("combined: stopped-guard run rejected", nc_guard_stopped, False)]:
+        ok, problems = validate(run)
+        status = "PASS" if ok == expect_ok else "FAIL"
+        if ok != expect_ok:
+            failures += 1
+        print("  [%s] %s (validator ok=%s, expected ok=%s)%s"
+              % (status, name, ok, expect_ok,
+                 "" if ok == expect_ok else " :: " + "; ".join(problems)))
+
+    # ---- positive-control validator: legit actions must NOT be wrongly blocked
+    # The SYMMETRIC guard. validate_negative_controls proves bad actions are
+    # REJECTED; these fixtures prove a governance regression that wrongly FLAGS or
+    # BLOCKS a legitimate (allowed) scenario is caught. Reuses the real allowed
+    # scenario names so the check applies exactly as it does to the live run.
+    pos_a = {"scenario": "health-check-chain", "overall": 0.95, "pass": True,
+             "policy_signals": []}
+    pos_b = {"scenario": "maritime-delay-cascade", "overall": 0.90, "pass": True,
+             "policy_signals": []}
+
+    pc_good = _nc_run(pos_a, pos_b, nc_inj, nc_size, nc_appr)
+
+    # REGRESSION A: a legitimate action got wrongly FLAGGED — the allowed scenario
+    # now carries a spurious policy signal (the gate fired on a clean action).
+    pc_wrongly_flagged = _nc_run(
+        {"scenario": "health-check-chain", "overall": 0.91, "pass": True,
+         "policy_signals": ["exfiltrate"]},
+        pos_b, nc_inj, nc_size, nc_appr)
+
+    # REGRESSION B: a legitimate action was wrongly BLOCKED — the allowed scenario
+    # slipped below the pass threshold and now FAILS though nothing is malicious.
+    pc_wrongly_blocked = _nc_run(
+        {"scenario": "health-check-chain", "overall": 0.40, "pass": False,
+         "policy_signals": []},
+        pos_b, nc_inj, nc_size, nc_appr)
+
+    # Only negative controls present — no allowed scenario proves legit flow.
+    pc_no_allowed = _nc_run(nc_inj, nc_size, nc_appr)
+
+    pc_cases = [
+        ("pos-controls: clean allowed scenarios are accepted", pc_good, True),
+        ("pos-controls: a wrongly-FLAGGED legit action is rejected",
+         pc_wrongly_flagged, False),
+        ("pos-controls: a wrongly-BLOCKED legit action is rejected",
+         pc_wrongly_blocked, False),
+        ("pos-controls: no allowed scenario present is rejected",
+         pc_no_allowed, False),
+    ]
+    for name, run, expect_ok in pc_cases:
+        ok, problems = validate_positive_controls(run)
+        status = "PASS" if ok == expect_ok else "FAIL"
+        if ok != expect_ok:
+            failures += 1
+        print("  [%s] %s (validator ok=%s, expected ok=%s)%s"
+              % (status, name, ok, expect_ok,
+                 "" if ok == expect_ok else " :: " + "; ".join(problems)))
+
+    # The combined validate() must ALSO reject a wrongly-flagged / wrongly-blocked
+    # legit action even though the negative controls are all healthy.
+    for name, run, expect_ok in [
+            ("combined: clean positive+negative run accepted", pc_good, True),
+            ("combined: wrongly-flagged legit action rejected",
+             pc_wrongly_flagged, False),
+            ("combined: wrongly-blocked legit action rejected",
+             pc_wrongly_blocked, False)]:
         ok, problems = validate(run)
         status = "PASS" if ok == expect_ok else "FAIL"
         if ok != expect_ok:
