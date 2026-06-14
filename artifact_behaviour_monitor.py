@@ -139,7 +139,7 @@ ATTRIBUTION = {
         "SZL pnt_build/dev2_spoof_sda/pnt_resilience.py — the fused deny-by-default "
         "GNSS spoof detector whose Λ-gate + monitor-fusion shape this module mirrors, "
         "repointed INWARD onto our own build/deploy artifacts (the khipu-sda-core / "
-        "mosaic engine aimed inward)."
+        "\u00d1awi engine aimed inward)."
     ),
     "a11oy_cert": (
         "a11oy PINN physical-bounds certificate (DSSE Ed25519 FA-001 + cosign.pub, "
