@@ -464,6 +464,95 @@ def _h_coast(req: Request):
     })
 
 
+def _compute_pillar_verify() -> dict:
+    """REAL signature verdict for the compute pillar — never fabricated.
+
+    Calls szl_pinn_bounds' own cryptographic verifiers over the served certificate
+    bytes: the on-metal FA-001 Ed25519 DSSE and/or the PUBLISHED cosign ECDSA blob.
+    signed:true ONLY when a signature actually verifies at serve time."""
+    try:
+        import szl_pinn_bounds as _pb
+    except Exception as e:
+        return {"pillar": "compute_bounds", "signed": False, "label": "UNAVAILABLE",
+                "note": f"compute engine not importable in this runtime: {e!r}"}
+    try:
+        raw = _pb._cert_raw_bytes()
+        if raw is None:
+            return {"pillar": "compute_bounds", "signed": False, "label": "UNSIGNED",
+                    "note": ("no physical-bounds certificate artifact present in this "
+                             "runtime — honest UNSIGNED, no fabricated green")}
+        ed, _env = _pb._verified_signature(raw)
+        cos = _pb._verified_cosign_signature(raw)
+        signed = bool(ed) or bool(cos)
+        return {
+            "pillar": "compute_bounds",
+            "signed": signed,
+            "label": "SIGNED+VERIFIED" if signed else "UNSIGNED",
+            "cert_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+            "ed25519_dsse": ed,        # real verified sig object, or None
+            "cosign_ecdsa": cos,       # real verified sig object, or None
+            "note": ("server-time cryptographic verification of the on-metal FA-001 "
+                     "Ed25519 DSSE and/or PUBLISHED cosign ECDSA signature over the "
+                     "physical-bounds certificate" if signed else
+                     "certificate present but no signature verifies in this runtime — "
+                     "honest UNSIGNED, never a fabricated green"),
+        }
+    except Exception as e:
+        return {"pillar": "compute_bounds", "signed": False, "label": "UNAVAILABLE",
+                "error": repr(e)}
+
+
+def _sensing_pillar_verify() -> dict:
+    """Sensing pillar is MODELED structural physics — honestly left UNSIGNED.
+
+    Signing a MODELED closed-form bound would be a half-state claim, so doctrine v11
+    keeps it unsigned. The math self-checks structurally (SQL>0, deny-by-default,
+    quantum>classical) which is what `structural_verify` reports — NOT a signature."""
+    return {
+        "pillar": "quantum_sensing",
+        "signed": False,
+        "label": "MODELED · STRUCTURAL-ONLY · UNSIGNED",
+        "structural_verify": True,
+        "note": ("sensing limits are DERIVED clean-room from established physics "
+                 "(shot-noise / standard-quantum-limit, spoof-fusion deny-by-default, "
+                 "GPS-denied coasting FoM); MODELED, honestly unsigned — the on-metal "
+                 "GPU INS/UKF path is where a signed sensing cert would originate"),
+    }
+
+
+def _unified_verify() -> dict:
+    """ONE verify spanning BOTH pillars. Overall is honest, never over-claimed:
+    SIGNED only if both carry a verifying signature, PARTIAL if the compute pillar
+    is signed (sensing is MODELED-unsigned by doctrine), else UNSIGNED."""
+    comp = _compute_pillar_verify()
+    sens = _sensing_pillar_verify()
+    if comp.get("signed") and sens.get("signed"):
+        overall = "SIGNED"
+        summary = "both pillars carry a verifying signature"
+    elif comp.get("signed"):
+        overall = "PARTIAL"
+        summary = ("compute pillar cryptographically SIGNED+VERIFIED; sensing pillar "
+                   "MODELED structural-only (honestly unsigned per doctrine v11)")
+    else:
+        overall = "UNSIGNED"
+        summary = ("no pillar carries a verifying signature in this runtime — honest "
+                   "state, no fabricated green (compute cert/key is box-custodied)")
+    return {
+        "model": "SZL Unified Fundamental-Limits — ONE verify over BOTH hard-physics pillars",
+        "overall": overall,
+        "honest_summary": summary,
+        "pillars": [comp, sens],
+        "doctrine": DOCTRINE,
+        "lambda_note": LAMBDA_NOTE,
+        "ts": _now_iso(),
+    }
+
+
+def _h_verify(req: Request):
+    """GET /pnt/verify — the single unified, honest signature verdict over both pillars."""
+    return JSONResponse(_unified_verify())
+
+
 def _h_limits(req: Request):
     """The UNIFIED fundamental-limits index: BOTH pillars, honest wiring discovery."""
     fl = _load_fl()
@@ -490,6 +579,7 @@ def _h_limits(req: Request):
                                      "re-derived clean-room from the kshana method + papers"),
         "labels": st.get("labels"),
         "attribution": st.get("attribution"),
+        "unified_verify": _unified_verify(),
         "honest_inverse_of_free_energy": st.get("honest_inverse_of_free_energy"),
         "lambda_note": st.get("lambda_note"),
         "doctrine": st.get("doctrine"),
@@ -515,6 +605,7 @@ def register(app, ns="a11oy"):
         (f"{base}/resilience/history", _h_history),
         (f"{base}/coast", _h_coast),
         (f"{base}/limits", _h_limits),
+        (f"{base}/verify", _h_verify),
     ]
     add_api_route = getattr(app, "add_api_route", None)
     for path, fn in handlers:
@@ -556,11 +647,12 @@ def _selftest() -> dict:
     added = register(app, ns="a11oy")
     expected = ["/api/a11oy/v1/pnt", "/api/a11oy/v1/pnt/sensor",
                 "/api/a11oy/v1/pnt/resilience", "/api/a11oy/v1/pnt/resilience/history",
-                "/api/a11oy/v1/pnt/coast", "/api/a11oy/v1/pnt/limits"]
+                "/api/a11oy/v1/pnt/coast", "/api/a11oy/v1/pnt/limits",
+                "/api/a11oy/v1/pnt/verify"]
     assert added == expected, added
     assert [r[0] for r in app.routes] == expected
     assert all(r[2] == ("GET",) for r in app.routes)
-    out["register_adds_6_routes"] = True
+    out["register_adds_routes"] = len(expected)
 
     # (b) Starlette-fallback path (no add_api_route) also wires routes.
     class _BareRouter:
@@ -574,7 +666,7 @@ def _selftest() -> dict:
     try:
         bare = _BareApp()
         register(bare, ns="a11oy")
-        out["starlette_fallback_wires"] = len(bare.router.routes) == 6
+        out["starlette_fallback_wires"] = len(bare.router.routes) == 7
     except Exception:
         # starlette.routing may be absent in a bare env — that's an honest skip.
         out["starlette_fallback_wires"] = "skipped (starlette.routing unavailable)"
@@ -623,6 +715,18 @@ def _selftest() -> dict:
     assert idx["honest_inverse_of_free_energy"] is True
     assert "clean-room" in idx["doctrine"].lower()
     out["doctrine_labels_carried"] = True
+
+    # (h) unified verify spans BOTH pillars and NEVER over-claims: overall is one of
+    #     SIGNED/PARTIAL/UNSIGNED, sensing is honestly unsigned, and signed:true is
+    #     only ever backed by a real verifier (here, in a bare env, it stays unsigned).
+    uv = _body(_h_verify({}))
+    assert uv["overall"] in ("SIGNED", "PARTIAL", "UNSIGNED")
+    pillars = {p["pillar"]: p for p in uv["pillars"]}
+    assert pillars["quantum_sensing"]["signed"] is False  # MODELED is never signed
+    if uv["overall"] == "UNSIGNED":
+        assert pillars["compute_bounds"]["signed"] is False
+    assert _body(_h_limits({})).get("unified_verify", {}).get("overall") == uv["overall"]
+    out["unified_verify_honest"] = True
 
     out["ok"] = True
     return out
