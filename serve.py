@@ -1061,6 +1061,17 @@ try:
     app.add_api_route("/estate-hologram", _ptg_serve("estate-hologram.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/estate-hologram", _ptg_serve("estate-hologram.html"), methods=["GET"], include_in_schema=False)
 
+    # RESTRAINT BENCHMARK DASHBOARD (R4 lane, 2026-06-14): the MEASURED two-arm
+    # benchmark surface for a11oy Restraint (no-skill baseline vs a11oy-restraint),
+    # the frugality->energy panel, the 6-rung ladder, and the exact reproduce
+    # command. Binds to live /api/a11oy/v1/restraint/{bench-measured,energy,info}.
+    # Honest labels: MEASURED only when a real run on our stack produced numbers
+    # (committed results.json), else SAMPLE/ROADMAP with methodology shown. Ponytail
+    # numbers CITED as theirs (MIT). 0 runtime CDN (fonts only); 0 visible codenames.
+    # web/restraint-bench.html is COPYed by the Dockerfile (image-only asset).
+    app.add_api_route("/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
+
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
         return _PTG_Redirect(url="/code", status_code=302)
@@ -8401,6 +8412,39 @@ except Exception as _restraint_e:
                        "traceback": _restraint_tb.format_exc()}
 # ============================================================================
 # END: a11oy RESTRAINT
+# ============================================================================
+
+# ============================================================================
+# a11oy RESTRAINT -> ENERGY + KPI + MEASURED BENCH (R4 lane, 2026-06-14)
+# ----------------------------------------------------------------------------
+# Wires R1's a11oy Restraint into the ENERGY / J-token story, the estate Lambda/
+# KPI board, and a MEASURED benchmark dashboard. ADDITIVE + try/except-guarded:
+# CONSUMES szl_restraint (R1), szl_energy_sovereign (Forge) and szl_joules_truth
+# only via their public surfaces; edits NONE of them. Endpoints insert at router
+# position 0 (beat the SPA catch-all):
+#   GET/POST /api/a11oy/v1/restraint/energy         frugality->energy panel
+#   GET      /api/a11oy/v1/restraint/bench-measured  two-arm bench (MEASURED-or-SAMPLE)
+#   GET      /api/a11oy/v1/restraint/kpi             estate KPI tile
+# Joules-saved is priced at the LIVE on-box MEASURED J/token when the sovereign
+# GPU probe is live, else our honest SAMPLE constant (label from szl_joules_truth
+# / szl_energy_sovereign — the same single source of truth). NEVER fabricated.
+# Signed-off-by: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_RESTRAINT_ENERGY_DIAG = {"status": "not-run"}
+try:
+    import szl_restraint_energy as _szl_restraint_energy
+    import sys as _re_sys
+    _re_status = _szl_restraint_energy.register(app, ns="a11oy")
+    print(f"[a11oy] a11oy Restraint energy/KPI/bench registered: {_re_status}", file=_re_sys.stderr)
+    _RESTRAINT_ENERGY_DIAG = {"status": "ok", "registered": _re_status}
+except Exception as _re_e:
+    import sys as _re_sys, traceback as _re_tb
+    print(f"[a11oy] a11oy Restraint energy/KPI/bench FAILED (non-fatal): {_re_e!r}", file=_re_sys.stderr)
+    _re_tb.print_exc(file=_re_sys.stderr)
+    _RESTRAINT_ENERGY_DIAG = {"status": "FAILED", "error": repr(_re_e),
+                              "traceback": _re_tb.format_exc()}
+# ============================================================================
+# END: a11oy RESTRAINT -> ENERGY + KPI + MEASURED BENCH
 # ============================================================================
 
 # ============================================================================

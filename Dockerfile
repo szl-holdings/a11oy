@@ -335,6 +335,19 @@ COPY web/nemo.html ./web/nemo.html
 # governance + measurement are ours.
 COPY szl_restraint.py ./
 COPY web/restraint.html ./web/restraint.html
+# ADDITIVE (R4 lane, 2026-06-14): a11oy Restraint -> ENERGY + KPI + MEASURED BENCH.
+# szl_restraint_energy.py is imported by serve.py (try/except guarded) and serves
+# /api/a11oy/v1/restraint/{energy,bench-measured,kpi}; web/restraint-bench.html is
+# served at /restraint-bench (+ /a11oy/restraint-bench) via _ptg_serve. The bench
+# harness benchmarks/restraint/run_bench.py is the runnable reproduce tool (writes
+# benchmarks/restraint/results.json -> dashboard flips SAMPLE->MEASURED). The .py
+# auto-mirrors to the HF Space via hf-sync-backend.yml (parses these COPY lines);
+# web/restraint-bench.html is a baked-only image-only asset (copy-sync-lockstep.json).
+# CONSUMES szl_restraint (R1) + szl_energy_sovereign (Forge) only; edits neither.
+# 0 runtime CDN (fonts only); 0 visible codenames; Ponytail CITED (MIT).
+COPY szl_restraint_energy.py ./
+COPY web/restraint-bench.html ./web/restraint-bench.html
+COPY benchmarks/restraint/run_bench.py ./benchmarks/restraint/run_bench.py
 # ADDITIVE (Lane F1, 2026-06-14): the 3D/holographic SUBSTRATE demo page, served at
 # /holo + /a11oy/holo via _ptg_serve. Loads the shared kit /static/shared/szl_holo3d.js
 # (0 CDN). image-only like the other web/*.html demo pages (declared in

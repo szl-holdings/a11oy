@@ -106,6 +106,8 @@ def build_kpi_board(ns: str) -> Dict[str, Any]:
     a_honest = _get_json(A11OY_BASE + "/api/a11oy/v1/honest")
     a_lambda = _get_json(A11OY_BASE + "/api/a11oy/v1/lambda")
     chapaq = _get_json(KILLINCHU_BASE + "/api/killinchu/v1/gov/chapaq-verdict")
+    # R4 (2026-06-14): a11oy Restraint frugality->energy tile (live, honest).
+    restraint_kpi = _get_json(A11OY_BASE + "/api/a11oy/v1/restraint/kpi")
 
     # locked-8 (G1) - read live, flag any source reporting != 8
     lock = (a_honest or {}).get("doctrine_lock", {}) if a_honest else {}
@@ -164,6 +166,13 @@ def build_kpi_board(ns: str) -> Dict[str, Any]:
             "killinchu": {"reachable": chapaq is not None, "role": "C-UAS / maritime sensing"},
         },
         "chapaq_verdict": (chapaq or {}).get("data") if chapaq else None,
+        "restraint": (restraint_kpi if isinstance(restraint_kpi, dict) else {
+            "tile": "restraint", "label": "SAMPLE",
+            "note": ("a11oy Restraint KPI endpoint unreachable — honest empty tile. "
+                     "Frugality rate + cumulative lines/tokens/joules saved appear "
+                     "once /api/a11oy/v1/restraint/kpi responds. Joules MEASURED only "
+                     "on a live GPU probe, else SAMPLE. Adopts Ponytail (MIT)."),
+        }),
         "doctrine": "v11",
     }
 

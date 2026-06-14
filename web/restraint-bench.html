@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>a11oy Restraint — MEASURED benchmark · SZL Holdings</title>
+<meta name="description" content="a11oy Restraint: governed + measured code-frugality. Two-arm benchmark (no-skill baseline vs a11oy-restraint) reproduced on OUR stack — % less code, % cheaper, x faster — labelled MEASURED only when actually run, else SAMPLE with the methodology and reproduce command shown."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808;
+  --gold:#c8a24a; --gold-line:rgba(200,162,74,.28); --cream:#e8e2d4; --muted:#8a8576; --dim:#5f5b50;
+  --green:#5fbf7f; --blue:#5f93d6; --teal:#54b6b0; --warn:#d6a25f; --red:#d66f6f; --yellow:#d6c25f;
+  --font:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--cream);font-family:var(--font);line-height:1.5;font-size:14px;}
+a{color:var(--gold);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.wrap{max-width:1100px;margin:0 auto;padding:1.5rem 1.25rem 4rem;}
+header{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;border-bottom:1px solid var(--gold-line);padding-bottom:.9rem;margin-bottom:1.2rem;}
+header h1{font-size:1.25rem;font-weight:600;margin:0;letter-spacing:.01em;}
+header .tag{font-family:var(--mono);font-size:10px;color:var(--gold);border:1px solid var(--gold-line);padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.08em;}
+.sep{color:var(--dim);}
+.crumbs{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:1rem;}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.card .big{font-size:1.6rem;font-weight:600;margin:.15rem 0 .1rem;font-family:var(--mono);}
+.card .sub{font-size:11px;color:var(--dim);}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .5rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.badge{font-family:var(--mono);font-size:9.5px;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.07em;border:1px solid;}
+.b-measured{color:var(--green);border-color:var(--green);}
+.b-sample{color:var(--yellow);border-color:var(--yellow);}
+.b-roadmap{color:var(--warn);border-color:var(--warn);}
+.b-cited{color:var(--blue);border-color:var(--blue);}
+.b-mixed{color:var(--teal);border-color:var(--teal);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{text-align:left;padding:.45rem .55rem;border-bottom:1px solid rgba(200,162,74,.12);}
+th{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:500;}
+td.num{font-family:var(--mono);text-align:right;}
+.scrollx{overflow-x:auto;}
+.pos{color:var(--green);}
+code,pre{font-family:var(--mono);font-size:12px;}
+pre.cmd{background:var(--panel2);border:1px solid var(--gold-line);border-radius:8px;padding:.75rem .9rem;overflow-x:auto;color:var(--cream);white-space:pre-wrap;word-break:break-word;}
+.mut{color:var(--muted);font-size:12px;}
+.ladder{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.5rem;}
+.rung{border:1px solid var(--gold-line);border-radius:7px;padding:.5rem .6rem;background:var(--panel2);}
+.rung .n{font-family:var(--mono);color:var(--gold);font-size:11px;}
+.rung .nm{font-size:12px;color:var(--cream);}
+.foot{font-size:11.5px;color:var(--muted);border-top:1px solid var(--gold-line);padding-top:.9rem;margin-top:1.5rem;}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem;font-size:12.5px;}
+.kv .k{color:var(--muted);} .kv .v{font-family:var(--mono);}
+.empty{color:var(--dim);font-style:italic;font-size:12.5px;}
+.live{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--mono);font-size:11px;color:var(--green);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>a11oy Restraint</h1>
+    <span class="tag">governed · measured · frugal</span>
+    <span class="sep">/</span>
+    <span class="live"><span class="live-dot"></span><span id="livelbl">LIVE</span></span>
+  </header>
+  <div class="crumbs">
+    Code-frugality ladder adopted from the open-source
+    <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener">Ponytail skill (MIT)</a>
+    — governed (signed receipts + Λ) and <b>measured on our stack</b>. Ponytail's published numbers are cited as theirs; ours as ours.
+  </div>
+
+  <!-- HEADLINE CARDS: our reproduced medians (MEASURED-or-SAMPLE) -->
+  <div class="cards">
+    <div class="card"><div class="lbl">Less code <span id="hl_loc_badge" class="badge b-roadmap">—</span></div><div class="big" id="hl_loc" style="color:var(--gold)">—</div><div class="sub">median LOC reduction (ours)</div></div>
+    <div class="card"><div class="lbl">Cheaper <span id="hl_cost_badge" class="badge b-roadmap">—</span></div><div class="big" id="hl_cost" style="color:var(--green)">—</div><div class="sub">median token-cost proxy reduction</div></div>
+    <div class="card"><div class="lbl">Faster <span id="hl_speed_badge" class="badge b-roadmap">—</span></div><div class="big" id="hl_speed" style="color:var(--blue)">—</div><div class="sub">median latency reduction</div></div>
+    <div class="card"><div class="lbl">Joules saved <span id="hl_j_badge" class="badge b-sample">—</span></div><div class="big" id="hl_j" style="color:var(--warn)">—</div><div class="sub">cumulative · tokens-saved × J/token</div></div>
+  </div>
+
+  <!-- BENCHMARK TABLE -->
+  <div class="panel">
+    <h2>Two-arm benchmark <span id="bench_overall" class="badge b-roadmap">…</span></h2>
+    <div class="mut" style="margin-bottom:.5rem;">No-skill baseline vs a11oy-restraint over the same five everyday tasks. <span id="bench_method"></span></div>
+    <div class="scrollx">
+      <table>
+        <thead><tr>
+          <th>Task</th><th>Rung</th>
+          <th class="num">Baseline LOC</th><th class="num">Restraint LOC</th>
+          <th class="num">% less code</th><th class="num">% cheaper</th><th class="num">x faster</th><th>Label</th>
+        </tr></thead>
+        <tbody id="bench_body"><tr><td colspan="8" class="empty">Loading benchmark…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FRUGALITY -> ENERGY PANEL (the sovereign + frugal + measured pitch) -->
+  <div class="panel">
+    <h2>Frugality &rarr; energy <span class="meta">less code = fewer tokens = fewer joules</span></h2>
+    <div class="mut" style="margin-bottom:.6rem;">Every restraint decision saves lines &rarr; tokens &rarr; joules on our sovereign GPU. Joules are priced at the <b>live on-box MEASURED J/token</b> when the GPU probe is live, else our honest SAMPLE constant.</div>
+    <div class="cards" style="margin-bottom:.6rem;">
+      <div class="card"><div class="lbl">Frugality rate</div><div class="big" id="fr_rate" style="color:var(--teal)">—</div><div class="sub" id="fr_dec">decisions that cut code</div></div>
+      <div class="card"><div class="lbl">Lines saved</div><div class="big" id="fr_loc" style="color:var(--gold)">—</div><div class="sub">cumulative (MODELED)</div></div>
+      <div class="card"><div class="lbl">Tokens saved</div><div class="big" id="fr_tok" style="color:var(--cream)">—</div><div class="sub">≈ lines × tokens/LOC</div></div>
+      <div class="card"><div class="lbl">Joules saved <span id="fr_j_badge" class="badge b-sample">—</span></div><div class="big" id="fr_j" style="color:var(--warn)">—</div><div class="sub" id="fr_jpt">J/token —</div></div>
+    </div>
+    <div class="mut" id="fr_note"></div>
+  </div>
+
+  <!-- THE LADDER -->
+  <div class="panel">
+    <h2>The 6-rung ladder <span class="meta">stop at the first rung that holds</span></h2>
+    <div class="ladder" id="ladder"><span class="empty">Loading ladder…</span></div>
+    <div class="mut" style="margin-top:.6rem;">Intensities: <b>lite</b> (name the lazier alternative) · <b>full</b> (stdlib/native first, default) · <b>ultra</b> (YAGNI-extremist). Every decision &rarr; a signed DSSE receipt + advisory Λ (Conjecture 1, &lt;1.0).</div>
+  </div>
+
+  <!-- REPRODUCE -->
+  <div class="panel">
+    <h2>Reproduce <span class="meta">flip SAMPLE → MEASURED on your stack</span></h2>
+    <div class="mut" style="margin-bottom:.5rem;">Run the harness with a wired model client; it counts emitted LOC deterministically and records tokens + latency from the API, then writes <code>benchmarks/restraint/results.json</code>. This dashboard flips to <b>MEASURED</b> for the run you actually executed.</div>
+    <pre class="cmd" id="cmd_main">…</pre>
+    <div class="mut" style="margin:.5rem 0 .2rem;">Or via promptfoo (Ponytail's methodology):</div>
+    <pre class="cmd" id="cmd_pf">npx promptfoo@latest eval -c benchmarks/restraint/promptfooconfig.yaml --repeat 10</pre>
+  </div>
+
+  <!-- PONYTAIL CITATION -->
+  <div class="panel">
+    <h2>Ponytail's published numbers <span id="pony_badge" class="badge b-cited">CITED · theirs</span></h2>
+    <div class="mut" style="margin-bottom:.5rem;">These are <b>Ponytail's</b> results, cited honestly — <b>never claimed as ours</b>. Our numbers above are measured/sampled on our own stack.</div>
+    <div class="kv" id="pony_kv"></div>
+  </div>
+
+  <div class="foot" id="foot">
+    <b>Honest by design.</b> Numbers above are <b>OURS</b>, labelled MEASURED only when a real run on our stack produced them (committed results.json), else SAMPLE/ROADMAP from our deterministic ladder model. Joules-saved uses the <b>live MEASURED on-box J/token</b> only when the sovereign GPU probe is live, else an honest SAMPLE constant — decided by the same single source of truth as the rest of the energy story. Ponytail's published numbers are CITED as Ponytail's (MIT). Λ = Conjecture 1 (machine-checked OPEN; advisory floor &lt;1.0; trust &lt;100%). locked = EXACTLY 8 @ c7c0ba17. 0 runtime CDN (fonts only) · 0 visible codenames · signed receipts.
+  </div>
+</div>
+
+<script>
+const A="/api/a11oy";
+const $=id=>document.getElementById(id);
+async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function fmt(n,d){if(n==null||isNaN(n))return '—';const x=Number(n);return d!=null?x.toFixed(d):String(x);}
+function badgeClass(lbl){const l=String(lbl||'').toUpperCase();
+  if(l==='MEASURED')return 'b-measured'; if(l==='SAMPLE')return 'b-sample';
+  if(l==='MIXED')return 'b-mixed'; if(l==='CITED')return 'b-cited'; return 'b-roadmap';}
+function setBadge(el,lbl){if(!el)return;el.className='badge '+badgeClass(lbl);el.textContent=String(lbl||'—').toUpperCase();}
+
+async function loadBench(){
+  const b=await getJSON(A+"/v1/restraint/bench-measured");
+  if(!b){$('bench_body').innerHTML='<tr><td colspan="8" class="empty">Benchmark endpoint unreachable (honest empty-state).</td></tr>';return;}
+  setBadge($('bench_overall'), b.overall_label);
+  $('bench_method').textContent = b.methodology || '';
+  // headline medians
+  const ag=b.aggregate||{};
+  $('hl_loc').textContent = ag.median_loc_reduction_pct!=null?fmt(ag.median_loc_reduction_pct,1)+'%':'—';
+  $('hl_cost').textContent = ag.median_cost_proxy_reduction_pct!=null?fmt(ag.median_cost_proxy_reduction_pct,1)+'%':'—';
+  // speed as x-faster from latency reduction pct (1/(1-r))
+  const lr=ag.median_latency_reduction_pct;
+  $('hl_speed').textContent = (lr!=null && lr<100)?(100/(100-lr)).toFixed(2)+'×':'—';
+  const hb=b.overall_label;
+  setBadge($('hl_loc_badge'),hb); setBadge($('hl_cost_badge'),hb); setBadge($('hl_speed_badge'),hb);
+  // rows
+  const rows=b.rows||[];
+  if(!rows.length){$('bench_body').innerHTML='<tr><td colspan="8" class="empty">No rows yet — run the harness (see Reproduce).</td></tr>';}
+  else $('bench_body').innerHTML=rows.map(r=>{
+    const lr2=r.latency_reduction_pct;
+    const xf=(lr2!=null&&lr2<100)?(100/(100-lr2)).toFixed(2)+'×':'—';
+    return `<tr>
+      <td>${esc((r.task||'').slice(0,52))}${(r.task||'').length>52?'…':''}</td>
+      <td class="num">${esc(r.stopped_at_rung??'—')}</td>
+      <td class="num">${esc(r.baseline&&r.baseline.loc!=null?r.baseline.loc:'—')}</td>
+      <td class="num">${esc(r.a11oy_restraint&&r.a11oy_restraint.loc!=null?r.a11oy_restraint.loc:'—')}</td>
+      <td class="num pos">${fmt(r.loc_reduction_pct,1)}%</td>
+      <td class="num pos">${fmt(r.cost_proxy_reduction_pct,1)}%</td>
+      <td class="num pos">${xf}</td>
+      <td><span class="badge ${badgeClass(r.label)}">${esc(String(r.label||'—').toUpperCase())}</span></td>
+    </tr>`;}).join('');
+  // reproduce + ponytail
+  $('cmd_main').textContent = b.reproduce || 'python benchmarks/restraint/run_bench.py --model <id> --repeat 10 --out benchmarks/restraint/results.json';
+  if(b.reproduce_promptfoo)$('cmd_pf').textContent=b.reproduce_promptfoo;
+  const pp=b.ponytail_published||{};
+  $('pony_kv').innerHTML=[
+    ['Less code',pp.code_reduction],['Cheaper',pp.cost_reduction],['Faster',pp.speed],['Basis',pp.basis],
+  ].map(([k,v])=>`<span class="k">${esc(k)}</span><span class="v">${esc(v||'—')}</span>`).join('');
+}
+
+async function loadEnergy(){
+  const e=await getJSON(A+"/v1/restraint/energy");
+  if(!e){$('fr_note').textContent='Energy tie-in endpoint unreachable (honest empty-state).';return;}
+  const c=e.cumulative||{}; const jpt=e.j_per_token||{};
+  $('fr_rate').textContent = c.frugality_rate!=null?(c.frugality_rate*100).toFixed(0)+'%':'—';
+  $('fr_dec').textContent = (c.decisions_that_saved!=null?c.decisions_that_saved:'—')+' / '+(c.decisions!=null?c.decisions:'—')+' decisions cut code';
+  $('fr_loc').textContent = c.cumulative_lines_saved!=null?c.cumulative_lines_saved:'—';
+  $('fr_tok').textContent = c.cumulative_tokens_saved!=null?fmt(c.cumulative_tokens_saved,0):'—';
+  $('fr_j').textContent = c.cumulative_joules_saved_total!=null?fmt(c.cumulative_joules_saved_total,0)+' J':'—';
+  setBadge($('fr_j_badge'), c.joules_label);
+  setBadge($('hl_j_badge'), c.joules_label);
+  $('hl_j').textContent = c.cumulative_joules_saved_total!=null?fmt(c.cumulative_joules_saved_total,0)+' J':'—';
+  $('fr_jpt').textContent = 'J/token '+(jpt.j_per_token!=null?fmt(jpt.j_per_token,4):'—')+' · '+String(jpt.label||'SAMPLE').toUpperCase();
+  $('fr_note').textContent = e.honesty || '';
+}
+
+async function loadInfo(){
+  const i=await getJSON(A+"/v1/restraint/info");
+  if(!i||!Array.isArray(i.ladder)){$('ladder').innerHTML='<span class="empty">Ladder endpoint unreachable.</span>';return;}
+  $('ladder').innerHTML=i.ladder.map(r=>`<div class="rung"><div class="n">rung ${esc(r.rung)} · ${esc(r.key)}</div><div class="nm">${esc(r.name)}</div></div>`).join('');
+}
+
+async function loadAll(){await Promise.all([loadBench(),loadEnergy(),loadInfo()]);}
+loadAll();
+setInterval(loadAll,30000);
+</script>
+</body>
+</html>

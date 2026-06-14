@@ -115,6 +115,10 @@
       <h2>SIGNED DECISIONS <span class="badge sample">cross-surface</span></h2>
       <div id="tape" class="tape mut">…</div>
     </div>
+    <div class="panel">
+      <h2>RESTRAINT &middot; FRUGALITY &rarr; ENERGY <span id="restraintBadge" class="badge sample">SAMPLE</span></h2>
+      <div id="restraint" class="mut">…</div>
+    </div>
   </div>
 
   <div class="panel mut">
@@ -242,6 +246,26 @@
       var ac = window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(1-a.score) : "#9af0cf";
       return '<div class="axis"><span>'+esc(a.name)+'</span><b style="color:'+ac+'">'+(+a.score).toFixed(2)+'</b></div>';
     }).join("") || '<span class="mut">no axes</span>';
+    // RESTRAINT tile (R4): frugality rate + cumulative savings + energy saved (honest).
+    var rt = kb.restraint || {};
+    var rb = document.getElementById("restraintBadge");
+    if(rb){ var jl=String(rt.joules_label||rt.label||"SAMPLE").toUpperCase();
+      rb.textContent=jl; rb.className="badge "+(jl==="MEASURED"?"live":"sample"); }
+    var rEl = document.getElementById("restraint");
+    if(rEl){
+      if(rt && (rt.frugality_rate!=null || rt.cumulative_joules_saved!=null)){
+        var fr=(typeof rt.frugality_rate==="number")?(rt.frugality_rate*100).toFixed(0)+"%":"—";
+        rEl.innerHTML =
+          '<div class="stat"><span>frugality rate</span><b style="color:#9af0cf">'+fr+'</b></div>'+
+          '<div class="stat"><span>lines saved</span><b>'+esc(rt.cumulative_lines_saved!=null?rt.cumulative_lines_saved:"—")+'</b></div>'+
+          '<div class="stat"><span>tokens saved</span><b>'+esc(rt.cumulative_tokens_saved!=null?Math.round(rt.cumulative_tokens_saved):"—")+'</b></div>'+
+          '<div class="stat"><span>joules saved</span><b style="color:#ffd479">'+esc(rt.cumulative_joules_saved!=null?Math.round(rt.cumulative_joules_saved)+" J":"—")+' <span class="badge '+((String(rt.joules_label).toUpperCase()==="MEASURED")?"live":"sample")+'">'+esc(String(rt.joules_label||"SAMPLE").toUpperCase())+'</span></b></div>'+
+          '<div class="stat"><span>J/token</span><b>'+esc(rt.j_per_token!=null?(+rt.j_per_token).toFixed(4):"—")+' '+esc(String(rt.j_per_token_label||"SAMPLE").toUpperCase())+'</b></div>'+
+          '<div class="mut" style="margin-top:6px">less code = fewer tokens = fewer joules. Joules MEASURED only on a live GPU probe, else SAMPLE. Adopts Ponytail (MIT); governed.</div>';
+      } else {
+        rEl.innerHTML = '<span class="mut">'+esc(rt.note||"a11oy Restraint KPI pending \u2014 honest empty tile.")+'</span>';
+      }
+    }
   });
 
   // ------- LIVE organism (mind + 6 organs) from engine/status -------
