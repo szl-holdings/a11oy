@@ -393,12 +393,73 @@ def restraint_kpi() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Frugality -> energy panel, injected ADDITIVELY into the live /energy page.
+# szl_energy_sovereign registers /energy first (front of the route table), so
+# editing web/energy.html on disk never reaches the user. Instead we re-render
+# Forge's own page (its _html(_posture()) — byte-for-byte, never edited) and
+# append this self-contained panel before </body>, then front-win the route.
+# Fully scoped styles + its own fetch, so it renders regardless of host CSS and
+# adds nothing if the energy module is unavailable (honest no-op).
+# ---------------------------------------------------------------------------
+_FRUGALITY_PANEL_FRAGMENT = """
+<section id="frugality_panel" style="max-width:980px;margin:14px auto 0;background:#111722;border:1px solid #1e2a3a;border-radius:14px;padding:16px;color:#e6edf3;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <h3 style="font-size:1.05rem;margin:0">Frugality &rarr; energy</h3>
+    <span style="color:#6b7785;font-size:.78rem;font-family:ui-monospace,monospace">a11oy Restraint &middot; less code = fewer tokens = fewer joules</span>
+  </div>
+  <div style="display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:12px 0 .4rem">
+    <div style="background:#0d131c;border:1px solid #1e2a3a;border-radius:12px;padding:13px"><div style="color:#9aa7b4;font-size:.78rem">Frugality rate</div><div id="fe_rate" style="font-size:1.5rem;font-weight:700;color:#42d392">&mdash;</div><div id="fe_dec" style="color:#9aa7b4;font-size:.78rem">decisions that cut code</div></div>
+    <div style="background:#0d131c;border:1px solid #1e2a3a;border-radius:12px;padding:13px"><div style="color:#9aa7b4;font-size:.78rem">Lines saved</div><div id="fe_loc" style="font-size:1.5rem;font-weight:700;color:#e3b341">&mdash;</div><div style="color:#9aa7b4;font-size:.78rem">cumulative (MODELED)</div></div>
+    <div style="background:#0d131c;border:1px solid #1e2a3a;border-radius:12px;padding:13px"><div style="color:#9aa7b4;font-size:.78rem">Tokens saved</div><div id="fe_tok" style="font-size:1.5rem;font-weight:700;color:#e6edf3">&mdash;</div><div style="color:#9aa7b4;font-size:.78rem">&asymp; lines &times; tokens/LOC</div></div>
+    <div style="background:#0d131c;border:1px solid #1e2a3a;border-radius:12px;padding:13px"><div style="color:#9aa7b4;font-size:.78rem">Joules saved <span id="fe_jlbl" style="font-family:ui-monospace,monospace;font-size:.66rem;padding:1px 6px;border-radius:6px;background:#3a2f10;color:#e3b341">SAMPLE</span></div><div id="fe_j" style="font-size:1.5rem;font-weight:700;color:#f0a05a">&mdash;</div><div id="fe_jpt" style="color:#9aa7b4;font-size:.78rem">J/token &mdash;</div></div>
+  </div>
+  <p id="fe_note" style="color:#c4cdd6;font-size:.8rem;margin:10px 0 0"><b>Joules-saved = tokens-saved &times; J/token.</b> The J/token is the LIVE on-box MEASURED figure ONLY when the sovereign GPU probe is live (label MEASURED); otherwise our honest SAMPLE constant &mdash; the same single source of truth as the rest of this page. Lines-saved is OUR MODELED ladder figure, never Ponytail's measured numbers. Ladder adopted from <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener" style="color:#9fd0ff">Ponytail (MIT)</a>; governed (signed receipts + &Lambda;). See the full bench at <a href="/restraint-bench" style="color:#9fd0ff">/restraint-bench</a>.</p>
+</section>
+<script>
+(function(){
+  function fmt(n,d){if(n==null||isNaN(n))return '\u2014';return Number(n).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:0});}
+  function g(id){return document.getElementById(id);}
+  fetch('/api/a11oy/v1/restraint/energy').then(function(r){return r.json();}).then(function(d){
+    var c=d.cumulative||{}, jpt=d.j_per_token||{};
+    if(g('fe_rate'))g('fe_rate').textContent=c.frugality_rate!=null?(c.frugality_rate*100).toFixed(0)+'%':'\u2014';
+    if(g('fe_dec'))g('fe_dec').textContent=(c.decisions_that_saved!=null?c.decisions_that_saved:'\u2014')+' / '+(c.decisions!=null?c.decisions:'\u2014')+' decisions cut code';
+    if(g('fe_loc'))g('fe_loc').textContent=c.cumulative_lines_saved!=null?fmt(c.cumulative_lines_saved,0):'\u2014';
+    if(g('fe_tok'))g('fe_tok').textContent=c.cumulative_tokens_saved!=null?fmt(c.cumulative_tokens_saved,0):'\u2014';
+    if(g('fe_j'))g('fe_j').textContent=c.cumulative_joules_saved_total!=null?fmt(c.cumulative_joules_saved_total,0)+' J':'\u2014';
+    var jb=g('fe_jlbl');
+    if(jb){var lbl=String(c.joules_label||'SAMPLE').toUpperCase();jb.textContent=lbl;
+      if(lbl==='MEASURED'){jb.style.background='#10331f';jb.style.color='#42d392';}else{jb.style.background='#3a2f10';jb.style.color='#e3b341';}}
+    if(g('fe_jpt'))g('fe_jpt').textContent='J/token '+(jpt.j_per_token!=null?fmt(jpt.j_per_token,4):'\u2014')+' \u00b7 '+String(jpt.label||'SAMPLE').toUpperCase();
+  }).catch(function(){});
+})();
+</script>
+"""
+
+
+def _energy_page_with_frugality() -> str:
+    """Re-render Forge's own /energy page (never edited) + append our panel.
+
+    Returns None-equivalent (empty string) honestly if the energy module is not
+    importable, so the caller can fall through to the existing route.
+    """
+    try:
+        import szl_energy_sovereign as _es
+        base = _es._html(_es._posture())
+    except Exception:
+        return ""
+    if not isinstance(base, str) or "</body>" not in base:
+        return ""
+    # Additive: inject our self-contained panel just before the closing body.
+    return base.replace("</body>", _FRUGALITY_PANEL_FRAGMENT + "</body>", 1)
+
+
+# ---------------------------------------------------------------------------
 # Route registration (matches the a11oy register(app, ns=...) pattern). Routes
 # insert at position 0 so they beat the SPA catch-all. Try/except guarded.
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "a11oy") -> dict:
     from starlette.routing import Route
-    from starlette.responses import JSONResponse
+    from starlette.responses import JSONResponse, HTMLResponse
 
     async def _energy(request):
         task = intensity = None
@@ -418,6 +479,18 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _kpi(request):
         return JSONResponse(restraint_kpi())
 
+    async def _energy_page(request):
+        # ADDITIVE: serve Forge's own /energy page (byte-identical, never edited)
+        # with our frugality->energy panel appended. Front-wins the energy
+        # module's /energy route via position-0 insert. If the energy module is
+        # unavailable we honestly 404 so the existing route keeps serving.
+        html = _energy_page_with_frugality()
+        if not html:
+            return JSONResponse(
+                {"error": "energy module unavailable; frugality panel not injected"},
+                status_code=404)
+        return HTMLResponse(html)
+
     routes = [
         Route("/api/%s/v1/restraint/energy" % ns, _energy, methods=["GET", "POST"],
               name="%s_restraint_energy" % ns),
@@ -426,10 +499,18 @@ def register(app, ns: str = "a11oy") -> dict:
         Route("/api/%s/v1/restraint/kpi" % ns, _kpi, methods=["GET"],
               name="%s_restraint_kpi" % ns),
     ]
+    # Only front-win /energy if we can actually augment it (else leave Forge's
+    # route untouched — never shadow the sovereign-energy page with a 404).
+    if _energy_page_with_frugality():
+        routes.append(Route("/energy", _energy_page, methods=["GET"],
+                            name="%s_energy_frugality" % ns))
+        routes.append(Route("/%s/energy" % ns, _energy_page, methods=["GET"],
+                            name="%s_energy_frugality_ns" % ns))
     for r in reversed(routes):
         app.router.routes.insert(0, r)
     return {"registered": [r.path for r in routes], "ns": ns,
-            "service": "a11oy.restraint.energy", "doctrine": DOCTRINE}
+            "service": "a11oy.restraint.energy", "doctrine": DOCTRINE,
+            "energy_panel_injected": bool(_energy_page_with_frugality())}
 
 
 if __name__ == "__main__":
