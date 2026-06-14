@@ -204,3 +204,151 @@ jobs:
         env:
           SZL_RELEASE_RECEIPT_REAL_VERIFY: "1"
         run: pytest tests/test_verify_release_receipts_real.py -q
+
+  action-contract-manifest-selftest:
+    name: Action-contract manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run action-contract manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_action_contract_manifest.py:
+        # feeds the REAL validator tampered contracts (egress defaultDeny off, a dropped
+        # denied capability, copyingRule not pattern-only, emptied UDS forbiddenClaims,
+        # non-hash-chain receipts) and asserts it FAILS on each, plus the committed contract
+        # which must PASS. Proves the clean-room/least-privilege guard can't be silently
+        # loosened. Pure stdlib (unittest), no network, no live manifest touched. Run by
+        # file path: the scripts dir is not an importable package.
+        run: python3 scripts/test_validate_action_contract_manifest.py
+
+  anatomy-map-selftest:
+    name: Anatomy/formula/runtime map validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run anatomy/formula/runtime map validator self-test
+        # Negative-fixture self-test gating scripts/validate_anatomy_formula_runtime_map.py:
+        # asserts the REAL validator FAILS when the autonomous-learning doctrine is loosened
+        # (promotionModel not human_promotion_required, a dropped self_approve/self_promote/
+        # deploy/publish forbiddenMode, canonicalHub changed, bad organ claimStatus) and PASSES
+        # on the committed map. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_anatomy_formula_runtime_map.py
+
+  benchmark-map-selftest:
+    name: Benchmark map validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run benchmark map validator self-test
+        # Negative-fixture self-test gating scripts/validate_benchmark_map.py: asserts the REAL
+        # validator FAILS on overclaim/doctrine tampering (publishMode canonical, mathcomp not
+        # raw_points, dropped "solved/beat/AGI proven" disallowedClaim, an allowedClaim that says
+        # "solved/cracked", receipts not required / not hash_chain) and PASSES on the committed
+        # map. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_benchmark_map.py
+
+  controls-evidence-map-selftest:
+    name: Controls-evidence map validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run controls-evidence map validator self-test
+        # Negative-fixture self-test gating scripts/validate_controls_evidence_map.py: asserts the
+        # REAL validator FAILS when the clean-room/honest-exposure contract is loosened (dropped
+        # clean-room rule, hfExposure canonical/source-of-truth, udsExposure endorsed/catalog,
+        # bad controlId or claimStatus, verified-runtime without a runtime-available receipt hook)
+        # and PASSES on the committed map. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_controls_evidence_map.py
+
+  cross-repo-handoff-selftest:
+    name: Cross-repo handoff manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run cross-repo handoff manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_cross_repo_handoff_manifest.py:
+        # asserts the REAL validator FAILS on "not complete until target evidence" tampering
+        # (dropped forbidden completion claim, weakened canonicalRule, patchSha256 mismatch,
+        # bad accessState, a handoff marked complete without target PR + target CI) and PASSES
+        # on an honest fixture. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_cross_repo_handoff_manifest.py
+
+  github-access-checklist-selftest:
+    name: GitHub access checklist validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run GitHub access checklist validator self-test
+        # Negative-fixture self-test gating scripts/validate_github_access_checklist.py: asserts
+        # the REAL validator FAILS on least-privilege tampering (seatsAloneGrantWriteAccess true,
+        # a write-like or non-gh command slipped into the read-only checks, a target repo with
+        # read-only minimumPermission, a dropped doctrine boundary, writable repo changed) and
+        # PASSES on the committed checklist. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_github_access_checklist.py
+
+  hf-test-results-manifest-selftest:
+    name: HF test-results manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run HF test-results manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_hf_test_results_manifest.py: asserts
+        # the REAL validator FAILS when the staged dataset is promoted (claim_status off
+        # staged-no-live-score, corpus sealed / problem_count>0, non-empty runs, publish_mode
+        # canonical, dropped disallowed claim, overclaiming allowed wording) and PASSES on the
+        # committed manifest. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_hf_test_results_manifest.py
+
+  phase-completion-manifest-selftest:
+    name: Phase-completion manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run phase-completion manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_phase_completion_manifest.py: asserts
+        # the REAL validator FAILS on completion overclaim (crossRepoStatus complete, changed
+        # a11oyLocalStatus, weakened canonicalRule, dropped forbidden claim, bad phase status,
+        # dropped sibling-repo completion requirement) and PASSES on the committed manifest.
+        # Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_phase_completion_manifest.py
+
+  public-pattern-manifest-selftest:
+    name: Public-pattern manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Run public-pattern manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_public_pattern_manifest.py: asserts
+        # the REAL validator FAILS when the clean-room guardrail is loosened (privateIngestionAllowed
+        # true, weakened copyingRule, dropped endorsementBoundary, non-public queue URL, bad pattern
+        # claimStatus, a pattern transform with no SZL/A11oy origin, dropped license caveat) and
+        # PASSES on the committed manifest. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_public_pattern_manifest.py
