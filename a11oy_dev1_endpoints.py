@@ -95,7 +95,8 @@ _PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 _LOCK = threading.Lock()
 
 # Doctrine constants (single source — keep in sync with PROVEN_STATE_CANONICAL.md)
-_LOCKED_FIVE = ["F1", "F11", "F12", "F18", "F19"]
+_LOCKED_EIGHT = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]  # EXACTLY 8 @ kernel c7c0ba17 (doctrine v11)
+_LOCKED_FIVE = _LOCKED_EIGHT  # legacy alias — count is 8, never 5
 _LAMBDA_STATUS = ("Conjecture 1 — advisory only. Unconditional Λ-uniqueness is "
                   "machine-checked FALSE; the strongest result is an axiom-free "
                   "CONDITIONAL uniqueness (slice-multiplicativity ⇒ Λ). NOT a "

@@ -34,6 +34,10 @@
 <script src="/vendor/vivagraph.min.js"></script>
 <link rel="stylesheet" href="/vendor/katex.min.css"/>
 <script src="/vendor/katex.min.js"></script>
+<!-- DEV1: SZL Estate shared modules (byte-identical cross-app), served in-image at /static/shared (0 CDN). window.SZLLabels / SZLReceipts / SZLCodenames. -->
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_receipt_cosign.js"></script>
+<script src="/static/shared/szl_codename_sanitizer.js"></script>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
@@ -14514,6 +14518,171 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 </script>
 <!-- end governed-anomalies-mosaic-oversight -->
 
+
+<!-- ============================================================================
+     DEV1 GOVERNANCE-ELEVATION (additive, byte-safe). Consumes the three Estate
+     shared modules served at /static/shared/*.js: window.SZLLabels (honest data
+     badges + auditText), window.SZLReceipts (ECDSA-P256-SHA256 DSSE verify,
+     keyid szlholdings-cosign), window.SZLCodenames (sanitizer; scanDOM at render).
+     PURELY ADDITIVE: it never rewrites an existing VIEWS render. It (a) runs the
+     codename sanitizer over #content after every navigation so 0 banned tokens are
+     ever user-visible, (b) stamps a single honest SZLLabels provenance badge into
+     each in-scope tab's .view-head, and (c) mounts a cross-app receipt-verify strip
+     on the provenance/trust tabs (chain · receipts · pvaAnchor) using SZLReceipts
+     (never fabricates a signature). Doctrine v11: locked=8, Λ=Conjecture 1, 0 CDN,
+     tamper-EVIDENT, trust<100%. Half-state is the only unacceptable outcome. ====== -->
+<script>
+(function(){
+  "use strict";
+  // ---- guard: never crash the app if a module failed to load -----------------
+  var L = window.SZLLabels, R = window.SZLReceipts, C = window.SZLCodenames;
+  if (L && L.ensureStyle) { try { L.ensureStyle(document); } catch(e){} }
+
+  // Honest per-tab data label (DoD: every in-scope tab carries one honest badge).
+  // LIVE = the tab reads a real in-image endpoint; EXPERIMENTAL/SAMPLE/SIMULATED/
+  // MODELED labeled per the doctrine vocabulary. Keys outside this map are left
+  // untouched (other devs own them).
+  var TAB_LABEL = {
+    // core
+    command:"LIVE", ask:"LIVE", demo:"LIVE", alloy:"LIVE", chat:"CONNECT-READY",
+    arena:"LIVE", mission:"LIVE", codetab:"LIVE", mcp:"LIVE", llm:"CONNECT-READY",
+    // governance
+    govern:"LIVE", oversight:"LIVE", policies:"LIVE", govatlas:"LIVE",
+    decision:"LIVE", ontology:"MODELED", lineage:"LIVE", reciprocity:"MODELED",
+    knowledge:"MODELED", brain2:"MODELED", forecast:"FORECAST",
+    // provenance / trust
+    chain:"LIVE", receipts:"LIVE", pvaAnchor:"LIVE",
+    // cyber
+    cybIncident:"SIMULATED", cybsurface:"SAMPLE", cybzero:"SAMPLE", cybthreat:"OSINT",
+    // flight / fleet
+    fltTopo:"SAMPLE", fltReceipts:"LIVE", fltObs:"SAMPLE"
+  };
+  // Tabs where a cross-app receipt-verify strip is meaningful (provenance/trust + flt receipts).
+  var RECEIPT_TABS = { chain:1, receipts:1, pvaAnchor:1, fltReceipts:1 };
+
+  function stampBadge(view){
+    if (!L || !L.badgeHTML) return;
+    var key = TAB_LABEL[view];
+    if (!key) return;                       // not my scope tab — leave alone
+    var head = document.querySelector('#content .view-head');
+    if (!head) return;
+    if (head.querySelector('[data-szl-elev-badge]')) return; // idempotent per render
+    var span = document.createElement('span');
+    span.setAttribute('data-szl-elev-badge','1');
+    span.style.marginLeft = '.5rem';
+    span.innerHTML = L.badgeHTML(key, { title:
+      'SZL Estate shared label-engine (byte-identical cross-app). This view is honestly labelled '
+      + key + '. Λ = Conjecture 1 (advisory, never proven trust); locked-proven = 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17; tamper-EVIDENT; 0 runtime CDN.' });
+    head.appendChild(span);
+  }
+
+  // Cross-app receipt-verify strip — uses SZLReceipts.verifyEnvelope (POST /khipu/verify).
+  // Never fabricates a signature: an unsigned/locally-built receipt verifies as
+  // honestly UNSIGNED, and a live cosign envelope verifies cross-app.
+  function mountReceiptStrip(view){
+    if (!R || !R.verifyEnvelope) return;
+    if (!RECEIPT_TABS[view]) return;
+    var body = document.getElementById('vbody') || document.querySelector('#content');
+    if (!body) return;
+    if (body.querySelector('[data-szl-rcpt-strip]')) return;
+    var box = document.createElement('div');
+    box.setAttribute('data-szl-rcpt-strip','1');
+    box.style.cssText = 'margin:1rem 0;padding:.8rem 1rem;border:1px solid rgba(201,183,135,.18);border-radius:10px;background:rgba(255,255,255,.02)';
+    box.innerHTML =
+      '<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">'
+      + '<b style="font-family:var(--mono,monospace);font-size:12px;letter-spacing:.04em">CROSS-APP RECEIPT VERIFY</b>'
+      + '<span data-szl-rcpt-keyid style="font-family:var(--mono,monospace);font-size:11px;color:var(--muted,#9aa)"></span>'
+      + '<button data-szl-rcpt-go style="margin-left:auto;cursor:pointer;border:1px solid rgba(201,183,135,.4);background:transparent;color:inherit;border-radius:8px;padding:.35rem .7rem;font-family:var(--mono,monospace);font-size:11px">verify receipt</button>'
+      + '</div>'
+      + '<div data-szl-rcpt-out style="margin-top:.5rem;font-family:var(--mono,monospace);font-size:11px;color:var(--muted,#9aa)">'
+      + 'DSSE / cosign keyid <code>' + (R.COSIGN_KEYID||'szlholdings-cosign') + '</code> (ECDSA-P256-SHA256). '
+      + 'Verification is performed by the in-image <code>/khipu/verify</code> witness \u2014 never a client-fabricated verdict. '
+      + 'Chain integrity is SHA3-256 hash-chain (tamper-EVIDENT); a missing cosign key reports honestly as UNSIGNED.'
+      + '</div>';
+    body.insertBefore(box, body.firstChild);
+    var kid = box.querySelector('[data-szl-rcpt-keyid]'); if (kid) kid.textContent = 'keyid: ' + (R.COSIGN_KEYID||'szlholdings-cosign');
+    var btn = box.querySelector('[data-szl-rcpt-go]');
+    var out = box.querySelector('[data-szl-rcpt-out]');
+    if (btn) btn.addEventListener('click', function(){
+      out.textContent = 'verifying via /khipu/verify \u2026';
+      // Build a minimal, honestly-unsigned receipt envelope to exercise the witness.
+      var receipt = { type:'szl.elevation.probe/v1', tab:view, ts:new Date().toISOString(),
+                      note:'cross-app verify probe \u2014 no signature fabricated' };
+      var env;
+      try {
+        env = (R.canonicalJSON)
+          ? { payloadType:'application/vnd.szl.receipt+json', payload:btoa(R.canonicalJSON(receipt)), signatures:[] }
+          : { payloadType:'application/vnd.szl.receipt+json', payload:btoa(JSON.stringify(receipt)), signatures:[] };
+      } catch(e){ env = { payloadType:'application/vnd.szl.receipt+json', payload:'', signatures:[] }; }
+      R.verifyEnvelope(env, {}).then(function(res){
+        var v = res && (res.verified===true);
+        var keyid = (res && res.keyidExpected) || (R.COSIGN_KEYID||'szlholdings-cosign');
+        out.innerHTML = '<span class="badge ' + (v?'b-live':'b-gold') + '">' + (v?'VERIFIED':'UNSIGNED \u2014 honest') + '</span> '
+          + 'witness <code>/khipu/verify</code> \u00b7 keyid <code>' + keyid + '</code> \u00b7 '
+          + (v ? 'cosign DSSE signature validated cross-app.'
+               : 'no cosign key in this Space \u2014 reported honestly as UNSIGNED; no verdict fabricated.');
+      }).catch(function(err){
+        out.innerHTML = '<span class="badge b-gold">witness unavailable</span> '
+          + '/khipu/verify did not respond from this Space right now \u2014 shown honestly, never a faked PASS.';
+      });
+    });
+  }
+
+  // Sanitizer pass: 0 banned codenames user-visible (Codenames doctrine). Runs over
+  // #content after every render. guardedRender rewrites any offending text node IN
+  // PLACE to its public role (amaru\u2192YACHAY, sentra\u2192CHAPAQ, rosie/jarvis\u2192Operator).
+  function sweepCodenames(){
+    if (!C || !C.scanDOM) return;
+    var root = document.getElementById('content');
+    if (!root) return;
+    var hits = [];
+    try { hits = C.scanDOM(root) || []; } catch(e){ hits = []; }
+    if (hits.length && C.guardedRender){
+      // Walk text nodes and sanitize in place; idempotent and additive.
+      try {
+        var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false), n;
+        while ((n = w.nextNode())){ if (C.scan && C.scan(n.nodeValue||'').length){ n.nodeValue = C.sanitize(n.nodeValue||''); } }
+        var attrEls = root.querySelectorAll('[title],[aria-label],[alt],[placeholder]');
+        for (var i=0;i<attrEls.length;i++){ ['title','aria-label','alt','placeholder'].forEach(function(a){
+          var v=attrEls[i].getAttribute(a); if (v && C.scan && C.scan(v).length){ attrEls[i].setAttribute(a, C.sanitize(v)); }
+        }); }
+      } catch(e){}
+    }
+  }
+
+  // Run the full elevation pass after a tab renders. Deferred a tick so async
+  // VIEWS renders that paint after go() returns are also covered; a short re-sweep
+  // catches late paints without ever fighting the owning render.
+  function elevate(view){
+    sweepCodenames();
+    stampBadge(view);
+    mountReceiptStrip(view);
+    setTimeout(function(){ sweepCodenames(); stampBadge(view); mountReceiptStrip(view); }, 350);
+    setTimeout(sweepCodenames, 1200);
+  }
+
+  // Wrap window.go additively (preserve original behaviour exactly, then elevate).
+  function wrap(){
+    if (typeof window.go !== 'function'){ return setTimeout(wrap, 80); }
+    if (window.__szlElevWrapped){ return; }
+    var orig = window.go;
+    window.go = function(view){
+      var r = orig.apply(this, arguments);
+      try { elevate(view); } catch(e){ /* additive — never block navigation */ }
+      return r;
+    };
+    window.__szlElevWrapped = true;
+    // Elevate the currently-shown tab too (initial deep-link load).
+    try {
+      var active = document.querySelector('.nav-item.active');
+      var v = active && active.dataset ? active.dataset.view : (location.hash||'').replace('#','');
+      if (v) elevate(v);
+    } catch(e){}
+  }
+  if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', wrap); } else { wrap(); }
+})();
+</script>
+<!-- end DEV1 GOVERNANCE-ELEVATION -->
 
 </body>
 </html>

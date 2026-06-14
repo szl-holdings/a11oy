@@ -6599,9 +6599,33 @@ try:
         return _VendResponse(content=f.read_bytes(), media_type=ct,
                              headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
+    # ESTATE SHARED MODULES (Dev5 byte-identical label-engine / receipt-cosign /
+    # codename-sanitizer). They are COPYed into /app/static/shared by the Dockerfile
+    # but the SPA catch-all would otherwise swallow /static/shared/*.js and return the
+    # SPA shell. This explicit, allowlisted route (registered BEFORE /{full_path:path})
+    # serves them with the correct JS content-type so the console can import
+    # window.SZLLabels / SZLReceipts / SZLCodenames. 0 CDN — served from the image.
+    _SHARED_DIR = Path("/app/static/shared")
+    _SHARED_ALLOW = {
+        "szl_label_engine.js": _VENDOR_JS_CT,
+        "szl_receipt_cosign.js": _VENDOR_JS_CT,
+        "szl_codename_sanitizer.js": _VENDOR_JS_CT,
+    }
+
+    @app.get("/static/shared/{fname}")
+    async def _shared_module(fname: str):
+        ct = _SHARED_ALLOW.get(fname)
+        if ct is None:
+            return JSONResponse({"error": "shared module not allowlisted", "file": fname}, status_code=404)
+        f = (_SHARED_DIR / fname)
+        if not f.is_file():
+            return JSONResponse({"error": "shared module missing on disk", "file": fname}, status_code=404)
+        return _VendResponse(content=f.read_bytes(), media_type=ct,
+                             headers={"Cache-Control": "public, max-age=3600"})
+
     import sys as _vend_sys
     print("[a11oy] AIR-GAP vendor routes registered: /vendor/{7 libs+KaTeX}, "
-          "/vendor/earth-night.jpg, /vendor/fonts/* (NO CDN — Warhacker #2 Tychee)", file=_vend_sys.stderr)
+          "/vendor/earth-night.jpg, /vendor/fonts/*, /static/shared/{3 SZL modules} (NO CDN — Warhacker #2 Tychee)", file=_vend_sys.stderr)
 except Exception as _vend_e:  # never crash the app — additive only
     import sys as _vend_sys, traceback as _vend_tb
     print(f"[a11oy] AIR-GAP vendor routes NOT registered: {_vend_e!r}", file=_vend_sys.stderr)

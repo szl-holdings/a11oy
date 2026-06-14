@@ -233,7 +233,7 @@ def register(app):
         name = (name or "organism").lower()
         # Receipt / khipu hash-chain: linear DAG of the locked-8 formulas + aggregate.
         if name in ("chain", "lineage", "receiptchain"):
-            seq = ["F1", "F11", "F12", "F18", "F19", "Λ-aggregate"]
+            seq = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22", "Λ-aggregate"]
             nodes = list(seq)
             de = [(seq[i], seq[i + 1]) for i in range(len(seq) - 1)]
             ue = list(de)
@@ -254,7 +254,7 @@ def register(app):
             return nodes, ue, de, "Living-organism organ topology", "UDS organ registry (honest organ names)"
         # Knowledge ontology / decision graphs: small formula dependency DAG.
         if name in ("ontology", "knowledge", "decisiongraphs", "govatlas"):
-            nodes = ["soundness(F1)", "STL(F11)", "gate(F12)", "DSSE(F18)", "Λ(F19)",
+            nodes = ["soundness(F1)", "calib(F4)", "halt(F7)", "STL(F11)", "gate(F12)", "DSSE(F18)", "Λ(F19)", "edge(F22)",
                      "policy-decision", "receipt"]
             de = [("F1", "policy-decision"), ("STL(F11)", "policy-decision"),
                   ("gate(F12)", "policy-decision"), ("policy-decision", "receipt"),

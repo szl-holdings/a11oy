@@ -25,7 +25,7 @@ User-Agent 'SZL Holdings research contact@szlholdings.com', GitHub events, publi
 status JSON). Premium (Salesforce/M365/Slack) = the frontend shows a CONNECT-READY
 OAuth button; this module NEVER fabricates premium data.
 
-DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ=Conjecture 1 (advisory floor 0.90);
+DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}@kernel c7c0ba17; Λ=Conjecture 1 (advisory floor 0.90);
 SLSA L1 honest; no fabricated data — synthetic enrichment is SIMULATED-labeled; 0 CDN.
 Reuses a11oy_vertical_feeds.governed_turn + _ledger + _cached_fetch (signed receipts,
 DSSE, gateway route) so the governance machinery is identical, never re-implemented.
@@ -57,7 +57,8 @@ NS = "a11oy"
 SEC_UA = {"User-Agent": "SZL Holdings research contact@szlholdings.com"}
 UA = {"User-Agent": "a11oy-mesh/2.0 (+https://huggingface.co/spaces/SZLHOLDINGS/a11oy) governed-devb"}
 DOCTRINE = {
-    "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+    "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+    "locked_kernel": "c7c0ba17",
     "lambda": "Conjecture 1 (advisory floor 0.90; conditional axiom-free proven)",
     "slsa": "L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap",
     "lambda_floor": 0.90,

@@ -1014,7 +1014,7 @@ def capabilities(ns: str) -> dict:
             "models": "OPEN-WEIGHT only (Mistral/Qwen2.5-Coder/DeepSeek-Coder/Codestral/"
                       "StarCoder2/Llama/Gemma/Phi). No closed weights baked in. No API key required.",
             "no_agi": True, "lambda": "Conjecture 1 (advisory, never the gate)",
-            "locked_proven": 5,
+            "locked_proven": 8,
             "sandbox": "sandboxed (restricted subprocess) in the HF CPU Space; full seccomp/"
                        "container isolation on the tower/UDS pod.",
             "offline": "Offline-capable: deterministic local backend + local sandbox + vendored UI; "

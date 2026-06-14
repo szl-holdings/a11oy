@@ -1759,7 +1759,7 @@ def register(app, sign_fn, verify_fn=None):
             "run_at": "/api/a11oy/v1/wh-demo/run/{problem}",
             "lambda_status": "Conjecture 1 (uniqueness conditional/CI-green; unconditional FALSE). "
                              "Conjunctive GATE soundness = P2 PROVEN.",
-            "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+            "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
             "slsa": "L1 honest; L2 roadmap.",
         })
 
@@ -3277,7 +3277,7 @@ def _demo25_index_payload():
         "run_at": "/api/a11oy/v1/warhacker/run/{problem}/{demo}",
         "lambda_status": "Conjecture 1 (advisory; uniqueness conditional/CI-green; unconditional FALSE). "
                          "Conjunctive GATE soundness = P2 CI-green.",
-        "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+        "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
         "demo_formulas": {
             "locked_kernel_verified": ["F11 STL (locked)"],
             "experimental_ci_green": ["M2 Hash-Chain", "CP1 Conformal", "G1 CPA", "S2 Simplex", "B1 Byzantine"],
