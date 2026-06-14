@@ -51,6 +51,11 @@ SOURCES = {
     "Li Yu (李彧) — PI-correction bandwidth in an active-flux observer (LinkedIn 2026)": "https://www.linkedin.com/pulse/how-should-bandwidth-pi-correction-loop-active-flux-observer-%E5%BD%A7-%E6%9D%8E-qxksc",
     "Revised Hybrid Active-Flux encoderless PMSM control (IEEE)": "https://ieeexplore.ieee.org/document/9319155",
     "TI InstaSPIN-FOC / FAST flux observer (SPRUHJ1)": "https://www.ti.com/lit/ug/spruhj1h/spruhj1h.pdf",
+    # Platform dynamics (F-θ) — 6DOF quadcopter MBD + Moore-Penrose control allocation.
+    "Ahmed Hassan — Quadcopter Modeling/Control/Simulation (Simulink 6DOF, Aerospace Blockset; LinkedIn 2026)": "https://www.linkedin.com/posts/ahmedhassan2002_aerospaceengineering-aerospace-uav-activity-7348481891039129600-TbmA",
+    "Moore-Penrose pseudo-inverse control allocation (overview)": "https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_inverse",
+    "Control allocation survey (Johansen & Fossen, Automatica 2013)": "https://doi.org/10.1016/j.automatica.2013.01.035",
+    "Model-Based Design / V-cycle, MIL/SIL/HIL (MathWorks)": "https://www.mathworks.com/solutions/model-based-design.html",
 }
 
 
@@ -370,6 +375,196 @@ def szl_active_flux_observer(psi_f: float = 0.09, Ld: float = 0.0085, Lq: float 
     }
 
 
+# ---------------------------------------------------------------------------
+# F-θ  SZL Platform Dynamics — 6DOF quadcopter/interceptor model + Moore-Penrose
+#       pseudo-inverse CONTROL ALLOCATION (thrust distribution). MODELED/SIMULATED.
+#
+# ADOPTED-AND-GENERALIZED, NOT invented here. Ahmed Hassan's Simulink Quadcopter MBD
+# project (full 6DOF model in Aerospace Blockset; control ALLOCATION via the
+# Moore-Penrose pseudo-inverse for optimal thrust distribution; MIL/SIL via Embedded
+# Coder) is the on-domain technique we fold in: it rounds out the killinchu drone-
+# platform puzzle — estimate (active-flux, F-η) → 6DOF dynamics + control allocation
+# (this) → CBF-QP safety clamp (autonomy) → BFT multi-sensor fusion → governed/ROE
+# engage (SIMULATED human-on-loop). Pure stdlib (no numpy): the 4-rotor mixing matrix
+# is small and fixed, so we compute the pseudo-inverse in closed form.
+#
+# HONEST: there is NO live airframe on the demo floor. Every angular rate, attitude,
+# rotor thrust here is a MODELED model output, NOT live telemetry. The effector stays
+# SIMULATED human-on-loop — this computes a thrust allocation + a one-step state
+# derivative, it NEVER actuates a motor or a vessel. EXPERIMENTAL-tier; adds NOTHING
+# to the locked-8; Λ stays Conjecture 1; trust never 100%.
+# ---------------------------------------------------------------------------
+def quad_mixing_matrix(arm_length: float = 0.25, k_thrust: float = 1.0,
+                       k_torque: float = 0.02) -> list[list[float]]:
+    """Quadcopter (X-config) control-effectiveness / mixing matrix B (4×4) mapping the
+    four rotor thrusts f = [f1,f2,f3,f4] (front-right, back-left, front-left, back-right)
+    to the body wrench tau = [T, L, M, N] = [total thrust, roll, pitch, yaw torque]:
+        T = f1 + f2 + f3 + f4
+        L (roll, about x)  =  arm · ( -f1 + f2 - f3 + f4 ) · k_thrust   (right rotors down)
+        M (pitch, about y) =  arm · ( f1 + f2 - f3 - f4 ) · k_thrust    (front rotors up)
+        N (yaw, about z)   =  k_torque · ( f1 + f2 - f3 - f4 )  via reaction torque sign
+    The exact signs encode the X-frame geometry + the CW/CCW spin pattern. This is the
+    standard quadrotor control-allocation matrix. MODELED. [EXPERIMENTAL]"""
+    a = arm_length * k_thrust
+    kt = k_torque
+    # rows: [T, L(roll), M(pitch), N(yaw)] ; cols: f1 f2 f3 f4
+    return [
+        [1.0,  1.0,  1.0,  1.0],     # total thrust
+        [-a,   a,   -a,    a],        # roll torque
+        [a,    a,   -a,   -a],        # pitch torque
+        [kt,  -kt,  -kt,   kt],       # yaw reaction torque (CW/CCW pattern)
+    ]
+
+
+def _mat_mul(A: list[list[float]], B: list[list[float]]) -> list[list[float]]:
+    return [[sum(A[i][k] * B[k][j] for k in range(len(B)))
+             for j in range(len(B[0]))] for i in range(len(A))]
+
+
+def _transpose(A: list[list[float]]) -> list[list[float]]:
+    return [[A[i][j] for i in range(len(A))] for j in range(len(A[0]))]
+
+
+def _inv(A: list[list[float]]) -> list[list[float]]:
+    """Gauss-Jordan inverse of a small square matrix (no numpy). Raises on singular."""
+    n = len(A)
+    M = [list(map(float, A[i])) + [1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(M[r][col]))
+        if abs(M[piv][col]) < 1e-12:
+            raise ValueError("singular matrix")
+        M[col], M[piv] = M[piv], M[col]
+        pv = M[col][col]
+        M[col] = [x / pv for x in M[col]]
+        for r in range(n):
+            if r != col:
+                fac = M[r][col]
+                M[r] = [a - fac * b for a, b in zip(M[r], M[col])]
+    return [row[n:] for row in M]
+
+
+def moore_penrose_pinv(B: list[list[float]]) -> list[list[float]]:
+    """Moore-Penrose pseudo-inverse B+ of a (possibly non-square) matrix, pure stdlib.
+    For a wide/tall full-rank B we use the closed forms:
+        right pinv (rows<=cols, full row rank):  B+ = B^T (B B^T)^-1
+        left  pinv (rows> cols, full col rank):  B+ = (B^T B)^-1 B^T
+    For a square invertible B both reduce to B^-1. This is the minimum-norm /
+    least-squares control allocator. Cite Moore-Penrose; Johansen & Fossen (2013).
+    [EXPERIMENTAL]"""
+    rows, cols = len(B), len(B[0])
+    Bt = _transpose(B)
+    if rows <= cols:
+        # right inverse: B^T (B B^T)^-1
+        BBt = _mat_mul(B, Bt)
+        return _mat_mul(Bt, _inv(BBt))
+    else:
+        # left inverse: (B^T B)^-1 B^T
+        BtB = _mat_mul(Bt, B)
+        return _mat_mul(_inv(BtB), Bt)
+
+
+def szl_control_allocation(tau_cmd: list[float], arm_length: float = 0.25,
+                           k_thrust: float = 1.0, k_torque: float = 0.02,
+                           f_min: float = 0.0, f_max: float = 12.0) -> dict[str, Any]:
+    """Moore-Penrose pseudo-inverse CONTROL ALLOCATION: given a commanded body wrench
+    tau_cmd = [T, L, M, N] (total thrust + roll/pitch/yaw torque), solve for the
+    minimum-norm rotor-thrust vector f = B+ · tau that realizes it, then saturate each
+    rotor to [f_min, f_max] and report the achieved wrench tau_ach = B · f_sat and the
+    allocation residual. This is the optimal (least-norm) thrust distribution — the
+    classic Moore-Penrose allocator from Hassan's Simulink MBD project. MODELED/SIMULATED:
+    NO live airframe; this computes a solution, it never actuates. [EXPERIMENTAL · MODELED]"""
+    B = quad_mixing_matrix(arm_length, k_thrust, k_torque)
+    Bp = moore_penrose_pinv(B)
+    tau = [float(x) for x in (list(tau_cmd) + [0.0, 0.0, 0.0, 0.0])[:4]]
+    # f = B+ tau
+    f_raw = [sum(Bp[i][j] * tau[j] for j in range(4)) for i in range(4)]
+    f_sat = [min(max(v, f_min), f_max) for v in f_raw]
+    saturated = [bool(abs(v - s) > 1e-9) for v, s in zip(f_raw, f_sat)]
+    # achieved wrench tau_ach = B f_sat
+    tau_ach = [sum(B[i][j] * f_sat[j] for j in range(4)) for i in range(4)]
+    resid = [round(tau_ach[i] - tau[i], 6) for i in range(4)]
+    resid_norm = math.sqrt(sum(r * r for r in resid))
+    labels = ["thrust_T", "roll_L", "pitch_M", "yaw_N"]
+    rotors = ["f1_front_right", "f2_back_left", "f3_front_left", "f4_back_right"]
+    return {
+        "tau_cmd": {labels[i]: round(tau[i], 4) for i in range(4)},
+        "rotor_thrust_raw": {rotors[i]: round(f_raw[i], 6) for i in range(4)},
+        "rotor_thrust_sat": {rotors[i]: round(f_sat[i], 6) for i in range(4)},
+        "any_rotor_saturated": any(saturated),
+        "tau_achieved": {labels[i]: round(tau_ach[i], 4) for i in range(4)},
+        "allocation_residual": {labels[i]: resid[i] for i in range(4)},
+        "residual_norm": round(resid_norm, 6),
+        "method": "Moore-Penrose pseudo-inverse f = B⁺·τ (minimum-norm least-squares), then saturate",
+        "mixing_matrix_B": B,
+        "effector": "SIMULATED",
+        "data_label": "MODELED/SIMULATED — no live airframe; computes a thrust solution, never actuates",
+        "doctrine": "adopted Hassan quadcopter MBD control-allocation; NOT added to the locked-8; Λ Conjecture 1",
+        "status": "MODELED",
+    }
+
+
+def szl_6dof_step(state: dict[str, float] | None = None, tau: list[float] | None = None,
+                  mass: float = 1.2, ixx: float = 0.015, iyy: float = 0.015,
+                  izz: float = 0.028, dt: float = 0.01, g: float = 9.81) -> dict[str, Any]:
+    """One-step 6DOF rigid-body dynamics for a quad/interceptor (MODELED/SIMULATED).
+    State = body-frame translational velocity (u,v,w), angular rates (p,q,r), and
+    Euler attitude (phi,theta,psi). Given a body wrench tau=[T,L,M,N] (total thrust
+    along body -z + roll/pitch/yaw torques), integrate ONE Euler step of the Newton-
+    Euler equations:
+        translational:  m(ẇ + ...)  — here reported as body accelerations
+            u̇ = r*v - q*w - g*sin(theta)
+            v̇ = p*w - r*u + g*cos(theta)*sin(phi)
+            ẇ = q*u - p*v + g*cos(theta)*cos(phi) - T/m
+        rotational (Euler):
+            ṗ = (L - (izz-iyy)*q*r)/ixx
+            q̇ = (M - (ixx-izz)*p*r)/iyy
+            ṙ = (N - (iyy-ixx)*p*q)/izz
+        attitude kinematics:  phi̇ = p + ... (small-angle body-rate ≈ Euler-rate).
+    Returns the derivatives + the integrated next state. This is the standard
+    Aerospace-Blockset 6DOF body model (Hassan MBD). NO live airframe; deterministic
+    model output, never actuated. [EXPERIMENTAL · MODELED]"""
+    s = {"u": 0.0, "v": 0.0, "w": 0.0, "p": 0.0, "q": 0.0, "r": 0.0,
+         "phi": 0.0, "theta": 0.0, "psi": 0.0}
+    if state:
+        s.update({k: float(v) for k, v in state.items() if k in s})
+    T, L, M, N = ([float(x) for x in (list(tau or []) + [0.0] * 4)[:4]])
+    u, v, w = s["u"], s["v"], s["w"]
+    p, q, r = s["p"], s["q"], s["r"]
+    phi, theta, psi = s["phi"], s["theta"], s["psi"]
+    # translational body accelerations
+    du = r * v - q * w - g * math.sin(theta)
+    dv = p * w - r * u + g * math.cos(theta) * math.sin(phi)
+    dw = q * u - p * v + g * math.cos(theta) * math.cos(phi) - T / max(mass, 1e-9)
+    # rotational (Newton-Euler)
+    dp = (L - (izz - iyy) * q * r) / max(ixx, 1e-9)
+    dq = (M - (ixx - izz) * p * r) / max(iyy, 1e-9)
+    dr = (N - (iyy - ixx) * p * q) / max(izz, 1e-9)
+    # attitude kinematics (Euler-angle rates; full transport matrix)
+    dphi = p + math.sin(phi) * math.tan(theta) * q + math.cos(phi) * math.tan(theta) * r
+    dtheta = math.cos(phi) * q - math.sin(phi) * r
+    dpsi = (math.sin(phi) / max(math.cos(theta), 1e-6)) * q + (math.cos(phi) / max(math.cos(theta), 1e-6)) * r
+    deriv = {"du": du, "dv": dv, "dw": dw, "dp": dp, "dq": dq, "dr": dr,
+             "dphi": dphi, "dtheta": dtheta, "dpsi": dpsi}
+    nxt = {
+        "u": u + du * dt, "v": v + dv * dt, "w": w + dw * dt,
+        "p": p + dp * dt, "q": q + dq * dt, "r": r + dr * dt,
+        "phi": phi + dphi * dt, "theta": theta + dtheta * dt, "psi": psi + dpsi * dt,
+    }
+    return {
+        "state_in": {k: round(val, 6) for k, val in s.items()},
+        "tau": {"thrust_T": round(T, 4), "roll_L": round(L, 4),
+                "pitch_M": round(M, 4), "yaw_N": round(N, 4)},
+        "derivatives": {k: round(val, 6) for k, val in deriv.items()},
+        "state_next": {k: round(val, 6) for k, val in nxt.items()},
+        "params": {"mass": mass, "Ixx": ixx, "Iyy": iyy, "Izz": izz, "dt": dt, "g": g},
+        "model": "Newton-Euler rigid-body 6DOF (body frame); Aerospace-Blockset shape (Hassan MBD)",
+        "effector": "SIMULATED",
+        "data_label": "MODELED/SIMULATED — no live airframe; deterministic model step, never actuated",
+        "doctrine": "adopted Hassan quadcopter 6DOF MBD; NOT added to the locked-8; Λ Conjecture 1",
+        "status": "MODELED",
+    }
+
+
 def summary(ns: str = "killinchu") -> dict[str, Any]:
     """Headline of all six SZL counter-UAS formulas + honest provenance/legend.
     `ns` names the serving app so the title is accurate on both killinchu and a11oy."""
@@ -386,6 +581,8 @@ def summary(ns: str = "killinchu") -> dict[str, Any]:
             "wta": "SZL-WTA Threat Triage (weapon-target assignment, SIMULATED)",
             "pqbus": "SZL-PQ Receipt Bus (post-quantum receipt chain)",
             "active_flux": "SZL Active-Flux Hybrid Observer (sensorless PMSM; ADOPTED Li Yu/APEC 2001, MODELED)",
+            "platform_allocation": "SZL Platform Dynamics — Moore-Penrose control allocation (ADOPTED Hassan MBD, MODELED)",
+            "platform_6dof": "SZL Platform Dynamics — 6DOF Newton-Euler quad/interceptor step (ADOPTED Hassan MBD, MODELED)",
         },
         "examples": {
             "engage": szl_engageability(N=3.5, Vc=300.0, los_rate=0.02, t_go=4.0, a_max=200.0),
@@ -441,6 +638,28 @@ def register(app, ns: str) -> None:
                 "points": n, "curve": curve, "li_yu_reference": LI_YU_REFERENCE_BODE,
                 "data_label": "MODELED/SIMULATED — no live motor", "status": "MODELED"}
     app.add_api_route(f"{base}/active-flux/bode", _active_flux_bode, methods=["GET"])
+    # F-θ Platform Dynamics — Moore-Penrose control allocation + 6DOF step (ADOPTED Hassan MBD; MODELED).
+    def _alloc(T: str = "11.8", L: str = "0.2", M: str = "0.0", N: str = "0.05",
+               arm: str = "0.25", k_torque: str = "0.02", f_max: str = "12.0"):
+        try:
+            return szl_control_allocation([float(T), float(L), float(M), float(N)],
+                                          arm_length=float(arm), k_torque=float(k_torque),
+                                          f_max=float(f_max))
+        except (ValueError, TypeError) as e:
+            return {"error": {"code": "validation_error", "detail": str(e)}}
+    app.add_api_route(f"{base}/allocation", _alloc, methods=["GET"])
+
+    def _sixdof(T: str = "11.77", L: str = "0.0", M: str = "0.0", N: str = "0.0",
+                p: str = "0.0", q: str = "0.0", r: str = "0.0",
+                phi: str = "0.0", theta: str = "0.1", psi: str = "0.0", dt: str = "0.01"):
+        try:
+            return szl_6dof_step(
+                state={"p": float(p), "q": float(q), "r": float(r),
+                       "phi": float(phi), "theta": float(theta), "psi": float(psi)},
+                tau=[float(T), float(L), float(M), float(N)], dt=float(dt))
+        except (ValueError, TypeError) as e:
+            return {"error": {"code": "validation_error", "detail": str(e)}}
+    app.add_api_route(f"{base}/dynamics", _sixdof, methods=["GET"])
 
 
 def _selftest() -> None:
@@ -484,7 +703,31 @@ def _selftest() -> None:
     obs = szl_active_flux_observer()
     assert obs["status"] == "MODELED" and obs["effector"] == "SIMULATED"
     assert "MODELED/SIMULATED" in obs["data_label"]
-    print("szl_cuas_formulas: ALL OK (19 checks)")
+    # F-θ Platform Dynamics (ADOPTED Hassan MBD; MODELED): pseudo-inverse round-trip.
+    B = quad_mixing_matrix()
+    Bp = moore_penrose_pinv(B)
+    # B is 4x4 invertible -> B B+ = I (within tolerance)
+    BBp = _mat_mul(B, Bp)
+    for i in range(4):
+        for j in range(4):
+            assert abs(BBp[i][j] - (1.0 if i == j else 0.0)) < 1e-6
+    # pure-thrust command -> equal rotor split, zero torque residual
+    al = szl_control_allocation([12.0, 0.0, 0.0, 0.0])
+    rs = al["rotor_thrust_sat"]
+    assert abs(rs["f1_front_right"] - 3.0) < 1e-6 and al["residual_norm"] < 1e-6
+    assert al["status"] == "MODELED" and al["effector"] == "SIMULATED"
+    # roll command on a hover baseline (so no rotor saturates) -> achieved wrench == commanded
+    al2 = szl_control_allocation([8.0, 0.5, 0.0, 0.0])
+    assert not al2["any_rotor_saturated"]
+    assert abs(al2["tau_achieved"]["roll_L"] - 0.5) < 1e-6
+    assert abs(al2["tau_achieved"]["thrust_T"] - 8.0) < 1e-6 and al2["residual_norm"] < 1e-6
+    # 6DOF: hover thrust ~ m*g cancels gravity in w-dot (theta=0)
+    st = szl_6dof_step(state={"theta": 0.0}, tau=[1.2 * 9.81, 0.0, 0.0, 0.0])
+    assert abs(st["derivatives"]["dw"]) < 1e-6 and st["status"] == "MODELED"
+    # roll torque produces a positive p-dot
+    st2 = szl_6dof_step(tau=[0.0, 0.01, 0.0, 0.0])
+    assert st2["derivatives"]["dp"] > 0.0 and st2["effector"] == "SIMULATED"
+    print("szl_cuas_formulas: ALL OK (27 checks)")
 
 
 if __name__ == "__main__":

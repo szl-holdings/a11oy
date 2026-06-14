@@ -764,6 +764,19 @@ COPY scripts/check_tau_eval.py ./scripts/check_tau_eval.py
 COPY lean4agent/WorkflowInvariants.lean ./lean4agent/WorkflowInvariants.lean
 COPY lean4agent/README.md ./lean4agent/README.md
 
+# GRC ALIGNMENT surface (Lane I5) — in-product ISO 42001 / NIST AI RMF / 800-53 /
+# EU AI Act coverage matrix, 13 Λ→NIST mapping, OPA/Rego gates, OSCAL component-def,
+# DSSE Receipt Schema v2. Explicit per-file COPY (this Dockerfile never uses COPY . .).
+# serve.py imports a11oy_grc which imports a11oy_grc_data; the OSCAL JSON + Rego bundle
+# ship in the image for audit. szl_cuas_formulas.py (shared, byte-identical w/ killinchu)
+# is already COPY'd above for the active-flux router + platform-dynamics math.
+COPY a11oy_grc.py a11oy_grc_data.py ./
+COPY compliance/oscal/a11oy-component-definition.json ./compliance/oscal/a11oy-component-definition.json
+COPY compliance/rego/classification_boundary.rego ./compliance/rego/classification_boundary.rego
+COPY compliance/rego/human_override_required.rego ./compliance/rego/human_override_required.rego
+COPY compliance/rego/deployment_readiness.rego ./compliance/rego/deployment_readiness.rego
+COPY compliance/rego/manifest.json ./compliance/rego/manifest.json
+
 CMD ["python", "serve.py"]
 
 

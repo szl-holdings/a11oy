@@ -3501,6 +3501,34 @@ except Exception as _a11oy_af_e:
 # ── end ACTIVE-FLUX ROUTER CROSSOVER ──
 
 # ===========================================================================
+# GRC ALIGNMENT surface (Lane I5) — in-product ISO 42001 / NIST AI RMF / NIST
+# 800-53 Rev 5 / EU AI Act COVERAGE MATRIX (honest COVERED/PARTIAL/ROADMAP/NA per
+# control); the 13 Λ trust axes mapped to NIST AI RMF MEASURE 2 (+ Credo AI / MIT
+# taxonomy labels); policy gates published as OPA/Rego with a version-locked bundle
+# digest that every DSSE receipt cites; an OSCAL component-definition committed to the
+# repo (compliance/oscal/) + served live; and a DSSE Receipt Schema v2 whose every field
+# cites the control IDs it provides evidence for. Endpoints /api/a11oy/v1/grc/{matrix,
+# mapping,oscal,info} (dual-registered at /v1/grc/* for the HF proxy) + a self-contained
+# 0-CDN "Compliance / GRC" page at /grc (alias /compliance). A nav link is injected by
+# this module's OWN idempotent middleware (the console SPA source is NOT edited and other
+# devs' tabs are never clobbered). HONEST (Doctrine v11): a11oy ALIGNS WITH / MAPS TO these
+# frameworks — NEVER "certified" / "compliant"; no third-party certification obtained; gaps
+# shown honestly. Adds NOTHING to the locked-8; Λ = Conjecture 1; trust never 100%; 0 CDN.
+# Additive, try/except-guarded, BEFORE the SPA/proxy catch-all.
+# ===========================================================================
+try:
+    import a11oy_grc as _a11oy_grc
+    _a11oy_grc_status = _a11oy_grc.register(app, ns="a11oy")
+    print(f"[a11oy] GRC alignment registered: {_a11oy_grc_status['count']} routes "
+          f"({_a11oy_grc_status['data_label']}) \u2014 aligns with ISO 42001 / NIST AI RMF / "
+          f"800-53 / EU AI Act (NOT certified)", file=sys.stderr)
+except Exception as _a11oy_grc_e:
+    import traceback as _a11oy_grc_tb
+    print(f"[a11oy] GRC alignment NOT registered: {_a11oy_grc_e!r}", file=sys.stderr)
+    _a11oy_grc_tb.print_exc()
+# ── end GRC ALIGNMENT ──
+
+# ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>

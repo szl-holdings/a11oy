@@ -1,0 +1,346 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. Jr. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
+"""a11oy_grc.py — in-product GRC ALIGNMENT surface (Lane I5).
+
+Mounts a11oy's Governance / Compliance surface:
+  * GET /api/a11oy/v1/grc/matrix   — honest ISO 42001 / NIST AI RMF / 800-53 / EU AI Act
+                                     coverage matrix (COVERED / PARTIAL / ROADMAP / NA).
+  * GET /api/a11oy/v1/grc/mapping  — 13 Λ axes → NIST AI RMF MEASURE 2 (+ Credo AI labels),
+                                     the Rego policy gates, the version-locked bundle digest,
+                                     and the DSSE Receipt Schema v2 (field → control IDs).
+  * GET /api/a11oy/v1/grc/oscal    — OSCAL component-definition JSON (also published to the
+                                     repo at compliance/oscal/a11oy-component-definition.json).
+  * GET /api/a11oy/v1/grc/info     — capability descriptor.
+  * GET /grc (a.k.a. /compliance)  — self-contained, 0-CDN "Compliance / GRC" page.
+
+Routes are DUAL-REGISTERED at both /api/a11oy/v1/... AND /v1/... (the HF proxy strips the
+/api/a11oy prefix — same convention Dev E's active-flux router uses). A11oy-styled page;
+shared scripts vendored at /static/shared/. Nav link is injected by this module's OWN
+idempotent BaseHTTPMiddleware (mirroring serve.py's _OperatorWidgetInjector) — the console
+SPA source is NOT edited, and the injector NEVER clobbers other devs' nav items.
+
+HONEST (Doctrine v11): a11oy ALIGNS WITH / MAPS TO frameworks — NEVER "certified" or
+"compliant". No third-party certification obtained. Gaps shown honestly. Λ = Conjecture 1;
+locked-proven = 8 @ c7c0ba17; trust never 100%; 0 runtime CDN. Adds NOTHING to the locked-8.
+"""
+from __future__ import annotations
+
+import json
+from typing import Any, Dict, List
+
+import a11oy_grc_data as _grc
+
+SOURCES = _grc.SOURCES
+
+
+def info(ns: str = "a11oy") -> Dict[str, Any]:
+    return {
+        "capability": "GRC Alignment — ISO 42001 / NIST AI RMF / 800-53 / EU AI Act",
+        "ns": ns,
+        "summary": ("In-product, HONEST governance coverage matrix; 13 Λ axes mapped to NIST AI "
+                    "RMF MEASURE 2; policy gates as OPA/Rego with a version-locked bundle digest; "
+                    "OSCAL component-definition published to the repo; DSSE Receipt Schema v2 cites "
+                    "control IDs. ALIGNS WITH / MAPS TO — never certified."),
+        "endpoints": {
+            "matrix": f"/api/{ns}/v1/grc/matrix",
+            "mapping": f"/api/{ns}/v1/grc/mapping",
+            "oscal": f"/api/{ns}/v1/grc/oscal",
+            "page": "/grc",
+        },
+        "oscal_artifact": "compliance/oscal/a11oy-component-definition.json",
+        "doctrine": {"locked_proven": 8, "kernel_commit": _grc.KERNEL_COMMIT,
+                     "lambda": "Conjecture 1", "khipu_bft": "Conjecture 2",
+                     "trust": "never 100%", "framing": "aligns with / maps to (NOT certified)"},
+        "sources": SOURCES, "honest": _grc.HONEST_DISCLAIMER,
+        "status": "ALIGNMENT (no third-party certification)",
+    }
+
+
+_COV_COLOR = {"COVERED": "#39d3c4", "PARTIAL": "#e8c074", "ROADMAP": "#6fb1ff", "NA": "#6f8190"}
+_COV_GLYPH = {"COVERED": "●", "PARTIAL": "◐", "ROADMAP": "○", "NA": "—"}
+
+
+def _matrix_rows_html() -> str:
+    rows = []
+    for r in _grc.COVERAGE_MATRIX:
+        col = _COV_COLOR.get(r["coverage"], "#9fb1bf")
+        g = _COV_GLYPH.get(r["coverage"], "·")
+        rows.append(
+            f'<tr><td class="ctl">{r["control"]}</td><td>{r["framework"]}</td>'
+            f'<td>{r["title"]}</td><td class="mech">{r["mechanism"]}</td>'
+            f'<td style="color:{col};white-space:nowrap">{g} {r["coverage"]}</td></tr>')
+    return "".join(rows)
+
+
+def _axes_rows_html() -> str:
+    rows = []
+    for a in _grc.LAMBDA_AXES:
+        col = _COV_COLOR.get(a["coverage"], "#9fb1bf")
+        rows.append(
+            f'<tr><td class="ctl">Λ{a["axis"]}</td><td>{a["lambda_axis"]}</td>'
+            f'<td>{a["nist_measure"]}</td><td>{a["credo_dimension"]}</td>'
+            f'<td class="mech">{a["mechanism"]}</td>'
+            f'<td style="color:{col}">{a["coverage"]}</td></tr>')
+    return "".join(rows)
+
+
+def _page_html(ns: str) -> str:
+    summ = _grc.coverage_summary()
+    digest = _grc.policy_bundle_digest()
+    summ_html = " · ".join(
+        f'<span style="color:{_COV_COLOR.get(k,"#9fb1bf")}">{_COV_GLYPH.get(k,"·")} {k}={v}</span>'
+        for k, v in sorted(summ.items()))
+    return r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compliance / GRC Alignment — a11oy</title>
+<style>
+ :root{--bg:#070b10;--panel:#0d141c;--line:#1d2a36;--teal:#39d3c4;--gold:#e8c074;--cream:#eef3f6;--para:#9fb1bf;}
+ *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+ a{color:var(--teal);text-decoration:none}
+ header{padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0a1119,#070b10)}
+ h1{font-size:18px;margin:0 0 2px}.sub{color:var(--para);font-size:12.5px;max-width:1040px}
+ .badge{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:6px;border:1px solid var(--line);margin-right:6px;color:var(--gold);background:#10171f;vertical-align:middle}
+ .wrap{max-width:1080px;margin:0 auto;padding:16px}
+ .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+ .panel h2{font-size:14px;margin:0 0 8px}.pp{color:var(--para);font-size:12px;margin:0 0 10px}
+ table{width:100%;border-collapse:collapse;font-size:12px}
+ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #131e27;vertical-align:top}
+ th{color:var(--gold);font-weight:600;position:sticky;top:0;background:#0d141c}
+ td.ctl{color:var(--teal);font-variant-numeric:tabular-nums;white-space:nowrap;font-family:ui-monospace,monospace}
+ td.mech{color:var(--para)}
+ .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+ .disc{font-size:11.5px;color:var(--gold);background:#171206;border:1px solid #3a2e10;border-radius:8px;padding:10px;margin-bottom:14px;line-height:1.6}
+ .crosslinks a{margin-right:14px}
+ .out{white-space:pre-wrap;font:11px ui-monospace,monospace;color:#bfe;background:#06090d;border:1px solid var(--line);border-radius:7px;padding:8px;max-height:240px;overflow:auto}
+ .src{font-size:11px;color:var(--para);margin-top:10px;line-height:1.7}.src a{color:var(--teal)}
+ footer{padding:12px 18px;border-top:1px solid var(--line);color:var(--para);font-size:11px}
+ code{color:var(--teal);font-family:ui-monospace,monospace}
+</style></head><body>
+<header><h1>Compliance / GRC Alignment
+  <span class="badge">ALIGNS WITH · NOT CERTIFIED</span><span class="badge">Λ = Conjecture 1</span>
+  <span class="badge">0 runtime CDN</span></h1>
+ <div class="sub">a11oy's mechanisms cross-referenced to <b>ISO/IEC 42001:2023</b>, <b>NIST AI RMF 1.0</b>,
+  <b>NIST SP 800-53 Rev 5</b>, and the <b>EU AI Act</b>. The 13 Λ trust axes map to NIST AI RMF
+  MEASURE 2; policy gates are published as OPA/Rego; a machine-readable OSCAL component-definition
+  is committed to the repo. <a href="/">← a11oy console</a></div></header>
+<div class="wrap">
+ <div class="disc">__DISC__</div>
+
+ <div class="panel">
+  <h2>Coverage matrix — __SUMM__</h2>
+  <p class="pp">Honest per-control state. <code>COVERED</code> = a specific testable mechanism;
+   <code>PARTIAL</code> = mechanism exists but incomplete; <code>ROADMAP</code> = planned;
+   <code>N/A</code> = out of scope (with reason). EU AI Act self-classification:
+   <b>High-Risk</b> (defense-tech agentic orchestrator).</p>
+  <div class="scroll"><table>
+   <thead><tr><th>Control</th><th>Framework</th><th>Title</th><th>a11oy mechanism</th><th>Coverage</th></tr></thead>
+   <tbody>__MATRIX__</tbody></table></div>
+ </div>
+
+ <div class="panel">
+  <h2>13 Λ axes → NIST AI RMF MEASURE 2 (+ Credo AI / MIT taxonomy)</h2>
+  <p class="pp">Each proprietary Λ axis gets an industry-standard referent so external evaluators
+   recognise it without a custom glossary.</p>
+  <div class="scroll"><table>
+   <thead><tr><th>Λ axis</th><th>Trust dimension</th><th>NIST AI RMF</th><th>Credo AI / MIT</th><th>Mechanism</th><th>State</th></tr></thead>
+   <tbody>__AXES__</tbody></table></div>
+ </div>
+
+ <div class="panel">
+  <h2>Policy gates as OPA/Rego + DSSE Receipt Schema v2</h2>
+  <p class="pp">Gates are published policy-as-code; the bundle is version-locked by a SHA-256
+   digest that every DSSE receipt cites, so a receipt proves WHICH policy version made the
+   decision. Each receipt field maps to specific control IDs (800-53 AU/CM/RA family,
+   EU AI Act Art. 12/14, ISO 42001 A.x). Receipts are ECDSA-P256/DSSE signed; re-verify at
+   <a href="/cosign.pub">/cosign.pub</a>.</p>
+  <div class="pp">policy bundle digest: <code>__DIGEST__</code></div>
+  <details><summary style="cursor:pointer;color:var(--teal)">raw /grc/mapping (Λ→NIST, Rego, DSSE schema)</summary>
+   <div class="out" id="raw-map">loading…</div></details>
+ </div>
+
+ <div class="panel">
+  <h2>OSCAL component-definition</h2>
+  <p class="pp">Machine-readable OSCAL (control source = usnistgov/oscal-content SP 800-53 Rev 5
+   catalog), committed to the repo at
+   <code>compliance/oscal/a11oy-component-definition.json</code> and served live below.
+   ALIGNMENT only — never a certification artifact.</p>
+  <div class="crosslinks pp">
+   <a href="/api/__NS__/v1/grc/matrix" target="_blank">matrix JSON</a>
+   <a href="/api/__NS__/v1/grc/mapping" target="_blank">mapping JSON</a>
+   <a href="/api/__NS__/v1/grc/oscal" target="_blank">OSCAL JSON</a></div>
+  <details><summary style="cursor:pointer;color:var(--teal)">raw /grc/oscal (component-definition)</summary>
+   <div class="out" id="raw-oscal">loading…</div></details>
+ </div>
+
+ <div class="src">Adopted &amp; cited — sources:
+  <a href="https://www.iso.org/standard/81230.html" target="_blank" rel="noopener">ISO/IEC 42001:2023</a> ·
+  <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank" rel="noopener">NIST AI RMF 1.0</a> ·
+  <a href="https://github.com/usnistgov/OSCAL" target="_blank" rel="noopener">OSCAL (usnistgov)</a> ·
+  <a href="https://github.com/usnistgov/oscal-content" target="_blank" rel="noopener">oscal-content</a> ·
+  <a href="https://www.openpolicyagent.org/docs/latest/policy-language/" target="_blank" rel="noopener">OPA / Rego</a> ·
+  <a href="https://airisk.mit.edu/" target="_blank" rel="noopener">MIT AI Risk Repository (Credo AI taxonomy)</a> ·
+  <a href="https://artificialintelligenceact.eu/high-level-summary/" target="_blank" rel="noopener">EU AI Act</a>.</div>
+</div>
+<footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
+ <b>GRC ALIGNMENT — aligns with / maps to, NOT certified</b> · 0 runtime CDN · trust &lt; 100%.</footer>
+<script src="/static/shared/szl_label_engine.js" defer></script>
+<script src="/static/shared/szl_receipt_cosign.js" defer></script>
+<script src="/static/shared/szl_codename_sanitizer.js" defer></script>
+<script>
+"use strict";
+const API="/api/__NS__/v1/grc";
+async function load(){
+  try{const m=await (await fetch(API+"/mapping")).json();
+    document.getElementById("raw-map").textContent=JSON.stringify(m,null,1);
+  }catch(e){document.getElementById("raw-map").textContent="endpoint unreachable: "+e;}
+  try{const o=await (await fetch(API+"/oscal")).json();
+    document.getElementById("raw-oscal").textContent=JSON.stringify(o,null,1);
+  }catch(e){document.getElementById("raw-oscal").textContent="endpoint unreachable: "+e;}
+}
+load();
+</script></body></html>""" \
+        .replace("__DISC__", _grc.HONEST_DISCLAIMER) \
+        .replace("__SUMM__", summ_html) \
+        .replace("__MATRIX__", _matrix_rows_html()) \
+        .replace("__AXES__", _axes_rows_html()) \
+        .replace("__DIGEST__", digest) \
+        .replace("__NS__", ns)
+
+
+# ── idempotent nav-link injection middleware (mirrors serve.py _OperatorWidgetInjector) ──
+_NAV_MARKER = b'data-view-grc="grc"'
+# inject a nav-item linking to the standalone /grc page; placed right AFTER the existing
+# "Readiness & Compliance" (govern) nav-item if present, else before the first nav-group,
+# else just before </body>. NEVER edits other devs' nav items.
+_NAV_LINK = (b'<div class="nav-item" data-view-grc="grc" '
+             b'onclick="location.href=\'/grc\'" style="cursor:pointer">'
+             b'<span class="ico">\xe2\x9a\x96</span>Compliance / GRC</div>')
+_GOVERN_ANCHOR = b'Readiness &amp; Compliance</div>'
+_GROUP_ANCHOR = b'<div class="nav-group">'
+
+
+def _make_injector():
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.responses import Response
+
+    class _GrcNavInjector(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                p = request.url.path
+                if (p.startswith("/api/") or p.startswith("/v1/") or p.startswith("/vendor/")
+                        or p.startswith("/assets/") or p.startswith("/static/") or p == "/grc"):
+                    return resp
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+                if _NAV_MARKER in body:           # idempotent
+                    new_body = body
+                elif _GOVERN_ANCHOR in body:      # after Readiness & Compliance
+                    new_body = body.replace(_GOVERN_ANCHOR, _GOVERN_ANCHOR + _NAV_LINK, 1)
+                elif _GROUP_ANCHOR in body:       # before the first nav-group
+                    new_body = body.replace(_GROUP_ANCHOR, _NAV_LINK + _GROUP_ANCHOR, 1)
+                elif b"</body>" in body:
+                    new_body = body.replace(b"</body>", _NAV_LINK + b"</body>", 1)
+                else:
+                    return resp
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return Response(content=new_body, status_code=resp.status_code,
+                                headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    return _GrcNavInjector
+
+
+def register(app, ns: str = "a11oy") -> Dict[str, Any]:
+    """Attach the GRC alignment surface. ADDITIVE; BEFORE the SPA/proxy catch-all. Pure
+    stdlib + a11oy_grc_data. 0 CDN. Routes dual-registered at /api/<ns>/v1/grc and /v1/grc."""
+    from starlette.responses import HTMLResponse, JSONResponse
+    registered: List[str] = []
+
+    def _matrix():
+        return JSONResponse(_grc.build_matrix())
+
+    def _mapping():
+        return JSONResponse(_grc.build_mapping())
+
+    def _oscal():
+        return JSONResponse(_grc.build_oscal())
+
+    for prefix in (f"/api/{ns}/v1/grc", "/v1/grc"):
+        app.add_api_route(f"{prefix}/matrix", _matrix, methods=["GET"])
+        app.add_api_route(f"{prefix}/mapping", _mapping, methods=["GET"])
+        app.add_api_route(f"{prefix}/oscal", _oscal, methods=["GET"])
+        app.add_api_route(f"{prefix}/info", lambda: JSONResponse(info(ns)), methods=["GET"])
+        registered.append(f"GET {prefix}/matrix")
+
+    _html = _page_html(ns)
+
+    async def _page():
+        return HTMLResponse(_html)
+    app.add_api_route("/grc", _page, methods=["GET"])
+    app.add_api_route("/compliance", _page, methods=["GET"])
+    registered.append("GET /grc")
+    registered.append("GET /compliance")
+
+    try:
+        app.add_middleware(_make_injector())
+        registered.append("MIDDLEWARE grc nav-link injector")
+    except Exception:
+        pass
+
+    return {"registered": registered, "count": len(registered),
+            "capability": "GRC Alignment", "data_label": "ALIGNMENT"}
+
+
+def _selftest() -> None:
+    from fastapi import FastAPI
+    from fastapi.responses import HTMLResponse
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+    st = register(app, ns="a11oy")
+    assert st["count"] >= 5
+
+    @app.get("/console", response_class=HTMLResponse)
+    def _c():
+        return ('<html><body><div class="nav-group">Operate</div>'
+                '<div class="nav-item" data-view="govern" onclick="go(\'govern\')">'
+                '<span class="ico">x</span>Readiness &amp; Compliance</div>'
+                '</body></html>')
+
+    c = TestClient(app)
+    for ep in ["/api/a11oy/v1/grc/matrix", "/api/a11oy/v1/grc/mapping",
+               "/api/a11oy/v1/grc/oscal", "/api/a11oy/v1/grc/info",
+               "/v1/grc/matrix", "/grc", "/compliance"]:
+        r = c.get(ep)
+        assert r.status_code == 200, (ep, r.status_code)
+    # honesty checks on the page
+    page = c.get("/grc").text
+    assert "ALIGNS WITH" in page and "NOT CERTIFIED" in page
+    assert "certified against" not in page.lower()
+    # nav injection idempotent + placed after govern anchor
+    h1 = c.get("/console").text
+    h2 = c.get("/console").text
+    assert h1.count('data-view-grc="grc"') == 1, "nav must inject exactly once"
+    assert h2.count('data-view-grc="grc"') == 1, "nav must be idempotent"
+    assert "Readiness &amp; Compliance</div><div class=\"nav-item\" data-view-grc" in h1, "must place after govern"
+    # OSCAL endpoint must be valid OSCAL component-definition
+    o = c.get("/api/a11oy/v1/grc/oscal").json()
+    assert "component-definition" in o and o["component-definition"]["components"]
+    # matrix honesty: must contain at least one PARTIAL and one ROADMAP (shows gaps)
+    mx = c.get("/api/a11oy/v1/grc/matrix").json()
+    assert mx["summary"].get("PARTIAL", 0) > 0 and mx["summary"].get("ROADMAP", 0) > 0
+    # 0 CDN: page must only reference /static/shared and same-origin
+    import re
+    ext = re.findall(r'src="(https?://[^"]+)"', page)
+    assert not ext, "no external script src allowed: %s" % ext
+    print("a11oy_grc: ALL OK (%d routes; nav idempotent; honest; OSCAL valid; 0 CDN)" % st["count"])
+
+
+if __name__ == "__main__":
+    _selftest()
