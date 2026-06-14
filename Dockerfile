@@ -107,6 +107,7 @@ COPY a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py ./
 # (physical_bounds_certificate.json / agentic_decision_trail.json) are NOT baked — the
 # module honestly serves a SAMPLE certificate until Forge writes real ones on the box.
 COPY szl_pinn_bounds.py ./
+COPY physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json ./
 # ADDITIVE (I4 gpu-quant): Sovereign VRAM-resident GPU-Quant engine (PCA-Risk / TDA-Fracture
 # / HJB-Kelly) backing /api/a11oy/v1/quant/* + the /quant tab. PURE-STDLIB (Jacobi eigen,
 # Gaussian solve, union-find Betti) so it runs in the numpy-less HF image; cuML/giotto-tda
