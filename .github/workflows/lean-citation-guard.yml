@@ -11,10 +11,14 @@ name: lean citation guard
 # at a file that actually exists in lutar-lean. A citation whose file exists
 # nowhere fails the build.
 #
-# Entries honestly marked phantom / staged-advisory / conjectured (and the
-# docs/theorem-runtime-manifest.json references, whose Lean status is scoped
-# separately and unpinned) are reported but allowed, so honest disclosure is
-# preserved.
+# docs/theorem-runtime-manifest.json additionally HARD-FAILS on undisclosed
+# phantom theorem citations: an entry whose leanStatus == "theorem", not marked
+# stagedAdvisory=true, whose concrete Lutar/*.lean leanFile is absent on
+# lutar-lean main (the Task #695 class). Entries honestly marked phantom /
+# staged-advisory / conjectured (and non-concrete/aspirational references) are
+# reported but allowed, so honest disclosure is preserved. The guard also fails
+# if a corpus/formulas/ mirror drifts from its source manifest (must be
+# byte-identical).
 #
 # See scripts/check_lean_citations.py for the policy and
 # scripts/check_lean_citations.test.sh for the offline negative-fixture self-test.
@@ -25,6 +29,8 @@ on:
     paths:
       - "gates_manifest.json"
       - "docs/theorem-runtime-manifest.json"
+      - "corpus/formulas/a11oy__gates_manifest.json"
+      - "corpus/formulas/a11oy__docs__theorem-runtime-manifest.json"
       - "packages/policy/src/gates/**"
       - "scripts/check_lean_citations.py"
       - "scripts/check_lean_citations.test.sh"
@@ -34,6 +40,8 @@ on:
     paths:
       - "gates_manifest.json"
       - "docs/theorem-runtime-manifest.json"
+      - "corpus/formulas/a11oy__gates_manifest.json"
+      - "corpus/formulas/a11oy__docs__theorem-runtime-manifest.json"
       - "packages/policy/src/gates/**"
       - "scripts/check_lean_citations.py"
       - "scripts/check_lean_citations.test.sh"

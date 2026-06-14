@@ -116,18 +116,91 @@ echo '{}' > "$D/fixture.json"
 expect_fail "phantom in orphan gate .ts (no manifest entry)" "$D" "$D/fixture.json"
 
 # ---------------------------------------------------------------------------
-# Fixture E: theorem-runtime-manifest with a missing leanFile must NOT fail the
-# build (report-only; lean status scoped separately there).
+# Fixture E: theorem-runtime-manifest with an UNDISCLOSED phantom theorem
+# citation (leanStatus=theorem, not stagedAdvisory, file exists nowhere) MUST
+# fail the build. This is the Task #695 class the guard now catches.
 # ---------------------------------------------------------------------------
 E="$TMP/E"; make_root "$E"
 echo '[]' > "$E/gates_manifest.json"
 cat > "$E/docs/theorem-runtime-manifest.json" <<'EOF'
 { "entries": [
-  {"id":"RUNTIME-X","leanFile":"Lutar/Gate/GoneAway.lean","leanStatus":"theorem"}
+  {"id":"RUNTIME-X","leanFile":"Lutar/Gate/GoneAway.lean","leanStatus":"theorem","stagedAdvisory":false}
 ] }
 EOF
 echo '{}' > "$E/fixture.json"
-expect_pass "theorem-runtime-manifest missing leanFile is report-only" "$E" "$E/fixture.json"
+expect_fail "theorem-runtime-manifest undisclosed phantom theorem citation" "$E" "$E/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture F: same missing theorem leanFile but honestly disclosed
+# (leanStatus=phantom) must PASS. Honest disclosure is the whole point.
+# ---------------------------------------------------------------------------
+F="$TMP/F"; make_root "$F"
+echo '[]' > "$F/gates_manifest.json"
+cat > "$F/docs/theorem-runtime-manifest.json" <<'EOF'
+{ "entries": [
+  {"id":"RUNTIME-X","leanFile":"Lutar/Gate/GoneAway.lean","leanStatus":"phantom"}
+] }
+EOF
+echo '{}' > "$F/fixture.json"
+expect_pass "theorem-runtime-manifest missing leanFile honestly marked phantom" "$F" "$F/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture G: theorem entry, missing file, but marked stagedAdvisory=true must
+# PASS (explicitly disclosed as staged, not a real claim yet).
+# ---------------------------------------------------------------------------
+G="$TMP/G"; make_root "$G"
+echo '[]' > "$G/gates_manifest.json"
+cat > "$G/docs/theorem-runtime-manifest.json" <<'EOF'
+{ "entries": [
+  {"id":"STAGED-Y","leanFile":"Lutar/Gate/NotYet.lean","leanStatus":"theorem","stagedAdvisory":true}
+] }
+EOF
+echo '{}' > "$G/fixture.json"
+expect_pass "theorem-runtime-manifest missing leanFile marked stagedAdvisory" "$G" "$G/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture H: theorem entry whose leanFile DOES exist on main must PASS.
+# ---------------------------------------------------------------------------
+H="$TMP/H"; make_root "$H"
+echo '[]' > "$H/gates_manifest.json"
+cat > "$H/docs/theorem-runtime-manifest.json" <<'EOF'
+{ "entries": [
+  {"id":"RUNTIME-Z","leanFile":"Lutar/Bound.lean","leanStatus":"theorem","stagedAdvisory":false}
+] }
+EOF
+cat > "$H/fixture.json" <<'EOF'
+{ "main:Lutar/Bound.lean": true }
+EOF
+expect_pass "theorem-runtime-manifest theorem citation that resolves on main" "$H" "$H/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture I: corpus/formulas mirror DRIFTED from its source manifest must FAIL.
+# (gates_manifest.json stays a valid list so the ONLY failure is the drift.)
+# ---------------------------------------------------------------------------
+I="$TMP/I"; make_root "$I"; mkdir -p "$I/corpus/formulas"
+printf '[]' > "$I/gates_manifest.json"
+printf '[{"name":"x"}]' > "$I/corpus/formulas/a11oy__gates_manifest.json"
+echo '{}' > "$I/fixture.json"
+expect_fail "corpus mirror drifted from source manifest" "$I" "$I/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture J: corpus/formulas mirror MISSING while its source exists must FAIL.
+# ---------------------------------------------------------------------------
+J="$TMP/J"; make_root "$J"; mkdir -p "$J/corpus/formulas"
+printf '[]' > "$J/gates_manifest.json"
+echo '{}' > "$J/fixture.json"
+expect_fail "corpus mirror missing while source exists" "$J" "$J/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture K: corpus/formulas mirrors byte-identical to sources must PASS.
+# ---------------------------------------------------------------------------
+K="$TMP/K"; make_root "$K"; mkdir -p "$K/corpus/formulas"
+printf '[]' > "$K/gates_manifest.json"
+printf '[]' > "$K/corpus/formulas/a11oy__gates_manifest.json"
+printf '{ "entries": [] }' > "$K/docs/theorem-runtime-manifest.json"
+cp "$K/docs/theorem-runtime-manifest.json" "$K/corpus/formulas/a11oy__docs__theorem-runtime-manifest.json"
+echo '{}' > "$K/fixture.json"
+expect_pass "corpus mirrors byte-identical to sources" "$K" "$K/fixture.json"
 
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"
