@@ -1,0 +1,393 @@
+{
+  "schema": "szl.compliance.crosswalk/v1",
+  "doctrine": "v11 LOCKED: a framework MAPPING is ADVISORY alignment, NOT a certification \u2014 SZL holds no third-party AI-governance certificate today. \u039b=Conjecture 1 (advisory, never 'proven trust'/'proven compliant'). Each cell labelled IMPLEMENTED/PARTIAL/ROADMAP honestly; coverage() counts ONLY IMPLEMENTED; a framework reads 100% ONLY if every mapped control is IMPLEMENTED. Framework IDs CITED from official sources, not claimed as SZL's. Sovereign own-metal, 0 CDN, no fabricated numbers.",
+  "lambda": "\u039b = Conjecture 1 (advisory). 'Aligned' = 'this SZL control supports the framework requirement', NEVER 'certified' or 'proven compliant'. Deny-by-default posture; a signature/attestation is NOT proof of safety (GAP1 lesson).",
+  "disclaimer": "Self-asserted ADVISORY alignment to recognized AI-governance frameworks. NOT a certification or conformity assessment. SZL holds no third-party AI-governance certificate as of this artifact's generation.",
+  "frameworks": {
+    "NIST_AI_RMF": {
+      "title": "NIST AI Risk Management Framework (AI RMF 1.0), NIST AI 100-1",
+      "url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+      "note": "Functions: Govern, Map, Measure, Manage. Published Jan 2023."
+    },
+    "ISO_IEC_42001": {
+      "title": "ISO/IEC 42001:2023 \u2014 Information technology \u2014 AI \u2014 Management system",
+      "url": "https://www.iso.org/standard/81230.html",
+      "note": "AIMS clauses 4-10 + Annex A/B controls."
+    },
+    "EU_AI_ACT": {
+      "title": "EU AI Act \u2014 Regulation (EU) 2024/1689",
+      "url": "https://artificialintelligenceact.eu/",
+      "note": "Art. 9,10,12,13,14,15,17,50. Art. 50 marking enforceable 2 Aug 2026."
+    }
+  },
+  "sources": {
+    "nist_ai_rmf": {
+      "title": "NIST AI Risk Management Framework (AI RMF 1.0), NIST AI 100-1",
+      "url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+      "note": "Functions: Govern, Map, Measure, Manage. Published Jan 2023."
+    },
+    "nist_iso42001_crosswalk": {
+      "title": "NIST AI RMF to ISO/IEC FDIS 42001 AI Management System Crosswalk (official)",
+      "url": "https://airc.nist.gov/docs/NIST_AI_RMF_to_ISO_IEC_42001_Crosswalk.pdf",
+      "note": "Authoritative NIST-published subcategory -> ISO 42001 clause/Annex mapping."
+    },
+    "iso_42001": {
+      "title": "ISO/IEC 42001:2023 \u2014 Information technology \u2014 AI \u2014 Management system",
+      "url": "https://www.iso.org/standard/81230.html",
+      "note": "AIMS clauses 4-10 + Annex A/B controls."
+    },
+    "eu_ai_act": {
+      "title": "EU AI Act \u2014 Regulation (EU) 2024/1689",
+      "url": "https://artificialintelligenceact.eu/",
+      "note": "Art. 9,10,12,13,14,15,17,50. Art. 50 marking enforceable 2 Aug 2026."
+    },
+    "eu_ai_act_art50": {
+      "title": "EU AI Act Article 50 \u2014 Transparency obligations (AI-generated content marking)",
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "note": "Machine-readable marking of synthetic content; enforceable 2 Aug 2026."
+    },
+    "eu_ai_act_art12": {
+      "title": "EU AI Act Article 12 \u2014 Record-keeping / automatic logging",
+      "url": "https://artificialintelligenceact.eu/article/12/",
+      "note": "Tamper-evident, traceable event logs over system lifetime."
+    }
+  },
+  "status_vocabulary": {
+    "IMPLEMENTED": "Shipping in the estate today; demonstrable.",
+    "PARTIAL": "Real but incomplete (e.g. engine built, not yet production-wired).",
+    "ROADMAP": "Designed/intended; NOT yet shipping. Never counted as covered."
+  },
+  "controls": {
+    "deny_by_default_lambda_gate": {
+      "name": "Deny-by-default \u039b-gate (advisory governance gate)",
+      "status": "IMPLEMENTED",
+      "evidence": "\u039b = Conjecture 1 admission gate, deny-by-default; ALLOW/NOMINAL = 'passed SZL admission policy', never 'proven trust'. Live in pnt_resilience fused detector and the mesh route table."
+    },
+    "measured_modeled_labeling": {
+      "name": "MEASURED vs MODELED vs SAMPLE labeling on every value",
+      "status": "IMPLEMENTED",
+      "evidence": "Every emitted value carries a provenance label; PINN compute-bounds certificate labels each input MEASURED and each derived bound MODELED. Honest 'NOT MODELED' where physics/data is incomplete."
+    },
+    "signed_dsse_provenance_rekor": {
+      "name": "Signed DSSE provenance (Ed25519) + Rekor transparency",
+      "status": "PARTIAL",
+      "evidence": "DSSE Ed25519 envelope pattern + FA-001 + cosign.pub anchor + Rekor transparency are designed and the hash CHAIN is real and verified; per the authoritative docs/compliance.md the cosign SIGNING in CI is PENDING (DSSE-PLACEHOLDER) \u2014 so honestly PARTIAL, not IMPLEMENTED, until signing lands."
+    },
+    "overclaim_ledger_ci_guard": {
+      "name": "Overclaim ledger + CI guard (banned-claim tripwire)",
+      "status": "IMPLEMENTED",
+      "evidence": "Banned-claim ledger (e.g. 'SLSA L3', 'proven trust') with a CI guard / tripwire T02 (measurabilityHonesty). Authoritative posture page enforces it."
+    },
+    "clean_room": {
+      "name": "Clean-room engineering (cite-never-plagiarize)",
+      "status": "IMPLEMENTED",
+      "evidence": "Bounds/physics re-derived clean-room from papers; kshana method cited (Apache-2.0, DOI) not copied. Provenance of method documented."
+    },
+    "sovereign_own_metal": {
+      "name": "Sovereign own-metal deployment (no hyperscaler dependency)",
+      "status": "IMPLEMENTED",
+      "evidence": "2 own GPUs, air-gap-capable, sovereign deployment model. No hyperscaler runtime dependency."
+    },
+    "zero_cdn": {
+      "name": "Zero runtime CDN",
+      "status": "IMPLEMENTED",
+      "evidence": "0 runtime CDN; all assets served from sovereign own-metal."
+    },
+    "behavioural_artifact_monitor": {
+      "name": "Behavioural artifact monitor (runtime, GAP1 \u2014 inward SDA/spoof fusion)",
+      "status": "PARTIAL",
+      "evidence": "GAP1 engine: turns the deny-by-default SDA/spoof-fusion detector inward onto our OWN build/deploy artifacts (anomaly on tarball size, egress, unexpected file injection) \u2014 the behavioural half the npm/TanStack SLSA-signed-malware story proved necessary. Built in this gap-closure cycle; PARTIAL until Forge wires it into the production deploy pipeline."
+    },
+    "c2pa_content_credentials": {
+      "name": "C2PA Content Credentials on generated assets (GAP2)",
+      "status": "PARTIAL",
+      "evidence": "GAP2 engine: signed C2PA manifests (tool, edits, AI-or-not) on estate-generated assets, using existing cosign/DSSE identity, for EU AI Act Art. 50 marking. Built in this gap-closure cycle; PARTIAL until production assets emit it by default."
+    },
+    "pqc_ml_dsa_signatures": {
+      "name": "Post-quantum (ML-DSA) signature option for DSSE signer (GAP6)",
+      "status": "ROADMAP",
+      "evidence": "GAP6: ML-DSA (FIPS 204) as an optional PQ signature alongside Ed25519, per the IETF Agent Trust Negotiation draft. NOT shipping \u2014 explicitly a roadmap option. Included here ONLY as ROADMAP so the crosswalk shows the honest gap; it is never counted as covered by coverage()."
+    }
+  },
+  "crosswalk": [
+    {
+      "control": "deny_by_default_lambda_gate",
+      "framework": "NIST_AI_RMF",
+      "ref": "GOVERN 1.1 / GOVERN 1.2",
+      "ref_name": "Policies & processes to govern AI risk",
+      "status": "IMPLEMENTED",
+      "rationale": "Deny-by-default admission policy IS a documented risk-governance process."
+    },
+    {
+      "control": "deny_by_default_lambda_gate",
+      "framework": "ISO_IEC_42001",
+      "ref": "Clause 6.1.3 / Annex B.6.2.6",
+      "ref_name": "AI risk treatment; AI system operation & monitoring",
+      "status": "IMPLEMENTED",
+      "rationale": "Gate is an operational risk-treatment control on the AI system at runtime."
+    },
+    {
+      "control": "deny_by_default_lambda_gate",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 9 / Article 14",
+      "ref_name": "Risk management system; human oversight",
+      "status": "PARTIAL",
+      "rationale": "Supports Art.9 risk mgmt & Art.14 oversight, but no formal high-risk QMS yet."
+    },
+    {
+      "control": "measured_modeled_labeling",
+      "framework": "NIST_AI_RMF",
+      "ref": "MEASURE 2.9 / MEASURE 2.5",
+      "ref_name": "Model explained; mechanisms valid & reliable",
+      "status": "IMPLEMENTED",
+      "rationale": "Provenance labels make every value's epistemic status explicit and testable."
+    },
+    {
+      "control": "measured_modeled_labeling",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.6.2.7 / B.7.4",
+      "ref_name": "AI system technical documentation; quality of data",
+      "status": "IMPLEMENTED",
+      "rationale": "Labels are technical-documentation evidence of data/derivation quality."
+    },
+    {
+      "control": "measured_modeled_labeling",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 13 / Article 15",
+      "ref_name": "Transparency; accuracy & robustness",
+      "status": "PARTIAL",
+      "rationale": "Labels support transparency & honest accuracy claims; not a full Art.13 deployer pack."
+    },
+    {
+      "control": "signed_dsse_provenance_rekor",
+      "framework": "NIST_AI_RMF",
+      "ref": "MEASURE 2.9 / MANAGE 4.1",
+      "ref_name": "Model documented; post-deployment monitoring",
+      "status": "PARTIAL",
+      "rationale": "Provenance + transparency log support traceability; signing in CI still PENDING."
+    },
+    {
+      "control": "signed_dsse_provenance_rekor",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.7.5 / B.6.2.8",
+      "ref_name": "Data provenance; recording of event logs",
+      "status": "PARTIAL",
+      "rationale": "DSSE + Rekor are provenance & event-log evidence; PARTIAL until signer wired."
+    },
+    {
+      "control": "signed_dsse_provenance_rekor",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 12",
+      "ref_name": "Record-keeping / automatic logging (tamper-evident)",
+      "status": "PARTIAL",
+      "rationale": "Rekor transparency log is tamper-evident record-keeping; signing PENDING."
+    },
+    {
+      "control": "overclaim_ledger_ci_guard",
+      "framework": "NIST_AI_RMF",
+      "ref": "GOVERN 1.2 / MEASURE 4.2",
+      "ref_name": "Accountability structures; feedback on claims",
+      "status": "IMPLEMENTED",
+      "rationale": "CI guard structurally blocks overclaims \u2014 an accountability control."
+    },
+    {
+      "control": "overclaim_ledger_ci_guard",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.2.2 / Clause 10.2",
+      "ref_name": "AI policy; nonconformity & corrective action",
+      "status": "IMPLEMENTED",
+      "rationale": "Banned-claim ledger enforces policy; a failing guard is a corrective-action trigger."
+    },
+    {
+      "control": "overclaim_ledger_ci_guard",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 13",
+      "ref_name": "Transparency & provision of information to deployers",
+      "status": "PARTIAL",
+      "rationale": "Prevents misleading capability claims; not the full Art.13 instruction set."
+    },
+    {
+      "control": "clean_room",
+      "framework": "NIST_AI_RMF",
+      "ref": "MAP 4.1 / GOVERN 6.1",
+      "ref_name": "3rd-party/IP risk mapped; supply-chain accountability",
+      "status": "IMPLEMENTED",
+      "rationale": "Cite-never-plagiarize controls IP/provenance risk of reused methods."
+    },
+    {
+      "control": "clean_room",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.10.3 / B.4.2",
+      "ref_name": "Suppliers; resource documentation",
+      "status": "IMPLEMENTED",
+      "rationale": "Documented provenance of third-party methods/data \u2014 a supplier/resource control."
+    },
+    {
+      "control": "clean_room",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 10",
+      "ref_name": "Data & data governance",
+      "status": "PARTIAL",
+      "rationale": "Supports lawful, documented data/method provenance; not full Art.10 dataset governance."
+    },
+    {
+      "control": "sovereign_own_metal",
+      "framework": "NIST_AI_RMF",
+      "ref": "MANAGE 2.1 / MAP 4.1",
+      "ref_name": "Resources to manage risk; supply-chain risk",
+      "status": "IMPLEMENTED",
+      "rationale": "No-hyperscaler posture removes a class of supply-chain/availability risk."
+    },
+    {
+      "control": "sovereign_own_metal",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.4.5",
+      "ref_name": "System & computing resources",
+      "status": "IMPLEMENTED",
+      "rationale": "Own-metal is a documented, controlled computing-resource posture."
+    },
+    {
+      "control": "sovereign_own_metal",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 15",
+      "ref_name": "Accuracy, robustness & cybersecurity",
+      "status": "PARTIAL",
+      "rationale": "Air-gap-capable own-metal aids robustness/cyber posture; not a full Art.15 conformity test."
+    },
+    {
+      "control": "zero_cdn",
+      "framework": "NIST_AI_RMF",
+      "ref": "MANAGE 1.3 / MAP 4.1",
+      "ref_name": "Risk treatment; third-party dependency risk",
+      "status": "IMPLEMENTED",
+      "rationale": "Removing runtime CDN removes a third-party tamper/availability dependency."
+    },
+    {
+      "control": "zero_cdn",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.4.5 / B.10.3",
+      "ref_name": "Computing resources; suppliers",
+      "status": "IMPLEMENTED",
+      "rationale": "No third-party CDN supplier in the runtime path \u2014 a documented supplier control."
+    },
+    {
+      "control": "zero_cdn",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 15",
+      "ref_name": "Accuracy, robustness & cybersecurity",
+      "status": "PARTIAL",
+      "rationale": "Reduces runtime attack surface; supports but does not satisfy Art.15 alone."
+    },
+    {
+      "control": "behavioural_artifact_monitor",
+      "framework": "NIST_AI_RMF",
+      "ref": "MANAGE 4.1 / MEASURE 2.6",
+      "ref_name": "Post-deployment monitoring; safety/efficacy in deployment",
+      "status": "PARTIAL",
+      "rationale": "Runtime behavioural anomaly monitor on our own artifacts; built, not yet prod-wired."
+    },
+    {
+      "control": "behavioural_artifact_monitor",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.6.2.6 / B.6.2.8",
+      "ref_name": "AI system operation & monitoring; event logs",
+      "status": "PARTIAL",
+      "rationale": "Operational monitoring control producing event logs; PARTIAL pending deploy wiring."
+    },
+    {
+      "control": "behavioural_artifact_monitor",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 72 / Article 12",
+      "ref_name": "Post-market monitoring; record-keeping",
+      "status": "PARTIAL",
+      "rationale": "Behavioural monitor feeds post-market monitoring & logs; not yet a formal PMM system."
+    },
+    {
+      "control": "c2pa_content_credentials",
+      "framework": "NIST_AI_RMF",
+      "ref": "MEASURE 2.9 / GOVERN 1.2",
+      "ref_name": "Output documented/traceable; transparency policy",
+      "status": "PARTIAL",
+      "rationale": "Signed content manifests make generated outputs traceable AI-or-not."
+    },
+    {
+      "control": "c2pa_content_credentials",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.7.5 / B.8.2",
+      "ref_name": "Data provenance; system docs & info for users",
+      "status": "PARTIAL",
+      "rationale": "Content Credentials are provenance metadata informing users; PARTIAL pending default-on."
+    },
+    {
+      "control": "c2pa_content_credentials",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 50",
+      "ref_name": "Transparency: machine-readable marking of AI-generated content",
+      "status": "PARTIAL",
+      "rationale": "C2PA is the named mechanism for Art.50 marking (enforceable 2 Aug 2026); built, not default-on."
+    },
+    {
+      "control": "pqc_ml_dsa_signatures",
+      "framework": "NIST_AI_RMF",
+      "ref": "MANAGE 1.3 / GOVERN 1.2",
+      "ref_name": "Risk treatment; security policy (crypto agility)",
+      "status": "ROADMAP",
+      "rationale": "PQ crypto agility is a designed risk-treatment option; NOT shipping yet (roadmap)."
+    },
+    {
+      "control": "pqc_ml_dsa_signatures",
+      "framework": "ISO_IEC_42001",
+      "ref": "Annex B.6.2.8 / Clause 10.1",
+      "ref_name": "Event logs integrity; continual improvement",
+      "status": "ROADMAP",
+      "rationale": "PQ signatures would future-proof log/provenance integrity; roadmap, not implemented."
+    },
+    {
+      "control": "pqc_ml_dsa_signatures",
+      "framework": "EU_AI_ACT",
+      "ref": "Article 15",
+      "ref_name": "Accuracy, robustness & cybersecurity",
+      "status": "ROADMAP",
+      "rationale": "PQ readiness strengthens long-term cybersecurity posture; explicitly roadmap."
+    }
+  ],
+  "coverage": {
+    "label": "MEASURED (cell counts of this crosswalk table) \u2014 NOT a certification",
+    "doctrine": "v11 LOCKED: a framework MAPPING is ADVISORY alignment, NOT a certification \u2014 SZL holds no third-party AI-governance certificate today. \u039b=Conjecture 1 (advisory, never 'proven trust'/'proven compliant'). Each cell labelled IMPLEMENTED/PARTIAL/ROADMAP honestly; coverage() counts ONLY IMPLEMENTED; a framework reads 100% ONLY if every mapped control is IMPLEMENTED. Framework IDs CITED from official sources, not claimed as SZL's. Sovereign own-metal, 0 CDN, no fabricated numbers.",
+    "lambda": "\u039b = Conjecture 1 (advisory). 'Aligned' = 'this SZL control supports the framework requirement', NEVER 'certified' or 'proven compliant'. Deny-by-default posture; a signature/attestation is NOT proof of safety (GAP1 lesson).",
+    "frameworks": {
+      "NIST_AI_RMF": {
+        "total_mapped_cells": 10,
+        "implemented": 6,
+        "partial": 3,
+        "roadmap": 1,
+        "pct_implemented": 60.0,
+        "fully_implemented": false
+      },
+      "ISO_IEC_42001": {
+        "total_mapped_cells": 10,
+        "implemented": 6,
+        "partial": 3,
+        "roadmap": 1,
+        "pct_implemented": 60.0,
+        "fully_implemented": false
+      },
+      "EU_AI_ACT": {
+        "total_mapped_cells": 10,
+        "implemented": 0,
+        "partial": 9,
+        "roadmap": 1,
+        "pct_implemented": 0.0,
+        "fully_implemented": false
+      }
+    },
+    "totals": {
+      "implemented": 12,
+      "partial": 15,
+      "roadmap": 3,
+      "total_mapped_cells": 30,
+      "pct_implemented": 40.0
+    },
+    "interpretation": "pct_implemented = fraction of MAPPED cells our IMPLEMENTED controls currently support. It is an honest self-assessment of alignment coverage, NOT third-party-certified coverage and NOT a claim that the framework as a whole is satisfied. SZL holds no AI-governance certificate today; PARTIAL/ROADMAP cells are the honest gap to close."
+  }
+}
