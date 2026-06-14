@@ -26,10 +26,14 @@ name: Sync backend to HuggingFace Space
 # now also diffs the Space's current .py tree against the computed mirror set and emits
 # a delete (in the SAME create_commit) for any backend .py no longer in the mirror.
 # Deletion is scoped to backend .py ONLY — files whose directory this sync actually
-# populates (derived from the mirror set itself), never README, the front-door
-# pages/*.{html,js} + console/*.{html,js} owned by hf-sync.yml, the built SPA bundles
-# (console/assets, console/static), or LFS/vendor blobs (static/vendor3d, etc.). An
-# in-sync repo stays a true no-op (no changes + no deletions => no commit).
+# populates (derived from the mirror set itself) OR whose directory is not a protected
+# front-door/built-asset/vendor location. The latter sweeps a backend .py whose ENTIRE
+# directory was removed from the repo + Dockerfile COPY set (so the dir no longer appears
+# in the mirror at all): the orphan is still cleaned up instead of lingering. It never
+# touches README, the front-door pages/*.{html,js} + console/*.{html,js} owned by
+# hf-sync.yml, the built SPA bundles (console/assets, console/static), or LFS/vendor
+# blobs (static/, static-vendor/, static/vendor3d, etc.). An in-sync repo stays a true
+# no-op (no changes + no deletions => no commit).
 #
 # The push logic lives in .github/scripts/hf_sync_backend.py (extracted from the old
 # inline heredoc) so the SAME code is exercised by the network-free self-test

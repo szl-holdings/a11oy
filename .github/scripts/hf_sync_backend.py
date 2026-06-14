@@ -29,19 +29,33 @@ the Dockerfile COPY set — the orphaned .py lingered in the Space tree forever.
 harmless to the built image (no longer COPY'd) but makes the Space tree drift from
 GitHub and confuses the hf-module-drift-check guard. select_deletions() now diffs the
 Space's current .py tree against the computed mirror set and emits a delete for any
-backend .py no longer in the mirror. Deletion is scoped to backend .py paths ONLY: a
-Space path is a delete candidate iff it ends in .py, lives in a directory this sync
-actually populates (derived from the mirror set itself — never a hardcoded allowlist),
-is not a *.bak* backup, and is not still in the mirror. This can NEVER touch README
-(.md), the front-door pages/*.{html,js} + console/*.{html,js} files owned by
-hf-sync.yml, the built SPA bundles (console/assets, console/static), or LFS/vendor
-blobs (static/vendor3d, etc.) — they are either non-.py or live in directories this
-sync does not populate.
+backend .py no longer in the mirror.
+
+whole-directory removal (drift-fix): the first delete pass scoped deletions to the
+directories the mirror still populates (managed_backend_dirs, derived from the mirror
+itself). That left one edge case open: when an ENTIRE backend subdirectory is dropped
+from the repo + Dockerfile COPY set, no .py from it survives in the mirror, so the dir
+falls out of managed_backend_dirs and its orphaned .py were never swept — the Space tree
+kept drifting from GitHub. The delete pass now also sweeps backend .py in directories
+that are NOT a protected front-door / built-asset / vendor location (NON_BACKEND_PREFIXES
+via is_protected_path), so a wholly-removed backend dir's modules are cleaned up too.
+
+Deletion stays scoped to backend .py paths ONLY: a Space path is a delete candidate iff
+it ends in .py, is not a *.bak* backup, is not still in the mirror, and EITHER lives in a
+directory this sync actively populates (managed_backend_dirs) OR is not under a protected
+prefix. This can NEVER touch README (.md), the front-door pages/*.{html,js} +
+console/*.{html,js} files owned by hf-sync.yml, the built SPA bundles (console/assets,
+console/static), or LFS/vendor blobs (static/, static-vendor/, static/vendor3d, etc.) —
+they are either non-.py or live under a NON_BACKEND_PREFIXES path the sweep refuses to
+enter. A denylist of those few stable HF-Space front-door/vendor roots is used here
+(rather than a hardcoded allowlist of backend dirs) precisely so a relocated or
+wholly-removed backend dir is still cleaned up without code changes.
 
 Pure helpers (no huggingface_hub dependency): git_blob_sha1, parse_dockerfile_copy_srcs,
 expand_py_files, build_mirror_set, select_changed_files, managed_backend_dirs,
-select_deletions, sync_to_space, factory_rebuild, sync_and_maybe_rebuild. main() lazily
-imports huggingface_hub so the test suite can run network-free with pure stdlib.
+is_protected_path, select_deletions, sync_to_space, factory_rebuild,
+sync_and_maybe_rebuild. main() lazily imports huggingface_hub so the test suite can run
+network-free with pure stdlib.
 """
 import glob
 import hashlib
@@ -133,6 +147,28 @@ def managed_backend_dirs(mirror) -> set:
     return {os.path.dirname(p) for p in mirror if p.endswith(".py")}
 
 
+# HF-Space directory prefixes the backend sync must NEVER delete from, even when an
+# orphaned .py turns up under one. These are the front-door surfaces owned by hf-sync.yml
+# (pages/, console/ — which the Dockerfile COPYs to static/ on the Space, web/) and the
+# built SPA bundles + LFS/vendor blobs (static/, static-vendor/, and so static/vendor3d/).
+# Backend modules never live under these, so excluding them keeps the whole-directory
+# delete sweep scoped to backend .py. This is a small, stable DENYLIST (HF-Space layout
+# conventions) — deliberately not an allowlist of backend dirs, so a relocated or
+# wholly-removed backend dir is still swept without code changes.
+NON_BACKEND_PREFIXES = ("pages/", "console/", "web/", "static/", "static-vendor/")
+
+
+def is_protected_path(path) -> bool:
+    """True if path lives under a front-door / built-asset / vendor prefix (never backend).
+
+    Such a path is exempt from the delete sweep no matter what: those directories are
+    populated by hf-sync.yml / the build / vendored blobs, not this backend sync, so a
+    .py appearing there must not be removed by us.
+    """
+    norm = path.replace(os.sep, "/")
+    return any(norm == pre.rstrip("/") or norm.startswith(pre) for pre in NON_BACKEND_PREFIXES)
+
+
 def select_deletions(mirror, space_paths):
     """Space backend .py paths no longer in the mirror set, to delete from the Space.
 
@@ -140,12 +176,17 @@ def select_deletions(mirror, space_paths):
       * it ends in .py (README is .md; front-door pages/console files are .html/.js),
       * it is NOT a *.bak* timestamped backup,
       * it is NOT still in the mirror set (i.e. still COPY'd / still serve.py), and
-      * its directory is one this sync populates (managed_backend_dirs(mirror)).
+      * its directory is one this sync still populates (managed_backend_dirs(mirror)) OR
+        it is not under a protected front-door/built-asset/vendor prefix
+        (is_protected_path) — the latter is what sweeps a WHOLE backend directory that was
+        removed from the repo + Dockerfile COPY set, so it no longer appears in the mirror
+        at all and thus falls out of managed_backend_dirs.
 
-    The directory scope is what keeps deletion to backend .py ONLY: built SPA bundles
-    (console/assets, console/static) and LFS/vendor blobs (static/vendor3d, etc.) live
-    in directories this sync never writes to, so they can never be selected even if one
-    happened to carry a .py extension.
+    Both scope clauses keep deletion to backend .py ONLY: managed_backend_dirs are by
+    construction backend locations, and the protected denylist carves out the built SPA
+    bundles (console/assets, console/static) and LFS/vendor blobs (static/vendor3d, etc.)
+    — they live under a NON_BACKEND_PREFIXES path, so they can never be selected even if
+    one happened to carry a .py extension.
 
     mirror:      iterable of repo-relative paths kept in sync (the local mirror set).
     space_paths: iterable of every path currently in the Space tree.
@@ -161,7 +202,7 @@ def select_deletions(mirror, space_paths):
             continue
         if p in mirror_set:
             continue
-        if os.path.dirname(p) in dirs:
+        if os.path.dirname(p) in dirs or not is_protected_path(p):
             deletions.append(p)
     return sorted(deletions)
 

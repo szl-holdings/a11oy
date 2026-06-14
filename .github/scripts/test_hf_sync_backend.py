@@ -5,8 +5,9 @@ The hf-sync-backend workflow was only ever observed on the "already in sync -> n
 path. This exercises the actual push path end-to-end with fakes (no network, no live
 Space touched): it imports the SAME module the workflow runs and asserts the OID-diff
 selection only pushes files whose content differs, leaves identical files untouched,
-and (delete-aware) removes backend .py orphaned on the Space while never touching
-README / front-door / built-asset / vendor paths.
+and (delete-aware) removes backend .py orphaned on the Space — including the modules
+of an ENTIRE backend directory that was removed from the repo + Dockerfile COPY set —
+while never touching README / front-door / built-asset / vendor paths.
 
 It also proves the auto factory-rebuild gate: a real commit triggers exactly one
 restart_space(factory_reboot=True), an in-sync run triggers none, and a failed rebuild
@@ -152,6 +153,46 @@ class SelectDeletionsTest(unittest.TestCase):
     def test_in_sync_tree_yields_no_deletions(self):
         space_paths = ["Dockerfile", "serve.py", "szl_keep.py", "pkg/keep.py"]
         self.assertEqual(hsb.select_deletions(self.mirror, space_paths), [])
+
+    def test_entire_packaged_dir_removed_is_swept(self):
+        # The "whole directory removed" edge case: `gone_pkg/` was a packaged backend dir
+        # whose modules used to be COPY'd, but the entire dir was dropped from the repo +
+        # Dockerfile. No `gone_pkg/*.py` survives in the mirror, so the dir is NOT in
+        # managed_backend_dirs(mirror) at all — yet its orphaned .py must still be swept.
+        self.assertNotIn("gone_pkg", hsb.managed_backend_dirs(self.mirror))
+        space_paths = [
+            "serve.py",                  # in mirror -> keep
+            "szl_keep.py",               # in mirror -> keep
+            "pkg/keep.py",               # in mirror -> keep
+            "gone_pkg/a.py",             # wholly-removed backend dir -> delete
+            "gone_pkg/b.py",             # wholly-removed backend dir -> delete
+            "gone_pkg/sub/c.py",         # nested under a wholly-removed dir -> delete
+            # Protected surfaces that happen to carry a .py must NEVER be swept, even
+            # though their directories are also absent from managed_backend_dirs:
+            "console/assets/app.py",     # built SPA bundle
+            "static/vendor3d/three.py",  # LFS/vendor blob
+            "static-vendor/lib.py",      # vendored asset
+            "pages/widget.py",           # front-door (hf-sync.yml)
+            "web/panel.py",              # front-door html dir
+            "gone_pkg/old.py.bak-20260601",  # timestamped backup -> keep
+        ]
+        self.assertEqual(
+            hsb.select_deletions(self.mirror, space_paths),
+            ["gone_pkg/a.py", "gone_pkg/b.py", "gone_pkg/sub/c.py"],
+        )
+
+    def test_protected_prefixes_never_swept_even_when_unmanaged(self):
+        # Sanity: each protected prefix is exempt from the sweep on its own.
+        for protected in (
+            "console/assets/app.py",
+            "console/static/x.py",
+            "static/vendor3d/three.py",
+            "static-vendor/lib.py",
+            "pages/widget.py",
+            "web/panel.py",
+        ):
+            self.assertTrue(hsb.is_protected_path(protected), protected)
+            self.assertEqual(hsb.select_deletions(self.mirror, [protected]), [])
 
 
 class SyncToSpacePushTest(unittest.TestCase):
