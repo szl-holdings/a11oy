@@ -104,6 +104,11 @@ COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_pro
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
 COPY a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py ./
+# WILLAY — governed inverse of Fable 5 / Mythos 5 (safety verdicts signed & shown).
+# szl_willay_gateway.py serves /willay + /api/a11oy/v1/willay/*; a11oy_willay_nav.py
+# attaches the idempotent /console nav injector. MUST be COPY'd or serve.py's guarded
+# imports fall back and /willay 404s. Per-file COPY (this Dockerfile uses no COPY . .).
+COPY szl_willay_gateway.py a11oy_willay_nav.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
