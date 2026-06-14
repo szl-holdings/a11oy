@@ -128,13 +128,29 @@ _SIBLING_DIRS = {
     "nav_coasting": [os.path.join(_PNT_BUILD, "dev3_fusion_pinn")],
 }
 
-# Candidate module names per kind (first importable wins).
+# Candidate module names per kind (first importable wins). `szl_pinn_bounds` is the
+# estate's pure-stdlib compute-bounds engine that actually ships in the (numpy-less) HF
+# image; `physics_bounds` is the on-metal Forge sibling kept first for the GPU path.
 _MODULE_CANDIDATES = {
-    "compute_bounds": ["physics_bounds"],
+    "compute_bounds": ["physics_bounds", "szl_pinn_bounds"],
     "quantum_sensor": ["quantum_sensing_limits", "quantum_imu", "dev1_quantum_sensing_limits"],
     "pnt_resilience": ["pnt_resilience", "spoof_detect", "dev2_pnt_resilience"],
     "nav_coasting": ["nav_coasting", "coasting", "dev3_nav_coasting"],
 }
+
+# Kinds for which this unified layer carries its OWN pure-stdlib closed-form derivation,
+# so they answer honestly (MODELED, CITED) even when the heavy (numpy) sibling engine is
+# absent — e.g. in the numpy-less HF web image. NOT a fabricated number: a first-
+# principles closed form that AGREES with the engine math. compute_bounds is excluded:
+# it has no safe local stand-in here and falls back to MODULE_NOT_WIRED when truly absent.
+_CLOSED_FORM_KINDS = ("quantum_sensor", "pnt_resilience", "nav_coasting")
+
+
+# This module's own directory holds the estate's stdlib engines (szl_pinn_bounds,
+# quantum_sensing_limits, pnt_resilience, nav_coasting). Make it importable regardless
+# of CWD so wiring discovery does not depend on where the server was launched.
+if _THIS_DIR not in sys.path:
+    sys.path.insert(0, _THIS_DIR)
 
 
 def _ensure_on_path(kind: str) -> None:
@@ -156,14 +172,39 @@ def _try_import(kind: str):
 
 
 def _wired_status(kind: str) -> dict:
+    """Honest wiring discovery for one pillar.
+
+    A pillar is `wired:true` when this layer can return a REAL, CITED number for it —
+    either because the heavy sibling engine imports, OR (for the closed-form pillars)
+    because this layer's own pure-stdlib first-principles derivation is available. The
+    `via` field is explicit about which path answers, so the surface never hides that a
+    numpy-less environment is using the closed-form path. No number is ever fabricated.
+    """
     mod, name = _try_import(kind)
+    if mod is not None:
+        return {
+            "kind": kind,
+            "wired": True,
+            "module": name,
+            "via": "engine",
+            "note": f"sibling engine '{name}' is present and importable",
+        }
+    if kind in _CLOSED_FORM_KINDS:
+        return {
+            "kind": kind,
+            "wired": True,
+            "module": None,
+            "via": "closed_form_stdlib",
+            "note": ("heavy sibling engine absent (e.g. numpy-less image); this layer's "
+                     "own pure-stdlib closed-form first-principles derivation answers — "
+                     "MODELED and CITED, never a fabricated number"),
+        }
     return {
         "kind": kind,
-        "wired": mod is not None,
-        "module": name,
-        "note": (f"sibling engine '{name}' is present and importable"
-                 if mod is not None else
-                 "module not wired yet — honest placeholder; no number fabricated"),
+        "wired": False,
+        "module": None,
+        "via": None,
+        "note": "module not wired yet — honest placeholder; no number fabricated",
     }
 
 
@@ -237,15 +278,8 @@ def _certify_compute_bounds(**kw) -> dict:
     mod, name = _try_import("compute_bounds")
     if mod is None:
         return _not_wired("compute_bounds")
-    # physics_bounds.py exposes MeasuredJob + certify(job) -> PhysicalBoundsCertificate.
-    MeasuredJob = getattr(mod, "MeasuredJob", None)
-    certify_fn = getattr(mod, "certify", None)
-    if MeasuredJob is None or certify_fn is None:
-        return _not_wired("compute_bounds", {
-            "note": (f"sibling '{name}' present but missing MeasuredJob/certify — honest "
-                     "incompatible-engine state, no number fabricated"),
-        })
-    # Honest SAMPLE defaults (mirror nvml_hook.sample_job); caller may override.
+    # Honest SAMPLE defaults (mirror nvml_hook.sample_job); caller may override. These are
+    # the MEASURED-input slots — joules are DERIVED = power×time, bounds are CITED physics.
     defaults = dict(
         avg_power_w=700.0, wall_time_s=10.0, temperature_k=350.0,
         bit_operations=1e16, bits_erased=1e14, info_content_bits=1e12,
@@ -254,21 +288,29 @@ def _certify_compute_bounds(**kw) -> dict:
         note="In-sandbox SAMPLE; on metal Forge feeds REAL NVML readings.",
     )
     defaults.update({k: v for k, v in kw.items() if k in defaults})
-    job = MeasuredJob(**defaults)
-    cert = certify_fn(job)
-    # Normalise to a dict regardless of dataclass vs dict.
-    if hasattr(cert, "__dict__") and not isinstance(cert, dict):
-        try:
-            from dataclasses import asdict
-            cert_d = asdict(cert)
-        except Exception:
-            cert_d = {k: getattr(cert, k) for k in dir(cert) if not k.startswith("_")}
+
+    # Two compatible engine shapes:
+    #  (1) szl_pinn_bounds.certify_job(**kwargs) -> dict  (the pure-stdlib HF engine)
+    #  (2) physics_bounds: MeasuredJob(**kwargs) + certify(job) -> certificate (Forge path)
+    certify_job = getattr(mod, "certify_job", None)
+    MeasuredJob = getattr(mod, "MeasuredJob", None)
+    certify_fn = getattr(mod, "certify", None)
+
+    if callable(certify_job):
+        cert_d = certify_job(**defaults)
+    elif MeasuredJob is not None and callable(certify_fn):
+        cert_d = _to_dict(certify_fn(MeasuredJob(**defaults)))
     else:
-        cert_d = cert
+        return _not_wired("compute_bounds", {
+            "note": (f"sibling '{name}' present but exposes neither certify_job(**kw) nor "
+                     "MeasuredJob/certify — honest incompatible-engine state, no number "
+                     "fabricated"),
+        })
+
     label = "MEASURED" if defaults.get("label") == "MEASURED" else "SAMPLE"
     return _envelope(
         "compute_bounds", label, cert_d,
-        source=f"physics_bounds.certify (engine: {name})",
+        source=f"{name}.certify_job (compute-bounds engine)",
         attribution=getattr(mod, "BOUNDS_ATTRIBUTION", None),
         extra={"physically_bounded": cert_d.get("physically_bounded")},
     )
