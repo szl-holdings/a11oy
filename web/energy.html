@@ -5,8 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>a11oy — Proven Energy Engine · SZL Holdings</title>
 <meta name="description" content="Live, honest view of the agentic-GPU engine: sovereign GPU posture (NVIDIA RTX 5000 @ betterwithage), the Bekenstein-gated energy+information budget ledger (F19/TH6, proven inequality), and the off-peak power window. Energy figures are SAMPLE/ESTIMATE — no real power meter is wired. No free-energy claims."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<!-- 0 runtime CDN (doctrine v11): system fonts only — no Google Fonts, no external assets. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/3d/vendor/three/three.module.min.js",
+    "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
+    "three/addons/": "/static/3d/vendor/three/addons/"
+  }
+}
+</script>
 <style>
 :root{
   --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
@@ -17,8 +25,8 @@
   --teal-line:rgba(95,179,163,0.22);
   --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
   --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
-  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
-  --display:'Space Grotesk',Georgia,serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --display:ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
@@ -167,32 +175,29 @@ td.bad{color:var(--red);}
     <div class="simnote" id="fe_note"><b>Joules-saved = tokens-saved × J/token.</b> The J/token is the LIVE on-box MEASURED figure ONLY when the sovereign GPU probe is live (label MEASURED); otherwise our honest SAMPLE constant — same single source of truth as the rest of this page. Lines-saved is OUR MODELED ladder figure, never Ponytail's measured numbers. Ladder adopted from <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener">Ponytail (MIT)</a>; governed (signed receipts + Λ). See the full bench at <a href="/restraint-bench">/restraint-bench</a>.</div>
   </div>
   <div class="panel" id="energy3d_panel">
-    <h2>(5) 3D Energy / GPU Hologram<span class="meta">holographic GPU blocks · live J/token · 0 CDN · 2D-fallback</span>
+    <h2>(5) Holographic 3D Energy Ops<span class="meta" id="e3d_count">16-19 live 3D graphs · 0 CDN · WebGPU/WebGL2</span>
       <button class="flag" id="e3d_toggle" style="float:right;font-size:11px;cursor:pointer;">Enable 3D</button>
     </h2>
     <div class="simnote" style="margin-bottom:.6rem">
-      A holographic view of the sovereign-inference engine on the shared 0-CDN WebGL2 kit: the <b>GPU/serving block</b>
-      colors by the live <code>/code/healthz</code> sovereign posture (<b>sovereign:true only on a real local-GPU probe</b>),
-      a <b>trust sphere</b> morphs with Λ (Conjecture 1, &lt;1.0), and the <b>J/token</b> readout is
-      <b>MEASURED only on a live GPU power probe</b> — with no meter wired it stays an honest <b>ROADMAP/SAMPLE</b> estimate,
-      never presented as measured. CPU/old-GPU renders the same data on a <b>2D canvas fallback</b>; the panels above are the
-      complete non-3D experience. Patterns: vLLM/SGLang J/token, NVIDIA Dynamo, LiteLLM/RouteLLM.
+      The full <b>press-play holographic showcase</b>: 16-19 distinct live 3D graphs (measured-joules orbital, negative-price
+      column field, compute-fabric hex, per-job particle stream, signed-receipt hash-chain, joules reservoir vs MODELED
+      1-day ceiling, throughput surface, earnings gauge, scale-out hologram, node-health ring, and more) — each wired by
+      <code>szl3d_live.poll</code> to a real a11oy energy endpoint
+      (<code>/energy/operator/status</code>, <code>/energy/ledger</code>, <code>/energy/projection</code>,
+      <code>/harvest/posture</code>, <code>/compute-pool</code>) and carrying its doctrine <b>honesty chip</b>
+      (MEASURED / MODELED / SAMPLE / STRUCTURAL-ONLY). Nothing is fabricated: on 404 a graph shows
+      <b>NO-LIVE-DATA</b>, on a degraded payload it shows <b>DEGRADED</b> — never a fake number. Same shared module as
+      <a href="/holographic">/holographic</a> and <code>/energy-holographic</code>. WebGPU with WebGL2 fallback.
     </div>
-    <div class="r3d-stats mono" style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:.4rem 0;">
-      <span>J/token <span id="e3d_jtok" style="color:var(--warn)">—</span> <span id="e3d_jtok_lbl"></span></span>
-      <span>sovereign <span id="e3d_sov" style="color:var(--cream)">—</span></span>
-      <span>within Bekenstein <span id="e3d_within" style="color:var(--green)">—</span></span>
-      <span id="e3d_caps" style="color:var(--dim)"></span>
-    </div>
-    <div id="energy3d_mount" style="width:100%;height:400px;border:1px solid var(--gold-line);border-radius:10px;background:#060606;display:none;position:relative;"></div>
-    <div class="empty" id="e3d_off">3D is off (default). Click <b>Enable 3D</b> to render the holographic energy view on the live <code>/v1/energy/budget</code> + <code>/code/healthz</code> endpoints. The 2D panels above are always available as the fallback.</div>
+    <div id="energy3d_mount" style="width:100%;height:520px;border:1px solid var(--gold-line);border-radius:10px;background:#05070d;display:none;position:relative;overflow:hidden;"></div>
+    <div class="empty" id="e3d_off">3D is off (default). Click <b>Enable 3D</b> to boot the holographic showcase on the live energy endpoints. The 2D panels above are always available as the complete non-3D fallback.</div>
     <div class="meta mono" style="color:var(--muted);font-size:10px;margin-top:.5rem;">
-      0 runtime CDN · WebGL2 + honest 2D fallback · J/token MEASURED-or-ROADMAP (never fabricated) · sovereign:true only on live probe · Λ = Conjecture 1 (&lt;1.0) · trust &lt;100%.
+      0 runtime CDN · three.js r170 vendored same-origin · WebGPU→WebGL2 fallback · every value MEASURED-or-labeled (never fabricated) · revenue MODELED until a real charge clears · Λ = Conjecture 1 · trust &lt;100%.
     </div>
   </div>
 
   <div class="footnote">
-    <b>Honest by design.</b> Posture is <b>derived</b> from /code/healthz: GREEN only when <code>sovereign:true</code> AND <code>inference=self-hosted-gpu</code>; MAINTENANCE when reachable but on router fallback; DOWN when unreachable — sovereignty is <b>never assumed</b>. The Bekenstein gate is <b>F19 (locked-8) / TH6</b>, a machine-checked inequality (EnergyBudgetWitness.lean, 0-sorry). <b>All energy figures are SAMPLE/ESTIMATE</b> until a real meter is wired. <b>No free-energy / perpetual-motion claims.</b> Λ trust = <b>Conjecture 1</b> (machine-checked FALSE — advisory, never a theorem). Coherence governor C(t)=C₀·e^(−t/τ_c) via /v1/qbio/coherence is EXPERIMENTAL. Fonts via Google Fonts; no runtime logic/3D CDN.
+    <b>Honest by design.</b> Posture is <b>derived</b> from /code/healthz: GREEN only when <code>sovereign:true</code> AND <code>inference=self-hosted-gpu</code>; MAINTENANCE when reachable but on router fallback; DOWN when unreachable — sovereignty is <b>never assumed</b>. The Bekenstein gate is <b>F19 (locked-8) / TH6</b>, a machine-checked inequality (EnergyBudgetWitness.lean, 0-sorry). <b>All energy figures are SAMPLE/ESTIMATE</b> until a real meter is wired. <b>No free-energy / perpetual-motion claims.</b> Λ trust = <b>Conjecture 1</b> (machine-checked FALSE — advisory, never a theorem). Coherence governor C(t)=C₀·e^(−t/τ_c) via /v1/qbio/coherence is EXPERIMENTAL. <b>0 runtime CDN</b> — system fonts and all 3D libs served same-origin from /static/3d/vendor.
   </div>
 </div>
 <script>
@@ -326,91 +331,55 @@ loadAll();
 setInterval(loadAll,30000);
 </script>
 
-<!-- F4 · 3D Energy/GPU hologram (additive). Loads the shared 0-CDN holographic kit. -->
-<script src="/static/shared/szl_holo3d.js"></script>
-<script>
-"use strict";
-(function(){
-  var EA="/api/a11oy";
-  var mount=document.getElementById('energy3d_mount');
-  var offEl=document.getElementById('e3d_off');
-  var toggle=document.getElementById('e3d_toggle');
-  if(!mount||!toggle||!window.SZLHolo){ if(toggle){toggle.disabled=true;toggle.textContent='3D unavailable';} return; }
-  var scene=null, started=false, poll=null, anim=null;
-  var JT=document.getElementById('e3d_jtok'), JTL=document.getElementById('e3d_jtok_lbl');
-  var SOV=document.getElementById('e3d_sov'), WIN=document.getElementById('e3d_within'), CAP=document.getElementById('e3d_caps');
-  function esc3(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-  function getJSON(u,opt){return fetch(u,opt).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+<!-- (5) Holographic 3D Energy Ops: the SHARED 16-19 graph showcase, lazy-booted on toggle.
+     0 runtime CDN: three.js r170 + szl3d toolkit served same-origin via the importmap above.
+     The exact same module renders on /holographic and /energy-holographic. -->
+<script type="module">
+const mount=document.getElementById('energy3d_mount');
+const offEl=document.getElementById('e3d_off');
+const toggle=document.getElementById('e3d_toggle');
+const countEl=document.getElementById('e3d_count');
+let started=false, stage=null, showcase=null, mods=null;
 
-  function applyBudget(b){
-    if(!b){ JT.textContent='—'; JTL.innerHTML=''; WIN.textContent='—'; return; }
-    var lbl=String(b.joules_label||'').toLowerCase();
-    var ev=b.joules_evidence||{};
-    var measured=(lbl==='measured') && ev && Object.keys(ev).length>0;
-    var toks=Number(b.total_output_bytes||0);
-    var joules=Number(b.total_joules_est||0);
-    if(measured && toks>0){
-      JT.textContent=(joules/toks).toFixed(4)+' J/tok';
-      JTL.innerHTML='<span style="color:var(--green);font-size:9px;border:1px solid var(--green);padding:1px 5px;border-radius:5px">MEASURED · live probe</span>';
-    }else{
-      JT.textContent=(joules>0&&toks>0)?(joules/toks).toFixed(4)+' J/tok*':'— J/tok';
-      JTL.innerHTML='<span style="color:var(--yellow);font-size:9px;border:1px solid var(--yellow);padding:1px 5px;border-radius:5px">ROADMAP · no meter ('+esc3(b.total_joules_est_label||'SAMPLE/ESTIMATE')+')</span>';
-    }
-    WIN.textContent=(b.all_within_bound===true)?'✓ within (F19/TH6)':(b.all_within_bound===false?'✗ overclaim':'—');
-  }
+async function loadMods(){
+  if(mods) return mods;
+  const [szl3d, live, label, THREE, sc] = await Promise.all([
+    import("/static/3d/szl3d/szl3d_boot.js").then(m=>m.default||m),
+    import("/static/3d/szl3d/szl3d_live.js"),
+    import("/static/3d/szl3d/szl3d_label.js"),
+    import("three"),
+    import("/static/3d/energy_showcase/showcase.js"),
+  ]);
+  mods={szl3d, live, label, THREE, buildShowcase: sc.buildShowcase};
+  return mods;
+}
 
-  var _sovereign=false;
-  function applyHealthz(hz){
-    var sov=!!(hz&&hz.sovereign===true&&String(hz.inference||'').indexOf('gpu')>=0);
-    _sovereign=sov;
-    SOV.textContent=hz?(sov?'true · local-GPU probe':'false · router fallback'):'— (healthz unreachable)';
-    rebuild();
+async function start(){
+  if(started) return; started=true;
+  mount.style.display='block'; offEl.style.display='none';
+  toggle.textContent='Disable 3D'; toggle.classList.add('active');
+  try{
+    const m=await loadMods();
+    stage=await m.szl3d.boot(mount,{ bloom:{strength:0.8,radius:0.5,threshold:0.18}, cameraPos:[0,5,22] });
+    stage.start();
+    const ctx={ stage, container: mount, live: m.live, label: m.label, THREE: m.THREE, szl3d: m.szl3d };
+    showcase=m.buildShowcase(ctx);
+    if(countEl) countEl.textContent=showcase.count+' live 3D graphs (' + stage.backend.toUpperCase() + ', 0 CDN)';
+    window.__SZL_ENERGY_SHOWCASE__=showcase;
+  }catch(e){
+    if(console) console.error('[energy3d] boot failed:',e);
+    mount.innerHTML='<div style="padding:24px;color:#9fb1bf;font:13px ui-monospace,monospace;text-align:center">3D unavailable on this device. All values remain available as JSON at the energy endpoints; the 2D panels above are the complete fallback.</div>';
   }
-
-  function rebuild(){
-    if(!scene)return;
-    try{
-      scene.graphs=[]; scene.spheres=[]; scene.pulses=[];
-      // GPU/serving block + router; honest sovereign label baked into the node label
-      var gpuLab=_sovereign?'GPU·SOVEREIGN':'GPU·ROADMAP';
-      scene.addGraph({nodes:[
-        {id:'router',label:'\u039b-ENGINE'},
-        {id:'gpu',label:gpuLab},
-        {id:'bek',label:'BEKENSTEIN'}
-      ],edges:[
-        {id:'e0',from:'router',to:'gpu'},
-        {id:'e1',from:'router',to:'bek'}
-      ]});
-      var lam=(typeof window.__e3dLambda==='number')?window.__e3dLambda:0.62;
-      scene.addTrustSphere({lambda:lam}); scene.setLambda(lam);
-    }catch(e){}
-  }
-  function pulse(){ if(scene){ try{ scene.signPulse('e0'); }catch(_){} } }
-
-  function refresh(){
-    getJSON(EA+'/v1/energy/budget').then(applyBudget);
-    getJSON(EA+'/code/healthz').then(applyHealthz);
-  }
-  function start(){
-    if(started)return; started=true;
-    mount.style.display='block'; offEl.style.display='none'; toggle.textContent='Disable 3D'; toggle.classList.add('active');
-    scene=window.SZLHolo.createScene(mount,{sample:false});
-    var caps=window.SZLHolo.capabilities();
-    CAP.textContent='mode:'+caps.mode+(caps.webgpu?' · webgpu-detected(ROADMAP)':'');
-    rebuild(); scene.start();
-    refresh();
-    poll=setInterval(refresh,30000);
-    anim=setInterval(pulse,3000);
-  }
-  function stop(){
-    if(!started)return; started=false;
-    mount.style.display='none'; offEl.style.display='block'; toggle.textContent='Enable 3D'; toggle.classList.remove('active');
-    if(poll)clearInterval(poll); if(anim)clearInterval(anim);
-    try{ if(scene){scene.stop();scene.dispose();} }catch(e){}
-    scene=null;
-  }
-  toggle.addEventListener('click',function(){ started?stop():start(); });
-})();
+}
+function stop(){
+  if(!started) return; started=false;
+  mount.style.display='none'; offEl.style.display='block';
+  toggle.textContent='Enable 3D'; toggle.classList.remove('active');
+  try{ if(showcase) showcase.dispose(); }catch(_){}
+  try{ if(stage) stage.dispose(); }catch(_){}
+  showcase=null; stage=null;
+}
+toggle.addEventListener('click',()=>{ started?stop():start(); });
 </script>
 
 </body>
