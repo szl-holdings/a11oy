@@ -763,6 +763,92 @@ def _html(p: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# (#8) /metrics — the per-receipt power/energy exporter panel.
+# ---------------------------------------------------------------------------
+def _measured_power_from_cert() -> dict | None:
+    """Read the REAL MEASURED avg_power_w from the latest signed physical-bounds
+    certificate (the on-metal NVML snapshot the /pinn/certificate route serves).
+
+    This is a REAL measured watt value carrying ed25519+cosign provenance — never a
+    fabricated number. Returns None if the artifact is absent or has no measured power
+    (then we stay honest: no number).
+    """
+    try:
+        import szl_pinn_bounds as _pb  # type: ignore
+        art = _pb._read_json(_pb._CERT_ARTIFACT)
+    except Exception:  # noqa: BLE001 — artifact missing / module absent => honest None
+        return None
+    if not isinstance(art, dict):
+        return None
+    cert = art.get("certificate") if isinstance(art.get("certificate"), dict) else art
+    m = cert.get("measured") if isinstance(cert, dict) and isinstance(cert.get("measured"), dict) else None
+    if not isinstance(m, dict):
+        return None
+    pw = m.get("avg_power_w_MEASURED")
+    if not isinstance(pw, (int, float)):
+        return None
+    wt = m.get("wall_time_s_MEASURED")
+    return {
+        "avg_power_w_MEASURED": float(pw),
+        "label": m.get("label", "MEASURED"),
+        "source": m.get("source"),
+        "wall_time_s_MEASURED": wt,
+        "energy_joules_DERIVED": (float(pw) * float(wt)) if isinstance(wt, (int, float)) else None,
+        "snapshot": True,
+        "note": ("Real on-metal NVML snapshot from the latest signed physical-bounds "
+                 "certificate (see /pinn/certificate). A measured FACT, not a live stream."),
+    }
+
+
+def _metrics_panel() -> dict:
+    """GET /api/{ns}/v1/energy/metrics — the per-receipt power/energy exporter panel.
+
+    Honest, deny-by-default energy exposition:
+      * live_exporter   — MEASURED watts from the on-box GPU exporter WHEN it is emitting
+        power.draw → /metrics right now; else honestly OFFLINE with no number.
+      * measured_snapshot — the REAL on-metal NVML avg_power_w from the latest signed
+        physical-bounds certificate (a measured FACT with ed25519+cosign provenance).
+      * per_receipt     — the exact joules_consumed/carbon fields spliced into every
+        signed turn receipt (MEASURED when the live exporter is fresh, else ROADMAP→None).
+
+    NEVER fabricates a watt or a joule. Λ = Conjecture 1 (advisory); NO free-energy claim.
+    """
+    state = _sovereign_state()
+    reachable = _gpu_reachable(state)
+    prom = _parse_prom(_fetch_metrics_text() or "") if reachable else {}
+    sample = _exporter_sample_from_metrics(prom) if reachable else None
+    fresh = _is_real_fresh_sample(sample)
+    live = {
+        "reachable": bool(reachable),
+        "emitting": bool(fresh),
+        "power_w": ((sample or {}).get("power_w_sample") if fresh else None),
+        "gpu_energy_joules_total": ((sample or {}).get("joules_measured_total") if fresh else None),
+        "exporter_node": (sample or {}).get("exporter_node") if sample else None,
+        "label": "MEASURED" if fresh else "OFFLINE",
+        "honesty": _joules_label(sample),
+        "evidence": _joules_evidence(sample),
+        "note": ("Live on-box GPU exporter is emitting power.draw → real MEASURED watts."
+                 if fresh else
+                 "No live power exporter emitting yet (founder action: wire nvidia-smi "
+                 "power.draw / DCGM energy counter into /metrics on the sovereign GPU). "
+                 "Until then this stays honestly OFFLINE — no fabricated number."),
+    }
+    return {
+        "model": "SZL Energy — per-receipt power/energy exporter (MEASURED via on-metal NVML)",
+        "live_exporter": live,
+        "measured_snapshot": _measured_power_from_cert(),
+        "per_receipt": energy_fields_for_receipt(),
+        "carbon": _carbon_panel(),
+        "doctrine": ("MEASURED energy comes ONLY from a real meter. joules_consumed is "
+                     "MEASURED when the live exporter is fresh, else ROADMAP/None — never "
+                     "fabricated. Λ = Conjecture 1 (advisory). NO free-energy claim."),
+        "citations": ["Watt-Counts arXiv:2604.09048", "Energy-per-Token arXiv:2603.20224",
+                      "Where-Do-Joules-Go arXiv:2601.22076"],
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Registration (additive; mirrors szl_sovereign_compute.register).
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "a11oy") -> dict:
@@ -808,6 +894,10 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _es_carbon():  # noqa: ANN202
         return JSONResponse(_carbon_panel())
 
+    @app.get("%s/metrics" % base)
+    async def _es_metrics():  # noqa: ANN202
+        return JSONResponse(_metrics_panel())
+
     @app.get("/energy", response_class=HTMLResponse)
     async def _es_panel():  # noqa: ANN202
         return HTMLResponse(_html(_posture()))
@@ -815,7 +905,7 @@ def register(app, ns: str = "a11oy") -> dict:
     return {"ok": True, "ns": ns,
             "routes": ["%s/sovereign" % base, "%s/jtoken" % base, "%s/throughput" % base,
                        "%s/kvcache" % base, "%s/gateway" % base, "%s/router" % base,
-                       "%s/carbon" % base, "/energy"]}
+                       "%s/carbon" % base, "%s/metrics" % base, "/energy"]}
 
 
 # ---------------------------------------------------------------------------
