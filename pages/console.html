@@ -14480,12 +14480,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'</tr>';
       });
       h+='</tbody></table></div>';
-      h+='<div class="brain-note">Every row is a provenance receipt (schema <code>szl.mosaic.receipt/v1</code>) from the SZL-Mosaic field detector. Detections are <b>PROVABLE</b>: each receipt is DSSE/Khipu-signable into a SHA-256 Merkle DAG. They are marked honestly <b>UNSIGNED</b> here because this Space holds no cosign key \u2014 never a fabricated signature. Confidence is a <b>bounded / split-conformal</b> interval (finite-sample), not a certainty claim (W7-4).</div></div>';
+      h+='<div class="brain-note">Every row is a provenance receipt (schema <code>szl.mosaic.receipt/v1</code>) from the SZL \u00d1awi field detector. Detections are <b>PROVABLE</b>: each receipt is DSSE/Khipu-signable into a SHA-256 Merkle DAG. They are marked honestly <b>UNSIGNED</b> here because this Space holds no cosign key \u2014 never a fabricated signature. Confidence is a <b>bounded / split-conformal</b> interval (finite-sample), not a certainty claim (W7-4).</div></div>';
 
       var srcLine = d.source==='live'
         ? 'Live from <code>/api/a11oy/v1/mosaic/governed</code> on the a11oy fabric.'
-        : 'SNAPSHOT \u2014 '+E(d.source_note||'no live SZL-Mosaic engine feed is wired into this Space.')+' Deterministic, clearly labeled (verified=false); <b>no live count or signature is fabricated</b>.';
-      h+='<div class="honesty"><b>How to read this.</b> a11oy is the <b>governance brain</b> over the SZL-Mosaic field detector \u2014 it does not detect; it <b>governs</b> the detections. '+srcLine+' '
+        : 'SNAPSHOT \u2014 '+E(d.source_note||'no live SZL \u00d1awi engine feed is wired into this Space.')+' Deterministic, clearly labeled (verified=false); <b>no live count or signature is fabricated</b>.';
+      h+='<div class="honesty"><b>How to read this.</b> a11oy is the <b>governance brain</b> over the SZL \u00d1awi field detector \u2014 it does not detect; it <b>governs</b> the detections. '+srcLine+' '
         +'The trust score <b>\u039b is Conjecture 1</b> (advisory; allow/advisory/deny is a recommendation under <b>human-on-the-loop</b>, never autonomous authority and never \u201cproven trust\u201d). '
         +'<b>Khipu BFT 3-of-4</b> multi-witness confirmation is <b>Conjecture 2 (open)</b> \u2014 it reduces single-sensor/spoof risk, it is not a proof of correctness. '
         +'Eight formulas are locked-proven (F1,F4,F7,F11,F12,F18,F19,F22); organs are EXPERIMENTAL; SLSA L1 honest / L2 build-attested / L3 roadmap. Sovereign own-metal, <b>0 runtime CDN</b>. '
@@ -14503,7 +14503,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     V['mzgov']={
       title:'Governed Anomalies',
       badge:'DOMAIN-SUPERIORITY OVERSIGHT \u00b7 \u039b ADVISORY \u00b7 KHIPU 3-OF-4',
-      sub:'a11oy as the <b>governance brain</b> over the SZL-Mosaic field detector: every anomaly with its 13-axis <b>\u039b advisory verdict</b> (allow / advisory / deny), its <b>signed-or-honestly-UNSIGNED provenance receipt</b>, and the <b>human-approval gate</b> for high-impact ROE deny advisories. A fused <b>Common-Operating-Picture</b> roll-up (tracks / anomalies / verdicts across air \u00b7 maritime \u00b7 orbital-roadmap) with <b>Khipu BFT 3-of-4</b> multi-witness confirmation. Detections are PROVABLE (DSSE/Khipu-signable), not just asserted. Honest: \u039b = Conjecture\u00a01 (advisory, never proven trust); Khipu BFT = Conjecture\u00a02 (open); confidence is bounded/conformal. Clean-room capability inspired only by the publicly described True Anomaly Mosaic.',
+      sub:'a11oy as the <b>governance brain</b> over the SZL \u00d1awi field detector: every anomaly with its 13-axis <b>\u039b advisory verdict</b> (allow / advisory / deny), its <b>signed-or-honestly-UNSIGNED provenance receipt</b>, and the <b>human-approval gate</b> for high-impact ROE deny advisories. A fused <b>Common-Operating-Picture</b> roll-up (tracks / anomalies / verdicts across air \u00b7 maritime \u00b7 orbital-roadmap) with <b>Khipu BFT 3-of-4</b> multi-witness confirmation. Detections are PROVABLE (DSSE/Khipu-signable), not just asserted. Honest: \u039b = Conjecture\u00a01 (advisory, never proven trust); Khipu BFT = Conjecture\u00a02 (open); confidence is bounded/conformal. Clean-room capability inspired only by the publicly described True Anomaly Mosaic.',
       render:async function(c){ render(c); }
     };
   }
