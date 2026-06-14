@@ -1678,7 +1678,11 @@ function arenaSignalReason(sig){
 function arenaReasonRows(r){
   if(!r||r.pass)return '';
   var sigs=(r.policy_signals||[]); if(!sigs.length)return '';
-  return sigs.map(function(s){return '<div class="row" style="padding-left:1.6rem"><span class="badge b-err">\u2298</span><span>'+esc(arenaSignalReason(s))+'</span><span class="spacer mono dim">'+esc(s)+'</span></div>';}).join('');
+  // Prefer the server-provided plain-English reason (r.reasons[], parallel to
+  // policy_signals) so the backend is the single source of truth; fall back to
+  // the local ARENA_SIGNAL_REASONS table for older payloads that predate it.
+  var srv=(r.reasons||[]);
+  return sigs.map(function(s,i){var reason=(srv[i]!=null&&srv[i]!=='')?srv[i]:arenaSignalReason(s);return '<div class="row" style="padding-left:1.6rem"><span class="badge b-err">\u2298</span><span>'+esc(reason)+'</span><span class="spacer mono dim">'+esc(s)+'</span></div>';}).join('');
 }
 async function arena_load(){try{const d=await getJSON(API+'/v1/eval-arena');
   setTxt('ar-n',d.scenarios_total??(d.results||[]).length);setTxt('ar-pass',d.scenarios_passed??'\u2014');
