@@ -678,7 +678,7 @@ async function loadStatus(){
   }).join('');
   const c=d.citations||{};
   document.getElementById('cites').innerHTML='<b>Citations:</b> '+Object.keys(c).map(k=>esc(k)+' ('+esc(c[k])+')').join(' &middot; ');
-  if(window.SZLLabels){document.getElementById('lbl').innerHTML=SZLLabels.badge?SZLLabels.badge('LIVE'):'';}
+  if(window.SZLLabels&&SZLLabels.badgeHTML){document.getElementById('lbl').innerHTML=SZLLabels.badgeHTML('LIVE');}
 }
 async function demoLedger(){show(await jpost(BASE+'/ledger',{activity:'gate.evaluate',entity:'decision-receipt',agent:'operator',session:'demo'}));}
 async function runAudit(){show(await jget(BASE+'/audit?session=demo'));}

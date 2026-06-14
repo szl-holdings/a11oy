@@ -659,7 +659,7 @@ async function verifyLast(){
   await loadBoard();
 }
 loadWorkflows();loadBoard();
-if(window.SZLLabels){document.getElementById('lbl').innerHTML=SZLLabels.badge?SZLLabels.badge('EXPERIMENTAL'):'';}
+if(window.SZLLabels&&SZLLabels.badgeHTML){document.getElementById('lbl').innerHTML=SZLLabels.badgeHTML('EXPERIMENTAL');}
 </script>
 </body></html>""").replace("__BASE__", base)
 
