@@ -63,8 +63,8 @@ COSIGN_PUB_FINGERPRINT_ENV = "SZL_COSIGN_PUB_SHA256"  # optional pin
 # /khipu/verify endpoint can verify WITHOUT a network call. This is PUBLIC data.
 COSIGN_PUBLIC_PEM = """
 -----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/Jlv9FnwJ13l4QIZpr4IbTBUtVZ2
-i+O7Jai/s7xsdXvOjmZGYhd36VxNQQahTSjWoYpPrSNhXbt/n7lsgi61xA==
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtl5xy+0MtSix5CRNrpDLnSSsrLUw
+a+am+cePik15VKZVz5tMz4OsR9MJY6QcNA5NNJibEoIToALy0KXA+XeO7g==
 -----END PUBLIC KEY-----
 """
 
