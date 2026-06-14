@@ -14,7 +14,7 @@
 //
 //   Lean theorem cited: `certifiedRobustnessRadiusBound`
 //   Lean file: Lutar/Robustness/CertifiedRadius.lean
-//   Lean commit SHA: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
+//   Lean commit SHA: b675cd84caa17080671570c153484c817f8769ac
 //   Lean status: radius positivity and monotonicity are 0-sorry;
 //                full N-P tightness has 2 sorries (sorry map documented).
 //   Severity: ENFORCED (radius below safety floor → hard deny)
@@ -78,7 +78,7 @@ export interface CertifiedRobustnessDecision {
 
 const LEAN_THEOREM = "certifiedRobustnessRadiusBound";
 const LEAN_FILE    = "Lutar/Robustness/CertifiedRadius.lean";
-const LEAN_COMMIT  = "1dca00032dfc9aa8559cc6c2e4b63192fcf52371";
+const LEAN_COMMIT  = "b675cd84caa17080671570c153484c817f8769ac";
 const FORMULA_STR  =
   "R = (σ/2)·(Φ⁻¹(p̄_A)−Φ⁻¹(p̄_B))  " +
   "[Cohen, Rosenfeld & Kolter 2019 Thm.1; arXiv:1902.02918; ICML PMLR 97:1310]";

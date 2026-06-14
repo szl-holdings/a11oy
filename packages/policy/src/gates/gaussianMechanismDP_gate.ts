@@ -14,7 +14,7 @@
 //
 //   Lean theorem cited: `gaussianNoiseSufficiency`
 //   Lean file: Lutar/DP/GaussianMechanism.lean
-//   Lean commit SHA: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
+//   Lean commit SHA: b675cd84caa17080671570c153484c817f8769ac
 //   Lean status: theorem (2 sorries in broader measure-theoretic proof;
 //                gate-level arithmetic theorem has 0 sorries)
 //   Severity: ENFORCED (calibration violation is a hard deny)
@@ -81,7 +81,7 @@ export interface GaussianMechanismDPDecision {
 
 const LEAN_THEOREM  = "gaussianNoiseSufficiency";
 const LEAN_FILE     = "Lutar/DP/GaussianMechanism.lean";
-const LEAN_COMMIT   = "1dca00032dfc9aa8559cc6c2e4b63192fcf52371";
+const LEAN_COMMIT   = "b675cd84caa17080671570c153484c817f8769ac";
 const FORMULA_STR   =
   "σ_min = Δ₂f · √(2 · ln(1.25/δ)) / ε  [Dwork-Roth 2014, §A.1; DOI:10.1561/0400000042]";
 
@@ -99,7 +99,7 @@ function computeSigmaRequired(l2_sensitivity: number, epsilon: number, delta: nu
  * noise scale satisfies the calibration formula from Dwork-Roth 2014.
  *
  * Lean theorem: `gaussianNoiseSufficiency` (Lutar/DP/GaussianMechanism.lean)
- * Commit: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
+ * Commit: b675cd84caa17080671570c153484c817f8769ac
  * References:
  *   Dwork & Roth (2014) DOI:10.1561/0400000042
  *   Balle & Wang (2018) arXiv:1805.06530
