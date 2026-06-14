@@ -143,7 +143,7 @@ _CLASSIFIERS: List[Dict[str, Any]] = [
     },
     {
         # OUR ADDITION beyond Fable's taxonomy — surfaced honestly as a WILLAY
-        # category, reusing the existing Khipu-consensus Sentra-style injection gate.
+        # category, reusing the existing Khipu-consensus injection gate.
         "category": "prompt_injection",
         "title": "Prompt-injection / governance bypass",
         "fires_on": "instructions to ignore the governor, jailbreak, or exfiltrate keys",
@@ -153,7 +153,7 @@ _CLASSIFIERS: List[Dict[str, Any]] = [
             r"jailbreak|DAN mode|developer mode|print (the |your )?(api[_ ]?key|secret|token))\b",
             re.I),
         "rationale": "WILLAY governance category (not in Fable's taxonomy). Reuses the "
-                     "23-signature injection filter pattern from Khipu consensus (Sentra gate).",
+                     "23-signature injection filter pattern from the Khipu consensus injection gate.",
         "lineage": "Khipu consensus injection filter",
     },
     {
@@ -764,10 +764,17 @@ if __name__ == "__main__":
     #     consensus witness keyids — these must be masked to neutral labels).
     import json as _json
     low = _PAGE_HTML.lower()
-    _turn_blob = (_json.dumps(t) + _json.dumps(t2) + _json.dumps(classify(cases["bio"]))).lower()
+    # Scan EVERY user-facing surface: the page, the full classifier definitions
+    # (titles/rationales/lineage), and a gated turn for each of the 5 categories
+    # (incl. khipu witness keyids). Nothing may leak an internal codename.
+    _clf_blob = _json.dumps([{k: v for k, v in c.items() if k != "rx"}
+                             for c in _CLASSIFIERS]).lower()
+    _turn_blob = _clf_blob + (_json.dumps(t) + _json.dumps(t2)).lower()
+    for _cat in cases:
+        _turn_blob += _json.dumps(gated_turn(cases[_cat], {})).lower()
     for bad in ("amaru", "rosie", "sentra", "jarvis"):
         assert bad not in low, f"codename '{bad}' must not be user-visible in the WILLAY tab"
-        assert bad not in _turn_blob, f"codename '{bad}' must not leak into any WILLAY API JSON"
+        assert bad not in _turn_blob, f"codename '{bad}' must not leak into any WILLAY API JSON/classifier"
     # 9) 0-CDN page
     assert "http://" not in low and "https://" not in low, "WILLAY tab must be 0-CDN"
     print("szl_willay_gateway: ALL OK — inverse-of-Mythos verdicts signed & shown; "
