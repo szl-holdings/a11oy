@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0  © 2026 SZL Holdings
+     /holo — SZL 3D HOLOGRAPHIC SUBSTRATE demo (a11oy).
+     Proves the shared kit (/static/shared/szl_holo3d.js) works:
+       - holographic dark-glass scene shell
+       - sample proof-DAG graph (node/edge renderer)
+       - Λ-driven TRUST SPHERE (Conjecture 1, < 1.0)
+       - SIGNED-PULSE edge animation (light flows when a receipt is signed)
+       - time-slider replay hook
+       - WebGL2 baseline / WebGPU feature-detect (ROADMAP) / honest 2D fallback
+     DOCTRINE: 0 runtime CDN (all assets same-origin) · honest SAMPLE labels ·
+     trust < 100% · 0 visible codenames · never claims live data. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SZL · Holographic Substrate</title>
+<style>
+  :root{--bg:#03060d;--panel:#0a1326;--ink:#cfe6ff;--mut:#86a4c9;--line:rgba(120,170,230,.18);}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;gap:14px;flex-wrap:wrap;}
+  header h1{font-size:15px;margin:0;letter-spacing:.06em;font-weight:600;}
+  header .sub{font-size:11px;color:var(--mut);}
+  .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:16px 20px;max-width:1200px;margin:0 auto;}
+  .stage{height:62vh;min-height:360px;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:0 0 60px rgba(40,90,160,.12) inset;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .card{border:1px solid var(--line);border-radius:14px;height:42vh;min-height:280px;overflow:hidden;position:relative;}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(10,19,38,.5);}
+  .panel h2{font-size:12px;margin:0 0 8px;letter-spacing:.06em;color:#bfe0ff;}
+  .btn{background:rgba(70,150,230,.16);border:1px solid rgba(120,180,240,.4);color:#cfe6ff;
+    border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;}
+  .btn:hover{background:rgba(70,150,230,.3);}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .mut{color:var(--mut);font-size:11px;}
+  a{color:#7fd4ff;}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <h1>SZL · 3D HOLOGRAPHIC SUBSTRATE</h1>
+  <span class="sub">vendored locally · 0 runtime CDN · WebGL2 baseline · honest 2D fallback</span>
+  <span id="caps" class="sub"></span>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>WHAT THIS PROVES</h2>
+    <div class="mut">The shared kit <code>/static/shared/szl_holo3d.js</code> renders a defense-grade
+    holographic shell with a proof-DAG graph, a Λ-driven trust sphere, and a signed-pulse edge animation.
+    All data shown is <strong>SAMPLE</strong> (illustrative fixtures, not a live feed). Λ is
+    <strong>Conjecture 1</strong> — a bounded score &lt; 1.0, not a theorem. Trust is never 100%.</div>
+  </div>
+
+  <!-- main stage: graph + trust sphere + signed pulses + time slider -->
+  <div id="stage" class="stage"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button class="btn" id="signBtn">SIGN A RECEIPT → pulse</button>
+      <button class="btn" id="lamUp">Λ +</button>
+      <button class="btn" id="lamDn">Λ −</button>
+      <span id="lamReadout" class="mut"></span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div id="globeCard" class="card"></div>
+    <div id="sphereCard" class="card"></div>
+  </div>
+
+  <div class="panel mut">
+    Build references (no runtime calls): three.js / React-Three-Fiber
+    (<a href="https://github.com/pmndrs/react-three-fiber">pmndrs/react-three-fiber</a>),
+    deck.gl (<a href="https://github.com/visgl/deck.gl">visgl/deck.gl</a>),
+    CesiumJS (<a href="https://github.com/CesiumGS/cesium">CesiumGS/cesium</a>).
+    The globe shown is a procedural <strong>SAMPLE</strong> wireframe, not a CesiumJS tile basemap
+    (a 0-CDN local-tile basemap is ROADMAP).
+  </div>
+</div>
+
+<!-- shared honesty helpers + the kit, all SAME-ORIGIN (0 CDN) -->
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_holo3d.js"></script>
+<script>
+(function () {
+  if (!window.SZLHolo) {
+    document.getElementById("stage").innerHTML =
+      '<div style="padding:20px;color:#ffd9a8">SZLHolo failed to load.</div>';
+    return;
+  }
+  var caps = window.SZLHolo.capabilities();
+  document.getElementById("caps").textContent =
+    "renderer: " + caps.mode.toUpperCase() +
+    (caps.webgpu ? " · WebGPU detected (ROADMAP)" : " · WebGPU not present");
+
+  // ---- main stage: sample proof-DAG + trust sphere + signed pulse + replay ----
+  var scene = window.SZLHolo.createScene(document.getElementById("stage"), {
+    title: "PROOF-DAG ORGANISM", lambda: 0.38
+  });
+  var graph = scene.addGraph({
+    nodes: [
+      { id: "ingest",  label: "INGEST",  pos: [-1.4, 0.9, 0] },
+      { id: "verify",  label: "VERIFY",  pos: [-0.4, 0.4, 0.5], locked: true },
+      { id: "policy",  label: "POLICY",  pos: [0.6, 0.8, -0.3], lambda: 0.3 },
+      { id: "classify",label: "CLASSIFY",pos: [0.2, -0.4, 0.6], lambda: 0.45 },
+      { id: "sign",    label: "SIGN",    pos: [1.3, -0.2, -0.2], locked: true },
+      { id: "receipt", label: "RECEIPT", pos: [1.5, 0.9, 0.4], lambda: 0.25 }
+    ],
+    edges: [
+      { id: "e1", from: "ingest",   to: "verify" },
+      { id: "e2", from: "verify",   to: "policy" },
+      { id: "e3", from: "policy",   to: "classify" },
+      { id: "e4", from: "classify", to: "sign" },
+      { id: "e5", from: "sign",     to: "receipt" }
+    ]
+  });
+  scene.addTrustSphere({ center: [-1.1, -0.7, 0.2], radius: 0.45, label: "ESTATE TRUST" });
+  scene.signPulse("e5", { loop: true, duration: 1600 });
+  scene.signPulse("e2", { loop: true, duration: 2100 });
+  scene.timeSlider({ from: 0, to: 100, onTime: function () {} });
+  scene.start();
+
+  function syncLam() {
+    document.getElementById("lamReadout").textContent =
+      "Λ = " + scene.lambda.toFixed(3) + " (Conjecture 1, < 1.0; trust < 100%)";
+  }
+  syncLam();
+  document.getElementById("signBtn").addEventListener("click", function () {
+    scene.signPulse("e4", { duration: 1200, color: "#aef6ff" });
+  });
+  document.getElementById("lamUp").addEventListener("click", function () { scene.setLambda(scene.lambda + 0.08); syncLam(); });
+  document.getElementById("lamDn").addEventListener("click", function () { scene.setLambda(scene.lambda - 0.08); syncLam(); });
+
+  // ---- globe card (procedural SAMPLE globe) ----
+  var gscene = window.SZLHolo.createScene(document.getElementById("globeCard"), {
+    title: "GLOBE · SAMPLE", lambda: 0.5
+  });
+  gscene.addGlobe({
+    radius: 1.0,
+    points: [
+      { lat: 25.3, lon: 55.3, label: "node-A", lambda: 0.3 },
+      { lat: 1.3,  lon: 103.8, label: "node-B", lambda: 0.6 },
+      { lat: 51.5, lon: -0.12, label: "node-C", lambda: 0.42 },
+      { lat: 37.8, lon: -122.4, label: "node-D", lambda: 0.2 }
+    ]
+  });
+  gscene.start();
+
+  // ---- trust sphere card (morphs with Λ) ----
+  var sscene = window.SZLHolo.createScene(document.getElementById("sphereCard"), {
+    title: "TRUST SPHERE · Λ-MORPH", lambda: 0.3
+  });
+  sscene.addTrustSphere({ center: [0, 0, 0], radius: 0.8, label: "Λ" });
+  sscene.start();
+  // gentle Λ oscillation so the morph is visible (SAMPLE animation, not live data)
+  var k = 0;
+  setInterval(function () {
+    k += 0.04;
+    sscene.setLambda(0.45 + 0.35 * Math.sin(k));
+  }, 90);
+
+  window.__SZL_HOLO_READY = true;
+})();
+</script>
+</body>
+</html>

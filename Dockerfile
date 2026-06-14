@@ -318,6 +318,12 @@ COPY web/living-anatomy.html ./web/living-anatomy.html
 # _ptg_serve. Without these COPYs the guarded import falls back and /nemo 404s.
 COPY a11oy_nemo_core.py ./
 COPY web/nemo.html ./web/nemo.html
+# ADDITIVE (Lane F1, 2026-06-14): the 3D/holographic SUBSTRATE demo page, served at
+# /holo + /a11oy/holo via _ptg_serve. Loads the shared kit /static/shared/szl_holo3d.js
+# (0 CDN). image-only like the other web/*.html demo pages (declared in
+# .github/copy-sync-lockstep.json image_only_assets; baked into the GitHub-built image,
+# live after a factory rebuild). Without this COPY /holo would 404 to the SPA shell.
+COPY web/holo.html ./web/holo.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and
@@ -757,7 +763,7 @@ COPY conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py ./
 
 # --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
 # 3 shared JS (label engine / receipt-cosign / codename sanitizer) + codename gate + ecosystem router.
-COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js ./static/shared/
+COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js ./static/shared/
 COPY szl_codename_gate.py szl_ecosystem_routes.py ./
 
 # --- GOVERNANCE / EVAL / CALIBRATION layer (Dev B, 2026-06): ADDITIVE ---

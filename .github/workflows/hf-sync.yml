@@ -60,6 +60,10 @@ on:
       - "static/shared/szl_codename_sanitizer.js"
       - "static/shared/szl_label_engine.js"
       - "static/shared/szl_receipt_cosign.js"
+      # Lane F1: the 3D/holographic substrate kit, loaded by the served /holo page.
+      # Lives in static/shared/ (outside the bulk dirs) so it is mirrored to the HF
+      # Space explicitly here AND in the front-door CATHEDRAL_FILES list below.
+      - "static/shared/szl_holo3d.js"
       # copy-sync lockstep guard (CHECK 2): the Lane A agentic core module
       # a11oy_react_core.py is per-file COPY'd in the Dockerfile and imported by
       # serve.py (serves /api/a11oy/v1/agent/react/{run,resume,trace,checkpoints}).
@@ -178,7 +182,9 @@ jobs:
           CATHEDRAL_FILES = ["cathedral.html", "static/a11oy_cathedral.js", "cathedral_genius.html", "static/cathedral_app.js",
                              # shared honesty helpers loaded by the served pages/console.html;
                              # outside the bulk dirs so mirrored explicitly (copy-sync CHECK 3).
-                             "static/shared/szl_codename_sanitizer.js", "static/shared/szl_label_engine.js", "static/shared/szl_receipt_cosign.js"]
+                             "static/shared/szl_codename_sanitizer.js", "static/shared/szl_label_engine.js", "static/shared/szl_receipt_cosign.js",
+                             # Lane F1: the 3D/holographic substrate kit (loaded by /holo).
+                             "static/shared/szl_holo3d.js"]
           patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js",
                       *CATHEDRAL_FILES]
           paths = []

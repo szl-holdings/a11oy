@@ -987,6 +987,14 @@ try:
     app.add_api_route("/hologram", _ptg_serve("hologram.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/hologram", _ptg_serve("hologram.html"), methods=["GET"], include_in_schema=False)
 
+    # /holo — SZL 3D HOLOGRAPHIC SUBSTRATE demo (Lane F1). Full-screen sovereign page
+    # that loads the shared kit /static/shared/szl_holo3d.js (0 CDN) and renders the
+    # holographic shell + a SAMPLE proof-DAG + a Lambda-driven trust sphere + a
+    # signed-pulse edge animation, all with honest SAMPLE labels. WebGL2 baseline,
+    # honest 2D fallback. Lambda = Conjecture 1 (< 1.0). 0 visible codenames.
+    app.add_api_route("/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
+
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
         return _PTG_Redirect(url="/code", status_code=302)
@@ -6771,6 +6779,8 @@ try:
         "szl_label_engine.js": _VENDOR_JS_CT,
         "szl_receipt_cosign.js": _VENDOR_JS_CT,
         "szl_codename_sanitizer.js": _VENDOR_JS_CT,
+        # Lane F1: the shared 3D/holographic substrate kit (byte-identical a11oy<->killinchu).
+        "szl_holo3d.js": _VENDOR_JS_CT,
     }
 
     @app.get("/static/shared/{fname}")
