@@ -7715,6 +7715,25 @@ async def observability_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# --- Energy Ops "Today" console (ADDITIVE; SZL Energy Dev4, Doctrine v11, 2026-06-14) ---
+# The founder's press-play operational dashboard. A big PLAY/STOP toggle drives
+# POST /api/a11oy/v1/energy/operator/{start,stop} and polls /energy/operator/status;
+# the page reads /energy/ledger (signed JouleCharge receipts), /energy/projection
+# (1-day MODELED headline), and /harvest/posture (grid price + negative-window).
+# Every value carries a MEASURED/MODELED/SAMPLE/ESTIMATE honesty chip; revenue is
+# NEVER shown MEASURED until a real charge clears; any 404/error degrades to a
+# NO-LIVE-DATA / DEGRADED state and never fabricates. 0 runtime CDN, system fonts.
+# Served from /app/pages/energy-ops.html (COPYed wholesale by `COPY pages/ ./pages/`).
+# Explicit route wins over the SPA catch-all (registered EARLY, before it).
+@app.get("/energy-ops")
+async def energy_ops_page() -> Response:
+    f = PAGES_DIR / "energy-ops.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+# --- End Energy Ops "Today" console ---
+
+
 # --- Frontier 3D Visualizations (ADDITIVE; Yachay, 2026-06-01) ---
 # Three self-contained R3F/Three.js r171 scenes (WebGPU baseline + WebGL2 fallback,
 # Kanchay tokens, real data binding). Files live under console/viz/{khipu,doctrine,router}/

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<!--
+  SZL Energy — press-play "Today" operational console (WarHacker-grade, live).
+  Doctrine v11: every value carries a MEASURED / MODELED / SAMPLE / ESTIMATE
+  honesty chip. Revenue is NEVER shown MEASURED until a real charge clears.
+  0 runtime CDN, system fonts only. Degrades to NO-LIVE-DATA on 404/error —
+  never fabricates joules, tokens, or dollars.
+
+  Reads live endpoints (Dev1/2/3 contracts):
+    POST /api/a11oy/v1/energy/operator/start    (press play)
+    POST /api/a11oy/v1/energy/operator/stop     (stop)
+    GET  /api/a11oy/v1/energy/operator/status    (node status, running flag)
+    GET  /api/a11oy/v1/energy/ledger             (signed JouleCharge receipts)
+    GET  /api/a11oy/v1/energy/projection?window=running  (1-day MODELED headline)
+    GET  /api/a11oy/v1/harvest/posture           (grid price + negative window)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SZL Energy — Today (press play)</title>
+<style>
+  /* System fonts only — 0 CDN, 0 webfont. */
+  :root {
+    --bg:#070b12; --panel:#0d141f; --panel2:#111b29; --line:#1c2a3c;
+    --ink:#e8eef7; --dim:#8aa0bd; --gold:#d4a444; --green:#34d399;
+    --red:#f87171; --amber:#fbbf24; --blue:#60a5fa; --mag:#c084fc;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+  body { padding:18px clamp(12px,3vw,34px) 60px; }
+  a { color:var(--blue); }
+  header.top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px; }
+  .brand { display:flex; align-items:baseline; gap:12px; }
+  .brand h1 { font-size:clamp(18px,2.4vw,26px); margin:0; letter-spacing:.5px; }
+  .brand .sub { color:var(--dim); font-size:13px; }
+  .conn { font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .conn b { color:var(--green); }
+  .conn.degraded b { color:var(--amber); }
+
+  /* honesty chip — 4 states (replicates szl3d_label) */
+  .chip {
+    display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700;
+    letter-spacing:.6px; padding:2px 6px; border-radius:4px; vertical-align:middle;
+    border:1px solid currentColor; line-height:1.2; text-transform:uppercase;
+  }
+  .chip-measured { color:var(--green); }
+  .chip-modeled  { color:var(--amber); }
+  .chip-sample   { color:var(--blue); }
+  .chip-estimate { color:var(--mag); }
+  .chip-zero     { color:var(--dim); }
+  .chip-degraded { color:var(--red); }
+
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(12,1fr); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card h2 { margin:0 0 10px; font-size:12px; letter-spacing:1.4px; text-transform:uppercase; color:var(--gold); font-weight:700; }
+  .span12{grid-column:span 12} .span8{grid-column:span 8} .span6{grid-column:span 6}
+  .span5{grid-column:span 5} .span4{grid-column:span 4} .span7{grid-column:span 7}
+  @media (max-width:880px){ .span4,.span5,.span6,.span7,.span8{grid-column:span 12} }
+
+  /* PRESS PLAY */
+  .playwrap { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .playbtn {
+    appearance:none; border:none; cursor:pointer; font-family:var(--sans);
+    font-weight:800; font-size:22px; letter-spacing:1px; color:#06210f;
+    background:linear-gradient(180deg,#5fe6a8,#2bb877); border-radius:14px;
+    padding:20px 34px; box-shadow:0 0 0 1px #0a3b27, 0 8px 26px rgba(52,211,153,.28);
+    transition:transform .08s ease, filter .15s ease; min-width:230px;
+  }
+  .playbtn:hover{ filter:brightness(1.06); }
+  .playbtn:active{ transform:translateY(1px); }
+  .playbtn.stop { background:linear-gradient(180deg,#ff8b8b,#e2554f); color:#2a0606; box-shadow:0 0 0 1px #5a1414, 0 8px 26px rgba(248,113,113,.28); }
+  .playbtn[disabled]{ opacity:.55; cursor:wait; }
+  .playstate { font-family:var(--mono); font-size:13px; color:var(--dim); }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; background:var(--dim); }
+  .dot.on { background:var(--green); box-shadow:0 0 8px var(--green); }
+  .dot.off{ background:var(--red); }
+
+  /* THE BIG NUMBER */
+  .bignum { font-family:var(--mono); font-weight:800; line-height:1; }
+  .bignum .val { font-size:clamp(34px,7vw,76px); color:var(--green); letter-spacing:-1px; }
+  .bignum .unit { font-size:18px; color:var(--dim); margin-left:8px; }
+  .bigrow { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+  .proj { font-family:var(--mono); font-size:clamp(15px,2.2vw,22px); color:var(--amber); }
+  .proj .pv { font-weight:800; }
+
+  .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  @media (max-width:560px){ .metrics{grid-template-columns:1fr} }
+  .metric { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .metric .k { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+  .metric .v { font-family:var(--mono); font-size:clamp(20px,3.2vw,30px); font-weight:800; }
+  .metric .lbl { margin-top:6px; }
+
+  .nodes { display:flex; gap:10px; flex-wrap:wrap; }
+  .node { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; min-width:170px; }
+  .node .nm { font-family:var(--mono); font-weight:700; }
+  .node .st { font-size:12px; color:var(--dim); margin-top:4px; }
+  .node.computing{ border-color:#1d4d39; box-shadow:0 0 0 1px #143a2a inset; }
+  .node.degraded { border-color:#5a2222; }
+
+  .grid-strip { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .grid-price { font-family:var(--mono); font-size:clamp(22px,3.6vw,34px); font-weight:800; }
+  .neg-banner {
+    display:none; align-items:center; gap:8px; padding:8px 14px; border-radius:10px;
+    background:linear-gradient(90deg,#0e2a1d,#13402b); border:1px solid #1f6b48;
+    color:var(--green); font-weight:800; font-family:var(--mono); font-size:14px;
+  }
+  .neg-banner.show{ display:inline-flex; animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.35)} }
+
+  /* RECEIPT FEED */
+  .feed { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
+  table.feed-t { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; }
+  table.feed-t th { position:sticky; top:0; background:var(--panel2); color:var(--dim); text-align:left; padding:8px 10px; font-weight:700; letter-spacing:.5px; border-bottom:1px solid var(--line); }
+  table.feed-t td { padding:7px 10px; border-bottom:1px solid #16202e; }
+  table.feed-t tr.new td { animation:flashin 1.2s ease; }
+  @keyframes flashin{ from{ background:#13402b; } to{ background:transparent; } }
+  .digest { color:var(--dim); }
+  .cents { color:var(--amber); font-weight:700; }
+
+  .empty { color:var(--dim); font-family:var(--mono); font-size:13px; padding:14px; }
+  .foot { margin-top:22px; color:var(--dim); font-size:11px; font-family:var(--mono); line-height:1.7; }
+  .foot b{ color:var(--ink); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>SZL ENERGY · <span style="color:var(--gold)">TODAY</span></h1>
+    <span class="sub">press-play operational console — every number labeled, nothing faked</span>
+  </div>
+  <div class="conn" id="conn">link <b id="conn-state">…</b> · <span id="conn-ts">—</span></div>
+</header>
+
+<div class="grid">
+
+  <!-- PRESS PLAY + THE BIG NUMBER -->
+  <section class="card span7">
+    <h2>Operator</h2>
+    <div class="playwrap">
+      <button class="playbtn" id="play" aria-pressed="false">PRESS PLAY</button>
+      <div class="playstate">
+        <div><span class="dot" id="run-dot"></span><span id="run-text">querying operator…</span></div>
+        <div id="run-detail" style="margin-top:6px;color:var(--dim)">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card span5">
+    <h2>Big number · measured joules</h2>
+    <div class="bigrow">
+      <div class="bignum"><span class="val" id="big-joules">—</span><span class="unit">J</span></div>
+      <span class="chip chip-measured" id="big-joules-chip">MEASURED</span>
+    </div>
+    <div class="proj" style="margin-top:12px">
+      1-day projection: <span class="pv" id="proj-joules">—</span> J
+      <span class="chip chip-modeled">MODELED</span>
+    </div>
+  </section>
+
+  <!-- TODAY: compute done + earnings -->
+  <section class="card span7">
+    <h2>Today · compute done &amp; earnings</h2>
+    <div class="metrics">
+      <div class="metric">
+        <div class="k">Tokens generated</div>
+        <div class="v" id="m-tokens">—</div>
+        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Jobs completed</div>
+        <div class="v" id="m-jobs">—</div>
+        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Joules</div>
+        <div class="v" id="m-joules">—</div>
+        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Earnings so-far (dry-run)</div>
+        <div class="v" id="m-earn" style="color:var(--amber)">—</div>
+        <div class="lbl"><span class="chip chip-modeled" id="m-earn-chip">MODELED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Projected · 1 day</div>
+        <div class="v" id="m-proj-earn" style="color:var(--amber)">—</div>
+        <div class="lbl"><span class="chip chip-modeled">MODELED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Real cleared revenue</div>
+        <div class="v" id="m-real" style="color:var(--dim)">$0.00</div>
+        <div class="lbl"><span class="chip chip-zero" id="m-real-chip">ZERO</span></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;color:var(--dim);font-size:11px;font-family:var(--mono)" id="earn-formula">earnings = MODELED dry-run ledger total + projection (no charge has cleared)</div>
+  </section>
+
+  <!-- NODE STATUS -->
+  <section class="card span5">
+    <h2>Nodes computing now</h2>
+    <div class="nodes" id="nodes"><div class="empty">querying operator status…</div></div>
+  </section>
+
+  <!-- GRID STRIP -->
+  <section class="card span12">
+    <h2>Grid</h2>
+    <div class="grid-strip">
+      <div>
+        <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px">Price now</div>
+        <div class="grid-price" id="grid-price">—</div>
+      </div>
+      <div><span class="chip" id="grid-chip">…</span></div>
+      <div class="neg-banner" id="neg-banner">⚡ THE GRID IS PAYING US TO COMPUTE</div>
+      <div style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--dim)" id="grid-posture">posture: —</div>
+    </div>
+  </section>
+
+  <!-- RECEIPT FEED -->
+  <section class="card span12">
+    <h2>Live receipt feed · SZL.Energy.JouleCharge.v1 <span class="chip chip-modeled" id="feed-mode">DRY-RUN</span></h2>
+    <div class="feed">
+      <table class="feed-t">
+        <thead><tr><th>time</th><th>node</th><th>joules</th><th>would-charge</th><th>digest</th></tr></thead>
+        <tbody id="feed-body"><tr><td colspan="5" class="empty">no receipts yet — press play to mint the first JouleCharge</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="foot">
+  <div><b>Honesty (Doctrine v11):</b> joules &amp; tokens are <span class="chip chip-measured">MEASURED</span> from the on-box NVML exporter. Dollars are <span class="chip chip-modeled">MODELED</span> / <span class="chip chip-estimate">ESTIMATE</span> projections — revenue is <span class="chip chip-zero">ZERO</span> until a real Stripe charge clears (then, and only then, <span class="chip chip-measured">MEASURED</span>).</div>
+  <div>No live data → panels show <span class="chip chip-degraded">DEGRADED</span> / NO-LIVE-DATA. Nothing is ever fabricated. 0 runtime CDN · system fonts.</div>
+</div>
+
+<script>
+"use strict";
+(function () {
+  var API = "/api/a11oy/v1";
+
+  // ---- honesty chip helper (4-state; replicates szl3d_label) -------------
+  var CHIP = { MEASURED:"chip-measured", MODELED:"chip-modeled", SAMPLE:"chip-sample",
+               ESTIMATE:"chip-estimate", ZERO:"chip-zero", DEGRADED:"chip-degraded" };
+  function setChip(el, label) {
+    if (!el) return;
+    var key = String(label || "DEGRADED").toUpperCase();
+    var cls = CHIP[key] || "chip-degraded";
+    el.className = "chip " + cls;
+    el.textContent = key;
+  }
+
+  // ---- live poll helper (reuses szl3d_live.poll contract if present) -----
+  // Falls back to a local implementation so the page is self-contained.
+  function getPoller() {
+    if (window.szl3d_live && typeof window.szl3d_live.poll === "function") {
+      return window.szl3d_live.poll;
+    }
+    return function (url, opts) {
+      opts = opts || {};
+      return fetch(url, { method: opts.method || "GET",
+                          headers: opts.body ? {"content-type":"application/json"} : undefined,
+                          body: opts.body })
+        .then(function (r) {
+          if (!r.ok) return { __error: true, status: r.status };
+          return r.json().catch(function () { return { __error: true, status: r.status }; });
+        })
+        .catch(function () { return { __error: true, status: 0 }; });
+    };
+  }
+  var poll = getPoller();
+
+  // ---- smooth counter (eases displayed value toward a target) ------------
+  function Counter(el, opts) {
+    opts = opts || {};
+    this.el = el; this.cur = 0; this.target = 0; this.decimals = opts.decimals || 0;
+    this.started = false;
+  }
+  Counter.prototype.set = function (v) {
+    if (typeof v !== "number" || !isFinite(v)) return;
+    this.target = v;
+    if (!this.started) { this.cur = v; this.started = true; this.render(); }
+  };
+  Counter.prototype.tick = function () {
+    if (!this.started) return;
+    var d = this.target - this.cur;
+    if (Math.abs(d) < Math.pow(10, -this.decimals) / 2) { this.cur = this.target; }
+    else { this.cur += d * 0.18; }
+    this.render();
+  };
+  Counter.prototype.render = function () {
+    this.el.textContent = fmt(this.cur, this.decimals);
+  };
+  function fmt(n, dec) {
+    if (typeof n !== "number" || !isFinite(n)) return "—";
+    return n.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+
+  var bigJoules = new Counter(document.getElementById("big-joules"), { decimals: 3 });
+  var mTokens   = new Counter(document.getElementById("m-tokens"), { decimals: 0 });
+  var mJobs     = new Counter(document.getElementById("m-jobs"), { decimals: 0 });
+  var mJoules   = new Counter(document.getElementById("m-joules"), { decimals: 1 });
+  setInterval(function () { bigJoules.tick(); mTokens.tick(); mJobs.tick(); mJoules.tick(); }, 33);
+
+  // ---- connection banner -------------------------------------------------
+  var anyLive = false;
+  function markLive(ok) {
+    anyLive = anyLive || ok;
+    var conn = document.getElementById("conn");
+    var st = document.getElementById("conn-state");
+    if (ok) { conn.classList.remove("degraded"); st.textContent = "LIVE"; }
+    else if (!anyLive) { conn.classList.add("degraded"); st.textContent = "NO-LIVE-DATA"; }
+    document.getElementById("conn-ts").textContent = new Date().toLocaleTimeString();
+  }
+
+  function isErr(d) { return !d || d.__error === true; }
+
+  // ===== OPERATOR: PLAY / STOP + status ==================================
+  var running = null; // unknown
+  var playBtn = document.getElementById("play");
+  var busy = false;
+
+  function renderRun(status) {
+    var dot = document.getElementById("run-dot");
+    var txt = document.getElementById("run-text");
+    var det = document.getElementById("run-detail");
+    if (isErr(status)) {
+      running = null; dot.className = "dot off";
+      txt.textContent = "operator DEGRADED — NO-LIVE-DATA";
+      det.innerHTML = '<span class="chip chip-degraded">DEGRADED</span> operator status unreachable';
+      playBtn.textContent = "PRESS PLAY"; playBtn.classList.remove("stop");
+      playBtn.setAttribute("aria-pressed", "false");
+      return;
+    }
+    running = (status.running === true) || (status.state === "running") || (status.status === "running");
+    dot.className = "dot " + (running ? "on" : "off");
+    if (running) {
+      txt.textContent = "RUNNING — computing non-stop";
+      playBtn.textContent = "STOP"; playBtn.classList.add("stop");
+      playBtn.setAttribute("aria-pressed", "true");
+    } else {
+      txt.textContent = "STOPPED — idle";
+      playBtn.textContent = "PRESS PLAY"; playBtn.classList.remove("stop");
+      playBtn.setAttribute("aria-pressed", "false");
+    }
+    var n = (status.nodes || status.gpus || []).length;
+    var jobs = status.jobs_running != null ? status.jobs_running : (status.active_jobs != null ? status.active_jobs : "—");
+    det.textContent = "nodes: " + n + " · active jobs: " + jobs;
+    renderNodes(status);
+  }
+
+  playBtn.addEventListener("click", function () {
+    if (busy || running === null && false) {}
+    var action = running ? "stop" : "start";
+    busy = true; playBtn.disabled = true;
+    poll(API + "/energy/operator/" + action, { method: "POST", body: "{}" })
+      .then(function (d) {
+        busy = false; playBtn.disabled = false;
+        if (isErr(d)) {
+          document.getElementById("run-detail").innerHTML =
+            '<span class="chip chip-degraded">DEGRADED</span> ' + action + " failed (operator unreachable)";
+          return;
+        }
+        // optimistic; status poll will confirm
+        running = (action === "start");
+        refreshStatus();
+      });
+  });
+
+  function refreshStatus() {
+    return poll(API + "/energy/operator/status").then(function (d) {
+      markLive(!isErr(d)); renderRun(d);
+    });
+  }
+
+  function renderNodes(status) {
+    var box = document.getElementById("nodes");
+    var nodes = status && (status.nodes || status.gpus);
+    if (!nodes || !nodes.length) {
+      // honest default: the two known reachable nodes shown as unknown/degraded
+      box.innerHTML = '<div class="empty">no node telemetry — <span class="chip chip-degraded">DEGRADED</span></div>';
+      return;
+    }
+    box.innerHTML = "";
+    nodes.forEach(function (n) {
+      var name = n.name || n.node || n.id || "node";
+      var computing = (n.computing === true) || (n.state === "computing") || (n.reachable === true && n.busy === true);
+      var reachable = n.reachable !== false;
+      var div = document.createElement("div");
+      div.className = "node " + (computing ? "computing" : (reachable ? "" : "degraded"));
+      var chip = reachable ? (computing ? '<span class="chip chip-measured">COMPUTING</span>'
+                                        : '<span class="chip chip-sample">IDLE</span>')
+                           : '<span class="chip chip-degraded">DEGRADED</span>';
+      var model = n.model ? (" · " + n.model) : "";
+      div.innerHTML = '<div class="nm">' + esc(name) + "</div>" +
+        '<div class="st">' + chip + (reachable ? (" · joules " + fmt(num(n.joules_measured || n.joules), 1)) : " · unreachable") + esc(model) + "</div>";
+      box.appendChild(div);
+    });
+  }
+
+  // ===== LEDGER: receipt feed + today totals =============================
+  var seen = {};
+  function refreshLedger() {
+    return poll(API + "/energy/ledger").then(function (d) {
+      markLive(!isErr(d));
+      var body = document.getElementById("feed-body");
+      if (isErr(d)) {
+        if (!Object.keys(seen).length)
+          body.innerHTML = '<tr><td colspan="5" class="empty"><span class="chip chip-degraded">DEGRADED</span> ledger unreachable — NO-LIVE-DATA</td></tr>';
+        return;
+      }
+      var receipts = d.receipts || d.entries || d.ledger || [];
+      var dryRunTotal = 0, anyCharged = false;
+      // dry-run mode chip
+      var mode = d.mode || (d.stripe_live ? "LIVE" : "DRY-RUN");
+      var feedMode = document.getElementById("feed-mode");
+      feedMode.textContent = mode;
+      feedMode.className = "chip " + (mode === "LIVE" ? "chip-measured" : "chip-modeled");
+
+      // render newest first
+      var rows = receipts.slice().reverse();
+      if (rows.length && body.querySelector(".empty")) body.innerHTML = "";
+      rows.forEach(function (r) {
+        var dec = r.decision || r;
+        var digest = r.payload_digest || r.digest || dec.payload_digest || "";
+        var cents = pickCents(r, dec);
+        var charge = r.charge || {};
+        if (String(charge.status) === "charged") anyCharged = true;
+        else dryRunTotal += (typeof cents === "number" ? cents : 0);
+        if (digest && seen[digest]) return;
+        if (digest) seen[digest] = true;
+        var tr = document.createElement("tr");
+        tr.className = "new";
+        var when = dec.ts || r.ts || "";
+        tr.innerHTML =
+          "<td>" + esc(shortTime(when)) + "</td>" +
+          "<td>" + esc(dec.node || r.node || "—") + "</td>" +
+          "<td>" + fmt(num(dec.joules_measured || dec.joules), 3) + "</td>" +
+          '<td class="cents">' + (typeof cents === "number" ? (cents + "¢") : "—") +
+            ' <span class="chip chip-modeled">' + (mode === "LIVE" && anyCharged ? "MODELED" : "DRY-RUN") + "</span></td>" +
+          '<td class="digest">' + esc(shortDigest(digest)) + "</td>";
+        body.insertBefore(tr, body.firstChild);
+      });
+
+      // today earnings = MODELED dry-run total
+      document.getElementById("m-earn").textContent = "$" + (dryRunTotal / 100).toFixed(2);
+      // real cleared revenue: only MEASURED if a real charge cleared
+      var realCents = num(d.cleared_revenue_cents || d.charged_cents || 0);
+      var mReal = document.getElementById("m-real");
+      mReal.textContent = "$" + (realCents / 100).toFixed(2);
+      setChip(document.getElementById("m-real-chip"), realCents > 0 ? "MEASURED" : "ZERO");
+      mReal.style.color = realCents > 0 ? "var(--green)" : "var(--dim)";
+
+      // chain integrity note (honest)
+      // (display omitted from UI chrome; integrity reflected by DEGRADED if absent)
+    });
+  }
+
+  function pickCents(r, dec) {
+    var c = r.charge || {};
+    if (typeof c.would_charge_cents === "number") return c.would_charge_cents;
+    if (typeof c.amount_cents === "number") return c.amount_cents;
+    if (dec && typeof dec.amount_cents === "number") return dec.amount_cents;
+    return null;
+  }
+
+  // ===== TODAY totals from operator status (MEASURED compute) ============
+  function refreshToday() {
+    return poll(API + "/energy/operator/status").then(function (d) {
+      if (isErr(d)) return;
+      var t = d.today || d.totals || d;
+      var tokens = num(t.tokens_measured != null ? t.tokens_measured : t.tokens);
+      var jobs = num(t.jobs_done != null ? t.jobs_done : (t.jobs != null ? t.jobs : t.jobs_completed));
+      var joules = num(t.joules_measured != null ? t.joules_measured : t.joules);
+      if (tokens != null) mTokens.set(tokens);
+      if (jobs != null) mJobs.set(jobs);
+      if (joules != null) { mJoules.set(joules); bigJoules.set(joules); }
+    });
+  }
+
+  // ===== PROJECTION: 1-day MODELED headline ==============================
+  function refreshProjection() {
+    return poll(API + "/energy/projection?window=running").then(function (d) {
+      markLive(!isErr(d));
+      var pj = document.getElementById("proj-joules");
+      var pe = document.getElementById("m-proj-earn");
+      if (isErr(d)) { pj.textContent = "—"; pe.textContent = "—"; return; }
+      var one = d.one_day || d.projection || d;
+      var joules = num(one.joules || one.joules_projected || one.joules_1d);
+      var earnCents = num(one.earnings_cents != null ? one.earnings_cents : one.amount_cents);
+      var earnDollars = earnCents != null ? earnCents / 100 : num(one.earnings_usd || one.usd);
+      pj.textContent = joules != null ? fmt(joules, 0) : "—";
+      pe.textContent = earnDollars != null ? ("$" + earnDollars.toFixed(2)) : "—";
+      if (d.formula || one.formula) {
+        document.getElementById("earn-formula").textContent =
+          "MODELED: " + String(d.formula || one.formula);
+      }
+    });
+  }
+
+  // ===== GRID: price now + negative-window indicator =====================
+  function refreshGrid() {
+    return poll(API + "/harvest/posture").then(function (d) {
+      markLive(!isErr(d));
+      var priceEl = document.getElementById("grid-price");
+      var chip = document.getElementById("grid-chip");
+      var banner = document.getElementById("neg-banner");
+      var postureEl = document.getElementById("grid-posture");
+      if (isErr(d) || d.ok === false) {
+        priceEl.textContent = "—"; setChip(chip, "DEGRADED");
+        banner.classList.remove("show"); postureEl.textContent = "posture: NO-LIVE-DATA";
+        return;
+      }
+      var price = extractPrice(d);
+      if (price == null) { priceEl.textContent = "—"; setChip(chip, "SAMPLE"); }
+      else {
+        priceEl.textContent = price.toFixed(2) + " EUR/MWh";
+        priceEl.style.color = price < 0 ? "var(--green)" : "var(--ink)";
+        // grid price reading off-box is SAMPLE per posture contract
+        setChip(chip, (d.measured_any ? "MEASURED" : "SAMPLE"));
+        banner.classList.toggle("show", price < 0);
+      }
+      postureEl.textContent = "posture: " + (d.posture || "—") +
+        (d.wasted_energy_available ? " · wasted-energy available" : "");
+    });
+  }
+
+  function extractPrice(d) {
+    if (typeof d.grid_price_eur_mwh === "number") return d.grid_price_eur_mwh;
+    if (typeof d.price_eur_mwh === "number") return d.price_eur_mwh;
+    var rs = d.readings || [];
+    for (var i = 0; i < rs.length; i++) {
+      var r = rs[i];
+      if (r && (r.feed === "price" || /price/i.test(r.feed || r.name || ""))) {
+        if (typeof r.value === "number") return r.value;
+        if (typeof r.price_eur_mwh === "number") return r.price_eur_mwh;
+        if (typeof r.marketprice === "number") return r.marketprice;
+      }
+    }
+    return null;
+  }
+
+  // ---- small utils -------------------------------------------------------
+  function num(v) { var n = typeof v === "number" ? v : parseFloat(v); return isFinite(n) ? n : null; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]; }); }
+  function shortDigest(d) { if (!d) return "—"; var h = String(d).replace(/^sha256:/, ""); return h.slice(0, 12) + "…"; }
+  function shortTime(t) { if (!t) return "—"; try { return new Date(t).toLocaleTimeString(); } catch (e) { return String(t); } }
+
+  // ---- poll loop ---------------------------------------------------------
+  function tickFast() { refreshStatus(); refreshToday(); refreshLedger(); }
+  function tickSlow() { refreshProjection(); refreshGrid(); }
+  tickFast(); tickSlow();
+  setInterval(tickFast, 3000);
+  setInterval(tickSlow, 8000);
+})();
+</script>
+</body>
+</html>
