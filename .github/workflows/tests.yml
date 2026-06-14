@@ -157,6 +157,27 @@ jobs:
         # is not an importable package.
         run: python3 scripts/test_validate_theorem_runtime_manifest.py
 
+  theorem-manifest-real-validate:
+    name: Theorem-manifest validator runs against the REAL manifest (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Validate committed docs/theorem-runtime-manifest.json with the real validator
+        # The honesty-guard self-test above proves the validator's RULES work against
+        # tampered fixtures, but nothing ran the validator against the REAL committed
+        # manifest — so a dishonest/malformed docs/theorem-runtime-manifest.json could
+        # still merge unnoticed. This job applies the guard: it runs the validator from
+        # the repo root (REPO_ROOT = cwd; default --manifest = docs/theorem-runtime-manifest.json)
+        # and fails the build on any non-zero exit (invalid claimStatus, duplicate id,
+        # missing runtime/export/test path, or a staged-advisory promoted past its caveat).
+        # Pure stdlib (json + pathlib), no network, no deps.
+        run: python3 scripts/validate_theorem_runtime_manifest.py
+
   release-receipt-tamper-rejection:
     name: Release-receipt tamper-rejection integration test (real Sigstore verify)
     runs-on: ubuntu-latest
