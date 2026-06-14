@@ -12338,7 +12338,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   window.renderOuroSpiral=function(c){
     c.innerHTML='<div class="kpis">'
-      +'<div class="kpi"><div class="k">Agents / tracks</div><div class="v teal" id="ous-n">\u2014</div><div class="d">from live command-log</div></div>'
+      +'<div class="kpi"><div class="k">Agents / tracks</div><div class="v teal" id="ous-n">\u2014</div><div class="d">from /reason/loop-depth</div></div>'
       +'<div class="kpi"><div class="k">Mean depth R</div><div class="v" id="ous-r">\u2014</div><div class="d">loop-depth (proxy)</div></div>'
       +'<div class="kpi"><div class="k">Max depth R</div><div class="v" id="ous-rmax">\u2014</div><div class="d">deepest deliberation</div></div>'
       +'<div class="kpi"><div class="k">Depth source</div><div class="v warn" id="ous-src">\u2014</div><div class="d">metadata vs proxy</div></div></div>'
@@ -12353,7 +12353,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +(window.HONEST||'');
     (function(){
       function run(){
-        getPublic('/api/a11oy/v2/operator/command-log',12000).then(function(cl){
+        getPublic('/api/a11oy/v1/reason/loop-depth',12000).then(function(cl){
           var recs=(cl.receipts||[]).slice(-120);
           var host=E('ous-gl'); if(!host) return;
           if(!recs.length){ host.innerHTML='<div class="row mono dim" style="padding:1rem">no receipts emitted in this runtime yet \u2014 no reasoning tracks to spiral (honest empty state)</div>';
@@ -12454,7 +12454,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   window.renderAbacusManifold=function(c){
     c.innerHTML='<div class="kpis">'
-      +'<div class="kpi"><div class="k">Routing decisions</div><div class="v teal" id="abm-n">\u2014</div><div class="d">live command-log</div></div>'
+      +'<div class="kpi"><div class="k">Routing decisions</div><div class="v teal" id="abm-n">\u2014</div><div class="d">from /chaski/routing-graph</div></div>'
       +'<div class="kpi"><div class="k">With numeric fields</div><div class="v" id="abm-num">\u2014</div><div class="d">cost / quality / latency</div></div>'
       +'<div class="kpi"><div class="k">Digit-place bins</div><div class="v" id="abm-bins">\u2014</div><div class="d">ones / tens / hundreds (ms)</div></div>'
       +'<div class="kpi"><div class="k">\u03bb (cost\u2194quality)</div><div class="v" id="abm-lam">0.50</div><div class="d">envelope weight</div></div></div>'
@@ -12475,7 +12475,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var sl=E('abm-slider'); if(sl){ sl.addEventListener('input', function(){ setLambda((+sl.value)/100); }); }
     (function(){
       function run(){
-        getPublic('/api/a11oy/v2/operator/command-log',12000).then(function(cl){
+        getPublic('/api/a11oy/v1/chaski/routing-graph',12000).then(function(cl){
           var recs=(cl.receipts||[]); H('abm-n', recs.length);
           var host=E('abm-gl'); if(!host) return;
           var parsed=[]; recs.forEach(function(r){ var p=pluck(r); if(p.cost!=null||p.q!=null||p.lat!=null) parsed.push(p); });
@@ -12639,7 +12639,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   window.renderConsensusBasin=function(c){
     c.innerHTML='<div class="kpis">'
-      +'<div class="kpi"><div class="k">Receipts in DAG</div><div class="v teal" id="cb-n">\u2014</div><div class="d">live command-log</div></div>'
+      +'<div class="kpi"><div class="k">Receipts in DAG</div><div class="v teal" id="cb-n">\u2014</div><div class="d">from /consensus/votes</div></div>'
       +'<div class="kpi"><div class="k">Finalized (floor)</div><div class="v teal" id="cb-fin">\u2014</div><div class="d">convergence \u2265 0.85</div></div>'
       +'<div class="kpi"><div class="k">Pending (rim)</div><div class="v warn" id="cb-pen">\u2014</div><div class="d">still settling</div></div>'
       +'<div class="kpi"><div class="k">Convergence source</div><div class="v warn" id="cb-src">\u2014</div><div class="d">votes vs depth proxy</div></div></div>'
@@ -12654,7 +12654,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +(window.HONEST||'');
     (function(){
       function run(){
-        getPublic('/api/a11oy/v2/operator/command-log',12000).then(function(cl){
+        getPublic('/api/a11oy/v1/consensus/votes',12000).then(function(cl){
           var recs=(cl.receipts||[]).slice(-90);
           var host=E('cb-gl'); if(!host) return;
           H('cb-n', recs.length);
@@ -12772,7 +12772,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +'<div class="kpi"><div class="k">Source</div><div class="v teal" style="font-size:13px">arXiv:2502.06857</div><div class="d">published Gemstones data</div></div>'
       +'<div class="kpi"><div class="k">Grid</div><div class="v">'+WIDTHS.length+'\u00d7'+DEPTHS.length+'</div><div class="d">width \u00d7 depth shapes</div></div>'
       +'<div class="kpi"><div class="k">Router shape</div><div class="v warn" id="gem-rs">'+ROUTER_SAMPLE.width+'w / '+ROUTER_SAMPLE.depth+'L</div><div class="d">width/depth SAMPLE</div></div>'
-      +'<div class="kpi"><div class="k">Live router</div><div class="v teal" id="gem-fleet-k">\u2026</div><div class="d">/router/stats LIVE</div></div>'
+      +'<div class="kpi"><div class="k">Live router</div><div class="v teal" id="gem-fleet-k">\u2026</div><div class="d">/router/metrics LIVE</div></div>'
       +'<div class="kpi"><div class="k">\u03bb (width\u2194depth)</div><div class="v" id="gem-lam">0.50</div><div class="d">objective tilt</div></div></div>'
       +'<div class="card"><div class="card-h"><span class="card-t">Scaling frontier \u2014 loss vs (width, depth) for router sizing</span>'
       +'<span class="card-ep">echarts-gl surface3D (Apache-2.0, vendored) \u00b7 Gemstones arXiv:2502.06857 \u00b7 0 runtime CDN</span></div>'
@@ -12794,7 +12794,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     // best-effort: if the command-log later exposes a routing-quality metric, we keep the
     // SAMPLE label honest (we do NOT fabricate a live point). Poll only to keep the badge fresh.
     (function(){
-      function run(){ try{ getPublic('/api/a11oy/v1/router/stats',12000).then(function(j){ var el1=document.getElementById('gem-fleet'), elk=document.getElementById('gem-fleet-k'); if(!j||!j.routes){ if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; return; } var rows=j.routes.map(function(r){ return (r.organ||'?')+' '+(r.tier||'')+' \u00b7 '+(r.model||'?')+' \u00b7 '+(r.throughput!=null?r.throughput+' tok/s':'')+' \u00b7 '+(r.license||''); }); if(el1) el1.innerHTML='<b>LIVE</b> /router/stats ('+esc(j.mode||'')+') \u2014 '+j.routes.length+' tiers: '+esc(rows.join('  |  ')); if(elk) elk.textContent=j.routes.length+' tiers'; }).catch(function(){ var el1=document.getElementById('gem-fleet'); if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; }); }catch(e){} }
+      function run(){ try{ getPublic('/api/a11oy/v1/router/metrics',12000).then(function(j){ var el1=document.getElementById('gem-fleet'), elk=document.getElementById('gem-fleet-k'); if(!j||!j.routes){ if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; return; } var rows=j.routes.map(function(r){ return (r.organ||'?')+' '+(r.tier||'')+' \u00b7 '+(r.model||'?')+' \u00b7 '+(r.throughput!=null?r.throughput+' tok/s':'')+' \u00b7 '+(r.license||''); }); if(el1) el1.innerHTML='<b>'+esc((j.data_kind||'live').toUpperCase())+'</b> /router/metrics ('+esc(j.mode||'')+') \u2014 '+j.routes.length+' tiers: '+esc(rows.join('  |  ')); if(elk) elk.textContent=j.routes.length+' tiers'; }).catch(function(){ var el1=document.getElementById('gem-fleet'); if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; }); }catch(e){} }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
   };

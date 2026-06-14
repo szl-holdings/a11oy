@@ -4966,6 +4966,176 @@ async def a11oy_command_log_v2() -> JSONResponse:
     return JSONResponse(_a11oy_build_chain(24))
 
 
+# ===========================================================================
+# ADDITIVE (Research-3D live wiring, Forge 2026-06-14): four dedicated, HONEST
+# data endpoints, one per Research-3D console tab (ouro_spiral, abacus_manifold,
+# consensus_basin, gemstones_frontier). Each is a SUPERSET of what the tab
+# already consumed (so the frontend is a URL swap, not a rewrite) and carries a
+# server-attested `data_kind` provenance field:
+#     live   -> derived from a real in-process producer (live router catalog)
+#     proxy  -> a clearly-labelled structural heuristic over REAL receipts
+#     sample -> derived, no live per-receipt telemetry in this image
+# NO fabricated data. Lambda = Conjecture 1; Khipu BFT = Conjecture 2; locked-
+# proven stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}. The deterministic
+# in-image receipt chain carries no loop_depth / vote / round metadata, so the
+# loop-depth + consensus endpoints serve an HONEST proxy that AUTO-UPGRADES to
+# `live` the moment those fields are emitted. Registered BEFORE the SPA/proxy
+# catch-all (/{full_path:path}); stdlib-only; fail-safe.
+# ===========================================================================
+_R3D_LOCKED8 = "{F1,F4,F7,F11,F12,F18,F19,F22}"
+
+def _r3d_chain(n: int = 50) -> dict:
+    try:
+        return _a11oy_build_chain(n)
+    except Exception:
+        return {"depth": 0, "chain_verified": False, "receipts": []}
+
+def _r3d_loop_meta(r: dict):
+    for k in ("loop_depth", "loop", "R", "ut_step"):
+        v = r.get(k)
+        if v is not None:
+            return v
+    return None
+
+def _r3d_router_metrics_payload() -> dict:
+    rs = _a11oy_router_stats_payload()
+    routes = rs.get("routes", [])
+    return {
+        "data_kind": "live",
+        "mode": rs.get("mode", "live"),
+        "routes": routes,
+        "tiers": routes,
+        "servedThisWindow": rs.get("servedThisWindow", 0),
+        "width_depth_available": False,
+        "source": rs.get("source", ""),
+        "doctrine": "v11",
+        "honesty": ("Live per-tier throughput / model / license from the real router "
+                    "catalog. Model width/depth shape is NOT measured in this image, so any "
+                    "width/depth scaling point stays a clearly-labelled SAMPLE. "
+                    "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
+    }
+
+def _r3d_routing_graph_payload() -> dict:
+    rs = _a11oy_router_stats_payload()
+    routes = rs.get("routes", [])
+    nodes = [{"id": r.get("tier", "T%d" % i), "organ": r.get("organ", ""),
+              "model": r.get("model", ""), "throughput": r.get("throughput", 0),
+              "license": r.get("license", "")} for i, r in enumerate(routes)]
+    edges = [{"source": routes[i].get("tier"), "target": routes[i + 1].get("tier")}
+             for i in range(len(routes) - 1)]
+    ch = _r3d_chain(50)
+    return {
+        "data_kind": "live",
+        "mode": rs.get("mode", "live"),
+        "nodes": nodes,
+        "edges": edges,
+        "routes": routes,
+        "receipts": ch.get("receipts", []),
+        "source": rs.get("source", ""),
+        "surface": ("GraphRouter routing-envelope score s = lambda*e_hat - (1-lambda)*c_hat "
+                    "is a DERIVED heuristic, never a measured loss"),
+        "doctrine": "v11",
+        "honesty": ("Routing nodes/edges are the LIVE /router/stats per-tier catalog (real "
+                    "organ -> tier -> model escalation path); receipts are the real in-image "
+                    "chain. The manifold surface is a derived heuristic, never a measured loss. "
+                    "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
+    }
+
+def _r3d_loop_depth_payload() -> dict:
+    ch = _r3d_chain(50)
+    recs = ch.get("receipts", [])
+    has_meta = any(_r3d_loop_meta(r) is not None for r in recs)
+    agg = {}
+    for r in recs:
+        track = r.get("caller") or r.get("kind") or "agent"
+        slot = agg.setdefault(track, {"count": 0, "meta": None})
+        slot["count"] += 1
+        mv = _r3d_loop_meta(r)
+        if mv is not None:
+            slot["meta"] = mv
+    tracks = []
+    for k in sorted(agg):
+        slot = agg[k]
+        live_track = has_meta and slot["meta"] is not None
+        tracks.append({
+            "agent": k,
+            "depth": slot["meta"] if live_track else slot["count"],
+            "source": "loop_depth metadata" if live_track else "receipt-density proxy",
+        })
+    return {
+        "data_kind": "live" if has_meta else "proxy",
+        "hasMeta": has_meta,
+        "tracks": tracks,
+        "receipts": recs,
+        "depth": ch.get("depth", len(recs)),
+        "chain_verified": ch.get("chain_verified", False),
+        "doctrine": "v11",
+        "honesty": ("Reasoning loop-depth R is read from receipt loop_depth metadata when "
+                    "present (live); receipts in this image carry none, so R is a clearly-"
+                    "labelled DEPTH PROXY from per-track receipt density -- a structural "
+                    "heuristic, never a measured latent-reasoning depth. Auto-upgrades to live "
+                    "when loop_depth is emitted. Lambda = Conjecture 1; locked-proven stays "
+                    "exactly 8 " + _R3D_LOCKED8 + "."),
+    }
+
+def _r3d_consensus_votes_payload() -> dict:
+    ch = _r3d_chain(50)
+    recs = ch.get("receipts", [])
+    has_votes = any((r.get("votes") is not None or r.get("round") is not None) for r in recs)
+    n = len(recs)
+    out = []
+    for idx, r in enumerate(recs):
+        z = (idx + 1) / n if n else 0.0
+        out.append({
+            "seq": r.get("seq", idx),
+            "kind": r.get("kind", ""),
+            "hash": r.get("hash", ""),
+            "prev_hash": r.get("prev_hash", ""),
+            "converged": idx >= n - 1,
+            "z": round(z, 4),
+            "source": "vote/round metadata" if has_votes else "chain-depth proxy",
+        })
+    return {
+        "data_kind": "live" if has_votes else "sample",
+        "chain_verified": ch.get("chain_verified", False),
+        "receipts": out,
+        "quorum": {"n": 4, "f": 1, "rule": "3-of-4 (n >= 3f+1)",
+                   "status": "Conjecture 2 (Khipu BFT) -- structural heuristic, NOT a BFT proof"},
+        "doctrine": "v11",
+        "honesty": ("Receipts in this image carry no per-receipt vote/round metadata, so the "
+                    "convergence Z is a clearly-labelled chain-depth PROXY over the REAL "
+                    "prev_hash chain (F4 acyclicity, F22 layer order). Auto-upgrades to live "
+                    "vote/round when emitted. Khipu BFT = Conjecture 2; Lambda = Conjecture 1; "
+                    "locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
+    }
+
+@app.get("/api/a11oy/v1/router/metrics")
+@app.get("/v1/router/metrics")
+async def _r3d_router_metrics() -> JSONResponse:
+    return JSONResponse(_r3d_router_metrics_payload())
+
+@app.get("/api/a11oy/v1/chaski/routing-graph")
+@app.get("/v1/chaski/routing-graph")
+@app.get("/api/chaski/routing-graph")
+async def _r3d_routing_graph() -> JSONResponse:
+    return JSONResponse(_r3d_routing_graph_payload())
+
+@app.get("/api/a11oy/v1/reason/loop-depth")
+@app.get("/v1/reason/loop-depth")
+async def _r3d_loop_depth() -> JSONResponse:
+    return JSONResponse(_r3d_loop_depth_payload())
+
+@app.get("/api/a11oy/v1/consensus/votes")
+@app.get("/v1/consensus/votes")
+async def _r3d_consensus_votes() -> JSONResponse:
+    return JSONResponse(_r3d_consensus_votes_payload())
+
+print("[a11oy] research-3d endpoints registered BEFORE proxy: /api/a11oy/v1/"
+      "{router/metrics,chaski/routing-graph,reason/loop-depth,consensus/votes}",
+      file=sys.stderr)
+
+
+
 @app.get("/api/a11oy/v1/ledger")
 async def a11oy_ledger_v2() -> JSONResponse:
     ch = _a11oy_build_chain(24)
