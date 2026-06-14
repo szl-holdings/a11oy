@@ -3921,6 +3921,59 @@ except Exception as _a11oy_nav_e:
 # ── end NAV WIRE-UP (QA10) ──
 
 # ===========================================================================
+# WILLAY — the GOVERNED INVERSE of Anthropic's Fable 5 / Mythos 5 split.
+# ---------------------------------------------------------------------------
+# Anthropic shipped Fable 5 (capable model WITH safety classifiers that decline)
+# and Mythos 5 (SAME capability, classifiers REMOVED, hidden chain-of-thought,
+# limited Project Glasswing access). We do NOT clone Mythos. WILLAY is the honest
+# inverse: where Mythos REMOVES the governor and HIDES the reasoning, WILLAY makes
+# the safety/governance verdict INSPECTABLE and SIGNED — "they hide the governor;
+# we sign and show it." Every model call routed through a11oy passes inspectable
+# classifiers built on the EXISTING Restraint gate + Constitution + Khipu 3-of-4
+# consensus; the verdict AND its reasoning are returned as a SIGNED DSSE receipt.
+# Adopts (interface patterns only, fair game) the public Fable/Mythos API
+# ergonomics: refusal as a SUCCESSFUL non-billed 200 with stop_reason="refusal",
+# adaptive effort / task budgets, the memory tool, context compaction — wired into
+# a11oy-Code's API surface honestly (the gateway gates + signs; it does not itself
+# run a model). A WILLAY /console tab shows: request -> verdict (allow/decline +
+# reason) -> signed receipt -> which model served it. 0 CDN, holo-kit vendored
+# locally. Doctrine: locked=8 @ c7c0ba17; Λ = Conjecture 1; Khipu = Conjecture 2;
+# trust NEVER 100% (tamper-evident, fallible by design); no visible codenames;
+# never weakens a gate. Mounts BEFORE the SPA catch-all; try/except-guarded so a
+# missing dep can NEVER take the Space down.
+#   GET  /willay                          — the WILLAY operator tab
+#   GET  /api/a11oy/v1/willay/classifiers — the inspectable classifier set
+#   POST /api/a11oy/v1/willay/inspect     — classify a request -> verdict + reasons
+#   POST /api/a11oy/v1/willay/messages    — Fable-shaped gated turn (refusal => 200)
+#   GET  /api/a11oy/v1/willay/receipts    — last N signed verdict receipts (audit)
+#   POST /api/a11oy/v1/willay/verify      — verify a signed WILLAY receipt
+#   GET  /api/a11oy/v1/willay/doctrine    — doctrine + honesty self-statement
+# ===========================================================================
+try:
+    import szl_willay_gateway as _szl_willay
+    _willay_status = _szl_willay.register(app, ns="a11oy")
+    print(f"[a11oy] WILLAY safety gateway registered: {_willay_status['registered']} "
+          f"(classifiers: {_willay_status['classifiers']}, trust_ceiling="
+          f"{_willay_status['trust_ceiling']} <1.0 by doctrine) — governed inverse of "
+          f"Mythos: verdicts signed & shown, refusal-as-200", file=sys.stderr)
+except Exception as _willay_e:
+    import traceback as _willay_tb
+    print(f"[a11oy] WILLAY safety gateway NOT registered: {_willay_e!r}; SPA + API "
+          f"unaffected", file=sys.stderr)
+    _willay_tb.print_exc()
+try:
+    import a11oy_willay_nav as _a11oy_willay_nav
+    _willay_nav_status = _a11oy_willay_nav.register(app, ns="a11oy")
+    print(f"[a11oy] WILLAY nav wire-up registered: {_willay_nav_status['registered']} "
+          f"(tab: {_willay_nav_status['tab_route']}) — idempotent, additive, /console "
+          f"SPA source NOT edited", file=sys.stderr)
+except Exception as _willay_nav_e:
+    import traceback as _willay_nav_tb
+    print(f"[a11oy] WILLAY nav wire-up NOT registered: {_willay_nav_e!r}", file=sys.stderr)
+    _willay_nav_tb.print_exc()
+# ── end WILLAY (governed inverse of Mythos) ──
+
+# ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
