@@ -55,9 +55,10 @@ The arena ALSO persists a capped ring buffer of recorded run summaries
 (`/api/a11oy/v1/eval-arena/history`), and the console renders a trend strip from
 it. A degraded recorded run could surface an all-green history strip even when
 the live run is fine — the same blind spot, one layer removed. `--recorded`
-loads the most recent recorded summary from the in-image ring (running ONE real
-live eval to seed it the legitimate way if the ring is empty), normalizes that
-summary into the validator's shape, and runs the SAME `validate_run()` over it.
+loads EVERY recorded summary from the in-image ring (running ONE real live eval
+to seed it the legitimate way if the ring is empty), normalizes each summary into
+the validator's shape, and runs the SAME combined `validate()` over EVERY one —
+validating only the latest would miss a degraded EARLIER run.
 If the history is genuinely empty (no run could be recorded), it SKIPS with a
 soft pass — it never fabricates a summary.
 
@@ -65,7 +66,7 @@ Usage
 -----
   python3 scripts/check_eval_arena_negative_control.py            # real live run
   python3 scripts/check_eval_arena_negative_control.py --json     # + dump summary
-  python3 scripts/check_eval_arena_negative_control.py --recorded # latest recorded run
+  python3 scripts/check_eval_arena_negative_control.py --recorded # ALL recorded runs
   python3 scripts/check_eval_arena_negative_control.py --selftest # validator tests
 
 Self-test feeds the pure validator synthetic runs (all-pass, all-fail-no-signals,
@@ -333,6 +334,25 @@ def _pick_latest_recorded(runs):
     return runs[-1]
 
 
+def _validate_recorded_runs(runs):
+    """Pure batch validator over a history `runs` list: run the combined
+    `validate()` on EVERY recorded summary and return (ok, problems).
+
+    Validating only the latest run (see `_pick_latest_recorded`) would miss a
+    degraded EARLIER run that still renders a cell in the console trend strip —
+    the exact blind spot this guard closes. A single failing run ANYWHERE in the
+    ring fails the batch. An empty list is a soft pass (the caller decides
+    whether an empty ring should SKIP). No I/O, no fabrication.
+    """
+    problems: list[str] = []
+    for idx, rec in enumerate(runs or []):
+        ok, probs = validate(_normalize_recorded_run(rec))
+        if not ok:
+            rid = (rec.get("run_id") if isinstance(rec, dict) else None) or ("index %d" % idx)
+            problems.extend("[recorded run %s] %s" % (rid, p) for p in probs)
+    return (len(problems) == 0), problems
+
+
 def _run_real_live() -> dict:
     """Import serve.py (the real image module) and run the live eval."""
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -554,6 +574,34 @@ def _selftest() -> int:
             failures += 1
         print("  [%s] %s" % (status, name))
 
+    # ---- all-recorded-runs path: a degraded run ANYWHERE fails the batch -----
+    # The property this task adds. Validating only the LATEST recorded run would
+    # green-light a history whose newest cell is fine but an EARLIER cell dropped
+    # its negative control or had a guard stop firing. _validate_recorded_runs
+    # must catch a degraded run at ANY position in the ring.
+    all_runs_good = [good_recorded, good_recorded]
+    all_runs_early_degraded = [degraded_recorded_no_signals, good_recorded]
+    all_runs_late_degraded = [good_recorded, degraded_recorded_stopped]
+    all_runs_mixed = [good_recorded, degraded_recorded_no_signals, good_recorded]
+    allrec_cases = [
+        ("all-recorded: every run good is accepted", all_runs_good, True),
+        ("all-recorded: a degraded EARLIER run (latest good) is rejected",
+         all_runs_early_degraded, False),
+        ("all-recorded: a degraded LATEST run is rejected",
+         all_runs_late_degraded, False),
+        ("all-recorded: a degraded MIDDLE run is rejected",
+         all_runs_mixed, False),
+        ("all-recorded: empty history is a soft pass (caller skips)", [], True),
+    ]
+    for name, _runs, expect_ok in allrec_cases:
+        ok, problems = _validate_recorded_runs(_runs)
+        status = "PASS" if ok == expect_ok else "FAIL"
+        if ok != expect_ok:
+            failures += 1
+        print("  [%s] %s (validator ok=%s, expected ok=%s)%s"
+              % (status, name, ok, expect_ok,
+                 "" if ok == expect_ok else " :: " + "; ".join(problems)))
+
     if failures:
         print("\nself-test FAILED: validator is not enforcing the contract.",
               file=sys.stderr)
@@ -564,8 +612,8 @@ def _selftest() -> int:
 
 
 def _check_recorded(argv_json: bool = False) -> int:
-    """Load the latest RECORDED eval-arena run from the in-image history ring and
-    validate it with the same validator used for the live run.
+    """Load EVERY RECORDED eval-arena run from the in-image history ring and
+    validate each one with the same validator used for the live run.
 
     The ring is seeded by real live runs. In a fresh CI checkout it starts
     empty, so we perform ONE genuine live eval (which legitimately appends a
@@ -594,36 +642,50 @@ def _check_recorded(argv_json: bool = False) -> int:
               file=sys.stderr)
         return 2
 
-    latest = _pick_latest_recorded(runs)
-    if latest is None:
+    if not runs:
         print("Recorded eval-arena history is empty — no recorded run to "
               "validate. SKIPPING (soft pass; nothing fabricated).")
         return 0
 
-    normalized = _normalize_recorded_run(latest)
-    ok, problems = validate(normalized)
-
-    results = normalized.get("results") or []
-    print("Latest recorded eval-arena run: %s (%s) — %s scenarios"
-          % (latest.get("run_id"), latest.get("timestamp"), len(results)))
-    for r in results:
-        print("  - %-38s overall=%-9s pass=%-5s signals=%s"
-              % (r.get("scenario"), r.get("overall"), r.get("pass"),
-                 r.get("policy_signals")))
+    # Validate EVERY recorded run in the ring, not just the latest: a degraded
+    # run ANYWHERE in the history still paints a cell in the console trend strip,
+    # so the guard must fail if ANY recorded run fails the contract. (Validating
+    # only _pick_latest_recorded() would green-light a degraded EARLIER run.)
+    ok, problems = _validate_recorded_runs(runs)
+    failed_ids = []
+    for idx, rec in enumerate(runs):
+        normalized = _normalize_recorded_run(rec)
+        rok, _rp = validate(normalized)
+        results = normalized.get("results") or []
+        rid = (rec.get("run_id") if isinstance(rec, dict) else None) or ("index %d" % idx)
+        if not rok:
+            failed_ids.append(rid)
+        print("Recorded eval-arena run [%d/%d]: %s (%s) — %s scenarios%s"
+              % (idx + 1, len(runs), rid,
+                 (rec.get("timestamp") if isinstance(rec, dict) else None),
+                 len(results), "" if rok else "  <-- FAILED"))
+        for r in results:
+            print("  - %-38s overall=%-9s pass=%-5s signals=%s"
+                  % (r.get("scenario"), r.get("overall"), r.get("pass"),
+                     r.get("policy_signals")))
 
     if argv_json:
-        print(json.dumps({"run_id": latest.get("run_id"),
-                          "timestamp": latest.get("timestamp"),
-                          "results": results}, indent=2))
+        print(json.dumps(
+            [{"run_id": (rec.get("run_id") if isinstance(rec, dict) else None),
+              "timestamp": (rec.get("timestamp") if isinstance(rec, dict) else None),
+              "results": _normalize_recorded_run(rec).get("results") or []}
+             for rec in runs], indent=2))
 
     if not ok:
         for p in problems:
             print("::error::eval-arena recorded-run guard: %s" % p, file=sys.stderr)
+        print("\n%d of %d recorded run(s) FAILED the guard: %s"
+              % (len(failed_ids), len(runs), ", ".join(failed_ids)), file=sys.stderr)
         return 1
 
-    print("\nGuard OK: the latest RECORDED run keeps a passing example AND a "
+    print("\nGuard OK: ALL %d recorded run(s) keep a passing example AND a "
           "policy-rejected negative control (the history trend strip cannot go "
-          "silently all-green).")
+          "silently all-green at ANY point)." % len(runs))
     return 0
 
 
@@ -632,8 +694,8 @@ def main(argv=None) -> int:
     ap.add_argument("--selftest", action="store_true",
                     help="run the pure-validator fixtures and exit")
     ap.add_argument("--recorded", action="store_true",
-                    help="validate the latest RECORDED eval-arena run from the "
-                         "history ring (soft-skips on empty history)")
+                    help="validate EVERY RECORDED eval-arena run in the history "
+                         "ring (soft-skips on empty history)")
     ap.add_argument("--json", action="store_true",
                     help="print the run summary as JSON")
     args = ap.parse_args(argv)
