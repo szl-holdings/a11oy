@@ -23,6 +23,12 @@
 # kept on purpose — the two demos are NOT meant to be byte-identical here, so they
 # are documented rather than force-synced.
 
+# 2026-06-14 reconciliation pass (frontier shared-drift fix): a11oy_code_engine.py
+#   (a11oy canonical 353c8017 locked-5->8) and szl_provenance.py (killinchu canonical
+#   deae62de additive Rekor/cited-proofs) were synced to a single byte-identical copy in
+#   BOTH repos and removed from this list. szl_dsse.py rotated cosign key (a11oy d13df64c)
+#   synced killinchu->canonical; it was never allow-listed (enforced identical).
+
 # --- Organ-naming consolidation: a11oy uses the new Operator/Policy/Reasoning
 #     vocabulary; killinchu still uses the legacy Rosie/Sentra/Amaru codenames.
 #     A staged, multi-repo rename across live cosign-signed organs — do NOT
@@ -31,7 +37,6 @@ szl_alloy_models.py        # operator_mirrored (a11oy) vs rosie_mirrored (killin
 szl_llm_registry.py        # Operator/Policy/Reasoning (a11oy) vs Rosie/Sentra/Amaru (killinchu)
 
 # --- App-specific feature sets: each demo ships features the other does not.
-a11oy_code_engine.py       # a11oy-only HF-router roster + multi-name token detection for the Code tab
 operator_shell_v4.py       # killinchu-only POST /inbox drone-telemetry handler (P2 spec)
 live_wires_3d.js           # killinchu-only SISTER_LABELS honest organ-name render layer
 szl_khipu_consensus.py     # killinchu-only honest theorem-provenance / lake_receipt on consensus payloads
@@ -41,7 +46,6 @@ szl_evidence_research.py   # killinchu-only finance/real-estate/risk vertical CL
 # 2026-06-10: szl_brain.py and szl_formulas.py were union-merged to a single
 #   canonical byte-identical copy in BOTH repos tonight, so they are removed from
 #   this list to tighten the ratchet (they are now ENFORCED identical).
-szl_provenance.py          # SLSA self-assessment note differs (a11oy L1-honest vs killinchu L2)
 
 # --- Vendored binary-asset blob bundle: each demo vendors a different set of
 #     fonts / 3D / chart assets as base64 blobs, so this file legitimately
