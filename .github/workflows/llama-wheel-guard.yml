@@ -26,6 +26,8 @@ name: llama-cpp wheel guard
 # The weekly `schedule:` re-verifies the source-build contract on a cadence; a
 # scheduled-run failure pages the team through the shared a11oy-uptime ntfy alert
 # path (the same SLACK_WEBHOOK_URL relay the other a11oy CI alert workflows use).
+# That relay lives in scripts/weight_guard_alert.sh, shared with
+# gguf-weight-guard.yml so the two weight guards' page logic can't drift apart.
 # PR failures are NOT paged — a red check already shows on the PR — mirroring the
 # receipts-pin-drift-guard convention.
 #
@@ -36,11 +38,15 @@ on:
     branches: [main]
     paths:
       - 'Dockerfile'
+      - 'scripts/weight_guard_alert.sh'
+      - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/llama-wheel-guard.yml'
   pull_request:
     branches: [main]
     paths:
       - 'Dockerfile'
+      - 'scripts/weight_guard_alert.sh'
+      - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/llama-wheel-guard.yml'
   schedule:
     # Weekly, Mondays 06:17 UTC — re-verify the pinned version still compiles
@@ -61,6 +67,12 @@ jobs:
         with:
           # cp312 — same interpreter family as the Dockerfile's python:3.12-slim base.
           python-version: '3.12'
+
+      - name: Self-test the shared alert relay (offline)
+        # Prove the shared scheduled-failure relay (scripts/weight_guard_alert.sh,
+        # also used by gguf-weight-guard.yml) still never masks an already-red job
+        # and warns when it cannot page. Network-free.
+        run: bash scripts/weight_guard_alert.test.sh
 
       - name: Parse pinned llama-cpp-python version from Dockerfile
         id: parse
@@ -126,16 +138,9 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           VER: ${{ steps.parse.outputs.version }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # The relay itself lives in scripts/weight_guard_alert.sh (shared with
+        # gguf-weight-guard.yml so the page logic can't drift between guards);
+        # this step only builds the human MSG and hands it off.
         run: |
-          set -uo pipefail
-          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
-            echo "::warning::SLACK_WEBHOOK_URL is not set — cannot page; the failing run remains the source of truth."
-            exit 0
-          fi
           export MSG=":rotating_light: a11oy llama-cpp wheel guard FAILED on its weekly scheduled re-verification. The pinned llama-cpp-python==${VER:-?} no longer builds from source into a glibc-linked libllama.so on cp312/linux_x86_64, so the local-model demo tier would silently degrade behind the honest tower-side label. Run: ${RUN_URL} . Fix: pin a llama-cpp-python version that compiles from source on glibc (recent enough to load the Qwen2.5 GGUF)."
-          payload="$(python3 -c 'import json,os; print(json.dumps({"text": os.environ["MSG"]}))')"
-          code="$(curl -sS -o /tmp/relay.out -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "${payload}" "${SLACK_WEBHOOK_URL}" || echo 000)"
-          echo "alert relay responded HTTP ${code}"
-          if [ "${code}" != "200" ]; then
-            echo "::warning::Alert relay did not return 200 (got ${code}); the failing run itself remains the source of truth."
-          fi
+          bash scripts/weight_guard_alert.sh
