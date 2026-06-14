@@ -13,11 +13,12 @@ name: GGUF weight guard
 # This is the GGUF twin of llama-wheel-guard.yml. It re-executes the EXACT
 # pinned + verified GGUF fetch parsed from the Dockerfile, OUTSIDE the Docker
 # build, and fails RED if the weight cannot be obtained and integrity-verified.
-# The guard logic lives in scripts/check_gguf_weight_guard.py so it can be
-# exercised by an offline negative-fixture self-test
-# (scripts/check_gguf_weight_guard.test.sh) that proves the guard still goes RED
-# on a deliberately broken input — the same `*.py` + `*.test.sh` convention the
-# other a11oy script guards use. That self-test runs FIRST below and GATES the
+# The guard logic lives in the GENERIC scripts/check_weight_guard.py (shared by
+# every pinned-download weight guard — this one passes --arg-prefix
+# A11OY_ALLOY_GGUF) so it can be exercised by an offline negative-fixture
+# self-test (scripts/check_weight_guard.test.sh) that proves the guard still goes
+# RED on a deliberately broken input — the same `*.py` + `*.test.sh` convention
+# the other a11oy script guards use. That self-test runs FIRST below and GATES the
 # real checks: if the guard ever stops catching a reintroduced mask, a dropped
 # fail-loud exit, or an out-of-lockstep rev/size/sha bump, this job goes red
 # before it ever touches the network.
@@ -50,15 +51,19 @@ on:
     branches: [main]
     paths:
       - 'Dockerfile'
-      - 'scripts/check_gguf_weight_guard.py'
-      - 'scripts/check_gguf_weight_guard.test.sh'
+      - 'scripts/check_weight_guard.py'
+      - 'scripts/check_weight_guard.test.sh'
+      - 'scripts/weight_guard_alert.sh'
+      - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/gguf-weight-guard.yml'
   pull_request:
     branches: [main]
     paths:
       - 'Dockerfile'
-      - 'scripts/check_gguf_weight_guard.py'
-      - 'scripts/check_gguf_weight_guard.test.sh'
+      - 'scripts/check_weight_guard.py'
+      - 'scripts/check_weight_guard.test.sh'
+      - 'scripts/weight_guard_alert.sh'
+      - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/gguf-weight-guard.yml'
   schedule:
     # Weekly, Mondays 06:41 UTC — re-verify the pinned weight still exists and
@@ -89,7 +94,9 @@ jobs:
         # `sys.exit(1)`, a loose/truncated rev/sha/size, or an out-of-lockstep
         # size/sha bump — this self-test fails and the job goes red here, before
         # it ever touches the network. Mirrors the other a11oy *.test.sh guards.
-        run: bash scripts/check_gguf_weight_guard.test.sh
+        run: |
+          bash scripts/check_weight_guard.test.sh
+          bash scripts/weight_guard_alert.test.sh
 
       - name: Install huggingface_hub (matches the Dockerfile pin)
         run: |
@@ -100,17 +107,17 @@ jobs:
 
       - name: Parse pinned GGUF repo/file/rev/sha256/size from Dockerfile
         id: parse
-        # Same parse + shape-check the self-test exercises (scripts/check_gguf_weight_guard.py
+        # Same parse + shape-check the self-test exercises (scripts/check_weight_guard.py
         # parse): emits key=value pairs for the alert step and fails closed on a
         # missing/malformed pin. key=value goes to stdout; the human note to stderr.
         run: |
           set -euo pipefail
-          python3 scripts/check_gguf_weight_guard.py parse --dockerfile Dockerfile >> "${GITHUB_OUTPUT}"
+          python3 scripts/check_weight_guard.py parse --dockerfile Dockerfile --arg-prefix A11OY_ALLOY_GGUF >> "${GITHUB_OUTPUT}"
 
       - name: Assert the Dockerfile GGUF fetch stays fail-closed (no mask)
-        # Same static check the self-test exercises (scripts/check_gguf_weight_guard.py
+        # Same static check the self-test exercises (scripts/check_weight_guard.py
         # assert-fail-closed): no reintroduced best-effort mask, fail-loud exit intact.
-        run: python3 scripts/check_gguf_weight_guard.py assert-fail-closed --dockerfile Dockerfile
+        run: python3 scripts/check_weight_guard.py assert-fail-closed --dockerfile Dockerfile --arg-prefix A11OY_ALLOY_GGUF
 
       - name: Re-execute the pinned + verified GGUF fetch (unmasked)
         # The real guard action: parse + download at the pinned REVISION OUTSIDE
@@ -118,7 +125,7 @@ jobs:
         # the pinned SIZE and SHA256 in lockstep (the exact `verify` predicate the
         # self-test exercises). Change one of rev/size/sha without the others and
         # this fails closed.
-        run: python3 scripts/check_gguf_weight_guard.py fetch --dockerfile Dockerfile
+        run: python3 scripts/check_weight_guard.py fetch --dockerfile Dockerfile --arg-prefix A11OY_ALLOY_GGUF
 
       - name: Page the team on scheduled-run failure (ntfy via relay)
         # Fire ONLY on the unattended weekly scheduled run when a prior step
@@ -134,16 +141,9 @@ jobs:
           FILE: ${{ steps.parse.outputs.file }}
           REV: ${{ steps.parse.outputs.rev }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # The relay itself lives in scripts/weight_guard_alert.sh (shared with
+        # llama-wheel-guard.yml so the page logic can't drift between guards);
+        # this step only builds the human MSG and hands it off.
         run: |
-          set -uo pipefail
-          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
-            echo "::warning::SLACK_WEBHOOK_URL is not set — cannot page; the failing run remains the source of truth."
-            exit 0
-          fi
           export MSG=":rotating_light: a11oy GGUF weight guard FAILED on its weekly scheduled re-verification. The pinned ${REPO:-?}/${FILE:-?} @ ${REV:-?} weight could not be obtained and size/sha256-verified, so the alloy demo tier would ship a model-less image (silently, if a '|| echo' mask is ever reintroduced on the Dockerfile fetch). Run: ${RUN_URL} . Fix: re-pin rev/size/sha256 in lockstep to a present, matching GGUF on the upstream HF repo."
-          payload="$(python3 -c 'import json,os; print(json.dumps({"text": os.environ["MSG"]}))')"
-          code="$(curl -sS -o /tmp/relay.out -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "${payload}" "${SLACK_WEBHOOK_URL}" || echo 000)"
-          echo "alert relay responded HTTP ${code}"
-          if [ "${code}" != "200" ]; then
-            echo "::warning::Alert relay did not return 200 (got ${code}); the failing run itself remains the source of truth."
-          fi
+          bash scripts/weight_guard_alert.sh
