@@ -134,3 +134,65 @@ def test_tampered_release_receipt_is_rejected(tmp_path, strategy):
     # The real Sigstore DSSE verify raises "DSSE: invalid signature" when the
     # signed payload or the signature bytes no longer match.
     assert "invalid signature" in entry["reason"].lower(), entry["reason"]
+
+
+# The genuine fixture above was minted by this real, in-allowlist producer
+# workflow in this repo (its embedded Fulcio cert SAN names it). The forged-signer
+# cases below keep the receipt cryptographically intact and only present an
+# identity expectation it does NOT satisfy.
+_FIXTURE_SIGNER_WORKFLOW = "dsse-receipts.yml"
+_OTHER_ALLOWED_WORKFLOW = "release.yml"  # a real default producer, but NOT the one that signed
+
+
+@pytest.mark.parametrize(
+    "label,identity_args",
+    [
+        # A cryptographically valid receipt presented as if it should have been
+        # signed by a workflow in a DIFFERENT repository: the SAN's repo no longer
+        # matches the expected one, so it is not an allowed producer.
+        ("wrong-repo", ["--repo", "szl-holdings/not-a11oy"]),
+        # A cryptographically valid receipt whose (real) signing workflow is NOT
+        # among the producers expected for this run: dsse-receipts.yml signed it,
+        # but only release.yml is allowed here. This is the "wrong workflow"
+        # (forged signer) substitution — a receipt minted by an unexpected, but
+        # genuine, GitHub workflow identity. The repo is left correct so ONLY the
+        # workflow identity is what fails.
+        ("wrong-workflow", ["--repo", REPO, "--allow-workflow", _OTHER_ALLOWED_WORKFLOW]),
+    ],
+)
+def test_forged_signer_receipt_is_rejected(tmp_path, label, identity_args):
+    """A GENUINE, cryptographically-valid receipt is REJECTED when its real signer
+    identity is not one the verifier expects — an identity/allowlist failure that
+    is DISTINCT from the crypto "invalid signature" path.
+
+    No monkeypatching and no weakening of the default allowlist: the receipt bytes
+    are untouched (the symmetric control test above proves they verify), and the
+    only thing that differs is the repo/workflow identity expectation passed to the
+    verifier. This proves an attacker cannot substitute a receipt signed by an
+    unexpected (but real) GitHub workflow identity.
+    """
+    verify = _load("verify_release_receipts", "scripts/verify_release_receipts.py")
+
+    d = tmp_path / "forged-signer"
+    d.mkdir()
+    shutil.copy(FIXTURE, d / FIXTURE.name)
+
+    out = tmp_path / "summary.json"
+    rc = verify.main(["--dir", str(d), "--summary-out", str(out)] + identity_args)
+    assert rc == 1, "a receipt from an unexpected signer MUST fail the run (exit 1)"
+
+    summary = json.loads(out.read_text(encoding="utf-8"))
+    assert summary["checked"] == 1
+    assert summary["passed"] == 0
+    assert summary["failed"] == 1
+    assert summary["unverifiable"] == 0
+    entry = summary["results"][0]
+    assert entry["status"] == "FAIL"
+    # The receipt was rejected on IDENTITY grounds (unexpected signer), BEFORE the
+    # cryptographic verify — explicitly NOT the byte-flip "invalid signature" path.
+    reason = entry["reason"].lower()
+    assert "unexpected signer" in reason, entry["reason"]
+    assert "not an allowed receipt-producing workflow" in reason, entry["reason"]
+    assert "invalid signature" not in reason, entry["reason"]
+    # The genuine signer SAN is still surfaced for forensics.
+    assert _FIXTURE_SIGNER_WORKFLOW in entry.get("signer_identity", ""), entry
