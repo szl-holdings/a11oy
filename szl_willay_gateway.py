@@ -234,21 +234,37 @@ def classify(prompt: str) -> Dict[str, Any]:
 def _khipu_consensus(action_hash: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
     try:
         import szl_khipu_consensus as kc
+        # Internal organ identifiers drive the real consensus signing, but per
+        # doctrine NO internal codenames are ever user-visible. We compute with the
+        # real organs, then present each witness under a stable, neutral public
+        # label (witness-N) so the API/UI never leak a codename. The math, votes,
+        # and per-witness signed-flag are unchanged — only the display id is masked.
         organs = ["sentra", "amaru", "a11oy", "killinchu"]
         sigs = [kc.sign_consensus_verdict(o, action_hash, ctx) for o in organs]
         allow = sum(1 for s in sigs if s.get("verdict") == "allow")
         block = sum(1 for s in sigs if s.get("verdict") == "block")
         quorum = 3
         reached = "allow" if allow >= quorum else ("block" if block >= quorum else "no-quorum")
+        # Doctrine-safe witness labels: never surface raw organ codenames. We also
+        # scrub any codename that might appear inside a returned keyid string.
+        _BAD = ("amaru", "rosie", "sentra", "jarvis")
+        def _safe_keyid(raw: str, i: int) -> str:
+            r = (raw or "").lower()
+            if any(b in r for b in _BAD):
+                return f"witness-{i + 1}"
+            return raw
+        witnesses = [{"keyid": _safe_keyid(s.get("keyid"), i),
+                      "verdict": s.get("verdict"),
+                      "signed": s.get("signed", False)}
+                     for i, s in enumerate(sigs)]
         return {
             "available": True,
             "quorum_required": f"{quorum}-of-{len(organs)}",
             "allow_votes": allow, "block_votes": block,
             "quorum_result": reached,
-            # We do NOT expose organ codenames to the UI layer (doctrine); the API
-            # returns only aggregate counts + per-witness verdict/keyid for audit.
-            "witnesses": [{"keyid": s.get("keyid"), "verdict": s.get("verdict"),
-                           "signed": s.get("signed", False)} for s in sigs],
+            # Doctrine: no user-visible organ codenames; only neutral witness
+            # labels + aggregate counts + per-witness verdict/signed for audit.
+            "witnesses": witnesses,
         }
     except Exception as e:
         return {"available": False, "note": f"consensus-unavailable: {e}",
@@ -743,10 +759,15 @@ if __name__ == "__main__":
     # 7) receipt payload carries decision + reasons + doctrine (disclosed, not hidden)
     assert t["receipt_payload"]["decision"] == "decline", t["receipt_payload"]
     assert t["receipt_payload"]["doctrine"]["locked_count"] == 8, t["receipt_payload"]
-    # 8) no user-visible codenames in the page or doctrine API surface
+    # 8) no user-visible codenames in the page OR in any JSON the API returns
+    #    (page, doctrine surface, AND the full gated-turn response incl. khipu
+    #     consensus witness keyids — these must be masked to neutral labels).
+    import json as _json
     low = _PAGE_HTML.lower()
+    _turn_blob = (_json.dumps(t) + _json.dumps(t2) + _json.dumps(classify(cases["bio"]))).lower()
     for bad in ("amaru", "rosie", "sentra", "jarvis"):
         assert bad not in low, f"codename '{bad}' must not be user-visible in the WILLAY tab"
+        assert bad not in _turn_blob, f"codename '{bad}' must not leak into any WILLAY API JSON"
     # 9) 0-CDN page
     assert "http://" not in low and "https://" not in low, "WILLAY tab must be 0-CDN"
     print("szl_willay_gateway: ALL OK — inverse-of-Mythos verdicts signed & shown; "
