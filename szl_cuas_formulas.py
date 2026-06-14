@@ -46,6 +46,11 @@ SOURCES = {
     "Graph-Laplacian consensus (Olfati-Saber 2007; Zelazo 2014)": "https://zelazo.net.technion.ac.il/files/2014/07/StuttgartMAS2014_L3.pdf",
     "Weapon-Target Assignment (Manne 1958)": "https://www.jstor.org/stable/167053",
     "NIST PQC FIPS 203/204/205 (ML-KEM/ML-DSA/SLH-DSA)": "https://csrc.nist.gov/pubs/fips/203/final",
+    # Active-flux sensorless observer (F-η) — adopted-and-generalized, see below.
+    "Active-flux sensorless control (Boldea et al., APEC 2001)": "https://doi.org/10.1109/APEC.2001.911711",
+    "Li Yu (李彧) — PI-correction bandwidth in an active-flux observer (LinkedIn 2026)": "https://www.linkedin.com/pulse/how-should-bandwidth-pi-correction-loop-active-flux-observer-%E5%BD%A7-%E6%9D%8E-qxksc",
+    "Revised Hybrid Active-Flux encoderless PMSM control (IEEE)": "https://ieeexplore.ieee.org/document/9319155",
+    "TI InstaSPIN-FOC / FAST flux observer (SPRUHJ1)": "https://www.ti.com/lit/ug/spruhj1h/spruhj1h.pdf",
 }
 
 
@@ -238,6 +243,133 @@ def szl_pq_receipt(command: str, prev_hash: str = "0" * 64) -> dict[str, Any]:
             "status": "EXPERIMENTAL"}
 
 
+# ---------------------------------------------------------------------------
+# F-η  SZL Active-Flux Hybrid Observer (sensorless PMSM rotor estimation)
+#
+# ADOPTED-AND-GENERALIZED, not invented here. We borrow the active-flux observer
+# blending law from the motor-control literature and re-express it as OUR own
+# deterministic, citable crossover. NOTHING here is added to the locked-8;
+# Λ stays Conjecture 1; the killinchu effector stays SIMULATED; there is NO live
+# motor on the demo floor so every rotor/speed/flux number is MODELED/SIMULATED.
+#
+# Sources (cited, NOT reclaimed as an SZL theorem):
+#   - Active flux ψ_act = ψ_f + (Ld − Lq)·id carries the rotor-angle information and
+#     is the basis of the observer:  Boldea/Andreescu/Blaabjerg, "Active-flux"
+#     sensorless control, IEEE/APEC 2001 — https://doi.org/10.1109/APEC.2001.911711
+#   - The HYBRID current-model / voltage-model blend, driven by a PI correction loop
+#     whose BANDWIDTH ω_c sets the crossover between the two models:
+#     Li Yu (李彧), "How should the bandwidth of the PI correction loop in an
+#     Active-Flux observer be selected?" (LinkedIn, 2026). Design rule: a LOWER PI
+#     bandwidth lets the CURRENT model dominate to higher electrical frequency
+#     (better LOW-speed accuracy); a HIGHER PI bandwidth hands off to the VOLTAGE
+#     (back-EMF) model sooner (better HIGH-speed accuracy, if the voltage signal is
+#     clean, e.g. TI InstaSPIN-FAST terminal-voltage sampling, SPRUHJ1).
+#     Li Yu's reported Bode reference points (at f_e = 40 Hz electrical): 5 Hz BW →
+#     current model ≈ −12.2 dB (voltage dominant); 30 Hz BW → current ≈ +0.163 dB,
+#     voltage ≈ −3.72 dB (current still dominant at crossover). We surface those as
+#     his published REFERENCE values; our own live curve below is a MODELED 1st-order
+#     complementary blend (documented transfer function), not a refit of his plant.
+#   - "Revised Hybrid Active Flux" encoderless PMSM technique (IEEE).
+# ---------------------------------------------------------------------------
+LI_YU_REFERENCE_BODE = {
+    "note": "Li Yu (李彧) LinkedIn 2026 published reference points, at f_e = 40 Hz electrical",
+    "bw_5hz": {"current_model_dB": -12.2, "comment": "voltage model dominant low-bandwidth at 40 Hz"},
+    "bw_30hz": {"current_model_dB": 0.163, "voltage_model_dB": -3.72,
+                "comment": "current model still dominant at the crossover"},
+}
+
+
+def active_flux(psi_f: float, Ld: float, Lq: float, id_cur: float) -> float:
+    """Active flux  ψ_act = ψ_f + (Ld − Lq)·id  (Wb). For a PMSM this fictitious flux
+    is aligned with the rotor d-axis and so carries the rotor-angle information; it is
+    the quantity the hybrid observer estimates. Cite Boldea et al. APEC 2001
+    (https://doi.org/10.1109/APEC.2001.911711). [EXPERIMENTAL · MODELED]"""
+    return psi_f + (Ld - Lq) * id_cur
+
+
+def pi_crossover_freq(pi_bandwidth_hz: float, ref_const: float = 150.0) -> float:
+    """Map the PI correction-loop bandwidth ω_c (here as f_c in Hz) to the electrical
+    crossover frequency f_x (Hz) at which the observer hands off from the CURRENT model
+    to the VOLTAGE model. Per Li Yu's design rule the crossover moves DOWN as the PI
+    bandwidth rises (higher BW → voltage trusted sooner): f_x = ref_const / f_c.
+    ref_const is calibrated so the brief's reference pair {5 Hz BW → 30 Hz crossover,
+    30 Hz BW → 5 Hz crossover} holds (5·30 = 30·5 = 150). MODELED. [EXPERIMENTAL]"""
+    return ref_const / max(pi_bandwidth_hz, 1e-6)
+
+
+def active_flux_blend(pi_bandwidth_hz: float, f_elec_hz: float,
+                      ref_const: float = 150.0) -> dict[str, Any]:
+    """Hybrid current-model / voltage-model active-flux blend at electrical frequency
+    f_elec, for a PI correction bandwidth pi_bandwidth_hz. We model the blend as a
+    1st-order complementary filter with corner ω_x = 2π·f_x (f_x = pi_crossover_freq):
+        current-model weight  H_c = ω_x / √(ω_x² + ω_e²)   (low-pass: dominant for f_e < f_x)
+        voltage-model weight  H_v = ω_e / √(ω_x² + ω_e²)   (high-pass: dominant for f_e > f_x)
+    so |H_c|² + |H_v|² = 1 and the −3 dB crossover sits exactly at f_e = f_x. This is
+    the textbook active-flux / InstaSPIN hand-off shape; magnitudes are reported in dB
+    for a Bode-style plot. MODELED/SIMULATED — there is no live motor; this reproduces
+    Li Yu's QUALITATIVE design rule, not his exact plant fit. [EXPERIMENTAL · MODELED]"""
+    f_x = pi_crossover_freq(pi_bandwidth_hz, ref_const)
+    w_x = 2.0 * math.pi * f_x
+    w_e = 2.0 * math.pi * max(f_elec_hz, 0.0)
+    denom = math.sqrt(w_x * w_x + w_e * w_e) or 1e-12
+    h_c = w_x / denom
+    h_v = w_e / denom
+    def _dB(x: float) -> float:
+        return round(20.0 * math.log10(x), 4) if x > 1e-12 else -120.0
+    dominant = "current_model" if h_c >= h_v else "voltage_model"
+    return {
+        "pi_bandwidth_hz": round(pi_bandwidth_hz, 4),
+        "f_elec_hz": round(f_elec_hz, 4),
+        "crossover_hz": round(f_x, 4),
+        "current_model_weight": round(h_c, 6),
+        "voltage_model_weight": round(h_v, 6),
+        "current_model_dB": _dB(h_c),
+        "voltage_model_dB": _dB(h_v),
+        "dominant": dominant,
+        "regime": "low_speed" if f_elec_hz < f_x else "high_speed",
+        "status": "MODELED",
+    }
+
+
+def szl_active_flux_observer(psi_f: float = 0.09, Ld: float = 0.0085, Lq: float = 0.012,
+                             id_cur: float = -2.0, iq_cur: float = 18.0,
+                             f_elec_hz: float = 40.0, pi_bandwidth_hz: float = 12.0,
+                             pole_pairs: int = 4, ref_const: float = 150.0) -> dict[str, Any]:
+    """SZL Active-Flux Hybrid Observer (MODELED/SIMULATED — no live motor).
+    Computes the active flux ψ_act, a MODELED rotor electrical angle/speed estimate, and
+    the current-vs-voltage model blend at the operating electrical frequency for the
+    chosen PI-correction bandwidth. The angle estimate is the arctangent of the active-
+    flux vector built from a deterministic, phase-consistent flux model (NOT a real
+    encoder read). Mechanical speed = electrical speed / pole_pairs. Trust never 100%;
+    effector SIMULATED; adds NOTHING to the locked-8. Cite Boldea APEC 2001 / Li Yu /
+    Revised Hybrid Active Flux / TI InstaSPIN-FAST. [EXPERIMENTAL · MODELED]"""
+    psi_act = active_flux(psi_f, Ld, Lq, id_cur)
+    blend = active_flux_blend(pi_bandwidth_hz, f_elec_hz, ref_const)
+    w_e = 2.0 * math.pi * f_elec_hz                       # electrical angular speed (rad/s)
+    # MODELED rotor electrical angle from the active-flux vector components. The d-axis
+    # active flux is ψ_act; a small q-axis leakage Lq·iq perturbs the apparent angle so the
+    # observer has a non-trivial arctangent (purely illustrative, deterministic).
+    psi_alpha = psi_act
+    psi_beta = Lq * iq_cur
+    theta_e = math.atan2(psi_beta, psi_alpha)            # rad, electrical
+    rpm_mech = (w_e / max(pole_pairs, 1)) * 60.0 / (2.0 * math.pi)
+    return {
+        "psi_active_Wb": round(psi_act, 6),
+        "rotor_angle_elec_rad": round(theta_e, 6),
+        "rotor_angle_elec_deg": round(math.degrees(theta_e), 4),
+        "speed_elec_rad_s": round(w_e, 4),
+        "speed_mech_rpm": round(rpm_mech, 4),
+        "pole_pairs": int(pole_pairs),
+        "blend": blend,
+        "li_yu_reference": LI_YU_REFERENCE_BODE,
+        "effector": "SIMULATED",
+        "data_label": "MODELED/SIMULATED — no live motor on the demo floor",
+        "doctrine": "adopted active-flux observer-blending law (Li Yu / APEC 2001 911711); "
+                    "generalized under SZL governance; NOT added to the locked-8",
+        "status": "MODELED",
+    }
+
+
 def summary(ns: str = "killinchu") -> dict[str, Any]:
     """Headline of all six SZL counter-UAS formulas + honest provenance/legend.
     `ns` names the serving app so the title is accurate on both killinchu and a11oy."""
@@ -253,6 +385,7 @@ def summary(ns: str = "killinchu") -> dict[str, Any]:
             "consensus": "SZL Swarm-Consensus Λ (urgency-weighted Laplacian)",
             "wta": "SZL-WTA Threat Triage (weapon-target assignment, SIMULATED)",
             "pqbus": "SZL-PQ Receipt Bus (post-quantum receipt chain)",
+            "active_flux": "SZL Active-Flux Hybrid Observer (sensorless PMSM; ADOPTED Li Yu/APEC 2001, MODELED)",
         },
         "examples": {
             "engage": szl_engageability(N=3.5, Vc=300.0, los_rate=0.02, t_go=4.0, a_max=200.0),
@@ -286,6 +419,28 @@ def register(app, ns: str) -> None:
                       methods=["GET"])
     app.add_api_route(f"{base}/pqbus",
                       lambda cmd="intercept T1": szl_pq_receipt(str(cmd)), methods=["GET"])
+    # F-η Active-Flux Hybrid Observer (ADOPTED Li Yu/APEC 2001; MODELED/SIMULATED — no live motor).
+    app.add_api_route(
+        f"{base}/active-flux",
+        lambda f_elec="40.0", bw="12.0", id_cur="-2.0", iq_cur="18.0", pole_pairs="4":
+            szl_active_flux_observer(f_elec_hz=float(f_elec), pi_bandwidth_hz=float(bw),
+                                     id_cur=float(id_cur), iq_cur=float(iq_cur),
+                                     pole_pairs=int(pole_pairs)),
+        methods=["GET"])
+    # Bode-style sweep: blend vs electrical frequency for a chosen PI bandwidth (MODELED).
+    def _active_flux_bode(bw: str = "12.0", f_min: str = "1.0", f_max: str = "120.0",
+                          points: str = "60"):
+        bwf = float(bw); fmn = float(f_min); fmx = float(f_max); n = max(2, int(points))
+        # logarithmic sweep over electrical frequency
+        lo = math.log10(max(fmn, 1e-3)); hi = math.log10(max(fmx, fmn + 1e-3))
+        curve = []
+        for i in range(n):
+            fe = 10.0 ** (lo + (hi - lo) * i / (n - 1))
+            curve.append(active_flux_blend(bwf, fe))
+        return {"pi_bandwidth_hz": bwf, "crossover_hz": round(pi_crossover_freq(bwf), 4),
+                "points": n, "curve": curve, "li_yu_reference": LI_YU_REFERENCE_BODE,
+                "data_label": "MODELED/SIMULATED — no live motor", "status": "MODELED"}
+    app.add_api_route(f"{base}/active-flux/bode", _active_flux_bode, methods=["GET"])
 
 
 def _selftest() -> None:
@@ -314,7 +469,22 @@ def _selftest() -> None:
     # PQ receipt: deterministic SHA3 chain, signature labeled PROXY
     r = szl_pq_receipt("intercept T1")
     assert len(r["receipt_hash"]) == 64 and "PROXY" in r["pq_signature"]
-    print("szl_cuas_formulas: ALL OK (12 checks)")
+    # F-η Active-Flux observer (ADOPTED Li Yu/APEC 2001; MODELED): ψ_act and crossover law.
+    assert abs(active_flux(0.09, 0.0085, 0.012, -2.0) - (0.09 + (0.0085 - 0.012) * -2.0)) < 1e-12
+    # crossover law: 5 Hz BW -> 30 Hz crossover; 30 Hz BW -> 5 Hz crossover (Li Yu reference pair)
+    assert abs(pi_crossover_freq(5.0) - 30.0) < 1e-9
+    assert abs(pi_crossover_freq(30.0) - 5.0) < 1e-9
+    # design rule: LOWER bandwidth keeps the current model dominant to higher f_elec.
+    b_lowbw = active_flux_blend(5.0, 20.0)   # 20 Hz < 30 Hz crossover -> current dominant
+    b_hibw = active_flux_blend(30.0, 20.0)   # 20 Hz > 5 Hz crossover  -> voltage dominant
+    assert b_lowbw["dominant"] == "current_model" and b_lowbw["regime"] == "low_speed"
+    assert b_hibw["dominant"] == "voltage_model" and b_hibw["regime"] == "high_speed"
+    # weights are a unit complementary pair: H_c^2 + H_v^2 = 1
+    assert abs(b_lowbw["current_model_weight"] ** 2 + b_lowbw["voltage_model_weight"] ** 2 - 1.0) < 1e-4
+    obs = szl_active_flux_observer()
+    assert obs["status"] == "MODELED" and obs["effector"] == "SIMULATED"
+    assert "MODELED/SIMULATED" in obs["data_label"]
+    print("szl_cuas_formulas: ALL OK (19 checks)")
 
 
 if __name__ == "__main__":

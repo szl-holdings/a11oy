@@ -3463,6 +3463,36 @@ async def _a11oy_router_stats() -> JSONResponse:
 
 print("[a11oy] router/stats registered BEFORE proxy: /api/a11oy/v1/router/stats + /v1/router/stats", file=sys.stderr)
 
+
+# ===========================================================================
+# ADDITIVE (Dev E, active-flux innovation lane): model-router ACTIVE-FLUX CROSSOVER.
+# ADOPTED-AND-GENERALIZED, NOT invented here. Takes the active-flux observer's PI-
+# bandwidth crossover law (Li Yu / IEEE-APEC 2001 911711 / Revised Hybrid Active Flux /
+# TI InstaSPIN-FAST) and applies it to MODEL ROUTING: small/local = easy/low-"frequency"
+# estimator (cf. the current model), large/cloud = hard/high-"frequency" (cf. the voltage
+# model), with the PI bandwidth ω_c as a DETERMINISTIC crossover knob. This is the
+# deterministic COMPLEMENT to the RouteLLM Thompson-sampling bandit above (router/stats):
+# if Dev C ships live posteriors this view augments them, else it stands alone. Serves
+# /api/a11oy/v1/router/active-flux-crossover{,/sweep,/info} (dual-registered at /v1/...
+# like router/stats so the HF proxy that strips /api/a11oy resolves it) + a self-contained
+# 0-CDN /router-crossover page rendering which model dominates per query difficulty. The
+# pure math lives in the shared byte-identical szl_cuas_formulas.py. MODELED (a deterministic
+# routing law, NOT a measured production traffic meter — we never fabricate throughput here);
+# adds NOTHING to the locked-8; Λ = Conjecture 1; Khipu BFT = Conjecture 2; trust never 100%.
+# Mounted BEFORE the SPA/proxy catch-all. Additive, try/except-guarded.
+# ===========================================================================
+try:
+    import a11oy_active_flux_router as _a11oy_af_router
+    _a11oy_af_brain = _a11oy_pr_brain if _A11OY_BRAIN_OK else None
+    _a11oy_af_status = _a11oy_af_router.register(app, ns="a11oy", brain=_a11oy_af_brain)
+    print(f"[a11oy] Active-Flux router crossover registered: {_a11oy_af_status['count']} routes "
+          f"({_a11oy_af_status['data_label']}) — deterministic complement to RouteLLM bandit", file=sys.stderr)
+except Exception as _a11oy_af_e:
+    import traceback as _a11oy_af_tb
+    print(f"[a11oy] Active-Flux router crossover NOT registered: {_a11oy_af_e!r}", file=sys.stderr)
+    _a11oy_af_tb.print_exc()
+# ── end ACTIVE-FLUX ROUTER CROSSOVER ──
+
 # ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
