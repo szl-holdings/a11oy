@@ -4103,6 +4103,57 @@ except Exception as _waqay_nav_e:
 
 
 # ===========================================================================
+# ADDITIVE — YUPAY governed multi-model audit harness (2026-06-15, YUPAY team).
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# YUPAY (Quechua: to count / to reckon / to audit) — our OWN governed multi-model
+# AUDIT harness. We adopt the Kilo Code / André Lindenberg audit METHODOLOGY
+# (blog.kilo.ai: same task, score issues/tokens/cost/latency per model) and run it
+# over OUR OWN governed open models (SZL-Nemo on Qwen3-32B Apache; the HF-router
+# models; mesh when wired), emitting ONE DSSE-signed comparison receipt + a
+# Restraint verdict — the GOVERNED DIFFERENCE. Honest labels: MEASURED iff a real
+# run happened, else MODELED (cost = published per-token rates, cited). NO M3
+# WEIGHTS / NO M3 DERIVATIVE: M3 is EXCLUDED-BY-DOCTRINE (defense-license + PRC
+# sovereignty), shown only as a non-participating reference row, never run.
+# Mounts BEFORE the SPA catch-all; try/except-guarded so a missing dep can NEVER
+# take the Space down. 0 CDN.
+#   GET  /yupay                        — the YUPAY operator tab (live demo)
+#   GET  /api/a11oy/v1/yupay/doctrine  — doctrine + honesty self-statement + M3 stance
+#   GET  /api/a11oy/v1/yupay/demo      — run same-task audit, score, sign
+#   POST /api/a11oy/v1/yupay/compare   — run a governed comparison (signed receipt)
+#   GET  /api/a11oy/v1/yupay/receipts  — last N signed comparison receipts (audit)
+#   POST /api/a11oy/v1/yupay/verify    — verify a signed YUPAY receipt
+# Attribution: Kilo Code/André Lindenberg methodology + MiniMax sparse-attn paper
+# as INSPIRATION; no M3 weights, no M3 derivative. NOTICES.md.
+# ===========================================================================
+try:
+    import szl_yupay as _szl_yupay
+    _yupay_status = _szl_yupay.register(app, ns="a11oy")
+    print(f"[a11oy] YUPAY governed multi-model audit harness registered: "
+          f"{_yupay_status['registered']} (tab: {_yupay_status['tab_route']}, "
+          f"trust_ceiling={_yupay_status['trust_ceiling']} <1.0) — Kilo-methodology, "
+          f"signed comparison + Restraint, MODELED/MEASURED honest labels, "
+          f"M3 EXCLUDED-BY-DOCTRINE", file=sys.stderr)
+except Exception as _yupay_e:
+    import traceback as _yupay_tb
+    print(f"[a11oy] YUPAY audit harness NOT registered: {_yupay_e!r}; SPA + API "
+          f"unaffected", file=sys.stderr)
+    _yupay_tb.print_exc()
+try:
+    import a11oy_yupay_nav as _a11oy_yupay_nav
+    _yupay_nav_status = _a11oy_yupay_nav.register(app, ns="a11oy")
+    print(f"[a11oy] YUPAY nav wire-up registered: {_yupay_nav_status['registered']} "
+          f"(tab: {_yupay_nav_status['tab_route']}) — idempotent, additive, /console "
+          f"SPA source NOT edited", file=sys.stderr)
+except Exception as _yupay_nav_e:
+    import traceback as _yupay_nav_tb
+    print(f"[a11oy] YUPAY nav wire-up NOT registered: {_yupay_nav_e!r}", file=sys.stderr)
+    _yupay_nav_tb.print_exc()
+# ── end YUPAY (governed multi-model audit harness) ──
+
+
+
+# ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
