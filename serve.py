@@ -3549,6 +3549,33 @@ except Exception as _a11oy_grc_e:
 # ── end GRC ALIGNMENT ──
 
 # ===========================================================================
+# NAV WIRE-UP (QA10) — estate wire-up gap closure. Seven LIVE surfaces served
+# HTTP 200 but were NOT reachable from the /console left-nav:
+#   /nemo  /autoreview  /factory  /constitution  /quant  /agent-loop  /energy
+# (plus /governance had a real page but no nav entry). a11oy_nav_wireup attaches
+# its OWN idempotent BaseHTTPMiddleware (mirroring a11oy_grc.py's injector and
+# serve.py's _OperatorWidgetInjector): it ADDS a "Sovereign & Agentic Core (NEW)"
+# nav group to /console with one honest, labelled nav-item per surface, and a
+# small "Related surfaces" cross-link strip on each flagship page. The console
+# SPA source is NOT edited; other lanes' nav items are NEVER clobbered; re-runs
+# do not double-inject (keyed by data-nav-wireup="qa10" / data-related-surfaces).
+# Registers NO routes (each target already has a live route). HONEST (Doctrine
+# v11): 0 visible codenames; 0 CDN; honest labels; never weakens a gate; Λ =
+# Conjecture 1; locked-8 untouched. Additive, try/except-guarded.
+# ===========================================================================
+try:
+    import a11oy_nav_wireup as _a11oy_nav_wireup
+    _a11oy_nav_status = _a11oy_nav_wireup.register(app, ns="a11oy")
+    print(f"[a11oy] NAV wire-up registered: {_a11oy_nav_status['count']} middleware "
+          f"(surfaces: {_a11oy_nav_status['surfaces']}) \u2014 /console now links all "
+          f"missing integration surfaces (idempotent, additive)", file=sys.stderr)
+except Exception as _a11oy_nav_e:
+    import traceback as _a11oy_nav_tb
+    print(f"[a11oy] NAV wire-up NOT registered: {_a11oy_nav_e!r}", file=sys.stderr)
+    _a11oy_nav_tb.print_exc()
+# ── end NAV WIRE-UP (QA10) ──
+
+# ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
