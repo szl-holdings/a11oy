@@ -1396,6 +1396,26 @@ except Exception as _harvest_exc:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (Energy ledger, energy/02-ledger — Dev 2): metering + signed-receipt
+# hash-chained ledger. Per completed job (the JobRecord Dev1's operator emits) we
+# build a SZL.Energy.JouleCharge.v1 receipt via the VENDORED joule_billing core,
+# append it to a hash-chained, offline-verifiable ledger (prev_digest, genesis =
+# 64 zeros), DRY-RUN bill when no STRIPE key, and refuse to bill non-MEASURED/stale.
+#   GET /api/a11oy/v1/energy/ledger         — receipts + chain integrity + totals
+#   GET /api/a11oy/v1/energy/receipt/{idem} — single re-hashable receipt (+ short alias)
+# Persists to disk (SZL_ENERGY_LEDGER_PATH) so it survives restart. Registered BEFORE
+# the SPA catch-all. try/except so a11oy boots even if import fails. Doctrine v11,
+# Λ = Conjecture 1, sovereign=false.
+# ---------------------------------------------------------------------------
+try:
+    import szl_energy_ledger as _szl_energy_ledger
+    _szl_energy_ledger_paths = _szl_energy_ledger.register(app, ns="a11oy")
+    print(f"[a11oy] energy ledger wired: {_szl_energy_ledger_paths}", file=sys.stderr)
+except Exception as _ledger_exc:  # additive: never break the Space
+    print(f"[a11oy] energy ledger NOT mounted ({_ledger_exc!r}); SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (Formulas SECTION for the SPA navigation — closeout, A11oy Full-Stack
 # Team / Perplexity Computer Agent): mount GET /formulas/wired, a premium
 # Inca-palette page that lists EACH live thesis-v22 formula (reads the SAME
