@@ -91,6 +91,44 @@ heuristic (not measured online benchmarks). No routing data is fabricated.
 - **Source:** https://github.com/mrdoob/three.js
 - **Usage:** 3D rendering for the routing-graph and other console viz pages (r171).
 
+## Governed Vector Index (WAQAY) — studied open work, made ours (attribution required)
+
+WAQAY (Quechua: *to keep / guard / store*) is SZL Holdings' own governed,
+air-gapped, DSSE-signed quantized vector index (`szl_waqay.py`). It was built by
+**studying** the following MIT / open work and **re-implementing the approach** in
+pure Python — we do **not** vendor or copy the upstream crate. Attribution is
+required by the MIT license and is given here in full.
+
+### turbovec (Ryan Codrai)
+- **License:** MIT
+- **Copyright:** © 2026 Ryan Codrai
+- **Source:** https://github.com/RyanCodrai/turbovec
+- **What we studied:** the Rust+Python vector-index architecture — a
+  data-oblivious quantizer with **no codebook training** and **no train phase**
+  (online ingest); the Lloyd-Max codebook fit analytically to the Beta marginal
+  induced by a random orthogonal rotation; RaBitQ-style per-vector length
+  renormalization; bit-packed 2/4-bit codes.
+- **What we built (OURS):** a clean-room **pure-NumPy** re-implementation of the
+  *approach* (`szl_waqay.py`). We add the governed difference — every index build
+  and every retrieval emits a **DSSE-signed provenance receipt** and passes the
+  **Restraint gate**. We do **not** ship the Rust crate, and we do **not** claim
+  to match its SIMD throughput: our perf figures are labeled **MODELED/ROADMAP**.
+  Compression is **MEASURED**; recall is a **MODELED bound** (never claimed perfect).
+
+### TurboQuant (Google Research)
+- **Attribution:** the data-oblivious quantization *approach* originates with
+  Google Research's TurboQuant work (normalize → random orthogonal rotation →
+  analytic Lloyd-Max codebook on the Beta((d-1)/2,(d-1)/2) marginal → bit-pack →
+  per-vector scale). WAQAY implements this approach independently in NumPy.
+- **Honesty:** we attribute the approach; we make no claim of affiliation with or
+  endorsement by Google Research.
+
+**Honest perf labeling (Doctrine v11, Zero-Bandaid Law):** WAQAY is a pure-Python
+governed index *inspired by* TurboQuant. It does **not** claim to beat FAISS or to
+match the Rust SIMD original. Compression ratios shown are MEASURED on the actual
+bytes stored; recall is a MODELED design bound surfaced honestly (trust ceiling
+< 1.0 — never perfect).
+
 ## Section 889 Declaration
 
 SZL Holdings does NOT use equipment or services from:
