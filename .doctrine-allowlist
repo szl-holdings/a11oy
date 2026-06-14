@@ -208,3 +208,36 @@ szl_codename_gate.py
 # codename is ever user-visible. The one "leading" is "preserving a leading
 # capital" (comment), technical/English usage, not marketing.
 static/shared/szl_codename_sanitizer.js
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemptions (2026-06-14, founder-authorized).
+# The PNT / quantum-sensing mesh merge added four backend source files whose
+# only flagged tokens are legitimate, NON-marketing usages: verbatim published-
+# paper citation titles, physics "leading-order" terminology, and live
+# `?scenario=` API enum identifiers exposed by /api/a11oy/v1/pnt/*. A paper
+# title cannot be altered, and renaming the scenario IDs would break the shipped
+# endpoint contract. Same citation / technical-term / enumeration-for-API
+# rationale as wayra_snapshot.json, szl_formulas.py and live_snapshots/kev.json
+# above. None of these files emits a marketing-hype claim to a user surface.
+# ----------------------------------------------------------------------------
+
+# fundamental_limits.py - quotes the Freier et al. (2016) paper title verbatim
+# ("Mobile quantum gravity sensor with unprecedented stability"); third-party
+# citation, not an SZL claim.
+fundamental_limits.py
+
+# pnt_resilience.py - defines the TEXBAT scenario table; the flagged token is the
+# live API scenario id `ds4_seamless` + its "Seamless lift-off" description (a
+# code-phase pull class). Renaming breaks the /pnt/* `?scenario=` contract.
+pnt_resilience.py
+
+# quantum_sensing_limits.py - quotes a published paper title verbatim ("...with
+# unprecedented stability', J. Phys.: Conf. Ser. 723:012050"); other hits use
+# "leading" in the physics "leading-order term" sense (atom-interferometer noise
+# / three-pulse geometry). Citation + technical usage, not marketing.
+quantum_sensing_limits.py
+
+# szl_pnt_mesh.py - help string enumerates the live `?scenario=clean|ds2_time_push|
+# ds3_overpower|ds4_seamless|ds7_matched_aligned` query values; these are the
+# shipped API enum identifiers, not marketing prose.
+szl_pnt_mesh.py
