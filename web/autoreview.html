@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<!--
+  a11oy AUTO-REVIEW console — GOVERNED + SIGNED evolution of Cursor's Auto-review.
+  © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
+  0 runtime CDN: the ONLY external script is the in-image vendored Chart.js
+  (/vendor/chart.umd.min.js) plus in-image shared label/receipt engines. All data
+  is fetched live from /api/a11oy/v1/autoreview/*. Every rate is MEASURED from the
+  live decision log or honestly labelled ROADMAP — nothing fabricated.
+  Pattern credit: Cursor "Agent autonomy & Auto-review"
+  https://cursor.com/blog/agent-autonomy-auto-review — made GOVERNED (OPA/Rego +
+  OSCAL + NIST AI RMF MANAGE), Λ-gated (Conjecture 1, never 100%), DSSE-signed,
+  conformal-calibrated, with flapping detection.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Auto-Review (Governed Autonomy)</title>
+<script src="/vendor/chart.umd.min.js"></script>
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_receipt_cosign.js"></script>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
+    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
+    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#0d1320,#0a0e14)}
+  h1{margin:0;font-size:18px;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:980px}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 22px}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:16px 18px}
+  .card.full{grid-column:1/-1}
+  .card h2{margin:0 0 10px;font-size:14px;letter-spacing:.4px;color:var(--acc)}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;
+      border-bottom:1px dotted #1a2435}
+  .kv:last-child{border-bottom:0}
+  .k{color:var(--mut)} .v{color:var(--ink);text-align:right;word-break:break-word}
+  .big{font-size:30px;font-weight:700;letter-spacing:.5px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;
+        border:1px solid var(--line)}
+  .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
+  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
+  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
+  .cite{color:var(--mut);font-size:11px;margin-top:8px}
+  .cite code{color:var(--acc2)} .cite a{color:var(--acc2)}
+  .mono{font-family:inherit}
+  .set{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .set .lab{padding:4px 11px;border-radius:7px;border:1px solid var(--line);
+            background:#0e1622;font-size:13px}
+  .set .lab.in{border-color:#13403c;background:#0a201e;color:var(--acc)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:5px 7px;border-bottom:1px solid #1a2435;
+        vertical-align:top}
+  th{color:var(--mut);font-weight:600}
+  .note{color:var(--mut);font-size:11px;margin-top:8px;line-height:1.55}
+  .loading{color:var(--mut)} .err{color:var(--err)}
+  .sha{color:var(--acc2);font-size:11px}
+  a{color:var(--acc2)}
+  footer{color:var(--mut);font-size:11px;padding:14px 22px;border-top:1px solid var(--line)}
+  /* dial */
+  .dial{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+  .dlv{flex:1 1 80px;min-width:78px;text-align:center;padding:8px 6px;border-radius:8px;
+       border:1px solid var(--line);background:#0e1622;cursor:pointer;font-size:12px;
+       transition:.12s}
+  .dlv:hover{border-color:var(--acc)}
+  .dlv.sel{border-color:var(--acc);background:#0a201e;color:var(--acc);font-weight:700}
+  .dlv .lv{font-size:16px;font-weight:700}
+  .dlv .nm{font-size:10px;color:var(--mut);margin-top:2px;line-height:1.3}
+  .dlv.sel .nm{color:var(--acc)}
+  .btn{display:inline-block;padding:7px 14px;border-radius:8px;border:1px solid var(--acc);
+       background:#0a201e;color:var(--acc);cursor:pointer;font:inherit;font-size:12px}
+  .btn:hover{background:#0d2b28}
+  /* react/inline review stream */
+  .step{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;
+        background:var(--panel2)}
+  .step .hd{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .step .act{font-size:11px;color:var(--mut);margin-top:6px}
+  .step.allow{border-left:3px solid var(--ok)}
+  .step.narrow{border-left:3px solid var(--warn)}
+  .step.block{border-left:3px solid var(--err)}
+  .step.escalate{border-left:3px solid var(--road)}
+  .ti{color:#b9c6d6;word-break:break-all}
+  .vd{font-size:11px}
+  .meta{font-size:11px;color:var(--mut);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+  .meta b{color:var(--ink)}
+  .explain{color:#cfd8e3;font-size:12px;margin-top:6px;border-top:1px dotted #1a2435;
+           padding-top:6px}
+  .selfc{color:var(--acc);font-size:11px;margin-top:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · Auto-Review <span class="pill acc">GOVERNED AUTONOMY</span></h1>
+  <div class="sub">Our governed + signed evolution of Cursor's
+    <a href="https://cursor.com/blog/agent-autonomy-auto-review" target="_blank" rel="noopener">Auto-review</a>:
+    a context-aware classifier runs <b>INLINE before every Action node</b> in the ReAct loop.
+    Verdict ∈ {allow, narrow, block-with-explanation, escalate}, intent-relative, workspace-aware.
+    Each verdict is <b>Λ-gated</b> (Conjecture 1, never 100% safe), <b>DSSE-signed</b>, expressed as
+    <b>OPA/Rego</b> rules mapped to <b>OSCAL</b> controls + <b>NIST AI RMF MANAGE</b>, and
+    conformal-calibrated. On block we return an explanation so the parent self-corrects;
+    we escalate to a human only when truly needed. Effectors stay SIMULATED.</div>
+</header>
+<div class="wrap">
+  <div class="grid">
+
+    <!-- AUTONOMY DIAL -->
+    <div class="card" id="dial-card">
+      <h2>AUTONOMY DIAL — L0–L5 (graded, not a binary switch)</h2>
+      <div id="dial" class="loading">loading dial…</div>
+      <div class="cite">SAE-style graded autonomy for agents. Higher levels auto-execute
+        more action classes; risky/secret/irreversible/effector actions still gate at
+        <em>every</em> level. Cursor Auto-review autonomy-dial pattern, made governed.</div>
+    </div>
+
+    <!-- MEASURED RATES -->
+    <div class="card" id="rates-card">
+      <h2>MEASURED RATES — block / interrupt / flap</h2>
+      <div id="rates" class="loading">measuring live…</div>
+      <div class="cite">Block-rate / interrupt-rate / flap-rate are MEASURED from the live
+        rolling decision log (label <em>ROADMAP</em> until enough real runs accrue). Cursor
+        reports ~4% blocked / ~7% chats interrupted — we <b>measure ours</b>, we do not borrow it.</div>
+    </div>
+
+    <!-- CALIBRATION + CONFORMAL -->
+    <div class="card" id="cal-card">
+      <h2>CALIBRATION (ECE/Brier gate) + CONFORMAL SET</h2>
+      <div id="cal" class="loading">measuring live…</div>
+      <canvas id="relchart" height="150" style="margin-top:10px"></canvas>
+      <div class="cite">ECE (equal-width bins) + Brier; gate ECE &lt; 0.05 required for any
+        automated (no-human) verdict, <b>fails closed</b> on unmeasured. Conformal set replaces
+        bare confidence % (Dev B's <code>szl_conformal</code> helper).
+        <code>arXiv:2505.15437</code> / <code>arXiv:2305.18404</code>.</div>
+    </div>
+
+    <!-- FLAPPING -->
+    <div class="card" id="flap-card">
+      <h2>FLAPPING DETECTION — verdict stability</h2>
+      <div id="flap" class="loading">measuring live…</div>
+      <div class="cite">FLAPPING = the same case (intent+tool+input+dial) gets DIFFERENT
+        verdicts across repeated runs. Flapping → policy is unstable → tighten it.</div>
+    </div>
+
+    <!-- INLINE REVIEW STREAM (gated-run) -->
+    <div class="card full" id="run-card">
+      <h2>INLINE REVIEW STREAM — block → explanation → self-correct trace</h2>
+      <div style="margin-bottom:10px">
+        <span class="k">demo intent:</span>
+        <input id="intent" value="debug the auth flow" style="width:280px;background:#0e1622;
+               color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;
+               font:inherit;font-size:12px"/>
+        <span class="k" style="margin-left:10px">dial:</span>
+        <span id="run-dial" class="mono acc">L3</span>
+        <button class="btn" id="runbtn" style="margin-left:12px">▶ run gated ReAct plan</button>
+      </div>
+      <div id="run" class="loading">Click “run gated ReAct plan” — the classifier reviews each
+        Action node inline, signs each verdict, blocks the risky one with an explanation
+        (so the parent self-corrects), and allows the safe one.</div>
+      <div class="cite">Demonstrates the keystone: classifier runs subagent-style INLINE at
+        the Action node of Dev A's ReAct loop (<code>/api/a11oy/v1/agent/react/*</code>), not as
+        a separate round-trip. Each step carries a DSSE-signed receipt + the Rego rule hit + the
+        OSCAL control cited.</div>
+    </div>
+
+    <!-- POLICY (Rego + OSCAL + NIST) -->
+    <div class="card full" id="pol-card">
+      <h2>POLICY — OPA/Rego rules → OSCAL controls → NIST AI RMF MANAGE</h2>
+      <div id="pol" class="loading">loading policy…</div>
+      <div class="cite">Rules authored in <a href="https://github.com/open-policy-agent/opa"
+        target="_blank" rel="noopener">OPA/Rego</a>; each maps to an
+        <a href="https://github.com/usnistgov/OSCAL" target="_blank" rel="noopener">OSCAL</a>
+        control (SP 800-53 Rev5 via
+        <a href="https://github.com/usnistgov/oscal-content" target="_blank" rel="noopener">oscal-content</a>)
+        and a <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank"
+        rel="noopener">NIST AI RMF MANAGE</a> subcategory. We MAP-TO / ALIGN-WITH — this is not a
+        certification or ATO.</div>
+    </div>
+
+    <!-- RECENT SIGNED DECISIONS -->
+    <div class="card full" id="recent-card">
+      <h2>RECENT DECISIONS — per-decision signed receipt + rule + control</h2>
+      <div id="recent" class="loading">loading live decision log…</div>
+      <div class="cite">Live rolling log. Each row carries the verdict, the Rego rule hit, the
+        OSCAL control(s), the Λ-effective value (&lt; 1.0), and the canonical decision hash that is
+        DSSE-signed into the node's receipt.</div>
+    </div>
+
+  </div>
+</div>
+<footer>
+  a11oy auto-review lane · Λ = Conjecture 1 (advisory, &lt; 1.0, never 100%) · trust &lt; 100% ·
+  tamper-evident DSSE · SLSA L1 honest / L2 in progress / L3 roadmap · effectors SIMULATED · 0 runtime CDN.
+  Data: <span class="mono">/api/a11oy/v1/autoreview/{dial,classify,gated-run,policy,metrics,recent,_diag}</span>
+</footer>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function kv(k,v){return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${v}</span></div>`}
+async function getj(u){const r=await fetch(u);if(!r.ok)throw new Error(u+" -> "+r.status);return r.json()}
+async function postj(u,b){const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},
+  body:JSON.stringify(b||{})});if(!r.ok)throw new Error(u+" -> "+r.status);return r.json()}
+const pct=x=>(x==null?"—":(x*100).toFixed(1)+"%");
+function vpill(v){
+  const m={allow:"ok","narrow":"warn","block-with-explanation":"err","escalate":"road"};
+  return `<span class="pill ${m[v]||""}">${esc(v)}</span>`;
+}
+let DIAL=3;
+
+// ---- AUTONOMY DIAL ----
+getj("/api/a11oy/v1/autoreview/dial").then(d=>{
+  DIAL=d.default!=null?d.default:3;
+  let cells=(d.levels||[]).map(l=>
+    `<div class="dlv ${l.level===DIAL?"sel":""}" data-lv="${l.level}">
+       <div class="lv">L${l.level}</div>
+       <div class="nm">${esc((l.label||"").replace(/^L\d+\s*[—-]\s*/,""))}</div>
+     </div>`).join("");
+  $("#dial").innerHTML=`<div class="dial">${cells}</div><div id="dialdesc" class="note"></div>`;
+  const desc=()=>{const sel=(d.levels||[]).find(x=>x.level===DIAL)||{};
+    $("#dialdesc").innerHTML=`<b style="color:var(--acc)">L${DIAL} — ${esc((sel.label||"").replace(/^L\d+\s*[—-]\s*/,""))}</b>: ${esc(sel.desc||sel.policy||sel.description||"")}`;
+    $("#run-dial").textContent="L"+DIAL;};
+  desc();
+  document.querySelectorAll(".dlv").forEach(c=>c.addEventListener("click",()=>{
+    DIAL=parseInt(c.dataset.lv,10);
+    document.querySelectorAll(".dlv").forEach(x=>x.classList.toggle("sel",parseInt(x.dataset.lv,10)===DIAL));
+    desc();
+  }));
+}).catch(e=>$("#dial").innerHTML=`<div class="err">dial unavailable: ${esc(e.message)}</div>`);
+
+// ---- MEASURED RATES + CALIBRATION + FLAP (one /metrics call) ----
+getj("/api/a11oy/v1/autoreview/metrics").then(d=>{
+  const meas=(d.rate_status||"").indexOf("MEASURED")>=0;
+  const stp=meas?`<span class="pill acc">MEASURED</span>`:`<span class="pill road">ROADMAP</span>`;
+  $("#rates").innerHTML=
+    `<div class="big">${pct(d.block_rate)}</div><div class="k" style="margin-top:-6px">block-rate ${stp}</div>`+
+    kv("decisions logged (n)",`<b>${d.decisions_logged}</b>`)+
+    kv("interrupt-rate",pct(d.interrupt_rate))+
+    kv("escalate-rate",pct(d.escalate_rate))+
+    kv("narrow-rate",pct(d.narrow_rate))+
+    kv("allow-rate",pct(d.allow_rate))+
+    `<div class="note">${esc(d.honest_target||"")}</div>`;
+
+  // calibration + conformal
+  const m=d.calibration||{};
+  const measured=m.status==="measured";
+  const gateok=(m.ece!=null)&&(m.ece<(m.ece_gate_threshold||0.05));
+  $("#cal").innerHTML=
+    kv("model / agent",`<span class="mono">${esc(m.model)} / ${esc(m.agent_type)}</span>`)+
+    kv("status",measured?`<span class="pill acc">measured</span>`:`<span class="pill warn">${esc(m.status)}</span>`)+
+    kv("samples (n)",m.n)+
+    kv("ECE",`<b class="mono">${measured?m.ece.toFixed(4):"not_measured"}</b>`)+
+    kv("Brier"+(m.brier_kind?` (${esc(m.brier_kind)})`:""),`<span class="mono">${m.brier!=null?m.brier.toFixed(4):"—"}</span>`)+
+    kv("accuracy",pct(m.accuracy))+
+    kv("auto-response gate",gateok?`<span class="pill ok">ALLOW (ECE&lt;${m.ece_gate_threshold||0.05})</span>`:`<span class="pill err">DENY → human-on-loop</span>`)+
+    `<div class="note">Λ-effective is capped &lt; 1.0 (Conjecture 1): we never claim 100% safe.</div>`;
+  const arr=Array.isArray(m.reliability)?m.reliability.filter(b=>b.count>0):[];
+  if(window.Chart&&arr.length){
+    new Chart($("#relchart"),{type:"bar",
+      data:{labels:arr.map(b=>(b.lo!=null?b.lo:0).toFixed(2)),
+            datasets:[
+              {label:"accuracy",data:arr.map(b=>b.accuracy),backgroundColor:"#5ad1c9"},
+              {label:"mean confidence",data:arr.map(b=>b.mean_conf),type:"line",borderColor:"#7aa2f7",fill:false}
+            ]},
+      options:{plugins:{legend:{labels:{color:"#8b98a9"}}},
+               scales:{x:{ticks:{color:"#8b98a9"},grid:{color:"#1a2435"}},
+                       y:{min:0,max:1,ticks:{color:"#8b98a9"},grid:{color:"#1a2435"}}}}});
+  } else { $("#relchart").style.display="none"; }
+
+  // flapping
+  const f=d.flapping||{};
+  $("#flap").innerHTML=
+    `<div class="big">${pct(f.flap_rate)}</div><div class="k" style="margin-top:-6px">flap-rate <span class="pill ${ (f.flap_rate_status||"").indexOf("MEASURED")>=0?"acc":"road"}">${esc(f.flap_rate_status||"ROADMAP")}</span></div>`+
+    kv("cases seen",f.cases_seen)+
+    kv("cases repeated",f.cases_repeated)+
+    kv("cases flapping",f.cases_flapping!=null?`<b>${f.cases_flapping}</b>`:"—")+
+    `<div class="note">${esc(f.definition||"")}</div>`;
+}).catch(e=>{
+  $("#rates").innerHTML=`<div class="err">metrics unavailable: ${esc(e.message)}</div>`;
+  $("#cal").innerHTML=$("#flap").innerHTML=`<div class="err">unavailable</div>`;
+});
+
+// ---- INLINE REVIEW STREAM ----
+function renderRun(d){
+  const cls={allow:"allow","narrow":"narrow","block-with-explanation":"block","escalate":"escalate"};
+  let steps=(d.trace||[]).map(s=>{
+    const signed=s.signed?`<span class="pill ok">DSSE signed</span>`:`<span class="pill warn">unsigned</span>`;
+    const conf=(s.conformal_set||[]).join(", ");
+    return `<div class="step ${cls[s.verdict]||""}">
+      <div class="hd">
+        <div><span class="k">#${s.seq} ${esc(s.node)}</span>
+          <span class="ti"> → ${esc(s.tool)}: <code>${esc(s.tool_input)}</code></span></div>
+        <div class="vd">${vpill(s.verdict)} ${signed}</div>
+      </div>
+      <div class="act">${esc(s.action)}</div>
+      ${s.explanation?`<div class="explain">${esc(s.explanation)}</div>`:""}
+      ${s.self_correct_hint?`<div class="selfc">↻ self-correct hint: ${esc(s.self_correct_hint)}</div>`:""}
+      <div class="meta">
+        <span>rule <b>${esc(s.rule_id||"—")}</b></span>
+        <span>OSCAL <b>${esc((s.oscal_controls||[]).join(", ")||"—")}</b></span>
+        <span>NIST <b>${esc(s.nist_ai_rmf||"—")}</b></span>
+        <span>Λ-eff <b>${s.lambda_effective!=null?s.lambda_effective.toFixed(3):"—"}</b></span>
+        <span>conformal {<b>${esc(conf)}</b>}</span>
+        <span class="sha">hash ${esc((s.decision_hash||"").slice(0,20))}…</span>
+      </div></div>`;
+  }).join("");
+  $("#run").innerHTML=
+    `<div class="note" style="margin-bottom:8px">${esc(d.pattern||"")} · dial <b class="acc">L${d.dial} — ${esc((d.dial_label||"").replace(/^L\d+\s*[—-]\s*/,""))}</b></div>`+
+    steps;
+}
+$("#runbtn").addEventListener("click",async()=>{
+  $("#run").innerHTML=`<div class="loading">running inline review at each Action node…</div>`;
+  try{
+    const d=await postj("/api/a11oy/v1/autoreview/gated-run",
+      {intent:$("#intent").value,dial:DIAL,
+       actions:[
+         {tool:"read",tool_input:"README.md"},
+         {tool:"shell",tool_input:"cat .env api_key token"},
+         {tool:"shell",tool_input:"rm -rf / production"}
+       ]});
+    renderRun(d);
+  }catch(e){$("#run").innerHTML=`<div class="err">gated-run failed: ${esc(e.message)}</div>`;}
+});
+
+// ---- POLICY ----
+getj("/api/a11oy/v1/autoreview/policy").then(d=>{
+  let rows=(d.rules||[]).map(r=>
+    `<tr><td class="mono">${esc(r.id)}</td><td>${esc(r.title)}</td><td>${vpill(r.verdict)}</td>
+      <td class="mono">${esc((r.oscal||[]).join(", "))}</td>
+      <td class="mono">${esc(r.nist_ai_rmf)}</td></tr>`).join("");
+  const cdroot=d.oscal_component_definition||{};
+  const ocd=cdroot["component-definition"]||{};
+  const comp=(ocd.components||[])[0]||{};
+  const ci=(comp["control-implementations"]||[])[0]||{};
+  const ireqs=(ci["implemented-requirements"]||[]).length;
+  const otitle=(ocd.metadata||{}).title||"component-definition";
+  $("#pol").innerHTML=
+    kv("policy version",`<span class="mono">${esc(d.policy_version)}</span>`)+
+    kv("rego sha256",`<span class="sha mono">${esc((d.rego_sha256||"").slice(0,32))}…</span>`)+
+    kv("engine",`<span class="pill road">in-image deterministic eval (opa runtime ROADMAP)</span>`)+
+    kv("honesty",`<span class="note">${esc(d.honest)}</span>`)+
+    `<table style="margin-top:10px"><tr><th>rule id</th><th>title</th><th>verdict</th><th>OSCAL</th><th>NIST AI RMF</th></tr>${rows}</table>`+
+    `<div class="note" style="margin-top:8px">OSCAL component-definition: <b>${esc(otitle)}</b> · <b>${ireqs}</b> implemented requirements (SP 800-53 Rev5 + NIST AI RMF MANAGE).</div>`;
+}).catch(e=>$("#pol").innerHTML=`<div class="err">policy unavailable: ${esc(e.message)}</div>`);
+
+// ---- RECENT DECISIONS ----
+getj("/api/a11oy/v1/autoreview/recent?limit=25").then(d=>{
+  let rows=(d.recent||[]).map(r=>
+    `<tr><td class="mono">${esc((r.ts||"").slice(11,19))}</td>
+      <td>${esc(r.intent||"")}</td>
+      <td class="ti"><code>${esc(r.tool)}: ${esc((r.tool_input||"").slice(0,46))}</code></td>
+      <td>L${r.dial}</td>
+      <td>${vpill(r.verdict)}</td>
+      <td class="mono">${esc(r.rule_id||"—")}</td>
+      <td class="mono">${esc((r.oscal||[]).join(", "))}</td>
+      <td class="mono">${esc(r.nist||"")}</td>
+      <td class="mono">${r.lambda_effective!=null?r.lambda_effective.toFixed(3):"—"}</td>
+      <td class="sha">${esc((r.decision_hash||"").slice(0,14))}…</td></tr>`).join("");
+  $("#recent").innerHTML=
+    `<table><tr><th>time</th><th>intent</th><th>action</th><th>dial</th><th>verdict</th>
+      <th>Rego rule</th><th>OSCAL</th><th>NIST</th><th>Λ-eff</th><th>decision hash (signed)</th></tr>
+      ${rows||`<tr><td colspan="10" class="k">no decisions logged yet</td></tr>`}</table>`;
+}).catch(e=>$("#recent").innerHTML=`<div class="err">recent unavailable: ${esc(e.message)}</div>`);
+
+// honesty audit of our own copy (catch "100%", "tamper-proof", etc.)
+try{ if(window.SZLLabels&&SZLLabels.auditText){
+  const flags=SZLLabels.auditText(document.body.innerText||"");
+  if(flags&&flags.length){console.warn("[autoreview] label audit flags:",flags);}
+}}catch(_){}
+</script>
+</body>
+</html>

@@ -103,14 +103,6 @@ COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_h
 # (physical_bounds_certificate.json / agentic_decision_trail.json) are NOT baked — the
 # module honestly serves a SAMPLE certificate until Forge writes real ones on the box.
 COPY szl_pinn_bounds.py ./
-# ADDITIVE (I4 gpu-quant): Sovereign VRAM-resident GPU-Quant engine (PCA-Risk / TDA-Fracture
-# / HJB-Kelly) backing /api/a11oy/v1/quant/* + the /quant tab. PURE-STDLIB (Jacobi eigen,
-# Gaussian solve, union-find Betti) so it runs in the numpy-less HF image; cuML/giotto-tda
-# are RUNTIME-PROBED — absent → honest CPU-SAMPLE/ROADMAP labels. MUST be COPY'd or serve.py's
-# guarded import falls back to a stub (merged-but-not-live). Imports szl_dsse (already COPYed)
-# for REAL ECDSA receipts in-Space + szl_energy_sovereign (already COPYed) for the 2-GPU tier
-# panel. Per-file COPY (this Dockerfile never uses `COPY . .`). Mirrored byte-identical to HF.
-COPY szl_gpu_quant.py ./
 # ADDITIVE (joules-honesty #349): single-source joules_label helper + its consumers.
 # szl_joules_truth.py is imported by szl_energy_budget/szl_engine_status/revenue_endpoints/
 # a11oy_harvest_endpoints/szl_anatomy_loop/szl_prod_hardening; revenue_model.py backs
@@ -761,6 +753,16 @@ COPY a11oy_governance_endpoints.py szl_tau_eval.py szl_calibration.py szl_confor
 COPY policy/colang/roe_core.co ./policy/colang/roe_core.co
 COPY policy/colang/killinchu_threat.co ./policy/colang/killinchu_threat.co
 COPY web/governance.html ./web/governance.html
+# GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
+# signed evolution of Cursor's Auto-review. The classifier module runs INLINE
+# before each Action node; verdicts are Lambda-gated, DSSE-signed, mapped to
+# OPA/Rego + OSCAL + NIST AI RMF MANAGE, conformal-calibrated, with flapping
+# detection. autoreview.html is served at /autoreview (0 runtime CDN; uses the
+# already-vendored /vendor/chart.umd.min.js + in-image shared label/receipt
+# engines). These COPY lines are parsed by the backend HF-sync workflow so the
+# files reach the Space (avoids the recurring "merged-but-not-live" failure).
+COPY a11oy_autoreview.py ./
+COPY web/autoreview.html ./web/autoreview.html
 COPY scripts/check_tau_eval.py ./scripts/check_tau_eval.py
 # Lean4Agent workflow-invariant scaffold (ROADMAP / EXPERIMENTAL — not a verified
 # proof yet; rendered as ROADMAP in the UI). Shipped so the .lean source is in
