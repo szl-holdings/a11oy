@@ -337,7 +337,7 @@
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "Repointed from the phantom path Lutar/Gate/LambdaMonotonicity.lean to the real kernel-checked theorem th_v18_01_lambda_monotone in Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (fully proved, axioms: none). It proves that Lambda k is monotone in each argument (axis-wise x <= y implies Lambda k x <= Lambda k y) via Lutar.lambda_isMonotone.",
+      "caveat": "Repointed from the phantom path Lutar/Gate/LambdaMonotonicity.lean to the real kernel-checked theorem th_v18_01_lambda_monotone in Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (fully proved, axioms: none). It proves that Lambda k is monotone in each argument (axis-wise x <= y implies Lambda k x <= Lambda k y) via Lutar.lambda_isMonotone. This is the Lambda-monotonicity theorem only; Lambda-uniqueness remains Conjecture 1 (NOT a theorem) and is never claimed proven, per Doctrine v11.",
       "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
