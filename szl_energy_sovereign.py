@@ -725,6 +725,16 @@ def _html(p: dict) -> str:
   <p class="state">inference=__INF__ · sovereign=__SOV__ · gpu_reachable=__REACH__ · measured=__MC__/__TC__</p>
 </header>
 <main class="grid">__CARDS__</main>
+<section class="card3d" id="energy3d_panel" style="max-width:980px;margin:14px auto 0;background:#111722;border:1px solid #1e2a3a;border-radius:14px;padding:15px">
+  <div class="row"><h3>3D Energy / GPU Hologram</h3>
+    <button id="e3d_toggle" style="font:600 12px/1 ui-monospace,monospace;color:#9fd0ff;background:#0c131c;border:1px solid #29384a;border-radius:8px;padding:6px 11px;cursor:pointer">Enable 3D</button>
+  </div>
+  <p class="sub" style="margin:.3rem 0 .6rem">Holographic view of the sovereign-inference engine on the shared 0-CDN WebGL2 kit: the <b>GPU/serving block</b> colors by the live <code>/v1/energy/sovereign</code> posture (<b>sovereign:true only on a real local-GPU probe</b>), a <b>trust sphere</b> morphs with &Lambda; (Conjecture 1, &lt;1.0), and the <b>J/token</b> readout is <b>MEASURED only on a live GPU power probe</b> &mdash; with no meter wired it stays an honest <b>ROADMAP</b>, never presented as measured. CPU/old-GPU renders the same data on a <b>2D canvas fallback</b>; the tiles above are the complete non-3D experience. Patterns: vLLM/SGLang J/token, NVIDIA Dynamo, LiteLLM, RouteLLM.</p>
+  <p class="state" style="margin:.2rem 0 .6rem">J/token <span id="e3d_jtok" style="color:#e0a13a">&mdash;</span> <span id="e3d_jtok_lbl"></span> &middot; sovereign <span id="e3d_sov" style="color:#e6edf3">&mdash;</span> &middot; <span id="e3d_caps" style="color:#6b7785"></span></p>
+  <div id="energy3d_mount" style="width:100%;height:400px;border:1px solid #1e2a3a;border-radius:10px;background:#060606;display:none;position:relative"></div>
+  <p class="note" id="e3d_off">3D is off (default). Tap <b>Enable 3D</b> to render the holographic energy view on the live <code>/v1/energy/jtoken</code> + <code>/v1/energy/sovereign</code> endpoints. The tiles above are always available as the fallback.</p>
+  <p class="note" style="color:#6b7785;font-size:.74rem">0 runtime CDN &middot; WebGL2 + honest 2D fallback &middot; J/token MEASURED-or-ROADMAP (never fabricated) &middot; sovereign:true only on live probe &middot; &Lambda; = Conjecture 1 (&lt;1.0) &middot; trust &lt;100%.</p>
+</section>
 <footer>
   <p class="lock">Doctrine __DV__ LOCKED · locked-proven=__LC__ {__LP__} · __CORPUS__ @ __KC__ · Λ = Conjecture 1 (NOT a theorem) · __SLSA__</p>
   <p>MEASURED = real on-box exporter sample (live) · ROADMAP = wiring ready, box not emitting yet (never faked). Sources: Watt-Counts arXiv:2604.09048 · Energy-per-Token arXiv:2603.20224 · vLLM spec-decode · LMCache · LiteLLM · RouteLLM · Carbon-Aware SDK.</p>
@@ -745,6 +755,88 @@ def _html(p: dict) -> str:
   if (window.SZLLabels && window.SZLLabels.ensureStyle){ window.SZLLabels.ensureStyle(document); }
   var slots = document.querySelectorAll('.pill-slot');
   for (var i=0;i<slots.length;i++){ slots[i].innerHTML = pill(slots[i].getAttribute('data-label')); }
+})();
+</script>
+<!-- F4 - 3D Energy/GPU hologram (additive). Loads the shared 0-CDN holographic kit. -->
+<script src="/static/shared/szl_holo3d.js"></script>
+<script>
+"use strict";
+(function(){
+  var EA="/api/a11oy";
+  var mount=document.getElementById('energy3d_mount');
+  var offEl=document.getElementById('e3d_off');
+  var toggle=document.getElementById('e3d_toggle');
+  if(!mount||!toggle||!window.SZLHolo){ if(toggle){toggle.disabled=true;toggle.textContent='3D unavailable';} return; }
+  var scene=null, started=false, poll=null, anim=null;
+  var JT=document.getElementById('e3d_jtok'), JTL=document.getElementById('e3d_jtok_lbl');
+  var SOV=document.getElementById('e3d_sov'), CAP=document.getElementById('e3d_caps');
+  function esc3(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function getJSON(u,opt){return fetch(u,opt).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+
+  function applyJtoken(b){
+    if(!b){ JT.textContent='-'; JTL.innerHTML=''; return; }
+    var lbl=String(b.label||'').toUpperCase();
+    var ev=b.joules_evidence||{};
+    var measured=(lbl==='MEASURED') && ev && Object.keys(ev).length>0 && (b.joules_per_token!=null);
+    if(measured){
+      JT.textContent=Number(b.joules_per_token).toFixed(4)+' J/tok';
+      JTL.innerHTML='<span style="color:#42d392;font-size:9px;border:1px solid #42d392;padding:1px 5px;border-radius:5px">MEASURED - live probe</span>';
+    }else{
+      JT.textContent='- J/tok';
+      JTL.innerHTML='<span style="color:#e0a13a;font-size:9px;border:1px solid #e0a13a;padding:1px 5px;border-radius:5px">ROADMAP - no meter ('+esc3(b.joules_honesty||'sample')+')</span>';
+    }
+  }
+
+  var _sovereign=false;
+  function applySovereign(sv){
+    var sov=!!(sv&&sv.sovereign===true&&sv.gpu_reachable===true);
+    _sovereign=sov;
+    SOV.textContent=sv?(sov?'true - local-GPU probe':'false - router fallback'):'- (posture unreachable)';
+    rebuild();
+  }
+
+  function rebuild(){
+    if(!scene)return;
+    try{
+      scene.graphs=[]; scene.spheres=[]; scene.pulses=[];
+      var gpuLab=_sovereign?'GPU.SOVEREIGN':'GPU.ROADMAP';
+      scene.addGraph({nodes:[
+        {id:'router',label:'\u039b-ENGINE'},
+        {id:'gpu',label:gpuLab},
+        {id:'bek',label:'BEKENSTEIN'}
+      ],edges:[
+        {id:'e0',from:'router',to:'gpu'},
+        {id:'e1',from:'router',to:'bek'}
+      ]});
+      var lam=0.62;
+      scene.addTrustSphere({lambda:lam}); scene.setLambda(lam);
+    }catch(e){}
+  }
+  function pulse(){ if(scene){ try{ scene.signPulse('e0'); }catch(_){} } }
+
+  function refresh(){
+    getJSON(EA+'/v1/energy/jtoken').then(applyJtoken);
+    getJSON(EA+'/v1/energy/sovereign').then(applySovereign);
+  }
+  function start(){
+    if(started)return; started=true;
+    mount.style.display='block'; offEl.style.display='none'; toggle.textContent='Disable 3D';
+    scene=window.SZLHolo.createScene(mount,{sample:false});
+    var caps=window.SZLHolo.capabilities();
+    CAP.textContent='mode:'+caps.mode+(caps.webgpu?' - webgpu-detected(ROADMAP)':'');
+    rebuild(); scene.start();
+    refresh();
+    poll=setInterval(refresh,30000);
+    anim=setInterval(pulse,3000);
+  }
+  function stop(){
+    if(!started)return; started=false;
+    mount.style.display='none'; offEl.style.display='block'; toggle.textContent='Enable 3D';
+    if(poll)clearInterval(poll); if(anim)clearInterval(anim);
+    try{ if(scene){scene.stop();scene.dispose();} }catch(e){}
+    scene=null;
+  }
+  toggle.addEventListener('click',function(){ started?stop():start(); });
 })();
 </script>
 </body></html>""".replace("__SUMMARY__", p["summary"]) \
