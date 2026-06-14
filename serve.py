@@ -1018,6 +1018,18 @@ try:
     # image-only like the other web/*.html demo pages (Dockerfile per-file COPY +
     # copy-sync-lockstep.json image_only_assets); also pushed direct-to-Space so they
     # are live immediately. Without these COPYs the routes 404 to the SPA shell.
+    # NOTE (additive coordination): sibling lanes already own the plain /constitution
+    # (a11oy_constitution.register -> router.routes.insert(0,...)) and /quant
+    # (szl_gpu_quant.register -> @app.get) pages. We do NOT clobber those. Our
+    # 3D-enhanced holographic surfaces are served at distinct *-3d paths (and a
+    # /holo-* alias) so BOTH lanes stay live. The bare /constitution and /quant
+    # registrations below are kept ONLY as harmless shadowed fallbacks (they serve
+    # our page iff the sibling lane ever fails to register); they never override
+    # the sibling routes. /estate-hologram is uniquely ours.
+    for _p in ("/constitution-3d", "/a11oy/constitution-3d", "/holo-constitution"):
+        app.add_api_route(_p, _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
+    for _p in ("/quant-3d", "/a11oy/quant-3d", "/holo-quant"):
+        app.add_api_route(_p, _ptg_serve("quant.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/constitution", _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/constitution", _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/quant", _ptg_serve("quant.html"), methods=["GET"], include_in_schema=False)
