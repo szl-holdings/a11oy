@@ -181,23 +181,33 @@ def _extract_window(op: Optional[Mapping[str, Any]],
     here are MEASURED (live exporter / ledger) or the documented ground-truth
     sample — never fabricated.
     """
-    # --- joules + window + power from the operator status ---
+    # --- joules + window + power + TOKENS + jobs straight from the operator status ---
+    # The operator IS the source of truth for the live running window: it exposes
+    # joules_measured_total, window_seconds, tokens_total and jobs_done/jobs_completed
+    # for its own run. We read tokens from the operator FIRST (the ledger is a fallback
+    # for tokens) so the live running window reflects the operator, not the sample.
     joules = window_s = power_w = node = grid = None
     jobs = tokens = None
+    op_running = False
 
     if op is not None:
+        op_running = bool(op.get("running"))
         joules = _coerce_float(op.get("joules_measured_total"))
         window_s = _coerce_float(op.get("window_seconds"))
         power_w = _coerce_float(op.get("power_w_sample"))
         node = op.get("exporter_node") or op.get("node")
         jobs = _coerce_float(op.get("jobs_completed"))
+        if jobs is None:
+            jobs = _coerce_float(op.get("jobs_done"))
+        tokens = _coerce_float(op.get("tokens_total"))
         grid = _coerce_float(op.get("grid_price_eur_mwh"))
 
-    # --- tokens (and possibly jobs/joules) from the ledger totals ---
+    # --- ledger totals: corroborate tokens/jobs/joules when the operator omits them ---
     if led is not None:
         totals = led.get("totals") if isinstance(led.get("totals"), Mapping) else led
         if isinstance(totals, Mapping):
-            tokens = _coerce_float(totals.get("tokens_total")) if tokens is None else tokens
+            if tokens is None:
+                tokens = _coerce_float(totals.get("tokens_total"))
             if jobs is None:
                 jobs = _coerce_float(totals.get("jobs_total"))
             if joules is None:
@@ -205,16 +215,23 @@ def _extract_window(op: Optional[Mapping[str, Any]],
         if grid is None:
             grid = _coerce_float(led.get("grid_price_eur_mwh"))
 
+    # LIVE when the operator reports running with a real positive joules window. We key
+    # off running first so a running operator that has just started (joules climbing) is
+    # still treated as live and reflects its OWN tokens/jobs — never the ground-truth
+    # sample. Fall back to the documented sample ONLY when the operator is idle/absent.
     live = (
         joules is not None and joules > 0
         and window_s is not None and window_s > 0
+        and (op_running or op is None)
     )
     if live:
         return {
-            "measured_source": "live:operator+ledger",
+            "measured_source": ("live:operator (running)" if op_running
+                                else "live:operator+ledger"),
+            "operator_running": op_running,
             "joules_measured": joules,
             "window_seconds": window_s,
-            "tokens_measured": tokens,            # may be None if ledger absent
+            "tokens_measured": tokens,            # from the operator (ledger fallback)
             "jobs_measured": jobs,
             "power_w_sample": power_w,
             "grid_price_eur_mwh": grid if grid is not None else _GROUND_TRUTH_GRID_EUR_MWH,
@@ -223,8 +240,11 @@ def _extract_window(op: Optional[Mapping[str, Any]],
         }
 
     # --- documented ground-truth fallback (labeled, never silent) ---
+    # Reached ONLY when the operator is idle/absent (no live running window). The joules
+    # sample itself is MEASURED; tokens are unknown and reported None, never fabricated.
     return {
         "measured_source": "fallback:ground-truth-sample (BUILD_SPEC 2026-06-14 13:26 EDT)",
+        "operator_running": False,
         "joules_measured": _GROUND_TRUTH_JOULES,
         "window_seconds": _GROUND_TRUTH_WINDOW_S,
         "tokens_measured": None,   # unknown without Dev2 ledger — NOT fabricated
