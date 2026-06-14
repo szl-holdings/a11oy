@@ -169,9 +169,10 @@ def _make_injector():
                     body = body.replace(b"</body>", _build_related_strip(p) + b"</body>", 1)
                     changed = True
 
-                if not changed:
-                    return resp
-
+                # NOTE: body_iterator was fully consumed above, so we MUST
+                # rebuild the Response from the buffered bytes even when unchanged.
+                # Returning the original (exhausted) resp here emitted an EMPTY body
+                # downstream -> white-screen on / and other doc pages.
                 headers = dict(resp.headers)
                 headers.pop("content-length", None)
                 return Response(content=body, status_code=resp.status_code,
