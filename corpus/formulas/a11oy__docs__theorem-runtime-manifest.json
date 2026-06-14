@@ -128,33 +128,35 @@
     },
     {
       "id": "RUNTIME-A2-MORAL-GROUNDING-FLOOR",
-      "theorem": "moralGroundingFloor",
+      "theorem": "MoralGroundingTheorem",
       "formula": "MoralGroundingFloor",
       "lineage": "SZL Doctrine v6 A2: moral grounding >= 0.95 with ORCID requirement",
-      "leanFile": "Lutar/Gate/MoralGrounding.lean",
-      "leanStatus": "phantom",
+      "leanFile": "Lutar/DoctrineV3/MoralGrounding.lean",
+      "leanStatus": "theorem",
       "runtimeFile": "packages/policy/src/gates/moralGroundingFloor_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: ORCID absence collapses moral grounding score to 0."
+      "caveat": "Repointed from the phantom path Lutar/Gate/MoralGrounding.lean to the real kernel-checked theorem MoralGroundingTheorem (with corollary P_moral_iff_conjunction) in Lutar/DoctrineV3/MoralGrounding.lean (zero sorry, zero axiom). The Lean proof establishes the structural core: the moral-safety predicate P_moral decomposes into a finite six-category harm conjunction provable by exhaustive case analysis (Doctrine V3 Section 6). The 0.95 numeric floor and ORCID requirement are the runtime predicate (tested separately); they are not encoded in Lean because they require a probability-space axiom, as disclosed in the Lean file (Section 6.4).",
+      "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
       "id": "RUNTIME-A3-MEASURABILITY-HONESTY-FLOOR",
-      "theorem": "measurabilityHonestyFloor",
+      "theorem": "MeasurabilityHonestyTheorem",
       "formula": "MeasurabilityHonestyFloor",
       "lineage": "SZL Doctrine v6 A3: honesty floor with unsupported-claim penalty",
-      "leanFile": "Lutar/Gate/MeasurabilityHonesty.lean",
-      "leanStatus": "phantom",
+      "leanFile": "Lutar/DoctrineV3/MeasurabilityHonesty.lean",
+      "leanStatus": "theorem",
       "runtimeFile": "packages/policy/src/gates/measurabilityHonestyFloor_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Each unsupported claim subtracts 0.05 from effective score."
+      "caveat": "Repointed from the phantom path Lutar/Gate/MeasurabilityHonesty.lean to the real kernel-checked theorem MeasurabilityHonestyTheorem (with corollary ReceiptSlot.verified_ne_markedUnverifiable) in Lutar/DoctrineV3/MeasurabilityHonesty.lean (zero sorry, zero axiom). The Lean proof establishes the exhaustive, mutually-exclusive partition {Verified, MarkedUnverifiable} of every receipt slot (Doctrine V3 Section 7). The numeric honesty floor and unsupported-claim penalty are the runtime predicate, tested separately.",
+      "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
       "id": "RUNTIME-A4-DUAL-WITNESS-DISJOINTNESS",
@@ -188,18 +190,19 @@
     },
     {
       "id": "RUNTIME-A6-HASH-CHAIN-INTEGRITY",
-      "theorem": "hashChainIntegrity",
+      "theorem": "th_v18_14c_hash_audit_integrity",
       "formula": "HashChainIntegrity",
       "lineage": "SZL Doctrine v6 A6: SHA-256 hash chain over receipt sequence",
-      "leanFile": "Lutar/Gate/HashChainIntegrity.lean",
-      "leanStatus": "phantom",
+      "leanFile": "Lutar/Thesis/TH_V18_14_SHA256CollisionHonest.lean",
+      "leanStatus": "axiom-advisory",
       "runtimeFile": "packages/policy/src/gates/hashChainIntegrity_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: SHA-256 collision resistance is assumed (axiom), not Lean-proven."
+      "caveat": "Repointed from the phantom path Lutar/Gate/HashChainIntegrity.lean to the real theorem th_v18_14c_hash_audit_integrity (with th_v18_14a/b/d) in Lutar/Thesis/TH_V18_14_SHA256CollisionHonest.lean. AXIOM-ADVISORY: the audit-integrity and injectivity theorems are conditioned on the honest open axiom A15 (sha256_collision_resistant), which cannot be discharged in Lean 4 without a P != NP / computational-hardness assumption (NIST FIPS 180-4). A15 is disclosed in-file as an OPEN PROBLEM per Lean Czar B2 discipline; the structural tamper-detection proof is otherwise sorry-free.",
+      "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
       "id": "STAGED-A7-BEKENSTEIN-BOUND",
@@ -323,18 +326,19 @@
     },
     {
       "id": "RUNTIME-T2-LAMBDA-MONOTONICITY",
-      "theorem": "lambda_monotonicity",
+      "theorem": "th_v18_01_lambda_monotone",
       "formula": "LambdaMonotonicity",
       "lineage": "Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean; Lambda monotone in each argument",
-      "leanFile": "Lutar/Gate/LambdaMonotonicity.lean",
-      "leanStatus": "phantom",
+      "leanFile": "Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean",
+      "leanStatus": "theorem",
       "runtimeFile": "packages/policy/src/gates/lambdaMonotonicity_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Pointwise vector comparison; geometric mean used as Lambda proxy."
+      "caveat": "Repointed from the phantom path Lutar/Gate/LambdaMonotonicity.lean to the real kernel-checked theorem th_v18_01_lambda_monotone in Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (fully proved, axioms: none). It proves that Lambda k is monotone in each argument (axis-wise x <= y implies Lambda k x <= Lambda k y) via Lutar.lambda_isMonotone.",
+      "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
       "id": "RUNTIME-T3-MERKLE-DAG-BATCH",
@@ -399,33 +403,35 @@
     },
     {
       "id": "RUNTIME-T7-PRIVACY-MASK",
-      "theorem": "privacyMask",
+      "theorem": "scitt_mask_entropy_bound",
       "formula": "PrivacyMask",
       "lineage": "Lutar/DPI/SCITTMaskEntropy.lean: DPI H(mask(X)) <= H(X)",
-      "leanFile": "Lutar/Gate/PrivacyMask.lean",
-      "leanStatus": "phantom",
+      "leanFile": "Lutar/DPI/SCITTMaskEntropy.lean",
+      "leanStatus": "theorem",
       "runtimeFile": "packages/policy/src/gates/privacyMask_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Redaction field masking enforced; entropy monotonicity is the formal backing."
+      "caveat": "Repointed from the phantom path Lutar/Gate/PrivacyMask.lean to the real kernel-checked theorem scitt_mask_entropy_bound (with mask_refinement_entropy_mono, full_mask_zero_entropy, scitt_mask_preserves_hash) in Lutar/DPI/SCITTMaskEntropy.lean (axiom-free, zero sorry). It proves the DPI privacy property H(mask(X)) <= H(X) (Cover-Thomas 2006 Section 2.8) for the SCITT mask kernel.",
+      "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
       "id": "RUNTIME-T8-SINGLE-WITNESS-EXCLUSION",
-      "theorem": "singleWitnessExclusion",
+      "theorem": "two_witness_KS18_soundness",
       "formula": "SingleWitnessExclusion",
       "lineage": "SZL Doctrine v6 T8: single witness insufficient for high-stakes decisions",
-      "leanFile": "Lutar/Gate/SingleWitnessExclusion.lean",
-      "leanStatus": "phantom",
+      "leanFile": "Lutar/TwoWitness.lean",
+      "leanStatus": "theorem-with-tracked-sorries",
       "runtimeFile": "packages/policy/src/gates/singleWitnessExclusion_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Minimum witness count enforced at gate boundary."
+      "caveat": "Repointed from the phantom path Lutar/Gate/SingleWitnessExclusion.lean to Lutar/TwoWitness.lean, the KS-18 two-witness contextuality model used by a11oy-ks18-witness.ts. The soundness half two_witness_KS18_soundness (a consistent witness reports zero inconsistencies and flags CLASSICAL) is fully proved (zero sorry). THEOREM-WITH-TRACKED-SORRIES: the completeness half no_NCHV (no single non-contextual hidden-variable witness exists, the formal ground for 'single witness insufficient') depends on double_count, whose Cabello double-counting identity is left as one tracked sorry (2^18 decide enumeration, obligation documented in-file).",
+      "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
       "id": "RUNTIME-T9-CROSS-REGION-POLICY",
@@ -459,18 +465,19 @@
     },
     {
       "id": "RUNTIME-TH1-COMPOSABILITY",
-      "theorem": "composability",
+      "theorem": "composition_overhead_bound",
       "formula": "Composability",
       "lineage": "Lutar/Composition/CompositionOverhead.lean: linear overhead bound for N composed systems",
-      "leanFile": "Lutar/Gate/Composability.lean",
-      "leanStatus": "phantom",
+      "leanFile": "Lutar/Composition/CompositionOverhead.lean",
+      "leanStatus": "theorem",
       "runtimeFile": "packages/policy/src/gates/composability_gate.ts",
       "exportFile": "packages/policy/src/gates/index.ts",
       "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
       "claimStatus": "verified-runtime",
       "stagedAdvisory": false,
-      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Linear overhead bound enforced; asymptotic claim is the formal backing."
+      "caveat": "Repointed from the phantom path Lutar/Gate/Composability.lean to the real kernel-checked theorem composition_overhead_bound (with totalOverhead_le_len_mul_max, totalOverhead_append) in Lutar/Composition/CompositionOverhead.lean (no axiom, no sorry). It proves the linear overhead bound totalOverhead systems <= systems.length * C for N composed cost systems. The strict-bound improvement is tracked separately (composition_overhead_strict_bound_tracked, an explicit obligation marker, not a claimed result).",
+      "leanCommit": "b675cd84caa17080671570c153484c817f8769ac"
     },
     {
       "id": "RUNTIME-TH2-REPLAY-DOI-DUALITY",
@@ -720,15 +727,16 @@
   ],
   "leanCitationAudit": {
     "auditedAgainst": "szl-holdings/lutar-lean main",
-    "auditedAt": "2026-06-11",
-    "task": "#695",
+    "auditedAt": "2026-06-14",
+    "task": "#938 (follow-up to #695)",
     "rule": "A leanFile is honest only when it (a) resolves to a real file in lutar-lean, or (b) is explicitly marked leanStatus=phantom / stagedAdvisory=true.",
     "verifiedExisting": 10,
-    "repointedToRealProof": 1,
-    "relabeledPhantom": 27,
+    "repointedToRealProof": 8,
+    "relabeledPhantom": 20,
     "stagedAdvisory": 3,
     "nonLeanOrGlob": 5,
     "commitPin": "b675cd84caa17080671570c153484c817f8769ac",
-    "commitPinNote": "Resolvable real-proof entries (leanStatus theorem / theorem-with-tracked-sorries / axiom-advisory / conjecture-open / lean-backed) are now commit-pinned to lutar-lean and are hard-fail-eligible in scripts/check_lean_citations.py, matching gates_manifest.json rigor. Honestly-disclosed non-proof entries (phantom / conjectured / staged-advisory / measured-*) carry no pin and remain report-only."
+    "commitPinNote": "Resolvable real-proof entries (leanStatus theorem / theorem-with-tracked-sorries / axiom-advisory / conjecture-open / lean-backed) are now commit-pinned to lutar-lean and are hard-fail-eligible in scripts/check_lean_citations.py, matching gates_manifest.json rigor. Honestly-disclosed non-proof entries (phantom / conjectured / staged-advisory / measured-*) carry no pin and remain report-only.",
+    "repointNote": "Task #938: triaged the 27 phantom entries against szl-holdings/lutar-lean main. 7 genuinely corresponded to real proofs and were repointed from the nonexistent Lutar/Gate/* (singular) paths to real declarations: A2 MoralGroundingTheorem, A3 MeasurabilityHonestyTheorem, A6 th_v18_14c_hash_audit_integrity (axiom-advisory, open axiom A15), T2 th_v18_01_lambda_monotone, T7 scitt_mask_entropy_bound, TH1 composition_overhead_bound, T8 two_witness_KS18_soundness (theorem-with-tracked-sorries). The remaining 20 stay honestly leanStatus=phantom: their claims have no real Lean proof (incl. T3 MerkleDAGBuild whose merkle_dag_height_bound only proves a Prop:=True tracked placeholder, and A5/T5 replay determinism which rests entirely on a sorry)."
   }
 }
