@@ -3947,6 +3947,40 @@ except Exception as _a11oy_nav_e:
     print(f"[a11oy] NAV wire-up NOT registered: {_a11oy_nav_e!r}", file=sys.stderr)
     _a11oy_nav_tb.print_exc()
 # ── end NAV WIRE-UP (QA10) ──
+# ===========================================================================
+# MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM (additive, demo-grade, doctrine-honest)
+# Two shared modules, byte-identical in a11oy + killinchu:
+#   szl_mbse_cosim.py  — governed co-sim ENGINE. Serves JSON API:
+#       /api/a11oy/v1/mbse/{info,watertank,sixdof,pipeline}. Every run passes a
+#       Restraint gate and emits a signed (or honestly-UNSIGNED) DSSE receipt.
+#   szl_mbse_nav.py    — 3 served HTML pages (/mbse, /mbse-6dof, /mbse-pipeline)
+#       on the 0-CDN holo kit + inline-SVG time-series charts, plus an idempotent
+#       nav-injection middleware adding the "Digital Twin & Co-Sim (MBSE/FMI)"
+#       nav group. Registered EARLY (before SPA catch-all). cosim BEFORE nav so
+#       the pages can call the API. HONEST (Doctrine v11): all outputs labelled
+#       MODELED/SIMULATED; effectors SIMULATED human-on-loop; 0 CDN; 0 codenames;
+#       never weakens a gate; Λ = Conjecture 1; locked-8 untouched; trust < 100%.
+#       Stack: OpenModelica + FMPy + SysML-v2 patterns (never Cameo/Dymola).
+# ===========================================================================
+try:
+    import szl_mbse_cosim as _szl_mbse_cosim
+    _szl_mbse_cosim_status = _szl_mbse_cosim.register(app, ns="a11oy")
+    print(f"[a11oy] MBSE co-sim ENGINE registered: /api/a11oy/v1/mbse/* "
+          f"({_szl_mbse_cosim_status})", file=sys.stderr)
+except Exception as _szl_mbse_cosim_e:
+    import traceback as _szl_mbse_cosim_tb
+    print(f"[a11oy] MBSE co-sim ENGINE NOT registered: {_szl_mbse_cosim_e!r}", file=sys.stderr)
+    _szl_mbse_cosim_tb.print_exc()
+try:
+    import szl_mbse_nav as _szl_mbse_nav
+    _szl_mbse_nav_status = _szl_mbse_nav.register(app, ns="a11oy")
+    print(f"[a11oy] MBSE pages + nav registered: /mbse /mbse-6dof /mbse-pipeline "
+          f"({_szl_mbse_nav_status})", file=sys.stderr)
+except Exception as _szl_mbse_nav_e:
+    import traceback as _szl_mbse_nav_tb
+    print(f"[a11oy] MBSE pages + nav NOT registered: {_szl_mbse_nav_e!r}", file=sys.stderr)
+    _szl_mbse_nav_tb.print_exc()
+# ── end MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM ──
 
 # ===========================================================================
 # WILLAY — the GOVERNED INVERSE of Anthropic's Fable 5 / Mythos 5 split.

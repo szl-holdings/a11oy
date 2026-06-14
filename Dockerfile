@@ -104,6 +104,13 @@ COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_pro
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
 COPY a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py ./
+# MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM — two shared modules (byte-identical in
+# killinchu). szl_mbse_cosim.py serves /api/a11oy/v1/mbse/* (governed water-tank +
+# 6DOF FMU co-sim, Restraint gate, signed DSSE receipts). szl_mbse_nav.py serves
+# /mbse /mbse-6dof /mbse-pipeline (0-CDN holo + inline-SVG charts) + the idempotent
+# nav injector. MUST be COPY'd or serve.py's guarded imports fall back (merged-but-
+# not-live) AND hf-sync-backend would not mirror them. Per-file COPY (no COPY . .).
+COPY szl_mbse_cosim.py szl_mbse_nav.py ./
 # WILLAY — governed inverse of Fable 5 / Mythos 5 (safety verdicts signed & shown).
 # szl_willay_gateway.py serves /willay + /api/a11oy/v1/willay/*; a11oy_willay_nav.py
 # attaches the idempotent /console nav injector. MUST be COPY'd or serve.py's guarded
