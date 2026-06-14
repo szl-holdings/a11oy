@@ -97,6 +97,9 @@ COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py s
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
 COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
+# energy operator/ledger/projection modules — imported by serve.py (guarded);
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB.
+COPY joule_billing.py szl_energy_ledger.py ./
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
