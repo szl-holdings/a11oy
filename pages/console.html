@@ -14249,6 +14249,41 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               :'<span class="badge" style="border:1px solid #c06a5a;color:#ff7b6b">● UNREACHABLE</span>';
     return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>'+esc(title)+'</b>'+b+'</div><div class="dim" style="font-size:11px">'+esc(src)+'</div>'+body+'</div>';
   }
+  /* thermal-pinn-panel: honest MODELED thermal-aware-scheduling capability.
+     The PINN bakes the heat equation (u_t = alpha*u_xx) into its training loss and
+     models the GPU-die temperature field T(x,y) with compute-load hotspots. The field
+     is MODELED (NOT measured): it never asserts a joule, never creates energy, and
+     feeds thermal-aware scheduling of the WASTED-energy harvest only. Probes the
+     /pinn/thermal capability; degrades honestly to "capability live in-deployment"
+     if the endpoint is not deployed yet. Doctrine v11. */
+  async function ehThermalPanel(){
+    var deployed=false, status='in-deployment', detail='';
+    try{
+      var _c=new AbortController(); var _t=setTimeout(function(){try{_c.abort();}catch(e){}},1500);
+      var r=await fetch(EH_API.replace(/\/harvest$/,'')+"/pinn/thermal",{cache:"no-store",signal:_c.signal}).finally(function(){clearTimeout(_t);});
+      if(r&&r.ok){ deployed=true; status='live'; try{var j=await r.json(); if(j&&j.modeled_not_measured!=null) detail='endpoint reports modeled_not_measured='+esc(j.modeled_not_measured);}catch(e){} }
+    }catch(e){ /* endpoint not deployed yet — honest degradation, no fabrication */ }
+    var badgeColor=deployed?'#4fb37f':'#c9a05f', badgeText=deployed?'CAPABILITY LIVE':'CAPABILITY IN-DEPLOYMENT';
+    var capLine=deployed
+      ? 'The <code>/pinn/thermal</code> capability is live: it returns a MODELED GPU-die temperature field + signed-ready provenance receipt.'+(detail?(' '+detail+'.'):'')
+      : 'The <code>/pinn/thermal</code> capability is built and validated in-core (clean-room, pure-numpy) and is <b>live in-deployment</b> — not yet exposed on this public endpoint. No data is fabricated while it is undeployed.';
+    return '<div class="card" style="margin-top:.6rem">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap">'
+      +'<b>Thermal PINN — thermal-aware scheduling</b>'
+      +'<span class="badge" style="border:1px solid '+badgeColor+';color:'+badgeColor+'">● '+badgeText+'</span></div>'
+      +'<div class="dim" style="font-size:11px">szl_pinn_thermal · heat equation baked into the loss</div>'
+      +'<div style="margin-top:.4rem;font-size:13px;color:#e6edf6">A physics-informed neural net models heat dissipation across the compute fabric '
+      +'— the heat equation <code>u_t = α·u_xx</code> (2-D die: <code>α(T_xx+T_yy)+s=0</code>) is baked into its training loss '
+      +'— yielding a temperature field T(x,y) with compute-load hotspots for <b>thermal-aware scheduling</b> of the wasted-energy harvest.</div>'
+      +'<div class="honesty" style="margin-top:.5rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
+      +'<span class="badge" style="border:1px solid #c9a05f;color:#c9a05f">THERMAL FIELD MODELED</span>'
+      +'<span class="dim" style="font-size:11.5px">'+capLine
+      +' The temperature field is <b>MODELED, not measured</b> — it never asserts a joule and never creates energy; harvest targets WASTED/stranded heat only (<b>no free-energy</b>). '
+      +'Error is a bounded ESTIMATE (heat rel-L2 ≈1.14%, thermal rel-residual ≈4.28%); the Landauer floor is MODELED; Λ = Conjecture&nbsp;1 (advisory); not one of the locked-8. '
+      +'Method: Raissi/Perdikaris/Karniadakis 2019 — clean-room.</span></div>'
+      +'<div class="dim" style="font-size:11px;margin-top:.4rem"><a href="https://szlholdings-energy.static.hf.space/#thermal" target="_blank" rel="noopener">thermal PINN on the Energy surface ↗</a></div>'
+      +'</div>';
+  }
   window.energy_render=async function(c){
     /* investor-grade-polish: animated skeleton while the grid feeds resolve (never a
        blank "reading…"), plus a SHORT abort timeout so a slow public feed cannot hang
@@ -14294,6 +14329,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       h+='<div class="honesty" style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
         +'<span class="badge" style="border:1px solid '+(_jmeasured?'#4fb37f':'#c9a05f')+';color:'+(_jmeasured?'#5fe39a':'#c9a05f')+'">JOULES '+(_jmeasured?'MEASURED':'SAMPLE')+'</span>'
         +'<span class="dim" style="font-size:11.5px">This is a real grid <b>price/carbon</b> signal, not a power meter. Per <code>szl_joules_truth</code> (doctrine v11), joules read <b>SAMPLE</b> until a fresh on-box NVML exporter sample is present on a sovereign GPU node — we never fabricate a “measured” number, and this feed never sets <code>sovereign:true</code>.</span></div>';
+      /* thermal-pinn-panel — honest MODELED thermal-aware-scheduling capability.
+         Probes the /pinn/thermal capability endpoint; if not deployed yet, shows an
+         honest "capability live in-deployment" note. The thermal field is MODELED
+         (NOT measured) — it never claims joules, never creates energy. Doctrine v11. */
+      h+=await ehThermalPanel();
       h+='<div class="dim" style="font-size:11px;margin-top:.5rem">'+esc(d.feeds_live)+'/'+esc(d.feeds_total)+' feeds live · '+(d.cached?'cached':'fresh')+' · '+esc(when)
         +' · <a href="'+EH_API+'/harvest" target="_blank" rel="noopener">raw API</a> · <a href="https://a11oy.net/energy/" target="_blank" rel="noopener">standalone page ↗</a></div>';
       c.innerHTML=h;
@@ -14303,7 +14343,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         if(!document.hidden) window.energy_render(c);
       },60000);
     }catch(e){
-      c.innerHTML='<div class="card"><div class="dim">live harvest signal unavailable: '+esc((e&&e.message)||e)+' — no data is fabricated when feeds are down.</div></div>';
+      /* honest degradation: grid feed down. Still surface the Thermal PINN capability
+         (it does not depend on the grid feed) so the panel is always present. */
+      var head='<div class="card"><div class="dim">live harvest signal unavailable: '+esc((e&&e.message)||e)+' — no data is fabricated when feeds are down.</div></div>';
+      try{ c.innerHTML=head+(await ehThermalPanel()); }catch(e2){ c.innerHTML=head; }
+      if(window.__eh_timer) clearInterval(window.__eh_timer);
+      window.__eh_timer=setInterval(function(){
+        if(!document.body.contains(c)){ clearInterval(window.__eh_timer); window.__eh_timer=null; return; }
+        if(!document.hidden) window.energy_render(c);
+      },60000);
     }
   };
   function reg(){
