@@ -1455,6 +1455,23 @@ except Exception as _ledger_exc:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (SZL Energy projection — Dev 3, energy/03-projection): honest 1-day +
+# scale projection from the live MEASURED rate (joules/tokens/jobs over the
+# running window, read from Dev1 operator status + Dev2 ledger totals). Every value
+# labeled MEASURED/MODELED/ESTIMATE; FLOPs shown with formula; resale dollar is an
+# ESTIMATE and NEVER MEASURED. Mounts GET /api/a11oy/v1/energy/projection.
+# Registered BEFORE the SPA catch-all. try/except so a11oy boots if import fails.
+# ---------------------------------------------------------------------------
+try:
+    import szl_energy_projection as _szl_energy_projection
+    _szl_energy_projection_status = _szl_energy_projection.register(app, ns="a11oy")
+    print(f"[a11oy] energy projection wired ({_szl_energy_projection_status}): /api/a11oy/v1/energy/projection", file=sys.stderr)
+except Exception as _energy_proj_exc:  # additive: never break the Space
+    _szl_energy_projection_status = f"energy-projection-not-wired:{_energy_proj_exc!r}"
+    print(f"[a11oy] energy projection NOT mounted ({_energy_proj_exc!r}); SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (Formulas SECTION for the SPA navigation — closeout, A11oy Full-Stack
 # Team / Perplexity Computer Agent): mount GET /formulas/wired, a premium
 # Inca-palette page that lists EACH live thesis-v22 formula (reads the SAME
