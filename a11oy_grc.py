@@ -246,7 +246,9 @@ def _make_injector():
                 elif b"</body>" in body:
                     new_body = body.replace(b"</body>", _NAV_LINK + b"</body>", 1)
                 else:
-                    return resp
+                    # body_iterator already consumed above; returning the original
+                    # (exhausted) resp would emit an EMPTY body. Rebuild unchanged.
+                    new_body = body
                 headers = dict(resp.headers)
                 headers.pop("content-length", None)
                 return Response(content=new_body, status_code=resp.status_code,
