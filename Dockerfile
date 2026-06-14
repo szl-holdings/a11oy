@@ -195,6 +195,15 @@ COPY static/a11oy_operator_organ.js ./static/a11oy_operator_organ.js
 COPY static/vendor3d/three.module.min.js ./static/vendor3d/three.module.min.js
 COPY static/vendor3d/OrbitControls.js ./static/vendor3d/OrbitControls.js
 COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
+# ADDITIVE (Dev0, 2026-06-14): SHARED szl3d 3D toolkit + holographic shell. The
+# vendored three.js r170 libs (WebGL2 + WebGPU builds + postprocessing addons),
+# the szl3d toolkit (boot/live/label), the 9 surface stub modules, the /holographic
+# shell page, and the browser self-test harness. Served same-origin under
+# /static/3d/* by szl3d_holographic.register() (imported by serve.py) — 0 runtime
+# CDN, the estate is sovereign. Whole-tree COPY (nested vendor/ tree). The register
+# module + its pytest ship alongside the rest of the root .py modules.
+COPY static/3d/ ./static/3d/
+COPY szl3d_holographic.py ./szl3d_holographic.py
 # ADDITIVE (cathedral unification, GitHub-aligned): the ONE canonical genius
 # cathedral served at /cathedral — IDENTICAL "Constellation · Khipu" scene as the
 # SZLHOLDINGS/cathedral HF static space. cathedral_genius.html is that HF
