@@ -783,6 +783,38 @@ def demo(query: str = "how does WAQAY safeguard the index?", bit_width: int = 2,
 def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     from starlette.responses import JSONResponse, HTMLResponse
 
+    # IDEMPOTENT: if WAQAY routes are already mounted on this app instance, do not
+    # register (and re-front-insert) a second time. The /waqay tab path is a stable
+    # sentinel that exists only after a successful register() on THIS app.
+    _waqay_paths = {
+        "/waqay",
+        f"/api/{ns}/v1/waqay/doctrine",
+        f"/api/{ns}/v1/waqay/demo",
+        f"/api/{ns}/v1/waqay/search",
+        f"/api/{ns}/v1/waqay/receipts",
+        f"/api/{ns}/v1/waqay/verify",
+    }
+    if any(getattr(_r, "path", None) in _waqay_paths for _r in app.router.routes):
+        return {
+            "capability": "WAQAY governed quantized vector index (TurboQuant-inspired)",
+            "registered": sorted(_waqay_paths),
+            "trust_ceiling": TRUST_CEILING,
+            "data_label": "WAQAY",
+            "tab_route": "/waqay",
+            "note": "already registered (idempotent no-op)",
+        }
+
+    # FRONT-INSERT: record where the router currently ends, register the WAQAY
+    # routes (the decorators below APPEND them), then move exactly those newly
+    # appended routes to the FRONT of app.router.routes so they take precedence
+    # over any pre-existing greedy SPA /{full_path:path} catch-all. This mirrors
+    # the proven a11oy_hf_assets.register() pattern (record n_before -> append via
+    # decorators -> splice the new tail to routes[0:0]). On a11oy there is no
+    # catch-all ahead of WAQAY so this is a harmless no-op reorder (200 stays 200);
+    # on killinchu the SPA catch-all is registered earlier, so front-inserting is
+    # what flips /api/{ns}/v1/waqay/* and /waqay from 404/SPA-shell to 200.
+    n_before = len(app.router.routes)
+
     @app.get(f"/api/{ns}/v1/waqay/doctrine", include_in_schema=False)
     async def _doctrine() -> JSONResponse:
         return JSONResponse({"doctrine": DOCTRINE, "trust_ceiling": TRUST_CEILING})
@@ -826,6 +858,12 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     @app.get("/waqay", include_in_schema=False)
     async def _page() -> HTMLResponse:
         return HTMLResponse(_PAGE_HTML.replace("{NS}", ns))
+
+    # Move the WAQAY routes just appended (the tail beyond n_before) to the FRONT,
+    # preserving their relative order, so they beat any earlier SPA catch-all.
+    _new_routes = app.router.routes[n_before:]
+    del app.router.routes[n_before:]
+    app.router.routes[0:0] = _new_routes
 
     return {
         "capability": "WAQAY governed quantized vector index (TurboQuant-inspired)",
