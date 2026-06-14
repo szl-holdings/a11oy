@@ -15,7 +15,7 @@
 //
 //   Lean theorem cited: `reedSolomonMDSProperty`
 //   Lean file: Lutar/CodingTheory/ReedSolomonSingleton.lean
-//   Lean commit SHA: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
+//   Lean commit SHA: b675cd84caa17080671570c153484c817f8769ac
 //   Lean status: gate-level arithmetic (`reedSolomonMDSProperty`) has 0 sorries;
 //                MDS achievability proof has 1 sorry (sorry₁ — discharge route documented).
 //   Severity: ENFORCED
@@ -93,7 +93,7 @@ export interface ReedSolomonSingletonDecision {
 
 const LEAN_THEOREM = "reedSolomonMDSProperty";
 const LEAN_FILE    = "Lutar/CodingTheory/ReedSolomonSingleton.lean";
-const LEAN_COMMIT  = "1dca00032dfc9aa8559cc6c2e4b63192fcf52371";
+const LEAN_COMMIT  = "b675cd84caa17080671570c153484c817f8769ac";
 const FORMULA_STR  =
   "d = n−k+1 (MDS); t_era ≤ n−k  " +
   "[Reed & Solomon 1960 DOI:10.1137/0108018; Singleton 1964 DOI:10.1109/TIT.1964.1053661]";

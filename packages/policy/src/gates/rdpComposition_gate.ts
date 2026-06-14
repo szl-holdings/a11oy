@@ -12,7 +12,7 @@
 //
 //   Lean theorem cited: `rdpSequentialCompositionAdditivity`
 //   Lean file: Lutar/DP/RDPComposition.lean
-//   Lean commit SHA: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
+//   Lean commit SHA: b675cd84caa17080671570c153484c817f8769ac
 //   Lean status: theorem (2 sorries for measure-theoretic Rényi divergence;
 //                budget arithmetic predicate `rdpBudgetValid` has 0 sorries)
 //   Severity: ENFORCED
@@ -82,7 +82,7 @@ export interface RDPCompositionDecision {
 
 const LEAN_THEOREM = "rdpSequentialCompositionAdditivity";
 const LEAN_FILE    = "Lutar/DP/RDPComposition.lean";
-const LEAN_COMMIT  = "1dca00032dfc9aa8559cc6c2e4b63192fcf52371";
+const LEAN_COMMIT  = "b675cd84caa17080671570c153484c817f8769ac";
 const FORMULA_STR  =
   "ε_dp = Σᵢεᵢ + ln(1/δ)/(α−1)  [Mironov 2017 Prop.1+3; arXiv:1702.07476; DOI:10.1109/CSF.2017.11]";
 
