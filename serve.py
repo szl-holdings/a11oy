@@ -4056,6 +4056,53 @@ except Exception as _willay_nav_e:
 
 
 # ===========================================================================
+# ADDITIVE — WAQAY governed quantized vector index (2026-06-14, WAQAY team).
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# WAQAY (Quechua: to keep / guard / store) — our OWN governed, air-gapped,
+# DSSE-signed quantized vector index. We studied the MIT-licensed turbovec
+# (github.com/RyanCodrai/turbovec) + Google Research's TurboQuant data-oblivious
+# quantizer, then built OUR own pure-Python governed index (szl_waqay.py). It
+# UPGRADES a11oy's RAG: a ~16x-compressed index lets the 8GB Blackwell brain hold
+# a much larger governed KB locally, air-gapped. ADDITIVE — exact-cosine RAG is
+# unchanged. Every build + retrieval emits a DSSE-signed receipt and passes the
+# Restraint gate. Compression MEASURED; recall MODELED bound (never perfect);
+# perf vs the Rust SIMD original MODELED/ROADMAP. Mounts BEFORE the SPA catch-all;
+# try/except-guarded so a missing dep can NEVER take the Space down. 0 CDN.
+#   GET  /waqay                        — the WAQAY operator tab (live demo)
+#   GET  /api/a11oy/v1/waqay/doctrine  — doctrine + honesty self-statement
+#   GET  /api/a11oy/v1/waqay/demo      — ingest SAMPLE docs, compress, retrieve, sign
+#   POST /api/a11oy/v1/waqay/search    — run a governed query (signed receipt)
+#   GET  /api/a11oy/v1/waqay/receipts  — last N signed receipts (audit)
+#   POST /api/a11oy/v1/waqay/verify    — verify a signed WAQAY receipt
+# Attribution: turbovec (c) 2026 Ryan Codrai (MIT) + Google Research TurboQuant. NOTICES.md.
+# ===========================================================================
+try:
+    import szl_waqay as _szl_waqay
+    _waqay_status = _szl_waqay.register(app, ns="a11oy")
+    print(f"[a11oy] WAQAY governed vector index registered: {_waqay_status['registered']} "
+          f"(tab: {_waqay_status['tab_route']}, trust_ceiling={_waqay_status['trust_ceiling']} "
+          f"<1.0 by doctrine) — TurboQuant-inspired, signed receipts + Restraint, "
+          f"compression MEASURED / perf MODELED", file=sys.stderr)
+except Exception as _waqay_e:
+    import traceback as _waqay_tb
+    print(f"[a11oy] WAQAY governed vector index NOT registered: {_waqay_e!r}; SPA + API "
+          f"unaffected", file=sys.stderr)
+    _waqay_tb.print_exc()
+try:
+    import a11oy_waqay_nav as _a11oy_waqay_nav
+    _waqay_nav_status = _a11oy_waqay_nav.register(app, ns="a11oy")
+    print(f"[a11oy] WAQAY nav wire-up registered: {_waqay_nav_status['registered']} "
+          f"(tab: {_waqay_nav_status['tab_route']}) — idempotent, additive, /console "
+          f"SPA source NOT edited", file=sys.stderr)
+except Exception as _waqay_nav_e:
+    import traceback as _waqay_nav_tb
+    print(f"[a11oy] WAQAY nav wire-up NOT registered: {_waqay_nav_e!r}", file=sys.stderr)
+    _waqay_nav_tb.print_exc()
+# ── end WAQAY (governed quantized vector index) ──
+
+
+# ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
