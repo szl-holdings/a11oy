@@ -112,14 +112,199 @@ jobs:
           path: .compliance/scap-reports/
           if-no-files-found: error
 
-      - name: Commit summary to .compliance/scap-reports/ (main only)
+      # Record the refreshed compliance baseline on a dedicated, UNPROTECTED
+      # `compliance-baselines` branch — NOT main.
+      #
+      # The old step did `git push || echo "push skipped"` straight to main. main
+      # carries the org `series-a-default-branch` ruleset (pull_request +
+      # required_status_checks + required_signatures + non_fast_forward), which the
+      # in-CI GITHUB_TOKEN cannot satisfy or bypass, so that push was ALWAYS
+      # rejected — and the `|| echo "push skipped"` swallowed the rejection so every
+      # run passed GREEN while scan_summary.json never actually landed on main. This
+      # mirrors dsse-receipts.yml's fix: publish to an unprotected ledger branch via
+      # the contents API (GitHub signs the commit, satisfying required_signatures;
+      # the branch carries no PR/status rule), capturing the exact blob SHA written
+      # so the next step can confirm the baseline really recorded.
+      #
+      # continue-on-error: persistence is best-effort and must NEVER fail the core
+      # scan job here — the verify step below turns a genuine miss RED with an alert.
+      - name: Publish SCAP baseline to the compliance-baselines branch (main only)
+        id: publish
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const branch = 'compliance-baselines';
+            const repoPath = '.compliance/scap-reports/scan_summary.json';
+            const { owner, repo } = context.repo;
+
+            const body = fs.readFileSync(repoPath); // the summary we just generated
+            const content = body.toString('base64');
+            core.setOutput('repo_path', repoPath);
+
+            // Ensure the ledger branch exists (branch from main on first use).
+            let exists = true;
+            try {
+              await github.rest.repos.getBranch({ owner, repo, branch });
+            } catch (e) {
+              if (e.status === 404) { exists = false; } else { throw e; }
+            }
+            if (!exists) {
+              const main = await github.rest.git.getRef({ owner, repo, ref: 'heads/main' });
+              await github.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: main.data.object.sha });
+              core.info(`Created compliance baseline branch '${branch}'.`);
+            }
+
+            // Update in place (the baseline is a single rolling file).
+            let sha;
+            try {
+              const cur = await github.rest.repos.getContent({ owner, repo, path: repoPath, ref: branch });
+              sha = cur.data.sha;
+            } catch (e) {
+              if (e.status !== 404) throw e;
+            }
+
+            const writeResp = await github.rest.repos.createOrUpdateFileContents({
+              owner, repo, path: repoPath, branch, sha,
+              message: `chore(scap): refresh STIG baseline (pass=${{ steps.scan.outputs.pass }} fail=${{ steps.scan.outputs.fail }} score=${{ steps.scan.outputs.score }})\n\nSigned-off-by: Yachay <yachay@szlholdings.dev>`,
+              content,
+            });
+            core.setOutput('published', 'true');
+            // The blob SHA of exactly what we wrote, so the verify step can confirm
+            // the baseline PRESENT on the branch is the one this run generated.
+            core.setOutput('written_sha', writeResp?.data?.content?.sha || '');
+            core.info(`Published ${repoPath} to '${branch}' (blob ${writeResp?.data?.content?.sha}).`);
+
+      # The publish step above is continue-on-error: a failed baseline write must
+      # never crash the core scan job. But that previously meant a dropped write
+      # passed GREEN silently — the compliance baseline simply never recorded (as it
+      # had not, for the entire life of the old `git push || echo` step). This step
+      # closes that gap: it confirms the exact summary we just generated is actually
+      # present on the compliance-baselines branch with the matching blob SHA.
+      # Honest soft-pass is preserved for non-push events (the whole step is
+      # push/main-gated, like publish). Anything else — a 404, an errored publish
+      # that produced no blob SHA, or an API error — is a REAL miss we surface
+      # (annotation + alert + red run), never swallow.
+      - name: Verify the SCAP baseline actually recorded on the ledger
+        id: verifyledger
+        if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          REPO_PATH: ${{ steps.publish.outputs.repo_path }}
+          WRITTEN_SHA: ${{ steps.publish.outputs.written_sha }}
+        with:
+          script: |
+            const branch = 'compliance-baselines';
+            const { owner, repo } = context.repo;
+            const repoPath = process.env.REPO_PATH;
+            const writtenSha = process.env.WRITTEN_SHA;
+
+            // The publish step errored before it could even compute a target path
+            // (e.g. could not read the summary file). That IS a real miss.
+            if (!repoPath) {
+              core.setOutput('verify_failed', 'true');
+              core.setOutput('reason', 'the publish step failed before it could compute or attempt a baseline write (no target path was produced)');
+              core.error('The SCAP baseline was NOT recorded on the compliance-baselines branch: publish produced no target path.');
+              return;
+            }
+
+            // The publish step computed a target path but never confirmed a
+            // successful write (it set no blob SHA) — the contents-API call failed.
+            if (!writtenSha) {
+              core.setOutput('verify_failed', 'true');
+              core.setOutput('reason', `the publish step computed ${repoPath} but did not confirm a successful write (no blob SHA) — the baseline write failed`);
+              core.error(`The SCAP baseline ${repoPath} was NOT confirmed written to '${branch}' (publish reported no blob SHA).`);
+              return;
+            }
+
+            // Confirm the baseline on the ledger branch is EXACTLY the one this run
+            // generated by matching its blob SHA. Retry a few times to absorb
+            // read-after-write replication lag and avoid a flaky false alarm.
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                const cur = await github.rest.repos.getContent({ owner, repo, path: repoPath, ref: branch });
+                if (cur.data && cur.data.sha === writtenSha) {
+                  core.info(`Confirmed: ${repoPath} on '${branch}' matches the baseline generated this run (blob ${writtenSha}, attempt ${attempt}). Baseline write verified.`);
+                  core.setOutput('verify_failed', 'false');
+                  return;
+                }
+                if (attempt < 3) { core.info(`${repoPath} present on '${branch}' but blob ${cur.data && cur.data.sha} != ${writtenSha} (attempt ${attempt}/3) — retrying…`); await sleep(5000); continue; }
+                core.setOutput('verify_failed', 'true');
+                core.setOutput('reason', `baseline ${repoPath} on '${branch}' has blob ${cur.data && cur.data.sha}, not the ${writtenSha} generated this run`);
+                core.error(`The SCAP baseline on '${branch}' does not match the one generated this run for ${repoPath}.`);
+                return;
+              } catch (e) {
+                if (e.status === 404) {
+                  if (attempt < 3) { core.info(`${repoPath} not yet visible on '${branch}' (attempt ${attempt}/3) — retrying…`); await sleep(5000); continue; }
+                  core.setOutput('verify_failed', 'true');
+                  core.setOutput('reason', `the refreshed SCAP baseline ${repoPath} is missing from the '${branch}' branch after publish (checked 3×)`);
+                  core.error(`The SCAP baseline ${repoPath} is NOT on '${branch}' after publish — the compliance baseline did not record.`);
+                  return;
+                }
+                // Non-404 API error: surface it rather than swallow it.
+                core.setOutput('verify_failed', 'true');
+                core.setOutput('reason', `error checking '${branch}' for ${repoPath}: ${e.status || ''} ${e.message}`);
+                core.error(`Could not verify the baseline write for ${repoPath}: ${e.status || ''} ${e.message}`);
+                return;
+              }
+            }
+
+      # Direct push notification, mirroring dsse-receipts.yml / rekor-recheck.yml: a
+      # silently-dropped baseline write is noticed immediately, not just buried in a
+      # red run. Posts to a Slack-compatible incoming webhook via curl (no third-
+      # party action, so it stays within the org github-owned/verified-actions-only
+      # policy). If no webhook secret is configured it logs a notice and soft-skips
+      # — the red run + annotation still stand.
+      - name: Alert the team directly if the SCAP baseline failed to record
+        if: ${{ always() && steps.verifyledger.outputs.verify_failed == 'true' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          REPO_PATH: ${{ steps.publish.outputs.repo_path }}
+          REASON: ${{ steps.verifyledger.outputs.reason }}
         run: |
-          git config user.name "Yachay"
-          git config user.email "yachay@szlholdings.dev"
-          git add .compliance/scap-reports/scan_summary.json
-          git commit -s -m "chore(scap): refresh STIG baseline (pass=${{ steps.scan.outputs.pass }} fail=${{ steps.scan.outputs.fail }} score=${{ steps.scan.outputs.score }}) [skip ci]" || echo "no change"
-          git push || echo "push skipped"
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the annotation above still stand."
+            exit 0
+          fi
+
+          path_line="${REPO_PATH:-(no target path was produced)}"
+
+          # Compose the message (real newlines), then JSON-encode it safely with jq
+          # (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. Slack renders \n and *bold* in the `text` field.
+          text=":rotating_light: *SCAP STIG compliance baseline failed to record on the ledger* in ${REPO}.
+          *Baseline:* ${path_line}
+          *Ledger branch:* compliance-baselines
+          *Reason:* ${REASON}
+          *Failing run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting baseline-write-failure alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      # Honest red run: a refreshed baseline that never recorded is a failure, not a
+      # green pass. This fires ONLY for genuine misses — non-push events set
+      # verify_failed unset/false above and never reach here.
+      - name: Fail the run if the SCAP baseline did not record on the ledger
+        if: ${{ always() && steps.verifyledger.outputs.verify_failed == 'true' }}
+        run: |
+          echo "::error::A SCAP STIG compliance baseline was generated but did NOT record on the compliance-baselines ledger (${{ steps.verifyledger.outputs.reason }}). See the alert/annotation above."
+          exit 1
 
       - name: Attach full SCAP reports to release
         if: github.event_name == 'release'
