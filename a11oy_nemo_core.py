@@ -503,12 +503,34 @@ def tiers_view():
                 "live gpu_reachable probe: sovereign=%s" % sovereign)
         except Exception as e:
             probe_note = "probe error (%s); honest default not-sovereign." % type(e).__name__
+    # Model-aware honesty: the node being reachable (the sovereign brain, e.g.
+    # qwen2.5-coder:7b today) does NOT make the SZL-Nemo Qwen3-32B / 2-GPU tier live.
+    # Labelling a 32B that is served NOWHERE as MEASURED would be the half-state. This
+    # tier is MEASURED/sovereign ONLY when a 32B base is genuinely served; otherwise it
+    # is ROADMAP while honestly naming what IS served on the reachable node.
+    _served_model = (os.environ.get("SZL_LOCAL_LLM_MODEL")
+                     or os.environ.get("A11OY_LOCAL_LLM_MODEL") or "").strip()
+    _base_served = bool(sovereign) and ("32b" in _served_model.lower())
+    if _base_served:
+        _local_honesty = ("MEASURED — a live probe confirms the named 32B base is "
+                          "served on our GPU. NEVER claim local Nemotron-Ultra.")
+    elif sovereign:
+        _local_honesty = ("Node reachable now serving %r (the sovereign brain); the "
+                          "SZL-Nemo Qwen3-32B / 2-GPU serve is ROADMAP (founder-gated: "
+                          "one 7B-class GPU is reachable, no 32B / no vLLM TP=2 / 2nd "
+                          "card asleep) — see FORGE_SZL_NEMO.md. NEVER claim local "
+                          "Nemotron-Ultra." % (_served_model or "a small local model"))
+    else:
+        _local_honesty = ("Not reachable; honest ROADMAP. sovereign:true for this tier "
+                          "ONLY when a live probe confirms the 32B base is served on our "
+                          "GPU. NEVER claim local Nemotron-Ultra.")
     local_tier = {
         "tier_id": "sovereign-local",
         "title": "Sovereign-Local (2-GPU)",
         "where": "gpu",
-        "sovereign": sovereign,   # TRUE only with a live per-GPU gpu_reachable probe
-        "gpu_reachable": sovereign,
+        "sovereign": _base_served,   # the 32B tier is sovereign ONLY when a 32B is actually served
+        "gpu_reachable": bool(sovereign),  # node reachability (the live sovereign brain) — honest
+        "node_serving_now": (_served_model or None),
         "base_model": NEMO_BASE["default_base"] + " (open base, " +
                       NEMO_BASE["default_base_license"] + ")",
         "plan": ("2 GPUs (a11oy.net GPU + RTX 4000): vLLM TP=2 OR heterogeneous "
@@ -516,10 +538,8 @@ def tiers_view():
                  "embeddings). Per NEMOTRON_TWO_GPU_PLAN.md."),
         "base_url": base_url,
         "probe_note": probe_note,
-        "label": "MEASURED" if sovereign else "ROADMAP",
-        "honesty": ("sovereign:true ONLY when the live per-GPU gpu_reachable probe "
-                    "confirms a self-hosted GPU. Box serve is founder-gated → "
-                    "FORGE_SZL_NEMO.md. NEVER claim local Nemotron-Ultra."),
+        "label": "MEASURED" if _base_served else "ROADMAP",
+        "honesty": _local_honesty,
     }
     cloud_tier = {
         "tier_id": "cloud-NIM-frontier",
