@@ -854,6 +854,26 @@ COPY compliance/rego/human_override_required.rego ./compliance/rego/human_overri
 COPY compliance/rego/deployment_readiness.rego ./compliance/rego/deployment_readiness.rego
 COPY compliance/rego/manifest.json ./compliance/rego/manifest.json
 
+# HOLOGRAPHIC 3D ENERGY SHOWCASE (Lane energy/06, 2026-06-14). The shared szl3d 3D
+# toolkit (Dev0 foundation) + the 16-19 graph energy showcase. serve.py imports the
+# top-level module szl3d_holographic (registers GET /static/3d/{path} + /holographic +
+# /api/a11oy/v1/holographic/info) — it MUST be in this COPY set or the guarded import
+# falls back to a stub in the HF image (copy-sync lockstep CHECK 2). The whole 3D asset
+# tree (vendored three.js r170 WebGL2+WebGPU builds + addons, szl3d_{boot,live,label}.js,
+# the 9 surface modules incl. the upgraded energy surface, the energy_showcase module,
+# the selftest harness, VENDOR_MANIFEST.md) ships as a DIRECTORY COPY — bulk image-only
+# vendored/authored 3D content, served same-origin at /static/3d (0 runtime CDN), exactly
+# like `COPY console/ ./static/`. Directory COPYs are image-only per the guard (CHECK 3
+# only flags per-file served assets); the two web/*.html pages below are per-file and are
+# therefore declared in .github/copy-sync-lockstep.json image_only_assets.
+COPY szl3d_holographic.py ./
+COPY static/3d/ ./static/3d/
+# Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
+# page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase
+# module above via the same-origin importmap. Per-file served assets -> image_only_assets.
+COPY web/energy-holographic.html ./web/energy-holographic.html
+COPY web/energy.html ./web/energy.html
+
 CMD ["python", "serve.py"]
 
 

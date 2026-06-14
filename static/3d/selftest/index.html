@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>szl3d Toolkit — Self-Test Harness</title>
+<!-- 0 runtime CDN. Imports resolve through this local importmap (see VENDOR_MANIFEST.md). -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/3d/vendor/three/three.module.min.js",
+    "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
+    "three/addons/": "/static/3d/vendor/three/addons/"
+  }
+}
+</script>
+<style>
+ body{margin:0;background:#05070d;color:#eef3f6;font:13px ui-monospace,SFMono-Regular,Menlo,monospace;padding:18px}
+ h1{font-size:16px;margin:0 0 4px}
+ .sub{color:#9fb1bf;font-size:12px;margin-bottom:14px}
+ #summary{font-size:14px;margin:10px 0;padding:8px 12px;border-radius:8px;border:1px solid #1b2734;background:#0b121b}
+ #summary.pass{border-color:#2fd07a;color:#2fd07a}
+ #summary.fail{border-color:#ff6b6b;color:#ff6b6b}
+ table{border-collapse:collapse;width:100%;max-width:900px}
+ td{padding:5px 10px;border-bottom:1px solid #141d27;vertical-align:top}
+ .ok{color:#2fd07a}.no{color:#ff6b6b}.idx{color:#6fb1ff;width:34px}
+ .name{color:#eef3f6}.detail{color:#9fb1bf;font-size:11.5px}
+ #stage{width:320px;height:200px;border:1px solid #1b2734;border-radius:8px;margin-top:14px}
+ #chips{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<h1>◇ szl3d Toolkit — Self-Test Harness</h1>
+<div class="sub">Dev0 foundation · proves renderer boot + WebGL2 fallback + poll badge + 4 label chips +
+ degraded/404 + bloom + lazy surface load + 0-CDN. Doctrine v11. <a href="/holographic" style="color:#39d3c4">→ shell</a></div>
+<div id="summary">running…</div>
+<table id="results"></table>
+<div id="chips"></div>
+<div id="stage"></div>
+
+<script type="module">
+import szl3d, { boot, probeBackend } from "/static/3d/szl3d/szl3d_boot.js";
+import * as live from "/static/3d/szl3d/szl3d_live.js";
+import * as label from "/static/3d/szl3d/szl3d_label.js";
+import * as THREE from "three";
+
+const results = [];
+const checks = [];
+function check(name, fn) { checks.push({ name, fn }); }
+
+// ---- 1: module surface ----
+check("szl3d_boot exports boot()", () => typeof boot === "function");
+check("szl3d_boot reports three r170", () => {
+  const p = probeBackend();
+  if (String(p.three) !== "170") throw new Error("three rev " + p.three);
+  return true;
+});
+check("szl3d_live exports poll() + createBadge()", () =>
+  typeof live.poll === "function" && typeof live.createBadge === "function");
+check("szl3d_label exports all 4 doctrine states", () => {
+  ["MEASURED", "MODELED", "SAMPLE", "STRUCTURAL-ONLY"].forEach((k) => {
+    if (!label.LABELS[k]) throw new Error("missing " + k);
+  });
+  return true;
+});
+
+// ---- 2: renderer boots (WebGPU-or-WebGL2) ----
+let bootedStage = null;
+check("renderer boots (WebGPU or WebGL2)", async () => {
+  const el = document.createElement("div");
+  el.style.width = "200px"; el.style.height = "120px";
+  document.body.appendChild(el);
+  bootedStage = await boot(el, { orbit: false });
+  if (!bootedStage || !bootedStage.renderer) throw new Error("no renderer");
+  if (!["webgpu", "webgl2"].includes(bootedStage.backend)) throw new Error("bad backend " + bootedStage.backend);
+  return "backend=" + bootedStage.backend;
+});
+
+// ---- 3: forced WebGL2 fallback always works (Linux/mobile safety) ----
+check("forced WebGL2 fallback boots", async () => {
+  const el = document.createElement("div");
+  el.style.width = "120px"; el.style.height = "80px";
+  document.body.appendChild(el);
+  const s = await boot(el, { forceWebGL: true, orbit: false });
+  if (s.backend !== "webgl2") throw new Error("backend=" + s.backend);
+  s.dispose();
+  return "fallback ok";
+});
+
+// ---- 4: scene + camera + render ----
+check("scene/camera present and render() runs", () => {
+  if (!bootedStage.scene || !bootedStage.camera) throw new Error("no scene/camera");
+  bootedStage.render();        // must not throw
+  return true;
+});
+
+// ---- 5: a default-lit scene is not empty ----
+check("default lighting added to scene", () => {
+  let lights = 0; bootedStage.scene.traverse((o) => { if (o.isLight) lights++; });
+  if (lights < 1) throw new Error("no lights");
+  return lights + " lights";
+});
+
+// ---- 6: bloom/postprocessing pipeline runs ----
+check("bloom composer builds + renders (WebGL2)", async () => {
+  const el = document.createElement("div");
+  el.style.width = "160px"; el.style.height = "100px";
+  document.body.appendChild(el);
+  const s = await boot(el, { forceWebGL: true, orbit: false, bloom: { strength: 0.8 } });
+  if (!s.hasBloom()) throw new Error("composer not built");
+  s.render();                  // must run the bloom pass without throwing
+  s.setBloom(false); s.setBloom(true);
+  s.dispose();
+  return "bloom ok";
+});
+
+// ---- 7-10: label chips render (all 4 states) ----
+const chipBox = document.getElementById("chips");
+["MEASURED", "MODELED", "SAMPLE", "STRUCTURAL-ONLY"].forEach((state) => {
+  check("label chip renders: " + state, () => {
+    const c = label.chip(state, { text: "demo" });
+    chipBox.appendChild(c);
+    if (c.getAttribute("data-label") !== state) throw new Error("data-label=" + c.getAttribute("data-label"));
+    if (c.textContent.indexOf(state) < 0) throw new Error("text=" + c.textContent);
+    return true;
+  });
+});
+
+// ---- 11: label reads honesty field straight from JSON ----
+check("label normalizes API honesty fields", () => {
+  if (live.readHonestyLabel({ joules_label: "measured" }) !== "MEASURED") throw new Error("joules_label");
+  if (live.readHonestyLabel({ data_label: "MODELED" }) !== "MODELED") throw new Error("data_label");
+  if (label.normalize("sample-signal") !== "SAMPLE") throw new Error("normalize");
+  return true;
+});
+
+// ---- 12: 3D label billboard sprite ----
+check("label billboard returns a THREE.Sprite", () => {
+  const sp = label.billboard(THREE, "MEASURED", { text: "joules" });
+  if (!sp || !sp.isSprite) throw new Error("not a sprite");
+  return true;
+});
+
+// ---- 13: poll drives LIVE badge on success (mock fetch) ----
+const _realFetch = window.fetch;
+function mockFetch(map) {
+  return (url) => {
+    const u = String(url);
+    for (const k of Object.keys(map)) { if (u.indexOf(k) >= 0) return Promise.resolve(map[k]()); }
+    return Promise.resolve(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
+  };
+}
+function jsonResp(obj, status = 200) {
+  return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
+}
+check("poll -> LIVE badge + onData on 200", async () => {
+  window.fetch = mockFetch({ "/mock/live": () => jsonResp({ price: 42, label: "MEASURED" }) });
+  let got = null;
+  const badge = live.createBadge();
+  const h = live.poll("/mock/live", 10000, (j, meta) => { got = { j, meta }; }, { badge });
+  await h.refresh();
+  h.stop();
+  if (!got) throw new Error("onData not called");
+  if (got.meta.state !== live.LIVE_STATES.LIVE) throw new Error("state=" + got.meta.state);
+  if (got.meta.label !== "MEASURED") throw new Error("label=" + got.meta.label);
+  if (badge.el.getAttribute("data-state") !== "live") throw new Error("badge=" + badge.el.getAttribute("data-state"));
+  return "badge=live label=MEASURED";
+});
+
+// ---- 14: poll handles degraded honestly ----
+check("poll -> DEGRADED on {degraded:true}", async () => {
+  window.fetch = mockFetch({ "/mock/degraded": () => jsonResp({ degraded: true, data_label: "SAMPLE" }) });
+  let meta = null;
+  const h = live.poll("/mock/degraded", 10000, (j, mt) => { meta = mt; }, { onState: (m2) => { meta = m2; } });
+  await h.refresh(); h.stop();
+  if (!meta || meta.state !== live.LIVE_STATES.DEGRADED) throw new Error("state=" + (meta && meta.state));
+  return "degraded handled";
+});
+
+// ---- 15: poll handles 404 honestly (NO-LIVE-DATA) ----
+check("poll -> MISSING on 404", async () => {
+  window.fetch = mockFetch({ "/mock/404": () => jsonResp({ error: "nope" }, 404) });
+  const badge = live.createBadge();
+  let meta = null;
+  const h = live.poll("/mock/404", 10000, () => {}, { badge, onState: (m2) => { meta = m2; } });
+  await h.refresh(); h.stop();
+  if (!meta || meta.state !== live.LIVE_STATES.MISSING) throw new Error("state=" + (meta && meta.state));
+  if (badge.el.textContent.indexOf("NO-LIVE-DATA") < 0) throw new Error("badge text=" + badge.el.textContent);
+  return "404 -> NO-LIVE-DATA";
+});
+
+// ---- 16: poll handles network error honestly ----
+check("poll -> ERROR on network failure", async () => {
+  window.fetch = () => Promise.reject(new Error("boom"));
+  let meta = null;
+  const h = live.poll("/mock/err", 10000, () => {}, { onState: (m2) => { meta = m2; } });
+  await h.refresh(); h.stop();
+  if (!meta || meta.state !== live.LIVE_STATES.ERROR) throw new Error("state=" + (meta && meta.state));
+  return "error handled";
+});
+
+// ---- 17: a surface stub lazy-loads + mounts on the shared stage ----
+check("surface stub lazy-loads + mounts (tab-switcher contract)", async () => {
+  window.fetch = mockFetch({ "/api/a11oy/v1/harvest/posture": () => jsonResp({ price_now_eur_mwh: 1, joules_label: "measured" }) });
+  const mod = await import("/static/3d/surfaces/energy.js");
+  const surface = mod.default;
+  if (surface.id !== "energy") throw new Error("id=" + surface.id);
+  if (typeof surface.mount !== "function" || typeof surface.unmount !== "function") throw new Error("contract");
+  const el = document.createElement("div"); el.style.width = "160px"; el.style.height = "100px";
+  document.body.appendChild(el);
+  const stage = await boot(el, { forceWebGL: true, orbit: false });
+  surface.mount({ stage, container: el, live, label, THREE, szl3d });
+  surface.unmount();
+  stage.dispose();
+  return "energy mounted+unmounted";
+});
+
+// ---- 18: all 9 surface modules import + satisfy the contract ----
+check("all 9 surface modules satisfy the contract", async () => {
+  const ids = ["energy", "fabric", "pnt", "counter-uas", "governance", "pinn", "router", "anatomy", "estate"];
+  for (const id of ids) {
+    const mod = await import("/static/3d/surfaces/" + id + ".js");
+    const s = mod.default;
+    if (s.id !== id) throw new Error(id + " id=" + s.id);
+    if (typeof s.mount !== "function" || typeof s.unmount !== "function") throw new Error(id + " contract");
+    if (!Array.isArray(s.endpoints) || s.endpoints.length < 1) throw new Error(id + " endpoints");
+  }
+  return "9/9 ok";
+});
+
+// ---- 19: 0 runtime CDN — no fetch-shaped external URL in served toolkit/shell ----
+check("0 runtime CDN in toolkit + shell + surfaces", async () => {
+  window.fetch = _realFetch;   // restore real fetch to read our own assets
+  const files = [
+    "/static/3d/szl3d/szl3d_boot.js", "/static/3d/szl3d/szl3d_live.js",
+    "/static/3d/szl3d/szl3d_label.js", "/static/3d/holographic.html",
+    "/static/3d/selftest/index.html",
+    "/static/3d/surfaces/energy.js", "/static/3d/surfaces/estate.js",
+  ];
+  const pats = [
+    /<script[^>]*\bsrc\s*=\s*['"]https?:\/\//i,
+    /\bimport\b[^;\n]*\bfrom\s*['"]https?:\/\//i,
+    /\bimport\s*\(\s*['"]https?:\/\//i,
+    /\bfetch\s*\(\s*['"`]https?:\/\//i,
+  ];
+  for (const f of files) {
+    const t = await (await fetch(f)).text();
+    for (const p of pats) { if (p.test(t)) throw new Error("CDN-shaped ref in " + f); }
+  }
+  return "all clean";
+});
+
+// ---- run all ----
+(async () => {
+  for (let i = 0; i < checks.length; i++) {
+    const c = checks[i];
+    try {
+      const r = await c.fn();
+      results.push({ ok: true, name: c.name, detail: (r === true ? "" : String(r)) });
+    } catch (e) {
+      results.push({ ok: false, name: c.name, detail: (e && e.message) || String(e) });
+    }
+  }
+  window.fetch = _realFetch;
+  render();
+})();
+
+function render() {
+  const tbl = document.getElementById("results");
+  tbl.innerHTML = "";
+  let pass = 0;
+  results.forEach((r, i) => {
+    if (r.ok) pass++;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td class="idx">' + (i + 1) + '</td>' +
+      '<td class="' + (r.ok ? "ok" : "no") + '">' + (r.ok ? "PASS" : "FAIL") + '</td>' +
+      '<td class="name">' + r.name + '</td>' +
+      '<td class="detail">' + (r.detail || "") + '</td>';
+    tbl.appendChild(tr);
+  });
+  const sum = document.getElementById("summary");
+  const all = pass === results.length;
+  sum.className = all ? "pass" : "fail";
+  sum.textContent = (all ? "✓ ALL PASS" : "✗ FAILURES") + " — " + pass + "/" + results.length + " checks";
+  window.__SZL3D_SELFTEST__ = { pass, total: results.length, allPass: all, results };
+}
+</script>
+</body>
+</html>

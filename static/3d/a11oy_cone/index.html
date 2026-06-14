@@ -49,10 +49,22 @@
 </div>
 <div id="status">Doctrine v11 LOCKED · 749/14/163 · Λ Conjecture 1 · a11oy/3d/cone · © SZL Holdings 2026 · Apache-2.0</div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<!-- Doctrine v11: 0 runtime CDN. three.js is served from the in-image vendored
+     r170 build (pinned-by-sha256), not jsdelivr. We import it as an ES module and
+     expose it as the global window.THREE so the classic scene script below (which
+     uses bare THREE.* calls) keeps working unchanged. -->
+<script type="importmap">
+{ "imports": { "three": "/static/3d/vendor/three/three.module.min.js" } }
+</script>
+<script type="module">
+  import * as THREE from "three";
+  window.THREE = THREE;
+  window.dispatchEvent(new Event("szl-three-ready"));
+</script>
 <script>
 // a11oy 3D Action-Cone Visualizer
-// Source: Three.js r160 (MIT) — https://threejs.org/
+// Source: Three.js r170 (MIT) — vendored locally at /static/3d/vendor/three/ (0 CDN)
+function __a11oyConeBoot() {
 // DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
 // Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 // Doctrine: v11 LOCKED | Λ Conjecture 1 | ADDITIVE ONLY
@@ -237,6 +249,10 @@ window.addEventListener('resize', () => {
 animate();
 setInterval(fetchAction, 2000);
 fetchAction();
+}
+// Boot once the vendored three.js module has populated window.THREE.
+if (window.THREE) { __a11oyConeBoot(); }
+else { window.addEventListener("szl-three-ready", __a11oyConeBoot, { once: true }); }
 </script>
 </body>
 </html>

@@ -37,6 +37,8 @@
     "static/vendor3d/three.module.min.js",
     "web/autoreview.html",
     "web/constitution.html",
+    "web/energy.html",
+    "web/energy-holographic.html",
     "web/estate-hologram.html",
     "web/fleet-c2.html",
     "web/formulas.html",

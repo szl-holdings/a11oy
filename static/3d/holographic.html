@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Holographic Estate — a11oy</title>
+<!-- 0 runtime CDN. All 3D libs vendored in-image and served same-origin via the
+     /static/3d/vendor/... importmap below (see VENDOR_MANIFEST.md). System fonts only. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/3d/vendor/three/three.module.min.js",
+    "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
+    "three/addons/": "/static/3d/vendor/three/addons/"
+  }
+}
+</script>
+<style>
+ :root{--bg:#05070d;--panel:#0b121b;--line:#1b2734;--teal:#39d3c4;--gold:#e8c074;--cream:#eef3f6;--para:#9fb1bf;}
+ *{box-sizing:border-box}
+ html,body{margin:0;height:100%}
+ body{background:var(--bg);color:var(--cream);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;overflow:hidden}
+ header{padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#08101a,#05070d);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+ h1{font-size:16px;margin:0;letter-spacing:.4px}
+ .badge{display:inline-block;font:10.5px ui-monospace,monospace;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--line);color:var(--gold);background:#10171f}
+ #backend{color:var(--teal)}
+ .tabs{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);background:#070d15}
+ .tab{font:11.5px ui-monospace,monospace;padding:6px 12px;border-radius:7px;border:1px solid var(--line);
+  background:#0a121b;color:var(--para);cursor:pointer;letter-spacing:.3px;transition:.12s}
+ .tab:hover{border-color:var(--teal);color:var(--cream)}
+ .tab[aria-selected="true"]{background:#12202b;color:var(--cream);border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
+ #stage-wrap{position:relative;width:100vw;height:calc(100vh - 96px)}
+ #stage{position:absolute;inset:0}
+ #stage canvas{display:block;width:100%;height:100%}
+ #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,monospace}
+ footer{position:fixed;bottom:0;left:0;right:0;padding:6px 14px;border-top:1px solid var(--line);
+  background:#070d15;color:var(--para);font:10.5px ui-monospace,monospace;letter-spacing:.3px;z-index:6}
+ a{color:var(--teal);text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+ <h1>◇ Holographic Estate</h1>
+ <span class="badge" id="backend">renderer: …</span>
+ <span class="badge">three r<span id="three-rev">…</span></span>
+ <span class="badge">0 runtime CDN</span>
+ <span class="badge">Λ = Conjecture 1</span>
+ <a href="/" style="margin-left:auto;font:11px ui-monospace,monospace">← a11oy</a>
+</header>
+<div class="tabs" id="tabs" role="tablist"></div>
+<div id="stage-wrap">
+ <div id="stage"></div>
+ <div id="fallback">3D unavailable on this device — the holographic estate needs a WebGL2 or WebGPU canvas.<br>
+  All underlying data is still available as JSON at the per-surface endpoints.</div>
+</div>
+<footer>Doctrine v11 · locked = 8 @ c7c0ba17 · Λ = Conjecture 1 · Khipu BFT = Conjecture 2 ·
+ shared szl3d toolkit (Dev0) · every value carries its honesty label · trust &lt; 100%</footer>
+
+<script type="module">
+import szl3d from "/static/3d/szl3d/szl3d_boot.js";
+import * as live from "/static/3d/szl3d/szl3d_live.js";
+import * as label from "/static/3d/szl3d/szl3d_label.js";
+import * as THREE from "three";
+
+// The 9 surface slots the other devs fill. Lazy-loaded per tab.
+const SURFACES = [
+  { id: "energy",      title: "Energy",      mod: "/static/3d/surfaces/energy.js" },
+  { id: "fabric",      title: "Fabric",      mod: "/static/3d/surfaces/fabric.js" },
+  { id: "pnt",         title: "PNT",         mod: "/static/3d/surfaces/pnt.js" },
+  { id: "counter-uas", title: "Counter-UAS", mod: "/static/3d/surfaces/counter-uas.js" },
+  { id: "governance",  title: "Governance",  mod: "/static/3d/surfaces/governance.js" },
+  { id: "pinn",        title: "PINN",        mod: "/static/3d/surfaces/pinn.js" },
+  { id: "router",      title: "Router",      mod: "/static/3d/surfaces/router.js" },
+  { id: "anatomy",     title: "Anatomy",     mod: "/static/3d/surfaces/anatomy.js" },
+  { id: "estate",      title: "Estate",      mod: "/static/3d/surfaces/estate.js" },
+];
+
+const stageEl = document.getElementById("stage");
+const tabsEl = document.getElementById("tabs");
+const fallbackEl = document.getElementById("fallback");
+document.getElementById("three-rev").textContent = THREE.REVISION;
+
+let stage = null;
+let current = null;       // { def, instance }
+let loadToken = 0;
+
+async function ensureStage() {
+  if (stage) return stage;
+  try {
+    stage = await szl3d.boot(stageEl, { bloom: { strength: 0.85, radius: 0.5, threshold: 0.18 }, cameraPos: [0, 5, 16] });
+    document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
+    stage.start();
+  } catch (e) {
+    fallbackEl.style.display = "flex";
+    document.getElementById("backend").textContent = "renderer: UNAVAILABLE";
+    console.error("[holographic] stage boot failed:", e);
+    throw e;
+  }
+  return stage;
+}
+
+function clearScene() {
+  if (!stage) return;
+  // Remove everything the previous surface added except the default lights.
+  const keep = new Set();
+  stage.scene.traverse((o) => { if (o.isLight) keep.add(o); });
+  for (let i = stage.scene.children.length - 1; i >= 0; i--) {
+    const o = stage.scene.children[i];
+    if (!keep.has(o)) stage.scene.remove(o);
+  }
+  // reset per-frame callbacks by re-booting frame list is overkill; surfaces guard on null.
+}
+
+async function selectSurface(id) {
+  const def = SURFACES.find((s) => s.id === id);
+  if (!def) return;
+  const token = ++loadToken;
+  // visual selection state
+  [...tabsEl.children].forEach((t) => t.setAttribute("aria-selected", String(t.dataset.id === id)));
+
+  await ensureStage();
+  // tear down previous
+  if (current && current.instance && current.instance.unmount) {
+    try { current.instance.unmount(); } catch (_) {}
+  }
+  clearScene();
+
+  let mod;
+  try { mod = await import(def.mod); }
+  catch (e) { console.error("[holographic] failed to load surface", id, e); return; }
+  if (token !== loadToken) return; // a newer tab click superseded us
+
+  const surface = mod.default || mod;
+  const ctx = { stage, container: stageEl, live, label, THREE, szl3d };
+  try {
+    surface.mount(ctx);
+    current = { def, instance: surface };
+    history.replaceState(null, "", "#" + id);
+  } catch (e) {
+    console.error("[holographic] surface mount threw", id, e);
+  }
+}
+
+// build tabs
+SURFACES.forEach((s) => {
+  const b = document.createElement("button");
+  b.className = "tab"; b.textContent = s.title; b.dataset.id = s.id;
+  b.setAttribute("role", "tab"); b.setAttribute("aria-selected", "false");
+  b.addEventListener("click", () => selectSurface(s.id));
+  tabsEl.appendChild(b);
+});
+
+// expose a tiny API for the selftest harness to drive the shell headlessly.
+window.__SZL3D_SHELL__ = {
+  surfaces: SURFACES,
+  select: selectSurface,
+  get stage() { return stage; },
+  get current() { return current; },
+  ensureStage,
+};
+
+// initial surface from hash or default to energy
+const initial = (location.hash || "").replace("#", "");
+selectSurface(SURFACES.some((s) => s.id === initial) ? initial : "energy");
+</script>
+</body>
+</html>

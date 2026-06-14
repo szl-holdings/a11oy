@@ -1045,6 +1045,18 @@ def _ptg_serve(filename: str):
     return _h
 
 try:
+    # SHARED szl3d 3D toolkit + holographic shell (Dev0 foundation). Serves the
+    # vendored three.js r170 + szl3d_{boot,live,label}.js + the surface modules +
+    # the energy_showcase under GET /static/3d/{path} (0 runtime CDN, same-origin),
+    # the /holographic tab-switcher shell, and GET /api/a11oy/v1/holographic/info.
+    # MUST be registered BEFORE the SPA catch-all so /static/3d/*.js is not swallowed.
+    try:
+        import szl3d_holographic as _szl3d_holographic
+        _szl3d_holographic.register(app, ns="a11oy")
+        print("[a11oy] szl3d holographic toolkit registered: /static/3d/* + /holographic", file=__import__("sys").stderr)
+    except Exception as _szl3d_e:  # additive — never crash the app
+        print(f"[a11oy] szl3d holographic toolkit NOT registered: {_szl3d_e!r}", file=__import__("sys").stderr)
+
     # Upgraded genius surfaces (win over module + SPA handlers by ordered match).
     app.add_api_route("/conduction", _ptg_serve("conduction.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/bridge",     _ptg_serve("bridge.html"),     methods=["GET"], include_in_schema=False)
@@ -1070,6 +1082,16 @@ try:
     # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
     app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    # HOLOGRAPHIC 3D ENERGY OPS (2026-06-14): the press-play showcase — 16-19 live 3D
+    # graphs on the shared szl3d toolkit (three.js r170 vendored at /static/3d, 0 CDN,
+    # WebGPU->WebGL2 fallback). Every graph is wired by szl3d_live.poll to a real
+    # a11oy energy endpoint (/energy/operator/status, /energy/ledger,
+    # /energy/projection, /harvest/posture, /compute-pool) and carries its doctrine
+    # honesty chip; on 404 it shows NO-LIVE-DATA, never a fabricated value. The same
+    # shared /static/3d/energy_showcase/showcase.js module also powers the /holographic
+    # energy surface and the HF /energy page's "(5)" panel.
+    app.add_api_route("/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
