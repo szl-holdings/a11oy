@@ -1450,6 +1450,13 @@ try:
     import szl_energy_ledger as _szl_energy_ledger
     _szl_energy_ledger_paths = _szl_energy_ledger.register(app, ns="a11oy")
     print(f"[a11oy] energy ledger wired: {_szl_energy_ledger_paths}", file=sys.stderr)
+    try:
+        import szl_energy_operator as _eo_wire
+        import szl_energy_ledger as _el_wire
+        _eo_wire.get_operator().subscribe(_el_wire.record_job)
+        print("[a11oy] energy operator->ledger receipts hook wired", file=sys.stderr)
+    except Exception as _eo_led_exc:
+        print(f"[a11oy] energy operator->ledger hook NOT wired: {_eo_led_exc!r}", file=sys.stderr)
 except Exception as _ledger_exc:  # additive: never break the Space
     print(f"[a11oy] energy ledger NOT mounted ({_ledger_exc!r}); SPA + API unaffected", file=sys.stderr)
 

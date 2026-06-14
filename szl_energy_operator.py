@@ -416,6 +416,7 @@ class OperatorDaemon:
         self._last_records: list[dict] = []     # rolling tail for status/dashboards
         self._subscribers: list[Callable[[dict], None]] = []
         self._grid_price_eur_mwh: Optional[float] = None  # latest meter grid price
+        self._last_power_w: Optional[float] = None  # latest live exporter power_w (W)
 
     # -- subscription (Dev2 receipts hook) --------------------------------
     def subscribe(self, cb: Callable[[dict], None]) -> None:
@@ -596,6 +597,9 @@ class OperatorDaemon:
         wall_s = time.time() - t0
         meter_after = _fetch_joule_meter()
         sample_after = _exporter_sample_for_node(meter_after, node.exporter_node)
+        if sample_after is not None and sample_after.get("power_w_sample") is not None:
+            with self._lock:
+                self._last_power_w = float(sample_after["power_w_sample"])
         j_after = (sample_after or {}).get("joules_measured_total")
         joules_measured = None
         if (isinstance(j_before, (int, float)) and isinstance(j_after, (int, float))
@@ -661,6 +665,10 @@ class OperatorDaemon:
                 "node_status": dict(self._node_status),
                 "by_node": {k: dict(v) for k, v in st.by_node.items()},
                 "uptime_s": round(uptime, 3),
+                "window_seconds": round(uptime, 3),
+                "jobs_completed": st.jobs_done,
+                "exporter_node": next((n.exporter_node for n in self.nodes), None),
+                "power_w_sample": self._last_power_w,
                 "grid_price_eur_mwh": self._grid_price_eur_mwh,
                 "recent_jobs": list(self._last_records[-10:]),
                 "exporter": _JOULE_METER_URL,
@@ -696,6 +704,11 @@ def get_operator() -> OperatorDaemon:
         if _OPERATOR is None:
             _OPERATOR = OperatorDaemon()
         return _OPERATOR
+
+
+def handle_status() -> dict:
+    """Module-level status accessor for in-process readers (Dev3 projection)."""
+    return get_operator().status()
 
 
 # ---------------------------------------------------------------------------
