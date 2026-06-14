@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy — Agent Loop · Memory · Skill Library</title>
+<!-- 0 runtime CDN: shared engines served locally from /static/shared. -->
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_receipt_cosign.js"></script>
+<style>
+  :root{--bg:#0b0e14;--panel:#121826;--ink:#e6edf3;--mut:#8b98a9;--acc:#5bd6ff;
+        --ok:#3fd37f;--bad:#ff6b6b;--warn:#ffce5b;--line:#1f2937;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);
+         display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px}
+  .tabs{display:flex;gap:6px;padding:10px 18px;border-bottom:1px solid var(--line)}
+  .tab{padding:7px 14px;border:1px solid var(--line);border-radius:8px;
+       background:var(--panel);cursor:pointer;color:var(--mut)}
+  .tab.active{color:var(--ink);border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+  main{padding:18px 22px;max-width:1180px}
+  .view{display:none}.view.active{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+        padding:16px;margin:0 0 16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  input,textarea,select{background:#0d1320;border:1px solid var(--line);
+        color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit}
+  input[type=text]{min-width:340px}
+  textarea{width:100%;min-height:64px}
+  button{background:var(--acc);color:#06222c;border:0;border-radius:8px;
+        padding:8px 14px;font:inherit;font-weight:700;cursor:pointer}
+  button.ghost{background:#0d1320;color:var(--ink);border:1px solid var(--line);font-weight:500}
+  .lbl{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;
+       border:1px solid var(--line);margin-left:6px}
+  .node{display:inline-block;min-width:96px;text-align:center;border-radius:6px;
+        padding:2px 8px;font-weight:700;font-size:12px}
+  .THOUGHT{background:#12304a;color:#9fdcff}
+  .ACTION{background:#3a2a12;color:#ffce8a}
+  .OBSERVATION{background:#123a24;color:#8ff0bb}
+  .GENESIS{background:#21262d;color:#9fb2c8}
+  .ok{color:var(--ok)}.bad{color:var(--bad)}.mut{color:var(--mut)}
+  .mono{font-family:inherit}.hash{color:var(--mut);font-size:11px;word-break:break-all}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600}
+  .bar{height:8px;border-radius:4px;background:#0d1320;overflow:hidden;min-width:90px}
+  .bar>i{display:block;height:100%;background:var(--acc)}
+  pre{white-space:pre-wrap;word-break:break-word;margin:6px 0 0;color:var(--mut);font-size:12px}
+  .pill{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:2px 9px;color:var(--mut)}
+  code{background:#0d1320;padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · AGENTIC CORE</h1>
+  <span id="topbadges"></span>
+  <span class="sub">ReAct graph · signed receipt boundaries · SqliteSaver resume · Generative-Agents memory · Letta tiering · Voyager skills</span>
+</header>
+<div class="tabs">
+  <div class="tab active" data-v="loop">Agent Loop</div>
+  <div class="tab" data-v="memory">Memory</div>
+  <div class="tab" data-v="skills">Skill Library</div>
+</div>
+<main>
+
+<!-- ===================== AGENT LOOP ===================== -->
+<section class="view active" id="v-loop">
+  <div class="card">
+    <div class="row">
+      <input id="goal" type="text" placeholder="goal, e.g.  compute 18*23 please" value="compute 18*23 please"/>
+      <label class="sub">max_steps <input id="maxsteps" type="number" value="4" style="width:64px"/></label>
+      <label class="sub"><input id="kill" type="checkbox"/> kill mid-run (crash demo)</label>
+      <button id="btnRun">Run ReAct</button>
+      <button class="ghost" id="btnResume">Resume last</button>
+    </div>
+    <div class="sub">Each node transition (Thought→Action→Observation) is a hash-chained, DSSE-signed receipt. A crash resumes from the last SqliteSaver checkpoint. <span id="runlbl"></span></div>
+  </div>
+  <div class="card" id="runMeta" style="display:none"></div>
+  <div class="card" id="traceCard" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <strong>Execution trace + receipt chain</strong>
+      <span id="chainState"></span>
+    </div>
+    <table id="traceTbl"><thead><tr>
+      <th>seq</th><th>node</th><th>body</th><th>link</th><th>signature</th><th>hash</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+  <div class="card" id="cpCard" style="display:none">
+    <strong>Checkpoints (SqliteSaver-style)</strong>
+    <table id="cpTbl"><thead><tr><th>step</th><th>prev_hash</th><th>ts</th></tr></thead><tbody></tbody></table>
+  </div>
+</section>
+
+<!-- ===================== MEMORY ===================== -->
+<section class="view" id="v-memory">
+  <div class="card">
+    <div class="sub">Generative-Agents retrieval: <code>score(m)=α_rec·γ^Δt + α_imp·imp(m) + α_rel·cos(q,m)</code> (arXiv 2304.03442). Embeddings are LOCAL (hashing-trick, 0 CDN) <span class="lbl" style="border-color:var(--warn);color:var(--warn)">HEURISTIC</span></div>
+    <div class="row" style="margin-top:10px">
+      <input id="memText" type="text" placeholder="add a memory (observation / fact / lesson)"/>
+      <button id="btnMemAdd">Add</button>
+    </div>
+    <div class="row">
+      <input id="memQ" type="text" placeholder="retrieve query, e.g.  fuel ignition launch"/>
+      <button id="btnMemSearch">Retrieve (scored)</button>
+    </div>
+  </div>
+  <div class="card" id="memCard" style="display:none">
+    <strong>Scored retrieval</strong>
+    <table id="memTbl"><thead><tr>
+      <th>score</th><th>recency γ^Δt</th><th>imp</th><th>cos(q,m)</th><th>tier</th><th>text</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+  <div class="card" id="tierCard">
+    <div class="row" style="justify-content:space-between">
+      <strong>Letta tiering — working (in-context) + archival (vector)</strong>
+      <button class="ghost" id="btnTiers">Refresh tiers</button>
+    </div>
+    <div id="tierBody" class="sub">working cap = paging boundary; least-recently-used working items page out to archival.</div>
+  </div>
+</section>
+
+<!-- ===================== SKILL LIBRARY ===================== -->
+<section class="view" id="v-skills">
+  <div class="card">
+    <div class="sub">Voyager skill library (arXiv 2305.16291): a tool-recipe is admitted <em>only</em> after a <strong>verified execution receipt</strong>. Indexed by local embedding.</div>
+    <div class="row" style="margin-top:10px">
+      <input id="skName" type="text" placeholder="skill name" style="min-width:180px"/>
+      <input id="skRecipe" type="text" placeholder="recipe (e.g. calc {a}*{b})" style="min-width:220px"/>
+      <input id="skRun" type="text" placeholder="run_id of a verified run" style="min-width:180px"/>
+      <button id="btnAdmit">Admit (receipt-gated)</button>
+    </div>
+    <div id="admitMsg" class="sub"></div>
+  </div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong>Admitted skills</strong>
+      <button class="ghost" id="btnSkills">Refresh</button>
+    </div>
+    <table id="skTbl"><thead><tr>
+      <th>name</th><th>recipe</th><th>receipt</th><th>verified</th><th>uses</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+</section>
+
+</main>
+<script>
+const API = "/api/a11oy/v1/agent/react";
+const L = (window.SZLLabels && window.SZLLabels.badgeHTML) ? window.SZLLabels.badgeHTML : (k)=>("<span class='lbl'>"+k+"</span>");
+let LAST_RUN = localStorage.getItem("a11oy_last_run") || "";
+
+document.getElementById("topbadges").innerHTML = L("EXPERIMENTAL") + " " + L("HEURISTIC");
+
+// tabs
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  document.getElementById("v-"+t.dataset.v).classList.add("active");
+});
+
+async function jpost(u,b){const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});return {status:r.status,json:await r.json()};}
+async function jget(u){const r=await fetch(u);return {status:r.status,json:await r.json()};}
+function esc(s){return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+// ---------- Agent Loop ----------
+async function renderTrace(runId){
+  const {json:tr} = await jget(API+"/trace/"+encodeURIComponent(runId));
+  if(tr.error){return;}
+  document.getElementById("traceCard").style.display="block";
+  document.getElementById("chainState").innerHTML =
+    (tr.chain_intact?"<span class='ok'>chain intact ✓</span>":"<span class='bad'>chain BROKEN ✗</span>")
+    +" · depth "+tr.depth;
+  const tb=document.querySelector("#traceTbl tbody");tb.innerHTML="";
+  tr.receipts.forEach(r=>{
+    const sig = r.signature_valid===true?"<span class='ok'>verified ✓</span>"
+      :(r.signed?"<span class='bad'>FAIL ✗</span>":"<span class='mut'>unsigned</span>");
+    const link = r.link_ok?"<span class='ok'>✓</span>":"<span class='bad'>✗</span>";
+    tb.innerHTML += `<tr><td>${r.seq}</td><td><span class="node ${r.node}">${r.node}</span></td>
+      <td><pre>${esc(JSON.stringify(r.body))}</pre></td><td>${link}</td><td>${sig}</td>
+      <td class="hash">${esc((r.hash||"").slice(0,18))}…</td></tr>`;
+  });
+  if(tr.reflection){
+    document.getElementById("runlbl").innerHTML =
+      " · reflection (Reflexion): <em>"+esc(tr.reflection.slice(0,90))+"</em>";
+  }
+}
+async function renderCps(runId){
+  const {json:cp}=await jget(API+"/checkpoints/"+encodeURIComponent(runId));
+  document.getElementById("cpCard").style.display="block";
+  const tb=document.querySelector("#cpTbl tbody");tb.innerHTML="";
+  cp.checkpoints.forEach(c=>tb.innerHTML+=`<tr><td>${c.step}</td><td class="hash">${esc((c.prev_hash||"").slice(0,18))}…</td><td class="mut">${esc(c.ts)}</td></tr>`);
+}
+function showRunMeta(o){
+  const m=document.getElementById("runMeta");m.style.display="block";
+  const st = o.status==="completed"?"ok":(o.status==="interrupted"?"bad":"mut");
+  m.innerHTML = `<strong>run</strong> <code>${esc(o.run_id)}</code> · status <span class="${st}">${esc(o.status)}</span>`
+    + (o.answer?` · answer <span class="ok">${esc(o.answer)}</span>`:"")
+    + (o.resumed?` · <span class="pill">resumed from step ${o.resumed_from_checkpoint_step}</span>`:"")
+    + " " + L(o.label||"EXPERIMENTAL");
+}
+document.getElementById("btnRun").onclick=async()=>{
+  const goal=document.getElementById("goal").value;
+  const max_steps=+document.getElementById("maxsteps").value;
+  const body={goal,max_steps};
+  if(document.getElementById("kill").checked) body.kill_after=2;
+  const {json:o}=await jpost(API+"/run",body);
+  LAST_RUN=o.run_id;localStorage.setItem("a11oy_last_run",o.run_id);
+  showRunMeta(o);await renderTrace(o.run_id);await renderCps(o.run_id);
+};
+document.getElementById("btnResume").onclick=async()=>{
+  if(!LAST_RUN){alert("run something first");return;}
+  const {json:o}=await jpost(API+"/resume",{run_id:LAST_RUN});
+  showRunMeta(o);await renderTrace(LAST_RUN);await renderCps(LAST_RUN);
+};
+
+// ---------- Memory ----------
+document.getElementById("btnMemAdd").onclick=async()=>{
+  const text=document.getElementById("memText").value;if(!text)return;
+  await jpost(API+"/memory/add",{text,tier:"archival",run_id:LAST_RUN||"adhoc"});
+  document.getElementById("memText").value="";loadTiers();
+};
+document.getElementById("btnMemSearch").onclick=async()=>{
+  const query=document.getElementById("memQ").value;if(!query)return;
+  const {json:o}=await jpost(API+"/memory/search",{query,top_k:8});
+  document.getElementById("memCard").style.display="block";
+  const tb=document.querySelector("#memTbl tbody");tb.innerHTML="";
+  (o.results||[]).forEach(h=>{
+    const c=h.components;
+    tb.innerHTML+=`<tr><td><strong>${h.score.toFixed(3)}</strong></td>
+      <td>${c.recency_gamma_dt.toFixed(3)} <span class="mut">(Δt ${c.delta_t_hours}h)</span></td>
+      <td>${c.importance.toFixed(2)}</td><td>${c.relevance_cos.toFixed(3)}</td>
+      <td><span class="pill">${esc(h.tier)}</span></td><td>${esc(h.text)}</td></tr>`;
+  });
+};
+async function loadTiers(){
+  const u = API+"/memory/tiers"+(LAST_RUN?("?run_id="+encodeURIComponent(LAST_RUN)):"");
+  const {json:o}=await jget(u);
+  const t=o.tiers||{};
+  document.getElementById("tierBody").innerHTML =
+    `working <strong>${t.working||0}</strong> · archival <strong>${t.archival||0}</strong> · cap ${o.working_cap} `
+    + L(o.label||"EXPERIMENTAL")
+    + `<div class="mut" style="margin-top:6px">${esc(o.design||"")}</div>`;
+}
+document.getElementById("btnTiers").onclick=loadTiers;
+
+// ---------- Skills ----------
+document.getElementById("btnAdmit").onclick=async()=>{
+  const name=document.getElementById("skName").value;
+  const recipe=document.getElementById("skRecipe").value;
+  const run_id=document.getElementById("skRun").value||LAST_RUN;
+  const {status,json:o}=await jpost(API+"/skills/admit",{name,recipe,run_id});
+  const el=document.getElementById("admitMsg");
+  el.innerHTML = (o.admitted?"<span class='ok'>":"<span class='bad'>")+esc(o.reason)+"</span>";
+  loadSkills();
+};
+async function loadSkills(){
+  const {json:o}=await jget(API+"/skills");
+  const tb=document.querySelector("#skTbl tbody");tb.innerHTML="";
+  (o.skills||[]).forEach(s=>{
+    tb.innerHTML+=`<tr><td><strong>${esc(s.name)}</strong></td><td><code>${esc(s.recipe)}</code></td>
+      <td class="hash">${esc((s.receipt_hash||"").slice(0,16))}…</td>
+      <td>${s.receipt_verified?"<span class='ok'>✓</span>":"<span class='bad'>✗</span>"}</td>
+      <td>${s.uses}</td></tr>`;
+  });
+}
+document.getElementById("btnSkills").onclick=loadSkills;
+
+// boot
+loadTiers();loadSkills();
+</script>
+</body>
+</html>
