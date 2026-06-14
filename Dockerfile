@@ -100,7 +100,7 @@ COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_h
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
-COPY a11oy_factory.py a11oy_constitution.py ./
+COPY a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
