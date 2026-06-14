@@ -6873,16 +6873,36 @@ except Exception as _opw_e:  # never crash the app — additive only
 
 
 @app.get("/")
-async def spa_root() -> FileResponse:
+async def spa_root():
     """FRONT DOOR: cathedral-style sovereign 3D hero (a11oy brain-sun, live Trust
     Score Λ, current updates) matching the org card. The full working console is
-    one click in at /console. Falls back to the console then SPA index if absent."""
-    hero = Path("/app/cathedral.html")
-    if hero.is_file():
-        return FileResponse(hero, media_type="text/html")
-    app_file = PAGES_DIR / "console.html"
-    if app_file.is_file():
-        return FileResponse(app_file, media_type="text/html")
+    one click in at /console. Falls back to the console then SPA index if absent.
+
+    Served IN-MEMORY (operator-widget tag baked in) rather than via FileResponse:
+    a11oy stacks several BaseHTTPMiddleware injectors, and uvicorn's zero-copy
+    http.response.pathsend FileResponse body is lost deep in that stack, which left
+    "/" returning only the ~83-byte widget stub (white screen). An in-memory Response
+    emits http.response.body bytes that every middleware handles correctly. Idempotent
+    + try/except guarded; FileResponse fallback only if no file is readable."""
+    from starlette.responses import Response as _SPA_Resp
+    _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js" '
+                b'data-surface="a11oy" defer></script>')
+    for _cand in (Path("/app/cathedral.html"), PAGES_DIR / "console.html", INDEX_HTML):
+        try:
+            _cp = Path(_cand)
+            if not _cp.is_file():
+                continue
+            _data = _cp.read_bytes()
+            if b'a11oy-operator-widget.js' not in _data:
+                if b'</body>' in _data:
+                    _data = _data.replace(b'</body>', _SPA_TAG + b'</body>', 1)
+                elif b'</html>' in _data:
+                    _data = _data.replace(b'</html>', _SPA_TAG + b'</html>', 1)
+                else:
+                    _data = _data + _SPA_TAG
+            return _SPA_Resp(content=_data, media_type="text/html")
+        except Exception:
+            continue
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
