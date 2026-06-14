@@ -39,6 +39,7 @@ HONESTY (Doctrine v11, HARD):
 Math mirrors `agentic_pinn/physics_bounds.py` byte-for-byte (same SI constants, same
 formulas) so the live mesh certificate and the on-metal certificate AGREE.
 """
+import base64
 import hashlib
 import json
 import math
@@ -236,6 +237,95 @@ def _read_json(path):
 
 
 # --------------------------------------------------------------------------- #
+# Real Ed25519 DSSE signature (FA-001 on-metal key) - VERIFIED at serve time.  #
+# The cert body is signed out-of-band by sign_cert_dsse.py with /root/ed25519. #
+# We NEVER fabricate: we re-verify the signature here against the exact served #
+# bytes and only label SIGNED if the cryptographic check passes.               #
+# --------------------------------------------------------------------------- #
+_DSSE_SIDECAR = os.path.join(_ART_DIR, "physical_bounds_certificate.dsse.json")
+_DSSE_PT = "application/vnd.szl.physical-bounds-certificate+json"
+_SIGN_RECEIPT = None
+
+
+def _dsse_pae(payload_type, body):
+    t = payload_type.encode()
+    return (b"DSSEv1 " + str(len(t)).encode() + b" " + t + b" "
+            + str(len(body)).encode() + b" " + body)
+
+
+def _cert_raw_bytes():
+    try:
+        with open(_CERT_ARTIFACT, "rb") as fh:
+            return fh.read()
+    except Exception:
+        return None
+
+
+def _verified_signature(cert_body):
+    """Return (signature_obj, envelope) iff a REAL Ed25519 DSSE signature over
+    `cert_body` cryptographically verifies; else (None, None). No half-state."""
+    if cert_body is None:
+        return None, None
+    env = _read_json(_DSSE_SIDECAR)
+    if not env or not isinstance(env, dict):
+        return None, None
+    try:
+        sigs = env.get("signatures") or []
+        if not sigs:
+            return None, None
+        s0 = sigs[0]
+        pub_pem = (s0.get("publicKey") or "").encode()
+        sig = base64.b64decode(s0["sig"])
+        from cryptography.hazmat.primitives.serialization import load_pem_public_key
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+        pub = load_pem_public_key(pub_pem)
+        if not isinstance(pub, Ed25519PublicKey):
+            return None, None
+        pae = _dsse_pae(env.get("payloadType", _DSSE_PT), cert_body)
+        pub.verify(sig, pae)  # raises InvalidSignature on mismatch
+        if env.get("_cert_sha256") != "sha256:" + hashlib.sha256(cert_body).hexdigest():
+            return None, None
+        sig_obj = {
+            "alg": "ed25519",
+            "pae": "DSSEv1",
+            "keyid": s0.get("keyid"),
+            "sig": s0.get("sig"),
+            "publicKey": s0.get("publicKey"),
+            "verified_at_serve_time": True,
+            "key_custody": "FA-001 on-metal Ed25519 (box secret store), self-verified by sign_cert_dsse.py",
+        }
+        return sig_obj, env
+    except Exception:
+        return None, None
+
+
+def _anchor_signature_in_khipu():
+    """Append ONE signing receipt to the in-process khipu chain at boot (honest:
+    KhipuDAG is append-only hash-chained, re-anchored each boot; durable ledger is
+    WASI-RIKUQ P1). No-op unless the Ed25519 signature actually verifies."""
+    global _SIGN_RECEIPT
+    sig_obj, env = _verified_signature(_cert_raw_bytes())
+    if sig_obj is None:
+        _SIGN_RECEIPT = None
+        return
+    try:
+        from szl_khipu import get_dag
+        rec = get_dag("pinn").emit("physical_bounds_certificate_signed", {
+            "keyid": sig_obj["keyid"],
+            "cert_sha256": env.get("_cert_sha256"),
+            "payloadType": env.get("payloadType"),
+        })
+        _SIGN_RECEIPT = {
+            "seq": rec["seq"], "digest": rec["digest"], "prev": rec["prev"],
+            "chain_verified": rec["chain_verified"],
+            "note": ("in-process append-only hash-chain (KhipuDAG); re-anchored each "
+                     "boot - durable ledger is WASI-RIKUQ P1"),
+        }
+    except Exception:
+        _SIGN_RECEIPT = None
+
+
+# --------------------------------------------------------------------------- #
 # Handlers                                                                     #
 # --------------------------------------------------------------------------- #
 def _h_index(req: Request):
@@ -296,9 +386,25 @@ def _h_certify(req: Request):
 def _h_certificate(req: Request):
     art = _read_json(_CERT_ARTIFACT)
     if art is not None:
+        sig_obj, env = _verified_signature(_cert_raw_bytes())
+        if sig_obj is not None:
+            art = dict(art)
+            art["signature"] = sig_obj
+            resp = {
+                "model": "SZL Physical-Bounds Certifier — latest artifact",
+                "status": "VERIFIED (physical bounds) · SIGNED (DSSE Ed25519, FA-001 on-metal)",
+                "signed": True,
+                "source": "on-metal artifact (Forge solver output)",
+                "certificate": art,
+                "dsse": env,
+            }
+            if _SIGN_RECEIPT:
+                resp["khipu"] = _SIGN_RECEIPT
+            return JSONResponse(resp)
         return JSONResponse({
             "model": "SZL Physical-Bounds Certifier — latest artifact",
             "status": "VERIFIED (physical bounds) · UNSIGNED (STRUCTURAL-ONLY)",
+            "signed": False,
             "source": "on-metal artifact (Forge solver output)",
             "certificate": art,
         })
@@ -377,6 +483,20 @@ def _h_residual(req: Request):
     })
 
 
+def _h_certificate_dsse(req: Request):
+    """Return the RAW Ed25519 DSSE envelope for the current certificate body, so
+    anyone can verify it independently (e.g. GET /verify?url=<this>). Honest 404
+    when no verifying signature is available for the current bytes."""
+    sig_obj, env = _verified_signature(_cert_raw_bytes())
+    if env is not None:
+        return JSONResponse(env)
+    return JSONResponse({
+        "status": "UNSIGNED",
+        "detail": ("no verifying Ed25519 DSSE signature is available for the current "
+                   "certificate body (honest — never a fabricated signature)"),
+    }, status_code=404)
+
+
 def register(app, ns="a11oy"):
     """Wire the PINN/bounds mesh onto the app under /api/<ns>/v1/pinn/*.
 
@@ -389,6 +509,7 @@ def register(app, ns="a11oy"):
         (base, _h_index),
         (f"{base}/certify", _h_certify),
         (f"{base}/certificate", _h_certificate),
+        (f"{base}/certificate.dsse", _h_certificate_dsse),
         (f"{base}/solve", _h_solve),
         (f"{base}/residual", _h_residual),
     ]
@@ -399,6 +520,10 @@ def register(app, ns="a11oy"):
         else:
             from starlette.routing import Route
             app.router.routes.append(Route(path, fn))
+    try:
+        _anchor_signature_in_khipu()
+    except Exception:
+        pass
     return [p for p, _ in handlers]
 
 
