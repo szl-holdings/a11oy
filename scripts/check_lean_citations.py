@@ -13,12 +13,14 @@
 #
 # WHAT IT PARSES
 #   1. gates_manifest.json                  -> lean_file / lean_commit_sha / lean_status
-#   2. docs/theorem-runtime-manifest.json   -> leanFile / leanStatus
+#   2. docs/theorem-runtime-manifest.json   -> leanFile / leanStatus / stagedAdvisory
 #   3. packages/policy/src/gates/*_gate.ts  -> LEAN_FILE / LEAN_COMMIT constants
 #      (the authoritative lean_status for a gate .ts is resolved from
 #       gates_manifest.json by matching the gate filename; the .ts comment's
 #       free-text "Lean status:" line is intentionally NOT trusted because it has
 #       been observed to disagree with the manifest, e.g. anatomyReduction.)
+#   4. corpus/formulas/a11oy__*.json mirrors -> must stay BYTE-IDENTICAL to the
+#      source manifests they mirror, or the audit drifts.
 #
 # POLICY (honest disclosure preserved)
 #   * gates_manifest.json + gate .ts carry an authoritative, COMMIT-PINNED
@@ -31,11 +33,20 @@
 #   * Entries honestly marked phantom / conjectured / staged-advisory /
 #     *-tracked-sorries / axiom-advisory / measured-* / mixed-* etc. are
 #     REPORTED but never fail the build — honest disclosure is the whole point.
-#   * docs/theorem-runtime-manifest.json is REPORTED but never hard-fails: that
-#     manifest's own canonicalRule states "Lean proof status is scoped separately
-#     from runtime test status", it carries NO commit pins, and its leanFile
-#     pointers are aspirational/runtime-wiring references, not pinned proof
-#     claims. Missing ones surface as warnings so drift is still visible.
+#   * docs/theorem-runtime-manifest.json HARD-FAILS on undisclosed phantom
+#     theorem citations: an entry whose leanStatus ASSERTS a machine-checked Lean
+#     theorem (leanStatus == "theorem"), is NOT marked stagedAdvisory=true, and
+#     cites a concrete Lutar/*.lean path that does not exist on lutar-lean main
+#     is an undisclosed phantom (the Task #695 class) -> FAIL. Per the manifest's
+#     own audit rule, a leanFile is honest only when it (a) resolves to a real
+#     file in lutar-lean main, or (b) is explicitly marked leanStatus=phantom /
+#     stagedAdvisory=true. All OTHER leanStatus values (phantom, conjectured,
+#     axiom-advisory, measured-*, *-tracked-sorries, mixed-*, lean-backed, ...)
+#     are honest non-theorem disclosures: report-only, missing ones surface as
+#     informational warnings so drift is still visible. (This manifest carries no
+#     commit pins, so existence is resolved against lutar-lean main only.)
+#   * corpus/formulas/ mirrors must be byte-identical to their source manifests
+#     (gates_manifest.json, docs/theorem-runtime-manifest.json) -> FAIL on drift.
 #
 # OFFLINE / TEST MODE
 #   Set LEAN_CITATION_FIXTURE=<path-to-json> to resolve existence from a local
@@ -59,15 +70,23 @@ LUTAR_REPO = "szl-holdings/lutar-lean"
 DEFAULT_REF = "main"
 RAW = "https://raw.githubusercontent.com/" + LUTAR_REPO + "/{ref}/{path}"
 
-# Statuses that ASSERT a real, machine-checked Lean proof file. Only these have
-# hard-fail authority. Everything else is honest non-proof disclosure.
+# Statuses in gates_manifest.json / gate .ts that ASSERT a real, machine-checked
+# Lean proof file. Only these have hard-fail authority there. Everything else is
+# honest non-proof disclosure.
 REAL_PROOF_STATUSES = {"real"}
+
+# Statuses in docs/theorem-runtime-manifest.json that ASSERT a machine-checked
+# Lean theorem proof. An entry with one of these whose concrete leanFile is
+# missing on lutar-lean main and is NOT marked stagedAdvisory=true is an
+# undisclosed phantom -> hard fail. Every other leanStatus is an honest
+# non-theorem disclosure (report-only).
+TRM_PROOF_STATUSES = {"theorem"}
 
 # Statuses we recognise as honest non-proof disclosures (reported, never fail).
 KNOWN_HONEST_STATUSES = {
     "phantom", "conjectured", "conjecture-open", "staged-advisory",
     "axiom-advisory", "measured-empirical", "measured-conjectured",
-    "theorem-with-tracked-sorries", "mixed-green-red", "lean-backed", "theorem",
+    "theorem-with-tracked-sorries", "mixed-green-red", "lean-backed",
     "unknown", "none",
 }
 
@@ -213,7 +232,16 @@ def check_gate_ts(root, result):
 
 
 def check_theorem_runtime_manifest(root, result):
-    """Report-only: this manifest scopes Lean status separately and is unpinned."""
+    """Hard-fail on undisclosed phantom theorem citations; report the rest.
+
+    An entry whose leanStatus ASSERTS a machine-checked theorem
+    (leanStatus in TRM_PROOF_STATUSES), is NOT marked stagedAdvisory=true, and
+    cites a concrete Lutar/*.lean path that does not exist on lutar-lean main is
+    an undisclosed phantom -> FAIL. Honestly-disclosed entries
+    (leanStatus=phantom/conjectured/..., or stagedAdvisory=true) and
+    non-concrete/aspirational references (globs, non-Lutar pointers) are
+    report-only; missing ones surface as informational warnings.
+    """
     path = os.path.join(root, "docs", "theorem-runtime-manifest.json")
     if not os.path.exists(path):
         return
@@ -224,23 +252,74 @@ def check_theorem_runtime_manifest(root, result):
     skipped = 0
     for e in entries:
         lf = e.get("leanFile")
+        ident = e.get("id", "?")
+        status = norm_status(e.get("leanStatus"))
+        staged = bool(e.get("stagedAdvisory"))
         if not is_lutar_lean_path(lf):
             skipped += 1
             continue
-        result.report_only += 1
-        if lean_file_exists(lf, DEFAULT_REF):
-            resolved += 1
+        exists = lean_file_exists(lf, DEFAULT_REF)
+        asserts_theorem = status in TRM_PROOF_STATUSES and not staged
+        if asserts_theorem:
+            result.checked += 1
+            if exists:
+                resolved += 1
+            else:
+                result.fails.append(
+                    "theorem-runtime-manifest.json :: {} :: PHANTOM CITATION — {} "
+                    "(leanStatus={}) does not exist in {} main. Point at a real Lean "
+                    "file, or mark the entry honestly (leanStatus=phantom / "
+                    "stagedAdvisory=true).".format(ident, lf, e.get("leanStatus"), LUTAR_REPO))
         else:
-            missing.append("{} -> {} (leanStatus={})".format(
-                e.get("id", "?"), lf, e.get("leanStatus")))
-    print("  theorem-runtime-manifest.json: {} leanFile refs resolve on {} default "
-          "branch, {} missing, {} non-lean/aspirational skipped".format(
+            result.report_only += 1
+            if exists:
+                resolved += 1
+            else:
+                missing.append("{} -> {} (leanStatus={}, stagedAdvisory={})".format(
+                    ident, lf, e.get("leanStatus"), staged))
+    print("  theorem-runtime-manifest.json: {} concrete leanFile ref(s) resolve on {} "
+          "main, {} honestly-disclosed missing, {} non-lean/glob skipped".format(
               resolved, LUTAR_REPO, len(missing), skipped))
-    print("    (report-only: this manifest scopes Lean proof status separately from "
-          "runtime status per its canonicalRule and carries no commit pins.)")
+    print("    (theorem citations hard-fail when missing & not stagedAdvisory; every "
+          "other leanStatus is an honest non-theorem disclosure, report-only.)")
     for m in missing:
         result.warns.append("theorem-runtime-manifest.json :: {} :: leanFile absent on "
-                            "default branch (informational)".format(m))
+                            "main but honestly disclosed (informational)".format(m))
+
+
+def check_corpus_mirror(root, result):
+    """The corpus/formulas/ mirrors must be byte-identical to their source manifest.
+
+    Only enforced when a corpus/formulas/ directory exists in the tree (the real
+    a11oy repo has it). For each source manifest that exists, the matching mirror
+    must exist and be byte-for-byte identical, or the audit drifts -> FAIL.
+    """
+    corpus_dir = os.path.join(root, "corpus", "formulas")
+    if not os.path.isdir(corpus_dir):
+        return
+    pairs = [
+        ("gates_manifest.json", "a11oy__gates_manifest.json"),
+        (os.path.join("docs", "theorem-runtime-manifest.json"),
+         "a11oy__docs__theorem-runtime-manifest.json"),
+    ]
+    for src_rel, mirror_name in pairs:
+        src = os.path.join(root, src_rel)
+        if not os.path.exists(src):
+            continue
+        mirror = os.path.join(corpus_dir, mirror_name)
+        if not os.path.exists(mirror):
+            result.fails.append(
+                "corpus mirror :: corpus/formulas/{} is MISSING but its source {} "
+                "exists. Add the byte-identical mirror.".format(mirror_name, src_rel))
+            continue
+        with open(src, "rb") as a, open(mirror, "rb") as b:
+            if a.read() != b.read():
+                result.fails.append(
+                    "corpus mirror :: corpus/formulas/{} has DRIFTED from {} — they "
+                    "must be byte-identical. Re-mirror the source in lockstep.".format(
+                        mirror_name, src_rel))
+            else:
+                result.checked += 1
 
 
 def main(argv=None):
@@ -259,8 +338,9 @@ def main(argv=None):
     check_gates_manifest(root, result)
     check_gate_ts(root, result)
     check_theorem_runtime_manifest(root, result)
+    check_corpus_mirror(root, result)
 
-    print("\nVerified {} commit-pinned real-proof citation(s); {} honest non-proof "
+    print("\nVerified {} proof citation(s) / corpus mirror(s); {} honest non-proof "
           "reference(s) reported.".format(result.checked, result.report_only))
 
     for w in result.warns:
