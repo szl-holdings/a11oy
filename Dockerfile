@@ -323,6 +323,18 @@ COPY web/living-anatomy.html ./web/living-anatomy.html
 # _ptg_serve. Without these COPYs the guarded import falls back and /nemo 404s.
 COPY a11oy_nemo_core.py ./
 COPY web/nemo.html ./web/nemo.html
+# ADDITIVE (a11oy Restraint, 2026-06-14): the GOVERNED + MEASURED frugality gate
+# module + tab. Per-file COPY (this Dockerfile uses no COPY . .). szl_restraint.py
+# is imported by serve.py (try/except guarded) and serves
+# /api/a11oy/v1/restraint/{evaluate,bench,info}; web/restraint.html is served at
+# /restraint + /a11oy/restraint via _ptg_serve. Without these COPYs the guarded
+# import falls back and /restraint 404s. The .py auto-mirrors to the HF Space via
+# hf-sync-backend.yml (parses this COPY line); web/restraint.html is a baked-only
+# served page declared in .github/copy-sync-lockstep.json image_only_assets
+# (same pattern as web/nemo.html). Ladder + intensity adopted from Ponytail (MIT);
+# governance + measurement are ours.
+COPY szl_restraint.py ./
+COPY web/restraint.html ./web/restraint.html
 # ADDITIVE (Lane F1, 2026-06-14): the 3D/holographic SUBSTRATE demo page, served at
 # /holo + /a11oy/holo via _ptg_serve. Loads the shared kit /static/shared/szl_holo3d.js
 # (0 CDN). image-only like the other web/*.html demo pages (declared in

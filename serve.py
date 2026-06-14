@@ -991,6 +991,16 @@ try:
     # self-improvement, honest sovereign-local/cloud-NIM tiers.
     app.add_api_route("/nemo", _ptg_serve("nemo.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/nemo", _ptg_serve("nemo.html"), methods=["GET"], include_in_schema=False)
+    # a11oy RESTRAINT tab (2026-06-14): the GOVERNED + MEASURED frugality gate for
+    # the a11oy Code agent. Standalone sovereign page (0 runtime JS CDN; loads
+    # /static/shared label + receipt modules), binds to live
+    # /api/a11oy/v1/restraint/{evaluate,bench,info}. Shows the 6-rung ladder
+    # decision per task, the restraint: ceilings, the signed DSSE receipt, and the
+    # honestly-labelled (MEASURED-or-SAMPLE/ROADMAP) benchmark. The ladder +
+    # intensity levels are adopted from the open-source Ponytail skill (MIT,
+    # github.com/DietrichGebert/ponytail); governance + measurement are ours.
+    app.add_api_route("/restraint", _ptg_serve("restraint.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/restraint", _ptg_serve("restraint.html"), methods=["GET"], include_in_schema=False)
     # HOLOGRAPHIC COMMAND BRIDGE (2026-06-13): a 3D living-organism view of the
     # agentic GPU — MIND core (RTX 5000 @ betterwithage) + 6 proven round9 organs
     # orbiting/pulsing when active + energy-flow particles (colored by source) +
@@ -8302,6 +8312,47 @@ except Exception as _code_e:
                         "traceback": _code_tb.format_exc()}
 # ============================================================================
 # END: a11oy CODE — a11oy
+# ============================================================================
+
+# ============================================================================
+# a11oy RESTRAINT (2026-06-14) — a GOVERNED + MEASURED frugality gate wired into
+# the a11oy Code agent path. Before the code agent emits a diff it descends a
+# 6-rung ladder (YAGNI -> stdlib -> native -> installed dep -> one line -> minimal
+# code) and stops at the first rung that holds, marking deliberate simplifications
+# with `restraint:` ceiling comments naming the upgrade path. OUR differentiators:
+# every decision becomes a SIGNED DSSE receipt (the host's REAL in-image
+# ECDSA-P256 signer _a11oy_sign_receipt, verifiable vs /cosign.pub) + an advisory
+# Λ score (Conjecture 1 is OPEN, floor < 1.0); a two-arm benchmark (no-skill
+# baseline vs a11oy-restraint) ported from Ponytail's promptfoo methodology that is
+# labelled MEASURED only when an actual model run is wired (else SAMPLE/ROADMAP);
+# and a J/token energy tie-in (less code = fewer tokens = fewer joules). The ladder
+# + lite/full/ultra intensity are ADOPTED from the open-source Ponytail skill
+# (github.com/DietrichGebert/ponytail, MIT, © 2026 DietrichGebert) — adopted +
+# governed, NOT invented here; Ponytail's published numbers are cited as theirs,
+# never claimed as ours. Endpoints /api/a11oy/v1/restraint/{evaluate,bench,info}
+# insert at position 0 (beat the SPA catch-all). ADDITIVE, try/except-guarded.
+# Signed-off-by: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_RESTRAINT_DIAG = {"status": "not-run"}
+try:
+    import szl_restraint as _szl_restraint
+    import sys as _restraint_sys
+    _restraint_status = _szl_restraint.register(
+        app, ns="a11oy",
+        sign_fn=_a11oy_sign_receipt,
+        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
+                      "resets on rebuild, verifiable vs /cosign.pub)"),
+    )
+    print(f"[a11oy] a11oy Restraint registered: {_restraint_status}", file=_restraint_sys.stderr)
+    _RESTRAINT_DIAG = {"status": "ok", "registered": _restraint_status}
+except Exception as _restraint_e:
+    import sys as _restraint_sys, traceback as _restraint_tb
+    print(f"[a11oy] a11oy Restraint FAILED (non-fatal): {_restraint_e!r}", file=_restraint_sys.stderr)
+    _restraint_tb.print_exc(file=_restraint_sys.stderr)
+    _RESTRAINT_DIAG = {"status": "FAILED", "error": repr(_restraint_e),
+                       "traceback": _restraint_tb.format_exc()}
+# ============================================================================
+# END: a11oy RESTRAINT
 # ============================================================================
 
 # ============================================================================

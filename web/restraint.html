@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>a11oy Restraint — Governed + Measured Frugality Gate · SZL Holdings</title>
+<meta name="description" content="a11oy Restraint: a governed, measured frugality gate for the a11oy Code agent. Before emitting a diff the agent descends a 6-rung ladder (YAGNI, stdlib, native, installed dep, one line, then minimal code) and stops at the first rung that holds, marking deliberate simplifications with restraint: ceiling comments. Every decision becomes a signed DSSE receipt and an advisory Lambda score; benchmark numbers are labelled MEASURED only when actually run, else SAMPLE/ROADMAP. The ladder + intensity levels are adopted from the open-source Ponytail skill (MIT); governance and measurement are ours."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --err:#b06a5a;
+  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --display:'Space Grotesk',Georgia,serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+code{font-family:var(--mono);color:var(--gold-bright);font-size:.9em;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.75rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.honest{border:1px solid var(--gold-line);background:var(--gold-soft);border-radius:8px;padding:.7rem 1rem;margin:.4rem 0 1.2rem;font-family:var(--mono);font-size:11.5px;color:var(--paragraph);line-height:1.7;}
+.honest .k{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:10px;}
+.honest .hi{color:var(--teal);}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:1rem;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.panel .desc{color:var(--paragraph);font-size:.85rem;line-height:1.55;margin:.1rem 0 .6rem;}
+.kv{font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.9;margin-top:.4rem;}
+.kv .k{color:var(--dim);display:inline-block;min-width:160px;}
+.kv .v{color:var(--cream);}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:.18rem .5rem;border-radius:5px;border:1px solid var(--gold-line);}
+.pill.green{color:var(--green);border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.08);}
+.pill.yellow{color:var(--yellow);border-color:rgba(245,196,81,.4);background:rgba(245,196,81,.08);}
+.pill.blue{color:var(--blue);border-color:rgba(91,200,255,.4);background:rgba(91,200,255,.08);}
+input,textarea,select{font-family:var(--mono);font-size:12.5px;background:var(--panel2);color:var(--cream);border:1px solid var(--gold-line);border-radius:7px;padding:.55rem .7rem;width:100%;}
+textarea{min-height:70px;resize:vertical;}
+label.fld{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:.6rem 0 .25rem;}
+button{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;background:var(--gold);color:var(--ground);border:none;border-radius:7px;padding:.55rem 1rem;cursor:pointer;font-weight:600;transition:.15s;}
+button:hover{background:var(--gold-bright);}
+button.ghost{background:transparent;color:var(--gold);border:1px solid var(--gold-line);}
+button.ghost:hover{background:var(--gold-soft);}
+.seg{display:inline-flex;gap:.2rem;border:1px solid var(--gold-line);border-radius:7px;padding:.2rem;}
+.seg button{background:transparent;color:var(--muted);padding:.35rem .7rem;}
+.seg button.on{background:var(--gold);color:var(--ground);}
+.ladder{display:flex;flex-direction:column;gap:.35rem;margin:.5rem 0;}
+.rung{display:flex;align-items:flex-start;gap:.6rem;border:1px solid var(--gold-line);border-radius:7px;padding:.5rem .7rem;background:var(--panel2);font-size:12.5px;}
+.rung .n{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:1.4rem;}
+.rung.held{border-color:var(--teal-line);background:var(--teal-soft);}
+.rung.held .n{color:var(--teal);}
+.rung .nm{color:var(--paragraph);}
+.rung.held .nm{color:var(--cream);}
+.rung .tag{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);}
+.rung.held .tag{color:var(--teal);}
+.ceil{font-family:var(--mono);font-size:12px;color:var(--gold-bright);background:var(--panel2);border:1px solid var(--gold-line);border-radius:7px;padding:.6rem .75rem;margin:.5rem 0;white-space:pre-wrap;word-break:break-word;}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;margin-top:.5rem;}
+th,td{text-align:right;padding:.4rem .5rem;border-bottom:1px solid var(--gold-line);}
+th:first-child,td:first-child{text-align:left;}
+th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-spacing:.08em;font-weight:500;}
+td{color:var(--paragraph);}
+td.hi{color:var(--teal);}
+.foot{font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.8;margin-top:1.5rem;border-top:1px solid var(--gold-line);padding-top:1rem;}
+.foot a{color:var(--gold);}
+.szl-pill{font-family:var(--mono);}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--gold-line);border-top-color:var(--gold);border-radius:50%;animation:rot .8s linear infinite;vertical-align:middle;}
+@keyframes rot{to{transform:rotate(360deg);}}
+.sample-chips{display:flex;gap:.35rem;flex-wrap:wrap;margin:.5rem 0;}
+.chip{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--gold-line);border-radius:20px;padding:.25rem .65rem;cursor:pointer;}
+.chip:hover{color:var(--cream);background:var(--gold-soft);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="live"><span class="live-dot"></span> a11oy</span>
+  <span class="sep">/</span><span>Restraint</span>
+  <span class="sep">/</span><span>Governed + Measured Frugality Gate</span>
+  <span class="switcher">
+    <a class="flag" href="/console">Console</a>
+    <a class="flag" href="/agent">Agent Loop</a>
+    <a class="flag" href="/nemo">Agent Model</a>
+    <a class="flag" href="/energy">Energy</a>
+    <a class="flag active" href="/restraint">Restraint</a>
+  </span>
+</div>
+
+<div class="wrap">
+  <h1>a11oy Restraint <span class="badge" id="b-doctrine">Doctrine v11</span><span id="b-heuristic"></span></h1>
+  <p class="lede">
+    Before the a11oy Code agent emits a diff, it descends a <b>6-rung ladder</b> and stops at the
+    first rung that holds — <b>(1) YAGNI</b>, (2) stdlib, (3) native platform feature,
+    (4) already-installed dependency, (5) one line, then (6) minimum viable code. Deliberate
+    simplifications are marked with <code>restraint:</code> ceiling comments that name the upgrade path.
+    Every decision becomes a <b>signed DSSE receipt</b> and an advisory <b>&Lambda;</b> trust score; the
+    benchmark reproduces code-reduction / cost / speed numbers on <b>our</b> stack, labelled
+    <b>MEASURED only when actually run</b>, else SAMPLE/ROADMAP.
+  </p>
+  <div class="honest">
+    <span class="k">Provenance — honest</span>&nbsp; The ladder and the <span class="hi">lite / full / ultra</span>
+    intensity levels are <b>adopted</b> from the open-source <b>Ponytail</b> coding-agent skill
+    (<a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener" style="color:var(--gold)">github.com/DietrichGebert/ponytail</a>,
+    MIT, &copy; 2026 DietrichGebert) — <b>adopted + governed, not invented here</b>. Our additions are
+    the signed receipts, the &Lambda; score, the measured-on-our-stack benchmark, and the energy tie-in.
+    Ponytail's published numbers (<span class="hi">80&ndash;94% less code, 47&ndash;77% cheaper, 3&ndash;6&times; faster</span>,
+    median across Haiku/Sonnet/Opus) are <b>cited as Ponytail's</b>, never claimed as ours.
+    &Lambda; uniqueness is <b>Conjecture 1 (OPEN)</b>, advisory floor &lt; 1.0 — not a proven theorem.
+  </div>
+
+  <div class="cards" id="cards">
+    <div class="card"><div class="lbl">Ladder rungs</div><div class="big">6</div><div class="sub">stop at first that holds</div></div>
+    <div class="card"><div class="lbl">Intensity levels</div><div class="big">3</div><div class="sub">lite · full · ultra</div></div>
+    <div class="card"><div class="lbl">Per-decision receipt</div><div class="big">DSSE</div><div class="sub" id="c-signer">in-image ECDSA-P256</div></div>
+    <div class="card"><div class="lbl">Energy thesis</div><div class="big">J/tok</div><div class="sub">less code · fewer joules</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>Evaluate a task <span class="meta">POST /api/a11oy/v1/restraint/evaluate</span></h2>
+      <p class="desc">Type what the code agent is about to build. Restraint runs the pre-write ladder, names the ceiling, scores &Lambda;, estimates lines/tokens/joules saved, and signs the decision.</p>
+      <div class="sample-chips" id="chips"></div>
+      <label class="fld">Task</label>
+      <textarea id="task" placeholder="e.g. add a cache for these API responses">add a cache for these API responses</textarea>
+      <label class="fld">Intensity</label>
+      <div class="seg" id="seg">
+        <button data-i="lite">lite</button>
+        <button data-i="full" class="on">full</button>
+        <button data-i="ultra">ultra</button>
+      </div>
+      <div style="margin-top:.7rem;display:flex;gap:.5rem;">
+        <button id="run">Run ladder</button>
+        <button class="ghost" id="runbench">Run benchmark</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Ladder decision <span class="meta" id="dec-label"></span></h2>
+      <p class="desc" id="dec-summary">Run the ladder to see which rung stopped it and why.</p>
+      <div class="ladder" id="ladder"></div>
+      <div class="ceil" id="ceil" style="display:none"></div>
+      <div class="kv" id="dec-kv"></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>Signed receipt <span class="meta">in-image ECDSA-P256 / DSSE</span></h2>
+      <p class="desc">The governed differentiator: every restraint decision is a tamper-evident DSSE receipt. Verify in-browser against <code>/cosign.pub</code>.</p>
+      <div class="kv" id="receipt-kv"><span class="k">status</span> <span class="v">— run the ladder —</span></div>
+    </div>
+    <div class="panel">
+      <h2>Energy tie-in <span class="meta" id="energy-label"></span></h2>
+      <p class="desc">Less code &rarr; fewer tokens &rarr; fewer joules on our GPU. Estimates are MODELED; the joules label defers to the on-box NVML meter (reads <code>sample</code> unless a fresh exporter reading is present).</p>
+      <div class="kv" id="energy-kv"><span class="k">tokens saved</span> <span class="v">—</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Benchmark — baseline vs a11oy-restraint <span class="meta" id="bench-label">GET /api/a11oy/v1/restraint/bench</span></h2>
+    <p class="desc">Ported from Ponytail's promptfoo methodology (MIT): the same five everyday tasks, two arms, median reported. <b>Numbers are SAMPLE/ROADMAP on this Space</b> (no model run wired here) and flip to <b>MEASURED</b> only when a model run is supplied. We measure our own; we never reprint Ponytail's numbers as ours.</p>
+    <table id="bench"><thead><tr><th>Task</th><th>Rung</th><th>Baseline LOC</th><th>Restraint LOC</th><th>LOC &minus;%</th><th>Cost-proxy &minus;%</th><th>Latency &minus;%</th><th>Label</th></tr></thead><tbody><tr><td colspan="8" style="text-align:center;color:var(--dim)">Run benchmark to populate.</td></tr></tbody></table>
+    <div class="kv" id="bench-agg" style="margin-top:.7rem"></div>
+  </div>
+
+  <div class="foot" id="foot">
+    <div>a11oy Restraint &middot; Doctrine v11 (locked=8 @ c7c0ba17) &middot; &Lambda; = Conjecture 1 (OPEN, advisory floor &lt; 1.0) &middot; SLSA L1 honest, L2/L3 roadmap &middot; 0 runtime CDN &middot; signed receipts.</div>
+    <div>Adopted + governed from <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener">Ponytail</a> (MIT, &copy; 2026 DietrichGebert). Endpoints: <code>/api/a11oy/v1/restraint/{evaluate,bench,info}</code>.</div>
+  </div>
+</div>
+
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_receipt_cosign.js"></script>
+<script>
+"use strict";
+var INTENSITY = "full";
+function $(s){return document.querySelector(s);}
+function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
+function pill(key){ try{ if(window.SZLLabels&&window.SZLLabels.badgeHTML){return window.SZLLabels.badgeHTML(key);} }catch(e){} return '<span class="szl-pill pill">'+key+'</span>'; }
+async function getJSON(u,opt){try{var r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m];});}
+
+// honest badges via window.SZLLabels
+$('#b-heuristic').innerHTML = pill('HEURISTIC');
+$('#bench-label').innerHTML = 'GET /api/a11oy/v1/restraint/bench &nbsp;' + pill('ROADMAP');
+$('#energy-label').innerHTML = pill('MODELED');
+
+var CHIPS = ["add a cache for these API responses","validate an email address","add a date picker",
+  "build a generic pluggable plugin framework for later","sort this list of names",
+  "add rate limiting to my FastAPI endpoint","add debounce to a search input in vanilla JS"];
+(function(){var c=$('#chips');CHIPS.forEach(function(t){var b=el('span','chip',esc(t));b.onclick=function(){$('#task').value=t;run();};c.appendChild(b);});})();
+
+document.querySelectorAll('#seg button').forEach(function(b){
+  b.onclick=function(){document.querySelectorAll('#seg button').forEach(function(x){x.classList.remove('on');});b.classList.add('on');INTENSITY=b.getAttribute('data-i');run();};
+});
+
+function renderLadder(trail, stopped){
+  var L=$('#ladder');L.innerHTML='';
+  (trail||[]).forEach(function(r){
+    var held=r.rung===stopped;
+    var row=el('div','rung'+(held?' held':''));
+    row.innerHTML='<span class="n">'+r.rung+'</span><span class="nm">'+esc(r.name)+'</span>'+
+      '<span class="tag">'+(held?'STOPPED HERE':(r.held?'holds':'skip'))+'</span>';
+    L.appendChild(row);
+  });
+}
+
+async function run(){
+  var task=$('#task').value.trim(); if(!task)return;
+  $('#dec-summary').innerHTML='<span class="spin"></span> running ladder…';
+  $('#dec-label').innerHTML='';
+  var d=await getJSON('/api/a11oy/v1/restraint/evaluate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({task:task,intensity:INTENSITY,lang:'py'})});
+  if(!d){$('#dec-summary').textContent='endpoint unavailable (is the Space running?)';return;}
+  $('#dec-label').innerHTML=pill(d.label||'HEURISTIC');
+  $('#dec-summary').innerHTML='Stopped at rung <b style="color:var(--teal)">'+d.stopped_at_rung+' — '+esc(d.rung_key)+'</b>. '+esc(d.answer);
+  renderLadder(d.ladder_trail,d.stopped_at_rung);
+  var ce=$('#ceil');ce.style.display='block';ce.textContent=d.restraint_comment;
+  var lam=(d.lambda_score&&d.lambda_score.lambda)||0;
+  var saved=d.lines_saved_estimate||{};
+  $('#dec-kv').innerHTML=
+    '<div><span class="k">Λ (Conjecture 1, &lt;1.0)</span><span class="v">'+lam.toFixed(3)+(lam<1?' ✓ below floor':'')+'</span></div>'+
+    '<div><span class="k">lines saved (modeled)</span><span class="v">≈'+(saved.lines_saved_modeled||0)+' LOC ('+Math.round((saved.reduction_fraction||0)*100)+'%)</span> '+pill(saved.label||'MODELED')+'</div>'+
+    '<div><span class="k">never simplify away</span><span class="v">'+esc((d.never_simplify||[]).join(', '))+'</span></div>'+
+    '<div><span class="k">intensity</span><span class="v">'+esc(d.intensity)+'</span></div>';
+
+  // receipt panel
+  var rc=d.signed_receipt;var rk=$('#receipt-kv');
+  if(rc){
+    var signed=rc.signed===true;
+    rk.innerHTML='<div><span class="k">signed</span><span class="v">'+(signed?pill('LIVE')+' yes':'<span class="pill yellow">UNSIGNED</span> '+esc(rc.honesty||''))+'</span></div>'+
+      '<div><span class="k">payloadType</span><span class="v">'+esc(rc.payloadType||'—')+'</span></div>'+
+      '<div><span class="k">PAE sha256</span><span class="v">'+esc((rc._pae_sha256||'').slice(0,32))+'…</span></div>'+
+      '<div><span class="k">keyid</span><span class="v">'+esc((rc.signatures&&rc.signatures[0]&&rc.signatures[0].keyid)||'—')+'</span></div>'+
+      '<div><span class="k">verify</span><span class="v">against <code>/cosign.pub</code> in-browser</span></div>';
+    if(rc.signatures&&rc.signatures.length&&window.SZLReceipts&&window.SZLReceipts.verifyEnvelope){
+      try{var v=await window.SZLReceipts.verifyEnvelope(rc,{});if(v){rk.insertAdjacentHTML('beforeend','<div><span class="k">browser verify</span><span class="v">'+(v.valid?'✓ valid':'✗ '+esc(v.reason||''))+'</span></div>');}}catch(e){}
+    }
+  } else { rk.innerHTML='<span class="k">status</span> <span class="v">no signer wired</span>'; }
+
+  // energy panel
+  var en=d.energy_tiein||{};
+  $('#energy-kv').innerHTML=
+    '<div><span class="k">tokens saved (modeled)</span><span class="v">≈'+(en.tokens_saved_modeled||0)+'</span></div>'+
+    '<div><span class="k">joules saved (modeled)</span><span class="v">≈'+(en.joules_saved_modeled||0)+' J</span> '+pill('MODELED')+'</div>'+
+    '<div><span class="k">J / output token</span><span class="v">'+(en.j_per_output_token_modeled||0)+' (modeled)</span></div>'+
+    '<div><span class="k">joules meter label</span><span class="v">'+pill(((en.joules_label||'sample')).toUpperCase())+'</span></div>'+
+    '<div><span class="k">thesis</span><span class="v">'+esc(en.thesis||'')+'</span></div>';
+}
+
+async function runbench(){
+  var tb=$('#bench').querySelector('tbody');
+  tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--dim)"><span class="spin"></span> running…</td></tr>';
+  var b=await getJSON('/api/a11oy/v1/restraint/bench?intensity='+INTENSITY);
+  if(!b){tb.innerHTML='<tr><td colspan="8">endpoint unavailable</td></tr>';return;}
+  $('#bench-label').innerHTML='GET /api/a11oy/v1/restraint/bench &nbsp;'+pill(b.overall_label||'ROADMAP');
+  tb.innerHTML='';
+  (b.rows||[]).forEach(function(r){
+    var tr=el('tr');
+    tr.innerHTML='<td title="'+esc(r.task)+'">'+esc(r.task.slice(0,42))+(r.task.length>42?'…':'')+'</td>'+
+      '<td>'+r.stopped_at_rung+'</td>'+
+      '<td>'+r.baseline.loc+'</td><td class="hi">'+r.a11oy_restraint.loc+'</td>'+
+      '<td class="hi">'+r.loc_reduction_pct+'%</td>'+
+      '<td>'+r.cost_proxy_reduction_pct+'%</td>'+
+      '<td>'+r.latency_reduction_pct+'%</td>'+
+      '<td>'+pill(r.label)+'</td>';
+    tb.appendChild(tr);
+  });
+  var a=b.aggregate||{};var pp=b.ponytail_published||{};
+  $('#bench-agg').innerHTML=
+    '<div><span class="k">median LOC reduction</span><span class="v">'+a.median_loc_reduction_pct+'% '+pill(b.overall_label)+'</span></div>'+
+    '<div><span class="k">median cost-proxy reduction</span><span class="v">'+a.median_cost_proxy_reduction_pct+'%</span></div>'+
+    '<div><span class="k">median latency reduction</span><span class="v">'+a.median_latency_reduction_pct+'%</span></div>'+
+    '<div><span class="k">Ponytail (cited, not ours)</span><span class="v">'+esc(pp.code_reduction||'')+' · '+esc(pp.cost_reduction||'')+' · '+esc(pp.speed||'')+' '+pill('CITED')+'</span></div>'+
+    '<div style="color:var(--dim);font-size:11px;margin-top:.4rem">'+esc(b.honesty||'')+'</div>';
+}
+
+$('#run').onclick=run;
+$('#runbench').onclick=runbench;
+// info → signer label
+(async function(){var i=await getJSON('/api/a11oy/v1/restraint/info');if(i&&i.doctrine){$('#b-doctrine').textContent='Doctrine '+i.doctrine.version;$('#c-signer').textContent='in-image ECDSA-P256';}})();
+run();
+</script>
+</body>
+</html>
