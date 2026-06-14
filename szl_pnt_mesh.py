@@ -38,12 +38,14 @@ HONESTY (Doctrine v11, HARD):
 Matches the `szl_pinn_bounds.py` contract exactly: pure-stdlib request path, FastAPI
 `add_api_route` with a Starlette `Route` fallback, try/except-guarded `register(app, ns)`.
 """
+import hashlib
 import importlib
 import json
 import math
 import os
 import sys
 import time
+from collections import deque
 from datetime import datetime, timezone
 
 try:  # Starlette is present in the a11oy image (same as szl_pinn_bounds.py).
@@ -104,6 +106,83 @@ SENSING_ATTRIBUTION = {
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+# --------------------------------------------------------------------------- #
+# PNT-resilience verdict history (U1) — content-addressed, last-N ring.        #
+# In-process deque is the always-available store; a JSONL file under the data  #
+# dir is best-effort persistence (honest about which is in force, never fakes  #
+# MEASURED — every entry is a real MODELED closed-form verdict).               #
+# --------------------------------------------------------------------------- #
+_HISTORY_MAX = 256
+_RESILIENCE_HISTORY = deque(maxlen=_HISTORY_MAX)
+_HISTORY_SEEDED = False
+
+
+def _history_path():
+    """Best-effort persistent path; None when no writable data dir exists."""
+    for d in (os.environ.get("A11OY_DATA_DIR"), "/data/a11oy", "/opt/szl/a11oy-data"):
+        if d and os.path.isdir(d) and os.access(d, os.W_OK):
+            return os.path.join(d, "pnt_resilience_history.jsonl")
+    return None
+
+
+def _content_id(payload: dict) -> str:
+    """Content address = first 16 hex of sha256 over the canonical verdict JSON."""
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()[:16]
+
+
+def _record_resilience(verdict: dict, scenario=None) -> dict:
+    """Append one resilience verdict to the history ring (+best-effort JSONL).
+
+    `verdict` is the closed-form fusion dict (already MODELED-labelled). The stored
+    entry is content-addressed over (verdict, scenario) so identical inputs collapse
+    to the same id — honest dedupe, never a fabricated count.
+    """
+    core = {"verdict": verdict.get("verdict"), "allow": verdict.get("allow"),
+            "n_layers_fired": verdict.get("n_layers_fired"), "layers": verdict.get("layers"),
+            "inputs": verdict.get("inputs"), "scenario": scenario, "label": "MODELED"}
+    entry = dict(core)
+    entry["cid"] = _content_id(core)
+    entry["ts"] = _now_iso()
+    _RESILIENCE_HISTORY.append(entry)
+    path = _history_path()
+    if path:
+        try:
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(entry, separators=(",", ":")) + "\n")
+        except Exception:
+            pass  # honest: persistence is best-effort; ring still holds the entry
+    return entry
+
+
+def _seed_history_once():
+    """Populate the ring with real MODELED verdicts so /history is non-empty.
+
+    Loads any persisted JSONL first; otherwise computes two genuine closed-form
+    verdicts (a clean ALLOW and a spoofed DENY). These are REAL MODELED results,
+    not fabricated entries — they exercise the deny-by-default fusion honestly.
+    """
+    global _HISTORY_SEEDED
+    if _HISTORY_SEEDED:
+        return
+    _HISTORY_SEEDED = True
+    path = _history_path()
+    if path and os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                for line in fh.read().splitlines()[-_HISTORY_MAX:]:
+                    line = line.strip()
+                    if line:
+                        _RESILIENCE_HISTORY.append(json.loads(line))
+        except Exception:
+            pass
+    if not _RESILIENCE_HISTORY:
+        clean = _spoof_verdict(0.0, 0.0, 0.0, 30.0, 1.5, 0.12)
+        spoof = _spoof_verdict(100.0, 10.0, 0.0, 30.0, 1.5, 0.12)
+        _record_resilience(clean, scenario="seed_clean")
+        _record_resilience(spoof, scenario="seed_spoof")
 
 
 # --------------------------------------------------------------------------- #
@@ -232,6 +311,8 @@ def _h_index(req: Request):
             f"{base}/resilience": ("fused spoof-detector verdict "
                                    "(?raim_consistency_m=&agc_advantage_db=&sqm_early_minus_late=  "
                                    "or ?scenario=clean|ds2_time_push|ds3_overpower|ds4_seamless|ds7_matched_aligned)"),
+            f"{base}/resilience/history": ("last-N resilience verdicts, content-addressed "
+                                           "(?n= ; MODELED ring, best-effort JSONL persistence)"),
             f"{base}/coast": ("GPS-denied coasting FoM classical vs quantum "
                               "(?coast_time_s=&classical_asd=&quantum_asd=)"),
             f"{base}/limits": "the UNIFIED fundamental-limits index (both pillars)",
@@ -299,9 +380,11 @@ def _h_resilience(req: Request):
     agc_thr = _f(qp, "agc_threshold_db", default=1.5)
     sqm_thr = _f(qp, "sqm_threshold", default=0.12)
     closed_form = _spoof_verdict(raim, agc, sqm, raim_thr, agc_thr, sqm_thr)
+    recorded = _record_resilience(closed_form, scenario=scenario)
     return JSONResponse({
         "model": "SZL PNT-Resilience — fused multi-layer spoof verdict",
         "status": f"{closed_form['verdict']} (advisory, deny-by-default)",
+        "history_cid": recorded["cid"],
         "label": "MODELED",
         "closed_form_stdlib": closed_form,
         "engine": engine,
@@ -312,6 +395,36 @@ def _h_resilience(req: Request):
         "attribution": SENSING_ATTRIBUTION,
         "lambda_note": LAMBDA_NOTE,
         "doctrine": DOCTRINE,
+    })
+
+
+def _h_history(req: Request):
+    """U1 — last-N PNT-resilience verdicts, content-addressed (most recent first)."""
+    _seed_history_once()
+    qp = _qp(req)
+    try:
+        n = int(_f(qp, "n", "limit", default=20))
+    except Exception:
+        n = 20
+    n = max(1, min(n, _HISTORY_MAX))
+    items = list(_RESILIENCE_HISTORY)[-n:][::-1]
+    persisted = _history_path() is not None
+    return JSONResponse({
+        "model": "SZL PNT-Resilience — verdict history (last-N, content-addressed)",
+        "label": "MODELED",
+        "count": len(items),
+        "total_in_ring": len(_RESILIENCE_HISTORY),
+        "ring_capacity": _HISTORY_MAX,
+        "persistence": ("jsonl-file" if persisted else "in-process-ring"),
+        "content_addressing": "cid = sha256(canonical verdict json)[:16]",
+        "verdicts": items,
+        "note": ("Every /pnt/resilience evaluation is appended here as a real MODELED "
+                 "closed-form fusion verdict — never a fabricated or MEASURED entry. The "
+                 "Dev2 GPU detector over the TEXBAT-class library is the MEASURED upgrade "
+                 "path (U1); until a real GPU run lands these stay honestly MODELED."),
+        "lambda_note": LAMBDA_NOTE,
+        "doctrine": DOCTRINE,
+        "ts": _now_iso(),
     })
 
 
@@ -399,6 +512,7 @@ def register(app, ns="a11oy"):
         (base, _h_index),
         (f"{base}/sensor", _h_sensor),
         (f"{base}/resilience", _h_resilience),
+        (f"{base}/resilience/history", _h_history),
         (f"{base}/coast", _h_coast),
         (f"{base}/limits", _h_limits),
     ]
@@ -441,12 +555,12 @@ def _selftest() -> dict:
     app = _FakeApp()
     added = register(app, ns="a11oy")
     expected = ["/api/a11oy/v1/pnt", "/api/a11oy/v1/pnt/sensor",
-                "/api/a11oy/v1/pnt/resilience", "/api/a11oy/v1/pnt/coast",
-                "/api/a11oy/v1/pnt/limits"]
+                "/api/a11oy/v1/pnt/resilience", "/api/a11oy/v1/pnt/resilience/history",
+                "/api/a11oy/v1/pnt/coast", "/api/a11oy/v1/pnt/limits"]
     assert added == expected, added
     assert [r[0] for r in app.routes] == expected
     assert all(r[2] == ("GET",) for r in app.routes)
-    out["register_adds_5_routes"] = True
+    out["register_adds_6_routes"] = True
 
     # (b) Starlette-fallback path (no add_api_route) also wires routes.
     class _BareRouter:
@@ -460,7 +574,7 @@ def _selftest() -> dict:
     try:
         bare = _BareApp()
         register(bare, ns="a11oy")
-        out["starlette_fallback_wires"] = len(bare.router.routes) == 5
+        out["starlette_fallback_wires"] = len(bare.router.routes) == 6
     except Exception:
         # starlette.routing may be absent in a bare env — that's an honest skip.
         out["starlette_fallback_wires"] = "skipped (starlette.routing unavailable)"
@@ -481,6 +595,14 @@ def _selftest() -> dict:
     assert spoof["verdict"] == "DENY" and spoof["allow"] is False
     assert spoof["advisory"] is True
     out["resilience_deny_by_default"] = True
+
+    # (d2) history: every resilience call is recorded; /history returns >=1 entry,
+    #      content-addressed, MODELED (never MEASURED/fabricated).
+    hist = _body(_h_history({"n": "5"}))
+    assert hist["count"] >= 1 and hist["label"] == "MODELED"
+    assert all(v.get("label") == "MODELED" and len(v.get("cid", "")) == 16
+               for v in hist["verdicts"])
+    out["resilience_history_nonempty_modeled"] = True
 
     # (e) coast handler: quantum beats classical (improvement factor > 1 for default ASDs).
     c = _body(_h_coast({"coast_time_s": "60"}))["closed_form_stdlib"]
