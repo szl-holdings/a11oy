@@ -3265,6 +3265,92 @@ def _lb_make_receipt(payload: dict, accepted: bool, errors: list) -> dict:
     return body
 
 
+# Honest, fixed wording reused by every alert channel. An intake notification
+# ACKNOWLEDGES INTAKE ONLY — eligibility is decided SOLELY by the verify-proof
+# CI on the PR. It never declares a winner and never moves money.
+_LB_HONESTY = ("Intake acknowledgement only — eligibility is decided SOLELY by the "
+               "verify-proof CI on the PR (sole, no-bypass arbiter). This is NOT a "
+               "winner declaration and moves no money. Λ = Conjecture 1, NOT a theorem.")
+
+
+async def _lb_notify(payload: dict, receipt: dict) -> dict:
+    """Best-effort alerts for an ACCEPTED Λ-bounty intake so a real human/CI is
+    notified instead of the submission only landing in an append-only ledger.
+
+    Two INDEPENDENT channels, each fires only when configured (never fatal):
+      - GitHub tracking issue on szl-holdings/lambda-bounty
+        (LAMBDA_BOUNTY_GITHUB_TOKEN or GITHUB_TOKEN; needs repo/issues scope)
+      - ntfy push reusing the a11oy-uptime relay channel
+        (LAMBDA_BOUNTY_NTFY_URL or NTFY_URL; optional NTFY_TOKEN/NTFY_PRIORITY)
+
+    Returns {"issue": ..., "ntfy": ...} where each value is a URL on success,
+    a short status string on a handled failure, or None when not configured.
+    The honesty disclaimer is embedded in every channel's payload."""
+    name = (payload.get("submitter") or {}).get("name", "?")
+    pr_url = payload.get("pr_url") or "(no PR url provided)"
+    short = receipt.get("hash", "")[:12]
+    out = {"issue": None, "ntfy": None}
+
+    async def _issue():
+        token = os.environ.get("LAMBDA_BOUNTY_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        if not token:
+            return None
+        body_md = (
+            f"Automated **INTAKE** acknowledgement for a Conjecture-1 (F23 Λ-aggregator "
+            f"uniqueness) bounty submission received at the live webhook.\n\n"
+            f"- **Submitter:** {name}\n"
+            f"- **PR:** {pr_url}\n"
+            f"- **Intake receipt:** `{short}`\n\n"
+            f"> {_LB_HONESTY}\n\n"
+            f"**Action for a human:** confirm a PR exists for this submission and let the "
+            f"`verify-proof` CI decide eligibility. Do not act as arbiter manually.\n\n"
+            f"```json\n{json.dumps(receipt, indent=2)}\n```"
+        )
+        data = {
+            "title": f"[Λ-bounty intake] {name} · {pr_url}",
+            "body": body_md,
+            "labels": ["lambda-bounty", "conjecture-1", "intake"],
+        }
+        try:
+            async with httpx.AsyncClient(timeout=12) as c:
+                r = await c.post(
+                    "https://api.github.com/repos/szl-holdings/lambda-bounty/issues",
+                    json=data,
+                    headers={"Authorization": f"Bearer {token}",
+                             "Accept": "application/vnd.github+json",
+                             "User-Agent": "lambda-bounty-intake"},
+                )
+            if r.status_code in (200, 201):
+                return r.json().get("html_url")
+            return f"issue-open-failed: HTTP {r.status_code}"
+        except Exception as e:  # noqa: BLE001 — best-effort
+            return f"issue-open-failed: {type(e).__name__}"
+
+    async def _ntfy():
+        url = os.environ.get("LAMBDA_BOUNTY_NTFY_URL") or os.environ.get("NTFY_URL")
+        if not url:
+            return None
+        msg = (f"Λ-bounty intake: {name} ({pr_url}) · receipt {short}. {_LB_HONESTY}")
+        headers = {"Title": "Lambda-bounty intake",
+                   "Priority": os.environ.get("NTFY_PRIORITY", "high"),
+                   "Tags": "scroll,satellite"}
+        tok = os.environ.get("NTFY_TOKEN")
+        if tok:
+            headers["Authorization"] = f"Bearer {tok}"
+        try:
+            async with httpx.AsyncClient(timeout=12) as c:
+                r = await c.post(url, content=msg.encode(), headers=headers)
+            return "delivered" if r.status_code < 400 else f"ntfy-failed: HTTP {r.status_code}"
+        except Exception as e:  # noqa: BLE001 — best-effort
+            return f"ntfy-failed: {type(e).__name__}"
+
+    try:
+        out["issue"], out["ntfy"] = await asyncio.gather(_issue(), _ntfy())
+    except Exception as e:  # noqa: BLE001 — never let alerting break intake
+        out["error"] = type(e).__name__
+    return out
+
+
 @app.get("/api/lambda-bounty/healthz")
 async def _lb_healthz():
     """Λ-bounty intake liveness + live Conjecture-1 status. Λ = NOT a theorem."""
@@ -3290,8 +3376,13 @@ async def _lb_submit(request: Request):
     receipt = _lb_make_receipt(payload, accepted, errors)
     with _LB_LEDGER_LOCK:
         _LB_LEDGER.append(receipt)
+    # An accepted intake must reach a real human/CI, not just the ledger. Fire
+    # best-effort alerts (GitHub issue + ntfy); never let alerting affect the
+    # 200/receipt the submitter gets back.
+    notifications = await _lb_notify(payload, receipt) if accepted else {"issue": None, "ntfy": None}
     return JSONResponse(status_code=(200 if accepted else 422), content={
         "accepted_intake": accepted, "errors": errors, "receipt": receipt,
+        "notifications": notifications,
         "next_step": "Open a PR to szl-holdings/lambda-bounty; verify-proof CI is the sole arbiter.",
     })
 
