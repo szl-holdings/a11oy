@@ -1164,3 +1164,156 @@ def status() -> dict[str, Any]:
             "lambda_floor": _LAMBDA_FLOOR,
             "corpus": corpus_manifest(),
             "build_state": build_state()}
+
+
+# ===========================================================================
+# ADDITIVE — WAQAY governed quantized vector backend (2026-06-14, WAQAY team).
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# WAQAY (Quechua: to keep / guard / store) is an OPTIONAL compressed backend for
+# the dense-recall stage. It studies the MIT-licensed turbovec + Google Research
+# TurboQuant (data-oblivious quantization) and re-implements OUR OWN governed
+# pure-Python index (szl_waqay.py). It is ADDITIVE: existing FTS5 + exact-cosine
+# behavior is unchanged and remains the default. WAQAY lets the memory-constrained
+# sovereign brain (8GB Blackwell) hold a ~16x-larger governed KB locally, air-gapped.
+#
+# Every WAQAY build + retrieval emits a DSSE-signed provenance receipt and passes
+# the Restraint gate (in szl_waqay). Compression is MEASURED; recall is a MODELED
+# bound (never claimed perfect). Perf vs the Rust SIMD original is MODELED/ROADMAP.
+# Attribution: turbovec © 2026 Ryan Codrai (MIT) + Google Research TurboQuant; NOTICES.md.
+# ===========================================================================
+_WAQAY_INDEX = None          # lazily-built szl_waqay.WaqayIndex
+_WAQAY_META: dict[str, Any] = {"built": False}
+
+
+def waqay_available() -> bool:
+    try:
+        import szl_waqay  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def build_waqay_backend(bit_width: int = 2,
+                        emit_receipt: Callable[[str, dict], dict] | None = None) -> dict[str, Any]:
+    """Build a WAQAY compressed index over the dense vectors already stored in the
+    org_vectors table. ADDITIVE — does not touch the exact-cosine path. Returns
+    MEASURED compression + the signed build receipt. Honest no-op if no dense
+    vectors are present (FTS5-only runtime) or szl_waqay is unavailable."""
+    global _WAQAY_INDEX, _WAQAY_META
+    try:
+        import szl_waqay
+    except Exception as e:
+        return {"ok": False, "honest_error": f"szl_waqay unavailable: {e}", "label": "WAQAY"}
+    conn = _db()
+    try:
+        rows = list(conn.execute("SELECT chunk_id,dim,vec FROM org_vectors"))
+    except Exception as e:
+        return {"ok": False, "honest_error": f"org_vectors unavailable: {e}", "label": "WAQAY"}
+    if not rows:
+        return {"ok": False, "honest_error": "no dense vectors in org_vectors "
+                "(FTS5-only runtime) — WAQAY needs an embedding model present",
+                "label": "WAQAY", "dense": False}
+    import numpy as _np
+    dim = int(rows[0]["dim"])
+    ids, vecs = [], []
+    for r in rows:
+        try:
+            v = json.loads(r["vec"])
+            if len(v) != dim:
+                continue
+            ids.append(str(r["chunk_id"]))
+            vecs.append(v)
+        except Exception:
+            continue
+    if not vecs:
+        return {"ok": False, "honest_error": "no parseable dense vectors", "label": "WAQAY"}
+    idx = szl_waqay.WaqayIndex(dim=dim, bit_width=bit_width)
+    idx.add(_np.asarray(vecs, dtype=_np.float32), ids=ids)
+    brec = szl_waqay.build_receipt(idx, ids, data_label="LIVE")
+    _WAQAY_INDEX = idx
+    comp = idx.compression()
+    _WAQAY_META = {"built": True, "n": len(ids), "dim": dim, "bit_width": bit_width,
+                   "compression_MEASURED": comp,
+                   "recall_MODELED": szl_waqay.WaqayIndex.modeled_recall_bound(bit_width),
+                   "label": "WAQAY"}
+    if emit_receipt:
+        emit_receipt("org_rag.waqay.build", {"n": len(ids), "dim": dim,
+                     "bit_width": bit_width, "compression": comp,
+                     "index_digest": idx.index_digest()})
+    return {"ok": True, **_WAQAY_META, "build_receipt": brec["envelope"]}
+
+
+def waqay_query(q: str, k: int = 6, repo: str | None = None,
+                hyde_text: str | None = None,
+                allow: list[str] | None = None,
+                emit_receipt: Callable[[str, dict], dict] | None = None) -> dict[str, Any]:
+    """OPTIONAL governed retrieval via the WAQAY compressed index. Returns chunks
+    plus the DSSE-signed retrieval receipt + Restraint verdict. The exact-cosine
+    `query()` above remains the default; this is the additive compressed path.
+
+    Honest: WAQAY is an APPROXIMATE lossy index; recall is a MODELED bound. If the
+    WAQAY index isn't built, this falls back to the exact `query()` so callers
+    never lose recall by opting in."""
+    global _WAQAY_INDEX
+    try:
+        import szl_waqay
+    except Exception as e:
+        return {"ok": False, "honest_error": f"szl_waqay unavailable: {e}",
+                "fallback": query(q, k=k, repo=repo, hyde_text=hyde_text,
+                                  emit_receipt=emit_receipt)}
+    if _WAQAY_INDEX is None or not _WAQAY_META.get("built"):
+        b = build_waqay_backend(emit_receipt=emit_receipt)
+        if not b.get("ok"):
+            # honest fallback to exact path — opting in never costs recall.
+            return {"ok": False, "honest_error": b.get("honest_error"),
+                    "label": "WAQAY", "fallback": query(q, k=k, repo=repo,
+                                                        hyde_text=hyde_text,
+                                                        emit_receipt=emit_receipt)}
+    embed_fn = _maybe_embedder()
+    if embed_fn is None:
+        return {"ok": False, "honest_error": "embedding model unavailable — cannot "
+                "embed the query for WAQAY dense recall (honest)", "label": "WAQAY",
+                "fallback": query(q, k=k, repo=repo, hyde_text=hyde_text,
+                                  emit_receipt=emit_receipt)}
+    qvec = embed_fn(hyde_text or q)
+    gres = szl_waqay.governed_search(_WAQAY_INDEX, qvec, query_text=q, k=k,
+                                     allow=allow, data_label="LIVE")
+    # Hydrate returned chunk ids with their text from org_chunks.
+    conn = _db()
+    chunks = []
+    for item in gres.get("results", []):
+        cid = item["id"]
+        try:
+            row = conn.execute("SELECT chunk_id,repo,path,corpus,source,title,body,sha256 "
+                               "FROM org_chunks WHERE chunk_id=?", (cid,)).fetchone()
+        except Exception:
+            row = None
+        if row is not None:
+            chunks.append({"chunk_id": row["chunk_id"], "repo": row["repo"],
+                           "path": row["path"], "corpus": row["corpus"],
+                           "source": row["source"], "title": row["title"],
+                           "score_approx": item["score"],
+                           "evidence": {"file": {"path": row["path"], "sha256": row["sha256"]}}})
+        else:
+            chunks.append({"chunk_id": cid, "score_approx": item["score"]})
+    if emit_receipt:
+        emit_receipt("org_rag.waqay.query", {"query": q[:120], "k": k,
+                     "returned": [c["chunk_id"] for c in chunks]})
+    return {"ok": True, "label": "WAQAY", "backend": "waqay-quantized (approximate)",
+            "query": q, "chunks": chunks, "restraint": gres.get("restraint"),
+            "signed_receipt": gres.get("signed_receipt"),
+            "receipt_payload": gres.get("receipt_payload"),
+            "honest_note": ("approximate retrieval over a lossy quantized index; "
+                            "recall is a MODELED bound (never perfect). The exact "
+                            "cosine query() remains the default."),
+            "compression_MEASURED": _WAQAY_META.get("compression_MEASURED")}
+
+
+def waqay_status() -> dict[str, Any]:
+    return {"ok": True, "available": waqay_available(), **_WAQAY_META,
+            "honest_note": ("ADDITIVE optional compressed backend; exact-cosine "
+                            "query() is the default. Compression MEASURED; recall "
+                            "MODELED bound; perf vs Rust SIMD MODELED/ROADMAP."),
+            "attribution": ("turbovec (c) 2026 Ryan Codrai (MIT) + Google Research "
+                            "TurboQuant data-oblivious quantization; see NOTICES.md")}
