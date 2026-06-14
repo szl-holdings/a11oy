@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+# forge-reanchor-cert — keep the a11oy MEASURED physical-bounds certificate
+# REAL-SIGNED (FA-001 on-metal Ed25519, DSSE PAE) and PUBLICLY ANCHORED in the
+# Sigstore Rekor transparency log, end to end, idempotently.
+#
+# WHY THIS EXISTS:
+#   The live a11oy.net site serves the cert from SZL_PINN_ARTIFACT_DIR
+#   (/opt/szl/a11oy-data, the container bind mount). Whenever a NEW measurement
+#   is produced (run_measured_pinn.py / forge_pinn_measure.py), the cert bytes
+#   change and any prior DSSE + transparency anchor no longer cover them. This
+#   script re-signs the CURRENT cert and re-anchors it so the live proof is never
+#   left in a half-state (signed-but-unanchored, or stale-anchor-over-new-cert).
+#
+# DOCTRINE v11 (HARD): never fabricate a measurement or a signature, and never
+# claim more than is real. If Rekor anchoring fails, the cert is left SIGNED but
+# HONESTLY UNANCHORED (no _transparency_log) and the script exits non-zero — it
+# will NEVER write anchored=True without a real public-log entry.
+#
+# IDEMPOTENT: if the current cert is already signed AND anchored (signature
+# verifies over the exact cert bytes and a matching Rekor entry is recorded),
+# this is a TRUE no-op — it does NOT re-submit to Rekor or churn the dsse.
+#
+# USAGE:
+#   forge-reanchor-cert            # ensure live dir signed+anchored (default)
+#   forge-reanchor-cert --check    # report state only, make no changes
+#   FORGE_ART_DIR=/path forge-reanchor-cert   # override serving dir
+#
+# After a fresh anchor, publish the mirror copies (Replit-side, where the GitHub
+# and Hugging Face tokens live): push /opt/szl/a11oy/physical_bounds_certificate*
+# to szl-holdings/a11oy main and upload to HF Space SZLHOLDINGS/a11oy, then
+# `a11oy-rebuild` to bake the published source into the image.
+import json, base64, subprocess, os, sys, hashlib, urllib.request, urllib.error
+
+KEY = os.environ.get("FORGE_ED25519_KEY", "/root/ed25519.pem")
+ART_DIR = os.environ.get("FORGE_ART_DIR", "/opt/szl/a11oy-data")   # LIVE serving dir
+MIRROR_DIR = os.environ.get("FORGE_MIRROR_DIR", "/opt/szl/a11oy")  # box source (-> GitHub/image)
+REKOR = os.environ.get("FORGE_REKOR_URL", "https://rekor.sigstore.dev")
+PT = "application/vnd.szl.physical-bounds-certificate+json"
+CHECK_ONLY = "--check" in sys.argv
+
+CERT = os.path.join(ART_DIR, "physical_bounds_certificate.json")
+DSSE = os.path.join(ART_DIR, "physical_bounds_certificate.dsse.json")
+
+
+def log(*a):
+    print("[forge-reanchor]", *a, flush=True)
+
+
+def fail(msg, code=1):
+    print("[forge-reanchor] FATAL:", msg, file=sys.stderr, flush=True)
+    sys.exit(code)
+
+
+def pae(t, b):
+    t = t.encode()
+    return b"DSSEv1 " + str(len(t)).encode() + b" " + t + b" " + str(len(b)).encode() + b" " + b
+
+
+def pubkey_pem():
+    return subprocess.run(["openssl", "pkey", "-in", KEY, "-pubout"],
+                          capture_output=True, check=True).stdout
+
+
+def verify_sig(cert_bytes, sig_bytes, pub_pem):
+    open("/tmp/_fr_pae.bin", "wb").write(pae(PT, cert_bytes))
+    open("/tmp/_fr_sig.bin", "wb").write(sig_bytes)
+    open("/tmp/_fr_pub.pem", "wb").write(pub_pem)
+    v = subprocess.run(["openssl", "pkeyutl", "-verify", "-pubin", "-inkey", "/tmp/_fr_pub.pem",
+                        "-rawin", "-in", "/tmp/_fr_pae.bin", "-sigfile", "/tmp/_fr_sig.bin"],
+                       capture_output=True, text=True)
+    for f in ("/tmp/_fr_pae.bin", "/tmp/_fr_sig.bin", "/tmp/_fr_pub.pem"):
+        try: os.remove(f)
+        except OSError: pass
+    return "Signature Verified Successfully" in (v.stdout + v.stderr)
+
+
+def already_anchored(cert_bytes):
+    """True iff the existing dsse is signed over THESE cert bytes AND carries a
+    matching, real Rekor anchor. Strict: any mismatch => not anchored."""
+    if not os.path.exists(DSSE):
+        return False
+    try:
+        env = json.load(open(DSSE))
+    except Exception:
+        return False
+    want_sha = "sha256:" + hashlib.sha256(cert_bytes).hexdigest()
+    if env.get("_cert_sha256") != want_sha:
+        return False
+    try:
+        if base64.b64decode(env.get("payload", "")) != cert_bytes:
+            return False
+        sig = base64.b64decode(env["signatures"][0]["sig"])
+    except Exception:
+        return False
+    if not verify_sig(cert_bytes, sig, pubkey_pem()):
+        return False
+    tl = env.get("_transparency_log") or {}
+    return bool(tl.get("anchored")) and bool(tl.get("entry_uuid"))
+
+
+def sign(cert_bytes):
+    pub = pubkey_pem()
+    open("/tmp/_fr_pae.bin", "wb").write(pae(PT, cert_bytes))
+    subprocess.run(["openssl", "pkeyutl", "-sign", "-inkey", KEY, "-rawin",
+                    "-in", "/tmp/_fr_pae.bin", "-out", "/tmp/_fr_sig.bin"], check=True)
+    sig = open("/tmp/_fr_sig.bin", "rb").read()
+    if not verify_sig(cert_bytes, sig, pub):
+        fail("freshly produced signature did NOT self-verify", 3)
+    try: os.remove("/tmp/_fr_pae.bin")
+    except OSError: pass
+    try: os.remove("/tmp/_fr_sig.bin")
+    except OSError: pass
+    keyid = "sha256:" + hashlib.sha256(pub).hexdigest()
+    return {
+        "payloadType": PT,
+        "payload": base64.b64encode(cert_bytes).decode(),
+        "signatures": [{"keyid": keyid, "sig": base64.b64encode(sig).decode(),
+                        "publicKey": pub.decode()}],
+        "_dsse": "DSSEv1 PAE, alg=ed25519 (real FA-001 on-metal key), self-verified with openssl",
+        "_cert_sha256": "sha256:" + hashlib.sha256(cert_bytes).hexdigest(),
+    }, keyid, pub
+
+
+def anchor(env, pub_pem):
+    """Submit the clean DSSE envelope to public Rekor; return the parsed entry or
+    raise. Idempotent on Rekor's side: a duplicate body returns the same entry."""
+    clean = {"payloadType": env["payloadType"], "payload": env["payload"],
+             "signatures": [{"keyid": env["signatures"][0]["keyid"],
+                             "sig": env["signatures"][0]["sig"]}]}
+    proposed = {"apiVersion": "0.0.1", "kind": "dsse", "spec": {"proposedContent": {
+        "envelope": json.dumps(clean),
+        "verifiers": [base64.b64encode(pub_pem).decode()]}}}
+    data = json.dumps(proposed).encode()
+    req = urllib.request.Request(REKOR + "/api/v1/log/entries", data=data, method="POST",
+                                 headers={"Content-Type": "application/json", "Accept": "application/json"})
+    try:
+        r = urllib.request.urlopen(req, timeout=45)
+        resp = r.read().decode(); status = r.status
+    except urllib.error.HTTPError as e:
+        resp = e.read().decode(); status = e.code
+        # 409 Conflict => entry already exists; fetch it by the returned location/uuid.
+        if status == 409:
+            try:
+                j = json.loads(resp); uuid = j.get("location", "").rsplit("/", 1)[-1] or j.get("uuid")
+                if uuid:
+                    g = urllib.request.urlopen(REKOR + "/api/v1/log/entries/" + uuid, timeout=30)
+                    resp = g.read().decode(); status = 200
+            except Exception:
+                pass
+    if status not in (200, 201):
+        raise RuntimeError("Rekor HTTP %s: %s" % (status, resp[:400]))
+    m = json.loads(resp)
+    uuid, entry = next(iter(m.items()))
+    ver = entry.get("verification", {}) or {}
+    ip = ver.get("inclusionProof", {}) or {}
+    return {
+        "anchored": True,
+        "log": "sigstore-rekor (public)",
+        "rekor_url": REKOR,
+        "entry_uuid": uuid,
+        "log_index": entry.get("logIndex"),
+        "log_id": entry.get("logID"),
+        "integrated_time": entry.get("integratedTime"),
+        "inclusion_proof": ip,
+        "signed_entry_timestamp": ver.get("signedEntryTimestamp"),
+        "retrieval_url": REKOR + "/api/v1/log/entries/" + uuid,
+    }
+
+
+def write_json(path, obj):
+    tmp = path + ".tmp"
+    open(tmp, "w").write(json.dumps(obj, indent=2))
+    os.replace(tmp, path)
+
+
+def main():
+    if not os.path.exists(CERT):
+        fail("certificate not found: " + CERT, 2)
+    if not os.path.exists(KEY):
+        fail("signing key not found: " + KEY + " (run on the FA-001 box)", 2)
+    cert_bytes = open(CERT, "rb").read()
+    sha = "sha256:" + hashlib.sha256(cert_bytes).hexdigest()
+    log("cert:", CERT, sha)
+
+    if already_anchored(cert_bytes):
+        env = json.load(open(DSSE))
+        tl = env.get("_transparency_log", {})
+        log("STATE: already SIGNED + ANCHORED (no-op). uuid=%s logIndex=%s"
+            % (tl.get("entry_uuid", "")[:24] + "...", tl.get("log_index")))
+        sys.exit(0)
+
+    if CHECK_ONLY:
+        signed = os.path.exists(DSSE)
+        log("STATE: NOT fully anchored for current cert (signed_file_present=%s). "
+            "Run without --check to (re)sign + anchor." % signed)
+        sys.exit(1)
+
+    log("re-signing current cert (FA-001 Ed25519, self-verify) ...")
+    env, keyid, pub = sign(cert_bytes)
+    log("signed. keyid=%s" % keyid)
+
+    # Write the SIGNED (not-yet-anchored) dsse first so the cert is never left
+    # serving a stale signature even if Rekor is unreachable.
+    env_signed = dict(env)
+    env_signed["_transparency_note"] = (
+        "Real cryptographic DSSE signature (FA-001 on-metal Ed25519), self-verified. "
+        "Public Rekor anchoring is being (re)attempted — until _transparency_log is "
+        "present this envelope is HONESTLY UNANCHORED.")
+    write_json(DSSE, env_signed)
+    if os.path.isdir(MIRROR_DIR):
+        write_json(os.path.join(MIRROR_DIR, "physical_bounds_certificate.dsse.json"), env_signed)
+        try:
+            import shutil
+            shutil.copy2(CERT, os.path.join(MIRROR_DIR, "physical_bounds_certificate.json"))
+        except Exception as e:
+            log("WARN: could not mirror cert to %s: %s" % (MIRROR_DIR, e))
+
+    log("anchoring in public Rekor (%s) ..." % REKOR)
+    try:
+        tl = anchor(env, pub)
+    except Exception as e:
+        log("Rekor anchoring FAILED: %s" % e)
+        log("cert remains SIGNED but HONESTLY UNANCHORED (no half-state). Retry later.")
+        sys.exit(4)
+
+    if tl.get("entry_uuid") and not (
+            base64.b64decode(env["payload"]) == cert_bytes):
+        fail("anchor/cert mismatch guard tripped", 5)
+
+    env["_transparency_log"] = tl
+    env["_transparency_note"] = (
+        "Real cryptographic DSSE signature (FA-001 on-metal Ed25519). The envelope is "
+        "PUBLICLY ANCHORED in the Sigstore Rekor transparency log (own-key Ed25519 entry; "
+        "this is a public append-only inclusion proof, NOT Sigstore keyless/Fulcio identity "
+        "binding). Verify via _transparency_log.retrieval_url.")
+    write_json(DSSE, env)
+    if os.path.isdir(MIRROR_DIR):
+        write_json(os.path.join(MIRROR_DIR, "physical_bounds_certificate.dsse.json"), env)
+
+    # Final self-check.
+    if not already_anchored(cert_bytes):
+        fail("post-write verification failed — dsse not recognized as anchored", 6)
+    log("DONE — cert SIGNED + ANCHORED. uuid=%s logIndex=%s integratedTime=%s"
+        % (tl["entry_uuid"][:24] + "...", tl["log_index"], tl["integrated_time"]))
+    log("PUBLISH (Replit-side, has tokens): push /opt/szl/a11oy/physical_bounds_certificate* "
+        "to GitHub szl-holdings/a11oy main + HF Space SZLHOLDINGS/a11oy, then a11oy-rebuild.")
+
+
+if __name__ == "__main__":
+    main()
