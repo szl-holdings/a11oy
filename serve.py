@@ -301,6 +301,20 @@ try:
 except Exception as _szl_pinn_e:  # pragma: no cover
     print(f"[a11oy] Agentic-PINN + physical-bounds mesh NOT registered: {_szl_pinn_e!r}", file=__import__("sys").stderr)
 
+# ── PNT / quantum-sensing mesh — clean-room re-derivation of the physics (quantum
+# sensor limits, GNSS spoof-resilience, GPS-denied coasting, fundamental limits).
+# PURE STDLIB closed-form web path (never blocks); the heavy numpy/UKF/PINN solves are
+# the Forge/GPU path on rtx-betterwithage + chaski. Every value labelled MEASURED/MODELED,
+# Λ=Conjecture 1 (advisory). The 4 engine modules are loaded dynamically by szl_pnt_mesh
+# (importlib) — they MUST be COPY'd into the image too or the mesh falls back to a stub.
+# Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_pnt_mesh as _szl_pnt_mesh
+    _szl_pnt_mesh.register(app, ns="a11oy")
+    print("[a11oy] PNT/quantum-sensing mesh registered: /api/a11oy/v1/pnt/*", file=__import__("sys").stderr)
+except Exception as _szl_pnt_e:  # pragma: no cover
+    print(f"[a11oy] PNT mesh NOT registered: {_szl_pnt_e!r}", file=__import__("sys").stderr)
+
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
 # Python with the ORIGINAL author cited; SZL borrows methodological structure only (no result

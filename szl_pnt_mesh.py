@@ -208,7 +208,7 @@ def _qp(req):
 # --------------------------------------------------------------------------- #
 # Handlers                                                                     #
 # --------------------------------------------------------------------------- #
-def _h_index(req):
+def _h_index(req: Request):
     ns = "a11oy"
     if not isinstance(req, dict):
         ns = getattr(req, "path_params", {}).get("_ns", "a11oy")
@@ -244,7 +244,7 @@ def _h_index(req):
     })
 
 
-def _h_sensor(req):
+def _h_sensor(req: Request):
     qp = _qp(req)
     lam = _f(qp, "wavelength_m", "lambda_m", default=780e-9)
     T = _f(qp, "interrogation_time_s", "T", default=0.1)
@@ -277,7 +277,7 @@ def _h_sensor(req):
     })
 
 
-def _h_resilience(req):
+def _h_resilience(req: Request):
     qp = _qp(req)
     scenario = qp.get("scenario")
     engine = None
@@ -315,7 +315,7 @@ def _h_resilience(req):
     })
 
 
-def _h_coast(req):
+def _h_coast(req: Request):
     qp = _qp(req)
     t = _f(qp, "coast_time_s", "t", default=60.0)
     n_c = _f(qp, "classical_asd", "classical_asd_m_s2_per_sqrt_hz", default=1e-3)
@@ -351,7 +351,7 @@ def _h_coast(req):
     })
 
 
-def _h_limits(req):
+def _h_limits(req: Request):
     """The UNIFIED fundamental-limits index: BOTH pillars, honest wiring discovery."""
     fl = _load_fl()
     if fl is None:
