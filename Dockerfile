@@ -654,6 +654,47 @@ GGUFPY
 RUN rm -rf /app/models/.cache /root/.cache/huggingface 2>/dev/null || true
 ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 
+# ── BUILD-TIME EXTERNAL-DOWNLOAD AUDIT ───────────────────────────────────────
+# Context: llama-wheel-guard.yml added a weekly scheduled re-verify + ntfy page
+# for the pinned llama-cpp-python wheel because an externally-hosted, build-time,
+# OPTIONALLY-MASKED dependency can vanish upstream with NO repo edit and silently
+# degrade a feature. This is the record of auditing the WHOLE Dockerfile for any
+# OTHER download with that same silent-degradation shape. Every externally-hosted
+# build-time fetch in this file falls into one of three buckets:
+#
+#   1. ALREADY GUARDED (externally-hosted, optionally-skipped, feature-degrading):
+#      - llama-cpp-python source build (above, A11OY_REQUIRE_LOCAL_LLM-gated)
+#        -> .github/workflows/llama-wheel-guard.yml (weekly schedule + ntfy page)
+#      - GGUF weight hf_hub_download (above, A11OY_REQUIRE_LOCAL_LLM-gated)
+#        -> .github/workflows/gguf-weight-guard.yml (weekly schedule + ntfy page)
+#      These are the only two downloads that can disappear upstream AND degrade a
+#      feature behind an honest fallback (the alloy demo tier's tower-side label),
+#      so they are the only two that warrant the scheduled-reverify+page pattern.
+#
+#   2. FAIL-LOUD build tooling (NOT optionally masked -> no silent degrade):
+#      - NodeSource installer  (curl -fsSL https://deb.nodesource.com/setup_22.x)
+#      - GitHub CLI apt repo   (curl -fsSL https://cli.github.com/packages/...)
+#      - PyPI pip installs     (fastapi/uvicorn/huggingface_hub/openai/slowapi/…)
+#      All use `curl -fsSL` / plain `pip install` with NO `|| echo` / `|| true`
+#      mask. If any of these vanish upstream the image build FAILS RED on the very
+#      next push/PR/scheduled docker build — the disappearance is already loud, so
+#      a separate re-verify guard would be redundant. (sqlite-vss was intentionally
+#      dropped from the build and has an honest cosine-similarity fallback.)
+#
+#   3. IN-REPO COPY, not an external fetch at all (cannot vanish upstream):
+#      knowledge.json, corpus/, live_snapshots/, and the szl_*/a11oy_* modules are
+#      COPY'd from this repo. The former build-time `git clone` of the private
+#      corpus was already replaced by an in-image COPY (see note near the top).
+#
+# Conclusion: no UNGUARDED masked/optional external build-time download remains.
+# If a future edit adds one (e.g. another `hf_hub_download`, an `ADD <url>`, a
+# `curl ... || echo`, or a pip `--index-url` to a third-party host that a feature
+# silently falls back from), add a sibling scheduled guard mirroring
+# llama-wheel-guard.yml / gguf-weight-guard.yml (weekly schedule + scheduled-run-
+# only ntfy page via SLACK_WEBHOOK_URL) and list it in bucket 1 above.
+# DCO: Signed-off-by: Forge <forge@szlholdings.ai>
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ADDITIVE (Live-Data Layer, 2026-06-06, Warhacker): SHARED live-feed proxy module
 # a11oy_live_feeds.py exposes GET /api/a11oy/v1/live/<feed> (server-side fetch+cache,
 # CORS-safe same-origin, honest live/cached/self labels, NEVER fabricated). The
