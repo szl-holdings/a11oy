@@ -47,7 +47,7 @@ sed -E 's/\*CATHEDRAL_FILES//' "$WF" > "$TMP/no-glob.yml"
 expect_fail chk2 "$TMP/no-glob.yml" "missing-patterns-glob fixture"
 
 # 4) Drop a file from the CATHEDRAL_FILES set -> chk3 must fail.
-sed -E 's/, "static\/a11oy_cathedral\.js"\]/]/' "$WF" > "$TMP/short-set.yml"
+sed -E 's/"static\/a11oy_cathedral\.js", //' "$WF" > "$TMP/short-set.yml"
 expect_fail chk3 "$TMP/short-set.yml" "shortened-CATHEDRAL_FILES fixture"
 
 # 5) Make is_front_door() stop consulting CATHEDRAL_FILES -> chk3 must fail
