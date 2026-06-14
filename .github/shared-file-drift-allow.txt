@@ -56,3 +56,10 @@ szl_live_wires.py          # a11oy async (await asyncio.sleep) vs killinchu bloc
 #     be byte-identical — each is the front door of a different product surface.
 cathedral.html             # a11oy Sovereign-Lattice hero vs killinchu maritime/C2 hero
 serve.py                   # a11oy console+verticals server vs killinchu /elite drone-C2 server
+
+# --- 2026-06-14: killinchu QA5 demo-floor rate-limit fix. killinchu exempts
+#     its own page/static routes (/elite, /maritime, /globe, /jackin, ...) from
+#     the per-IP limiter so the showcase always renders; a11oy serves different
+#     routes, so this hardening module is intentionally app-specific. Reconcile
+#     only if both demos ever adopt one shared limiter.
+szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (app-specific routes)
