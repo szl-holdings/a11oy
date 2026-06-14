@@ -187,3 +187,24 @@ pages/console.html
 # banned token for regression coverage of the alias itself — same rationale as the
 # serve.py entry above; the public paths it asserts are codename-free. Not hype prose.
 tests/test_a11oy_vertical_aliases.py
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemptions (2026-06-14, founder-authorized).
+# The codename gate/sanitizer SOURCE itself: it MUST enumerate the banned
+# codenames (amaru/rosie/sentra/jarvis -> Operator) to detect+strip them.
+# Enumeration-for-detection, same rationale as serve.py / szl_yachay_organ.py /
+# ayni_os_serve.py / pages/console.html above. The one flagged "leading" is the
+# English phrase "preserving a leading capital" (a code comment). Neither file
+# emits a banned token to any user surface; the list IS the rule, not a violation.
+# ----------------------------------------------------------------------------
+
+# szl_codename_gate.py - server-side codename gate; enumerates the TOKENS tuple
+# (amaru/rosie/sentra/jarvis) + the jarvis->Operator honest-remap to STRIP
+# codenames at the API boundary. Enumeration-for-detection.
+szl_codename_gate.py
+
+# static/shared/szl_codename_sanitizer.js - browser-side twin of
+# szl_codename_gate.py; same TOKENS enumeration + jarvis->Operator remap so no
+# codename is ever user-visible. The one "leading" is "preserving a leading
+# capital" (comment), technical/English usage, not marketing.
+static/shared/szl_codename_sanitizer.js
