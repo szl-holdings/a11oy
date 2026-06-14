@@ -1,0 +1,88 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# arena-signal-reasons-guard.yml — keep the Eval Arena honest by ensuring every
+# raw rejection signal the backend can emit has a plain-English reason in the
+# console.
+#
+# Why this exists
+# ---------------
+# The live Eval Arena (_a11oy_eval_run_live in serve.py) attaches raw
+# policy_signals (e.g. "size-guard:payload-exceeds-1MB",
+# "approval-guard:operator-approval-required-for-high-impact-action") to every
+# rejected scenario. The console (pages/console.html) turns each raw token into a
+# one-line plain-English reason via the data-driven ARENA_SIGNAL_REASONS prefix
+# table. The friendly labels live in the FRONTEND while the tokens come from the
+# BACKEND — coupled only by convention. If someone adds a NEW structured signal
+# prefix in serve.py and forgets the matching table entry, the console silently
+# mislabels the new rejection via its catch-all: a quiet honesty regression where
+# the real reason for a block is never shown.
+#
+# This guard cross-checks the two surfaces statically (no server boot): it AST-
+# parses serve.py to enumerate every structured signal prefix the arena code path
+# can emit, parses the ARENA_SIGNAL_REASONS table out of console.html, and fails
+# if any prefix has no entry. Bare threat tokens (_A11OY_ARENA_THREATS) are
+# intentionally mapped to the shared reason via the console default and are
+# exempt. It fails CLOSED if a surface can no longer be parsed.
+#
+# A self-test job feeds the pure analyzer negative fixtures (a new unmapped
+# prefix, a removed default, an unparseable table) and asserts it REJECTS each
+# before the guard job trusts it (org guard pattern; cf.
+# eval-arena-negative-control.yml / release-receipt-summary-guard.yml). Org
+# policy: github-owned actions only, SHAs pinned.
+
+name: Arena Signal Reasons Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "serve.py"
+      - "pages/console.html"
+      - "scripts/check_arena_signal_reasons.py"
+      - ".github/workflows/arena-signal-reasons-guard.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "serve.py"
+      - "pages/console.html"
+      - "scripts/check_arena_signal_reasons.py"
+      - ".github/workflows/arena-signal-reasons-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arena-signal-reasons-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Prove the analyzer still rejects a missing mapping (i.e. is not silently
+  # passing) before the guard job trusts it against the real surfaces.
+  self-test:
+    name: Self-test the analyzer (negative fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Analyzer rejects a missing mapping, accepts a complete one
+        run: python3 scripts/check_arena_signal_reasons.py --selftest
+
+  # Cross-check the REAL serve.py + console.html surfaces.
+  guard:
+    name: Every arena rejection signal has a plain-English reason
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Self-test the analyzer before trusting it
+        run: python3 scripts/check_arena_signal_reasons.py --selftest
+      - name: Cross-check serve.py signals against console ARENA_SIGNAL_REASONS
+        run: python3 scripts/check_arena_signal_reasons.py
