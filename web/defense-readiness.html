@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<!--
+  a11oy · DEFENSE READINESS — public showcase summary (showcase lane).
+  © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
+  0 runtime CDN: system fonts only, no external scripts. This is a PUBLIC fit +
+  honest-maturity summary. It deliberately exposes NO private application content
+  (DARPA / JIATF / NATO / AFWERX submissions are private). It shows the FIT, the
+  honest maturity (MODELED bounds + live signed software APIs, NOT flown hardware),
+  and links each pathway to the relevant LIVE a11oy surface. Live surfaces are
+  probed via fetch with an HONEST NO-LIVE-DATA fallback (doctrine v11).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Defense Readiness</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
+    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
+    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#0d1320,#0a0e14)}
+  h1{margin:0;font-size:19px;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:980px}
+  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+  .nav a{color:var(--acc2);text-decoration:none}
+  .nav a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px}
+  section{margin:0 0 26px}
+  .eyebrow{color:var(--acc);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:16px;letter-spacing:.3px;margin:0 0 10px}
+  h3{font-size:14px;letter-spacing:.2px;margin:0 0 6px;color:var(--acc)}
+  p{margin:0 0 12px}
+  .lede{font-size:15px;color:#cdd8e6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:0 0 14px}
+  .quote{border-left:3px solid var(--acc);background:var(--panel2);padding:12px 16px;border-radius:0 8px 8px 0;color:#cdd8e6;margin:0 0 14px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;border:1px solid var(--line);white-space:nowrap}
+  .pill.ok,.pill.live{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
+  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
+  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
+  .pill.modeled{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+  .path{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column}
+  .path .head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .path h3{margin:2px 0 2px}
+  .path .org{color:var(--mut);font-size:11px;letter-spacing:.05em}
+  .path .body{color:#c4d0de;flex:1;margin-top:8px}
+  .path .fit{margin-top:10px;font-size:12.5px}
+  .path .fit b{color:var(--ink)}
+  .path .surface{margin-top:10px;padding-top:10px;border-top:1px dotted #1a2435;font-size:12px}
+  .live-line{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px}
+  .live-line .v{color:var(--ink);word-break:break-word}
+  .live-line .v a{color:var(--acc2)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #1a2435;vertical-align:top}
+  th{color:var(--mut);font-weight:600}
+  a{color:var(--acc2)}
+  code{color:var(--acc2);font-size:12px}
+  .cite{color:var(--mut);font-size:11.5px;margin-top:8px;line-height:1.6}
+  .cite a{color:var(--acc2)}
+  footer{color:var(--mut);font-size:11px;padding:18px 22px;border-top:1px solid var(--line);line-height:1.7}
+  @media(max-width:640px){.wrap{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · Defense Readiness</h1>
+  <div class="sub">SZL Holdings is aligned to multiple federal and allied innovation pathways. This page
+  shows the <b>fit</b> and the <b>honest maturity</b> — MODELED physics bounds + live signed software APIs,
+  <b>not flown hardware</b> — and links each pathway to the live a11oy surface that backs it. It exposes
+  no private submission content. Every maturity claim labelled <span class="pill modeled">MODELED</span>
+  <span class="pill live">LIVE</span> <span class="pill road">ROADMAP</span>.</div>
+  <nav class="nav">
+    <a href="/console/">← Console</a>
+    <a href="/signature-is-not-proof">Signature ≠ Proof case study</a>
+    <a href="/compliance">Compliance crosswalk</a>
+    <a href="/governance">Governance</a>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <div class="eyebrow">Posture</div>
+    <p class="lede">SZL builds on an explicit doctrine of <b>honest maturity</b>: we publish what is
+    MEASURED, label what is MODELED, and claim only what has a checkable artifact. The differentiator is
+    not a flown prototype — it is <b>verifiable provenance + assurance, sovereign on-metal compute</b>,
+    and a refusal to overclaim. Below: where a11oy and its surfaces fit federal pathways, and exactly how
+    mature each claim is.</p>
+    <div class="quote"><b>What we are.</b> A governed-AI command platform (deny-by-default 8-gate policy
+    engine, DSSE-signed verdicts/receipts, supply-chain assurance mesh, hash-chained governance ledger,
+    hybrid post-quantum signing) plus MODELED hard-physics PNT bounds and a sense-and-evidence counter-UAS
+    surface. <b>What we are not.</b> We do not claim flown hardware, a fielded prototype, or “proven trust.”
+    Λ is Conjecture 1 — advisory, &lt; 1.0, never a theorem.</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Federal &amp; allied pathways · fit + honest maturity</div>
+    <h2>Where we align</h2>
+    <div class="grid">
+
+      <!-- DARPA PINPOINT -->
+      <div class="path">
+        <div class="head">
+          <div><h3>DARPA PINPOINT</h3><div class="org">DSO · DARPA-SN-26-88 · PNT</div></div>
+          <span class="pill modeled">MODELED</span>
+        </div>
+        <div class="body">Precision Inertial Navigation &amp; Positioning — highly accurate nav/positioning
+        where GPS is unavailable or unreliable. Our PNT engine is a clean-room, closed-form quantum-sensing
+        and GNSS-resilience stack.</div>
+        <div class="fit"><b>Fit:</b> closed-form cold-atom interferometer sensitivity certificate
+        (at/above the Standard Quantum Limit), RAIM/AGC/SQM deny-by-default spoof fusion, GPS-denied
+        coasting figure-of-merit, and fundamental compute/energy bounds — all served as live signed
+        software APIs.</div>
+        <div class="surface">
+          <b>Honest maturity:</b> MODELED closed-form physics (stdlib, deterministic), <b>not flown
+          hardware</b>. The sensor certificate is labelled MODELED · STRUCTURAL-ONLY.
+          <div class="live-line" id="pnt-live"><span class="pill warn">checking…</span><span class="v">PNT mesh</span></div>
+        </div>
+        <div class="cite">Special Notice (advance notice of a future program); responses due Jul 13, 2026.
+        <a href="https://www.highergov.com/contract-opportunity/future-program-announcement-precision-inertial-na-darpa-sn-26-88-s-4a1f7/">DARPA-SN-26-88</a></div>
+      </div>
+
+      <!-- JIATF 401 -->
+      <div class="path">
+        <div class="head">
+          <div><h3>JIATF 401</h3><div class="org">NDAA FY26 §912 · counter-sUAS T&amp;E</div></div>
+          <span class="pill live">LIVE</span>
+        </div>
+        <div class="body">Joint Interagency Task Force 401 approves counter-sUAS systems for Department use
+        and published standardized C-UAS test &amp; evaluation criteria (Apr 28, 2026). Our counter-UAS
+        surface <b>senses and evidences</b> — it does not jam, spoof, take over, or kinetically defeat.</div>
+        <div class="fit"><b>Fit:</b> forensic-evidence and rules-of-engagement alignment — a live Λ decision
+        plus an ECDSA-P256 DSSE-signed forensic verdict, verified drone fingerprints, and a Remote-ID
+        validator. The value is <b>admissible, replayable evidence</b>, not effects.</div>
+        <div class="surface">
+          <b>Honest maturity:</b> live sense-and-evidence surface with signed verdicts; each T&amp;E
+          criterion is crosswalked honestly as Demonstrated / Modeled / Not-yet / Out-of-scope — never
+          assumed.
+          <div class="live-line" id="elite-live"><span class="pill warn">checking…</span><span class="v">Counter-UAS surface</span></div>
+        </div>
+        <div class="cite">Criteria published Apr 28, 2026.
+        <a href="https://www.war.gov/News/Releases/External/Article/4473626/jiatf-401-publishes-testing-and-evaluation-criteria-to-inform-future-demonstrat/">war.gov</a></div>
+      </div>
+
+      <!-- NATO DIANA -->
+      <div class="path">
+        <div class="head">
+          <div><h3>NATO DIANA</h3><div class="org">Defence Innovation Accelerator · dual-use</div></div>
+          <span class="pill acc">FIT</span>
+        </div>
+        <div class="body">DIANA accelerates dual-use deep tech across the alliance. a11oy’s governed-AI
+        assurance and sovereign-compute provenance are dual-use by construction — civilian supply-chain
+        integrity and defense AI governance share the same substrate.</div>
+        <div class="fit"><b>Fit:</b> verifiable provenance + assurance mesh (3-axis attestation, C2PA
+        content credentials, hash-chained ledger), aligned to EU AI Act Article 50 (effective Aug 2, 2026)
+        and NIST AI RMF / ISO 42001 via a live compliance crosswalk.</div>
+        <div class="surface">
+          <b>Honest maturity:</b> live signed software APIs + compliance crosswalk; trans-Atlantic
+          deployment is a roadmap engagement, labelled as such.
+          <div class="live-line" id="comp-live"><span class="pill warn">checking…</span><span class="v">Compliance crosswalk</span></div>
+        </div>
+      </div>
+
+      <!-- AFWERX SBIR -->
+      <div class="path">
+        <div class="head">
+          <div><h3>AFWERX SBIR</h3><div class="org">Dept. of the Air Force · small-business R&amp;D</div></div>
+          <span class="pill acc">FIT</span>
+        </div>
+        <div class="body">AFWERX SBIR funds small-business innovation with a defense transition path. As a
+        US-based small business (NAICS 541715, &lt;500 employees) with live, signed, sovereign-compute
+        software, SZL fits the R&amp;D-to-transition model.</div>
+        <div class="fit"><b>Fit:</b> governed counter-UAS sense-and-evidence + AI-governance assurance — a
+        software-first capability with a clear dual-use transition and a verifiable-provenance moat.</div>
+        <div class="surface">
+          <b>Honest maturity:</b> live software APIs + MODELED physics bounds; hardware integration and a
+          fielded prototype are roadmap, labelled honestly. SAM/UEI/CAGE founder-supplied.
+          <div class="live-line" id="elite2-live"><span class="pill warn">checking…</span><span class="v">Elite console</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">The honesty is the feature</div>
+    <h2>Doctrine v11 as a defense-acquisition advantage</h2>
+    <p>In a market where “signed: yes” has already certified a supply-chain worm
+    (<a href="/signature-is-not-proof">see the Mini Shai-Hulud case study</a>), an evaluator’s hardest
+    problem is telling a real capability from a confident slide. Our doctrine is built to make that easy:</p>
+    <div class="card">
+      <table>
+        <tr><th>Principle</th><th>What it means for an evaluator</th></tr>
+        <tr><td><b>Prove-or-downgrade</b></td><td>Every DONE claim has a checkable artifact: a pushed commit SHA, an HTTP 200 from a named endpoint, or a verifying signature. No artifact → it is labelled RECOMMENDED or ROADMAP, not claimed.</td></tr>
+        <tr><td><b>Label every value</b></td><td>MEASURED / MODELED / SAMPLE / STRUCTURAL-ONLY. A modeled physics bound is never dressed up as flown telemetry.</td></tr>
+        <tr><td><b>Never overclaim</b></td><td>No fabricated numbers, TRL, signatures, partnerships, or flown-hardware claims. Λ is Conjecture 1 (advisory), never “proven trust.”</td></tr>
+        <tr><td><b>Behaviour over attestation</b></td><td>We trust the behaviour we can observe and the receipts we can replay — not the attestation we were handed.</td></tr>
+      </table>
+    </div>
+    <p>The result is a capability statement an evaluator can verify in a browser, line by line, against
+    live endpoints — the opposite of a black box.</p>
+  </section>
+
+  <section>
+    <div class="card">
+      <h3>Engagement</h3>
+      <p>Founder is handling SAM.gov registration (via an APEX Accelerator) and federal submission
+      mechanics; the engineering artifacts behind each pathway are live and verifiable now at
+      <a href="https://a11oy.net">a11oy.net</a>. Private submission content is not published here by design.</p>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  a11oy showcase · doctrine v11 · honest maturity: MODELED bounds + live signed software APIs, NOT flown
+  hardware · prove-or-downgrade · Λ = Conjecture 1 (advisory, &lt; 1.0) · 0 runtime CDN.<br>
+  Live surfaces probed from <span style="color:var(--acc2)">/api/a11oy/v1/{pnt, compliance}</span> · <span style="color:var(--acc2)">/elite</span> · <span style="color:var(--acc2)">/elite-console</span> — honest NO-LIVE-DATA fallback, never fabricated.
+  SZL Holdings · sovereign-compute, AI-governance &amp; defense-tech, NYC · UEI [PLACEHOLDER: UEI] · CAGE [PLACEHOLDER: CAGE] · NAICS 541715.
+</footer>
+
+<script>
+// 0-CDN inline. Probe live a11oy surfaces; render an HONEST NO-LIVE-DATA chip on
+// any failure — never a fabricated value.
+(function(){
+  function setLive(id, ok, label, href){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var pill = ok ? '<span class="pill live">LIVE ✓</span>'
+                  : '<span class="pill warn">NO-LIVE-DATA</span>';
+    var v = href ? '<span class="v"><a href="'+href+'">'+label+'</a></span>'
+                 : '<span class="v">'+label+'</span>';
+    el.innerHTML = pill + v;
+  }
+  function probe(url, id, label, href){
+    fetch(url, {headers:{'accept':'application/json'}})
+      .then(function(r){ setLive(id, r.ok, label, href); })
+      .catch(function(){ setLive(id, false, label, href); });
+  }
+  probe('/api/a11oy/v1/pnt/limits', 'pnt-live', 'PNT mesh · /api/a11oy/v1/pnt/limits', '/api/a11oy/v1/pnt/limits');
+  probe('/elite',                   'elite-live', 'Counter-UAS · /elite', '/elite');
+  probe('/api/a11oy/v1/compliance', 'comp-live', 'Compliance crosswalk', '/compliance');
+  probe('/elite-console',           'elite2-live', 'Elite console · /elite-console', '/elite-console');
+})();
+</script>
+</body>
+</html>

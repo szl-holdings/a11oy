@@ -1197,6 +1197,25 @@ try:
     app.add_api_route("/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
 
+    # WARHACKER SHOWCASE PAGES (demo lane, 2026-06-14): two PUBLIC companion pages for
+    # the June 16-19 WarHacker demo. Standalone sovereign pages (system fonts, 0 runtime
+    # CDN, no external scripts). Where a claim can be proven LIVE they fetch a real
+    # a11oy production endpoint (/api/a11oy/v1/{pinn/certificate,compliance,pnt/limits},
+    # /elite, /elite-console) with an HONEST NO-LIVE-DATA fallback — never a fabricated
+    # value. Every maturity claim is labelled LIVE-today vs MODELED/ROADMAP (doctrine v11).
+    #   /signature-is-not-proof — the "A Signature Is Not Proof of Safety" case study
+    #                             (Mini Shai-Hulud May 2026; the 5 a11oy mechanisms).
+    #   /defense-readiness      — federal/allied pathway FIT + honest maturity summary
+    #                             (DARPA PINPOINT, JIATF 401, NATO DIANA, AFWERX); no
+    #                             private submission content exposed.
+    # image-only like the other web/*.html demo pages (per-file Dockerfile COPY +
+    # copy-sync-lockstep.json image_only_assets); pushed direct-to-Space so they are
+    # live immediately. Without the COPYs the routes 404 to the SPA shell.
+    app.add_api_route("/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
+
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
         return _PTG_Redirect(url="/code", status_code=302)
