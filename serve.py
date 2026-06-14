@@ -5934,7 +5934,7 @@ try:
         res = _ac_hf_chat(messages)
         if res.get("ok"):
             return res["text"], "generative", {
-                "backend": "hf-router", "endpoint": _AC_ROUTER_BASE,
+                "backend": _ac_inference_kind(), "endpoint": _AC_ROUTER_BASE,
                 "model": res.get("model"), "display": res.get("display"),
                 "license": res.get("license"), "attempts": res.get("attempts"),
                 "configured": True}
@@ -5942,7 +5942,7 @@ try:
         fail = ("[GENERATIVE-FAILED] HF_TOKEN is present but the open-weight inference call "
                 "failed (%s). a11oy.code never fabricates output. The tier/organ/Λ math and "
                 "the signed receipt below are still real." % res.get("error"))
-        return fail, "generative_error", {"backend": "hf-router", "configured": True,
+        return fail, "generative_error", {"backend": _ac_inference_kind(), "configured": True,
                                           "error": res.get("error"),
                                           "rate_limited": res.get("rate_limited")}
 
