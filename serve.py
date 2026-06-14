@@ -7668,6 +7668,46 @@ except Exception as _loop_e:
 
 
 # ============================================================================
+# BEGIN: LANE A AGENTIC CORE — a11oy (2026-06-14, Dev A, ADDITIVE, surgical)
+# Resumable ReAct execution graph (Thought->Action->Observation) where EACH
+# node transition is a SIGNED receipt boundary, with SqliteSaver-style
+# checkpointing (crash mid-run -> /resume continues), a Reflexion inner loop,
+# Generative-Agents memory retrieval scoring over a LOCAL vector store (0 CDN),
+# Letta-style working/archival tiering, and a Voyager skill library that admits
+# a tool-recipe ONLY after a verified execution receipt.
+# REUSES the host's REAL in-image signer (_a11oy_sign_receipt), verifier
+# (_a11oy_loop_verify) and public key (_a11oy_loop_pubpem). Routes inserted at
+# position 0 (Starlette Route) so they beat the SPA catch-all. FREE sub-namespace
+# /api/a11oy/v1/agent/react/* — no collision with /run, /tools, /verify-chain,
+# /governance-standards, /_diag, /loop. try/except-guarded (non-fatal).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_react_core as _react_core
+    import sys as _react_sys
+    _react_status = _react_core.register(
+        app, "a11oy",
+        sign_fn=_a11oy_sign_receipt,
+        verify_fn=(_a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None),
+        pub_pem_fn=(_a11oy_loop_pubpem if "_a11oy_loop_pubpem" in dir() else None),
+        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
+                      "resets on rebuild, verifiable vs /cosign.pub)"),
+    )
+    print(f"[a11oy] LANE A agentic core registered: {_react_status}", file=_react_sys.stderr)
+    _REACT_DIAG = {"status": "ok", "registered": _react_status}
+except Exception as _react_e:
+    import sys as _react_sys, traceback as _react_tb
+    print(f"[a11oy] LANE A agentic core FAILED (non-fatal): {_react_e!r}", file=_react_sys.stderr)
+    _react_tb.print_exc(file=_react_sys.stderr)
+    _REACT_DIAG = {"status": "FAILED", "error": repr(_react_e),
+                   "traceback": _react_tb.format_exc()}
+# ============================================================================
+# END: LANE A AGENTIC CORE — a11oy
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: FORMULA-WIRING SURFACE — a11oy (2026-06-06, ADDITIVE, surgical)
 # Wires ALL ~80 kernel-verified theorems to REAL, executed mechanisms (shared,
 # byte-identical szl_formula_wiring across a11oy + killinchu). Adds:

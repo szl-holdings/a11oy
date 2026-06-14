@@ -317,6 +317,15 @@ COPY web/living-anatomy.html ./web/living-anatomy.html
 # _ptg_serve. Without these COPYs the guarded import falls back and /nemo 404s.
 COPY a11oy_nemo_core.py ./
 COPY web/nemo.html ./web/nemo.html
+# ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
+# resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
+# COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and
+# serves /api/a11oy/v1/agent/react/{run,resume,trace,checkpoints} (+ free
+# top-level /api/a11oy/v1/agent/{resume,trace/{id},checkpoints}). Without this COPY
+# the guarded import falls back to a stub in the image and the react endpoints
+# 404. Restores wiring clobbered by a later integration-wave push built from a
+# stale base (the register block in serve.py + this COPY were both lost).
+COPY a11oy_react_core.py ./
 
 # ADDITIVE (Cross-Harness Receipt Bridge — Hermes + OpenClaw; 2026-06-01, Yachay /
 # Perplexity Computer Agent; closeout PR superseding #198 runtime files). serve.py

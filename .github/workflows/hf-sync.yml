@@ -60,6 +60,14 @@ on:
       - "static/shared/szl_codename_sanitizer.js"
       - "static/shared/szl_label_engine.js"
       - "static/shared/szl_receipt_cosign.js"
+      # copy-sync lockstep guard (CHECK 2): the Lane A agentic core module
+      # a11oy_react_core.py is per-file COPY'd in the Dockerfile and imported by
+      # serve.py (serves /api/a11oy/v1/agent/react/{run,resume,trace,checkpoints}).
+      # Its .py source is auto-mirrored to the HF Space by hf-sync-backend.yml; it
+      # is also declared here in on.push.paths AND env.APP_FILES (kept the IDENTICAL
+      # set) so the lockstep mirror set explicitly records it and the guard stays
+      # green. Restores Dev A wiring clobbered by a later stale-base integration push.
+      - "a11oy_react_core.py"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
@@ -83,6 +91,10 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           SPACE_ID: SZLHOLDINGS/a11oy
+          # APP_FILES is kept the IDENTICAL set to the Lane-A entries added to
+          # on.push.paths above (copy-sync lockstep guard reads both). The .py
+          # source itself is mirrored to the Space by hf-sync-backend.yml.
+          APP_FILES: "a11oy_react_core.py"
           FM_B64: "dGl0bGU6ICJhMTFveSDigJQgR292ZXJuYW5jZSBTdWJzdHJhdGUiCmVtb2ppOiAi8J+UrCIKY29sb3JGcm9tOiBpbmRpZ28KY29sb3JUbzogZ3JheQpzZGs6IGRvY2tlcgphcHBfcG9ydDogNzg2MApwaW5uZWQ6IHRydWUKbGljZW5zZTogYXBhY2hlLTIuMApzaG9ydF9kZXNjcmlwdGlvbjogImExMW95IOKAlCBwb2xpY3kgKyByZWNlaXB0IHN1YnN0cmF0ZSIKdGFnczoKICAtIGdvdmVybmFuY2UKICAtIGFnZW50aWMtYWkKICAtIGRvY3RyaW5lLXYxMQogIC0gYTExb3kKICAtIGV4ZWN1dGlvbi1mYWJyaWMKICAtIGFwYWNoZS0yLjAKZWNvc3lzdGVtLXN0YWdlOiAib3BlcmF0aW9uYWwi"
         run: |
           set -euo pipefail
