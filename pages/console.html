@@ -539,10 +539,28 @@ const CAPS=[
   {id:'receipts',  name:'Receipts',       kind:'provenance', color:'#5fb3a3'},
   {id:'knowledge', name:'Knowledge',      kind:'memory',     color:'#5fb3a3'}
 ];
-async function getJSON(p){const r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
-async function orgGet(organ,path){const r=await fetch(ORG[organ]+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
-async function orgPost(organ,path,body){const r=await fetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
-async function postJSON(p,b){const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+/* real-data-wiring (feat/real-data-wiring): UNIVERSAL FETCH HARDENING (Doctrine v11).
+   Every live fetch on this console now flows through _szlFetch(), which wraps the
+   native fetch in an AbortController with a SHORT default timeout (6s). A slow or
+   wedged endpoint (same-origin proxy or public feed) can no longer hang a tab on a
+   perpetual spinner: it ABORTS, the caller's catch fires, and the tab paints an
+   HONEST labeled fallback within the timeout. No fabricated data — abort just turns
+   an infinite wait into a fast, honest error the existing catch blocks already
+   degrade gracefully. The go()-level watchdog (below) is the belt-and-suspenders. */
+window.__SZL_FETCH_TIMEOUT_MS=6000;
+function _szlFetch(url,opts){
+  opts=opts||{};
+  var ms=(opts.__timeoutMs!=null)?opts.__timeoutMs:window.__SZL_FETCH_TIMEOUT_MS;
+  var ctl=new AbortController();
+  var t=setTimeout(function(){try{ctl.abort();}catch(e){}},ms);
+  var o=Object.assign({},opts); delete o.__timeoutMs; o.signal=opts.signal||ctl.signal;
+  return fetch(url,o).finally(function(){clearTimeout(t);});
+}
+window._szlFetch=_szlFetch;
+async function getJSON(p){const r=await _szlFetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function orgGet(organ,path){const r=await _szlFetch(ORG[organ]+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function orgPost(organ,path,body){const r=await _szlFetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function postJSON(p,b){const r=await _szlFetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 /* Doctrine v13 display-layer honesty: map any banned internal codename to its honest
    role for USER-VISIBLE labels only (backend keys/data are untouched). Quechua organ
@@ -618,8 +636,11 @@ function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D
 
 // ===== GENIUS VISUAL HELPERS (echarts / globe.gl / cytoscape / d3) =====
 const RED='#b06a5a',AMBER='#c9a05f';
-// fetch with timeout + abort — never let a big public feed hang the UI
-function fetchTimeout(url,ms,opts){const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),ms||12000);
+// fetch with timeout + abort — never let a big public feed hang the UI.
+// real-data-wiring: hard-cap the abort window at 6.5s (Doctrine v11: a spinner must
+// resolve to data-or-honest-fallback fast). Callers that passed 12–30s (USGS, MITRE
+// STIX) now abort at the cap and degrade to their labeled fallback instead of hanging.
+function fetchTimeout(url,ms,opts){const CAP=6500;const want=ms||6000;const eff=Math.min(want,CAP);const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),eff);
   return fetch(url,Object.assign({signal:ctl.signal},opts||{})).finally(()=>clearTimeout(t));}
 async function getPublic(url,ms){const r=await fetchTimeout(url,ms);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 /* ===== investor-grade-polish: FAIL-FAST KPI fetch + last-good cache ============
@@ -664,7 +685,7 @@ function _concat(arrs){let n=0;arrs.forEach(a=>n+=a.length);const out=new Uint8A
 function _derToRaw(der){let i=0;if(der[i++]!==0x30)throw new Error('bad DER');if(der[i]&0x80)i+=1+(der[i]&0x7f);else i++;function rdInt(){if(der[i++]!==0x02)throw new Error('bad int');let len=der[i++];let v=der.slice(i,i+len);i+=len;while(v.length>32&&v[0]===0)v=v.slice(1);const p=new Uint8Array(32);p.set(v,32-v.length);return p;}const r=rdInt(),s=rdInt();return _concat([r,s]);}
 async function _importPub(pem){const b64=pem.replace(/-----[^-]+-----/g,'').replace(/\s+/g,'');const der=_b64ToBytes(b64);return crypto.subtle.importKey('spki',der.buffer,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);}
 async function verifyReceipt(env, pubPem, tamper){const enc=new TextEncoder();const ptype=env.payloadType||'application/vnd.szl.receipt+json';let body=_b64ToBytes(env.payload);if(tamper){body=body.slice();body[0]=body[0]^0xff;}const tb=enc.encode('DSSEv1 '),pb=enc.encode(' '+ptype+' '),lp=enc.encode(String(ptype.length)),lb=enc.encode(String(body.length)+' ');const pae=_concat([tb,lp,pb,lb,body]);const dig=await crypto.subtle.digest('SHA-256',pae);const paeSha=Array.from(new Uint8Array(dig)).map(b=>b.toString(16).padStart(2,'0')).join('');const sigDer=_b64ToBytes((env.signatures&&env.signatures[0]||{}).sig||'');const raw=_derToRaw(sigDer);const key=await _importPub(pubPem);const ok=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,raw.buffer,pae.buffer);return {ok, paeSha256:paeSha, keyid:(env.signatures&&env.signatures[0]||{}).keyid||'\u2014'};}
-async function getText(p){const r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}
+async function getText(p){const r=await _szlFetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.text();}
 // ECharts dark theme registered once; all panels inherit gold/teal-on-#0a0a0a
 let _echartsThemeReady=false;
 function ensureEchartsTheme(){if(_echartsThemeReady||!window.echarts)return;
@@ -1765,7 +1786,8 @@ function ontology_load(){
   const els=[{data:{id:'a11oy',label:'a11oy',w:54},classes:'hub'}];let edges=0;
   CAPS.forEach(c=>{els.push({data:{id:c.id,label:c.name,w:44}});els.push({data:{id:'e_'+c.id,source:'a11oy',target:c.id}});edges++;});
   const cy=cyGraph('on-cy',els,{name:'concentric',concentric:n=>n.hasClass('hub')?10:1,levelWidth:()=>1,animate:false,padding:24});
-  if(!cy){const h=el('on-cy');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">graph engine loading\u2026 a11oy + '+CAPS.length+' capabilities</div>';}
+  /* real-data-wiring (feat/real-data-wiring): graph engine init failed → honest text fallback (NOT a perpetual spinner) */
+  if(!cy){const h=el('on-cy');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">graph engine unavailable — showing a11oy + '+CAPS.length+' capabilities as text<\/div>'+'<div class="row mono" style="padding:0 1rem 1rem;flex-wrap:wrap;gap:.4rem">'+CAPS.map(function(c){return '<span class="badge">'+String((c&&(c.id||c.name||c.label||c))).replace(/[<>]/g,'')+'<\/span>';}).join('')+'<\/div>';}
   setTxt('on-n',els.filter(e=>!e.data.source).length);setTxt('on-e',edges);}
 
 // CVE Watch \u2014 live NVD CVE 2.0
@@ -1981,9 +2003,69 @@ function go(view){
   window._requestedView = view;
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
+  _szlSpinnerWatchdog(view);
   if(history.replaceState)history.replaceState(null,'','#'+view);
   if(window.innerWidth<=820)toggleSide(false);
 }
+/* real-data-wiring (feat/real-data-wiring): GLOBAL NO-PERPETUAL-SPINNER WATCHDOG.
+   Doctrine v11 — a spinner must ALWAYS resolve to data OR an honest labeled state
+   within its timeout, never spin forever. Most loaders already fail-fast (now that
+   every fetch is abortable) into their own honest fallback. This is the universal
+   belt-and-suspenders: after the fetch cap (6.5s) has had time to fire, scan the
+   active tab body for any lingering pure-spinner placeholder — a node whose ENTIRE
+   visible text is just a wait phrase ("polling…", "probing…", "loading…",
+   "fetching…", a bare "…"), or an unresolved animated skeleton — and replace ONLY
+   that placeholder with an honest "live source unavailable — showing sample/snapshot"
+   chip. It NEVER fabricates a value and NEVER touches real content that merely
+   contains an ellipsis in prose (it matches whole-text spinner phrases only). */
+window.__SZL_WATCHDOG_MS=7000;
+function _szlHonestChip(){
+  return '<span class="badge b-gold" title="This panel\'s live source did not resolve within its timeout from this Space right now \u2014 shown honestly as a labeled fallback rather than a spinner or a faked value. The server proxy serves it live in-deployment; retry to re-probe.">live source unavailable \u2014 showing sample / snapshot</span>';
+}
+function _szlIsSpinnerText(t){
+  t=(t||'').replace(/\s+/g,' ').trim().toLowerCase();
+  if(!t) return false;
+  if(t.length>64) return false; /* long text = real content, not a placeholder */
+  /* whole-text wait phrases only */
+  return /^(\u2026|\.\.\.|\u00b7{3})$/.test(t)
+    || /^(loading|probing|polling|fetching|asking|emitting|launching|inspecting|assessing|mapping|reading|governing|reading live grid feeds)\b/.test(t) && /(\u2026|\.\.\.|loading|polling|probing|fetching|please wait|reading|governing)/.test(t);
+}
+function _szlSweepSpinners(root){
+  if(!root) return 0;
+  var swept=0;
+  /* 1) animated skeletons that never got replaced */
+  root.querySelectorAll('.skel-wrap').forEach(function(sk){
+    if(!root.contains(sk)) return;
+    sk.outerHTML='<div class="row mono dim" style="padding:.4rem 0">'+_szlHonestChip()+'</div>'; swept++;
+  });
+  /* 2) pure-spinner text rows: .row.mono.dim or any leaf whose entire text is a wait phrase */
+  var cands=root.querySelectorAll('.row.mono.dim, .bigsentence, .v, [id]');
+  cands.forEach(function(node){
+    if(!root.contains(node)) return;
+    if(node.querySelector && node.querySelector('.badge')) return; /* already an honest chip */
+    if(node.children && node.children.length>1) return; /* container with structure = real content */
+    if(_szlIsSpinnerText(node.textContent)){
+      node.innerHTML=_szlHonestChip(); swept++;
+    }
+  });
+  return swept;
+}
+function _szlSpinnerWatchdog(view){
+  if(window._szlWatchdogTimers){window._szlWatchdogTimers.forEach(function(t){clearTimeout(t);});}
+  window._szlWatchdogTimers=[];
+  function run(){
+    try{
+      var c=el('content'); if(!c) return;
+      /* only sweep if this is still the active view (user may have navigated away) */
+      if(window._requestedView!==view) return;
+      var body=el('vbody')||c;
+      _szlSweepSpinners(body);
+    }catch(e){}
+  }
+  window._szlWatchdogTimers.push(setTimeout(run, window.__SZL_WATCHDOG_MS));
+  window._szlWatchdogTimers.push(setTimeout(run, window.__SZL_WATCHDOG_MS+2500));
+}
+window._szlSpinnerWatchdog=_szlSpinnerWatchdog; window._szlSweepSpinners=_szlSweepSpinners;
 /* hamburger drawer + scrim (mobile/tablet <=820px). force=true/false to set explicitly. */
 function toggleSide(force){
   const s=document.querySelector('.side');const sc=document.querySelector('.side-scrim');
@@ -3580,7 +3662,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
   function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-  async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  async function gj(p){var r=await (window._szlFetch?window._szlFetch(p):fetch(p));if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
   var HONEST=(window.HONEST_DOCTRINE||document.querySelector('.honesty'))?'':'';
   // reuse the page's HONEST block string by cloning from an existing one at render time
   function honestBlock(){return '<div class="honesty"><b>How to read this.</b> Live data, no mock. The trust score \u039b is a research <b>Conjecture</b> (Conjecture 1, advisory \u2014 unconditional uniqueness machine-checked FALSE). Eight formulas are formally proven/locked {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green on main (@958c09f9) but not in the locked count. Conformal intervals use W5-3 distribution-free coverage (NOT Hoeffding). SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap on the a11oy image (cosign-signed + signed build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation). No AGI claims.</div>';}
@@ -4287,7 +4369,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
   function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-  async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  async function gj(p){var r=await (window._szlFetch?window._szlFetch(p):fetch(p));if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
   async function gjLiveFirst(livePath, snapPath){ try{ var d=await gj(livePath); if(d && ((d.vulnerabilities&&d.vulnerabilities.length)||(d.cves&&d.cves.length))) return d; }catch(e){} return gj(snapPath); } /* RERUN: BATCH-2-local live-first */
   var B1=window.B1||{};
   function chip(label,status){ var col=(status==='PROVEN'||status==='CI-GREEN')?TEAL:(status==='CONJECTURE'||status==='SAMPLE')?GOLD:(status==='FALSE')?RED:GRAY;
@@ -4914,7 +4996,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
   function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
-  async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  async function gj(p){var r=await (window._szlFetch?window._szlFetch(p):fetch(p));if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
   // RERUN 2026-06-10: live-first KEV/CVE fetch. Prefer the LIVE CISA feed
   // (/sec/*_live); honestly fall back to the bundled snapshot (/sec/*) so the
   // tab still renders if upstream is unreachable. Same row shape either way.
@@ -11359,7 +11441,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function E(id){return document.getElementById(id);}
   function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
-  async function gj(p){var r=await fetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+  async function gj(p){var r=await (window._szlFetch?window._szlFetch(p):fetch(p));if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
   async function pj(p,b){var r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
   var TEAL='#5fb3a3', GOLD='#c9b787', RED='#b06a5a', DIM='#8a8f98', GRID='rgba(120,120,120,0.16)';
   var SEV={CRITICAL:RED,HIGH:'#c9805a',MEDIUM:GOLD,LOW:'#7a8aa0'};
