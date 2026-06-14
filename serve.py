@@ -5030,8 +5030,9 @@ def _r3d_loop_meta(r: dict):
 def _r3d_router_metrics_payload() -> dict:
     rs = _a11oy_router_stats_payload()
     routes = rs.get("routes", [])
+    live = rs.get("source") == "szl_brain.TIERS"
     return {
-        "data_kind": "live",
+        "data_kind": "live" if live else "sample",
         "mode": rs.get("mode", "live"),
         "routes": routes,
         "tiers": routes,
@@ -5039,8 +5040,9 @@ def _r3d_router_metrics_payload() -> dict:
         "width_depth_available": False,
         "source": rs.get("source", ""),
         "doctrine": "v11",
-        "honesty": ("Live per-tier throughput / model / license from the real router "
-                    "catalog. Model width/depth shape is NOT measured in this image, so any "
+        "honesty": ("Per-tier throughput / model / license from the router catalog -- LIVE "
+                    "when the brain catalog (szl_brain.TIERS) is up, else honest_stub_catalog fallback "
+                    "with data_kind DOWNGRADED to sample. Model width/depth shape is NOT measured, so any "
                     "width/depth scaling point stays a clearly-labelled SAMPLE. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -5054,8 +5056,9 @@ def _r3d_routing_graph_payload() -> dict:
     edges = [{"source": routes[i].get("tier"), "target": routes[i + 1].get("tier")}
              for i in range(len(routes) - 1)]
     ch = _r3d_chain(50)
+    live = rs.get("source") == "szl_brain.TIERS"
     return {
-        "data_kind": "live",
+        "data_kind": "live" if live else "sample",
         "mode": rs.get("mode", "live"),
         "nodes": nodes,
         "edges": edges,
@@ -5065,7 +5068,9 @@ def _r3d_routing_graph_payload() -> dict:
         "surface": ("GraphRouter routing-envelope score s = lambda*e_hat - (1-lambda)*c_hat "
                     "is a DERIVED heuristic, never a measured loss"),
         "doctrine": "v11",
-        "honesty": ("Routing nodes/edges are the LIVE /router/stats per-tier catalog (real "
+        "honesty": ("Routing nodes/edges are the /router/stats per-tier catalog -- LIVE when the "
+                    "brain catalog (szl_brain.TIERS) is up, else honest_stub_catalog fallback with "
+                    "data_kind DOWNGRADED to sample (real "
                     "organ -> tier -> model escalation path); receipts are the real in-image "
                     "chain. The manifold surface is a derived heuristic, never a measured loss. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
