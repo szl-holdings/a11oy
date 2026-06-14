@@ -122,7 +122,7 @@ def _page_html(ns: str) -> str:
  <div class="sub">a11oy's mechanisms cross-referenced to <b>ISO/IEC 42001:2023</b>, <b>NIST AI RMF 1.0</b>,
   <b>NIST SP 800-53 Rev 5</b>, and the <b>EU AI Act</b>. The 13 Λ trust axes map to NIST AI RMF
   MEASURE 2; policy gates are published as OPA/Rego; a machine-readable OSCAL component-definition
-  is committed to the repo. <a href="/">← a11oy console</a></div></header>
+  is committed to the repo. <a href="/">← a11oy console</a> · <a href="/ecosystem">estate hub →</a></div></header>
 <div class="wrap">
  <div class="disc">__DISC__</div>
 
