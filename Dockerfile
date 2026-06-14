@@ -284,7 +284,7 @@ EXPOSE 7860
 # these COPYs the imports fail and the pages/endpoints fall through to the SPA shell.
 # Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). NO external CDN.
 COPY web/formulas.html ./web/formulas.html
-COPY static-vendor/three.min.js ./static-vendor/three.min.js
+COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-force-graph.min.js static-vendor/echarts.min.js static-vendor/echarts-gl.min.js static-vendor/globe.gl.min.js static-vendor/cytoscape.min.js static-vendor/d3.min.js static-vendor/katex.min.js static-vendor/katex.min.css static-vendor/dagre.min.js static-vendor/cytoscape-dagre.js static-vendor/d3-sankey.min.js static-vendor/ngraph.graph.min.js static-vendor/ngraph.path.min.js static-vendor/ngraph.forcelayout.min.js static-vendor/panzoom.min.js static-vendor/vivagraph.min.js static-vendor/ngraph.events.umd.js static-vendor/a11oy-operator-widget.js static-vendor/a11oy-operator-widget.css ./static-vendor/
 
 # ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
 # VENDORING. The operator console (pages/console.html) loads the 7 viz libs +
@@ -294,31 +294,11 @@ COPY static-vendor/three.min.js ./static-vendor/three.min.js
 # text under static-vendor/; the binary globe texture + KaTeX woff2 fonts ship
 # as base64 TEXT in _vendor_blobs.py (decoded by the /vendor/* routes in serve.py)
 # so NO LFS/Xet blob is committed. Doctrine v11 LOCKED. NO external CDN.
-COPY static-vendor/chart.umd.min.js ./static-vendor/chart.umd.min.js
-COPY static-vendor/3d-force-graph.min.js ./static-vendor/3d-force-graph.min.js
-COPY static-vendor/echarts.min.js ./static-vendor/echarts.min.js
-COPY static-vendor/echarts-gl.min.js ./static-vendor/echarts-gl.min.js
-COPY static-vendor/globe.gl.min.js ./static-vendor/globe.gl.min.js
-COPY static-vendor/cytoscape.min.js ./static-vendor/cytoscape.min.js
-COPY static-vendor/d3.min.js ./static-vendor/d3.min.js
-COPY static-vendor/katex.min.js ./static-vendor/katex.min.js
-COPY static-vendor/katex.min.css ./static-vendor/katex.min.css
 # Batch-1 uniqueness rebuild (2026-06-06): additional vendored graph-viz libs
 # (MIT/ISC/BSD; NOTICE updated). Per-file COPY (this Dockerfile uses no COPY . .).
-COPY static-vendor/dagre.min.js ./static-vendor/dagre.min.js
-COPY static-vendor/cytoscape-dagre.js ./static-vendor/cytoscape-dagre.js
-COPY static-vendor/d3-sankey.min.js ./static-vendor/d3-sankey.min.js
-COPY static-vendor/ngraph.graph.min.js ./static-vendor/ngraph.graph.min.js
-COPY static-vendor/ngraph.path.min.js ./static-vendor/ngraph.path.min.js
-COPY static-vendor/ngraph.forcelayout.min.js ./static-vendor/ngraph.forcelayout.min.js
-COPY static-vendor/panzoom.min.js ./static-vendor/panzoom.min.js
 # DEV-WIRE-A (2026-06-09): anvaka graph-stack completion (0-CDN, in-image). BSD-3, anvaka.
-COPY static-vendor/vivagraph.min.js ./static-vendor/vivagraph.min.js
-COPY static-vendor/ngraph.events.umd.js ./static-vendor/ngraph.events.umd.js
 # OPERATOR WIDGET (2026-06-10): a11oy floating governed-operator surface ("Chaski"),
 # self-hosted in-image (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py.
-COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js
-COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
 
 # ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
 # explicit per-file COPY (this Dockerfile does not use COPY . .).
@@ -428,16 +408,7 @@ COPY a11oy_react_core.py ./
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY src/a11oy/__init__.py ./src/a11oy/__init__.py
-COPY src/a11oy/formulas/__init__.py ./src/a11oy/formulas/__init__.py
-COPY src/a11oy/formulas/pac_bayes.py ./src/a11oy/formulas/pac_bayes.py
-COPY src/a11oy/formulas/bls_aggregate.py ./src/a11oy/formulas/bls_aggregate.py
-COPY src/a11oy/formulas/welford.py ./src/a11oy/formulas/welford.py
-COPY src/a11oy/formulas/byzantine_quorum.py ./src/a11oy/formulas/byzantine_quorum.py
-COPY src/a11oy/formulas/holevo_bound.py ./src/a11oy/formulas/holevo_bound.py
-COPY src/a11oy/formulas/bloom_filter.py ./src/a11oy/formulas/bloom_filter.py
-COPY src/a11oy/formulas/kalman.py ./src/a11oy/formulas/kalman.py
-COPY src/a11oy/formulas/hnsw_retrieval.py ./src/a11oy/formulas/hnsw_retrieval.py
-COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
+COPY src/a11oy/formulas/__init__.py src/a11oy/formulas/pac_bayes.py src/a11oy/formulas/bls_aggregate.py src/a11oy/formulas/welford.py src/a11oy/formulas/byzantine_quorum.py src/a11oy/formulas/holevo_bound.py src/a11oy/formulas/bloom_filter.py src/a11oy/formulas/kalman.py src/a11oy/formulas/hnsw_retrieval.py src/a11oy/formulas/reidemeister.py src/a11oy/formulas/allodial.py src/a11oy/formulas/allodial_gate.py src/a11oy/formulas/entanglement.py ./src/a11oy/formulas/
 # FIX (formula/* 404 repair): a11oy_formula_endpoints.py imports a11oy.formulas.{allodial,
 # allodial_gate, entanglement} alongside the formulas above, but these three were NEVER
 # COPY'd into the image. The package import therefore raised at boot, register() returned
@@ -445,12 +416,7 @@ COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
 # bloom, kalman, formulas/index, …) 404'd through the Node proxy. Per-file COPY (this
 # Dockerfile never uses `COPY . .`). Mirrored byte-identical to the HF Space (hf-sync
 # APP_FILES lockstep). EXPERIMENTAL frontier gates — Λ = Conjecture 1 (never a theorem).
-COPY src/a11oy/formulas/allodial.py ./src/a11oy/formulas/allodial.py
-COPY src/a11oy/formulas/allodial_gate.py ./src/a11oy/formulas/allodial_gate.py
-COPY src/a11oy/formulas/entanglement.py ./src/a11oy/formulas/entanglement.py
-COPY src/a11oy/harvest/__init__.py ./src/a11oy/harvest/__init__.py
-COPY src/a11oy/harvest/wasted_energy_harvest.py ./src/a11oy/harvest/wasted_energy_harvest.py
-COPY src/a11oy/harvest/harvest_budget.py ./src/a11oy/harvest/harvest_budget.py
+COPY src/a11oy/harvest/__init__.py src/a11oy/harvest/wasted_energy_harvest.py src/a11oy/harvest/harvest_budget.py ./src/a11oy/harvest/
 # ADDITIVE (Formulas SECTION page — closeout): serve.py imports a11oy_formulas_page
 # and calls .register(app) BEFORE the SPA catch-all, mounting GET /formulas/wired
 # (premium Inca-palette list of every live formula + thesis citation + Lean permalink
