@@ -1232,6 +1232,29 @@ except Exception as _ptg_e:  # never crash the app — additive only
 # === end PER-TAB PALANTIR-CLASS GENIUS REBUILD ===
 
 
+# ===========================================================================
+# ADDITIVE (Dev0, 2026-06-14): SHARED szl3d 3D TOOLKIT + HOLOGRAPHIC SHELL.
+# The foundation the other 9 holographic surface devs import. Serves the
+# vendored three.js r170 libs + the szl3d toolkit (boot/live/label) + the 9
+# surface stub modules + the selftest harness under /static/3d/{path}, and the
+# /holographic tab-switcher shell. 0 runtime CDN (libs vendored in-image,
+# served same-origin), WebGPU-with-WebGL2-fallback, honesty labels on every
+# value. Registered BEFORE the SPA /{full_path:path} catch-all so the shell's
+# ES-module imports resolve locally. Additive, try/except-guarded.
+# ===========================================================================
+try:
+    import szl3d_holographic as _szl3d_holo
+    _szl3d_status = _szl3d_holo.register(app, ns="a11oy")
+    print(f"[a11oy] szl3d 3D toolkit + holographic shell registered: {_szl3d_status['count']} routes, "
+          f"{_szl3d_status['surfaces']} surface slots — /holographic + /static/3d/* (0 CDN, three r170)",
+          file=sys.stderr)
+except Exception as _szl3d_e:
+    import traceback as _szl3d_tb
+    print(f"[a11oy] szl3d toolkit NOT registered: {_szl3d_e!r}", file=sys.stderr)
+    _szl3d_tb.print_exc()
+# ── end szl3d 3D TOOLKIT + HOLOGRAPHIC SHELL ──
+
+
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Doctrine v13 WAYRA — 4th edge organ): mount the WAYRA tab.
 # WAYRA (Quechua *wayra* = "wind, air"; Wiktionary) is the empire's lungs: the
