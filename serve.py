@@ -1450,6 +1450,13 @@ try:
     import szl_energy_ledger as _szl_energy_ledger
     _szl_energy_ledger_paths = _szl_energy_ledger.register(app, ns="a11oy")
     print(f"[a11oy] energy ledger wired: {_szl_energy_ledger_paths}", file=sys.stderr)
+    try:
+        import szl_energy_operator as _eo_wire
+        import szl_energy_ledger as _el_wire
+        _eo_wire.get_operator().subscribe(_el_wire.record_job)
+        print("[a11oy] energy operator->ledger receipts hook wired", file=sys.stderr)
+    except Exception as _eo_led_exc:
+        print(f"[a11oy] energy operator->ledger hook NOT wired: {_eo_led_exc!r}", file=sys.stderr)
 except Exception as _ledger_exc:  # additive: never break the Space
     print(f"[a11oy] energy ledger NOT mounted ({_ledger_exc!r}); SPA + API unaffected", file=sys.stderr)
 
@@ -3914,59 +3921,6 @@ except Exception as _a11oy_nav_e:
 # ── end NAV WIRE-UP (QA10) ──
 
 # ===========================================================================
-# WILLAY — the GOVERNED INVERSE of Anthropic's Fable 5 / Mythos 5 split.
-# ---------------------------------------------------------------------------
-# Anthropic shipped Fable 5 (capable model WITH safety classifiers that decline)
-# and Mythos 5 (SAME capability, classifiers REMOVED, hidden chain-of-thought,
-# limited Project Glasswing access). We do NOT clone Mythos. WILLAY is the honest
-# inverse: where Mythos REMOVES the governor and HIDES the reasoning, WILLAY makes
-# the safety/governance verdict INSPECTABLE and SIGNED — "they hide the governor;
-# we sign and show it." Every model call routed through a11oy passes inspectable
-# classifiers built on the EXISTING Restraint gate + Constitution + Khipu 3-of-4
-# consensus; the verdict AND its reasoning are returned as a SIGNED DSSE receipt.
-# Adopts (interface patterns only, fair game) the public Fable/Mythos API
-# ergonomics: refusal as a SUCCESSFUL non-billed 200 with stop_reason="refusal",
-# adaptive effort / task budgets, the memory tool, context compaction — wired into
-# a11oy-Code's API surface honestly (the gateway gates + signs; it does not itself
-# run a model). A WILLAY /console tab shows: request -> verdict (allow/decline +
-# reason) -> signed receipt -> which model served it. 0 CDN, holo-kit vendored
-# locally. Doctrine: locked=8 @ c7c0ba17; Λ = Conjecture 1; Khipu = Conjecture 2;
-# trust NEVER 100% (tamper-evident, fallible by design); no visible codenames;
-# never weakens a gate. Mounts BEFORE the SPA catch-all; try/except-guarded so a
-# missing dep can NEVER take the Space down.
-#   GET  /willay                          — the WILLAY operator tab
-#   GET  /api/a11oy/v1/willay/classifiers — the inspectable classifier set
-#   POST /api/a11oy/v1/willay/inspect     — classify a request -> verdict + reasons
-#   POST /api/a11oy/v1/willay/messages    — Fable-shaped gated turn (refusal => 200)
-#   GET  /api/a11oy/v1/willay/receipts    — last N signed verdict receipts (audit)
-#   POST /api/a11oy/v1/willay/verify      — verify a signed WILLAY receipt
-#   GET  /api/a11oy/v1/willay/doctrine    — doctrine + honesty self-statement
-# ===========================================================================
-try:
-    import szl_willay_gateway as _szl_willay
-    _willay_status = _szl_willay.register(app, ns="a11oy")
-    print(f"[a11oy] WILLAY safety gateway registered: {_willay_status['registered']} "
-          f"(classifiers: {_willay_status['classifiers']}, trust_ceiling="
-          f"{_willay_status['trust_ceiling']} <1.0 by doctrine) — governed inverse of "
-          f"Mythos: verdicts signed & shown, refusal-as-200", file=sys.stderr)
-except Exception as _willay_e:
-    import traceback as _willay_tb
-    print(f"[a11oy] WILLAY safety gateway NOT registered: {_willay_e!r}; SPA + API "
-          f"unaffected", file=sys.stderr)
-    _willay_tb.print_exc()
-try:
-    import a11oy_willay_nav as _a11oy_willay_nav
-    _willay_nav_status = _a11oy_willay_nav.register(app, ns="a11oy")
-    print(f"[a11oy] WILLAY nav wire-up registered: {_willay_nav_status['registered']} "
-          f"(tab: {_willay_nav_status['tab_route']}) — idempotent, additive, /console "
-          f"SPA source NOT edited", file=sys.stderr)
-except Exception as _willay_nav_e:
-    import traceback as _willay_nav_tb
-    print(f"[a11oy] WILLAY nav wire-up NOT registered: {_willay_nav_e!r}", file=sys.stderr)
-    _willay_nav_tb.print_exc()
-# ── end WILLAY (governed inverse of Mythos) ──
-
-# ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
@@ -4317,10 +4271,21 @@ try:
             fired.append("size-guard:payload-exceeds-1MB")
         return (len(fired) == 0, fired)
 
+    # Doctrine hard gate: TRUST NEVER 100%. When axes are supplied, Lambda is
+    # MIN(axes) (already < 1.0 for any real axis vector). When NO axes are given
+    # the immune organ only has a binary clean/dirty verdict, so we report the
+    # doctrine confidence CEILING 0.999 for clean (never a literal 1.0 == 100%
+    # certainty) and 0.0 for dirty. This keeps lambda_value honestly < 1.0 on
+    # every chapaq verdict (and on the cross-app killinchu mirror + ecosystem
+    # kpi-board that read it). Decision is UNCHANGED: the allow/deny gate only
+    # trips on axes (axes is not None) and on the threat/size signals, so the
+    # binary-clean ceiling never flips a verdict. Lambda = Conjecture 1 (<1.0).
+    _SC_LAMBDA_CEIL = 0.999
+
     def _sc_compute_lambda(axes, is_clean):
         if axes:
-            return min(axes)
-        return 1.0 if is_clean else 0.0
+            return min(min(axes), _SC_LAMBDA_CEIL)
+        return _SC_LAMBDA_CEIL if is_clean else 0.0
 
     def _sc_build_verdict(body):
         agent = (body or {}).get("agent") or "unknown"
