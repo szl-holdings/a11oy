@@ -1208,6 +1208,27 @@ except Exception as _anat_e:  # additive: never break the Space
     print(f"[a11oy] anatomy run-engine NOT wired ({_anat_e!r}); SPA + API unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (ESTATE ECOSYSTEM FOUNDATION, 2026-06, Dev5): cross-app ecosystem
+# surfaces wired as ONE additive router. Registered BEFORE the SPA catch-all,
+# try/except-guarded so a missing dep can NEVER take the Space down.
+#   GET /ecosystem                         estate hub (HTML)
+#   GET /estate-organism                   3D living-organism (HTML, vendored 3D)
+#   GET /api/{ns}/v1/ecosystem/anatomy     5-organ vitals (MELT in-process, honest)
+#   GET /api/{ns}/v1/ecosystem/mesh        cross-app fabric + Fiedler lambda2 (MODELED)
+#   GET /api/{ns}/v1/ecosystem/ledger      cross-app unified DSSE ledger (ECDSA-P256)
+#   GET /api/{ns}/v1/ecosystem/kpi-board   estate Lambda/KPI rollup (locked-8 EXACTLY 8)
+# Doctrine v11: locked EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}@c7c0ba17; Lambda = Conjecture 1 (< 1.0).
+# ---------------------------------------------------------------------------
+try:
+    import szl_ecosystem_routes as _szl_ecosystem
+    _eco_paths = _szl_ecosystem.register(app, ns="a11oy")
+    print(f"[a11oy] ecosystem foundation wired ({_eco_paths}): /ecosystem /estate-organism /api/a11oy/v1/ecosystem/*", file=sys.stderr)
+except Exception as _eco_e:  # additive: never break the Space
+    print(f"[a11oy] ecosystem foundation NOT wired ({_eco_e!r}); SPA + API unaffected", file=sys.stderr)
+
+
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (MINED UPGRADES, 2026-06, Yachay): four self-contained, dependency-free
 # operator surfaces, each adopting a PERMISSIVELY-licensed PATTERN from a founder-
 # followed GitHub repo and EVOLVING it into an a11oy-native mechanism (NOTICE

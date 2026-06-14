@@ -720,6 +720,12 @@ COPY szl_research_infra.py szl_dark_surfaces_register.py szl_anatomy_loop.py ./
 COPY conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py ./
 
 
+
+# --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
+# 3 shared JS (label engine / receipt-cosign / codename sanitizer) + codename gate + ecosystem router.
+COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js ./static/shared/
+COPY szl_codename_gate.py szl_ecosystem_routes.py ./
+
 CMD ["python", "serve.py"]
 
 
