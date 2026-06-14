@@ -42,9 +42,15 @@
 #     file in lutar-lean main, or (b) is explicitly marked leanStatus=phantom /
 #     stagedAdvisory=true. All OTHER leanStatus values (phantom, conjectured,
 #     axiom-advisory, measured-*, *-tracked-sorries, mixed-*, lean-backed, ...)
-#     are honest non-theorem disclosures: report-only, missing ones surface as
-#     informational warnings so drift is still visible. (This manifest carries no
-#     commit pins, so existence is resolved against lutar-lean main only.)
+#     are honest non-theorem disclosures: report-only. Because their missing
+#     files are EXPECTED (the disclosure says so), they do NOT emit per-entry
+#     "leanFile absent" warnings; only the summary count keeps drift visible.
+#   * docs/theorem-runtime-manifest.json entries MAY also carry a leanCommit pin.
+#     A pinned entry is a concrete claim "this file existed at this commit" and is
+#     hard-fail-eligible with the SAME rigor as gates_manifest.json:
+#       - present at the pinned commit ................... PASS
+#       - absent at pin but present on lutar-lean main ... PASS + ::warning:: (stale)
+#       - present at NEITHER ............................. FAIL (phantom pin)
 #   * corpus/formulas/ mirrors must be byte-identical to their source manifests
 #     (gates_manifest.json, docs/theorem-runtime-manifest.json) -> FAIL on drift.
 #
@@ -232,15 +238,26 @@ def check_gate_ts(root, result):
 
 
 def check_theorem_runtime_manifest(root, result):
-    """Hard-fail on undisclosed phantom theorem citations; report the rest.
+    """Hard-fail on undisclosed phantom + broken commit-pinned theorem citations.
 
-    An entry whose leanStatus ASSERTS a machine-checked theorem
-    (leanStatus in TRM_PROOF_STATUSES), is NOT marked stagedAdvisory=true, and
-    cites a concrete Lutar/*.lean path that does not exist on lutar-lean main is
-    an undisclosed phantom -> FAIL. Honestly-disclosed entries
-    (leanStatus=phantom/conjectured/..., or stagedAdvisory=true) and
-    non-concrete/aspirational references (globs, non-Lutar pointers) are
-    report-only; missing ones surface as informational warnings.
+    Two hard-fail surfaces, plus honest report-only disclosures:
+
+    1. COMMIT-PINNED entry (carries leanCommit) -> hard-fail-eligible with the
+       SAME rigor as gates_manifest.json: a pin is a concrete claim that the file
+       existed at that commit.
+         - present at pinned commit ........................ PASS
+         - absent at pin but present on lutar-lean main .... PASS + ::warning::
+                                                             (stale pin — repin)
+         - present at NEITHER (exists nowhere) ............. FAIL (phantom pin)
+    2. UNPINNED entry that ASSERTS a theorem (leanStatus in TRM_PROOF_STATUSES,
+       NOT stagedAdvisory) and cites a concrete Lutar/*.lean path missing on
+       lutar-lean main is an undisclosed phantom -> FAIL (the Task #695 class).
+
+    Honestly-disclosed entries (leanStatus=phantom/conjectured/..., or
+    stagedAdvisory=true) and non-concrete/aspirational references (globs,
+    non-Lutar pointers) are report-only. Because their missing files are
+    EXPECTED (the disclosure says so), they no longer emit per-entry "leanFile
+    absent" warnings — only the summary count keeps the drift visible.
     """
     path = os.path.join(root, "docs", "theorem-runtime-manifest.json")
     if not os.path.exists(path):
@@ -248,16 +265,39 @@ def check_theorem_runtime_manifest(root, result):
     data = json.load(open(path, "r", encoding="utf-8"))
     entries = data.get("entries", [])
     resolved = 0
-    missing = []
+    missing = 0
     skipped = 0
     for e in entries:
         lf = e.get("leanFile")
         ident = e.get("id", "?")
         status = norm_status(e.get("leanStatus"))
         staged = bool(e.get("stagedAdvisory"))
+        commit = e.get("leanCommit")
         if not is_lutar_lean_path(lf):
             skipped += 1
             continue
+
+        # 1. Commit-pinned: hard-fail-eligible like gates_manifest.json.
+        if commit:
+            result.checked += 1
+            if lean_file_exists(lf, commit):
+                resolved += 1
+            elif lean_file_exists(lf, DEFAULT_REF):
+                resolved += 1
+                result.warns.append(
+                    "theorem-runtime-manifest.json :: {} :: STALE PIN — {} absent at "
+                    "pinned commit {} but present on {} main; repin leanCommit.".format(
+                        ident, lf, str(commit)[:12], LUTAR_REPO))
+            else:
+                result.fails.append(
+                    "theorem-runtime-manifest.json :: {} :: PHANTOM CITATION — {} "
+                    "(leanStatus={}) does not exist in {} at pinned commit {} NOR on "
+                    "main. Point at a real Lean file, or mark the entry honestly "
+                    "(leanStatus=phantom / stagedAdvisory=true).".format(
+                        ident, lf, e.get("leanStatus"), LUTAR_REPO, str(commit)[:12]))
+            continue
+
+        # 2. Unpinned. Resolve against main only (no pin to verify).
         exists = lean_file_exists(lf, DEFAULT_REF)
         asserts_theorem = status in TRM_PROOF_STATUSES and not staged
         if asserts_theorem:
@@ -275,16 +315,12 @@ def check_theorem_runtime_manifest(root, result):
             if exists:
                 resolved += 1
             else:
-                missing.append("{} -> {} (leanStatus={}, stagedAdvisory={})".format(
-                    ident, lf, e.get("leanStatus"), staged))
+                missing += 1
     print("  theorem-runtime-manifest.json: {} concrete leanFile ref(s) resolve on {} "
-          "main, {} honestly-disclosed missing, {} non-lean/glob skipped".format(
-              resolved, LUTAR_REPO, len(missing), skipped))
-    print("    (theorem citations hard-fail when missing & not stagedAdvisory; every "
-          "other leanStatus is an honest non-theorem disclosure, report-only.)")
-    for m in missing:
-        result.warns.append("theorem-runtime-manifest.json :: {} :: leanFile absent on "
-                            "main but honestly disclosed (informational)".format(m))
+          "(pinned commit or main), {} honestly-disclosed missing, {} non-lean/glob "
+          "skipped".format(resolved, LUTAR_REPO, missing, skipped))
+    print("    (commit-pinned + undisclosed theorem citations hard-fail when missing; "
+          "every other leanStatus is an honest non-theorem disclosure, report-only.)")
 
 
 def check_corpus_mirror(root, result):
