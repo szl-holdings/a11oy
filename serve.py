@@ -1497,6 +1497,34 @@ except Exception as _fp_e:  # additive: never break the Space
     print(f"[a11oy] Formulas section NOT registered: {_fp_e!r}; SPA + API unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (NEMOTRON SIGNED-TRAJECTORY build, 2026-06-14): mount the SIGNED
+# CORPUS tab + verify/stats endpoints (SZL-Nemo, GPU-FREE "ship now" slice).
+# Instruments the existing ReAct + Reflexion + Restraint + Auto-Review loop to
+# emit a DSSE-SIGNED JSONL receipt per agent step, and maps the open
+# nvidia/Nemotron-Agentic-v1 dataset (335,122 samples, CC BY 4.0, NVIDIA) into
+# the SZL trajectory schema with full attribution (labeled SAMPLE). Exposes:
+#   GET  /signed-corpus                 premium HTML tab (sample trajectories,
+#                                       in-browser signature/hash verifier, stats)
+#   GET  /api/a11oy/v1/nemo/stats       corpus stats JSON (honest scope + attribution)
+#   GET  /api/a11oy/v1/nemo/sample      the sample signed JSONL (application/x-ndjson)
+#   POST /api/a11oy/v1/nemo/verify      {jsonl} -> aggregate hash+DSSE verify JSON
+# Plus an IDEMPOTENT nav-injection middleware that appends a floating "Signed
+# Corpus" link to every served HTML surface (no React SPA edit). Registered
+# BEFORE the SPA catch-all; try/except-guarded so a missing dep can NEVER take
+# down the Space. HONEST: DATASET property, NOT a model claim. QLoRA-ready;
+# actual QLoRA/GRPO training = ROADMAP (needs 2x80GB GPU; FORGE order). NOT an
+# Ultra reproduction; NOT trained from scratch. Real ECDSA-P256 signatures only
+# when SZL_COSIGN_PRIVATE_KEY_PEM is present, else honestly UNSIGNED. Doctrine
+# v11/v12 LOCKED 749/14/163, Lambda = Conjecture 1. SLSA L1 (L2/L3 ROADMAP).
+# ---------------------------------------------------------------------------
+try:
+    import szl_nemotron_corpus as _nemo_corpus
+    _nemo_status = _nemo_corpus.register(app, ns="a11oy")
+    print(f"[a11oy] NEMOTRON signed-corpus registered: {_nemo_status}", file=sys.stderr)
+except Exception as _nemo_e:  # additive: never break the Space
+    print(f"[a11oy] NEMOTRON signed-corpus NOT registered: {_nemo_e!r}; SPA + API unaffected", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (Anatomy run-engine, 2026-06 / Forge): resurrect szl_anatomy_routes so
 # the FULL canonical formula registry runs LIVE. JSON API lands on `app`:
 #   GET  /api/a11oy/v1/formulas            - registry (name, proof_status, chakra)
@@ -3919,59 +3947,6 @@ except Exception as _a11oy_nav_e:
     print(f"[a11oy] NAV wire-up NOT registered: {_a11oy_nav_e!r}", file=sys.stderr)
     _a11oy_nav_tb.print_exc()
 # ── end NAV WIRE-UP (QA10) ──
-
-# ===========================================================================
-# WILLAY — the GOVERNED INVERSE of Anthropic's Fable 5 / Mythos 5 split.
-# ---------------------------------------------------------------------------
-# Anthropic shipped Fable 5 (capable model WITH safety classifiers that decline)
-# and Mythos 5 (SAME capability, classifiers REMOVED, hidden chain-of-thought,
-# limited Project Glasswing access). We do NOT clone Mythos. WILLAY is the honest
-# inverse: where Mythos REMOVES the governor and HIDES the reasoning, WILLAY makes
-# the safety/governance verdict INSPECTABLE and SIGNED — "they hide the governor;
-# we sign and show it." Every model call routed through a11oy passes inspectable
-# classifiers built on the EXISTING Restraint gate + Constitution + Khipu 3-of-4
-# consensus; the verdict AND its reasoning are returned as a SIGNED DSSE receipt.
-# Adopts (interface patterns only, fair game) the public Fable/Mythos API
-# ergonomics: refusal as a SUCCESSFUL non-billed 200 with stop_reason="refusal",
-# adaptive effort / task budgets, the memory tool, context compaction — wired into
-# a11oy-Code's API surface honestly (the gateway gates + signs; it does not itself
-# run a model). A WILLAY /console tab shows: request -> verdict (allow/decline +
-# reason) -> signed receipt -> which model served it. 0 CDN, holo-kit vendored
-# locally. Doctrine: locked=8 @ c7c0ba17; Λ = Conjecture 1; Khipu = Conjecture 2;
-# trust NEVER 100% (tamper-evident, fallible by design); no visible codenames;
-# never weakens a gate. Mounts BEFORE the SPA catch-all; try/except-guarded so a
-# missing dep can NEVER take the Space down.
-#   GET  /willay                          — the WILLAY operator tab
-#   GET  /api/a11oy/v1/willay/classifiers — the inspectable classifier set
-#   POST /api/a11oy/v1/willay/inspect     — classify a request -> verdict + reasons
-#   POST /api/a11oy/v1/willay/messages    — Fable-shaped gated turn (refusal => 200)
-#   GET  /api/a11oy/v1/willay/receipts    — last N signed verdict receipts (audit)
-#   POST /api/a11oy/v1/willay/verify      — verify a signed WILLAY receipt
-#   GET  /api/a11oy/v1/willay/doctrine    — doctrine + honesty self-statement
-# ===========================================================================
-try:
-    import szl_willay_gateway as _szl_willay
-    _willay_status = _szl_willay.register(app, ns="a11oy")
-    print(f"[a11oy] WILLAY safety gateway registered: {_willay_status['registered']} "
-          f"(classifiers: {_willay_status['classifiers']}, trust_ceiling="
-          f"{_willay_status['trust_ceiling']} <1.0 by doctrine) — governed inverse of "
-          f"Mythos: verdicts signed & shown, refusal-as-200", file=sys.stderr)
-except Exception as _willay_e:
-    import traceback as _willay_tb
-    print(f"[a11oy] WILLAY safety gateway NOT registered: {_willay_e!r}; SPA + API "
-          f"unaffected", file=sys.stderr)
-    _willay_tb.print_exc()
-try:
-    import a11oy_willay_nav as _a11oy_willay_nav
-    _willay_nav_status = _a11oy_willay_nav.register(app, ns="a11oy")
-    print(f"[a11oy] WILLAY nav wire-up registered: {_willay_nav_status['registered']} "
-          f"(tab: {_willay_nav_status['tab_route']}) — idempotent, additive, /console "
-          f"SPA source NOT edited", file=sys.stderr)
-except Exception as _willay_nav_e:
-    import traceback as _willay_nav_tb
-    print(f"[a11oy] WILLAY nav wire-up NOT registered: {_willay_nav_e!r}", file=sys.stderr)
-    _willay_nav_tb.print_exc()
-# ── end WILLAY (governed inverse of Mythos) ──
 
 # ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
