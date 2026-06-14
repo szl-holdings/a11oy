@@ -7954,6 +7954,52 @@ except Exception as _devb_e:
 # END: a11oy DEV B layer
 # ============================================================================
 
+# ============================================================================
+# BEGIN: a11oy GOVERNANCE / EVAL / CALIBRATION layer (Dev B lane).
+# ADDITIVE. Namespace /api/a11oy/v1/gov/* + page /governance — no overlap with
+# dev1 (/v1/wow), dev2 (/v1/vert), deva (/v1/deva), devb (/v1/devb), code
+# (/v1/code) or operator. register() moves its routes to the FRONT of
+# app.router.routes so they win over the /api/a11oy/{path:path} Node proxy +
+# /{full_path:path} SPA catch-all.
+# Surfaces (all REAL, computed live, nothing fabricated):
+#   /gov/eval         τ-bench-STYLE tool-RULE-FOLLOWING suite (szl_tau_eval),
+#                     real pass^1 score + as-of date + determinism hash; the
+#                     runner drives each scenario through the EXISTING
+#                     _a11oy_arena_inspect threat gate so the score is
+#                     non-trivial (an always-pass agent fails the controls).
+#                     Suite design after τ-bench arXiv:2406.12045.
+#   /gov/calibration  ECE + Brier per (model, agent_type) (szl_calibration),
+#                     with the ECE<0.05 automated-response gate (fails CLOSED
+#                     on unmeasured). arXiv:2505.15437.
+#   /gov/conformal    conformal prediction SETS (>=95% coverage) replacing bare
+#                     confidence % (szl_conformal — the SAME helper Dev D
+#                     imports). arXiv:2305.18404 / 2107.07511.
+#   /gov/policy       file-backed, independently-auditable Colang ROE/policy
+#                     (szl_colang_policy + policy/colang/*.co). NeMo Guardrails
+#                     Colang syntax (github.com/NVIDIA-NeMo/Guardrails).
+#   /gov/ietf         draft-marques-asqav-compliance-receipts-05 compliance VIEW
+#                     over a freshly DSSE-signed decision (szl_ietf_receipt) —
+#                     reuses _a11oy_sign_receipt; ECDSA-P256 envelope INTACT.
+#   /gov/lean         Lean4Agent workflow-invariant scaffold status (ROADMAP).
+# DOCTRINE v11; Λ=Conjecture 1; SLSA L1/L2 (L3 roadmap); trust<100%; 0 CDN;
+# every score measured or honestly "not_measured".
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import a11oy_governance_endpoints as _a11oy_gov
+    import sys as _gov_sys
+    _gov_status = _a11oy_gov.register(app)
+    print(f"[a11oy] Governance/Eval/Calibration registered: {_gov_status}", file=_gov_sys.stderr)
+    _A11OY_GOV_DIAG = {"status": "ok", "registered": _gov_status}
+except Exception as _gov_e:
+    import sys as _gov_sys, traceback as _gov_tb
+    print(f"[a11oy] Governance FAILED (non-fatal): {_gov_e!r}", file=_gov_sys.stderr)
+    _gov_tb.print_exc(file=_gov_sys.stderr)
+    _A11OY_GOV_DIAG = {"status": "FAILED", "error": repr(_gov_e)}
+# ============================================================================
+# END: a11oy GOVERNANCE / EVAL / CALIBRATION layer
+# ============================================================================
+
 
 # ============================================================================
 # BEGIN: a11oy Provenance & Trust Anchor layer (5 tabs: Public-Ledger Anchor,

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+# killinchu threat-response ROE — NeMo Guardrails Colang (v1) flows.
+# https://github.com/NVIDIA-NeMo/Guardrails
+#
+# DOCTRINE: counter-UAS / maritime C2 rules of engagement as a versioned,
+# auditable Colang file. Effectors are SIMULATED, human-on-loop. This file is the
+# authoritative policy for autonomous threat handling; the runtime enforcer in
+# szl_colang_policy.py loads it and records fired flows into the signed receipt.
+# Coordinates with Dev D's threat classifier (conformal set + ECE<0.05 gate from
+# szl_conformal.py / szl_calibration.py) — engagement is never recommended on an
+# unmeasured-calibration classifier or a non-singleton conformal set without a
+# human.
+#
+# policy_id: killinchu-threat-roe
+# policy_version: 1.0.0
+
+define flow no_autonomous_engagement
+  # No engagement effector may fire autonomously — every engage requires a
+  # recorded human authorization (SIMULATED human-on-loop). Hard ROE boundary.
+  user action requested $action
+  if is_engagement($action) and not has_human_authorization($action)
+    bot refuse action with reason "engagement_requires_human_authorization"
+    create signed_refusal_receipt($action, "engagement_requires_human_authorization")
+  else
+    continue
+
+define flow require_calibrated_classifier
+  # An automated threat response is permitted only when the classifier's
+  # calibration is MEASURED and ECE < gate threshold (szl_calibration gate).
+  user action requested $action
+  if is_automated_response($action) and not classifier_calibration_gate_pass($action)
+    bot refuse action with reason "classifier_calibration_gate_failed"
+    create signed_refusal_receipt($action, "classifier_calibration_gate_failed")
+  else
+    continue
+
+define flow require_singleton_conformal_set
+  # If the conformal threat-class set is NOT a singleton (ambiguous at the 95%
+  # coverage target), do not auto-act — route to a human (act-vs-ask).
+  user action requested $action
+  if is_automated_response($action) and conformal_set_ambiguous($action)
+    bot refuse action with reason "conformal_set_ambiguous_route_to_human"
+    create signed_refusal_receipt($action, "conformal_set_ambiguous_route_to_human")
+  else
+    continue
+
+define flow require_sensor_quorum
+  # A threat decision requires a sensor-fusion quorum (BFT n>=3f+1; Dev D panel).
+  user action requested $action
+  if is_threat_decision($action) and not sensor_quorum_met($action)
+    bot refuse action with reason "sensor_quorum_not_met"
+    create signed_refusal_receipt($action, "sensor_quorum_not_met")
+  else
+    allow action
+    create signed_action_receipt($action)

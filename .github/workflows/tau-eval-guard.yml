@@ -1,0 +1,74 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# tau-eval-guard.yml — keep the szl-tau-tool-rules tool-rule-following eval honest.
+#
+# Why this exists
+# ---------------
+# The Governance/Eval tab renders a LIVE τ-bench-style score ("a11oy scores X on
+# suite szl-tau-tool-rules vY, as-of <date>"). The honesty story depends on the
+# score being NON-TRIVIAL: it must actually discriminate a rule-following agent
+# from a rule-breaking one. This guard boots the REAL suite (szl_tau_eval) and
+# fails unless:
+#   * the suite carries >=1 negative-control task (expect_refusal),
+#   * the reference rule-follower passes every task, AND
+#   * an ALWAYS-PASS agent scores < 1.0 (proving the rules reject bad
+#     trajectories — the score cannot be silently rubber-stamped to 100%).
+# No fabricated numbers; the validator runs szl_tau_eval.run_suite() in-process.
+#
+# A self-test job feeds the validator degenerate runs and asserts it REJECTS each
+# before the guard trusts it (org guard pattern; cf.
+# eval-arena-negative-control.yml). Org policy: github-owned actions only, SHAs
+# pinned.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Tau Eval Non-Triviality Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "szl_tau_eval.py"
+      - "scripts/check_tau_eval.py"
+      - ".github/workflows/tau-eval-guard.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "szl_tau_eval.py"
+      - "scripts/check_tau_eval.py"
+      - ".github/workflows/tau-eval-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tau-eval-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  self-test:
+    name: Self-test the validator (fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Validator rejects degenerate runs, accepts a good one
+        run: python3 scripts/check_tau_eval.py --selftest
+
+  guard:
+    name: Tau eval is non-trivial (reference passes, always-pass agent fails)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Self-test the validator before trusting it
+        run: python3 scripts/check_tau_eval.py --selftest
+      - name: Run the suite and assert non-triviality
+        run: python3 scripts/check_tau_eval.py

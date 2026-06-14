@@ -732,6 +732,28 @@ COPY conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py ./
 COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js ./static/shared/
 COPY szl_codename_gate.py szl_ecosystem_routes.py ./
 
+# --- GOVERNANCE / EVAL / CALIBRATION layer (Dev B, 2026-06): ADDITIVE ---
+# serve.py imports a11oy_governance_endpoints (try/except-guarded) which imports
+# the shared modules below; the page /governance is served from web/governance.html.
+# Per-file COPY (this Dockerfile NEVER uses `COPY . .`) — without these lines the
+# import falls back to the non-fatal except and /api/a11oy/v1/gov/* + /governance
+# 404 (the recurring "merged-but-not-live" failure). szl_conformal is a SHARED
+# helper Dev D (killinchu) also imports for threat classification. The Colang
+# policy files are the file-backed, independently-auditable single source of
+# truth for the ROE flows. 0 runtime CDN (the page uses the already-vendored
+# /vendor/chart.umd.min.js). These auto-mirror to the HF Space via the backend
+# sync workflow which parses these COPY lines.
+COPY a11oy_governance_endpoints.py szl_tau_eval.py szl_calibration.py szl_conformal.py szl_colang_policy.py szl_ietf_receipt.py ./
+COPY policy/colang/roe_core.co ./policy/colang/roe_core.co
+COPY policy/colang/killinchu_threat.co ./policy/colang/killinchu_threat.co
+COPY web/governance.html ./web/governance.html
+COPY scripts/check_tau_eval.py ./scripts/check_tau_eval.py
+# Lean4Agent workflow-invariant scaffold (ROADMAP / EXPERIMENTAL — not a verified
+# proof yet; rendered as ROADMAP in the UI). Shipped so the .lean source is in
+# the image for audit; no Lean toolchain is invoked at runtime.
+COPY lean4agent/WorkflowInvariants.lean ./lean4agent/WorkflowInvariants.lean
+COPY lean4agent/README.md ./lean4agent/README.md
+
 CMD ["python", "serve.py"]
 
 

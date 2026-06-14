@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<!--
+  a11oy GOVERNANCE / EVAL / CALIBRATION console (Dev B lane).
+  © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
+  0 runtime CDN: the ONLY external script is the in-image vendored Chart.js
+  (/vendor/chart.umd.min.js). All data is fetched live from /api/a11oy/v1/gov/*.
+  Every number is measured or honestly labelled "not_measured" — nothing fabricated.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Governance / Eval / Calibration</title>
+<script src="/vendor/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
+    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
+    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#0d1320,#0a0e14)}
+  h1{margin:0;font-size:18px;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px;margin-top:4px}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 22px}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:16px 18px}
+  .card h2{margin:0 0 10px;font-size:14px;letter-spacing:.4px;color:var(--acc)}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;
+      border-bottom:1px dotted #1a2435}
+  .kv:last-child{border-bottom:0}
+  .k{color:var(--mut)} .v{color:var(--ink);text-align:right;word-break:break-word}
+  .big{font-size:30px;font-weight:700;letter-spacing:.5px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;
+        border:1px solid var(--line)}
+  .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
+  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
+  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
+  .cite{color:var(--mut);font-size:11px;margin-top:8px}
+  .cite code{color:var(--acc2)}
+  .mono{font-family:inherit}
+  .set{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .set .lab{padding:4px 11px;border-radius:7px;border:1px solid var(--line);
+            background:#0e1622;font-size:13px}
+  .set .lab.in{border-color:#13403c;background:#0a201e;color:var(--acc)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:5px 7px;border-bottom:1px solid #1a2435}
+  th{color:var(--mut);font-weight:600}
+  .file{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+        padding:10px 12px;margin:8px 0}
+  .file pre{margin:6px 0 0;white-space:pre-wrap;color:#b9c6d6;font-size:11px;
+            max-height:160px;overflow:auto}
+  .sha{color:var(--acc2);font-size:11px}
+  .note{color:var(--mut);font-size:11px;margin-top:8px;line-height:1.55}
+  .loading{color:var(--mut)} .err{color:var(--err)}
+  a{color:var(--acc2)}
+  footer{color:var(--mut);font-size:11px;padding:14px 22px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · Governance / Eval / Calibration</h1>
+  <div class="sub">Live tool-rule-following eval (τ-bench-style) · calibration (ECE/Brier) · conformal prediction sets · file-backed Colang policy · IETF compliance-receipt profile · Lean4Agent invariants (roadmap). Every number is measured live or labelled <em>not_measured</em>.</div>
+</header>
+<div class="wrap">
+  <div class="grid">
+    <!-- EVAL -->
+    <div class="card" id="eval-card">
+      <h2>τ-BENCH-STYLE EVAL — TOOL RULE-FOLLOWING</h2>
+      <div id="eval" class="loading">measuring live…</div>
+      <div class="cite">Suite design after τ-bench <code>arXiv:2406.12045</code> · AgentBench <code>arXiv:2308.03688</code>. pass^1 = task passes iff EVERY domain rule holds against the real produced trajectory.</div>
+    </div>
+
+    <!-- CALIBRATION -->
+    <div class="card" id="cal-card">
+      <h2>CALIBRATION — ECE / BRIER + AUTO-RESPONSE GATE</h2>
+      <div id="cal" class="loading">measuring live…</div>
+      <canvas id="relchart" height="150" style="margin-top:10px"></canvas>
+      <div class="cite">ECE (equal-width bins) + Brier per <code>arXiv:2505.15437</code>. Gate: ECE &lt; 0.05 required for any automated (no-human) response; <b>fails closed</b> on unmeasured calibration.</div>
+    </div>
+
+    <!-- CONFORMAL -->
+    <div class="card" id="conf-card">
+      <h2>CONFORMAL PREDICTION — SETS, NOT BARE %</h2>
+      <div id="conf" class="loading">computing…</div>
+      <div class="cite">Split conformal per <code>arXiv:2305.18404</code> · Angelopoulos &amp; Bates <code>arXiv:2107.07511</code>. Shared helper <code>szl_conformal</code> — Dev D imports the SAME module for threat classification.</div>
+    </div>
+
+    <!-- POLICY -->
+    <div class="card" id="pol-card" style="grid-column:1/-1">
+      <h2>POLICY — FILE-BACKED COLANG ROE (INDEPENDENTLY AUDITABLE)</h2>
+      <div id="pol" class="loading">loading policy files…</div>
+      <div class="cite">NeMo Guardrails Colang syntax — <code>github.com/NVIDIA-NeMo/Guardrails</code>. Policy lives in version-controlled <code>.co</code> files (single source of truth), shown here with per-file sha256. No prompt-only policy.</div>
+    </div>
+
+    <!-- IETF -->
+    <div class="card" id="ietf-card" style="grid-column:1/-1">
+      <h2>IETF COMPLIANCE-RECEIPT PROFILE (DSSE ENVELOPE INTACT)</h2>
+      <div id="ietf" class="loading">signing a live decision…</div>
+      <div class="cite">Compliance VIEW aligned to <code>draft-marques-asqav-compliance-receipts-05</code>. The cross-app DSSE envelope (ECDSA-P256-SHA256) is reproduced UNCHANGED — verify against <a href="/cosign.pub">/cosign.pub</a>.</div>
+    </div>
+
+    <!-- LEAN -->
+    <div class="card" id="lean-card">
+      <h2>LEAN4AGENT — WORKFLOW INVARIANTS <span class="pill road">ROADMAP</span></h2>
+      <div id="lean" class="loading">…</div>
+      <div class="cite">Formalization after Lean4Agent <code>arXiv:2606.06523</code>. Proved-in-isolation invariants are real; full-pipeline + determinism theorems carry <code>sorry</code> and are NOT machine-checked yet.</div>
+    </div>
+  </div>
+</div>
+<footer>
+  a11oy governance lane · doctrine v11 · Λ = Conjecture 1 (advisory) · SLSA L1 honest / L2 in progress / L3 roadmap · trust &lt; 100% · 0 runtime CDN.
+  Data: <span class="mono">/api/a11oy/v1/gov/{eval,calibration,conformal,policy,ietf,lean,summary}</span>
+</footer>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function kv(k,v){return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${v}</span></div>`}
+async function getj(u){const r=await fetch(u);if(!r.ok)throw new Error(u+" -> "+r.status);return r.json()}
+
+// ---- EVAL ----
+getj("/api/a11oy/v1/gov/eval").then(d=>{
+  const pct=(d.score_pct!=null)?d.score_pct.toFixed(2)+"%":"—";
+  const asof=(d.as_of||"").slice(0,19).replace("T"," ")+" UTC";
+  const runner=(d.tasks&&d.tasks[0]&&d.tasks[0].trajectory||[]).some(s=>s.tool==="arena_gate.inspect")?"live _a11oy_arena_inspect gate":"reference rule-follower";
+  let rows="";
+  (d.domains?Object.entries(d.domains):[]).forEach(([dom,v])=>{
+    const st=v.status==="measured"?`<span class="pill ok">${(v.pass_at_1*100).toFixed(0)}%</span>`:`<span class="pill warn">not_measured</span>`;
+    rows+=`<tr><td>${esc(dom)}</td><td>${v.passed}/${v.total}</td><td>${st}</td></tr>`;
+  });
+  $("#eval").innerHTML=
+    `<div class="big">${pct}</div>`+
+    kv("suite",`<span class="mono">${esc(d.suite_id)} ${esc(d.suite_version)}</span>`)+
+    kv("metric",esc(d.metric))+
+    kv("tasks","<b>"+d.tasks_passed+"</b> / "+d.tasks_total+" passed")+
+    kv("negative controls",d.negative_controls)+
+    kv("runner",esc(runner))+
+    kv("as-of",`<span class="mono">${esc(asof)}</span>`)+
+    kv("determinism",`<span class="sha mono">${esc(d.determinism_hash)}</span>`)+
+    kv("run receipt",(d.receipt&&d.receipt.signed)?`<span class="pill ok">DSSE signed</span>`:`<span class="pill warn">unsigned</span>`)+
+    `<table style="margin-top:8px"><tr><th>domain</th><th>passed</th><th>pass^1</th></tr>${rows}</table>`+
+    `<div class="note">Cited as: “a11oy scores ${pct} on suite ${esc(d.suite_id)} ${esc(d.suite_version)}, as-of ${esc(asof)}.” An unrun domain renders <em>not_measured</em>, never 0.</div>`;
+}).catch(e=>$("#eval").innerHTML=`<div class="err">eval unavailable: ${esc(e.message)}</div>`);
+
+// ---- CALIBRATION ----
+getj("/api/a11oy/v1/gov/calibration").then(d=>{
+  const m=d.metrics||{},g=d.automated_response_gate||{};
+  const measured=m.status==="measured";
+  const ecev=measured?m.ece.toFixed(4):"not_measured";
+  const brierv=measured&&m.brier!=null?m.brier.toFixed(4):"not_measured";
+  const gate=g.allow?`<span class="pill ok">ALLOW (ECE&lt;${d.gate_threshold_ece})</span>`
+                    :`<span class="pill err">DENY → human-on-loop</span>`;
+  $("#cal").innerHTML=
+    kv("model / agent",`<span class="mono">${esc(m.model)} / ${esc(m.agent_type)}</span>`)+
+    kv("status",measured?`<span class="pill acc">measured</span>`:`<span class="pill warn">${esc(m.status)}</span>`)+
+    kv("samples (n)",m.n)+
+    kv("ECE",`<b class="mono">${ecev}</b>`)+
+    kv("Brier"+(m.brier_kind?` (${esc(m.brier_kind)})`:""),`<span class="mono">${brierv}</span>`)+
+    kv("auto-response gate",gate)+
+    `<div class="note">${esc(g.honesty||m.honesty||"")}</div>`;
+  // reliability chart
+  const arr=Array.isArray(m.reliability)?m.reliability:[];
+  if(window.Chart&&arr.length){
+    new Chart($("#relchart"),{type:"bar",
+      data:{labels:arr.map(b=>(b.lo!=null?b.lo:0).toFixed(2)),
+            datasets:[
+              {label:"accuracy",data:arr.map(b=>b.accuracy),backgroundColor:"#5ad1c9"},
+              {label:"mean confidence",data:arr.map(b=>b.mean_conf),backgroundColor:"#7aa2f7",type:"line",borderColor:"#7aa2f7",fill:false}
+            ]},
+      options:{plugins:{legend:{labels:{color:"#8b98a9"}}},
+               scales:{x:{ticks:{color:"#8b98a9"},grid:{color:"#1a2435"}},
+                       y:{min:0,max:1,ticks:{color:"#8b98a9"},grid:{color:"#1a2435"}}}}});
+  }
+}).catch(e=>$("#cal").innerHTML=`<div class="err">calibration unavailable: ${esc(e.message)}</div>`);
+
+// ---- CONFORMAL ----
+getj("/api/a11oy/v1/gov/conformal").then(d=>{
+  const cs=d.conformal_set||{};
+  const labels=cs.full_label_space||(cs.members||[]).map(m=>m.label)||[];
+  const inset=new Set(cs.set||[]);
+  let chips=labels.map(l=>`<span class="lab ${inset.has(l)?"in":""}">${esc(l)}${inset.has(l)?" ✓":""}</span>`).join("");
+  $("#conf").innerHTML=
+    kv("helper",`<span class="mono">${esc(d.helper_version)}</span>`)+
+    kv("coverage target",`≥ ${(d.coverage_target*100).toFixed(0)}%`)+
+    kv("α (alpha)",d.alpha)+
+    `<div class="note" style="margin:10px 0 4px">Instead of bare “confidence ${d.example_bare_confidence_pct}%”, the decision is reported as a SET guaranteed to contain the true class with ≥${(d.coverage_target*100).toFixed(0)}% coverage:</div>`+
+    `<div class="set">${chips}</div>`+
+    kv("set size",cs.set_size!=null?cs.set_size:(cs.set?cs.set.length:"—"))+
+    kv("singleton",cs.singleton?`<span class="pill ok">yes (decisive)</span>`:`<span class="pill warn">no (ambiguous)</span>`)+
+    kv("q̂ (quantile)",cs.q_hat!=null?cs.q_hat.toFixed(4):"—")+
+    kv("calibration n",cs.calibration_n)+
+    `<div class="note">${esc((d.bare_pct_replacement&&(d.bare_pct_replacement.display||d.bare_pct_replacement.replaces_bare_pct))||cs.guarantee||"")}</div>`;
+}).catch(e=>$("#conf").innerHTML=`<div class="err">conformal unavailable: ${esc(e.message)}</div>`);
+
+// ---- POLICY ----
+getj("/api/a11oy/v1/gov/policy").then(d=>{
+  const a=d.audit_view||{};
+  let files=(a.files||[]).map(f=>
+    `<div class="file"><b>${esc(f.name)}</b> · id <span class="mono">${esc(f.policy_id)}</span> v${esc(f.policy_version)} · ${(f.flows||[]).length} flows<br>
+     <span class="sha">sha256: ${esc(f.sha256||f.sha||"")}</span>
+     <pre>${esc((f.content||"").slice(0,600))}${(f.content||"").length>600?"\n…":""}</pre></div>`).join("");
+  $("#pol").innerHTML=
+    kv("loaded",a.loaded?`<span class="pill ok">yes</span>`:`<span class="pill err">no</span>`)+
+    kv("files",a.file_count)+kv("total flows",a.flow_count)+
+    kv("NeMo runtime",a.nemoguardrails_runtime_present?`<span class="pill ok">present</span>`:`<span class="pill road">file-backed enforcement (runtime roadmap)</span>`)+
+    `<div style="margin-top:10px">${files}</div>`+
+    `<div class="note">${esc(a.honesty||"")}</div>`;
+}).catch(e=>$("#pol").innerHTML=`<div class="err">policy unavailable: ${esc(e.message)}</div>`);
+
+// ---- IETF ----
+getj("/api/a11oy/v1/gov/ietf").then(d=>{
+  const p=d.compliance_profile||{},cp=p.compliance_payload||{},env=d.dsse_envelope||{};
+  const conf=p.conformance||{};
+  let checks=(conf.checks||[]).map(c=>`<tr><td>${esc(c.check)}</td><td>${c.ok?'<span class="pill ok">ok</span>':'<span class="pill err">fail</span>'}</td><td class="mono">${esc(c.detail)}</td></tr>`).join("");
+  let map=Object.entries(p.mapping||{}).map(([k,v])=>`<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join("");
+  $("#ietf").innerHTML=
+    kv("draft",`<a href="https://datatracker.ietf.org/doc/${esc(p.draft)}/" target="_blank" rel="noopener" class="mono">${esc(p.draft)}</a>`)+
+    kv("status",esc(p.draft_status))+
+    kv("DSSE envelope",p.dsse_envelope_intact?`<span class="pill ok">${esc(p.dsse_alg)} (intact)</span>`:`<span class="pill err">modified</span>`)+
+    kv("DSSE kid",`<span class="mono">${esc(p.dsse_kid)}</span>`)+
+    kv("receipt type",`<span class="mono">${esc(cp.type)}</span>`)+
+    kv("decision",`<span class="pill ${cp.decision==='deny'?'err':'ok'}">${esc(cp.decision)}</span>`)+
+    kv("action_ref",`<span class="sha mono">${esc((cp.action_ref||'').slice(0,28))}…</span>`)+
+    kv("policy_digest",`<span class="sha mono">${esc((cp.policy_digest||'').slice(0,28))}…</span>`)+
+    kv("previousReceiptHash",`<span class="sha mono">${esc((cp.previousReceiptHash||'').slice(0,28))}…</span>`)+
+    kv("conformance",conf.ok?`<span class="pill ok">payload conforms to draft-05</span>`:`<span class="pill err">non-conformant</span>`)+
+    `<div class="note" style="margin-top:8px"><b>Field crosswalk (a11oy → draft-05):</b></div>`+
+    `<table><tr><th>a11oy field</th><th>draft-05 field</th></tr>${map}</table>`+
+    `<div class="note" style="margin-top:8px"><b>Conformance checks:</b></div>`+
+    `<table><tr><th>check</th><th>ok</th><th>detail</th></tr>${checks}</table>`+
+    `<div class="note">${esc(p.note||"")}</div>`;
+}).catch(e=>$("#ietf").innerHTML=`<div class="err">ietf profile unavailable: ${esc(e.message)}</div>`);
+
+// ---- LEAN ----
+getj("/api/a11oy/v1/gov/lean").then(d=>{
+  let rows=(d.invariants||[]).map(i=>`<tr><td class="mono">${esc(i.name)}</td><td>${i.proved?'<span class="pill ok">proved</span>':`<span class="pill road">${esc(i.status||'roadmap')}</span>`}</td></tr>`).join("");
+  $("#lean").innerHTML=
+    kv("status",`<span class="pill road">${esc(d.status)}</span>`)+
+    kv("proved","<b>"+d.invariants_proved+"</b> / "+d.invariants_total)+
+    kv("file",`<span class="mono">${esc(d.file)}</span>`)+
+    `<table style="margin-top:8px"><tr><th>invariant</th><th>state</th></tr>${rows}</table>`+
+    `<div class="note">${esc(d.honesty||"")}</div>`;
+}).catch(e=>$("#lean").innerHTML=`<div class="err">lean unavailable: ${esc(e.message)}</div>`);
+</script>
+</body>
+</html>
