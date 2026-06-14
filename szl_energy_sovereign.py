@@ -765,6 +765,86 @@ def _html(p: dict) -> str:
 # ---------------------------------------------------------------------------
 # Registration (additive; mirrors szl_sovereign_compute.register).
 # ---------------------------------------------------------------------------
+# ── Per-receipt energy metrics — REAL sovereign GPU joule-meter (energy-exporter).
+# Surfaces the live NVML-backed joule-meter: cumulative joules are MEASURED (a real
+# energy counter); instantaneous power_w is surfaced ONLY when a GPU node reports a
+# live NVML power.draw, else null with an honest reason. Doctrine v11: never fabricate
+# a watt. Route always returns 200 so the meter posture stays machine-readable.
+_JOULE_METER_URL = "http://100.96.129.45:9471/"
+
+
+def _joule_meter(timeout: float = 4.0):
+    import json as _j, urllib.request as _u
+    try:
+        req = _u.Request(_JOULE_METER_URL, headers={"User-Agent": "a11oy-energy-metrics"})
+        with _u.urlopen(req, timeout=timeout) as r:  # noqa: S310
+            return _j.loads(r.read().decode("utf-8"))
+    except Exception:
+        return None
+
+
+def _metrics_panel() -> dict:
+    meter = _joule_meter()
+    if not meter:
+        return {
+            "metric": "energy_metrics", "label": "ROADMAP",
+            "power_w": None, "power_w_label": "UNAVAILABLE",
+            "joules_total": None, "joules_honesty": "unavailable",
+            "reason": "joule-meter exporter unreachable",
+            "exporter": _JOULE_METER_URL, "generated_at": _now_iso(),
+        }
+    engines = []
+    live_power_w = None
+    joules_total = 0.0
+    any_joules = False
+    for e in (meter.get("engines") or []):
+        gpus = []
+        for g in (e.get("gpus") or []):
+            pw = g.get("power_w")
+            live = bool(g.get("live"))
+            ok = live and pw is not None
+            gpus.append({
+                "gpu": g.get("gpu"), "name": g.get("name"),
+                "power_w": (float(pw) if ok else None),
+                "power_w_label": ("MEASURED" if ok else "UNAVAILABLE"),
+                "live": live, "joules": g.get("joules"), "util": g.get("util"),
+                "temp_c": g.get("temp_c"), "mem_used_mb": g.get("mem_used_mb"),
+                "samples": g.get("samples"),
+            })
+            if ok and live_power_w is None:
+                live_power_w = float(pw)
+        ej = e.get("joules")
+        if isinstance(ej, (int, float)):
+            joules_total += float(ej); any_joules = True
+        engines.append({
+            "engine": e.get("engine"), "power_source": e.get("power_source"),
+            "joules": ej, "gpus": gpus,
+        })
+    totals = meter.get("totals") or {}
+    mj = totals.get("joules")
+    if isinstance(mj, (int, float)):
+        joules_total = float(mj); any_joules = True
+    return {
+        "metric": "energy_metrics",
+        "label": ("MEASURED" if any_joules else "ROADMAP"),
+        "power_w": live_power_w,
+        "power_w_label": ("MEASURED" if live_power_w is not None else "UNAVAILABLE"),
+        "power_w_note": (None if live_power_w is not None else
+                         "no live NVML power.draw from any sovereign GPU node "
+                         "(exporter awaiting live power sampler); joules below are the "
+                         "real cumulative energy counter"),
+        "joules_total": (joules_total if any_joules else None),
+        "joules_honesty": ("measured" if any_joules else "unavailable"),
+        "kwh": totals.get("kwh"), "eur_per_mwh": totals.get("eur_per_mwh"),
+        "eur_cost": totals.get("eur_cost"),
+        "engines": engines,
+        "exporter": _JOULE_METER_URL,
+        "meter_generated_at": meter.get("generated_at"),
+        "generated_at": _now_iso(),
+        "citations": ["Watt-Counts arXiv:2604.09048", "Energy-per-Token arXiv:2603.20224"],
+    }
+
+
 def register(app, ns: str = "a11oy") -> dict:
     from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -808,6 +888,10 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _es_carbon():  # noqa: ANN202
         return JSONResponse(_carbon_panel())
 
+    @app.get("%s/metrics" % base)
+    async def _es_metrics():  # noqa: ANN202
+        return JSONResponse(_metrics_panel())
+
     @app.get("/energy", response_class=HTMLResponse)
     async def _es_panel():  # noqa: ANN202
         return HTMLResponse(_html(_posture()))
@@ -815,7 +899,7 @@ def register(app, ns: str = "a11oy") -> dict:
     return {"ok": True, "ns": ns,
             "routes": ["%s/sovereign" % base, "%s/jtoken" % base, "%s/throughput" % base,
                        "%s/kvcache" % base, "%s/gateway" % base, "%s/router" % base,
-                       "%s/carbon" % base, "/energy"]}
+                       "%s/carbon" % base, "%s/metrics" % base, "/energy"]}
 
 
 # ---------------------------------------------------------------------------
