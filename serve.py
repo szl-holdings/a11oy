@@ -322,6 +322,7 @@ except Exception as _szl_pnt_e:  # pragma: no cover
 # A surface whose route/module is absent reports live:false — never a fabricated green.
 try:
     from starlette.responses import JSONResponse as _EstateJSON
+    from starlette.requests import Request as _EstateRequest
     from datetime import datetime as _e_dt, timezone as _e_tz
     import importlib as _e_importlib
 
@@ -364,7 +365,7 @@ try:
         except Exception:
             return False
 
-    def _h_estate(_req):
+    def _h_estate(_req: _EstateRequest):
         _caps = []
         _live = 0
         for _key, _title, _label, _route, _mod, _lineage in _ESTATE_CAPS:
