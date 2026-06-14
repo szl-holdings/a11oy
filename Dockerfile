@@ -96,7 +96,7 @@ COPY _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bri
 COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py szl_sovereign_compute.py ./
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
-COPY szl_energy_budget.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
+COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
@@ -299,14 +299,6 @@ COPY web/operator.html ./web/operator.html
 # Per-file COPY (this Dockerfile uses no COPY . .).
 COPY web/fleet-c2.html ./web/fleet-c2.html
 COPY web/living-anatomy.html ./web/living-anatomy.html
-
-# ADDITIVE (LANE A AGENTIC CORE — Dev A, 2026-06-14): resumable ReAct agent with
-# signed receipt boundaries, SqliteSaver checkpointing, Reflexion, Generative-
-# Agents memory scoring, Letta tiering, Voyager skill library. Served at
-# /agent-loop (+ /a11oy/agent-loop) via serve.py _ptg_serve from /app/web/.
-# Per-file COPY (this Dockerfile uses no COPY . .). 0 CDN; shared engines from
-# /static/shared. Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-COPY web/agent-loop.html ./web/agent-loop.html
 
 # ADDITIVE (Cross-Harness Receipt Bridge — Hermes + OpenClaw; 2026-06-01, Yachay /
 # Perplexity Computer Agent; closeout PR superseding #198 runtime files). serve.py
@@ -606,13 +598,6 @@ ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 # ---------------------------------------------------------------------------
 COPY a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_endpoints.py a11oy_vertical_feeds.py a11oy_deva_feeds.py a11oy_devb_endpoints.py a11oy_amaru_feeds.py szl_governance_gateway.py szl_abacus_verify.py szl_decision_uncertainty.py szl_gor_audit.py szl_sovereign_search.py szl_consensus_clusters.py szl_mission_ledger.py szl_budget_router.py szl_wave910_proofs.py szl_evidence_research.py szl_uds_fleet.py szl_readiness.py szl_quantum_bio.py szl_mosaic_governance.py ./
 COPY szl_unified_formulas.py szl_cuas_formulas.py szl_contracting.py szl_bounties.py szl_putnam.py szl_connectors_serve.py szl_connector_mcp.py szl_conjecture_factory.py ./
-
-# ADDITIVE (LANE A AGENTIC CORE — Dev A, 2026-06-14): the resumable ReAct agent
-# core module. serve.py imports it try/except-guarded and calls .register(app,
-# "a11oy", _a11oy_sign_receipt, verify_fn=_a11oy_loop_verify, pub_pem_fn=...).
-# Without this per-file COPY the import fails and the /api/a11oy/v1/agent/react/*
-# endpoints fall through to the SPA shell. Per-file COPY (no COPY . . here).
-COPY a11oy_react_core.py ./
 COPY live_snapshots/ ./live_snapshots/
 
 # ADDITIVE (Investor-WOW Layer, 2026-06-08, Dev1): a11oy_dev1_endpoints.py exposes

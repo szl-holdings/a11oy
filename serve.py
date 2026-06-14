@@ -250,6 +250,19 @@ try:
 except Exception as _szl_eb_e:  # pragma: no cover
     print(f"[a11oy] Energy-budget receipt NOT registered: {_szl_eb_e!r}", file=__import__("sys").stderr)
 
+# ── Energy / Sovereign-Compute instrumentation (Lane C: sovereign-energy). Reads REAL
+# J/token + carbon + speculative-decode + KV-cache + router + carbon-schedule from the
+# on-box vLLM /metrics ONLY when the live sovereign probe shows gpu_reachable; otherwise
+# every panel is honestly labeled ROADMAP (no meter -> no number). Adds the unified
+# /energy tab + /api/a11oy/v1/energy/{sovereign,jtoken,throughput,kvcache,gateway,router,
+# carbon}. Additive, try/except-guarded, before the SPA catch-all. window.SZLLabels.
+try:
+    import szl_energy_sovereign as _szl_energy_sovereign
+    _szl_energy_sovereign.register(app, ns="a11oy")
+    print("[a11oy] Energy/Sovereign-Compute registered: /energy + /api/a11oy/v1/energy/*", file=__import__("sys").stderr)
+except Exception as _szl_es_e:  # pragma: no cover
+    print(f"[a11oy] Energy/Sovereign-Compute NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
+
 # ── Agentic PINN + Physical-Bounds Certifier MESH (pinn-bounds) — closes the audited
 # gap where the PINN / FE-NO Physics-ML verticals lived ONLY in `platform` and were
 # NOT in a11oy's governed /api/a11oy/v1/<name> route table. Adds /api/a11oy/v1/pinn/*:
@@ -946,12 +959,6 @@ try:
     # Conjecture 1; unreachable organs render dim (no fabricated data).
     app.add_api_route("/hologram", _ptg_serve("hologram.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/hologram", _ptg_serve("hologram.html"), methods=["GET"], include_in_schema=False)
-    # LANE A AGENTIC CORE (2026-06-14, Dev A): resumable ReAct agent surface —
-    # "Agent Loop" + "Memory" + "Skill Library" tabs. Standalone page (0 CDN;
-    # shared label/receipt engines from /static/shared). Renders REAL traces,
-    # checkpoints and retrieval scores from /api/a11oy/v1/agent/react/*.
-    app.add_api_route("/agent-loop", _ptg_serve("agent-loop.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/agent-loop", _ptg_serve("agent-loop.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
@@ -7572,46 +7579,6 @@ except Exception as _loop_e:
                   "traceback": _loop_tb.format_exc()}
 # ============================================================================
 # END: GOVERNED AGENT LOOP — a11oy
-# ============================================================================
-
-
-# ============================================================================
-# BEGIN: LANE A AGENTIC CORE — a11oy (2026-06-14, Dev A, ADDITIVE, surgical)
-# Resumable ReAct execution graph (Thought->Action->Observation) where EACH
-# node transition is a SIGNED receipt boundary, with SqliteSaver-style
-# checkpointing (crash mid-run -> /resume continues), a Reflexion inner loop,
-# Generative-Agents memory retrieval scoring over a LOCAL vector store (0 CDN),
-# Letta-style working/archival tiering, and a Voyager skill library that admits
-# a tool-recipe ONLY after a verified execution receipt.
-# REUSES the host's REAL in-image signer (_a11oy_sign_receipt), verifier
-# (_a11oy_loop_verify) and public key (_a11oy_loop_pubpem). Routes inserted at
-# position 0 (Starlette Route) so they beat the SPA catch-all. FREE sub-namespace
-# /api/a11oy/v1/agent/react/* — no collision with /run, /tools, /verify-chain,
-# /governance-standards, /_diag, /loop. try/except-guarded (non-fatal).
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ============================================================================
-try:
-    import a11oy_react_core as _react_core
-    import sys as _react_sys
-    _react_status = _react_core.register(
-        app, "a11oy",
-        sign_fn=_a11oy_sign_receipt,
-        verify_fn=(_a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None),
-        pub_pem_fn=(_a11oy_loop_pubpem if "_a11oy_loop_pubpem" in dir() else None),
-        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
-                      "resets on rebuild, verifiable vs /cosign.pub)"),
-    )
-    print(f"[a11oy] LANE A agentic core registered: {_react_status}", file=_react_sys.stderr)
-    _REACT_DIAG = {"status": "ok", "registered": _react_status}
-except Exception as _react_e:
-    import sys as _react_sys, traceback as _react_tb
-    print(f"[a11oy] LANE A agentic core FAILED (non-fatal): {_react_e!r}", file=_react_sys.stderr)
-    _react_tb.print_exc(file=_react_sys.stderr)
-    _REACT_DIAG = {"status": "FAILED", "error": repr(_react_e),
-                   "traceback": _react_tb.format_exc()}
-# ============================================================================
-# END: LANE A AGENTIC CORE — a11oy
 # ============================================================================
 
 

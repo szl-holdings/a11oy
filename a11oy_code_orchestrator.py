@@ -103,6 +103,14 @@ try:
     import energy_signal as _energy_signal  # PR #356 honest power-window feed
 except Exception:  # pragma: no cover - absent until #356 merges; default grid
     _energy_signal = None
+# Sovereign-energy instrumentation (Lane C): reads REAL J/token + carbon from the
+# on-box vLLM /metrics ONLY when the live sovereign probe shows gpu_reachable, and
+# splices joules_consumed + carbon_g_co2eq into EVERY signed turn receipt — honestly
+# labeled MEASURED (real fresh exporter) or ROADMAP (no meter yet -> None, never faked).
+try:
+    import szl_energy_sovereign as _energy_sovereign  # Lane C J/token + carbon receipt fields
+except Exception:  # pragma: no cover - absent until the module merges; degrade honestly
+    _energy_sovereign = None
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -949,18 +957,39 @@ def _emit_turn_receipt(text: str, model_used: str, is_local: bool,
     try:
         prov = _turn_energy_provenance(is_local)
         out_bytes = len((text or "").encode("utf-8"))
+        # Lane C: splice REAL J/token energy + carbon into EVERY signed receipt. The
+        # helper reads the on-box vLLM /metrics ONLY when the live sovereign probe shows
+        # gpu_reachable; otherwise it returns honest ROADMAP (joules_consumed=None). It
+        # NEVER raises and NEVER fabricates a number (no meter -> no number).
+        energy_fields = {}
+        if _energy_sovereign is not None:
+            try:
+                energy_fields = _energy_sovereign.energy_fields_for_receipt() or {}
+            except Exception:  # noqa: BLE001 - energy probe must never break a turn
+                energy_fields = {"joules_consumed": None, "carbon_g_co2eq": None,
+                                 "energy_label": "ROADMAP"}
+        extra = {
+            "turn": True,
+            "model": model_used,
+            "stub": bool(stub),
+            "sovereign_local": bool(is_local),
+            "window": prov.get("window", "normal"),
+            "signal_provider": prov.get("signal_provider", "unknown"),
+            # joules_consumed + carbon_g_co2eq on every receipt (MEASURED via a live GPU
+            # exporter, else honest ROADMAP/None). joules_honesty is decided by
+            # szl_joules_truth, never by a flag.
+            "joules_consumed": energy_fields.get("joules_consumed"),
+            "carbon_g_co2eq": energy_fields.get("carbon_g_co2eq"),
+            "joules_per_token": energy_fields.get("joules_per_token"),
+            "carbon_g_co2eq_per_token": energy_fields.get("carbon_g_co2eq_per_token"),
+            "energy_label": energy_fields.get("energy_label", "ROADMAP"),
+            "joules_honesty": energy_fields.get("joules_honesty", "sample"),
+        }
         receipt = _energy_budget.track_task(
             output=text or "",
             energy_source=prov.get("energy_source", "grid"),
             joules_est=0.0,  # SAMPLE: no meter wired (joules_est_label carries it)
-            extra={
-                "turn": True,
-                "model": model_used,
-                "stub": bool(stub),
-                "sovereign_local": bool(is_local),
-                "window": prov.get("window", "normal"),
-                "signal_provider": prov.get("signal_provider", "unknown"),
-            },
+            extra=extra,
         )
         # The Bekenstein gate is the PROVEN F19/TH6 inequality (shannon<=n*8);
         # an honest receipt is always within_bound. Flag (never raise) if not.
@@ -981,6 +1010,11 @@ def _emit_turn_receipt(text: str, model_used: str, is_local: bool,
             "window": prov.get("window", "normal"),
             "joules_est": receipt.get("joules_est"),
             "joules_est_label": receipt.get("joules_est_label"),
+            # Lane C live J/token energy + carbon (MEASURED via on-box exporter / ROADMAP).
+            "joules_consumed": extra.get("joules_consumed"),
+            "carbon_g_co2eq": extra.get("carbon_g_co2eq"),
+            "energy_label": extra.get("energy_label"),
+            "joules_honesty": extra.get("joules_honesty"),
         })
         return receipt
     except Exception as exc:  # noqa: BLE001 - NEVER break a turn over a receipt
