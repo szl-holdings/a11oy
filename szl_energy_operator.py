@@ -66,6 +66,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
+# Module-level import so string annotations (PEP 563 `from __future__ import
+# annotations`) on the operator route handlers resolve against module globals;
+# FastAPI reads `request: Request` from here, otherwise it 422s `request` as a query param.
+try:
+    from fastapi import Request as Request  # noqa: F401
+except Exception:  # pragma: no cover — fastapi always present at serve time
+    Request = Any  # type: ignore
+
 try:
     import szl_joules_truth as _J
 except Exception:  # pragma: no cover — packaged import fallback
