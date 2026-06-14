@@ -3,8 +3,8 @@
  * Three.js r171 (MIT). WebGPU renderer w/ WebGL2 fallback. Real /healthz polling — no fake data.
  * Kanchay tokens only. Doctrine v11 LOCKED (749/14/163). ADDITIVE.
  */
-import * as THREE from 'https://esm.sh/three@0.171.0';
-import { OrbitControls } from 'https://esm.sh/three@0.171.0/examples/jsm/controls/OrbitControls.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ---------- Kanchay palette ----------
 const K = {
@@ -79,7 +79,7 @@ async function makeRenderer(){
   if (navigator.gpu){
     try{
       const gpu = (async()=>{
-        const mod = await import('https://esm.sh/three@0.171.0/webgpu');
+        const mod = await import('three/webgpu');
         const WebGPURenderer = mod.WebGPURenderer || (mod.default && mod.default.WebGPURenderer);
         if (!WebGPURenderer) throw new Error('no WebGPURenderer export');
         const r = new WebGPURenderer({ canvas, antialias:true, alpha:false });

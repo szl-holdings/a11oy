@@ -12,9 +12,15 @@
   Signed: Yachay (CTO subagent).
 -->
 <link rel="icon" href="/favicon.svg" />
-<link rel="preconnect" href="https://esm.sh" crossorigin />
-<link rel="modulepreload" href="https://esm.sh/three@0.171.0" crossorigin />
-<link rel="modulepreload" href="https://esm.sh/three@0.171.0/examples/jsm/controls/OrbitControls.js" crossorigin />
+<!-- SOVEREIGN: 0 runtime CDN. Three.js (MIT) vendored in-image, served same-origin
+     under /static/3d/vendor/three/* (see VENDOR_MANIFEST.md). NO external module CDN.
+     The importmap resolves bare 'three' / 'three/webgpu' / 'three/addons/' to local
+     vendored ES modules. -->
+<link rel="modulepreload" href="/static/3d/vendor/three/three.module.min.js" />
+<link rel="modulepreload" href="/static/3d/vendor/three/addons/controls/OrbitControls.js" />
+<script type="importmap">
+{"imports":{"three":"/static/3d/vendor/three/three.module.min.js","three/webgpu":"/static/3d/vendor/three/three.webgpu.min.js","three/addons/":"/static/3d/vendor/three/addons/"}}
+</script>
 <style>
   :root{
     /* Kanchay tokens (COLOR_TOKENS.json) */

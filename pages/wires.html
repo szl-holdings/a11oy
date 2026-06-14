@@ -5,10 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>a11oy — Wires · The Constitution · SZL Holdings</title>
   <meta name="description" content="The live cross-organ mesh: five wires (B/C/D/E/F) that bind the organs into one signed organism. Each row reads a real a11oy endpoint — no mock data."/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <style>
+  <!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
+     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
+<style>
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
+</style>
+<style>
     :root{
       --ground:#0a0a0a; --panel:#0c0c0c; --panel2:#070707;
       --gold:#c9b787; --gold-bright:#d6c69a;

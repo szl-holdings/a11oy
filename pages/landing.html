@@ -7,9 +7,12 @@
 <meta name="description" content="Every AI decision becomes a cryptographically signed, verifiable receipt. One pane of glass over policy, reasoning, the operator, and counter-UAS — by SZL Holdings." />
 <meta property="og:title" content="a11oy — Governed-AI Command Platform" />
 <meta property="og:description" content="Every AI decision becomes a cryptographically signed, verifiable receipt." />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
+     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
+<style>
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
+</style>
 <style>
 /* ============================================================================
    SHARED — a11oy + killinchu landing. Do not diverge.

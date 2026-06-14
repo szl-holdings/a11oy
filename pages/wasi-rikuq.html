@@ -32,8 +32,11 @@ input,select{background:#0a0c11;color:var(--ink);border:1px solid var(--line);bo
 .honest b{color:var(--warn)} code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
 footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
 </style>
+<!-- SOVEREIGN: 0 runtime CDN. Three.js (MIT) vendored in-image, served same-origin
+     under /static/3d/vendor/three/* (see VENDOR_MANIFEST.md). NO external module CDN. The importmap
+     resolves bare 'three' / 'three/addons/' to the local vendored ES modules. -->
 <script type="importmap">
-{"imports":{"three":"https://esm.sh/three@0.160.0"}}
+{"imports":{"three":"/static/3d/vendor/three/three.module.min.js","three/addons/":"/static/3d/vendor/three/addons/"}}
 </script>
 </head>
 <body>
@@ -116,7 +119,7 @@ loadHealth();loadDash();
 </script>
 <script type="module">
 import * as THREE from 'three';
-import {OrbitControls} from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 const canvas=document.getElementById('watcher3d');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
 function size(){renderer.setSize(canvas.clientWidth,canvas.clientHeight,false);}

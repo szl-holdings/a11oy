@@ -5,10 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>a11oy — Fleet Health &amp; Governed C2 · SZL Holdings</title>
 <meta name="description" content="Live 3D fleet picture (real ADS-B mil air + AIS vessels) with subsystem health inferred from telemetry, Λ-gate hack/spoof detection, and a governed command console. Governance loop is real; effector link is a labeled command demonstration."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/globe.gl.min.js"></script>
+<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
+     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
+<style>
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
+</style>
 <style>
 :root{
   --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;

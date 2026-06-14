@@ -11,7 +11,12 @@
 <title>a11oy · Console — SZL Holdings</title>
 <meta http-equiv="refresh" content="0; url=./console.html">
 <link rel="canonical" href="./console.html">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
+     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
+<style>
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
+</style>
 <style>
   :root{--gold:#d4a574;--indigo:#2a1e5c;--terra:#b04a30;--parchment:#f4e4c1;--bg:#140f2e;--panel:#211a4a;--line:#352a66;--text:#f4e4c1;--muted:#8a7fb0}
   *{margin:0;box-sizing:border-box}
@@ -20,9 +25,9 @@
   .card{background:linear-gradient(180deg,var(--panel),#1a1440);border:1px solid var(--line);border-radius:16px;
     padding:40px 44px;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
   svg{width:56px;height:56px;margin-bottom:16px}
-  h1{font:800 24px/1.2 'Inter';letter-spacing:-.5px;margin-bottom:8px}
+  h1{font:800 24px/1.2 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:-.5px;margin-bottom:8px}
   p{color:var(--muted);font:13px/1.6 'JetBrains Mono',monospace;margin-bottom:22px}
-  a.cta{display:inline-block;background:var(--terra);color:var(--parchment);font:700 14px 'Inter';
+  a.cta{display:inline-block;background:var(--terra);color:var(--parchment);font:700 14px 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
     padding:12px 26px;border-radius:10px;text-decoration:none}
   a.cta:hover{filter:brightness(1.1)}
   .plaque{margin-top:22px;font:11px/1.5 'JetBrains Mono',monospace;color:var(--muted)}
