@@ -202,6 +202,52 @@ cp "$K/docs/theorem-runtime-manifest.json" "$K/corpus/formulas/a11oy__docs__theo
 echo '{}' > "$K/fixture.json"
 expect_pass "corpus mirrors byte-identical to sources" "$K" "$K/fixture.json"
 
+# ---------------------------------------------------------------------------
+# Fixture L: theorem-runtime-manifest entry carrying a leanCommit pin whose file
+# exists NOWHERE (not at the pin, not on main) must FAIL — commit-pinned entries
+# are hard-fail-eligible with gates_manifest.json rigor.
+# ---------------------------------------------------------------------------
+L="$TMP/L"; make_root "$L"
+echo '[]' > "$L/gates_manifest.json"
+cat > "$L/docs/theorem-runtime-manifest.json" <<'EOF'
+{ "entries": [
+  {"id":"RUNTIME-P","leanFile":"Lutar/Gate/PinnedGone.lean","leanStatus":"theorem","leanCommit":"pinsha"}
+] }
+EOF
+echo '{}' > "$L/fixture.json"
+expect_fail "theorem-runtime-manifest pinned citation absent everywhere" "$L" "$L/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture M: pinned entry absent at the pin but present on main = stale pin =>
+# PASS (warning only), mirroring gates_manifest.json stale-pin behavior.
+# ---------------------------------------------------------------------------
+M="$TMP/M"; make_root "$M"
+echo '[]' > "$M/gates_manifest.json"
+cat > "$M/docs/theorem-runtime-manifest.json" <<'EOF'
+{ "entries": [
+  {"id":"RUNTIME-Q","leanFile":"Lutar/Bound.lean","leanStatus":"theorem","leanCommit":"oldsha"}
+] }
+EOF
+cat > "$M/fixture.json" <<'EOF'
+{ "main:Lutar/Bound.lean": true }
+EOF
+expect_pass "theorem-runtime-manifest pinned but stale (present on main)" "$M" "$M/fixture.json"
+
+# ---------------------------------------------------------------------------
+# Fixture N: pinned entry present at its pinned commit => PASS.
+# ---------------------------------------------------------------------------
+N="$TMP/N"; make_root "$N"
+echo '[]' > "$N/gates_manifest.json"
+cat > "$N/docs/theorem-runtime-manifest.json" <<'EOF'
+{ "entries": [
+  {"id":"RUNTIME-R","leanFile":"Lutar/Bound.lean","leanStatus":"theorem","leanCommit":"goodsha"}
+] }
+EOF
+cat > "$N/fixture.json" <<'EOF'
+{ "goodsha:Lutar/Bound.lean": true }
+EOF
+expect_pass "theorem-runtime-manifest pinned citation present at pin" "$N" "$N/fixture.json"
+
 echo ""
 echo "self-test results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
