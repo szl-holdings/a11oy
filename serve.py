@@ -950,6 +950,13 @@ try:
     # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
     app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
+    # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
+    # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
+    # router (signed every selection), MTP default, Reflexion+Voyager+τ-bench
+    # self-improvement, honest sovereign-local/cloud-NIM tiers.
+    app.add_api_route("/nemo", _ptg_serve("nemo.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/nemo", _ptg_serve("nemo.html"), methods=["GET"], include_in_schema=False)
     # HOLOGRAPHIC COMMAND BRIDGE (2026-06-13): a 3D living-organism view of the
     # agentic GPU — MIND core (RTX 5000 @ betterwithage) + 6 proven round9 organs
     # orbiting/pulsing when active + energy-flow particles (colored by source) +
@@ -7810,6 +7817,53 @@ except Exception as _code_e:
                         "traceback": _code_tb.format_exc()}
 # ============================================================================
 # END: a11oy CODE — a11oy
+# ============================================================================
+
+# ============================================================================
+# SZL-NEMO CORE (Lane I1, 2026-06-14) — OUR sovereign, governed, self-improving
+# AGENT MODEL as a LIVE SKELETON. Built ON an open base (default Qwen3-32B,
+# Apache-2.0); governed & sovereign. NEVER claims from-scratch / 550B /
+# local-Nemotron-Ultra / a cert. The differentiator is the GOVERNED-MoE
+# domain-expert router: "experts" = domain heads (counter-uas / maritime /
+# governance / code / finance), routed by a Λ-governed (Conjecture 1, advisory
+# floor < 1.0) router that REUSES Dev E's active-flux router crossover + Dev C's
+# RouteLLM Thompson posteriors; EVERY expert selection emits a SIGNED DSSE
+# receipt (the host's REAL in-image ECDSA-P256 signer _a11oy_sign_receipt,
+# verified vs /cosign.pub). Plus MTP/speculative-decode default (Dev C wiring),
+# Reflexion+Voyager+τ-bench self-improvement (Dev A + Dev B) that SIGNS the
+# measured delta, and honest tiers (sovereign:true ONLY via live gpu_reachable
+# probe; cloud tier sovereign:false). Endpoints /api/a11oy/v1/nemo/{route,
+# experts,infer,selfimprove,card,tiers,mtp,tau,_diag}. Routes insert at position
+# 0 (beat the SPA catch-all). ADDITIVE, try/except guarded — never crashes the app.
+# Signed-off-by: Integration Dev I1 <i1@szl-holdings>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+_NEMO_DIAG = {"status": "not-run"}
+try:
+    import a11oy_nemo_core as _a11oy_nemo
+    import sys as _nemo_sys
+    _nemo_verify = _a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None
+    _nemo_pubpem = _a11oy_loop_pubpem if "_a11oy_loop_pubpem" in dir() else None
+    _nemo_brain = _a11oy_pr_brain if ("_A11OY_BRAIN_OK" in dir() and _A11OY_BRAIN_OK) else None
+    _nemo_status = _a11oy_nemo.register(
+        app, ns="a11oy",
+        sign_fn=_a11oy_sign_receipt,
+        verify_fn=_nemo_verify,
+        pub_pem_fn=_nemo_pubpem,
+        brain=_nemo_brain,
+        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
+                      "resets on rebuild, verifiable vs /cosign.pub)"),
+    )
+    print(f"[a11oy] SZL-Nemo core registered: {_nemo_status}", file=_nemo_sys.stderr)
+    _NEMO_DIAG = {"status": "ok", "registered": _nemo_status}
+except Exception as _nemo_e:
+    import sys as _nemo_sys, traceback as _nemo_tb
+    print(f"[a11oy] SZL-Nemo core FAILED (non-fatal): {_nemo_e!r}", file=_nemo_sys.stderr)
+    _nemo_tb.print_exc(file=_nemo_sys.stderr)
+    _NEMO_DIAG = {"status": "FAILED", "error": repr(_nemo_e),
+                  "traceback": _nemo_tb.format_exc()}
+# ============================================================================
+# END: SZL-NEMO CORE
 # ============================================================================
 
 # ============================================================================

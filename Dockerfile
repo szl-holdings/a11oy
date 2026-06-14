@@ -299,6 +299,12 @@ COPY web/operator.html ./web/operator.html
 # Per-file COPY (this Dockerfile uses no COPY . .).
 COPY web/fleet-c2.html ./web/fleet-c2.html
 COPY web/living-anatomy.html ./web/living-anatomy.html
+# ADDITIVE (Lane I1, 2026-06-14): SZL-Nemo core module + tab. Per-file COPY (this
+# Dockerfile uses no COPY . .). a11oy_nemo_core.py is imported by serve.py
+# (try/except guarded); web/nemo.html is served at /nemo + /a11oy/nemo via
+# _ptg_serve. Without these COPYs the guarded import falls back and /nemo 404s.
+COPY a11oy_nemo_core.py ./
+COPY web/nemo.html ./web/nemo.html
 
 # ADDITIVE (Cross-Harness Receipt Bridge — Hermes + OpenClaw; 2026-06-01, Yachay /
 # Perplexity Computer Agent; closeout PR superseding #198 runtime files). serve.py

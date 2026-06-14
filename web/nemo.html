@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SZL-Nemo — Sovereign Governed Agent Model · SZL Holdings</title>
+<meta name="description" content="SZL-Nemo: a sovereign, governed, self-improving AGENT model built ON an open base (default Qwen3-32B, Apache-2.0). We did NOT train a foundation model from scratch; there is no 550B SZL model and no local Nemotron-Ultra. OUR contribution is the governed-MoE domain-expert router (Λ-governed, signed every selection), MTP/speculative-decode default, Reflexion+Voyager+τ-bench self-improvement, and tiered sovereign-local/cloud-NIM serving — every step a tamper-evident DSSE receipt."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --err:#b06a5a;
+  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --display:'Space Grotesk',Georgia,serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+code{font-family:var(--mono);color:var(--gold-bright);font-size:.9em;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.75rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.honest{border:1px solid var(--gold-line);background:var(--gold-soft);border-radius:8px;padding:.7rem 1rem;margin:.4rem 0 1.2rem;font-family:var(--mono);font-size:11.5px;color:var(--paragraph);line-height:1.7;}
+.honest .k{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:10px;}
+.honest .hi{color:var(--teal);}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.panel .desc{color:var(--paragraph);font-size:.85rem;line-height:1.55;margin:.1rem 0 .6rem;}
+.kv{font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.9;margin-top:.4rem;}
+.kv .k{color:var(--dim);display:inline-block;min-width:150px;}
+.kv .v{color:var(--cream);}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:.18rem .5rem;border-radius:5px;border:1px solid var(--gold-line);}
+.pill.green{color:var(--green);border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.08);}
+.pill.yellow{color:var(--yellow);border-color:rgba(245,196,81,.4);background:rgba(245,196,81,.08);}
+.pill.red{color:var(--red);border-color:rgba(255,106,90,.4);background:rgba(255,106,90,.08);}
+.pill.blue{color:var(--blue);border-color:rgba(91,200,255,.4);background:rgba(91,200,255,.08);}
+.pill.dim{color:var(--muted);}
+.expert{border:1px solid var(--gold-line);border-radius:8px;padding:.65rem .8rem;margin-bottom:.55rem;background:var(--panel2);}
+.expert .hd{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.expert .nm{font-weight:600;color:var(--gold-bright);}
+.expert .det{font-family:var(--mono);font-size:11px;color:var(--paragraph);line-height:1.7;margin-top:.35rem;}
+.expert .det .k{color:var(--dim);}
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ground);background:var(--gold);border:none;border-radius:6px;padding:.5rem .9rem;cursor:pointer;transition:.15s;}
+.btn:hover{background:var(--gold-bright);}
+.btn.ghost{color:var(--gold);background:transparent;border:1px solid var(--gold-line);}
+.btn.ghost:hover{background:var(--gold-soft);}
+input[type=text]{font-family:var(--mono);font-size:12px;background:var(--panel2);color:var(--cream);border:1px solid var(--gold-line);border-radius:6px;padding:.5rem .7rem;width:100%;}
+.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.4rem 0;}
+pre.rcpt{font-family:var(--mono);font-size:10.5px;color:var(--teal);background:#060606;border:1px solid var(--teal-line);border-radius:6px;padding:.6rem .7rem;overflow-x:auto;max-height:220px;white-space:pre-wrap;word-break:break-all;}
+.bar{height:10px;border-radius:5px;background:#111;overflow:hidden;margin:.25rem 0;}
+.bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--gold));}
+.muted{color:var(--muted);}
+.tiergrid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+.tier{border:1px solid var(--gold-line);border-radius:8px;padding:.7rem .85rem;background:var(--panel2);}
+.tier h3{margin:0 0 .25rem;font-size:.98rem;}
+table.tau{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;margin-top:.5rem;}
+table.tau th,table.tau td{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--gold-line);color:var(--paragraph);}
+table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-spacing:.06em;}
+.footer{color:var(--dim);font-family:var(--mono);font-size:10.5px;line-height:1.7;margin-top:1.5rem;border-top:1px solid var(--gold-line);padding-top:1rem;}
+.cross{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0;}
+.cross a{font-family:var(--mono);font-size:10.5px;color:var(--teal);border:1px solid var(--teal-line);border-radius:5px;padding:.2rem .5rem;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>SZL-Nemo</span>
+  <span class="live"><span class="live-dot"></span><span id="livelbl">LIVE</span></span>
+  <span class="sep">·</span><span id="signerlbl">signer —</span>
+  <span class="switcher">
+    <a class="flag active" href="/nemo">SZL-Nemo</a>
+    <a class="flag" href="/governance">Governance</a>
+    <a class="flag" href="/energy">Energy</a>
+    <a class="flag" href="/agent-loop">Agent Loop</a>
+    <a class="flag" href="/router-crossover">Router</a>
+    <a class="flag" href="/code">Code</a>
+  </span>
+</div>
+
+<div class="wrap">
+  <h1>SZL-Nemo <span class="badge" id="b_model">EXPERIMENTAL · SKELETON</span></h1>
+  <div class="lede">
+    <b>SZL-Nemo</b> is our <b>sovereign, governed, self-improving agent model</b> — delivered here as a
+    <b>live skeleton + architecture</b>. <b id="framing">Built ON an open base (default Qwen3-32B, Apache-2.0);
+    governed &amp; sovereign.</b> The differentiator is an <b>auditable MoE</b>: a query is routed to
+    <b>domain-expert heads</b> by a <b>Λ-governed router</b> (Conjecture 1, advisory floor &lt; 1.0) that reuses
+    the active-flux router crossover and the RouteLLM Thompson posteriors — and <b>every expert selection emits a
+    signed DSSE receipt</b>.
+  </div>
+  <div class="honest">
+    <span class="k">Honest by design.</span>
+    We did <b class="hi">NOT</b> train a foundation model from scratch — there is <b class="hi">no 550B SZL model</b> and
+    <b class="hi">no local Nemotron-Ultra</b> (cloud tier only). OUR contribution is the governance layer:
+    governed-MoE domain-expert routing, MTP / speculative-decode default, Reflexion + Voyager + τ-bench
+    self-improvement, tiered sovereign-local (2-GPU) / cloud-NIM serving, and tamper-evident signed receipts.
+    <span class="hi">sovereign:true</span> only with a live per-GPU <code>gpu_reachable</code> probe; the cloud tier is
+    always <code>sovereign:false</code>. Every number is <b>MEASURED</b> (live) or <b>ROADMAP</b> — never fabricated.
+    Λ = Conjecture 1 (advisory, never a pass/fail oracle); trust &lt; 100%; locked-8 @ c7c0ba17; 0 runtime JS CDN;
+    effectors SIMULATED human-on-loop. Fonts via Google Fonts; no runtime logic/3D CDN.
+  </div>
+
+  <div class="cross">
+    <span class="muted mono" style="font-size:10px;align-self:center;">CROSS-LINK:</span>
+    <a href="/governance">τ-bench &amp; calibration</a>
+    <a href="/energy">J/token &amp; sovereign posture</a>
+    <a href="/agent-loop">Reflexion / Voyager loop</a>
+    <a href="/router-crossover">Active-flux crossover</a>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="lbl">Base (open, cited)</div><div class="big" id="c_base" style="font-size:1.2rem;">—</div><div class="sub" id="c_baselic">—</div></div>
+    <div class="card"><div class="lbl">τ-bench (MEASURED-by-SZL)</div><div class="big" id="c_tau">—</div><div class="sub" id="c_tausub">—</div></div>
+    <div class="card"><div class="lbl">MTP speedup (S)</div><div class="big" id="c_mtp">—</div><div class="sub" id="c_mtpsub">—</div></div>
+    <div class="card"><div class="lbl">Sovereign-local</div><div class="big" id="c_sov" style="font-size:1.2rem;">—</div><div class="sub" id="c_sovsub">live gpu_reachable probe</div></div>
+  </div>
+
+  <!-- GOVERNED-MoE ROUTER -->
+  <div class="panel">
+    <h2>Governed-MoE Domain-Expert Router <span class="meta">the differentiator · signed every selection</span></h2>
+    <div class="desc">
+      "Experts" are <b>domain heads</b> (counter-uas / maritime / governance / code / finance) — an <b>auditable MoE</b>,
+      not learned FFN experts. Routing fuses the Λ governance score (Conjecture 1) with the active-flux serving
+      crossover (small/local ⇄ large/cloud) and the RouteLLM Thompson posteriors. Try a query:
+    </div>
+    <div class="row">
+      <input type="text" id="q" value="intercept a hostile drone swarm with the interceptor"/>
+    </div>
+    <div class="row">
+      <button class="btn" id="go">Route &amp; sign</button>
+      <button class="btn ghost" data-q="audit the compliance policy and check the Λ gate and conformal coverage">Governance query</button>
+      <button class="btn ghost" data-q="size a finance portfolio with Kelly and Ledoit-Wolf covariance">Finance query</button>
+      <button class="btn ghost" data-q="track the vessel via AIS and flag the maritime anomaly">Maritime query</button>
+      <span id="r_lambda" class="pill dim">Λ —</span>
+    </div>
+    <div id="experts"></div>
+    <div style="margin-top:.6rem;">
+      <div class="meta mono" style="color:var(--dim);font-size:10px;">SIGNED DSSE RECEIPT (route decision)</div>
+      <pre class="rcpt" id="r_receipt">—</pre>
+      <div class="kv"><span class="k">verify</span><span class="v" id="r_verify">—</span></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <!-- MTP -->
+    <div class="panel">
+      <h2>MTP / Speculative Decoding <span class="meta">inference default</span></h2>
+      <div class="desc">Speedup <code>S = (k+1) / (k(1−α)+1)</code> (Leviathan et al. 2022). Draft model serves k tokens,
+        target accepts at rate α. Reuses Dev C's draft-model wiring; box config is ROADMAP→Forge.</div>
+      <div class="kv" id="mtp_kv">—</div>
+    </div>
+    <!-- SELF-IMPROVEMENT -->
+    <div class="panel">
+      <h2>Self-Improvement Loop <span class="meta">Reflexion + Voyager + τ-bench</span></h2>
+      <div class="desc">Runs the REAL τ-bench (Dev B) for a deliberately weaker baseline, adopts rule-following
+        (Reflexion), admits a Voyager skill, re-runs, and <b>signs the measured delta</b>. Score history lives inside receipts.</div>
+      <div class="row"><button class="btn" id="si_go">Run one iteration &amp; sign delta</button></div>
+      <div class="kv" id="si_kv">—</div>
+      <div class="meta mono" style="color:var(--dim);font-size:10px;margin-top:.4rem;">SIGNED DELTA RECEIPT</div>
+      <pre class="rcpt" id="si_receipt" style="max-height:150px;">— (run an iteration)</pre>
+    </div>
+  </div>
+
+  <!-- TIERS -->
+  <div class="panel">
+    <h2>Serving Tiers <span class="meta">honest where / sovereign labels</span></h2>
+    <div class="desc">sovereign:true ONLY with a live per-GPU <code>gpu_reachable</code> probe (Dev C). The cloud NIM
+      frontier tier (Nemotron Ultra) is always <code>sovereign:false</code> — it needs ~768GB VRAM and cannot run on the 2 GPUs.</div>
+    <div class="tiergrid" id="tiers">—</div>
+  </div>
+
+  <!-- TAU + CARD -->
+  <div class="grid2">
+    <div class="panel">
+      <h2>τ-bench — MEASURED-by-SZL <span class="meta">Dev B real suite</span></h2>
+      <div class="desc">SZL τ-bench-style tool-rule-following suite with negative controls; an always-pass agent scores 0,
+        proving non-triviality. NOT the upstream leaderboard.</div>
+      <div class="kv" id="tau_kv">—</div>
+    </div>
+    <div class="panel">
+      <h2>Model Card <span class="meta">base cited · what's ours</span></h2>
+      <div class="kv" id="card_kv">—</div>
+    </div>
+  </div>
+
+  <div class="footer" id="footer">
+    SZL-Nemo skeleton · <span id="f_diag">diag —</span><br/>
+    Sources: Qwen3-32B (Apache-2.0) · speculative decoding arXiv:2211.17192 · Reflexion arXiv:2303.11366 ·
+    Voyager arXiv:2305.16291 · τ-bench arXiv:2406.12045 · RouteLLM (lm-sys) · active-flux crossover IEEE/APEC 911711 ·
+    Nemotron via NVIDIA NIM build.nvidia.com. Receipts: DSSE ECDSA-P256-SHA256, verify against /cosign.pub.
+  </div>
+</div>
+
+<!-- Shared estate modules (0 CDN; same-origin). Honest labels + receipt verify. -->
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_receipt_cosign.js"></script>
+<script>
+const A="/api/a11oy/v1/nemo";
+const $=id=>document.getElementById(id);
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function fmt(n,d){if(n==null||isNaN(n))return '—';const x=Number(n);return d!=null?x.toFixed(d):String(x);}
+async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function pill(txt,cls){return `<span class="pill ${cls||'dim'}">${esc(txt)}</span>`;}
+function labelPill(key){
+  try{ if(window.SZLLabels&&window.SZLLabels.badgeHTML){return window.SZLLabels.badgeHTML(key);} }catch(e){}
+  const k=String(key||'').toUpperCase();
+  const cls=(k==='MEASURED'||k==='LIVE')?'green':(k==='ROADMAP'||k==='EXPERIMENTAL'||k==='MODELED')?'yellow':'dim';
+  return pill(k,cls);
+}
+
+function renderExperts(d){
+  const wrap=$('experts'); wrap.innerHTML='';
+  (d.experts||[]).forEach(e=>{
+    const cr=e.serving_crossover||{};
+    const lamCls=e.below_advisory_floor?'yellow':'green';
+    const wS=(cr.weight_small_local!=null)?Math.round(cr.weight_small_local*100):null;
+    const div=document.createElement('div'); div.className='expert';
+    div.innerHTML=
+      `<div class="hd"><span class="nm">${esc(e.title)} <span class="muted mono" style="font-size:10px;">${esc(e.expert_id)}</span></span>`+
+      `${pill('Λ '+fmt(e.lambda_advisory,3),lamCls)} ${pill(cr.route||'—',(cr.route==='small/local')?'blue':'gold')}</div>`+
+      `<div class="det">`+
+        `<div><span class="k">matched</span> ${esc((e.matched_keywords||[]).join(', ')||'(low overlap)')}</div>`+
+        `<div><span class="k">governance</span> ${esc(e.governance_note||'')}</div>`+
+        `<div><span class="k">serving</span> ${esc(cr.route||'—')} · regime ${esc(cr.regime||'—')} · difficulty ${fmt(cr.query_difficulty,3)} · reuse: ${esc((cr.reuse||'').split('(')[0])}</div>`+
+        (wS!=null?`<div class="bar"><i style="width:${wS}%"></i></div><div class="muted" style="font-size:10px;">small/local ${wS}% · large/cloud ${100-wS}%</div>`:'')+
+      `</div>`;
+    wrap.appendChild(div);
+  });
+  $('r_lambda').textContent='Λ '+fmt(d.overall_lambda_advisory,3);
+  $('r_lambda').className='pill '+(d.overall_lambda_advisory>=0.9?'green':'yellow');
+}
+
+async function doRoute(q){
+  const d=await getJSON(A+"/route",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,top_k:2})});
+  if(!d){$('experts').innerHTML='<div class="muted mono">route endpoint unreachable</div>';return;}
+  renderExperts(d);
+  const r=d.receipt||{};
+  $('r_receipt').textContent=JSON.stringify(r,null,1);
+  // verify the signature against /cosign.pub via the shared verifier
+  if(r.signatures&&r.signatures.length&&window.SZLReceipts&&window.SZLReceipts.verifyEnvelope){
+    $('r_verify').textContent='verifying…';
+    try{
+      const v=await window.SZLReceipts.verifyEnvelope(r,{});
+      const ok=v&&(v.valid||v.signature_valid);
+      $('r_verify').innerHTML=ok?pill('SIGNATURE VALID','green'):pill('signed (server-verify)','blue')+' '+esc((v&&v.detail)||r.honesty||'');
+    }catch(e){$('r_verify').innerHTML=pill('signed','blue')+' '+esc(r.honesty||'');}
+  }else{
+    $('r_verify').innerHTML=(r.signed===false)?pill('UNSIGNED','yellow')+' '+esc(r.honesty||''):pill('signed','blue')+' '+esc(r.honesty||'');
+  }
+}
+
+async function loadMTP(){
+  const d=await getJSON(A+"/mtp"); if(!d){$('mtp_kv').textContent='unreachable';return;}
+  $('mtp_kv').innerHTML=
+    `<div><span class="k">status</span> ${labelPill(d.label)}</div>`+
+    `<div><span class="k">draft → target</span> <span class="v">${esc(d.draft_model)} → ${esc(d.target_model)}</span></div>`+
+    `<div><span class="k">k / α</span> <span class="v">k=${d.num_speculative_tokens_k} · α=${d.acceptance_rate_alpha}</span></div>`+
+    `<div><span class="k">speedup S</span> <span class="v">${fmt(d.speedup_estimate,2)}×</span></div>`+
+    `<div class="muted" style="font-size:10.5px;line-height:1.6;margin-top:.3rem;">${esc(d.honesty)}</div>`+
+    `<div class="muted" style="font-size:10px;margin-top:.2rem;">${esc(d.box_status)}</div>`;
+  $('c_mtp').textContent=fmt(d.speedup_estimate,2)+'×';
+  $('c_mtpsub').textContent='k='+d.num_speculative_tokens_k+' · α='+d.acceptance_rate_alpha+' · '+d.label;
+}
+
+async function loadTiers(){
+  const d=await getJSON(A+"/tiers"); if(!d){$('tiers').textContent='unreachable';return;}
+  $('tiers').innerHTML='';
+  (d.tiers||[]).forEach(t=>{
+    const sov=t.sovereign===true;
+    const div=document.createElement('div'); div.className='tier';
+    div.innerHTML=
+      `<h3>${esc(t.title)} ${labelPill(t.label)}</h3>`+
+      `<div class="kv">`+
+        `<div><span class="k">where</span> ${pill(t.where, t.where==='gpu'?'green':'blue')}</div>`+
+        `<div><span class="k">sovereign</span> ${pill(String(sov), sov?'green':'yellow')}</div>`+
+        `<div><span class="k">base</span> <span class="v">${esc(t.base_model)}</span></div>`+
+        `<div class="muted" style="font-size:10.5px;line-height:1.6;margin-top:.3rem;">${esc(t.plan)}</div>`+
+        `<div class="muted" style="font-size:10px;margin-top:.2rem;">${esc(t.honesty)}</div>`+
+      `</div>`;
+    $('tiers').appendChild(div);
+    if(t.tier_id==='sovereign-local'){
+      $('c_sov').textContent=sov?'true':'false';
+      $('c_sov').style.color=sov?'var(--green)':'var(--yellow)';
+      $('c_sovsub').textContent=esc(t.probe_note||'live gpu_reachable probe');
+    }
+  });
+}
+
+async function loadTau(){
+  const d=await getJSON(A+"/tau"); if(!d){$('tau_kv').textContent='unreachable';return;}
+  if(d.score_pct==null){
+    $('tau_kv').innerHTML=`<div>${labelPill('ROADMAP')} ${esc(d.honesty||'')}</div>`;
+    $('c_tau').textContent='—'; $('c_tausub').textContent='not measured'; return;
+  }
+  $('tau_kv').innerHTML=
+    `<div><span class="k">score (pass^1)</span> <span class="v">${fmt(d.score_pct,2)}%</span> ${labelPill(d.label)}</div>`+
+    `<div><span class="k">suite</span> <span class="v">${esc(d.suite_id)} ${esc(d.suite_version)}</span></div>`+
+    `<div><span class="k">tasks</span> <span class="v">${d.tasks_passed}/${d.tasks_total} · ${d.negative_controls} negative controls</span></div>`+
+    `<div><span class="k">as-of</span> <span class="v">${esc((d.as_of||'').slice(0,10))}</span></div>`+
+    `<div><span class="k">determinism</span> <span class="v mono">${esc(d.determinism_hash)}</span></div>`+
+    `<div class="muted" style="font-size:10.5px;line-height:1.6;margin-top:.3rem;">${esc(d.honesty)}</div>`;
+  $('c_tau').textContent=fmt(d.score_pct,1)+'%';
+  $('c_tausub').textContent=d.tasks_passed+'/'+d.tasks_total+' · '+(d.as_of||'').slice(0,10);
+}
+
+async function loadCard(){
+  const d=await getJSON(A+"/card"); if(!d){$('card_kv').textContent='unreachable';return;}
+  const ours=(d.what_is_ours||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  const notOurs=(d.what_is_NOT_ours||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  $('card_kv').innerHTML=
+    `<div><span class="k">name</span> <span class="v">${esc(d.name)} ${esc(d.version)}</span></div>`+
+    `<div><span class="k">base</span> <span class="v">${esc(d.base.default_base)} (${esc(d.base.default_base_license)})</span></div>`+
+    `<div class="k" style="margin-top:.4rem;">what is OURS</div><ul style="margin:.2rem 0 .4rem 1rem;color:var(--paragraph);font-size:10.5px;line-height:1.5;">${ours}</ul>`+
+    `<div class="k">what is NOT ours</div><ul style="margin:.2rem 0 0 1rem;color:var(--paragraph);font-size:10.5px;line-height:1.5;">${notOurs}</ul>`;
+  $('c_base').textContent=d.base.default_base;
+  $('c_baselic').textContent=d.base.default_base_license;
+  $('framing').textContent=d.base.honest_framing;
+  $('b_model').textContent='EXPERIMENTAL · SKELETON · '+esc(d.version);
+}
+
+async function loadDiag(){
+  const d=await getJSON(A+"/_diag"); if(!d){$('f_diag').textContent='diag unreachable';return;}
+  const reuse=d.reuse||{};
+  const on=Object.keys(reuse).filter(k=>reuse[k]);
+  $('f_diag').textContent='reuse live: '+on.join(', ')+' · signer '+(d.signer_present?'PRESENT':'absent');
+  $('signerlbl').textContent=d.signer_present?('signer '+(d.signer_label||'in-image')):'signer absent';
+}
+
+async function doSelfImprove(){
+  $('si_kv').innerHTML='<span class="muted mono">running real τ-bench baseline + improved…</span>';
+  const d=await getJSON(A+"/selfimprove",{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(!d){$('si_kv').textContent='unreachable';return;}
+  if(d.error){$('si_kv').innerHTML=`<div>${labelPill('ROADMAP')} ${esc(d.error)} — ${esc(d.honesty||'')}</div>`;return;}
+  const up=d.delta_pct>0;
+  $('si_kv').innerHTML=
+    `<div><span class="k">iteration</span> <span class="v">#${d.iteration}</span> ${labelPill(d.label)}</div>`+
+    `<div><span class="k">baseline → improved</span> <span class="v">${fmt(d.baseline_score_pct,2)}% → ${fmt(d.improved_score_pct,2)}%</span></div>`+
+    `<div><span class="k">delta</span> ${pill((up?'+':'')+fmt(d.delta_pct,2)+'%', up?'green':'yellow')}</div>`+
+    `<div><span class="k">voyager skill</span> ${pill(d.voyager_skill_admitted?'ADMITTED':'not admitted', d.voyager_skill_admitted?'green':'yellow')}</div>`+
+    `<div class="muted" style="font-size:10.5px;line-height:1.6;margin-top:.3rem;"><b>reflection:</b> ${esc(d.reflection)}</div>`;
+  const r=d.receipt||{};
+  $('si_receipt').textContent=JSON.stringify(r,null,1);
+}
+
+document.querySelectorAll('button.ghost[data-q]').forEach(b=>b.addEventListener('click',()=>{$('q').value=b.getAttribute('data-q');doRoute(b.getAttribute('data-q'));}));
+$('go').addEventListener('click',()=>doRoute($('q').value));
+$('si_go').addEventListener('click',doSelfImprove);
+
+(async function(){
+  await Promise.all([loadDiag(),loadMTP(),loadTiers(),loadTau(),loadCard()]);
+  await doRoute($('q').value);
+})();
+</script>
+</body>
+</html>
