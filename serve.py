@@ -5604,6 +5604,44 @@ def _a11oy_arena_inspect(action):
     return (len(fired) == 0, fired)
 
 
+# CANONICAL prefix->plain-English mapping for Eval Arena rejection signals.
+# This is the SINGLE SOURCE OF TRUTH: the live run attaches a `reasons` list to
+# every result (parallel to `policy_signals`) so any consumer of the JSON — the
+# console, killinchu, agents, other tools — gets the honest explanation, not
+# just the raw token. The console keeps its own ARENA_SIGNAL_REASONS table only
+# as a DISPLAY FALLBACK for older payloads; the arena-signal-reasons CI guard
+# keeps the two in lockstep so they cannot drift. Labels here MUST match the
+# console table verbatim so the page renders identically on GitHub main, the HF
+# Space and the box. Checked in order; the first prefix that matches wins. The
+# labels intentionally describe ONLY the signal the gate fired — no fabricated
+# numbers, no invented detail.
+_A11OY_ARENA_SIGNAL_REASONS = (
+    ("size-guard", "Blocked: request body exceeded the 1MB safety limit"),
+    ("approval-guard", "Blocked: high-impact action is missing required operator approval"),
+    ("threat-signature", "Blocked: prompt-injection / data-exfiltration pattern detected"),
+)
+# Bare threat tokens (the _A11OY_ARENA_THREATS list — e.g. "exfiltrate",
+# "rm -rf", "drop table") carry no structured prefix; they are all
+# prompt-injection / exfiltration signatures, so they map to this shared reason.
+_A11OY_ARENA_DEFAULT_REASON = "Blocked: prompt-injection / data-exfiltration pattern detected"
+
+
+def _a11oy_arena_signal_reason(sig: str) -> str:
+    """Plain-English reason for one raw policy_signal token. Mirrors the
+    console's arenaSignalReason(): prefix match in order (startswith ==
+    indexOf===0), then the shared bare-threat fallback."""
+    s = str(sig or "")
+    for prefix, label in _A11OY_ARENA_SIGNAL_REASONS:
+        if s.startswith(prefix):
+            return label
+    return _A11OY_ARENA_DEFAULT_REASON
+
+
+def _a11oy_arena_reasons(signals) -> list:
+    """Reasons list parallel (same length/order) to a result's policy_signals."""
+    return [_a11oy_arena_signal_reason(s) for s in (signals or [])]
+
+
 def _a11oy_arena_chain(events):
     receipts = []
     prev = "GENESIS"
@@ -5735,7 +5773,12 @@ def _a11oy_eval_hist_append(run: dict) -> dict:
                            # the eval-arena-negative-control check can re-validate
                            # the latest recorded run and catch a degraded timeline
                            # that dropped its policy-rejected negative control.
-                           "policy_signals": r.get("policy_signals")}
+                           "policy_signals": r.get("policy_signals"),
+                           # carry the plain-English reasons through the persisted
+                           # timeline too, so the history JSON is self-describing
+                           # (back-fill from the mapping if an older run lacked it).
+                           "reasons": r.get("reasons")
+                           or _a11oy_arena_reasons(r.get("policy_signals"))}
                           for r in (run.get("results") or [])],
             "receipt_signed": bool(rcpt.get("signed")),
             "receipt_keyid": rcpt.get("keyid"),
@@ -5809,7 +5852,12 @@ def _a11oy_eval_run_live() -> dict:
                         "capability": sc["capability"], "overall": overall,
                         "pass": overall >= 0.85, "dimensions": dims,
                         "chain_links_verified": "%d/%d" % (ok_links, total_links),
-                        "receipt_signed": signed, "policy_signals": fired})
+                        "receipt_signed": signed, "policy_signals": fired,
+                        # plain-English reason per signal (same order as
+                        # policy_signals) so every JSON consumer, not just the
+                        # console, gets the honest explanation. SINGLE SOURCE OF
+                        # TRUTH = _a11oy_arena_reasons (see mapping above).
+                        "reasons": _a11oy_arena_reasons(fired)})
     passed = sum(1 for r in results if r["pass"])
     avg = round(sum(r["overall"] for r in results) / len(results), 6) if results else 0.0
     now = datetime.now(timezone.utc)
