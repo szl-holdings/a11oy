@@ -364,6 +364,15 @@ COPY web/holo.html ./web/holo.html
 COPY web/constitution.html ./web/constitution.html
 COPY web/quant.html ./web/quant.html
 COPY web/estate-hologram.html ./web/estate-hologram.html
+# WARHACKER SHOWCASE PAGES (demo lane, 2026-06-14): two PUBLIC companion pages served
+# at /signature-is-not-proof and /defense-readiness (+ /a11oy/* aliases) via _ptg_serve.
+# System fonts, 0 runtime CDN, no external scripts; live claims fetch real a11oy
+# endpoints with an honest NO-LIVE-DATA fallback. image-only like the other web/*.html
+# demo pages (declared in copy-sync-lockstep.json image_only_assets; baked into the
+# GitHub-built image, live after a factory rebuild + direct Space push). Without these
+# COPYs the routes 404 to the SPA shell.
+COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
+COPY web/defense-readiness.html ./web/defense-readiness.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and

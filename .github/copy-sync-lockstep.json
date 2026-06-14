@@ -37,6 +37,8 @@
     "static/vendor3d/three.module.min.js",
     "web/autoreview.html",
     "web/constitution.html",
+    "web/defense-readiness.html",
+    "web/signature-is-not-proof.html",
     "web/energy.html",
     "web/energy-holographic.html",
     "web/estate-hologram.html",

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<!--
+  a11oy · A SIGNATURE IS NOT PROOF OF SAFETY — public case study (showcase lane).
+  © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
+  0 runtime CDN: system fonts only, no external scripts. Where a claim can be
+  proven LIVE it is wired to a real a11oy production endpoint
+  (/api/a11oy/v1/{compliance,pinn/certificate,...}) via fetch with an HONEST
+  NO-LIVE-DATA fallback — never a fabricated value. Maturity is labelled
+  LIVE-today vs ROADMAP throughout (doctrine v11). Content mirrors the
+  SZL thought-leadership case study of the same name.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · A Signature Is Not Proof of Safety</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
+    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
+    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#0d1320,#0a0e14)}
+  h1{margin:0;font-size:19px;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:980px}
+  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+  .nav a{color:var(--acc2);text-decoration:none}
+  .nav a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px}
+  section{margin:0 0 26px}
+  .eyebrow{color:var(--acc);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:16px;letter-spacing:.3px;margin:0 0 10px;color:var(--ink)}
+  h3{font-size:14px;letter-spacing:.2px;margin:0 0 6px;color:var(--acc)}
+  p{margin:0 0 12px}
+  .hook{font-size:26px;line-height:1.35;font-weight:700;letter-spacing:.3px;margin:6px 0 14px}
+  .hook .em{color:var(--acc)}
+  .lede{font-size:15px;color:#cdd8e6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:0 0 14px}
+  .quote{border-left:3px solid var(--acc);background:var(--panel2);padding:12px 16px;
+         border-radius:0 8px 8px 0;color:#cdd8e6;margin:0 0 14px;font-style:normal}
+  .quote.big{font-size:16px;color:var(--ink)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;
+        border:1px solid var(--line);white-space:nowrap}
+  .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
+  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
+  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
+  .pill.live{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #1a2435;vertical-align:top}
+  th{color:var(--mut);font-weight:600;letter-spacing:.04em}
+  td.no{color:var(--err)} td.yes{color:var(--ok)}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .mech{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 17px;display:flex;flex-direction:column}
+  .mech .head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .mech .num{color:var(--mut);font-size:11px}
+  .mech h3{margin:2px 0 8px}
+  .mech .body{color:#c4d0de;flex:1}
+  .mech .status{margin-top:10px;padding-top:10px;border-top:1px dotted #1a2435;font-size:12px;color:var(--mut)}
+  .mech .status b{color:var(--ink);font-weight:600}
+  .live-line{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px}
+  .live-line .v{color:var(--ink);word-break:break-word}
+  .cite{color:var(--mut);font-size:11.5px;margin-top:10px;line-height:1.6}
+  .cite a{color:var(--acc2)}
+  a{color:var(--acc2)}
+  code{color:var(--acc2);font-size:12px}
+  .loading{color:var(--mut)}
+  .nolive{color:var(--warn)}
+  footer{color:var(--mut);font-size:11px;padding:18px 22px;border-top:1px solid var(--line);line-height:1.7}
+  .reflist{font-size:11.5px;color:var(--mut);line-height:1.7}
+  .reflist li{margin-bottom:5px}
+  .reflist a{color:var(--acc2);word-break:break-all}
+  @media(max-width:640px){.hook{font-size:21px}.wrap{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · A Signature Is Not Proof of Safety</h1>
+  <div class="sub">SZL Holdings thought leadership · What the May 2026 “Mini Shai-Hulud” npm worm taught us — and why a11oy is built for a world where the cryptography is genuine but the code is not. Every maturity claim labelled <span class="pill live">LIVE</span> / <span class="pill road">ROADMAP</span>; live claims wired to real a11oy endpoints (honest <span class="nolive">NO-LIVE-DATA</span> fallback).</div>
+  <nav class="nav">
+    <a href="/console/">← Console</a>
+    <a href="/governance">Governance</a>
+    <a href="/compliance">Compliance crosswalk</a>
+    <a href="/defense-readiness">Defense readiness →</a>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- HOOK -->
+  <section>
+    <div class="eyebrow">SZL Holdings · Thought Leadership · June 2026</div>
+    <div class="hook">A signature is not proof of safety.<br><span class="em">The cryptography was genuine. The package was malicious anyway.</span></div>
+    <p class="lede">On May 11, 2026, a piece of malware did something the software industry had quietly
+    assumed was impossible: it shipped with a valid, cryptographically signed SLSA Build Level 3
+    provenance attestation. The signature checked out. The provenance was genuine. The package was
+    malicious anyway.</p>
+    <p class="cite">Stephen P. Lutar Jr., Founder &amp; CEO, SZL Holdings · <a href="https://a11oy.net">a11oy.net</a></p>
+  </section>
+
+  <!-- 1. WHAT HAPPENED -->
+  <section>
+    <div class="eyebrow">1 · What happened</div>
+    <h2>Mini Shai-Hulud — a signed supply-chain worm</h2>
+    <div class="card">
+      <p>Between May 10 and 12, 2026 — with the main publishing burst compressed into roughly five
+      hours on May 11 — the threat group TeamPCP compromised <b>more than 170 packages</b> across the
+      npm and PyPI ecosystems, publishing over 400 malicious versions spanning 19 namespaces.
+      Affected projects had accumulated more than <b>half a billion cumulative downloads</b>. It is the
+      first documented npm worm to propagate while carrying <b>legitimately attested</b> malicious
+      packages.</p>
+      <p>The entry point was an orphaned CI/CD trust configuration in TanStack’s GitHub Actions
+      workflows — a <code>pull_request_target</code> workflow that retained OIDC federation despite no
+      longer being actively maintained. The attacker read short-lived OIDC tokens directly out of the
+      GitHub Actions runner’s process memory (<code>/proc/&lt;pid&gt;/mem</code>), then exchanged those
+      tokens with the Sigstore Fulcio certificate authority to mint legitimate signing certificates.
+      From there: stolen OIDC token → short-lived npm publish token → malicious versions released under
+      the real maintainer identity, with valid provenance describing the exact GitHub Actions job that
+      produced them.</p>
+      <div class="quote">Nothing in the cryptographic chain failed. Sigstore did exactly what it is
+      designed to do: it verified the identity of the token presenter. What it cannot do — what no
+      signature can do — is verify that the build environment had not been compromised, or that the
+      code executing inside that legitimate, identity-verified job was safe.</div>
+      <p>The provenance was accurate. It correctly described a build that produced malware. Phase 2 of
+      the campaign reportedly reached infrastructure at OpenAI, Grafana, and GitHub itself.</p>
+    </div>
+    <div class="quote big">The attack did not break the signature. It exploited the gap between
+    identity verification and behavioural integrity. The signature told you <i>who</i> built it. It
+    told you nothing about <i>what it does</i>.</div>
+  </section>
+
+  <!-- 2. WHY IT MATTERS -->
+  <section>
+    <div class="eyebrow">2 · Why it matters</div>
+    <h2>The signature-trust fallacy</h2>
+    <p>A cryptographic signature answers two questions with mathematical confidence: <b>who</b> signed
+    this, and <b>what exact bytes</b> were signed. It answers a third question — <i>is the signed thing
+    safe?</i> — not at all. The industry has spent a decade conflating the first two with the third.</p>
+    <div class="card">
+      <table>
+        <tr><th>What a signature proves</th><th>What it does NOT prove</th><th>Mini Shai-Hulud reality</th></tr>
+        <tr>
+          <td>Identity of the signer (the OIDC subject)</td>
+          <td class="no">That the signer’s environment was uncompromised</td>
+          <td>OIDC tokens stolen from runner memory; identity genuine</td>
+        </tr>
+        <tr>
+          <td>The exact bytes that were signed</td>
+          <td class="no">That those bytes are safe to execute</td>
+          <td>Provenance accurately described a malicious build</td>
+        </tr>
+        <tr>
+          <td>That a recognized pipeline produced the artifact</td>
+          <td class="no">That the pipeline behaved as intended</td>
+          <td>Legitimate GitHub Actions job produced malware</td>
+        </tr>
+      </table>
+    </div>
+    <p>SLSA and Sigstore are good. They are <b>necessary but not sufficient</b>. When a control becomes
+    a checkbox — “signed: yes” — it stops being a security boundary and becomes a false sense of one.</p>
+  </section>
+
+  <!-- 3. THE LESSON -->
+  <section>
+    <div class="eyebrow">3 · The lesson</div>
+    <h2>Doctrine v11 — Signature ≠ Safety</h2>
+    <div class="quote big">“A signature is not proof of safety.” Trust the behaviour you can observe
+    and the receipts you can replay — not the attestation you were handed.</div>
+    <p>The corollary is a posture we call <b>behaviour-over-attestation</b>. An attestation is a claim
+    made at build time about the past. Behaviour is evidence gathered at runtime about the present. When
+    the two disagree, behaviour wins. The rest of our doctrine follows from this: <b>prove-or-downgrade</b>
+    (claim only what has a checkable artifact), label every value <span class="pill acc">MEASURED</span>
+    <span class="pill warn">MODELED</span> <span class="pill">SAMPLE</span>, and never present an
+    attestation as a guarantee. We do not claim a11oy is unbreakable. We claim it <b>stops trusting the
+    signature alone</b>.</p>
+  </section>
+
+  <!-- 4. HOW a11oy IS ARCHITECTED -->
+  <section>
+    <div class="eyebrow">4 · How a11oy is architected for exactly this</div>
+    <h2>Five mechanisms — each labelled LIVE-today vs ROADMAP</h2>
+    <p>Below are the five mechanisms that make a11oy a structural answer to a Mini Shai-Hulud-class
+    attack. We are explicit throughout about what is live today versus what is roadmap. The credibility
+    comes from the honesty. Where a mechanism can be proven right now, the card binds to a real a11oy
+    production endpoint below.</p>
+
+    <div class="grid">
+      <!-- 4.1 -->
+      <div class="mech">
+        <div class="head"><span class="num">4.1</span><span class="pill live">LIVE — GAP1</span></div>
+        <h3>Artifact-behaviour monitor</h3>
+        <div class="body">Observe what an artifact actually <i>does</i> at runtime and compare it against an
+        expected behavioural envelope. A signature would have passed Mini Shai-Hulud straight through; a
+        behaviour monitor asks the question the signature cannot — does this thing act the way a safe
+        version of it should? Deny-by-default applied to behaviour, not identity.</div>
+        <div class="status"><b>Today:</b> live as the GAP1 capability, backed by a certified live PINN
+        (physics-informed) certificate from production APIs. <b>Roadmap:</b> broader behavioural-envelope
+        catalogue per artifact class / ecosystem (npm, PyPI, container, model).</div>
+        <div class="live-line" id="pinn-live"><span class="pill warn">checking…</span><span class="v">PINN certificate</span></div>
+      </div>
+
+      <!-- 4.2 -->
+      <div class="mech">
+        <div class="head"><span class="num">4.2</span><span class="pill live">LIVE</span></div>
+        <h3>3-axis attestation</h3>
+        <div class="body">Single-axis attestation is the exact weakness Mini Shai-Hulud exploited: a valid
+        build attestation, and nothing binding it to runtime behaviour. a11oy’s assurance mesh binds three
+        axes — <b>build provenance · model lineage · runtime behaviour</b> — so compromise of any one axis
+        does not silently pass the others. A genuine build signature riding on a malicious runtime fails
+        the cross-axis check.</div>
+        <div class="status"><b>Today:</b> 3-axis model + DSSE-signed verdicts/receipts in the live mesh.
+        <b>Roadmap:</b> deeper third-party STIX/TAXII threat-intel correlation into the model + runtime axes.</div>
+        <div class="live-line" id="comp-live"><span class="pill warn">checking…</span><span class="v">Compliance crosswalk</span></div>
+      </div>
+
+      <!-- 4.3 -->
+      <div class="mech">
+        <div class="head"><span class="num">4.3</span><span class="pill live">LIVE</span></div>
+        <h3>Hash-chained Forge ledger + kill switch</h3>
+        <div class="body">Every verdict is written to a hash-chained, offline-verifiable governance ledger
+        (the Forge ledger), so any action is replayable after the fact and any decision is revocable through
+        the kill switch. In a Mini Shai-Hulud scenario this is the difference between “we think we contained
+        it” and “we can prove, line by line, what was admitted, when, and on what evidence — and revoke it now.”</div>
+        <div class="status"><b>Today:</b> hash-chained ledger + kill switch live, with signed receipts
+        (including MEASURED energy receipts via a real NVML exporter, kept distinct from any modeled figure).
+        <b>Roadmap:</b> publishing ledger inclusion proofs to an external transparency service (§5).</div>
+      </div>
+
+      <!-- 4.4 -->
+      <div class="mech">
+        <div class="head"><span class="num">4.4</span><span class="pill live">LIVE</span></div>
+        <h3>Hybrid Ed25519 + ML-DSA &amp; C2PA</h3>
+        <div class="body">We do not deprecate signing — we harden it and stop over-trusting it. a11oy signs
+        with a hybrid <b>Ed25519 + ML-DSA</b> scheme so verdicts remain verifiable in a post-quantum world,
+        and attaches <b>C2PA content credentials</b> so the provenance of generated content is transparent.
+        This anticipates EU AI Act Article 50 transparency obligations.</div>
+        <div class="status"><b>Today:</b> hybrid signing + C2PA implemented, alongside a NIST AI RMF / ISO
+        42001 / EU AI Act compliance crosswalk. <b>Roadmap:</b> third-party attestation of the crosswalk
+        mapping ahead of enforcement.</div>
+      </div>
+
+      <!-- 4.5 -->
+      <div class="mech">
+        <div class="head"><span class="num">4.5</span><span class="pill road">ROADMAP</span></div>
+        <h3>SCITT-style independent transparency</h3>
+        <div class="body">The deepest lesson of Mini Shai-Hulud is that <b>self-attestation is not enough</b>:
+        the build attested honestly to its own malicious output. Independent, append-only transparency
+        ledgers — as standardized by IETF SCITT — let third parties verify receipts without trusting the
+        producer.</div>
+        <div class="status"><b>Today:</b> internal hash-chained ledger (4.3) is live and offline-verifiable.
+        <b>Roadmap:</b> external SCITT-style transparency service with third-party inclusion proofs — we label
+        this honestly as not-yet-live.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. THE BROADER SHIFT -->
+  <section>
+    <div class="eyebrow">5 · The broader shift</div>
+    <h2>From self-attestation to independent, behavioural assurance</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>EU AI Act · Article 50</h3>
+        <p>Transparency obligations for AI-generated content take effect <b>August 2, 2026</b>. a11oy’s
+        C2PA content credentials and hybrid signing (4.4) are built toward exactly this — provenance of
+        generated content, transparent and verifiable.</p>
+      </div>
+      <div class="card">
+        <h3>IETF SCITT</h3>
+        <p>Supply Chain Integrity, Transparency and Trust — independent, append-only ledgers that let
+        third parties verify receipts without trusting the producer. The direct standards answer to the
+        self-attestation gap (4.5, roadmap).</p>
+      </div>
+      <div class="card">
+        <h3>OMB · risk-based shift</h3>
+        <p>The 2026 OMB action rescinding the prior secure-software-development self-attestation mandate
+        in favor of a risk-based approach reflects the same realization: an attestation checkbox is not a
+        risk control. Behaviour and replayable evidence are.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TALK TO US -->
+  <section>
+    <div class="card">
+      <h3>Tabletop it against a live instance</h3>
+      <p>We are happy to walk through a Mini Shai-Hulud tabletop against a live a11oy instance — what the
+      artifact-behaviour monitor would have flagged, what the 3-axis check would have rejected, and what
+      the governance ledger would let you prove and revoke after the fact. Live signed APIs and the GAP1
+      behavioural monitor are available now at <a href="https://a11oy.net">a11oy.net</a>.</p>
+    </div>
+  </section>
+
+  <!-- REFERENCES -->
+  <section>
+    <div class="eyebrow">References</div>
+    <ol class="reflist">
+      <li>Cloud Security Alliance, “Mini Shai-Hulud: When Signed Provenance Certified a Supply Chain Worm,” May 15, 2026. <a href="https://labs.cloudsecurityalliance.org/research/csa-research-note-mini-shai-hulud-supply-chain-sigstore-2026/">labs.cloudsecurityalliance.org</a></li>
+      <li>Open Source For U, “Hackers Abuse GitHub Actions and SLSA Signing to Spread Malware Across Open Source Ecosystems,” May 14, 2026. <a href="https://www.opensourceforu.com/2026/05/hackers-abuse-github-actions-and-slsa-signing-to-spread-malware-across-open-source-ecosystems/">opensourceforu.com</a></li>
+      <li>EU AI Act Service Desk FAQ. <a href="https://ai-act-service-desk.ec.europa.eu/en/faq">ai-act-service-desk.ec.europa.eu</a>; Latham &amp; Watkins, “AI Act Update,” May 13, 2026. <a href="https://www.lw.com/en/insights/ai-act-update-eu-resolves-to-change-rules-and-extend-deadlines">lw.com</a></li>
+      <li>IETF SCITT Working Group, Datatracker (draft-ietf-scitt-architecture; draft-dawkins-scitt-ai-article50-00, filed May 25, 2026). <a href="https://datatracker.ietf.org/wg/scitt/">datatracker.ietf.org/wg/scitt</a></li>
+      <li>Wiley Law, “OMB Rescinds Secure Software Development Mandate in Favor of a Risk-Based Approach,” Jan 29, 2026. <a href="https://www.wiley.law/alert-OMB-Rescinds-Secure-Software-Development-Mandate-in-Favor-of-a-Risk-Based-Approach">wiley.law</a></li>
+    </ol>
+  </section>
+
+</div>
+
+<footer>
+  a11oy showcase · doctrine v11 · A signature is not proof of safety · behaviour-over-attestation ·
+  prove-or-downgrade · Λ = Conjecture 1 (advisory, &lt; 1.0) · trust &lt; 100% · 0 runtime CDN ·
+  every maturity claim labelled LIVE / ROADMAP.<br>
+  Live proofs fetched from <span style="color:var(--acc2)">/api/a11oy/v1/{pinn/certificate, compliance}</span> — honest NO-LIVE-DATA fallback, never fabricated.
+  About SZL Holdings · sovereign-compute, AI-governance &amp; defense-tech, NYC · UEI [PLACEHOLDER: UEI] · CAGE [PLACEHOLDER: CAGE] · NAICS 541715.
+</footer>
+
+<script>
+// 0-CDN inline. Prove what we can, LIVE, against real a11oy endpoints; otherwise
+// render an HONEST NO-LIVE-DATA chip — never a fabricated value.
+(function(){
+  function setLive(id, ok, label, href){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var pill = ok ? '<span class="pill live">LIVE ✓</span>'
+                  : '<span class="pill warn">NO-LIVE-DATA</span>';
+    var v = href && ok
+        ? '<span class="v"><a href="'+href+'">'+label+'</a></span>'
+        : '<span class="v">'+label+'</span>';
+    el.innerHTML = pill + v;
+  }
+  function probe(url, id, label, href){
+    fetch(url, {headers:{'accept':'application/json'}})
+      .then(function(r){ return r.ok ? r.json().catch(function(){return {};}) : null; })
+      .then(function(j){ setLive(id, j!==null, label, href); })
+      .catch(function(){ setLive(id, false, label, href); });
+  }
+  // 4.1 — certified live PINN (physics-informed) certificate.
+  probe('/api/a11oy/v1/pinn/certificate', 'pinn-live',
+        'PINN certificate (GAP1 behaviour monitor)', '/api/a11oy/v1/pinn/certificate');
+  // 4.2/4.4 — NIST AI RMF / ISO 42001 / EU AI Act compliance crosswalk.
+  probe('/api/a11oy/v1/compliance', 'comp-live',
+        'NIST AI RMF / ISO 42001 / EU AI Act crosswalk', '/compliance');
+})();
+</script>
+</body>
+</html>
