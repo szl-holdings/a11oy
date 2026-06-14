@@ -385,6 +385,29 @@ footer strong{color:var(--ink)}
     </div>
   </section>
 
+  <!-- ────────────────────── PHYSICAL-BOUNDS CERTIFICATE ─────────── -->
+  <!-- Physics-ML mesh: the agentic-PINN + fundamental-physics-bounds certifier,
+       now wired into a11oy's governed surface (/api/a11oy/v1/pinn/*). This card is
+       the HONEST INVERSE of a free-energy claim — it PROVES a real compute job sits
+       FAR BELOW the fundamental ceilings of physics. -->
+  <section id="sec-bounds">
+    <h2>Physical-Bounds Certificate <span class="badge badge-advisory" style="vertical-align:middle">Physics-ML</span></h2>
+    <div class="card" id="bounds-card">
+      <div class="feed-unavail">Loading physical-bounds certificate…</div>
+    </div>
+    <div class="lambda-note">
+      <span class="badge badge-advisory">Honest inverse of free-energy</span>
+      &nbsp;This certificate is the <strong>opposite</strong> of an over-unity claim:
+      it proves a real compute job's energy use and information throughput sit FAR
+      BELOW the fundamental ceilings — Landauer (1961), Margolus-Levitin (1998),
+      Bremermann (1962), Bekenstein (1981), Bekenstein-Hawking (Hawking 1975). These
+      are <strong>established physics, cited</strong> — not SZL conjectures. Energy is
+      DERIVED only from MEASURED power × MEASURED time; SAMPLE until on-box NVML wires
+      a real reading. Λ = Conjecture 1 (advisory). Governed solve loop verdict:
+      <span id="bounds-solve-verdict" style="font-family:var(--mono)">—</span>.
+    </div>
+  </section>
+
   <!-- ────────────────────── WORLD PANEL ──────────────────────── -->
   <section id="sec-world">
     <h2>Follow the Wind — Global Zone Shares</h2>
@@ -420,8 +443,19 @@ const ENDPOINTS = {
   receipt  : "/api/a11oy/v1/harvest/receipt",
   world    : "/api/a11oy/v1/harvest/world",
   sovereign: "/api/a11oy/v1/formula/sovereign",
+  bounds   : "/api/a11oy/v1/pinn/certificate",
+  pinnSolve: "/api/a11oy/v1/pinn/solve",
   healthz  : "/api/a11oy/healthz",
 };
+
+/* Compact scientific formatting for the very large/small physics numbers. */
+function fmtSci(v){
+  if(v == null || v === "") return "—";
+  const n = Number(v);
+  if(isNaN(n)) return String(v);
+  if(n !== 0 && (Math.abs(n) >= 1e6 || Math.abs(n) < 1e-3)) return n.toExponential(3);
+  return n.toLocaleString("en-US", {maximumFractionDigits:4});
+}
 
 /* ── helpers ──────────────────────────────────────────────────── */
 function q(id){ return document.getElementById(id); }
@@ -759,6 +793,62 @@ function renderWorld(d){
   }).join("");
 }
 
+/* ── physical-bounds certificate ─────────────────────────────── */
+function renderBounds(cwrap, solve){
+  const card = q("bounds-card");
+  /* the endpoint wraps the cert under .certificate */
+  const d = cwrap && cwrap.certificate ? cwrap.certificate : null;
+  if(!d){
+    card.innerHTML = '<div class="feed-unavail">Physical-bounds certifier unreachable — feed down. No fabricated value shown.</div>';
+    q("bounds-solve-verdict").textContent = "—";
+    return;
+  }
+  const bounded = d.physically_bounded === true;
+  const label   = (d.measured && d.measured.label) ? d.measured.label : "—";
+  const isSample = String(label).toUpperCase().indexOf("SAMPLE") !== -1;
+  const statusBadge = bounded
+    ? '<span class="badge badge-sov">PHYSICALLY BOUNDED</span>'
+    : '<span class="badge" style="background:var(--c-exp,#a33);color:#fff">NOT BOUNDED</span>';
+  const sampleBadge = isSample
+    ? '<span class="badge badge-advisory" style="margin-left:6px">SAMPLE energy</span>'
+    : '<span class="badge badge-sov" style="margin-left:6px">MEASURED energy</span>';
+
+  const rows = [
+    ["Job energy (DERIVED = power × time)", fmtSci(d.energy_joules_derived) + " J"],
+    ["Landauer erasure floor", fmtSci(d.landauer_floor_joules) + " J"],
+    ["× above Landauer floor (≥ 1 required)", fmtSci(d.landauer_multiple_above_floor) + "×"],
+    ["Margolus-Levitin max op-rate", fmtSci(d.margolus_levitin_max_ops_per_s) + " ops/s"],
+    ["Job op-rate (MEASURED)", fmtSci(d.job_ops_per_s_measured) + " ops/s"],
+    ["% of Margolus-Levitin rate (≤ 100% req.)", fmtSci(d.margolus_levitin_headroom_pct) + " %"],
+    ["Bremermann max op-rate", fmtSci(d.bremermann_max_ops_per_s) + " ops/s"],
+    ["Bekenstein info ceiling", fmtSci(d.bekenstein_max_info_bits) + " bits"],
+    ["Under Bekenstein ceiling", d.bekenstein_under_ceiling === true ? "yes" : "no"],
+    ["Bekenstein-Hawking holographic ceiling", fmtSci(d.bekenstein_hawking_ceiling_bits) + " bits"],
+  ];
+  const tbody = rows.map(([k,v]) =>
+    `<tr><td style="color:var(--mut)">${esc(k)}</td>`
+    + `<td style="text-align:right;font-family:var(--mono)">${esc(v)}</td></tr>`
+  ).join("");
+
+  card.innerHTML =
+    `<div style="margin-bottom:10px">${statusBadge}${sampleBadge}</div>`
+    + `<table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>${tbody}</tbody></table>`
+    + `<p style="margin-top:12px;color:var(--mut);font-size:12.5px;line-height:1.5">${esc(d.summary)}</p>`
+    + `<p style="margin-top:8px;color:var(--mut);font-size:11.5px;font-family:var(--mono)">`
+    +   `inputs: ${esc(d.inputs_hash || "—")} · UNSIGNED (STRUCTURAL-ONLY, never a false green)</p>`;
+
+  /* governed agentic solve verdict (deny-by-default Λ-gate) */
+  let verdict = "—";
+  if(solve){
+    const fv = solve.decision_trail && solve.decision_trail.final_verdict
+      ? solve.decision_trail.final_verdict
+      : (solve.status || "—");
+    const acc = solve.decision_trail ? solve.decision_trail.final_accepted : null;
+    verdict = acc != null ? `${fv} (accepted=${acc})` : String(fv);
+  }
+  q("bounds-solve-verdict").textContent = verdict;
+}
+
 /* ── timestamp ────────────────────────────────────────────────── */
 function updateTs(){
   const now = new Date();
@@ -783,20 +873,26 @@ async function loadAll(manual){
 
   try {
     /* parallel fetch all endpoints */
-    const [posture, plan, receipt, world, sovereign] = await Promise.all([
+    const [posture, plan, receipt, world, sovereign, bounds, pinnSolve] = await Promise.all([
       safeFetch(ENDPOINTS.posture,   "posture"),
       safeFetch(ENDPOINTS.plan,      "plan"),
       safeFetch(ENDPOINTS.receipt,   "receipt"),
       safeFetch(ENDPOINTS.world,     "world"),
       safeFetch(ENDPOINTS.sovereign, "sovereign"),
+      safeFetch(ENDPOINTS.bounds,    "bounds"),
+      safeFetch(ENDPOINTS.pinnSolve, "pinnSolve"),
     ]);
 
-    renderPosture(posture);
-    renderFeeds(posture ? posture.readings : null);
-    renderSovereign(sovereign);
-    renderSoak(plan);
-    renderReceipt(receipt);
-    renderWorld(world);
+    /* render each panel defensively: one renderer throwing (e.g. a feed-down
+       null) must never block the others from painting their honest state. */
+    const _safe = (fn, ...a) => { try { fn(...a); } catch(e){ console.warn("[harvest] render failed:", e && e.message); } };
+    _safe(renderPosture, posture);
+    _safe(renderFeeds, posture ? posture.readings : null);
+    _safe(renderSovereign, sovereign);
+    _safe(renderSoak, plan);
+    _safe(renderReceipt, receipt);
+    _safe(renderBounds, bounds, pinnSolve);
+    _safe(renderWorld, world);
     updateTs();
   } finally {
     q("btn-refresh").textContent = "↻ Refresh";
