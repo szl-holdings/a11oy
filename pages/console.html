@@ -14555,7 +14555,31 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     // cyber
     cybIncident:"SIMULATED", cybsurface:"SAMPLE", cybzero:"SAMPLE", cybthreat:"OSINT",
     // flight / fleet
-    fltTopo:"SAMPLE", fltReceipts:"LIVE", fltObs:"SAMPLE"
+    fltTopo:"SAMPLE", fltReceipts:"LIVE", fltObs:"SAMPLE",
+    // ---- DEV2 VERTICALS LANE (additive; Dev1 left these out for Dev2) ----------
+    // Verticals: each reads a REAL first-party feed (CISA KEV/NVD/Fed.Register/
+    // CourtListener/NYC HPD+DOB/Treasury) — LIVE is honest. Per-panel freshness is
+    // shown separately (live/cached/stale) by each pack's own freshBadge().
+    vdefense:"LIVE", vfinance:"LIVE", vlegal:"LIVE", vcyber:"LIVE", vrealestate:"LIVE",
+    verticals:"LIVE",
+    // Finance deep: live Yahoo v8 / Coinbase+CoinGecko / Treasury+FX / Polymarket /
+    // NVD. Forecasts/factors inside are SIMULATED and labeled in-tab; the tab itself
+    // reads live inputs → LIVE.
+    finq:"LIVE", finc:"LIVE", finm:"LIVE", finp:"LIVE", finr:"LIVE",
+    // Real estate: live NYC HPD/DOB + SEC EDGAR + Treasury. Broker Edge aggregate
+    // maturity is MODELED (component scores measured); Deal forecast is SIMULATED in-tab.
+    rem:"LIVE", red:"LIVE", reo:"LIVE", redeal:"LIVE", rebe:"MODELED", business:"LIVE",
+    // Enterprise: cockpit/incident read live statuspage+GitHub (LIVE). Comms/Revenue
+    // are CONNECT-READY (real schema, SAMPLE until OAuth — never fabricated). Forecast
+    // is MODELED (deterministic, labeled). These match each tab's own honest sub-badge.
+    entCockpit:"LIVE", entIncident:"LIVE", entComms:"CONNECT-READY", entRevenue:"CONNECT-READY", entForecast:"MODELED",
+    // ROI is an explicitly ILLUSTRATIVE labeled assumption — never a measured outcome.
+    wowroi:"ILLUSTRATIVE",
+    // PQC: classical signing is genuinely LIVE today; PQC is ROADMAP (never deployed),
+    // stated honestly inside the tab body (doctrine G4).
+    pvaPqc:"LIVE",
+    // Live decision tail + real-time feed-liveness heartbeat (measured freshness).
+    feed:"LIVE", feedpulse:"LIVE"
   };
   // Tabs where a cross-app receipt-verify strip is meaningful (provenance/trust + flt receipts).
   var RECEIPT_TABS = { chain:1, receipts:1, pvaAnchor:1, fltReceipts:1 };
