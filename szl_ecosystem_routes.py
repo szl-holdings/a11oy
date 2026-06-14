@@ -354,7 +354,20 @@ footer{padding:10px 16px;border-top:1px solid var(--line);font-size:11px;color:v
 <footer id="foot">Doctrine v11 &middot; locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}@c7c0ba17 &middot; SLSA L1 honest / L2 attested / L3 roadmap</footer>
 <script>
 var NS="__NS__";
-function vendorThree(srcs,cb){ (function next(i){ if(i>=srcs.length){cb(false);return;} var s=document.createElement('script'); s.src=srcs[i]; s.onload=function(){cb(true);}; s.onerror=function(){next(i+1);}; document.head.appendChild(s); })(0); }
+// Load THREE honestly from VENDORED files only (0 runtime CDN, G7). Try the
+// ES-module build via dynamic import() first (three.module.min.js is an ES
+// module, so a <script src> tag would NOT expose a global), then fall back to
+// a classic UMD-style <script> for static-vendor/three.min.js, then to the
+// honest 2D 'vendor unavailable' message. cb(THREE_or_null).
+function loadThree(cb){
+  import('/static/vendor3d/three.module.min.js').then(function(mod){
+    var T=(mod&&(mod.Scene?mod:mod.default))||window.THREE; cb(T&&T.Scene?T:null);
+  }).catch(function(){
+    var s=document.createElement('script'); s.src='/static-vendor/three.min.js';
+    s.onload=function(){ cb((window.THREE&&window.THREE.Scene)?window.THREE:null); };
+    s.onerror=function(){ cb(null); }; document.head.appendChild(s);
+  });
+}
 function organCard(o){
   var pct=Math.round((o.health||0)*100);
   var v=o.vitals||{}; var rows='';
@@ -372,9 +385,9 @@ fetch('/api/'+NS+'/v1/ecosystem/anatomy').then(function(r){return r.json();}).th
   draw3D(d);
 }).catch(function(e){ document.getElementById('organs').innerHTML='<div class="organ"><h3>vitals unreachable (honest)</h3><div class="note">'+e.message+'</div></div>'; });
 function draw3D(d){
-  vendorThree(['/static/vendor3d/three.module.min.js','/static-vendor/three.min.js'],function(ok){
-    var cv=document.getElementById('c'); var THREE=window.THREE;
-    if(!ok||!THREE){ var ctx=cv.getContext('2d'); cv.width=cv.clientWidth;cv.height=cv.clientHeight; if(ctx){ctx.fillStyle='#7d93a6';ctx.font='13px sans-serif';ctx.fillText('3D vendor unavailable - vitals shown at right (honest fallback).',20,30);} return; }
+  loadThree(function(THREE){
+    var cv=document.getElementById('c');
+    if(!THREE){ var ctx=cv.getContext('2d'); cv.width=cv.clientWidth;cv.height=cv.clientHeight; if(ctx){ctx.fillStyle='#7d93a6';ctx.font='13px sans-serif';ctx.fillText('3D vendor unavailable - vitals shown at right (honest fallback).',20,30);} return; }
     var sc=new THREE.Scene(); var cam=new THREE.PerspectiveCamera(55,cv.clientWidth/cv.clientHeight,0.1,100); cam.position.z=7;
     var rnd=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true}); rnd.setSize(cv.clientWidth,cv.clientHeight);
     var organs=d.organs||[]; var meshes=[];
