@@ -243,7 +243,9 @@
       <div class="cite">Demonstrates the keystone: classifier runs subagent-style INLINE at
         the Action node of Dev A's ReAct loop (<code>/api/a11oy/v1/agent/react/*</code>), not as
         a separate round-trip. Each step carries a DSSE-signed receipt + the Rego rule hit + the
-        OSCAL control cited.</div>
+        OSCAL control cited. A code-shaped step also shows its <b>a11oy Restraint rung</b>
+        (<code>/api/a11oy/v1/restraint</code>): a bloated diff that skipped the frugality ladder is
+        narrowed by <b>AR-006 prefer-minimal-diff</b> (OSCAL SA-8/SA-15/CM-7 · NIST AI RMF MANAGE 2.3).</div>
     </div>
 
     <!-- POLICY (Rego + OSCAL + NIST) -->
@@ -384,6 +386,7 @@ function renderRun(d){
         <span>NIST <b>${esc(s.nist_ai_rmf||"—")}</b></span>
         <span>Λ-eff <b>${s.lambda_effective!=null?s.lambda_effective.toFixed(3):"—"}</b></span>
         <span>conformal {<b>${esc(conf)}</b>}</span>
+        <span>restraint ${(s.restraint&&s.restraint.code_shaped)?`rung <b>${esc(String(s.restraint_rung!=null?s.restraint_rung:"?"))}/6 ${esc(s.restraint.rung_key||"")}</b>${s.restraint.bloated?` · <b class="acc">bloated → prefer minimal diff</b>`:` · within ladder`}`:`<b>n/a (not code)</b>`}</span>
         <span class="sha">hash ${esc((s.decision_hash||"").slice(0,20))}…</span>
       </div></div>`;
   }).join("");
@@ -399,7 +402,8 @@ $("#runbtn").addEventListener("click",async()=>{
        actions:[
          {tool:"read",tool_input:"README.md"},
          {tool:"shell",tool_input:"cat .env api_key token"},
-         {tool:"shell",tool_input:"rm -rf / production"}
+         {tool:"shell",tool_input:"rm -rf / production"},
+         {tool:"write_file",tool_input:"# format the current date as ISO 8601\nclass DateFormatter:\n    def __init__(self, sep='-', upper=False):\n        self.sep = sep\n        self.upper = upper\n    def _pad(self, n):\n        s = str(n)\n        return s if len(s) >= 2 else '0' + s\n    def format(self, y, m, d):\n        parts = [self._pad(y), self._pad(m), self._pad(d)]\n        out = self.sep.join(parts)\n        return out.upper() if self.upper else out\n"}
        ]});
     renderRun(d);
   }catch(e){$("#run").innerHTML=`<div class="err">gated-run failed: ${esc(e.message)}</div>`;}

@@ -30,7 +30,64 @@ from typing import Any, Dict, List
 
 import a11oy_grc_data as _grc
 
+# R5 — Restraint control contribution (additive; does NOT touch the shared
+# a11oy_grc_data bytes). Import-SAFE: if it is ever absent the GRC surface still
+# serves the base matrix unchanged.
+try:
+    import a11oy_grc_restraint as _grc_restraint
+except Exception:  # pragma: no cover
+    _grc_restraint = None
+
 SOURCES = _grc.SOURCES
+
+
+def _restraint_rows() -> List[Dict[str, Any]]:
+    """Restraint coverage rows to MERGE into the live matrix (R5). Empty if the
+    contribution module is unavailable."""
+    if _grc_restraint is None:
+        return []
+    try:
+        return list(_grc_restraint.RESTRAINT_MATRIX_ROWS)
+    except Exception:
+        return []
+
+
+def _merged_matrix() -> Dict[str, Any]:
+    """Base /grc matrix (shared data) + the Restraint control contribution (R5),
+    merged additively at request time. The shared module is never mutated."""
+    m = _grc.build_matrix()
+    rows = _restraint_rows()
+    if not rows:
+        return m
+    full = list(m.get("matrix", [])) + rows
+    summary: Dict[str, int] = {}
+    for r in full:
+        summary[r["coverage"]] = summary.get(r["coverage"], 0) + 1
+    m = dict(m)
+    m["matrix"] = full
+    m["summary"] = summary
+    m["frameworks"] = sorted({r["framework"] for r in full})
+    if _grc_restraint is not None:
+        try:
+            m["restraint_contribution"] = _grc_restraint.restraint_descriptor()
+        except Exception:
+            pass
+    return m
+
+
+def _merged_oscal() -> Dict[str, Any]:
+    """Base OSCAL component-definition + the Restraint implemented-requirements (R5)."""
+    o = _grc.build_oscal()
+    if _grc_restraint is None:
+        return o
+    try:
+        extra = _grc_restraint.restraint_oscal_implemented_requirements()
+        if extra:
+            ci = o["component-definition"]["components"][0]["control-implementations"][0]
+            ci["implemented-requirements"] = list(ci.get("implemented-requirements", [])) + extra
+    except Exception:
+        pass
+    return o
 
 
 def info(ns: str = "a11oy") -> Dict[str, Any]:
@@ -62,7 +119,9 @@ _COV_GLYPH = {"COVERED": "●", "PARTIAL": "◐", "ROADMAP": "○", "NA": "—"}
 
 def _matrix_rows_html() -> str:
     rows = []
-    for r in _grc.COVERAGE_MATRIX:
+    # R5: render the MERGED matrix (shared base + Restraint contribution) so the
+    # restraint control rows appear in the live /grc page table, not just the JSON.
+    for r in (list(_grc.COVERAGE_MATRIX) + _restraint_rows()):
         col = _COV_COLOR.get(r["coverage"], "#9fb1bf")
         g = _COV_GLYPH.get(r["coverage"], "·")
         rows.append(
@@ -70,6 +129,14 @@ def _matrix_rows_html() -> str:
             f'<td>{r["title"]}</td><td class="mech">{r["mechanism"]}</td>'
             f'<td style="color:{col};white-space:nowrap">{g} {r["coverage"]}</td></tr>')
     return "".join(rows)
+
+
+def _merged_summary() -> Dict[str, int]:
+    """Coverage summary across the MERGED matrix (base + Restraint), for the page header."""
+    summ: Dict[str, int] = dict(_grc.coverage_summary())
+    for r in _restraint_rows():
+        summ[r["coverage"]] = summ.get(r["coverage"], 0) + 1
+    return summ
 
 
 def _axes_rows_html() -> str:
@@ -85,8 +152,27 @@ def _axes_rows_html() -> str:
 
 
 def _page_html(ns: str) -> str:
-    summ = _grc.coverage_summary()
+    summ = _merged_summary()   # R5: base + Restraint contribution
     digest = _grc.policy_bundle_digest()
+    # R5: honest one-line note about the Restraint control contribution, shown only
+    # when the contribution module is present (additive; never overclaims).
+    _restraint_note = ""
+    if _grc_restraint is not None and _restraint_rows():
+        try:
+            _d = _grc_restraint.restraint_descriptor()
+            _ctls = ", ".join(_d.get("controls", []))
+            _restraint_note = (
+                '<p class="pp" style="margin-top:8px"><b style="color:var(--teal)">'
+                'a11oy Restraint contribution (R5):</b> the governed code-minimization / '
+                'dependency-frugality ladder (<code>/api/' + ns + '/v1/restraint/{evaluate,bench,info}</code>) '
+                'contributes ' + str(_d.get("rows", 0)) + ' rows below — controls <code>' + _ctls + '</code> '
+                '(NIST 800-53 SA-8/SA-15/CM-7/SR-3, NIST AI RMF MANAGE 2.3, ISO 42001 A.6.2). '
+                'Less code + fewer dependencies = smaller attack / maintenance surface. '
+                'Wired into Auto-Review as rule <code>AR-006-prefer-minimal-diff</code>. '
+                '<b>ALIGNS WITH / MAPS TO — NOT certified.</b> '
+                '<a href="/restraint">open Restraint →</a></p>')
+        except Exception:
+            _restraint_note = ""
     summ_html = " · ".join(
         f'<span style="color:{_COV_COLOR.get(k,"#9fb1bf")}">{_COV_GLYPH.get(k,"·")} {k}={v}</span>'
         for k, v in sorted(summ.items()))
@@ -132,6 +218,7 @@ def _page_html(ns: str) -> str:
    <code>PARTIAL</code> = mechanism exists but incomplete; <code>ROADMAP</code> = planned;
    <code>N/A</code> = out of scope (with reason). EU AI Act self-classification:
    <b>High-Risk</b> (defense-tech agentic orchestrator).</p>
+  __RESTRAINT_NOTE__
   <div class="scroll"><table>
    <thead><tr><th>Control</th><th>Framework</th><th>Title</th><th>a11oy mechanism</th><th>Coverage</th></tr></thead>
    <tbody>__MATRIX__</tbody></table></div>
@@ -307,6 +394,7 @@ async function load(){
 load();
 </script></body></html>""" \
         .replace("__DISC__", _grc.HONEST_DISCLAIMER) \
+        .replace("__RESTRAINT_NOTE__", _restraint_note) \
         .replace("__SUMM__", summ_html) \
         .replace("__MATRIX__", _matrix_rows_html()) \
         .replace("__AXES__", _axes_rows_html()) \
@@ -373,13 +461,13 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     registered: List[str] = []
 
     def _matrix():
-        return JSONResponse(_grc.build_matrix())
+        return JSONResponse(_merged_matrix())   # R5: base + Restraint contribution
 
     def _mapping():
         return JSONResponse(_grc.build_mapping())
 
     def _oscal():
-        return JSONResponse(_grc.build_oscal())
+        return JSONResponse(_merged_oscal())     # R5: base + Restraint OSCAL reqs
 
     for prefix in (f"/api/{ns}/v1/grc", "/v1/grc"):
         app.add_api_route(f"{prefix}/matrix", _matrix, methods=["GET"])
@@ -444,6 +532,18 @@ def _selftest() -> None:
     # matrix honesty: must contain at least one PARTIAL and one ROADMAP (shows gaps)
     mx = c.get("/api/a11oy/v1/grc/matrix").json()
     assert mx["summary"].get("PARTIAL", 0) > 0 and mx["summary"].get("ROADMAP", 0) > 0
+    # R5: Restraint contribution merged into matrix JSON + rendered on the page
+    if _grc_restraint is not None:
+        ctls = {r["control"] for r in mx["matrix"]}
+        assert {"SA-8", "CM-7", "MANAGE 2.3"} <= ctls, "restraint controls must merge into matrix"
+        assert "restraint_contribution" in mx, "matrix must carry restraint descriptor"
+        assert "Restraint contribution" in page, "page must mention restraint contribution"
+        assert "AR-006-prefer-minimal-diff" in page, "page must cite the AR-006 rule"
+        # restraint reqs merged into OSCAL implemented-requirements
+        irs = o["component-definition"]["components"][0]["control-implementations"][0]["implemented-requirements"]
+        assert any(str(ir.get("uuid", "")).startswith("ir-restraint-") for ir in irs), "restraint OSCAL reqs must merge"
+        # honest framing on restraint rows: ALIGNS WITH, never certified
+        assert mx["restraint_contribution"]["framing"].startswith("aligns with")
     # 0 CDN: page must only reference /static/shared and same-origin
     import re
     ext = re.findall(r'src="(https?://[^"]+)"', page)

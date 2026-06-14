@@ -74,6 +74,17 @@ try:
 except Exception:  # pragma: no cover
     _cal = None
 
+# a11oy Restraint (R1) — the governed frugality ladder (provenance + citations in
+# szl_restraint / /api/a11oy/v1/restraint/info). Imported
+# import-SAFE (never raises): when a code-shaped action is proposed, the Auto-Review
+# classifier consults the restraint ladder as an ADDITIONAL governance signal, so a
+# bloated diff that skipped the ladder is flagged/narrowed. We READ szl_restraint
+# only (descend_ladder); we never mutate it (R1 owns that module).
+try:
+    import szl_restraint as _restraint
+except Exception:  # pragma: no cover
+    _restraint = None
+
 # ---------------------------------------------------------------------------
 # Doctrine constants (single source for this module).
 # ---------------------------------------------------------------------------
@@ -136,7 +147,7 @@ def _init_db() -> None:
 # OPA is CNCF-graduated; Rego is its policy language (github.com/open-policy-agent).
 # OSCAL = NIST machine-readable controls (github.com/usnistgov/OSCAL).
 # ===========================================================================
-POLICY_VERSION = "szl-autoreview-policy/1.0.0"
+POLICY_VERSION = "szl-autoreview-policy/1.1.0"  # 1.1.0: + AR-006 restraint prefer-minimal-diff (R5)
 
 # Each rule: id, human title, the boundary it guards, the default verdict it
 # proposes when it FIRES, the OSCAL control id(s), and the NIST AI RMF MANAGE
@@ -201,6 +212,31 @@ POLICY_RULES = [
                    "decision is escalated to a human-on-loop with the signed "
                    "classifier + CBF-QP + BFT decision-support bundle. No live effector.",
     },
+    {
+        # R5 — RESTRAINT as a governance signal. Fires only on a CODE-shaped action
+        # (the agent proposing a diff) when the a11oy Restraint ladder (R1) reports
+        # the proposed code is BLOATED relative to where the frugality ladder would
+        # have stopped — i.e. the agent skipped YAGNI/stdlib/native/one-line and is
+        # about to emit far more code than the task needs. The verdict is NARROW:
+        # send the diff back through the restraint ladder (minimal viable diff)
+        # rather than landing the bloat. INTENT-RELATIVE: a task that genuinely
+        # asks for the larger construct does not trip it (see restraint_signal()).
+        "id": "AR-006-prefer-minimal-diff",
+        "title": "Bloated diff that skipped the restraint ladder — prefer minimal diff",
+        # matched against the action text only to confirm it is code-shaped; the
+        # real decision comes from the restraint ladder signal (computed below).
+        "pattern": r"(diff|patch|\+\+\+ |--- |def |class |function |import |require\(|<component|new file|write_file|apply_patch|edit_file)",
+        "intent_pattern": r"(framework|extensib|plugin|generic|scalbl|abstraction layer|for later|future-proof|just in case|enterprise)",
+        "verdict": "narrow",
+        "oscal": ["SA-8", "SA-15", "CM-7"],   # security engineering principles, dev process/least functionality
+        "nist": "MANAGE 2.3",                   # manage residual risk; minimise attack/maintenance surface
+        "explain": "The proposed diff is larger than the a11oy Restraint ladder "
+                   "(R1) would emit for this task — it appears to have skipped "
+                   "YAGNI / stdlib / native / one-line rungs. Narrowed: re-run the "
+                   "diff through the restraint ladder and land the minimal viable "
+                   "diff (fewest files, smallest surface). Aligns with secure-by-"
+                   "design least-functionality; not a certification.",
+    },
 ]
 
 # Rego source text — the auditable, versioned policy. This is rendered verbatim
@@ -243,6 +279,16 @@ verdict := "narrow" {
 verdict := "escalate" {
     action_matches(input.action, "engage|weapon|intercept|kinetic|roe|fire control")
 }  # OSCAL AC-3, AU-10 ; NIST AI RMF MANAGE 4.3
+
+# AR-006  RESTRAINT governance signal: a code diff that skipped the a11oy
+# Restraint ladder (R1) and is bloated relative to its minimal rung -> narrow
+# (re-run through the ladder; land the minimal viable diff). The restraint rung
+# + lines-saved come from szl_restraint.descend_ladder (input.restraint.*).
+verdict := "narrow" {
+    input.restraint.code_shaped == true
+    input.restraint.bloated == true
+    not intent_justifies(input.intent, "framework|extensib|plugin|generic|abstraction|for later|future-proof")
+}  # OSCAL SA-8, SA-15, CM-7 ; NIST AI RMF MANAGE 2.3
 
 # Lambda gate: the verdict is advisory under Conjecture 1 — never asserted 100% safe.
 allow_auto { input.dial >= autonomy_threshold[verdict]; lambda_ok }
@@ -394,6 +440,107 @@ def _lambda_effective(verdict: str, fired_rules: list, intent_just: bool) -> flo
     return round(min(LAMBDA_CEIL, lam), 4)
 
 
+# ---------------------------------------------------------------------------
+# R5 — RESTRAINT GOVERNANCE SIGNAL.
+# When the agent proposes CODE (a diff), the Auto-Review classifier consults the
+# a11oy Restraint ladder (R1, szl_restraint.descend_ladder) as an ADDITIONAL
+# governance signal. We compare the size of the PROPOSED diff against where the
+# frugality ladder would have stopped. If the proposed diff is materially larger
+# than the ladder's minimal-viable diff (i.e. it skipped YAGNI/stdlib/native/
+# one-line rungs), we mark it `bloated` so AR-006 narrows it. Deterministic +
+# HEURISTIC; READ-ONLY against szl_restraint (R1 owns that module). Never raises.
+# ---------------------------------------------------------------------------
+_CODE_SHAPE_RE = re.compile(
+    r"(?:^|\n)\s*(?:\+\+\+ |--- |@@ |def |class |function |const |let |var |"
+    r"import |from .+ import|require\(|<[A-Za-z][\w-]*[ />]|=>|public |private )"
+    r"|\b(?:diff|patch|new file|write_file|apply_patch|edit_file|create file)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_code(action_text: str) -> bool:
+    """True when the action text looks like a code diff / file write the agent is
+    about to emit (not a read/grep/shell side-effect). Deterministic HEURISTIC."""
+    if not action_text:
+        return False
+    if _CODE_SHAPE_RE.search(action_text):
+        return True
+    # multi-line block that is mostly indented (diff/source body)
+    lines = action_text.splitlines()
+    if len(lines) >= 4 and sum(1 for ln in lines if ln[:1] in (" ", "\t", "+", "-")) >= 3:
+        return True
+    return False
+
+
+def restraint_signal(intent: str, tool: str, tool_input: str) -> dict:
+    """Compute the Restraint governance signal for a proposed action. Returns a
+    small, JSON-safe dict that is surfaced in the verdict trace + sealed into the
+    signed receipt, and whose `bloated` flag gates AR-006. ADDITIVE + READ-ONLY:
+    consults szl_restraint.descend_ladder (R1); never mutates it; never raises."""
+    action_text = ("%s %s" % (tool or "", tool_input or "")).strip()
+    code_shaped = _looks_like_code(action_text) or _looks_like_code(intent or "")
+    sig = {
+        "code_shaped": bool(code_shaped),
+        "available": _restraint is not None,
+        "bloated": False,
+        "label": "HEURISTIC",
+        "note": "Restraint signal is advisory (HEURISTIC); the a11oy Restraint "
+                "ladder (R1) is governed + measured on our stack. See "
+                "/api/a11oy/v1/restraint/info for full provenance + citations.",
+    }
+    if not code_shaped or _restraint is None:
+        if not code_shaped:
+            sig["note"] = "Action is not code-shaped; restraint ladder not consulted."
+        elif _restraint is None:
+            sig["note"] = "a11oy Restraint (R1) not importable here; signal unavailable."
+        return sig
+    try:
+        task = (intent or tool_input or "").strip() or action_text
+        dec = _restraint.descend_ladder(task, intensity="full")
+        rung = int(dec.get("stopped_at_rung", 6))
+        saved = ((dec.get("lines_saved_estimate") or {}).get("lines_saved_modeled") or 0)
+        baseline = ((dec.get("lines_saved_estimate") or {}).get("baseline_loc_modeled") or 0)
+        # Proposed-diff size proxy: count substantive (non-blank) lines in the
+        # action text the agent is about to emit.
+        proposed_loc = sum(1 for ln in (tool_input or "").splitlines() if ln.strip())
+        # BLOATED when the ladder would stop EARLY (rung <= 4: YAGNI/stdlib/native/
+        # installed/one-line all avoid bespoke code) AND the agent is proposing a
+        # diff materially larger than the ladder's minimal-viable kept LOC. If we
+        # cannot measure the proposed diff (proposed_loc==0, e.g. a one-line tool
+        # input), fall back to the ladder verdict alone for low rungs.
+        kept = ((dec.get("lines_saved_estimate") or {}).get("restraint_loc_modeled") or 0)
+        if proposed_loc > 0:
+            # The ladder stops EARLY (rungs 1-5: YAGNI / stdlib / native / installed
+            # dep / one-line all avoid bespoke multi-line code). If the agent is
+            # proposing materially more than the ladder's minimal kept LOC, it is
+            # bloated. rungs 1/2/5 (skip-it / stdlib / one-line) have the tightest
+            # ceiling; rungs 3/4 (native / installed dep) allow a little glue code.
+            if rung in (1, 2, 5):
+                bloated = proposed_loc > max(6, kept + 4)
+            elif rung in (3, 4):
+                bloated = proposed_loc > max(10, kept * 2)
+            else:  # rung 6 minimal-viable: only bloated if far above the model
+                bloated = proposed_loc > max(18, kept * 2)
+        else:
+            bloated = rung <= 3  # ladder says a low rung would have sufficed
+        sig.update({
+            "bloated": bool(bloated),
+            "rung": rung,
+            "rung_key": dec.get("rung_key"),
+            "rung_name": dec.get("rung_name"),
+            "restraint_comment": dec.get("restraint_comment"),
+            "lines_saved_modeled": saved,
+            "baseline_loc_modeled": baseline,
+            "restraint_loc_modeled": kept,
+            "proposed_loc_observed": proposed_loc,
+            "ceiling": dec.get("ceiling"),
+            "endpoint": "/api/a11oy/v1/restraint/evaluate",
+        })
+    except Exception as e:  # never let the restraint signal break a verdict
+        sig["note"] = "restraint ladder raised %s; signal advisory-unavailable" % type(e).__name__
+    return sig
+
+
 class _AutoReviewEngine:
     def __init__(self, sign_fn=None, verify_fn=None, pub_pem_fn=None, ns="a11oy"):
         self.sign_fn = sign_fn
@@ -482,6 +629,8 @@ class _AutoReviewEngine:
                   run_id=None, seq=None, persist=True, calibrate_only=False):
         action_text = ("%s %s" % (tool or "", tool_input or "")).strip()
         ws = _workspace_inspect(tool_input or "", workspace)
+        # R5 — RESTRAINT governance signal (advisory; gates AR-006). Read-only.
+        rsig = restraint_signal(intent, tool, tool_input)
         fired = []
         # evaluate rules in priority order; the most severe fired verdict wins.
         severity = {"allow": 0, "narrow": 1, "block-with-explanation": 2, "escalate": 3}
@@ -494,6 +643,12 @@ class _AutoReviewEngine:
             except re.error:
                 m = None
             if not m:
+                continue
+            # R5 — AR-006 (prefer-minimal-diff) is RESTRAINT-driven: a code-shaped
+            # match alone is NOT enough; it fires only when the restraint ladder
+            # (R1) reports the proposed diff is BLOATED relative to its minimal rung.
+            if rule["id"] == "AR-006-prefer-minimal-diff" and not (
+                    rsig.get("code_shaped") and rsig.get("bloated")):
                 continue
             # INTENT-RELATIVE: if the user's intent justifies this boundary,
             # the rule does NOT fire (e.g. user explicitly asked to deploy).
@@ -554,6 +709,10 @@ class _AutoReviewEngine:
             "conformal": cset,
             "policy_version": POLICY_VERSION,
             "rego_sha256": REGO_SHA256,
+            # R5 — RESTRAINT as a governance signal in the verdict trace. The rung
+            # is the a11oy Restraint ladder's stopping point for this action (R1).
+            "restraint": rsig,
+            "restraint_rung": rsig.get("rung"),
             "label": "HEURISTIC",   # deterministic rule+feature scorer, not a learned model
             "_probs": probs,
             "_idx": idx,
@@ -582,6 +741,16 @@ class _AutoReviewEngine:
                          "rego_sha256")}
         receipt_core["module"] = MODULE
         receipt_core["trust_status"] = "Conjecture 1 (advisory — NOT a proven oracle)"
+        # R5 — seal the RESTRAINT signal (rung + bloated flag) INTO the signed
+        # verdict so the restraint rung is tamper-evident + replayable.
+        receipt_core["restraint"] = {
+            "code_shaped": rsig.get("code_shaped"),
+            "bloated": rsig.get("bloated"),
+            "rung": rsig.get("rung"),
+            "rung_key": rsig.get("rung_key"),
+            "lines_saved_modeled": rsig.get("lines_saved_modeled"),
+            "label": rsig.get("label"),
+        }
         dec_hash = _sha(receipt_core)
         envelope = None
         if self.sign_fn is not None and not calibrate_only:
@@ -797,10 +966,25 @@ def register(app, ns="a11oy", sign_fn=None, verify_fn=None, pub_pem_fn=None,
         actions = d.get("actions")  # optional explicit [{tool,tool_input}]
         workspace = d.get("workspace")
         if not actions:
-            # default demo plan derived from the intent (one safe, one risky)
+            # default demo plan derived from the intent (one safe, one risky, and
+            # one R5 RESTRAINT case: a bloated diff that skipped the ladder for a
+            # task the stdlib already solves -> AR-006 narrows it to a minimal diff)
             actions = [
                 {"tool": "read", "tool_input": "README.md"},
                 {"tool": "shell", "tool_input": "cat .env api_key token"},
+                {"tool": "write_file",
+                 "tool_input": ("# format the current date as ISO 8601\n"
+                                "class DateFormatter:\n"
+                                "    def __init__(self, sep='-', upper=False):\n"
+                                "        self.sep = sep\n"
+                                "        self.upper = upper\n"
+                                "    def _pad(self, n):\n"
+                                "        s = str(n)\n"
+                                "        return s if len(s) >= 2 else '0' + s\n"
+                                "    def format(self, y, m, d):\n"
+                                "        parts = [self._pad(y), self._pad(m), self._pad(d)]\n"
+                                "        out = self.sep.join(parts)\n"
+                                "        return out.upper() if self.upper else out\n")},
             ]
         trace = []
         for i, a in enumerate(actions):
@@ -819,7 +1003,10 @@ def register(app, ns="a11oy", sign_fn=None, verify_fn=None, pub_pem_fn=None,
                     "signed": bool((verdict.get("receipt") or {}).get("envelope", {}) and
                                    (verdict["receipt"]["envelope"] or {}).get("signed")),
                     "self_correct_hint": verdict.get("self_correct_hint"),
-                    "conformal_set": (verdict.get("conformal") or {}).get("set")}
+                    "conformal_set": (verdict.get("conformal") or {}).get("set"),
+                    # R5 — show the restraint rung in the verdict trace
+                    "restraint": verdict.get("restraint"),
+                    "restraint_rung": verdict.get("restraint_rung")}
             if verdict["verdict"] == "allow":
                 step["action"] = "EXECUTED (simulated tool call)"
             elif verdict["verdict"] == "narrow":
@@ -902,7 +1089,13 @@ def register(app, ns="a11oy", sign_fn=None, verify_fn=None, pub_pem_fn=None,
                            "Lambda-gate (Conjecture 1)", "DSSE-signed verdicts",
                            "OPA/Rego + OSCAL + NIST AI RMF MANAGE",
                            "conformal calibration (Dev B)", "ECE/Brier gate (Dev B)",
-                           "flapping detection"],
+                           "flapping detection",
+                           "restraint governance signal (AR-006 prefer-minimal-diff)"],
+            "restraint_signal": {"available": _restraint is not None,
+                                 "rule": "AR-006-prefer-minimal-diff",
+                                 "reads": "szl_restraint.descend_ladder (R1)",
+                                 "oscal": ["SA-8", "SA-15", "CM-7"],
+                                 "nist_ai_rmf": "MANAGE 2.3"},
             "label": "EXPERIMENTAL"})
 
     # ---- serve the Auto-Review tab page (0 CDN; in-image, no shared bytes) ----

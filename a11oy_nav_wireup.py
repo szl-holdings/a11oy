@@ -49,6 +49,10 @@ _SURFACES = [
     ("/agent-loop",   "\u21BB", "Agent Loop"),                     # ↻
     ("/energy",       "\u26A1", "Energy / Sovereign Compute"),     # ⚡
     ("/governance",   "\u2696", "Governance / Eval / Calibration"),  # ⚖
+    # R5: a11oy Restraint (governed code-minimization / dependency-frugality
+    # ladder) + its two-arm benchmark. Honest labels; no codenames.
+    ("/restraint",       "\u27C2", "Restraint (Governed Frugality)"),  # ⟂ (perp)
+    ("/restraint-bench", "\u2696", "Restraint Benchmark"),            # ⚖
 ]
 
 # Idempotency marker for the nav-group injection.
@@ -88,7 +92,7 @@ _REL_MARKER = b'data-related-surfaces="qa10"'
 # on (so we can drop the current page from its own strip).
 _FLAGSHIP_PATHS = {
     "/nemo", "/autoreview", "/factory", "/constitution",
-    "/energy", "/agent-loop", "/quant", "/grc",
+    "/energy", "/agent-loop", "/quant", "/grc", "/restraint",  # R5
 }
 
 
@@ -105,6 +109,7 @@ def _build_related_strip(current_path: str) -> bytes:
         ("/agent-loop", "Agent Loop"),
         ("/quant", "Quant"),
         ("/grc", "GRC"),
+        ("/restraint", "Restraint"),  # R5: flagship cluster cross-link
     ]
     for path, label in rel:
         if path == current_path:
@@ -183,11 +188,58 @@ def _make_injector():
     return _NavWireupInjector
 
 
+# R5: where the console web assets live (matches serve.py _PTG_WEB).
+_WEB_DIR = "/app/web"
+_RESTRAINT_HTML = "restraint.html"
+
+
+def _register_restraint_bench(app) -> List[str]:
+    """R5: register a REAL /restraint-bench route. Previously /restraint-bench only
+    fell through to the SPA catch-all; this serves the Restraint page (which hosts
+    the two-arm benchmark section, id="bench") directly via FileResponse so the nav
+    item resolves to a real 200 document. ADDITIVE + idempotent: if the route is
+    already present (re-run / another lane) we do NOT add a duplicate."""
+    out: List[str] = []
+    try:
+        existing = {getattr(r, "path", None) for r in getattr(app, "routes", [])}
+        if "/restraint-bench" in existing:
+            return ["/restraint-bench already registered (skipped)"]
+    except Exception:
+        pass
+    import os
+    from starlette.responses import FileResponse, RedirectResponse
+
+    async def _restraint_bench(request):
+        # Serve the Restraint page (it carries the live two-arm benchmark UI). If
+        # the asset is missing for any reason, redirect to /restraint rather than
+        # 404 — never breaks the nav link.
+        fp = os.path.join(_WEB_DIR, _RESTRAINT_HTML)
+        if os.path.isfile(fp):
+            return FileResponse(fp, media_type="text/html")
+        return RedirectResponse(url="/restraint")
+
+    # Insert at position 0 so it resolves BEFORE the SPA/proxy catch-all.
+    try:
+        from starlette.routing import Route
+        app.router.routes.insert(0, Route("/restraint-bench", _restraint_bench, methods=["GET"]))
+        out.append("GET /restraint-bench (FileResponse restraint.html)")
+    except Exception:
+        # Fallback to the standard registration path.
+        app.add_api_route("/restraint-bench", _restraint_bench, methods=["GET"])
+        out.append("GET /restraint-bench (api_route)")
+    return out
+
+
 def register(app, ns: str = "a11oy") -> Dict[str, Any]:
-    """Attach the idempotent nav-wireup injector. ADDITIVE; registers NO routes
-    (every target surface already has a live route) — it only injects honest nav
-    markup into HTML responses. try/except-guarded by the caller."""
+    """Attach the idempotent nav-wireup injector + register the real /restraint-bench
+    route (R5). ADDITIVE; the injector only injects honest nav markup into HTML
+    responses and removes nothing. try/except-guarded by the caller."""
     registered: List[str] = []
+    # R5: ensure /restraint-bench resolves to a real document (was SPA fallback).
+    try:
+        registered.extend(_register_restraint_bench(app))
+    except Exception:
+        pass
     app.add_middleware(_make_injector())
     registered.append("MIDDLEWARE nav-wireup injector (QA10)")
     return {
@@ -219,6 +271,7 @@ if __name__ == "__main__":
         '</aside><main>x</main></body></html>'
     )
     SAMPLE_NEMO = '<html><body><h1>SZL-Nemo</h1></body></html>'
+    SAMPLE_RESTRAINT = '<html><body><h1>Restraint</h1><div id="bench"></div></body></html>'
 
     async def _console(req):
         return HTMLResponse(SAMPLE_CONSOLE)
@@ -226,9 +279,28 @@ if __name__ == "__main__":
     async def _nemo(req):
         return HTMLResponse(SAMPLE_NEMO)
 
-    app = Starlette(routes=[Route("/console", _console), Route("/nemo", _nemo)])
-    register(app, ns="a11oy")
+    async def _restraint(req):
+        return HTMLResponse(SAMPLE_RESTRAINT)
+
+    app = Starlette(routes=[Route("/console", _console), Route("/nemo", _nemo),
+                            Route("/restraint", _restraint)])
+    # R5: /restraint-bench route registration must be idempotent. Exercise the
+    # route-registration helper directly twice BEFORE the app starts (add_middleware
+    # cannot run after start), so we can assert no duplicate route is added.
+    rb_first = _register_restraint_bench(app)
+    assert any("/restraint-bench" in r for r in rb_first), rb_first
+    rb_second = _register_restraint_bench(app)
+    assert any("already registered" in r for r in rb_second), rb_second
+    bench_routes = [r for r in app.router.routes if getattr(r, "path", None) == "/restraint-bench"]
+    assert len(bench_routes) == 1, "/restraint-bench must be registered exactly once"
+    # now attach the injector (register() also calls _register_restraint_bench, which
+    # will no-op since the route now exists).
+    st = register(app, ns="a11oy")
+    assert any("already registered" in r for r in st["registered"]), st["registered"]
     c = TestClient(app)
+    # R5: /restraint-bench resolves (FileResponse missing in test -> redirect to /restraint)
+    rb = c.get("/restraint-bench")
+    assert rb.status_code == 200 and "Restraint" in rb.text, (rb.status_code, rb.text[:120])
 
     h1 = c.get("/console").text
     h2 = c.get("/console").text  # second hit must be byte-identical (idempotent)
@@ -249,6 +321,14 @@ if __name__ == "__main__":
     assert n1.count('data-related-surfaces="qa10"') == 1, "related strip must inject once"
     assert n2.count('data-related-surfaces="qa10"') == 1, "related strip must be idempotent"
     assert "SZL-Nemo" in n1 and "/autoreview" in n1, "related strip must cross-link surfaces"
+    assert "/restraint" in n1, "related strip must cross-link Restraint (R5 flagship cluster)"
+    # R5: Restraint appears in the console nav group + the /restraint page gets the strip
+    assert "location.href='/restraint'" in h1, "nav must link /restraint"
+    assert "location.href='/restraint-bench'" in h1, "nav must link /restraint-bench"
+    r1 = c.get("/restraint").text
+    assert r1.count('data-related-surfaces="qa10"') == 1, "/restraint is a flagship -> gets cross-link strip"
+    assert "/restraint" not in r1.split('data-related-surfaces="qa10"')[1].split("</nav>")[0], \
+        "strip must omit current page (/restraint)"
     assert "/nemo" not in n1.split('data-related-surfaces="qa10"')[1].split("</nav>")[0], \
         "related strip must omit the current page (/nemo)"
     assert n1 == n2, "second nemo render must be byte-identical"
