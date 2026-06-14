@@ -196,6 +196,115 @@ def _tau():
 
 
 # ---------------------------------------------------------------------------
+# a11oy RESTRAINT integration (R1 owns a11oy_restraint.py — the governed,
+# Ponytail-derived 6-rung code-frugality ladder: YAGNI → stdlib → native →
+# installed-deps → one-liner → minimal; lite/full/ultra; `restraint:` ceilings;
+# signed DSSE receipt per decision; Λ-scored). Ponytail is MIT
+# (github.com/DietrichGebert/ponytail) — adopted + governed, never bulk-copied.
+#
+# We integrate WITHOUT touching R1's module: (1) try to import a11oy_restraint
+# and call evaluate() in-process (preferred — one signer, no extra hop); (2) if
+# it is not importable yet, POST the intended diff to the live restraint
+# /evaluate endpoint over HTTP (the documented integration point); (3) if BOTH
+# are unavailable (R1 still in flight / 404), degrade HONESTLY with a PENDING
+# label — we NEVER fabricate a rung, a lines-saved number, or a signature.
+# ---------------------------------------------------------------------------
+_RESTRAINT_HTTP = os.environ.get(
+    "A11OY_RESTRAINT_URL",
+    "http://127.0.0.1:7860/api/a11oy/v1/restraint/evaluate")
+_PONYTAIL = {"repo": "https://github.com/DietrichGebert/ponytail",
+             "license": "MIT", "relation": "adopted + governed (R1: a11oy_restraint.py)"}
+
+
+def _restraint_mod():
+    """R1's a11oy_restraint module if importable in-process (preferred path)."""
+    return _try_import("a11oy_restraint")
+
+
+def _restraint_evaluate(task: str, intensity: str = "full", lang: str | None = None,
+                        sign_fn=None):
+    """Route an intended code diff through R1's restraint ladder. Returns the
+    restraint decision dict (rung + ceilings + lines-saved + Λ + signed receipt)
+    or an honest PENDING degrade. NEVER fabricates a rung/number/signature."""
+    task = (task or "").strip()
+    # (1) in-process import — preferred (uses the SAME host signer, no extra hop).
+    mod = _restraint_mod()
+    if mod is not None and hasattr(mod, "evaluate"):
+        try:
+            dec = mod.evaluate(task, intensity=intensity, lang=lang, sign_fn=sign_fn)
+            if isinstance(dec, dict):
+                dec.setdefault("integration", "in-process import (a11oy_restraint.evaluate)")
+                dec.setdefault("status", "LIVE")
+                return dec
+        except Exception as e:
+            pass
+    # (2) HTTP loopback to the documented /evaluate endpoint (R1's API surface).
+    try:
+        import urllib.request
+        body = json.dumps({"task": task, "intensity": intensity,
+                           "lang": lang}).encode("utf-8")
+        req = urllib.request.Request(_RESTRAINT_HTTP, data=body, method="POST",
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            if resp.status == 200:
+                dec = json.loads(resp.read().decode("utf-8"))
+                if isinstance(dec, dict) and dec.get("stopped_at_rung"):
+                    dec.setdefault("integration", "HTTP /api/a11oy/v1/restraint/evaluate")
+                    dec.setdefault("status", "LIVE")
+                    return dec
+    except Exception:
+        pass
+    # (3) honest PENDING degrade — R1's restraint not present yet (no fabrication).
+    return {
+        "status": "PENDING",
+        "label": "PENDING",
+        "stopped_at_rung": None,
+        "rung_key": None,
+        "rung_name": None,
+        "ceiling": None,
+        "restraint_comment": None,
+        "lines_saved_estimate": {"lines_saved_modeled": None, "label": "PENDING"},
+        "lambda_score": {"lambda": None},
+        "signed_receipt": {"signed": False,
+                           "honesty": "restraint /evaluate not reachable (R1 in flight); "
+                                      "no rung/number/signature fabricated."},
+        "provenance": _PONYTAIL,
+        "integration": "PENDING — a11oy_restraint not importable AND /evaluate 404/unreachable",
+        "honesty": ("a11oy Restraint (R1) is not yet wired in this image. The code "
+                    "path is gated and labelled PENDING — when R1's module/endpoint "
+                    "goes live the rung + signed receipt populate automatically."),
+    }
+
+
+def _restraint_summary(dec: dict):
+    """Compact, UI-friendly + receipt-friendly view of a restraint decision.
+    Pulls only honest fields; PENDING stays PENDING."""
+    if not isinstance(dec, dict):
+        return {"status": "PENDING", "applied": False}
+    lse = dec.get("lines_saved_estimate") or {}
+    lam = dec.get("lambda_score") or {}
+    rcpt = dec.get("signed_receipt") or {}
+    signed = bool(rcpt.get("signed")) or bool(rcpt.get("signatures"))
+    return {
+        "applied": dec.get("status") == "LIVE",
+        "status": dec.get("status", "PENDING"),
+        "stopped_at_rung": dec.get("stopped_at_rung"),
+        "rung_key": dec.get("rung_key"),
+        "rung_name": dec.get("rung_name"),
+        "ceiling": dec.get("ceiling"),
+        "restraint_comment": dec.get("restraint_comment"),
+        "lines_saved_estimate": lse.get("lines_saved_modeled"),
+        "lines_saved_label": lse.get("label", dec.get("label", "PENDING")),
+        "lambda_advisory": lam.get("lambda"),
+        "restraint_receipt": rcpt,
+        "restraint_signed": signed,
+        "integration": dec.get("integration"),
+        "provenance": dec.get("provenance", _PONYTAIL),
+        "honesty": dec.get("honesty"),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Λ governance — geometric-mean aggregate, matching szl_brain.lambda_aggregate.
 # ---------------------------------------------------------------------------
 def _lambda_aggregate(axis):
@@ -481,6 +590,59 @@ def infer(query: str, top_k: int = 2, sign_fn=None):
         "tiers": tiers_view(),
         "ts_utc": datetime.now(timezone.utc).isoformat(),
     }
+    # If the routed primary expert is CODE, this turn is on the code-emission
+    # path: gate the intended diff through R1's restraint ladder and attach the
+    # chosen rung + signed restraint receipt (honest PENDING if R1 not live yet).
+    if (primary or {}).get("expert_id") == "code":
+        rdec = _restraint_evaluate(query, intensity="full", lang=None, sign_fn=sign_fn)
+        plan["restraint"] = _restraint_summary(rdec)
+    plan["receipt"] = _sign(plan, sign_fn)
+    return plan
+
+
+# ---------------------------------------------------------------------------
+# CODE EMISSION PATH — before SZL-Nemo emits ANY code in a response, the
+# intended diff is routed through R1's restraint ladder FIRST. The chosen rung +
+# `restraint:` ceilings + lines-saved estimate are attached to the Nemo response,
+# and the restraint signed receipt is nested INSIDE the Nemo response receipt so
+# the whole code decision is tamper-evident. ADDITIVE — never fabricates code,
+# a rung, a number, or a signature; honest PENDING when restraint is not live.
+# ---------------------------------------------------------------------------
+def nemo_code(query: str, intent: str | None = None, intensity: str = "full",
+              lang: str | None = None, sign_fn=None):
+    """A governed code-emission turn. `intent` is the natural-language description
+    of the diff SZL-Nemo is about to write (defaults to the query). We route it
+    through restraint BEFORE emitting, surface the rung + ceilings + lines-saved,
+    and sign the combined decision. SZL-Nemo does NOT run the open base in-image
+    (generation is the sovereign-local/cloud tier, ROADMAP/cloud) — this returns
+    the GOVERNED, restraint-gated code PLAN + a signed receipt, honestly labelled."""
+    task = (intent or query or "").strip()
+    route = govern_route(query, top_k=2, sign_fn=None)
+    rdec = _restraint_evaluate(task, intensity=intensity, lang=lang, sign_fn=sign_fn)
+    summary = _restraint_summary(rdec)
+    plan = {
+        "schema": "szl.nemo.code_plan/v1",
+        "model": NEMO_NAME, "base": NEMO_BASE["default_base"],
+        "honest_framing": NEMO_BASE["honest_framing"],
+        "query": query,
+        "intended_diff": task,
+        "routed_experts": route["experts_selected"],
+        "is_code_path": True,
+        "restraint_required_before_emit": True,
+        "restraint": summary,
+        "overall_lambda_advisory": route["overall_lambda_advisory"],
+        "skeleton_note": (
+            "GOVERNED CODE PLAN — the intended diff is routed through a11oy "
+            "Restraint (R1) BEFORE any code is emitted. SZL-Nemo does NOT run the "
+            "open base in-image; generation happens on the sovereign-local 2-GPU "
+            "tier (ROADMAP→Forge) or cloud-NIM tier. No code is fabricated here."),
+        "ponytail": _PONYTAIL,
+        "doctrine": DOCTRINE,
+        "ts_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    # Nest the restraint signed receipt INSIDE the Nemo response receipt so the
+    # whole code decision (route + restraint) is one tamper-evident object.
+    plan["restraint_receipt"] = summary.get("restraint_receipt")
     plan["receipt"] = _sign(plan, sign_fn)
     return plan
 
@@ -761,6 +923,7 @@ def model_card():
             "voyager": "https://arxiv.org/abs/2305.16291",
             "tau_bench": "https://arxiv.org/abs/2406.12045",
             "routellm": "https://github.com/lm-sys/RouteLLM",
+            "ponytail_restraint": _PONYTAIL["repo"],
             "active_flux_crossover": "https://doi.org/10.1109/APEC.2001.911711",
             "nemotron_nim": "https://build.nvidia.com",
         },
@@ -816,6 +979,20 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         top_k = int(d.get("top_k", 2))
         return JSONResponse(infer(q, top_k=top_k, sign_fn=sign_fn))
 
+    async def _code_ep(request):
+        if request.method == "POST":
+            d = await _read_json(request)
+        else:
+            d = dict(request.query_params)
+        q = (d.get("query") or d.get("goal") or d.get("q") or "").strip()
+        if not q:
+            return JSONResponse({"error": "missing 'query'"}, status_code=400)
+        intent = (d.get("intent") or d.get("diff") or "").strip() or None
+        intensity = (d.get("intensity") or "full").strip()
+        lang = d.get("lang")
+        return JSONResponse(nemo_code(q, intent=intent, intensity=intensity,
+                                      lang=lang, sign_fn=sign_fn))
+
     async def _selfimprove_ep(request):
         d = await _read_json(request) if request.method == "POST" else dict(request.query_params)
         refl = (d.get("reflection") or "").strip() or None
@@ -847,6 +1024,14 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
                 "energy_sovereign_devC": _energy() is not None,
                 "tau_bench_devB": _tau() is not None,
                 "brain": _brain() is not None,
+                "restraint_R1": _restraint_mod() is not None,
+            },
+            "restraint": {
+                "module_importable": _restraint_mod() is not None,
+                "http_endpoint": _RESTRAINT_HTTP,
+                "integration": ("in-process import preferred, HTTP /evaluate "
+                                "fallback, honest PENDING if R1 not live"),
+                "ponytail": _PONYTAIL,
             },
             "experts": [e["id"] for e in NEMO_EXPERTS],
             "doctrine": DOCTRINE,
@@ -861,6 +1046,7 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         (base + "/route", _route_ep, ["GET", "POST"]),
         (base + "/experts", _experts_ep, ["GET"]),
         (base + "/infer", _infer_ep, ["GET", "POST"]),
+        (base + "/code", _code_ep, ["GET", "POST"]),
         (base + "/selfimprove", _selfimprove_ep, ["GET", "POST"]),
         (base + "/selfimprove/history", _selfimprove_hist_ep, ["GET"]),
         (base + "/card", _card_ep, ["GET"]),
@@ -871,6 +1057,7 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
         (alt + "/route", _route_ep, ["GET", "POST"]),
         (alt + "/experts", _experts_ep, ["GET"]),
         (alt + "/infer", _infer_ep, ["GET", "POST"]),
+        (alt + "/code", _code_ep, ["GET", "POST"]),
         (alt + "/selfimprove", _selfimprove_ep, ["GET", "POST"]),
         (alt + "/selfimprove/history", _selfimprove_hist_ep, ["GET"]),
         (alt + "/card", _card_ep, ["GET"]),

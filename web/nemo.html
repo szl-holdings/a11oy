@@ -165,6 +165,31 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
     </div>
   </div>
 
+  <!-- a11oy RESTRAINT (gates the CODE path before any diff is emitted) -->
+  <div class="panel">
+    <h2>a11oy Restraint <span class="meta">code-frugality ladder · gates the code path before emit · signed</span></h2>
+    <div class="desc">
+      Before SZL-Nemo emits ANY code, the intended diff is routed through the governed, Ponytail-derived
+      <b>6-rung frugality ladder</b> (YAGNI → stdlib → native → installed-deps → one-liner → minimal). The chosen rung,
+      the <code>restraint:</code> ceiling, a lines-saved estimate and a <b>signed restraint receipt</b> are attached to the
+      Nemo response. Adopted from <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener">Ponytail (MIT)</a>,
+      governed + Λ-scored here. <b>R1 owns the ladder module</b>; if it isn't live yet this reads honest <b>PENDING</b>
+      (no rung or number fabricated).
+    </div>
+    <div class="row">
+      <input type="text" id="cq" value="write me a Python function that validates email addresses"/>
+      <button class="btn" id="cgo">Ask SZL-Nemo for code →</button>
+      <span id="c_rung" class="pill dim">rung —</span>
+      <span id="c_status" class="pill dim">—</span>
+    </div>
+    <div class="kv" id="c_restraint" style="margin-top:.5rem;">— (ask SZL-Nemo for code to see the restraint verdict)</div>
+    <div style="margin-top:.6rem;">
+      <div class="meta mono" style="color:var(--dim);font-size:10px;">SIGNED RESTRAINT RECEIPT (nested in the Nemo code receipt)</div>
+      <pre class="rcpt" id="c_receipt">—</pre>
+      <div class="kv"><span class="k">verify</span><span class="v" id="c_verify">—</span></div>
+    </div>
+  </div>
+
   <!-- ============ 3D ROUTER DASHBOARD (F4 · additive · toggle enhancement; 2D pages above remain the fallback) ============ -->
   <div class="panel" id="router3d_panel">
     <h2>3D Router Dashboard <span class="meta">GPU blocks · particle token-flows · signed MoE routing pulses · live J/token</span>
@@ -447,6 +472,54 @@ async function doRoute(q){
   }
 }
 
+async function doCode(q){
+  $('c_restraint').innerHTML='<span class="muted mono">routing the intended diff through a11oy Restraint…</span>';
+  $('c_rung').textContent='rung …'; $('c_rung').className='pill dim';
+  $('c_status').textContent='…'; $('c_status').className='pill dim';
+  const d=await getJSON(A+"/code",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+  if(!d){$('c_restraint').innerHTML='<div class="muted mono">code endpoint unreachable</div>';return;}
+  const rs=d.restraint||{};
+  const status=String(rs.status||'PENDING');
+  const live=(status==='LIVE');
+  // "Restraint applied" indicator: rung + lines-saved estimate + restraint: ceiling
+  // PENDING is not in the shared canonical vocabulary (R1 owns labels); show the
+  // closest honest canonical badge (ROADMAP) + the literal PENDING word in text.
+  $('c_status').innerHTML = live ? labelPill('LIVE') : (labelPill('ROADMAP')+' <span class="pill yellow">PENDING</span>');
+  if(rs.stopped_at_rung!=null){
+    $('c_rung').textContent='rung '+rs.stopped_at_rung+' · '+(rs.rung_key||'');
+    $('c_rung').className='pill green';
+  }else{
+    $('c_rung').textContent='rung — (PENDING)'; $('c_rung').className='pill yellow';
+  }
+  const saved=(rs.lines_saved_estimate!=null)?(rs.lines_saved_estimate+' LOC ('+esc(rs.lines_saved_label||'MODELED')+')'):'— (not measured)';
+  const lam=(rs.lambda_advisory!=null)?fmt(rs.lambda_advisory,3):'—';
+  const applied = live
+    ? `<span class="pill green">Restraint applied</span>`
+    : `<span class="pill yellow">Restraint PENDING</span>`;
+  $('c_restraint').innerHTML=
+    `<div>${applied} <span class="k">rung</span> <span class="v">${rs.stopped_at_rung!=null?(rs.stopped_at_rung+' · '+esc(rs.rung_name||rs.rung_key||'')):'—'}</span></div>`+
+    `<div><span class="k">lines saved (est.)</span> <span class="v">${saved}</span></div>`+
+    `<div><span class="k">Λ advisory</span> <span class="v">${lam}</span></div>`+
+    (rs.restraint_comment?`<div><span class="k">restraint: ceiling</span> <code class="mono" style="font-size:10.5px;">${esc(rs.restraint_comment)}</code></div>`:
+      (rs.ceiling?`<div><span class="k">ceiling</span> <span class="v">${esc(rs.ceiling)}</span></div>`:''))+
+    `<div class="muted" style="font-size:10px;margin-top:.3rem;">integration: ${esc(rs.integration||'')}</div>`+
+    (rs.honesty?`<div class="muted" style="font-size:10px;">${esc(rs.honesty)}</div>`:'')+
+    `<div class="muted" style="font-size:10px;">Ponytail (MIT) — adopted + governed · R1 owns a11oy_restraint.py</div>`;
+  // signed restraint receipt (nested in the Nemo code receipt)
+  const r=d.restraint_receipt||rs.restraint_receipt||{};
+  $('c_receipt').textContent=JSON.stringify(r,null,1);
+  if(r&&r.signatures&&r.signatures.length&&window.SZLReceipts&&window.SZLReceipts.verifyEnvelope){
+    $('c_verify').textContent='verifying…';
+    try{
+      const v=await window.SZLReceipts.verifyEnvelope(r,{});
+      const ok=v&&(v.valid||v.signature_valid);
+      $('c_verify').innerHTML=ok?pill('SIGNATURE VALID','green'):pill('signed (server-verify)','blue');
+    }catch(e){$('c_verify').innerHTML=pill('signed','blue');}
+  }else{
+    $('c_verify').innerHTML=(r&&r.signed===false)?pill('UNSIGNED/PENDING','yellow')+' '+esc(r.honesty||''):pill('—','dim');
+  }
+}
+
 async function loadMTP(){
   const d=await getJSON(A+"/mtp"); if(!d){$('mtp_kv').textContent='unreachable';return;}
   $('mtp_kv').innerHTML=
@@ -542,11 +615,13 @@ async function doSelfImprove(){
 
 document.querySelectorAll('button.ghost[data-q]').forEach(b=>b.addEventListener('click',()=>{$('q').value=b.getAttribute('data-q');doRoute(b.getAttribute('data-q'));}));
 $('go').addEventListener('click',()=>doRoute($('q').value));
+$('cgo').addEventListener('click',()=>doCode($('cq').value));
 $('si_go').addEventListener('click',doSelfImprove);
 
 (async function(){
   await Promise.all([loadDiag(),loadMTP(),loadTiers(),loadTau(),loadCard()]);
   await doRoute($('q').value);
+  await doCode($('cq').value);
 })();
 </script>
 </body>

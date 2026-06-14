@@ -66,6 +66,96 @@ def _sha(obj) -> str:
     ).hexdigest()
 
 
+# ---------------------------------------------------------------------------
+# a11oy RESTRAINT integration (R1 owns a11oy_restraint.py — the governed,
+# Ponytail-derived 6-rung code-frugality ladder). When an Action node WRITES
+# CODE, we gate the intended diff through restraint FIRST and record the
+# restraint decision in that node's signed receipt. We integrate WITHOUT
+# touching R1's module: (1) try import a11oy_restraint.evaluate in-process;
+# (2) else POST the diff to the live /api/a11oy/v1/restraint/evaluate endpoint;
+# (3) else degrade HONESTLY (PENDING) — never fabricating a rung/number/signature.
+# Ponytail is MIT (github.com/DietrichGebert/ponytail) — adopted + governed.
+# ---------------------------------------------------------------------------
+_RESTRAINT_HTTP = os.environ.get(
+    "A11OY_RESTRAINT_URL",
+    "http://127.0.0.1:7860/api/a11oy/v1/restraint/evaluate")
+_PONYTAIL = {"repo": "https://github.com/DietrichGebert/ponytail",
+             "license": "MIT", "relation": "adopted + governed (R1: a11oy_restraint.py)"}
+
+
+def _restraint_mod():
+    try:
+        return __import__("a11oy_restraint")
+    except Exception:
+        return None
+
+
+def _restraint_evaluate(task: str, intensity: str = "full", lang=None, sign_fn=None):
+    """Route an intended code diff through R1's restraint ladder. Returns a
+    compact verdict (rung + ceiling + lines-saved + Λ + signed receipt) or an
+    honest PENDING degrade. NEVER fabricates a rung/number/signature."""
+    task = (task or "").strip()
+    mod = _restraint_mod()
+    dec = None
+    if mod is not None and hasattr(mod, "evaluate"):
+        try:
+            d = mod.evaluate(task, intensity=intensity, lang=lang, sign_fn=sign_fn)
+            if isinstance(d, dict):
+                d.setdefault("integration", "in-process import (a11oy_restraint.evaluate)")
+                d.setdefault("status", "LIVE")
+                dec = d
+        except Exception:
+            dec = None
+    if dec is None:
+        try:
+            import urllib.request
+            body = json.dumps({"task": task, "intensity": intensity,
+                               "lang": lang}).encode("utf-8")
+            req = urllib.request.Request(
+                _RESTRAINT_HTTP, data=body, method="POST",
+                headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                if resp.status == 200:
+                    d = json.loads(resp.read().decode("utf-8"))
+                    if isinstance(d, dict) and d.get("stopped_at_rung"):
+                        d.setdefault("integration", "HTTP /api/a11oy/v1/restraint/evaluate")
+                        d.setdefault("status", "LIVE")
+                        dec = d
+        except Exception:
+            dec = None
+    if dec is None:
+        return {
+            "status": "PENDING", "applied": False,
+            "stopped_at_rung": None, "rung_key": None, "rung_name": None,
+            "ceiling": None, "restraint_comment": None,
+            "lines_saved_estimate": None, "lines_saved_label": "PENDING",
+            "lambda_advisory": None,
+            "restraint_receipt": {"signed": False,
+                                  "honesty": "restraint /evaluate not reachable (R1 in "
+                                             "flight); no rung/number/signature fabricated."},
+            "integration": "PENDING — a11oy_restraint not importable AND /evaluate unreachable",
+            "provenance": _PONYTAIL,
+            "honesty": ("a11oy Restraint (R1) is not yet wired in this image; the code "
+                        "action is gated and labelled PENDING (no fabrication)."),
+        }
+    lse = dec.get("lines_saved_estimate") or {}
+    lam = dec.get("lambda_score") or {}
+    rcpt = dec.get("signed_receipt") or {}
+    return {
+        "status": dec.get("status", "LIVE"), "applied": True,
+        "stopped_at_rung": dec.get("stopped_at_rung"),
+        "rung_key": dec.get("rung_key"), "rung_name": dec.get("rung_name"),
+        "ceiling": dec.get("ceiling"),
+        "restraint_comment": dec.get("restraint_comment"),
+        "lines_saved_estimate": lse.get("lines_saved_modeled"),
+        "lines_saved_label": lse.get("label", "MODELED"),
+        "lambda_advisory": lam.get("lambda"),
+        "restraint_receipt": rcpt,
+        "integration": dec.get("integration"),
+        "provenance": dec.get("provenance", _PONYTAIL),
+    }
+
+
 def _conn() -> sqlite3.Connection:
     c = sqlite3.connect(_DB_PATH, timeout=30, check_same_thread=False)
     c.row_factory = sqlite3.Row
@@ -350,11 +440,25 @@ def _tool_echo(arg: str) -> str:
     return (arg or "")[:200]
 
 
+def _tool_write_code(arg: str) -> str:
+    """A code-writing tool. The actual restraint GATE runs in the ACTION node
+    (so the decision is in the signed receipt BEFORE this executes); here we just
+    acknowledge the (already restraint-governed) intended diff. We do NOT run a
+    model in-image — the production target is the a11oy code path; honest."""
+    return "intended diff prepared (restraint-gated): " + (arg or "")[:160]
+
+
+# Tools whose Action node WRITES CODE — these are gated through a11oy Restraint.
+_CODE_TOOLS = {"write_code", "code_patch", "emit_code"}
+
 _TOOLS = {
     "calc": _tool_calc,
     "memory_search": _tool_memory_search,
     "skill_search": _tool_skill_search,
     "echo": _tool_echo,
+    "write_code": _tool_write_code,
+    "code_patch": _tool_write_code,
+    "emit_code": _tool_write_code,
 }
 
 
@@ -371,6 +475,13 @@ def _plan_action(goal: str, scratch: list) -> dict:
         return {"terminal": True,
                 "thought": "I have an observation; I can answer now.",
                 "answer": "Result: %s" % last_obs.get("observation", "")}
+    # code-writing goal -> write_code (this ACTION node will be RESTRAINT-gated)
+    if re.search(r"\b(write|implement|add|build|code|function|refactor|patch|"
+                 r"endpoint|class|module|script)\b", g) and not re.search(
+                 r"\d.*[+\-*/].*\d", g):
+        return {"terminal": False, "tool": "write_code", "tool_input": goal,
+                "thought": ("This writes code; I will gate the intended diff through "
+                            "a11oy Restraint BEFORE emitting.")}
     # arithmetic goal -> calc
     if re.search(r"\d.*[+\-*/].*\d", g):
         m = re.search(r"[-0-9+\-*/(). ]{3,}", goal)
@@ -489,6 +600,15 @@ class _ReActEngine:
                 scratch.append({"node": "ACTION", "step": cur_step,
                                 "tool": tool, "tool_input": arg})
                 body = {"step": cur_step, "tool": tool, "tool_input": arg}
+                # RESTRAINT GATE: if this Action WRITES CODE, route the intended
+                # diff through a11oy Restraint (R1) BEFORE emitting, and record
+                # the restraint verdict in THIS node's signed receipt. Honest
+                # PENDING if R1's ladder is not live yet (no fabrication).
+                if tool in _CODE_TOOLS:
+                    verdict = _restraint_evaluate(arg, intensity="full",
+                                                  sign_fn=self.sign_fn)
+                    body["restraint"] = verdict
+                    scratch[-1]["restraint"] = verdict
                 prev_hash, _ = self._commit_receipt(run_id, node_seq, "ACTION",
                                                     body, prev_hash, reflection)
             else:  # OBSERVATION (execute the tool for real)
@@ -768,7 +888,14 @@ def register(app, ns: str = "a11oy", sign_fn=None, verify_fn=None,
             "pubkey_present": bool((pub_pem_fn() if pub_pem_fn else "")),
             "subsystems": ["ReAct graph (2210.03629)", "SqliteSaver checkpointing",
                            "Reflexion (2303.11366)", "Generative-Agents memory (2304.03442)",
-                           "Letta tiering (2310.08560)", "Voyager skill library (2305.16291)"],
+                           "Letta tiering (2310.08560)", "Voyager skill library (2305.16291)",
+                           "a11oy Restraint code gate (Ponytail MIT, R1)"],
+            "restraint": {"module_importable": _restraint_mod() is not None,
+                          "http_endpoint": _RESTRAINT_HTTP,
+                          "code_tools_gated": sorted(_CODE_TOOLS),
+                          "ponytail": _PONYTAIL,
+                          "note": ("Action nodes that write code are gated through "
+                                   "restraint; honest PENDING if R1 not live.")},
             "label": "EXPERIMENTAL"})
 
     base = "/api/%s/v1/agent/react" % ns

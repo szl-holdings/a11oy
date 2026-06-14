@@ -70,7 +70,7 @@
 <section class="view active" id="v-loop">
   <div class="card">
     <div class="row">
-      <input id="goal" type="text" placeholder="goal, e.g.  compute 18*23 please" value="compute 18*23 please"/>
+      <input id="goal" type="text" placeholder="goal, e.g.  implement a function that validates an email address" value="implement a function that validates an email address"/>
       <label class="sub">max_steps <input id="maxsteps" type="number" value="4" style="width:64px"/></label>
       <label class="sub"><input id="kill" type="checkbox"/> kill mid-run (crash demo)</label>
       <button id="btnRun">Run ReAct</button>
@@ -85,8 +85,9 @@
       <span id="chainState"></span>
     </div>
     <table id="traceTbl"><thead><tr>
-      <th>seq</th><th>node</th><th>body</th><th>link</th><th>signature</th><th>hash</th>
+      <th>seq</th><th>node</th><th>body</th><th>restraint</th><th>link</th><th>signature</th><th>hash</th>
     </tr></thead><tbody></tbody></table>
+    <div class="sub" style="margin-top:6px">Action nodes that <strong>write code</strong> are gated through <strong>a11oy Restraint</strong> (the Ponytail-derived 6-rung frugality ladder, <a href="https://github.com/DietrichGebert/ponytail" target="_blank" rel="noopener">Ponytail MIT</a> — adopted + governed). The chosen rung + signed restraint receipt are recorded in that node's receipt. <strong>R1 owns the ladder module</strong>; honest <strong>PENDING</strong> until it is live.</div>
   </div>
   <div class="card" id="cpCard" style="display:none">
     <strong>Checkpoints (SqliteSaver-style)</strong>
@@ -166,6 +167,23 @@ async function jget(u){const r=await fetch(u);return {status:r.status,json:await
 function esc(s){return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 
 // ---------- Agent Loop ----------
+// Restraint verdict cell for a node body. Only code-writing ACTION nodes carry
+// a `restraint` block; everything else shows a dim em-dash (honest).
+function restraintCell(body){
+  const rs = body && body.restraint;
+  if(!rs) return "<span class='mut'>—</span>";
+  const live = rs.status==="LIVE";
+  const badge = live ? L("LIVE") : (L("ROADMAP")+" <span class='lbl' style='border-color:var(--warn);color:var(--warn)'>PENDING</span>");
+  if(rs.stopped_at_rung!=null){
+    const saved = (rs.lines_saved_estimate!=null)
+      ? (" · saved≈"+rs.lines_saved_estimate+" LOC ("+esc(rs.lines_saved_label||"MODELED")+")") : "";
+    const lam = (rs.lambda_advisory!=null) ? (" · Λ "+Number(rs.lambda_advisory).toFixed(3)) : "";
+    const ceil = rs.restraint_comment ? ("<div class='mut' style='font-size:11px'><code>"+esc(rs.restraint_comment)+"</code></div>") : "";
+    return "<div><span class='ok'>rung "+rs.stopped_at_rung+"</span> "+esc(rs.rung_key||"")+" "+badge+"</div>"+
+           "<div class='mut' style='font-size:11px'>"+esc(rs.rung_name||"")+saved+lam+"</div>"+ceil;
+  }
+  return "<div>"+badge+"</div><div class='mut' style='font-size:11px'>code gated; restraint not live yet (no rung fabricated)</div>";
+}
 async function renderTrace(runId){
   const {json:tr} = await jget(API+"/trace/"+encodeURIComponent(runId));
   if(tr.error){return;}
@@ -179,7 +197,7 @@ async function renderTrace(runId){
       :(r.signed?"<span class='bad'>FAIL ✗</span>":"<span class='mut'>unsigned</span>");
     const link = r.link_ok?"<span class='ok'>✓</span>":"<span class='bad'>✗</span>";
     tb.innerHTML += `<tr><td>${r.seq}</td><td><span class="node ${r.node}">${r.node}</span></td>
-      <td><pre>${esc(JSON.stringify(r.body))}</pre></td><td>${link}</td><td>${sig}</td>
+      <td><pre>${esc(JSON.stringify(r.body))}</pre></td><td>${restraintCell(r.body)}</td><td>${link}</td><td>${sig}</td>
       <td class="hash">${esc((r.hash||"").slice(0,18))}…</td></tr>`;
   });
   if(tr.reflection){
