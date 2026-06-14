@@ -588,12 +588,12 @@ try{ if(window.SZLLabels&&SZLLabels.auditText){
     if (btn) { btn.disabled = true; }
     var verdEl = Q("ar3d-verdict");
     if (verdEl) { verdEl.textContent = "classifying…"; }
+    // NOTE: /classify treats `workspace` as an object; omit it (string 500s the endpoint).
     var body = {
       intent: (Q("ar3d-intent") || {}).value || "",
       tool: (Q("ar3d-tool") || {}).value || "",
       tool_input: (Q("ar3d-input") || {}).value || "",
-      dial: dial,
-      workspace: "demo"
+      dial: dial
     };
     return postj(BASE + "/classify", body).then(function (d) {
       var lam = (typeof d.lambda_effective === "number") ? d.lambda_effective : 0.5;
