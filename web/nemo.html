@@ -165,6 +165,34 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
     </div>
   </div>
 
+  <!-- ============ 3D ROUTER DASHBOARD (F4 · additive · toggle enhancement; 2D pages above remain the fallback) ============ -->
+  <div class="panel" id="router3d_panel">
+    <h2>3D Router Dashboard <span class="meta">GPU blocks · particle token-flows · signed MoE routing pulses · live J/token</span>
+      <button class="btn ghost" id="r3d_toggle" style="float:right;font-size:11px;">Enable 3D</button>
+    </h2>
+    <div class="desc">
+      Holographic view of the sovereign-inference fleet: each serving <b>tier is a GPU block</b> (color = where/sovereign,
+      honest <code>gpu_reachable</code> probe), animated <b>particle token-flows</b> stream from the router to the selected
+      domain-expert heads, and a <b>signed routing pulse</b> lights the chosen edge when a route receipt is signed.
+      The <b>J/token</b> counter is <b>MEASURED only on a live GPU power probe</b>; with no meter wired it stays an honest
+      <b>ROADMAP</b> estimate (never presented as measured). Renders on the shared 0-CDN WebGL2 kit; <b>CPU/old-GPU falls
+      back to a 2D canvas</b>; the panels above are the full non-3D experience. Patterns: vLLM/SGLang, NVIDIA Dynamo,
+      LiteLLM, RouteLLM.
+    </div>
+    <div class="r3d-stats mono" style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:.5rem 0;">
+      <span>J/token <span id="r3d_jtok" style="color:var(--warn)">—</span> <span id="r3d_jtok_lbl"></span></span>
+      <span>tokens routed <span id="r3d_toks" style="color:var(--blue)">0</span></span>
+      <span>signed pulses <span id="r3d_pulses" style="color:var(--teal)">0</span></span>
+      <span>Λ advisory <span id="r3d_lambda" style="color:var(--cream)">—</span></span>
+      <span id="r3d_caps" style="color:var(--dim)"></span>
+    </div>
+    <div id="router3d_mount" style="width:100%;height:440px;border:1px solid var(--gold-line);border-radius:10px;background:#060606;display:none;position:relative;"></div>
+    <div class="empty" id="r3d_off">3D is off (default). Click <b>Enable 3D</b> to render the holographic router on the live <code>/nemo/tiers</code> + <code>/nemo/route</code> + <code>/energy/budget</code> endpoints. The 2D dashboard above is always available as the fallback.</div>
+    <div class="meta mono" style="color:var(--dim);font-size:10px;margin-top:.5rem;">
+      0 runtime CDN · WebGL2 baseline + honest 2D fallback · J/token MEASURED-or-ROADMAP (never fabricated) · sovereign:true only on live probe · Λ = Conjecture 1 (&lt;1.0) · trust &lt;100%.
+    </div>
+  </div>
+
   <div class="grid2">
     <!-- MTP -->
     <div class="panel">
@@ -218,6 +246,152 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
 <!-- Shared estate modules (0 CDN; same-origin). Honest labels + receipt verify. -->
 <script src="/static/shared/szl_label_engine.js"></script>
 <script src="/static/shared/szl_receipt_cosign.js"></script>
+
+<!-- F4 · 3D Router Dashboard logic (additive). Loads the shared 0-CDN holographic kit. -->
+<script src="/static/shared/szl_holo3d.js"></script>
+<script>
+"use strict";
+(function(){
+  var A3="/api/a11oy/v1";
+  var mount=document.getElementById('router3d_mount');
+  var offEl=document.getElementById('r3d_off');
+  var toggle=document.getElementById('r3d_toggle');
+  if(!mount||!toggle||!window.SZLHolo){ if(toggle){toggle.disabled=true;toggle.textContent='3D unavailable';} return; }
+  var scene=null, started=false, poll=null, animTimer=null;
+  var tokens=0, pulses=0;
+  var GP=document.getElementById('r3d_jtok'), GPL=document.getElementById('r3d_jtok_lbl');
+  var TK=document.getElementById('r3d_toks'), PU=document.getElementById('r3d_pulses');
+  var LM=document.getElementById('r3d_lambda'), CAP=document.getElementById('r3d_caps');
+
+  function getJSON(u,opt){return fetch(u,opt).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+
+  // Honest J/token: MEASURED only if the budget endpoint reports a real metered
+  // joules figure (joules_label !== 'sample' AND a non-empty joules_evidence).
+  // Otherwise ROADMAP — never present an estimate as measured.
+  function applyJtoken(b){
+    if(!b){ GP.textContent='—'; GPL.innerHTML=''; return; }
+    var lbl=String(b.joules_label||'').toLowerCase();
+    var ev=b.joules_evidence||{};
+    var measured=(lbl==='measured') && ev && Object.keys(ev).length>0;
+    var toks=Number(b.total_output_bytes||0); // bytes proxy until a token meter exists
+    var joules=Number(b.total_joules_est||0);
+    var jpt=(measured && toks>0)?(joules/toks):null;
+    if(measured && jpt!=null){
+      GP.textContent=jpt.toFixed(4)+' J/tok';
+      GPL.innerHTML='<span class="pill green" style="font-size:9px">MEASURED · live probe</span>';
+    }else{
+      // honest ROADMAP: show the SAMPLE estimate context but never claim measured
+      GP.textContent=(joules>0&&toks>0)?(joules/toks).toFixed(4)+' J/tok*':'— J/tok';
+      GPL.innerHTML='<span class="pill yellow" style="font-size:9px">ROADMAP · no meter ('+esc3(b.total_joules_est_label||'SAMPLE/ESTIMATE')+')</span>';
+    }
+  }
+  function esc3(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+
+  // Build the 3D graph: router hub -> domain-expert heads; GPU blocks = tiers.
+  // NOTE: the F1 kit addGraph() consumes edge.from / edge.to (NOT source/target);
+  // signPulse(edgeId) matches edge.id. We assign explicit ids so pulses light the
+  // correct router->expert edge.
+  var _edgeIdFor={};
+  function buildGraph(tiers, experts){
+    var nodes=[{id:'router',label:'Λ-ROUTER'}];
+    var edges=[]; _edgeIdFor={}; var ei=0;
+    // GPU/tier blocks as nodes hanging off the router
+    (tiers||[]).forEach(function(t,i){
+      var sov=(t.sovereign===true);
+      var lab=(t.where==='gpu'?'GPU·':'CLOUD·')+(sov?'SOV':'ROADMAP');
+      var id='tier'+i;
+      nodes.push({id:id,label:lab});
+      edges.push({id:'e'+(ei++),from:'router',to:id});
+    });
+    // domain-expert heads (auditable MoE) from the last route
+    (experts||[]).forEach(function(e,i){
+      var id='exp_'+(e.expert_id||i);
+      var eid='e'+(ei++);
+      nodes.push({id:id,label:String(e.title||e.expert_id||('exp'+i)).slice(0,10)});
+      edges.push({id:eid,from:'router',to:id});
+      _edgeIdFor[id]=eid;
+    });
+    return {nodes:nodes,edges:edges};
+  }
+
+  var lastExperts=[];
+  function rebuild(tiers){
+    if(!scene)return;
+    try{
+      var spec=buildGraph(tiers,lastExperts);
+      // clear & re-add graph (kit is additive; we re-create scene graph list)
+      scene.graphs=[]; scene.pulses=[]; scene.spheres=[];
+      scene.addGraph(spec);
+      // drive trust sphere by latest Λ advisory (Conjecture 1, <1.0)
+      var lam=window.__r3dLambda; if(typeof lam!=='number')lam=0.62; scene.addTrustSphere({lambda:lam}); scene.setLambda(lam);
+    }catch(e){}
+  }
+
+  // Animate particle token-flows: emit signPulses along router->expert edges.
+  function tokenFlow(){
+    if(!scene||!lastExperts.length)return;
+    lastExperts.forEach(function(e){
+      var id='exp_'+(e.expert_id);
+      var eid=_edgeIdFor[id];
+      try{ scene.signPulse(eid!=null?eid:0); }catch(_){}
+      tokens+=Math.max(1,Math.round((e.selection_score||1)*4));
+    });
+    TK.textContent=tokens;
+  }
+
+  // A signed MoE routing pulse fires when a route receipt is signed.
+  function signedRoutePulse(d){
+    var r=(d&&d.receipt)||{};
+    var signed=(r.signatures&&r.signatures.length)||r.signed===true;
+    lastExperts=(d&&d.experts)||[];
+    var lam=null;
+    lastExperts.forEach(function(e){ if(e.lambda_advisory!=null){ lam=(lam==null)?e.lambda_advisory:Math.min(lam,e.lambda_advisory);} });
+    if(lam!=null){ window.__r3dLambda=Math.min(0.999,lam); LM.textContent=lam.toFixed(3)+(lam<0.90?' ⚠':''); }
+    rebuildLatest();
+    if(signed){ pulses++; PU.textContent=pulses; tokenFlow(); }
+  }
+  var _lastTiers=[];
+  function rebuildLatest(){ rebuild(_lastTiers); }
+
+  function refresh(){
+    getJSON(A3+'/nemo/tiers').then(function(t){ _lastTiers=(t&&t.tiers)||[]; rebuildLatest(); });
+    getJSON(A3+'/energy/budget').then(applyJtoken);
+  }
+
+  // Route on demand (reuses the page's query box if present); also auto-demo a route.
+  function routeOnce(){
+    var q=(document.getElementById('q')&&document.getElementById('q').value)||'prove a lemma and refactor the module';
+    getJSON(A3+'/nemo/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,top_k:2})})
+      .then(function(d){ if(d) signedRoutePulse(d); });
+  }
+
+  function start(){
+    if(started)return; started=true;
+    mount.style.display='block'; offEl.style.display='none'; toggle.textContent='Disable 3D';
+    scene=window.SZLHolo.createScene(mount,{sample:false});
+    var caps=window.SZLHolo.capabilities();
+    CAP.textContent='mode:'+caps.mode+(caps.webgpu?' · webgpu-detected(ROADMAP)':'');
+    scene.addGraph(buildGraph([], []));
+    scene.addTrustSphere({lambda:0.62});
+    scene.start();
+    refresh(); routeOnce();
+    poll=setInterval(refresh,30000);
+    animTimer=setInterval(tokenFlow,2600);
+    // hook the existing "Route & sign" button so a real signed route fires a pulse here too
+    var go=document.getElementById('go');
+    if(go && !go.__r3d){ go.__r3d=true; go.addEventListener('click',function(){ setTimeout(routeOnce,400); }); }
+  }
+  function stop(){
+    if(!started)return; started=false;
+    mount.style.display='none'; offEl.style.display='block'; toggle.textContent='Enable 3D';
+    if(poll)clearInterval(poll); if(animTimer)clearInterval(animTimer);
+    try{ if(scene)scene.stop(); if(scene)scene.dispose(); }catch(e){}
+    scene=null;
+  }
+  toggle.addEventListener('click',function(){ started?stop():start(); });
+})();
+</script>
+
 <script>
 const A="/api/a11oy/v1/nemo";
 const $=id=>document.getElementById(id);

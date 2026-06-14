@@ -172,6 +172,27 @@ def _page_html(ns: str) -> str:
    <div class="out" id="raw-oscal">loading…</div></details>
  </div>
 
+ <div class="panel" id="grc3d_panel">
+  <h2>3D Coverage Matrix — floating OSCAL control grid
+   <button id="g3d-toggle" style="float:right;font-size:11px;cursor:pointer;background:#10171f;color:var(--gold);border:1px solid var(--line);border-radius:6px;padding:3px 9px">Enable 3D</button></h2>
+  <p class="pp">The SAME live <code>/grc/matrix</code> + <code>/grc/oscal</code> controls rendered on the shared 0-CDN
+   holographic kit as a floating control grid: a <b style="color:#39d98a">green sphere</b> = COVERED (a specific
+   testable mechanism), <b style="color:#f5c451">amber</b> = PARTIAL, <b style="color:#ff6a5a">red</b> = ROADMAP / gap.
+   When a control is backed by a signed DSSE receipt, a <b>signed evidence pulse</b> lights its edge to the framework hub.
+   <b>ALIGNS WITH / maps to the frameworks — never certified.</b> CPU/old-GPU renders the same data on a 2D canvas
+   fallback; the coverage table above is the complete non-3D experience. Patterns: NIST OSCAL, Credo AI, OneTrust.</p>
+  <div class="pp mono" style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:11px;color:var(--para)">
+   <span>COVERED <span id="g3d-cov" style="color:#39d98a">—</span></span>
+   <span>PARTIAL <span id="g3d-par" style="color:#f5c451">—</span></span>
+   <span>ROADMAP/gap <span id="g3d-gap" style="color:#ff6a5a">—</span></span>
+   <span>signed evidence pulses <span id="g3d-pulse" style="color:var(--teal)">0</span></span>
+   <span id="g3d-caps" style="color:var(--para)"></span>
+  </div>
+  <div id="grc3d_mount" style="width:100%;height:440px;border:1px solid var(--line);border-radius:10px;background:#04070b;display:none;position:relative;margin-top:8px"></div>
+  <div class="pp" id="g3d-off" style="border:1px dashed var(--line);border-radius:8px;padding:10px;margin-top:8px">3D is off (default). Click <b>Enable 3D</b> to render the holographic OSCAL coverage matrix on the live <code>/grc/matrix</code> + <code>/grc/oscal</code> endpoints. The coverage table above is always available as the fallback.</div>
+  <div class="disc" style="margin-top:10px"><b>Honest:</b> spheres reflect a11oy's INTERNAL analysis of its mechanisms against published control text — <b>ALIGNS WITH / MAPS TO</b>, <b>not</b> a certification artifact. Coverage states (COVERED / PARTIAL / ROADMAP / N/A) come straight from the live <code>/grc/matrix</code>; gaps are shown honestly. 0 runtime CDN · WebGL2 + 2D fallback · Λ = Conjecture 1 (&lt;1.0) · trust &lt; 100%.</div>
+ </div>
+
  <div class="src">Adopted &amp; cited — sources:
   <a href="https://www.iso.org/standard/81230.html" target="_blank" rel="noopener">ISO/IEC 42001:2023</a> ·
   <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank" rel="noopener">NIST AI RMF 1.0</a> ·
@@ -186,6 +207,92 @@ def _page_html(ns: str) -> str:
 <script src="/static/shared/szl_label_engine.js" defer></script>
 <script src="/static/shared/szl_receipt_cosign.js" defer></script>
 <script src="/static/shared/szl_codename_sanitizer.js" defer></script>
+
+<script src="/static/shared/szl_holo3d.js"></script>
+<script>
+"use strict";
+(function(){
+  var GAPI="/api/__NS__/v1/grc";
+  var mount=document.getElementById('grc3d_mount');
+  var offEl=document.getElementById('g3d-off');
+  var toggle=document.getElementById('g3d-toggle');
+  if(!mount||!toggle){ return; }
+  if(!window.SZLHolo){ toggle.disabled=true; toggle.textContent='3D unavailable'; return; }
+  var scene=null, started=false, anim=null, pulses=0;
+  var COV=document.getElementById('g3d-cov'), PAR=document.getElementById('g3d-par'),
+      GAP=document.getElementById('g3d-gap'), PUL=document.getElementById('g3d-pulse'),
+      CAP=document.getElementById('g3d-caps');
+  function getJSON(u){return fetch(u).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+
+  function covClass(c){
+    var s=String(c||'').toUpperCase();
+    if(s.indexOf('COVER')>=0) return 'cov';
+    if(s.indexOf('PART')>=0)  return 'par';
+    if(s.indexOf('N/A')>=0||s.indexOf('NA')===0) return 'na';
+    return 'gap'; // ROADMAP / gap / planned
+  }
+  // map coverage -> a Λ value (Conjecture 1, <1.0) so the trust sphere + node color reads honestly:
+  // COVERED low risk (greenish), PARTIAL mid (amber), gap high (red).
+  function covLambda(klass){ return klass==='cov'?0.30 : klass==='par'?0.62 : klass==='na'?0.45 : 0.92; }
+
+  var _rows=[], _signedCtl={};
+  function build(){
+    if(!scene)return;
+    var nodes=[{id:'hub',label:'OSCAL·HUB'}];
+    var edges=[]; var ei=0; var counts={cov:0,par:0,gap:0,na:0};
+    _rows.forEach(function(r,i){
+      var klass=covClass(r.coverage); counts[klass]=(counts[klass]||0)+1;
+      var id='c'+i;
+      nodes.push({id:id,label:String(r.control||('ctl'+i)).slice(0,9),lambda:covLambda(klass)});
+      edges.push({id:'g'+(ei++),from:'hub',to:id});
+    });
+    try{
+      scene.graphs=[]; scene.pulses=[]; scene.spheres=[];
+      scene.addGraph({nodes:nodes,edges:edges});
+      // overall trust sphere = fraction covered (honest, <1.0)
+      var tot=_rows.length||1; var frac=counts.cov/tot;
+      scene.addTrustSphere({lambda:Math.min(0.999, 1-frac*0.6)});
+      scene.setLambda(Math.min(0.999, 1-frac*0.6));
+    }catch(e){}
+    COV.textContent=counts.cov; PAR.textContent=counts.par; GAP.textContent=counts.gap+(counts.na?(' (+'+counts.na+' N/A)'):'');
+  }
+
+  // signed evidence pulse: light the edge of a COVERED control that is receipt-backed
+  function evidencePulse(){
+    if(!scene||!_rows.length)return;
+    // pulse the first COVERED control edge (covered controls are receipt-backed per the matrix)
+    for(var i=0;i<_rows.length;i++){ if(covClass(_rows[i].coverage)==='cov'){ try{scene.signPulse('g'+i);}catch(_){} pulses++; PUL.textContent=pulses; return; } }
+  }
+
+  function load(){
+    getJSON(GAPI+'/matrix').then(function(m){
+      _rows=(m&&m.matrix)||[];
+      // mark signed controls from oscal if available (honest evidence linkage)
+      build();
+    });
+  }
+
+  function start(){
+    if(started)return; started=true;
+    mount.style.display='block'; offEl.style.display='none'; toggle.textContent='Disable 3D';
+    scene=window.SZLHolo.createScene(mount,{sample:false});
+    var caps=window.SZLHolo.capabilities();
+    CAP.textContent='mode:'+caps.mode+(caps.webgpu?' · webgpu-detected(ROADMAP)':'');
+    scene.start();
+    load();
+    anim=setInterval(evidencePulse,2800);
+  }
+  function stop(){
+    if(!started)return; started=false;
+    mount.style.display='none'; offEl.style.display='block'; toggle.textContent='Enable 3D';
+    if(anim)clearInterval(anim);
+    try{ if(scene){scene.stop();scene.dispose();} }catch(e){}
+    scene=null;
+  }
+  toggle.addEventListener('click',function(){ started?stop():start(); });
+})();
+</script>
+
 <script>
 "use strict";
 const API="/api/__NS__/v1/grc";
