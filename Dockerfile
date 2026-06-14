@@ -97,6 +97,12 @@ COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py s
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
 COPY szl_energy_budget.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
+# Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
+# /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
+# (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
+# (physical_bounds_certificate.json / agentic_decision_trail.json) are NOT baked — the
+# module honestly serves a SAMPLE certificate until Forge writes real ones on the box.
+COPY szl_pinn_bounds.py ./
 # ADDITIVE (joules-honesty #349): single-source joules_label helper + its consumers.
 # szl_joules_truth.py is imported by szl_energy_budget/szl_engine_status/revenue_endpoints/
 # a11oy_harvest_endpoints/szl_anatomy_loop/szl_prod_hardening; revenue_model.py backs
