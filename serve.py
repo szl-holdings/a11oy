@@ -5826,6 +5826,18 @@ try:
     def _ac_mode() -> str:
         return "generative" if _ac_hf_token() else "deterministic"
 
+    def _ac_served_model() -> str:
+        # The model id ACTUALLY served by the configured endpoint. When pointed
+        # at a self-hosted node (ollama/vLLM) the roster HF repo ids do not exist
+        # there; the served model is named by SZL_LOCAL_LLM_MODEL (e.g.
+        # "qwen2.5-coder:7b"). On the HF Router, fall back to the roster head.
+        base = _AC_ROUTER_BASE.lower()
+        local = (os.environ.get("SZL_LOCAL_LLM_MODEL")
+                 or os.environ.get("A11OY_LOCAL_MODEL") or "").strip().strip('"').strip("'")
+        if local and "huggingface.co" not in base:
+            return local
+        return _AC_HF_ROSTER[0]["hf_repo"]
+
     def _ac_hf_chat(messages, max_tokens=640, want_model=None):
         """Call the OpenAI-compatible HF Router server-side, 2x retry + roster
         fallback. Returns {ok,text,model,license,attempts,rate_limited,error}.
@@ -5839,6 +5851,11 @@ try:
         if want_model:
             order.append({"hf_repo": want_model, "display": want_model,
                           "license": "declared open-weight", "role": "requested", "open_weight": True})
+        _served = _ac_served_model()
+        if (_served and _served != want_model
+                and _served not in [m["hf_repo"] for m in _AC_HF_ROSTER]):
+            order.append({"hf_repo": _served, "display": _served,
+                          "license": "self-hosted open-weight", "role": "served", "open_weight": True})
         order += [m for m in _AC_HF_ROSTER if m["hf_repo"] != want_model]
         headers = {"Content-Type": "application/json", "Authorization": "Bearer " + token}
         url = _AC_ROUTER_BASE + "/chat/completions"
@@ -5983,7 +6000,8 @@ try:
             "token_source": _ac_token_source() or None,
             "token_candidates": list(_AC_TOKEN_NAMES),
             "router_base": _AC_ROUTER_BASE,
-            "primary_model": _AC_HF_ROSTER[0]["hf_repo"],
+            "primary_model": _ac_served_model(),
+            "roster_primary": _AC_HF_ROSTER[0]["hf_repo"],
             "roster": _ac_open_weight_roster(),
             "tiers": [t["tier"] for t in _a11oy_code_router.TIERS],
             "doctrine": "v11",
