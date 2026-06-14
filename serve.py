@@ -315,6 +315,91 @@ try:
 except Exception as _szl_pnt_e:  # pragma: no cover
     print(f"[a11oy] PNT mesh NOT registered: {_szl_pnt_e!r}", file=__import__("sys").stderr)
 
+# ── Estate self-describing index (FLY HIGH F3) — ADDITIVE, before the SPA catch-all.
+# GET /api/a11oy/v1/estate returns ONE honest index of the estate's flagship surfaces.
+# Each entry's status is a REAL in-process probe AT REQUEST TIME: the route is confirmed
+# present in app.router.routes and (where it has one) the engine module is import-checked.
+# A surface whose route/module is absent reports live:false — never a fabricated green.
+try:
+    from starlette.responses import JSONResponse as _EstateJSON
+    from datetime import datetime as _e_dt, timezone as _e_tz
+    import importlib as _e_importlib
+
+    # (key, title, label, probe_route, engine_module, lineage)
+    _ESTATE_CAPS = [
+        ("compute_bounds", "Physical-bounds certifier (compute pillar)", "MEASURED",
+         "/api/a11oy/v1/pinn", "szl_pinn_bounds",
+         "Landauer 1961 / Margolus-Levitin 1998 / Bremermann 1962 / Bekenstein 1981"),
+        ("pnt_sensing", "PNT / quantum-sensing mesh (sensing pillar)", "MODELED",
+         "/api/a11oy/v1/pnt", "szl_pnt_mesh",
+         "cold-atom SQL / GNSS spoof-fusion / GPS-denied coasting FoM"),
+        ("fundamental_limits", "Unified fundamental-limits + one signed verify",
+         "MEASURED+MODELED", "/api/a11oy/v1/pnt/limits", "fundamental_limits",
+         "both hard-physics pillars behind one index + /pnt/verify"),
+        ("energy", "Energy / joules-per-token receipts", "MEASURED",
+         "/energy/metrics", None, "NVML power.draw -> joules in receipts (SAMPLE off-metal)"),
+        ("governance", "Governance / eval-harness / calibration", "MEASURED",
+         "/governance", None, "tau-bench / ECE-Brier / conformal risk / receipts"),
+        ("holographic_ops", "WebGPU holographic ops console", "LIVE",
+         "/ops", None, "live-bound 3D views with honest 2D fallback, 0 CDN"),
+        ("estate_hologram", "Unified estate hologram", "LIVE",
+         "/estate-hologram", None, "globe + proof-DAG + Λ-sphere + mesh + organism"),
+    ]
+
+    def _estate_route_present(_path):
+        try:
+            for _r in app.router.routes:
+                if getattr(_r, "path", None) == _path:
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def _estate_module_ok(_modname):
+        if not _modname:
+            return None  # surface has no dedicated engine module — not applicable
+        try:
+            _e_importlib.import_module(_modname)
+            return True
+        except Exception:
+            return False
+
+    def _h_estate(_req):
+        _caps = []
+        _live = 0
+        for _key, _title, _label, _route, _mod, _lineage in _ESTATE_CAPS:
+            _route_ok = _estate_route_present(_route)
+            _mod_ok = _estate_module_ok(_mod)
+            _is_live = _route_ok and (_mod_ok is not False)
+            if _is_live:
+                _live += 1
+            _caps.append({
+                "key": _key, "title": _title, "label": _label,
+                "route": _route, "engine_module": _mod,
+                "route_registered": _route_ok,      # REAL probe of app.router.routes
+                "engine_importable": _mod_ok,       # REAL import probe (None = N/A)
+                "live": _is_live,
+                "lineage": _lineage,
+            })
+        return _EstateJSON({
+            "capability": "SZL estate — self-describing capability index",
+            "model": ("every entry is a REAL in-process probe (route table + module "
+                      "import) at request time; honest live:false where a surface is "
+                      "absent; no fabricated green"),
+            "count": len(_caps),
+            "live_count": _live,
+            "capabilities": _caps,
+            "doctrine": ("Doctrine v11 — MEASURED only from a real run/exporter; MODELED "
+                         "for clean-room structural physics; LIVE for served UI surfaces. "
+                         "Λ = Conjecture 1 (advisory)."),
+            "ts": _e_dt.now(_e_tz).isoformat(),
+        })
+
+    app.add_api_route("/api/a11oy/v1/estate", _h_estate, methods=["GET"], include_in_schema=True)
+    print("[a11oy] estate self-describing index registered: /api/a11oy/v1/estate", file=__import__("sys").stderr)
+except Exception as _estate_e:  # pragma: no cover
+    print(f"[a11oy] estate index NOT registered: {_estate_e!r}", file=__import__("sys").stderr)
+
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
 # Python with the ORIGINAL author cited; SZL borrows methodological structure only (no result
