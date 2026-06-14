@@ -66,6 +66,12 @@ jobs:
           python-version: "3.12"
       - name: Validator rejects degenerate runs, accepts a good one
         run: python3 scripts/check_eval_arena_negative_control.py --selftest
+      - name: Static lockstep — serve.py negative controls match the guard's map
+        # STATIC: parse serve.py with ast (no import, no serve.py runtime deps) and
+        # fail if its declared -negative-control scenarios diverge from
+        # NEGATIVE_CONTROL_FAMILIES. Catches a stale map the moment a control is
+        # added/renamed/removed, even if that scenario never surfaces in a live run.
+        run: python3 scripts/check_eval_arena_negative_control.py --check-serve
 
   # Boot the REAL in-image eval and assert the arena keeps both examples.
   guard:

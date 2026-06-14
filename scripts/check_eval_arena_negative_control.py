@@ -49,6 +49,21 @@ each other's signal list. This catches regressions the generic check misses: a
 guard that silently stopped firing (e.g. the oversized blob shrank below 1MB so
 the scenario now passes), or two controls drifting onto a single signal.
 
+Static serve.py <-> guard lockstep (this check)
+-----------------------------------------------
+The validators above run the REAL eval and can only catch an undeclared (or
+renamed) negative control at RUNTIME, and only if that scenario actually
+surfaces in a live/recorded run. If someone adds, renames, or removes a negative
+control in serve.py's `_A11OY_ARENA_SCENARIOS` without updating
+`NEGATIVE_CONTROL_FAMILIES` here, the map can silently go stale. A STATIC check
+(`--check-serve`, validator `validate_serve_negative_controls`) closes that gap:
+it parses serve.py with `ast` (no import, no serve.py runtime deps, no executing
+the oversized-blob builder), extracts every scenario name ending in
+`-negative-control` declared in `_A11OY_ARENA_SCENARIOS`, and FAILS unless that
+set EXACTLY matches `NEGATIVE_CONTROL_FAMILIES`'s keys — catching BOTH drift
+directions: serve.py grew a control the guard doesn't know about, and the guard
+declares one serve.py no longer has.
+
 Positive controls (the symmetric blind spot)
 --------------------------------------------
 Proving each NEGATIVE control genuinely FAILS leaves the opposite regression
@@ -382,6 +397,91 @@ def validate(run: dict):
     ok2, p2 = validate_negative_controls(run)
     ok3, p3 = validate_positive_controls(run)
     return (ok1 and ok2 and ok3), (p1 + p2 + p3)
+
+
+_SERVE_SCENARIOS_VAR = "_A11OY_ARENA_SCENARIOS"
+_NEGATIVE_CONTROL_SUFFIX = "-negative-control"
+
+
+def _extract_serve_negative_controls(serve_source: str) -> set:
+    """Statically parse serve.py SOURCE and return the set of negative-control
+    scenario names declared in `_A11OY_ARENA_SCENARIOS` (every `scenario` value
+    ending in `-negative-control`).
+
+    Pure `ast` parse — it never imports serve.py, needs none of its runtime deps,
+    and does NOT execute the oversized-blob builder. It reads only the string
+    LITERAL `scenario` keys, which is exactly what a static lockstep check needs.
+
+    Raises ValueError if the scenario list cannot be located or is not a list
+    literal: a structural change the guard must surface loudly, not silently
+    treat as "no negative controls" (which would let real drift slip through).
+    """
+    import ast
+
+    tree = ast.parse(serve_source)
+    scenarios_node = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name) and tgt.id == _SERVE_SCENARIOS_VAR:
+                    scenarios_node = node.value
+                    break
+        if scenarios_node is not None:
+            break
+
+    if scenarios_node is None:
+        raise ValueError(
+            "could not find the %s assignment in serve.py — the arena scenario "
+            "list moved or was renamed; the static guard cannot verify lockstep."
+            % _SERVE_SCENARIOS_VAR)
+    if not isinstance(scenarios_node, ast.List):
+        raise ValueError(
+            "%s is not a list literal (got %s) — the static guard cannot extract "
+            "the declared negative controls." % (_SERVE_SCENARIOS_VAR,
+                                                 type(scenarios_node).__name__))
+
+    names: set = set()
+    for elt in scenarios_node.elts:
+        if not isinstance(elt, ast.Dict):
+            continue
+        for k, v in zip(elt.keys, elt.values):
+            if (isinstance(k, ast.Constant) and k.value == "scenario"
+                    and isinstance(v, ast.Constant) and isinstance(v.value, str)
+                    and v.value.endswith(_NEGATIVE_CONTROL_SUFFIX)):
+                names.add(v.value)
+    return names
+
+
+def validate_serve_negative_controls(declared, families):
+    """Pure validator (static lockstep). Returns (ok: bool, problems: list[str]).
+
+    The negative-control scenario names DECLARED in serve.py (`declared`, a set
+    from `_extract_serve_negative_controls`) must EXACTLY match the keys of
+    `NEGATIVE_CONTROL_FAMILIES` (`families`). Catches BOTH drift directions:
+
+      * serve.py declares a control the guard's map does NOT know about (a new or
+        renamed negative control whose rejection path is now unguarded), and
+      * the guard's map declares a control serve.py no longer has (dropped or
+        renamed — the map went stale).
+
+    No I/O — operates on the two collections only.
+    """
+    problems: list[str] = []
+    declared = set(declared)
+    known = set(families.keys())
+
+    for name in sorted(declared - known):
+        problems.append(
+            "serve.py declares negative control '%s' but the guard's "
+            "NEGATIVE_CONTROL_FAMILIES does not — add it (with its expected, "
+            "DISTINCT rejection family) so its rejection path is guarded." % name)
+    for name in sorted(known - declared):
+        problems.append(
+            "NEGATIVE_CONTROL_FAMILIES declares '%s' but serve.py no longer "
+            "declares a scenario by that name — it was dropped or renamed; update "
+            "the guard's map in lockstep so it does not silently go stale." % name)
+
+    return (len(problems) == 0), problems
 
 
 def _normalize_recorded_run(rec: dict) -> dict:
@@ -753,12 +853,90 @@ def _selftest() -> int:
               % (status, name, ok, expect_ok,
                  "" if ok == expect_ok else " :: " + "; ".join(problems)))
 
+    # ---- static serve.py <-> guard lockstep validator ----------------------
+    # The property THIS task adds: a STATIC check that the negative controls
+    # declared in serve.py's _A11OY_ARENA_SCENARIOS match NEGATIVE_CONTROL_FAMILIES
+    # exactly. The fixtures below prove BOTH drift directions are caught (serve.py
+    # has a control the guard doesn't, and vice-versa) plus the matching case,
+    # exercising the same ast extractor the live check uses on a tiny synthetic
+    # serve module so a regression fails loudly here before the real source.
+    serve_src_matching = (
+        "_A11OY_ARENA_SCENARIOS = [\n"
+        "    {'scenario': 'health-check-chain', 'action': {}},\n"
+        "    {'scenario': 'adversarial-injection-negative-control', 'action': {}},\n"
+        "    {'scenario': 'oversized-payload-negative-control', 'action': {}},\n"
+        "    {'scenario': 'missing-operator-approval-negative-control', 'action': {}},\n"
+        "]\n")
+    # serve.py grew a NEW control the guard's map doesn't know about.
+    serve_src_extra_in_serve = (
+        "_A11OY_ARENA_SCENARIOS = [\n"
+        "    {'scenario': 'health-check-chain', 'action': {}},\n"
+        "    {'scenario': 'adversarial-injection-negative-control', 'action': {}},\n"
+        "    {'scenario': 'oversized-payload-negative-control', 'action': {}},\n"
+        "    {'scenario': 'missing-operator-approval-negative-control', 'action': {}},\n"
+        "    {'scenario': 'sql-injection-negative-control', 'action': {}},\n"
+        "]\n")
+    # serve.py DROPPED/renamed a control the guard's map still declares.
+    serve_src_missing_in_serve = (
+        "_A11OY_ARENA_SCENARIOS = [\n"
+        "    {'scenario': 'health-check-chain', 'action': {}},\n"
+        "    {'scenario': 'adversarial-injection-negative-control', 'action': {}},\n"
+        "    {'scenario': 'oversized-payload-negative-control', 'action': {}},\n"
+        "]\n")
+
+    families = NEGATIVE_CONTROL_FAMILIES
+
+    # The extractor must pull exactly the three -negative-control names (not the
+    # allowed health-check-chain scenario) from the matching source.
+    extracted = _extract_serve_negative_controls(serve_src_matching)
+    extract_ok = (extracted == set(families.keys()))
+    status = "PASS" if extract_ok else "FAIL"
+    if not extract_ok:
+        failures += 1
+    print("  [%s] serve-static: ast extractor pulls exactly the declared "
+          "negative controls (got %s)" % (status, sorted(extracted)))
+
+    serve_static_cases = [
+        ("serve-static: matching serve.py & guard map is accepted",
+         serve_src_matching, True),
+        ("serve-static: a control in serve.py the guard lacks is rejected",
+         serve_src_extra_in_serve, False),
+        ("serve-static: a control the guard has but serve.py dropped is rejected",
+         serve_src_missing_in_serve, False),
+    ]
+    for name, src, expect_ok in serve_static_cases:
+        declared = _extract_serve_negative_controls(src)
+        ok, problems = validate_serve_negative_controls(declared, families)
+        status = "PASS" if ok == expect_ok else "FAIL"
+        if ok != expect_ok:
+            failures += 1
+        print("  [%s] %s (validator ok=%s, expected ok=%s)%s"
+              % (status, name, ok, expect_ok,
+                 "" if ok == expect_ok else " :: " + "; ".join(problems)))
+
+    # The extractor must FAIL LOUDLY (ValueError) on a structural change rather
+    # than silently report "no negative controls" (which would mask real drift).
+    for name, bad_src in [
+            ("serve-static: missing scenario list raises", "X = 1\n"),
+            ("serve-static: non-list scenario var raises",
+             "_A11OY_ARENA_SCENARIOS = {'scenario': 'x-negative-control'}\n")]:
+        raised = False
+        try:
+            _extract_serve_negative_controls(bad_src)
+        except ValueError:
+            raised = True
+        status = "PASS" if raised else "FAIL"
+        if not raised:
+            failures += 1
+        print("  [%s] %s" % (status, name))
+
     if failures:
         print("\nself-test FAILED: validator is not enforcing the contract.",
               file=sys.stderr)
         return 1
     print("\nself-test OK: validator rejects every degenerate run (live AND "
-          "recorded) and accepts the good ones.")
+          "recorded), the static serve.py<->guard lockstep holds, and accepts "
+          "the good ones.")
     return 0
 
 
@@ -840,6 +1018,52 @@ def _check_recorded(argv_json: bool = False) -> int:
     return 0
 
 
+def _check_static_serve() -> int:
+    """STATIC lockstep check: parse serve.py with `ast` and assert the
+    negative-control scenarios it declares in `_A11OY_ARENA_SCENARIOS` EXACTLY
+    match the keys of `NEGATIVE_CONTROL_FAMILIES`.
+
+    Unlike the live/recorded checks this needs NO serve.py runtime deps and does
+    not import or execute serve.py — it reads the source as text and inspects the
+    string literals. It catches a stale map the moment a control is added,
+    renamed, or removed, even if that scenario never surfaces in a run.
+    """
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    serve_path = os.path.join(repo_root, "serve.py")
+    try:
+        with open(serve_path, "r", encoding="utf-8") as fh:
+            source = fh.read()
+    except OSError as exc:
+        print("::error::cannot read serve.py for the static lockstep check: %r"
+              % exc, file=sys.stderr)
+        return 2
+
+    try:
+        declared = _extract_serve_negative_controls(source)
+    except (ValueError, SyntaxError) as exc:
+        print("::error::static parse of serve.py failed: %s" % exc, file=sys.stderr)
+        return 2
+
+    ok, problems = validate_serve_negative_controls(declared, NEGATIVE_CONTROL_FAMILIES)
+
+    print("Static lockstep check (serve.py <-> NEGATIVE_CONTROL_FAMILIES):")
+    print("  serve.py declares %d negative control(s): %s"
+          % (len(declared), ", ".join(sorted(declared)) or "(none)"))
+    print("  guard map declares %d: %s"
+          % (len(NEGATIVE_CONTROL_FAMILIES),
+             ", ".join(sorted(NEGATIVE_CONTROL_FAMILIES))))
+
+    if not ok:
+        for p in problems:
+            print("::error::eval-arena negative-control STATIC guard: %s" % p,
+                  file=sys.stderr)
+        return 1
+
+    print("\nStatic guard OK: serve.py's negative controls and the guard's "
+          "NEGATIVE_CONTROL_FAMILIES are in lockstep.")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--selftest", action="store_true",
@@ -847,12 +1071,19 @@ def main(argv=None) -> int:
     ap.add_argument("--recorded", action="store_true",
                     help="validate EVERY RECORDED eval-arena run in the history "
                          "ring (soft-skips on empty history)")
+    ap.add_argument("--check-serve", action="store_true",
+                    help="STATIC: parse serve.py and assert its declared negative "
+                         "controls match NEGATIVE_CONTROL_FAMILIES (no serve.py "
+                         "import / runtime deps)")
     ap.add_argument("--json", action="store_true",
                     help="print the run summary as JSON")
     args = ap.parse_args(argv)
 
     if args.selftest:
         return _selftest()
+
+    if args.check_serve:
+        return _check_static_serve()
 
     if args.recorded:
         return _check_recorded(argv_json=args.json)
