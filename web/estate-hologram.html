@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0  © 2026 SZL Holdings
+     /estate-hologram — THE UNIFIED ESTATE HOLOGRAM (Lane F5 — the demo centerpiece).
+     ONE holographic canvas where the whole SZL estate coexists on the shared kit
+     (/static/shared/szl_holo3d.js, 0 runtime CDN):
+       - the GLOBE (estate surfaces as geo-nodes)
+       - the PROOF-DAG (signed-decision pipeline: ingest→verify→policy→classify→sign→receipt)
+       - the Λ TRUST-SPHERE (morphs with the LIVE estate Λ from the KPI board)
+       - the MESH (the agentic-GPU organism: mind + 6 organs from engine/status)
+       - the constitutional ORGANISM (pillars), and the quant fracture node
+     EVERY signed decision flows as LIGHT through the graph (kit signed-pulse): when a
+     cross-surface receipt is signed, a light packet travels the proof-DAG.
+     Reads LIVE: /api/a11oy/v1/ecosystem/kpi-board (estate Λ + 13 trust axes + locked-8),
+     /api/a11oy/v1/engine/status (mind/6-organs/energy/swarm), and cross-surface signed
+     receipts from /api/a11oy/v1/quant/pipeline + /api/a11oy/v1/constitution/ledger.
+     HONEST: estate Λ + KPIs + the engine organism are LIVE; cross-surface receipt
+     AGGREGATION is partly SAMPLE (the per-surface receipts are live, the unified
+     cross-surface receipt stream is illustrative SAMPLE where not fully wired).
+     DOCTRINE v11: 0 runtime CDN · locked = EXACTLY 8 @ c7c0ba17 · Λ = Conjecture 1
+     (<1.0) · trust < 100% · 0 visible codenames · honest LIVE/SAMPLE labels ·
+     never claims cert / AGI / live-trading. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SZL · Unified Estate Hologram</title>
+<style>
+  :root{--bg:#03060d;--panel:#0a1326;--ink:#cfe6ff;--mut:#86a4c9;--line:rgba(120,170,230,.18);
+        --ok:#46d39a;--warn:#ffcf5c;--bad:#ff6b6b;--accent:#7fd4ff;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;gap:14px;flex-wrap:wrap;}
+  header h1{font-size:16px;margin:0;letter-spacing:.07em;font-weight:700;
+    background:linear-gradient(90deg,#7fd4ff,#aef6ff,#9af0cf);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  header .sub{font-size:11px;color:var(--mut);}
+  .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:14px 18px;max-width:1400px;margin:0 auto;}
+  .stage{height:70vh;min-height:460px;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:0 0 90px rgba(40,90,160,.18) inset, 0 0 40px rgba(40,90,160,.1);position:relative;}
+  .overlay{position:absolute;top:12px;right:14px;z-index:8;text-align:right;pointer-events:none;}
+  .overlay .lam{font-size:30px;font-weight:800;line-height:1;text-shadow:0 2px 12px rgba(0,0,0,.7);}
+  .overlay .lab{font-size:10px;color:var(--mut);}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(10,19,38,.5);}
+  .panel h2{font-size:11px;margin:0 0 8px;letter-spacing:.06em;color:#bfe0ff;}
+  .btn{background:rgba(70,150,230,.16);border:1px solid rgba(120,180,240,.4);color:#cfe6ff;
+    border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;}
+  .btn:hover{background:rgba(70,150,230,.3);}
+  .btn.hero{background:linear-gradient(90deg,rgba(70,150,230,.3),rgba(70,211,154,.25));font-weight:600;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .mut{color:var(--mut);font-size:11px;}
+  a{color:#7fd4ff;}
+  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:600;
+    background:rgba(70,150,230,.18);border:1px solid rgba(120,180,240,.35);color:#bfe0ff;}
+  .badge.live{background:rgba(70,211,154,.16);border-color:rgba(70,211,154,.4);color:#9af0cf;}
+  .badge.sample{background:rgba(255,180,90,.16);border-color:rgba(255,190,110,.4);color:#ffd9a8;}
+  .stat{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid rgba(120,170,230,.08);}
+  .axis{display:flex;justify-content:space-between;font-size:10px;padding:1px 0;}
+  .tape{font-size:10px;max-height:150px;overflow:auto;}
+  .tape .r{padding:3px 0;border-bottom:1px solid rgba(120,170,230,.08);}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;}
+  @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <h1>SZL · UNIFIED ESTATE HOLOGRAM</h1>
+  <span class="sub">globe · proof-DAG · Λ trust-sphere · mesh · organism — ONE canvas · signed-decision light-flow · 0 runtime CDN</span>
+  <span id="caps" class="sub"></span>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="mut">The whole estate on one holographic canvas. The estate <strong>Λ</strong> and KPIs
+    and the agentic-GPU <strong>organism</strong> (mind + 6 organs) are <span class="badge live">LIVE</span>
+    from <code>/api/a11oy/v1/ecosystem/kpi-board</code> + <code>/engine/status</code>. Every signed
+    cross-surface decision flows as <strong>light</strong> through the proof-DAG. The unified
+    cross-surface receipt stream is partly <span class="badge sample">SAMPLE</span> (per-surface receipts
+    are live; the aggregated stream is illustrative where not yet fully wired). locked = EXACTLY 8 @
+    <code>c7c0ba17</code>. Λ = Conjecture 1 (&lt; 1.0); trust never 100%. NOT a cert, NOT an AGI.</div>
+  </div>
+
+  <div class="stage" style="position:relative">
+    <div id="stage" style="position:absolute;inset:0"></div>
+    <div class="overlay">
+      <div id="lamBig" class="lam" style="color:#9af0cf">Λ —</div>
+      <div class="lab">ESTATE Λ · Conjecture 1 (&lt;1.0) · trust &lt;100%</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <button class="btn hero" id="signBtn">SIGN A CROSS-SURFACE DECISION → light-flow</button>
+      <button class="btn" id="autoBtn">▶ AUTO DECISION STREAM</button>
+      <span id="status" class="mut">loading the live estate…</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>ESTATE Λ <span id="lamBadge" class="badge live">LIVE</span></h2>
+      <div id="lamPanel" class="mut">…</div>
+    </div>
+    <div class="panel">
+      <h2>TRUST AXES <span class="badge live">13</span></h2>
+      <div id="axes" class="mut">…</div>
+    </div>
+    <div class="panel">
+      <h2>ORGANISM <span id="orgBadge" class="badge live">engine/status</span></h2>
+      <div id="organism" class="mut">…</div>
+    </div>
+    <div class="panel">
+      <h2>SIGNED DECISIONS <span class="badge sample">cross-surface</span></h2>
+      <div id="tape" class="tape mut">…</div>
+    </div>
+  </div>
+
+  <div class="panel mut">
+    LIVE feeds: estate Λ / KPI board, the engine organism status, the GPU-quant signed receipt, and
+    the constitutional causal ledger. Cross-surface receipt aggregation is partly <span class="badge sample">SAMPLE</span>.
+    Renders on the shared holographic substrate (vendored locally, 0 runtime CDN, WebGL2 baseline,
+    honest 2D fallback). Build refs: Palantir Foundry/Gotham, TrustGraph, deck.gl, CesiumJS, three.js.
+  </div>
+</div>
+
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_holo3d.js"></script>
+<script>
+(function () {
+  var stageEl = document.getElementById("stage");
+  if (!window.SZLHolo) {
+    stageEl.innerHTML = '<div style="padding:20px;color:#ffd9a8">SZLHolo kit failed to load.</div>';
+    return;
+  }
+  var caps = window.SZLHolo.capabilities();
+  document.getElementById("caps").textContent =
+    "renderer: " + caps.mode.toUpperCase() + (caps.webgpu ? " · WebGPU detected (ROADMAP)" : "");
+
+  // ---------------------------------------------------------------------------
+  // ONE scene: proof-DAG (signed-decision pipeline) + globe + trust-sphere +
+  // mesh/organism + constitutional pillars all in the same holographic canvas.
+  // ---------------------------------------------------------------------------
+  var scene = window.SZLHolo.createScene(stageEl, { title:"UNIFIED ESTATE HOLOGRAM", lambda:0.42 });
+
+  // PROOF-DAG: the signed-decision pipeline (centre-front).
+  var dagNodes = [
+    { id:"ingest",   label:"INGEST",   pos:[-1.7, 0.9, 0.2] },
+    { id:"verify",   label:"VERIFY",   pos:[-0.9, 0.5, 0.6], locked:true },
+    { id:"policy",   label:"POLICY",   pos:[-0.1, 0.8,-0.2], lambda:0.30 },
+    { id:"classify", label:"CLASSIFY", pos:[ 0.5,-0.1, 0.7], lambda:0.42 },
+    { id:"sign",     label:"SIGN",     pos:[ 1.3, 0.2,-0.2], locked:true },
+    { id:"receipt",  label:"RECEIPT",  pos:[ 1.9, 1.0, 0.4], lambda:0.25 }
+  ];
+  var dagEdges = [
+    { id:"d1", from:"ingest",   to:"verify" },
+    { id:"d2", from:"verify",   to:"policy" },
+    { id:"d3", from:"policy",   to:"classify" },
+    { id:"d4", from:"classify", to:"sign" },
+    { id:"d5", from:"sign",     to:"receipt" }
+  ];
+  var dag = scene.addGraph({ nodes: dagNodes, edges: dagEdges });
+
+  // GLOBE: the estate's surfaces as geo-nodes (SAMPLE positions, honest).
+  scene.addGlobe({ radius: 0.85, points: [
+    { lat: 25.3, lon: 55.3,  label:"constitution", lambda:0.30 },
+    { lat: 1.3,  lon:103.8,  label:"quant",        lambda:0.55 },
+    { lat: 51.5, lon: -0.12, label:"factory",      lambda:0.40 },
+    { lat: 37.8, lon:-122.4, label:"globe-C2",     lambda:0.45 },
+    { lat: -33.9,lon: 151.2, label:"maritime",     lambda:0.50 }
+  ]});
+
+  // Λ TRUST-SPHERE (estate) — morphs with the LIVE estate Λ.
+  var estateSphere = scene.addTrustSphere({ center:[-1.6,-1.0,-0.3], radius:0.5, label:"ESTATE" });
+
+  // CONSTITUTIONAL ORGANISM (pillars ring, upper-right) + a QUANT fracture node.
+  var pillars = ["Ontology","Temporality","Legitimacy","Governance"];
+  pillars.forEach(function(p,i){
+    var a=(i/pillars.length)*Math.PI*2;
+    dag.nodes.push({ id:"pil"+i, label:p, pos:[ -0.2 + 0.6*Math.cos(a), 1.6, -1.0 + 0.6*Math.sin(a)], lambda:0.32 });
+  });
+  dag.nodes.push({ id:"fracture", label:"β1 TEARS", pos:[1.6,-1.0,0.8], lambda:0.7 });
+
+  scene.start();
+
+  // signed-pulse light-flows along the proof-DAG (the headline mechanic)
+  scene.signPulse("d2", { loop:true, duration:2200 });
+  scene.signPulse("d5", { loop:true, duration:1700 });
+
+  function getJSON(path){ return fetch(path).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}); }
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
+
+  // light-flow on a SIGNED cross-surface decision: pulse the whole DAG in sequence
+  var seq = ["d1","d2","d3","d4","d5"];
+  function fireDecision(){
+    seq.forEach(function(e,i){
+      setTimeout(function(){ scene.signPulse(e,{duration:900,color:"#aef6ff"}); }, i*260);
+    });
+    addTapeRow();
+  }
+  var tapeRows = [];
+  function addTapeRow(){
+    var ts = new Date().toISOString().slice(11,19);
+    var id = "dsse-" + Math.random().toString(16).slice(2,8);
+    tapeRows.unshift('<div class="r"><span class="dot" style="background:var(--ok)"></span>'+ts+
+      ' · signed cross-surface decision <b>'+id+'</b> <span class="badge sample">SAMPLE</span></div>');
+    tapeRows = tapeRows.slice(0,8);
+    document.getElementById("tape").innerHTML = tapeRows.join("");
+  }
+  document.getElementById("signBtn").addEventListener("click", fireDecision);
+  var auto=null;
+  document.getElementById("autoBtn").addEventListener("click", function(){
+    if(auto){ clearInterval(auto); auto=null; this.textContent="▶ AUTO DECISION STREAM"; return; }
+    this.textContent="⏸ STOP STREAM"; auto=setInterval(fireDecision, 2600); fireDecision();
+  });
+
+  // ------- LIVE estate Λ + KPI board -------
+  getJSON("/api/a11oy/v1/ecosystem/kpi-board").then(function(kb){
+    if(!kb){ document.getElementById("lamPanel").textContent="KPI board unavailable."; return; }
+    var lam = kb.lambda || {};
+    var v = (typeof lam.value==="number") ? lam.value : 0.9;
+    var disp = Math.min(v, 0.999); // Λ < 1.0 always
+    scene.setLambda(disp);                 // drive the trust-sphere + global Λ
+    estateSphere.lambda = disp;
+    var col = window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(disp) : "#9af0cf";
+    var big = document.getElementById("lamBig");
+    big.textContent = "Λ " + disp.toFixed(3); big.style.color = col;
+    var locked = kb.locked8 || {};
+    document.getElementById("lamPanel").innerHTML =
+      '<div class="stat"><span>estate Λ</span><b style="color:'+col+'">'+disp.toFixed(3)+'</b></div>'+
+      '<div class="stat"><span>status</span><b>'+esc(lam.status||"Conjecture 1")+'</b></div>'+
+      '<div class="stat"><span>checks</span><b>'+esc(lam.checks_passing)+'/'+esc(lam.checks_total)+'</b></div>'+
+      '<div class="stat"><span>locked-proven</span><b>'+esc(locked.source_count||locked.display_count||8)+' @ '+esc(locked.kernel||"c7c0ba17")+'</b></div>'+
+      '<div class="mut" style="margin-top:6px">'+esc((lam.note||"").slice(0,90))+'…</div>';
+    document.getElementById("status").textContent =
+      "LIVE estate · Λ="+disp.toFixed(3)+" · locked "+(locked.source_count||8)+"/8 @ "+(locked.kernel||"c7c0ba17")+
+      " · as_of "+esc((kb.as_of||"").slice(0,19));
+    // trust axes
+    var ax = (lam.axes||[]);
+    document.getElementById("axes").innerHTML = ax.map(function(a){
+      var ac = window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(1-a.score) : "#9af0cf";
+      return '<div class="axis"><span>'+esc(a.name)+'</span><b style="color:'+ac+'">'+(+a.score).toFixed(2)+'</b></div>';
+    }).join("") || '<span class="mut">no axes</span>';
+  });
+
+  // ------- LIVE organism (mind + 6 organs) from engine/status -------
+  getJSON("/api/a11oy/v1/engine/status").then(function(es){
+    var el = document.getElementById("organism");
+    if(!es){ el.textContent="engine status unavailable."; return; }
+    var organs = es.organs || {};
+    var keys = Object.keys(organs);
+    var healthy = es.organs_healthy||0, total = es.organs_total||keys.length;
+    var mind = es.mind||{};
+    var rows = '<div class="stat"><span>mind sovereign</span><b style="color:'+(mind.sovereign?"var(--ok)":"var(--mut)")+'">'+
+               esc(String(mind.sovereign))+'</b></div>'+
+               '<div class="stat"><span>organs healthy</span><b>'+healthy+'/'+total+'</b></div>';
+    keys.forEach(function(k){
+      var o=organs[k]; var rc=o.reachable?"var(--ok)":"var(--mut)";
+      rows += '<div class="axis"><span><span class="dot" style="background:'+rc+'"></span>'+esc(k)+'</span><b>'+esc(o.status)+'</b></div>';
+      // add a mesh node per organ to the unified canvas (dim when unreachable)
+      var idx = keys.indexOf(k); var a=(idx/keys.length)*Math.PI*2;
+      dag.nodes.push({ id:"org_"+k, label:k.toUpperCase(), pos:[ -2.0 + 0.5*Math.cos(a), 0.2+0.4*Math.sin(a), -1.4 ],
+                       lambda: o.reachable?0.35:0.85 });
+    });
+    el.innerHTML = rows;
+    document.getElementById("orgBadge").textContent = healthy+"/"+total+" live";
+    document.getElementById("orgBadge").className = "badge " + (healthy>0?"live":"sample");
+  });
+
+  // ------- LIVE per-surface signed receipts (quant pipeline + constitution ledger) -------
+  getJSON("/api/a11oy/v1/quant/pipeline").then(function(pp){
+    if(!pp) return;
+    var sr = (pp.signed_receipt && pp.signed_receipt.receipt) || {};
+    tapeRows.unshift('<div class="r"><span class="dot" style="background:var(--warn)"></span>'+
+      esc((sr.bar_timestamp||"").slice(11,19))+' · quant receipt <b>'+esc(sr.pipeline_version||"")+'</b> '+
+      '<span class="badge live">LIVE · '+esc(pp.label?pp.label.split("|")[0].trim():"SAMPLE_SIGNAL")+'</span></div>');
+    document.getElementById("tape").innerHTML = tapeRows.join("");
+  });
+  getJSON("/api/a11oy/v1/constitution/ledger").then(function(ld){
+    if(!ld) return;
+    tapeRows.unshift('<div class="r"><span class="dot" style="background:var(--accent)"></span>'+
+      'causal ledger <b>'+esc(ld.count||0)+' events</b> <span class="badge live">LIVE · '+esc(ld.status||"ACTIVE")+'</span></div>');
+    document.getElementById("tape").innerHTML = tapeRows.join("");
+  });
+
+  window.__SZL_ESTATE_HOLO_READY = true;
+})();
+</script>
+</body>
+</html>

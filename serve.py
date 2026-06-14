@@ -995,6 +995,36 @@ try:
     app.add_api_route("/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
 
+    # ADDITIVE (Lane F5, 2026-06-14): three sovereign 3D surfaces that render on the
+    # shared holographic kit (/static/shared/szl_holo3d.js, 0 runtime CDN):
+    #   /constitution     — 3D ontology ORGANISM: 8 pillars + live constitutional
+    #                        engines as a causal graph, animated causal-edge pulses,
+    #                        time-slider ledger replay, TrustGraph/Letta memory cores.
+    #                        Reads LIVE /api/a11oy/v1/constitution/{status,ledger,audit,
+    #                        memory,ontology,state}. Deeper R&D honest ROADMAP. NOT AGI.
+    #   /quant            — 3D portfolio risk landscape (PCA eigen-spectrum) with Betti
+    #                        FRACTURE TEARS (TDA β1 cycles), HJB-Kelly rebalancing bars,
+    #                        and the signed energy receipt. Reads LIVE /api/a11oy/v1/
+    #                        quant/{pca,tda,kelly,pipeline}. Honest SAMPLE_SIGNAL |
+    #                        NOT_LIVE | NO_BACKTEST_VALIDATED; GPU path ROADMAP.
+    #   /estate-hologram  — THE UNIFIED ESTATE HOLOGRAM: globe + proof-DAG + Λ trust-
+    #                        sphere + mesh organism + constitutional pillars on ONE
+    #                        canvas; every signed cross-surface decision flows as LIGHT
+    #                        (kit signed-pulse). Reads LIVE estate Λ + KPIs (ecosystem/
+    #                        kpi-board), the engine organism (engine/status), and per-
+    #                        surface signed receipts. Cross-surface receipt aggregation
+    #                        is honest SAMPLE where not fully wired. locked = EXACTLY 8
+    #                        @ c7c0ba17; Λ = Conjecture 1 (< 1.0); 0 visible codenames.
+    # image-only like the other web/*.html demo pages (Dockerfile per-file COPY +
+    # copy-sync-lockstep.json image_only_assets); also pushed direct-to-Space so they
+    # are live immediately. Without these COPYs the routes 404 to the SPA shell.
+    app.add_api_route("/constitution", _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/constitution", _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/quant", _ptg_serve("quant.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/quant", _ptg_serve("quant.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/estate-hologram", _ptg_serve("estate-hologram.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/estate-hologram", _ptg_serve("estate-hologram.html"), methods=["GET"], include_in_schema=False)
+
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
         return _PTG_Redirect(url="/code", status_code=302)

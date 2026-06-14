@@ -324,6 +324,16 @@ COPY web/nemo.html ./web/nemo.html
 # .github/copy-sync-lockstep.json image_only_assets; baked into the GitHub-built image,
 # live after a factory rebuild). Without this COPY /holo would 404 to the SPA shell.
 COPY web/holo.html ./web/holo.html
+# ADDITIVE (Lane F5, 2026-06-14): the three sovereign 3D surfaces served at
+# /constitution, /quant and /estate-hologram (+ /a11oy/* aliases) via _ptg_serve.
+# Each loads the shared kit /static/shared/szl_holo3d.js (0 CDN) and reads its live
+# /api/a11oy/v1/{constitution,quant,ecosystem,engine}/* feeds. image-only like the
+# other web/*.html demo pages (declared in copy-sync-lockstep.json image_only_assets;
+# baked into the GitHub-built image, live after a factory rebuild + direct Space push).
+# Without these COPYs the routes 404 to the SPA shell.
+COPY web/constitution.html ./web/constitution.html
+COPY web/quant.html ./web/quant.html
+COPY web/estate-hologram.html ./web/estate-hologram.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and

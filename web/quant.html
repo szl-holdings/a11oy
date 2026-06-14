@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0  © 2026 SZL Holdings
+     /quant — GPU-QUANT 3D PORTFOLIO LANDSCAPE (Lane F5).
+     A 3D portfolio landscape on the shared holographic kit (0 runtime CDN):
+       - PCA risk eigen-spectrum (Ledoit-Wolf shrinkage + Marchenko-Pastur edge)
+         rendered as a risk LANDSCAPE
+       - Betti FRACTURE TEARS: persistent-homology β1 cycles drawn as glowing
+         tear-rings; tear count + intensity track the live fracture score f_t / z
+       - HJB-Kelly REBALANCING animation: per-asset Kelly weights w* as signed bars
+       - ENERGY RECEIPT: the live signed pipeline receipt (DSSE-style)
+     Reads LIVE: /api/a11oy/v1/quant/{pca,tda,kelly,pipeline}.
+     HONEST: data is SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED — synthetic
+     SAMPLE universe, pure-Python CPU fallback; the cuML/cuPy/giotto-tda/Ripser++
+     GPU path is ROADMAP (flips to MEASURED only on a sovereign GPU). NOT live trading.
+     Citations: RAPIDS cuDF/cuML, giotto-tda, Ledoit-Wolf (2003), Gidea-Katz (2017).
+     DOCTRINE v11: 0 runtime CDN · Λ = Conjecture 1 (<1.0) · trust < 100% ·
+     0 visible codenames · honest SAMPLE labels · never claims live trading or backtest. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SZL · GPU-Quant Landscape</title>
+<style>
+  :root{--bg:#03060d;--panel:#0a1326;--ink:#cfe6ff;--mut:#86a4c9;--line:rgba(120,170,230,.18);
+        --ok:#46d39a;--warn:#ffcf5c;--bad:#ff6b6b;--accent:#7fd4ff;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;gap:14px;flex-wrap:wrap;}
+  header h1{font-size:15px;margin:0;letter-spacing:.06em;font-weight:600;}
+  header .sub{font-size:11px;color:var(--mut);}
+  .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:16px 20px;max-width:1280px;margin:0 auto;}
+  .stage{height:58vh;min-height:380px;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:0 0 60px rgba(40,90,160,.12) inset;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(10,19,38,.5);}
+  .panel h2{font-size:12px;margin:0 0 8px;letter-spacing:.06em;color:#bfe0ff;}
+  .btn{background:rgba(70,150,230,.16);border:1px solid rgba(120,180,240,.4);color:#cfe6ff;
+    border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;}
+  .btn:hover{background:rgba(70,150,230,.3);}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .mut{color:var(--mut);font-size:11px;}
+  a{color:#7fd4ff;}
+  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:600;
+    background:rgba(255,180,90,.16);border:1px solid rgba(255,190,110,.4);color:#ffd9a8;}
+  .badge.no{background:rgba(255,107,107,.15);border-color:rgba(255,120,120,.4);color:#ffb3b3;}
+  .kbar{height:14px;margin:2px 0;border-radius:3px;position:relative;}
+  .big{font-size:22px;font-weight:700;}
+  pre{white-space:pre-wrap;word-break:break-word;font-size:10px;color:#9fc4ea;max-height:200px;overflow:auto;
+    background:rgba(3,8,18,.6);border:1px solid var(--line);border-radius:8px;padding:8px;}
+  .stat{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid rgba(120,170,230,.08);}
+  @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <h1>SZL · GPU-QUANT LANDSCAPE</h1>
+  <span class="sub">PCA risk · Betti fracture tears · HJB-Kelly · energy receipts · 0 runtime CDN</span>
+  <span id="caps" class="sub"></span>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>WHAT THIS IS <span id="lbl" class="badge no">SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED</span></h2>
+    <div class="mut">A 3D portfolio risk landscape. The risk surface is the PCA eigen-spectrum
+    (Ledoit-Wolf shrinkage + Marchenko-Pastur noise edge). The glowing <strong>tear-rings</strong> are
+    persistent-homology <strong>β1 cycles</strong> — topological "fractures" in the correlation network;
+    their count and intensity track the live fracture score <code>f_t</code> and its z-score.
+    The bars are <strong>HJB-Kelly</strong> rebalancing weights. All data is a
+    <strong>synthetic SAMPLE</strong> universe on a pure-Python CPU fallback — the cuML/cuPy/giotto-tda
+    GPU path is <strong>ROADMAP</strong>. This is <strong>NOT live trading</strong> and is
+    <strong>NOT backtest-validated</strong>. Λ = Conjecture 1 (&lt; 1.0); trust &lt; 100%.</div>
+  </div>
+
+  <div id="stage" class="stage"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button class="btn" id="rebalBtn">▶ HJB-KELLY REBALANCE</button>
+      <button class="btn" id="fractureBtn">SIMULATE FRACTURE (illustrative)</button>
+      <span id="fstatus" class="mut">loading live quant signal…</span>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="panel">
+      <h2>PCA RISK <span class="badge">Ledoit-Wolf · MP</span></h2>
+      <div id="pca" class="mut">…</div>
+    </div>
+    <div class="panel">
+      <h2>TDA FRACTURE <span class="badge">β0/β1 persistence</span></h2>
+      <div id="tda" class="mut">…</div>
+    </div>
+    <div class="panel">
+      <h2>HJB-KELLY <span class="badge">w* sizing</span></h2>
+      <div id="kelly"></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>ENERGY / SIGNED RECEIPT <span class="badge">DSSE-style</span></h2>
+      <div id="receiptMeta" class="mut" style="margin-bottom:6px"></div>
+      <pre id="receipt">…</pre>
+    </div>
+    <div class="panel">
+      <h2>COMPUTE BACKEND <span id="gpuBadge" class="badge">CPU fallback</span></h2>
+      <div id="backend" class="mut">…</div>
+    </div>
+  </div>
+
+  <div class="panel mut">
+    Build references (no runtime calls): RAPIDS cuDF/cuML
+    (<a href="https://docs.rapids.ai">docs.rapids.ai</a>),
+    giotto-tda (<a href="https://github.com/giotto-ai/giotto-tda">giotto-ai/giotto-tda</a>),
+    Ledoit &amp; Wolf (2003) shrinkage covariance, Gidea &amp; Katz (2017) TDA of crashes (arXiv:1703.04385),
+    Marchenko-Pastur noise edge. β1 here is the 1-skeleton cycle rank (honest fast proxy);
+    the exact Vietoris-Rips H1 is the GPU ROADMAP path.
+  </div>
+</div>
+
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_holo3d.js"></script>
+<script>
+(function () {
+  var API = "/api/a11oy/v1/quant/";
+  var stageEl = document.getElementById("stage");
+  if (!window.SZLHolo) {
+    stageEl.innerHTML = '<div style="padding:20px;color:#ffd9a8">SZLHolo kit failed to load.</div>';
+    return;
+  }
+  var caps = window.SZLHolo.capabilities();
+  document.getElementById("caps").textContent =
+    "renderer: " + caps.mode.toUpperCase() + (caps.webgpu ? " · WebGPU detected (ROADMAP)" : "");
+
+  // 3D landscape scene: a grid of asset nodes whose height = PCA loading; tear-rings = β1 cycles.
+  var scene = window.SZLHolo.createScene(stageEl, { title:"PORTFOLIO RISK LANDSCAPE · SAMPLE", lambda:0.45 });
+  var landscape = scene.addGraph({ nodes:[{id:"o",label:"PORTFOLIO",pos:[0,0,0]}], edges:[] });
+  scene.start();
+  var tearHandles = [];
+
+  function getJSON(path){ return fetch(API+path).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}); }
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
+  function lamColor(l){ return window.SZLHolo.lambdaColor ? window.SZLHolo.lambdaColor(l) : "#7fd4ff"; }
+
+  // ---- PCA: build the risk landscape from eigenvalues ----
+  getJSON("pca").then(function(pc){
+    var el = document.getElementById("pca");
+    if(!pc){ el.textContent="pca feed unavailable."; return; }
+    var eig = (pc.marchenko_pastur && pc.marchenko_pastur.eigenvalues) || [];
+    var maxe = Math.max.apply(null, eig.concat([1e-9]));
+    // place each asset on a ring; height (y) = normalized eigenvalue (the risk peak)
+    eig.forEach(function(e,i){
+      var a=(i/eig.length)*Math.PI*2; var r=1.3;
+      var h = 0.9*(e/maxe);
+      landscape.nodes.push({ id:"a"+i, label:"", pos:[r*Math.cos(a), h, r*Math.sin(a)],
+                             lambda: 0.25 + 0.6*(e/maxe) });
+    });
+    el.innerHTML =
+      '<div class="stat"><span>assets N</span><b>'+esc(pc.n_assets)+'</b></div>'+
+      '<div class="stat"><span>obs T</span><b>'+esc(pc.n_obs)+'</b></div>'+
+      '<div class="stat"><span>shrinkage ρ</span><b>'+esc((+pc.shrinkage_rho).toFixed(4))+'</b></div>'+
+      '<div class="stat"><span>MP λ⁺ (noise edge)</span><b>'+esc((+pc.marchenko_pastur.lambda_plus).toExponential(3))+'</b></div>'+
+      '<div class="stat"><span>signal eigenvalues</span><b>'+esc(pc.marchenko_pastur.signal_eigenvalues)+'</b></div>'+
+      '<div class="mut" style="margin-top:6px">Σ̂_LW = (1−ρ)Σ̂ + ρ·μI · λ± = σ²(1±1/√q)²</div>';
+  });
+
+  // ---- TDA fracture tears: draw β1 cycles as glowing tear-rings ----
+  function drawTears(beta1, fscore){
+    // remove old tear nodes
+    landscape.nodes = landscape.nodes.filter(function(n){ return String(n.id).indexOf("tear")!==0; });
+    var n = Math.min(beta1, 14); // cap for legibility
+    for(var i=0;i<n;i++){
+      var a=(i/Math.max(1,n))*Math.PI*2;
+      var rr = 1.7 + 0.25*Math.sin(i*1.3);
+      // a tear-ring is a small cluster of red points (a topological hole / fracture)
+      var lam = 0.65 + 0.3*Math.min(1, fscore/3 + 0.1);
+      landscape.nodes.push({ id:"tear"+i, label:(i===0?"β1 TEARS":""),
+                             pos:[rr*Math.cos(a), 1.2+0.2*Math.cos(i), rr*Math.sin(a)], lambda: lam });
+    }
+  }
+  getJSON("tda").then(function(td){
+    var el = document.getElementById("tda");
+    if(!td){ el.textContent="tda feed unavailable."; return; }
+    drawTears(td.beta1_cur||0, td.fracture_score_f_t||0);
+    var anomCol = td.anomaly ? "var(--bad)" : "var(--ok)";
+    el.innerHTML =
+      '<div class="stat"><span>β0 (components)</span><b>'+esc(td.beta0_cur)+'</b></div>'+
+      '<div class="stat"><span>β1 (cycles / tears)</span><b style="color:var(--warn)">'+esc(td.beta1_cur)+'</b></div>'+
+      '<div class="stat"><span>fracture f_t</span><b>'+esc((+td.fracture_score_f_t).toFixed(3))+'</b></div>'+
+      '<div class="stat"><span>z-score</span><b>'+esc((+td.z_score).toFixed(3))+' / thr '+esc(td.z_threshold)+'</b></div>'+
+      '<div class="stat"><span>anomaly</span><b style="color:'+anomCol+'">'+(td.anomaly?"YES":"no")+'</b></div>'+
+      '<div class="mut" style="margin-top:6px">f_t = |Δβ0|+|Δβ1| · |z|&gt;2.5 ⇒ anomaly. β1 tear-rings shown in 3D.</div>';
+    document.getElementById("fstatus").textContent =
+      "LIVE quant signal · β1="+td.beta1_cur+" tears · f_t="+(+td.fracture_score_f_t).toFixed(2)+" · "+esc(td.label);
+    window.__SZL_TDA = td;
+  });
+
+  // ---- HJB-Kelly weights as signed rebalancing bars ----
+  var kellyW = [];
+  getJSON("kelly").then(function(kl){
+    var el = document.getElementById("kelly");
+    if(!kl){ el.textContent="kelly feed unavailable."; return; }
+    kellyW = kl.kelly_weights_w_star || [];
+    var maxw = Math.max.apply(null, kellyW.map(Math.abs).concat([1e-9]));
+    el.innerHTML = '<div class="mut" style="margin-bottom:4px">gross exposure '+esc((+kl.kelly_gross_exposure).toFixed(2))+
+      ' · γ='+esc(kl.gamma)+' · σ-inflation '+esc(kl.sigma_eff_inflation)+'</div>' +
+      kellyW.map(function(w,i){
+        var pct = Math.abs(w)/maxw*100;
+        var col = w>=0 ? "linear-gradient(90deg,rgba(70,211,154,.25),rgba(70,211,154,.6))"
+                       : "linear-gradient(90deg,rgba(255,107,107,.25),rgba(255,107,107,.6))";
+        return '<div class="kbar" data-i="'+i+'" style="width:'+pct.toFixed(0)+'%;background:'+col+'"></div>';
+      }).join("");
+    el.innerHTML += '<div class="mut" style="margin-top:6px">w* = (μ−r)/σ²  (TDA-augmented variance). Long = green, short = red.</div>';
+  });
+  document.getElementById("rebalBtn").addEventListener("click", function(){
+    // animate bars rebalancing toward Kelly target (illustrative)
+    var bars = document.querySelectorAll(".kbar");
+    bars.forEach(function(b){
+      b.style.transition="width .6s ease"; var cur=parseFloat(b.style.width)||0;
+      b.style.width = Math.max(4, Math.min(100, cur*(0.6+Math.random()*0.8))).toFixed(0)+"%";
+    });
+    // pulse the landscape to show capital re-flow
+    if(landscape.nodes.length>2){ scene.signPulse(0,{duration:1000,color:"#aef6ff"}); }
+  });
+  document.getElementById("fractureBtn").addEventListener("click", function(){
+    var td = window.__SZL_TDA || {beta1_cur:23, fracture_score_f_t:0};
+    drawTears((td.beta1_cur||10)+8, (td.fracture_score_f_t||0)+2.5); // illustrative spike
+  });
+
+  // ---- signed energy receipt from the pipeline ----
+  getJSON("pipeline").then(function(pp){
+    if(!pp){ document.getElementById("receipt").textContent="pipeline feed unavailable."; return; }
+    document.getElementById("lbl").textContent = pp.label || "SAMPLE_SIGNAL | NOT_LIVE | NO_BACKTEST_VALIDATED";
+    var sr = (pp.signed_receipt && pp.signed_receipt.receipt) || pp.signed_receipt || {};
+    document.getElementById("receiptMeta").innerHTML =
+      'pipeline <b>'+esc(sr.pipeline_version||"")+'</b> · device <b>'+esc(sr.gpu_device||"")+'</b> · '+
+      'scenario <b>'+esc(sr.scenario||pp.scenario||"")+'</b> · computed '+esc((pp.computed_at||"").slice(0,19));
+    document.getElementById("receipt").textContent = JSON.stringify(sr, null, 1);
+    var cb = pp.compute_backend || {};
+    document.getElementById("gpuBadge").textContent = cb.gpu_reachable ? "GPU MEASURED" : "CPU fallback (GPU ROADMAP)";
+    document.getElementById("backend").innerHTML =
+      '<div class="stat"><span>backend</span><b>'+esc(cb.backend)+'</b></div>'+
+      '<div class="stat"><span>gpu reachable</span><b>'+esc(String(cb.gpu_reachable))+'</b></div>'+
+      '<div class="stat"><span>doctrine</span><b>'+esc((pp.doctrine||{}).version)+' · locked '+esc((pp.doctrine||{}).locked_count)+'</b></div>'+
+      '<div class="stat"><span>kernel</span><b>'+esc((pp.doctrine||{}).kernel_commit)+'</b></div>'+
+      '<div class="mut" style="margin-top:6px">'+esc((cb.honest_note||"").slice(0,160))+'…</div>';
+  });
+
+  window.__SZL_QUANT_READY = true;
+})();
+</script>
+</body>
+</html>

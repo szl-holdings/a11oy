@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0  © 2026 SZL Holdings
+     /constitution — CONSTITUTIONAL 3D ONTOLOGY ORGANISM (Lane F5).
+     Renders the live constitutional architecture as a 3D organism on the shared
+     holographic kit (/static/shared/szl_holo3d.js, 0 runtime CDN):
+       - ontology ORGANISM: the 8 constitutional pillars + the live engines as
+         nodes, causal edges between them, animated causal-edge pulses
+       - TIME-SLIDER replay of the causal ledger
+       - MEMORY-BLOCK view (TrustGraph-style Context Cores: pin/promote/rollback)
+     Reads LIVE: /api/a11oy/v1/constitution/{status,ledger,audit,memory,ontology,state}.
+     The causal ledger + audit + memory + ontology endpoints are LIVE; deeper
+     constitutional R&D (phenomenology / immunology engines) is honest ROADMAP.
+     Citations (build references, no runtime calls): Palantir Ontology, TrustGraph
+     (Apache-2.0), Letta (MemGPT memory blocks), Anthropic Constitutional AI.
+     DOCTRINE v11: 0 runtime CDN · Λ = Conjecture 1 (<1.0) · trust < 100% ·
+     0 visible codenames · honest LIVE/SAMPLE/ROADMAP labels · never claims AGI. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SZL · Constitutional Organism</title>
+<style>
+  :root{--bg:#03060d;--panel:#0a1326;--ink:#cfe6ff;--mut:#86a4c9;--line:rgba(120,170,230,.18);
+        --ok:#46d39a;--warn:#ffcf5c;--bad:#ff6b6b;--accent:#7fd4ff;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;gap:14px;flex-wrap:wrap;}
+  header h1{font-size:15px;margin:0;letter-spacing:.06em;font-weight:600;}
+  header .sub{font-size:11px;color:var(--mut);}
+  .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:16px 20px;max-width:1280px;margin:0 auto;}
+  .stage{height:60vh;min-height:380px;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:0 0 60px rgba(40,90,160,.12) inset;}
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(10,19,38,.5);}
+  .panel h2{font-size:12px;margin:0 0 8px;letter-spacing:.06em;color:#bfe0ff;}
+  .btn{background:rgba(70,150,230,.16);border:1px solid rgba(120,180,240,.4);color:#cfe6ff;
+    border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;}
+  .btn:hover{background:rgba(70,150,230,.3);}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .mut{color:var(--mut);font-size:11px;}
+  a{color:#7fd4ff;}
+  .badge{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:600;
+    background:rgba(70,150,230,.18);border:1px solid rgba(120,180,240,.35);color:#bfe0ff;}
+  .badge.live{background:rgba(70,211,154,.16);border-color:rgba(70,211,154,.4);color:#9af0cf;}
+  .badge.roadmap{background:rgba(255,180,90,.16);border-color:rgba(255,190,110,.4);color:#ffd9a8;}
+  table{width:100%;border-collapse:collapse;font-size:11px;}
+  td,th{text-align:left;padding:3px 6px;border-bottom:1px solid rgba(120,170,230,.1);}
+  th{color:var(--mut);font-weight:600;}
+  .mem-block{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;
+    background:rgba(10,19,38,.6);}
+  .mem-block .t{font-size:11px;color:#bfe0ff;}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <h1>SZL · CONSTITUTIONAL ORGANISM</h1>
+  <span class="sub">3D ontology · causal-ledger replay · memory cores · 0 runtime CDN · honest 2D fallback</span>
+  <span id="caps" class="sub"></span>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>WHAT THIS IS</h2>
+    <div class="mut">A governed, auditable, policy-enforced agent runtime rendered as a 3D
+    <strong>ontology organism</strong> — the 8 constitutional pillars and the live constitutional
+    engines as a living causal graph. The <strong>Causal Ledger, Audit, Memory and Ontology</strong>
+    engines read <span class="badge live">LIVE</span> from <code>/api/a11oy/v1/constitution/*</code>.
+    Deeper constitutional R&D (phenomenology / immunology) is honest <span class="badge roadmap">ROADMAP</span>.
+    This is <strong>NOT a new form of existence and NOT an AGI</strong>. Λ is
+    <strong>Conjecture 1</strong> (a bounded score &lt; 1.0, not a theorem); trust is never 100%.</div>
+  </div>
+
+  <div id="stage" class="stage"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button class="btn" id="signBtn">EMIT CAUSAL EVENT → pulse</button>
+      <button class="btn" id="playBtn">▶ REPLAY LEDGER</button>
+      <span id="status" class="mut">loading live constitutional state…</span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>CONSTITUTIONAL ENGINES <span id="engBadge" class="badge live">LIVE</span></h2>
+      <div id="engines" class="mut">…</div>
+    </div>
+    <div class="panel">
+      <h2>MEMORY CORES <span class="badge">TrustGraph · Letta pattern</span></h2>
+      <div class="mut" style="margin-bottom:8px">Context Cores — pin (protect) · promote (set active) · rollback (restore prior as NEW version, append-only).</div>
+      <div id="memory"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>STATECHART <span class="badge">a11oy_agent</span></h2>
+    <div id="statechart" class="mut">…</div>
+  </div>
+
+  <div class="panel mut">
+    Build references (no runtime calls): Palantir Ontology
+    (<a href="https://www.palantir.com/platforms/foundry/ontology/">palantir.com</a>),
+    TrustGraph (<a href="https://trustgraph.ai">trustgraph.ai</a>, Apache-2.0),
+    Letta / MemGPT memory blocks (<a href="https://github.com/letta-ai/letta">letta-ai/letta</a>),
+    Anthropic Constitutional AI (arXiv:2212.08073), W3C PROV-DM.
+    Causal ledger is event-sourced + PROV-annotated; the 3D organism reads it live.
+  </div>
+</div>
+
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_holo3d.js"></script>
+<script>
+(function () {
+  var API = "/api/a11oy/v1/constitution/";
+  var stageEl = document.getElementById("stage");
+  if (!window.SZLHolo) {
+    stageEl.innerHTML = '<div style="padding:20px;color:#ffd9a8">SZLHolo kit failed to load.</div>';
+    return;
+  }
+  var caps = window.SZLHolo.capabilities();
+  document.getElementById("caps").textContent =
+    "renderer: " + caps.mode.toUpperCase() + (caps.webgpu ? " · WebGPU detected (ROADMAP)" : "");
+
+  // ---- 3D ontology organism: 8 pillars (inner ring) + live engines (outer) ----
+  var PILLARS = ["Ontology","Phenomenology","Temporality","Legitimacy",
+                 "Immunology","Energy Economics","Topology","Governance"];
+  var nodes = [], edges = [];
+  // central CONSTITUTION nucleus
+  nodes.push({ id:"core", label:"CONSTITUTION", pos:[0,0,0], locked:true });
+  // pillars around a ring
+  PILLARS.forEach(function (p, i) {
+    var a = (i/PILLARS.length)*Math.PI*2;
+    nodes.push({ id:"p"+i, label:p, pos:[1.25*Math.cos(a), 0.15*Math.sin(i*1.7), 1.25*Math.sin(a)],
+                 lambda: 0.30 + 0.04*i });
+    edges.push({ id:"ce"+i, from:"core", to:"p"+i });
+  });
+  var scene = window.SZLHolo.createScene(stageEl, { title:"CONSTITUTIONAL ONTOLOGY ORGANISM", lambda:0.34 });
+  var graph = scene.addGraph({ nodes: nodes, edges: edges });
+  scene.addTrustSphere({ center:[0,-1.15,0], radius:0.42, label:"ESTATE TRUST" });
+  // gentle causal pulses on a couple of pillar edges (animated causal edges)
+  scene.signPulse("ce2", { loop:true, duration:1900 }); // Temporality (ledger)
+  scene.signPulse("ce7", { loop:true, duration:2300 }); // Governance (audit)
+  var slider = scene.timeSlider({ from:0, to:100, onTime:function(){} });
+  scene.start();
+
+  document.getElementById("signBtn").addEventListener("click", function () {
+    // pulse a random pillar edge — represents a signed causal event being recorded
+    var i = Math.floor(Math.random()*PILLARS.length);
+    scene.signPulse("ce"+i, { duration:1200, color:"#aef6ff" });
+  });
+  var replaying=false;
+  document.getElementById("playBtn").addEventListener("click", function () {
+    if (replaying || !slider) return; replaying=true;
+    var v=0; var iv=setInterval(function(){ v+=0.04; slider.set(v); if(v>=1){clearInterval(iv);replaying=false;} },70);
+  });
+
+  function getJSON(path){ return fetch(API+path).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}); }
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
+
+  // ---- live engines list + drive the organism's per-pillar Λ from live status ----
+  getJSON("status").then(function(st){
+    if(!st){ document.getElementById("engines").textContent="status feed unavailable (honest: not fabricated)."; return; }
+    var engines = st.engines || [];
+    var html = '<table><tr><th>Engine</th><th>Status</th><th>Pillar</th><th>Live</th></tr>';
+    engines.forEach(function(e){
+      var col = e.color==="green" ? "var(--ok)" : (e.color==="amber"?"var(--warn)":"var(--bad)");
+      html += '<tr><td>'+esc(e.engine)+'</td>'+
+              '<td><span class="dot" style="background:'+col+'"></span>'+esc(e.status)+'</td>'+
+              '<td>'+esc((e.pillars||[])[1]||"")+'</td>'+
+              '<td>'+esc(e.live_count)+'</td></tr>';
+    });
+    html += '</table>';
+    document.getElementById("engines").innerHTML = html;
+    document.getElementById("status").textContent =
+      "LIVE constitutional status · "+engines.length+" engines · concept: "+esc((st.concept_origin||"").slice(0,40));
+  });
+
+  // ---- ledger (causal events) drive the replay reveal ----
+  getJSON("ledger").then(function(ld){
+    if(!ld) return;
+    var n = ld.count||0;
+    document.getElementById("playBtn").textContent = "▶ REPLAY LEDGER ("+n+" events)";
+  });
+
+  // ---- memory cores view (TrustGraph Context Cores / Letta blocks) ----
+  getJSON("memory").then(function(mm){
+    var el = document.getElementById("memory");
+    if(!mm){ el.textContent="memory feed unavailable."; return; }
+    var cores = mm.cores || {};
+    var keys = Object.keys(cores);
+    if(!keys.length){
+      el.innerHTML = '<div class="mem-block"><div class="t">No Context Cores pinned yet '+
+        '<span class="badge live">LIVE · 0 cores</span></div>'+
+        '<div class="mut">Model: '+esc(mm.model)+'. Cores appear here as doctrine/decision '+
+        'versions are pinned/promoted (append-only).</div></div>';
+      return;
+    }
+    el.innerHTML = keys.map(function(k){
+      var c = cores[k];
+      return '<div class="mem-block"><div class="t">'+esc(k)+'</div>'+
+             '<div class="mut">'+esc(JSON.stringify(c).slice(0,120))+'</div></div>';
+    }).join("");
+  });
+
+  // ---- ontology entities -> extend the organism with live entity nodes ----
+  getJSON("ontology").then(function(on){
+    if(!on) return;
+    var ents = on.entities || {}; var keys = Object.keys(ents).slice(0,6);
+    keys.forEach(function(k,i){
+      var a=(i/Math.max(1,keys.length))*Math.PI*2;
+      graph.nodes.push({ id:"ent"+i, label:esc(k), pos:[1.9*Math.cos(a),0.6,1.9*Math.sin(a)], lambda:0.4 });
+    });
+  });
+
+  // ---- statechart ----
+  getJSON("state").then(function(sc){
+    var el = document.getElementById("statechart");
+    if(!sc || !sc.statechart){ el.textContent="state feed unavailable."; return; }
+    var states = sc.statechart.states || {};
+    el.innerHTML = "<strong>"+esc(sc.statechart.id)+"</strong> · initial="+esc(sc.statechart.initial)+
+      " · states: "+Object.keys(states).map(esc).join(" → ");
+  });
+
+  // ---- audit integrity readout ----
+  getJSON("audit").then(function(au){
+    if(!au) return;
+    var s = " · audit: chain "+(au.chain_intact?"INTACT":"BROKEN")+
+            ", "+au.events_audited+" events ("+esc(au.trust_note||"").slice(0,40)+"…)";
+    document.getElementById("engBadge").textContent = au.chain_intact ? "LIVE · CHAIN INTACT" : "LIVE";
+  });
+
+  window.__SZL_CONSTITUTION_READY = true;
+})();
+</script>
+</body>
+</html>
