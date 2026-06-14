@@ -755,20 +755,91 @@ _HONEST = (
 )
 
 
-# --- background warmer: keep every section's reads fresh in cache ------------
+# --- background snapshot: the full index payload is assembled by the warmer
+# (and one-off background builds) and served from cache, so a request NEVER
+# blocks on live upstream probes. Every value inside still carries its real
+# live / cached / unreachable label and fetch time; the snapshot only adds
+# honest age/staleness metadata on top. This is what keeps the panel instant
+# even when an upstream (e.g. a hairpinned self-probe) is slow to answer. ----
+
+_SNAPSHOT: Dict[str, Dict[str, Any]] = {}
+_SNAPSHOT_LOCK = threading.Lock()
+_BUILDING: set = set()
+# A snapshot older than this is honestly flagged stale (the warmer fell behind);
+# generous vs the warm interval so one slow sweep is not mislabelled stale.
+_SNAPSHOT_STALE = max(_WARM_INTERVAL * 2, _DEPLOY_TTL * 2)
+
+
+def _assemble_index(ns: str) -> Dict[str, Any]:
+    """Build the full readiness index payload for ns. This performs the live
+    section reads, so it must only ever run off the request path (warmer /
+    background build thread)."""
+    cfg = _cfg_for(ns)
+    sections = [_SECTIONS[sid](cfg) for sid in _SECTION_ORDER]
+    return {
+        "layer": "%s operational readiness" % ns,
+        "honest": _HONEST,
+        "organ": cfg["organ"],
+        "repo": cfg["repo"],
+        "repo_url": "https://github.com/" + cfg["repo"],
+        "hf_space": cfg["hf_space"],
+        "deployment": cfg["deployment"]["name"],
+        "summary": _summary(sections),
+        "sections": sections,
+        "checked_at": _now_iso(),
+    }
+
+
+def _build_snapshot(ns: str) -> Dict[str, Any]:
+    """Assemble and store the index snapshot for ns (background only)."""
+    payload = _assemble_index(ns)
+    with _SNAPSHOT_LOCK:
+        _SNAPSHOT[ns] = {"payload": payload, "_t": time.time(), "at": _now_iso()}
+    return payload
+
+
+def _snapshot(ns: str) -> Optional[Dict[str, Any]]:
+    with _SNAPSHOT_LOCK:
+        return _SNAPSHOT.get(ns)
+
+
+def _kick_background_build(ns: str) -> None:
+    """Trigger a one-off snapshot build in the background (cold start / explicit
+    refresh), de-duplicated so concurrent requests never stampede upstreams."""
+    with _SNAPSHOT_LOCK:
+        if ns in _BUILDING:
+            return
+        _BUILDING.add(ns)
+
+    def _run() -> None:
+        try:
+            _build_snapshot(ns)
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            with _SNAPSHOT_LOCK:
+                _BUILDING.discard(ns)
+
+    try:
+        threading.Thread(target=_run, name="szl-readiness-build-%s" % ns,
+                         daemon=True).start()
+    except Exception:  # noqa: BLE001
+        with _SNAPSHOT_LOCK:
+            _BUILDING.discard(ns)
+
+
+# --- background warmer: rebuild every organ's snapshot on a fixed interval ---
 
 def _warm_loop() -> None:
     time.sleep(12)  # let app startup settle before the first sweep
     while True:
         try:
             for ns in list(_WARM_NS):
-                cfg = _cfg_for(ns)
-                for sid in _SECTION_ORDER:
-                    try:
-                        _SECTIONS[sid](cfg)
-                    except Exception:  # noqa: BLE001
-                        pass
-                    time.sleep(2)  # polite spacing between upstream hits
+                try:
+                    _build_snapshot(ns)
+                except Exception:  # noqa: BLE001
+                    pass
+                time.sleep(2)  # polite spacing between organs
         except Exception:  # noqa: BLE001
             pass
         time.sleep(_WARM_INTERVAL)
@@ -797,13 +868,30 @@ def register(app, ns: str = "a11oy") -> None:
 
     _WARM_NS.add(ns)
     _start_warmer()
+    _kick_background_build(ns)  # warm the snapshot ASAP, off the request path
 
     base = "/api/%s/v1/readiness" % ns
 
     @app.get(base)
     def _readiness_index():  # noqa: ANN202
+        # Serve the background-built snapshot — NEVER probe live on the request
+        # path (that is what made this endpoint stall ~36s when a self-probe
+        # hairpinned). The snapshot's inner values keep their real
+        # live/cached/unreachable labels; we add only honest age/staleness meta.
+        snap = _snapshot(ns)
+        if snap is not None:
+            payload = dict(snap["payload"])
+            age = time.time() - snap.get("_t", 0)
+            payload["served_from"] = "background-snapshot"
+            payload["snapshot_fetched_at"] = snap.get("at")
+            payload["snapshot_age_seconds"] = round(age, 1)
+            payload["stale"] = age > _SNAPSHOT_STALE
+            return JSONResponse(payload)
+        # Cold: snapshot not built yet (just-restarted process). Kick a
+        # background build and return immediately with an honest "warming"
+        # placeholder rather than blocking on the full live probe sweep.
+        _kick_background_build(ns)
         cfg = _cfg_for(ns)
-        sections = [_SECTIONS[sid](cfg) for sid in _SECTION_ORDER]
         return JSONResponse({
             "layer": "%s operational readiness" % ns,
             "honest": _HONEST,
@@ -812,8 +900,12 @@ def register(app, ns: str = "a11oy") -> None:
             "repo_url": "https://github.com/" + cfg["repo"],
             "hf_space": cfg["hf_space"],
             "deployment": cfg["deployment"]["name"],
-            "summary": _summary(sections),
-            "sections": sections,
+            "summary": {},
+            "sections": [],
+            "served_from": "warming",
+            "warming": True,
+            "note": ("readiness snapshot is warming after a restart; the "
+                     "background probe is running — retry in a few seconds"),
             "checked_at": _now_iso(),
         })
 
@@ -833,12 +925,33 @@ def register(app, ns: str = "a11oy") -> None:
 
     @app.get(base + "/refresh")
     def _readiness_refresh():  # noqa: ANN202
+        # Light freshness sweep: trigger a background re-build (so the next poll
+        # is fresh) and return the current snapshot summary immediately. Like
+        # the index, this never blocks on live upstream probes.
         cfg = _cfg_for(ns)
-        sections = [_SECTIONS[sid](cfg) for sid in _SECTION_ORDER]
+        _kick_background_build(ns)
+        snap = _snapshot(ns)
+        if snap is not None:
+            age = time.time() - snap.get("_t", 0)
+            return JSONResponse({
+                "layer": "%s readiness freshness sweep" % ns,
+                "honest": _HONEST,
+                "organ": cfg["organ"],
+                "summary": (snap["payload"].get("summary") or {}),
+                "served_from": "background-snapshot",
+                "snapshot_fetched_at": snap.get("at"),
+                "snapshot_age_seconds": round(age, 1),
+                "stale": age > _SNAPSHOT_STALE,
+                "refresh_triggered": True,
+                "checked_at": _now_iso(),
+            })
         return JSONResponse({
             "layer": "%s readiness freshness sweep" % ns,
             "honest": _HONEST,
             "organ": cfg["organ"],
-            "summary": _summary(sections),
+            "summary": {},
+            "served_from": "warming",
+            "warming": True,
+            "refresh_triggered": True,
             "checked_at": _now_iso(),
         })
