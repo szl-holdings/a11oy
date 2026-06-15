@@ -54,7 +54,7 @@
 #   • locked theorems = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17.
 #   • Λ = Conjecture 1 (NOT a closed theorem). Khipu = Conjecture 2.
 #   • SLSA L1 honest / L2 roadmap / L3 roadmap.
-#   • No user-visible codenames (amaru/rosie/sentra/jarvis). 0 runtime CDN.
+#   • No user-visible legacy codenames (see doctrine sanitization table). 0 runtime CDN.
 #   • Effectors are SIMULATED, human-on-loop — QHAWAQ ENFORCES this (it BLOCKS any
 #     action that would drive a real vessel/weapon, and REQUIRES a human-on-loop
 #     confirmation token before any simulated effector command).
