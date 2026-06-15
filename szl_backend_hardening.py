@@ -311,16 +311,43 @@ def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
     if pinned:
         return pinned, "env-pin"
     peers = _tailscale_peers()
-    # match by exact hostname, then by prefix (rtx-betterwithage -> betterwithage)
-    cand = [name.lower()]
-    if "-" in name:
-        cand.append(name.split("-", 1)[1].lower())
-    for c in cand:
-        if c in peers:
-            return peers[c], "tailscale-live"
-        for hn, ip in peers.items():
-            if hn.startswith(c) or c.startswith(hn):
-                return ip, "tailscale-prefix"
+    # Prefix-collision guard (2026-06-15): BOTH Windows GPU boxes are tailscale-named
+    # 'betterwithage' (the RTX 5050 laptop and the OMEN), so the bare suffix
+    # 'betterwithage' is AMBIGUOUS and tailscale assigns suffixed hostnames
+    # (betterwithage, betterwithage-1, ...). The previous logic interleaved exact +
+    # prefix matching per-candidate, so 'omen-betterwithage' fell through to an exact
+    # match on the bare peer 'betterwithage' and mis-mapped the OMEN to the LAPTOP's
+    # IP. Honest fix: (a) try the FULL node name exact-match first; (b) require the
+    # peer hostname to carry the node's DISTINGUISHING leading token (omen-/rtx-)
+    # before any suffix-based match; (c) only then fall back to a bare-suffix match,
+    # and ONLY if that suffix is unambiguous (exactly one peer carries it). If the
+    # suffix is ambiguous we DECLINE and degrade to the static fallback rather than
+    # guess — never fabricate a wrong remap.
+    lname = name.lower()
+    # (a) exact full-name hostname match always wins
+    if lname in peers:
+        return peers[lname], "tailscale-live"
+    lead = lname.split("-", 1)[0] if "-" in lname else ""      # e.g. 'omen', 'rtx'
+    suffix = lname.split("-", 1)[1] if "-" in lname else ""   # e.g. 'betterwithage'
+    # (b) disambiguate by the leading token: a peer hostname that contains the
+    #     node's distinguishing token (omen / rtx) AND the shared suffix.
+    if lead and suffix:
+        lead_matches = [(hn, ip) for hn, ip in peers.items()
+                        if lead in hn and suffix in hn]
+        if len(lead_matches) == 1:
+            return lead_matches[0][1], "tailscale-lead"
+        # a peer carrying just the leading token (e.g. 'omen', 'omen-1')
+        lead_only = [(hn, ip) for hn, ip in peers.items() if hn.startswith(lead)]
+        if len(lead_only) == 1:
+            return lead_only[0][1], "tailscale-lead"
+    # (c) bare-suffix fallback — ONLY if exactly one peer carries the suffix, so an
+    #     ambiguous 'betterwithage' (laptop vs OMEN) NEVER silently mis-maps.
+    key = suffix or lname
+    suffix_matches = [(hn, ip) for hn, ip in peers.items()
+                      if hn == key or hn.startswith(key + "-")]
+    if len(suffix_matches) == 1:
+        return suffix_matches[0][1], "tailscale-suffix"
+    # Ambiguous or no live match -> honest static fallback (never guess an IP).
     return fallback_ip, "static-fallback"
 
 DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
@@ -335,7 +362,12 @@ DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
      "probe": ("100.70.130.45", 11434), "endpoint": "http://100.70.130.45:11434",
      "detail": "always-on home brain: OMEN RTX 4060 Ti 8GB + Ryzen 8700G — Ollama on founder tailnet"},
     {"name": "chaski", "kind": "tailnet-gpu", "sovereign": False,
-     "probe": ("100.76.58.50", 11434), "endpoint": "http://100.76.58.50:11434",
+     # IP refresh 2026-06-15: chaski moved 100.76.58.50 -> 100.102.173.88 (confirmed
+     # live per AUTO_STATE). Static fallback updated to the current tailnet IP so the
+     # box probes the right host even when tailscale is unreadable; an explicit
+     # A11OY_GPU_NODE_CHASKI_IP env pin still wins. reachable is still set ONLY by a
+     # real TCP probe — this refresh changes WHICH host we probe, never fakes green.
+     "probe": ("100.102.173.88", 11434), "endpoint": "http://100.102.173.88:11434",
      "detail": "self-hosted Ollama on founder tailnet (Replit node)"},
     {"name": "groq", "kind": "hosted-inference", "sovereign": False,
      "probe": ("api.groq.com", 443), "endpoint": "api.groq.com:443"},
@@ -580,6 +612,55 @@ def _selftest() -> Dict[str, Any]:
     c2.get_or_compute(_producer)
     chk("cache_reprobe_after_ttl", calls["n"] >= 3)
 
+    # --- _resolve_node_ip: env pin + prefix-collision disambiguation (honest) ---
+    # env pin wins over everything, exact key derivation.
+    _os.environ["A11OY_GPU_NODE_OMEN_BETTERWITHAGE_IP"] = "100.70.130.45"
+    _ip, _src = _resolve_node_ip("omen-betterwithage", "9.9.9.9")
+    chk("resolve_env_pin_omen", _ip == "100.70.130.45" and _src == "env-pin")
+    _os.environ["A11OY_GPU_NODE_CHASKI_IP"] = "100.102.173.88"
+    _ip, _src = _resolve_node_ip("chaski", "1.2.3.4")
+    chk("resolve_env_pin_chaski", _ip == "100.102.173.88" and _src == "env-pin")
+    del _os.environ["A11OY_GPU_NODE_OMEN_BETTERWITHAGE_IP"]
+    del _os.environ["A11OY_GPU_NODE_CHASKI_IP"]
+
+    # collision: BOTH Windows boxes are tailscale-named 'betterwithage'. With peers
+    # {omen-betterwithage: OMEN_IP, betterwithage: LAPTOP_IP}, omen MUST NOT grab the
+    # laptop's IP via the shared suffix.
+    _orig_peers = _tailscale_peers
+    try:
+        globals()["_tailscale_peers"] = lambda: {
+            "omen-betterwithage": "100.70.130.45",   # OMEN
+            "betterwithage": "100.125.77.31",        # RTX 5050 laptop
+        }
+        _ip, _src = _resolve_node_ip("omen-betterwithage", "0.0.0.0")
+        chk("resolve_omen_exact_not_laptop", _ip == "100.70.130.45")
+        _ip, _src = _resolve_node_ip("rtx-betterwithage", "0.0.0.0")
+        chk("resolve_rtx_suffix_to_laptop", _ip == "100.125.77.31")
+
+        # suffixed names (betterwithage / betterwithage-1) with leading token in peer
+        globals()["_tailscale_peers"] = lambda: {
+            "omen-betterwithage-1": "100.70.130.45",
+            "betterwithage": "100.125.77.31",
+        }
+        _ip, _src = _resolve_node_ip("omen-betterwithage", "0.0.0.0")
+        chk("resolve_omen_lead_token", _ip == "100.70.130.45" and _src == "tailscale-lead")
+
+        # AMBIGUOUS bare suffix (two peers carry 'betterwithage', no leading token to
+        # disambiguate) MUST decline to static fallback rather than guess.
+        globals()["_tailscale_peers"] = lambda: {
+            "betterwithage": "100.125.77.31",
+            "betterwithage-1": "100.70.130.45",
+        }
+        _ip, _src = _resolve_node_ip("omen-betterwithage", "5.5.5.5")
+        chk("resolve_ambiguous_declines", _ip == "5.5.5.5" and _src == "static-fallback")
+
+        # empty tailscale (box has no CLI / unreadable) -> static fallback, honest.
+        globals()["_tailscale_peers"] = lambda: {}
+        _ip, _src = _resolve_node_ip("omen-betterwithage", "100.70.130.45")
+        chk("resolve_empty_static_fallback", _ip == "100.70.130.45" and _src == "static-fallback")
+    finally:
+        globals()["_tailscale_peers"] = _orig_peers
+
     # --- probe_fabric_pool with mocked sockets: dead chaski -> reachable=False, fast ---
     orig_socket = socket.socket
 
@@ -590,7 +671,7 @@ def _selftest() -> Dict[str, Any]:
             self._t = t
         def connect(self, addr):
             host, port = addr
-            if host == "100.76.58.50":          # the unreachable chaski node
+            if host == "100.102.173.88":         # the unreachable chaski node (current IP)
                 time.sleep(min(self._t or 1.5, 1.5))
                 raise socket.timeout("simulated chaski hang")
             return None                          # everyone else connects instantly

@@ -10,7 +10,7 @@ Runs fully OFFLINE (mock sockets; no network). Asserts:
      the rest.
   3. TTLCache: a fresh hit returns WITHOUT re-running the producer (no re-probe within TTL);
      after TTL expiry the producer runs again. cached_at is stamped.
-  4. probe_fabric_pool with mocked sockets (chaski @ 100.76.58.50 hangs to timeout):
+  4. probe_fabric_pool with mocked sockets (chaski @ 100.102.173.88 hangs to timeout):
        - returns sub-second even with the dead node,
        - chaski is reachable=False with an honest reason (never green, never invented),
        - reachable counts are consistent with the per-node results,
@@ -36,7 +36,7 @@ import szl_backend_hardening as bh  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # A mock socket whose `connect` behaviour is keyed on host: the chaski tailnet
-# node (100.76.58.50) hangs up to its timeout then raises socket.timeout; every
+# node (100.102.173.88) hangs up to its timeout then raises socket.timeout; every
 # other host connects instantly. No real network is ever touched.
 # ---------------------------------------------------------------------------
 class _FakeSock:
@@ -48,7 +48,7 @@ class _FakeSock:
 
     def connect(self, addr):
         host, _port = addr
-        if host == "100.76.58.50":            # the unreachable chaski node
+        if host == "100.102.173.88":          # the unreachable chaski node (current IP)
             time.sleep(min(self._t or 1.5, 1.5))
             raise socket.timeout("simulated chaski hang")
         return None                            # everyone else connects instantly
