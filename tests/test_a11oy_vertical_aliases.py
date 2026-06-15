@@ -80,7 +80,6 @@ def test_codename_route_still_live(client, method, path, payload):
     ("/api/sentra/v1/threats/full", "/api/a11oy/v1/sentinel/threats/full"),
     ("/api/sentra/v1/forecast/run", "/api/a11oy/v1/sentinel/forecast/run"),
     ("/api/amaru/v1/llm/tiers",     "/api/a11oy/v1/memory/llm/tiers"),
-    ("/api/rosie/v1/jarvis/recommend", "/api/a11oy/v1/operator/recommend"),
     ("/api/rosie/v1/mesh/3d",       "/api/a11oy/v1/operator/mesh/3d"),
 ])
 def test_deterministic_get_is_identical(client, codename, vertical):
@@ -88,6 +87,22 @@ def test_deterministic_get_is_identical(client, codename, vertical):
     rv = client.get(vertical)
     assert rc.status_code == rv.status_code == 200
     assert rc.json() == rv.json(), f"{vertical} diverged from {codename}"
+
+
+# --- 3a-bis. The recommend pair is governed on BOTH sides (Task #751 governed
+#     the a11oy twin; Task #1016 governed the rosie codename), so each carries a
+#     per-call ``fetchedAt`` timestamp. They must be identical modulo that
+#     volatile envelope field — compare with _strip_volatile.
+def test_recommend_pair_identical_modulo_envelope(client):
+    rc = client.get("/api/rosie/v1/jarvis/recommend")
+    rv = client.get("/api/a11oy/v1/operator/recommend")
+    assert rc.status_code == rv.status_code == 200
+    bc, bv = rc.json(), rv.json()
+    # Both surfaces must now carry the governed envelope.
+    assert bc.get("status") == bv.get("status") == "REAL"
+    assert isinstance(bc.get("fetchedAt"), str) and isinstance(bv.get("fetchedAt"), str)
+    assert _strip_volatile(bc) == _strip_volatile(bv), \
+        "rosie/recommend diverged from a11oy operator/recommend (modulo envelope timestamp)"
 
 
 # --- 3b. Deterministic POST surfaces respond BYTE-IDENTICAL to the codename --
