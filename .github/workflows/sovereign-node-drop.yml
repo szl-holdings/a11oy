@@ -1,0 +1,194 @@
+# sovereign-node-drop.yml — honest "a home sovereign-GPU node just dropped" alert.
+# Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
+# Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+#
+# WHY: the 3-node sovereign GPU mesh (rtx-betterwithage laptop, omen-betterwithage
+# always-on home brain, chaski tailnet node) already reports honest per-node
+# reachability via the hardened compute-pool prober
+# (GET /api/a11oy/v1/compute-pool-hardened, szl_backend_hardening.py): a real TCP
+# connect per node, never fabricated. What was missing is an edge SIGNAL — the
+# founder had no way to learn the instant a previously-reachable home node went
+# unreachable.
+#
+# This monitor piggybacks the EXISTING probe (it adds NO always-on poller): every
+# 30 min it GETs the hardened surface from the BOX (a11oy.net — the Tailscale
+# peer, the only vantage point where the tailnet GPU nodes are genuinely
+# reachable; the HF Space is off-tailnet and would false-alarm), diffs each
+# SOVEREIGN GPU node's reachable flag against the previous sweep persisted on the
+# orphan `node-state` branch (same state-on-a-branch pattern status-page.yml uses),
+# and FAILS + alerts ONLY on a reachable->unreachable TRANSITION ("DROPPED").
+#
+# HONEST BY CONSTRUCTION:
+#   - A node legitimately off (laptop traveling, chaski stopped) reads as a clean
+#     "offline" and NEVER alarms. A node never seen before reads "never-seen" and
+#     NEVER alarms. Only was-up-now-down fires. Distinguishes never-seen vs drop.
+#   - REPORT ONLY. It never restarts / wakes / touches founder hardware — it GETs
+#     a read-only endpoint and exits. No auto-remediation, ever (founder doctrine).
+#   - reachable is consumed verbatim from the real probe; this job only diffs two
+#     real snapshots. No fabricated node state. Λ = Conjecture 1; locked = 8; no key.
+#
+# Org policy compliance: github-owned actions only, SHA-pinned; checker is
+# stdlib-only Python (no pip install, no third-party action); alert posts a
+# Slack-compatible payload via raw curl to the shared webhook (soft-skips if the
+# secret is unset — the red run still stands as the signal).
+
+name: Sovereign Node Drop
+
+"on":
+  schedule:
+    - cron: '15,45 * * * *'   # every 30 min — quicker edge than the 6h health crons
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+
+permissions:
+  contents: write          # to read/force-push the orphan node-state snapshot branch
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  STATE_BRANCH: node-state
+  SNAPSHOT_FILE: sovereign-node-state.json
+
+jobs:
+  self-test:
+    name: Detector self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Run detector self-test (proves drop vs clean-offline vs never-seen)
+        run: python3 scripts/test_check_sovereign_node_drop.py
+
+  drop-check:
+    name: Sovereign GPU node-drop check (box vantage)
+    needs: self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (main — for the checker script)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Restore previous sweep snapshot from the node-state branch
+        id: prev
+        run: |
+          set +e
+          mkdir -p /tmp/state
+          # Fetch ONLY the orphan state branch into a throwaway worktree. If it does
+          # not exist yet (first ever run) we cold-start: every node is "never-seen",
+          # which by design never alarms. No state == honest clean first run.
+          if git ls-remote --exit-code --heads origin "$STATE_BRANCH" >/dev/null 2>&1; then
+            git fetch --depth=1 origin "$STATE_BRANCH":"$STATE_BRANCH"
+            git --work-tree=/tmp/state checkout "$STATE_BRANCH" -- "$SNAPSHOT_FILE" 2>/dev/null \
+              && cp "/tmp/state/$SNAPSHOT_FILE" /tmp/prev.json 2>/dev/null
+          fi
+          if [ -f /tmp/prev.json ]; then
+            echo "Restored previous snapshot."
+          else
+            echo "No previous snapshot — cold start (nothing will be alarmed this run)."
+            : > /tmp/prev.json   # empty -> load_prev() returns {} -> all never-seen
+          fi
+          exit 0
+
+      - name: Diff live sovereign-GPU reachability against the previous sweep
+        id: probe
+        run: |
+          set +e
+          python3 scripts/check_sovereign_node_drop.py \
+            --target "https://a11oy.net" \
+            --prev-snapshot /tmp/prev.json \
+            --write-snapshot /tmp/next.json \
+            --summary-file /tmp/node-drop.json | tee /tmp/drop.log
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ -f /tmp/node-drop.json ]; then
+            ndrop=$(python3 -c "import json;print(len(json.load(open('/tmp/node-drop.json')).get('dropped',[])))" 2>/dev/null || echo '?')
+            echo "dropped=$ndrop" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### Sovereign GPU node-drop check"
+            echo ""
+            echo '```'
+            cat /tmp/drop.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Never fail here — the final gate fails the run, so the alert step
+          # (gated on exit_code==1) always gets a chance to run first. exit_code 2
+          # is an operational error (endpoint unreachable), NOT a node drop, and is
+          # surfaced by a11oy-api-health; we do not alarm a drop we cannot prove.
+          exit 0
+
+      - name: Persist this sweep as the new snapshot (force-push to node-state)
+        if: ${{ always() && steps.probe.outputs.exit_code != '2' }}
+        run: |
+          set -euo pipefail
+          # Only persist when we actually obtained a live sweep (exit 0 or 1). On an
+          # operational error (exit 2) we keep the LAST good snapshot so a transient
+          # endpoint outage does not blank our memory and mask a later real drop.
+          if [ ! -f /tmp/next.json ]; then
+            echo "No fresh snapshot produced; leaving previous state untouched."
+            exit 0
+          fi
+          tmp="$(mktemp -d)"
+          cd "$tmp"
+          git init -q
+          git config user.name  "szl-node-state-bot"
+          git config user.email "yachay@szlholdings.ai"
+          git checkout -q --orphan "$STATE_BRANCH"
+          cp /tmp/next.json "$SNAPSHOT_FILE"
+          git add "$SNAPSHOT_FILE"
+          git commit -q -m "node-state: sovereign-GPU reachability snapshot ($(date -u +%FT%TZ))"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" \
+            "$STATE_BRANCH"
+          echo "Snapshot persisted to orphan branch '$STATE_BRANCH'."
+
+      - name: Alert the founder when a home sovereign-GPU node DROPPED
+        if: ${{ always() && steps.probe.outputs.exit_code == '1' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands as the signal."
+            exit 0
+          fi
+          drops="$(python3 -c "import json;d=json.load(open('/tmp/node-drop.json'));print(chr(10).join('- %s (%s) %s -> UNREACHABLE: %s' % (r['name'], r.get('kind'), r.get('endpoint'), r.get('detail')) for r in d.get('dropped',[])))" 2>/dev/null || echo '(breakdown unavailable)')"
+          text=":satellite: *Sovereign GPU node DROPPED* — a previously-reachable home mesh node just went unreachable (real-probe transition reachable->false) in ${REPO}.
+          *Dropped node(s):*
+          ${drops}
+          This is REPORT-ONLY — no founder hardware was touched. If the node was taken offline on purpose, this clears itself on the next sweep.
+          *Run:* ${RUN_URL}"
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+          echo "Posting sovereign-node-drop alert to the shared webhook..."
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Alert webhook POST failed (HTTP ${code}): $(cat /tmp/resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run when a home node dropped
+        if: always()
+        run: |
+          code="${{ steps.probe.outputs.exit_code }}"
+          if [ "$code" = "1" ]; then
+            echo "::error::A previously-reachable sovereign GPU node went unreachable (dropped=${{ steps.probe.outputs.dropped }}). See the run summary."
+            exit 1
+          fi
+          if [ "$code" = "2" ]; then
+            echo "::warning::Could not obtain a live compute-pool sweep (operational, not a node drop). a11oy-api-health covers endpoint outages; no node-state claim made."
+            exit 0
+          fi
+          echo "No sovereign GPU node dropped this sweep."
