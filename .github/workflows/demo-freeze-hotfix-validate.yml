@@ -39,8 +39,8 @@ jobs:
         shell: bash
         env:
           # Aligned with demo-freeze.yml + the authoritative FREEZE.json: hard-enforce
-          # hotfix discipline only once the real freeze is active (2026-06-18 02:00 ET
-          # = 2026-06-18T06:00:00Z; this date-granular gate uses the UTC date 2026-06-18).
+          # hotfix discipline only once the real freeze is active (2026-06-18 01:00 ET
+          # = 2026-06-18T05:00:00Z; this date-granular gate uses the UTC date 2026-06-18).
           # Before that it stays advisory (warns, never blocks).
           FREEZE_START: '2026-06-18'
           FREEZE_END: '2026-06-20'
