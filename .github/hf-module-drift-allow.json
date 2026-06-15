@@ -25,5 +25,8 @@
     ".br",
     ".map"
   ],
-  "accepted_divergences": {}
+  "accepted_divergences": {
+    "static/3d/holographic.html": "ahead=github, pending Forge redeploy of PR #430 (D1 WebGPU-init-hang fix: default WebGL2 shell + ?webgpu=1 opt-in). Live HF Space still serves the pre-fix file. Remove this entry once the box redeploys main and the OIDs reconcile.",
+    "static/3d/szl3d/szl3d_boot.js": "ahead=github, pending Forge redeploy of PR #430 (D1 WebGPU-init-hang fix: _withTimeout guard on requestAdapter/renderer.init). Live HF Space still serves the pre-fix file. Remove this entry once the box redeploys main and the OIDs reconcile."
+  }
 }
