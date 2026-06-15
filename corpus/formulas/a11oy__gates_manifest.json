@@ -88,7 +88,7 @@
     "description": "a11oy policy gate for CertifiedRobustnessRadius (G39)",
     "lean_theorem": "certifiedRobustnessRadiusBound",
     "lean_file": "Lutar/Robustness/CertifiedRadius.lean",
-    "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
+    "lean_commit_sha": "b675cd84caa17080671570c153484c817f8769ac",
     "formula": "certifiedRobustness",
     "rationale": "A gate decision is certifiably robust at input x if the \u2113\u2082 radius R computed from randomized smoothing parameters satisfies R \u2265 R_min_safety. Formula (Cohen-Rosenfeld-Kolter 2019, Theorem 1): R = (\u03c3/2) \u00b7 (\u03a6\u207b\u00b9(p\u0304_A) \u2212 \u03a6\u207b\u00b9(p\u0304_B)) where p\u0304_A is the Monte Carlo lower bound on the top-class probability and p\u0304_B is the upper bound on the runner-up probability.",
     "lean_status": "real"
@@ -230,7 +230,7 @@
     "description": "a11oy policy gate for GaussianMechanismDP (G36)",
     "lean_theorem": "gaussianNoiseSufficiency",
     "lean_file": "Lutar/DP/GaussianMechanism.lean",
-    "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
+    "lean_commit_sha": "b675cd84caa17080671570c153484c817f8769ac",
     "formula": "gaussianMechanismDP",
     "rationale": "A DSSE receipt asserting differential privacy via the Gaussian mechanism is accepted only if the declared noise scale \u03c3_claimed satisfies the calibration formula: \u03c3_claimed \u2265 \u0394\u2082f \u00b7 \u221a(2 ln(1.25/\u03b4)) / \u03b5 for the declared (\u03b5, \u03b4, \u0394\u2082f) in the receipt header. If \u03c3_claimed is too small, the DP guarantee is void and the receipt is denied.",
     "lean_status": "real"
@@ -395,7 +395,7 @@
     "description": "a11oy policy gate for RDPSequentialComposition (G38)",
     "lean_theorem": "rdpSequentialCompositionAdditivity",
     "lean_file": "Lutar/DP/RDPComposition.lean",
-    "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
+    "lean_commit_sha": "b675cd84caa17080671570c153484c817f8769ac",
     "formula": "rdpComposition",
     "rationale": "For a pipeline of k steps each satisfying (\u03b1, \u03b5\u1d62)-RDP, the sequential composition is (\u03b1, \u03a3\u03b5\u1d62)-RDP (Mironov 2017, Proposition 1). Converting to (\u03b5_dp, \u03b4)-DP: \u03b5_dp = \u03a3\u03b5\u1d62 + ln(1/\u03b4)/(\u03b1-1). The gate accepts a chained receipt only if \u03b5_dp \u2264 declared budget ceiling.",
     "lean_status": "real"
@@ -418,7 +418,7 @@
     "description": "a11oy policy gate for ReedSolomonSingletonBound (G40)",
     "lean_theorem": "reedSolomonMDSProperty",
     "lean_file": "Lutar/CodingTheory/ReedSolomonSingleton.lean",
-    "lean_commit_sha": "1dca00032dfc9aa8559cc6c2e4b63192fcf52371",
+    "lean_commit_sha": "b675cd84caa17080671570c153484c817f8769ac",
     "formula": "reedSolomonSingleton",
     "rationale": "A receipt chain that claims to use Reed-Solomon erasure coding for shard resilience must declare valid RS parameters [n, k, d, q] that satisfy: (1) n \u2264 q (valid parameter range over field GF(q)) (2) 1 \u2264 k \u2264 n (3) d = n - k + 1 (MDS condition \u2014 Singleton bound achieved with equality) (4) claimed_erasure_capacity \u2264 n - k If any condition fails, the resilience claim is unsubstantiated and the gate de",
     "lean_status": "real"
