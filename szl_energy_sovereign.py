@@ -280,6 +280,59 @@ def _jtoken_from_metrics(prom: dict, sample: dict | None) -> dict:
     }
 
 
+def _jtoken_from_operator() -> dict | None:
+    """Honest MEASURED J/token from the press-play energy operator's OWN counters.
+
+    The operator (szl_energy_operator) accumulates joules_measured_total and
+    measured_tokens from the SAME set of MEASURED jobs (fresh <30s NVML deltas),
+    so joules_measured_total / measured_tokens is a real, self-consistent MEASURED
+    energy-per-token. Returns None when the operator has no MEASURED data yet — the
+    caller then falls back to the prom/exporter path (honest ROADMAP when no meter).
+    Never raises, never fabricates."""
+    try:
+        import szl_energy_operator as _op  # local module; no import cycle
+        st = _op.get_operator().status()
+    except Exception:
+        return None
+    j = st.get("joules_measured_total")
+    tok = st.get("measured_tokens")
+    try:
+        j = float(j)
+        tok = int(tok)
+    except (TypeError, ValueError):
+        return None
+    if not (j > 0 and tok > 0):
+        return None
+    j_per_token = j / tok
+    carbon_g_per_token = (j_per_token / _J_PER_KWH) * _carbon_g_per_kwh()
+    return {
+        "metric": "energy_per_token",
+        "label": "MEASURED",
+        "joules_per_token": round(j_per_token, 6),
+        "carbon_g_co2eq_per_token": round(carbon_g_per_token, 9),
+        "generated_tokens_total": tok,
+        "gpu_energy_joules_total": round(j, 6),
+        "power_w_sample": st.get("power_w_sample"),
+        "carbon_g_per_kwh": _carbon_g_per_kwh(),
+        "carbon_feed_live": _carbon_feed_is_live(),
+        "formula": "E_token = \u03a3J_measured / \u03a3tokens_measured (press-play operator, MEASURED jobs only)",
+        "citations": ["Watt-Counts arXiv:2604.09048", "Energy-per-Token arXiv:2603.20224",
+                      "Where-Do-Joules-Go arXiv:2601.22076"],
+        "joules_honesty": "measured",
+        "joules_evidence": {
+            "source": "press-play energy operator (MEASURED jobs only)",
+            "joules_measured_total": round(j, 6),
+            "measured_tokens": tok,
+            "measured_jobs": st.get("measured_jobs"),
+            "exporter_node": st.get("exporter_node"),
+            "window_seconds": st.get("window_seconds"),
+            "computed_at": st.get("computed_at"),
+        },
+        "note": ("Real per-token energy: MEASURED GPU joules / generated tokens, both "
+                 "summed over the operator's MEASURED jobs (fresh NVML deltas)."),
+    }
+
+
 def energy_fields_for_receipt() -> dict:
     """SPLICE-INTO-RECEIPT helper for the orchestrator's _emit_turn_receipt().
 
@@ -590,7 +643,7 @@ def _posture() -> dict:
     reachable = _gpu_reachable(state)
     prom = _parse_prom(_fetch_metrics_text() or "") if reachable else {}
     sample = _exporter_sample_from_metrics(prom) if reachable else None
-    jtoken = _jtoken_from_metrics(prom, sample)
+    jtoken = _jtoken_from_operator() or _jtoken_from_metrics(prom, sample)
     panels = {
         "jtoken": jtoken,
         "throughput": _throughput_panel(prom, reachable),
@@ -948,6 +1001,9 @@ def register(app, ns: str = "a11oy") -> dict:
 
     @app.get("%s/jtoken" % base)
     async def _es_jtoken():  # noqa: ANN202
+        op_jt = _jtoken_from_operator()
+        if op_jt is not None:
+            return JSONResponse(op_jt)
         state = _sovereign_state()
         reachable = _gpu_reachable(state)
         prom = _parse_prom(_fetch_metrics_text() or "") if reachable else {}
