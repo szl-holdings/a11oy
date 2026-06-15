@@ -362,6 +362,7 @@ class _State:
     joules_sample_total: float = 0.0      # non-billable SAMPLE energy (honest, separate)
     tokens_total: int = 0
     measured_tokens: int = 0    # tokens from MEASURED jobs only (honest J/token denominator)
+    measured_token_joules: float = 0.0    # joules over the SAME measured jobs (paired J/token numerator)
     measured_jobs: int = 0
     sample_jobs: int = 0
     by_node: dict = field(default_factory=dict)  # node -> {jobs, tokens, joules_measured}
@@ -373,6 +374,7 @@ class _State:
             "joules_sample_total": self.joules_sample_total,
             "tokens_total": self.tokens_total,
             "measured_tokens": self.measured_tokens,
+            "measured_token_joules": self.measured_token_joules,
             "measured_jobs": self.measured_jobs, "sample_jobs": self.sample_jobs,
             "by_node": self.by_node,
         }
@@ -386,6 +388,7 @@ class _State:
         s.joules_sample_total = float(d.get("joules_sample_total", 0.0))
         s.tokens_total = int(d.get("tokens_total", 0))
         s.measured_tokens = int(d.get("measured_tokens", 0))
+        s.measured_token_joules = float(d.get("measured_token_joules", 0.0))
         s.measured_jobs = int(d.get("measured_jobs", 0))
         s.sample_jobs = int(d.get("sample_jobs", 0))
         s.by_node = {k: v for k, v in (d.get("by_node", {}) or {}).items()
@@ -571,6 +574,7 @@ class OperatorDaemon:
                 self._state.joules_measured_total += billable_j
                 self._state.measured_jobs += 1
                 self._state.measured_tokens += int(tokens)
+                self._state.measured_token_joules += billable_j
                 bn["joules_measured"] += billable_j
             else:
                 self._state.sample_jobs += 1
@@ -673,6 +677,7 @@ class OperatorDaemon:
                 "joules_sample_label": LABEL_SAMPLE,
                 "tokens_total": st.tokens_total,
                 "measured_tokens": st.measured_tokens,
+                "measured_token_joules": round(st.measured_token_joules, 6),
                 "measured_jobs": st.measured_jobs,
                 "sample_jobs": st.sample_jobs,
                 "nodes_computing": computing,
