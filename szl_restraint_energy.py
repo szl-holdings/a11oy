@@ -443,10 +443,16 @@ def _energy_page_with_frugality() -> str:
     importable, so the caller can fall through to the existing route.
     """
     try:
-        import szl_energy_sovereign as _es
-        base = _es._html(_es._posture())
+        import os as _os
+        _p = _os.path.join(_os.path.dirname(__file__), "web", "energy.html")
+        with open(_p, "r", encoding="utf-8") as _f:
+            base = _f.read()
     except Exception:
-        return ""
+        try:
+            import szl_energy_sovereign as _es
+            base = _es._html(_es._posture())
+        except Exception:
+            return ""
     if not isinstance(base, str) or "</body>" not in base:
         return ""
     # Additive: inject our self-contained panel just before the closing body.
