@@ -19,6 +19,23 @@ endpoints must also answer with the governed envelope (``status`` in
 {REAL, DEMO, DEGRADED} + a ``citations`` list + a ``fetchedAt`` timestamp); a
 stripped envelope is a contract break for downstream consoles/agents.
 
+Task #751 extended this to the sibling operator capability endpoints registered
+in the SAME defensive block (operator/recommend, operator/ledger, v2
+operator/command-log, policy/decide). Task #1015 closes the remaining gap by
+guarding the rest of the policy & reasoning capability surface in that same block:
+
+  * GET  /api/a11oy/v1/policy/gates
+  * GET  /api/a11oy/v1/policy/threats
+  * GET  /api/a11oy/v1/policy/decisions/feed
+  * POST /api/a11oy/v1/policy/compliance
+  * GET  /api/a11oy/v1/forecast/run
+  * GET  /api/a11oy/v1/reason/tiers
+  * GET  /api/a11oy/v1/capabilities/mesh
+
+These previously returned their bare payload, so Task #1015 also wrapped each one
+with the idempotent ``gov_envelope`` in ``serve.py`` (preserving the underlying
+payload) so they answer with the governed envelope like the rest of the surface.
+
 This module locks all of that in by booting the real app in-process via Starlette
 TestClient (no mocks). It guards against:
   1. routes regressing to 404 (each must be 200),
@@ -66,6 +83,14 @@ def _assert_envelope(body):
     ("/api/a11oy/v1/operator/recommend", None),
     ("/api/a11oy/v1/operator/ledger", None),
     ("/api/a11oy/v2/operator/command-log", None),
+    # --- Task #1015: the remaining policy & reasoning capability GETs registered
+    #     in the SAME defensive block — guard them against 404 + envelope-stripping.
+    ("/api/a11oy/v1/policy/gates", None),
+    ("/api/a11oy/v1/policy/threats", None),
+    ("/api/a11oy/v1/policy/decisions/feed", None),
+    ("/api/a11oy/v1/forecast/run", None),
+    ("/api/a11oy/v1/reason/tiers", None),
+    ("/api/a11oy/v1/capabilities/mesh", None),
 ])
 def test_get_surface_200_and_governed(client, path, params):
     r = client.get(path, params=params) if params else client.get(path)
@@ -83,6 +108,8 @@ def test_get_surface_200_and_governed(client, path, params):
     ("/api/a11oy/v2/operator/command", {"command": "acknowledge alert", "target": "demo", "approved": False}),
     # --- Task #751: governed policy verdict surface (same defensive block).
     ("/api/a11oy/v1/policy/decide", {"agent": "regression-test", "action": {"value": "noop"}, "request_id": "task751"}),
+    # --- Task #1015: governed compliance posture surface (same defensive block).
+    ("/api/a11oy/v1/policy/compliance", {"framework": "NIST"}),
 ])
 def test_post_surface_200_and_governed(client, path, payload):
     r = client.post(path, json=payload)
@@ -118,6 +145,45 @@ def test_ledger_and_cmdlog_keep_records_under_envelope(client):
     bc = rc.json()
     _assert_envelope(bc)
     assert isinstance(bc.get("receipts"), list), "operator/command-log dropped its receipts list"
+
+
+# --- Task #1015: the policy & reasoning capability endpoints must keep their
+#     underlying payload UNDER the envelope (the envelope must wrap, never
+#     replace, the governed payload).
+def test_policy_reason_caps_keep_payload_under_envelope(client):
+    rg = client.get("/api/a11oy/v1/policy/gates")
+    assert rg.status_code == 200
+    bg = rg.json()
+    _assert_envelope(bg)
+    assert "gates" in bg, "policy/gates dropped its gates payload"
+
+    rt = client.get("/api/a11oy/v1/policy/threats")
+    assert rt.status_code == 200
+    _assert_envelope(rt.json())
+
+    rf = client.get("/api/a11oy/v1/policy/decisions/feed")
+    assert rf.status_code == 200
+    bf = rf.json()
+    _assert_envelope(bf)
+    assert isinstance(bf.get("verdicts"), list), "policy/decisions/feed dropped its verdicts list"
+
+    rc = client.post("/api/a11oy/v1/policy/compliance", json={"framework": "NIST"})
+    assert rc.status_code == 200
+    _assert_envelope(rc.json())
+
+    rr = client.get("/api/a11oy/v1/forecast/run")
+    assert rr.status_code == 200
+    br = rr.json()
+    _assert_envelope(br)
+    assert "prediction" in br, "forecast/run dropped its prediction payload"
+
+    rti = client.get("/api/a11oy/v1/reason/tiers")
+    assert rti.status_code == 200
+    _assert_envelope(rti.json())
+
+    rm = client.get("/api/a11oy/v1/capabilities/mesh")
+    assert rm.status_code == 200
+    _assert_envelope(rm.json())
 
 
 # --- v2 governed operator loop: human-approval gate must hold --------------

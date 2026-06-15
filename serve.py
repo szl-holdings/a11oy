@@ -4890,19 +4890,19 @@ try:
     # Capability map: policy=safety/compliance, reason=llm/readiness, op=operator.
     @app.get("/api/a11oy/v1/policy/gates")
     async def _sc_cap_gates():
-        return _SCJSON(_SC_BUNDLE["gates"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["gates"], status="REAL"))
 
     @app.get("/api/a11oy/v1/policy/threats")
     async def _sc_cap_threats():
-        return _SCJSON(_SC_BUNDLE["threats_full"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["threats_full"], status="REAL"))
 
     @app.get("/api/a11oy/v1/policy/decisions/feed")
     async def _sc_cap_feed(limit: int = 50):
         with _SC_AUDIT_LOCK:
             v = list(_SC_AUDIT)[: int(limit)]
             n = len(_SC_AUDIT)
-        return _SCJSON({"verdicts": v, "count": len(v), "total_buffered": n,
-                        "note": _SC_BUNDLE["feed"].get("note", ""), "doctrine": "v11"})
+        return _SCJSON(gov_envelope({"verdicts": v, "count": len(v), "total_buffered": n,
+                        "note": _SC_BUNDLE["feed"].get("note", ""), "doctrine": "v11"}, status="REAL"))
 
     @app.post("/api/a11oy/v1/policy/decide")
     async def _sc_cap_decide(request: _SCRequest):
@@ -4917,15 +4917,15 @@ try:
         key = str(fw).upper().replace("-", "").replace(" ", "")
         amap = {"NIST": "NIST", "STIG": "STIG", "ISO27001": "ISO27001", "ISO": "ISO27001"}
         chosen = amap.get(key, "NIST")
-        return _SCJSON(_SC_BUNDLE["compliance"][chosen])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["compliance"][chosen], status="REAL"))
 
     @app.get("/api/a11oy/v1/forecast/run")
     async def _sc_cap_forecast(input_value: float = 0.5, k: int = 10, synthetic: bool = False):
-        return _SCJSON(_sc_forecast(input_value, k=k, synthetic=synthetic))
+        return _SCJSON(gov_envelope(_sc_forecast(input_value, k=k, synthetic=synthetic), status="REAL"))
 
     @app.get("/api/a11oy/v1/reason/tiers")
     async def _sc_cap_tiers():
-        return _SCJSON(_SC_BUNDLE["tiers"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["tiers"], status="REAL"))
 
     @app.post("/api/a11oy/v1/reason/readiness")
     async def _sc_cap_readiness(request: _SCRequest):
@@ -4963,7 +4963,7 @@ try:
 
     @app.get("/api/a11oy/v1/capabilities/mesh")
     async def _sc_cap_mesh3d():
-        return _SCJSON(_SC_BUNDLE["mesh3d"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["mesh3d"], status="REAL"))
 
     # ---- a11oy-vertical aliases (Memory / Sentinel / Operator) — Task #801 ----
     # Brand consolidation: the three internal organ codenames are folded into
