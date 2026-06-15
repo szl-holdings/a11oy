@@ -4865,27 +4865,36 @@ try:
         return _SCJSON(_sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {})))
 
     # ---- rosie-shaped (operator ask / act / recommend / ledger / command-log / mesh) ----
+    # Task #1016: these legacy rosie-shaped twins serve the SAME in-process data as
+    # the governed a11oy capability endpoints (_sc_cap_ask/_sc_cap_act/
+    # _sc_cap_recommend/_sc_cap_ledger/_sc_cap_cmdlog). Wrap each payload in the
+    # idempotent gov_envelope (additive: preserves all data, adds status/citations/
+    # fetchedAt) so the rosie surface stays in lockstep with its a11oy twin.
     @app.post("/api/rosie/v1/jarvis/ask")
     async def _sc_rosie_ask(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(_sc_ask((body or {}).get("question", "")))
+        return _SCJSON(gov_envelope(_sc_ask((body or {}).get("question", "")), status="REAL"))
 
     @app.post("/api/rosie/v1/jarvis/act")
     async def _sc_rosie_act(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
+        _ar = _sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", ""))
+        return _SCJSON(gov_envelope(_ar, status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}}]))
 
     @app.get("/api/rosie/v1/jarvis/recommend")
     async def _sc_rosie_recommend():
-        return _SCJSON(_SC_RECOMMEND)
+        return _SCJSON(gov_envelope(_SC_RECOMMEND, status="REAL"))
 
     @app.get("/api/rosie/v1/ledger")
     async def _sc_rosie_ledger():
-        return _SCJSON(_SC_BUNDLE["ledger"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["ledger"], status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/khipu/ledger", "data": {"signed": True}}]))
 
     @app.get("/api/rosie/v2/command-log")
     async def _sc_rosie_cmdlog():
-        return _SCJSON(_SC_BUNDLE["commandlog"])
+        return _SCJSON(gov_envelope(_SC_BUNDLE["commandlog"], status="REAL",
+                                    citations=[{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}}]))
 
     @app.get("/api/rosie/v1/mesh/3d")
     async def _sc_rosie_mesh3d():
