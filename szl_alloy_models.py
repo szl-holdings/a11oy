@@ -434,7 +434,8 @@ def _softmax(xs: list[float], temp: float = 1.0) -> list[float]:
     return [e / z for e in exps]
 
 def route(task_hint: str, lam: float, candidates: Optional[list[dict]] = None,
-          prefer_code: bool = True, temp: float = 0.7) -> dict:
+          prefer_code: bool = True, temp: float = 0.7,
+          force_tier: Optional[str] = None) -> dict:
     """C20-stable, W7-5-bracketed model selection over the open-weight alloy.
 
     C20 (proven, Mathlib-free order-preservation core): the softmax over per-model
@@ -448,10 +449,18 @@ def route(task_hint: str, lam: float, candidates: Optional[list[dict]] = None,
     lies inside the envelope.
 
     Founder directive: weight the router toward DeepSeek for CODING tasks.
+
+    `force_tier` (optional) RESTRICTS the candidate pool to a single tier_band
+    (e.g. "demo_cpu") BEFORE scoring. This is how the public HTTP demo route
+    exercises the CPU-serveable bundled GGUF: without it the capable tower tier
+    always outscores the demo tier and the local model is never selected.
     """
     pool = candidates if candidates is not None else [m for m in ALLOY_ROSTER if _production_eligible(m)]
+    if force_tier:
+        pool = [m for m in pool if m.get("tier_band") == force_tier]
     if not pool:
-        return {"error": "no production-eligible open-weight models in pool"}
+        return {"error": ("no production-eligible open-weight models in pool"
+                          + (" for tier_band=%r" % force_tier if force_tier else ""))}
 
     _hint = (task_hint or "").lower()
     _code_kw = ("code", "edit", "debug", "refactor", "implement", "pr", "fix",
@@ -575,14 +584,19 @@ def consensus(votes: list[dict], require_high_stakes: bool = False) -> dict:
 def alloy_governed_suggest(prompt: str, task_hint: str = "code", lam: float = 0.9,
                            calib_scores: Optional[list[float]] = None,
                            do_consensus: bool = False,
-                           sign_fn=None, max_tokens: int = 256) -> dict:
+                           sign_fn=None, max_tokens: int = 256,
+                           force_tier: Optional[str] = None) -> dict:
     """One unified alloy call:
        route (C20/W7-5) -> generate (REAL local OR honest tower label)
        -> conformal band (W5-3/W7-4) -> optional consensus (C10-C12)
        -> signed receipt (host signer, P6).
     NEVER fabricates output. If no local backend, served_locally=False + honest label.
+
+    `force_tier` pins the router to a single tier_band. Pass "demo_cpu" to make
+    this call actually run the bundled CPU GGUF through `_local_generate` — the
+    public /demo route and `tier=demo_cpu` on /suggest use this.
     """
-    decision = route(task_hint, lam)
+    decision = route(task_hint, lam, force_tier=force_tier)
     if "error" in decision:
         return {"error": decision["error"]}
     chosen = decision["chosen"]
@@ -675,7 +689,14 @@ def register(app, ns: str = "a11oy", sign_fn=None) -> dict:
       POST /api/a11oy/v1/alloy/route       — C20/W7-5 model selection
       POST /api/a11oy/v1/alloy/conformal   — W5-3/W7-4 calibrated band
       POST /api/a11oy/v1/alloy/consensus   — C10-C12 Byzantine vote
-      POST /api/a11oy/v1/alloy/suggest     — governed suggest (route+gen+band+receipt)
+      POST /api/a11oy/v1/alloy/suggest     — governed suggest (route+gen+band+receipt);
+                                             accepts {"tier":"demo_cpu"} to pin the tier
+      GET  /api/a11oy/v1/alloy/demo        — LIVE local demo: runs the bundled CPU GGUF
+      POST /api/a11oy/v1/alloy/demo          via _local_generate (force_tier=demo_cpu),
+                                             returns served_locally + backend=="llama.cpp"
+                                             when present, else an HONEST tower-side label.
+                                             GET uses a default prompt so an uptime /
+                                             smoke check can hit it with no body.
     """
     from fastapi.responses import JSONResponse
     from fastapi import Request
@@ -748,7 +769,45 @@ def register(app, ns: str = "a11oy", sign_fn=None) -> dict:
             body.get("prompt", ""), body.get("task_hint", "code"),
             float(body.get("lambda", body.get("lam", 0.9))),
             body.get("calib_scores"), bool(body.get("do_consensus", False)),
-            sign_fn=sign_fn, max_tokens=int(body.get("max_tokens", 256))))
+            sign_fn=sign_fn, max_tokens=int(body.get("max_tokens", 256)),
+            force_tier=(body.get("tier") or body.get("force_tier"))))
+
+    async def _demo(request: "Request"):
+        # LIVE local demo: pin the router to the CPU GGUF demo tier so the bundled
+        # llama.cpp model is ACTUALLY exercised over HTTP (not the tower tier).
+        # GET (no body) uses a default prompt so uptime/smoke checks can hit it
+        # bare; POST accepts {"prompt", "max_tokens", ...}. NEVER fakes output —
+        # if no GGUF is mounted it returns served_locally=False + an honest label.
+        if request.method == "POST":
+            try:
+                body = await request.json()
+            except Exception:
+                body = {}
+        else:
+            body = dict(request.query_params)
+        prompt = (body.get("prompt") or
+                  "Write a Python function add(a, b) that returns their sum.")
+        try:
+            max_tokens = int(body.get("max_tokens", 128))
+        except (TypeError, ValueError):
+            max_tokens = 128
+        out = alloy_governed_suggest(
+            prompt, str(body.get("task_hint", "code")),
+            float(body.get("lambda", body.get("lam", 0.9))),
+            body.get("calib_scores"), bool(body.get("do_consensus", False)),
+            sign_fn=sign_fn, max_tokens=max_tokens, force_tier="demo_cpu")
+        gen = out.get("generation", {}) if isinstance(out, dict) else {}
+        # Surface the proof fields at the TOP level so an uptime / smoke check can
+        # assert on them directly (backend == "llama.cpp", served_locally == True).
+        out["tier_forced"] = "demo_cpu"
+        out["backend"] = gen.get("backend")
+        out["served_locally"] = bool(gen.get("served_locally"))
+        out["live_demo"] = out["served_locally"]
+        if not out["served_locally"]:
+            out["honest_label"] = (gen.get("honest_label") or
+                                   "local CPU backend unavailable — honest tower-side label "
+                                   "(mount /app/models/*.gguf or set A11OY_ALLOY_GGUF).")
+        return JSONResponse(out)
 
     for p in (base + "/roster", stripped + "/roster"):
         _routes_first(p, _roster, ["GET"])
@@ -762,7 +821,10 @@ def register(app, ns: str = "a11oy", sign_fn=None) -> dict:
         _routes_first(p, _consensus, ["POST"])
     for p in (base + "/suggest", stripped + "/suggest"):
         _routes_first(p, _suggest, ["POST"])
+    for p in (base + "/demo", stripped + "/demo"):
+        _routes_first(p, _demo, ["GET", "POST"])
 
-    return {"ns": ns, "endpoints": ["roster", "health", "route", "conformal", "consensus", "suggest"],
+    return {"ns": ns,
+            "endpoints": ["roster", "health", "route", "conformal", "consensus", "suggest", "demo"],
             "alloy_models": len(ALLOY_ROSTER), "unification": unify,
             "backend_available": backend_available()}
