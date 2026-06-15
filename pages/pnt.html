@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PNT · Quantum Nav — a11oy</title>
+<!--
+  Dedicated PNT (Positioning-Navigation-Timing) surface — NOT the generic Command
+  Center. Boots the shared szl3d stage and mounts ONLY the PNT quantum-nav surface
+  (static/3d/surfaces/pnt.js), which renders its own 3D scene + HUD bound LIVE to
+  /api/a11oy/v1/pnt/{sensor,coast,resilience,limits} (cold-atom sensor SQL limit,
+  GPS-denied coasting FoM, fused spoof-resilience, 4-pillar fundamental-limits ladder).
+
+  Doctrine v11 (HARD): every value is MODELED closed-form physics read from the live
+  mesh — NOT flown hardware, not a real flight. The surface renders exactly the honesty
+  label the JSON carries. 0 runtime CDN — all 3D libs vendored same-origin via the
+  importmap below. System fonts only. WebGL2 by default (proven path); ?webgpu=1 opts in.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/static/3d/vendor/three/three.module.min.js",
+    "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
+    "three/addons/": "/static/3d/vendor/three/addons/"
+  }
+}
+</script>
+<style>
+ :root{--bg:#05070d;--line:#1b2734;--teal:#39d3c4;--gold:#e8c074;--cream:#eef3f6;--para:#9fb1bf}
+ *{box-sizing:border-box}
+ html,body{margin:0;height:100%}
+ body{background:var(--bg);color:var(--cream);
+  font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;overflow:hidden}
+ header{padding:10px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#08101a,#05070d);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+ h1{font-size:16px;margin:0;letter-spacing:.4px}
+ .badge{display:inline-block;font:10.5px ui-monospace,Menlo,monospace;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--line);color:var(--gold);background:#10171f}
+ #backend{color:var(--teal)}
+ .nav{margin-left:auto;display:flex;gap:12px;font:11px ui-monospace,Menlo,monospace}
+ a{color:var(--teal);text-decoration:none}
+ #stage-wrap{position:relative;width:100vw;height:calc(100vh - 52px)}
+ #stage{position:absolute;inset:0}
+ #stage canvas{display:block;width:100%;height:100%}
+ #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<header>
+ <h1>◇ PNT · Quantum Nav</h1>
+ <span class="badge" id="backend">renderer: …</span>
+ <span class="badge">three r<span id="three-rev">…</span></span>
+ <span class="badge">0 runtime CDN</span>
+ <span class="badge">MODELED · never flown</span>
+ <span class="badge">Λ = Conjecture 1</span>
+ <nav class="nav">
+   <a href="/holographic#pnt">all surfaces</a>
+   <a href="/pinn">PINN →</a>
+   <a href="/">← a11oy</a>
+ </nav>
+</header>
+<div id="stage-wrap">
+ <div id="stage"></div>
+ <div id="fallback">3D unavailable on this device — the PNT quantum-nav surface needs a WebGL2 or WebGPU canvas.<br>
+  All underlying MODELED physics is still available as JSON at /api/a11oy/v1/pnt/{sensor,coast,resilience,limits}.</div>
+</div>
+<script type="module">
+import szl3d from "/static/3d/szl3d/szl3d_boot.js";
+import * as live from "/static/3d/szl3d/szl3d_live.js";
+import * as label from "/static/3d/szl3d/szl3d_label.js";
+import * as THREE from "three";
+import surface from "/static/3d/surfaces/pnt.js";
+
+const $ = (id) => document.getElementById(id);
+$("three-rev").textContent = THREE.REVISION;
+
+(async function main() {
+  try {
+    const wantWebGPU = /[?&]webgpu=1\b/.test(location.search);
+    const stage = await szl3d.boot($("stage"), {
+      bloom: { strength: 0.8, radius: 0.5, threshold: 0.2 },
+      cameraPos: [0, 4, 16],
+      forceWebGL: !wantWebGPU,
+    });
+    $("backend").textContent = "renderer: " + stage.backend.toUpperCase();
+    stage.start();
+    const ctx = { stage, container: $("stage"), live, label, THREE, szl3d };
+    surface.mount(ctx);
+    // expose for the headless selftest harness
+    window.__SZL3D_PNT__ = { stage, surface };
+  } catch (e) {
+    $("fallback").style.display = "flex";
+    $("backend").textContent = "renderer: UNAVAILABLE";
+    console.error("[pnt] stage boot failed:", e);
+  }
+})();
+</script>
+</body>
+</html>

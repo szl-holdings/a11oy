@@ -8066,6 +8066,35 @@ async def energy_ops_page() -> Response:
 # --- End Energy Ops "Today" console ---
 
 
+# --- Dedicated PNT + PINN surfaces (ADDITIVE; Doctrine v11) ---
+# /pnt and /pinn previously fell through to the SPA catch-all and rendered the SAME
+# generic Command Center (audit D4). These explicit routes (registered EARLY, before
+# the SPA catch-all) serve DISTINCT server-rendered surfaces that each boot the shared
+# szl3d stage and mount exactly ONE live-bound surface module:
+#   /pnt  -> pages/pnt.html  -> static/3d/surfaces/pnt.js  (MODELED quantum-nav physics
+#            from /api/a11oy/v1/pnt/{sensor,coast,resilience,limits} — never flown)
+#   /pinn -> pages/pinn.html -> static/3d/surfaces/pinn.js (MEASURED→DERIVED physical-
+#            bounds certificate from /api/a11oy/v1/pinn/certificate + residual + verify)
+# Both pages are 0-runtime-CDN (vendored three.js via importmap), system fonts, and
+# degrade to an honest 3D-unavailable fallback. They never hit the hanging Command
+# Center async probes (audit D3), so these two routes resolve immediately.
+@app.get("/pnt")
+async def pnt_surface_page() -> Response:
+    f = PAGES_DIR / "pnt.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+@app.get("/pinn")
+async def pinn_surface_page() -> Response:
+    f = PAGES_DIR / "pinn.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+# --- End dedicated PNT + PINN surfaces ---
+
+
 # --- Frontier 3D Visualizations (ADDITIVE; Yachay, 2026-06-01) ---
 # Three self-contained R3F/Three.js r171 scenes (WebGPU baseline + WebGL2 fallback,
 # Kanchay tokens, real data binding). Files live under console/viz/{khipu,doctrine,router}/
