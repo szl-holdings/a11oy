@@ -252,16 +252,91 @@ def ttl_cache(ttl: float = DEFAULT_CACHE_TTL) -> Callable[[Callable[..., Any]], 
 # 2026-06-13). It is overridable by the caller. `probe` is (host, port); a node
 # without a probe target (e.g. the self CPU host) is reported reachable via its
 # `static_reachable` flag (the host running this service IS reachable by definition).
+# --- Dynamic tailnet-IP resolution (drift-fix 2026-06-15) ---------------------
+# The sovereign GPU nodes live on the founder Tailscale tailnet, where the box
+# (this host) is also a peer. Their 100.x IPs are assigned by Tailscale and can
+# change across sessions / reinstalls, so a HARDCODED probe IP goes stale and the
+# node shows a false `timeout` even when its Ollama is up (observed: the live GPU
+# host `betterwithage` moved 100.125.77.31 -> 100.70.130.45; the box kept probing
+# the old IP). This resolver reads the box's OWN `tailscale status --json` and maps
+# a node name to its CURRENT tailnet IP by hostname/DNSName prefix. It is honest +
+# fail-safe: if tailscale is unreadable it returns the static fallback IP, so the
+# probe degrades to the previous behaviour rather than inventing reachability.
+# Env override `A11OY_GPU_NODE_<NAME>_IP` (e.g. A11OY_GPU_NODE_BETTERWITHAGE_IP)
+# wins over both, for explicit pinning without a code change.
+import json as _json
+import os as _os
+import subprocess as _subprocess
+
+_TAILSCALE_CACHE = TTLCache(ttl=30.0)
+
+def _tailscale_peers() -> Dict[str, str]:
+    """Return {lowercased-hostname: 100.x.y.z} from `tailscale status --json`.
+    Empty dict (never raises) if tailscale is missing/unreadable."""
+    def _producer() -> Dict[str, str]:
+        out: Dict[str, str] = {}
+        try:
+            raw = _subprocess.run(
+                ["tailscale", "status", "--json"],
+                capture_output=True, text=True, timeout=4.0,
+            )
+            if raw.returncode != 0 or not raw.stdout:
+                return out
+            data = _json.loads(raw.stdout)
+            peers = list((data.get("Peer") or {}).values())
+            # include Self so the box can resolve its own siblings consistently
+            if data.get("Self"):
+                peers.append(data["Self"])
+            for p in peers:
+                ips = p.get("TailscaleIPs") or []
+                ip4 = next((a for a in ips if ":" not in a), None)
+                if not ip4:
+                    continue
+                for key in (p.get("HostName"), (p.get("DNSName") or "").split(".")[0]):
+                    if key:
+                        out[key.strip().lower()] = ip4
+        except Exception:
+            return {}
+        return out
+    try:
+        return _TAILSCALE_CACHE.get("peers", _producer)
+    except Exception:
+        return {}
+
+def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
+    """Resolve a node's CURRENT tailnet IP. Returns (ip, source).
+    Priority: env pin -> live tailscale-by-hostname -> static fallback."""
+    env_key = "A11OY_GPU_NODE_" + "".join(c if c.isalnum() else "_" for c in name).upper() + "_IP"
+    pinned = (_os.environ.get(env_key) or "").strip()
+    if pinned:
+        return pinned, "env-pin"
+    peers = _tailscale_peers()
+    # match by exact hostname, then by prefix (rtx-betterwithage -> betterwithage)
+    cand = [name.lower()]
+    if "-" in name:
+        cand.append(name.split("-", 1)[1].lower())
+    for c in cand:
+        if c in peers:
+            return peers[c], "tailscale-live"
+        for hn, ip in peers.items():
+            if hn.startswith(c) or c.startswith(hn):
+                return ip, "tailscale-prefix"
+    return fallback_ip, "static-fallback"
+
 DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
     {"name": "hetzner-box-cpu", "kind": "cpu", "sovereign": True,
      "probe": None, "static_reachable": True,
      "endpoint": "127.0.0.1 (self)",
      "detail": "host running this service; reachable by definition"},
     {"name": "rtx-betterwithage", "kind": "sovereign-gpu", "sovereign": True,
-     "probe": ("100.125.77.31", 11434), "endpoint": "http://100.125.77.31:11434"},
+     "probe": ("100.125.77.31", 11434), "endpoint": "http://100.125.77.31:11434",
+     "detail": "Blackwell RTX 5050 laptop (traveling) — Ollama on founder tailnet"},
+    {"name": "omen-betterwithage", "kind": "sovereign-gpu", "sovereign": True,
+     "probe": ("100.70.130.45", 11434), "endpoint": "http://100.70.130.45:11434",
+     "detail": "always-on home brain: OMEN RTX 4060 Ti 8GB + Ryzen 8700G — Ollama on founder tailnet"},
     {"name": "chaski", "kind": "tailnet-gpu", "sovereign": False,
      "probe": ("100.76.58.50", 11434), "endpoint": "http://100.76.58.50:11434",
-     "detail": "self-hosted Ollama on founder tailnet"},
+     "detail": "self-hosted Ollama on founder tailnet (Replit node)"},
     {"name": "groq", "kind": "hosted-inference", "sovereign": False,
      "probe": ("api.groq.com", 443), "endpoint": "api.groq.com:443"},
     {"name": "nvidia-nim", "kind": "hosted-inference", "sovereign": False,
@@ -297,6 +372,25 @@ def _probe_fabric_uncached(
 ) -> Dict[str, Any]:
     """One real concurrent sweep of the fabric. Returns the full compute-pool payload."""
     nodes = list(nodes)
+    # Re-resolve sovereign/tailnet GPU node IPs LIVE from tailscale so a moved node
+    # is probed at its CURRENT 100.x, not a stale hardcoded IP (honest fail-safe to
+    # the static IP if tailscale is unreadable). Hosted-inference nodes (groq/nim/hf)
+    # use DNS names and are left untouched.
+    _resolved = []
+    for _n in nodes:
+        _t = _n.get("probe")
+        _kind = str(_n.get("kind", ""))
+        if _t and "gpu" in _kind:
+            _host, _port = _t
+            _ip, _src = _resolve_node_ip(_n["name"], _host)
+            if _ip != _host:
+                _n = dict(_n)
+                _n["probe"] = (_ip, _port)
+                _n["endpoint"] = "http://%s:%d" % (_ip, _port)
+                _base = (_n.get("detail") or "").split(" | ip:")[0]
+                _n["detail"] = (_base + (" | ip:%s via %s" % (_ip, _src))).strip(" |")
+        _resolved.append(_n)
+    nodes = _resolved
     probes = {n["name"]: _build_node_probe(n, timeout) for n in nodes}
     results = probe_all_concurrent(probes, timeout=timeout)
 
