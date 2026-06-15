@@ -633,18 +633,27 @@ COPY src/a11oy/harvest/__init__.py src/a11oy/harvest/wasted_energy_harvest.py sr
 # This preserves the published image's hard real-model guarantee while keeping the
 # HF Space reliably bootable. No fabricated data either way.
 # IMAGE-LEANNESS (multi-stage): the heavy from-source compile happens in the
-# `llama-build` stage near the top of this file. Here we only COPY the resulting
-# prebuilt wheel and install it — no compiler, no build-toolchain apt churn in
-# the runtime image. On the constrained path (A11OY_REQUIRE_LOCAL_LLM!=1)
-# `llama-build` is the empty builder, so /tmp/wheels is empty and we skip the
-# install: the demo tier serves the HONEST tower-side label
+# `llama-build` stage near the top of this file. Here we only INSTALL the
+# resulting prebuilt wheel — no compiler, no build-toolchain apt churn in the
+# runtime image. On the constrained path (A11OY_REQUIRE_LOCAL_LLM!=1)
+# `llama-build` is the empty builder, so the mounted wheel dir is empty and we
+# skip the install: the demo tier serves the HONEST tower-side label
 # (szl_alloy_models.py, served_locally=False), exactly as before. The strict
 # GHCR build sets =1: the wheel is present, installed, and boot-verified
 # glibc-linked + importable (fail-loud). Only the two runtime shared libs
 # (libgomp1/libstdc++6) are added to the image.
 ARG A11OY_REQUIRE_LOCAL_LLM=0
-COPY --from=llama-build /wheels /tmp/wheels
-RUN set -eux; \
+# The wheel is BIND-MOUNTED from the builder stage (not COPY'd) so it is
+# available only for the duration of this RUN and NEVER becomes an image layer.
+# A `COPY --from … /tmp/wheels` + later `rm` would bake the ~tens-of-MB wheel
+# permanently into a layer (a later `rm` is just a whiteout — it does not reclaim
+# the bytes), defeating the leanness goal. With the bind mount the runtime image
+# carries only the INSTALLED llama_cpp + libgomp1/libstdc++6 — no wheel artifact,
+# no compiler, and none of the toolchain-purge residue the old single-stage RUN
+# left behind. On the constrained path (!=1) llama-build is the empty builder, so
+# the mount is an empty dir and we skip install (honest tower-side label).
+RUN --mount=type=bind,from=llama-build,source=/wheels,target=/wheels \
+    set -eux; \
     if [ "${A11OY_REQUIRE_LOCAL_LLM}" != "1" ]; then \
       echo '[a11oy] A11OY_REQUIRE_LOCAL_LLM!=1 (constrained builder, e.g. HF cpu-basic): no llama.cpp wheel built/installed. The demo tier serves the HONEST tower-side label (szl_alloy_models.py, served_locally=False, never fake output). The strict GHCR-published image sets =1 and installs the prebuilt glibc wheel + boot-verifies real local output.'; \
     else \
@@ -652,10 +661,9 @@ RUN set -eux; \
       apt-get install -y --no-install-recommends libgomp1 libstdc++6; \
       apt-get clean; \
       rm -rf /var/lib/apt/lists/*; \
-      pip install --no-cache-dir /tmp/wheels/*.whl; \
+      pip install --no-cache-dir /wheels/*.whl; \
       python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp installed from prebuilt glibc wheel OK:', so[0], getattr(llama_cpp,'__version__','?'))"; \
-    fi; \
-    rm -rf /tmp/wheels
+    fi
 # GGUF weight — RELIABLY PRESENT (pinned revision + retry + integrity verify), NOT best-effort.
 # Previously a single best-effort `hf_hub_download(...) || echo` step: a transient download
 # failure silently shipped an image with NO model, so the alloy demo tier always degraded to
