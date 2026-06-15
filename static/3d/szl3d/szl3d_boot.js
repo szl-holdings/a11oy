@@ -26,21 +26,37 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 export const SZL3D_VERSION = "1.0.0";
 export const THREE_REVISION = THREE.REVISION;
 
+// Reject if `p` has not settled within `ms`. Used to bound the WebGPU probe: a
+// real adapter whose device acquisition hangs (seen on some Linux/driver combos)
+// must NOT wedge boot() forever — we time out and fall back to WebGL2 instead.
+function _withTimeout(p, ms, tag) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const t = setTimeout(() => { if (!done) { done = true; reject(new Error((tag || "op") + " timed out after " + ms + "ms")); } }, ms);
+    Promise.resolve(p).then(
+      (v) => { if (!done) { done = true; clearTimeout(t); resolve(v); } },
+      (e) => { if (!done) { done = true; clearTimeout(t); reject(e); } },
+    );
+  });
+}
+
 // ---------------------------------------------------------------------------
 // WebGPU capability probe. Returns a real WebGPURenderer (already init()'d) when
-// the platform supports it, else null. Never throws.
+// the platform supports it, else null. Never throws, and never hangs: each await
+// is bounded by a timeout so a stalled adapter/device falls back to WebGL2.
 // ---------------------------------------------------------------------------
 async function _tryWebGPU(canvas, opts) {
   if (typeof navigator === "undefined" || !("gpu" in navigator)) return null;
+  const tmo = opts.webgpuTimeoutMs || 2500;
   try {
-    const adapter = await navigator.gpu.requestAdapter();
+    const adapter = await _withTimeout(navigator.gpu.requestAdapter(), tmo, "requestAdapter");
     if (!adapter) return null;
     // three r170 ships WebGPURenderer in the dedicated webgpu build only.
     const mod = await import("three/webgpu");
     const WebGPURenderer = mod.WebGPURenderer || (mod.default && mod.default.WebGPURenderer);
     if (!WebGPURenderer) return null;
     const renderer = new WebGPURenderer({ canvas, antialias: opts.antialias !== false, alpha: !!opts.alpha });
-    await renderer.init(); // acquires the device; throws on failure -> caught below
+    await _withTimeout(renderer.init(), tmo, "renderer.init"); // acquires the device; hang/throw -> caught below
     renderer._szlBackend = "webgpu";
     return renderer;
   } catch (e) {

@@ -90,7 +90,16 @@ let loadToken = 0;
 async function ensureStage() {
   if (stage) return stage;
   try {
-    stage = await szl3d.boot(stageEl, { bloom: { strength: 0.85, radius: 0.5, threshold: 0.18 }, cameraPos: [0, 5, 16] });
+    // Default to the proven WebGL2 path (matches /estate-hologram). WebGPU is not
+    // production-safe across all browsers/drivers yet (doctrine) and the bloom pass
+    // is WebGL2-only, so the shell stays on WebGL2 unless explicitly opted in with
+    // ?webgpu=1. The toolkit's WebGPU probe is timeout-guarded either way.
+    const wantWebGPU = /[?&]webgpu=1\b/.test(location.search);
+    stage = await szl3d.boot(stageEl, {
+      bloom: { strength: 0.85, radius: 0.5, threshold: 0.18 },
+      cameraPos: [0, 5, 16],
+      forceWebGL: !wantWebGPU,
+    });
     document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
     stage.start();
   } catch (e) {
