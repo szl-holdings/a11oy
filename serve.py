@@ -1255,6 +1255,30 @@ except Exception as _szl3d_e:
 # ── end szl3d 3D TOOLKIT + HOLOGRAPHIC SHELL ──
 
 
+# ===========================================================================
+# ADDITIVE (Dev4 — Counter-UAS / killinchu holographic surface): same-origin
+# live bridge. The /holographic Counter-UAS surface must wire to REAL killinchu
+# data (doctrine v11), but killinchu lives on a separate Space, so a browser
+# fetch would be cross-origin. This server-side proxy lets the surface poll
+# SAME-ORIGIN /api/a11oy/v1/counter-uas/* (evaluate + DSSE sig, telemetry,
+# cued-tracks, air-picture, gates, drones-db). HONEST: killinchu SENSES &
+# EVIDENCES — it does NOT defeat; the proxy forwards detect/track/classify/
+# evidence + the signed verdict verbatim and degrades gracefully (never
+# fabricates). Registered BEFORE the SPA catch-all. Additive, try/except.
+# ===========================================================================
+try:
+    import szl_counter_uas_proxy as _cuas_proxy
+    _cuas_status = _cuas_proxy.register(app, ns="a11oy")
+    print(f"[a11oy] Counter-UAS live bridge registered: {_cuas_status['count']} routes "
+          f"-> {_cuas_status['upstream']} (senses-and-evidences, signed verdict, 0 CDN)",
+          file=sys.stderr)
+except Exception as _cuas_e:
+    import traceback as _cuas_tb
+    print(f"[a11oy] Counter-UAS live bridge NOT registered: {_cuas_e!r}", file=sys.stderr)
+    _cuas_tb.print_exc()
+# ── end Counter-UAS live bridge ──
+
+
 # ---------------------------------------------------------------------------
 # ADDITIVE (Yachay / Doctrine v13 WAYRA — 4th edge organ): mount the WAYRA tab.
 # WAYRA (Quechua *wayra* = "wind, air"; Wiktionary) is the empire's lungs: the

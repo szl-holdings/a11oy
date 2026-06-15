@@ -99,7 +99,7 @@ sha256 to this table, and extend the `_ALLOW` map in `szl3d_holographic.py`). Do
 | Lib | Owner (dev) | Pinned version | Upstream build to vendor | Target path |
 |---|---|---|---|---|
 | ~~deck.gl~~ | ~~Dev1 (energy), Dev9~~ | `deck.gl@9.0.38` | **DONE — vendored by Dev1** (see "VENDORED NOW (Dev1 energy PR)" above) | `/static/3d/vendor/deck.gl/dist.min.js` |
-| CesiumJS | Dev4 (counter-uas) | `cesium@1.123` | `unpkg.com/cesium@1.123/Build/Cesium/Cesium.js` + `Build/Cesium/Workers`, `Assets`, `Widgets` dirs | `/static/3d/vendor/cesium/` |
+| ~~CesiumJS~~ | ~~Dev4 (counter-uas)~~ | ~~`cesium@1.123`~~ | **NOT vendored — Dev4 took the three.js-globe escape hatch (see §Dev4 below).** If a future surface needs the full Cesium globe (3D Terrain / 3D Tiles), vendor `cesium@1.123` `Build/Cesium/{Cesium.js,Workers,Assets,Widgets}` under `/static/3d/vendor/cesium/` and extend `_serve_3d` to allow that prefix. | `/static/3d/vendor/cesium/` |
 | 3d-force-graph | Dev2, Dev5 | (reuse) `static-vendor/3d-force-graph.min.js` | already vendored — served at `/vendor/3d-force-graph.min.js` | (reuse) |
 
 When a dev vendors one of these:
@@ -108,6 +108,38 @@ When a dev vendors one of these:
 3. Add the filename(s) to `_THREED_ALLOW` in `szl3d_holographic.py` (or, for whole
    subtrees like Cesium's `Workers/`, extend `_serve_3d` to allow that prefix).
 4. Re-run the selftest harness — the no-CDN grep must stay green.
+
+## §Dev4 — Counter-UAS / killinchu surface: vendoring decisions
+
+The Dev0 contract (§6) offered Dev4 an explicit escape hatch: vendor full CesiumJS@1.123
+**OR** implement a three.js globe (textured sphere + lat/long track plotting). **Dev4 chose
+the three.js globe.** Rationale:
+
+- **0 new MB, 0 new CDN risk.** Reuses the already-vendored three.js r170 ESM build above.
+  Full Cesium is ~3 MB JS + a `Workers/`+`Assets/`+`Widgets/` subtree (hundreds of files)
+  and a separate `CESIUM_BASE_URL` serving contract — heavy for one surface PR.
+- **Sufficient for the technique.** The surface needs a globe + lat/long track entities +
+  restricted-airspace SDF volumes + a radar sweep cone + a signed-verdict beam. A procedural
+  graticule sphere with `llToVec(lat,lon,alt)` plotting covers all of these without Cesium's
+  terrain/imagery tile pipeline. (If a later surface needs real 3D Terrain or 3D Tiles, the
+  Cesium TODO row above is preserved for that work.)
+- **No new `_serve_3d` allow-prefix needed** — everything is served by the existing
+  `/static/3d/{path}` route + the r170 importmap.
+
+### Data vendored by Dev4 (real, not fabricated)
+
+| Path (under `/static/3d/`) | What | Source | Notes |
+|---|---|---|---|
+| `surfaces/data/drones_db.json` | 53 verified drone fingerprints | killinchu repo `drones_db.json` (verified count = 53) | killinchu does not expose this as a JSON HTTP route (its root path serves the Cesium SPA); the surface loads the repo's own DB same-origin. Vendored verbatim, not fabricated. |
+
+### Live-data bridge (server-side, not a vendored lib)
+
+The Counter-UAS surface wires to REAL killinchu live data via a same-origin proxy
+(`szl_counter_uas_proxy.py`, registered in `serve.py`) under `/api/a11oy/v1/counter-uas/*`
+→ the killinchu Space (`https://szlholdings-killinchu.hf.space`). This is a server-side
+forward (no browser CORS, no CDN script). It degrades gracefully (`{"degraded":true}`) so
+`szl3d_live` renders the honest DEGRADED state. killinchu **senses and evidences; it does
+not defeat** — the surface shows detect/track/classify/evidence + the signed verdict only.
 
 ## License notice
 
