@@ -64,7 +64,7 @@ jobs:
           check "a11oy console"    "https://szlholdings-a11oy.hf.space/console"
           check "killinchu /"      "https://szlholdings-killinchu.hf.space/"
           check "killinchu /elite" "https://szlholdings-killinchu.hf.space/elite"
-          check "anatomy /"        "https://szlholdings-anatomy.static.hf.space/"
+          check "anatomy /"        "https://szlholdings-anatomy.hf.space/"
 
           echo "PASS=$PASS FAIL=$FAIL"
           echo "pass=$PASS" >> "$GITHUB_OUTPUT"
