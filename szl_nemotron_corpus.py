@@ -290,7 +290,7 @@ def _install_nav_injector(app: FastAPI) -> bool:
     _MARKER = b"szl-nemo-corpus-nav"
     _TAG = (
         b'<a id="szl-nemo-corpus-nav" href="/signed-corpus" '
-        b'style="position:fixed;right:14px;bottom:14px;z-index:99998;'
+        b'style="position:fixed;left:14px;bottom:58px;z-index:99998;'
         b'background:#c8643c;color:#0a0f1e;font:600 12px ui-sans-serif,system-ui;'
         b'padding:8px 12px;border-radius:999px;text-decoration:none;'
         b'box-shadow:0 6px 18px -6px #000;" '
