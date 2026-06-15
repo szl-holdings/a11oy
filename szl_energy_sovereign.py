@@ -283,9 +283,9 @@ def _jtoken_from_metrics(prom: dict, sample: dict | None) -> dict:
 def _jtoken_from_operator() -> dict | None:
     """Honest MEASURED J/token from the press-play energy operator's OWN counters.
 
-    The operator (szl_energy_operator) accumulates joules_measured_total and
-    measured_tokens from the SAME set of MEASURED jobs (fresh <30s NVML deltas),
-    so joules_measured_total / measured_tokens is a real, self-consistent MEASURED
+    The operator (szl_energy_operator) accumulates measured_token_joules and
+    measured_tokens together over the SAME MEASURED jobs (fresh <30s NVML deltas),
+    so measured_token_joules / measured_tokens is a real, self-consistent MEASURED
     energy-per-token. Returns None when the operator has no MEASURED data yet — the
     caller then falls back to the prom/exporter path (honest ROADMAP when no meter).
     Never raises, never fabricates."""
@@ -294,7 +294,7 @@ def _jtoken_from_operator() -> dict | None:
         st = _op.get_operator().status()
     except Exception:
         return None
-    j = st.get("joules_measured_total")
+    j = st.get("measured_token_joules")
     tok = st.get("measured_tokens")
     try:
         j = float(j)
@@ -320,10 +320,11 @@ def _jtoken_from_operator() -> dict | None:
                       "Where-Do-Joules-Go arXiv:2601.22076"],
         "joules_honesty": "measured",
         "joules_evidence": {
-            "source": "press-play energy operator (MEASURED jobs only)",
-            "joules_measured_total": round(j, 6),
+            "source": "press-play energy operator (MEASURED jobs, joules+tokens paired since tracking start)",
+            "joules_over_measured_tokens": round(j, 6),
             "measured_tokens": tok,
             "measured_jobs": st.get("measured_jobs"),
+            "joules_measured_total_lifetime": st.get("joules_measured_total"),
             "exporter_node": st.get("exporter_node"),
             "window_seconds": st.get("window_seconds"),
             "computed_at": st.get("computed_at"),
