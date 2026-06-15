@@ -123,6 +123,25 @@
   .empty { color:var(--dim); font-family:var(--mono); font-size:13px; padding:14px; }
   .foot { margin-top:22px; color:var(--dim); font-size:11px; font-family:var(--mono); line-height:1.7; }
   .foot b{ color:var(--ink); }
+
+  /* ===== LIVE GRAPHS (vanilla canvas, 0 CDN) ===== */
+  .chartwrap { position:relative; width:100%; height:210px; }
+  .chartwrap.sm { height:150px; }
+  .chartwrap canvas, .gaugewrap canvas { width:100%; height:100%; display:block; }
+  .chart-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--dim); font-family:var(--mono); font-size:12px; pointer-events:none; text-align:center; padding:0 12px; }
+  .chart-empty.hide { display:none; }
+  .chart-read { position:absolute; top:6px; right:12px; font-family:var(--mono); font-weight:800;
+    font-size:22px; color:var(--green); text-shadow:0 0 14px rgba(52,211,153,.35); }
+  .chart-read .cu { font-size:12px; color:var(--dim); margin-left:3px; font-weight:700; }
+  .chart-axis { display:flex; justify-content:space-between; align-items:center; margin-top:7px;
+    font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:.4px; }
+  .chart-axis .mid { color:#6b809c; }
+  .gaugewrap { position:relative; width:100%; height:210px; }
+  .gauge-read { position:absolute; left:0; right:0; bottom:30px; text-align:center;
+    font-family:var(--mono); font-weight:800; font-size:30px; color:var(--green); }
+  .gauge-read .cu { font-size:13px; color:var(--dim); margin-left:4px; font-weight:700; }
+  .chart-sub { text-align:center; color:var(--dim); font-family:var(--mono); font-size:11px; margin-top:6px; }
 </style>
 </head>
 <body>
@@ -160,6 +179,44 @@
     </div>
   </section>
 
+  <!-- ===== LIVE GRAPHS (founder #1: measured joules climbing) ===== -->
+  <section class="card span8">
+    <h2>Live · measured joules climbing <span class="chip chip-measured">MEASURED</span></h2>
+    <div class="chartwrap">
+      <canvas id="chart-joules"></canvas>
+      <div class="chart-empty" id="chart-joules-empty">awaiting first live sample…</div>
+      <div class="chart-read"><span id="chart-joules-val">—</span><span class="cu">J</span></div>
+    </div>
+    <div class="chart-axis"><span id="chart-joules-lo">—</span><span class="mid">cumulative on-box NVML energy · live every 3s</span><span id="chart-joules-hi">—</span></div>
+  </section>
+
+  <section class="card span4">
+    <h2>GPU power now <span class="chip chip-measured">MEASURED</span></h2>
+    <div class="gaugewrap">
+      <canvas id="gauge-power"></canvas>
+      <div class="gauge-read"><span id="gauge-power-val">—</span><span class="cu">W</span></div>
+    </div>
+    <div class="chart-sub" id="gauge-power-sub">computing node —</div>
+  </section>
+
+  <section class="card span6">
+    <h2>GPU power trend <span class="chip chip-measured">MEASURED</span></h2>
+    <div class="chartwrap sm">
+      <canvas id="chart-power"></canvas>
+      <div class="chart-empty" id="chart-power-empty">awaiting first live sample…</div>
+      <div class="chart-read"><span id="chart-power-val">—</span><span class="cu">W</span></div>
+    </div>
+  </section>
+
+  <section class="card span6">
+    <h2>Throughput · tokens / sec <span class="chip chip-measured">MEASURED</span></h2>
+    <div class="chartwrap sm">
+      <canvas id="chart-tps"></canvas>
+      <div class="chart-empty" id="chart-tps-empty">measuring rate from live deltas…</div>
+      <div class="chart-read"><span id="chart-tps-val">—</span><span class="cu">tok/s</span></div>
+    </div>
+  </section>
+
   <!-- TODAY: compute done + earnings -->
   <section class="card span7">
     <h2>Today · compute done &amp; earnings</h2>
@@ -185,9 +242,9 @@
         <div class="lbl"><span class="chip chip-modeled" id="m-earn-chip">MODELED</span></div>
       </div>
       <div class="metric">
-        <div class="k">Projected · 1 day</div>
+        <div class="k">Projected · 1 day (resale)</div>
         <div class="v" id="m-proj-earn" style="color:var(--amber)">—</div>
-        <div class="lbl"><span class="chip chip-modeled">MODELED</span></div>
+        <div class="lbl"><span class="chip chip-estimate">ESTIMATE</span></div>
       </div>
       <div class="metric">
         <div class="k">Real cleared revenue</div>
@@ -345,9 +402,15 @@
       playBtn.textContent = "PRESS PLAY"; playBtn.classList.remove("stop");
       playBtn.setAttribute("aria-pressed", "false");
     }
-    var n = (status.nodes || status.gpus || []).length;
-    var jobs = status.jobs_running != null ? status.jobs_running : (status.active_jobs != null ? status.active_jobs : "—");
-    det.textContent = "nodes: " + n + " · active jobs: " + jobs;
+    var nodeNames = (status.node_status && typeof status.node_status === "object")
+      ? Object.keys(status.node_status)
+      : (status.nodes_computing || []).concat(status.nodes_standby || [], status.nodes_degraded || []);
+    var n = nodeNames.length;
+    var computing = (status.nodes_computing || []).length;
+    var jobsField = status.jobs_running != null ? status.jobs_running
+      : (status.active_jobs != null ? status.active_jobs : null);
+    det.textContent = "nodes: " + n + " · computing: " + computing +
+      (jobsField != null ? (" · active jobs: " + jobsField) : "");
     renderNodes(status);
   }
 
@@ -377,25 +440,43 @@
 
   function renderNodes(status) {
     var box = document.getElementById("nodes");
-    var nodes = status && (status.nodes || status.gpus);
-    if (!nodes || !nodes.length) {
-      // honest default: the two known reachable nodes shown as unknown/degraded
+    if (!status || isErr(status)) {
+      box.innerHTML = '<div class="empty">no node telemetry — <span class="chip chip-degraded">DEGRADED</span></div>';
+      return;
+    }
+    // operator/status contract: node_status {name:state}, by_node {name:{jobs,joules,tokens}},
+    // plus nodes_computing / nodes_standby / nodes_degraded arrays.
+    var ns = (status.node_status && typeof status.node_status === "object") ? status.node_status : null;
+    var byNode = status.by_node || {};
+    var names = ns ? Object.keys(ns) : [];
+    if (!names.length) {
+      var set = {};
+      (status.nodes_computing || []).forEach(function (n) { set[n] = "computing"; });
+      (status.nodes_standby || []).forEach(function (n) { set[n] = "standby"; });
+      (status.nodes_degraded || []).forEach(function (n) { set[n] = "degraded"; });
+      ns = set; names = Object.keys(set);
+    }
+    if (!names.length) {
       box.innerHTML = '<div class="empty">no node telemetry — <span class="chip chip-degraded">DEGRADED</span></div>';
       return;
     }
     box.innerHTML = "";
-    nodes.forEach(function (n) {
-      var name = n.name || n.node || n.id || "node";
-      var computing = (n.computing === true) || (n.state === "computing") || (n.reachable === true && n.busy === true);
-      var reachable = n.reachable !== false;
+    names.forEach(function (name) {
+      var state = String(ns[name] || "idle").toLowerCase();
+      var computing = state === "computing";
+      var degraded = state === "degraded";
       var div = document.createElement("div");
-      div.className = "node " + (computing ? "computing" : (reachable ? "" : "degraded"));
-      var chip = reachable ? (computing ? '<span class="chip chip-measured">COMPUTING</span>'
-                                        : '<span class="chip chip-sample">IDLE</span>')
-                           : '<span class="chip chip-degraded">DEGRADED</span>';
-      var model = n.model ? (" · " + n.model) : "";
+      div.className = "node " + (computing ? "computing" : (degraded ? "degraded" : ""));
+      var chip = computing ? '<span class="chip chip-measured">COMPUTING</span>'
+               : degraded ? '<span class="chip chip-degraded">DEGRADED</span>'
+               : state === "standby" ? '<span class="chip chip-sample">STANDBY</span>'
+               : '<span class="chip chip-sample">IDLE</span>';
+      var bn = byNode[name] || {};
+      var detail = "";
+      if (bn.joules_measured != null) detail += " · " + fmt(num(bn.joules_measured), 1) + " J";
+      if (bn.tokens != null) detail += " · " + fmt(num(bn.tokens), 0) + " tok";
       div.innerHTML = '<div class="nm">' + esc(name) + "</div>" +
-        '<div class="st">' + chip + (reachable ? (" · joules " + fmt(num(n.joules_measured || n.joules), 1)) : " · unreachable") + esc(model) + "</div>";
+        '<div class="st">' + chip + detail + "</div>";
       box.appendChild(div);
     });
   }
@@ -414,7 +495,7 @@
       var receipts = d.receipts || d.entries || d.ledger || [];
       var dryRunTotal = 0, anyCharged = false;
       // dry-run mode chip
-      var mode = d.mode || (d.stripe_live ? "LIVE" : "DRY-RUN");
+      var mode = (String(d.stripe_mode || d.mode || "").toLowerCase() === "live") ? "LIVE" : "DRY-RUN";
       var feedMode = document.getElementById("feed-mode");
       feedMode.textContent = mode;
       feedMode.className = "chip " + (mode === "LIVE" ? "chip-measured" : "chip-modeled");
@@ -423,8 +504,8 @@
       var rows = receipts.slice().reverse();
       if (rows.length && body.querySelector(".empty")) body.innerHTML = "";
       rows.forEach(function (r) {
-        var dec = r.decision || r;
-        var digest = r.payload_digest || r.digest || dec.payload_digest || "";
+        var dec = (r.receipt && r.receipt.decision) || r.decision || r;
+        var digest = (r.receipt && r.receipt.payload_digest) || r.entry_digest || r.payload_digest || r.digest || "";
         var cents = pickCents(r, dec);
         var charge = r.charge || {};
         if (String(charge.status) === "charged") anyCharged = true;
@@ -470,13 +551,14 @@
   function refreshToday() {
     return poll(API + "/energy/operator/status").then(function (d) {
       if (isErr(d)) return;
-      var t = d.today || d.totals || d;
-      var tokens = num(t.tokens_measured != null ? t.tokens_measured : t.tokens);
-      var jobs = num(t.jobs_done != null ? t.jobs_done : (t.jobs != null ? t.jobs : t.jobs_completed));
-      var joules = num(t.joules_measured != null ? t.joules_measured : t.joules);
+      var t = d;
+      var tokens = num(t.tokens_total != null ? t.tokens_total : (t.tokens_measured != null ? t.tokens_measured : t.tokens));
+      var jobs = num(t.jobs_done != null ? t.jobs_done : (t.jobs_completed != null ? t.jobs_completed : t.jobs));
+      var joules = num(t.joules_measured_total != null ? t.joules_measured_total : (t.joules_measured != null ? t.joules_measured : t.joules));
       if (tokens != null) mTokens.set(tokens);
       if (jobs != null) mJobs.set(jobs);
       if (joules != null) { mJoules.set(joules); bigJoules.set(joules); }
+      pushEnergySamples(d);
     });
   }
 
@@ -487,15 +569,26 @@
       var pj = document.getElementById("proj-joules");
       var pe = document.getElementById("m-proj-earn");
       if (isErr(d)) { pj.textContent = "—"; pe.textContent = "—"; return; }
-      var one = d.one_day || d.projection || d;
-      var joules = num(one.joules || one.joules_projected || one.joules_1d);
-      var earnCents = num(one.earnings_cents != null ? one.earnings_cents : one.amount_cents);
-      var earnDollars = earnCents != null ? earnCents / 100 : num(one.earnings_usd || one.usd);
+      var p = d.projection_1day_single_node || d.one_day || d.projection || d;
+      var cd = p.compute_done || {};
+      var joules = num((cd.joules && cd.joules.value != null) ? cd.joules.value
+                     : (p.joules && p.joules.value != null ? p.joules.value
+                     : (p.joules != null ? p.joules : (p.joules_projected != null ? p.joules_projected : p.joules_1d))));
+      // headline dollar = compute_resale (ESTIMATE: assumed ¢/kWh), per API honesty contract
+      var earn = p.earnings || {};
+      var resale = earn.compute_resale_usd || {};
+      var earnDollars = num(resale.value != null ? resale.value
+                         : (earn.usd != null ? earn.usd : (earn.value != null ? earn.value : null)));
+      if (earnDollars == null) {
+        var ec = num(earn.amount_cents != null ? earn.amount_cents : (earn.earnings_cents != null ? earn.earnings_cents : earn.cents));
+        if (ec != null) earnDollars = ec / 100;
+      }
       pj.textContent = joules != null ? fmt(joules, 0) : "—";
       pe.textContent = earnDollars != null ? ("$" + earnDollars.toFixed(2)) : "—";
-      if (d.formula || one.formula) {
+      var formula = (resale.formula) || (cd.joules && cd.joules.formula) || p.basis;
+      if (formula) {
         document.getElementById("earn-formula").textContent =
-          "MODELED: " + String(d.formula || one.formula);
+          "ESTIMATE (assumed ¢/kWh): " + String(formula);
       }
     });
   }
@@ -529,6 +622,7 @@
 
   function extractPrice(d) {
     if (typeof d.grid_price_eur_mwh === "number") return d.grid_price_eur_mwh;
+    if (typeof d.price_now_eur_mwh === "number") return d.price_now_eur_mwh;
     if (typeof d.price_eur_mwh === "number") return d.price_eur_mwh;
     var rs = d.readings || [];
     for (var i = 0; i < rs.length; i++) {
@@ -548,6 +642,139 @@
     return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]; }); }
   function shortDigest(d) { if (!d) return "—"; var h = String(d).replace(/^sha256:/, ""); return h.slice(0, 12) + "…"; }
   function shortTime(t) { if (!t) return "—"; try { return new Date(t).toLocaleTimeString(); } catch (e) { return String(t); } }
+
+  // ===== LIVE CHARTS (vanilla canvas, DPR-aware, 0 CDN) =================
+  function LiveChart(id, opts) {
+    opts = opts || {};
+    this.c = document.getElementById(id);
+    this.ctx = this.c ? this.c.getContext("2d") : null;
+    this.empty = opts.empty ? document.getElementById(opts.empty) : null;
+    this.valEl = opts.val ? document.getElementById(opts.val) : null;
+    this.loEl = opts.lo ? document.getElementById(opts.lo) : null;
+    this.hiEl = opts.hi ? document.getElementById(opts.hi) : null;
+    this.pts = [];
+    this.max = opts.max || 180;
+    this.color = opts.color || "#34d399";
+    this.decimals = opts.decimals != null ? opts.decimals : 0;
+    this.minSpan = opts.minSpan || 0;
+    this.fixedMin = opts.fixedMin;
+  }
+  LiveChart.prototype.push = function (v) {
+    if (typeof v !== "number" || !isFinite(v)) return;
+    this.pts.push(v);
+    if (this.pts.length > this.max) this.pts.shift();
+    if (this.empty) this.empty.classList.add("hide");
+    if (this.valEl) this.valEl.textContent = fmt(v, this.decimals);
+    this.draw();
+  };
+  LiveChart.prototype.draw = function () {
+    var c = this.c, ctx = this.ctx;
+    if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    var w = c.clientWidth || 600, h = c.clientHeight || 200;
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    var padL = 8, padR = 8, padT = 14, padB = 10;
+    var plotW = w - padL - padR, plotH = h - padT - padB;
+    ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 1;
+    for (var g = 0; g <= 4; g++) {
+      var gy = padT + plotH * g / 4;
+      ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(w - padR, gy); ctx.stroke();
+    }
+    var pts = this.pts;
+    if (pts.length < 2) return;
+    var mn = Math.min.apply(null, pts), mx = Math.max.apply(null, pts);
+    if (this.fixedMin != null) mn = Math.min(mn, this.fixedMin);
+    if (mx - mn < this.minSpan) mx = mn + this.minSpan;
+    if (mx === mn) mx = mn + 1;
+    var n = pts.length;
+    function X(i) { return padL + plotW * (i / (n - 1)); }
+    function Y(v) { return padT + plotH * (1 - (v - mn) / (mx - mn)); }
+    var grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+    grad.addColorStop(0, this.color + "55");
+    grad.addColorStop(1, this.color + "08");
+    ctx.beginPath();
+    ctx.moveTo(X(0), Y(pts[0]));
+    for (var i = 1; i < n; i++) ctx.lineTo(X(i), Y(pts[i]));
+    ctx.lineTo(X(n - 1), padT + plotH);
+    ctx.lineTo(X(0), padT + plotH);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(X(0), Y(pts[0]));
+    for (var j = 1; j < n; j++) ctx.lineTo(X(j), Y(pts[j]));
+    ctx.strokeStyle = this.color; ctx.lineWidth = 2;
+    ctx.lineJoin = "round"; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(X(n - 1), Y(pts[n - 1]), 3, 0, Math.PI * 2);
+    ctx.fillStyle = this.color; ctx.fill();
+    if (this.loEl) this.loEl.textContent = fmt(mn, this.decimals);
+    if (this.hiEl) this.hiEl.textContent = fmt(mx, this.decimals);
+  };
+
+  function Gauge(id, opts) {
+    opts = opts || {};
+    this.c = document.getElementById(id);
+    this.ctx = this.c ? this.c.getContext("2d") : null;
+    this.valEl = opts.val ? document.getElementById(opts.val) : null;
+    this.max = opts.max || 120; this.cur = 0;
+  }
+  Gauge.prototype.set = function (v) {
+    if (typeof v !== "number" || !isFinite(v)) return;
+    this.cur = v; if (this.valEl) this.valEl.textContent = fmt(v, 1);
+    this.draw();
+  };
+  Gauge.prototype.draw = function () {
+    var c = this.c, ctx = this.ctx; if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    var w = c.clientWidth || 240, h = c.clientHeight || 200;
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    var cx = w / 2, cy = h * 0.70, r = Math.min(w * 0.40, h * 0.56);
+    var a0 = Math.PI * 0.85, a1 = Math.PI * 2.15;
+    ctx.lineWidth = 14; ctx.lineCap = "round";
+    ctx.strokeStyle = "#16202e";
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+    var frac = Math.max(0, Math.min(1, this.cur / this.max));
+    var grad = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+    grad.addColorStop(0, "#34d399"); grad.addColorStop(1, "#fbbf24");
+    ctx.strokeStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + (a1 - a0) * frac); ctx.stroke();
+  };
+
+  var chJoules = new LiveChart("chart-joules", { empty:"chart-joules-empty", val:"chart-joules-val", lo:"chart-joules-lo", hi:"chart-joules-hi", color:"#34d399", decimals:0, minSpan:1 });
+  var chPower  = new LiveChart("chart-power",  { empty:"chart-power-empty",  val:"chart-power-val",  color:"#60a5fa", decimals:1, fixedMin:0, minSpan:5 });
+  var chTps    = new LiveChart("chart-tps",    { empty:"chart-tps-empty",    val:"chart-tps-val",    color:"#c084fc", decimals:1, fixedMin:0, minSpan:1 });
+  var gPower   = new Gauge("gauge-power", { val:"gauge-power-val", max:120 });
+  var tpsState = { lastTokens:null, lastTs:null };
+
+  function pushEnergySamples(d) {
+    if (isErr(d)) return;
+    var j = num(d.joules_measured_total != null ? d.joules_measured_total : d.joules_measured);
+    if (j != null) chJoules.push(j);
+    var pw = num(d.power_w_sample);
+    if (pw != null) { chPower.push(pw); gPower.set(pw); }
+    var nodeName = (d.nodes_computing && d.nodes_computing[0]) || "—";
+    var sub = document.getElementById("gauge-power-sub");
+    if (sub) sub.textContent = "computing node " + nodeName;
+    var tk = num(d.tokens_total != null ? d.tokens_total : d.tokens_measured);
+    var now = Date.now();
+    if (tk != null) {
+      if (tpsState.lastTokens != null && tpsState.lastTs != null && now > tpsState.lastTs) {
+        var rate = (tk - tpsState.lastTokens) / ((now - tpsState.lastTs) / 1000);
+        if (rate >= 0 && isFinite(rate)) chTps.push(rate);
+      }
+      tpsState.lastTokens = tk; tpsState.lastTs = now;
+    }
+  }
+  window.addEventListener("resize", function () {
+    chJoules.draw(); chPower.draw(); chTps.draw(); gPower.draw();
+  });
 
   // ---- poll loop ---------------------------------------------------------
   function tickFast() { refreshStatus(); refreshToday(); refreshLedger(); }
