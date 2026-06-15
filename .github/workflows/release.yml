@@ -83,7 +83,7 @@ jobs:
           gh release upload "${TAG}" "${FILES[@]}" --clobber --repo szl-holdings/a11oy
       - name: Upload signed receipts as a workflow artifact (dispatch runs)
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: signed-receipts
           path: attestations/**/*.json
