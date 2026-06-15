@@ -385,7 +385,8 @@ class _State:
         s.tokens_total = int(d.get("tokens_total", 0))
         s.measured_jobs = int(d.get("measured_jobs", 0))
         s.sample_jobs = int(d.get("sample_jobs", 0))
-        s.by_node = dict(d.get("by_node", {}) or {})
+        s.by_node = {k: v for k, v in (d.get("by_node", {}) or {}).items()
+                     if not (k == "local-stub" or k.endswith("-stub"))}
         return s
 
 
@@ -714,7 +715,8 @@ def get_operator() -> OperatorDaemon:
     global _OPERATOR
     with _OPERATOR_LOCK:
         if _OPERATOR is None:
-            _OPERATOR = OperatorDaemon()
+            _allow_stub = os.environ.get("A11OY_ENERGY_ALLOW_STUB", "0") not in ("0", "false", "False", "")
+            _OPERATOR = OperatorDaemon(allow_stub=_allow_stub)
         return _OPERATOR
 
 
