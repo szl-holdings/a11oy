@@ -1614,6 +1614,15 @@ try:
     import szl_anatomy_routes as _anat_mod
     _anat_html_app = _AnatFA()
     _anat_paths = _anat_mod.register(app, ns="a11oy", api_app=None, html_app=_anat_html_app)
+    # /anatomy/loop has no HTML page of its own — the circulation "loop" lives as the
+    # live API (/api/a11oy/v1/anatomy/loop, 200) and the agent-loop page. Redirect the
+    # intuitive /anatomy/loop URL to the canonical /agent-loop view instead of 404ing.
+    from fastapi.responses import RedirectResponse as _AnatRedirect
+
+    @_anat_html_app.get("/loop", include_in_schema=False)
+    def _anatomy_loop_redirect():
+        return _AnatRedirect(url="/agent-loop", status_code=307)
+    _anat_paths = list(_anat_paths) + ["/anatomy/loop -> /agent-loop (redirect)"]
     app.mount("/anatomy", _anat_html_app)
     print(f"[a11oy] anatomy run-engine wired ({len(_anat_paths)} routes; HTML at /anatomy/*): {_anat_paths}", file=sys.stderr)
 except Exception as _anat_e:  # additive: never break the Space
