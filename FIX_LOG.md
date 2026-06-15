@@ -57,6 +57,30 @@ Center. D4 complete.
 
 ---
 
+## Post-merge: main drift gate red on serve.py (PR #441 /fabric, not my work)
+
+After my four PRs merged GREEN, a later sibling PR **#441** (dedicated `/fabric` surface)
+landed an additive `@app.get("/fabric")` route in `serve.py` WITHOUT a matching drift
+allowlist entry. The next main `hf-module-drift` run (sha 2aecbdf) then went **red**.
+
+**Diagnosis (authoritative, reproduced locally against the live HF Space tree):** the only
+error was `serve.py`. GitHub main blob = `ac311f0`; live HF Space blob = `62f1532`. The
+`git diff 62f1532..ac311f0 -- serve.py` is EXACTLY #441's additive `/fabric` route (verified:
+live serve.py HAS my `/pnt`+`/pinn` routes via `pnt.html`/`pinn.html`, but LACKS `fabric.html`).
+So the box has redeployed main up to my work but not yet #441 — GitHub is ahead, the box lags.
+Same accepted "ahead=github, pending Forge redeploy" class as the D1/D4 entries.
+
+The checker's `ahead=huggingface?` label was a FALSE read: GitHub's per-file commit-date
+lookup was rate-limited (returned `None`), so the date heuristic defaulted toward HF. The
+content delta is unambiguously GitHub-ahead.
+
+**Fix:** PR #444 — add a `serve.py` entry to `.github/hf-module-drift-allow.json` (pending
+#441 redeploy; removable once OIDs reconcile). Verified locally: with the entry the guard
+reports 0 errors / 1 allowlisted warning. (As with #437, the reusable workflow evaluates
+`ref=main`, so the entry only takes effect once merged.)
+
+---
+
 ## D3 — generic Command Center async loads hang ("probing…")
 
 For `/pnt` and `/pinn` specifically, D3 is resolved as a side effect of D4: those routes no
