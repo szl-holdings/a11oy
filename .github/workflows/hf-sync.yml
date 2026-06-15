@@ -64,6 +64,12 @@ on:
       # Lives in static/shared/ (outside the bulk dirs) so it is mirrored to the HF
       # Space explicitly here AND in the front-door CATHEDRAL_FILES list below.
       - "static/shared/szl_holo3d.js"
+      # live_wires.html: the served /live-wires 3D page lives at the repo ROOT,
+      # OUTSIDE the pages/console glob and the CATHEDRAL_FILES set, so an edit on
+      # GitHub main was NOT auto-mirrored and the HF Space drifted (caught by the
+      # hf-module-drift guard: live_wires.html ahead=github). Mirror it explicitly
+      # here AND in CATHEDRAL_FILES below so the front door stays byte-identical.
+      - "live_wires.html"
       # copy-sync lockstep guard (CHECK 2): the Lane A agentic core module
       # a11oy_react_core.py is per-file COPY'd in the Dockerfile and imported by
       # serve.py (serves /api/a11oy/v1/agent/react/{run,resume,trace,checkpoints}).
@@ -192,7 +198,9 @@ jobs:
                              # outside the bulk dirs so mirrored explicitly (copy-sync CHECK 3).
                              "static/shared/szl_codename_sanitizer.js", "static/shared/szl_label_engine.js", "static/shared/szl_receipt_cosign.js",
                              # Lane F1: the 3D/holographic substrate kit (loaded by /holo).
-                             "static/shared/szl_holo3d.js"]
+                             "static/shared/szl_holo3d.js",
+                             # served /live-wires 3D page at repo ROOT (outside pages/console glob).
+                             "live_wires.html"]
           patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js",
                       *CATHEDRAL_FILES]
           paths = []
