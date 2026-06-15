@@ -1109,6 +1109,12 @@ try:
     # energy surface and the HF /energy page's "(5)" panel.
     app.add_api_route("/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
+    # /energy-3d is the founder-facing alias for the holographic 3D energy showcase
+    # (same _ptg_serve target + shared /static/3d/energy_showcase/showcase.js). Registered
+    # here (before the SPA catch-all) so /energy-3d serves the real wired 3D page instead of
+    # falling through to the generic console shell. (Re-added; was dropped in #436.)
+    app.add_api_route("/energy-3d", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy-3d", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
