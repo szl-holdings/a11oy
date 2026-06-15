@@ -237,6 +237,22 @@ try:
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
 
+# ── PNT / quantum-sensing fundamental-limits mesh (sensing limits, GNSS spoof-
+# resilience, GPS-denied coasting, unified fundamental limits). PURE STDLIB closed-
+# form web path (never blocks); the heavy numpy/UKF/PINN solves are the Forge/GPU
+# path on rtx-betterwithage + chaski. Every value labelled MEASURED/MODELED/SAMPLE,
+# Λ=Conjecture 1 (advisory). The engine modules are loaded dynamically by
+# szl_pnt_mesh (importlib) — they are COPY'd into the image (Dockerfile) so the mesh
+# wires the REAL engines; the pnt_resilience + nav_coasting pillars are numpy-free so
+# they import in this numpy-less web image and report wired:true HONESTLY (no
+# fabricated boolean). Additive, try/except-guarded, before the SPA catch-all.
+try:
+    import szl_pnt_mesh as _szl_pnt_mesh
+    _szl_pnt_mesh.register(app, ns="a11oy")
+    print("[a11oy] PNT/quantum-sensing mesh registered: /api/a11oy/v1/pnt/*", file=__import__("sys").stderr)
+except Exception as _szl_pnt_e:  # pragma: no cover
+    print(f"[a11oy] PNT mesh NOT registered: {_szl_pnt_e!r}", file=__import__("sys").stderr)
+
 # ── Proven Energy Engine — energy-budget receipt layer (energy-budget-receipt).
 # Per compute task, a Bekenstein-GATED receipt binding Shannon info content to the
 # canonical N·8-bit Bekenstein bound (TH6 / locked-8 F19 additivity) and a labeled
