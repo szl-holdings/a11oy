@@ -41,6 +41,8 @@ on:
       - 'scripts/weight_guard_alert.sh'
       - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/llama-wheel-guard.yml'
+      - 'scripts/parse-llama-pin.sh'
+      - 'scripts/parse-llama-pin.test.sh'
   pull_request:
     branches: [main]
     paths:
@@ -48,6 +50,8 @@ on:
       - 'scripts/weight_guard_alert.sh'
       - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/llama-wheel-guard.yml'
+      - 'scripts/parse-llama-pin.sh'
+      - 'scripts/parse-llama-pin.test.sh'
   schedule:
     # Weekly, Mondays 06:17 UTC — re-verify the pinned version still compiles
     # from source on glibc even when nobody touches the Dockerfile.
@@ -58,9 +62,23 @@ permissions:
   contents: read
 
 jobs:
+  # Prove the version parser still works on a representative Dockerfile AND fails
+  # loudly when the pin is absent/reshaped, before the guard job trusts it against
+  # the real Dockerfile. Without this, a refactor of the install line could
+  # silently desync the parser and neuter the wheel guard (it would error or, if
+  # someone "fixed" the parse to be lenient, wave a regression through).
+  parser-self-test:
+    name: Self-test the Dockerfile pin parser (negative fixtures)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Run negative-fixture self-test
+        run: bash scripts/parse-llama-pin.test.sh
+
   wheel-guard:
     # ubuntu-latest is linux_x86_64 — the same arch the published image ships on.
     runs-on: ubuntu-latest
+    needs: parser-self-test
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -78,11 +96,11 @@ jobs:
         id: parse
         run: |
           set -euo pipefail
-          VER="$(grep -oE 'llama-cpp-python==[0-9][0-9.]*' Dockerfile | head -n1 | sed 's/.*==//')"
-          if [ -z "${VER}" ]; then
-            echo "::error::Could not parse the pinned 'llama-cpp-python==<ver>' install from the Dockerfile. If the install line moved or changed shape, update this guard in lockstep."
-            exit 1
-          fi
+          # Use the shared parser (scripts/parse-llama-pin.sh) so the version this
+          # guard rebuilds is extracted by the EXACT same code the negative-fixture
+          # self-test (parser-self-test job) validates. The parser exits non-zero
+          # with a ::error:: annotation if the pin is absent or reshaped.
+          VER="$(bash scripts/parse-llama-pin.sh Dockerfile)"
           echo "version=${VER}" >> "${GITHUB_OUTPUT}"
           echo "Parsed llama-cpp-python==${VER}"
 
