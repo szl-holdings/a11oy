@@ -162,21 +162,15 @@ def test_shell_uses_local_importmap_not_cdn():
 
 
 def test_all_nine_surface_stubs_follow_contract():
-    # The energy surface is no longer a STRUCTURAL-ONLY stub: it is the first
-    # surface promoted to a real, fully-wired holographic showcase. It satisfies
-    # the contract by DELEGATING to the shared energy_showcase module (which holds
-    # the live ctx.live.poll wiring + honesty chips). Its wiring is asserted in
-    # detail by the energy-showcase tests below, so here we only require the
-    # surface contract shape and that it delegates to the showcase.
-    DELEGATED = {"energy"}
+    # Every surface (including energy, now a standalone fully-wired showcase)
+    # follows the same contract: ES-module default export, mount/unmount, a live
+    # ctx.live.poll binding to a real endpoint, and the honest STRUCTURAL-ONLY
+    # placeholder label for off-box / no-live-data states.
     for sid in ("energy", "fabric", "pnt", "counter-uas", "governance",
                 "pinn", "router", "anatomy", "estate"):
         src = _read(f"surfaces/{sid}.js")
         assert "export default" in src
         assert "function mount" in src and "function unmount" in src
-        if sid in DELEGATED:
-            assert "energy_showcase/showcase.js" in src   # delegates to live showcase
-            continue
         assert "ctx.live.poll" in src                 # wired to a real endpoint
         assert "STRUCTURAL-ONLY" in src               # honest placeholder label
 
