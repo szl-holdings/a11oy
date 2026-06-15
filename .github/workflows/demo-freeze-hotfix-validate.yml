@@ -38,7 +38,10 @@ jobs:
       - name: Validate hotfix discipline
         shell: bash
         env:
-          FREEZE_START: '2026-06-09'
+          # Aligned with demo-freeze.yml: hard-enforce hotfix discipline only once the
+          # real freeze is active (2026-06-18 01:00 ET = 2026-06-18 UTC). Before that it
+          # stays advisory (warns, never blocks). Founder moved freeze start to the 18th.
+          FREEZE_START: '2026-06-18'
           FREEZE_END: '2026-06-20'
           BRANCH: ${{ github.head_ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
