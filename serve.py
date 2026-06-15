@@ -1197,6 +1197,25 @@ try:
     app.add_api_route("/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
 
+    # WARHACKER SHOWCASE PAGES (demo lane, 2026-06-14): two PUBLIC companion pages for
+    # the June 16-19 WarHacker demo. Standalone sovereign pages (system fonts, 0 runtime
+    # CDN, no external scripts). Where a claim can be proven LIVE they fetch a real
+    # a11oy production endpoint (/api/a11oy/v1/{pinn/certificate,compliance,pnt/limits},
+    # /elite, /elite-console) with an HONEST NO-LIVE-DATA fallback — never a fabricated
+    # value. Every maturity claim is labelled LIVE-today vs MODELED/ROADMAP (doctrine v11).
+    #   /signature-is-not-proof — the "A Signature Is Not Proof of Safety" case study
+    #                             (Mini Shai-Hulud May 2026; the 5 a11oy mechanisms).
+    #   /defense-readiness      — federal/allied pathway FIT + honest maturity summary
+    #                             (DARPA PINPOINT, JIATF 401, NATO DIANA, AFWERX); no
+    #                             private submission content exposed.
+    # image-only like the other web/*.html demo pages (per-file Dockerfile COPY +
+    # copy-sync-lockstep.json image_only_assets); pushed direct-to-Space so they are
+    # live immediately. Without the COPYs the routes 404 to the SPA shell.
+    app.add_api_route("/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
+
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
         return _PTG_Redirect(url="/code", status_code=302)
@@ -1211,6 +1230,53 @@ except Exception as _ptg_e:  # never crash the app — additive only
     print(f"[a11oy] PER-TAB GENIUS surfaces NOT registered: {_ptg_e!r}", file=_ptg_sys.stderr)
     _ptg_tb.print_exc()
 # === end PER-TAB PALANTIR-CLASS GENIUS REBUILD ===
+
+
+# ===========================================================================
+# ADDITIVE (Dev0, 2026-06-14): SHARED szl3d 3D TOOLKIT + HOLOGRAPHIC SHELL.
+# The foundation the other 9 holographic surface devs import. Serves the
+# vendored three.js r170 libs + the szl3d toolkit (boot/live/label) + the 9
+# surface stub modules + the selftest harness under /static/3d/{path}, and the
+# /holographic tab-switcher shell. 0 runtime CDN (libs vendored in-image,
+# served same-origin), WebGPU-with-WebGL2-fallback, honesty labels on every
+# value. Registered BEFORE the SPA /{full_path:path} catch-all so the shell's
+# ES-module imports resolve locally. Additive, try/except-guarded.
+# ===========================================================================
+try:
+    import szl3d_holographic as _szl3d_holo
+    _szl3d_status = _szl3d_holo.register(app, ns="a11oy")
+    print(f"[a11oy] szl3d 3D toolkit + holographic shell registered: {_szl3d_status['count']} routes, "
+          f"{_szl3d_status['surfaces']} surface slots — /holographic + /static/3d/* (0 CDN, three r170)",
+          file=sys.stderr)
+except Exception as _szl3d_e:
+    import traceback as _szl3d_tb
+    print(f"[a11oy] szl3d toolkit NOT registered: {_szl3d_e!r}", file=sys.stderr)
+    _szl3d_tb.print_exc()
+# ── end szl3d 3D TOOLKIT + HOLOGRAPHIC SHELL ──
+
+
+# ===========================================================================
+# ADDITIVE (Dev4 — Counter-UAS / killinchu holographic surface): same-origin
+# live bridge. The /holographic Counter-UAS surface must wire to REAL killinchu
+# data (doctrine v11), but killinchu lives on a separate Space, so a browser
+# fetch would be cross-origin. This server-side proxy lets the surface poll
+# SAME-ORIGIN /api/a11oy/v1/counter-uas/* (evaluate + DSSE sig, telemetry,
+# cued-tracks, air-picture, gates, drones-db). HONEST: killinchu SENSES &
+# EVIDENCES — it does NOT defeat; the proxy forwards detect/track/classify/
+# evidence + the signed verdict verbatim and degrades gracefully (never
+# fabricates). Registered BEFORE the SPA catch-all. Additive, try/except.
+# ===========================================================================
+try:
+    import szl_counter_uas_proxy as _cuas_proxy
+    _cuas_status = _cuas_proxy.register(app, ns="a11oy")
+    print(f"[a11oy] Counter-UAS live bridge registered: {_cuas_status['count']} routes "
+          f"-> {_cuas_status['upstream']} (senses-and-evidences, signed verdict, 0 CDN)",
+          file=sys.stderr)
+except Exception as _cuas_e:
+    import traceback as _cuas_tb
+    print(f"[a11oy] Counter-UAS live bridge NOT registered: {_cuas_e!r}", file=sys.stderr)
+    _cuas_tb.print_exc()
+# ── end Counter-UAS live bridge ──
 
 
 # ---------------------------------------------------------------------------
@@ -3947,7 +4013,6 @@ except Exception as _a11oy_nav_e:
     print(f"[a11oy] NAV wire-up NOT registered: {_a11oy_nav_e!r}", file=sys.stderr)
     _a11oy_nav_tb.print_exc()
 # ── end NAV WIRE-UP (QA10) ──
-
 # ===========================================================================
 # MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM (additive, demo-grade, doctrine-honest)
 # Two shared modules, byte-identical in a11oy + killinchu:
@@ -3982,6 +4047,158 @@ except Exception as _szl_mbse_nav_e:
     print(f"[a11oy] MBSE pages + nav NOT registered: {_szl_mbse_nav_e!r}", file=sys.stderr)
     _szl_mbse_nav_tb.print_exc()
 # ── end MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM ──
+
+# ===========================================================================
+# WILLAY — the GOVERNED INVERSE of Anthropic's Fable 5 / Mythos 5 split.
+# ---------------------------------------------------------------------------
+# Anthropic shipped Fable 5 (capable model WITH safety classifiers that decline)
+# and Mythos 5 (SAME capability, classifiers REMOVED, hidden chain-of-thought,
+# limited Project Glasswing access). We do NOT clone Mythos. WILLAY is the honest
+# inverse: where Mythos REMOVES the governor and HIDES the reasoning, WILLAY makes
+# the safety/governance verdict INSPECTABLE and SIGNED — "they hide the governor;
+# we sign and show it." Every model call routed through a11oy passes inspectable
+# classifiers built on the EXISTING Restraint gate + Constitution + Khipu 3-of-4
+# consensus; the verdict AND its reasoning are returned as a SIGNED DSSE receipt.
+# Adopts (interface patterns only, fair game) the public Fable/Mythos API
+# ergonomics: refusal as a SUCCESSFUL non-billed 200 with stop_reason="refusal",
+# adaptive effort / task budgets, the memory tool, context compaction — wired into
+# a11oy-Code's API surface honestly (the gateway gates + signs; it does not itself
+# run a model). A WILLAY /console tab shows: request -> verdict (allow/decline +
+# reason) -> signed receipt -> which model served it. 0 CDN, holo-kit vendored
+# locally. Doctrine: locked=8 @ c7c0ba17; Λ = Conjecture 1; Khipu = Conjecture 2;
+# trust NEVER 100% (tamper-evident, fallible by design); no visible codenames;
+# never weakens a gate. Mounts BEFORE the SPA catch-all; try/except-guarded so a
+# missing dep can NEVER take the Space down.
+#   GET  /willay                          — the WILLAY operator tab
+#   GET  /api/a11oy/v1/willay/classifiers — the inspectable classifier set
+#   POST /api/a11oy/v1/willay/inspect     — classify a request -> verdict + reasons
+#   POST /api/a11oy/v1/willay/messages    — Fable-shaped gated turn (refusal => 200)
+#   GET  /api/a11oy/v1/willay/receipts    — last N signed verdict receipts (audit)
+#   POST /api/a11oy/v1/willay/verify      — verify a signed WILLAY receipt
+#   GET  /api/a11oy/v1/willay/doctrine    — doctrine + honesty self-statement
+# ===========================================================================
+try:
+    import szl_willay_gateway as _szl_willay
+    _willay_status = _szl_willay.register(app, ns="a11oy")
+    print(f"[a11oy] WILLAY safety gateway registered: {_willay_status['registered']} "
+          f"(classifiers: {_willay_status['classifiers']}, trust_ceiling="
+          f"{_willay_status['trust_ceiling']} <1.0 by doctrine) — governed inverse of "
+          f"Mythos: verdicts signed & shown, refusal-as-200", file=sys.stderr)
+except Exception as _willay_e:
+    import traceback as _willay_tb
+    print(f"[a11oy] WILLAY safety gateway NOT registered: {_willay_e!r}; SPA + API "
+          f"unaffected", file=sys.stderr)
+    _willay_tb.print_exc()
+try:
+    import a11oy_willay_nav as _a11oy_willay_nav
+    _willay_nav_status = _a11oy_willay_nav.register(app, ns="a11oy")
+    print(f"[a11oy] WILLAY nav wire-up registered: {_willay_nav_status['registered']} "
+          f"(tab: {_willay_nav_status['tab_route']}) — idempotent, additive, /console "
+          f"SPA source NOT edited", file=sys.stderr)
+except Exception as _willay_nav_e:
+    import traceback as _willay_nav_tb
+    print(f"[a11oy] WILLAY nav wire-up NOT registered: {_willay_nav_e!r}", file=sys.stderr)
+    _willay_nav_tb.print_exc()
+# ── end WILLAY (governed inverse of Mythos) ──
+
+
+# ===========================================================================
+# ADDITIVE — WAQAY governed quantized vector index (2026-06-14, WAQAY team).
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# WAQAY (Quechua: to keep / guard / store) — our OWN governed, air-gapped,
+# DSSE-signed quantized vector index. We studied the MIT-licensed turbovec
+# (github.com/RyanCodrai/turbovec) + Google Research's TurboQuant data-oblivious
+# quantizer, then built OUR own pure-Python governed index (szl_waqay.py). It
+# UPGRADES a11oy's RAG: a ~16x-compressed index lets the 8GB Blackwell brain hold
+# a much larger governed KB locally, air-gapped. ADDITIVE — exact-cosine RAG is
+# unchanged. Every build + retrieval emits a DSSE-signed receipt and passes the
+# Restraint gate. Compression MEASURED; recall MODELED bound (never perfect);
+# perf vs the Rust SIMD original MODELED/ROADMAP. Mounts BEFORE the SPA catch-all;
+# try/except-guarded so a missing dep can NEVER take the Space down. 0 CDN.
+#   GET  /waqay                        — the WAQAY operator tab (live demo)
+#   GET  /api/a11oy/v1/waqay/doctrine  — doctrine + honesty self-statement
+#   GET  /api/a11oy/v1/waqay/demo      — ingest SAMPLE docs, compress, retrieve, sign
+#   POST /api/a11oy/v1/waqay/search    — run a governed query (signed receipt)
+#   GET  /api/a11oy/v1/waqay/receipts  — last N signed receipts (audit)
+#   POST /api/a11oy/v1/waqay/verify    — verify a signed WAQAY receipt
+# Attribution: turbovec (c) 2026 Ryan Codrai (MIT) + Google Research TurboQuant. NOTICES.md.
+# ===========================================================================
+try:
+    import szl_waqay as _szl_waqay
+    _waqay_status = _szl_waqay.register(app, ns="a11oy")
+    print(f"[a11oy] WAQAY governed vector index registered: {_waqay_status['registered']} "
+          f"(tab: {_waqay_status['tab_route']}, trust_ceiling={_waqay_status['trust_ceiling']} "
+          f"<1.0 by doctrine) — TurboQuant-inspired, signed receipts + Restraint, "
+          f"compression MEASURED / perf MODELED", file=sys.stderr)
+except Exception as _waqay_e:
+    import traceback as _waqay_tb
+    print(f"[a11oy] WAQAY governed vector index NOT registered: {_waqay_e!r}; SPA + API "
+          f"unaffected", file=sys.stderr)
+    _waqay_tb.print_exc()
+try:
+    import a11oy_waqay_nav as _a11oy_waqay_nav
+    _waqay_nav_status = _a11oy_waqay_nav.register(app, ns="a11oy")
+    print(f"[a11oy] WAQAY nav wire-up registered: {_waqay_nav_status['registered']} "
+          f"(tab: {_waqay_nav_status['tab_route']}) — idempotent, additive, /console "
+          f"SPA source NOT edited", file=sys.stderr)
+except Exception as _waqay_nav_e:
+    import traceback as _waqay_nav_tb
+    print(f"[a11oy] WAQAY nav wire-up NOT registered: {_waqay_nav_e!r}", file=sys.stderr)
+    _waqay_nav_tb.print_exc()
+# ── end WAQAY (governed quantized vector index) ──
+
+
+# ===========================================================================
+# ADDITIVE — YUPAY governed multi-model audit harness (2026-06-15, YUPAY team).
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ---------------------------------------------------------------------------
+# YUPAY (Quechua: to count / to reckon / to audit) — our OWN governed multi-model
+# AUDIT harness. We adopt the Kilo Code / André Lindenberg audit METHODOLOGY
+# (blog.kilo.ai: same task, score issues/tokens/cost/latency per model) and run it
+# over OUR OWN governed open models (SZL-Nemo on Qwen3-32B Apache; the HF-router
+# models; mesh when wired), emitting ONE DSSE-signed comparison receipt + a
+# Restraint verdict — the GOVERNED DIFFERENCE. Honest labels: MEASURED iff a real
+# run happened, else MODELED (cost = published per-token rates, cited). NO M3
+# WEIGHTS / NO M3 DERIVATIVE: M3 is EXCLUDED-BY-DOCTRINE (defense-license + PRC
+# sovereignty), shown only as a non-participating reference row, never run.
+# Mounts BEFORE the SPA catch-all; try/except-guarded so a missing dep can NEVER
+# take the Space down. 0 CDN.
+#   GET  /yupay                        — the YUPAY operator tab (live demo)
+#   GET  /api/a11oy/v1/yupay/doctrine  — doctrine + honesty self-statement + M3 stance
+#   GET  /api/a11oy/v1/yupay/demo      — run same-task audit, score, sign
+#   POST /api/a11oy/v1/yupay/compare   — run a governed comparison (signed receipt)
+#   GET  /api/a11oy/v1/yupay/receipts  — last N signed comparison receipts (audit)
+#   POST /api/a11oy/v1/yupay/verify    — verify a signed YUPAY receipt
+# Attribution: Kilo Code/André Lindenberg methodology + MiniMax sparse-attn paper
+# as INSPIRATION; no M3 weights, no M3 derivative. NOTICES.md.
+# ===========================================================================
+try:
+    import szl_yupay as _szl_yupay
+    _yupay_status = _szl_yupay.register(app, ns="a11oy")
+    print(f"[a11oy] YUPAY governed multi-model audit harness registered: "
+          f"{_yupay_status['registered']} (tab: {_yupay_status['tab_route']}, "
+          f"trust_ceiling={_yupay_status['trust_ceiling']} <1.0) — Kilo-methodology, "
+          f"signed comparison + Restraint, MODELED/MEASURED honest labels, "
+          f"M3 EXCLUDED-BY-DOCTRINE", file=sys.stderr)
+except Exception as _yupay_e:
+    import traceback as _yupay_tb
+    print(f"[a11oy] YUPAY audit harness NOT registered: {_yupay_e!r}; SPA + API "
+          f"unaffected", file=sys.stderr)
+    _yupay_tb.print_exc()
+try:
+    import a11oy_yupay_nav as _a11oy_yupay_nav
+    _yupay_nav_status = _a11oy_yupay_nav.register(app, ns="a11oy")
+    print(f"[a11oy] YUPAY nav wire-up registered: {_yupay_nav_status['registered']} "
+          f"(tab: {_yupay_nav_status['tab_route']}) — idempotent, additive, /console "
+          f"SPA source NOT edited", file=sys.stderr)
+except Exception as _yupay_nav_e:
+    import traceback as _yupay_nav_tb
+    print(f"[a11oy] YUPAY nav wire-up NOT registered: {_yupay_nav_e!r}", file=sys.stderr)
+    _yupay_nav_tb.print_exc()
+# ── end YUPAY (governed multi-model audit harness) ──
+
+
 
 # ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
@@ -4259,9 +4476,9 @@ async def a11oy_version():
     return {
         "name": "a11oy",
         "version": "1.0.0",
-        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "90dd8e34efd7308f39c2230c78a4f1a67e4b0ba6"),
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "1d2540609a07d41b4d333fc58ea1f74f852e8f53"),
-        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "unknown"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "unknown"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "unknown"),
         "release_url": "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
@@ -9233,31 +9450,6 @@ except Exception as _con_e:  # pragma: no cover
           file=__import__("sys").stderr)
 # ============================================================================
 # END: I3 Governed Factory + Constitutional Engines
-# ============================================================================
-
-
-# ============================================================================
-# ADDITIVE (SAPA): Energy per Successful Goal — the frontier agentic unit on top
-# of the live MEASURED joules/token path. szl_sapa.py is the shared, byte-identical
-# accounting layer; szl_sapa_patch.py front-inserts /sapa + /api/a11oy/v1/sapa/*
-# BEFORE the SPA catch-all (idempotent by route name). Registered LAST so its
-# routes win over the SPA history fallback. try/except-guarded — can NEVER take
-# the Space down. Doctrine v11: locked=8 @ c7c0ba17; MEASURED only on a real fresh
-# on-box joule reading, else MODELED/pending — never fabricates a joule. Inspired
-# by A-LEMS / EpG arXiv:2605.22883 (our implementation, cited).
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ============================================================================
-try:
-    import szl_sapa_patch as _szl_sapa_patch
-    import sys as _sapa_sys2
-    _sapa_status = _szl_sapa_patch.register(app, ns="a11oy", serve_tab=True)
-    print(f"[a11oy] SAPA energy-per-goal registered: {_sapa_status}", file=_sapa_sys2.stderr)
-except Exception as _sapa_e:  # pragma: no cover
-    print(f"[a11oy] SAPA NOT registered (non-fatal): {_sapa_e!r}",
-          file=__import__("sys").stderr)
-# ============================================================================
-# END: SAPA Energy per Successful Goal
 # ============================================================================
 
 
