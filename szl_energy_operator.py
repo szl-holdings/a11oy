@@ -121,6 +121,7 @@ class NodeCfg:
     gen_model: str         # small token-generation model tag
     embed_model: str       # embeddings model tag
     exporter_node: str     # label this node reports in the joule-meter engines list
+    standby: bool = False   # configured but intentionally not started: unreachable => "standby", not DEGRADED
 
 
 def _default_nodes() -> list[NodeCfg]:
@@ -150,6 +151,10 @@ def _default_nodes() -> list[NodeCfg]:
             gen_model=os.environ.get("A11OY_CHASKI_GEN_MODEL", "qwen2.5:32b"),
             embed_model=os.environ.get("A11OY_CHASKI_EMBED_MODEL", "mistral"),
             exporter_node=os.environ.get("A11OY_CHASKI_GPU_LABEL", "chaski"),
+            # chaski is founder-started (replit-chaski Repl): standby until the founder
+            # sets A11OY_CHASKI_STANDBY=0. Unreachable-while-standby reads "standby"
+            # (intentionally not started), NOT DEGRADED (supposed-to-be-up but failed).
+            standby=os.environ.get("A11OY_CHASKI_STANDBY", "1") not in ("0", "false", "False", ""),
         ),
     ]
 
@@ -497,8 +502,11 @@ class OperatorDaemon:
                 break
             reachable = _http_reachable(node.base_url)
             if not reachable:
+                # Honest distinction: a standby node (configured but intentionally not
+                # started) reads "standby"; a node expected up but failed is DEGRADED.
+                # Neither produces a job/joule — unreachable is never faked as computing.
                 with self._lock:
-                    self._node_status[node.name] = "DEGRADED"
+                    self._node_status[node.name] = "standby" if node.standby else "DEGRADED"
                 continue
             any_reachable = True
             with self._lock:
@@ -646,6 +654,7 @@ class OperatorDaemon:
             computing = [n for n, s in self._node_status.items()
                          if s in ("computing", "computing (STUB)")]
             degraded = [n for n, s in self._node_status.items() if s == "DEGRADED"]
+            standby = [n for n, s in self._node_status.items() if s == "standby"]
             st = self._state
             return {
                 "service": "energy-operator",
@@ -662,6 +671,7 @@ class OperatorDaemon:
                 "sample_jobs": st.sample_jobs,
                 "nodes_computing": computing,
                 "nodes_degraded": degraded,
+                "nodes_standby": standby,
                 "node_status": dict(self._node_status),
                 "by_node": {k: dict(v) for k, v in st.by_node.items()},
                 "uptime_s": round(uptime, 3),
@@ -675,8 +685,10 @@ class OperatorDaemon:
                 "honesty": (
                     "joules_measured_total is the SUM of per-job MEASURED NVML deltas "
                     "(fresh <30s) ONLY — the billable figure. SAMPLE energy (stale meter "
-                    "or stub mode) is tracked separately and NEVER billable. Unreachable "
-                    "nodes are DEGRADED, never faked. STUB MODE means no GPU node was "
+                    "or stub mode) is tracked separately and NEVER billable. A node "
+                    "configured as standby (intentionally not started) reads 'standby', "
+                    "not DEGRADED; a node that fails when expected up is DEGRADED; neither "
+                    "is ever faked as computing. STUB MODE means no GPU node was "
                     "reachable from this process; stub energy is SAMPLE by construction."
                 ),
                 "computed_at": _now_iso(),

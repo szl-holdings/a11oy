@@ -224,6 +224,49 @@ def test_unreachable_node_degraded_not_faked():
 
 
 # ---------------------------------------------------------------------------
+# (5b) STANDBY node (configured but intentionally not started): unreachable reads
+#      "standby" (NOT DEGRADED), produces no fabricated job/joule. A standby node
+#      that DOES respond still computes normally — only the unreachable label changes.
+# ---------------------------------------------------------------------------
+def test_standby_node_unreachable_reads_standby_not_degraded():
+    with tempfile.TemporaryDirectory() as d:
+        # 192.0.2.1 is TEST-NET-1 (RFC 5737) — guaranteed unreachable.
+        op = OP.OperatorDaemon(
+            nodes=[OP.NodeCfg("chaski", "http://192.0.2.1:11434/v1",
+                              "qwen2.5:32b", "mistral", "chaski", standby=True)],
+            state_path=os.path.join(d, "ledger.json"), allow_stub=False)
+        produced = op.run_once()
+        assert produced == [], "standby+unreachable must produce NO job records"
+        st = op.status()
+        assert "chaski" in st["nodes_standby"], st          # intentionally not started
+        assert "chaski" not in st["nodes_degraded"], st     # NOT alarming/DEGRADED
+        assert st["jobs_done"] == 0, st
+        assert st["joules_measured_total"] == 0.0, st        # never fabricated
+
+
+def test_standby_node_reachable_still_computes(monkeypatch):
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        with tempfile.TemporaryDirectory() as d:
+            # standby=True but the node IS reachable => must compute normally.
+            op = OP.OperatorDaemon(
+                nodes=[OP.NodeCfg("chaski", base, "llama3.1:8b", "bge-large",
+                                  "betterwithage", standby=True)],
+                state_path=os.path.join(d, "ledger.json"), allow_stub=False)
+            op.run_once()
+            st = op.status()
+            assert "chaski" in st["nodes_computing"], st     # reachable => computes
+            assert "chaski" not in st["nodes_standby"], st   # not parked when up
+            assert "chaski" not in st["nodes_degraded"], st
+            assert st["jobs_done"] >= 2, st
+            assert st["joules_measured_total"] > 0, st        # real MEASURED joules
+    finally:
+        node.stop()
+
+
+# ---------------------------------------------------------------------------
 # (6) no reachable node => STUB fallback; real work, energy SAMPLE, NOT billable.
 # ---------------------------------------------------------------------------
 def test_stub_mode_real_work_no_billable_joules():
