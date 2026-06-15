@@ -8093,6 +8093,18 @@ async def pinn_surface_page() -> Response:
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
+@app.get("/fabric")
+async def fabric_surface_page() -> Response:
+    # Dedicated COMPUTE FABRIC surface (ADDITIVE; Doctrine v11): /fabric previously
+    # fell through to the SPA catch-all and rendered the generic Command Center. Serves
+    # pages/fabric.html -> static/3d/surfaces/fabric.js, a live 3D node mesh of
+    # /api/a11oy/v1/compute-pool (REAL TCP-probed reachability; never fabricated).
+    f = PAGES_DIR / "fabric.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 # --- End dedicated PNT + PINN surfaces ---
 
 
