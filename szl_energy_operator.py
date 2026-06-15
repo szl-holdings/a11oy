@@ -135,8 +135,29 @@ def _default_nodes() -> list[NodeCfg]:
     if not btw_base or "router.huggingface.co" in btw_base:
         btw_base = os.environ.get("A11OY_BETTERWITHAGE_BASE_URL",
                                   "http://rtx-betterwithage:11434/v1").rstrip("/")
-    chaski_base = os.environ.get("A11OY_CHASKI_BASE_URL",
-                                 "http://chaski:11434/v1").rstrip("/")
+    # chaski base: A11OY_CHASKI_BASE_URL is canonical; A11OY_ENERGY_CHASKI_URL is an
+    # additive ALIAS so the R-CHASKI runbook's env name also wires the 2nd lung (the
+    # runbook persists A11OY_ENERGY_CHASKI_URL=http://$CHASKI_IP:11434). We normalize a
+    # bare host:port endpoint to an OpenAI-compatible base (.../v1) so generate jobs hit
+    # /v1/chat/completions; /api/embeddings still strips the /v1 in _ollama_embed. Never
+    # double-append /v1. Defaults unchanged when neither var is set.
+    chaski_base = (os.environ.get("A11OY_CHASKI_BASE_URL")
+                   or os.environ.get("A11OY_ENERGY_CHASKI_URL")
+                   or "http://chaski:11434/v1").strip().rstrip("/")
+    if chaski_base and not chaski_base.endswith("/v1"):
+        chaski_base = chaski_base + "/v1"
+    # standby: A11OY_CHASKI_STANDBY is canonical (default "1" = standby). The runbook's
+    # A11OY_ENERGY_CHASKI_ENABLED=1 is an additive ALIAS that flips chaski live: when it
+    # is truthy and A11OY_CHASKI_STANDBY was not explicitly set, chaski is NOT standby.
+    # A real probe still decides reachable/DEGRADED/computing — this only sets posture.
+    _standby_env = os.environ.get("A11OY_CHASKI_STANDBY")
+    _energy_enabled = (os.environ.get("A11OY_ENERGY_CHASKI_ENABLED") or "").strip() in ("1", "true", "True")
+    if _standby_env is not None:
+        chaski_standby = _standby_env not in ("0", "false", "False", "")
+    elif _energy_enabled:
+        chaski_standby = False
+    else:
+        chaski_standby = True
     return [
         NodeCfg(
             name="rtx-betterwithage",
@@ -152,9 +173,10 @@ def _default_nodes() -> list[NodeCfg]:
             embed_model=os.environ.get("A11OY_CHASKI_EMBED_MODEL", "mistral"),
             exporter_node=os.environ.get("A11OY_CHASKI_GPU_LABEL", "chaski"),
             # chaski is founder-started (replit-chaski Repl): standby until the founder
-            # sets A11OY_CHASKI_STANDBY=0. Unreachable-while-standby reads "standby"
-            # (intentionally not started), NOT DEGRADED (supposed-to-be-up but failed).
-            standby=os.environ.get("A11OY_CHASKI_STANDBY", "1") not in ("0", "false", "False", ""),
+            # sets A11OY_CHASKI_STANDBY=0 (or the runbook alias A11OY_ENERGY_CHASKI_ENABLED=1).
+            # Unreachable-while-standby reads "standby" (intentionally not started), NOT
+            # DEGRADED (supposed-to-be-up but failed). Posture resolved above.
+            standby=chaski_standby,
         ),
     ]
 
