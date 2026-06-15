@@ -75,3 +75,13 @@ szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (ap
 #     endpoint list); the panel logic is otherwise byte-identical. App-specific
 #     route map — reconcile only if killinchu also adopts the /energy split.
 szl_energy_sovereign.py    # a11oy serves posture at /energy-sovereign vs killinchu /energy (route-only divergence)
+
+# --- 2026-06-15: dead-embed fix landing as a COORDINATED two-PR pair
+#     (a11oy #452 + killinchu #128). Both PRs change live_wires.html IDENTICALLY
+#     (the CONSTELLATION var repoints off the 401/404 frontier-viz static Space
+#     to the LIVE a11oy.net/holographic estate). The PR-vs-sibling-MAIN drift
+#     guard reads the file as diverged until BOTH PRs merge, even though the two
+#     branch copies are byte-identical (md5 3f9b168). Transient cross-repo drift
+#     only — REMOVE this entry once both PRs are merged and the two mains carry
+#     the identical file again (the guard will then WARN to drop it).
+live_wires.html            # transient: identical repoint shipping as a11oy #452 + killinchu #128 pair
