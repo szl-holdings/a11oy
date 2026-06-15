@@ -8,7 +8,9 @@
 // 3d-force-graph (vasturiano) — a 3D force-directed node mesh of the live compute pool.
 //
 // Primary live endpoint (doctrine v11: WIRE TO LIVE DATA, never fabricate):
-//   /api/a11oy/v1/compute-pool
+//   /api/a11oy/v1/compute-pool-hardened   (the hardened sub-second, breaker-guarded
+//   prober that returns the REAL TCP-probed pool JSON; the plain /compute-pool path
+//   resolves to the SPA shell and the un-suffixed v1 alias 404s)
 //   counts{nodes_total, nodes_reachable, gpu_nodes_reachable, sovereign_gpu_live}
 //   nodes[]{name,kind,endpoint,reachable,sovereign,capabilities,models[]}
 //
@@ -27,7 +29,7 @@
 
 const ID = "fabric";
 const TITLE = "Compute Fabric";
-const ENDPOINT = "/api/a11oy/v1/compute-pool";
+const ENDPOINT = "/api/a11oy/v1/compute-pool-hardened";
 
 // Doctrine palette (matches the shell CSS vars).
 const C = {
