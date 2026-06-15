@@ -1007,6 +1007,14 @@ COPY static/3d/ ./static/3d/
 COPY web/energy-holographic.html ./web/energy-holographic.html
 COPY web/energy.html ./web/energy.html
 
+# git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
+# at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
+# time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
+# the SZL_GIT_SHA variable). Kept last so a per-build value busts no earlier cache.
+ARG SZL_GIT_SHA=unknown
+ARG SZL_BUILD_TIME=unknown
+ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
+    SZL_BUILD_TIME=${SZL_BUILD_TIME}
 CMD ["python", "serve.py"]
 
 

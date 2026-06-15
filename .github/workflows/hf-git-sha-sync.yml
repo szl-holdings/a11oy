@@ -1,0 +1,60 @@
+name: Sync git_sha to HF Space
+
+# Additive, drift-safe companion to hf-sync.yml (which mirrors README + front-door
+# files). This workflow ONLY keeps the HuggingFace Space variable SZL_GIT_SHA equal
+# to the deployed GitHub commit, so /api/a11oy/v1/honest reports the real running
+# commit and a stale Space is self-detecting. It NEVER touches a Space file, so it
+# cannot perturb the fragile README/LFS sync path. It writes the variable only when
+# it actually changed, to avoid redundant Space factory rebuilds.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-git-sha-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-git-sha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set SZL_GIT_SHA Space variable to the deployed commit
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: SZLHOLDINGS/a11oy
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN secret is not set — cannot update the Space variable."
+            echo "::error::Founder action required: add repo secret HF_TOKEN (HF write token, org write to SZLHOLDINGS)."
+            exit 1
+          fi
+          pip install --quiet "huggingface_hub>=0.25"
+          python3 <<'PYEOF'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["SPACE_ID"]
+          sha = os.environ["GIT_SHA"]
+          cur = None
+          try:
+              v = api.get_space_variables(repo_id=space).get("SZL_GIT_SHA")
+              cur = getattr(v, "value", v)
+          except Exception as e:
+              print("::warning::get_space_variables failed (non-fatal):", repr(e)[:160])
+          if cur == sha:
+              print("SZL_GIT_SHA already current on Space:", sha)
+          else:
+              api.add_space_variable(
+                  repo_id=space, key="SZL_GIT_SHA", value=sha,
+                  description="Deployed GitHub commit; surfaced at /api/a11oy/v1/honest for staleness detection. Maintained by hf-git-sha-sync.",
+              )
+              print("Set SZL_GIT_SHA on Space:", cur, "->", sha)
+          PYEOF

@@ -4476,9 +4476,9 @@ async def a11oy_version():
     return {
         "name": "a11oy",
         "version": "1.0.0",
-        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "90dd8e34efd7308f39c2230c78a4f1a67e4b0ba6"),
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "1d2540609a07d41b4d333fc58ea1f74f852e8f53"),
-        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "unknown"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "unknown"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "unknown"),
         "release_url": "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
