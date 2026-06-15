@@ -17,58 +17,7 @@
 #
 # HF Space requirement: listen on PORT 7860.
 
-# ---------------------------------------------------------------------------
-# IMAGE-LEANNESS: multi-stage build. The CPU demo tier needs llama-cpp-python
-# compiled FROM SOURCE against glibc (see the long WHY note above the runtime
-# install far below). That compile pulls in a heavy build toolchain
-# (build-essential/cmake/ninja/git — hundreds of MB of apt .deb churn) plus
-# compile intermediates. Doing it in a THROWAWAY builder stage and copying only
-# the resulting prebuilt wheel keeps all of that OUT of the published runtime
-# image, shrinking the final image + its layer count (faster GHCR pulls) without
-# changing what the demo tier serves.
-#
-# CONDITIONAL COMPILE: a constrained builder (HF Spaces cpu-basic) sets
-# A11OY_REQUIRE_LOCAL_LLM=0 and must NOT pay the heavy compile (it OOM/timed-out
-# -> BUILD_ERROR). Select the builder by ARG: =1 -> llama-build-1 (real source
-# compile), else -> llama-build-0 (empty, no compile). BuildKit only builds the
-# stage actually referenced by the `llama-build` alias, so on the constrained
-# path the compile is skipped entirely. The strict GHCR build sets =1.
-ARG A11OY_REQUIRE_LOCAL_LLM=0
-
-# Real compile path (=1): build the pinned llama-cpp-python from source into a
-# prebuilt glibc wheel, then assert the bundled libllama.so links glibc
-# (NEEDs libc.so.6), not musl. set -eux => a bad compile fails the build LOUD.
-FROM python:3.12-slim AS llama-build-1
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends build-essential cmake ninja-build git; \
-    CMAKE_ARGS="-DGGML_NATIVE=OFF" pip wheel --no-cache-dir --no-binary llama-cpp-python \
-        --wheel-dir=/wheels "llama-cpp-python==0.3.19"
-RUN python3 <<'GLIBCCHK'
-import glob, sys, zipfile
-whls = glob.glob("/wheels/llama_cpp_python-*.whl")
-assert whls, "no llama_cpp_python wheel produced by the source build"
-w = whls[0]
-z = zipfile.ZipFile(w)
-sos = [n for n in z.namelist() if n.endswith("libllama.so")]
-assert sos, "libllama.so not present inside the built wheel " + w
-data = z.read(sos[0])
-assert b"libc.so.6" in data and b"libc.musl-x86_64.so.1" not in data, \
-    "built libllama.so is not glibc-linked (would not load on python:3.12-slim): " + sos[0]
-print("[a11oy] built glibc wheel OK:", w, "->", sos[0])
-GLIBCCHK
-
-# Skip path (!=1): no compile; just an empty wheel dir so the runtime
-# COPY --from has a valid (empty) source on the constrained build.
-FROM python:3.12-slim AS llama-build-0
-RUN mkdir -p /wheels
-
-# Pick the builder the runtime stage actually copies from.
-FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build
-
-# ---------------------------------------------------------------------------
-# RUNTIME IMAGE (the published a11oy Space / GHCR image).
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -167,19 +116,6 @@ COPY szl_mbse_cosim.py szl_mbse_nav.py ./
 # attaches the idempotent /console nav injector. MUST be COPY'd or serve.py's guarded
 # imports fall back and /willay 404s. Per-file COPY (this Dockerfile uses no COPY . .).
 COPY szl_willay_gateway.py a11oy_willay_nav.py ./
-# WAQAY — governed quantized vector index (TurboQuant-inspired, signed receipts + Restraint).
-# szl_waqay.py serves /waqay + /api/a11oy/v1/waqay/*; a11oy_waqay_nav.py attaches the
-# idempotent /console nav injector. MUST be COPY'd or serve.py's guarded imports fall back
-# and /waqay 404s. szl_dsse.py / szl_provenance.py / a11oy_org_rag.py already COPYed above.
-# Per-file COPY (this Dockerfile uses no COPY . .).
-COPY szl_waqay.py a11oy_waqay_nav.py ./
-# YUPAY — governed multi-model audit harness (Quechua "to count/audit/reckon").
-# szl_yupay.py serves /yupay + /api/a11oy/v1/yupay/*; a11oy_yupay_nav.py attaches the
-# idempotent /console nav injector. MUST be COPY'd or serve.py's guarded imports fall back
-# and /yupay 404s. szl_dsse.py / szl_provenance.py already COPYed above. Audit methodology
-# inspired by the Kilo "same-codebase" audit + MiniMax sparse-attention paper (cited as
-# published ideas only); SZL-Nemo is governed Qwen3-32B Apache, never an M3 derivative.
-COPY szl_yupay.py a11oy_yupay_nav.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
@@ -192,11 +128,6 @@ COPY physical_bounds_certificate.json agentic_decision_trail.json physical_bound
 # COPY'd or serve.py's guarded import falls back to a stub (merged-but-not-live) in the HF
 # image. Heavy numpy/UKF/PINN solves are the Forge/GPU path; this web path never solves.
 COPY szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py ./
-# Counter-UAS / killinchu surface backend (serves /api/a11oy/v1/counter-uas/*). Server-side
-# proxy to OUR OWN killinchu Space (sense+evidence, signed verdict); browser surface stays
-# 0-CDN (three.js-globe escape hatch, no Cesium). MUST be COPY'd or serve.py's guarded import
-# falls back to a stub (merged-but-not-live) in the HF image. Per-file COPY (no `COPY . .`).
-COPY szl_counter_uas_proxy.py ./
 # ADDITIVE (I4 gpu-quant): Sovereign VRAM-resident GPU-Quant engine (PCA-Risk / TDA-Fracture
 # / HJB-Kelly) backing /api/a11oy/v1/quant/* + the /quant tab. PURE-STDLIB (Jacobi eigen,
 # Gaussian solve, union-find Betti) so it runs in the numpy-less HF image; cuML/giotto-tda
@@ -213,6 +144,13 @@ COPY szl_gpu_quant.py ./
 # Per-file COPY (this Dockerfile never uses `COPY . .`); keeps the helper LIVE so 'measured'
 # is decided in ONE place. Mirrored byte-identical to the HF Space (hf-sync APP_FILES lockstep).
 COPY szl_joules_truth.py revenue_model.py szl_prod_hardening.py ./
+# ADDITIVE (SAPA): Energy per Successful Goal — the frontier agentic unit on top of
+# the live MEASURED joules/token path. szl_sapa.py is the shared accounting layer
+# (byte-identical a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa +
+# /api/a11oy/v1/sapa/* before the SPA catch-all. Per-file COPY (this Dockerfile never
+# uses `COPY . .`) or serve.py's guarded import falls back (merged-but-not-live) and
+# /sapa 404s to the SPA shell. Mirrored byte-identical to the HF Space (hf-sync lockstep).
+COPY szl_sapa.py szl_sapa_patch.py ./
 # ADDITIVE (devM resilience): szl_resilience is imported by serve.py for the Hystrix
 # circuit breaker + K8s liveness/readiness split. Per-file COPY (this Dockerfile does
 # not use `COPY . .`); without this line `import szl_resilience` would ModuleNotFound
@@ -229,11 +167,6 @@ COPY szl_observability.py ./
 # SZLHOLDINGS/a11oy-verifiable-corpus. Per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it the lazy import is a no-op and receipts never publish.
 COPY szl_corpus_publish.py ./
-# NEMOTRON SIGNED-TRAJECTORY build (2026-06-14): DSSE-signed agent-trajectory
-# corpus pipeline (SZL-Nemo). Honest: DATASET property, not a model claim;
-# QLoRA-ready, training = ROADMAP (2x80GB GPU). nvidia/Nemotron-Agentic-v1
-# mapped under CC BY 4.0 attribution. Served at /signed-corpus.
-COPY szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py ./
 
 # Copy serve orchestrator and gates manifest
 # ADDITIVE (live-ops): orchestration + AI-observability module — per-file COPY Dockerfile
@@ -251,15 +184,6 @@ COPY static/a11oy_operator_organ.js ./static/a11oy_operator_organ.js
 COPY static/vendor3d/three.module.min.js ./static/vendor3d/three.module.min.js
 COPY static/vendor3d/OrbitControls.js ./static/vendor3d/OrbitControls.js
 COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
-# ADDITIVE (Dev0, 2026-06-14): SHARED szl3d 3D toolkit + holographic shell. The
-# vendored three.js r170 libs (WebGL2 + WebGPU builds + postprocessing addons),
-# the szl3d toolkit (boot/live/label), the 9 surface stub modules, the /holographic
-# shell page, and the browser self-test harness. Served same-origin under
-# /static/3d/* by szl3d_holographic.register() (imported by serve.py) — 0 runtime
-# CDN, the estate is sovereign. Whole-tree COPY (nested vendor/ tree). The register
-# module + its pytest ship alongside the rest of the root .py modules.
-COPY static/3d/ ./static/3d/
-COPY szl3d_holographic.py ./szl3d_holographic.py
 # ADDITIVE (cathedral unification, GitHub-aligned): the ONE canonical genius
 # cathedral served at /cathedral — IDENTICAL "Constellation · Khipu" scene as the
 # SZLHOLDINGS/cathedral HF static space. cathedral_genius.html is that HF
@@ -362,7 +286,7 @@ EXPOSE 7860
 # these COPYs the imports fail and the pages/endpoints fall through to the SPA shell.
 # Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). NO external CDN.
 COPY web/formulas.html ./web/formulas.html
-COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-force-graph.min.js static-vendor/echarts.min.js static-vendor/echarts-gl.min.js static-vendor/globe.gl.min.js static-vendor/cytoscape.min.js static-vendor/d3.min.js static-vendor/katex.min.js static-vendor/katex.min.css static-vendor/dagre.min.js static-vendor/cytoscape-dagre.js static-vendor/d3-sankey.min.js static-vendor/ngraph.graph.min.js static-vendor/ngraph.path.min.js static-vendor/ngraph.forcelayout.min.js static-vendor/panzoom.min.js static-vendor/vivagraph.min.js static-vendor/ngraph.events.umd.js static-vendor/a11oy-operator-widget.js static-vendor/a11oy-operator-widget.css ./static-vendor/
+COPY static-vendor/three.min.js ./static-vendor/three.min.js
 
 # ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
 # VENDORING. The operator console (pages/console.html) loads the 7 viz libs +
@@ -372,11 +296,31 @@ COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-
 # text under static-vendor/; the binary globe texture + KaTeX woff2 fonts ship
 # as base64 TEXT in _vendor_blobs.py (decoded by the /vendor/* routes in serve.py)
 # so NO LFS/Xet blob is committed. Doctrine v11 LOCKED. NO external CDN.
+COPY static-vendor/chart.umd.min.js ./static-vendor/chart.umd.min.js
+COPY static-vendor/3d-force-graph.min.js ./static-vendor/3d-force-graph.min.js
+COPY static-vendor/echarts.min.js ./static-vendor/echarts.min.js
+COPY static-vendor/echarts-gl.min.js ./static-vendor/echarts-gl.min.js
+COPY static-vendor/globe.gl.min.js ./static-vendor/globe.gl.min.js
+COPY static-vendor/cytoscape.min.js ./static-vendor/cytoscape.min.js
+COPY static-vendor/d3.min.js ./static-vendor/d3.min.js
+COPY static-vendor/katex.min.js ./static-vendor/katex.min.js
+COPY static-vendor/katex.min.css ./static-vendor/katex.min.css
 # Batch-1 uniqueness rebuild (2026-06-06): additional vendored graph-viz libs
 # (MIT/ISC/BSD; NOTICE updated). Per-file COPY (this Dockerfile uses no COPY . .).
+COPY static-vendor/dagre.min.js ./static-vendor/dagre.min.js
+COPY static-vendor/cytoscape-dagre.js ./static-vendor/cytoscape-dagre.js
+COPY static-vendor/d3-sankey.min.js ./static-vendor/d3-sankey.min.js
+COPY static-vendor/ngraph.graph.min.js ./static-vendor/ngraph.graph.min.js
+COPY static-vendor/ngraph.path.min.js ./static-vendor/ngraph.path.min.js
+COPY static-vendor/ngraph.forcelayout.min.js ./static-vendor/ngraph.forcelayout.min.js
+COPY static-vendor/panzoom.min.js ./static-vendor/panzoom.min.js
 # DEV-WIRE-A (2026-06-09): anvaka graph-stack completion (0-CDN, in-image). BSD-3, anvaka.
+COPY static-vendor/vivagraph.min.js ./static-vendor/vivagraph.min.js
+COPY static-vendor/ngraph.events.umd.js ./static-vendor/ngraph.events.umd.js
 # OPERATOR WIDGET (2026-06-10): a11oy floating governed-operator surface ("Chaski"),
 # self-hosted in-image (0 CDN), served at /vendor/a11oy-operator-widget.js by serve.py.
+COPY static-vendor/a11oy-operator-widget.js ./static-vendor/a11oy-operator-widget.js
+COPY static-vendor/a11oy-operator-widget.css ./static-vendor/a11oy-operator-widget.css
 
 # ADDITIVE (V4 Fleet Panel + /api/health fix, 2026-06-02, Dev2 Inti):
 # explicit per-file COPY (this Dockerfile does not use COPY . .).
@@ -412,6 +356,11 @@ COPY web/nemo.html ./web/nemo.html
 # (same pattern as web/nemo.html). Ladder + intensity adopted from Ponytail (MIT);
 # governance + measurement are ours.
 COPY szl_restraint.py ./
+# QHAWAQ (FORMAL/LTL runtime constitutional intercept): the SHARED runtime monitor,
+# BYTE-IDENTICAL to killinchu. Imported by serve.py (try/except guarded); serves
+# /qhawaq + /api/a11oy/v1/qhawaq/*. Without this COPY the guarded import falls back
+# and /qhawaq 404s. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
+COPY szl_qhawaq.py ./szl_qhawaq.py
 COPY web/restraint.html ./web/restraint.html
 # ADDITIVE (R4 lane, 2026-06-14): a11oy Restraint -> ENERGY + KPI + MEASURED BENCH.
 # szl_restraint_energy.py is imported by serve.py (try/except guarded) and serves
@@ -442,15 +391,6 @@ COPY web/holo.html ./web/holo.html
 COPY web/constitution.html ./web/constitution.html
 COPY web/quant.html ./web/quant.html
 COPY web/estate-hologram.html ./web/estate-hologram.html
-# WARHACKER SHOWCASE PAGES (demo lane, 2026-06-14): two PUBLIC companion pages served
-# at /signature-is-not-proof and /defense-readiness (+ /a11oy/* aliases) via _ptg_serve.
-# System fonts, 0 runtime CDN, no external scripts; live claims fetch real a11oy
-# endpoints with an honest NO-LIVE-DATA fallback. image-only like the other web/*.html
-# demo pages (declared in copy-sync-lockstep.json image_only_assets; baked into the
-# GitHub-built image, live after a factory rebuild + direct Space push). Without these
-# COPYs the routes 404 to the SPA shell.
-COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
-COPY web/defense-readiness.html ./web/defense-readiness.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and
@@ -495,7 +435,16 @@ COPY a11oy_react_core.py ./
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 COPY src/a11oy/__init__.py ./src/a11oy/__init__.py
-COPY src/a11oy/formulas/__init__.py src/a11oy/formulas/pac_bayes.py src/a11oy/formulas/bls_aggregate.py src/a11oy/formulas/welford.py src/a11oy/formulas/byzantine_quorum.py src/a11oy/formulas/holevo_bound.py src/a11oy/formulas/bloom_filter.py src/a11oy/formulas/kalman.py src/a11oy/formulas/hnsw_retrieval.py src/a11oy/formulas/reidemeister.py src/a11oy/formulas/allodial.py src/a11oy/formulas/allodial_gate.py src/a11oy/formulas/entanglement.py ./src/a11oy/formulas/
+COPY src/a11oy/formulas/__init__.py ./src/a11oy/formulas/__init__.py
+COPY src/a11oy/formulas/pac_bayes.py ./src/a11oy/formulas/pac_bayes.py
+COPY src/a11oy/formulas/bls_aggregate.py ./src/a11oy/formulas/bls_aggregate.py
+COPY src/a11oy/formulas/welford.py ./src/a11oy/formulas/welford.py
+COPY src/a11oy/formulas/byzantine_quorum.py ./src/a11oy/formulas/byzantine_quorum.py
+COPY src/a11oy/formulas/holevo_bound.py ./src/a11oy/formulas/holevo_bound.py
+COPY src/a11oy/formulas/bloom_filter.py ./src/a11oy/formulas/bloom_filter.py
+COPY src/a11oy/formulas/kalman.py ./src/a11oy/formulas/kalman.py
+COPY src/a11oy/formulas/hnsw_retrieval.py ./src/a11oy/formulas/hnsw_retrieval.py
+COPY src/a11oy/formulas/reidemeister.py ./src/a11oy/formulas/reidemeister.py
 # FIX (formula/* 404 repair): a11oy_formula_endpoints.py imports a11oy.formulas.{allodial,
 # allodial_gate, entanglement} alongside the formulas above, but these three were NEVER
 # COPY'd into the image. The package import therefore raised at boot, register() returned
@@ -503,7 +452,12 @@ COPY src/a11oy/formulas/__init__.py src/a11oy/formulas/pac_bayes.py src/a11oy/fo
 # bloom, kalman, formulas/index, …) 404'd through the Node proxy. Per-file COPY (this
 # Dockerfile never uses `COPY . .`). Mirrored byte-identical to the HF Space (hf-sync
 # APP_FILES lockstep). EXPERIMENTAL frontier gates — Λ = Conjecture 1 (never a theorem).
-COPY src/a11oy/harvest/__init__.py src/a11oy/harvest/wasted_energy_harvest.py src/a11oy/harvest/harvest_budget.py ./src/a11oy/harvest/
+COPY src/a11oy/formulas/allodial.py ./src/a11oy/formulas/allodial.py
+COPY src/a11oy/formulas/allodial_gate.py ./src/a11oy/formulas/allodial_gate.py
+COPY src/a11oy/formulas/entanglement.py ./src/a11oy/formulas/entanglement.py
+COPY src/a11oy/harvest/__init__.py ./src/a11oy/harvest/__init__.py
+COPY src/a11oy/harvest/wasted_energy_harvest.py ./src/a11oy/harvest/wasted_energy_harvest.py
+COPY src/a11oy/harvest/harvest_budget.py ./src/a11oy/harvest/harvest_budget.py
 # ADDITIVE (Formulas SECTION page — closeout): serve.py imports a11oy_formulas_page
 # and calls .register(app) BEFORE the SPA catch-all, mounting GET /formulas/wired
 # (premium Inca-palette list of every live formula + thesis citation + Lean permalink
@@ -632,37 +586,18 @@ COPY src/a11oy/harvest/__init__.py src/a11oy/harvest/wasted_energy_harvest.py sr
 # A11OY_REQUIRE_LOCAL_LLM=1 (set in GHCR CI), else best-effort with an honest skip.
 # This preserves the published image's hard real-model guarantee while keeping the
 # HF Space reliably bootable. No fabricated data either way.
-# IMAGE-LEANNESS (multi-stage): the heavy from-source compile happens in the
-# `llama-build` stage near the top of this file. Here we only INSTALL the
-# resulting prebuilt wheel — no compiler, no build-toolchain apt churn in the
-# runtime image. On the constrained path (A11OY_REQUIRE_LOCAL_LLM!=1)
-# `llama-build` is the empty builder, so the mounted wheel dir is empty and we
-# skip the install: the demo tier serves the HONEST tower-side label
-# (szl_alloy_models.py, served_locally=False), exactly as before. The strict
-# GHCR build sets =1: the wheel is present, installed, and boot-verified
-# glibc-linked + importable (fail-loud). Only the two runtime shared libs
-# (libgomp1/libstdc++6) are added to the image.
 ARG A11OY_REQUIRE_LOCAL_LLM=0
-# The wheel is BIND-MOUNTED from the builder stage (not COPY'd) so it is
-# available only for the duration of this RUN and NEVER becomes an image layer.
-# A `COPY --from … /tmp/wheels` + later `rm` would bake the ~tens-of-MB wheel
-# permanently into a layer (a later `rm` is just a whiteout — it does not reclaim
-# the bytes), defeating the leanness goal. With the bind mount the runtime image
-# carries only the INSTALLED llama_cpp + libgomp1/libstdc++6 — no wheel artifact,
-# no compiler, and none of the toolchain-purge residue the old single-stage RUN
-# left behind. On the constrained path (!=1) llama-build is the empty builder, so
-# the mount is an empty dir and we skip install (honest tower-side label).
-RUN --mount=type=bind,from=llama-build,source=/wheels,target=/wheels \
-    set -eux; \
+RUN set -eux; \
     if [ "${A11OY_REQUIRE_LOCAL_LLM}" != "1" ]; then \
-      echo '[a11oy] A11OY_REQUIRE_LOCAL_LLM!=1 (constrained builder, e.g. HF cpu-basic): no llama.cpp wheel built/installed. The demo tier serves the HONEST tower-side label (szl_alloy_models.py, served_locally=False, never fake output). The strict GHCR-published image sets =1 and installs the prebuilt glibc wheel + boot-verifies real local output.'; \
+      echo '[a11oy] A11OY_REQUIRE_LOCAL_LLM!=1 (constrained builder, e.g. HF cpu-basic): SKIPPING the heavy from-source llama.cpp compile to keep this build fast + reliable. The demo tier serves the HONEST tower-side label (szl_alloy_models.py, served_locally=False, never fake output). The strict GHCR-published image sets =1 and DOES compile + boot-verify real local output.'; \
     else \
       apt-get update; \
-      apt-get install -y --no-install-recommends libgomp1 libstdc++6; \
-      apt-get clean; \
+      apt-get install -y --no-install-recommends build-essential cmake ninja-build git libgomp1 libstdc++6; \
+      CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19"; \
+      python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp built from source OK (glibc):', so[0], getattr(llama_cpp,'__version__','?'))"; \
+      apt-get purge -y build-essential cmake ninja-build git; \
+      apt-get autoremove -y; \
       rm -rf /var/lib/apt/lists/*; \
-      pip install --no-cache-dir /wheels/*.whl; \
-      python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp installed from prebuilt glibc wheel OK:', so[0], getattr(llama_cpp,'__version__','?'))"; \
     fi
 # GGUF weight — RELIABLY PRESENT (pinned revision + retry + integrity verify), NOT best-effort.
 # Previously a single best-effort `hf_hub_download(...) || echo` step: a transient download
@@ -1007,14 +942,6 @@ COPY static/3d/ ./static/3d/
 COPY web/energy-holographic.html ./web/energy-holographic.html
 COPY web/energy.html ./web/energy.html
 
-# git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
-# at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
-# time (box rebuild passes --build-arg SZL_GIT_SHA=$(git rev-parse HEAD); HF Space sets
-# the SZL_GIT_SHA variable). Kept last so a per-build value busts no earlier cache.
-ARG SZL_GIT_SHA=unknown
-ARG SZL_BUILD_TIME=unknown
-ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
-    SZL_BUILD_TIME=${SZL_BUILD_TIME}
 CMD ["python", "serve.py"]
 
 

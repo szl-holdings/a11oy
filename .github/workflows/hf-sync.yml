@@ -72,17 +72,14 @@ on:
       # set) so the lockstep mirror set explicitly records it and the guard stays
       # green. Restores Dev A wiring clobbered by a later stale-base integration push.
       - "a11oy_react_core.py"
-      # 3D substrate kit + ALL Dockerfile-COPY'd web/*.html (drift-fix 2026-06-14):
-      # static/3d/** is COPY'd whole (Dockerfile `COPY static/3d/ ./static/3d/`) and
-      # every baked front-door page is a per-file `COPY web/<page>.html`. Neither this
-      # workflow's README/front-door steps (pages/console only) nor hf-sync-backend.yml
-      # (.py only) mirrored them, so they silently drift (MISSING-HF) and turn
-      # hf-module-drift RED. The step below mirrors static/3d/** + the web/*.html set
-      # parsed LIVE from the Dockerfile COPY directives, so a future `COPY web/<new>.html`
-      # is auto-synced with no workflow edit. Trigger on any web/*.html or Dockerfile change.
-      - "static/3d/**"
-      - "web/*.html"
-      - "Dockerfile"
+      # SAPA: Energy per Successful Goal — the frontier agentic unit on top of the
+      # live MEASURED joules/token path. szl_sapa.py is the shared accounting layer
+      # (byte-identical a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa +
+      # /api/a11oy/v1/sapa/*. Both are per-file COPY'd in the Dockerfile + imported by
+      # serve.py; declared here in on.push.paths AND env.APP_FILES (IDENTICAL set) so
+      # the copy-sync lockstep guard stays green and the .py is mirrored to the Space.
+      - "szl_sapa.py"
+      - "szl_sapa_patch.py"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
@@ -109,7 +106,7 @@ jobs:
           # APP_FILES is kept the IDENTICAL set to the Lane-A entries added to
           # on.push.paths above (copy-sync lockstep guard reads both). The .py
           # source itself is mirrored to the Space by hf-sync-backend.yml.
-          APP_FILES: "a11oy_react_core.py"
+          APP_FILES: "a11oy_react_core.py szl_sapa.py szl_sapa_patch.py"
           FM_B64: "dGl0bGU6ICJhMTFveSDigJQgR292ZXJuYW5jZSBTdWJzdHJhdGUiCmVtb2ppOiAi8J+UrCIKY29sb3JGcm9tOiBpbmRpZ28KY29sb3JUbzogZ3JheQpzZGs6IGRvY2tlcgphcHBfcG9ydDogNzg2MApwaW5uZWQ6IHRydWUKbGljZW5zZTogYXBhY2hlLTIuMApzaG9ydF9kZXNjcmlwdGlvbjogImExMW95IOKAlCBwb2xpY3kgKyByZWNlaXB0IHN1YnN0cmF0ZSIKdGFnczoKICAtIGdvdmVybmFuY2UKICAtIGFnZW50aWMtYWkKICAtIGRvY3RyaW5lLXYxMQogIC0gYTExb3kKICAtIGV4ZWN1dGlvbi1mYWJyaWMKICAtIGFwYWNoZS0yLjAKZWNvc3lzdGVtLXN0YWdlOiAib3BlcmF0aW9uYWwi"
         run: |
           set -euo pipefail
@@ -263,107 +260,6 @@ jobs:
                     "added:", len(paths), "deleted:", len(delete_paths))
               for p in paths:
                   print("  synced:", p)
-              for p in delete_paths:
-                  print("  deleted:", p)
-          PYEOF
-
-      - name: Sync 3D substrate kit + Dockerfile-COPY'd web/*.html to HuggingFace Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          SPACE_ID: SZLHOLDINGS/a11oy
-        run: |
-          set -euo pipefail
-          if [ -z "${HF_TOKEN:-}" ]; then
-            echo "::error::HF_TOKEN secret is not set on this repo — cannot push to the HuggingFace Space."
-            exit 1
-          fi
-          python3 <<'PYEOF'
-          import os, glob
-          from huggingface_hub import HfApi, CommitOperationAdd, CommitOperationDelete
-
-          # The HF Space is built by `Dockerfile COPY` from this repo, so EVERY COPY'd
-          # source must match the live Space or hf-module-drift goes RED. static/3d/**
-          # is COPY'd whole (`COPY static/3d/ ./static/3d/`) and each baked front-door
-          # page is a per-file `COPY web/<page>.html`. The README step, the front-door
-          # step (pages/console only) and the backend step (.py only) covered none of
-          # these, so they chronically drifted.
-          #
-          # This step mirrors EXACTLY the Dockerfile-managed set (GitHub = source of
-          # truth): static/3d/** PLUS the web/*.html set parsed LIVE from the
-          # Dockerfile's COPY directives. Parsing the Dockerfile (instead of a hardcoded
-          # list) means a future `COPY web/<new>.html` is auto-synced with NO edit to
-          # this workflow. add/update PLUS scoped delete keep the trees identical. The
-          # managed set is tightly scoped to the "static/3d/" prefix + the Dockerfile-
-          # COPY'd web pages, so the Space's OTHER web/*.html that are NOT baked (served
-          # some other way / pushed by hand) and its vendor blobs are NEVER touched.
-          # Timestamped *.bak-* backups are skipped.
-
-          def dockerfile_web_html(path="Dockerfile"):
-              wanted = set()
-              with open(path, "r", encoding="utf-8") as fh:
-                  for line in fh:
-                      s = line.strip()
-                      if not s.startswith("COPY "):
-                          continue
-                      toks = [t for t in s.split()[1:] if not t.startswith("--")]
-                      srcs = toks[:-1] if len(toks) > 1 else toks
-                      for t in srcs:
-                          if t.startswith("web/") and t.endswith(".html"):
-                              wanted.add(t)
-              return wanted
-
-          WEB_HTML = dockerfile_web_html()
-
-          def is_managed(p):
-              base = os.path.basename(p)
-              if ".bak" in base:
-                  return False
-              return p.startswith("static/3d/") or p in WEB_HTML
-
-          paths = [p for p in glob.glob("static/3d/**", recursive=True) if os.path.isfile(p)]
-          paths += [p for p in WEB_HTML if os.path.isfile(p)]
-          paths = sorted(p for p in set(paths) if is_managed(p))
-          local_set = set(paths)
-
-          api = HfApi(token=os.environ["HF_TOKEN"])
-          space = os.environ["SPACE_ID"]
-
-          ops = []
-          for p in paths:
-              with open(p, "rb") as fh:
-                  ops.append(CommitOperationAdd(path_in_repo=p, path_or_fileobj=fh.read()))
-
-          # Deletion side: any managed file (static/3d/** or a Dockerfile-COPY'd
-          # web/*.html) present on the Space but gone from GitHub main is removed in the
-          # SAME commit, so a deleted/renamed baked page never lingers. Because the
-          # managed web set is derived from the Dockerfile, a page dropped from the COPY
-          # set simply leaves the managed set (never force-deleted) — so a non-baked
-          # Space page (served another way) is NEVER swept.
-          space_files = api.list_repo_files(repo_id=space, repo_type="space")
-          delete_paths = sorted(p for p in space_files if is_managed(p) and p not in local_set)
-          for p in delete_paths:
-              ops.append(CommitOperationDelete(path_in_repo=p))
-
-          if not ops:
-              print("No 3D/web-page files to sync or delete.")
-          else:
-              commit = api.create_commit(
-                  repo_id=space,
-                  repo_type="space",
-                  operations=ops,
-                  commit_message="chore(sync): mirror static/3d kit + Dockerfile-COPY'd web/*.html to Space (hf-sync)",
-                  commit_description=(
-                      "Automated 3D/web-page asset sync from szl-holdings/a11oy main via hf-sync.\n"
-                      "web/*.html set parsed live from the Dockerfile COPY directives.\n"
-                      "Added/updated: " + str(len(paths)) + " file(s)\n"
-                      "Deleted (gone from GitHub main): " + (", ".join(delete_paths) or "(none)") + "\n\n"
-                      "Keeps static/3d/** and every Dockerfile-COPY'd web/<page>.html identical\n"
-                      "to GitHub main so an HF factory rebuild never drops a GitHub edit (closes\n"
-                      "the chronic hf-module-drift red for the 3D kit + baked web pages)."
-                  ),
-              )
-              print("HF commit:", commit.oid, "->", space,
-                    "added:", len(paths), "deleted:", len(delete_paths))
               for p in delete_paths:
                   print("  deleted:", p)
           PYEOF

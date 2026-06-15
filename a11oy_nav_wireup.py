@@ -53,10 +53,9 @@ _SURFACES = [
     # ladder) + its two-arm benchmark. Honest labels; no codenames.
     ("/restraint",       "\u27C2", "Restraint (Governed Frugality)"),  # ⟂ (perp)
     ("/restraint-bench", "\u2696", "Restraint Benchmark"),            # ⚖
-    # WarHacker showcase (demo lane, 2026-06-14): two PUBLIC companion pages.
-    # Honest labels; no codenames; 0 CDN. Served via _ptg_serve in serve.py.
-    ("/signature-is-not-proof", "\u26A0", "Signature ≠ Proof (case study)"),  # ⚠
-    ("/defense-readiness",      "\u2691", "Defense Readiness"),                 # ⚑
+    # SAPA: Energy per Successful Goal — the frontier agentic unit on top of the
+    # live MEASURED joules/token path. Honest label; no codename.
+    ("/sapa",            "\u26A1", "SAPA — Energy / Successful Goal"),   # ⚡
 ]
 
 # Idempotency marker for the nav-group injection.
