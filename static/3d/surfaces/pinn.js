@@ -174,6 +174,7 @@ function _volumeMaterial(tex) {
       uTime: { value: 0 },
       uOpacity: { value: 0.92 },
       uCamPos: { value: new THREE.Vector3() },
+      uInvModel: { value: new THREE.Matrix4() },
     },
     vertexShader: /* glsl */`
       out vec3 vLocal;
@@ -193,6 +194,7 @@ function _volumeMaterial(tex) {
       uniform float uTime;
       uniform float uOpacity;
       uniform vec3 uCamPos;
+      uniform mat4 uInvModel;
 
       // temperature transfer function: cold blue -> cyan -> amber -> white-hot
       vec3 tf(float t){
@@ -218,7 +220,7 @@ function _volumeMaterial(tex) {
       }
       void main(){
         // ray in local cube space
-        vec3 ro = (inverse(modelMatrix) * vec4(uCamPos,1.0)).xyz;
+        vec3 ro = (uInvModel * vec4(uCamPos,1.0)).xyz;
         vec3 rd = normalize(vLocal - ro);
         vec2 hit = boxHit(ro, rd);
         float t0 = max(hit.x, 0.0), t1 = hit.y;
@@ -936,6 +938,10 @@ function mount(ctx) {
     if (_volMesh && _volMesh.material.uniforms) {
       _volMesh.material.uniforms.uTime.value = F.t;
       try { _volMesh.material.uniforms.uCamPos.value.copy(st.camera.position); } catch (_) {}
+      try {
+        _volMesh.updateWorldMatrix(true, false);
+        _volMesh.material.uniforms.uInvModel.value.copy(_volMesh.matrixWorld).invert();
+      } catch (_) {}
     }
     _group.rotation.y += 0.0016;
     // face splats toward camera (billboard the instanced quads)
