@@ -43,7 +43,8 @@ only when the numerical integration passes a residual/convergence self-check
 against the closed-form variance growth. Each run emits an UNSIGNED, signer-ready
 receipt (STRUCTURAL-ONLY: content-addressed inputs hash, no cryptographic sig).
 
-Pure numpy → sovereign, own-metal, auditable.
+Pure stdlib (math only) → sovereign, own-metal, auditable; runs in the
+numpy-less web image (no numpy/scipy dependency).
 """
 from __future__ import annotations
 
@@ -54,7 +55,15 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
-import numpy as np
+
+def _linspace(start: float, stop: float, n: int) -> list:
+    """Evenly spaced samples over [start, stop] inclusive (numpy.linspace analog)."""
+    if n <= 1:
+        return [float(start)]
+    step = (stop - start) / (n - 1)
+    out = [start + i * step for i in range(n)]
+    out[-1] = float(stop)  # pin endpoint exactly (avoid float drift)
+    return out
 
 # --------------------------------------------------------------------------- #
 # Constants                                                                    #
@@ -180,7 +189,7 @@ class SensorCoeffs:
 # --------------------------------------------------------------------------- #
 # Closed-form 1-DOF error-growth variances (the derived physics)              #
 # --------------------------------------------------------------------------- #
-def position_error_sigma(c: SensorCoeffs, t: np.ndarray | float) -> np.ndarray:
+def position_error_sigma(c: SensorCoeffs, t):
     """1-DOF horizontal POSITION error std-dev (m) after coasting time t (s).
 
     Re-derived clean-room. Three contributions, added in QUADRATURE for the
@@ -199,14 +208,18 @@ def position_error_sigma(c: SensorCoeffs, t: np.ndarray | float) -> np.ndarray:
     sigma_pos(t) = sqrt(Var_x_stoch(t)) + |x_bias(t)|   (conservative sum: random
     1-sigma plus the systematic offset, an honest upper-ish envelope).
     """
-    t = np.asarray(t, dtype=float)
-    var_stoch = (c.q_va + c.vrw_psd) * np.power(t, 3) / 3.0
-    sigma_stoch = np.sqrt(np.maximum(var_stoch, 0.0))
-    x_bias = 0.5 * abs(c.accel_bias) * np.power(t, 2)
-    return sigma_stoch + x_bias
+    def _one(tv: float) -> float:
+        tv = float(tv)
+        var_stoch = (c.q_va + c.vrw_psd) * tv ** 3 / 3.0
+        sigma_stoch = math.sqrt(max(var_stoch, 0.0))
+        x_bias = 0.5 * abs(c.accel_bias) * tv ** 2
+        return sigma_stoch + x_bias
+    if isinstance(t, (list, tuple)):
+        return [_one(tv) for tv in t]
+    return _one(t)
 
 
-def timing_error_seconds(c: SensorCoeffs, t: np.ndarray | float) -> np.ndarray:
+def timing_error_seconds(c: SensorCoeffs, t):
     """1-DOF clock TIMING (time-interval) error std-dev-equivalent (s) at coast t.
 
     x(t) = x0 + y0*t + 0.5*D*t^2 (deterministic)  +  Allan stochastic terms.
@@ -226,30 +239,39 @@ def timing_error_seconds(c: SensorCoeffs, t: np.ndarray | float) -> np.ndarray:
     All combined as a deterministic-plus-stochastic envelope (sum), honestly
     conservative. Returned in SECONDS.
     """
-    t = np.asarray(t, dtype=float)
-    det = abs(c.clock_y0) * t + 0.5 * abs(c.clock_drift) * np.power(t, 2)
-    whitefm = c.clock_adev_1s * t                      # holdover envelope (s), ∝ t
-    rwfm = c.clock_rwfm * np.power(t, 1.5) / math.sqrt(3.0)
-    sigma_stoch = np.sqrt(whitefm ** 2 + rwfm ** 2)
-    return det + sigma_stoch
+    def _one(tv: float) -> float:
+        tv = float(tv)
+        det = abs(c.clock_y0) * tv + 0.5 * abs(c.clock_drift) * tv ** 2
+        whitefm = c.clock_adev_1s * tv                  # holdover envelope (s), ∝ t
+        rwfm = c.clock_rwfm * (tv ** 1.5) / math.sqrt(3.0)
+        sigma_stoch = math.sqrt(whitefm ** 2 + rwfm ** 2)
+        return det + sigma_stoch
+    if isinstance(t, (list, tuple)):
+        return [_one(tv) for tv in t]
+    return _one(t)
 
 
-def timing_error_meters(c: SensorCoeffs, t: np.ndarray | float) -> np.ndarray:
+def timing_error_meters(c: SensorCoeffs, t):
     """Clock timing error expressed as an equivalent RANGE error (m) = c * dt.
 
     A timing holdover error dt seconds maps to a pseudorange/position error of
     c*dt metres (the clock bias enters the navigation solution as a common-mode
     range error). This lets position and timing share ONE accuracy budget.
     """
-    return C_LIGHT * timing_error_seconds(c, t)
+    s = timing_error_seconds(c, t)
+    if isinstance(s, list):
+        return [C_LIGHT * x for x in s]
+    return C_LIGHT * s
 
 
-def combined_error_meters(c: SensorCoeffs, t: np.ndarray | float) -> np.ndarray:
+def combined_error_meters(c: SensorCoeffs, t):
     """Total coasting error envelope (m): INS position error + clock range error,
     combined in quadrature (independent error sources)."""
     p = position_error_sigma(c, t)
     k = timing_error_meters(c, t)
-    return np.sqrt(p ** 2 + k ** 2)
+    if isinstance(p, list):
+        return [math.sqrt(pi ** 2 + ki ** 2) for pi, ki in zip(p, k)]
+    return math.sqrt(p ** 2 + k ** 2)
 
 
 # --------------------------------------------------------------------------- #
@@ -287,10 +309,10 @@ def time_to_exceed(c: SensorCoeffs, threshold_m: float, *,
         channel = "combined"
         f = combined_error_meters
 
-    ts = np.linspace(0.0, horizon_s, n_grid)
+    ts = _linspace(0.0, horizon_s, n_grid)
     errs = f(c, ts)
-    over = np.where(errs >= threshold_m)[0]
-    if over.size == 0:
+    over = [i for i, e in enumerate(errs) if e >= threshold_m]
+    if not over:
         return TimeToExceed(threshold_m=threshold_m, t_exceed_s=horizon_s,
                             error_channel=channel, config_name=c.name,
                             config_label=c.label, found=False, horizon_s=horizon_s)
@@ -526,16 +548,17 @@ def governed_coasting_solve(c: SensorCoeffs, threshold_m: float, *,
         rel_resid = 0.0 if abs(sigma_num) < 1e-12 else float("inf")
 
     # monotonicity check on the actual error channel
-    ts = np.linspace(0.0, horizon_s, 4000)
+    ts = _linspace(0.0, horizon_s, 4000)
     if channel == "position":
         errs = position_error_sigma(c, ts)
     elif channel == "timing":
         errs = timing_error_meters(c, ts)
     else:
         errs = combined_error_meters(c, ts)
-    monotone = bool(np.all(np.diff(errs) >= -1e-9))
+    monotone = bool(all((errs[i + 1] - errs[i]) >= -1e-9
+                        for i in range(len(errs) - 1)))
 
-    converged = bool(np.isfinite(rel_resid) and rel_resid <= residual_tol)
+    converged = bool(math.isfinite(rel_resid) and rel_resid <= residual_tol)
 
     inputs = {
         "name": c.name, "label": c.label, "source": c.source,

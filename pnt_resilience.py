@@ -38,15 +38,20 @@ EXISTENCE and SHAPE of kshana's fused multi-layer detector (Apache-2.0) as prior
 art and CITE it; we copied NONE of its Rust. This is the SDA bridge into our
 khipu-sda-core / mosaic anomaly engine and sits under the Λ-gate governor.
 
-Pure numpy → sovereign, own-metal, auditable.
+Pure stdlib (math + random) → sovereign, own-metal, auditable; runs in the
+numpy-less web image (no numpy/scipy dependency).
 """
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
-import numpy as np
+
+def _clip01(x: float) -> float:
+    """Clamp x into [0, 1] (numpy.clip(x, 0.0, 1.0) analog)."""
+    return max(0.0, min(1.0, float(x)))
 
 # --------------------------------------------------------------------------- #
 # Provenance — method/physics CITED, never claimed as SZL's own.               #
@@ -152,7 +157,7 @@ class PntObservables:
     """Summary observables a real receiver exposes. NOT baseband IQ."""
     # RAIM layer: per-SV pseudorange residuals [m] after the LS position fix,
     # and the number of redundant SVs (DOF = n_sv - 4 for a 3D+clock fix).
-    pr_residuals_m: np.ndarray
+    pr_residuals_m: list
     n_sv: int
     # AGC/power layer: estimated received-power advantage of the strongest
     # component over the nominal authentic floor [dB]. ~0 dB when clean.
@@ -170,7 +175,7 @@ class PntObservables:
     clock_drift_implied_m: float = 0.0
 
     def __post_init__(self):
-        self.pr_residuals_m = np.asarray(self.pr_residuals_m, dtype=float)
+        self.pr_residuals_m = [float(x) for x in self.pr_residuals_m]
 
 
 # --------------------------------------------------------------------------- #
@@ -242,7 +247,7 @@ def raim_layer(obs: PntObservables, cfg: DetectorConfig = CFG) -> LayerResult:
     NOT MODELED (cannot run RAIM); we honestly do not fire on it.
     """
     dof = int(obs.n_sv) - 4
-    sse = float(np.sum((obs.pr_residuals_m / cfg.raim_sigma_m) ** 2))
+    sse = float(sum((r / cfg.raim_sigma_m) ** 2 for r in obs.pr_residuals_m))
     if dof <= 0:
         return LayerResult(
             name="raim_consistency",
@@ -256,7 +261,7 @@ def raim_layer(obs: PntObservables, cfg: DetectorConfig = CFG) -> LayerResult:
     thr = _chi2_threshold(dof, cfg.raim_pfa)
     fired = sse > thr
     # confidence the fix is CLEAN: how far below threshold we sit (smooth).
-    conf = float(np.clip(1.0 - sse / (thr + 1e-12), 0.0, 1.0))
+    conf = _clip01(1.0 - sse / (thr + 1e-12))
     return LayerResult(
         name="raim_consistency",
         statistic=sse,
@@ -285,7 +290,7 @@ def agc_power_layer(obs: PntObservables, cfg: DetectorConfig = CFG) -> LayerResu
     fired = adv > thr
     # z-score of advantage vs nominal AGC drift -> clean-confidence.
     z = adv / max(cfg.agc_nominal_sigma_db, 1e-9)
-    conf = float(np.clip(1.0 - z / 4.0, 0.0, 1.0))  # 4-sigma -> 0 confidence
+    conf = _clip01(1.0 - z / 4.0)  # 4-sigma -> 0 confidence
     return LayerResult(
         name="agc_power_advantage",
         statistic=adv,
@@ -321,7 +326,7 @@ def sqm_layer(obs: PntObservables, cfg: DetectorConfig = CFG) -> LayerResult:
     thr = cfg.sqm_metric_thresh
     fired = eff > thr
     z = eff / max(cfg.sqm_nominal_sigma, 1e-9)
-    conf = float(np.clip(1.0 - z / 4.0, 0.0, 1.0))
+    conf = _clip01(1.0 - z / 4.0)
     if obs.carrier_phase_aligned:
         detail = ("carrier-phase-aligned: peaks merged, SQM asymmetry suppressed "
                   "(eff=0); this layer CANNOT fire on a phase-aligned spoofer.")
@@ -356,7 +361,7 @@ def clock_time_layer(obs: PntObservables, cfg: DetectorConfig = CFG) -> LayerRes
     thr = cfg.clock_resid_thresh_m
     fired = resid > thr
     z = resid / max(cfg.clock_nominal_sigma_m, 1e-9)
-    conf = float(np.clip(1.0 - z / 4.0, 0.0, 1.0))
+    conf = _clip01(1.0 - z / 4.0)
     return LayerResult(
         name="clock_time_spoof",
         statistic=resid,
@@ -389,7 +394,7 @@ def fuse(layers: list, cfg: DetectorConfig = CFG) -> SpoofVerdict:
     modeled_conf = [L.confidence for L in layers if L.modeled]
     if modeled_conf:
         # conservative blend: weight the weakest layer heavily.
-        fused_conf = 0.7 * min(modeled_conf) + 0.3 * float(np.mean(modeled_conf))
+        fused_conf = 0.7 * min(modeled_conf) + 0.3 * (sum(modeled_conf) / len(modeled_conf))
     else:
         fused_conf = 0.0  # nothing runnable -> cannot vouch -> deny-by-default holds
 
@@ -498,28 +503,29 @@ def observables_from_scenario(sc: TexbatScenario, n_sv: int = 8,
       * code-phase pull -> SQM early-minus-late asymmetry, UNLESS phase-aligned.
       * time_push -> clock-bias leap inconsistent with clock-drift integration.
     """
-    rng = np.random.default_rng(seed)
+    rng = random.Random(seed)
     # Nominal clean residuals: zero-mean Gaussian at the modelled sigma.
-    resid = rng.normal(0.0, cfg.raim_sigma_m, size=n_sv)
+    resid = [rng.gauss(0.0, cfg.raim_sigma_m) for _ in range(n_sv)]
     if sc.position_push_m > 0:
         # A spoofer pulling the fix injects a coherent-but-inconsistent push:
         # part of it is absorbed by the LS fix, the inconsistent remainder
         # (~30% of the push, spread over redundant SVs) shows in residuals.
         inconsistency = 0.30 * sc.position_push_m
-        push_sig = rng.normal(0.0, inconsistency / math.sqrt(max(n_sv, 1)), size=n_sv)
-        resid = resid + push_sig + inconsistency / n_sv
+        push_sig = [rng.gauss(0.0, inconsistency / math.sqrt(max(n_sv, 1)))
+                    for _ in range(n_sv)]
+        resid = [r + ps + inconsistency / n_sv for r, ps in zip(resid, push_sig)]
     # SQM asymmetry tracks the code-phase pull; scale with position push,
     # suppressed if phase-aligned (handled inside sqm_layer too).
     sqm_metric = 0.0
     if sc.position_push_m > 0 and not sc.carrier_phase_aligned:
-        sqm_metric = min(0.5, 0.004 * sc.position_push_m + abs(rng.normal(0, 0.01)))
+        sqm_metric = min(0.5, 0.004 * sc.position_push_m + abs(rng.gauss(0, 0.01)))
     # Clock: bias leap = time_push; drift-implied stays at the clean value.
-    clock_leap = sc.time_push_m + rng.normal(0.0, cfg.clock_nominal_sigma_m * 0.3)
-    clock_drift_implied = rng.normal(0.0, cfg.clock_nominal_sigma_m * 0.3)
+    clock_leap = sc.time_push_m + rng.gauss(0.0, cfg.clock_nominal_sigma_m * 0.3)
+    clock_drift_implied = rng.gauss(0.0, cfg.clock_nominal_sigma_m * 0.3)
     return PntObservables(
         pr_residuals_m=resid,
         n_sv=n_sv,
-        power_advantage_db=sc.power_advantage_db + rng.normal(0, cfg.agc_nominal_sigma_db * 0.2),
+        power_advantage_db=sc.power_advantage_db + rng.gauss(0, cfg.agc_nominal_sigma_db * 0.2),
         sqm_early_minus_late=sqm_metric,
         carrier_phase_aligned=sc.carrier_phase_aligned,
         clock_bias_leap_m=clock_leap,
