@@ -12,11 +12,24 @@
 //
 // DOCTRINE v11 (LOCKED): WIRE TO LIVE DATA, never fabricate. Every value on screen
 // traces to a real a11oy endpoint and carries its honesty label read straight off the
-// JSON. The 5 assurance/forge routes are PENDING the Forge mesh deploy and currently
-// 404 -> ctx.live.poll renders the honest NO-LIVE-DATA badge for each; this viz is
-// built to the REAL data shapes the engines (artifact_behaviour_monitor.py,
-// content_credentials.py, compliance_crosswalk.py, runtime_attestation.py,
-// forge_governance.py, pq_signing.py) WILL return, so it lights up automatically on 200.
+// JSON.
+//
+// LIVE WIRING (2026-06-15): the original 5 assurance/forge routes (artifact /
+// credential / compliance / attest / forge-ledger) are a PENDING backend (Forge mesh)
+// and 404, so the tab read OFFLINE. This surface is now driven by the a11oy Restraint
+// GOVERNANCE gate, which IS live (HTTP 200):
+//   GET  /api/a11oy/v1/restraint/info       -> trust posture: doctrine lock, 6-rung
+//                                              ladder spec, Λ floor, signed-receipts flag,
+//                                              visible_codenames=0.
+//   POST /api/a11oy/v1/restraint/evaluate    -> a LIVE governance gate decision over a
+//                                              sample task: which ladder rung holds
+//                                              (ALLOW/DESCEND), advisory Λ score, a signed
+//                                              DSSE receipt, and a MODELED energy tie-in.
+//   GET  /api/a11oy/v1/honest                -> git_sha + doctrine_lock for the build badge.
+// The ladder/Λ/receipt verdict drives the Merkle/ledger/kill-switch/attestation/callout
+// demos with REAL values; each value carries the honesty label (HEURISTIC/MODELED) read
+// straight off the JSON. The legacy assurance routes are still polled (optional) and light
+// up automatically if the Forge mesh ever returns 200, but the tab no longer depends on them.
 //
 // TEACHING POINT (doctrine): a SIGNATURE is NOT proof of safety — CVE-2026-45321
 // (Mini Shai-Hulud): 84 @tanstack/* npm versions shipped VALID SLSA L3 / Sigstore
@@ -31,15 +44,22 @@
 const ID = "governance";
 const TITLE = "AI Governance · Assurance";
 
-// The 5 gap routes (PENDING Forge mesh; 404 -> NO-LIVE-DATA until 200).
+// LIVE governance routes (HTTP 200) — the trust posture + gate decision the tab renders.
 const EP = {
+  info:     "/api/a11oy/v1/restraint/info",       // trust posture: doctrine lock + ladder spec + Λ floor
+  gate:     "/api/a11oy/v1/restraint/evaluate",   // LIVE gate decision (POST sample task) -> rung/Λ/receipt
+  honest:   "/api/a11oy/v1/honest",               // git_sha + doctrine_lock for the build badge
+};
+// Optional PENDING-backend routes (Forge mesh). Polled but NOT required: 404 -> honest
+// NO-LIVE-DATA badge; light up automatically if the mesh ever returns 200.
+const EP_PENDING = {
   artifact:   "/api/a11oy/v1/assurance/artifact",   // artifact_behaviour_monitor.py
   credential: "/api/a11oy/v1/assurance/credential",  // content_credentials.py (C2PA)
-  compliance: "/api/a11oy/v1/assurance/compliance",  // compliance_crosswalk.py + compliance.json
-  attest:     "/api/a11oy/v1/assurance/attest",      // runtime_attestation.py
-  ledger:     "/api/a11oy/v1/forge/ledger",          // forge_governance.py
 };
-const ENDPOINTS = Object.values(EP);
+// A representative governance task the live gate evaluates (demos 13/14: the ladder gate
+// in action). Deterministic input -> deterministic rung/Λ/receipt, so the viz is stable.
+const GATE_TASK = { task: "add a cache for these API responses", intensity: "full" };
+const ENDPOINTS = [...Object.values(EP), ...Object.values(EP_PENDING)];
 
 // Palette (matches the holographic shell tokens).
 const C = {
@@ -119,10 +139,12 @@ function mount(ctx) {
   callout.position.set(0, -8.2, 2);
   _root.add(callout);
 
-  // doctrine billboards (every cluster is labelled honestly until its route is live)
-  _root.add(_label.billboard(THREE, "STRUCTURAL-ONLY", { text: "Merkle ledger", scale: 0.5, position: [-7.5, 4.4, 0] }));
+  // doctrine billboards. The Merkle/ledger clusters render the LIVE ladder decision
+  // (HEURISTIC rung detectors, off /restraint/evaluate); the crosswalk pillars render the
+  // LIVE doctrine posture invariants (off /restraint/info). Labelled honestly per JSON.
+  _root.add(_label.billboard(THREE, "HEURISTIC", { text: "Ladder gate (Merkle)", scale: 0.5, position: [-7.5, 4.4, 0] }));
   _root.add(_label.billboard(THREE, "STRUCTURAL-ONLY", { text: "Attest helix", scale: 0.5, position: [7.5, 3.0, 0] }));
-  _root.add(_label.billboard(THREE, "MEASURED", { text: "Crosswalk 60/60/0", scale: 0.5, position: [0, 7.0, -3] }));
+  _root.add(_label.billboard(THREE, "MEASURED", { text: "Doctrine posture", scale: 0.5, position: [0, 7.0, -3] }));
 
   this_registerFrame(THREE, { merkle, helix, heatmap, ledger, axes, pq, killSwitch, callout });
 
@@ -273,19 +295,21 @@ function buildComplianceHeatmap(THREE) {
       g.add(mesh); cells.push(mesh);
     }
   }
-  // framework coverage pillars (height = pct_implemented; seeded 60/60/0)
-  const pct = { NIST: 60, ISO: 60, EU: 0 };
+  // posture pillars — each maps to a load-bearing doctrine INVARIANT, set live from
+  // /restraint/info (full height + green when the invariant holds, off the real JSON).
+  // Seeded short/gray (STRUCTURAL-ONLY) until the live poll confirms; never pre-claimed.
+  const INV_LABEL = { NIST: "0 runtime-CDN", ISO: "signed receipts", EU: "0 codenames" };
   const pillars = {};
   frameworks.forEach((f, c) => {
-    const h = Math.max(0.05, (pct[f] / 100) * 3.5);
-    const col = pct[f] >= 100 ? C.green : (pct[f] > 0 ? C.gold : C.gray);
+    const h = 0.05;
+    const col = C.gray;
     const pil = new THREE.Mesh(
       new THREE.BoxGeometry(0.5, h, 0.5),
       new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.35, transparent: true, opacity: 0.85 }),
     );
     pil.position.set((c - 1) * cw, h / 2 + 0.2, (rows / 2) * ch + 0.9);
     g.add(pil); pillars[f] = pil;
-    const bb = _label.billboard(THREE, "MEASURED", { text: `${f} ${pct[f]}%`, scale: 0.34, position: [(c - 1) * cw, h + 0.7, (rows / 2) * ch + 0.9] });
+    const bb = _label.billboard(THREE, "STRUCTURAL-ONLY", { text: INV_LABEL[f], scale: 0.32, position: [(c - 1) * cw, 1.4, (rows / 2) * ch + 0.9] });
     g.add(bb);
   });
   g.userData.cells = cells; g.userData.pillars = pillars; g.userData.frameworks = frameworks;
@@ -515,15 +539,16 @@ function _buildOverlay(ctx) {
     "modeled on GUAC v1.0 · Sigstore/Rekor · SCITT — knowledge graph + Merkle hash-chain + crosswalk");
   _overlay.appendChild(sub);
 
-  // per-route live badges (each shows NO-LIVE-DATA until Forge meshes it)
+  // per-route live badges: LIVE routes first (drive the tab), then the PENDING ones.
   const badgeWrap = el("div", "display:flex;flex-direction:column;gap:5px;pointer-events:auto");
   _hud.badges = {};
   const ROUTE_LABEL = {
-    artifact: "artifact (behaviour monitor)", credential: "credential (C2PA)",
-    compliance: "compliance (crosswalk)", attest: "attest (build/model/runtime)",
-    ledger: "forge ledger (hash-chain)",
+    info: "restraint posture (info)", gate: "governance gate (evaluate)",
+    honest: "build provenance (honest)",
+    artifact: "artifact monitor (pending mesh)", credential: "C2PA credential (pending mesh)",
   };
-  Object.keys(EP).forEach((k) => {
+  const ALL_BADGE_ROUTES = { ...EP, ...EP_PENDING };
+  Object.keys(ALL_BADGE_ROUTES).forEach((k) => {
     const row = el("div", "display:flex;align-items:center;gap:8px");
     const tag = el("span", "font:10px ui-monospace,monospace;color:#7d8a96;min-width:182px", ROUTE_LABEL[k]);
     const badge = _live.createBadge();
@@ -532,6 +557,19 @@ function _buildOverlay(ctx) {
     badgeWrap.appendChild(row);
   });
   _overlay.appendChild(badgeWrap);
+
+  // LIVE governance posture + gate readout (filled from /restraint/info + /evaluate)
+  _hud.posture = el("div", "font:10px ui-monospace,Menlo,monospace;color:#7d8a96;line-height:1.5;pointer-events:auto", "posture: awaiting /restraint/info…");
+  _overlay.appendChild(_hud.posture);
+
+  _hud.gate = el("div",
+    "pointer-events:auto;margin-top:1px;padding:7px 9px;border:1px solid #2a2440;border-radius:8px;" +
+    "background:rgba(176,143,255,.07);color:#cdbdf2;font:10px ui-monospace,Menlo,monospace;line-height:1.55");
+  _hud.gate.textContent = "governance gate: awaiting /restraint/evaluate…";
+  _overlay.appendChild(_hud.gate);
+
+  _hud.honest = el("div", "font:10px ui-monospace,Menlo,monospace;color:#7d8a96;line-height:1.5;pointer-events:auto", "build: awaiting /honest…");
+  _overlay.appendChild(_hud.honest);
 
   // honesty legend (doctrine chips)
   const legend = _label.legend(); legend.style.opacity = "0.9"; legend.style.pointerEvents = "auto";
@@ -550,7 +588,7 @@ function _buildOverlay(ctx) {
 
   // status / scope line (filled live)
   _hud.status = el("div", "font:10px ui-monospace,monospace;color:#7d8a96;line-height:1.5;pointer-events:auto");
-  _hud.status.textContent = "awaiting Forge mesh — all 5 assurance routes render NO-LIVE-DATA honestly until 200.";
+  _hud.status.textContent = "wiring live governance gate (restraint info + evaluate + honest)…";
   _overlay.appendChild(_hud.status);
 
   // SBOM graph panel (bottom-right), hosts the GUAC-style force-directed graph
@@ -570,8 +608,36 @@ function _buildOverlay(ctx) {
 // LIVE POLLS — wire each gap route; render honest state; light up on 200.
 // ===========================================================================
 function startPolls(ctx) {
-  // 1) artifact behaviour monitor -> SBOM node verdict + status
-  _handles.push(_live.poll(EP.artifact, 6000, (json, meta) => {
+  // 1) restraint posture (LIVE) -> doctrine lock, 6-rung ladder spec, Λ floor, codenames=0.
+  _handles.push(_live.poll(EP.info, 15000, (json, meta) => {
+    _state.info = meta;
+    _applyPosture(json);
+  }, { badge: _hud.badges.info }));
+
+  // 2) governance gate (LIVE, POST) -> a real ladder decision over GATE_TASK: which rung
+  //    holds, advisory Λ, signed DSSE receipt, MODELED energy tie-in. Drives the
+  //    Merkle/ledger/kill-switch/attestation/callout demos with real values.
+  _handles.push(_live.poll(EP.gate, 12000, (json, meta) => {
+    _state.gate = meta;
+    _applyGate(json);
+  }, {
+    badge: _hud.badges.gate,
+    fetchInit: {
+      method: "POST",
+      headers: { "content-type": "application/json", "accept": "application/json" },
+      body: JSON.stringify(GATE_TASK),
+    },
+  }));
+
+  // 3) build provenance (LIVE) -> git_sha + doctrine_lock badge.
+  _handles.push(_live.poll(EP.honest, 20000, (json, meta) => {
+    _state.honest = meta;
+    _applyHonest(json);
+  }, { badge: _hud.badges.honest }));
+
+  // 4/5) PENDING-backend assurance routes (Forge mesh). Optional: 404 -> honest
+  //    NO-LIVE-DATA badge; light up the SBOM/callout automatically if they ever 200.
+  _handles.push(_live.poll(EP_PENDING.artifact, 9000, (json, meta) => {
     _state.artifact = meta;
     _updateSbomFromArtifact(json);
     const v = json.behavioural_verdict || json.verdict;
@@ -581,10 +647,8 @@ function startPolls(ctx) {
     }
   }, { badge: _hud.badges.artifact }));
 
-  // 2) C2PA credential -> trust hint colors the callout seal honestly
-  _handles.push(_live.poll(EP.credential, 7000, (json, meta) => {
+  _handles.push(_live.poll(EP_PENDING.credential, 11000, (json, meta) => {
     _state.credential = meta;
-    // trust_hint ∈ {STRUCTURAL-ONLY, SELF_SIGNED, C2PA_TRUST_LIST, TAMPERED} — never "green"
     const hint = json.trust_hint || (json.active_manifest && json.active_manifest.labels && json.active_manifest.labels.trust);
     const callout = _root && _root.children.find((c) => c.userData && c.userData.kind === "callout");
     if (callout) {
@@ -596,110 +660,160 @@ function startPolls(ctx) {
     }
   }, { badge: _hud.badges.credential }));
 
-  // 3) compliance crosswalk -> recolor heatmap cells + resize pillars (60/60/0 honest)
-  _handles.push(_live.poll(EP.compliance, 8000, (json, meta) => {
-    _state.compliance = meta;
-    _applyCompliance(json);
-  }, { badge: _hud.badges.compliance }));
-
-  // 4) runtime attestation -> grow the present build/model/runtime axis bars
-  _handles.push(_live.poll(EP.attest, 7000, (json, meta) => {
-    _state.attest = meta;
-    _applyAttest(json);
-  }, { badge: _hud.badges.attest }));
-
-  // 5) forge ledger -> color blocks by ring/decision, drive kill-switch indicator
-  _handles.push(_live.poll(EP.ledger, 6000, (json, meta) => {
-    _state.ledger = meta;
-    _applyLedger(json);
-  }, { badge: _hud.badges.ledger }));
-
   // roll a compact status line as states change
-  _handles.forEach((h) => {});
   _refreshStatus();
   const si = setInterval(_refreshStatus, 2000);
   _handles.push({ stop: () => clearInterval(si) });
 }
 
-function _refreshStatus() {
-  if (!_hud.status) return;
-  const live = Object.keys(_state).filter((k) => _state[k] && _state[k].state === "live");
-  const missing = Object.keys(EP).filter((k) => !_state[k] || _state[k].state === "missing" || _state[k].state === "init");
-  if (live.length === 0) {
-    _hud.status.textContent = `awaiting Forge mesh · ${missing.length}/5 routes NO-LIVE-DATA · viz lights up automatically on 200`;
-    _hud.status.style.color = "#7d8a96";
-  } else {
-    _hud.status.textContent = `LIVE: ${live.join(", ")} · ${missing.length} still awaiting Forge mesh`;
-    _hud.status.style.color = "#39d3c4";
-  }
-}
-
-function _applyCompliance(json) {
+// --- LIVE posture: /restraint/info -> doctrine lock + ladder spec + Λ floor ----------
+function _applyPosture(json) {
+  const doc = json.doctrine || {};
+  // resize the compliance pillars to the REAL doctrine posture rather than a seed:
+  // visible_codenames is an enforced-0 invariant; signed_receipts a boolean; runtime_cdn 0.
+  // We map the three "framework" pillars to the three load-bearing doctrine invariants so
+  // the heatmap reads a real, labelled posture (MEASURED off the live JSON).
   const heatmap = _root && _root.children.find((c) => c.userData && c.userData.kind === "heatmap");
-  if (!heatmap) return;
-  const cov = (json.coverage || json).frameworks || json.frameworks;
-  const crosswalk = json.crosswalk;
-  const FW = { NIST_AI_RMF: "NIST", ISO_IEC_42001: "ISO", EU_AI_ACT: "EU" };
-  // recolor cells from the real crosswalk[] (control x framework x status)
-  if (Array.isArray(crosswalk)) {
-    const byFw = { NIST: [], ISO: [], EU: [] };
-    crosswalk.forEach((c) => { const f = FW[c.framework]; if (f) byFw[f].push(c.status); });
-    heatmap.userData.cells.forEach((cell) => {
-      const arr = byFw[cell.userData.framework];
-      const st = arr && arr[cell.userData.row];
-      if (st && STATUS_COLOR[st]) { cell.material.color.setHex(STATUS_COLOR[st]); cell.material.emissive.setHex(STATUS_COLOR[st]); }
+  if (heatmap && heatmap.userData.pillars) {
+    const inv = [
+      { key: "NIST", ok: doc.runtime_cdn === 0, txt: "0 CDN" },
+      { key: "ISO", ok: doc.signed_receipts === true, txt: "signed" },
+      { key: "EU", ok: (doc.visible_codenames === 0), txt: "0 codename" },
+    ];
+    inv.forEach(({ key, ok }) => {
+      const pil = heatmap.userData.pillars[key];
+      if (!pil) return;
+      const h = ok ? 3.5 : 0.05;
+      pil.scale.y = h / pil.geometry.parameters.height;
+      pil.position.y = h / 2 + 0.2;
+      const col = ok ? C.green : C.gray;
+      pil.material.color.setHex(col); pil.material.emissive.setHex(col);
     });
   }
-  // resize coverage pillars to real pct_implemented (honest 60/60/0 expected)
-  if (cov) {
-    Object.entries(FW).forEach(([apiKey, shortKey]) => {
-      const entry = cov[apiKey];
-      const pil = heatmap.userData.pillars[shortKey];
-      if (entry && pil && typeof entry.pct_implemented === "number") {
-        const h = Math.max(0.05, (entry.pct_implemented / 100) * 3.5);
-        pil.scale.y = h / pil.geometry.parameters.height;
-        pil.position.y = h / 2 + 0.2;
-        const col = entry.pct_implemented >= 100 ? C.green : (entry.pct_implemented > 0 ? C.gold : C.gray);
-        pil.material.color.setHex(col); pil.material.emissive.setHex(col);
-      }
-    });
+  if (_hud.posture) {
+    const ladderN = Array.isArray(json.ladder) ? json.ladder.length : "?";
+    _hud.posture.textContent =
+      `posture: doctrine ${doc.version || "?"} · LOCKED ${doc.locked ?? "?"} · ${ladderN}-rung ladder · ` +
+      `Λ ${doc.lambda ? "floor<1.0" : "?"} · signed-receipts ${doc.signed_receipts ? "ON" : "off"} · ` +
+      `runtime-CDN ${doc.runtime_cdn ?? "?"} · visible-codenames ${doc.visible_codenames ?? "?"}`;
+    _hud.posture.style.color = "#39d3c4";
   }
 }
 
-function _applyAttest(json) {
-  const axes = _root && _root.children.find((c) => c.userData && c.userData.kind === "axes");
-  if (!axes) return;
-  const present = json.axes_present || [];
-  ["build", "model", "runtime"].forEach((name) => {
-    const bar = axes.userData.bars[name];
-    if (!bar) return;
-    const on = present.indexOf(name) >= 0;
-    bar.material.opacity = on ? 0.95 : 0.3;
-    bar.material.emissiveIntensity = on ? 0.55 : 0.2;
-  });
-}
+// --- LIVE gate: /restraint/evaluate -> rung decision + Λ + DSSE receipt + energy -------
+function _applyGate(json) {
+  const trail = Array.isArray(json.ladder_trail) ? json.ladder_trail : [];
+  const stopped = typeof json.stopped_at_rung === "number" ? json.stopped_at_rung : null;
+  const lambdaScore = json.lambda_score && typeof json.lambda_score.lambda === "number"
+    ? json.lambda_score.lambda : null;
+  const label = json.label || _live.readHonestyLabel(json) || null;
 
-function _applyLedger(json) {
+  // Merkle tree: color leaves by which rung held (the held rung = green, descended = amber,
+  // not-yet-reached = gray). Honest structural map of the ladder decision.
+  const merkle = _root && _root.children.find((c) => c.userData && c.userData.kind === "merkle");
+  if (merkle && Array.isArray(merkle.userData.leaves)) {
+    merkle.userData.leaves.forEach((leaf, i) => {
+      let col = C.gray;
+      const t = trail[i];
+      if (t) col = t.held ? C.green : C.gold;
+      leaf.material.color.setHex(col); leaf.material.emissive.setHex(col);
+    });
+    if (merkle.userData.root) {
+      merkle.userData.root.material.color.setHex(C.blue);
+      merkle.userData.root.material.emissive.setHex(C.blue);
+    }
+  }
+
+  // Ledger chain: each block = a ladder rung in the trail; held rung = green (ALLOW here),
+  // descended rungs = amber. Genesis stays blue. Real per-rung decision, not a seed.
   const ledger = _root && _root.children.find((c) => c.userData && c.userData.kind === "ledger");
-  const killSwitch = _root && _root.children.find((c) => c.userData && c.userData.kind === "killswitch");
-  const entries = json.entries || json.replay || [];
-  const RING = { "safe-auto": C.green, gated: C.gold, forbidden: C.red, unknown: C.gray };
-  if (ledger && Array.isArray(entries)) {
+  if (ledger && Array.isArray(ledger.userData.blocks)) {
     ledger.userData.blocks.forEach((blk, i) => {
-      const e = entries[i];
-      if (!e) return;
-      if (i === 0) return; // keep genesis blue
-      const col = e.decision === "BLOCKED" || e.decision === "DENY" ? C.red : (RING[e.ring] || C.gray);
+      if (i === 0) return; // genesis blue
+      const t = trail[i - 1];
+      let col = C.gray;
+      if (t) col = t.held ? C.green : C.gold;
       blk.material.color.setHex(col); blk.material.emissive.setHex(col);
     });
   }
-  // kill-switch: forge_governance kill_switch bool -> armed indicator
-  if (killSwitch) {
-    const armed = !!json.kill_switch;
+
+  // Kill-switch: a governance gate decision is advisory (Λ kept < 1.0). Armed (red) iff the
+  // advisory Λ breaches the floor; safe (green) when Λ < 1.0. Real value off the JSON.
+  const killSwitch = _root && _root.children.find((c) => c.userData && c.userData.kind === "killswitch");
+  if (killSwitch && lambdaScore != null) {
+    const armed = lambdaScore >= 1.0;
     killSwitch.userData.armed = armed;
     const col = armed ? C.red : C.green;
     killSwitch.userData.core.material.color.setHex(col);
     killSwitch.userData.core.material.emissive.setHex(col);
+  }
+
+  // Attestation axes: a SIGNED DSSE receipt present -> the build axis is attested; the gate
+  // ran in-runtime -> runtime axis present. model axis stays dim (no model attestation here).
+  const hasReceipt = !!(json.signed_receipt && json.signed_receipt.signatures);
+  const axes = _root && _root.children.find((c) => c.userData && c.userData.kind === "axes");
+  if (axes && axes.userData.bars) {
+    const present = { build: hasReceipt, model: false, runtime: true };
+    Object.entries(present).forEach(([name, on]) => {
+      const bar = axes.userData.bars[name];
+      if (!bar) return;
+      bar.material.opacity = on ? 0.95 : 0.3;
+      bar.material.emissiveIntensity = on ? 0.55 : 0.2;
+    });
+  }
+
+  // sig≠safety callout seal: a valid signed receipt is NOT proof of safety (doctrine). Keep
+  // the seal AMBER even when the receipt verifies — a green seal would over-claim safety.
+  const callout = _root && _root.children.find((c) => c.userData && c.userData.kind === "callout");
+  if (callout) {
+    const seal = callout.children.find((c) => c.geometry && c.geometry.type === "CylinderGeometry");
+    if (seal) {
+      const col = hasReceipt ? C.gold : C.gray; // signed -> amber (advisory), never green
+      seal.material.color.setHex(col); seal.material.emissive.setHex(col);
+    }
+  }
+
+  // HUD gate line — real rung + Λ + energy (MODELED), each labelled off the JSON.
+  if (_hud.gate) {
+    const energy = json.energy_tiein || {};
+    const saved = json.lines_saved_estimate || {};
+    _hud.gate.innerHTML =
+      `<b style="color:#c9b8ff">gate</b> rung ${stopped ?? "?"}/${json.rung_name ? json.rung_name : "?"} ` +
+      `→ <span style="color:#9fe6c7">${json.answer ? String(json.answer).slice(0, 40) : "—"}</span><br>` +
+      `Λ ${lambdaScore != null ? lambdaScore.toFixed(3) : "?"} (advisory, &lt;1.0) · ` +
+      `label <span style="color:#e8c074">${label || "?"}</span> · ` +
+      `receipt ${hasReceipt ? "DSSE-signed" : "—"}<br>` +
+      `energy ${energy.joules_saved_modeled != null ? energy.joules_saved_modeled + "J" : "—"} / ` +
+      `${energy.tokens_saved_modeled != null ? energy.tokens_saved_modeled + " tok" : "—"} ` +
+      `<span style="color:#7d8a96">[${energy.label || "MODELED"}]</span> · ` +
+      `${saved.lines_saved_modeled != null ? saved.lines_saved_modeled + " LOC saved" : ""}`;
+  }
+}
+
+// --- LIVE build provenance: /honest -> git_sha + doctrine_lock badge -------------------
+function _applyHonest(json) {
+  if (!_hud.honest) return;
+  const sha = json.git_sha || (json.honest_labels && json.honest_labels.git_sha) || "?";
+  const lock = json.doctrine_lock || (json.honest_labels && json.honest_labels.doctrine_lock) || "?";
+  _hud.honest.textContent = `build ${String(sha).slice(0, 8)} · doctrine ${lock}`;
+  _hud.honest.style.color = "#9fb1bf";
+}
+
+function _refreshStatus() {
+  if (!_hud.status) return;
+  // The tab is LIVE when the governance-gate routes (info/gate/honest) are live; the two
+  // PENDING assurance routes are reported separately and honestly when still 404.
+  const liveCore = Object.keys(EP).filter((k) => _state[k] && _state[k].state === "live");
+  const pendingMissing = Object.keys(EP_PENDING).filter((k) => _state[k] && (_state[k].state === "missing" || _state[k].state === "error"));
+  if (liveCore.length === 0) {
+    _hud.status.textContent = "connecting to live governance gate (restraint info + evaluate + honest)…";
+    _hud.status.style.color = "#7d8a96";
+  } else {
+    const pend = pendingMissing.length
+      ? ` · ${pendingMissing.length} assurance route(s) NO-LIVE-DATA (Forge mesh pending)`
+      : "";
+    _hud.status.textContent = `LIVE governance gate: ${liveCore.join(", ")}${pend}`;
+    _hud.status.style.color = "#39d3c4";
   }
 }
 
