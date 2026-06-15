@@ -5793,6 +5793,268 @@ async def a11oy_ledger_v2() -> JSONResponse:
                                        "receipt_id": r["hash"]} for r in ch["receipts"]]})
 
 
+# ===========================================================================
+# Governance ASSURANCE backend (FORGE TASK_2 — closes the /assurance/* 404 gap
+# flagged in the demo-layer assessment, commit 2aecbdf / #442). These GET
+# endpoints are an HONEST READ-FACADE that aggregates a11oy's ALREADY-REAL,
+# in-image provenance + governance primitives — they invent NOTHING:
+#   /assurance/artifact    -> build identity: SZL_GIT_SHA + SLSA provenance level
+#   /assurance/credential  -> the REAL ECDSA P-256 signing-key probe + cosign.pub
+#   /assurance/attest      -> the REAL in-image signed receipt hash-chain
+#   /assurance/compliance  -> recorded LIVE eval-arena runs + structural crosswalk
+# Every value carries a server-attested `data_kind` (live | measured | structural)
+# and an `assurance_status`. Unproven/external facts are STRUCTURAL, never faked
+# (the founder Ed25519 FA-001 anchor is honestly marked external/founder-held).
+# Registered at module scope, so BEFORE the /api/a11oy/{path:path} Node proxy
+# (line ~7525) — first-match-wins routing resolves them locally. Each handler is
+# fail-safe: on any internal error it returns a STRUCTURAL envelope, never a 500.
+# Marker: a11oy-assurance-backend-forge-task2.
+# ===========================================================================
+def _asr_now_iso() -> str:
+    return _dtv2.now(_tzv2.utc).isoformat()
+
+
+def _asr_signing_probe() -> dict:
+    """Probe the REAL in-image signing key. Honest dict; never raises."""
+    try:
+        from a11oy_signing_key import load_signing_key as _ld
+        priv, pub_pem, source, err = _ld()
+        loaded = priv is not None
+        return {
+            "loaded": loaded,
+            # loader enforces SECP256R1 and rejects anything else (no silent downgrade)
+            "key_type": "ecdsa-p256" if loaded else None,
+            "key_source": source,          # persistent:<path> | ephemeral | unavailable
+            "public_key_present": bool(pub_pem),
+            "error": err or None,
+            "data_kind": "live" if loaded else "structural",
+        }
+    except Exception as exc:  # never break the surface
+        return {"loaded": False, "key_type": None, "key_source": "unavailable",
+                "public_key_present": False, "error": str(exc),
+                "data_kind": "structural"}
+
+
+@app.get("/api/a11oy/v1/assurance")
+async def a11oy_assurance_index() -> JSONResponse:
+    """Discovery index for the assurance surface."""
+    return JSONResponse({
+        "kind": "assurance-index",
+        "endpoints": {
+            "artifact": "/api/a11oy/v1/assurance/artifact",
+            "credential": "/api/a11oy/v1/assurance/credential",
+            "attest": "/api/a11oy/v1/assurance/attest",
+            "compliance": "/api/a11oy/v1/assurance/compliance",
+        },
+        "doctrine": ("v11 — every field labeled live | measured | structural; "
+                     "nothing fabricated."),
+        "issued_at": _asr_now_iso(),
+    })
+
+
+@app.get("/api/a11oy/v1/assurance/artifact")
+async def a11oy_assurance_artifact() -> JSONResponse:
+    """Artifact (build) assurance: what is the running a11oy, and how is its build
+    provenance evidenced? git_sha is LIVE (env-injected at build); SLSA level is
+    STRUCTURAL (honest current posture, not a fabricated attestation)."""
+    try:
+        sha = os.getenv("SZL_GIT_SHA", "unknown")
+        has_sha = bool(sha) and sha != "unknown"
+        return JSONResponse({
+            "kind": "artifact-assurance",
+            "assurance_status": "LIVE" if has_sha else "STRUCTURAL",
+            "artifact": "a11oy",
+            "git_sha": sha,
+            "git_sha_data_kind": "live" if has_sha else "structural",
+            "build_provenance": {
+                "slsa_level": "L1 (honest) \u00b7 L2 build-attested (Rekor)",
+                "slsa_l3_plus": ("roadmap (in-toto v1, cosign keyless, "
+                                 "Rekor evidence)"),
+                "data_kind": "structural",
+            },
+            "capabilities": _A11OY_CAPS,
+            "served_by": "a11oy in-image",
+            "verify": ("Compare git_sha to GET /honest and to the HEAD of "
+                       "github.com/szl-holdings/a11oy."),
+            "issued_at": _asr_now_iso(),
+            "doctrine": "v11 — honest provenance; no fabricated build attestation.",
+        })
+    except Exception as exc:
+        return JSONResponse({"kind": "artifact-assurance",
+                             "assurance_status": "STRUCTURAL",
+                             "error": str(exc), "data_kind": "structural",
+                             "issued_at": _asr_now_iso()})
+
+
+@app.get("/api/a11oy/v1/assurance/credential")
+async def a11oy_assurance_credential() -> JSONResponse:
+    """Credential (signing identity) assurance: a REAL probe of the in-image
+    ECDSA P-256 receipt-signing key. The founder Ed25519 FA-001 anchor key is NOT
+    in the container (founder-held) — said explicitly, not faked."""
+    try:
+        probe = _asr_signing_probe()
+        return JSONResponse({
+            "kind": "credential-assurance",
+            "assurance_status": "LIVE" if probe["loaded"] else "STRUCTURAL",
+            "signing_key": probe,
+            "public_key_endpoint": "/cosign.pub",
+            "key_fingerprint": _a11oy_pubkey_fpr(),
+            "fa001_ed25519_anchor": {
+                "present_in_container": False,
+                "data_kind": "structural",
+                "note": ("FA-001 founder Ed25519 anchor key is founder-held and is "
+                         "NOT mounted in this container. In-image receipt signing "
+                         "uses the ECDSA P-256 key probed above; the Ed25519 DSSE + "
+                         "Rekor transparency anchor are applied out-of-band by the "
+                         "founder, not by this process."),
+            },
+            "verify": ("GET /cosign.pub, then verify a GET /api/a11oy/v1/receipt/"
+                       "export envelope (ECDSA-P256-SHA256). One flipped byte fails."),
+            "issued_at": _asr_now_iso(),
+            "doctrine": "v11 — real key probe; external anchor honestly disclosed.",
+        })
+    except Exception as exc:
+        return JSONResponse({"kind": "credential-assurance",
+                             "assurance_status": "STRUCTURAL",
+                             "error": str(exc), "data_kind": "structural",
+                             "issued_at": _asr_now_iso()})
+
+
+@app.get("/api/a11oy/v1/assurance/attest")
+async def a11oy_assurance_attest() -> JSONResponse:
+    """Attestation assurance: the REAL in-image, hash-chained, ECDSA-signed
+    receipt chain (same chain served by /api/a11oy/v1/ledger and /command-log),
+    plus a freshly signed head envelope. This is the deterministic in-image
+    governance chain — NOT the energy JouleCharge ledger (that lives at
+    /energy/ledger); kept distinct so neither is overclaimed."""
+    try:
+        ch = _a11oy_build_chain(24)
+        head = (ch["receipts"][-1] if ch["receipts"]
+                else {"seq": 0, "kind": "genesis", "hash": ""})
+        probe = _asr_signing_probe()
+        payload = {
+            "receipt_id": head.get("hash", ""),
+            "seq": head.get("seq", 0),
+            "kind": head.get("kind", ""),
+            "chain_depth": ch["depth"],
+            "chain_final_hash": ch["final_hash"],
+            "issued_at": _asr_now_iso(),
+            "issuer": "a11oy",
+        }
+        try:
+            envelope = _a11oy_sign_receipt(payload)
+            signed = bool(envelope.get("signed"))
+        except Exception as sx:
+            envelope = {"payload": payload, "signing_error": str(sx)}
+            signed = False
+        return JSONResponse({
+            "kind": "attestation-assurance",
+            "assurance_status": "LIVE",
+            "chain_depth": ch["depth"],
+            "chain_verified": ch.get("chain_verified", True),
+            "genesis_hash": ch.get("genesis_hash", ""),
+            "final_hash": ch.get("final_hash", ""),
+            "chain_data_kind": "live",
+            "head_receipt": {"seq": head.get("seq"), "action": head.get("kind"),
+                             "receipt_id": head.get("hash")},
+            "signed": signed,
+            "signing_key_type": probe.get("key_type"),
+            "key_fingerprint": ch.get("key_fingerprint"),
+            "signed_envelope": envelope,
+            "ledger_endpoint": "/api/a11oy/v1/ledger",
+            "canonical_endpoint": "/api/a11oy/v1/receipt/{receipt_id}/canonical",
+            "energy_ledger_note": ("/energy/ledger is a SEPARATE measured "
+                                   "JouleCharge ledger; not conflated here."),
+            "verify": ("Fetch /cosign.pub; rebuild the DSSE PAE over the payload "
+                       "and verify ECDSA-P256-SHA256. Re-hash the canonical bytes "
+                       "from /receipt/{id}/canonical -> matches receipt_id. Flip "
+                       "one byte -> FAIL."),
+            "issued_at": _asr_now_iso(),
+            "doctrine": "v11 — real hash-chain + real signature; tamper-evident.",
+        })
+    except Exception as exc:
+        return JSONResponse({"kind": "attestation-assurance",
+                             "assurance_status": "STRUCTURAL",
+                             "error": str(exc), "data_kind": "structural",
+                             "issued_at": _asr_now_iso()})
+
+
+@app.get("/api/a11oy/v1/assurance/compliance")
+async def a11oy_assurance_compliance() -> JSONResponse:
+    """Compliance assurance: the MEASURED governance-integrity signal from the
+    live eval-arena (recorded-runs ring buffer) plus a STRUCTURAL capability ->
+    control-family crosswalk. The crosswalk is an honest mapping of which a11oy
+    primitive addresses which control family — it is NOT an audit attestation or
+    certification, and no pass/fail score is fabricated."""
+    try:
+        last_run = None
+        runs_count = 0
+        try:
+            with _A11OY_EVAL_HIST_LOCK:
+                runs = list(_A11OY_EVAL_HIST)
+            runs_count = len(runs)
+            if runs and isinstance(runs[-1], dict):
+                r = runs[-1]
+                last_run = {k: r.get(k) for k in
+                            ("run_id", "ts", "mode", "overall", "passed",
+                             "total", "determinism_hash")
+                            if k in r}
+        except Exception:
+            last_run = None
+        try:
+            dims = list(_A11OY_ARENA_DIMS)
+        except Exception:
+            dims = []
+        crosswalk = [
+            {"control_family": "NIST 800-53 AU (Audit & Accountability)",
+             "a11oy_primitive": ("in-image signed receipt hash-chain "
+                                 "(/assurance/attest)"),
+             "data_kind": "structural"},
+            {"control_family": "NIST 800-53 AC (Access Control) / gate decisions",
+             "a11oy_primitive": ("policy gates + verdict feed "
+                                 "(/api/a11oy/v1/policy/*)"),
+             "data_kind": "structural"},
+            {"control_family": "NIST 800-53 CA (Assessment) / continuous eval",
+             "a11oy_primitive": ("live eval-arena harness "
+                                 "(/api/a11oy/v1/eval-arena/*)"),
+             "data_kind": "structural"},
+            {"control_family": "NIST 800-53 SI (System & Information Integrity)",
+             "a11oy_primitive": "ECDSA-signed receipts + deterministic replay",
+             "data_kind": "structural"},
+        ]
+        return JSONResponse({
+            "kind": "compliance-assurance",
+            "assurance_status": "MEASURED" if runs_count else "STRUCTURAL",
+            "eval_arena": {
+                "recorded_runs": runs_count,
+                "last_run": last_run,
+                "dimensions": dims,
+                "data_kind": "measured" if runs_count else "structural",
+                "live_rerun_endpoint": "/api/a11oy/v1/eval-arena/rerun",
+                "history_endpoint": "/api/a11oy/v1/eval-arena/history",
+                "note": ("Governance-INTEGRITY signal from in-image "
+                         "self-evaluation runs; reflects live policy/key state at "
+                         "run time. Trend view (in-memory ring), not an immutable "
+                         "audit log — the per-run DSSE receipts are the verifiable "
+                         "artifacts."),
+            },
+            "control_crosswalk": crosswalk,
+            "crosswalk_note": ("STRUCTURAL capability -> control-family mapping "
+                               "only. NOT an audit attestation, certification, or "
+                               "pass/fail claim against any framework."),
+            "frameworks_referenced": ["NIST 800-53", "DISA STIG", "ISO 27001"],
+            "live_framework_endpoint": ("POST /api/a11oy/v1/policy/compliance "
+                                        "{framework}"),
+            "issued_at": _asr_now_iso(),
+            "doctrine": "v11 — measured integrity + honest structural crosswalk.",
+        })
+    except Exception as exc:
+        return JSONResponse({"kind": "compliance-assurance",
+                             "assurance_status": "STRUCTURAL",
+                             "error": str(exc), "data_kind": "structural",
+                             "issued_at": _asr_now_iso()})
+
+
 # ---- /receipt/export — one signed receipt envelope for offline verification ----
 @app.get("/api/a11oy/v1/receipt/export")
 @app.get("/receipt/export")
