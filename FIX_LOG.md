@@ -75,6 +75,19 @@ brief named (/pnt, /pinn) are fixed.** (Assess further if SPA source becomes ava
 
 - PNT — DONE (this PR). Sensor curves + nav-coast, MODELED chip, source endpoint shown.
 - PINN — DONE (this PR). Cert card + residual, MEASURED chip, DSSE/cosign badges.
-- Fabric / Governance / others — surfaces already mount clean on `/holographic` (all 9
-  drive OK via `__SZL3D_SHELL__`, verified earlier). Pending: confirm each tab's live
-  binding + status chip per spec.
+- Fabric — endpoint `/api/a11oy/v1/compute-pool` is LIVE 200; surface mounts clean
+  (`fabric:OK` via `__SZL3D_SHELL__`). Correctly wired to live data. (demos 7,8)
+- Governance/Restraint — the `governance.js` surface polls `/api/a11oy/v1/assurance/{artifact,
+  credential,compliance,attest}` + `/forge/ledger`. **All five return 404 on the live box**
+  (verified by curl). The surface therefore renders its honest OFFLINE/404 state rather than a
+  fabricated graph (correct doctrine-v11 behavior). This is a **backend deployment gap** (the
+  assurance endpoints are not served by the box), not a repo wiring bug — it cannot be fixed
+  from this source repo without fabricating data, which doctrine forbids. The spec's named
+  Governance demos (13 trust radar, 14 gate ALLOW/DENY) want `/restraint/info` (which IS live
+  200); rewiring governance.js to `/restraint` would be a follow-up surface change, owned by
+  the spec's "Forge (box) + dev team" lane per LIVE_DEMOS_SPEC §SPLIT-OF-WORK.
+
+**Scope note.** Per LIVE_DEMOS_SPEC §SPLIT-OF-WORK, the ~15-demo polish layer is explicitly
+assigned to "Forge (box) + the dev team"; this engineer's lane was the broken basics (D3/D4)
+plus the named priority surfaces PNT + PINN — all complete and live-verified. The Governance
+backend gap is flagged here for that team.
