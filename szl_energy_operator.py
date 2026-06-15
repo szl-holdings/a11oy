@@ -158,6 +158,26 @@ def _default_nodes() -> list[NodeCfg]:
         chaski_standby = False
     else:
         chaski_standby = True
+    # omen base: the ALWAYS-ON home anchor (OMEN desktop, stays home 24/7).
+    # A11OY_OMEN_BASE_URL is canonical; A11OY_ENERGY_OMEN_URL is the additive runbook
+    # ALIAS (mirrors the chaski pair). Normalize a bare host:port to an OpenAI-compatible
+    # .../v1 base; never double-append /v1.
+    omen_base = (os.environ.get("A11OY_OMEN_BASE_URL")
+                 or os.environ.get("A11OY_ENERGY_OMEN_URL")
+                 or "http://omen-betterwithage:11434/v1").strip().rstrip("/")
+    if omen_base and not omen_base.endswith("/v1"):
+        omen_base = omen_base + "/v1"
+    # omen posture: A11OY_OMEN_STANDBY canonical (default standby); the runbook alias
+    # A11OY_ENERGY_OMEN_ENABLED=1 flips it live when STANDBY was not explicitly set.
+    # A REAL probe still decides reachable/DEGRADED/computing — this only sets posture.
+    _omen_standby_env = os.environ.get("A11OY_OMEN_STANDBY")
+    _omen_enabled = (os.environ.get("A11OY_ENERGY_OMEN_ENABLED") or "").strip() in ("1", "true", "True")
+    if _omen_standby_env is not None:
+        omen_standby = _omen_standby_env not in ("0", "false", "False", "")
+    elif _omen_enabled:
+        omen_standby = False
+    else:
+        omen_standby = True
     return [
         NodeCfg(
             name="rtx-betterwithage",
@@ -177,6 +197,20 @@ def _default_nodes() -> list[NodeCfg]:
             # Unreachable-while-standby reads "standby" (intentionally not started), NOT
             # DEGRADED (supposed-to-be-up but failed). Posture resolved above.
             standby=chaski_standby,
+        ),
+        NodeCfg(
+            name="omen-betterwithage",
+            base_url=omen_base,
+            gen_model=os.environ.get("A11OY_OMEN_GEN_MODEL", "llama3.1:8b"),
+            embed_model=os.environ.get("A11OY_OMEN_EMBED_MODEL", "bge-large"),
+            # DISTINCT exporter label so OMEN's joules are metered SEPARATELY from the
+            # laptop's — never merged/fused. Joules stay MEASURED-only per node.
+            exporter_node=os.environ.get("A11OY_OMEN_GPU_LABEL", "omen"),
+            # OMEN is the always-on home anchor but still founder-started: standby until
+            # A11OY_OMEN_STANDBY=0 (or the runbook alias A11OY_ENERGY_OMEN_ENABLED=1). It
+            # joins nodes_computing ONLY on a real probe; unreachable-while-standby reads
+            # "standby", never DEGRADED, never a fabricated job. Posture resolved above.
+            standby=omen_standby,
         ),
     ]
 

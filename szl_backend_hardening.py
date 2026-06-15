@@ -303,13 +303,74 @@ def _tailscale_peers() -> Dict[str, str]:
     except Exception:
         return {}
 
+import re as _re
+
+# Per-node extra match candidates + the URL env vars that ALREADY carry a node's
+# live endpoint elsewhere in the fabric. The hardened pool previously resolved ONLY
+# by tailscale hostname-prefix, which silently missed `chaski`: its tailnet host is
+# NOT literally "chaski" (it is a Replit node with a generated hostname), so the
+# prefix match failed and the probe fell back to the STALE static 100.76.58.50 even
+# though the plain /compute-pool resolves it live via SZL_GOV_LLM_URL / the chaski
+# base-url envs. Consulting the SAME env vars here makes the two endpoints agree
+# WITHOUT hardcoding any IP — the value is read at runtime, never baked in.
+_NODE_RESOLVE: Dict[str, Dict[str, List[str]]] = {
+    "chaski": {
+        # tailnet host aliases observed for the Replit chaski node
+        "aliases": ["chaski", "replit-chaski", "replit"],
+        # env vars (URL or bare host) the rest of the fabric uses for chaski
+        "url_envs": ["A11OY_CHASKI_BASE_URL", "A11OY_ENERGY_CHASKI_URL",
+                     "A11OY_CHASKI_URL", "SZL_GOV_LLM_URL"],
+    },
+    "rtx-betterwithage": {
+        "aliases": ["rtx-betterwithage", "betterwithage", "rtx"],
+        "url_envs": ["A11OY_BETTERWITHAGE_BASE_URL", "A11OY_MODEL_BASE_URL"],
+    },
+    "omen-betterwithage": {
+        "aliases": ["omen-betterwithage", "omen", "betterwithage-omen"],
+        "url_envs": ["A11OY_OMEN_BASE_URL", "A11OY_ENERGY_OMEN_URL", "A11OY_OMEN_URL"],
+    },
+}
+
+
+def _ip_from_url_env(name: str) -> Optional[Tuple[str, str]]:
+    """Extract a 100.x (or any host) IP from the node's URL env vars, if set.
+    Returns (ip, "env:<VAR>") or None. Honest: only reads what the operator set;
+    a router/placeholder URL (no usable host, or the HF router) is ignored."""
+    spec = _NODE_RESOLVE.get(name.lower())
+    if not spec:
+        return None
+    for var in spec.get("url_envs", []):
+        raw = (_os.environ.get(var) or "").strip()
+        if not raw or "router.huggingface.co" in raw:
+            continue
+        # Accept full URLs (http://host:port/...) and bare host[:port] forms.
+        host = raw
+        m = _re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:]+)", raw)
+        if m:
+            host = m.group(1)
+        else:
+            host = raw.split("/")[0].split(":")[0]
+        host = host.strip()
+        # Ignore non-routable placeholder hostnames (e.g. "chaski", "rtx-betterwithage")
+        # that won't resolve from this process; we want a real IP/DNS the box can reach.
+        if host and (host[0].isdigit() or "." in host):
+            return host, f"env:{var}"
+    return None
+
+
 def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
     """Resolve a node's CURRENT tailnet IP. Returns (ip, source).
-    Priority: env pin -> live tailscale-by-hostname -> static fallback."""
+    Priority: explicit IP pin -> node URL env -> live tailscale (alias-aware) ->
+    static fallback. Every layer reads runtime config; no IP is hardcoded as truth."""
     env_key = "A11OY_GPU_NODE_" + "".join(c if c.isalnum() else "_" for c in name).upper() + "_IP"
     pinned = (_os.environ.get(env_key) or "").strip()
     if pinned:
         return pinned, "env-pin"
+    # The plain /compute-pool resolves chaski/rtx/omen via their URL env vars; consult
+    # the same ones so the hardened pool agrees instead of using a stale static IP.
+    from_url = _ip_from_url_env(name)
+    if from_url:
+        return from_url
     peers = _tailscale_peers()
     # Prefix-collision guard (2026-06-15): BOTH Windows GPU boxes are tailscale-named
     # 'betterwithage' (the RTX 5050 laptop and the OMEN), so the bare suffix
@@ -317,26 +378,34 @@ def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
     # (betterwithage, betterwithage-1, ...). The previous logic interleaved exact +
     # prefix matching per-candidate, so 'omen-betterwithage' fell through to an exact
     # match on the bare peer 'betterwithage' and mis-mapped the OMEN to the LAPTOP's
-    # IP. Honest fix: (a) try the FULL node name exact-match first; (b) require the
-    # peer hostname to carry the node's DISTINGUISHING leading token (omen-/rtx-)
-    # before any suffix-based match; (c) only then fall back to a bare-suffix match,
-    # and ONLY if that suffix is unambiguous (exactly one peer carries it). If the
-    # suffix is ambiguous we DECLINE and degrade to the static fallback rather than
-    # guess — never fabricate a wrong remap.
+    # IP. Honest fix: (a) try the FULL node name exact-match first; (a') declared
+    # tailnet aliases exact-match (e.g. chaski's Replit hostname, which is NOT literally
+    # 'chaski'); (b) require the peer hostname to carry the node's DISTINGUISHING prefix
+    # token (omen-/rtx-) before any suffix-based match; (c) only then fall back to a
+    # bare-suffix match, and ONLY if that suffix is unambiguous (exactly one peer carries
+    # it). If the suffix is ambiguous we DECLINE and degrade to the static fallback rather
+    # than guess — never fabricate a wrong remap.
     lname = name.lower()
     # (a) exact full-name hostname match always wins
     if lname in peers:
         return peers[lname], "tailscale-live"
+    # (a') declared aliases exact-match (e.g. chaski's Replit tailnet hostnames), so a
+    #      node whose tailnet host is not literally its name still resolves WITHOUT a
+    #      loose prefix match that could collide with the betterwithage twins.
+    for alias in _NODE_RESOLVE.get(lname, {}).get("aliases", []):
+        al = alias.lower()
+        if al != lname and al in peers:
+            return peers[al], "tailscale-alias"
     lead = lname.split("-", 1)[0] if "-" in lname else ""      # e.g. 'omen', 'rtx'
     suffix = lname.split("-", 1)[1] if "-" in lname else ""   # e.g. 'betterwithage'
-    # (b) disambiguate by the leading token: a peer hostname that contains the
+    # (b) disambiguate by the prefix token: a peer hostname that contains the
     #     node's distinguishing token (omen / rtx) AND the shared suffix.
     if lead and suffix:
         lead_matches = [(hn, ip) for hn, ip in peers.items()
                         if lead in hn and suffix in hn]
         if len(lead_matches) == 1:
             return lead_matches[0][1], "tailscale-lead"
-        # a peer carrying just the leading token (e.g. 'omen', 'omen-1')
+        # a peer carrying just the prefix token (e.g. 'omen', 'omen-1')
         lead_only = [(hn, ip) for hn, ip in peers.items() if hn.startswith(lead)]
         if len(lead_only) == 1:
             return lead_only[0][1], "tailscale-lead"
@@ -490,6 +559,107 @@ def probe_fabric_pool(
 
 
 # ===========================================================================
+# 4b. select_anchor_worker — OMEN-anchor routing preference (ADDITIVE, honest).
+#     Founder direction: the RTX laptop TRAVELS (its network changes in CA); the
+#     OMEN desktop STAYS HOME 24/7. So when 2+ sovereign GPUs are live, prefer the
+#     always-on home node as the ANCHOR worker for szl-fast + embeddings so the loop
+#     keeps breathing if the traveling laptop drops. This NEVER fabricates a node up
+#     and NEVER starves: the choice is made ONLY among nodes a real probe shows
+#     reachable, and it falls back cleanly (omen -> rtx -> chaski -> any reachable GPU).
+# ===========================================================================
+# Default anchor preference order, most-preferred first. Env-overridable via
+# A11OY_ANCHOR_PREFERENCE (comma-separated node names) without a code change.
+DEFAULT_ANCHOR_PREFERENCE: List[str] = ["omen-betterwithage", "rtx-betterwithage", "chaski"]
+
+
+def _anchor_preference() -> List[str]:
+    raw = (_os.environ.get("A11OY_ANCHOR_PREFERENCE") or "").strip()
+    if raw:
+        order = [x.strip() for x in raw.split(",") if x.strip()]
+        if order:
+            return order
+    return list(DEFAULT_ANCHOR_PREFERENCE)
+
+
+def select_anchor_worker(
+    pool: Optional[Dict[str, Any]] = None,
+    workload: str = "szl-fast",
+) -> Dict[str, Any]:
+    """Pick the preferred ANCHOR worker for szl-fast / embeddings from a live pool.
+
+    `pool` is a probe_fabric_pool() payload (probed live if omitted). Returns an
+    honest selection envelope — it does NOT serve anything; the caller routes. It
+    only reflects the most recent REAL probe:
+
+        {anchor, anchor_sovereign, reachable_sovereign_gpus, candidates_considered,
+         preference, fallback_used, reason, workload, ...}
+
+    Selection: among GPU nodes the probe shows reachable=True, walk the preference
+    order and take the first match; if none of the preferred names are reachable,
+    fall back to ANY reachable GPU (sovereign preferred). anchor is None ONLY when
+    no GPU is reachable at all (the loop then stays on the existing path — never a
+    fabricated anchor). When only ONE sovereign GPU is live, that one is the anchor
+    by necessity (the preference matters once 2+ are live)."""
+    if pool is None:
+        pool = probe_fabric_pool()
+    nodes = pool.get("nodes", []) if isinstance(pool, dict) else []
+    reachable_gpus = [
+        n for n in nodes
+        if n.get("reachable") and "gpu" in str(n.get("kind", ""))
+    ]
+    reachable_sovereign = [n for n in reachable_gpus if n.get("sovereign")]
+    by_name = {n.get("name"): n for n in reachable_gpus}
+    preference = _anchor_preference()
+
+    anchor_node: Optional[Dict[str, Any]] = None
+    fallback_used = False
+    # Walk the preference order; first reachable preferred node wins.
+    for pref in preference:
+        if pref in by_name:
+            anchor_node = by_name[pref]
+            break
+    if anchor_node is None and reachable_gpus:
+        # None of the preferred names are reachable -> clean fallback: any reachable
+        # GPU, sovereign-owned metal first (so we never starve the loop).
+        fallback_used = True
+        anchor_node = (reachable_sovereign or reachable_gpus)[0]
+
+    if anchor_node is None:
+        reason = ("no sovereign/tailnet GPU reachable on the last real probe — no anchor "
+                  "selected; routing stays on the existing path (never fabricated up)")
+    elif fallback_used:
+        reason = ("preferred always-on anchor not reachable; fell back to a reachable GPU "
+                  "(sovereign preferred) so the loop is not starved")
+    elif anchor_node.get("name") == preference[0]:
+        reason = ("always-on home anchor (%s) reachable and preferred for %s so the "
+                  "traveling laptop is not the sole worker" % (preference[0], workload))
+    else:
+        reason = ("preferred anchor selected by reachability order for %s" % workload)
+
+    return {
+        "workload": workload,
+        "anchor": anchor_node.get("name") if anchor_node else None,
+        "anchor_endpoint": anchor_node.get("endpoint") if anchor_node else None,
+        "anchor_sovereign": bool(anchor_node.get("sovereign")) if anchor_node else False,
+        "preference": preference,
+        "fallback_used": fallback_used,
+        "reachable_sovereign_gpus": [n.get("name") for n in reachable_sovereign],
+        "reachable_gpus": [n.get("name") for n in reachable_gpus],
+        "candidates_considered": len(reachable_gpus),
+        "reason": reason,
+        "honesty": (
+            "anchor is chosen ONLY among GPUs a real probe THIS sweep shows reachable; "
+            "anchor=None when none are up (never fabricated). Preference is a routing "
+            "hint for PLACEMENT + LOAD-BALANCE only (horizontal scale); each node keeps "
+            "its own VRAM and meters its own joules — memory is never pooled across nodes. "
+            "sovereign reflects owned metal, passed through from the probe, never inferred."
+        ),
+        "cached_at": pool.get("cached_at") if isinstance(pool, dict) else None,
+        "doctrine": dict(DOCTRINE),
+    }
+
+
+# ===========================================================================
 # 5. cached_aggregate — drop-in TTL wrapper engine/status (and similar fan-outs) use.
 #    engine_status already fans out concurrently with a per-probe timeout; it just
 #    re-probes every request. This gives it (and any aggregator) a brief cache.
@@ -545,6 +715,19 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
         _stderr(f"[a11oy:hardening] compute-pool hardened prober registered: {route}")
     else:
         _stderr(f"[a11oy:hardening] compute-pool hardened route present/again skipped: {route}")
+
+    # ADDITIVE: OMEN-anchor selection over the SAME live pool. Routing hint only —
+    # it reports which reachable GPU should anchor szl-fast/embeddings (always-on home
+    # node preferred), never serves and never fabricates a node up.
+    anchor_route = f"/api/{ns}/v1/compute-anchor"
+    if anchor_route not in existing and JSONResponse is not None:
+        @app.get(anchor_route)
+        async def _compute_anchor():  # noqa: ANN202
+            return JSONResponse(select_anchor_worker())
+        paths.append(anchor_route)
+        _stderr(f"[a11oy:hardening] OMEN-anchor selector registered: {anchor_route}")
+    else:
+        _stderr(f"[a11oy:hardening] compute-anchor route present/again skipped: {anchor_route}")
     return paths
 
 
@@ -637,7 +820,7 @@ def _selftest() -> Dict[str, Any]:
         _ip, _src = _resolve_node_ip("rtx-betterwithage", "0.0.0.0")
         chk("resolve_rtx_suffix_to_laptop", _ip == "100.125.77.31")
 
-        # suffixed names (betterwithage / betterwithage-1) with leading token in peer
+        # suffixed names (betterwithage / betterwithage-1) with prefix token in peer
         globals()["_tailscale_peers"] = lambda: {
             "omen-betterwithage-1": "100.70.130.45",
             "betterwithage": "100.125.77.31",
@@ -645,7 +828,7 @@ def _selftest() -> Dict[str, Any]:
         _ip, _src = _resolve_node_ip("omen-betterwithage", "0.0.0.0")
         chk("resolve_omen_lead_token", _ip == "100.70.130.45" and _src == "tailscale-lead")
 
-        # AMBIGUOUS bare suffix (two peers carry 'betterwithage', no leading token to
+        # AMBIGUOUS bare suffix (two peers carry 'betterwithage', no prefix token to
         # disambiguate) MUST decline to static fallback rather than guess.
         globals()["_tailscale_peers"] = lambda: {
             "betterwithage": "100.125.77.31",

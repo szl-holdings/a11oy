@@ -267,6 +267,84 @@ def test_standby_node_reachable_still_computes(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# (5c) OMEN eligible energy lung — the always-on home anchor. Mirrors chaski:
+#      env-gated (default standby), distinct exporter label so its joules are
+#      metered SEPARATELY (never merged), joins ONLY by a real probe.
+# ---------------------------------------------------------------------------
+def _clear_omen_env():
+    for k in list(os.environ):
+        if k.startswith("A11OY_OMEN") or k == "A11OY_ENERGY_OMEN_ENABLED":
+            os.environ.pop(k, None)
+
+
+def test_omen_is_third_default_node_standby_by_default():
+    _clear_omen_env()
+    try:
+        names = [n.name for n in OP._default_nodes()]
+        assert "omen-betterwithage" in names, names
+        omen = [n for n in OP._default_nodes() if n.name == "omen-betterwithage"][0]
+        assert omen.standby is True, "OMEN defaults to standby until env-enabled"
+        # DISTINCT exporter label keeps OMEN joules separate from the laptop's.
+        assert omen.exporter_node == "omen", omen.exporter_node
+    finally:
+        _clear_omen_env()
+
+
+def test_omen_energy_enabled_flips_live_via_runbook_alias():
+    _clear_omen_env()
+    try:
+        os.environ["A11OY_ENERGY_OMEN_ENABLED"] = "1"
+        os.environ["A11OY_OMEN_BASE_URL"] = "http://100.70.130.45:11434"
+        omen = [n for n in OP._default_nodes() if n.name == "omen-betterwithage"][0]
+        assert omen.standby is False, "A11OY_ENERGY_OMEN_ENABLED=1 must un-standby OMEN"
+        # bare host:port normalized to an OpenAI-compatible /v1 base, never doubled.
+        assert omen.base_url == "http://100.70.130.45:11434/v1", omen.base_url
+    finally:
+        _clear_omen_env()
+
+
+def test_omen_standby_unreachable_reads_standby_not_degraded():
+    _clear_omen_env()
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            # 192.0.2.2 is TEST-NET-1 (RFC 5737) — guaranteed unreachable.
+            op = OP.OperatorDaemon(
+                nodes=[OP.NodeCfg("omen-betterwithage", "http://192.0.2.2:11434/v1",
+                                  "llama3.1:8b", "bge-large", "omen", standby=True)],
+                state_path=os.path.join(d, "ledger.json"), allow_stub=False)
+            produced = op.run_once()
+            assert produced == [], "standby+unreachable OMEN must produce NO job records"
+            st = op.status()
+            assert "omen-betterwithage" in st["nodes_standby"], st
+            assert "omen-betterwithage" not in st["nodes_degraded"], st
+            assert st["joules_measured_total"] == 0.0, st   # never a fabricated joule
+    finally:
+        _clear_omen_env()
+
+
+def test_omen_reachable_joins_computing_with_real_joules(monkeypatch):
+    _clear_omen_env()
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        with tempfile.TemporaryDirectory() as d:
+            # _FakeNode's meter reports an "omen" engine so the exporter sample matches.
+            op = OP.OperatorDaemon(
+                nodes=[OP.NodeCfg("omen-betterwithage", base, "llama3.1:8b", "bge-large",
+                                  "omen", standby=True)],
+                state_path=os.path.join(d, "ledger.json"), allow_stub=False)
+            op.run_once()
+            st = op.status()
+            assert "omen-betterwithage" in st["nodes_computing"], st  # joined by REAL probe
+            assert "omen-betterwithage" not in st["nodes_standby"], st
+            assert st["jobs_done"] >= 2, st
+    finally:
+        node.stop()
+        _clear_omen_env()
+
+
+# ---------------------------------------------------------------------------
 # (6) no reachable node => STUB fallback; real work, energy SAMPLE, NOT billable.
 # ---------------------------------------------------------------------------
 def test_stub_mode_real_work_no_billable_joules():
