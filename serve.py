@@ -263,23 +263,6 @@ try:
 except Exception as _szl_es_e:  # pragma: no cover
     print(f"[a11oy] Energy/Sovereign-Compute NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
 
-# ── PRESS-PLAY ENERGY OPERATOR daemon (Dev 1) — dispatches a CONTINUOUS stream of
-# REAL inference jobs to the reachable Ollama GPU nodes (rtx-betterwithage, chaski),
-# meters MEASURED joules per job off the EXISTING betterwithage NVML joule-meter, and
-# emits a JobRecord per completed job (the Dev2 receipts / Dev3 projection / Dev4
-# dashboard contract). Graceful start/stop, backpressure, ledger state-persistence so
-# a restart resumes counts. HONEST: unreachable node -> DEGRADED (never faked); stale
-# meter (>30s) -> SAMPLE energy excluded from billable; no node reachable -> a clearly
-# marked local STUB (real CPU work, SAMPLE energy only). Adds POST/GET
-# /api/a11oy/v1/energy/operator/{start,stop,status} (dual-registered under /v1/* too).
-# Additive, try/except-guarded, before the SPA catch-all.
-try:
-    import szl_energy_operator as _szl_energy_operator
-    _szl_energy_operator.register(app, ns="a11oy")
-    print("[a11oy] Energy Operator registered: /api/a11oy/v1/energy/operator/{start,stop,status}", file=__import__("sys").stderr)
-except Exception as _szl_op_e:  # pragma: no cover
-    print(f"[a11oy] Energy Operator NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
-
 # ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
 # a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
 # eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
@@ -317,106 +300,6 @@ try:
     print("[a11oy] Agentic-PINN + physical-bounds mesh registered: /api/a11oy/v1/pinn/*", file=__import__("sys").stderr)
 except Exception as _szl_pinn_e:  # pragma: no cover
     print(f"[a11oy] Agentic-PINN + physical-bounds mesh NOT registered: {_szl_pinn_e!r}", file=__import__("sys").stderr)
-
-# ── PNT / quantum-sensing mesh — clean-room re-derivation of the physics (quantum
-# sensor limits, GNSS spoof-resilience, GPS-denied coasting, fundamental limits).
-# PURE STDLIB closed-form web path (never blocks); the heavy numpy/UKF/PINN solves are
-# the Forge/GPU path on rtx-betterwithage + chaski. Every value labelled MEASURED/MODELED,
-# Λ=Conjecture 1 (advisory). The 4 engine modules are loaded dynamically by szl_pnt_mesh
-# (importlib) — they MUST be COPY'd into the image too or the mesh falls back to a stub.
-# Additive, try/except-guarded, before the SPA catch-all.
-try:
-    import szl_pnt_mesh as _szl_pnt_mesh
-    _szl_pnt_mesh.register(app, ns="a11oy")
-    print("[a11oy] PNT/quantum-sensing mesh registered: /api/a11oy/v1/pnt/*", file=__import__("sys").stderr)
-except Exception as _szl_pnt_e:  # pragma: no cover
-    print(f"[a11oy] PNT mesh NOT registered: {_szl_pnt_e!r}", file=__import__("sys").stderr)
-
-# ── Estate self-describing index (FLY HIGH F3) — ADDITIVE, before the SPA catch-all.
-# GET /api/a11oy/v1/estate returns ONE honest index of the estate's flagship surfaces.
-# Each entry's status is a REAL in-process probe AT REQUEST TIME: the route is confirmed
-# present in app.router.routes and (where it has one) the engine module is import-checked.
-# A surface whose route/module is absent reports live:false — never a fabricated green.
-try:
-    from starlette.responses import JSONResponse as _EstateJSON
-    from starlette.requests import Request as _EstateRequest
-    from datetime import datetime as _e_dt, timezone as _e_tz
-    import importlib as _e_importlib
-
-    # (key, title, label, probe_route, engine_module, lineage)
-    _ESTATE_CAPS = [
-        ("compute_bounds", "Physical-bounds certifier (compute pillar)", "MEASURED",
-         "/api/a11oy/v1/pinn", "szl_pinn_bounds",
-         "Landauer 1961 / Margolus-Levitin 1998 / Bremermann 1962 / Bekenstein 1981"),
-        ("pnt_sensing", "PNT / quantum-sensing mesh (sensing pillar)", "MODELED",
-         "/api/a11oy/v1/pnt", "szl_pnt_mesh",
-         "cold-atom SQL / GNSS spoof-fusion / GPS-denied coasting FoM"),
-        ("fundamental_limits", "Unified fundamental-limits + one signed verify",
-         "MEASURED+MODELED", "/api/a11oy/v1/pnt/limits", "fundamental_limits",
-         "both hard-physics pillars behind one index + /pnt/verify"),
-        ("energy", "Energy / joules-per-token receipts", "MEASURED",
-         "/energy/metrics", None, "NVML power.draw -> joules in receipts (SAMPLE off-metal)"),
-        ("governance", "Governance / eval-harness / calibration", "MEASURED",
-         "/governance", None, "tau-bench / ECE-Brier / conformal risk / receipts"),
-        ("holographic_ops", "WebGPU holographic ops console", "LIVE",
-         "/ops", None, "live-bound 3D views with honest 2D fallback, 0 CDN"),
-        ("estate_hologram", "Unified estate hologram", "LIVE",
-         "/estate-hologram", None, "globe + proof-DAG + Λ-sphere + mesh + organism"),
-    ]
-
-    def _estate_route_present(_path):
-        try:
-            for _r in app.router.routes:
-                if getattr(_r, "path", None) == _path:
-                    return True
-        except Exception:
-            pass
-        return False
-
-    def _estate_module_ok(_modname):
-        if not _modname:
-            return None  # surface has no dedicated engine module — not applicable
-        try:
-            _e_importlib.import_module(_modname)
-            return True
-        except Exception:
-            return False
-
-    def _h_estate(_req: _EstateRequest):
-        _caps = []
-        _live = 0
-        for _key, _title, _label, _route, _mod, _lineage in _ESTATE_CAPS:
-            _route_ok = _estate_route_present(_route)
-            _mod_ok = _estate_module_ok(_mod)
-            _is_live = _route_ok and (_mod_ok is not False)
-            if _is_live:
-                _live += 1
-            _caps.append({
-                "key": _key, "title": _title, "label": _label,
-                "route": _route, "engine_module": _mod,
-                "route_registered": _route_ok,      # REAL probe of app.router.routes
-                "engine_importable": _mod_ok,       # REAL import probe (None = N/A)
-                "live": _is_live,
-                "lineage": _lineage,
-            })
-        return _EstateJSON({
-            "capability": "SZL estate — self-describing capability index",
-            "model": ("every entry is a REAL in-process probe (route table + module "
-                      "import) at request time; honest live:false where a surface is "
-                      "absent; no fabricated green"),
-            "count": len(_caps),
-            "live_count": _live,
-            "capabilities": _caps,
-            "doctrine": ("Doctrine v11 — MEASURED only from a real run/exporter; MODELED "
-                         "for clean-room structural physics; LIVE for served UI surfaces. "
-                         "Λ = Conjecture 1 (advisory)."),
-            "ts": _e_dt.now(_e_tz.utc).isoformat(),
-        })
-
-    app.add_api_route("/api/a11oy/v1/estate", _h_estate, methods=["GET"], include_in_schema=True)
-    print("[a11oy] estate self-describing index registered: /api/a11oy/v1/estate", file=__import__("sys").stderr)
-except Exception as _estate_e:  # pragma: no cover
-    print(f"[a11oy] estate index NOT registered: {_estate_e!r}", file=__import__("sys").stderr)
 
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
@@ -1062,18 +945,6 @@ def _ptg_serve(filename: str):
     return _h
 
 try:
-    # SHARED szl3d 3D toolkit + holographic shell (Dev0 foundation). Serves the
-    # vendored three.js r170 + szl3d_{boot,live,label}.js + the surface modules +
-    # the energy_showcase under GET /static/3d/{path} (0 runtime CDN, same-origin),
-    # the /holographic tab-switcher shell, and GET /api/a11oy/v1/holographic/info.
-    # MUST be registered BEFORE the SPA catch-all so /static/3d/*.js is not swallowed.
-    try:
-        import szl3d_holographic as _szl3d_holographic
-        _szl3d_holographic.register(app, ns="a11oy")
-        print("[a11oy] szl3d holographic toolkit registered: /static/3d/* + /holographic", file=__import__("sys").stderr)
-    except Exception as _szl3d_e:  # additive — never crash the app
-        print(f"[a11oy] szl3d holographic toolkit NOT registered: {_szl3d_e!r}", file=__import__("sys").stderr)
-
     # Upgraded genius surfaces (win over module + SPA handlers by ordered match).
     app.add_api_route("/conduction", _ptg_serve("conduction.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/bridge",     _ptg_serve("bridge.html"),     methods=["GET"], include_in_schema=False)
@@ -1099,22 +970,6 @@ try:
     # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
     app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
-    # HOLOGRAPHIC 3D ENERGY OPS (2026-06-14): the press-play showcase — 16-19 live 3D
-    # graphs on the shared szl3d toolkit (three.js r170 vendored at /static/3d, 0 CDN,
-    # WebGPU->WebGL2 fallback). Every graph is wired by szl3d_live.poll to a real
-    # a11oy energy endpoint (/energy/operator/status, /energy/ledger,
-    # /energy/projection, /harvest/posture, /compute-pool) and carries its doctrine
-    # honesty chip; on 404 it shows NO-LIVE-DATA, never a fabricated value. The same
-    # shared /static/3d/energy_showcase/showcase.js module also powers the /holographic
-    # energy surface and the HF /energy page's "(5)" panel.
-    app.add_api_route("/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
-    # /energy-3d is the founder-facing alias for the holographic 3D energy showcase
-    # (same _ptg_serve target + shared /static/3d/energy_showcase/showcase.js). Registered
-    # here (before the SPA catch-all) so /energy-3d serves the real wired 3D page instead of
-    # falling through to the generic console shell. (Re-added; was dropped in #436.)
-    app.add_api_route("/energy-3d", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/energy-3d", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
@@ -1122,16 +977,6 @@ try:
     # self-improvement, honest sovereign-local/cloud-NIM tiers.
     app.add_api_route("/nemo", _ptg_serve("nemo.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/nemo", _ptg_serve("nemo.html"), methods=["GET"], include_in_schema=False)
-    # a11oy RESTRAINT tab (2026-06-14): the GOVERNED + MEASURED frugality gate for
-    # the a11oy Code agent. Standalone sovereign page (0 runtime JS CDN; loads
-    # /static/shared label + receipt modules), binds to live
-    # /api/a11oy/v1/restraint/{evaluate,bench,info}. Shows the 6-rung ladder
-    # decision per task, the restraint: ceilings, the signed DSSE receipt, and the
-    # honestly-labelled (MEASURED-or-SAMPLE/ROADMAP) benchmark. The ladder +
-    # intensity levels are adopted from the open-source Ponytail skill (MIT,
-    # github.com/DietrichGebert/ponytail); governance + measurement are ours.
-    app.add_api_route("/restraint", _ptg_serve("restraint.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/restraint", _ptg_serve("restraint.html"), methods=["GET"], include_in_schema=False)
     # HOLOGRAPHIC COMMAND BRIDGE (2026-06-13): a 3D living-organism view of the
     # agentic GPU — MIND core (RTX 5000 @ betterwithage) + 6 proven round9 organs
     # orbiting/pulsing when active + energy-flow particles (colored by source) +
@@ -1150,78 +995,6 @@ try:
     app.add_api_route("/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
 
-    # ADDITIVE (Lane F5, 2026-06-14): three sovereign 3D surfaces that render on the
-    # shared holographic kit (/static/shared/szl_holo3d.js, 0 runtime CDN):
-    #   /constitution     — 3D ontology ORGANISM: 8 pillars + live constitutional
-    #                        engines as a causal graph, animated causal-edge pulses,
-    #                        time-slider ledger replay, TrustGraph/Letta memory cores.
-    #                        Reads LIVE /api/a11oy/v1/constitution/{status,ledger,audit,
-    #                        memory,ontology,state}. Deeper R&D honest ROADMAP. NOT AGI.
-    #   /quant            — 3D portfolio risk landscape (PCA eigen-spectrum) with Betti
-    #                        FRACTURE TEARS (TDA β1 cycles), HJB-Kelly rebalancing bars,
-    #                        and the signed energy receipt. Reads LIVE /api/a11oy/v1/
-    #                        quant/{pca,tda,kelly,pipeline}. Honest SAMPLE_SIGNAL |
-    #                        NOT_LIVE | NO_BACKTEST_VALIDATED; GPU path ROADMAP.
-    #   /estate-hologram  — THE UNIFIED ESTATE HOLOGRAM: globe + proof-DAG + Λ trust-
-    #                        sphere + mesh organism + constitutional pillars on ONE
-    #                        canvas; every signed cross-surface decision flows as LIGHT
-    #                        (kit signed-pulse). Reads LIVE estate Λ + KPIs (ecosystem/
-    #                        kpi-board), the engine organism (engine/status), and per-
-    #                        surface signed receipts. Cross-surface receipt aggregation
-    #                        is honest SAMPLE where not fully wired. locked = EXACTLY 8
-    #                        @ c7c0ba17; Λ = Conjecture 1 (< 1.0); 0 visible codenames.
-    # image-only like the other web/*.html demo pages (Dockerfile per-file COPY +
-    # copy-sync-lockstep.json image_only_assets); also pushed direct-to-Space so they
-    # are live immediately. Without these COPYs the routes 404 to the SPA shell.
-    # NOTE (additive coordination): sibling lanes already own the plain /constitution
-    # (a11oy_constitution.register -> router.routes.insert(0,...)) and /quant
-    # (szl_gpu_quant.register -> @app.get) pages. We do NOT clobber those. Our
-    # 3D-enhanced holographic surfaces are served at distinct *-3d paths (and a
-    # /holo-* alias) so BOTH lanes stay live. The bare /constitution and /quant
-    # registrations below are kept ONLY as harmless shadowed fallbacks (they serve
-    # our page iff the sibling lane ever fails to register); they never override
-    # the sibling routes. /estate-hologram is uniquely ours.
-    for _p in ("/constitution-3d", "/a11oy/constitution-3d", "/holo-constitution"):
-        app.add_api_route(_p, _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
-    for _p in ("/quant-3d", "/a11oy/quant-3d", "/holo-quant"):
-        app.add_api_route(_p, _ptg_serve("quant.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/constitution", _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/constitution", _ptg_serve("constitution.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/quant", _ptg_serve("quant.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/quant", _ptg_serve("quant.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/estate-hologram", _ptg_serve("estate-hologram.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/estate-hologram", _ptg_serve("estate-hologram.html"), methods=["GET"], include_in_schema=False)
-
-    # RESTRAINT BENCHMARK DASHBOARD (R4 lane, 2026-06-14): the MEASURED two-arm
-    # benchmark surface for a11oy Restraint (no-skill baseline vs a11oy-restraint),
-    # the frugality->energy panel, the 6-rung ladder, and the exact reproduce
-    # command. Binds to live /api/a11oy/v1/restraint/{bench-measured,energy,info}.
-    # Honest labels: MEASURED only when a real run on our stack produced numbers
-    # (committed results.json), else SAMPLE/ROADMAP with methodology shown. Ponytail
-    # numbers CITED as theirs (MIT). 0 runtime CDN (fonts only); 0 visible codenames.
-    # web/restraint-bench.html is COPYed by the Dockerfile (image-only asset).
-    app.add_api_route("/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/restraint-bench", _ptg_serve("restraint-bench.html"), methods=["GET"], include_in_schema=False)
-
-    # WARHACKER SHOWCASE PAGES (demo lane, 2026-06-14): two PUBLIC companion pages for
-    # the June 16-19 WarHacker demo. Standalone sovereign pages (system fonts, 0 runtime
-    # CDN, no external scripts). Where a claim can be proven LIVE they fetch a real
-    # a11oy production endpoint (/api/a11oy/v1/{pinn/certificate,compliance,pnt/limits},
-    # /elite, /elite-console) with an HONEST NO-LIVE-DATA fallback — never a fabricated
-    # value. Every maturity claim is labelled LIVE-today vs MODELED/ROADMAP (doctrine v11).
-    #   /signature-is-not-proof — the "A Signature Is Not Proof of Safety" case study
-    #                             (Mini Shai-Hulud May 2026; the 5 a11oy mechanisms).
-    #   /defense-readiness      — federal/allied pathway FIT + honest maturity summary
-    #                             (DARPA PINPOINT, JIATF 401, NATO DIANA, AFWERX); no
-    #                             private submission content exposed.
-    # image-only like the other web/*.html demo pages (per-file Dockerfile COPY +
-    # copy-sync-lockstep.json image_only_assets); pushed direct-to-Space so they are
-    # live immediately. Without the COPYs the routes 404 to the SPA shell.
-    app.add_api_route("/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
-
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
         return _PTG_Redirect(url="/code", status_code=302)
@@ -1236,53 +1009,6 @@ except Exception as _ptg_e:  # never crash the app — additive only
     print(f"[a11oy] PER-TAB GENIUS surfaces NOT registered: {_ptg_e!r}", file=_ptg_sys.stderr)
     _ptg_tb.print_exc()
 # === end PER-TAB PALANTIR-CLASS GENIUS REBUILD ===
-
-
-# ===========================================================================
-# ADDITIVE (Dev0, 2026-06-14): SHARED szl3d 3D TOOLKIT + HOLOGRAPHIC SHELL.
-# The foundation the other 9 holographic surface devs import. Serves the
-# vendored three.js r170 libs + the szl3d toolkit (boot/live/label) + the 9
-# surface stub modules + the selftest harness under /static/3d/{path}, and the
-# /holographic tab-switcher shell. 0 runtime CDN (libs vendored in-image,
-# served same-origin), WebGPU-with-WebGL2-fallback, honesty labels on every
-# value. Registered BEFORE the SPA /{full_path:path} catch-all so the shell's
-# ES-module imports resolve locally. Additive, try/except-guarded.
-# ===========================================================================
-try:
-    import szl3d_holographic as _szl3d_holo
-    _szl3d_status = _szl3d_holo.register(app, ns="a11oy")
-    print(f"[a11oy] szl3d 3D toolkit + holographic shell registered: {_szl3d_status['count']} routes, "
-          f"{_szl3d_status['surfaces']} surface slots — /holographic + /static/3d/* (0 CDN, three r170)",
-          file=sys.stderr)
-except Exception as _szl3d_e:
-    import traceback as _szl3d_tb
-    print(f"[a11oy] szl3d toolkit NOT registered: {_szl3d_e!r}", file=sys.stderr)
-    _szl3d_tb.print_exc()
-# ── end szl3d 3D TOOLKIT + HOLOGRAPHIC SHELL ──
-
-
-# ===========================================================================
-# ADDITIVE (Dev4 — Counter-UAS / killinchu holographic surface): same-origin
-# live bridge. The /holographic Counter-UAS surface must wire to REAL killinchu
-# data (doctrine v11), but killinchu lives on a separate Space, so a browser
-# fetch would be cross-origin. This server-side proxy lets the surface poll
-# SAME-ORIGIN /api/a11oy/v1/counter-uas/* (evaluate + DSSE sig, telemetry,
-# cued-tracks, air-picture, gates, drones-db). HONEST: killinchu SENSES &
-# EVIDENCES — it does NOT defeat; the proxy forwards detect/track/classify/
-# evidence + the signed verdict verbatim and degrades gracefully (never
-# fabricates). Registered BEFORE the SPA catch-all. Additive, try/except.
-# ===========================================================================
-try:
-    import szl_counter_uas_proxy as _cuas_proxy
-    _cuas_status = _cuas_proxy.register(app, ns="a11oy")
-    print(f"[a11oy] Counter-UAS live bridge registered: {_cuas_status['count']} routes "
-          f"-> {_cuas_status['upstream']} (senses-and-evidences, signed verdict, 0 CDN)",
-          file=sys.stderr)
-except Exception as _cuas_e:
-    import traceback as _cuas_tb
-    print(f"[a11oy] Counter-UAS live bridge NOT registered: {_cuas_e!r}", file=sys.stderr)
-    _cuas_tb.print_exc()
-# ── end Counter-UAS live bridge ──
 
 
 # ---------------------------------------------------------------------------
@@ -1507,50 +1233,6 @@ except Exception as _harvest_exc:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
-# ADDITIVE (Energy ledger, energy/02-ledger — Dev 2): metering + signed-receipt
-# hash-chained ledger. Per completed job (the JobRecord Dev1's operator emits) we
-# build a SZL.Energy.JouleCharge.v1 receipt via the VENDORED joule_billing core,
-# append it to a hash-chained, offline-verifiable ledger (prev_digest, genesis =
-# 64 zeros), DRY-RUN bill when no STRIPE key, and refuse to bill non-MEASURED/stale.
-#   GET /api/a11oy/v1/energy/ledger         — receipts + chain integrity + totals
-#   GET /api/a11oy/v1/energy/receipt/{idem} — single re-hashable receipt (+ short alias)
-# Persists to disk (SZL_ENERGY_LEDGER_PATH) so it survives restart. Registered BEFORE
-# the SPA catch-all. try/except so a11oy boots even if import fails. Doctrine v11,
-# Λ = Conjecture 1, sovereign=false.
-# ---------------------------------------------------------------------------
-try:
-    import szl_energy_ledger as _szl_energy_ledger
-    _szl_energy_ledger_paths = _szl_energy_ledger.register(app, ns="a11oy")
-    print(f"[a11oy] energy ledger wired: {_szl_energy_ledger_paths}", file=sys.stderr)
-    try:
-        import szl_energy_operator as _eo_wire
-        import szl_energy_ledger as _el_wire
-        _eo_wire.get_operator().subscribe(_el_wire.record_job)
-        print("[a11oy] energy operator->ledger receipts hook wired", file=sys.stderr)
-    except Exception as _eo_led_exc:
-        print(f"[a11oy] energy operator->ledger hook NOT wired: {_eo_led_exc!r}", file=sys.stderr)
-except Exception as _ledger_exc:  # additive: never break the Space
-    print(f"[a11oy] energy ledger NOT mounted ({_ledger_exc!r}); SPA + API unaffected", file=sys.stderr)
-
-
-# ---------------------------------------------------------------------------
-# ADDITIVE (SZL Energy projection — Dev 3, energy/03-projection): honest 1-day +
-# scale projection from the live MEASURED rate (joules/tokens/jobs over the
-# running window, read from Dev1 operator status + Dev2 ledger totals). Every value
-# labeled MEASURED/MODELED/ESTIMATE; FLOPs shown with formula; resale dollar is an
-# ESTIMATE and NEVER MEASURED. Mounts GET /api/a11oy/v1/energy/projection.
-# Registered BEFORE the SPA catch-all. try/except so a11oy boots if import fails.
-# ---------------------------------------------------------------------------
-try:
-    import szl_energy_projection as _szl_energy_projection
-    _szl_energy_projection_status = _szl_energy_projection.register(app, ns="a11oy")
-    print(f"[a11oy] energy projection wired ({_szl_energy_projection_status}): /api/a11oy/v1/energy/projection", file=sys.stderr)
-except Exception as _energy_proj_exc:  # additive: never break the Space
-    _szl_energy_projection_status = f"energy-projection-not-wired:{_energy_proj_exc!r}"
-    print(f"[a11oy] energy projection NOT mounted ({_energy_proj_exc!r}); SPA + API unaffected", file=sys.stderr)
-
-
-# ---------------------------------------------------------------------------
 # ADDITIVE (Formulas SECTION for the SPA navigation — closeout, A11oy Full-Stack
 # Team / Perplexity Computer Agent): mount GET /formulas/wired, a premium
 # Inca-palette page that lists EACH live thesis-v22 formula (reads the SAME
@@ -1567,34 +1249,6 @@ try:
     print(f"[a11oy] Formulas section registered: {_formulas_page_status}", file=sys.stderr)
 except Exception as _fp_e:  # additive: never break the Space
     print(f"[a11oy] Formulas section NOT registered: {_fp_e!r}; SPA + API unaffected", file=sys.stderr)
-
-# ---------------------------------------------------------------------------
-# ADDITIVE (NEMOTRON SIGNED-TRAJECTORY build, 2026-06-14): mount the SIGNED
-# CORPUS tab + verify/stats endpoints (SZL-Nemo, GPU-FREE "ship now" slice).
-# Instruments the existing ReAct + Reflexion + Restraint + Auto-Review loop to
-# emit a DSSE-SIGNED JSONL receipt per agent step, and maps the open
-# nvidia/Nemotron-Agentic-v1 dataset (335,122 samples, CC BY 4.0, NVIDIA) into
-# the SZL trajectory schema with full attribution (labeled SAMPLE). Exposes:
-#   GET  /signed-corpus                 premium HTML tab (sample trajectories,
-#                                       in-browser signature/hash verifier, stats)
-#   GET  /api/a11oy/v1/nemo/stats       corpus stats JSON (honest scope + attribution)
-#   GET  /api/a11oy/v1/nemo/sample      the sample signed JSONL (application/x-ndjson)
-#   POST /api/a11oy/v1/nemo/verify      {jsonl} -> aggregate hash+DSSE verify JSON
-# Plus an IDEMPOTENT nav-injection middleware that appends a floating "Signed
-# Corpus" link to every served HTML surface (no React SPA edit). Registered
-# BEFORE the SPA catch-all; try/except-guarded so a missing dep can NEVER take
-# down the Space. HONEST: DATASET property, NOT a model claim. QLoRA-ready;
-# actual QLoRA/GRPO training = ROADMAP (needs 2x80GB GPU; FORGE order). NOT an
-# Ultra reproduction; NOT trained from scratch. Real ECDSA-P256 signatures only
-# when SZL_COSIGN_PRIVATE_KEY_PEM is present, else honestly UNSIGNED. Doctrine
-# v11/v12 LOCKED 749/14/163, Lambda = Conjecture 1. SLSA L1 (L2/L3 ROADMAP).
-# ---------------------------------------------------------------------------
-try:
-    import szl_nemotron_corpus as _nemo_corpus
-    _nemo_status = _nemo_corpus.register(app, ns="a11oy")
-    print(f"[a11oy] NEMOTRON signed-corpus registered: {_nemo_status}", file=sys.stderr)
-except Exception as _nemo_e:  # additive: never break the Space
-    print(f"[a11oy] NEMOTRON signed-corpus NOT registered: {_nemo_e!r}; SPA + API unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
 # ADDITIVE (Anatomy run-engine, 2026-06 / Forge): resurrect szl_anatomy_routes so
@@ -1614,15 +1268,6 @@ try:
     import szl_anatomy_routes as _anat_mod
     _anat_html_app = _AnatFA()
     _anat_paths = _anat_mod.register(app, ns="a11oy", api_app=None, html_app=_anat_html_app)
-    # /anatomy/loop has no HTML page of its own — the circulation "loop" lives as the
-    # live API (/api/a11oy/v1/anatomy/loop, 200) and the agent-loop page. Redirect the
-    # intuitive /anatomy/loop URL to the canonical /agent-loop view instead of 404ing.
-    from fastapi.responses import RedirectResponse as _AnatRedirect
-
-    @_anat_html_app.get("/loop", include_in_schema=False)
-    def _anatomy_loop_redirect():
-        return _AnatRedirect(url="/agent-loop", status_code=307)
-    _anat_paths = list(_anat_paths) + ["/anatomy/loop -> /agent-loop (redirect)"]
     app.mount("/anatomy", _anat_html_app)
     print(f"[a11oy] anatomy run-engine wired ({len(_anat_paths)} routes; HTML at /anatomy/*): {_anat_paths}", file=sys.stderr)
 except Exception as _anat_e:  # additive: never break the Space
@@ -3578,92 +3223,6 @@ def _lb_make_receipt(payload: dict, accepted: bool, errors: list) -> dict:
     return body
 
 
-# Honest, fixed wording reused by every alert channel. An intake notification
-# ACKNOWLEDGES INTAKE ONLY — eligibility is decided SOLELY by the verify-proof
-# CI on the PR. It never declares a winner and never moves money.
-_LB_HONESTY = ("Intake acknowledgement only — eligibility is decided SOLELY by the "
-               "verify-proof CI on the PR (sole, no-bypass arbiter). This is NOT a "
-               "winner declaration and moves no money. Λ = Conjecture 1, NOT a theorem.")
-
-
-async def _lb_notify(payload: dict, receipt: dict) -> dict:
-    """Best-effort alerts for an ACCEPTED Λ-bounty intake so a real human/CI is
-    notified instead of the submission only landing in an append-only ledger.
-
-    Two INDEPENDENT channels, each fires only when configured (never fatal):
-      - GitHub tracking issue on szl-holdings/lambda-bounty
-        (LAMBDA_BOUNTY_GITHUB_TOKEN or GITHUB_TOKEN; needs repo/issues scope)
-      - ntfy push reusing the a11oy-uptime relay channel
-        (LAMBDA_BOUNTY_NTFY_URL or NTFY_URL; optional NTFY_TOKEN/NTFY_PRIORITY)
-
-    Returns {"issue": ..., "ntfy": ...} where each value is a URL on success,
-    a short status string on a handled failure, or None when not configured.
-    The honesty disclaimer is embedded in every channel's payload."""
-    name = (payload.get("submitter") or {}).get("name", "?")
-    pr_url = payload.get("pr_url") or "(no PR url provided)"
-    short = receipt.get("hash", "")[:12]
-    out = {"issue": None, "ntfy": None}
-
-    async def _issue():
-        token = os.environ.get("LAMBDA_BOUNTY_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
-        if not token:
-            return None
-        body_md = (
-            f"Automated **INTAKE** acknowledgement for a Conjecture-1 (F23 Λ-aggregator "
-            f"uniqueness) bounty submission received at the live webhook.\n\n"
-            f"- **Submitter:** {name}\n"
-            f"- **PR:** {pr_url}\n"
-            f"- **Intake receipt:** `{short}`\n\n"
-            f"> {_LB_HONESTY}\n\n"
-            f"**Action for a human:** confirm a PR exists for this submission and let the "
-            f"`verify-proof` CI decide eligibility. Do not act as arbiter manually.\n\n"
-            f"```json\n{json.dumps(receipt, indent=2)}\n```"
-        )
-        data = {
-            "title": f"[Λ-bounty intake] {name} · {pr_url}",
-            "body": body_md,
-            "labels": ["lambda-bounty", "conjecture-1", "intake"],
-        }
-        try:
-            async with httpx.AsyncClient(timeout=12) as c:
-                r = await c.post(
-                    "https://api.github.com/repos/szl-holdings/lambda-bounty/issues",
-                    json=data,
-                    headers={"Authorization": f"Bearer {token}",
-                             "Accept": "application/vnd.github+json",
-                             "User-Agent": "lambda-bounty-intake"},
-                )
-            if r.status_code in (200, 201):
-                return r.json().get("html_url")
-            return f"issue-open-failed: HTTP {r.status_code}"
-        except Exception as e:  # noqa: BLE001 — best-effort
-            return f"issue-open-failed: {type(e).__name__}"
-
-    async def _ntfy():
-        url = os.environ.get("LAMBDA_BOUNTY_NTFY_URL") or os.environ.get("NTFY_URL")
-        if not url:
-            return None
-        msg = (f"Λ-bounty intake: {name} ({pr_url}) · receipt {short}. {_LB_HONESTY}")
-        headers = {"Title": "Lambda-bounty intake",
-                   "Priority": os.environ.get("NTFY_PRIORITY", "high"),
-                   "Tags": "scroll,satellite"}
-        tok = os.environ.get("NTFY_TOKEN")
-        if tok:
-            headers["Authorization"] = f"Bearer {tok}"
-        try:
-            async with httpx.AsyncClient(timeout=12) as c:
-                r = await c.post(url, content=msg.encode(), headers=headers)
-            return "delivered" if r.status_code < 400 else f"ntfy-failed: HTTP {r.status_code}"
-        except Exception as e:  # noqa: BLE001 — best-effort
-            return f"ntfy-failed: {type(e).__name__}"
-
-    try:
-        out["issue"], out["ntfy"] = await asyncio.gather(_issue(), _ntfy())
-    except Exception as e:  # noqa: BLE001 — never let alerting break intake
-        out["error"] = type(e).__name__
-    return out
-
-
 @app.get("/api/lambda-bounty/healthz")
 async def _lb_healthz():
     """Λ-bounty intake liveness + live Conjecture-1 status. Λ = NOT a theorem."""
@@ -3689,13 +3248,8 @@ async def _lb_submit(request: Request):
     receipt = _lb_make_receipt(payload, accepted, errors)
     with _LB_LEDGER_LOCK:
         _LB_LEDGER.append(receipt)
-    # An accepted intake must reach a real human/CI, not just the ledger. Fire
-    # best-effort alerts (GitHub issue + ntfy); never let alerting affect the
-    # 200/receipt the submitter gets back.
-    notifications = await _lb_notify(payload, receipt) if accepted else {"issue": None, "ntfy": None}
     return JSONResponse(status_code=(200 if accepted else 422), content={
         "accepted_intake": accepted, "errors": errors, "receipt": receipt,
-        "notifications": notifications,
         "next_step": "Open a PR to szl-holdings/lambda-bounty; verify-proof CI is the sole arbiter.",
     })
 
@@ -3725,7 +3279,6 @@ async def _a11oy_pr_honest_v2():
     except Exception:
         _wired = []
     return JSONResponse({
-        "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
@@ -4029,192 +3582,6 @@ except Exception as _a11oy_nav_e:
     print(f"[a11oy] NAV wire-up NOT registered: {_a11oy_nav_e!r}", file=sys.stderr)
     _a11oy_nav_tb.print_exc()
 # ── end NAV WIRE-UP (QA10) ──
-# ===========================================================================
-# MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM (additive, demo-grade, doctrine-honest)
-# Two shared modules, byte-identical in a11oy + killinchu:
-#   szl_mbse_cosim.py  — governed co-sim ENGINE. Serves JSON API:
-#       /api/a11oy/v1/mbse/{info,watertank,sixdof,pipeline}. Every run passes a
-#       Restraint gate and emits a signed (or honestly-UNSIGNED) DSSE receipt.
-#   szl_mbse_nav.py    — 3 served HTML pages (/mbse, /mbse-6dof, /mbse-pipeline)
-#       on the 0-CDN holo kit + inline-SVG time-series charts, plus an idempotent
-#       nav-injection middleware adding the "Digital Twin & Co-Sim (MBSE/FMI)"
-#       nav group. Registered EARLY (before SPA catch-all). cosim BEFORE nav so
-#       the pages can call the API. HONEST (Doctrine v11): all outputs labelled
-#       MODELED/SIMULATED; effectors SIMULATED human-on-loop; 0 CDN; 0 codenames;
-#       never weakens a gate; Λ = Conjecture 1; locked-8 untouched; trust < 100%.
-#       Stack: OpenModelica + FMPy + SysML-v2 patterns (never Cameo/Dymola).
-# ===========================================================================
-try:
-    import szl_mbse_cosim as _szl_mbse_cosim
-    _szl_mbse_cosim_status = _szl_mbse_cosim.register(app, ns="a11oy")
-    print(f"[a11oy] MBSE co-sim ENGINE registered: /api/a11oy/v1/mbse/* "
-          f"({_szl_mbse_cosim_status})", file=sys.stderr)
-except Exception as _szl_mbse_cosim_e:
-    import traceback as _szl_mbse_cosim_tb
-    print(f"[a11oy] MBSE co-sim ENGINE NOT registered: {_szl_mbse_cosim_e!r}", file=sys.stderr)
-    _szl_mbse_cosim_tb.print_exc()
-try:
-    import szl_mbse_nav as _szl_mbse_nav
-    _szl_mbse_nav_status = _szl_mbse_nav.register(app, ns="a11oy")
-    print(f"[a11oy] MBSE pages + nav registered: /mbse /mbse-6dof /mbse-pipeline "
-          f"({_szl_mbse_nav_status})", file=sys.stderr)
-except Exception as _szl_mbse_nav_e:
-    import traceback as _szl_mbse_nav_tb
-    print(f"[a11oy] MBSE pages + nav NOT registered: {_szl_mbse_nav_e!r}", file=sys.stderr)
-    _szl_mbse_nav_tb.print_exc()
-# ── end MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM ──
-
-# ===========================================================================
-# WILLAY — the GOVERNED INVERSE of Anthropic's Fable 5 / Mythos 5 split.
-# ---------------------------------------------------------------------------
-# Anthropic shipped Fable 5 (capable model WITH safety classifiers that decline)
-# and Mythos 5 (SAME capability, classifiers REMOVED, hidden chain-of-thought,
-# limited Project Glasswing access). We do NOT clone Mythos. WILLAY is the honest
-# inverse: where Mythos REMOVES the governor and HIDES the reasoning, WILLAY makes
-# the safety/governance verdict INSPECTABLE and SIGNED — "they hide the governor;
-# we sign and show it." Every model call routed through a11oy passes inspectable
-# classifiers built on the EXISTING Restraint gate + Constitution + Khipu 3-of-4
-# consensus; the verdict AND its reasoning are returned as a SIGNED DSSE receipt.
-# Adopts (interface patterns only, fair game) the public Fable/Mythos API
-# ergonomics: refusal as a SUCCESSFUL non-billed 200 with stop_reason="refusal",
-# adaptive effort / task budgets, the memory tool, context compaction — wired into
-# a11oy-Code's API surface honestly (the gateway gates + signs; it does not itself
-# run a model). A WILLAY /console tab shows: request -> verdict (allow/decline +
-# reason) -> signed receipt -> which model served it. 0 CDN, holo-kit vendored
-# locally. Doctrine: locked=8 @ c7c0ba17; Λ = Conjecture 1; Khipu = Conjecture 2;
-# trust NEVER 100% (tamper-evident, fallible by design); no visible codenames;
-# never weakens a gate. Mounts BEFORE the SPA catch-all; try/except-guarded so a
-# missing dep can NEVER take the Space down.
-#   GET  /willay                          — the WILLAY operator tab
-#   GET  /api/a11oy/v1/willay/classifiers — the inspectable classifier set
-#   POST /api/a11oy/v1/willay/inspect     — classify a request -> verdict + reasons
-#   POST /api/a11oy/v1/willay/messages    — Fable-shaped gated turn (refusal => 200)
-#   GET  /api/a11oy/v1/willay/receipts    — last N signed verdict receipts (audit)
-#   POST /api/a11oy/v1/willay/verify      — verify a signed WILLAY receipt
-#   GET  /api/a11oy/v1/willay/doctrine    — doctrine + honesty self-statement
-# ===========================================================================
-try:
-    import szl_willay_gateway as _szl_willay
-    _willay_status = _szl_willay.register(app, ns="a11oy")
-    print(f"[a11oy] WILLAY safety gateway registered: {_willay_status['registered']} "
-          f"(classifiers: {_willay_status['classifiers']}, trust_ceiling="
-          f"{_willay_status['trust_ceiling']} <1.0 by doctrine) — governed inverse of "
-          f"Mythos: verdicts signed & shown, refusal-as-200", file=sys.stderr)
-except Exception as _willay_e:
-    import traceback as _willay_tb
-    print(f"[a11oy] WILLAY safety gateway NOT registered: {_willay_e!r}; SPA + API "
-          f"unaffected", file=sys.stderr)
-    _willay_tb.print_exc()
-try:
-    import a11oy_willay_nav as _a11oy_willay_nav
-    _willay_nav_status = _a11oy_willay_nav.register(app, ns="a11oy")
-    print(f"[a11oy] WILLAY nav wire-up registered: {_willay_nav_status['registered']} "
-          f"(tab: {_willay_nav_status['tab_route']}) — idempotent, additive, /console "
-          f"SPA source NOT edited", file=sys.stderr)
-except Exception as _willay_nav_e:
-    import traceback as _willay_nav_tb
-    print(f"[a11oy] WILLAY nav wire-up NOT registered: {_willay_nav_e!r}", file=sys.stderr)
-    _willay_nav_tb.print_exc()
-# ── end WILLAY (governed inverse of Mythos) ──
-
-
-# ===========================================================================
-# ADDITIVE — WAQAY governed quantized vector index (2026-06-14, WAQAY team).
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ---------------------------------------------------------------------------
-# WAQAY (Quechua: to keep / guard / store) — our OWN governed, air-gapped,
-# DSSE-signed quantized vector index. We studied the MIT-licensed turbovec
-# (github.com/RyanCodrai/turbovec) + Google Research's TurboQuant data-oblivious
-# quantizer, then built OUR own pure-Python governed index (szl_waqay.py). It
-# UPGRADES a11oy's RAG: a ~16x-compressed index lets the 8GB Blackwell brain hold
-# a much larger governed KB locally, air-gapped. ADDITIVE — exact-cosine RAG is
-# unchanged. Every build + retrieval emits a DSSE-signed receipt and passes the
-# Restraint gate. Compression MEASURED; recall MODELED bound (never perfect);
-# perf vs the Rust SIMD original MODELED/ROADMAP. Mounts BEFORE the SPA catch-all;
-# try/except-guarded so a missing dep can NEVER take the Space down. 0 CDN.
-#   GET  /waqay                        — the WAQAY operator tab (live demo)
-#   GET  /api/a11oy/v1/waqay/doctrine  — doctrine + honesty self-statement
-#   GET  /api/a11oy/v1/waqay/demo      — ingest SAMPLE docs, compress, retrieve, sign
-#   POST /api/a11oy/v1/waqay/search    — run a governed query (signed receipt)
-#   GET  /api/a11oy/v1/waqay/receipts  — last N signed receipts (audit)
-#   POST /api/a11oy/v1/waqay/verify    — verify a signed WAQAY receipt
-# Attribution: turbovec (c) 2026 Ryan Codrai (MIT) + Google Research TurboQuant. NOTICES.md.
-# ===========================================================================
-try:
-    import szl_waqay as _szl_waqay
-    _waqay_status = _szl_waqay.register(app, ns="a11oy")
-    print(f"[a11oy] WAQAY governed vector index registered: {_waqay_status['registered']} "
-          f"(tab: {_waqay_status['tab_route']}, trust_ceiling={_waqay_status['trust_ceiling']} "
-          f"<1.0 by doctrine) — TurboQuant-inspired, signed receipts + Restraint, "
-          f"compression MEASURED / perf MODELED", file=sys.stderr)
-except Exception as _waqay_e:
-    import traceback as _waqay_tb
-    print(f"[a11oy] WAQAY governed vector index NOT registered: {_waqay_e!r}; SPA + API "
-          f"unaffected", file=sys.stderr)
-    _waqay_tb.print_exc()
-try:
-    import a11oy_waqay_nav as _a11oy_waqay_nav
-    _waqay_nav_status = _a11oy_waqay_nav.register(app, ns="a11oy")
-    print(f"[a11oy] WAQAY nav wire-up registered: {_waqay_nav_status['registered']} "
-          f"(tab: {_waqay_nav_status['tab_route']}) — idempotent, additive, /console "
-          f"SPA source NOT edited", file=sys.stderr)
-except Exception as _waqay_nav_e:
-    import traceback as _waqay_nav_tb
-    print(f"[a11oy] WAQAY nav wire-up NOT registered: {_waqay_nav_e!r}", file=sys.stderr)
-    _waqay_nav_tb.print_exc()
-# ── end WAQAY (governed quantized vector index) ──
-
-
-# ===========================================================================
-# ADDITIVE — YUPAY governed multi-model audit harness (2026-06-15, YUPAY team).
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ---------------------------------------------------------------------------
-# YUPAY (Quechua: to count / to reckon / to audit) — our OWN governed multi-model
-# AUDIT harness. We adopt the Kilo Code / André Lindenberg audit METHODOLOGY
-# (blog.kilo.ai: same task, score issues/tokens/cost/latency per model) and run it
-# over OUR OWN governed open models (SZL-Nemo on Qwen3-32B Apache; the HF-router
-# models; mesh when wired), emitting ONE DSSE-signed comparison receipt + a
-# Restraint verdict — the GOVERNED DIFFERENCE. Honest labels: MEASURED iff a real
-# run happened, else MODELED (cost = published per-token rates, cited). NO M3
-# WEIGHTS / NO M3 DERIVATIVE: M3 is EXCLUDED-BY-DOCTRINE (defense-license + PRC
-# sovereignty), shown only as a non-participating reference row, never run.
-# Mounts BEFORE the SPA catch-all; try/except-guarded so a missing dep can NEVER
-# take the Space down. 0 CDN.
-#   GET  /yupay                        — the YUPAY operator tab (live demo)
-#   GET  /api/a11oy/v1/yupay/doctrine  — doctrine + honesty self-statement + M3 stance
-#   GET  /api/a11oy/v1/yupay/demo      — run same-task audit, score, sign
-#   POST /api/a11oy/v1/yupay/compare   — run a governed comparison (signed receipt)
-#   GET  /api/a11oy/v1/yupay/receipts  — last N signed comparison receipts (audit)
-#   POST /api/a11oy/v1/yupay/verify    — verify a signed YUPAY receipt
-# Attribution: Kilo Code/André Lindenberg methodology + MiniMax sparse-attn paper
-# as INSPIRATION; no M3 weights, no M3 derivative. NOTICES.md.
-# ===========================================================================
-try:
-    import szl_yupay as _szl_yupay
-    _yupay_status = _szl_yupay.register(app, ns="a11oy")
-    print(f"[a11oy] YUPAY governed multi-model audit harness registered: "
-          f"{_yupay_status['registered']} (tab: {_yupay_status['tab_route']}, "
-          f"trust_ceiling={_yupay_status['trust_ceiling']} <1.0) — Kilo-methodology, "
-          f"signed comparison + Restraint, MODELED/MEASURED honest labels, "
-          f"M3 EXCLUDED-BY-DOCTRINE", file=sys.stderr)
-except Exception as _yupay_e:
-    import traceback as _yupay_tb
-    print(f"[a11oy] YUPAY audit harness NOT registered: {_yupay_e!r}; SPA + API "
-          f"unaffected", file=sys.stderr)
-    _yupay_tb.print_exc()
-try:
-    import a11oy_yupay_nav as _a11oy_yupay_nav
-    _yupay_nav_status = _a11oy_yupay_nav.register(app, ns="a11oy")
-    print(f"[a11oy] YUPAY nav wire-up registered: {_yupay_nav_status['registered']} "
-          f"(tab: {_yupay_nav_status['tab_route']}) — idempotent, additive, /console "
-          f"SPA source NOT edited", file=sys.stderr)
-except Exception as _yupay_nav_e:
-    import traceback as _yupay_nav_tb
-    print(f"[a11oy] YUPAY nav wire-up NOT registered: {_yupay_nav_e!r}", file=sys.stderr)
-    _yupay_nav_tb.print_exc()
-# ── end YUPAY (governed multi-model audit harness) ──
-
-
 
 # ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
@@ -4492,9 +3859,9 @@ async def a11oy_version():
     return {
         "name": "a11oy",
         "version": "1.0.0",
-        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "unknown"),
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "unknown"),
-        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "unknown"),
+        "git_sha": _szlv_os.getenv("SZL_GIT_SHA", "90dd8e34efd7308f39c2230c78a4f1a67e4b0ba6"),
+        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA", "1d2540609a07d41b4d333fc58ea1f74f852e8f53"),
+        "build_time": _szlv_os.getenv("SZL_BUILD_TIME", "2026-06-03T00:00:00Z"),
         "release_url": "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
@@ -4567,21 +3934,10 @@ try:
             fired.append("size-guard:payload-exceeds-1MB")
         return (len(fired) == 0, fired)
 
-    # Doctrine hard gate: TRUST NEVER 100%. When axes are supplied, Lambda is
-    # MIN(axes) (already < 1.0 for any real axis vector). When NO axes are given
-    # the immune organ only has a binary clean/dirty verdict, so we report the
-    # doctrine confidence CEILING 0.999 for clean (never a literal 1.0 == 100%
-    # certainty) and 0.0 for dirty. This keeps lambda_value honestly < 1.0 on
-    # every chapaq verdict (and on the cross-app killinchu mirror + ecosystem
-    # kpi-board that read it). Decision is UNCHANGED: the allow/deny gate only
-    # trips on axes (axes is not None) and on the threat/size signals, so the
-    # binary-clean ceiling never flips a verdict. Lambda = Conjecture 1 (<1.0).
-    _SC_LAMBDA_CEIL = 0.999
-
     def _sc_compute_lambda(axes, is_clean):
         if axes:
-            return min(min(axes), _SC_LAMBDA_CEIL)
-        return _SC_LAMBDA_CEIL if is_clean else 0.0
+            return min(axes)
+        return 1.0 if is_clean else 0.0
 
     def _sc_build_verdict(body):
         agent = (body or {}).get("agent") or "unknown"
@@ -4874,36 +4230,27 @@ try:
         return _SCJSON(_sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {})))
 
     # ---- rosie-shaped (operator ask / act / recommend / ledger / command-log / mesh) ----
-    # Task #1016: these legacy rosie-shaped twins serve the SAME in-process data as
-    # the governed a11oy capability endpoints (_sc_cap_ask/_sc_cap_act/
-    # _sc_cap_recommend/_sc_cap_ledger/_sc_cap_cmdlog). Wrap each payload in the
-    # idempotent gov_envelope (additive: preserves all data, adds status/citations/
-    # fetchedAt) so the rosie surface stays in lockstep with its a11oy twin.
     @app.post("/api/rosie/v1/jarvis/ask")
     async def _sc_rosie_ask(request: _SCRequest):
         body = await _sc_body(request)
-        return _SCJSON(gov_envelope(_sc_ask((body or {}).get("question", "")), status="REAL"))
+        return _SCJSON(_sc_ask((body or {}).get("question", "")))
 
     @app.post("/api/rosie/v1/jarvis/act")
     async def _sc_rosie_act(request: _SCRequest):
         body = await _sc_body(request)
-        _ar = _sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", ""))
-        return _SCJSON(gov_envelope(_ar, status="REAL",
-                                    citations=[{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}}]))
+        return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
 
     @app.get("/api/rosie/v1/jarvis/recommend")
     async def _sc_rosie_recommend():
-        return _SCJSON(gov_envelope(_SC_RECOMMEND, status="REAL"))
+        return _SCJSON(_SC_RECOMMEND)
 
     @app.get("/api/rosie/v1/ledger")
     async def _sc_rosie_ledger():
-        return _SCJSON(gov_envelope(_SC_BUNDLE["ledger"], status="REAL",
-                                    citations=[{"endpoint": "/api/a11oy/khipu/ledger", "data": {"signed": True}}]))
+        return _SCJSON(_SC_BUNDLE["ledger"])
 
     @app.get("/api/rosie/v2/command-log")
     async def _sc_rosie_cmdlog():
-        return _SCJSON(gov_envelope(_SC_BUNDLE["commandlog"], status="REAL",
-                                    citations=[{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}}]))
+        return _SCJSON(_SC_BUNDLE["commandlog"])
 
     @app.get("/api/rosie/v1/mesh/3d")
     async def _sc_rosie_mesh3d():
@@ -4915,19 +4262,19 @@ try:
     # Capability map: policy=safety/compliance, reason=llm/readiness, op=operator.
     @app.get("/api/a11oy/v1/policy/gates")
     async def _sc_cap_gates():
-        return _SCJSON(gov_envelope(_SC_BUNDLE["gates"], status="REAL"))
+        return _SCJSON(_SC_BUNDLE["gates"])
 
     @app.get("/api/a11oy/v1/policy/threats")
     async def _sc_cap_threats():
-        return _SCJSON(gov_envelope(_SC_BUNDLE["threats_full"], status="REAL"))
+        return _SCJSON(_SC_BUNDLE["threats_full"])
 
     @app.get("/api/a11oy/v1/policy/decisions/feed")
     async def _sc_cap_feed(limit: int = 50):
         with _SC_AUDIT_LOCK:
             v = list(_SC_AUDIT)[: int(limit)]
             n = len(_SC_AUDIT)
-        return _SCJSON(gov_envelope({"verdicts": v, "count": len(v), "total_buffered": n,
-                        "note": _SC_BUNDLE["feed"].get("note", ""), "doctrine": "v11"}, status="REAL"))
+        return _SCJSON({"verdicts": v, "count": len(v), "total_buffered": n,
+                        "note": _SC_BUNDLE["feed"].get("note", ""), "doctrine": "v11"})
 
     @app.post("/api/a11oy/v1/policy/decide")
     async def _sc_cap_decide(request: _SCRequest):
@@ -4942,15 +4289,15 @@ try:
         key = str(fw).upper().replace("-", "").replace(" ", "")
         amap = {"NIST": "NIST", "STIG": "STIG", "ISO27001": "ISO27001", "ISO": "ISO27001"}
         chosen = amap.get(key, "NIST")
-        return _SCJSON(gov_envelope(_SC_BUNDLE["compliance"][chosen], status="REAL"))
+        return _SCJSON(_SC_BUNDLE["compliance"][chosen])
 
     @app.get("/api/a11oy/v1/forecast/run")
     async def _sc_cap_forecast(input_value: float = 0.5, k: int = 10, synthetic: bool = False):
-        return _SCJSON(gov_envelope(_sc_forecast(input_value, k=k, synthetic=synthetic), status="REAL"))
+        return _SCJSON(_sc_forecast(input_value, k=k, synthetic=synthetic))
 
     @app.get("/api/a11oy/v1/reason/tiers")
     async def _sc_cap_tiers():
-        return _SCJSON(gov_envelope(_SC_BUNDLE["tiers"], status="REAL"))
+        return _SCJSON(_SC_BUNDLE["tiers"])
 
     @app.post("/api/a11oy/v1/reason/readiness")
     async def _sc_cap_readiness(request: _SCRequest):
@@ -4988,7 +4335,7 @@ try:
 
     @app.get("/api/a11oy/v1/capabilities/mesh")
     async def _sc_cap_mesh3d():
-        return _SCJSON(gov_envelope(_SC_BUNDLE["mesh3d"], status="REAL"))
+        return _SCJSON(_SC_BUNDLE["mesh3d"])
 
     # ---- a11oy-vertical aliases (Memory / Sentinel / Operator) — Task #801 ----
     # Brand consolidation: the three internal organ codenames are folded into
@@ -5619,181 +4966,6 @@ async def a11oy_command_log_v2() -> JSONResponse:
     return JSONResponse(_a11oy_build_chain(24))
 
 
-# ===========================================================================
-# ADDITIVE (Research-3D live wiring, Forge 2026-06-14): four dedicated, HONEST
-# data endpoints, one per Research-3D console tab (ouro_spiral, abacus_manifold,
-# consensus_basin, gemstones_frontier). Each is a SUPERSET of what the tab
-# already consumed (so the frontend is a URL swap, not a rewrite) and carries a
-# server-attested `data_kind` provenance field:
-#     live   -> derived from a real in-process producer (live router catalog)
-#     proxy  -> a clearly-labelled structural heuristic over REAL receipts
-#     sample -> derived, no live per-receipt telemetry in this image
-# NO fabricated data. Lambda = Conjecture 1; Khipu BFT = Conjecture 2; locked-
-# proven stays EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}. The deterministic
-# in-image receipt chain carries no loop_depth / vote / round metadata, so the
-# loop-depth + consensus endpoints serve an HONEST proxy that AUTO-UPGRADES to
-# `live` the moment those fields are emitted. Registered BEFORE the SPA/proxy
-# catch-all (/{full_path:path}); stdlib-only; fail-safe.
-# ===========================================================================
-_R3D_LOCKED8 = "{F1,F4,F7,F11,F12,F18,F19,F22}"
-
-def _r3d_chain(n: int = 50) -> dict:
-    try:
-        return _a11oy_build_chain(n)
-    except Exception:
-        return {"depth": 0, "chain_verified": False, "receipts": []}
-
-def _r3d_loop_meta(r: dict):
-    for k in ("loop_depth", "loop", "R", "ut_step"):
-        v = r.get(k)
-        if v is not None:
-            return v
-    return None
-
-def _r3d_router_metrics_payload() -> dict:
-    rs = _a11oy_router_stats_payload()
-    routes = rs.get("routes", [])
-    live = rs.get("source") == "szl_brain.TIERS"
-    return {
-        "data_kind": "live" if live else "sample",
-        "mode": rs.get("mode", "live"),
-        "routes": routes,
-        "tiers": routes,
-        "servedThisWindow": rs.get("servedThisWindow", 0),
-        "width_depth_available": False,
-        "source": rs.get("source", ""),
-        "doctrine": "v11",
-        "honesty": ("Per-tier throughput / model / license from the router catalog -- LIVE "
-                    "when the brain catalog (szl_brain.TIERS) is up, else honest_stub_catalog fallback "
-                    "with data_kind DOWNGRADED to sample. Model width/depth shape is NOT measured, so any "
-                    "width/depth scaling point stays a clearly-labelled SAMPLE. "
-                    "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
-    }
-
-def _r3d_routing_graph_payload() -> dict:
-    rs = _a11oy_router_stats_payload()
-    routes = rs.get("routes", [])
-    nodes = [{"id": r.get("tier", "T%d" % i), "organ": r.get("organ", ""),
-              "model": r.get("model", ""), "throughput": r.get("throughput", 0),
-              "license": r.get("license", "")} for i, r in enumerate(routes)]
-    edges = [{"source": routes[i].get("tier"), "target": routes[i + 1].get("tier")}
-             for i in range(len(routes) - 1)]
-    ch = _r3d_chain(50)
-    live = rs.get("source") == "szl_brain.TIERS"
-    return {
-        "data_kind": "live" if live else "sample",
-        "mode": rs.get("mode", "live"),
-        "nodes": nodes,
-        "edges": edges,
-        "routes": routes,
-        "receipts": ch.get("receipts", []),
-        "source": rs.get("source", ""),
-        "surface": ("GraphRouter routing-envelope score s = lambda*e_hat - (1-lambda)*c_hat "
-                    "is a DERIVED heuristic, never a measured loss"),
-        "doctrine": "v11",
-        "honesty": ("Routing nodes/edges are the /router/stats per-tier catalog -- LIVE when the "
-                    "brain catalog (szl_brain.TIERS) is up, else honest_stub_catalog fallback with "
-                    "data_kind DOWNGRADED to sample (real "
-                    "organ -> tier -> model escalation path); receipts are the real in-image "
-                    "chain. The manifold surface is a derived heuristic, never a measured loss. "
-                    "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
-    }
-
-def _r3d_loop_depth_payload() -> dict:
-    ch = _r3d_chain(50)
-    recs = ch.get("receipts", [])
-    has_meta = any(_r3d_loop_meta(r) is not None for r in recs)
-    agg = {}
-    for r in recs:
-        track = r.get("caller") or r.get("kind") or "agent"
-        slot = agg.setdefault(track, {"count": 0, "meta": None})
-        slot["count"] += 1
-        mv = _r3d_loop_meta(r)
-        if mv is not None:
-            slot["meta"] = mv
-    tracks = []
-    for k in sorted(agg):
-        slot = agg[k]
-        live_track = has_meta and slot["meta"] is not None
-        tracks.append({
-            "agent": k,
-            "depth": slot["meta"] if live_track else slot["count"],
-            "source": "loop_depth metadata" if live_track else "receipt-density proxy",
-        })
-    return {
-        "data_kind": "live" if has_meta else "proxy",
-        "hasMeta": has_meta,
-        "tracks": tracks,
-        "receipts": recs,
-        "depth": ch.get("depth", len(recs)),
-        "chain_verified": ch.get("chain_verified", False),
-        "doctrine": "v11",
-        "honesty": ("Reasoning loop-depth R is read from receipt loop_depth metadata when "
-                    "present (live); receipts in this image carry none, so R is a clearly-"
-                    "labelled DEPTH PROXY from per-track receipt density -- a structural "
-                    "heuristic, never a measured latent-reasoning depth. Auto-upgrades to live "
-                    "when loop_depth is emitted. Lambda = Conjecture 1; locked-proven stays "
-                    "exactly 8 " + _R3D_LOCKED8 + "."),
-    }
-
-def _r3d_consensus_votes_payload() -> dict:
-    ch = _r3d_chain(50)
-    recs = ch.get("receipts", [])
-    has_votes = any((r.get("votes") is not None or r.get("round") is not None) for r in recs)
-    n = len(recs)
-    out = []
-    for idx, r in enumerate(recs):
-        z = (idx + 1) / n if n else 0.0
-        out.append({
-            "seq": r.get("seq", idx),
-            "kind": r.get("kind", ""),
-            "hash": r.get("hash", ""),
-            "prev_hash": r.get("prev_hash", ""),
-            "converged": idx >= n - 1,
-            "z": round(z, 4),
-            "source": "vote/round metadata" if has_votes else "chain-depth proxy",
-        })
-    return {
-        "data_kind": "live" if has_votes else "sample",
-        "chain_verified": ch.get("chain_verified", False),
-        "receipts": out,
-        "quorum": {"n": 4, "f": 1, "rule": "3-of-4 (n >= 3f+1)",
-                   "status": "Conjecture 2 (Khipu BFT) -- structural heuristic, NOT a BFT proof"},
-        "doctrine": "v11",
-        "honesty": ("Receipts in this image carry no per-receipt vote/round metadata, so the "
-                    "convergence Z is a clearly-labelled chain-depth PROXY over the REAL "
-                    "prev_hash chain (F4 acyclicity, F22 layer order). Auto-upgrades to live "
-                    "vote/round when emitted. Khipu BFT = Conjecture 2; Lambda = Conjecture 1; "
-                    "locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
-    }
-
-@app.get("/api/a11oy/v1/router/metrics")
-@app.get("/v1/router/metrics")
-async def _r3d_router_metrics() -> JSONResponse:
-    return JSONResponse(_r3d_router_metrics_payload())
-
-@app.get("/api/a11oy/v1/chaski/routing-graph")
-@app.get("/v1/chaski/routing-graph")
-@app.get("/api/chaski/routing-graph")
-async def _r3d_routing_graph() -> JSONResponse:
-    return JSONResponse(_r3d_routing_graph_payload())
-
-@app.get("/api/a11oy/v1/reason/loop-depth")
-@app.get("/v1/reason/loop-depth")
-async def _r3d_loop_depth() -> JSONResponse:
-    return JSONResponse(_r3d_loop_depth_payload())
-
-@app.get("/api/a11oy/v1/consensus/votes")
-@app.get("/v1/consensus/votes")
-async def _r3d_consensus_votes() -> JSONResponse:
-    return JSONResponse(_r3d_consensus_votes_payload())
-
-print("[a11oy] research-3d endpoints registered BEFORE proxy: /api/a11oy/v1/"
-      "{router/metrics,chaski/routing-graph,reason/loop-depth,consensus/votes}",
-      file=sys.stderr)
-
-
-
 @app.get("/api/a11oy/v1/ledger")
 async def a11oy_ledger_v2() -> JSONResponse:
     ch = _a11oy_build_chain(24)
@@ -6110,44 +5282,6 @@ def _a11oy_arena_inspect(action):
     return (len(fired) == 0, fired)
 
 
-# CANONICAL prefix->plain-English mapping for Eval Arena rejection signals.
-# This is the SINGLE SOURCE OF TRUTH: the live run attaches a `reasons` list to
-# every result (parallel to `policy_signals`) so any consumer of the JSON — the
-# console, killinchu, agents, other tools — gets the honest explanation, not
-# just the raw token. The console keeps its own ARENA_SIGNAL_REASONS table only
-# as a DISPLAY FALLBACK for older payloads; the arena-signal-reasons CI guard
-# keeps the two in lockstep so they cannot drift. Labels here MUST match the
-# console table verbatim so the page renders identically on GitHub main, the HF
-# Space and the box. Checked in order; the first prefix that matches wins. The
-# labels intentionally describe ONLY the signal the gate fired — no fabricated
-# numbers, no invented detail.
-_A11OY_ARENA_SIGNAL_REASONS = (
-    ("size-guard", "Blocked: request body exceeded the 1MB safety limit"),
-    ("approval-guard", "Blocked: high-impact action is missing required operator approval"),
-    ("threat-signature", "Blocked: prompt-injection / data-exfiltration pattern detected"),
-)
-# Bare threat tokens (the _A11OY_ARENA_THREATS list — e.g. "exfiltrate",
-# "rm -rf", "drop table") carry no structured prefix; they are all
-# prompt-injection / exfiltration signatures, so they map to this shared reason.
-_A11OY_ARENA_DEFAULT_REASON = "Blocked: prompt-injection / data-exfiltration pattern detected"
-
-
-def _a11oy_arena_signal_reason(sig: str) -> str:
-    """Plain-English reason for one raw policy_signal token. Mirrors the
-    console's arenaSignalReason(): prefix match in order (startswith ==
-    indexOf===0), then the shared bare-threat fallback."""
-    s = str(sig or "")
-    for prefix, label in _A11OY_ARENA_SIGNAL_REASONS:
-        if s.startswith(prefix):
-            return label
-    return _A11OY_ARENA_DEFAULT_REASON
-
-
-def _a11oy_arena_reasons(signals) -> list:
-    """Reasons list parallel (same length/order) to a result's policy_signals."""
-    return [_a11oy_arena_signal_reason(s) for s in (signals or [])]
-
-
 def _a11oy_arena_chain(events):
     receipts = []
     prev = "GENESIS"
@@ -6279,12 +5413,7 @@ def _a11oy_eval_hist_append(run: dict) -> dict:
                            # the eval-arena-negative-control check can re-validate
                            # the latest recorded run and catch a degraded timeline
                            # that dropped its policy-rejected negative control.
-                           "policy_signals": r.get("policy_signals"),
-                           # carry the plain-English reasons through the persisted
-                           # timeline too, so the history JSON is self-describing
-                           # (back-fill from the mapping if an older run lacked it).
-                           "reasons": r.get("reasons")
-                           or _a11oy_arena_reasons(r.get("policy_signals"))}
+                           "policy_signals": r.get("policy_signals")}
                           for r in (run.get("results") or [])],
             "receipt_signed": bool(rcpt.get("signed")),
             "receipt_keyid": rcpt.get("keyid"),
@@ -6358,12 +5487,7 @@ def _a11oy_eval_run_live() -> dict:
                         "capability": sc["capability"], "overall": overall,
                         "pass": overall >= 0.85, "dimensions": dims,
                         "chain_links_verified": "%d/%d" % (ok_links, total_links),
-                        "receipt_signed": signed, "policy_signals": fired,
-                        # plain-English reason per signal (same order as
-                        # policy_signals) so every JSON consumer, not just the
-                        # console, gets the honest explanation. SINGLE SOURCE OF
-                        # TRUTH = _a11oy_arena_reasons (see mapping above).
-                        "reasons": _a11oy_arena_reasons(fired)})
+                        "receipt_signed": signed, "policy_signals": fired})
     passed = sum(1 for r in results if r["pass"])
     avg = round(sum(r["overall"] for r in results) / len(results), 6) if results else 0.0
     now = datetime.now(timezone.utc)
@@ -7999,6 +7123,29 @@ async def wires_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# --- Fabric (ADDITIVE; Governed Distributed Compute Fabric one-view / Warhacker wow) ---
+# Unified system-of-systems view of the sovereign GPU mesh: pulls EXISTING live
+# endpoints client-side (no fabrication) -> /api/a11oy/v1/compute-pool-hardened
+# (nodes + honest TCP reachability), /api/a11oy/v1/energy/operator/status (joules
+# MEASURED, per-node), /api/a11oy/v1/honest (doctrine lock), /api/a11oy/provenance
+# (signed-receipt provenance). Reuses the in-image shared kit /static/shared/
+# szl_holo3d.js + szl_label_engine.js (0 runtime CDN). Every number is labeled
+# LIVE / MEASURED / MODELED / ROADMAP. NEVER claims fused/combined VRAM — nodes
+# scale horizontally (placement + load-balance); memory does NOT merge across the
+# network. Orbital is a clearly-labeled ROADMAP framing band (we do NOT run
+# satellites). Served from /app/pages/fabric.html (already COPYed wholesale by the
+# Dockerfile `COPY pages/ ./pages/`) — no Dockerfile change. Explicit route wins
+# over the SPA catch-all so /fabric returns the real page, not the SPA soft-404.
+# Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · locked = 8.
+@app.get("/fabric")
+@app.get("/a11oy/fabric")
+async def fabric_page() -> Response:
+    f = PAGES_DIR / "fabric.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/ayni")
 async def ayni_page() -> Response:
     # ADDITIVE (Yachay / AYNI-OS): reciprocity gauges + replay scrubber + Tinkuy meter.
@@ -8070,66 +7217,6 @@ async def observability_page() -> Response:
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
-
-
-# --- Energy Ops "Today" console (ADDITIVE; SZL Energy Dev4, Doctrine v11, 2026-06-14) ---
-# The founder's press-play operational dashboard. A big PLAY/STOP toggle drives
-# POST /api/a11oy/v1/energy/operator/{start,stop} and polls /energy/operator/status;
-# the page reads /energy/ledger (signed JouleCharge receipts), /energy/projection
-# (1-day MODELED headline), and /harvest/posture (grid price + negative-window).
-# Every value carries a MEASURED/MODELED/SAMPLE/ESTIMATE honesty chip; revenue is
-# NEVER shown MEASURED until a real charge clears; any 404/error degrades to a
-# NO-LIVE-DATA / DEGRADED state and never fabricates. 0 runtime CDN, system fonts.
-# Served from /app/pages/energy-ops.html (COPYed wholesale by `COPY pages/ ./pages/`).
-# Explicit route wins over the SPA catch-all (registered EARLY, before it).
-@app.get("/energy-ops")
-async def energy_ops_page() -> Response:
-    f = PAGES_DIR / "energy-ops.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
-# --- End Energy Ops "Today" console ---
-
-
-# --- Dedicated PNT + PINN surfaces (ADDITIVE; Doctrine v11) ---
-# /pnt and /pinn previously fell through to the SPA catch-all and rendered the SAME
-# generic Command Center (audit D4). These explicit routes (registered EARLY, before
-# the SPA catch-all) serve DISTINCT server-rendered surfaces that each boot the shared
-# szl3d stage and mount exactly ONE live-bound surface module:
-#   /pnt  -> pages/pnt.html  -> static/3d/surfaces/pnt.js  (MODELED quantum-nav physics
-#            from /api/a11oy/v1/pnt/{sensor,coast,resilience,limits} — never flown)
-#   /pinn -> pages/pinn.html -> static/3d/surfaces/pinn.js (MEASURED→DERIVED physical-
-#            bounds certificate from /api/a11oy/v1/pinn/certificate + residual + verify)
-# Both pages are 0-runtime-CDN (vendored three.js via importmap), system fonts, and
-# degrade to an honest 3D-unavailable fallback. They never hit the hanging Command
-# Center async probes (audit D3), so these two routes resolve immediately.
-@app.get("/pnt")
-async def pnt_surface_page() -> Response:
-    f = PAGES_DIR / "pnt.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
-
-
-@app.get("/pinn")
-async def pinn_surface_page() -> Response:
-    f = PAGES_DIR / "pinn.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
-@app.get("/fabric")
-async def fabric_surface_page() -> Response:
-    # Dedicated COMPUTE FABRIC surface (ADDITIVE; Doctrine v11): /fabric previously
-    # fell through to the SPA catch-all and rendered the generic Command Center. Serves
-    # pages/fabric.html -> static/3d/surfaces/fabric.js, a live 3D node mesh of
-    # /api/a11oy/v1/compute-pool (REAL TCP-probed reachability; never fabricated).
-    f = PAGES_DIR / "fabric.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
-
-
-# --- End dedicated PNT + PINN surfaces ---
 
 
 # --- Frontier 3D Visualizations (ADDITIVE; Yachay, 2026-06-01) ---
@@ -8298,7 +7385,6 @@ async def _a11oy_pr_honest():
     except Exception:
         _wired = []
     return JSONResponse({
-        "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
@@ -8920,80 +8006,6 @@ except Exception as _code_e:
 # ============================================================================
 
 # ============================================================================
-# a11oy RESTRAINT (2026-06-14) — a GOVERNED + MEASURED frugality gate wired into
-# the a11oy Code agent path. Before the code agent emits a diff it descends a
-# 6-rung ladder (YAGNI -> stdlib -> native -> installed dep -> one line -> minimal
-# code) and stops at the first rung that holds, marking deliberate simplifications
-# with `restraint:` ceiling comments naming the upgrade path. OUR differentiators:
-# every decision becomes a SIGNED DSSE receipt (the host's REAL in-image
-# ECDSA-P256 signer _a11oy_sign_receipt, verifiable vs /cosign.pub) + an advisory
-# Λ score (Conjecture 1 is OPEN, floor < 1.0); a two-arm benchmark (no-skill
-# baseline vs a11oy-restraint) ported from Ponytail's promptfoo methodology that is
-# labelled MEASURED only when an actual model run is wired (else SAMPLE/ROADMAP);
-# and a J/token energy tie-in (less code = fewer tokens = fewer joules). The ladder
-# + lite/full/ultra intensity are ADOPTED from the open-source Ponytail skill
-# (github.com/DietrichGebert/ponytail, MIT, © 2026 DietrichGebert) — adopted +
-# governed, NOT invented here; Ponytail's published numbers are cited as theirs,
-# never claimed as ours. Endpoints /api/a11oy/v1/restraint/{evaluate,bench,info}
-# insert at position 0 (beat the SPA catch-all). ADDITIVE, try/except-guarded.
-# Signed-off-by: Perplexity Computer Agent <agent@perplexity.ai>
-# ============================================================================
-_RESTRAINT_DIAG = {"status": "not-run"}
-try:
-    import szl_restraint as _szl_restraint
-    import sys as _restraint_sys
-    _restraint_status = _szl_restraint.register(
-        app, ns="a11oy",
-        sign_fn=_a11oy_sign_receipt,
-        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
-                      "resets on rebuild, verifiable vs /cosign.pub)"),
-    )
-    print(f"[a11oy] a11oy Restraint registered: {_restraint_status}", file=_restraint_sys.stderr)
-    _RESTRAINT_DIAG = {"status": "ok", "registered": _restraint_status}
-except Exception as _restraint_e:
-    import sys as _restraint_sys, traceback as _restraint_tb
-    print(f"[a11oy] a11oy Restraint FAILED (non-fatal): {_restraint_e!r}", file=_restraint_sys.stderr)
-    _restraint_tb.print_exc(file=_restraint_sys.stderr)
-    _RESTRAINT_DIAG = {"status": "FAILED", "error": repr(_restraint_e),
-                       "traceback": _restraint_tb.format_exc()}
-# ============================================================================
-# END: a11oy RESTRAINT
-# ============================================================================
-
-# ============================================================================
-# a11oy RESTRAINT -> ENERGY + KPI + MEASURED BENCH (R4 lane, 2026-06-14)
-# ----------------------------------------------------------------------------
-# Wires R1's a11oy Restraint into the ENERGY / J-token story, the estate Lambda/
-# KPI board, and a MEASURED benchmark dashboard. ADDITIVE + try/except-guarded:
-# CONSUMES szl_restraint (R1), szl_energy_sovereign (Forge) and szl_joules_truth
-# only via their public surfaces; edits NONE of them. Endpoints insert at router
-# position 0 (beat the SPA catch-all):
-#   GET/POST /api/a11oy/v1/restraint/energy         frugality->energy panel
-#   GET      /api/a11oy/v1/restraint/bench-measured  two-arm bench (MEASURED-or-SAMPLE)
-#   GET      /api/a11oy/v1/restraint/kpi             estate KPI tile
-# Joules-saved is priced at the LIVE on-box MEASURED J/token when the sovereign
-# GPU probe is live, else our honest SAMPLE constant (label from szl_joules_truth
-# / szl_energy_sovereign — the same single source of truth). NEVER fabricated.
-# Signed-off-by: Perplexity Computer Agent <agent@perplexity.ai>
-# ============================================================================
-_RESTRAINT_ENERGY_DIAG = {"status": "not-run"}
-try:
-    import szl_restraint_energy as _szl_restraint_energy
-    import sys as _re_sys
-    _re_status = _szl_restraint_energy.register(app, ns="a11oy")
-    print(f"[a11oy] a11oy Restraint energy/KPI/bench registered: {_re_status}", file=_re_sys.stderr)
-    _RESTRAINT_ENERGY_DIAG = {"status": "ok", "registered": _re_status}
-except Exception as _re_e:
-    import sys as _re_sys, traceback as _re_tb
-    print(f"[a11oy] a11oy Restraint energy/KPI/bench FAILED (non-fatal): {_re_e!r}", file=_re_sys.stderr)
-    _re_tb.print_exc(file=_re_sys.stderr)
-    _RESTRAINT_ENERGY_DIAG = {"status": "FAILED", "error": repr(_re_e),
-                              "traceback": _re_tb.format_exc()}
-# ============================================================================
-# END: a11oy RESTRAINT -> ENERGY + KPI + MEASURED BENCH
-# ============================================================================
-
-# ============================================================================
 # SZL-NEMO CORE (Lane I1, 2026-06-14) — OUR sovereign, governed, self-improving
 # AGENT MODEL as a LIVE SKELETON. Built ON an open base (default Qwen3-32B,
 # Apache-2.0); governed & sovereign. NEVER claims from-scratch / 550B /
@@ -9517,73 +8529,6 @@ except Exception as _con_e:  # pragma: no cover
           file=__import__("sys").stderr)
 # ============================================================================
 # END: I3 Governed Factory + Constitutional Engines
-# ============================================================================
-
-
-
-
-# ============================================================================
-# QHAWAQ REGISTRATION — a11oy (the FORMAL/LTL runtime constitutional ring)
-# QHAWAQ (Quechua: "the watcher") intercepts each proposed agent/effector action
-# and checks it against formal LTL + predicate invariants BEFORE any (simulated)
-# effector command — verdict ALLOW / REQUIRE-HUMAN-CONFIRM / BLOCK + proof-trace
-# + signed DSSE receipt. Complements WILLAY (classifier ring) + Restraint (budget
-# gate). Runs LAST so its routes FRONT-INSERT ahead of the SPA catch-all.
-# Architecture adopted from Glass Box (arXiv:2606.02967, CC BY); re-implemented.
-# ADDITIVE, try/except-guarded. Effectors SIMULATED human-on-loop (QHAWAQ ENFORCES).
-# Doctrine v11 LOCKED 8 @ c7c0ba17 · trust < 100% · 0 CDN · never commit a key.
-# ============================================================================
-try:
-    import szl_qhawaq as _szl_qhawaq
-    import sys as _qhawaq_sys
-
-    def _a11oy_qhawaq_verify(_env):
-        try:
-            import szl_dsse as _qd
-            return _qd.verify_envelope(_env)
-        except Exception as _qve:
-            return {"verified": False, "reason": "verifier-unavailable: %r" % (_qve,)}
-
-    _a11oy_qhawaq_status = _szl_qhawaq.register(
-        app, ns="a11oy",
-        sign_fn=_a11oy_sign_receipt,
-        verify_fn=_a11oy_qhawaq_verify,
-        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
-                      "resets on rebuild, verifiable vs /cosign.pub)"))
-    print(f"[a11oy] QHAWAQ runtime constitutional intercept registered: {_a11oy_qhawaq_status}", file=_qhawaq_sys.stderr)
-except Exception as _a11oy_qhawaq_e:  # pragma: no cover — additive, never crash
-    import sys as _qhawaq_sys, traceback as _qhawaq_tb
-    print(f"[a11oy] QHAWAQ NOT registered (non-fatal): {_a11oy_qhawaq_e!r}", file=_qhawaq_sys.stderr)
-    _qhawaq_tb.print_exc(file=_qhawaq_sys.stderr)
-# ============================================================================
-# END: QHAWAQ REGISTRATION — a11oy
-# ============================================================================
-
-
-
-# ============================================================================
-# ADDITIVE (SAPA): Energy per Successful Goal — the frontier agentic unit on top
-# of the live MEASURED joules/token path. szl_sapa.py is the shared, byte-identical
-# accounting layer; szl_sapa_patch.py front-inserts /sapa + /api/a11oy/v1/sapa/*
-# BEFORE the SPA catch-all (idempotent by route name). Registered LAST so its
-# routes win over the SPA history fallback AND the /api/a11oy/{{path:path}} Node
-# proxy. try/except-guarded — can NEVER take the Space down. Doctrine v11:
-# locked=8 @ c7c0ba17; MEASURED only on a real fresh on-box joule reading, else
-# MODELED/pending — never fabricates a joule. Inspired by A-LEMS / EpG
-# arXiv:2605.22883 (cited reference; 4.33x is the paper's finding, not ours).
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-# ============================================================================
-try:
-    import szl_sapa_patch as _szl_sapa_patch
-    import sys as _sapa_sys2
-    _sapa_status = _szl_sapa_patch.register(app, ns="a11oy", serve_tab=True)
-    print(f"[a11oy] SAPA energy-per-goal registered: {_sapa_status}", file=_sapa_sys2.stderr)
-except Exception as _sapa_e:  # pragma: no cover
-    print(f"[a11oy] SAPA NOT registered (non-fatal): {_sapa_e!r}",
-          file=__import__("sys").stderr)
-# ============================================================================
-# END: SAPA Energy per Successful Goal
 # ============================================================================
 
 

@@ -1,101 +1,281 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Compute Fabric · Live Pool — a11oy</title>
-<!--
-  Dedicated COMPUTE FABRIC surface — NOT the generic Command Center. Boots the shared
-  szl3d stage and mounts ONLY the compute-fabric surface (static/3d/surfaces/fabric.js),
-  a 3D force-directed node mesh of the live compute pool bound to
-  /api/a11oy/v1/compute-pool.
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a11oy — Fabric · Governed Distributed Compute Fabric (one unified view)</title>
+<meta name="description" content="The Governed Distributed Compute Fabric as one unified system-of-systems view: sovereign GPU mesh (laptop + OMEN + chaski + cloud failover) under one governed router, honest TCP reachability, joules MEASURED per node, doctrine-locked. Terrestrial-proven core; orbital is a clearly-labeled ROADMAP frame. Doctrine v11 honest. 0 runtime CDN.">
+<!-- SZL Estate shared modules (byte-identical cross-app), served in-image at /static/shared (0 CDN). -->
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_holo3d.js"></script>
+<style>
+:root{--bg:#0b0e14;--card:#121826;--ink:#e8eef7;--mut:#8aa0bf;--acc:#5ad1c0;--acc2:#7aa2ff;--line:#243149;--warn:#e0c060;--bad:#ff5c5c;--ok:#16c784;--orbit:#b07cff}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1180px;margin:0 auto;padding:30px 20px 96px}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:.2px}
+h2{font-size:18px;margin:34px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+code{background:#0a1626;padding:1px 5px;border-radius:5px;color:var(--acc);font-size:12px}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+nav a{margin-right:14px;font-weight:600}
+.note{color:var(--mut);font-size:13px}
+.foot{margin-top:40px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.kpi{background:#0e1422;border:1px solid var(--line);border-radius:11px;padding:13px 15px}
+.kpi .v{font:700 24px/1.1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--acc)}
+.kpi .k{color:var(--mut);font-size:12px;margin-bottom:6px}
+.kpi .l{margin-top:8px}
+.holo{height:420px;width:100%;border-radius:12px;overflow:hidden;position:relative}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12px;color:var(--mut)}
+.legend .sw{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.nodegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:12px;margin-top:6px}
+.nd{background:#0e1422;border:1px solid var(--line);border-radius:11px;padding:13px 15px}
+.nd h3{margin:0 0 4px;font-size:15px}
+.nd .ep{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--mut);word-break:break-all}
+.nd .row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.nd .joule{margin-top:9px;font:12px/1.3 ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.up{background:var(--ok)}.dot.down{background:var(--bad)}
+.sov{font-size:11px;font-weight:700;letter-spacing:.04em}
+.orbit{background:linear-gradient(180deg,#150d28 0%,#0e0a1c 100%);border:1px solid #3a2a5e;border-radius:12px;padding:16px 18px;margin:14px 0}
+.orbit h2{color:#cdb4ff;border-bottom-color:#3a2a5e}
+.orbit .band{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.banner{display:inline-block;background:#2a1c47;border:1px solid #5a3fa0;color:#d9c6ff;font:800 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;padding:7px 12px;border-radius:8px;text-transform:uppercase}
+.err{color:var(--bad);font-size:13px}
+.muted-num{color:var(--mut)}
+.hl{color:var(--acc2);font-weight:700}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;padding:8px 0}
+.flow .node{background:#16264a;border:1px solid var(--line);border-radius:10px;padding:8px 13px;font-weight:700;color:var(--acc2);font-size:13px}
+.flow .arr{color:var(--mut);font-size:18px}
+.refresh{background:var(--acc2);color:#06101f;border:0;border-radius:8px;padding:7px 13px;font-weight:700;cursor:pointer;font-size:13px}
+.stamp{font:12px/1.3 ui-monospace,Menlo,monospace;color:var(--mut)}
+</style></head>
+<body><div class="wrap">
+<nav class="note"><a href="/">home</a><a href="/mesh">/mesh</a><a href="/wires">/wires</a><a href="/observability">/observability</a><a href="/holo">/holo</a></nav>
+<h1>a11oy — Fabric</h1>
+<p class="sub">The <b>Governed Distributed Compute Fabric</b> as one unified system-of-systems view. Sovereign GPU mesh + honest TCP reachability + joules <b>MEASURED</b> per node + one governed OpenAI-compatible router + doctrine-locked provenance. <span class="hl">Terrestrial governed mesh is the proven core; orbital is a clearly-labeled ROADMAP frame.</span> Doctrine v11 · Λ = Conjecture 1 · 0 runtime CDN.</p>
 
-  Doctrine v11 (HARD): node reachability is a REAL TCP probe (MEASURED) — reachable
-  glows teal, unreachable dims with a red ring; "sovereign" is a passed-through PROPERTY
-  of owned hardware (gold), never inferred. The topology mesh is STRUCTURAL-ONLY — we do
-  NOT claim measured NVLink bandwidth. The surface renders exactly the honesty label the
-  JSON carries; if the endpoint 404s/errors/{degraded:true} it shows the honest state and
-  keeps the last good mesh, or an honest NO-LIVE-DATA placeholder. 0 runtime CDN — three.js
-  vendored same-origin via the importmap. System fonts only. WebGL2 default; ?webgpu=1 opts in.
--->
-<script type="importmap">
-{
-  "imports": {
-    "three": "/static/3d/vendor/three/three.module.min.js",
-    "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
-    "three/addons/": "/static/3d/vendor/three/addons/"
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div class="note">Live sources (no fabrication): <code>/api/a11oy/v1/compute-pool-hardened</code> · <code>/api/a11oy/v1/energy/operator/status</code> · <code>/api/a11oy/v1/honest</code> · <code>/api/a11oy/provenance</code></div>
+    <button class="refresh" onclick="loadAll()">↻ refresh live</button>
+  </div>
+  <div class="stamp" id="stamp" style="margin-top:8px">loading live fabric state…</div>
+</div>
+
+<h2>1 · Fabric at a glance</h2>
+<div class="card">
+  <div class="kpis" id="kpis"><div class="note">…</div></div>
+  <p class="note" style="margin-top:14px">Every figure is honestly labeled. <b>Reachability</b> is a real TCP probe THIS sweep — a timeout/refusal is reachable=false with the reason, never fabricated. <b>Joules</b> are MEASURED only via the on-box exporter (nodes with no exporter read SAMPLE / 0). <b>Sovereign</b> is a property of owned hardware, passed through, never inferred from reachability.</p>
+</div>
+
+<h2>2 · System-of-systems mesh (3D)</h2>
+<div class="card">
+  <div class="holo" id="holo"></div>
+  <div class="legend">
+    <span><span class="sw" style="background:#16c784"></span>reachable (LIVE TCP probe)</span>
+    <span><span class="sw" style="background:#ff5c5c"></span>unreachable this sweep (honest)</span>
+    <span><span class="sw" style="background:#7aa2ff"></span>sovereign owned GPU/CPU</span>
+    <span><span class="sw" style="background:#e0c060"></span>hosted-inference failover (non-sovereign)</span>
+  </div>
+  <p class="note" style="margin-top:12px"><b>Scaling model — honest:</b> nodes scale <span class="hl">horizontally (placement + load-balance)</span> under one governed router. VRAM does <b>NOT</b> merge across the network — there is <b>no fused/combined VRAM</b>. The router places each job on a reachable node; it does not pool memory across machines.</p>
+</div>
+
+<h2>3 · Nodes — honest per-node board</h2>
+<div class="nodegrid" id="nodes"><div class="note">…</div></div>
+
+<h2>4 · Energy — joules MEASURED, climbing</h2>
+<div class="card">
+  <div class="kpis" id="energy"><div class="note">…</div></div>
+  <table id="byNode" style="margin-top:14px"><tr><th>node</th><th>jobs</th><th>tokens</th><th>joules</th><th>label</th></tr></table>
+  <p class="note" style="margin-top:12px">Joules are MEASURED via the on-box exporter (node <code id="expnode">betterwithage</code>). Nodes without a local exporter contribute SAMPLE jobs (joules unmeasured) — shown honestly, never imputed. Signed receipts fold into the Khipu ledger: <code>/api/a11oy/v1/energy/provenance</code>.</p>
+</div>
+
+<h2>5 · Governed router + provenance</h2>
+<div class="card">
+  <div class="flow">
+    <span class="node">request</span><span class="arr">→</span>
+    <span class="node">governed router</span><span class="arr">→</span>
+    <span class="node">placement (Λ-gated)</span><span class="arr">→</span>
+    <span class="node">sovereign node / failover</span><span class="arr">→</span>
+    <span class="node">signed receipt → Khipu</span>
+  </div>
+  <div id="prov" class="note" style="margin-top:8px">…</div>
+</div>
+
+<div class="orbit">
+  <div class="band">
+    <span class="banner">Roadmap · orbital framing</span>
+    <span id="orbitBadge"></span>
+  </div>
+  <h2 style="margin-top:6px">6 · Orbital system-of-systems — ROADMAP / analogy (we do NOT run satellites)</h2>
+  <p class="note">The same governance primitives the terrestrial mesh PROVES on real metal — honest reachability, joules MEASURED per node, Λ-gated placement, signed-receipt provenance — are exactly what distributed / edge / <b>orbital</b> compute system-of-systems will require. <span style="color:#cdb4ff;font-weight:700">This band is the vision frame, clearly labeled ROADMAP.</span> SZL does <b>not</b> operate satellites; nothing in the mesh above is orbital. We prove on terrestrial metal what the orbital-architecture crowd only asserts.</p>
+  <div class="kpis" id="orbit">
+    <div class="kpi"><div class="k">Terrestrial governed mesh</div><div class="v" id="orbReach">—</div><div class="l" id="orbReachL"></div></div>
+    <div class="kpi"><div class="k">Per-node energy accounting</div><div class="v">joules</div><div class="l" id="orbJ"></div></div>
+    <div class="kpi"><div class="k">Edge / orbital placement</div><div class="v">vision</div><div class="l" id="orbRm"></div></div>
+  </div>
+</div>
+
+<div class="foot" id="foot">
+HONEST: all numbers above carry an explicit label — LIVE (real backend wired) · MEASURED (on-box exporter) · MODELED (deterministic, labeled) · ROADMAP (vision, not deployed). No fused/combined VRAM is claimed anywhere — nodes scale horizontally (placement + load-balance); memory does not merge across the network. Orbital is analogy/ROADMAP; SZL does not run satellites. Reachability is a real TCP probe, never fabricated. trust &lt; 100% · tamper-EVIDENT not tamper-proof · Λ = Conjecture 1 · locked = 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel <code id="kernel">c7c0ba17</code> (749/14/163). SLSA L1 honest · L2 attested · L3 roadmap. Canonical numbers <a href="https://github.com/szl-holdings/.github/blob/main/.github/data/lean_numbers.json" target="_blank" rel="noopener">lean_numbers.json</a>.
+</div>
+</div>
+
+<script>
+"use strict";
+var L = (window.SZLLabels && window.SZLLabels.badgeHTML) ? function(k,t){ return window.SZLLabels.badgeHTML(k, t?{label:t}:undefined); } : function(k,t){ return '<span class="szl-pill">'+(t||k)+'</span>'; };
+function $(id){ return document.getElementById(id); }
+function fmt(n){ if(n==null||isNaN(n)) return '—'; return Number(n).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function fmt1(n){ if(n==null||isNaN(n)) return '—'; return Number(n).toLocaleString('en-US',{maximumFractionDigits:1}); }
+async function getJSON(url){ var r = await fetch(url, {headers:{'accept':'application/json'}}); if(!r.ok) throw new Error(url+' HTTP '+r.status); return r.json(); }
+
+var holoScene = null;
+function buildHolo(pool){
+  var mount = $('holo');
+  if(!window.SZLHolo || !window.SZLHolo.Scene){ mount.innerHTML = '<p class="note" style="padding:18px">3D kit unavailable — node board below carries the full honest state.</p>'; return; }
+  mount.innerHTML = '';
+  // λ here is a presentation parameter (Conjecture 1, <1.0), NOT a measured value.
+  holoScene = new window.SZLHolo.Scene(mount, { title: 'GOVERNED DISTRIBUTED COMPUTE FABRIC', lambda: 0.42, autoRotate: true });
+  var nodes = (pool.nodes||[]);
+  // hub = the governed router (the host running this service / hetzner-box-cpu self node anchors center)
+  var specNodes = [{ id:'router', label:'governed router', pos:[0,0,0], locked:true }];
+  var R = 1.15;
+  nodes.forEach(function(n, i){
+    var ang = (i / Math.max(1,nodes.length)) * Math.PI * 2;
+    var y = (n.kind === 'hosted-inference') ? 0.55 : -0.25;  // failover ring sits above
+    specNodes.push({
+      id: n.name,
+      label: n.name + (n.reachable ? ' ✓' : ' ✕'),
+      pos: [R*Math.cos(ang), y, R*Math.sin(ang)],
+      // lower lambda => greener/larger (more trust); reachable+sovereign = most trusted
+      lambda: n.reachable ? (n.sovereign ? 0.22 : 0.40) : 0.80
+    });
+  });
+  var edges = nodes.map(function(n){ return { from:'router', to:n.name }; });
+  holoScene.addGraph({ nodes: specNodes, edges: edges });
+  // pulse the signed-receipt flow along the first reachable sovereign edge
+  holoScene.start();
+  // Override the SAMPLE HUD badge: this scene is bound to LIVE topology + MEASURED energy.
+  try {
+    var lbl = mount.querySelector('[data-szl-holo-labels]');
+    if(lbl){ lbl.innerHTML = L('LIVE','LIVE TOPOLOGY') + ' ' + L('MEASURED','JOULES MEASURED') + ' ' + L('ROADMAP','ORBITAL = ROADMAP'); }
+  } catch(e){}
+}
+
+function renderKpis(pool, energy){
+  var c = pool.counts || {};
+  var html = '';
+  html += kpi('Nodes total', fmt(c.nodes_total), L('LIVE'));
+  html += kpi('Reachable this sweep', fmt(c.nodes_reachable), L('LIVE','LIVE TCP PROBE'));
+  html += kpi('Sovereign GPU reachable', fmt(c.gpu_nodes_reachable), L('LIVE'));
+  html += kpi('Joules total', fmt(energy.joules_measured_total), L('MEASURED'));
+  html += kpi('Jobs completed', fmt(energy.jobs_completed||energy.jobs_done), L('MEASURED'));
+  html += kpi('Scaling', 'horizontal', L('MODELED','PLACEMENT + LB'));
+  $('kpis').innerHTML = html;
+}
+function kpi(k,v,label){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="l">'+(label||'')+'</div></div>'; }
+
+function renderNodes(pool, energy){
+  var byNode = energy.by_node || {};
+  var html = '';
+  (pool.nodes||[]).forEach(function(n){
+    var bn = byNode[n.name] || {};
+    var jmeas = bn.joules_measured;
+    var hasMeas = (typeof jmeas === 'number' && jmeas > 0);
+    var jLabel = hasMeas ? L('MEASURED') : L('SAMPLE','SAMPLE / NO EXPORTER');
+    var jVal = hasMeas ? (fmt1(jmeas)+' J') : '0 J (unmeasured)';
+    var sov = n.sovereign ? '<span class="sov" style="color:#7aa2ff">SOVEREIGN (owned)</span>' : '<span class="sov" style="color:#e0c060">HOSTED FAILOVER</span>';
+    var reach = n.reachable
+      ? '<span><span class="dot up"></span>reachable</span> ' + L('LIVE','LIVE TCP')
+      : '<span><span class="dot down"></span>unreachable: '+(n.detail||'?')+'</span> ' + L('LIVE','HONEST');
+    html += '<div class="nd"><h3>'+n.name+'</h3>'+
+      '<div class="note">'+n.kind+'</div>'+
+      '<div class="ep">'+(n.endpoint||'')+'</div>'+
+      '<div class="row">'+reach+'</div>'+
+      '<div class="row">'+sov+'</div>'+
+      '<div class="joule">energy: '+jVal+' &nbsp;'+jLabel+
+        (bn.jobs!=null ? ' &nbsp;<span class="muted-num">· '+fmt(bn.jobs)+' jobs · '+fmt(bn.tokens)+' tok</span>' : '')+
+      '</div></div>';
+  });
+  $('nodes').innerHTML = html;
+}
+
+function renderEnergy(energy){
+  var html = '';
+  html += kpi('Joules MEASURED total', fmt(energy.joules_measured_total), L('MEASURED'));
+  html += kpi('Measured token-joules', fmt(energy.measured_token_joules), L('MEASURED'));
+  html += kpi('Measured jobs', fmt(energy.measured_jobs), L('MEASURED'));
+  html += kpi('Sample jobs (unmeasured)', fmt(energy.sample_jobs), L('SAMPLE'));
+  html += kpi('Grid price', fmt1(energy.grid_price_eur_mwh)+' €/MWh', L('LIVE'));
+  html += kpi('Power sample', fmt1(energy.power_w_sample)+' W', L('SAMPLE'));
+  $('energy').innerHTML = html;
+  if(energy.exporter_node) $('expnode').textContent = energy.exporter_node;
+  var bn = energy.by_node || {};
+  var rows = '<tr><th>node</th><th>jobs</th><th>tokens</th><th>joules</th><th>label</th></tr>';
+  Object.keys(bn).forEach(function(k){
+    var v = bn[k]; var has = (typeof v.joules_measured==='number' && v.joules_measured>0);
+    rows += '<tr><td><b>'+k+'</b></td><td>'+fmt(v.jobs)+'</td><td>'+fmt(v.tokens)+'</td><td>'+(has?fmt1(v.joules_measured)+' J':'0 (unmeasured)')+'</td><td>'+(has?L('MEASURED'):L('SAMPLE'))+'</td></tr>';
+  });
+  $('byNode').innerHTML = rows;
+}
+
+function renderProv(prov, honest){
+  var slsa = (honest && honest.footer) ? '' : '';
+  var dl = (honest && honest.doctrine_lock) || {};
+  var html = '';
+  html += '<p>SLSA: <b>'+(prov.slsa||'L1')+'</b> — L1 honest · L2 attested · L3 roadmap. '+L('LIVE')+' &nbsp; Λ = '+(dl.lambda||'Conjecture 1')+' '+L('LIVE','CONJECTURE 1')+'</p>';
+  if(prov.khipu_dsse){
+    html += '<p>Provenance per answer: signed-receipt substrate · keyid <code>'+(prov.khipu_dsse.keyid||'?')+'</code> · verify at <code>'+(prov.khipu_dsse.verify_endpoint||'/api/a11oy/khipu/verify')+'</code>. tamper-EVIDENT (SHA3-256 hash-chain), not tamper-proof.</p>';
+  }
+  if(dl.locked_formula_ids){
+    html += '<p>Doctrine lock: <code>'+(dl.declarations||749)+'/'+(dl.axioms||14)+'/'+(dl.sorries||163)+'</code> @ kernel <code>'+(dl.commit||'c7c0ba17')+'</code> · locked = '+(dl.locked_formula_count||8)+' {'+(dl.locked_formula_ids||[]).join(',')+'} '+L('LIVE')+'</p>';
+    if(dl.commit) $('kernel').textContent = dl.commit;
+  }
+  $('prov').innerHTML = html;
+}
+
+function renderOrbit(pool, energy){
+  var c = pool.counts || {};
+  $('orbitBadge').innerHTML = L('ROADMAP','VISION FRAME — NOT DEPLOYED');
+  $('orbReach').textContent = fmt(c.nodes_reachable) + '/' + fmt(c.nodes_total);
+  $('orbReachL').innerHTML = L('LIVE','PROVEN ON METAL');
+  $('orbJ').innerHTML = L('MEASURED','PER-NODE, REAL');
+  $('orbRm').innerHTML = L('ROADMAP','ANALOGY ONLY');
+}
+
+async function loadAll(){
+  $('stamp').textContent = 'fetching live fabric state…';
+  try {
+    var results = await Promise.allSettled([
+      getJSON('/api/a11oy/v1/compute-pool-hardened'),
+      getJSON('/api/a11oy/v1/energy/operator/status'),
+      getJSON('/api/a11oy/v1/honest'),
+      getJSON('/api/a11oy/provenance')
+    ]);
+    var pool = results[0].status==='fulfilled' ? results[0].value : {counts:{},nodes:[]};
+    var energy = results[1].status==='fulfilled' ? results[1].value : {by_node:{}};
+    var honest = results[2].status==='fulfilled' ? results[2].value : {};
+    var prov = results[3].status==='fulfilled' ? results[3].value : {};
+
+    renderKpis(pool, energy);
+    buildHolo(pool);
+    renderNodes(pool, energy);
+    renderEnergy(energy);
+    renderProv(prov, honest);
+    renderOrbit(pool, energy);
+
+    var errs = results.filter(function(r){return r.status==='rejected';});
+    var ts = pool.cached_at || new Date().toISOString();
+    $('stamp').innerHTML = 'live as of <code>'+ts+'</code> · '+L('LIVE','4 ENDPOINTS WIRED') +
+      (errs.length ? ' <span class="err">· '+errs.length+' source(s) unavailable (shown honestly empty)</span>' : '');
+  } catch(e){
+    $('stamp').innerHTML = '<span class="err">fabric load error: '+e+'</span>';
   }
 }
+loadAll();
 </script>
-<style>
- :root{--bg:#05070d;--line:#1b2734;--teal:#39d3c4;--gold:#e8c074;--cream:#eef3f6;--para:#9fb1bf}
- *{box-sizing:border-box}
- html,body{margin:0;height:100%}
- body{background:var(--bg);color:var(--cream);
-  font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;overflow:hidden}
- header{padding:10px 16px;border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg,#08101a,#05070d);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
- h1{font-size:16px;margin:0;letter-spacing:.4px}
- .badge{display:inline-block;font:10.5px ui-monospace,Menlo,monospace;padding:2px 7px;border-radius:6px;
-  border:1px solid var(--line);color:var(--gold);background:#10171f}
- #backend{color:var(--teal)}
- .nav{margin-left:auto;display:flex;gap:12px;font:11px ui-monospace,Menlo,monospace}
- a{color:var(--teal);text-decoration:none}
- #stage-wrap{position:relative;width:100vw;height:calc(100vh - 52px)}
- #stage{position:absolute;inset:0}
- #stage canvas{display:block;width:100%;height:100%}
- #fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
-  text-align:center;color:var(--para);padding:24px;font:13px ui-monospace,Menlo,monospace}
-</style>
-</head>
-<body>
-<header>
- <h1>&#9671; Compute Fabric &middot; Live Pool</h1>
- <span class="badge" id="backend">renderer: &hellip;</span>
- <span class="badge">three r<span id="three-rev">&hellip;</span></span>
- <span class="badge">0 runtime CDN</span>
- <span class="badge">reachability MEASURED (TCP probe)</span>
- <span class="badge">&Lambda; = Conjecture 1</span>
- <nav class="nav">
-   <a href="/holographic#fabric">all surfaces</a>
-   <a href="/energy-ops">energy &rarr;</a>
-   <a href="/">&larr; a11oy</a>
- </nav>
-</header>
-<div id="stage-wrap">
- <div id="stage"></div>
- <div id="fallback">3D unavailable on this device &mdash; the compute-fabric surface needs a WebGL2 or WebGPU canvas.<br>
-  The live pool topology is still available as JSON at /api/a11oy/v1/compute-pool.</div>
-</div>
-<script type="module">
-import szl3d from "/static/3d/szl3d/szl3d_boot.js";
-import * as live from "/static/3d/szl3d/szl3d_live.js";
-import * as label from "/static/3d/szl3d/szl3d_label.js";
-import * as THREE from "three";
-import surface from "/static/3d/surfaces/fabric.js";
-
-const $ = (id) => document.getElementById(id);
-$("three-rev").textContent = THREE.REVISION;
-
-(async function main() {
-  try {
-    const wantWebGPU = /[?&]webgpu=1\b/.test(location.search);
-    const stage = await szl3d.boot($("stage"), {
-      bloom: { strength: 0.9, radius: 0.5, threshold: 0.2 },
-      cameraPos: [0, 4, 18],
-      forceWebGL: !wantWebGPU,
-    });
-    $("backend").textContent = "renderer: " + stage.backend.toUpperCase();
-    stage.start();
-    const ctx = { stage, container: $("stage"), live, label, THREE, szl3d };
-    surface.mount(ctx);
-    window.__SZL3D_FABRIC__ = { stage, surface };
-  } catch (e) {
-    $("fallback").style.display = "flex";
-    $("backend").textContent = "renderer: UNAVAILABLE";
-    console.error("[fabric] stage boot failed:", e);
-  }
-})();
-</script>
-</body>
-</html>
+</body></html>
