@@ -367,3 +367,25 @@ jobs:
               for p in delete_paths:
                   print("  deleted:", p)
           PYEOF
+
+      - name: Set SZL_GIT_SHA Space variable (self-detecting deploy provenance)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: SZLHOLDINGS/a11oy
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::warning::HF_TOKEN not set — skipping SZL_GIT_SHA Space variable (HF /honest git_sha stays 'unknown')."
+            exit 0
+          fi
+          python3 <<'PYEOF'
+          import os
+          try:
+              from huggingface_hub import HfApi
+              api = HfApi(token=os.environ["HF_TOKEN"])
+              api.add_space_variable(repo_id=os.environ["SPACE_ID"], key="SZL_GIT_SHA", value=os.environ["GIT_SHA"])
+              print("Set SZL_GIT_SHA =", os.environ["GIT_SHA"], "on", os.environ["SPACE_ID"])
+          except Exception as e:
+              print("::warning::could not set SZL_GIT_SHA Space variable:", e)
+          PYEOF

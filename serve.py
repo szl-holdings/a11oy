@@ -8232,6 +8232,7 @@ async def _a11oy_pr_honest():
     except Exception:
         _wired = []
     return JSONResponse({
+        "git_sha": os.getenv("SZL_GIT_SHA") or "unknown (SZL_GIT_SHA not baked at build)",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},

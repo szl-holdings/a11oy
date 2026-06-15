@@ -39,7 +39,7 @@ jobs:
         shell: bash
         env:
           # Aligned with demo-freeze.yml: hard-enforce hotfix discipline only once the
-          # real freeze is active (2026-06-18 01:00 ET = 2026-06-18 UTC). Before that it
+          # real freeze is active (2026-06-18 02:00 ET = 06:00 UTC, canonical per FREEZE.json). Before that it
           # stays advisory (warns, never blocks). Founder moved freeze start to the 18th.
           FREEZE_START: '2026-06-18'
           FREEZE_END: '2026-06-20'

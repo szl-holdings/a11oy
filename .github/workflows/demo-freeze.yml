@@ -38,9 +38,9 @@ jobs:
         shell: bash
         env:
           # Freeze window (UTC, timestamp-precise). Founder moved freeze start to
-          # 2026-06-18 01:00 ET = 2026-06-18 05:00 UTC (was date-only 2026-06-15).
+          # 2026-06-18 02:00 ET = 2026-06-18 06:00 UTC (canonical per platform/replit-sync/FREEZE.json; was 01:00 ET/05:00Z).
           # Demo end stays 2026-06-20 (end-of-day UTC). Pre-freeze, normal branches land.
-          FREEZE_START_TS: '2026-06-18T05:00:00Z'
+          FREEZE_START_TS: '2026-06-18T06:00:00Z'
           FREEZE_END_TS: '2026-06-20T23:59:59Z'
         run: |
           set -euo pipefail
@@ -89,7 +89,7 @@ jobs:
             🔒  DEMO FREEZE ACTIVE  —  this push is REJECTED
           ════════════════════════════════════════════════════════════════════
             Window : ${FREEZE_START_TS} .. ${FREEZE_END_TS} (UTC)
-                     (= 2026-06-18 01:00 ET .. 2026-06-20 end-of-day)
+                     (= 2026-06-18 02:00 ET .. 2026-06-20 end-of-day)
             Branch : ${BRANCH}  ❌  (not hotfix/*)
             Reason : Flagship Spaces are frozen at the demo baseline
                      (tag: demo-freeze-baseline-2026-06-09). Only hotfix

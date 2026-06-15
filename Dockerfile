@@ -331,6 +331,10 @@ COPY pages/ ./pages/
 # runtime secret is present (else honestly UNSIGNED). SLSA L1 honest (signing live); L2 roadmap via Wire D; L3 NOT claimed.
 
 ENV PORT=7860
+# GIT_SHA provenance: self-detecting box/image staleness via /honest git_sha.
+# Set at build: docker build --build-arg GIT_SHA=$(git rev-parse HEAD) ...
+ARG GIT_SHA=unknown
+ENV SZL_GIT_SHA=${GIT_SHA}
 # BE hardening (Greene) — per-file COPY (this Dockerfile uses per-file COPY).
 
 EXPOSE 7860

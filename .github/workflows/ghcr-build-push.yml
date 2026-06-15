@@ -56,6 +56,7 @@ jobs:
           # of bricking; here we set 1 so a failed llama compile / missing GGUF fails the
           # published build loud (also boot-verified by the step below).
           build-args: |
+            GIT_SHA=${{ github.sha }}
             A11OY_REQUIRE_LOCAL_LLM=1
           cache-from: type=gha
           cache-to: type=gha,mode=max
