@@ -37,7 +37,23 @@ of the D3 "probing…" hangs.
 - `/pinn` — backend WEBGL2, canvas 1280x668, HUD builds, **0 console errors**, live cert
   lands → MEASURED T=341.29K / P=56.18W / t=91s → DERIVED E=5112J, DSSE Ed25519 SIGNED.
 
-**PR:** #434 (`feat/pnt-pinn-surfaces`) · merged: _pending CI_ · live re-check: _pending deploy_
+**PR:** #434 (`feat/pnt-pinn-surfaces`) · **MERGED** to main (squash adf132a) · drift
+allowlist follow-up #437 **MERGED** (squash) — main `hf-module-drift` gate now GREEN.
+
+**Live re-check (a11oy.net, box redeployed main).**
+- `/pnt` — serves the new "PNT · Quantum Nav" page (refs `surfaces/pnt.js`); headless:
+  WEBGL2, canvas 1280x668, HUD builds with the full Q-CTRL Ironstone Opal overlay,
+  honesty chip MODELED, UNSIGNED/STRUCTURAL-ONLY shown honestly. (Live API polls were
+  HTTP 429 rate-limited during the probe — the HUD honestly shows "OFFLINE · no data yet"
+  rather than a fake line, which is correct doctrine-v11 behavior; data populates when not
+  throttled.)
+- `/pinn` — serves the new "PINN · Physical-Bounds Certifier" page (refs `surfaces/pinn.js`,
+  live copy has the `uInvModel` shader fix); headless: WEBGL2, canvas 1280x668, **0 console
+  errors**, HUD builds, live cert lands → MEASURED T=341.29K / P=56.18W / t=91s → DERIVED
+  E=5112J, DSSE Ed25519 SIGNED.
+
+Both routes are now distinct live surfaces in production — no longer the generic Command
+Center. D4 complete.
 
 ---
 
