@@ -1109,6 +1109,12 @@ try:
     # energy surface and the HF /energy page's "(5)" panel.
     app.add_api_route("/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy-holographic", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
+    # /energy-3d is the founder-facing alias for the holographic 3D energy showcase
+    # (same _ptg_serve target + same shared /static/3d/energy_showcase/showcase.js).
+    # Registered here (before the SPA catch-all) so /energy-3d serves the real wired
+    # 3D page instead of falling through to the generic console shell.
+    app.add_api_route("/energy-3d", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy-3d", _ptg_serve("energy-holographic.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
@@ -3711,6 +3717,7 @@ async def _a11oy_pr_honest_v2():
         _wired = []
     return JSONResponse({
         "space": "a11oy",
+        "git_sha": __import__("os").getenv("SZL_GIT_SHA", "unknown"),
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
@@ -8261,6 +8268,7 @@ async def _a11oy_pr_honest():
     except Exception:
         _wired = []
     return JSONResponse({
+        "git_sha": __import__("os").getenv("SZL_GIT_SHA", "unknown"),
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "axioms_raw": 15, "sorries_total": 163,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
