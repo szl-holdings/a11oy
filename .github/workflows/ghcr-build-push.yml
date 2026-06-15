@@ -129,6 +129,67 @@ jobs:
           print("\n[OK] alloy demo tier served genuine llama.cpp output from the bundled "
                 "GGUF (served_locally=True, backend=llama.cpp, %d chars)." % len(text), flush=True)
           PYEOF
+      # Prove the demo tier is reachable OVER HTTP (not just in-process): the public
+      # /v1/alloy/demo route must serve the bundled GGUF locally. Without this the
+      # local-model claim is only provable in CI; this is the same path real users /
+      # the a11oy-uptime smoke check exercise. Asserts backend=="llama.cpp" and
+      # served_locally=True from the HTTP response (via TestClient against the real
+      # registered route). Fails loud if the route falls back to the tower-side label.
+      - name: Demo tier reachable over HTTP (/v1/alloy/demo serves the bundled model)
+        timeout-minutes: 8
+        env:
+          IMG: ghcr.io/szl-holdings/${{ github.event.repository.name }}
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker pull "${IMG}@${DIGEST}"
+          docker run --rm -i --entrypoint python3 "${IMG}@${DIGEST}" - <<'PYEOF'
+          import sys, json
+          from fastapi import FastAPI
+          from starlette.testclient import TestClient
+          import szl_alloy_models as m
+
+          errors = []
+          app = FastAPI()
+          status = m.register(app, "a11oy")
+          if "demo" not in status.get("endpoints", []):
+              errors.append("demo endpoint not registered: %r" % status.get("endpoints"))
+          client = TestClient(app)
+
+          # GET (bare, uptime style) and POST (with prompt) must both serve locally.
+          for method, kwargs in (("GET", {}),
+                                 ("POST", {"json": {"prompt": "Write a Python function add(a, b).",
+                                                    "max_tokens": 48}})):
+              resp = client.request(method, "/v1/alloy/demo", **kwargs)
+              if resp.status_code != 200:
+                  errors.append("%s /v1/alloy/demo -> HTTP %d" % (method, resp.status_code))
+                  continue
+              d = resp.json()
+              safe = {k: (v[:120] if isinstance(v, str) else v)
+                      for k, v in d.items() if k in
+                      ("tier_forced", "backend", "served_locally", "live_demo", "honest_label")}
+              print("%s /v1/alloy/demo -> %s" % (method, json.dumps(safe)), flush=True)
+              if d.get("tier_forced") != "demo_cpu":
+                  errors.append("%s: tier_forced=%r, expected demo_cpu" % (method, d.get("tier_forced")))
+              if d.get("backend") != "llama.cpp":
+                  errors.append("%s: backend=%r, expected 'llama.cpp'" % (method, d.get("backend")))
+              if not d.get("served_locally"):
+                  errors.append("%s: served_locally=False -> tower-side fallback over HTTP" % method)
+              gtb = (d.get("router") or {}).get("chosen", {}).get("tier_band")
+              if gtb != "demo_cpu":
+                  errors.append("%s: routed tier_band=%r, expected demo_cpu" % (method, gtb))
+              gen_text = ((d.get("generation") or {}).get("text") or "").strip()
+              if not gen_text:
+                  errors.append("%s: empty generation text" % method)
+
+          if errors:
+              print("\n[FAIL] HTTP demo-route assertion FAILED:", flush=True)
+              for e in errors:
+                  print("  - " + e, flush=True)
+              sys.exit(1)
+          print("\n[OK] /v1/alloy/demo serves the bundled GGUF over HTTP "
+                "(backend=llama.cpp, served_locally=True).", flush=True)
+          PYEOF
       - name: Attest build provenance (GitHub Attestations API + Rekor)
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
