@@ -9493,6 +9493,33 @@ except Exception as _a11oy_qhawaq_e:  # pragma: no cover — additive, never cra
 # ============================================================================
 
 
+
+# ============================================================================
+# ADDITIVE (SAPA): Energy per Successful Goal — the frontier agentic unit on top
+# of the live MEASURED joules/token path. szl_sapa.py is the shared, byte-identical
+# accounting layer; szl_sapa_patch.py front-inserts /sapa + /api/a11oy/v1/sapa/*
+# BEFORE the SPA catch-all (idempotent by route name). Registered LAST so its
+# routes win over the SPA history fallback AND the /api/a11oy/{{path:path}} Node
+# proxy. try/except-guarded — can NEVER take the Space down. Doctrine v11:
+# locked=8 @ c7c0ba17; MEASURED only on a real fresh on-box joule reading, else
+# MODELED/pending — never fabricates a joule. Inspired by A-LEMS / EpG
+# arXiv:2605.22883 (cited reference; 4.33x is the paper's finding, not ours).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_sapa_patch as _szl_sapa_patch
+    import sys as _sapa_sys2
+    _sapa_status = _szl_sapa_patch.register(app, ns="a11oy", serve_tab=True)
+    print(f"[a11oy] SAPA energy-per-goal registered: {_sapa_status}", file=_sapa_sys2.stderr)
+except Exception as _sapa_e:  # pragma: no cover
+    print(f"[a11oy] SAPA NOT registered (non-fatal): {_sapa_e!r}",
+          file=__import__("sys").stderr)
+# ============================================================================
+# END: SAPA Energy per Successful Goal
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
