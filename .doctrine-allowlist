@@ -188,6 +188,17 @@ pages/console.html
 # serve.py entry above; the public paths it asserts are codename-free. Not hype prose.
 tests/test_a11oy_vertical_aliases.py
 
+# tests/test_rosie_envelope.py — gov_envelope regression coverage for the legacy
+# rosie-shaped operator endpoints (recommend/ledger/command-log/ask/act), Task #1016
+# (merged via #443). It enumerates the legacy /api/rosie/v1/jarvis/* alias paths
+# purely to assert those retired-codename routes are now wrapped in the same honest
+# gov_envelope as their /api/a11oy/v1/operator/* twins. The 'jarvis' token is the
+# real (load-bearing) internal route string under test — it is NOT reword-able
+# without breaking the regression. Enumeration of a banned token for regression
+# coverage of the alias itself — identical rationale to test_a11oy_vertical_aliases.py
+# and the serve.py entry above; the public surface stays codename-free. Not hype prose.
+tests/test_rosie_envelope.py
+
 # ----------------------------------------------------------------------------
 # Doctrine grep-gate exemptions (2026-06-14, founder-authorized).
 # The codename gate/sanitizer SOURCE itself: it MUST enumerate the banned
