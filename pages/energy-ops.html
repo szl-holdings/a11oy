@@ -317,6 +317,50 @@
 
   function isErr(d) { return !d || d.__error === true; }
 
+  // ---- shape adapter -----------------------------------------------------
+  // The live operator/status endpoint reports nodes as parallel string arrays
+  // (nodes_computing/nodes_degraded/nodes_standby) + a node_status map + a
+  // per-node by_node{} map, and totals as joules_measured_total/tokens_total/
+  // jobs_done. The renderers below were written against an earlier Dev1/2/3
+  // contract (status.nodes[], status.tokens, ...). This adapter remaps the REAL
+  // fields into a node[] array and leaves the totals readable — it invents no
+  // values, only reshapes what the endpoint already measured. If a status object
+  // already carries status.nodes/gpus we leave it untouched.
+  function nodesFromStatus(status) {
+    if (!status || isErr(status)) return null;
+    if (Array.isArray(status.nodes)) return status.nodes;
+    if (Array.isArray(status.gpus)) return status.gpus;
+    var ns = status.node_status;
+    var byNode = status.by_node || {};
+    var names = [];
+    if (ns && typeof ns === "object") names = Object.keys(ns);
+    else {
+      names = []
+        .concat(status.nodes_computing || [])
+        .concat(status.nodes_degraded || [])
+        .concat(status.nodes_standby || []);
+    }
+    if (!names.length) return null;
+    return names.map(function (name) {
+      var state = ns ? ns[name] : null;
+      if (!state) {
+        if ((status.nodes_computing || []).indexOf(name) >= 0) state = "computing";
+        else if ((status.nodes_standby || []).indexOf(name) >= 0) state = "standby";
+        else if ((status.nodes_degraded || []).indexOf(name) >= 0) state = "degraded";
+      }
+      var bn = byNode[name] || {};
+      return {
+        name: name,
+        state: state,
+        computing: state === "computing",
+        // standby is reachable-but-idle; degraded is unreachable.
+        reachable: state !== "degraded",
+        joules_measured: bn.joules_measured,
+        model: bn.model,
+      };
+    });
+  }
+
   // ===== OPERATOR: PLAY / STOP + status ==================================
   var running = null; // unknown
   var playBtn = document.getElementById("play");
@@ -345,8 +389,12 @@
       playBtn.textContent = "PRESS PLAY"; playBtn.classList.remove("stop");
       playBtn.setAttribute("aria-pressed", "false");
     }
-    var n = (status.nodes || status.gpus || []).length;
-    var jobs = status.jobs_running != null ? status.jobs_running : (status.active_jobs != null ? status.active_jobs : "—");
+    var nodeList = nodesFromStatus(status) || [];
+    var n = nodeList.length;
+    var jobs = status.jobs_running != null ? status.jobs_running
+             : (status.active_jobs != null ? status.active_jobs
+             : (status.jobs_done != null ? status.jobs_done
+             : (status.jobs_completed != null ? status.jobs_completed : "—")));
     det.textContent = "nodes: " + n + " · active jobs: " + jobs;
     renderNodes(status);
   }
@@ -377,25 +425,32 @@
 
   function renderNodes(status) {
     var box = document.getElementById("nodes");
-    var nodes = status && (status.nodes || status.gpus);
+    var nodes = nodesFromStatus(status);
     if (!nodes || !nodes.length) {
-      // honest default: the two known reachable nodes shown as unknown/degraded
+      // honest default: no node telemetry from the operator endpoint
       box.innerHTML = '<div class="empty">no node telemetry — <span class="chip chip-degraded">DEGRADED</span></div>';
       return;
     }
     box.innerHTML = "";
     nodes.forEach(function (n) {
       var name = n.name || n.node || n.id || "node";
-      var computing = (n.computing === true) || (n.state === "computing") || (n.reachable === true && n.busy === true);
+      var st = n.state;
+      var computing = (n.computing === true) || (st === "computing") || (n.reachable === true && n.busy === true);
+      var standby = st === "standby";
       var reachable = n.reachable !== false;
       var div = document.createElement("div");
       div.className = "node " + (computing ? "computing" : (reachable ? "" : "degraded"));
-      var chip = reachable ? (computing ? '<span class="chip chip-measured">COMPUTING</span>'
-                                        : '<span class="chip chip-sample">IDLE</span>')
-                           : '<span class="chip chip-degraded">DEGRADED</span>';
+      var chip;
+      if (!reachable) chip = '<span class="chip chip-degraded">DEGRADED</span>';
+      else if (computing) chip = '<span class="chip chip-measured">COMPUTING</span>';
+      else if (standby) chip = '<span class="chip chip-sample">STANDBY</span>';
+      else chip = '<span class="chip chip-sample">IDLE</span>';
       var model = n.model ? (" · " + n.model) : "";
+      var jm = num(n.joules_measured != null ? n.joules_measured : n.joules);
       div.innerHTML = '<div class="nm">' + esc(name) + "</div>" +
-        '<div class="st">' + chip + (reachable ? (" · joules " + fmt(num(n.joules_measured || n.joules), 1)) : " · unreachable") + esc(model) + "</div>";
+        '<div class="st">' + chip +
+        (reachable ? (jm != null ? (" · joules " + fmt(jm, 1)) : "") : " · unreachable") +
+        esc(model) + "</div>";
       box.appendChild(div);
     });
   }
@@ -413,8 +468,9 @@
       }
       var receipts = d.receipts || d.entries || d.ledger || [];
       var dryRunTotal = 0, anyCharged = false;
-      // dry-run mode chip
-      var mode = d.mode || (d.stripe_live ? "LIVE" : "DRY-RUN");
+      // dry-run mode chip. Live endpoint uses stripe_mode ("dry-run"|"live").
+      var liveMode = d.stripe_live === true || String(d.stripe_mode || "").toLowerCase() === "live";
+      var mode = d.mode || (liveMode ? "LIVE" : "DRY-RUN");
       var feedMode = document.getElementById("feed-mode");
       feedMode.textContent = mode;
       feedMode.className = "chip " + (mode === "LIVE" ? "chip-measured" : "chip-modeled");
@@ -423,10 +479,13 @@
       var rows = receipts.slice().reverse();
       if (rows.length && body.querySelector(".empty")) body.innerHTML = "";
       rows.forEach(function (r) {
-        var dec = r.decision || r;
-        var digest = r.payload_digest || r.digest || dec.payload_digest || "";
-        var cents = pickCents(r, dec);
-        var charge = r.charge || {};
+        // Live ledger nests the signed body under r.receipt.{decision,payload_digest};
+        // tolerate the older flat shape (r.decision / r itself) too.
+        var inner = r.receipt || r;
+        var dec = inner.decision || r.decision || r;
+        var digest = inner.payload_digest || r.payload_digest || r.digest || dec.payload_digest || "";
+        var cents = pickCents(inner, dec);
+        var charge = inner.charge || r.charge || {};
         if (String(charge.status) === "charged") anyCharged = true;
         else dryRunTotal += (typeof cents === "number" ? cents : 0);
         if (digest && seen[digest]) return;
@@ -447,7 +506,8 @@
       // today earnings = MODELED dry-run total
       document.getElementById("m-earn").textContent = "$" + (dryRunTotal / 100).toFixed(2);
       // real cleared revenue: only MEASURED if a real charge cleared
-      var realCents = num(d.cleared_revenue_cents || d.charged_cents || 0);
+      var dTot = d.totals || {};
+      var realCents = num(d.cleared_revenue_cents || d.charged_cents || dTot.charged_cents || 0);
       var mReal = document.getElementById("m-real");
       mReal.textContent = "$" + (realCents / 100).toFixed(2);
       setChip(document.getElementById("m-real-chip"), realCents > 0 ? "MEASURED" : "ZERO");
@@ -471,9 +531,11 @@
     return poll(API + "/energy/operator/status").then(function (d) {
       if (isErr(d)) return;
       var t = d.today || d.totals || d;
-      var tokens = num(t.tokens_measured != null ? t.tokens_measured : t.tokens);
+      var tokens = num(t.tokens_total != null ? t.tokens_total
+                     : (t.tokens_measured != null ? t.tokens_measured : t.tokens));
       var jobs = num(t.jobs_done != null ? t.jobs_done : (t.jobs != null ? t.jobs : t.jobs_completed));
-      var joules = num(t.joules_measured != null ? t.joules_measured : t.joules);
+      var joules = num(t.joules_measured_total != null ? t.joules_measured_total
+                     : (t.joules_measured != null ? t.joules_measured : t.joules));
       if (tokens != null) mTokens.set(tokens);
       if (jobs != null) mJobs.set(jobs);
       if (joules != null) { mJoules.set(joules); bigJoules.set(joules); }
