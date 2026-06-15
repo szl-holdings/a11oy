@@ -60,7 +60,7 @@ Public API:
     tamper_demo()               -> a LIVE tamper-EVIDENT receipt demonstration
     snapshot(ns)                -> everything the served tab needs (no network)
     live_digests()              -> re-resolve GHCR digests at request time (honest)
-    register(app, ns)           -> mount /uds-portability + /api/<ns>/v1/uds/* 
+    register(app, ns)           -> mount /uds-portability + /api/<ns>/v1/udsportability/* 
 """
 from __future__ import annotations
 
@@ -263,7 +263,7 @@ def verify_commands(ns: str = "a11oy") -> Dict[str, Any]:
                      "# expected:  Verified OK + the JSON claim blocks"),
              "note": "The supply-chain proof you show first — keyless OIDC identity, GitHub Actions issuer."},
             {"label": "3 · receipt-verify (tamper-EVIDENT, from this very Space)",
-             "cmd": ("curl -s https://szlholdings-%s.hf.space/api/%s/v1/uds/tamper-demo | \\\n"
+             "cmd": ("curl -s https://szlholdings-%s.hf.space/api/%s/v1/udsportability/tamper-demo | \\\n"
                      "  python3 -c 'import sys,json; r=json.load(sys.stdin); "
                      "print(\"intact:\", r[\"intact\"][\"verdict\"]); "
                      "print(\"tampered:\", r[\"tampered\"][\"verdict\"])'\n"
@@ -454,12 +454,12 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
 
     _paths = {
         "/uds-portability",
-        f"/api/{ns}/v1/uds/snapshot",
-        f"/api/{ns}/v1/uds/payloads",
-        f"/api/{ns}/v1/uds/live",
-        f"/api/{ns}/v1/uds/verify",
-        f"/api/{ns}/v1/uds/tamper-demo",
-        f"/api/{ns}/v1/uds/doctrine",
+        f"/api/{ns}/v1/udsportability/snapshot",
+        f"/api/{ns}/v1/udsportability/payloads",
+        f"/api/{ns}/v1/udsportability/live",
+        f"/api/{ns}/v1/udsportability/verify",
+        f"/api/{ns}/v1/udsportability/tamper-demo",
+        f"/api/{ns}/v1/udsportability/doctrine",
     }
     if any(getattr(_r, "path", None) in _paths for _r in app.router.routes):
         return {
@@ -472,27 +472,27 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
 
     n_before = len(app.router.routes)
 
-    @app.get(f"/api/{ns}/v1/uds/snapshot", include_in_schema=False)
+    @app.get(f"/api/{ns}/v1/udsportability/snapshot", include_in_schema=False)
     async def _snapshot() -> JSONResponse:
         return JSONResponse(snapshot(ns))
 
-    @app.get(f"/api/{ns}/v1/uds/payloads", include_in_schema=False)
+    @app.get(f"/api/{ns}/v1/udsportability/payloads", include_in_schema=False)
     async def _payloads() -> JSONResponse:
         return JSONResponse({"payloads": payloads()})
 
-    @app.get(f"/api/{ns}/v1/uds/live", include_in_schema=False)
+    @app.get(f"/api/{ns}/v1/udsportability/live", include_in_schema=False)
     async def _live() -> JSONResponse:
         return JSONResponse(live_digests())
 
-    @app.get(f"/api/{ns}/v1/uds/verify", include_in_schema=False)
+    @app.get(f"/api/{ns}/v1/udsportability/verify", include_in_schema=False)
     async def _verify() -> JSONResponse:
         return JSONResponse(verify_commands(ns))
 
-    @app.get(f"/api/{ns}/v1/uds/tamper-demo", include_in_schema=False)
+    @app.get(f"/api/{ns}/v1/udsportability/tamper-demo", include_in_schema=False)
     async def _tamper() -> JSONResponse:
         return JSONResponse(tamper_demo())
 
-    @app.get(f"/api/{ns}/v1/uds/doctrine", include_in_schema=False)
+    @app.get(f"/api/{ns}/v1/udsportability/doctrine", include_in_schema=False)
     async def _doctrine() -> JSONResponse:
         return JSONResponse(doctrine())
 
@@ -509,12 +509,12 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         "capability": "UDS portability + death-proof showcase",
         "registered": [
             "GET /uds-portability",
-            f"GET /api/{ns}/v1/uds/snapshot",
-            f"GET /api/{ns}/v1/uds/payloads",
-            f"GET /api/{ns}/v1/uds/live",
-            f"GET /api/{ns}/v1/uds/verify",
-            f"GET /api/{ns}/v1/uds/tamper-demo",
-            f"GET /api/{ns}/v1/uds/doctrine",
+            f"GET /api/{ns}/v1/udsportability/snapshot",
+            f"GET /api/{ns}/v1/udsportability/payloads",
+            f"GET /api/{ns}/v1/udsportability/live",
+            f"GET /api/{ns}/v1/udsportability/verify",
+            f"GET /api/{ns}/v1/udsportability/tamper-demo",
+            f"GET /api/{ns}/v1/udsportability/doctrine",
         ],
         "tab_route": "/uds-portability",
         "data_label": "UDS-PORTABILITY",
@@ -647,7 +647,7 @@ function wireCopy(){
 function shortDig(d){ if(!d)return '—'; return d.length>26?(d.slice(0,21)+'…'+d.slice(-6)):d; }
 
 async function load(){
-  const r=await fetch('/api/{NS}/v1/uds/snapshot'); const d=await r.json();
+  const r=await fetch('/api/{NS}/v1/udsportability/snapshot'); const d=await r.json();
   // payload cards
   $('#payloads').innerHTML=d.payloads.map(p=>{
     const imgs=p.images.map(i=>'<div title="'+esc(i.ref)+'"><span class="tag">'+esc(i.organ)+'</span> '+(i.digest?esc(shortDig(i.digest)):'<span class="pill amber">unpublished</span>')+'</div>').join('');
@@ -690,7 +690,7 @@ async function load(){
   wireCopy();
 }
 async function loadTamper(){
-  try{ const r=await fetch('/api/{NS}/v1/uds/tamper-demo'); const t=await r.json();
+  try{ const r=await fetch('/api/{NS}/v1/udsportability/tamper-demo'); const t=await r.json();
     $('#tamper').textContent=JSON.stringify({
       intact:{content_digest:t.intact.content_digest,verdict:t.intact.verdict},
       tampered:{what_changed:t.tampered.what_changed,tampered_digest:t.tampered.tampered_digest,verdict:t.tampered.verdict},
@@ -700,7 +700,7 @@ async function loadTamper(){
   }catch(e){ $('#tamper').textContent='error: '+e; }
 }
 async function loadLive(){
-  try{ const r=await fetch('/api/{NS}/v1/uds/live'); const d=await r.json();
+  try{ const r=await fetch('/api/{NS}/v1/udsportability/live'); const d=await r.json();
     const eg=$('#egress'); eg.textContent=d.egress; eg.className='pill '+(d.egress.indexOf('ONLINE')===0?'greenp':'amber');
     const tb=$('#digtbl tbody');
     tb.innerHTML=d.rows.map(x=>{
