@@ -279,6 +279,20 @@ try:
 except Exception as _szl_es_e:  # pragma: no cover
     print(f"[a11oy] Energy/Sovereign-Compute NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
 
+# -- Energy OPERATOR (press-play sovereign-compute lung) -- REGRESSION RESTORE.
+# Routes /api/a11oy/v1/energy/operator/{status,start,stop} are the press-play lung
+# dispatcher consumed by the /energy tab AND the /fabric one-view (joules MEASURED,
+# per-node). Their registration was dropped during the serve.py mesh refactor while
+# the module szl_energy_operator.py stayed in-image but unwired, so the live
+# endpoints 404'd and no joules were measured. This restores the missing wiring
+# (additive, try/except-guarded, same pattern as the energy modules above).
+try:
+    import szl_energy_operator as _szl_energy_operator
+    _szl_energy_operator.register(app, ns="a11oy")
+    print("[a11oy] Energy operator registered: /api/a11oy/v1/energy/operator/{status,start,stop}", file=__import__("sys").stderr)
+except Exception as _szl_eo_e:  # pragma: no cover
+    print(f"[a11oy] Energy operator NOT registered: {_szl_eo_e!r}", file=__import__("sys").stderr)
+
 # ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
 # a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
 # eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
