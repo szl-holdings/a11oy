@@ -550,6 +550,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     async def _honest():
         return {
             "organ": organ,
+            "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
             "doctrine_lock": DOCTRINE_LOCK,
             "footer": DOCTRINE_FOOTER,
             "honest_labels": {
