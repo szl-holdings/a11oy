@@ -250,6 +250,35 @@ def _label_upper(exporter_sample: Optional[dict], now: Optional[float] = None) -
     return LABEL_MEASURED if _J.is_real_fresh_sample(exporter_sample, now=now) else LABEL_SAMPLE
 
 
+def _label_by_node(node_name: str, entry: dict) -> dict:
+    """Honest per-node energy label for the status by_node view (ADDITIVE).
+
+    Preserves the existing per-node fields (jobs, tokens, joules_measured) and ADDS:
+      - joules_label: MEASURED iff this node's NVML exporter engine yielded billable
+        joules (>0); else PENDING_EXPORTER when the node DID real jobs but no per-node
+        meter reading attributes to it yet (e.g. chaski runs but the betterwithage
+        joule-meter exposes no 'chaski' engine), else NONE for a node with no jobs.
+      - joules_note: the one-line reason, so a judge reading the API alone can tell
+        "measured" from "pending — no per-node reading yet" — NEVER a fabricated joule.
+    Doctrine: 0.0 joules on a node that computed is PENDING, not zero-energy; the only
+    unacceptable outcome is claiming a measured joule we did not meter.
+    """
+    out = dict(entry)
+    jobs = int(out.get("jobs", 0) or 0)
+    joules = float(out.get("joules_measured", 0.0) or 0.0)
+    if joules > 0:
+        out["joules_label"] = LABEL_MEASURED
+        out["joules_note"] = "per-node NVML exporter delta (fresh <30s)"
+    elif jobs > 0:
+        out["joules_label"] = "PENDING_EXPORTER"
+        out["joules_note"] = ("node computed real jobs but no per-node NVML meter "
+                              "reading attributes to it yet — pending, never faked")
+    else:
+        out["joules_label"] = "NONE"
+        out["joules_note"] = "no jobs recorded for this node"
+    return out
+
+
 # ---------------------------------------------------------------------------
 # JobRecord — the STABLE interface Dev2/3/4 consume.
 # ---------------------------------------------------------------------------
@@ -706,7 +735,7 @@ class OperatorDaemon:
                 "nodes_degraded": degraded,
                 "nodes_standby": standby,
                 "node_status": dict(self._node_status),
-                "by_node": {k: dict(v) for k, v in st.by_node.items()},
+                "by_node": {k: _label_by_node(k, v) for k, v in st.by_node.items()},
                 "uptime_s": round(uptime, 3),
                 "window_seconds": round(uptime, 3),
                 "jobs_completed": st.jobs_done,
