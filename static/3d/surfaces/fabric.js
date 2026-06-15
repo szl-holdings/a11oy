@@ -9,8 +9,9 @@
 //
 // Primary live endpoint (doctrine v11: WIRE TO LIVE DATA, never fabricate):
 //   /api/a11oy/v1/compute-pool-hardened   (the hardened sub-second, breaker-guarded
-//   prober that returns the REAL TCP-probed pool JSON; the plain /compute-pool path
-//   resolves to the SPA shell and the un-suffixed v1 alias 404s)
+//   prober that returns the REAL TCP-probed pool JSON — honest per-node reachability
+//   with probe_elapsed_s, not the optimistic cached counts the plain /compute-pool
+//   path can report)
 //   counts{nodes_total, nodes_reachable, gpu_nodes_reachable, sovereign_gpu_live}
 //   nodes[]{name,kind,endpoint,reachable,sovereign,capabilities,models[]}
 //

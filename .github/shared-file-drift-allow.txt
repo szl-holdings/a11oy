@@ -67,3 +67,11 @@ serve.py                   # a11oy console+verticals server vs killinchu /elite 
 #     routes, so this hardening module is intentionally app-specific. Reconcile
 #     only if both demos ever adopt one shared limiter.
 szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (app-specific routes)
+
+# --- 2026-06-15: a11oy freed /energy for the genius Proven-Energy-Engine page and
+#     moved the sovereign-posture panel to /energy-sovereign (commit ab4468b, box
+#     front-end finish). killinchu still serves the same posture panel at /energy.
+#     The ONLY divergence is that route string (@app.get path + its self-referenced
+#     endpoint list); the panel logic is otherwise byte-identical. App-specific
+#     route map — reconcile only if killinchu also adopts the /energy split.
+szl_energy_sovereign.py    # a11oy serves posture at /energy-sovereign vs killinchu /energy (route-only divergence)
