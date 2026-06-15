@@ -564,6 +564,217 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         }
 
     report["registered"].append("honest_footer")
+
+    # ---- 10: governance / assurance facade (TASK_2) -----------------------
+    # Honest aggregation over REAL primitives already baked into this image:
+    #   gates_manifest.json (doctrine/locked gates) · szl_dsse (real ECDSA-P256
+    #   cosign key) · szl_energy_operator (MEASURED NVML joule ledger) · and this
+    #   module's own SHA3-256 khipu hash-chain. Where a real source is not
+    #   reachable in this runtime we return a clearly-labelled STRUCTURAL-ONLY
+    #   shape (data_kind="structural") — NEVER a fabricated value.
+    abase = f"{base}/assurance"
+
+    def _gates_manifest_summary() -> Dict[str, Any]:
+        """Real, shape-tolerant summary of gates_manifest.json (never dumps the
+        whole 50KB blob, never guesses a schema): presence + content sha256 +
+        byte size + a light top-level shape. STRUCTURAL-ONLY when absent."""
+        candidates = [
+            "/app/gates_manifest.json",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "gates_manifest.json"),
+        ]
+        for p in candidates:
+            try:
+                with open(p, "rb") as fh:
+                    raw = fh.read()
+                obj = json.loads(raw)
+                summ: Dict[str, Any] = {
+                    "present": True,
+                    "path": p,
+                    "bytes": len(raw),
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                }
+                if isinstance(obj, dict):
+                    summ["top_level_keys"] = sorted(obj.keys())[:64]
+                    g = obj.get("gates")
+                    if isinstance(g, (list, dict)):
+                        summ["gates_count"] = len(g)
+                elif isinstance(obj, list):
+                    summ["gates_count"] = len(obj)
+                return summ
+            except Exception:
+                continue
+        return {"present": False}
+
+    def _energy_ledger() -> Tuple[Optional[Dict[str, Any]], str]:
+        """(ledger, source). Prefer the LIVE in-process operator (same process as
+        this app) for MEASURED joules; else the durable persisted ledger file;
+        else (None, 'unavailable'). Read-only — never starts a daemon."""
+        try:
+            import szl_energy_operator as _eo  # already imported by serve.py
+            op = getattr(_eo, "_OPERATOR", None)
+            if op is not None:
+                return op.status(), "live-operator"
+            path = os.environ.get(
+                "A11OY_OPERATOR_STATE",
+                os.path.join(os.path.dirname(os.path.abspath(_eo.__file__)),
+                             "artifacts", "energy_operator_ledger.json"))
+            with open(path) as fh:
+                return json.load(fh), "persisted-ledger"
+        except Exception as exc:
+            return None, f"unavailable:{type(exc).__name__}"
+
+    @app.get(f"{abase}/compliance", tags=["assurance"])
+    async def _assurance_compliance():
+        gm = _gates_manifest_summary()
+        return {
+            "organ": organ,
+            "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
+            "doctrine": DOCTRINE,
+            "doctrine_lock": DOCTRINE_LOCK,
+            "doctrine_footer": DOCTRINE_FOOTER,
+            "kernel_commit": "c7c0ba17",
+            "locked_formula_count": DOCTRINE_LOCK.get("locked_formula_count"),
+            "locked_formula_ids": DOCTRINE_LOCK.get("locked_formula_ids"),
+            "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified); "
+                    "L3 roadmap, not claimed.",
+            "gates_manifest": gm,
+            "data_kind": "live" if gm.get("present") else "structural",
+            "honesty": ("doctrine lock is the canonical locked-8 {F1,F4,F7,F11,F12,"
+                        "F18,F19,F22} @ c7c0ba17 (no-axiom theorem locked_count_eight). "
+                        "gates_manifest is summarised from the on-disk manifest when "
+                        "present; STRUCTURAL-ONLY (present:false) when absent — never "
+                        "fabricated. Λ remains Conjecture 1."),
+        }
+
+    @app.get(f"{abase}/credential", tags=["assurance"])
+    async def _assurance_credential():
+        info: Dict[str, Any] = {"organ": organ,
+                                "git_sha": os.getenv("SZL_GIT_SHA", "unknown")}
+        try:
+            import szl_dsse as _dsse
+            info.update({
+                "data_kind": "live",
+                "algorithm": "ECDSA-P256-SHA256 over DSSE PAE (cosign-compatible)",
+                "signing_available": bool(_dsse.signing_available()),
+                "public_key_fingerprint_sha256": _dsse.public_key_fingerprint(),
+                "public_key_pem": _dsse.COSIGN_PUBLIC_PEM.strip(),
+                "private_key_source": ("runtime secret only "
+                                       "(SZL_COSIGN_PRIVATE_KEY_PEM); never committed"),
+                "honesty": ("the embedded public key verifies signatures offline "
+                            "(cosign verify-blob). Signing is REAL only when the cosign "
+                            "private-key secret is present in this runtime — "
+                            "signing_available reports that truthfully; never faked."),
+            })
+        except Exception as exc:
+            info.update({
+                "data_kind": "structural",
+                "signing_available": False,
+                "honesty": (f"szl_dsse unavailable in this runtime "
+                            f"({type(exc).__name__}); credential is STRUCTURAL-ONLY "
+                            "— never fabricated."),
+            })
+        return info
+
+    @app.get(f"{abase}/attest", tags=["assurance"])
+    async def _assurance_attest():
+        # A DSSE in-toto-style statement over the CURRENT verifiable state, signed
+        # via szl_dsse. The envelope's own "honesty" field declares REAL vs
+        # UNSIGNED — we never assert a signature that does not exist.
+        ok, depth, brk = store.verify()
+        statement = {
+            "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
+            "build_time": os.getenv("SZL_BUILD_TIME", "unknown"),
+            "khipu_chain": {"backend": store.backend, "depth": depth,
+                            "chain_ok": ok, "first_break_seq": brk,
+                            "head": store.head()},
+            "doctrine_lock": DOCTRINE_LOCK,
+        }
+        try:
+            import szl_dsse as _dsse
+            env = _dsse.sign_payload(
+                statement,
+                payload_type="https://szl-holdings.dev/attestations/governance-receipt/v1",
+            )
+            return {"organ": organ, "statement": statement, "dsse": env,
+                    "data_kind": "live",
+                    "verify_hint": ("verify with the /assurance/credential "
+                                    "public_key_pem; dsse.honesty declares REAL vs "
+                                    "UNSIGNED.")}
+        except Exception as exc:
+            return {"organ": organ, "statement": statement, "dsse": None,
+                    "data_kind": "structural",
+                    "honesty": (f"szl_dsse unavailable ({type(exc).__name__}); the "
+                                "statement is REAL state but UNSIGNED/STRUCTURAL — "
+                                "never fabricated.")}
+
+    @app.get(f"{abase}/artifact", tags=["assurance"])
+    async def _assurance_artifact():
+        gs = os.getenv("SZL_GIT_SHA", "")
+        return {
+            "organ": organ,
+            "git_sha": gs or "unknown",
+            "build_time": os.getenv("SZL_BUILD_TIME", "unknown"),
+            "image_ref": os.getenv("SZL_IMAGE_REF", "unknown"),
+            "image_digest": os.getenv("SZL_IMAGE_DIGEST", "unknown"),
+            "slsa": "SLSA L1 honest; L2 .att emitted (not independently verified); "
+                    "L3 roadmap, not claimed.",
+            "provenance": ("cosign-signed image (cosign verify) + signed SLSA "
+                           "build-provenance attestation "
+                           "(actions/attest-build-provenance@v2, Sigstore keyless "
+                           "Fulcio+Rekor); verifiable via `gh attestation verify` / "
+                           "`cosign verify-attestation --type slsaprovenance`."),
+            "data_kind": "live" if gs else "structural",
+            "honesty": ("git_sha/build_time are baked at build time (ENV). "
+                        "image_digest/image_ref are the build-published values when "
+                        "SZL_IMAGE_DIGEST/SZL_IMAGE_REF are set, else 'unknown' "
+                        "(verify the running digest out-of-band via cosign) — "
+                        "never fabricated."),
+        }
+
+    @app.get(f"{base}/forge/ledger", tags=["forge"])
+    async def _forge_ledger():
+        led, src = _energy_ledger()
+        ok, depth, brk = store.verify()
+        energy: Optional[Dict[str, Any]] = None
+        if led is not None:
+            energy = {
+                "joules_measured_total": led.get("joules_measured_total"),
+                "joules_measured_label": led.get("joules_measured_label", "MEASURED"),
+                "measured_jobs": led.get("measured_jobs"),
+                "tokens_total": led.get("tokens_total"),
+                "by_node": led.get("by_node"),
+                "running": led.get("running"),
+                "stub_mode": led.get("stub_mode"),
+                "exporter": led.get("exporter"),
+                "source": src,
+            }
+        return {
+            "organ": organ,
+            "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
+            "energy_ledger": energy,
+            "receipt_chain": {
+                "backend": store.backend,
+                "durable": store.backend in ("sqlite", "json"),
+                "depth": depth,
+                "chain_ok": ok,
+                "first_break_seq": brk,
+                "head": store.head(),
+                "count": store.count(),
+            },
+            "data_kind": "live" if (energy is not None or store.count() > 0)
+                         else "structural",
+            "doctrine": DOCTRINE,
+            "honesty": ("energy figures are MEASURED NVML joule deltas from the live "
+                        "operator (or the durable persisted ledger when the operator is "
+                        "not in this process) — SAMPLE/stub energy is excluded and never "
+                        "billable; receipt_chain is a SHA3-256 hash-chain that verify() "
+                        "re-walks. Counters are NEVER reset and NEVER fabricated; "
+                        "energy_ledger is null when no ledger is reachable."),
+        }
+
+    report["registered"].append(
+        "assurance(artifact,credential,compliance,attest)+forge/ledger")
     report["ok"] = True
     logger.info("hardening registered", extra={"trace_id": "boot", "span_id": "boot"})
     return report
