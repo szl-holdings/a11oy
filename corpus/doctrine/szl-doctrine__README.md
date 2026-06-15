@@ -55,7 +55,7 @@ auditable, and machine-enforced.
 
 > The *locked* numbers are a contract and do not move. The **experimental `main` corpus**
 > (≈1323 decls / 23 axioms / CI-green) is reported **separately** and is **never folded into
-> the 5 locked-proven formulas** {F1, F11, F12, F18, F19}.
+> the 8 locked-proven formulas** {F1, F4, F7, F11, F12, F18, F19, F22}.
 
 ## What it automates (org-wide)
 
