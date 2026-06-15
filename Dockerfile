@@ -17,7 +17,58 @@
 #
 # HF Space requirement: listen on PORT 7860.
 
-FROM python:3.12-slim
+# ---------------------------------------------------------------------------
+# IMAGE-LEANNESS: multi-stage build. The CPU demo tier needs llama-cpp-python
+# compiled FROM SOURCE against glibc (see the long WHY note above the runtime
+# install far below). That compile pulls in a heavy build toolchain
+# (build-essential/cmake/ninja/git — hundreds of MB of apt .deb churn) plus
+# compile intermediates. Doing it in a THROWAWAY builder stage and copying only
+# the resulting prebuilt wheel keeps all of that OUT of the published runtime
+# image, shrinking the final image + its layer count (faster GHCR pulls) without
+# changing what the demo tier serves.
+#
+# CONDITIONAL COMPILE: a constrained builder (HF Spaces cpu-basic) sets
+# A11OY_REQUIRE_LOCAL_LLM=0 and must NOT pay the heavy compile (it OOM/timed-out
+# -> BUILD_ERROR). Select the builder by ARG: =1 -> llama-build-1 (real source
+# compile), else -> llama-build-0 (empty, no compile). BuildKit only builds the
+# stage actually referenced by the `llama-build` alias, so on the constrained
+# path the compile is skipped entirely. The strict GHCR build sets =1.
+ARG A11OY_REQUIRE_LOCAL_LLM=0
+
+# Real compile path (=1): build the pinned llama-cpp-python from source into a
+# prebuilt glibc wheel, then assert the bundled libllama.so links glibc
+# (NEEDs libc.so.6), not musl. set -eux => a bad compile fails the build LOUD.
+FROM python:3.12-slim AS llama-build-1
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends build-essential cmake ninja-build git; \
+    CMAKE_ARGS="-DGGML_NATIVE=OFF" pip wheel --no-cache-dir --no-binary llama-cpp-python \
+        --wheel-dir=/wheels "llama-cpp-python==0.3.19"
+RUN python3 <<'GLIBCCHK'
+import glob, sys, zipfile
+whls = glob.glob("/wheels/llama_cpp_python-*.whl")
+assert whls, "no llama_cpp_python wheel produced by the source build"
+w = whls[0]
+z = zipfile.ZipFile(w)
+sos = [n for n in z.namelist() if n.endswith("libllama.so")]
+assert sos, "libllama.so not present inside the built wheel " + w
+data = z.read(sos[0])
+assert b"libc.so.6" in data and b"libc.musl-x86_64.so.1" not in data, \
+    "built libllama.so is not glibc-linked (would not load on python:3.12-slim): " + sos[0]
+print("[a11oy] built glibc wheel OK:", w, "->", sos[0])
+GLIBCCHK
+
+# Skip path (!=1): no compile; just an empty wheel dir so the runtime
+# COPY --from has a valid (empty) source on the constrained build.
+FROM python:3.12-slim AS llama-build-0
+RUN mkdir -p /wheels
+
+# Pick the builder the runtime stage actually copies from.
+FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build
+
+# ---------------------------------------------------------------------------
+# RUNTIME IMAGE (the published a11oy Space / GHCR image).
+FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
@@ -581,19 +632,30 @@ COPY src/a11oy/harvest/__init__.py src/a11oy/harvest/wasted_energy_harvest.py sr
 # A11OY_REQUIRE_LOCAL_LLM=1 (set in GHCR CI), else best-effort with an honest skip.
 # This preserves the published image's hard real-model guarantee while keeping the
 # HF Space reliably bootable. No fabricated data either way.
+# IMAGE-LEANNESS (multi-stage): the heavy from-source compile happens in the
+# `llama-build` stage near the top of this file. Here we only COPY the resulting
+# prebuilt wheel and install it — no compiler, no build-toolchain apt churn in
+# the runtime image. On the constrained path (A11OY_REQUIRE_LOCAL_LLM!=1)
+# `llama-build` is the empty builder, so /tmp/wheels is empty and we skip the
+# install: the demo tier serves the HONEST tower-side label
+# (szl_alloy_models.py, served_locally=False), exactly as before. The strict
+# GHCR build sets =1: the wheel is present, installed, and boot-verified
+# glibc-linked + importable (fail-loud). Only the two runtime shared libs
+# (libgomp1/libstdc++6) are added to the image.
 ARG A11OY_REQUIRE_LOCAL_LLM=0
+COPY --from=llama-build /wheels /tmp/wheels
 RUN set -eux; \
     if [ "${A11OY_REQUIRE_LOCAL_LLM}" != "1" ]; then \
-      echo '[a11oy] A11OY_REQUIRE_LOCAL_LLM!=1 (constrained builder, e.g. HF cpu-basic): SKIPPING the heavy from-source llama.cpp compile to keep this build fast + reliable. The demo tier serves the HONEST tower-side label (szl_alloy_models.py, served_locally=False, never fake output). The strict GHCR-published image sets =1 and DOES compile + boot-verify real local output.'; \
+      echo '[a11oy] A11OY_REQUIRE_LOCAL_LLM!=1 (constrained builder, e.g. HF cpu-basic): no llama.cpp wheel built/installed. The demo tier serves the HONEST tower-side label (szl_alloy_models.py, served_locally=False, never fake output). The strict GHCR-published image sets =1 and installs the prebuilt glibc wheel + boot-verifies real local output.'; \
     else \
       apt-get update; \
-      apt-get install -y --no-install-recommends build-essential cmake ninja-build git libgomp1 libstdc++6; \
-      CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.19"; \
-      python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp built from source OK (glibc):', so[0], getattr(llama_cpp,'__version__','?'))"; \
-      apt-get purge -y build-essential cmake ninja-build git; \
-      apt-get autoremove -y; \
+      apt-get install -y --no-install-recommends libgomp1 libstdc++6; \
+      apt-get clean; \
       rm -rf /var/lib/apt/lists/*; \
-    fi
+      pip install --no-cache-dir /tmp/wheels/*.whl; \
+      python3 -c "import llama_cpp, os, glob; base=os.path.dirname(llama_cpp.__file__); so=glob.glob(os.path.join(base,'**','libllama.so'), recursive=True); assert so, 'libllama.so not found under '+base; d=open(so[0],'rb').read(); assert b'libc.so.6' in d and b'libc.musl-x86_64.so.1' not in d, 'libllama.so is not glibc-linked: '+so[0]; print('[a11oy] llama_cpp installed from prebuilt glibc wheel OK:', so[0], getattr(llama_cpp,'__version__','?'))"; \
+    fi; \
+    rm -rf /tmp/wheels
 # GGUF weight — RELIABLY PRESENT (pinned revision + retry + integrity verify), NOT best-effort.
 # Previously a single best-effort `hf_hub_download(...) || echo` step: a transient download
 # failure silently shipped an image with NO model, so the alloy demo tier always degraded to
