@@ -173,6 +173,146 @@ class EvaluateTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("status_counts", reason)
 
+    # --- HITL action ring (governed envelope + action-ring record) ------------
+    HITL_REQUIRED = ENVELOPE + ["ok", "entry", "audit_depth"]
+
+    def test_hitl_act_contract_passes(self):
+        # operator/act carries the governed envelope PLUS the action-ring record.
+        body = json.dumps(
+            {
+                "ok": True,
+                "action": "acknowledge",
+                "target": "demo",
+                "entry": {"action": "acknowledge", "entry_hash": "a" * 64, "prev_hash": "0" * 64},
+                "audit_depth": 1,
+                "receipt": {"signed": False},
+                "honesty": "hash-chained audit ring",
+                "status": "REAL",
+                "citations": [],
+                "fetchedAt": "2026-06-15T00:00:00+00:00",
+                "doctrine": "v11",
+            }
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, self.HITL_REQUIRED)
+        self.assertTrue(ok, reason)
+
+    def test_hitl_act_missing_entry_fails(self):
+        # Drop the hash-chained ring record -> the HITL contract is broken.
+        body = json.dumps(
+            {
+                "ok": True,
+                "action": "acknowledge",
+                "audit_depth": 1,
+                "status": "REAL",
+                "citations": [],
+                "fetchedAt": "2026-06-15T00:00:00+00:00",
+                "doctrine": "v11",
+            }
+        ).encode("utf-8")  # no entry
+        ok, reason = evaluate(200, "application/json", body, self.HITL_REQUIRED)
+        self.assertFalse(ok)
+        self.assertIn("entry", reason)
+
+    def test_hitl_act_missing_audit_depth_fails(self):
+        body = json.dumps(
+            {
+                "ok": True,
+                "action": "acknowledge",
+                "entry": {"entry_hash": "a" * 64},
+                "status": "REAL",
+                "citations": [],
+                "fetchedAt": "2026-06-15T00:00:00+00:00",
+                "doctrine": "v11",
+            }
+        ).encode("utf-8")  # no audit_depth
+        ok, reason = evaluate(200, "application/json", body, self.HITL_REQUIRED)
+        self.assertFalse(ok)
+        self.assertIn("audit_depth", reason)
+
+    def test_hitl_act_envelope_stripped_fails(self):
+        # The action-ring record is present but the governed envelope is dropped.
+        body = json.dumps(
+            {"ok": True, "action": "acknowledge", "entry": {"entry_hash": "a" * 64}, "audit_depth": 1}
+        ).encode("utf-8")  # no status/citations/fetchedAt/doctrine
+        ok, reason = evaluate(200, "application/json", body, self.HITL_REQUIRED)
+        self.assertFalse(ok)
+        self.assertIn("status", reason)
+
+    # --- MCP tools manifest (own contract, no governed envelope) --------------
+    def test_mcp_tools_contract_passes(self):
+        # Count is NOT pinned (it grows as formula tools + sibling surfaces merge).
+        body = json.dumps(
+            {
+                "count": 11,
+                "tools": [{"name": "a11oy_gate", "flagship": "a11oy"}],
+                "flagship": "a11oy",
+                "flagships": ["a11oy", "killinchu"],
+                "doctrine": "v11",
+            }
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["count", "tools", "flagship"])
+        self.assertTrue(ok, reason)
+
+    def test_mcp_tools_spa_html_200_fails(self):
+        # The whole point: an SPA-HTML 200 on the MCP manifest must go red.
+        ok, reason = evaluate(200, "text/html; charset=utf-8", SPA_HTML, ["count", "tools", "flagship"])
+        self.assertFalse(ok)
+        self.assertIn("not application/json", reason)
+
+    def test_mcp_tools_missing_tools_fails(self):
+        body = json.dumps({"count": 11, "flagship": "a11oy"}).encode("utf-8")  # no tools
+        ok, reason = evaluate(200, "application/json", body, ["count", "tools", "flagship"])
+        self.assertFalse(ok)
+        self.assertIn("tools", reason)
+
+    # --- MCP tool calls (list / run / proof-status) — own {tool,status,...} ----
+    def test_mcp_list_formulas_contract_passes(self):
+        body = json.dumps(
+            {"tool": "list_formulas", "status": "ok", "count": 22, "formulas": [], "doctrine": "v11"}
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["tool", "status", "formulas"])
+        self.assertTrue(ok, reason)
+
+    def test_mcp_list_formulas_missing_formulas_fails(self):
+        body = json.dumps({"tool": "list_formulas", "status": "ok", "count": 22}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["tool", "status", "formulas"])
+        self.assertFalse(ok)
+        self.assertIn("formulas", reason)
+
+    def test_mcp_run_formula_contract_passes(self):
+        body = json.dumps(
+            {"tool": "run_formula", "status": "ok", "result": {"ok": True, "result": 0.92}, "doctrine": "v11"}
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["tool", "status", "result"])
+        self.assertTrue(ok, reason)
+
+    def test_mcp_run_formula_missing_result_fails(self):
+        body = json.dumps({"tool": "run_formula", "status": "ok"}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["tool", "status", "result"])
+        self.assertFalse(ok)
+        self.assertIn("result", reason)
+
+    def test_mcp_proof_status_contract_passes(self):
+        body = json.dumps(
+            {"tool": "formula_proof_status", "status": "ok", "name": "lambda_aggregate",
+             "proof_status": "PROVEN(A1-A4); uniqueness CONJECTURE"}
+        ).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["tool", "status", "proof_status"])
+        self.assertTrue(ok, reason)
+
+    def test_mcp_proof_status_missing_proof_status_fails(self):
+        body = json.dumps({"tool": "formula_proof_status", "status": "ok", "name": "x"}).encode("utf-8")
+        ok, reason = evaluate(200, "application/json", body, ["tool", "status", "proof_status"])
+        self.assertFalse(ok)
+        self.assertIn("proof_status", reason)
+
+    def test_mcp_call_503_fails(self):
+        # If the formula registry stops importing in-process the call 503s -> red.
+        ok, reason = evaluate(503, "application/json", b'{"tool":"list_formulas","error":"registry not available"}',
+                              ["tool", "status", "formulas"])
+        self.assertFalse(ok)
+        self.assertIn("503", reason)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -70,6 +70,39 @@ CHECKS = [
     {"method": "GET", "path": "/api/a11oy/v1/contracting", "required": ["areas", "summary", "honest"]},
     {"method": "GET", "path": "/api/a11oy/v1/readiness", "required": ["sections", "summary", "honest"]},
     {"method": "GET", "path": "/api/a11oy/v1/evidence", "required": ["claims", "total_assertions", "status_counts"]},
+    # --- HITL (human-in-the-loop) action ring -----------------------------------
+    # operator/act is the SHA-256 hash-chained HITL action ring. "acknowledge" is
+    # a safe, enumerated action — it records ONLY into the in-process audit ring
+    # (resets on restart, bounded), executes no real action; this is the same
+    # probe the in-process CI test uses. It carries the governed envelope PLUS the
+    # action-ring record, so require the envelope AND ok/entry/audit_depth.
+    {
+        "method": "POST",
+        "path": "/api/a11oy/v1/operator/act",
+        "body": {"action": "acknowledge", "target": "health-probe", "note": "scheduled health check"},
+        "required": ENVELOPE + ["ok", "entry", "audit_depth"],
+    },
+    # --- MCP tools surface ------------------------------------------------------
+    # /v1/mcp/tools is the MCP manifest. It does NOT carry the governed envelope —
+    # it declares {count, tools, flagship, ...}. Do NOT pin the count: it grows as
+    # the canonical-formula tools register and live sibling-flagship MCP surfaces
+    # merge in (observed 11 live; older docs say "4 real" host tools). Requiring
+    # key presence still catches the SPA-HTML-200 / dropped-contract regression.
+    {"method": "GET", "path": "/api/a11oy/v1/mcp/tools", "required": ["count", "tools", "flagship"]},
+    # The 3 canonical-formula MCP tools GENUINELY execute via /v1/mcp/call (not a
+    # stub) — backed by szl_anatomy_routes -> szl_formulas. Each call response has
+    # its OWN {tool, status, ...} contract (no governed envelope). All three share
+    # the same path, so a per-check ``label`` keeps the output unambiguous. If the
+    # formula registry ever stops importing in-process the call 503s -> red, which
+    # is the regression we want surfaced.
+    {"method": "POST", "path": "/api/a11oy/v1/mcp/call", "label": "list_formulas",
+     "body": {"name": "list_formulas"}, "required": ["tool", "status", "formulas"]},
+    {"method": "POST", "path": "/api/a11oy/v1/mcp/call", "label": "run_formula",
+     "body": {"name": "run_formula", "arguments": {"name": "lambda_aggregate", "args": [[0.9, 0.92, 0.95]]}},
+     "required": ["tool", "status", "result"]},
+    {"method": "POST", "path": "/api/a11oy/v1/mcp/call", "label": "formula_proof_status",
+     "body": {"name": "formula_proof_status", "arguments": {"name": "lambda_aggregate"}},
+     "required": ["tool", "status", "proof_status"]},
 ]
 
 
@@ -193,14 +226,18 @@ def main(argv=None):
             checked += 1
             ok, reason, url = check_endpoint(base, chk, args.attempts, args.sleep, args.timeout)
             tag = f"{chk.get('method', 'GET')} {chk['path']}"
+            if chk.get("label"):
+                # Several checks (the MCP tool calls) share one path; the label
+                # keeps PASS/FAIL lines and the summary unambiguous.
+                tag += f" [{chk['label']}]"
             if ok:
                 passed += 1
-                print(f"  PASS {tag:<42} {reason}")
+                print(f"  PASS {tag:<54} {reason}")
             else:
-                print(f"  FAIL {tag:<42} {reason}")
+                print(f"  FAIL {tag:<54} {reason}")
                 failures.append(
                     {"target": label, "url": url, "method": chk.get("method", "GET"),
-                     "path": chk["path"], "reason": reason}
+                     "path": chk["path"], "label": chk.get("label", ""), "reason": reason}
                 )
 
     failed = len(failures)
