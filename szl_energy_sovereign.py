@@ -984,14 +984,14 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _es_metrics():  # noqa: ANN202
         return JSONResponse(_metrics_panel())
 
-    @app.get("/energy", response_class=HTMLResponse)
+    @app.get("/energy-sovereign", response_class=HTMLResponse)
     async def _es_panel():  # noqa: ANN202
         return HTMLResponse(_html(_posture()))
 
     return {"ok": True, "ns": ns,
             "routes": ["%s/sovereign" % base, "%s/jtoken" % base, "%s/throughput" % base,
                        "%s/kvcache" % base, "%s/gateway" % base, "%s/router" % base,
-                       "%s/carbon" % base, "%s/metrics" % base, "/energy"]}
+                       "%s/carbon" % base, "%s/metrics" % base, "/energy-sovereign"]}
 
 
 # ---------------------------------------------------------------------------
