@@ -221,6 +221,144 @@ def test_fabric_pool_second_call_is_cached_no_reprobe():
         restore()
 
 
+# ===========================================================================
+# 5. _resolve_node_ip — alias + URL-env resolution closes the stale-IP bug.
+#    The hardened pool used to fall back to the STALE static chaski IP because the
+#    Replit chaski host is not literally named "chaski" on the tailnet. Now the
+#    resolver consults the SAME URL env vars the plain /compute-pool uses, so the
+#    two endpoints agree — WITHOUT hardcoding any IP.
+# ===========================================================================
+def _clear_node_env():
+    for k in list(os.environ):
+        if (k.startswith("A11OY_GPU_NODE_") or k.startswith("A11OY_CHASKI")
+                or k.startswith("A11OY_OMEN") or k.startswith("A11OY_ENERGY_")
+                or k in ("SZL_GOV_LLM_URL", "A11OY_MODEL_BASE_URL",
+                         "A11OY_BETTERWITHAGE_BASE_URL", "A11OY_ANCHOR_PREFERENCE")):
+            os.environ.pop(k, None)
+
+
+def test_resolver_uses_url_env_so_hardened_agrees_with_plain_pool():
+    _clear_node_env()
+    try:
+        # The plain /compute-pool resolves chaski via SZL_GOV_LLM_URL; the hardened
+        # resolver must read the same var instead of the stale static fallback.
+        os.environ["SZL_GOV_LLM_URL"] = "http://100.102.173.88:11434/api/generate"
+        ip, src = bh._resolve_node_ip("chaski", "100.76.58.50")
+        assert ip == "100.102.173.88", f"expected live chaski IP, got {ip} ({src})"
+        assert src.startswith("env:"), src
+    finally:
+        _clear_node_env()
+
+
+def test_resolver_omen_from_env():
+    _clear_node_env()
+    try:
+        os.environ["A11OY_OMEN_BASE_URL"] = "http://100.70.130.45:11434"
+        ip, src = bh._resolve_node_ip("omen-betterwithage", "100.70.130.45")
+        assert ip == "100.70.130.45" and src.startswith("env:"), (ip, src)
+    finally:
+        _clear_node_env()
+
+
+def test_resolver_static_fallback_is_honest_when_nothing_set():
+    _clear_node_env()
+    try:
+        # No env, no tailscale here -> honest static fallback (the previous behaviour),
+        # never an invented/empty IP.
+        ip, src = bh._resolve_node_ip("chaski", "100.76.58.50")
+        assert ip == "100.76.58.50" and src == "static-fallback", (ip, src)
+    finally:
+        _clear_node_env()
+
+
+def test_resolver_ignores_router_placeholder_url():
+    _clear_node_env()
+    try:
+        # An HF-router URL is not a real node IP — must NOT be used as the node's host.
+        os.environ["A11OY_CHASKI_BASE_URL"] = "https://router.huggingface.co/v1"
+        ip, src = bh._resolve_node_ip("chaski", "100.76.58.50")
+        assert src == "static-fallback", (ip, src)
+    finally:
+        _clear_node_env()
+
+
+# ===========================================================================
+# 6. select_anchor_worker — OMEN-anchor preference, honest + never starves.
+# ===========================================================================
+def _pool(*states):
+    """states: list of (name, kind, reachable, sovereign)."""
+    return {"nodes": [
+        {"name": n, "kind": k, "reachable": r, "sovereign": s, "endpoint": f"http://{n}:11434"}
+        for (n, k, r, s) in states
+    ], "cached_at": "test-ts"}
+
+
+def test_anchor_prefers_omen_when_two_sovereign_gpus_live():
+    _clear_node_env()
+    pool = _pool(
+        ("rtx-betterwithage", "sovereign-gpu", True, True),
+        ("omen-betterwithage", "sovereign-gpu", True, True),
+        ("chaski", "tailnet-gpu", False, False),
+    )
+    sel = bh.select_anchor_worker(pool, workload="szl-fast")
+    assert sel["anchor"] == "omen-betterwithage", sel
+    assert sel["fallback_used"] is False
+    assert sel["anchor_sovereign"] is True
+    assert set(sel["reachable_sovereign_gpus"]) == {"rtx-betterwithage", "omen-betterwithage"}
+
+
+def test_anchor_falls_back_to_rtx_when_omen_down_never_starves():
+    _clear_node_env()
+    pool = _pool(
+        ("rtx-betterwithage", "sovereign-gpu", True, True),
+        ("omen-betterwithage", "sovereign-gpu", False, True),
+        ("chaski", "tailnet-gpu", True, False),
+    )
+    sel = bh.select_anchor_worker(pool)
+    # rtx is next in the default preference and reachable -> chosen, not a fallback.
+    assert sel["anchor"] == "rtx-betterwithage", sel
+    assert sel["fallback_used"] is False
+
+
+def test_anchor_clean_fallback_to_any_reachable_gpu():
+    _clear_node_env()
+    # Only a non-preferred GPU is up -> clean fallback so the loop is not starved.
+    pool = _pool(
+        ("rtx-betterwithage", "sovereign-gpu", False, True),
+        ("omen-betterwithage", "sovereign-gpu", False, True),
+        ("chaski", "tailnet-gpu", True, False),
+    )
+    sel = bh.select_anchor_worker(pool)
+    assert sel["anchor"] == "chaski", sel  # chaski IS in default preference (last)
+    assert sel["fallback_used"] is False
+
+
+def test_anchor_none_when_no_gpu_reachable_never_fabricated():
+    _clear_node_env()
+    pool = _pool(
+        ("rtx-betterwithage", "sovereign-gpu", False, True),
+        ("omen-betterwithage", "sovereign-gpu", False, True),
+        ("chaski", "tailnet-gpu", False, False),
+    )
+    sel = bh.select_anchor_worker(pool)
+    assert sel["anchor"] is None, "no reachable GPU -> anchor None, never fabricated up"
+    assert sel["candidates_considered"] == 0
+
+
+def test_anchor_preference_env_override():
+    _clear_node_env()
+    try:
+        os.environ["A11OY_ANCHOR_PREFERENCE"] = "chaski,omen-betterwithage"
+        pool = _pool(
+            ("omen-betterwithage", "sovereign-gpu", True, True),
+            ("chaski", "tailnet-gpu", True, False),
+        )
+        sel = bh.select_anchor_worker(pool)
+        assert sel["anchor"] == "chaski", sel  # env preference puts chaski first
+    finally:
+        _clear_node_env()
+
+
 def _run_all() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = []
