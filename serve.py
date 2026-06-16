@@ -311,6 +311,23 @@ try:
 except Exception as _szl_kv_e:  # pragma: no cover
     print(f"[a11oy] K-Verify NOT registered: {_szl_kv_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- Immune (Hukulla) — HONEST egress-gate surface -- doctrine v11 fix.
+# The immune detector is REAL and LIVE, but historically the only HTTP routes for
+# it were user-visible CODENAME namespaces (a doctrine v11 violation, and the
+# reason /api/a11oy/v1/immune* returned 404). szl_immune exposes the CANONICAL,
+# honest surface wired to the SAME real inspection logic (threat-signature scan +
+# 1 MB size guard + Lambda-gate floor 0.5), fail-closed, signing a Khipu receipt
+# (SZL.Immune.Verdict.v1) per verdict into the SHARED szl_khipu chain. Adds
+# GET /api/a11oy/v1/immune/{healthz,status,gates,threats,feed,verify} and
+# POST /api/a11oy/v1/immune/verdict (dual-registered under /v1/* too). NEVER emits
+# a codename. Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_immune as _szl_immune
+    _szl_immune.register(app, ns="a11oy")
+    print("[a11oy] Immune registered: /api/a11oy/v1/immune/{healthz,status,gates,threats,feed,verify,verdict}", file=__import__("sys").stderr)
+except Exception as _szl_im_e:  # pragma: no cover
+    print(f"[a11oy] Immune NOT registered: {_szl_im_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- Energy LEDGER (signed, hash-chained JouleCharge receipts) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/energy/ledger (+ receipt/{idem}) is the read surface for the
 # metering ledger the /energy tab consumes. Its registration was dropped during a
@@ -1075,6 +1092,14 @@ try:
     # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
     app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    # IMMUNE (Hukulla) tab (2026-06-15): the honest, user-visible egress-gate surface.
+    # Standalone sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/*
+    # (status/gates/feed) + a live "inspect an action" box that POSTs to
+    # /api/a11oy/v1/immune/verdict and shows the REAL deny/allow + signals + signed
+    # Khipu receipt digest. Title "Immune (Hukulla) — fail-closed egress gate". NEVER a
+    # codename. Replaces the prior 200 SPA shell that read nothing real.
+    app.add_api_route("/immune", _ptg_serve("immune.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/immune", _ptg_serve("immune.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
