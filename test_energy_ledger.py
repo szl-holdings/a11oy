@@ -238,13 +238,132 @@ def test_ledger_summary_shape():
         _cleanup(tmp)
 
 
+# ---------------------------------------------------------------------------
+# Persistence across redeploy — the demo risk this guard exists for. The receipt
+# chain must continue (seq keeps incrementing) across a box redeploy, NOT re-genesis
+# to 0. We exercise the path resolver and prove the chain survives a fresh process
+# that opens the SAME persistent file. Doctrine: never fake persistence.
+# ---------------------------------------------------------------------------
+def test_persistence_info_reports_ephemeral_for_module_path():
+    # A ledger explicitly on the module-adjacent path must HONESTLY report it is
+    # ephemeral and will NOT survive a redeploy — we never claim durability we lack.
+    led = EnergyLedger(path=L._EPHEMERAL_LEDGER_PATH, price_per_kwh_cents=45)
+    info = led.persistence_info()
+    assert info["survives_redeploy"] is False
+    assert info["label"] == "EPHEMERAL"
+    assert "re-genesis" in info["note"]
+
+
+def test_persistence_info_reports_persistent_for_data_dir(monkeypatch, tmp_path):
+    # A ledger on a known-persistent dir (A11OY_DATA_DIR points at it) reports
+    # survives_redeploy=True.
+    monkeypatch.delenv("SZL_ENERGY_LEDGER_PATH", raising=False)
+    monkeypatch.setenv("A11OY_DATA_DIR", str(tmp_path))
+    p = str(tmp_path / "szl_energy_ledger.jsonl")
+    led = EnergyLedger(path=p, price_per_kwh_cents=45)
+    info = led.persistence_info()
+    assert info["survives_redeploy"] is True
+    assert info["label"] == "MEASURED"
+    assert info["path"] == p
+
+
+def test_persistence_info_writable_but_ephemeral_home_not_faked(monkeypatch, tmp_path):
+    # A writable but NON-persistent dir (no env pointing at it, not a known mount) must NOT
+    # be claimed as durable — this is the doctrine trap: writable != survives-redeploy.
+    monkeypatch.delenv("SZL_ENERGY_LEDGER_PATH", raising=False)
+    monkeypatch.delenv("A11OY_DATA_DIR", raising=False)
+    p = str(tmp_path / "home_like" / "szl_energy_ledger.jsonl")
+    led = EnergyLedger(path=p, price_per_kwh_cents=45)
+    info = led.persistence_info()
+    assert info["survives_redeploy"] is False
+    assert info["label"] == "EPHEMERAL"
+
+
+def test_explicit_env_override_is_honored(monkeypatch, tmp_path):
+    target = str(tmp_path / "override" / "ledger.jsonl")
+    monkeypatch.setenv("SZL_ENERGY_LEDGER_PATH", target)
+    path, persistent = L._persistent_ledger_path()
+    assert path == target
+    assert persistent is True
+
+
+def test_resolver_prefers_writable_data_dir_over_module(monkeypatch, tmp_path):
+    # With no explicit override but a writable A11OY_DATA_DIR, the resolver must pick the
+    # persistent dir (NOT the ephemeral module path) so the chain survives a redeploy.
+    monkeypatch.delenv("SZL_ENERGY_LEDGER_PATH", raising=False)
+    data_dir = tmp_path / "data"
+    monkeypatch.setenv("A11OY_DATA_DIR", str(data_dir))
+    path, persistent = L._persistent_ledger_path()
+    assert persistent is True
+    assert path == os.path.join(str(data_dir), "szl_energy_ledger.jsonl")
+    assert path != L._EPHEMERAL_LEDGER_PATH
+
+
+def test_resolver_falls_back_honestly_when_no_persistent_dir(monkeypatch):
+    # No override and no writable persistent dir -> ephemeral module path, persistent=False.
+    # The honest fallback: we serve the chain in-process but never pretend it survives.
+    monkeypatch.delenv("SZL_ENERGY_LEDGER_PATH", raising=False)
+    monkeypatch.setenv("A11OY_DATA_DIR", "/proc/nonexistent/cannot-write")
+    monkeypatch.setattr(L, "_dir_is_writable", lambda d: False)
+    path, persistent = L._persistent_ledger_path()
+    assert persistent is False
+    assert path == L._EPHEMERAL_LEDGER_PATH
+
+
+def test_chain_seq_continues_across_redeploy(tmp_path):
+    # THE core guarantee. Simulate a redeploy: a fresh EnergyLedger process opens the SAME
+    # persistent file. seq must CONTINUE from where it left off, never reset to 0.
+    persistent_path = str(tmp_path / "data" / "szl_energy_ledger.jsonl")
+
+    led = EnergyLedger(path=persistent_path, price_per_kwh_cents=45)
+    led.append_job(_fresh_measured_job(joules=11111.0, model="m1"), now=NOW)
+    led.append_job(_fresh_measured_job(joules=22222.0, model="m2"), now=NOW)
+    led.append_job(_fresh_measured_job(joules=33333.0, model="m3"), now=NOW)
+    assert led.verify()["length"] == 3
+    last_seq = led.entries()[-1]["seq"]
+    assert last_seq == 2
+
+    # --- box redeploys: brand-new process, same persistent file ---
+    led_after = EnergyLedger(path=persistent_path, price_per_kwh_cents=45)
+    assert led_after.verify()["length"] == 3, "chain must reload, not re-genesis"
+    assert led_after.verify()["ok"] is True
+    # the NEXT receipt chains forward from seq 2 -> 3, it does NOT restart at 0
+    r = led_after.append_job(_fresh_measured_job(joules=44444.0, model="m4"), now=NOW)
+    assert r["appended"] is True
+    assert r["entry"]["seq"] == 3, "seq must continue across redeploy, never reset to 0"
+    assert r["entry"]["prev_digest"] == led.entries()[-1]["entry_digest"]
+    assert led_after.verify()["ok"] is True and led_after.verify()["length"] == 4
+
+
+def test_summary_exposes_persistence_block(monkeypatch, tmp_path):
+    monkeypatch.delenv("SZL_ENERGY_LEDGER_PATH", raising=False)
+    monkeypatch.setenv("A11OY_DATA_DIR", str(tmp_path))
+    led = EnergyLedger(path=str(tmp_path / "szl_energy_ledger.jsonl"), price_per_kwh_cents=45)
+    led.append_job(_fresh_measured_job(), now=NOW)
+    L._LEDGER = led
+    try:
+        s = L.handle_ledger()
+        assert "persistence" in s
+        assert s["persistence"]["survives_redeploy"] is True
+        assert "path" in s["persistence"]
+    finally:
+        L._LEDGER = None
+
+
 if __name__ == "__main__":
+    import inspect
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
-    passed = 0
+    passed = skipped = 0
     for fn in fns:
+        # The bare runner has no pytest fixtures; tests that take fixture args
+        # (monkeypatch/tmp_path) are covered under pytest — skip them here honestly.
+        if inspect.signature(fn).parameters:
+            print(f"  skip {fn.__name__} (needs pytest fixtures)")
+            skipped += 1
+            continue
         fn()
         print(f"  ok  {fn.__name__}")
         passed += 1
-    print(f"\nok:true checks:{passed}")
+    print(f"\nok:true checks:{passed} skipped:{skipped}")
     sys.exit(0)
