@@ -268,6 +268,23 @@ Release assets should attach the raw `*.tar.zst`, `.sig`, `.pub`, and `.sha256`
 sidecars to the corresponding GitHub Release for air-gapped operators who
 cannot reach an OCI registry.
 
+## Unified ecosystem showcase (HF ↔ GitHub ↔ UDS)
+
+This UDS bundle is one face of a single governed-provenance ecosystem. The same
+signed-receipt moat is shown across three cross-referenced surfaces:
+
+| Surface | Link | Kind |
+| --- | --- | --- |
+| GitHub canonical source | <https://github.com/szl-holdings/a11oy#orbital-frontier-showcase> | source of truth |
+| HF orbital showcase Space | `https://huggingface.co/spaces/SZLHOLDINGS/orbital` (source in [`spaces/orbital/`](../../spaces/orbital/)) | MODELED roadmap |
+| Live orbital surface | <https://a11oy.net/orbital> | REAL page · MODELED data |
+| UDS signed mesh bundle | `oci://ghcr.io/szl-holdings/szl-uds-bundle` (this artifact: `a11oy-uds`) | REAL, deployable |
+
+The orbital tier is **MODELED — no on-orbit hardware**; the UDS bundle and ground
+GPU fabric are the REAL, deployable assets. GitHub releases, CI, manifests,
+checksums, and provenance remain canonical; the HF Space is a public discovery
+mirror. Λ = Conjecture 1.
+
 ## Out of scope
 
 - Publishing to non-OCI registries (S3, Artifactory, etc.)
