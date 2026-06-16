@@ -174,6 +174,12 @@ COPY szl_kverify.py ./
 # served page) is per-file COPY'd below and declared image_only in
 # .github/copy-sync-lockstep.json (same baked-only pattern as web/energy.html).
 COPY szl_immune.py ./
+# SWEEP DEV 3 status module — imported by serve.py (guarded). MUST be per-file
+# COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB
+# and /api/a11oy/v1/{quant,qbio,holographic}/status 404 live. Reuses szl_quantum_bio,
+# szl_formulas, szl_pnt_mesh, szl_backend_hardening, szl3d_holographic + szl_khipu
+# (all already COPY'd above). hf-sync-backend.yml parses this COPY set to mirror it.
+COPY szl_quant_qbio_holo.py ./
 # Materials (Q'allariy) HONEST verifiable crystal-discovery surface — imported by
 # serve.py (guarded). MUST be per-file COPY'd (no `COPY . .`) or the import falls
 # back and /api/a11oy/v1/materials/* 404s AND hf-sync-backend.yml (it parses this
