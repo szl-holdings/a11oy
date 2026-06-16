@@ -412,7 +412,24 @@ def register(app, ns: str = "a11oy", sign_fn=None) -> dict:
         result["errors"]["szl_yupay_import"] = repr(e)
     try:
         import szl_willay_gateway as _wg
-        _wire("szl_willay_gateway", lambda: _wg.register(app, ns=ns))
+        # szl_willay_gateway.register uses plain @app.get decorators that APPEND
+        # routes (unlike waqay/yupay which front-insert). On a11oy a greedy
+        # /api/{ns}/{path:path} Node-proxy catch-all is registered earlier, so the
+        # appended willay routes get SHADOWED (404). We mount them, then splice the
+        # just-appended willay routes to the FRONT so they resolve locally first
+        # — the same proven front-insert technique szl_waqay.register uses.
+        def _wire_willay():
+            n0 = len(app.router.routes)
+            out = _wg.register(app, ns=ns)
+            try:
+                _new = app.router.routes[n0:]
+                del app.router.routes[n0:]
+                app.router.routes[0:0] = _new
+                out["front_inserted"] = len(_new)
+            except Exception as _fe:  # noqa: BLE001
+                out["front_insert_error"] = repr(_fe)
+            return out
+        _wire("szl_willay_gateway", _wire_willay)
     except Exception as e:  # noqa: BLE001
         result["errors"]["szl_willay_gateway_import"] = repr(e)
 
