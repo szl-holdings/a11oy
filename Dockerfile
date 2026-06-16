@@ -156,11 +156,6 @@ COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_pro
 # /api/a11oy/v1/orbital/{topology,projection} 404 live. szl_orbital_projection reuses
 # szl_energy_operator (the REAL measured ground J/token coefficient), already COPY'd above.
 COPY szl_orbital_topology.py szl_orbital_projection.py ./
-# Orbital PAGE (frontend demo surface) — serve.py imports a11oy_orbital_page (guarded)
-# to mount GET /orbital (the MODELED constellation demo, banner-labeled, 0 CDN via the
-# vendor3d three.js COPY'd below). MUST be per-file COPY'd or /orbital falls back to the
-# SPA catch-all (white screen / no orbital surface).
-COPY a11oy_orbital_page.py ./
 # K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
@@ -1055,6 +1050,15 @@ COPY web/energy.html ./web/energy.html
 # receipt digest). Per-file served asset -> declared image_only in copy-sync-
 # lockstep.json (same baked-only pattern as web/energy.html). Codename-free.
 COPY web/immune.html ./web/immune.html
+# Materials (Q'allariy) honest Verifiable Alloy & Crystal Discovery page (/materials,
+# /a11oy/materials). Standalone sovereign page (0 runtime CDN), binds to live
+# /api/a11oy/v1/materials/* (novelty/certify/screen) + /immune/verdict fallback; a
+# crystal-novelty form, a PAC-Bayes certificate panel, an Immune screen panel, and an
+# honest PROVEN/CONJECTURE/ROADMAP claim-sheet footer. image_only (baked into the
+# GitHub-built image via this per-file COPY, served from /app/web/) and declared an
+# accepted divergence in .github/hf-module-drift-allow.json (same baked-only pattern
+# as web/immune.html + web/energy.html). Codename-free.
+COPY web/materials.html ./web/materials.html
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
