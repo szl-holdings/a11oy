@@ -236,7 +236,46 @@ def register(app: FastAPI) -> None:
 
         @app.get("/api/openapi.json", include_in_schema=False)
         async def _hub_openapi() -> JSONResponse:
-            return JSONResponse(app.openapi())
+            # ROOT-CAUSE FIX (D1 audit 2026-06-16): app.openapi() can raise a
+            # pydantic ForwardRef error when a pre-existing route carries a bare
+            # string return annotation (e.g. `-> 'JSONResponse'` under
+            # `from __future__ import annotations`). That made /api/openapi.json
+            # 500 while the sibling /api/<organ>/openapi.json (be_hardening) stayed
+            # 200 because it already had this graceful fallback. Mirror that exact
+            # pattern here: serve the REAL auto-generated spec, dropping ONLY the
+            # un-schemable routes — never a hand-written stub, never a 500.
+            try:
+                return JSONResponse(app.openapi())
+            except Exception:
+                try:
+                    from fastapi.openapi.utils import get_openapi as _get_openapi
+                    from fastapi.routing import APIRoute as _APIRoute
+                    _good = []
+                    for _r in app.routes:
+                        if not isinstance(_r, _APIRoute):
+                            continue
+                        try:
+                            _get_openapi(title="a11oy", version="0", routes=[_r])
+                            _good.append(_r)
+                        except Exception:
+                            continue
+                    _schema = _get_openapi(
+                        title=getattr(app, "title", "a11oy"),
+                        version=getattr(app, "version", "0.0.0"),
+                        routes=_good,
+                    )
+                    _schema.setdefault("info", {})["x-openapi-note"] = (
+                        "REAL auto-generated spec; %d route(s) with un-schemable "
+                        "annotations were dropped to keep this endpoint honest and "
+                        "non-crashing (never a stub)." % (
+                            len([r for r in app.routes if isinstance(r, _APIRoute)]) - len(_good)))
+                    return JSONResponse(_schema)
+                except Exception as _oe:
+                    return JSONResponse(
+                        {"error": "openapi_unavailable",
+                         "detail": "schema generation failed; no stub fabricated",
+                         "hint": str(_oe)[:200]},
+                        status_code=503)
 
         @app.get("/api/docs", include_in_schema=False)
         async def _hub_swagger():
