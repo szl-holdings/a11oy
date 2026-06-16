@@ -14,9 +14,9 @@ const SZL_REDUCED = SZLMobileControls.prefersReducedMotion();
 // ---- Kanchay flagship registry + REAL endpoints (HATUN_WILLAY_PER_FLAGSHIP) ----
 const FLAGSHIPS = [
   { id:'a11oy',     color:0x34aaa4, base:'https://szlholdings-a11oy.hf.space/api/a11oy' },
-  { id:'amaru',     color:0x1f9d57, base:'https://szlholdings-amaru.hf.space/api/amaru' },
-  { id:'sentra',    color:0xc0392b, base:'https://szlholdings-sentra.hf.space/api/sentra' },
-  { id:'rosie',     color:0xc78aff, base:'https://szlholdings-rosie.hf.space/api/rosie' },
+  { id:'amaru',     label:'Reasoning tier (Memory)', color:0x1f9d57, base:'https://szlholdings-amaru.hf.space/api/amaru' },
+  { id:'sentra',    label:'Sentinel (Immune)', color:0xc0392b, base:'https://szlholdings-sentra.hf.space/api/sentra' },
+  { id:'rosie',     label:'Operator (Companion)', color:0xc78aff, base:'https://szlholdings-rosie.hf.space/api/rosie' },
   { id:'vessels',   color:0xc08f2f, base:'https://szlholdings-vessels.hf.space/api/vessels' },
   { id:'killinchu', color:0x5cc4bf, base:'https://szlholdings-killinchu.hf.space/api/killinchu' },
 ];
@@ -266,7 +266,7 @@ async function boot(){
   const ft = document.getElementById('flagToggles');
   FLAGSHIPS.forEach(f=>{
     const b=document.createElement('button');
-    b.textContent=f.id; b.setAttribute('aria-pressed','true');
+    b.textContent=f.label||f.id; b.setAttribute('aria-pressed','true');
     b.style.color = '#'+f.color.toString(16).padStart(6,'0');
     b.onclick=()=>{ if(enabled.has(f.id)){enabled.delete(f.id);b.setAttribute('aria-pressed','false');}
                     else{enabled.add(f.id);b.setAttribute('aria-pressed','true');} rebuild(); };
