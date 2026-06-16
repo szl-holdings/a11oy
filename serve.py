@@ -373,6 +373,26 @@ try:
 except Exception as _szl_ep_e:  # pragma: no cover
     print(f"[a11oy] Energy projection NOT registered: {_szl_ep_e!r}", file=__import__("sys").stderr)
 
+# -- ORBITAL TIER (MODELED roadmap — no on-orbit hardware) --------------------------
+# Routes /api/a11oy/v1/orbital/topology and /api/a11oy/v1/orbital/projection are the
+# MODELED orbital-compute roadmap surface. SZL has NO satellites: every node is
+# modeled:true / reachable:false (data_kind "MODELED-roadmap"), and the orbital joules
+# are MODELED from the REAL ground-measured J/token coefficient (cited), never MEASURED.
+# Additive, try/except-guarded, same register() pattern as the energy modules above.
+try:
+    import szl_orbital_topology as _szl_orbital_topology
+    _szl_orbital_topology.register(app, ns="a11oy")
+    print("[a11oy] Orbital topology registered: /api/a11oy/v1/orbital/topology (MODELED)", file=__import__("sys").stderr)
+except Exception as _szl_ot_e:  # pragma: no cover
+    print(f"[a11oy] Orbital topology NOT registered: {_szl_ot_e!r}", file=__import__("sys").stderr)
+
+try:
+    import szl_orbital_projection as _szl_orbital_projection
+    _szl_orbital_projection.register(app, ns="a11oy")
+    print("[a11oy] Orbital projection registered: /api/a11oy/v1/orbital/projection (MODELED)", file=__import__("sys").stderr)
+except Exception as _szl_op_e:  # pragma: no cover
+    print(f"[a11oy] Orbital projection NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
+
 # -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its
 # registration was dropped during a serve.py mesh refactor while szl_restraint.py
