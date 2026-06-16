@@ -318,6 +318,16 @@ function renderKVerify(hit){
   var el = $('kv-state');
   if(!hit){ el.innerHTML = pendingHTML('K-Verify endpoint not live this sweep'); return false; }
   var d = hit.data || {};
+  // Honest idle state: endpoint is LIVE but no run has executed yet this process.
+  // Surface that truthfully — never synthesize a zero-item "run" that didn't happen.
+  var runData = d.run || d.last_run || d.summary || d;
+  var hasRun = (d.ran === true) || (d.ran == null && (runData.n!=null || runData.count!=null || runData.items!=null || runData.total!=null || runData.pass!=null));
+  if(!hasRun){
+    el.innerHTML = '<div class="sub2"><b>endpoint live</b> '+L('LIVE','GOVERNED INFERENCE')+'</div>'+
+      '<div class="sub2">no run yet this process — a signed run posts N items, pass-rate, joules MEASURED + a receipt hash. Shown honestly: no fabricated run.</div>';
+    return true;
+  }
+  d = runData;
   var n     = (d.n!=null?d.n:(d.count!=null?d.count:(d.items!=null?d.items:(d.total!=null?d.total:null))));
   var pass  = (d.pass!=null?d.pass:(d.passed!=null?d.passed:(d.pass_count!=null?d.pass_count:null)));
   var rate  = (d.pass_rate!=null?d.pass_rate:(d.accuracy!=null?d.accuracy:null));
@@ -344,17 +354,25 @@ function renderRag(hit){
   // Resolve an ask URL: explicit field, sibling of the status path, or default candidate.
   RAG_ASK_URL = d.query_endpoint || d.ask_endpoint || hit.url.replace(/\/(status|health|last)$/,'/query') || RAG_ASK_EPS[0];
   qa.style.display='flex';
-  var corpus = d.corpus || d.corpus_id || d.index || null;
+  var idx = d.index || {};
+  var chunks = idx.chunks || (d.corpus && d.corpus.chunks) || null;
+  var files  = idx.files  || null;
+  var repos  = idx.repos  || null;
   var lastQ  = d.last_question || (d.last && d.last.question) || null;
   var lastA  = d.last_answer   || (d.last && d.last.answer)   || d.answer || null;
   var cites  = d.citations || (d.last && d.last.citations) || d.sources || null;
-  var html = '<div class="sub2">corpus: <b>'+(corpus||'governed corpus')+'</b> '+L('LIVE')+'</div>';
-  if(lastA){
+  var stat = [];
+  if(chunks!=null) stat.push(fmt(chunks)+' chunks');
+  if(files!=null)  stat.push(fmt(files)+' files');
+  if(repos!=null)  stat.push(fmt(repos)+' repos');
+  var html = '<div class="sub2">governed corpus indexed: <b>'+(stat.length?stat.join(' · '):'ready')+'</b> '+L('LIVE')+'</div>';
+  // Only show a 'last answer' if it carries a real grounded answer string (status citations are not answers).
+  if(lastA && typeof lastA==='string'){
     html += '<div class="ans">'+(lastQ?'<b>Q:</b> '+escapeHTML(lastQ)+'<br>':'')+'<b>A:</b> '+escapeHTML(String(lastA))+'</div>';
-    if(cites && cites.length){ html += '<div class="cite">cited: '+cites.map(function(c){ return escapeHTML(typeof c==='string'?c:(c.id||c.source||c.doc||JSON.stringify(c))); }).join(' · ')+'</div>'; }
+    if(cites && cites.length){ html += '<div class="cite">cited: '+cites.map(function(c){ return escapeHTML(typeof c==='string'?c:(c.citation||c.path||c.source||c.id||c.doc||JSON.stringify(c))); }).join(' · ')+'</div>'; }
     html += '<div class="lbls">'+L('LIVE','GROUNDED + CITED')+'</div>';
   } else {
-    html += '<div class="sub2">Ask the doctrine — answers come only from the governed corpus, with citations.</div>';
+    html += '<div class="sub2">Ask the doctrine — answers come only from the governed corpus, with citations; off-corpus returns insufficient grounding.</div>';
   }
   el.innerHTML = html;
   return true;
@@ -392,23 +410,32 @@ function renderWatt(hit){
   var el = $('watt-state');
   if(!hit){ el.innerHTML = pendingHTML('cheapest-watt routing endpoint not live this sweep'); return false; }
   var d = hit.data || {};
-  var dec   = d.decision || d.last || d;
-  var node  = dec.node || dec.chosen_node || dec.placed_on || dec.target || null;
+  // Real shape: latest_decision.decision (nested) -> recent_decisions[0] -> flat fallback.
+  var dec = (d.latest_decision && d.latest_decision.decision) || (d.recent_decisions && d.recent_decisions[0]) || d.decision || d.last || d;
+  if(typeof dec !== 'object' || dec === null) dec = d;
+  var node  = dec.chosen_node || dec.node || dec.placed_on || dec.target || null;
   var price = (dec.grid_price_eur_mwh!=null?dec.grid_price_eur_mwh:(dec.price_eur_mwh!=null?dec.price_eur_mwh:(dec.eur_mwh!=null?dec.eur_mwh:null)));
-  var save  = (dec.savings_pct!=null?dec.savings_pct:(dec.savings_percent!=null?dec.savings_percent:null));
-  var saveAbs = (dec.savings_eur_mwh!=null?dec.savings_eur_mwh:null);
-  var label = dec.savings_label || dec.label || (saveAbs!=null||save!=null ? 'MODELED' : null);
+  var priceL= dec.grid_price_label || 'MEASURED';
+  var save  = (dec.saving!=null?dec.saving:(dec.savings_pct!=null?dec.savings_pct:(dec.savings_percent!=null?dec.savings_percent:null)));
+  var saveLabel = dec.saving_label || dec.savings_label || dec.label || null;
+  var reason = dec.reason || dec.detail || null;
+  var chHead = (d.chain && d.chain.head) || dec.receipt_hash || dec.receipt || dec.digest || null;
   var html = '';
   html += '<div class="big">'+(price!=null?fmt1(price)+' €/MWh':'—')+'</div>';
-  html += '<div class="sub2">chosen node: <b>'+(node||'—')+'</b> '+L('LIVE','LOWEST-€ REACHABLE')+'</div>';
-  if(save!=null || saveAbs!=null){
-    var sv = (save!=null? (save*( save<=1?100:1)).toFixed(1)+'%':'') + (saveAbs!=null? (save!=null?' · ':'')+fmt1(saveAbs)+' €/MWh':'');
-    var lk = (label==='MEASURED') ? L('MEASURED') : L('MODELED','ROUTING LAW');
-    html += '<hr><div class="sub2">honest savings vs default placement: <b>'+sv+'</b> '+lk+'</div>';
+  html += '<div class="sub2">live grid price at decision '+(priceL==='MEASURED'?L('MEASURED'):L('LIVE'))+'</div>';
+  if(node){
+    html += '<hr><div class="sub2">chosen node: <b>'+escapeHTML(node)+'</b> '+L('LIVE','LOWEST-€ REACHABLE')+'</div>';
+    if(save!=null){
+      var sv = (typeof save==='number') ? ((save<=1?(save*100):save).toFixed(1)+'%') : escapeHTML(String(save));
+      var lk = (saveLabel==='MEASURED') ? L('MEASURED') : L('MODELED','ROUTING LAW');
+      html += '<div class="sub2">honest savings vs most-expensive comparable: <b>'+sv+'</b> '+lk+'</div>';
+    }
   } else {
-    html += '<hr><div class="sub2">savings: — '+L('MODELED','NO BASELINE THIS SWEEP')+'</div>';
+    // No placement this tick is an HONEST outcome, not a gap — surface the reason verbatim.
+    html += '<hr><div class="sub2"><b>no placement this tick</b> '+L('LIVE','HONEST: NO FABRICATED SAVING')+'</div>';
+    if(reason) html += '<div class="sub2">'+escapeHTML(reason)+'</div>';
   }
-  if(dec.receipt_hash||dec.receipt||dec.digest){ html += '<div class="receipt">receipt '+shortHash(dec.receipt_hash||dec.receipt||dec.digest)+'</div>'; }
+  if(chHead){ html += '<div class="receipt">receipt-chain '+shortHash(chHead)+(d.chain&&d.chain.length!=null?' · len '+fmt(d.chain.length):'')+'</div>'; }
   el.innerHTML = html;
   return true;
 }
