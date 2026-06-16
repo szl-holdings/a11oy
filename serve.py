@@ -237,6 +237,33 @@ try:
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
 
+# -- SWEEP DEV 3: honest /status for quant, qbio, holographic (sweep-d3-status).
+# Three surfaces served a 200 PAGE but had NO backing /<surface>/status API (404).
+# szl_quant_qbio_holo wires the missing HONEST /status for each, summarizing REAL
+# substance already in the estate -- never fabricated quantum/bio data:
+#   qbio/status        -> the REAL Quantum-Bio Lambda-v5 models (szl_quantum_bio:
+#                         Mitchell pmf, Lindblad coherence, radical-pair compass,
+#                         Lambda-v5 gate). WHY it 404'd: szl_quantum_bio.register
+#                         mounts /qbio/{pmf,coherence,compass,lambda,summary} but no
+#                         /qbio/status -- this adds the missing summary.
+#   quant/status       -> quantum-axis canonical formulas (szl_formulas.PROOF_STATUS,
+#                         PROVEN vs AXIOM/SORRY) + link to the LIVE PNT/quantum-sensing
+#                         mesh (/api/a11oy/v1/pnt/limits).
+#   holographic/status -> the 3D estate hologram is a VISUALIZATION over real mesh
+#                         state: live compute-pool reachability (szl_backend_hardening)
+#                         + BFT-quorum mesh graph (/mesh/3d) + szl3d toolkit. Honest
+#                         MODELED geometry over LIVE node data.
+# Lambda=Conjecture 1; Khipu=Conjecture 2; locked-8 @ c7c0ba17 unchanged; trust never
+# 100%; 0 CDN; no codenames. Khipu receipt per status. Additive, try/except-guarded,
+# registered BEFORE the SPA catch-all (mirrors szl_immune/szl_kverify pattern).
+try:
+    import szl_quant_qbio_holo as _szl_qqh
+    _szl_qqh.register(app, ns="a11oy")
+    print("[a11oy] quant/qbio/holographic status registered: /api/a11oy/v1/{quant,qbio,holographic}/status", file=__import__("sys").stderr)
+except Exception as _szl_qqh_e:  # pragma: no cover
+    print(f"[a11oy] quant/qbio/holographic status NOT registered: {_szl_qqh_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # ── PNT / quantum-sensing fundamental-limits mesh (sensing limits, GNSS spoof-
 # resilience, GPS-denied coasting, unified fundamental limits). PURE STDLIB closed-
 # form web path (never blocks); the heavy numpy/UKF/PINN solves are the Forge/GPU
