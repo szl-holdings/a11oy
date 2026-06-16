@@ -10801,11 +10801,21 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function cn_setupConRefresh(c){
     if(typeof setInterval!=='function') return;
     if(window.__cn_con_timer){ clearInterval(window.__cn_con_timer); }
+    window.__cn_con_c=c;
     window.__cn_con_timer=setInterval(function(){
-      if(!document.body.contains(c)){ clearInterval(window.__cn_con_timer); window.__cn_con_timer=null; return; }
+      var c=window.__cn_con_c;
+      if(!c||!document.body.contains(c)){ clearInterval(window.__cn_con_timer); window.__cn_con_timer=null; return; }
       if(!cnAutoOn()) return;
+      if(typeof document!=='undefined' && document.visibilityState && document.visibilityState!=='visible') return;
       window.cn_softRefreshConstellation(c);
     }, CN_REFRESH_MS);
+    if(typeof document!=='undefined' && typeof document.addEventListener==='function' && !window.__cn_con_vis){
+      window.__cn_con_vis=true;
+      document.addEventListener('visibilitychange',function(){
+        var c=window.__cn_con_c;
+        if(document.visibilityState==='visible' && window.__cn_con_timer && c && cnAutoOn() && document.body.contains(c)){ window.cn_softRefreshConstellation(c); }
+      });
+    }
   }
 
   /* ── 3D constellation tab ── */
@@ -10937,11 +10947,21 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       var gab=c.querySelector('#cn-gr-auto'); if(gab) gab.addEventListener('click',function(){ window.__cn_auto=!cnAutoOn(); gab.textContent='\u27f3 auto: '+(cnAutoOn()?'on':'off'); });
       if(!opts.silent && typeof setInterval==='function'){
         if(window.__cn_gr_timer){ clearInterval(window.__cn_gr_timer); }
+        window.__cn_gr_c=c;
         window.__cn_gr_timer=setInterval(function(){
-          if(!document.body.contains(c)){ clearInterval(window.__cn_gr_timer); window.__cn_gr_timer=null; return; }
+          var c=window.__cn_gr_c;
+          if(!c||!document.body.contains(c)){ clearInterval(window.__cn_gr_timer); window.__cn_gr_timer=null; return; }
           if(!cnAutoOn()) return;
+          if(typeof document!=='undefined' && document.visibilityState && document.visibilityState!=='visible') return;
           window.cn_renderGraphs(c,{silent:true,force:true});
         }, CN_REFRESH_MS);
+        if(typeof document!=='undefined' && typeof document.addEventListener==='function' && !window.__cn_gr_vis){
+          window.__cn_gr_vis=true;
+          document.addEventListener('visibilitychange',function(){
+            var c=window.__cn_gr_c;
+            if(document.visibilityState==='visible' && window.__cn_gr_timer && c && cnAutoOn() && document.body.contains(c)){ window.cn_renderGraphs(c,{silent:true,force:true}); }
+          });
+        }
       }
     }).catch(function(e){ c.innerHTML='<div class="card"><div class="dim">decision graphs unavailable: '+esc((e&&e.message)||e)+'</div></div>'; });
   };
