@@ -178,6 +178,11 @@ COPY szl_frontier_manifest.py ./
 # already-COPY'd surfaces (szl_immune, szl_materials, szl_khipu, szl_joules_truth,
 # szl_formulas, a11oy_nemo_core) — no new deps.
 COPY szl_provenance_receipt.py ./
+# UNIVERSAL Khipu verifier (judge-facing audit layer) — imported by serve.py (guarded).
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back
+# and /api/a11oy/v1/khipu/{organs,chain,verify} 404s live. Reads the shared szl_khipu
+# DAG in-process (already COPY'd above) — no new deps.
+COPY szl_khipu_verify.py ./
 # REGRESSION RESTORE — serve.py imports these (guarded) but their per-file COPY was
 # dropped, so in the HF image each guarded import falls back to a STUB (merged-but-not-
 # live) and the copy-sync lockstep guard is red on main. szl_sda was added by the most
@@ -1156,3 +1161,4 @@ CMD ["python", "serve.py"]
 # tiny Apache-2.0 GGUF fetch for the live CPU demo tier (honest tower-side fallback).
 # UNIFIED into the existing LLM registry (one roster). DeepSeek-Coder-V2 = CODE_PRIMARY.
 # C20/W7-5 router, W5-3/W7-4 conformal, C10-C12 consensus; every call -> signed receipt.
+
