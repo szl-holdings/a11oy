@@ -16,8 +16,8 @@ the estate already has REAL substance for —
              MODELED, never live telemetry).
 
 USER-VISIBLE NAME: "SDA — Space / Domain Awareness (Counter-UAS)". This module
-NEVER emits a codename (sentra / amaru / rosie / jarvis) in any served string;
-the drone logic's honest, user-facing name is the SDA / counter-UAS surface.
+NEVER emits any banned internal codename in any served string; the drone logic's
+honest, user-facing name is the SDA / counter-UAS surface only.
 
 HONESTY (Doctrine v11 — NEVER violate):
   * The tracks are REPLAY / SAMPLE / MODELED demo data — they are NOT a live
