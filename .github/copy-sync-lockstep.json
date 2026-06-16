@@ -1,6 +1,6 @@
 {
-  "_comment": "Config for tools/check_copy_sync_lockstep.py (Doctrine v11). image_only_assets are non-.py assets brought in by an EXPLICIT per-file Dockerfile COPY that are INTENTIONALLY baked into the HF image and NOT re-mirrored by hf-sync. Per hf-sync.yml's own documented rationale, the built SPA bundles + vendored 3rd-party blobs (large/possibly-LFS) already live resident on the Space; re-syncing them reintroduces the LFS/pre-receive failures. Each exemption is named here EXPLICITLY (reviewed escape hatch, never a silent skip). A NEW per-file served asset that is neither mirrored by hf-sync nor listed here will FAIL CHECK 3 \u2014 that is the guard working. To make a new served file go live on HF, add it to hf-sync.yml's mirror set; only list it here if it is a baked-only vendor/SPA blob.",
-  "_doctrine": "locked=8 @ c7c0ba17 \u00b7 Lambda=Conjecture 1 \u00b7 v11",
+  "_comment": "Config for tools/check_copy_sync_lockstep.py (Doctrine v11). image_only_assets are non-.py assets brought in by an EXPLICIT per-file Dockerfile COPY that are INTENTIONALLY baked into the HF image and NOT re-mirrored by hf-sync. Per hf-sync.yml's own documented rationale, the built SPA bundles + vendored 3rd-party blobs (large/possibly-LFS) already live resident on the Space; re-syncing them reintroduces the LFS/pre-receive failures. Each exemption is named here EXPLICITLY (reviewed escape hatch, never a silent skip). A NEW per-file served asset that is neither mirrored by hf-sync nor listed here will FAIL CHECK 3 — that is the guard working. To make a new served file go live on HF, add it to hf-sync.yml's mirror set; only list it here if it is a baked-only vendor/SPA blob.",
+  "_doctrine": "locked=8 @ c7c0ba17 · Lambda=Conjecture 1 · v11",
   "mirror_asset_exts": [
     ".html",
     ".js",
@@ -42,6 +42,7 @@
     "web/energy.html",
     "web/energy-holographic.html",
     "web/immune.html",
+    "web/materials.html",
     "web/estate-hologram.html",
     "web/fleet-c2.html",
     "web/formulas.html",
