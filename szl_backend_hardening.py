@@ -17,9 +17,21 @@ PROBLEM (found by a live smoke test, 2026-06):
 
 FIX (this module, ADDITIVE — no endpoint is rewritten destructively):
   - `probe_with_timeout()` — a single honest reachability probe with a SHORT, hard
-    per-target timeout (default 1.5s). Supports a TCP connect probe (the fabric case)
-    and an arbitrary callable probe (engine/status, harvest). NEVER hangs, NEVER raises,
+    per-target timeout (default 3.5s, env A11OY_GPU_PROBE_TIMEOUT_S). Supports a TCP
+    connect probe (the fabric case, with an optional honest retry for a cold node) and
+    an arbitrary callable probe (engine/status, harvest). NEVER hangs, NEVER raises,
     NEVER fabricates: a timeout/refusal yields reachable=False with the real reason.
+
+  - TIMEOUT TUNING (2026-06-16): the flat 1.5s ceiling was right for a WARM tailnet
+    Ollama (rtx + chaski answer a TCP connect in ~0.1s) but too aggressive for a COLD
+    always-on Windows box — an OMEN whose Ollama just started read `timeout` at exactly
+    1.5s even though it was up. The per-node timeout is now env-configurable and raised
+    to 3.5s, plus one honest connect RETRY (env A11OY_GPU_PROBE_RETRIES). The retry is a
+    fresh REAL probe: a node reads reachable=True ONLY if a real connect actually
+    succeeded. A longer window + retry recovers a slow-but-live node; it can NEVER make
+    a genuinely-dead node read green. (A true Windows firewall DROP or 127.0.0.1-only
+    Ollama bind still reads honest-unreachable — that is a founder-machine fix, not a
+    box-code one.)
   - `probe_all_concurrent()` — runs N probes on a bounded thread pool so total wall time
     is ~max(per-probe timeout), NOT sum. One dead node no longer serialises the rest.
   - `ttl_cache` / `TTLCache` — a tiny thread-safe time-to-live cache (default 45s) so a
@@ -45,6 +57,7 @@ Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 from __future__ import annotations
 
 import json
+import os
 import socket
 import sys
 import threading
@@ -66,7 +79,45 @@ DOCTRINE: Dict[str, Any] = {
     "key_committed": False,
 }
 
-DEFAULT_PROBE_TIMEOUT = 1.5   # seconds, per node — short so one dead node can't stall a request
+def _env_float(name: str, default: float, lo: float, hi: float) -> float:
+    """Read a float env var, clamped to [lo, hi]. Honest fail-safe: a missing or
+    unparseable value yields `default`, never a crash. Clamping keeps an operator
+    typo (e.g. 999) from turning a fast fabric probe into a request-stalling hang."""
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return max(lo, min(hi, float(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int, lo: int, hi: int) -> int:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return max(lo, min(hi, int(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
+# Per-node reachability probe timeout. Was a flat 1.5s, which is fine for a WARM
+# Ollama on the tailnet (the rtx laptop + chaski answer a TCP connect in ~0.1s) but
+# too aggressive for a COLD always-on Windows box: an OMEN whose Ollama just started
+# (or whose tailnet NIC is waking) can take >1.5s for the FIRST connect, so it read
+# `timeout` at exactly the 1.5s ceiling even though it was up. Default raised to 3.5s
+# and made env-configurable (A11OY_GPU_PROBE_TIMEOUT_S). Still SHORT enough that one
+# genuinely-dead node can't stall a request, and still REAL-PROBE-ONLY: a longer
+# window only gives a slow-but-live node time to answer honestly — it NEVER invents
+# reachable. Clamped to [0.25s, 10s] so an operator typo can't hang the endpoint.
+DEFAULT_PROBE_TIMEOUT = _env_float("A11OY_GPU_PROBE_TIMEOUT_S", 3.5, 0.25, 10.0)
+# Extra real connect attempts on a timeout/refusal before reporting unreachable. A
+# cold Windows Ollama frequently answers the SECOND connect after the first one
+# primes the path; one cheap retry recovers that without ever faking green. Each
+# retry is a fresh REAL probe — a node only reads reachable=True if a real connect
+# actually succeeded. 0 = single attempt (previous behaviour). Clamped to [0, 3].
+DEFAULT_PROBE_RETRIES = _env_int("A11OY_GPU_PROBE_RETRIES", 1, 0, 3)
 DEFAULT_CACHE_TTL = 45.0      # seconds — serve the last real probe, re-probe only when stale
 DEFAULT_MAX_WORKERS = 8       # bounded thread pool for concurrent probes
 
@@ -82,12 +133,8 @@ def _stderr(msg: str) -> None:
 # ===========================================================================
 # 1. probe_with_timeout — ONE honest reachability probe, hard-bounded, never hangs.
 # ===========================================================================
-def tcp_connect_probe(host: str, port: int, timeout: float) -> Tuple[bool, str]:
-    """Real TCP connect probe. Returns (reachable, detail).
-
-    A successful connect within `timeout` -> (True, "tcp reachable").
-    A timeout/refusal/DNS failure -> (False, "<reason>"). NEVER raises; NEVER hangs
-    longer than `timeout` (the socket timeout is the hard ceiling)."""
+def _tcp_connect_once(host: str, port: int, timeout: float) -> Tuple[bool, str]:
+    """One real TCP connect attempt, hard-bounded by `timeout`. Never raises."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
     try:
@@ -104,6 +151,32 @@ def tcp_connect_probe(host: str, port: int, timeout: float) -> Tuple[bool, str]:
             s.close()
         except Exception:
             pass
+
+
+def tcp_connect_probe(
+    host: str,
+    port: int,
+    timeout: float,
+    retries: int = 0,
+) -> Tuple[bool, str]:
+    """Real TCP connect probe with optional honest retry. Returns (reachable, detail).
+
+    A successful connect within `timeout` -> (True, "tcp reachable"). On a
+    timeout/refusal it makes up to `retries` MORE real connect attempts (a cold
+    Windows Ollama often answers the second connect once the path is primed); the
+    FIRST attempt that genuinely connects wins. If every attempt fails it returns
+    (False, "<reason>") — REAL-PROBE-ONLY, never fabricated green. NEVER raises;
+    each attempt is hard-bounded by `timeout`, so total worst case is
+    `(retries + 1) * timeout`. The outer probe_with_timeout wall-clock guard is sized
+    accordingly so the retry budget can actually elapse rather than being cut short."""
+    attempts = max(1, int(retries) + 1)
+    last_detail = "timeout"
+    for _ in range(attempts):
+        ok, detail = _tcp_connect_once(host, port, timeout)
+        if ok:
+            return True, detail
+        last_detail = detail
+    return False, last_detail
 
 
 def probe_with_timeout(
@@ -451,8 +524,16 @@ DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
 _FABRIC_CACHE = TTLCache(ttl=DEFAULT_CACHE_TTL)
 
 
-def _build_node_probe(node: Dict[str, Any], timeout: float) -> Callable[[], Any]:
-    """Return a zero-arg probe for one node descriptor (TCP connect, honest)."""
+def _build_node_probe(
+    node: Dict[str, Any],
+    timeout: float,
+    retries: int = 0,
+) -> Callable[[], Any]:
+    """Return a zero-arg probe for one node descriptor (TCP connect, honest).
+
+    `retries` is the number of EXTRA real connect attempts on timeout/refusal (a
+    cold Windows Ollama often answers the second connect). Honest: reachable=True
+    only if a real connect actually succeeded on some attempt."""
     target = node.get("probe")
     if not target:
         # No network target (e.g. the self host). Honest static reachability.
@@ -462,7 +543,7 @@ def _build_node_probe(node: Dict[str, Any], timeout: float) -> Callable[[], Any]
     host, port = target
 
     def _do() -> Dict[str, Any]:
-        ok, detail = tcp_connect_probe(host, port, timeout)
+        ok, detail = tcp_connect_probe(host, port, timeout, retries=retries)
         return {"reachable": ok, "detail": detail}
     return _do
 
@@ -470,6 +551,7 @@ def _build_node_probe(node: Dict[str, Any], timeout: float) -> Callable[[], Any]
 def _probe_fabric_uncached(
     nodes: Iterable[Dict[str, Any]],
     timeout: float,
+    retries: int = DEFAULT_PROBE_RETRIES,
 ) -> Dict[str, Any]:
     """One real concurrent sweep of the fabric. Returns the full compute-pool payload."""
     nodes = list(nodes)
@@ -492,8 +574,14 @@ def _probe_fabric_uncached(
                 _n["detail"] = (_base + (" | ip:%s via %s" % (_ip, _src))).strip(" |")
         _resolved.append(_n)
     nodes = _resolved
-    probes = {n["name"]: _build_node_probe(n, timeout) for n in nodes}
-    results = probe_all_concurrent(probes, timeout=timeout)
+    # Each node probe makes up to (retries+1) real connect attempts, each bounded by
+    # `timeout`. The concurrent dispatcher's per-node wall-clock guard must therefore
+    # allow the full retry budget to elapse, or it would cut a retrying-but-live node
+    # short and mis-report it unreachable. Sweep stays concurrent, so total wall time
+    # is ~one node's full budget, NOT the sum across nodes.
+    probes = {n["name"]: _build_node_probe(n, timeout, retries=retries) for n in nodes}
+    wall = timeout * (max(0, int(retries)) + 1) + 0.5
+    results = probe_all_concurrent(probes, timeout=wall)
 
     out_nodes: List[Dict[str, Any]] = []
     for n in nodes:
@@ -525,12 +613,14 @@ def _probe_fabric_uncached(
         },
         "nodes": out_nodes,
         "probe_timeout_s": timeout,
+        "probe_retries": int(retries),
         "honesty": (
-            "reachable=True only on a real TCP probe THIS sweep; a timeout/refusal is "
-            "reachable=False with the reason. sovereign is a property of owned hardware, "
-            "passed through, never inferred from reachability. No node fabricated. No "
-            "energy/joule claim (joules MEASURED only via on-box exporter). "
-            "Λ = Conjecture 1; locked = 8; no key."
+            "reachable=True only on a real TCP probe THIS sweep; a timeout/refusal "
+            "(after any retries) is reachable=False with the reason. retries are extra "
+            "REAL connect attempts (a cold node may answer the 2nd) — never fabricated "
+            "green. sovereign is a property of owned hardware, passed through, never "
+            "inferred from reachability. No node fabricated. No energy/joule claim "
+            "(joules MEASURED only via on-box exporter). Λ = Conjecture 1; locked = 8; no key."
         ),
         "doctrine": dict(DOCTRINE),
     }
@@ -542,12 +632,15 @@ def probe_fabric_pool(
     ttl: Optional[float] = None,
     cache: Optional[TTLCache] = None,
     force: bool = False,
+    retries: int = DEFAULT_PROBE_RETRIES,
 ) -> Dict[str, Any]:
     """Concurrent + short-timeout + cached compute-pool probe (drop-in for the handler).
 
-    Returns in <1s even when a node is down (concurrent + per-node `timeout`), and
-    serves the cached payload for `ttl` seconds so repeat requests don't re-probe.
-    `cached_at` on the payload tells the caller how fresh the reachability data is.
+    Returns fast even when a node is down (concurrent + per-node `timeout`, with up to
+    `retries` extra real connect attempts for a cold-but-live node), and serves the
+    cached payload for `ttl` seconds so repeat requests don't re-probe. `cached_at` on
+    the payload tells the caller how fresh the reachability data is. The retry budget
+    only gives a slow node time to answer honestly — it NEVER fabricates reachable.
     """
     use_nodes = list(nodes) if nodes is not None else DEFAULT_FABRIC_NODES
     use_cache = cache if cache is not None else _FABRIC_CACHE
@@ -555,7 +648,7 @@ def probe_fabric_pool(
         use_cache.ttl = float(ttl)
     if force:
         use_cache.invalidate()
-    return use_cache.get_or_compute(lambda: _probe_fabric_uncached(use_nodes, timeout))
+    return use_cache.get_or_compute(lambda: _probe_fabric_uncached(use_nodes, timeout, retries))
 
 
 # ===========================================================================
@@ -865,7 +958,9 @@ def _selftest() -> Dict[str, Any]:
     try:
         cache = TTLCache(ttl=30.0)
         t0 = time.monotonic()
-        payload = probe_fabric_pool(timeout=1.5, cache=cache, force=True)
+        # retries=0 here so the timing bound is deterministic: one timeout window per
+        # node, concurrent, never the serial sum. (The retry path is checked below.)
+        payload = probe_fabric_pool(timeout=1.5, cache=cache, force=True, retries=0)
         dt = time.monotonic() - t0
         by = {n["name"]: n for n in payload["nodes"]}
         chk("fabric_subsecond_with_dead_node", dt < 1.0 + 1.5)  # ~max one timeout, not sum
@@ -877,6 +972,7 @@ def _selftest() -> Dict[str, Any]:
             payload["counts"]["nodes_reachable"] == sum(1 for n in payload["nodes"] if n["reachable"]))
         chk("fabric_doctrine_lambda", payload["doctrine"]["lambda"] == "Conjecture 1")
         chk("fabric_doctrine_locked8", payload["doctrine"]["locked"] == 8)
+        chk("fabric_reports_retries", payload.get("probe_retries") == 0)
 
         # second call within TTL must be cached (no re-probe) -> effectively instant.
         t0 = time.monotonic()
@@ -886,6 +982,52 @@ def _selftest() -> Dict[str, Any]:
         chk("fabric_cache_same_cached_at", payload2["cached_at"] == payload["cached_at"])
     finally:
         socket.socket = orig_socket  # type: ignore
+
+    # --- honest retry: a node that fails attempt #1 but answers attempt #2 reads up;
+    #     a node that fails EVERY attempt stays unreachable (never fabricated green). ---
+    cold_state = {"attempts": 0}
+
+    def _cold_then_up() -> Tuple[bool, str]:
+        cold_state["attempts"] += 1
+        if cold_state["attempts"] == 1:
+            return False, "timeout"        # cold: first connect times out
+        return True, "tcp reachable"       # primed: second connect succeeds
+
+    _orig_once = globals()["_tcp_connect_once"]
+    try:
+        globals()["_tcp_connect_once"] = lambda h, p, t: _cold_then_up()
+        ok2, det2 = tcp_connect_probe("1.2.3.4", 11434, 0.5, retries=1)
+        chk("retry_cold_node_recovers", ok2 is True and det2 == "tcp reachable")
+        chk("retry_made_second_attempt", cold_state["attempts"] == 2)
+
+        # a node down on EVERY attempt is honestly unreachable — retry never fakes it.
+        globals()["_tcp_connect_once"] = lambda h, p, t: (False, "timeout")
+        ok3, det3 = tcp_connect_probe("1.2.3.4", 11434, 0.5, retries=2)
+        chk("retry_dead_node_stays_down", ok3 is False and det3 == "timeout")
+
+        # retries=0 reproduces the single-attempt (previous) behaviour exactly.
+        single = {"n": 0}
+        def _count_once(h, p, t):
+            single["n"] += 1
+            return (False, "timeout")
+        globals()["_tcp_connect_once"] = _count_once
+        tcp_connect_probe("1.2.3.4", 11434, 0.5, retries=0)
+        chk("retry_zero_is_single_attempt", single["n"] == 1)
+    finally:
+        globals()["_tcp_connect_once"] = _orig_once
+
+    # --- env-configurable timeout/retries: clamped, honest fail-safe on garbage. ---
+    chk("env_timeout_default", _env_float("A11OY_UNSET_TIMEOUT_XYZ", 3.5, 0.25, 10.0) == 3.5)
+    _os.environ["A11OY_TMP_TIMEOUT_XYZ"] = "4.0"
+    chk("env_timeout_read", _env_float("A11OY_TMP_TIMEOUT_XYZ", 3.5, 0.25, 10.0) == 4.0)
+    _os.environ["A11OY_TMP_TIMEOUT_XYZ"] = "999"   # operator typo
+    chk("env_timeout_clamped_hi", _env_float("A11OY_TMP_TIMEOUT_XYZ", 3.5, 0.25, 10.0) == 10.0)
+    _os.environ["A11OY_TMP_TIMEOUT_XYZ"] = "notanumber"
+    chk("env_timeout_garbage_default", _env_float("A11OY_TMP_TIMEOUT_XYZ", 3.5, 0.25, 10.0) == 3.5)
+    _os.environ.pop("A11OY_TMP_TIMEOUT_XYZ", None)
+    _os.environ["A11OY_TMP_RETRIES_XYZ"] = "9"
+    chk("env_retries_clamped", _env_int("A11OY_TMP_RETRIES_XYZ", 1, 0, 3) == 3)
+    _os.environ.pop("A11OY_TMP_RETRIES_XYZ", None)
 
     ok = all(p for _, p in checks)
     return {

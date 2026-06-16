@@ -10,6 +10,11 @@ Runs fully OFFLINE (mock sockets; no network). Asserts:
      the rest.
   3. TTLCache: a fresh hit returns WITHOUT re-running the producer (no re-probe within TTL);
      after TTL expiry the producer runs again. cached_at is stamped.
+  4b. tcp_connect_probe retry: a COLD node that times out attempt #1 but answers
+      attempt #2 reads reachable=True (honest recovery); a node down on EVERY attempt
+      stays unreachable (retry NEVER fabricates green); retries=0 == single attempt.
+  4c. env-configurable timeout/retries (A11OY_GPU_PROBE_TIMEOUT_S / _RETRIES): read,
+      clamped to safe bounds, and honest-default on a missing/garbage value.
   4. probe_fabric_pool with mocked sockets (chaski @ 100.102.173.88 hangs to timeout):
        - returns sub-second even with the dead node,
        - chaski is reachable=False with an honest reason (never green, never invented),
@@ -179,7 +184,9 @@ def test_fabric_pool_subsecond_with_dead_chaski_and_honest():
     try:
         cache = bh.TTLCache(ttl=30.0)
         t0 = time.monotonic()
-        payload = bh.probe_fabric_pool(timeout=1.5, cache=cache, force=True)
+        # retries=0 keeps the timing bound deterministic: one timeout window per node,
+        # concurrent, not the serial sum. The retry path is covered separately below.
+        payload = bh.probe_fabric_pool(timeout=1.5, cache=cache, force=True, retries=0)
         dt = time.monotonic() - t0
         by = {n["name"]: n for n in payload["nodes"]}
 
@@ -211,7 +218,7 @@ def test_fabric_pool_second_call_is_cached_no_reprobe():
     install()
     try:
         cache = bh.TTLCache(ttl=30.0)
-        first = bh.probe_fabric_pool(timeout=1.5, cache=cache, force=True)
+        first = bh.probe_fabric_pool(timeout=1.5, cache=cache, force=True, retries=0)
         t0 = time.monotonic()
         second = bh.probe_fabric_pool(timeout=1.5, cache=cache)  # within TTL -> cached
         dt = time.monotonic() - t0
@@ -219,6 +226,97 @@ def test_fabric_pool_second_call_is_cached_no_reprobe():
         assert second["cached_at"] == first["cached_at"], "cached call must return the same snapshot"
     finally:
         restore()
+
+
+# ===========================================================================
+# 4b. tcp_connect_probe retry — honest recovery of a COLD node, never fabricated.
+#     A cold Windows Ollama frequently times out the FIRST connect then answers the
+#     SECOND once the path is primed; one cheap retry recovers that. The retry NEVER
+#     turns a genuinely-dead node green — every attempt is a fresh REAL connect.
+# ===========================================================================
+def test_retry_recovers_cold_node_that_answers_second_attempt():
+    state = {"n": 0}
+
+    def cold_then_up(host, port, timeout):
+        state["n"] += 1
+        return (False, "timeout") if state["n"] == 1 else (True, "tcp reachable")
+
+    orig = bh._tcp_connect_once
+    bh._tcp_connect_once = cold_then_up
+    try:
+        ok, detail = bh.tcp_connect_probe("1.2.3.4", 11434, 0.5, retries=1)
+        assert ok is True, "a node that answers the 2nd connect must read reachable=True"
+        assert detail == "tcp reachable"
+        assert state["n"] == 2, "the retry must actually make a second real attempt"
+    finally:
+        bh._tcp_connect_once = orig
+
+
+def test_retry_never_fabricates_a_dead_node_up():
+    def always_down(host, port, timeout):
+        return (False, "timeout")
+
+    orig = bh._tcp_connect_once
+    bh._tcp_connect_once = always_down
+    try:
+        ok, detail = bh.tcp_connect_probe("1.2.3.4", 11434, 0.5, retries=2)
+        assert ok is False, "a node down on every attempt stays honestly unreachable"
+        assert detail == "timeout"
+    finally:
+        bh._tcp_connect_once = orig
+
+
+def test_retries_zero_is_single_attempt_previous_behaviour():
+    state = {"n": 0}
+
+    def count_down(host, port, timeout):
+        state["n"] += 1
+        return (False, "timeout")
+
+    orig = bh._tcp_connect_once
+    bh._tcp_connect_once = count_down
+    try:
+        bh.tcp_connect_probe("1.2.3.4", 11434, 0.5, retries=0)
+        assert state["n"] == 1, "retries=0 must make exactly one connect (previous behaviour)"
+    finally:
+        bh._tcp_connect_once = orig
+
+
+def test_fabric_payload_reports_retries_for_transparency():
+    install, restore = _mock_sockets()
+    install()
+    try:
+        payload = bh.probe_fabric_pool(timeout=1.0, cache=bh.TTLCache(ttl=30.0),
+                                       force=True, retries=2)
+        assert payload["probe_retries"] == 2, payload.get("probe_retries")
+    finally:
+        restore()
+
+
+# ===========================================================================
+# 4c. env-configurable timeout/retries — clamped, honest fail-safe on garbage.
+# ===========================================================================
+def test_env_timeout_is_read_clamped_and_failsafe():
+    assert bh._env_float("A11OY_NOPE_TIMEOUT", 3.5, 0.25, 10.0) == 3.5
+    os.environ["A11OY_TMP_T"] = "4.0"
+    try:
+        assert bh._env_float("A11OY_TMP_T", 3.5, 0.25, 10.0) == 4.0
+        os.environ["A11OY_TMP_T"] = "999"   # operator typo must not hang the endpoint
+        assert bh._env_float("A11OY_TMP_T", 3.5, 0.25, 10.0) == 10.0
+        os.environ["A11OY_TMP_T"] = "garbage"
+        assert bh._env_float("A11OY_TMP_T", 3.5, 0.25, 10.0) == 3.5
+    finally:
+        os.environ.pop("A11OY_TMP_T", None)
+
+
+def test_env_retries_is_read_and_clamped():
+    os.environ["A11OY_TMP_R"] = "9"
+    try:
+        assert bh._env_int("A11OY_TMP_R", 1, 0, 3) == 3
+        os.environ["A11OY_TMP_R"] = "-5"
+        assert bh._env_int("A11OY_TMP_R", 1, 0, 3) == 0
+    finally:
+        os.environ.pop("A11OY_TMP_R", None)
 
 
 # ===========================================================================
