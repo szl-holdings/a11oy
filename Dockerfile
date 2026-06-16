@@ -151,6 +151,11 @@ COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_h
 # energy operator/ledger/projection modules — imported by serve.py (guarded);
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB.
 COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py ./
+# Orbital tier (MODELED roadmap) — imported by serve.py (guarded); MUST be per-file
+# COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
+# /api/a11oy/v1/orbital/{topology,projection} 404 live. szl_orbital_projection reuses
+# szl_energy_operator (the REAL measured ground J/token coefficient), already COPY'd above.
+COPY szl_orbital_topology.py szl_orbital_projection.py ./
 # K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
