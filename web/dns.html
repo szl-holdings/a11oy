@@ -1,0 +1,105 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DNS &amp; Subdomains — Pending Records · a11oy</title>
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
+     Honest, user-visible name: DNS & Subdomains. NEVER a codename. This is a STATIC
+     internal infrastructure roadmap — a tracked list of DNS records to add. It does
+     NOT query live DNS and shows NO live metrics; statuses are hand-maintained and
+     dated. Verify any record live with `dig <name>` before relying on it. -->
+<style>
+:root{--bg:#070b16;--panel:#101a2e;--panel2:#16223a;--ink:#e8eef7;--mut:#8aa0bd;--gold:#d8a23c;--acc:#5ad1c0;
+--line:#243149;--grn:#3fb950;--amb:#e0c060;--red:#ff6b6b;}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#14213b,var(--bg));
+color:var(--ink);font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px 80px}
+#banner{position:sticky;top:0;z-index:9;background:linear-gradient(90deg,rgba(216,162,60,.20),rgba(200,100,60,.16));
+border-bottom:1px solid rgba(232,192,116,.5);color:var(--amb);font:600 .80rem/1.4 ui-monospace,monospace;
+letter-spacing:.05em;text-transform:uppercase;padding:.6rem 1rem;display:flex;gap:.6rem;align-items:center}
+#banner .dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--amb);box-shadow:0 0 8px var(--amb)}
+h1{font-size:25px;margin:22px 0 2px}h2{font-size:17px;margin:28px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 14px;max-width:760px}a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:10px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600}code{background:#0a1626;padding:1px 5px;border-radius:5px;color:var(--acc);font-size:12px}
+.b{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.green{background:#0f3a2e;color:#5ad1c0}.amber{background:#3a2f0f;color:#e0c060}.red{background:#3a0f14;color:#ff8a8a}.grey{background:#1b2740;color:#8aa0bd}
+.pill{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+ol{margin:6px 0 6px 18px;padding:0}ol li{margin:4px 0}
+.foot{margin-top:34px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+.note{color:var(--mut);font-size:12px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 2px;font-size:12px;color:var(--mut)}
+</style></head><body>
+<div id="banner"><span class="dot"></span><span>Internal infrastructure roadmap — DNS records to add · static page, no live DNS query · statuses hand-maintained &amp; dated</span></div>
+<div class="wrap">
+<nav class="note" style="padding-top:12px"><a href="/">home</a> · <a href="/console">/console</a> · <a href="/immune">/immune</a></nav>
+<h1>DNS &amp; Subdomains <span class="pill">pending records</span></h1>
+<p class="sub">A running list of the DNS records we want to add. Nothing here is blocking a live service — it is a triage list to work through. <b>immune</b> already has a public home on Hugging Face (<a href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">szlholdings-immune.hf.space</a>), so the subdomain is a nice-to-have that is <b>on hold</b> until the trip is over.</p>
+
+<div class="legend">
+<span><span class="b amber">PENDING</span> staged / ready, record not yet added</span>
+<span><span class="b red">BLOCKED</span> needs founder / registrar action</span>
+<span><span class="b grey">CANDIDATE</span> unconfirmed — confirm when back</span>
+<span><span class="b green">DONE</span> record live</span>
+</div>
+
+<h2>1 · Pending records (confirmed)</h2>
+<div class="card">
+<table>
+<tr><th>Host / record</th><th>Type</th><th>Target</th><th>TTL</th><th>Status</th><th>Notes / action</th></tr>
+<tr>
+  <td><code>immune.a11oy.net</code></td>
+  <td>A</td>
+  <td><code>167.233.50.75</code></td>
+  <td>300</td>
+  <td><span class="b amber">PENDING</span> <span class="b red">BLOCKED</span></td>
+  <td>Box side is staged: nginx vhost added (<code>nginx -t</code> OK), container listening, TLS to be issued by certbot <i>after</i> the A-record resolves. Add the A-record at the registrar for <code>a11oy.net</code>. Registrar API is disabled at the account level (Namecheap error 1011102), so it must be added <b>by hand in the registrar dashboard</b> — see step list below. No outage in the meantime: immune is served on Hugging Face.</td>
+</tr>
+</table>
+</div>
+
+<h2>2 · Backlog (confirm when back)</h2>
+<div class="card">
+<p class="note" style="margin-top:0">Known infrastructure gaps that <i>may</i> want DNS. Listed as candidates only — confirm whether we actually want each before adding.</p>
+<table>
+<tr><th>Host / record</th><th>Type</th><th>Target</th><th>Status</th><th>Notes</th></tr>
+<tr>
+  <td><code>killinchu.net</code></td>
+  <td>registration + DNS</td>
+  <td>—</td>
+  <td><span class="b grey">CANDIDATE</span> <span class="b red">BLOCKED</span></td>
+  <td>Domain registration / DNS is founder-gated (registrar account). Decide whether to register and where to point it.</td>
+</tr>
+<tr>
+  <td><code>jarvis.alloyszlholdings.com</code></td>
+  <td>A</td>
+  <td><code>5.161.81.107</code></td>
+  <td><span class="b grey">CANDIDATE</span></td>
+  <td>Jarvis chatbox runs on the Bingle/Mulé box (<code>5.161.81.107</code>, a different host than a11oy) but has no public A-record yet. Add only if we want the chatbox on a public subdomain.</td>
+</tr>
+<tr>
+  <td><code>manifesto.alloyszlholdings.com</code></td>
+  <td>A</td>
+  <td><code>5.161.81.107</code></td>
+  <td><span class="b grey">CANDIDATE</span></td>
+  <td>Manifesto chatbox, same box as above. Same decision as jarvis.</td>
+</tr>
+</table>
+</div>
+
+<h2>3 · How to add a record</h2>
+<div class="card">
+<ol>
+<li>Sign in to the registrar that holds the domain (a11oy.net is on Namecheap).</li>
+<li>Open <b>Domain List → Manage → Advanced DNS</b>.</li>
+<li>Add a new record: <b>Type</b> = A, <b>Host</b> = the left-most label (e.g. <code>immune</code>), <b>Value</b> = the target IP, <b>TTL</b> = Automatic (or 300).</li>
+<li>Save. Allow a few minutes to propagate, then verify with <code>dig immune.a11oy.net +short</code> (should return the target IP).</li>
+<li>Once it resolves, issue TLS on the box: <code>certbot --nginx -d immune.a11oy.net</code>.</li>
+</ol>
+<p class="note">The registrar API is disabled on this account (Namecheap returns error 1011102, "API Key is invalid or API access has not been enabled"), so these records can't be added programmatically right now — they must be added by hand in the dashboard, or API access re-enabled in the registrar account settings.</p>
+</div>
+
+<div class="foot">
+Static infrastructure roadmap · no live data · Doctrine v11 · last updated 2026-06-16.
+Verify any record live with <code>dig &lt;name&gt; +short</code> before relying on it.
+</div>
+</div></body></html>

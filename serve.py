@@ -1291,6 +1291,15 @@ try:
     # copy-sync-lockstep.json + hf-module-drift-allow.json), like web/immune.html.
     app.add_api_route("/sda", _ptg_serve("sda.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/sda", _ptg_serve("sda.html"), methods=["GET"], include_in_schema=False)
+    # DNS & SUBDOMAINS tab (2026-06-16): a static, honest internal infrastructure
+    # roadmap that tracks the DNS records we want to add (e.g. immune.a11oy.net A
+    # 167.233.50.75, on hold until founder is back from the trip; immune itself is
+    # already served on Hugging Face so there is no outage). Standalone page, 0
+    # runtime CDN, NO live data (statuses are hand-maintained + dated). NEVER a
+    # codename. web/dns.html is image_only baked (Dockerfile per-file COPY; declared
+    # in copy-sync-lockstep.json + hf-module-drift-allow.json), like web/sda.html.
+    app.add_api_route("/dns", _ptg_serve("dns.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/dns", _ptg_serve("dns.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE

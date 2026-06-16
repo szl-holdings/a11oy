@@ -556,6 +556,13 @@ COPY web/defense-readiness.html ./web/defense-readiness.html
 # pattern as web/immune.html + web/materials.html; declared in copy-sync-lockstep.json
 # image_only_assets + hf-module-drift-allow.json accepted_divergences.
 COPY web/sda.html ./web/sda.html
+# ADDITIVE (2026-06-16): web/dns.html is the honest, user-visible DNS & Subdomains
+# internal infrastructure roadmap, served at /dns + /a11oy/dns from /app/web/. Static
+# page (0 runtime CDN, NO live data). image_only (baked via this per-file COPY; NOT
+# hf-sync mirrored) — same baked-only pattern as web/sda.html + web/immune.html;
+# declared in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json
+# accepted_divergences.
+COPY web/dns.html ./web/dns.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and
