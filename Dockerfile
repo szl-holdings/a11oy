@@ -156,6 +156,14 @@ COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_pro
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
 # + szl_khipu (the shared signed-receipt chain), both already COPY'd above.
 COPY szl_kverify.py ./
+# Immune (Hukulla) HONEST egress-gate surface — imported by serve.py (guarded).
+# MUST be per-file COPY'd (no `COPY . .`) or the import falls back and the honest
+# /api/a11oy/v1/immune/* namespace 404s. Reuses szl_khipu (the shared signed-
+# receipt chain), already COPY'd above. Auto-mirrored to the HF Space by
+# hf-sync-backend.yml (it parses the Dockerfile COPY set). web/immune.html (the
+# served page) is per-file COPY'd below and declared image_only in
+# .github/copy-sync-lockstep.json (same baked-only pattern as web/energy.html).
+COPY szl_immune.py ./
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
@@ -1024,6 +1032,12 @@ COPY static/3d/ ./static/3d/
 # module above via the same-origin importmap. Per-file served assets -> image_only_assets.
 COPY web/energy-holographic.html ./web/energy-holographic.html
 COPY web/energy.html ./web/energy.html
+# Immune (Hukulla) honest egress-gate page (/immune, /a11oy/immune). Standalone
+# sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/* (status/
+# gates/feed + a live inspect->verdict box showing real deny/allow + signed Khipu
+# receipt digest). Per-file served asset -> declared image_only in copy-sync-
+# lockstep.json (same baked-only pattern as web/energy.html). Codename-free.
+COPY web/immune.html ./web/immune.html
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build
