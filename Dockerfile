@@ -198,6 +198,13 @@ COPY szl_quant_qbio_holo.py ./
 # shared signed-receipt chain), already COPY'd above. szl_materials is the SHARED
 # Materials module (Crystal Novelty Certificate + appended DEV2/DEV3 groups).
 COPY szl_materials.py ./
+# SWEEP D1 (SDA): szl_sda.py serves the honest Space/Domain-Awareness + counter-UAS
+# surface (/api/a11oy/v1/sda/* and /v1/sda/*). MUST be per-file COPY'd (no `COPY . .`)
+# or serve.py's guarded `import szl_sda` falls back to the stub (merged-but-not-live,
+# /api/a11oy/v1/sda/* 404s) AND hf-sync-backend (which parses this COPY set) would not
+# mirror it to the HF Space. Reuses szl_khipu (shared signed-receipt chain, COPY'd
+# above) and the REAL counter-UAS drone-cyber logic. Tracks are REPLAY/SAMPLE/MODELED.
+COPY szl_sda.py ./
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
