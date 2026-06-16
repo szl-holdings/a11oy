@@ -290,6 +290,31 @@ def test_omen_is_third_default_node_standby_by_default():
         _clear_omen_env()
 
 
+def test_omen_default_endpoint_matches_hardened_single_source_of_truth():
+    """Regression guard for the divergent-list class: with no OMEN env set, the energy
+    loop's OMEN base_url MUST fall back to the HARDENED fabric pool's OMEN endpoint
+    (szl_backend_hardening.OMEN_FABRIC_ENDPOINT) — not a bare hostname that won't resolve
+    on the box. This keeps the two node lists from silently diverging. Honest: it only
+    fixes the ADDRESS the probe targets; a real probe still decides reachable/standby."""
+    import szl_backend_hardening as H
+    _clear_omen_env()
+    try:
+        omen = [n for n in OP._default_nodes() if n.name == "omen-betterwithage"][0]
+        # _default_nodes normalizes a bare host:port to an OpenAI-compatible /v1 base.
+        assert omen.base_url == H.OMEN_FABRIC_ENDPOINT + "/v1", (
+            omen.base_url, H.OMEN_FABRIC_ENDPOINT)
+        # the hardened pool descriptor and the energy loop must target the SAME host.
+        hardened_omen = [n for n in H.DEFAULT_FABRIC_NODES
+                         if n["name"] == "omen-betterwithage"][0]
+        assert hardened_omen["endpoint"] == H.OMEN_FABRIC_ENDPOINT, hardened_omen["endpoint"]
+        assert omen.base_url == hardened_omen["endpoint"] + "/v1", (
+            omen.base_url, hardened_omen["endpoint"])
+        # posture stays HONEST: the corrected address does not force the lung up.
+        assert omen.standby is True, "address fix must not flip OMEN out of standby"
+    finally:
+        _clear_omen_env()
+
+
 def test_omen_energy_enabled_flips_live_via_runbook_alias():
     _clear_omen_env()
     try:

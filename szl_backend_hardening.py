@@ -492,6 +492,14 @@ def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
     # Ambiguous or no live match -> honest static fallback (never guess an IP).
     return fallback_ip, "static-fallback"
 
+# OMEN always-on home anchor — SINGLE SOURCE OF TRUTH for its tailnet endpoint.
+# Both this hardened fabric pool AND the energy loop (szl_energy_operator._default_nodes)
+# resolve OMEN's default address from this constant so the two node lists can NEVER
+# silently diverge (a real-probe-only contract: this fixes the ADDRESS, never fakes up).
+OMEN_FABRIC_IP = "100.70.130.45"
+OMEN_FABRIC_PORT = 11434
+OMEN_FABRIC_ENDPOINT = f"http://{OMEN_FABRIC_IP}:{OMEN_FABRIC_PORT}"
+
 DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
     {"name": "hetzner-box-cpu", "kind": "cpu", "sovereign": True,
      "probe": None, "static_reachable": True,
@@ -501,7 +509,7 @@ DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
      "probe": ("100.125.77.31", 11434), "endpoint": "http://100.125.77.31:11434",
      "detail": "Blackwell RTX 5050 laptop (traveling) — Ollama on founder tailnet"},
     {"name": "omen-betterwithage", "kind": "sovereign-gpu", "sovereign": True,
-     "probe": ("100.70.130.45", 11434), "endpoint": "http://100.70.130.45:11434",
+     "probe": (OMEN_FABRIC_IP, OMEN_FABRIC_PORT), "endpoint": OMEN_FABRIC_ENDPOINT,
      "detail": "always-on home brain: OMEN RTX 4060 Ti 8GB + Ryzen 8700G — Ollama on founder tailnet"},
     {"name": "chaski", "kind": "tailnet-gpu", "sovereign": False,
      # IP refresh 2026-06-15: chaski moved 100.76.58.50 -> 100.102.173.88 (confirmed
