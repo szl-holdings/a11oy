@@ -5,7 +5,7 @@
 # cosign keyid: szlholdings-cosign
 #
 # WHAT THIS DOES (real working enforcement, not a policy doc):
-#   During the freeze window [2026-06-18T05:00:00Z .. 2026-06-20T03:59:00Z] (UTC), ANY push or PR
+#   During the freeze window [2026-06-20T05:00:00Z .. 2026-06-22T03:59:00Z] (UTC), ANY push or PR
 #   whose head branch is NOT `hotfix/*` is REJECTED with a clear error.
 #   Outside that window this job is a no-op PASS, so it never breaks existing flows.
 #   This workflow is purely ADDITIVE: it adds one required check, touches nothing else.
@@ -38,11 +38,12 @@ jobs:
         shell: bash
         env:
           # Freeze window (UTC, timestamp-precise). Aligned to the AUTHORITATIVE
-          # platform/replit-sync/FREEZE.json: activates 2026-06-18T01:00:00-04:00
-          # (= 2026-06-18T05:00:00Z) and lifts 2026-06-19T23:59:00-04:00
-          # (= 2026-06-20T03:59:00Z). Pre-freeze, normal branches land.
-          FREEZE_START_TS: '2026-06-18T05:00:00Z'
-          FREEZE_END_TS: '2026-06-20T03:59:00Z'
+          # platform/replit-sync/FREEZE.json: activates 2026-06-20T01:00:00-04:00
+          # (= 2026-06-20T05:00:00Z) and lifts 2026-06-21T23:59:00-04:00
+          # (= 2026-06-22T03:59:00Z). Pre-freeze, normal branches land.
+          # HOLD 2026-06-16: freeze pushed to 06-20 01:00 ET pending demo-day confirmation.
+          FREEZE_START_TS: '2026-06-20T05:00:00Z'
+          FREEZE_END_TS: '2026-06-22T03:59:00Z'
         run: |
           set -euo pipefail
 
