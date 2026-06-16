@@ -169,6 +169,13 @@ COPY szl_kverify.py ./
 # served page) is per-file COPY'd below and declared image_only in
 # .github/copy-sync-lockstep.json (same baked-only pattern as web/energy.html).
 COPY szl_immune.py ./
+# Materials (Q'allariy) HONEST verifiable crystal-discovery surface — imported by
+# serve.py (guarded). MUST be per-file COPY'd (no `COPY . .`) or the import falls
+# back and /api/a11oy/v1/materials/* 404s AND hf-sync-backend.yml (it parses this
+# Dockerfile COPY set) would not mirror it to the HF Space. Reuses szl_khipu (the
+# shared signed-receipt chain), already COPY'd above. szl_materials is the SHARED
+# Materials module (Crystal Novelty Certificate + appended DEV2/DEV3 groups).
+COPY szl_materials.py ./
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
