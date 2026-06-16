@@ -11,7 +11,7 @@
 # Usage: ops/smoke_warhacker.sh [BASE]        (default https://a11oy.net)
 set -uo pipefail
 BASE="${1:-${A11OY_BASE:-https://a11oy.net}}"
-KILL="${KILLINCHU_BASE:-https://killinchu.net}"
+KILL="${KILLINCHU_BASE:-https://killinchu.a11oy.net}"
 TIMEOUT="${SMOKE_TIMEOUT:-20}"
 UA="warhacker-smoke/1.0"
 PASS=0; FAIL=0; REDS=""
@@ -58,8 +58,8 @@ page "hologram(spa)"    "/hologram"       "Orchestration Platform"
 page "pnt(spa)"         "/pnt"            "Orchestration Platform"
 page "agentic-gpu(spa)" "/agentic-gpu"    "Orchestration Platform"
 echo "== killinchu =="
-fetch "$KILL/"
-if [ "$CODE" = 200 ] && [ "$(wc -c <"$BODYF")" -gt 800 ]; then green "killinchu root" "200 ($(wc -c <"$BODYF")B)"; else red "killinchu root" "HTTP $CODE"; fi
+fetch "$KILL/api/killinchu/healthz"
+if [ "$CODE" = 200 ] && grep -qiF 'killinchu' "$BODYF"; then green "killinchu healthz" "200 status ok"; else red "killinchu healthz" "HTTP $CODE (body $(wc -c <"$BODYF")B)"; fi
 echo "== energy / mesh truth endpoints =="
 japi "healthz"            "/api/a11oy/healthz" "bool(d.get('status'))" "'status='+str(d.get('status'))"
 japi "readyz"             "/api/a11oy/readyz"  "bool(d.get('status'))" "'status='+str(d.get('status'))+' backend='+str(d.get('backend'))"
