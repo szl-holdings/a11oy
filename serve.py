@@ -393,6 +393,7 @@ try:
 except Exception as _szl_op_e:  # pragma: no cover
     print(f"[a11oy] Orbital projection NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
 
+
 # -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its
 # registration was dropped during a serve.py mesh refactor while szl_restraint.py
@@ -2522,9 +2523,8 @@ except Exception as _obs_e:  # pragma: no cover - defensive, additive-only
 # ===========================================================================
 # Wire I — Companion (ADDITIVE, Doctrine v11). Signed: Yachay.
 # a11oy (gate) gains a deep-reasoning Companion co-pilot it can call.
-# /api/a11oy/v1/companion/* (user-visible) and /api/a11oy/v1/rosie-companion/*
-# (legacy alias, kept ONLY so existing callers do not break) both proxy to the
-# deep-reasoning brain endpoint and return reasoning + a Khipu cross-flagship
+# /api/a11oy/v1/companion/* (user-visible, codename-free) proxies to the
+# deep-reasoning brain endpoint and returns reasoning + a Khipu cross-flagship
 # receipt. The a11oy.code chat router escalates T4/T5 (deep-reasoning) tiers to
 # the Companion. DOCTRINE: NO user-visible codename is emitted — every response
 # string says "Companion"/"deep-reasoning tier"; the internal import
@@ -2582,7 +2582,6 @@ try:
         return str(tier).upper() in ("T4", "T5")
 
     @app.get("/api/a11oy/v1/companion")
-    @app.get("/api/a11oy/v1/rosie-companion")  # legacy alias (non-breaking)
     async def a11oy_companion_info() -> JSONResponse:
         return JSONResponse({
             "wire": "I", "flagship": "a11oy", "organ": "gate",
@@ -2595,7 +2594,6 @@ try:
         })
 
     @app.post("/api/a11oy/v1/companion/ponder")
-    @app.post("/api/a11oy/v1/rosie-companion/ponder")  # legacy alias
     async def a11oy_companion_ponder(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
@@ -2607,7 +2605,6 @@ try:
         return JSONResponse(_companion_scrub(r.to_dict()))
 
     @app.post("/api/a11oy/v1/companion/synthesize")
-    @app.post("/api/a11oy/v1/rosie-companion/synthesize")  # legacy alias
     async def a11oy_companion_synthesize(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
@@ -2619,7 +2616,6 @@ try:
         return JSONResponse(_companion_scrub(r.to_dict()))
 
     @app.post("/api/a11oy/v1/companion/evolve")
-    @app.post("/api/a11oy/v1/rosie-companion/evolve")  # legacy alias
     async def a11oy_companion_evolve(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
@@ -2632,7 +2628,6 @@ try:
         return JSONResponse(_companion_scrub(p.to_dict()))
 
     @app.post("/api/a11oy/v1/companion/brain-jack")
-    @app.post("/api/a11oy/v1/rosie-companion/brain-jack")  # legacy alias
     async def a11oy_companion_brain_jack(request: Request) -> JSONResponse:
         body, _err = await _safe_json_body(request)
         if _err is not None:
@@ -2664,7 +2659,7 @@ try:
                                          axis_scores=body.get("axis_scores"), traceparent=tp)
             # Doctrine: NO user-visible codenames on the /code surface. Scrub the
             # internal co-pilot codename out of the response payload (route-local
-            # only; does not touch the separate /api/a11oy/v1/rosie-companion/* ns).
+            # only; does not touch the separate /api/a11oy/v1/companion/* ns).
             def _scrub_codename(obj):
                 if isinstance(obj, str):
                     return (obj.replace("rosie-shadow", "deep-reasoning-tier")
@@ -3498,7 +3493,7 @@ async def _a11oy_pr_honest_v2():
 
 @app.get("/api/a11oy/v1/audit-log")
 async def _a11oy_pr_audit_log_v2(limit: int = 50):
-    """In-memory audit log ring buffer — parity with sentra/rosie. Doctrine v11."""
+    """In-memory audit log ring buffer — parity with the sibling flagships. Doctrine v11."""
     limit = min(limit, 200)
     with _A11OY_AUDIT_LOCK:
         entries = list(_A11OY_AUDIT_LOG)[:limit]
@@ -3527,7 +3522,7 @@ async def _a11oy_pr_brain_route_v2():
 
 @app.get("/api/a11oy/v1/llm/tiers")
 async def _a11oy_pr_llm_tiers_v2():
-    """7-tier LLM router catalog — parity with sentra/amaru/killinchu. Doctrine v11."""
+    """7-tier LLM router catalog — parity with the sibling flagships. Doctrine v11."""
     if _A11OY_BRAIN_OK:
         return JSONResponse({
             "count": len(_a11oy_pr_brain.TIERS),
@@ -3810,9 +3805,9 @@ except Exception as _parity_e:
 #   GET  /api/a11oy/v1/llm/registry               — full model roster (7 models, 5 tiers)
 #   GET  /api/a11oy/v1/llm/registry/{model_id}     — single model detail
 #   POST /api/a11oy/v1/llm/route                   — Λ-gated tier selection + receipt
-#   GET  /api/a11oy/v1/llm/forum                   — shared receipt forum (a11oy + Rosie)
-#   POST /api/a11oy/v1/llm/forum/ingest            — ingest from Rosie/organ mirrors
-#   GET  /api/a11oy/v1/llm/ecosystem-mirror        — manifest for Sentra/Amaru/killinchu
+#   GET  /api/a11oy/v1/llm/forum                   — shared receipt forum (a11oy + sibling flagships)
+#   POST /api/a11oy/v1/llm/forum/ingest            — ingest from sibling-flagship/organ mirrors
+#   GET  /api/a11oy/v1/llm/ecosystem-mirror        — manifest for the sibling flagships
 #
 # szl_elite_console adds:
 #   GET  /api/a11oy/v1/console/slo                 — SLO board (gate pass-rates + error budget)
@@ -3920,8 +3915,8 @@ async def a11oy_mcp_tools_inline():
       * Sibling flagship tools are fetched LIVE from that flagship's own
         /v1/mcp/tools endpoint and tagged with its flagship name. Nothing is
         fabricated: a flagship that does not expose an MCP surface, or is
-        unreachable, is simply omitted. Retired/consolidated organs
-        (sentra/amaru/rosie are now served in-process by a11oy) have no
+        unreachable, is simply omitted. Retired/consolidated capabilities
+        (the former sibling organs are now served in-process by a11oy) have no
         standalone MCP endpoint and therefore contribute no separate cluster.
       * Counts reflect exactly what was reachable at request time — no padding.
     """
@@ -4368,17 +4363,27 @@ try:
         except Exception:
             return {}
 
-    # ===================== ROUTE REGISTRATION =====================
-    # ---- sentra-shaped (policy / safety / compliance / forecast / threats) ----
-    @app.get("/api/sentra/v1/gates")
+    # ===================== ROUTE REGISTRATION (HONEST, codename-free) =====================
+    # FOUNDER DECISION (doctrine v11, full purge): the legacy /api/{sentra,amaru,
+    # rosie}/v1/* codename decorators are DELETED. Each REAL handler below is moved
+    # verbatim (same logic, same _SC_BUNDLE data, same _sc_* helpers) onto its honest
+    # a11oy path. NO user-visible codename remains in any served route string.
+    #   sentra  -> /api/a11oy/v1/immune/*      (Immune = Quechua "Hukulla")
+    #   amaru   -> /api/a11oy/v1/{llm,readiness}/*
+    #   rosie   -> /api/a11oy/v1/companion/*    ("companion" = honest operator role)
+    # The shared in-process handlers keep their internal _sc_* symbol names (NOT
+    # user-visible Python identifiers) so the downstream alias/proxy wiring that
+    # references them is preserved. Honest paths gates/verdict/feed/threats are owned
+    # by the szl_immune module (registered earlier, first-match-wins, byte-identical
+    # REAL inspection + signed Khipu receipts); we add only the immune paths it does
+    # not already serve (forecast, compliance) here, plus the llm/readiness/companion
+    # surfaces. Additive + collision-aware via add_api_route below.
     async def _sc_sentra_gates():
         return _SCJSON(_SC_BUNDLE["gates"])
 
-    @app.get("/api/sentra/v1/threats/full")
     async def _sc_sentra_threats():
         return _SCJSON(_SC_BUNDLE["threats_full"])
 
-    @app.get("/api/sentra/v1/verdict/feed")
     async def _sc_sentra_feed(limit: int = 50):
         with _SC_AUDIT_LOCK:
             v = list(_SC_AUDIT)[: int(limit)]
@@ -4386,11 +4391,9 @@ try:
         return _SCJSON({"verdicts": v, "count": len(v), "total_buffered": n,
                         "note": _SC_BUNDLE["feed"].get("note", ""), "doctrine": "v11"})
 
-    @app.post("/api/sentra/v1/verdict")
     async def _sc_sentra_verdict(request: _SCRequest):
         return _SCJSON(_sc_build_verdict(await _sc_body(request)))
 
-    @app.post("/api/sentra/v1/elite/compliance")
     async def _sc_sentra_compliance(request: _SCRequest):
         body = await _sc_body(request)
         fw = (body or {}).get("framework", "NIST")
@@ -4399,46 +4402,75 @@ try:
         chosen = amap.get(key, "NIST")
         return _SCJSON(_SC_BUNDLE["compliance"][chosen])
 
-    @app.get("/api/sentra/v1/forecast/run")
     async def _sc_sentra_forecast(input_value: float = 0.5, k: int = 10, synthetic: bool = False):
         return _SCJSON(_sc_forecast(input_value, k=k, synthetic=synthetic))
 
-    # ---- amaru-shaped (readiness / llm tiers) ----
-    @app.get("/api/amaru/v1/llm/tiers")
     async def _sc_amaru_tiers():
         return _SCJSON(_SC_BUNDLE["tiers"])
 
-    @app.post("/api/amaru/v1/readiness/assess")
     async def _sc_amaru_readiness(request: _SCRequest):
         body = await _sc_body(request)
         return _SCJSON(_sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {})))
 
-    # ---- rosie-shaped (operator ask / act / recommend / ledger / command-log / mesh) ----
-    @app.post("/api/rosie/v1/jarvis/ask")
     async def _sc_rosie_ask(request: _SCRequest):
         body = await _sc_body(request)
         return _SCJSON(_sc_ask((body or {}).get("question", "")))
 
-    @app.post("/api/rosie/v1/jarvis/act")
     async def _sc_rosie_act(request: _SCRequest):
         body = await _sc_body(request)
         return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
 
-    @app.get("/api/rosie/v1/jarvis/recommend")
     async def _sc_rosie_recommend():
         return _SCJSON(_SC_RECOMMEND)
 
-    @app.get("/api/rosie/v1/ledger")
     async def _sc_rosie_ledger():
         return _SCJSON(_SC_BUNDLE["ledger"])
 
-    @app.get("/api/rosie/v2/command-log")
     async def _sc_rosie_cmdlog():
         return _SCJSON(_SC_BUNDLE["commandlog"])
 
-    @app.get("/api/rosie/v1/mesh/3d")
     async def _sc_rosie_mesh3d():
         return _SCJSON(_SC_BUNDLE["mesh3d"])
+
+    # ---- HONEST registration: move each REAL handler onto its codename-free path ----
+    # add_api_route (not decorators) so we can register collision-aware against routes
+    # already served (e.g. szl_immune's immune/gates|verdict|feed|threats, the parity
+    # /api/a11oy/v1/llm/tiers, the existing /api/a11oy/v1/companion/*). FastAPI is
+    # first-match-wins; a path already present is skipped (would be dead code).
+    _SC_HONEST_ROUTES = [
+        # sentra -> Immune (Hukulla). gates/verdict/feed/threats already served by
+        # szl_immune (byte-identical REAL inspection); we add the two it does not.
+        (["POST"], "/api/a11oy/v1/immune/compliance", _sc_sentra_compliance),
+        (["GET"],  "/api/a11oy/v1/immune/forecast",   _sc_sentra_forecast),
+        # amaru -> honest a11oy llm / readiness namespace (NO "amaru").
+        (["GET"],  "/api/a11oy/v1/llm/tiers",         _sc_amaru_tiers),
+        (["POST"], "/api/a11oy/v1/readiness/assess",  _sc_amaru_readiness),
+        # rosie/jarvis -> honest a11oy companion namespace (NO "rosie"/"jarvis").
+        (["POST"], "/api/a11oy/v1/companion/ask",       _sc_rosie_ask),
+        (["POST"], "/api/a11oy/v1/companion/act",       _sc_rosie_act),
+        (["GET"],  "/api/a11oy/v1/companion/recommend", _sc_rosie_recommend),
+        (["GET"],  "/api/a11oy/v1/companion/ledger",    _sc_rosie_ledger),
+        (["GET"],  "/api/a11oy/v1/companion/command-log", _sc_rosie_cmdlog),
+        # rosie mesh -> the honest a11oy mesh (founder: use the EXISTING a11oy mesh,
+        # do NOT create a rosie one). Registers /api/a11oy/v1/mesh/3d (the citation
+        # at the consolidated-quorum-graph surface now resolves).
+        (["GET"],  "/api/a11oy/v1/mesh/3d",           _sc_rosie_mesh3d),
+    ]
+    _sc_honest_existing = {getattr(_r, "path", None) for _r in app.routes}
+    _sc_honest_registered, _sc_honest_skipped = [], []
+    for _sc_h_methods, _sc_h_path, _sc_h_fn in _SC_HONEST_ROUTES:
+        if _sc_h_path in _sc_honest_existing:
+            _sc_honest_skipped.append(_sc_h_path)
+            continue
+        app.add_api_route(_sc_h_path, _sc_h_fn, methods=_sc_h_methods)
+        _sc_honest_registered.append(_sc_h_path)
+    import sys as _sc_honest_sys
+    print("[a11oy] honest codename-free routes registered: "
+          + str(len(_sc_honest_registered)) + " (" + ", ".join(_sc_honest_registered)
+          + "); " + str(len(_sc_honest_skipped)) + " already served "
+          "(immune gates/verdict/feed/threats owned by szl_immune; llm/tiers + "
+          "companion by their honest handlers). Codename routes PURGED.",
+          file=_sc_honest_sys.stderr)
 
     # ---- NEUTRAL self-contained capability aliases (a11oy-native paths) ----
     # These expose the SAME in-process data under a11oy-only capability names so
@@ -4560,10 +4592,11 @@ try:
         # NOTE: the public operator verbs are served by the honest, codename-free
         # /api/a11oy/v1/operator/{ask,act,recommend} handlers defined above
         # (_sc_cap_ask/_sc_cap_act/_sc_cap_recommend, same underlying logic, with
-        # gov_envelope). The legacy /api/rosie/v1/jarvis/* internal aliases remain
-        # for backward-compat (serve.py is doctrine-allowlisted for those). We do
-        # NOT register a user-visible /operator/jarvis/* path: 'jarvis' is a banned
-        # codename and must never appear in a public endpoint.
+        # gov_envelope) and also under /api/a11oy/v1/companion/{ask,act,recommend}
+        # (doctrine v11 full purge). The legacy codename routes have been PURGED
+        # — no /api/rosie|sentra|amaru path is registered anywhere. No
+        # user-visible /operator/jarvis/* or /companion/jarvis/* path exists:
+        # 'jarvis' is a banned codename and must never appear in a public endpoint.
         (["GET"],  "/api/a11oy/v1/operator/ledger",           _sc_rosie_ledger),
         (["GET"],  "/api/a11oy/v2/operator/command-log",      _sc_rosie_cmdlog),
         (["GET"],  "/api/a11oy/v1/operator/mesh/3d",          _sc_rosie_mesh3d),
@@ -4577,10 +4610,12 @@ try:
         app.add_api_route(_sc_vpath, _sc_vfn, methods=_sc_methods)
         _sc_vert_registered.append(_sc_vpath)
     import sys as _sc_vert_sys
-    print("[a11oy] a11oy-vertical aliases (amaru->memory, sentra->sentinel, "
-          "rosie->operator): " + str(len(_sc_vert_registered)) + " registered, "
-          + str(len(_sc_vert_skipped)) + " already present (codename routes kept "
-          "live for backward-compat)", file=_sc_vert_sys.stderr)
+    print("[a11oy] a11oy-vertical capability aliases (memory/sentinel/operator): "
+          + str(len(_sc_vert_registered)) + " registered, "
+          + str(len(_sc_vert_skipped)) + " already present. The legacy codename "
+          "routes have been PURGED (doctrine v11 full purge); these honest paths "
+          "and the immune/llm/readiness/companion surfaces are now canonical.",
+          file=_sc_vert_sys.stderr)
 
     # ===== Task516: governed GET variants + v2 command loop (a11oy-operator-reason-envelope-task516) =====
     @app.get("/api/a11oy/v1/operator/ask")
@@ -7838,7 +7873,7 @@ async def _a11oy_pr_lambda():
 
 @app.get("/api/a11oy/v1/honest")
 async def _a11oy_pr_honest():
-    """Honest doctrine disclosure — parity with sentra/amaru/killinchu/rosie. Doctrine v11."""
+    """Honest doctrine disclosure — parity with the sibling flagships. Doctrine v11."""
     # ADDITIVE (Formulas → Ecosystem, 2026-06-03): this is the LAST-registered /honest
     # (it wins ordering), so the formula + SLSA surface lives HERE too. HONEST STATUS
     # (locked by .compliance/SLSA_LEVEL.md): the deployed a11oy image (uds-v0.2.0) is
@@ -7875,7 +7910,7 @@ async def _a11oy_pr_honest():
         "formulas_index": "/api/a11oy/v1/formulas/index",
         "formulas_provenance": "thesis_v22.pdf §2 + real Lean theorem/obligation per module",
         "formulas_honest_notes": [
-            "HNSW endpoint is an honest amaru-delegate stub (amaru owns retrieval).",
+            "HNSW endpoint is an honest retrieval-tier delegate stub (the retrieval tier owns retrieval).",
             "BLS returns an honest backend-availability flag; real aggregate-verify only when py_ecc present.",
         ],
         "role": "Brand Orchestration / gates",
@@ -7884,7 +7919,7 @@ async def _a11oy_pr_honest():
 
 @app.get("/api/a11oy/v1/audit-log")
 async def _a11oy_pr_audit_log(limit: int = 50):
-    """In-memory audit log ring buffer — parity with sentra/rosie. Doctrine v11."""
+    """In-memory audit log ring buffer — parity with the sibling flagships. Doctrine v11."""
     limit = min(limit, 200)
     with _A11OY_AUDIT_LOCK:
         entries = list(_A11OY_AUDIT_LOG)[:limit]
@@ -7913,7 +7948,7 @@ async def _a11oy_pr_brain_route():
 
 @app.get("/api/a11oy/v1/llm/tiers")
 async def _a11oy_pr_llm_tiers():
-    """7-tier LLM router catalog — parity with sentra/amaru/killinchu. Doctrine v11."""
+    """7-tier LLM router catalog — parity with the sibling flagships. Doctrine v11."""
     if _A11OY_BRAIN_OK:
         return JSONResponse({
             "count": len(_a11oy_pr_brain.TIERS),
