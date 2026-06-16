@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Materials — Verifiable Alloy &amp; Crystal Discovery · SZL Holdings</title>
+<meta name="description" content="Materials (Quechua 'Q'allariy' — the beginning/first): a live, honest, verifiable alloy &amp; crystal discovery surface. Signed crystal novelty certificate (isometry-invariant PDD fingerprint), PAC-Bayes generalization certificate, and Immune dual-use screening — each verdict signed into the shared Khipu chain. Honest labels: PDD injectivity = ROADMAP; McAllester Lean proof = SORRY; Lambda = Conjecture 1; Khipu = Conjecture 2; Neyman-Pearson immune gate = proven-backing; trust never 100%; locked-8 @ c7c0ba17."/>
+<!-- 0 runtime CDN (doctrine v11): system fonts only — no Google Fonts, no external assets. -->
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
+  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --display:ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.kv{font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.9;margin-top:.5rem;}
+.kv .k{color:var(--dim);display:inline-block;min-width:150px;}
+.kv .v{color:var(--cream);}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:.18rem .5rem;border-radius:5px;border:1px solid var(--gold-line);}
+.pill.green{color:var(--green);border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.08);}
+.pill.yellow{color:var(--yellow);border-color:rgba(245,196,81,.4);background:rgba(245,196,81,.08);}
+.pill.red{color:var(--red);border-color:rgba(255,106,90,.4);background:rgba(255,106,90,.08);}
+.pill.blue{color:var(--blue);border-color:rgba(91,200,255,.4);background:rgba(91,200,255,.08);}
+.pill.dim{color:var(--muted);}
+.simnote{border:1px solid var(--warn);background:rgba(201,160,95,.06);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:#d8c39a;line-height:1.65;}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;margin-top:.5rem;}
+th,td{text-align:left;padding:.34rem .5rem;border-bottom:1px solid var(--gold-soft);color:var(--paragraph);vertical-align:top;}
+th{color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-size:9.5px;}
+td.deny{color:var(--red);}td.allow{color:var(--green);}
+.lattice-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:.4rem;margin-top:.5rem;}
+.lattice-grid label{font-family:var(--mono);font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.2rem;}
+textarea,input,select{width:100%;background:var(--panel2);border:1px solid var(--gold-line);border-radius:7px;color:var(--cream);font-family:var(--mono);font-size:12.5px;padding:.55rem .65rem;resize:vertical;}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--teal-line);}
+.fieldrow{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem;}
+.fieldrow label,.fullrow label{font-family:var(--mono);font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.2rem;}
+.fullrow{margin-top:.5rem;}
+button.run{margin-top:.7rem;padding:.55rem 1.1rem;border-radius:7px;border:1px solid var(--teal-line);background:var(--teal-soft);color:var(--teal);font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:.15s;}
+button.run:hover{background:rgba(95,179,163,.18);color:var(--cream);}
+.preset{display:inline-block;margin:.3rem .3rem 0 0;padding:.2rem .5rem;border-radius:5px;border:1px solid var(--gold-line);color:var(--muted);font-family:var(--mono);font-size:10.5px;cursor:pointer;}
+.preset:hover{color:var(--cream);border-color:var(--teal-line);}
+.verdict-box{margin-top:.8rem;border:1px solid var(--gold-line);border-radius:8px;padding:.85rem 1rem;background:var(--panel2);font-family:var(--mono);font-size:12px;line-height:1.8;}
+.verdict-box.deny{border-color:rgba(255,106,90,.5);}
+.verdict-box.allow{border-color:rgba(57,217,138,.5);}
+.verdict-box.novel{border-color:rgba(57,217,138,.5);}
+.verdict-box.dup{border-color:rgba(245,196,81,.5);}
+.verdict-box.deploying{border-color:rgba(91,200,255,.5);}
+.sig{display:inline-block;margin:.15rem .3rem .15rem 0;padding:.12rem .45rem;border-radius:4px;border:1px solid rgba(255,106,90,.4);background:rgba(255,106,90,.08);color:var(--red);font-size:10.5px;}
+.digest{color:var(--gold);word-break:break-all;}
+code{font-family:var(--mono);color:var(--teal);}
+.statlabel{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;}
+.proven{color:var(--green);}.conj{color:var(--yellow);}.roadmap{color:var(--blue);}
+.footnote{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:1.6rem;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span>
+  <span class="live"><span class="live-dot"></span><span id="liveTag">MATERIALS · LIVE</span></span>
+  <span class="switcher">
+    <a class="flag active" href="/materials">Materials</a>
+    <a class="flag" href="/immune">Immune</a>
+    <a class="flag" href="/energy">Energy</a>
+    <a class="flag" href="/fleet-c2">Fleet C2</a>
+    <a class="flag" href="/living-anatomy">Living Anatomy</a>
+    <a class="flag" href="/code">Code</a>
+  </span>
+</div>
+
+<div class="wrap">
+  <h1>Materials — Verifiable Alloy &amp; Crystal Discovery<span class="badge" id="organBadge">Q'allariy · the beginning · Khipu-signed</span></h1>
+  <p class="lede">
+    <b>Materials</b> (Quechua <b>Q'allariy</b> — "the beginning / the first") is SZL's honest, verifiable
+    alloy &amp; crystal discovery surface. The materials-AI field competes on <b>accuracy</b>; SZL competes on
+    <b>verifiability</b>. Every verdict below is a <b>real endpoint call</b> signed into the
+    <b>shared Khipu chain</b> — a judge can re-verify each receipt digest. Three live capabilities:
+    a signed <b>crystal novelty certificate</b> (isometry-invariant PDD fingerprint, answering the GNoME
+    duplicate scandal), a <b>PAC-Bayes generalization certificate</b>, and <b>Immune dual-use screening</b>.
+    Honest labels throughout: PDD injectivity = <b>ROADMAP</b>; McAllester Lean proof = <b>SORRY</b>;
+    &Lambda; = <b>Conjecture&nbsp;1</b>; Khipu = <b>Conjecture&nbsp;2</b>; Neyman&ndash;Pearson immune gate =
+    <b>proven-backing</b>. Locked-proven set unchanged at EXACTLY 8 @ kernel <code>c7c0ba17</code>;
+    trust is never 100%; effectors simulated; no fabricated data.
+  </p>
+
+  <div class="cards">
+    <div class="card"><div class="lbl">Novelty registry</div><div class="big" id="cRegistry">—</div><div class="sub" id="cRegistrySub">fingerprints registered</div></div>
+    <div class="card"><div class="lbl">Khipu chain depth</div><div class="big" id="cChain">—</div><div class="sub" id="cChainSub">verified</div></div>
+    <div class="card"><div class="lbl">PAC-Bayes</div><div class="big" id="cCertify">—</div><div class="sub">/certify endpoint</div></div>
+    <div class="card"><div class="lbl">Immune screen</div><div class="big" id="cScreen">—</div><div class="sub">/screen endpoint</div></div>
+  </div>
+
+  <!-- PANEL 1 — Crystal Novelty -->
+  <div class="panel">
+    <h2>1 · Crystal Novelty Certificate <span class="meta" id="novEp">POST /api/a11oy/v1/materials/novelty</span></h2>
+    <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+      Submit a crystal (lattice <code>a,b,c,&alpha;,&beta;,&gamma;</code> in &Aring;/degrees + fractional atom
+      sites). The endpoint computes an <b>isometry-invariant Pointwise-Distance-Distribution fingerprint</b>
+      (Widdowson&ndash;Kurlin PDD), compares it against an append-only registry, and signs a Khipu receipt
+      (<code>SZL.Materials.NoveltyCert.v1</code>). Prefilled with the <b>Al-FCC</b> example.
+      <span class="roadmap">Fingerprint INJECTIVITY is ROADMAP / CONJECTURE</span> — not proven.
+    </p>
+    <div>
+      <span class="preset" data-p="al-fcc">Al-FCC (a=4.05)</span>
+      <span class="preset" data-p="cu-fcc">Cu-FCC (a=3.61)</span>
+      <span class="preset" data-p="nacl">NaCl rock-salt (a=5.64)</span>
+      <span class="preset" data-p="fe-bcc">Fe-BCC (a=2.87)</span>
+    </div>
+    <div class="lattice-grid">
+      <div><label>a (&Aring;)</label><input id="latA" value="4.05"/></div>
+      <div><label>b (&Aring;)</label><input id="latB" value="4.05"/></div>
+      <div><label>c (&Aring;)</label><input id="latC" value="4.05"/></div>
+      <div><label>&alpha; (&deg;)</label><input id="latAl" value="90"/></div>
+      <div><label>&beta; (&deg;)</label><input id="latBe" value="90"/></div>
+      <div><label>&gamma; (&deg;)</label><input id="latGa" value="90"/></div>
+    </div>
+    <div class="fullrow">
+      <label>atom sites — JSON array of {el,x,y,z} (fractional)</label>
+      <textarea id="sitesInput" rows="3">[{"el":"Al","x":0,"y":0,"z":0}]</textarea>
+    </div>
+    <button class="run" id="runNov">Certify novelty &rarr;</button>
+    <div id="novOut"></div>
+  </div>
+
+  <div class="grid2">
+    <!-- PANEL 2 — PAC-Bayes -->
+    <div class="panel">
+      <h2>2 · PAC-Bayes Certificate <span class="meta" id="certEp">POST /api/a11oy/v1/materials/certify</span></h2>
+      <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+        Compute the <b>McAllester PAC-Bayes bound</b> "with prob &ge; 1&minus;&delta;, population risk &le; bound"
+        + a signed certificate. The bound <b>computation is exact</b>; the
+        <span class="roadmap">McAllester Lean proof is a tracked SORRY</span> (proven-on-paper) —
+        <code>Lutar/Materials/PACBayesMaterials.lean</code>.
+      </p>
+      <div>
+        <span class="preset" data-c="alloy">alloy-regression preset</span>
+        <span class="preset" data-c="tight">tight (large n)</span>
+        <span class="preset" data-c="loose">loose (small n)</span>
+      </div>
+      <div class="fieldrow">
+        <div><label>empirical_risk</label><input id="cRisk" value="0.08"/></div>
+        <div><label>kl divergence</label><input id="cKl" value="2.0"/></div>
+        <div><label>n (sample size)</label><input id="cN" value="5000"/></div>
+        <div><label>delta</label><input id="cDelta" value="0.05"/></div>
+      </div>
+      <button class="run" id="runCert">Certify bound &rarr;</button>
+      <div id="certOut"></div>
+    </div>
+
+    <!-- PANEL 3 — Immune Screen -->
+    <div class="panel">
+      <h2>3 · Immune Screen <span class="meta" id="scrEp">POST /api/a11oy/v1/materials/screen</span></h2>
+      <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+        Screen a materials-inference input through the <b>Neyman&ndash;Pearson-optimal, fail-closed Immune gate</b>
+        (dual-use / safety). Returns <b>allow / deny</b> + signals + a signed receipt. Falls back to
+        <code>/api/a11oy/v1/immune/verdict</code> if <code>/screen</code> is not yet live.
+        <span class="proven">Immune gate Lean backing is PROVEN</span> (not folded into locked-8).
+      </p>
+      <div>
+        <span class="preset" data-s='{"action":{"cmd":"synthesize Al-Cu alloy at 600C"}}'>benign synthesis</span>
+        <span class="preset" data-s='{"action":{"cmd":"rm -rf /"}}'>rm -rf /</span>
+        <span class="preset" data-s='{"action":{"q":"DROP TABLE structures; --"}}'>DROP TABLE</span>
+      </div>
+      <div class="fullrow">
+        <label>action payload (JSON: {"action":{"cmd":...}})</label>
+        <textarea id="scrInput" rows="4">{"action":{"cmd":"synthesize Al-Cu alloy at 600C"}}</textarea>
+      </div>
+      <button class="run" id="runScr">Screen &rarr; verdict</button>
+      <div id="scrOut"></div>
+    </div>
+  </div>
+
+  <!-- HONEST FOOTER PANEL — claim sheet -->
+  <div class="panel">
+    <h2>Honest claim sheet — what is real vs roadmap <span class="meta">Doctrine v11 · trust never 100%</span></h2>
+    <p class="lede" style="margin:.2rem 0 .5rem;font-size:.85rem;">
+      <b>Claiming more than is real is the only unacceptable outcome.</b> Each capability is labeled with its
+      exact Lean reference. The locked machine-checked proven set is <b>EXACTLY 8</b>
+      {F1,F4,F7,F11,F12,F18,F19,F22} at kernel <code>c7c0ba17</code> — none of the materials capabilities are
+      folded into it.
+    </p>
+    <table>
+      <thead><tr><th>Capability</th><th>Status</th><th>Lean reference</th><th>Live endpoint</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Crystal novelty fingerprint + signed Khipu receipt (computation + chain)</td>
+          <td><span class="pill green">PROVEN by construction</span></td>
+          <td><code>Lutar/Wave8/HashChain.lean</code></td>
+          <td><code>/materials/novelty</code></td>
+        </tr>
+        <tr>
+          <td>PDD fingerprint <b>injectivity</b> (distinct crystals &rArr; distinct PDD)</td>
+          <td><span class="pill blue">ROADMAP</span></td>
+          <td><code>Lutar/Materials/PDDInjective.lean</code> (<code>sorry</code>)</td>
+          <td><code>/materials/novelty</code></td>
+        </tr>
+        <tr>
+          <td>PAC-Bayes (McAllester) bound — <b>computation</b></td>
+          <td><span class="pill green">EXACT / PROVEN-on-paper</span></td>
+          <td><code>szl_formulas.pac_bayes_mcallester</code></td>
+          <td><code>/materials/certify</code></td>
+        </tr>
+        <tr>
+          <td>McAllester bound — <b>Lean proof</b> (materials specialization)</td>
+          <td><span class="pill blue">ROADMAP (SORRY)</span></td>
+          <td><code>Lutar/Materials/PACBayesMaterials.lean</code> (<code>sorry</code>)</td>
+          <td><code>/materials/certify</code></td>
+        </tr>
+        <tr>
+          <td>&Lambda;-aggregator uniqueness (geometric mean is unique)</td>
+          <td><span class="pill yellow">CONJECTURE 1</span></td>
+          <td><code>Lutar/Uniqueness.lean:215</code> (<code>sorry</code>)</td>
+          <td>aggregated trust label</td>
+        </tr>
+        <tr>
+          <td>Khipu receipt ordering + energy-measurement methodology</td>
+          <td><span class="pill yellow">CONJECTURE 2</span></td>
+          <td><code>Lutar/Khipu/SummationInvariant.lean</code></td>
+          <td>all <code>/materials/*</code> receipts</td>
+        </tr>
+        <tr>
+          <td>Neyman&ndash;Pearson-optimal, fail-closed Immune egress gate</td>
+          <td><span class="pill green">PROVEN-backing</span></td>
+          <td><code>Lutar/Wave11/ImmuneNeymanPearsonOpt.lean</code></td>
+          <td><code>/materials/screen</code> &rarr; <code>/immune/verdict</code></td>
+        </tr>
+        <tr>
+          <td>Receipt cryptographic signature</td>
+          <td><span class="pill dim">DSSE_PLACEHOLDER</span></td>
+          <td>Sigstore not wired into CI (chain integrity is real)</td>
+          <td>all receipts</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="simnote">
+      Legend: <span class="proven">PROVEN</span> = machine-checked Lean (no-<code>sorry</code>) @ <code>c7c0ba17</code> or peer-reviewed ·
+      <span class="conj">CONJECTURE</span> = formally stated, not yet machine-checked ·
+      <span class="roadmap">ROADMAP</span> = scaffolded statement with an explicit tracked <code>sorry</code>.
+      The two new <code>Lutar/Materials/*.lean</code> files are NOT imported by <code>Lutar.lean</code> (not in <code>lake build</code>) and are NOT in the locked-8.
+      <b>Trust is never 100%.</b>
+    </div>
+  </div>
+
+  <div class="footnote" id="leanFoot">
+    Lean refs live at github.com/szl-holdings/lutar-lean @ main. Locked-proven set = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17 — the materials Lean targets are cited, NOT folded in.
+    SLSA L1/L2/L3-roadmap · 0 runtime CDN · effectors simulated · no fabricated data. This page reads only the live /api/a11oy/v1/materials/* (+ /immune/verdict fallback) endpoints. Λ = Conjecture 1; Khipu = Conjecture 2; trust never 100%.
+  </div>
+</div>
+
+<script>
+const MAT = "/api/a11oy/v1/materials";
+const IMM = "/api/a11oy/v1/immune";
+
+async function fetchJSON(u,opt){
+  // returns {ok, status, data}
+  try{
+    const r = await fetch(u,opt);
+    let d=null; try{ d = await r.json(); }catch(e){ d=null; }
+    return {ok:r.ok, status:r.status, data:d};
+  }catch(e){ return {ok:false, status:0, data:null}; }
+}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function short(d){ d=String(d||""); return d.length>16? d.slice(0,16)+"…" : d; }
+
+// ---- crystal presets ----
+const CRYSTALS = {
+  "al-fcc": {a:4.05,b:4.05,c:4.05,al:90,be:90,ga:90, sites:'[{"el":"Al","x":0,"y":0,"z":0}]'},
+  "cu-fcc": {a:3.61,b:3.61,c:3.61,al:90,be:90,ga:90, sites:'[{"el":"Cu","x":0,"y":0,"z":0}]'},
+  "nacl":   {a:5.64,b:5.64,c:5.64,al:90,be:90,ga:90, sites:'[{"el":"Na","x":0,"y":0,"z":0},{"el":"Cl","x":0.5,"y":0.5,"z":0.5}]'},
+  "fe-bcc": {a:2.87,b:2.87,c:2.87,al:90,be:90,ga:90, sites:'[{"el":"Fe","x":0,"y":0,"z":0},{"el":"Fe","x":0.5,"y":0.5,"z":0.5}]'}
+};
+function applyCrystal(k){
+  const c = CRYSTALS[k]; if(!c) return;
+  latA.value=c.a; latB.value=c.b; latC.value=c.c; latAl.value=c.al; latBe.value=c.be; latGa.value=c.ga;
+  sitesInput.value=c.sites;
+}
+
+// ---- PAC-Bayes presets ----
+const CERTS = {
+  "alloy": {risk:0.08, kl:2.0, n:5000, delta:0.05},
+  "tight": {risk:0.03, kl:1.0, n:50000, delta:0.01},
+  "loose": {risk:0.18, kl:6.0, n:300, delta:0.1}
+};
+function applyCert(k){
+  const c=CERTS[k]; if(!c) return;
+  cRisk.value=c.risk; cKl.value=c.kl; cN.value=c.n; cDelta.value=c.delta;
+}
+
+// ---- summary cards ----
+async function loadCards(){
+  const reg = await fetchJSON(MAT + "/novelty/registry");
+  if(reg.ok && reg.data){
+    document.getElementById("cRegistry").textContent = (reg.data.count ?? "—");
+    document.getElementById("cRegistrySub").textContent = (reg.data.receipt_type || "fingerprints registered");
+    document.getElementById("cChain").textContent = (reg.data.chain_depth ?? "—");
+    document.getElementById("cChainSub").textContent = (reg.data.chain_verified ? "chain verified" : "unverified");
+  } else {
+    document.getElementById("cRegistry").textContent = "—";
+    document.getElementById("cChain").textContent = "—";
+  }
+  // probe optional endpoints with a HEAD-like GET status; show LIVE/DEPLOYING
+  const cert = await fetchJSON(MAT + "/certify/info");
+  setProbe("cCertify", cert.status);
+  const scr = await fetchJSON(MAT + "/status");
+  setProbe("cScreen", scr.status);
+}
+function setProbe(id, status){
+  const el=document.getElementById(id);
+  if(status===200){ el.innerHTML='<span class="proven" style="font-size:1rem">LIVE</span>'; }
+  else if(status===404){ el.innerHTML='<span class="roadmap" style="font-size:1rem">DEPLOYING</span>'; }
+  else { el.textContent="—"; }
+}
+
+// ---- PANEL 1: novelty ----
+async function runNovelty(){
+  const out = document.getElementById("novOut");
+  let sites;
+  try{ sites = JSON.parse(sitesInput.value); }
+  catch(e){ out.innerHTML='<div class="verdict-box dup">Invalid sites JSON: '+esc(e.message)+'</div>'; return; }
+  const body = {
+    a:parseFloat(latA.value), b:parseFloat(latB.value), c:parseFloat(latC.value),
+    alpha:parseFloat(latAl.value), beta:parseFloat(latBe.value), gamma:parseFloat(latGa.value),
+    sites:sites
+  };
+  out.innerHTML='<div class="verdict-box">certifying…</div>';
+  const r = await fetchJSON(MAT + "/novelty", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  if(r.status===404){ out.innerHTML=deployingBox("novelty"); return; }
+  if(!r.ok || !r.data){ out.innerHTML='<div class="verdict-box dup">endpoint unreachable — retry</div>'; return; }
+  const v=r.data;
+  const novel = v.novel===true;
+  const cls = novel? "novel":"dup";
+  const pill = novel? '<span class="pill green">NOVEL</span>' : '<span class="pill yellow">DUPLICATE</span>';
+  const rec = v.receipt||{};
+  out.innerHTML =
+    '<div class="verdict-box '+cls+'">'+
+      '<div>verdict '+pill+' &nbsp; <span style="color:var(--dim)">distance='+esc(v.distance==null?"—":v.distance)+'</span></div>'+
+      '<div style="margin:.35rem 0;"><span style="color:var(--dim)">nearest match</span> <span class="v">'+esc(v.nearest_match_id||"(none)")+'</span></div>'+
+      '<div><span style="color:var(--dim)">fingerprint digest</span> <span class="digest">'+esc(v.fingerprint_digest||"")+'</span></div>'+
+      '<div style="margin:.25rem 0;"><span style="color:var(--dim)">fingerprint</span> <code>'+esc(v.fingerprint||"")+'</code></div>'+
+      '<div><span style="color:var(--dim)">Khipu receipt</span> <span class="digest">'+esc(rec.digest||"")+'</span> '+
+        '<span style="color:var(--dim)">seq '+esc(rec.seq)+' · depth '+esc(rec.chain_depth)+' · '+esc(rec.receipt_type||"SZL.Materials.NoveltyCert.v1")+'</span></div>'+
+      '<div style="color:var(--dim);margin-top:.35rem"><span class="roadmap">injectivity: ROADMAP/CONJECTURE</span> · '+esc((v.honesty&&v.honesty.lean_roadmap_ref)||"Lutar/Materials/PDDInjective.lean")+' · receipt signature '+esc((v.honesty&&v.honesty.receipt_signature)||"DSSE_PLACEHOLDER")+'</div>'+
+    '</div>';
+  loadCards();
+}
+
+// ---- PANEL 2: PAC-Bayes certify ----
+async function runCertify(){
+  const out=document.getElementById("certOut");
+  const body = {
+    empirical_risk:parseFloat(cRisk.value), kl:parseFloat(cKl.value),
+    n:parseInt(cN.value,10), delta:parseFloat(cDelta.value)
+  };
+  out.innerHTML='<div class="verdict-box">computing bound…</div>';
+  const r = await fetchJSON(MAT + "/certify", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  if(r.status===404){ out.innerHTML=deployingBox("certify"); return; }
+  if(!r.ok || !r.data){ out.innerHTML='<div class="verdict-box dup">endpoint unreachable — retry</div>'; return; }
+  const v=r.data;
+  const bound = (v.bound ?? v.population_risk_bound ?? v.pac_bayes_bound);
+  const rec = v.receipt || v.khipu_receipt || {};
+  out.innerHTML =
+    '<div class="verdict-box allow">'+
+      '<div>PAC-Bayes bound <span class="pill green">'+esc(bound==null?"—":bound)+'</span></div>'+
+      '<div style="margin:.35rem 0;color:var(--paragraph)">'+esc(v.certificate_text || ("with prob ≥ 1−"+body.delta+", population risk ≤ "+(bound==null?"—":bound)))+'</div>'+
+      '<div><span style="color:var(--dim)">Khipu receipt</span> <span class="digest">'+esc(rec.digest||"")+'</span> '+
+        '<span style="color:var(--dim)">seq '+esc(rec.seq)+' · '+esc(rec.receipt_type||"SZL.Materials.PACBayesCert.v1")+'</span></div>'+
+      '<div style="color:var(--dim);margin-top:.35rem"><span class="roadmap">McAllester Lean proof = SORRY</span> (computation exact) · Lutar/Materials/PACBayesMaterials.lean</div>'+
+    '</div>';
+  loadCards();
+}
+
+// ---- PANEL 3: immune screen (fallback to /immune/verdict) ----
+async function runScreen(){
+  const out=document.getElementById("scrOut");
+  let body;
+  try{ body = JSON.parse(scrInput.value); }
+  catch(e){ out.innerHTML='<div class="verdict-box deny">Invalid JSON: '+esc(e.message)+'</div>'; return; }
+  out.innerHTML='<div class="verdict-box">screening…</div>';
+  let r = await fetchJSON(MAT + "/screen", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  let viaFallback=false;
+  if(r.status===404){
+    // /screen not yet live — fall back to the live immune verdict path (honest).
+    r = await fetchJSON(IMM + "/verdict", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+    viaFallback=true;
+  }
+  if(r.status===404){ out.innerHTML=deployingBox("screen"); return; }
+  if(!r.ok || !r.data){ out.innerHTML='<div class="verdict-box deny">endpoint unreachable — retry</div>'; return; }
+  const v=r.data;
+  const deny = v.decision==="deny";
+  const cls = deny? "deny":"allow";
+  const pill = deny? '<span class="pill red">DENY</span>' : '<span class="pill green">ALLOW</span>';
+  const sigs = (v.signals||[]).map(s=>'<span class="sig">'+esc(s)+'</span>').join("") || '<span class="pill dim">no signal</span>';
+  const rec = v.khipu_receipt || v.receipt || {};
+  const en = v.energy || v.energy_provenance;
+  out.innerHTML =
+    '<div class="verdict-box '+cls+'">'+
+      '<div>decision '+pill+(viaFallback?' <span class="pill blue">via /immune/verdict</span>':'')+' &nbsp; <span style="color:var(--dim)">Λ='+esc(v.lambda_value)+' (floor '+esc(v.lambda_floor)+')</span></div>'+
+      '<div style="margin:.35rem 0;color:var(--paragraph)">'+esc(v.reason||"")+'</div>'+
+      '<div style="margin:.3rem 0;">signals: '+sigs+'</div>'+
+      (en? '<div><span style="color:var(--dim)">energy</span> <span class="v">'+esc(JSON.stringify(en)).slice(0,120)+'</span></div>':'')+
+      '<div><span style="color:var(--dim)">Khipu receipt</span> <span class="digest">'+esc(rec.digest||"")+'</span> '+
+        '<span style="color:var(--dim)">seq '+esc(rec.seq)+' · '+esc(rec.receipt_type||"SZL.Immune.Verdict.v1")+'</span></div>'+
+      '<div style="color:var(--dim);margin-top:.35rem"><span class="proven">Neyman–Pearson gate = PROVEN-backing</span> · fail-closed='+esc(v.fail_closed)+' · doctrine '+esc(v.doctrine||"v11")+'</div>'+
+    '</div>';
+}
+
+function deployingBox(which){
+  return '<div class="verdict-box deploying">'+
+    '<div><span class="pill blue">ENDPOINT DEPLOYING</span></div>'+
+    '<div style="margin:.35rem 0;color:var(--paragraph)">The <code>/materials/'+esc(which)+'</code> endpoint is being deployed in parallel and is not live yet (HTTP 404). '+
+    'No fake result is shown — this panel will return real signed output once the backend lands. Trust never 100%.</div>'+
+    '</div>';
+}
+
+document.querySelectorAll(".preset[data-p]").forEach(p=>p.addEventListener("click",()=>applyCrystal(p.getAttribute("data-p"))));
+document.querySelectorAll(".preset[data-c]").forEach(p=>p.addEventListener("click",()=>applyCert(p.getAttribute("data-c"))));
+document.querySelectorAll(".preset[data-s]").forEach(p=>p.addEventListener("click",()=>{ scrInput.value=p.getAttribute("data-s"); }));
+document.getElementById("runNov").addEventListener("click",runNovelty);
+document.getElementById("runCert").addEventListener("click",runCertify);
+document.getElementById("runScr").addEventListener("click",runScreen);
+
+loadCards();
+setInterval(loadCards, 12000);
+</script>
+</body>
+</html>
