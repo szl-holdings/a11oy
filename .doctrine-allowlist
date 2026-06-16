@@ -287,3 +287,16 @@ szl_willay_gateway.py
 # The module's user-visible organ name is "Immune (Hukulla)"; the served HTTP
 # surface (web/immune.html + every endpoint payload) is codename-free and 0-CDN.
 szl_immune.py
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemption (2026-06-16, fabric/tawantin/autoreview sweep D5).
+# szl_fabric_surface.py exposes the HONEST /api/a11oy/v1/{tawantin,fabric}/status
+# + /autoreview/status SUMMARY surfaces over live sources. Its only flagged
+# tokens are codename ENUMERATIONS used to ENFORCE the no-codename rule, never to
+# emit one: a SELF-TEST loop asserting none of the banned codenames
+# (sentra/amaru/rosie/jarvis) appear in ANY served summary payload
+# (json.dumps of the fabric + autoreview summaries is scanned for each). Same
+# enumeration-for-detection / self-test rationale as szl_immune.py,
+# a11oy_willay_nav.py and szl_codename_gate.py above. Every served payload is
+# codename-free, summary-only (no fabricated node/joule data), 0-CDN.
+szl_fabric_surface.py
