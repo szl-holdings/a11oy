@@ -376,6 +376,25 @@ try:
 except Exception as _szl_im_e:  # pragma: no cover
     print(f"[a11oy] Immune NOT registered: {_szl_im_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- SDA (Space / Domain Awareness — Counter-UAS) — HONEST defense surface (SWEEP D1).
+# The /sda + /counter-uas pages historically served a 200 SPA shell with NO backing
+# /api/a11oy/v1/sda/* API (404). szl_sda wires the CANONICAL honest surface: vessel
+# tracks from the warhacker-demo UDS demo_ais_replay.sh sample AIS dataset (REPLAY),
+# counter-UAS drone contacts scored by the REAL Sentra drone-cyber T11-T20 / 13-axis
+# Lambda logic (organs/sentra/sentra_drone_cyber.py — imported, NOT re-weakened; SAMPLE),
+# and MODELED orbital space-objects. Adds GET /api/a11oy/v1/sda/{healthz,status,tracks,
+# verify} + POST /api/a11oy/v1/sda/verdict (dual-registered under /v1/* too), each
+# verdict signing a Khipu receipt (SZL.SDA.Verdict.v1, organ="sda") into the SHARED
+# szl_khipu chain. Tracks are REPLAY/SAMPLE/MODELED demo data — NOT a live radar/AIS/RF
+# sensor feed; effectors SIMULATED, human-on-loop. NEVER a codename. Additive,
+# try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_sda as _szl_sda
+    _szl_sda.register(app, ns="a11oy")
+    print("[a11oy] SDA registered: /api/a11oy/v1/sda/{healthz,status,tracks,verify,verdict} (REPLAY/SAMPLE/MODELED demo data)", file=__import__("sys").stderr)
+except Exception as _szl_sda_e:  # pragma: no cover
+    print(f"[a11oy] SDA NOT registered: {_szl_sda_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- Fabric / Tawantin + Auto-review — HONEST /status SUMMARY surfaces -- doctrine v11 (sweep D5).
 # The /fabric + /tawantin + /autoreview PAGES are live, but a page-vs-api sweep
 # found no honest /api/a11oy/v1/{tawantin,fabric}/status summary (404) and no
@@ -1217,6 +1236,16 @@ try:
     # baked-only image_only pattern as web/immune.html + web/energy.html).
     app.add_api_route("/materials", _ptg_serve("materials.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/materials", _ptg_serve("materials.html"), methods=["GET"], include_in_schema=False)
+    # SDA — Space / Domain Awareness (Counter-UAS) tab (SWEEP D1, 2026-06-16): the
+    # honest, user-visible defense surface. Standalone sovereign page (0 runtime CDN),
+    # binds to live /api/a11oy/v1/sda/* (status/tracks + a POST /verdict box using the
+    # REAL Sentra counter-UAS Lambda logic + signed Khipu receipt). Tracks are
+    # REPLAY/SAMPLE/MODELED demo data (NOT a live sensor feed); effectors SIMULATED,
+    # human-on-loop. Replaces the prior 200 SPA shell that read nothing real. NEVER a
+    # codename. web/sda.html is image_only baked (Dockerfile per-file COPY; declared in
+    # copy-sync-lockstep.json + hf-module-drift-allow.json), like web/immune.html.
+    app.add_api_route("/sda", _ptg_serve("sda.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/sda", _ptg_serve("sda.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
