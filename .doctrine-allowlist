@@ -273,3 +273,17 @@ a11oy_willay_nav.py
 # those codenames appear in the served page HTML. Enumeration-for-detection /
 # doctrine-compliance assertion; neither emits a codename to any user surface.
 szl_willay_gateway.py
+
+# ----------------------------------------------------------------------------
+# Doctrine grep-gate exemption (2026-06-16, immune-wire). szl_immune.py exposes
+# the HONEST /api/a11oy/v1/immune/* egress-gate surface. Its only flagged tokens
+# are codename ENUMERATIONS used to ENFORCE the no-codename rule, never to emit
+# one: (1) a module-docstring doctrine assertion ("NEVER emits a codename
+# (sentra / amaru / rosie / jarvis) in any served string"), and (2) a SELF-TEST
+# loop asserting none of those codenames appear in ANY served read surface
+# (json.dumps of healthz/status/gates/feed/verify is scanned for each). Same
+# enumeration-for-detection / self-test rationale as a11oy_willay_nav.py,
+# szl_willay_gateway.py, szl_warhacker_demos.py and szl_codename_gate.py above.
+# The module's user-visible organ name is "Immune (Hukulla)"; the served HTTP
+# surface (web/immune.html + every endpoint payload) is codename-free and 0-CDN.
+szl_immune.py
