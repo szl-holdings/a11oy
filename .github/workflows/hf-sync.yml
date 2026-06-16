@@ -70,6 +70,11 @@ on:
       # hf-module-drift guard: live_wires.html ahead=github). Mirror it explicitly
       # here AND in CATHEDRAL_FILES below so the front door stays byte-identical.
       - "live_wires.html"
+      # web/*.html: per-page surfaces (immune, materials, sda, dns, energy, etc.) are
+      # per-file COPY'd by the Dockerfile but live OUTSIDE pages/console — so a new
+      # web/*.html on GitHub main (e.g. web/dns.html from the DNS page) was NOT mirrored
+      # to the Space and the image build FAILED on the missing COPY. Mirror them here.
+      - "web/*.html"
       # copy-sync lockstep guard (CHECK 2): the Lane A agentic core module
       # a11oy_react_core.py is per-file COPY'd in the Dockerfile and imported by
       # serve.py (serves /api/a11oy/v1/agent/react/{run,resume,trace,checkpoints}).
@@ -202,6 +207,7 @@ jobs:
                              # served /live-wires 3D page at repo ROOT (outside pages/console glob).
                              "live_wires.html"]
           patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js",
+                      "web/*.html",
                       *CATHEDRAL_FILES]
           paths = []
           for pat in patterns:
@@ -226,6 +232,10 @@ jobs:
               if p in CATHEDRAL_FILES:
                   return True
               d = os.path.dirname(p)
+              # web/*.html surfaces are Dockerfile-COPY'd and mirrored above; manage them
+              # in the delete-aware pass too so a renamed/removed web page is cleaned up.
+              if d == "web" and p.endswith(".html"):
+                  return True
               return d in ("pages", "console") and (p.endswith(".html") or p.endswith(".js"))
 
           api = HfApi(token=os.environ["HF_TOKEN"])
