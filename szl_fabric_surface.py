@@ -65,6 +65,7 @@ from typing import Any, Optional
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 # ---------------------------------------------------------------------------
 # Identity + doctrine constants (honest, never a codename).
@@ -401,14 +402,19 @@ def _healthz(service: str, organ: str) -> dict:
 # win ordering. Module-level Request/JSONResponse imports keep annotations valid.
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "a11oy") -> dict:
+    # NOTE: the summaries make blocking loopback self-calls to sibling endpoints.
+    # We run them in a threadpool so the (single-worker) event loop stays FREE to
+    # serve those nested requests — a synchronous self-call directly inside the
+    # async handler would starve the loop and the nested request would time out
+    # (the summary would then wrongly degrade to UNKNOWN).
     async def _h_tawantin_status():  # noqa: ANN202
-        return JSONResponse(_fabric_summary())
+        return JSONResponse(await run_in_threadpool(_fabric_summary))
 
     async def _h_fabric_status():  # noqa: ANN202
-        return JSONResponse(_fabric_summary())
+        return JSONResponse(await run_in_threadpool(_fabric_summary))
 
     async def _h_autoreview_status():  # noqa: ANN202
-        return JSONResponse(_autoreview_summary())
+        return JSONResponse(await run_in_threadpool(_autoreview_summary))
 
     async def _h_tawantin_healthz():  # noqa: ANN202
         return JSONResponse(_healthz("tawantin", _FABRIC_NAME))
