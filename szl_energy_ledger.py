@@ -66,12 +66,102 @@ from joule_billing import (
 GENESIS_PREV = "0" * 64                      # genesis entry's prev_digest (64 zeros)
 DEFAULT_PRICE_PER_KWH_CENTS = int(os.getenv("STRIPE_PRICE_PER_KWH_CENTS", "45"))
 
-# Where the chain persists. Override with SZL_ENERGY_LEDGER_PATH (e.g. a writable
-# volume on the Space) so it survives restart. Default lands next to the module.
-DEFAULT_LEDGER_PATH = os.getenv(
-    "SZL_ENERGY_LEDGER_PATH",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "szl_energy_ledger.jsonl"),
-)
+# Where the chain persists. The receipt chain MUST survive a box redeploy — otherwise
+# seq re-genesises to 0 on every deploy and the signed-receipt count visibly drops to ~0.
+#
+# HONEST PERSISTENCE — the doctrine trap here is that almost EVERY dir in the container is
+# writable (incl. $HOME and the module dir), but only a PROVISIONED persistent volume
+# survives a redeploy. On HF Spaces that volume is mounted at exactly /data, and ONLY when
+# the Space has persistent storage enabled (a per-Space settings toggle — founder/Forge).
+# So we must NOT equate "writable" with "persistent": a writable /home or ./ is ephemeral.
+#
+# Resolution (additive, never fabricates persistence):
+#   1. SZL_ENERGY_LEDGER_PATH explicit override → use it verbatim, marked persistent
+#      (operator deliberately chose it — e.g. points it at the real mount).
+#   2. else, if a KNOWN persistent mount is writable (A11OY_DATA_DIR if set, or /data — the
+#      HF persistent disk this repo already standardises on, see szl_unay_routes /
+#      szl_pnt_mesh) → use it, marked persistent. The chain then CONTINUES across a redeploy.
+#   3. else → module-adjacent file, marked EPHEMERAL, and we LOG a clear warning. We never
+#      claim the chain survives when the persistent volume isn't actually mounted. The moment
+#      /data is provisioned (founder/Forge) the code uses it on the next boot, no edit needed.
+_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+_EPHEMERAL_LEDGER_PATH = os.path.join(_MODULE_DIR, "szl_energy_ledger.jsonl")
+
+# Dirs that are genuinely durable across a redeploy WHEN present/mounted. Deliberately does
+# NOT include $HOME or ./ — those are writable but ephemeral, and treating them as persistent
+# would be a fabricated-persistence claim. A11OY_DATA_DIR lets the operator name another mount.
+_PERSISTENT_MOUNT_CANDIDATES = ("/data", "/opt/szl/a11oy-data")
+
+
+def _dir_is_writable(d: str) -> bool:
+    """True iff we can create `d` and write a probe file in it (a REAL write test, not a
+    guess — mirrors szl_unay_routes._pick_data_dir so the persistence story is consistent
+    across the repo)."""
+    try:
+        os.makedirs(d, exist_ok=True)
+        probe = os.path.join(d, ".szl_energy_ledger.wtest")
+        with open(probe, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(probe)
+        return True
+    except OSError:
+        return False
+
+
+def _persistent_ledger_path() -> tuple[str, bool]:
+    """Resolve (path, persistent). `persistent` is True ONLY when the path sits on a volume
+    that genuinely survives a redeploy — an explicit operator override, A11OY_DATA_DIR, or a
+    mounted /data. A merely-writable $HOME/./ is treated as EPHEMERAL (False), never faked."""
+    explicit = os.getenv("SZL_ENERGY_LEDGER_PATH")
+    if explicit:
+        return explicit, True
+
+    candidates = []
+    env_dir = os.environ.get("A11OY_DATA_DIR")
+    if env_dir:
+        candidates.append(env_dir)
+    candidates.extend(_PERSISTENT_MOUNT_CANDIDATES)
+
+    for d in candidates:
+        if d and _dir_is_writable(d):
+            return os.path.join(d, "szl_energy_ledger.jsonl"), True
+
+    return _EPHEMERAL_LEDGER_PATH, False
+
+
+def _path_is_persistent(path: str) -> bool:
+    """Whether a ledger `path` is on a genuinely durable (survives-redeploy) location.
+
+    True for: the explicit SZL_ENERGY_LEDGER_PATH, anything under A11OY_DATA_DIR, or under a
+    known persistent mount (/data, /opt/szl/a11oy-data). False for the ephemeral module path.
+    Honest by construction — a merely-writable $HOME/./ is NOT counted as persistent."""
+    if not path or path == _EPHEMERAL_LEDGER_PATH:
+        return False
+    explicit = os.getenv("SZL_ENERGY_LEDGER_PATH")
+    if explicit and os.path.abspath(path) == os.path.abspath(explicit):
+        return True
+    roots = list(_PERSISTENT_MOUNT_CANDIDATES)
+    env_dir = os.environ.get("A11OY_DATA_DIR")
+    if env_dir:
+        roots.append(env_dir)
+    ap = os.path.abspath(path)
+    return any(ap == os.path.abspath(r) or ap.startswith(os.path.abspath(r) + os.sep)
+               for r in roots)
+
+
+DEFAULT_LEDGER_PATH, _DEFAULT_LEDGER_PERSISTENT = _persistent_ledger_path()
+
+if not _DEFAULT_LEDGER_PERSISTENT:
+    # Honest signal: the chain will re-genesis on the next redeploy because no persistent
+    # volume is mounted. Set SZL_ENERGY_LEDGER_PATH or mount /data to make it survive.
+    print(
+        "[szl_energy_ledger] WARNING: ledger path %r is EPHEMERAL (no persistent volume "
+        "mounted) — the receipt chain will re-genesis (seq->0) on the next redeploy. "
+        "Mount /data or set SZL_ENERGY_LEDGER_PATH to a persistent path to keep the chain."
+        % DEFAULT_LEDGER_PATH
+    )
+else:
+    print("[szl_energy_ledger] ledger persists to %r (survives redeploy)" % DEFAULT_LEDGER_PATH)
 
 DOCTRINE_NOTE = (
     "Doctrine v11: NO free-energy. Billable ONLY when joules_label==MEASURED and NVML "
@@ -381,6 +471,26 @@ class EnergyLedger:
             "kwh_total": round(joules_measured_billable / JOULES_PER_KWH, 9),
         }
 
+    def persistence_info(self) -> dict:
+        """Honest report of WHERE the chain persists and whether that survives a redeploy.
+
+        `survives_redeploy` is True only when the ledger path sits on a genuinely durable
+        volume (an explicit SZL_ENERGY_LEDGER_PATH override, A11OY_DATA_DIR, or a mounted
+        /data). The ephemeral module-adjacent path is reported plainly as EPHEMERAL — we
+        never claim durability we don't have."""
+        on_persistent = _path_is_persistent(self.path)
+        return {
+            "path": self.path,
+            "survives_redeploy": on_persistent,
+            "label": "MEASURED" if on_persistent else "EPHEMERAL",
+            "note": (
+                "ledger on persistent volume — receipt chain (seq) continues across a "
+                "redeploy" if on_persistent else
+                "ledger on EPHEMERAL module path — chain re-genesises (seq->0) on the next "
+                "redeploy; mount /data or set SZL_ENERGY_LEDGER_PATH to persist"
+            ),
+        }
+
     def summary(self) -> dict:
         """Full ledger view for the GET /energy/ledger endpoint."""
         return {
@@ -388,6 +498,7 @@ class EnergyLedger:
             "receipts": self.entries(),
             "chain": self.verify(),
             "totals": self.totals(),
+            "persistence": self.persistence_info(),
             "price_per_kwh_cents": self.price_per_kwh_cents,
             "stripe_mode": "live" if os.getenv("STRIPE_API_KEY") else "dry-run",
             "doctrine": DOCTRINE_NOTE,
