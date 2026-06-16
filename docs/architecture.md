@@ -85,7 +85,7 @@ Honesty is structural here: a defense buyer's first question is *what actually w
 | Energy / joule per job | **HAVE** | `szl_energy_operator` → `szl_energy_ledger`; `/api/a11oy/v1/energy/ledger` |
 | Doctrine gate before act | **HAVE** | `a11oy_constitution`, `szl_governance_gateway`, `szl_lambda_tripwire` |
 | Honest labels (MEASURED/SAMPLE/ROADMAP) | **HAVE** | `.doctrine-allowlist` + doctrine-grep CI gate; `szl_joules_truth` |
-| Signed supply chain (cosign + UDS + SLSA L1/L2) | **HAVE** | Rekor 1710578865; UDS `uds-v0.2.0`; `szl_uds_fleet` |
+| Signed supply chain (cosign + UDS + SLSA L1 + L2 build-attested) | **HAVE** | Rekor 1710578865; UDS `uds-v0.2.0`; `szl_uds_fleet` |
 | Governed static-screen + sandboxed code exec | **HAVE** | `a11oy_code_engine.governed_turn` / `_static_screen` / `_sandbox_exec` |
 
 ### COGNITION — references have these; a11oy is partial or missing

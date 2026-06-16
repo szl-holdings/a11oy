@@ -18,8 +18,8 @@ buyer, not a liability.
   - **MEASURED** — backed by a real, fresh exporter delta or a live 200 endpoint.
   - **SAMPLE** — plausible but not freshly measured (e.g. joules with no reachable GPU lung).
   - **MODELED** — design-only, no hardware (e.g. orbital tier: `modeled:true` / `reachable:false`).
-  - **ROADMAP** — not built yet (carbon feed, persistent kernel, `execution_guard` wrapper, SBOM,
-    SLSA L3, FedRAMP/CMMC/ATO).
+  - **ROADMAP** — not built yet (carbon feed, persistent kernel, `execution_guard` wrapper, SBOM;
+    SLSA L3 is ROADMAP, never claimed achieved; FedRAMP/CMMC/ATO likewise ROADMAP).
 - **Never inflate.** Locked formulas = 8. Λ = Conjecture 1. Khipu BFT = Conjecture 2. SLSA = L1
   honest / L2 build-attested (L3 ROADMAP).
 - **Mirror status across surfaces.** README *Honest status*, `docs/architecture.md` matrix, and
