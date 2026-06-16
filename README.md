@@ -34,7 +34,7 @@ ecosystem-stage: "operational"
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
 **Proof posture (two-tier):** 8 locked-proven `{F1, F4, F7, F11, F12, F18, F19, F22}` (the no-axiom theorem `locked_count_eight`) + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1** (axiom-free CUT-2 conditional proven; unconditional uniqueness machine-checked false). Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
-[Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status) · [Service status](https://szl-holdings.github.io/a11oy/)
+[Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Orbital showcase](#orbital-frontier-showcase) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status) · [Service status](https://szl-holdings.github.io/a11oy/)
 
 ---
 
@@ -138,6 +138,30 @@ graph TD
     KD --> UDS[(GHCR\nSigned OCI\ncosign keyless · SLSA L1+L2 build-attested)]
     KD --> REKOR[(Rekor transparency log\nindex 1710578865)]
 ```
+
+---
+
+## Orbital frontier showcase
+
+A **MODELED** forward extension of the SZL governed-energy-receipt moat to space
+compute. **SZL has no on-orbit hardware** — every orbital node, link, and joule is
+a MODELED design artifact (`modeled:true` / `reachable:false`), never a fabricated
+live reading. The real asset today is the ground GPU fabric; this is its honest
+roadmap projection. Λ = Conjecture 1; sovereign = false.
+
+| Surface | Link | Kind |
+|---|---|---|
+| **Live orbital surface** (canonical) | <https://a11oy.net/orbital> (also <https://szlholdings-a11oy.hf.space/orbital>) | REAL page · MODELED data |
+| **HF showcase Space** (public, login-free) | `https://huggingface.co/spaces/SZLHOLDINGS/orbital` — static mirror, source in [`spaces/orbital/`](spaces/orbital/) | MODELED roadmap |
+| **Backend endpoints** | `/api/a11oy/v1/orbital/topology` · `/api/a11oy/v1/orbital/projection` | MODELED-roadmap JSON |
+| **UDS signed mesh bundle** | `oci://ghcr.io/szl-holdings/szl-uds-bundle` (cosign keyless · Rekor-anchored) | REAL, deployable |
+
+The only `MEASURED` value in the projection is the ground J/token coefficient; the
+orbital joules are `MODELED` (ground coefficient × MODELED workload × MODELED
+space-overhead) and the signed receipt shown is a MODELED *would-be* artifact —
+never a real signature. The static HF Space under [`spaces/orbital/`](spaces/orbital/)
+vendors three.js (0 runtime CDN), fetches the live endpoints, and falls back to a
+baked SAMPLE if the box is unreachable — see [`spaces/orbital/PUBLISH_CHECKLIST.md`](spaces/orbital/PUBLISH_CHECKLIST.md).
 
 ---
 
