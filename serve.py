@@ -414,18 +414,6 @@ try:
 except Exception as _szl_op_e:  # pragma: no cover
     print(f"[a11oy] Orbital projection NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
 
-# Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
-# (topology + projection + governed-receipt overlay) against the two MODELED endpoints
-# above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
-# hardware yet)"; 0 runtime CDN (three.js vendored via /hero/vendor3d/). Registered BEFORE
-# the SPA /{full_path:path} catch-all so /orbital resolves to this page, not the SPA.
-try:
-    import a11oy_orbital_page as _a11oy_orbital_page
-    _orbital_page_status = _a11oy_orbital_page.register(app, ns="a11oy")
-    print(f"[a11oy] Orbital page registered: {_orbital_page_status}", file=__import__("sys").stderr)
-except Exception as _orbital_page_e:  # pragma: no cover
-    print(f"[a11oy] Orbital page NOT registered: {_orbital_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
-
 
 # -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its
@@ -1154,6 +1142,20 @@ try:
     # codename. Replaces the prior 200 SPA shell that read nothing real.
     app.add_api_route("/immune", _ptg_serve("immune.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/immune", _ptg_serve("immune.html"), methods=["GET"], include_in_schema=False)
+    # MATERIALS (Q'allariy) tab (2026-06-16): the honest, user-visible Verifiable
+    # Alloy & Crystal Discovery surface. Standalone sovereign page (0 runtime CDN),
+    # binds to live /api/a11oy/v1/materials/* — a crystal-novelty form that POSTs to
+    # /materials/novelty (signed Khipu novelty cert + isometry-invariant PDD
+    # fingerprint digest), a PAC-Bayes /certify panel, and an Immune /screen panel
+    # (falls back to /api/a11oy/v1/immune/verdict if /screen not yet live). Honest
+    # footer claim sheet (PROVEN/CONJECTURE/ROADMAP per Lean ref). Title "Materials
+    # — Verifiable Alloy & Crystal Discovery". NEVER a codename. /certify + /screen
+    # are built in parallel; the page shows a graceful 'endpoint deploying' state
+    # (no fake result) on 404. web/materials.html is per-file COPY'd below and
+    # declared an accepted divergence in .github/hf-module-drift-allow.json (same
+    # baked-only image_only pattern as web/immune.html + web/energy.html).
+    app.add_api_route("/materials", _ptg_serve("materials.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/materials", _ptg_serve("materials.html"), methods=["GET"], include_in_schema=False)
     # SZL-NEMO CORE tab (Lane I1, 2026-06-14): the sovereign governed agent model
     # skeleton. Standalone sovereign page (0 runtime JS CDN; loads /static/shared
     # label + receipt modules), binds to live /api/a11oy/v1/nemo/* — governed-MoE
