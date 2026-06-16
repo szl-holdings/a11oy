@@ -509,6 +509,20 @@ try:
 except Exception as _orbital_page_e:  # pragma: no cover
     print(f"[a11oy] Orbital page NOT registered: {_orbital_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# Frontier PAGE (unified ecosystem showcase) — GET /frontier renders the WHOLE SZL
+# governed-provenance stack as ONE honest surface, driven by the live roll-up
+# /api/a11oy/v1/frontier/manifest. Each capability tile shows its honest label
+# (MEASURED/MODELED/ROADMAP/SAMPLE) verbatim + a provenance pointer; a persistent
+# honest banner sits on every MODELED/ROADMAP/SAMPLE/UNAVAILABLE tile. 0 runtime CDN
+# (three.js vendored via /hero/vendor3d/). Registered BEFORE the SPA /{full_path:path}
+# catch-all so /frontier resolves to this page, not the SPA (no white screen).
+try:
+    import a11oy_frontier_page as _a11oy_frontier_page
+    _frontier_page_status = _a11oy_frontier_page.register(app, ns="a11oy")
+    print(f"[a11oy] Frontier page registered: {_frontier_page_status}", file=__import__("sys").stderr)
+except Exception as _frontier_page_e:  # pragma: no cover
+    print(f"[a11oy] Frontier page NOT registered: {_frontier_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its

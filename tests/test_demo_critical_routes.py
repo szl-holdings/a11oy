@@ -45,6 +45,7 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/orbital/projection",       # MODELED orbital energy from MEASURED ground coeff
     "/orbital",                               # MODELED orbital demo PAGE (renders topology+projection)
     "/api/a11oy/v1/frontier/manifest",        # honest roll-up of every live capability (composed)
+    "/frontier",                              # unified ecosystem showcase PAGE (renders the manifest roll-up)
 ]
 
 

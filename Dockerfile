@@ -161,6 +161,12 @@ COPY szl_orbital_topology.py szl_orbital_projection.py ./
 # vendor3d three.js COPY'd below). MUST be per-file COPY'd or /orbital falls back to the
 # SPA catch-all (white screen / no orbital surface).
 COPY a11oy_orbital_page.py ./
+# Frontier PAGE (unified ecosystem showcase) — serve.py imports a11oy_frontier_page
+# (guarded) to mount GET /frontier (the whole-stack showcase, driven by the live
+# /frontier/manifest roll-up; honest per-tile labels + provenance; 0 CDN via the
+# vendor3d three.js COPY'd below). MUST be per-file COPY'd or /frontier falls back to
+# the SPA catch-all (white screen / no frontier surface).
+COPY a11oy_frontier_page.py ./
 # Frontier manifest — imported by serve.py (guarded). MUST be per-file COPY'd (this
 # Dockerfile uses no `COPY . .`) or the import falls back and /api/a11oy/v1/frontier/
 # manifest 404s live. Composes in-process from already-COPY'd surfaces (szl_energy_*,
