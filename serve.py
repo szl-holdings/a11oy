@@ -376,6 +376,28 @@ try:
 except Exception as _szl_im_e:  # pragma: no cover
     print(f"[a11oy] Immune NOT registered: {_szl_im_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- Fabric / Tawantin + Auto-review — HONEST /status SUMMARY surfaces -- doctrine v11 (sweep D5).
+# The /fabric + /tawantin + /autoreview PAGES are live, but a page-vs-api sweep
+# found no honest /api/a11oy/v1/{tawantin,fabric}/status summary (404) and no
+# /api/a11oy/v1/autoreview/status (the autoreview module registers
+# classify/policy/metrics/dial/recent, not /status). The REAL data already lives
+# at /api/a11oy/v1/compute-pool-hardened (nodes/reachability/sovereignty, LIVE),
+# /api/a11oy/v1/energy/operator/status (MEASURED joules, LIVE),
+# /api/a11oy/v1/energy/provenance (signed chain head, LIVE) and the live
+# autoreview metrics/dial/policy. szl_fabric_surface mounts honest SUMMARY
+# endpoints that AGGREGATE those live sources (short loopback self-call, cheap/
+# cached) and report ONLY what they truly say — it duplicates NO node data and
+# fabricates NO joule/node value (UNKNOWN when a source is unreachable).
+# HORIZONTAL scale only (NEVER a fused-VRAM claim); orbital ROADMAP; NO codename;
+# locked=8; the underlying sources already sign (Khipu receipt optional here).
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_fabric_surface as _szl_fabric_surface
+    _szl_fabric_surface.register(app, ns="a11oy")
+    print("[a11oy] Fabric/Tawantin + Auto-review summaries registered: /api/a11oy/v1/{tawantin,fabric}/status + /api/a11oy/v1/autoreview/status", file=__import__("sys").stderr)
+except Exception as _szl_fab_e:  # pragma: no cover
+    print(f"[a11oy] Fabric/Tawantin + Auto-review summaries NOT registered: {_szl_fab_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- Energy LEDGER (signed, hash-chained JouleCharge receipts) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/energy/ledger (+ receipt/{idem}) is the read surface for the
 # metering ledger the /energy tab consumes. Its registration was dropped during a
