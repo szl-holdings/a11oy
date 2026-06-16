@@ -61,6 +61,10 @@ _SURFACES = [
     # alongside the other sovereign surfaces (the page's own topbar links /immune).
     # Honest label; no codename.
     ("/materials",       "\u269B", "Materials — Verifiable Discovery"),    # ⚛ (atom)
+    # DNS & Subdomains: a static internal infrastructure roadmap tracking the DNS
+    # records we want to add (e.g. immune.a11oy.net A 167.233.50.75). Honest label;
+    # no codename; the page shows NO live data.
+    ("/dns",             "\U0001F310", "DNS &amp; Subdomains"),            # 🌐 (globe)
 ]
 
 # Idempotency marker for the nav-group injection.
