@@ -151,6 +151,11 @@ COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_h
 # energy operator/ledger/projection modules — imported by serve.py (guarded);
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB.
 COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py ./
+# K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
+# per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
+# /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
+# + szl_khipu (the shared signed-receipt chain), both already COPY'd above.
+COPY szl_kverify.py ./
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
