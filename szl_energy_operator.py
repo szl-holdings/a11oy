@@ -790,6 +790,17 @@ class OperatorDaemon:
                 "computed_at": _now_iso(),
             }
 
+    def any_lung_reachable(self) -> bool:
+        """REAL probe: True iff at least one configured GPU node answers its
+        OpenAI-compatible liveness check right now. No fabrication — a node only
+        counts when its endpoint actually responds <500. Standby posture does NOT
+        change reachability (a standby-but-up node is still a reachable lung); it
+        only changes how an UNREACHABLE node is labeled in status."""
+        for node in self.nodes:
+            if _http_reachable(node.base_url):
+                return True
+        return False
+
     def install_signal_handlers(self) -> None:
         """Optional: graceful SIGINT/SIGTERM → stop(). Main-thread only (never raises)."""
         def _handler(signum, frame):  # noqa: ANN001
@@ -818,6 +829,67 @@ def get_operator() -> OperatorDaemon:
 def handle_status() -> dict:
     """Module-level status accessor for in-process readers (Dev3 projection)."""
     return get_operator().status()
+
+
+# ---------------------------------------------------------------------------
+# Auto-start on boot (Doctrine v11 — honest: lung-gated, never faked).
+# ---------------------------------------------------------------------------
+# Env flag gating the boot auto-start. Defaults ON ("1"). Set to "0"/"false" to
+# disable (e.g. a box that should stay idle until a manual press-play).
+A11OY_ENERGY_AUTOSTART_ENV = "A11OY_ENERGY_AUTOSTART"
+
+
+def autostart_enabled() -> bool:
+    """True unless A11OY_ENERGY_AUTOSTART is explicitly falsey. Default ON."""
+    return (os.environ.get(A11OY_ENERGY_AUTOSTART_ENV, "1").strip().lower()
+            not in ("0", "false", "no", "off", ""))
+
+
+def autostart_if_lung_reachable() -> dict:
+    """Boot hook: auto-press-play the operator loop, but ONLY when honest to do so.
+
+    The loop is started iff BOTH hold:
+      - autostart is enabled (A11OY_ENERGY_AUTOSTART, default ON), AND
+      - at least one GPU lung answers a REAL liveness probe right now.
+
+    If zero lungs are reachable we stay CLEANLY IDLE (running stays false) — we
+    never fabricate a running loop or a joule against a node that didn't compute.
+    Idempotent: a no-op if the loop is already running. Returns a small report
+    dict (also reflected in the daemon status) so the boot log is honest.
+    """
+    op = get_operator()
+    if not autostart_enabled():
+        return {"autostarted": False, "reason": "autostart_disabled",
+                "running": op.is_running()}
+    if op.is_running():
+        return {"autostarted": False, "reason": "already_running", "running": True}
+    if not op.any_lung_reachable():
+        # Honest idle: no lung reachable → do NOT start, do NOT fake running.
+        return {"autostarted": False, "reason": "no_lung_reachable",
+                "running": False}
+    op.start()
+    return {"autostarted": True, "reason": "lung_reachable", "running": op.is_running()}
+
+
+def readiness() -> dict:
+    """Operator readiness for /readyz (Doctrine v11 — the exact redeploy-stall guard).
+
+    UNHEALTHY (ready=False) iff a lung IS reachable but the loop is STOPPED — the
+    precise state hit on every box redeploy (lungs up, loop never auto-started, so
+    joules freeze). Otherwise ready=True: either the loop is running, or no lung is
+    reachable (honestly idle — nothing to compute against, not a fault)."""
+    op = get_operator()
+    running = op.is_running()
+    lung = op.any_lung_reachable()
+    ready = running or not lung
+    return {
+        "service": "energy-operator",
+        "ready": ready,
+        "operator_running": running,
+        "lung_reachable": lung,
+        "autostart_enabled": autostart_enabled(),
+        "reason": ("ok" if ready else "operator_stopped_while_lung_reachable"),
+    }
 
 
 # ---------------------------------------------------------------------------

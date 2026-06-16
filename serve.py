@@ -1551,6 +1551,20 @@ async def startup() -> None:
     else:
         print(f"[a11oy] Node serve script not found at {A11OY_SERVE_SCRIPT} — API proxy disabled", file=sys.stderr)
 
+    # AUTO-START the energy operator loop on boot (Doctrine v11). On every box
+    # redeploy the service restarts and the operator came up STOPPED (running=false)
+    # even with the GPU lungs reachable — joules froze until someone manually POSTed
+    # /api/a11oy/v1/energy/operator/start. This hook presses play automatically,
+    # gated by A11OY_ENERGY_AUTOSTART (default ON) and — honestly — ONLY when at
+    # least one lung answers a REAL probe. Zero lungs reachable → stay cleanly idle
+    # (running stays false; never a fabricated running/joule). Additive + guarded.
+    try:
+        import szl_energy_operator as _szl_eo_autostart
+        _eo_report = _szl_eo_autostart.autostart_if_lung_reachable()
+        print(f"[a11oy] Energy operator autostart: {_eo_report}", file=sys.stderr)
+    except Exception as _eo_as_e:  # pragma: no cover
+        print(f"[a11oy] Energy operator autostart skipped: {_eo_as_e!r}", file=sys.stderr)
+
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
@@ -1755,7 +1769,27 @@ async def healthz() -> JSONResponse:
 
 @app.get("/api/a11oy/readyz")
 async def readyz() -> JSONResponse:
-    return JSONResponse({"status": "ready", "backend": "local+proxy"})
+    # Doctrine v11: /readyz now reflects the energy operator loop. The exact
+    # redeploy-stall we hit was: the service restarts, the GPU lungs stay reachable,
+    # but the operator loop comes up STOPPED so joules freeze. Surface that as NOT
+    # ready (503) so an orchestrator/healthcheck catches it. If a lung is reachable
+    # AND the loop runs → ready (200). If NO lung is reachable → ready (200, honestly
+    # idle: there is nothing to compute against, not a fault — we never fake running).
+    operator = {"ready": True, "reason": "operator_check_unavailable"}
+    try:
+        import szl_energy_operator as _szl_eo_ready
+        operator = _szl_eo_ready.readiness()
+    except Exception as _eo_ready_e:  # pragma: no cover — never block readyz on import
+        operator = {"ready": True, "reason": f"operator_check_error:{type(_eo_ready_e).__name__}"}
+    ready = bool(operator.get("ready", True))
+    return JSONResponse(
+        {
+            "status": "ready" if ready else "not_ready",
+            "backend": "local+proxy",
+            "operator": operator,
+        },
+        status_code=200 if ready else 503,
+    )
 
 
 # ---------------------------------------------------------------------------

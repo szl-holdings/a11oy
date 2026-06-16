@@ -425,6 +425,160 @@ def test_register_dual_namespace():
         assert p in paths, (p, sorted(paths))
 
 
+# ---------------------------------------------------------------------------
+# (10) AUTO-START on boot (Doctrine v11 — the redeploy-stall fix). The loop must
+#      come up RUNNING when a lung is reachable + autostart is on, stay CLEANLY
+#      IDLE (running=false, never faked) when no lung is reachable, and honor the
+#      A11OY_ENERGY_AUTOSTART off switch.
+# ---------------------------------------------------------------------------
+def _swap_singleton(op):
+    """Install `op` as the module singleton the module-level autostart/readiness
+    helpers drive, returning the previous one so the caller can restore it."""
+    prev = OP._OPERATOR
+    OP._OPERATOR = op
+    return prev
+
+
+def test_any_lung_reachable_true_when_node_up(monkeypatch):
+    node = _FakeNode()
+    base = node.start()
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                   state_path=os.path.join(d, "l.json"), allow_stub=False)
+            assert op.any_lung_reachable() is True
+    finally:
+        node.stop()
+
+
+def test_any_lung_reachable_false_when_all_unreachable():
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(
+            nodes=[OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
+                              "llama3.1:8b", "bge-large", "betterwithage")],
+            state_path=os.path.join(d, "l.json"), allow_stub=False)
+        assert op.any_lung_reachable() is False
+
+
+def test_autostart_starts_loop_when_lung_reachable(monkeypatch):
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+        with tempfile.TemporaryDirectory() as d:
+            op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                   state_path=os.path.join(d, "ledger.json"),
+                                   job_interval_s=0.01, allow_stub=False)
+            prev = _swap_singleton(op)
+            try:
+                assert op.is_running() is False
+                report = OP.autostart_if_lung_reachable()
+                assert report["autostarted"] is True, report
+                assert report["reason"] == "lung_reachable", report
+                assert op.is_running() is True
+                # Idempotent: a second call is a no-op (already running).
+                again = OP.autostart_if_lung_reachable()
+                assert again["autostarted"] is False and again["running"] is True, again
+            finally:
+                op.stop()
+                _swap_singleton(prev)
+    finally:
+        node.stop()
+
+
+def test_autostart_stays_idle_when_no_lung_reachable():
+    with tempfile.TemporaryDirectory() as d:
+        # All nodes on TEST-NET-1 (RFC 5737) → unreachable → honest idle.
+        op = OP.OperatorDaemon(
+            nodes=[OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
+                              "llama3.1:8b", "bge-large", "betterwithage")],
+            state_path=os.path.join(d, "ledger.json"), allow_stub=False)
+        prev = _swap_singleton(op)
+        try:
+            os.environ["A11OY_ENERGY_AUTOSTART"] = "1"
+            report = OP.autostart_if_lung_reachable()
+            assert report["autostarted"] is False, report
+            assert report["reason"] == "no_lung_reachable", report
+            assert report["running"] is False, report
+            assert op.is_running() is False  # never a faked running loop
+        finally:
+            os.environ.pop("A11OY_ENERGY_AUTOSTART", None)
+            _swap_singleton(prev)
+
+
+def test_autostart_disabled_by_env(monkeypatch):
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "0")
+        with tempfile.TemporaryDirectory() as d:
+            op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                   state_path=os.path.join(d, "ledger.json"),
+                                   allow_stub=False)
+            prev = _swap_singleton(op)
+            try:
+                report = OP.autostart_if_lung_reachable()
+                assert report["autostarted"] is False, report
+                assert report["reason"] == "autostart_disabled", report
+                assert op.is_running() is False
+            finally:
+                _swap_singleton(prev)
+    finally:
+        node.stop()
+
+
+def test_readiness_503_state_lung_up_loop_stopped(monkeypatch):
+    """The EXACT redeploy stall: a lung is reachable but the loop is STOPPED →
+    readiness().ready must be False (serve.py maps that to /readyz 503)."""
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        with tempfile.TemporaryDirectory() as d:
+            op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                   state_path=os.path.join(d, "ledger.json"),
+                                   job_interval_s=0.01, allow_stub=False)
+            prev = _swap_singleton(op)
+            try:
+                # Lung up, loop stopped → NOT ready.
+                r = OP.readiness()
+                assert r["lung_reachable"] is True, r
+                assert r["operator_running"] is False, r
+                assert r["ready"] is False, r
+                assert r["reason"] == "operator_stopped_while_lung_reachable", r
+                # Start the loop → ready flips to True.
+                op.start()
+                r2 = OP.readiness()
+                assert r2["operator_running"] is True, r2
+                assert r2["ready"] is True, r2
+            finally:
+                op.stop()
+                _swap_singleton(prev)
+    finally:
+        node.stop()
+
+
+def test_readiness_200_when_no_lung_reachable():
+    """No lung reachable → honestly idle is READY (nothing to compute against; a
+    stopped loop with zero lungs is not a fault and must not 503)."""
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(
+            nodes=[OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
+                              "llama3.1:8b", "bge-large", "betterwithage")],
+            state_path=os.path.join(d, "ledger.json"), allow_stub=False)
+        prev = _swap_singleton(op)
+        try:
+            r = OP.readiness()
+            assert r["lung_reachable"] is False, r
+            assert r["operator_running"] is False, r
+            assert r["ready"] is True, r
+            assert r["reason"] == "ok", r
+        finally:
+            _swap_singleton(prev)
+
+
 if __name__ == "__main__":
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
