@@ -79,6 +79,22 @@ try:
 except Exception:  # pragma: no cover — packaged import fallback
     from . import szl_joules_truth as _J  # type: ignore
 
+# OMEN endpoint SINGLE SOURCE OF TRUTH: read the hardened fabric pool's OMEN address
+# (szl_backend_hardening.OMEN_FABRIC_ENDPOINT) so the energy loop's OMEN default cannot
+# silently diverge from /compute-pool-hardened. Without this, the energy loop defaulted
+# to the bare hostname http://omen-betterwithage:11434 (which won't resolve on the box)
+# while the hardened pool used the correct tailnet IP — so OMEN could never breathe.
+# Honest: this fixes only the ADDRESS the probe targets; a real probe still decides up.
+try:
+    from szl_backend_hardening import OMEN_FABRIC_ENDPOINT as _OMEN_HARDENED_ENDPOINT
+except Exception:  # pragma: no cover — packaged import fallback
+    try:
+        from .szl_backend_hardening import OMEN_FABRIC_ENDPOINT as _OMEN_HARDENED_ENDPOINT  # type: ignore
+    except Exception:
+        # Last-resort honest default if the hardened module is unavailable: the same
+        # tailnet IP the hardened pool ships. Kept identical so behavior never diverges.
+        _OMEN_HARDENED_ENDPOINT = "http://100.70.130.45:11434"
+
 # ---------------------------------------------------------------------------
 # Doctrine constants.
 # ---------------------------------------------------------------------------
@@ -162,9 +178,13 @@ def _default_nodes() -> list[NodeCfg]:
     # A11OY_OMEN_BASE_URL is canonical; A11OY_ENERGY_OMEN_URL is the additive runbook
     # ALIAS (mirrors the chaski pair). Normalize a bare host:port to an OpenAI-compatible
     # .../v1 base; never double-append /v1.
+    # When neither env var is set, fall back to the HARDENED fabric pool's OMEN endpoint
+    # (the correct tailnet IP, single source of truth) instead of a bare hostname that
+    # won't resolve on the box — closing the divergent-list regression permanently. This
+    # only corrects the ADDRESS; a real probe still decides reachable/DEGRADED/computing.
     omen_base = (os.environ.get("A11OY_OMEN_BASE_URL")
                  or os.environ.get("A11OY_ENERGY_OMEN_URL")
-                 or "http://omen-betterwithage:11434/v1").strip().rstrip("/")
+                 or _OMEN_HARDENED_ENDPOINT).strip().rstrip("/")
     if omen_base and not omen_base.endswith("/v1"):
         omen_base = omen_base + "/v1"
     # omen posture: A11OY_OMEN_STANDBY canonical (default standby); the runbook alias
