@@ -497,6 +497,22 @@ try:
 except Exception as _szl_fm_e:  # pragma: no cover
     print(f"[a11oy] Frontier manifest NOT registered: {_szl_fm_e!r}", file=__import__("sys").stderr)
 
+# Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
+# receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
+# envelope binding every guarantee for a single governed action: the REAL immune verdict
+# (szl_immune), the PAC-Bayes bound (szl_materials/szl_formulas, ROADMAP), the MEASURED/
+# MODELED/SAMPLE energy label (szl_joules_truth — never a fabricated joule), the governed
+# model identity (a11oy_nemo_core, MODELED), and the exact Lean backing pointers. Each
+# sub-guarantee keeps its own label; a down sub-source -> UNAVAILABLE; no label upgraded;
+# signature is the honest DSSE_PLACEHOLDER. GET /provenance/receipt/{digest} re-verifies.
+# Additive, try/except-guarded, same register() pattern, BEFORE the SPA catch-all.
+try:
+    import szl_provenance_receipt as _szl_provenance_receipt
+    _szl_provenance_receipt.register(app, ns="a11oy")
+    print("[a11oy] Composite inference-provenance receipt registered: /api/a11oy/v1/provenance/receipt (capstone)", file=__import__("sys").stderr)
+except Exception as _szl_pr_e:  # pragma: no cover
+    print(f"[a11oy] Composite provenance receipt NOT registered: {_szl_pr_e!r}", file=__import__("sys").stderr)
+
 # Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
 # (topology + projection + governed-receipt overlay) against the two MODELED endpoints
 # above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
