@@ -9080,6 +9080,40 @@ except Exception as _con_e:  # pragma: no cover
 # END: I3 Governed Factory + Constitutional Engines
 # ============================================================================
 
+# ============================================================================
+# SWEEP D2 — MBSE + Factory honest status surfaces (Estate Sweep). Wires the
+# page-only /mbse + /factory surfaces to REAL backing APIs:
+#   szl_mbse:    /api/a11oy/v1/mbse/{status,models} -> real szl_mbse_cosim FMI
+#                co-sim substance (state=LIVE, MODELED outputs) + Khipu receipt;
+#                also wires the cosim /info,/watertank,/sixdof,/pipeline routes.
+#   szl_factory: /api/a11oy/v1/factory/status -> the real a11oy_factory workflow
+#                engine + agentic brain state (agentic=true; TRUE backend label,
+#                wired-vs-labeled-stub) + Khipu receipt.
+# Each register() inserts its routes at router position 0 (BEFORE the SPA catch-
+# all). Additive, try/except-guarded so neither can take down the SPA. Honest
+# Doctrine v11: state LIVE only because real runtime code answers; never faked.
+# ============================================================================
+try:
+    import szl_mbse as _szl_mbse
+    import sys as _mbse_sys
+    _mbse_status = _szl_mbse.register(app, "a11oy")
+    print(f"[a11oy] szl_mbse registered: {_mbse_status}", file=_mbse_sys.stderr)
+except Exception as _mbse_e:  # pragma: no cover
+    print(f"[a11oy] szl_mbse NOT registered (non-fatal): {_mbse_e!r}",
+          file=__import__("sys").stderr)
+
+try:
+    import szl_factory as _szl_factory
+    import sys as _szlfac_sys
+    _szlfac_status = _szl_factory.register(app, "a11oy")
+    print(f"[a11oy] szl_factory status registered: {_szlfac_status}", file=_szlfac_sys.stderr)
+except Exception as _szlfac_e:  # pragma: no cover
+    print(f"[a11oy] szl_factory NOT registered (non-fatal): {_szlfac_e!r}",
+          file=__import__("sys").stderr)
+# ============================================================================
+# END: SWEEP D2 — MBSE + Factory status
+# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn
