@@ -494,6 +494,13 @@ COPY web/estate-hologram.html ./web/estate-hologram.html
 # COPYs the routes 404 to the SPA shell.
 COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
 COPY web/defense-readiness.html ./web/defense-readiness.html
+# ADDITIVE (SWEEP D1, 2026-06-16): web/sda.html is the honest, user-visible SDA —
+# Space/Domain Awareness (Counter-UAS) page, served at /sda + /a11oy/sda from
+# /app/web/. Binds to the LIVE /api/a11oy/v1/sda/* surface (status/tracks/verdict).
+# image_only (baked via this per-file COPY; NOT hf-sync mirrored) — same baked-only
+# pattern as web/immune.html + web/materials.html; declared in copy-sync-lockstep.json
+# image_only_assets + hf-module-drift-allow.json accepted_divergences.
+COPY web/sda.html ./web/sda.html
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and
