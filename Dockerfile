@@ -150,7 +150,7 @@ COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py s
 COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
 # energy operator/ledger/projection modules — imported by serve.py (guarded);
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB.
-COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py ./
+COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py ./
 # K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
