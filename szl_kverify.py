@@ -55,6 +55,9 @@ import time
 import urllib.request
 from typing import Any, Optional
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
 # ---------------------------------------------------------------------------
 # Dataset — the HF benchmark. Resolved at runtime (no key, public dataset).
 # ---------------------------------------------------------------------------
@@ -440,9 +443,12 @@ def _verify_chain() -> dict:
 # SPA catch-all so these JSON routes resolve LOCALLY and win ordering.
 # ---------------------------------------------------------------------------
 def register(app, ns: str = "a11oy") -> dict:
-    from fastapi import Request
-    from fastapi.responses import JSONResponse
-
+    # NOTE: Request/JSONResponse are imported at MODULE level (top of file) — NOT
+    # here — because this module uses `from __future__ import annotations`, which
+    # stringizes annotations; FastAPI resolves a route handler's `request: Request`
+    # annotation via the module globals, so a function-local import would leave it
+    # unresolved and FastAPI would (wrongly) treat `request` as a required query
+    # param (HTTP 422). Module-level import keeps `Request` in globals.
     async def _run(request: Request):  # noqa: ANN202
         # n from query (?n=) or JSON body {"n":..}; bounded + honest default.
         n = _DEFAULT_N
