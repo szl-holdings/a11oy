@@ -293,6 +293,24 @@ try:
 except Exception as _szl_eo_e:  # pragma: no cover
     print(f"[a11oy] Energy operator NOT registered: {_szl_eo_e!r}", file=__import__("sys").stderr)
 
+# -- K-VERIFY (governed-inference benchmark, signed into the SHARED Khipu chain).
+# Runs cases from the HF dataset SZLHOLDINGS/k-verify-benchmark-v1 THROUGH the
+# existing energy-operator mesh (rtx-betterwithage/chaski via the same OpenAI-
+# compatible inference path), grades pass/fail vs the expected answer, meters
+# MEASURED joules per job (NVML delta; else MODELED/SAMPLE, honestly labeled +
+# excluded from the measured total), and signs a SZL.KVerify.CaseResult.v1
+# receipt per case into the SAME szl_khipu hash chain. Honest: no owned node
+# reachable -> case is `pending`/degraded, NEVER faked-pass. Adds POST/GET
+# /api/a11oy/v1/kverify/{run,summary,verify} (dual-registered under /v1/* too).
+# Reports honest provenance via the x-szl-serve-tier response header. Additive,
+# try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_kverify as _szl_kverify
+    _szl_kverify.register(app, ns="a11oy")
+    print("[a11oy] K-Verify registered: /api/a11oy/v1/kverify/{run,summary,verify}", file=__import__("sys").stderr)
+except Exception as _szl_kv_e:  # pragma: no cover
+    print(f"[a11oy] K-Verify NOT registered: {_szl_kv_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- Energy LEDGER (signed, hash-chained JouleCharge receipts) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/energy/ledger (+ receipt/{idem}) is the read surface for the
 # metering ledger the /energy tab consumes. Its registration was dropped during a
