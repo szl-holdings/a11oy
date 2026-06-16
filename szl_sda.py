@@ -115,10 +115,12 @@ def _load_sentra() -> tuple[Any, str]:
     for modpath in ("organs.sentra.sentra_drone_cyber", "sentra_drone_cyber"):
         try:
             mod = __import__(modpath, fromlist=["*"])
-            return mod, "REAL:organs/sentra/sentra_drone_cyber.py"
+            # Served label is sanitized (no internal codename); the import path
+            # itself is a code reference, never an emitted product label.
+            return mod, "REAL (counter-UAS drone-cyber organ imported)"
         except Exception:  # noqa: BLE001 — degrade honestly to the mirror
             continue
-    return None, "MIRROR (sentra_drone_cyber import unavailable — byte-identical constants)"
+    return None, "MIRROR (counter-UAS drone-cyber organ unavailable — byte-identical constants)"
 
 
 def _drone_sigs() -> tuple[list[dict], list[str], Any, str]:
