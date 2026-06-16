@@ -56,6 +56,11 @@ _SURFACES = [
     # SAPA: Energy per Successful Goal — the frontier agentic unit on top of the
     # live MEASURED joules/token path. Honest label; no codename.
     ("/sapa",            "\u26A1", "SAPA — Energy / Successful Goal"),   # ⚡
+    # Materials (Q'allariy): the honest Verifiable Alloy & Crystal Discovery surface
+    # (signed crystal-novelty cert + PAC-Bayes cert + Immune screen). Linked here
+    # alongside the other sovereign surfaces (the page's own topbar links /immune).
+    # Honest label; no codename.
+    ("/materials",       "\u269B", "Materials — Verifiable Discovery"),    # ⚛ (atom)
 ]
 
 # Idempotency marker for the nav-group injection.
