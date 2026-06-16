@@ -329,8 +329,10 @@ async function loadCards(){
     document.getElementById("cRegistry").textContent = "—";
     document.getElementById("cChain").textContent = "—";
   }
-  // probe optional endpoints with a HEAD-like GET status; show LIVE/DEPLOYING
-  const cert = await fetchJSON(MAT + "/certify/info");
+  // probe optional endpoints (built in parallel); show LIVE/DEPLOYING honestly.
+  // /certify has no GET-info route, so probe it with a minimal valid POST (idempotent,
+  // append-only receipt; cheap). /screen liveness is reflected by the /status summary.
+  const cert = await fetchJSON(MAT + "/certify", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({empirical_risk:0.1,kl:1.0,n:1000,delta:0.05})});
   setProbe("cCertify", cert.status);
   const scr = await fetchJSON(MAT + "/status");
   setProbe("cScreen", scr.status);
@@ -421,7 +423,7 @@ async function runScreen(){
   const cls = deny? "deny":"allow";
   const pill = deny? '<span class="pill red">DENY</span>' : '<span class="pill green">ALLOW</span>';
   const sigs = (v.signals||[]).map(s=>'<span class="sig">'+esc(s)+'</span>').join("") || '<span class="pill dim">no signal</span>';
-  const rec = v.khipu_receipt || v.receipt || {};
+  const rec = v.immune_receipt || v.khipu_receipt || v.receipt || {};
   const en = v.energy || v.energy_provenance;
   out.innerHTML =
     '<div class="verdict-box '+cls+'">'+
