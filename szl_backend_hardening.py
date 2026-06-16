@@ -387,13 +387,8 @@ import re as _re
 # base-url envs. Consulting the SAME env vars here makes the two endpoints agree
 # WITHOUT hardcoding any IP — the value is read at runtime, never baked in.
 _NODE_RESOLVE: Dict[str, Dict[str, List[str]]] = {
-    "chaski": {
-        # tailnet host aliases observed for the Replit chaski node
-        "aliases": ["chaski", "replit-chaski", "replit"],
-        # env vars (URL or bare host) the rest of the fabric uses for chaski
-        "url_envs": ["A11OY_CHASKI_BASE_URL", "A11OY_ENERGY_CHASKI_URL",
-                     "A11OY_CHASKI_URL", "SZL_GOV_LLM_URL"],
-    },
+    # chaski (Replit) resolver entry REMOVED 2026-06-16 — off Replit; mesh is
+    # owned-hardware-only now.
     "rtx-betterwithage": {
         "aliases": ["rtx-betterwithage", "betterwithage", "rtx"],
         "url_envs": ["A11OY_BETTERWITHAGE_BASE_URL", "A11OY_MODEL_BASE_URL"],
@@ -503,14 +498,10 @@ DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
     {"name": "omen-betterwithage", "kind": "sovereign-gpu", "sovereign": True,
      "probe": ("100.70.130.45", 11434), "endpoint": "http://100.70.130.45:11434",
      "detail": "always-on home brain: OMEN RTX 4060 Ti 8GB + Ryzen 8700G — Ollama on founder tailnet"},
-    {"name": "chaski", "kind": "tailnet-gpu", "sovereign": False,
-     # IP refresh 2026-06-15: chaski moved 100.76.58.50 -> 100.102.173.88 (confirmed
-     # live per AUTO_STATE). Static fallback updated to the current tailnet IP so the
-     # box probes the right host even when tailscale is unreadable; an explicit
-     # A11OY_GPU_NODE_CHASKI_IP env pin still wins. reachable is still set ONLY by a
-     # real TCP probe — this refresh changes WHICH host we probe, never fakes green.
-     "probe": ("100.102.173.88", 11434), "endpoint": "http://100.102.173.88:11434",
-     "detail": "self-hosted Ollama on founder tailnet (Replit node)"},
+    # chaski (Replit node) REMOVED 2026-06-16: the estate is going off Replit. The
+    # mesh now reflects ONLY owned sovereign hardware (rtx + omen) plus hosted-
+    # inference fallbacks. No Replit dependency; nothing faked — removing a real
+    # node descriptor, not adding one.
     {"name": "groq", "kind": "hosted-inference", "sovereign": False,
      "probe": ("api.groq.com", 443), "endpoint": "api.groq.com:443"},
     {"name": "nvidia-nim", "kind": "hosted-inference", "sovereign": False,
