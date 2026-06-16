@@ -8651,6 +8651,37 @@ except Exception as _nemo_e:
 # ============================================================================
 
 # ============================================================================
+# SWEEP DEV 4 — SZL-Nemo + Quechua agent/role /status surfaces (ADDITIVE).
+# szl_nemo_agents.register(app, ns, sign_fn): mounts the REAL backing modules for
+# the four Quechua surfaces (szl_qhawaq / szl_waqay / szl_yupay /
+# szl_willay_gateway) via their OWN idempotent register() helpers, and adds the
+# missing honest GET /api/a11oy/v1/<surface>/status for nemo + qhawaq + waqay +
+# yupay + willay. SZL-Nemo /status summarizes a11oy_nemo_core.model_card() (model
+# = governed Qwen3-32B, Apache-2.0, served via the governed gateway; NEVER a
+# from-scratch model). Each /status is signed into a Khipu receipt (Conjecture 2).
+# Honest LIVE lifecycle (each surface has real runtime substance) with ROADMAP
+# sub-items labeled inline. 0 codenames. Front-inserted BEFORE the SPA catch-all.
+# Additive, try/except guarded — never crashes the SPA.
+# ============================================================================
+_NEMO_AGENTS_DIAG = {"status": "not-run"}
+try:
+    import szl_nemo_agents as _szl_nemo_agents
+    import sys as _na_sys
+    _na_sign = _a11oy_sign_receipt if "_a11oy_sign_receipt" in dir() else None
+    _na_status = _szl_nemo_agents.register(app, ns="a11oy", sign_fn=_na_sign)
+    print(f"[a11oy] szl_nemo_agents registered: {_na_status}", file=_na_sys.stderr)
+    _NEMO_AGENTS_DIAG = {"status": "ok", "registered": _na_status}
+except Exception as _na_e:
+    import sys as _na_sys, traceback as _na_tb
+    print(f"[a11oy] szl_nemo_agents NOT registered (non-fatal): {_na_e!r}; SPA + API unaffected",
+          file=_na_sys.stderr)
+    _na_tb.print_exc(file=_na_sys.stderr)
+    _NEMO_AGENTS_DIAG = {"status": "FAILED", "error": repr(_na_e)}
+# ============================================================================
+# END: SWEEP DEV 4 — SZL-Nemo + Quechua agent/role /status surfaces
+# ============================================================================
+
+# ============================================================================
 # a11oy LIVE-DATA LAYER (ADDITIVE, 2026-06-06, Warhacker) — shared live-feed
 # proxy: GET /api/a11oy/v1/live/<feed> (prometheus|kev|osv|rekor|celestrak|iss|
 # fhir). Server-side fetch + cache + on-disk snapshot fallback; honest
