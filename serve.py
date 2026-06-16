@@ -293,6 +293,43 @@ try:
 except Exception as _szl_eo_e:  # pragma: no cover
     print(f"[a11oy] Energy operator NOT registered: {_szl_eo_e!r}", file=__import__("sys").stderr)
 
+# -- Energy LEDGER (signed, hash-chained JouleCharge receipts) -- REGRESSION RESTORE.
+# Route /api/a11oy/v1/energy/ledger (+ receipt/{idem}) is the read surface for the
+# metering ledger the /energy tab consumes. Its registration was dropped during a
+# serve.py mesh refactor while szl_energy_ledger.py stayed in-image but unwired, so
+# the live endpoint 404'd. Restores the missing wiring (additive, try/except-guarded,
+# same pattern as the energy modules above). See [[serve-route-regression-guard]].
+try:
+    import szl_energy_ledger as _szl_energy_ledger
+    _szl_energy_ledger.register(app, ns="a11oy")
+    print("[a11oy] Energy ledger registered: /api/a11oy/v1/energy/ledger", file=__import__("sys").stderr)
+except Exception as _szl_el_e:  # pragma: no cover
+    print(f"[a11oy] Energy ledger NOT registered: {_szl_el_e!r}", file=__import__("sys").stderr)
+
+# -- Energy PROJECTION (honest measured-rate 1-day + scale projection) -- REGRESSION RESTORE.
+# Route /api/a11oy/v1/energy/projection?window=running is the projection surface the
+# /energy tab consumes. Its registration was dropped during a serve.py mesh refactor
+# while szl_energy_projection.py stayed in-image but unwired, so the live endpoint
+# 404'd. Restores the missing wiring (additive, try/except-guarded).
+try:
+    import szl_energy_projection as _szl_energy_projection
+    _szl_energy_projection.register(app, ns="a11oy")
+    print("[a11oy] Energy projection registered: /api/a11oy/v1/energy/projection", file=__import__("sys").stderr)
+except Exception as _szl_ep_e:  # pragma: no cover
+    print(f"[a11oy] Energy projection NOT registered: {_szl_ep_e!r}", file=__import__("sys").stderr)
+
+# -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
+# Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its
+# registration was dropped during a serve.py mesh refactor while szl_restraint.py
+# stayed in-image but unwired, so the live endpoint 404'd. Restores the missing wiring
+# (additive, try/except-guarded).
+try:
+    import szl_restraint as _szl_restraint
+    _szl_restraint.register(app, ns="a11oy")
+    print("[a11oy] Restraint registered: /api/a11oy/v1/restraint/{info,evaluate,bench}", file=__import__("sys").stderr)
+except Exception as _szl_rs_e:  # pragma: no cover
+    print(f"[a11oy] Restraint NOT registered: {_szl_rs_e!r}", file=__import__("sys").stderr)
+
 # ── Sovereign VRAM-resident GPU-QUANT ENGINE (gpu-quant) — three honest layers on the
 # a11oy finance surface: L1 PCA-Risk (Ledoit-Wolf shrinkage Σ̂_LW + Marchenko-Pastur λ⁺
 # eigenvalue clipping; cuML on GPU else PURE-STDLIB CPU fallback, label honest), L2 TDA-
