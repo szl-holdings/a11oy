@@ -311,6 +311,27 @@ try:
 except Exception as _szl_kv_e:  # pragma: no cover
     print(f"[a11oy] K-Verify NOT registered: {_szl_kv_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- Materials (Q'allariy) — HONEST verifiable crystal-discovery surface -- doctrine v11.
+# Answers the GNoME silent-duplicate scandal (RESULT_METALLURGY_LEADERS gap #1).
+# szl_materials exposes POST /api/a11oy/v1/materials/novelty (Crystal Novelty
+# Certificate): an ISOMETRY-INVARIANT Kurlin-style PDD fingerprint (sorted
+# pairwise interatomic-distance histogram via the lattice metric tensor),
+# compared against an append-only in-process registry, returning
+# {novel,nearest_match_id,distance,fingerprint_digest,fingerprint} + a SIGNED
+# Khipu receipt (SZL.Materials.NoveltyCert.v1) into the SHARED szl_khipu chain
+# (organ="materials"); GET /api/a11oy/v1/materials/novelty/registry lists ids +
+# chain head. The receipt + comparison is REAL; fingerprint INJECTIVITY is a
+# CONJECTURE (Lutar/Materials/PDDInjective.lean — ROADMAP, NOT proven, NOT in
+# locked-8). szl_materials is the SHARED module: a single register() mounts the
+# novelty group and any appended DEV2/DEV3 groups. Dual-registered under /v1/* too.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_materials as _szl_materials
+    _szl_materials.register(app, ns="a11oy")
+    print("[a11oy] Materials registered: /api/a11oy/v1/materials/novelty(+/registry)", file=__import__("sys").stderr)
+except Exception as _szl_mat_e:  # pragma: no cover
+    print(f"[a11oy] Materials NOT registered: {_szl_mat_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- Immune (Hukulla) — HONEST egress-gate surface -- doctrine v11 fix.
 # The immune detector is REAL and LIVE, but historically the only HTTP routes for
 # it were user-visible CODENAME namespaces (a doctrine v11 violation, and the
