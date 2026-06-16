@@ -79,7 +79,11 @@ _KERNEL_COMMIT = "c7c0ba17"
 # loopback call returns the already-cached live payloads cheaply. Env-overridable.
 _SELF_PORT = os.environ.get("PORT", "7860")
 _SELF_BASE = os.environ.get("SZL_SELF_BASE_URL", f"http://127.0.0.1:{_SELF_PORT}")
-_SELF_TIMEOUT = float(os.environ.get("SZL_FABRIC_SELF_TIMEOUT", "6.0"))
+_SELF_TIMEOUT = float(os.environ.get("SZL_FABRIC_SELF_TIMEOUT", "8.0"))
+# The compute-pool probe re-probes timing-out nodes (~7s each) on a COLD cache,
+# so its loopback self-call needs a more generous timeout than the cheap ones.
+# Subsequent calls are served from the pool's own short-TTL cache (<0.3s).
+_COMPUTE_POOL_TIMEOUT = float(os.environ.get("SZL_FABRIC_POOL_TIMEOUT", "22.0"))
 
 _COMPUTE_POOL_PATH = "/api/a11oy/v1/compute-pool-hardened"
 _ENERGY_OP_PATH = "/api/a11oy/v1/energy/operator/status"
@@ -143,7 +147,7 @@ def _self_get(path: str, timeout: Optional[float] = None) -> Optional[dict]:
 # or fabricate node/joule data. nodes/sovereign/joules are PASSED THROUGH.
 # ---------------------------------------------------------------------------
 def _fabric_summary() -> dict:
-    pool = _self_get(_COMPUTE_POOL_PATH)
+    pool = _self_get(_COMPUTE_POOL_PATH, timeout=_COMPUTE_POOL_TIMEOUT)
     energy = _self_get(_ENERGY_OP_PATH)
     prov = _self_get(_ENERGY_PROV_PATH)
 
