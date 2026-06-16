@@ -172,6 +172,12 @@ COPY a11oy_frontier_page.py ./
 # manifest 404s live. Composes in-process from already-COPY'd surfaces (szl_energy_*,
 # szl_uds_fleet, szl_orbital_*, szl_backend_hardening, szl_restraint) — no new deps.
 COPY szl_frontier_manifest.py ./
+# Composite inference-provenance receipt (CAPSTONE) — imported by serve.py (guarded).
+# MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls
+# back and /api/a11oy/v1/provenance/receipt 404s live. Composes in-process from
+# already-COPY'd surfaces (szl_immune, szl_materials, szl_khipu, szl_joules_truth,
+# szl_formulas, a11oy_nemo_core) — no new deps.
+COPY szl_provenance_receipt.py ./
 # REGRESSION RESTORE — serve.py imports these (guarded) but their per-file COPY was
 # dropped, so in the HF image each guarded import falls back to a STUB (merged-but-not-
 # live) and the copy-sync lockstep guard is red on main. szl_sda was added by the most
