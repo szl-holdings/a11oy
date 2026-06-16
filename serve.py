@@ -7167,8 +7167,14 @@ async def wires_page() -> Response:
 # Dockerfile `COPY pages/ ./pages/`) — no Dockerfile change. Explicit route wins
 # over the SPA catch-all so /fabric returns the real page, not the SPA soft-404.
 # Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1 · locked = 8.
+# Branded TAWANTIN — the Governed Distributed Compute Fabric ("the four parts
+# united into one whole"; the fabric that unites the sovereign nodes, recorded by
+# Khipu, relayed by Chaski). /tawantin is an ADDITIVE alias for the SAME page;
+# /fabric keeps working unchanged. Both registered before the SPA catch-all.
 @app.get("/fabric")
 @app.get("/a11oy/fabric")
+@app.get("/tawantin")
+@app.get("/a11oy/tawantin")
 async def fabric_page() -> Response:
     f = PAGES_DIR / "fabric.html"
     if f.is_file():
