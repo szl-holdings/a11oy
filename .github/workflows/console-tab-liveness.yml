@@ -1,0 +1,24 @@
+name: console-tab-liveness
+# Honest dashboards guard: every a11oy /console tab must resolve to a live loader
+# or an honest label, the doctrine v11 honesty invariants must hold, and the 3D/2D
+# views must keep their visibility-gated 30s auto-refresh. Non-blocking signal
+# (not a required check) so it never gates sibling merges; red = real regression.
+on:
+  push:
+    branches: [main]
+    paths: ['pages/console.html', 'ops/check_console_tab_liveness.py']
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: a11oy console liveness + honesty guard
+        run: python3 ops/check_console_tab_liveness.py
