@@ -1,0 +1,107 @@
+# package-knowledge-sync.yml — keep a11oy's BUNDLED packages/a11oy-knowledge
+# corpus consistent with the canonical knowledge.json AND enforce Doctrine-v11
+# honesty on both.
+# Doctrine v11 LOCKED | SLSA L1 honest
+# Signed-off-by: Forge (Replit task agent) <forge@szl-holdings>
+#
+# a11oy ships THREE copies of the kernel-derived corpus:
+#   * root  knowledge.json                          — CANONICAL, source of truth.
+#                                                     killinchu mirrors it byte-for-byte;
+#                                                     the served console copy is guarded by
+#                                                     pages-knowledge-sync.
+#   * pages/knowledge.json                          — lighter console-served copy
+#                                                     (guarded by pages-knowledge-sync).
+#   * packages/a11oy-knowledge/src/knowledge.json   — the importable TypeScript PACKAGE
+#                                                     copy (its own version, e.g. 5.1.0),
+#                                                     imported by packages/a11oy-knowledge/src/index.ts.
+#
+# The package copy was the LAST UNGUARDED corpus surface: anything importing the
+# @a11oy-knowledge package could quietly serve a STALE or DISHONEST corpus
+# (e.g. mark Conjecture 1 / Λ-uniqueness "proven" when root honestly keeps it
+# "conjectured", or drift the locked-8 set) with no CI catching it. This guard
+# closes that gap.
+#
+# Like the package copy itself, this is a CONSISTENCY guard, NOT a byte-identity
+# guard — the package is a lighter copy with its own version string by design. It
+# reuses the SAME battle-tested checker + self-test as pages-knowledge-sync
+# (scripts/check_pages_knowledge_sync.py), so all three corpus surfaces apply the
+# IDENTICAL Doctrine-v11 honesty logic.
+#
+# It FAILS if:
+#   * the package copy overclaims relative to root — a theorem present in BOTH must
+#     carry the SAME maturity, and the Conjecture-1 honesty ledger
+#     (proof_summary.conjecture / locked_ids / locked_count_theorem) must match
+#     root, OR
+#   * EITHER copy violates a Doctrine-v11 honesty invariant — Conjecture 1
+#     (Λ-uniqueness / F23) must stay OPEN (never "proven"), the locked kernel count
+#     must stay machine-pinned, Theorem U (if present) must stay conditional.
+#
+# Org policy compliance: github-owned actions only, SHA-pinned; checker + self-test
+# are stdlib-only Python (no pip install, no third-party action).
+
+name: Package knowledge consistent with canonical corpus
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "knowledge.json"
+      - "packages/a11oy-knowledge/src/knowledge.json"
+      - "scripts/check_pages_knowledge_sync.py"
+      - "scripts/test_check_pages_knowledge_sync.py"
+      - ".github/workflows/package-knowledge-sync.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "knowledge.json"
+      - "packages/a11oy-knowledge/src/knowledge.json"
+      - "scripts/check_pages_knowledge_sync.py"
+      - "scripts/test_check_pages_knowledge_sync.py"
+      - ".github/workflows/package-knowledge-sync.yml"
+  schedule:
+    - cron: '57 6 * * 1'  # Mondays 06:57 UTC (offset from sibling corpus guards)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  self-test:
+    name: Validator self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Byte-validate the checker (ast.parse) before trusting it
+        run: |
+          python3 -c "import ast; ast.parse(open('scripts/check_pages_knowledge_sync.py').read()); print('checker ast OK')"
+      - name: Run validator self-test (proves it catches overclaim + honesty regressions)
+        run: python3 scripts/test_check_pages_knowledge_sync.py
+
+  corpus-consistency:
+    name: packages/a11oy-knowledge corpus consistent with knowledge.json + honest
+    needs: self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Compare packages/a11oy-knowledge corpus to canonical + validate Doctrine-v11 honesty
+        run: >-
+          python3 scripts/check_pages_knowledge_sync.py
+          --root knowledge.json
+          --pages packages/a11oy-knowledge/src/knowledge.json
+          --pages-name packages/a11oy-knowledge/src/knowledge.json
