@@ -174,6 +174,17 @@ COPY szl_kverify.py ./
 # served page) is per-file COPY'd below and declared image_only in
 # .github/copy-sync-lockstep.json (same baked-only pattern as web/energy.html).
 COPY szl_immune.py ./
+# SWEEP D5 — Fabric/Tawantin + Auto-review HONEST /status SUMMARY surfaces.
+# szl_fabric_surface.py serves /api/a11oy/v1/{tawantin,fabric}/status (honest
+# summary over compute-pool-hardened + energy operator/provenance — nodes
+# reachable, sovereign count, MEASURED joules, signed-receipt head) and
+# /api/a11oy/v1/autoreview/status (honest summary over the real autoreview
+# classifier/calibration/dial; rates ROADMAP until real runs). MUST be per-file
+# COPY'd (this Dockerfile uses no `COPY . .`) or serve.py's guarded import falls
+# back and those /status routes 404 live AND hf-sync-backend.yml (it parses this
+# COPY set) would not mirror it to the HF Space. Reuses the live sibling
+# endpoints via loopback; no new dep. Summary-only — no fabricated node/joule data.
+COPY szl_fabric_surface.py ./
 # SWEEP DEV 3 status module — imported by serve.py (guarded). MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB
 # and /api/a11oy/v1/{quant,qbio,holographic}/status 404 live. Reuses szl_quantum_bio,
