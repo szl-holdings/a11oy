@@ -1,0 +1,1 @@
+HF Space rebuild trigger. GitHub Container build + Dockerfile guard GREEN at 3687dfa3; HF builder hit a transient cache-miss BUILD_ERROR after #475. This no-op touch forces a clean rebuild. ts=2026-06-16T16:19:09Z
