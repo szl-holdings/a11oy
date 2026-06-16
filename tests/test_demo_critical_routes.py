@@ -43,6 +43,7 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/pnt/limits",               # earlier PNT restore
     "/api/a11oy/v1/orbital/topology",         # MODELED orbital roadmap (no on-orbit hardware)
     "/api/a11oy/v1/orbital/projection",       # MODELED orbital energy from MEASURED ground coeff
+    "/orbital",                               # MODELED orbital demo PAGE (renders topology+projection)
 ]
 
 

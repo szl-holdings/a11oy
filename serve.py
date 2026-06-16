@@ -393,6 +393,18 @@ try:
 except Exception as _szl_op_e:  # pragma: no cover
     print(f"[a11oy] Orbital projection NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
 
+# Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
+# (topology + projection + governed-receipt overlay) against the two MODELED endpoints
+# above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
+# hardware yet)"; 0 runtime CDN (three.js vendored via /hero/vendor3d/). Registered BEFORE
+# the SPA /{full_path:path} catch-all so /orbital resolves to this page, not the SPA.
+try:
+    import a11oy_orbital_page as _a11oy_orbital_page
+    _orbital_page_status = _a11oy_orbital_page.register(app, ns="a11oy")
+    print(f"[a11oy] Orbital page registered: {_orbital_page_status}", file=__import__("sys").stderr)
+except Exception as _orbital_page_e:  # pragma: no cover
+    print(f"[a11oy] Orbital page NOT registered: {_orbital_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its

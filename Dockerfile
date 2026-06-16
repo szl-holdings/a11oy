@@ -156,6 +156,11 @@ COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_pro
 # /api/a11oy/v1/orbital/{topology,projection} 404 live. szl_orbital_projection reuses
 # szl_energy_operator (the REAL measured ground J/token coefficient), already COPY'd above.
 COPY szl_orbital_topology.py szl_orbital_projection.py ./
+# Orbital PAGE (frontend demo surface) — serve.py imports a11oy_orbital_page (guarded)
+# to mount GET /orbital (the MODELED constellation demo, banner-labeled, 0 CDN via the
+# vendor3d three.js COPY'd below). MUST be per-file COPY'd or /orbital falls back to the
+# SPA catch-all (white screen / no orbital surface).
+COPY a11oy_orbital_page.py ./
 # K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
