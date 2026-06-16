@@ -8,7 +8,7 @@ SDA = Space / Domain Awareness: one honest pane over the three contact domains
 the estate already has REAL substance for —
   * vessel  (maritime AIS tracks — the warhacker-demo UDS `demo_ais_replay.sh`
              sample dataset: dark-vessel gap + OFAC-SDN sanctions test MMSI),
-  * drone   (counter-UAS contacts scored by the REAL Sentra drone-cyber logic
+  * drone   (counter-UAS contacts scored by the REAL counter-UAS drone-cyber logic
              in organs/sentra/sentra_drone_cyber.py — DRONE_SIGS / T11-T20
              tripwires / 13-axis yuyay_v3 Lambda aggregate / Λ floor 0.90),
   * space-object (MODELED orbital-roadmap objects — SZL has NO on-orbit sensor;
@@ -29,7 +29,7 @@ HONESTY (Doctrine v11 — NEVER violate):
   * Effectors are SIMULATED, human-on-loop. A counter-UAS verdict is an
     assessment + a signed receipt — NOT a kinetic or jamming action. Any
     "mitigation" is decision-support only; the human stays on the loop.
-  * The counter-UAS verdict REUSES the REAL Sentra drone-cyber logic (imported
+  * The counter-UAS verdict REUSES the REAL counter-UAS drone-cyber logic (imported
     from organs/sentra/sentra_drone_cyber.py); it is NOT re-weakened or
     re-implemented. If the import is unavailable at runtime, the verdict path is
     honestly labeled `degraded` and uses the byte-identical mirror constants —
@@ -50,7 +50,7 @@ ENDPOINTS (dual-registered under /api/a11oy/v1/sda/* AND /v1/sda/*):
                         drone contacts). Each: id, type, position, risk score,
                         data_kind. Optional ?type=vessel|drone|space-object.
   POST /sda/verdict  -> counter-UAS threat verdict on a track/contact using the
-                        REAL Sentra drone-cyber logic (13-axis Λ aggregate vs
+                        REAL counter-UAS drone-cyber logic (13-axis Λ aggregate vs
                         floor 0.90 + tripwire/risk assessment). Returns the
                         assessment PLUS a signed Khipu receipt
                         (SZL.SDA.Verdict.v1, organ="sda") into the SHARED
@@ -86,7 +86,7 @@ _LOCKED_PROVEN = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]  # EXACTL
 _KERNEL_COMMIT = "c7c0ba17"
 
 # ---------------------------------------------------------------------------
-# REUSE the REAL Sentra drone-cyber logic. We IMPORT it — we do NOT re-implement
+# REUSE the REAL counter-UAS drone-cyber logic. We IMPORT it — we do NOT re-implement
 # or re-weaken it. If the import fails at runtime (path/layout), we fall back to
 # the BYTE-IDENTICAL mirror constants below and label the verdict path honestly
 # `degraded` (never a fabricated PASS). The Λ floor stays 0.90 either way.
@@ -274,7 +274,7 @@ def _build_tracks() -> list[dict]:
             "source": "a11oy_orbital_page MODELED constellation (MODELED roadmap — no on-orbit hardware)",
         })
 
-    # Drone contacts (SAMPLE — counter-UAS demo, scored by REAL Sentra Λ logic).
+    # Drone contacts (SAMPLE — counter-UAS demo, scored by REAL counter-UAS drone-cyber Λ logic).
     for c in _DRONE_CONTACTS:
         risk, flags, lam = _drone_contact_risk(c, lam_fn)
         tracks.append({
@@ -287,7 +287,7 @@ def _build_tracks() -> list[dict]:
             "lambda_aggregate": lam, "lambda_floor": _LAMBDA_FLOOR,
             "risk": risk, "risk_flags": flags,
             "data_kind": "SAMPLE",
-            "source": "counter-UAS demo contacts scored by the REAL Sentra drone-cyber T11-T20 model (NOT a live sensor feed)",
+            "source": "counter-UAS demo contacts scored by the REAL counter-UAS drone-cyber organ (T11-T20 model) (NOT a live sensor feed)",
         })
     return tracks
 
@@ -300,7 +300,7 @@ _STATS: dict[str, Any] = {"verdicts": 0, "deny": 0, "allow": 0, "last_receipt_di
 
 
 # ---------------------------------------------------------------------------
-# Counter-UAS verdict — REUSE the REAL Sentra 13-axis Λ logic (NOT re-weakened).
+# Counter-UAS verdict — REUSE the REAL counter-UAS drone-cyber 13-axis Λ logic (NOT re-weakened).
 # Effector SIMULATED, human-on-loop. Signs a Khipu receipt into the SHARED chain.
 # ---------------------------------------------------------------------------
 def _build_verdict(body: dict) -> dict:
@@ -332,7 +332,7 @@ def _build_verdict(body: dict) -> dict:
     else:
         axis_provenance = "caller-supplied-13-axis"
 
-    # REAL Sentra aggregate (geometric mean of 13 axes). NOT re-weakened.
+    # REAL counter-UAS drone-cyber aggregate (geometric mean of 13 axes). NOT re-weakened.
     lam = round(float(lam_fn(axis)), 4)
 
     # Map any fired tripwires to the REAL signature descriptors.
@@ -385,7 +385,7 @@ def _build_verdict(body: dict) -> dict:
         "axis_provenance": axis_provenance,
         "verdict_hash": vh,
         "effectors": "SIMULATED — human-on-loop; assessment only, NOT a kinetic or jamming action",
-        "sentra_logic_source": sentra_source,
+        "counter_uas_logic_source": sentra_source,
         "honesty": {
             "tracks_are": "REPLAY/SAMPLE/MODELED demo data — NOT a live radar/AIS/RF sensor feed",
             "lambda": "Conjecture 1 (NOT a theorem)",
@@ -421,7 +421,7 @@ def _build_verdict(body: dict) -> dict:
         "actionId": rid,
         "organ": _ORGAN_NAME,
         "effectors": "SIMULATED — human-on-loop; assessment only, NOT a kinetic or jamming action",
-        "sentra_logic_source": sentra_source,
+        "counter_uas_logic_source": sentra_source,
         "khipu_receipt": {
             "receipt_type": _RECEIPT_TYPE,
             "organ": _KHIPU_ORGAN,
@@ -496,7 +496,7 @@ def _status() -> dict:
         "data_source": "REPLAY/SAMPLE/MODELED — NOT live",
         "data_source_detail": {
             "vessel": "REPLAY — warhacker-demo UDS demo_ais_replay.sh sample AIS dataset (no live AIS receiver)",
-            "drone": "SAMPLE — counter-UAS demo contacts scored by the REAL Sentra drone-cyber T11-T20 model (no live RF/radar)",
+            "drone": "SAMPLE — counter-UAS demo contacts scored by the REAL counter-UAS drone-cyber organ (T11-T20 model) (no live RF/radar)",
             "space-object": "MODELED — orbital-compute roadmap objects (no on-orbit sensor / hardware)",
         },
         "counter_uas": {
@@ -504,7 +504,7 @@ def _status() -> dict:
             "drone_signature_count": len(drone_sigs),
             "base_signature_count": len(base_sigs),
             "lambda_floor": _LAMBDA_FLOOR,
-            "lambda_model": "13-axis yuyay_v3 geometric-mean aggregate (REAL Sentra logic)",
+            "lambda_model": "13-axis yuyay_v3 geometric-mean aggregate (REAL counter-UAS drone-cyber logic)",
         },
         "verdicts_this_process": verdicts,
         "verdict_breakdown": {"clear": allow, "threat_or_review": deny},
@@ -530,7 +530,7 @@ def _status() -> dict:
         },
         "citations": [
             {"label": "warhacker-demo UDS demo_ais_replay.sh", "ref": "docs/vessels/du-upstream-contributions/uds-package-vessels/scripts/demo_ais_replay.sh"},
-            {"label": "Sentra counter-UAS drone-cyber logic", "ref": "organs/sentra/sentra_drone_cyber.py"},
+            {"label": "counter-UAS drone-cyber organ", "ref": "organs/sentra/sentra_drone_cyber.py"},
             {"label": "MODELED orbital constellation", "ref": "a11oy_orbital_page.py"},
         ],
     }
@@ -549,7 +549,7 @@ def _tracks(type_filter: Optional[str] = None) -> dict:
         "data_source": "REPLAY/SAMPLE/MODELED — NOT a live radar/AIS/RF sensor feed",
         "honesty": ("These are DEMO tracks: vessels are the warhacker-demo AIS REPLAY dataset, "
                     "drone contacts are SAMPLE counter-UAS demo contacts scored by the REAL "
-                    "Sentra logic, space objects are MODELED orbital-roadmap objects. SZL does "
+                    "counter-UAS drone-cyber organ, space objects are MODELED orbital-roadmap objects. SZL does "
                     "NOT operate the radar/AIS receiver/on-orbit sensor behind these."),
         "citations": [
             {"label": "demo_ais_replay.sh", "ref": "docs/vessels/du-upstream-contributions/uds-package-vessels/scripts/demo_ais_replay.sh"},
