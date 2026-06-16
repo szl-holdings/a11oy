@@ -1,0 +1,99 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SDA — Space / Domain Awareness (Counter-UAS) · a11oy</title>
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
+     Honest, user-visible name: SDA / Counter-UAS. NEVER a codename. Binds to the LIVE
+     /api/a11oy/v1/sda/* surface. Tracks are REPLAY/SAMPLE/MODELED demo data — NOT a live
+     radar/AIS/RF sensor feed. Effectors SIMULATED, human-on-loop. -->
+<style>
+:root{--bg:#070b16;--panel:#101a2e;--panel2:#16223a;--ink:#e8eef7;--mut:#8aa0bd;--gold:#d8a23c;--acc:#5ad1c0;
+--line:#243149;--grn:#3fb950;--amb:#e0c060;--red:#ff6b6b;}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#14213b,var(--bg));
+color:var(--ink);font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 80px}
+#banner{position:sticky;top:0;z-index:9;background:linear-gradient(90deg,rgba(216,162,60,.20),rgba(200,100,60,.16));
+border-bottom:1px solid rgba(232,192,116,.5);color:var(--amb);font:600 .80rem/1.4 ui-monospace,monospace;
+letter-spacing:.05em;text-transform:uppercase;padding:.6rem 1rem;display:flex;gap:.6rem;align-items:center}
+#banner .dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--amb);box-shadow:0 0 8px var(--amb)}
+h1{font-size:25px;margin:22px 0 2px}h2{font-size:17px;margin:26px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 14px}a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:10px 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi .n{font-size:24px;font-weight:700}.kpi .l{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600}code{background:#0a1626;padding:1px 5px;border-radius:5px;color:var(--acc);font-size:12px}
+.b{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.green{background:#0f3a2e;color:#5ad1c0}.amber{background:#3a2f0f;color:#e0c060}.red{background:#3a0f14;color:#ff8a8a}
+.pill{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+button{background:#13314a;color:#bfe;border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px}
+input,select{background:#0a1626;color:#bfe;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px}
+pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:12px;color:#cdd3e3}
+.foot{margin-top:34px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+.note{color:var(--mut);font-size:12px}
+</style></head><body>
+<div id="banner"><span class="dot"></span><span id="bannertxt">REPLAY / SAMPLE / MODELED demo data — NOT a live radar/AIS/RF sensor feed · effectors SIMULATED, human-on-loop</span></div>
+<div class="wrap">
+<nav class="note" style="padding-top:12px"><a href="/">home</a> · <a href="/counter-uas">/counter-uas</a> · <a href="/orbital">/orbital</a> · <a href="/immune">/immune</a> · <a href="/api/a11oy/v1/sda/status" target="_blank" rel="noopener">/api/a11oy/v1/sda/status</a></nav>
+<h1>SDA — Space / Domain Awareness <span class="pill">Counter-UAS</span></h1>
+<p class="sub">One honest pane over three contact domains: <b>vessel</b> (AIS replay), <b>drone</b> (counter-UAS, scored by the real Sentra T11–T20 model), and <b>space-object</b> (modeled orbital). Verdicts use the <b>real 13-axis Λ aggregate</b> (floor 0.90) and sign a Khipu receipt. <span id="srcstat" class="pill">source: …</span></p>
+
+<h2>1 · Status</h2>
+<div class="card"><div class="kpis" id="kpis"><div class="note">loading live status…</div></div>
+<p class="note" id="doctrine"></p></div>
+
+<h2>2 · Tracks <span class="note" id="trkcount"></span></h2>
+<div class="card">
+<span class="note">filter:</span>
+<button onclick="loadTracks('')">all</button>
+<button onclick="loadTracks('vessel')">vessel</button>
+<button onclick="loadTracks('drone')">drone</button>
+<button onclick="loadTracks('space-object')">space-object</button>
+<table id="tracks"><tr><th>id</th><th>type</th><th>name</th><th>position</th><th>risk</th><th>flags</th><th>data</th></tr>
+<tr><td colspan="7" class="note">loading live tracks…</td></tr></table></div>
+
+<h2>3 · Counter-UAS verdict <span class="note">(real Sentra Λ logic · signed Khipu receipt)</span></h2>
+<div class="card">
+<span class="note">contact:</span>
+<select id="vtype"><option value="drone">drone</option><option value="vessel">vessel</option><option value="space-object">space-object</option></select>
+<input id="vrisk" placeholder="risk 0..1 (e.g. 0.9)" style="width:140px">
+<input id="vtw" placeholder="tripwires e.g. T16,T20" style="width:150px">
+<button onclick="runVerdict()">assess (POST /verdict)</button>
+<p class="note">Effector is <b>SIMULATED, human-on-loop</b> — an assessment + signed receipt, never a kinetic or jamming action.</p>
+<pre id="vout">// verdict result + Khipu receipt</pre></div>
+
+<div class="foot">Tracks: vessels are the warhacker-demo UDS <code>demo_ais_replay.sh</code> sample AIS dataset (<b>REPLAY</b> — no live AIS receiver); drone contacts are <b>SAMPLE</b> counter-UAS demo contacts scored by the REAL Sentra drone-cyber T11–T20 model; space objects are <b>MODELED</b> orbital-roadmap objects (no on-orbit sensor). SZL does not operate the radar/AIS/on-orbit sensor behind these — we never claim a live feed we don't have. Counter-UAS verdict reuses the real <code>organs/sentra/sentra_drone_cyber.py</code> 13-axis Λ logic (floor 0.90), not re-weakened. Khipu signatures are <b>DSSE PLACEHOLDER</b> (chain integrity real; Sigstore not wired); SLSA L1 honest. Λ = Conjecture 1; Khipu = Conjecture 2; trust never 100%; locked = 8 @ c7c0ba17. Doctrine v11.</div>
+<script>
+const A="/api/a11oy/v1/sda";
+function rc(r){return r>=0.7?"red":(r>=0.4?"amber":"green");}
+async function loadStatus(){try{const r=await fetch(A+"/status");const d=await r.json();
+document.getElementById("srcstat").textContent="source: "+(d.data_source||"?");
+const bt=d.tracks_by_type||{},cu=d.counter_uas||{},k=d.khipu||{};
+document.getElementById("kpis").innerHTML=
+`<div class="kpi"><div class="n">${d.track_count??"–"}</div><div class="l">tracks</div></div>`+
+`<div class="kpi"><div class="n">${bt.vessel||0}/${bt.drone||0}/${bt["space-object"]||0}</div><div class="l">vessel / drone / space</div></div>`+
+`<div class="kpi"><div class="n">${cu.drone_signature_count??"–"}</div><div class="l">counter-uas sigs</div></div>`+
+`<div class="kpi"><div class="n">${cu.lambda_floor??"–"}</div><div class="l">Λ floor</div></div>`+
+`<div class="kpi"><div class="n">${d.verdicts_this_process??0}</div><div class="l">verdicts</div></div>`+
+`<div class="kpi"><div class="n">${k.chain_depth??0}</div><div class="l">khipu depth</div></div>`;
+const db=d.doctrine_block||{};
+document.getElementById("doctrine").innerHTML=`data_source: <b>${d.data_source}</b> · effectors: <b>${(d.effectors||"").split(";")[0]}</b> · Λ=${db.lambda} · Khipu=${db.khipu} · locked=${db.locked_count} @ ${db.kernel} · chain head <code>${(k.chain_head||"").slice(0,16)}…</code>`;
+}catch(e){document.getElementById("srcstat").textContent="source: error";}}
+async function loadTracks(tf){try{const u=A+"/tracks"+(tf?("?type="+encodeURIComponent(tf)):"");const r=await fetch(u);const d=await r.json();
+document.getElementById("trkcount").textContent="("+(d.count||0)+(tf?(" "+tf):"")+")";
+const t=document.getElementById("tracks");t.innerHTML="<tr><th>id</th><th>type</th><th>name</th><th>position</th><th>risk</th><th>flags</th><th>data</th></tr>";
+(d.tracks||[]).forEach(x=>{const pos=x.position?Object.entries(x.position).map(([k,v])=>k+":"+v).join(" "):"";
+t.innerHTML+=`<tr><td><code>${x.id}</code></td><td>${x.type}</td><td>${x.name||""}</td><td class="note">${pos}</td>`+
+`<td><span class="b ${rc(x.risk)}">${x.risk}</span></td><td class="note">${(x.risk_flags||[]).join(", ")||"—"}</td>`+
+`<td><span class="pill">${x.data_kind}</span></td></tr>`;});
+if(!(d.tracks||[]).length)t.innerHTML+='<tr><td colspan="7" class="note">no tracks</td></tr>';
+}catch(e){}}
+async function runVerdict(){const o=document.getElementById("vout");o.textContent="…";
+const type=document.getElementById("vtype").value;
+const risk=parseFloat(document.getElementById("vrisk").value);
+const tw=document.getElementById("vtw").value.split(",").map(s=>s.trim()).filter(Boolean);
+const track={type:type};if(!isNaN(risk))track.risk=risk;if(tw.length)track.fired=tw;
+try{const r=await fetch(A+"/verdict",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({track:track})});
+o.textContent=JSON.stringify(await r.json(),null,2);}catch(e){o.textContent="error: "+e;}}
+loadStatus();loadTracks('');
+</script></div></body></html>
