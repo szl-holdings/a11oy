@@ -516,6 +516,162 @@ def _maybe_embedder() -> Callable[[str], list[float]] | None:
         return None
 
 
+def corpus_embedder() -> Callable[[str], list[float]] | None:
+    """Public accessor for the real BAAI/bge embed(text)->vec callable (or None when
+    no embedding model loads in this runtime). The energy operator uses this to do
+    USEFUL WORK — embedding real corpus chunks — instead of throwaway text. Honest:
+    returns None (never a fake embedder) when the model is unavailable."""
+    return _maybe_embedder()
+
+
+# --------------------------------------------------------------------------- #
+# USEFUL-WORK WRITE PATH (additive) — let an external metered loop (the energy
+# operator) embed REAL, already-indexed corpus chunks that still lack a dense
+# vector, and write those vectors into the live org_vectors index. This NEVER
+# creates an org_chunks row: it can only add a dense vector for a chunk that
+# ALREADY lexically exists (Zero-Bandaid Law — we cannot fabricate an indexed
+# chunk; a chunk's text must have been ingested by a real build first).
+# --------------------------------------------------------------------------- #
+def dense_vector_count() -> int:
+    """COUNT(*) of dense vectors in org_vectors. Honest 0 on any error / no DB."""
+    try:
+        conn = _db()
+        try:
+            row = conn.execute("SELECT COUNT(*) AS n FROM org_vectors").fetchone()
+            return int(row["n"]) if row else 0
+        finally:
+            conn.close()
+    except Exception:
+        return 0
+
+
+def chunk_count() -> int:
+    """COUNT(*) of lexical chunks in org_chunks. Honest 0 on any error / no DB."""
+    try:
+        conn = _db()
+        try:
+            row = conn.execute("SELECT COUNT(*) AS n FROM org_chunks").fetchone()
+            return int(row["n"]) if row else 0
+        finally:
+            conn.close()
+    except Exception:
+        return 0
+
+
+def next_unembedded_chunks(limit: int = 4) -> list[dict[str, Any]]:
+    """Return up to ``limit`` chunks present in org_chunks but ABSENT from
+    org_vectors — the real corpus backlog the loop should embed. Honest empty list
+    when the index isn't built, the DB is missing, or every chunk already has a
+    vector (no fabricated work)."""
+    if not _BUILD_META.get("built"):
+        return []
+    out: list[dict[str, Any]] = []
+    try:
+        conn = _db()
+        try:
+            rows = conn.execute(
+                "SELECT chunk_id,repo,path,corpus,source,body FROM org_chunks "
+                "WHERE chunk_id NOT IN (SELECT chunk_id FROM org_vectors) "
+                "LIMIT ?", (max(1, int(limit)),)).fetchall()
+            for r in rows:
+                out.append({"chunk_id": r["chunk_id"], "repo": r["repo"],
+                            "path": r["path"], "corpus": r["corpus"],
+                            "source": r["source"], "body": r["body"] or ""})
+        finally:
+            conn.close()
+    except Exception:
+        return []
+    return out
+
+
+def embed_and_store_chunk(chunk_id: str, vec: list[float]) -> dict[str, Any]:
+    """Store a REAL dense vector (already computed by the metered loop's embed job)
+    for an EXISTING corpus chunk. Refuses to act unless ``chunk_id`` is already in
+    org_chunks — we never create a chunk row here, so an indexed chunk can never be
+    fabricated. Returns {ok, chunk_id, dim} or an honest error. Uses the SAME
+    storage format as _ingest_text (json list, 6-dp rounding)."""
+    if not chunk_id or not isinstance(vec, (list, tuple)) or len(vec) == 0:
+        return {"ok": False, "honest_error": "empty chunk_id or vector — nothing stored"}
+    try:
+        conn = _db()
+        try:
+            exists = conn.execute(
+                "SELECT 1 FROM org_chunks WHERE chunk_id=? LIMIT 1", (chunk_id,)).fetchone()
+            if not exists:
+                # Honest refusal: cannot add a vector for a chunk that was never
+                # really ingested (would imply a fabricated indexed chunk).
+                return {"ok": False, "chunk_id": chunk_id,
+                        "honest_error": "chunk_id not present in org_chunks — refusing "
+                                        "to store a vector for a non-existent chunk "
+                                        "(Zero-Bandaid Law: never fabricate an index)"}
+            conn.execute(
+                "INSERT OR REPLACE INTO org_vectors(chunk_id,dim,vec) VALUES(?,?,?)",
+                (chunk_id, len(vec), json.dumps([round(float(x), 6) for x in vec])))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        return {"ok": False, "chunk_id": chunk_id, "honest_error": f"store failed: {exc}"}
+    return {"ok": True, "chunk_id": chunk_id, "dim": len(vec)}
+
+
+# --------------------------------------------------------------------------- #
+# DEMO-WARM cache (additive) — precompute + cache embeddings for a short list of
+# demo RAG queries so the demo's first query is instant (no cold model encode on
+# the request path). Honest: a pure in-process cache of REAL embeddings; a no-op
+# when no embedding model is available. Does NOT change query() behavior.
+# --------------------------------------------------------------------------- #
+_DEMO_WARM_QUERIES_ENV = "A11OY_DEMO_WARM_QUERIES"
+_DEMO_WARM_DEFAULT = [
+    "what is sovereign metered compute",
+    "how are joules measured under doctrine v11",
+    "what is the locked-8 formula set",
+    "how does energy provenance work",
+]
+_DEMO_WARM_CACHE: dict[str, list[float]] = {}
+
+
+def demo_warm_queries() -> list[str]:
+    """The configured demo-warm query list (env override, else honest default)."""
+    raw = (os.environ.get(_DEMO_WARM_QUERIES_ENV) or "").strip()
+    if raw:
+        qs = [q.strip() for q in raw.split(",") if q.strip()]
+        if qs:
+            return qs
+    return list(_DEMO_WARM_DEFAULT)
+
+
+def warm_demo_queries(embed_fn: Callable[[str], list[float]] | None = None
+                      ) -> dict[str, Any]:
+    """Precompute + cache embeddings for the demo-warm query list. Idempotent: only
+    embeds queries not already cached (cheap, bounded). Honest no-op (warmed=0) when
+    no embedder is available. Returns {ok, warmed, cached, total}."""
+    fn = embed_fn or _maybe_embedder()
+    qs = demo_warm_queries()
+    if fn is None:
+        return {"ok": False, "warmed": 0, "cached": len(_DEMO_WARM_CACHE),
+                "total": len(qs),
+                "honest_note": "no embedding model in this runtime — demo-warm is a "
+                               "no-op (FTS5/lexical query path is unaffected)"}
+    warmed = 0
+    for q in qs:
+        if q in _DEMO_WARM_CACHE:
+            continue
+        try:
+            _DEMO_WARM_CACHE[q] = fn(q)
+            warmed += 1
+        except Exception:
+            continue
+    return {"ok": True, "warmed": warmed, "cached": len(_DEMO_WARM_CACHE),
+            "total": len(qs)}
+
+
+def warm_query_vector(q: str) -> list[float] | None:
+    """Return the cached embedding for a demo query if it was pre-warmed, else None.
+    Callers may use this to skip a cold encode; query() does not depend on it."""
+    return _DEMO_WARM_CACHE.get(q)
+
+
 # --------------------------------------------------------------------------- #
 # FULL SZL CORPUS INGEST (founder mandate) — real GitHub + HF Spaces ingestion,
 # a labeled synchronous seed index, and a receipted background/refresh build.
