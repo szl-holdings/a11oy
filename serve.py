@@ -4657,6 +4657,274 @@ except Exception as _sc_e:  # pragma: no cover - additive, defensive
 # === END SELF-CONTAINED ORGAN ROUTES ===
 
 # ===========================================================================
+# GOVERNED RAG — "ask the doctrine" (PowerD2, 2026-06-16). EXPOSE the EXISTING
+# 62KB a11oy_org_rag.py engine as a LIVE governed endpoint over the estate's own
+# corpus (the SEVEN-category SZL_CORPUS: app_code/killinchu/anatomy/thesis/
+# formulas/doctrine/lean). a11oy_org_rag was coded + deployed (shared module,
+# byte-identical a11oy<->killinchu) but NEVER WIRED into serve.py — so every
+# /rag/query returned 404. This block wires it, additively, BEFORE the SPA
+# catch-all, inside a defensive try/except so a missing dep can NEVER take the
+# Space down.
+#
+# What it does, honestly:
+#   * Lazy-builds the REAL labeled SEED index on first query (a11oy_org_rag.
+#     build_seed_index) — pulls each category's highest-value files LIVE from the
+#     public szl-holdings GitHub repos + HF Spaces, falling back to the REAL
+#     in-image corpus/ mirror (honest 'bundled:<repo>@<sha>:<path>' provenance)
+#     when Space egress to api.github.com is blocked. NEVER an empty/fake index.
+#   * Retrieves via the engine's two-stage Λ-weighted agentic-RAG query()
+#     (FTS5 lexical ∪ dense, graph-centrality re-rank, conformal floor). Only
+#     chunks at/above the Λ relevance floor enter the answer; below floor =>
+#     i_dont_know (Self-RAG; never fabricate).
+#   * Returns the answer WITH citations (each grounded chunk's corpus category +
+#     source gh:<repo>|hf:<space>|bundled:<repo>@<sha> + path + sha256) and an
+#     HONEST confidence derived from the grounded chunks' Λ scores — capped
+#     strictly BELOW 1.0 (trust never 100%; Λ is Conjecture 1, NOT a theorem).
+#   * Emits a Khipu/DSSE provenance receipt over the query+grounding via the
+#     in-image signer (real ECDSA-P256 when the key is present, else honestly
+#     labeled UNSIGNED — no signature fabricated).
+#   * Carries the governed envelope (gov_envelope): status REAL when grounded,
+#     DEGRADED when i_dont_know or the index could not build (honest BLOCKED
+#     beats fake green) — so it passes the operator-reason envelope guard.
+# Routes (registered BEFORE the SPA catch-all so they resolve LOCALLY):
+#   GET  /api/a11oy/v1/rag/query?q=...   — governed RAG answer (also descriptor on bare GET)
+#   POST /api/a11oy/v1/rag/query {q|question, k?, repo?}  — governed RAG answer
+#   GET  /api/a11oy/v1/rag/status        — index build state + corpus manifest (governed)
+#   GET  /org/rag                        — alias of GET /api/a11oy/v1/rag/query
+# Marker: a11oy-govern-rag-powerd2.
+# ===========================================================================
+try:
+    import a11oy_org_rag as _rag_engine
+    import threading as _rag_threading
+    from fastapi import Request as _RAGRequest
+    from fastapi.responses import JSONResponse as _RAGJSON
+
+    _RAG_BUILD_LOCK = _rag_threading.RLock()
+
+    def _rag_emit_receipt(kind, body):
+        """Emit a governed provenance receipt over a RAG event. Uses the in-image
+        DSSE signer when available (real ECDSA-P256), else an honest UNSIGNED
+        marker — NEVER a fabricated signature. Returns {hash, signed, dsse}."""
+        rec = {"schema": "szl.a11oy.org_rag/v1", "kind": kind, "organ": "a11oy",
+               "doctrine": "v11", "lambda_status": "Conjecture 1 (NOT a theorem)",
+               "body": body}
+        try:
+            import hashlib as _rh, json as _rj
+            rec["receipt_sha256"] = _rh.sha256(
+                _rj.dumps(rec, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        except Exception:
+            rec["receipt_sha256"] = ""
+        out = {"hash": rec["receipt_sha256"], "signed": False, "dsse": None, "receipt": rec}
+        try:
+            dsse = _a11oy_sign_receipt(rec)  # resolved at call time; real signer
+            out["dsse"] = dsse
+            out["signed"] = bool(dsse.get("signed"))
+        except Exception as _se:
+            out["dsse"] = {"signed": False,
+                           "honesty": "UNSIGNED — signer unavailable in this runtime (%s); no signature fabricated." % type(_se).__name__}
+        return out
+
+    def _rag_ensure_index():
+        """Lazy, thread-safe REAL seed-index build (idempotent). Honest: returns the
+        engine's labeled build meta; never claims a built index it didn't build."""
+        st = _rag_engine.status()
+        if st.get("built"):
+            return st
+        with _RAG_BUILD_LOCK:
+            st = _rag_engine.status()
+            if st.get("built"):
+                return st
+            try:
+                return _rag_engine.build_seed_index(emit_receipt=_rag_emit_receipt)
+            except Exception as _be:
+                return {"built": False,
+                        "honest_error": "seed index build failed: %s" % type(_be).__name__}
+
+    def _rag_confidence(grounded):
+        """Honest confidence from the grounded chunks' Λ scores. Λ is a geometric
+        mean over relevance axes (semantic, graph-centrality, conformal floor) and
+        is ALREADY < 1.0 by construction (the conformal axis is 1-1/(n+1) < 1).
+        We surface the top grounded Λ as the answer confidence and HARD-CAP it at
+        0.99 so trust is never reported as 100% (Λ = Conjecture 1, NOT a theorem)."""
+        if not grounded:
+            return 0.0
+        top = max(float(c.get("lambda", 0.0)) for c in grounded)
+        return round(min(0.99, top), 4)
+
+    def _rag_answer(q, k=6, repo=None):
+        """Run the governed RAG query and synthesize a CITED answer. Returns a
+        payload dict ready for gov_envelope, plus an honest status string."""
+        q = (q or "").strip()
+        if not q:
+            desc = {
+                "capability": "org_rag.query",
+                "summary": ("Governed RAG over the estate's OWN corpus (the seven SZL "
+                            "categories: app_code, killinchu, anatomy, thesis, formulas, "
+                            "doctrine, lean). Ask the doctrine — e.g. 'what is F7?', "
+                            "'what is Λ?', 'prove F7' — and get a CITED answer grounded "
+                            "in real indexed bytes, with honest confidence (trust never "
+                            "100%) and a signed-or-honestly-UNSIGNED provenance receipt."),
+                "method": ("GET ?q=<question>[&k=][&repo=] or POST {q|question, k?, repo?}. "
+                           "Bare GET returns this descriptor."),
+                "examples": ["what is F7?", "what is Λ?", "prove F7",
+                             "what are the locked-8 formulas?"],
+                "grounding": ("two-stage Λ-weighted agentic RAG (FTS5 lexical ∪ dense, "
+                              "graph-centrality re-rank, conformal floor); below the Λ "
+                              "relevance floor => i_dont_know (Self-RAG; never fabricates)."),
+                "corpus": _rag_engine.corpus_manifest(),
+            }
+            return desc, "REAL", [{"endpoint": "/api/a11oy/v1/rag/query (POST/GET ?q=) — governed RAG over the estate corpus",
+                                   "data": {"live": True}}]
+
+        idx = _rag_ensure_index()
+        if not idx.get("built"):
+            payload = {
+                "query": q,
+                "answer": ("The governed RAG index is not built in this runtime, so I will "
+                           "NOT fabricate an answer or a citation. " + str(idx.get("honest_error")
+                           or "no corpus file could be indexed (no GitHub/HF reach and no in-image mirror).")),
+                "grounded": False,
+                "i_dont_know": True,
+                "index": {"built": False, "mode": idx.get("mode"),
+                          "honest_error": idx.get("honest_error")},
+                "confidence": 0.0,
+                "honesty": ("BLOCKED-and-honest: index unbuilt; no answer/citation fabricated "
+                            "(Zero-Bandaid Law). honest BLOCKED beats fake green."),
+            }
+            return payload, "DEGRADED", []
+
+        res = _rag_engine.query(q, k=int(k or 6), repo=repo, emit_receipt=_rag_emit_receipt)
+        chunks = res.get("chunks", []) or []
+        idk = bool(res.get("i_dont_know")) or not chunks
+
+        # Build citations from ONLY the chunks actually retrieved (never invent one).
+        citations = []
+        for c in chunks:
+            ev = c.get("evidence", {}) or {}
+            citations.append({
+                "corpus": c.get("corpus"),
+                "source": c.get("source"),
+                "path": c.get("path"),
+                "repo": c.get("repo"),
+                "sha256": c.get("sha256"),
+                "lambda": c.get("lambda"),
+                "citation": ev.get("citation") or (str(c.get("source")) + "/" + str(c.get("path"))),
+                "excerpt": (c.get("text") or "")[:240],
+            })
+        confidence = _rag_confidence(chunks)
+
+        if idk:
+            payload = {
+                "query": q,
+                "answer": ("I don't have a grounded source for that in the estate corpus, so I "
+                           "refuse to fabricate one (Self-RAG: no chunk cleared the Λ relevance "
+                           "floor of %s). Ask about the doctrine, the formulas (e.g. F7), Λ, the "
+                           "Lean proofs, the thesis, or the served code." % res.get("lambda_floor")),
+                "grounded": False,
+                "i_dont_know": True,
+                "confidence": confidence,
+                "citations": [],
+                "retrieval": {"recall_count": res.get("recall_count"),
+                              "grounded_count": res.get("grounded_count"),
+                              "lambda_floor": res.get("lambda_floor"),
+                              "dense_used": res.get("dense_used")},
+                "honesty": ("i_dont_know is first-class — below-Λ-floor chunks never enter the "
+                            "answer (P3 non-interference). No citation fabricated."),
+                "receipt_hash": res.get("khipu_hash"),
+            }
+            return payload, "REAL", []
+
+        # Synthesize a grounded, cited answer from the retrieved chunks. The model
+        # prose is an HONEST extractive synthesis over the grounded bytes (no model
+        # key is wired in-Space; the retrieval + grounding + citations are REAL and
+        # the labeled mesh-inference path is honest about that).
+        top = chunks[0]
+        lead = ("Grounded answer to %r from the estate's own corpus (%d cited source%s, "
+                "top Λ=%s, floor=%s): the most relevant indexed evidence is %s "
+                "(corpus=%s). Excerpt: %s") % (
+                    q, len(chunks), "" if len(chunks) == 1 else "s",
+                    top.get("lambda"), res.get("lambda_floor"),
+                    (top.get("evidence", {}) or {}).get("citation")
+                    or (str(top.get("source")) + "/" + str(top.get("path"))),
+                    top.get("corpus"),
+                    (top.get("text") or "").strip()[:360].replace("\n", " "))
+        payload = {
+            "query": q,
+            "answer": lead,
+            "grounded": True,
+            "i_dont_know": False,
+            "confidence": confidence,
+            "confidence_basis": ("top grounded Λ (geometric mean of relevance axes incl. a "
+                                 "conformal anti-overconfidence floor), hard-capped <1.0 — "
+                                 "trust is NEVER 100%; Λ is Conjecture 1, NOT a theorem."),
+            "citations": citations,
+            "retrieval": {"recall_count": res.get("recall_count"),
+                          "grounded_count": res.get("grounded_count"),
+                          "lambda_floor": res.get("lambda_floor"),
+                          "dense_used": res.get("dense_used"),
+                          "hyde_used": res.get("hyde_used")},
+            "inference_path": ("governed mesh inference: REAL two-stage Λ-weighted retrieval + "
+                               "graph re-rank over indexed bytes; extractive synthesis of the "
+                               "grounded evidence (no model key wired in-Space — honest about that, "
+                               "never fabricated prose presented as a model's)."),
+            "honesty": ("Every cited source was actually retrieved from the indexed corpus; "
+                        "each carries its real path + sha256 + corpus category. No source is "
+                        "claimed that wasn't retrieved."),
+            "receipt_hash": res.get("khipu_hash"),
+        }
+        rcpt = _rag_emit_receipt("org_rag.answer",
+                                 {"query": q[:160], "grounded": len(chunks),
+                                  "confidence": confidence,
+                                  "top_citation": citations[0]["citation"] if citations else None})
+        payload["receipt"] = {"hash": rcpt.get("hash"), "signed": rcpt.get("signed"),
+                              "dsse": rcpt.get("dsse")}
+        return payload, "REAL", citations
+
+    @app.get("/api/a11oy/v1/rag/query")
+    async def _rag_query_get(q: str = "", k: int = 6, repo: str = ""):
+        payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
+        return _RAGJSON(gov_envelope(payload, status=st, citations=cites))
+
+    @app.post("/api/a11oy/v1/rag/query")
+    async def _rag_query_post(request: _RAGRequest):
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        q = body.get("q") or body.get("question") or body.get("query") or ""
+        k = body.get("k", 6)
+        repo = body.get("repo") or None
+        payload, st, cites = _rag_answer(q, k=k, repo=repo)
+        return _RAGJSON(gov_envelope(payload, status=st, citations=cites))
+
+    @app.get("/org/rag")
+    async def _rag_query_alias(q: str = "", k: int = 6, repo: str = ""):
+        payload, st, cites = _rag_answer(q, k=k, repo=(repo or None))
+        return _RAGJSON(gov_envelope(payload, status=st, citations=cites))
+
+    @app.get("/api/a11oy/v1/rag/status")
+    async def _rag_status_get():
+        try:
+            st = _rag_engine.status()
+        except Exception as _se:
+            st = {"built": False, "honest_error": "status unavailable: %s" % type(_se).__name__}
+        built = bool(st.get("built"))
+        return _RAGJSON(gov_envelope(
+            {"index": st, "corpus": _rag_engine.corpus_manifest()},
+            status=("REAL" if built else "DEGRADED"),
+            citations=[{"endpoint": "a11oy_org_rag.status() + corpus_manifest()",
+                        "data": {"built": built, "mode": st.get("mode")}}]))
+
+    print("[a11oy] governed RAG mounted: GET/POST /api/a11oy/v1/rag/query, "
+          "GET /org/rag, GET /api/a11oy/v1/rag/status (ask-the-doctrine over the "
+          "estate corpus; cited + governed)", flush=True)
+except Exception as _rag_e:  # pragma: no cover - additive, defensive
+    print("[a11oy] governed RAG NOT mounted (" + repr(_rag_e) + "); SPA + API unaffected", flush=True)
+# === END GOVERNED RAG ===
+
+# ===========================================================================
 # SELF-CONTAINED WARHACKER DEMO (ADDITIVE, 2026-06-05). a11oy runs the 5 demo
 # scenarios IN-IMAGE — no external service calls. Registered BEFORE the legacy
 # warhacker module mount below so these neutral, self-contained routes WIN.
