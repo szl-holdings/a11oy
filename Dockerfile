@@ -161,6 +161,11 @@ COPY szl_orbital_topology.py szl_orbital_projection.py ./
 # vendor3d three.js COPY'd below). MUST be per-file COPY'd or /orbital falls back to the
 # SPA catch-all (white screen / no orbital surface).
 COPY a11oy_orbital_page.py ./
+# Frontier manifest — imported by serve.py (guarded). MUST be per-file COPY'd (this
+# Dockerfile uses no `COPY . .`) or the import falls back and /api/a11oy/v1/frontier/
+# manifest 404s live. Composes in-process from already-COPY'd surfaces (szl_energy_*,
+# szl_uds_fleet, szl_orbital_*, szl_backend_hardening, szl_restraint) — no new deps.
+COPY szl_frontier_manifest.py ./
 # K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
