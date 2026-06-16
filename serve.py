@@ -324,6 +324,26 @@ try:
 except Exception as _szl_el_e:  # pragma: no cover
     print(f"[a11oy] Energy ledger NOT registered: {_szl_el_e!r}", file=__import__("sys").stderr)
 
+# -- Energy OPERATOR -> LEDGER WIRING (the demo's CORE: every governed job mints a
+# signed, hash-chained receipt) -- REGRESSION RESTORE. The operator and the ledger
+# were each registered above but the subscription connecting the operator's completed-
+# job emit stream to the ledger's receipt-minter was lost in the same serve.py mesh
+# refactor that dropped the routes. Result: jobs MEASURED but receipt_chain depth 0.
+# This subscribes the ledger's record_job to the running OperatorDaemon so each
+# completed job mints a JouleCharge receipt into the durable chain in real time. The
+# subscription is in place BEFORE the boot autostart presses play (below), so no job
+# is missed; wire_operator_to_ledger is idempotent (sentinel-guarded, won't double-
+# subscribe) and the ledger de-dupes by idempotency_key (won't double-mint), so it is
+# safe to call here and cannot crash startup. See [[serve-route-regression-guard]].
+try:
+    import szl_energy_operator as _szl_eo_wire
+    import szl_energy_ledger as _szl_el_wire
+    _eo_op = _szl_eo_wire.get_operator()
+    _wire_report = _szl_el_wire.wire_operator_to_ledger(_eo_op)
+    print(f"[a11oy] Energy operator->ledger wired: {_wire_report}", file=__import__("sys").stderr)
+except Exception as _szl_wire_e:  # pragma: no cover
+    print(f"[a11oy] Energy operator->ledger NOT wired: {_szl_wire_e!r}", file=__import__("sys").stderr)
+
 # -- Energy PROJECTION (honest measured-rate 1-day + scale projection) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/energy/projection?window=running is the projection surface the
 # /energy tab consumes. Its registration was dropped during a serve.py mesh refactor

@@ -205,6 +205,48 @@ def test_wiring_idempotent_no_double_append(monkeypatch):
         assert len(op._subscribers) == 1, op._subscribers
 
 
+def test_serve_singleton_wiring_emits_receipt_chain_ok(monkeypatch):
+    # Mirrors the serve.py boot wiring EXACTLY: wire_operator_to_ledger(get_operator())
+    # with NO explicit ledger arg, so the subscription binds the module-level singleton
+    # ledger. Asserts that when the operator emits a completed job, a receipt appears in
+    # the singleton ledger AND the hash chain stays intact (links_intact true) — the
+    # demo's core "measured AND cryptographically receipted" proof, end to end.
+    with tempfile.TemporaryDirectory() as d:
+        # Point the singleton ledger at a fresh temp file (clean genesis for the test) and
+        # reset the lazily-built singletons so this test is hermetic.
+        monkeypatch.setenv("SZL_ENERGY_LEDGER_PATH", os.path.join(d, "singleton.jsonl"))
+        monkeypatch.setattr(LED, "_LEDGER", None, raising=False)
+        monkeypatch.setattr(LED, "DEFAULT_LEDGER_PATH", os.path.join(d, "singleton.jsonl"),
+                            raising=False)
+
+        node = _FakeNode()
+        base = node.start()
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                               state_path=os.path.join(d, "op.json"),
+                               allow_stub=False)
+        monkeypatch.setattr(OP, "_OPERATOR", op, raising=False)
+        assert OP.get_operator() is op
+
+        # The serve.py call: singleton operator wired to the singleton ledger.
+        report = LED.wire_operator_to_ledger(OP.get_operator())
+        assert report["subscribed"] is True, report
+
+        led = LED.get_ledger()
+        before = led.verify()["length"]
+        op.run_once()  # emits generate+embed jobs to the live subscription
+        n = op.status()["jobs_done"]
+        assert n > 0, op.status()
+
+        chain = led.verify()
+        assert chain["length"] == before + n, (chain, before, n)
+        assert chain["ok"] is True, chain
+        assert chain["links_intact"] is True, chain
+        assert chain["receipts_intact"] is True, chain
+        assert led.totals()["jobs"] >= n, led.totals()
+        monkeypatch._fake_node = node
+
+
 def test_record_job_none_joules_does_not_crash():
     # The exact shape the operator emits for a non-billable job: joules_measured=None.
     # record_job must NOT raise (the operator's emit loop swallows exceptions, so a
