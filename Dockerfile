@@ -198,6 +198,13 @@ COPY a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py ./
 # nav injector. MUST be COPY'd or serve.py's guarded imports fall back (merged-but-
 # not-live) AND hf-sync-backend would not mirror them. Per-file COPY (no COPY . .).
 COPY szl_mbse_cosim.py szl_mbse_nav.py ./
+# SWEEP D2 — MBSE + Factory honest STATUS surfaces. szl_mbse.py serves the
+# honest LIVE /api/a11oy/v1/mbse/{status,models} over the real szl_mbse_cosim
+# substance (+ wires its /info,/watertank,/sixdof,/pipeline). szl_factory.py
+# serves /api/a11oy/v1/factory/status over the real a11oy_factory engine +
+# agentic brain. MUST be COPY'd or serve.py's guarded imports fall back
+# (merged-but-not-live) AND hf-sync would not mirror them. Per-file COPY.
+COPY szl_mbse.py szl_factory.py ./
 # WILLAY — governed inverse of Fable 5 / Mythos 5 (safety verdicts signed & shown).
 # szl_willay_gateway.py serves /willay + /api/a11oy/v1/willay/*; a11oy_willay_nav.py
 # attaches the idempotent /console nav injector. MUST be COPY'd or serve.py's guarded
