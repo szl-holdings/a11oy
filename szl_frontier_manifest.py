@@ -296,33 +296,63 @@ def _tile_governance() -> dict:
 def _concept_tile_inference_provenance() -> dict:
     """#1 frontier play — composite inference-provenance receipt (the inference-side C2PA).
 
-    NOW LIVE. The capstone surface szl_provenance_receipt composes, by CALLING the
-    already-live surfaces in-process, ONE signed Khipu envelope binding every guarantee
-    for a single governed action (immune verdict + PAC-Bayes bound + MEASURED/MODELED/
-    SAMPLE energy label + governed model identity + Lean backing). This tile pulls a
-    REAL composite IN-PROCESS and surfaces its digest + per-part labels. Honesty held:
-    each sub-guarantee KEEPS its own label (never upgraded); the composite SIGNATURE is
-    the honest DSSE_PLACEHOLDER (cosign founder-gated, never faked). If the capstone
-    module is unreachable, this tile degrades to an honest ROADMAP/UNAVAILABLE — it
-    NEVER fabricates a composite."""
+    LIVE capability, surfaced by READING the shared provenance Khipu chain — this tile
+    NEVER mints a receipt. The capstone surface szl_provenance_receipt composes ONE signed
+    Khipu envelope binding every guarantee for a single governed action (immune verdict +
+    PAC-Bayes bound + MEASURED/MODELED/SAMPLE energy label + governed model identity + Lean
+    backing) — but a receipt is signed ONLY when a real governed action POSTs
+    /provenance/receipt, never just because someone loaded this page. Here we READ the
+    chain head (depth + most-recent composite digest, if any) and re-verify chain
+    integrity, so the tile honestly DESCRIBES the capability and points to where the real
+    artifacts live (/provenance/receipt + the energy ledger) without growing the chain.
+    Honesty held: a GET does not fabricate or mint a composite; if no composite exists yet
+    the tile says so honestly (ROADMAP, awaiting first real action)."""
+    import szl_khipu
     import szl_provenance_receipt as pr
-    env = pr.build_composite({
-        "action": {"cmd": "frontier-manifest composite-receipt liveness probe"},
-        "family": "oxides",
-        "request_id": "frontier-manifest-probe",
-    })
-    # The composite is REAL only because each part is real — read the parts honestly.
-    label_summary = env.get("label_summary", {}) or {}
-    khipu = env.get("khipu", {}) or {}
+
+    # READ-ONLY: inspect the shared provenance chain. No emit/build_composite here.
+    dag = szl_khipu.get_dag(pr._KHIPU_ORGAN, ns="a11oy")
+    chain = dag.verify_chain()
+    depth = dag.depth()
+    head = dag.head()
+    # Most-recent composite digest already on the chain (a READ, never a mint).
+    last_composite = None
+    for r in reversed(dag.tail(depth or 1)):
+        if r.get("action") == "provenance.composite":
+            last_composite = r.get("digest")
+            break
+
+    minted = last_composite is not None
+    if minted:
+        status = (f"LIVE ({depth} signed receipts on the provenance chain; latest composite "
+                  "binds immune verdict + PAC-Bayes bound + energy label + governed model "
+                  "identity + Lean backing). Receipts mint ONLY on a real POST, never on a GET.")
+        label = MEASURED
+        note = ("inference-side C2PA, LIVE: each composite is a single signed Khipu envelope "
+                "composing the REAL immune verdict, the PAC-Bayes bound (ROADMAP Lean), the "
+                "MEASURED/MODELED/SAMPLE energy label, the governed model identity, and the "
+                "exact Lean backing. Each part KEEPS its own label; no label is upgraded; the "
+                "signature is the honest DSSE_PLACEHOLDER. This tile READS the chain — it does "
+                "NOT mint a receipt per page view. POST the endpoint to mint one for a real "
+                "action, then GET it back by digest.")
+    else:
+        status = ("ROADMAP (capability wired; no composite minted yet this process — a signed "
+                  "composite is created ONLY when a real governed action POSTs the endpoint)")
+        label = ROADMAP
+        note = ("inference-side C2PA capability is wired but no composite has been minted in "
+                "this process yet. A signed composite is created ONLY on a real POST to "
+                "/provenance/receipt (immune verdict + PAC-Bayes bound + energy label + "
+                "governed model identity + Lean backing) — never fabricated, never minted by "
+                "loading this manifest.")
+
     return _tile(
         "Composite inference-provenance receipt", "frontier-concept",
-        status=("LIVE (one signed Khipu envelope binds immune verdict + PAC-Bayes bound "
-                "+ energy label + governed model identity + Lean backing for one action)"),
-        label=MEASURED,
+        status=status, label=label,
         provenance={
-            "kind": "LIVE composite — composed in-process by CALLING the live surfaces; "
-                    "signed into the shared provenance Khipu chain (signature = honest "
-                    "DSSE_PLACEHOLDER, cosign founder-gated)",
+            "kind": "composite composed in-process by CALLING the live surfaces and signed "
+                    "into the shared provenance Khipu chain (signature = honest "
+                    "DSSE_PLACEHOLDER, cosign founder-gated); this manifest tile READS the "
+                    "chain head and NEVER mints a receipt per page view",
             "endpoint": f"{_API}/provenance/receipt",
             # Composite receipts live in the shared szl_khipu `provenance` organ, so a
             # judge can re-verify a composite digest TWO honest ways: the composite
@@ -330,23 +360,21 @@ def _concept_tile_inference_provenance() -> dict:
             # verifier (recomputes the SHA3-256 seal + re-walks prev-links to genesis).
             "verify": f"{_API}/provenance/receipt/{{digest}}",
             "verify_universal": _KHIPU_VERIFY_PATH,
-            "receipt_type": env.get("receipt_type"),
-            "composite_digest": env.get("digest"),
-            "chain_verified": khipu.get("chain_verified"),
+            "ledger": f"{_API}/energy/ledger",
+            "receipt_type": pr._RECEIPT_TYPE,
+            "latest_composite_digest": last_composite,
+            "chain_head": head,
+            "chain_verified": chain.get("ok"),
             "composes_measured": f"{_API}/immune/verdict (REAL fail-closed gate) + the "
                                  "MEASURED energy joule-truth path",
             "composes_roadmap": f"{_API}/materials/certify (PAC-Bayes bound; Lean SORRY/ROADMAP)",
         },
-        # A REAL composite artifact IS now minted + signed (per part keeps its own label).
-        on_artifact_minted=True,
-        composite_digest=env.get("digest"),
-        chain_verified=khipu.get("chain_verified"),
-        part_labels=label_summary,
-        note=("inference-side C2PA, now LIVE: a single signed Khipu envelope composing the "
-              "REAL immune verdict, the PAC-Bayes bound (ROADMAP Lean), the MEASURED/MODELED/"
-              "SAMPLE energy label, the governed model identity, and the exact Lean backing. "
-              "Each part KEEPS its own label; no label is upgraded; the signature is the "
-              "honest DSSE_PLACEHOLDER. POST the endpoint above and GET it back by digest."),
+        # READ facts straight off the chain — this tile mints nothing on a GET.
+        on_artifact_minted=minted,
+        composite_digest=last_composite,
+        chain_ok=chain.get("ok"),
+        chain_length=depth,
+        note=note,
     )
 
 
@@ -370,7 +398,28 @@ _TILE_SPECS: list[tuple[Callable[[], dict], str, str, dict]] = [
 ]
 
 
-def build_manifest() -> dict:
+# Short-TTL cache for the composed manifest — the SAME TTLCache helper the fabric tile
+# uses (szl_backend_hardening). A GET serves the last real composition for the TTL window
+# instead of re-walking every tile; the cache only ever holds real producer output and
+# injects a `cached_at` ISO stamp so a reader sees exactly how fresh it is.
+_MANIFEST_TTL = 20.0  # seconds
+
+
+def _manifest_cache():
+    """Lazily build (and memoize) the module-level manifest TTLCache.
+
+    Reuses szl_backend_hardening.TTLCache. Lazy so importing this module never hard-
+    depends on the helper at import time (the manifest still works if it is absent —
+    see build_manifest's fallback)."""
+    cache = getattr(_manifest_cache, "_cache", None)
+    if cache is None:
+        import szl_backend_hardening as bh
+        cache = bh.TTLCache(ttl=_MANIFEST_TTL)
+        _manifest_cache._cache = cache  # type: ignore[attr-defined]
+    return cache
+
+
+def _build_manifest() -> dict:
     """Compose the live manifest. 200 with surviving tiles even if a sub-source is down."""
     tiles: list[dict] = []
     for fn, name, category, prov in _TILE_SPECS:
@@ -434,6 +483,19 @@ def build_manifest() -> dict:
         "capabilities": tiles,
         "timestamp_utc": _now_iso(),
     }
+
+
+def build_manifest() -> dict:
+    """Cached entrypoint: serve the last real composition for _MANIFEST_TTL seconds.
+
+    A GET re-walks every tile at most once per TTL window; within it the prior real
+    manifest is returned verbatim (with a `cached_at` stamp). The cache is honest — it
+    only ever holds the output of a real _build_manifest() call. If the TTL helper is
+    unavailable for any reason, fall back to composing fresh (correctness over caching)."""
+    try:
+        return _manifest_cache().get_or_compute(_build_manifest)
+    except Exception:  # noqa: BLE001 — caching is an optimization, never a correctness gate
+        return _build_manifest()
 
 
 def handle_manifest() -> dict:
@@ -507,18 +569,27 @@ if __name__ == "__main__":
     assert orb.get("reachable_nodes", 0) == 0, "orbital reachable_nodes must be 0 (no hardware)"
     print("[3] orbital tile MODELED, on_orbit_hardware=False, reachable_nodes=0  OK")
 
-    # 4) the #1 frontier composite is now LIVE/MEASURED: it mints a REAL signed
-    #    composite (chain_verified) while each composed PART keeps its own label.
+    # 4) the #1 frontier composite tile READS the provenance chain; it NEVER mints a
+    #    receipt on a manifest GET. A fresh process has an empty provenance chain, so the
+    #    tile is honestly ROADMAP / no-artifact; building the manifest must not grow it.
+    import szl_khipu as _kh
+    import szl_provenance_receipt as _pr
+    _prov = _kh.get_dag(_pr._KHIPU_ORGAN, ns="a11oy")
+    _before = _prov.depth()
+    _ = build_manifest()  # second compose — must still not mint
+    _after = _prov.depth()
+    assert _after == _before, (
+        f"manifest GET must NOT mint a provenance receipt (chain grew {_before}->{_after})")
     concept = next(t for t in tiles if t["category"] == "frontier-concept")
-    assert concept["label"] == MEASURED, "composite receipt is now LIVE/MEASURED"
-    assert concept.get("on_artifact_minted") is True, "a REAL composite artifact is minted + signed"
-    assert concept.get("composite_digest"), "composite must carry its signed Khipu digest"
-    assert concept.get("chain_verified") is True, "composite Khipu chain must verify"
-    parts = concept.get("part_labels", {}) or {}
-    # No label is upgraded: the PAC-Bayes part stays ROADMAP inside the LIVE composite.
-    assert parts.get("pac_bayes_bound") == ROADMAP, "PAC-Bayes part must stay ROADMAP (no upgrade)"
-    print("[4] composite inference-provenance receipt = LIVE/MEASURED, signed artifact minted, "
-          "parts keep their own labels (PAC-Bayes stays ROADMAP)  OK")
+    assert concept["label"] in (ROADMAP, MEASURED), concept["label"]
+    # On a fresh process (empty chain) the tile is honestly ROADMAP with no artifact.
+    if _before == 0:
+        assert concept["label"] == ROADMAP, "empty chain -> honest ROADMAP, no fabricated artifact"
+        assert concept.get("on_artifact_minted") is False, "no composite minted by a GET"
+        assert concept.get("composite_digest") is None, "no digest fabricated on a GET"
+    assert concept["provenance"].get("chain_verified") is True, "provenance chain must verify"
+    print(f"[4] composite tile READS the chain (no mint on GET); chain depth stable "
+          f"{_before}=={_after}, label={concept['label']}  OK")
 
     # 5) labels legend + summary present; degraded tiles (if any) reported honestly
     assert "labels_legend" in m and "summary" in m
