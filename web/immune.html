@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Immune (Hukulla) — fail-closed egress gate · SZL Holdings</title>
+<meta name="description" content="Live, honest view of the Immune organ (Quechua role 'Hukulla') — a fail-closed, deny-by-default egress gate. Real threat-signature scan + 1 MB size guard + Lambda-gate floor, every verdict signed into the shared Khipu chain. Lean backing: ImmuneNeymanPearsonOpt + FrontierWelfordVariance. Lambda = Conjecture 1; Khipu = Conjecture 2; trust never 100%."/>
+<!-- 0 runtime CDN (doctrine v11): system fonts only — no Google Fonts, no external assets. -->
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
+  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --display:ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.kv{font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.9;margin-top:.5rem;}
+.kv .k{color:var(--dim);display:inline-block;min-width:150px;}
+.kv .v{color:var(--cream);}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:.18rem .5rem;border-radius:5px;border:1px solid var(--gold-line);}
+.pill.green{color:var(--green);border-color:rgba(57,217,138,.4);background:rgba(57,217,138,.08);}
+.pill.yellow{color:var(--yellow);border-color:rgba(245,196,81,.4);background:rgba(245,196,81,.08);}
+.pill.red{color:var(--red);border-color:rgba(255,106,90,.4);background:rgba(255,106,90,.08);}
+.pill.dim{color:var(--muted);}
+.simnote{border:1px solid var(--warn);background:rgba(201,160,95,.06);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:#d8c39a;line-height:1.65;}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;margin-top:.5rem;}
+th,td{text-align:left;padding:.34rem .5rem;border-bottom:1px solid var(--gold-soft);color:var(--paragraph);vertical-align:top;}
+th{color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-size:9.5px;}
+td.deny{color:var(--red);}td.allow{color:var(--green);}
+textarea,input{width:100%;background:var(--panel2);border:1px solid var(--gold-line);border-radius:7px;color:var(--cream);font-family:var(--mono);font-size:12.5px;padding:.6rem .7rem;resize:vertical;}
+textarea:focus,input:focus{outline:none;border-color:var(--teal-line);}
+button.run{margin-top:.6rem;padding:.55rem 1.1rem;border-radius:7px;border:1px solid var(--teal-line);background:var(--teal-soft);color:var(--teal);font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:.15s;}
+button.run:hover{background:rgba(95,179,163,.18);color:var(--cream);}
+.preset{display:inline-block;margin:.3rem .3rem 0 0;padding:.2rem .5rem;border-radius:5px;border:1px solid var(--gold-line);color:var(--muted);font-family:var(--mono);font-size:10.5px;cursor:pointer;}
+.preset:hover{color:var(--cream);border-color:var(--teal-line);}
+.verdict-box{margin-top:.8rem;border:1px solid var(--gold-line);border-radius:8px;padding:.85rem 1rem;background:var(--panel2);font-family:var(--mono);font-size:12px;line-height:1.8;}
+.verdict-box.deny{border-color:rgba(255,106,90,.5);}
+.verdict-box.allow{border-color:rgba(57,217,138,.5);}
+.sig{display:inline-block;margin:.15rem .3rem .15rem 0;padding:.12rem .45rem;border-radius:4px;border:1px solid rgba(255,106,90,.4);background:rgba(255,106,90,.08);color:var(--red);font-size:10.5px;}
+.digest{color:var(--gold);word-break:break-all;}
+code{font-family:var(--mono);color:var(--teal);}
+.footnote{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:1.6rem;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span>
+  <span class="live"><span class="live-dot"></span><span id="liveTag">IMMUNE · LIVE</span></span>
+  <span class="switcher">
+    <a class="flag active" href="/immune">Immune</a>
+    <a class="flag" href="/energy">Energy</a>
+    <a class="flag" href="/fleet-c2">Fleet C2</a>
+    <a class="flag" href="/living-anatomy">Living Anatomy</a>
+    <a class="flag" href="/code">Code</a>
+  </span>
+</div>
+
+<div class="wrap">
+  <h1>Immune (Hukulla) — fail-closed egress gate<span class="badge" id="organBadge">deny-by-default · real inspection · Khipu-signed</span></h1>
+  <p class="lede">
+    The <b>Immune</b> organ (Quechua role <b>Hukulla</b>) is a <b>fail-closed, deny-by-default</b> egress gate.
+    Every action is inspected against a real threat-signature corpus, a 1&nbsp;MB size guard and a
+    <b>&Lambda;-gate floor</b> (MIN of supplied trust axes &lt; 0.5 &rarr; deny). Each verdict is signed into the
+    <b>shared Khipu chain</b> (<code>SZL.Immune.Verdict.v1</code>). Proven Lean backing:
+    <code>ImmuneNeymanPearsonOpt.lean</code> (Neyman&ndash;Pearson-optimal egress) and
+    <code>FrontierWelfordVariance.lean</code> (Welford online variance). These back the gate but are
+    <b>not</b> folded into the locked-8 proven set. &Lambda; = <b>Conjecture&nbsp;1</b> (not a theorem);
+    Khipu = Conjecture&nbsp;2; trust is never 100%; effectors simulated; no fabricated data.
+  </p>
+
+  <div class="cards">
+    <div class="card"><div class="lbl">Verdicts (this process)</div><div class="big" id="cVerdicts">—</div><div class="sub" id="cVerdictsSub">resets on restart</div></div>
+    <div class="card"><div class="lbl">Deny rate</div><div class="big" id="cDenyRate">—</div><div class="sub" id="cDenySub">deny / total</div></div>
+    <div class="card"><div class="lbl">Signature corpus</div><div class="big" id="cCorpus">—</div><div class="sub" id="cCorpusSub">active signatures</div></div>
+    <div class="card"><div class="lbl">Khipu chain depth</div><div class="big" id="cChain">—</div><div class="sub" id="cChainSub">verified</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>Inspect an action <span class="meta" id="verdictEp">POST /api/a11oy/v1/immune/verdict</span></h2>
+      <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+        Submit a real action payload. The gate runs the live inspection and signs a Khipu receipt.
+        Optionally include <code>axes</code> (a JSON array of trust scores) to exercise the &Lambda;-gate floor.
+      </p>
+      <div>
+        <span class="preset" data-p='{"action":{"cmd":"rm -rf /"}}'>rm -rf /</span>
+        <span class="preset" data-p='{"action":{"q":"DROP TABLE users; --"}}'>DROP TABLE</span>
+        <span class="preset" data-p='{"action":{"html":"&lt;script&gt;alert(1)&lt;/script&gt;"}}'>&lt;script&gt; XSS</span>
+        <span class="preset" data-p='{"action":{"path":"../../etc/passwd"}}'>path traversal</span>
+        <span class="preset" data-p='{"action":{"cmd":"echo hello"}}'>echo hello (clean)</span>
+        <span class="preset" data-p='{"action":{"cmd":"read_file"},"axes":[0.9,0.3,0.8]}'>low &Lambda; axis</span>
+      </div>
+      <textarea id="actionInput" rows="6" style="margin-top:.5rem;">{"action":{"cmd":"rm -rf /"}}</textarea>
+      <button class="run" id="runBtn">Inspect &rarr; verdict</button>
+      <div id="verdictOut"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Live status <span class="meta" id="statusEp">GET /api/a11oy/v1/immune/status</span></h2>
+      <div class="kv" id="statusKv"><span class="k">loading…</span></div>
+      <div class="simnote" id="honestyNote">
+        Λ = Conjecture 1 (NOT a theorem). Khipu = Conjecture 2. Trust never 100%. Effectors simulated.
+        Decision feed is in-memory (resets on restart) — empty means IDLE, never faked.
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Gates <span class="meta" id="gatesEp">GET /api/a11oy/v1/immune/gates</span></h2>
+    <table id="gatesTable"><thead><tr><th>id</th><th>name</th><th>label</th><th>category</th><th>sample → expected</th></tr></thead><tbody><tr><td class="mono" colspan="5">loading…</td></tr></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h2>Decision feed <span class="meta" id="feedEp">GET /api/a11oy/v1/immune/feed</span></h2>
+    <table id="feedTable"><thead><tr><th>time</th><th>decision</th><th>signals</th><th>Λ</th><th>receipt</th></tr></thead><tbody><tr><td class="mono" colspan="5">loading…</td></tr></tbody></table>
+  </div>
+
+  <div class="footnote" id="leanFoot">
+    Proven Lean backing: Lutar/Wave11/ImmuneNeymanPearsonOpt.lean · Lutar/Innovations/round11/FrontierWelfordVariance.lean.
+    Locked-proven set = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17 — the immune Lean backing is cited, NOT folded in.
+    SLSA L1/L2/L3-roadmap · 0 runtime CDN. This page reads only the live /api/a11oy/v1/immune/* endpoints.
+  </div>
+</div>
+
+<script>
+const BASE = "/api/a11oy/v1/immune";
+async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+async function loadStatus(){
+  const s = await getJSON(BASE + "/status");
+  const kv = document.getElementById("statusKv");
+  if(!s){kv.innerHTML='<span class="k">status</span><span class="v">unreachable — retrying</span>';return;}
+  document.getElementById("cVerdicts").textContent = (s.verdicts_this_process ?? 0);
+  document.getElementById("cDenyRate").textContent = (s.deny_rate==null?"—":(Math.round(s.deny_rate*1000)/10)+"%");
+  document.getElementById("cDenySub").textContent = (s.deny ?? 0)+" deny / "+(s.allow ?? 0)+" allow";
+  document.getElementById("cCorpus").textContent = (s.signature_corpus_size ?? "—");
+  document.getElementById("cCorpusSub").textContent = (s.threats_corpus_total ?? 0)+" STIX/MITRE in corpus";
+  const k = s.khipu||{};
+  document.getElementById("cChain").textContent = (k.chain_depth ?? "—");
+  document.getElementById("cChainSub").textContent = (k.chain_verified? "chain verified":"unverified");
+  kv.innerHTML =
+    '<div><span class="k">organ</span><span class="v">'+esc(s.organ||"Immune (Hukulla)")+'</span></div>'+
+    '<div><span class="k">role</span><span class="v">'+esc(s.role||"")+'</span></div>'+
+    '<div><span class="k">Λ-gate floor</span><span class="v">'+esc(s.lambda_gate_floor)+'</span></div>'+
+    '<div><span class="k">size guard</span><span class="v">'+esc(s.size_guard_bytes)+' bytes</span></div>'+
+    '<div><span class="k">signatures</span><span class="v">'+esc((s.signatures||[]).join(", "))+'</span></div>'+
+    '<div><span class="k">last receipt</span><span class="v digest">'+esc(s.last_receipt_digest||"(none yet)")+'</span></div>'+
+    '<div><span class="k">khipu head</span><span class="v digest">'+esc((k.head_digest||"").slice(0,32))+'…</span></div>'+
+    '<div><span class="k">status</span><span class="pill green">'+esc(s.status||"REAL")+'</span></div>';
+}
+
+async function loadGates(){
+  const g = await getJSON(BASE + "/gates");
+  const tb = document.querySelector("#gatesTable tbody");
+  if(!g || !g.gates){tb.innerHTML='<tr><td class="mono" colspan="5">unreachable</td></tr>';return;}
+  tb.innerHTML = g.gates.map(x=>
+    '<tr><td class="mono">'+esc(x.id)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.label)+'</td><td>'+esc(x.category)+'</td>'+
+    '<td><code>'+esc(String(x.sampleInput).slice(0,46))+'</code> → <b>'+esc(x.expectedDecision)+'</b></td></tr>').join("");
+}
+
+async function loadFeed(){
+  const f = await getJSON(BASE + "/feed?limit=20");
+  const tb = document.querySelector("#feedTable tbody");
+  if(!f || !f.verdicts || !f.verdicts.length){tb.innerHTML='<tr><td class="mono" colspan="5">IDLE — no verdicts buffered (resets on restart)</td></tr>';return;}
+  tb.innerHTML = f.verdicts.map(v=>
+    '<tr><td>'+esc((v.timestamp||"").slice(11,19))+'</td>'+
+    '<td class="'+esc(v.decision)+'">'+esc(v.decision)+'</td>'+
+    '<td>'+esc((v.signals||[]).join(", ")||"—")+'</td>'+
+    '<td>'+esc(v.lambda_value)+'</td>'+
+    '<td class="digest">'+esc(v.receipt_hash||"")+'</td></tr>').join("");
+}
+
+async function runVerdict(){
+  const out = document.getElementById("verdictOut");
+  let body;
+  try{ body = JSON.parse(document.getElementById("actionInput").value); }
+  catch(e){ out.innerHTML='<div class="verdict-box deny">Invalid JSON: '+esc(e.message)+'</div>'; return; }
+  out.innerHTML='<div class="verdict-box">inspecting…</div>';
+  const v = await getJSON(BASE + "/verdict", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  if(!v){ out.innerHTML='<div class="verdict-box deny">endpoint unreachable — retry</div>'; return; }
+  const cls = v.decision==="deny"?"deny":"allow";
+  const pill = v.decision==="deny"?'<span class="pill red">DENY</span>':'<span class="pill green">ALLOW</span>';
+  const sigs = (v.signals||[]).map(s=>'<span class="sig">'+esc(s)+'</span>').join("") || '<span class="pill dim">no signal</span>';
+  const rec = v.khipu_receipt||{};
+  out.innerHTML =
+    '<div class="verdict-box '+cls+'">'+
+      '<div>decision '+pill+' &nbsp; <span style="color:var(--dim)">Λ='+esc(v.lambda_value)+' (floor '+esc(v.lambda_floor)+')</span></div>'+
+      '<div style="margin:.4rem 0;color:var(--paragraph)">'+esc(v.reason)+'</div>'+
+      '<div style="margin:.3rem 0;">signals: '+sigs+'</div>'+
+      '<div><span style="color:var(--dim)">verdict hash</span> <span class="digest">'+esc(v.receipt_hash)+'</span></div>'+
+      '<div><span style="color:var(--dim)">Khipu receipt</span> <span class="digest">'+esc(rec.digest||"")+'</span> '+
+        '<span style="color:var(--dim)">seq '+esc(rec.seq)+' · '+esc(rec.receipt_type||"SZL.Immune.Verdict.v1")+'</span></div>'+
+      '<div style="color:var(--dim);margin-top:.3rem">fail-closed='+esc(v.fail_closed)+' · doctrine '+esc(v.doctrine)+'</div>'+
+    '</div>';
+  loadStatus(); loadFeed();
+}
+
+document.querySelectorAll(".preset").forEach(p=>p.addEventListener("click",()=>{
+  document.getElementById("actionInput").value = p.getAttribute("data-p");
+}));
+document.getElementById("runBtn").addEventListener("click",runVerdict);
+
+async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed()]); }
+loadAll();
+setInterval(loadStatus, 8000);
+</script>
+</body>
+</html>
