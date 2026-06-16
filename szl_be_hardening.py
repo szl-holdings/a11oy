@@ -773,6 +773,68 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                         "energy_ledger is null when no ledger is reachable."),
         }
 
+    # ---- 11: cheapest-watt placement (carbon/cost-aware routing) ----------
+    # Reads the LIVE energy-operator status (per-node MEASURED joules + tokens +
+    # power_w + live grid €/MWh) and runs the cheapest-watt placement policy:
+    # pick the sovereign node minimizing energy-cost-per-token, record the decision
+    # (chosen node, €/MWh at decision time, MEASURED J/token, cheaper-than-alternative
+    # delta) into a re-hashable, hash-chained receipt, optionally DSSE-signed. Honest:
+    # with <2 comparable MEASURED nodes -> "no placement choice this tick"; a saving is
+    # MEASURED only when both legs are MEASURED; never fabricates a price or a saving.
+    def _operator_status_for_cw() -> Tuple[Optional[Dict[str, Any]], str]:
+        """Live in-process operator status (MEASURED), else persisted ledger, else
+        (None, unavailable). Read-only; reuses the same source as /forge/ledger."""
+        return _energy_ledger()
+
+    @app.get(f"{base}/energy/cheapest-watt", tags=["energy"])
+    async def _cheapest_watt():
+        try:
+            import szl_cheapest_watt as _cw
+        except Exception as exc:  # module not in image: STRUCTURAL-ONLY, never faked
+            return {"organ": organ, "data_kind": "structural",
+                    "honesty": (f"szl_cheapest_watt unavailable ({type(exc).__name__}); "
+                                "cheapest-watt is STRUCTURAL-ONLY — never fabricated.")}
+        status, src = _operator_status_for_cw()
+        led = _cw.get_ledger()
+        decision_receipt: Optional[Dict[str, Any]] = None
+        if status is not None:
+            # Record ONE fresh placement decision against the live status this read.
+            decision_receipt = led.record(status)
+            # Layer a REAL DSSE signature over the placement receipt when a cosign key
+            # is present; absent a key the receipt is honest-but-UNSIGNED (never faked).
+            try:
+                import szl_dsse as _dsse
+                env = _dsse.sign_payload(
+                    decision_receipt,
+                    payload_type="https://szl-holdings.dev/attestations/cheapest-watt-placement/v1",
+                )
+                decision_receipt = {**decision_receipt, "dsse": env,
+                                    "signed": True}
+            except Exception:
+                decision_receipt = {**decision_receipt, "dsse": None,
+                                    "signed": False,
+                                    "sign_note": ("no cosign private key in this runtime; "
+                                                  "receipt is REAL + re-hashable but UNSIGNED "
+                                                  "— never faked")}
+        body = led.status()
+        body.update({
+            "organ": organ,
+            "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
+            "operator_source": src,
+            "data_kind": "live" if status is not None else "structural",
+            "latest_decision": decision_receipt,
+            "reads": "GET re-evaluates against the live operator status and appends one decision",
+        })
+        if status is None:
+            body["honesty_no_operator"] = (
+                f"no live operator status reachable ({src}); no placement decision this "
+                "read — never fabricated.")
+        return body
+
+    # canonical path /api/<organ>/v1/energy/cheapest-watt registered above (same
+    # /api/<organ>/v1/energy prefix the operator's status/ledger/projection use).
+    report["registered"].append("energy/cheapest-watt(placement+signed-receipt)")
+
     report["registered"].append(
         "assurance(artifact,credential,compliance,attest)+forge/ledger")
     report["ok"] = True
