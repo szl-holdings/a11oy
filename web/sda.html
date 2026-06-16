@@ -36,7 +36,7 @@ pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12
 <div class="wrap">
 <nav class="note" style="padding-top:12px"><a href="/">home</a> · <a href="/counter-uas">/counter-uas</a> · <a href="/orbital">/orbital</a> · <a href="/immune">/immune</a> · <a href="/api/a11oy/v1/sda/status" target="_blank" rel="noopener">/api/a11oy/v1/sda/status</a></nav>
 <h1>SDA — Space / Domain Awareness <span class="pill">Counter-UAS</span></h1>
-<p class="sub">One honest pane over three contact domains: <b>vessel</b> (AIS replay), <b>drone</b> (counter-UAS, scored by the real Sentra T11–T20 model), and <b>space-object</b> (modeled orbital). Verdicts use the <b>real 13-axis Λ aggregate</b> (floor 0.90) and sign a Khipu receipt. <span id="srcstat" class="pill">source: …</span></p>
+<p class="sub">One honest pane over three contact domains: <b>vessel</b> (AIS replay), <b>drone</b> (counter-UAS, scored by the real counter-UAS drone-cyber organ (T11–T20)), and <b>space-object</b> (modeled orbital). Verdicts use the <b>real 13-axis Λ aggregate</b> (floor 0.90) and sign a Khipu receipt. <span id="srcstat" class="pill">source: …</span></p>
 
 <h2>1 · Status</h2>
 <div class="card"><div class="kpis" id="kpis"><div class="note">loading live status…</div></div>
@@ -52,7 +52,7 @@ pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12
 <table id="tracks"><tr><th>id</th><th>type</th><th>name</th><th>position</th><th>risk</th><th>flags</th><th>data</th></tr>
 <tr><td colspan="7" class="note">loading live tracks…</td></tr></table></div>
 
-<h2>3 · Counter-UAS verdict <span class="note">(real Sentra Λ logic · signed Khipu receipt)</span></h2>
+<h2>3 · Counter-UAS verdict <span class="note">(real counter-UAS drone-cyber Λ logic · signed Khipu receipt)</span></h2>
 <div class="card">
 <span class="note">contact:</span>
 <select id="vtype"><option value="drone">drone</option><option value="vessel">vessel</option><option value="space-object">space-object</option></select>
@@ -62,7 +62,7 @@ pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12
 <p class="note">Effector is <b>SIMULATED, human-on-loop</b> — an assessment + signed receipt, never a kinetic or jamming action.</p>
 <pre id="vout">// verdict result + Khipu receipt</pre></div>
 
-<div class="foot">Tracks: vessels are the warhacker-demo UDS <code>demo_ais_replay.sh</code> sample AIS dataset (<b>REPLAY</b> — no live AIS receiver); drone contacts are <b>SAMPLE</b> counter-UAS demo contacts scored by the REAL Sentra drone-cyber T11–T20 model; space objects are <b>MODELED</b> orbital-roadmap objects (no on-orbit sensor). SZL does not operate the radar/AIS/on-orbit sensor behind these — we never claim a live feed we don't have. Counter-UAS verdict reuses the real <code>organs/sentra/sentra_drone_cyber.py</code> 13-axis Λ logic (floor 0.90), not re-weakened. Khipu signatures are <b>DSSE PLACEHOLDER</b> (chain integrity real; Sigstore not wired); SLSA L1 honest. Λ = Conjecture 1; Khipu = Conjecture 2; trust never 100%; locked = 8 @ c7c0ba17. Doctrine v11.</div>
+<div class="foot">Tracks: vessels are the warhacker-demo UDS <code>demo_ais_replay.sh</code> sample AIS dataset (<b>REPLAY</b> — no live AIS receiver); drone contacts are <b>SAMPLE</b> counter-UAS demo contacts scored by the REAL counter-UAS drone-cyber organ (T11–T20); space objects are <b>MODELED</b> orbital-roadmap objects (no on-orbit sensor). SZL does not operate the radar/AIS/on-orbit sensor behind these — we never claim a live feed we don't have. Counter-UAS verdict reuses the real <code>organs/sentra/sentra_drone_cyber.py</code> 13-axis Λ logic (floor 0.90), not re-weakened. Khipu signatures are <b>DSSE PLACEHOLDER</b> (chain integrity real; Sigstore not wired); SLSA L1 honest. Λ = Conjecture 1; Khipu = Conjecture 2; trust never 100%; locked = 8 @ c7c0ba17. Doctrine v11.</div>
 <script>
 const A="/api/a11oy/v1/sda";
 function rc(r){return r>=0.7?"red":(r>=0.4?"amber":"green");}
