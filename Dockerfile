@@ -161,6 +161,18 @@ COPY szl_orbital_topology.py szl_orbital_projection.py ./
 # vendor3d three.js COPY'd below). MUST be per-file COPY'd or /orbital falls back to the
 # SPA catch-all (white screen / no orbital surface).
 COPY a11oy_orbital_page.py ./
+# Frontier manifest — imported by serve.py (guarded). MUST be per-file COPY'd (this
+# Dockerfile uses no `COPY . .`) or the import falls back and /api/a11oy/v1/frontier/
+# manifest 404s live. Composes in-process from already-COPY'd surfaces (szl_energy_*,
+# szl_uds_fleet, szl_orbital_*, szl_backend_hardening, szl_restraint) — no new deps.
+COPY szl_frontier_manifest.py ./
+# REGRESSION RESTORE — serve.py imports these (guarded) but their per-file COPY was
+# dropped, so in the HF image each guarded import falls back to a STUB (merged-but-not-
+# live) and the copy-sync lockstep guard is red on main. szl_sda was added by the most
+# recent SWEEP D1 commit without its COPY; szl_fabric_surface + szl_nemo_agents predate
+# it. All their transitive local deps are already COPY'd above. Additive — restores the
+# missing wiring the same way the sibling szl_* modules are COPY'd.
+COPY szl_sda.py szl_fabric_surface.py szl_nemo_agents.py ./
 # K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)

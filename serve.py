@@ -482,6 +482,21 @@ try:
 except Exception as _szl_op_e:  # pragma: no cover
     print(f"[a11oy] Orbital projection NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
 
+# FRONTIER MANIFEST — GET /api/a11oy/v1/frontier/manifest is ONE honest roll-up of the
+# whole governed-provenance ecosystem. It composes LIVE, in-process data from the already-
+# wired surfaces (energy operator/ledger/provenance, signed UDS bundle, MODELED orbital,
+# compute fabric, governance/restraint) into labeled tiles (MEASURED/MODELED/ROADMAP/
+# SAMPLE) each with a provenance pointer. NEVER fabricates: a down sub-source yields an
+# honest UNAVAILABLE tile; no label is upgraded; the #1 composite inference-provenance
+# receipt is a ROADMAP concept naming its parts, no artifact minted. Additive,
+# try/except-guarded, same register() pattern, BEFORE the SPA catch-all.
+try:
+    import szl_frontier_manifest as _szl_frontier_manifest
+    _szl_frontier_manifest.register(app, ns="a11oy")
+    print("[a11oy] Frontier manifest registered: /api/a11oy/v1/frontier/manifest (composed roll-up)", file=__import__("sys").stderr)
+except Exception as _szl_fm_e:  # pragma: no cover
+    print(f"[a11oy] Frontier manifest NOT registered: {_szl_fm_e!r}", file=__import__("sys").stderr)
+
 # Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
 # (topology + projection + governed-receipt overlay) against the two MODELED endpoints
 # above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
