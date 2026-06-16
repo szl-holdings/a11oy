@@ -37,9 +37,9 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
 <main><h1>Status — live flagship feed</h1><p class="sub">This page probes each flagship's health endpoint directly from your browser. Cross-origin probes may be blocked by a Space's CORS policy — that shows as 'unreachable', not necessarily down.</p>
 <table><tr><th>Flagship</th><th>State</th><th>Latency</th></tr><tbody id="tb"></tbody></table><div class="note">Authoritative status will move to status.szlholdings.com with server-side synthetic probes (per the resilience layer). This client-side feed is the honest interim.</div><script>
 const FLAGS=[["a11oy","https://szlholdings-a11oy.hf.space/api/a11oy/healthz"],
-["amaru","https://szlholdings-amaru.hf.space/api/amaru/healthz"],
-["sentra","https://szlholdings-sentra.hf.space/api/sentra/healthz"],
-["rosie","https://szlholdings-rosie.hf.space/api/rosie/healthz"],
+["Reasoning tier (Memory)","https://szlholdings-amaru.hf.space/api/amaru/healthz"],
+["Sentinel (Immune)","https://szlholdings-sentra.hf.space/api/sentra/healthz"],
+["Operator (Companion)","https://szlholdings-rosie.hf.space/api/rosie/healthz"],
 ["vessels (killinchu)","https://szlholdings-vessels.hf.space/api/vessels/healthz"],
 ["uds-demo","https://szlholdings-uds-demo.hf.space/healthz"]];
 const tb=document.getElementById('tb');
