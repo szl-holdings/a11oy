@@ -34,82 +34,165 @@ ecosystem-stage: "operational"
 **LOCKED kernel `c7c0ba17` · 749 declarations · 14 axioms · 163 sorries · Doctrine v11**
 **Proof posture (two-tier):** 8 locked-proven `{F1, F4, F7, F11, F12, F18, F19, F22}` (the no-axiom theorem `locked_count_eight`) + an **EXPERIMENTAL · CI-green** tier (Lean v4.18.0 · ~1323 decls / 22 unique axioms — NOT folded into the locked count). Λ-uniqueness is **Conjecture 1** (axiom-free CUT-2 conditional proven; unconditional uniqueness machine-checked false). Full map → [lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
-[Live demo](#live) · [What it does](#what-it-does) · [Verify](#verify-it-yourself) · [Architecture](#architecture) · [Orbital showcase](#orbital-frontier-showcase) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status) · [Service status](https://szl-holdings.github.io/a11oy/)
+[Live in one click](#live-in-one-click) · [The substrate at a glance](#the-substrate-at-a-glance) · [The four moat layers](#the-four-moat-layers) · [Governed code-as-action](#governed-code-as-action) · [Verify](#verify-it-yourself) · [Repo map](#repo-map) · [Parity vs. leaders](#parity-vs-leaders) · [Honest status](#honest-status)
 
 ---
 
-## Live
+## What a11oy is, in one sentence
+
+a11oy is a **governed agentic substrate**: every action is **doctrine-gated** before it runs, executed against a **governed agent loop**, **metered in joules**, and **sealed as a signed Khipu receipt** — and the whole thing ships through a **signed supply chain**. Four cross-cutting moat layers (provenance · governance · energy · supply-chain) wrap the agentic loop. You can click any node in the diagram below and watch it live.
+
+---
+
+## Live in one click
 
 **HF Space (one-click, no login):** [![Open in Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Open%20in%20Spaces-a11oy-FF9D00?style=flat-square)](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)
 
-- **Primary face — the full application:** https://szlholdings-a11oy.hf.space/ (also at `/console`)
-- Space URL: https://szlholdings-a11oy.hf.space
-- Health: `curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .kernel_commit` → `"c7c0ba17"`
-- Docs: https://szl-holdings.github.io/docs-site/flagships/a11oy
-- Release: [v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0)
-- **Service status:** https://szl-holdings.github.io/a11oy/ — continuously published live service-status board
+Lead with *it's live*, not theory. Each surface below returns HTTP 200 right now:
+
+| Surface | Link | What you see |
+|---|---|---|
+| **Console** (primary face) | <https://a11oy.net/console> | The full left-nav command platform |
+| **Frontier** | <https://a11oy.net/frontier> | Unified showcase — the moat roll-up |
+| **Governance** | <https://a11oy.net/governance> | Doctrine gate + restraint surface |
+| **Orbital** | <https://a11oy.net/orbital> | MODELED orbital-tier projection (no hardware) |
+| **Honest API** | <https://a11oy.net/api/a11oy/v1/honest> | Live doctrine posture (749/14/163, Λ = Conjecture 1) |
+| **Energy ledger** | <https://a11oy.net/api/a11oy/v1/energy/ledger> | Append-only joule JobRecord chain |
+
+```bash
+curl -s https://a11oy.net/api/a11oy/v1/honest | jq .doctrine_lock.lambda
+# => "Conjecture 1"   ← the substrate tells the truth about itself
+```
 
 ---
 
-## The application
+## The substrate at a glance
 
-a11oy is a **full left-nav application** — not a landing page or a single console panel. It opens directly to the Command Center and carries the unified SZL house style (dark ground, gold `#c9b787` + teal `#5fb3a3` accents, Space Grotesk + JetBrains Mono) with a **product switcher** in the top ribbon that jumps between the two live SZL products — a11oy (command platform) and killinchu (drones & vessels) — in one click.
+One diagram tells the whole story: every action is doctrine-gated → run on a governed
+agent loop → metered in joules → sealed as a signed receipt → deployed through a signed
+supply chain. Click any live node to watch it.
 
-**Primary app file:** [`pages/console.html`](pages/console.html) · **served at** `/` and `/console`.
+```mermaid
+graph TD
+  A["Incoming action / agent step"] --> G
 
-**43 unique tabs** in the left navigation (plus **7 Warhacker live demos**). Representative views:
+  subgraph GOV["governance/ — deny-by-default doctrine gate"]
+    G["doctrine gate · YUYAY 13-axis · restraint / Λ advisory"]
+    GU["guards: input · content · output · EXECUTION (ROADMAP)"]
+    G --> GU
+  end
+  GU -->|admitted| AG
 
-| View | What it does |
-|---|---|
-| **Command Center** | Live operational overview — service health, recent verdicts, receipt stream |
-| **Five Superpowers** | The five orchestrated capabilities a11oy coordinates internally |
-| **Warhacker** | Maps the five Warhacker problems to the a11oy capability that solves each, with a live signed receipt |
-| **Observability** | MELT + distributed tracing where every span is a signed Khipu receipt (vs New Relic / Datadog / OTel) |
-| **Capabilities** | The built-in a11oy capability fabric — reasoning, policy, and operator paths wired into the receipt substrate |
-| **Services** | Live service reachability — real probes, honest when a service is unreachable |
-| **Formulas** | The PURIQ formula set — **8 locked-proven in Lean 4 {F1, F4, F7, F11, F12, F18, F19, F22}** (the no-axiom theorem `locked_count_eight`; this count never inflates) + a larger **experimental** tier, kernel-clean & CI-green on main `@c7c0ba17` across **Waves 11–23** (~185 machine-checked theorems; Wave 11 CF-1/2/3/5; Wave 12 CUT-2 + CF-13 DEQ input-Lipschitz + CF-17 fp-summation stability; Wave 13 replay-root + non-Byzantine quorum + HM-bottleneck; Waves 14–23 incl. CF-18 Madhava remainder, CF-19 Reed–Solomon MDS lower bound, CF-20 VCG, CF-21 log-sum/Gibbs). Λ-uniqueness is proven only **conditionally** (CUT-2, separability, axiom-free); remaining formulas are Roadmap |
-| **Evidence** | Body-of-evidence export — DSSE Khipu receipts, replayable and tamper-evident |
-| **LLM Router** | The governed LLM routing surface |
+  subgraph BRAIN["agents/ — governed agentic loop"]
+    AG["compose → inspect → revise (static-screen + sandboxed subprocess)"]
+  end
+  AG --> EN
+
+  subgraph EN_["energy/ — joules + carbon"]
+    EN["operator → ledger · MEASURED vs SAMPLE · carbon ROADMAP"]
+  end
+  EN --> PR
+
+  subgraph PR_["provenance/ — signed audit fiber"]
+    PR["mint DSSE Khipu receipt · SHA-256 Merkle DAG · receipts.in ≡ receipts.out"]
+  end
+  PR --> LIVE
+  PR --> SC
+
+  subgraph SC_["supply-chain/ — signed deploy"]
+    SC["cosign keyless · SLSA L1/L2 build-attested · UDS bundle · Rekor · SBOM (ROADMAP)"]
+  end
+
+  LIVE["Live surfaces"]
+  LIVE --> F["/console · /frontier · /governance · /orbital"]:::live
+  LIVE --> H["/api/a11oy/v1/honest · /energy/ledger"]:::live
+
+  classDef live fill:#0B1F3A,stroke:#c9b787,color:#c9b787;
+```
+
+**The one-line reading:** *every action is doctrine-gated → executed on a governed agent loop → metered in joules → sealed as a signed receipt → deployed through a signed supply chain — and you can click any node and watch it live.* The honest boundary is drawn on the diagram itself: the EXECUTION guard, carbon feed, and SBOM are labelled **ROADMAP**, because they are.
 
 ---
 
-## What it does
+## The four moat layers
 
-**a11oy is the audit-fiber continuity layer of the SZL command platform.** Every AI action routes through a11oy and leaves a DSSE-enveloped Khipu receipt on a SHA-256 hash-linked Merkle DAG. The invariant is `receipts.in ≡ receipts.out`: nothing is lost between the decision and the proof.
+These are the four cross-cutting concerns that wrap the agentic loop. Each one is built
+from **modules that already exist and run live** — they are *named*, not invented. Each
+paragraph ends with the live endpoint that proves it and an honest label.
 
-Key capabilities:
-- **Policy + receipt substrate** — `/v1/policy/evaluate`, `/v1/verify`, `/v1/ledger`: deny-by-default; every action signed
-- **Built-in capability fabric** — reasoning, policy, and operator paths are internal to a11oy (not external services); each emits signed receipts
-- **Honest disclosure** — `/v1/honest` reports live doctrine posture (749/14/163, Λ = Conjecture 1)
-- **8 TS workspace libs** — `@szl-holdings/a11oy-knowledge`, `a11oy-policy`, `a11oy-qec-integrity`, `a11oy-receipt-substrate`, `perception-loop`, `rae1`, `sequence-pipeline`, `sparse-attention-kit`
-- **DSSE Khipu receipts** — ECDSA P-256-SHA256; multi-party-witnessed; BFT quorum-capable
+### 1 · Provenance — the audit fiber `[EXISTS]`
+Every action emits a DSSE-enveloped, ECDSA-P256-SHA256-signed Khipu receipt on a
+SHA-256 hash-linked Merkle DAG. Invariant: **`receipts.in ≡ receipts.out`**.
+Modules: `szl_provenance.py`, `szl_dsse.py`, `szl_khipu.py`, `szl_khipu_consensus.py`,
+`szl_receipt_substrate.py`, `szl_ietf_receipt.py`, `szl_functor_receipt.py`,
+`szl_trajectory_sign.py`, `pq_signing.py`, `a11oy_signing_key.py`, `szl_khipu_verify.py`.
+**Proves it:** `POST /khipu/verify` recomputes the chain and re-verifies; chain integrity
+is SHA3-256 hash-chain verified. Real ECDSA-P256 cosign signatures when
+`SZL_COSIGN_PRIVATE_PEM` is present; **UNSIGNED and clearly labelled** when absent — never faked.
+
+### 2 · Governance — deny-by-default doctrine gate `[EXISTS]`
+The constitutional + doctrine gate every action clears *before* execution. Deny-by-default.
+Modules: `a11oy_constitution.py`, `szl_governance_gateway.py`, `szl_restraint.py` /
+`szl_restraint_energy.py` (a 6-rung frugality ladder, Λ-scored), `szl_lambda_tripwire.py`,
+`a11oy_grc*.py`, `szl_colang_policy.py`, `szl_codename_gate.py`, `forge_governance.py`.
+**Proves it:** <https://a11oy.net/governance>. Gate soundness is proven over the locked
+F-set; **Λ-uniqueness is Conjecture 1**, never claimed as a theorem. The restraint ladder's
+**Ponytail lineage is cited, not claimed as ours** (see `szl_restraint.py` header).
+
+### 3 · Energy — joules + carbon `[EXISTS, with an env gap]`
+The energy operator → ledger loop. Real GPU joules (NVML exporter delta) become billable;
+unmeasurable work is **SAMPLE/DEGRADED, never fabricated**. Modules: `szl_energy_operator.py`,
+`szl_energy_ledger.py`, `szl_energy_projection.py`, `szl_energy_provenance.py`,
+`szl_energy_budget.py`, `joule_billing.py`, `szl_joules_truth.py`.
+**Proves it:** <https://a11oy.net/api/a11oy/v1/energy/ledger>. Joules are **MEASURED only when
+a GPU lung is reachable; otherwise honestly SAMPLE**. The ledger is ephemeral unless
+`SZL_ENERGY_LEDGER_PATH` is on a persistent volume. **Carbon (joules × grid intensity) is ROADMAP** —
+there is no live grid-intensity feed today.
+
+### 4 · Supply-chain — signed deploy `[EXISTS, with an explicit ceiling]`
+The signed software supply chain. Container images are cosign keyless-signed (Fulcio + Rekor)
+and build-provenance-attested, shipped as a UDS mesh bundle for air-gapped deploy.
+Modules: `szl_uds_fleet.py`, `szl_uds_portability.py`, `runtime_attestation.py`, `szl_dsse.py`,
+`sign_cert_dsse.py`; configs `.gitleaks.toml`, `.doctrine-allowlist`,
+`physical_bounds_certificate.dsse.json`.
+**Proves it:** `cosign verify` against Rekor index 1710578865; UDS bundle `uds-v0.2.0`
+deployable. **SLSA L3, FedRAMP, CMMC, Iron Bank, ATO are ROADMAP — never claimed achieved.**
+**SBOM generation is ROADMAP** (the one genuinely-new supply-chain piece).
 
 ---
 
-## Governed Post-Determinism (GPD)
+## Governed code-as-action
 
-**Governed Post-Determinism (GPD)** is SZL's own framework. Classical systems demand that every correct node produce the *same bytes*; autonomous agents produce *different but still-correct* reasoning paths — so the unit of agreement shifts from "identical output" to **certified semantic admissibility**, and SZL proves that certification with a signed, Lean-anchored receipt.
+The synthesis thesis: an agent that **composes → inspects → revises** code, where every
+code action is **doctrine-gated before it runs** and **emits a signed Khipu receipt** with
+MEASURED joules. This is the moat neither a clean RAG-app layout nor a code-as-action kernel
+on its own can draw: governance + cognition fused.
 
-Five pillars, each mapped to a component SZL runs in production with an honest proof artifact:
+**What EXISTS today (`a11oy_code_engine.py`):** `governed_turn(...)` runs a deny-by-default
+`_static_screen` (forbidden imports `socket`/`urllib`/`requests`/`http`/…, forbidden calls
+`open(`/`eval(`/`exec(`/`__import__`/…) **before** `_sandbox_exec` runs the code in a separate
+subprocess with `RLIMIT_CPU`, `RLIMIT_AS`, `RLIMIT_CORE`, `RLIMIT_FSIZE=0` (no file writes),
+and `RLIMIT_NPROC=0` (no forks → no network helper). Each turn signs a hash-chained receipt.
 
-- **Protocol-Bounded Execution** — governed-decision loop + YUYAY 13-axis conjunctive gate (deny-by-default). *Gate soundness proven over the locked F-set.*
-- **Verifiable Intent-to-Execution** — DSSE-signed receipt chain + Lean-theorem trace. *ECDSA-P256 signed, SHA-256 hash-chained, tamper-evident.*
-- **Bounded-Recursion Control Plane** — Ouroboros bounded-recursion loop (P1–P6). *Loop invariants proven.*
-- **Semantic Quorum Assurance** — Khipu BFT quorum + Wave23 conditional safety theorem (`khipu_quorum_safety_conditional`, agreement under non-equivocation). *Conditional theorem; unconditional Byzantine safety = Conjecture 2 (open).*
-- **Epistemic State Replication** — YAWAR append-only receipt bus + deterministic replay + Verifiable Semantic Rollback. *Receipts/replay live; full ESR semantics = open R&D (roadmap).*
+**What is ROADMAP (honest boundary):**
+- a **persistent** sandboxed kernel where variables live across steps (today's `_sandbox_exec`
+  is single-shot — vars don't persist between cells). This is the genuine novelty still to build.
+- a named **`governance/guards/execution_guard.py`** that composes the existing gates into an
+  explicit input → content → output → EXECUTION chain. The *guards exist* (`szl_codename_gate`,
+  `szl_colang_policy`, `a11oy_constitution`, `_static_screen`); the **named 4th-layer wrapper does not yet**.
+- **container / microVM isolation** (today is subprocess + rlimit tier).
 
-**Honest posture:** locked-proven = 8 {F1, F4, F7, F11, F12, F18, F19, F22} (the no-axiom theorem `locked_count_eight`); Λ (trust score) = **Conjecture 1** (unconditional uniqueness machine-checked false; conditional uniqueness holds); Semantic Quorum Assurance safety = Wave23 **conditional** (unconditional = Conjecture 2); full Epistemic State Replication = **open R&D**.
+See [`docs/architecture.md`](docs/architecture.md) for the full HAVE / PARTIAL / MISSING map
+and the honest novelty boundary vs. the references we learned from.
 
-**Foundation — SZL's own prior art only (no external citation):** *The Loop Is the Product* v1/v2 ([Zenodo 19867281](https://doi.org/10.5281/zenodo.19867281), [19934129](https://doi.org/10.5281/zenodo.19934129)), *Lineage-Aware RAG / Prisca-GraphRAG v5* ([20020846](https://doi.org/10.5281/zenodo.20020846)), *Sealed Constitutional Guardrails v6* ([20020845](https://doi.org/10.5281/zenodo.20020845)), *The Lutar Omega Formalism v4* ([20020841](https://doi.org/10.5281/zenodo.20020841)), *SZL Doctrine v2 — 9 Canonical Axes* ([20174600](https://doi.org/10.5281/zenodo.20174600)) — all Stephen P. Lutar, ORCID 0009-0001-0110-4173.
-
-See [`docs/GOVERNED_POST_DETERMINISM.md`](https://github.com/szl-holdings/platform/blob/main/docs/GOVERNED_POST_DETERMINISM.md) (platform repo) for the full write-up.
+---
 
 ## Verify it yourself
 
 ```bash
 # 1. Confirm live doctrine posture
-curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .kernel_commit
-# => "c7c0ba17"
+curl -s https://a11oy.net/api/a11oy/v1/honest | jq .doctrine_lock
+# => doctrine v11 LOCKED, lambda "Conjecture 1", locked_formula_count 8
 
 # 2. Verify the cosign keyless signature + build-provenance attestation on the image.
 #    SLSA L1 honest · L2 build-attested: container provenance via
@@ -128,40 +211,22 @@ uds-cli bundle deploy oci://ghcr.io/szl-holdings/szl-uds-bundle:uds-v0.2.0 --con
 
 ---
 
-## Architecture
+## Repo map
 
-```mermaid
-graph TD
-    A[Incoming action] --> PL[Policy layer\n/v1/policy/evaluate\ndeny-by-default]
-    PL --> KD[Khipu DAG\nDSSE P-256 signed\nSHA-256 hash-linked]
-    KD --> LDG[Ledger /v1/ledger\nreplayable, tamper-evident]
-    KD --> UDS[(GHCR\nSigned OCI\ncosign keyless · SLSA L1+L2 build-attested)]
-    KD --> REKOR[(Rekor transparency log\nindex 1710578865)]
-```
+a11oy is **flat-rooted today** — ~222 `a11oy_*.py` / `szl_*.py` modules plus `serve.py`
+(the boot entry + route assembly). The taxonomy below is a **logical** map (a "where things
+live" guide), not a physical move; the modules listed already exist and run live. Full
+table in [`docs/architecture.md`](docs/architecture.md).
 
----
-
-## Orbital frontier showcase
-
-A **MODELED** forward extension of the SZL governed-energy-receipt moat to space
-compute. **SZL has no on-orbit hardware** — every orbital node, link, and joule is
-a MODELED design artifact (`modeled:true` / `reachable:false`), never a fabricated
-live reading. The real asset today is the ground GPU fabric; this is its honest
-roadmap projection. Λ = Conjecture 1; sovereign = false.
-
-| Surface | Link | Kind |
+| Layer | Role | Representative modules |
 |---|---|---|
-| **Live orbital surface** (canonical) | <https://a11oy.net/orbital> (also <https://szlholdings-a11oy.hf.space/orbital>) | REAL page · MODELED data |
-| **HF showcase Space** (public, login-free) | `https://huggingface.co/spaces/SZLHOLDINGS/orbital` — static mirror, source in [`spaces/orbital/`](spaces/orbital/) | MODELED roadmap |
-| **Backend endpoints** | `/api/a11oy/v1/orbital/topology` · `/api/a11oy/v1/orbital/projection` | MODELED-roadmap JSON |
-| **UDS signed mesh bundle** | `oci://ghcr.io/szl-holdings/szl-uds-bundle` (cosign keyless · Rekor-anchored) | REAL, deployable |
-
-The only `MEASURED` value in the projection is the ground J/token coefficient; the
-orbital joules are `MODELED` (ground coefficient × MODELED workload × MODELED
-space-overhead) and the signed receipt shown is a MODELED *would-be* artifact —
-never a real signature. The static HF Space under [`spaces/orbital/`](spaces/orbital/)
-vendors three.js (0 runtime CDN), fetches the live endpoints, and falls back to a
-baked SAMPLE if the box is unreachable — see [`spaces/orbital/PUBLISH_CHECKLIST.md`](spaces/orbital/PUBLISH_CHECKLIST.md).
+| **agents/** | the brain — agentic loop, react core, code engine | `a11oy_agent_loop`, `a11oy_react_core`, `szl_agentic_loop`, `a11oy_code_engine`, `a11oy_code_orchestrator`, `a11oy_v4_agent` |
+| **tools/** | pluggable levers the agent composes | `a11oy_mcp_client`, `szl_connector_mcp`, `szl_sovereign_search`, `szl_rag`, `a11oy_org_rag` |
+| **services/** | business logic + plumbing | `serve` (entry), `szl_backend_hardening`, `szl_budget_router`, `szl_llm_registry`, `*_router` |
+| **provenance/** | signed receipts (audit fiber) | `szl_provenance`, `szl_dsse`, `szl_khipu*`, `szl_receipt_substrate`, `szl_khipu_verify` |
+| **governance/** | doctrine gate + restraint / Λ + guards | `a11oy_constitution`, `szl_governance_gateway`, `szl_restraint*`, `szl_lambda_tripwire`, `szl_codename_gate`, `szl_colang_policy` |
+| **energy/** | joule accounting + carbon (ROADMAP) | `szl_energy_operator`, `szl_energy_ledger`, `szl_energy_projection`, `joule_billing`, `szl_joules_truth` |
+| **supply-chain/** | cosign · SLSA · UDS · SBOM (ROADMAP) | `szl_uds_fleet`, `szl_uds_portability`, `runtime_attestation`, `sign_cert_dsse` |
 
 ---
 
@@ -172,6 +237,7 @@ baked SAMPLE if the box is unreachable — see [`spaces/orbital/PUBLISH_CHECKLIS
 | Policy enforcement | ✅ | ✅ `/v1/policy/evaluate` | — |
 | Audit trail | ✅ logs | ✅ **signed receipts** | Palantir logs are not individually verifiable cryptographic artifacts |
 | Supply-chain provenance | — | ✅ **cosign keyless-signed + build-attested (SLSA L1 honest · L2 build-attested)** | `cosign verify-attestation` on every image; container provenance via attest-build-provenance, Rekor-anchored. SLSA L3 is roadmap. |
+| Energy metering per decision | — | ✅ **joules per job (MEASURED vs SAMPLE)** | Nobody else meters joules per governed decision; cost is measured in joules, not just tokens |
 | Formal math substrate | — | ✅ Lean 4 / 749 decl | Open, machine-checkable |
 | Air-gap deployment | ✅ (proprietary) | ✅ **one UDS command** | Open-source, reproducible |
 | Receipt multi-party witness | — | ✅ BFT quorum-capable | — |
@@ -188,26 +254,39 @@ docker run --rm -p 7860:7860 ghcr.io/szl-holdings/a11oy:uds-v0.2.0
 
 ## Honest status
 
+The honesty section is a feature for a defense buyer, not a liability.
+
 | Claim | Status |
 |---|---|
 | Live HF Space (HTTP 200) | ✅ |
+| Live surfaces `/console /frontier /governance /orbital /api/a11oy/v1/honest` | ✅ HTTP 200 |
 | SLSA **L1 honest · L2 build-attested** | ✅ — cosign keyless-signed image + container build-provenance attestation (attest-build-provenance, Sigstore keyless), verifiable via `cosign verify-attestation`; Rekor [1710578865](https://search.sigstore.dev/?logIndex=1710578865). See [.compliance/SLSA_LEVEL.md](.compliance/SLSA_LEVEL.md). |
 | SLSA **L3** | 🛣️ **Roadmap** — hardened/isolated builder + non-falsifiable provenance. **Not claimed as achieved today.** |
 | cosign keyless signed | ✅ |
 | UDS bundle (`szl-uds-bundle:uds-v0.2.0`) | ✅ Real, deployable mesh bundle (cosign-signed, Rekor-anchored). |
+| SBOM (CycloneDX/SPDX) per build | 🛣️ **Roadmap** — generation not yet wired. |
 | DSSE Khipu receipts | ✅ — ECDSA P-256-SHA256 |
+| Energy joules | ✅ **MEASURED** when a GPU lung is reachable; otherwise honest **SAMPLE/DEGRADED** — never fabricated |
+| Carbon (joules × grid intensity) | 🛣️ **Roadmap** — no live grid-intensity feed |
+| Governed code-as-action engine (`a11oy_code_engine.governed_turn`) | ✅ static-screen + sandboxed subprocess (rlimit) + signed receipt |
+| Persistent code-as-action kernel (vars across steps) | 🛣️ **Roadmap** — today's sandbox is single-shot |
+| Named `execution_guard` 4th-layer wrapper | 🛣️ **Roadmap** — underlying guards exist; named wrapper does not |
+| Container / microVM isolation | 🛣️ **Roadmap** — subprocess + rlimit tier today |
 | Lean 749/14/163 @ `c7c0ba17` | ✅ |
-| Locked-proven PURIQ formulas | ✅ **8** — F1, F4, F7, F11, F12, F18, F19, F22 (Lean 4, depend on **no** axioms; machine-enforced `locked_count_eight`; F4 Khipu DAG acyclicity, F7 Chaski FIFO ordering, F22 Khipu emit append-only monotonicity newly proven). |
-| Experimental theorems (main `@c7c0ba17`) | ✅ CI-green, **~185 machine-checked theorems** across **Waves 11–22** (+ agentic P1–P6 + coder; all `#print axioms ⊆ {propext, Classical.choice, Quot.sound}`). **NOT** in the locked count. Wave 11 CF-1/2/3/5 (24 thms); Wave 12 CUT-2 + CF-13 + CF-17; Wave 13 replay-root + single-valued non-Byzantine vote + HM-bottleneck; Waves 14–23 incl. CF-18 Madhava remainder, CF-19 Reed–Solomon MDS **lower bound only**, CF-20 VCG, CF-21 log-sum/Gibbs. Λ-uniqueness proven CONDITIONAL on separability (CUT-2, axiom-free); unconditional = Conjecture 1. Khipu BFT safety = Conjecture 2. Key: M2 tamper-evidence, CP1 split-conformal coverage (not Hoeffding). |
+| Locked-proven PURIQ formulas | ✅ **8** — F1, F4, F7, F11, F12, F18, F19, F22 (Lean 4, depend on **no** axioms; machine-enforced `locked_count_eight`). |
 | Λ-uniqueness | ⚠️ **Conjecture 1** (F23 open bounty) — never a theorem |
-| SLSA L3 | ❌ Not claimed |
-| FedRAMP / CMMC | ❌ Not claimed |
+| Khipu BFT safety | ⚠️ **Conjecture 2** (open) |
+| FedRAMP / CMMC / Iron Bank / ATO | ❌ Not claimed |
 
 ---
 
 > Not affiliated with Defense Unicorns. SZL mark USPTO Serial 99831122. No production ATO claimed.
+> References learned from (not copied): the public "production-ai-app" clean-repo layout and the
+> SpatialClaw code-as-action idea. SZL copies neither — see [`docs/architecture.md`](docs/architecture.md)
+> for the honest novelty boundary. External prior art (e.g. Ponytail restraint) is cited, never claimed as ours.
 
 <sub>Doctrine v11 LOCKED · 749/14/163 · kernel `c7c0ba17` · SLSA L1 honest · L2 build-attested (container provenance, Sigstore keyless) · L3 / FedRAMP / Iron Bank / CMMC / ATO roadmap · 8 locked-proven + experimental CI-green tier · Λ = Conjecture 1 · Khipu Conjecture 2 open · Apache-2.0 · DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)</sub>
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-
+</content>
+</invoke>
