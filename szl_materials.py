@@ -433,13 +433,308 @@ def _register_novelty(app, ns: str = "a11oy") -> list[str]:
 
 
 # ===========================================================================
-# DEV 2 SECTION — PAC-Bayes certified bound  (APPEND BELOW; do not edit DEV 1)
-# ---------------------------------------------------------------------------
-# DEV 2: define your routes in a `register_certify(app, ns)` helper here and add
-# a call to it inside register() under the marked hook. Do NOT modify the DEV 1
-# section or _register_novelty above.
+# DEV 2 SECTION — PAC-Bayes certified prediction bound  [frontier gap #2]
 # ===========================================================================
-# (DEV 2 routes go here)
+# WHAT IT DOES:
+#   POST /api/a11oy/v1/materials/certify
+#     Accept EITHER explicit {empirical_risk, kl, n, delta} OR a named preset
+#     {family: "oxides"|"intermetallics"|"refractory_hea"} (or {model, family}).
+#     Compute the McAllester (1999) PAC-Bayes generalization bound by IMPORTING
+#     `pac_bayes_mcallester` from szl_formulas (NOT reimplemented here). Return
+#     {bound, inputs, certificate_text, proof_status} + a SIGNED Khipu receipt
+#     (SZL.Materials.PACBayesCert.v1) into the SHARED szl_khipu DAG
+#     (organ="materials"), reusing the exact get_dag/emit pattern DEV 1 used.
+#   GET /api/a11oy/v1/materials/certify/presets
+#     List the presets, each explicitly labeled SAMPLE/MODELED illustrative input.
+#
+# HONESTY (Doctrine v11 — NEVER violate):
+#   - The McAllester bound FORMULA is PROVEN ON PAPER (McAllester 1999, COLT) and
+#     the bound COMPUTATION here is numerically EXACT (delegated to szl_formulas).
+#   - The LEAN proof is an OPEN SORRY / ROADMAP (Lutar/Materials/PACBayesMaterials.lean,
+#     a.k.a. the PACBayes ×4 tracked sorries). We NEVER claim Lean-proven.
+#   - Presets are EXPLICITLY labeled SAMPLE/MODELED illustrative inputs — they are
+#     NOT measured empirical risks of any deployed model. No fabricated empirics.
+#   - Khipu = Conjecture 2; locked-8 unchanged @ c7c0ba17 (this NEVER adds to it);
+#     trust never 100%; receipt signature is the szl_khipu DSSE PLACEHOLDER.
+#
+# Stdlib only + szl_formulas (existing) + szl_khipu (shared). Additive,
+# self-contained, exception-safe; register_certify is auto-called by register().
+# ===========================================================================
+
+_PACBAYES_RECEIPT_TYPE = "SZL.Materials.PACBayesCert.v1"
+
+# Lean backing for the McAllester bound — OPEN SORRY / ROADMAP, NOT in locked-8.
+_PACBAYES_PROOF_STATUS = (
+    "bound formula PROVEN on paper (McAllester 1999, COLT); "
+    "Lean proof = SORRY/ROADMAP (Lutar/Materials/PACBayesMaterials.lean); "
+    "bound COMPUTATION exact"
+)
+_PACBAYES_LEAN_ROADMAP = {
+    "ref": "Lutar/Materials/PACBayesMaterials.lean",
+    "claim": "McAllester (1999) PAC-Bayes generalization bound, "
+             "R(Q) <= Rhat(Q) + sqrt((KL + ln(2*sqrt(n)/delta)) / (2n))",
+    "status": "SORRY/ROADMAP — NOT Lean-proven, NOT in locked-8; "
+              "formula PROVEN on paper, computation exact",
+}
+
+# Honest, clearly-labeled SAMPLE/MODELED presets. These are ILLUSTRATIVE inputs
+# (NOT measured empirical risks of any deployed SZL model) chosen so each family
+# yields a sensible, distinct certified bound. risk units are normalized risk
+# (dimensionless, in [0,1]); for an energy-prediction surrogate the same machinery
+# applies with risk measured in eV/atom — labeled per call.
+_PACBAYES_PRESETS: dict[str, dict[str, Any]] = {
+    "oxides": {
+        "empirical_risk": 0.04, "kl": 2.5, "n": 50000, "delta": 0.05,
+        "risk_units": "normalized risk (dimensionless, [0,1])",
+        "label": "SAMPLE/MODELED — illustrative inputs for an oxide formation-"
+                 "energy surrogate; NOT a measured empirical risk",
+    },
+    "intermetallics": {
+        "empirical_risk": 0.06, "kl": 3.2, "n": 20000, "delta": 0.05,
+        "risk_units": "normalized risk (dimensionless, [0,1])",
+        "label": "SAMPLE/MODELED — illustrative inputs for an intermetallic "
+                 "stability surrogate; NOT a measured empirical risk",
+    },
+    "refractory_hea": {
+        "empirical_risk": 0.09, "kl": 5.0, "n": 8000, "delta": 0.10,
+        "risk_units": "normalized risk (dimensionless, [0,1])",
+        "label": "SAMPLE/MODELED — illustrative inputs for a refractory high-"
+                 "entropy-alloy surrogate; NOT a measured empirical risk",
+    },
+}
+
+
+def _pacbayes_honesty() -> dict[str, Any]:
+    return {
+        "bound_formula": "PROVEN on paper (McAllester 1999, COLT)",
+        "bound_computation": "EXACT (delegated to szl_formulas.pac_bayes_mcallester)",
+        "lean_proof": _PACBAYES_LEAN_ROADMAP["status"],
+        "lean_roadmap_ref": _PACBAYES_LEAN_ROADMAP["ref"],
+        "presets_label": "SAMPLE/MODELED — illustrative inputs, NOT measured empirics",
+        "receipt_chain": "REAL (szl_khipu SHA3-256 hash chain; tamper-evident)",
+        "receipt_signature": "DSSE_PLACEHOLDER (Sigstore not wired; honest)",
+        "khipu": "Conjecture 2",
+        "lambda": "Conjecture 1",
+        "trust_ceiling": "never 100%",
+        "fabricated_data": False,
+        "locked8": _LOCKED8,
+        "locked8_kernel": _LOCKED8_KERNEL,
+        "locked8_note": "McAllester PAC-Bayes is NOT added to locked-8 "
+                        "(Lean proof is an open SORRY/ROADMAP)",
+    }
+
+
+def _resolve_pacbayes_inputs(body: dict[str, Any]) -> dict[str, Any]:
+    """Resolve {empirical_risk,kl,n,delta} either explicitly or from a preset.
+
+    Explicit inputs win if all four are present. Otherwise a {family} (or
+    {model, family}) preset is looked up. Returns a dict with the four numeric
+    inputs plus provenance metadata (source, family, risk_units, input_label).
+    Raises ValueError on bad/missing inputs.
+    """
+    explicit_keys = ("empirical_risk", "kl", "n", "delta")
+    has_all_explicit = all(k in body and body[k] is not None for k in explicit_keys)
+
+    if has_all_explicit:
+        try:
+            er = float(body["empirical_risk"])
+            kl = float(body["kl"])
+            n = int(body["n"])
+            delta = float(body["delta"])
+        except (TypeError, ValueError):
+            raise ValueError(
+                "empirical_risk, kl, delta must be numeric and n an integer")
+        return {
+            "empirical_risk": er, "kl": kl, "n": n, "delta": delta,
+            "source": "explicit",
+            "family": body.get("family"),
+            "model": body.get("model"),
+            "risk_units": body.get("risk_units",
+                                   "normalized risk (dimensionless, [0,1]) "
+                                   "unless otherwise specified by caller"),
+            "input_label": "CALLER-SUPPLIED — labeling/validity is the caller's "
+                           "responsibility; bound computation is exact",
+        }
+
+    family = body.get("family") or body.get("preset") or body.get("model")
+    if family in _PACBAYES_PRESETS:
+        p = _PACBAYES_PRESETS[family]
+        return {
+            "empirical_risk": float(p["empirical_risk"]),
+            "kl": float(p["kl"]),
+            "n": int(p["n"]),
+            "delta": float(p["delta"]),
+            "source": "preset",
+            "family": family,
+            "model": body.get("model"),
+            "risk_units": p["risk_units"],
+            "input_label": p["label"],
+        }
+
+    raise ValueError(
+        "supply either explicit {empirical_risk, kl, n, delta} OR a known "
+        "{family} preset (one of: " + ", ".join(sorted(_PACBAYES_PRESETS)) + ")")
+
+
+def _do_certify(body: dict[str, Any]) -> dict[str, Any]:
+    """Core PAC-Bayes certification: resolve inputs, compute the McAllester bound
+    via szl_formulas (IMPORTED, not reimplemented), sign a Khipu receipt into the
+    SHARED materials chain, and return the full honest response dict."""
+    import szl_formulas  # IMPORT the proven-on-paper bound; do NOT reimplement
+    import szl_khipu      # same idiom DEV 1 used (get_dag/emit on shared DAG)
+
+    inp = _resolve_pacbayes_inputs(body)
+
+    # Compute the McAllester PAC-Bayes bound — exact, delegated to szl_formulas.
+    bound = float(szl_formulas.pac_bayes_mcallester(
+        inp["empirical_risk"], inp["kl"], inp["n"], inp["delta"]))
+
+    delta = inp["delta"]
+    units = inp["risk_units"]
+    certificate_text = (
+        f"With probability >= 1 - delta (delta = {delta:g}) over training "
+        f"distributions, the population risk <= {bound:.6g} "
+        f"({units}). McAllester (1999) PAC-Bayes bound; computation exact; "
+        f"Lean proof is an open SORRY/ROADMAP (not Lean-proven)."
+    )
+
+    dag = szl_khipu.get_dag(_KHIPU_ORGAN, ns="a11oy")
+    receipt_payload = {
+        "receipt_type": _PACBAYES_RECEIPT_TYPE,
+        "organ": _KHIPU_ORGAN,
+        "operation": "pac_bayes_certificate",
+        "bound": bound,
+        "inputs": {
+            "empirical_risk": inp["empirical_risk"],
+            "kl": inp["kl"],
+            "n": inp["n"],
+            "delta": inp["delta"],
+            "source": inp["source"],
+            "family": inp.get("family"),
+            "model": inp.get("model"),
+            "risk_units": units,
+            "input_label": inp["input_label"],
+        },
+        "bound_formula": "R(Q) <= Rhat(Q) + sqrt((KL + ln(2*sqrt(n)/delta)) / (2n))",
+        "certificate_text": certificate_text,
+        "proof_status": _PACBAYES_PROOF_STATUS,
+        "honesty": _pacbayes_honesty(),
+        "lean_roadmap": _PACBAYES_LEAN_ROADMAP,
+        "doctrine": "v11",
+    }
+    receipt = dag.emit("materials.certify", receipt_payload)
+
+    return {
+        "ok": True,
+        "service": "materials.certify",
+        "bound": bound,
+        "inputs": receipt_payload["inputs"],
+        "bound_formula": receipt_payload["bound_formula"],
+        "certificate_text": certificate_text,
+        "proof_status": _PACBAYES_PROOF_STATUS,
+        "receipt": {
+            "receipt_type": _PACBAYES_RECEIPT_TYPE,
+            "organ": _KHIPU_ORGAN,
+            "seq": receipt["seq"],
+            "digest": receipt["digest"],
+            "prev": receipt["prev"],
+            "payload_digest": receipt["payload_digest"],
+            "signature": receipt["signature"],
+            "chain_head": dag.head(),
+            "chain_depth": dag.depth(),
+        },
+        "honesty": _pacbayes_honesty(),
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def _presets_view() -> dict[str, Any]:
+    """List the PAC-Bayes presets, each honestly labeled SAMPLE/MODELED."""
+    presets = {}
+    for fam, p in _PACBAYES_PRESETS.items():
+        presets[fam] = {
+            "empirical_risk": p["empirical_risk"],
+            "kl": p["kl"],
+            "n": p["n"],
+            "delta": p["delta"],
+            "risk_units": p["risk_units"],
+            "label": p["label"],
+        }
+    return {
+        "ok": True,
+        "service": "materials.certify.presets",
+        "organ": _KHIPU_ORGAN,
+        "ns": "a11oy",
+        "count": len(presets),
+        "presets": presets,
+        "presets_label": "SAMPLE/MODELED — illustrative inputs only; NOT measured "
+                         "empirical risks of any deployed model",
+        "bound_formula": "R(Q) <= Rhat(Q) + sqrt((KL + ln(2*sqrt(n)/delta)) / (2n))",
+        "proof_status": _PACBAYES_PROOF_STATUS,
+        "honesty": _pacbayes_honesty(),
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def register_certify(app, ns: str = "a11oy") -> list[str]:
+    # NOTE: Request/JSONResponse are imported at MODULE level (top of file) for
+    # the same reason DEV 1 documented — `from __future__ import annotations`
+    # stringizes the `request: Request` annotation, so FastAPI must resolve it
+    # from module globals; a function-local import would yield HTTP 422.
+    async def _certify(request: Request):  # noqa: ANN202
+        try:
+            if request.method == "POST":
+                try:
+                    body = await request.json()
+                except Exception:  # noqa: BLE001
+                    body = {}
+            else:
+                body = dict(request.query_params)
+                for k in ("empirical_risk", "kl", "delta"):
+                    if k in body:
+                        try:
+                            body[k] = float(body[k])
+                        except (TypeError, ValueError):
+                            pass
+                if "n" in body:
+                    try:
+                        body["n"] = int(float(body["n"]))
+                    except (TypeError, ValueError):
+                        pass
+            if not isinstance(body, dict):
+                body = {}
+            result = _do_certify(body)
+            return JSONResponse(result, headers={
+                "x-szl-materials-bound": f"{result['bound']:.6g}",
+                "x-szl-receipt-digest": result["receipt"]["digest"],
+            })
+        except ValueError as ve:
+            return JSONResponse(
+                {"ok": False, "error": str(ve),
+                 "proof_status": _PACBAYES_PROOF_STATUS,
+                 "honesty": _pacbayes_honesty()},
+                status_code=400,
+            )
+        except Exception as e:  # noqa: BLE001 — self-contained, never crash register
+            return JSONResponse(
+                {"ok": False, "error": f"{e!r}",
+                 "proof_status": _PACBAYES_PROOF_STATUS,
+                 "honesty": _pacbayes_honesty()},
+                status_code=500,
+            )
+
+    async def _presets():  # noqa: ANN202
+        return JSONResponse(_presets_view())
+
+    prefixes = [f"/api/{ns}/v1/materials", "/v1/materials"]
+    routes: list[str] = []
+    for p in prefixes:
+        app.add_api_route(f"{p}/certify", _certify, methods=["POST", "GET"],
+                          include_in_schema=True)
+        app.add_api_route(f"{p}/certify/presets", _presets, methods=["GET"],
+                          include_in_schema=True)
+        routes.extend([f"{p}/certify", f"{p}/certify/presets"])
+    return routes
 
 
 # ===========================================================================
