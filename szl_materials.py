@@ -744,7 +744,394 @@ def register_certify(app, ns: str = "a11oy") -> list[str]:
 # a call to it inside register() under the marked hook. Do NOT modify the DEV 1
 # section.
 # ===========================================================================
-# (DEV 3 routes go here)
+# ===========================================================================
+# DEV 3 SECTION — Immune-gated + energy-metered screening  (APPENDED by DEV 3)
+# ---------------------------------------------------------------------------
+# Adds the materials safety/dual-use SCREEN endpoint + an honest STATUS summary.
+#
+#   POST /api/a11oy/v1/materials/screen  (also /v1/materials/screen)
+#     Runs an input {action:{...}} through the REAL Immune egress gate by CALLING
+#     szl_immune._build_verdict DIRECTLY — the SAME Neyman-Pearson signature /
+#     size-guard / Lambda-gate-floor logic the rest of the estate uses. We do NOT
+#     reimplement or reweaken those signatures. THEN it attaches an honest
+#     energy-provenance block: it asks the energy operator's joule-truth path for a
+#     fresh, REAL on-box NVML delta. If (and only if) szl_joules_truth confirms a
+#     fresh real exporter sample, the block is labeled MEASURED with the real
+#     joules + node. Otherwise it is labeled MODELED (operator ran but no fresh
+#     per-node NVML delta) or SAMPLE (no operator/meter at all), joules is null,
+#     and it is EXCLUDED from any measured total. We NEVER fabricate a joule.
+#     Returns {decision, signals, immune_receipt, energy:{label,joules,node,...}}
+#     + a SIGNED Khipu receipt (SZL.Materials.Screen.v1) into the SHARED
+#     szl_khipu DAG (organ="materials").
+#
+#   GET  /api/a11oy/v1/materials/status  (also /v1/materials/status)
+#     Honest process summary — novelty registry depth (read from the DEV-1
+#     registry if accessible), screens run this process, immune deny-rate on
+#     materials screens, MEASURED joules total (0 if none real), lean_backing
+#     (immune NP-gate proven-backing; novelty injectivity ROADMAP; PAC-Bayes Lean
+#     SORRY), locked_proven {set:8, kernel c7c0ba17}, and the honesty block.
+#
+# HONESTY (Doctrine v11): the immune logic is REUSED (no reimplementation); MEASURED
+# is decided SOLELY by szl_joules_truth off a fresh real NVML delta, else
+# MODELED/SAMPLE + excluded from the measured total; we NEVER add to the locked-8
+# (EXACTLY 8 @ c7c0ba17); Khipu = Conjecture 2; Lambda = Conjecture 1; trust is
+# never 100%; effectors simulated; no fabricated data.
+# ===========================================================================
+
+_SCREEN_RECEIPT_TYPE = "SZL.Materials.Screen.v1"
+
+# Process-local screen counters (reset on restart — empty == IDLE, never faked).
+_SCREEN_LOCK = threading.Lock()
+_SCREEN_STATS = {
+    "screens": 0,
+    "deny": 0,
+    "allow": 0,
+    "joules_measured_total": 0.0,   # SUM of fresh real NVML deltas ONLY (billable)
+    "measured_screens": 0,
+    "last_receipt_digest": None,
+}
+
+# Honest energy labels for the screen block.
+_ENERGY_MEASURED = "MEASURED"   # fresh real on-box NVML delta (szl_joules_truth)
+_ENERGY_MODELED = "MODELED"     # operator present but no fresh per-node NVML delta
+_ENERGY_SAMPLE = "SAMPLE"       # no operator / no meter reachable at all
+
+
+def _screen_honesty() -> dict[str, Any]:
+    return {
+        "immune_logic": "REUSED — szl_immune._build_verdict (the REAL Neyman-Pearson "
+                        "egress gate); NOT reimplemented, NOT reweakened",
+        "energy_label_authority": "szl_joules_truth — MEASURED only off a fresh real "
+                                  "NVML exporter delta; else MODELED/SAMPLE + EXCLUDED "
+                                  "from the measured total; a joule is NEVER fabricated",
+        "lambda": "Conjecture 1 (NOT a theorem)",
+        "khipu": "Conjecture 2",
+        "trust_ceiling": "never 100%",
+        "effectors": "simulated",
+        "fabricated_data": False,
+        "locked8": _LOCKED8,
+        "locked8_kernel": _LOCKED8_KERNEL,
+        "locked8_note": "screen + energy add NOTHING to the locked-8",
+    }
+
+
+def _energy_provenance() -> dict[str, Any]:
+    """Honest energy-provenance block for a screen.
+
+    Reads the energy operator's joule-truth path for a fresh REAL on-box NVML
+    delta. The label is decided SOLELY by szl_joules_truth (never a flag):
+      - MEASURED: a fresh real NVML exporter sample exists -> include real joules
+                  + node; this is the only case that contributes to a measured total.
+      - MODELED:  the operator is present (status readable) but no fresh per-node
+                  NVML delta proves a measurement right now -> joules=null, excluded.
+      - SAMPLE:   no operator / meter reachable at all -> joules=null, excluded.
+    Never raises; on any failure returns an honest SAMPLE block (joules=null).
+    """
+    block: dict[str, Any] = {
+        "label": _ENERGY_SAMPLE,
+        "joules": None,
+        "joules_measured": None,
+        "node": None,
+        "measured": False,
+        "note": "no energy operator / NVML meter reachable from this process — "
+                "energy is SAMPLE, joules null, EXCLUDED from any measured total",
+        "authority": "szl_joules_truth (single source of truth for the joules label)",
+    }
+    try:
+        import szl_energy_operator as _eo
+        import szl_joules_truth as _jt
+    except Exception:  # noqa: BLE001 — module not importable -> honest SAMPLE
+        return block
+
+    # Try the most honest accessor first: a fresh exporter sample straight off the
+    # live NVML joule-meter for a configured node. szl_joules_truth decides the
+    # label; we never trust a flag or a forwarded label string.
+    try:
+        meter = _eo._fetch_joule_meter()
+    except Exception:  # noqa: BLE001
+        meter = None
+
+    now = time.time()
+    fresh_sample = None
+    node_name = None
+    if meter is not None:
+        try:
+            for _n in _eo.get_operator().nodes:
+                s = _eo._exporter_sample_for_node(meter, _n.exporter_node, now=now)
+                if s is not None and _jt.is_real_fresh_sample(s, now=now):
+                    fresh_sample = s
+                    node_name = _n.exporter_node
+                    break
+        except Exception:  # noqa: BLE001
+            fresh_sample = None
+
+    if fresh_sample is not None and _jt.is_real_fresh_sample(fresh_sample, now=now):
+        ev = _jt.joules_evidence(fresh_sample, now=now)
+        joules = ev.get("joules_measured_total")
+        block.update({
+            "label": _ENERGY_MEASURED,
+            "joules": joules,
+            "joules_measured": joules,
+            "node": node_name or ev.get("exporter_node"),
+            "measured": True,
+            "power_w_sample": ev.get("power_w_sample"),
+            "exporter_last_seen_ts": ev.get("exporter_last_seen_ts"),
+            "evidence": ev,
+            "note": "fresh real on-box NVML exporter delta — MEASURED joules "
+                    "(szl_joules_truth confirmed); included in the measured total",
+        })
+        return block
+
+    # No fresh real NVML delta. If the operator is at least present/readable, this
+    # is MODELED (the operator exists but cannot prove a measurement right now);
+    # otherwise it stays SAMPLE. Either way joules=null and it is EXCLUDED.
+    try:
+        st = _eo.handle_status()
+        if isinstance(st, dict):
+            block.update({
+                "label": _ENERGY_MODELED,
+                "joules": None,
+                "joules_measured": None,
+                "node": st.get("exporter_node"),
+                "measured": False,
+                "operator_running": st.get("running"),
+                "stub_mode": st.get("stub_mode"),
+                "note": "energy operator readable but no fresh per-node NVML delta "
+                        "attributes a measurement to this screen — MODELED, joules "
+                        "null, EXCLUDED from the measured total (never fabricated)",
+            })
+    except Exception:  # noqa: BLE001 — keep the honest SAMPLE default
+        pass
+    return block
+
+
+def _do_screen(body: dict[str, Any]) -> dict[str, Any]:
+    """Core screen: REAL immune verdict (reused) + honest energy provenance +
+    a signed Khipu receipt into the SHARED materials chain. Returns the response."""
+    import szl_khipu
+    import szl_immune  # REUSE the REAL verdict logic; do NOT reimplement.
+
+    body = body if isinstance(body, dict) else {"action": body}
+    if "action" not in body:
+        body = {"action": body}
+
+    # --- 1) REAL immune gate (Neyman-Pearson signature/size/Lambda-floor) -------
+    verdict = szl_immune._build_verdict(body)
+    decision = verdict.get("decision")
+    signals = verdict.get("signals", [])
+    immune_receipt = verdict.get("khipu_receipt")
+
+    # --- 2) Honest energy provenance (MEASURED only off a fresh real NVML delta) -
+    energy = _energy_provenance()
+
+    # --- 3) Sign a materials-screen Khipu receipt into the SHARED chain ---------
+    dag = szl_khipu.get_dag(_KHIPU_ORGAN, ns="a11oy")
+    receipt_payload = {
+        "receipt_type": _SCREEN_RECEIPT_TYPE,
+        "organ": _KHIPU_ORGAN,
+        "operation": "materials_screen",
+        "decision": decision,
+        "reason": verdict.get("reason"),
+        "signals": signals,
+        "lambda_value": verdict.get("lambda_value"),
+        "lambda_floor": verdict.get("lambda_floor"),
+        "immune_verdict_hash": verdict.get("receipt_hash"),
+        "immune_receipt_digest": (immune_receipt or {}).get("digest"),
+        "energy": energy,
+        "honesty": _screen_honesty(),
+        "doctrine": "v11",
+    }
+    receipt = dag.emit("materials.screen", receipt_payload)
+
+    # --- 4) Update honest process counters --------------------------------------
+    with _SCREEN_LOCK:
+        _SCREEN_STATS["screens"] += 1
+        if decision == "deny":
+            _SCREEN_STATS["deny"] += 1
+        elif decision == "allow":
+            _SCREEN_STATS["allow"] += 1
+        if energy.get("label") == _ENERGY_MEASURED and isinstance(energy.get("joules"), (int, float)):
+            _SCREEN_STATS["joules_measured_total"] += float(energy["joules"])
+            _SCREEN_STATS["measured_screens"] += 1
+        _SCREEN_STATS["last_receipt_digest"] = receipt["digest"]
+
+    return {
+        "ok": True,
+        "service": "materials.screen",
+        "organ": _KHIPU_ORGAN,
+        "decision": decision,
+        "reason": verdict.get("reason"),
+        "signals": signals,
+        "lambda_value": verdict.get("lambda_value"),
+        "lambda_floor": verdict.get("lambda_floor"),
+        "fail_closed": verdict.get("fail_closed", True),
+        "immune_receipt": immune_receipt,
+        "immune_lean_backing": verdict.get("lean_backing"),
+        "energy": energy,
+        "receipt": {
+            "receipt_type": _SCREEN_RECEIPT_TYPE,
+            "organ": _KHIPU_ORGAN,
+            "ns": "a11oy",
+            "seq": receipt["seq"],
+            "digest": receipt["digest"],
+            "prev": receipt["prev"],
+            "payload_digest": receipt["payload_digest"],
+            "signature": receipt.get("signature"),
+            "chain_head": dag.head(),
+            "chain_depth": dag.depth(),
+        },
+        "honesty": _screen_honesty(),
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def _materials_lean_backing() -> dict[str, Any]:
+    """Honest Lean-backing map across the whole Materials surface."""
+    return {
+        "immune_np_gate": {
+            "ref": "Lutar/Wave11/ImmuneNeymanPearsonOpt.lean",
+            "status": "proven-backing (NOT in the locked-8)",
+            "claim": "Neyman-Pearson-optimal egress gate (likelihood-ratio test "
+                     "minimises miss-rate at a fixed false-alarm bound)",
+        },
+        "novelty_injectivity": {
+            "ref": "Lutar/Materials/PDDInjective.lean",
+            "status": "ROADMAP/CONJECTURE — NOT proven, NOT in locked-8",
+            "claim": "PDD/sorted-distance fingerprint is injective on isometry classes",
+        },
+        "pac_bayes_mcallester": {
+            "ref": "McAllester PAC-Bayes (szl_formulas)",
+            "status": "PROVEN-on-paper; Lean proof is a tracked SORRY (NOT in locked-8)",
+            "claim": "McAllester PAC-Bayes generalisation bound (bound COMPUTATION is exact)",
+        },
+    }
+
+
+def _screen_status() -> dict[str, Any]:
+    """Honest process summary for the Materials surface (screen + shared state)."""
+    import szl_khipu
+    dag = szl_khipu.get_dag(_KHIPU_ORGAN, ns="a11oy")
+    chain = dag.verify_chain()
+
+    # Novelty registry depth — read the DEV-1 in-process registry if accessible.
+    registry_depth: Any
+    registry_note: Optional[str] = None
+    try:
+        with _REG_LOCK:
+            registry_depth = len(_REGISTRY)
+    except Exception:  # noqa: BLE001
+        registry_depth = None
+        registry_note = "novelty registry not accessible from this process view"
+
+    with _SCREEN_LOCK:
+        screens = _SCREEN_STATS["screens"]
+        deny = _SCREEN_STATS["deny"]
+        allow = _SCREEN_STATS["allow"]
+        jm_total = _SCREEN_STATS["joules_measured_total"]
+        measured_screens = _SCREEN_STATS["measured_screens"]
+        last_digest = _SCREEN_STATS["last_receipt_digest"]
+    deny_rate = round(deny / screens, 4) if screens else None
+
+    payload = {
+        "ok": True,
+        "service": "materials.status",
+        "organ": _KHIPU_ORGAN,
+        "ns": "a11oy",
+        "registry_depth": registry_depth,
+        "registry_note": registry_note,
+        "screens_this_process": screens,
+        "screen_deny": deny,
+        "screen_allow": allow,
+        "immune_deny_rate_on_materials": deny_rate,
+        "joules_measured_total": round(float(jm_total), 6),
+        "joules_measured_label": _ENERGY_MEASURED,
+        "measured_screens": measured_screens,
+        "joules_measured_note": ("SUM of fresh real on-box NVML deltas ONLY (0 if none "
+                                 "real this process); MODELED/SAMPLE energy is EXCLUDED "
+                                 "and a joule is NEVER fabricated"),
+        "last_screen_receipt_digest": last_digest,
+        "khipu": {
+            "organ": _KHIPU_ORGAN,
+            "ns": "a11oy",
+            "chain_depth": dag.depth(),
+            "head_digest": dag.head(),
+            "chain_verified": chain.get("ok"),
+            "broken_at": chain.get("broken_at"),
+            "kind": "Conjecture 2",
+        },
+        "lean_backing": _materials_lean_backing(),
+        "locked_proven": {
+            "set": _LOCKED8,
+            "count": len(_LOCKED8),
+            "kernel": _LOCKED8_KERNEL,
+            "note": "EXACTLY 8 @ c7c0ba17; the Materials surface adds NOTHING to it",
+        },
+        "honesty": {
+            "lambda": "Conjecture 1",
+            "khipu": "Conjecture 2",
+            "trust": "never 100%",
+            "effectors": "simulated",
+            "fabricated": False,
+        },
+        "receipt_types": [
+            _NOVELTY_RECEIPT_TYPE,
+            _SCREEN_RECEIPT_TYPE,
+        ],
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    return payload
+
+
+def register_screen(app, ns: str = "a11oy") -> list[str]:
+    # Request/JSONResponse are imported at MODULE level (top of file) — see the
+    # DEV-1 note: `from __future__ import annotations` stringizes annotations, so a
+    # function-local import would leave `request: Request` unresolved and FastAPI
+    # would wrongly treat it as a required query param (HTTP 422).
+    async def _screen(request: Request):  # noqa: ANN202
+        try:
+            if request.method == "POST":
+                try:
+                    body = await request.json()
+                except Exception:  # noqa: BLE001 — malformed/empty body
+                    body = {}
+            else:
+                body = {}
+            if not isinstance(body, dict):
+                body = {"action": body}
+            result = _do_screen(body)
+            return JSONResponse(result, headers={
+                "x-szl-materials-screen-decision": str(result.get("decision")),
+                "x-szl-materials-energy-label": str(result.get("energy", {}).get("label")),
+                "x-szl-receipt-digest": result.get("receipt", {}).get("digest", ""),
+            })
+        except Exception as e:  # noqa: BLE001 — fail-closed, never 500 the SPA
+            return JSONResponse(
+                {"ok": False, "decision": "deny",
+                 "error": f"{e!r}",
+                 "reason": "materials screen failed-closed (deny-by-default)",
+                 "honesty": _screen_honesty()},
+                status_code=500,
+            )
+
+    async def _status():  # noqa: ANN202
+        try:
+            return JSONResponse(_screen_status())
+        except Exception as e:  # noqa: BLE001
+            return JSONResponse(
+                {"ok": False, "error": f"{e!r}", "honesty": _screen_honesty()},
+                status_code=500,
+            )
+
+    prefixes = [f"/api/{ns}/v1/materials", "/v1/materials"]
+    routes: list[str] = []
+    for p in prefixes:
+        app.add_api_route(f"{p}/screen", _screen, methods=["POST", "GET"],
+                          include_in_schema=True)
+        app.add_api_route(f"{p}/status", _status, methods=["GET"],
+                          include_in_schema=True)
+        routes.extend([f"{p}/screen", f"{p}/status"])
+    return routes
+
 
 
 # ===========================================================================
