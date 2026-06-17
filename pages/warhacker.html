@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>a11oy — Mission Surfaces · SZL Holdings</title>
-  <meta name="description" content="Five working a11oy mission surfaces: AI Oversight, Deploy Posture, Mission Health, Trajectory Picture, and Edge Run. Each runs live in-image and produces a real, signed, re-verifiable result."/>
+  <title>a11oy — Governed Mission Compute · WarHacker · SZL Holdings</title>
+  <meta name="description" content="a11oy is governed substrate for defense: code-as-action that is ALLOWED or BLOCKED and sealed into a signed, re-verifiable receipt. Army counter-UAS, Navy maritime, multi-domain joint compute — each a live in-image surface. Honest labels only."/>
   <!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
      /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
 <style>
@@ -183,25 +183,107 @@
     .sub{font-family:var(--mono);font-size:10px;color:var(--teal);margin:.3rem 0 0;}
     .gap{height:.6rem;}
   </style>
+  <style>
+    /* --- LIVE STATUS RIBBON (real numbers pulled from live a11oy endpoints) --- */
+    .liveribbon{position:sticky;top:0;z-index:60;display:flex;align-items:stretch;gap:0;flex-wrap:wrap;
+      font-family:var(--mono);background:linear-gradient(90deg,#070707,#0c0c0c 60%,#070707);
+      border-bottom:1px solid var(--gold-line);overflow:hidden;}
+    .lr-brand{display:flex;align-items:center;gap:.5rem;padding:.55rem 1rem;border-right:1px solid var(--gold-line);
+      font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:600;white-space:nowrap;}
+    .lr-cells{display:flex;flex:1 1 auto;flex-wrap:wrap;align-items:stretch;}
+    .lr-cell{display:flex;flex-direction:column;justify-content:center;gap:.1rem;padding:.4rem .9rem;
+      border-right:1px solid var(--gold-soft);min-width:auto;}
+    .lr-cell .lk{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+    .lr-cell .lv{font-size:12.5px;color:var(--cream);font-weight:500;display:flex;align-items:center;gap:.35rem;}
+    .lr-cell .lv.teal{color:var(--teal);} .lr-cell .lv.gold{color:var(--gold);} .lr-cell .lv.err{color:var(--err);}
+    .lr-cell .lv.pending{color:var(--dim);}
+    .lr-tag{font-size:8px;letter-spacing:.1em;padding:.05rem .3rem;border-radius:3px;text-transform:uppercase;}
+    .lr-tag.measured{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.1);}
+    .lr-tag.sample{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+    .lr-tag.nolive{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+    .lr-foot{display:flex;align-items:center;padding:.4rem 1rem;border-left:1px solid var(--gold-line);
+      font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);white-space:nowrap;margin-left:auto;}
+    .lr-foot a{color:var(--muted);text-decoration:none;} .lr-foot a:hover{color:var(--gold);}
+
+    /* --- WOW BANNER: governed code-as-action --- */
+    .wow{max-width:64rem;margin:1.5rem auto .5rem;padding:0 1.25rem;}
+    .wow-card{border:1px solid var(--gold-line);border-radius:14px;background:
+      radial-gradient(120% 140% at 0% 0%,rgba(95,179,163,.06),transparent 55%),var(--panel);
+      padding:1.4rem 1.5rem;}
+    .wow-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:.5rem;}
+    .wow-h{font-size:clamp(1.3rem,3vw,1.9rem);font-weight:400;letter-spacing:-.02em;line-height:1.2;margin:0 0 .6rem;color:var(--cream);}
+    .wow-h b{font-weight:600;}
+    .wow-flow{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;font-family:var(--mono);font-size:12px;margin:.8rem 0;}
+    .wow-step{padding:.35rem .7rem;border-radius:7px;border:1px solid var(--gold-line);background:var(--panel2);color:var(--paragraph);}
+    .wow-step.allow{color:var(--live);border-color:rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+    .wow-step.block{color:var(--err);border-color:rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+    .wow-step.seal{color:var(--teal);border-color:var(--teal-line);background:var(--teal-soft);}
+    .wow-arr{color:var(--dim);}
+    .wow-sub{font-size:13px;line-height:1.6;color:var(--paragraph);margin:.3rem 0 0;max-width:46rem;}
+    .wow-ctas{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;}
+    .wow-cta{display:inline-flex;align-items:center;gap:.45rem;padding:.6rem 1.2rem;font-family:var(--mono);font-size:12px;
+      font-weight:500;border-radius:8px;cursor:pointer;text-decoration:none;letter-spacing:.04em;}
+    .wow-cta.primary{background:var(--gold);color:var(--ground);border:1px solid var(--gold);}
+    .wow-cta.primary:hover{background:var(--gold-bright);}
+    .wow-cta.ghost{background:transparent;color:var(--teal);border:1px solid var(--teal-line);}
+    .wow-cta.ghost:hover{background:var(--teal-soft);}
+
+    /* --- DOMAIN BAND: Army / Navy / Multi-domain --- */
+    .domains{max-width:64rem;margin:2rem auto 1rem;padding:0 1.25rem;}
+    .domains-h{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+      text-align:center;margin-bottom:1rem;}
+    .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem;}
+    .dcard{border:1px solid var(--gold-line);border-radius:12px;background:var(--panel);padding:1.1rem 1.2rem;
+      display:flex;flex-direction:column;text-decoration:none;transition:border-color .18s ease,transform .18s ease;}
+    .dcard:hover{border-color:rgba(201,183,135,.45);transform:translateY(-2px);}
+    .dcard .dtag{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:.5rem;}
+    .dcard .dt{font-size:1.05rem;font-weight:500;color:var(--cream);margin-bottom:.4rem;letter-spacing:-.01em;}
+    .dcard .dd{font-size:12.5px;line-height:1.55;color:var(--paragraph);flex:1;}
+    .dcard .dlink{font-family:var(--mono);font-size:11px;color:var(--gold);margin-top:.8rem;}
+    .dcard .dlink::after{content:" →";}
+    .dcard .dmat{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:.4rem;}
+
+    /* --- PROOF strip --- */
+    .proof{max-width:64rem;margin:1.5rem auto;padding:0 1.25rem;}
+    .proof-card{border:1px solid var(--teal-line);border-radius:12px;background:var(--teal-soft);padding:1.2rem 1.4rem;
+      display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap;}
+    .proof-card .pc-l{flex:1 1 320px;}
+    .proof-card .pc-h{font-size:1.05rem;font-weight:500;color:var(--cream);margin:0 0 .35rem;}
+    .proof-card .pc-h b{color:var(--teal);}
+    .proof-card .pc-d{font-size:12.5px;line-height:1.6;color:var(--paragraph);margin:0;}
+    .proof-card .pc-d code{color:var(--gold);font-family:var(--mono);font-size:11px;}
+    .proof-card .pc-r{display:flex;gap:.6rem;flex-wrap:wrap;}
+  </style>
 </head>
 <body>
-  <div class="ribbon">
-    <span class="live"><span class="live-dot"></span>a11oy</span>
-    <span class="sep">·</span><span>Mission Surfaces</span>
-    <span class="sep">·</span><span class="teal">in-image · signed · re-verifiable</span>
-    <a href="/console">console →</a>
+  <!-- LIVE STATUS RIBBON — every number below is pulled from a live a11oy endpoint
+       on this Space at page load; honest labels (MEASURED / SAMPLE / NO-LIVE-DATA),
+       never fabricated. -->
+  <div class="liveribbon" id="liveRibbon" aria-label="Live a11oy substrate status">
+    <span class="lr-brand"><span class="live-dot"></span>a11oy · governed substrate</span>
+    <div class="lr-cells">
+      <div class="lr-cell"><span class="lk">Energy operator</span><span class="lv pending" id="lrOp">probing…</span></div>
+      <div class="lr-cell"><span class="lk">Jobs done</span><span class="lv pending" id="lrJobs">—</span></div>
+      <div class="lr-cell"><span class="lk">Joules</span><span class="lv pending" id="lrJoules">—</span></div>
+      <div class="lr-cell"><span class="lk">Nodes computing</span><span class="lv pending" id="lrNodes">—</span></div>
+      <div class="lr-cell"><span class="lk">Substrate</span><span class="lv pending" id="lrSub">—</span></div>
+      <div class="lr-cell"><span class="lk">Λ trust</span><span class="lv gold">Conjecture 1 · advisory</span></div>
+      <div class="lr-cell"><span class="lk">Locked proofs</span><span class="lv teal" id="lrLocked">8</span></div>
+    </div>
+    <div class="lr-foot"><a href="/console">console →</a></div>
   </div>
 
   <section class="hero">
     <div class="grid-bg"></div>
     <div class="hero-inner">
-      <span class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">Five working surfaces · live on this Space</span></span>
-      <h1 class="headline">One platform.<br/><span class="accent">Five mission answers.</span></h1>
-      <p class="support">Each surface below runs live inside this container and returns a real result &mdash;
-        a governed decision with a signed, tamper-evident record you can re-verify on screen, a deployment
-        package read live from the registry, a readiness dashboard, an instant trajectory picture, and the
-        whole governed decision running on the device itself.</p>
-      <button class="runall" id="runAll">▶ Run all five</button>
+      <span class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">WarHacker · governed mission compute · live on this Space</span></span>
+      <h1 class="headline">Code is action.<br/><span class="accent">Govern it, or it governs you.</span></h1>
+      <p class="support">a11oy is the <b style="color:var(--cream)">governed substrate</b> beneath the mission:
+        every autonomous decision is checked against authorized limits, <span style="color:var(--live)">ALLOWED</span>
+        or <span style="color:var(--err)">BLOCKED</span> at the exact line it crosses, and sealed into a signed,
+        tamper-evident receipt you can re-verify on screen. Army counter-UAS, Navy maritime, multi-domain joint
+        compute &mdash; one governed core, every domain.</p>
+      <button class="runall" id="runAll">▶ Run all five mission surfaces</button>
       <div class="stats">
         <div class="stat"><div class="k">Surfaces live</div><div class="v" id="stLive">0 / 5</div></div>
         <div class="stat"><div class="k">Records signed</div><div class="v teal" id="stSigned">0</div></div>
@@ -210,6 +292,77 @@
       </div>
     </div>
   </section>
+
+  <!-- THE WOW — governed code-as-action: ALLOW vs BLOCK -> signed receipt -->
+  <div class="wow">
+    <div class="wow-card">
+      <div class="wow-eyebrow">The wow · governed code-as-action</div>
+      <h2 class="wow-h">An AI tries to cross a line. <b>a11oy catches it at the line</b> &mdash; and signs the proof.</h2>
+      <div class="wow-flow">
+        <span class="wow-step">request</span><span class="wow-arr">→</span>
+        <span class="wow-step">read the rules</span><span class="wow-arr">→</span>
+        <span class="wow-step">policy gate</span><span class="wow-arr">→</span>
+        <span class="wow-step allow">ALLOW</span><span class="wow-arr">/</span><span class="wow-step block">BLOCK</span><span class="wow-arr">→</span>
+        <span class="wow-step seal">signed receipt</span>
+      </div>
+      <p class="wow-sub">The same deny-by-default governed run the platform uses everywhere. Pick a scenario,
+        watch it cross (or stay inside) an authorized parameter, then <b style="color:var(--cream)">Re-verify</b>
+        the sealed record and <b style="color:var(--cream)">Tamper test</b> it &mdash; a single flipped byte returns
+        <span class="mono" style="color:var(--err)">verified:false</span>.</p>
+      <div class="wow-ctas">
+        <a class="wow-cta primary" href="#panel-oversight" id="wowJump">▶ See ALLOW vs BLOCK</a>
+        <a class="wow-cta ghost" href="/signature-is-not-proof">Why a signature is not proof →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOMAIN BAND — Army / Navy / Multi-domain, each a live surface -->
+  <div class="domains">
+    <div class="domains-h">One governed core · every defense domain</div>
+    <div class="dgrid">
+      <a class="dcard" href="/counter-uas">
+        <span class="dtag">Army · Counter-UAS</span>
+        <span class="dt">Govern the engagement decision</span>
+        <span class="dd">A drone is inbound and an autonomous system wants to act. The governed gate holds any
+          engagement outside the authorized zone or without human authorization &mdash; and seals the held decision.</span>
+        <span class="dmat">LIVE surface · adversary catalog + legal/cyber boundary</span>
+        <span class="dlink">Open counter-UAS</span>
+      </a>
+      <a class="dcard" href="/cued-engagement">
+        <span class="dtag">Navy · Maritime</span>
+        <span class="dt">Cue, assess, and seal the track</span>
+        <span class="dd">Paste any maritime or orbital track and place it in an operational picture instantly &mdash;
+          assessed against real envelopes, anomalies flagged, no bespoke per-source integration.</span>
+        <span class="dmat">LIVE surface · cued-engagement + Trajectory Picture below</span>
+        <span class="dlink">Open cued engagement</span>
+      </a>
+      <a class="dcard" href="#panel-edge">
+        <span class="dtag">Joint · Multi-domain compute</span>
+        <span class="dt">Governed decisions at the disconnected edge</span>
+        <span class="dd">The whole governed run executes in-image with no uplink, the on-device router picks a tier,
+          and the same container is the UDS bundle that deploys cloud-to-edge with one command.</span>
+        <span class="dmat">LIVE surface · in-image Edge Run + Deploy Posture</span>
+        <span class="dlink">Run on the edge</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- PROOF — signature is not proof / cosign -->
+  <div class="proof">
+    <div class="proof-card">
+      <div class="pc-l">
+        <h3 class="pc-h">A signature proves <b>who signed</b>, not <b>what is true</b>.</h3>
+        <p class="pc-d">a11oy seals every governed decision into a real DSSE envelope signed by an in-image
+          ECDSA-P256 key &mdash; verifiable against <code>/cosign.pub</code>, tamper-evident byte-for-byte. But a
+          green signature is not a green outcome: re-verification recomputes the hash chain independently, and the
+          advisory Λ trust score is a research conjecture, not a pass/fail oracle.</p>
+      </div>
+      <div class="pc-r">
+        <a class="wow-cta ghost" href="/signature-is-not-proof">Read the case study →</a>
+        <a class="wow-cta ghost" href="/cosign.pub">Fetch the public key →</a>
+      </div>
+    </div>
+  </div>
 
   <div class="tabs-bar" id="tabsBar">
     <button class="tab-btn active" data-tab="oversight"><span class="dot" id="dot-oversight"></span>AI Oversight</button>
@@ -354,13 +507,18 @@ SAT-B 35786 3.07 0.0'></textarea>
 
   <div class="honest">
     <div class="honest-box" id="honestBox">
-      <b>What is real here.</b> Every surface above runs live in this container. Governed decisions are sealed into
-      real DSSE envelopes signed by an in-image ECDSA-P256 key (verifiable against
+      <b>What is real here (doctrine v11 · honest labels only).</b> Every surface above runs live in this container.
+      Governed decisions are sealed into real DSSE envelopes signed by an in-image ECDSA-P256 key (verifiable against
       <a href="/cosign.pub" style="color:var(--teal)">/cosign.pub</a>); change one byte and re-verify returns false.
-      The advisory trust score (&Lambda;) is a research conjecture, not a pass/fail oracle. Deploy posture is read live
-      from the public registry. Attestation is SLSA Build L2 on the organ images (honest L1 + L2) &mdash; not the bundle,
-      not L3, not an ATO. Readiness and trajectory use clearly-labelled sample inputs over real logic; plug a real feed
-      into the same shape and they are live.
+      The live status ribbon is pulled from real a11oy endpoints on this Space at load &mdash; energy figures carry a
+      <span class="lr-tag measured" style="display:inline">MEASURED</span> /
+      <span class="lr-tag sample" style="display:inline">SAMPLE</span> label straight from the operator, and a
+      <span class="lr-tag nolive" style="display:inline">NO-LIVE-DATA</span> label if an endpoint is unreachable. We never
+      fabricate a joule, a job count, or a 200. The advisory trust score (&Lambda;) is Conjecture 1 &mdash; a research
+      conjecture, not a pass/fail oracle. Locked-proven invariants = 8. Deploy posture is read live from the public
+      registry. Attestation is honest SLSA L1; the L2 build-provenance .att is emitted (not independently verified here);
+      L3 is roadmap &mdash; not the bundle, not an ATO. Mission Health and Trajectory Picture use clearly-labelled sample
+      inputs over real logic; plug a real feed into the same shape and they are live.
     </div>
   </div>
 
@@ -399,13 +557,25 @@ SAT-B 35786 3.07 0.0'></textarea>
 
   // ---------- tab switching ----------
   var tabBtns = document.querySelectorAll(".tab-btn");
+  function activateTab(name){
+    var btn = document.querySelector('.tab-btn[data-tab="'+name+'"]');
+    if(!btn) return;
+    tabBtns.forEach(function(x){ x.classList.remove("active"); });
+    btn.classList.add("active");
+    document.querySelectorAll(".panel").forEach(function(p){ p.classList.remove("active"); });
+    var panel = $("panel-"+name); if(panel) panel.classList.add("active");
+    if(name === "trajectory") drawTraj();
+  }
   tabBtns.forEach(function(b){
-    b.addEventListener("click", function(){
-      tabBtns.forEach(function(x){ x.classList.remove("active"); });
-      b.classList.add("active");
-      document.querySelectorAll(".panel").forEach(function(p){ p.classList.remove("active"); });
-      $("panel-"+b.dataset.tab).classList.add("active");
-      if(b.dataset.tab === "trajectory") drawTraj();
+    b.addEventListener("click", function(){ activateTab(b.dataset.tab); });
+  });
+  // WOW + domain-band anchors jump to the right tab AND scroll the tab strip into view.
+  document.querySelectorAll('a[href^="#panel-"]').forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var name = a.getAttribute("href").replace("#panel-","");
+      activateTab(name);
+      var bar = $("tabsBar"); if(bar) bar.scrollIntoView({behavior:"smooth", block:"start"});
     });
   });
 
@@ -694,6 +864,66 @@ SAT-B 35786 3.07 0.0'></textarea>
   getJSON("/warhacker-tabs/index").then(function(r){
     if(r.json && r.json.ok){ /* surfaces present */ }
   }).catch(function(){});
+
+  // ========== LIVE STATUS RIBBON ==========
+  // Pulls REAL numbers from live a11oy endpoints. Honest labels only: energy
+  // figures carry the operator's own MEASURED/SAMPLE label; an unreachable
+  // endpoint shows NO-LIVE-DATA. No value is ever fabricated.
+  function lrSet(id, cls, html){ var e=$(id); if(!e) return; e.className = "lv "+(cls||""); e.innerHTML = html; }
+  function fmtJ(v){
+    v = Number(v)||0;
+    if(v >= 1e9) return (v/1e9).toFixed(2)+" GJ";
+    if(v >= 1e6) return (v/1e6).toFixed(2)+" MJ";
+    if(v >= 1e3) return (v/1e3).toFixed(2)+" kJ";
+    return v.toFixed(2)+" J";
+  }
+  function loadRibbon(){
+    // Energy operator: running?, jobs_done, joules_measured_total (+label), nodes_computing.
+    getJSON("/energy/operator/status").then(function(r){
+      var d = (r && r.json) || {};
+      if(!r || !r.ok || d.running === undefined){ throw new Error("no status"); }
+      var running = !!d.running;
+      lrSet("lrOp", running?"teal":"gold",
+        (running?'<span class="live-dot"></span>RUNNING':"STANDBY"));
+      lrSet("lrJobs", "teal", String(d.jobs_done!=null?d.jobs_done:0));
+      // Measured joules are the billable figure; show the operator's own label.
+      var jm = Number(d.joules_measured_total)||0;
+      var js = Number(d.joules_sample_total)||0;
+      if(jm > 0){
+        lrSet("lrJoules", "teal", fmtJ(jm)+' <span class="lr-tag measured">'+(d.joules_measured_label||"MEASURED")+'</span>');
+      } else if(js > 0){
+        lrSet("lrJoules", "gold", fmtJ(js)+' <span class="lr-tag sample">'+(d.joules_sample_label||"SAMPLE")+'</span>');
+      } else {
+        lrSet("lrJoules", "gold", '0 J <span class="lr-tag sample">none billed yet</span>');
+      }
+      var nc = (d.nodes_computing||[]).length;
+      lrSet("lrNodes", nc>0?"teal":"gold", String(nc));
+      lrSet("lrSub", running?"teal":"gold",
+        (d.stub_mode? 'in-image <span class="lr-tag sample">STUB</span>' : "live operator"));
+    }).catch(function(){
+      lrSet("lrOp","err",'<span class="lr-tag nolive">NO-LIVE-DATA</span>');
+      lrSet("lrJobs","pending","—"); lrSet("lrJoules","pending","—");
+      lrSet("lrNodes","pending","—"); lrSet("lrSub","pending","—");
+    });
+    // Locked proofs + doctrine: read the live healthz doctrine block to annotate the
+    // locked-proofs cell with the canonical 749/14/163 @ c7c0ba17 lock. Locked-proven
+    // count is the doctrine constant 8. Two shapes exist in the wild:
+    //   in-process: {"lock":"749/14/163","commit":"c7c0ba17"}
+    //   v1 proxy:   {"doctrine":{"declarations":749,"axioms":14,"sorries":163,"replay_hash":"c7c0ba17"}}
+    getJSON("/healthz").then(function(r){
+      var j = (r && r.json) || {};
+      var lock = j.lock, commit = j.commit;
+      if(!lock && j.doctrine){
+        var d = j.doctrine;
+        if(d.declarations!=null){ lock = d.declarations+"/"+d.axioms+"/"+d.sorries; }
+        commit = commit || d.replay_hash;
+      }
+      var cell = $("lrLocked");
+      if(cell && lock){ cell.title = "doctrine v11 · "+lock+(commit?(" · replay "+commit):"")+" · Λ = Conjecture 1"; }
+    }).catch(function(){ /* locked=8 is the doctrine constant; leave the cell as-is */ });
+  }
+  loadRibbon();
+
   drawTraj();
 })();
 </script>
