@@ -14828,5 +14828,76 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 </script>
 <!-- end DEV1 GOVERNANCE-ELEVATION -->
 
+<!-- ===================================================================== -->
+<!-- DEV — PIN PITCH TABS TO TOP OF LEFT-NAV (reorder-only, additive).      -->
+<!-- Founder pitch walk goes top-to-bottom: the five flagship tabs must be  -->
+<!-- the FIRST five nav items, in this exact order. This pass ONLY moves     -->
+<!-- existing .nav-item DOM nodes (built by the various nav injectors above) -->
+<!-- to the front of .side; it NEVER renames a key, changes a label, adds or -->
+<!-- removes a tab, or touches any view/handler. go(key) is untouched: we    -->
+<!-- relocate the existing element (its onclick comes with it). Keys are     -->
+<!-- referenced as plain strings + dynamic selectors so the tab-contract     -->
+<!-- extractor (data-view= regex) sees no new tab. Idempotent + settle-safe. -->
+<!-- DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda=Conjecture 1. -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  // The five flagship tabs, in the exact top-to-bottom pitch order.
+  var PINNED = ["whHero","organism","warboard","feedpulse","honest"];
+  function sel(k){ return '.nav-item[' + 'data-view=' + JSON.stringify(k) + ']'; }
+  function reorder(){
+    var side = document.querySelector('.side');
+    if(!side){ return false; }
+    var brand = side.querySelector('.brand');
+    // Anchor: the node the pinned group must sit immediately after (the brand
+    // header) so the five tabs are the very first nav entries. If there is no
+    // brand, fall back to the first child of .side.
+    var anchor = brand || null;
+    var found = 0;
+    // Insert in order. Walk PINNED back-to-front and insert each right after the
+    // anchor, so final left-to-right order matches PINNED exactly.
+    for(var i = PINNED.length - 1; i >= 0; i--){
+      var el = side.querySelector(sel(PINNED[i]));
+      if(!el){ continue; }
+      found++;
+      var ref = anchor ? anchor.nextSibling : side.firstChild;
+      // Avoid redundant DOM churn if already correctly placed.
+      if(ref === el){ continue; }
+      side.insertBefore(el, ref);
+    }
+    return found === PINNED.length;
+  }
+  // Run after all the nav injectors above have settled. They run on
+  // DOMContentLoaded / load; some append late. We poll briefly until every
+  // pinned key exists and is hoisted, then a few extra passes to win against
+  // any late re-append, then stop. Purely additive; never throws into the page.
+  var tries = 0, MAX = 120; // ~ up to 30s at 250ms
+  function tick(){
+    tries++;
+    var ok = false;
+    try { ok = reorder(); } catch(e){ /* never break the page */ }
+    if(ok && tries > 8){ // confirmed complete + a settle margin
+      // A few trailing passes spaced out, then stop.
+      var extra = 0;
+      var t = setInterval(function(){
+        extra++;
+        try { reorder(); } catch(e){}
+        if(extra >= 6){ clearInterval(t); }
+      }, 1000);
+      return;
+    }
+    if(tries < MAX){ setTimeout(tick, 250); }
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(tick, 0); });
+  } else {
+    setTimeout(tick, 0);
+  }
+  window.addEventListener('load', function(){ setTimeout(tick, 0); });
+})();
+</script>
+<!-- end DEV — PIN PITCH TABS TO TOP -->
+
 </body>
 </html>
