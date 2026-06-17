@@ -787,6 +787,45 @@ def test_rag_write_path_refuses_fabricated_chunk(monkeypatch):
             RAG._BUILD_META = prev_meta
 
 
+# ---------------------------------------------------------------------------
+# (14) GENTLE LOOP: the harvest posture feed (which may hit live external feeds)
+#      must be refreshed at most once per TTL — NEVER on every sweep — so a fast
+#      inter-job interval can't turn into a per-sweep network call (the regression
+#      that starved jobs_done). A forced posture skips the feed entirely.
+# ---------------------------------------------------------------------------
+def test_posture_feed_is_ttl_throttled_not_per_sweep(monkeypatch):
+    import sys, types
+    calls = {"n": 0}
+    fake = types.ModuleType("a11oy_harvest_endpoints")
+
+    def handle_posture():
+        calls["n"] += 1
+        return {"ok": True, "soak_hard": False, "wasted_energy_available": False,
+                "readings": []}
+    fake.handle_posture = handle_posture
+    monkeypatch.setitem(sys.modules, "a11oy_harvest_endpoints", fake)
+
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        # Forced posture: deterministic, MUST NOT touch the feed at all.
+        monkeypatch.setenv("A11OY_ENERGY_FORCE_POSTURE", "baseline")
+        for _ in range(5):
+            op._resolve_posture()
+        assert calls["n"] == 0, calls
+        # Live posture with the default (long) TTL: many rapid sweeps => ONE feed call.
+        monkeypatch.delenv("A11OY_ENERGY_FORCE_POSTURE")
+        calls["n"] = 0
+        for _ in range(8):
+            op._resolve_posture()
+        assert calls["n"] == 1, calls
+        # TTL=0 proves the knob: the feed refreshes every sweep when asked.
+        monkeypatch.setenv("A11OY_ENERGY_POSTURE_TTL_S", "0")
+        calls["n"] = 0
+        for _ in range(3):
+            op._resolve_posture()
+        assert calls["n"] == 3, calls
+
+
 if __name__ == "__main__":
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
@@ -797,6 +836,7 @@ if __name__ == "__main__":
         def __init__(self):
             self._undo = []
             self._env_undo = []
+            self._item_undo = []
         def setattr(self, obj, name, val):
             self._undo.append((obj, name, getattr(obj, name)))
             setattr(obj, name, val)
@@ -806,6 +846,9 @@ if __name__ == "__main__":
         def delenv(self, name, raising=False):
             self._env_undo.append((name, os.environ.get(name, self._UNSET)))
             os.environ.pop(name, None)
+        def setitem(self, mapping, key, val):
+            self._item_undo.append((mapping, key, mapping.get(key, self._UNSET)))
+            mapping[key] = val
         def undo(self):
             for obj, name, old in reversed(self._undo):
                 setattr(obj, name, old)
@@ -816,6 +859,12 @@ if __name__ == "__main__":
                 else:
                     os.environ[name] = old
             self._env_undo = []
+            for mapping, key, old in reversed(self._item_undo):
+                if old is self._UNSET:
+                    mapping.pop(key, None)
+                else:
+                    mapping[key] = old
+            self._item_undo = []
 
     passed = 0
     for fn in fns:

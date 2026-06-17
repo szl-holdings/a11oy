@@ -130,6 +130,13 @@ THROTTLE_SLEEP_MULT_ENV = "A11OY_ENERGY_THROTTLE_SLEEP_MULT"
 _THROTTLE_SLEEP_MULT_DEFAULT = 4.0
 # Forced posture override for demos/tests (soak|baseline|throttle). Empty => live.
 FORCE_POSTURE_ENV = "A11OY_ENERGY_FORCE_POSTURE"
+# The harvest posture feed (a11oy_harvest_endpoints.handle_posture) can hit live
+# external energy feeds, so it is refreshed at most once per this TTL — NEVER on
+# every sweep. Keeps the hot loop gentle (a fast inter-job interval must not turn
+# into a per-sweep network call). The cheap in-process grid-price posture is still
+# recomputed every sweep. Override for tests.
+POSTURE_TTL_ENV = "A11OY_ENERGY_POSTURE_TTL_S"
+_POSTURE_TTL_DEFAULT = 60.0
 
 WORK_MODE_SOAK = "soak"
 WORK_MODE_BASELINE = "baseline"
@@ -162,6 +169,13 @@ def _throttle_sleep_mult() -> float:
                                              _THROTTLE_SLEEP_MULT_DEFAULT)))
     except Exception:  # noqa: BLE001
         return _THROTTLE_SLEEP_MULT_DEFAULT
+
+
+def _posture_ttl_s() -> float:
+    try:
+        return max(0.0, float(os.environ.get(POSTURE_TTL_ENV, _POSTURE_TTL_DEFAULT)))
+    except Exception:  # noqa: BLE001
+        return _POSTURE_TTL_DEFAULT
 
 
 def _import_org_rag():
@@ -626,6 +640,11 @@ class OperatorDaemon:
         # Cached RAG module handle (lazy; None when RAG unavailable in this runtime).
         self._rag = None
         self._rag_checked = False
+        # Harvest-posture cache: the live feed is refreshed at most once per TTL, so
+        # a fast inter-job interval never becomes a per-sweep network call.
+        self._harvest_should_soak: Optional[bool] = None
+        self._harvest_renewable: Optional[float] = None
+        self._harvest_ts: float = 0.0
 
     # -- subscription (Dev2 receipts hook) --------------------------------
     def subscribe(self, cb: Callable[[dict], None]) -> None:
@@ -855,21 +874,32 @@ class OperatorDaemon:
             grid_posture = "expensive"
         else:
             grid_posture = "normal"
-        # Harvest posture (should_soak / renewable share) — optional live feed.
-        should_soak: Optional[bool] = None
-        renewable: Optional[float] = None
-        try:
-            import a11oy_harvest_endpoints as _hv  # type: ignore
-            p = _hv.handle_posture()
-            if isinstance(p, dict) and p.get("ok"):
-                should_soak = bool(p.get("soak_hard") or p.get("wasted_energy_available"))
-                for r in (p.get("readings") or []):
-                    if r.get("feed", "").startswith("energy_charts_ren") and \
-                            isinstance(r.get("value"), (int, float)):
-                        renewable = float(r["value"])
-                        break
-        except Exception:  # noqa: BLE001 — harvest feed optional; absence is honest
-            should_soak = should_soak
+        # Harvest posture (should_soak / renewable share) — optional live feed,
+        # refreshed at most once per TTL so the hot loop never makes a per-sweep
+        # network call. A force override skips the feed entirely (deterministic).
+        should_soak = self._harvest_should_soak
+        renewable = self._harvest_renewable
+        if not forced:
+            ttl = _posture_ttl_s()
+            now = time.time()
+            if (now - self._harvest_ts) >= ttl:
+                self._harvest_ts = now
+                try:
+                    import a11oy_harvest_endpoints as _hv  # type: ignore
+                    p = _hv.handle_posture()
+                    if isinstance(p, dict) and p.get("ok"):
+                        should_soak = bool(p.get("soak_hard") or
+                                           p.get("wasted_energy_available"))
+                        renewable = None
+                        for r in (p.get("readings") or []):
+                            if r.get("feed", "").startswith("energy_charts_ren") and \
+                                    isinstance(r.get("value"), (int, float)):
+                                renewable = float(r["value"])
+                                break
+                        self._harvest_should_soak = should_soak
+                        self._harvest_renewable = renewable
+                except Exception:  # noqa: BLE001 — harvest feed optional; absence honest
+                    pass
         with self._lock:
             self._should_soak = should_soak
             self._grid_price_posture = grid_posture
