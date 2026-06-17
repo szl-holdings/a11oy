@@ -11902,8 +11902,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           H('rfp-flag', isolated.length);
           H('rfp-note', E('rfp-note').innerHTML + (isolated.length?(' <b style="color:'+RED+'">'+isolated.length+' structurally isolated receipt(s) flagged.</b>'):' No structural anomalies in this window.'));
           drawD3(host, g, R, links, anchorSet, isolated);
-        }).catch(function(e){ var host=E('rfp-svg'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('rfp-n','offline'); });
+        }).catch(function(e){ var host=E('rfp-svg'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('rfp-n',window._szlKpi(e)); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(go); } else { go(); }
     })();
@@ -12033,7 +12033,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           H('fsm-ready', ready); H('fsm-deg', deg);
           H('fsm-tbl','<table class="tbl"><thead><tr><th>capability</th><th>role</th><th>FSM state</th><th>health</th><th>MCP</th><th>\u039b</th></tr></thead><tbody>'+rows+'</tbody></table>');
           H('fsm-fresh','<span class="badge b-live">live</span>');
-        }).catch(function(e){ H('fsm-tbl','<div class="row mono dim">live mesh unavailable: '+esc(e.message)+'</div>'); H('fsm-n','offline'); });
+        }).catch(function(e){ H('fsm-tbl','<div class="row mono dim">live mesh '+esc(window._szlFriendlyErr(e))+'</div>'); H('fsm-n',window._szlKpi(e)); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(go); } else { go(); }
     })();
@@ -12521,8 +12521,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           H('ous-rmax', rmax||'\u2014');
           H('ous-src', T.hasMeta ? 'live loop_depth metadata' : 'density PROXY (labelled)');
           drawHelices(host, T.tracks);
-        }).catch(function(e){ var host=E('ous-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('ous-n','offline'); H('ous-src','\u2014'); });
+        }).catch(function(e){ var host=E('ous-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('ous-n',window._szlKpi(e)); H('ous-src','\u2014'); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
@@ -12667,8 +12667,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             dt='<div class="row mono dim" style="font-size:10.5px">no latency fields on these receipts yet \u2014 abacus digit-place binning will populate once latency is emitted (honest empty state)</div>';
           }
           H('abm-digit', dt);
-        }).catch(function(e){ var host=E('abm-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('abm-n','offline'); });
+        }).catch(function(e){ var host=E('abm-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('abm-n',window._szlKpi(e)); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
@@ -12817,8 +12817,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           // optionally enrich with knowledge.json lineage (best-effort; ignore if absent)
           getPublic('/knowledge.json',8000).then(function(kn){ paint(recs, kn, host); })
             .catch(function(){ paint(recs, null, host); });
-        }).catch(function(e){ var host=E('cb-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('cb-n','offline'); H('cb-src','\u2014'); });
+        }).catch(function(e){ var host=E('cb-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('cb-n',window._szlKpi(e)); H('cb-src','\u2014'); });
       }
       function paint(recs, kn, host){
         var g=buildGraph(recs, kn);
