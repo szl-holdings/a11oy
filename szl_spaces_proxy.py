@@ -150,14 +150,25 @@ def _urllib_fetch(method: str, url: str, headers: dict, timeout: float):
     (a11oy_hf_assets.py reaches HF via urllib server-side). Used as a fallback when the
     shared httpx.AsyncClient is None or fails. Returns (status, body_bytes, headers_dict).
     Raises on failure (caller degrades to an honest 502). 0 browser CDN; no auth token."""
+    import http.client
     import urllib.error
     import urllib.request
     req = urllib.request.Request(url, method=method.upper(), headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             status = getattr(r, "status", None) or r.getcode()
-            body = r.read(_MAX_BYTES)
             hdrs = {k: v for k, v in r.headers.items()}
+            # Read the body TOLERANTLY: a flapping upstream often drops the connection
+            # mid-stream (http.client.IncompleteRead). The status line + headers already
+            # arrived fine, so return whatever body bytes we got rather than 502-ing a
+            # response that was really a 200. This is honest: status reflects the REAL
+            # upstream status; we just don't discard a near-complete page over a late EOF.
+            try:
+                body = r.read(_MAX_BYTES)
+            except http.client.IncompleteRead as ire:
+                body = ire.partial or b""
+            except Exception:
+                body = b""
             return status, body, hdrs
     except urllib.error.HTTPError as he:  # a real upstream non-2xx is NOT a flap
         body = b""
