@@ -11691,7 +11691,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         async function load(){
           T('fp-ts','probing\u2026');
           try{
-            var d=await gj('/api/a11oy/v1/feeds/pulse');
+            /* /feeds/pulse probes 7 upstream evidence feeds server-side and legitimately
+               takes longer than the 6s console-wide default; the prior default aborted a
+               WORKING endpoint and falsely painted "offline". Use a per-call 24s timeout via
+               _szlFetch so this liveness tab reports real measured modes instead of a fake
+               offline. Additive: still aborts (no infinite spinner), still honest fallback. */
+            var d;
+            if(window._szlFetch){ var _r=await window._szlFetch('/api/a11oy/v1/feeds/pulse',{__timeoutMs:24000}); if(!_r.ok) throw new Error('HTTP '+_r.status); d=await _r.json(); }
+            else { d=await gj('/api/a11oy/v1/feeds/pulse'); }
             var items=d.items||[]; T('fp-n',d.feed_count); T('fp-live',d.live_count); T('fp-cache',d.cached_count); T('fp-down',d.down_count);
             T('fp-ts','probed '+esc(String(d.probed_at||'').slice(11,19))+'Z');
             var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
