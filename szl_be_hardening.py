@@ -429,7 +429,8 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         from fastapi.exceptions import RequestValidationError
         from starlette.exceptions import HTTPException as StarletteHTTPException
     except Exception as exc:  # FastAPI not importable -> nothing to do
-        report["error"] = f"fastapi/pydantic unavailable: {exc!r}"
+        logger.error(f"fastapi/pydantic unavailable: {exc!r}")
+        report["error"] = "fastapi/pydantic unavailable"
         return report
 
     # ---- durable store (item 7) -------------------------------------------
@@ -626,8 +627,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                     routes=good,
                 )
             except Exception as exc:
+                logger.error(f"openapi_unavailable: {exc!r}")
                 return JSONResponse(
-                    {"error": {"code": "openapi_unavailable", "message": str(exc),
+                    {"error": {"code": "openapi_unavailable", "message": "openapi schema unavailable",
                                "trace_id": "openapi", "doctrine": DOCTRINE}},
                     status_code=500,
                 )

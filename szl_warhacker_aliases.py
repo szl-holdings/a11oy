@@ -36,6 +36,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
 from typing import Any
 
@@ -239,7 +240,8 @@ def _verify_with_optional_key(env: dict[str, Any], ext_pem: str | None) -> dict[
         return {"verified": ok, "pae_sha256": digest, "cross_space": True,
                 "ext_pubkey_fingerprint": hashlib.sha256(ext_pem.strip().encode()).hexdigest()}
     except Exception as e:
-        return {"verified": False, "reason": f"{type(e).__name__}: {e}", "cross_space": True}
+        print(f"[warhacker-aliases] cross-space verify error: {e!r}", file=sys.stderr)
+        return {"verified": False, "reason": "verification failed", "cross_space": True}
 
 
 def _keyid_match(env: dict[str, Any], verdict: dict[str, Any]) -> bool:

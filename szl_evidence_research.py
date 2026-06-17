@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -579,10 +580,11 @@ def _github(repo: str) -> Dict[str, Any]:
         _store(key, val, at, live=True)
         return {**val, "mode": "live", "fetched_at": at}
     except Exception as ex:  # noqa: BLE001
+        print(f"[evidence] github fetch error: {ex!r}", file=sys.stderr)
         if hit:
             return {**hit["v"], "mode": "cached", "fetched_at": hit["at"]}
         return {"repo": repo, "url": "https://github.com/" + repo,
-                "stars": None, "mode": "unreachable", "error": str(ex)[:120]}
+                "stars": None, "mode": "unreachable", "error": "upstream unreachable"}
 
 
 # --- source-URL reachability (honest live/cached/unreachable badge) ----------

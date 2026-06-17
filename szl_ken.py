@@ -356,8 +356,9 @@ def make_ken_router(flagship, tools_manifest, dispatch_fn=None, khipu_store=None
                 tool_result = {"tool": plan.get("tool"), "success": False,
                                "error": "timeout", "result": None, "latency_ms": TOOL_TIMEOUT_S * 1000}
             except Exception as e:
+                print(f"[ken] tool dispatch error: {e!r}", file=sys.stderr)
                 tool_result = {"tool": plan.get("tool"), "success": False,
-                               "error": str(e)[:200], "result": None, "latency_ms": 0}
+                               "error": "tool execution failed", "result": None, "latency_ms": 0}
 
             lam = compute_lambda(state, tool_result)
             receipt = sign_receipt(step=step_i, kind="tool_call",
@@ -430,7 +431,8 @@ def make_ken_router(flagship, tools_manifest, dispatch_fn=None, khipu_store=None
         try:
             result = await asyncio.wait_for(_dispatch(plan, dummy), timeout=TOOL_TIMEOUT_S)
         except Exception as e:
-            result = {"tool": tool_name, "success": False, "error": str(e)[:200]}
+            print(f"[ken] tool call error: {e!r}", file=sys.stderr)
+            result = {"tool": tool_name, "success": False, "error": "tool execution failed"}
         return {"content": [{"type": "text", "text": json.dumps(result, default=str)}],
                 "isError": not result.get("success", True), "doctrine": DOCTRINE}
 

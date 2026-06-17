@@ -32,6 +32,7 @@ Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 import hashlib
 import json
 import os
+import sys
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -472,7 +473,8 @@ def register(app: FastAPI, flagship: str) -> dict:
                             "doctrine": "v11",
                         })
                     except Exception as e:
-                        fleet_status.append({"flagship": peer, "status": "timeout", "error": str(e)[:50]})
+                        print(f"[deepdive] peer probe error: {e!r}", file=sys.stderr)
+                        fleet_status.append({"flagship": peer, "status": "timeout", "error": "unreachable"})
             fleet_status.append({"flagship": "rosie", "status": "ok", "http_code": 200, "doctrine": "v11"})
             result = {
                 "fleet": "szl",

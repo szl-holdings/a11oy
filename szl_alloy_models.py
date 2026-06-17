@@ -80,6 +80,7 @@ import hashlib
 import json
 import math
 import os
+import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -327,7 +328,8 @@ def _try_load_llama():
             _LLAMA_ERR = None
             return _LLAMA
         except Exception as e:  # honest: binding missing or load failed
-            _LLAMA_ERR = "llama.cpp unavailable: %s: %s" % (type(e).__name__, str(e)[:160])
+            print(f"[alloy] llama.cpp load failed: {e!r}", file=sys.stderr)
+            _LLAMA_ERR = "llama.cpp unavailable"
             _LLAMA = None
             return None
 

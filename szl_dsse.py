@@ -52,6 +52,7 @@ import base64
 import hashlib
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from typing import Any
 
@@ -210,7 +211,8 @@ def verify_envelope(env: dict[str, Any]) -> dict[str, Any]:
             except InvalidSignature:
                 results.append({"keyid": keyid, "verified": False, "reason": "signature mismatch"})
             except Exception as e:  # malformed sig
-                results.append({"keyid": keyid, "verified": False, "reason": f"{type(e).__name__}"})
+                print(f"[dsse] signature verify error: {e!r}", file=sys.stderr)
+                results.append({"keyid": keyid, "verified": False, "reason": "signature verify error"})
         # Optionally decode the payload back for the caller's convenience
         try:
             out["payload_decoded"] = json.loads(body)
@@ -219,7 +221,8 @@ def verify_envelope(env: dict[str, Any]) -> dict[str, Any]:
         return {**out, "verified": any_ok, "signatures": results,
                 "payloadType": payload_type}
     except Exception as e:
-        return {**out, "verified": False, "reason": f"{type(e).__name__}: {e}"}
+        print(f"[dsse] verify_envelope error: {e!r}", file=sys.stderr)
+        return {**out, "verified": False, "reason": "verification error"}
 
 
 # ---------------------------------------------------------------------------
