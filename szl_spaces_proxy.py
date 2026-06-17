@@ -212,12 +212,21 @@ async def _proxy(name: str, subpath: str, request) -> Any:
                         media_type="text/html")
 
     target = hf_url(name) + "/" + subpath
-    # Forward only safe request headers (drop Host so httpx sets the upstream host;
-    # drop hop-by-hop). No auth token forwarded — public Spaces.
+    # Send a CLEAN, minimal header set rather than forwarding the raw browser headers.
+    # Forwarding the incoming Host (a11oy.net) makes HF route to the wrong vhost -> 404,
+    # and forwarding the full browser header set (incl. Accept-Encoding: br, X-Forwarded-*)
+    # was tripping the upstream fetch on the live box. We mirror the proven-working probe:
+    # identity encoding, a simple UA, and only the few request headers that are safe to
+    # pass through. No Host, no cookies, no auth token (public Spaces).
+    _SAFE_PASS = {"accept", "accept-language", "range", "content-type"}
     fwd_headers = {
-        k: v for k, v in request.headers.items()
-        if k.lower() not in _HOP_BY_HOP and k.lower() not in ("host", "cookie")
+        "User-Agent": "szl-spaces-proxy/1.0",
+        "Accept-Encoding": "identity",
     }
+    for k, v in request.headers.items():
+        if k.lower() in _SAFE_PASS:
+            fwd_headers[k] = v
+    fwd_headers.setdefault("Accept", "*/*")
     method = request.method.upper()
 
     status = None
