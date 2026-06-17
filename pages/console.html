@@ -5392,11 +5392,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         // NODES status: honest reachable count from live MELT summary, cross-checked vs compute-pool probe.
         (async function(){ try{
           var reachable=null, total=null, gpu=null;
-          try{ var sm=await gj('/api/a11oy/v1/observability/summary'); var mm=(sm.melt&&sm.melt.metrics)||{}; if(mm.organs_reachable!=null){ reachable=mm.organs_reachable; total=mm.organs_total; } }catch(_e){}
-          try{ var cp=await gj('https://a11oy.net/api/a11oy/v1/compute-pool-hardened'); if(cp&&cp.counts){ gpu=cp.counts.gpu_nodes_reachable; } }catch(_e){}
           var n=E('me-n'), d=E('me-n-d');
+          try{ var sm=await gj('/api/a11oy/v1/observability/summary'); var mm=(sm.melt&&sm.melt.metrics)||{}; if(mm.organs_reachable!=null){ reachable=mm.organs_reachable; total=mm.organs_total; } }catch(_e){}
+          // paint the honest organs count IMMEDIATELY (same-origin) so we never linger on 'probing'
+          if(reachable!=null){ if(n){ n.textContent=reachable+(total!=null?(' / '+total):''); n.className='v teal'; } if(d) d.textContent='organs reachable'; }
+          // then ENHANCE the sub-label with the GPU-node probe if/when it resolves (cross-origin, may be slow/blocked — non-blocking to the count)
+          try{ var cp=await gj('https://a11oy.net/api/a11oy/v1/compute-pool-hardened'); if(cp&&cp.counts){ gpu=cp.counts.gpu_nodes_reachable; } }catch(_e){}
           if(reachable!=null){
-            if(n){ n.textContent=reachable+(total!=null?(' / '+total):''); n.className='v teal'; }
             if(d) d.textContent='organs reachable'+(gpu!=null?(' \u00b7 '+gpu+' GPU nodes'):'');
           } else if(drewGraph){
             // graph is live but the reachability probe didn't resolve \u2014 be honest, never bare "offline".
