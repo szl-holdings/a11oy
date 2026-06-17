@@ -119,6 +119,18 @@ a{color:inherit;text-decoration:none;}
 .row{display:flex;align-items:center;gap:.6rem;padding:.55rem 0;border-bottom:1px solid rgba(201,183,135,.07);font-size:13px;}
 .row:last-child{border-bottom:none;}
 .row .badge{font-family:var(--mono);font-size:10px;padding:.1rem .45rem;border-radius:5px;}
+/* RECEIPT/DECISION OVERFLOW FIX (root-cause, additive 2026-06-17): governed-decision
+   and signed-receipt .row blocks (organism YUYAY gate, unified receipt ledger, etc.)
+   were single-line flex strips whose long mono receipt/verdict copy exceeded the
+   container and spilled off the right edge instead of stacking. Allow flex children
+   to shrink and long content to break so each row reads as a stacked block (never a
+   cramped horizontal strip). Applies at all widths — short rows still fit one line,
+   the wide-screen .spacer right-alignment is preserved when content fits. */
+.row{min-width:0;flex-wrap:wrap;}
+.row>*{min-width:0;}
+.row .spacer,.row span,.row b,.row code{overflow-wrap:anywhere;word-break:break-word;}
+.row .mono,.row.mono{overflow-wrap:anywhere;}
+.kpi{min-width:0;}.kpi .v,.kpi .k,.kpi .d{overflow-wrap:anywhere;word-break:break-word;}
 .loopbar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding:.4rem 0;}
 .loopstep{display:inline-flex;align-items:center;gap:.35rem;font-size:12px;background:rgba(95,179,163,.08);border:1px solid rgba(95,179,163,.25);padding:.3rem .55rem;border-radius:6px;}
 .loopsep{color:var(--teal);font-size:14px;}
