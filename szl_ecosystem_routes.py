@@ -101,11 +101,33 @@ def _app_health(base: str, honest_path: str) -> Dict[str, Any]:
     return {"base": base, "reachable": reachable, "label": "LIVE" if reachable else "SAMPLE", "honest": h}
 
 
+def _chapaq_verdict() -> Optional[Dict[str, Any]]:
+    """Fetch the CHAPAQ immune verdict from its LIVE source, honestly.
+
+    sentra (codename CHAPAQ) was consolidated INTO a11oy as the Sentinel organ,
+    so the canonical live source is a11oy's in-process sentinel verdict
+    (POST /api/a11oy/v1/sentinel/verdict — REAL threat-signature + Λ-gate). We
+    POST a neutral demo probe and normalise to the {"data": {...}} envelope the
+    board already consumes. The legacy killinchu gov path is tried only as a
+    fallback. Returns None (honest 'unreachable') if no live source answers —
+    NEVER a fabricated verdict."""
+    probe = {"agent": "estate-kpi-board", "action": {"value": "estate health probe"},
+             "request_id": "kpi-chapaq"}
+    live = _post_json(A11OY_BASE + "/api/a11oy/v1/sentinel/verdict", probe)
+    if isinstance(live, dict) and live.get("decision"):
+        return {"data": live, "source": "a11oy/sentinel (CHAPAQ organ, live)"}
+    # legacy fallback: killinchu gov proxy (kept for backward-compat)
+    legacy = _get_json(KILLINCHU_BASE + "/api/killinchu/v1/gov/chapaq-verdict")
+    if isinstance(legacy, dict) and legacy.get("data"):
+        return legacy
+    return None
+
+
 def build_kpi_board(ns: str) -> Dict[str, Any]:
     """Estate Lambda/KPI rollup. locked-8 EXACTLY 8; Lambda clamped < 1.0."""
     a_honest = _get_json(A11OY_BASE + "/api/a11oy/v1/honest")
     a_lambda = _get_json(A11OY_BASE + "/api/a11oy/v1/lambda")
-    chapaq = _get_json(KILLINCHU_BASE + "/api/killinchu/v1/gov/chapaq-verdict")
+    chapaq = _chapaq_verdict()
     # R4 (2026-06-14): a11oy Restraint frugality->energy tile (live, honest).
     restraint_kpi = _get_json(A11OY_BASE + "/api/a11oy/v1/restraint/kpi")
 
@@ -163,9 +185,11 @@ def build_kpi_board(ns: str) -> Dict[str, Any]:
         },
         "apps": {
             "a11oy": {"reachable": a_honest is not None, "role": "command & governance", "verdict_role": "CHAPAQ"},
-            "killinchu": {"reachable": chapaq is not None, "role": "C-UAS / maritime sensing"},
+            "killinchu": {"reachable": _get_json(KILLINCHU_BASE + "/api/killinchu/v1/gov/a11oy-honest") is not None,
+                          "role": "C-UAS / maritime sensing"},
         },
         "chapaq_verdict": (chapaq or {}).get("data") if chapaq else None,
+        "chapaq_source": (chapaq or {}).get("source") if chapaq else "unreachable — no live CHAPAQ source (honest)",
         "restraint": (restraint_kpi if isinstance(restraint_kpi, dict) else {
             "tile": "restraint", "label": "SAMPLE",
             "note": ("a11oy Restraint KPI endpoint unreachable — honest empty tile. "
