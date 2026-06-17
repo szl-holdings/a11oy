@@ -628,22 +628,63 @@ const CAPS=[
   {id:'receipts',  name:'Receipts',       kind:'provenance', color:'#5fb3a3'},
   {id:'knowledge', name:'Knowledge',      kind:'memory',     color:'#5fb3a3'}
 ];
-/* real-data-wiring (feat/real-data-wiring): UNIVERSAL FETCH HARDENING (Doctrine v11).
-   Every live fetch on this console now flows through _szlFetch(), which wraps the
-   native fetch in an AbortController with a SHORT default timeout (6s). A slow or
-   wedged endpoint (same-origin proxy or public feed) can no longer hang a tab on a
-   perpetual spinner: it ABORTS, the caller's catch fires, and the tab paints an
-   HONEST labeled fallback within the timeout. No fabricated data — abort just turns
-   an infinite wait into a fast, honest error the existing catch blocks already
-   degrade gracefully. The go()-level watchdog (below) is the belt-and-suspenders. */
-window.__SZL_FETCH_TIMEOUT_MS=6000;
-function _szlFetch(url,opts){
+/* probe-offline-abort (fix/probe-offline-abort): UNIVERSAL FETCH HARDENING (Doctrine v11).
+   Every live fetch on this console flows through _szlFetch(). The previous build used a
+   SHORT 6s abort window, which fired BEFORE a healthy backend answered during warmup /
+   redeploy / a slow but-fine transfer (a verified-200 feed at ~1.1s/271KB could still spike
+   past 6s while a Space cold-starts). The AbortController abort then surfaced the browser's
+   bare "signal is aborted without reason" into the tab — a fake "offline" on a healthy
+   backend. FIX: (1) generous default timeout (28s) so a 1–2s real probe NEVER aborts;
+   (2) retry-with-backoff on a TRANSIENT abort / network blip before any failure is shown;
+   (3) honest error normalization (_szlFriendlyErr) so a transient abort renders
+   "temporarily unavailable — retrying", never the bare browser abort string. No fabricated
+   data — a genuine failure after retries still surfaces honestly with a working re-probe. */
+window.__SZL_FETCH_TIMEOUT_MS=28000;   /* generous: a 1–2s real probe must never abort */
+window.__SZL_FETCH_RETRIES=2;          /* extra attempts after the first (3 total) on transient errors */
+window.__SZL_FETCH_BACKOFF_MS=700;     /* base backoff; grows linearly per attempt */
+/* Is this error a TRANSIENT abort/network blip worth retrying (vs. a real HTTP 4xx/5xx)? */
+function _szlTransient(e){
+  if(!e) return false;
+  if(e.name==='AbortError') return true;
+  var m=String((e&&e.message)||e).toLowerCase();
+  return m.indexOf('abort')>=0 || m.indexOf('signal is aborted')>=0
+      || m.indexOf('failed to fetch')>=0 || m.indexOf('networkerror')>=0
+      || m.indexOf('network error')>=0 || m.indexOf('load failed')>=0
+      || m.indexOf('timeout')>=0 || m.indexOf('timed out')>=0;
+}
+/* Normalize ANY caught probe error into an HONEST, user-safe message. Never let the
+   browser's bare "signal is aborted without reason" reach a tab — it reads as a fake
+   "offline" on a healthy backend. Real HTTP failures (HTTP 500 etc.) pass through. */
+window._szlFriendlyErr=function(e){
+  var m=String((e&&e.message)||e||'');
+  if(_szlTransient(e)) return 'temporarily unavailable — retrying';
+  return m;
+};
+function _szlSleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+/* core fetch: generous AbortController timeout + retry-with-backoff on transient errors.
+   Resolves to a Response (caller still checks .ok); only throws after retries exhausted. */
+async function _szlFetch(url,opts){
   opts=opts||{};
   var ms=(opts.__timeoutMs!=null)?opts.__timeoutMs:window.__SZL_FETCH_TIMEOUT_MS;
-  var ctl=new AbortController();
-  var t=setTimeout(function(){try{ctl.abort();}catch(e){}},ms);
-  var o=Object.assign({},opts); delete o.__timeoutMs; o.signal=opts.signal||ctl.signal;
-  return fetch(url,o).finally(function(){clearTimeout(t);});
+  var retries=(opts.__retries!=null)?opts.__retries:window.__SZL_FETCH_RETRIES;
+  var base=(opts.__backoffMs!=null)?opts.__backoffMs:window.__SZL_FETCH_BACKOFF_MS;
+  var o=Object.assign({},opts); delete o.__timeoutMs; delete o.__retries; delete o.__backoffMs;
+  var lastErr;
+  for(var attempt=0;attempt<=retries;attempt++){
+    var ctl=new AbortController();
+    var t=setTimeout(function(){try{ctl.abort();}catch(e){}},ms);
+    var a=Object.assign({},o); a.signal=opts.signal||ctl.signal;
+    try{
+      var r=await fetch(url,a); clearTimeout(t); return r;
+    }catch(err){
+      clearTimeout(t); lastErr=err;
+      /* an externally-supplied signal that aborted is the caller's intent — don't retry it */
+      if(opts.signal && opts.signal.aborted) throw err;
+      if(attempt<retries && _szlTransient(err)){ await _szlSleep(base*(attempt+1)); continue; }
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 window._szlFetch=_szlFetch;
 async function getJSON(p){const r=await _szlFetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
@@ -726,27 +767,32 @@ function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D
 // ===== GENIUS VISUAL HELPERS (echarts / globe.gl / cytoscape / d3) =====
 const RED='#b06a5a',AMBER='#c9a05f';
 // fetch with timeout + abort — never let a big public feed hang the UI.
-// real-data-wiring: hard-cap the abort window at 6.5s (Doctrine v11: a spinner must
-// resolve to data-or-honest-fallback fast). Callers that passed 12–30s (USGS, MITRE
-// STIX) now abort at the cap and degrade to their labeled fallback instead of hanging.
-function fetchTimeout(url,ms,opts){const CAP=6500;const want=ms||6000;const eff=Math.min(want,CAP);const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),eff);
-  return fetch(url,Object.assign({signal:ctl.signal},opts||{})).finally(()=>clearTimeout(t));}
+// probe-offline-abort: the prior build hard-capped the abort window at 6.5s, which aborted
+// healthy-but-slow probes (warmup / redeploy / large public feeds like USGS & the ~50MB
+// MITRE STIX) into a bare "signal is aborted without reason" — a fake "offline". Now this
+// routes through _szlFetch: generous timeout (caller's ms, floored to a sane minimum so a
+// 1–2s probe never aborts) + retry-with-backoff on transient aborts. A real failure still
+// surfaces honestly via the caller's catch (which uses _szlFriendlyErr).
+function fetchTimeout(url,ms,opts){
+  const MIN=28000;                       // floor: never abort a healthy probe early
+  const eff=Math.max(ms||MIN,MIN);       // honor large explicit budgets (STIX 30s), floor small ones
+  return _szlFetch(url,Object.assign({__timeoutMs:eff},opts||{}));
+}
 async function getPublic(url,ms){const r=await fetchTimeout(url,ms);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
-/* ===== investor-grade-polish: FAIL-FAST KPI fetch + last-good cache ============
-   (polish/console-investor-grade) Investor watching live must never see an endless
-   "probing…". gjFast() wraps the JSON fetch with a SHORT abort timeout (default
-   1500ms) and a same-origin last-good in-memory cache. On timeout/error it does
-   NOT hang and does NOT fabricate: it resurfaces the last real value if we ever
-   had one, otherwise it throws so the caller can paint an HONEST labeled degraded
-   state ("not available right now") instead of a spinner. This composes with the
-   server-side circuit breaker (szl_resilience) + TTL cache (szl_backend_hardening)
-   already on main: the backend fails fast to a cached/honest value, and the
-   frontend refuses to wait on it. Doctrine v11: no fake values, degrade to a
-   labeled state. */
+/* ===== investor-grade-polish: KPI fetch + last-good cache ============
+   (polish/console-investor-grade) gjFast() wraps the JSON fetch and keeps a same-origin
+   last-good in-memory cache. probe-offline-abort: the abort window was raised from a too-
+   aggressive 1.5s (which fired on healthy-but-warming KPIs and forced a needless degraded
+   chip) to the shared generous timeout + retry-with-backoff via fetchTimeout/_szlFetch.
+   On a genuine timeout/error it still does NOT hang and does NOT fabricate: it resurfaces
+   the last real value if we ever had one, otherwise it throws so the caller paints an
+   HONEST labeled degraded state ("not available right now"). This composes with the
+   server-side circuit breaker (szl_resilience) + TTL cache (szl_backend_hardening) on
+   main. Doctrine v11: no fake values, degrade to a labeled state. */
 window.__gjLast=window.__gjLast||{};
 async function gjFast(url,ms){
   try{
-    const r=await fetchTimeout(url,ms||1500);
+    const r=await fetchTimeout(url,ms);
     const ct=r.headers.get('content-type')||'';
     if(!r.ok) throw new Error('HTTP '+r.status);
     if(ct.indexOf('text/html')>=0) throw new Error('route not deployed here');
