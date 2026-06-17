@@ -39,11 +39,15 @@ WHY (top-tech production hardening — each individually safe, additive, honest)
      only added when absent, so existing HTML surfaces keep their own CSP.
 
   2. RATE LIMITING — a lightweight in-memory token-bucket per client IP
-     (default 60 req / 60 s / IP, fully configurable via env). Over the limit
+     (default 300 req / 60 s / IP, fully configurable via env). Over the limit
      returns HTTP 429 with a ``Retry-After`` header (seconds), per the OWASP /
      industry norm of honoring Retry-After. Liveness probes (/healthz, /readyz,
-     /livez, /health, /ping) are EXEMPT so orchestrators never get throttled.
-     Pure stdlib (no slowapi / redis); fixed-memory (bounded LRU of buckets).
+     /livez, /health, /ping) are EXEMPT so orchestrators never get throttled, and
+     the human-facing HTML page/static routes are EXEMPT too (DEMO-FLOOR FIX) so
+     rapid tab-clicking from one booth IP never serves a raw rate_limited body in
+     place of a page. Only the JSON DATA surface (/api/*, /feeds/*) is metered, so
+     real abuse is still capped. Pure stdlib (no slowapi / redis); fixed-memory
+     (bounded LRU of buckets).
 
   3. REQUEST ID + STRUCTURED ACCESS LOG — every response carries an
      ``X-Request-ID`` (uuid4, or the inbound one if a trusted client supplied it),
@@ -66,7 +70,7 @@ WHY (top-tech production hardening — each individually safe, additive, honest)
      a true 5xx (or the real HTTPException code) — NEVER a fake 200.
 
 CONFIG (all optional, env-driven; safe defaults):
-  A11OY_RL_LIMIT          requests per window per IP   (default 60)
+  A11OY_RL_LIMIT          requests per window per IP   (default 300)
   A11OY_RL_WINDOW_S       window seconds               (default 60)
   A11OY_HARDEN_HSTS       "0" disables HSTS header     (default on)
   A11OY_HARDEN_RATELIMIT  "0" disables rate limiting   (default on)
@@ -141,6 +145,41 @@ DOCTRINE = {
 _LIVENESS_PATHS = frozenset(
     {"/healthz", "/readyz", "/livez", "/health", "/ping", "/_health", "/_ping"}
 )
+
+# DEMO-FLOOR FIX (2026-06-17): the human-facing HTML page/static routes are EXEMPT
+# from the per-IP limiter so a booth clicking rapidly through tabs on ONE shared IP
+# never gets a raw rate_limited body in place of a page. Only the JSON DATA surface
+# (/api/*, /feeds/*, /osint/*) is metered, so real abuse is still capped. These
+# mirror the demo page routes in serve.py.
+_PAGE_EXEMPT_EXACT = frozenset({
+    "/", "/console", "/frontier", "/energy-ops", "/energy", "/holographic",
+    "/energy-holographic", "/energy-sovereign", "/governance",
+    "/signature-is-not-proof", "/defense-readiness", "/pinn", "/pnt", "/fabric",
+    "/harvest", "/elite", "/estate-hologram", "/doctrine", "/platform",
+    "/warhacker", "/proven-formulas", "/company", "/restraint", "/waqay", "/yupay",
+    "/operator", "/cathedral", "/live-wires", "/orbital",
+    "/honest", "/favicon.ico", "/robots.txt",
+})
+_PAGE_EXEMPT_PREFIXES = (
+    "/elite", "/mbse", "/static", "/assets", "/cesium",
+    "/web/", "/pages/", "/static-vendor", "/.well-known",
+)
+
+
+def _is_rate_limited_path(path: str) -> bool:
+    """True only for the JSON DATA surface that should be metered. Liveness probes
+    and human-facing page/static routes are EXEMPT so the showcase always renders;
+    only /api/*, /feeds/*, /osint/* (where real abuse lands) are metered."""
+    p = (path or "/").rstrip("/") or "/"
+    if p in _LIVENESS_PATHS or p in _PAGE_EXEMPT_EXACT:
+        return False
+    for pre in _PAGE_EXEMPT_PREFIXES:
+        if p == pre or p.startswith(pre + "/"):
+            return False
+    if "/api/" in p or p.startswith("/feeds") or p.startswith("/osint"):
+        return True
+    # Default: do NOT rate-limit unknown/page-like routes (fail-open for the demo).
+    return False
 
 
 def _env_flag(name: str, default: bool = True) -> bool:
@@ -272,7 +311,7 @@ def build_middleware(ns: str = "a11oy"):
     rl_enabled = _env_flag("A11OY_HARDEN_RATELIMIT", True)
     hsts_enabled = _env_flag("A11OY_HARDEN_HSTS", True)
     cache_enabled = _env_flag("A11OY_HARDEN_CACHE", True)
-    rl_limit = _env_int("A11OY_RL_LIMIT", 60)
+    rl_limit = _env_int("A11OY_RL_LIMIT", 300)
     rl_window = _env_int("A11OY_RL_WINDOW_S", 60)
 
     limiter = _TokenBucketLimiter(rl_limit, rl_window) if rl_enabled else None
@@ -336,9 +375,12 @@ def build_middleware(ns: str = "a11oy"):
             method = getattr(request, "method", "GET")
             ip = _client_ip(request)
             is_liveness = path in _LIVENESS_PATHS
+            # DEMO-FLOOR FIX: only meter the JSON data surface; liveness probes and
+            # human-facing page/static routes are exempt so the showcase always renders.
+            is_metered = _is_rate_limited_path(path)
 
-            # --- rate limit (fail-open; liveness exempt) ----------------------
-            if limiter is not None and not is_liveness:
+            # --- rate limit (fail-open; pages + liveness exempt) --------------
+            if limiter is not None and is_metered:
                 try:
                     allowed, retry_after = limiter.check(ip)
                 except Exception:
@@ -494,7 +536,7 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
         mw = build_middleware(ns=ns)
         app.add_middleware(mw)
         line = (f"[a11oy:prod-harden] middleware wired: security-headers + "
-                f"rate-limit({_env_int('A11OY_RL_LIMIT',60)}/{_env_int('A11OY_RL_WINDOW_S',60)}s/IP, "
+                f"rate-limit({_env_int('A11OY_RL_LIMIT',300)}/{_env_int('A11OY_RL_WINDOW_S',60)}s/IP data-surface, pages exempt, "
                 f"429+Retry-After) + request-id + access-log + cache/ETag")
         _stderr(line)
         status.append(line)
