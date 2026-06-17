@@ -72,8 +72,9 @@ _HOP_BY_HOP = {
     "content-encoding", "content-length",
 }
 
-_PROXY_TIMEOUT = 8.0       # short timeout — honest 502 beats a hung request.
-_PROXY_RETRIES = 1         # one quick retry on a transient flap before degrading.
+_PROXY_TIMEOUT = 20.0      # the box egress to *.hf.space flaps; give a full page GET room
+                           # to ride through a flap (the health HEAD probe needs less).
+_PROXY_RETRIES = 3         # retry a transient flap several times before honest-degrading.
 _MAX_BYTES = 25 * 1024 * 1024  # 25MB cap per proxied response (Spaces are light pages).
 
 
@@ -249,9 +250,12 @@ async def _proxy(name: str, subpath: str, request) -> Any:
             except Exception as e:  # connect/timeout/read error -> try fallback below
                 last_exc = e
                 status = None
+                import asyncio as _a
+                await _a.sleep(0.4 * (_attempt + 1))  # brief backoff across a flap
 
     # Fallback to the PROVEN stdlib urllib path if httpx was None or failed.
     if status is None:
+        import asyncio as _a
         for _attempt in range(_PROXY_RETRIES + 1):
             try:
                 status, body, up_headers = await _to_thread(
@@ -260,12 +264,17 @@ async def _proxy(name: str, subpath: str, request) -> Any:
             except Exception as e:  # genuine upstream flap -> honest 502
                 last_exc = e
                 status = None
+                await _a.sleep(0.5 * (_attempt + 1))  # brief backoff across a flap
 
     if status is None:
         print("[spaces-proxy] upstream flap for %s: %r" % (name, last_exc),
               file=sys.stderr)
+        # Surface the real upstream error class in an honest diagnostic header (the body
+        # stays the clean honest-502 page). Never fabricates a 200.
         return Response(content=_honest_502(name), status_code=502,
-                        media_type="text/html")
+                        media_type="text/html",
+                        headers={"x-szl-proxy-error": type(last_exc).__name__ if last_exc else "none",
+                                 "x-szl-proxy-target": target})
 
     if len(body) > _MAX_BYTES:
         body = body[:_MAX_BYTES]
