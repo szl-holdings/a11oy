@@ -638,22 +638,76 @@ const CAPS=[
   {id:'receipts',  name:'Receipts',       kind:'provenance', color:'#5fb3a3'},
   {id:'knowledge', name:'Knowledge',      kind:'memory',     color:'#5fb3a3'}
 ];
-/* real-data-wiring (feat/real-data-wiring): UNIVERSAL FETCH HARDENING (Doctrine v11).
-   Every live fetch on this console now flows through _szlFetch(), which wraps the
-   native fetch in an AbortController with a SHORT default timeout (6s). A slow or
-   wedged endpoint (same-origin proxy or public feed) can no longer hang a tab on a
-   perpetual spinner: it ABORTS, the caller's catch fires, and the tab paints an
-   HONEST labeled fallback within the timeout. No fabricated data — abort just turns
-   an infinite wait into a fast, honest error the existing catch blocks already
-   degrade gracefully. The go()-level watchdog (below) is the belt-and-suspenders. */
-window.__SZL_FETCH_TIMEOUT_MS=6000;
-function _szlFetch(url,opts){
+/* probe-offline-abort (fix/probe-offline-abort): UNIVERSAL FETCH HARDENING (Doctrine v11).
+   Every live fetch on this console flows through _szlFetch(). The previous build used a
+   SHORT 6s abort window, which fired BEFORE a healthy backend answered during warmup /
+   redeploy / a slow but-fine transfer (a verified-200 feed at ~1.1s/271KB could still spike
+   past 6s while a Space cold-starts). The AbortController abort then surfaced the browser's
+   bare "signal is aborted without reason" into the tab — a fake "offline" on a healthy
+   backend. FIX: (1) generous default timeout (28s) so a 1–2s real probe NEVER aborts;
+   (2) retry-with-backoff on a TRANSIENT abort / network blip before any failure is shown;
+   (3) honest error normalization (_szlFriendlyErr) so a transient abort renders
+   "temporarily unavailable — retrying", never the bare browser abort string. No fabricated
+   data — a genuine failure after retries still surfaces honestly with a working re-probe. */
+window.__SZL_FETCH_TIMEOUT_MS=28000;   /* generous: a 1–2s real probe must never abort */
+window.__SZL_FETCH_RETRIES=2;          /* extra attempts after the first (3 total) on transient errors */
+window.__SZL_FETCH_BACKOFF_MS=700;     /* base backoff; grows linearly per attempt */
+/* Is this error a TRANSIENT abort/network blip worth retrying (vs. a real HTTP 4xx/5xx)? */
+function _szlTransient(e){
+  if(!e) return false;
+  if(e.name==='AbortError') return true;
+  var m=String((e&&e.message)||e).toLowerCase();
+  return m.indexOf('abort')>=0 || m.indexOf('signal is aborted')>=0
+      || m.indexOf('failed to fetch')>=0 || m.indexOf('networkerror')>=0
+      || m.indexOf('network error')>=0 || m.indexOf('load failed')>=0
+      || m.indexOf('timeout')>=0 || m.indexOf('timed out')>=0;
+}
+/* Normalize ANY caught probe error into an HONEST, user-safe message. Never let the
+   browser's bare "signal is aborted without reason" reach a tab — it reads as a fake
+   "offline" on a healthy backend. Real HTTP failures (HTTP 500 etc.) pass through. */
+window._szlFriendlyErr=function(e){
+  var m=String((e&&e.message)||e||'');
+  if(_szlTransient(e)) return 'temporarily unavailable — retrying';
+  return m;
+};
+/* Honest KPI label for a catch block. A TRANSIENT abort/network blip (the premature-abort
+   bug) must NEVER paint a bare "offline" on a healthy backend — it reads as down when it is
+   not. Show "probing…" instead and let the next probe resolve. A GENUINE failure (real HTTP
+   error / truly-down backend) still paints honest "offline" — no fabrication either way. */
+window._szlKpi=function(e){ return (e&&e.__transient)||_szlTransient(e) ? 'probing…' : 'offline'; };
+function _szlSleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+/* core fetch: generous AbortController timeout + retry-with-backoff on transient errors.
+   Resolves to a Response (caller still checks .ok); only throws after retries exhausted. */
+async function _szlFetch(url,opts){
   opts=opts||{};
   var ms=(opts.__timeoutMs!=null)?opts.__timeoutMs:window.__SZL_FETCH_TIMEOUT_MS;
-  var ctl=new AbortController();
-  var t=setTimeout(function(){try{ctl.abort();}catch(e){}},ms);
-  var o=Object.assign({},opts); delete o.__timeoutMs; o.signal=opts.signal||ctl.signal;
-  return fetch(url,o).finally(function(){clearTimeout(t);});
+  var retries=(opts.__retries!=null)?opts.__retries:window.__SZL_FETCH_RETRIES;
+  var base=(opts.__backoffMs!=null)?opts.__backoffMs:window.__SZL_FETCH_BACKOFF_MS;
+  var o=Object.assign({},opts); delete o.__timeoutMs; delete o.__retries; delete o.__backoffMs;
+  var lastErr;
+  for(var attempt=0;attempt<=retries;attempt++){
+    var ctl=new AbortController();
+    var t=setTimeout(function(){try{ctl.abort();}catch(e){}},ms);
+    var a=Object.assign({},o); a.signal=opts.signal||ctl.signal;
+    try{
+      var r=await fetch(url,a); clearTimeout(t); return r;
+    }catch(err){
+      clearTimeout(t); lastErr=err;
+      /* an externally-supplied signal that aborted is the caller's intent — don't retry it */
+      if(opts.signal && opts.signal.aborted) throw err;
+      if(attempt<retries && _szlTransient(err)){ await _szlSleep(base*(attempt+1)); continue; }
+      throw _szlNormErr(err);
+    }
+  }
+  throw _szlNormErr(lastErr);
+}
+/* After retries are exhausted, normalize a TRANSIENT abort/network error so EVERY existing
+   catch handler that renders e.message shows the honest "temporarily unavailable — retrying"
+   instead of the browser's bare "signal is aborted without reason". Real HTTP errors (the
+   caller throws "HTTP 500" itself, AFTER this resolves) are untouched and pass through. */
+function _szlNormErr(err){
+  if(_szlTransient(err)){ var e=new Error('temporarily unavailable — retrying'); e.name='SzlTransient'; e.__transient=true; e.cause=err; return e; }
+  return err;
 }
 window._szlFetch=_szlFetch;
 async function getJSON(p){const r=await _szlFetch(p);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
@@ -736,27 +790,32 @@ function mesh3d(id,nodes,links){const host=el(id);if(!host||!window.ForceGraph3D
 // ===== GENIUS VISUAL HELPERS (echarts / globe.gl / cytoscape / d3) =====
 const RED='#b06a5a',AMBER='#c9a05f';
 // fetch with timeout + abort — never let a big public feed hang the UI.
-// real-data-wiring: hard-cap the abort window at 6.5s (Doctrine v11: a spinner must
-// resolve to data-or-honest-fallback fast). Callers that passed 12–30s (USGS, MITRE
-// STIX) now abort at the cap and degrade to their labeled fallback instead of hanging.
-function fetchTimeout(url,ms,opts){const CAP=6500;const want=ms||6000;const eff=Math.min(want,CAP);const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),eff);
-  return fetch(url,Object.assign({signal:ctl.signal},opts||{})).finally(()=>clearTimeout(t));}
+// probe-offline-abort: the prior build hard-capped the abort window at 6.5s, which aborted
+// healthy-but-slow probes (warmup / redeploy / large public feeds like USGS & the ~50MB
+// MITRE STIX) into a bare "signal is aborted without reason" — a fake "offline". Now this
+// routes through _szlFetch: generous timeout (caller's ms, floored to a sane minimum so a
+// 1–2s probe never aborts) + retry-with-backoff on transient aborts. A real failure still
+// surfaces honestly via the caller's catch (which uses _szlFriendlyErr).
+function fetchTimeout(url,ms,opts){
+  const MIN=28000;                       // floor: never abort a healthy probe early
+  const eff=Math.max(ms||MIN,MIN);       // honor large explicit budgets (STIX 30s), floor small ones
+  return _szlFetch(url,Object.assign({__timeoutMs:eff},opts||{}));
+}
 async function getPublic(url,ms){const r=await fetchTimeout(url,ms);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
-/* ===== investor-grade-polish: FAIL-FAST KPI fetch + last-good cache ============
-   (polish/console-investor-grade) Investor watching live must never see an endless
-   "probing…". gjFast() wraps the JSON fetch with a SHORT abort timeout (default
-   1500ms) and a same-origin last-good in-memory cache. On timeout/error it does
-   NOT hang and does NOT fabricate: it resurfaces the last real value if we ever
-   had one, otherwise it throws so the caller can paint an HONEST labeled degraded
-   state ("not available right now") instead of a spinner. This composes with the
-   server-side circuit breaker (szl_resilience) + TTL cache (szl_backend_hardening)
-   already on main: the backend fails fast to a cached/honest value, and the
-   frontend refuses to wait on it. Doctrine v11: no fake values, degrade to a
-   labeled state. */
+/* ===== investor-grade-polish: KPI fetch + last-good cache ============
+   (polish/console-investor-grade) gjFast() wraps the JSON fetch and keeps a same-origin
+   last-good in-memory cache. probe-offline-abort: the abort window was raised from a too-
+   aggressive 1.5s (which fired on healthy-but-warming KPIs and forced a needless degraded
+   chip) to the shared generous timeout + retry-with-backoff via fetchTimeout/_szlFetch.
+   On a genuine timeout/error it still does NOT hang and does NOT fabricate: it resurfaces
+   the last real value if we ever had one, otherwise it throws so the caller paints an
+   HONEST labeled degraded state ("not available right now"). This composes with the
+   server-side circuit breaker (szl_resilience) + TTL cache (szl_backend_hardening) on
+   main. Doctrine v11: no fake values, degrade to a labeled state. */
 window.__gjLast=window.__gjLast||{};
 async function gjFast(url,ms){
   try{
-    const r=await fetchTimeout(url,ms||1500);
+    const r=await fetchTimeout(url,ms);
     const ct=r.headers.get('content-type')||'';
     if(!r.ok) throw new Error('HTTP '+r.status);
     if(ct.indexOf('text/html')>=0) throw new Error('route not deployed here');
@@ -2110,18 +2169,20 @@ function go(view){
   if(history.replaceState)history.replaceState(null,'','#'+view);
   if(window.innerWidth<=820)toggleSide(false);
 }
-/* real-data-wiring (feat/real-data-wiring): GLOBAL NO-PERPETUAL-SPINNER WATCHDOG.
-   Doctrine v11 — a spinner must ALWAYS resolve to data OR an honest labeled state
-   within its timeout, never spin forever. Most loaders already fail-fast (now that
-   every fetch is abortable) into their own honest fallback. This is the universal
-   belt-and-suspenders: after the fetch cap (6.5s) has had time to fire, scan the
-   active tab body for any lingering pure-spinner placeholder — a node whose ENTIRE
-   visible text is just a wait phrase ("polling…", "probing…", "loading…",
-   "fetching…", a bare "…"), or an unresolved animated skeleton — and replace ONLY
-   that placeholder with an honest "live source unavailable — showing sample/snapshot"
-   chip. It NEVER fabricates a value and NEVER touches real content that merely
-   contains an ellipsis in prose (it matches whole-text spinner phrases only). */
-window.__SZL_WATCHDOG_MS=7000;
+/* probe-offline-abort: GLOBAL NO-PERPETUAL-SPINNER WATCHDOG.
+   Doctrine v11 — a spinner must ALWAYS resolve to data OR an honest labeled state, never
+   spin forever. Most loaders fail-fast into their own honest fallback. This is the
+   universal belt-and-suspenders: after a probe has had time to resolve, scan the active
+   tab body for any lingering pure-spinner placeholder and replace ONLY that placeholder
+   with an honest "live source unavailable" chip. It NEVER fabricates a value.
+   CRITICAL timing fix: the shared probe window is now generous (28s + retry-with-backoff)
+   so a healthy-but-warming backend is still legitimately in-flight well past the old 7s.
+   Firing the watchdog at 7s painted a FAKE "unavailable" over a probe that was about to
+   succeed — the very premature-abort bug this branch removes. The watchdog now waits past
+   one full generous probe (32s) before sweeping. It also LEAVES ALONE honest active states
+   ("probing…", "retrying", "temporarily unavailable") — those are live, self-resolving, or
+   already carry a working re-probe link; only dead loading skeletons get swept. */
+window.__SZL_WATCHDOG_MS=32000;
 function _szlHonestChip(){
   return '<span class="badge b-gold" title="This panel\'s live source did not resolve within its timeout from this Space right now \u2014 shown honestly as a labeled fallback rather than a spinner or a faked value. The server proxy serves it live in-deployment; retry to re-probe.">live source unavailable \u2014 showing sample / snapshot</span>';
 }
@@ -2129,6 +2190,9 @@ function _szlIsSpinnerText(t){
   t=(t||'').replace(/\s+/g,' ').trim().toLowerCase();
   if(!t) return false;
   if(t.length>64) return false; /* long text = real content, not a placeholder */
+  /* honest, self-resolving active states already carry their own re-probe \u2014 never sweep
+     them into a "unavailable" chip (that would re-introduce the fake-offline bug). */
+  if(/retry|retrying|re-probe|reprobe|temporarily unavailable|unavailable \u2014 retr/.test(t)) return false;
   /* whole-text wait phrases only */
   return /^(\u2026|\.\.\.|\u00b7{3})$/.test(t)
     || /^(loading|probing|polling|fetching|asking|emitting|launching|inspecting|assessing|mapping|reading|governing|reading live grid feeds)\b/.test(t) && /(\u2026|\.\.\.|loading|polling|probing|fetching|please wait|reading|governing)/.test(t);
@@ -4157,7 +4221,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           T('ts-formula', fe? ('F-G1: embedded '+fe.embedded_distance+' \u2264 original '+fe.original_distance+' (1-Lipschitz '+(fe.nonexpansive_1_lipschitz?'\u2713':'\u2717')+')') : '');
           var raw=E('ts-raw'); if(raw)raw.textContent=JSON.stringify(d,null,2);
           var fb=E('ts-freeze'); if(fb)fb.onclick=function(){ var host=E('ts-field'); var fr=host&&host.__freeze&&host.__freeze(); fb.textContent=fr?'\u25b6 Resume flow':'\u275a\u275a Freeze flow'; };
-        }catch(e){ T('ts-lam','offline'); }
+        }catch(e){ T('ts-lam',window._szlKpi(e)); }
       }};
 
     /* ---- KNOWLEDGE: ngraph.pixel-pattern GPU node-edge graph ---- */
@@ -4213,7 +4277,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           var last=rec[rec.length-1]; T('ch-fh',(last&&last.receipt_id||'').slice(0,10));
           B1.chainDagre('ch-dag', rec);
           var raw=E('ch-raw'); if(raw)raw.textContent=JSON.stringify(d,null,2).slice(0,3000);
-        }catch(e){ T('ch-depth','offline'); }
+        }catch(e){ T('ch-depth',window._szlKpi(e)); }
         // Folded-in verify-yourself ECDSA panel (was the Signed Receipts tab) — same /receipt/export + /cosign.pub path.
         async function _chVerify(tamper){
           var spans=[
@@ -4360,7 +4424,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             B1.conformalBand('fc-band', series, lo, hi, pt, ci.coverage, ci.p_value_floor);
             var raw=E('fc-raw'); if(raw)raw.textContent=JSON.stringify(ci,null,2);
           } else { H('fc-note','conformal block unavailable'); }
-        }catch(e){ T('fc-int','offline'); }
+        }catch(e){ T('fc-int',window._szlKpi(e)); }
         // ---- seismic loader (server-side honest forecast over live USGS) ----
         try{ var sf=await gj('/api/a11oy/v1/seismic/forecast?level=4.5&window=week');
           if(sf&&sf.ok){ var ms=sf.mainshock||{}; var F=sf.forecasts||{};
@@ -4382,7 +4446,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             H('sq-tbl',rows);
             var sraw=E('sq-raw'); if(sraw)sraw.textContent=JSON.stringify(sf,null,2);
           } else { H('sq-note','USGS seismic feed unavailable right now \u2014 no fabricated forecast shown. '+chip('honest fail','CI-GREEN')); T('sq-mm','offline'); var sr=E('sq-raw'); if(sr)sr.textContent=JSON.stringify(sf,null,2); }
-        }catch(e){ T('sq-mm','offline'); H('sq-note','seismic forecast endpoint unreachable: '+esc(e.message)); }
+        }catch(e){ T('sq-mm',window._szlKpi(e)); H('sq-note','seismic forecast endpoint unreachable: '+esc(e.message)); }
       }};
 
     /* ---- DECISION: P1-P6 step Gantt + boolean cascade (clean baseline) ---- */
@@ -4413,7 +4477,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             {label:'P4 replay determinism',pass:!!(u&&u.P4_replay_determinism),detail:'5\u00d7 replay yields byte-identical roots'},
             {label:'P5 tamper-evident (axiom-gated)',pass:!!(u&&u.P5_tamper_evident),detail:'P5 is axiom-gated, not kernel-locked \u2014 honestly marked'}
           ]);
-        }catch(e){ T('dc-stat','offline'); }
+        }catch(e){ T('dc-stat',window._szlKpi(e)); }
       }};
 
     /* ---- REPLAY: span waterfall + scrubber (NOT 3D) ---- */
@@ -4530,7 +4594,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           nd.append('text').attr('x',function(n){return n.x0<W/2?n.x1+5:n.x0-5;}).attr('y',function(n){return (n.y0+n.y1)/2;}).attr('dy','0.32em').attr('text-anchor',function(n){return n.x0<W/2?'start':'end';}).attr('fill','#cdd2d8').attr('font-size',8.5).text(function(n){return n.name;});
           var raw=E('lm-raw'); if(raw)raw.textContent=JSON.stringify({model_count:d.model_count,routing_policy:d.routing_policy,honest_note:d.honest_note},null,2);
           H('lm-note', (E('lm-note')||{}).innerHTML + srcline({data_kind:'live',source:'/api/a11oy/v1/llm/registry'}));
-        }catch(e){ T('lm-n','offline'); }
+        }catch(e){ T('lm-n',window._szlKpi(e)); }
       }};
 
     /* ===================== arena — ECharts parallel-coordinates eval ===================== */
@@ -4579,7 +4643,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             yAxis:{type:'category',data:sov.map(function(s){return s.name;}),axisLabel:{color:'#9aa0a8',fontSize:8}},
             series:[{type:'bar',data:sov.map(function(s){return {value:s.sov,itemStyle:{color:s.open?TEAL:GOLD}};}),barWidth:'60%'}]});
           window.addEventListener('resize',function(){ch.resize();bar.resize();},{passive:true});
-        }catch(e){ T('ar-n','offline'); }
+        }catch(e){ T('ar-n',window._szlKpi(e)); }
         // ---- Governance eval — recorded run + live re-run (no fabricated numbers) ----
         var GOV_DIMS=['correctness','evidence_completeness','approval_compliance','replay_completeness','policy_adherence','hallucination_resistance','tool_efficiency'];
         function arenaGovRender(d,isLive){
@@ -4693,7 +4757,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           H('mc-list', tools.map(function(t){ return '<div class="row"><span class="badge b-teal">'+esc(t.name)+'</span><span>'+esc(t.description||'')+'</span><span class="spacer mono dim">'+esc(t.flagship||'')+'</span></div>'; }).join('') || '<div class="row mono dim">no tools in manifest</div>');
           var raw=E('mc-raw'); if(raw)raw.textContent=JSON.stringify(d,null,2);
           H('mc-note', (E('mc-note')||{}).innerHTML + srcline({data_kind:'live',source:'/api/a11oy/v1/mcp/tools'}));
-        }catch(e){ T('mc-n','offline'); H('mc-gpu','<div class="row mono dim" style="padding:1rem">MCP manifest unreachable: '+esc(e.message)+'</div>'); H('mc-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); }
+        }catch(e){ T('mc-n',window._szlKpi(e)); H('mc-gpu','<div class="row mono dim" style="padding:1rem">MCP manifest unreachable: '+esc(e.message)+'</div>'); H('mc-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>'); }
       }};
 
     /* ===================== modelatlas — ngraph.forcelayout SVG galaxy (benchmark similarity) ===================== */
@@ -4738,7 +4802,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           s.push('</svg>'); host.innerHTML=s.join('');
           T('ma-c',Object.keys(clusters).length);
           H('ma-note', (E('ma-note')||{}).innerHTML + srcline({data_kind:'live',source:'/api/a11oy/v1/llm/registry (models) + sample benchmark tags'}));
-        }catch(e){ T('ma-n','offline'); }
+        }catch(e){ T('ma-n',window._szlKpi(e)); }
       }};
 
     /* ===================== policies — ECharts treemap ===================== */
@@ -4770,7 +4834,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
           var raw=E('po-raw'); if(raw)raw.textContent=JSON.stringify({count:d.count,sample:gates.slice(0,4)},null,2);
           H('po-note', (E('po-note')||{}).innerHTML + srcline({data_kind:'live',source:'/api/a11oy/v1/gates'}));
-        }catch(e){ T('po-n','offline'); }
+        }catch(e){ T('po-n',window._szlKpi(e)); }
       }};
 
     /* ===================== gates — ECharts stacked bar (allow/deny) + markLine ===================== */
@@ -4804,7 +4868,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             ]});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
           H('ga-note', (E('ga-note')||{}).innerHTML + srcline({data_kind:'live',source:'/api/a11oy/v1/gates + /formulas/selftest'}));
-        }catch(e){ T('ga-n','offline'); }
+        }catch(e){ T('ga-n',window._szlKpi(e)); }
       }};
 
     /* ===================== govern — CSS grid compliance matrix (controls x time) ===================== */
@@ -4840,7 +4904,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           });
           html.push('</div>'); H('gv-grid',html.join(''));
           H('gv-note', (E('gv-note')||{}).innerHTML + srcline({data_kind:'sample',source:'OSCAL controls (SI-7/AC-7/AU-9/AU-3/SA-17/CM-3/IR-4/RA-5) + sample monotone audit history'}));
-        }catch(e){ T('gv-n','offline'); }
+        }catch(e){ T('gv-n',window._szlKpi(e)); }
       }};
 
     /* ===================== govatlas — d3-geo world map governance coverage ===================== */
@@ -4913,7 +4977,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             series:[{type:'heatmap',data:cells,label:{show:true,formatter:function(p){return p.data[3];},color:'#0b0b0b',fontSize:6.5},itemStyle:{borderColor:'#0b0b0b',borderWidth:1}}]});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
           H('th-note', (E('th-note')||{}).innerHTML + srcline(d));
-        }catch(e){ T('th-n','offline'); }
+        }catch(e){ T('th-n',window._szlKpi(e)); }
       }};
 
     /* ===================== attack — cytoscape kill-chain + ngraph.path shortest path ===================== */
@@ -4967,7 +5031,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             pickSrc=null;
           });
           H('at-detail', (E('at-detail')||{}).innerHTML + srcline(d));
-        }catch(e){ T('at-n','offline'); }
+        }catch(e){ T('at-n',window._szlKpi(e)); }
       }};
 
     /* ===================== cve — sortable HTML table with severity heat cells ===================== */
@@ -5005,7 +5069,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           }
           render();
           H('cv-note', (E('cv-note')||{}).innerHTML + srcline(d));
-        }catch(e){ T('cv-n','offline'); }
+        }catch(e){ T('cv-n',window._szlKpi(e)); }
       }};
 
     /* ===================== kev — ECharts scatter timeline (x=dateAdded, y=CVSS, size=EPSS) ===================== */
@@ -5033,7 +5097,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               itemStyle:{color:function(p){return SEV_COL[p.data.sev]||'#888';},borderColor:function(p){return p.data.rw?GOLD:'rgba(0,0,0,0.4)';},borderWidth:function(p){return p.data.rw?2.4:0.6;},opacity:0.82}}]});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
           H('kv-note', (E('kv-note')||{}).innerHTML + srcline(d));
-        }catch(e){ T('kv-n','offline'); }
+        }catch(e){ T('kv-n',window._szlKpi(e)); }
       }};
 
     /* ===================== threatgraph — cytoscape actor->TTP attribution network ===================== */
@@ -5068,7 +5132,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var ttpNames=n.connectedEdges().connectedNodes('[kind = "ttp"]').map(function(x){return x.data('label');});
             H('tg-note','<b style="color:'+GOLD+'">'+esc(n.data('label'))+'</b> uses: '+esc(ttpNames.join(', '))+' '+chip('ATT&CK Group','SAMPLE')); });
           H('tg-note', (E('tg-note')||{}).innerHTML + srcline(d));
-        }catch(e){ T('tg-a','offline'); }
+        }catch(e){ T('tg-a',window._szlKpi(e)); }
       }};
 
     console.log('[a11oy] BATCH-2 module loaded: llm(sankey), arena(parallel-coords), [codetab=functional chat UI kept], mcp(GPU galaxy), modelatlas(forcelayout galaxy), policies(treemap), gates(stacked bar), govern(CSS grid), govatlas(d3-geo map), threats(ATT&CK heatmap), attack(cytoscape+path), cve(heat table), kev(scatter timeline), threatgraph(actor net)');
@@ -5155,7 +5219,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                 data:rows.map(function(r,i){return {yAxis:i,xAxis:r.floor};}),label:{show:false}}}]});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
           H('cm-note',(E('cm-note')||{}).innerHTML+srcline({data_kind:'live',source:'/observability/summary + /lambda + /policy/gates + /mesh/state'}));
-        }catch(e){ T('cm-svc','offline'); }
+        }catch(e){ T('cm-svc',window._szlKpi(e)); }
       }};
 
     /* =============== ask — SVG boolean-cascade decision-trace tree =============== */
@@ -5201,7 +5265,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           }
           var raw=E('ak-raw'); if(raw)raw.textContent=JSON.stringify(v.slice(0,6),null,2);
           H('ak-note',(E('ak-note')||{}).innerHTML+srcline({data_kind:'live',source:'/policy/decisions/feed'}));
-        }catch(e){ T('ak-n','offline'); }
+        }catch(e){ T('ak-n',window._szlKpi(e)); }
       }};
 
     /* =============== demo — ECharts state-timeline (cascade steps) =============== */
@@ -5241,7 +5305,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             b.onclick=function(){ b.textContent=p.key+'\u2026'; gj('/api/a11oy/v1/warhacker/launch/'+p.key).then(function(r){ b.textContent=p.key+' \u2713'; var raw=E('dm-raw'); if(raw)raw.textContent=JSON.stringify(r,null,2).slice(0,2200); }).catch(function(){ b.textContent=p.key+' \u2717'; }); };
             lb.appendChild(b); });
           H('dm-note',(E('dm-note')||{}).innerHTML+srcline({data_kind:'live',source:'/warhacker/index + /warhacker/launch'}));
-        }catch(e){ T('dm-n','offline'); }
+        }catch(e){ T('dm-n',window._szlKpi(e)); }
       }};
 
     /* =============== fleet — CSS-grid status-history grid =============== */
@@ -5268,7 +5332,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             }
           });
           html+='</div>'; H('fl-grid',html);
-        }catch(e){ T('fl-n','offline'); }
+        }catch(e){ T('fl-n',window._szlKpi(e)); }
       }};
 
     /* =============== mesh — Cytoscape force-directed service map + panzoom =============== */
@@ -5300,7 +5364,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           // cytoscape native pan/zoom is enabled by default
           window.__meshCy=cy;
           H('me-note',(E('me-note')||{}).innerHTML+srcline({data_kind:'live',source:'/mesh/state + /observability/summary'}));
-        }catch(e){ T('me-n','offline'); }
+        }catch(e){ T('me-n',window._szlKpi(e)); }
       }};
 
     /* =============== pulse — ECharts calendar heatmap + sparkline =============== */
@@ -5338,7 +5402,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               itemStyle:{color:function(p){return p.value>=0.9?TEAL:RED;}},markLine:{symbol:'none',silent:true,data:[{yAxis:0.9}],lineStyle:{color:GOLD,type:'dashed',width:1}}}]});
           window.addEventListener('resize',function(){cal.resize();spk.resize();},{passive:true});
           H('pu-note',(E('pu-note')||{}).innerHTML+srcline({data_kind:'live',source:'/policy/decisions/feed'}));
-        }catch(e){ T('pu-n','offline'); }
+        }catch(e){ T('pu-n',window._szlKpi(e)); }
       }};
 
     /* =============== feed — live-tail log stream, color by level =============== */
@@ -5366,7 +5430,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                 +(sig?(' <span style="color:'+RED+'">['+esc(sig.slice(0,50))+']</span>'):'')
                 +' <span style="color:'+DIM+'">#'+esc((x.receipt_hash||'').slice(0,10))+'</span></div>'; }).join('');
             H('fd-log',rows);
-          }catch(e){ T('fd-n','offline'); }
+          }catch(e){ T('fd-n',window._szlKpi(e)); }
           if(!stop) setTimeout(tick,4000);
         }
         tick();
@@ -5396,7 +5460,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               +'<span class="mono" style="color:'+DIM+';font-size:8px">vs ungoverned baseline</span></div></div>'; }).join('');
           H('bz-cards',html);
           H('bz-note',(E('bz-note')||{}).innerHTML+srcline({data_kind:'live',source:'/observability/business'}));
-        }catch(e){ T('bz-n','offline'); }
+        }catch(e){ T('bz-n',window._szlKpi(e)); }
       }};
 
     /* =============== verticals — ngraph.forcelayout galaxy cluster map =============== */
@@ -5445,7 +5509,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             ring(live,150,TEAL,true); ring(stub,225,GOLD,false); svg2+='</svg>'; host.innerHTML=svg2;
           }
           H('vt-note',(E('vt-note')||{}).innerHTML+srcline({data_kind:'live',source:'/vertical-packs'}));
-        }catch(e){ T('vt-n','offline'); try{console.error('[verticals]',e);}catch(_){} }
+        }catch(e){ T('vt-n',window._szlKpi(e)); try{console.error('[verticals]',e);}catch(_){} }
       }};
 
     /* =============== alloy — Chart.js horizontal bar (model capability) =============== */
@@ -5475,7 +5539,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:function(ctx){return rows[ctx.dataIndex].open?'open-weight \u00b7 sovereign-capable':'closed API \u00b7 stub';}}}},
               scales:{x:{grid:{color:GRID},ticks:{color:'#777',font:{size:8}}},y:{grid:{display:false},ticks:{color:'#9aa0a8',font:{size:8}}}}}});
           H('al-note',(E('al-note')||{}).innerHTML+srcline({data_kind:'live',source:'/llm/registry (scores=labelled sample harness)'}));
-        }catch(e){ T('al-n','offline'); }
+        }catch(e){ T('al-n',window._szlKpi(e)); }
       }};
 
     /* =============== mission — ECharts gauge cluster (2x3 arc gauges) =============== */
@@ -5513,7 +5577,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               data:[{value:gg.v,name:gg.n}]}; })});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
           H('ms-note',(E('ms-note')||{}).innerHTML+srcline({data_kind:'live',source:'/observability/summary + /lambda + /policy/gates + /formulas/selftest'}));
-        }catch(e){ T('ms-floor','offline'); }
+        }catch(e){ T('ms-floor',window._szlKpi(e)); }
       }};
 
     /* =============== melt — ECharts heatmap (capability x metric) =============== */
@@ -5548,7 +5612,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             series:[{type:'heatmap',data:data,label:{show:false},itemStyle:{borderColor:'#111',borderWidth:1}}]});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
           H('mt-note',(E('mt-note')||{}).innerHTML+srcline({data_kind:'live',source:'/observability/summary'}));
-        }catch(e){ T('mt-n','offline'); }
+        }catch(e){ T('mt-n',window._szlKpi(e)); }
       }};
 
     /* =============== deploy — SVG deployment-marker timeline =============== */
@@ -5592,7 +5656,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           });
           svg+='</svg>'; host.innerHTML=svg;
           var cmd=E('dp-cmd'); if(cmd)cmd.textContent='# verify the air-gapped bundle offline\ncosign verify-blob --key /cosign.pub --signature bundle.sig bundle.tar\n# verify SLSA provenance\nslsa-verifier verify-artifact --provenance-path image.att image.tar\n# any byte mutation => re-verify REJECTS (P5)';
-        }catch(e){ H('dp-tl','offline'); }
+        }catch(e){ H('dp-tl','<div class="row mono dim">'+esc(window._szlFriendlyErr(e))+'</div>'); }
       }};
 
     /* =============== warboard — 25-demo 5x5 board (5 problems x 5 demos) =============== */
@@ -5827,8 +5891,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             H('ay-prov','source: '+esc(a.data_source||'\u2014')+' \u00b7 live: '+(a.live?'\u2713 real corpus':'fallback')+' \u00b7 receipts: '+(a.receipts_ingested!=null?a.receipts_ingested:'\u2014')+' \u00b7 \u03b1 floor 0.45 \u00b7 balanced 0.5 \u00b7 generated_at '+(a.generated_at||'\u2014'));
             var raw=E('ay-raw'); if(raw)raw.textContent=JSON.stringify(a,null,2);
           }catch(e){
-            T('ay-def','offline'); T('ay-state','offline');
-            H('ay-defs','<div class="row mono" style="color:'+RED+';padding:.6rem">/v1/ayni error: '+esc(e.message)+'</div>');
+            T('ay-def',window._szlKpi(e)); T('ay-state',window._szlKpi(e));
+            H('ay-defs','<div class="row mono" style="color:'+RED+';padding:.6rem">/v1/ayni '+esc(window._szlFriendlyErr(e))+'</div>');
           }
         }
         async function refreshTinkuy(){
@@ -5839,7 +5903,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             drawKuramoto('ay-kuramoto', t.phases||{}, t.r||0, t.psi||0);
             var raw=E('ay-raw'); // append tinkuy snapshot beneath ayni for full provenance
             if(raw && raw.dataset.t!=='1'){ raw.dataset.t='1'; }
-          }catch(e){ T('ay-r','offline'); }
+          }catch(e){ T('ay-r',window._szlKpi(e)); }
         }
         await loadAyni();
         every(refreshTinkuy, 3000);
@@ -6063,7 +6127,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             nodes.push({id:'ax'+i,name:(a.name||('axis'+i))+' '+sc.toFixed(2),color:col,val:5+sc*4});
             links.push({source:'Λ',target:'ax'+i}); });
           window.a11oyFG('ts-3d',nodes,links,{cooldown:160});
-        }catch(e){ T('ts-lam','offline'); }
+        }catch(e){ T('ts-lam',window._szlKpi(e)); }
       }
     };
 
@@ -6139,7 +6203,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var nodes=ordered.map(function(r,i){ return {id:'r'+r.seq,name:(r.vertical||'core')+' #'+r.seq, color:(r.decision==='ALLOW'?TEAL:(r.decision==='BLOCK'?RED:AMBER)), val:5}; });
             var links=[]; for(var i=0;i<ordered.length-1;i++) links.push({source:'r'+ordered[i].seq,target:'r'+ordered[i+1].seq});
             window.a11oyFG('rc-3d',nodes,links,{dagMode:'lr',dist:40,cooldown:120,labels:nodes.length<=14});
-          }catch(e){ T('rc-depth','offline'); }
+          }catch(e){ T('rc-depth',window._szlKpi(e)); }
         }, 'rc-stamp');
       }
     };
@@ -6177,7 +6241,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var links=[];
             routes.forEach(function(r){ nodes.push({id:r.tier,name:r.tier+' '+r.model,color:(r.license==='AMBER'?AMBER:TEAL),val:5+(80-r.latency_ms)/20}); links.push({source:'a11oy',target:r.tier}); });
             window.a11oyFG('mr-3d',nodes,links,{cooldown:160});
-          }catch(e){ T('mr-tiers','offline'); }
+          }catch(e){ T('mr-tiers',window._szlKpi(e)); }
         }, 'mr-stamp');
       }
     };
@@ -6297,7 +6361,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var nodes=ordered.map(function(r){ return {id:'w'+r.seq,name:(r.vertical||'core')+' #'+r.seq,color:(r.decision==='ALLOW'?TEAL:(r.decision==='BLOCK'?RED:AMBER)),val:5}; });
             var links=[]; for(var i=0;i<ordered.length-1;i++) links.push({source:'w'+ordered[i].seq,target:'w'+ordered[i+1].seq});
             window.a11oyFG('wl-3d',nodes,links,{dagMode:'lr',dist:38,cooldown:120,labels:nodes.length<=12});
-          }catch(e){ T('wl-depth','offline'); }
+          }catch(e){ T('wl-depth',window._szlKpi(e)); }
         }, 'wl-stamp');
       }
     };
@@ -6448,7 +6512,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             sorries:can.sorries, mcp_tools:can.mcp_tools, policy_gates:can.policy_gates, anchor_formula_gates:can.anchor_formula_gates,
             lambda_uniqueness:can.lambda_uniqueness, source:can.source};
           var ce=E('brn-canon'); if(ce) ce.textContent=JSON.stringify(canon,null,2);
-        }catch(e){ T('brn-decl','offline'); }
+        }catch(e){ T('brn-decl',window._szlKpi(e)); }
       }
     };
 
@@ -6477,13 +6541,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         try{ var d=await gj(API+'/v1/lambda'); var ax=d.axes||[];
           T('oh-lam',(d.lambda||0).toFixed?d.lambda.toFixed(4):d.lambda);
           if(window.radar) window.radar('oh-radar',ax.map(function(a){return a.name;}),ax.map(function(a){return a.score||0;}));
-        }catch(e){ T('oh-lam','offline'); }
+        }catch(e){ T('oh-lam',window._szlKpi(e)); }
         try{ var g=await gj(API+'/v1/policy/gates'); var gs=g.gates||[]; T('oh-gates', g.total!=null?g.total:gs.length);
           var html=gs.map(function(x){ return '<div class="row" style="display:block;border-top:1px solid rgba(201,183,135,0.07);padding:.4rem 0">'
             +'<div style="display:flex;gap:.5rem;align-items:center"><span class="badge b-teal">'+esc(x.id||'')+'</span><span style="color:'+CREAM+'">'+esc(x.label||x.name||'')+'</span></div>'
             +'<div class="mono dim" style="font-size:11px;margin-top:.2rem;line-height:1.5">'+esc(x.description||'')+'</div></div>'; }).join('');
           H('oh-gatelist', html||'<div class="row mono dim">no gates</div>');
-        }catch(e){ T('oh-gates','offline'); }
+        }catch(e){ T('oh-gates',window._szlKpi(e)); }
       }
     };
 
@@ -6520,7 +6584,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var nodes=rs.map(function(r){ return {id:'op'+r.seq,name:(r.action||'rcpt')+' #'+r.seq,color:TEAL,val:5}; });
             var links=[]; for(var i=0;i<rs.length-1;i++) links.push({source:'op'+rs[i].seq,target:'op'+rs[i+1].seq});
             window.a11oyFG('oy-3d',nodes,links,{dagMode:'lr',dist:48,cooldown:120});
-          }catch(e){ T('oy-depth','offline'); }
+          }catch(e){ T('oy-depth',window._szlKpi(e)); }
           try{ var L=await gj(API+'/v1/wow/ledger?limit=1&advance=0'); T('oy-uni',L.chain_depth); T('oy-ver',L.window_verified?'✓':'✗'); var ve=E('oy-ver'); if(ve)ve.style.color=L.window_verified?TEAL:RED; }catch(e){}
         }, 'oy-stamp');
       }
@@ -6558,7 +6622,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             H('on-reachlist', html||'<div class="row mono dim">no probe data</div>');
             var me=E('on-melt'); if(me) me.textContent=JSON.stringify(melt,null,2);
             if(d.slsa) { var se=E('on-hon'); /* keep honesty text static */ }
-          }catch(e){ T('on-reach','offline'); }
+          }catch(e){ T('on-reach',window._szlKpi(e)); }
         }, 'on-stamp');
       }
     };
@@ -6609,7 +6673,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var fgn=nodes.map(function(n){ return {id:n.id,name:n.id+(n.role?(' · '+n.role):''),color:(n.id==='a11oy'?GOLD:(n.ok!==false?TEAL:RED)),val:(n.id==='a11oy'?12:6)}; });
             var fgl=edges.map(function(e){ return {source:e.from,target:e.to}; });
             window.a11oyFG('os-3d',fgn,fgl,{cooldown:160});
-          }catch(e){ T('os-nodes','offline'); }
+          }catch(e){ T('os-nodes',window._szlKpi(e)); }
         }, 'os-stamp');
       }
     };
@@ -11621,7 +11685,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               +'<td style="padding:4px 7px">'+chips+(live?' '+badge('engine','b-live'):' '+badge('field-derived','b-gold'))+'</td></tr>');
           });
           h.push('</tbody></table>'); H('kg-tbl',h.join(''));
-        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">live KEV feed unavailable: '+esc(e.message)+'</div>'); T('kg-n','offline'); H('kg-fc-note','velocity forecast unavailable: '+esc(e.message)); }
+        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">live KEV feed unavailable: '+esc(e.message)+'</div>'); T('kg-n',window._szlKpi(e)); H('kg-fc-note','velocity forecast unavailable: '+esc(e.message)); }
 
         /* --- KEV exploitation-velocity forecast: honest EWMA + Holt trend + split-conformal band --- */
         function kgForecast(rows){
@@ -11740,8 +11804,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                 window.addEventListener('resize',function(){ch.resize();},{passive:true});
               }
             }
-          }catch(e){ H('fp-tbl','<div class="row mono dim" style="padding:1rem">feed pulse unavailable: '+esc(e.message)+'</div>'); T('fp-n','offline'); }
+          }catch(e){ H('fp-tbl','<div class="row mono dim" style="padding:1rem">feed pulse '+esc(window._szlFriendlyErr(e))+' — <a href="#" onclick="window.__fpReprobe&&window.__fpReprobe();return false;">re-probe</a></div>'); T('fp-n','probing…'); T('fp-ts','retrying…'); }
         }
+        window.__fpReprobe=load;
         var rb=E('fp-refresh'); if(rb) rb.onclick=load;
         load();
       }};
@@ -11787,7 +11852,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               +'<td style="padding:4px 7px">'+badge(r.license||'\u2014',(r.license==='GREEN'?'b-live':'b-gold'))+'</td></tr>');
           });
           h.push('</tbody></table>'); H('ra-tbl',h.join(''));
-        }catch(e){ H('ra-tbl','<div class="row mono dim" style="padding:1rem">router stats unavailable: '+esc(e.message)+'</div>'); T('ra-n','offline'); }
+        }catch(e){ H('ra-tbl','<div class="row mono dim" style="padding:1rem">router stats unavailable: '+esc(e.message)+'</div>'); T('ra-n',window._szlKpi(e)); }
       }};
 
     console.log('[a11oy] RERUN net-new tabs registered: kevgate, feedpulse, routerarena');
@@ -11879,8 +11944,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           H('rfp-flag', isolated.length);
           H('rfp-note', E('rfp-note').innerHTML + (isolated.length?(' <b style="color:'+RED+'">'+isolated.length+' structurally isolated receipt(s) flagged.</b>'):' No structural anomalies in this window.'));
           drawD3(host, g, R, links, anchorSet, isolated);
-        }).catch(function(e){ var host=E('rfp-svg'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('rfp-n','offline'); });
+        }).catch(function(e){ var host=E('rfp-svg'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('rfp-n',window._szlKpi(e)); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(go); } else { go(); }
     })();
@@ -12010,7 +12075,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           H('fsm-ready', ready); H('fsm-deg', deg);
           H('fsm-tbl','<table class="tbl"><thead><tr><th>capability</th><th>role</th><th>FSM state</th><th>health</th><th>MCP</th><th>\u039b</th></tr></thead><tbody>'+rows+'</tbody></table>');
           H('fsm-fresh','<span class="badge b-live">live</span>');
-        }).catch(function(e){ H('fsm-tbl','<div class="row mono dim">live mesh unavailable: '+esc(e.message)+'</div>'); H('fsm-n','offline'); });
+        }).catch(function(e){ H('fsm-tbl','<div class="row mono dim">live mesh '+esc(window._szlFriendlyErr(e))+'</div>'); H('fsm-n',window._szlKpi(e)); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(go); } else { go(); }
     })();
@@ -12498,8 +12563,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           H('ous-rmax', rmax||'\u2014');
           H('ous-src', T.hasMeta ? 'live loop_depth metadata' : 'density PROXY (labelled)');
           drawHelices(host, T.tracks);
-        }).catch(function(e){ var host=E('ous-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('ous-n','offline'); H('ous-src','\u2014'); });
+        }).catch(function(e){ var host=E('ous-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('ous-n',window._szlKpi(e)); H('ous-src','\u2014'); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
@@ -12644,8 +12709,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             dt='<div class="row mono dim" style="font-size:10.5px">no latency fields on these receipts yet \u2014 abacus digit-place binning will populate once latency is emitted (honest empty state)</div>';
           }
           H('abm-digit', dt);
-        }).catch(function(e){ var host=E('abm-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('abm-n','offline'); });
+        }).catch(function(e){ var host=E('abm-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('abm-n',window._szlKpi(e)); });
       }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
@@ -12794,8 +12859,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           // optionally enrich with knowledge.json lineage (best-effort; ignore if absent)
           getPublic('/knowledge.json',8000).then(function(kn){ paint(recs, kn, host); })
             .catch(function(){ paint(recs, null, host); });
-        }).catch(function(e){ var host=E('cb-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log unavailable: '+esc(e.message)+'</div>';
-          H('cb-n','offline'); H('cb-src','\u2014'); });
+        }).catch(function(e){ var host=E('cb-gl'); if(host) host.innerHTML='<div class="row mono dim" style="padding:1rem">live command-log '+esc(window._szlFriendlyErr(e))+'</div>';
+          H('cb-n',window._szlKpi(e)); H('cb-src','\u2014'); });
       }
       function paint(recs, kn, host){
         var g=buildGraph(recs, kn);
