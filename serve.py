@@ -9337,6 +9337,38 @@ except Exception as _szlfac_e:  # pragma: no cover
 # ============================================================================
 
 
+# ============================================================================
+# SPACES ON a11oy.net (Dev2+3) — surface all 11 live HF Spaces same-origin.
+# (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
+#     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
+#     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
+#     stage), /spaces tiles page, + ONE idempotent "Spaces" nav item. Both SHARED &
+#     byte-identical in a11oy + killinchu. No new subdomains. 0 runtime CDN (server-
+#     side fetch — same justification as a11oy_hf_assets.py). Additive, idempotent,
+#     try/except-guarded; each register() front-inserts its routes so they beat the
+#     SPA + Node-proxy catch-alls. Doctrine v11: locked=8 @ c7c0ba17; Λ=Conjecture 1;
+#     Khipu=Conjecture 2; honest 502/unknown beats a fake 200; no codenames; no key.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_spaces_proxy as _szl_spaces_proxy
+    _szl_spaces_proxy_status = _szl_spaces_proxy.register(app, ns="a11oy")
+    print(f"[a11oy] Spaces reverse-proxy registered: {_szl_spaces_proxy_status}", file=__import__("sys").stderr)
+except Exception as _szl_sp_e:  # pragma: no cover
+    print(f"[a11oy] Spaces reverse-proxy NOT registered: {_szl_sp_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+try:
+    import szl_spaces_surface as _szl_spaces_surface
+    _szl_spaces_surface_status = _szl_spaces_surface.register(app, ns="a11oy")
+    print(f"[a11oy] Spaces surface registered: {_szl_spaces_surface_status}", file=__import__("sys").stderr)
+except Exception as _szl_ss_e:  # pragma: no cover
+    print(f"[a11oy] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: SPACES ON a11oy.net (Dev2+3)
+# ============================================================================
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
