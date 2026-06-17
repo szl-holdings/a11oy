@@ -488,7 +488,7 @@ input, button, select { font:inherit }
   <b>v11 LOCKED</b> <span class="sep">·</span> 749/<span id="dp-decl">14</span>/163
   <span class="sep">·</span> <b>c7c0ba17</b><br>
   Λ = <b>Conjecture 1</b> <span class="sep">·</span>
-  SLSA <b id="dp-slsa">L2</b> <span class="sep">·</span>
+  SLSA <b id="dp-slsa">L1 honest · L2 .att emitted (not independently verified) · L3 roadmap</b> <span class="sep">·</span>
   <span id="dp-gates">46</span> gates
 </div>
 
@@ -509,7 +509,7 @@ input, button, select { font:inherit }
   </div>
   <div class="header-spacer"></div>
   <div class="slsa-badge" id="slsaBadge">
-    <span>✓</span> <span>SLSA L1 honest · L2 build-attested (Rekor)</span>
+    <span>✓</span> <span>SLSA L1 honest · L2 .att emitted (not independently verified) · L3 roadmap</span>
   </div>
 </header>
 
@@ -575,7 +575,7 @@ input, button, select { font:inherit }
     </div>
     <div class="grid g-3" style="margin-top:16px">
       <div class="card">
-        <div class="card-head"><span class="icon">🔏</span>SLSA L1 honest · L2 build-attested (Rekor) Provenance<span class="pill">/v1/version</span></div>
+        <div class="card-head"><span class="icon">🔏</span>SLSA L1 honest · L2 .att emitted (not independently verified) Provenance<span class="pill">/v1/version</span></div>
         <div class="card-body" id="ov-prov-body"><div class="sk sk-line w80"></div><div class="sk sk-line w60"></div></div>
       </div>
       <div class="card">
@@ -985,9 +985,9 @@ input, button, select { font:inherit }
       <div class="card">
         <div class="card-head"><span class="icon">✔</span>What We Claim</div>
         <div class="card-body" style="font:11px/1.9 var(--mono);color:var(--text-dim)">
-          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap</div><br>
-          ✓ signed slsa.dev/provenance/v0.2 .att on the GHCR image<br>
-          ✓ Rekor index resolved at verify time (cosign verify-attestation)<br>
+          <div class="tag tag-green" style="display:inline-block;margin-bottom:6px">SLSA L1 honest · L2 .att emitted (not independently verified) · L3 roadmap</div><br>
+          ✓ cosign-signed GHCR image, verifiable via cosign verify (L1)<br>
+          ✓ signed slsa.dev/provenance .att emitted by actions/attest-build-provenance (L2 .att, not independently verified)<br>
           ✓ Fulcio issuer: sigstore.dev (public-good)<br>
           ✓ 749 Lean declarations · 14 unique axioms<br>
           ✓ 163 honest open sorries<br>
@@ -1012,7 +1012,7 @@ input, button, select { font:inherit }
       <div class="card-head"><span class="icon">⚙</span>SLSA Verify Command</div>
       <div class="card-body">
         <div class="codeblock">
-<span class="cmt"># Verify the SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap provenance attestation on the published image</span>
+<span class="cmt"># Verify the SLSA L1 honest · L2 .att emitted (not independently verified) · L3 roadmap provenance attestation on the published image</span>
 <span class="kw">cosign</span> verify-attestation \
   --type <span class="str">slsaprovenance</span> \
   --certificate-identity-regexp <span class="str">github.com/szl-holdings</span> \
@@ -1083,7 +1083,7 @@ input, button, select { font:inherit }
 <footer class="honest-footer">
   <b>a11oy Elite Console</b> — 20 tabs · zero mocks · every surface bound to a real <code>/api/a11oy/…</code> endpoint ·
   W3C traceparent on every panel · skeletons over spinners · 3D where it adds value (Three.js r128 vendored)<br>
-  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (signed slsa.dev/provenance/v0.2 .att; never L3)</b><br>
+  <b>Doctrine v11 LOCKED · 749/14/163 · c7c0ba17 · Λ = Conjecture 1 (NOT a theorem) · SLSA L1 honest · L2 .att emitted (not independently verified) · L3 roadmap (signed slsa.dev/provenance .att; never L3)</b><br>
   HONEST: Wires G+H not live · audit log resets on rebuild · no FedRAMP/Iron Bank/CMMC · no L3<br>
   Sign: Yachay &lt;yachay@szlholdings.ai&gt; ·
   Co-Authored-By: <a href="https://perplexity.ai">Perplexity Computer Agent</a> ·
@@ -1882,7 +1882,7 @@ async function loadAnatomy() {
     const el = document.getElementById('anatomy-prov-body');
     el.innerHTML = `
       <div style="font:10px/1.7 var(--mono);color:var(--text-muted)">
-        SLSA: <b style="color:var(--gold)">${pv.slsa?.level||'L2'}</b><br>
+        SLSA: <b style="color:var(--gold)">${pv.slsa?.level||'L1 honest · L2 .att emitted (not independently verified) · L3 roadmap'}</b><br>
         Rekor: <b style="color:var(--cyan)">${pv.slsa?.rekor_log_index||'— (resolved at verify time)'}</b><br>
         image: <code>${(pv.slsa?.image_digest||'').slice(0,30)}…</code><br>
         builder: ${pv.slsa?.builder||'GitHub Actions'}
@@ -2010,7 +2010,7 @@ async function loadHonest() {
       </div>
       <div style="margin-top:16px">
         <div class="kpi-label">SLSA Level</div>
-        <span class="tag tag-green">${d.slsa?.level||d.slsa||'L2'}</span>
+        <span class="tag tag-green">${d.slsa?.level||d.slsa||'L1 honest · L2 .att emitted (not independently verified) · L3 roadmap'}</span>
         ${d.slsa_evidence ? `<div style="margin-top:8px;font:10px/1.7 var(--mono);color:var(--text-muted)">
           image_tag: <b style="color:var(--gold)">${d.slsa_evidence.image_tag||''}</b><br>
           Rekor: <b style="color:var(--cyan)">${d.slsa_evidence.rekor_log_index||'— (resolved at verify time)'}</b><br>
