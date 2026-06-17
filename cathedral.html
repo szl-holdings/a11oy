@@ -95,7 +95,26 @@ nav.stuck{background:rgba(7,8,21,0.72);backdrop-filter:blur(14px);-webkit-backdr
   background:linear-gradient(180deg,var(--hatun-300),var(--hatun-500));padding:10px 18px;border-radius:999px;
   box-shadow:0 8px 24px rgba(192,143,47,0.28);transition:transform .16s,box-shadow .16s}
 .navcta:hover{transform:translateY(-1px);box-shadow:0 12px 30px rgba(192,143,47,0.42)}
-@media(max-width:860px){.navlinks a.nl{display:none}}
+/* demo-first nav: lead with the DEMO links; Depth + Context are collapsed into
+   pure-CSS hover/focus dropdowns (0 CDN, 0 JS). Nothing is removed — every prior
+   link survives inside DEMO or Context. */
+.navlinks a.nl.lead{color:var(--ink)}
+.navgrp{position:relative;display:inline-flex;align-items:center}
+.navgrp>.nl{cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:var(--grotesk);
+  font-size:14px;font-weight:500;color:var(--ink-soft);background:none;border:0;letter-spacing:.01em;transition:color .18s}
+.navgrp>.nl::after{content:'▾';font-size:9px;opacity:.7}
+.navgrp:hover>.nl,.navgrp:focus-within>.nl{color:var(--ink)}
+.navgrp .navmenu{position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%) translateY(6px);
+  min-width:212px;display:flex;flex-direction:column;gap:2px;padding:8px;border-radius:12px;
+  background:rgba(10,12,26,0.96);border:1px solid rgba(192,143,47,0.22);
+  box-shadow:0 18px 44px rgba(0,0,0,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s,transform .16s,visibility .16s;z-index:50}
+.navgrp:hover .navmenu,.navgrp:focus-within .navmenu{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+.navmenu a{font-family:var(--grotesk);font-size:13.5px;font-weight:500;color:var(--ink-soft);
+  padding:8px 11px;border-radius:8px;white-space:nowrap;transition:background .14s,color .14s}
+.navmenu a:hover{background:rgba(192,143,47,0.14);color:var(--ink)}
+.navmenu .mhead{font:10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);padding:4px 11px 2px}
+@media(max-width:860px){.navlinks a.nl,.navlinks .navgrp{display:none}}
 
 /* ---- layout ---- */
 main{position:relative;z-index:10}
@@ -213,11 +232,41 @@ footer{position:relative;z-index:10;border-top:1px solid var(--line);padding:40p
   <nav id="nav">
     <a class="brand" href="/"><span class="gd"></span>a<i>11</i>oy</a>
     <div class="navlinks">
-      <a class="nl" href="#faculties">Platform</a>
-      <a class="nl" href="#doctrine">Doctrine</a>
-      <a class="nl" href="/warhacker">Warhacker</a>
-      <a class="nl" href="/proven-formulas">Proven</a>
-      <a class="nl" href="/company">Company</a>
+      <!-- DEMO — lead with the wow + the proof. Every link verified live (HTTP 200). -->
+      <a class="nl lead" href="/frontier">Frontier</a>
+      <a class="nl lead" href="/code">Code-as-Action</a>
+      <a class="nl lead" href="/signature-is-not-proof">Signature ≠ Proof</a>
+      <a class="nl lead" href="/energy-ops">Energy-Ops</a>
+      <a class="nl lead" href="/grc">Governance</a>
+      <a class="nl lead" href="/warhacker">Warhacker</a>
+      <!-- Depth — collapsed; advanced surfaces are one click away. -->
+      <div class="navgrp" tabindex="0">
+        <span class="nl">Depth</span>
+        <div class="navmenu">
+          <div class="mhead">Depth</div>
+          <a href="/holographic">Holographic</a>
+          <a href="/pinn">PINN</a>
+          <a href="/pnt">PNT</a>
+          <a href="/fabric">Fabric</a>
+          <a href="/harvest">Harvest</a>
+          <a href="/mbse">MBSE</a>
+          <a href="/waqay">WAQAY</a>
+          <a href="/yupay">YUPAY</a>
+          <a href="/restraint">Restraint</a>
+          <a href="/estate-hologram">Estate-Hologram</a>
+        </div>
+      </div>
+      <!-- Context — collapsed; doctrine + company + platform. -->
+      <div class="navgrp" tabindex="0">
+        <span class="nl">Context</span>
+        <div class="navmenu">
+          <div class="mhead">Context</div>
+          <a href="#doctrine">Doctrine</a>
+          <a href="#faculties">Platform</a>
+          <a href="/proven-formulas">Proven</a>
+          <a href="/company">Company</a>
+        </div>
+      </div>
       <a class="navcta" href="/console">Enter Console →</a>
     </div>
   </nav>
