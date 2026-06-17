@@ -11113,8 +11113,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         var g=window.createGraph();
         nodes.forEach(function(n){ g.addNode(n); });
         edges.forEach(function(e){ g.addLink(e[0], e[1]); });
+        // explicit nodeMass: this vendored ngraph.graph returns a Set from getLinks()
+        // (has .size, NOT .length), so forcelayout's default mass read yields NaN and
+        // throws "Node mass should be a number". Compute degree Set-safely (matches the
+        // other ngraphCreateLayout call sites in this console).
+        function _deg(id){ var l=g.getLinks(id); var k=l?(l.size!=null?l.size:(l.length||0)):0; return 1+0.4*k; }
         // deterministic: fixed seed via stable spring settings; run a fixed iteration count
-        var layout=window.ngraphCreateLayout(g, {springLength:62, springCoeff:0.0008, gravity:-7, dragCoeff:0.02, timeStep:18, dimensions:2});
+        var layout=window.ngraphCreateLayout(g, {springLength:62, springCoefficient:0.0008, gravity:-7, dragCoefficient:0.02, timeStep:18, dimensions:2, nodeMass:_deg});
         for(var i=0;i<260;i++){ layout.step(); }
         var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9, P={};
         nodes.forEach(function(n){ var p=layout.getNodePosition(n); P[n]=p; minx=Math.min(minx,p.x);miny=Math.min(miny,p.y);maxx=Math.max(maxx,p.x);maxy=Math.max(maxy,p.y); });
