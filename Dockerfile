@@ -172,6 +172,13 @@ COPY a11oy_frontier_page.py ./
 # manifest 404s live. Composes in-process from already-COPY'd surfaces (szl_energy_*,
 # szl_uds_fleet, szl_orbital_*, szl_backend_hardening, szl_restraint) — no new deps.
 COPY szl_frontier_manifest.py ./
+# Governed Code-as-Action Kernel (GCAK) — serve.py imports a11oy_code_as_action
+# (guarded) to mount the /api/a11oy/v1/agent/code/* routes; it in turn imports
+# a11oy_governed_kernel (the persistent, gated, receipted kernel) and
+# szl_lambda_tripwire (the Lambda 'Conjecture 1' restraint check). All three MUST
+# be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the guarded import
+# falls back to a STUB and the agent code routes 404 live (merged-but-not-live).
+COPY a11oy_code_as_action.py a11oy_governed_kernel.py szl_lambda_tripwire.py ./
 # Composite inference-provenance receipt (CAPSTONE) — imported by serve.py (guarded).
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls
 # back and /api/a11oy/v1/provenance/receipt 404s live. Composes in-process from
