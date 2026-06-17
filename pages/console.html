@@ -5363,13 +5363,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="brain-note" id="me-note">Edge label = wire status. <span style="color:'+TEAL+'">teal=LIVE</span>, <span style="color:'+GOLD+'">gold=LIVE_IN_PROCESS</span>. '+chip('F-G4 reachability','CI-GREEN')+' Cross-Space broker NOT wired (honest).</div></div>'+honest();
         try{
           var s=await gj('/api/a11oy/v1/observability/summary'); var mesh=await gj('/api/a11oy/v1/mesh/state');
-          var caps=s.capabilities||[]; var wires=mesh.wires||{};
-          T('me-n',caps.length); T('me-live',Object.keys(wires).filter(function(k){return /LIVE/.test(wires[k].status);}).length); T('me-doc',mesh.doctrine||'\u2014');
+          var reach=(s.mesh_reach||[]); var wires=mesh.wires||{};
+          var organsTotal=((s.melt||{}).metrics||{}).organs_total; var organsReach=((s.melt||{}).metrics||{}).organs_reachable;
+          T('me-n',(organsReach!=null&&organsTotal!=null)?(organsReach+'/'+organsTotal):String(reach.length||'\u2014')); T('me-live',Object.keys(wires).filter(function(k){return /LIVE/.test(wires[k].status);}).length); T('me-doc',mesh.doctrine||'\u2014');
           if(!window.cytoscape){ H('me-note','Cytoscape unavailable'); return; }
           var els=[]; var coreId='core';
-          caps.forEach(function(cap){ els.push({data:{id:cap.id,label:cap.name,st:cap.status}}); });
-          // edges from core to each capability (the in-image hub) + wire-derived edges
-          caps.forEach(function(cap){ if(cap.id!==coreId) els.push({data:{id:'e_'+cap.id,source:coreId,target:cap.id,st:'LIVE'}}); });
+          // core hub node (always present)
+          els.push({data:{id:coreId,label:'a11oy core',st:'live'}});
+          // organ nodes built from the REAL live mesh-reach probe (status straight from the probe)
+          reach.forEach(function(o){ var oid='org_'+(o.organ||''); if(!o.organ||o.organ===coreId) return; els.push({data:{id:oid,label:o.organ,st:o.status}}); els.push({data:{id:'e_'+oid,source:coreId,target:oid,st:(o.status==='ok'?'LIVE':o.status)}}); });
           Object.keys(wires).forEach(function(wk){ var w=wires[wk]; els.push({data:{id:'wn_'+wk,label:wk,st:w.status,wire:true}}); els.push({data:{id:'we_'+wk,source:coreId,target:'wn_'+wk,st:w.status}}); });
           var cy=cytoscape({container:E('me-cy'),elements:els,layout:{name:'cose',animate:true,idealEdgeLength:90,nodeRepulsion:8000},
             style:[
@@ -6917,6 +6919,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           window.setHTML('vl-'+vk+'-verify','<span class="badge '+(ok?'b-live':'b-err')+'">'+(ok?'VERIFIED':'BROKEN')+'</span>');
           window.setTxt('vl-'+vk+'-head', String(d.head||'\u2014').slice(0,14)+'\u2026');
           var recs=d.receipts||[];
+          if(!recs.length){
+            // honest empty-state: no receipts this runtime yet (not a render error)
+            window.setHTML('vl-'+vk+'-dag','<div class="row mono dim" style="display:flex;align-items:center;justify-content:center;height:100%;text-align:center;padding:1rem">No receipts emitted yet this runtime \u2014 the hash-chain is empty (depth 0). Run a governed decision on the Decision tab to populate the signed chain; the 3D DAG appears here once the first receipt is sealed.</div>');
+          }
           if(recs.length){
             // 3D hash-chain DAG (reuse global dag3d): chain edges prev->cur
             var nodes=recs.slice().reverse().map(function(r,i){return {id:'r'+(r.seq!=null?r.seq:i), name:'#'+(r.seq!=null?r.seq:i), val:4, color:(i===recs.length-1?FG:TL)};});
