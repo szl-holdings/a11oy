@@ -127,7 +127,7 @@ const KC="https://szlholdings-killinchu.hf.space/api/killinchu";
 const A="/api/a11oy";
 const $=id=>document.getElementById(id);
 async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
-function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
 // --- health inference from real telemetry (heuristic, labeled) ---
 function inferAirHealth(ac){

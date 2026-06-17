@@ -157,7 +157,7 @@ code{font-family:var(--mono);color:var(--teal);}
 <script>
 const BASE = "/api/a11oy/v1/immune";
 async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
-function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
 async function loadStatus(){
   const s = await getJSON(BASE + "/status");

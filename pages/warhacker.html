@@ -1005,7 +1005,7 @@ SAT-B 35786 3.07 0.0'></textarea>
   // /warhacker/run/{problem}/{demo}, shows the decision + signed receipt id,
   // and offers a tamper test (the API's own always-on 1-byte-flip negative
   // test). Honest labels come straight from the operator's real_or_roadmap.
-  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/"/g,"&quot;"); }
   function lblClass(rr){
     var s = String(rr||"").toUpperCase();
     if(s.indexOf("REAL")===0 || s.indexOf("REAL TODAY")>=0) return "real";

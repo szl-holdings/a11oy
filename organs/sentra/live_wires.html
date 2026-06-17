@@ -180,7 +180,7 @@
   document.getElementById("khipu-link").onclick=function(){
     window.open(CONSTELLATION+"#receipt="+encodeURIComponent(curHash),"_blank");
   };
-  function esc(s){ return String(s==null?"":s).replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c];}); }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);}); }
 })();
 </script>
 </body></html>

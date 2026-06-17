@@ -200,7 +200,7 @@ function $(s){return document.querySelector(s);}
 function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
 function pill(key){ try{ if(window.SZLLabels&&window.SZLLabels.badgeHTML){return window.SZLLabels.badgeHTML(key);} }catch(e){} return '<span class="szl-pill pill">'+key+'</span>'; }
 async function getJSON(u,opt){try{var r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
-function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[m];});}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
 // honest badges via window.SZLLabels
 $('#b-heuristic').innerHTML = pill('HEURISTIC');

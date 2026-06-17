@@ -210,7 +210,7 @@ td.bad{color:var(--red);}
 const A="/api/a11oy";
 const $=id=>document.getElementById(id);
 async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
-function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 function fmt(n,d){if(n==null||isNaN(n))return '—';const x=Number(n);return d!=null?x.toFixed(d):String(x);}
 
 // (1) GPU engine status — posture DERIVED honestly (never assume sovereign)

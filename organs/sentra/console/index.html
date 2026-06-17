@@ -235,7 +235,7 @@ async function api(path, opts={}) {
   try { const r = await fetch(BASE + path, opts); return await r.json(); }
   catch(e) { return {error: e.message}; }
 }
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function pj(obj) { return JSON.stringify(obj, null, 2); }
 function ts(t) { if(!t) return '—'; try { return new Date(t).toLocaleTimeString(); } catch(e) { return t; } }
 function badgeDecision(d) { return d === 'allow' ? '<span class="badge badge-allow">ALLOW</span>' : d === 'deny' ? '<span class="badge badge-deny">DENY</span>' : `<span class="badge badge-muted">${esc(d)}</span>`; }

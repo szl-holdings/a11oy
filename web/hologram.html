@@ -147,7 +147,7 @@
       .then(function(r){ return r.ok ? r.json() : null; })
       .catch(function(){ return null; });
   }
-  function esc(s){ return String(s==null?"":s).replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c];}); }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);}); }
   function fmt(n,d){ var x=Number(n); return isFinite(x)? x.toFixed(d==null?2:d) : "—"; }
   function $(id){ return document.getElementById(id); }
 

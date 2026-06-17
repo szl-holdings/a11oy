@@ -290,7 +290,7 @@ async function fetchJSON(u,opt){
     return {ok:r.ok, status:r.status, data:d};
   }catch(e){ return {ok:false, status:0, data:null}; }
 }
-function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 function short(d){ d=String(d||""); return d.length>16? d.slice(0,16)+"…" : d; }
 
 // ---- crystal presets ----

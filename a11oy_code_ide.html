@@ -241,7 +241,7 @@ document.querySelectorAll("#tiersel button").forEach(b=>{
 $("#modelbadge").textContent = "model: " + TIER_MODEL[TIER] + "  ·  " + TIER_DESC[TIER];
 
 // ---- minimal markdown + code-block renderer (no external lib) ----
-function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function esc(s){return s.replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 function hl(code, lang){
   // lightweight token highlight; deterministic, no eval
   let s = esc(code);

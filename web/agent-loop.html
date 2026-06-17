@@ -164,7 +164,7 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
 
 async function jpost(u,b){const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})});return {status:r.status,json:await r.json()};}
 async function jget(u){const r=await fetch(u);return {status:r.status,json:await r.json()};}
-function esc(s){return (s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function esc(s){return (s==null?"":String(s)).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
 // ---------- Agent Loop ----------
 // Restraint verdict cell for a node body. Only code-writing ACTION nodes carry

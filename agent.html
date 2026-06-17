@@ -161,7 +161,7 @@ function card(vote, isWin){
   </div>`;
 }
 
-function escapeHtml(s){return (s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function escapeHtml(s){return (s||"").replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
 async function ask(){
   const prompt = $("prompt").value.trim();

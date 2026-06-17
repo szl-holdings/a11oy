@@ -187,7 +187,7 @@
 <script>
 const $=s=>document.querySelector(s);
 const seen=new Set(); let selected=null; let lastAttest=null; let curTab="dsse"; let nStream=0;
-function esc(s){return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
 function renderReceipt(e){
   if(!e||!e.id||seen.has(e.id))return; seen.add(e.id); nStream++;

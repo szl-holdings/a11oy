@@ -18,7 +18,7 @@
   var LEDGER_PATH = "/ledger";
   var ORGAN = "a11oy";
   var $ = function (id) { return document.getElementById(id); };
-  var esc = function (s) { return String(s == null ? "" : s).replace(/[<>&]/g, function (c) { return ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]; }); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);}); };
   function getJSON(path) {
     return fetch(API + path, { headers: { "accept": "application/json" } })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });

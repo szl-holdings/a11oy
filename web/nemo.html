@@ -314,7 +314,7 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
       GPL.innerHTML='<span class="pill yellow" style="font-size:9px">ROADMAP · no meter ('+esc3(b.total_joules_est_label||'SAMPLE/ESTIMATE')+')</span>';
     }
   }
-  function esc3(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function esc3(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
   // Build the 3D graph: router hub -> domain-expert heads; GPU blocks = tiers.
   // NOTE: the F1 kit addGraph() consumes edge.from / edge.to (NOT source/target);
@@ -424,7 +424,7 @@ table.tau th{color:var(--dim);text-transform:uppercase;font-size:9.5px;letter-sp
 <script>
 const A="/api/a11oy/v1/nemo";
 const $=id=>document.getElementById(id);
-function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 function fmt(n,d){if(n==null||isNaN(n))return '—';const x=Number(n);return d!=null?x.toFixed(d):String(x);}
 async function getJSON(u,opt){try{const r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
 function pill(txt,cls){return `<span class="pill ${cls||'dim'}">${esc(txt)}</span>`;}

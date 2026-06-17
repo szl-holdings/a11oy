@@ -166,7 +166,7 @@ function card(f){
   };
   return c;
 }
-function esc(s){ return String(s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);}); }
 
 function applyFilters(){
   const a=fAxis.value, st=fStatus.value, sv=fSev.value, t=fText.value.trim().toLowerCase();

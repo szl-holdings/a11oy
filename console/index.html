@@ -270,7 +270,7 @@ async function getJSON(p){const r=await fetch(p);if(!r.ok)throw new Error('HTTP 
 async function orgGet(organ,path){const r=await fetch(ORG[organ]+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 async function orgPost(organ,path,body){const r=await fetch(ORG[organ]+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 async function postJSON(p,b){const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
-function esc(s){return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 function el(id){return document.getElementById(id);}
 function setOut(id,obj){const e=el(id);if(e)e.textContent=typeof obj==='string'?obj:JSON.stringify(obj,null,2);}
 function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
