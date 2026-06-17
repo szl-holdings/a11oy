@@ -11685,11 +11685,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="kpi"><div class="k">Down</div><div class="v" id="fp-down">\u2014</div></div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">Live upstream evidence-feed heartbeat</span><span class="card-ep" id="fp-ts">probing\u2026</span></div>'
           +'<div class="echart" id="fp-lat" style="height:240px"></div>'
-          +'<div id="fp-tbl" style="overflow:auto;margin-top:.5rem"><div class="row mono dim">probing live feeds\u2026</div></div>'
+          +'<div id="fp-tbl" style="overflow:auto;margin-top:.5rem"><div class="row mono dim">Probing all 7 upstream evidence feeds server-side &mdash; each is a real fetch, this can take up to ~20s; values appear as each upstream answers.</div></div>'
           +'<div class="row" style="margin-top:.5rem;border:0"><button class="btn" id="fp-refresh">\u21bb Re-probe live</button></div></div>'
           +honestNote('Every row is a live server-side fetch this second; mode and latency are measured.');
         async function load(){
-          T('fp-ts','probing\u2026');
+          /* This probe legitimately takes up to ~20s (7 server-side upstream fetches), so we use
+             a long, >64-char status line: the global no-spinner watchdog only sweeps WHOLE-text
+             wait phrases <=64 chars, so this slow-but-honest live probe is not pre-empted into a
+             false "offline" before its real data arrives. Watchdog stays intact for every other tab. */
+          T('fp-ts','probing 7 upstream evidence feeds live \u2014 this can take up to ~20 seconds, please wait');
           try{
             /* /feeds/pulse probes 7 upstream evidence feeds server-side and legitimately
                takes longer than the 6s console-wide default; the prior default aborted a
