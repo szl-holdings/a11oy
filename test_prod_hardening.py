@@ -145,6 +145,42 @@ def test_liveness_exempt_from_rate_limit():
     print("PASS liveness_exempt_from_rate_limit")
 
 
+def _build_page_app() -> FastAPI:
+    app = FastAPI()
+
+    @app.get("/frontier")
+    def frontier():
+        return {"page": "frontier"}
+
+    @app.get("/governance")
+    def governance():
+        return {"page": "governance"}
+
+    @app.get(f"/api/{NS}/v1/data")
+    def data():
+        return {"ok": True}
+
+    status = ph.register(app, ns=NS)
+    assert any("middleware wired" in s for s in status), f"middleware not wired: {status}"
+    return app
+
+
+def test_demo_pages_exempt_from_rate_limit():
+    # DEMO-FLOOR FIX: human-facing HTML pages must NEVER be rate-limited so a booth
+    # clicking rapidly through tabs on one IP never gets a raw rate_limited body.
+    client = TestClient(_build_page_app(), raise_server_exceptions=False)
+    hdr = {"x-forwarded-for": "203.0.113.55"}
+    # Far exceed the limit (5) on demo page routes; all must still render 200.
+    for path in ("/frontier", "/governance"):
+        codes = [client.get(path, headers=hdr).status_code for _ in range(25)]
+        assert all(c == 200 for c in codes), f"page {path} must be exempt: {codes}"
+    # But the JSON DATA surface is STILL metered (abuse protection retained).
+    api_codes = [client.get(f"/api/{NS}/v1/data", headers=hdr).status_code for _ in range(7)]
+    assert api_codes[:5] == [200] * 5, f"first 5 api calls should pass: {api_codes}"
+    assert 429 in api_codes, f"api data surface must still be capped: {api_codes}"
+    print("PASS demo_pages_exempt_from_rate_limit")
+
+
 def _run_all():
     fns = [
         test_security_headers_present,
@@ -152,6 +188,7 @@ def _run_all():
         test_request_id_present_and_unique,
         test_error_envelope_no_stack_leak,
         test_liveness_exempt_from_rate_limit,
+        test_demo_pages_exempt_from_rate_limit,
     ]
     failed = 0
     for fn in fns:
