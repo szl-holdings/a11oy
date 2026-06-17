@@ -54,6 +54,7 @@
     "web/restraint.html",
     "web/sda.html",
     "web/dns.html",
+    "web/determinacy.html",
     "web/restraint-bench.html",
     "web/operator.html",
     "web/v4_fleet_panel.html"

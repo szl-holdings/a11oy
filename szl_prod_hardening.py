@@ -154,7 +154,8 @@ _LIVENESS_PATHS = frozenset(
 _PAGE_EXEMPT_EXACT = frozenset({
     "/", "/console", "/frontier", "/energy-ops", "/energy", "/holographic",
     "/energy-holographic", "/energy-sovereign", "/governance",
-    "/signature-is-not-proof", "/defense-readiness", "/pinn", "/pnt", "/fabric",
+    "/signature-is-not-proof", "/defense-readiness", "/determinacy",
+    "/pinn", "/pnt", "/fabric",
     "/harvest", "/elite", "/estate-hologram", "/doctrine", "/platform",
     "/warhacker", "/proven-formulas", "/company", "/restraint", "/waqay", "/yupay",
     "/operator", "/cathedral", "/live-wires", "/orbital",

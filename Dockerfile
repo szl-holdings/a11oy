@@ -565,6 +565,14 @@ COPY web/estate-hologram.html ./web/estate-hologram.html
 # COPYs the routes 404 to the SPA shell.
 COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
 COPY web/defense-readiness.html ./web/defense-readiness.html
+# ADDITIVE (2026-06-17): web/determinacy.html is the ILLUSTRATIVE analytic-continuation
+# proof-doctrine showcase page, served at /determinacy + /a11oy/determinacy from /app/web/.
+# Real in-browser power-series arithmetic (no fabricated values); the math->receipt bridge
+# is explicitly labelled illustrative; the live claim re-walks /api/a11oy/v1/khipu/organs
+# with an honest NO-LIVE-DATA fallback. image_only (baked via this per-file COPY; NOT
+# hf-sync mirrored) — same baked-only pattern as web/signature-is-not-proof.html; declared
+# in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json.
+COPY web/determinacy.html ./web/determinacy.html
 # ADDITIVE (SWEEP D1, 2026-06-16): web/sda.html is the honest, user-visible SDA —
 # Space/Domain Awareness (Counter-UAS) page, served at /sda + /a11oy/sda from
 # /app/web/. Binds to the LIVE /api/a11oy/v1/sda/* surface (status/tracks/verdict).
