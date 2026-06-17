@@ -9153,12 +9153,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var tt=resp.tamper_test||{};
     var rid=((resp.receipt||{}).receipt_id)||'';
     var pass=mode==='nominal'?auth:(!auth);
+    var _si=((sv.ok===true)||(sv.intact===true)||(sv.chain_intact===true)||(sv.merkle_root_matches===true));
     host.innerHTML=
       '<div class="row"><span class="badge '+(auth?'b-live':'b-err')+'">'+esc(dec.verdict||(auth?'AUTHORIZED':'UNAUTHORIZED'))+'</span><span>\u03c1 '+esc(dec.stl_robustness_rho!=null?dec.stl_robustness_rho:'\u2014')+(dec.stl_binding_axis?(' \u00b7 axis '+esc(dec.stl_binding_axis)):'')+'</span></div>'+
       '<div class="row"><span class="badge b-teal">merkle '+esc(String(chain.merkle_root||'').slice(0,18))+'\u2026</span><span class="mono dim">depth '+esc(chain.depth!=null?chain.depth:'\u2014')+'</span></div>'+
-      '<div class="row"><span class="badge '+(((sv.ok===true)||(sv.intact===true))?'b-live':'b-err')+'">chain '+(((sv.ok===true)||(sv.intact===true))?'intact':'BROKEN')+'</span>'+(dec.first_failing_axis||resp.first_failing_node?'<span class="mono dim">first-fail '+esc(dec.first_failing_axis||resp.first_failing_node)+'</span>':'')+'</span></div>'+
+      '<div class="row"><span class="badge '+(_si?'b-live':'b-err')+'">chain '+(_si?'intact':'BROKEN')+'</span>'+(dec.first_failing_axis||resp.first_failing_node?'<span class="mono dim">first-fail '+esc(dec.first_failing_axis||resp.first_failing_node)+'</span>':'')+'</span></div>'+
       '<div class="row mono dim" style="word-break:break-all">receipt '+esc(rid||'\u2014')+'</div>';
-    return {rid:rid,auth:auth,intact:((sv.ok===true)||(sv.intact===true))};
+    return {rid:rid,auth:auth,intact:_si};
   }
   window._whTamperRun=async function(){
     var _wScn=E('wht-scn'), _wNom=E('wht-nom'), _wTam=E('wht-tam'); if(!_wScn||!_wNom||!_wTam) return;
