@@ -1357,6 +1357,21 @@ try:
     app.add_api_route("/a11oy/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
+    # DETERMINACY tab (2026-06-17): an ILLUSTRATIVE showcase of the analytic-continuation /
+    # Identity-Theorem principle ("local data uniquely determines global truth when the
+    # structure is strong enough") mapped to SZL's signed-receipt proof doctrine. The
+    # power-series viz is REAL in-browser arithmetic (partial sums S_N(z) of sum z^n,
+    # compared to the closed form 1/(1-z)) — nothing fabricated. The math->receipt bridge
+    # is explicitly labelled ILLUSTRATIVE (doctrine v11); the live claim re-walks the real
+    # universal Khipu verifier (/api/a11oy/v1/khipu/organs) with an honest NO-LIVE-DATA
+    # fallback, and the page links to /signature-is-not-proof + /frontier. Analytic-
+    # continuation framing after Daniel Buchta, cited in-page (external idea, never claimed
+    # as ours). Standalone sovereign page (0 runtime CDN, system fonts). web/determinacy.html
+    # is per-file COPY'd in the Dockerfile and declared image_only in copy-sync-lockstep.json
+    # + hf-module-drift-allow.json (same baked-only pattern as web/signature-is-not-proof.html).
+    # Registered BEFORE the SPA catch-all so the explicit route wins.
+    app.add_api_route("/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/determinacy", _ptg_serve("determinacy.html"), methods=["GET"], include_in_schema=False)
 
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
