@@ -805,24 +805,37 @@ def test_posture_feed_is_ttl_throttled_not_per_sweep(monkeypatch):
     fake.handle_posture = handle_posture
     monkeypatch.setitem(sys.modules, "a11oy_harvest_endpoints", fake)
 
+    def _drain():
+        # The feed refresh runs on a background daemon thread (NEVER on the dispatch
+        # path), so wait for any in-flight refresh to settle before asserting counts.
+        for _ in range(200):
+            with op._lock:
+                busy = op._harvest_refreshing
+            if not busy:
+                return
+            time.sleep(0.005)
+
     with tempfile.TemporaryDirectory() as d:
         op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
         # Forced posture: deterministic, MUST NOT touch the feed at all.
         monkeypatch.setenv("A11OY_ENERGY_FORCE_POSTURE", "baseline")
         for _ in range(5):
             op._resolve_posture()
+        _drain()
         assert calls["n"] == 0, calls
         # Live posture with the default (long) TTL: many rapid sweeps => ONE feed call.
         monkeypatch.delenv("A11OY_ENERGY_FORCE_POSTURE")
         calls["n"] = 0
         for _ in range(8):
             op._resolve_posture()
+            _drain()
         assert calls["n"] == 1, calls
         # TTL=0 proves the knob: the feed refreshes every sweep when asked.
         monkeypatch.setenv("A11OY_ENERGY_POSTURE_TTL_S", "0")
         calls["n"] = 0
         for _ in range(3):
             op._resolve_posture()
+            _drain()
         assert calls["n"] == 3, calls
 
 

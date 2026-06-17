@@ -640,11 +640,13 @@ class OperatorDaemon:
         # Cached RAG module handle (lazy; None when RAG unavailable in this runtime).
         self._rag = None
         self._rag_checked = False
-        # Harvest-posture cache: the live feed is refreshed at most once per TTL, so
-        # a fast inter-job interval never becomes a per-sweep network call.
+        # Harvest-posture cache: the live feed is refreshed at most once per TTL AND
+        # only ever on a background thread, so it NEVER blocks job dispatch — a fast
+        # inter-job interval can't turn into a per-sweep (or first-sweep) network call.
         self._harvest_should_soak: Optional[bool] = None
         self._harvest_renewable: Optional[float] = None
         self._harvest_ts: float = 0.0
+        self._harvest_refreshing: bool = False
 
     # -- subscription (Dev2 receipts hook) --------------------------------
     def subscribe(self, cb: Callable[[dict], None]) -> None:
@@ -874,32 +876,15 @@ class OperatorDaemon:
             grid_posture = "expensive"
         else:
             grid_posture = "normal"
-        # Harvest posture (should_soak / renewable share) — optional live feed,
-        # refreshed at most once per TTL so the hot loop never makes a per-sweep
-        # network call. A force override skips the feed entirely (deterministic).
+        # Harvest posture (should_soak / renewable share) — optional live feed that can
+        # hit a slow external network. It is refreshed at most once per TTL AND only on
+        # a background thread, so it NEVER blocks dispatch: this sweep always uses the
+        # value cached from a prior refresh (None until the first one lands). A force
+        # override skips the feed entirely (deterministic, no network at all).
         should_soak = self._harvest_should_soak
         renewable = self._harvest_renewable
         if not forced:
-            ttl = _posture_ttl_s()
-            now = time.time()
-            if (now - self._harvest_ts) >= ttl:
-                self._harvest_ts = now
-                try:
-                    import a11oy_harvest_endpoints as _hv  # type: ignore
-                    p = _hv.handle_posture()
-                    if isinstance(p, dict) and p.get("ok"):
-                        should_soak = bool(p.get("soak_hard") or
-                                           p.get("wasted_energy_available"))
-                        renewable = None
-                        for r in (p.get("readings") or []):
-                            if r.get("feed", "").startswith("energy_charts_ren") and \
-                                    isinstance(r.get("value"), (int, float)):
-                                renewable = float(r["value"])
-                                break
-                        self._harvest_should_soak = should_soak
-                        self._harvest_renewable = renewable
-                except Exception:  # noqa: BLE001 — harvest feed optional; absence honest
-                    pass
+            self._maybe_refresh_harvest_posture()
         with self._lock:
             self._should_soak = should_soak
             self._grid_price_posture = grid_posture
@@ -918,6 +903,49 @@ class OperatorDaemon:
                     f"backlog{extra}")
         return (WORK_MODE_BASELINE,
                 f"baseline: grid_price_posture={grid_posture}, no soak signal")
+
+    def _maybe_refresh_harvest_posture(self) -> None:
+        """Kick off a TTL-throttled, NON-BLOCKING refresh of the harvest posture feed.
+
+        The feed (a11oy_harvest_endpoints.handle_posture) can hit a slow external
+        network, so it is NEVER called on the dispatch path — it runs on a short-lived
+        daemon thread that updates the cached should_soak / renewable share for the NEXT
+        sweep. At most one refresh is ever in flight, and it fires at most once per TTL.
+        Honest: until the first refresh lands, should_soak stays None (no soak claimed)."""
+        now = time.time()
+        with self._lock:
+            if self._harvest_refreshing:
+                return
+            if (now - self._harvest_ts) < _posture_ttl_s():
+                return
+            self._harvest_ts = now
+            self._harvest_refreshing = True
+        threading.Thread(target=self._refresh_harvest_posture,
+                         name="energy-harvest-posture", daemon=True).start()
+
+    def _refresh_harvest_posture(self) -> None:
+        """Background body: fetch the harvest feed once and update the cache. Best-effort
+        (any failure leaves the prior cached value); always clears the in-flight flag."""
+        try:
+            import a11oy_harvest_endpoints as _hv  # type: ignore
+            p = _hv.handle_posture()
+            if isinstance(p, dict) and p.get("ok"):
+                should_soak = bool(p.get("soak_hard") or
+                                   p.get("wasted_energy_available"))
+                renewable = None
+                for r in (p.get("readings") or []):
+                    if r.get("feed", "").startswith("energy_charts_ren") and \
+                            isinstance(r.get("value"), (int, float)):
+                        renewable = float(r["value"])
+                        break
+                with self._lock:
+                    self._harvest_should_soak = should_soak
+                    self._harvest_renewable = renewable
+        except Exception:  # noqa: BLE001 — harvest feed optional; absence stays honest
+            pass
+        finally:
+            with self._lock:
+                self._harvest_refreshing = False
 
     # -- per-job execution ------------------------------------------------
     def _commit(self, node_name: str, model: str, kind: str, tokens: int,
