@@ -5287,7 +5287,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     /* =============== demo — ECharts state-timeline (cascade steps) =============== */
     V.demo={title:'Run a Demo',badge:'STATE TIMELINE \u00b7 P1 LAUNCH CASCADE',sub:'The single launch point for the Warhacker problems, shown as a state timeline: each launch is a scripted step cascade (request \u2192 score \u2192 gate \u2192 seal \u2192 receipt) with real per-step state. Launch any problem and its real decision + signed receipt lands. Plot lib not vendored \u2014 implemented with ECharts custom-series to keep the NOTICE unchanged.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
-        +'<div class="kpi"><div class="k">Problems</div><div class="v teal" id="dm-n">7</div><div class="d">5 official + 2 new</div></div>'
+        +'<div class="kpi"><div class="k">Problems</div><div class="v teal" id="dm-n">\u2014</div><div class="d">Warhacker problem set</div></div>'
         +'<div class="kpi"><div class="k">Cascade steps</div><div class="v">5</div><div class="d">request\u2192receipt</div></div>'
         +'<div class="kpi"><div class="k">Each run</div><div class="v">signed</div><div class="d">DSSE receipt</div></div>'
         +'<div class="kpi"><div class="k">Mode</div><div class="v warn">nominal/tamper</div></div></div>'
@@ -5354,19 +5354,24 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     /* =============== mesh — Cytoscape force-directed service map + panzoom =============== */
     V.mesh={title:'Live System Map',badge:'CYTOSCAPE FORCE MAP \u00b7 LIVE \u00b7 F-G4',sub:'The capability mesh as a Cytoscape force-directed service map: nodes are capabilities + wires, edges are the live in-process bus wires (LIVE / LIVE_IN_PROCESS honestly colored). Pan/zoom enabled. Mesh reachability is the F-G4 connectivity property. Distinct from the operational health LIST elsewhere \u2014 this is the topology graph.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
-        +'<div class="kpi"><div class="k">Nodes</div><div class="v" id="me-n">\u2014</div></div>'
+        +'<div class="kpi"><div class="k">Reachable nodes</div><div class="v teal" id="me-n">\u2014</div><div class="d" id="me-n-d">probing\u2026</div></div>'
         +'<div class="kpi"><div class="k">Wires LIVE</div><div class="v teal" id="me-live">\u2014</div></div>'
         +'<div class="kpi"><div class="k">Doctrine</div><div class="v" id="me-doc">\u2014</div></div>'
         +'<div class="kpi"><div class="k">Reachability</div><div class="v teal">F-G4</div></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Capability mesh \u2014 force-directed topology</span><span class="card-ep">Cytoscape (MIT) + panzoom</span></div>'
         +'<div id="me-cy" style="height:440px;border:1px solid rgba(201,183,135,0.12);border-radius:8px"></div>'
         +'<div class="brain-note" id="me-note">Edge label = wire status. <span style="color:'+TEAL+'">teal=LIVE</span>, <span style="color:'+GOLD+'">gold=LIVE_IN_PROCESS</span>. '+chip('F-G4 reachability','CI-GREEN')+' Cross-Space broker NOT wired (honest).</div></div>'+honest();
+        // mesh-nodes-honesty: the NODES status must reflect the REAL reachable count and never
+        // paint a bare "offline" while the topology graph is live. Reachable count = organs_reachable
+        // from the live MELT summary, cross-checked against the multi-node compute-pool probe
+        // (gpu_nodes_reachable). The graph itself is built from the live mesh/state wires + reach probe.
+        var wires={}, reach=[], drewGraph=false;
         try{
           var s=await gj('/api/a11oy/v1/observability/summary'); var mesh=await gj('/api/a11oy/v1/mesh/state');
-          var reach=(s.mesh_reach||[]); var wires=mesh.wires||{};
-          var organsTotal=((s.melt||{}).metrics||{}).organs_total; var organsReach=((s.melt||{}).metrics||{}).organs_reachable;
-          T('me-n',(organsReach!=null&&organsTotal!=null)?(organsReach+'/'+organsTotal):String(reach.length||'\u2014')); T('me-live',Object.keys(wires).filter(function(k){return /LIVE/.test(wires[k].status);}).length); T('me-doc',mesh.doctrine||'\u2014');
-          if(!window.cytoscape){ H('me-note','Cytoscape unavailable'); return; }
+          reach=(s.mesh_reach||[]); wires=mesh.wires||{};
+          T('me-live',Object.keys(wires).filter(function(k){return /LIVE/.test(wires[k].status);}).length); T('me-doc',mesh.doctrine||'\u2014');
+          if(!window.cytoscape){ H('me-note','Cytoscape unavailable'); }
+          else {
           var els=[]; var coreId='core';
           // core hub node (always present)
           els.push({data:{id:coreId,label:'a11oy core',st:'live'}});
@@ -5380,9 +5385,28 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               {selector:'edge',style:{'width':1.2,'line-color':function(e){return /LIVE_IN/.test(e.data('st'))?GOLD:'rgba(95,179,163,0.5)';},'curve-style':'bezier','target-arrow-shape':'triangle','target-arrow-color':'rgba(95,179,163,0.5)','arrow-scale':0.6}}
             ]});
           // cytoscape native pan/zoom is enabled by default
-          window.__meshCy=cy;
+          window.__meshCy=cy; drewGraph=(els.length>0);
           H('me-note',(E('me-note')||{}).innerHTML+srcline({data_kind:'live',source:'/mesh/state + /observability/summary'}));
-        }catch(e){ T('me-n',window._szlKpi(e)); }
+          }
+        }catch(e){ if(!drewGraph){ H('me-note',(E('me-note')||{}).innerHTML+' <span class="dim">topology probe unavailable</span>'); } }
+        // NODES status: honest reachable count from live MELT summary, cross-checked vs compute-pool probe.
+        (async function(){ try{
+          var reachable=null, total=null, gpu=null;
+          try{ var sm=await gj('/api/a11oy/v1/observability/summary'); var mm=(sm.melt&&sm.melt.metrics)||{}; if(mm.organs_reachable!=null){ reachable=mm.organs_reachable; total=mm.organs_total; } }catch(_e){}
+          try{ var cp=await gj('https://a11oy.net/api/a11oy/v1/compute-pool-hardened'); if(cp&&cp.counts){ gpu=cp.counts.gpu_nodes_reachable; } }catch(_e){}
+          var n=E('me-n'), d=E('me-n-d');
+          if(reachable!=null){
+            if(n){ n.textContent=reachable+(total!=null?(' / '+total):''); n.className='v teal'; }
+            if(d) d.textContent='organs reachable'+(gpu!=null?(' \u00b7 '+gpu+' GPU nodes'):'');
+          } else if(drewGraph){
+            // graph is live but the reachability probe didn't resolve \u2014 be honest, never bare "offline".
+            if(n){ n.textContent=String((window.__meshCy?window.__meshCy.nodes().length:0)||0); n.className='v'; }
+            if(d) d.textContent='graph nodes \u00b7 reach probe unavailable';
+          } else {
+            if(n){ n.textContent='probe unavailable'; n.className='v dim'; }
+            if(d) d.textContent='reachability probe did not resolve';
+          }
+        }catch(e){ var n=E('me-n'); if(n){ n.textContent='probe unavailable'; n.className='v dim'; } } })();
       }};
 
     /* =============== pulse — ECharts calendar heatmap + sparkline =============== */
