@@ -218,10 +218,16 @@ async def _proxy(name: str, subpath: str, request) -> Any:
         return Response(content=b"Unknown or non-proxied Space.\n",
                         status_code=404, media_type="text/plain")
 
+    # Resolve the shared async httpx client if it's wired. On the LIVE box serve.py runs
+    # as __main__ (Dockerfile CMD ["python","serve.py"]), so `import serve` inside
+    # _resolve_client() binds a SECOND module object whose startup() never fired and whose
+    # _http_client is therefore None — even though the real __main__ app has a live client.
+    # We must NOT 502 on a None client: the stdlib urllib path below is the PROVEN outbound
+    # path on this box (it is exactly what szl_spaces_surface's health probe uses to report
+    # app_reachable=true). So client==None simply means "skip httpx, use urllib" — never an
+    # automatic honest-502. An honest 502 is reserved for a GENUINE upstream flap (both the
+    # httpx attempt AND the urllib fallback exhausted their retries).
     client = _resolve_client()
-    if client is None:
-        return Response(content=_honest_502(name), status_code=502,
-                        media_type="text/html")
 
     target = hf_url(name) + "/" + subpath
     # Send a CLEAN, minimal header set rather than forwarding the raw browser headers.
@@ -401,12 +407,38 @@ if __name__ == "__main__":
     # unknown / non-proxied name -> 404 (no open proxy); a11oy is deliberately skipped
     assert c.get("/spaces/a11oy").status_code == 404, "a11oy must not be self-proxied"
     assert c.get("/spaces/notreal").status_code == 404, "unknown -> 404"
-    # known name with no shared client wired -> honest 502 (never fake 200)
-    r502 = c.get("/spaces/immune")
-    assert r502.status_code == 502 and "honest 502" in r502.text, (r502.status_code, r502.text[:80])
-    # HEAD on a known name -> still 502 here (no client) but no body
-    rh = c.head("/spaces/immune")
-    assert rh.status_code == 502, rh.status_code
+    # known name, no shared client wired AND the (urllib) upstream fetch fails -> honest 502
+    # (never a fake 200). We stub _urllib_fetch so the test is hermetic (no real network):
+    # client==None must NOT short-circuit to 502 by itself; it must fall through to urllib,
+    # and only a GENUINE fetch failure degrades honestly. This is the regression guard for
+    # the live __main__/import-serve dual-module bug (client==None on the box) that was
+    # making EVERY proxied Space 502 even though the urllib probe reached the upstream fine.
+    # NB: stub the global in THIS running module (serve runs us as __main__, and _proxy
+    # resolves _urllib_fetch via the module global at call time), so monkeypatch globals().
+    _self_mod = sys.modules[__name__]
+    _orig_fetch = _self_mod._urllib_fetch
+    def _boom(*_a, **_k):
+        raise OSError("simulated upstream flap")
+    _self_mod._urllib_fetch = _boom
+    try:
+        r502 = c.get("/spaces/immune")
+        assert r502.status_code == 502 and "honest 502" in r502.text, (r502.status_code, r502.text[:80])
+        assert r502.headers.get("x-szl-proxy-error") == "OSError", r502.headers.get("x-szl-proxy-error")
+        rh = c.head("/spaces/immune")
+        assert rh.status_code == 502, rh.status_code
+    finally:
+        _self_mod._urllib_fetch = _orig_fetch
+    # client==None + urllib SUCCESS -> 200 proxied (proves None no longer auto-502s).
+    def _ok(method, url, headers, timeout):
+        return 200, b"<html><head></head><body>live immune</body></html>", {"content-type": "text/html"}
+    _self_mod._urllib_fetch = _ok
+    try:
+        r200 = c.get("/spaces/immune")
+        assert r200.status_code == 200, r200.status_code
+        assert b'<base href="/spaces/immune/">' in r200.content, "must inject base href on proxied HTML"
+    finally:
+        _self_mod._urllib_fetch = _orig_fetch
 
-    print("szl_spaces_proxy: ALL OK (allowlist; honest 502; base-href idempotent; "
+    print("szl_spaces_proxy: ALL OK (allowlist; honest 502 on genuine flap; client==None "
+          "falls through to urllib not auto-502; base-href idempotent; "
           "%d proxied of %d; 0 CDN server-side fetch)" % (len(PROXY_SPACES), len(ALL_SPACES)))
