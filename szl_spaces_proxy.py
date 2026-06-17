@@ -144,6 +144,34 @@ def _resolve_client() -> Any:
         return None
 
 
+def _urllib_fetch(method: str, url: str, headers: dict, timeout: float):
+    """Blocking stdlib fetch — the PROVEN-working outbound path on the live box
+    (a11oy_hf_assets.py reaches HF via urllib server-side). Used as a fallback when the
+    shared httpx.AsyncClient is None or fails. Returns (status, body_bytes, headers_dict).
+    Raises on failure (caller degrades to an honest 502). 0 browser CDN; no auth token."""
+    import urllib.error
+    import urllib.request
+    req = urllib.request.Request(url, method=method.upper(), headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            status = getattr(r, "status", None) or r.getcode()
+            body = r.read(_MAX_BYTES)
+            hdrs = {k: v for k, v in r.headers.items()}
+            return status, body, hdrs
+    except urllib.error.HTTPError as he:  # a real upstream non-2xx is NOT a flap
+        body = b""
+        try:
+            body = he.read(_MAX_BYTES)
+        except Exception:
+            pass
+        return he.code, body, {k: v for k, v in (he.headers or {}).items()}
+
+
+async def _to_thread(fn, *a, **kw):
+    import asyncio as _asyncio
+    return await _asyncio.get_event_loop().run_in_executor(None, lambda: fn(*a, **kw))
+
+
 def _rewrite_html(body: bytes, name: str) -> bytes:
     """Inject <base href="/spaces/<name>/"> so the Space's root-relative asset URLs
     (e.g. /assets/app.js, href="/"...) resolve back through this proxy. Idempotent:
@@ -192,45 +220,63 @@ async def _proxy(name: str, subpath: str, request) -> Any:
     }
     method = request.method.upper()
 
-    upstream = None
+    status = None
+    body = b""
+    up_headers: dict = {}
     last_exc = None
-    for _attempt in range(_PROXY_RETRIES + 1):
-        try:
-            upstream = await client.request(
-                method, target, headers=fwd_headers,
-                timeout=_PROXY_TIMEOUT, follow_redirects=True,
-            )
-            break
-        except Exception as e:  # connect error / timeout / read error -> honest degrade
-            last_exc = e
-            upstream = None
 
-    if upstream is None:
+    # Try the shared async httpx client first (streaming-capable, preferred).
+    if client is not None:
+        for _attempt in range(_PROXY_RETRIES + 1):
+            try:
+                upstream = await client.request(
+                    method, target, headers=fwd_headers,
+                    timeout=_PROXY_TIMEOUT, follow_redirects=True,
+                )
+                status = upstream.status_code
+                body = upstream.content or b""
+                up_headers = {k: v for k, v in upstream.headers.items()}
+                break
+            except Exception as e:  # connect/timeout/read error -> try fallback below
+                last_exc = e
+                status = None
+
+    # Fallback to the PROVEN stdlib urllib path if httpx was None or failed.
+    if status is None:
+        for _attempt in range(_PROXY_RETRIES + 1):
+            try:
+                status, body, up_headers = await _to_thread(
+                    _urllib_fetch, method, target, fwd_headers, _PROXY_TIMEOUT)
+                break
+            except Exception as e:  # genuine upstream flap -> honest 502
+                last_exc = e
+                status = None
+
+    if status is None:
         print("[spaces-proxy] upstream flap for %s: %r" % (name, last_exc),
               file=sys.stderr)
         return Response(content=_honest_502(name), status_code=502,
                         media_type="text/html")
 
-    ct = (upstream.headers.get("content-type") or "").lower()
-    body = upstream.content or b""
     if len(body) > _MAX_BYTES:
         body = body[:_MAX_BYTES]
+    ct = (up_headers.get("content-type") or up_headers.get("Content-Type") or "").lower()
 
     # HTML: inject <base href> so assets resolve under /spaces/<name>/.
     if "text/html" in ct:
         body = _rewrite_html(body, name)
 
     out_headers = {
-        k: v for k, v in upstream.headers.items()
+        k: v for k, v in up_headers.items()
         if k.lower() not in _HOP_BY_HOP
     }
     # HEAD must carry no body.
     if method == "HEAD":
         body = b""
 
-    return Response(content=body, status_code=upstream.status_code,
+    return Response(content=body, status_code=status,
                     headers=out_headers,
-                    media_type=upstream.headers.get("content-type"))
+                    media_type=ct or None)
 
 
 def register(app, ns: str = "a11oy") -> str:
