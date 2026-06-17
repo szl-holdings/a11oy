@@ -46,6 +46,10 @@ DEMO_CRITICAL_ROUTES = [
     "/orbital",                               # MODELED orbital demo PAGE (renders topology+projection)
     "/api/a11oy/v1/frontier/manifest",        # honest roll-up of every live capability (composed)
     "/frontier",                              # unified ecosystem showcase PAGE (renders the manifest roll-up)
+    "/api/a11oy/v1/agent/code/compose",       # GCAK — gated cell compose (hard gate before exec)
+    "/api/a11oy/v1/agent/code/inspect",       # GCAK — read-only persistent-var inspect (no receipt)
+    "/api/a11oy/v1/agent/code/status",        # GCAK — kernel + gate status
+    "/api/a11oy/v1/agent/code/receipts",      # GCAK — signed per-cell receipt chain
 ]
 
 

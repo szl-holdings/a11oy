@@ -361,6 +361,67 @@ def _static_screen(code: str) -> dict:
             "high_risk": len(findings) > 0}
 
 
+# ===========================================================================
+# HARD SECURITY GATE for the GOVERNED CODE-AS-ACTION KERNEL (a11oy_governed_kernel).
+# Deny-by-default, deterministic, model-independent. Extends the base _static_screen
+# with bans that keep agent code from ever reaching a key, an env secret, the energy
+# ledger, the signer, or the receipt internals — so a cell can neither read a secret
+# nor forge a receipt. This is ABOVE the advisory Lambda/restraint gate: Lambda can
+# only tighten (add a DENY), never override a hard DENY. (Doctrine v11: deny-by-default,
+# never commit/read a key; honest BLOCKED beats fake green.)
+# ===========================================================================
+# Substring tokens that must NEVER appear in a gated cell. Reaching the signer, the
+# energy ledger/operator, the receipt internals, a secret, or an env var is a hard DENY.
+_HARD_FORBIDDEN_TOKENS = (
+    # dunder escapes out of the restricted namespace
+    "__builtins__", "__globals__", "__subclasses__", "__bases__", "__mro__",
+    "__import__", "__loader__", "__class__.__bases__",
+    # env / secret reach
+    "os.getenv", "getenv(", "environ", "putenv",
+    # filesystem reach outside the scratch box
+    "/etc", "/home", "/root", "/proc", "/sys", "~/", "..", ".pem", ".key",
+    # key / secret / signer tokens
+    "A11OY_", "SZL_", "HF_TOKEN", "cosign", "signing_key", "_A11OY_PRIV",
+    "private_key", "secret", "token", "credential",
+    # energy / ledger / khipu / receipt internals (no forging a receipt or a joule)
+    "szl_energy_operator", "szl_energy_ledger", "szl_khipu", "szl_provenance",
+    "joule_billing", "_commit", "_emit", "submit_external_job", "append_job",
+)
+# Import roots banned in a gated cell, on top of the base _FORBIDDEN_IMPORTS list.
+_HARD_FORBIDDEN_IMPORTS = ("os", "sys", "importlib", "pathlib", "io", "builtins",
+                           "gc", "inspect", "marshal", "pickle", "code", "codeop",
+                           "threading", "atexit", "platform", "pdb")
+
+
+def hard_security_screen(code: str) -> dict:
+    """Deterministic deny-by-default screen for ONE governed code cell, run BEFORE
+    execution. Returns {findings, hard_block, reason}. Reuses the base _static_screen
+    (network/fs/eval bans) and layers the key/env/ledger/signer bans on top. Honest,
+    model-independent — flip the model and a banned token still denies."""
+    code = code or ""
+    low = code.lower()
+    base = _static_screen(code)
+    findings = list(base["findings"])
+
+    for tok in _HARD_FORBIDDEN_TOKENS:
+        if tok.lower() in low:
+            findings.append("token:%s" % tok)
+    for imp in _HARD_FORBIDDEN_IMPORTS:
+        if re.search(r"\b(import|from)\s+%s\b" % re.escape(imp), code):
+            findings.append("import:%s" % imp)
+
+    findings = sorted(set(findings))
+    hard_block = bool(findings)
+    if hard_block:
+        reason = ("hard security gate DENIED before exec — banned token/import "
+                  "(network/fs/eval, or key/env/ledger/signer reach): %s"
+                  % ", ".join(findings[:8]))
+    else:
+        reason = "hard security gate clean — no banned token/import/call"
+    return {"findings": findings, "hard_block": hard_block, "reason": reason,
+            "network_or_fs_attempt": base["network_or_fs_attempt"]}
+
+
 def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
                   mem_mb: int = 256) -> dict:
     """Execute agent-generated code in an ISOLATED restricted subprocess.

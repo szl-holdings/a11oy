@@ -988,6 +988,19 @@ class OperatorDaemon:
         self._emit(rec)
         return rec
 
+    def submit_external_job(self, node: str, model: str, kind: str, tokens: int,
+                            wall_s: float, exporter_sample: Optional[dict] = None,
+                            joules_measured: Optional[float] = None) -> JobRecord:
+        """Submit ONE externally-run job (e.g. a governed code-as-action cell) into the
+        SAME ledger wire as the operator's own inference jobs. Thin pass-through to
+        _commit — all MEASURED/SAMPLE labeling + billing discipline is reused unchanged:
+        joules read MEASURED only with a fresh real NVML exporter delta, else SAMPLE and
+        excluded from billable (Doctrine v11: never fabricate a joule). The operator->
+        ledger subscribe() wire (wire_operator_to_ledger) then append_job()s it into the
+        shared chain — one wire, one ledger, no parallel ledger."""
+        return self._commit(node, model, kind, int(tokens), float(wall_s),
+                            exporter_sample, joules_measured)
+
     def _run_real_job(self, node: NodeCfg, kind: str,
                       meter_before: Optional[dict]) -> Optional[dict]:
         """Dispatch one real inference job; meter NVML energy across its wall window.

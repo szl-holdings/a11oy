@@ -8506,6 +8506,46 @@ except Exception as _react_e:
 
 
 # ============================================================================
+# BEGIN: GOVERNED CODE-AS-ACTION KERNEL (GCAK) — a11oy (2026-06-16, ADDITIVE)
+# A PERSISTENT sandboxed Python kernel for a compose->inspect->revise loop where
+# variables LIVE ACROSS cells (the gap vs single-shot _sandbox_exec). EVERY cell
+# is doctrine-gated BEFORE exec (hard deny-by-default security gate ABOVE advisory
+# Lambda/restraint), and EACH executed cell mints a signed Khipu receipt with
+# energy joules (SAMPLE on this CPU node; MEASURED needs a real NVML exporter).
+# A DENIED cell mints an honest signed deny-receipt and NEVER executes.
+# REUSES the host's REAL in-image signer/verifier/public key. Routes inserted at
+# position 0 so they beat the SPA /{path:path} catch-all. FREE sub-namespace
+# /api/a11oy/v1/agent/code/* — try/except guarded (non-fatal).
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+# ============================================================================
+_GCAK_DIAG = {"status": "not-run"}
+try:
+    import a11oy_code_as_action as _gcak
+    import sys as _gcak_sys
+    _gcak_status = _gcak.register(
+        app, "a11oy",
+        _a11oy_sign_receipt,
+        verify_fn=(_a11oy_loop_verify if "_a11oy_loop_verify" in dir() else None),
+        pub_pem_fn=(_a11oy_loop_pubpem if "_a11oy_loop_pubpem" in dir() else None),
+        signer_label=("in-image ephemeral ECDSA-P256 (signed at server boot, "
+                      "resets on rebuild, verifiable vs /cosign.pub)"),
+    )
+    print(f"[a11oy] governed code-as-action kernel registered: {_gcak_status}",
+          file=_gcak_sys.stderr)
+    _GCAK_DIAG = {"status": "ok", "registered": _gcak_status}
+except Exception as _gcak_e:
+    import sys as _gcak_sys, traceback as _gcak_tb
+    print(f"[a11oy] governed code-as-action kernel FAILED (non-fatal): {_gcak_e!r}",
+          file=_gcak_sys.stderr)
+    _gcak_tb.print_exc(file=_gcak_sys.stderr)
+    _GCAK_DIAG = {"status": "FAILED", "error": repr(_gcak_e),
+                  "traceback": _gcak_tb.format_exc()}
+# ============================================================================
+# END: GOVERNED CODE-AS-ACTION KERNEL (GCAK) — a11oy
+# ============================================================================
+
+
+# ============================================================================
 # BEGIN: FORMULA-WIRING SURFACE — a11oy (2026-06-06, ADDITIVE, surgical)
 # Wires ALL ~80 kernel-verified theorems to REAL, executed mechanisms (shared,
 # byte-identical szl_formula_wiring across a11oy + killinchu). Adds:
