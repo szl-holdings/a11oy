@@ -1344,6 +1344,20 @@ try:
     app.add_api_route("/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/holo", _ptg_serve("holo.html"), methods=["GET"], include_in_schema=False)
 
+    # WARHACKER SHOWCASE companion pages (public thought-leadership lane). Standalone
+    # sovereign pages (0 runtime CDN, system fonts), each binds LIVE-provable claims to
+    # real a11oy endpoints with an HONEST NO-LIVE-DATA fallback (never a fabricated
+    # value); every maturity claim labelled LIVE / ROADMAP (doctrine v11). The
+    # /signature-is-not-proof page IS the founder-demo PROOF moment ("a signature is not
+    # proof of safety" — the Mini Shai-Hulud signed-supply-chain case study). Both HTML
+    # files are per-file COPY'd in the Dockerfile and declared image_only in
+    # .github/copy-sync-lockstep.json; registered BEFORE the SPA catch-all so the explicit
+    # route wins instead of silently falling through to the generic SPA shell.
+    app.add_api_route("/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/signature-is-not-proof", _ptg_serve("signature-is-not-proof.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/defense-readiness", _ptg_serve("defense-readiness.html"), methods=["GET"], include_in_schema=False)
+
     # /chat + /a11oy/chat -> /code consolidation (founder-directed; the only removal).
     async def _ptg_chat_to_code() -> Response:
         return _PTG_Redirect(url="/code", status_code=302)
@@ -7942,6 +7956,23 @@ def _viz_index(name: str) -> Response:
         f = VIZ_DIR / name / "index.html"
         if f.is_file():
             return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# ENERGY-OPS dashboard (press-play energy operator). Standalone sovereign page
+# (0 runtime CDN) that drives the real /api/a11oy/v1/energy/operator/* endpoints
+# and reads the live ledger/projection — every value carries a MEASURED / MODELED
+# / SAMPLE honesty chip; revenue is NEVER MEASURED until a real charge clears; no
+# joules/tokens/dollars are fabricated (doctrine v11). pages/energy-ops.html is
+# per-file COPY'd into /app/pages by the Dockerfile; on a missing file we fall back
+# honestly to INDEX_HTML (no fabricated stub). Registered BEFORE the /viz + SPA
+# catch-all so the explicit demo route wins instead of falling through to the shell.
+@app.get("/energy-ops")
+@app.get("/a11oy/energy-ops")
+async def energy_ops_dashboard() -> Response:
+    f = PAGES_DIR / "energy-ops.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
