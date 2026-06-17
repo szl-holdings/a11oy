@@ -108,6 +108,89 @@ MAX_NVML_AGE_S = 30.0
 LABEL_MEASURED = "MEASURED"
 LABEL_SAMPLE = "SAMPLE"
 
+# ---------------------------------------------------------------------------
+# Useful-work + energy-harness env knobs (all honest, all gentle defaults).
+# Useful work changes WHAT the embed job computes (a REAL un-embedded corpus
+# chunk that gets written into the live RAG dense index) — it NEVER changes HOW
+# joules are measured. The MEASURED<->SAMPLE split stays decided solely by
+# szl_joules_truth via _label_upper.
+# ---------------------------------------------------------------------------
+# Master switch for useful-work embedding (default ON). Off => the old canned
+# _EMBED_TEXTS behavior (still real inference, just throwaway content).
+USEFUL_WORK_ENV = "A11OY_ENERGY_USEFUL_WORK"
+# Grid price (EUR/MWh) at/above which the loop THROTTLES batch work to protect cost.
+PRICE_EXPENSIVE_ENV = "A11OY_ENERGY_PRICE_EXPENSIVE_EUR_MWH"
+_PRICE_EXPENSIVE_DEFAULT = 120.0
+# Extra corpus-embed jobs per reachable node when SOAKING (draining backlog).
+SOAK_BATCH_ENV = "A11OY_ENERGY_SOAK_BATCH"
+_SOAK_BATCH_DEFAULT = 3
+_SOAK_BATCH_CAP = 16  # gentle hard cap so a soak never overwhelms a node
+# Inter-sweep sleep multiplier when THROTTLING (loop genuinely backs off).
+THROTTLE_SLEEP_MULT_ENV = "A11OY_ENERGY_THROTTLE_SLEEP_MULT"
+_THROTTLE_SLEEP_MULT_DEFAULT = 4.0
+# Forced posture override for demos/tests (soak|baseline|throttle). Empty => live.
+FORCE_POSTURE_ENV = "A11OY_ENERGY_FORCE_POSTURE"
+# The harvest posture feed (a11oy_harvest_endpoints.handle_posture) can hit live
+# external energy feeds, so it is refreshed at most once per this TTL — NEVER on
+# every sweep. Keeps the hot loop gentle (a fast inter-job interval must not turn
+# into a per-sweep network call). The cheap in-process grid-price posture is still
+# recomputed every sweep. Override for tests.
+POSTURE_TTL_ENV = "A11OY_ENERGY_POSTURE_TTL_S"
+_POSTURE_TTL_DEFAULT = 60.0
+
+WORK_MODE_SOAK = "soak"
+WORK_MODE_BASELINE = "baseline"
+WORK_MODE_THROTTLE = "throttle"
+
+
+def _useful_work_enabled() -> bool:
+    return (os.environ.get(USEFUL_WORK_ENV, "1").strip().lower()
+            not in ("0", "false", "no", "off", ""))
+
+
+def _price_expensive_threshold() -> float:
+    try:
+        return float(os.environ.get(PRICE_EXPENSIVE_ENV, _PRICE_EXPENSIVE_DEFAULT))
+    except Exception:  # noqa: BLE001
+        return _PRICE_EXPENSIVE_DEFAULT
+
+
+def _soak_batch_size() -> int:
+    try:
+        n = int(os.environ.get(SOAK_BATCH_ENV, _SOAK_BATCH_DEFAULT))
+    except Exception:  # noqa: BLE001
+        n = _SOAK_BATCH_DEFAULT
+    return max(0, min(_SOAK_BATCH_CAP, n))
+
+
+def _throttle_sleep_mult() -> float:
+    try:
+        return max(1.0, float(os.environ.get(THROTTLE_SLEEP_MULT_ENV,
+                                             _THROTTLE_SLEEP_MULT_DEFAULT)))
+    except Exception:  # noqa: BLE001
+        return _THROTTLE_SLEEP_MULT_DEFAULT
+
+
+def _posture_ttl_s() -> float:
+    try:
+        return max(0.0, float(os.environ.get(POSTURE_TTL_ENV, _POSTURE_TTL_DEFAULT)))
+    except Exception:  # noqa: BLE001
+        return _POSTURE_TTL_DEFAULT
+
+
+def _import_org_rag():
+    """Best-effort import of the live RAG module (a11oy_org_rag), or None. Never
+    raises — when RAG is unavailable the loop honestly falls back to canned text."""
+    try:
+        import a11oy_org_rag as _rag  # type: ignore
+        return _rag
+    except Exception:  # noqa: BLE001
+        try:
+            from . import a11oy_org_rag as _rag  # type: ignore
+            return _rag
+        except Exception:  # noqa: BLE001
+            return None
+
 # The EXISTING exporter path: the betterwithage NVML joule-meter that
 # szl_energy_sovereign._metrics_panel() already reads (engines→gpus→{power_w,joules,live},
 # totals→{joules}). We reuse the SAME URL so the operator meters off the same source.
@@ -348,6 +431,12 @@ class JobRecord:
     joules_evidence: dict
     ts: str
     seq: int
+    # ADDITIVE (useful-work): True when this job computed a REAL corpus chunk (vs.
+    # throwaway canned text); rag_chunk_id is the corpus chunk whose dense vector was
+    # written into the live RAG index by this embed job (None otherwise). The Dev2/3/4
+    # contract is unchanged — these are extra optional fields with safe defaults.
+    useful_work: bool = False
+    rag_chunk_id: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -357,6 +446,7 @@ class JobRecord:
                                 if self.joules_measured is not None else None),
             "joules_label": self.joules_label, "joules_evidence": self.joules_evidence,
             "ts": self.ts, "seq": self.seq,
+            "useful_work": self.useful_work, "rag_chunk_id": self.rag_chunk_id,
         }
 
 
@@ -470,6 +560,8 @@ class _State:
     measured_token_joules: float = 0.0    # joules over the SAME measured jobs (paired J/token numerator)
     measured_jobs: int = 0
     sample_jobs: int = 0
+    corpus_embeds: int = 0          # embed jobs that computed a REAL corpus chunk
+    rag_vectors_written: int = 0    # dense vectors written into the live RAG index
     by_node: dict = field(default_factory=dict)  # node -> {jobs, tokens, joules_measured}
 
     def to_dict(self) -> dict:
@@ -481,6 +573,8 @@ class _State:
             "measured_tokens": self.measured_tokens,
             "measured_token_joules": self.measured_token_joules,
             "measured_jobs": self.measured_jobs, "sample_jobs": self.sample_jobs,
+            "corpus_embeds": self.corpus_embeds,
+            "rag_vectors_written": self.rag_vectors_written,
             "by_node": self.by_node,
         }
 
@@ -496,6 +590,8 @@ class _State:
         s.measured_token_joules = float(d.get("measured_token_joules", 0.0))
         s.measured_jobs = int(d.get("measured_jobs", 0))
         s.sample_jobs = int(d.get("sample_jobs", 0))
+        s.corpus_embeds = int(d.get("corpus_embeds", 0))
+        s.rag_vectors_written = int(d.get("rag_vectors_written", 0))
         s.by_node = {k: v for k, v in (d.get("by_node", {}) or {}).items()
                      if not (k == "local-stub" or k.endswith("-stub"))}
         return s
@@ -534,6 +630,23 @@ class OperatorDaemon:
         self._subscribers: list[Callable[[dict], None]] = []
         self._grid_price_eur_mwh: Optional[float] = None  # latest meter grid price
         self._last_power_w: Optional[float] = None  # latest live exporter power_w (W)
+        # Energy harness: the work mode actually applied on the last sweep + its honest
+        # driver. Never claims a soak/throttle that did not happen — set by run_once().
+        self._work_mode: str = WORK_MODE_BASELINE
+        self._work_mode_reason: str = "no sweep yet"
+        self._should_soak: Optional[bool] = None
+        self._grid_price_posture: str = "unknown"
+        self._renewable_share: Optional[float] = None
+        # Cached RAG module handle (lazy; None when RAG unavailable in this runtime).
+        self._rag = None
+        self._rag_checked = False
+        # Harvest-posture cache: the live feed is refreshed at most once per TTL AND
+        # only ever on a background thread, so it NEVER blocks job dispatch — a fast
+        # inter-job interval can't turn into a per-sweep (or first-sweep) network call.
+        self._harvest_should_soak: Optional[bool] = None
+        self._harvest_renewable: Optional[float] = None
+        self._harvest_ts: float = 0.0
+        self._harvest_refreshing: bool = False
 
     # -- subscription (Dev2 receipts hook) --------------------------------
     def subscribe(self, cb: Callable[[dict], None]) -> None:
@@ -608,6 +721,14 @@ class OperatorDaemon:
         produced: list[dict] = []
         meter = _fetch_joule_meter()
         self._update_grid_price(meter)
+        # ENERGY HARNESS: decide the work mode for this sweep from the harvest posture
+        # the loop already fetches (grid price + should_soak). Stored honestly; the
+        # modulation below only does what this mode says.
+        work_mode, reason = self._resolve_posture()
+        with self._lock:
+            self._work_mode = work_mode
+            self._work_mode_reason = reason
+        soak_batch = _soak_batch_size() if work_mode == WORK_MODE_SOAK else 0
         any_reachable = False
         for node in self.nodes:
             if self._stop.is_set():
@@ -629,6 +750,10 @@ class OperatorDaemon:
                 rec = self._run_real_job(node, kind, meter)
                 if rec is not None:
                     produced.append(rec)
+            # SOAK modulation: drain extra corpus backlog on this node (gentle, capped,
+            # honest no-op when the backlog is empty). THROTTLE/BASELINE add no batch.
+            if soak_batch and not self._stop.is_set():
+                produced.extend(self._run_corpus_embed_batch(node, meter, soak_batch))
         # No reachable node at all → faithful stub (clearly marked), if allowed.
         if not any_reachable and self.allow_stub and not self._stop.is_set():
             self._stub_mode = True
@@ -640,6 +765,17 @@ class OperatorDaemon:
                     produced.append(rec)
         elif any_reachable:
             self._stub_mode = False
+        # DEMO-WARM: keep the demo RAG queries' embeddings precomputed so the demo's
+        # first query is instant. Cheap + idempotent (only embeds uncached queries);
+        # skipped under THROTTLE except for whatever is already warm. Honest no-op
+        # when no embedding model is present.
+        if work_mode != WORK_MODE_THROTTLE and not self._stop.is_set():
+            rag = self._get_rag()
+            if rag is not None:
+                try:
+                    rag.warm_demo_queries()
+                except Exception:  # noqa: BLE001 — warming is best-effort, never fatal
+                    pass
         # Persist after every sweep so counts are durable regardless of entry point
         # (the loop also persists; direct run_once() callers/tests get the same).
         self._persist()
@@ -652,14 +788,171 @@ class OperatorDaemon:
                 self.run_once()
                 self._persist()
                 # Backpressure: gentle inter-sweep sleep, interruptible by stop().
-                self._stop.wait(self.job_interval_s)
+                # THROTTLE genuinely backs the loop off (longer sleep) so an expensive
+                # grid window is honored, not just labeled.
+                sleep_s = self.job_interval_s
+                if self._work_mode == WORK_MODE_THROTTLE:
+                    sleep_s = self.job_interval_s * _throttle_sleep_mult()
+                self._stop.wait(sleep_s)
         finally:
             self._persist()
+
+    # -- useful work + RAG write ------------------------------------------
+    def _get_rag(self):
+        """Lazily import + cache the live RAG module (or None). Never raises."""
+        if not self._rag_checked:
+            self._rag = _import_org_rag()
+            self._rag_checked = True
+        return self._rag
+
+    def _pick_corpus_embed_job(self) -> tuple[str, Optional[str]]:
+        """Choose the text for an embed job. When useful work is enabled AND the RAG
+        index has a real embedder + an un-embedded corpus chunk, return that chunk's
+        (body, chunk_id) so the job does USEFUL WORK whose vector we then write into
+        the live index. Otherwise honest fallback to a canned _EMBED_TEXTS string
+        (rag_chunk_id=None), which is real inference on throwaway content — clearly
+        distinguishable in the record (useful_work=False)."""
+        canned = _EMBED_TEXTS[self._state.seq % len(_EMBED_TEXTS)]
+        if not _useful_work_enabled():
+            return canned, None
+        rag = self._get_rag()
+        if rag is None:
+            return canned, None
+        try:
+            if rag.corpus_embedder() is None:
+                # No real embedding model in this runtime → cannot do honest useful
+                # work; fall back to canned text rather than fabricate a corpus embed.
+                return canned, None
+            pending = rag.next_unembedded_chunks(limit=1)
+        except Exception:  # noqa: BLE001
+            return canned, None
+        if not pending:
+            return canned, None
+        chunk = pending[0]
+        body = (chunk.get("body") or "").strip()
+        if not body:
+            return canned, None
+        return body, chunk.get("chunk_id")
+
+    def _store_rag_vector(self, rag_chunk_id: str, vec: list[float]) -> bool:
+        """Write a REAL embedding produced by an embed job into the live RAG dense
+        index. Honest: a failure (no RAG / refusal / store error) never affects the
+        job's joule label or billable energy — it only means the index didn't grow.
+        Returns True iff a vector was actually stored."""
+        rag = self._get_rag()
+        if rag is None or not rag_chunk_id or not vec:
+            return False
+        try:
+            res = rag.embed_and_store_chunk(rag_chunk_id, list(vec))
+        except Exception:  # noqa: BLE001
+            return False
+        if res.get("ok"):
+            with self._lock:
+                self._state.rag_vectors_written += 1
+            return True
+        return False
+
+    # -- energy harness: posture -> work_mode -----------------------------
+    def _resolve_posture(self) -> tuple[str, str]:
+        """Decide the work mode for this sweep + an HONEST one-line reason.
+
+        Inputs (best-effort, never raise):
+          - grid price (EUR/MWh) read from the meter totals into self._grid_price_eur_mwh,
+          - harvest posture (should_soak / wasted renewable surplus / renewable share)
+            from a11oy_harvest_endpoints.handle_posture() IF importable,
+          - an optional forced override (A11OY_ENERGY_FORCE_POSTURE) for demos/tests.
+
+        Modes: 'throttle' (grid price expensive — defer batch, protect cost),
+        'soak' (wasted renewable surplus available — drain corpus backlog), else
+        'baseline'. THROTTLE wins over SOAK (cost protection first). Never claims a
+        soak/throttle that didn't happen — this only DECIDES; run_once APPLIES it."""
+        forced = (os.environ.get(FORCE_POSTURE_ENV) or "").strip().lower()
+        # Grid price posture from the latest meter reading.
+        price = self._grid_price_eur_mwh
+        thr = _price_expensive_threshold()
+        if price is None:
+            grid_posture = "unknown"
+        elif price >= thr:
+            grid_posture = "expensive"
+        else:
+            grid_posture = "normal"
+        # Harvest posture (should_soak / renewable share) — optional live feed that can
+        # hit a slow external network. It is refreshed at most once per TTL AND only on
+        # a background thread, so it NEVER blocks dispatch: this sweep always uses the
+        # value cached from a prior refresh (None until the first one lands). A force
+        # override skips the feed entirely (deterministic, no network at all).
+        should_soak = self._harvest_should_soak
+        renewable = self._harvest_renewable
+        if not forced:
+            self._maybe_refresh_harvest_posture()
+        with self._lock:
+            self._should_soak = should_soak
+            self._grid_price_posture = grid_posture
+            self._renewable_share = renewable
+
+        if forced in (WORK_MODE_SOAK, WORK_MODE_BASELINE, WORK_MODE_THROTTLE):
+            return forced, f"forced_posture={forced} (A11OY_ENERGY_FORCE_POSTURE)"
+        if grid_posture == "expensive":
+            return (WORK_MODE_THROTTLE,
+                    f"grid_price_expensive: {price:.1f} EUR/MWh >= {thr:.1f} — "
+                    f"throttling batch work to protect cost")
+        if should_soak:
+            extra = (f"; renewable_share={renewable:.0f}%" if renewable is not None else "")
+            return (WORK_MODE_SOAK,
+                    f"should_soak: wasted renewable surplus available — draining corpus "
+                    f"backlog{extra}")
+        return (WORK_MODE_BASELINE,
+                f"baseline: grid_price_posture={grid_posture}, no soak signal")
+
+    def _maybe_refresh_harvest_posture(self) -> None:
+        """Kick off a TTL-throttled, NON-BLOCKING refresh of the harvest posture feed.
+
+        The feed (a11oy_harvest_endpoints.handle_posture) can hit a slow external
+        network, so it is NEVER called on the dispatch path — it runs on a short-lived
+        daemon thread that updates the cached should_soak / renewable share for the NEXT
+        sweep. At most one refresh is ever in flight, and it fires at most once per TTL.
+        Honest: until the first refresh lands, should_soak stays None (no soak claimed)."""
+        now = time.time()
+        with self._lock:
+            if self._harvest_refreshing:
+                return
+            if (now - self._harvest_ts) < _posture_ttl_s():
+                return
+            self._harvest_ts = now
+            self._harvest_refreshing = True
+        threading.Thread(target=self._refresh_harvest_posture,
+                         name="energy-harvest-posture", daemon=True).start()
+
+    def _refresh_harvest_posture(self) -> None:
+        """Background body: fetch the harvest feed once and update the cache. Best-effort
+        (any failure leaves the prior cached value); always clears the in-flight flag."""
+        try:
+            import a11oy_harvest_endpoints as _hv  # type: ignore
+            p = _hv.handle_posture()
+            if isinstance(p, dict) and p.get("ok"):
+                should_soak = bool(p.get("soak_hard") or
+                                   p.get("wasted_energy_available"))
+                renewable = None
+                for r in (p.get("readings") or []):
+                    if r.get("feed", "").startswith("energy_charts_ren") and \
+                            isinstance(r.get("value"), (int, float)):
+                        renewable = float(r["value"])
+                        break
+                with self._lock:
+                    self._harvest_should_soak = should_soak
+                    self._harvest_renewable = renewable
+        except Exception:  # noqa: BLE001 — harvest feed optional; absence stays honest
+            pass
+        finally:
+            with self._lock:
+                self._harvest_refreshing = False
 
     # -- per-job execution ------------------------------------------------
     def _commit(self, node_name: str, model: str, kind: str, tokens: int,
                 wall_s: float, exporter_sample: Optional[dict],
-                joules_measured: Optional[float]) -> JobRecord:
+                joules_measured: Optional[float], *,
+                useful_work: bool = False,
+                rag_chunk_id: Optional[str] = None) -> JobRecord:
         now = time.time()
         label = _label_upper(exporter_sample, now=now)
         evidence = _J.joules_evidence(exporter_sample, now=now) if label == LABEL_MEASURED else {}
@@ -671,6 +964,8 @@ class OperatorDaemon:
             seq = self._state.seq
             self._state.jobs_done += 1
             self._state.tokens_total += int(tokens)
+            if useful_work:
+                self._state.corpus_embeds += 1
             bn = self._state.by_node.setdefault(
                 node_name, {"jobs": 0, "tokens": 0, "joules_measured": 0.0})
             bn["jobs"] += 1
@@ -688,7 +983,8 @@ class OperatorDaemon:
         rec = JobRecord(
             node=node_name, model=model, kind=kind, tokens=int(tokens), wall_s=wall_s,
             joules_measured=billable_j,
-            joules_label=label, joules_evidence=evidence, ts=_now_iso(), seq=seq)
+            joules_label=label, joules_evidence=evidence, ts=_now_iso(), seq=seq,
+            useful_work=useful_work, rag_chunk_id=rag_chunk_id)
         self._emit(rec)
         return rec
 
@@ -702,6 +998,8 @@ class OperatorDaemon:
         A node error → DEGRADED + None (never a fabricated job)."""
         sample_before = _exporter_sample_for_node(meter_before, node.exporter_node)
         j_before = (sample_before or {}).get("joules_measured_total")
+        rag_chunk_id: Optional[str] = None
+        embed_vec: list[float] = []
         t0 = time.time()
         try:
             if kind == "generate":
@@ -709,8 +1007,12 @@ class OperatorDaemon:
                 tokens, _ = _ollama_generate(node.base_url, node.gen_model, prompt)
                 model = node.gen_model
             else:
-                text = _EMBED_TEXTS[self._state.seq % len(_EMBED_TEXTS)]
-                tokens, _ = _ollama_embed(node.base_url, node.embed_model, text)
+                # USEFUL WORK: embed a REAL un-embedded corpus chunk when available
+                # (honest fallback to canned text otherwise). The joule meter window
+                # below is identical either way — useful work changes WHAT is embedded,
+                # never HOW joules are measured.
+                text, rag_chunk_id = self._pick_corpus_embed_job()
+                tokens, embed_vec = _ollama_embed(node.base_url, node.embed_model, text)
                 model = node.embed_model
         except Exception:  # noqa: BLE001 — node failed mid-job: DEGRADED, never faked
             with self._lock:
@@ -727,10 +1029,44 @@ class OperatorDaemon:
         if (isinstance(j_before, (int, float)) and isinstance(j_after, (int, float))
                 and j_after >= j_before):
             joules_measured = float(j_after) - float(j_before)
+        # Write the REAL embedding into the live RAG dense index (useful work). A
+        # store failure NEVER affects the joule label/billable energy below — it only
+        # means the index did not grow this job. useful_work reflects what actually
+        # happened: True only when a real corpus vector was stored.
+        stored = False
+        if rag_chunk_id is not None and embed_vec:
+            stored = self._store_rag_vector(rag_chunk_id, embed_vec)
         # The label is decided off the AFTER sample (the fresh reading at job end).
         rec = self._commit(node.name, model, kind, tokens, wall_s,
-                            sample_after, joules_measured)
+                            sample_after, joules_measured,
+                            useful_work=stored,
+                            rag_chunk_id=(rag_chunk_id if stored else None))
         return rec.to_dict()
+
+    def _run_corpus_embed_batch(self, node: NodeCfg, meter_before: Optional[dict],
+                                count: int) -> list[dict]:
+        """SOAK: run up to ``count`` EXTRA corpus-embed jobs on a reachable node to
+        drain the un-embedded backlog. Honest: stops early when the backlog is empty
+        (degrades to a no-op — never fabricates a corpus embed), respects the stop
+        flag, and meters each job exactly like a baseline embed (joule gate unchanged)."""
+        produced: list[dict] = []
+        for _ in range(max(0, count)):
+            if self._stop.is_set():
+                break
+            # Only proceed while real un-embedded backlog remains.
+            rag = self._get_rag()
+            if rag is None:
+                break
+            try:
+                if rag.corpus_embedder() is None or not rag.next_unembedded_chunks(limit=1):
+                    break
+            except Exception:  # noqa: BLE001
+                break
+            rec = self._run_real_job(node, "embed", meter_before)
+            if rec is None:
+                break
+            produced.append(rec)
+        return produced
 
     def _run_stub_job(self, kind: str) -> Optional[dict]:
         """Faithful local stub job: REAL CPU work (honest wall_s/tokens) but NO meter,
@@ -796,6 +1132,24 @@ class OperatorDaemon:
                 "exporter_node": next((n.exporter_node for n in self.nodes), None),
                 "power_w_sample": self._last_power_w,
                 "grid_price_eur_mwh": self._grid_price_eur_mwh,
+                "work_mode": self._work_mode,
+                "work_mode_reason": self._work_mode_reason,
+                "should_soak": self._should_soak,
+                "grid_price_posture": self._grid_price_posture,
+                "renewable_share": self._renewable_share,
+                "corpus_embeds": st.corpus_embeds,
+                "rag_vectors_written": st.rag_vectors_written,
+                "harness": (
+                    "work_mode reflects the posture ACTUALLY applied this sweep "
+                    "(soak=drain corpus backlog faster, throttle=defer batch + back "
+                    "off when grid price is expensive, baseline=normal). It is "
+                    "derived from the real grid price reading + harvest posture (or "
+                    "an explicit force override); a soak/throttle is never claimed "
+                    "unless it was run. corpus_embeds/rag_vectors_written are the "
+                    "honest counters proving useful-work embed jobs advanced the "
+                    "live RAG dense index. Useful work changes WHAT is computed, "
+                    "never HOW joules are measured — the MEASURED gate is unchanged."
+                ),
                 "recent_jobs": list(self._last_records[-10:]),
                 "exporter": _JOULE_METER_URL,
                 "honesty": (

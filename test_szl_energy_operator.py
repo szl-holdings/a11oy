@@ -604,19 +604,280 @@ def test_readiness_200_when_no_lung_reachable():
             _swap_singleton(prev)
 
 
+# ---------------------------------------------------------------------------
+# (11) USEFUL-WORK: an embed job embeds a REAL un-embedded corpus chunk and WRITES
+#      its dense vector into the live RAG index — the index GROWS, the produced
+#      record carries useful_work=True + a rag_chunk_id, and the joule label path
+#      stays EXACTLY the MEASURED gate (useful work changes WHAT is computed, not
+#      HOW joules are measured). Honest: the vector stored is the real embed output.
+# ---------------------------------------------------------------------------
+def _build_tiny_rag_index(rag, db_path, n=3):
+    """Build a minimal REAL RAG index: n lexical org_chunks rows, no dense vectors
+    yet (so they are the un-embedded backlog). Marks _BUILD_META built=True so the
+    public helpers operate. Returns the chunk_ids inserted."""
+    rag.RAG_DB_PATH = db_path
+    conn = rag._db()
+    try:
+        rag._init_schema(conn)
+        conn.execute("DELETE FROM org_chunks")
+        conn.execute("DELETE FROM org_vectors")
+        ids = []
+        for i in range(n):
+            cid = f"test-chunk-{i}"
+            ids.append(cid)
+            conn.execute(
+                "INSERT INTO org_chunks(chunk_id,node_id,repo,path,kind,corpus,source,"
+                "title,body,sha256) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (cid, f"n{i}", "szl-holdings/a11oy", f"docs/d{i}.md", "doc",
+                 "szl", "github", f"Doc {i}",
+                 f"Sovereign metered compute doctrine paragraph number {i}.", f"sha{i}"))
+        conn.commit()
+    finally:
+        conn.close()
+    rag._BUILD_META = {"built": True, "ts": "test", "repos": 1, "chunks": n,
+                       "vectors": 0}
+    return ids
+
+
+def test_useful_work_embed_advances_rag_index(monkeypatch):
+    import a11oy_org_rag as RAG
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        monkeypatch.setenv("A11OY_ENERGY_USEFUL_WORK", "1")
+        monkeypatch.setenv("A11OY_ENERGY_FORCE_POSTURE", "baseline")
+        with tempfile.TemporaryDirectory() as d:
+            db_path = os.path.join(d, "rag.db")
+            prev_db = RAG.RAG_DB_PATH
+            prev_meta = RAG._BUILD_META
+            try:
+                ids = _build_tiny_rag_index(RAG, db_path, n=3)
+                # Force a REAL (fake) embedder so useful-work gating is satisfied;
+                # the actual embed VECTOR comes from the node's /api/embeddings.
+                monkeypatch.setattr(RAG, "_maybe_embedder",
+                                    lambda: (lambda t: [0.1, 0.2, 0.3, 0.4]))
+                before = RAG.dense_vector_count()
+                assert before == 0, before
+                assert sorted(c["chunk_id"] for c in
+                              RAG.next_unembedded_chunks(limit=9)) == sorted(ids)
+
+                op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                       state_path=os.path.join(d, "ledger.json"),
+                                       allow_stub=False)
+                op.run_once()
+                st = op.status()
+                after = RAG.dense_vector_count()
+                # The live RAG dense index GREW from a real metered embed job.
+                assert after > before, (before, after, st)
+                assert st["rag_vectors_written"] >= 1, st
+                assert st["corpus_embeds"] >= 1, st
+                # A produced embed record is honestly tagged useful_work + chunk_id,
+                # and that chunk now has a stored vector.
+                useful = [r for r in st["recent_jobs"]
+                          if r.get("kind") == "embed" and r.get("useful_work")]
+                assert useful, st["recent_jobs"]
+                cid = useful[0]["rag_chunk_id"]
+                assert cid in ids, useful[0]
+                # Joule gate UNCHANGED: a fresh real NVML delta still yields MEASURED.
+                assert st["joules_measured_total"] > 0, st
+                assert st["measured_jobs"] >= 1, st
+                for r in useful:
+                    assert r["joules_label"] in (OP.LABEL_MEASURED, OP.LABEL_SAMPLE)
+            finally:
+                RAG.RAG_DB_PATH = prev_db
+                RAG._BUILD_META = prev_meta
+    finally:
+        node.stop()
+
+
+# ---------------------------------------------------------------------------
+# (12) ENERGY HARNESS: work_mode modulates on the harvest/grid posture. Flipping
+#      A11OY_ENERGY_FORCE_POSTURE across baseline -> soak -> throttle changes both
+#      status().work_mode AND the embed-job rate honestly: soak runs an EXTRA
+#      bounded corpus-embed batch (more embed jobs), throttle adds no batch. The
+#      should_soak / grid_price_posture signals surface in status.
+# ---------------------------------------------------------------------------
+def _count_embed_jobs(produced):
+    return sum(1 for r in produced if r.get("kind") == "embed")
+
+
+def test_work_mode_modulation_responds_to_posture(monkeypatch):
+    import a11oy_org_rag as RAG
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        monkeypatch.setenv("A11OY_ENERGY_USEFUL_WORK", "1")
+        monkeypatch.setenv("A11OY_ENERGY_SOAK_BATCH", "3")
+        with tempfile.TemporaryDirectory() as d:
+            db_path = os.path.join(d, "rag.db")
+            prev_db = RAG.RAG_DB_PATH
+            prev_meta = RAG._BUILD_META
+            try:
+                # Plenty of backlog so a soak has real chunks to drain.
+                _build_tiny_rag_index(RAG, db_path, n=24)
+                monkeypatch.setattr(RAG, "_maybe_embedder",
+                                    lambda: (lambda t: [0.1, 0.2, 0.3, 0.4]))
+
+                def _sweep(posture):
+                    monkeypatch.setenv("A11OY_ENERGY_FORCE_POSTURE", posture)
+                    op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                           state_path=os.path.join(d, f"l-{posture}.json"),
+                                           allow_stub=False)
+                    produced = op.run_once()
+                    return op.status(), produced
+
+                st_base, p_base = _sweep("baseline")
+                st_soak, p_soak = _sweep("soak")
+                st_thr, p_thr = _sweep("throttle")
+
+                # status reflects the mode ACTUALLY applied this sweep.
+                assert st_base["work_mode"] == "baseline", st_base
+                assert st_soak["work_mode"] == "soak", st_soak
+                assert st_thr["work_mode"] == "throttle", st_thr
+                # honest reason strings name the driver.
+                assert "baseline" in st_base["work_mode_reason"], st_base
+                assert "soak" in st_soak["work_mode_reason"].lower(), st_soak
+                assert "forced" in st_thr["work_mode_reason"], st_thr
+                # posture signals surface honestly.
+                assert "grid_price_posture" in st_base, st_base
+                assert "should_soak" in st_base, st_base
+                # SOAK does MORE embed jobs than baseline; THROTTLE adds no extra batch.
+                assert _count_embed_jobs(p_soak) > _count_embed_jobs(p_base), \
+                    (_count_embed_jobs(p_soak), _count_embed_jobs(p_base))
+                assert _count_embed_jobs(p_thr) <= _count_embed_jobs(p_base), \
+                    (_count_embed_jobs(p_thr), _count_embed_jobs(p_base))
+            finally:
+                RAG.RAG_DB_PATH = prev_db
+                RAG._BUILD_META = prev_meta
+                monkeypatch.delenv("A11OY_ENERGY_FORCE_POSTURE")
+    finally:
+        node.stop()
+
+
+# ---------------------------------------------------------------------------
+# (13) RAG write-path honesty: embed_and_store_chunk REFUSES a chunk_id that is not
+#      already in org_chunks (never fabricates an indexed chunk), and
+#      next_unembedded_chunks returns ONLY chunks that still lack a dense vector.
+# ---------------------------------------------------------------------------
+def test_rag_write_path_refuses_fabricated_chunk(monkeypatch):
+    import a11oy_org_rag as RAG
+    with tempfile.TemporaryDirectory() as d:
+        db_path = os.path.join(d, "rag.db")
+        prev_db = RAG.RAG_DB_PATH
+        prev_meta = RAG._BUILD_META
+        try:
+            ids = _build_tiny_rag_index(RAG, db_path, n=3)
+            # Refuse a vector for a non-existent chunk (no fabricated indexed chunk).
+            res = RAG.embed_and_store_chunk("does-not-exist", [0.1, 0.2, 0.3, 0.4])
+            assert res["ok"] is False, res
+            assert "honest_error" in res, res
+            assert RAG.chunk_count() == 3, RAG.chunk_count()  # no row created
+            assert RAG.dense_vector_count() == 0, RAG.dense_vector_count()
+            # Store a REAL vector for an existing chunk → backlog shrinks by one.
+            ok = RAG.embed_and_store_chunk(ids[0], [0.1, 0.2, 0.3, 0.4])
+            assert ok["ok"] is True, ok
+            assert RAG.dense_vector_count() == 1, RAG.dense_vector_count()
+            remaining = {c["chunk_id"] for c in RAG.next_unembedded_chunks(limit=9)}
+            assert ids[0] not in remaining, remaining
+            assert set(ids[1:]) == remaining, remaining
+        finally:
+            RAG.RAG_DB_PATH = prev_db
+            RAG._BUILD_META = prev_meta
+
+
+# ---------------------------------------------------------------------------
+# (14) GENTLE LOOP: the harvest posture feed (which may hit live external feeds)
+#      must be refreshed at most once per TTL — NEVER on every sweep — so a fast
+#      inter-job interval can't turn into a per-sweep network call (the regression
+#      that starved jobs_done). A forced posture skips the feed entirely.
+# ---------------------------------------------------------------------------
+def test_posture_feed_is_ttl_throttled_not_per_sweep(monkeypatch):
+    import sys, types
+    calls = {"n": 0}
+    fake = types.ModuleType("a11oy_harvest_endpoints")
+
+    def handle_posture():
+        calls["n"] += 1
+        return {"ok": True, "soak_hard": False, "wasted_energy_available": False,
+                "readings": []}
+    fake.handle_posture = handle_posture
+    monkeypatch.setitem(sys.modules, "a11oy_harvest_endpoints", fake)
+
+    def _drain():
+        # The feed refresh runs on a background daemon thread (NEVER on the dispatch
+        # path), so wait for any in-flight refresh to settle before asserting counts.
+        for _ in range(200):
+            with op._lock:
+                busy = op._harvest_refreshing
+            if not busy:
+                return
+            time.sleep(0.005)
+
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        # Forced posture: deterministic, MUST NOT touch the feed at all.
+        monkeypatch.setenv("A11OY_ENERGY_FORCE_POSTURE", "baseline")
+        for _ in range(5):
+            op._resolve_posture()
+        _drain()
+        assert calls["n"] == 0, calls
+        # Live posture with the default (long) TTL: many rapid sweeps => ONE feed call.
+        monkeypatch.delenv("A11OY_ENERGY_FORCE_POSTURE")
+        calls["n"] = 0
+        for _ in range(8):
+            op._resolve_posture()
+            _drain()
+        assert calls["n"] == 1, calls
+        # TTL=0 proves the knob: the feed refreshes every sweep when asked.
+        monkeypatch.setenv("A11OY_ENERGY_POSTURE_TTL_S", "0")
+        calls["n"] = 0
+        for _ in range(3):
+            op._resolve_posture()
+            _drain()
+        assert calls["n"] == 3, calls
+
+
 if __name__ == "__main__":
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
     class _MP:
-        def __init__(self): self._undo = []
+        _UNSET = object()
+
+        def __init__(self):
+            self._undo = []
+            self._env_undo = []
+            self._item_undo = []
         def setattr(self, obj, name, val):
             self._undo.append((obj, name, getattr(obj, name)))
             setattr(obj, name, val)
+        def setenv(self, name, val):
+            self._env_undo.append((name, os.environ.get(name, self._UNSET)))
+            os.environ[name] = val
+        def delenv(self, name, raising=False):
+            self._env_undo.append((name, os.environ.get(name, self._UNSET)))
+            os.environ.pop(name, None)
+        def setitem(self, mapping, key, val):
+            self._item_undo.append((mapping, key, mapping.get(key, self._UNSET)))
+            mapping[key] = val
         def undo(self):
             for obj, name, old in reversed(self._undo):
                 setattr(obj, name, old)
             self._undo = []
+            for name, old in reversed(self._env_undo):
+                if old is self._UNSET:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = old
+            self._env_undo = []
+            for mapping, key, old in reversed(self._item_undo):
+                if old is self._UNSET:
+                    mapping.pop(key, None)
+                else:
+                    mapping[key] = old
+            self._item_undo = []
 
     passed = 0
     for fn in fns:
