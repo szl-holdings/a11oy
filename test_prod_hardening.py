@@ -32,9 +32,12 @@ import szl_prod_hardening as ph  # noqa: E402
 
 NS = "a11oy"
 
+# 2026-06-17 iframe fix: the legacy X-Frame-Options header is intentionally GONE
+# (it could only say SAMEORIGIN/DENY and DENY refused the legitimate Hugging Face
+# cross-origin embed → white screen + red 🚫). Framing is now governed by a CSP
+# frame-ancestors allow-list (self + Hugging Face), asserted separately below.
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": None,        # presence only
     "Strict-Transport-Security": None,      # presence only
@@ -71,8 +74,19 @@ def test_security_headers_present():
         assert name in r.headers, f"missing security header: {name}"
         if expected is not None:
             assert r.headers[name] == expected, f"{name}={r.headers[name]!r} != {expected!r}"
-    # JSON-API CSP must be the strict deny-everything policy.
-    assert "default-src 'none'" in r.headers["Content-Security-Policy"]
+    # JSON-API CSP keeps the strict deny-everything base.
+    csp = r.headers["Content-Security-Policy"]
+    assert "default-src 'none'" in csp
+    # The legacy X-Frame-Options header must NOT be emitted (it blocked the HF
+    # embed and cannot express an allow-list). Framing is governed by CSP only.
+    assert "X-Frame-Options" not in r.headers, "legacy X-Frame-Options must be gone"
+    # CSP frame-ancestors must allow-list self + Hugging Face (scoped embed),
+    # NOT 'none' (which refused the HF iframe).
+    assert "frame-ancestors" in csp, "CSP must declare a frame-ancestors policy"
+    assert "frame-ancestors 'none'" not in csp, "frame-ancestors 'none' refuses the HF embed"
+    assert "'self'" in csp, "frame-ancestors must keep 'self'"
+    assert "https://huggingface.co" in csp, "frame-ancestors must allow Hugging Face"
+    assert "https://*.hf.space" in csp, "frame-ancestors must allow *.hf.space"
     print("PASS security_headers_present")
 
 

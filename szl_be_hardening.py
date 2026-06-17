@@ -104,28 +104,54 @@ RATE_LIMIT_PER_MIN = 60
 #    EVERY response by the trace/log middleware. We deliberately do NOT emit a
 #    restrictive Content-Security-Policy here: the SZL consoles are self-
 #    contained SPAs with inlined scripts/styles (0 runtime CDN), and a blanket
-#    CSP would break them. These four headers are safe for an HTTPS-only app:
+#    CSP would break them. These headers are safe for an HTTPS-only app:
 #      - X-Content-Type-Options: nosniff   (no MIME sniffing)
-#      - X-Frame-Options: SAMEORIGIN       (clickjacking; consoles self-frame)
 #      - Referrer-Policy: strict-origin-when-cross-origin
 #      - Strict-Transport-Security          (hf.space is HTTPS-only)
 #    Additive only; never overwrites a header an organ already set. The HF Space
 #    proxy was verified NOT to inject these, so the served app owns them.
+#
+#    CLICKJACKING / EMBED POLICY (2026-06-17 iframe fix):
+#    We do NOT send the legacy `X-Frame-Options` header. X-Frame-Options can only
+#    express SAMEORIGIN/DENY — it CANNOT express an allow-list — and SAMEORIGIN
+#    here REFUSED the legitimate Hugging Face cross-origin embed (huggingface.co
+#    framing szlholdings-*.hf.space), which is exactly how the founder views the
+#    Space. The browser blocked it → white screen + red 🚫. We replace it with a
+#    Content-Security-Policy `frame-ancestors` allow-list that PERMITS only our
+#    own origin and Hugging Face. This is NOT weaker: clickjacking protection is
+#    retained (any other origin still cannot frame us); modern browsers honor CSP
+#    frame-ancestors over X-Frame-Options. The allow-list is scoped to the one
+#    legitimate embedder (HF) + self. It is additive: we set this CSP only when a
+#    route has not already declared its own Content-Security-Policy, so any organ
+#    that needs a looser/stricter policy keeps it.
 _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 }
 
+# frame-ancestors allow-list: self + Hugging Face (the real embedder). Scopes the
+# embed permission to HF instead of the blanket SAMEORIGIN that broke the embed.
+_FRAME_ANCESTORS_CSP = (
+    "frame-ancestors 'self' https://huggingface.co "
+    "https://*.hf.space https://*.huggingface.co;"
+)
+
 
 def _apply_security_headers(resp: Any) -> Any:
     """Set the conservative security-header baseline on `resp` without clobbering
-    any header an organ route already chose to set. Never raises."""
+    any header an organ route already chose to set. Also installs a CSP
+    `frame-ancestors` allow-list (self + Hugging Face) IN PLACE OF the legacy
+    X-Frame-Options header, so HF can legitimately embed the Space while other
+    origins still cannot frame it (clickjacking protection retained). Additive:
+    a route that already set its own Content-Security-Policy keeps it. Never
+    raises."""
     try:
         for k, v in _SECURITY_HEADERS.items():
             if k not in resp.headers:
                 resp.headers[k] = v
+        if "Content-Security-Policy" not in resp.headers:
+            resp.headers["Content-Security-Policy"] = _FRAME_ANCESTORS_CSP
     except Exception:
         pass
     return resp

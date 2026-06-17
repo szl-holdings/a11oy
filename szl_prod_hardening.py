@@ -18,13 +18,20 @@ WHY (top-tech production hardening — each individually safe, additive, honest)
   1. SECURITY HEADERS on every response (OWASP Secure Headers Project / OWASP
      REST Security Cheat Sheet). For a JSON API the high-value, zero-breakage set is:
        X-Content-Type-Options: nosniff      — kill MIME sniffing.
-       X-Frame-Options: DENY                 — legacy clickjacking guard.
        Referrer-Policy: no-referrer          — never leak the API URL/query.
-       Content-Security-Policy: default-src 'none'; frame-ancestors 'none';
+       Content-Security-Policy: default-src 'none';
+                                frame-ancestors 'self' https://huggingface.co
+                                  https://*.hf.space https://*.huggingface.co;
                                 base-uri 'none'; form-action 'none'
                                              — a JSON API renders nothing, so the
-                                               strictest possible CSP is correct
-                                               and cannot break a data response.
+                                               strictest CSP is correct; the one
+                                               relaxation is a frame-ancestors
+                                               allow-list so Hugging Face can
+                                               embed the Space (2026-06-17 iframe
+                                               fix). We do NOT send the legacy
+                                               X-Frame-Options header: it cannot
+                                               express an allow-list and DENY here
+                                               refused the legitimate HF embed.
        Strict-Transport-Security: max-age=63072000; includeSubDomains
                                              — pin HTTPS for browser clients.
      We do NOT clobber a Content-Security-Policy already set by an upstream
@@ -271,13 +278,28 @@ def build_middleware(ns: str = "a11oy"):
     limiter = _TokenBucketLimiter(rl_limit, rl_window) if rl_enabled else None
     micro_cache = _TTLCache() if cache_enabled else None
 
-    # JSON-API-appropriate CSP: the response renders nothing, so deny everything.
-    CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+    # JSON-API-appropriate CSP: the response renders nothing, so deny everything
+    # EXCEPT framing, where we use a frame-ancestors allow-list instead of a blanket
+    # 'none'. 2026-06-17 iframe fix: `frame-ancestors 'none'` (and the legacy
+    # X-Frame-Options: DENY) REFUSED the legitimate Hugging Face cross-origin embed
+    # (huggingface.co framing szlholdings-*.hf.space) — the founder's actual view —
+    # so the Space rendered a white screen + red 🚫. We scope frame-ancestors to
+    # self + Hugging Face: clickjacking protection is retained (no other origin may
+    # frame us) while HF can embed. The rest of the CSP stays maximally strict.
+    CSP = (
+        "default-src 'none'; "
+        "frame-ancestors 'self' https://huggingface.co "
+        "https://*.hf.space https://*.huggingface.co; "
+        "base-uri 'none'; form-action 'none'"
+    )
     HSTS = "max-age=63072000; includeSubDomains"
 
+    # NOTE: we intentionally do NOT emit the legacy `X-Frame-Options` header.
+    # X-Frame-Options can only say SAMEORIGIN/DENY and cannot express the HF
+    # allow-list above; modern browsers honor CSP frame-ancestors instead. Keeping
+    # X-Frame-Options: DENY here is exactly what blocked the HF embed.
     SECURITY_HEADERS = {
         "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
         "Referrer-Policy": "no-referrer",
     }
 
