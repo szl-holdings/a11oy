@@ -14846,55 +14846,83 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   // The five flagship tabs, in the exact top-to-bottom pitch order.
   var PINNED = ["whHero","organism","warboard","feedpulse","honest"];
   function sel(k){ return '.nav-item[' + 'data-view=' + JSON.stringify(k) + ']'; }
-  function reorder(){
-    var side = document.querySelector('.side');
-    if(!side){ return false; }
+  // True when the five pinned items are already the first five .nav-item nodes
+  // (in order) inside .side. Used to skip work and to avoid feeding our own
+  // mutations back into the observer.
+  function alreadyPinned(side){
+    var items = side.querySelectorAll('.nav-item');
+    if(items.length < PINNED.length){ return false; }
+    for(var i = 0; i < PINNED.length; i++){
+      if(items[i].getAttribute('data-view') !== PINNED[i]){ return false; }
+    }
+    return true;
+  }
+  // Hoist the (existing) pinned .nav-item nodes to the front of .side, right
+  // after the brand header, in PINNED order. Only moves nodes that exist;
+  // never creates, renames, relabels or removes anything. Returns the count of
+  // pinned keys currently present.
+  function reorder(side){
     var brand = side.querySelector('.brand');
-    // Anchor: the node the pinned group must sit immediately after (the brand
-    // header) so the five tabs are the very first nav entries. If there is no
-    // brand, fall back to the first child of .side.
     var anchor = brand || null;
     var found = 0;
-    // Insert in order. Walk PINNED back-to-front and insert each right after the
-    // anchor, so final left-to-right order matches PINNED exactly.
+    // Walk PINNED back-to-front, inserting each right after the anchor, so the
+    // final left-to-right order matches PINNED exactly.
     for(var i = PINNED.length - 1; i >= 0; i--){
       var el = side.querySelector(sel(PINNED[i]));
       if(!el){ continue; }
       found++;
       var ref = anchor ? anchor.nextSibling : side.firstChild;
-      // Avoid redundant DOM churn if already correctly placed.
-      if(ref === el){ continue; }
+      if(ref === el){ continue; } // already correctly placed
       side.insertBefore(el, ref);
     }
-    return found === PINNED.length;
+    return found;
   }
-  // Run after all the nav injectors above have settled. They run on
-  // DOMContentLoaded / load; some append late. We poll briefly until every
-  // pinned key exists and is hoisted, then a few extra passes to win against
-  // any late re-append, then stop. Purely additive; never throws into the page.
-  var tries = 0, MAX = 120; // ~ up to 30s at 250ms
-  function tick(){
-    tries++;
-    var ok = false;
-    try { ok = reorder(); } catch(e){ /* never break the page */ }
-    if(ok && tries > 8){ // confirmed complete + a settle margin
-      // A few trailing passes spaced out, then stop.
-      var extra = 0;
-      var t = setInterval(function(){
-        extra++;
-        try { reorder(); } catch(e){}
-        if(extra >= 6){ clearInterval(t); }
-      }, 1000);
-      return;
+  // The nav is assembled by many independent injectors that run on
+  // DOMContentLoaded / load and some append (or prepend, right after .brand)
+  // LATE. A one-shot reorder loses the race. So we keep the five pinned tabs
+  // hoisted with a debounced MutationObserver on .side: whenever the nav
+  // changes, if the first five items are not already the pinned set in order,
+  // re-hoist. This is cheap (a few node moves only when needed), idempotent,
+  // and never throws into the page. go(key) is untouched — we relocate the
+  // existing element (with its onclick), never recreate it.
+  var attached = false;
+  function attach(){
+    var side = document.querySelector('.side');
+    if(!side){ return setTimeout(attach, 200); }
+    if(attached){ return; }
+    attached = true;
+    var scheduled = false, applying = false;
+    function apply(){
+      scheduled = false;
+      if(applying){ return; }
+      try {
+        if(alreadyPinned(side)){ return; }
+        applying = true;
+        reorder(side);
+      } catch(e){ /* never break the page */ }
+      finally { applying = false; }
     }
-    if(tries < MAX){ setTimeout(tick, 250); }
+    function schedule(){ if(scheduled){ return; } scheduled = true; (window.requestAnimationFrame||setTimeout)(apply, 0); }
+    try {
+      var mo = new MutationObserver(function(){ schedule(); });
+      mo.observe(side, { childList: true, subtree: true });
+    } catch(e){ /* MutationObserver always present in target browsers */ }
+    // Initial passes (covers the case where the nav is built before we attach)
+    // plus a short safety-net interval that stops once stable.
+    schedule();
+    var ticks = 0;
+    var iv = setInterval(function(){
+      ticks++;
+      try { if(!alreadyPinned(side)){ reorder(side); } } catch(e){}
+      if(ticks >= 60){ clearInterval(iv); } // ~60s safety net, then rely on the observer
+    }, 1000);
+    window.addEventListener('load', schedule);
   }
   if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){ setTimeout(tick, 0); });
+    document.addEventListener('DOMContentLoaded', attach);
   } else {
-    setTimeout(tick, 0);
+    attach();
   }
-  window.addEventListener('load', function(){ setTimeout(tick, 0); });
 })();
 </script>
 <!-- end DEV — PIN PITCH TABS TO TOP -->
