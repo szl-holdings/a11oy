@@ -549,21 +549,15 @@ details.raw[open] summary{color:var(--muted);}
   <div class="side-scrim" onclick="toggleSide(false)"></div>
   <aside class="side">
     <div class="brand"><div class="mark">A</div><div><div class="nm">a11oy</div><div class="role">orchestrating brain</div></div></div>
-    <div class="nav-group">Operate</div>
+    <!-- ============================================================= -->
+    <!-- DEMO — lead with the wow + the proof. Groups reordered demo-first;
+         NO go() key, data-view, label, or item was removed or renamed. -->
+    <!-- ============================================================= -->
+    <div class="nav-group">DEMO · Operate</div>
     <div class="nav-item active" data-view="command" onclick="go('command')"><span class="ico">◎</span>Command Center</div>
     <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
     <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
     <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
-    <div class="nav-group">The Brain (3D)</div>
-    <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
-    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="pulse" onclick="go('pulse')"><span class="ico">◍</span>Global Pulse</div>
-    <div class="nav-item" data-view="trustspace" onclick="go('trustspace')"><span class="ico">⁂</span>Trust Space</div>
-    <div class="nav-item" data-view="ontology" onclick="go('ontology')"><span class="ico">⌗</span>Service Map</div>
-    <div class="nav-group">Knowledge Base</div>
-    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
-    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
-    <div class="nav-item" data-view="policies" onclick="go('policies')"><span class="ico">▤</span>Vertical Policies</div>
     <div class="nav-group">Decide &amp; Govern</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score</div>
     <div class="nav-item" data-view="decision" onclick="go('decision')"><span class="ico">◈</span>Governed Decision</div>
@@ -577,11 +571,26 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="putnam" onclick="go('putnam')"><span class="ico">∮</span>Putnam 2025</div>
     <div class="nav-item" data-view="putnamsampler" onclick="go('putnamsampler')"><span class="ico">∑</span>Putnam Sampler</div>
     <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
-    <div class="nav-group">World &amp; Threat Intel</div>
-    <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
-    <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
-    <div class="nav-group">Business &amp; Ecosystem</div>
-    <div class="nav-item" data-view="verticals" onclick="go('verticals')"><span class="ico">▦</span>Vertical-Pack Ecosystem</div>
+    <div class="nav-group">Frontier (3D · Live)</div>
+    <div class="nav-item" data-view="govatlas" onclick="go('govatlas')"><span class="ico">✧</span>Governance Atlas</div>
+    <div class="nav-item" data-view="oversight" onclick="go('oversight')"><span class="ico">◉</span>AI Oversight</div>
+    <div class="nav-item" data-view="modelatlas" onclick="go('modelatlas')"><span class="ico">⬣</span>Model Atlas</div>
+    <div class="nav-item" data-view="threatgraph" onclick="go('threatgraph')"><span class="ico">⩟</span>Threat Graph</div>
+    <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
+    <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
+    <div class="nav-group">The Brain (3D)</div>
+    <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
+    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
+    <div class="nav-item" data-view="pulse" onclick="go('pulse')"><span class="ico">◍</span>Global Pulse</div>
+    <div class="nav-item" data-view="trustspace" onclick="go('trustspace')"><span class="ico">⁂</span>Trust Space</div>
+    <div class="nav-item" data-view="ontology" onclick="go('ontology')"><span class="ico">⌗</span>Service Map</div>
+    <!-- ============================================================= -->
+    <!-- DEPTH — advanced + supporting surfaces (collapsed on touch).     -->
+    <!-- ============================================================= -->
+    <div class="nav-group">Knowledge Base</div>
+    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
+    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
+    <div class="nav-item" data-view="policies" onclick="go('policies')"><span class="ico">▤</span>Vertical Policies</div>
     <div class="nav-group">Models &amp; Tools</div>
     <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
     <div class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</div>
@@ -592,17 +601,18 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="lineage" onclick="go('lineage')"><span class="ico">⚛</span>Knowledge Lineage</div>
     <div class="nav-item" data-view="mission" onclick="go('mission')"><span class="ico">⬢</span>Mission Health</div>
     <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
-    <div class="nav-group">Frontier (3D · Live)</div>
-    <div class="nav-item" data-view="govatlas" onclick="go('govatlas')"><span class="ico">✧</span>Governance Atlas</div>
-    <div class="nav-item" data-view="oversight" onclick="go('oversight')"><span class="ico">◉</span>AI Oversight</div>
-    <div class="nav-item" data-view="modelatlas" onclick="go('modelatlas')"><span class="ico">⬣</span>Model Atlas</div>
-    <div class="nav-item" data-view="threatgraph" onclick="go('threatgraph')"><span class="ico">⩟</span>Threat Graph</div>
-    <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
-    <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
+    <div class="nav-group">World &amp; Threat Intel</div>
+    <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
+    <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
     <div class="nav-group">Live Intel (RERUN)</div>
     <div class="nav-item" data-view="kevgate" onclick="go('kevgate')"><span class="ico">⛨</span>CVE → Gate Impact</div>
     <div class="nav-item" data-view="feedpulse" onclick="go('feedpulse')"><span class="ico">❣</span>Feed Liveness</div>
     <div class="nav-item" data-view="routerarena" onclick="go('routerarena')"><span class="ico">⚡</span>Routing Arena</div>
+    <!-- ============================================================= -->
+    <!-- CONTEXT — business & ecosystem.                                 -->
+    <!-- ============================================================= -->
+    <div class="nav-group">Business &amp; Ecosystem</div>
+    <div class="nav-item" data-view="verticals" onclick="go('verticals')"><span class="ico">▦</span>Vertical-Pack Ecosystem</div>
     <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
