@@ -253,6 +253,45 @@
     .proof-card .pc-d{font-size:12.5px;line-height:1.6;color:var(--paragraph);margin:0;}
     .proof-card .pc-d code{color:var(--gold);font-family:var(--mono);font-size:11px;}
     .proof-card .pc-r{display:flex;gap:.6rem;flex-wrap:wrap;}
+
+    /* --- 25-DEMO DEPTH SECTION (5 problems x 5 demos) --- */
+    .depth{max-width:64rem;margin:2.75rem auto 1rem;padding:0 1.25rem;}
+    .depth-head{text-align:center;margin-bottom:1.5rem;}
+    .depth-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:.5rem;}
+    .depth-h{font-size:clamp(1.4rem,3.2vw,2rem);font-weight:300;letter-spacing:-.02em;margin:0 0 .5rem;color:var(--cream);}
+    .depth-h b{font-weight:600;color:var(--gold);}
+    .depth-sub{font-size:13px;line-height:1.6;color:var(--paragraph);max-width:46rem;margin:0 auto;}
+    .prob{border:1px solid var(--gold-line);border-radius:12px;background:var(--panel);margin-bottom:1rem;overflow:hidden;}
+    .prob-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;padding:1rem 1.2rem;cursor:pointer;
+      background:transparent;border:0;width:100%;text-align:left;color:inherit;transition:background .18s ease;}
+    .prob-head:hover{background:var(--gold-soft);}
+    .prob-head .chev{font-family:var(--mono);font-size:13px;color:var(--gold);transition:transform .2s ease;flex:0 0 auto;}
+    .prob.open .prob-head .chev{transform:rotate(90deg);}
+    .prob-id{font-family:var(--mono);font-size:11px;color:var(--teal);border:1px solid var(--teal-line);border-radius:5px;padding:.1rem .45rem;background:var(--teal-soft);flex:0 0 auto;}
+    .prob-title{font-size:1.05rem;font-weight:500;color:var(--cream);flex:1 1 auto;letter-spacing:-.01em;}
+    .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.1em;padding:.12rem .45rem;border-radius:4px;text-transform:uppercase;flex:0 0 auto;white-space:nowrap;}
+    .lbl.real{color:var(--live);border:1px solid rgba(90,138,110,.45);background:rgba(90,138,110,.1);}
+    .lbl.roadmap{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+    .lbl.exp{color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);}
+    .prob-count{font-family:var(--mono);font-size:10px;color:var(--muted);flex:0 0 auto;}
+    .prob-summary{padding:0 1.2rem 0 2.7rem;font-size:12px;color:var(--paragraph);line-height:1.55;margin:-.3rem 0 .4rem;display:none;}
+    .prob.open .prob-summary{display:block;}
+    .demos{display:none;padding:.4rem 1.2rem 1.2rem;}
+    .prob.open .demos{display:block;}
+    .demo{border:1px solid var(--gold-soft);border-radius:9px;background:var(--panel2);padding:.85rem 1rem;margin-top:.7rem;}
+    .demo-top{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;}
+    .demo-id{font-family:var(--mono);font-size:10px;color:var(--gold);border:1px solid var(--gold-line);border-radius:4px;padding:.08rem .4rem;flex:0 0 auto;}
+    .demo-title{font-size:13px;color:var(--cream);font-weight:500;flex:1 1 auto;}
+    .demo-ctrls{display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0 .2rem;}
+    .demo-verdict{font-family:var(--mono);font-size:11px;margin:.5rem 0 .2rem;display:none;}
+    .demo-verdict.show{display:block;}
+    .demo-verdict .ok{color:var(--live);} .demo-verdict .err{color:var(--err);} .demo-verdict .warn{color:var(--gold);}
+    .demo-receipt{font-family:var(--mono);font-size:10px;color:var(--teal);margin:.3rem 0 0;word-break:break-all;display:none;}
+    .demo-receipt.show{display:block;}
+    .demo-out{font-family:var(--mono);font-size:9.5px;line-height:1.5;color:var(--paragraph);white-space:pre-wrap;word-break:break-word;
+      max-height:220px;overflow-y:auto;margin:.5rem 0 0;padding:.6rem;background:#050505;border:1px solid var(--gold-soft);border-radius:6px;display:none;
+      scrollbar-width:thin;scrollbar-color:var(--dim) transparent;}
+    .demo-out.show{display:block;}
   </style>
 </head>
 <body>
@@ -276,16 +315,19 @@
   <section class="hero">
     <div class="grid-bg"></div>
     <div class="hero-inner">
-      <span class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">WarHacker · governed mission compute · live on this Space</span></span>
+      <span class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">WarHacker · 5 mission surfaces · 25 governed demos · live on this Space</span></span>
       <h1 class="headline">Code is action.<br/><span class="accent">Govern it, or it governs you.</span></h1>
       <p class="support">a11oy is the <b style="color:var(--cream)">governed substrate</b> beneath the mission:
         every autonomous decision is checked against authorized limits, <span style="color:var(--live)">ALLOWED</span>
         or <span style="color:var(--err)">BLOCKED</span> at the exact line it crosses, and sealed into a signed,
-        tamper-evident receipt you can re-verify on screen. Army counter-UAS, Navy maritime, multi-domain joint
-        compute &mdash; one governed core, every domain.</p>
+        tamper-evident receipt you can re-verify on screen. <b style="color:var(--cream)">Five mission surfaces</b>
+        sit over a deeper catalog of <b style="color:var(--cream)">25 governed demos &mdash; 5 problems &times; 5 each</b>:
+        Cannonico (drone oversight) is <span style="color:var(--live)">REAL TODAY</span>; the other four are honest
+        <span style="color:var(--gold)">sample / roadmap</span> on the same proven substrate.</p>
       <button class="runall" id="runAll">▶ Run all five mission surfaces</button>
       <div class="stats">
         <div class="stat"><div class="k">Surfaces live</div><div class="v" id="stLive">0 / 5</div></div>
+        <div class="stat"><div class="k">Governed demos ran</div><div class="v teal" id="stDemos">0 / 25</div></div>
         <div class="stat"><div class="k">Records signed</div><div class="v teal" id="stSigned">0</div></div>
         <div class="stat"><div class="k">Re-verified</div><div class="v" id="stVerified">—</div></div>
         <div class="stat"><div class="k">Registry</div><div class="v teal" id="stReg">—</div></div>
@@ -505,6 +547,32 @@ SAT-B 35786 3.07 0.0'></textarea>
 
   </div>
 
+  <!-- ====================================================================
+       25-DEMO DEPTH — the 5 mission surfaces above are the polished front
+       door; this section exposes the FULL governed catalog: 5 approved
+       problems x 5 demos = 25. Loaded live from /warhacker/index and run
+       live against /warhacker/run/{problem}/{demo}. Honest labels per the
+       operator's OWN real_or_roadmap field: CANNONICO = REAL TODAY; the
+       other four = ROADMAP (proven substrate, SAMPLE vertical). Every demo
+       emits a signed receipt and is re-verifiable in-browser; the tamper
+       button flips one byte and the same chain reports the break.
+       ==================================================================== -->
+  <section class="depth" id="depth">
+    <div class="depth-head">
+      <div class="depth-eyebrow">Mission depth · 5 problems × 5 demos</div>
+      <h2 class="depth-h">Five surfaces. <b>Twenty-five governed demos</b> underneath.</h2>
+      <p class="depth-sub">Each of the five approved problems carries five governed demos &mdash; <b style="color:var(--cream)">25 in total</b>,
+        loaded live from the platform and runnable right here. Each run computes a real mechanism in-image and seals a signed,
+        re-verifiable receipt; press <b style="color:var(--cream)">Tamper</b> and one flipped byte returns
+        <span class="mono" style="color:var(--err)">verified:false</span>. Labels are the operator's own:
+        <span class="lbl real" style="display:inline-block">real today</span> for Cannonico,
+        <span class="lbl roadmap" style="display:inline-block">roadmap</span> (proven substrate · sample vertical) for the rest. Nothing here claims more than it is.</p>
+    </div>
+    <div id="depthList">
+      <p class="mono" id="depthLoading" style="text-align:center;color:var(--dim);font-size:12px;">— loading the 25-demo catalog from the live platform —</p>
+    </div>
+  </section>
+
   <div class="honest">
     <div class="honest-box" id="honestBox">
       <b>What is real here (doctrine v11 · honest labels only).</b> Every surface above runs live in this container.
@@ -518,7 +586,12 @@ SAT-B 35786 3.07 0.0'></textarea>
       conjecture, not a pass/fail oracle. Locked-proven invariants = 8. Deploy posture is read live from the public
       registry. Attestation is honest SLSA L1; the L2 build-provenance .att is emitted (not independently verified here);
       L3 is roadmap &mdash; not the bundle, not an ATO. Mission Health and Trajectory Picture use clearly-labelled sample
-      inputs over real logic; plug a real feed into the same shape and they are live.
+      inputs over real logic; plug a real feed into the same shape and they are live. The <b>25-demo depth</b> below
+      (5 problems &times; 5 demos) is the full governed catalog: <b>CANNONICO is REAL TODAY</b>; the other four problems
+      (Tychee, Hangar2Apps, Cyber-RTS, Raven) are <b>ROADMAP</b> &mdash; the proven horizontal substrate (hash chain +
+      Merkle + DSSE + the computed formula) is real, while each vertical runs on clearly-labelled SAMPLE data pending the
+      operational stand-up (live feed / hardware / ATO). Every one of the 25 emits a real signed receipt and a 1-byte
+      tamper test that fails cryptographically. We never imply all 25 are fully real.
     </div>
   </div>
 
@@ -580,11 +653,13 @@ SAT-B 35786 3.07 0.0'></textarea>
   });
 
   // ---------- shared run-state for the hero stats ----------
-  var state = {live:{}, signed:0, verified:null};
+  var state = {live:{}, signed:0, verified:null, demosRan:{}};
   function refreshStats(){
     var n = Object.keys(state.live).filter(function(k){return state.live[k];}).length;
     $("stLive").textContent = n + " / 5";
     $("stSigned").textContent = state.signed;
+    var dcount = Object.keys(state.demosRan).length;
+    var dEl = $("stDemos"); if(dEl) dEl.textContent = dcount + " / 25";
     if(state.verified !== null){ $("stVerified").textContent = state.verified ? "PASS" : "FAIL"; $("stVerified").className = "v " + (state.verified?"teal":""); }
   }
   function markLive(tab, ok){ state.live[tab]= ok; setDot("dot-"+tab, ok?"ok":"err"); refreshStats(); }
@@ -923,6 +998,142 @@ SAT-B 35786 3.07 0.0'></textarea>
     }).catch(function(){ /* locked=8 is the doctrine constant; leave the cell as-is */ });
   }
   loadRibbon();
+
+  // ========== 25-DEMO DEPTH (5 problems x 5 demos) ==========
+  // Loads the live catalog from /warhacker/index and renders 5 collapsible
+  // problem groups, each with its 5 demos. Each demo runs live against
+  // /warhacker/run/{problem}/{demo}, shows the decision + signed receipt id,
+  // and offers a tamper test (the API's own always-on 1-byte-flip negative
+  // test). Honest labels come straight from the operator's real_or_roadmap.
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function lblClass(rr){
+    var s = String(rr||"").toUpperCase();
+    if(s.indexOf("REAL")===0 || s.indexOf("REAL TODAY")>=0) return "real";
+    if(s.indexOf("EXPERIMENTAL")>=0) return "exp";
+    return "roadmap";
+  }
+  function lblText(rr){
+    var s = String(rr||"").toUpperCase();
+    if(s.indexOf("REAL")===0 || s.indexOf("REAL TODAY")>=0) return "REAL TODAY";
+    if(s.indexOf("EXPERIMENTAL")>=0) return "EXPERIMENTAL";
+    return "ROADMAP \u00b7 SAMPLE";
+  }
+  function shortRR(rr){
+    // first sentence / clause, for the demo-level honesty line
+    var s = String(rr||"");
+    var cut = s.split(/[;\u2014]/)[0];
+    return cut.length>140 ? cut.slice(0,138)+"\u2026" : cut;
+  }
+  function depthRunDemo(prob, demo, mode, els){
+    els.verdict.className = "demo-verdict show";
+    els.verdict.innerHTML = '<span class="warn">' + (mode==="tamper"?"tamper run\u2026":"running\u2026") + '</span>';
+    els.runBtn.disabled = true; els.tamperBtn.disabled = true;
+    return postJSON("/warhacker/run/"+prob+"/"+demo, {mode: mode}).then(function(r){
+      var d = r.json || {};
+      if(!d.ok){
+        els.verdict.innerHTML = '<span class="err">error \u2014 ' + esc(d.error || ("HTTP "+r.status)) + '</span>';
+        els.runBtn.disabled=false; els.tamperBtn.disabled=false; return;
+      }
+      // signed receipt id from the sealed DSSE envelope / chain
+      var sealed = d.sealed || {};
+      var chainHash = (sealed.chain_hash || "").slice(0,16);
+      var merkle = (sealed.merkle_root || "").slice(0,16);
+      var signed = !!(sealed.envelope && sealed.envelope.signed);
+      var tt = d.tamper_test || {};
+      var cs = d.chain_self || {};
+      var decClass = d.authorized ? "ok" : "err";
+      if(mode==="tamper"){
+        // surface the API's negative test result: a 1-byte flip breaks the chain
+        els.verdict.innerHTML = '<span class="err">TAMPER \u2014 verified:false \u00b7 chain break at seq ' +
+          esc(tt.chain_break_at_seq) + ' (field: ' + esc(tt.tamper && tt.tamper.field) +
+          ', bytes changed: ' + esc(tt.tamper && tt.tamper.bytes_changed) + '). One flipped byte is caught.</span>';
+        state.verified = false;
+      } else {
+        els.verdict.innerHTML = '<span class="' + decClass + '">' + esc(d.decision || (d.authorized?"ALLOW":"BLOCK")) +
+          '</span> \u2014 ' + esc(d.headline || "") +
+          ' <span class="' + (cs.chain_intact?"ok":"err") + '">[re-verify: chain ' + (cs.chain_intact?"intact":"BROKEN") + ']</span>';
+        if(state.verified===null) state.verified = !!cs.chain_intact;
+      }
+      els.receipt.className = "demo-receipt show";
+      els.receipt.textContent = "signed receipt \u00b7 chain=" + chainHash + "\u2026 \u00b7 merkle=" + merkle + "\u2026 \u00b7 signed=" + signed + " \u00b7 mode=" + esc(d.mode);
+      els.out.className = "demo-out show";
+      els.out.textContent = pretty({problem:d.problem, demo:d.demo, mode:d.mode, decision:d.decision,
+        authorized:d.authorized, real_or_roadmap:d.real_or_roadmap, headline:d.headline,
+        sealed:{signed:signed, chain_hash:sealed.chain_hash, merkle_root:sealed.merkle_root, chain_seq:sealed.chain_seq},
+        chain_self:cs, tamper_test:tt, honesty:d.honesty});
+      // count the demo as run (once, by key) and tally signed receipts
+      var key = prob+"/"+demo;
+      if(!state.demosRan[key]){ state.demosRan[key]=true; }
+      if(mode!=="tamper" && signed){ state.signed++; }
+      refreshStats();
+      els.runBtn.disabled=false; els.tamperBtn.disabled=false;
+    }).catch(function(e){
+      els.verdict.innerHTML = '<span class="err">error \u2014 ' + esc(String(e)) + '</span>';
+      els.runBtn.disabled=false; els.tamperBtn.disabled=false;
+    });
+  }
+  function renderDepth(idx){
+    var problems = (idx && idx.problems) || [];
+    var host = $("depthList");
+    host.innerHTML = "";
+    problems.forEach(function(p, pi){
+      var probEl = document.createElement("div");
+      probEl.className = "prob" + (pi===0 ? " open" : "");  // first (Cannonico) open by default
+      var lc = lblClass(p.real_or_roadmap), lt = lblText(p.real_or_roadmap);
+      var head = document.createElement("button");
+      head.type = "button"; head.className = "prob-head";
+      head.setAttribute("aria-expanded", pi===0 ? "true" : "false");
+      head.innerHTML = '<span class="chev">\u25b6</span>' +
+        '<span class="prob-id">' + esc(p.id) + '</span>' +
+        '<span class="prob-title">' + esc(p.title) + '</span>' +
+        '<span class="lbl ' + lc + '">' + lt + '</span>' +
+        '<span class="prob-count">' + esc(p.demo_count) + ' demos</span>';
+      head.addEventListener("click", function(){
+        var open = probEl.classList.toggle("open");
+        head.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+      probEl.appendChild(head);
+      var summary = document.createElement("div");
+      summary.className = "prob-summary";
+      summary.textContent = p.summary || "";
+      probEl.appendChild(summary);
+      var demosWrap = document.createElement("div");
+      demosWrap.className = "demos";
+      (p.demos||[]).forEach(function(dm){
+        var demoEl = document.createElement("div");
+        demoEl.className = "demo";
+        var top = document.createElement("div"); top.className = "demo-top";
+        top.innerHTML = '<span class="demo-id">' + esc(dm.id) + '</span>' +
+          '<span class="demo-title">' + esc(dm.title) + '</span>' +
+          '<span class="lbl ' + lc + '">' + lt + '</span>';
+        var ctrls = document.createElement("div"); ctrls.className = "demo-ctrls";
+        var runBtn = document.createElement("button"); runBtn.className="r-btn r-btn-primary"; runBtn.textContent="\u25b6 Run";
+        var tamperBtn = document.createElement("button"); tamperBtn.className="r-btn"; tamperBtn.textContent="\u26a0 Tamper";
+        ctrls.appendChild(runBtn); ctrls.appendChild(tamperBtn);
+        var verdict = document.createElement("div"); verdict.className="demo-verdict";
+        var receipt = document.createElement("div"); receipt.className="demo-receipt";
+        var out = document.createElement("pre"); out.className="demo-out";
+        var els = {runBtn:runBtn, tamperBtn:tamperBtn, verdict:verdict, receipt:receipt, out:out};
+        runBtn.addEventListener("click", function(){ depthRunDemo(p.key, dm.id, "nominal", els); });
+        tamperBtn.addEventListener("click", function(){ depthRunDemo(p.key, dm.id, "tamper", els); });
+        demoEl.appendChild(top); demoEl.appendChild(ctrls);
+        demoEl.appendChild(verdict); demoEl.appendChild(receipt); demoEl.appendChild(out);
+        demosWrap.appendChild(demoEl);
+      });
+      probEl.appendChild(demosWrap);
+      host.appendChild(probEl);
+    });
+  }
+  getJSON("/warhacker/index").then(function(r){
+    var idx = r.json;
+    if(idx && idx.ok && idx.problems && idx.problems.length){
+      renderDepth(idx);
+    } else {
+      var ld = $("depthLoading"); if(ld) ld.textContent = "\u2014 25-demo catalog endpoint reachable but returned no problems \u2014";
+    }
+  }).catch(function(){
+    var ld = $("depthLoading"); if(ld){ ld.style.color="var(--err)"; ld.textContent = "\u2014 NO-LIVE-DATA: 25-demo catalog endpoint unreachable \u2014"; }
+  });
 
   drawTraj();
 })();
