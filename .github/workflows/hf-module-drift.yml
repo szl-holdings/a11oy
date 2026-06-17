@@ -31,6 +31,6 @@ concurrency:
 
 jobs:
   hf-module-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@main
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@79cb06b79d6a3156a5796948295617ff6b207683  # main
     with:
       hf-repo: SZLHOLDINGS/a11oy

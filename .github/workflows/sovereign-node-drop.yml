@@ -44,8 +44,10 @@ name: Sovereign Node Drop
         required: false
         default: 'manual check'
 
+# Least-privilege: read-only default; only the drop-check job (which force-pushes
+# the orphan node-state snapshot branch) escalates to contents: write.
 permissions:
-  contents: write          # to read/force-push the orphan node-state snapshot branch
+  contents: read
   actions: read
 
 concurrency:
@@ -71,6 +73,9 @@ jobs:
     name: Sovereign GPU node-drop check (box vantage)
     needs: self-test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write          # to read/force-push the orphan node-state snapshot branch
+      actions: read
     timeout-minutes: 10
     steps:
       - name: Checkout (main — for the checker script)

@@ -9,4 +9,4 @@ permissions:
 
 jobs:
   check:
-    uses: szl-holdings/.github/.github/workflows/doctrine-check.yml@main
+    uses: szl-holdings/.github/.github/workflows/doctrine-check.yml@79cb06b79d6a3156a5796948295617ff6b207683  # main
