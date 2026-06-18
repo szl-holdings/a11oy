@@ -627,6 +627,24 @@ try:
 except Exception as _szl_pinn_e:  # pragma: no cover
     print(f"[a11oy] Agentic-PINN + physical-bounds mesh NOT registered: {_szl_pinn_e!r}", file=__import__("sys").stderr)
 
+# ── Compliance crosswalk MESH (compliance-mesh) — closes the audited gap where the
+# doctrine-v11 → NIST AI RMF / ISO 42001 / EU AI Act crosswalk module existed
+# (szl_compliance_mesh.py + compliance_crosswalk.py, REAL honest data with
+# IMPLEMENTED/PARTIAL/ROADMAP labels) but its register() was NEVER called in serve.py,
+# so GET /api/a11oy/v1/compliance fell through to the Node-proxy catch-all and 404'd.
+# That 404 is the console error the /signature-is-not-proof PROOF-demo page's `comp-live`
+# probe surfaces. Wiring the existing mesh in (same add_api_route contract as the pinn /
+# unified meshes, BEFORE the /api/a11oy/{path:path} Node proxy + SPA catch-all so it wins
+# by route ordering) serves the REAL crosswalk JSON the page expects. NO fabrication: the
+# artifact is a SELF-ASSERTED advisory alignment (NOT a certification), Egyptian-honest
+# coverage counts only IMPLEMENTED cells, Λ=Conjecture 1. Additive, try/except-guarded.
+try:
+    import szl_compliance_mesh as _szl_compliance_mesh
+    _szl_cc_routes = _szl_compliance_mesh.register(app, ns="a11oy")
+    print(f"[a11oy] Compliance crosswalk mesh registered: {_szl_cc_routes}", file=__import__("sys").stderr)
+except Exception as _szl_cc_e:  # pragma: no cover
+    print(f"[a11oy] Compliance crosswalk mesh NOT registered: {_szl_cc_e!r}", file=__import__("sys").stderr)
+
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
 # Python with the ORIGINAL author cited; SZL borrows methodological structure only (no result

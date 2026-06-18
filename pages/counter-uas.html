@@ -31,6 +31,8 @@ pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:1
 .note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
 footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
 .kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
+/* Mobile responsive: wide data tables scroll inside their own box (not the page); long inline code/hashes wrap. Additive — desktop layout untouched. */
+@media (max-width:480px){table{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}code{overflow-wrap:anywhere;word-break:break-word}}
 </style></head><body>
 <header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
 <nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas" class="active">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>

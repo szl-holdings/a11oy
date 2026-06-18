@@ -194,7 +194,10 @@ def _page_html(ns: str) -> str:
  th{color:var(--gold);font-weight:600;position:sticky;top:0;background:#0d141c}
  td.ctl{color:var(--teal);font-variant-numeric:tabular-nums;white-space:nowrap;font-family:ui-monospace,monospace}
  td.mech{color:var(--para)}
- .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+ .scroll{max-height:420px;overflow:auto;max-width:100%;border:1px solid var(--line);border-radius:8px}
+ /* Mobile: constrain .scroll to viewport so its overflow:auto actually engages (wide control
+    matrices scroll inside the box, not the page); long inline code/hashes wrap. Additive. */
+ @media (max-width:480px){.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.wrap{padding:12px}code{overflow-wrap:anywhere;word-break:break-word}}
  .disc{font-size:11.5px;color:var(--gold);background:#171206;border:1px solid #3a2e10;border-radius:8px;padding:10px;margin-bottom:14px;line-height:1.6}
  .crosslinks a{margin-right:14px}
  .out{white-space:pre-wrap;font:11px ui-monospace,monospace;color:#bfe;background:#06090d;border:1px solid var(--line);border-radius:7px;padding:8px;max-height:240px;overflow:auto}
