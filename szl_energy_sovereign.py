@@ -137,6 +137,40 @@ def _gpu_reachable(state: dict | None = None) -> bool:
     return bool(st.get("sovereign") is True and st.get("inference") == "self-hosted-gpu")
 
 
+# Public, non-revealing descriptor for a sovereign serving endpoint. The orchestrator's
+# inference-state carries the REAL local serving base_url (a private tailnet host:port,
+# e.g. betterwithage:11434) plus the raw GPU label — internal facts that MUST NOT appear
+# in the served /energy/sovereign JSON (same private-IP-leak class scrubbed from
+# compute-pool and the joule-meter exporter). We surface an honest descriptor instead and
+# keep the boolean facts (sovereign / inference / mode / backend) fully truthful.
+_SOVEREIGN_BASE_PUBLIC = "sovereign-gpu (private mesh)"
+_HF_ROUTER_BASE = "https://router.huggingface.co/v1"
+# Address-bearing keys in the inference-state that would leak a private host:port.
+_PRIVATE_STATE_KEYS = ("base_url", "configured_local_base", "gpu", "configured_gpu_label")
+
+
+def _public_inference_state(state: dict | None) -> dict:
+    """Scrub the orchestrator inference-state for EGRESS.
+
+    Keeps every HONEST fact (inference / mode / backend / sovereign / honest_note) but
+    replaces any address-bearing field with a non-revealing public descriptor so a
+    private tailnet host:port / GPU hostname never reaches the served JSON. The public
+    HF Router base is public by definition, so it passes through unchanged. Never raises.
+    """
+    if not isinstance(state, dict):
+        return {}
+    out = dict(state)
+    for k in _PRIVATE_STATE_KEYS:
+        if k not in out:
+            continue
+        v = out.get(k)
+        if isinstance(v, str) and "router.huggingface.co" in v:
+            out[k] = _HF_ROUTER_BASE  # public router endpoint — safe to surface
+        else:
+            out[k] = _SOVEREIGN_BASE_PUBLIC
+    return out
+
+
 def _vllm_metrics_base() -> str | None:
     """Base URL of the on-box vLLM server for its Prometheus /metrics endpoint.
 
@@ -663,7 +697,7 @@ def _posture() -> dict:
         "summary": summary,
         "sovereign": bool(state.get("sovereign")),
         "gpu_reachable": reachable,
-        "inference_state": state,
+        "inference_state": _public_inference_state(state),
         "measured_panels": measured_count,
         "total_panels": len(panels),
         "panels": panels,

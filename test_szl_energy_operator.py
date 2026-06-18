@@ -141,7 +141,8 @@ def test_real_jobs_measure_joules(monkeypatch):
             # Real NVML delta => MEASURED billable joules > 0.
             assert st["joules_measured_total"] > 0, st
             assert st["measured_jobs"] >= 3, st
-            assert "rtx-betterwithage" in st["nodes_computing"], st
+            # status() scrubs raw tailnet hostnames at egress -> public display name.
+            assert "Sovereign GPU 1" in st["nodes_computing"], st
             assert st["nodes_degraded"] == [], st
     finally:
         node.stop()
@@ -218,7 +219,7 @@ def test_unreachable_node_degraded_not_faked():
         produced = op.run_once()
         assert produced == [], "unreachable node must produce NO job records"
         st = op.status()
-        assert "rtx-betterwithage" in st["nodes_degraded"], st
+        assert "Sovereign GPU 1" in st["nodes_degraded"], st  # public display name
         assert st["jobs_done"] == 0, st
         assert st["joules_measured_total"] == 0.0, st  # never fabricated
 
@@ -238,8 +239,9 @@ def test_standby_node_unreachable_reads_standby_not_degraded():
         produced = op.run_once()
         assert produced == [], "standby+unreachable must produce NO job records"
         st = op.status()
-        assert "chaski" in st["nodes_standby"], st          # intentionally not started
-        assert "chaski" not in st["nodes_degraded"], st     # NOT alarming/DEGRADED
+        # chaski -> public display name; intentionally not started reads "standby".
+        assert "Sovereign GPU 3 (tailnet)" in st["nodes_standby"], st
+        assert "Sovereign GPU 3 (tailnet)" not in st["nodes_degraded"], st  # NOT DEGRADED
         assert st["jobs_done"] == 0, st
         assert st["joules_measured_total"] == 0.0, st        # never fabricated
 
@@ -257,9 +259,10 @@ def test_standby_node_reachable_still_computes(monkeypatch):
                 state_path=os.path.join(d, "ledger.json"), allow_stub=False)
             op.run_once()
             st = op.status()
-            assert "chaski" in st["nodes_computing"], st     # reachable => computes
-            assert "chaski" not in st["nodes_standby"], st   # not parked when up
-            assert "chaski" not in st["nodes_degraded"], st
+            pub = "Sovereign GPU 3 (tailnet)"               # chaski -> public name
+            assert pub in st["nodes_computing"], st           # reachable => computes
+            assert pub not in st["nodes_standby"], st         # not parked when up
+            assert pub not in st["nodes_degraded"], st
             assert st["jobs_done"] >= 2, st
             assert st["joules_measured_total"] > 0, st        # real MEASURED joules
     finally:
@@ -340,8 +343,9 @@ def test_omen_standby_unreachable_reads_standby_not_degraded():
             produced = op.run_once()
             assert produced == [], "standby+unreachable OMEN must produce NO job records"
             st = op.status()
-            assert "omen-betterwithage" in st["nodes_standby"], st
-            assert "omen-betterwithage" not in st["nodes_degraded"], st
+            pub = "Sovereign GPU 2 (always-on anchor)"      # omen -> public name
+            assert pub in st["nodes_standby"], st
+            assert pub not in st["nodes_degraded"], st
             assert st["joules_measured_total"] == 0.0, st   # never a fabricated joule
     finally:
         _clear_omen_env()
@@ -361,8 +365,9 @@ def test_omen_reachable_joins_computing_with_real_joules(monkeypatch):
                 state_path=os.path.join(d, "ledger.json"), allow_stub=False)
             op.run_once()
             st = op.status()
-            assert "omen-betterwithage" in st["nodes_computing"], st  # joined by REAL probe
-            assert "omen-betterwithage" not in st["nodes_standby"], st
+            pub = "Sovereign GPU 2 (always-on anchor)"      # omen -> public name
+            assert pub in st["nodes_computing"], st           # joined by REAL probe
+            assert pub not in st["nodes_standby"], st
             assert st["jobs_done"] >= 2, st
     finally:
         node.stop()

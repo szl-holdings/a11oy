@@ -196,6 +196,76 @@ def _import_org_rag():
 # totals→{joules}). We reuse the SAME URL so the operator meters off the same source.
 _JOULE_METER_URL = os.environ.get("A11OY_JOULE_METER_URL", "http://100.96.129.45:9471/")
 
+# ---------------------------------------------------------------------------
+# EGRESS SCRUB (Doctrine v11 — same class as szl_energy_sovereign._JOULE_METER_PUBLIC
+# / the compute-pool egress scrub). The operator probes the real tailnet joule-meter
+# and the real GPU nodes INTERNALLY (constants above are UNCHANGED — the box still
+# connects to the exact same addresses), but the SERVED status() JSON renders on a
+# public HF Space, so a private IP (100.x), a private :port (:9471/:11434), or a raw
+# tailnet hostname (betterwithage / rtx-betterwithage / omen-betterwithage / chaski)
+# MUST NEVER appear in it. We surface honest, non-revealing PUBLIC DISPLAY labels
+# instead — no fact (running flag, joules, jobs, node count, MEASURED labels) changes,
+# only the addressing/hostnames are replaced with a friendly public descriptor.
+# ---------------------------------------------------------------------------
+_JOULE_METER_PUBLIC = "on-box sovereign-GPU joule-meter exporter (private tailnet)"
+
+# Stable public display name per internal node identity. Honestly public, non-revealing:
+# the operator's REAL node names are private tailnet hostnames, so the served view uses a
+# friendly label that tells the truth about ROLE without leaking the host:port.
+_NODE_PUBLIC_NAMES = {
+    "rtx-betterwithage": "Sovereign GPU 1",
+    "betterwithage": "Sovereign GPU 1",
+    "omen-betterwithage": "Sovereign GPU 2 (always-on anchor)",
+    "omen": "Sovereign GPU 2 (always-on anchor)",
+    "chaski": "Sovereign GPU 3 (tailnet)",
+    "local-stub": "local-stub (no GPU)",
+}
+
+
+def _public_node(name: Optional[str]) -> Optional[str]:
+    """Map an internal node/exporter identity to its honest PUBLIC display name.
+
+    Known nodes get a curated friendly label. An unknown name is returned only when it
+    carries NO private token; otherwise it collapses to a generic non-revealing label so
+    a raw tailnet host:port can never reach egress. Never raises."""
+    if name is None:
+        return None
+    s = str(name)
+    if s in _NODE_PUBLIC_NAMES:
+        return _NODE_PUBLIC_NAMES[s]
+    low = s.lower()
+    # Honest stub suffix is preserved (it is public and meaningful).
+    if low.endswith("-stub"):
+        return "local-stub (no GPU)"
+    for tok in ("betterwithage", "chaski", "omen", "100.", ":11434", ":9471", "rtx-"):
+        if tok in low:
+            return "sovereign-gpu (private mesh)"
+    return s
+
+
+def _public_evidence(evidence: Any) -> Any:
+    """Scrub a joules_evidence dict's exporter_node before egress (keeps every number)."""
+    if not isinstance(evidence, dict):
+        return evidence
+    if "exporter_node" in evidence:
+        ev = dict(evidence)
+        ev["exporter_node"] = _public_node(ev.get("exporter_node"))
+        return ev
+    return evidence
+
+
+def _public_job(job: Any) -> Any:
+    """Scrub a served recent-job dict: public node name + scrubbed evidence (numbers
+    intact). Internal JobRecords/ledger wire are UNCHANGED — this is egress-only."""
+    if not isinstance(job, dict):
+        return job
+    j = dict(job)
+    if "node" in j:
+        j["node"] = _public_node(j.get("node"))
+    if "joules_evidence" in j:
+        j["joules_evidence"] = _public_evidence(j.get("joules_evidence"))
+    return j
+
 # Ledger / state file. Survives restart so cumulative counts resume. Override for tests.
 _DEFAULT_STATE_PATH = os.environ.get(
     "A11OY_OPERATOR_STATE", os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1114,10 +1184,10 @@ class OperatorDaemon:
     def status(self) -> dict:
         with self._lock:
             uptime = (time.time() - self._started_at) if self._started_at else 0.0
-            computing = [n for n, s in self._node_status.items()
+            computing = [_public_node(n) for n, s in self._node_status.items()
                          if s in ("computing", "computing (STUB)")]
-            degraded = [n for n, s in self._node_status.items() if s == "DEGRADED"]
-            standby = [n for n, s in self._node_status.items() if s == "standby"]
+            degraded = [_public_node(n) for n, s in self._node_status.items() if s == "DEGRADED"]
+            standby = [_public_node(n) for n, s in self._node_status.items() if s == "standby"]
             st = self._state
             return {
                 "service": "energy-operator",
@@ -1137,12 +1207,13 @@ class OperatorDaemon:
                 "nodes_computing": computing,
                 "nodes_degraded": degraded,
                 "nodes_standby": standby,
-                "node_status": dict(self._node_status),
-                "by_node": {k: _label_by_node(k, v) for k, v in st.by_node.items()},
+                "node_status": {_public_node(n): s for n, s in self._node_status.items()},
+                "by_node": {_public_node(k): _label_by_node(k, v)
+                            for k, v in st.by_node.items()},
                 "uptime_s": round(uptime, 3),
                 "window_seconds": round(uptime, 3),
                 "jobs_completed": st.jobs_done,
-                "exporter_node": next((n.exporter_node for n in self.nodes), None),
+                "exporter_node": _public_node(next((n.exporter_node for n in self.nodes), None)),
                 "power_w_sample": self._last_power_w,
                 "grid_price_eur_mwh": self._grid_price_eur_mwh,
                 "work_mode": self._work_mode,
@@ -1163,8 +1234,8 @@ class OperatorDaemon:
                     "live RAG dense index. Useful work changes WHAT is computed, "
                     "never HOW joules are measured — the MEASURED gate is unchanged."
                 ),
-                "recent_jobs": list(self._last_records[-10:]),
-                "exporter": _JOULE_METER_URL,
+                "recent_jobs": [_public_job(j) for j in self._last_records[-10:]],
+                "exporter": _JOULE_METER_PUBLIC,
                 "honesty": (
                     "joules_measured_total is the SUM of per-job MEASURED NVML deltas "
                     "(fresh <30s) ONLY — the billable figure. SAMPLE energy (stale meter "
@@ -1345,7 +1416,8 @@ def _selftest() -> dict:
         st = op.status()
         assert st["jobs_done"] >= 2 and st["tokens_total"] > 0, st
         assert st["joules_measured_total"] == 0.0, st  # stub energy never billable
-        assert "rtx-betterwithage" in st["nodes_degraded"], st  # unreachable => DEGRADED
+        # status() scrubs the raw tailnet hostname at egress -> public display name.
+        assert _public_node("rtx-betterwithage") in st["nodes_degraded"], st  # unreachable => DEGRADED
         out["stub_real_work_no_billable_joules"] = True
 
         # (d) Restart resumes from persisted ledger.
