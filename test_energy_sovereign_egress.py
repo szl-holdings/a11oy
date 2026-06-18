@@ -43,7 +43,7 @@ def test_metrics_panel_unreachable_fallback_has_no_private_addr():
     assert panel["metric"] == "energy_metrics"
     assert panel["label"] in ("ROADMAP", "MEASURED")
     # The exporter field is a safe label, not a URL.
-    assert panel["exporter"] == es._JOULE_METER_LABEL
+    assert panel["exporter"] == es._JOULE_METER_PUBLIC
     assert "http://" not in panel["exporter"]
 
 
@@ -71,14 +71,14 @@ def test_metrics_panel_live_shape_has_no_private_addr(monkeypatch):
     assert panel["label"] == "MEASURED"
     assert panel["joules_total"] == 1234.5
     assert panel["power_w"] == 42.0
-    assert panel["exporter"] == es._JOULE_METER_LABEL
+    assert panel["exporter"] == es._JOULE_METER_PUBLIC
 
 
 def test_internal_meter_url_is_still_the_real_private_address():
     # Doctrine: we hide the address at EGRESS only. The box must still probe the
     # real tailnet meter internally — the constant is unchanged.
     assert es._JOULE_METER_URL.startswith("http://100.")
-    assert es._JOULE_METER_URL != es._JOULE_METER_LABEL
+    assert es._JOULE_METER_URL != es._JOULE_METER_PUBLIC
 
 
 if __name__ == "__main__":
