@@ -73,16 +73,21 @@ FROM python:3.12-slim AS runtime
 WORKDIR /app
 
 # Install Node 22 (for a11oy serve TypeScript runner)
+# Install GitHub CLI (gh) -- the a11oy.code github_read_file / github_open_issue /
+# github_open_pr tools shell out to `gh` and read GH_TOKEN/GITHUB_TOKEN from the
+# Space env. Official apt repo; curl + gnupg installed in the first half of this RUN.
+# LAYER-CEILING CONSOLIDATION (build/docker, Opus 4.8): the Node-22 install and the
+# gh install were two adjacent fail-loud apt RUNs; merged into ONE RUN to drop one
+# image layer (BuildKit max-depth fix). Identical apt sources, identical packages,
+# identical order of effect (Node first -> curl/gnupg present -> gh repo + gh), same
+# fail-loud semantics (no `|| true`). The gh block re-runs `apt-get update` after the
+# lists were cleaned by the Node block, exactly as before. Build-time tooling only.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates gnupg git && \
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install GitHub CLI (gh) -- the a11oy.code github_read_file / github_open_issue /
-# github_open_pr tools shell out to `gh` and read GH_TOKEN/GITHUB_TOKEN from the
-# Space env. Official apt repo; curl + gnupg already installed above. Build-time only.
-RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
     chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
@@ -99,6 +104,19 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 # Each == is the version pip ACTUALLY resolved in the current RUNNING build
 # (HF Space commit 9cb85b2, build log 2026-06-18) — a lockfile that preserves
 # current behavior, NOT an upgrade. Every pin satisfies the prior range.
+# LAYER-CEILING CONSOLIDATION (build/docker, Opus 4.8): the three adjacent
+# fail-loud `pip install --no-cache-dir` RUNs (core deps + slowapi + defusedxml)
+# are merged into ONE RUN to drop two image layers (BuildKit max-depth fix). Same
+# packages, same EXACT pins, same `--no-cache-dir`, same fail-loud semantics
+# (none used `|| true`); pip resolves the identical set in one invocation. The
+# per-pin rationale comments below are preserved verbatim.
+# BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
+# Hardens the Odoo ERP connector's XML-RPC parser against XML entity-expansion /
+# decompression-bomb attacks (bandit B411). szl_connectors/erp/odoo.py applies
+# defusedxml.xmlrpc.monkey_patch() before parsing untrusted server responses;
+# this pin makes that path active in the running image (pure-python wheel).
+# Mirrors killinchu #150 so the byte-identical szl_connectors/erp/odoo.py is
+# hardened in BOTH flagships rather than silently degrading to the stdlib parser.
 RUN pip install --no-cache-dir \
     "fastapi==0.137.1" \
     "uvicorn[standard]==0.49.0" \
@@ -108,17 +126,9 @@ RUN pip install --no-cache-dir \
     "openai==2.43.0" \
     "python-multipart==0.0.32" \
     "cryptography==49.0.0" \
-    "lmdb==2.2.1"
-# BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
-RUN pip install --no-cache-dir "slowapi==0.1.10"
-
-# Hardens the Odoo ERP connector's XML-RPC parser against XML entity-expansion /
-# decompression-bomb attacks (bandit B411). szl_connectors/erp/odoo.py applies
-# defusedxml.xmlrpc.monkey_patch() before parsing untrusted server responses;
-# this pin makes that path active in the running image (pure-python wheel).
-# Mirrors killinchu #150 so the byte-identical szl_connectors/erp/odoo.py is
-# hardened in BOTH flagships rather than silently degrading to the stdlib parser.
-RUN pip install --no-cache-dir "defusedxml==0.7.1"
+    "lmdb==2.2.1" \
+    "slowapi==0.1.10" \
+    "defusedxml==0.7.1"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
@@ -158,9 +168,15 @@ COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_me
 # Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
 # falls back and /spaces + /api/<ns>/v1/spaces/health 404. Byte-identical a11oy+killinchu.
 COPY szl_spaces_proxy.py szl_spaces_surface.py ./
-COPY szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_dsse.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py ./
-COPY _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py ./
-COPY szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py szl_sovereign_compute.py a11oy_active_flux_router.py ./
+# LAYER-CEILING CONSOLIDATION (build/docker, Opus 4.8): three adjacent per-file
+# root COPYs (all landing at the /app WORKDIR `./`, no comments between them) are
+# merged into ONE single-line multi-source COPY to drop two image layers (BuildKit
+# max-depth fix). IDENTICAL file set ships to the IDENTICAL `./` destination in the
+# IDENTICAL order (sources concatenated in sequence; every basename is distinct so
+# nothing overwrites anything). Same single-line grouped-COPY form already used for
+# the segment-A/segment-B root-file COPY groups above, so any line-based COPY-set
+# parser (e.g. hf-sync-backend) reads it exactly as it reads those. Never `COPY . .`.
+COPY szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_dsse.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py szl_sovereign_compute.py a11oy_active_flux_router.py ./
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
 COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
