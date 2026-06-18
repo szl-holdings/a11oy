@@ -64,7 +64,9 @@ import os
 
 def git_blob_sha1(data: bytes) -> str:
     """git blob sha1 of raw bytes (== HF blob_id for non-LFS files)."""
-    h = hashlib.sha1()
+    # Content-addressing, NOT a security digest: the algorithm is fixed by git's
+    # own blob-id scheme (SHA-1), so it cannot be swapped for a stronger hash.
+    h = hashlib.sha1(usedforsecurity=False)
     h.update(b"blob %d\0" % len(data))
     h.update(data)
     return h.hexdigest()
