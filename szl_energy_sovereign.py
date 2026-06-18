@@ -918,6 +918,14 @@ def _html(p: dict) -> str:
 # a watt. Route always returns 200 so the meter posture stays machine-readable.
 _JOULE_METER_URL = "http://100.96.129.45:9471/"
 
+# Public, non-revealing descriptor for the joule-meter exporter. The exporter lives on
+# the private sovereign-GPU tailnet (100.x:9471) — that raw host:port is an internal
+# address and MUST NOT appear in any served JSON (same private-IP-leak class scrubbed
+# from compute-pool, #492-#499). The served panel surfaces this honest descriptor;
+# reachability is still told truthfully via the real label/joules_honesty fields, never
+# via the address. _JOULE_METER_URL stays the internal probe target only.
+_JOULE_METER_LABEL = "on-box sovereign-GPU joule-meter exporter (private tailnet)"
+
 
 def _joule_meter(timeout: float = 4.0):
     import json as _j, urllib.request as _u
@@ -937,7 +945,7 @@ def _metrics_panel() -> dict:
             "power_w": None, "power_w_label": "UNAVAILABLE",
             "joules_total": None, "joules_honesty": "unavailable",
             "reason": "joule-meter exporter unreachable",
-            "exporter": _JOULE_METER_URL, "generated_at": _now_iso(),
+            "exporter": _JOULE_METER_LABEL, "generated_at": _now_iso(),
         }
     engines = []
     live_power_w = None
@@ -984,7 +992,7 @@ def _metrics_panel() -> dict:
         "kwh": totals.get("kwh"), "eur_per_mwh": totals.get("eur_per_mwh"),
         "eur_cost": totals.get("eur_cost"),
         "engines": engines,
-        "exporter": _JOULE_METER_URL,
+        "exporter": _JOULE_METER_LABEL,
         "meter_generated_at": meter.get("generated_at"),
         "generated_at": _now_iso(),
         "citations": ["Watt-Counts arXiv:2604.09048", "Energy-per-Token arXiv:2603.20224"],
