@@ -742,7 +742,7 @@ def _hash_embed(text: str, dim: int = 128) -> List[float]:
     Pure-Python (returns a plain list) — no numpy needed."""
     vec = [0.0] * dim
     for tok in (text.lower().split()):
-        h = int(hashlib.md5(tok.encode("utf-8")).hexdigest(), 16)
+        h = int(hashlib.md5(tok.encode("utf-8"), usedforsecurity=False).hexdigest(), 16)
         vec[h % dim] += 1.0 if (h >> 8) & 1 else -1.0
     nrm = math.sqrt(sum(x * x for x in vec))
     return [x / nrm for x in vec] if nrm > 1e-9 else vec
