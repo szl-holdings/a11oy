@@ -188,6 +188,15 @@ pre.out{font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--pa
   .kpis{grid-template-columns:1fr;}
   .content{padding:.85rem .85rem 1.6rem;}
   .card{padding:.85rem .9rem;}
+  /* FN-gap2 D1: atlas tab mobile clip fix (layout-only, additive). The 420px
+     min track forced .atlas-grid wider than a 375px viewport and the route
+     buttons rendered beyond the right edge with no wrap/scroll. Single-column
+     stack + min-width:0 lets every atlas element shrink to the viewport, and
+     the routes row wraps so no .atlas-route is clipped/unreachable. */
+  .atlas-grid{grid-template-columns:1fr;min-width:0;}
+  .atlas-card,.atlas-detail,.atlas-routes{min-width:0;max-width:100%;}
+  .atlas-routes{flex-wrap:wrap;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .atlas-route{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;}
 }
 /* ============ RESPONSIVE HARDENING v2 (2026-06 · VISUAL/LAYOUT ONLY) ============
    Mobile-first polish across phone/tablet/desktop/large display. Additive only —
