@@ -95,18 +95,22 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 # unified open-LLM router (HF Router inference). python-multipart is required by
 # FastAPI UploadFile for the Whisper /voice/stt endpoint. None of these change the
 # existing SPA / gates runtime; the orchestrator import is try/except-guarded in serve.py.
+# REPRODUCIBILITY (founder-flag #5, SWEEP-3): EXACT pins replace bounded ranges.
+# Each == is the version pip ACTUALLY resolved in the current RUNNING build
+# (HF Space commit 9cb85b2, build log 2026-06-18) — a lockfile that preserves
+# current behavior, NOT an upgrade. Every pin satisfies the prior range.
 RUN pip install --no-cache-dir \
-    "fastapi>=0.111.0,<1.0.0" \
-    "uvicorn[standard]>=0.29.0,<1.0.0" \
-    "httpx>=0.27.0,<1.0.0" \
-    "starlette>=0.37.0" \
-    "huggingface_hub>=0.25.0" \
-    "openai>=1.40.0" \
-    "python-multipart>=0.0.9" \
-    "cryptography>=42.0.0" \
-    "lmdb>=1.4.0"
+    "fastapi==0.137.1" \
+    "uvicorn[standard]==0.49.0" \
+    "httpx==0.28.1" \
+    "starlette==1.3.1" \
+    "huggingface_hub==1.19.0" \
+    "openai==2.43.0" \
+    "python-multipart==0.0.32" \
+    "cryptography==49.0.0" \
+    "lmdb==2.2.1"
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
-RUN pip install --no-cache-dir "slowapi>=0.1.9"
+RUN pip install --no-cache-dir "slowapi==0.1.10"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
