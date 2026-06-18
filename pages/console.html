@@ -14,37 +14,37 @@
 </style>
 <!-- THREE r128 (MIT) vendored standalone so window.THREE is a real global for the GPU
      trust-field / knowledge-graph builders. Loaded BEFORE 3d-force-graph so they share it. -->
-<script src="/vendor/three.min.js"></script>
-<script src="/vendor/chart.umd.min.js"></script>
-<script src="/vendor/3d-force-graph.min.js"></script>
-<script src="/vendor/echarts.min.js"></script>
-<script src="/vendor/echarts-gl.min.js"></script>
-<script src="/vendor/globe.gl.min.js"></script>
-<script src="/vendor/cytoscape.min.js"></script>
-<script src="/vendor/d3.min.js"></script>
+<script defer src="/vendor/three.min.js"></script>
+<script defer src="/vendor/chart.umd.min.js"></script>
+<script defer src="/vendor/3d-force-graph.min.js"></script>
+<script defer src="/vendor/echarts.min.js"></script>
+<script defer src="/vendor/echarts-gl.min.js"></script>
+<script defer src="/vendor/globe.gl.min.js"></script>
+<script defer src="/vendor/cytoscape.min.js"></script>
+<script defer src="/vendor/d3.min.js"></script>
 <!-- Batch-1 uniqueness rebuild (2026-06-06): vendored graph-viz libs (MIT/ISC/BSD, NOTICE). ZERO CDN. -->
-<script src="/vendor/dagre.min.js"></script>
-<script src="/vendor/cytoscape-dagre.js"></script>
-<script src="/vendor/d3-sankey.min.js"></script>
-<script src="/vendor/ngraph.graph.min.js"></script>
-<script src="/vendor/ngraph.path.min.js"></script>
-<script src="/vendor/ngraph.forcelayout.min.js"></script>
-<script src="/vendor/panzoom.min.js"></script>
-<script src="/vendor/ngraph.events.umd.js"></script>
-<script src="/vendor/vivagraph.min.js"></script>
+<script defer src="/vendor/dagre.min.js"></script>
+<script defer src="/vendor/cytoscape-dagre.js"></script>
+<script defer src="/vendor/d3-sankey.min.js"></script>
+<script defer src="/vendor/ngraph.graph.min.js"></script>
+<script defer src="/vendor/ngraph.path.min.js"></script>
+<script defer src="/vendor/ngraph.forcelayout.min.js"></script>
+<script defer src="/vendor/panzoom.min.js"></script>
+<script defer src="/vendor/ngraph.events.umd.js"></script>
+<script defer src="/vendor/vivagraph.min.js"></script>
 <link rel="stylesheet" href="/vendor/katex.min.css"/>
-<script src="/vendor/katex.min.js"></script>
+<script defer src="/vendor/katex.min.js"></script>
 <!-- DEV1: SZL Estate shared modules (byte-identical cross-app), served in-image at /static/shared (0 CDN). window.SZLLabels / SZLReceipts / SZLCodenames. -->
-<script src="/static/shared/szl_label_engine.js"></script>
-<script src="/static/shared/szl_receipt_cosign.js"></script>
-<script src="/static/shared/szl_codename_sanitizer.js"></script>
+<script defer src="/static/shared/szl_label_engine.js"></script>
+<script defer src="/static/shared/szl_receipt_cosign.js"></script>
+<script defer src="/static/shared/szl_codename_sanitizer.js"></script>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
   --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
   --gold:#c9b787; --gold-bright:#d6c69a;
   --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
-  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#9a9a9a;
   --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
   --teal-line:rgba(95,179,163,0.22);
   --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
@@ -744,7 +744,7 @@ function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
 function setTxt(id,t){const e=el(id);if(e)e.textContent=t;}
 function addHTML(id,html){const e=el(id);if(e)e.insertAdjacentHTML('beforeend',html);}
 // ===== VISUAL HELPERS (Chart.js + 3d-force-graph) =====
-const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#555',GRID='rgba(201,183,135,0.08)';
+const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#9a9a9a',GRID='rgba(201,183,135,0.08)';
 let _charts={};
 function killChart(id){if(_charts[id]){try{_charts[id].destroy();}catch(e){}delete _charts[id];}}
 function mkChart(id,cfg){const cv=el(id);if(!cv||!window.Chart)return;killChart(id);
@@ -3840,7 +3840,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 (function(){
   'use strict';
   var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', CREAM='#f5f5f5',
-      DIM='#555', GRAY='#6b6b6b', GRID='rgba(201,183,135,0.10)';
+      DIM='#9a9a9a', GRAY='#6b6b6b', GRID='rgba(201,183,135,0.10)';
   function E(id){return document.getElementById(id);}
   function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
@@ -4547,7 +4547,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 <script>
 (function(){
   var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', CREAM='#f5f5f5',
-      DIM='#555', GRAY='#6b6b6b', GRID='rgba(201,183,135,0.10)';
+      DIM='#9a9a9a', GRAY='#6b6b6b', GRID='rgba(201,183,135,0.10)';
   function E(id){return document.getElementById(id);}
   function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
@@ -5174,7 +5174,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 <script>
 (function(){
   var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', CREAM='#f5f5f5',
-      DIM='#555', GRAY='#6b6b6b', BLUE='#7a8aa0', GRID='rgba(201,183,135,0.10)';
+      DIM='#9a9a9a', GRAY='#6b6b6b', BLUE='#7a8aa0', GRID='rgba(201,183,135,0.10)';
   function E(id){return document.getElementById(id);}
   function H(id,h){var e=E(id);if(e)e.innerHTML=h;}
   function T(id,t){var e=E(id);if(e)e.textContent=t;}
@@ -5696,7 +5696,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             svg+='<text x="'+x+'" y="74" text-anchor="middle" fill="'+col+'" font-size="10">'+(st.ok?'\u2713':'\u2717')+'</text>';
             svg+='<text x="'+x+'" y="40" text-anchor="middle" fill="'+GOLD+'" font-size="9" font-weight="600">'+esc(st.n)+'</text>';
             svg+='<text x="'+x+'" y="98" text-anchor="middle" fill="#888" font-size="7.5">'+esc(st.label.length>22?st.label.slice(0,20)+'\u2026':st.label)+'</text>';
-            svg+='<text x="'+x+'" y="110" text-anchor="middle" fill="#666" font-size="7">P'+(i+1)+'</text>';
+            svg+='<text x="'+x+'" y="110" text-anchor="middle" fill="#9a9a9a" font-size="7">P'+(i+1)+'</text>';
           });
           svg+='</svg>'; host.innerHTML=svg;
           var cmd=E('dp-cmd'); if(cmd)cmd.textContent='# verify the air-gapped bundle offline\ncosign verify-blob --key /cosign.pub --signature bundle.sig bundle.tar\n# verify SLSA provenance\nslsa-verifier verify-artifact --provenance-path image.att image.tar\n# any byte mutation => re-verify REJECTS (P5)';
@@ -5849,7 +5849,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   whenReady(function(){
     var V=window.VIEWS; if(!V) return;
     var T=window.setTxt, E=window.el, H=window.setHTML, gj=window.getJSON;
-    var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', DIM='#666', CREAM='#f5f5f5';
+    var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', DIM='#9a9a9a', CREAM='#f5f5f5';
     /* Doctrine v13: user-visible labels only. Banned internal codenames
        (amaru/sentra/rosie) are mapped to approved capability names (YACHAY /
        CHAPAQ) or generic capability labels; approved Quechua organ names are
@@ -5974,7 +5974,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var V=window.VIEWS; if(!V) return;
     var E=window.el, T=window.setTxt, H=window.setHTML, gj=window.getJSON, pj=window.postJSON, esc=window.esc;
     var every=window.every, liveDot=window.liveDot, dag3d=window.dag3d;
-    var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', DIM='#666', CREAM='#f5f5f5';
+    var GOLD='#c9b787', TEAL='#5fb3a3', RED='#b06a5a', AMBER='#c9a05f', DIM='#9a9a9a', CREAM='#f5f5f5';
     var API=window.API||'/api/a11oy';
 
     /* ===== FORMULA INSTILLATION =====================================================
@@ -6014,7 +6014,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<code class="mono" style="color:var(--cream);font-size:11.5px">'+esc(f.name)+'</code>'
         +window.a11oyMatBadge(f.mat)+'</div>'
         +'<div class="mono dim" style="font-size:11px;margin-top:.2rem;line-height:1.5">'+esc(f.role)+'</div>'
-        +'<div class="mono dim" style="font-size:10px;margin-top:.15rem;color:#5a6a5e">Lean: '+esc(f.lean)+'</div>'
+        +'<div class="mono dim" style="font-size:10px;margin-top:.15rem;color:#879e92">Lean: '+esc(f.lean)+'</div>'
         +(extra?('<div class="mono dim" style="font-size:10.5px;margin-top:.2rem">'+extra+'</div>'):'')
         +'</div>'; };
     // a compact "powered by formula" inline tag for KPI/section headers
@@ -6499,7 +6499,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<code class="mono" style="color:'+CREAM+';font-size:11.5px">'+esc(f.id)+' · '+esc(f.name)+'</code>'
         +_matBadge(f.mat)+lockTag+axTag+'</div>'
         +(f.statement?'<div class="mono dim" style="font-size:11px;margin-top:.2rem;line-height:1.5">'+esc(f.statement)+'</div>':'')
-        +(f.lean?'<div class="mono dim" style="font-size:10px;margin-top:.15rem;color:#5a6a5e">Lean: '+esc(f.lean)+'</div>':'')
+        +(f.lean?'<div class="mono dim" style="font-size:10px;margin-top:.15rem;color:#879e92">Lean: '+esc(f.lean)+'</div>':'')
         +'</div>'; }
 
     /* ============================================================================
@@ -11125,7 +11125,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   whenReady(function(){
     var V=window.VIEWS; if(!V) return;
     var esc=window.esc||function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
-    var GOLD='#c9b787', TEAL='#5fb3a3', AMBER='#c9a05f', RED='#b06a5a', DIM='#6a6a6a', CREAM='#f5f5f5';
+    var GOLD='#c9b787', TEAL='#5fb3a3', AMBER='#c9a05f', RED='#b06a5a', DIM='#9a9a9a', CREAM='#f5f5f5';
     function gj(u){ return (window.getJSON?window.getJSON(u):fetch(u).then(function(r){return r.json();})); }
     function pj(u,b){ return (window.postJSON?window.postJSON(u,b):fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json();})); }
     function mk(tag,attrs,html){ var e=document.createElement(tag); if(attrs)for(var k in attrs)e.setAttribute(k,attrs[k]); if(html!=null)e.innerHTML=html; return e; }
@@ -11186,8 +11186,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div>avg clustering coeff <b style="color:'+TEAL+'">'+m.avg_clustering_coefficient+'</b> · Fiedler λ2 <b style="color:'+TEAL+'">'+m.fiedler_lambda2+'</b></div>'
           +'<div>DAG integrity <b style="color:'+(m.dag_integrity&&m.dag_integrity.is_dag?TEAL:RED)+'">'+(m.dag_integrity&&m.dag_integrity.is_dag?'acyclic ✓':'cycles: '+(m.dag_integrity?m.dag_integrity.back_edges:'?'))+'</b></div>'
           +'<div style="margin-top:.35rem;color:'+DIM+'">top centrality: '+(d.top_degree_centrality||[]).map(function(t){return esc(t.node)+' ('+t.centrality+')';}).join(' · ')+'</div>'
-          +'<div style="margin-top:.4rem;color:#5a6a5e">source: '+esc(d.source)+' · layout: '+esc((d.layout||{}).engine)+' seed '+((d.layout||{}).seed)+'</div>'
-          +'<div style="margin-top:.2rem;color:#5a6a5e">'+esc(d.note||'')+'</div>';
+          +'<div style="margin-top:.4rem;color:#879e92">source: '+esc(d.source)+' · layout: '+esc((d.layout||{}).engine)+' seed '+((d.layout||{}).seed)+'</div>'
+          +'<div style="margin-top:.2rem;color:#879e92">'+esc(d.note||'')+'</div>';
         out.innerHTML=rows;
       }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">metrics unavailable: '+esc(e.message)+'</span>'; });
     }
@@ -11219,8 +11219,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div style="margin-top:.3rem">arithmetic '+vv.arithmetic+' ≥ geometric '+vv.geometric+' ≥ harmonic '+vv.harmonic+' &nbsp;'+(d.am_gm_hm_ordering_holds?badge('AM≥GM≥HM ✓',TEAL):badge('ordering violated',RED))+'</div>'
           +'<div style="margin-top:.3rem;color:'+DIM+'">power mean (p='+d.p+') = '+vv.power_p+'</div>'
           +'<div style="margin-top:.4rem;color:'+AMBER+'">'+esc(d.maturity)+'</div>'
-          +'<div style="color:#5a6a5e">Lean: '+esc(d.lean)+'</div>'
-          +'<div style="margin-top:.25rem;color:#5a6a5e">'+esc(d.honest)+'</div>';
+          +'<div style="color:#879e92">Lean: '+esc(d.lean)+'</div>'
+          +'<div style="margin-top:.25rem;color:#879e92">'+esc(d.honest)+'</div>';
       }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
     }
     function forecastPanel(container){
@@ -11230,7 +11230,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       gj('/api/a11oy/v1/wirea/forecast/coverage').then(function(d){
         out.innerHTML='<div>target coverage <b>'+d.coverage_target+'</b> · empirical <b style="color:'+TEAL+'">'+d.empirical_coverage+'</b> · gap <b style="color:'+(Math.abs(d.gap)<0.05?TEAL:AMBER)+'">'+d.gap+'</b></div>'
           +'<div style="margin-top:.3rem">band ±'+d.band_halfwidth+' · n='+d.n+'</div>'
-          +'<div style="margin-top:.4rem;color:#5a6a5e">'+esc(d.method)+'</div><div style="color:#5a6a5e">'+esc(d.label)+'</div>';
+          +'<div style="margin-top:.4rem;color:#879e92">'+esc(d.method)+'</div><div style="color:#879e92">'+esc(d.label)+'</div>';
       }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
     }
     function evalPanel(container){
@@ -11242,7 +11242,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         out.innerHTML='<div>Brier <b style="color:'+TEAL+'">'+d.brier+'</b> · CRPS <b style="color:'+TEAL+'">'+d.crps+'</b> · ECE <b style="color:'+TEAL+'">'+d.ece+'</b> <span style="color:'+DIM+'">(lower = better calibrated)</span></div>'
           +'<div style="margin-top:.4rem;color:'+GOLD+'">Pareto front: '+esc((d.pareto_front||[]).join(', '))+'</div>'
           +'<div style="margin-top:.4rem;color:'+DIM+'">reliability:<br>'+bins+'</div>'
-          +'<div style="margin-top:.3rem;color:#5a6a5e">'+esc(d.label)+'</div>';
+          +'<div style="margin-top:.3rem;color:#879e92">'+esc(d.label)+'</div>';
       }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
     }
     function routerPanel(container){
@@ -11255,8 +11255,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         var rows=(d.ranked||[]).map(function(r,i){ return '<div style="'+(i===0?'color:'+TEAL+';font-weight:700':'color:'+CREAM)+'">'+(i===0?'▶ ':'  ')+esc(r.model)+' &nbsp; reward '+r.reward+' <span style="color:'+DIM+';font-weight:400"> — '+esc(r.why)+'</span></div>'; }).join('');
         out.innerHTML='<div style="color:'+GOLD+'">preset '+esc(d.preset)+' · α='+d.weights.alpha_quality+' β='+d.weights.beta_cost+' γ='+d.weights.gamma_latency+'</div>'
           +'<div style="margin-top:.4rem">'+rows+'</div>'
-          +'<div style="margin-top:.4rem;color:#5a6a5e">selected: <b style="color:'+TEAL+'">'+esc(d.selected)+'</b> · receipt '+esc((d.receipt||'').slice(0,22))+'…</div>'
-          +'<div style="color:#5a6a5e">'+esc(d.label)+'</div>';
+          +'<div style="margin-top:.4rem;color:#879e92">selected: <b style="color:'+TEAL+'">'+esc(d.selected)+'</b> · receipt '+esc((d.receipt||'').slice(0,22))+'…</div>'
+          +'<div style="color:#879e92">'+esc(d.label)+'</div>';
       }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; }); }
       card.querySelectorAll('.wirea-rp').forEach(function(b){ b.addEventListener('click',function(){ run(b.getAttribute('data-p')); }); });
       run('balanced');
@@ -11281,7 +11281,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         if(d.empty){ out.innerHTML=esc(d.honest); return; }
         out.innerHTML='<div>KL(obs‖ref) <b style="color:'+TEAL+'">'+d.kl_observed_vs_reference_nats+'</b> nats · Jeffreys <b>'+d.jeffreys_divergence_nats+'</b></div>'
           +'<div style="margin-top:.3rem">trust gap <b style="color:'+AMBER+'">'+d.trust_gap_pct+'%</b> '+(d.gibbs_nonneg_holds?badge('KL≥0 (Gibbs) ✓',TEAL):badge('Gibbs violated',RED))+'</div>'
-          +'<div style="margin-top:.3rem;color:#5a6a5e">'+esc(d.honest)+'</div>';
+          +'<div style="margin-top:.3rem;color:#879e92">'+esc(d.honest)+'</div>';
       }).catch(function(e){ out.innerHTML='<span style="color:'+RED+'">'+esc(e.message)+'</span>'; });
     }
 

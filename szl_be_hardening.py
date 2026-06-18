@@ -209,6 +209,13 @@ def _apply_security_headers(resp: Any) -> Any:
                 resp.headers[k] = v
         if "Content-Security-Policy" not in resp.headers:
             resp.headers["Content-Security-Policy"] = _FRAME_ANCESTORS_CSP
+        # SEC-08 (HARDEN-DEEP): the ASGI server (uvicorn) stamps a
+        # `Server: uvicorn` header that leaks the framework name. No version is
+        # exposed, but per Microsoft-SDL / SEC-08 we redact the framework name to
+        # a neutral product token. Always override (not setdefault) so the
+        # uvicorn default never reaches the client. Honest, additive, no behavior
+        # change. (X-Powered-By is already absent.)
+        resp.headers["Server"] = "szl"
     except Exception:
         pass
     return resp

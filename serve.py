@@ -1346,6 +1346,12 @@ try:
             response.headers.setdefault(
                 "Content-Security-Policy-Report-Only", _SECURITY_CSP_REPORT_ONLY
             )
+            # SEC-08 (HARDEN-DEEP): redact the ASGI framework name on the global
+            # path too (covers StaticFiles / mounted sub-apps that bypass the
+            # per-route header helper). Override, never setdefault, so the
+            # uvicorn default `Server: uvicorn` never reaches a client. No
+            # version was ever leaked; this drops the framework name. Additive.
+            response.headers["Server"] = "szl"
             return response
 
     app.add_middleware(_SecurityHeadersMiddleware)
@@ -9744,5 +9750,9 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "7860"))
     print(f"[a11oy] Starting Brand Orchestration Layer on port {port} — Doctrine v11 — SPA at /", file=sys.stderr)
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    # SEC-08 (HARDEN-DEEP): server_header=False stops uvicorn from emitting its
+    # own `Server: uvicorn` framework banner at the source; the security-headers
+    # middleware additionally stamps a neutral `Server: szl` token. Defense in
+    # depth, no behavior change.
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", server_header=False)
 
