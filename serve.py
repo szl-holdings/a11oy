@@ -145,6 +145,24 @@ try:
 except Exception as _szl_es_e:  # pragma: no cover
     print(f"[a11oy] Unified engine status NOT registered: {_szl_es_e!r}", file=__import__("sys").stderr)
 
+# ── Organ-health same-origin proxy (G5 codename gate root-fix, sweep-1) ──
+# /status (pages/status.html) previously probed the REAL backend hosts CLIENT-SIDE,
+# leaking the internal codenames (amaru/sentra/rosie) into the served HTML URLs —
+# a Doctrine G5 violation. szl_organ_health adds GET /api/a11oy/v1/organ-health/<role>
+# where role is an HONEST slug (reasoning|sentinel|operator|…). a11oy resolves the
+# role -> real backend healthz SERVER-SIDE (reusing the shipped organ registry
+# szl_v4_fleet.PEER_HEALTH_URLS for hosts + szl_codename_gate.MAP for labels) and
+# returns honest {role,label,up,latency_ms,status_code}. The browser never sees a
+# codename subdomain. Real upstream check; honest up:false on failure — NEVER faked.
+# Registered BEFORE the SPA catch-all + Node proxy (register() front-moves its routes).
+# Additive, try/except-guarded; pure stdlib probe; 0 CDN; no key.
+try:
+    import szl_organ_health as _szl_organ_health
+    _szl_oh_status = _szl_organ_health.register(app, ns="a11oy")
+    print(f"[a11oy] Organ-health proxy registered: /api/a11oy/v1/organ-health/<role> ({_szl_oh_status})", file=__import__("sys").stderr)
+except Exception as _szl_oh_e:  # pragma: no cover
+    print(f"[a11oy] Organ-health proxy NOT registered: {_szl_oh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
 # ── Backend hardening (devJ) — szl_backend_hardening ──
 # Reusable concurrent + short-timeout + TTL-cache helpers (probe_with_timeout,
 # probe_all_concurrent, TTLCache, probe_fabric_pool, cached_aggregate) that the

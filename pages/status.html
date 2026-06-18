@@ -34,23 +34,42 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
 </style></head><body>
 <header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
 <nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status" class="active">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
-<main><h1>Status — live flagship feed</h1><p class="sub">This page probes each flagship's health endpoint directly from your browser. Cross-origin probes may be blocked by a Space's CORS policy — that shows as 'unreachable', not necessarily down.</p>
+<main><h1>Status — live flagship feed</h1><p class="sub">Each flagship is probed through a11oy's <strong>same-origin organ-health proxy</strong>, which performs the real upstream health check server-side and reports honest up/down. A retired or unreachable backend honestly shows as 'unreachable' / a non-200 code — never a fabricated UP.</p>
 <table><tr><th>Flagship</th><th>State</th><th>Latency</th></tr><tbody id="tb"></tbody></table><div class="note">Authoritative status will move to status.szlholdings.com with server-side synthetic probes (per the resilience layer). This client-side feed is the honest interim.</div><script>
-const FLAGS=[["a11oy","https://szlholdings-a11oy.hf.space/api/a11oy/healthz"],
-["Reasoning tier (Memory)","https://szlholdings-amaru.hf.space/api/amaru/healthz"],
-["Sentinel (Immune)","https://szlholdings-sentra.hf.space/api/sentra/healthz"],
-["Operator (Companion)","https://szlholdings-rosie.hf.space/api/rosie/healthz"],
-["vessels (killinchu)","https://szlholdings-vessels.hf.space/api/vessels/healthz"],
-["uds-demo","https://szlholdings-uds-demo.hf.space/healthz"]];
+// HONEST role slugs only. The health probe targets a SAME-ORIGIN a11oy proxy
+// (/api/a11oy/v1/organ-health/<role>) that resolves each honest role to the real
+// backend healthz SERVER-SIDE and returns honest {up, latency_ms}. The browser
+// therefore NEVER sees an internal codename subdomain (Doctrine G5). Entries with
+// kind:'proxy' go through the proxy; kind:'origin' is a11oy's own same-origin
+// healthz; kind:'cors' is an already-honest (codename-free) cross-origin probe.
+const FLAGS=[
+["a11oy","/api/a11oy/healthz","origin"],
+["Reasoning tier (Memory)","/api/a11oy/v1/organ-health/reasoning","proxy"],
+["Sentinel (Immune)","/api/a11oy/v1/organ-health/sentinel","proxy"],
+["Operator (Companion)","/api/a11oy/v1/organ-health/operator","proxy"],
+["vessels (killinchu)","/api/a11oy/v1/organ-health/vessels","proxy"],
+["uds-demo","https://szlholdings-uds-demo.hf.space/healthz","cors"]];
 const tb=document.getElementById('tb');
-FLAGS.forEach(([n,u])=>{const tr=document.createElement('tr');
+FLAGS.forEach(([n,u,kind])=>{const tr=document.createElement('tr');
  tr.innerHTML=`<td>${n}</td><td id="s_${n}"><span class="pill n">probing…</span></td><td id="l_${n}">—</td>`;tb.appendChild(tr);
+ const setS=(html)=>{document.getElementById('s_'+n).innerHTML=html;};
+ const setL=(ms)=>{document.getElementById('l_'+n).textContent=(ms==null?'—':ms+' ms');};
  const t0=performance.now();
- fetch(u,{mode:'cors'}).then(r=>{const ms=Math.round(performance.now()-t0);
-  document.getElementById('s_'+n).innerHTML=r.ok?'<span class="pill g">UP</span>':'<span class="pill a">'+r.status+'</span>';
-  document.getElementById('l_'+n).textContent=ms+' ms';})
- .catch(()=>{document.getElementById('s_'+n).innerHTML='<span class="pill r">unreachable (CORS/down)</span>';});});
-</script><p class="sub">Source: resilience_observability/ + live probe</p>
+ if(kind==='proxy'){
+  // Same-origin proxy: server-side does the REAL upstream check and returns honest JSON.
+  fetch(u,{cache:'no-store'}).then(r=>r.json().then(j=>{
+    setL(j.latency_ms!=null?j.latency_ms:Math.round(performance.now()-t0));
+    if(j.up){setS('<span class="pill g">UP</span>');}
+    else if(j.status_code){setS('<span class="pill a">'+j.status_code+'</span>');}
+    else{setS('<span class="pill r">unreachable</span>');}
+  })).catch(()=>{setS('<span class="pill r">unreachable</span>');setL(Math.round(performance.now()-t0));});
+ }else{
+  // a11oy same-origin healthz / already-honest cross-origin probe.
+  fetch(u,{mode:'cors',cache:'no-store'}).then(r=>{setL(Math.round(performance.now()-t0));
+    setS(r.ok?'<span class="pill g">UP</span>':'<span class="pill a">'+r.status+'</span>');})
+   .catch(()=>{setS('<span class="pill r">unreachable (CORS/down)</span>');setL(Math.round(performance.now()-t0));});
+ }});
+</script><p class="sub">Source: resilience_observability/ + same-origin /api/a11oy/v1/organ-health proxy (real upstream check, honest up/down)</p>
 </main>
 <footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
 </body></html>

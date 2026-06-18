@@ -21,47 +21,52 @@ const K = {
   success:0x3fce82, error:0xf0a3a3, info:0x7cb8e0,
 };
 
-// ---------- Hero registry (Quechua etymology + endpoints + Kanchay forms) ----------
-// Each hero is an ABSTRACT Kanchay-themed form (NOT an Iron-Man avatar).
-const ORIGIN = location.origin; // a11oy host — same-origin for a11oy JSON
+// ---------- Hero registry (honest public roles + endpoints + Kanchay forms) ----------
+// Each hero is an ABSTRACT Kanchay-themed form (NOT an Iron-Man avatar). Doctrine G5:
+// 0 user-visible codenames — every id/name/label below is an HONEST public role, and
+// every health probe goes through a11oy's SAME-ORIGIN organ-health proxy
+// (/api/a11oy/v1/organ-health/<role>) so the browser never sees an internal codename
+// subdomain. The proxy does the REAL upstream check server-side and returns honest
+// {up, latency_ms} — a retired/down backend reports down honestly, never faked.
+const ORIGIN = location.origin; // a11oy host — same-origin for every probe below
 const HEROES = [
   { id:'a11oy', name:'a11oy', role:'Brand Orchestration Layer · a11oy.code',
     qn:'a11oy', ety:'“alloy” — fused metals; the unifying orchestration layer binding every organ.',
     color:K.hatun, accent:K.hatun3, g1:'#d7b96b', g2:'#825a18',
-    space:'https://szlholdings-a11oy.hf.space/',
+    space:'/hub',
     health: ORIGIN + '/api/a11oy/healthz', sameOrigin:true, form:'crown',
     endpoints:[['GET','/api/a11oy/healthz'],['GET','/api/a11oy/v1/gates'],['POST','/api/a11oy/v1/reason'],['POST','/api/a11oy/code/chat']],
     tier:'middle' },
-  { id:'amaru', name:'Amaru', role:'Andean Ouroboros · Looped Reverse-ETL',
-    qn:'Amaru', ety:'“serpent / dragon” — the data serpent that swallows its own tail (reverse-ETL loop).',
+  { id:'reasoning', name:'Reasoning tier', role:'Reasoning tier (Memory) · Looped Reverse-ETL',
+    qn:'Reasoning tier', ety:'the looped reasoning + memory organ — reverse-ETL that swallows its own tail to keep context fresh.',
     color:K.yuyay, accent:K.yuyay3, g1:'#5cc4bf', g2:'#0b5957',
-    space:'https://szlholdings-amaru.hf.space/', health:'https://szlholdings-amaru.hf.space/', form:'serpent',
-    endpoints:[['GET','/'],['GET','/api/runs'],['GET','/api/lineage']], tier:'upper' },
-  { id:'sentra', name:'Sentra', role:'Sentinel · Policy & Halt Authority',
-    qn:'Sentra', ety:'sentinel/guardian — the watch at the gate; halt-authority over agentic acts.',
+    space:'/status', health: ORIGIN + '/api/a11oy/v1/organ-health/reasoning', sameOrigin:true, form:'serpent',
+    endpoints:[['GET','/api/a11oy/v1/organ-health/reasoning']], tier:'upper' },
+  { id:'sentinel', name:'Sentinel', role:'Sentinel (Immune) · Policy & Halt Authority',
+    qn:'Sentinel', ety:'sentinel/guardian — the watch at the gate; halt-authority over agentic acts.',
     color:K.info, accent:0x7cb8e0, g1:'#7cb8e0', g2:'#2f7fb5',
-    space:'https://szlholdings-sentra.hf.space/', health:'https://szlholdings-sentra.hf.space/', form:'shield',
-    endpoints:[['GET','/'],['GET','/api/gates'],['GET','/api/alerts']], tier:'upper' },
+    space:'/status', health: ORIGIN + '/api/a11oy/v1/organ-health/sentinel', sameOrigin:true, form:'shield',
+    endpoints:[['GET','/api/a11oy/v1/organ-health/sentinel']], tier:'upper' },
   { id:'killinchu', name:'Killinchu', role:'Drone Intelligence · Aerial Twin',
     qn:'Killinchu', ety:'“kestrel / falcon” — the hovering raptor; aerial reconnaissance & drone twin.',
     color:K.yawar3, accent:K.yawar3, g1:'#e57373', g2:'#822018',
-    space:'https://szlholdings-killinchu.hf.space/', health:'https://szlholdings-killinchu.hf.space/', form:'falcon',
-    endpoints:[['GET','/'],['GET','/api/telemetry'],['GET','/api/twin']], tier:'lower' },
-  { id:'rosie', name:'Rosie', role:'Care Engine · Brain-jack Mesh',
-    qn:'Rosie', ety:'the caregiver; warm cross-session memory + brain-jack mesh that watches the ecosystem.',
+    space:'https://szlholdings-killinchu.hf.space/', health: ORIGIN + '/api/a11oy/v1/organ-health/vessels', sameOrigin:true, form:'falcon',
+    endpoints:[['GET','/api/a11oy/v1/organ-health/vessels']], tier:'lower' },
+  { id:'operator', name:'Operator', role:'Operator (Companion) · Care & Brain-jack Mesh',
+    qn:'Operator', ety:'the companion/caregiver; warm cross-session memory + brain-jack mesh that watches the ecosystem.',
     color:K.yawar, accent:K.yawar3, g1:'#e57373', g2:'#5e1712',
-    space:'https://szlholdings-rosie.hf.space/', health:'https://szlholdings-rosie.hf.space/', form:'bloom',
-    endpoints:[['GET','/'],['GET','/api/care'],['GET','/api/mesh']], tier:'lower' },
+    space:'/status', health: ORIGIN + '/api/a11oy/v1/organ-health/operator', sameOrigin:true, form:'bloom',
+    endpoints:[['GET','/api/a11oy/v1/organ-health/operator']], tier:'lower' },
 ];
 
 // Pacha 3-tier composition: 2 upper, 1 middle, 1+1 lower (semi-circle).
 // positions in a semicircle facing +Z camera.
 const LAYOUT = {
-  amaru:   { x:-3.4, y: 2.4, z:-1.2 },  // upper-left
-  sentra:  { x: 3.4, y: 2.4, z:-1.2 },  // upper-right
+  reasoning:{ x:-3.4, y: 2.4, z:-1.2 },  // upper-left
+  sentinel: { x: 3.4, y: 2.4, z:-1.2 },  // upper-right
   a11oy:   { x: 0.0, y: 0.4, z: 1.6 },  // middle (front, the crown)
   killinchu:{x:-2.7, y:-1.9, z: 0.4 },  // lower-left
-  rosie:   { x: 2.7, y:-1.9, z: 0.4 },  // lower-right
+  operator: { x: 2.7, y:-1.9, z: 0.4 },  // lower-right
 };
 
 // ---------- renderer (WebGPU baseline → WebGL2 fallback) ----------
@@ -176,13 +181,13 @@ function buildHero(h){
   switch(h.form){
     case 'crown': // a11oy — fused alloy crown: icosahedron + orbiting torus ring
       core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 1), mat); break;
-    case 'serpent': // amaru — coiled serpent: torus knot
+    case 'serpent': // reasoning tier — coiled serpent: torus knot
       core = new THREE.Mesh(new THREE.TorusKnotGeometry(0.6, 0.2, 140, 18, 2, 3), mat); break;
-    case 'shield': // sentra — guardian shield: octahedron
+    case 'shield': // sentinel — guardian shield: octahedron
       core = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 0), mat); break;
     case 'falcon': // killinchu — kestrel: cone (beak) + swept tetra wings feel
       core = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.4, 5), mat); core.rotation.x=Math.PI; break;
-    case 'bloom': // rosie — care bloom: dodecahedron petals
+    case 'bloom': // operator — care bloom: dodecahedron petals
       core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.82, 0), mat); break;
     default: core = new THREE.Mesh(new THREE.SphereGeometry(0.8,32,16), mat);
   }
@@ -234,9 +239,16 @@ async function pollHero(h){
       st.latency = ms;
       if (res.ok){
         const j = await res.json().catch(()=>null);
-        st.status = 'up'; st.json = j;
+        st.json = j;
+        // Same-origin organ-health proxy returns HTTP 200 with an HONEST {up:bool}
+        // even when the upstream organ is down/retired. Honor that boolean so we
+        // NEVER paint a down backend as UP. a11oy's own /api/a11oy/healthz has no
+        // `up` field, so res.ok==200 there means up (legacy behaviour preserved).
+        st.status = (j && typeof j.up === 'boolean') ? (j.up ? 'up' : 'down') : 'up';
         if (j){
-          // real route/declaration anchor + yuyay-ish health from a11oy
+          // proxy reports the real server-measured latency; prefer it when present
+          if (typeof j.latency_ms === 'number') st.latency = j.latency_ms;
+          // real route/declaration anchor + yuyay-ish health from a11oy / upstream
           if (j.declarations) routeCount = String(j.declarations);
           if (j.gates) st.gates = j.gates;
           if (j.version) st.version = j.version;
