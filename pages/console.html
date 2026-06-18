@@ -3779,8 +3779,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     ];
     var opts=presets.map(function(p,i){return '<option value="'+i+'">'+_e(p[0])+'</option>';}).join('');
     _set('org-gate-form',
-      '<div class="row"><select id="org-preset" style="background:#141414;color:#ddd;border:1px solid #333;border-radius:6px;padding:.4rem;flex:1" onchange="window.organism_preset()">'+opts+'</select></div>'
-      +'<textarea id="org-proposal" rows="3" style="width:100%;margin-top:.5rem;background:#141414;color:#ddd;border:1px solid #333;border-radius:6px;padding:.5rem;font-family:monospace;font-size:.8rem">'+_e(presets[0][1])+'</textarea>'
+      '<div class="row"><select id="org-preset" aria-label="Proposal preset" style="background:#141414;color:#ddd;border:1px solid #333;border-radius:6px;padding:.4rem;flex:1" onchange="window.organism_preset()">'+opts+'</select></div>'
+      +'<textarea id="org-proposal" rows="3" aria-label="Custom proposal text" style="width:100%;margin-top:.5rem;background:#141414;color:#ddd;border:1px solid #333;border-radius:6px;padding:.5rem;font-family:monospace;font-size:.8rem">'+_e(presets[0][1])+'</textarea>'
       +'<div class="row" style="margin-top:.5rem"><button class="btn teal" style="background:'+TEAL+';border:none;color:#0a0a0a;border-radius:7px;padding:.45rem 1.1rem;cursor:pointer;font-weight:700" onclick="window.organism_gate()">▶ Submit to the YUYAY gate</button><span class="spacer mono dim">13 axes evaluate conjunctively · signed receipt or rejection</span></div>'
     );
     window._orgPresets=presets;
@@ -14487,7 +14487,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 (function(){
   "use strict";
   function esc(s){ return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);}); }
-  var EH_API="https://a11oy.net/api/a11oy/v1/harvest";
+  var EH_API="/api/a11oy/v1/harvest";
   function num(v,d){ d=(d==null?2:d); return (v==null||isNaN(v))?'—':Number(v).toFixed(d); }
   var EH_POS={
     "negative-price":{l:"NEGATIVE PRICE",c:"#5fe39a"},
@@ -14588,7 +14588,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
          (NOT measured) — it never claims joules, never creates energy. Doctrine v11. */
       h+=await ehThermalPanel();
       h+='<div class="dim" style="font-size:11px;margin-top:.5rem">'+esc(d.feeds_live)+'/'+esc(d.feeds_total)+' feeds live · '+(d.cached?'cached':'fresh')+' · '+esc(when)
-        +' · <a href="'+EH_API+'/harvest" target="_blank" rel="noopener">raw API</a> · <a href="https://a11oy.net/energy/" target="_blank" rel="noopener">standalone page ↗</a></div>';
+        +' · <a href="'+EH_API+'/posture" target="_blank" rel="noopener">raw API</a> · <a href="https://a11oy.net/energy/" target="_blank" rel="noopener">standalone page ↗</a></div>';
       c.innerHTML=h;
       if(window.__eh_timer) clearInterval(window.__eh_timer);
       window.__eh_timer=setInterval(function(){
