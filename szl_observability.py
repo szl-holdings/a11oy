@@ -88,6 +88,7 @@ from __future__ import annotations
 
 import contextvars
 import os
+import re
 import sys
 import threading
 import time
@@ -110,7 +111,7 @@ DOCTRINE: Dict[str, Any] = {
     "free_energy": False,
     "sovereign": "only on own metal",
     "durations": "REAL measured wall time only; never fabricated",
-    "attributes": "no secrets, no bodies, no query strings — sanitized scalars only",
+    "attributes": "no secrets, no bodies, no query strings, no private addresses — sanitized scalars only",
     "memory": "bounded ring buffer (deque maxlen); oldest traces dropped",
     "key_committed": False,
 }
@@ -136,6 +137,21 @@ _SECRET_KEY_HINTS = (
     # Redacting these key names defends against a caller passing a body dict whose
     # nested values could otherwise be exposed via repr().
     "body", "payload", "content", "data", "params", "query", "headers",
+)
+
+# Private/sensitive address tokens that must never appear in a served trace. The
+# documented span() usage wraps node probes with an ``endpoint`` attribute (e.g.
+# ``endpoint="100.76.58.50:443"``); these traces are published verbatim on the
+# public ``/observability/traces`` route, so a raw 100.x tailnet IP, the :11434
+# Ollama port, or the box public IP would leak. We scrub the ADDRESS while
+# keeping the attribute (and the rest of its value) intact — this changes no
+# true/false fact, it only hides private addressing (Doctrine v11; same class as
+# the compute-pool egress scrub in szl_backend_hardening._PRIVATE_ADDR_RE).
+_PRIVATE_ADDR_RE = re.compile(
+    r"(?:https?://)?"                                               # optional scheme
+    r"(?:100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}"  # 100.64-127.x.x CGNAT/tailnet
+    r"|167\.233\.50\.75)"                                           # the box public IP
+    r"(?::\d+)?"                                                    # optional :port (e.g. :11434)
 )
 
 
@@ -165,6 +181,8 @@ def _sanitize_attr_value(key: str, value: Any) -> Any:
       • if the KEY name hints at a secret -> "[redacted]".
       • only scalars (str/int/float/bool/None) are kept; anything else is coerced
         to a short ``repr`` (so a body/object dict can't smuggle nested secrets).
+      • private addresses (100.x tailnet IP, :11434, box IP) are scrubbed from
+        any string value -> "(private)" (served traces are public).
       • strings are length-bounded so a huge value cannot bloat memory.
     """
     try:
@@ -176,9 +194,10 @@ def _sanitize_attr_value(key: str, value: Any) -> Any:
         if isinstance(value, (int, float)):
             return value
         if isinstance(value, str):
-            return value if len(value) <= _MAX_ATTR_STR_LEN else value[:_MAX_ATTR_STR_LEN] + "…"
+            v = _PRIVATE_ADDR_RE.sub("(private)", value)
+            return v if len(v) <= _MAX_ATTR_STR_LEN else v[:_MAX_ATTR_STR_LEN] + "…"
         # Non-scalar: never store the object itself (could carry a body / secret).
-        s = repr(value)
+        s = _PRIVATE_ADDR_RE.sub("(private)", repr(value))
         return s if len(s) <= _MAX_ATTR_STR_LEN else s[:_MAX_ATTR_STR_LEN] + "…"
     except Exception:
         return "[unserializable]"
@@ -521,13 +540,14 @@ def span(name: str, **attributes: Any) -> _SpanCtx:
 
     Usage (wrap each node probe / feed fetch in the fan-out):
 
-        with span("chaski", node="chaski", endpoint="100.76.58.50:443"):
+        with span("chaski", node="chaski", endpoint="chaski:443"):
             result = probe_chaski()   # real call; duration measured honestly
 
     If no trace is active (code path outside a request), it is a safe no-op. On
     an exception the span is marked TIMEOUT (timeout-family) or ERROR and the
     exception is RE-RAISED unchanged. Attribute values are sanitized so no
-    secret / body can leak into the span.
+    secret / body / private address can leak into the served span (a raw 100.x
+    tailnet IP or :11434 port in a value is scrubbed to "(private)").
     """
     return _SpanCtx(str(name), _sanitize_attrs(attributes))
 

@@ -149,12 +149,43 @@ def test_no_secret_leaks_into_attributes():
     assert s.attributes.get("session_token") == "[redacted]"
     # Safe scalars are preserved (tracing is still useful).
     assert s.attributes.get("node") == "chaski"
-    assert s.attributes.get("endpoint") == "100.76.58.50:443"
+    # Private addressing is scrubbed from VALUES: served traces are public, so a
+    # raw 100.x tailnet IP / :11434 port must not survive into the attribute.
+    assert s.attributes.get("endpoint") == "(private)"
     # The whole serialized attribute blob contains no literal secret value.
     blob = repr(s.attributes)
     for secret in ("SUPERSECRET-XYZ", "Bearer leak-me", "hunter2", "sess-123",
                    "nested-secret", "4111111111111111"):
         assert secret not in blob, f"secret leaked: {secret}"
+    # ...and no private address token survives anywhere in the serialized blob.
+    assert "100.76.58.50" not in blob, f"leaked tailnet IP: {blob}"
+
+
+# ---------------------------------------------------------------------------
+# 5b. Private addresses are scrubbed from span attribute VALUES (served traces
+#     are public — same leak class as the compute-pool egress scrub).
+# ---------------------------------------------------------------------------
+def test_private_addresses_scrubbed_from_attribute_values():
+    tr = obs.start_trace("addr-scrub")
+    with obs.span(
+        "node-probe",
+        node="chaski",
+        endpoint="http://100.102.173.88:11434/v1",   # tailnet GPU + Ollama port
+        omen="100.70.130.45:11434",
+        box="hit 167.233.50.75 then timeout",        # box public IP inside a sentence
+        public="https://api.groq.com/openai/v1",     # public DNS must be UNTOUCHED
+    ) as s:
+        pass
+    obs.finish_trace(tr, record=False)
+
+    blob = repr(s.attributes)
+    for leaked in ("100.102.173.88", "100.70.130.45", "167.233.50.75", ":11434"):
+        assert leaked not in blob, f"leaked private address {leaked}: {blob}"
+    # Honest fields survive: the attribute keys remain, the non-address text stays,
+    # and a genuine public hostname is NOT scrubbed.
+    assert s.attributes.get("node") == "chaski"
+    assert "timeout" in s.attributes.get("box", "")
+    assert s.attributes.get("public") == "https://api.groq.com/openai/v1"
 
 
 # ---------------------------------------------------------------------------
