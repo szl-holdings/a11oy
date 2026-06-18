@@ -29,8 +29,20 @@ _UA = "SZL-Connectors/1.0 (odoo xml-rpc)"
 
 
 def _xmlrpc(url: str, method: str, params: list) -> Any:
-    """Minimal XML-RPC client (stdlib only). Returns parsed result or raises."""
-    import xmlrpc.client as xc
+    """Minimal XML-RPC client. Returns parsed result or raises.
+
+    Hardened against XML-decompression / entity-expansion attacks on the Odoo
+    response (B411): if defusedxml is present we monkey-patch the stdlib xmlrpc
+    parser before use. defusedxml is pinned in the Docker image; if it is absent
+    in a bare runtime we degrade to the stdlib parser rather than crash — the
+    connector only ever parses responses from an operator-configured Odoo host.
+    """
+    try:
+        import defusedxml.xmlrpc as _dx
+        _dx.monkey_patch()
+    except Exception:
+        pass
+    import xmlrpc.client as xc  # nosec B411 - parser hardened above via defusedxml.xmlrpc.monkey_patch()
     transport = xc.SafeTransport() if url.startswith("https") else xc.Transport()
     proxy = xc.ServerProxy(url, transport=transport, allow_none=True)
     fn = getattr(proxy, method)

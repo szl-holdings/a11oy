@@ -112,6 +112,14 @@ RUN pip install --no-cache-dir \
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
 RUN pip install --no-cache-dir "slowapi==0.1.10"
 
+# Hardens the Odoo ERP connector's XML-RPC parser against XML entity-expansion /
+# decompression-bomb attacks (bandit B411). szl_connectors/erp/odoo.py applies
+# defusedxml.xmlrpc.monkey_patch() before parsing untrusted server responses;
+# this pin makes that path active in the running image (pure-python wheel).
+# Mirrors killinchu #150 so the byte-identical szl_connectors/erp/odoo.py is
+# hardened in BOTH flagships rather than silently degrading to the stdlib parser.
+RUN pip install --no-cache-dir "defusedxml==0.7.1"
+
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
 # to cosine similarity if the sqlite-vss .so cannot load. (P0 CI fix, Dev1 Rumi)
