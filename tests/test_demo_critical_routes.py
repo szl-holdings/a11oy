@@ -32,8 +32,10 @@ import serve  # noqa: E402
 
 
 # The demo-critical surfaces. Each entry is a substring that MUST appear in some
-# assembled route path. (compute-pool ships as the hardened prober path
-# /api/a11oy/v1/compute-pool-hardened, hence the substring match.)
+# assembled route path. (compute-pool ships as BOTH the hardened prober path
+# /api/a11oy/v1/compute-pool-hardened AND the authoritative scrubbed plain path
+# /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
+# the substring match.)
 DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/energy/operator/status",   # #460 — already restored once
     "/api/a11oy/v1/energy/ledger",            # 2026-06-16 restore

@@ -879,6 +879,25 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
     else:
         _stderr(f"[a11oy:hardening] compute-pool hardened route present/again skipped: {route}")
 
+    # Authoritative PLAIN /compute-pool — the canonical path is served live by an
+    # external Node/Ollama proxy that leaks raw 100.x tailnet IPs / :11434 / the box
+    # public IP. Nothing in this repo registered it, so the Python app was never the
+    # source of truth for it. Register it HERE as the authoritative source, aliasing
+    # the SAME scrubbed builder as -hardened (probe_fabric_pool already strips private
+    # addressing at egress — DRY, no duplicate scrub). Strictly additive + path-guarded:
+    # if some other module already owns the plain path we leave it alone; the FastAPI
+    # app answering it first means a consumer sees the clean payload, never the proxy's
+    # leaky one. reachable stays a REAL probe; only private addressing is hidden.
+    plain_route = f"/api/{ns}/v1/compute-pool"
+    if plain_route not in existing and JSONResponse is not None:
+        @app.get(plain_route)
+        async def _compute_pool_plain():  # noqa: ANN202
+            return JSONResponse(probe_fabric_pool())
+        paths.append(plain_route)
+        _stderr(f"[a11oy:hardening] compute-pool PLAIN prober registered (scrubbed alias): {plain_route}")
+    else:
+        _stderr(f"[a11oy:hardening] compute-pool plain route present/again skipped: {plain_route}")
+
     # ADDITIVE: OMEN-anchor selection over the SAME live pool. Routing hint only —
     # it reports which reachable GPU should anchor szl-fast/embeddings (always-on home
     # node preferred), never serves and never fabricates a node up.
