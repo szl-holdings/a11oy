@@ -268,9 +268,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-group">The Brain (3D)</div>
     <div class="nav-item" data-view="organism" onclick="go('organism')"><span class="ico">❋</span>Living Organism</div>
     <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="pulse" onclick="go('pulse')"><span class="ico">◍</span>Global Pulse</div>
     <div class="nav-item" data-view="trustspace" onclick="go('trustspace')"><span class="ico">⁂</span>Trust Space</div>
-    <div class="nav-item" data-view="ontology" onclick="go('ontology')"><span class="ico">⌗</span>Service Map</div>
     <div class="nav-group">Knowledge Base</div>
     <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
     <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
@@ -282,8 +280,6 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="feed" onclick="go('feed')"><span class="ico">∿</span>Live Decisions</div>
     <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
     <div class="nav-item" data-view="forecast" onclick="go('forecast')"><span class="ico">↗</span>Forecast</div>
-    <div class="nav-group">Prove &amp; Verify</div>
-    <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
     <div class="nav-group">World &amp; Threat Intel</div>
     <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
     <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
@@ -297,13 +293,9 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
     <div class="nav-group">Leader-Grade (NEW)</div>
     <div class="nav-item" data-view="lineage" onclick="go('lineage')"><span class="ico">⚛</span>Knowledge Lineage</div>
-    <div class="nav-item" data-view="mission" onclick="go('mission')"><span class="ico">⬢</span>Mission Health</div>
     <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
     <div class="nav-group">Frontier (3D · Live)</div>
-    <div class="nav-item" data-view="govatlas" onclick="go('govatlas')"><span class="ico">✧</span>Governance Atlas</div>
     <div class="nav-item" data-view="oversight" onclick="go('oversight')"><span class="ico">◉</span>AI Oversight</div>
-    <div class="nav-item" data-view="modelatlas" onclick="go('modelatlas')"><span class="ico">⬣</span>Model Atlas</div>
-    <div class="nav-item" data-view="threatgraph" onclick="go('threatgraph')"><span class="ico">⩟</span>Threat Graph</div>
     <div class="nav-item" data-view="deploy" onclick="go('deploy')"><span class="ico">⧈</span>Deploy Posture</div>
     <div class="nav-item" data-view="warboard" onclick="go('warboard')"><span class="ico">✪</span>Warhacker Proofs</div>
     <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven: CUT-2, CUT-1 fwd)<br>5 locked-proven + ~119 experimental CI-green (Wave 5–18: CF-1..28 + CUT-1/2)<br>SLSA L1 · L2 on roadmap<br>Verifiable receipts · honest by design</div>
@@ -1611,10 +1603,26 @@ async function policies_load(){
         </div></details>`);});}
   }catch(e){const h=el('pv-list');if(h)h.innerHTML='<div class="row mono dim">policy bundle unavailable: '+esc(e.message)+'</div>';setTxt('pv-n','\u2014');}}
 
+/* Nav consolidation (fold-don't-delete): these views are no longer their own
+   left-nav entry — each is folded under a canonical sibling tab. The VIEW and its
+   data/proof are UNCHANGED and stay fully reachable: every go('<key>') below, and
+   every #<key> deep-link / button, still resolves to the exact same view. The only
+   change is the nav highlights the canonical parent while the folded view renders. */
+const NAV_FOLDED={
+  ontology:'mesh',      // Service Map -> Live System Map (both service node-link graphs)
+  pulse:'feed',         // Global Pulse -> Live Decisions (decision-activity views)
+  mission:'command',    // Mission Health -> Command Center (operational KPI panes)
+  arena:'llm',          // Eval Arena -> Model Router (model evaluation/routing)
+  modelatlas:'llm',     // Model Atlas -> Model Router (model registry views)
+  govatlas:'govern',    // Governance Atlas -> Readiness & Compliance (governance)
+  threatgraph:'attack'  // Threat Attribution -> Adversary Techniques (ATT&CK intel)
+};
+window.NAV_FOLDED=NAV_FOLDED;
 function go(view){
   // tear down ALL live visuals (Chart.js, ECharts, 3d-force-graph, globe.gl, cytoscape) before switching
   tearDownAll();
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  const navKey=NAV_FOLDED[view]||view;  // folded view -> highlight its canonical parent tab
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===navKey));
   const v=VIEWS[view];const c=el('content');
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
