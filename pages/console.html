@@ -14485,6 +14485,20 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 .atlas-foot{margin-top:1rem;font-size:11px;color:#7d8593;font-family:var(--mono,monospace);}
 .atlas-foot code{color:var(--teal,#5fb3a3);}
 .atlas-tier .atlas-dim{font-family:var(--mono,monospace);}
+/* FN-gap2 D1 (effective placement): mobile atlas clip fix placed AFTER the base
+   .atlas-grid{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))} rule so it
+   actually wins the cascade. The earlier global @media block (top of file) was
+   overridden by this base rule (defined later, equal specificity -> later wins),
+   leaving two .atlas-route buttons rendering at right~410 beyond a 375px viewport.
+   Single-column stack + min-width:0 + wrap so no .atlas-route is clipped/unreachable. */
+@media (max-width:480px){
+  .atlas-grid{grid-template-columns:1fr;min-width:0;}
+  .atlas-card{min-width:0;max-width:100%;}
+  .atlas-detail,.atlas-card-head{min-width:0;}
+  .atlas-routes{flex-wrap:wrap;min-width:0;max-width:100%;}
+  .atlas-route{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:break-word;}
+  .atlas-json{max-width:100%;}
+}
 </style>
 
 <!-- energy-harvest-tab-patch — live wasted-energy grid signal (a11oy console tab).
