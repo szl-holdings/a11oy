@@ -12,8 +12,9 @@
 //        crossover_difficulty / small-vs-large weights for the current query
 //   * /api/a11oy/v1/router/active-flux-crossover/sweep   — the full crossover curve
 //        (small/local vs large/cloud weight over query difficulty 0→1)
-//   * /api/a11oy/v1/compute-pool                         — the REAL sovereign model
+//   * /api/a11oy/v1/compute-pool-hardened                — the REAL sovereign model
 //        list (qwen/llama/deepseek/mistral on rtx-betterwithage + chaski) for the scatter
+//        (egress-scrubbed: private node addresses stripped; models[] honest when present)
 //
 // The crossover is MODELED (a deterministic active-flux PI-bandwidth routing law, the
 // complement to a RouteLLM Thompson-sampling bandit) — the honesty label is read STRAIGHT
@@ -32,7 +33,7 @@ const ID = "router";
 const TITLE = "Model Router · Inference Economics";
 const EP_CROSS = "/api/a11oy/v1/router/active-flux-crossover";
 const EP_SWEEP = "/api/a11oy/v1/router/active-flux-crossover/sweep";
-const EP_POOL = "/api/a11oy/v1/compute-pool";
+const EP_POOL = "/api/a11oy/v1/compute-pool-hardened";
 
 // palette (matches the estate)
 const C_SMALL = 0x6fb1ff;   // small/local — easy / low-"frequency"

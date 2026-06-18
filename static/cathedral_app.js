@@ -6,7 +6,7 @@
  *   - a11oy  (central brain / sun)
  *   - 3 a11oy-INTERNAL capabilities: reasoning / policy / operator  (NOT organs)
  *   - killinchu (field node)
- *   - a sovereign compute-fabric ring (real nodes from /compute-pool, honest tier)
+ *   - a sovereign compute-fabric ring (real nodes from /compute-pool-hardened, honest tier)
  *   - Khipu receipt stars (anonymous receipt DAG, cord arcs)
  * No amaru / sentra / rosie node labels anywhere.
  *
@@ -16,7 +16,7 @@
  *   Trust = conformal (never 100%, NOT Hoeffding).  SLSA L1 honest / L2 roadmap.
  *   joules = MEASURED only via a real on-box NVML exporter; shown as SAMPLE/seed otherwise.
  *   organs = EXPERIMENTAL tier.  killinchu effectors = SIMULATED.
- *   Live data from real /healthz, /compute-pool, /lambda, /khipu/ledger.
+ *   Live data from real /healthz, /compute-pool-hardened, /lambda, /khipu/ledger.
  *   Honest SEED -> LIVE promotion; OFFLINE labelled loudly; no fabricated numbers.
  *
  * Sovereign: Three.js r160 (MIT) + OrbitControls vendored under ./vendor. NO CDN.
@@ -120,13 +120,13 @@ const KILLINCHU = {
   url: 'https://szlholdings-killinchu.hf.space'
 };
 
-/* compute-fabric inspector content is built live from /compute-pool (honest tiers). */
+/* compute-fabric inspector content is built live from /compute-pool-hardened (honest tiers). */
 const FABRIC = {
   id: 'fabric', title: 'Sovereign compute fabric',
   plain: 'A real multi-node compute pool. Sovereign = owned self-hosted hardware (the box + the RTX). Hosted APIs and cloud GPUs are fallback only — labelled NON-sovereign. No energy/joule claim made here.',
-  functions: ['live node roster loads from /api/a11oy/v1/compute-pool'],
+  functions: ['live node roster loads from /api/a11oy/v1/compute-pool-hardened'],
   proof: ['No node fabricated · reachable=true only on a real probe this poll · Λ = Conjecture 1, not one of the locked 8'],
-  url: 'https://a11oy.net/api/a11oy/v1/compute-pool'
+  url: 'https://a11oy.net/api/a11oy/v1/compute-pool-hardened'
 };
 
 /* ---------- live endpoints (real /healthz + live data; CORS open) ----------- */
@@ -139,7 +139,7 @@ const ENDPOINTS = {
     health: 'https://szlholdings-killinchu.hf.space/healthz',
     ledger: 'https://szlholdings-killinchu.hf.space/api/killinchu/v1/khipu/ledger'
   },
-  fabric: 'https://a11oy.net/api/a11oy/v1/compute-pool'
+  fabric: 'https://a11oy.net/api/a11oy/v1/compute-pool-hardened'
 };
 
 /* ---------- renderer / scene / camera --------------------------------------- */
@@ -328,7 +328,7 @@ function renderFabric(nodes){
       functions: [ 'kind: ' + (n.kind || '—'), 'endpoint: ' + (n.endpoint || '—'),
                    'capabilities: ' + ((n.capabilities||[]).join(', ') || '—'),
                    (n.models && n.models.length ? 'models: ' + n.models.join(', ') : 'models: —') ],
-      proof: [ n.source || 'live /compute-pool', 'No energy/joule claim. Λ = Conjecture 1, not one of the locked 8.' ],
+      proof: [ n.source || 'live /compute-pool-hardened', 'No energy/joule claim. Λ = Conjecture 1, not one of the locked 8.' ],
       url: FABRIC.url };
     m.userData.focus = () => ({ target: m.getWorldPosition(new THREE.Vector3()), dist: 70 });
     fabricGroup.add(m); interactables.push(m);
