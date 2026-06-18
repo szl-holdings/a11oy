@@ -28,7 +28,7 @@
 //   /api/a11oy/v1/energy/ledger            — signed JouleCharge receipts + chain integrity
 //   /api/a11oy/v1/energy/projection?window=running — 1-day + scale MODELED projections
 //   /api/a11oy/v1/harvest/posture          — grid price, renewable share, negative windows
-//   /api/a11oy/v1/compute-pool             — GPU nodes (rtx-betterwithage + chaski)
+//   /api/a11oy/v1/compute-pool-hardened    — GPU nodes (rtx-betterwithage + chaski), egress-scrubbed
 //
 // buildShowcase(ctx) -> { graphs, frame(t), dispose() }
 //   ctx = { stage, container, live, label, THREE }   (the szl3d surface contract)
@@ -38,7 +38,7 @@ const EP = Object.freeze({
   LEDGER:     "/api/a11oy/v1/energy/ledger",
   PROJECTION: "/api/a11oy/v1/energy/projection?window=running",
   POSTURE:    "/api/a11oy/v1/harvest/posture",
-  POOL:       "/api/a11oy/v1/compute-pool",
+  POOL:       "/api/a11oy/v1/compute-pool-hardened",
 });
 
 const COL = Object.freeze({

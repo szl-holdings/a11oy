@@ -8,7 +8,7 @@
 // overview + Microsoft Holograph unified loop). One scene reads MULTIPLE live
 // endpoints at once and composes a glance of every other surface:
 //   • energy ring        ← /api/a11oy/v1/harvest/posture       (price / renewable / joules)
-//   • fabric hex          ← /api/a11oy/v1/compute-pool          (nodes / gpu / sovereign)
+//   • fabric hex          ← /api/a11oy/v1/compute-pool-hardened (nodes / gpu / sovereign)
 //   • PNT horizon         ← /api/a11oy/v1/pnt/limits            (4 physical-bounds pillars)
 //   • governance arc      ← /api/a11oy/v1/ecosystem/kpi-board   (locked-8 / Λ / CHAPAQ)
 //   • PINN volume glance  ← /api/a11oy/v1/anatomy/loop          (reservoir / beats / ayni)
@@ -32,7 +32,7 @@ const TITLE = "Estate Hologram";
 // the five live endpoints this overview funnels into one scene
 const EP_KPI    = "/api/a11oy/v1/ecosystem/kpi-board"; // primary (governance arc + Λ)
 const EP_ENERGY = "/api/a11oy/v1/harvest/posture";     // energy ring
-const EP_FABRIC = "/api/a11oy/v1/compute-pool";        // fabric hex
+const EP_FABRIC = "/api/a11oy/v1/compute-pool-hardened";  // fabric hex (egress-scrubbed)
 const EP_PNT    = "/api/a11oy/v1/pnt/limits";          // PNT horizon
 const EP_LOOP   = "/api/a11oy/v1/anatomy/loop";        // PINN volume glance / reservoir
 
