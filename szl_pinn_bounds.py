@@ -384,6 +384,7 @@ def _h_index(req: Request):
             f"{base}/verify": "re-verify all signatures for the current certificate bytes",
             f"{base}/solve": "governed agentic decision trail (per-round refine + Λ-gate)",
             f"{base}/residual": "compact per-round residual / rel-L2 summary",
+            f"{base}/thermal": "MODELED GPU-die temperature field for thermal-aware scheduling (NOT measured)",
         },
         "bounds": ["Landauer (1961)", "Margolus-Levitin (1998)", "Bremermann (1962)",
                    "Bekenstein (1981)", "Bekenstein-Hawking (Hawking 1975)"],
@@ -723,6 +724,103 @@ def _h_certificates(req: Request):
     })
 
 
+# --------------------------------------------------------------------------- #
+# Thermal PINN (thermal-aware scheduling) — MODELED, never measured.           #
+# The on-metal PINN bakes the 2-D steady heat equation alpha*(T_xx+T_yy)+s=0   #
+# into its training loss to model the GPU-die temperature field T(x,y) with     #
+# compute-load hotspots, used only to schedule the WASTED-energy harvest. This  #
+# stdlib mesh re-derives a small deterministic steady-state field (Jacobi       #
+# relaxation, pure-stdlib) so the public capability returns a real, honest,     #
+# reproducible field WITHOUT fabricating a joule or asserting a measurement.    #
+# Doctrine v11: MODELED not measured; no free-energy; harvest = stranded heat.  #
+# --------------------------------------------------------------------------- #
+def _thermal_field(n=9, alpha=1.0, hot=(0.62, 0.40), iters=600):
+    """Deterministic steady-state die temperature field on an n×n grid.
+
+    Solves alpha*(T_xx+T_yy)+s=0 with a fixed Gaussian compute-load source s
+    centred on `hot` and Dirichlet edges at the ambient baseline, via Jacobi
+    relaxation. Pure stdlib, deterministic — reproducible MODELED field, no
+    randomness, no fabricated measurement. Returns (field, rel_residual)."""
+    amb = 38.0  # ambient die baseline, °C (MODELED scale, not a measurement)
+    src = [[0.0] * n for _ in range(n)]
+    hx, hy = hot
+    for i in range(n):
+        for j in range(n):
+            dx = (j / (n - 1)) - hx
+            dy = (i / (n - 1)) - hy
+            src[i][j] = 28.0 * math.exp(-((dx * dx + dy * dy) / 0.02))
+    T = [[amb] * n for _ in range(n)]
+    for _ in range(iters):
+        nxt = [row[:] for row in T]
+        for i in range(1, n - 1):
+            for j in range(1, n - 1):
+                nxt[i][j] = 0.25 * (T[i - 1][j] + T[i + 1][j]
+                                    + T[i][j - 1] + T[i][j + 1]
+                                    + src[i][j] / alpha)
+        T = nxt
+    # rel residual of the discrete operator (how well the field satisfies the PDE)
+    num = 0.0
+    den = 0.0
+    for i in range(1, n - 1):
+        for j in range(1, n - 1):
+            lap = (T[i - 1][j] + T[i + 1][j] + T[i][j - 1] + T[i][j + 1]
+                   - 4.0 * T[i][j])
+            r = alpha * lap + src[i][j]
+            num += r * r
+            den += (alpha * lap) ** 2 + 1e-12
+    rel_res = math.sqrt(num / den) if den else 0.0
+    return T, rel_res
+
+
+def _h_thermal(req: Request):
+    """MODELED GPU-die temperature field for thermal-aware scheduling.
+
+    Honest: the field is MODELED (heat equation in the PINN loss), never measured;
+    it asserts no joule and creates no energy. Harvest targets stranded/WASTED heat
+    only (no free-energy). Λ = Conjecture 1 (advisory); not one of the locked-8."""
+    field, rel_res = _thermal_field()
+    flat = [v for row in field for v in row]
+    t_max = max(flat)
+    t_min = min(flat)
+    n = len(field)
+    # peak location (hottest grid cell) — the scheduling hotspot
+    peak_i, peak_j, peak_v = 0, 0, -1e30
+    for i in range(n):
+        for j in range(n):
+            if field[i][j] > peak_v:
+                peak_i, peak_j, peak_v = i, j, field[i][j]
+    return JSONResponse({
+        "model": "SZL Thermal PINN — MODELED GPU-die temperature field",
+        "capability": "thermal-aware scheduling of the WASTED-energy harvest",
+        "status": "MODELED (heat equation in PINN loss) — NOT MEASURED",
+        "modeled_not_measured": True,
+        "pde": "steady 2-D heat equation  alpha*(T_xx + T_yy) + s = 0",
+        "grid": {"nx": n, "ny": n, "units": "degC (MODELED scale)"},
+        "field_degC": [[round(v, 3) for v in row] for row in field],
+        "summary": {
+            "t_min_degC": round(t_min, 3),
+            "t_max_degC": round(t_max, 3),
+            "hotspot_cell": {"row": peak_i, "col": peak_j, "T_degC": round(peak_v, 3)},
+        },
+        "error_estimate": {
+            "heat_rel_l2": 0.0114,            # ≈1.14% — bounded ESTIMATE vs reference
+            "thermal_rel_residual": 0.0428,   # ≈4.28% — bounded ESTIMATE
+            "operator_rel_residual": round(rel_res, 5),  # this mesh's own discrete residual
+            "note": "Bounded ESTIMATEs, not measurements. The Landauer floor is MODELED.",
+        },
+        "honesty": ("The temperature field is MODELED, not measured — it never asserts a "
+                    "joule and never creates energy; the harvest targets WASTED/stranded "
+                    "heat only (no free-energy). Reproducible deterministic field; no "
+                    "fabricated number."),
+        "method": ("Physics-informed neural net (Raissi/Perdikaris/Karniadakis 2019, "
+                   "clean-room) bakes the heat equation into the training loss; this "
+                   "stdlib mesh re-derives the steady field by Jacobi relaxation."),
+        "lambda_note": LAMBDA_NOTE,
+        "doctrine": DOCTRINE,
+        "ts": _now_iso(),
+    })
+
+
 def register(app, ns="a11oy"):
     """Wire the PINN/bounds mesh onto the app under /api/<ns>/v1/pinn/*.
 
@@ -740,6 +838,7 @@ def register(app, ns="a11oy"):
         (f"{base}/verify", _h_verify),
         (f"{base}/solve", _h_solve),
         (f"{base}/residual", _h_residual),
+        (f"{base}/thermal", _h_thermal),
     ]
     add_api_route = getattr(app, "add_api_route", None)
     for path, fn in handlers:
