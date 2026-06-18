@@ -8005,6 +8005,25 @@ async def command_console_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# INVESTOR-WOW deep-link entry path (2026-06-18). The "Ungoverned vs a11oy"
+# demo is the console SPA view V.wowtoggle, reachable today via the left-nav
+# but NOT via its obvious top-level URLs: /ungoverned, /ungoverned-vs-a11oy,
+# /vs, /compare all fell through to the SPA catch-all → generic Command Center,
+# so a founder/investor typing a11oy.net/ungoverned saw the wrong page and
+# "nothing happened." The console boots into the view named by location.hash
+# (pages/console.html: `start=(location.hash||'#command').slice(1)`), so these
+# pretty paths just need to land on /console#wowtoggle. Registered BEFORE the
+# SPA /{full_path:path} catch-all so they win the ordered match. ADDITIVE ONLY;
+# no view rebuilt, no honesty label touched (the view keeps its SIMULATED
+# ungoverned side + LOCKED-PROVEN F1/F18 governed verdict).
+async def _ungoverned_deeplink() -> Response:
+    return _PTG_Redirect(url="/console#wowtoggle", status_code=307)
+
+
+for _wow_path in ("/ungoverned", "/ungoverned-vs-a11oy", "/vs", "/compare"):
+    app.add_api_route(_wow_path, _ungoverned_deeplink, methods=["GET"], include_in_schema=False)
+
+
 @app.get("/landing")
 async def marketing_landing_page() -> Response:
     # ADDITIVE (investor-grade marketing front door). Served from pages/landing.html
