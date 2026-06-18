@@ -1234,11 +1234,57 @@ except Exception as _prov_e:
     _tb_pv.print_exc()
 # ── end Provenance Hardening ─────────────────────────────────────────────────
 
+# ===========================================================================
+# CORS LOCKDOWN (SAFE-NOW hardening, 2026-06-18).
+# DCO: Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>.
+#
+# Previously CORS was wide-open (allow_origins=["*"]), which let ANY website's
+# browser JS read every a11oy API response cross-origin. We restrict the
+# Access-Control-Allow-Origin allow-list to the known a11oy / killinchu / HF
+# origins (+ localhost for dev). This does NOT break public read endpoints:
+# CORS only governs CROSS-ORIGIN *browser JS* reads — same-origin page loads,
+# server-to-server calls, and curl are unaffected (the browser only enforces CORS
+# on XHR/fetch from a different origin). The demo pages are served same-origin, so
+# their fetch() calls keep working.
+#
+# allow_origin_regex covers the HF Space wildcard (szlholdings-*.hf.space) and the
+# planned a11oy.net / killinchu.a11oy.net subdomains in one place. We do NOT set
+# allow_credentials=True (cookies/Authorization are not used cross-origin), so
+# there is no "* + credentials" footgun and the allow-list stays the security
+# boundary. Methods/headers are scoped to what the read+governed-write API uses.
+# Override via A11OY_CORS_EXTRA_ORIGINS (comma-separated) if a new origin is added.
+# ===========================================================================
+import os as _cors_os
+
+_CORS_ALLOWED_ORIGINS = [
+    "https://a11oy.net",
+    "https://www.a11oy.net",
+    "https://killinchu.a11oy.net",
+    "https://szlholdings-a11oy.hf.space",
+    "https://szlholdings-killinchu.hf.space",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+# Allow operators to add origins without a code change (comma-separated env var).
+_cors_extra = _cors_os.environ.get("A11OY_CORS_EXTRA_ORIGINS", "").strip()
+if _cors_extra:
+    _CORS_ALLOWED_ORIGINS.extend(
+        o.strip() for o in _cors_extra.split(",") if o.strip()
+    )
+
+# Regex catch-all for the HF Space subdomains (szlholdings-<name>.hf.space) and
+# any *.a11oy.net subdomain (immune.a11oy.net, killinchu.a11oy.net, ...).
+_CORS_ALLOWED_ORIGIN_REGEX = (
+    r"^https://(szlholdings-[a-z0-9-]+\.hf\.space|([a-z0-9-]+\.)?a11oy\.net)$"
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_CORS_ALLOWED_ORIGINS,
+    allow_origin_regex=_CORS_ALLOWED_ORIGIN_REGEX,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
 # ===========================================================================
