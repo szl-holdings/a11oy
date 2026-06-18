@@ -106,7 +106,13 @@ RUN pip install --no-cache-dir \
     "cryptography>=42.0.0" \
     "lmdb>=1.4.0"
 # BE hardening: slowapi rate limiter (60/min/IP). pydantic+fastapi already present.
-RUN pip install --no-cache-dir "slowapi>=0.1.9"
+# defusedxml hardens the Odoo ERP connector's XML-RPC parser against XML
+# entity-expansion / decompression-bomb attacks (bandit B411): szl_connectors/erp/
+# odoo.py applies defusedxml.xmlrpc.monkey_patch() before parsing untrusted server
+# responses; this pin makes that path active in the running image (pure-python
+# wheel). Folded into the slowapi RUN to avoid adding a new image layer (a11oy's
+# Dockerfile is at the buildkit max-depth ceiling).
+RUN pip install --no-cache-dir "slowapi>=0.1.9" "defusedxml==0.7.1"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
