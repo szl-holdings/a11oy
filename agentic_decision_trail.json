@@ -61,7 +61,7 @@
     "avg_power_w_MEASURED": 9.391302187524898,
     "temperature_k_MEASURED": 322.15,
     "live_samples_consumed": 3,
-    "gpu": "NVIDIA GeForce RTX 5050 Laptop GPU (betterwithage, tailnet 100.125.77.31)"
+    "gpu": "NVIDIA GeForce RTX 5050 Laptop GPU (betterwithage, sovereign tailnet node)"
   },
   "doctrine": "v11 LOCKED: NO free-energy/over-unity (this certificate PROVES bounded energy use \u2014 the honest inverse); joules DERIVED ONLY from MEASURED power\u00d7time (SAMPLE until a real exporter is wired); physics bounds CITED, not claimed as SZL's; \u039b=Conjecture 1 (advisory, never 'proven trust'); locked-proven=8; SLSA L1 honest; sovereign own-metal; no fabricated numbers.",
   "lambda_note": "\u039b = Conjecture 1 (advisory). States physical FACTS (bounds), not 'proven trust'. Makes NO free-energy claim. Gate is deny-by-default.",

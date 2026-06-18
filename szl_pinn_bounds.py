@@ -44,6 +44,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -465,8 +466,43 @@ def _h_certificate(req: Request):
     })
 
 
+# Private/sensitive address tokens that must never reach a client. The decision
+# trail is written on SZL metal (the Forge GPU node) and READ + SERVED verbatim
+# by /api/a11oy/v1/pinn/solve; an on-metal artifact can embed a sovereign GPU's
+# tailnet address (e.g. "...(betterwithage, tailnet 100.125.77.31)"). That JSON
+# renders client-side on a public HF Space, so we scrub the raw address at the
+# read boundary — every trail consumer is then leak-safe, including any future
+# artifact. Doctrine v11: hide private addressing, change no true/false fact
+# (same class as the compute-pool egress scrub).
+_PRIVATE_ADDR_RE = re.compile(
+    r"(?:https?://)?"                                               # optional scheme
+    r"(?:100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}"  # 100.64-127.x.x CGNAT/tailnet
+    r"|167\.233\.50\.75)"                                           # the box public IP
+    r"(?::\d+)?"                                                    # optional :port
+)
+
+
+def _scrub_private_addrs(obj):
+    """Recursively strip private addresses from a JSON-ish structure, in place
+    where possible. Drops a trailing ", tailnet <addr>" qualifier cleanly and
+    otherwise replaces the bare address token with "(private)". Honest content
+    (GPU model, node name, joules, verdicts) is untouched."""
+    if isinstance(obj, dict):
+        return {k: _scrub_private_addrs(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_scrub_private_addrs(v) for v in obj]
+    if isinstance(obj, str):
+        # Strip a ", tailnet <addr>" / " tailnet <addr>" qualifier without leaving
+        # a dangling word, then scrub any remaining bare address token.
+        s = re.sub(r",?\s*tailnet\s+(?:https?://)?(?:100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])"
+                   r"\.\d{1,3}\.\d{1,3}|167\.233\.50\.75)(?::\d+)?", "", obj, flags=re.I)
+        return _PRIVATE_ADDR_RE.sub("(private)", s)
+    return obj
+
+
 def _trail_or_none():
-    return _read_json(_TRAIL_ARTIFACT)
+    trail = _read_json(_TRAIL_ARTIFACT)
+    return _scrub_private_addrs(trail) if trail is not None else None
 
 
 def _h_solve(req: Request):

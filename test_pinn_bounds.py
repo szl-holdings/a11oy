@@ -117,6 +117,45 @@ def test_register_adds_pinn_routes():
         assert p in paths
 
 
+def test_served_decision_trail_has_no_private_address():
+    """The committed on-metal artifact + the served /pinn/solve trail must not leak
+    a sovereign GPU's tailnet address (Doctrine v11: hide private addressing,
+    change no true/false fact — same leak class as the compute-pool egress scrub)."""
+    import re
+    # 1. The committed artifact itself is clean (defense at the data).
+    art = os.path.join(os.path.dirname(os.path.abspath(m.__file__)),
+                       "agentic_decision_trail.json")
+    if os.path.isfile(art):
+        raw = open(art).read()
+        assert "100.125.77.31" not in raw, "committed trail artifact leaks a tailnet IP"
+        assert not re.search(r"100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d", raw), \
+            "committed trail artifact leaks a 100.64/10 tailnet IP"
+
+    # 2. The read boundary scrubs any private address (defense at egress) so EVERY
+    #    trail consumer is leak-safe even if a future artifact embeds an address.
+    trail = m._trail_or_none()
+    if trail is not None:
+        blob = json.dumps(trail)
+        for tok in ("100.125.77.31", ":11434", ":9471", "167.233.50.75"):
+            assert tok not in blob, f"served decision trail leaks {tok!r}"
+        assert not re.search(r"100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d", blob), \
+            "served decision trail leaks a 100.64/10 tailnet IP"
+        # Honest facts survive: the GPU model + node name remain, joules untouched.
+        gpu = trail.get("energy_measurement", {}).get("gpu", "")
+        assert "betterwithage" in gpu and "RTX 5050" in gpu
+
+
+def test_scrub_private_addrs_preserves_honest_content():
+    """_scrub_private_addrs strips ONLY the address, leaving honest text intact."""
+    s = m._scrub_private_addrs
+    assert s("RTX 5050 (betterwithage, tailnet 100.125.77.31)") == "RTX 5050 (betterwithage)"
+    assert s("probe http://100.70.130.45:11434 timed out") == "probe (private) timed out"
+    assert s("box 167.233.50.75 reachable") == "box (private) reachable"
+    # Public DNS + non-address content untouched.
+    assert s("router.huggingface.co/v1") == "router.huggingface.co/v1"
+    assert s({"a": ["x tailnet 100.96.129.45", 42, True]}) == {"a": ["x", 42, True]}
+
+
 if __name__ == "__main__":
     # allow running without pytest
     import traceback
