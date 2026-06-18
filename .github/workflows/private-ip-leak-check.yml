@@ -1,0 +1,43 @@
+name: Private-IP Leak Check
+
+# SAFE-NOW hardening (2026-06-18): ratchets the egress-leak class shut. Fails the
+# build if a private tailnet IP (100.64.0.0/10), the self-hosted box IP
+# (167.233.50.75), or an internal inference port (:11434 / :9471) appears in code
+# paths that are SERVED to the browser (web/, static/, pages/, templates/,
+# assets/). Honest, documented public references are allow-listed by exact
+# path:token pairs in scripts/private_ip_leak_allowlist.txt.
+
+on:
+  pull_request:
+    branches: [main, master]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-ip-leak-check:
+    name: "Egress hygiene — no private/internal addresses in served code"
+    runs-on: ubuntu-latest
+    steps:
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/checkout is github-owned.
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Self-test the leak gate (negative fixtures must be caught)
+        # Proves the gate catches the leak class and that its allowlist is exact —
+        # so the gate can't silently rot into an always-pass. Pure bash, no network.
+        run: bash scripts/check_private_ip_leak.test.sh
+
+      - name: Scan served paths for private-IP / internal-endpoint leaks
+        run: bash scripts/check_private_ip_leak.sh

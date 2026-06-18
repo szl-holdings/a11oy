@@ -112,8 +112,8 @@ const LIVE_PAYLOAD = {
   counts: { nodes_total: 6, nodes_reachable: 4, gpu_nodes_reachable: 2, sovereign_gpu_live: 1 },
   nodes: [
     { name: "hetzner-box-cpu", kind: "cpu", endpoint: "127.0.0.1 (self)", reachable: true, sovereign: true, capabilities: ["host", "router"], models: [] },
-    { name: "rtx-betterwithage", kind: "sovereign-gpu", endpoint: "http://100.125.77.31:11434", reachable: true, sovereign: true, capabilities: ["inference", "train"], models: ["qwen2.5-coder", "llama3.1"] },
-    { name: "chaski", kind: "tailnet-gpu", endpoint: "http://100.76.58.50:11434", reachable: true, sovereign: false, capabilities: ["inference"], models: ["deepseek-coder-v2"] },
+    { name: "rtx-betterwithage", kind: "sovereign-gpu", endpoint: "sovereign-gpu (scrubbed)", reachable: true, sovereign: true, capabilities: ["inference", "train"], models: ["qwen2.5-coder", "llama3.1"] },
+    { name: "chaski", kind: "tailnet-gpu", endpoint: "tailnet-gpu (scrubbed)", reachable: true, sovereign: false, capabilities: ["inference"], models: ["deepseek-coder-v2"] },
     { name: "groq", kind: "hosted-inference", endpoint: "api.groq.com:443", reachable: true, sovereign: false, capabilities: ["inference"], models: ["llama-3.3-70b"] },
     { name: "nvidia-nim", kind: "hosted-inference", endpoint: "integrate.api.nvidia.com:443", reachable: false, sovereign: false, capabilities: [], models: [] },
     { name: "hf-router", kind: "hosted-inference", endpoint: "router.huggingface.co:443", reachable: false, sovereign: false, capabilities: [], models: [] },

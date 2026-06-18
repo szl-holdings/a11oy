@@ -1,0 +1,24 @@
+# Honest allowlist for scripts/check_private_ip_leak.sh
+# ----------------------------------------------------------------------------
+# Format: one "relative/path:offending-substring" per line. Blank lines and
+# lines starting with # are ignored. A line exempts EXACTLY that file+token
+# pair from the private-IP leak gate. Every entry must be a genuine, documented
+# exception — NOT a way to silence a real private-tailnet leak.
+#
+# The leak gate fails on: tailnet 100.64.0.0/10, the box IP 167.233.50.75,
+# and internal ports :11434 / :9471. The entries below are public/intentional.
+# ----------------------------------------------------------------------------
+
+# DNS & subdomains roadmap page intentionally documents the PUBLIC self-hosted
+# Hetzner box IP as the planned A record (e.g. immune.a11oy.net A 167.233.50.75).
+# This is a public server IP shown by design on a roadmap page — not a private leak.
+web/dns.html:167.233.50.75
+
+# Console "self-hosted" LIVE badge shows the same PUBLIC box IP next to the
+# a11oy.net hostname. Public-facing, intentional, user-visible label.
+pages/console.html:167.233.50.75
+
+# Third-party Ollama API usage examples in the cookbook dataset use the standard
+# public-documentation endpoint http://localhost:11434/v1 (Ollama's own default,
+# not internal a11oy infra). localhost is not a private tailnet address.
+web/src/data/cookbookData.ts::11434
