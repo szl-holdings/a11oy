@@ -88,7 +88,7 @@ def embed(text: str, dim: int = EMBED_DIM) -> List[float]:
     for i in range(len(s) - 2):
         grams.append(s[i : i + 3])
     for g in grams:
-        h = int(hashlib.md5(g.encode("utf-8")).hexdigest(), 16)
+        h = int(hashlib.md5(g.encode("utf-8"), usedforsecurity=False).hexdigest(), 16)
         idx = h % dim
         sign = 1.0 if (h >> 8) & 1 else -1.0
         vec[idx] += sign
