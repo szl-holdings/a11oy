@@ -52,6 +52,10 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/agent/code/inspect",       # GCAK — read-only persistent-var inspect (no receipt)
     "/api/a11oy/v1/agent/code/status",        # GCAK — kernel + gate status
     "/api/a11oy/v1/agent/code/receipts",      # GCAK — signed per-cell receipt chain
+    "/ungoverned",                            # investor-WOW deep-link → /console#wowtoggle (V.wowtoggle)
+    "/ungoverned-vs-a11oy",                   # investor-WOW deep-link → /console#wowtoggle
+    "/vs",                                    # investor-WOW deep-link → /console#wowtoggle
+    "/compare",                               # investor-WOW deep-link → /console#wowtoggle
 ]
 
 
