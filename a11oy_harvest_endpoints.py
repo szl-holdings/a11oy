@@ -38,6 +38,7 @@ Endpoints exposed (all GET):
 from __future__ import annotations
 
 import os
+import re
 import sys
 import datetime
 
@@ -148,13 +149,35 @@ _FORMULA_CITATIONS = [
 ]
 
 
+# Private addressing that must never reach a served response body, even via an
+# exception string from a down feed (tailnet CGNAT 100.64-127.x, the sovereign box
+# public IP, or any host:port). Mirrors the egress-scrub class used across served
+# modules — it hides addressing only, it changes no true/false fact.
+_PRIVATE_ADDR_RE = re.compile(
+    r"(?:https?://)?"
+    r"(?:100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}"
+    r"|167\.233\.50\.75)"
+    r"(?::\d+)?"
+)
+
+
+def _safe_err(exc: Exception, limit: int = 200) -> str:
+    """Honest, bounded, address-scrubbed error string for a served body.
+
+    Truncates so a stack-deep message can't bloat the response and scrubs any
+    private tailnet/box address so a down-feed exception can't leak addressing.
+    """
+    return _PRIVATE_ADDR_RE.sub("(private)", str(exc))[:limit]
+
+
 def _unavailable_response(endpoint: str) -> dict:
     """Honest degraded response when the harvest package is not importable."""
     return {
         "ok": False,
         "endpoint": endpoint,
         "error": "harvest module not importable",
-        "detail": _HARVEST_IMPORT_ERR if not _HARVEST_OK else "unknown",
+        "detail": (_PRIVATE_ADDR_RE.sub("(private)", _HARVEST_IMPORT_ERR)[:200]
+                   if not _HARVEST_OK else "unknown"),
         "doctrine": _DOCTRINE_NOTE,
         "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
@@ -200,7 +223,7 @@ def handle_posture() -> dict:
         return {
             "ok": False,
             "posture": "unknown",
-            "error": str(exc),
+            "error": _safe_err(exc),
             "doctrine": _DOCTRINE_NOTE,
             "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
@@ -250,7 +273,7 @@ def handle_plan(bytes_param: int = 1024) -> dict:
     except Exception as exc:
         return {
             "ok": False,
-            "error": str(exc),
+            "error": _safe_err(exc),
             "doctrine": _DOCTRINE_NOTE,
             "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
@@ -281,7 +304,7 @@ def handle_receipt() -> dict:
     except Exception as exc:
         return {
             "ok": False,
-            "error": str(exc),
+            "error": _safe_err(exc),
             "joules_label": "sample",
             "doctrine": _DOCTRINE_NOTE,
             "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -309,7 +332,7 @@ def handle_world() -> dict:
     except Exception as exc:
         return {
             "ok": False,
-            "error": str(exc),
+            "error": _safe_err(exc),
             "doctrine": _DOCTRINE_NOTE,
             "timestamp_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
