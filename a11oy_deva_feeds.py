@@ -63,7 +63,15 @@ except Exception:  # pragma: no cover
 
 NS = "a11oy"
 DOCTRINE = {
-    "locked_proven": ["F1", "F11", "F12", "F18", "F19"],
+    # Doctrine v11 LOCKED: locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}
+    # @ kernel c7c0ba17 (matches the module docstring above and the sibling feed
+    # surfaces a11oy_amaru_feeds / a11oy_vertical_feeds / a11oy_devb_endpoints).
+    # The prior 5-element list ({F1,F11,F12,F18,F19}) was a stale "locked_five"
+    # leak served on every /deva/* tab — corrected to the canonical 8 (no count
+    # may ever be 5; HONESTY OVER CHECKLIST).
+    "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+    "locked_formula_count": 8,
+    "kernel_commit": "c7c0ba17",
     "lambda": "Conjecture 1 (advisory floor 0.90; unconditional uniqueness machine-checked FALSE; conditional axiom-free proven)",
     "slsa": "L1 honest; L2 build-attestation present; L2-verified/L3 = roadmap",
     "lambda_floor": 0.90,
