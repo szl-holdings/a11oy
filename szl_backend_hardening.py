@@ -526,6 +526,56 @@ DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
      "probe": ("router.huggingface.co", 443), "endpoint": "router.huggingface.co:443"},
 ]
 
+# ---------------------------------------------------------------------------
+# Egress scrub (2026-06-18) — NEVER leak private addressing to clients.
+# The fabric probes raw 100.x tailnet IPs / :11434 ports / the box public IP
+# INTERNALLY (that is how reachability is honestly measured), but the JSON
+# returned to clients must expose ONLY a non-sensitive label. This changes NO
+# true/false fact — reachable/sovereign/name/kind are untouched; it strips the
+# raw network address from the public payload (Doctrine v11: hide private
+# addressing, never fabricate reachability).
+# ---------------------------------------------------------------------------
+# Private/sensitive address tokens that must never appear in a client payload:
+#   - CGNAT/Tailscale 100.64.0.0/10 tailnet IPs (sovereign + replit GPU nodes)
+#   - the founder Ollama port :11434
+#   - the Hetzner box public IP
+_PRIVATE_ADDR_RE = _re.compile(
+    r"(?:https?://)?"                         # optional scheme
+    r"(?:100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}"  # 100.64-127.x.x (CGNAT)
+    r"|167\.233\.50\.75)"                     # the box public IP (cleartext leak)
+    r"(?::\d+)?"                              # optional :port (e.g. :11434)
+)
+
+
+def _safe_endpoint_label(node: Dict[str, Any]) -> str:
+    """A non-sensitive, render-ready endpoint label for one node.
+
+    Sovereign/tailnet GPU nodes -> "sovereign node · private tailnet" / "tailnet
+    (private)" (no IP/port). The self host -> "host running this service" (no box
+    IP). Hosted-inference nodes already use public DNS names (groq/nim/hf) and
+    keep their honest public hostname. This hides addressing ONLY — it never
+    changes reachable/sovereign."""
+    kind = str(node.get("kind", ""))
+    raw = str(node.get("endpoint", "") or "")
+    if kind == "cpu":
+        # the box itself — drop the public IP, keep the honest self label
+        return "host running this service"
+    if "gpu" in kind:
+        return "sovereign node · private tailnet" if node.get("sovereign") else "tailnet (private)"
+    # hosted-inference (public DNS name, no private leak) — only scrub if somehow dirty
+    return _PRIVATE_ADDR_RE.sub("(private)", raw) if _PRIVATE_ADDR_RE.search(raw) else raw
+
+
+def _scrub_detail(detail: Any) -> Any:
+    """Strip any private address (100.x tailnet IP, :11434, box IP) from a detail
+    string while preserving the honest reason text (e.g. "timeout", "tcp
+    reachable"). Also drops the internal "| ip:... via ..." resolution suffix."""
+    if not isinstance(detail, str):
+        return detail
+    base = detail.split(" | ip:")[0].strip(" |")
+    return _PRIVATE_ADDR_RE.sub("(private)", base)
+
+
 # Module-level cache shared across requests so the endpoint serves the last real
 # probe instead of re-probing every call.
 _FABRIC_CACHE = TTLCache(ttl=DEFAULT_CACHE_TTL)
@@ -596,13 +646,26 @@ def _probe_fabric_uncached(
         inner = env.get("result") if isinstance(env.get("result"), dict) else None
         reachable = bool(inner["reachable"]) if inner is not None else bool(env.get("reachable"))
         detail = (inner.get("detail") if inner else None) or env.get("detail") or n.get("detail")
+        sovereign = bool(n.get("sovereign", False))
+        # EGRESS SCRUB: emit only a safe label — never the raw 100.x IP / :11434 /
+        # box IP. reachable/sovereign are the REAL probe/property values, untouched.
+        endpoint_label = _safe_endpoint_label(n)
+        # Render-ready status word (so consumers concatenate "name · status (label)"
+        # WITHOUT a spacing bug): "(tailnet private)" for unreachable private GPU nodes.
+        if reachable:
+            status_label = "reachable"
+        elif "gpu" in str(n.get("kind", "")):
+            status_label = "unreachable (tailnet private)"
+        else:
+            status_label = "unreachable"
         out_nodes.append({
             "name": n["name"],
             "kind": n.get("kind"),
-            "endpoint": n.get("endpoint"),
+            "endpoint": endpoint_label,              # safe label, NOT a raw private address
             "reachable": reachable,                 # REAL probe result only
-            "sovereign": bool(n.get("sovereign", False)),  # property of the node, passed through
-            "detail": detail,
+            "sovereign": sovereign,                  # property of the node, passed through
+            "status_label": status_label,            # render-ready, space-clean
+            "detail": _scrub_detail(detail),         # honest reason, private address stripped
             "probe_elapsed_s": env.get("elapsed_s"),
         })
 

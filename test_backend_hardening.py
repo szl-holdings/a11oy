@@ -27,6 +27,7 @@ Run: python3 test_backend_hardening.py   (or: pytest test_backend_hardening.py)
 """
 from __future__ import annotations
 
+import json
 import os
 import socket
 import sys
@@ -211,6 +212,59 @@ def test_fabric_pool_subsecond_with_dead_chaski_and_honest():
         assert "joules" not in payload["counts"]
     finally:
         restore()
+
+
+def test_fabric_pool_never_leaks_private_addressing():
+    """Egress scrub: the public compute-pool payload must NEVER contain a raw 100.x
+    tailnet IP, the :11434 Ollama port, or the box public IP — while keeping every
+    honest fact (name/kind/reachable/sovereign/detail-reason). Doctrine v11: hide
+    private addressing, never fabricate reachability."""
+    install, restore = _mock_sockets()
+    install()
+    try:
+        payload = bh.probe_fabric_pool(timeout=1.5, force=True, retries=0)
+        blob = json.dumps(payload)
+        assert "100." not in blob, f"leaked a 100.x tailnet IP: {blob}"
+        assert ":11434" not in blob, f"leaked the :11434 Ollama port: {blob}"
+        assert "167.233.50.75" not in blob, f"leaked the box public IP: {blob}"
+
+        by = {n["name"]: n for n in payload["nodes"]}
+        # Honest fields survive the scrub.
+        for name in ("rtx-betterwithage", "chaski", "hetzner-box-cpu"):
+            n = by[name]
+            assert isinstance(n["reachable"], bool)
+            assert isinstance(n["sovereign"], bool)
+            assert n["endpoint"] and "100." not in n["endpoint"] and ":11434" not in n["endpoint"]
+            assert n.get("status_label")  # render-ready, space-clean
+        # Safe labels are the expected non-sensitive strings.
+        assert by["rtx-betterwithage"]["endpoint"] == "sovereign node · private tailnet"
+        assert by["chaski"]["endpoint"] == "tailnet (private)"
+        assert by["hetzner-box-cpu"]["endpoint"] == "host running this service"
+        # chaski is honestly DOWN with its real reason preserved (scrub keeps the reason).
+        assert by["chaski"]["reachable"] is False
+        assert by["chaski"]["detail"] in ("timeout", "simulated chaski hang")
+        assert by["chaski"]["status_label"] == "unreachable (tailnet private)"
+    finally:
+        restore()
+
+
+def test_safe_endpoint_label_and_scrub_helpers():
+    """Unit cover for the scrub helpers in isolation."""
+    assert bh._safe_endpoint_label(
+        {"kind": "sovereign-gpu", "sovereign": True, "endpoint": "http://100.125.77.31:11434"}
+    ) == "sovereign node · private tailnet"
+    assert bh._safe_endpoint_label(
+        {"kind": "tailnet-gpu", "sovereign": False, "endpoint": "http://100.102.173.88:11434"}
+    ) == "tailnet (private)"
+    assert bh._safe_endpoint_label({"kind": "cpu", "endpoint": "127.0.0.1 (self)"}) == "host running this service"
+    # public hosted DNS names are NOT private -> untouched
+    assert bh._safe_endpoint_label(
+        {"kind": "hosted-inference", "sovereign": False, "endpoint": "api.groq.com:443"}
+    ) == "api.groq.com:443"
+    # detail scrub strips the resolution suffix + any private address, keeps the reason
+    assert bh._scrub_detail("self-hosted | ip:100.102.173.88 via tailscale-live") == "self-hosted"
+    assert bh._scrub_detail("timeout") == "timeout"
+    assert "100." not in bh._scrub_detail("hit http://100.70.130.45:11434")
 
 
 def test_fabric_pool_second_call_is_cached_no_reprobe():
