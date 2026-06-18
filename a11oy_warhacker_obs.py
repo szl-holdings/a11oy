@@ -53,6 +53,37 @@ DOCTRINE = "v11"
 LAMBDA_STATUS = "Conjecture 1 (NOT a theorem — LOCKED)"
 SLSA_NOTE = "SLSA L1 honest build-provenance on the 5 organ images (cosign .att), not the bundle. No L3/FedRAMP/Iron Bank/CMMC."
 
+# Doctrine gate G5: 0 user-visible codenames. The mesh-reach + trace surfaces of
+# this module are rendered verbatim into served HTML on /observability, so the
+# internal organ keys (amaru/rosie/sentra) MUST be mapped to their honest public
+# roles and any *.hf.space probe URL redacted before they reach a JSONResponse.
+# Single source of truth is the shared szl_codename_gate.MAP (mirrors the JS
+# sanitizer). Code-internal keys are unchanged; only the served fields are.
+try:  # shared module, present in every app image
+    from szl_codename_gate import MAP as _CODENAME_MAP, sanitize as _codename_sanitize
+except Exception:  # pragma: no cover — belt-and-suspenders fallback, never a bare codename
+    _CODENAME_MAP = {"amaru": "YACHAY", "rosie": "Operator", "sentra": "CHAPAQ", "jarvis": "Operator"}
+    import re as _cn_re
+    _cn_pat = _cn_re.compile("(" + "|".join(_CODENAME_MAP) + ")", _cn_re.IGNORECASE)
+
+    def _codename_sanitize(text):  # type: ignore[no-redef]
+        if text is None:
+            return text
+        return _cn_pat.sub(lambda m: _CODENAME_MAP.get(m.group(0).lower(), m.group(0)), str(text))
+
+
+def _public_organ(organ: str) -> str:
+    """Map an internal organ key to its honest public role for any SERVED field."""
+    return _CODENAME_MAP.get(str(organ).lower(), organ)
+
+
+def _redact_organ_url(url: Any) -> Any:
+    """Replace an internal *.hf.space organ endpoint with an honest, codename-free
+    descriptor so the served JSON never leaks the codename via the probe URL."""
+    if not isinstance(url, str) or not url:
+        return url
+    return _codename_sanitize(url) if "hf.space" not in url else "(in-image organ endpoint)"
+
 # Live organ base URLs. Overridable by env for air-gap / mirror / cluster deploys.
 # Resolution order per organ (first non-empty wins):
 #   1. SZL_ORGAN_BASE_<ORGAN>  (e.g. SZL_ORGAN_BASE_AMARU=http://amaru.svc:8000)
@@ -441,11 +472,13 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     _PROBE_TIMEOUT = int(_os.environ.get("SZL_ORGAN_PROBE_TIMEOUT", "8"))
 
     def _probe_organ(organ: str) -> dict[str, Any]:
+        # `organ` is the internal key used for routing/probing; the SERVED fields
+        # below use the honest public role + a redacted URL (doctrine gate G5).
         path = ORGAN_HEALTH_PATH.get(organ, "/api/health")
         r = _call_organ(organ, "GET", path, None, timeout=_PROBE_TIMEOUT)
-        return {"organ": organ, "status": r.get("status"),
+        return {"organ": _public_organ(organ), "status": r.get("status"),
                 "http_code": r.get("http_code"), "latency_ms": r.get("latency_ms"),
-                "url": r.get("url"), "probed_path": path}
+                "url": _redact_organ_url(r.get("url")), "probed_path": path}
 
     @app.get(f"{base}/observability/summary")
     async def observability_summary() -> JSONResponse:
@@ -494,8 +527,9 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         organ_spans = []
         for organ in ("a11oy", "sentra", "amaru", "rosie", "killinchu"):
             pr = _probe_organ(organ)
+            pub = pr["organ"]  # honest public role from _probe_organ (codename-free)
             organ_spans.append({
-                "organ": organ, "span": f"mesh.probe.{organ}",
+                "organ": pub, "span": f"mesh.probe.{pub}",
                 "status": pr["status"], "http_code": pr["http_code"],
                 "latency_ms": pr["latency_ms"], "probed_path": pr["probed_path"],
                 "fabricated": False,
