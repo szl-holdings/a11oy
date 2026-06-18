@@ -14512,7 +14512,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   async function ehThermalPanel(){
     var deployed=false, status='in-deployment', detail='';
     try{
-      var _c=new AbortController(); var _t=setTimeout(function(){try{_c.abort();}catch(e){}},1500);
+      var _c=new AbortController(); var _t=setTimeout(function(){try{_c.abort();}catch(e){}},6000);
       var r=await fetch(EH_API.replace(/\/harvest$/,'')+"/pinn/thermal",{cache:"no-store",signal:_c.signal}).finally(function(){clearTimeout(_t);});
       if(r&&r.ok){ deployed=true; status='live'; try{var j=await r.json(); if(j&&j.modeled_not_measured!=null) detail='endpoint reports modeled_not_measured='+esc(j.modeled_not_measured);}catch(e){} }
     }catch(e){ /* endpoint not deployed yet — honest degradation, no fabrication */ }
@@ -14543,10 +14543,35 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        the tab — it degrades to an honest "unavailable" state, never fabricated. */
     c.innerHTML='<div class="card">'+(window.skelRows?window.skelRows(4):'<div class="dim">reading live grid feeds…</div>')+'</div>';
     try{
-      var _ctl=new AbortController(); var _t=setTimeout(function(){try{_ctl.abort();}catch(e){}},2000);
+      var _ctl=new AbortController(); var _t=setTimeout(function(){try{_ctl.abort();}catch(e){}},8000);
       var r=await fetch(EH_API+"/posture",{cache:"no-store",signal:_ctl.signal}).finally(function(){clearTimeout(_t);});
       if(!r.ok) throw new Error("HTTP "+r.status);
       var d=await r.json();
+      /* same-origin-schema-adapter: the same-origin /api/a11oy/v1/harvest/posture returns
+         the operator-native shape (posture/readings[]/drivers[]) rather than the legacy
+         grid_price_posture shape. Normalize it into the fields this panel renders using
+         ONLY the REAL measured readings (no fabrication). If the response already carries
+         grid_price_posture (legacy shape) this block is a no-op. */
+      if(d&&d.grid_price_posture==null&&Array.isArray(d.readings)){
+        var _find=function(f){for(var i=0;i<d.readings.length;i++){if(d.readings[i].feed===f)return d.readings[i];}return null;};
+        var _aw=_find('awattar_de'), _ren=_find('energy_charts_ren_share'), _uk=_find('uk_carbon_intensity');
+        var _live=0,_tot=0; d.readings.forEach(function(x){_tot++; if(x.reachable&&x.measured)_live++;});
+        var _minNext=null,_negWin=null;
+        if(_aw&&_aw.note){ var m1=/min_next=(-?[0-9.]+)/.exec(_aw.note); if(m1)_minNext=parseFloat(m1[1]); var m2=/neg_windows=([0-9]+)\/[0-9]+/.exec(_aw.note); if(m2)_negWin=parseInt(m2[1],10); }
+        var _ukIdx=null; if(_uk&&_uk.note){ var m3=/index=([a-z]+)/i.exec(_uk.note); if(m3)_ukIdx=m3[1]; }
+        d.grid_price_posture=d.posture||'unknown';
+        d.price_now_eur_mwh=(_aw&&_aw.value!=null)?_aw.value:null;
+        d.next_min_eur_mwh=_minNext;
+        d.next_negative_windows=_negWin;
+        d.next_window_negative=(_negWin!=null&&_negWin>0);
+        d.renewable_share_pct=(_ren&&_ren.value!=null)?_ren.value:null;
+        d.uk_gco2_per_kwh=(_uk&&_uk.value!=null)?_uk.value:null;
+        d.uk_carbon_index=_ukIdx;
+        d.feeds_live=_live; d.feeds_total=_tot;
+        if(d.ts==null&&d.timestamp_utc){ var _t2=Date.parse(d.timestamp_utc); if(!isNaN(_t2)) d.ts=_t2/1000; }
+        if(d.cached==null) d.cached=false;
+        if(!d.honesty) d.honesty=(d.doctrine||'')+(d.citation?(' Source: '+d.citation):'');
+      }
       var p=EH_POS[d.grid_price_posture]||EH_POS.unknown;
       var soak=d.wasted_energy_available;
       var h='';
