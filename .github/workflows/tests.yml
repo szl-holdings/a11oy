@@ -119,6 +119,31 @@ jobs:
         # the lung-reachability + autostart-gating + readiness logic at module level.
         run: pytest test_szl_energy_operator.py tests/test_energy_autostart_readyz.py -q
 
+  python-be-hardening:
+    name: Backend hardening surface tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (FastAPI TestClient over a real hardened app)
+        run: |
+          python -m pip install --upgrade pip
+          # szl_be_hardening builds a FastAPI app; httpx backs Starlette TestClient.
+          pip install fastapi starlette httpx pytest
+      - name: Run backend hardening surface tests
+        # Real HTTP tests (no mocks) over a freshly hardened app: health/readiness
+        # probes, pydantic input validation, error envelopes, trace headers, the real
+        # OpenAPI schema, durable Khipu persistence across a simulated restart, the
+        # honest v11 footer, AND rate limiting. The rate-limit test hammers the metered
+        # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
+        # asserts /healthz stays exempt — so a regression that throttles a health probe,
+        # drops the limiter, or breaks an envelope becomes a red gate.
+        run: pytest tests/test_be_hardening.py -q
+
   evidence-autorefresh-surface:
     name: Evidence tab auto-refresh surface guard (pytest, offline)
     runs-on: ubuntu-latest

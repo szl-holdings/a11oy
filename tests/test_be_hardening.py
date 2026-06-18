@@ -146,18 +146,40 @@ def test_honest_footer_exact_lock(client):
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
 
-# ---- 2: rate limiting (60/min/IP) ------------------------------------------
+# ---- 2: rate limiting (RATE_LIMIT_PER_MIN/min/IP on the data surface) -------
 def test_rate_limit_enforced():
-    # isolated app/client so other tests' requests don't pollute the window
+    # The limiter meters the DATA surface (/api/<organ>/v1/...) only — human
+    # pages and health/readiness probes are exempt (_is_rate_limited_path). So
+    # hammer a real metered endpoint (POST /api/rl/v1/be/echo), not /healthz,
+    # and key the threshold off the module constant rather than a hardcoded 60.
     app = FastAPI()
     with tempfile.TemporaryDirectory() as d:
         H.harden(app, organ="rl", khipu_path=os.path.join(d, "k.sqlite3"))
         c = TestClient(app)
-        statuses = [c.get("/healthz").status_code for _ in range(H.RATE_LIMIT_PER_MIN + 5)]
-        assert 429 in statuses, "expected at least one 429 after exceeding 60/min"
+        url = "/api/rl/v1/be/echo"
+        statuses = [
+            c.post(url, json={"message": "hi"}).status_code
+            for _ in range(H.RATE_LIMIT_PER_MIN + 5)
+        ]
+        assert 429 in statuses, (
+            f"expected at least one 429 after exceeding {H.RATE_LIMIT_PER_MIN}/min"
+        )
         assert statuses[:H.RATE_LIMIT_PER_MIN] == [200] * H.RATE_LIMIT_PER_MIN
         # the 429 body is the uniform error envelope
-        last = c.get("/healthz")
+        last = c.post(url, json={"message": "hi"})
         assert last.status_code == 429
         assert last.json()["error"]["code"] == "rate_limited"
         assert last.json()["error"]["doctrine"] == "v11"
+
+
+def test_health_probe_is_rate_limit_exempt():
+    # Liveness/readiness probes must NEVER be throttled — an over-eager probe
+    # cadence can't be allowed to 429 the very endpoint that reports health.
+    app = FastAPI()
+    with tempfile.TemporaryDirectory() as d:
+        H.harden(app, organ="rl", khipu_path=os.path.join(d, "k.sqlite3"))
+        c = TestClient(app)
+        statuses = [
+            c.get("/healthz").status_code for _ in range(H.RATE_LIMIT_PER_MIN + 25)
+        ]
+        assert statuses == [200] * len(statuses), "health probe must be exempt from rate limiting"
