@@ -144,6 +144,29 @@ jobs:
         # drops the limiter, or breaks an envelope becomes a red gate.
         run: pytest tests/test_be_hardening.py -q
 
+  python-energy-egress-scrub:
+    name: Energy /metrics private-address egress guard (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (the guard imports szl_energy_sovereign; stdlib-only otherwise)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Run energy /metrics egress-scrub guard
+        # PRIVATE-IP EGRESS-LEAK GUARD: /api/a11oy/v1/energy/metrics must never render the
+        # raw private joule-meter address in the served JSON `exporter` field (same private-IP
+        # leak class scrubbed from compute-pool). The served panel surfaces an honest
+        # non-revealing descriptor (_JOULE_METER_PUBLIC) while the internal probe URL stays
+        # the probe target only. test_energy_sovereign_egress.py existed but referenced a STALE
+        # constant name (_JOULE_METER_LABEL) so it errored out AND was never wired into CI — a
+        # dormant, broken guard. This job runs the corrected test so a future re-leak of the
+        # address becomes a red gate, not a silent leak.
+        run: pytest test_energy_sovereign_egress.py -q
+
   evidence-autorefresh-surface:
     name: Evidence tab auto-refresh surface guard (pytest, offline)
     runs-on: ubuntu-latest
