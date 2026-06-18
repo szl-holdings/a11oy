@@ -213,7 +213,7 @@ def _embed(text: str) -> list:
     vec = [0.0] * _EMBED_DIM
     toks = _TOK.findall((text or "").lower())
     for t in toks:
-        h = int(hashlib.md5(t.encode()).hexdigest(), 16)
+        h = int(hashlib.md5(t.encode(), usedforsecurity=False).hexdigest(), 16)
         idx = h % _EMBED_DIM
         sign = 1.0 if (h >> 8) & 1 else -1.0
         vec[idx] += sign
