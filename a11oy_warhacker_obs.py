@@ -59,17 +59,26 @@ SLSA_NOTE = "SLSA L1 honest build-provenance on the 5 organ images (cosign .att)
 # roles and any *.hf.space probe URL redacted before they reach a JSONResponse.
 # Single source of truth is the shared szl_codename_gate.MAP (mirrors the JS
 # sanitizer). Code-internal keys are unchanged; only the served fields are.
+# The banned codename->public-role map and the sanitizer live in ONE place only:
+# szl_codename_gate (allowlisted enumeration-for-detection, byte-identical across
+# apps, always shipped in the image). We import the map+sanitize from there and
+# DO NOT re-declare the codename literals here, so this file never enumerates a
+# banned token (Doctrine v7 §1 banned-token gate stays green) while still being
+# fully sanitized. The import is robust: normal import first, then a path-based
+# importlib load of the sibling module file if sys.path resolution ever fails.
 try:  # shared module, present in every app image
     from szl_codename_gate import MAP as _CODENAME_MAP, sanitize as _codename_sanitize
-except Exception:  # pragma: no cover — belt-and-suspenders fallback, never a bare codename
-    _CODENAME_MAP = {"amaru": "YACHAY", "rosie": "Operator", "sentra": "CHAPAQ", "jarvis": "Operator"}
-    import re as _cn_re
-    _cn_pat = _cn_re.compile("(" + "|".join(_CODENAME_MAP) + ")", _cn_re.IGNORECASE)
-
-    def _codename_sanitize(text):  # type: ignore[no-redef]
-        if text is None:
-            return text
-        return _cn_pat.sub(lambda m: _CODENAME_MAP.get(m.group(0).lower(), m.group(0)), str(text))
+except Exception:  # pragma: no cover — resolve the sibling module by file path
+    import importlib.util as _ilu, os as _ilos
+    _gate_path = _ilos.path.join(_ilos.path.dirname(_ilos.path.abspath(__file__)),
+                                 "szl_codename_gate.py")
+    _spec = _ilu.spec_from_file_location("szl_codename_gate", _gate_path)
+    if _spec is None or _spec.loader is None:  # truly unreachable in-image
+        raise RuntimeError("szl_codename_gate.py not found beside a11oy_warhacker_obs.py")
+    _gate = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_gate)
+    _CODENAME_MAP = _gate.MAP
+    _codename_sanitize = _gate.sanitize
 
 
 def _public_organ(organ: str) -> str:
