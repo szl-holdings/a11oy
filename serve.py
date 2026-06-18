@@ -638,10 +638,44 @@ except Exception as _szl_pinn_e:  # pragma: no cover
 # by route ordering) serves the REAL crosswalk JSON the page expects. NO fabrication: the
 # artifact is a SELF-ASSERTED advisory alignment (NOT a certification), Egyptian-honest
 # coverage counts only IMPLEMENTED cells, Λ=Conjecture 1. Additive, try/except-guarded.
+# Registered DIRECTLY here (not solely via szl_compliance_mesh.register, whose
+# add_api_route append could lose to the /api/a11oy/{path:path} Node proxy, and whose
+# compliance_crosswalk import runs a module-level _validate() that must never be able to
+# leave this demo-critical route un-mounted). The route handler imports the REAL crosswalk
+# at REQUEST time inside its own try/except and emits an HONEST degraded label if (and only
+# if) the data module is unavailable — it can NEVER 404. Routes are FRONT-MOVED to the head
+# of app.router.routes so they win over the Node proxy + SPA catch-all. 0 fabrication.
 try:
-    import szl_compliance_mesh as _szl_compliance_mesh
-    _szl_cc_routes = _szl_compliance_mesh.register(app, ns="a11oy")
-    print(f"[a11oy] Compliance crosswalk mesh registered: {_szl_cc_routes}", file=__import__("sys").stderr)
+    from starlette.routing import Route as _CCRoute
+    from starlette.responses import JSONResponse as _CCJSON
+
+    def _cc_payload(coverage_only: bool = False):
+        import compliance_crosswalk as _cc  # real NIST AI RMF / ISO 42001 / EU AI Act data
+        return _cc.coverage() if coverage_only else _cc.to_servable()
+
+    def _cc_handler_full(request=None):
+        try:
+            return _CCJSON(_cc_payload(False))
+        except Exception as _e:  # honest degraded label — NEVER a 404 on the PROOF demo page
+            return _CCJSON({
+                "schema": "szl.compliance.crosswalk.v1",
+                "status": "NO-LIVE-DATA",
+                "label": "ROADMAP — crosswalk artifact temporarily unavailable in this build",
+                "doctrine": "v11 LOCKED: a framework MAPPING is ADVISORY alignment, NOT a certification.",
+                "lambda": "\u039b = Conjecture 1 (advisory, never 'proven compliant')",
+                "detail": str(_e)[:160], "fabricated": False})
+
+    def _cc_handler_cov(request=None):
+        try:
+            return _CCJSON(_cc_payload(True))
+        except Exception as _e:
+            return _CCJSON({"status": "NO-LIVE-DATA", "label": "ROADMAP — coverage unavailable",
+                            "detail": str(_e)[:160], "fabricated": False})
+
+    # Front-move so these beat the /api/a11oy/{path:path} Node proxy + SPA catch-all.
+    app.router.routes.insert(0, _CCRoute("/api/a11oy/v1/compliance", _cc_handler_full, methods=["GET"]))
+    app.router.routes.insert(0, _CCRoute("/api/a11oy/v1/compliance/coverage", _cc_handler_cov, methods=["GET"]))
+    print("[a11oy] Compliance crosswalk mesh registered (front-moved): /api/a11oy/v1/compliance[/coverage]", file=__import__("sys").stderr)
 except Exception as _szl_cc_e:  # pragma: no cover
     print(f"[a11oy] Compliance crosswalk mesh NOT registered: {_szl_cc_e!r}", file=__import__("sys").stderr)
 
