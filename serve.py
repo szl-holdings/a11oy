@@ -1242,6 +1242,74 @@ app.add_middleware(
 )
 
 # ===========================================================================
+# ADDITIVE — SECURITY RESPONSE HEADERS (SAFE-NOW hardening, 2026-06-18).
+# DCO: Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>.
+#
+# CONTEXT: szl_be_hardening.py._apply_security_headers already ENFORCES the
+# non-breaking baseline on every response — X-Content-Type-Options: nosniff,
+# Referrer-Policy: strict-origin-when-cross-origin, Strict-Transport-Security,
+# AND an enforced Content-Security-Policy that declares a `frame-ancestors`
+# allow-list (self + Hugging Face). That frame-ancestors policy is the
+# clickjacking control AND the reason the legitimate HF cross-origin embed of
+# the Space still works; it is INTENTIONALLY used instead of X-Frame-Options
+# (which can only say DENY/SAMEORIGIN and would white-screen the HF embed).
+# The task's own wording allows "X-Frame-Options: DENY (or a frame-ancestors
+# CSP)" — the existing frame-ancestors CSP satisfies that requirement, so we do
+# NOT add X-Frame-Options: DENY (it would break the demo embed).
+#
+# WHAT THIS ADDS: the one genuinely-missing piece — a conservative
+# Content-Security-Policy-Report-Only covering the resource directives
+# (default-src/script-src/style-src/...) that the enforced frame-ancestors-only
+# CSP does not. It is REPORT-ONLY by design: the demo pages (/console,
+# /determinacy, /signature-is-not-proof, /frontier, /orbital, ...) are 0-CDN but
+# ship inline <script> blocks, inline on* handlers, and inline style=, so an
+# ENFORCED resource CSP would blank the demo. Report-only gives violation
+# visibility with zero risk to any surface; tightening to enforced is ROADMAP and
+# must wait until the inline handlers are removed.
+#
+# Purely additive: the middleware only ADDS a header via setdefault (so it never
+# clobbers a policy a route already set), never rewrites bodies, never touches
+# routing, and never short-circuits a request — it cannot drop a demo surface.
+# ===========================================================================
+try:
+    from starlette.middleware.base import BaseHTTPMiddleware as _SecHdr_Base
+
+    # Conservative, demo-safe report-only CSP. 'self' + inline (the pages use
+    # inline scripts/handlers/styles), data: images/fonts, no remote origins.
+    # frame-ancestors is left to the enforced policy in szl_be_hardening.py
+    # (the HF-embed allow-list); we keep it consistent here for the report-only
+    # view rather than re-declaring a conflicting 'none'.
+    _SECURITY_CSP_REPORT_ONLY = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "worker-src 'self' blob:; "
+        "frame-ancestors 'self' https://huggingface.co https://*.hf.space https://*.huggingface.co; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "object-src 'none'"
+    )
+
+    class _SecurityHeadersMiddleware(_SecHdr_Base):
+        async def dispatch(self, request, call_next):
+            response = await call_next(request)
+            # setdefault: never clobber a route/organ that set its own policy.
+            response.headers.setdefault(
+                "Content-Security-Policy-Report-Only", _SECURITY_CSP_REPORT_ONLY
+            )
+            return response
+
+    app.add_middleware(_SecurityHeadersMiddleware)
+    print("[a11oy] Security headers registered (report-only CSP; enforced "
+          "nosniff/HSTS/referrer/frame-ancestors come from szl_be_hardening)",
+          file=__import__("sys").stderr)
+except Exception as _sec_hdr_e:  # pragma: no cover
+    print(f"[a11oy] Security headers NOT registered: {_sec_hdr_e!r}", file=__import__("sys").stderr)
+
+# ===========================================================================
 # ADDITIVE (PER-TAB PALANTIR-CLASS GENIUS REBUILD — 2026-06-02,
 # Yachay (CTO) + Co-Authored-By: Perplexity Computer Agent).
 # DCO: Signed-off-by: Yachay (CTO).  Co-Authored-By: Perplexity Computer Agent.
