@@ -590,12 +590,10 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="feed" onclick="go('feed')"><span class="ico">∿</span>Live Decisions</div>
     <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
     <div class="nav-item" data-view="forecast" onclick="go('forecast')"><span class="ico">↗</span>Forecast</div>
-    <div class="nav-item" data-view="reciprocity" onclick="go('reciprocity')"><span class="ico">⇄</span>Reciprocity</div>
+    <!-- reciprocity moved to Lab · Experimental group (BATCH1 de-dupe) -->
     <div class="nav-group">Prove &amp; Verify</div>
     <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
-    <div class="nav-item" data-view="putnam" onclick="go('putnam')"><span class="ico">∮</span>Putnam 2025</div>
-    <div class="nav-item" data-view="putnamsampler" onclick="go('putnamsampler')"><span class="ico">∑</span>Putnam Sampler</div>
-    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
+    <!-- putnam, putnamsampler, frontier moved to Lab · Experimental group (BATCH1 de-dupe) -->
     <div class="nav-group">Frontier (3D · Live)</div>
     <div class="nav-item" data-view="govatlas" onclick="go('govatlas')"><span class="ico">✧</span>Governance Atlas</div>
     <div class="nav-item" data-view="oversight" onclick="go('oversight')"><span class="ico">◉</span>AI Oversight</div>
@@ -613,8 +611,7 @@ details.raw[open] summary{color:var(--muted);}
     <!-- DEPTH — advanced + supporting surfaces (collapsed on touch).     -->
     <!-- ============================================================= -->
     <div class="nav-group">Knowledge Base</div>
-    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
-    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
+    <!-- knowledge, kbformulas moved to Lab · Experimental group (BATCH1 de-dupe) -->
     <div class="nav-item" data-view="policies" onclick="go('policies')"><span class="ico">▤</span>Vertical Policies</div>
     <div class="nav-group">Models &amp; Tools</div>
     <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
@@ -623,12 +620,12 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
     <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
     <div class="nav-group">Leader-Grade (NEW)</div>
-    <div class="nav-item" data-view="lineage" onclick="go('lineage')"><span class="ico">⚛</span>Knowledge Lineage</div>
+    <!-- lineage moved to Lab · Experimental group (BATCH1 de-dupe) -->
     <div class="nav-item" data-view="mission" onclick="go('mission')"><span class="ico">⬢</span>Mission Health</div>
     <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
-    <div class="nav-group">World &amp; Threat Intel</div>
-    <div class="nav-item" data-view="cve" onclick="go('cve')"><span class="ico">⚠</span>CVE Watch</div>
-    <div class="nav-item" data-view="attack" onclick="go('attack')"><span class="ico">⚔</span>Adversary Techniques</div>
+    <!-- World & Threat Intel: cve → alias of kev (cluster 6); attack → alias of cybSurface (cluster 5). -->
+    <!-- Both nav-items removed (BATCH1 consolidation); go('cve')/go('attack') preserved via VIEWS aliases. -->
+    <!-- Group header dropped (would be empty) — threat intel surfaced via Cyber Defense group + kevgate. -->
     <div class="nav-group">Live Intel (RERUN)</div>
     <div class="nav-item" data-view="kevgate" onclick="go('kevgate')"><span class="ico">⛨</span>CVE → Gate Impact</div>
     <div class="nav-item" data-view="feedpulse" onclick="go('feedpulse')"><span class="ico">❣</span>Feed Liveness</div>
@@ -638,6 +635,34 @@ details.raw[open] summary{color:var(--muted);}
     <!-- ============================================================= -->
     <div class="nav-group">Business &amp; Ecosystem</div>
     <div class="nav-item" data-view="verticals" onclick="go('verticals')"><span class="ico">▦</span>Vertical-Pack Ecosystem</div>
+    <!-- Lab · Experimental (active build) — single source of nav truth for these 24 keys. -->
+    <!-- a11oy-overhaul-marker:BATCH1-lab-group. JS self-injectors are neutralized by the -->
+    <!-- global nav de-dupe sweep (keeps the first/static node per data-view; preserves go()). -->
+    <div class="nav-group">Lab · Experimental (active build)</div>
+    <div class="nav-item" data-view="sovereignty" onclick="go('sovereignty')"><span class="ico">⟁</span>Sovereignty (Allodial)</div>
+    <div class="nav-item" data-view="consensus_basin" onclick="go('consensus_basin')"><span class="ico">◈</span>Consensus Basin</div>
+    <div class="nav-item" data-view="gemstones_frontier" onclick="go('gemstones_frontier')"><span class="ico">◆</span>Scaling Frontier</div>
+    <div class="nav-item" data-view="abacus_manifold" onclick="go('abacus_manifold')"><span class="ico">▦</span>Numeric Manifold</div>
+    <div class="nav-item" data-view="ouro_spiral" onclick="go('ouro_spiral')"><span class="ico">◉</span>Reasoning Depth Spiral</div>
+    <div class="nav-item" data-view="cuas_pq" onclick="go('cuas_pq')"><span class="ico">⛬</span>PQ Provenance</div>
+    <div class="nav-item" data-view="entangle" onclick="go('entangle')"><span class="ico">⧉</span>Entanglement</div>
+    <div class="nav-item" data-view="neuro" onclick="go('neuro')"><span class="ico">❀</span>Neuroplasticity</div>
+    <div class="nav-item" data-view="scaling" onclick="go('scaling')"><span class="ico">⊛</span>Metabolic Scaling</div>
+    <div class="nav-item" data-view="reciprocity" onclick="go('reciprocity')"><span class="ico">⇄</span>Reciprocity</div>
+    <div class="nav-item" data-view="lineage" onclick="go('lineage')"><span class="ico">⚛</span>Knowledge Lineage</div>
+    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
+    <div class="nav-item" data-view="capfsm" onclick="go('capfsm')"><span class="ico">⊝</span>Capability Lifecycle FSM</div>
+    <div class="nav-item" data-view="receiptfp" onclick="go('receiptfp')"><span class="ico">⊚</span>Receipt Fingerprint</div>
+    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
+    <div class="nav-item" data-view="atlas" onclick="go('atlas')"><span class="ico">▥</span>Formula Atlas</div>
+    <div class="nav-item" data-view="brain2" onclick="go('brain2')"><span class="ico">❂</span>Brain · YACHAY</div>
+    <div class="nav-item" data-view="allodialai" onclick="go('allodialai')"><span class="ico">⟁</span>Allodial AI</div>
+    <div class="nav-item" data-view="l6chain" onclick="go('l6chain')"><span class="ico">⛓</span>Chain of Title (L6)</div>
+    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
+    <div class="nav-item" data-view="bounties" onclick="go('bounties')"><span class="ico">✦</span>Open Bounties</div>
+    <div class="nav-item" data-view="conjecturefactory" onclick="go('conjecturefactory')"><span class="ico">⚗</span>Conjecture Factory</div>
+    <div class="nav-item" data-view="putnam" onclick="go('putnam')"><span class="ico">∮</span>Putnam 2025</div>
+    <div class="nav-item" data-view="putnamsampler" onclick="go('putnamsampler')"><span class="ico">∑</span>Putnam Sampler</div>
     <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
 
@@ -8468,7 +8493,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     if(document.getElementById('deva-nav-group')){ return; }
     var grpRE=document.createElement('div'); grpRE.className='nav-group'; grpRE.id='deva-nav-group'; grpRE.textContent='Real Estate (deep)';
     var grpFIN=document.createElement('div'); grpFIN.className='nav-group'; grpFIN.id='deva-nav-group-fin'; grpFIN.textContent='Finance (deep)';
-    var re=[['rem','\u25c8','Market Pulse'],['red','\u25c9','Distress Radar'],['reo','\u26b9','Ownership Graph'],['redeal','\u25c6','Deal Intelligence'],['rebe','\u25a4','Broker Edge']];
+    /* BATCH1 consolidation cluster 19: rem/redeal/rebe aliased to vrealestate; nav tuples removed (go() routes preserved). red+reo kept (flagship 3D heroes). */
+    var re=[['red','\u25c9','Distress Radar'],['reo','\u26b9','Ownership Graph']];
     var fin=[['finq','\u2206','Quant Desk'],['finc','\u20bf','Crypto Live'],['finm','\u29c9','Markets Macro'],['finp','\u25d1','Prediction Markets'],['finr','\u26a0','Risk & Fraud Obs.']];
     function mkItem(d){ var n=document.createElement('div'); n.className='nav-item'; n.id='deva-nav-'+d[0];
       n.setAttribute('data-view',d[0]); n.setAttribute('onclick',"go('"+d[0]+"')");
@@ -9405,11 +9431,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         return frag;
       }
       // main group: Counsel + Enterprise + Chat + KAMAY
+      /* BATCH1 consolidation cluster 17: legMatter/legDefense/legReg/legInsure aliased to vlegal; nav tuples removed (go() routes preserved via VIEWS aliases). legExposure kept (flagship 3D). */
       var fragA=group('devb-nav-group','Counsel \u00b7 Enterprise \u00b7 KAMAY',[
-        {v:'legMatter',ico:'\u2696',t:'Counsel \u00b7 Matter'},
-        {v:'legDefense',ico:'\u2756',t:'Counsel \u00b7 Defense'},
-        {v:'legReg',ico:'\u25c9',t:'Counsel \u00b7 Regulatory'},
-        {v:'legInsure',ico:'\u2767',t:'Counsel \u00b7 Insurance/Wills'},
         {v:'legExposure',ico:'\u25c8',t:'Counsel \u00b7 Exposure'},
         {v:'entCockpit',ico:'\u25f7',t:'Enterprise \u00b7 Cockpit'},
         {v:'entComms',ico:'\u223f',t:'Enterprise \u00b7 Comms'},
@@ -9953,7 +9976,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function injectNav(){ var anchor=document.querySelector('.nav-item[data-view="verticals"]')||document.querySelector('.nav-item');
     if(!anchor){ return setTimeout(injectNav,250); } if(document.getElementById('cyb-nav-group')){ return; }
     var grp=document.createElement('div'); grp.className='nav-group'; grp.id='cyb-nav-group'; grp.textContent='Cyber Defense';
-    var items=[['cybThreat','\u2726','Threat Intelligence'],['cybPosture','\u25c9','Posture & Drift'],['cybSurface','\u2727','Attack-Surface Graph'],['cybIncident','\u26a0','Signed Incidents'],['cybZero','\u26d3','Zero-Trust Mesh']];
+    /* BATCH1 consolidation cluster 5: cybThreat aliased to cybSurface; nav tuple removed (VIEWS.cybThreat route preserved via alias). */
+    var items=[['cybPosture','\u25c9','Posture & Drift'],['cybSurface','\u2727','Attack-Surface Graph'],['cybIncident','\u26a0','Signed Incidents'],['cybZero','\u26d3','Zero-Trust Mesh']];
     function mk(d){ var n=document.createElement('div'); n.className='nav-item'; n.id='cyb-nav-'+d[0]; n.setAttribute('data-view',d[0]); n.setAttribute('onclick',"go('"+d[0]+"')"); n.innerHTML='<span class="ico">'+d[1]+'</span>'+d[2]; return n; }
     var parent=anchor.parentNode; parent.appendChild(grp); items.forEach(function(d){ parent.appendChild(mk(d)); }); }
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',injectNav); } else { injectNav(); }
@@ -15006,6 +15030,74 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 <!-- end DEV1 GOVERNANCE-ELEVATION -->
 
 <!-- ===================================================================== -->
+<!-- OVERHAUL BATCH 1 — CONSOLIDATION ALIASES + NAV DE-DUPE (additive, idempotent). -->
+<!-- (1) Aliases: for each deprecated key set VIEWS.oldkey = VIEWS.canonical, gated on -->
+<!--     the canonical existing (async-reg safe). Preserves every go() route; never -->
+<!--     deletes a VIEWS entry any route references. SPEC_C §3 (10 aliases). -->
+<!-- (2) Nav de-dupe: the static Lab · Experimental group is the single source of nav -->
+<!--     truth; the 24 Lab JS self-injectors would create duplicate rail rows. This -->
+<!--     debounced sweep keeps the FIRST .nav-item per data-view (the static node, -->
+<!--     parsed before any JS-appended dupe) and removes later duplicates. go() routes -->
+<!--     are untouched (VIEWS + onclick preserved on the kept node). Idempotent. -->
+<!-- DOCTRINE: locked=8 {F1,F4,F7,F11,F12,F18,F19,F22}; Lambda=Conjecture 1; 0 CDN. -->
+<!-- a11oy-overhaul-marker:BATCH1-aliases-dedupe -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  /* ---- (1) consolidation aliases (SPEC_C §3) ------------------------------- */
+  /* A(oldkey, canonical): alias when canonical is registered; retry while async  */
+  /* reg() IIFEs are still resolving. Never overwrites an existing distinct view. */
+  function A(o,c){
+    try{
+      if(window.VIEWS && window.VIEWS[c]){ if(window.VIEWS[o]!==window.VIEWS[c]){ window.VIEWS[o]=window.VIEWS[c]; } return; }
+    }catch(e){}
+    setTimeout(function(){ A(o,c); }, 80);
+  }
+  /* Cluster 17 — Legal: fold standalone Counsel desks → vlegal (KEEP legExposure). */
+  A('legMatter','vlegal'); A('legReg','vlegal'); A('legDefense','vlegal'); A('legInsure','vlegal');
+  /* Cluster 19 — Real Estate: fold standalone desks → vrealestate (KEEP red, reo). */
+  A('rem','vrealestate'); A('redeal','vrealestate'); A('rebe','vrealestate');
+  /* Cluster 5 — ATT&CK/threat: fold → cybSurface (KEEP threatgraph). */
+  A('threats','cybSurface'); A('attack','cybSurface'); A('cybThreat','cybSurface');
+  /* Cluster 6 — CVE/KEV: fold cve table → kev timeline (same corpus; KEEP kevgate). */
+  A('cve','kev');
+
+  /* ---- (2) nav de-dupe sweep --------------------------------------------- */
+  /* Keep the first .nav-item per data-view (static markup wins over JS dupes). */
+  function dedupeNav(side){
+    if(!side){ return; }
+    var seen = {}, items = side.querySelectorAll('.nav-item'), removed = 0;
+    for(var i=0;i<items.length;i++){
+      var el = items[i], k = el.getAttribute('data-view');
+      if(!k){ continue; }
+      if(seen[k]){ if(el.parentNode){ el.parentNode.removeChild(el); removed++; } }
+      else { seen[k] = true; }
+    }
+    return removed;
+  }
+  function attach(){
+    var side = document.querySelector('.side');
+    if(!side){ return setTimeout(attach, 200); }
+    var scheduled = false, applying = false;
+    function apply(){
+      scheduled = false;
+      if(applying){ return; }
+      try{ applying = true; dedupeNav(side); }catch(e){}
+      finally{ applying = false; }
+    }
+    function schedule(){ if(scheduled){ return; } scheduled = true; (window.requestAnimationFrame||setTimeout)(apply, 0); }
+    try{ var mo = new MutationObserver(function(){ schedule(); }); mo.observe(side, { childList:true, subtree:true }); }catch(e){}
+    schedule();
+    var ticks = 0, iv = setInterval(function(){ ticks++; try{ dedupeNav(side); }catch(e){} if(ticks>=60){ clearInterval(iv); } }, 1000);
+    window.addEventListener('load', schedule);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', attach); } else { attach(); }
+})();
+</script>
+<!-- end OVERHAUL BATCH 1 -->
+
+<!-- ===================================================================== -->
 <!-- DEV — PIN PITCH TABS TO TOP OF LEFT-NAV (reorder-only, additive).      -->
 <!-- Founder pitch walk goes top-to-bottom: the five flagship tabs must be  -->
 <!-- the FIRST five nav items, in this exact order. This pass ONLY moves     -->
@@ -15020,8 +15112,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 <script>
 (function(){
   "use strict";
-  // The five flagship tabs, in the exact top-to-bottom pitch order.
-  var PINNED = ["whHero","organism","warboard","feedpulse","honest"];
+  // The flagship tabs, in the exact top-to-bottom pitch order (Flagship-20).
+  // MutationObserver auto-hoists; tolerates absent keys (only moves nodes that exist).
+  // a11oy-overhaul-marker:BATCH1-flagship20 (live-build verification token).
+  var PINNED = ["whHero","cuas_fusion","cuas_swarm","cybSurface","cybZero","finm","finr","legExposure","red","reo","entIncident","fltTopo","oversight","constellation","energy","decision","wowdrop","wowledger","trustspace","llm"];
   function sel(k){ return '.nav-item[' + 'data-view=' + JSON.stringify(k) + ']'; }
   // True when the five pinned items are already the first five .nav-item nodes
   // (in order) inside .side. Used to skip work and to avoid feeding our own
