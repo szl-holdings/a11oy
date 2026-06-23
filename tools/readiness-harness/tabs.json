@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-06-13T00:00:00Z",
+  "generatedAt": "2026-06-23T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
     "tabs": 130,
@@ -2200,7 +2200,7 @@
     },
     {
       "key": "cybThreat",
-      "title": "Threat Intelligence",
+      "title": "Cyber Defense — Threat Intelligence",
       "group": "Console",
       "route": "/console#cybThreat",
       "endpoints": [
@@ -3425,7 +3425,7 @@
     },
     {
       "key": "rebe",
-      "title": "Broker Edge",
+      "title": "Real Estate — Broker Edge",
       "group": "Console",
       "route": "/console#rebe",
       "endpoints": [
@@ -3512,7 +3512,7 @@
     },
     {
       "key": "redeal",
-      "title": "Deal Intelligence",
+      "title": "Real Estate — Deal Intelligence",
       "group": "Console",
       "route": "/console#redeal",
       "endpoints": [
@@ -3529,7 +3529,7 @@
     },
     {
       "key": "rem",
-      "title": "Market Pulse",
+      "title": "Real Estate — Market Pulse",
       "group": "Console",
       "route": "/console#rem",
       "endpoints": [
