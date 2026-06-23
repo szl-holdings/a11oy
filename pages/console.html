@@ -718,6 +718,18 @@ function _szlTransient(e){
 window._szlFriendlyErr=function(e){
   var m=String((e&&e.message)||e||'');
   if(_szlTransient(e)) return 'temporarily unavailable — retrying';
+  /* BATCH2B/SPEC-E: never leak a bare "HTTP 4xx/5xx" status to the UI — map it to an
+     honest, human-readable phrase. The server proxy serves these live in-deployment;
+     a 4xx here means the route is not wired in this build, not that data is fabricated. */
+  var hm=/HTTP\s+(\d{3})/.exec(m);
+  if(hm){ var s=parseInt(hm[1],10);
+    if(s===404||s===405) return 'live source not wired in this build — shown honestly (served live in-deployment)';
+    if(s===401||s===403) return 'live source requires credentials not present in this build';
+    if(s===429) return 'live source rate-limited — retrying';
+    if(s>=500) return 'live source temporarily erroring — retrying';
+    return 'live source unavailable — showing honest fallback';
+  }
+  if(/route missing/i.test(m)) return 'live source not wired in this build — shown honestly (served live in-deployment)';
   return m;
 };
 /* Honest KPI label for a catch block. A TRANSIENT abort/network blip (the premature-abort
@@ -908,8 +920,16 @@ function ensureEchartsTheme(){if(_echartsThemeReady||!window.echarts)return;
 let _echarts={};
 function killEchart(id){if(_echarts[id]){try{_echarts[id].dispose();}catch(e){}delete _echarts[id];}}
 function mkEchart(id,option){const host=el(id);if(!host||!window.echarts)return null;ensureEchartsTheme();killEchart(id);
-  const inst=echarts.init(host,'szl',{renderer:'canvas'});inst.setOption(option);_echarts[id]=inst;
-  return inst;}
+  /* BATCH2A/E: guard against a zero-size init (host not yet laid out on a freshly
+     switched tab). echarts.init on a 0×0 host emits a "width/height are 0" warning and
+     renders nothing. Defer to requestAnimationFrame until the host has a box, then init. */
+  function _create(){ try{ const inst=echarts.init(host,'szl',{renderer:'canvas'});inst.setOption(option);_echarts[id]=inst; return inst; }catch(e){ return null; } }
+  if((host.clientWidth|0)===0 || (host.clientHeight|0)===0){
+    let _tries=0; const _tick=function(){ if(!host.isConnected) return; if((host.clientWidth|0)>0 && (host.clientHeight|0)>0){ _create(); } else if(++_tries<30){ requestAnimationFrame(_tick); } };
+    try{ requestAnimationFrame(_tick); }catch(e){ _create(); }
+    return _echarts[id]||null;
+  }
+  return _create();}
 let _globe=null;
 function killGlobe(){if(_globe){try{const sc=_globe.scene&&_globe.scene();}catch(e){}try{_globe._destructor&&_globe._destructor();}catch(e){}_globe=null;}}
 let _cy=null;
@@ -1148,7 +1168,7 @@ trustspace:{title:'Trust Space',badge:'3D POINT-CLOUD',sub:'Every trust dimensio
         <div class="card"><div class="card-h"><span class="card-t">Combined score</span><span class="card-ep">live</span></div><div class="gauge-wrap" style="justify-content:center"><div class="gauge"><canvas id="la-gauge"></canvas><div class="lbl"><div><div class="big" id="la-gbig">\u2014</div><div class="sm">vs floor 0.90</div></div></div></div></div></div>
         <div class="card"><div class="card-h"><span class="card-t">13 trust dimensions</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="la-radar"></canvas></div></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Per-dimension scores</span></div><div class="chartbox tall"><canvas id="la-bars"></canvas></div><div id="la-host" style="margin-top:.6rem"></div></div>${LAMBDA_FRONTIER_CARDS}${HONEST}`;window.lambda_load();}},
+      <div class="card"><div class="card-h"><span class="card-t">Per-dimension scores</span></div><div class="chartbox tall" style="max-width:100%;overflow:hidden"><canvas id="la-bars" style="max-width:100%"></canvas></div><div id="la-host" style="margin-top:.6rem"></div></div>${LAMBDA_FRONTIER_CARDS}${HONEST}`;window.lambda_load();}},
 
   gates:{title:'Safety Gates',badge:'8 GATES',sub:'Eight deny-by-default safety gates inspect every action for dangerous signals (injection, unsafe commands, banned vendors, and more). Anything suspicious is blocked before it runs.',
     render:async(c)=>{c.innerHTML=`<div class="kpis"><div class="kpi"><div class="k">Gates</div><div class="v" id="g-count">\u2014</div></div><div class="kpi"><div class="k">Deny-by-default</div><div class="v warn" id="g-deny">\u2014</div></div><div class="kpi"><div class="k">Categories</div><div class="v teal" id="g-cat">\u2014</div></div></div>
@@ -3886,7 +3906,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   // ngraph.graph UMD exposes global as `createGraph` (g.createGraph=f()); alias to the
   // name this module references so gpuKnowledgeGraph/chainDagre/sankeyLineage resolve it.
-  if(!window.ngraphCreateGraph && window.createGraph){ window.ngraphCreateGraph = window.createGraph; }
+  // BATCH2B: the vendor ngraph script is <script defer>, so window.createGraph may not yet
+  // exist when this parse-time line runs (load-order race). Use a re-runnable lazy alias,
+  // call it now, on window load, and at the top of every ngraph render body.
+  window.__ngraphAlias = function(){ if(!window.ngraphCreateGraph && window.createGraph){ window.ngraphCreateGraph = window.createGraph; } return !!window.ngraphCreateGraph; };
+  window.__ngraphAlias();
+  try{ window.addEventListener('load', function(){ window.__ngraphAlias(); }); }catch(e){}
 
   // register cytoscape-dagre once
   try{ if(window.cytoscape && window.cytoscapeDagre && !window.__cyDagreReg){ cytoscape.use(window.cytoscapeDagre); window.__cyDagreReg=true; } }catch(e){}
@@ -3995,6 +4020,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
      Formula: F-G2 expressivity ceiling.
      ========================================================================= */
   function gpuKnowledgeGraph(id, nodes, edges){
+    if(window.__ngraphAlias)window.__ngraphAlias();
     var host=E(id); if(!host||!window.THREE||!window.ngraphCreateGraph||!window.ngraphCreateLayout){ if(host)host.innerHTML='<div class="row mono dim" style="padding:1rem">GPU graph deps unavailable</div>'; return; }
     host.innerHTML='';
     var THREE=window.THREE;
@@ -4049,6 +4075,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function chainDagre(id, receipts, finalHash){
     var host=E(id); if(!host||!window.cytoscape){ if(host)host.innerHTML='<div class="row mono dim" style="padding:1rem">cytoscape unavailable</div>'; return; }
     host.innerHTML='';
+    if(window.__ngraphAlias)window.__ngraphAlias();
     var els=[]; var g=window.ngraphCreateGraph?ngraphCreateGraph():null;
     receipts.forEach(function(r,i){
       var sid='r'+r.seq;
@@ -4821,6 +4848,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="graph3d hero" id="ma-svg" style="position:relative"></div>'
         +'<div class="brain-note" id="ma-note">Edge = shared capability tags (sampled). Teal=open-weight, gold=API. '+chip('benchmark tags','SAMPLE')+'</div></div>'+honest();
         try{ var d=await gj('/api/a11oy/v1/llm/registry'); var models=(d.models||[]); T('ma-n',models.length);
+          if(window.__ngraphAlias)window.__ngraphAlias();
           if(!window.ngraphCreateGraph||!window.ngraphCreateLayout){ H('ma-svg','<div class="row mono dim" style="padding:1rem">ngraph unavailable</div>'); return; }
           // sample capability tag sets (labelled)
           function tags(m){ var s=[]; var isOpen=(m.tier>=90)||/deepseek|qwen|llama|codestral|mistral/i.test((m.provider_slug||'')+(m.model_id||''));
@@ -5053,6 +5081,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           T('at-n',tech.length); T('at-e',edges.length); T('at-p',tac.length);
           if(!window.cytoscape){ H('at-net','<div class="row mono dim" style="padding:1rem">cytoscape unavailable</div>'); return; }
           var phase={}; tac.forEach(function(t){phase[t.id]=t.phase;});
+          if(window.__ngraphAlias)window.__ngraphAlias();
           var els=[]; var g=window.ngraphCreateGraph?ngraphCreateGraph():null;
           var byPhase={};
           tech.forEach(function(t){ var ph=phase[t.tactic]||0; byPhase[ph]=(byPhase[ph]||0); var yi=byPhase[ph]++;
@@ -5556,6 +5585,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           T('vt-n',d.total||packs.length); T('vt-live',d.live); T('vt-stub',d.stub);
           var host=E('vt-gx'); if(!host)return; var W=host.clientWidth||720, Hh=460;
           // ngraph.forcelayout via window.ngraphCreateLayout + ngraph.graph (ngraphCreateGraph)
+          if(window.__ngraphAlias)window.__ngraphAlias();
           var ng=window.ngraphCreateGraph; var layoutFn=window.ngraphCreateLayout;
           if(typeof ng==='function' && typeof layoutFn==='function'){
             var g=ng();
@@ -6063,7 +6093,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     window.a11oyFG=function(id,nodes,links,opts){
       var host=E(id); if(!host||!window.ForceGraph3D) return null; opts=opts||{};
       host.innerHTML='';
-      if(!nodes||!nodes.length){ host.innerHTML='<div class="row mono dim" style="padding:1rem">No nodes in this graph yet — recording…</div>'; return null; }
+      if(!nodes||!nodes.length){ host.innerHTML='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;pointer-events:none"><svg width="120" height="90" viewBox="0 0 120 90" style="opacity:.3"><g stroke="#5fb3a3" stroke-width="1" fill="none"><line x1="60" y1="45" x2="24" y2="22"/><line x1="60" y1="45" x2="96" y2="24"/><line x1="60" y1="45" x2="30" y2="70"/></g><g fill="#c9b787"><circle cx="60" cy="45" r="6"/><circle cx="24" cy="22" r="4"/><circle cx="96" cy="24" r="4"/><circle cx="30" cy="70" r="4"/></g></svg><div class="row mono dim" style="padding:.2rem">no nodes in this graph yet \u2014 recording\u2026</div></div>'; return null; }
       try{
         var fg=ForceGraph3D()(host).backgroundColor('rgba(0,0,0,0)')
           .width(host.clientWidth).height(host.clientHeight)
@@ -6122,7 +6152,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        (not a bare "…") so a card mid-fetch reads as LOADING, never BROKEN. */
     function kpi(k,id,d,cls){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" id="'+id+'"><span class="skel skel-val"></span></div><div class="d">'+(d||'')+'</div></div>'; }
     function card(t,ep,inner){ return '<div class="card"><div class="card-h"><span class="card-t">'+t+'</span><span class="card-ep">'+(ep||'')+'</span></div>'+inner+'</div>'; }
-    function box3d(id){ return '<div id="'+id+'" style="height:380px;position:relative"></div>'; }
+    /* BATCH2B: box3d now ships a CSS-only skeleton (node-cluster + "initializing mesh\u2026")
+       so the 3D hero NEVER paints as a blank/white void during the WebGL init / feed window.
+       a11oyFG clears host.innerHTML on success, replacing this placeholder. */
+    function box3d(id){ return '<div id="'+id+'" class="box3d-host" style="height:380px;position:relative;overflow:hidden">'
+      +'<div class="box3d-skel" aria-hidden="true" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;pointer-events:none">'
+      +'<svg width="120" height="90" viewBox="0 0 120 90" style="opacity:.35"><g stroke="#5fb3a3" stroke-width="1" fill="none"><line x1="60" y1="45" x2="24" y2="22"/><line x1="60" y1="45" x2="96" y2="24"/><line x1="60" y1="45" x2="30" y2="70"/><line x1="60" y1="45" x2="92" y2="66"/><line x1="24" y1="22" x2="96" y2="24"/></g><g fill="#c9b787"><circle cx="60" cy="45" r="6"/><circle cx="24" cy="22" r="4"/><circle cx="96" cy="24" r="4"/><circle cx="30" cy="70" r="4"/><circle cx="92" cy="66" r="4"/></g></svg>'
+      +'<div class="mono dim" style="font-size:11px;letter-spacing:.05em">initializing mesh\u2026</div></div></div>'; }
     var HON=window.HONEST||'';
 
     /* ============================================================================
@@ -9834,7 +9870,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function fmla(k){ return window.a11oyFormula?window.a11oyFormula(k):''; }
   function sh(h){ h=(h||'').toString(); return h.length>18?(h.slice(0,10)+'\u2026'+h.slice(-6)):h; }
   function sevcol(s){ s=(s||'').toLowerCase(); return s.indexOf('crit')>=0?RED:(s.indexOf('high')>=0?AMBER:(s.indexOf('med')>=0?GOLD:TEAL)); }
-  function tbl(heads,rows){ var h='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-family:var(--mono,monospace);font-size:11px">';
+  function tbl(heads,rows){ var h='<div style="overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch"><table style="width:100%;min-width:560px;border-collapse:collapse;font-family:var(--mono,monospace);font-size:11px">';
     h+='<thead><tr>'+heads.map(function(x){return '<th style="text-align:left;padding:.35rem .5rem;border-bottom:1px solid rgba(201,183,135,.2);color:'+GOLD+';font-weight:600">'+esc(x)+'</th>';}).join('')+'</tr></thead><tbody>';
     h+=rows.map(function(r){return '<tr>'+r.map(function(c){return '<td style="padding:.32rem .5rem;border-bottom:1px solid rgba(201,183,135,.06);color:var(--cream,#ddd);vertical-align:top">'+c+'</td>';}).join('')+'</tr>';}).join('');
     return h+'</tbody></table></div>'; }
@@ -10016,7 +10052,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function fmla(k){ return window.a11oyFormula?window.a11oyFormula(k):''; }
   function sh(h){ h=(h||'').toString(); return h.length>18?(h.slice(0,10)+'\u2026'+h.slice(-6)):h; }
   function sevcol(s){ s=(s||'').toLowerCase(); return s.indexOf('crit')>=0?RED:(s.indexOf('high')>=0?AMBER:(s.indexOf('med')>=0?GOLD:TEAL)); }
-  function tbl(heads,rows){ var h='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-family:var(--mono,monospace);font-size:11px">';
+  function tbl(heads,rows){ var h='<div style="overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch"><table style="width:100%;min-width:560px;border-collapse:collapse;font-family:var(--mono,monospace);font-size:11px">';
     h+='<thead><tr>'+heads.map(function(x){return '<th style="text-align:left;padding:.35rem .5rem;border-bottom:1px solid rgba(201,183,135,.2);color:'+GOLD+';font-weight:600">'+esc(x)+'</th>';}).join('')+'</tr></thead><tbody>';
     h+=rows.map(function(r){return '<tr>'+r.map(function(c){return '<td style="padding:.32rem .5rem;border-bottom:1px solid rgba(201,183,135,.06);color:var(--cream,#ddd);vertical-align:top">'+c+'</td>';}).join('')+'</tr>';}).join('');
     return h+'</tbody></table></div>'; }
@@ -10990,7 +11026,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       h+=honesty(m);
       h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap"><div id="cn-legend" style="font-size:13px">'+legend+'</div>';
       h+='<div style="display:flex;gap:.4rem;align-items:center"><input id="cn-search" placeholder="filter nodes…" style="background:#070a0e;border:1px solid rgba(255,255,255,.15);color:#ddd;border-radius:5px;padding:.2rem .5rem;font-size:12px"><button class="btn" id="cn-rot" style="font-size:11px">⏸ pause</button><button class="btn" id="cn-reset" style="font-size:11px">reset</button><button class="btn" id="cn-reload" style="font-size:11px">↻ reload</button><button class="btn" id="cn-auto" style="font-size:11px" title="auto-refresh re-polls the same real endpoints every '+(CN_REFRESH_MS/1000)+'s; camera/zoom preserved">⟳ auto: '+(cnAutoOn()?'on':'off')+'</button><span id="cn-updated" class="dim" style="font-size:11px"></span></div></div>';
-      h+='<div style="position:relative"><canvas id="cn-canvas" style="width:100%;height:560px;display:block;cursor:grab;border-radius:8px;background:radial-gradient(ellipse at 50% 40%,#0d1622 0%,#070a0e 70%)"></canvas>';
+      h+='<div style="position:relative;max-width:100%;overflow:hidden"><canvas id="cn-canvas" style="width:100%;max-width:100%;height:clamp(360px,56vh,560px);display:block;cursor:grab;border-radius:8px;background:radial-gradient(ellipse at 50% 40%,#0d1622 0%,#070a0e 70%)"></canvas>';
       h+='<div id="cn-tip" style="position:absolute;pointer-events:none;display:none;background:#0c0f14;border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:.3rem .5rem;font-size:11px;max-width:280px;z-index:5"></div></div>';
       h+='<div id="cn-foot" class="dim" style="font-size:11px;margin-top:.4rem">'+g.nodes.length+' nodes · '+g.edges.length+' edges · drag to rotate, scroll to zoom, click a node for its Proof Drawer.</div></div>';
       c.innerHTML=h;
@@ -11869,7 +11905,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             else { d=await gj('/api/a11oy/v1/feeds/pulse'); }
             var items=d.items||[]; T('fp-n',d.feed_count); T('fp-live',d.live_count); T('fp-cache',d.cached_count); T('fp-down',d.down_count);
             T('fp-ts','probed '+esc(String(d.probed_at||'').slice(11,19))+'Z');
-            var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
+            var h=['<div style="overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch"><table class="mono" style="width:100%;min-width:560px;border-collapse:collapse;font-size:10px"><thead><tr>'];
             ['Feed','Mode','Latency','Payload','Fetched','Source'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
             h.push('</tr></thead><tbody>');
             items.forEach(function(x){
@@ -11882,7 +11918,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                 +'<td style="padding:4px 7px;color:#777">'+esc(x.fetched_at?String(x.fetched_at).slice(11,19):(x.error||'\u2014'))+'</td>'
                 +'<td style="padding:4px 7px;color:#9aa0a8">'+esc((x.source||'').slice(0,40))+'</td></tr>');
             });
-            h.push('</tbody></table>'); H('fp-tbl',h.join(''));
+            h.push('</tbody></table></div>'); H('fp-tbl',h.join(''));
             if(window.echarts){
               var host=E('fp-lat'); if(host){ var ch=echarts.init(host,null,{renderer:'canvas'});
                 ch.setOption({backgroundColor:'transparent',grid:{left:48,right:18,top:18,bottom:50},
@@ -11929,7 +11965,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               window.addEventListener('resize',function(){ch.resize();},{passive:true});
             }
           }
-          var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
+          var h=['<table class="mono" style="width:100%;min-width:560px;border-collapse:collapse;font-size:10px"><thead><tr>'];
           ['Organ','Tier','Routed model','Throughput','License'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
           h.push('</tr></thead><tbody>');
           routes.forEach(function(r){
@@ -12247,6 +12283,28 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     organskeleton:{
       box3d:[{id:'os-3d',label:'service-mesh 3D topology unavailable',src:'/v1/capabilities/mesh'}],
       list:[{id:'os-nodelist',stuck:['loading…'],label:'node-health list',src:'/v1/capabilities/mesh'}]
+    },
+    // SPEC_E §1.10 — extend the SAME never-blank wrapper to the rest of the spine
+    // (mesh / chain / command-throughput / ledger3d / pvaGraph). Each entry targets
+    // the REAL container ids of whichever render path is active; missing ids no-op.
+    mesh:{
+      box3d:[{id:'me-cy',label:'service mesh topology graph unavailable',src:'/v1/capabilities/mesh'}],
+      list:[{id:'mesh-detail',stuck:['probing…','select a service in the table or a bar in the chart to see its live probe, latency and slo budget.'],label:'live service drill-down',src:'/v1/capabilities/mesh'},
+            {id:'mesh-host',stuck:['probing…','loading…'],label:'live service table',src:'/v1/capabilities/mesh'}]
+    },
+    chain:{
+      box3d:[{id:'ch-3d',label:'receipt-chain DAG unavailable',src:'/v1/ledger'},
+             {id:'rc-3d',label:'receipt-chain DAG unavailable',src:'/v1/ledger'}],
+      list:[{id:'ch-raw',stuck:['loading…'],label:'live receipt-chain command-log',src:'/v1/ledger'}]
+    },
+    command:{
+      radar:[{id:'cc-bars',label:'governed throughput by vertical unavailable',src:'/v1/decisions'}]
+    },
+    ledger3d:{
+      box3d:[{id:'l3-gl',label:'3D trust-ledger (echarts-gl) unavailable',src:'/v1/ledger'}]
+    },
+    pvaGraph:{
+      box3d:[{id:'pva-gr-graph',label:'cross-vertical provenance DAG unavailable',src:'/v1/provenance/graph'}]
     }
   };
 
@@ -12278,7 +12336,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   function install(){
     if(!window.VIEWS){ return setTimeout(install,300); }
-    var keys=['organheart','organyawar','organnervous','organskeleton'];
+    var keys=['organheart','organyawar','organnervous','organskeleton',
+              'mesh','chain','command','ledger3d','pvaGraph'];
     var ok=keys.every(function(k){ return wrap(k); });
     if(!ok){ setTimeout(install,300); } // some organ views not registered yet — retry
   }
@@ -14623,12 +14682,22 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         if(!d.honesty) d.honesty=(d.doctrine||'')+(d.citation?(' Source: '+d.citation):'');
       }
       var p=EH_POS[d.grid_price_posture]||EH_POS.unknown;
+      var _jl_pre=String(d.joules_label||'sample').toLowerCase();
       var soak=d.wasted_energy_available;
       var h='';
       if(d.honesty) h+='<div class="honesty">'+esc(d.honesty)+'</div>';
+      /* BATCH2B: crisp animated hero element bound to a REAL measured grid value
+         (wholesale EUR/MWh — a genuine metered market signal, labeled LIVE). Joules
+         remain SAMPLE per szl_joules_truth (handled below); we never label this MEASURED
+         unless joules_label==='measured'. The count-up is rAF-driven, monospaced. */
+      var _heroPrice=d.price_now_eur_mwh; var _heroLive=(d.feeds_live>0&&_heroPrice!=null);
+      var _heroTag=(_jl_pre==='measured')?'MEASURED':'LIVE';
       h+='<div class="card" style="display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap">'
         +'<div style="font-size:34px;font-weight:800;letter-spacing:-.02em;color:'+p.c+'">'
         +'<span style="width:11px;height:11px;border-radius:50%;background:'+p.c+';display:inline-block;margin-right:.5rem;vertical-align:middle"></span>'+esc(p.l)+'</div>'
+        +'<div style="display:flex;flex-direction:column;align-items:flex-start;min-width:170px">'
+        +'<div id="eh-hero-num" style="font-family:var(--mono);font-size:30px;font-weight:800;letter-spacing:-.02em;color:#e6edf6;line-height:1">'+(_heroLive?'0.0':'\u2014')+'</div>'
+        +'<div class="dim mono" style="font-size:10.5px;margin-top:.25rem">EUR/MWh wholesale (DE) \u00b7 <span style="color:'+( _heroLive?'#5fb3a3':'#c9a05f')+'">'+(_heroLive?_heroTag:'feed unavailable')+'</span></div></div>'
         +'<div class="dim" style="flex:1;min-width:240px;font-size:13px">'
         +(soak
           ? '<b style="color:#e6edf6">Wasted-energy window OPEN.</b> The grid is effectively paying us to absorb load — proactive/batch compute may soak ALREADY-WASTED energy now. Reactive turns always serve regardless.'
@@ -14652,7 +14721,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
          Honest by construction (szl_joules_truth): the grid feed is a real wholesale-price
          signal, but reading energy off it is NOT a power measurement — joules stay SAMPLE
          until a fresh on-box NVML exporter sample exists on a sovereign GPU node. */
-      var _jl=String(d.joules_label||'sample').toLowerCase();
+      var _jl=_jl_pre;
       var _jmeasured=(_jl==='measured');
       h+='<div class="honesty" style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
         +'<span class="badge" style="border:1px solid '+(_jmeasured?'#4fb37f':'#c9a05f')+';color:'+(_jmeasured?'#5fe39a':'#c9a05f')+'">JOULES '+(_jmeasured?'MEASURED':'SAMPLE')+'</span>'
@@ -14665,6 +14734,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       h+='<div class="dim" style="font-size:11px;margin-top:.5rem">'+esc(d.feeds_live)+'/'+esc(d.feeds_total)+' feeds live · '+(d.cached?'cached':'fresh')+' · '+esc(when)
         +' · <a href="'+EH_API+'/posture" target="_blank" rel="noopener">raw API</a> · <a href="https://a11oy.net/energy/" target="_blank" rel="noopener">standalone page ↗</a></div>';
       c.innerHTML=h;
+      /* BATCH2B: animate the hero count-up to the real measured price via requestAnimationFrame. */
+      (function(){ var el=document.getElementById('eh-hero-num'); if(!el) return; var target=d.price_now_eur_mwh; if(target==null) return;
+        var start=null, dur=900, from=0;
+        function step(ts){ if(start==null)start=ts; var t=Math.min(1,(ts-start)/dur); var ease=1-Math.pow(1-t,3); var v=from+(target-from)*ease;
+          el.textContent=(v).toFixed(1); if(t<1) requestAnimationFrame(step); else el.textContent=Number(target).toFixed(1); }
+        try{ requestAnimationFrame(step); }catch(e){ el.textContent=Number(target).toFixed(1); } })();
       if(window.__eh_timer) clearInterval(window.__eh_timer);
       window.__eh_timer=setInterval(function(){
         if(!document.body.contains(c)){ clearInterval(window.__eh_timer); window.__eh_timer=null; return; }
@@ -15119,6 +15194,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   // MutationObserver auto-hoists; tolerates absent keys (only moves nodes that exist).
   // a11oy-overhaul-marker:BATCH1-flagship20 (live-build verification token).
   // a11oy-overhaul-marker:BATCH2A-polish (honest chips + labels + aria + lab badges).
+  // a11oy-overhaul-marker:BATCH2B-polish (lazy ngraph alias + 3D/table/canvas never-blank skeletons + honest friendly-err + spine-wide degrade harden).
   var PINNED = ["whHero","cuas_fusion","cuas_swarm","cybSurface","cybZero","finm","finr","legExposure","red","reo","entIncident","fltTopo","oversight","constellation","energy","decision","wowdrop","wowledger","trustspace","llm"];
   function sel(k){ return '.nav-item[' + 'data-view=' + JSON.stringify(k) + ']'; }
   // True when the five pinned items are already the first five .nav-item nodes
