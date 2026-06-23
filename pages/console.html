@@ -461,6 +461,93 @@ details.raw[open] summary{color:var(--muted);}
 
 
 </style>
+<!-- a11oy-overhaul-marker:BATCH3-signature-look (SPEC_E §3 tokens + classes + §2 front-door hero CSS). Additive, 0 CDN. -->
+<style>
+/* ===== SIGNATURE-LOOK TOKENS (SPEC_E §3, TOPTECH_DESIGN D4/D6) =====
+   Additive only — the house --gold/--teal/--mono above are AUTHORITATIVE and are
+   NOT overridden here; we only add the new ambient-dark + ink scale + measured tokens
+   the hero/signature classes reference (with hex fallbacks so cascade order is safe). */
+:root{
+  --bg:#0A0D12; --surf:#141820; --surf2:#0e1217;
+  --line:#222833;
+  --ink:#e8edf2; --ink-dim:#9aa3ad; --ink-faint:#6b727c;
+  --blue:#2563EB; --red:#b06a5a;
+  --sans:'Space Grotesk',system-ui,sans-serif; /* maps to the vendored house display face */
+  --fs-num-xl:24px; --fs-num-lg:18px; --fs-num:14px; --fs-label:11px;
+}
+/* RECEIPT-MARK — CSS-only wax-seal dot; marks any cryptographically-attested datum */
+.rmark{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto;
+  background:radial-gradient(circle at 35% 35%,var(--gold,#c9b787),#8a6f3a);
+  box-shadow:0 0 0 2px rgba(201,183,135,.18)}
+.rmark-lg{width:16px;height:16px}
+[data-attested="true"]::before{content:"";display:inline-block;vertical-align:middle;margin-right:7px;
+  width:11px;height:11px;border-radius:50%;background:radial-gradient(circle at 35% 35%,var(--gold,#c9b787),#8a6f3a)}
+/* EVIDENCE-THREAD — thin left line on any AI-assisted/MODELED decision; expandable chain */
+.ethread{position:relative;padding-left:16px}
+.ethread::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:2px;border-radius:2px;
+  background:linear-gradient(180deg,var(--teal,#5fb3a3),rgba(95,179,163,.15))}
+.ethread > summary{cursor:pointer;color:var(--teal,#5fb3a3);font-size:12px;list-style:none}
+.ethread[open]::before{background:linear-gradient(180deg,var(--gold,#c9b787),rgba(201,183,135,.15))}
+/* MATURITY badges (D4) — LIVE has NO badge (absence = trust) */
+.mb{font-size:9px;letter-spacing:.08em;padding:1px 7px;border-radius:999px;border:1px solid;vertical-align:middle}
+.mb-measured{color:#6B7280;border-color:#6B7280}
+.mb-sample{color:#D97706;border-color:#D97706}
+.mb-modeled{color:#2563EB;border-color:#2563EB}
+.mb-roadmap{color:#9CA3AF;border-color:#9CA3AF}
+[data-maturity="sample"]{background:rgba(217,119,6,.04)}
+/* doctrine chip (locked-8, immutable — never "5") */
+.chip-locked{font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:6px;border:1px solid var(--teal,#5fb3a3);color:var(--teal,#5fb3a3)}
+/* focus-visible everywhere (a11y #6) */
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{outline:2px solid var(--teal,#5fb3a3);outline-offset:2px}
+
+/* ===== FRONT-DOOR HERO (SPEC_E §2.3) — 0 CDN, instant CSS+SVG paint ===== */
+.hero{position:relative;padding:56px 28px 40px;border-radius:14px;overflow:hidden;
+  background:radial-gradient(120% 80% at 80% 0%,rgba(95,179,163,.07),transparent 60%),var(--surf,#141820);
+  border:1px solid var(--line,#222833)}
+.hero-bg{position:absolute;inset:0;pointer-events:none}
+.hero-thread{width:100%;height:100%;opacity:.9}
+.hero-inner{position:relative;max-width:920px}
+.hero-eyebrow{font-size:11px;letter-spacing:.16em;color:var(--gold,#c9b787);margin:0 0 14px}
+.hero-h1{font-size:clamp(28px,4.4vw,52px);line-height:1.06;letter-spacing:-.01em;margin:0 0 16px;color:var(--ink,#e8edf2);font-weight:650}
+.hero-accent{color:var(--teal,#5fb3a3)}
+.hero-sub{font-size:clamp(14px,1.5vw,18px);line-height:1.55;color:var(--ink-dim,#9aa3ad);max-width:60ch;margin:0 0 26px}
+.hero-counters{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 26px}
+.hctr{flex:1 1 200px;min-width:0;padding:14px 16px;border:1px solid var(--line,#222833);border-radius:10px;background:rgba(10,13,18,.5)}
+.hctr-k{display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.1em;color:var(--ink-dim,#9aa3ad)}
+.hctr-v{display:block;font-size:24px;color:var(--ink,#e8edf2);margin:6px 0 4px;font-variant-numeric:tabular-nums}
+.hctr-d{font-size:11px;color:var(--ink-faint,#6b727c)}
+.mlabel{font-style:normal;font-size:9px;letter-spacing:.08em;padding:1px 6px;border-radius:999px;border:1px solid var(--gold,#c9b787);color:var(--gold,#c9b787)}
+.mlabel.live{border-color:var(--teal,#5fb3a3);color:var(--teal,#5fb3a3)}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn-primary{padding:12px 22px;border-radius:9px;background:var(--teal,#5fb3a3);color:#06140f;font-weight:600;text-decoration:none;border:1px solid var(--teal,#5fb3a3)}
+.btn-ghost{padding:12px 22px;border-radius:9px;background:transparent;color:var(--ink,#e8edf2);text-decoration:none;border:1px solid var(--line,#2a313c)}
+.btn-primary:focus-visible,.btn-ghost:focus-visible,.cred:focus-visible,.vcard:focus-visible{outline:2px solid var(--teal,#5fb3a3);outline-offset:2px}
+.hero-cards{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:34px 0 0}
+.vcard{display:flex;flex-direction:column;gap:8px;padding:18px;border-radius:11px;text-decoration:none;
+  background:var(--surf2,#0e1217);border:1px solid var(--line,#222833);transition:border-color .18s,transform .18s}
+.vcard:hover{border-color:var(--teal,#5fb3a3);transform:translateY(-2px)}
+.vcard h3{margin:0;font-size:14px;color:var(--ink,#e8edf2)}
+.vcard p{margin:0;font-size:12px;line-height:1.5;color:var(--ink-dim,#9aa3ad)}
+.vcard-go{margin-top:auto;font-size:11px;color:var(--teal,#5fb3a3)}
+.vcard-energy{border-color:rgba(201,183,135,.35)}
+.vcard-energy:hover{border-color:var(--gold,#c9b787)}
+.hero-creds{position:relative;display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:30px 0 0}
+.cred{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;text-decoration:none;
+  font-size:12px;color:var(--ink,#e8edf2);border:1px solid var(--line,#2a313c);background:rgba(10,13,18,.4)}
+.cred:hover{border-color:var(--gold,#c9b787)}
+.cred-cap{flex-basis:100%;margin:8px 0 0;font-size:11px;color:var(--ink-faint,#6b727c)}
+.hero-hook{position:relative;margin:30px 0 0;padding-top:18px;border-top:1px solid var(--line,#222833)}
+.hero-hook p{margin:0;font-size:13px;line-height:1.6;color:var(--ink-dim,#9aa3ad)}
+.hero-hook strong{color:var(--ink,#e8edf2)}
+@media(max-width:760px){
+  .hero{padding:36px 16px 28px}
+  .hero-cards{grid-template-columns:1fr}
+  .hctr{flex:1 1 100%}
+  .hero-cta{flex-direction:column}
+  .btn-primary,.btn-ghost{text-align:center}
+}
+@media(prefers-reduced-motion:reduce){ .vcard{transition:none} }
+</style>
 </head>
 <body>
 <!-- ============================================================================
@@ -6168,7 +6255,56 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     V.command={ title:'Command Center', badge:'LIVE · AUTO-POLL',
       sub:'One pane of glass over the whole governed mesh — live service health, trust posture, governed-decision throughput, and a rolling stream of signed receipts across every vertical. Always recording.',
       render:async function(c){
-        c.innerHTML='<div class="kpis">'
+        /* a11oy-overhaul-marker:BATCH3-hero — front-door hero (SPEC_E §2.2). Instant CSS+SVG
+           paint, zero-JS-legible, 0 CDN, no external font/image. Live counters fill AFTER
+           paint and degrade HONESTLY (never a fabricated number). locked-8 hard-coded; Λ=Conjecture 1. */
+        var HERO_HTML='<section class="hero" aria-label="a11oy front door">'
+          +'<div class="hero-bg" aria-hidden="true">'
+          +'<svg class="hero-thread" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice" focusable="false">'
+          +'<defs><linearGradient id="etg" x1="0" y1="0" x2="1" y2="1">'
+          +'<stop offset="0" stop-color="#5fb3a3" stop-opacity=".10"/>'
+          +'<stop offset="1" stop-color="#c9b787" stop-opacity=".05"/></linearGradient></defs>'
+          +'<g stroke="url(#etg)" stroke-width="1" fill="none">'
+          +'<path d="M0 320 L300 200 L600 260 L900 140 L1200 220"/>'
+          +'<path d="M0 360 L300 260 L600 300 L900 200 L1200 280"/></g>'
+          +'<g transform="translate(1050,70)" opacity=".5">'
+          +'<circle r="26" fill="none" stroke="#c9b787" stroke-width="1.5"/>'
+          +'<path d="M-10 0 L-3 8 L12 -9" stroke="#5fb3a3" stroke-width="2.5" fill="none" stroke-linecap="round"/></g>'
+          +'</svg></div>'
+          +'<div class="hero-inner">'
+          +'<p class="hero-eyebrow mono">GOVERNED-AI SUBSTRATE \u00b7 SZL HOLDINGS</p>'
+          +'<h1 class="hero-h1">Governed inference for hard missions.<br><span class="hero-accent">Receipts, not claims.</span></h1>'
+          +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built on measured-energy sovereign compute.</p>'
+          +'<div class="hero-counters" role="group" aria-label="live measured platform receipts">'
+          +'<div class="hctr"><span class="hctr-k mono">ENERGY <em class="mlabel" id="hero-joules-tag">SAMPLE</em></span>'
+          +'<span class="hctr-v mono" id="hero-joules" data-maturity="sample">\u2014 J/tok</span>'
+          +'<span class="hctr-d">per-token energy \u00b7 NVML</span></div>'
+          +'<div class="hctr"><span class="hctr-k mono">GOVERNED GATE <em class="mlabel live">LIVE</em></span>'
+          +'<span class="hctr-v mono" id="hero-gate"><span class="rmark" aria-hidden="true"></span>\u2014</span>'
+          +'<span class="hctr-d">P1\u2013P6 deny-by-default result</span></div>'
+          +'<div class="hctr"><span class="hctr-k mono">DOCTRINE</span>'
+          +'<span class="hctr-v mono"><span class="chip-locked">LOCKED&nbsp;8</span></span>'
+          +'<span class="hctr-d">F1\u00b7F4\u00b7F7\u00b7F11\u00b7F12\u00b7F18\u00b7F19\u00b7F22 \u00b7 \u039b=Conjecture&nbsp;1</span></div>'
+          +'</div>'
+          +'<div class="hero-cta">'
+          +'<a class="btn-primary" href="https://huggingface.co/szl-holdings/governed-inference-meter" target="_blank" rel="noopener">Pull the kernel</a>'
+          +'<a class="btn-ghost" href="#evidence" onclick="go(\'evidence\');return false;">Read the method</a>'
+          +'</div></div>'
+          +'<div class="hero-cards" aria-label="verticals and energy">'
+          +'<a class="vcard" onclick="go(\'cybSurface\');return false;" href="#cybSurface"><h3>Counter-UAS / killinchu</h3><p>Detection + classification governed, auditable, energy-bounded at the edge.</p><span class="vcard-go mono">whHero \u2192</span></a>'
+          +'<a class="vcard" onclick="go(\'finm\');return false;" href="#finm"><h3>Maritime / Finance Intel</h3><p>Sovereign inference with energy receipts for operational accounting.</p><span class="vcard-go mono">finm \u2192</span></a>'
+          +'<a class="vcard" onclick="go(\'uds\');return false;" href="#uds"><h3>Supply-chain / UDS</h3><p>Cryptographic audit traces survive chain-of-custody review — not log files.</p><span class="vcard-go mono">uds \u2192</span></a>'
+          +'<a class="vcard vcard-energy" onclick="go(\'energy\');return false;" href="#energy"><h3>Energy Harvest</h3><p>Soak wasted grid energy via live public feeds — honest joules, no free energy.</p><span class="vcard-go mono">energy \u2192</span></a>'
+          +'</div>'
+          +'<div class="hero-creds" aria-label="verifiable credentials">'
+          +'<a class="cred" href="https://openai.smapply.org/prog/gpt-5-5-safety-bio-bounty-program/" target="_blank" rel="noopener"><span class="rmark" aria-hidden="true"></span>OpenAI GPT-5.5 Bio Bounty Cohort</a>'
+          +'<a class="cred" href="https://huggingface.co/kernels-community" target="_blank" rel="noopener"><span class="rmark" aria-hidden="true"></span>Hugging Face Kernel-Publish</a>'
+          +'<a class="cred" href="https://defenseunicorns.com/warhacker/" target="_blank" rel="noopener"><span class="rmark" aria-hidden="true"></span>Defense Unicorns Warhacker</a>'
+          +'<p class="cred-cap mono">Every credential above is public and verifiable. We claim less than our competitors.</p>'
+          +'</div>'
+          +'<footer class="hero-hook"><p>a11oy publishes energy receipts and audit hashes.<br><strong>We do not publish capability claims we cannot measure.</strong></p></footer>'
+          +'</section>';
+        c.innerHTML=HERO_HTML+'<div class="kpis">'
           +kpi('Services up','cc-svc','live health probe','live')
           +kpi('Trust score Λ','cc-lam','vs floor 0.90','teal')
           +kpi('Decisions today','cc-dec','governed + logged')
@@ -6186,6 +6322,25 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +HON;
         // formulas instilled
         H('cc-formulas', window.a11oyFormula('F1')+window.a11oyFormula('F19')+window.a11oyFormula('F11')+window.a11oyFormula('F18')+window.a11oyFormula('F12'));
+        // BATCH3-hero live-fill (SPEC_E §2.4): runs AFTER paint, non-blocking, HONEST-degrade.
+        // Energy joules stays SAMPLE per szl_joules_truth unless the feed reports joules_label==='measured';
+        // a down feed shows an honest '—' / 'measured pending' — NEVER a fabricated number. locked-8 chip is static markup.
+        (async function(){
+          try{ var _eh=await window.getJSON(API+'/v1/harvest');
+            var _jl=String((_eh&&_eh.joules_label)||'sample').toLowerCase();
+            var _jpt=(_eh&&_eh.joules_per_token!=null)?_eh.joules_per_token:null;
+            var _tagEl=document.getElementById('hero-joules-tag');
+            if(_jpt!=null){
+              setTxt('hero-joules', Number(_jpt).toFixed(2)+' J/tok');
+              if(_jl==='measured'){ if(_tagEl){_tagEl.textContent='MEASURED'; _tagEl.classList.add('live');} var _hj=document.getElementById('hero-joules'); if(_hj)_hj.setAttribute('data-maturity','measured'); }
+              else if(_tagEl){ _tagEl.textContent='SAMPLE'; }
+            } else { setTxt('hero-joules','measured pending'); if(_tagEl)_tagEl.textContent='SAMPLE'; }
+          }catch(_e){ setTxt('hero-joules','measured pending'); }   // NEVER a fake number
+          try{ var _g=await window.getJSON(API+'/v1/policy/decisions/feed?limit=1');
+            var _v=((_g&&_g.verdicts)||[])[0];
+            setHTML('hero-gate','<span class="rmark" aria-hidden="true"></span>'+(_v?esc(String(_v.decision||_v.verdict||'').toUpperCase()||'logged'):'no decisions yet'));
+          }catch(_e){ setHTML('hero-gate','<span class="rmark" aria-hidden="true"></span>gate offline \u00b7 honest degrade'); }
+        })();
         // trust radar — FAIL-FAST: short timeout, last-good cache, honest degraded chip (never an endless spinner)
         try{var rL=await gjFast(API+'/v1/lambda');var d=rL.data;var ax=d.axes||[];if(window.radar)window.radar('cc-radar',ax.map(function(a){return a.name;}),ax.map(function(a){return a.score||0;}));T('cc-lam',(d.lambda||0).toFixed?d.lambda.toFixed(3):d.lambda);}
         catch(e){ H('cc-lam', honestDegraded('not available right now')); }
