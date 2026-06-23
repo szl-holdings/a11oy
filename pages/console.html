@@ -6322,20 +6322,37 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +HON;
         // formulas instilled
         H('cc-formulas', window.a11oyFormula('F1')+window.a11oyFormula('F19')+window.a11oyFormula('F11')+window.a11oyFormula('F18')+window.a11oyFormula('F12'));
-        // BATCH3-hero live-fill (SPEC_E §2.4): runs AFTER paint, non-blocking, HONEST-degrade.
-        // Energy joules stays SAMPLE per szl_joules_truth unless the feed reports joules_label==='measured';
-        // a down feed shows an honest '—' / 'measured pending' — NEVER a fabricated number. locked-8 chip is static markup.
+        // BATCH3-hero-fix live-fill (FIX-1 endpoint repoint): runs AFTER paint, non-blocking, HONEST-degrade.
+        // The legacy GET /v1/harvest 404s on the front door. The REAL working same-origin endpoint is
+        // /v1/energy/operator/status (200) — it carries joules_measured_total + measured_token_joules + stub_mode.
+        // Per szl_joules_truth: the per-token energy counter is labeled MEASURED only when stub_mode===false AND a
+        // real measured reading exists; otherwise honest SAMPLE / '—' / 'measured pending' — NEVER a fabricated number.
         (async function(){
-          try{ var _eh=await window.getJSON(API+'/v1/harvest');
-            var _jl=String((_eh&&_eh.joules_label)||'sample').toLowerCase();
-            var _jpt=(_eh&&_eh.joules_per_token!=null)?_eh.joules_per_token:null;
-            var _tagEl=document.getElementById('hero-joules-tag');
-            if(_jpt!=null){
-              setTxt('hero-joules', Number(_jpt).toFixed(2)+' J/tok');
-              if(_jl==='measured'){ if(_tagEl){_tagEl.textContent='MEASURED'; _tagEl.classList.add('live');} var _hj=document.getElementById('hero-joules'); if(_hj)_hj.setAttribute('data-maturity','measured'); }
-              else if(_tagEl){ _tagEl.textContent='SAMPLE'; }
-            } else { setTxt('hero-joules','measured pending'); if(_tagEl)_tagEl.textContent='SAMPLE'; }
-          }catch(_e){ setTxt('hero-joules','measured pending'); }   // NEVER a fake number
+          var _tagEl=document.getElementById('hero-joules-tag');
+          var _hj=document.getElementById('hero-joules');
+          try{ var _eh=await window.getJSON(API+'/v1/energy/operator/status');
+            var _stub=(_eh&&_eh.stub_mode===true);
+            // measured per-token energy (NVML), only honest when the meter is real (not stub)
+            var _mjt=(_eh&&_eh.measured_token_joules!=null)?Number(_eh.measured_token_joules):null;
+            var _mt=(_eh&&_eh.measured_tokens!=null)?Number(_eh.measured_tokens):0;
+            var _jmt=(_eh&&_eh.joules_measured_total!=null)?Number(_eh.joules_measured_total):null;
+            // sample per-token fallback when in stub mode
+            var _sjt=(_eh&&_eh.sample_token_joules!=null)?Number(_eh.sample_token_joules):null;
+            if(!_stub){
+              // real NVML meter present (stub_mode===false) -> honest MEASURED label
+              if(_tagEl){_tagEl.textContent='MEASURED'; _tagEl.classList.add('live');}
+              if(_hj)_hj.setAttribute('data-maturity','measured');
+              if(_mjt!=null && _mt>0){ setTxt('hero-joules', _mjt.toFixed(2)+' J/tok'); }
+              else if(_jmt!=null && _jmt>0 && _mjt!=null){ setTxt('hero-joules', _mjt.toFixed(2)+' J/tok'); }
+              else { setTxt('hero-joules','measured pending'); }   // real meter, no job yet — honest, never faked
+            } else {
+              // stub/simulated meter -> honest SAMPLE label, never claim MEASURED
+              if(_tagEl) _tagEl.textContent='SAMPLE';
+              if(_hj)_hj.setAttribute('data-maturity','sample');
+              if(_sjt!=null){ setTxt('hero-joules', _sjt.toFixed(2)+' J/tok'); }
+              else { setTxt('hero-joules','\u2014 J/tok'); }
+            }
+          }catch(_e){ setTxt('hero-joules','measured pending'); if(_tagEl)_tagEl.textContent='SAMPLE'; }   // NEVER a fake number
           try{ var _g=await window.getJSON(API+'/v1/policy/decisions/feed?limit=1');
             var _v=((_g&&_g.verdicts)||[])[0];
             setHTML('hero-gate','<span class="rmark" aria-hidden="true"></span>'+(_v?esc(String(_v.decision||_v.verdict||'').toUpperCase()||'logged'):'no decisions yet'));
@@ -9089,8 +9106,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   // 2) COMMS PULSE — M365/Teams/Slack CONNECT-READY OAuth + labeled sample structure
   function entComms(c){
     c.innerHTML=
-      '<div class="card" style="border-color:'+TL+'66"><div class="card-h"><span class="card-t">Connect your comms surface</span><span class="card-ep">CONNECT-READY · OAuth</span></div>'+
-        '<div class="row mono dim" style="border:0">a11oy never fabricates premium data. Connect Microsoft 365 / Teams or Slack via OAuth to stream real activity + governed sentiment. Until then we show the exact ingest structure with a clearly-labeled SAMPLE.</div>'+
+      '<div class="card" style="border-color:'+TL+'66"><div class="card-h"><span class="card-t">Connect your comms surface <span class="mb mb-sample" data-maturity="sample">SAMPLE</span></span><span class="card-ep">CONNECT-READY · SAMPLE · OAuth</span></div>'+
+        '<div class="row mono dim" style="border:0">a11oy never fabricates premium data. Connect Microsoft 365 / Teams or Slack via OAuth to stream real activity + governed sentiment. Until connected, every chart on this tab is a clearly-labeled <b>SAMPLE</b> (structure preview only) — never fabricated as live.</div>'+
         '<div class="btns" style="margin-top:.6rem">'+
           '<button class="btn" onclick="window._connectReady(\'Microsoft 365 / Teams\')" style="border-color:'+TL+'">⊕ Connect Microsoft 365 / Teams</button> '+
           '<button class="btn" onclick="window._connectReady(\'Slack\')" style="border-color:'+TL+'">⊕ Connect Slack</button></div>'+
