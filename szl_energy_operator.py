@@ -409,8 +409,10 @@ _EMBED_TEXTS = [
 def _fetch_joule_meter(timeout: float = 4.0) -> Optional[dict]:
     """Fetch the live NVML joule-meter JSON, or None on any failure (honest)."""
     try:
+        # Browser-like UA so a Cloudflare-fronted meter (e.g. meter.a-11-oy.com)
+        # does not 403 the request behind bot protection. Honest self-probe.
         req = urllib.request.Request(
-            _JOULE_METER_URL, headers={"User-Agent": "szl-energy-operator"})
+            _JOULE_METER_URL, headers={"User-Agent": _PROBE_UA})
         with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310
             return json.loads(r.read().decode("utf-8", "replace"))
     except Exception:  # noqa: BLE001 — unreachable meter => no sample, stay honest
@@ -564,6 +566,13 @@ try:
 except (TypeError, ValueError):
     _PROBE_TIMEOUT_S = 8.0
 
+# Browser-like User-Agent for liveness/meter probes. A sovereign node behind a
+# Cloudflare-fronted tunnel 403s the default "Python-urllib/x" UA under bot
+# protection, which would falsely mark a reachable node DEGRADED. Overridable.
+_PROBE_UA = os.environ.get(
+    "SZL_PROBE_USER_AGENT",
+    "Mozilla/5.0 (compatible; szl-energy-operator/1.0; +https://a-11-oy.com)")
+
 
 def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     """Liveness probe mirroring orchestrator._local_endpoint_reachable: a node is
@@ -575,7 +584,13 @@ def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
         timeout = _PROBE_TIMEOUT_S
     for path in ("/models", ""):
         try:
-            req = _u.Request(base_url.rstrip("/") + path, method="GET")
+            # Send a browser-like User-Agent: a sovereign node may sit behind a
+            # Cloudflare-fronted tunnel (e.g. gpu.a-11-oy.com) whose default bot
+            # protection 403s the bare "Python-urllib/x" UA — which would falsely
+            # mark a perfectly-reachable node DEGRADED. A real UA is honest: we are
+            # a legitimate client probing our own endpoint, not evading anything.
+            req = _u.Request(base_url.rstrip("/") + path, method="GET",
+                             headers={"User-Agent": _PROBE_UA})
             with _u.urlopen(req, timeout=timeout) as r:  # noqa: S310
                 if 200 <= getattr(r, "status", r.getcode()) < 500:
                     return True
@@ -592,7 +607,7 @@ def _ollama_generate(base_url: str, model: str, prompt: str,
     import httpx
     body = {"model": model, "messages": [{"role": "user", "content": prompt}],
             "stream": False, "max_tokens": 64}
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": _PROBE_UA}
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
@@ -618,7 +633,7 @@ def _ollama_embed(base_url: str, model: str, text: str,
     import httpx
     root = base_url.rstrip("/")
     root = root[:-3] if root.endswith("/v1") else root
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": _PROBE_UA}
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
