@@ -9334,6 +9334,22 @@ except Exception as _dev2_e:
 # ============================================================================
 
 # ============================================================================
+# BEGIN: a11oy GOVERNED-INFERENCE product layer (additive, honest-degrade)
+# Buyer-facing signed governed-inference surface under /api/a11oy/v1/govern/*.
+# Same register() contract as the dev2/devA packs: front-moved routes, honest
+# degrade if FastAPI / governance module is absent. Co-Authored-By doctrine.
+# ============================================================================
+try:
+    import szl_governed_api as _szl_govern
+    _govern_status = _szl_govern.register(app, ns="a11oy")
+    print(f"[a11oy] governed-inference product registered: {_govern_status}", file=__import__("sys").stderr)
+except Exception as _gv_e:
+    print(f"[a11oy] governed-inference register FAILED (non-fatal): {_gv_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: a11oy GOVERNED-INFERENCE product layer
+# ============================================================================
+
+# ============================================================================
 # BEGIN: a11oy DEV-A DEEP FEEDS layer (RealEstate 5 + Finance 5, 10 tabs)
 # ADDITIVE. Path namespace /api/a11oy/v1/deva — no overlap with dev1 (/v1/wow),
 # dev2 (/v1/vert), or dev3 (/operator-organ). Routes are FRONT-MOVED inside
