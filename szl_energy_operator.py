@@ -554,10 +554,25 @@ class _StubBackend:
         return dim, vec
 
 
-def _http_reachable(base_url: str, timeout: float = 2.0) -> bool:
+# Liveness-probe timeout (seconds). Default 8.0 so a genuinely-reachable node that
+# sits behind a higher-latency hop (e.g. a Cloudflare/Tailscale tunnel for the
+# always-on home anchor) is NOT falsely marked DEGRADED by an over-tight 2s budget.
+# Overridable via SZL_GPU_PROBE_TIMEOUT. A REAL probe still decides reachability —
+# this only widens the patience window; it never fakes a node up.
+try:
+    _PROBE_TIMEOUT_S = float(os.environ.get("SZL_GPU_PROBE_TIMEOUT", "8.0"))
+except (TypeError, ValueError):
+    _PROBE_TIMEOUT_S = 8.0
+
+
+def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     """Liveness probe mirroring orchestrator._local_endpoint_reachable: a node is
-    reachable iff its OpenAI-compatible /models (or root) answers <500. Never raises."""
+    reachable iff its OpenAI-compatible /models (or root) answers <500. Never raises.
+    Timeout defaults to SZL_GPU_PROBE_TIMEOUT (_PROBE_TIMEOUT_S) so tunneled nodes
+    are not falsely DEGRADED; pass an explicit value to override."""
     import urllib.request as _u
+    if timeout is None:
+        timeout = _PROBE_TIMEOUT_S
     for path in ("/models", ""):
         try:
             req = _u.Request(base_url.rstrip("/") + path, method="GET")
