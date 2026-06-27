@@ -223,10 +223,24 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
                        "Joules MEASURED only from real NVML; never fabricated.",
         })
 
+    # Landing page: serve the holographic showcase at /govern and /govern/ (branded domain root)
+    try:
+        from starlette.responses import FileResponse, HTMLResponse
+        import os as _os
+        _PAGE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "govern_showcase.html")
+        async def _landing(request=None):
+            if _os.path.exists(_PAGE):
+                return FileResponse(_PAGE, media_type="text/html")
+            return HTMLResponse("<h1>a11oy Governed Inference</h1><p>showcase asset missing</p>")
+    except Exception:
+        _landing = None
+
     # Register at the FULL /api/a11oy/v1/govern/* path (proven to resolve locally,
     # like /api/a11oy/v1/reason) AND the post-strip /v1/govern/* + short /govern/*
     # forms, so it wins regardless of how the front-door forwards.
     paths = [
+        ("/govern",       _landing or _health, ["GET"]),
+        ("/govern/",      _landing or _health, ["GET"]),
         ("/api/a11oy/v1/govern/infer",  _infer,  ["POST"]),
         ("/api/a11oy/v1/govern/health", _health, ["GET"]),
         ("/v1/govern/infer",  _infer,  ["POST"]),
