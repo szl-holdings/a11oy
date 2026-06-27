@@ -186,14 +186,21 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
     the app unchanged (never raises into import). Follows the same register()
     contract as dev2/devA/devB packs.
     """
+    # Use raw Starlette Route objects inserted at the HEAD of app.router.routes —
+    # the PROVEN pattern in serve.py (compliance-crosswalk mesh). add_api_route +
+    # reorder is fragile against the /api/a11oy/{path:path} Node proxy + SPA
+    # catch-all; inserting Route(...) at index 0 deterministically wins.
     try:
-        from fastapi import Request
-        from fastapi.responses import JSONResponse
+        from starlette.routing import Route
+        from starlette.responses import JSONResponse
     except Exception:
-        return {"registered": [], "status": "fastapi-absent"}
+        return {"registered": [], "status": "starlette-absent"}
 
-    async def _infer(req: Request):
-        body = await req.json()
+    async def _infer(request):
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
         prompt = (body or {}).get("prompt", "")
         if not prompt:
             return JSONResponse({"error": "missing 'prompt'"}, status_code=400)
@@ -204,7 +211,7 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
             severity=float(body.get("severity", 0.0)),
         ))
 
-    async def _health(_req: Request = None):
+    async def _health(request=None):
         jb, ev = _meter_snapshot()
         return JSONResponse({
             "product": "a11oy Governed Inference",
@@ -216,26 +223,21 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
                        "Joules MEASURED only from real NVML; never fabricated.",
         })
 
-    routes = [
-        (f"/api/{ns}/v1/govern/infer",  _infer,  ["POST"]),
-        (f"/api/{ns}/v1/govern/health", _health, ["GET"]),
+    # Register at the FULL /api/a11oy/v1/govern/* path (proven to resolve locally,
+    # like /api/a11oy/v1/reason) AND the post-strip /v1/govern/* + short /govern/*
+    # forms, so it wins regardless of how the front-door forwards.
+    paths = [
         ("/api/a11oy/v1/govern/infer",  _infer,  ["POST"]),
         ("/api/a11oy/v1/govern/health", _health, ["GET"]),
+        ("/v1/govern/infer",  _infer,  ["POST"]),
+        ("/v1/govern/health", _health, ["GET"]),
+        ("/govern/infer",  _infer,  ["POST"]),
+        ("/govern/health", _health, ["GET"]),
     ]
     registered = []
-    for path, fn, methods in routes:
-        app.add_api_route(path, fn, methods=methods, include_in_schema=False)
+    for path, fn, methods in paths:
+        app.router.routes.insert(0, Route(path, fn, methods=methods))
         registered.append(path)
-
-    # Front-move so these win over the /api proxy + SPA catch-all (repo pattern).
-    try:
-        moved = [r for r in app.router.routes if getattr(r, "path", None) in set(registered)]
-        for r in moved:
-            app.router.routes.remove(r)
-        for r in reversed(moved):
-            app.router.routes.insert(0, r)
-    except Exception:
-        pass
     return {"registered": registered, "status": "ok"}
 
 
