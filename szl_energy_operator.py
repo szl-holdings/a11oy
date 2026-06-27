@@ -130,6 +130,14 @@ THROTTLE_SLEEP_MULT_ENV = "A11OY_ENERGY_THROTTLE_SLEEP_MULT"
 _THROTTLE_SLEEP_MULT_DEFAULT = 4.0
 # Forced posture override for demos/tests (soak|baseline|throttle). Empty => live.
 FORCE_POSTURE_ENV = "A11OY_ENERGY_FORCE_POSTURE"
+# Governed-compute switch (default ON). When ON, each completed REAL GPU job is run
+# through the EXISTING governed turn (a11oy_vertical_feeds.governed_turn: Λ aggregator
+# + locked formulas + deny-by-default gates, sealing a Khipu/DSSE receipt into the Lake)
+# and the honest result is attached to the JobRecord as ADDITIVE governance metadata.
+# This NEVER touches how joules are MEASURED. Off => the prior byte-identical job path.
+GOVERN_COMPUTE_ENV = "A11OY_GOVERN_COMPUTE"
+# Governance vertical/organ the GPU jobs are sealed under (its own Lake DAG).
+GOVERN_VERTICAL = "sovereign-compute"
 # The harvest posture feed (a11oy_harvest_endpoints.handle_posture) can hit live
 # external energy feeds, so it is refreshed at most once per this TTL — NEVER on
 # every sweep. Keeps the hot loop gentle (a fast inter-job interval must not turn
@@ -146,6 +154,116 @@ WORK_MODE_THROTTLE = "throttle"
 def _useful_work_enabled() -> bool:
     return (os.environ.get(USEFUL_WORK_ENV, "1").strip().lower()
             not in ("0", "false", "no", "off", ""))
+
+
+def _govern_enabled() -> bool:
+    """True unless A11OY_GOVERN_COMPUTE is explicitly falsey. Default ON."""
+    return (os.environ.get(GOVERN_COMPUTE_ENV, "1").strip().lower()
+            not in ("0", "false", "no", "off", ""))
+
+
+def _ungoverned(reason: str) -> dict:
+    """Honest ungoverned governance record — STABLE schema, NO fabricated Λ/receipt."""
+    return {
+        "governed": False,
+        "lambda_score": None,
+        "lambda_pass": None,
+        "decision": None,
+        "receipt_id": None,
+        "dsse_keyid": None,
+        "dsse_signed": False,
+        "doctrine_lambda": None,
+        "vertical": GOVERN_VERTICAL,
+        "reason": reason,
+    }
+
+
+def _govern_turn(kind: str, text: str, model: str,
+                 node_name: str) -> dict:
+    """Run a COMPLETED GPU job through the EXISTING governed turn as ADDITIVE metadata.
+
+    This is the governed-compute boundary: it imports + calls the real
+    `a11oy_vertical_feeds.governed_turn` (which scores the turn through the Λ aggregator
+    + locked formulas + deny-by-default gates, then seals a Khipu receipt into the Lake
+    and signs a DSSE envelope) and distils the honest result.
+
+    Doctrine v11 — NEVER fabricate: any failure (disabled / module absent / call error /
+    receipt not sealed) returns an honest ungoverned record (governed=False, lambda_score
+    None, receipt_id None) with a reason. A job that could not be governed says so; it is
+    never faked as governed. The return schema is STABLE (same keys whether governed or
+    not). This function does NOT touch energy measurement and never raises."""
+    if not _govern_enabled():
+        return _ungoverned(f"disabled ({GOVERN_COMPUTE_ENV}=0)")
+    try:
+        import a11oy_vertical_feeds as _VF  # type: ignore
+    except Exception as e:  # noqa: BLE001 — governance optional; absence stays honest
+        return _ungoverned(f"governance modules unavailable: {type(e).__name__}")
+    try:
+        res = _VF.governed_turn(
+            vertical=GOVERN_VERTICAL,
+            text=text or "",
+            action_kind=f"gpu-{kind}",
+            context={"task": "energy-operator", "model": model, "node": node_name},
+        )
+    except Exception as e:  # noqa: BLE001 — never let governance break the job path
+        return _ungoverned(f"governed_turn failed: {type(e).__name__}")
+    if not isinstance(res, dict):
+        return _ungoverned("governed_turn returned non-dict")
+    lam = res.get("lambda")
+    receipt = res.get("receipt") if isinstance(res.get("receipt"), dict) else {}
+    receipt_id = receipt.get("digest")
+    dsse = res.get("dsse") if isinstance(res.get("dsse"), dict) else {}
+    keyid = None
+    sigs = dsse.get("signatures")
+    if isinstance(sigs, list) and sigs and isinstance(sigs[0], dict):
+        keyid = sigs[0].get("keyid")
+    doctrine = res.get("doctrine") if isinstance(res.get("doctrine"), dict) else {}
+    # Fully governed ONLY when a real Λ score AND a real sealed receipt id are present.
+    fully = (isinstance(lam, (int, float)) and bool(receipt_id))
+    out = {
+        "governed": fully,
+        "lambda_score": lam if isinstance(lam, (int, float)) else None,
+        "lambda_pass": res.get("lambda_pass"),
+        "decision": res.get("decision"),
+        "receipt_id": receipt_id,
+        "dsse_keyid": keyid,
+        "dsse_signed": bool(dsse.get("signed")),
+        "doctrine_lambda": doctrine.get("lambda"),
+        "vertical": res.get("vertical"),
+    }
+    if not fully:
+        out["reason"] = ("Λ scored but receipt not sealed"
+                         if isinstance(lam, (int, float))
+                         else "governed_turn returned no Λ score")
+    return out
+
+
+def _governed_compute_summary(recent_records: list[dict]) -> dict:
+    """HONEST, observable governed-compute block for status(). Derived from the rolling
+    tail of recent JobRecords (no fabricated aggregate). Reports whether governance is
+    enabled, how many of the recent jobs were FULLY governed (real Λ + sealed receipt),
+    and the most recent governance result (Λ score, receipt id, dsse keyid) so a reader
+    can see a GPU job was a governed turn — or honestly was not."""
+    gov_records = [r for r in recent_records
+                   if isinstance(r, dict) and isinstance(r.get("governance"), dict)]
+    fully = [g for g in gov_records if g["governance"].get("governed")]
+    last = gov_records[-1]["governance"] if gov_records else None
+    return {
+        "enabled": _govern_enabled(),
+        "vertical": GOVERN_VERTICAL,
+        "recent_window": len(recent_records),
+        "recent_governed": len(fully),
+        "recent_attempted": len(gov_records),
+        "last": last,
+        "note": (
+            "Each completed GPU job is ADDITIONALLY run through the EXISTING governed "
+            "turn (a11oy_vertical_feeds.governed_turn: Λ aggregator + locked formulas + "
+            "deny-by-default gates, sealing a Khipu/DSSE receipt into the Lake). Λ is "
+            "Conjecture 1 — never a theorem. A job that could not be governed is honestly "
+            "labeled governed=False with NO fabricated Λ score or receipt. Governance is "
+            "metadata only; it NEVER changes how joules are MEASURED."
+        ),
+    }
 
 
 def _price_expensive_threshold() -> float:
@@ -509,6 +627,15 @@ class JobRecord:
     # contract is unchanged — these are extra optional fields with safe defaults.
     useful_work: bool = False
     rag_chunk_id: Optional[str] = None
+    # ADDITIVE (governed-compute): the honest result of running THIS completed GPU job
+    # through the existing governed turn (Λ aggregator + locked formulas + Khipu/DSSE
+    # receipt sealed into the Lake). None when governance was not attempted; when
+    # attempted it is a dict carrying governed(bool), lambda_score, decision, receipt_id,
+    # dsse_keyid/dsse_signed and the Conjecture-1 doctrine label — or governed=False + a
+    # reason when it could not be governed (NEVER a fabricated score/receipt). Energy
+    # measurement is unaffected; this is metadata only. Dev2/3/4 contract is unchanged
+    # (extra optional field, safe default).
+    governance: Optional[dict] = None
 
     def to_dict(self) -> dict:
         return {
@@ -519,6 +646,7 @@ class JobRecord:
             "joules_label": self.joules_label, "joules_evidence": self.joules_evidence,
             "ts": self.ts, "seq": self.seq,
             "useful_work": self.useful_work, "rag_chunk_id": self.rag_chunk_id,
+            "governance": self.governance,
         }
 
 
@@ -1052,7 +1180,8 @@ class OperatorDaemon:
                 wall_s: float, exporter_sample: Optional[dict],
                 joules_measured: Optional[float], *,
                 useful_work: bool = False,
-                rag_chunk_id: Optional[str] = None) -> JobRecord:
+                rag_chunk_id: Optional[str] = None,
+                governance: Optional[dict] = None) -> JobRecord:
         now = time.time()
         label = _label_upper(exporter_sample, now=now)
         evidence = _J.joules_evidence(exporter_sample, now=now) if label == LABEL_MEASURED else {}
@@ -1084,7 +1213,7 @@ class OperatorDaemon:
             node=node_name, model=model, kind=kind, tokens=int(tokens), wall_s=wall_s,
             joules_measured=billable_j,
             joules_label=label, joules_evidence=evidence, ts=_now_iso(), seq=seq,
-            useful_work=useful_work, rag_chunk_id=rag_chunk_id)
+            useful_work=useful_work, rag_chunk_id=rag_chunk_id, governance=governance)
         self._emit(rec)
         return rec
 
@@ -1113,12 +1242,15 @@ class OperatorDaemon:
         j_before = (sample_before or {}).get("joules_measured_total")
         rag_chunk_id: Optional[str] = None
         embed_vec: list[float] = []
+        governed_text = ""  # the turn text handed to the governed turn (post-meter)
         t0 = time.time()
         try:
             if kind == "generate":
                 prompt = _GEN_PROMPTS[self._state.seq % len(_GEN_PROMPTS)]
-                tokens, _ = _ollama_generate(node.base_url, node.gen_model, prompt)
+                tokens, completion = _ollama_generate(node.base_url, node.gen_model, prompt)
                 model = node.gen_model
+                # The governed turn scores the full turn (prompt + completion).
+                governed_text = f"{prompt}\n{completion}".strip()
             else:
                 # USEFUL WORK: embed a REAL un-embedded corpus chunk when available
                 # (honest fallback to canned text otherwise). The joule meter window
@@ -1127,6 +1259,7 @@ class OperatorDaemon:
                 text, rag_chunk_id = self._pick_corpus_embed_job()
                 tokens, embed_vec = _ollama_embed(node.base_url, node.embed_model, text)
                 model = node.embed_model
+                governed_text = (text or "").strip()
         except Exception:  # noqa: BLE001 — node failed mid-job: DEGRADED, never faked
             with self._lock:
                 self._node_status[node.name] = "DEGRADED"
@@ -1149,11 +1282,18 @@ class OperatorDaemon:
         stored = False
         if rag_chunk_id is not None and embed_vec:
             stored = self._store_rag_vector(rag_chunk_id, embed_vec)
+        # GOVERNED COMPUTE (ADDITIVE): run the completed turn through the EXISTING governed
+        # turn (Λ aggregator + locked formulas + Khipu/DSSE receipt sealed into the Lake).
+        # This is OUTSIDE the metered window (after meter_after) and CANNOT change the joule
+        # label/billable energy — governance is metadata only. Honest: a failure yields
+        # governed=False with no fabricated Λ/receipt; the job still records exactly as before.
+        governance = _govern_turn(kind, governed_text, model, node.name)
         # The label is decided off the AFTER sample (the fresh reading at job end).
         rec = self._commit(node.name, model, kind, tokens, wall_s,
                             sample_after, joules_measured,
                             useful_work=stored,
-                            rag_chunk_id=(rag_chunk_id if stored else None))
+                            rag_chunk_id=(rag_chunk_id if stored else None),
+                            governance=governance)
         return rec.to_dict()
 
     def _run_corpus_embed_batch(self, node: NodeCfg, meter_before: Optional[dict],
@@ -1264,6 +1404,7 @@ class OperatorDaemon:
                     "live RAG dense index. Useful work changes WHAT is computed, "
                     "never HOW joules are measured — the MEASURED gate is unchanged."
                 ),
+                "governed_compute": _governed_compute_summary(self._last_records),
                 "recent_jobs": [_public_job(j) for j in self._last_records[-10:]],
                 "exporter": _JOULE_METER_PUBLIC,
                 "honesty": (
