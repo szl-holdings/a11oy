@@ -1,8 +1,8 @@
-# omen_boot_persist.ps1 — make OMEN's sovereign stack survive reboots, headless.
+# omen_boot_persist.ps1 - make OMEN's sovereign stack survive reboots, headless.
 # Registers auto-start (at system startup) for the 3 pieces that must always be up:
-#   1) Ollama            (port 11434)  — usually already a Windows service; we verify.
-#   2) joule exporter    (port 9471)   — the real NVML meter (Python).
-#   3) cloudflared tunnel (omen-szl)   — gpu.a-11-oy.com / meter.a-11-oy.com.
+#   1) Ollama            (port 11434)  - usually already a Windows service; we verify.
+#   2) joule exporter    (port 9471)   - the real NVML meter (Python).
+#   3) cloudflared tunnel (omen-szl)   - gpu.a-11-oy.com / meter.a-11-oy.com.
 #
 # RUN AS ADMINISTRATOR:
 #   powershell -ExecutionPolicy Bypass -File $env:USERPROFILE\omen_boot_persist.ps1
@@ -50,7 +50,7 @@ function Register-BootTask($taskName, $exe, $argString) {
 # service named 'Ollama' exists we leave it alone; else we boot 'ollama serve'.
 $ollamaSvc = Get-Service -Name "Ollama*" -ErrorAction SilentlyContinue
 if ($ollamaSvc) {
-    Write-Host "OK   Ollama already a Windows service ($($ollamaSvc.Name)) — leaving as-is"
+    Write-Host "OK   Ollama already a Windows service ($($ollamaSvc.Name)) - leaving as-is"
 } elseif ($ollama) {
     Register-BootTask "OMEN Ollama" $ollama "serve"
 } else {
@@ -85,7 +85,7 @@ Get-ScheduledTask -TaskName "OMEN *" -ErrorAction SilentlyContinue |
     Select-Object TaskName, State | Format-Table -AutoSize
 
 Write-Host ""
-Write-Host "Starting tasks now so you don't have to reboot..."
+Write-Host "Starting tasks now so you do not have to reboot..."
 foreach ($t in @("OMEN Ollama","OMEN Joule Exporter","OMEN Tunnel")) {
     $exists = Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
     if ($exists) { Start-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue; Write-Host "started: $t" }
