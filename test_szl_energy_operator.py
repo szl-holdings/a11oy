@@ -844,6 +844,122 @@ def test_posture_feed_is_ttl_throttled_not_per_sweep(monkeypatch):
         assert calls["n"] == 3, calls
 
 
+# ---------------------------------------------------------------------------
+# (9) GOVERNED COMPUTE — each completed REAL GPU job is additionally run through the
+#     EXISTING governed turn (Λ aggregator + locked formulas + Khipu/DSSE receipt sealed
+#     into the Lake) as ADDITIVE metadata. Honest: when governance is unavailable the job
+#     still completes and is labeled governed=False with NO fabricated Λ score or receipt,
+#     and energy measurement is BYTE-IDENTICAL whether governance is on or off.
+# ---------------------------------------------------------------------------
+def _hexish(s) -> bool:
+    return isinstance(s, str) and len(s) >= 32 and all(c in "0123456789abcdef" for c in s.lower())
+
+
+def test_governed_job_emits_real_lambda_and_receipt(monkeypatch):
+    """A completed GPU job carries a REAL Λ score and a REAL sealed Khipu receipt id when
+    the governance modules are present — NOT a fabricated stand-in."""
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        monkeypatch.setenv("A11OY_GOVERN_COMPUTE", "1")
+        with tempfile.TemporaryDirectory() as d:
+            op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                   state_path=os.path.join(d, "ledger.json"),
+                                   allow_stub=False)
+            produced = op.run_once()
+            assert produced, "expected real job records"
+            # Every real job record carries governance metadata (additive field).
+            for rec in produced:
+                assert "governance" in rec, rec
+                g = rec["governance"]
+                assert isinstance(g, dict), rec
+                assert g["governed"] is True, g           # fully governed
+                lam = g["lambda_score"]
+                assert isinstance(lam, (int, float)) and 0.0 <= lam <= 1.0, g  # REAL Λ
+                assert _hexish(g["receipt_id"]), g        # REAL sealed receipt id (Lake)
+                assert g["decision"] in ("allow", "review", "deny"), g
+                assert "dsse_signed" in g, g              # honest signed/unsigned disclosure
+                # Conjecture-1 label carried (Λ is never a theorem).
+                assert "Conjecture 1" in (g.get("doctrine_lambda") or ""), g
+            # Observable in status(): the governed-compute block reports real governed jobs.
+            st = op.status()
+            gc = st["governed_compute"]
+            assert gc["enabled"] is True, gc
+            assert gc["recent_governed"] >= 1, gc
+            assert gc["last"] and gc["last"]["governed"] is True, gc
+            # The job records still carry the unchanged energy contract alongside governance.
+            assert st["joules_measured_total"] > 0, st
+    finally:
+        node.stop()
+
+
+def test_governance_unavailable_is_honest_ungoverned(monkeypatch):
+    """When the governance modules are unavailable, the job STILL completes and is honestly
+    labeled governed=False with NO fabricated Λ score and NO fabricated receipt."""
+    import sys as _sys
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        monkeypatch.setenv("A11OY_GOVERN_COMPUTE", "1")
+        # Force the governance import to fail (module mocked-unavailable).
+        monkeypatch.setitem(_sys.modules, "a11oy_vertical_feeds", None)
+        with tempfile.TemporaryDirectory() as d:
+            op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                   state_path=os.path.join(d, "ledger.json"),
+                                   allow_stub=False)
+            produced = op.run_once()
+            assert produced, "job must still complete when governance is unavailable"
+            for rec in produced:
+                g = rec["governance"]
+                assert g["governed"] is False, g          # honestly ungoverned
+                assert g["lambda_score"] is None, g       # NO fabricated Λ
+                assert g["receipt_id"] is None, g         # NO fabricated receipt
+                assert "reason" in g and g["reason"], g    # says WHY it could not be governed
+            # Energy path is untouched — jobs done, joules MEASURED as before.
+            st = op.status()
+            assert st["jobs_done"] >= 2, st
+            assert st["joules_measured_total"] > 0, st
+            assert st["governed_compute"]["recent_governed"] == 0, st
+    finally:
+        node.stop()
+
+
+def test_governance_is_additive_energy_unchanged(monkeypatch):
+    """Governance is ADDITIVE: turning it on must NOT change how joules are MEASURED.
+    Two identical sweeps (governance OFF vs ON) against the same deterministic node/meter
+    yield byte-identical jobs_done, tokens_total and joules_measured_total."""
+    def _run(govern: str) -> dict:
+        node = _FakeNode()
+        base = node.start()
+        try:
+            monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+            monkeypatch.setenv("A11OY_GOVERN_COMPUTE", govern)
+            with tempfile.TemporaryDirectory() as d:
+                op = OP.OperatorDaemon(nodes=[_node_cfg(base)],
+                                       state_path=os.path.join(d, "ledger.json"),
+                                       allow_stub=False)
+                op.run_once()
+                op.run_once()
+                return op.status()
+        finally:
+            node.stop()
+
+    off = _run("0")
+    on = _run("1")
+    # Energy measurement is identical regardless of governance.
+    assert off["jobs_done"] == on["jobs_done"], (off["jobs_done"], on["jobs_done"])
+    assert off["tokens_total"] == on["tokens_total"], (off["tokens_total"], on["tokens_total"])
+    assert off["joules_measured_total"] == on["joules_measured_total"], (
+        off["joules_measured_total"], on["joules_measured_total"])
+    assert off["measured_jobs"] == on["measured_jobs"]
+    # But only the ON run records governance metadata.
+    assert off["governed_compute"]["enabled"] is False, off["governed_compute"]
+    assert on["governed_compute"]["enabled"] is True, on["governed_compute"]
+    assert on["governed_compute"]["recent_governed"] >= 1, on["governed_compute"]
+
+
 if __name__ == "__main__":
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
