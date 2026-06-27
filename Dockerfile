@@ -163,7 +163,7 @@ COPY knowledge.json ./static/knowledge.json
 # untouched; A11OY_REQUIRE_LOCAL_LLM gate + demo-tier RUN logic untouched.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # ---------------------------------------------------------------------------
-COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py ./
+COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py szl_governed_api.py a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py ./
 # Spaces-on-a11oy.net shared modules (Dev2+3) — reverse-proxy + console surface.
 # Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
 # falls back and /spaces + /api/<ns>/v1/spaces/health 404. Byte-identical a11oy+killinchu.
