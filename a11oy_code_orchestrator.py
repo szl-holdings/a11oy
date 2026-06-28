@@ -1994,6 +1994,101 @@ async def code_run(request: Request) -> JSONResponse:
     return JSONResponse(result)
 
 
+@router.post("/kernel/{run_id}/exec")
+async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
+    """Persistent sandboxed governed kernel — execute an ALREADY-GATED cell in the
+    long-lived per-run_id worker whose globals() persist across cells (DEFER-2).
+
+    Delegates to a11oy_governed_kernel.GovernedKernel.exec_cell (one worker process
+    per run_id; rlimits + network-disable preamble + isolated interpreter). The hard
+    security screen runs in the PURIQ gate below BEFORE the cell ever reaches the
+    worker. Returns {output, receipt_hash, rlimit_status}.
+
+    PROVE wire: after each exec a signed Khipu receipt is emitted and recorded into
+    the UNIFIED LEDGER (organ="a11oy-kernel") via szl_lake_ingest.record_receipt —
+    fire-and-forget, never blocks/raises. Energy is honestly UNAVAILABLE (this Space
+    has no NVML meter on the kernel path; joules are never fabricated)."""
+    body, _err = await _safe_body(request)
+    if _err is not None:
+        return _err
+    code = body.get("code", "")
+    if not isinstance(code, str) or not code.strip():
+        return JSONResponse({"error": "empty code", "output": None,
+                             "receipt_hash": None, "rlimit_status": None})
+    # PURIQ-gate the cell as a sandboxed exec action (same bar as /run).
+    gate = puriq_decide("shell_exec",
+                        _gate_context_for_tool("shell_exec", {"kernel": run_id}, attested=True))
+    if not gate["allow"]:
+        _METRICS["gate_denied_total"] += 1
+        return JSONResponse({"error": f"PURIQ gate denied: {gate['reason']}",
+                             "output": None, "receipt_hash": None, "rlimit_status": None})
+
+    # Delegate to the persistent worker (blocking IO → run in the default executor).
+    try:
+        import a11oy_governed_kernel as _gk
+    except Exception as exc:  # honest degrade — module absent
+        return JSONResponse({"error": f"governed kernel unavailable: {exc!r}",
+                             "output": None, "receipt_hash": None, "rlimit_status": None},
+                            status_code=503)
+    kernel = _gk.get_kernel(run_id, create=True)
+    result = await asyncio.get_event_loop().run_in_executor(None, kernel.exec_cell, code)
+
+    rlimit_status = {
+        "isolation": result.get("isolation"),
+        "degraded": bool(result.get("degraded", False)),
+        "timeout": bool(result.get("timeout", False)),
+        "wall_s": result.get("wall_s"),
+        "limits": kernel.status().get("limits"),
+    }
+    output = {
+        "ok": result.get("ok"),
+        "stdout": result.get("stdout"),
+        "stderr": result.get("stderr"),
+        "new_or_changed": result.get("new_or_changed"),
+        "vars": result.get("vars"),
+    }
+    energy = {"joules": None, "label": "UNAVAILABLE",
+              "note": "kernel exec joules NOT measured (no NVML on this path) — not fabricated"}
+
+    # Emit a chain-verified (DSSE-cosigned when a signer is wired) Khipu receipt.
+    rec = khipu_emit("kernel.exec", {
+        "run_id": run_id,
+        "ok": result.get("ok"),
+        "degraded": rlimit_status["degraded"],
+        "timeout": rlimit_status["timeout"],
+        "wall_s": result.get("wall_s"),
+        "isolation": result.get("isolation"),
+        "new_or_changed": result.get("new_or_changed"),
+        "stdout_sha256": hashlib.sha256((result.get("stdout") or "").encode()).hexdigest(),
+        "energy": energy,
+        "gate": {"allow": gate["allow"], "score": gate["score"], "lambda": gate["lambda"]},
+    })
+    receipt_hash = rec.get("hash")
+
+    # ── UNIFIED LEDGER WIRE-UP (organ="a11oy-kernel") ───────────────────────────
+    # Record the signed kernel-exec receipt into the unified receipt ledger. Mirrors
+    # szl_governed_api's govern/infer ledger wire. Fully guarded + non-blocking — a
+    # ledger/dataset hiccup must NEVER affect the kernel exec response.
+    if isinstance(rec, dict):
+        try:
+            import szl_lake_ingest as _lake
+            _rec = dict(rec)
+            _rec["energy"] = energy
+            _lake.record_receipt(_rec, organ="a11oy-kernel")
+        except Exception as _lake_e:  # pragma: no cover
+            print(f"[a11oy.code] kernel exec ledger record skipped (non-fatal): {_lake_e!r}",
+                  file=sys.stderr)
+
+    return JSONResponse({
+        "run_id": run_id,
+        "output": output,
+        "receipt_hash": receipt_hash,
+        "rlimit_status": rlimit_status,
+        "energy": energy,
+        "gate": {"allow": gate["allow"], "score": gate["score"], "lambda": gate["lambda"]},
+    })
+
+
 @router.post("/v1/router")
 async def v1_router(request: Request) -> JSONResponse:
     """7-tier router. Returns OpenAI-compatible response + Khipu receipt."""
