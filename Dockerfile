@@ -406,6 +406,14 @@ COPY szl3d_holographic.py ./szl3d_holographic.py
 # sovereign in-image. Reuses the vendor3d Three.js r160 above — 0 CDN.
 COPY cathedral_genius.html ./cathedral_genius.html
 COPY static/cathedral_app.js ./static/cathedral_app.js
+# ADDITIVE (holographic front-door landing, Dev1): the governed-inference-field
+# hero served at "/" by serve.py.spa_root (cathedral one click in at /cathedral,
+# console at /console). a11oy_landing.html is the page; static/a11oy_landing.js is
+# the ES module served at /landing/app.js. Reuses the vendor3d Three.js r160 above
+# (MIT) via the page importmap — 0 runtime CDN. MUST be per-file COPY'd or "/"
+# falls back to the cathedral/console. Doctrine v11 LOCKED; Λ = Conjecture 1.
+COPY a11oy_landing.html ./a11oy_landing.html
+COPY static/a11oy_landing.js ./static/a11oy_landing.js
 # ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
 # ADDITIVE (a11oy Code agentic core, 2026-06-10): the GENUINELY-agentic loop + agentic

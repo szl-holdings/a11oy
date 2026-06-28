@@ -1,0 +1,536 @@
+<!doctype html>
+<!--
+  a11oy — front door (holographic landing). Served at the Space root "/" by serve.py.
+  SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
+  HONESTY DOCTRINE v11 LOCKED — every figure on this page is fetched live and labelled
+  honestly (LIVE / DOWN / empty-state). Nothing is fabricated. Λ = Conjecture 1 (advisory,
+  NOT a theorem). locked-proven kernel = EXACTLY 8. Receipts are signed on write, never on GET.
+  © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>a11oy — governed inference, signed and shown</title>
+<meta name="description" content="a11oy governs every AI turn before it runs and seals it as a signed receipt you can verify offline. They hide the governor; we sign and show it." />
+<link rel="icon" href="/social-preview.svg" />
+<style>
+  :root{
+    --bg:#070b16; --deep:#0a0f1e; --surface:#10161f; --border:#22304a;
+    --teal:#39d8c8; --teal-soft:#39d8c833; --violet:#6a7bff; --gold:#cda64a;
+    --ink:#eaf1f7; --sub:#9fb2c9; --ghost:#64768f;
+    --ok:#39d8c8; --warn:#cda64a; --down:#e06a6a;
+    --r:16px; --maxw:1180px;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 700px at 70% -10%, #14213a 0%, transparent 60%),
+      radial-gradient(900px 600px at 10% 10%, #0d1830 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:var(--sans); line-height:1.55;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .mono{font-family:var(--mono)}
+
+  /* ---- nav ---- */
+  header.nav{position:sticky;top:0;z-index:40;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,#070b16cc,#070b1688);
+    border-bottom:1px solid var(--border)}
+  .nav .wrap{display:flex;align-items:center;gap:18px;height:64px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
+  .brand svg{display:block}
+  .brand .sub{color:var(--ghost);font-weight:500;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+  .nav nav{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .nav nav a{padding:8px 13px;border-radius:10px;color:var(--sub);font-size:14px;font-weight:500;transition:.15s}
+  .nav nav a:hover{color:var(--ink);background:#ffffff0e}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:11px;
+    font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;transition:.15s;white-space:nowrap}
+  .btn-primary{background:linear-gradient(135deg,var(--teal),#2bb6a8);color:#04130f;
+    box-shadow:0 6px 24px -8px var(--teal)}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 30px -8px var(--teal)}
+  .btn-ghost{border-color:var(--border);color:var(--ink);background:#ffffff08}
+  .btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
+
+  /* ---- hero ---- */
+  .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
+  #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
+  .hero-fallback{position:absolute;inset:0;z-index:0;display:none;
+    background:radial-gradient(600px 600px at 65% 45%, #39d8c81f, transparent 70%)}
+  .hero .wrap{position:relative;z-index:2;padding-top:48px;padding-bottom:48px}
+  .hero-inner{max-width:680px}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 13px;border-radius:999px;
+    border:1px solid var(--teal-soft);background:#39d8c812;color:var(--teal);
+    font-size:12.5px;font-weight:600;letter-spacing:.4px;margin-bottom:22px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);
+    box-shadow:0 0 0 0 var(--teal);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 #39d8c8aa}70%{box-shadow:0 0 0 9px #39d8c800}100%{box-shadow:0 0 0 0 #39d8c800}}
+  h1.title{font-size:clamp(2.3rem,5.6vw,4rem);line-height:1.04;margin:0 0 18px;
+    font-weight:760;letter-spacing:-1.4px}
+  h1.title .grad{background:linear-gradient(120deg,var(--teal),var(--violet));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .lede{font-size:clamp(1.05rem,2vw,1.3rem);color:var(--sub);max-width:600px;margin:0 0 28px}
+  .lede b{color:var(--ink);font-weight:600}
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
+  .hero-stats{display:flex;gap:14px;flex-wrap:wrap}
+  .stat{padding:13px 17px;border-radius:13px;border:1px solid var(--border);
+    background:linear-gradient(180deg,#ffffff0c,#ffffff04);min-width:150px;backdrop-filter:blur(6px)}
+  .stat .k{font-size:1.55rem;font-weight:720;font-family:var(--mono);line-height:1.1}
+  .stat .l{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
+  .stat .k.teal{color:var(--teal)}
+
+  /* ---- generic section ---- */
+  section.band{padding:72px 0;position:relative}
+  .band h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:720;letter-spacing:-.6px;margin:0 0 12px}
+  .band .kick{color:var(--teal);font-weight:600;font-size:13px;letter-spacing:1.6px;text-transform:uppercase;margin:0 0 10px}
+  .band p.intro{color:var(--sub);max-width:680px;font-size:1.05rem;margin:0 0 36px}
+
+  .grid{display:grid;gap:18px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:900px){.g3,.g2{grid-template-columns:1fr}}
+
+  .card{padding:24px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,#ffffff0b,#ffffff05);position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;inset:0;border-radius:var(--r);padding:1px;
+    background:linear-gradient(135deg,#39d8c855,transparent 40%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;opacity:.6;pointer-events:none}
+  .card h3{margin:0 0 8px;font-size:1.12rem;font-weight:680}
+  .card p{margin:0;color:var(--sub);font-size:.96rem}
+  .card .ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+    background:#39d8c815;border:1px solid var(--teal-soft);color:var(--teal);margin-bottom:14px;font-size:18px}
+
+  /* ---- labels / chips ---- */
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
+    font-size:12px;font-weight:600;font-family:var(--mono);border:1px solid var(--border)}
+  .chip .dot{width:8px;height:8px;border-radius:50%}
+  .chip.live{color:var(--ok);border-color:#39d8c855;background:#39d8c810}
+  .chip.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .chip.down{color:var(--down);border-color:#e06a6a55;background:#e06a6a10}
+  .chip.down .dot{background:var(--down)}
+  .chip.wait{color:var(--ghost)}
+  .chip.wait .dot{background:var(--ghost)}
+  .chip.gold{color:var(--gold);border-color:#cda64a55;background:#cda64a10}
+  .chip.gold .dot{background:var(--gold)}
+
+  /* ---- verify panel ---- */
+  .verify{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;align-items:start}
+  @media(max-width:900px){.verify{grid-template-columns:1fr}}
+  .term{border-radius:14px;border:1px solid var(--border);background:#060a13;overflow:hidden;font-family:var(--mono)}
+  .term .bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--border);background:#0b1120}
+  .term .bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .term .bar i:nth-child(1){background:#e06a6a}.term .bar i:nth-child(2){background:#cda64a}.term .bar i:nth-child(3){background:#39d8c8}
+  .term .bar .t{margin-left:8px;color:var(--ghost);font-size:12px}
+  .term .body{padding:16px;font-size:12.5px;line-height:1.7;max-height:330px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  .term .body .ln{color:var(--sub)}
+  .term .body .ok{color:var(--ok)}
+  .term .body .er{color:var(--down)}
+  .term .body .mut{color:var(--ghost)}
+  .term .body .hl{color:var(--teal)}
+  .verdict{margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--border);font-weight:600;display:none}
+  .verdict.show{display:block}
+  .verdict.pass{border-color:#39d8c8;background:#39d8c810;color:var(--ok)}
+  .verdict.fail{border-color:#e06a6a;background:#e06a6a10;color:var(--down)}
+
+  /* ---- mesh ---- */
+  .mesh-list{display:flex;flex-direction:column;gap:12px}
+  .node{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:13px;
+    border:1px solid var(--border);background:linear-gradient(180deg,#ffffff0a,#ffffff04)}
+  .node .nm{font-weight:640}
+  .node .meta{color:var(--ghost);font-size:12.5px;font-family:var(--mono);margin-top:2px}
+  .node .right{margin-left:auto;text-align:right}
+
+  /* ---- footer ---- */
+  footer{border-top:1px solid var(--border);padding:46px 0 60px;color:var(--ghost);font-size:13.5px}
+  footer .cols{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
+  footer a{color:var(--sub)}footer a:hover{color:var(--teal)}
+  footer .lk{display:flex;flex-direction:column;gap:8px}
+  .disc{margin-top:32px;padding-top:22px;border-top:1px solid var(--border);max-width:760px;line-height:1.6}
+
+  .muted{color:var(--ghost)}
+  .skel{color:var(--ghost);font-family:var(--mono)}
+</style>
+</head>
+<body>
+
+<!-- ============================ NAV ============================ -->
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="a11oy home">
+      <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#39d8c8"/><stop offset="1" stop-color="#6a7bff"/></linearGradient></defs>
+        <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
+        <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
+        <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
+      </svg>
+      <span>a11oy<span class="sub" style="margin-left:9px">SZL Holdings</span></span>
+    </a>
+    <nav>
+      <a href="/console">Console</a>
+      <a href="/verify">Verify</a>
+      <a href="/assurance">Assurance</a>
+      <a href="/willay">WILLAY</a>
+      <a href="/governance">Governance</a>
+      <a class="btn btn-primary" href="/console">Open Console →</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================ HERO ============================ -->
+<section class="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-fallback" id="hero-fallback"></div>
+  <div class="wrap">
+    <div class="hero-inner">
+      <span class="eyebrow"><span class="dot"></span> Governed inference · signed receipts · verify offline</span>
+      <h1 class="title">Every AI turn,<br><span class="grad">governed and signed.</span></h1>
+      <p class="lede">a11oy gates every model call against a constitution <b>before it runs</b>,
+        routes it on a sovereign mesh, and seals the decision as a signed receipt you can verify
+        yourself. <b>They hide the governor. We sign and show it.</b></p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/console">Open the Console →</a>
+        <a class="btn btn-ghost" href="#verify">Verify a receipt offline</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="k teal" id="hs-receipts">—</div>
+          <div class="l">Signed receipts <span id="hs-receipts-chip"></span></div>
+        </div>
+        <div class="stat">
+          <div class="k" id="hs-lambda">0.97</div>
+          <div class="l">Λ trust ceiling · advisory</div>
+        </div>
+        <div class="stat">
+          <div class="k" id="hs-proven">8</div>
+          <div class="l">Locked-proven formulas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== HOW IT WORKS ====================== -->
+<section class="band wrap" id="how">
+  <p class="kick">The governed loop</p>
+  <h2>Gate before it runs. Sign what it did.</h2>
+  <p class="intro">Most AI stacks bolt safety on after the answer. a11oy puts a deny-by-default
+    governor in front of every action and a signed, hash-chained receipt behind it — so a buyer,
+    an auditor, or a regulator can replay the decision instead of trusting a screenshot.</p>
+  <div class="grid g3">
+    <div class="card"><div class="ic">⛓</div><h3>Gate</h3>
+      <p>Each turn clears the constitution, the doctrine gate, and the policy guards before a
+        single token is generated. No clearance, no run.</p></div>
+    <div class="card"><div class="ic">⚖</div><h3>Route</h3>
+      <p>Smart Routing picks the smallest sovereign engine that clears the sensitivity class and
+        license tier — self-hosted first, never leaking sensitive context.</p></div>
+    <div class="card"><div class="ic">🔏</div><h3>Sign</h3>
+      <p>The decision is sealed as a DSSE receipt, ECDSA&#8209;P256 signed and hash-chained
+        (SHA3&#8209;256). Signed on write, never on a read.</p></div>
+  </div>
+</section>
+
+<!-- ====================== VERIFY OFFLINE ====================== -->
+<section class="band" id="verify" style="background:linear-gradient(180deg,#0a0f1e00,#0a0f1e88)">
+  <div class="wrap">
+    <p class="kick">The trust demo</p>
+    <h2>Verify a live signature in your own browser.</h2>
+    <p class="intro">This makes a real governed call, fetches a11oy's public key, and checks the
+      ECDSA&#8209;P256 signature over the DSSE payload using your browser's WebCrypto — no server
+      round-trip for the verification, nothing to take on faith. Tamper with one byte and it fails.</p>
+    <div class="verify">
+      <div>
+        <div class="term">
+          <div class="bar"><i></i><i></i><i></i><span class="t">webcrypto · verify offline</span></div>
+          <div class="body" id="vlog"><span class="mut">// click “Run verification” to make a governed call and check its signature locally.</span></div>
+        </div>
+        <div class="verdict" id="vverdict"></div>
+        <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="vrun">Run verification</button>
+          <a class="btn btn-ghost" href="/verify">Open the full Verify surface →</a>
+        </div>
+      </div>
+      <div class="grid" style="gap:14px">
+        <div class="card"><h3>What gets checked</h3>
+          <p style="margin-bottom:10px">1 · <span class="mono">POST /api/a11oy/v1/govern/infer</span> — a real governed turn.<br>
+            2 · <span class="mono">GET /cosign.pub</span> — the in-image public key (PEM).<br>
+            3 · Rebuild the DSSE PAE, recompute SHA&#8209;256, run <span class="mono">crypto.subtle.verify</span>.</p>
+          <p class="muted">DER→raw r‖s conversion happens in-browser; the private key never leaves the box.</p>
+        </div>
+        <div class="card"><h3>Why it matters</h3>
+          <p>A signature anyone can check, against a key they fetched themselves, is the difference
+            between “trust us” and proof. The same logic backs every receipt in the ledger.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== SOVEREIGN MESH ====================== -->
+<section class="band wrap" id="mesh">
+  <p class="kick">Sovereign compute mesh</p>
+  <h2>Real nodes. Honest status. No fake green lights.</h2>
+  <p class="intro">Inference runs on a governed mesh of sovereign engines. The board below is live
+    from <span class="mono">/api/a11oy/v1/govern/health</span>. A node that is offline is shown
+    offline — we never paint a down engine green.</p>
+  <div class="mesh-list" id="mesh-list">
+    <div class="node"><div><div class="nm skel">Loading mesh…</div>
+      <div class="meta">querying /api/a11oy/v1/govern/health</div></div>
+      <div class="right"><span class="chip wait"><span class="dot"></span>…</span></div></div>
+  </div>
+</section>
+
+<!-- ====================== ASSURANCE / NARRATIVE ====================== -->
+<section class="band" style="background:linear-gradient(180deg,#0a0f1e00,#0d18308c)">
+  <div class="wrap">
+    <p class="kick">Built for buyers and auditors</p>
+    <h2>An assurance overlay for AI you can defend in a review.</h2>
+    <div class="grid g3" style="margin-top:30px">
+      <div class="card"><div class="ic">📐</div><h3>Honest by construction</h3>
+        <p>Capabilities are labelled LIVE / MEASURED / SAMPLE / MODELED / ROADMAP. The trust
+          ceiling Λ is an advisory bound (Conjecture 1) — never asserted as a theorem, never 100%.</p></div>
+      <div class="card"><div class="ic">🧾</div><h3>Replayable evidence</h3>
+        <p>Every governed decision carries a signed receipt and a hash-chain link. An auditor
+          replays the chain to a byte-identical root instead of trusting a dashboard.</p></div>
+      <div class="card"><div class="ic">🛡</div><h3>Deny by default</h3>
+        <p>New action paths must clear governance before they execute. A truthful BLOCKED is the
+          designed outcome — better than a fabricated pass.</p></div>
+    </div>
+    <div style="margin-top:34px;display:flex;gap:12px;flex-wrap:wrap">
+      <a class="btn btn-primary" href="/assurance">See the assurance surface →</a>
+      <a class="btn btn-ghost" href="/willay">Explore WILLAY</a>
+      <a class="btn btn-ghost" href="/governance">Governance model</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FOOTER ============================ -->
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div style="max-width:320px">
+        <a class="brand" href="/" style="margin-bottom:12px">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
+            <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
+          <span>a11oy</span></a>
+        <p class="muted" style="margin:6px 0 0">The governed agentic substrate of SZL Holdings.
+          Governed inference, signed receipts, sovereign compute.</p>
+      </div>
+      <div class="lk"><strong style="color:var(--ink)">Product</strong>
+        <a href="/console">Console</a><a href="/verify">Verify</a>
+        <a href="/assurance">Assurance</a><a href="/willay">WILLAY</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Platform</strong>
+        <a href="/governance">Governance</a><a href="/frontier">Frontier</a>
+        <a href="/orbital">Orbital</a><a href="/api/a11oy/v1/honest">Honest status (JSON)</a></div>
+    </div>
+    <p class="disc">Honesty doctrine v11. Λ is Conjecture 1 — an advisory trust ceiling, not a
+      theorem, never 100%. The locked-proven formula kernel is exactly 8 (of ~35 wired, ~185 in the
+      corpus). Receipts are signed on state changes, never on reads. Joules are MEASURED only with a
+      live exporter delta; otherwise shown as SAMPLE. © Stephen P. Lutar Jr. · Apache-2.0.</p>
+  </div>
+</footer>
+
+<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) ===================== -->
+<script type="importmap">
+{ "imports": {
+  "three": "/hero/vendor3d/three.module.min.js",
+  "three/addons/": "/hero/vendor3d/"
+} }
+</script>
+
+<!-- ===================== HERO BOOT (Three.js holographic field) ===================== -->
+<script type="module">
+  import { mountHero } from "/landing/app.js";
+  const canvas = document.getElementById("hero-canvas");
+  try {
+    const h = mountHero(canvas);
+    if (!h || !h.ok) {
+      canvas.style.display = "none";
+      document.getElementById("hero-fallback").style.display = "block";
+    } else {
+      window.__a11oyHero = h;
+    }
+  } catch (e) {
+    canvas.style.display = "none";
+    document.getElementById("hero-fallback").style.display = "block";
+  }
+</script>
+
+<!-- ===================== LIVE DATA + WEBCRYPTO VERIFY (no deps) ===================== -->
+<script>
+(function(){
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  /* ---------- 1) live receipt counter + chain head ---------- */
+  (async function loadLake(){
+    try{
+      const r = await fetch("/api/lake/v1/health", {cache:"no-store"});
+      const d = await r.json();
+      const total = (typeof d.total_receipts === "number") ? d.total_receipts : null;
+      $("hs-receipts").textContent = (total === null) ? "—" : total.toLocaleString();
+      const alg = d.chain_alg || "sha3_256";
+      $("hs-receipts-chip").innerHTML =
+        '<span class="chip live" style="margin-left:6px"><span class="dot"></span>' + esc(alg) + '</span>';
+    }catch(e){
+      $("hs-receipts").textContent = "—";
+      $("hs-receipts-chip").innerHTML =
+        '<span class="chip down" style="margin-left:6px"><span class="dot"></span>offline</span>';
+    }
+  })();
+
+  /* ---------- 3) sovereign mesh viz ---------- */
+  (async function loadMesh(){
+    const host = $("mesh-list");
+    try{
+      const r = await fetch("/api/a11oy/v1/govern/health", {cache:"no-store"});
+      const d = await r.json();
+      const mesh = Array.isArray(d.mesh) ? d.mesh : [];
+      const rows = [];
+      mesh.forEach(n => {
+        const live = !!n.live;
+        const cls = live ? "live" : "down";
+        const lbl = live ? "LIVE" : "DOWN";
+        const tier = n.tier ? (" · " + esc(n.tier)) : "";
+        rows.push(
+          '<div class="node"><div>'+
+            '<div class="nm">'+esc(n.name || "engine")+'</div>'+
+            '<div class="meta">'+esc(n.model || "—")+tier+(n.effort?(" · "+esc(n.effort)):"")+'</div>'+
+          '</div><div class="right">'+
+            '<span class="chip '+cls+'"><span class="dot"></span>'+lbl+'</span>'+
+          '</div></div>'
+        );
+      });
+      // GLM engine: honest-DOWN when not on metal
+      if (d.glm && d.glm.on_metal_live === false){
+        rows.push(
+          '<div class="node"><div>'+
+            '<div class="nm">GLM engine</div>'+
+            '<div class="meta">'+esc(d.glm.model_tag || "glm")+' · not in mesh</div>'+
+          '</div><div class="right">'+
+            '<span class="chip down"><span class="dot"></span>DOWN</span>'+
+          '</div></div>'
+        );
+      }
+      const liveN = (typeof d.engines_live === "number") ? d.engines_live : mesh.filter(n=>n.live).length;
+      const totN  = (typeof d.engines_total === "number") ? d.engines_total : mesh.length;
+      rows.push(
+        '<div class="node" style="border-style:dashed"><div>'+
+          '<div class="nm muted">Mesh summary</div>'+
+          '<div class="meta">'+liveN+' / '+totN+' engines live · governance '+(d.governance?'on':'off')+'</div>'+
+        '</div><div class="right"><span class="chip '+(liveN>0?'live':'down')+'"><span class="dot"></span>'+
+          (liveN>0?'LIVE':'NONE')+'</span></div></div>'
+      );
+      host.innerHTML = rows.join("") ||
+        '<div class="node"><div class="nm muted">No engines reported</div></div>';
+    }catch(e){
+      host.innerHTML =
+        '<div class="node"><div><div class="nm">Mesh health unreachable</div>'+
+        '<div class="meta">/api/a11oy/v1/govern/health did not respond</div></div>'+
+        '<div class="right"><span class="chip down"><span class="dot"></span>OFFLINE</span></div></div>';
+    }
+  })();
+
+  /* ---------- 2) WebCrypto ECDSA-P256 DSSE verify (Tier-1 logic) ---------- */
+  function b64Decode(s){const bin=atob(s);const b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b;}
+  function derToRaw(der){
+    let i=0; if(der[i++]!==0x30) throw new Error("not DER SEQUENCE");
+    let sl=der[i++]; if(sl&0x80){let nb=sl&0x7f;sl=0;for(let b=0;b<nb;b++)sl=(sl<<8)|der[i++];}
+    function readInt(){if(der[i++]!==0x02)throw new Error("expected INTEGER");let len=der[i++];
+      if(len&0x80){let nb=len&0x7f;len=0;for(let b=0;b<nb;b++)len=(len<<8)|der[i++];}
+      const v=der.slice(i,i+len);i+=len;return v;}
+    const r=readInt(),s=readInt();
+    function pad32(a){let j=0;while(j<a.length-1&&a[j]===0)j++;const st=a.slice(j);
+      const o=new Uint8Array(32);const off=32-st.length;if(off<0)throw new Error("int too long");o.set(st,off);return o;}
+    const raw=new Uint8Array(64);raw.set(pad32(r),0);raw.set(pad32(s),32);return raw;
+  }
+  function buildPAE(type,body){const enc=new TextEncoder();const t=enc.encode(type);
+    const pre=enc.encode("DSSEv1 "+t.length+" ");const mid=enc.encode(" "+body.length+" ");
+    const buf=new Uint8Array(pre.length+t.length+mid.length+body.length);let o=0;
+    buf.set(pre,o);o+=pre.length;buf.set(t,o);o+=t.length;buf.set(mid,o);o+=mid.length;buf.set(body,o);return buf;}
+  async function sha256hex(buf){const h=await crypto.subtle.digest("SHA-256",buf);
+    return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,"0")).join("");}
+  async function importPub(pem){const b64=pem.replace(/-----BEGIN PUBLIC KEY-----/,"").replace(/-----END PUBLIC KEY-----/,"").replace(/\s+/g,"");
+    return crypto.subtle.importKey("spki", b64Decode(b64).buffer, {name:"ECDSA",namedCurve:"P-256"}, false, ["verify"]);}
+
+  let busy=false;
+  function log(html){const b=$("vlog");b.innerHTML+= "\n"+html;b.scrollTop=b.scrollHeight;}
+  function reset(){$("vlog").innerHTML='<span class="mut">// running…</span>';
+    const v=$("vverdict");v.className="verdict";v.textContent="";}
+
+  async function runVerify(){
+    if(busy) return; busy=true;
+    const btn=$("vrun"); btn.disabled=true; btn.textContent="Verifying…";
+    reset();
+    try{
+      log('<span class="ln">→ POST /api/a11oy/v1/govern/infer</span>');
+      const resp=await fetch("/api/a11oy/v1/govern/infer",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({prompt:"hello",vertical:"general",declared:"PUBLIC"})});
+      const data=await resp.json();
+      const dsse=data.dsse||{}, receipt=data.receipt||{};
+      log('<span class="ok">  decision: '+esc(data.decision||"?")+'</span>'+
+          '   <span class="mut">Λ='+esc((data.governance&&data.governance.lambda)||"?")+' (Conjecture 1, advisory)</span>');
+
+      log('<span class="ln">→ GET /cosign.pub</span>');
+      const pem=await (await fetch("/cosign.pub")).text();
+      const pub=await importPub(pem);
+      log('<span class="mut">  public key imported (ECDSA P-256, SPKI)</span>');
+
+      if(!dsse.signed){
+        log('<span class="er">  envelope is UNSIGNED in this runtime — cannot verify.</span>');
+        verdict(false,"Envelope unsigned in this runtime. Receipt chain still valid; signature unavailable.");
+        return;
+      }
+      const payloadType=dsse.payloadType||"application/vnd.szl.khipu+json";
+      const payload=b64Decode(dsse.payload||"");
+      log('<span class="mut">  payload SHA-256: '+(await sha256hex(payload.buffer)).slice(0,32)+'…</span>');
+
+      const pae=buildPAE(payloadType,payload);
+      const paeSha=await sha256hex(pae.buffer);
+      log('<span class="ln">→ rebuild DSSE PAE · SHA-256 '+paeSha.slice(0,24)+'…</span>');
+
+      const sigs=dsse.signatures||[];
+      if(!sigs.length){verdict(false,"No signatures in envelope.");return;}
+      let sig=b64Decode(sigs[0].sig||""), raw=sig;
+      if(sig[0]===0x30){ raw=derToRaw(sig); log('<span class="mut">  DER→raw r‖s converted in-browser</span>'); }
+      log('<span class="ln">→ crypto.subtle.verify(ECDSA, SHA-256)</span>');
+      let ok=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},pub,raw.buffer,pae.buffer);
+      if(!ok && sig[0]===0x30){ ok=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},pub,sig.buffer,pae.buffer); }
+
+      if(ok){
+        log('<span class="ok">✓ signature VALID — verified locally in your browser.</span>');
+        const kid=(sigs[0].keyid||"").slice(0,16);
+        verdict(true,"VERIFIED — WebCrypto ECDSA-P256 signature valid over the DSSE PAE."+
+          (kid?(" keyid "+esc(kid)+"…"):"")+" Nothing trusted; everything checked.");
+      }else{
+        log('<span class="er">✗ verification returned false.</span>');
+        verdict(false,"Signature did NOT verify against the fetched key.");
+      }
+    }catch(e){
+      log('<span class="er">! '+esc(e.message||e)+'</span>');
+      verdict(false,"Verification could not complete: "+esc(e.message||e));
+    }finally{
+      busy=false; btn.disabled=false; btn.textContent="Run again";
+    }
+  }
+  function verdict(pass,msg){const v=$("vverdict");
+    v.className="verdict show "+(pass?"pass":"fail");
+    v.textContent=(pass?"✓ ":"✗ ")+msg;}
+
+  document.addEventListener("DOMContentLoaded",()=>{
+    const b=$("vrun"); if(b) b.addEventListener("click",runVerify);
+  });
+})();
+</script>
+</body>
+</html>

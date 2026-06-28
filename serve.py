@@ -8002,7 +8002,12 @@ async def spa_root():
     from starlette.responses import Response as _SPA_Resp
     _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js" '
                 b'data-surface="a11oy" defer></script>')
-    for _cand in (Path("/app/cathedral.html"), PAGES_DIR / "console.html", INDEX_HTML):
+    # Front door order: the holographic landing first (governed-inference field,
+    # vendored Three.js r160, live receipt/mesh weave-ins + in-browser WebCrypto
+    # verify), then the cathedral hero, then the console SPA, then the SPA index.
+    # All fallbacks preserved so a missing file never white-screens "/".
+    for _cand in (Path("/app/a11oy_landing.html"), Path("/app/cathedral.html"),
+                  PAGES_DIR / "console.html", INDEX_HTML):
         try:
             _cp = Path(_cand)
             if not _cp.is_file():
@@ -8077,6 +8082,21 @@ async def _cathedral_app_js() -> Response:
                             headers={"Cache-Control": "public, max-age=3600"})
     return JSONResponse({"error": "cathedral app.js missing"}, status_code=404)
 # === end /cathedral canonical genius unification ===
+
+
+# === ADDITIVE: holographic front-door landing ES module (Dev1) ===
+# /landing/app.js serves the governed-inference-field hero (instanced particles +
+# fresnel governance core). ES module, imports "three" via the importmap in
+# a11oy_landing.html -> /hero/vendor3d/three.module.min.js (vendored r160, MIT, 0 CDN).
+# Registered BEFORE the SPA /{full_path:path} catch-all so it wins the ordered match.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+@app.get("/landing/app.js")
+async def _landing_app_js() -> Response:
+    f = Path("/app/static/a11oy_landing.js")
+    if f.is_file():
+        return FileResponse(str(f), media_type="application/javascript; charset=utf-8",
+                            headers={"Cache-Control": "public, max-age=3600"})
+    return JSONResponse({"error": "landing app.js missing"}, status_code=404)
 
 
 
