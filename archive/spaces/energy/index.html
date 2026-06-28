@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>SZL HOLDINGS — ENERGY</title>
+<meta name="description" content="Live energy command view: harvest stranded watts, prove bounded compute, circulate Ayni-balanced joules. The measured-joule total and grid posture are read live from a11oy.net at page load; values degrade honestly to a labeled SNAPSHOT if the feed is unreachable." />
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="assets/style.css" />
+<!-- SOVEREIGN: 0 runtime CDN. three.js r160 (MIT) VENDORED locally under assets/. See assets/THREE_LICENSE.txt. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./assets/three.module.min.js"
+  }
+}
+</script>
+</head>
+<body>
+  <canvas id="loop-canvas" aria-hidden="true"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" fill="none" aria-label="SZL energy mark">
+        <circle cx="24" cy="24" r="21" stroke="#28E0D0" stroke-width="2" opacity="0.5"/>
+        <path d="M30 11 L17 26 H24 L18 37 L31 22 H24 L30 11 Z" fill="#28E0D0"/>
+        <circle cx="24" cy="24" r="21" stroke="#7C5CFF" stroke-width="1" opacity="0.35" stroke-dasharray="3 5"/>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-line1">SZL HOLDINGS</span>
+        <span class="brand-line2">ENERGY</span>
+      </div>
+    </div>
+    <div class="status-cluster">
+      <span id="conn-badge" class="conn-badge live"><span class="dot"></span><span id="conn-label">CONNECTING…</span></span>
+      <span id="conn-ts" class="conn-ts">—</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- WHAT THIS IS -->
+    <section class="intro">
+      <p class="eyebrow">LIVE ENERGY COMMAND VIEW</p>
+      <p class="intro-line">
+        We turn <strong>already-wasted electricity</strong> — power the grid is paying to get rid of —
+        into <strong>provably-bounded compute</strong>, and circulate the result as
+        <strong>Ayni-balanced joules</strong>. This page reads our live systems in real time.
+        <span class="tag tag-warn">NO free-energy</span>
+      </p>
+    </section>
+
+    <!-- HERO / MEASURED JOULE HEADLINE -->
+    <section class="hero">
+      <p class="eyebrow">THE MILESTONE — REAL, METERED ENERGY</p>
+      <h1 class="headline">
+        <span class="big-num" id="measured-joules">—</span>
+        <span class="unit">measured joules</span>
+      </h1>
+      <p class="sub">
+        Read <strong>live</strong> from the <strong>betterwithage</strong> exporter node —
+        <span class="tag tag-measured" id="hero-label-tag">joules_label: —</span>
+        the running sum of per-job NVML-metered deltas, not an estimate. The number above
+        is fetched from a11oy at page load; if the feed is unreachable it falls back to a
+        clearly labeled SNAPSHOT, never a fabricated figure.
+      </p>
+      <p class="sub2">
+        We soak energy that would otherwise be <strong>curtailed and thrown away</strong> — acting
+        only when wholesale power is cheap or negative. Right now the grid is
+        <strong id="hero-grid-posture">—</strong>; see the live harvest posture below.
+        <span class="tag tag-warn">NO free-energy</span>
+      </p>
+      <ul class="hero-evidence" id="hero-evidence" aria-label="Measured-joule evidence">
+        <li><span>exporter node</span><b id="ev-node">—</b></li>
+        <li><span>last sample</span><b id="ev-seen">—</b></li>
+        <li><span>power sample</span><b id="ev-power">—</b></li>
+        <li><span>grid price now</span><b id="ev-price">—</b></li>
+      </ul>
+    </section>
+
+    <!-- HONESTY BADGE STRIP -->
+    <section class="badge-strip" aria-label="Honesty badges — what is proven vs estimated">
+      <span class="tag tag-measured">joules MEASURED — with evidence</span>
+      <span class="tag tag-sample">elsewhere: SAMPLE / ESTIMATE</span>
+      <span class="tag tag-off">sovereign = false</span>
+      <span class="tag tag-exp">organs EXPERIMENTAL</span>
+      <span class="tag tag-conj">Λ = Conjecture&nbsp;1</span>
+      <span class="tag tag-warn">NO free-energy</span>
+      <span class="tag tag-est">revenue = ESTIMATE</span>
+    </section>
+
+    <!-- THE LOOP LABEL -->
+    <section class="loop-legend" aria-label="The loop stages">
+      <h2 class="section-title">THE LOOP — HOW A WASTED WATT BECOMES A PROVEN JOULE</h2>
+      <ol class="stages">
+        <li data-stage="0"><span class="s-dot"></span>harvest<small>stranded watts</small></li>
+        <li data-stage="1"><span class="s-dot"></span>SAMAY soak<small>RTX 5000</small></li>
+        <li data-stage="2"><span class="s-dot"></span>KALLPA<small>metabolize</small></li>
+        <li data-stage="3"><span class="s-dot"></span>heart / blood<small>circulate</small></li>
+        <li data-stage="4"><span class="s-dot"></span>YARQA<small>disperse</small></li>
+        <li data-stage="5"><span class="s-dot"></span>reservoir<small>store</small></li>
+        <li data-stage="6"><span class="s-dot"></span>provenance<small>receipt</small></li>
+        <li data-stage="7"><span class="s-dot"></span>Ayni<small>balance</small></li>
+      </ol>
+    </section>
+
+    <!-- LIVE HUD GRID -->
+    <section class="hud-grid" aria-label="Live system metrics">
+
+      <article class="card" id="card-harvest">
+        <header class="card-head">
+          <h3>HARVEST POSTURE</h3>
+          <span class="src-badge" data-src="harvest">LIVE</span>
+        </header>
+        <div class="kv-big">
+          <span class="kv-num" id="grid-price">—</span>
+          <span class="kv-unit">EUR/MWh now</span>
+        </div>
+        <ul class="kv-list">
+          <li><span>should soak</span><b id="should-soak">—</b></li>
+          <li><span>grid posture</span><b id="grid-posture">—</b></li>
+          <li><span>next window</span><b id="next-window">—</b></li>
+          <li><span>renewable share</span><b id="renewable">—</b></li>
+          <li><span>UK carbon</span><b id="carbon">—</b></li>
+          <li><span>feeds live</span><b id="feeds">—</b></li>
+          <li><span>joules_label</span><b id="joules-label" class="hl">—</b></li>
+        </ul>
+        <p class="card-note">Real public grid feeds. We act only when energy is already being wasted.</p>
+      </article>
+
+      <article class="card" id="card-budget">
+        <header class="card-head">
+          <h3>ENERGY BUDGET</h3>
+          <span class="src-badge" data-src="budget">LIVE</span>
+        </header>
+        <ul class="kv-list">
+          <li><span>status</span><b id="budget-status">—</b></li>
+          <li><span>tasks tracked</span><b id="task-count">—</b></li>
+          <li><span>output bytes</span><b id="budget-bytes">—</b></li>
+          <li><span>Σ shannon bits</span><b id="budget-bits">—</b></li>
+          <li><span>Σ joules est</span><b id="budget-joules">—</b></li>
+          <li><span>within Bekenstein bound</span><b id="within-bound">—</b></li>
+        </ul>
+        <p class="card-note">Bekenstein-gated: Σ shannon_bits ≤ Σ output_bytes·8. <span class="tag-mini tag-est">EST</span></p>
+      </article>
+
+      <article class="card" id="card-prov">
+        <header class="card-head">
+          <h3>PROVENANCE CHAIN</h3>
+          <span class="src-badge" data-src="prov">LIVE</span>
+        </header>
+        <ul class="kv-list">
+          <li><span>chain status</span><b id="prov-status">—</b></li>
+          <li><span>links intact</span><b id="links-intact">—</b></li>
+          <li><span>entries</span><b id="prov-len">—</b></li>
+          <li><span>gate all pass</span><b id="gate-pass">—</b></li>
+          <li><span>head hash</span><b id="prov-head" class="mono">—</b></li>
+        </ul>
+        <p class="card-note">Tamper-EVIDENT, not "measured". Each receipt hashes to its predecessor.</p>
+      </article>
+
+      <article class="card" id="card-heart">
+        <header class="card-head">
+          <h3>HEART / BLOOD</h3>
+          <span class="src-badge" data-src="heart">LIVE</span>
+        </header>
+        <ul class="kv-list">
+          <li><span>σ-bus closed</span><b id="sigma-ok">—</b></li>
+          <li><span>blood Merkle intact</span><b id="blood-ok">—</b></li>
+          <li><span>beats</span><b id="beat-count">—</b></li>
+          <li><span>head beat</span><b id="beat-head" class="mono">—</b></li>
+          <li><span>signing</span><b id="signing" class="hl">—</b></li>
+        </ul>
+        <p class="card-note">SAMPLE local digest — tamper-evident, NOT cryptographically signed. <span class="tag-mini tag-exp">EXPERIMENTAL</span></p>
+      </article>
+
+    </section>
+
+    <!-- ANATOMY / CIRCULATION -->
+    <section class="hud-grid two-up" aria-label="Anatomy circulation and compute fabric">
+
+      <article class="card card-anatomy" id="card-anatomy">
+        <header class="card-head">
+          <h3>ANATOMY — CIRCULATION</h3>
+          <span class="src-badge" data-src="anatomy">LIVE</span>
+        </header>
+        <p class="anatomy-lead">The beat — soaked <strong>work + receipts</strong>, never electrons — disperses to three experimental organs each cycle.</p>
+        <div class="organ-row" id="organ-row">
+          <div class="organ" data-organ><span class="organ-name">—</span><span class="organ-role">—</span></div>
+        </div>
+        <ul class="kv-list">
+          <li><span>Ayni balanced</span><b id="ayni-bal" class="hl">—</b></li>
+          <li><span>intake = output = stored</span><b id="ayni-eq">—</b></li>
+          <li><span>beats last cycle</span><b id="beats-cycle">—</b></li>
+          <li><span>reservoir work credits</span><b id="reservoir">—</b></li>
+        </ul>
+        <p class="card-note">Ayni reciprocity (F11): reciprocal, never net-positive. Organs are <span class="tag-mini tag-exp">EXPERIMENTAL</span>, never claimed proven.</p>
+      </article>
+
+      <article class="card card-pool" id="card-pool">
+        <header class="card-head">
+          <h3>COMPUTE FABRIC</h3>
+          <span class="src-badge" data-src="pool">LIVE</span>
+        </header>
+        <div class="pool-kpis">
+          <div class="pool-kpi"><span class="kv-num sm" id="pool-reach">—</span><span class="kv-unit">nodes reachable</span></div>
+          <div class="pool-kpi"><span class="kv-num sm" id="pool-gpu">—</span><span class="kv-unit">sovereign GPU live</span></div>
+        </div>
+        <ul class="node-list" id="node-list">
+          <li class="node"><span class="node-dot"></span><span class="node-name">—</span><span class="node-kind">—</span></li>
+        </ul>
+        <p class="card-note">sovereign = owned self-hosted metal only. Hosted APIs are <strong>fallback</strong>, never claimed as ours.</p>
+      </article>
+
+    </section>
+
+    <!-- THE PROOF -->
+    <section class="proof" aria-label="The proof — physics witnesses">
+      <h2 class="section-title">THE PROOF — PHYSICS, NOT MARKETING</h2>
+      <div class="proof-grid">
+        <article class="proof-card">
+          <header class="proof-head"><h3>BEKENSTEIN BOUND</h3><span class="tag-mini tag-conj">WITNESS</span></header>
+          <p class="proof-num"><span id="bek-cap">—</span><span class="proof-unit">bits / cycle cap</span></p>
+          <p class="proof-desc">Information a region of finite energy + radius can hold is hard-capped. Every receipt is gated so Σ shannon_bits ≤ Σ bytes·8. Kernel-checked Lean witness (0-sorry).</p>
+        </article>
+        <article class="proof-card">
+          <header class="proof-head"><h3>LANDAUER FLOOR</h3><span class="tag-mini tag-conj">WITNESS</span></header>
+          <p class="proof-num"><span id="land-floor">—</span><span class="proof-unit">J · minimum to erase</span></p>
+          <p class="proof-desc">Erasing one bit costs at least kT·ln2 joules. We bound the irreducible thermodynamic floor of the work performed — no claim beats physics.</p>
+        </article>
+        <article class="proof-card">
+          <header class="proof-head"><h3>AYNI RECIPROCITY</h3><span class="tag-mini tag-conj">Λ = CONJ 1</span></header>
+          <p class="proof-num"><span id="ayni-cycle">—</span><span class="proof-unit">intake = output = stored</span></p>
+          <p class="proof-desc">Per cycle the loop balances exactly — reciprocal, never net-positive. Λ remains <strong>Conjecture 1</strong>, never asserted as a theorem.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ASK THE FABRIC — interactive verify widget (live) -->
+    <section class="proof" aria-label="Ask the fabric — verify a receipt">
+      <h2 class="section-title">ASK THE FABRIC — VERIFY A RECEIPT, DON'T TRUST US</h2>
+      <p class="intro-line" style="max-width:880px">
+        Don't take the joule headline on faith. Paste a Khipu receipt / DSSE envelope / in-toto
+        statement below (or load the sample) and submit it to the <strong>live</strong>
+        a11oy verify endpoint. The verdict you see is the fabric's real, honest output — unsigned
+        receipts return <strong>STRUCTURAL-ONLY</strong> (advisory amber, never a false green).
+        The endpoint verifies <strong>receipts / DSSE / in-toto statements</strong>, not arbitrary text.
+        <span class="tag tag-conj">Λ = Conjecture&nbsp;1</span>
+      </p>
+      <div id="szl-verify"></div>
+    </section>
+
+    <!-- REVENUE THESIS -->
+    <section class="rev-section" aria-label="Revenue thesis">
+      <article class="card card-wide" id="card-rev">
+        <header class="card-head">
+          <h3>REVENUE THESIS — VERIFIED SOVEREIGN COMPUTE</h3>
+          <span class="src-badge" data-src="rev">LIVE</span>
+        </header>
+        <div class="rev-row">
+          <div class="rev-figure">
+            <span class="kv-num" id="rev-range">—</span>
+            <span class="kv-unit">USD / mo per RTX-class card · <span class="tag-mini tag-est">ESTIMATE</span></span>
+          </div>
+          <div class="rev-figure">
+            <span class="kv-num" id="rev-settled">—</span>
+            <span class="kv-unit">USD settled to date · settle-to-count</span>
+          </div>
+          <div class="rev-figure">
+            <span class="kv-num sm" id="rev-premium">—</span>
+            <span class="kv-unit">verified premium over commodity FLOPs</span>
+          </div>
+        </div>
+        <div class="rev-detail">
+          <ul class="kv-list compact">
+            <li><span>basis</span><b id="rev-basis">—</b></li>
+            <li><span>price / GPU-hr</span><b id="rev-pphr">—</b></li>
+            <li><span>uptime assumed</span><b id="rev-uptime">—</b></li>
+            <li><span>listing status</span><b id="rev-status">—</b></li>
+          </ul>
+          <div class="venue-block">
+            <span class="venue-label">candidate venues</span>
+            <div class="venue-chips" id="venue-chips"><span class="venue-chip">—</span></div>
+          </div>
+        </div>
+        <p class="card-note">A dollar is real only when a rental <strong>SETTLES</strong>. The premium is for kernel-checked + DSSE-signed provenance — NOT mining, NOT a forecast. Crypto = payment rail only.</p>
+      </article>
+    </section>
+
+    <section class="doctrine">
+      <h2 class="section-title">DOCTRINE</h2>
+      <p>
+        We harvest <strong>already-wasted</strong> energy (negative wholesale price / curtailed renewables)
+        and PROVE bounded work. <strong>No free-energy claims.</strong> Energy figures are SAMPLE/ESTIMATE
+        until a real meter — except the headline measured-joule total, which is the live running sum of
+        per-job <strong>NVML-metered</strong> deltas (read from a11oy at load), evidence-backed and labeled <em>measured</em>;
+        it degrades to a labeled SNAPSHOT if the feed is unreachable, never to a fabricated number. The app runs off rented metal (<code>sovereign = false</code>); the locked-8 are untouched;
+        Λ remains <strong>Conjecture&nbsp;1</strong>. Open-weight only. Never commit a key.
+      </p>
+    </section>
+
+    <footer class="foot">
+      <span>SZL HOLDINGS — ENERGY · static HF Space · auto-refresh ~15s</span>
+      <span>data: a11oy.net/api/a11oy/v1 · CORS open · degrades honestly to labeled SNAPSHOT</span>
+    </footer>
+  </main>
+
+  <script type="module" src="assets/loop.js"></script>
+  <script type="module" src="assets/data.js"></script>
+  <!-- Vendored, self-contained verify widget (0 CDN, system fonts, honest fallback) -->
+  <script src="assets/szl_verify_widget.js"></script>
+  <script>SZLVerify.mount('#szl-verify', { base: 'https://a11oy.net' });</script>
+</body>
+</html>
