@@ -5485,7 +5485,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           // paint the honest organs count IMMEDIATELY (same-origin) so we never linger on 'probing'
           if(reachable!=null){ if(n){ n.textContent=reachable+(total!=null?(' / '+total):''); n.className='v teal'; } if(d) d.textContent='organs reachable'; }
           // then ENHANCE the sub-label with the GPU-node probe if/when it resolves (cross-origin, may be slow/blocked — non-blocking to the count)
-          try{ var cp=await gj('https://a11oy.net/api/a11oy/v1/compute-pool-hardened'); if(cp&&cp.counts){ gpu=cp.counts.gpu_nodes_reachable; } }catch(_e){}
+          try{ var cp=await gj('https://a-11-oy.com/api/a11oy/v1/compute-pool-hardened'); if(cp&&cp.counts){ gpu=cp.counts.gpu_nodes_reachable; } }catch(_e){}
           if(reachable!=null){
             if(d) d.textContent='organs reachable'+(gpu!=null?(' \u00b7 '+gpu+' GPU nodes'):'');
           } else if(drewGraph){
@@ -9414,7 +9414,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         '<div class="brain-note">This 6/6 / 4-of-4 quorum is the <b>in-image capability mesh</b> a11oy actually runs on (probed live, same-origin, 0 CDN). It is <b>NOT</b> the same probe as Command Center’s “Services up”, which reports the <b>organ backends (Reasoning/Policy/Operator/Receipts)</b> that run on <b>dedicated infrastructure (roadmap)</b> — on this demo Space they are shown honestly as <b>not-deployed-here</b> rather than faked “up”. Same honest story, two probes: governed mesh healthy; organ backends not deployed on this Space.</div></div>'+
       '<div class="card"><div class="card-h"><span class="card-t">Deploy targets — same UDS bundle, cloud → edge → air-gap</span><span class="card-ep">honest · no secrets</span></div>'+
         '<div class="row"><span class="badge b-live">LIVE</span><span style="color:'+CR+'">Cloud — HF Space</span><span class="spacer mono dim">szlholdings-a11oy.hf.space · this demo deploy</span></div>'+
-        '<div class="row"><span class="badge b-live">LIVE</span><span style="color:'+CR+'">Hetzner — a11oy.net</span><span class="spacer mono dim">167.233.50.75 · self-hosted</span></div>'+
+        '<div class="row"><span class="badge b-live">LIVE</span><span style="color:'+CR+'">Hetzner — a-11-oy.com</span><span class="spacer mono dim">167.233.50.75 · self-hosted</span></div>'+
         '<div class="row"><span class="badge b-gold">ROADMAP</span><span style="color:'+CR+'">Tactical edge / air-gap</span><span class="spacer mono dim">same UDS bundle · offline-verifiable (cosign verify-blob, no egress)</span></div>'+
         '<div class="brain-note">One artifact, three targets: the same cosign-signed UDS/Zarf bundle deploys to cloud, on-prem, and a disconnected tactical edge. Air-gap is offline-<i>verifiable</i> (provenance checks run with zero network) — labelled ROADMAP because no air-gapped deploy is claimed live today. No hardcoded env / secrets surfaced. See the <b>Deploy Posture</b> tab for the bundle → SBOM → cosign → OCI artifact chain.</div></div>'+HON;
     poll(async function(){
@@ -10937,7 +10937,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 (function(){
   "use strict";
   function esc(s){ return window.esc?window.esc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  var KB='https://killinchu.a11oy.net';
+  var KB='https://killinchu.a-11-oy.com';
   var CN_REFRESH_MS=30000;
   function cnAutoOn(){ return window.__cn_auto!==false; }
   var COL={good:['#4fb37f','#5fe39a'],warn:['#c0a05a','#e6c87a'],bad:['#c06a5a','#ff7b6b'],info:['#5aa0d0','#7ab8e6'],dim:['#6b6b6b','#9a9a9a']};
@@ -12457,7 +12457,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 <script>
 /* anatomy-map-tab-patch :: SZL Anatomy — single honest map (formulas + agentic capabilities) ::
    Additive, self-contained, NS-aware. Snapshot mirror of the standalone deck
-   (a11oy.net/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
+   (a-11-oy.com/anatomy-map · HF static Space SZLHOLDINGS/anatomy). Honest by construction:
    8 LOCKED formulas {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1. No fabricated live pills. */
 (function(){
   var NS=(window.__rd_ns||(location.pathname.indexOf('killinchu')>=0?'killinchu':'a11oy'));
@@ -12479,8 +12479,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
      p:'Append-only SIGNED receipt DAG (Khipu) + quorum consensus: acyclic (F4 locked), FIFO-ordered (F7 locked), emit-monotone (F22 locked), CONDITIONAL Byzantine safety under 3-of-4 quorum. Unconditional safety stays Conjecture 2.',
      e:'szl_khipu_lmdb.py \u00b7 MCP khipu_sign / khipu_verify (live)', f:'F4, F7, F22 (locked) \u00b7 B2 quorum'},
     {k:'receipts', n:'Receipt store (YAWAR / szl-receipts)', s:'LIVE',
-     p:'Append-only SHA-256 receipt bus: h=sha256(canonical(packet)), never mutated/deleted. Ed25519/DSSE signing, Merkle inclusion (F18 locked), receipt-completeness (P1), replay-determinism, hash-chain tamper-evidence (P5). Live chain at a11oy.net/receipts.',
-     e:'YAWAR bus \u00b7 szl-receipts server + Pepr webhook (repo PRIVATE) \u00b7 a11oy.net/receipts/', f:'F1, F18 (locked) \u00b7 P1, P5'},
+     p:'Append-only SHA-256 receipt bus: h=sha256(canonical(packet)), never mutated/deleted. Ed25519/DSSE signing, Merkle inclusion (F18 locked), receipt-completeness (P1), replay-determinism, hash-chain tamper-evidence (P5). Live chain at a-11-oy.com/receipts.',
+     e:'YAWAR bus \u00b7 szl-receipts server + Pepr webhook (repo PRIVATE) \u00b7 a-11-oy.com/receipts/', f:'F1, F18 (locked) \u00b7 P1, P5'},
     {k:'mesh', n:'Mesh + OTel observability (UDS / VSP)', s:'CI-GREEN',
      p:'UDS Core ambient mesh (Istio, restricted PSA) carrying W3C TraceContext span lineage across brain\u2192effectors (efferent / afferent / proprioceptive). Replay verifier checks child.parent_span_id == parent.span_id over a cycle (P4); Menger cut/path + reachability monotonicity back the resilience claims.',
      e:'szl-uds-deployment (k3d uds-szl-demo) \u00b7 vsp-otel \u00b7 HUKLLA deadman reflex', f:'P4, F1 \u00b7 W9_MENGER, W10_REACH'},
@@ -12493,7 +12493,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     h+='<div style="border:1px solid #2a2f37;border-radius:10px;padding:14px 16px;margin-bottom:14px;background:#11151a">'
       +'<div style="font-family:var(--mono,monospace);font-size:11px;color:'+DIM+';letter-spacing:.08em">SINGLE HONEST MAP</div>'
       +'<div style="font-size:13px;color:#cfd4da;margin-top:6px;line-height:1.5">Every agentic capability mapped to the <b>real</b> app(s)/repo(s) that implement it, alongside the formula/theorem ladder. Snapshot mirror of the full interactive deck \u2014 '
-      +'<a href="https://a11oy.net/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a11oy.net/anatomy-map</a> \u00b7 '
+      +'<a href="https://a-11-oy.com/anatomy-map/" target="_blank" rel="noopener" style="color:'+TEAL+'">a-11-oy.com/anatomy-map</a> \u00b7 '
       +'<a href="https://szlholdings-anatomy.hf.space/" target="_blank" rel="noopener" style="color:'+TEAL+'">HF Space</a>. '
       +'Honesty: <b>8 LOCKED</b> kernel-verified formulas {F1, F4, F7, F11, F12, F18, F19, F22}; \u039b uniqueness = <b>Conjecture 1</b> (advisory, never a pass/fail oracle).</div></div>';
     CAPS.forEach(function(c){
@@ -12512,7 +12512,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,80); }
     V.anatomymap={ title:'Anatomy Map', badge:(CAPS.length+' capabilities \u00b7 8 LOCKED'),
-      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a11oy.net/anatomy-map deck. 8 LOCKED formulas; \u039b = Conjecture 1.',
+      sub:'The single honest map: every agentic capability (RAG, MCP, ouroboros loop, khipu/consensus, receipt store, mesh/OTel, math/AP-12) mapped to the real app(s)/repo(s) that implement it \u2014 mirrored from the a-11-oy.com/anatomy-map deck. 8 LOCKED formulas; \u039b = Conjecture 1.',
       render:render };
   }
   reg();
@@ -14699,7 +14699,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
 <!-- energy-harvest-tab-patch — live wasted-energy grid signal (a11oy console tab).
      Additive: registers V['energy'] + injects a nav item. Fetches the ABSOLUTE public
-     a11oy.net harvest API so this tab renders identically on a11oy.net/console AND the
+     a-11-oy.com harvest API so this tab renders identically on a-11-oy.com/console AND the
      mirrored HuggingFace Space. Doctrine v11: real grid data only, joules SAMPLE,
      sovereign untouched, no free-energy, honest degradation when feeds are down. -->
 <script>
@@ -14842,7 +14842,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
          (NOT measured) — it never claims joules, never creates energy. Doctrine v11. */
       h+=await ehThermalPanel();
       h+='<div class="dim" style="font-size:11px;margin-top:.5rem">'+esc(d.feeds_live)+'/'+esc(d.feeds_total)+' feeds live · '+(d.cached?'cached':'fresh')+' · '+esc(when)
-        +' · <a href="'+EH_API+'/posture" target="_blank" rel="noopener">raw API</a> · <a href="https://a11oy.net/energy/" target="_blank" rel="noopener">standalone page ↗</a></div>';
+        +' · <a href="'+EH_API+'/posture" target="_blank" rel="noopener">raw API</a> · <a href="https://a-11-oy.com/energy/" target="_blank" rel="noopener">standalone page ↗</a></div>';
       c.innerHTML=h;
       /* BATCH2B: animate the hero count-up to the real measured price via requestAnimationFrame. */
       (function(){ var el=document.getElementById('eh-hero-num'); if(!el) return; var target=d.price_now_eur_mwh; if(target==null) return;

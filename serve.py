@@ -1300,7 +1300,7 @@ except Exception as _prov_e:
 # their fetch() calls keep working.
 #
 # allow_origin_regex covers the HF Space wildcard (szlholdings-*.hf.space) and the
-# planned a11oy.net / killinchu.a11oy.net subdomains in one place. We do NOT set
+# planned a-11-oy.com / killinchu.a-11-oy.com subdomains in one place. We do NOT set
 # allow_credentials=True (cookies/Authorization are not used cross-origin), so
 # there is no "* + credentials" footgun and the allow-list stays the security
 # boundary. Methods/headers are scoped to what the read+governed-write API uses.
@@ -1309,9 +1309,9 @@ except Exception as _prov_e:
 import os as _cors_os
 
 _CORS_ALLOWED_ORIGINS = [
-    "https://a11oy.net",
-    "https://www.a11oy.net",
-    "https://killinchu.a11oy.net",
+    "https://a-11-oy.com",
+    "https://www.a-11-oy.com",
+    "https://killinchu.a-11-oy.com",
     "https://szlholdings-a11oy.hf.space",
     "https://szlholdings-killinchu.hf.space",
     "http://localhost:8000",
@@ -1325,9 +1325,9 @@ if _cors_extra:
     )
 
 # Regex catch-all for the HF Space subdomains (szlholdings-<name>.hf.space) and
-# any *.a11oy.net subdomain (immune.a11oy.net, killinchu.a11oy.net, ...).
+# any *.a-11-oy.com subdomain (immune.a-11-oy.com, killinchu.a-11-oy.com, ...).
 _CORS_ALLOWED_ORIGIN_REGEX = (
-    r"^https://(szlholdings-[a-z0-9-]+\.hf\.space|([a-z0-9-]+\.)?a11oy\.net)$"
+    r"^https://(szlholdings-[a-z0-9-]+\.hf\.space|([a-z0-9-]+\.)?a-11-oy\.com)$"
 )
 
 app.add_middleware(
@@ -1444,7 +1444,7 @@ def _ptg_serve(filename: str):
 
 try:
     # Upgraded genius surfaces (win over module + SPA handlers by ordered match).
-    app.add_api_route("/conduction", _ptg_serve("conduction.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/conduction", lambda: _PTG_Redirect(url="/console", status_code=307), methods=["GET"], include_in_schema=False)
     app.add_api_route("/bridge",     _ptg_serve("bridge.html"),     methods=["GET"], include_in_schema=False)
     app.add_api_route("/agent",      _ptg_serve("agent.html"),      methods=["GET"], include_in_schema=False)
     app.add_api_route("/predict",    _ptg_serve("predict.html"),    methods=["GET"], include_in_schema=False)
@@ -1501,7 +1501,7 @@ try:
     app.add_api_route("/sda", _ptg_serve("sda.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/sda", _ptg_serve("sda.html"), methods=["GET"], include_in_schema=False)
     # DNS & SUBDOMAINS tab (2026-06-16): a static, honest internal infrastructure
-    # roadmap that tracks the DNS records we want to add (e.g. immune.a11oy.net A
+    # roadmap that tracks the DNS records we want to add (e.g. immune.a-11-oy.com A
     # 167.233.50.75, on hold until founder is back from the trip; immune itself is
     # already served on Hugging Face so there is no outage). Standalone page, 0
     # runtime CDN, NO live data (statuses are hand-maintained + dated). NEVER a
@@ -8030,7 +8030,7 @@ async def _hero_vendor(fname: str) -> Response:
 
 
 # === ADDITIVE: /cathedral — the ONE canonical genius cathedral, GitHub-aligned. ===
-# Unifies the cathedral front door so a11oy.net/cathedral renders the IDENTICAL
+# Unifies the cathedral front door so a-11-oy.com/cathedral renders the IDENTICAL
 # "Constellation · Khipu" scene as the SZLHOLDINGS/cathedral HF static space and
 # killinchu/cathedral. The page (cathedral_genius.html at the repo root) is the
 # canonical HF index.html byte-for-byte EXCEPT its two asset paths, which are
@@ -8137,18 +8137,14 @@ async def chaski_page() -> Response:
 
 @app.get("/wallpa")
 async def wallpa_page() -> Response:
-    f = PAGES_DIR / "wallpa.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+    # RETIRED 2026-06-27: codename violates NO user-visible codenames doctrine.
+    return _PTG_Redirect(url="/console", status_code=307)
 
 
 @app.get("/wasi-rikuq")
 async def wasi_rikuq_page() -> Response:
-    f = PAGES_DIR / "wasi-rikuq.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+    # RETIRED 2026-06-27: Quechua codename violates NO user-visible codenames doctrine.
+    return _PTG_Redirect(url="/console", status_code=307)
 
 
 # /superpowers — Five live, screenshot-provable superpowers (Decision Replay,
@@ -8182,7 +8178,7 @@ async def command_console_page() -> Response:
 # demo is the console SPA view V.wowtoggle, reachable today via the left-nav
 # but NOT via its obvious top-level URLs: /ungoverned, /ungoverned-vs-a11oy,
 # /vs, /compare all fell through to the SPA catch-all → generic Command Center,
-# so a founder/investor typing a11oy.net/ungoverned saw the wrong page and
+# so a founder/investor typing a-11-oy.com/ungoverned saw the wrong page and
 # "nothing happened." The console boots into the view named by location.hash
 # (pages/console.html: `start=(location.hash||'#command').slice(1)`), so these
 # pretty paths just need to land on /console#wowtoggle. Registered BEFORE the
@@ -8208,7 +8204,7 @@ async def marketing_landing_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
-# /company — SZL Holdings story folded into a11oy.net (the holding-company front
+# /company — SZL Holdings story folded into a-11-oy.com (the holding-company front
 # door: "Governed AI, proven in Lean", the PURIQ doctrine, the five flagships, and
 # the evidence/proof framing). Replaces the retired standalone szlholdings.com site.
 # Served from pages/company.html (COPYed wholesale by the Dockerfile). Registered
@@ -8250,8 +8246,6 @@ async def wires_page() -> Response:
 # /fabric keeps working unchanged. Both registered before the SPA catch-all.
 @app.get("/fabric")
 @app.get("/a11oy/fabric")
-@app.get("/tawantin")
-@app.get("/a11oy/tawantin")
 async def fabric_page() -> Response:
     f = PAGES_DIR / "fabric.html"
     if f.is_file():
@@ -8259,13 +8253,18 @@ async def fabric_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# RETIRED 2026-06-27: /tawantin + /a11oy/tawantin were codename aliases for
+# /fabric. Quechua codename violates NO user-visible codenames doctrine.
+@app.get("/tawantin")
+@app.get("/a11oy/tawantin")
+async def tawantin_redirect() -> Response:
+    return _PTG_Redirect(url="/console", status_code=307)
+
+
 @app.get("/ayni")
 async def ayni_page() -> Response:
-    # ADDITIVE (Yachay / AYNI-OS): reciprocity gauges + replay scrubber + Tinkuy meter.
-    f = PAGES_DIR / "ayni.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+    # RETIRED 2026-06-27: Quechua codename violates NO user-visible codenames doctrine.
+    return _PTG_Redirect(url="/console", status_code=307)
 
 
 # --- Throne Room (ADDITIVE; Doctrine v12 PURIQ / Yachay CTO) ---
@@ -8275,10 +8274,9 @@ async def ayni_page() -> Response:
 @app.get("/throne-room")
 @app.get("/throne")
 async def throne_room_page() -> Response:
-    f = PAGES_DIR / "throne-room.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+    # RETIRED 2026-06-27: internal codenames (PURIQ/Yachay) violate NO user-visible
+    # codenames doctrine. Old bookmarks preserved via 307.
+    return _PTG_Redirect(url="/console", status_code=307)
 
 
 @app.get("/throne-room.js")
@@ -8683,10 +8681,8 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
 # by the Dockerfile) so no image-layout change. ADDITIVE.
 @app.get("/warhacker")
 async def warhacker_page() -> Response:
-    f = PAGES_DIR / "warhacker.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+    # RETIRED 2026-06-27: archived per founder (BRIEF.md: "warhacker is ARCHIVED").
+    return _PTG_Redirect(url="/console", status_code=307)
 
 
 # ---------------------------------------------------------------------------
@@ -9784,7 +9780,7 @@ except Exception as _szlfac_e:  # pragma: no cover
 
 
 # ============================================================================
-# SPACES ON a11oy.net (Dev2+3) — surface all 11 live HF Spaces same-origin.
+# SPACES ON a-11-oy.com (Dev2+3) — surface all 11 live HF Spaces same-origin.
 # (1) szl_spaces_proxy: reverse-proxy each Space under /spaces/<name> (server-side
 #     fetch, honest 502 on flap, allowlist only, a11oy/killinchu skipped as self/own-
 #     host). (2) szl_spaces_surface: /api/<ns>/v1/spaces/health (REAL probe + HF-API
@@ -9811,7 +9807,7 @@ try:
 except Exception as _szl_ss_e:  # pragma: no cover
     print(f"[a11oy] Spaces surface NOT registered: {_szl_ss_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 # ============================================================================
-# END: SPACES ON a11oy.net (Dev2+3)
+# END: SPACES ON a-11-oy.com (Dev2+3)
 # ============================================================================
 
 
