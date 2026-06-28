@@ -15305,7 +15305,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   // a11oy-overhaul-marker:BATCH1-flagship20 (live-build verification token).
   // a11oy-overhaul-marker:BATCH2A-polish (honest chips + labels + aria + lab badges).
   // a11oy-overhaul-marker:BATCH2B-polish (lazy ngraph alias + 3D/table/canvas never-blank skeletons + honest friendly-err + spine-wide degrade harden).
-  var PINNED = ["whHero","cuas_fusion","cuas_swarm","cybSurface","cybZero","finm","finr","legExposure","red","reo","entIncident","fltTopo","oversight","constellation","energy","decision","wowdrop","wowledger","trustspace","llm"];
+  // NEUTRALIZED 2026-06-27: the production nav-consolidation block (end of <body>)
+  // is now the single source of truth for the sidebar. This legacy Flagship-20
+  // hoister fought it by yanking decision/llm/etc. above the group headers.
+  // Empty PINNED => alreadyPinned()==true => apply() early-returns => no hoisting.
+  var PINNED = [];
   function sel(k){ return '.nav-item[' + 'data-view=' + JSON.stringify(k) + ']'; }
   // True when the five pinned items are already the first five .nav-item nodes
   // (in order) inside .side. Used to skip work and to avoid feeding our own
@@ -15499,5 +15503,139 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 })();
 </script>
 <!-- end GROUNDING-WIRE -->
+
+
+<!-- =====================================================================
+     PRODUCTION NAV CONSOLIDATION (2026-06-27, founder sign-off)
+     Single deterministic control point. Many earlier scripts inject extra
+     nav groups/items into .side at load (Investor WOW, Organ Substrate,
+     Counter-UAS, Sovereignty, Formula Atlas, vertical packs, etc.). Rather
+     than patch ~28 injectors, this ONE block runs LAST and rebuilds the
+     sidebar to a tight, decision-grade menu: 5 groups / 18 items.
+
+     Every removed view stays registered in window.VIEWS and remains reachable
+     via deep-link (/console#<viewkey>) — only the visible menu is slimmed.
+     No backend, API, formula, or honesty label is touched. Reversible: delete
+     this block to restore the full menu. warhacker/warboard archived.
+     ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  // Ordered spec: [groupLabel, [ [viewKey, icon, label], ... ] ]
+  var SPEC = [
+    ["Operate", [
+      ["command","\u25ce","Command Center"],
+      ["ask","\u2726","Ask & Act"],
+      ["demo","\u229e","Run a Demo"],
+      ["mesh","\u22b9","Live System Map"]
+    ]],
+    ["Govern", [
+      ["lambda","\u25d4","Trust Score"],
+      ["decision","\u25c8","Governed Decision"],
+      ["gates","\u22a0","Safety Gates"],
+      ["govern","\u2713","Readiness & Compliance"]
+    ]],
+    ["Prove", [
+      ["chain","\u26d3","Receipt Chain"],
+      ["replay","\u25f7","Reasoning Replay"],
+      ["arena","\u229c","Eval Arena"],
+      ["frontier","\u25c8","Frontier Pipeline"]
+    ]],
+    ["Knowledge", [
+      ["knowledge","\u2b21","Knowledge Ontology"],
+      ["kbformulas","\u2211","Formulas"],
+      ["honest","\u2298","What We Claim"]
+    ]],
+    ["Models & Tools", [
+      ["llm","\u2687","Model Router"],
+      ["alloy","\u2697","Open-Weight Alloy"],
+      ["mcp","\u2699","Agent Tools"]
+    ]]
+  ];
+
+  function buildNav(){
+    var side = document.querySelector('.side');
+    if(!side) return false;
+    var brand = side.querySelector('.brand');
+    var foot  = side.querySelector('.side-foot');
+    if(!brand) return false;
+
+    // Remove every existing nav-group and nav-item (whatever injected them).
+    Array.prototype.slice.call(side.querySelectorAll('.nav-group, .nav-item'))
+      .forEach(function(el){ el.parentNode && el.parentNode.removeChild(el); });
+
+    // Rebuild from SPEC, inserting after brand (and before side-foot).
+    var frag = document.createDocumentFragment();
+    SPEC.forEach(function(grp){
+      var g = document.createElement('div');
+      g.className = 'nav-group';
+      g.textContent = grp[0];
+      frag.appendChild(g);
+      grp[1].forEach(function(it){
+        var d = document.createElement('div');
+        d.className = 'nav-item';
+        d.setAttribute('data-view', it[0]);
+        (function(v){ d.onclick = function(){ if(window.go) window.go(v); }; })(it[0]);
+        d.innerHTML = '<span class="ico">'+it[1]+'</span>'+it[2];
+        frag.appendChild(d);
+      });
+    });
+
+    if(foot && foot.parentNode === side){ side.insertBefore(frag, foot); }
+    else if(brand.nextSibling){ side.insertBefore(frag, brand.nextSibling); }
+    else { side.appendChild(frag); }
+
+    // Reflect the currently-active view in the menu (if present).
+    try{
+      var cur = (location.hash||'#command').slice(1).split('/')[0];
+      var act = side.querySelector('.nav-item[data-view="'+cur+'"]');
+      if(act) act.classList.add('active');
+      else { var c = side.querySelector('.nav-item[data-view="command"]'); if(c) c.classList.add('active'); }
+    }catch(e){}
+    return true;
+  }
+
+  // Run after ALL injectors. They fire on DOMContentLoaded / setTimeout(0);
+  // we run on load + a short delay, then a couple of re-applies to win any
+  // late async injection, and a MutationObserver as a belt-and-suspenders guard.
+  function apply(){ try{ buildNav(); }catch(e){} }
+  function schedule(){
+    apply();
+    setTimeout(apply, 60);
+    setTimeout(apply, 250);
+    setTimeout(apply, 800);
+    setTimeout(function(){
+      apply();
+      // Final guard: if anything injects a stray nav node later, prune once more.
+      var side = document.querySelector('.side');
+      if(side && window.MutationObserver){
+        var t=null, busy=false;
+        var mo = new MutationObserver(function(muts){
+          if(busy) return; // ignore our own rebuild mutations
+          var navTouched = muts.some(function(m){
+            return Array.prototype.slice.call(m.addedNodes||[]).some(function(n){
+              return n.nodeType===1 && n.classList &&
+                (n.classList.contains('nav-item')||n.classList.contains('nav-group'));
+            });
+          });
+          // ANY nav insertion (even allowlisted, since it can land out of order)
+          // triggers a full deterministic rebuild.
+          if(navTouched){
+            clearTimeout(t);
+            t=setTimeout(function(){ busy=true; apply(); busy=false; }, 60);
+          }
+        });
+        mo.observe(side, {childList:true, subtree:false});
+        // stop observing after 8s — by then all injectors have run
+        setTimeout(function(){ try{ mo.disconnect(); apply(); }catch(e){} }, 8000);
+      }
+    }, 1500);
+  }
+  if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', schedule);
+  else schedule();
+  window.addEventListener('load', function(){ setTimeout(apply, 120); });
+})();
+</script>
+
 </body>
 </html>
