@@ -116,6 +116,84 @@ def _canon(obj: Any) -> bytes:
 
 
 # --------------------------------------------------------------------------- #
+# Verify-before-publish gate
+# --------------------------------------------------------------------------- #
+# The published corpus advertises that every ecdsa-p256-dsse-pae receipt verifies
+# against ONE pinned cosign.pub — the same key the CI re-verify guard checks
+# (.github/hf-corpus-guards.json -> cosign_pub_pem). Incident #325: two receipts
+# signed by a transient/rotated key (matching the live org cosign.pub, not the
+# pinned one) were published and could no longer re-verify. To make that
+# impossible going forward, the producer now re-verifies each signed envelope
+# against the SAME pinned key before publishing; an envelope that does not verify
+# is skipped (honestly, like an UNSIGNED one) — never published.
+#
+# The pinned PEM is read from the guard config so producer and guard share one
+# source of truth; the embedded copy is only a fallback for a runtime that does
+# not ship the .github config. Keep it in sync with that file's cosign_pub_pem.
+_CORPUS_COSIGN_PUB_PEM_FALLBACK = (
+    "-----BEGIN PUBLIC KEY-----\n"
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/Jlv9FnwJ13l4QIZpr4IbTBUtVZ2\n"
+    "i+O7Jai/s7xsdXvOjmZGYhd36VxNQQahTSjWoYpPrSNhXbt/n7lsgi61xA==\n"
+    "-----END PUBLIC KEY-----\n"
+)
+
+
+def _corpus_verify_pub_pem() -> str:
+    """Return the pinned cosign.pub the corpus re-verifies against. Reads the CI
+    guard config (single source of truth) and falls back to the embedded copy."""
+    cfg_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        ".github", "hf-corpus-guards.json")
+    try:
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            pem = json.load(fh).get("cosign_pub_pem")
+        if isinstance(pem, str) and "BEGIN PUBLIC KEY" in pem:
+            return pem
+    except Exception:
+        pass
+    return _CORPUS_COSIGN_PUB_PEM_FALLBACK
+
+
+def _ecdsa_envelope_verifies(env: Dict[str, Any], pub_pem: str) -> bool:
+    """True iff at least one of the envelope's signatures verifies over its DSSE
+    PAE against pub_pem. Conservative: any error (incl. missing cryptography)
+    returns False so an envelope we cannot vouch for is NOT published."""
+    try:
+        import base64
+        from cryptography.hazmat.primitives.serialization import load_pem_public_key
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.exceptions import InvalidSignature
+    except Exception:
+        return False
+    try:
+        body = base64.b64decode(env.get("payload", "") or b"")
+        pt = str(env.get("payloadType", ""))
+        pae = b"DSSEv1 %d %s %d %s" % (len(pt.encode()), pt.encode(), len(body), body)
+        pub = load_pem_public_key(pub_pem.encode("utf-8"))
+        for s in env.get("signatures") or []:
+            try:
+                pub.verify(base64.b64decode(s.get("sig", "") or ""), pae,
+                           ec.ECDSA(hashes.SHA256()))
+                return True
+            except InvalidSignature:
+                continue
+        return False
+    except Exception:
+        return False
+
+
+def _publishable_against_corpus_key(env: Dict[str, Any], scheme: str) -> bool:
+    """Verify-before-publish gate. ecdsa-p256-dsse-pae receipts are published only
+    if they verify against the pinned corpus cosign.pub, so a transient/rotated-key
+    envelope can never enter the corpus and later fail re-verify. sigstore-keyless
+    receipts are not gated here (verified via their Fulcio cert at re-verify time)."""
+    if scheme != "ecdsa-p256-dsse-pae":
+        return True
+    return _ecdsa_envelope_verifies(env, _corpus_verify_pub_pem())
+
+
+# --------------------------------------------------------------------------- #
 # Receipts
 # --------------------------------------------------------------------------- #
 def _is_real_signed(env: Dict[str, Any]) -> bool:
@@ -235,6 +313,13 @@ def on_new_receipt(env: Dict[str, Any], *, extra: Optional[Dict[str, Any]] = Non
             return {"ok": False, "skipped": "not-an-envelope"}
         if not _is_real_signed(env):
             return {"ok": True, "skipped": "unsigned-or-placeholder", "published": 0}
+        scheme = _detect_scheme(env)
+        if not _publishable_against_corpus_key(env, scheme):
+            # Genuinely signed but NOT against the pinned corpus key (e.g. a
+            # transient/rotated key). Refuse to publish rather than poison the
+            # corpus with an envelope that would later fail re-verify (#325).
+            return {"ok": True, "skipped": "signature-not-verifiable-against-corpus-key",
+                    "published": 0, "scheme": scheme}
         bucket = _get_bucket(PREFIX_RECEIPT)
         if bucket is None:
             return {"ok": False, "skipped": "bucket-unavailable", "published": 0}
@@ -257,16 +342,21 @@ def backfill_receipts(envelopes: Iterable[Dict[str, Any]], *, flush: bool = True
     bucket = _get_bucket(PREFIX_RECEIPT, start=False)
     if bucket is None:
         return {"ok": False, "error": "bucket-unavailable"}
-    queued = skipped = 0
+    queued = skipped = skipped_unverifiable = 0
     for env in envelopes:
         if not (isinstance(env, dict) and _is_real_signed(env)):
             skipped += 1
+            continue
+        if not _publishable_against_corpus_key(env, _detect_scheme(env)):
+            # signed, but not against the pinned corpus key -> never publish (#325)
+            skipped_unverifiable += 1
             continue
         rec = make_receipt_record(env)
         wrapped = bucket.make_record(rec, kind="receipt", source=SOURCE, dedup_key=rec["receipt_uid"])
         res = bucket.append(wrapped, kind="receipt", source=SOURCE, auto_flush=False)
         queued += res.get("queued", 0)
-    out: Dict[str, Any] = {"ok": True, "queued": queued, "skipped_unsigned": skipped}
+    out: Dict[str, Any] = {"ok": True, "queued": queued, "skipped_unsigned": skipped,
+                           "skipped_unverifiable": skipped_unverifiable}
     if flush:
         out["flush"] = bucket.flush_queue(force=True)
     return out

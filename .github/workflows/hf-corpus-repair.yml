@@ -1,0 +1,94 @@
+# hf-corpus-repair.yml — One-shot, owner-run REPAIR for the a11oy
+# verifiable-corpus re-verify incident (#325).
+#
+# Two published ecdsa-p256-dsse-pae receipts were signed by a transient/rotated
+# key (matching the live org cosign.pub) rather than the PINNED corpus key
+# (.github/hf-corpus-guards.json -> cosign_pub_pem), so the daily re-verify
+# guard (hf-corpus-reverify.yml) fails them every run. This workflow removes
+# ONLY those receipts from the published HF dataset via the repo's own bucket
+# tooling (scripts/repair_hf_corpus_reverify.py) and recounts head.json — it
+# never weakens the guard, lowers the floor, or allow-lists the bad ids.
+#
+# SAFE BY DEFAULT: a plain run is a DRY-RUN that only reports what it would
+# remove. Mutation requires apply=true AND confirm=true AND an expect count that
+# matches the recomputed bad set. The repair script itself refuses to remove a
+# record that verifies, or to drop below the baseline floor.
+#
+# Org policy: only github-owned / SHA-pinned actions; crypto + huggingface_hub
+# via pip; workflow_dispatch only from the default branch.
+# Signed-off-by: Forge (Replit task agent) <forge@szl-holdings>
+
+name: HF Corpus Repair (#325)
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Actually rewrite the corpus (false = dry-run report only).'
+        type: boolean
+        required: false
+        default: false
+      confirm:
+        description: 'Must also be true to mutate (belt-and-braces alongside apply).'
+        type: boolean
+        required: false
+        default: false
+      expect:
+        description: 'Refuse unless EXACTLY this many records would be removed.'
+        required: false
+        default: '2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-corpus-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Repair a11oy corpus (remove non-pinned-key receipts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install deps (DSSE verify + HF commit)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "cryptography>=42.0.0" "huggingface_hub>=0.23.0"
+
+      - name: Run repair (dry-run unless apply+confirm)
+        env:
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          args=(--expect "${{ inputs.expect }}")
+          if [ "${{ inputs.apply }}" = "true" ] && [ "${{ inputs.confirm }}" = "true" ]; then
+            args+=(--apply --confirm)
+            echo "Running REPAIR in APPLY mode (will mutate the corpus)."
+          else
+            echo "Running REPAIR in DRY-RUN mode (report only)."
+          fi
+          python3 scripts/repair_hf_corpus_reverify.py "${args[@]}" | tee repair.out
+
+          {
+            echo "## HF corpus repair (#325)"
+            echo ""
+            echo '```'
+            cat repair.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload repair report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-corpus-repair-report
+          path: repair.out
+          if-no-files-found: ignore
