@@ -9370,6 +9370,32 @@ except Exception as _gv_e:
 # ============================================================================
 # END: a11oy GOVERNED-INFERENCE product layer
 # ============================================================================
+
+# ============================================================================
+# BEGIN: a11oy UNIFIED RECEIPT LEDGER sink (vendored szl-lake, additive)
+# Mounts the durable, hash-chained (SHA3-256 Khipu, F4/F22 — Conjecture 2,
+# advisory BFT, NOT a theorem) Unified Receipt Ledger onto the LIVE app under
+# /api/lake/v1 so a11oy is the ONE durable sink every SZL component POSTs to:
+#   POST /api/lake/v1/receipts   GET /api/lake/v1/receipts
+#   GET  /api/lake/v1/chain/head GET /api/lake/v1/health
+# Routes are inserted at the HEAD of app.router.routes inside register() so the
+# new namespace wins over the /api/a11oy/{path:path} Node proxy + SPA catch-all.
+# DURABILITY: the Space has storage=None — the local $SZL_LAKE_DIR NDJSON store
+# backs the live API for this process; every receipt is ALSO mirrored fire-and-
+# forget to the HF dataset SZLHOLDINGS/a11oy-verifiable-corpus (HFBucket) and the
+# chain is hydrated-on-boot from that dataset (honest no-op when token/repo
+# absent). Documented env contract: SZL_RECEIPT_SINK=https://szlholdings-a11oy.hf.space/api/lake/v1
+# Additive, try/except-guarded; a dataset hiccup NEVER blocks a governed turn.
+# ============================================================================
+try:
+    import szl_lake_ingest as _szl_lake_ingest
+    _lake_status = _szl_lake_ingest.register(app, ns="a11oy")
+    print(f"[a11oy] Unified Receipt Ledger registered: /api/lake/v1/* ({_lake_status})", file=__import__("sys").stderr)
+except Exception as _szl_lake_e:  # pragma: no cover
+    print(f"[a11oy] Unified Receipt Ledger NOT registered: {_szl_lake_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: a11oy UNIFIED RECEIPT LEDGER sink
+# ============================================================================
 # ============================================================================
 # BEGIN: Tier-1 Demo Features (BVIR + Honest Refusal + Verifiable Thesis)
 # ADDITIVE. Path namespace /api/a11oy/v1/demo — no overlap with any existing

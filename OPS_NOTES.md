@@ -57,6 +57,44 @@ Current level: **SLSA L1 (honest)** — source + build provenance documented via
 
 ---
 
+## Unified Receipt Ledger — the one durable sink (`/api/lake/v1`)
+
+a11oy mounts the vendored szl-lake Unified Receipt Ledger onto the live app
+(`szl_lake_ingest.register`, wired in `serve.py`). It is the ONE durable sink
+every SZL component (ouroboros / hatun / router / mesh / vsp-otel / trust) POSTs
+governance receipts to. SHA3-256 Khipu hash-chain (F4/F22) is **Conjecture 2**
+(advisory BFT) — **not** a proven theorem.
+
+Routes (additive, registered before the proxy + SPA catch-all):
+- `POST /api/lake/v1/receipts`   — one receipt (JSON object), a JSON array, or NDJSON
+- `GET  /api/lake/v1/receipts`   — query `?organ=&since=&limit=`
+- `GET  /api/lake/v1/chain/head` — per-organ Khipu chain head + count `?organ=`
+- `GET  /api/lake/v1/health`     — store reachable, total + per-organ counts
+
+### Env contract
+
+| Var | Purpose | Default |
+|-----|---------|---------|
+| `SZL_RECEIPT_SINK` | The sink URL downstream components POST to. **Set this on the Space** so other repos can `emit_receipt`. | `https://szlholdings-a11oy.hf.space/api/lake/v1` |
+| `SZL_LAKE_DIR` | Local NDJSON store root for the live API (this process only — resets on rebuild). | `./khipu` |
+| `SZL_CORPUS_REPO` | Durable HF dataset the ledger mirrors every receipt to (survives rebuilds). | `SZLHOLDINGS/a11oy-verifiable-corpus` |
+| `HF_TOKEN` | Token used by the HFBucket mirror (already present in the Space). | — |
+
+### Durability (honest)
+
+The Space runs `storage=None`, so the local `$SZL_LAKE_DIR` store backs the live
+API for the current process only. Every receipt is ALSO mirrored fire-and-forget
+to the `SZL_CORPUS_REPO` dataset (prefix `lake/`) via the existing
+`szl_hf_bucket.HFBucket` debounced background commit, so receipts survive
+rebuilds. On boot, `szl_lake_ingest.hydrate_from_dataset()` replays the mirrored
+receipts back through the local ledger to reconstruct the Khipu chain head (best-
+effort daemon thread; honest no-op when token/repo/`huggingface_hub` are absent).
+**ROADMAP:** the boot hydrate currently replays the full stream; bounding it to
+the committed `head.json` + tail shards is a tracked follow-up (the write-side
+mirror is LIVE; this is the read-back optimization).
+
+---
+
 ## Known gaps (tracked)
 
 | Gap | Tracking |
@@ -65,3 +103,4 @@ Current level: **SLSA L1 (honest)** — source + build provenance documented via
 | `serve` subcommand server module | serve-BE PR (pending) |
 | SPA routes wired to real data | SPA-repair PR (pending) |
 | SLSA L2/L3 isolated builder | ROADMAP.md |
+| Unified ledger boot-hydrate full-stream replay | ROADMAP (bound to head.json + tail shards) |
