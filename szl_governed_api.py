@@ -73,6 +73,38 @@ if os.environ.get("SZL_METER_BASE"):
     MESH[0]["meter"] = os.environ["SZL_METER_BASE"]
 if os.environ.get("SZL_MODEL"):
     MESH[0]["model"] = os.environ["SZL_MODEL"]
+
+# --- GLM (MIT, license-clean) as a first-class sovereign engine ---------------
+# GLM-4.7-Flash GGUF (unsloth/GLM-4.7-Flash-GGUF) runs in Ollama on the user's
+# consumer GPUs. We add it as a frontier (T2) tier engine pointing at the user's
+# own nodes. The exact Ollama tag depends on how the user imports the GGUF, so it
+# is env-overridable and we DO NOT assume it is installed — _engine_live() checks
+# /api/tags for the model and honestly reports the engine DOWN until the user pulls
+# it. Until then GLM never serves and is never claimed live.
+SZL_GLM_MODEL  = os.environ.get("SZL_GLM_MODEL", "glm-4.7-flash")
+SZL_GLM_OLLAMA = os.environ.get("SZL_GLM_OLLAMA", MESH[0].get("ollama", "https://gpu.a-11-oy.com"))
+SZL_GLM_METER  = os.environ.get("SZL_GLM_METER",  MESH[0].get("meter",  "https://meter.a-11-oy.com"))
+# Tag pre-existing engines as T1 (fast) unless they already carry a tier — keeps
+# default (no-effort) behavior identical: anchor (engine 0) stays first-preferred.
+for _e in MESH:
+    _e.setdefault("tier", "T1")
+    _e.setdefault("effort", "fast")
+# Append GLM (frontier) so default pick order is unchanged (anchor first). Skip if
+# the user already wired a GLM-like engine via SZL_MESH_JSON, or opted out.
+if not os.environ.get("SZL_GLM_DISABLE") and not any(e.get("is_glm") for e in MESH) \
+        and not any(e.get("model") == SZL_GLM_MODEL for e in MESH):
+    MESH.append({
+        "name":   f"GLM-4.7-Flash (sovereign · MIT · {SZL_GLM_MODEL})",
+        "ollama": SZL_GLM_OLLAMA, "meter": SZL_GLM_METER, "model": SZL_GLM_MODEL,
+        "tier": "T2", "effort": "frontier", "is_glm": True,
+    })
+
+# Map a buyer-requested effort onto an engine tier (used by _pick_engine).
+_EFFORT_TO_TIER = {
+    "fast": "T1", "low": "T1", "t1": "T1", "quick": "T1",
+    "high": "T2", "frontier": "T2", "t2": "T2", "deep": "T2",
+}
+
 METER_FRESH_S = float(os.environ.get("SZL_METER_FRESH_S", "30"))
 HTTP_TIMEOUT  = float(os.environ.get("SZL_HTTP_TIMEOUT", "60"))
 # Browser-like UA: Cloudflare 403s the default python-urllib UA.
@@ -124,20 +156,121 @@ def _meter_snapshot() -> tuple[float | None, dict]:
 
 
 def _engine_live(eng: dict) -> bool:
+    """An engine is LIVE only if its Ollama is reachable AND the engine's model is
+    actually installed there (present in /api/tags). This is what keeps GLM honest:
+    until the user `ollama pull`s the GLM tag, the GLM engine reports DOWN — we never
+    fake it live. (A model-less engine entry falls back to reachability only.)"""
+    base = eng.get("ollama", "")
+    model = eng.get("model", "")
     try:
-        _http_json(eng["ollama"] + "/api/tags", timeout=6)
-        return True
+        tags = _http_json(base + "/api/tags", timeout=6)
     except Exception:
         return False
+    if not model:
+        return True
+    names = [m.get("name", "") for m in (tags.get("models") or [])]
+    if model in names:
+        return True
+    bm = model.split(":")[0]
+    return any(n.split(":")[0] == bm for n in names)
 
 
-def _pick_engine() -> dict | None:
-    """Choose a LIVE engine for this turn. Anchor (engine 0) preferred; failover to
-    any other live engine. Returns None if the whole mesh is down (honest)."""
-    for eng in MESH:
-        if _engine_live(eng):
-            return eng
-    return None
+# Least-connections coordinator state (folded from szl-router/mesh_coordinator.py,
+# our reimplementation). Spreads concurrent turns across live nodes instead of
+# pinning the anchor under load. Single-request behavior is UNCHANGED: with all
+# inflight == 0, MESH order wins (anchor first), exactly as before.
+import threading as _threading
+_INFLIGHT: dict = {}
+_INFLIGHT_LOCK = _threading.Lock()
+
+
+def _pick_engine(effort: str | None = None) -> dict | None:
+    """Choose a LIVE engine for this turn: least-inflight first, MESH order as the
+    tie-break (so a single idle turn still picks the anchor). Effort/tier preference
+    preserved: when an effort is requested, restrict to that tier's live engines if
+    any, else honest failover to any live engine. None only if the whole mesh is down."""
+    live = [eng for eng in MESH if _engine_live(eng)]
+    if not live:
+        return None
+    pool = live
+    if effort:
+        want = _EFFORT_TO_TIER.get(str(effort).strip().lower())
+        if want is not None:
+            match = [eng for eng in live if eng.get("tier") == want]
+            if match:
+                pool = match
+    with _INFLIGHT_LOCK:
+        return sorted(pool, key=lambda e: (_INFLIGHT.get(e["name"], 0), MESH.index(e)))[0]
+
+
+def _inflight_inc(name: str):
+    with _INFLIGHT_LOCK:
+        _INFLIGHT[name] = _INFLIGHT.get(name, 0) + 1
+
+
+def _inflight_dec(name: str):
+    with _INFLIGHT_LOCK:
+        _INFLIGHT[name] = max(0, _INFLIGHT.get(name, 0) - 1)
+
+
+def _glm_engine() -> dict | None:
+    return next((e for e in MESH if e.get("is_glm")), None)
+
+
+def _provider_config() -> dict | None:
+    """OPTIONAL remote GLM provider (z.ai / HF inference). DISABLED by default.
+
+    Returns None unless BOTH SZL_GLM_PROVIDER is set AND a key is in the env —
+    we never call a remote provider without an explicit opt-in and a key, and the
+    key is read from the environment, never hardcoded. A remote turn is honestly
+    labeled NOT sovereign / NOT on-metal."""
+    name = (os.environ.get("SZL_GLM_PROVIDER") or "").strip().lower()
+    if not name:
+        return None
+    key = os.environ.get("SZL_GLM_PROVIDER_KEY", "")
+    if not key:
+        return None  # opt-in present but no key → stay OFF, never call unauthenticated
+    defaults = {
+        "zai": ("https://api.z.ai/api/paas/v4/chat/completions", "z.ai"),
+        "z.ai": ("https://api.z.ai/api/paas/v4/chat/completions", "z.ai"),
+        "hf": ("https://router.huggingface.co/v1/chat/completions", "HuggingFace Inference"),
+        "huggingface": ("https://router.huggingface.co/v1/chat/completions", "HuggingFace Inference"),
+    }
+    url, label = defaults.get(name, (None, name))
+    url = os.environ.get("SZL_GLM_PROVIDER_URL") or url
+    model = os.environ.get("SZL_GLM_PROVIDER_MODEL") or SZL_GLM_MODEL
+    if not url:
+        return None
+    return {"name": name, "label": label, "url": url, "key": key, "model": model}
+
+
+def _provider_generate(prompt: str, prov: dict) -> tuple[str, dict]:
+    """Route a GLM turn to the remote provider (OpenAI-compatible chat completions).
+    Honestly labeled remote: sovereign=False, on_metal=False, so the energy join
+    will report UNAVAILABLE (no NVML meter behind a remote API — never fabricated)."""
+    payload = {"model": prov["model"],
+               "messages": [{"role": "user", "content": prompt}],
+               "stream": False}
+    req = urllib.request.Request(
+        prov["url"], data=json.dumps(payload).encode(),
+        headers={"User-Agent": _UA, "Content-Type": "application/json",
+                 "Authorization": "Bearer " + prov["key"]},
+        method="POST")
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        out = json.loads(r.read().decode())
+    text = ""
+    try:
+        text = out["choices"][0]["message"]["content"]
+    except Exception:
+        text = out.get("response", "")
+    return text, {
+        "engine": f"GLM remote provider ({prov['label']})",
+        "provider": prov["name"],
+        "provider_url": prov["url"],
+        "model": out.get("model", prov["model"]),
+        "sovereign": False,
+        "on_metal": False,
+    }
 
 
 def _ollama_generate(prompt: str, eng: dict) -> tuple[str, dict]:
@@ -153,8 +286,15 @@ def _ollama_generate(prompt: str, eng: dict) -> tuple[str, dict]:
 
 
 def govern_infer(prompt: str, *, vertical: str = "general",
-                 declared: str = "PUBLIC", severity: float = 0.0) -> dict:
-    """The product. Governance-first, answer only if allowed, honest energy + receipt."""
+                 declared: str = "PUBLIC", severity: float = 0.0,
+                 effort: str | None = None) -> dict:
+    """The product. Governance-first, answer only if allowed, honest energy + receipt.
+
+    `effort` (optional, e.g. "fast"/"frontier") is a tier hint: a "frontier"/T2 turn
+    prefers the GLM engine on-metal; if GLM is requested but not live on-metal AND the
+    optional remote provider is enabled, the turn is routed to the provider (honestly
+    labeled remote). Governance (Λ + gates + signed receipt) is IDENTICAL regardless of
+    which engine answers — the governance is the product; GLM is just another engine."""
     if _avf is None or not hasattr(_avf, "governed_turn"):
         return {"decision": "error",
                 "honesty": "governance module a11oy_vertical_feeds.governed_turn not importable",
@@ -172,27 +312,48 @@ def govern_infer(prompt: str, *, vertical: str = "general",
     gen_meta: dict = {}
     served_by = None
     if decision == "allow":
-        eng = _pick_engine()
-        if eng is None:
-            return {"decision": decision, "answer": None,
-                    "governance": _pub_gov(g), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
-                    "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "no live engine"}},
-                    "honesty": "governance allowed the turn but NO mesh engine was reachable; "
-                               "no answer and no joules fabricated."}
-        served_by = eng.get("name")
-        try:
-            answer, gen_meta = _ollama_generate(prompt, eng)
-        except Exception:
-            # failover: try any OTHER live engine once
-            alt = next((e for e in MESH if e is not eng and _engine_live(e)), None)
-            if alt is None:
+        eng = _pick_engine(effort)
+        # Optional remote-provider fallback for a GLM/frontier turn: only when the
+        # user explicitly requested frontier effort, the GLM engine is NOT live
+        # on-metal, AND the provider is opt-in+keyed. Sovereign on-metal always wins.
+        want_frontier = bool(effort) and _EFFORT_TO_TIER.get(str(effort).strip().lower()) == "T2"
+        glm = _glm_engine()
+        prov = _provider_config() if (want_frontier and (glm is None or not _engine_live(glm))) else None
+        if prov is not None:
+            try:
+                answer, gen_meta = _provider_generate(prompt, prov)
+                served_by = f"GLM remote provider — {prov['label']} (REMOTE; NOT sovereign, NOT on-metal)"
+            except Exception:
+                prov = None  # provider failed → fall through to sovereign mesh
+        if prov is None:
+            if eng is None:
                 return {"decision": decision, "answer": None,
                         "governance": _pub_gov(g), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
-                        "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "engine failed, no failover"}},
-                        "honesty": "governance allowed the turn but the chosen engine failed and no "
-                                   "failover engine was live; no answer and no joules fabricated."}
-            served_by = alt.get("name") + " (failover)"
-            answer, gen_meta = _ollama_generate(prompt, alt)
+                        "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "no live engine"}},
+                        "honesty": "governance allowed the turn but NO mesh engine was reachable; "
+                                   "no answer and no joules fabricated."}
+            served_by = eng.get("name")
+            _inflight_inc(eng["name"])
+            try:
+                answer, gen_meta = _ollama_generate(prompt, eng)
+            except Exception:
+                # failover: try any OTHER live engine once
+                alt = next((e for e in MESH if e is not eng and _engine_live(e)), None)
+                if alt is None:
+                    _inflight_dec(eng["name"])
+                    return {"decision": decision, "answer": None,
+                            "governance": _pub_gov(g), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
+                            "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "engine failed, no failover"}},
+                            "honesty": "governance allowed the turn but the chosen engine failed and no "
+                                       "failover engine was live; no answer and no joules fabricated."}
+                served_by = alt.get("name") + " (failover)"
+                _inflight_inc(alt["name"])
+                try:
+                    answer, gen_meta = _ollama_generate(prompt, alt)
+                finally:
+                    _inflight_dec(alt["name"])
+            finally:
+                _inflight_dec(eng["name"])
 
     j_after, ev_after = _meter_snapshot()
 
@@ -292,6 +453,7 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
             vertical=body.get("vertical", "general"),
             declared=body.get("declared", "PUBLIC"),
             severity=float(body.get("severity", 0.0)),
+            effort=body.get("effort"),
         ))
 
     async def _health(request=None):
@@ -299,16 +461,31 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
         engines = []
         for e in MESH:
             engines.append({"name": e.get("name"), "model": e.get("model"),
-                            "ollama": e.get("ollama"), "live": _engine_live(e)})
+                            "ollama": e.get("ollama"), "tier": e.get("tier"),
+                            "effort": e.get("effort"), "is_glm": bool(e.get("is_glm")),
+                            "live": _engine_live(e)})
+        glm = _glm_engine()
+        prov = _provider_config()
         return JSONResponse({
             "product": "a11oy Governed Inference",
             "governance": _avf is not None and hasattr(_avf, "governed_turn"),
             "mesh": engines,
             "engines_live": sum(1 for e in engines if e["live"]),
             "engines_total": len(engines),
+            "glm": {
+                "model_tag": SZL_GLM_MODEL,
+                "on_metal_live": bool(glm is not None and _engine_live(glm)),
+                "note": ("GLM engine present but model not pulled on-metal yet — honestly DOWN until "
+                         "`ollama pull`/`create` of the GLM tag" if (glm is not None and not _engine_live(glm))
+                         else "GLM live on-metal" if glm is not None else "GLM engine not in mesh"),
+                "remote_provider_enabled": prov is not None,
+                "remote_provider": (prov["label"] if prov is not None else None),
+            },
             "meter_fresh_live": jb is not None, "meter_evidence": ev,
             "honesty": "Λ is Conjecture 1 (advisory). Answer returned only on decision==allow. "
-                       "Energy aggregated across all live mesh meters; never fabricated.",
+                       "Energy aggregated across all live mesh meters; never fabricated. "
+                       "GLM is just another governed engine; remote provider (if enabled) is "
+                       "labeled REMOTE/not-sovereign and yields UNAVAILABLE energy.",
         })
 
     # Landing page: serve the holographic showcase at /govern and /govern/ (branded domain root)
@@ -343,6 +520,7 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
     # like /api/a11oy/v1/reason) AND the post-strip /v1/govern/* + short /govern/*
     # forms, so it wins regardless of how the front-door forwards.
     paths = [
+        ("/",             _landing or _health, ["GET"]),  # front door: elite showcase
         ("/govern",       _landing or _health, ["GET"]),
         ("/govern/",      _landing or _health, ["GET"]),
         ("/api/a11oy/v1/govern/infer",  _infer,  ["POST"]),
