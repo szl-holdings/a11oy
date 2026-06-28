@@ -139,7 +139,7 @@ th{color:var(--mut);font-weight:600}
 <div class="card">
   <div class="kpis" id="energy"><div class="note">…</div></div>
   <table id="byNode" style="margin-top:14px"><tr><th>node</th><th>jobs</th><th>tokens</th><th>joules</th><th>label</th></tr></table>
-  <p class="note" style="margin-top:12px">Joules are MEASURED via the on-box exporter (node <code id="expnode">betterwithage</code>). Nodes without a local exporter contribute SAMPLE jobs (joules unmeasured) — shown honestly, never imputed. Signed receipts fold into the Khipu ledger: <code>/api/a11oy/v1/energy/provenance</code>.</p>
+  <p class="note" style="margin-top:12px">Joules are MEASURED via the on-box exporter (node <code id="expnode">betterwithage</code>). Nodes without a local exporter contribute SAMPLE jobs (joules unmeasured) — shown honestly, never imputed. Signed receipts fold into the signed-receipt ledger: <code>/api/a11oy/v1/energy/provenance</code>.</p>
 </div>
 
 <h2>6 · Governed router + provenance</h2>
@@ -149,7 +149,7 @@ th{color:var(--mut);font-weight:600}
     <span class="node">governed router</span><span class="arr">→</span>
     <span class="node">placement (Λ-gated)</span><span class="arr">→</span>
     <span class="node">sovereign node / failover</span><span class="arr">→</span>
-    <span class="node">signed receipt → Khipu</span>
+    <span class="node">signed receipt → ledger</span>
   </div>
   <div id="prov" class="note" style="margin-top:8px">…</div>
 </div>
@@ -277,7 +277,7 @@ function renderProv(prov, honest){
   var html = '';
   html += '<p>SLSA: <b>'+(prov.slsa||'L1')+'</b> — L1 honest · L2 attested · L3 roadmap. '+L('LIVE')+' &nbsp; Λ = '+(dl.lambda||'Conjecture 1')+' '+L('LIVE','CONJECTURE 1')+'</p>';
   if(prov.khipu_dsse){
-    html += '<p>Provenance per answer: signed-receipt substrate · keyid <code>'+(prov.khipu_dsse.keyid||'?')+'</code> · verify at <code>'+(prov.khipu_dsse.verify_endpoint||'/api/a11oy/khipu/verify')+'</code>. tamper-EVIDENT (SHA3-256 hash-chain), not tamper-proof.</p>';
+    html += '<p>Provenance per answer: signed-receipt substrate · keyid <code>'+(prov.khipu_dsse.keyid||'?')+'</code> · verify at <code>'+(prov.khipu_dsse.verify_endpoint||'/api/a11oy/v1/govern/verify')+'</code>. tamper-EVIDENT (SHA3-256 hash-chain), not tamper-proof.</p>';
   }
   if(dl.locked_formula_ids){
     html += '<p>Doctrine lock: <code>'+(dl.declarations||749)+'/'+(dl.axioms||14)+'/'+(dl.sorries||163)+'</code> @ kernel <code>'+(dl.commit||'c7c0ba17')+'</code> · locked = '+(dl.locked_formula_count||8)+' {'+(dl.locked_formula_ids||[]).join(',')+'} '+L('LIVE')+'</p>';
