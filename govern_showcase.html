@@ -250,6 +250,13 @@
   .honest ul{margin-left:18px;color:var(--muted);font-size:14px;line-height:2}
   footer{border-top:1px solid var(--line);padding:42px 0;text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;position:relative;z-index:3}
   .cta{display:inline-block;margin-top:14px}
+
+  .frow{display:grid;grid-template-columns:54px 1fr auto;gap:14px;align-items:center;padding:11px 18px;border-top:1px solid var(--line);font-size:14px}
+  .frow:first-child{border-top:none}
+  .frow .fid{font-family:var(--mono);font-weight:600;color:var(--grn);font-size:13px}
+  .frow .fnm{color:#cfe0f5}
+  .frow code{font-family:var(--mono);font-size:11.5px;color:var(--accent);background:rgba(61,240,224,.06);padding:4px 9px;border-radius:6px;white-space:nowrap}
+  @media(max-width:640px){.frow{grid-template-columns:42px 1fr;gap:8px}.frow code{grid-column:1/-1;white-space:normal;margin-top:4px}}
 </style>
 </head>
 <body>
@@ -271,6 +278,7 @@
       <a href="#energy">Energy</a>
       <a href="#defense">Defense</a>
       <a href="#proof">Proof</a>
+      <a href="#proofs">Formulas</a>
       <a href="#pricing">Pricing</a>
     </nav>
     <div class="live"><span class="dot"></span><span id="livetxt">linking mesh…</span></div>
@@ -417,6 +425,36 @@
       <li>Effectors are simulated. Trust is never represented as 100%.</li>
     </ul>
   </div>
+</div></section>
+
+
+<!-- PROOFS / FORMULA SCOREBOARD -->
+<section id="proofs" class="sec"><div class="wrap">
+  <div class="seclabel">Formal proof corpus &middot; kernel c7c0ba17</div>
+  <div class="h2">We keep plugging away &mdash; and we never claim more than is proven</div>
+  <p class="lead">Eight formulas are <b>kernel-verified</b> in Lean (machine-checked, sorry-free). The rest of the corpus is in the open &mdash; each labeled by its true stage. The number that matters isn't how many we wrote; it's how many a machine has checked.</p>
+  <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:30px">
+    <div class="card" style="text-align:center"><div class="v" style="font-family:var(--disp);font-size:46px;font-weight:800;color:var(--grn)">8</div><div class="ic" style="margin:0">KERNEL-VERIFIED</div><p style="font-size:12.5px;margin-top:8px">sorry-free, machine-checked &amp; CI-locked</p></div>
+    <div class="card" style="text-align:center"><div class="v" style="font-family:var(--disp);font-size:46px;font-weight:800;color:var(--accent2)">23</div><div class="ic" style="margin:0">DECLARED SLOTS</div><p style="font-size:12.5px;margin-top:8px">F1&ndash;F23 formula registry</p></div>
+    <div class="card" style="text-align:center"><div class="v" style="font-family:var(--disp);font-size:46px;font-weight:800;color:#fff">~185</div><div class="ic" style="margin:0">TOTAL CORPUS</div><p style="font-size:12.5px;margin-top:8px">theorems at mixed honest stages</p></div>
+    <div class="card" style="text-align:center"><div class="v" style="font-family:var(--disp);font-size:46px;font-weight:800;color:var(--amber)">163&rarr;0</div><div class="ic" style="margin:0">OPEN SORRIES</div><p style="font-size:12.5px;margin-top:8px">CI sorry-gate forbids increase</p></div>
+  </div>
+  <div style="margin-top:30px;border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:var(--panel)">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--muted)">THE LOCKED 8 &middot; <span style="color:var(--grn)">PROVEN</span> in Lean 4 @ kernel c7c0ba17 (sorry-free, enforced by <span class="mono">locked_count_eight</span>)</div>
+    <div style="padding:8px 0">
+      <div class="frow"><span class="fid">F1</span><span class="fnm">Replay / hash determinism</span><code>f x = f x := rfl</code></div>
+      <div class="frow"><span class="fid">F4</span><span class="fnm">Khipu hash-chain step determinism</span><code>pure step; acyclic, irreflexive</code></div>
+      <div class="frow"><span class="fid">F7</span><span class="fnm">Chaski relay idempotence</span><code>well-formed relay</code></div>
+      <div class="frow"><span class="fid">F11</span><span class="fnm">Ayni reciprocity conservation</span><code>(b + c) - c = b</code></div>
+      <div class="frow"><span class="fid">F12</span><span class="fnm">Kuramoto phase-coupling additivity</span><code>additive</code></div>
+      <div class="frow"><span class="fid">F18</span><span class="fnm">Reed&ndash;Solomon parity count</span><code>(10 - 6 : Nat) = 4 := by decide</code></div>
+      <div class="frow"><span class="fid">F19</span><span class="fnm">Bekenstein entropy-bound monotonicity</span><code>s1 &le; s1 + s2</code></div>
+      <div class="frow"><span class="fid">F22</span><span class="fnm">Khipu emit monotone</span><code>seq strictly increases</code></div>
+    </div>
+  </div>
+  <p style="margin-top:18px;color:var(--faint);font-family:var(--mono);font-size:12px">
+    &Lambda; (the aggregator) is <b style="color:var(--amber)">Conjecture 1 &mdash; advisory, NOT a theorem</b>. Khipu BFT safety is Conjecture 2. Everything beyond the locked 8 is honestly staged PROVEN-ON-PAPER / CONJECTURE / ROADMAP &mdash; never counted as proven. That discipline is the product.
+  </p>
 </div></section>
 
 <!-- PRICING -->
