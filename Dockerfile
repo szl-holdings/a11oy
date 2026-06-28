@@ -358,6 +358,13 @@ COPY szl_observability.py ./
 # SZLHOLDINGS/a11oy-verifiable-corpus. Per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it the lazy import is a no-op and receipts never publish.
 COPY szl_corpus_publish.py ./
+# ADDITIVE (unified-receipt-ledger): vendored szl-lake durable store + ingest
+# router mounted onto the live a11oy app under /api/lake/v1 (the one durable sink
+# every SZL component POSTs to). Per-file COPY (this Dockerfile never uses
+# `COPY . .`); without it the guarded import in serve.py silently falls back and
+# the /api/lake/v1 routes never register. Durability mirrors to the HF dataset
+# via szl_corpus_publish's HFBucket path (already COPY'd above).
+COPY szl_lake_store.py szl_lake_ingest.py ./
 # NEMOTRON SIGNED-TRAJECTORY build (2026-06-14): DSSE-signed agent-trajectory
 # corpus pipeline (SZL-Nemo). Honest: DATASET property, not a model claim;
 # QLoRA-ready, training = ROADMAP (2x80GB GPU). nvidia/Nemotron-Agentic-v1

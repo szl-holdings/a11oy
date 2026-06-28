@@ -393,6 +393,25 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         "deny":   "A deny-by-default safety gate fired. No answer returned. Receipt records the denial.",
     }.get(decision, "Unrecognized decision.")
 
+    # ── UNIFIED LEDGER WIRE-UP ──────────────────────────────────────────────
+    # After the DSSE/Khipu receipt is built, record THIS governed turn into the
+    # unified receipt ledger (organ="a11oy") via an in-process call. Non-blocking
+    # (HFBucket mirror is debounced/background) and fully guarded — a ledger or
+    # dataset hiccup must NEVER affect the governed turn's response.
+    _receipt = g.get("receipt")
+    if isinstance(_receipt, dict):
+        try:
+            import szl_lake_ingest as _lake
+            _rec = dict(_receipt)
+            _rec.setdefault("decision", decision)
+            _rec.setdefault("dsse", g.get("dsse"))
+            _rec.setdefault("energy", energy)
+            _lake.record_receipt(_rec, organ="a11oy")
+        except Exception as _lake_e:  # pragma: no cover
+            import sys as _lake_sys
+            print(f"[a11oy] govern/infer ledger record skipped (non-fatal): {_lake_e!r}",
+                  file=_lake_sys.stderr)
+
     return {
         "decision": decision,
         "answer": answer,
