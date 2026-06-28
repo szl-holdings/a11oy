@@ -403,9 +403,14 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         try:
             import szl_lake_ingest as _lake
             _rec = dict(_receipt)
-            _rec.setdefault("decision", decision)
-            _rec.setdefault("dsse", g.get("dsse"))
-            _rec.setdefault("energy", energy)
+            # Carry the FULL governance proof into the ledger receipt (explicit
+            # assignment — the raw Khipu receipt may already hold differently-shaped
+            # keys; the half-state of a receipt that omits its own verdict/Λ/
+            # signature is unacceptable). _pub_gov already labels Λ as Conjecture 1.
+            _rec["decision"] = decision
+            _rec["governance"] = _pub_gov(g)
+            _rec["dsse"] = g.get("dsse")
+            _rec["energy"] = energy
             _lake.record_receipt(_rec, organ="a11oy")
         except Exception as _lake_e:  # pragma: no cover
             import sys as _lake_sys
