@@ -52,9 +52,27 @@ except Exception:  # pragma: no cover
     _avf = None
 
 # --- config (env-overridable; honest defaults) --------------------------------
-OLLAMA_BASE   = os.environ.get("SZL_OLLAMA_BASE",  "https://gpu.a-11-oy.com")
-METER_BASE    = os.environ.get("SZL_METER_BASE",   "https://meter.a-11-oy.com")
-MODEL         = os.environ.get("SZL_MODEL",        "llama3.1:8b")
+# THE SOVEREIGN MESH. Each engine is a real (ollama_base, meter_base, model, name)
+# backend. A governed turn is routed to a LIVE engine; energy is aggregated across
+# every reachable meter. Engines that are down are honestly skipped (never faked).
+# Override the whole mesh with SZL_MESH_JSON='[{"name":..,"ollama":..,"meter":..,"model":..}]'.
+_DEFAULT_MESH = [
+    {"name": "Sovereign GPU 2 (tower · RTX 4060 Ti · anchor)",
+     "ollama": "https://gpu.a-11-oy.com",  "meter": "https://meter.a-11-oy.com",  "model": "llama3.1:8b"},
+    {"name": "Sovereign GPU 1 (laptop · RTX 5050 · Blackwell)",
+     "ollama": "https://gpu2.a-11-oy.com", "meter": "https://meter2.a-11-oy.com", "model": "qwen2.5:3b"},
+]
+try:
+    MESH = json.loads(os.environ["SZL_MESH_JSON"]) if os.environ.get("SZL_MESH_JSON") else _DEFAULT_MESH
+except Exception:
+    MESH = _DEFAULT_MESH
+# Back-compat single-engine envs still honored as an override of engine 0.
+if os.environ.get("SZL_OLLAMA_BASE"):
+    MESH[0]["ollama"] = os.environ["SZL_OLLAMA_BASE"]
+if os.environ.get("SZL_METER_BASE"):
+    MESH[0]["meter"] = os.environ["SZL_METER_BASE"]
+if os.environ.get("SZL_MODEL"):
+    MESH[0]["model"] = os.environ["SZL_MODEL"]
 METER_FRESH_S = float(os.environ.get("SZL_METER_FRESH_S", "30"))
 HTTP_TIMEOUT  = float(os.environ.get("SZL_HTTP_TIMEOUT", "60"))
 # Browser-like UA: Cloudflare 403s the default python-urllib UA.
@@ -72,29 +90,63 @@ def _http_json(url: str, payload: dict | None = None, timeout: float = HTTP_TIME
         return json.loads(r.read().decode())
 
 
-def _meter_snapshot() -> tuple[float | None, dict]:
-    """Return (cumulative_joules, raw) from the real NVML exporter, or (None, {})."""
+def _meter_one(meter_base: str) -> tuple[float | None, dict]:
+    """Read ONE engine's NVML meter. Returns (cumulative_joules|None, evidence)."""
     try:
-        m = _http_json(METER_BASE + "/", timeout=10)
+        m = _http_json(meter_base + "/", timeout=10)
     except Exception as e:
-        return None, {"error": f"meter-unreachable: {e}"}
+        return None, {"meter": meter_base, "reachable": False, "note": str(e)[:80]}
     ts = m.get("ts")
     fresh = (ts is not None) and (abs(time.time() - float(ts)) <= METER_FRESH_S)
-    live = any(
-        g.get("live") is True
-        for eng in m.get("engines", []) for g in eng.get("gpus", [])
-    )
+    live = any(g.get("live") is True for eng in m.get("engines", []) for g in eng.get("gpus", []))
     total = (m.get("totals") or {}).get("joules")
-    if fresh and live and isinstance(total, (int, float)):
-        return float(total), {"fresh": True, "live": True, "exporter": m.get("exporter"), "ts": ts}
-    return None, {"fresh": fresh, "live": live, "exporter": m.get("exporter"), "ts": ts}
+    ok = fresh and live and isinstance(total, (int, float))
+    return (float(total) if ok else None), {
+        "meter": meter_base, "reachable": True, "fresh": fresh, "live": live,
+        "exporter": m.get("exporter"), "ts": ts}
 
 
-def _ollama_generate(prompt: str) -> tuple[str, dict]:
-    out = _http_json(OLLAMA_BASE + "/api/generate",
-                     {"model": MODEL, "prompt": prompt, "stream": False})
+def _meter_snapshot() -> tuple[float | None, dict]:
+    """Aggregate cumulative joules across EVERY mesh meter that is fresh+live.
+    Returns (summed_joules|None, evidence with per-engine breakdown). Honest: an
+    engine whose meter is down contributes nothing and is labeled unreachable."""
+    per = []
+    total = 0.0
+    any_ok = False
+    for eng in MESH:
+        j, ev = _meter_one(eng.get("meter", ""))
+        ev["engine"] = eng.get("name")
+        if j is not None:
+            total += j
+            any_ok = True
+        per.append(ev)
+    return (total if any_ok else None), {"engines": per, "aggregated": any_ok}
+
+
+def _engine_live(eng: dict) -> bool:
+    try:
+        _http_json(eng["ollama"] + "/api/tags", timeout=6)
+        return True
+    except Exception:
+        return False
+
+
+def _pick_engine() -> dict | None:
+    """Choose a LIVE engine for this turn. Anchor (engine 0) preferred; failover to
+    any other live engine. Returns None if the whole mesh is down (honest)."""
+    for eng in MESH:
+        if _engine_live(eng):
+            return eng
+    return None
+
+
+def _ollama_generate(prompt: str, eng: dict) -> tuple[str, dict]:
+    out = _http_json(eng["ollama"] + "/api/generate",
+                     {"model": eng["model"], "prompt": prompt, "stream": False})
     return out.get("response", ""), {
-        "model": out.get("model", MODEL),
+        "engine": eng.get("name"),
+        "ollama_base": eng["ollama"],
+        "model": out.get("model", eng["model"]),
         "eval_count": out.get("eval_count"),
         "total_duration_ns": out.get("total_duration"),
     }
@@ -118,27 +170,57 @@ def govern_infer(prompt: str, *, vertical: str = "general",
 
     answer = None
     gen_meta: dict = {}
+    served_by = None
     if decision == "allow":
-        try:
-            answer, gen_meta = _ollama_generate(prompt)
-        except Exception as e:
+        eng = _pick_engine()
+        if eng is None:
             return {"decision": decision, "answer": None,
                     "governance": _pub_gov(g), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
-                    "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"gen_error": str(e)}},
-                    "honesty": "governance allowed the turn but the GPU backend was unreachable; "
+                    "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "no live engine"}},
+                    "honesty": "governance allowed the turn but NO mesh engine was reachable; "
                                "no answer and no joules fabricated."}
+        served_by = eng.get("name")
+        try:
+            answer, gen_meta = _ollama_generate(prompt, eng)
+        except Exception:
+            # failover: try any OTHER live engine once
+            alt = next((e for e in MESH if e is not eng and _engine_live(e)), None)
+            if alt is None:
+                return {"decision": decision, "answer": None,
+                        "governance": _pub_gov(g), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
+                        "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "engine failed, no failover"}},
+                        "honesty": "governance allowed the turn but the chosen engine failed and no "
+                                   "failover engine was live; no answer and no joules fabricated."}
+            served_by = alt.get("name") + " (failover)"
+            answer, gen_meta = _ollama_generate(prompt, alt)
 
     j_after, ev_after = _meter_snapshot()
 
-    # 3) Honest joule join: MEASURED iff both endpoints were fresh+live around the call.
-    if j_before is not None and j_after is not None and j_after >= j_before:
-        joules = round(j_after - j_before, 3)
-        energy = {"joules": joules, "label": "MEASURED",
-                  "evidence": {"before": ev_before, "after": ev_after, "source": METER_BASE}}
+    # 3) Honest joule join. MEASURED requires:
+    #    (a) the engine that SERVED has a fresh+live meter, AND
+    #    (b) a REAL positive delta (> _JOULE_FLOOR) was observed.
+    # If the serving engine's meter is down (e.g. laptop meter2=404) we label
+    # UNAVAILABLE even if some OTHER node's meter ticked — never attribute another
+    # node's joules to this turn, never call a 0.0 delta "MEASURED".
+    _JOULE_FLOOR = 0.5  # joules; below this the delta is noise, not a measured turn
+    served_meter_live = False
+    if served_by:
+        base = served_by.replace(" (failover)", "")
+        for ev in (ev_after or {}).get("engines", []):
+            if ev.get("engine") == base and ev.get("reachable") and ev.get("live"):
+                served_meter_live = True
+                break
+    delta = (j_after - j_before) if (j_before is not None and j_after is not None) else None
+    if served_meter_live and delta is not None and delta > _JOULE_FLOOR:
+        energy = {"joules": round(delta, 3), "label": "MEASURED",
+                  "evidence": {"served_by": served_by, "before": ev_before, "after": ev_after}}
     else:
+        why = ("serving engine has no live NVML meter" if not served_meter_live
+               else "no real positive joule delta this turn")
         energy = {"joules": None, "label": "UNAVAILABLE",
-                  "evidence": {"before": ev_before, "after": ev_after,
-                               "note": "no fresh+live NVML delta; joule NOT fabricated"}}
+                  "evidence": {"served_by": served_by, "reason": why,
+                               "before": ev_before, "after": ev_after,
+                               "note": "joule NOT fabricated; not attributed across nodes"}}
 
     honesty = {
         "allow":  "Governance allowed the turn; answer returned with a signed receipt. "
@@ -153,6 +235,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
     return {
         "decision": decision,
         "answer": answer,
+        "served_by": served_by,
         "governance": _pub_gov(g),
         "receipt": g.get("receipt"),
         "dsse": g.get("dsse"),
@@ -213,14 +296,19 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
 
     async def _health(request=None):
         jb, ev = _meter_snapshot()
+        engines = []
+        for e in MESH:
+            engines.append({"name": e.get("name"), "model": e.get("model"),
+                            "ollama": e.get("ollama"), "live": _engine_live(e)})
         return JSONResponse({
             "product": "a11oy Governed Inference",
             "governance": _avf is not None and hasattr(_avf, "governed_turn"),
-            "ollama_base": OLLAMA_BASE, "model": MODEL,
-            "meter_base": METER_BASE,
+            "mesh": engines,
+            "engines_live": sum(1 for e in engines if e["live"]),
+            "engines_total": len(engines),
             "meter_fresh_live": jb is not None, "meter_evidence": ev,
             "honesty": "Λ is Conjecture 1 (advisory). Answer returned only on decision==allow. "
-                       "Joules MEASURED only from real NVML; never fabricated.",
+                       "Energy aggregated across all live mesh meters; never fabricated.",
         })
 
     # Landing page: serve the holographic showcase at /govern and /govern/ (branded domain root)
@@ -235,6 +323,22 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
     except Exception:
         _landing = None
 
+    # CRITICAL honesty fix: serve the REAL cosign public key (the one receipts are
+    # actually signed with) at /cosign.pub + /.well-known/cosign.pub, sourced from
+    # the SAME material szl_dsse uses to verify. This guarantees the published key
+    # ALWAYS matches the signing key — a buyer following "verify against /cosign.pub"
+    # succeeds. (Front-inserted so it wins over serve.py's stale ephemeral-key route.)
+    try:
+        from starlette.responses import PlainTextResponse
+        import szl_dsse as _dsse
+        _PUBPEM = _dsse.COSIGN_PUBLIC_PEM.strip() + "\n"
+        async def _pubkey(request=None):
+            return PlainTextResponse(_PUBPEM, media_type="application/x-pem-file",
+                                     headers={"x-keyid": getattr(_dsse, "KEYID", "szlholdings-cosign"),
+                                              "x-pub-sha256": _dsse.public_key_fingerprint()})
+    except Exception:
+        _pubkey = None
+
     # Register at the FULL /api/a11oy/v1/govern/* path (proven to resolve locally,
     # like /api/a11oy/v1/reason) AND the post-strip /v1/govern/* + short /govern/*
     # forms, so it wins regardless of how the front-door forwards.
@@ -248,6 +352,9 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
         ("/govern/infer",  _infer,  ["POST"]),
         ("/govern/health", _health, ["GET"]),
     ]
+    if _pubkey is not None:
+        paths += [("/cosign.pub", _pubkey, ["GET"]),
+                  ("/.well-known/cosign.pub", _pubkey, ["GET"])]
     registered = []
     for path, fn, methods in paths:
         app.router.routes.insert(0, Route(path, fn, methods=methods))
