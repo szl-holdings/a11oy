@@ -15533,7 +15533,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       ["lambda","\u25d4","Trust Score"],
       ["decision","\u25c8","Governed Decision"],
       ["gates","\u22a0","Safety Gates"],
-      ["govern","\u2713","Readiness & Compliance"]
+      ["govern","\u2713","Readiness & Compliance"],
+      ["willay","\u26e8","WILLAY \u2014 Signed Refusals","/willay"],
+      ["verify","\u2713","Verify a Receipt","/verify"]
     ]],
     ["Prove", [
       ["chain","\u26d3","Receipt Chain"],
@@ -15575,7 +15577,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         var d = document.createElement('div');
         d.className = 'nav-item';
         d.setAttribute('data-view', it[0]);
-        (function(v){ d.onclick = function(){ if(window.go) window.go(v); }; })(it[0]);
+        // 4th element (optional) = a page href: navigate to the page instead of go(view).
+        if(it[3]){
+          (function(href){ d.onclick = function(){ window.location.href = href; }; })(it[3]);
+        } else {
+          (function(v){ d.onclick = function(){ if(window.go) window.go(v); }; })(it[0]);
+        }
         d.innerHTML = '<span class="ico">'+it[1]+'</span>'+it[2];
         frag.appendChild(d);
       });
