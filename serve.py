@@ -8203,6 +8203,17 @@ async def marketing_landing_page() -> Response:
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
+# /verify — Tier-1 Demo: Buyer-Verifiable Receipt + Λ-Gated Refusal + Verifiable Thesis.
+# Served from pages/verify.html (COPYed wholesale by the Dockerfile COPY pages/ ./pages/).
+# Registered BEFORE the SPA catch-all so /verify returns the real page, not the SPA soft-404.
+# ADDITIVE — no existing route touched.
+@app.get("/verify")
+async def verify_demo_page() -> Response:
+    f = PAGES_DIR / "verify.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
 
 # /company — SZL Holdings story folded into a-11-oy.com (the holding-company front
 # door: "Governed AI, proven in Lean", the PURIQ doctrine, the five flagships, and
@@ -9344,6 +9355,21 @@ except Exception as _gv_e:
     print(f"[a11oy] governed-inference register FAILED (non-fatal): {_gv_e!r}", file=__import__("sys").stderr)
 # ============================================================================
 # END: a11oy GOVERNED-INFERENCE product layer
+# ============================================================================
+# ============================================================================
+# BEGIN: Tier-1 Demo Features (BVIR + Honest Refusal + Verifiable Thesis)
+# ADDITIVE. Path namespace /api/a11oy/v1/demo — no overlap with any existing
+# namespace. Front-moves routes in register() so they win over the /api proxy
+# + SPA catch-all. Wraps try/except — NEVER breaks the SPA or existing routes.
+# ============================================================================
+try:
+    import szl_demo_tier1 as _szl_demo_tier1
+    _demo_tier1_status = _szl_demo_tier1.register(app, ns="a11oy")
+    print(f"[a11oy] Tier-1 demo registered: {_demo_tier1_status}", file=__import__("sys").stderr)
+except Exception as _dt1_e:
+    print(f"[a11oy] Tier-1 demo register FAILED (non-fatal): {_dt1_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: Tier-1 Demo Features
 # ============================================================================
 
 # ============================================================================

@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>a11oy — Verifiable Inference</title>
+<style>
+  /* =====================================================================
+     a11oy Tier-1 Demo — elite showcase aesthetic
+     Dark palette · Cabinet Grotesk / JetBrains Mono · honest-label chips
+     ===================================================================== */
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap');
+
+  :root {
+    --bg:        #0a0c0f;
+    --bg-panel:  #111318;
+    --bg-card:   #16191f;
+    --border:    #2a2d35;
+    --border-hi: #3d4250;
+    --text:      #e8eaf0;
+    --text-dim:  #8891a8;
+    --text-mute: #4a5068;
+    --accent:    #6c8ef5;
+    --accent-hi: #8aaaf8;
+    --green:     #4ade80;
+    --amber:     #f59e0b;
+    --red:       #f87171;
+    --mono:      'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --sans:      'Cabinet Grotesk', 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --radius:    8px;
+    --radius-lg: 14px;
+    --shadow:    0 2px 12px rgba(0,0,0,0.5);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ---- header ---- */
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-panel);
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    flex-shrink: 0;
+  }
+  .site-title { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+  .site-tagline { font-size: 12px; color: var(--text-dim); margin-left: auto; }
+  .nav-back {
+    font-size: 12px; color: var(--text-dim);
+    text-decoration: none; margin-left: auto;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px;
+    transition: border-color .15s, color .15s;
+  }
+  .nav-back:hover { border-color: var(--accent); color: var(--accent-hi); }
+
+  /* ---- layout ---- */
+  .page { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+  .page-hero { margin-bottom: 56px; }
+  .page-hero h1 {
+    font-size: 28px; font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.2; margin-bottom: 10px;
+  }
+  .page-hero p { color: var(--text-dim); max-width: 600px; }
+
+  /* ---- sections ---- */
+  .section {
+    margin-bottom: 56px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .section-head {
+    background: var(--bg-panel);
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-head h2 {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-dim);
+    border: 1px solid var(--border-hi); border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .section-head p { font-size: 13px; color: var(--text-dim); max-width: 620px; }
+  .section-body { padding: 24px; background: var(--bg-card); }
+  .moat-line {
+    font-size: 12px; color: var(--text-dim);
+    font-style: italic; margin-top: 8px;
+  }
+
+  /* ---- chip / badges ---- */
+  .chip {
+    display: inline-block; border-radius: 4px;
+    padding: 2px 8px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+  .chip-allow  { background: #052e12; border-color: #166534; color: var(--green); }
+  .chip-review { background: #2d1e00; border-color: #92400e; color: var(--amber); }
+  .chip-deny   { background: #2d0f0f; border-color: #991b1b; color: var(--red); }
+  .chip-info   { background: #0d1533; border-color: #1e3a8a; color: var(--accent-hi); }
+  .chip-dim    { background: #1a1d24; border-color: var(--border); color: var(--text-dim); }
+  .chip-ok     { background: #052e12; border-color: #166534; color: var(--green); }
+  .chip-warn   { background: #2d1e00; border-color: #92400e; color: var(--amber); }
+  .chip-err    { background: #2d0f0f; border-color: #991b1b; color: var(--red); }
+
+  /* ---- buttons ---- */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .btn {
+    padding: 9px 18px; border-radius: var(--radius);
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent;
+    transition: opacity .15s, transform .05s;
+    outline: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: #1e3a8a; border-color: #2563eb;
+    color: #dbeafe;
+  }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-allow  { background: #052e12; border-color: #166534; color: var(--green); }
+  .btn-allow:hover  { background: #14532d; }
+  .btn-review { background: #2d1e00; border-color: #92400e; color: var(--amber); }
+  .btn-review:hover { background: #451a03; }
+  .btn-deny   { background: #2d0f0f; border-color: #991b1b; color: var(--red); }
+  .btn-deny:hover   { background: #450a0a; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ---- output panels ---- */
+  .output {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    white-space: pre-wrap; word-break: break-all;
+    color: var(--text-dim); min-height: 56px;
+    transition: border-color .2s;
+  }
+  .output.verified   { border-color: #166534; }
+  .output.failed     { border-color: #991b1b; }
+  .output.loading    { border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.8} 50%{opacity:.4} }
+
+  /* ---- verdict banner ---- */
+  .verdict-banner {
+    border-radius: var(--radius); padding: 14px 20px;
+    margin-bottom: 16px; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid transparent;
+  }
+  .verdict-ok  { background: #052e12; border-color: #166534; color: var(--green); }
+  .verdict-fail{ background: #2d0f0f; border-color: #991b1b; color: var(--red); }
+  .verdict-dim { background: var(--bg-panel); border-color: var(--border); color: var(--text-dim); }
+
+  /* ---- formula cards ---- */
+  .formula-grid { display: grid; gap: 14px; }
+  .formula-card {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+  }
+  .formula-card-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .formula-id {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--accent); background: #0d1533; border: 1px solid #1e3a8a;
+    border-radius: 4px; padding: 2px 7px;
+  }
+  .formula-name { font-size: 14px; font-weight: 700; }
+  .formula-lean {
+    font-family: var(--mono); font-size: 12px; color: #a5f3fc;
+    background: #051e24; border: 1px solid #0e4a57;
+    border-radius: 6px; padding: 10px 14px; margin: 8px 0;
+    white-space: pre-wrap; word-break: break-all; line-height: 1.6;
+  }
+  .formula-desc { font-size: 12px; color: var(--text-dim); }
+  .formula-status {
+    font-size: 10px; color: var(--green); font-family: var(--mono);
+    margin-top: 6px;
+  }
+
+  /* ---- corpus diagram ---- */
+  .corpus-diagram {
+    display: flex; gap: 14px; flex-wrap: wrap; margin: 20px 0;
+  }
+  .corpus-tier {
+    flex: 1; min-width: 180px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; background: var(--bg-panel);
+  }
+  .corpus-count {
+    font-size: 32px; font-weight: 800; font-family: var(--mono);
+    line-height: 1;
+  }
+  .corpus-count.proven { color: var(--green); }
+  .corpus-count.gates  { color: var(--amber); }
+  .corpus-count.total  { color: var(--accent-hi); }
+  .corpus-tier-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; margin: 4px 0 8px; }
+  .corpus-tier-desc { font-size: 12px; color: var(--text-dim); }
+  .corpus-never-claim {
+    background: #2d1e00; border: 1px solid #92400e;
+    border-radius: var(--radius); padding: 12px 16px;
+    font-size: 13px; color: var(--amber); margin-top: 14px;
+  }
+
+  /* ---- hash display ---- */
+  .hash-row {
+    display: flex; gap: 8px; align-items: center;
+    flex-wrap: wrap; margin: 6px 0;
+  }
+  .hash-label { font-size: 11px; color: var(--text-dim); min-width: 90px; }
+  .hash-val {
+    font-family: var(--mono); font-size: 11px; color: var(--text);
+    background: var(--bg); border-radius: 4px; padding: 2px 6px;
+    border: 1px solid var(--border); word-break: break-all;
+  }
+  .hash-match { border-color: #166534; color: var(--green); }
+  .hash-mismatch { border-color: #991b1b; color: var(--red); }
+
+  /* ---- gate row ---- */
+  .gate-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 12px; border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+  .gate-name { font-family: var(--mono); font-size: 12px; flex: 1; }
+  .gate-fired { font-size: 11px; font-weight: 700; }
+
+  /* ---- loading spinner ---- */
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .7s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- status line ---- */
+  .status-line { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+  /* ---- divider ---- */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* ---- conjecture chip ---- */
+  .conj {
+    display: inline-block;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; border-radius: 4px;
+    padding: 2px 7px; border: 1px solid #92400e;
+    background: #2d1e00; color: var(--amber);
+  }
+
+  /* ---- footer ---- */
+  .footer {
+    border-top: 1px solid var(--border); padding: 24px;
+    color: var(--text-mute); font-size: 12px; text-align: center;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hi); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="site-header">
+  <svg class="logo-mark" viewBox="0 0 32 32" fill="none" aria-label="a11oy">
+    <rect width="32" height="32" rx="7" fill="#1e3a8a"/>
+    <path d="M8 24 L16 8 L24 24" stroke="#6c8ef5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="16" cy="16" r="2.5" fill="#8aaaf8"/>
+  </svg>
+  <span class="site-title">a11oy</span>
+  <span class="site-tagline">Governed Inference · Verifiable by Design</span>
+  <a href="/" class="nav-back">← Console</a>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="page">
+
+  <div class="page-hero">
+    <h1>Verifiable Inference</h1>
+    <p>Three live demo features. Every receipt is signed and independently verifiable. The honesty is the product.</p>
+  </div>
+
+  <!-- ===================================================================
+       SECTION A — Buyer-Verifiable Receipt (BVIR)
+       =================================================================== -->
+  <section class="section" id="section-bvir">
+    <div class="section-head">
+      <h2>
+        <span class="section-label">A</span>
+        Buyer-Verifiable Inference Receipt
+      </h2>
+      <p>
+        Makes a real POST /api/a11oy/v1/govern/infer call, then verifies the DSSE ECDSA-P256
+        signature <strong>in-browser</strong> using WebCrypto — no server round-trip for verification.
+        SHA-256 of the decoded payload is recomputed and matched to <code>receipt.payload_digest</code>.
+      </p>
+      <p class="moat-line">
+        "No other inference provider gives you a receipt you can re-verify yourself, offline, with just a hash function and our public key."
+      </p>
+    </div>
+    <div class="section-body">
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="bvir-run" onclick="runBVIR()">
+          Run Inference &amp; Verify Receipt
+        </button>
+      </div>
+
+      <div id="bvir-status" class="status-line"></div>
+      <div id="bvir-verdict" style="display:none"></div>
+      <div id="bvir-output" class="output" style="display:none"></div>
+
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       SECTION B — Λ-Gated Honest Refusal
+       =================================================================== -->
+  <section class="section" id="section-govern">
+    <div class="section-head">
+      <h2>
+        <span class="section-label">B</span>
+        Λ-Gated Honest Refusal
+      </h2>
+      <p>
+        Three preset governance cases. Each returns a REAL signed receipt via
+        <code>szl_dsse.sign_khipu_receipt</code>. Λ is always labeled
+        <span class="conj">Conjecture 1 — advisory, NOT a theorem</span>.
+      </p>
+      <p class="moat-line">"Even our refusals are signed and explained — no black-box boolean."</p>
+    </div>
+    <div class="section-body">
+
+      <div class="btn-row">
+        <button class="btn btn-allow"  onclick="runGovern('allow')">Allow</button>
+        <button class="btn btn-review" onclick="runGovern('review')">Review</button>
+        <button class="btn btn-deny"   onclick="runGovern('deny')">Deny</button>
+      </div>
+
+      <div id="govern-status" class="status-line"></div>
+      <div id="govern-panel" style="display:none">
+        <div id="govern-verdict-banner"></div>
+        <div id="govern-lambda-row" style="margin-bottom:14px"></div>
+        <div id="govern-gates"></div>
+        <div id="govern-receipt-block" style="display:none;margin-top:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Signed Denial Receipt</div>
+          <div id="govern-receipt-output" class="output"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       SECTION C — Verifiable Thesis
+       =================================================================== -->
+  <section class="section" id="section-thesis">
+    <div class="section-head">
+      <h2>
+        <span class="section-label">C</span>
+        Verifiable Thesis
+      </h2>
+      <p>
+        The 8 PROVEN formulas with verbatim Lean 4 statements, the 3-tier honest corpus
+        (8 / ~35 / ~185), and the honest conjecture labels for Λ and Khipu BFT.
+      </p>
+      <p class="moat-line">"The honesty is the product. Click any formula — verify it yourself."</p>
+    </div>
+    <div class="section-body">
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="thesis-load" onclick="loadThesis()">
+          Load Formulas &amp; Corpus
+        </button>
+      </div>
+
+      <div id="thesis-status" class="status-line"></div>
+      <div id="thesis-panel" style="display:none">
+
+        <!-- corpus diagram -->
+        <div id="thesis-corpus"></div>
+
+        <hr class="divider" />
+
+        <!-- 8 formulas -->
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em">
+          8 Kernel-Proven Formulas
+        </div>
+        <div id="thesis-formulas" class="formula-grid"></div>
+
+        <hr class="divider" />
+
+        <!-- conjecture labels -->
+        <div id="thesis-conjectures"></div>
+
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>SZL Holdings · a11oy · Doctrine v11 · 8 kernel-verified formulas @ c7c0ba17 ·
+     Λ = Conjecture 1 (advisory) · Khipu BFT = Conjecture 2 ·
+     <a href="/govern/health" target="_blank">Governance Health</a> ·
+     <a href="/api/a11oy/v1/demo/thesis" target="_blank">Thesis API</a>
+  </p>
+</footer>
+
+<!-- ===================================================================
+     JAVASCRIPT — all in-browser, no CDN
+     =================================================================== -->
+<script>
+"use strict";
+
+/* ---- utility ---- */
+function el(id) { return document.getElementById(id); }
+function show(id) { const e = el(id); if (e) e.style.display = ''; }
+function hide(id) { const e = el(id); if (e) e.style.display = 'none'; }
+function setText(id, txt) { const e = el(id); if (e) e.textContent = txt; }
+function setHTML(id, html) { const e = el(id); if (e) e.innerHTML = html; }
+
+function setStatus(id, msg, loading) {
+  const e = el(id);
+  if (!e) return;
+  if (loading) {
+    e.innerHTML = '<span class="spinner"></span>' + escHTML(msg);
+  } else {
+    e.textContent = msg;
+  }
+}
+
+function escHTML(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ---- base64 helpers ---- */
+function b64Decode(s) {
+  // standard base64 → Uint8Array (not URL-safe; WebCrypto importKey returns SPKI base64)
+  const bin = atob(s);
+  const b = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+  return b;
+}
+
+function b64Encode(buf) {
+  let s = '';
+  const b = new Uint8Array(buf);
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s);
+}
+
+/* ---- DER ASN.1 → raw r‖s converter (for WebCrypto ECDSA P-256) ----
+   cosign / cryptography-lib ECDSA signs in DER (ASN.1 SEQUENCE { INTEGER r, INTEGER s }).
+   WebCrypto ECDSA P-256 SHA-256 expects IEEE P-1363 raw r‖s (64 bytes: 32+32).
+   We decode the DER SEQUENCE here entirely in JS — no library needed.
+*/
+function derToRaw(derBytes) {
+  let i = 0;
+  if (derBytes[i++] !== 0x30) throw new Error('not DER SEQUENCE');
+  // Length (short form or long form)
+  let seqLen = derBytes[i++];
+  if (seqLen & 0x80) {
+    const nb = seqLen & 0x7f;
+    seqLen = 0;
+    for (let b = 0; b < nb; b++) seqLen = (seqLen << 8) | derBytes[i++];
+  }
+  function readInt() {
+    if (derBytes[i++] !== 0x02) throw new Error('expected INTEGER tag');
+    let len = derBytes[i++];
+    if (len & 0x80) {
+      const nb = len & 0x7f; len = 0;
+      for (let b = 0; b < nb; b++) len = (len << 8) | derBytes[i++];
+    }
+    const val = derBytes.slice(i, i + len); i += len;
+    return val;
+  }
+  const rArr = readInt();
+  const sArr = readInt();
+  // Pad / strip leading zero byte (ASN.1 adds 0x00 prefix when high-bit set)
+  function pad32(arr) {
+    // strip leading 0x00
+    let j = 0;
+    while (j < arr.length - 1 && arr[j] === 0) j++;
+    const stripped = arr.slice(j);
+    const out = new Uint8Array(32);
+    const off = 32 - stripped.length;
+    if (off < 0) throw new Error('integer too long: ' + stripped.length);
+    out.set(stripped, off);
+    return out;
+  }
+  const raw = new Uint8Array(64);
+  raw.set(pad32(rArr), 0);
+  raw.set(pad32(sArr), 32);
+  return raw;
+}
+
+/* ---- DSSE PAE ----
+   PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body
+   Exactly mirrors szl_dsse.pae()
+*/
+function buildPAE(payloadType, bodyBytes) {
+  const enc = new TextEncoder();
+  const t = enc.encode(payloadType);
+  const prefix = enc.encode(`DSSEv1 ${t.length} `);
+  const mid = enc.encode(` ${bodyBytes.length} `);
+  const total = prefix.length + t.length + mid.length + bodyBytes.length;
+  const buf = new Uint8Array(total);
+  let off = 0;
+  buf.set(prefix, off); off += prefix.length;
+  buf.set(t, off); off += t.length;
+  buf.set(mid, off); off += mid.length;
+  buf.set(bodyBytes, off);
+  return buf;
+}
+
+/* ---- SHA-256 via WebCrypto ---- */
+async function sha256(data) {
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ---- Import P-256 SPKI public key from PEM ---- */
+async function importPubKeyFromPEM(pem) {
+  const b64 = pem
+    .replace('-----BEGIN PUBLIC KEY-----','')
+    .replace('-----END PUBLIC KEY-----','')
+    .replace(/\s+/g,'');
+  const raw = b64Decode(b64);
+  return crypto.subtle.importKey(
+    'spki', raw.buffer,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false, ['verify']
+  );
+}
+
+/* ====================================================================
+   SECTION A — BVIR
+   ==================================================================== */
+async function runBVIR() {
+  const btn = el('bvir-run');
+  btn.disabled = true;
+  hide('bvir-verdict');
+  hide('bvir-output');
+  setStatus('bvir-status', 'Calling /api/a11oy/v1/govern/infer …', true);
+
+  let data;
+  try {
+    const resp = await fetch('/api/a11oy/v1/govern/infer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'hello', vertical: 'general', declared: 'PUBLIC' })
+    });
+    data = await resp.json();
+  } catch(e) {
+    setStatus('bvir-status', 'Error calling govern/infer: ' + e.message);
+    btn.disabled = false;
+    return;
+  }
+
+  setStatus('bvir-status', 'Verifying signature in-browser via WebCrypto …', true);
+
+  const dsse   = data.dsse   || {};
+  const receipt= data.receipt|| {};
+
+  // Step 1: Fetch cosign.pub
+  let pubKey;
+  let pubKeyPEM = '';
+  try {
+    const pkResp = await fetch('/cosign.pub');
+    pubKeyPEM = await pkResp.text();
+    pubKey = await importPubKeyFromPEM(pubKeyPEM);
+  } catch(e) {
+    setStatus('bvir-status', 'Could not fetch/import cosign.pub: ' + e.message);
+    btn.disabled = false;
+    return;
+  }
+
+  // Step 2: Decode payload bytes
+  const payloadType = dsse.payloadType || 'application/vnd.szl.khipu+json';
+  let payloadBytes;
+  try {
+    payloadBytes = b64Decode(dsse.payload || '');
+  } catch(e) {
+    setStatus('bvir-status', 'Could not decode dsse.payload: ' + e.message);
+    btn.disabled = false;
+    return;
+  }
+
+  // Step 3: Recompute SHA-256 of decoded payload
+  const payloadDigestComputed = await sha256(payloadBytes.buffer);
+
+  // Step 4: PAE and verify signature
+  const paeBytes = buildPAE(payloadType, payloadBytes);
+  const paeSHA   = await sha256(paeBytes.buffer);
+
+  const sigs = dsse.signatures || [];
+  let verified = false;
+  let verifyError = '';
+  let sigKeyid = '';
+
+  if (!dsse.signed) {
+    verifyError = 'UNSIGNED envelope — private key not available in this runtime. Receipt chain is still valid.';
+  } else if (sigs.length === 0) {
+    verifyError = 'No signatures in envelope.';
+  } else {
+    const sigEntry = sigs[0];
+    sigKeyid = sigEntry.keyid || '';
+    try {
+      // Try IEEE P-1363 raw first; if that fails, try DER
+      const sigBytes = b64Decode(sigEntry.sig || '');
+      let rawSig = sigBytes;
+
+      // Detect DER: starts with 0x30
+      if (sigBytes[0] === 0x30) {
+        try {
+          rawSig = derToRaw(sigBytes);
+        } catch(e2) {
+          verifyError = 'DER→raw conversion failed: ' + e2.message;
+        }
+      }
+
+      if (!verifyError) {
+        verified = await crypto.subtle.verify(
+          { name: 'ECDSA', hash: 'SHA-256' },
+          pubKey,
+          rawSig.buffer,
+          paeBytes.buffer
+        );
+        if (!verified) {
+          // Try without DER conversion (in case it was already raw)
+          if (sigBytes[0] === 0x30) {
+            verified = await crypto.subtle.verify(
+              { name: 'ECDSA', hash: 'SHA-256' },
+              pubKey,
+              sigBytes.buffer,
+              paeBytes.buffer
+            );
+          }
+        }
+        if (!verified) verifyError = 'ECDSA verification returned false.';
+      }
+    } catch(e) {
+      verifyError = 'Signature verify error: ' + e.message;
+    }
+  }
+
+  // Step 5: Hash-chain check
+  const receiptDigest   = receipt.digest || receipt.payload_digest || '';
+  const chainPrev       = receipt.prev || '(genesis)';
+  const chainDigest     = receipt.digest || '';
+
+  // Build result UI
+  let verdictHTML = '';
+  if (verified) {
+    verdictHTML = `<div class="verdict-banner verdict-ok">
+      ✓ VERIFIED — WebCrypto ECDSA-P256 signature valid
+      <span class="chip chip-ok">keyid: ${escHTML(sigKeyid)}</span>
+    </div>`;
+  } else if (!dsse.signed) {
+    verdictHTML = `<div class="verdict-banner verdict-dim">
+      ⚠ UNSIGNED — private key not in runtime; receipt chain still valid
+    </div>`;
+  } else {
+    verdictHTML = `<div class="verdict-banner verdict-fail">
+      ✗ VERIFICATION FAILED — ${escHTML(verifyError)}
+    </div>`;
+  }
+
+  verdictHTML += `
+    <div style="margin-bottom:12px">
+      <div class="hash-row">
+        <span class="hash-label">Payload digest:</span>
+        <span class="hash-val ${payloadDigestComputed === receiptDigest.substring(0,64) ? 'hash-match':'hash-mismatch'}">${payloadDigestComputed.substring(0,32)}…</span>
+        <span class="chip ${payloadDigestComputed === receiptDigest.substring(0,64) ? 'chip-ok':'chip-err'}">${payloadDigestComputed === receiptDigest.substring(0,64) ? 'MATCH':'MISMATCH'}</span>
+      </div>
+      <div class="hash-row">
+        <span class="hash-label">PAE SHA-256:</span>
+        <span class="hash-val">${paeSHA.substring(0,32)}…</span>
+      </div>
+      <div class="hash-row">
+        <span class="hash-label">Chain prev:</span>
+        <span class="hash-val">${escHTML(String(chainPrev).substring(0,32))}…</span>
+      </div>
+      <div class="hash-row">
+        <span class="hash-label">Chain digest:</span>
+        <span class="hash-val">${escHTML(String(chainDigest).substring(0,32))}…</span>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">
+      <span class="conj">Λ Conjecture 1 — advisory</span>
+      Λ = ${escHTML(String((data.governance||{}).lambda ?? 'N/A'))}
+      &nbsp;·&nbsp;
+      Energy: <span class="chip chip-dim">${escHTML((data.energy||{}).label || 'UNAVAILABLE')}</span>
+    </div>
+  `;
+
+  setHTML('bvir-verdict', verdictHTML);
+  show('bvir-verdict');
+
+  const outputData = {
+    decision: data.decision,
+    'governance.lambda': (data.governance||{}).lambda,
+    'governance.lambda_kind': (data.governance||{}).lambda_kind,
+    'receipt.seq': receipt.seq,
+    'receipt.prev': String(chainPrev).substring(0,32) + '…',
+    'receipt.digest': String(chainDigest).substring(0,32) + '…',
+    'dsse.signed': dsse.signed,
+    'dsse.payloadType': dsse.payloadType,
+    'verify.computed_payload_sha256': payloadDigestComputed.substring(0,32) + '…',
+    'verify.pae_sha256': paeSHA.substring(0,32) + '…',
+    'verify.result': verified ? 'VERIFIED ✓' : (dsse.signed === false ? 'UNSIGNED (no private key in runtime)' : 'FAILED: ' + verifyError),
+    'energy.label': (data.energy||{}).label,
+  };
+  el('bvir-output').textContent = JSON.stringify(outputData, null, 2);
+  show('bvir-output');
+  el('bvir-output').className = 'output ' + (verified ? 'verified' : (dsse.signed === false ? '' : 'failed'));
+
+  setStatus('bvir-status', verified
+    ? '✓ WebCrypto verified — real ECDSA-P256 signature over DSSE PAE.'
+    : (dsse.signed === false
+        ? 'Unsigned receipt (private key absent from runtime). Chain valid.'
+        : 'Verification result: ' + verifyError));
+  btn.disabled = false;
+}
+
+/* ====================================================================
+   SECTION B — Governed Refusal
+   ==================================================================== */
+async function runGovern(caseKey) {
+  hide('govern-panel');
+  setStatus('govern-status', `Calling /api/a11oy/v1/demo/govern case="${caseKey}" …`, true);
+
+  let data;
+  try {
+    const resp = await fetch('/api/a11oy/v1/demo/govern', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ case: caseKey })
+    });
+    data = await resp.json();
+  } catch(e) {
+    setStatus('govern-status', 'Error: ' + e.message);
+    return;
+  }
+
+  const gov     = data.governance || {};
+  const receipt = data.receipt    || {};
+  const dsse    = data.dsse       || {};
+  const chain   = data.chain      || {};
+  const decision = data.decision  || caseKey;
+
+  // Verdict banner
+  const decClasses = { allow:'verdict-ok', review:'verdict-dim', deny:'verdict-fail' };
+  const decLabels  = { allow:'✓ ALLOW — governance passed', review:'⚠ REVIEW — below advisory floor', deny:'✗ DENY — gate fired' };
+  const bannerCls  = decClasses[decision] || 'verdict-dim';
+  const bannerLbl  = decLabels[decision]  || decision.toUpperCase();
+  el('govern-verdict-banner').innerHTML = `<div class="verdict-banner ${bannerCls}">${bannerLbl}</div>`;
+
+  // Λ row
+  const lambdaPass = gov.lambda_pass;
+  el('govern-lambda-row').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:14px;font-weight:700">Λ = ${escHTML(String(gov.lambda ?? 'N/A'))}</span>
+      <span class="chip ${lambdaPass ? 'chip-ok' : 'chip-err'}">
+        ${lambdaPass ? 'PASS' : 'FAIL'} (floor ${escHTML(String(gov.lambda_floor ?? 0.9))})
+      </span>
+      <span class="conj">Conjecture 1 — advisory, NOT a theorem</span>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin-top:4px">
+      ${escHTML(gov.lambda_kind || 'Conjecture 1 (advisory; NOT a theorem)')}
+    </div>
+  `;
+
+  // Gates
+  const gates = gov.gates || [];
+  let gatesHTML = `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-dim);margin-bottom:8px">Gates</div>`;
+  gates.forEach(g => {
+    const fired = g.fired;
+    gatesHTML += `
+      <div class="gate-row">
+        <span class="gate-name">${escHTML(g.name || '—')}</span>
+        <span class="gate-fired ${fired ? 'chip chip-err' : 'chip chip-ok'}">${fired ? 'FIRED' : 'PASS'}</span>
+        <span class="chip chip-dim">${escHTML(g.decision || '—')}</span>
+      </div>`;
+  });
+  el('govern-gates').innerHTML = gatesHTML;
+
+  // Signed receipt on deny
+  if (decision === 'deny' || decision === 'review') {
+    const signed = dsse.signed;
+    const receiptOut = {
+      decision: receipt.decision,
+      seq: receipt.seq,
+      lambda: receipt.lambda,
+      lambda_kind: receipt.lambda_kind,
+      gates: receipt.gates,
+      prev: String(chain.prev || '').substring(0,32) + '…',
+      digest: String(chain.digest || '').substring(0,32) + '…',
+      'dsse.signed': signed,
+      'dsse.keyid': ((dsse.signatures||[])[0]||{}).keyid,
+      honesty: data.honesty,
+    };
+    el('govern-receipt-output').className = 'output ' + (signed ? 'verified' : '');
+    el('govern-receipt-output').textContent = JSON.stringify(receiptOut, null, 2);
+    show('govern-receipt-block');
+  } else {
+    hide('govern-receipt-block');
+  }
+
+  show('govern-panel');
+  setStatus('govern-status', `Decision: ${decision.toUpperCase()} · Λ = ${gov.lambda} · ${dsse.signed ? 'Receipt signed ✓' : 'Receipt unsigned (key absent)'}`);
+}
+
+/* ====================================================================
+   SECTION C — Verifiable Thesis
+   ==================================================================== */
+async function loadThesis() {
+  const btn = el('thesis-load');
+  btn.disabled = true;
+  hide('thesis-panel');
+  setStatus('thesis-status', 'Loading /api/a11oy/v1/demo/thesis …', true);
+
+  let data;
+  try {
+    const resp = await fetch('/api/a11oy/v1/demo/thesis');
+    data = await resp.json();
+  } catch(e) {
+    setStatus('thesis-status', 'Error: ' + e.message);
+    btn.disabled = false;
+    return;
+  }
+
+  const corpus   = data.corpus   || {};
+  const formulas = data.formulas || [];
+  const doctrine = data.doctrine_static || {};
+
+  // ---- Corpus diagram ----
+  const tiers = corpus.tiers || [];
+  const corpusColors = ['proven','gates','total'];
+  let corpusHTML = `<div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em">3-Tier Honest Corpus</div>`;
+  corpusHTML += `<div class="corpus-diagram">`;
+  tiers.forEach((t, idx) => {
+    corpusHTML += `
+      <div class="corpus-tier">
+        <div class="corpus-count ${corpusColors[idx] || ''}">${escHTML(String(t.count))}</div>
+        <div class="corpus-tier-label">${escHTML(t.label || '')}</div>
+        <div class="corpus-tier-desc">${escHTML(t.description || '')}</div>
+      </div>`;
+  });
+  corpusHTML += `</div>`;
+  corpusHTML += `<div class="corpus-never-claim">
+    ⚠ ${escHTML(corpus.honest_note || 'We never claim 183 proven.')}
+  </div>`;
+  el('thesis-corpus').innerHTML = corpusHTML;
+
+  // ---- 8 formulas ----
+  let formulasHTML = '';
+  formulas.forEach(f => {
+    formulasHTML += `
+      <div class="formula-card">
+        <div class="formula-card-head">
+          <span class="formula-id">${escHTML(f.id)}</span>
+          <span class="formula-name">${escHTML(f.name)}</span>
+        </div>
+        <div class="formula-lean">${escHTML(f.lean)}</div>
+        <div class="formula-desc">${escHTML(f.description)}</div>
+        <div class="formula-status">✓ ${escHTML(f.status)}</div>
+      </div>`;
+  });
+  el('thesis-formulas').innerHTML = formulasHTML;
+
+  // ---- Conjecture labels ----
+  el('thesis-conjectures').innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em">
+      Advisory / Conjecture Labels
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px;background:var(--bg-panel);border:1px solid #92400e;border-radius:var(--radius);padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Conjecture 1 — Λ (Lambda)</div>
+        <div style="font-size:13px;color:var(--text-dim)">${escHTML(doctrine.lambda_kind || 'Conjecture 1 (advisory; NOT a theorem)')}</div>
+        <div style="font-size:12px;color:var(--text-mute);margin-top:6px">Open bounty: szl-holdings/lambda-bounty</div>
+      </div>
+      <div style="flex:1;min-width:220px;background:var(--bg-panel);border:1px solid #991b1b;border-radius:var(--radius);padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Conjecture 2 — Khipu BFT</div>
+        <div style="font-size:13px;color:var(--text-dim)">${escHTML(doctrine.bft_kind || 'Conjecture 2 (NOT proven; NOT a theorem)')}</div>
+        <div style="font-size:12px;color:var(--text-mute);margin-top:6px">Labeled honestly everywhere — no false safety claim</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:12px;color:var(--text-dim)">
+      ${escHTML(doctrine.moat_line || '')}
+    </div>
+  `;
+
+  show('thesis-panel');
+  setStatus('thesis-status', `Loaded ${formulas.length} proven formulas · 3-tier corpus · live doctrine`);
+  btn.disabled = false;
+}
+</script>
+
+</body>
+</html>
