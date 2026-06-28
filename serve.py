@@ -4179,6 +4179,23 @@ except Exception as _a11oy_nav_e:
     _a11oy_nav_tb.print_exc()
 # ── end NAV WIRE-UP (QA10) ──
 
+# ── NAV WIRE-UP (P1-P4) — mount the 4 dormant nav injectors (additive, idempotent) ──
+# Each module is the proven a11oy_nav_wireup BaseHTTPMiddleware pattern; try/except
+# keeps any single failure non-fatal. Files are COPY'd in the Dockerfile.
+for _navmod, _navlabel in (
+    ("a11oy_willay_nav", "WILLAY"),
+    ("a11oy_waqay_nav", "WAQAY"),
+    ("a11oy_yupay_nav", "YUPAY"),
+    ("a11oy_uds_portability_nav", "UDS Portability"),
+):
+    try:
+        _nm = __import__(_navmod)
+        _nm_status = _nm.register(app, ns="a11oy")
+        print(f"[a11oy] {_navlabel} nav injector registered: {_nm_status}", file=sys.stderr)
+    except Exception as _nm_e:
+        print(f"[a11oy] {_navlabel} nav NOT registered (non-fatal): {_nm_e!r}", file=sys.stderr)
+# ── end NAV WIRE-UP (P1-P4) ──
+
 # ===========================================================================
 # ADDITIVE — Parity Gap Closure + Differentiators (Yachay / Parity Squad, 2026-06-04)
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
