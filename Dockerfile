@@ -309,6 +309,8 @@ COPY szl_waqay.py a11oy_waqay_nav.py ./
 # inspired by the Kilo "same-codebase" audit + MiniMax sparse-attention paper (cited as
 # published ideas only); SZL-Nemo is governed Qwen3-32B Apache, never an M3 derivative.
 COPY szl_yupay.py a11oy_yupay_nav.py ./
+# a11oy_uds_portability_nav.py attaches the idempotent /console nav entry (P4).
+COPY a11oy_uds_portability_nav.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
