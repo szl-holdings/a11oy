@@ -8215,6 +8215,20 @@ async def verify_demo_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# /assurance — AI Assurance for WDP-era agentic AI.
+# Hero: verifiable AI assurance overlay; assurance matrix (CDAO/DoD/OMB requirements);
+# live proof widget (run governed decision -> WebCrypto verify); WILLAY for defense;
+# honest "where a11oy fits" diagram. Served from pages/assurance.html.
+# Registered BEFORE the SPA catch-all so /assurance returns the real page.
+# ADDITIVE — no existing route touched.
+@app.get("/assurance")
+async def assurance_page() -> Response:
+    f = PAGES_DIR / "assurance.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 # /company — SZL Holdings story folded into a-11-oy.com (the holding-company front
 # door: "Governed AI, proven in Lean", the PURIQ doctrine, the five flagships, and
 # the evidence/proof framing). Replaces the retired standalone szlholdings.com site.
@@ -9370,6 +9384,25 @@ except Exception as _dt1_e:
     print(f"[a11oy] Tier-1 demo register FAILED (non-fatal): {_dt1_e!r}", file=__import__("sys").stderr)
 # ============================================================================
 # END: Tier-1 Demo Features
+# ============================================================================
+
+# ============================================================================
+# BEGIN: AI Assurance Surface (WDP/CDAO audience)
+# ADDITIVE. Path namespace /api/a11oy/v1/assurance — no overlap with any existing
+# namespace. Front-moves routes in register() so they win over the /api proxy
+# + SPA catch-all. Wraps try/except — NEVER breaks the SPA or existing routes.
+# Exposes:
+#   GET /api/a11oy/v1/assurance/matrix  — CDAO/DoD requirement → a11oy artifact map
+#   GET /api/a11oy/v1/assurance/fit     — honest "where a11oy fits" (overlay, not replacement)
+# ============================================================================
+try:
+    import szl_assurance as _szl_assurance
+    _assurance_status = _szl_assurance.register(app, ns="a11oy")
+    print(f"[a11oy] AI Assurance registered: {_assurance_status}", file=__import__("sys").stderr)
+except Exception as _assurance_e:
+    print(f"[a11oy] AI Assurance register FAILED (non-fatal): {_assurance_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: AI Assurance Surface
 # ============================================================================
 
 # ============================================================================

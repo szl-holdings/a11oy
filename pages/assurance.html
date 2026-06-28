@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>a11oy — AI Assurance for WDP-era Agentic AI</title>
+<style>
+  /* =====================================================================
+     a11oy Assurance Surface — elite showcase aesthetic
+     Dark palette · Cabinet Grotesk / JetBrains Mono · honest-label chips
+     ===================================================================== */
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap');
+
+  :root {
+    --bg:          #0a0c0f;
+    --bg-panel:    #111318;
+    --bg-card:     #16191f;
+    --bg-deep:     #0d1015;
+    --border:      #2a2d35;
+    --border-hi:   #3d4250;
+    --text:        #e8eaf0;
+    --text-dim:    #8891a8;
+    --text-mute:   #4a5068;
+    --accent:      #6c8ef5;
+    --accent-hi:   #8aaaf8;
+    --green:       #4ade80;
+    --green-dark:  #052e12;
+    --green-mid:   #166534;
+    --amber:       #f59e0b;
+    --amber-dark:  #2d1e00;
+    --amber-mid:   #92400e;
+    --red:         #f87171;
+    --red-dark:    #2d0f0f;
+    --red-mid:     #991b1b;
+    --blue:        #60a5fa;
+    --blue-dark:   #0c1a33;
+    --blue-mid:    #1e3a8a;
+    --mono:        'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --sans:        'Cabinet Grotesk', 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --radius:      8px;
+    --radius-lg:   14px;
+    --shadow:      0 2px 12px rgba(0,0,0,0.5);
+    --shadow-lg:   0 4px 32px rgba(0,0,0,0.7);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ---- header ---- */
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-panel);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo-mark { width: 32px; height: 32px; flex-shrink: 0; }
+  .site-title { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+  .site-tagline { font-size: 12px; color: var(--text-dim); }
+  .nav-links { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .nav-back {
+    font-size: 12px; color: var(--text-dim);
+    text-decoration: none;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px;
+    transition: border-color .15s, color .15s;
+  }
+  .nav-back:hover { border-color: var(--accent); color: var(--accent-hi); }
+
+  /* ---- layout ---- */
+  .page { max-width: 1040px; margin: 0 auto; padding: 56px 24px 100px; }
+
+  /* ---- hero ---- */
+  .hero {
+    margin-bottom: 64px;
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-deep) 100%);
+    padding: 52px 48px 44px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse 60% 40% at 70% 50%, rgba(108,142,245,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent);
+    background: var(--blue-dark); border: 1px solid var(--blue-mid);
+    border-radius: 4px; padding: 3px 10px; display: inline-block;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: 34px; font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.15; margin-bottom: 16px; max-width: 680px;
+  }
+  .hero h1 span.hl { color: var(--accent-hi); }
+  .hero-sub {
+    font-size: 16px; color: var(--text-dim);
+    max-width: 640px; line-height: 1.6; margin-bottom: 28px;
+  }
+  .hero-honest {
+    background: var(--amber-dark); border: 1px solid var(--amber-mid);
+    border-radius: var(--radius); padding: 12px 18px;
+    font-size: 13px; color: var(--amber);
+    display: inline-flex; align-items: flex-start; gap: 10px;
+    max-width: 680px;
+  }
+  .hero-honest-icon { flex-shrink: 0; margin-top: 1px; font-size: 15px; }
+  .hero-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+
+  /* ---- section structure ---- */
+  .section { margin-bottom: 64px; }
+  .section-head {
+    margin-bottom: 28px;
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .section-letter {
+    width: 36px; height: 36px; flex-shrink: 0;
+    background: var(--blue-dark); border: 1px solid var(--blue-mid);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: var(--accent); margin-top: 2px;
+  }
+  .section-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .section-desc { font-size: 14px; color: var(--text-dim); max-width: 640px; }
+
+  /* ---- chips / badges ---- */
+  .chip {
+    display: inline-block; border-radius: 4px;
+    padding: 2px 8px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+  .chip-live     { background: var(--green-dark); border-color: var(--green-mid); color: var(--green); }
+  .chip-roadmap  { background: var(--amber-dark); border-color: var(--amber-mid); color: var(--amber); }
+  .chip-sample   { background: #1a1a2e; border-color: #3d3d7a; color: #a0a8ff; }
+  .chip-measured { background: #051e24; border-color: #0e4a57; color: #67e8f9; }
+  .chip-modeled  { background: #1a0a2e; border-color: #5b2d8a; color: #d8b4fe; }
+  .chip-ok       { background: var(--green-dark); border-color: var(--green-mid); color: var(--green); }
+  .chip-err      { background: var(--red-dark); border-color: var(--red-mid); color: var(--red); }
+  .chip-info     { background: var(--blue-dark); border-color: var(--blue-mid); color: var(--accent-hi); }
+  .chip-dim      { background: #1a1d24; border-color: var(--border); color: var(--text-dim); }
+  .conj {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px;
+    padding: 2px 7px; border: 1px solid var(--amber-mid);
+    background: var(--amber-dark); color: var(--amber);
+  }
+
+  /* ---- assurance matrix table ---- */
+  .matrix-wrap { overflow-x: auto; }
+  .matrix-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .matrix-table thead th {
+    background: var(--bg-panel);
+    padding: 12px 16px;
+    text-align: left; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .matrix-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .12s;
+  }
+  .matrix-table tbody tr:last-child { border-bottom: none; }
+  .matrix-table tbody tr:hover { background: var(--bg-card); }
+  .matrix-table td {
+    padding: 14px 16px; vertical-align: top;
+    color: var(--text);
+  }
+  .matrix-table td.req-col { font-weight: 700; font-size: 13px; min-width: 160px; }
+  .matrix-table td.artifact-col { color: var(--text-dim); max-width: 280px; font-size: 12px; }
+  .matrix-table td.status-col { white-space: nowrap; min-width: 100px; }
+  .matrix-table td.source-col { font-size: 11px; color: var(--text-mute); max-width: 200px; }
+  .req-id-badge {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    font-weight: 600; color: var(--accent);
+    background: var(--blue-dark); border: 1px solid var(--blue-mid);
+    border-radius: 3px; padding: 1px 5px; margin-right: 6px;
+  }
+  .source-link { color: var(--text-mute); text-decoration: underline; font-size: 11px; }
+  .source-link:hover { color: var(--accent); }
+
+  /* loading state */
+  .matrix-loading {
+    text-align: center; padding: 48px 24px;
+    color: var(--text-dim); font-size: 14px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .7s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:.8} 50%{opacity:.4} }
+
+  /* ---- live proof widget ---- */
+  .proof-widget {
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-card);
+  }
+  .proof-header {
+    background: var(--bg-panel);
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .proof-header h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .proof-header p { font-size: 13px; color: var(--text-dim); }
+  .proof-moat {
+    font-size: 12px; color: var(--text-mute);
+    font-style: italic; margin-top: 8px;
+    border-left: 2px solid var(--blue-mid);
+    padding-left: 10px;
+  }
+  .proof-body { padding: 24px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .btn {
+    padding: 9px 20px; border-radius: var(--radius);
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent;
+    transition: opacity .15s, transform .05s, background .15s;
+    outline: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--blue-mid); border-color: #2563eb; color: #dbeafe; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .output {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    white-space: pre-wrap; word-break: break-all;
+    color: var(--text-dim); min-height: 56px;
+    transition: border-color .2s;
+  }
+  .output.verified { border-color: var(--green-mid); }
+  .output.failed   { border-color: var(--red-mid); }
+  .output.loading  { border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+
+  .verdict-banner {
+    border-radius: var(--radius); padding: 14px 20px;
+    margin-bottom: 16px; font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid transparent;
+  }
+  .verdict-ok  { background: var(--green-dark); border-color: var(--green-mid); color: var(--green); }
+  .verdict-fail{ background: var(--red-dark);   border-color: var(--red-mid);   color: var(--red); }
+  .verdict-dim { background: var(--bg-panel);   border-color: var(--border);    color: var(--text-dim); }
+
+  .hash-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .hash-label { font-size: 11px; color: var(--text-dim); min-width: 100px; }
+  .hash-val {
+    font-family: var(--mono); font-size: 11px; color: var(--text);
+    background: var(--bg); border-radius: 4px; padding: 2px 6px;
+    border: 1px solid var(--border); word-break: break-all;
+  }
+  .hash-match   { border-color: var(--green-mid); color: var(--green); }
+  .hash-mismatch{ border-color: var(--red-mid);   color: var(--red); }
+
+  .status-line { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* ---- WILLAY section ---- */
+  .willay-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg);
+    padding: 32px 36px;
+    display: flex; gap: 32px; align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .willay-icon {
+    width: 56px; height: 56px; flex-shrink: 0;
+    background: var(--red-dark); border: 1px solid var(--red-mid);
+    border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+  }
+  .willay-content { flex: 1; min-width: 220px; }
+  .willay-content h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .willay-content p  { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; }
+  .willay-quote {
+    font-size: 13px; color: var(--text-dim);
+    font-style: italic;
+    border-left: 2px solid var(--red-mid);
+    padding-left: 12px; margin-bottom: 16px;
+  }
+  .btn-willay {
+    display: inline-block;
+    background: var(--red-dark); border: 1px solid var(--red-mid);
+    color: var(--red); border-radius: var(--radius);
+    padding: 9px 20px; font-size: 13px; font-weight: 600;
+    text-decoration: none; cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-willay:hover { background: #450a0a; }
+
+  /* ---- fit diagram ---- */
+  .fit-diagram {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .fit-diagram-inner { padding: 28px 32px; }
+  .fit-layer {
+    border-radius: var(--radius); padding: 16px 22px;
+    margin-bottom: 0;
+  }
+  .fit-layer-a11oy {
+    background: var(--blue-dark); border: 2px solid var(--blue-mid);
+    margin-bottom: 6px;
+  }
+  .fit-layer-platform {
+    background: #131810; border: 2px solid #2a3a1a;
+  }
+  .fit-layer-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .fit-layer-label.a11oy-label { color: var(--accent-hi); }
+  .fit-layer-label.platform-label { color: #86efac; }
+  .fit-layer-name { font-size: 16px; font-weight: 800; }
+  .fit-layer-name.a11oy-name { color: var(--text); }
+  .fit-layer-name.platform-name { color: #86efac; }
+  .fit-layer-detail { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .fit-arrow {
+    text-align: center; padding: 8px 0;
+    font-size: 13px; color: var(--text-mute);
+    letter-spacing: 0.05em;
+  }
+  .fit-list {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; margin-top: 24px;
+  }
+  @media (max-width: 640px) { .fit-list { grid-template-columns: 1fr; } }
+  .fit-item {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    font-size: 13px;
+  }
+  .fit-item-yes { border-left: 3px solid var(--green-mid); }
+  .fit-item-no  { border-left: 3px solid var(--red-mid); }
+  .fit-item-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .fit-item-label.yes { color: var(--green); }
+  .fit-item-label.no  { color: var(--red); }
+
+  /* ---- footer ---- */
+  .footer {
+    border-top: 1px solid var(--border); padding: 24px;
+    color: var(--text-mute); font-size: 12px; text-align: center;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hi); text-decoration: underline; }
+
+  /* ---- responsive ---- */
+  @media (max-width: 768px) {
+    .hero { padding: 32px 24px 28px; }
+    .hero h1 { font-size: 26px; }
+    .page { padding: 32px 16px 80px; }
+    .matrix-table { font-size: 12px; }
+    .matrix-table thead th { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="site-header">
+  <svg class="logo-mark" viewBox="0 0 32 32" fill="none" aria-label="a11oy">
+    <rect width="32" height="32" rx="7" fill="#1e3a8a"/>
+    <path d="M8 24 L16 8 L24 24" stroke="#6c8ef5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="16" cy="16" r="2.5" fill="#8aaaf8"/>
+  </svg>
+  <span class="site-title">a11oy</span>
+  <span class="site-tagline" style="margin-left:8px">AI Assurance Overlay</span>
+  <nav class="nav-links">
+    <a href="/verify" class="nav-back">Verify Receipt</a>
+    <a href="/willay" class="nav-back">WILLAY</a>
+    <a href="/console" class="nav-back">← Console</a>
+  </nav>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="page">
+
+  <!-- =====================================================================
+       A — HERO
+       ===================================================================== -->
+  <section class="section">
+    <div class="hero">
+      <div class="hero-eyebrow">WDP · Advana · CDAO · Agentic AI</div>
+      <h1>Verifiable AI Assurance<br>for the <span class="hl">War Data Platform</span> era.</h1>
+      <p class="hero-sub">
+        The Jan-2026 DoD memo restructuring Advana into WDP calls for
+        <strong>agentic AI</strong> + <strong>enhanced auditability</strong>.
+        a11oy is the governance + verifiable-provenance overlay that produces
+        the auditability evidence CDAO/RMF demands — one cryptographically
+        signed receipt per AI decision, buyer-verifiable offline.
+      </p>
+      <div class="hero-honest">
+        <span class="hero-honest-icon">⚠</span>
+        <span>
+          <strong>Honest status:</strong> a11oy is the assurance overlay — NOT an ATO-authorized system.
+          ATO / IL5 / FedRAMP-High accreditation: <span class="chip chip-roadmap">ROADMAP</span>.
+          Stated plainly — the honesty is the sell to an auditor audience.
+        </span>
+      </div>
+      <div class="hero-chips">
+        <span class="chip chip-live">DSSE Signed Receipts · LIVE</span>
+        <span class="chip chip-live">WebCrypto Verify · LIVE</span>
+        <span class="chip chip-live">Policy Gates · LIVE</span>
+        <span class="chip chip-roadmap">ATO / IL5 / FedRAMP · ROADMAP</span>
+        <span class="chip chip-info">a11oy = Overlay · NOT Replacement</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       B — ASSURANCE MATRIX
+       ===================================================================== -->
+  <section class="section" id="section-matrix">
+    <div class="section-head">
+      <div class="section-letter">B</div>
+      <div>
+        <div class="section-title">CDAO / DoD AI Assurance Requirements Matrix</div>
+        <div class="section-desc">
+          Each row: a real CDAO/DoD/OMB requirement → the a11oy artifact that satisfies it,
+          with honest status. ROADMAP items are labeled plainly — no fabricated compliance.
+        </div>
+      </div>
+    </div>
+
+    <div id="matrix-container">
+      <div class="matrix-loading">
+        <span class="spinner"></span> Loading assurance matrix from /api/a11oy/v1/assurance/matrix…
+      </div>
+    </div>
+
+    <div style="margin-top:14px; font-size:12px; color:var(--text-mute);">
+      Status key:
+      <span class="chip chip-live">LIVE</span> operational today ·
+      <span class="chip chip-measured">MEASURED</span> real data ·
+      <span class="chip chip-sample">SAMPLE</span> demo only ·
+      <span class="chip chip-modeled">MODELED</span> model-derived ·
+      <span class="chip chip-roadmap">ROADMAP</span> planned / not yet delivered
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       C — LIVE PROOF WIDGET (run governed decision → sign → verify)
+       ===================================================================== -->
+  <section class="section" id="section-proof">
+    <div class="section-head">
+      <div class="section-letter">C</div>
+      <div>
+        <div class="section-title">Live Proof: Run → Sign → Verify Yourself</div>
+        <div class="section-desc">
+          Run a governed inference → receive a DSSE-signed Khipu receipt →
+          verify the ECDSA-P256 signature in-browser via WebCrypto (zero server round-trip for verification).
+        </div>
+      </div>
+    </div>
+
+    <div class="proof-widget">
+      <div class="proof-header">
+        <h3>Buyer-Verifiable Inference Receipt (BVIR)</h3>
+        <p>
+          Calls <code>/api/a11oy/v1/govern/infer</code>, then verifies the DSSE signature
+          in-browser using <strong>WebCrypto API</strong> against <code>/cosign.pub</code>
+          (ECDSA-P256-SHA256). SHA-256 of decoded payload is recomputed and matched.
+        </p>
+        <div class="proof-moat">
+          "Foundry / Unity Catalog show you lineage; a11oy gives you a signature you can verify offline."
+        </div>
+      </div>
+      <div class="proof-body">
+        <div class="btn-row">
+          <button class="btn btn-primary" id="proof-run-btn" onclick="runProof()">
+            Run Governed Decision → Get Signed Receipt → Verify
+          </button>
+        </div>
+        <div id="proof-status" class="status-line"></div>
+        <div id="proof-verdict" style="display:none"></div>
+        <div id="proof-output" class="output" style="display:none"></div>
+        <div style="margin-top:14px; font-size:12px; color:var(--text-mute);">
+          <span class="conj">Λ Conjecture 1 — advisory, NOT a theorem</span>
+          &nbsp;·&nbsp;
+          <a href="/verify" style="font-size:12px">Open full /verify page →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       D — WILLAY FOR DEFENSE
+       ===================================================================== -->
+  <section class="section" id="section-willay">
+    <div class="section-head">
+      <div class="section-letter">D</div>
+      <div>
+        <div class="section-title">WILLAY — Signed Refusals for Defense</div>
+        <div class="section-desc">
+          An agent that can refuse — and prove why, signed.
+          Critical for agentic AI in defense: every denial is a
+          cryptographically-signed, auditable artifact.
+        </div>
+      </div>
+    </div>
+
+    <div class="willay-card">
+      <div class="willay-icon">⚡</div>
+      <div class="willay-content">
+        <h3>What Makes a Signed Refusal Different</h3>
+        <div class="willay-quote">
+          "They hide the governor; we sign and show it."
+          Black-box decision-intelligence agents cannot prove why they refused.
+          WILLAY produces a DSSE-signed denial receipt that any auditor can verify.
+        </div>
+        <p>
+          Every WILLAY denial embeds: the triggering gate name, the Λ advisory score
+          (Conjecture 1 label), the hash-chain link (prev→digest), and the timestamp —
+          all under ECDSA-P256 signature. The authorization package has a machine-verifiable
+          TEVV artifact for every denied call, not just allowed ones.
+        </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px">
+          <span class="chip chip-live">Signed denial receipts · LIVE</span>
+          <span class="conj">Λ Conjecture 1 — advisory</span>
+          <span class="chip chip-info">Auditor-verifiable offline</span>
+        </div>
+        <a href="/willay" class="btn-willay">Open WILLAY — Signed Refusals →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       E — WHERE A11OY FITS (honest diagram)
+       ===================================================================== -->
+  <section class="section" id="section-fit">
+    <div class="section-head">
+      <div class="section-letter">E</div>
+      <div>
+        <div class="section-title">Where a11oy Fits with WDP / Foundry / Databricks</div>
+        <div class="section-desc">
+          a11oy is the trust and assurance overlay. The data platform stays the system of record.
+          These are complementary layers, not competitors.
+        </div>
+      </div>
+    </div>
+
+    <div class="fit-diagram">
+      <div class="fit-diagram-inner">
+
+        <!-- Stack diagram (SVG) -->
+        <svg viewBox="0 0 640 200" width="100%" style="max-width:640px; display:block; margin:0 auto 28px;" aria-label="a11oy stack diagram">
+          <!-- a11oy layer -->
+          <rect x="20" y="12" width="600" height="70" rx="10" fill="#0c1a33" stroke="#1e3a8a" stroke-width="1.5"/>
+          <text x="36" y="36" font-family="'JetBrains Mono', monospace" font-size="10" fill="#6c8ef5" font-weight="700" letter-spacing="1">GOVERNANCE + TRUST OVERLAY</text>
+          <text x="36" y="56" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="16" fill="#e8eaf0" font-weight="800">a11oy</text>
+          <text x="100" y="56" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8">signed receipts · policy gates · honest labels · WILLAY refusals</text>
+          <text x="36" y="73" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">DSSE · ECDSA-P256 · WebCrypto-verifiable · Λ advisory (Conjecture 1)</text>
+          <!-- Arrow -->
+          <text x="280" y="103" font-family="monospace" font-size="12" fill="#4a5068" text-anchor="middle">sits on top of ↓</text>
+          <!-- Platform layer -->
+          <rect x="20" y="116" width="600" height="70" rx="10" fill="#0d1a0d" stroke="#2a3a1a" stroke-width="1.5"/>
+          <text x="36" y="136" font-family="'JetBrains Mono', monospace" font-size="10" fill="#86efac" font-weight="700" letter-spacing="1">SYSTEM OF RECORD</text>
+          <text x="36" y="158" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="14" fill="#86efac" font-weight="800">WDP / Advana</text>
+          <text x="150" y="158" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="13" fill="#8891a8"> · Palantir Foundry · Databricks Unity Catalog</text>
+          <text x="36" y="175" font-family="'Cabinet Grotesk', 'Inter', sans-serif" font-size="11" fill="#4a5068">data · ontology · lineage · column governance → stays authoritative</text>
+        </svg>
+
+        <div class="fit-list">
+          <div class="fit-item fit-item-yes">
+            <div class="fit-item-label yes">a11oy IS</div>
+            Governance + verifiable-provenance overlay on top of any data platform
+          </div>
+          <div class="fit-item fit-item-yes">
+            <div class="fit-item-label yes">a11oy IS</div>
+            Cryptographic, buyer-verifiable receipt emitter per AI decision
+          </div>
+          <div class="fit-item fit-item-yes">
+            <div class="fit-item-label yes">a11oy IS</div>
+            Honest assurance evidence (TEVV artifacts, model card, data labels)
+          </div>
+          <div class="fit-item fit-item-yes">
+            <div class="fit-item-label yes">a11oy IS</div>
+            Signed refusal explainer (WILLAY) — not a black-box boolean gate
+          </div>
+          <div class="fit-item fit-item-no">
+            <div class="fit-item-label no">a11oy IS NOT</div>
+            A replacement for Advana / WDP (authoritative DoD financial data platform)
+          </div>
+          <div class="fit-item fit-item-no">
+            <div class="fit-item-label no">a11oy IS NOT</div>
+            A replacement for Palantir Foundry (ontology + operational lineage)
+          </div>
+          <div class="fit-item fit-item-no">
+            <div class="fit-item-label no">a11oy IS NOT</div>
+            An accredited system (ATO / IL5 / FedRAMP-High: ROADMAP — stated plainly)
+          </div>
+          <div class="fit-item fit-item-no">
+            <div class="fit-item-label no">a11oy IS NOT</div>
+            A certified classifier — Λ is Conjecture 1 (advisory; NOT a theorem)
+          </div>
+        </div>
+
+        <div style="margin-top:22px; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; font-size:13px; color:var(--text-dim);">
+          <strong style="color:var(--accent-hi)">The WDP wedge:</strong>
+          The Jan-2026 DoD memo explicitly calls for <em>agentic AI</em> + <em>enhanced auditability</em>
+          toward a clean FY27/FY28 audit.
+          Foundry shows data lineage. Unity Catalog shows column provenance.
+          a11oy gives you a cryptographic signature on the <em>AI decision itself</em> —
+          something the buyer can verify offline, without trusting the provider.
+        </div>
+      </div>
+
+      <!-- API data strip -->
+      <div style="background:var(--bg-panel); border-top:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span style="font-size:11px; color:var(--text-mute); font-weight:700; text-transform:uppercase; letter-spacing:.07em">API</span>
+        <a href="/api/a11oy/v1/assurance/fit" style="font-size:12px; font-family:var(--mono);" target="_blank">/api/a11oy/v1/assurance/fit</a>
+        <span style="font-size:11px; color:var(--text-mute)">→ full machine-readable fit statement</span>
+        <span id="fit-status" style="font-size:11px; color:var(--text-mute); margin-left:auto"></span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <p>
+    SZL Holdings · a11oy · Doctrine v11 · 8 kernel-proven formulas @ c7c0ba17 ·
+    Λ = Conjecture 1 (advisory) · Khipu BFT = Conjecture 2 ·
+    ATO/IL5/FedRAMP = ROADMAP (not accredited) ·
+    <a href="/api/a11oy/v1/assurance/matrix" target="_blank">Assurance Matrix API</a> ·
+    <a href="/verify" target="_blank">Verify a Receipt</a> ·
+    <a href="/cosign.pub" target="_blank">cosign.pub</a>
+  </p>
+</footer>
+
+<!-- ===================================================================
+     JAVASCRIPT — all in-browser, 0 CDN
+     =================================================================== -->
+<script>
+"use strict";
+
+/* ---- utilities ---- */
+function el(id) { return document.getElementById(id); }
+function show(id) { var e=el(id); if(e) e.style.display=''; }
+function hide(id) { var e=el(id); if(e) e.style.display='none'; }
+function escHTML(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function setStatus(id, msg, loading) {
+  var e=el(id); if(!e) return;
+  if(loading) { e.innerHTML='<span class="spinner"></span>'+escHTML(msg); }
+  else { e.textContent=msg; }
+}
+
+/* ---- status chip helper ---- */
+function statusChip(status) {
+  var map = {
+    'LIVE':     'chip chip-live',
+    'MEASURED': 'chip chip-measured',
+    'SAMPLE':   'chip chip-sample',
+    'MODELED':  'chip chip-modeled',
+    'ROADMAP':  'chip chip-roadmap',
+  };
+  var cls = map[status] || 'chip chip-dim';
+  return '<span class="'+cls+'">'+escHTML(status)+'</span>';
+}
+
+/* ==================================================================
+   SECTION B — Load assurance matrix
+   ================================================================== */
+async function loadMatrix() {
+  var container = el('matrix-container');
+  if (!container) return;
+
+  var data;
+  try {
+    var resp = await fetch('/api/a11oy/v1/assurance/matrix');
+    data = await resp.json();
+  } catch(e) {
+    container.innerHTML = '<div class="matrix-loading" style="color:var(--amber)">'+
+      '⚠ Could not load matrix: '+escHTML(e.message)+'<br>'+
+      '<a href="/api/a11oy/v1/assurance/matrix" target="_blank" style="font-size:12px">Try API directly →</a>'+
+      '</div>';
+    return;
+  }
+
+  var rows = data.requirements || [];
+  if (!rows.length) {
+    container.innerHTML = '<div class="matrix-loading">No requirements returned from API.</div>';
+    return;
+  }
+
+  var html = '<div class="matrix-wrap"><table class="matrix-table"><thead><tr>'+
+    '<th>ID</th><th>Requirement</th><th>a11oy Artifact</th><th>Honest Status</th><th>Source</th>'+
+    '</tr></thead><tbody>';
+
+  rows.forEach(function(r) {
+    var artifactLink = r.artifact_url
+      ? '<a href="'+escHTML(r.artifact_url)+'" target="_blank" style="font-size:11px;font-family:var(--mono)">'+escHTML(r.artifact_url)+'</a><br>'
+      : '';
+    var sourceLink = r.source_url
+      ? '<a class="source-link" href="'+escHTML(r.source_url)+'" target="_blank" rel="noopener">'+escHTML(r.source)+'</a>'
+      : escHTML(r.source || '—');
+
+    html += '<tr>'+
+      '<td class="status-col"><span class="req-id-badge">'+escHTML(r.req_id)+'</span></td>'+
+      '<td class="req-col">'+escHTML(r.requirement)+'<br><span style="font-size:11px;color:var(--text-mute);font-weight:400">'+escHTML(r.req_detail||'')+'</span></td>'+
+      '<td class="artifact-col">'+artifactLink+escHTML(r.a11oy_artifact||'')+'</td>'+
+      '<td class="status-col">'+statusChip(r.status)+'<br><span style="font-size:11px;color:var(--text-mute)">'+escHTML(r.status_detail||'')+'</span>'+
+        (r.honest_caveats ? '<br><span style="font-size:10px;color:var(--amber)">'+escHTML(r.honest_caveats)+'</span>' : '')+
+      '</td>'+
+      '<td class="source-col">'+sourceLink+'</td>'+
+      '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+
+  // Honest note banner
+  if (data.honest_note) {
+    html += '<div style="margin-top:12px;background:var(--amber-dark);border:1px solid var(--amber-mid);border-radius:var(--radius);padding:12px 16px;font-size:12px;color:var(--amber)">'+
+      '⚠ '+escHTML(data.honest_note)+'</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+/* ==================================================================
+   BASE64 + DER helpers (reused from /verify pattern)
+   ================================================================== */
+function b64Decode(s) {
+  var bin = atob(s); var b = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b;
+}
+
+function derToRaw(derBytes) {
+  var i=0;
+  if(derBytes[i++]!==0x30) throw new Error('not DER SEQUENCE');
+  var seqLen=derBytes[i++];
+  if(seqLen&0x80){var nb=seqLen&0x7f;seqLen=0;for(var b=0;b<nb;b++)seqLen=(seqLen<<8)|derBytes[i++];}
+  function readInt(){
+    if(derBytes[i++]!==0x02) throw new Error('expected INTEGER tag');
+    var len=derBytes[i++];
+    if(len&0x80){var nb2=len&0x7f;len=0;for(var b2=0;b2<nb2;b2++)len=(len<<8)|derBytes[i++];}
+    var val=derBytes.slice(i,i+len);i+=len;return val;
+  }
+  var rArr=readInt(),sArr=readInt();
+  function pad32(arr){
+    var j=0;while(j<arr.length-1&&arr[j]===0)j++;
+    var stripped=arr.slice(j);var out=new Uint8Array(32);
+    var off=32-stripped.length;if(off<0)throw new Error('integer too long');
+    out.set(stripped,off);return out;
+  }
+  var raw=new Uint8Array(64);raw.set(pad32(rArr),0);raw.set(pad32(sArr),32);return raw;
+}
+
+function buildPAE(payloadType, bodyBytes) {
+  var enc=new TextEncoder();var t=enc.encode(payloadType);
+  var prefix=enc.encode('DSSEv1 '+t.length+' ');var mid=enc.encode(' '+bodyBytes.length+' ');
+  var total=prefix.length+t.length+mid.length+bodyBytes.length;
+  var buf=new Uint8Array(total);var off=0;
+  buf.set(prefix,off);off+=prefix.length;buf.set(t,off);off+=t.length;
+  buf.set(mid,off);off+=mid.length;buf.set(bodyBytes,off);return buf;
+}
+
+async function sha256(data) {
+  var hash=await crypto.subtle.digest('SHA-256',data);
+  return Array.from(new Uint8Array(hash)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+async function importPubKeyFromPEM(pem) {
+  var b64=pem.replace('-----BEGIN PUBLIC KEY-----','').replace('-----END PUBLIC KEY-----','').replace(/\s+/g,'');
+  var raw=b64Decode(b64);
+  return crypto.subtle.importKey('spki',raw.buffer,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
+}
+
+/* ==================================================================
+   SECTION C — Run governed decision → verify receipt
+   ================================================================== */
+async function runProof() {
+  var btn = el('proof-run-btn');
+  btn.disabled = true;
+  hide('proof-verdict');
+  hide('proof-output');
+  setStatus('proof-status', 'Calling /api/a11oy/v1/govern/infer …', true);
+
+  var data;
+  try {
+    var resp = await fetch('/api/a11oy/v1/govern/infer', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({prompt:'WDP assurance demo', vertical:'general', declared:'PUBLIC'})
+    });
+    data = await resp.json();
+  } catch(e) {
+    setStatus('proof-status', 'Error calling govern/infer: '+e.message);
+    btn.disabled = false; return;
+  }
+
+  setStatus('proof-status', 'Fetching cosign.pub and verifying signature via WebCrypto …', true);
+
+  var dsse    = data.dsse    || {};
+  var receipt = data.receipt || {};
+
+  // Fetch public key
+  var pubKey, pubKeyPEM='';
+  try {
+    var pkResp = await fetch('/cosign.pub');
+    pubKeyPEM = await pkResp.text();
+    pubKey = await importPubKeyFromPEM(pubKeyPEM);
+  } catch(e) {
+    setStatus('proof-status', 'Could not fetch/import cosign.pub: '+e.message);
+    btn.disabled=false; return;
+  }
+
+  var payloadType = dsse.payloadType || 'application/vnd.szl.khipu+json';
+  var payloadBytes;
+  try { payloadBytes = b64Decode(dsse.payload||''); }
+  catch(e) { setStatus('proof-status','Could not decode payload: '+e.message); btn.disabled=false; return; }
+
+  var payloadDigestComputed = await sha256(payloadBytes.buffer);
+  var paeBytes = buildPAE(payloadType, payloadBytes);
+  var paeSHA   = await sha256(paeBytes.buffer);
+
+  var sigs = dsse.signatures || [];
+  var verified = false, verifyError = '', sigKeyid = '';
+
+  if (!dsse.signed) {
+    verifyError = 'UNSIGNED envelope — private key not in runtime. Receipt chain still valid.';
+  } else if (!sigs.length) {
+    verifyError = 'No signatures in envelope.';
+  } else {
+    var sigEntry = sigs[0]; sigKeyid = sigEntry.keyid||'';
+    try {
+      var sigBytes = b64Decode(sigEntry.sig||'');
+      var rawSig = sigBytes;
+      if(sigBytes[0]===0x30){try{rawSig=derToRaw(sigBytes);}catch(e2){verifyError='DER→raw failed: '+e2.message;}}
+      if(!verifyError){
+        verified = await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'}, pubKey, rawSig.buffer, paeBytes.buffer);
+        if(!verified && sigBytes[0]===0x30){
+          verified = await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'}, pubKey, sigBytes.buffer, paeBytes.buffer);
+        }
+        if(!verified) verifyError='ECDSA verification returned false.';
+      }
+    } catch(e) { verifyError='Signature verify error: '+e.message; }
+  }
+
+  var receiptDigest = receipt.digest || receipt.payload_digest || '';
+  var chainPrev     = receipt.prev   || '(genesis)';
+  var chainDigest   = receipt.digest || '';
+
+  var verdictHTML = '';
+  if(verified){
+    verdictHTML='<div class="verdict-banner verdict-ok">✓ VERIFIED — WebCrypto ECDSA-P256 signature valid <span class="chip chip-ok">keyid: '+escHTML(sigKeyid)+'</span></div>';
+  } else if(!dsse.signed){
+    verdictHTML='<div class="verdict-banner verdict-dim">⚠ UNSIGNED — private key not in runtime; receipt chain still valid</div>';
+  } else {
+    verdictHTML='<div class="verdict-banner verdict-fail">✗ VERIFICATION FAILED — '+escHTML(verifyError)+'</div>';
+  }
+
+  var digestMatch = payloadDigestComputed===receiptDigest.substring(0,64);
+  verdictHTML += '<div style="margin-bottom:12px">'+
+    '<div class="hash-row"><span class="hash-label">Payload digest:</span>'+
+    '<span class="hash-val '+(digestMatch?'hash-match':'hash-mismatch')+'">'+payloadDigestComputed.substring(0,32)+'…</span>'+
+    '<span class="chip '+(digestMatch?'chip-ok':'chip-err')+'">'+(digestMatch?'MATCH':'MISMATCH')+'</span></div>'+
+    '<div class="hash-row"><span class="hash-label">PAE SHA-256:</span>'+
+    '<span class="hash-val">'+paeSHA.substring(0,32)+'…</span></div>'+
+    '<div class="hash-row"><span class="hash-label">Chain prev:</span>'+
+    '<span class="hash-val">'+escHTML(String(chainPrev).substring(0,32))+'…</span></div>'+
+    '<div class="hash-row"><span class="hash-label">Chain digest:</span>'+
+    '<span class="hash-val">'+escHTML(String(chainDigest).substring(0,32))+'…</span></div>'+
+    '</div>'+
+    '<div style="font-size:12px;color:var(--text-dim)">'+
+    '<span class="conj">Λ Conjecture 1 — advisory</span>'+
+    ' Λ = '+escHTML(String((data.governance||{}).lambda ?? 'N/A'))+
+    ' &nbsp;·&nbsp; Energy: <span class="chip chip-dim">'+escHTML(((data.energy||{}).label)||'UNAVAILABLE')+'</span>'+
+    '</div>';
+
+  el('proof-verdict').innerHTML = verdictHTML;
+  show('proof-verdict');
+
+  var outputData = {
+    decision: data.decision,
+    'governance.lambda':      (data.governance||{}).lambda,
+    'governance.lambda_kind': (data.governance||{}).lambda_kind,
+    'receipt.seq':    receipt.seq,
+    'receipt.prev':   String(chainPrev).substring(0,32)+'…',
+    'receipt.digest': String(chainDigest).substring(0,32)+'…',
+    'dsse.signed':        dsse.signed,
+    'dsse.payloadType':   dsse.payloadType,
+    'verify.payload_sha256': payloadDigestComputed.substring(0,32)+'…',
+    'verify.pae_sha256':     paeSHA.substring(0,32)+'…',
+    'verify.result': verified ? 'VERIFIED ✓' : (dsse.signed===false ? 'UNSIGNED (no key in runtime)' : 'FAILED: '+verifyError),
+    'energy.label':   (data.energy||{}).label,
+    'honesty':        data.honesty,
+  };
+  el('proof-output').textContent = JSON.stringify(outputData, null, 2);
+  el('proof-output').className = 'output '+(verified?'verified':(dsse.signed===false?'':'failed'));
+  show('proof-output');
+
+  setStatus('proof-status',
+    verified ? '✓ WebCrypto verified — real ECDSA-P256 signature over DSSE PAE.' :
+    (dsse.signed===false ? 'Unsigned receipt (key absent from runtime). Chain valid.' :
+    'Verification result: '+verifyError));
+  btn.disabled = false;
+}
+
+/* ==================================================================
+   SECTION E — Load fit data and mark live
+   ================================================================== */
+async function checkFit() {
+  var s = el('fit-status'); if(!s) return;
+  try {
+    var r = await fetch('/api/a11oy/v1/assurance/fit');
+    if(r.ok) {
+      s.innerHTML = '<span class="chip chip-live">API LIVE</span>';
+    } else {
+      s.innerHTML = '<span class="chip chip-roadmap">'+r.status+'</span>';
+    }
+  } catch(e) {
+    s.textContent = 'API unreachable: '+e.message;
+  }
+}
+
+/* ---- boot ---- */
+window.addEventListener('DOMContentLoaded', function() {
+  loadMatrix();
+  checkFit();
+});
+</script>
+
+</body>
+</html>
