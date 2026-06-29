@@ -225,6 +225,12 @@ COPY szl_provenance_receipt.py ./
 # and /api/a11oy/v1/khipu/{organs,chain,verify} 404s live. Reads the shared szl_khipu
 # DAG in-process (already COPY'd above) — no new deps.
 COPY szl_khipu_verify.py ./
+# DEMO-ONLY signing (Option B): szl_demo_sign exposes the demo-signing-key path so
+# /verify shows a real ECDSA-P256 VERIFIED badge. MUST be per-file COPY'd or the
+# guarded imports in serve.py (/demo-cosign.pub) and a11oy_vertical_feeds (infer
+# fallback) fall back and the demo signature never appears. Production cosign key
+# stays founder-gated; only the demo PUBLIC key ships in this module.
+COPY szl_demo_sign.py ./
 # REGRESSION RESTORE — serve.py imports these (guarded) but their per-file COPY was
 # dropped, so in the HF image each guarded import falls back to a STUB (merged-but-not-
 # live) and the copy-sync lockstep guard is red on main. szl_sda was added by the most

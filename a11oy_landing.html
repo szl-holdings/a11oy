@@ -481,10 +481,15 @@
       log('<span class="ok">  decision: '+esc(data.decision||"?")+'</span>'+
           '   <span class="mut">Λ='+esc((data.governance&&data.governance.lambda)||"?")+' (Conjecture 1, advisory)</span>');
 
-      log('<span class="ln">→ GET /cosign.pub</span>');
-      const pem=await (await fetch("/cosign.pub")).text();
+      // A demo-signed receipt (keyid=demo-signing-key) verifies against the DEMO
+      // public key, NOT the production founder-gated cosign key.
+      const dsseKeyid=((dsse.signatures||[])[0]||{}).keyid||dsse.key_id||"";
+      const isDemoKey=dsseKeyid==="demo-signing-key";
+      const pubKeyURL=isDemoKey?"/demo-cosign.pub":"/cosign.pub";
+      log('<span class="ln">→ GET '+pubKeyURL+'</span>');
+      const pem=await (await fetch(pubKeyURL)).text();
       const pub=await importPub(pem);
-      log('<span class="mut">  public key imported (ECDSA P-256, SPKI)</span>');
+      log('<span class="mut">  public key imported (ECDSA P-256, SPKI)'+(isDemoKey?" — DEMO key":"")+'</span>');
 
       if(!dsse.signed){
         log('<span class="er">  envelope is UNSIGNED in this runtime — cannot verify.</span>');
@@ -508,10 +513,16 @@
       if(!ok && sig[0]===0x30){ ok=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},pub,sig.buffer,pae.buffer); }
 
       if(ok){
-        log('<span class="ok">✓ signature VALID — verified locally in your browser.</span>');
+        log('<span class="ok">✓ signature VALID — verified locally in your browser.'+(isDemoKey?" (demo-signing-key)":"")+'</span>');
         const kid=(sigs[0].keyid||"").slice(0,16);
-        verdict(true,"VERIFIED — WebCrypto ECDSA-P256 signature valid over the DSSE PAE."+
-          (kid?(" keyid "+esc(kid)+"…"):"")+" Nothing trusted; everything checked.");
+        if(isDemoKey){
+          verdict(true,"VERIFIED (demo-signing-key — not the production cosign key) — real "+
+            "WebCrypto ECDSA-P256 signature valid over the DSSE PAE, checked against /demo-cosign.pub. "+
+            "The production cosign key stays founder-gated and is never placed in this runtime.");
+        }else{
+          verdict(true,"VERIFIED — WebCrypto ECDSA-P256 signature valid over the DSSE PAE."+
+            (kid?(" keyid "+esc(kid)+"…"):"")+" Nothing trusted; everything checked.");
+        }
       }else{
         log('<span class="er">✗ verification returned false.</span>');
         verdict(false,"Signature did NOT verify against the fetched key.");
