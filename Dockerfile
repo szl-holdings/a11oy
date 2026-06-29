@@ -284,7 +284,11 @@ COPY szl_quant_qbio_holo.py ./
 # Dockerfile COPY set) would not mirror it to the HF Space. Reuses szl_khipu (the
 # shared signed-receipt chain), already COPY'd above. szl_materials is the SHARED
 # Materials module (Crystal Novelty Certificate + appended DEV2/DEV3 groups).
-COPY szl_materials.py ./
+# szl_materials_predict.py is the governed property-PREDICTION vertical (MODELED+SAMPLE
+# numpy surrogate + calibrated ensemble UQ); MUST be per-file COPY'd (no `COPY . .`)
+# or serve.py's guarded import falls back and /api/a11oy/v1/materials/predict 404s AND
+# hf-sync-backend.yml (parses this COPY set) would not mirror it to the HF Space.
+COPY szl_materials.py szl_materials_predict.py ./
 # SWEEP D1 (SDA): szl_sda.py serves the honest Space/Domain-Awareness + counter-UAS
 # surface (/api/a11oy/v1/sda/* and /v1/sda/*). MUST be per-file COPY'd (no `COPY . .`)
 # or serve.py's guarded `import szl_sda` falls back to the stub (merged-but-not-live,
