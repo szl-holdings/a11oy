@@ -8357,6 +8357,26 @@ async def verify_demo_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# /pinn-console — Governed Inverse-PINN Console. Public front-end for the LIVE
+# governed inverse-PINN engine (POST /api/a11oy/v1/pinn/identify). Renders the
+# discovered parameter(s) + 95% CI, the GREEN/YELLOW/RED convergence badge, the
+# FIM identifiability / self-doubt REFUSAL (the honesty hero moment), the Λ
+# advisory (Conjecture 1, never a proof, never 1.0), the F19/Bekenstein check
+# (PROVEN inequality APPLIED, not re-claimed), and the signed receipt + a Khipu
+# ledger verify link. Distinct from /pinn (the physical-bounds certifier surface).
+# Pure HTML/JS/CSS (0 runtime CDN; no server-side numpy). Reuses the verify.html
+# design system. Served from pages/pinn-console.html (COPYed wholesale by the
+# Dockerfile COPY pages/ ./pages/). Registered BEFORE the SPA catch-all so it
+# returns the real page, not the SPA soft-404. ADDITIVE — no existing route touched.
+@app.get("/pinn-console")
+@app.get("/a11oy/pinn-console")
+async def pinn_console_page() -> Response:
+    f = PAGES_DIR / "pinn-console.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 # /assurance — AI Assurance for WDP-era agentic AI.
 # Hero: verifiable AI assurance overlay; assurance matrix (CDAO/DoD/OMB requirements);
 # live proof widget (run governed decision -> WebCrypto verify); WILLAY for defense;
