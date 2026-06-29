@@ -61,9 +61,14 @@ _PROBE_UA = os.environ.get(
 # public endpoint the govern/health mesh reports. The OpenAI-compatible base is
 # <root>/v1 (chat/completions); ollama's native model list is <root>/api/tags.
 def _tower_root() -> str:
+    # The spec-decode draft+target pair MUST live on the SAME node, and the only
+    # node that holds a llama target (llama3.1:8b) is the tower at gpu.a-11-oy.com.
+    # We deliberately do NOT inherit the generic mesh base URL envs
+    # (A11OY_BETTERWITHAGE_BASE_URL / A11OY_MODEL_BASE_URL) — on the live Space those
+    # point at the laptop node (gpu2.a-11-oy.com), which has no llama target, so the
+    # auto-light-up would probe the wrong box after the on-metal pull. Only the
+    # dedicated A11OY_SPECDEC_TOWER_URL overrides the tower default.
     root = (os.environ.get("A11OY_SPECDEC_TOWER_URL")
-            or os.environ.get("A11OY_BETTERWITHAGE_BASE_URL")
-            or os.environ.get("A11OY_MODEL_BASE_URL")
             or "https://gpu.a-11-oy.com").strip().rstrip("/")
     if "router.huggingface.co" in root:  # never the cloud router — we want the metal
         root = "https://gpu.a-11-oy.com"
