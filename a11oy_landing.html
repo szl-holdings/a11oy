@@ -11,8 +11,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>a11oy — governed inference, signed and shown</title>
-<meta name="description" content="a11oy governs every AI turn before it runs and seals it as a signed receipt you can verify offline. They hide the governor; we sign and show it." />
+<title>SZL Holdings — Sovereign Governed AI · a11oy + killinchu</title>
+<meta name="description" content="SZL Holdings: one sovereign governance substrate — signed receipts, the Λ trust gate, a self-doubt gate, a sha3_256 receipt ledger — under two products: a11oy (governed AI platform) and killinchu (counter-UAS / sovereign defense). They hide the governor; we sign and show it." />
 <link rel="icon" href="/social-preview.svg" />
 <style>
   :root{
@@ -107,6 +107,33 @@
   .card .ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
     background:#39d8c815;border:1px solid var(--teal-soft);color:var(--teal);margin-bottom:14px;font-size:18px}
 
+  /* ---- product cards (two-product front door) ---- */
+  .prod{padding:30px;display:flex;flex-direction:column;gap:18px}
+  .prod .phead{display:flex;align-items:center;gap:13px}
+  .prod .pmark{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
+    font-family:var(--mono);font-weight:720;font-size:15px}
+  .prod.a .pmark{background:#39d8c815;border:1px solid var(--teal-soft);color:var(--teal)}
+  .prod.k .pmark{background:#6a7bff18;border:1px solid #6a7bff44;color:var(--violet)}
+  .prod h3{font-size:1.5rem;font-weight:740;margin:0;letter-spacing:-.4px}
+  .prod .tag{font-size:12px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.4px;margin-top:2px}
+  .prod .feat{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+  .prod .feat li{display:flex;gap:10px;color:var(--sub);font-size:.95rem;line-height:1.4}
+  .prod .feat li::before{content:"▸";color:var(--teal);flex:0 0 auto;margin-top:1px}
+  .prod.k .feat li::before{color:var(--violet)}
+  .prod .pcta{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap;padding-top:6px}
+  .btn-violet{background:linear-gradient(135deg,var(--violet),#5566e8);color:#fff;
+    box-shadow:0 6px 24px -8px var(--violet)}
+  .btn-violet:hover{transform:translateY(-1px);box-shadow:0 10px 30px -8px var(--violet)}
+  .prooflist{display:grid;gap:12px;grid-template-columns:repeat(2,1fr)}
+  @media(max-width:760px){.prooflist{grid-template-columns:1fr}}
+  .proof{display:flex;gap:13px;align-items:flex-start;padding:16px 18px;border-radius:13px;
+    border:1px solid var(--border);background:linear-gradient(180deg,#ffffff0a,#ffffff04)}
+  .proof .pi{font-size:18px;flex:0 0 auto}
+  .proof .pn{font-weight:640;font-size:.98rem}
+  .proof .pd{color:var(--ghost);font-size:.88rem;margin-top:2px}
+  .proof a.go{color:var(--teal);font-family:var(--mono);font-size:12.5px;margin-top:6px;display:inline-block}
+  .proof a.go:hover{text-decoration:underline}
+
   /* ---- labels / chips ---- */
   .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
     font-size:12px;font-weight:600;font-family:var(--mono);border:1px solid var(--border)}
@@ -163,7 +190,7 @@
 <!-- ============================ NAV ============================ -->
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="/" aria-label="a11oy home">
+    <a class="brand" href="/" aria-label="SZL Holdings home">
       <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stop-color="#39d8c8"/><stop offset="1" stop-color="#6a7bff"/></linearGradient></defs>
@@ -171,14 +198,14 @@
         <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
         <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
       </svg>
-      <span>a11oy<span class="sub" style="margin-left:9px">SZL Holdings</span></span>
+      <span>SZL Holdings<span class="sub" style="margin-left:9px">Sovereign Governed AI</span></span>
     </a>
     <nav>
-      <a href="/console">Console</a>
+      <a href="#products">Products</a>
+      <a href="#substrate">Substrate</a>
+      <a href="/console">a11oy</a>
+      <a href="/elite">killinchu</a>
       <a href="/verify">Verify</a>
-      <a href="/assurance">Assurance</a>
-      <a href="/willay">WILLAY</a>
-      <a href="/governance">Governance</a>
       <a class="btn btn-primary" href="/console">Open Console →</a>
     </nav>
   </div>
@@ -190,13 +217,16 @@
   <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
     <div class="hero-inner">
-      <span class="eyebrow"><span class="dot"></span> Governed inference · signed receipts · verify offline</span>
-      <h1 class="title">Every AI turn,<br><span class="grad">governed and signed.</span></h1>
-      <p class="lede">a11oy gates every model call against a constitution <b>before it runs</b>,
-        routes it on a sovereign mesh, and seals the decision as a signed receipt you can verify
-        yourself. <b>They hide the governor. We sign and show it.</b></p>
+      <span class="eyebrow"><span class="dot"></span> One governance substrate · two products · verify offline</span>
+      <h1 class="title">One company. One governance substrate.<br><span class="grad">Two sovereign products.</span></h1>
+      <p class="lede"><b>SZL Holdings</b> builds a single governance substrate — signed receipts,
+        the Λ trust gate <span class="mono">(Conjecture&nbsp;1, advisory)</span>, a self-doubt gate,
+        and a <span class="mono">sha3_256</span> receipt ledger. On it run two products:
+        <b>a11oy</b>, the governed-AI platform, and <b>killinchu</b>, sovereign counter-UAS defense.
+        <b>They hide the governor. We sign and show it.</b></p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/console">Open the Console →</a>
+        <a class="btn btn-primary" href="/console">Open a11oy Console →</a>
+        <a class="btn btn-violet" href="/elite">Open killinchu →</a>
         <a class="btn btn-ghost" href="#verify">Verify a receipt offline</a>
       </div>
       <div class="hero-stats">
@@ -213,6 +243,82 @@
           <div class="l">Locked-proven formulas</div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== TWO PRODUCTS ====================== -->
+<section class="band wrap" id="products">
+  <p class="kick">Two products, one substrate</p>
+  <h2>Two sovereign products on the same governed core.</h2>
+  <p class="intro">Both products gate every action before it runs and seal the decision as a signed,
+    hash-chained receipt. Same substrate, two missions — each one live and clickable today.</p>
+  <div class="grid g2">
+    <!-- a11oy -->
+    <div class="card prod a">
+      <div class="phead">
+        <div class="pmark">a11</div>
+        <div><h3>a11oy</h3><div class="tag">Governed AI platform</div></div>
+      </div>
+      <p>The general governed-AI platform: a Command Center, the Five Superpowers, and a governed
+        agent loop where every turn clears the constitution before a token is generated.</p>
+      <ul class="feat">
+        <li>Governed inference on a sovereign mesh</li>
+        <li>Inverse-PINN physics discovery + CALPHAD materials prediction</li>
+        <li>Conformal trust intervals · E8 receipt encoding (error-detection geometry, after Viazovska)</li>
+        <li>Evidence pack · energy MEASURED when the meter is live, else UNAVAILABLE</li>
+      </ul>
+      <div class="pcta">
+        <a class="btn btn-primary" href="/console">Open the Console →</a>
+        <a class="btn btn-ghost" href="/frontier">Frontier</a>
+      </div>
+    </div>
+    <!-- killinchu -->
+    <div class="card prod k">
+      <div class="phead">
+        <div class="pmark">kil</div>
+        <div><h3>killinchu</h3><div class="tag">Counter-UAS · sovereign defense</div></div>
+      </div>
+      <p>Sovereign counter-UAS defense built on the same substrate — a live operations console where
+        every interdiction carries a verifiable DSSE receipt.</p>
+      <ul class="feat">
+        <li>Live track board with sensor-fusion</li>
+        <li>13-axis Λ trust gate (Conjecture 1, advisory)</li>
+        <li>3-of-4 BFT quorum on every decision</li>
+        <li>DSSE verifier per interdiction</li>
+      </ul>
+      <div class="pcta">
+        <a class="btn btn-violet" href="/elite">Open killinchu →</a>
+        <a class="btn btn-ghost" href="/verify">Verify a receipt</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== SHARED SUBSTRATE ====================== -->
+<section class="band" id="substrate" style="background:linear-gradient(180deg,#0a0f1e00,#0a0f1e88)">
+  <div class="wrap">
+    <p class="kick">The shared governance substrate</p>
+    <h2>The proof points both products stand on — each one clickable.</h2>
+    <p class="intro">Every claim below is backed by a live surface you can open and verify yourself.
+      Nothing is asserted that you cannot click through and check.</p>
+    <div class="prooflist">
+      <div class="proof"><span class="pi">🔏</span><div>
+        <div class="pn">In-browser receipt verification</div>
+        <div class="pd">WebCrypto ECDSA-P256 over the DSSE PAE — no server round-trip.</div>
+        <a class="go" href="/verify">/verify →</a></div></div>
+      <div class="proof"><span class="pi">🧾</span><div>
+        <div class="pn">Evidence pack / assurance</div>
+        <div class="pd">Replayable evidence an auditor can defend in a review.</div>
+        <a class="go" href="/assurance">/assurance →</a></div></div>
+      <div class="proof"><span class="pi">⛓</span><div>
+        <div class="pn">Receipt ledger · sha3_256</div>
+        <div class="pd">Hash-chained ledger; signed on write, never on a read.</div>
+        <a class="go" href="/api/lake/v1/health">live ledger health →</a></div></div>
+      <div class="proof"><span class="pi">🛰</span><div>
+        <div class="pn">Frontier manifest</div>
+        <div class="pd">8 locked-proven formulas · ~35 wired · ~185 corpus.</div>
+        <a class="go" href="/frontier">/frontier →</a></div></div>
     </div>
   </div>
 </section>
@@ -305,7 +411,7 @@
     </div>
     <div style="margin-top:34px;display:flex;gap:12px;flex-wrap:wrap">
       <a class="btn btn-primary" href="/assurance">See the assurance surface →</a>
-      <a class="btn btn-ghost" href="/willay">Explore WILLAY</a>
+      <a class="btn btn-ghost" href="/frontier">Frontier manifest</a>
       <a class="btn btn-ghost" href="/governance">Governance model</a>
     </div>
   </div>
@@ -320,16 +426,17 @@
           <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
             <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
-          <span>a11oy</span></a>
-        <p class="muted" style="margin:6px 0 0">The governed agentic substrate of SZL Holdings.
-          Governed inference, signed receipts, sovereign compute.</p>
+          <span>SZL Holdings</span></a>
+        <p class="muted" style="margin:6px 0 0">Sovereign Governed AI. One governance substrate —
+          signed receipts, the Λ trust gate, a self-doubt gate, a sha3_256 ledger — under two
+          products: a11oy and killinchu.</p>
       </div>
-      <div class="lk"><strong style="color:var(--ink)">Product</strong>
-        <a href="/console">Console</a><a href="/verify">Verify</a>
-        <a href="/assurance">Assurance</a><a href="/willay">WILLAY</a></div>
-      <div class="lk"><strong style="color:var(--ink)">Platform</strong>
-        <a href="/governance">Governance</a><a href="/frontier">Frontier</a>
-        <a href="/orbital">Orbital</a><a href="/api/a11oy/v1/honest">Honest status (JSON)</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Products</strong>
+        <a href="/console">a11oy · Console</a><a href="/elite">killinchu · Counter-UAS</a>
+        <a href="/frontier">Frontier</a><a href="/governance">Governance</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Substrate</strong>
+        <a href="/verify">Verify</a><a href="/assurance">Assurance</a>
+        <a href="/api/lake/v1/health">Receipt ledger</a><a href="/api/a11oy/v1/honest">Honest status (JSON)</a></div>
     </div>
     <p class="disc">Honesty doctrine v11. Λ is Conjecture 1 — an advisory trust ceiling, not a
       theorem, never 100%. The locked-proven formula kernel is exactly 8 (of ~35 wired, ~185 in the
