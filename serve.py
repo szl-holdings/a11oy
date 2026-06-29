@@ -311,6 +311,22 @@ try:
 except Exception as _szl_eb_e:  # pragma: no cover
     print(f"[a11oy] Energy-budget receipt NOT registered: {_szl_eb_e!r}", file=__import__("sys").stderr)
 
+# ── Proven Energy Engine — LIVE feed (energy-live). Binds the dashboards to REAL data:
+# GET /api/a11oy/v1/energy/{live,mesh,harvest}. /live is a real-time NVML power+energy
+# snapshot scraped from the SZL_GLM_METER Prometheus exporter (/metrics) with a SHORT 2s
+# timeout + ~5s last-good cache (always fast, never hangs); joules are MEASURED only when
+# the meter is reachable, else UNAVAILABLE with joules NOT fabricated. /mesh combines the
+# in-process sovereign-mesh govern/health posture with per-node NVML watts/joules + a 0..1
+# draw for the 3D view (honest empty-states). /harvest exposes the Bekenstein budget ledger
+# as a time-ordered joules_est series (F19/TH6 gate) plus a CLEARLY-LABELED client-side
+# tariff-window heuristic (NOT a live feed). Additive, try/except-guarded, before the SPA.
+try:
+    import szl_energy_live as _szl_energy_live
+    _szl_energy_live.register(app, ns="a11oy")
+    print("[a11oy] Energy LIVE feed registered: /api/a11oy/v1/energy/{live,mesh,harvest}", file=__import__("sys").stderr)
+except Exception as _szl_el_e:  # pragma: no cover
+    print(f"[a11oy] Energy LIVE feed NOT registered: {_szl_el_e!r}", file=__import__("sys").stderr)
+
 # ── Energy / Sovereign-Compute instrumentation (Lane C: sovereign-energy). Reads REAL
 # J/token + carbon + speculative-decode + KV-cache + router + carbon-schedule from the
 # on-box vLLM /metrics ONLY when the live sovereign probe shows gpu_reachable; otherwise
