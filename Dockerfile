@@ -1201,6 +1201,8 @@ COPY web/energy.html ./web/energy.html
 # the route falls through to the SPA shell and the module 404s. Doctrine v11.
 COPY web/energy-3d.html ./web/energy-3d.html
 COPY static/energy_3d.js ./static/energy_3d.js
+# Grid Energy Harvest honest dashboard (/energy-harvest); served via _ptg_serve from /app/web/.
+COPY web/energy-harvest.html ./web/energy-harvest.html
 # Immune (Hukulla) honest egress-gate page (/immune, /a11oy/immune). Standalone
 # sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/* (status/
 # gates/feed + a live inspect->verdict box showing real deny/allow + signed Khipu
