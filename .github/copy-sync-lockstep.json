@@ -41,6 +41,8 @@
     "web/signature-is-not-proof.html",
     "web/energy.html",
     "web/energy-holographic.html",
+    "web/energy-3d.html",
+    "static/energy_3d.js",
     "web/immune.html",
     "web/materials.html",
     "web/estate-hologram.html",

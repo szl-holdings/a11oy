@@ -1484,6 +1484,16 @@ try:
     # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
     app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    # 3D HOLOGRAPHIC ENERGY VIEW (2026-06-29): real, operational WebGL scene of the
+    # sovereign mesh — glowing nodes + energy-flow particles bound LIVE to
+    # /api/a11oy/v1/energy/mesh (particle speed/density ∝ live watts/draw; node
+    # brightness ∝ live watts; DOWN nodes dark; UNAVAILABLE -> posture-only, NO
+    # fabricated flow). Standalone sovereign page (Three.js r160 vendored at
+    # /hero/vendor3d, 0 runtime CDN); its ES module is served at /energy-3d/app.js
+    # (see below). Replaces the prior SPA-shell fall-through. Registered BEFORE the
+    # SPA catch-all so the explicit route wins. Doctrine v11 — honest labels only.
+    app.add_api_route("/energy-3d", _ptg_serve("energy-3d.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy-3d", _ptg_serve("energy-3d.html"), methods=["GET"], include_in_schema=False)
     # IMMUNE (Hukulla) tab (2026-06-15): the honest, user-visible egress-gate surface.
     # Standalone sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/*
     # (status/gates/feed) + a live "inspect an action" box that POSTs to
@@ -8113,6 +8123,22 @@ async def _landing_app_js() -> Response:
         return FileResponse(str(f), media_type="application/javascript; charset=utf-8",
                             headers={"Cache-Control": "public, max-age=3600"})
     return JSONResponse({"error": "landing app.js missing"}, status_code=404)
+
+
+# === ADDITIVE: /energy-3d ES module (3D Holographic Energy View) ===
+# /energy-3d/app.js serves the Three.js GPGPU particle + Vizceral-style node-edge
+# scene that binds LIVE to /api/a11oy/v1/energy/mesh. ES module; imports "three" via
+# the importmap in web/energy-3d.html -> /hero/vendor3d/three.module.min.js (vendored
+# r160, MIT, 0 CDN). Registered BEFORE the SPA /{full_path:path} catch-all so it wins
+# the ordered match (a missing file degrades honestly to a 404, never a fabricated stub).
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+@app.get("/energy-3d/app.js")
+async def _energy3d_app_js() -> Response:
+    f = Path("/app/static/energy_3d.js")
+    if f.is_file():
+        return FileResponse(str(f), media_type="application/javascript; charset=utf-8",
+                            headers={"Cache-Control": "public, max-age=3600"})
+    return JSONResponse({"error": "energy-3d app.js missing"}, status_code=404)
 
 
 
