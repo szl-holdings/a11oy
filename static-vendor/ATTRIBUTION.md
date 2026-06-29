@@ -17,6 +17,17 @@ layer; the rendering/layout primitives stay attributed to Andrei Kashcha.
 
 Each library's full LICENSE text is kept beside its vendored file as `LICENSE.<lib>`.
 
+## Energy-Ops streaming chart (separate author)
+
+| Vendored file | Source repo | SPDX license | Global exposed | Copyright |
+|---|---|---|---|---|
+| `uPlot.iife.min.js` | [leeoniya/uPlot](https://github.com/leeoniya/uPlot) `dist/` v1.6.32 | MIT | `uPlot` | © 2022 Leon Sorokin |
+| `uPlot.min.css` | [leeoniya/uPlot](https://github.com/leeoniya/uPlot) `dist/` v1.6.32 | MIT | — (stylesheet) | © 2022 Leon Sorokin |
+
+uPlot is used by the `/energy-ops` Live Energy Dashboard for the streaming watts
+line chart, vendored locally and referenced as `<link>/<script src="/vendor/uPlot...">`
+(0 CDN). Full MIT text in `LICENSE.uplot`. We do not relicense or claim authorship.
+
 ## Deferred to a later round (NOT vendored in R1)
 These anvaka libraries ship only as CommonJS-with-deep-`require()`-trees or as
 un-built TypeScript source. Without an npm/bundler step in the offline build sandbox

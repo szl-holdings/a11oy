@@ -91,6 +91,13 @@ heuristic (not measured online benchmarks). No routing data is fabricated.
 - **Source:** https://github.com/mrdoob/three.js
 - **Usage:** 3D rendering for the routing-graph and other console viz pages (r171).
 
+### uPlot (Leon Sorokin)
+- **License:** MIT (© 2022 Leon Sorokin)
+- **Source:** https://github.com/leeoniya/uPlot (v1.6.32)
+- **Usage:** Streaming watts line chart on the `/energy-ops` Live Energy Dashboard.
+  Vendored 0-CDN at `static-vendor/uPlot.iife.min.js` + `.css`, served from
+  `/vendor/uPlot.iife.min.js`. Full MIT text in `static-vendor/LICENSE.uplot`.
+
 ## Governed Vector Index (WAQAY) — studied open work, made ours (attribution required)
 
 WAQAY (Quechua: *to keep / guard / store*) is SZL Holdings' own governed,
