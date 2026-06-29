@@ -681,6 +681,198 @@ try:
 except Exception as _szl_ipinn_e:  # pragma: no cover
     print(f"[a11oy] Governed Inverse-PINN NOT registered (a11oy continues): {_szl_ipinn_e!r}", file=__import__("sys").stderr)
 
+# ── Auditor Evidence Pack (assurance-evidence-pack) — closes GAP 3 where
+# GET /api/a11oy/v1/assurance/evidence-pack 404'd. Assembles ONE signed, offline-
+# verifiable auditor pack at REQUEST time from material that is ALREADY LIVE:
+#   • assurance matrix (szl_assurance.ASSURANCE_MATRIX — CDAO/DoD req→artifact,
+#     honest IMPLEMENTED/PARTIAL/ROADMAP labels)
+#   • khipu chain heads + re-walked links_intact per organ (szl_khipu_verify.list_organs)
+#   • lake health snapshot (szl_lake_store … sha3_256, total_receipts, per-organ chain_head)
+#   • doctrine snapshot (8 locked-proven, kernel c7c0ba17, Λ=Conjecture 1, Khipu BFT=
+#     Conjecture 2, liveness=Conjecture 3 — REAL values, never inflated)
+#   • generated_at + the cosign public-key fingerprint.
+# The pack body is canonicalised + sha3_256-hashed and that digest is INCLUDED so an
+# auditor re-verifies OFFLINE (no server round-trip). If demo signing is available
+# (szl_demo_sign / SZL_DEMO_SIGN_KEY) the digest is signed with the clearly-labelled
+# DEMO key (keyid=demo-signing-key — NOT production cosign); otherwise an honest
+# DSSE_PLACEHOLDER unsigned note. NEVER a fabricated signature.
+# PURE STDLIB (json, hashlib sha3_256, time) — the numpy-less HF web image has no
+# numpy/pandas; every optional dep is imported INSIDE the handler under try/except and
+# degrades HONESTLY (never 404, never raises into startup). Routes are FRONT-MOVED to
+# the HEAD of app.router.routes (same proven pattern as the inverse-PINN +
+# compliance-mesh blocks) so they win over the /api/a11oy/{path:path} Node proxy + SPA
+# catch-all defined at the file tail. Additive, try/except-guarded.
+try:
+    from starlette.routing import Route as _EPRoute
+    from starlette.responses import JSONResponse as _EPJSON
+
+    # Doctrine snapshot — REAL values read from the codebase (szl_willay_gateway.DOCTRINE,
+    # szl_yupay.LOCKED_THEOREMS, AGENTS.md). NEVER inflate the locked count past 8.
+    _EP_DOCTRINE = {
+        "version": "v11 LOCKED",
+        "locked_proven": 8,
+        "locked_theorems": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "locked_count_ci_gate": "locked_count_eight (no-axiom theorem)",
+        "kernel_commit": "c7c0ba17",
+        "lambda": "Conjecture 1 (advisory; Λ-uniqueness is NOT a theorem)",
+        "khipu_bft": ("Conjecture 2 (chain INTEGRITY is real and recomputed via sha3_256 "
+                      "re-walk; BFT/consensus safety across replicas is the OPEN conjecture, "
+                      "NOT proven)"),
+        "liveness": "Conjecture 3 (advisory; agentic-loop liveness is NOT a closed theorem)",
+        "slsa": "L1 honest · L2 roadmap · L3 roadmap",
+        "accreditation": {
+            "ato": "NOT obtained — ROADMAP",
+            "il5": "NOT obtained — ROADMAP",
+            "fedramp_high": "NOT obtained — ROADMAP",
+        },
+        "honest_note": ("a11oy is the governance OVERLAY — NOT accredited. Chain integrity is "
+                        "COMPUTED (sha3_256 re-walk), never asserted. 8 locked-proven only; "
+                        "Λ/Khipu/liveness are conjectures, never theorems. No datum is fabricated."),
+    }
+
+    def _ep_canon(obj):
+        import json as _j
+        return _j.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+    def _ep_sha3(b):
+        import hashlib as _h
+        return _h.sha3_256(b).hexdigest()
+
+    def _ep_assurance():
+        try:
+            import szl_assurance as _a  # REAL CDAO/DoD requirement → artifact matrix
+            return {
+                "source": "/api/a11oy/v1/assurance/matrix",
+                "status": "LIVE",
+                "requirement_count": len(_a.ASSURANCE_MATRIX),
+                "requirements": _a.ASSURANCE_MATRIX,
+                "honest_note": ("Status: LIVE=operational; MEASURED=real data; SAMPLE=demo; "
+                                "MODELED=model-derived; ROADMAP=planned. ATO/IL5/FedRAMP=ROADMAP."),
+            }
+        except Exception as _e:  # honest degrade — NEVER 404
+            return {"source": "/api/a11oy/v1/assurance/matrix", "status": "NO-LIVE-DATA",
+                    "label": "ROADMAP — assurance matrix unavailable in this build",
+                    "detail": str(_e)[:160], "fabricated": False}
+
+    def _ep_khipu():
+        try:
+            import szl_khipu_verify as _k  # re-walks prev-links; links_intact is COMPUTED
+            return _k.list_organs()
+        except Exception as _e:
+            return {"source": "/api/a11oy/v1/khipu/organs", "ok": False, "status": "NO-LIVE-DATA",
+                    "label": "ROADMAP — khipu organs unavailable in this build",
+                    "detail": str(_e)[:160], "fabricated": False}
+
+    def _ep_lake():
+        try:
+            import szl_lake_store as _l  # sha3_256 chain alg, total_receipts, per-organ heads
+            return _l.get_default_ledger().health()
+        except Exception as _e:
+            return {"source": "/api/lake/v1/health", "ok": False, "status": "NO-LIVE-DATA",
+                    "label": "ROADMAP — lake health unavailable in this build",
+                    "detail": str(_e)[:160], "fabricated": False}
+
+    def _ep_cosign():
+        # Fingerprint of the DEMO public key (PUBLIC data). The PRODUCTION founder-gated
+        # cosign key is NEVER placed in this runtime — stated plainly, never faked.
+        try:
+            import szl_demo_sign as _d, hashlib as _h
+            pem = _d.DEMO_COSIGN_PUBLIC_PEM.strip()
+            fp = _h.sha256(pem.encode("utf-8")).hexdigest()
+            try:
+                available = bool(_d.demo_signing_available())
+            except Exception:
+                available = False
+            return {
+                "key_id": _d.DEMO_KEY_ID,
+                "key_kind": "demo",
+                "verify_key_url": "/demo-cosign.pub",
+                "sha256_fingerprint": fp,
+                "demo_signing_available": available,
+                "note": (_d.DEMO_NOTE + ". The production founder-gated cosign key is NEVER "
+                         "placed in this runtime; this fingerprint is the DEMO public key."),
+            }
+        except Exception as _e:
+            return {"key_id": None, "status": "NO-KEY",
+                    "note": "no signing key available in runtime — pack is honest-unsigned (DSSE_PLACEHOLDER)",
+                    "detail": str(_e)[:160]}
+
+    def _ep_sign(digest):
+        try:
+            import szl_demo_sign as _d
+            env = _d.sign_payload_demo({"a11oy_evidence_pack_sha3_256": digest})
+            if env is not None:
+                return {
+                    "signed": True,
+                    "alg": "ECDSA-P256-SHA256 over DSSE PAE",
+                    "keyid": env.get("key_id"),
+                    "key_kind": "demo",
+                    "verify_key_url": "/demo-cosign.pub",
+                    "dsse": env,
+                    "note": (_d.DEMO_NOTE + " — NOT production cosign. Verify in-browser against "
+                             "/demo-cosign.pub. The sha3_256 self-digest is independently "
+                             "recomputable offline regardless of signature."),
+                }
+        except Exception as _e:
+            return {"signed": False, "status": "DSSE_PLACEHOLDER",
+                    "note": ("signing path unavailable — honest-unsigned. The sha3_256 self-digest "
+                             "is still independently recomputable offline; NEVER a fabricated signature."),
+                    "detail": str(_e)[:160]}
+        return {"signed": False, "status": "DSSE_PLACEHOLDER",
+                "note": ("no demo signing key in runtime (SZL_DEMO_SIGN_KEY absent) — honest-unsigned. "
+                         "The sha3_256 self-digest is independently recomputable offline; "
+                         "NEVER a fabricated signature.")}
+
+    def _ep_handler(request=None):
+        import time as _t
+        try:
+            generated_at = _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime())
+            pack = {
+                "schema": "szl.a11oy.assurance.evidence-pack.v1",
+                "generated_at": generated_at,
+                "what": ("Single, offline-verifiable auditor evidence pack assembled at REQUEST "
+                         "time from already-live a11oy surfaces. stdlib-only; no fabrication."),
+                "assurance_matrix": _ep_assurance(),
+                "khipu_organs": _ep_khipu(),
+                "lake_health": _ep_lake(),
+                "doctrine": _EP_DOCTRINE,
+                "cosign_public_key": _ep_cosign(),
+                "honest_disclosure": ("a11oy is the governance overlay, NOT accredited "
+                                      "(ATO/IL5/FedRAMP are ROADMAP). Chain integrity is COMPUTED "
+                                      "(sha3_256 re-walk), never asserted. Khipu BFT is Conjecture 2 "
+                                      "(NOT proven). 8 locked-proven only. No datum here is fabricated."),
+            }
+            body = _ep_canon(pack)
+            digest = _ep_sha3(body)
+            signature = _ep_sign(digest)
+            return _EPJSON({
+                "schema": "szl.a11oy.assurance.evidence-pack.envelope.v1",
+                "pack": pack,
+                "pack_sha3_256": digest,
+                "digest_alg": "sha3_256",
+                "digest_canonicalization": ("json.dumps(pack, sort_keys=True, "
+                                            "separators=(',',':'), ensure_ascii=False)"
+                                            ".encode('utf-8') then hashlib.sha3_256(...).hexdigest()"),
+                "offline_verify": ("Recompute: take the 'pack' object verbatim, canonicalise per "
+                                   "digest_canonicalization, sha3_256 it, and confirm it equals "
+                                   "pack_sha3_256. Zero server round-trip required."),
+                "signature": signature,
+                "generated_at": generated_at,
+            })
+        except Exception as _e:  # last-resort honest degrade — NEVER 404, NEVER raises
+            return _EPJSON({
+                "schema": "szl.a11oy.assurance.evidence-pack.envelope.v1",
+                "status": "DEGRADED",
+                "label": "ROADMAP — evidence pack temporarily unavailable in this build",
+                "detail": str(_e)[:200], "fabricated": False})
+
+    # Front-move so these beat the /api/a11oy/{path:path} Node proxy + SPA catch-all.
+    for _ep_path in ("/v1/assurance/evidence-pack", "/api/a11oy/v1/assurance/evidence-pack"):
+        app.router.routes.insert(0, _EPRoute(_ep_path, _ep_handler, methods=["GET"]))
+    print("[a11oy] Assurance evidence-pack registered (front-moved): /api/a11oy/v1/assurance/evidence-pack", file=__import__("sys").stderr)
+except Exception as _szl_ep_e:  # pragma: no cover
+    print(f"[a11oy] Assurance evidence-pack NOT registered: {_szl_ep_e!r}", file=__import__("sys").stderr)
+
 # ── Compliance crosswalk MESH (compliance-mesh) — closes the audited gap where the
 # doctrine-v11 → NIST AI RMF / ISO 42001 / EU AI Act crosswalk module existed
 # (szl_compliance_mesh.py + compliance_crosswalk.py, REAL honest data with
