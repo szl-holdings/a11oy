@@ -55,7 +55,7 @@ except Exception:  # pragma: no cover - defensive: doctrine default is always sa
 
 def _get_json(url: str, timeout: int = 12) -> Optional[object]:
     """Best-effort GET → JSON. None on any failure. Never raises."""
-    UA = {"User-Agent": "szl-revenue-endpoints/1.0 (+https://a11oy.net)"}
+    UA = {"User-Agent": "szl-revenue-endpoints/1.0 (+https://a-11-oy.com)"}
     try:
         req = urllib.request.Request(url, headers=UA)
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -85,7 +85,7 @@ def _fetch_top_flare_mcf() -> tuple[Optional[float], str, str]:
         "https://raw.githubusercontent.com/flaringmonitor/viirs-flare-data/"
         "main/processed/flaring_monitor_company_stats_satellite_modeled.csv"
     )
-    UA = {"User-Agent": "szl-revenue-endpoints/1.0 (+https://a11oy.net)"}
+    UA = {"User-Agent": "szl-revenue-endpoints/1.0 (+https://a-11-oy.com)"}
     try:
         req = urllib.request.Request(_FLARE_CSV, headers=UA)
         with urllib.request.urlopen(req, timeout=12) as r:

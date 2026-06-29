@@ -25,7 +25,7 @@ free-energy claim: it proves the job sits far BELOW the fundamental ceilings.
 USAGE (one command, no args needed):
     python forge_pinn_measure.py
 Then paste the printed JSON (or just AVG_POWER_W=...) back to Forge to publish it
-live at a11oy.net/api/a11oy/v1/pinn/certificate (label flips SAMPLE -> MEASURED).
+live at a-11-oy.com/api/a11oy/v1/pinn/certificate (label flips SAMPLE -> MEASURED).
 
 Optional env:
     OLLAMA_URL   (default http://127.0.0.1:11434)

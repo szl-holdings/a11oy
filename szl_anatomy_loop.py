@@ -13,7 +13,7 @@ THE LOOP (one cycle):
 
   harvest INTAKE  read the live wasted-energy posture (attempt local
                   http://127.0.0.1 harvest/posture, then public
-                  https://a11oy.net/api/a11oy/v1/harvest/posture; if both are
+                  https://a-11-oy.com/api/a11oy/v1/harvest/posture; if both are
                   unreachable, degrade HONESTLY to a clearly-labeled SAMPLE
                   snapshot — we NEVER fabricate a measured number)
     -> SAMAY      lungs: SOAK the available wasted-WORK window (a breath/window),
@@ -143,7 +143,7 @@ _ORGAN_SPECS = (
 _POSTURE_URLS = (
     "http://127.0.0.1/api/a11oy/v1/harvest/posture",
     "http://127.0.0.1:8000/api/a11oy/v1/harvest/posture",
-    "https://a11oy.net/api/a11oy/v1/harvest/posture",
+    "https://a-11-oy.com/api/a11oy/v1/harvest/posture",
 )
 
 

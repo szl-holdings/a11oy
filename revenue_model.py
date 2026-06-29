@@ -408,7 +408,7 @@ if __name__ == "__main__":
     try:
         req = urllib.request.Request(
             "https://api.awattar.de/v1/marketdata",
-            headers={"User-Agent": "szl-revenue-model/1.0 (+https://a11oy.net)"},
+            headers={"User-Agent": "szl-revenue-model/1.0 (+https://a-11-oy.com)"},
         )
         with urllib.request.urlopen(req, timeout=12) as r:
             body = json.loads(r.read().decode())
@@ -436,7 +436,7 @@ if __name__ == "__main__":
     try:
         req2 = urllib.request.Request(
             _FLARE_CSV,
-            headers={"User-Agent": "szl-revenue-model/1.0 (+https://a11oy.net)"},
+            headers={"User-Agent": "szl-revenue-model/1.0 (+https://a-11-oy.com)"},
         )
         with urllib.request.urlopen(req2, timeout=12) as r2:
             text = r2.read().decode("utf-8", "replace")

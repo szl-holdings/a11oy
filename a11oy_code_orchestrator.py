@@ -209,7 +209,7 @@ def _serving_provider() -> tuple[str, str]:
 # Tier -> locally-served model tag. When serving locally (is_local True) we
 # translate the router model id to the tag the on-box server (Ollama/vLLM)
 # actually exposes. Env-overridable so the box can set its exact served tags
-# WITHOUT a code change (the only remaining step to flip a11oy.net sovereign).
+# WITHOUT a code change (the only remaining step to flip a-11-oy.com sovereign).
 # The ROUTER path always keeps the original router model ids untouched.
 A11OY_LOCAL_MODEL_MAP = {
     "coder": os.environ.get("A11OY_LOCAL_CODE_MODEL", "qwen2.5-coder:7b"),

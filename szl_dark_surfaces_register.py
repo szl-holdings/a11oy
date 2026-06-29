@@ -1,6 +1,6 @@
 """a11oy DARK-SURFACE AGGREGATOR — wire every still-dark tab so it populates.
 
-The a11oy.net SPA ships tabs whose HTML pages return 200 but whose backing v1
+The a-11-oy.com SPA ships tabs whose HTML pages return 200 but whose backing v1
 JSON API surfaces were never live (404 / "dark"), so those tabs render empty or
 degraded. The backing modules ALL EXIST in this repo; they were simply not
 reliably registered onto the live serve.py app (a registration could be missing,
