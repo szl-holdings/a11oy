@@ -5887,6 +5887,24 @@ async def a11oy_cosign_pub_v2() -> Response:
     return PlainTextResponse(_A11OY_PUB_PEM, media_type="text/plain")
 
 
+# ---- /demo-cosign.pub — DEMO-ONLY public key (PEM, text/plain) -------------
+# Serves the PUBLIC half of the clearly-labelled demo-signing-key (Option B).
+# The /verify JS fetches this ONLY when a receipt's keyid == "demo-signing-key",
+# so a buyer can watch a real in-browser ECDSA-P256 verification succeed while the
+# PRODUCTION cosign key stays founder-gated and is NEVER placed in this runtime.
+# This is PUBLIC data; it is NOT the production cosign.pub.
+@app.get("/demo-cosign.pub")
+@app.get("/api/a11oy/demo-cosign.pub")
+async def a11oy_demo_cosign_pub() -> Response:
+    try:
+        import szl_demo_sign
+        return PlainTextResponse(szl_demo_sign.DEMO_COSIGN_PUBLIC_PEM,
+                                 media_type="text/plain")
+    except Exception:
+        return PlainTextResponse("# demo signing key module unavailable\n",
+                                 status_code=503)
+
+
 # ---- Receipt chain (in-image, hash-chained, signed) ----
 def _a11oy_build_chain(n: int = 24) -> dict:
     """Build a deterministic in-image receipt hash-chain. Each receipt commits
