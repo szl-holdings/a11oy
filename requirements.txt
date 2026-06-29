@@ -15,3 +15,8 @@ py_ecc>=8.0.0
 # with `id-token: write` can mint a real signature; every other runtime keeps the
 # HONEST dsse_envelope() placeholder (DsseSigningUnavailable, never a fake sig).
 sigstore>=4.3.0
+# REQUIRED by the Governed Inverse-PINN engine (szl_pinn_inverse + szl_governed_ipinn
+# import numpy at module top). Absent it, serve.py's guarded import fails and POST
+# /api/a11oy/v1/pinn/identify + /pinn/health 404 through the Node proxy. The Dockerfile
+# pins numpy==1.26.4 (cp312 manylinux wheel); BSD-3 permissive, no torch/scipy.
+numpy>=1.26

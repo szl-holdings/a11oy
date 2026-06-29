@@ -117,6 +117,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # this pin makes that path active in the running image (pure-python wheel).
 # Mirrors killinchu #150 so the byte-identical szl_connectors/erp/odoo.py is
 # hardened in BOTH flagships rather than silently degrading to the stdlib parser.
+# numpy (BSD-3, permissive): REQUIRED by the Governed Inverse-PINN engine
+# (szl_pinn_inverse + szl_governed_ipinn do a top-level `import numpy`). Without it
+# serve.py's guarded `import szl_governed_ipinn` raises ModuleNotFoundError, the
+# register() never runs, and POST /api/a11oy/v1/pinn/identify + /pinn/health fall
+# through to the /api/a11oy/{path:path} Node proxy (404). cp312 manylinux wheel —
+# no build, no torch/DeepXDE/scipy. The bounds certifier stays pure-stdlib.
 RUN pip install --no-cache-dir \
     "fastapi==0.137.1" \
     "uvicorn[standard]==0.49.0" \
@@ -128,7 +134,8 @@ RUN pip install --no-cache-dir \
     "cryptography==49.0.0" \
     "lmdb==2.2.1" \
     "slowapi==0.1.10" \
-    "defusedxml==0.7.1"
+    "defusedxml==0.7.1" \
+    "numpy==1.26.4"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
