@@ -48,7 +48,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional
 
-_UA = "szl-evidence-research/1.1 (+https://a11oy.net; research-evidence layer)"
+_UA = "szl-evidence-research/1.1 (+https://a-11-oy.com; research-evidence layer)"
 _ARXIV = "https://export.arxiv.org/api/query"
 _OPENALEX = "https://api.openalex.org/works"
 _GH_REPO = "https://api.github.com/repos/"

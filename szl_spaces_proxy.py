@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
-"""szl_spaces_proxy.py — surface the live HF Spaces estate under a11oy.net/spaces/*.
+"""szl_spaces_proxy.py — surface the live HF Spaces estate under a-11-oy.com/spaces/*.
 
 ADDITIVE, self-contained, SHARED (byte-identical in a11oy + killinchu). Founder rule:
-"all the huggingface on my a11oy.net" with NO new subdomains. This module reverse-
+"all the huggingface on my a-11-oy.com" with NO new subdomains. This module reverse-
 proxies each live Hugging Face Space to a same-origin path:
 
     GET/HEAD /spaces                 -> index (delegates to szl_spaces_surface tiles if
@@ -48,7 +48,7 @@ _ORG_PREFIX = "szlholdings-"
 
 # The 11 live Spaces (all RUNNING). app URL pattern: https://szlholdings-<name>.hf.space
 # PROXY allowlist = the names we reverse-proxy under /spaces/<name>. We SKIP:
-#   - "a11oy"    : self-proxy would loop (a11oy.net IS the a11oy Space).
+#   - "a11oy"    : self-proxy would loop (a-11-oy.com IS the a11oy Space).
 #   - "killinchu": served on its own host; we link the tile to its host, never proxy it.
 # Both skipped names are still listed as TILES by szl_spaces_surface.
 ALL_SPACES = [
@@ -113,7 +113,7 @@ def _fallback_index() -> bytes:
             local_label = "Open on HF"
         else:
             local = "/spaces/%s" % name
-            local_label = "Open in a11oy.net"
+            local_label = "Open in a-11-oy.com"
         rows.append(
             "<li style=\"margin:.4rem 0\"><strong style=\"color:#e7eef6\">%s</strong> "
             "&middot; <a href=\"%s\" style=\"color:#d4a444;text-decoration:none\">%s</a> "
@@ -128,7 +128,7 @@ def _fallback_index() -> bytes:
         "font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:2rem\">"
         "<main style=\"max-width:760px;margin:0 auto\">"
         "<h1 style=\"color:#e7eef6\">Hugging Face Spaces</h1>"
-        "<p style=\"color:#8a96a3\">All live Spaces, surfaced under a11oy.net. "
+        "<p style=\"color:#8a96a3\">All live Spaces, surfaced under a-11-oy.com. "
         "Server-side reverse proxy &mdash; 0 browser CDN.</p>"
         "<ul style=\"list-style:none;padding:0\">" + "".join(rows) + "</ul>"
         "</main></body></html>"
@@ -231,7 +231,7 @@ async def _proxy(name: str, subpath: str, request) -> Any:
 
     target = hf_url(name) + "/" + subpath
     # Send a CLEAN, minimal header set rather than forwarding the raw browser headers.
-    # Forwarding the incoming Host (a11oy.net) makes HF route to the wrong vhost -> 404,
+    # Forwarding the incoming Host (a-11-oy.com) makes HF route to the wrong vhost -> 404,
     # and forwarding the full browser header set (incl. Accept-Encoding: br, X-Forwarded-*)
     # was tripping the upstream fetch on the live box. We mirror the proven-working probe:
     # identity encoding, a simple UA, and only the few request headers that are safe to
