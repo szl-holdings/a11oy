@@ -643,6 +643,28 @@ try:
 except Exception as _szl_pinn_e:  # pragma: no cover
     print(f"[a11oy] Agentic-PINN + physical-bounds mesh NOT registered: {_szl_pinn_e!r}", file=__import__("sys").stderr)
 
+# ── Governed Inverse-PINN engine (governed-inverse-pinn) — adds the INVERSE
+# discovery surface POST /api/a11oy/v1/pinn/identify (+ GET demo, GET /pinn/health,
+# alias prefix /v1/pinn). Discovers unknown PHYSICAL parameters of an ODE/PDE from
+# data with an HONEST self-doubt gate: a parameter the data cannot identify is
+# labelled RED/UNIDENTIFIABLE and the engine REFUSES to assert a value. NumPy-only
+# (no torch/DeepXDE/scipy): spectral surrogate with exact analytic derivatives,
+# ridge-LS data fit, exact LS for linear params, Adam GD on the physics residual,
+# FIM identifiability, bootstrap 95% CI, three-state GREEN/YELLOW/RED convergence.
+# Values are MODELED (a fit to data, never MEASURED); F19/Bekenstein is a
+# locked-proven inequality APPLIED (not re-claimed); Λ=Conjecture 1 (advisory ≤0.99);
+# DSSE receipt is honest-UNSIGNED until the on-metal cosign key signs it (never faked).
+# Additive, try/except-guarded, registered BEFORE the /api/a11oy/{path:path} Node
+# proxy + SPA catch-all (defined at the file tail) so it wins ordered matching. The
+# guard is HARD: any import/register failure logs and continues — a11oy boots even if
+# this engine is broken, and the engine NEVER raises into app startup.
+try:
+    import szl_governed_ipinn as _szl_governed_ipinn
+    _szl_ipinn_routes = _szl_governed_ipinn.register(app, ns="a11oy")
+    print(f"[a11oy] Governed Inverse-PINN registered: POST /api/a11oy/v1/pinn/identify (+ /pinn/health) {_szl_ipinn_routes}", file=__import__("sys").stderr)
+except Exception as _szl_ipinn_e:  # pragma: no cover
+    print(f"[a11oy] Governed Inverse-PINN NOT registered (a11oy continues): {_szl_ipinn_e!r}", file=__import__("sys").stderr)
+
 # ── Compliance crosswalk MESH (compliance-mesh) — closes the audited gap where the
 # doctrine-v11 → NIST AI RMF / ISO 42001 / EU AI Act crosswalk module existed
 # (szl_compliance_mesh.py + compliance_crosswalk.py, REAL honest data with
