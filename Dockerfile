@@ -128,7 +128,8 @@ RUN pip install --no-cache-dir \
     "cryptography==49.0.0" \
     "lmdb==2.2.1" \
     "slowapi==0.1.10" \
-    "defusedxml==0.7.1"
+    "defusedxml==0.7.1" \
+    "numpy==2.1.3"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
