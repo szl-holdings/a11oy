@@ -244,6 +244,15 @@ COPY szl_sda.py szl_fabric_surface.py szl_nemo_agents.py ./
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
 # + szl_khipu (the shared signed-receipt chain), both already COPY'd above.
 COPY szl_kverify.py ./
+# Governed Speculative Decoding (GAP 4) — imported by serve.py (guarded). MUST be
+# per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
+# /api/a11oy/v1/specdec/* 404s AND hf-sync-backend.yml (it parses this COPY set) would
+# not mirror it to the HF Space. Reimplements the acceptance-rejection math (Leviathan
+# 2023 / Chen 2023; SpecExec/Sequoia MIT REFERENCE only) and probes the tower's ollama
+# /api/tags at request time for a SAME-FAMILY draft+target pair; emits a MEASURED block
+# when reachable, else an HONEST ROADMAP with quality_delta=UNAVAILABLE + on-metal runbook.
+# Pure stdlib + httpx (already in the image); optional szl_demo_sign imported under guard.
+COPY szl_specdec.py ./
 # Immune (Hukulla) HONEST egress-gate surface — imported by serve.py (guarded).
 # MUST be per-file COPY'd (no `COPY . .`) or the import falls back and the honest
 # /api/a11oy/v1/immune/* namespace 404s. Reuses szl_khipu (the shared signed-

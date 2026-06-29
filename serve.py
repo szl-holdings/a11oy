@@ -873,6 +873,42 @@ try:
 except Exception as _szl_ep_e:  # pragma: no cover
     print(f"[a11oy] Assurance evidence-pack NOT registered: {_szl_ep_e!r}", file=__import__("sys").stderr)
 
+# ── Governed Speculative Decoding (specdec) — closes GAP 4 (GAP_ML.md): a governed
+# surface for speculative decoding with the MANDATORY MEASURED quality-delta protocol.
+# szl_specdec reimplements the acceptance-rejection math (Leviathan 2023 arXiv:2211.17192,
+# Chen 2023 arXiv:2302.01318 — SpecExec/Sequoia MIT REFERENCE only, NO copied code) and,
+# at REQUEST time, probes the sovereign tower's ollama /api/tags for a SAME-FAMILY
+# draft+target pair (lossless speculative decoding requires a shared tokenizer/vocabulary).
+# If such a pair is reachable it runs an EXACT greedy speculative-decoding acceptance
+# measurement over HTTP and emits a MEASURED block {accepted_rate, mean_accepted_len,
+# speedup_modeled, n, draft_model, target_model, quality_delta=identical_rate}. The two
+# live nodes run DIFFERENT families (tower llama3.1:8b vs laptop qwen2.5:3b) and the tower
+# holds only a single llama model today, so NO same-family pair is reachable from the
+# Space → the endpoint returns label=ROADMAP with quality_delta=UNAVAILABLE + the precise
+# on-metal runbook (SPECDEC_ONMETAL.md). NEVER a MODELED-as-MEASURED number, NEVER a faked
+# speedup — the half-state is the only unacceptable outcome. PURE stdlib + httpx (imported
+# inside the handler under try/except); degrades HONESTLY, never raises into startup.
+# ROUTE-ORDERING FIX: register() uses add_api_route (APPENDS) so we FRONT-MOVE the just-
+# added specdec routes to the HEAD of app.router.routes so they win over the
+# /api/a11oy/{path:path} Node proxy + SPA catch-all (same proven pattern as the inverse-PINN
+# block above). Additive, try/except-guarded.
+try:
+    import szl_specdec as _szl_specdec
+    _spec_paths = _szl_specdec.register(app, ns="a11oy")
+    try:
+        _spec_set = set(_spec_paths)
+        _spec_moved = [r for r in app.router.routes if getattr(r, "path", None) in _spec_set]
+        for _r in _spec_moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_spec_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Speculative-decoding routes front-moved to router head: {len(_spec_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _szl_spec_move_e:  # pragma: no cover
+        print(f"[a11oy] Speculative-decoding front-move skipped (routes still registered): {_szl_spec_move_e!r}", file=__import__("sys").stderr)
+    print(f"[a11oy] Speculative-decoding registered: GET /api/a11oy/v1/specdec/health + POST /api/a11oy/v1/specdec/run {_spec_paths}", file=__import__("sys").stderr)
+except Exception as _szl_spec_e:  # pragma: no cover
+    print(f"[a11oy] Speculative-decoding NOT registered (a11oy continues): {_szl_spec_e!r}", file=__import__("sys").stderr)
+
 # ── Compliance crosswalk MESH (compliance-mesh) — closes the audited gap where the
 # doctrine-v11 → NIST AI RMF / ISO 42001 / EU AI Act crosswalk module existed
 # (szl_compliance_mesh.py + compliance_crosswalk.py, REAL honest data with
