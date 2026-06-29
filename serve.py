@@ -1494,6 +1494,9 @@ try:
     # SPA catch-all so the explicit route wins. Doctrine v11 — honest labels only.
     app.add_api_route("/energy-3d", _ptg_serve("energy-3d.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy-3d", _ptg_serve("energy-3d.html"), methods=["GET"], include_in_schema=False)
+    # Grid Energy Harvest honest dashboard (registered before SPA catch-all so it wins by ordered match).
+    app.add_api_route("/energy-harvest", _ptg_serve("energy-harvest.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy-harvest", _ptg_serve("energy-harvest.html"), methods=["GET"], include_in_schema=False)
     # IMMUNE (Hukulla) tab (2026-06-15): the honest, user-visible egress-gate surface.
     # Standalone sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/*
     # (status/gates/feed) + a live "inspect an action" box that POSTs to
