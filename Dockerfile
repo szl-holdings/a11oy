@@ -511,7 +511,7 @@ EXPOSE 7860
 # these COPYs the imports fail and the pages/endpoints fall through to the SPA shell.
 # Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). NO external CDN.
 COPY web/formulas.html ./web/formulas.html
-COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-force-graph.min.js static-vendor/echarts.min.js static-vendor/echarts-gl.min.js static-vendor/globe.gl.min.js static-vendor/cytoscape.min.js static-vendor/d3.min.js static-vendor/katex.min.js static-vendor/katex.min.css static-vendor/dagre.min.js static-vendor/cytoscape-dagre.js static-vendor/d3-sankey.min.js static-vendor/ngraph.graph.min.js static-vendor/ngraph.path.min.js static-vendor/ngraph.forcelayout.min.js static-vendor/panzoom.min.js static-vendor/vivagraph.min.js static-vendor/ngraph.events.umd.js static-vendor/a11oy-operator-widget.js static-vendor/a11oy-operator-widget.css ./static-vendor/
+COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-force-graph.min.js static-vendor/echarts.min.js static-vendor/echarts-gl.min.js static-vendor/globe.gl.min.js static-vendor/cytoscape.min.js static-vendor/d3.min.js static-vendor/katex.min.js static-vendor/katex.min.css static-vendor/dagre.min.js static-vendor/cytoscape-dagre.js static-vendor/d3-sankey.min.js static-vendor/ngraph.graph.min.js static-vendor/ngraph.path.min.js static-vendor/ngraph.forcelayout.min.js static-vendor/panzoom.min.js static-vendor/vivagraph.min.js static-vendor/ngraph.events.umd.js static-vendor/a11oy-operator-widget.js static-vendor/a11oy-operator-widget.css static-vendor/uPlot.iife.min.js static-vendor/uPlot.min.css ./static-vendor/
 
 # ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
 # VENDORING. The operator console (pages/console.html) loads the 7 viz libs +
@@ -1207,6 +1207,16 @@ COPY web/immune.html ./web/immune.html
 # accepted divergence in .github/hf-module-drift-allow.json (same baked-only pattern
 # as web/immune.html + web/energy.html). Codename-free.
 COPY web/materials.html ./web/materials.html
+# Grid Energy Harvest honest dashboard (/energy-harvest, /a11oy/energy-harvest).
+# Standalone sovereign page (0 runtime CDN; uPlot MIT + ECharts Apache-2.0 served
+# same-origin from /vendor/*), binds to live /api/a11oy/v1/energy/{harvest,budget,
+# ledger}: cumulative joules-est area chart (honest joules_label), client-side
+# heuristic off-peak window (NOT a live tariff feed), F19/TH6 Bekenstein budget
+# gauge (proven inequality), per-task receipt ledger with honest EMPTY state. NO
+# free-energy / perpetual-motion claims. image_only (baked via this per-file COPY,
+# served from /app/web/) and declared in copy-sync-lockstep.json (same baked-only
+# pattern as web/energy.html + web/materials.html). Codename-free.
+COPY web/energy-harvest.html ./web/energy-harvest.html
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build

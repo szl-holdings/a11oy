@@ -1484,6 +1484,19 @@ try:
     # page binds to live /code/healthz, /v1/energy/budget, /v1/qbio/coherence.
     app.add_api_route("/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/energy", _ptg_serve("energy.html"), methods=["GET"], include_in_schema=False)
+    # GRID ENERGY HARVEST (2026-06-29): the honest, user-visible harvest/grid surface.
+    # Standalone sovereign page (0 runtime CDN; uPlot MIT + ECharts Apache-2.0 vendored
+    # at /vendor/*), binds to live /api/a11oy/v1/energy/{harvest,budget,ledger} (poll
+    # ~5s): cumulative joules-est area chart (honest joules_label), a CLIENT-SIDE
+    # heuristic off-peak/normal/peak window (explicitly NOT a live tariff feed), the
+    # F19/TH6 Bekenstein budget gauge (proven inequality, locked-8), and the per-task
+    # receipt ledger with an honest "no tasks yet" empty-state when the budget is EMPTY.
+    # NO free-energy / perpetual-motion claims; harvest framing labeled MODELED/SAMPLE.
+    # Replaces the prior 200 SPA shell that read nothing real. Registered BEFORE the SPA
+    # catch-all so it wins by ordered match. web/energy-harvest.html is image_only baked
+    # (Dockerfile per-file COPY; declared in copy-sync-lockstep.json), like web/energy.html.
+    app.add_api_route("/energy-harvest", _ptg_serve("energy-harvest.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/energy-harvest", _ptg_serve("energy-harvest.html"), methods=["GET"], include_in_schema=False)
     # IMMUNE (Hukulla) tab (2026-06-15): the honest, user-visible egress-gate surface.
     # Standalone sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/*
     # (status/gates/feed) + a live "inspect an action" box that POSTs to
@@ -7823,6 +7836,11 @@ try:
         "3d-force-graph.min.js": _VENDOR_JS_CT,
         "echarts.min.js": _VENDOR_JS_CT,
         "echarts-gl.min.js": _VENDOR_JS_CT,
+        # ENERGY-HARVEST surface (2026-06-29): uPlot 1.6.32 (MIT) — the cumulative
+        # joules-est area chart + off-peak band plugin on /energy-harvest. Served
+        # same-origin (0 CDN); ECharts (already above) draws the budget gauge + donut.
+        "uPlot.iife.min.js": _VENDOR_JS_CT,
+        "uPlot.min.css": _VENDOR_CSS_CT,
         "globe.gl.min.js": _VENDOR_JS_CT,
         "cytoscape.min.js": _VENDOR_JS_CT,
         "d3.min.js": _VENDOR_JS_CT,
