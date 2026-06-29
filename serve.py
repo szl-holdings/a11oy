@@ -681,6 +681,41 @@ try:
 except Exception as _szl_ipinn_e:  # pragma: no cover
     print(f"[a11oy] Governed Inverse-PINN NOT registered (a11oy continues): {_szl_ipinn_e!r}", file=__import__("sys").stderr)
 
+# ── Governed Materials-PROPERTY predictor (materials-property-prediction) — the
+# SECOND materials vertical: POST /api/a11oy/v1/materials/predict (+ GET
+# /materials/health, alias prefix /v1/materials). A NUMPY-ONLY calibrated SURROGATE
+# for formation energy (eV/atom) over a SMALL embedded SAMPLE of published DFT
+# values, wrapped in the FULL governance layer: a 5-member bootstrap deep-ensemble
+# for epistemic UQ, ISOTONIC recalibration verified to ~95% empirical coverage on a
+# HELD-OUT split (the MEASURED number is reported on every response), a hard convex-
+# hull-distance plausibility gate (Δ_hull > 0.1 eV/atom → RED), an F19/Bekenstein
+# information check (APPLIED, not re-claimed), Λ=Conjecture 1 (advisory ≤0.99), and a
+# SELF-DOUBT gate (descriptor far from the embedded training → RED/refuse, never a
+# confident extrapolation). HONEST: MODELED + SAMPLE — NOT a SOTA DFT/MACE/CHGNet
+# prediction; MACE (MIT)/CHGNet (BSD-3) cited as the patterns we would wrap behind a
+# remote endpoint (not reachable today); reimplement-not-copy, NO proprietary weights.
+# numpy-only, imports guarded at request time, NEVER raises into startup. Registered
+# BEFORE the /api/a11oy/{path:path} Node proxy + SPA catch-all (defined at the file
+# tail), then FRONT-MOVED to the router head (same proven ROUTE-ORDERING FIX as the
+# PINN block above) so it wins ordered matching instead of 404'ing to the proxy.
+try:
+    import szl_materials_predict as _szl_materials_predict
+    _szl_matpred_routes = _szl_materials_predict.register(app, ns="a11oy")
+    try:
+        _matpred_paths = {"/api/a11oy/v1/materials/predict", "/api/a11oy/v1/materials/health",
+                          "/v1/materials/predict", "/v1/materials/health"}
+        _moved = [r for r in app.router.routes if getattr(r, "path", None) in _matpred_paths]
+        for _r in _moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Governed Materials predictor routes front-moved to router head: {len(_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _szl_matpred_move_e:  # pragma: no cover
+        print(f"[a11oy] Governed Materials predictor front-move skipped (routes still registered): {_szl_matpred_move_e!r}", file=__import__("sys").stderr)
+    print(f"[a11oy] Governed Materials predictor registered: POST /api/a11oy/v1/materials/predict (+ /materials/health) {_szl_matpred_routes}", file=__import__("sys").stderr)
+except Exception as _szl_matpred_e:  # pragma: no cover
+    print(f"[a11oy] Governed Materials predictor NOT registered (a11oy continues): {_szl_matpred_e!r}", file=__import__("sys").stderr)
+
 # ── Auditor Evidence Pack (assurance-evidence-pack) — closes GAP 3 where
 # GET /api/a11oy/v1/assurance/evidence-pack 404'd. Assembles ONE signed, offline-
 # verifiable auditor pack at REQUEST time from material that is ALREADY LIVE:
