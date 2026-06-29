@@ -1192,6 +1192,15 @@ COPY static/3d/ ./static/3d/
 # module above via the same-origin importmap. Per-file served assets -> image_only_assets.
 COPY web/energy-holographic.html ./web/energy-holographic.html
 COPY web/energy.html ./web/energy.html
+# 3D Holographic Energy View (/energy-3d, /a11oy/energy-3d): standalone sovereign
+# WebGL page + its ES module. The page (web/energy-3d.html) is served via _ptg_serve
+# from /app/web/; its Three.js GPGPU particle + node-edge module (static/energy_3d.js)
+# is served at /energy-3d/app.js. Binds LIVE to /api/a11oy/v1/energy/mesh; reuses the
+# vendor3d Three.js r160 (MIT) above via the page importmap — 0 runtime CDN. Per-file
+# served assets -> declared image_only in copy-sync-lockstep.json. Without these COPYs
+# the route falls through to the SPA shell and the module 404s. Doctrine v11.
+COPY web/energy-3d.html ./web/energy-3d.html
+COPY static/energy_3d.js ./static/energy_3d.js
 # Immune (Hukulla) honest egress-gate page (/immune, /a11oy/immune). Standalone
 # sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/* (status/
 # gates/feed + a live inspect->verdict box showing real deny/allow + signed Khipu
