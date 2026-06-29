@@ -26,6 +26,7 @@ DOCTRINE (v11 — NEVER violate):
 
 Pure stdlib + httpx (already a repo dep) + Starlette. No key, no Node, no CDN.
 """
+import json as _json
 import os
 import re
 import threading
@@ -83,11 +84,40 @@ def _coerce_float(s: str):
 
 
 def parse_meter_metrics(text: str) -> dict:
-    """Parse Prometheus exposition text into per-GPU watts + cumulative joules.
+    """Parse a meter response into per-GPU watts + cumulative joules.
 
-    Groups by the (gpu,name) label tuple. Returns {gpus:[{gpu,name,watts,joules}],
-    total_watts, total_joules}. A metric line without a recognized value is skipped
-    (never fabricated). Pure + deterministic."""
+    Accepts BOTH exporter formats (honest, never fabricated):
+      (a) JSON (omen-joule-exporter): {engines:[{engine,gpus:[{index,name,power_w,joules,live}]}], totals:{joules}}
+      (b) Prometheus exposition text (szl_gpu_power_watts{gpu,name}, szl_gpu_energy_joules{...}).
+    Returns {gpus:[{gpu,name,watts,joules}], total_watts, total_joules}. Pure + deterministic."""
+    # --- (a) JSON exporter (real NVML via nvidia-smi) ---
+    stripped = text.lstrip()
+    if stripped.startswith("{"):
+        try:
+            doc = _json.loads(stripped)
+            rows = []
+            for eng in doc.get("engines", []):
+                ename = eng.get("engine", "")
+                for g in eng.get("gpus", []):
+                    rows.append({
+                        "gpu": str(g.get("index", "")),
+                        "name": g.get("name") or ename,
+                        "watts": g.get("power_w"),
+                        "joules": g.get("joules"),
+                    })
+            tw = sum(g["watts"] for g in rows if isinstance(g["watts"], (int, float)))
+            jv = [g["joules"] for g in rows if isinstance(g["joules"], (int, float))]
+            tj = doc.get("totals", {}).get("joules")
+            if tj is None and jv:
+                tj = sum(jv)
+            return {
+                "gpus": rows,
+                "total_watts": round(tw, 6),
+                "total_joules": (round(tj, 6) if isinstance(tj, (int, float)) else None),
+            }
+        except Exception:
+            pass  # fall through to Prometheus parse; never fabricate
+    # --- (b) Prometheus exposition text ---
     gpus: dict = {}
     for line in text.splitlines():
         line = line.strip()
