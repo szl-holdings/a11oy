@@ -332,6 +332,11 @@ COPY physical_bounds_certificate.json agentic_decision_trail.json physical_bound
 # (+ GET demo, GET /pinn/health). Both modules MUST be COPY'd or serve.py's guarded import
 # falls back (merged-but-not-live) in the HF image. NumPy-only (no torch/DeepXDE/scipy added).
 COPY szl_pinn_inverse.py szl_governed_ipinn.py ./
+# Governed CALPHAD inverse-discovery (materials-by-design vertical) — extends the
+# inverse-PINN system registry with Redlich-Kister L_k discovery on the SAME
+# /api/a11oy/v1/pinn/identify endpoint ({"demo":"calphad"}). Imported GUARDED by
+# szl_governed_ipinn; MUST be COPY'd or the CALPHAD system is absent at runtime.
+COPY szl_calphad_inverse.py ./
 # PNT / quantum-sensing mesh (pure-stdlib closed-form web path; serves /api/a11oy/v1/pnt/*).
 # szl_pnt_mesh.py loads the 4 engine modules dynamically via importlib, so ALL FIVE MUST be
 # COPY'd or serve.py's guarded import falls back to a stub (merged-but-not-live) in the HF

@@ -42,6 +42,17 @@ from szl_pinn_inverse import (
     MIN_DATA_POINTS,
 )
 
+# Governed CALPHAD inverse-discovery system (materials-by-design vertical). Imported
+# GUARDED: a failure here must NEVER break the live Duffing path — _CALPHAD stays
+# None and the endpoint serves Duffing exactly as before.
+try:
+    import szl_calphad_inverse as _CALPHAD  # type: ignore
+    _CALPHAD_KEYS = {"calphad", "redlich_kister", "redlich-kister", "rk"}
+except Exception as _calphad_e:  # noqa: BLE001 — honest degrade, never fatal
+    _CALPHAD = None
+    _CALPHAD_KEYS = set()
+    _CALPHAD_IMPORT_ERROR = repr(_calphad_e)
+
 RECEIPT_SCHEMA = "szl.lake.receipt/v1"
 RECEIPT_ORGAN = "a11oy-pinn"
 RECEIPT_PAYLOAD_TYPE = "application/vnd.szl.ipinn+json"
@@ -224,8 +235,150 @@ def _coerce_data(spec):
     return t, y, 1e-3, system_key, False
 
 
+def _is_calphad_request(spec):
+    if _CALPHAD is None:
+        return False
+    key = (spec.get("system") or spec.get("demo") or "")
+    if isinstance(key, str) and key.strip().lower() in _CALPHAD_KEYS:
+        return True
+    return False
+
+
+def governed_calphad_discover(spec):
+    """Governed Redlich-Kister inverse-discovery. Rides the SAME receipt + honesty
+    contract as Duffing: per-param 95% CI, FIM self-doubt gate (RED/REFUSE when a
+    parameter is unidentifiable), convex-hull stability plausibility check, F19
+    Bekenstein info-cost (APPLIED), Lambda advisory (<=0.99), signed receipt."""
+    spec = dict(spec or {})
+    opts = dict(spec.get("options") or {})
+    case = spec.get("case") or opts.get("case") or "identifiable"
+
+    data = spec.get("data")
+    if data and not spec.get("demo"):
+        try:
+            x = np.asarray(data["x"], float).reshape(-1)
+            h = np.asarray(data.get("h", data.get("H", data.get("y"))), float).reshape(-1)
+        except (KeyError, TypeError, ValueError) as ce:
+            return {"ok": False, "error": "calphad data needs {'x':[...], 'h':[...]} (%s)"
+                    % ce, "honesty": _honesty()}
+        if x.shape[0] != h.shape[0]:
+            return {"ok": False, "error": "data.x and data.h must have equal length",
+                    "honesty": _honesty()}
+        order = int(opts.get("order", _CALPHAD.RK_SYSTEMS["redlich_kister"]["order"]))
+        T = float(opts.get("T", _CALPHAD.RK_SYSTEMS["redlich_kister"]["T"]))
+        truth = opts.get("truth")
+        sigma = float(opts["noise"]) if opts.get("noise") else None
+        desc = _CALPHAD.RK_SYSTEMS["redlich_kister"]["desc"]
+        used_demo, data_label, case = False, "caller-supplied", "caller_data"
+    else:
+        x, h, sigma, truth, T, order, desc, used_demo, data_label, case = \
+            _CALPHAD.make_calphad_data(case, opts)
+
+    if x.shape[0] < MIN_DATA_POINTS:
+        return {"ok": False,
+                "error": "need >= %d data points (got %d)" % (MIN_DATA_POINTS, x.shape[0]),
+                "honesty": _honesty()}
+
+    try:
+        res = _CALPHAD.solve_redlich_kister(x, h, order, sigma)
+        ci = _CALPHAD.ensemble_ci_rk(x, h, order, sigma,
+                                     n_restarts=int(opts.get("restarts", 24)))
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": "calphad solve failed: %r" % e,
+                "honesty": _honesty()}
+
+    blocks = _CALPHAD.param_results_rk(res, ci, truth=truth)
+    min_fisher = float(np.min(res.fisher_diag)) if res.fisher_diag.size else 0.0
+    norm_resid = res.data_rms / max(res.data_scale, 1e-9)
+    label, crit = _CALPHAD.classify_calphad(res.kappa_fim, min_fisher, norm_resid)
+
+    n_asserted = 0
+    discovered = []
+    for blk in blocks:
+        k = int(blk["name"][1:])
+        lo, hi = (-1e5, 1e5)
+        sigma_prior = (hi - lo) / math.sqrt(12.0)
+        sigma_post = (blk["std"] if blk["std"] and blk["std"] > 0
+                      else max(abs(res.ci_high[k] - res.ci_low[k]) / 3.92, 1e-6))
+        bek = bekenstein_ratio(sigma_prior, sigma_post,
+                               radius_m=float(opts.get("radius_m", 1.0)),
+                               energy_j=float(opts.get("energy_j", 1.0)))
+        blk["bekenstein"] = bek
+        blk["convergence_label"] = label if blk["asserted"] else "RED"
+        if blk["asserted"]:
+            n_asserted += 1
+        discovered.append(blk)
+
+    stability = _CALPHAD.convex_hull_stability(list(res.L), T)
+
+    convergence = {
+        "label": label,
+        "criteria": crit,
+        "kappa_fim": res.kappa_fim,
+        "min_fisher": min_fisher,
+        "normal_eq_residual": res.normal_eq_resid,
+        "residual_rms": round(res.data_rms, 6),
+        "normalised_data_rms": round(norm_resid, 6),
+        "noise_sigma": round(res.sigma, 6),
+        "n_points": int(x.shape[0]),
+        "rk_order": int(order),
+        "thresholds": {
+            "kappa_ident": KAPPA_IDENT, "kappa_red": KAPPA_RED,
+            "fisher_floor": FISHER_FLOOR,
+        },
+    }
+    convergence = _json_safe(convergence)
+    discovered = _json_safe(discovered)
+    stability = _json_safe(stability)
+
+    frac_asserted = n_asserted / max(1, len(blocks))
+    lambda_adv = compute_lambda(label, frac_asserted, norm_resid, 0.0)
+    method = {
+        "engine": "szl_calphad_inverse.solve_redlich_kister",
+        "model": "Redlich-Kister excess Gibbs energy G_xs = x(1-x) sum_k L_k (1-2x)^k",
+        "param_solve": ("exact regularised least squares (linear-in-L_k) with EXACT "
+                        "covariance sigma^2 (Phi^T Phi)^{-1} and EXACT FIM; FIM "
+                        "self-doubt identifiability gate (same contract as Duffing)"),
+        "uq": "analytic 95% CI + bootstrap-ensemble 95% credible interval",
+        "stability_check": "convex-hull / common-tangent PLAUSIBILITY check (not a guarantee)",
+        "data_label": data_label,
+        "system": desc,
+        "isothermal_T_kelvin": float(T),
+        "citations": list(_CALPHAD.CALPHAD_CITATIONS),
+        "case": case,
+    }
+    honesty = _honesty()
+    honesty["calphad"] = (
+        "MODELED fit to SYNTHETIC data in a governed-discovery DEMO. This is NOT a "
+        "validated materials prediction and NOT the discovery of a real new alloy. "
+        "Discovered L_k are MODELED with uncertainty; convex-hull stability is a "
+        "PLAUSIBILITY check, not a guarantee. DO NOT OVERCLAIM.")
+
+    sys_block = {"key": "redlich_kister", "desc": desc, "vertical": "materials-by-design"}
+    receipt = build_ipinn_receipt(sys_block, method, discovered, convergence, lambda_adv,
+                                  sign=bool(opts.get("sign", True)))
+    receipt["payload"]["stability"] = stability
+    ledger = record_pinn_receipt(receipt)
+
+    return {
+        "ok": True,
+        "system": "redlich_kister",
+        "vertical": "materials-by-design",
+        "convergence": convergence,
+        "discovered": discovered,
+        "stability": stability,
+        "lambda_advisory": lambda_adv,
+        "receipt": receipt,
+        "ledger": ledger,
+        "method": method,
+        "honesty": honesty,
+    }
+
+
 def governed_discover(spec):
     spec = dict(spec or {})
+    if _is_calphad_request(spec):
+        return governed_calphad_discover(spec)
     try:
         t, y, noise_sigma, system_key, used_demo = _coerce_data(spec)
     except (ValueError, KeyError, TypeError) as ce:
@@ -386,11 +539,21 @@ def register(app, ns="a11oy"):
                                 status_code=500)
 
     async def _health():
+        systems = list(_BUILTIN_SYSTEMS)
+        demos = {"duffing": "POST {\"demo\":\"duffing\"} -> GREEN alpha ~ 1.0"}
+        if _CALPHAD is not None:
+            systems += list(_CALPHAD.RK_SYSTEMS)
+            demos["calphad"] = ("POST {\"demo\":\"calphad\"} -> GREEN Redlich-Kister "
+                                "L0,L1,L2 ~ ground truth; "
+                                "{\"demo\":\"calphad\",\"case\":\"ill_posed\"} -> RED/REFUSE")
         return JSONResponse({
             "ok": True, "organ": RECEIPT_ORGAN,
             "endpoint": "POST /api/%s/v1/pinn/identify" % ns,
-            "supported_systems": list(_BUILTIN_SYSTEMS),
-            "demo": "POST {\"demo\":\"duffing\"} -> GREEN alpha ~ 1.0",
+            "supported_systems": systems,
+            "verticals": (["physics(duffing)", "materials-by-design(redlich_kister/CALPHAD)"]
+                          if _CALPHAD is not None else ["physics(duffing)"]),
+            "calphad_available": _CALPHAD is not None,
+            "demos": demos,
             "honesty": _honesty(),
         })
 
