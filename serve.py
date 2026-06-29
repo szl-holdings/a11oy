@@ -961,6 +961,84 @@ try:
 except Exception as _szl_cc_e:  # pragma: no cover
     print(f"[a11oy] Compliance crosswalk mesh NOT registered: {_szl_cc_e!r}", file=__import__("sys").stderr)
 
+# ── E8-lattice receipt ENCODING + verification layer (e8) — adds GET/POST
+# /api/a11oy/v1/e8/verify (+ alias /v1/e8/verify). Maps a 256-bit sha3_256 receipt
+# digest (schema szl.lake.receipt/v1) to eight 32-bit lattice coordinates, snaps the
+# 8-vector against the E8 lattice via the Conway & Sloane closest-point algorithm
+# (decode D8 + decode D8+glue, pick nearer), and returns lattice membership / nearest
+# point / minimum squared distance — error-DETECTION geometry over the receipt ledger.
+# HONEST DOCTRINE (highest over-claim risk): we MAY CITE that E8's optimality (densest
+# sphere packing in R^8) was PROVEN by Viazovska (2016) and FORMALIZED in Lean
+# (EPFL/Viazovska) — a machine-checked Fields-Medal result behind our encoding geometry.
+# We MUST NOT claim that proof as ours, and MUST NOT claim E8 gives adversarial-
+# substitution resistance / tamper-proofing / BFT safety (that is Conjecture 2, Khipu
+# BFT, NOT proven). E8 = sphere-packing / error-DETECTION geometry ONLY. This adds ZERO
+# to the locked-proven count (stays 8); Λ=Conjecture 1. The DO-NOT-CLAIM block is in the
+# module AND in every endpoint response. numpy IS available; it is still imported INSIDE
+# the handler under try/except so the route degrades HONESTLY (never 404, never raises
+# into startup). Routes are FRONT-MOVED to the HEAD of app.router.routes so they win over
+# the /api/a11oy/{path:path} Node proxy + SPA catch-all at the file tail. Additive.
+try:
+    from starlette.routing import Route as _E8Route
+    from starlette.responses import JSONResponse as _E8JSON
+
+    def _e8_demo_digest():
+        # Self-demonstrate a bare GET with a REAL live receipt digest if the lake is
+        # reachable; otherwise a clearly-labelled deterministic sample. Never fabricated.
+        try:
+            import szl_lake_store as _l
+            h = _l.get_default_ledger().health()
+            for _org, _st in (h.get("organs") or {}).items():
+                ch = _st.get("chain_head")
+                if isinstance(ch, str) and len(ch) == 64:
+                    return ch, _org
+        except Exception:
+            pass
+        return ("d0361e9f2c8d8ac96a1cdab46a6f45de3ed697a9e767d7ccccce2d69b60ae73c",
+                "sample (lake unreachable — deterministic example digest, not fabricated)")
+
+    async def _e8_handler(request):
+        try:
+            import szl_e8 as _e8
+            payload = None
+            organ = None
+            if request.method == "POST":
+                try:
+                    body = await request.json()
+                except Exception:
+                    body = {}
+                if isinstance(body, dict):
+                    payload = body.get("digest") or body.get("receipt") or body
+                else:
+                    payload = body
+            else:
+                payload = request.query_params.get("digest")
+            if not payload:
+                payload, organ = _e8_demo_digest()
+            result = _e8.verify(payload)
+            if organ is not None:
+                result["demo_source_organ"] = organ
+            result["endpoint"] = "/api/a11oy/v1/e8/verify"
+            result["doctrine_note"] = (
+                "Error-DETECTION geometry only. E8 optimality is machine-checked "
+                "(Viazovska 2016, Lean-formalized) — CITED, not ours. NOT adversarial / "
+                "tamper-proof / BFT (that is Conjecture 2, NOT proven). Locked-proven "
+                "count stays 8; Λ=Conjecture 1."
+            )
+            return _E8JSON(result)
+        except Exception as _e:  # honest degrade — NEVER 404, NEVER raises into startup
+            return _E8JSON({
+                "schema": "szl.a11oy.e8.block/v1",
+                "status": "DEGRADED",
+                "label": "ROADMAP — E8 verification temporarily unavailable in this build",
+                "detail": str(_e)[:200], "fabricated": False})
+
+    for _e8_path in ("/v1/e8/verify", "/api/a11oy/v1/e8/verify"):
+        app.router.routes.insert(0, _E8Route(_e8_path, _e8_handler, methods=["GET", "POST"]))
+    print("[a11oy] E8-lattice receipt verify registered (front-moved): /api/a11oy/v1/e8/verify", file=__import__("sys").stderr)
+except Exception as _szl_e8_e:  # pragma: no cover
+    print(f"[a11oy] E8-lattice receipt verify NOT registered: {_szl_e8_e!r}", file=__import__("sys").stderr)
+
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
 # Python with the ORIGINAL author cited; SZL borrows methodological structure only (no result

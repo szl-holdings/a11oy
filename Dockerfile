@@ -395,6 +395,11 @@ COPY szl_corpus_publish.py ./
 # the /api/lake/v1 routes never register. Durability mirrors to the HF dataset
 # via szl_corpus_publish's HFBucket path (already COPY'd above).
 COPY szl_lake_store.py szl_lake_ingest.py ./
+# E8-lattice receipt ENCODING + verification layer over the sha3_256 receipt digests
+# (GET/POST /api/a11oy/v1/e8/verify). Conway & Sloane closest-point on E8; error-
+# DETECTION geometry only. Cites Viazovska 2016 (Lean-formalized) as prior art; NOT ours,
+# NOT adversarial/BFT (Conjecture 2). numpy-guarded, degrades honestly.
+COPY szl_e8.py ./
 # NEMOTRON SIGNED-TRAJECTORY build (2026-06-14): DSSE-signed agent-trajectory
 # corpus pipeline (SZL-Nemo). Honest: DATASET property, not a model claim;
 # QLoRA-ready, training = ROADMAP (2x80GB GPU). nvidia/Nemotron-Agentic-v1
