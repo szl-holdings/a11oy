@@ -1,18 +1,19 @@
 <!doctype html>
 <!--
-  a11oy — front door (holographic landing). Served at the Space root "/" by serve.py.
+  a11oy — investor front door (holographic landing). Served at the Space root "/" by serve.py.
   SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
   HONESTY DOCTRINE v11 LOCKED — every figure on this page is fetched live and labelled
   honestly (LIVE / DOWN / empty-state). Nothing is fabricated. Λ = Conjecture 1 (advisory,
-  NOT a theorem). locked-proven kernel = EXACTLY 8. Receipts are signed on write, never on GET.
+  NOT a theorem, never 1.0). locked-proven kernel = EXACTLY 8. Receipts are signed on write,
+  never on GET. Every claim deep-links a live surface a visitor can open and check.
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>SZL Holdings — Sovereign Governed AI · a11oy + killinchu</title>
-<meta name="description" content="SZL Holdings: one sovereign governance substrate — signed receipts, the Λ trust gate, a self-doubt gate, a sha3_256 receipt ledger — under two products: a11oy (governed AI platform) and killinchu (counter-UAS / sovereign defense). They hide the governor; we sign and show it." />
+<title>a11oy — Governed Inference · AI that signs its work and refuses to lie</title>
+<meta name="description" content="Governed Inference: AI that signs its work and refuses to lie. Every answer arrives with a signed receipt you can verify yourself — offline, in your own browser. When the model is not sure, it refuses rather than guesses. 8 Lean-proven theorems back the kernel." />
 <link rel="icon" href="/social-preview.svg" />
 <style>
   :root{
@@ -57,25 +58,28 @@
   .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 30px -8px var(--teal)}
   .btn-ghost{border-color:var(--border);color:var(--ink);background:#ffffff08}
   .btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
+  .btn-violet{background:linear-gradient(135deg,var(--violet),#5566e8);color:#fff;
+    box-shadow:0 6px 24px -8px var(--violet)}
+  .btn-violet:hover{transform:translateY(-1px);box-shadow:0 10px 30px -8px var(--violet)}
 
   /* ---- hero ---- */
-  .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
+  .hero{position:relative;min-height:90vh;display:flex;align-items:center;overflow:hidden}
   #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
   .hero-fallback{position:absolute;inset:0;z-index:0;display:none;
     background:radial-gradient(600px 600px at 65% 45%, #39d8c81f, transparent 70%)}
   .hero .wrap{position:relative;z-index:2;padding-top:48px;padding-bottom:48px}
-  .hero-inner{max-width:680px}
+  .hero-inner{max-width:720px}
   .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 13px;border-radius:999px;
     border:1px solid var(--teal-soft);background:#39d8c812;color:var(--teal);
     font-size:12.5px;font-weight:600;letter-spacing:.4px;margin-bottom:22px}
   .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);
     box-shadow:0 0 0 0 var(--teal);animation:pulse 2.4s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 #39d8c8aa}70%{box-shadow:0 0 0 9px #39d8c800}100%{box-shadow:0 0 0 0 #39d8c800}}
-  h1.title{font-size:clamp(2.3rem,5.6vw,4rem);line-height:1.04;margin:0 0 18px;
-    font-weight:760;letter-spacing:-1.4px}
+  h1.title{font-size:clamp(2.4rem,5.8vw,4.2rem);line-height:1.04;margin:0 0 18px;
+    font-weight:760;letter-spacing:-1.5px}
   h1.title .grad{background:linear-gradient(120deg,var(--teal),var(--violet));
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .lede{font-size:clamp(1.05rem,2vw,1.3rem);color:var(--sub);max-width:600px;margin:0 0 28px}
+  .lede{font-size:clamp(1.06rem,2vw,1.32rem);color:var(--sub);max-width:620px;margin:0 0 28px}
   .lede b{color:var(--ink);font-weight:600}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
   .hero-stats{display:flex;gap:14px;flex-wrap:wrap}
@@ -86,55 +90,48 @@
   .stat .k.teal{color:var(--teal)}
 
   /* ---- generic section ---- */
-  section.band{padding:72px 0;position:relative}
+  section.band{padding:74px 0;position:relative}
   .band h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:720;letter-spacing:-.6px;margin:0 0 12px}
   .band .kick{color:var(--teal);font-weight:600;font-size:13px;letter-spacing:1.6px;text-transform:uppercase;margin:0 0 10px}
-  .band p.intro{color:var(--sub);max-width:680px;font-size:1.05rem;margin:0 0 36px}
+  .band p.intro{color:var(--sub);max-width:700px;font-size:1.05rem;margin:0 0 36px}
 
   .grid{display:grid;gap:18px}
   .g3{grid-template-columns:repeat(3,1fr)}
-  .g2{grid-template-columns:repeat(2,1fr)}
-  @media(max-width:900px){.g3,.g2{grid-template-columns:1fr}}
+  @media(max-width:900px){.g3{grid-template-columns:1fr}}
 
-  .card{padding:24px;border-radius:var(--r);border:1px solid var(--border);
-    background:linear-gradient(180deg,#ffffff0b,#ffffff05);position:relative;overflow:hidden}
+  .card{padding:26px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,#ffffff0b,#ffffff05);position:relative;overflow:hidden;
+    display:flex;flex-direction:column}
   .card::before{content:"";position:absolute;inset:0;border-radius:var(--r);padding:1px;
     background:linear-gradient(135deg,#39d8c855,transparent 40%);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
     -webkit-mask-composite:xor;mask-composite:exclude;opacity:.6;pointer-events:none}
-  .card h3{margin:0 0 8px;font-size:1.12rem;font-weight:680}
-  .card p{margin:0;color:var(--sub);font-size:.96rem}
-  .card .ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
-    background:#39d8c815;border:1px solid var(--teal-soft);color:var(--teal);margin-bottom:14px;font-size:18px}
+  .card h3{margin:0 0 8px;font-size:1.18rem;font-weight:700}
+  .card p{margin:0;color:var(--sub);font-size:.97rem}
+  .card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+    background:#39d8c815;border:1px solid var(--teal-soft);color:var(--teal);margin-bottom:15px;font-size:19px}
+  .card .golinks{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;padding-top:16px}
+  .card a.go{color:var(--teal);font-family:var(--mono);font-size:12.5px}
+  .card a.go:hover{text-decoration:underline}
+  .card .num{position:absolute;top:18px;right:22px;font-family:var(--mono);font-size:13px;color:var(--ghost)}
 
-  /* ---- product cards (two-product front door) ---- */
-  .prod{padding:30px;display:flex;flex-direction:column;gap:18px}
-  .prod .phead{display:flex;align-items:center;gap:13px}
-  .prod .pmark{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
-    font-family:var(--mono);font-weight:720;font-size:15px}
-  .prod.a .pmark{background:#39d8c815;border:1px solid var(--teal-soft);color:var(--teal)}
-  .prod.k .pmark{background:#6a7bff18;border:1px solid #6a7bff44;color:var(--violet)}
-  .prod h3{font-size:1.5rem;font-weight:740;margin:0;letter-spacing:-.4px}
-  .prod .tag{font-size:12px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.4px;margin-top:2px}
-  .prod .feat{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
-  .prod .feat li{display:flex;gap:10px;color:var(--sub);font-size:.95rem;line-height:1.4}
-  .prod .feat li::before{content:"▸";color:var(--teal);flex:0 0 auto;margin-top:1px}
-  .prod.k .feat li::before{color:var(--violet)}
-  .prod .pcta{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap;padding-top:6px}
-  .btn-violet{background:linear-gradient(135deg,var(--violet),#5566e8);color:#fff;
-    box-shadow:0 6px 24px -8px var(--violet)}
-  .btn-violet:hover{transform:translateY(-1px);box-shadow:0 10px 30px -8px var(--violet)}
-  .prooflist{display:grid;gap:12px;grid-template-columns:repeat(2,1fr)}
-  @media(max-width:760px){.prooflist{grid-template-columns:1fr}}
-  .proof{display:flex;gap:13px;align-items:flex-start;padding:16px 18px;border-radius:13px;
-    border:1px solid var(--border);background:linear-gradient(180deg,#ffffff0a,#ffffff04)}
-  .proof .pi{font-size:18px;flex:0 0 auto}
-  .proof .pn{font-weight:640;font-size:.98rem}
-  .proof .pd{color:var(--ghost);font-size:.88rem;margin-top:2px}
-  .proof a.go{color:var(--teal);font-family:var(--mono);font-size:12.5px;margin-top:6px;display:inline-block}
-  .proof a.go:hover{text-decoration:underline}
+  /* ---- vertical (killinchu) ---- */
+  .vert{padding:34px;border-radius:var(--r);border:1px solid #6a7bff44;
+    background:linear-gradient(135deg,#6a7bff14,#ffffff05);position:relative;overflow:hidden;
+    display:grid;grid-template-columns:1.3fr .7fr;gap:26px;align-items:center}
+  @media(max-width:840px){.vert{grid-template-columns:1fr}}
+  .vert .pmark{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
+    font-family:var(--mono);font-weight:720;font-size:15px;
+    background:#6a7bff18;border:1px solid #6a7bff44;color:var(--violet);margin-bottom:14px}
+  .vert h3{font-size:1.6rem;font-weight:740;margin:0 0 4px;letter-spacing:-.4px}
+  .vert .tag{font-size:12px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:14px}
+  .vert p{color:var(--sub);margin:0 0 6px;font-size:1.02rem}
+  .vert .feat{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
+  .vert .feat li{display:flex;gap:10px;color:var(--sub);font-size:.96rem;line-height:1.4}
+  .vert .feat li::before{content:"▸";color:var(--violet);flex:0 0 auto;margin-top:1px}
+  .vert .vcta{display:flex;flex-direction:column;gap:10px}
 
-  /* ---- labels / chips ---- */
+  /* ---- chips / labels ---- */
   .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
     font-size:12px;font-weight:600;font-family:var(--mono);border:1px solid var(--border)}
   .chip .dot{width:8px;height:8px;border-radius:50%}
@@ -142,45 +139,22 @@
   .chip.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
   .chip.down{color:var(--down);border-color:#e06a6a55;background:#e06a6a10}
   .chip.down .dot{background:var(--down)}
-  .chip.wait{color:var(--ghost)}
-  .chip.wait .dot{background:var(--ghost)}
-  .chip.gold{color:var(--gold);border-color:#cda64a55;background:#cda64a10}
-  .chip.gold .dot{background:var(--gold)}
 
-  /* ---- verify panel ---- */
-  .verify{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;align-items:start}
-  @media(max-width:900px){.verify{grid-template-columns:1fr}}
-  .term{border-radius:14px;border:1px solid var(--border);background:#060a13;overflow:hidden;font-family:var(--mono)}
-  .term .bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--border);background:#0b1120}
-  .term .bar i{width:11px;height:11px;border-radius:50%;display:block}
-  .term .bar i:nth-child(1){background:#e06a6a}.term .bar i:nth-child(2){background:#cda64a}.term .bar i:nth-child(3){background:#39d8c8}
-  .term .bar .t{margin-left:8px;color:var(--ghost);font-size:12px}
-  .term .body{padding:16px;font-size:12.5px;line-height:1.7;max-height:330px;overflow:auto;white-space:pre-wrap;word-break:break-word}
-  .term .body .ln{color:var(--sub)}
-  .term .body .ok{color:var(--ok)}
-  .term .body .er{color:var(--down)}
-  .term .body .mut{color:var(--ghost)}
-  .term .body .hl{color:var(--teal)}
-  .verdict{margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--border);font-weight:600;display:none}
-  .verdict.show{display:block}
-  .verdict.pass{border-color:#39d8c8;background:#39d8c810;color:var(--ok)}
-  .verdict.fail{border-color:#e06a6a;background:#e06a6a10;color:var(--down)}
-
-  /* ---- mesh ---- */
-  .mesh-list{display:flex;flex-direction:column;gap:12px}
-  .node{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:13px;
-    border:1px solid var(--border);background:linear-gradient(180deg,#ffffff0a,#ffffff04)}
-  .node .nm{font-weight:640}
-  .node .meta{color:var(--ghost);font-size:12.5px;font-family:var(--mono);margin-top:2px}
-  .node .right{margin-left:auto;text-align:right}
+  /* ---- evidence band ---- */
+  .evidence{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+    padding:26px 30px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,#ffffff09,#ffffff04)}
+  .evidence .et{max-width:640px}
+  .evidence h3{margin:0 0 6px;font-size:1.15rem;font-weight:700}
+  .evidence p{margin:0;color:var(--sub);font-size:.97rem}
+  .evidence .ecta{display:flex;gap:12px;flex-wrap:wrap}
 
   /* ---- footer ---- */
   footer{border-top:1px solid var(--border);padding:46px 0 60px;color:var(--ghost);font-size:13.5px}
   footer .cols{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
   footer a{color:var(--sub)}footer a:hover{color:var(--teal)}
   footer .lk{display:flex;flex-direction:column;gap:8px}
-  .disc{margin-top:32px;padding-top:22px;border-top:1px solid var(--border);max-width:760px;line-height:1.6}
-
+  .disc{margin-top:32px;padding-top:22px;border-top:1px solid var(--border);max-width:820px;line-height:1.6}
   .muted{color:var(--ghost)}
   .skel{color:var(--ghost);font-family:var(--mono)}
 </style>
@@ -190,7 +164,7 @@
 <!-- ============================ NAV ============================ -->
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="/" aria-label="SZL Holdings home">
+    <a class="brand" href="/" aria-label="a11oy home">
       <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stop-color="#39d8c8"/><stop offset="1" stop-color="#6a7bff"/></linearGradient></defs>
@@ -198,36 +172,31 @@
         <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
         <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
       </svg>
-      <span>SZL Holdings<span class="sub" style="margin-left:9px">Sovereign Governed AI</span></span>
+      <span>a11oy<span class="sub" style="margin-left:9px">Governed Inference</span></span>
     </a>
     <nav>
-      <a href="#products">Products</a>
-      <a href="#substrate">Substrate</a>
-      <a href="/console">a11oy</a>
-      <a href="/elite">killinchu</a>
+      <a href="#proof">How it proves</a>
       <a href="/verify">Verify</a>
-      <a class="btn btn-primary" href="/console">Open Console →</a>
+      <a href="/elite">killinchu</a>
+      <a class="btn btn-primary" href="/console">Open the command center →</a>
     </nav>
   </div>
 </header>
 
-<!-- ============================ HERO ============================ -->
+<!-- ============================ HERO / FLAGSHIP ============================ -->
 <section class="hero">
   <canvas id="hero-canvas"></canvas>
   <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
     <div class="hero-inner">
-      <span class="eyebrow"><span class="dot"></span> One governance substrate · two products · verify offline</span>
-      <h1 class="title">One company. One governance substrate.<br><span class="grad">Two sovereign products.</span></h1>
-      <p class="lede"><b>SZL Holdings</b> builds a single governance substrate — signed receipts,
-        the Λ trust gate <span class="mono">(Conjecture&nbsp;1, advisory)</span>, a self-doubt gate,
-        and a <span class="mono">sha3_256</span> receipt ledger. On it run two products:
-        <b>a11oy</b>, the governed-AI platform, and <b>killinchu</b>, sovereign counter-UAS defense.
-        <b>They hide the governor. We sign and show it.</b></p>
+      <span class="eyebrow"><span class="dot"></span> Governed Inference · verifiable by anyone, offline</span>
+      <h1 class="title">AI that <span class="grad">signs its work</span><br>and refuses to lie.</h1>
+      <p class="lede">Every answer arrives with a signed receipt you can check yourself —
+        <b>offline, in your own browser</b>, with no server round-trip. When the model is not
+        sure, it returns an honest <b>BLOCKED</b> instead of a confident guess.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/console">Open a11oy Console →</a>
-        <a class="btn btn-violet" href="/elite">Open killinchu →</a>
-        <a class="btn btn-ghost" href="#verify">Verify a receipt offline</a>
+        <a class="btn btn-primary" href="/console">Open the command center →</a>
+        <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
       </div>
       <div class="hero-stats">
         <div class="stat">
@@ -235,59 +204,95 @@
           <div class="l">Signed receipts <span id="hs-receipts-chip"></span></div>
         </div>
         <div class="stat">
-          <div class="k" id="hs-lambda">0.97</div>
-          <div class="l">Λ trust ceiling · advisory</div>
+          <div class="k" id="hs-lambda">Conjecture 1</div>
+          <div class="l">Λ trust gate · advisory bound</div>
         </div>
         <div class="stat">
           <div class="k" id="hs-proven">8</div>
-          <div class="l">Locked-proven formulas</div>
+          <div class="l">Locked Lean-proven theorems</div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ====================== TWO PRODUCTS ====================== -->
-<section class="band wrap" id="products">
-  <p class="kick">Two products, one substrate</p>
-  <h2>Two sovereign products on the same governed core.</h2>
-  <p class="intro">Both products gate every action before it runs and seal the decision as a signed,
-    hash-chained receipt. Same substrate, two missions — each one live and clickable today.</p>
-  <div class="grid g2">
-    <!-- a11oy -->
-    <div class="card prod a">
-      <div class="phead">
-        <div class="pmark">a11</div>
-        <div><h3>a11oy</h3><div class="tag">Governed AI platform</div></div>
-      </div>
-      <p>The general governed-AI platform: a Command Center, the Five Superpowers, and a governed
-        agent loop where every turn clears the constitution before a token is generated.</p>
-      <ul class="feat">
-        <li>Governed inference on a sovereign mesh</li>
-        <li>Inverse-PINN physics discovery + CALPHAD materials prediction</li>
-        <li>Conformal trust intervals · E8 receipt encoding (error-detection geometry, after Viazovska)</li>
-        <li>Evidence pack · energy MEASURED when the meter is live, else UNAVAILABLE</li>
-      </ul>
-      <div class="pcta">
-        <a class="btn btn-primary" href="/console">Open the Console →</a>
-        <a class="btn btn-ghost" href="/frontier">Frontier</a>
+<!-- ====================== THE 3 PROOF POINTS ====================== -->
+<section class="band wrap" id="proof">
+  <p class="kick">Three claims · three live proofs</p>
+  <h2>Don't trust the demo — open it and check.</h2>
+  <p class="intro">a11oy makes exactly three promises, and each one links to a live surface you
+    can open right now and verify for yourself. Nothing here is asserted that you cannot click
+    through and check.</p>
+  <div class="grid g3">
+
+    <!-- 1 · Signs its work -->
+    <div class="card">
+      <div class="num">01</div>
+      <div class="ic">🔏</div>
+      <h3>It signs its work</h3>
+      <p>Every governed decision is sealed as a DSSE receipt — ECDSA&#8209;P256 signed and
+        SHA3&#8209;256 hash-chained into an append-only ledger. The signature is checked in your
+        browser with WebCrypto against a key you fetch yourself. Receipts are signed on write,
+        never on a read.</p>
+      <div class="golinks">
+        <a class="go" href="/verify">Verify in-browser →</a>
+        <a class="go" href="/api/lake/v1/health">Receipt ledger →</a>
       </div>
     </div>
-    <!-- killinchu -->
-    <div class="card prod k">
-      <div class="phead">
-        <div class="pmark">kil</div>
-        <div><h3>killinchu</h3><div class="tag">Counter-UAS · sovereign defense</div></div>
+
+    <!-- 2 · Refuses when unsure -->
+    <div class="card">
+      <div class="num">02</div>
+      <div class="ic">🛡</div>
+      <h3>It refuses when unsure</h3>
+      <p>A self-doubt gate sits in front of the answer. The inverse-PINN physics and materials
+        engine measures its own uncertainty against a bound — and returns a truthful
+        <b>BLOCKED</b> rather than a confident wrong answer when it crosses it. A truthful refusal
+        beats a fabricated pass.</p>
+      <div class="golinks">
+        <a class="go" href="/pinn-console">Open the self-doubt demo →</a>
       </div>
-      <p>Sovereign counter-UAS defense built on the same substrate — a live operations console where
-        every interdiction carries a verifiable DSSE receipt.</p>
-      <ul class="feat">
-        <li>Live track board with sensor-fusion</li>
-        <li>13-axis Λ trust gate (Conjecture 1, advisory)</li>
-        <li>3-of-4 BFT quorum on every decision</li>
-        <li>DSSE verifier per interdiction</li>
-      </ul>
-      <div class="pcta">
+    </div>
+
+    <!-- 3 · Formally backed -->
+    <div class="card">
+      <div class="num">03</div>
+      <div class="ic">📐</div>
+      <h3>It is formally backed</h3>
+      <p>The kernel rests on <b>8 locked, Lean&nbsp;4 machine-checked theorems</b>
+        <span class="mono">{F1, F4, F7, F11, F12, F18, F19, F22}</span> that depend on no axioms
+        (enforced by <span class="mono">locked_count_eight</span>), archived with a Zenodo DOI.
+        The Λ trust gate is <b>Conjecture&nbsp;1</b> — an advisory bound, not a theorem.</p>
+      <div class="golinks">
+        <a class="go" href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs →</a>
+        <a class="go" href="https://doi.org/10.5281/zenodo.20434276">Zenodo DOI →</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====================== THE ONE VERTICAL: killinchu ====================== -->
+<section class="band" style="background:linear-gradient(180deg,#0a0f1e00,#0a0f1e88)">
+  <div class="wrap">
+    <p class="kick">The vertical it already runs</p>
+    <h2>Where governed inference earns its keep.</h2>
+    <p class="intro">The same governed core powers <b>killinchu</b> — sovereign counter-UAS
+      defense, where every interdiction decision has to be auditable after the fact.</p>
+    <div class="vert">
+      <div>
+        <div class="pmark">kil</div>
+        <h3>killinchu</h3>
+        <div class="tag">Counter-UAS · sovereign defense</div>
+        <p>Auditable interdiction decisions: every call carries a signed receipt, clears a
+          13-axis trust gate, and requires a 3-of-4 consensus before it can act.</p>
+        <ul class="feat">
+          <li>Signed DSSE receipt per interdiction decision</li>
+          <li>13-axis Λ trust gate (Conjecture 1, advisory)</li>
+          <li>3-of-4 BFT consensus on every decision</li>
+        </ul>
+      </div>
+      <div class="vcta">
         <a class="btn btn-violet" href="/elite">Open killinchu →</a>
         <a class="btn btn-ghost" href="/verify">Verify a receipt</a>
       </div>
@@ -295,124 +300,19 @@
   </div>
 </section>
 
-<!-- ====================== SHARED SUBSTRATE ====================== -->
-<section class="band" id="substrate" style="background:linear-gradient(180deg,#0a0f1e00,#0a0f1e88)">
-  <div class="wrap">
-    <p class="kick">The shared governance substrate</p>
-    <h2>The proof points both products stand on — each one clickable.</h2>
-    <p class="intro">Every claim below is backed by a live surface you can open and verify yourself.
-      Nothing is asserted that you cannot click through and check.</p>
-    <div class="prooflist">
-      <div class="proof"><span class="pi">🔏</span><div>
-        <div class="pn">In-browser receipt verification</div>
-        <div class="pd">WebCrypto ECDSA-P256 over the DSSE PAE — no server round-trip.</div>
-        <a class="go" href="/verify">/verify →</a></div></div>
-      <div class="proof"><span class="pi">🧾</span><div>
-        <div class="pn">Evidence pack / assurance</div>
-        <div class="pd">Replayable evidence an auditor can defend in a review.</div>
-        <a class="go" href="/assurance">/assurance →</a></div></div>
-      <div class="proof"><span class="pi">⛓</span><div>
-        <div class="pn">Receipt ledger · sha3_256</div>
-        <div class="pd">Hash-chained ledger; signed on write, never on a read.</div>
-        <a class="go" href="/api/lake/v1/health">live ledger health →</a></div></div>
-      <div class="proof"><span class="pi">🛰</span><div>
-        <div class="pn">Frontier manifest</div>
-        <div class="pd">8 locked-proven formulas · ~35 wired · ~185 corpus.</div>
-        <a class="go" href="/frontier">/frontier →</a></div></div>
+<!-- ====================== EVIDENCE / LEDGER ====================== -->
+<section class="band wrap" id="evidence">
+  <div class="evidence">
+    <div class="et">
+      <p class="kick">The evidence trail</p>
+      <h3>One ledger. Every decision. Replayable to the byte.</h3>
+      <p>The receipt ledger is a SHA3&#8209;256 hash-chain an auditor can replay to a
+        byte-identical root instead of trusting a dashboard. The full capability map — what is
+        MEASURED, MODELED, and ROADMAP — is published as honest JSON.</p>
     </div>
-  </div>
-</section>
-
-<!-- ====================== HOW IT WORKS ====================== -->
-<section class="band wrap" id="how">
-  <p class="kick">The governed loop</p>
-  <h2>Gate before it runs. Sign what it did.</h2>
-  <p class="intro">Most AI stacks bolt safety on after the answer. a11oy puts a deny-by-default
-    governor in front of every action and a signed, hash-chained receipt behind it — so a buyer,
-    an auditor, or a regulator can replay the decision instead of trusting a screenshot.</p>
-  <div class="grid g3">
-    <div class="card"><div class="ic">⛓</div><h3>Gate</h3>
-      <p>Each turn clears the constitution, the doctrine gate, and the policy guards before a
-        single token is generated. No clearance, no run.</p></div>
-    <div class="card"><div class="ic">⚖</div><h3>Route</h3>
-      <p>Smart Routing picks the smallest sovereign engine that clears the sensitivity class and
-        license tier — self-hosted first, never leaking sensitive context.</p></div>
-    <div class="card"><div class="ic">🔏</div><h3>Sign</h3>
-      <p>The decision is sealed as a DSSE receipt, ECDSA&#8209;P256 signed and hash-chained
-        (SHA3&#8209;256). Signed on write, never on a read.</p></div>
-  </div>
-</section>
-
-<!-- ====================== VERIFY OFFLINE ====================== -->
-<section class="band" id="verify" style="background:linear-gradient(180deg,#0a0f1e00,#0a0f1e88)">
-  <div class="wrap">
-    <p class="kick">The trust demo</p>
-    <h2>Verify a live signature in your own browser.</h2>
-    <p class="intro">This makes a real governed call, fetches a11oy's public key, and checks the
-      ECDSA&#8209;P256 signature over the DSSE payload using your browser's WebCrypto — no server
-      round-trip for the verification, nothing to take on faith. Tamper with one byte and it fails.</p>
-    <div class="verify">
-      <div>
-        <div class="term">
-          <div class="bar"><i></i><i></i><i></i><span class="t">webcrypto · verify offline</span></div>
-          <div class="body" id="vlog"><span class="mut">// click “Run verification” to make a governed call and check its signature locally.</span></div>
-        </div>
-        <div class="verdict" id="vverdict"></div>
-        <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap">
-          <button class="btn btn-primary" id="vrun">Run verification</button>
-          <a class="btn btn-ghost" href="/verify">Open the full Verify surface →</a>
-        </div>
-      </div>
-      <div class="grid" style="gap:14px">
-        <div class="card"><h3>What gets checked</h3>
-          <p style="margin-bottom:10px">1 · <span class="mono">POST /api/a11oy/v1/govern/infer</span> — a real governed turn.<br>
-            2 · <span class="mono">GET /cosign.pub</span> — the in-image public key (PEM).<br>
-            3 · Rebuild the DSSE PAE, recompute SHA&#8209;256, run <span class="mono">crypto.subtle.verify</span>.</p>
-          <p class="muted">DER→raw r‖s conversion happens in-browser; the private key never leaves the box.</p>
-        </div>
-        <div class="card"><h3>Why it matters</h3>
-          <p>A signature anyone can check, against a key they fetched themselves, is the difference
-            between “trust us” and proof. The same logic backs every receipt in the ledger.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ====================== SOVEREIGN MESH ====================== -->
-<section class="band wrap" id="mesh">
-  <p class="kick">Sovereign compute mesh</p>
-  <h2>Real nodes. Honest status. No fake green lights.</h2>
-  <p class="intro">Inference runs on a governed mesh of sovereign engines. The board below is live
-    from <span class="mono">/api/a11oy/v1/govern/health</span>. A node that is offline is shown
-    offline — we never paint a down engine green.</p>
-  <div class="mesh-list" id="mesh-list">
-    <div class="node"><div><div class="nm skel">Loading mesh…</div>
-      <div class="meta">querying /api/a11oy/v1/govern/health</div></div>
-      <div class="right"><span class="chip wait"><span class="dot"></span>…</span></div></div>
-  </div>
-</section>
-
-<!-- ====================== ASSURANCE / NARRATIVE ====================== -->
-<section class="band" style="background:linear-gradient(180deg,#0a0f1e00,#0d18308c)">
-  <div class="wrap">
-    <p class="kick">Built for buyers and auditors</p>
-    <h2>An assurance overlay for AI you can defend in a review.</h2>
-    <div class="grid g3" style="margin-top:30px">
-      <div class="card"><div class="ic">📐</div><h3>Honest by construction</h3>
-        <p>Capabilities are labelled LIVE / MEASURED / SAMPLE / MODELED / ROADMAP. The trust
-          ceiling Λ is an advisory bound (Conjecture 1) — never asserted as a theorem, never 100%.</p></div>
-      <div class="card"><div class="ic">🧾</div><h3>Replayable evidence</h3>
-        <p>Every governed decision carries a signed receipt and a hash-chain link. An auditor
-          replays the chain to a byte-identical root instead of trusting a dashboard.</p></div>
-      <div class="card"><div class="ic">🛡</div><h3>Deny by default</h3>
-        <p>New action paths must clear governance before they execute. A truthful BLOCKED is the
-          designed outcome — better than a fabricated pass.</p></div>
-    </div>
-    <div style="margin-top:34px;display:flex;gap:12px;flex-wrap:wrap">
-      <a class="btn btn-primary" href="/assurance">See the assurance surface →</a>
-      <a class="btn btn-ghost" href="/frontier">Frontier manifest</a>
-      <a class="btn btn-ghost" href="/governance">Governance model</a>
+    <div class="ecta">
+      <a class="btn btn-primary" href="/api/lake/v1/health">Open the receipt ledger →</a>
+      <a class="btn btn-ghost" href="/api/a11oy/v1/honest">Honest status (JSON)</a>
     </div>
   </div>
 </section>
@@ -421,27 +321,35 @@
 <footer>
   <div class="wrap">
     <div class="cols">
-      <div style="max-width:320px">
+      <div style="max-width:340px">
         <a class="brand" href="/" style="margin-bottom:12px">
           <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
             <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
-          <span>SZL Holdings</span></a>
-        <p class="muted" style="margin:6px 0 0">Sovereign Governed AI. One governance substrate —
-          signed receipts, the Λ trust gate, a self-doubt gate, a sha3_256 ledger — under two
-          products: a11oy and killinchu.</p>
+          <span>a11oy</span></a>
+        <p class="muted" style="margin:6px 0 0">Governed Inference — AI that signs its work and
+          refuses to lie. Signed receipts, the Λ trust gate, a self-doubt gate, and a sha3_256
+          receipt ledger anyone can verify, offline.</p>
       </div>
-      <div class="lk"><strong style="color:var(--ink)">Products</strong>
-        <a href="/console">a11oy · Console</a><a href="/elite">killinchu · Counter-UAS</a>
-        <a href="/frontier">Frontier</a><a href="/governance">Governance</a></div>
-      <div class="lk"><strong style="color:var(--ink)">Substrate</strong>
-        <a href="/verify">Verify</a><a href="/assurance">Assurance</a>
-        <a href="/api/lake/v1/health">Receipt ledger</a><a href="/api/a11oy/v1/honest">Honest status (JSON)</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Product</strong>
+        <a href="/console">Command center</a>
+        <a href="/verify">Verify a receipt</a>
+        <a href="/pinn-console">Self-doubt demo</a>
+        <a href="/elite">killinchu · counter-UAS</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
+        <a href="/api/lake/v1/health">Receipt ledger</a>
+        <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
+        <a href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs</a>
+        <a href="https://doi.org/10.5281/zenodo.20434276">Zenodo DOI</a></div>
     </div>
-    <p class="disc">Honesty doctrine v11. Λ is Conjecture 1 — an advisory trust ceiling, not a
-      theorem, never 100%. The locked-proven formula kernel is exactly 8 (of ~35 wired, ~185 in the
-      corpus). Receipts are signed on state changes, never on reads. Joules are MEASURED only with a
-      live exporter delta; otherwise shown as SAMPLE. © Stephen P. Lutar Jr. · Apache-2.0.</p>
+    <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven kernel is exactly <b>8</b>
+      theorems (of a larger experimental, CI-green tier that is <i>not</i> folded into the locked
+      count). The Λ trust gate is <b>Conjecture&nbsp;1</b> — an advisory bound, never a theorem and
+      never 1.0. Receipts are signed on state changes, never on reads. Energy is MEASURED only
+      with a live exporter delta, otherwise honest SAMPLE. Supply chain is SLSA L1 honest
+      (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP, not held today. E8
+      receipt geometry follows Viazovska (error-detection geometry, not a security claim).
+      © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0.</p>
   </div>
 </footer>
 
@@ -471,14 +379,13 @@
   }
 </script>
 
-<!-- ===================== LIVE DATA + WEBCRYPTO VERIFY (no deps) ===================== -->
+<!-- ===================== LIVE RECEIPT COUNTER (honest, no deps) ===================== -->
 <script>
 (function(){
   "use strict";
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-  /* ---------- 1) live receipt counter + chain head ---------- */
+  /* live receipt counter + chain head — labelled offline if the ledger is unreachable. */
   (async function loadLake(){
     try{
       const r = await fetch("/api/lake/v1/health", {cache:"no-store"});
@@ -494,160 +401,6 @@
         '<span class="chip down" style="margin-left:6px"><span class="dot"></span>offline</span>';
     }
   })();
-
-  /* ---------- 3) sovereign mesh viz ---------- */
-  (async function loadMesh(){
-    const host = $("mesh-list");
-    try{
-      const r = await fetch("/api/a11oy/v1/govern/health", {cache:"no-store"});
-      const d = await r.json();
-      const mesh = Array.isArray(d.mesh) ? d.mesh : [];
-      const rows = [];
-      mesh.forEach(n => {
-        const live = !!n.live;
-        const cls = live ? "live" : "down";
-        const lbl = live ? "LIVE" : "DOWN";
-        const tier = n.tier ? (" · " + esc(n.tier)) : "";
-        rows.push(
-          '<div class="node"><div>'+
-            '<div class="nm">'+esc(n.name || "engine")+'</div>'+
-            '<div class="meta">'+esc(n.model || "—")+tier+(n.effort?(" · "+esc(n.effort)):"")+'</div>'+
-          '</div><div class="right">'+
-            '<span class="chip '+cls+'"><span class="dot"></span>'+lbl+'</span>'+
-          '</div></div>'
-        );
-      });
-      // GLM engine: honest-DOWN when not on metal
-      if (d.glm && d.glm.on_metal_live === false){
-        rows.push(
-          '<div class="node"><div>'+
-            '<div class="nm">GLM engine</div>'+
-            '<div class="meta">'+esc(d.glm.model_tag || "glm")+' · not in mesh</div>'+
-          '</div><div class="right">'+
-            '<span class="chip down"><span class="dot"></span>DOWN</span>'+
-          '</div></div>'
-        );
-      }
-      const liveN = (typeof d.engines_live === "number") ? d.engines_live : mesh.filter(n=>n.live).length;
-      const totN  = (typeof d.engines_total === "number") ? d.engines_total : mesh.length;
-      rows.push(
-        '<div class="node" style="border-style:dashed"><div>'+
-          '<div class="nm muted">Mesh summary</div>'+
-          '<div class="meta">'+liveN+' / '+totN+' engines live · governance '+(d.governance?'on':'off')+'</div>'+
-        '</div><div class="right"><span class="chip '+(liveN>0?'live':'down')+'"><span class="dot"></span>'+
-          (liveN>0?'LIVE':'NONE')+'</span></div></div>'
-      );
-      host.innerHTML = rows.join("") ||
-        '<div class="node"><div class="nm muted">No engines reported</div></div>';
-    }catch(e){
-      host.innerHTML =
-        '<div class="node"><div><div class="nm">Mesh health unreachable</div>'+
-        '<div class="meta">/api/a11oy/v1/govern/health did not respond</div></div>'+
-        '<div class="right"><span class="chip down"><span class="dot"></span>OFFLINE</span></div></div>';
-    }
-  })();
-
-  /* ---------- 2) WebCrypto ECDSA-P256 DSSE verify (Tier-1 logic) ---------- */
-  function b64Decode(s){const bin=atob(s);const b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b;}
-  function derToRaw(der){
-    let i=0; if(der[i++]!==0x30) throw new Error("not DER SEQUENCE");
-    let sl=der[i++]; if(sl&0x80){let nb=sl&0x7f;sl=0;for(let b=0;b<nb;b++)sl=(sl<<8)|der[i++];}
-    function readInt(){if(der[i++]!==0x02)throw new Error("expected INTEGER");let len=der[i++];
-      if(len&0x80){let nb=len&0x7f;len=0;for(let b=0;b<nb;b++)len=(len<<8)|der[i++];}
-      const v=der.slice(i,i+len);i+=len;return v;}
-    const r=readInt(),s=readInt();
-    function pad32(a){let j=0;while(j<a.length-1&&a[j]===0)j++;const st=a.slice(j);
-      const o=new Uint8Array(32);const off=32-st.length;if(off<0)throw new Error("int too long");o.set(st,off);return o;}
-    const raw=new Uint8Array(64);raw.set(pad32(r),0);raw.set(pad32(s),32);return raw;
-  }
-  function buildPAE(type,body){const enc=new TextEncoder();const t=enc.encode(type);
-    const pre=enc.encode("DSSEv1 "+t.length+" ");const mid=enc.encode(" "+body.length+" ");
-    const buf=new Uint8Array(pre.length+t.length+mid.length+body.length);let o=0;
-    buf.set(pre,o);o+=pre.length;buf.set(t,o);o+=t.length;buf.set(mid,o);o+=mid.length;buf.set(body,o);return buf;}
-  async function sha256hex(buf){const h=await crypto.subtle.digest("SHA-256",buf);
-    return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,"0")).join("");}
-  async function importPub(pem){const b64=pem.replace(/-----BEGIN PUBLIC KEY-----/,"").replace(/-----END PUBLIC KEY-----/,"").replace(/\s+/g,"");
-    return crypto.subtle.importKey("spki", b64Decode(b64).buffer, {name:"ECDSA",namedCurve:"P-256"}, false, ["verify"]);}
-
-  let busy=false;
-  function log(html){const b=$("vlog");b.innerHTML+= "\n"+html;b.scrollTop=b.scrollHeight;}
-  function reset(){$("vlog").innerHTML='<span class="mut">// running…</span>';
-    const v=$("vverdict");v.className="verdict";v.textContent="";}
-
-  async function runVerify(){
-    if(busy) return; busy=true;
-    const btn=$("vrun"); btn.disabled=true; btn.textContent="Verifying…";
-    reset();
-    try{
-      log('<span class="ln">→ POST /api/a11oy/v1/govern/infer</span>');
-      const resp=await fetch("/api/a11oy/v1/govern/infer",{method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({prompt:"hello",vertical:"general",declared:"PUBLIC"})});
-      const data=await resp.json();
-      const dsse=data.dsse||{}, receipt=data.receipt||{};
-      log('<span class="ok">  decision: '+esc(data.decision||"?")+'</span>'+
-          '   <span class="mut">Λ='+esc((data.governance&&data.governance.lambda)||"?")+' (Conjecture 1, advisory)</span>');
-
-      // A demo-signed receipt (keyid=demo-signing-key) verifies against the DEMO
-      // public key, NOT the production founder-gated cosign key.
-      const dsseKeyid=((dsse.signatures||[])[0]||{}).keyid||dsse.key_id||"";
-      const isDemoKey=dsseKeyid==="demo-signing-key";
-      const pubKeyURL=isDemoKey?"/demo-cosign.pub":"/cosign.pub";
-      log('<span class="ln">→ GET '+pubKeyURL+'</span>');
-      const pem=await (await fetch(pubKeyURL)).text();
-      const pub=await importPub(pem);
-      log('<span class="mut">  public key imported (ECDSA P-256, SPKI)'+(isDemoKey?" — DEMO key":"")+'</span>');
-
-      if(!dsse.signed){
-        log('<span class="er">  envelope is UNSIGNED in this runtime — cannot verify.</span>');
-        verdict(false,"Envelope unsigned in this runtime. Receipt chain still valid; signature unavailable.");
-        return;
-      }
-      const payloadType=dsse.payloadType||"application/vnd.szl.khipu+json";
-      const payload=b64Decode(dsse.payload||"");
-      log('<span class="mut">  payload SHA-256: '+(await sha256hex(payload.buffer)).slice(0,32)+'…</span>');
-
-      const pae=buildPAE(payloadType,payload);
-      const paeSha=await sha256hex(pae.buffer);
-      log('<span class="ln">→ rebuild DSSE PAE · SHA-256 '+paeSha.slice(0,24)+'…</span>');
-
-      const sigs=dsse.signatures||[];
-      if(!sigs.length){verdict(false,"No signatures in envelope.");return;}
-      let sig=b64Decode(sigs[0].sig||""), raw=sig;
-      if(sig[0]===0x30){ raw=derToRaw(sig); log('<span class="mut">  DER→raw r‖s converted in-browser</span>'); }
-      log('<span class="ln">→ crypto.subtle.verify(ECDSA, SHA-256)</span>');
-      let ok=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},pub,raw.buffer,pae.buffer);
-      if(!ok && sig[0]===0x30){ ok=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},pub,sig.buffer,pae.buffer); }
-
-      if(ok){
-        log('<span class="ok">✓ signature VALID — verified locally in your browser.'+(isDemoKey?" (demo-signing-key)":"")+'</span>');
-        const kid=(sigs[0].keyid||"").slice(0,16);
-        if(isDemoKey){
-          verdict(true,"VERIFIED (demo-signing-key — not the production cosign key) — real "+
-            "WebCrypto ECDSA-P256 signature valid over the DSSE PAE, checked against /demo-cosign.pub. "+
-            "The production cosign key stays founder-gated and is never placed in this runtime.");
-        }else{
-          verdict(true,"VERIFIED — WebCrypto ECDSA-P256 signature valid over the DSSE PAE."+
-            (kid?(" keyid "+esc(kid)+"…"):"")+" Nothing trusted; everything checked.");
-        }
-      }else{
-        log('<span class="er">✗ verification returned false.</span>');
-        verdict(false,"Signature did NOT verify against the fetched key.");
-      }
-    }catch(e){
-      log('<span class="er">! '+esc(e.message||e)+'</span>');
-      verdict(false,"Verification could not complete: "+esc(e.message||e));
-    }finally{
-      busy=false; btn.disabled=false; btn.textContent="Run again";
-    }
-  }
-  function verdict(pass,msg){const v=$("vverdict");
-    v.className="verdict show "+(pass?"pass":"fail");
-    v.textContent=(pass?"✓ ":"✗ ")+msg;}
-
-  document.addEventListener("DOMContentLoaded",()=>{
-    const b=$("vrun"); if(b) b.addEventListener("click",runVerify);
-  });
 })();
 </script>
 </body>
