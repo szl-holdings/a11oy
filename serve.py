@@ -661,6 +661,22 @@ except Exception as _szl_pinn_e:  # pragma: no cover
 try:
     import szl_governed_ipinn as _szl_governed_ipinn
     _szl_ipinn_routes = _szl_governed_ipinn.register(app, ns="a11oy")
+    # ROUTE-ORDERING FIX (no bandaid): register() uses app.add_api_route, which APPENDS
+    # to the tail of app.router.routes — so /api/a11oy/v1/pinn/identify + /pinn/health
+    # lost to the /api/a11oy/{path:path} Node proxy catch-all defined at the file tail
+    # and 404'd. Front-move the just-added PINN routes to the HEAD of the router so they
+    # win ordered matching (same proven pattern as the compliance-mesh block below).
+    try:
+        _pinn_paths = {"/api/a11oy/v1/pinn/identify", "/api/a11oy/v1/pinn/health",
+                       "/v1/pinn/identify", "/v1/pinn/health"}
+        _moved = [r for r in app.router.routes if getattr(r, "path", None) in _pinn_paths]
+        for _r in _moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Governed Inverse-PINN routes front-moved to router head: {len(_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _szl_ipinn_move_e:  # pragma: no cover
+        print(f"[a11oy] Governed Inverse-PINN front-move skipped (routes still registered): {_szl_ipinn_move_e!r}", file=__import__("sys").stderr)
     print(f"[a11oy] Governed Inverse-PINN registered: POST /api/a11oy/v1/pinn/identify (+ /pinn/health) {_szl_ipinn_routes}", file=__import__("sys").stderr)
 except Exception as _szl_ipinn_e:  # pragma: no cover
     print(f"[a11oy] Governed Inverse-PINN NOT registered (a11oy continues): {_szl_ipinn_e!r}", file=__import__("sys").stderr)
