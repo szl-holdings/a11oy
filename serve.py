@@ -7845,6 +7845,10 @@ try:
         # codenames. Wired to the LIVE substrate: /api/a11oy/code/chat|agent + v4 ledger.
         "a11oy-operator-widget.js": _VENDOR_JS_CT,     # SZL Apache-2.0 — global window.A11oyOperator
         "a11oy-operator-widget.css": _VENDOR_CSS_CT,   # optional palette tokens (JS self-styles)
+        # ENERGY-OPS streaming dashboard (/energy-ops): uPlot 1.6.32 (MIT, Leon
+        # Sorokin) — canvas streaming line chart for live watts. 0 CDN, in-image.
+        "uPlot.iife.min.js": _VENDOR_JS_CT,            # uPlot 1.6.32 (MIT) — global uPlot
+        "uPlot.min.css": _VENDOR_CSS_CT,               # uPlot 1.6.32 (MIT) stylesheet
     }
 
     # NOTE on route ORDER: literal paths (/vendor/earth-night.jpg, /vendor/fonts/*)
