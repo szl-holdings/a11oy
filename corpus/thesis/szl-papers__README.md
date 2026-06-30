@@ -68,7 +68,7 @@ Original repos archived with redirect notices. Git history preserved in each sou
 
 ---
 
-**[SZL Holdings](https://a11oy.net)** · Apache-2.0 code · CC-BY-4.0 papers · Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**[SZL Holdings](https://a-11-oy.com)** · Apache-2.0 code · CC-BY-4.0 papers · Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
 
 > **Non-affiliation.** SZL Holdings' use of "UDS" references Defense Unicorns' Unified Defense Stack (USPTO Serial 99831122); SZL Holdings is not affiliated with Defense Unicorns. No production ATO is claimed. Papers note SLSA L1 honest (corpus); product images (a11oy, killinchu) are L2 build-attested — see [szl-uds-deployment](https://github.com/szl-holdings/szl-uds-deployment).
 

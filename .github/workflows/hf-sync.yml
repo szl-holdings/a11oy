@@ -70,6 +70,17 @@ on:
       # hf-module-drift guard: live_wires.html ahead=github). Mirror it explicitly
       # here AND in CATHEDRAL_FILES below so the front door stays byte-identical.
       - "live_wires.html"
+      # copy-sync lockstep guard (CHECK 3): a11oy_landing.html is the investor front door
+      # served at "/" by serve.py and is per-file COPY'd in the Dockerfile. An edit on GitHub
+      # main must also reach the HF Space — mirror it explicitly here + CATHEDRAL_FILES.
+      - "a11oy_landing.html"
+      # copy-sync lockstep guard (CHECK 3): static/a11oy_landing.js is the JS bundle for the
+      # investor landing page. Per-file COPY'd in the Dockerfile; mirror explicitly to HF.
+      - "static/a11oy_landing.js"
+      # copy-sync lockstep guard (CHECK 3): govern_showcase.html is a governance showcase page
+      # per-file COPY'd in the Dockerfile and served from the HF Space. Mirror here so GitHub
+      # edits propagate to HF and the hf-module-drift guard stays green.
+      - "govern_showcase.html"
       # web/*.html: per-page surfaces (immune, materials, sda, dns, energy, etc.) are
       # per-file COPY'd by the Dockerfile but live OUTSIDE pages/console — so a new
       # web/*.html on GitHub main (e.g. web/dns.html from the DNS page) was NOT mirrored
@@ -205,7 +216,10 @@ jobs:
                              # Lane F1: the 3D/holographic substrate kit (loaded by /holo).
                              "static/shared/szl_holo3d.js",
                              # served /live-wires 3D page at repo ROOT (outside pages/console glob).
-                             "live_wires.html"]
+                             "live_wires.html",
+                             # copy-sync lockstep guard (CHECK 3): investor front door + governance showcase
+                             # per-file COPY'd in Dockerfile; mirror to HF so Space stays in sync.
+                             "a11oy_landing.html", "static/a11oy_landing.js", "govern_showcase.html"]
           patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js",
                       "web/*.html",
                       *CATHEDRAL_FILES]
