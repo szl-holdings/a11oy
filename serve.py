@@ -10011,6 +10011,25 @@ except Exception as _gv_e:
 # ============================================================================
 # END: a11oy GOVERNED-INFERENCE product layer
 # ============================================================================
+# ============================================================================
+# BEGIN: in-toto Statement v1 routes + Merkle transparency log (DEV2, additive)
+# Mounts in-toto-compatible receipt views and per-receipt inclusion proofs:
+#   GET /khipu/intoto/<receipt_id>      -> Statement v1 + DSSE envelope + proof
+#   GET /api/lake/v1/proof/<receipt_id> -> Merkle inclusion proof (RFC 6962)
+#   GET /api/lake/v1/log                -> self-hosted log state
+#   GET /api/a11oy/v1/verify/intoto     -> verification guide
+# Pattern: in-toto Attestation Framework v1 (Apache-2.0). Reimplemented, no lib import.
+# Additive, try/except-guarded. HONEST LABELS: rekor-public vs szl-lake-merkle.
+# ============================================================================
+try:
+    import szl_intoto_routes as _szl_intoto_routes
+    _intoto_status = _szl_intoto_routes.register(app, ns="a11oy")
+    print(f"[a11oy] in-toto routes registered: {_intoto_status}", file=__import__("sys").stderr)
+except Exception as _it_e:
+    print(f"[a11oy] in-toto routes NOT registered (non-fatal): {_it_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: in-toto Statement v1 routes + Merkle transparency log
+# ============================================================================
 
 # ============================================================================
 # BEGIN: a11oy UNIFIED RECEIPT LEDGER sink (vendored szl-lake, additive)
