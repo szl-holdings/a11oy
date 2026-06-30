@@ -105,7 +105,10 @@ _LOCK = threading.Lock()
 
 
 def _cached_fetch(key: str, url: str, ttl: float, parser=None, headers=None,
-                  timeout=12.0) -> dict[str, Any]:
+                  timeout=4.0) -> dict[str, Any]:
+    # timeout=4.0: HF sandbox blocks external egress (CT/BTC) after ~100s causing
+    # Cloudflare 524. Fail fast with honest 'degraded' label instead of hanging.
+    # The route still returns 200 with status='degraded' per doctrine (no fake green).
     now = time.time()
     with _LOCK:
         rec = _CACHE.get(key)
