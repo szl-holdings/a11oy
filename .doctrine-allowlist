@@ -300,3 +300,11 @@ szl_immune.py
 # a11oy_willay_nav.py and szl_codename_gate.py above. Every served payload is
 # codename-free, summary-only (no fabricated node/joule data), 0-CDN.
 szl_fabric_surface.py
+
+# Reverse-imported HuggingFace Space built artifacts (DEV A gap-closure, 2026-06-30).
+# Minified vite/Tailwind build output of SZLHOLDINGS/immune — contains INCIDENTAL
+# third-party substrings ("seamless" library-internal; "leading" = Tailwind
+# line-height utility keys), NOT authored marketing claims. These are vendored built
+# bundles governed for provenance (see spaces/immune/PROVENANCE.md), not prose.
+spaces/immune/dist/public/assets/index-DOCUUK5J.js
+spaces/immune/dist/public/assets/index-B0yATMcZ.css

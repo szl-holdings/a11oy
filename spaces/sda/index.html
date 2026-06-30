@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>SZL SDA — Sovereign Domain Superiority</title>
+<meta name="description" content="SZL SDA — sovereign domain superiority: multivariate + graph anomaly detection and multi-sensor track fusion into a Common Operating Picture, Lambda-gated advisory confidence, and a signed provenance receipt for every verdict. Air / maritime / counter-UAS live; orbital SDA roadmap. Clean-room from a permissive lineage; not affiliated with True Anomaly." />
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="assets/style.css" />
+<!-- SOVEREIGN: 0 runtime CDN. three.js r160 (MIT) VENDORED locally under assets/. See assets/THREE_LICENSE.txt. -->
+<script type="importmap">
+{ "imports": { "three": "./assets/three.module.min.js" } }
+</script>
+</head>
+<body>
+  <canvas id="sda-canvas" aria-hidden="true"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" fill="none" aria-label="SZL SDA mark">
+        <circle cx="24" cy="24" r="21" stroke="#28E0D0" stroke-width="2" opacity="0.5"/>
+        <circle cx="24" cy="24" r="13" stroke="#3DD6FF" stroke-width="1" opacity="0.4"/>
+        <path d="M24 24 L42 14 A21 21 0 0 1 44 26 Z" fill="#28E0D0" opacity="0.18"/>
+        <g fill="#3DD6FF"><circle cx="14" cy="18" r="1.6"/><circle cx="33" cy="32" r="1.6"/><circle cx="19" cy="34" r="1.4"/></g>
+        <circle cx="32" cy="16" r="2.4" fill="#9D8BFF"/>
+        <circle cx="32" cy="16" r="5" stroke="#9D8BFF" stroke-width="1" opacity="0.7"/>
+        <circle cx="24" cy="24" r="1.6" fill="#28E0D0"/>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-line1">SZL HOLDINGS</span>
+        <span class="brand-line2">SDA</span>
+      </div>
+    </div>
+    <span id="conn-badge" class="conn-badge snapshot"><span class="dot"></span><span id="conn-label">FABRIC: CHECKING…</span></span>
+  </header>
+
+  <main>
+    <!-- ============ 1. HERO ============ -->
+    <section class="hero" id="hero">
+      <p class="eyebrow">Sovereign domain superiority</p>
+      <h1 class="headline">Anomaly detection + track fusion — with a signed receipt for every verdict.</h1>
+      <p class="hero-sub">SZL SDA turns raw multi-sensor tracks into a <strong>governed Common Operating Picture</strong>: it scores anomalies, fuses tracks across sensors, attaches an honest confidence interval and a Λ-gated advisory verdict, and emits a cryptographic provenance receipt — so each threat call is <strong>checkable, not just plausible</strong>.</p>
+      <p class="hero-tagline">SZL's clean-room sovereign Domain-Superiority engine — <strong>khipu-sda-core</strong> — inspired by True Anomaly's Mosaic capability (not affiliated).</p>
+      <div class="badge-strip" role="list" aria-label="Honesty badges">
+        <span class="tag tag-conj" role="listitem">Λ = Conjecture 1 (advisory)</span>
+        <span class="tag tag-proven" role="listitem">Signed provenance receipts</span>
+        <span class="tag tag-off" role="listitem">Sovereign — own-metal only</span>
+        <span class="tag tag-proven" role="listitem">Air / maritime / counter-UAS LIVE</span>
+        <span class="tag tag-est" role="listitem">Orbital SDA = ROADMAP</span>
+        <span class="tag tag-exp" role="listitem">Clean-room · not affiliated</span>
+      </div>
+    </section>
+
+    <!-- ============ 2. THE CAPABILITY ============ -->
+    <section class="sec" id="capability">
+      <p class="sec-eyebrow">The capability — plainly</p>
+      <h2 class="sec-title">Spot what doesn't belong, fuse the picture, and prove the call.</h2>
+      <p class="sec-lead">SDA watches many sensor streams at once, flags tracks that behave abnormally, merges duplicate sightings into single confirmed objects, and never asserts a threat without a confidence band and a receipt. Today it runs at the <strong>air / maritime / counter-UAS</strong> edge; the <strong>orbital</strong> extension is a labelled roadmap, not a live claim.</p>
+
+      <div class="flow" aria-label="SDA pipeline">
+        <span class="chip detect"><span class="cdot"></span>Detect&nbsp;<small>(anomaly score)</small></span>
+        <span class="arrow" aria-hidden="true">&#8594;</span>
+        <span class="chip fuse"><span class="cdot"></span>Fuse&nbsp;<small>(tracks &#8594; COP)</small></span>
+        <span class="arrow" aria-hidden="true">&#8594;</span>
+        <span class="chip verdict"><span class="cdot"></span>Λ verdict&nbsp;<small>(advisory)</small></span>
+        <span class="arrow" aria-hidden="true">&#8594;</span>
+        <span class="chip receipt"><span class="cdot"></span>Signed receipt</span>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card">
+          <p class="step">01 · Detect</p>
+          <h3>Multivariate + graph anomaly</h3>
+          <p>An ensemble (isolation forest + autoencoder + robust z-score) scores each track on <strong>stationary behavioural features</strong> — speed, RCS, acceleration, heading-rate. A separate <strong>graph-relational</strong> channel (GDN-style) flags tracks that deviate from their velocity-space neighbours — explainable, not a black box.</p>
+          <span class="live-pill">AIR / MARITIME LIVE</span>
+        </div>
+        <div class="card">
+          <p class="step">02 · Fuse</p>
+          <h3>Multi-sensor track fusion → COP</h3>
+          <p>Nearest-neighbour association plus a compact Kalman filter merge <strong>noisy, duplicate sensor reports</strong> into one Common Operating Picture: each real object becomes a single fused track with a clean state estimate, even when two sensors disagree.</p>
+          <span class="live-pill">AIR / MARITIME LIVE</span>
+        </div>
+        <div class="card">
+          <p class="step">03 · Orbital seed</p>
+          <h3>SGP4 conjunction (roadmap)</h3>
+          <p>A real <strong>python-sgp4</strong> TLE-propagation + conjunction-flag stub seeds future orbital SDA. It is shipped clearly labelled as a <strong>space roadmap</strong> — today's live surface is air / maritime / counter-UAS; SZL does not claim to fly in orbit.</p>
+          <span class="roadmap-pill">SPACE ROADMAP</span>
+        </div>
+        <div class="card">
+          <p class="step">04 · Gate</p>
+          <h3>Λ-gated advisory confidence</h3>
+          <p>Every verdict carries a split-conformal interval plus a PAC-Bayes bound — both labelled <strong>ESTIMATE</strong>. The Λ axis (<strong>Conjecture 1</strong>) returns allow / advisory / deny as an <strong>advisory</strong> only — never "proven trust", never a false green.</p>
+          <span class="live-pill">AIR / MARITIME LIVE</span>
+        </div>
+        <div class="card">
+          <p class="step">05 · Prove</p>
+          <h3>Signed provenance receipt</h3>
+          <p>Each detection emits an <strong>in-toto Statement v1</strong> receipt — method, input hash, anomaly score, fused track id, Λ verdict, confidence band. It is honestly <strong>UNSIGNED</strong> until a real DSSE signs it downstream; no signature is ever fabricated.</p>
+          <span class="live-pill">SCHEMA LIVE</span>
+        </div>
+        <div class="card">
+          <p class="step">06 · Deploy</p>
+          <h3>Sovereign + air-gap</h3>
+          <p>Pure own-metal compute with <strong>0 runtime CDN</strong>. Packaged as the <strong>szl-sda</strong> cosign-signed UDS / Zarf bundle for classified or air-gapped systems — sovereign by construction, not by promise.</p>
+          <span class="live-pill">BUNDLE STAGED</span>
+        </div>
+      </div>
+
+      <p class="cite">
+        <strong>Attribution (clean-room — cite, never plagiarize):</strong>
+        SZL SDA is <strong>inspired by</strong>
+        <a href="https://www.trueanomaly.space/mosaic" target="_blank" rel="noopener">True Anomaly's Mosaic capability</a>
+        (sensor-fusion Common Operating Picture, OODA acceleration, ML threat-warning) — described publicly by
+        <a href="https://www.linkedin.com/posts/erichilmer_true-anomaly-lands-174m-contract-from-us-activity-7110684034724233216-371t" target="_blank" rel="noopener">Eric Hilmer / True Anomaly</a>.
+        SZL is <strong>not affiliated with True Anomaly</strong> and <strong>no proprietary code was seen or copied</strong>; the capability was re-built from public descriptions only. Methods were independently re-implemented from a verified-permissive lineage:
+        <a href="https://github.com/yzhao062/pyod" target="_blank" rel="noopener">PyOD (BSD-2)</a>,
+        <a href="https://github.com/pygod-team/pygod" target="_blank" rel="noopener">PyGOD (BSD-2)</a>,
+        <a href="https://github.com/salesforce/Merlion" target="_blank" rel="noopener">Merlion (BSD-3)</a>,
+        <a href="https://github.com/datamllab/tods" target="_blank" rel="noopener">TODS (Apache-2.0)</a>,
+        <a href="https://github.com/DHI/tsod" target="_blank" rel="noopener">tsod (MIT)</a>,
+        <a href="https://github.com/d-ailin/GDN" target="_blank" rel="noopener">GDN (MIT)</a>,
+        <a href="https://github.com/GraGODs/GraGOD" target="_blank" rel="noopener">GraGOD (MIT)</a>,
+        <a href="https://github.com/brandon-rhodes/python-sgp4" target="_blank" rel="noopener">python-sgp4 (MIT)</a>.
+        <strong>alibi-detect is excluded</strong> (<a href="https://www.seldon.io/strengthening-our-commitment-to-open-core/" target="_blank" rel="noopener">Seldon BSL-1.1</a>) and CI-enforced absent.
+      </p>
+    </section>
+
+    <!-- ============ 3. LIVE COP VISUAL ============ -->
+    <section class="sec" id="cop">
+      <p class="sec-eyebrow">The picture, drawn honestly</p>
+      <h2 class="sec-title">A live Common Operating Picture.</h2>
+      <p class="sec-lead">Fused tracks as blips, an anomaly overlay coloured by score, a per-track score panel, and how multiple noisy sensor reports converge into one confirmed track. This is a <strong>labelled demonstration</strong> driven by SDA's real scoring logic on illustrative tracks — it reads the live killinchu <code>/mosaic</code> endpoints when reachable, and says so when it is not.</p>
+
+      <div class="visual-wrap">
+        <div class="visual-head">
+          <h3>Common Operating Picture — anomaly overlay</h3>
+          <span id="cop-src" class="src-badge">DEMO DATA</span>
+        </div>
+
+        <div class="cop-grid">
+          <div>
+            <div class="cop-stage">
+              <canvas id="cop-canvas" aria-label="Common operating picture: fused tracks moving across a radar field, with anomalous tracks ringed and coloured by anomaly score, and a sensor-fusion convergence shown for one object."></canvas>
+            </div>
+            <div class="cop-legend" aria-hidden="false">
+              <span class="lg"><span class="sw benign"></span>benign (low score)</span>
+              <span class="lg"><span class="sw elevated"></span>elevated</span>
+              <span class="lg"><span class="sw anomaly"></span>anomaly (Λ advisory)</span>
+              <span class="lg"><span class="sw fused"></span>fused COP track</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="visual-head" style="margin-bottom:10px">
+              <h3>Anomaly score · Λ verdict</h3>
+              <span id="cop-feed-src" class="src-badge">DEMO</span>
+            </div>
+            <div id="score-panel" class="score-panel" aria-label="Per-track anomaly scores and advisory verdicts"></div>
+            <p class="score-cap">Score &isin; [0,1] from the multivariate + graph ensemble. The Λ verdict (allow / advisory / deny) is <strong>advisory only</strong> — Λ is Conjecture&nbsp;1, never a proof of trust.</p>
+          </div>
+        </div>
+
+        <!-- Fusion / convergence diagram: how 2 noisy sensors -> 1 fused track -->
+        <svg class="fuse-diagram" viewBox="0 0 720 180" role="img"
+             aria-label="Sensor fusion convergence: two noisy sensor tracks for the same object are associated and merged by a Kalman filter into one fused Common Operating Picture track.">
+          <defs>
+            <marker id="fArr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0 0 L9 4.5 L0 9 Z" fill="#28E0D0"/></marker>
+          </defs>
+          <text x="20" y="22" fill="#9FC2C1" font-size="12" font-family="Calibri, system-ui, sans-serif" font-weight="700">Sensor A &amp; B report the same object &#8594; one fused COP track</text>
+          <!-- sensor A noisy track (cyan) -->
+          <polyline fill="none" stroke="#3DD6FF" stroke-width="1.8" stroke-opacity="0.8"
+            points="60,70 120,58 180,74 240,60 300,72 360,62"/>
+          <text x="60" y="50" fill="#3DD6FF" font-size="12.5" font-family="Calibri, system-ui, sans-serif">sensor A</text>
+          <!-- sensor B noisy track (violet) -->
+          <polyline fill="none" stroke="#9D8BFF" stroke-width="1.8" stroke-opacity="0.8"
+            points="60,118 120,130 180,112 240,128 300,116 360,126"/>
+          <text x="60" y="150" fill="#9D8BFF" font-size="12.5" font-family="Calibri, system-ui, sans-serif">sensor B</text>
+          <!-- association bracket -->
+          <line x1="360" y1="62" x2="412" y2="94" stroke="#28E0D0" stroke-width="1.4" stroke-dasharray="3 3" stroke-opacity="0.7"/>
+          <line x1="360" y1="126" x2="412" y2="94" stroke="#28E0D0" stroke-width="1.4" stroke-dasharray="3 3" stroke-opacity="0.7"/>
+          <text x="386" y="58" fill="#28E0D0" font-size="12.5" font-family="Calibri, system-ui, sans-serif" text-anchor="middle">NN-assoc + Kalman</text>
+          <line x1="416" y1="94" x2="470" y2="94" stroke="#28E0D0" stroke-width="2.2" marker-end="url(#fArr)"/>
+          <!-- fused track (teal, clean) -->
+          <polyline fill="none" stroke="#28E0D0" stroke-width="2.6"
+            points="480,94 540,90 600,95 660,91 700,94"/>
+          <g fill="#28E0D0">
+            <rect x="476" y="90" width="8" height="8" rx="1"/><rect x="596" y="91" width="8" height="8" rx="1"/>
+            <rect x="696" y="90" width="8" height="8" rx="1"/></g>
+          <text x="540" y="124" fill="#28E0D0" font-size="12.5" font-family="Calibri, system-ui, sans-serif" font-weight="700">fused COP track</text>
+        </svg>
+
+        <div id="cop-demo-note" class="demo-note">
+          <strong>Demo / illustrative data.</strong> The blips, scores, and fusion above are an honest demonstration of the SDA pipeline on illustrative tracks — they are <strong>not</strong> a live operational feed and contain no fabricated measured numbers. When the live killinchu <code>/api/killinchu/v1/mosaic/*</code> endpoints are reachable, this panel reads them and re-labels itself <strong>LIVE</strong>; until then it stays honestly labelled demo.
+        </div>
+        <p class="fig-caption">Benign tracks (cyan) drift normally; an <strong>anomaly</strong> (violet, ringed) trips the ensemble and graph channels; two noisy sensor reports for one object are associated and Kalman-fused into a single <strong>COP track</strong> (teal).</p>
+      </div>
+    </section>
+
+    <!-- ============ 4. THE MOAT — verified verdict receipt ============ -->
+    <section class="sec" id="receipt">
+      <p class="sec-eyebrow">The moat</p>
+      <h2 class="sec-title">Every detection is provable — a verified verdict receipt.</h2>
+      <p class="sec-lead">A threat call you can't check is an opinion with extra steps. SDA emits a provenance <strong>receipt</strong> for every verdict — method, input hash, anomaly score, fused track id, Λ verdict, conformal interval, walltime, verified flag — anchored to the same <strong>Khipu / DSSE receipt fabric</strong> the rest of the estate uses. Below are the honest receipt fields (example shape — not a live verdict).</p>
+
+      <div class="grid grid-2">
+        <div class="visual-wrap">
+          <div class="visual-head">
+            <h3>Verified verdict receipt — fields</h3>
+            <span class="src-badge">EXAMPLE SHAPE — NOT A LIVE VERDICT</span>
+          </div>
+          <div class="receipt" aria-label="Receipt fields">
+            <div class="receipt-row"><span class="receipt-key">method</span><span class="receipt-val">sda.anomaly.ensemble+graph.v1</span></div>
+            <div class="receipt-row"><span class="receipt-key">engine</span><span class="receipt-val">khipu-sda-core</span></div>
+            <div class="receipt-row"><span class="receipt-key">inputs_hash</span><span class="receipt-val">sha256:&lt;track digest&gt;</span></div>
+            <div class="receipt-row"><span class="receipt-key">anomaly_score</span><span class="receipt-val">&lt;value &isin; [0,1]&gt;</span></div>
+            <div class="receipt-row"><span class="receipt-key">fused_track_id</span><span class="receipt-val">cop:&lt;fused track id&gt;</span></div>
+            <div class="receipt-row"><span class="receipt-key">lambda_verdict</span><span class="receipt-val flag-adv">allow | advisory | deny ▸ advisory</span></div>
+            <div class="receipt-row"><span class="receipt-key">confidence</span><span class="receipt-val flag-est">{lo, hi} conformal · ESTIMATE</span></div>
+            <div class="receipt-row"><span class="receipt-key">sgp4</span><span class="receipt-val">null (air/maritime) · roadmap for orbital</span></div>
+            <div class="receipt-row"><span class="receipt-key">walltime_ms</span><span class="receipt-val">&lt;measured&gt;</span></div>
+            <div class="receipt-row"><span class="receipt-key">attestation</span><span class="receipt-val">in-toto Statement v1 / DSSE</span></div>
+            <div class="receipt-row"><span class="receipt-key">_signing.status</span><span class="receipt-val flag-unsigned">UNSIGNED ▸ until real DSSE downstream</span></div>
+            <div class="receipt-row"><span class="receipt-key">verified</span><span class="receipt-val flag-unsigned">false ▸ structural-only, advisory</span></div>
+          </div>
+          <p class="receipt-legend">
+            <b>anomaly_score</b> and the <b>confidence</b> band are <b>ESTIMATES</b>, never a proof of threat. <b>walltime_ms</b> is <b>measured</b>. The Λ verdict is <b>advisory</b> (Λ = Conjecture&nbsp;1) — never "proven trust", never a false green. The receipt ships honestly <b>UNSIGNED</b> / <b>verified:false</b> until a real DSSE signature is applied downstream by the szl_lake / khipu path (Khipu BFT settlement is <b>Conjecture&nbsp;2</b>); <b>no signature is ever fabricated</b>. You can check a real receipt against the live fabric below.
+          </p>
+          <div id="verify-mount"></div>
+        </div>
+
+        <div class="visual-wrap">
+          <div class="visual-head">
+            <h3>Honest baseline metrics — synthetic data</h3>
+            <span class="src-badge">SYNTHETIC-DATA BASELINE</span>
+          </div>
+          <table class="metrics" aria-label="SDA baseline precision and recall on synthetic data">
+            <caption>Real numbers from <code>szl_mosaic_validate.py</code> on synthetic tracks with injected anomalies (maneuver, RCS spike, weave). Thresholds set from the calibration distribution, not tuned to the test anomalies.</caption>
+            <thead><tr><th scope="col">Channel</th><th scope="col">Precision</th><th scope="col">Recall</th><th scope="col">F1</th></tr></thead>
+            <tbody>
+              <tr><td>Point ensemble<br><span style="font-size:12px;color:var(--ink-faint)">iForest + AE + robust-z</span></td><td>0.44</td><td>0.74</td><td>0.55</td></tr>
+              <tr><td>Graph-relational<br><span style="font-size:12px;color:var(--ink-faint)">GDN-style velocity dev.</span></td><td>1.00</td><td>0.35</td><td>0.52</td></tr>
+              <tr class="fused"><td>Fused consensus<br><span style="font-size:12px;color:var(--ink-faint)">0.5·point + 0.5·graph</span></td><td>0.40</td><td>0.70</td><td>0.51</td></tr>
+            </tbody>
+          </table>
+          <p class="metrics-note">
+            These are <strong>honest synthetic-data baselines</strong>, not operational accuracy. The point ensemble carries recall; the graph channel is high-precision / low-recall and <strong>correctly misses the RCS spike</strong> (no kinematic signature) — the right behaviour, not a bug. Numbers <strong>improve with real training data</strong>; they will be re-measured on the live GPU fabric and re-issued with a real signed DSSE receipt — never inflated.
+          </p>
+          <p class="receipt-legend">Track fusion: 6 fused COP tracks recovered from 6 true objects across 2 noisy sensors. Source: <code>khipu-sda-core</code> validation harness (synthetic).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 5. WHERE IT FITS ============ -->
+    <section class="sec" id="fits">
+      <p class="sec-eyebrow">Where it fits</p>
+      <h2 class="sec-title">A governed domain-awareness layer for the sovereign estate.</h2>
+      <p class="sec-lead">SDA is a capability, not a silo. It is already wired into the estate.</p>
+      <div class="grid grid-3">
+        <div class="fit-row">
+          <div class="ficon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#28E0D0" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 12 L20 8 M12 12 L12 3"/><circle cx="17" cy="7" r="1.6" fill="#9D8BFF" stroke="none"/></svg>
+          </div>
+          <div class="ftext">
+            <h4>Powers killinchu</h4>
+            <p>Feeds the killinchu <strong>Track Board</strong>, <strong>Threat-DB</strong> and the new <strong>Mosaic / Domain-Superiority COP view</strong> via <code>/api/killinchu/v1/mosaic/*</code> (PR&nbsp;#118) — anomaly overlay on every fused track. killinchu effectors remain <strong>simulated</strong>.</p>
+          </div>
+        </div>
+        <div class="fit-row">
+          <div class="ficon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#9D8BFF" stroke-width="1.8"><path d="M12 2 L20 6 V12 C20 17 16 20 12 22 C8 20 4 17 4 12 V6 Z"/><path d="M9 12 l2 2 l4 -4"/></svg>
+          </div>
+          <div class="ftext">
+            <h4>Governed by a11oy</h4>
+            <p>Every verdict is policy-evaluated in a11oy's <strong>Governed Anomalies</strong> tab via <code>/api/a11oy/v1/mosaic/governed</code> (PR&nbsp;#356): 13-axis Λ advisory, DSSE-shaped receipts, Khipu BFT 3-of-4 quorum (Conjecture&nbsp;2), and a human-approval gate. <code>receipts.in ≡ receipts.out</code>.</p>
+          </div>
+        </div>
+        <div class="fit-row">
+          <div class="ficon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#43E0A0" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9 H21 M8 18 V21 M16 18 V21 M6 21 H18"/></svg>
+          </div>
+          <div class="ftext">
+            <h4>Air-gap deployable</h4>
+            <p>Ships as the <strong>szl-sda</strong> UDS / Zarf bundle (cosign-signed, OSCAL, Section-889 denylist, λ-gate policy) for classified or air-gapped install. Image digest stays <strong>blank until founder-signed</strong> — never fabricated. Canonical version <code>uds-v0.4.0</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="visual-wrap" style="margin-top:18px">
+        <div class="visual-head">
+          <h3>Sovereign GPU fabric this runs on</h3>
+          <span id="pool-src" class="src-badge">SNAPSHOT</span>
+        </div>
+        <ul id="node-list" class="node-list" aria-label="Compute fabric nodes"></ul>
+        <p class="receipt-legend" id="pool-note">
+          Live read of <b>a11oy.net /v1/compute-pool</b>. <b>sovereign GPU = own-metal only</b>: nodes you actually own are flagged sovereign; hosted APIs are labelled <b>hosted fallback — not compute you own</b> and never counted as sovereign. If the live read fails, this panel falls back to a captured <b>SNAPSHOT</b> and says so — it never invents a live status. The MEASURED SDA validation will be re-run here on the real GPU fabric and re-issued with a signed DSSE receipt.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p><strong>Honesty doctrine v11.</strong> Λ is <em>Conjecture&nbsp;1</em> (advisory) — never "proven trust", never a false green. Khipu BFT settlement is <em>Conjecture&nbsp;2</em> (advisory). killinchu effectors are <em>simulated</em>. Orbital SDA / threat-warning is <em>roadmap</em> — air / maritime / counter-UAS is live. Anomaly scores, confidence bands, and all $/credit figures are <em>ESTIMATES</em>; walltime is MEASURED only where labelled. Receipts are honestly UNSIGNED until a real DSSE signs them — <em>no signature or live number is ever fabricated</em>; demo / synthetic data is labelled as such. Sovereign = own-metal only.</p>
+    <p>Inspired by <a href="https://www.trueanomaly.space/mosaic" target="_blank" rel="noopener">True Anomaly's Mosaic</a> capability — <strong>not affiliated</strong>, clean-room from a permissive lineage (<a href="https://github.com/yzhao062/pyod" target="_blank" rel="noopener">PyOD</a>, <a href="https://github.com/pygod-team/pygod" target="_blank" rel="noopener">PyGOD</a>, <a href="https://github.com/salesforce/Merlion" target="_blank" rel="noopener">Merlion</a>, <a href="https://github.com/datamllab/tods" target="_blank" rel="noopener">TODS</a>, <a href="https://github.com/DHI/tsod" target="_blank" rel="noopener">tsod</a>, <a href="https://github.com/d-ailin/GDN" target="_blank" rel="noopener">GDN</a>, <a href="https://github.com/GraGODs/GraGOD" target="_blank" rel="noopener">GraGOD</a>, <a href="https://github.com/brandon-rhodes/python-sgp4" target="_blank" rel="noopener">python-sgp4</a>) — alibi-detect excluded (BSL-1.1). Built sovereign: 0 runtime CDN, system fonts, three.js (MIT) vendored locally.</p>
+    <p>SZL HOLDINGS · SDA — Sovereign Domain Superiority</p>
+  </footer>
+
+  <script src="assets/szl_verify_widget.js"></script>
+  <script src="assets/sda-fabric.js"></script>
+  <script src="assets/cop.js"></script>
+  <script type="module" src="assets/scene.js"></script>
+</body>
+</html>
