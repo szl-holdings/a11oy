@@ -217,6 +217,22 @@ except Exception as _szl_res_e:  # pragma: no cover
     print(f"[a11oy] Resilience NOT registered: {_szl_res_e!r}; existing routes unaffected", file=__import__("sys").stderr)
 # ── Resilience (devM) — szl_resilience ── end
 
+# ── Markets / business live data (dev4) — a11oy_markets ──
+# REAL free keyless/free public feeds for the BUSINESS cluster, fetched server-side
+# with timeout + short TTL cache + HONEST fallback that never fabricates a number:
+# SEC EDGAR XBRL companyfacts (real 10-K financials, keyless), U.S. Treasury
+# FiscalData debt-to-penny (live national debt, keyless), and FRED economic series
+# (free SZL_FRED_API_KEY; no key -> honest ROADMAP path, no faked numbers). Each
+# figure carries its source + state label (Palantir-style ontology + Bloomberg-style
+# macro context, made ours). Informational, not investment advice. Additive,
+# try/except-guarded, registered BEFORE the SPA catch-all. locked=8; Λ=Conjecture 1.
+try:
+    import a11oy_markets as _a11oy_markets
+    print("[a11oy] " + _a11oy_markets.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _a11oy_markets_e:  # pragma: no cover
+    print(f"[a11oy] Markets NOT registered: {_a11oy_markets_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+# ── Markets / business live data (dev4) — a11oy_markets ── end
+
 # ── UDS fleet-trust layer (uds-fleet-patch) — the Defense Unicorns / Unicorn
 # Delivery Service fleet story told with direct attribution + links to the public
 # UDS repos and the Air & Space Forces Magazine coverage, mapping each fleet
