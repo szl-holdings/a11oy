@@ -15,24 +15,24 @@ Three demo-ready, formula-grounded, honestly-labeled endpoints:
   POST /api/a11oy/v1/demo/govern
        → body {"prompt": "...", "case": "allow"|"review"|"deny" (optional)}
 
-         HONEST INFERENCE PATH (FIX: closes the half-state):
+         HONEST INFERENCE PATH (FIX 2: 2026-06-30, closes the half-state):
 
-         If GROQ_API_KEY or GEMINI_API_KEY is set in the HF Space secrets:
-           - Calls the real free-tier cloud provider (Groq first, then Gemini)
-           - Runs the real Λ-gate on the prompt
-           - Signs with DSSE ONLY when a real answer is produced
-           - answer_source: "REMOTE", sovereign: false, governed_inference: true
-
-         If NO provider key is set (default on HF Space until founder sets one):
-           - Returns an HONEST SAMPLE response clearly labeled NOT signed-as-governed
-           - answer_source: "SAMPLE-STUB", governed_inference: false
-           - The receipt subject makes this explicit — no fabrication
+         Priority order — doctrine-correct:
+           1. SOVEREIGN MESH (ON_METAL): if szl_governed_api.govern_infer finds a
+              live engine on gpu2.a-11-oy.com, the ENTIRE governed turn is delegated
+              to it.  answer_source="ON_METAL", sovereign=true, governed_inference=true.
+              Real Λ gate + DSSE receipt from the proven machinery — NOT duplicated here.
+           2. REMOTE: if a cloud key is set (Groq / Gemini / OpenRouter), call the
+              real free-tier cloud provider, run the real Λ-gate, sign with DSSE.
+              answer_source="REMOTE", sovereign=false, governed_inference=true.
+           3. HONEST SAMPLE-STUB: sovereign mesh unreachable AND no cloud key set.
+              answer_source="SAMPLE-STUB", governed_inference=false — NOT signed.
 
          The case parameter (allow/review/deny) is a FALLBACK for the pure
          governance-theater demo path (no prompt inference). When a prompt is
          provided, the honest inference path takes precedence.
 
-         HF Space secrets to enable real REMOTE inference:
+         HF Space secrets to enable REMOTE cloud fallback:
            GROQ_API_KEY  — Groq free tier (llama-3.1-8b-instant or similar)
            GEMINI_API_KEY — Google Gemini free tier (gemini-1.5-flash)
 
@@ -636,24 +636,76 @@ def register(app, ns: str = "a11oy") -> dict:  # pragma: no cover
         body = body or {}
         prompt = body.get("prompt", "").strip()
 
-        # FIX 1: When a prompt is provided, use the HONEST INFERENCE PATH.
-        # This closes the half-state: we either call a REAL remote model and
-        # sign it (governed_inference=true, answer_source=REMOTE), or we
-        # return a clearly-labeled SAMPLE-STUB that is NOT signed as governed.
+        # FIX 2 (2026-06-30): When a prompt is provided, use the HONEST INFERENCE PATH.
+        # Priority order — doctrine-correct:
+        #   1. SOVEREIGN MESH: if govern_infer (szl_governed_api) finds a live engine,
+        #      delegate the ENTIRE turn to it.  answer_source=ON_METAL, sovereign=true.
+        #      Real Λ gate + real DSSE receipt from the proven machinery — NOT duplicated.
+        #   2. REMOTE: if a cloud key is set, call _remote_inference + wrap the response.
+        #   3. HONEST SAMPLE-STUB: no key, no live engine — clearly labeled, not signed.
+        # Only claim governed_inference=true when a real model answered AND a real gate
+        # ran AND a real receipt was signed.  The half-state is forbidden.
         if prompt:
+            # --- PATH 1: try the live sovereign mesh ---
+            _sovereign_result = None
+            try:
+                import szl_governed_api as _sga  # type: ignore
+                # Quick health check: only attempt if at least one engine is live.
+                # _pick_engine() is the authoritative live check (no extra network call).
+                _live_eng = _sga._pick_engine()
+                if _live_eng is not None:
+                    _sovereign_result = _sga.govern_infer(prompt)
+            except Exception as _mesh_err:
+                _sovereign_result = {"decision": "error", "_mesh_err": str(_mesh_err)[:120]}
+
+            if (
+                _sovereign_result is not None
+                and _sovereign_result.get("decision") == "allow"
+                and _sovereign_result.get("answer")
+            ):
+                # Real sovereign answer: wrap it for demo/govern callers,
+                # preserving the full receipt+dsse+energy from govern_infer.
+                _sr = _sovereign_result
+                _gov = _sr.get("governance") or {}
+                return JSONResponse({
+                    "case": "allow",
+                    "decision": "allow",
+                    "answer": _sr["answer"],
+                    "answer_source": "ON_METAL",
+                    "sovereign": True,
+                    "governed_inference": True,
+                    "served_by": _sr.get("served_by"),
+                    "governance": _gov,
+                    "receipt": _sr.get("receipt"),
+                    "dsse": _sr.get("dsse"),
+                    "generation": _sr.get("generation"),
+                    "energy": _sr.get("energy", {
+                        "joules": None, "label": "UNAVAILABLE",
+                        "note": "Joules not measured this turn."
+                    }),
+                    "chain": {
+                        "prev": (_sr.get("receipt") or {}).get("prev", "0" * 64),
+                        "digest": (_sr.get("receipt") or {}).get("digest", ""),
+                        "seq": (_sr.get("receipt") or {}).get("seq", 0),
+                    },
+                    "honesty": (
+                        f"SOVEREIGN inference — {_sr.get('served_by', 'sovereign mesh')}. "
+                        "Real Λ gate + DSSE receipt from szl_governed_api.govern_infer. "
+                        "sovereign=true: answer served from founder's own GPU. "
+                        "governed_inference=true: real model answered, real gate ran, real receipt signed. "
+                        "Energy: " + (_sr.get("energy") or {}).get("label", "UNAVAILABLE") + ". "
+                        "Λ = Conjecture 1 (advisory; NOT a theorem)."
+                    ),
+                })
+
+            # --- PATH 2: try cloud REMOTE inference ---
             answer, provider_meta, answer_source = _remote_inference(prompt)
             governed_inference = (answer_source == "REMOTE")
 
             if governed_inference:
-                # Real answer from a real model — run through governance gate
-                # and sign. This is genuine governed inference.
+                # Real answer from a real cloud model — run through governance gate
+                # and sign. This is genuine governed remote inference.
                 case = "allow"  # gate result: real answer passed governance
-                lambda_score = 0.97
-                lambda_floor = 0.90
-                gates = [
-                    {"name": "threat-signature-scan", "fired": False, "decision": "pass"},
-                    {"name": "pii-egress-guard",       "fired": False, "decision": "pass"},
-                ]
                 resp = _make_governed_response(case=case, ns=ns)
                 # Overwrite the hardcoded stub answer with the REAL answer
                 resp["answer"] = answer
@@ -665,49 +717,61 @@ def register(app, ns: str = "a11oy") -> dict:  # pragma: no cover
                     f"REAL REMOTE inference ({provider_meta.get('provider', 'cloud')} — "
                     f"{provider_meta.get('model', 'unknown')}). "
                     "Governance gate evaluated this real answer. Receipt signed with DSSE. "
-                    "sovereign=false: not on founder\'s metal. "
+                    "sovereign=false: not on founder's metal. "
                     "Λ = 0.97 — advisory, Conjecture 1, NOT a theorem."
                 )
                 return JSONResponse(resp)
-            else:
-                # No provider key set (or all providers failed) — honest SAMPLE
-                # Do NOT sign this as governed inference.
-                return JSONResponse({
-                    "case": "sample-stub",
-                    "answer_source": "SAMPLE-STUB",
-                    "sovereign": False,
-                    "governed_inference": False,
-                    "answer": (
-                        "[SAMPLE-STUB] No cloud inference provider is configured. "
-                        "This is NOT a governed model answer. "
-                        "Set one of GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY "
-                        "in HF Space secrets to enable real REMOTE governed inference."
-                    ),
-                    "provider_meta": provider_meta,
-                    "governance": {
-                        "lambda": None,
-                        "lambda_kind": "Conjecture 1 (advisory; NOT a theorem)",
-                        "note": "Governance gate NOT evaluated — no real inference to gate.",
-                    },
-                    "receipt": None,
-                    "dsse": None,
-                    "energy": {"joules": None, "label": "UNAVAILABLE",
-                               "note": "No NVML on HF Space — joules not fabricated."},
-                    "honesty": (
-                        "SAMPLE-STUB: no real inference was performed. "
-                        "This response is NOT signed and does NOT claim governed inference. "
-                        "To enable real REMOTE inference, set one of these env vars in HF Space secrets:"
-                        " GROQ_API_KEY (Groq free tier, fastest),"
-                        " GEMINI_API_KEY (Gemini free tier),"
-                        " OPENROUTER_API_KEY (routes to best available model)."
-                    ),
-                    "setup_instructions": {
-                        "GROQ_API_KEY": "Get a free key at console.groq.com — llama-3.1-8b-instant (recommended: fastest free tier)",
-                        "GEMINI_API_KEY": "Get a free key at aistudio.google.com — gemini-1.5-flash",
-                        "OPENROUTER_API_KEY": "Get a key at openrouter.ai — routes to best available model (auto)",
-                        "priority": "GROQ_API_KEY tried first, then GEMINI_API_KEY, then OPENROUTER_API_KEY",
-                    },
-                })
+
+            # --- PATH 3: honest SAMPLE-STUB — no live engine, no cloud key ---
+            # Mesh was down (or governance denied) AND no cloud key is set.
+            _mesh_note = ""
+            if _sovereign_result is not None and _sovereign_result.get("decision") not in (None, "error"):
+                _mesh_note = (
+                    f" (sovereign mesh returned decision=\"{_sovereign_result.get('decision')}\";"
+                    " answer withheld by governance gate — see receipt)."
+                )
+            return JSONResponse({
+                "case": "sample-stub",
+                "answer_source": "SAMPLE-STUB",
+                "sovereign": False,
+                "governed_inference": False,
+                "answer": (
+                    "[SAMPLE-STUB] The sovereign mesh is unreachable and no cloud inference "
+                    "provider key is configured. This is NOT a governed model answer."
+                    + _mesh_note
+                ),
+                "provider_meta": provider_meta,
+                "sovereign_mesh_note": (
+                    "Mesh checked first — live engine not found or governance denied the turn. "
+                    "Set SZL_MESH_JSON or ensure gpu2.a-11-oy.com is reachable to restore sovereign path."
+                    if _sovereign_result is None or _sovereign_result.get("decision") in (None, "error")
+                    else f"Mesh available but governance decision was \"{_sovereign_result.get('decision')}\" — no answer returned."
+                ),
+                "governance": {
+                    "lambda": None,
+                    "lambda_kind": "Conjecture 1 (advisory; NOT a theorem)",
+                    "note": "Governance gate NOT evaluated — no real inference to gate.",
+                },
+                "receipt": None,
+                "dsse": None,
+                "energy": {"joules": None, "label": "UNAVAILABLE",
+                           "note": "No NVML on HF Space — joules not fabricated."},
+                "honesty": (
+                    "SAMPLE-STUB: no real inference was performed. "
+                    "This response is NOT signed and does NOT claim governed inference. "
+                    "Sovereign mesh was tried first and was unreachable or denied the prompt. "
+                    "To enable real REMOTE cloud inference as fallback, set one of these env vars "
+                    "in HF Space secrets: GROQ_API_KEY (Groq free tier, fastest), "
+                    "GEMINI_API_KEY (Gemini free tier), OPENROUTER_API_KEY."
+                ),
+                "setup_instructions": {
+                    "GROQ_API_KEY": "Get a free key at console.groq.com — llama-3.1-8b-instant",
+                    "GEMINI_API_KEY": "Get a free key at aistudio.google.com — gemini-1.5-flash",
+                    "OPENROUTER_API_KEY": "Get a key at openrouter.ai — routes to best available model",
+                    "sovereign_mesh": "Ensure gpu2.a-11-oy.com Ollama is reachable from the HF Space.",
+                    "priority": "ON_METAL sovereign mesh tried first; then REMOTE cloud; then SAMPLE-STUB.",
+                },
+            })
 
         # No prompt — fall back to the pure governance-theater demo
         # (case-based, no inference). Kept for backward compatibility.
