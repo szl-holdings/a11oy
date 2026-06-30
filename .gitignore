@@ -18,3 +18,11 @@ szl_energy_ledger.jsonl
 # Runtime energy-operator ledger/state (Dev 1) — persisted counts, never committed
 artifacts/energy_operator_ledger.json
 artifacts/energy_operator_ledger.json.tmp
+
+# DEV A gap-closure (2026-06-30): reverse-imported SZLHOLDINGS/immune Space is a
+# Node app whose deployable IS its built dist/. Re-include this ONE governed snapshot
+# (see spaces/immune/PROVENANCE.md) while the repo-wide `dist/` ignore stays for real
+# local build output. The committed dist/data is the shipped SEED ledger; the live
+# Space appends to it at runtime, so live divergence there is expected runtime state.
+!spaces/immune/dist/
+!spaces/immune/dist/**
