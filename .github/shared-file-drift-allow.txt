@@ -47,12 +47,6 @@ szl_evidence_research.py   # killinchu-only finance/real-estate/risk vertical CL
 #     differs (a11oy ~1.52MB vs killinchu ~1.30MB). NOT a shared logic module.
 _vendor_blobs.py           # per-app vendored asset blob bundle (different asset sets)
 
-# --- App-specific landing + server: the two demos have distinct hero landing
-#     pages and distinct FastAPI servers (different routes/tabs/3D). NOT meant to
-#     be byte-identical — each is the front door of a different product surface.
-cathedral.html             # a11oy Sovereign-Lattice hero vs killinchu maritime/C2 hero
-serve.py                   # a11oy console+verticals server vs killinchu /elite drone-C2 server
-
 # --- 2026-06-14: killinchu QA5 demo-floor rate-limit fix. killinchu exempts
 #     its own page/static routes (/elite, /maritime, /globe, /jackin, ...) from
 #     the per-IP limiter so the showcase always renders; a11oy serves different
