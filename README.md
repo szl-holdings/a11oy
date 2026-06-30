@@ -1,14 +1,14 @@
 ---
-title: "a11oy — Governance Substrate"
-emoji: "🔬"
-thumbnail: "https://a11oy.net/og-card.png"
+title: "a11oy — Command Center"
+emoji: "🛡️"
+thumbnail: "https://a-11-oy.com/og-card.png"
 colorFrom: indigo
 colorTo: gray
 sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "a11oy — signed-receipt substrate; receipts.in ≡ receipts.out"
+short_description: "a11oy — governed-AI Command Center, signed receipts"
 tags:
   - governance
   - agentic-ai
@@ -52,15 +52,15 @@ Lead with *it's live*, not theory. Each surface below returns HTTP 200 right now
 
 | Surface | Link | What you see |
 |---|---|---|
-| **Console** (primary face) | <https://a11oy.net/console> | The full left-nav command platform |
-| **Frontier** | <https://a11oy.net/frontier> | Unified showcase — the moat roll-up |
-| **Governance** | <https://a11oy.net/governance> | Doctrine gate + restraint surface |
-| **Orbital** | <https://a11oy.net/orbital> | MODELED orbital-tier projection (no hardware) |
-| **Honest API** | <https://a11oy.net/api/a11oy/v1/honest> | Live doctrine posture (749/14/163, Λ = Conjecture 1) |
-| **Energy ledger** | <https://a11oy.net/api/a11oy/v1/energy/ledger> | Append-only joule JobRecord chain |
+| **Console** (primary face) | <https://a-11-oy.com/console> | The full left-nav command platform |
+| **Frontier** | <https://a-11-oy.com/frontier> | Unified showcase — the moat roll-up |
+| **Governance** | <https://a-11-oy.com/governance> | Doctrine gate + restraint surface |
+| **Orbital** | <https://a-11-oy.com/orbital> | MODELED orbital-tier projection (no hardware) |
+| **Honest API** | <https://a-11-oy.com/api/a11oy/v1/honest> | Live doctrine posture (749/14/163, Λ = Conjecture 1) |
+| **Energy ledger** | <https://a-11-oy.com/api/a11oy/v1/energy/ledger> | Append-only joule JobRecord chain |
 
 ```bash
-curl -s https://a11oy.net/api/a11oy/v1/honest | jq .doctrine_lock.lambda
+curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock.lambda
 # => "Conjecture 1"   ← the substrate tells the truth about itself
 ```
 
@@ -135,7 +135,7 @@ The constitutional + doctrine gate every action clears *before* execution. Deny-
 Modules: `a11oy_constitution.py`, `szl_governance_gateway.py`, `szl_restraint.py` /
 `szl_restraint_energy.py` (a 6-rung frugality ladder, Λ-scored), `szl_lambda_tripwire.py`,
 `a11oy_grc*.py`, `szl_colang_policy.py`, `szl_codename_gate.py`, `forge_governance.py`.
-**Proves it:** <https://a11oy.net/governance>. Gate soundness is proven over the locked
+**Proves it:** <https://a-11-oy.com/governance>. Gate soundness is proven over the locked
 F-set; **Λ-uniqueness is Conjecture 1**, never claimed as a theorem. The restraint ladder's
 **Ponytail lineage is cited, not claimed as ours** (see `szl_restraint.py` header).
 
@@ -144,7 +144,7 @@ The energy operator → ledger loop. Real GPU joules (NVML exporter delta) becom
 unmeasurable work is **SAMPLE/DEGRADED, never fabricated**. Modules: `szl_energy_operator.py`,
 `szl_energy_ledger.py`, `szl_energy_projection.py`, `szl_energy_provenance.py`,
 `szl_energy_budget.py`, `joule_billing.py`, `szl_joules_truth.py`.
-**Proves it:** <https://a11oy.net/api/a11oy/v1/energy/ledger>. Joules are **MEASURED only when
+**Proves it:** <https://a-11-oy.com/api/a11oy/v1/energy/ledger>. Joules are **MEASURED only when
 a GPU lung is reachable; otherwise honestly SAMPLE**. The ledger is ephemeral unless
 `SZL_ENERGY_LEDGER_PATH` is on a persistent volume. **Carbon (joules × grid intensity) is ROADMAP** —
 there is no live grid-intensity feed today.
@@ -191,7 +191,7 @@ and the honest novelty boundary vs. the references we learned from.
 
 ```bash
 # 1. Confirm live doctrine posture
-curl -s https://a11oy.net/api/a11oy/v1/honest | jq .doctrine_lock
+curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock
 # => doctrine v11 LOCKED, lambda "Conjecture 1", locked_formula_count 8
 
 # 2. Verify the cosign keyless signature + build-provenance attestation on the image.

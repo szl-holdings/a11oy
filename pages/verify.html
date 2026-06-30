@@ -502,9 +502,9 @@ function derToRaw(derBytes) {
   }
   const rArr = readInt();
   const sArr = readInt();
-  // Pad / strip leading zero byte (ASN.1 adds 0x00 prefix when high-bit set)
+  // Pad / strip prefix zero byte (ASN.1 adds 0x00 prefix when high-bit is set)
   function pad32(arr) {
-    // strip leading 0x00
+    // strip prefix 0x00 byte
     let j = 0;
     while (j < arr.length - 1 && arr[j] === 0) j++;
     const stripped = arr.slice(j);
@@ -588,15 +588,22 @@ async function runBVIR() {
   const dsse   = data.dsse   || {};
   const receipt= data.receipt|| {};
 
-  // Step 1: Fetch cosign.pub
+  // A demo-signed receipt is signed by the clearly-labelled demo-signing-key, NOT
+  // the production founder-gated cosign key. We must verify it against the DEMO
+  // public key (/demo-cosign.pub), and the badge must say so explicitly.
+  const dsseKeyid = ((dsse.signatures || [])[0] || {}).keyid || dsse.key_id || '';
+  const isDemoKey = dsseKeyid === 'demo-signing-key';
+  const pubKeyURL = isDemoKey ? '/demo-cosign.pub' : '/cosign.pub';
+
+  // Step 1: Fetch the matching public key (production cosign.pub, or demo-cosign.pub)
   let pubKey;
   let pubKeyPEM = '';
   try {
-    const pkResp = await fetch('/cosign.pub');
+    const pkResp = await fetch(pubKeyURL);
     pubKeyPEM = await pkResp.text();
     pubKey = await importPubKeyFromPEM(pubKeyPEM);
   } catch(e) {
-    setStatus('bvir-status', 'Could not fetch/import cosign.pub: ' + e.message);
+    setStatus('bvir-status', 'Could not fetch/import ' + pubKeyURL + ': ' + e.message);
     btn.disabled = false;
     return;
   }
@@ -677,7 +684,17 @@ async function runBVIR() {
 
   // Build result UI
   let verdictHTML = '';
-  if (verified) {
+  if (verified && isDemoKey) {
+    verdictHTML = `<div class="verdict-banner verdict-ok">
+      ✓ VERIFIED (demo-signing-key — not the production cosign key)
+      <span class="chip chip-ok">keyid: ${escHTML(sigKeyid)}</span>
+      <div style="font-size:12px;font-weight:400;margin-top:6px;color:var(--text-dim)">
+        Real ECDSA-P256 signature, verified in your browser against /demo-cosign.pub.
+        This is a clearly-labelled DEMO key — the production cosign key stays
+        founder-gated and is never placed in this runtime.
+      </div>
+    </div>`;
+  } else if (verified) {
     verdictHTML = `<div class="verdict-banner verdict-ok">
       ✓ VERIFIED — WebCrypto ECDSA-P256 signature valid
       <span class="chip chip-ok">keyid: ${escHTML(sigKeyid)}</span>
@@ -731,10 +748,13 @@ async function runBVIR() {
     'receipt.prev': String(chainPrev).substring(0,32) + '…',
     'receipt.digest': String(chainDigest).substring(0,32) + '…',
     'dsse.signed': dsse.signed,
+    'dsse.keyid': dsseKeyid || null,
+    'dsse.key_kind': isDemoKey ? 'demo (demo-signing-key — NOT production cosign)' : (dsse.signed ? 'production cosign' : null),
     'dsse.payloadType': dsse.payloadType,
+    'verify.public_key_url': pubKeyURL,
     'verify.computed_payload_sha256': payloadDigestComputed.substring(0,32) + '…',
     'verify.pae_sha256': paeSHA.substring(0,32) + '…',
-    'verify.result': verified ? 'VERIFIED ✓' : (dsse.signed === false ? 'UNSIGNED (no private key in runtime)' : 'FAILED: ' + verifyError),
+    'verify.result': verified ? (isDemoKey ? 'VERIFIED ✓ (demo-signing-key — not production cosign)' : 'VERIFIED ✓') : (dsse.signed === false ? 'UNSIGNED (no private key in runtime)' : 'FAILED: ' + verifyError),
     'energy.label': (data.energy||{}).label,
   };
   el('bvir-output').textContent = JSON.stringify(outputData, null, 2);
@@ -742,7 +762,9 @@ async function runBVIR() {
   el('bvir-output').className = 'output ' + (verified ? 'verified' : (dsse.signed === false ? '' : 'failed'));
 
   setStatus('bvir-status', verified
-    ? '✓ WebCrypto verified — real ECDSA-P256 signature over DSSE PAE.'
+    ? (isDemoKey
+        ? '✓ WebCrypto verified — real ECDSA-P256 over DSSE PAE with demo-signing-key (NOT the production cosign key).'
+        : '✓ WebCrypto verified — real ECDSA-P256 signature over DSSE PAE.')
     : (dsse.signed === false
         ? 'Unsigned receipt (private key absent from runtime). Chain valid.'
         : 'Verification result: ' + verifyError));

@@ -143,7 +143,7 @@ ATTRIBUTION = {
     ),
     "a11oy_cert": (
         "a11oy PINN physical-bounds certificate (DSSE Ed25519 FA-001 + cosign.pub, "
-        "Rekor-anchored), https://a11oy.net/api/a11oy/v1/pinn/certificate — the REAL "
+        "Rekor-anchored), https://a-11-oy.com/api/a11oy/v1/pinn/certificate — the REAL "
         "signed SZL artifact this monitor certifies behaviourally on top of its "
         "signature."
     ),
@@ -557,7 +557,7 @@ def assess_artifact(meta: ArtifactMeta, cfg: MonitorConfig = CFG) -> ArtifactVer
 # --------------------------------------------------------------------------- #
 # LIVE DATA — certify a REAL SZL artifact (the a11oy PINN certificate).        #
 # --------------------------------------------------------------------------- #
-A11OY_CERT_URL = "https://a11oy.net/api/a11oy/v1/pinn/certificate"
+A11OY_CERT_URL = "https://a-11-oy.com/api/a11oy/v1/pinn/certificate"
 
 
 def fetch_live_certificate(url: str = A11OY_CERT_URL,
@@ -619,7 +619,7 @@ def artifact_meta_from_certificate(cert: dict) -> ArtifactMeta:
         top_level_files=sorted(cert.keys()),
         manifest_files=sorted(set(expected_keys) | set(cert.keys())),
         declared_hosts=declared,
-        allowed_hosts=["github.com", "rekor.sigstore.dev", "a11oy.net",
+        allowed_hosts=["github.com", "rekor.sigstore.dev", "a-11-oy.com",
                        "fulcio.sigstore.dev"],
         signature_valid=sig_valid,
         builder_id=cosign.get("keyid", "szlholdings-cosign"),
@@ -682,8 +682,8 @@ def clean_artifact() -> ArtifactMeta:
                          "manifest.json"],
         manifest_files=["pinn_solver.py", "physics_bounds.py", "README.md",
                         "manifest.json"],
-        declared_hosts=["a11oy.net", "github.com"],
-        allowed_hosts=["a11oy.net", "github.com", "rekor.sigstore.dev"],
+        declared_hosts=["a-11-oy.com", "github.com"],
+        allowed_hosts=["a-11-oy.com", "github.com", "rekor.sigstore.dev"],
         signature_valid=True,
         builder_id="szlholdings-cosign",
         source_repo="github.com/szl-holdings/agentic-pinn",

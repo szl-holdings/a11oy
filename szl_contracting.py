@@ -57,7 +57,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
 
-_UA = "szl-contracting/1.0 (+https://a11oy.net; contracting-readiness layer)"
+_UA = "szl-contracting/1.0 (+https://a-11-oy.com; contracting-readiness layer)"
 
 # ---------------------------------------------------------------------------
 # Cited sources. Every requirement below references one of these by id; each

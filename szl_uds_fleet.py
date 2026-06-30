@@ -33,7 +33,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-_UA = "a11oy-uds-fleet/1.0 (+https://a11oy.net) public-read-only"
+_UA = "a11oy-uds-fleet/1.0 (+https://a-11-oy.com) public-read-only"
 _GH = "https://api.github.com/repos/"
 
 # --- honest attribution (shown verbatim at the top of the tab) ---------------
