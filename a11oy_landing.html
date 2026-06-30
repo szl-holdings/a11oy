@@ -131,10 +131,10 @@
   }
   /* Accent only on the "signs its work" span — teal/violet gradient */
   h1.title .grad{
-    background:linear-gradient(110deg, var(--teal) 0%, #7b8ff5 100%);
+    background:linear-gradient(110deg, #5fe6d6 0%, #93a6ff 100%);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-    /* Filter drop shadow preserves legibility of gradient text */
-    filter:drop-shadow(0 1px 8px rgba(5,7,13,0.7))
+    /* Brightened accent: #5fe6d6 (teal) -> #93a6ff (periwinkle) + glow drop-shadow */
+    filter:drop-shadow(0 0 10px rgba(95,230,214,.25))
   }
 
   /* Body: #b8c4d6 — WCAG AA (5.8:1 on #05070d) */
