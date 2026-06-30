@@ -367,6 +367,33 @@ try:
 except Exception as _szl_el_e:  # pragma: no cover
     print(f"[a11oy] Energy LIVE feed NOT registered: {_szl_el_e!r}", file=__import__("sys").stderr)
 
+# ── EU AI Act Article 53 signed energy disclosure (Dev 2 Build 2, 2026-06-30).
+# Endpoint: GET /api/a11oy/v1/energy/eu-disclosure — honest UNAVAILABLE now (CPU Space
+# has no NVML meter); MEASURED + signed when sovereign GPU node + meter are live.
+# Differentiator: DSSE-signed + Merkle-logged energy disclosure per inference — the only
+# signed, per-inference-provable energy attestation in the field (EU AI Act Art 53(1)(b),
+# enforcement Aug 2026). Methodology: HF-Energy-Score + GSF-SCI ISO-21031.
+# Adds energy_eu_disclosure field to govern/infer receipt (additive, try/except-guarded).
+try:
+    import szl_eu_energy as _szl_eu_energy
+    _szl_eu_energy.register(app, ns="a11oy")
+    print("[a11oy] EU AI Act Art.53 energy disclosure registered: /api/a11oy/v1/energy/eu-disclosure", file=__import__("sys").stderr)
+except Exception as _szl_eue_e:  # pragma: no cover
+    print(f"[a11oy] EU energy disclosure NOT registered: {_szl_eue_e!r}", file=__import__("sys").stderr)
+
+# ── TEE attestation hook (Dev 2 Build 1, 2026-06-30).
+# Endpoint: GET /api/a11oy/v1/tee/status — honest UNAVAILABLE on CPU Space (no TDX/Nitro);
+# MEASURED with MRTD/PCR0 when deployed on dstack Intel TDX pod or AWS Nitro enclave.
+# Pattern: dstack-capsule / Phala (Apache-2.0, arXiv 2606.03323) reimplemented in our stack.
+# The hook is wired now so receipts already carry tee_attestation field with the correct
+# schema — auto-populates MEASURED when the sovereign TDX box is live.
+try:
+    import szl_tee_attest as _szl_tee_attest
+    _szl_tee_attest.register(app, ns="a11oy")
+    print("[a11oy] TEE attestation hook registered: /api/a11oy/v1/tee/status", file=__import__("sys").stderr)
+except Exception as _szl_tee_e:  # pragma: no cover
+    print(f"[a11oy] TEE attestation hook NOT registered: {_szl_tee_e!r}", file=__import__("sys").stderr)
+
 # ── Energy / Sovereign-Compute instrumentation (Lane C: sovereign-energy). Reads REAL
 # J/token + carbon + speculative-decode + KV-cache + router + carbon-schedule from the
 # on-box vLLM /metrics ONLY when the live sovereign probe shows gpu_reachable; otherwise

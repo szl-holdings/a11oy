@@ -483,6 +483,41 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         print(f"[a11oy] SCITT capsule skipped (non-fatal): {_sc_e!r}",
               file=_sc_sys.stderr)
 
+    # ── Additive: TEE attestation field (Dev 2 Build 1 — auto-lights-up on TDX/Nitro).
+    # On the current CPU Space: present=False, label="UNAVAILABLE". On a TDX pod: MEASURED.
+    # Guarded: a missing or broken szl_tee_attest must never affect the receipt response.
+    _tee_attestation = None
+    try:
+        import szl_tee_attest as _tat
+        _tee_attestation = _tat.tee_attestation_field()
+    except Exception as _tat_e:  # pragma: no cover
+        _tee_attestation = {
+            "present": False, "label": "UNAVAILABLE",
+            "note": f"tee_attest import failed: {type(_tat_e).__name__}"
+        }
+
+    # ── Additive: EU AI Act Art. 53 energy disclosure (Dev 2 Build 2).
+    # MEASURED when NVML joule delta + token count are both real; UNAVAILABLE otherwise.
+    # Signed (DSSE) + Merkle-logged — per-inference provable, not a dashboard stat.
+    # Guarded: a missing szl_eu_energy must never affect the receipt response.
+    _energy_eu_disclosure = None
+    try:
+        import szl_eu_energy as _eue
+        _nvml_j = energy.get("joules") if energy.get("label") == "MEASURED" else None
+        _tok_count = (gen_meta or {}).get("eval_count")  # Ollama token count (if available)
+        _energy_eu_disclosure = _eue.eu_disclosure_field_for_receipt(
+            nvml_joules_delta=_nvml_j,
+            token_count=_tok_count,
+            receipt_id=str(g.get("receipt", {}).get("id", "")) or None,
+        )
+    except Exception as _eue_e:  # pragma: no cover
+        _energy_eu_disclosure = {
+            "article": "EU-AI-Act-53(1)(b)",
+            "measurement_label": "UNAVAILABLE",
+            "signed": False,
+            "note": f"eu_energy import failed: {type(_eue_e).__name__}"
+        }
+
     return {
         "decision": decision,
         "answer": answer,
@@ -495,6 +530,8 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         "scitt_capsule": _scitt_capsule,
         "generation": gen_meta or None,
         "energy": energy,
+        "tee_attestation": _tee_attestation,
+        "energy_eu_disclosure": _energy_eu_disclosure,
         "honesty": honesty,
     }
 
