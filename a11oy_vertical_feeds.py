@@ -241,6 +241,22 @@ def governed_turn(vertical: str, text: str, *, declared: str | None = None,
             receipt = signed.get("receipt", receipt)
         except Exception as e:
             dsse = {"signed": False, "honesty": f"sign-unavailable: {e}"}
+        # ADDITIVE demo-signing fallback (Option B): when the production cosign key
+        # is founder-gated/absent (dsse unsigned), sign with the clearly-labelled
+        # DEMO key so /verify can show a REAL in-browser ECDSA-P256 verification.
+        # keyid="demo-signing-key" — NEVER mislabelled as the production signature.
+        # Fully guarded: any failure keeps the honest UNSIGNED/placeholder behaviour
+        # and never breaks the infer path.
+        if isinstance(dsse, dict) and not dsse.get("signed") and isinstance(receipt, dict):
+            try:
+                import szl_demo_sign
+                _demo = szl_demo_sign.demo_sign_receipt(receipt)
+                if _demo is not None:
+                    dsse = _demo["dsse"]
+                    receipt = _demo["receipt"]
+            except Exception as e:
+                import sys as _dsys
+                print(f"[demo-sign] non-fatal, staying UNSIGNED: {e!r}", file=_dsys.stderr)
 
     return {
         "vertical": vertical,

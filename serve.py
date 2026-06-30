@@ -643,6 +643,307 @@ try:
 except Exception as _szl_pinn_e:  # pragma: no cover
     print(f"[a11oy] Agentic-PINN + physical-bounds mesh NOT registered: {_szl_pinn_e!r}", file=__import__("sys").stderr)
 
+# ── Governed Inverse-PINN engine (governed-inverse-pinn) — adds the INVERSE
+# discovery surface POST /api/a11oy/v1/pinn/identify (+ GET demo, GET /pinn/health,
+# alias prefix /v1/pinn). Discovers unknown PHYSICAL parameters of an ODE/PDE from
+# data with an HONEST self-doubt gate: a parameter the data cannot identify is
+# labelled RED/UNIDENTIFIABLE and the engine REFUSES to assert a value. NumPy-only
+# (no torch/DeepXDE/scipy): spectral surrogate with exact analytic derivatives,
+# ridge-LS data fit, exact LS for linear params, Adam GD on the physics residual,
+# FIM identifiability, bootstrap 95% CI, three-state GREEN/YELLOW/RED convergence.
+# Values are MODELED (a fit to data, never MEASURED); F19/Bekenstein is a
+# locked-proven inequality APPLIED (not re-claimed); Λ=Conjecture 1 (advisory ≤0.99);
+# DSSE receipt is honest-UNSIGNED until the on-metal cosign key signs it (never faked).
+# Additive, try/except-guarded, registered BEFORE the /api/a11oy/{path:path} Node
+# proxy + SPA catch-all (defined at the file tail) so it wins ordered matching. The
+# guard is HARD: any import/register failure logs and continues — a11oy boots even if
+# this engine is broken, and the engine NEVER raises into app startup.
+try:
+    import szl_governed_ipinn as _szl_governed_ipinn
+    _szl_ipinn_routes = _szl_governed_ipinn.register(app, ns="a11oy")
+    # ROUTE-ORDERING FIX (no bandaid): register() uses app.add_api_route, which APPENDS
+    # to the tail of app.router.routes — so /api/a11oy/v1/pinn/identify + /pinn/health
+    # lost to the /api/a11oy/{path:path} Node proxy catch-all defined at the file tail
+    # and 404'd. Front-move the just-added PINN routes to the HEAD of the router so they
+    # win ordered matching (same proven pattern as the compliance-mesh block below).
+    try:
+        _pinn_paths = {"/api/a11oy/v1/pinn/identify", "/api/a11oy/v1/pinn/health",
+                       "/v1/pinn/identify", "/v1/pinn/health"}
+        _moved = [r for r in app.router.routes if getattr(r, "path", None) in _pinn_paths]
+        for _r in _moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Governed Inverse-PINN routes front-moved to router head: {len(_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _szl_ipinn_move_e:  # pragma: no cover
+        print(f"[a11oy] Governed Inverse-PINN front-move skipped (routes still registered): {_szl_ipinn_move_e!r}", file=__import__("sys").stderr)
+    print(f"[a11oy] Governed Inverse-PINN registered: POST /api/a11oy/v1/pinn/identify (+ /pinn/health) {_szl_ipinn_routes}", file=__import__("sys").stderr)
+except Exception as _szl_ipinn_e:  # pragma: no cover
+    print(f"[a11oy] Governed Inverse-PINN NOT registered (a11oy continues): {_szl_ipinn_e!r}", file=__import__("sys").stderr)
+
+# ── Governed Materials-PROPERTY predictor (materials-property-prediction) — the
+# SECOND materials vertical: POST /api/a11oy/v1/materials/predict (+ GET
+# /materials/health, alias prefix /v1/materials). A NUMPY-ONLY calibrated SURROGATE
+# for formation energy (eV/atom) over a SMALL embedded SAMPLE of published DFT
+# values, wrapped in the FULL governance layer: a 5-member bootstrap deep-ensemble
+# for epistemic UQ, ISOTONIC recalibration verified to ~95% empirical coverage on a
+# HELD-OUT split (the MEASURED number is reported on every response), a hard convex-
+# hull-distance plausibility gate (Δ_hull > 0.1 eV/atom → RED), an F19/Bekenstein
+# information check (APPLIED, not re-claimed), Λ=Conjecture 1 (advisory ≤0.99), and a
+# SELF-DOUBT gate (descriptor far from the embedded training → RED/refuse, never a
+# confident extrapolation). HONEST: MODELED + SAMPLE — NOT a SOTA DFT/MACE/CHGNet
+# prediction; MACE (MIT)/CHGNet (BSD-3) cited as the patterns we would wrap behind a
+# remote endpoint (not reachable today); reimplement-not-copy, NO proprietary weights.
+# numpy-only, imports guarded at request time, NEVER raises into startup. Registered
+# BEFORE the /api/a11oy/{path:path} Node proxy + SPA catch-all (defined at the file
+# tail), then FRONT-MOVED to the router head (same proven ROUTE-ORDERING FIX as the
+# PINN block above) so it wins ordered matching instead of 404'ing to the proxy.
+try:
+    import szl_materials_predict as _szl_materials_predict
+    _szl_matpred_routes = _szl_materials_predict.register(app, ns="a11oy")
+    try:
+        _matpred_paths = {"/api/a11oy/v1/materials/predict", "/api/a11oy/v1/materials/health",
+                          "/v1/materials/predict", "/v1/materials/health"}
+        _moved = [r for r in app.router.routes if getattr(r, "path", None) in _matpred_paths]
+        for _r in _moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Governed Materials predictor routes front-moved to router head: {len(_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _szl_matpred_move_e:  # pragma: no cover
+        print(f"[a11oy] Governed Materials predictor front-move skipped (routes still registered): {_szl_matpred_move_e!r}", file=__import__("sys").stderr)
+    print(f"[a11oy] Governed Materials predictor registered: POST /api/a11oy/v1/materials/predict (+ /materials/health) {_szl_matpred_routes}", file=__import__("sys").stderr)
+except Exception as _szl_matpred_e:  # pragma: no cover
+    print(f"[a11oy] Governed Materials predictor NOT registered (a11oy continues): {_szl_matpred_e!r}", file=__import__("sys").stderr)
+
+# ── Auditor Evidence Pack (assurance-evidence-pack) — closes GAP 3 where
+# GET /api/a11oy/v1/assurance/evidence-pack 404'd. Assembles ONE signed, offline-
+# verifiable auditor pack at REQUEST time from material that is ALREADY LIVE:
+#   • assurance matrix (szl_assurance.ASSURANCE_MATRIX — CDAO/DoD req→artifact,
+#     honest IMPLEMENTED/PARTIAL/ROADMAP labels)
+#   • khipu chain heads + re-walked links_intact per organ (szl_khipu_verify.list_organs)
+#   • lake health snapshot (szl_lake_store … sha3_256, total_receipts, per-organ chain_head)
+#   • doctrine snapshot (8 locked-proven, kernel c7c0ba17, Λ=Conjecture 1, Khipu BFT=
+#     Conjecture 2, liveness=Conjecture 3 — REAL values, never inflated)
+#   • generated_at + the cosign public-key fingerprint.
+# The pack body is canonicalised + sha3_256-hashed and that digest is INCLUDED so an
+# auditor re-verifies OFFLINE (no server round-trip). If demo signing is available
+# (szl_demo_sign / SZL_DEMO_SIGN_KEY) the digest is signed with the clearly-labelled
+# DEMO key (keyid=demo-signing-key — NOT production cosign); otherwise an honest
+# DSSE_PLACEHOLDER unsigned note. NEVER a fabricated signature.
+# PURE STDLIB (json, hashlib sha3_256, time) — the numpy-less HF web image has no
+# numpy/pandas; every optional dep is imported INSIDE the handler under try/except and
+# degrades HONESTLY (never 404, never raises into startup). Routes are FRONT-MOVED to
+# the HEAD of app.router.routes (same proven pattern as the inverse-PINN +
+# compliance-mesh blocks) so they win over the /api/a11oy/{path:path} Node proxy + SPA
+# catch-all defined at the file tail. Additive, try/except-guarded.
+try:
+    from starlette.routing import Route as _EPRoute
+    from starlette.responses import JSONResponse as _EPJSON
+
+    # Doctrine snapshot — REAL values read from the codebase (szl_willay_gateway.DOCTRINE,
+    # szl_yupay.LOCKED_THEOREMS, AGENTS.md). NEVER inflate the locked count past 8.
+    _EP_DOCTRINE = {
+        "version": "v11 LOCKED",
+        "locked_proven": 8,
+        "locked_theorems": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "locked_count_ci_gate": "locked_count_eight (no-axiom theorem)",
+        "kernel_commit": "c7c0ba17",
+        "lambda": "Conjecture 1 (advisory; Λ-uniqueness is NOT a theorem)",
+        "khipu_bft": ("Conjecture 2 (chain INTEGRITY is real and recomputed via sha3_256 "
+                      "re-walk; BFT/consensus safety across replicas is the OPEN conjecture, "
+                      "NOT proven)"),
+        "liveness": "Conjecture 3 (advisory; agentic-loop liveness is NOT a closed theorem)",
+        "slsa": "L1 honest · L2 roadmap · L3 roadmap",
+        "accreditation": {
+            "ato": "NOT obtained — ROADMAP",
+            "il5": "NOT obtained — ROADMAP",
+            "fedramp_high": "NOT obtained — ROADMAP",
+        },
+        "honest_note": ("a11oy is the governance OVERLAY — NOT accredited. Chain integrity is "
+                        "COMPUTED (sha3_256 re-walk), never asserted. 8 locked-proven only; "
+                        "Λ/Khipu/liveness are conjectures, never theorems. No datum is fabricated."),
+    }
+
+    def _ep_canon(obj):
+        import json as _j
+        return _j.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+    def _ep_sha3(b):
+        import hashlib as _h
+        return _h.sha3_256(b).hexdigest()
+
+    def _ep_assurance():
+        try:
+            import szl_assurance as _a  # REAL CDAO/DoD requirement → artifact matrix
+            return {
+                "source": "/api/a11oy/v1/assurance/matrix",
+                "status": "LIVE",
+                "requirement_count": len(_a.ASSURANCE_MATRIX),
+                "requirements": _a.ASSURANCE_MATRIX,
+                "honest_note": ("Status: LIVE=operational; MEASURED=real data; SAMPLE=demo; "
+                                "MODELED=model-derived; ROADMAP=planned. ATO/IL5/FedRAMP=ROADMAP."),
+            }
+        except Exception as _e:  # honest degrade — NEVER 404
+            return {"source": "/api/a11oy/v1/assurance/matrix", "status": "NO-LIVE-DATA",
+                    "label": "ROADMAP — assurance matrix unavailable in this build",
+                    "detail": str(_e)[:160], "fabricated": False}
+
+    def _ep_khipu():
+        try:
+            import szl_khipu_verify as _k  # re-walks prev-links; links_intact is COMPUTED
+            return _k.list_organs()
+        except Exception as _e:
+            return {"source": "/api/a11oy/v1/khipu/organs", "ok": False, "status": "NO-LIVE-DATA",
+                    "label": "ROADMAP — khipu organs unavailable in this build",
+                    "detail": str(_e)[:160], "fabricated": False}
+
+    def _ep_lake():
+        try:
+            import szl_lake_store as _l  # sha3_256 chain alg, total_receipts, per-organ heads
+            return _l.get_default_ledger().health()
+        except Exception as _e:
+            return {"source": "/api/lake/v1/health", "ok": False, "status": "NO-LIVE-DATA",
+                    "label": "ROADMAP — lake health unavailable in this build",
+                    "detail": str(_e)[:160], "fabricated": False}
+
+    def _ep_cosign():
+        # Fingerprint of the DEMO public key (PUBLIC data). The PRODUCTION founder-gated
+        # cosign key is NEVER placed in this runtime — stated plainly, never faked.
+        try:
+            import szl_demo_sign as _d, hashlib as _h
+            pem = _d.DEMO_COSIGN_PUBLIC_PEM.strip()
+            fp = _h.sha256(pem.encode("utf-8")).hexdigest()
+            try:
+                available = bool(_d.demo_signing_available())
+            except Exception:
+                available = False
+            return {
+                "key_id": _d.DEMO_KEY_ID,
+                "key_kind": "demo",
+                "verify_key_url": "/demo-cosign.pub",
+                "sha256_fingerprint": fp,
+                "demo_signing_available": available,
+                "note": (_d.DEMO_NOTE + ". The production founder-gated cosign key is NEVER "
+                         "placed in this runtime; this fingerprint is the DEMO public key."),
+            }
+        except Exception as _e:
+            return {"key_id": None, "status": "NO-KEY",
+                    "note": "no signing key available in runtime — pack is honest-unsigned (DSSE_PLACEHOLDER)",
+                    "detail": str(_e)[:160]}
+
+    def _ep_sign(digest):
+        try:
+            import szl_demo_sign as _d
+            env = _d.sign_payload_demo({"a11oy_evidence_pack_sha3_256": digest})
+            if env is not None:
+                return {
+                    "signed": True,
+                    "alg": "ECDSA-P256-SHA256 over DSSE PAE",
+                    "keyid": env.get("key_id"),
+                    "key_kind": "demo",
+                    "verify_key_url": "/demo-cosign.pub",
+                    "dsse": env,
+                    "note": (_d.DEMO_NOTE + " — NOT production cosign. Verify in-browser against "
+                             "/demo-cosign.pub. The sha3_256 self-digest is independently "
+                             "recomputable offline regardless of signature."),
+                }
+        except Exception as _e:
+            return {"signed": False, "status": "DSSE_PLACEHOLDER",
+                    "note": ("signing path unavailable — honest-unsigned. The sha3_256 self-digest "
+                             "is still independently recomputable offline; NEVER a fabricated signature."),
+                    "detail": str(_e)[:160]}
+        return {"signed": False, "status": "DSSE_PLACEHOLDER",
+                "note": ("no demo signing key in runtime (SZL_DEMO_SIGN_KEY absent) — honest-unsigned. "
+                         "The sha3_256 self-digest is independently recomputable offline; "
+                         "NEVER a fabricated signature.")}
+
+    def _ep_handler(request=None):
+        import time as _t
+        try:
+            generated_at = _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime())
+            pack = {
+                "schema": "szl.a11oy.assurance.evidence-pack.v1",
+                "generated_at": generated_at,
+                "what": ("Single, offline-verifiable auditor evidence pack assembled at REQUEST "
+                         "time from already-live a11oy surfaces. stdlib-only; no fabrication."),
+                "assurance_matrix": _ep_assurance(),
+                "khipu_organs": _ep_khipu(),
+                "lake_health": _ep_lake(),
+                "doctrine": _EP_DOCTRINE,
+                "cosign_public_key": _ep_cosign(),
+                "honest_disclosure": ("a11oy is the governance overlay, NOT accredited "
+                                      "(ATO/IL5/FedRAMP are ROADMAP). Chain integrity is COMPUTED "
+                                      "(sha3_256 re-walk), never asserted. Khipu BFT is Conjecture 2 "
+                                      "(NOT proven). 8 locked-proven only. No datum here is fabricated."),
+            }
+            body = _ep_canon(pack)
+            digest = _ep_sha3(body)
+            signature = _ep_sign(digest)
+            return _EPJSON({
+                "schema": "szl.a11oy.assurance.evidence-pack.envelope.v1",
+                "pack": pack,
+                "pack_sha3_256": digest,
+                "digest_alg": "sha3_256",
+                "digest_canonicalization": ("json.dumps(pack, sort_keys=True, "
+                                            "separators=(',',':'), ensure_ascii=False)"
+                                            ".encode('utf-8') then hashlib.sha3_256(...).hexdigest()"),
+                "offline_verify": ("Recompute: take the 'pack' object verbatim, canonicalise per "
+                                   "digest_canonicalization, sha3_256 it, and confirm it equals "
+                                   "pack_sha3_256. Zero server round-trip required."),
+                "signature": signature,
+                "generated_at": generated_at,
+            })
+        except Exception as _e:  # last-resort honest degrade — NEVER 404, NEVER raises
+            return _EPJSON({
+                "schema": "szl.a11oy.assurance.evidence-pack.envelope.v1",
+                "status": "DEGRADED",
+                "label": "ROADMAP — evidence pack temporarily unavailable in this build",
+                "detail": str(_e)[:200], "fabricated": False})
+
+    # Front-move so these beat the /api/a11oy/{path:path} Node proxy + SPA catch-all.
+    for _ep_path in ("/v1/assurance/evidence-pack", "/api/a11oy/v1/assurance/evidence-pack"):
+        app.router.routes.insert(0, _EPRoute(_ep_path, _ep_handler, methods=["GET"]))
+    print("[a11oy] Assurance evidence-pack registered (front-moved): /api/a11oy/v1/assurance/evidence-pack", file=__import__("sys").stderr)
+except Exception as _szl_ep_e:  # pragma: no cover
+    print(f"[a11oy] Assurance evidence-pack NOT registered: {_szl_ep_e!r}", file=__import__("sys").stderr)
+
+# ── Governed Speculative Decoding (specdec) — closes GAP 4 (GAP_ML.md): a governed
+# surface for speculative decoding with the MANDATORY MEASURED quality-delta protocol.
+# szl_specdec reimplements the acceptance-rejection math (Leviathan 2023 arXiv:2211.17192,
+# Chen 2023 arXiv:2302.01318 — SpecExec/Sequoia MIT REFERENCE only, NO copied code) and,
+# at REQUEST time, probes the sovereign tower's ollama /api/tags for a SAME-FAMILY
+# draft+target pair (lossless speculative decoding requires a shared tokenizer/vocabulary).
+# If such a pair is reachable it runs an EXACT greedy speculative-decoding acceptance
+# measurement over HTTP and emits a MEASURED block {accepted_rate, mean_accepted_len,
+# speedup_modeled, n, draft_model, target_model, quality_delta=identical_rate}. The two
+# live nodes run DIFFERENT families (tower llama3.1:8b vs laptop qwen2.5:3b) and the tower
+# holds only a single llama model today, so NO same-family pair is reachable from the
+# Space → the endpoint returns label=ROADMAP with quality_delta=UNAVAILABLE + the precise
+# on-metal runbook (SPECDEC_ONMETAL.md). NEVER a MODELED-as-MEASURED number, NEVER a faked
+# speedup — the half-state is the only unacceptable outcome. PURE stdlib + httpx (imported
+# inside the handler under try/except); degrades HONESTLY, never raises into startup.
+# ROUTE-ORDERING FIX: register() uses add_api_route (APPENDS) so we FRONT-MOVE the just-
+# added specdec routes to the HEAD of app.router.routes so they win over the
+# /api/a11oy/{path:path} Node proxy + SPA catch-all (same proven pattern as the inverse-PINN
+# block above). Additive, try/except-guarded.
+try:
+    import szl_specdec as _szl_specdec
+    _spec_paths = _szl_specdec.register(app, ns="a11oy")
+    try:
+        _spec_set = set(_spec_paths)
+        _spec_moved = [r for r in app.router.routes if getattr(r, "path", None) in _spec_set]
+        for _r in _spec_moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_spec_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Speculative-decoding routes front-moved to router head: {len(_spec_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _szl_spec_move_e:  # pragma: no cover
+        print(f"[a11oy] Speculative-decoding front-move skipped (routes still registered): {_szl_spec_move_e!r}", file=__import__("sys").stderr)
+    print(f"[a11oy] Speculative-decoding registered: GET /api/a11oy/v1/specdec/health + POST /api/a11oy/v1/specdec/run {_spec_paths}", file=__import__("sys").stderr)
+except Exception as _szl_spec_e:  # pragma: no cover
+    print(f"[a11oy] Speculative-decoding NOT registered (a11oy continues): {_szl_spec_e!r}", file=__import__("sys").stderr)
+
 # ── Compliance crosswalk MESH (compliance-mesh) — closes the audited gap where the
 # doctrine-v11 → NIST AI RMF / ISO 42001 / EU AI Act crosswalk module existed
 # (szl_compliance_mesh.py + compliance_crosswalk.py, REAL honest data with
@@ -694,6 +995,84 @@ try:
     print("[a11oy] Compliance crosswalk mesh registered (front-moved): /api/a11oy/v1/compliance[/coverage]", file=__import__("sys").stderr)
 except Exception as _szl_cc_e:  # pragma: no cover
     print(f"[a11oy] Compliance crosswalk mesh NOT registered: {_szl_cc_e!r}", file=__import__("sys").stderr)
+
+# ── E8-lattice receipt ENCODING + verification layer (e8) — adds GET/POST
+# /api/a11oy/v1/e8/verify (+ alias /v1/e8/verify). Maps a 256-bit sha3_256 receipt
+# digest (schema szl.lake.receipt/v1) to eight 32-bit lattice coordinates, snaps the
+# 8-vector against the E8 lattice via the Conway & Sloane closest-point algorithm
+# (decode D8 + decode D8+glue, pick nearer), and returns lattice membership / nearest
+# point / minimum squared distance — error-DETECTION geometry over the receipt ledger.
+# HONEST DOCTRINE (highest over-claim risk): we MAY CITE that E8's optimality (densest
+# sphere packing in R^8) was PROVEN by Viazovska (2016) and FORMALIZED in Lean
+# (EPFL/Viazovska) — a machine-checked Fields-Medal result behind our encoding geometry.
+# We MUST NOT claim that proof as ours, and MUST NOT claim E8 gives adversarial-
+# substitution resistance / tamper-proofing / BFT safety (that is Conjecture 2, Khipu
+# BFT, NOT proven). E8 = sphere-packing / error-DETECTION geometry ONLY. This adds ZERO
+# to the locked-proven count (stays 8); Λ=Conjecture 1. The DO-NOT-CLAIM block is in the
+# module AND in every endpoint response. numpy IS available; it is still imported INSIDE
+# the handler under try/except so the route degrades HONESTLY (never 404, never raises
+# into startup). Routes are FRONT-MOVED to the HEAD of app.router.routes so they win over
+# the /api/a11oy/{path:path} Node proxy + SPA catch-all at the file tail. Additive.
+try:
+    from starlette.routing import Route as _E8Route
+    from starlette.responses import JSONResponse as _E8JSON
+
+    def _e8_demo_digest():
+        # Self-demonstrate a bare GET with a REAL live receipt digest if the lake is
+        # reachable; otherwise a clearly-labelled deterministic sample. Never fabricated.
+        try:
+            import szl_lake_store as _l
+            h = _l.get_default_ledger().health()
+            for _org, _st in (h.get("organs") or {}).items():
+                ch = _st.get("chain_head")
+                if isinstance(ch, str) and len(ch) == 64:
+                    return ch, _org
+        except Exception:
+            pass
+        return ("d0361e9f2c8d8ac96a1cdab46a6f45de3ed697a9e767d7ccccce2d69b60ae73c",
+                "sample (lake unreachable — deterministic example digest, not fabricated)")
+
+    async def _e8_handler(request):
+        try:
+            import szl_e8 as _e8
+            payload = None
+            organ = None
+            if request.method == "POST":
+                try:
+                    body = await request.json()
+                except Exception:
+                    body = {}
+                if isinstance(body, dict):
+                    payload = body.get("digest") or body.get("receipt") or body
+                else:
+                    payload = body
+            else:
+                payload = request.query_params.get("digest")
+            if not payload:
+                payload, organ = _e8_demo_digest()
+            result = _e8.verify(payload)
+            if organ is not None:
+                result["demo_source_organ"] = organ
+            result["endpoint"] = "/api/a11oy/v1/e8/verify"
+            result["doctrine_note"] = (
+                "Error-DETECTION geometry only. E8 optimality is machine-checked "
+                "(Viazovska 2016, Lean-formalized) — CITED, not ours. NOT adversarial / "
+                "tamper-proof / BFT (that is Conjecture 2, NOT proven). Locked-proven "
+                "count stays 8; Λ=Conjecture 1."
+            )
+            return _E8JSON(result)
+        except Exception as _e:  # honest degrade — NEVER 404, NEVER raises into startup
+            return _E8JSON({
+                "schema": "szl.a11oy.e8.block/v1",
+                "status": "DEGRADED",
+                "label": "ROADMAP — E8 verification temporarily unavailable in this build",
+                "detail": str(_e)[:200], "fabricated": False})
+
+    for _e8_path in ("/v1/e8/verify", "/api/a11oy/v1/e8/verify"):
+        app.router.routes.insert(0, _E8Route(_e8_path, _e8_handler, methods=["GET", "POST"]))
+    print("[a11oy] E8-lattice receipt verify registered (front-moved): /api/a11oy/v1/e8/verify", file=__import__("sys").stderr)
+except Exception as _szl_e8_e:  # pragma: no cover
+    print(f"[a11oy] E8-lattice receipt verify NOT registered: {_szl_e8_e!r}", file=__import__("sys").stderr)
 
 # ── Unified leader-formulas (thesis v6) — Sherman Morgan density-impulse/Tsiolkovsky,
 # Stewart LS12/CoRoL/Hugoniot, Wave24 coherence single-crossing. Each is REAL deterministic
@@ -5887,6 +6266,24 @@ async def a11oy_cosign_pub_v2() -> Response:
     return PlainTextResponse(_A11OY_PUB_PEM, media_type="text/plain")
 
 
+# ---- /demo-cosign.pub — DEMO-ONLY public key (PEM, text/plain) -------------
+# Serves the PUBLIC half of the clearly-labelled demo-signing-key (Option B).
+# The /verify JS fetches this ONLY when a receipt's keyid == "demo-signing-key",
+# so a buyer can watch a real in-browser ECDSA-P256 verification succeed while the
+# PRODUCTION cosign key stays founder-gated and is NEVER placed in this runtime.
+# This is PUBLIC data; it is NOT the production cosign.pub.
+@app.get("/demo-cosign.pub")
+@app.get("/api/a11oy/demo-cosign.pub")
+async def a11oy_demo_cosign_pub() -> Response:
+    try:
+        import szl_demo_sign
+        return PlainTextResponse(szl_demo_sign.DEMO_COSIGN_PUBLIC_PEM,
+                                 media_type="text/plain")
+    except Exception:
+        return PlainTextResponse("# demo signing key module unavailable\n",
+                                 status_code=503)
+
+
 # ---- Receipt chain (in-image, hash-chained, signed) ----
 def _a11oy_build_chain(n: int = 24) -> dict:
     """Build a deterministic in-image receipt hash-chain. Each receipt commits
@@ -8296,6 +8693,26 @@ async def marketing_landing_page() -> Response:
 @app.get("/verify")
 async def verify_demo_page() -> Response:
     f = PAGES_DIR / "verify.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# /pinn-console — Governed Inverse-PINN Console. Public front-end for the LIVE
+# governed inverse-PINN engine (POST /api/a11oy/v1/pinn/identify). Renders the
+# discovered parameter(s) + 95% CI, the GREEN/YELLOW/RED convergence badge, the
+# FIM identifiability / self-doubt REFUSAL (the honesty hero moment), the Λ
+# advisory (Conjecture 1, never a proof, never 1.0), the F19/Bekenstein check
+# (PROVEN inequality APPLIED, not re-claimed), and the signed receipt + a Khipu
+# ledger verify link. Distinct from /pinn (the physical-bounds certifier surface).
+# Pure HTML/JS/CSS (0 runtime CDN; no server-side numpy). Reuses the verify.html
+# design system. Served from pages/pinn-console.html (COPYed wholesale by the
+# Dockerfile COPY pages/ ./pages/). Registered BEFORE the SPA catch-all so it
+# returns the real page, not the SPA soft-404. ADDITIVE — no existing route touched.
+@app.get("/pinn-console")
+@app.get("/a11oy/pinn-console")
+async def pinn_console_page() -> Response:
+    f = PAGES_DIR / "pinn-console.html"
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")

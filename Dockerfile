@@ -128,7 +128,8 @@ RUN pip install --no-cache-dir \
     "cryptography==49.0.0" \
     "lmdb==2.2.1" \
     "slowapi==0.1.10" \
-    "defusedxml==0.7.1"
+    "defusedxml==0.7.1" \
+    "numpy==2.1.3"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
@@ -163,11 +164,9 @@ COPY knowledge.json ./static/knowledge.json
 # untouched; A11OY_REQUIRE_LOCAL_LLM gate + demo-tier RUN logic untouched.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # ---------------------------------------------------------------------------
-COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py szl_governed_api.py szl_demo_tier1.py szl_assurance.py govern_showcase.html a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py ./
-# Spaces-on-a11oy.net shared modules (Dev2+3) — reverse-proxy + console surface.
+# Spaces-on-a-11-oy.com shared modules (Dev2+3) — reverse-proxy + console surface.
 # Per-file COPY (this Dockerfile uses no `COPY . .`) or serve.py's guarded import
 # falls back and /spaces + /api/<ns>/v1/spaces/health 404. Byte-identical a11oy+killinchu.
-COPY szl_spaces_proxy.py szl_spaces_surface.py ./
 # LAYER-CEILING CONSOLIDATION (build/docker, Opus 4.8): three adjacent per-file
 # root COPYs (all landing at the /app WORKDIR `./`, no comments between them) are
 # merged into ONE single-line multi-source COPY to drop two image layers (BuildKit
@@ -176,67 +175,67 @@ COPY szl_spaces_proxy.py szl_spaces_surface.py ./
 # nothing overwrites anything). Same single-line grouped-COPY form already used for
 # the segment-A/segment-B root-file COPY groups above, so any line-based COPY-set
 # parser (e.g. hf-sync-backend) reads it exactly as it reads those. Never `COPY . .`.
-COPY szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_dsse.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py szl_sovereign_compute.py a11oy_active_flux_router.py ./
 # Energy/heart/engine/revenue/harvest organ modules: present in repo but were absent
 # from every COPY line -> guarded imports threw ModuleNotFoundError -> dark 404 surfaces.
-COPY szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py ./
 # energy operator/ledger/projection modules — imported by serve.py (guarded);
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB.
-COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py ./
 # energy LIVE feed (szl_energy_live) — imported by serve.py (guarded); MUST be per-file
 # COPY'd or /api/a11oy/v1/energy/{live,mesh,harvest} fall through to the SPA catch-all.
-COPY szl_energy_live.py ./
 # Orbital tier (MODELED roadmap) — imported by serve.py (guarded); MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/orbital/{topology,projection} 404 live. szl_orbital_projection reuses
 # szl_energy_operator (the REAL measured ground J/token coefficient), already COPY'd above.
-COPY szl_orbital_topology.py szl_orbital_projection.py ./
 # Orbital PAGE (frontend demo surface) — serve.py imports a11oy_orbital_page (guarded)
 # to mount GET /orbital (the MODELED constellation demo, banner-labeled, 0 CDN via the
 # vendor3d three.js COPY'd below). MUST be per-file COPY'd or /orbital falls back to the
 # SPA catch-all (white screen / no orbital surface).
-COPY a11oy_orbital_page.py ./
 # Frontier PAGE (unified ecosystem showcase) — serve.py imports a11oy_frontier_page
 # (guarded) to mount GET /frontier (the whole-stack showcase, driven by the live
 # /frontier/manifest roll-up; honest per-tile labels + provenance; 0 CDN via the
 # vendor3d three.js COPY'd below). MUST be per-file COPY'd or /frontier falls back to
 # the SPA catch-all (white screen / no frontier surface).
-COPY a11oy_frontier_page.py ./
 # Frontier manifest — imported by serve.py (guarded). MUST be per-file COPY'd (this
 # Dockerfile uses no `COPY . .`) or the import falls back and /api/a11oy/v1/frontier/
 # manifest 404s live. Composes in-process from already-COPY'd surfaces (szl_energy_*,
 # szl_uds_fleet, szl_orbital_*, szl_backend_hardening, szl_restraint) — no new deps.
-COPY szl_frontier_manifest.py ./
 # Governed Code-as-Action Kernel (GCAK) — serve.py imports a11oy_code_as_action
 # (guarded) to mount the /api/a11oy/v1/agent/code/* routes; it in turn imports
 # a11oy_governed_kernel (the persistent, gated, receipted kernel) and
 # szl_lambda_tripwire (the Lambda 'Conjecture 1' restraint check). All three MUST
 # be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the guarded import
 # falls back to a STUB and the agent code routes 404 live (merged-but-not-live).
-COPY a11oy_code_as_action.py a11oy_governed_kernel.py szl_lambda_tripwire.py ./
 # Composite inference-provenance receipt (CAPSTONE) — imported by serve.py (guarded).
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls
 # back and /api/a11oy/v1/provenance/receipt 404s live. Composes in-process from
 # already-COPY'd surfaces (szl_immune, szl_materials, szl_khipu, szl_joules_truth,
 # szl_formulas, a11oy_nemo_core) — no new deps.
-COPY szl_provenance_receipt.py ./
 # UNIVERSAL Khipu verifier (judge-facing audit layer) — imported by serve.py (guarded).
 # MUST be per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back
 # and /api/a11oy/v1/khipu/{organs,chain,verify} 404s live. Reads the shared szl_khipu
 # DAG in-process (already COPY'd above) — no new deps.
-COPY szl_khipu_verify.py ./
+# DEMO-ONLY signing (Option B): szl_demo_sign exposes the demo-signing-key path so
+# /verify shows a real ECDSA-P256 VERIFIED badge. MUST be per-file COPY'd or the
+# guarded imports in serve.py (/demo-cosign.pub) and a11oy_vertical_feeds (infer
+# fallback) fall back and the demo signature never appears. Production cosign key
+# stays founder-gated; only the demo PUBLIC key ships in this module.
 # REGRESSION RESTORE — serve.py imports these (guarded) but their per-file COPY was
 # dropped, so in the HF image each guarded import falls back to a STUB (merged-but-not-
 # live) and the copy-sync lockstep guard is red on main. szl_sda was added by the most
 # recent SWEEP D1 commit without its COPY; szl_fabric_surface + szl_nemo_agents predate
 # it. All their transitive local deps are already COPY'd above. Additive — restores the
 # missing wiring the same way the sibling szl_* modules are COPY'd.
-COPY szl_sda.py szl_fabric_surface.py szl_nemo_agents.py ./
 # K-Verify governed-inference benchmark — imported by serve.py (guarded). MUST be
 # per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/kverify/* 404s. Reuses szl_energy_operator (inference + NVML joules)
 # + szl_khipu (the shared signed-receipt chain), both already COPY'd above.
-COPY szl_kverify.py ./
+# Governed Speculative Decoding (GAP 4) — imported by serve.py (guarded). MUST be
+# per-file COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
+# /api/a11oy/v1/specdec/* 404s AND hf-sync-backend.yml (it parses this COPY set) would
+# not mirror it to the HF Space. Reimplements the acceptance-rejection math (Leviathan
+# 2023 / Chen 2023; SpecExec/Sequoia MIT REFERENCE only) and probes the tower's ollama
+# /api/tags at request time for a SAME-FAMILY draft+target pair; emits a MEASURED block
+# when reachable, else an HONEST ROADMAP with quality_delta=UNAVAILABLE + on-metal runbook.
+# Pure stdlib + httpx (already in the image); optional szl_demo_sign imported under guard.
 # Immune (Hukulla) HONEST egress-gate surface — imported by serve.py (guarded).
 # MUST be per-file COPY'd (no `COPY . .`) or the import falls back and the honest
 # /api/a11oy/v1/immune/* namespace 404s. Reuses szl_khipu (the shared signed-
@@ -244,7 +243,6 @@ COPY szl_kverify.py ./
 # hf-sync-backend.yml (it parses the Dockerfile COPY set). web/immune.html (the
 # served page) is per-file COPY'd below and declared image_only in
 # .github/copy-sync-lockstep.json (same baked-only pattern as web/energy.html).
-COPY szl_immune.py ./
 # SWEEP D5 — Fabric/Tawantin + Auto-review HONEST /status SUMMARY surfaces.
 # szl_fabric_surface.py serves /api/a11oy/v1/{tawantin,fabric}/status (honest
 # summary over compute-pool-hardened + energy operator/provenance — nodes
@@ -255,82 +253,78 @@ COPY szl_immune.py ./
 # back and those /status routes 404 live AND hf-sync-backend.yml (it parses this
 # COPY set) would not mirror it to the HF Space. Reuses the live sibling
 # endpoints via loopback; no new dep. Summary-only — no fabricated node/joule data.
-COPY szl_fabric_surface.py ./
 # SWEEP DEV 3 status module — imported by serve.py (guarded). MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back to a STUB
 # and /api/a11oy/v1/{quant,qbio,holographic}/status 404 live. Reuses szl_quantum_bio,
 # szl_formulas, szl_pnt_mesh, szl_backend_hardening, szl3d_holographic + szl_khipu
 # (all already COPY'd above). hf-sync-backend.yml parses this COPY set to mirror it.
-COPY szl_quant_qbio_holo.py ./
 # Materials (Q'allariy) HONEST verifiable crystal-discovery surface — imported by
 # serve.py (guarded). MUST be per-file COPY'd (no `COPY . .`) or the import falls
 # back and /api/a11oy/v1/materials/* 404s AND hf-sync-backend.yml (it parses this
 # Dockerfile COPY set) would not mirror it to the HF Space. Reuses szl_khipu (the
 # shared signed-receipt chain), already COPY'd above. szl_materials is the SHARED
 # Materials module (Crystal Novelty Certificate + appended DEV2/DEV3 groups).
-COPY szl_materials.py ./
+# szl_materials_predict.py is the governed property-PREDICTION vertical (MODELED+SAMPLE
+# numpy surrogate + calibrated ensemble UQ); MUST be per-file COPY'd (no `COPY . .`)
+# or serve.py's guarded import falls back and /api/a11oy/v1/materials/predict 404s AND
+# hf-sync-backend.yml (parses this COPY set) would not mirror it to the HF Space.
 # SWEEP D1 (SDA): szl_sda.py serves the honest Space/Domain-Awareness + counter-UAS
 # surface (/api/a11oy/v1/sda/* and /v1/sda/*). MUST be per-file COPY'd (no `COPY . .`)
 # or serve.py's guarded `import szl_sda` falls back to the stub (merged-but-not-live,
 # /api/a11oy/v1/sda/* 404s) AND hf-sync-backend (which parses this COPY set) would not
 # mirror it to the HF Space. Reuses szl_khipu (shared signed-receipt chain, COPY'd
 # above) and the REAL counter-UAS drone-cyber logic. Tracks are REPLAY/SAMPLE/MODELED.
-COPY szl_sda.py ./
 # ADDITIVE (I3): FABRO-style Governed Factory + Constitutional Engines modules.
 # MUST be COPY'd or serve.py's guarded imports fall back (merged-but-not-live).
 # HTML/JS is inlined in these .py modules, so NO web/ or static-vendor COPY needed.
-COPY a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py ./
 # MBSE / FMI GOVERNED DIGITAL-TWIN CO-SIM — two shared modules (byte-identical in
 # killinchu). szl_mbse_cosim.py serves /api/a11oy/v1/mbse/* (governed water-tank +
 # 6DOF FMU co-sim, Restraint gate, signed DSSE receipts). szl_mbse_nav.py serves
 # /mbse /mbse-6dof /mbse-pipeline (0-CDN holo + inline-SVG charts) + the idempotent
 # nav injector. MUST be COPY'd or serve.py's guarded imports fall back (merged-but-
 # not-live) AND hf-sync-backend would not mirror them. Per-file COPY (no COPY . .).
-COPY szl_mbse_cosim.py szl_mbse_nav.py ./
 # SWEEP D2 — MBSE + Factory honest STATUS surfaces. szl_mbse.py serves the
 # honest LIVE /api/a11oy/v1/mbse/{status,models} over the real szl_mbse_cosim
 # substance (+ wires its /info,/watertank,/sixdof,/pipeline). szl_factory.py
 # serves /api/a11oy/v1/factory/status over the real a11oy_factory engine +
 # agentic brain. MUST be COPY'd or serve.py's guarded imports fall back
 # (merged-but-not-live) AND hf-sync would not mirror them. Per-file COPY.
-COPY szl_mbse.py szl_factory.py ./
 # WILLAY — governed inverse of Fable 5 / Mythos 5 (safety verdicts signed & shown).
 # szl_willay_gateway.py serves /willay + /api/a11oy/v1/willay/*; a11oy_willay_nav.py
 # attaches the idempotent /console nav injector. MUST be COPY'd or serve.py's guarded
 # imports fall back and /willay 404s. Per-file COPY (this Dockerfile uses no COPY . .).
-COPY szl_willay_gateway.py a11oy_willay_nav.py ./
 # WAQAY — governed quantized vector index (TurboQuant-inspired, signed receipts + Restraint).
 # szl_waqay.py serves /waqay + /api/a11oy/v1/waqay/*; a11oy_waqay_nav.py attaches the
 # idempotent /console nav injector. MUST be COPY'd or serve.py's guarded imports fall back
 # and /waqay 404s. szl_dsse.py / szl_provenance.py / a11oy_org_rag.py already COPYed above.
 # Per-file COPY (this Dockerfile uses no COPY . .).
-COPY szl_waqay.py a11oy_waqay_nav.py ./
 # YUPAY — governed multi-model audit harness (Quechua "to count/audit/reckon").
 # szl_yupay.py serves /yupay + /api/a11oy/v1/yupay/*; a11oy_yupay_nav.py attaches the
 # idempotent /console nav injector. MUST be COPY'd or serve.py's guarded imports fall back
 # and /yupay 404s. szl_dsse.py / szl_provenance.py already COPYed above. Audit methodology
 # inspired by the Kilo "same-codebase" audit + MiniMax sparse-attention paper (cited as
 # published ideas only); SZL-Nemo is governed Qwen3-32B Apache, never an M3 derivative.
-COPY szl_yupay.py a11oy_yupay_nav.py ./
 # a11oy_uds_portability_nav.py attaches the idempotent /console nav entry (P4).
-COPY a11oy_uds_portability_nav.py ./
 # Agentic-PINN + physical-bounds mesh (pure-stdlib sibling of szl_energy_budget; serves
 # /api/a11oy/v1/pinn/*). MUST be COPY'd or serve.py's guarded import falls back to a stub
 # (merged-but-not-live) in the HF image. The optional on-metal artifacts it reads
 # (physical_bounds_certificate.json / agentic_decision_trail.json) are NOT baked — the
 # module honestly serves a SAMPLE certificate until Forge writes real ones on the box.
-COPY szl_pinn_bounds.py ./
-COPY physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json ./
+# Governed Inverse-PINN engine (governed-inverse-pinn) — adds POST /api/a11oy/v1/pinn/identify
+# (+ GET demo, GET /pinn/health). Both modules MUST be COPY'd or serve.py's guarded import
+# falls back (merged-but-not-live) in the HF image. NumPy-only (no torch/DeepXDE/scipy added).
+# Governed CALPHAD inverse-discovery (materials-by-design vertical) — extends the
+# inverse-PINN system registry with Redlich-Kister L_k discovery on the SAME
+# /api/a11oy/v1/pinn/identify endpoint ({"demo":"calphad"}). Imported GUARDED by
+# szl_governed_ipinn; MUST be COPY'd or the CALPHAD system is absent at runtime.
 # PNT / quantum-sensing mesh (pure-stdlib closed-form web path; serves /api/a11oy/v1/pnt/*).
 # szl_pnt_mesh.py loads the 4 engine modules dynamically via importlib, so ALL FIVE MUST be
 # COPY'd or serve.py's guarded import falls back to a stub (merged-but-not-live) in the HF
 # image. Heavy numpy/UKF/PINN solves are the Forge/GPU path; this web path never solves.
-COPY szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py ./
 # Counter-UAS / killinchu surface backend (serves /api/a11oy/v1/counter-uas/*). Server-side
 # proxy to OUR OWN killinchu Space (sense+evidence, signed verdict); browser surface stays
 # 0-CDN (three.js-globe escape hatch, no Cesium). MUST be COPY'd or serve.py's guarded import
 # falls back to a stub (merged-but-not-live) in the HF image. Per-file COPY (no `COPY . .`).
-COPY szl_counter_uas_proxy.py ./
 # ADDITIVE (I4 gpu-quant): Sovereign VRAM-resident GPU-Quant engine (PCA-Risk / TDA-Fracture
 # / HJB-Kelly) backing /api/a11oy/v1/quant/* + the /quant tab. PURE-STDLIB (Jacobi eigen,
 # Gaussian solve, union-find Betti) so it runs in the numpy-less HF image; cuML/giotto-tda
@@ -338,7 +332,6 @@ COPY szl_counter_uas_proxy.py ./
 # guarded import falls back to a stub (merged-but-not-live). Imports szl_dsse (already COPYed)
 # for REAL ECDSA receipts in-Space + szl_energy_sovereign (already COPYed) for the 2-GPU tier
 # panel. Per-file COPY (this Dockerfile never uses `COPY . .`). Mirrored byte-identical to HF.
-COPY szl_gpu_quant.py ./
 # ADDITIVE (joules-honesty #349): single-source joules_label helper + its consumers.
 # szl_joules_truth.py is imported by szl_energy_budget/szl_engine_status/revenue_endpoints/
 # a11oy_harvest_endpoints/szl_anatomy_loop/szl_prod_hardening; revenue_model.py backs
@@ -346,35 +339,33 @@ COPY szl_gpu_quant.py ./
 # local 'sample' stub and /revenue/estimate ModuleNotFound'd (#349 merged-but-not-live).
 # Per-file COPY (this Dockerfile never uses `COPY . .`); keeps the helper LIVE so 'measured'
 # is decided in ONE place. Mirrored byte-identical to the HF Space (hf-sync APP_FILES lockstep).
-COPY szl_joules_truth.py revenue_model.py szl_prod_hardening.py ./
 # ADDITIVE (devM resilience): szl_resilience is imported by serve.py for the Hystrix
 # circuit breaker + K8s liveness/readiness split. Per-file COPY (this Dockerfile does
 # not use `COPY . .`); without this line `import szl_resilience` would ModuleNotFound
 # at runtime and /health/live + /health/ready would 404 (the recurring dark-surface bug).
-COPY szl_resilience.py ./
 # ADDITIVE (devN observability): szl_observability is imported by serve.py for the
 # OpenTelemetry-style distributed tracing + per-surface SLO summary. Per-file COPY
 # (this Dockerfile does not use `COPY . .`); without this line `import szl_observability`
 # would ModuleNotFound at runtime and /api/a11oy/v1/observability/* would 404 (the
 # recurring dark-surface bug). Pure stdlib; no new pip dep.
-COPY szl_observability.py ./
 # ADDITIVE (verifiable-corpus): the publisher module imported lazily (try/except)
 # by szl_dsse + szl_wire to publish signed receipts to the public HF dataset
 # SZLHOLDINGS/a11oy-verifiable-corpus. Per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it the lazy import is a no-op and receipts never publish.
-COPY szl_corpus_publish.py ./
 # ADDITIVE (unified-receipt-ledger): vendored szl-lake durable store + ingest
 # router mounted onto the live a11oy app under /api/lake/v1 (the one durable sink
 # every SZL component POSTs to). Per-file COPY (this Dockerfile never uses
 # `COPY . .`); without it the guarded import in serve.py silently falls back and
 # the /api/lake/v1 routes never register. Durability mirrors to the HF dataset
 # via szl_corpus_publish's HFBucket path (already COPY'd above).
-COPY szl_lake_store.py szl_lake_ingest.py ./
+# E8-lattice receipt ENCODING + verification layer over the sha3_256 receipt digests
+# (GET/POST /api/a11oy/v1/e8/verify). Conway & Sloane closest-point on E8; error-
+# DETECTION geometry only. Cites Viazovska 2016 (Lean-formalized) as prior art; NOT ours,
+# NOT adversarial/BFT (Conjecture 2). numpy-guarded, degrades honestly.
 # NEMOTRON SIGNED-TRAJECTORY build (2026-06-14): DSSE-signed agent-trajectory
 # corpus pipeline (SZL-Nemo). Honest: DATASET property, not a model claim;
 # QLoRA-ready, training = ROADMAP (2x80GB GPU). nvidia/Nemotron-Agentic-v1
 # mapped under CC BY 4.0 attribution. Served at /signed-corpus.
-COPY szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py ./
 
 # Copy serve orchestrator and gates manifest
 # ADDITIVE (live-ops): orchestration + AI-observability module — per-file COPY Dockerfile
@@ -389,9 +380,7 @@ COPY static/a11oy_cathedral.js ./static/a11oy_cathedral.js
 # Operator organ (Dev3) — ingested 3D infra-viz, vendored-three (0 CDN)
 COPY static/a11oy_operator_organ.js ./static/a11oy_operator_organ.js
 # (pages/operator_organ.html is copied below via `COPY pages/ ./pages/`)
-COPY static/vendor3d/three.module.min.js ./static/vendor3d/three.module.min.js
-COPY static/vendor3d/OrbitControls.js ./static/vendor3d/OrbitControls.js
-COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
+COPY static/vendor3d/three.module.min.js static/vendor3d/OrbitControls.js static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/
 # ADDITIVE (Dev0, 2026-06-14): SHARED szl3d 3D toolkit + holographic shell. The
 # vendored three.js r170 libs (WebGL2 + WebGPU builds + postprocessing addons),
 # the szl3d toolkit (boot/live/label), the 9 surface stub modules, the /holographic
@@ -399,7 +388,6 @@ COPY static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/THREE_LICENSE.txt
 # /static/3d/* by szl3d_holographic.register() (imported by serve.py) — 0 runtime
 # CDN, the estate is sovereign. Whole-tree COPY (nested vendor/ tree). The register
 # module + its pytest ship alongside the rest of the root .py modules.
-COPY static/3d/ ./static/3d/
 COPY szl3d_holographic.py ./szl3d_holographic.py
 # ADDITIVE (cathedral unification, GitHub-aligned): the ONE canonical genius
 # cathedral served at /cathedral — IDENTICAL "Constellation · Khipu" scene as the
@@ -510,7 +498,6 @@ EXPOSE 7860
 # Receipts sign via szl_dsse (already COPYed) using szl_khipu + szl_formulas. Without
 # these COPYs the imports fail and the pages/endpoints fall through to the SPA shell.
 # Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). NO external CDN.
-COPY web/formulas.html ./web/formulas.html
 COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-force-graph.min.js static-vendor/echarts.min.js static-vendor/echarts-gl.min.js static-vendor/globe.gl.min.js static-vendor/cytoscape.min.js static-vendor/d3.min.js static-vendor/katex.min.js static-vendor/katex.min.css static-vendor/dagre.min.js static-vendor/cytoscape-dagre.js static-vendor/d3-sankey.min.js static-vendor/ngraph.graph.min.js static-vendor/ngraph.path.min.js static-vendor/ngraph.forcelayout.min.js static-vendor/panzoom.min.js static-vendor/vivagraph.min.js static-vendor/ngraph.events.umd.js static-vendor/a11oy-operator-widget.js static-vendor/a11oy-operator-widget.css static-vendor/uPlot.iife.min.js static-vendor/uPlot.min.css ./static-vendor/
 
 # ADDITIVE (Graph/Viz lane + Perplexity Computer Agent, 2026-06-06): AIR-GAP
@@ -535,21 +522,15 @@ COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-
 # v4_fleet_panel.html: canonical fleet panel served at /fleet
 # operator_shell_v4.py: Unified Operator Shell v4 endpoints (fix import failure)
 # web/operator.html: operator shell desktop cockpit HTML
-COPY web/v4_fleet_panel.html ./web/v4_fleet_panel.html
-COPY web/operator.html ./web/operator.html
 
 # ADDITIVE (Frontier wave, 2026-06-08): two founder tabs served from /app/web/
 # via serve.py _ptg_serve. Sovereign pages, vendored 3D (globe.gl + three from
 # static-vendor; earth-night texture from _vendor_blobs.py /vendor route), 0 CDN.
 # Per-file COPY (this Dockerfile uses no COPY . .).
-COPY web/fleet-c2.html ./web/fleet-c2.html
-COPY web/living-anatomy.html ./web/living-anatomy.html
 # ADDITIVE (Lane I1, 2026-06-14): SZL-Nemo core module + tab. Per-file COPY (this
 # Dockerfile uses no COPY . .). a11oy_nemo_core.py is imported by serve.py
 # (try/except guarded); web/nemo.html is served at /nemo + /a11oy/nemo via
 # _ptg_serve. Without these COPYs the guarded import falls back and /nemo 404s.
-COPY a11oy_nemo_core.py ./
-COPY web/nemo.html ./web/nemo.html
 # ADDITIVE (a11oy Restraint, 2026-06-14): the GOVERNED + MEASURED frugality gate
 # module + tab. Per-file COPY (this Dockerfile uses no COPY . .). szl_restraint.py
 # is imported by serve.py (try/except guarded) and serves
@@ -560,7 +541,6 @@ COPY web/nemo.html ./web/nemo.html
 # served page declared in .github/copy-sync-lockstep.json image_only_assets
 # (same pattern as web/nemo.html). Ladder + intensity adopted from Ponytail (MIT);
 # governance + measurement are ours.
-COPY szl_restraint.py ./
 # QHAWAQ (FORMAL/LTL runtime constitutional intercept): the SHARED runtime monitor,
 # BYTE-IDENTICAL to killinchu. Imported by serve.py (try/except guarded); serves
 # /qhawaq + /api/a11oy/v1/qhawaq/*. Without this COPY the guarded import falls back
@@ -573,8 +553,6 @@ COPY szl_qhawaq.py ./szl_qhawaq.py
 # Dockerfile never uses `COPY . .`) or serve.py's guarded import falls back
 # (merged-but-not-live) and /sapa 404s to the SPA shell. Mirrored byte-identical
 # to the HF Space (hf-sync lockstep).
-COPY szl_sapa.py szl_sapa_patch.py ./
-COPY web/restraint.html ./web/restraint.html
 # ADDITIVE (R4 lane, 2026-06-14): a11oy Restraint -> ENERGY + KPI + MEASURED BENCH.
 # szl_restraint_energy.py is imported by serve.py (try/except guarded) and serves
 # /api/a11oy/v1/restraint/{energy,bench-measured,kpi}; web/restraint-bench.html is
@@ -585,15 +563,12 @@ COPY web/restraint.html ./web/restraint.html
 # web/restraint-bench.html is a baked-only image-only asset (copy-sync-lockstep.json).
 # CONSUMES szl_restraint (R1) + szl_energy_sovereign (Forge) only; edits neither.
 # 0 runtime CDN (fonts only); 0 visible codenames; Ponytail CITED (MIT).
-COPY szl_restraint_energy.py ./
-COPY web/restraint-bench.html ./web/restraint-bench.html
 COPY benchmarks/restraint/run_bench.py ./benchmarks/restraint/run_bench.py
 # ADDITIVE (Lane F1, 2026-06-14): the 3D/holographic SUBSTRATE demo page, served at
 # /holo + /a11oy/holo via _ptg_serve. Loads the shared kit /static/shared/szl_holo3d.js
 # (0 CDN). image-only like the other web/*.html demo pages (declared in
 # .github/copy-sync-lockstep.json image_only_assets; baked into the GitHub-built image,
 # live after a factory rebuild). Without this COPY /holo would 404 to the SPA shell.
-COPY web/holo.html ./web/holo.html
 # ADDITIVE (Lane F5, 2026-06-14): the three sovereign 3D surfaces served at
 # /constitution, /quant and /estate-hologram (+ /a11oy/* aliases) via _ptg_serve.
 # Each loads the shared kit /static/shared/szl_holo3d.js (0 CDN) and reads its live
@@ -601,9 +576,6 @@ COPY web/holo.html ./web/holo.html
 # other web/*.html demo pages (declared in copy-sync-lockstep.json image_only_assets;
 # baked into the GitHub-built image, live after a factory rebuild + direct Space push).
 # Without these COPYs the routes 404 to the SPA shell.
-COPY web/constitution.html ./web/constitution.html
-COPY web/quant.html ./web/quant.html
-COPY web/estate-hologram.html ./web/estate-hologram.html
 # WARHACKER SHOWCASE PAGES (demo lane, 2026-06-14): two PUBLIC companion pages served
 # at /signature-is-not-proof and /defense-readiness (+ /a11oy/* aliases) via _ptg_serve.
 # System fonts, 0 runtime CDN, no external scripts; live claims fetch real a11oy
@@ -611,8 +583,6 @@ COPY web/estate-hologram.html ./web/estate-hologram.html
 # demo pages (declared in copy-sync-lockstep.json image_only_assets; baked into the
 # GitHub-built image, live after a factory rebuild + direct Space push). Without these
 # COPYs the routes 404 to the SPA shell.
-COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
-COPY web/defense-readiness.html ./web/defense-readiness.html
 # ADDITIVE (2026-06-17): web/determinacy.html is the ILLUSTRATIVE analytic-continuation
 # proof-doctrine showcase page, served at /determinacy + /a11oy/determinacy from /app/web/.
 # Real in-browser power-series arithmetic (no fabricated values); the math->receipt bridge
@@ -620,21 +590,19 @@ COPY web/defense-readiness.html ./web/defense-readiness.html
 # with an honest NO-LIVE-DATA fallback. image_only (baked via this per-file COPY; NOT
 # hf-sync mirrored) — same baked-only pattern as web/signature-is-not-proof.html; declared
 # in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json.
-COPY web/determinacy.html ./web/determinacy.html
 # ADDITIVE (SWEEP D1, 2026-06-16): web/sda.html is the honest, user-visible SDA —
 # Space/Domain Awareness (Counter-UAS) page, served at /sda + /a11oy/sda from
 # /app/web/. Binds to the LIVE /api/a11oy/v1/sda/* surface (status/tracks/verdict).
 # image_only (baked via this per-file COPY; NOT hf-sync mirrored) — same baked-only
 # pattern as web/immune.html + web/materials.html; declared in copy-sync-lockstep.json
 # image_only_assets + hf-module-drift-allow.json accepted_divergences.
-COPY web/sda.html ./web/sda.html
 # ADDITIVE (2026-06-16): web/dns.html is the honest, user-visible DNS & Subdomains
 # internal infrastructure roadmap, served at /dns + /a11oy/dns from /app/web/. Static
 # page (0 runtime CDN, NO live data). image_only (baked via this per-file COPY; NOT
 # hf-sync mirrored) — same baked-only pattern as web/sda.html + web/immune.html;
 # declared in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json
 # accepted_divergences.
-COPY web/dns.html ./web/dns.html
+COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/signature-is-not-proof.html web/defense-readiness.html web/determinacy.html web/sda.html web/dns.html ./web/
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and
@@ -643,7 +611,7 @@ COPY web/dns.html ./web/dns.html
 # the guarded import falls back to a stub in the image and the react endpoints
 # 404. Restores wiring clobbered by a later integration-wave push built from a
 # stale base (the register block in serve.py + this COPY were both lost).
-COPY a11oy_react_core.py ./
+COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py szl_governed_api.py szl_demo_tier1.py szl_assurance.py govern_showcase.html a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py szl_spaces_proxy.py szl_spaces_surface.py szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_dsse.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py szl_formula_wiring.py a11oy_code_engine.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_chain_of_title.py szl_sovereign_compute.py a11oy_active_flux_router.py szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py szl_energy_live.py szl_orbital_topology.py szl_orbital_projection.py a11oy_orbital_page.py a11oy_frontier_page.py szl_frontier_manifest.py a11oy_code_as_action.py a11oy_governed_kernel.py szl_lambda_tripwire.py szl_provenance_receipt.py szl_khipu_verify.py szl_demo_sign.py szl_sda.py szl_fabric_surface.py szl_nemo_agents.py szl_kverify.py szl_specdec.py szl_immune.py szl_quant_qbio_holo.py szl_materials.py szl_materials_predict.py a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py szl_mbse_cosim.py szl_mbse_nav.py szl_mbse.py szl_factory.py szl_willay_gateway.py a11oy_willay_nav.py szl_waqay.py a11oy_waqay_nav.py szl_yupay.py a11oy_yupay_nav.py a11oy_uds_portability_nav.py szl_pinn_bounds.py physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json szl_pinn_inverse.py szl_governed_ipinn.py szl_calphad_inverse.py szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py szl_counter_uas_proxy.py szl_gpu_quant.py szl_joules_truth.py revenue_model.py szl_prod_hardening.py szl_resilience.py szl_observability.py szl_corpus_publish.py szl_lake_store.py szl_lake_ingest.py szl_e8.py szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py a11oy_nemo_core.py szl_restraint.py szl_sapa.py szl_sapa_patch.py szl_restraint_energy.py a11oy_react_core.py ./
 
 # ADDITIVE (Cross-Harness Receipt Bridge — Hermes + OpenClaw; 2026-06-01, Yachay /
 # Perplexity Computer Agent; closeout PR superseding #198 runtime files). serve.py
@@ -987,8 +955,6 @@ ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
 # untouched; A11OY_REQUIRE_LOCAL_LLM gate + demo-tier RUN logic untouched.
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # ---------------------------------------------------------------------------
-COPY a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_endpoints.py a11oy_vertical_feeds.py a11oy_deva_feeds.py a11oy_devb_endpoints.py a11oy_amaru_feeds.py szl_governance_gateway.py szl_abacus_verify.py szl_decision_uncertainty.py szl_gor_audit.py szl_sovereign_search.py szl_consensus_clusters.py szl_mission_ledger.py szl_budget_router.py szl_wave910_proofs.py szl_evidence_research.py szl_uds_fleet.py szl_readiness.py szl_quantum_bio.py szl_mosaic_governance.py ./
-COPY szl_unified_formulas.py szl_cuas_formulas.py szl_contracting.py szl_bounties.py szl_putnam.py szl_connectors_serve.py szl_connector_mcp.py szl_conjecture_factory.py ./
 COPY live_snapshots/ ./live_snapshots/
 
 # ADDITIVE (Investor-WOW Layer, 2026-06-08, Dev1): a11oy_dev1_endpoints.py exposes
@@ -1104,17 +1070,14 @@ COPY szl_connectors/ ./szl_connectors/
 # across a11oy + killinchu (shared-file-drift enforces it via this COPY list).
 # This Dockerfile never uses `COPY . .` — without this line `import
 # szl_hf_bucket` fails. Imported lazily by callers; no boot-time side effects.
-COPY szl_hf_bucket.py szl_metrics_prom.py ./
 # Forge fix: these modules are on main + imported by serve.py (try/except) but were NEVER COPY'd
 # into the image -> ModuleNotFoundError at startup -> /api/a11oy/v1/research/* + dark surfaces 404.
-COPY szl_research_infra.py szl_dark_surfaces_register.py szl_anatomy_loop.py ./
 # copy-sync lockstep guard (CHECK 2): these modules are on main + imported by serve.py
 # (try/except-guarded) but were NEVER COPY'd into the image, so the import silently fell
 # back to a STUB on the Space (the recurring "merged-but-not-live" failure). conduction_aphasia
 # backs /conduction; szl_a11oy_live_feeds backs the a11oy live-feeds organ; szl_jack is imported
 # transitively by szl_live_wires. Per-file COPY (this Dockerfile never uses `COPY . .`). They
 # auto-mirror to the HF Space via hf-sync-backend.yml (which parses these COPY lines).
-COPY conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py ./
 
 
 
@@ -1123,7 +1086,6 @@ COPY conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py ./
 # szl_organ_health.py: same-origin /api/a11oy/v1/organ-health/<role> proxy that resolves an honest
 # role slug -> real backend healthz SERVER-SIDE (G5 root-fix so /status never serves a codename URL).
 COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js ./static/shared/
-COPY szl_codename_gate.py szl_ecosystem_routes.py szl_organ_health.py ./
 
 # --- GOVERNANCE / EVAL / CALIBRATION layer (Dev B, 2026-06): ADDITIVE ---
 # serve.py imports a11oy_governance_endpoints (try/except-guarded) which imports
@@ -1136,10 +1098,7 @@ COPY szl_codename_gate.py szl_ecosystem_routes.py szl_organ_health.py ./
 # truth for the ROE flows. 0 runtime CDN (the page uses the already-vendored
 # /vendor/chart.umd.min.js). These auto-mirror to the HF Space via the backend
 # sync workflow which parses these COPY lines.
-COPY a11oy_governance_endpoints.py szl_tau_eval.py szl_calibration.py szl_conformal.py szl_colang_policy.py szl_ietf_receipt.py ./
-COPY policy/colang/roe_core.co ./policy/colang/roe_core.co
-COPY policy/colang/killinchu_threat.co ./policy/colang/killinchu_threat.co
-COPY web/governance.html ./web/governance.html
+COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co ./policy/colang/
 # GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
 # signed evolution of Cursor's Auto-review. The classifier module runs INLINE
 # before each Action node; verdicts are Lambda-gated, DSSE-signed, mapped to
@@ -1148,14 +1107,11 @@ COPY web/governance.html ./web/governance.html
 # already-vendored /vendor/chart.umd.min.js + in-image shared label/receipt
 # engines). These COPY lines are parsed by the backend HF-sync workflow so the
 # files reach the Space (avoids the recurring "merged-but-not-live" failure).
-COPY a11oy_autoreview.py ./
-COPY web/autoreview.html ./web/autoreview.html
 COPY scripts/check_tau_eval.py ./scripts/check_tau_eval.py
 # Lean4Agent workflow-invariant scaffold (ROADMAP / EXPERIMENTAL — not a verified
 # proof yet; rendered as ROADMAP in the UI). Shipped so the .lean source is in
 # the image for audit; no Lean toolchain is invoked at runtime.
-COPY lean4agent/WorkflowInvariants.lean ./lean4agent/WorkflowInvariants.lean
-COPY lean4agent/README.md ./lean4agent/README.md
+COPY lean4agent/WorkflowInvariants.lean lean4agent/README.md ./lean4agent/
 
 # GRC ALIGNMENT surface (Lane I5) — in-product ISO 42001 / NIST AI RMF / 800-53 /
 # EU AI Act coverage matrix, 13 Λ→NIST mapping, OPA/Rego gates, OSCAL component-def,
@@ -1166,12 +1122,8 @@ COPY lean4agent/README.md ./lean4agent/README.md
 # back to a stub in the HF image (merged-but-not-live) and the copy-sync lockstep guard
 # (CHECK 2) fails. szl_cuas_formulas.py (shared, byte-identical w/ killinchu) is already
 # COPY'd above for the active-flux router + platform-dynamics math.
-COPY a11oy_grc.py a11oy_grc_data.py a11oy_grc_restraint.py ./
 COPY compliance/oscal/a11oy-component-definition.json ./compliance/oscal/a11oy-component-definition.json
-COPY compliance/rego/classification_boundary.rego ./compliance/rego/classification_boundary.rego
-COPY compliance/rego/human_override_required.rego ./compliance/rego/human_override_required.rego
-COPY compliance/rego/deployment_readiness.rego ./compliance/rego/deployment_readiness.rego
-COPY compliance/rego/manifest.json ./compliance/rego/manifest.json
+COPY compliance/rego/classification_boundary.rego compliance/rego/human_override_required.rego compliance/rego/deployment_readiness.rego compliance/rego/manifest.json ./compliance/rego/
 
 # HOLOGRAPHIC 3D ENERGY SHOWCASE (Lane energy/06, 2026-06-14). The shared szl3d 3D
 # toolkit (Dev0 foundation) + the 16-19 graph energy showcase. serve.py imports the
@@ -1185,13 +1137,11 @@ COPY compliance/rego/manifest.json ./compliance/rego/manifest.json
 # like `COPY console/ ./static/`. Directory COPYs are image-only per the guard (CHECK 3
 # only flags per-file served assets); the two web/*.html pages below are per-file and are
 # therefore declared in .github/copy-sync-lockstep.json image_only_assets.
-COPY szl3d_holographic.py ./
+COPY a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_endpoints.py a11oy_vertical_feeds.py a11oy_deva_feeds.py a11oy_devb_endpoints.py a11oy_amaru_feeds.py szl_governance_gateway.py szl_abacus_verify.py szl_decision_uncertainty.py szl_gor_audit.py szl_sovereign_search.py szl_consensus_clusters.py szl_mission_ledger.py szl_budget_router.py szl_wave910_proofs.py szl_evidence_research.py szl_uds_fleet.py szl_readiness.py szl_quantum_bio.py szl_mosaic_governance.py szl_unified_formulas.py szl_cuas_formulas.py szl_contracting.py szl_bounties.py szl_putnam.py szl_connectors_serve.py szl_connector_mcp.py szl_conjecture_factory.py szl_hf_bucket.py szl_metrics_prom.py szl_research_infra.py szl_dark_surfaces_register.py szl_anatomy_loop.py conduction_aphasia.py szl_a11oy_live_feeds.py szl_jack.py szl_codename_gate.py szl_ecosystem_routes.py szl_organ_health.py a11oy_governance_endpoints.py szl_tau_eval.py szl_calibration.py szl_conformal.py szl_colang_policy.py szl_ietf_receipt.py a11oy_autoreview.py a11oy_grc.py a11oy_grc_data.py a11oy_grc_restraint.py szl3d_holographic.py ./
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # page (/energy, mirrored to the SZLHOLDINGS/energy Space). Both load the shared showcase
 # module above via the same-origin importmap. Per-file served assets -> image_only_assets.
-COPY web/energy-holographic.html ./web/energy-holographic.html
-COPY web/energy.html ./web/energy.html
 # 3D Holographic Energy View (/energy-3d, /a11oy/energy-3d): standalone sovereign
 # WebGL page + its ES module. The page (web/energy-3d.html) is served via _ptg_serve
 # from /app/web/; its Three.js GPGPU particle + node-edge module (static/energy_3d.js)
@@ -1199,16 +1149,13 @@ COPY web/energy.html ./web/energy.html
 # vendor3d Three.js r160 (MIT) above via the page importmap — 0 runtime CDN. Per-file
 # served assets -> declared image_only in copy-sync-lockstep.json. Without these COPYs
 # the route falls through to the SPA shell and the module 404s. Doctrine v11.
-COPY web/energy-3d.html ./web/energy-3d.html
 COPY static/energy_3d.js ./static/energy_3d.js
 # Grid Energy Harvest honest dashboard (/energy-harvest); served via _ptg_serve from /app/web/.
-COPY web/energy-harvest.html ./web/energy-harvest.html
 # Immune (Hukulla) honest egress-gate page (/immune, /a11oy/immune). Standalone
 # sovereign page (0 runtime CDN), binds to live /api/a11oy/v1/immune/* (status/
 # gates/feed + a live inspect->verdict box showing real deny/allow + signed Khipu
 # receipt digest). Per-file served asset -> declared image_only in copy-sync-
 # lockstep.json (same baked-only pattern as web/energy.html). Codename-free.
-COPY web/immune.html ./web/immune.html
 # Materials (Q'allariy) honest Verifiable Alloy & Crystal Discovery page (/materials,
 # /a11oy/materials). Standalone sovereign page (0 runtime CDN), binds to live
 # /api/a11oy/v1/materials/* (novelty/certify/screen) + /immune/verdict fallback; a
@@ -1217,7 +1164,7 @@ COPY web/immune.html ./web/immune.html
 # GitHub-built image via this per-file COPY, served from /app/web/) and declared an
 # accepted divergence in .github/hf-module-drift-allow.json (same baked-only pattern
 # as web/immune.html + web/energy.html). Codename-free.
-COPY web/materials.html ./web/materials.html
+COPY web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html ./web/
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build

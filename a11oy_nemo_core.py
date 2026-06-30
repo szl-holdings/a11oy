@@ -695,7 +695,7 @@ def tiers_view():
         "node_serving_now": (_served_model or None),
         "base_model": NEMO_BASE["default_base"] + " (open base, " +
                       NEMO_BASE["default_base_license"] + ")",
-        "plan": ("2 GPUs (a11oy.net GPU + RTX 4000): vLLM TP=2 OR heterogeneous "
+        "plan": ("2 GPUs (a-11-oy.com GPU + RTX 4000): vLLM TP=2 OR heterogeneous "
                  "role-split (RTX 4000 = Auto-Review classifier + speculative draft + "
                  "embeddings). Per NEMOTRON_TWO_GPU_PLAN.md."),
         "base_url": base_url,
