@@ -8297,7 +8297,10 @@ except Exception as _kl_e:
 
 _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/live/", "v1/code/", "v1/seismic/", "v1/feeds/",
-                              "v1/govern/")
+                              "v1/govern/",
+                              "v1/verify/intoto",      # in-toto verify guide (szl_intoto_routes)
+                              "v1/khipu/intoto/",      # in-toto receipt views (szl_intoto_routes)
+                              )
 
 
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
