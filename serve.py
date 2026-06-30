@@ -8351,6 +8351,27 @@ print("[a11oy] in-toto verify guide registered: /api/a11oy/v1/verify/intoto (DEV
 
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
+    # DEV2: in-toto verify guide + inclusion proof — served in-process, NOT proxied
+    if path == "v1/verify/intoto":
+        return JSONResponse({
+            "title": "SZL a11oy in-toto Verification Guide",
+            "what_is_now_verifiable": {
+                "1_dsse_signature": {"status": "LIVE", "description": "payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig"},
+                "2_intoto_statement_v1": {"status": "LIVE", "description": "_type: https://in-toto.io/Statement/v1, predicateType: https://szl.holdings/khipu-governed-inference/v1", "endpoint": "/khipu/intoto/<receipt_id>"},
+                "3_hard_binding": {"status": "LIVE", "description": "subject.digest = SHA3-256(output). C2PA pattern."},
+                "4_merkle_log": {"status": "LIVE", "description": "RFC 6962 SHA3-256 self-hosted log.", "proof_endpoint": "/api/lake/v1/proof/<id>", "log_endpoint": "/api/lake/v1/log", "honest_label": "szl-lake-merkle (self-hosted) — NOT Sigstore Rekor"},
+            },
+            "what_is_roadmap": {
+                "per_receipt_public_rekor": "ROADMAP: submit to rekor.sigstore.dev on Lake publish",
+                "slsa_l2": "ROADMAP: actions/attest-build-provenance in CI",
+                "tee": "ROADMAP Phase II: AWS Nitro PCR",
+            },
+            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+            "pr": "https://github.com/szl-holdings/a11oy/pull/567",
+            "public_key_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
+            "_dev": "DEV2 in-toto attestation layer (szl_intoto.py)",
+        })
+
     if path.startswith(_LOCAL_ONLY_A11OY_PREFIXES):
         return JSONResponse(
             {"error": "local route unmatched — not proxied to Node backend",
