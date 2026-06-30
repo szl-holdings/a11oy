@@ -142,6 +142,51 @@ def _conformal_floor(n: int) -> float:
 
 
 # --------------------------------------------------------------------------- #
+# OPTIONAL Wallpa (VOICE organ) FINALIZE fold-in — additive, default OFF.
+# Gated by A11OY_WALLPA_FINALIZE; when disabled or Wallpa is unreachable the
+# loop is byte-for-byte unchanged (honest skip, never fabricated). Doctrine
+# v13 §2.2: Wallpa expresses the governed answer; its receipt hash + factor
+# fold into the FINALIZE Khipu chain / Λ-gate as an admissible [0,1] factor.
+# --------------------------------------------------------------------------- #
+def _wallpa_finalize_enabled() -> bool:
+    return (os.environ.get("A11OY_WALLPA_FINALIZE") or "").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _wallpa_speak_final(answer: str, timeout: float = 6.0) -> Optional[dict[str, Any]]:
+    """Best-effort call to the live Wallpa speak path; honest None on any failure.
+
+    Returns {"wallpa_factor", "khipu_hash", "audio_sha3", "voice"} on success.
+    Never raises, never fabricates: if Wallpa is unreachable we return None and
+    the caller records an honest skip (behavior otherwise unchanged).
+    """
+    text = (answer or "").strip()
+    if not text:
+        return None
+    import urllib.request
+    url = (os.environ.get("A11OY_WALLPA_URL")
+           or "http://127.0.0.1:7860/api/a11oy/wallpa/speak").strip()
+    voice = (os.environ.get("A11OY_WALLPA_VOICE") or "amaru-voice").strip()
+    # Cap the spoken text so FINALIZE stays bounded (synthesis is per-word).
+    payload = json.dumps({"text": text[:600], "voice": voice}).encode("utf-8")
+    try:
+        req = urllib.request.Request(
+            url, data=payload, method="POST",
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read())
+    except Exception:
+        return None
+    receipt = data.get("khipu_receipt") or {}
+    return {
+        "wallpa_factor": data.get("wallpa_factor"),
+        "khipu_hash": receipt.get("hash") if isinstance(receipt, dict) else None,
+        "audio_sha3": data.get("audio_transcript_sha3"),
+        "voice": data.get("voice", voice),
+    }
+
+
+# --------------------------------------------------------------------------- #
 # M2M envelope (machine-to-machine step record)
 # --------------------------------------------------------------------------- #
 @dataclass
@@ -637,15 +682,32 @@ class AgentLoop:
                 completion = {"text": f"[honest error: model_complete failed: {str(exc)[:200]}]",
                               "model": "error", "stub": True}
             conf = _conformal_floor(len(grounded))
+            # OPTIONAL Wallpa (VOICE) fold-in — additive, default OFF. When enabled
+            # and Wallpa is reachable, the governed answer is expressed and Wallpa's
+            # factor folds in as an extra admissible [0,1] gate axis (can only gate
+            # harder, never inflate). Disabled / unreachable ⇒ honest skip.
+            wallpa: dict[str, Any] = {"status": "DISABLED"}
+            gate_axes = [0.96, conf, 0.95 if grounded else 0.6]
+            if _wallpa_finalize_enabled():
+                spoken = _wallpa_speak_final(completion.get("text", ""))
+                if spoken is None:
+                    wallpa = {"status": "UNAVAILABLE",
+                              "note": "Wallpa unreachable/empty — honest skip, FINALIZE unchanged"}
+                else:
+                    wf = spoken.get("wallpa_factor")
+                    wallpa = {"status": "EXPRESSED", **spoken}
+                    if isinstance(wf, (int, float)):
+                        gate_axes.append(max(0.0, min(1.0, float(wf))))
             env = M2MEnvelope(step=step_no, state=S_FINALIZE,
                               intent="synthesize grounded, cited answer",
                               conformal=conf, note=("i_dont_know" if i_dont_know else "grounded"))
-            env = self._gate_step(env, [0.96, conf, 0.95 if grounded else 0.6])
+            env = self._gate_step(env, gate_axes)
             _record(env)
             rec = self.khipu_emit("agent.finalize", {
                 "run_id": self.run_id, "steps": step_no, "grounded": len(grounded),
                 "i_dont_know": i_dont_know, "stub": bool(completion.get("stub")),
-                "reflect_depth": reflect_depth})
+                "reflect_depth": reflect_depth,
+                "wallpa": wallpa})
             return {
                 "ok": True,
                 "run_id": self.run_id,
@@ -665,6 +727,7 @@ class AgentLoop:
                            "lambda_floor": self.lambda_floor},
                 "khipu_hash": rec.get("hash"),
                 "chain_verified": rec.get("chain_verified", True),
+                "wallpa": wallpa,
             }
 
     def _halt(self, steps: list[dict[str, Any]], reason: str, task: str,
