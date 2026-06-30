@@ -754,9 +754,9 @@ def tiers_panel() -> dict:
             "tier": "sovereign-local · TENSOR-PARALLEL TP=2",
             "where": "gpu",
             "sovereign": bool(reachable),
-            "config": "vLLM --tensor-parallel-size 2 shards ONE larger model across a11oy.net GPU + RTX 4000",
+            "config": "vLLM --tensor-parallel-size 2 shards ONE larger model across a-11-oy.com GPU + RTX 4000",
             "fits": "e.g. Qwen3-32B comfortably, or a quantized Nemotron-3-Super across combined VRAM",
-            "gpus": [per_gpu("a11oy.net GPU"), per_gpu("NVIDIA RTX 4000 (Ada, ~20GB)")],
+            "gpus": [per_gpu("a-11-oy.com GPU"), per_gpu("NVIDIA RTX 4000 (Ada, ~20GB)")],
             "label": "MEASURED" if reachable else "ROADMAP",
         },
         {
@@ -766,7 +766,7 @@ def tiers_panel() -> dict:
             "config": ("main GPU = primary agent model; RTX 4000 = dedicated governance/draft GPU: "
                        "Auto-Review CLASSIFIER + speculative-decode DRAFT (Qwen2.5-Coder-1.5B) + embeddings"),
             "fits": "keeps the main GPU from stalling on inline review/draft — best fit for our agent+Auto-Review arch",
-            "gpus": [per_gpu("a11oy.net GPU · primary model"),
+            "gpus": [per_gpu("a-11-oy.com GPU · primary model"),
                      per_gpu("RTX 4000 · classifier+draft+embeddings")],
             "label": "MEASURED" if reachable else "ROADMAP",
         },

@@ -57,6 +57,7 @@ DEMO_CRITICAL_ROUTES = [
     "/ungoverned-vs-a11oy",                   # investor-WOW deep-link → /console#wowtoggle
     "/vs",                                    # investor-WOW deep-link → /console#wowtoggle
     "/compare",                               # investor-WOW deep-link → /console#wowtoggle
+    "/demo-cosign.pub",                        # GAP 1 — demo-signing-key public key for /verify (Option B)
 ]
 
 

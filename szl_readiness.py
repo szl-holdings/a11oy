@@ -53,7 +53,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
 
-_UA = "szl-readiness/1.0 (+https://a11oy.net; operational-readiness layer)"
+_UA = "szl-readiness/1.0 (+https://a-11-oy.com; operational-readiness layer)"
 _GH_API = "https://api.github.com/"
 _HF_API = "https://huggingface.co/api/"
 
@@ -76,7 +76,7 @@ def _envbase(ns: str, default: str) -> str:
 
 
 def _a11oy_cfg() -> Dict[str, Any]:
-    base = _envbase("a11oy", "https://a11oy.net")
+    base = _envbase("a11oy", "https://a-11-oy.com")
     api = base + "/api/a11oy/v1"
     return {
         "organ": "a11oy",
@@ -84,7 +84,7 @@ def _a11oy_cfg() -> Dict[str, Any]:
         "branch": "main",
         "hf_space": "SZLHOLDINGS/a11oy",
         "deployment": {
-            "name": "a11oy.net",
+            "name": "a-11-oy.com",
             "base": base,
             "healthz_url": base + "/healthz",
             "version_url": api + "/version",
@@ -104,7 +104,7 @@ def _a11oy_cfg() -> Dict[str, Any]:
 
 
 def _killinchu_cfg() -> Dict[str, Any]:
-    base = _envbase("killinchu", "https://killinchu.a11oy.net")
+    base = _envbase("killinchu", "https://killinchu.a-11-oy.com")
     api = base + "/api/killinchu/v1"
     return {
         "organ": "killinchu",
@@ -112,7 +112,7 @@ def _killinchu_cfg() -> Dict[str, Any]:
         "branch": "main",
         "hf_space": "SZLHOLDINGS/killinchu",
         "deployment": {
-            "name": "killinchu.a11oy.net",
+            "name": "killinchu.a-11-oy.com",
             "base": base,
             "healthz_url": base + "/healthz",
             "version_url": api + "/version",
@@ -120,8 +120,8 @@ def _killinchu_cfg() -> Dict[str, Any]:
                 {"id": "elite", "role": "app",
                  "title": "Elite console", "url": base + "/elite"},
                 {"id": "path", "role": "site",
-                 "title": "Path mount (a11oy.net/killinchu)",
-                 "url": _envbase("a11oy", "https://a11oy.net") + "/killinchu"},
+                 "title": "Path mount (a-11-oy.com/killinchu)",
+                 "url": _envbase("a11oy", "https://a-11-oy.com") + "/killinchu"},
                 {"id": "healthz", "role": "health",
                  "title": "Liveness probe", "url": base + "/healthz"},
                 {"id": "api", "role": "api",

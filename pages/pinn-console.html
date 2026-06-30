@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>a11oy — Governed Inverse-PINN Console</title>
+<!--
+  Governed Inverse-PINN Console — runs the LIVE governed parameter-discovery
+  engine at POST /api/a11oy/v1/pinn/identify and SHOWS the governance:
+  the discovered parameter(s) with 95% CI, the GREEN/YELLOW/RED convergence
+  badge, the FIM identifiability / self-doubt result (the REFUSAL is the hero
+  honesty moment), the Lambda advisory (Conjecture 1, advisory, never a proof,
+  never 1.0), the F19/Bekenstein check (PROVEN inequality APPLIED, not
+  re-claimed), and the signed receipt + a verify link to the Khipu ledger.
+
+  Doctrine v11 LOCKED. Values are MODELED (a fit to data, never MEASURED).
+  Locked-proven = 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Lambda = Conjecture 1.
+  Pure HTML/JS/CSS — 0 runtime CDN, no server-side numpy. Reuses the
+  pages/verify.html design system (CSS variables, JetBrains Mono, chips).
+-->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap');
+
+  :root {
+    --bg:        #0a0c0f;
+    --bg-panel:  #111318;
+    --bg-card:   #16191f;
+    --border:    #2a2d35;
+    --border-hi: #3d4250;
+    --text:      #e8eaf0;
+    --text-dim:  #8891a8;
+    --text-mute: #4a5068;
+    --accent:    #6c8ef5;
+    --accent-hi: #8aaaf8;
+    --green:     #4ade80;
+    --amber:     #f59e0b;
+    --red:       #f87171;
+    --teal:      #39d3c4;
+    --gold:      #e8c074;
+    --mono:      'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --sans:      'Cabinet Grotesk', 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --radius:    8px;
+    --radius-lg: 14px;
+    --shadow:    0 2px 12px rgba(0,0,0,0.5);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ---- header ---- */
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-panel);
+  }
+  .logo-mark { width: 32px; height: 32px; flex-shrink: 0; }
+  .site-title { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+  .site-tagline { font-size: 12px; color: var(--text-dim); margin-left: auto; }
+  .nav-back {
+    font-size: 12px; color: var(--text-dim);
+    text-decoration: none;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px;
+    transition: border-color .15s, color .15s;
+  }
+  .nav-back:hover { border-color: var(--accent); color: var(--accent-hi); }
+
+  /* ---- layout ---- */
+  .page { max-width: 920px; margin: 0 auto; padding: 48px 24px 80px; }
+  .page-hero { margin-bottom: 40px; }
+  .page-hero h1 {
+    font-size: 28px; font-weight: 800; letter-spacing: -0.03em;
+    line-height: 1.2; margin-bottom: 10px;
+  }
+  .page-hero p { color: var(--text-dim); max-width: 660px; }
+  .page-hero .eq {
+    font-family: var(--mono); font-size: 12px; color: var(--teal);
+    background: #051e24; border: 1px solid #0e4a57;
+    border-radius: 6px; padding: 8px 12px; margin-top: 14px;
+    display: inline-block;
+  }
+
+  /* ---- sections ---- */
+  .section {
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .section-head { background: var(--bg-panel); padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .section-head h2 {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-dim);
+    border: 1px solid var(--border-hi); border-radius: 4px; padding: 2px 6px;
+  }
+  .section-head p { font-size: 13px; color: var(--text-dim); max-width: 660px; }
+  .section-body { padding: 24px; background: var(--bg-card); }
+  .moat-line { font-size: 12px; color: var(--text-dim); font-style: italic; margin-top: 8px; }
+
+  /* ---- chip / badges ---- */
+  .chip {
+    display: inline-block; border-radius: 4px;
+    padding: 2px 8px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+  .chip-green { background: #052e12; border-color: #166534; color: var(--green); }
+  .chip-amber { background: #2d1e00; border-color: #92400e; color: var(--amber); }
+  .chip-red   { background: #2d0f0f; border-color: #991b1b; color: var(--red); }
+  .chip-info  { background: #0d1533; border-color: #1e3a8a; color: var(--accent-hi); }
+  .chip-dim   { background: #1a1d24; border-color: var(--border); color: var(--text-dim); }
+  .chip-teal  { background: #051e24; border-color: #0e4a57; color: var(--teal); }
+
+  /* ---- buttons ---- */
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .btn {
+    padding: 12px 20px; border-radius: var(--radius);
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent;
+    transition: opacity .15s, transform .05s, background .15s; outline: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-green { background: #052e12; border-color: #166534; color: var(--green); }
+  .btn-green:hover { background: #14532d; }
+  .btn-red { background: #2d0f0f; border-color: #991b1b; color: var(--red); }
+  .btn-red:hover { background: #450a0a; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sub { font-size: 11px; font-weight: 400; color: var(--text-dim); display: block; margin-top: 2px; }
+
+  /* ---- verdict banner ---- */
+  .verdict-banner {
+    border-radius: var(--radius); padding: 16px 22px;
+    margin-bottom: 18px; font-size: 16px; font-weight: 800;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    border: 1px solid transparent; letter-spacing: -0.01em;
+  }
+  .verdict-green { background: #052e12; border-color: #166534; color: var(--green); }
+  .verdict-amber { background: #2d1e00; border-color: #92400e; color: var(--amber); }
+  .verdict-red   { background: #2d0f0f; border-color: #991b1b; color: var(--red); }
+  .verdict-dim   { background: var(--bg-panel); border-color: var(--border); color: var(--text-dim); font-weight: 600; font-size: 14px; }
+  .verdict-banner .vsub { font-size: 12px; font-weight: 400; color: var(--text-dim); margin-left: auto; }
+
+  /* ---- param cards ---- */
+  .param-grid { display: grid; gap: 14px; }
+  .param-card {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .param-card.asserted { border-color: #166534; }
+  .param-card.refused  { border-color: #991b1b; background: #1a0f0f; }
+  .param-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .param-name { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--gold); }
+  .param-value {
+    font-family: var(--mono); font-size: 28px; font-weight: 800;
+    color: var(--green); line-height: 1.1; margin: 4px 0;
+  }
+  .param-value.null { color: var(--red); font-size: 22px; }
+  .param-ci { font-family: var(--mono); font-size: 13px; color: var(--text-dim); }
+  .refusal-box {
+    background: #2d0f0f; border: 1px solid #991b1b; border-left: 4px solid var(--red);
+    border-radius: var(--radius); padding: 14px 16px; margin-top: 6px;
+    font-size: 13px; color: #fecaca; line-height: 1.55;
+  }
+  .refusal-box .rh { font-weight: 800; color: var(--red); display: block; margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+
+  /* ---- metric rows ---- */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; margin: 4px 0; }
+  .metric {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px;
+  }
+  .metric-k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-mute); }
+  .metric-v { font-family: var(--mono); font-size: 14px; color: var(--text); margin-top: 2px; word-break: break-all; }
+  .metric-v.green { color: var(--green); }
+  .metric-v.red { color: var(--red); }
+  .metric-v.teal { color: var(--teal); }
+
+  /* ---- conjecture chip ---- */
+  .conj {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; border-radius: 4px; padding: 2px 7px;
+    border: 1px solid #92400e; background: #2d1e00; color: var(--amber);
+  }
+
+  /* ---- output / hash ---- */
+  .hash-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .hash-label { font-size: 11px; color: var(--text-dim); min-width: 110px; }
+  .hash-val {
+    font-family: var(--mono); font-size: 11px; color: var(--text);
+    background: var(--bg); border-radius: 4px; padding: 3px 7px;
+    border: 1px solid var(--border); word-break: break-all;
+  }
+  .lambda-big {
+    font-family: var(--mono); font-size: 40px; font-weight: 800;
+    color: var(--amber); line-height: 1;
+  }
+  .status-line { font-size: 12px; color: var(--text-dim); margin-top: 10px; min-height: 18px; }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .7s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .small { font-size: 12px; color: var(--text-dim); }
+
+  /* ---- corpus / honesty footer ---- */
+  .corpus-diagram { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0 14px; }
+  .corpus-tier { flex: 1; min-width: 150px; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--bg-panel); }
+  .corpus-count { font-size: 30px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+  .corpus-count.proven { color: var(--green); }
+  .corpus-count.wired  { color: var(--amber); }
+  .corpus-count.total  { color: var(--accent-hi); }
+  .corpus-tier-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin: 4px 0 8px; }
+  .corpus-tier-desc { font-size: 12px; color: var(--text-dim); }
+  .never-claim {
+    background: #2d1e00; border: 1px solid #92400e; border-radius: var(--radius);
+    padding: 12px 16px; font-size: 13px; color: var(--amber); margin-top: 6px;
+  }
+  .footer { border-top: 1px solid var(--border); padding: 24px; color: var(--text-mute); font-size: 12px; text-align: center; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hi); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="site-header">
+  <svg class="logo-mark" viewBox="0 0 32 32" fill="none" aria-label="a11oy">
+    <rect width="32" height="32" rx="7" fill="#1e3a8a"/>
+    <path d="M8 24 L16 8 L24 24" stroke="#6c8ef5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="16" cy="16" r="2.5" fill="#8aaaf8"/>
+  </svg>
+  <span class="site-title">a11oy</span>
+  <span class="site-tagline">Governed Inference · Verifiable by Design</span>
+  <a href="/console" class="nav-back">← Console</a>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="page">
+
+  <div class="page-hero">
+    <h1>Governed Inverse-PINN Console</h1>
+    <p>
+      Discover an unknown <strong>physical</strong> parameter of an ODE from data + physics —
+      then watch the governance work. Every discovered value is <span class="chip chip-info">MODELED</span>
+      (a fit to data, never MEASURED), carries a 95% confidence interval, a GREEN/YELLOW/RED convergence
+      badge, a Fisher-information self-doubt gate that <em>refuses</em> non-identifiable parameters,
+      a Λ advisory, an F19/Bekenstein plausibility check, and a signed Khipu receipt you can re-verify.
+    </p>
+    <span class="eq">Duffing oscillator&nbsp;&nbsp;m·x″ + c·x′ + δ·x + <strong>α</strong>·x³ = F·cos(ωt)&nbsp;&nbsp;— α is unknown</span>
+  </div>
+
+  <!-- ===== RUN ===== -->
+  <section class="section">
+    <div class="section-head">
+      <h2><span class="section-label">Run</span> Identify a parameter</h2>
+      <p>
+        Two one-click cases hit the LIVE engine at <code>POST /api/a11oy/v1/pinn/identify</code>.
+        The honesty story tells itself: one converges and asserts; one is non-identifiable and the engine refuses.
+      </p>
+    </div>
+    <div class="section-body">
+      <div class="btn-row">
+        <button class="btn btn-green" id="btn-green" onclick="runIdentify('green')">
+          Run Duffing demo (GREEN)
+          <span class="btn-sub">identify α — converges, asserts with CI</span>
+        </button>
+        <button class="btn btn-red" id="btn-red" onclick="runIdentify('red')">
+          Run non-identifiable case (RED — see it refuse)
+          <span class="btn-sub">ask for α + a ghost param — engine REFUSES</span>
+        </button>
+      </div>
+      <div id="status" class="status-line"></div>
+    </div>
+  </section>
+
+  <!-- ===== RESULTS ===== -->
+  <div id="results" class="hidden">
+
+    <!-- convergence verdict -->
+    <section class="section">
+      <div class="section-head">
+        <h2><span class="section-label">1</span> Convergence</h2>
+        <p>The 3-state governance verdict from the causal-weight / gradient / FIM-conditioning criteria.</p>
+      </div>
+      <div class="section-body">
+        <div id="verdict" class="verdict-banner verdict-dim">—</div>
+        <div class="metric-grid" id="conv-metrics"></div>
+      </div>
+    </section>
+
+    <!-- discovered params -->
+    <section class="section">
+      <div class="section-head">
+        <h2><span class="section-label">2</span> Discovered parameter(s)</h2>
+        <p>
+          Each value is <span class="chip chip-info">MODELED</span> with a 95% CI. A parameter the
+          self-doubt gate cannot support is <strong>REFUSED</strong> verbatim — no value invented.
+        </p>
+        <p class="moat-line">"We don't report what we can't support."</p>
+      </div>
+      <div class="section-body">
+        <div id="params" class="param-grid"></div>
+      </div>
+    </section>
+
+    <!-- self-doubt / FIM -->
+    <section class="section">
+      <div class="section-head">
+        <h2><span class="section-label">3</span> Identifiability — the self-doubt gate</h2>
+        <p>
+          Fisher Information Matrix conditioning decides whether the data actually constrain the
+          parameter. κ(FIM) → ∞ or Fisher below floor ⇒ <strong>UNIDENTIFIABLE</strong> ⇒ the engine refuses.
+        </p>
+      </div>
+      <div class="section-body">
+        <div class="metric-grid" id="fim-metrics"></div>
+      </div>
+    </section>
+
+    <!-- lambda advisory -->
+    <section class="section">
+      <div class="section-head">
+        <h2><span class="section-label">4</span> Λ advisory</h2>
+        <p>
+          A single advisory trust score. <span class="conj">Conjecture 1 — advisory, NOT a theorem</span>
+          — capped ≤ 0.99, <strong>never a proof, never 1.0</strong>.
+        </p>
+      </div>
+      <div class="section-body">
+        <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+          <div>
+            <div class="lambda-big" id="lambda-val">—</div>
+            <div class="small" id="lambda-status"></div>
+          </div>
+          <div class="small" id="lambda-basis" style="max-width:420px;"></div>
+        </div>
+        <div class="metric-grid" id="lambda-factors" style="margin-top:14px;"></div>
+      </div>
+    </section>
+
+    <!-- bekenstein / F19 -->
+    <section class="section">
+      <div class="section-head">
+        <h2><span class="section-label">5</span> F19 / Bekenstein check</h2>
+        <p>
+          The Bekenstein bound (F19) is a <strong>locked-proven inequality</strong> — here it is
+          <em>applied</em>, not re-claimed. It checks the discovery doesn't encode more information
+          than the system can physically hold.
+        </p>
+      </div>
+      <div class="section-body">
+        <div id="bek" class="small">—</div>
+      </div>
+    </section>
+
+    <!-- receipt -->
+    <section class="section">
+      <div class="section-head">
+        <h2><span class="section-label">6</span> Signed receipt + ledger</h2>
+        <p>
+          The discovery is sealed as a DSSE-enveloped Khipu receipt in the unified ledger organ
+          <code>a11oy-pinn</code>. Signature state is shown exactly as returned — never faked.
+        </p>
+      </div>
+      <div class="section-body">
+        <div id="receipt"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== HONESTY FOOTER ===== -->
+  <section class="section">
+    <div class="section-head">
+      <h2><span class="section-label">Doctrine</span> Honest labels</h2>
+      <p>What is proven, what is wired, what is advisory. The half-state — claiming more than is real — is the only unacceptable outcome.</p>
+    </div>
+    <div class="section-body">
+      <div class="corpus-diagram">
+        <div class="corpus-tier">
+          <div class="corpus-count proven">8</div>
+          <div class="corpus-tier-label">Locked-proven</div>
+          <div class="corpus-tier-desc">No-axiom theorems {F1,F4,F7,F11,F12,F18,F19,F22}. F19 Bekenstein is one of them — applied here, not re-claimed.</div>
+        </div>
+        <div class="corpus-tier">
+          <div class="corpus-count wired">~35</div>
+          <div class="corpus-tier-label">Wired</div>
+          <div class="corpus-tier-desc">Formulas wired into live governed surfaces (advisory / MODELED applications).</div>
+        </div>
+        <div class="corpus-tier">
+          <div class="corpus-count total">~185</div>
+          <div class="corpus-tier-label">Corpus</div>
+          <div class="corpus-tier-desc">Total formula corpus under study. Most are not promoted to locked.</div>
+        </div>
+      </div>
+      <div class="never-claim">
+        Discovered values are <strong>MODELED</strong> (a fit to data, never MEASURED). Λ is
+        <strong>Conjecture 1</strong> — advisory, capped ≤ 0.99, never a theorem, never 1.0. The Bekenstein
+        bound is a PROVEN inequality whose <em>application</em> here is MODELED. Receipts are signed or
+        unsigned exactly as the engine returns — never fabricated.
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  a11oy · Governed Inverse-PINN · Doctrine v11 LOCKED · values MODELED · Λ = Conjecture 1 ·
+  <a href="/console">Console</a> · <a href="/verify">Verify</a>
+</footer>
+
+<script>
+"use strict";
+
+const API = "/api/a11oy/v1/pinn/identify";
+const VERIFY_BASE = "/api/a11oy/v1/khipu/verify/";
+
+const PRESETS = {
+  green: { demo: "duffing" },
+  red:   { demo: "duffing", unknowns: ["alpha", "ghost"] }
+};
+
+function el(id) { return document.getElementById(id); }
+function fmt(x, d = 6) {
+  if (x === null || x === undefined) return "null";
+  if (typeof x === "string") return x;           // already coerced (e.g. "Infinity")
+  if (!isFinite(x)) return String(x);
+  const a = Math.abs(x);
+  if (a !== 0 && (a < 1e-3 || a >= 1e6)) return x.toExponential(2);
+  return Number(x.toFixed(d)).toString();
+}
+function badgeClass(label) {
+  if (label === "GREEN") return "green";
+  if (label === "YELLOW") return "amber";
+  if (label === "RED") return "red";
+  return "dim";
+}
+
+async function runIdentify(kind) {
+  const bg = el("btn-green"), br = el("btn-red");
+  bg.disabled = true; br.disabled = true;
+  el("status").innerHTML = '<span class="spinner"></span>Calling the live governed engine at ' + API + ' …';
+  el("results").classList.add("hidden");
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(PRESETS[kind])
+    });
+    const data = await res.json();
+    if (!res.ok && !data.convergence) {
+      el("status").innerHTML = '<span style="color:var(--red)">Engine returned ' + res.status +
+        ' — ' + (data.error || "unexpected") + '</span>';
+      return;
+    }
+    render(data);
+    el("status").innerHTML = 'Live response received (HTTP ' + res.status +
+      ') · system <code>' + (data.system || "?") + '</code> · honest label MODELED.';
+  } catch (e) {
+    el("status").innerHTML = '<span style="color:var(--red)">Network error: ' + e + '</span>';
+  } finally {
+    bg.disabled = false; br.disabled = false;
+  }
+}
+
+function render(d) {
+  el("results").classList.remove("hidden");
+  const conv = d.convergence || {};
+  const label = conv.label || "—";
+
+  // ---- verdict ----
+  const v = el("verdict");
+  v.className = "verdict-banner verdict-" + badgeClass(label);
+  let head = "Convergence: " + label;
+  if (label === "GREEN") head += " — parameter asserted";
+  else if (label === "RED") head += " — the engine REFUSES";
+  else if (label === "YELLOW") head += " — partial / keep running";
+  v.innerHTML = '<span class="chip chip-' + badgeClass(label) + '">' + label + '</span>' +
+    '<span>' + head + '</span>' +
+    '<span class="vsub">' + (conv.epochs_run != null ? conv.epochs_run + " epochs" : "") + '</span>';
+
+  // ---- convergence metrics ----
+  const cm = conv.criteria || {};
+  const cmRows = [
+    ["min causal weight", cm.min_causal_weight || fmt(conv.min_causal_weight)],
+    ["grad norm",         cm.grad_norm || fmt(conv.grad_norm)],
+    ["κ(FIM)",            cm.kappa_fim || fmt(conv.kappa_fim)],
+    ["min Fisher",        cm.min_fisher || "—"],
+    ["residual rms",      fmt(conv.residual_rms)],
+    ["data rms",          fmt(conv.data_rms)]
+  ];
+  el("conv-metrics").innerHTML = cmRows.map(r =>
+    '<div class="metric"><div class="metric-k">' + r[0] + '</div><div class="metric-v">' + r[1] + '</div></div>'
+  ).join("");
+
+  // ---- discovered params ----
+  const params = d.discovered || [];
+  el("params").innerHTML = params.map(p => {
+    const pl = badgeClass(p.convergence_label);
+    if (p.asserted) {
+      const ci = p.ci95 ? "95% CI [" + fmt(p.ci95[0]) + ", " + fmt(p.ci95[1]) + "]" : "";
+      return '<div class="param-card asserted">' +
+        '<div class="param-card-head">' +
+          '<span class="param-name">' + p.name + '</span>' +
+          '<span class="chip chip-' + pl + '">' + (p.convergence_label || "—") + '</span>' +
+          '<span class="chip chip-info">MODELED</span>' +
+          '<span class="chip chip-green">IDENTIFIABLE</span>' +
+        '</div>' +
+        '<div class="param-value">' + fmt(p.value) + '</div>' +
+        '<div class="param-ci">' + ci + (p.std != null ? ' · σ ' + fmt(p.std) : '') + '</div>' +
+        '</div>';
+    }
+    // REFUSED — hero honesty moment
+    return '<div class="param-card refused">' +
+      '<div class="param-card-head">' +
+        '<span class="param-name">' + p.name + '</span>' +
+        '<span class="chip chip-' + pl + '">' + (p.convergence_label || "RED") + '</span>' +
+        '<span class="chip chip-red">REFUSED</span>' +
+      '</div>' +
+      '<div class="param-value null">value = null</div>' +
+      '<div class="refusal-box"><span class="rh">Self-doubt gate · not asserted</span>' +
+        (p.refusal || "UNIDENTIFIABLE: the engine refuses to assert this parameter.") + '</div>' +
+      '</div>';
+  }).join("");
+
+  // ---- FIM / self-doubt ----
+  const anyRefused = params.some(p => !p.asserted);
+  const fimRows = [
+    ["κ(FIM)", cm.kappa_fim || fmt(conv.kappa_fim), badgeClass(label) === "red" ? "red" : "green"],
+    ["min Fisher", cm.min_fisher || "—", ""],
+    ["gate", anyRefused ? "REFUSED ≥1 parameter" : "all parameters identifiable",
+      anyRefused ? "red" : "green"]
+  ];
+  el("fim-metrics").innerHTML = fimRows.map(r =>
+    '<div class="metric"><div class="metric-k">' + r[0] + '</div><div class="metric-v ' + (r[2]||"") + '">' + r[1] + '</div></div>'
+  ).join("");
+
+  // ---- lambda ----
+  const lam = d.lambda_advisory || {};
+  el("lambda-val").textContent = (lam.value != null) ? fmt(lam.value, 4) : "—";
+  el("lambda-status").innerHTML = '<span class="conj">' + (lam.status || "ADVISORY") + '</span>';
+  el("lambda-basis").textContent = lam.basis || "Λ = Conjecture 1 (advisory, capped ≤ 0.99; NEVER a proof).";
+  const lf = lam.factors || {};
+  el("lambda-factors").innerHTML = Object.keys(lf).map(k =>
+    '<div class="metric"><div class="metric-k">' + k + '</div><div class="metric-v">' + fmt(lf[k], 4) + '</div></div>'
+  ).join("");
+
+  // ---- bekenstein (F19) ----
+  const asserted = params.find(p => p.asserted && p.bekenstein);
+  if (asserted) {
+    const b = asserted.bekenstein;
+    const ok = b.label === "PHYSICALLY_PLAUSIBLE";
+    el("bek").innerHTML =
+      '<span class="chip chip-' + (ok ? "green" : "red") + '">' + b.label + '</span>' +
+      '<div class="metric-grid" style="margin-top:12px;">' +
+        '<div class="metric"><div class="metric-k">info bits</div><div class="metric-v">' + fmt(b.info_bits, 3) + '</div></div>' +
+        '<div class="metric"><div class="metric-k">Bekenstein max bits</div><div class="metric-v">' + fmt(b.bekenstein_max_bits) + '</div></div>' +
+        '<div class="metric"><div class="metric-k">ratio</div><div class="metric-v teal">' + fmt(b.ratio) + '</div></div>' +
+        '<div class="metric"><div class="metric-k">R, E (SAMPLE)</div><div class="metric-v">' + fmt(b.radius_m) + ' m, ' + fmt(b.energy_j) + ' J</div></div>' +
+      '</div>' +
+      '<div class="small" style="margin-top:10px;">' + (b.basis || "") + '</div>';
+  } else {
+    el("bek").innerHTML = '<span class="small">No asserted parameter to check — Bekenstein is applied only to an asserted discovery (the engine refused all parameters here).</span>';
+  }
+
+  // ---- receipt ----
+  const r = d.receipt || {};
+  const ledger = d.ledger || {};
+  const lres = ledger.result || {};
+  const rid = lres.receipt_id || "";
+  const signed = (r.signed === true);
+  let html =
+    '<div class="hash-row"><span class="hash-label">signature</span>' +
+      '<span class="chip chip-' + (signed ? "green" : "amber") + '">' + (signed ? "SIGNED" : "UNSIGNED") + '</span>' +
+      '<span class="small">' + (signed ? "DSSE envelope present (payloadType " + ((r.dsse||{}).payloadType || "application/vnd.szl.ipinn+json") + ")" : "honest UNSIGNED — no cosign key in this env") + '</span>' +
+    '</div>' +
+    '<div class="hash-row"><span class="hash-label">ledger</span>' +
+      '<span class="chip chip-' + (ledger.recorded ? "green" : "dim") + '">' + (ledger.recorded ? "RECORDED" : "NOT RECORDED") + '</span>' +
+      '<span class="small">organ <code>a11oy-pinn</code>' +
+        (lres.chain_index != null ? ' · chain index ' + lres.chain_index : '') + '</span>' +
+    '</div>';
+  if (rid) {
+    html += '<div class="hash-row"><span class="hash-label">receipt id</span>' +
+      '<span class="hash-val">' + rid + '</span></div>' +
+      '<div class="hash-row"><span class="hash-label">verify</span>' +
+      '<a class="hash-val" href="' + VERIFY_BASE + rid + '" target="_blank" rel="noopener">' +
+      VERIFY_BASE + rid + ' ↗</a></div>' +
+      '<div class="small" style="margin-top:6px;">Re-verify independently — the Khipu hash-chain integrity is recomputed server-side and is publicly checkable.</div>';
+  }
+  if (lres.chain_head) {
+    html += '<hr class="divider"><div class="hash-row"><span class="hash-label">chain head</span>' +
+      '<span class="hash-val">' + lres.chain_head + '</span></div>';
+  }
+  el("receipt").innerHTML = html;
+
+  el("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+</script>
+</body>
+</html>

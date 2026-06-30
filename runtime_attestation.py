@@ -261,7 +261,7 @@ class LivenessProbe:
 
 
 def probe_liveness(
-    url: str = "https://a11oy.net/api/a11oy/v1/pinn/certificate",
+    url: str = "https://a-11-oy.com/api/a11oy/v1/pinn/certificate",
     timeout: float = 6.0,
     _opener=None,
 ) -> LivenessProbe:
@@ -329,7 +329,7 @@ def make_runtime_receipt(
     build_provenance_digest: str,
     process_id: int,
     validity_seconds: float = 300.0,   # 5 minutes — short, ATN pattern
-    liveness_url: str = "https://a11oy.net/api/a11oy/v1/pinn/certificate",
+    liveness_url: str = "https://a-11-oy.com/api/a11oy/v1/pinn/certificate",
     issued_at: Optional[float] = None,
     liveness: Optional[LivenessProbe] = None,
 ) -> RuntimeAxis:
