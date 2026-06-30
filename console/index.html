@@ -654,12 +654,15 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
         <div class="cyto" id="at-cy" style="margin-top:.6rem"></div>
         <div class="brain-note">Server-side bounded parse of the official MITRE ATT&CK v17.1 STIX (no ~50MB client download \u2014 sovereign, CORS-safe). Holographic 3D technique\u2192tactic correlation graph (Recorded-Future-style intel graph), with a 2D fallback. Tactics in teal, techniques in gold.</div></div>${HONEST}`;window.attack_load();}},
 
-  llm:{title:'Model Router',badge:'5-TIER',sub:'The platform routes each task to the right model tier by cost and capability. A real model call when a key is present, an honest stub otherwise \u2014 the tier choice and the trust receipt are always real.',
+  llm:{title:'Model Router',badge:'5-TIER \u00b7 LIVE ELO',sub:'The platform routes each task to the right model tier by cost and capability. A real model call when a key is present, an honest stub otherwise \u2014 the tier choice and the trust receipt are always real. The router can also consult a live external quality signal: LMArena human-preference Elo (advisory, \u039b Conjecture 1), with a quality\u00d7adoption frontier from Hugging Face Hub downloads. Prior art cited: LMArena, Hugging Face, Artificial Analysis, OpenRouter.',
     render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tier throughput</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="l-bars"></canvas></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Model roster</span><span class="card-ep">live</span></div><div id="l-host" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div></div>
-      <details class="raw"><summary>raw tiers</summary><pre class="out" id="l-out">loading\u2026</pre></details>${HONEST}`;
+      <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Live model leaderboard \u2014 LMArena human-preference Elo</span><span class="card-ep" id="l-lb-fresh">fetching\u2026</span></div><div id="l-lb" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Quality \u00d7 adoption frontier</span><span class="card-ep">Elo \u00d7 HF downloads</span></div><div class="chartbox" id="l-pareto" style="height:300px"></div><div class="brain-note" id="l-pareto-note">Quality = LMArena Elo, adoption = Hugging Face downloads (both live). Price / tokens-per-sec axes are ROADMAP \u2014 no measured serving feed, not fabricated.</div></div></div>
+      <details class="raw"><summary>raw tiers + live model intel</summary><pre class="out" id="l-out">loading\u2026</pre></details>${HONEST}`;
       try{const d=await getJSON(API+'/v1/llm/tiers').catch(()=>orgGet('core','/api/a11oy/v1/reason/tiers'));setOut('l-out',d);const tiers=d.tiers||[];setHTML('l-host','');tiers.forEach(t=>addHTML('l-host',`<div class="row"><span class="badge b-teal">T${esc(t.rank??'')}</span><span>${esc(t.id||t.model||'')}</span><span class="spacer mono dim">${esc(t.use||'')}</span></div>`));}catch(e){setHTML('l-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
-      try{const r=await getJSON(API+'/v1/router/stats');const routes=r.routes||[];barH('l-bars',routes.map(x=>x.organ+' \u00b7 '+(x.tier||'')),routes.map(x=>x.throughput||0),routes.map(x=>x.license==='GREEN'?TEAL:GOLD));}catch(e){}}},
+      try{const r=await getJSON(API+'/v1/router/stats');const routes=r.routes||[];barH('l-bars',routes.map(x=>x.organ+' \u00b7 '+(x.tier||'')),routes.map(x=>x.throughput||0),routes.map(x=>x.license==='GREEN'?TEAL:GOLD));}catch(e){}
+      window.models_intel_load();}},
 
   mcp:{title:'Agent Tools',badge:'LIVE',sub:'The tools the platform exposes to AI agents over the Model Context Protocol. Read the registry, then actually invoke a tool \u2014 every call returns a real, doctrine-stamped response.',
     render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tools available</span><span class="card-ep">live</span></div><div class="chartbox" style="height:220px"><canvas id="mcp-bar"></canvas></div></div>
@@ -697,7 +700,8 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="kpi"><div class="k">Run date</div><div class="v" id="ar-date">\u2014</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Per-scenario overall score</span><span class="card-ep">recorded</span></div><div class="chartbox tall"><canvas id="ar-bars"></canvas></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Scenario detail</span></div><div id="ar-host"><div class="row mono dim">loading\u2026</div></div>
-        <details class="raw"><summary>raw arena run report</summary><pre class="out" id="ar-raw">loading\u2026</pre></details></div>${HONEST}`;window.arena_load();}},
+        <details class="raw"><summary>raw arena run report</summary><pre class="out" id="ar-raw">loading\u2026</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">External benchmark \u2014 LMArena human-preference Elo</span><span class="card-ep" id="ar-lb-fresh">fetching\u2026</span></div><div class="brain-note">A separate, externally-sourced opinion (NOT a11oy's own governance eval above): live blind-pairwise human-preference Elo from the public LMArena leaderboard dataset. Cited, not claimed as ours.</div><div id="ar-lb"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;window.arena_load();window.arena_elo_load();}},
 
   business:{title:'Business Observability',badge:'5 DOMAINS \u00b7 REAL DATA',sub:'Five capability domains observed on real in-image data \u2014 coverage, connectivity, cognitive, executive interfaces, and impact. Every figure is computed from this service\u2019s own live state. We deliberately do not reproduce any third-party marketing percentages as our own.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -1003,6 +1007,33 @@ async function arena_load(){try{const d=await getJSON(API+'/v1/eval-arena');
   addHTML('ar-host',`<div class="row"><span class="badge b-gold">leaderboard</span><span>${esc(lb.agent||'')}</span><span class="spacer mono dim">score ${esc(lb.score)} \u00b7 rank ${esc(lb.rank)}</span></div>`);
   setOut('ar-raw',d);
   }catch(e){setHTML('ar-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('ar-raw','retry: '+e.message);}}
+
+// Live external model intel \u2014 LMArena Elo leaderboard + quality\u00d7adoption Pareto (HF Hub). Advisory, \u039b Conjecture 1.
+function _miFreshLabel(d){const f=(d&&d.freshness)||{};const live=d&&d.live;return (live?'live':(d&&d.label==='SAMPLE'?'SAMPLE':'unavailable'))+(f.age_s!=null?' \u00b7 '+f.age_s+'s':'');}
+async function models_intel_load(){
+  try{const d=await getJSON(API+'/v1/models/leaderboard?limit=20');const lb=d.leaderboard||[];setTxt('l-lb-fresh',_miFreshLabel(d));
+    setHTML('l-lb','');if(!d.live)addHTML('l-lb',`<div class="row"><span class="badge b-err">SAMPLE</span><span class="mono dim">${esc(d.honesty||'')} (${esc(d.as_of||'')})</span></div>`);
+    lb.forEach(r=>addHTML('l-lb',`<div class="row"><span class="badge b-gold" style="min-width:34px;text-align:center">#${esc(r.rank??'')}</span><span><b>${esc(r.model)}</b> ${r.organization?'<span class="mono dim">\u00b7 '+esc(r.organization)+'</span>':''}</span><span class="spacer badge b-teal">Elo ${esc(r.elo)}</span></div>`));
+    addHTML('l-lb',`<div class="row mono dim">${esc(d.cited||'')}</div>`);
+  }catch(e){setHTML('l-lb','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setTxt('l-lb-fresh','retry');}
+  try{const p=await getJSON(API+'/v1/models/pareto?limit=40');const pts=p.points||[],fr=p.frontier||[];const frSet=new Set(fr.map(x=>x.model));
+    setHTML('l-pareto-note',esc(p.honesty||''));
+    if(pts.length){mkEchart('l-pareto',{tooltip:{trigger:'item',formatter:o=>o.data.name+'<br/>Elo '+o.data.value[1]+'<br/>downloads '+o.data.value[0].toLocaleString()},
+      grid:{left:60,right:20,top:20,bottom:40},
+      xAxis:{type:'log',name:'HF downloads',nameLocation:'middle',nameGap:26,axisLabel:{color:'#9a9a9a'}},
+      yAxis:{type:'value',name:'LMArena Elo',scale:true,axisLabel:{color:'#9a9a9a'}},
+      series:[{type:'scatter',symbolSize:10,data:pts.map(x=>({name:x.model,value:[Math.max(1,x.downloads),x.elo],itemStyle:{color:frSet.has(x.model)?TEAL:'#6a6a6a'}}))},
+              {type:'line',lineStyle:{color:GOLD,width:2,type:'dashed'},symbol:'diamond',symbolSize:12,
+               data:fr.slice().sort((a,b)=>a.downloads-b.downloads).map(x=>({name:x.model,value:[Math.max(1,x.downloads),x.elo]})),itemStyle:{color:GOLD}}]});}
+    else{const h=el('l-pareto');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">'+esc(p.honesty||'no matched points')+'</div>';}
+  }catch(e){const h=el('l-pareto');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">retry: '+esc(e.message)+'</div>';}}
+window.models_intel_load=models_intel_load;
+async function arena_elo_load(){try{const d=await getJSON(API+'/v1/models/leaderboard?limit=15');const lb=d.leaderboard||[];setTxt('ar-lb-fresh',_miFreshLabel(d));
+  setHTML('ar-lb','');if(!d.live)addHTML('ar-lb',`<div class="row"><span class="badge b-err">SAMPLE</span><span class="mono dim">${esc(d.honesty||'')} (${esc(d.as_of||'')})</span></div>`);
+  lb.forEach(r=>addHTML('ar-lb',`<div class="row"><span class="badge b-gold" style="min-width:34px;text-align:center">#${esc(r.rank??'')}</span><span><b>${esc(r.model)}</b> ${r.organization?'<span class="mono dim">\u00b7 '+esc(r.organization)+'</span>':''}</span><span class="spacer badge b-teal">Elo ${esc(r.elo)}</span></div>`));
+  addHTML('ar-lb',`<div class="row mono dim">${esc(d.cited||'')}</div>`);
+  }catch(e){setHTML('ar-lb','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setTxt('ar-lb-fresh','retry');}}
+window.arena_elo_load=arena_elo_load;
 
 // Business Observability \u2014 5 capability domains on real in-image data
 async function business_load(){try{const d=await getJSON(API+'/v1/observability/business');

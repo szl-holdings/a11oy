@@ -9957,6 +9957,30 @@ except Exception as _dev2_e:
 # ============================================================================
 
 # ============================================================================
+# BEGIN: a11oy MODEL INTEL layer (additive, honest-degrade) — feat/a11oy-models
+# Live external model intelligence for the `llm` / `arena` tabs: LMArena human-
+# preference Elo (HF datasets-server), Hugging Face Hub downloads, and a quality
+# (Elo) × adoption (downloads) Pareto frontier. Sits BESIDE the real in-image tier
+# catalog (/v1/llm/tiers) and a11oy's own governance eval-arena (/v1/eval-arena) as
+# a second, externally-sourced opinion — it replaces neither. register() front-moves
+# its /v1/models/* routes ahead of the Node proxy + SPA catch-all. Timeout + warm
+# cache + HONEST fallback (SAMPLE labelled + dated; price/latency axes ROADMAP).
+# Prior art cited (LMArena / Hugging Face / Artificial Analysis / OpenRouter); 0 CDN.
+# ============================================================================
+try:
+    import a11oy_model_intel as _a11oy_model_intel
+    import sys as _mi_sys
+    _mi_status = _a11oy_model_intel.register(app, ns="a11oy")
+    print(f"[a11oy] model intel registered: {_mi_status}", file=_mi_sys.stderr)
+except Exception as _mi_e:
+    import sys as _mi_sys, traceback as _mi_tb
+    print(f"[a11oy] model intel FAILED (non-fatal): {_mi_e!r}", file=_mi_sys.stderr)
+    _mi_tb.print_exc(file=_mi_sys.stderr)
+# ============================================================================
+# END: a11oy MODEL INTEL layer
+# ============================================================================
+
+# ============================================================================
 # BEGIN: a11oy GOVERNED-INFERENCE product layer (additive, honest-degrade)
 # Buyer-facing signed governed-inference surface under /api/a11oy/v1/govern/*.
 # Same register() contract as the dev2/devA packs: front-moved routes, honest
