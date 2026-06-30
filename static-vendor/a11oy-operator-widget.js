@@ -76,7 +76,7 @@
     '<path d="M32 16 L32 48 M16 32 L48 32" stroke="#c9b787" stroke-width="1.4" opacity="0.55"/>' +
     '<circle cx="32" cy="32" r="4.5" fill="#c9b787"/>' +
     '<text x="32" y="59" font-family="ui-monospace,monospace" font-size="9" fill="#9fb4cc" ' +
-    'text-anchor="middle" letter-spacing="1">CHASKI</text></svg>'
+    'text-anchor="middle" letter-spacing="1">a11oy</text></svg>'
   );
 
   // ---- Small DOM helpers ----
