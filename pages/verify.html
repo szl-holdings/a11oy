@@ -502,9 +502,9 @@ function derToRaw(derBytes) {
   }
   const rArr = readInt();
   const sArr = readInt();
-  // Pad / strip leading zero byte (ASN.1 adds 0x00 prefix when high-bit set)
+  // Pad / strip prefix zero byte (ASN.1 adds 0x00 prefix when high-bit is set)
   function pad32(arr) {
-    // strip leading 0x00
+    // strip prefix 0x00 byte
     let j = 0;
     while (j < arr.length - 1 && arr[j] === 0) j++;
     const stripped = arr.slice(j);
