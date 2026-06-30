@@ -96,6 +96,20 @@ ENDPOINTS = {
     # ── Eval arena ──
     "/api/a11oy/v1/eval-arena/history": ep(schema="arena_history", sla=DAY),
 
+    # ── Energy / GSF SCI ──
+    "/api/a11oy/v1/energy/live": ep(schema="generic_obj", sla=30,
+        allow_labels=("MEASURED", "UNAVAILABLE", "live", "cached"),
+        note="Live NVML power+energy snapshot. UNAVAILABLE when meter offline — honest null, never fabricated."),
+    "/api/a11oy/v1/energy/mesh": ep(schema="generic_obj", sla=30,
+        allow_labels=("MEASURED", "UNAVAILABLE", "live", "cached"),
+        note="Per-node energy + governance posture for 3D view."),
+    "/api/a11oy/v1/energy/harvest": ep(schema="generic_obj", sla=HOUR,
+        allow_labels=("MEASURED", "UNAVAILABLE", "SAMPLE", "MODELED", "live", "cached"),
+        note="Bekenstein budget series + heuristic tariff window. Tariff = client-side heuristic, NOT live feed."),
+    "/api/a11oy/v1/energy/sci": ep(schema="generic_obj", sla=60,
+        allow_labels=("MEASURED", "UNAVAILABLE", "MODELED", "live", "cached"),
+        note="GSF SCI ISO 21031:2024 energy+carbon. sci_score=null when meter offline. Grid intensity MODELED (436 gCO2eq/kWh EPA eGRID 2023) or MEASURED via Electricity Maps."),
+
     # ── Observability ──
     "/api/a11oy/v1/observability/summary": ep(schema="generic_obj", sla=HOUR),
     "/api/a11oy/v1/observability/business": ep(schema="generic_obj", sla=HOUR),
@@ -384,6 +398,11 @@ TAB_ENDPOINTS = {
     "ask": ["/api/a11oy/v1/operator/ask"],
     "command": ["/api/a11oy/v2/operator/command-log"],
     "mission": ["/api/a11oy/v1/operator/ledger"],
+    # Energy / GSF SCI views
+    "energy": ["/api/a11oy/v1/energy/live", "/api/a11oy/v1/energy/mesh"],
+    "energySci": ["/api/a11oy/v1/energy/sci"],
+    "energyReceipts": ["/api/a11oy/v1/energy/harvest", "/api/a11oy/provenance"],
+    "energyGrid": ["/api/a11oy/v1/energy/harvest"],
     "pulse": ["/api/a11oy/v1/observability/summary"],
     "business": ["/api/a11oy/v1/observability/business"],
     "forecast": ["/api/a11oy/v1/seismic/forecast"],

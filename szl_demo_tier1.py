@@ -108,28 +108,95 @@ def _call_gemini(prompt: str) -> tuple[str, dict]:
                   "finish_reason": out["candidates"][0].get("finishReason")}
 
 
+def _call_openrouter(prompt: str) -> tuple[str, dict]:
+    """Call OpenRouter (openrouter/auto or SZL_OPENROUTER_MODEL).
+    Requires OPENROUTER_API_KEY in HF Space secrets. Honestly labeled REMOTE."""
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not key:
+        raise ValueError("OPENROUTER_API_KEY not set")
+    model = os.environ.get("SZL_OPENROUTER_MODEL", "openrouter/auto")
+    payload = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 512,
+        "stream": False,
+    }).encode()
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=payload,
+        headers={
+            "User-Agent": _DEMO_UA,
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "HTTP-Referer": "https://a-11-oy.com",
+            "X-Title": "a11oy governed inference",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=_DEMO_HTTP_TIMEOUT) as r:
+        out = json.loads(r.read().decode())
+    text = out["choices"][0]["message"]["content"]
+    return text, {"provider": "openrouter", "model": out.get("model", model),
+                  "usage": out.get("usage")}
+
+
 def _remote_inference(prompt: str) -> tuple[str | None, dict, str]:
-    """Try Groq then Gemini. Returns (answer|None, provider_meta, source_label).
-    source_label is REMOTE if a real answer was produced, SAMPLE-STUB if no key."""
-    # Try Groq first
+    """Provider-agnostic remote inference fallback.
+
+    Priority order (first key found wins):
+      1. GROQ_API_KEY    → Groq (llama-3.1-8b-instant)
+      2. GEMINI_API_KEY  → Google Gemini (gemini-1.5-flash)
+      3. OPENROUTER_API_KEY → OpenRouter (openrouter/auto)
+
+    Returns (answer|None, provider_meta, source_label).
+    source_label is REMOTE if a real answer was produced, SAMPLE-STUB if no key.
+
+    DOCTRINE: no key hardcoded. Set any one of the three env vars in HF Space
+    secrets to light up remote inference. If none are set, returns honest SAMPLE-STUB."""
     groq_key = os.environ.get("GROQ_API_KEY", "")
     gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    if not groq_key and not gemini_key:
-        return None, {"reason": "No GROQ_API_KEY or GEMINI_API_KEY set in HF Space secrets"}, "SAMPLE-STUB"
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not groq_key and not gemini_key and not openrouter_key:
+        return (
+            None,
+            {
+                "reason": (
+                    "No remote inference provider key found in HF Space secrets. "
+                    "Set one of: GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY "
+                    "to enable real governed remote inference. "
+                    "Until then, demo/govern returns an honest SAMPLE-STUB."
+                ),
+                "env_vars_to_set": {
+                    "GROQ_API_KEY": "Groq free tier — console.groq.com (llama-3.1-8b-instant)",
+                    "GEMINI_API_KEY": "Google Gemini free tier — aistudio.google.com (gemini-1.5-flash)",
+                    "OPENROUTER_API_KEY": "OpenRouter — openrouter.ai (routes to best available model)",
+                },
+            },
+            "SAMPLE-STUB",
+        )
     last_err = ""
+    # 1. Groq (fastest free tier)
     if groq_key:
         try:
             text, meta = _call_groq(prompt)
             return text, meta, "REMOTE"
         except Exception as e:
             last_err = f"groq: {e!r}"
+    # 2. Gemini
     if gemini_key:
         try:
             text, meta = _call_gemini(prompt)
             return text, meta, "REMOTE"
         except Exception as e:
             last_err += f" gemini: {e!r}"
-    # Keys are set but both providers failed
+    # 3. OpenRouter
+    if openrouter_key:
+        try:
+            text, meta = _call_openrouter(prompt)
+            return text, meta, "REMOTE"
+        except Exception as e:
+            last_err += f" openrouter: {e!r}"
+    # All keys present but all providers failed
     return None, {"reason": f"All providers failed: {last_err}"}, "SAMPLE-STUB"
 
 # ---------------------------------------------------------------------------
@@ -613,8 +680,8 @@ def register(app, ns: str = "a11oy") -> dict:  # pragma: no cover
                     "answer": (
                         "[SAMPLE-STUB] No cloud inference provider is configured. "
                         "This is NOT a governed model answer. "
-                        "Set GROQ_API_KEY or GEMINI_API_KEY in HF Space secrets to "
-                        "enable real REMOTE governed inference."
+                        "Set one of GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY "
+                        "in HF Space secrets to enable real REMOTE governed inference."
                     ),
                     "provider_meta": provider_meta,
                     "governance": {
@@ -629,12 +696,16 @@ def register(app, ns: str = "a11oy") -> dict:  # pragma: no cover
                     "honesty": (
                         "SAMPLE-STUB: no real inference was performed. "
                         "This response is NOT signed and does NOT claim governed inference. "
-                        "To enable real REMOTE inference, set GROQ_API_KEY (Groq free tier) "
-                        "or GEMINI_API_KEY (Gemini free tier) in HF Space secrets."
+                        "To enable real REMOTE inference, set one of these env vars in HF Space secrets:"
+                        " GROQ_API_KEY (Groq free tier, fastest),"
+                        " GEMINI_API_KEY (Gemini free tier),"
+                        " OPENROUTER_API_KEY (routes to best available model)."
                     ),
                     "setup_instructions": {
-                        "GROQ_API_KEY": "Get a free key at console.groq.com — llama-3.1-8b-instant",
+                        "GROQ_API_KEY": "Get a free key at console.groq.com — llama-3.1-8b-instant (recommended: fastest free tier)",
                         "GEMINI_API_KEY": "Get a free key at aistudio.google.com — gemini-1.5-flash",
+                        "OPENROUTER_API_KEY": "Get a key at openrouter.ai — routes to best available model (auto)",
+                        "priority": "GROQ_API_KEY tried first, then GEMINI_API_KEY, then OPENROUTER_API_KEY",
                     },
                 })
 
