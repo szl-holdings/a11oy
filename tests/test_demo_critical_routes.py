@@ -61,6 +61,7 @@ DEMO_CRITICAL_ROUTES = [
     "/proof",                                  # in-browser Lean 4 proof replay PAGE (Tao-Blueprint graph + live type-check)
     "/api/a11oy/v1/attest/",                   # prove-our-whole-stack — 6-factor provenance chain for a decision receipt
     "/attest",                                 # KANCHAY prove-the-stack verifier PAGE
+    "/api/a11oy/v1/genome",                    # formula-registry genome — console Genome panel reads it (4 honesty tiers)
 ]
 
 

@@ -709,6 +709,7 @@ details.raw[open] summary{color:var(--muted);}
     <!-- DOCTRINE: Λ = Conjecture 1 (never theorem, never 1.0). F19/Bekenstein APPLIED
          not re-claimed. 8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}. -->
     <div class="nav-group mod-proofs">Proofs (Lean)</div>
+    <div class="nav-item" data-view="genome" onclick="go('genome')"><span class="ico">⬢</span>Genome</div>
     <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
     <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
     <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
@@ -1123,6 +1124,74 @@ const VIEWS={
         if(cc.length){const host=el('cmd-perf');host.innerHTML='';cc.forEach(k=>{const ops=k.ops_per_sec?Number(k.ops_per_sec).toLocaleString()+' ops/s':'';
           host.insertAdjacentHTML('beforeend',`<div class="kpi"><div class="k">${esc((k.name||'').replace(/_/g,' '))}</div><div class="v teal">${esc(k.value)}${esc(k.unit||'')}</div><div class="d">${esc(ops)} \u00b7 measured</div></div>`);});}
         else{setHTML('cmd-perf','<div class="row mono dim">constants unavailable</div>');}}catch(e){setHTML('cmd-perf','<div class="row mono dim">constants unavailable</div>');}
+    }},
+
+  genome:{title:'Genome',badge:'FORMULA REGISTRY',sub:'The single catalog of every formula in the platform, grouped by honesty tier \u2014 the Palantir-ontology / Backstage-catalog pattern, beaten by carrying a real machine-checkable Lean reference or an explicit honest tier on every row. LOCKED-PROVEN = formally proven in Lean; SEMANTIC-VERIFIED = the real trust math (\u039b bounds, Theorem U, DSSE verifiability); evidence-backed = code/test-backed; honest-N/A = honestly out of scope; CONJECTURE = open, never shown green.',
+    render:async(c)=>{
+      // KANCHAY tier model. CONJECTURE is NEVER green; honest-N/A never green.
+      // SEMANTIC-VERIFIED is highlighted (lattice accent) as the real trust math.
+      const TIERS=[
+        {key:'LOCKED-PROVEN',label:'LOCKED-PROVEN',color:'#5fb3a3',line:'rgba(95,179,163,0.45)',soft:'rgba(95,179,163,0.08)',green:true,desc:'Formally proven in Lean 4 (kernel-checked). The locked kernel is exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}; other proven rows are experimental CI-green, never folded into the locked count.'},
+        {key:'SEMANTIC-VERIFIED',label:'SEMANTIC-VERIFIED',color:'#5b8dee',line:'rgba(91,141,238,0.5)',soft:'rgba(91,141,238,0.10)',green:false,highlight:true,desc:'The real trust math: \u039b bounds, the conditional Theorem U (\u039b uniqueness under separability), DSSE verifiability. Semantically checked against the implementation \u2014 not a bare label.'},
+        {key:'evidence-backed',label:'evidence-backed',color:'#c9b787',line:'rgba(201,183,135,0.4)',soft:'rgba(201,183,135,0.06)',green:false,desc:'Backed by code + tests / a live surface, but not a single closed Lean theorem. Honest about the gap where one exists.'},
+        {key:'honest-N/A',label:'honest-N/A',color:'#9a9a9a',line:'rgba(154,154,154,0.35)',soft:'rgba(154,154,154,0.06)',green:false,desc:'Honestly out of formal scope (e.g. the soundness floor has no single Lean theorem; downgraded phantom anchors). Shown, not hidden \u2014 never faked green.'},
+        {key:'CONJECTURE',label:'CONJECTURE',color:'#9a9a9a',line:'rgba(154,154,154,0.35)',soft:'rgba(154,154,154,0.05)',green:false,conjecture:true,desc:'Open research conjecture \u2014 NEVER rendered green. C1 = \u039b unconditional uniqueness (machine-checked FALSE as stated); C2 = Khipu BFT safety; C3 = BFT liveness.'}
+      ];
+      c.innerHTML=`<div class="kpis" id="gen-kpis">${skelRows(5)}</div>
+        <div class="card"><div class="card-h"><span class="card-t">Filter</span><span class="card-ep" id="gen-shown">\u2014</span></div>
+          <input id="gen-q" placeholder="filter by id / name / Lean ref\u2026" style="width:100%;box-sizing:border-box;font-family:var(--mono);font-size:12px;padding:.6rem .7rem;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);color:var(--cream)"></div>
+        <div id="gen-body"><div class="row mono dim">loading genome\u2026</div></div>${HONEST}`;
+      let data;
+      try{ data=await getJSON(API+'/v1/genome'); }
+      catch(e){ setHTML('gen-body','<div class="row mono dim">genome registry not available right now \u2014 shown honestly, not faked. (GET '+esc(API)+'/v1/genome did not resolve)</div>'); setHTML('gen-kpis',''); return; }
+      const entries=(data&&data.entries)||[];
+      const counts=(data&&data.tier_counts)||{};
+      // KPI tiles per tier (live counts from the endpoint).
+      const kp=el('gen-kpis'); kp.innerHTML='';
+      TIERS.forEach(t=>{ const n=counts[t.key]||0;
+        kp.insertAdjacentHTML('beforeend',`<div class="kpi"><div class="k">${esc(t.label)}</div><div class="v" style="color:${t.color}">${n}</div><div class="d">${t.green?'Lean-proven':(t.conjecture?'open \u00b7 never green':'honest tier')}</div></div>`); });
+      const isRealLean=(e)=>{ const r=(e.lean_ref||'').trim(); if(!r) return false; if(/open|never green|n\/a|none|\u2014/i.test(r)) return false; return true; };
+      function rowHTML(e,t){
+        const real=isRealLean(e) && !t.conjecture;
+        const loc=(e.locations&&e.locations[0])||{};
+        const locTxt=(loc.repo||loc.file)?`${esc(loc.repo||'')}${loc.file?' \u00b7 '+esc(loc.file):''}${loc.line?':'+esc(loc.line):''}`:'';
+        // Lean chip: green/proof ONLY for proven tiers with a real ref; conjecture & N/A
+        // get a neutral gray chip carrying the honest text verbatim (e.g. "OPEN \u2014 NEVER green").
+        const leanChip = e.lean_ref ? (real
+          ? `<span class="badge" style="color:#5fb3a3;border:1px solid var(--teal-line);background:var(--teal-soft)" title="machine-checkable Lean reference">Lean: ${esc(e.lean_ref)}</span>`
+          : `<span class="badge" style="color:#9a9a9a;border:1px solid rgba(154,154,154,.35);background:rgba(154,154,154,.05)">${esc(e.lean_ref)}</span>`) : '';
+        return `<div class="row" style="display:block;border-bottom:1px solid var(--gold-line);padding:.55rem 0">
+          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+            <code class="mono" style="color:var(--cream);font-size:11.5px">${esc(e.id||'')}</code>
+            <span style="font-size:12.5px;color:var(--cream)">${esc(e.name||'')}</span>
+            <span class="badge" style="color:${t.color};border:1px solid ${t.line};background:${t.soft}">${esc(t.label)}</span>
+            ${leanChip}
+          </div>
+          ${e.meaning?`<div class="mono dim" style="font-size:11px;margin-top:.3rem;line-height:1.5">${esc(e.meaning)}</div>`:''}
+          ${locTxt?`<div class="mono" style="font-size:10.5px;margin-top:.25rem;color:var(--gold)">${locTxt}</div>`:''}
+        </div>`;
+      }
+      function paint(q){
+        q=(q||'').trim().toLowerCase();
+        const host=el('gen-body'); host.innerHTML=''; let shown=0;
+        TIERS.forEach(t=>{
+          let rows=entries.filter(e=>(e.tag||'')===t.key);
+          if(q) rows=rows.filter(e=>((e.id||'')+' '+(e.name||'')+' '+(e.lean_ref||'')+' '+(e.meaning||'')).toLowerCase().includes(q));
+          if(!rows.length) return;
+          shown+=rows.length;
+          const hl=t.highlight?'border-left:3px solid '+t.color+';':'';
+          host.insertAdjacentHTML('beforeend',
+            `<div class="card" style="${hl}">
+              <div class="card-h"><span class="card-t" style="color:${t.color}">${esc(t.label)}</span><span class="card-ep">${rows.length} \u00b7 ${t.green?'Lean-proven':(t.conjecture?'OPEN \u2014 never green':'honest tier')}</span></div>
+              <div class="mono dim" style="font-size:11px;line-height:1.5;margin-bottom:.4rem">${esc(t.desc)}</div>
+              ${rows.map(e=>rowHTML(e,t)).join('')}
+            </div>`);
+        });
+        if(!shown) host.innerHTML='<div class="row mono dim">no genome rows match \u201c'+esc(q)+'\u201d.</div>';
+        setTxt('gen-shown',shown+' / '+entries.length+' rows');
+      }
+      const qi=el('gen-q'); if(qi) qi.addEventListener('input',()=>paint(qi.value));
+      paint('');
     }},
 
   ask:{title:'Ask & Act',badge:'OPERATOR',sub:'Ask the platform a question and get a grounded, cited answer \u2014 it answers only from live system data and refuses to make things up. Then approve or deny an action; every action is logged to a signed, tamper-evident audit trail.',
