@@ -198,6 +198,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-group">Operate</div>
     <div class="nav-item active" data-view="command" onclick="go('command')"><span class="ico">◎</span>Command Center</div>
     <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
+    <div class="nav-item" data-view="operate" onclick="go('operate')"><span class="ico">▸</span>Governed Run-Loop</div>
     <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
     <div class="nav-item" data-view="fleet" onclick="go('fleet')"><span class="ico">⊟</span>System Health</div>
     <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
@@ -416,6 +417,18 @@ const VIEWS={
       </div>
       <div class="card"><div class="card-h"><span class="card-t">What needs attention</span><span class="card-ep">live findings</span></div><div class="chartbox" style="height:200px"><canvas id="ask-rec"></canvas></div><div id="ask-rec-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;
       window.ask_recs();}},
+
+  operate:{title:'Governed Run-Loop',badge:'OPERATOR · 9 STAGES',sub:'The governed run-loop — SELECT → context → recommend → simulate → policy + Λ-gate → human approval → execute → receipt → outcome. A high-consequence action is HELD until you approve it; the doctrine gate can hard-DENY and Λ (research conjecture) can only tighten, never override. The proof stage reads the REAL receipt.signed flag — honestly UNSIGNED when no signing key is present.',
+    render:(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Drive a governed action</span><span class="card-ep">SELECT → policy → Λ-gate → receipt</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:.6rem;flex-wrap:wrap"><input id="op-cmd" placeholder="command…" value="rotate the demo signing key" style="flex:2;min-width:200px;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px"/>
+      <input id="op-tgt" placeholder="target…" value="demo-key" style="flex:1;min-width:120px;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px"/></div>
+      <div class="btns"><label class="row mono dim" style="gap:6px;cursor:pointer"><input type="checkbox" id="op-appr"/> human approval granted</label>
+      <button class="btn teal" onclick="window.operate_run()">▸ Run governed loop</button></div></div>
+      <div class="kpis"><div class="kpi"><div class="k">Outcome</div><div class="v" id="op-outcome">—</div><div class="d">final loop state</div></div>
+      <div class="kpi"><div class="k">Policy decision</div><div class="v" id="op-policy">—</div><div class="d">Λ advisory · research conjecture</div></div>
+      <div class="kpi"><div class="k">Human approval</div><div class="v" id="op-appr-k">—</div><div class="d">held until granted</div></div>
+      <div class="kpi"><div class="k">Receipt</div><div class="v" id="op-sig">—</div><div class="d" id="op-sha">on-write · never on read</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Run-loop stages</span><span class="card-ep">live · real engine</span></div><div id="op-stages"><div class="row mono dim">press Run to drive the governed loop.</div></div></div>${HONEST}`;}},
 
   demo:{title:'Run a Demo',badge:'5 SCENARIOS',sub:'The platform is the single launch point for the Warhacker challenge problems. Each launch calls the live service for that problem, shows its real answer, and records a signed receipt of the decision.',
     render:(c)=>{c.innerHTML=`<div class="btns"><button class="btn teal" onclick="wh_all()">\u25b6 Launch all 5</button></div><div id="wh"></div>${HONEST}`;
@@ -1613,6 +1626,34 @@ async function replay_run(){
   }
 }
 window.replay_run=replay_run;
+
+// Governed run-loop (operator) — drives the REAL 9-stage loop and reads the
+// real receipt.signed flag (honest UNSIGNED when no key). Λ stays advisory.
+async function operate_run(){
+  const cmd=(el('op-cmd')&&el('op-cmd').value||'').trim();
+  const tgt=(el('op-tgt')&&el('op-tgt').value||'').trim();
+  const approved=!!(el('op-appr')&&el('op-appr').checked);
+  setHTML('op-stages','<div class="row mono dim">driving governed loop…</div>');
+  setTxt('op-outcome','…');setTxt('op-policy','…');setTxt('op-appr-k',approved?'granted':'not granted');setTxt('op-sig','…');
+  try{
+    const d=await orgPost('core','/api/a11oy/v2/operator/command',{command:cmd,target:tgt,approved});
+    const stages=d.stages||[];
+    setHTML('op-stages','');
+    stages.forEach(s=>{const st=String(s.status||'');const cls=st==='REAL'?'b-live':(st==='DEGRADED'?'b-gold':'b-err');
+      addHTML('op-stages',`<div class="row"><span class="badge ${cls}">${esc(st||'—')}</span><span><b>${esc(s.stage||'')}</b> — ${esc(s.detail||'')}</span></div>`);});
+    if(!stages.length)setHTML('op-stages','<div class="row mono dim">no stages returned</div>');
+    const outcome=String(d.outcome||'—');
+    const oc=el('op-outcome');if(oc){oc.textContent=outcome;oc.className='v '+(outcome==='APPROVED'?'live':(outcome.indexOf('BLOCKED')>=0?'err':''));}
+    const pol=String(d.policy_decision||'—');
+    const pe=el('op-policy');if(pe){pe.textContent=pol;pe.className='v '+(pol==='allow'?'teal':(pol==='deny'?'err':''));}
+    setTxt('op-appr-k',d.approved?'granted':'not granted');
+    const signed=!!(d.receipt&&d.receipt.signed);
+    const sha=((d.receipt&&d.receipt.receipt&&d.receipt.receipt.receipt_sha256)||'');
+    const se=el('op-sig');if(se){se.textContent=signed?'SIGNED':'UNSIGNED';se.className='v '+(signed?'live':'warn');}
+    setTxt('op-sha',signed?('ECDSA P-256 · '+sha.slice(0,16)+'…'):('no key — honest · '+(sha?sha.slice(0,16)+'…':'sha pending')));
+  }catch(e){setHTML('op-stages','<div class="row mono dim">run-loop endpoint unavailable: '+esc(e.message)+'</div>');setTxt('op-outcome','—');}
+}
+window.operate_run=operate_run;
 
 </script>
 </body>
