@@ -629,7 +629,10 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="kpi"><div class="k">Techniques graphed</div><div class="v" id="at-n">loading\u2026</div><div class="d">bounded subset</div></div>
       <div class="kpi"><div class="k">Tactics</div><div class="v teal" id="at-t">\u2014</div></div>
       <div class="kpi"><div class="k">Source</div><div class="v">MITRE</div><div class="d">ATT&amp;CK STIX</div></div></div>
-      <div class="card"><div class="card-h"><span class="card-t">Technique \u2192 tactic graph</span><span class="card-ep" id="at-cap">fetching large dataset (~50MB)\u2026</span></div><div class="cyto" id="at-cy"><div class="row mono dim" style="padding:1rem">Loading MITRE ATT&CK STIX (~50MB, may take ~10\u201320s)\u2026</div></div><div class="brain-note">Large official dataset; we parse a bounded subset (first ~120 techniques) for a responsive graph. Tactics in teal, techniques in gold.</div></div>${HONEST}`;window.attack_load();}},
+      <div class="card"><div class="card-h"><span class="card-t">Technique \u2192 tactic intel graph</span><span class="card-ep" id="at-cap">fetching bounded STIX subset server-side\u2026</span></div>
+        <div class="dag3d" id="at-3d" style="height:380px;border-radius:9px;overflow:hidden"><div class="row mono dim" style="padding:1rem">Loading holographic ATT&CK graph\u2026</div></div>
+        <div class="cyto" id="at-cy" style="margin-top:.6rem"></div>
+        <div class="brain-note">Server-side bounded parse of the official MITRE ATT&CK v17.1 STIX (no ~50MB client download \u2014 sovereign, CORS-safe). Holographic 3D technique\u2192tactic correlation graph (Recorded-Future-style intel graph), with a 2D fallback. Tactics in teal, techniques in gold.</div></div>${HONEST}`;window.attack_load();}},
 
   llm:{title:'Model Router',badge:'5-TIER',sub:'The platform routes each task to the right model tier by cost and capability. A real model call when a key is present, an honest stub otherwise \u2014 the tier choice and the trust receipt are always real.',
     render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tier throughput</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="l-bars"></canvas></div></div>
@@ -820,7 +823,11 @@ async function lambda_load(){try{const d=await getJSON(API+'/v1/lambda');const L
 async function gates_load(){try{const d=await orgGet('core','/api/a11oy/v1/policy/gates');const g=d.gates||[];setTxt('g-count',d.total||g.length);
   const deny=g.filter(x=>x.expectedDecision==='deny').length;setTxt('g-deny',deny);const cats=[...new Set(g.map(x=>x.category))];setTxt('g-cat',cats.length);
   doughnut('g-donut',['allow-capable','deny-by-default'],[g.length-deny,deny],[TEAL,'#b06a5a']);
-  setHTML('g-host','');g.forEach(x=>addHTML('g-host',`<div class="row"><span class="badge ${x.expectedDecision==='deny'?'b-err':'b-live'}">${esc(x.expectedDecision||'')}</span><span>${esc(x.label||x.name)}</span><span class="spacer mono dim">${esc(x.category||'')}</span></div>`));}catch(e){setHTML('g-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+  setHTML('g-host','');g.forEach(x=>addHTML('g-host',`<div class="row"><span class="badge ${x.expectedDecision==='deny'?'b-err':'b-live'}">${esc(x.expectedDecision||'')}</span><span>${esc(x.label||x.name)}</span><span class="spacer mono dim">${esc(x.category||'')}</span></div>`));
+  // live OpenSSF Scorecard — supply-chain posture for the deny-by-default surfaces
+  try{const sc=await orgGet('core','/api/a11oy/v1/policy/scorecard');const sd=sc.data||{};
+    if(sd.score!=null){addHTML('g-host',`<div class="row" style="margin-top:.5rem"><span class="badge ${sd.score>=7?'b-live':(sd.score>=5?'b-gold':'b-err')}">OpenSSF ${esc(sd.score)}/10</span><span>${esc(sd.repo||'')}</span><span class="spacer mono dim">supply-chain (live, ${esc(sc.mode||'live')})</span></div>`);}
+  }catch(_e){}}catch(e){setHTML('g-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
 async function gate_try(action){try{setOut('g-try','inspecting\u2026');const d=await orgPost('core','/api/a11oy/v1/policy/decide',{agent:'a11oy-demo',action,severity:'high',confidence:0.9,witnesses:[]});
   setOut('g-try','DECISION '+esc(String(d.decision||'').toUpperCase())+'\n'+esc(d.reason||'')+'\nsignals: '+esc(JSON.stringify(d.signals||[]))+'\nreceipt '+esc(String(d.receipt_hash||'').slice(0,16)));}catch(e){setOut('g-try','retry: '+e.message);}}
 
@@ -840,7 +847,12 @@ async function readiness_run(){try{setHTML('rd-host','<div class="row mono dim">
 // Compliance (policy)
 async function comp_run(fw){try{setHTML('cp-host','<div class="row mono dim">mapping '+esc(fw)+'\u2026</div>');const d=await orgPost('core','/api/a11oy/v1/policy/compliance',{framework:fw});
   const cov=d.covered||0,total=d.total||0,gaps=Math.max(0,total-cov);doughnut('cp-donut',['covered','gaps'],[cov,gaps],[TEAL,'#b06a5a']);
-  setHTML('cp-host',`<div class="row"><span class="badge b-live">${esc(d.coverage_pct??0)}%</span><span>${esc(cov)}/${esc(total)} controls covered</span><span class="spacer mono dim">${esc(fw)}</span></div>`+(d.controls||[]).slice(0,12).map(c=>`<div class="row"><span class="badge ${c.status==='COVERED'?'b-live':'b-gold'}">${esc(c.status)}</span><span>${esc(c.id)} ${esc(c.name)}</span></div>`).join('')+`<div class="row mono dim">${esc(d.note||'No third-party audit')}</div>`);}catch(e){setHTML('cp-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+  setHTML('cp-host',`<div class="row"><span class="badge b-live">${esc(d.coverage_pct??0)}%</span><span>${esc(cov)}/${esc(total)} controls covered</span><span class="spacer mono dim">${esc(fw)}</span></div>`+(d.controls||[]).slice(0,12).map(c=>`<div class="row"><span class="badge ${c.status==='COVERED'?'b-live':'b-gold'}">${esc(c.status)}</span><span>${esc(c.id)} ${esc(c.name)}</span></div>`).join('')+`<div class="row mono dim">${esc(d.note||'No third-party audit')}</div>`);
+  // live NIST OSCAL SP800-53 rev5 catalog → families + gate mapping (policy-as-code, NIST AI RMF)
+  try{const o=await orgGet('core','/api/a11oy/v1/policy/oscal');const od=o.data||{};const fams=od.families||[];
+    if(fams.length){addHTML('cp-host',`<div class="row mono dim" style="margin-top:.5rem">NIST OSCAL ${esc(od.version||'SP800-53r5')} — ${esc(od.total_controls||0)} controls / ${fams.length} families (live, mode: ${esc(o.mode||'live')}):</div>`);
+      (od.gate_mapping||[]).forEach(g=>addHTML('cp-host',`<div class="row"><span class="badge b-teal">${esc(g.rmf)}</span><span>${esc(g.gate)}</span><span class="spacer mono dim">${esc((g.families||[]).join(', '))}</span></div>`));}
+  }catch(_e){}}catch(e){setHTML('cp-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
 
 // Forecast (policy)
 // Forecast \u2014 deterministic calibrated baseline: 8 metrics, point + 80%/95% PI bands
@@ -892,7 +904,13 @@ async function formulas_load(){try{const d=await getJSON(API+'/v1/puriq/formulas
 async function threats_load(){try{const d=await orgGet('core','/api/a11oy/v1/policy/threats');const c=d.corpus||[];setTxt('th-n',d.total||c.length);
   const sev=s=>c.filter(x=>x.severity===s).length;const crit=sev('critical'),high=sev('high'),med=sev('medium'),low=sev('low');setTxt('th-crit',crit);setTxt('th-high',high);
   barV('th-bars',['critical','high','medium','low'],[crit,high,med,low],['#b06a5a',GOLD,TEAL,'#5a8a6e']);
-  setHTML('th-host','');c.slice(0,30).forEach(x=>addHTML('th-host',`<div class="row"><span class="badge ${x.severity==='critical'?'b-err':(x.severity==='high'?'b-gold':'b-teal')}">${esc(x.severity)}</span><span>${esc(x.signature||x.category)}</span><span class="spacer mono dim">${esc(x.mitre_technique||'')} ${x.cvss_base?('CVSS '+x.cvss_base):''}</span></div>`));}catch(e){setHTML('th-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+  setHTML('th-host','');c.slice(0,30).forEach(x=>addHTML('th-host',`<div class="row"><span class="badge ${x.severity==='critical'?'b-err':(x.severity==='high'?'b-gold':'b-teal')}">${esc(x.severity)}</span><span>${esc(x.signature||x.category)}</span><span class="spacer mono dim">${esc(x.mitre_technique||'')} ${x.cvss_base?('CVSS '+x.cvss_base):''}</span></div>`));
+    // live FIRST EPSS top exploit-probability movers (server-side proxy)
+    try{const ep=await orgGet('core','/api/a11oy/v1/policy/intel/epss');const m=ep.data||{};const movers=Object.entries(m).map(([cve,v])=>({cve,epss:v.epss})).sort((a,b)=>b.epss-a.epss).slice(0,8);
+      if(movers.length){addHTML('th-host','<div class="row mono dim" style="margin-top:.5rem">FIRST EPSS — highest exploit probability (live):</div>');
+        movers.forEach(x=>addHTML('th-host',`<div class="row"><span class="badge b-gold">${Math.round(x.epss*100)}%</span><span class="mono">${esc(x.cve)}</span><span class="spacer mono dim">EPSS exploit prob.</span></div>`));}
+    }catch(_e){}
+  }catch(e){setHTML('th-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
 
 // Agent tools (a11oy MCP)
 const ACTION={severity:'high',confidence:0.92,actionId:'platform-demo',witnesses:[{id:'w1',role:'op',attested:true},{id:'w2',role:'auditor',attested:true},{id:'w3',role:'witness',attested:true}]};
@@ -1119,25 +1137,33 @@ function ontology_load(){
 
 // CVE Watch \u2014 live NVD CVE 2.0
 async function cve_load(){
-  try{const end=new Date();const start=new Date(Date.now()-20*86400000);
-    const fmt=dt=>dt.toISOString().slice(0,19)+'.000';
-    const url='https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=30&pubStartDate='+encodeURIComponent(fmt(start))+'&pubEndDate='+encodeURIComponent(fmt(end));
-    const d=await getPublic(url,15000);const vs=d.vulnerabilities||[];setTxt('cv-n',vs.length);setTxt('cv-tot',(d.totalResults||0).toLocaleString());
-    const sevCount={CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,NONE:0};let newest='';
-    const sevOf=v=>{const m=v.cve.metrics||{};const arr=m.cvssMetricV31||m.cvssMetricV30||m.cvssMetricV2||[];return (arr[0]&&(arr[0].cvssData.baseSeverity||(arr[0].baseSeverity)))||'NONE';};
-    const scoreOf=v=>{const m=v.cve.metrics||{};const arr=m.cvssMetricV31||m.cvssMetricV30||m.cvssMetricV2||[];return arr[0]?arr[0].cvssData.baseScore:'';};
-    vs.sort((a,b)=>new Date(b.cve.published)-new Date(a.cve.published));
-    vs.forEach(v=>{const s=String(sevOf(v)).toUpperCase();sevCount[s]=(sevCount[s]||0)+1;});
+  // SERVER-SIDE fused intel: NVD CVE 2.0 + CISA KEV + FIRST EPSS, ranked by an advisory
+  // Exposure Priority (\u039b = Conjecture 1, public signals only). Same-origin, CORS-safe.
+  try{const d=await orgGet('core','/api/a11oy/v1/policy/intel/cve');const rows=d.rows||[];
+    setTxt('cv-n',rows.length);setTxt('cv-tot',(d.total||rows.length).toLocaleString());
+    const sevCount={CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,NONE:0};
+    rows.forEach(r=>{const s=String(r.severity||'NONE').toUpperCase();sevCount[s]=(sevCount[s]||0)+1;});
     setTxt('cv-hi',(sevCount.CRITICAL||0)+(sevCount.HIGH||0));
-    if(vs[0]){newest=vs[0].cve.id;setTxt('cv-new',esc(newest));}
+    const byDate=rows.slice().sort((a,b)=>String(b.published).localeCompare(String(a.published)));
+    if(byDate[0])setTxt('cv-new',esc(byDate[0].id));
     mkEchart('cv-bar',{tooltip:{trigger:'axis'},xAxis:{type:'category',data:['Critical','High','Medium','Low','None']},yAxis:{type:'value'},
       series:[{type:'bar',data:[{value:sevCount.CRITICAL||0,itemStyle:{color:RED}},{value:sevCount.HIGH||0,itemStyle:{color:GOLD}},{value:sevCount.MEDIUM||0,itemStyle:{color:TEAL}},{value:sevCount.LOW||0,itemStyle:{color:'#5a8a6e'}},{value:sevCount.NONE||0,itemStyle:{color:'#555'}}],barWidth:'46%'}]});
-    const tb=el('cv-tb');if(tb){tb.innerHTML='';vs.slice(0,25).forEach(v=>{const c=v.cve;const sev=String(sevOf(v)).toUpperCase();const cls=sev==='CRITICAL'?'sev-crit':(sev==='HIGH'?'sev-high':(sev==='MEDIUM'?'sev-med':'sev-low'));
-      const desc=((c.descriptions||[]).find(x=>x.lang==='en')||{}).value||'';
-      tb.insertAdjacentHTML('beforeend',`<tr><td class="mono">${esc(c.id)}</td><td class="${cls}">${esc(sev)}</td><td>${esc(scoreOf(v))}</td><td class="mono dim">${esc(String(c.published||'').slice(0,10))}</td><td>${esc(desc.slice(0,120))}</td></tr>`);});}
-    // agentic Exposure Priority: fuse NVD + live KEV + in-image adversary corpus
-    try{window.cve_exposure_load(vs,scoreOf,sevOf);}catch(_e){}
-  }catch(e){setTxt('cv-n','\u2014');setHTML('cv-tb','<tr><td colspan=5 class="mono dim">NVD feed unavailable: '+esc(e.message)+'</td></tr>');}}
+    const tb=el('cv-tb');if(tb){tb.innerHTML='';byDate.slice(0,25).forEach(r=>{const sev=String(r.severity||'NONE').toUpperCase();const cls=sev==='CRITICAL'?'sev-crit':(sev==='HIGH'?'sev-high':(sev==='MEDIUM'?'sev-med':'sev-low'));
+      tb.insertAdjacentHTML('beforeend',`<tr><td class="mono">${esc(r.id)}</td><td class="${cls}">${esc(sev)}</td><td>${esc(r.cvss==null?'\u2014':r.cvss)}</td><td class="mono dim">${esc(String(r.published||'').slice(0,10))}</td><td>${esc(String(r.desc||'').slice(0,120))}</td></tr>`);});}
+    // Exposure Priority panel rendered from the SAME server fusion (no client refetch).
+    const ranked=rows.slice().sort((a,b)=>(b.exposure||0)-(a.exposure||0));
+    const techHits=ranked.filter(r=>(r.factors||[]).some(f=>/ATT&CK/.test(f))).length;
+    setTxt('ep-kev',(d.kev_correlated||0)+' / '+ranked.length);setTxt('ep-tech',techHits);setTxt('ep-top',ranked[0]?ranked[0].exposure:'\u2014');
+    const colOf=r=>r.kev?RED:((r.exposure||0)>=70?GOLD:TEAL);
+    mkEchart('ep-bubble',{tooltip:{trigger:'item',formatter:p=>{const r=p.data.r;return '<b>'+esc(r.id)+'</b><br/>exposure '+(r.exposure||0)+' / 100<br/>CVSS '+(r.cvss==null?'\u2014':r.cvss)+'<br/>'+esc((r.factors||[]).join(' \u00b7 '));}},
+      xAxis:{name:'CVSS base',min:0,max:10,nameTextStyle:{color:DIM},axisLine:{lineStyle:{color:GRID}},splitLine:{lineStyle:{color:GRID}}},
+      yAxis:{name:'Exposure priority',min:0,max:100,nameTextStyle:{color:DIM},axisLine:{lineStyle:{color:GRID}},splitLine:{lineStyle:{color:GRID}}},
+      series:[{type:'scatter',symbolSize:dd=>10+((Array.isArray(dd)?dd[1]:0)||0)*0.35,data:ranked.map(r=>({value:[Number(r.cvss)||0,r.exposure||0],r,itemStyle:{color:colOf(r),opacity:0.82}})),animationDuration:900,animationEasing:'cubicOut'}]});
+    const eb=el('ep-tb');if(eb){eb.innerHTML='';if(!ranked.length){eb.innerHTML='<tr><td colspan=5 class="mono dim">no CVEs to rank</td></tr>';}
+      ranked.slice(0,15).forEach((r,i)=>{const cls=r.kev?'sev-crit':((r.exposure||0)>=70?'sev-high':'sev-med');
+        eb.insertAdjacentHTML('beforeend',`<tr><td class="mono">${i+1}</td><td class="mono">${esc(r.id)}</td><td class="${cls}">${r.exposure||0}</td><td>${(Number(r.cvss)||0).toFixed(1)}</td><td class="dim">${esc((r.factors||[]).join(' \u00b7 ')||'baseline')}</td></tr>`);});}
+    if(d.mode&&d.mode!=='live'){setHTML('cv-tb',el('cv-tb').innerHTML+`<tr><td colspan=5 class="mono dim">feed mode: ${esc(d.mode)} (server-side cache; honest, not fabricated)</td></tr>`);}
+  }catch(e){setTxt('cv-n','\u2014');setHTML('cv-tb','<tr><td colspan=5 class="mono dim">intel feed unavailable: '+esc(e.message)+'</td></tr>');}}
 
 // ===== Exposure Priority (agentic threat-intel fusion) =====
 // Built UPON: CrowdStrike ExPRT.AI (dynamic, transparent exploit-likelihood rating;
@@ -1194,32 +1220,37 @@ window.cve_exposure_load=cve_exposure_load;
 
 // Known-Exploited \u2014 live CISA KEV mirror
 async function kev_load(){
-  try{const d=await getPublic('https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json',13000);
+  // SERVER-SIDE CISA KEV enriched with FIRST EPSS exploit-probability (same-origin proxy).
+  try{const d=await orgGet('core','/api/a11oy/v1/policy/intel/kev');
     const vs=d.vulnerabilities||[];setTxt('kv-n',(vs.length||d.count||0).toLocaleString());setTxt('kv-ver',esc(d.catalogVersion||'\u2014'));
-    const ransom=vs.filter(x=>String(x.knownRansomwareCampaignUse||'').toLowerCase()==='known').length;setTxt('kv-ransom',ransom.toLocaleString());
-    const newest=vs.slice().reverse().slice(0,40);const tail=el('kv-tail');if(tail){tail.innerHTML='';newest.forEach(x=>tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="id">${esc(x.cveID||'')}</span><span class="txt">${esc(x.vendorProject||'')} ${esc(x.product||'')} \u2014 ${esc(String(x.vulnerabilityName||'').slice(0,70))}</span></div>`));}
+    const ransom=vs.filter(x=>x.ransomware).length;setTxt('kv-ransom',ransom.toLocaleString());
+    const newest=vs.slice().reverse().slice(0,40);const tail=el('kv-tail');if(tail){tail.innerHTML='';newest.forEach(x=>{const ep=(x.epss!=null)?(' \u00b7 EPSS '+Math.round(x.epss*100)+'%'):'';tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="id">${esc(x.cveID||'')}</span><span class="txt">${esc(x.vendorProject||'')} ${esc(x.product||'')} \u2014 ${esc(String(x.name||'').slice(0,64))}<span class="dim">${esc(ep)}</span></span></div>`);});}
     const vend={};vs.forEach(x=>{const k=x.vendorProject||'?';vend[k]=(vend[k]||0)+1;});
     const top=Object.entries(vend).sort((a,b)=>b[1]-a[1]).slice(0,12);
     mkEchart('kv-bar',{tooltip:{trigger:'axis'},grid:{left:120},xAxis:{type:'value'},yAxis:{type:'category',data:top.map(t=>t[0]).reverse()},
       series:[{type:'bar',data:top.map(t=>t[1]).reverse(),itemStyle:{color:GOLD},barWidth:'60%'}]});
+    if(d.mode&&d.mode!=='live'&&tail)tail.insertAdjacentHTML('beforeend',`<div class="frow"><span class="txt mono dim">feed mode: ${esc(d.mode)} \u2014 server cache, honest fallback</span></div>`);
   }catch(e){setTxt('kv-n','\u2014');const t=el('kv-tail');if(t)t.innerHTML='<div class="frow"><span class="txt mono dim">CISA KEV feed unavailable: '+esc(e.message)+'</span></div>';}}
 
 // Adversary Techniques \u2014 live MITRE ATT&CK STIX (bounded parse)
 async function attack_load(){
-  try{setTxt('at-cap','fetching MITRE ATT&CK STIX (~50MB)\u2026');
-    const d=await getPublic('https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json',30000);
-    const objs=d.objects||[];
-    const tactics={};objs.filter(o=>o.type==='x-mitre-tactic').forEach(t=>{tactics[t.x_mitre_shortname]={name:t.name};});
-    const techniques=objs.filter(o=>o.type==='attack-pattern'&&!o.x_mitre_is_subtechnique).slice(0,110);
-    const els=[];const seenTac=new Set();let tcount=0;
-    techniques.forEach(t=>{const tid='T_'+(t.id||Math.random());els.push({data:{id:tid,label:(t.name||'').slice(0,22),w:30}});
-      const phases=(t.kill_chain_phases||[]).filter(p=>p.kill_chain_name==='mitre-attack');
-      phases.slice(0,1).forEach(p=>{const tac='TAC_'+p.phase_name;if(!seenTac.has(tac)){seenTac.add(tac);els.push({data:{id:tac,label:(tactics[p.phase_name]?tactics[p.phase_name].name:p.phase_name),w:62},classes:'tactic'});}
-        els.push({data:{id:tid+'_'+tac,source:tid,target:tac}});});tcount++;});
-    setTxt('at-n',tcount);setTxt('at-t',seenTac.size);
-    setTxt('at-cap','graphed '+tcount+' techniques \u2192 '+seenTac.size+' tactics (bounded subset of live STIX)');
+  // SERVER-SIDE bounded MITRE ATT&CK v17.1 STIX parse (no ~50MB client download).
+  // Holographic 3D technique\u2192tactic intel graph + 2D cytoscape fallback.
+  try{setTxt('at-cap','fetching bounded ATT&CK v17.1 subset server-side\u2026');
+    const d=await orgGet('core','/api/a11oy/v1/policy/intel/attack');
+    const nodes=d.nodes||[],links=d.links||[];
+    setTxt('at-n',d.techniques||0);setTxt('at-t',d.tactics||0);
+    setTxt('at-cap','graphed '+(d.techniques||0)+' techniques \u2192 '+(d.tactics||0)+' tactics ('+esc(d.version||'ATT&CK')+', mode: '+esc(d.mode||'live')+')');
+    // holographic 3D: tactics as teal hubs, techniques as gold leaves
+    const n3=nodes.map(n=>({id:n.id,name:n.label,val:n.kind==='tactic'?8:2,color:n.kind==='tactic'?TEAL:GOLD}));
+    const l3=links.map(e=>({source:e.source,target:e.target}));
+    if(n3.length)dag3d('at-3d',n3,l3,{dist:42,cooldown:160});
+    else{const h=el('at-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">no graph nodes returned</div>';}
+    // 2D cytoscape (always available, no WebGL dependency)
+    const els=[];nodes.forEach(n=>els.push({data:{id:n.id,label:String(n.label||'').slice(0,22),w:n.kind==='tactic'?62:30},classes:n.kind==='tactic'?'tactic':''}));
+    links.forEach((e,i)=>els.push({data:{id:'e'+i,source:e.source,target:e.target}}));
     cyGraph('at-cy',els,{name:'cose',animate:false,padding:24,nodeRepulsion:9000,idealEdgeLength:60});
-  }catch(e){const h=el('at-cy');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">MITRE STIX unavailable (large file / timeout): '+esc(e.message)+'</div>';setTxt('at-n','\u2014');setTxt('at-cap','feed unavailable \u2014 honest failure, not faked');}}
+  }catch(e){const h=el('at-3d');if(h)h.innerHTML='<div class="row mono dim" style="padding:1rem">MITRE ATT&CK intel unavailable: '+esc(e.message)+'</div>';setTxt('at-n','\u2014');setTxt('at-cap','feed unavailable \u2014 honest failure, not faked');}}
 
 // ===== KNOWLEDGE BASE HANDLERS (knowledge.json) =====
 let _kb=null;

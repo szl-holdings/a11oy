@@ -232,6 +232,18 @@ try:
 except Exception as _szl_uds_e:  # pragma: no cover
     print(f"[a11oy] UDS fleet-trust NOT registered: {_szl_uds_e!r}", file=__import__("sys").stderr)
 
+# ── Threat-intel + governance fusion (threats/cve/kev/attack/gates/policies/govern).
+# SERVER-SIDE fetch+cache+honest-fallback for NVD CVE 2.0, CISA KEV, FIRST EPSS,
+# MITRE ATT&CK v17.1 STIX, NIST OSCAL SP800-53 rev5, OpenSSF Scorecard. The browser
+# only hits our same-origin proxy (sovereign, CORS-safe). Λ exposure = Conjecture 1
+# (advisory). Additive, try/except-guarded, registered EARLY (before SPA catch-all).
+try:
+    import a11oy_threat_intel as _a11oy_ti
+    _a11oy_ti.register(app, ns="a11oy")
+    print("[a11oy] Threat-intel fusion registered: /api/a11oy/v1/policy/{intel/cve,intel/kev,intel/epss,intel/attack,oscal,scorecard}", file=__import__("sys").stderr)
+except Exception as _a11oy_ti_e:  # pragma: no cover
+    print(f"[a11oy] Threat-intel fusion NOT registered: {_a11oy_ti_e!r}", file=__import__("sys").stderr)
+
 # ── Operational Readiness layer (readiness-tab-patch) — deployed-vs-repo reality.
 # Live site/endpoint liveness, HF Space build status, repo/org drift with honest
 # live/cached/unreachable labels. Same resilience pattern as evidence module.
