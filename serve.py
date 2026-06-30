@@ -4269,6 +4269,80 @@ async def _lb_receipts():
     return _LBPlain(lines, media_type="application/x-ndjson")
 
 
+# ============================================================================
+# HARDEN/ECOSYSTEM-1: /api/a11oy/v1/signing-status
+# Machine-readable signing-key health check. Reports key_source
+# (persistent/ephemeral) and hmac_layer (real/placeholder) so the honesty label
+# is observable without reading source code.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# ============================================================================
+@app.get("/api/a11oy/v1/signing-status")
+async def _a11oy_signing_status():
+    """Machine-readable signing-key honesty: key_source + hmac_layer.
+
+    Returns:
+        key_source: "persistent:<path>" | "ephemeral" | "unavailable"
+        key_persistent: bool -- True only when a Secret-mounted key is loaded
+        hmac_layer: "real" | "placeholder"
+        hmac_key_id: short identifier for the active HMAC key
+        dsse_keyid: SHA-256[:16] of the ECDSA public key
+        non_repudiation: bool -- True only when BOTH signing layers are real
+        doctrine: "v11"
+        honesty: human-readable explanation
+    """
+    # --- ECDSA / DSSE key status ---
+    _key_source = "unavailable"
+    _key_persistent = False
+    _dsse_keyid = u"—"
+    try:
+        from a11oy_signing_key import load_signing_key as _load_sk
+        import hashlib as _hs
+        _priv, _pub_pem, _ks, _err = _load_sk()
+        if _ks:
+            _key_source = _ks
+            _key_persistent = isinstance(_ks, str) and _ks.startswith("persistent:")
+        if _pub_pem:
+            _dsse_keyid = _hs.sha256(_pub_pem.strip().encode()).hexdigest()[:16]
+    except Exception as _e:
+        _key_source = "unavailable:%s" % type(_e).__name__
+
+    # --- HMAC layer status ---
+    _hmac_layer = "placeholder"
+    _hmac_key_id = "hmac-sha256:PLACEHOLDER"
+    try:
+        import szl_receipt_substrate as _srs
+        if getattr(_srs, "_SIGNING_KEY", None):
+            _hmac_layer = "real"
+            _hmac_key_id = getattr(_srs, "_KEY_ID", "hmac-sha256:env-injected")
+        else:
+            _hmac_key_id = getattr(_srs, "_KEY_ID", "hmac-sha256:PLACEHOLDER")
+    except Exception:
+        pass
+
+    _non_repudiation = _key_persistent and (_hmac_layer == "real")
+    _honesty = (
+        "REAL signing -- ECDSA-P256 key mounted from a Secret; HMAC key env-injected."
+        if _non_repudiation else
+        (
+            "PARTIAL -- ECDSA-P256 key is %s; HMAC layer is %s. "
+            "Set A11OY_RECEIPT_KEY_PATH/DIR and A11OY_HMAC_KEY as HF Space secrets "
+            "for full non-repudiation. See /api/a11oy/v1/honest for doctrine labels."
+            % (_key_source, _hmac_layer)
+        )
+    )
+
+    return JSONResponse({
+        "key_source": _key_source,
+        "key_persistent": _key_persistent,
+        "dsse_keyid": _dsse_keyid,
+        "hmac_layer": _hmac_layer,
+        "hmac_key_id": _hmac_key_id,
+        "non_repudiation": _non_repudiation,
+        "doctrine": "v11",
+        "honesty": _honesty,
+    })
+
+
 @app.get("/api/a11oy/v1/honest")
 async def _a11oy_pr_honest_v2():
     """Honest doctrine disclosure. Doctrine v11 LOCKED 749/14/163."""

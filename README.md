@@ -7,6 +7,7 @@ colorTo: gray
 sdk: docker
 app_port: 7860
 pinned: true
+storage: large
 license: apache-2.0
 short_description: "a11oy — governed-AI Command Center, signed receipts"
 tags:
@@ -108,6 +109,22 @@ curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock.lambda
 | Live energy ledger | [a-11-oy.com/api/a11oy/v1/energy/ledger](https://a-11-oy.com/api/a11oy/v1/energy/ledger) |
 | Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) |
 | WILLAY classifiers | [a-11-oy.com/api/a11oy/v1/willay/classifiers](https://a-11-oy.com/api/a11oy/v1/willay/classifiers) |
+
+### Persistent receipt storage (HF Space)
+
+The `storage: large` front-matter (above) enables [HF Persistent Storage](https://huggingface.co/docs/hub/spaces-storage) (up to 50 GB, free tier). Set:
+
+```
+SZL_LAKE_DIR=/data/khipu
+```
+
+as an HF Space secret or environment variable. Without this, Khipu receipts live on the ephemeral container filesystem (`./khipu`) and are lost on Space rebuild before the background HF-dataset mirror commits. With the mount, the ledger survives rebuilds and the mirror race is eliminated.
+
+**Required HF Space secrets for full signing integrity:**
+- `A11OY_HMAC_KEY` — HMAC signing key; absent = PLACEHOLDER signatures (honest label, non-repudiation disabled)
+- `A11OY_RECEIPT_KEY_PATH` or `A11OY_RECEIPT_KEY_DIR` — ECDSA P-256 PEM for DSSE signing; absent = ephemeral key (resets on rebuild)
+
+Check current signing status: `GET /api/a11oy/v1/signing-status`
 
 ---
 
