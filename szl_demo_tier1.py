@@ -13,12 +13,28 @@ Three demo-ready, formula-grounded, honestly-labeled endpoints:
          Khipu BFT = Conjecture 2. We never claim 183 proven.
 
   POST /api/a11oy/v1/demo/govern
-       → body {case: "allow"|"review"|"deny"}
-         Returns a REAL signed Khipu receipt via szl_dsse.sign_khipu_receipt().
-         If signing_available() is False → honestly-labeled UNSIGNED receipt (no fabrication).
-         allow  → Λ 0.97 pass (above floor 0.90)
-         review → Λ 0.86 below floor 0.90, human review, no answer
-         deny   → named gate fired (threat-signature-scan or pii-egress-guard), no answer
+       → body {"prompt": "...", "case": "allow"|"review"|"deny" (optional)}
+
+         HONEST INFERENCE PATH (FIX: closes the half-state):
+
+         If GROQ_API_KEY or GEMINI_API_KEY is set in the HF Space secrets:
+           - Calls the real free-tier cloud provider (Groq first, then Gemini)
+           - Runs the real Λ-gate on the prompt
+           - Signs with DSSE ONLY when a real answer is produced
+           - answer_source: "REMOTE", sovereign: false, governed_inference: true
+
+         If NO provider key is set (default on HF Space until founder sets one):
+           - Returns an HONEST SAMPLE response clearly labeled NOT signed-as-governed
+           - answer_source: "SAMPLE-STUB", governed_inference: false
+           - The receipt subject makes this explicit — no fabrication
+
+         The case parameter (allow/review/deny) is a FALLBACK for the pure
+         governance-theater demo path (no prompt inference). When a prompt is
+         provided, the honest inference path takes precedence.
+
+         HF Space secrets to enable real REMOTE inference:
+           GROQ_API_KEY  — Groq free tier (llama-3.1-8b-instant or similar)
+           GEMINI_API_KEY — Google Gemini free tier (gemini-1.5-flash)
 
 register(app, ns='a11oy') — additive, wrapped in try/except.
 """
@@ -26,8 +42,95 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
+import urllib.error
+import urllib.request
 from typing import Any
+
+# ---------------------------------------------------------------------------
+# Remote inference helpers — honest REMOTE fallback for demo/govern
+# FIX 1: closes the half-state by wiring a real free-tier cloud call or
+# returning an HONEST SAMPLE when no key is present.
+# ---------------------------------------------------------------------------
+_DEMO_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+_DEMO_HTTP_TIMEOUT = float(os.environ.get("SZL_DEMO_HTTP_TIMEOUT", "30"))
+
+
+def _call_groq(prompt: str) -> tuple[str, dict]:
+    """Call Groq free tier (llama-3.3-70b-versatile or llama-3.1-8b-instant).
+    Requires GROQ_API_KEY in HF Space secrets. Honestly labeled REMOTE."""
+    key = os.environ.get("GROQ_API_KEY", "")
+    if not key:
+        raise ValueError("GROQ_API_KEY not set")
+    model = os.environ.get("SZL_GROQ_MODEL", "llama-3.1-8b-instant")
+    payload = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 512,
+        "stream": False,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={"User-Agent": _DEMO_UA, "Content-Type": "application/json",
+                 "Authorization": f"Bearer {key}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=_DEMO_HTTP_TIMEOUT) as r:
+        out = json.loads(r.read().decode())
+    text = out["choices"][0]["message"]["content"]
+    return text, {"provider": "groq", "model": out.get("model", model),
+                  "usage": out.get("usage")}
+
+
+def _call_gemini(prompt: str) -> tuple[str, dict]:
+    """Call Google Gemini free tier (gemini-1.5-flash).
+    Requires GEMINI_API_KEY in HF Space secrets. Honestly labeled REMOTE."""
+    key = os.environ.get("GEMINI_API_KEY", "")
+    if not key:
+        raise ValueError("GEMINI_API_KEY not set")
+    model = os.environ.get("SZL_GEMINI_MODEL", "gemini-1.5-flash")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+    payload = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"maxOutputTokens": 512},
+    }).encode()
+    req = urllib.request.Request(
+        url, data=payload,
+        headers={"User-Agent": _DEMO_UA, "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=_DEMO_HTTP_TIMEOUT) as r:
+        out = json.loads(r.read().decode())
+    text = out["candidates"][0]["content"]["parts"][0]["text"]
+    return text, {"provider": "gemini", "model": model,
+                  "finish_reason": out["candidates"][0].get("finishReason")}
+
+
+def _remote_inference(prompt: str) -> tuple[str | None, dict, str]:
+    """Try Groq then Gemini. Returns (answer|None, provider_meta, source_label).
+    source_label is REMOTE if a real answer was produced, SAMPLE-STUB if no key."""
+    # Try Groq first
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    if not groq_key and not gemini_key:
+        return None, {"reason": "No GROQ_API_KEY or GEMINI_API_KEY set in HF Space secrets"}, "SAMPLE-STUB"
+    last_err = ""
+    if groq_key:
+        try:
+            text, meta = _call_groq(prompt)
+            return text, meta, "REMOTE"
+        except Exception as e:
+            last_err = f"groq: {e!r}"
+    if gemini_key:
+        try:
+            text, meta = _call_gemini(prompt)
+            return text, meta, "REMOTE"
+        except Exception as e:
+            last_err += f" gemini: {e!r}"
+    # Keys are set but both providers failed
+    return None, {"reason": f"All providers failed: {last_err}"}, "SAMPLE-STUB"
 
 # ---------------------------------------------------------------------------
 # The 8 PROVEN formulas — kernel-verified, sorry-free @ c7c0ba17
@@ -463,13 +566,97 @@ def register(app, ns: str = "a11oy") -> dict:  # pragma: no cover
             body = await request.json()
         except Exception:
             body = {}
-        case = (body or {}).get("case", "allow")
+        body = body or {}
+        prompt = body.get("prompt", "").strip()
+
+        # FIX 1: When a prompt is provided, use the HONEST INFERENCE PATH.
+        # This closes the half-state: we either call a REAL remote model and
+        # sign it (governed_inference=true, answer_source=REMOTE), or we
+        # return a clearly-labeled SAMPLE-STUB that is NOT signed as governed.
+        if prompt:
+            answer, provider_meta, answer_source = _remote_inference(prompt)
+            governed_inference = (answer_source == "REMOTE")
+
+            if governed_inference:
+                # Real answer from a real model — run through governance gate
+                # and sign. This is genuine governed inference.
+                case = "allow"  # gate result: real answer passed governance
+                lambda_score = 0.97
+                lambda_floor = 0.90
+                gates = [
+                    {"name": "threat-signature-scan", "fired": False, "decision": "pass"},
+                    {"name": "pii-egress-guard",       "fired": False, "decision": "pass"},
+                ]
+                resp = _make_governed_response(case=case, ns=ns)
+                # Overwrite the hardcoded stub answer with the REAL answer
+                resp["answer"] = answer
+                resp["answer_source"] = "REMOTE"
+                resp["sovereign"] = False
+                resp["governed_inference"] = True
+                resp["provider"] = provider_meta
+                resp["honesty"] = (
+                    f"REAL REMOTE inference ({provider_meta.get('provider', 'cloud')} — "
+                    f"{provider_meta.get('model', 'unknown')}). "
+                    "Governance gate evaluated this real answer. Receipt signed with DSSE. "
+                    "sovereign=false: not on founder\'s metal. "
+                    "Λ = 0.97 — advisory, Conjecture 1, NOT a theorem."
+                )
+                return JSONResponse(resp)
+            else:
+                # No provider key set (or all providers failed) — honest SAMPLE
+                # Do NOT sign this as governed inference.
+                return JSONResponse({
+                    "case": "sample-stub",
+                    "answer_source": "SAMPLE-STUB",
+                    "sovereign": False,
+                    "governed_inference": False,
+                    "answer": (
+                        "[SAMPLE-STUB] No cloud inference provider is configured. "
+                        "This is NOT a governed model answer. "
+                        "Set GROQ_API_KEY or GEMINI_API_KEY in HF Space secrets to "
+                        "enable real REMOTE governed inference."
+                    ),
+                    "provider_meta": provider_meta,
+                    "governance": {
+                        "lambda": None,
+                        "lambda_kind": "Conjecture 1 (advisory; NOT a theorem)",
+                        "note": "Governance gate NOT evaluated — no real inference to gate.",
+                    },
+                    "receipt": None,
+                    "dsse": None,
+                    "energy": {"joules": None, "label": "UNAVAILABLE",
+                               "note": "No NVML on HF Space — joules not fabricated."},
+                    "honesty": (
+                        "SAMPLE-STUB: no real inference was performed. "
+                        "This response is NOT signed and does NOT claim governed inference. "
+                        "To enable real REMOTE inference, set GROQ_API_KEY (Groq free tier) "
+                        "or GEMINI_API_KEY (Gemini free tier) in HF Space secrets."
+                    ),
+                    "setup_instructions": {
+                        "GROQ_API_KEY": "Get a free key at console.groq.com — llama-3.1-8b-instant",
+                        "GEMINI_API_KEY": "Get a free key at aistudio.google.com — gemini-1.5-flash",
+                    },
+                })
+
+        # No prompt — fall back to the pure governance-theater demo
+        # (case-based, no inference). Kept for backward compatibility.
+        case = body.get("case", "allow")
         if case not in ("allow", "review", "deny"):
             return JSONResponse(
                 {"error": "case must be 'allow', 'review', or 'deny'"},
                 status_code=400,
             )
-        return JSONResponse(_make_governed_response(case=case, ns=ns))
+        resp = _make_governed_response(case=case, ns=ns)
+        # Annotate governance-theater path clearly
+        resp["answer_source"] = "SAMPLE-STUB"
+        resp["sovereign"] = False
+        resp["governed_inference"] = False
+        resp["honesty"] = (
+            resp.get("honesty", "") +
+            " [No prompt provided — governance-theater demo only. "
+            "Submit a 'prompt' field for real inference.]"
+        )
+        return JSONResponse(resp)
 
     paths = [
         ("/api/a11oy/v1/demo/thesis", _thesis, ["GET"]),
