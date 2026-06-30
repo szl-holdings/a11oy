@@ -2512,6 +2512,71 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 <script>
 /* ============================================================================
+   STATUS-EVERYWHERE (v2 console polish) — Vercel-style live status in the tab title
+   + favicon, driven by the REAL org posture endpoint /api/a11oy/v1/lambda/org.
+   The tab title shows the live org Λ and whether it clears the 0.90 floor; the
+   favicon is repainted to match (proof-teal pass / gold below-floor / gray when the
+   source is UNREACHABLE). HONEST by construction: on any fetch/parse failure the
+   title reads "Λ N/A" and the dot goes gray — never a fabricated score, never a
+   faked green. Self-contained, no new deps, 0 runtime CDN; one 45s poll, GPU-light
+   (a 32px canvas favicon). KANCHAY palette only: void / proof / lattice / gold. */
+(function szlStatusEverywhere(){
+  var BASE='a11oy console';
+  var FLOOR=0.90;
+  var C={void:'#080c14',proof:'#3af4c8',gold:'#d7b96b',gray:'#5a6b7a',lattice:'#5b8dee'};
+  function iconLink(){
+    var l=document.querySelector('link[rel~="icon"]');
+    if(!l){ l=document.createElement('link'); l.rel='icon'; document.head.appendChild(l); }
+    return l;
+  }
+  /* paint a 32px favicon: void ground + a status disc + a Λ glyph in the disc colour */
+  function paintFavicon(color){
+    try{
+      var s=32, cv=document.createElement('canvas'); cv.width=s; cv.height=s;
+      var x=cv.getContext('2d'); if(!x) return;
+      x.fillStyle=C.void; x.fillRect(0,0,s,s);
+      x.beginPath(); x.arc(s/2,s/2,s/2-2,0,Math.PI*2);
+      x.lineWidth=2.5; x.strokeStyle=color; x.stroke();
+      x.fillStyle=color; x.font='bold 19px Georgia,serif';
+      x.textAlign='center'; x.textBaseline='middle';
+      x.fillText('Λ', s/2, s/2+1);
+      iconLink().href=cv.toDataURL('image/png');
+    }catch(e){/* canvas unavailable — leave the static favicon, never crash */}
+  }
+  function apply(state){
+    /* state: {lambda:Number|null, pass:Boolean|null, unreachable:Boolean} */
+    var color, prefix;
+    if(state.unreachable || state.lambda==null){
+      color=C.gray; prefix='Λ N/A';
+    } else {
+      var clears=(state.pass===true) || (state.pass==null && state.lambda>=FLOOR);
+      color=clears?C.proof:C.gold;
+      prefix='Λ '+state.lambda.toFixed(3)+' '+(clears?'✓':'⚠');
+    }
+    document.title=prefix+' · '+BASE;
+    paintFavicon(color);
+  }
+  function poll(){
+    /* AbortController bounds the probe so a hung backend never wedges the poller. */
+    var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    var to=ctl?setTimeout(function(){try{ctl.abort();}catch(e){}},8000):null;
+    fetch('/api/a11oy/v1/lambda/org',{headers:{accept:'application/json'},signal:ctl?ctl.signal:undefined})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(d){
+        if(to)clearTimeout(to);
+        var lam=(d&&typeof d.lambda_org==='number')?d.lambda_org:null;
+        var pass=(d&&typeof d.pass==='boolean')?d.pass:null;
+        apply({lambda:lam,pass:pass,unreachable:lam==null});
+      })
+      .catch(function(){ if(to)clearTimeout(to); apply({lambda:null,pass:null,unreachable:true}); });
+  }
+  function start(){ apply({lambda:null,pass:null,unreachable:true}); poll(); setInterval(poll,45000); }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else setTimeout(start,0);
+})();
+</script>
+
+<script>
+/* ============================================================================
    a11oy build-wave — LEADER-GRADE out-of-this-world tabs + live/animated helpers
    Real data only. No mock. Honesty doctrine preserved (Λ=Conjecture 1, 8 proven,
    SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap, no organ names, no jargon). Built on existing helper toolkit.
