@@ -8436,8 +8436,8 @@ async def spa_root():
     # vendored Three.js r160, live receipt/mesh weave-ins + in-browser WebCrypto
     # verify), then the cathedral hero, then the console SPA, then the SPA index.
     # All fallbacks preserved so a missing file never white-screens "/".
-    for _cand in (Path("/app/a11oy_landing.html"), Path("/app/cathedral.html"),
-                  PAGES_DIR / "console.html", INDEX_HTML):
+    for _cand in (Path("/app/a11oy_front_door.html"), Path("/app/a11oy_landing.html"),
+                  Path("/app/cathedral.html"), PAGES_DIR / "console.html", INDEX_HTML):
         try:
             _cp = Path(_cand)
             if not _cp.is_file():
