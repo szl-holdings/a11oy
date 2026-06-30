@@ -295,21 +295,19 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
             return JSONResponse(ent[0])
 
         # Resolve effective base_url: an empty base_url means same-origin loopback.
-        # Priority: SZL_ENGINE_STATUS_BASE > SPACE_HOST (HF env var) > 127.0.0.1:PORT.
-        # HF Spaces sets SPACE_HOST=szlholdings-a11oy.hf.space — use HTTPS to that
-        # public hostname as the loopback target when available (HF sandboxes may
-        # block direct 127.0.0.1 connections from within the container).
+        # Resolution priority: explicit override > local loopback. HF Space sandboxes FIREWALL outbound calls to their own
+        # PUBLIC hostname (SPACE_HOST), so probing https://<space>.hf.space from
+        # inside the container always times out -> organs read 0/6 even when healthy.
+        # The reliable in-container path is the loopback 127.0.0.1:PORT, so prefer it.
         _eff_base = base_url
         if not _eff_base:
             _eff_base = _os.environ.get("SZL_ENGINE_STATUS_BASE", "")
         if not _eff_base:
-            _space_host = _os.environ.get("SPACE_HOST", "")
-            if _space_host:
-                # SPACE_HOST may be comma-separated (HF quirk); take the first one.
-                _space_host = _space_host.split(",")[0].strip()
-                _eff_base = f"https://{_space_host}"
-            else:
-                _eff_base = f"http://127.0.0.1:{_os.environ.get('PORT', '7860')}"
+            # Local loopback FIRST — works inside the HF sandbox.
+            _eff_base = f"http://127.0.0.1:{_os.environ.get('PORT', '7860')}"
+        # NOTE: SPACE_HOST (public hostname) is intentionally NOT used as a probe
+        # target; outbound-to-self is blocked in the HF sandbox. Set
+        # SZL_ENGINE_STATUS_BASE only if running behind a reachable reverse proxy.
 
         client = http_client
         if client is None:
