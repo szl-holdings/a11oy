@@ -17,10 +17,19 @@
 <link rel="icon" href="/social-preview.svg" />
 <style>
   :root{
-    --bg:#070b16; --deep:#0a0f1e; --surface:#10161f; --border:#22304a;
-    --teal:#39d8c8; --teal-soft:#39d8c833; --violet:#6a7bff; --gold:#cda64a;
-    --ink:#eaf1f7; --sub:#9fb2c9; --ghost:#64768f;
-    --ok:#39d8c8; --warn:#cda64a; --down:#e06a6a;
+    /* PALETTE (2026-06-30 elegant dark refresh)
+       Anthropic/NVIDIA-grade: deep near-black canvas, ONE restrained teal accent,
+       violet as secondary. Accent glows softly — never floods. */
+    --bg:#05070d; --deep:#070b16; --surface:#0d1220; --border:#1e2d46;
+    --teal:#2ec4b6;       /* restrained teal — was #39d8c8 (too bright/saturated) */
+    --teal-soft:rgba(46,196,182,0.12);
+    --teal-dim:rgba(46,196,182,0.06);
+    --violet:#5a6de8;     /* muted violet — was #6a7bff */
+    --gold:#cda64a;
+    --ink:#eaf1f7;        /* near-white hero text */
+    --sub:#b8c4d6;        /* body copy — WCAG AA on dark bg */
+    --ghost:#64768f;
+    --ok:#2ec4b6; --warn:#cda64a; --down:#e06a6a;
     --r:16px; --maxw:1180px;
     --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
@@ -28,9 +37,10 @@
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
+    /* Deep near-black base — NO more bright radial gradients that wash the page */
     background:
-      radial-gradient(1200px 700px at 70% -10%, #14213a 0%, transparent 60%),
-      radial-gradient(900px 600px at 10% 10%, #0d1830 0%, transparent 55%),
+      radial-gradient(ellipse 900px 500px at 75% -5%, #0c1530 0%, transparent 55%),
+      radial-gradient(ellipse 700px 400px at 5% 15%,  #090e1e 0%, transparent 50%),
       var(--bg);
     color:var(--ink); font-family:var(--sans); line-height:1.55;
     -webkit-font-smoothing:antialiased; overflow-x:hidden;
@@ -42,7 +52,7 @@
   /* ---- nav ---- */
   header.nav{position:sticky;top:0;z-index:40;
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    background:linear-gradient(180deg,#070b16cc,#070b1688);
+    background:linear-gradient(180deg,rgba(5,7,13,0.94),rgba(5,7,13,0.78));
     border-bottom:1px solid var(--border)}
   .nav .wrap{display:flex;align-items:center;gap:18px;height:64px}
   .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
@@ -50,42 +60,95 @@
   .brand .sub{color:var(--ghost);font-weight:500;font-size:12px;letter-spacing:2px;text-transform:uppercase}
   .nav nav{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .nav nav a{padding:8px 13px;border-radius:10px;color:var(--sub);font-size:14px;font-weight:500;transition:.15s}
-  .nav nav a:hover{color:var(--ink);background:#ffffff0e}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:11px;
-    font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;transition:.15s;white-space:nowrap}
-  .btn-primary{background:linear-gradient(135deg,var(--teal),#2bb6a8);color:#04130f;
-    box-shadow:0 6px 24px -8px var(--teal)}
-  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 30px -8px var(--teal)}
-  .btn-ghost{border-color:var(--border);color:var(--ink);background:#ffffff08}
-  .btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
-  .btn-violet{background:linear-gradient(135deg,var(--violet),#5566e8);color:#fff;
-    box-shadow:0 6px 24px -8px var(--violet)}
-  .btn-violet:hover{transform:translateY(-1px);box-shadow:0 10px 30px -8px var(--violet)}
+  .nav nav a:hover{color:var(--ink);background:rgba(255,255,255,0.06)}
+
+  /* Buttons — elegant, not loud */
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:9px;
+    font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
+    transition:all .18s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;letter-spacing:.01em}
+  /* Primary: solid teal with dark text — confident, not gradient-gaudy */
+  .btn-primary{
+    background:var(--teal);color:#03201d;border-color:var(--teal);
+    box-shadow:0 0 0 0 rgba(46,196,182,0.0)}
+  .btn-primary:hover{
+    background:#38d4c7;border-color:#38d4c7;
+    box-shadow:0 4px 20px -4px rgba(46,196,182,0.35);
+    transform:translateY(-1px)}
+  /* Ghost: refined outline */
+  .btn-ghost{border-color:var(--border);color:var(--sub);background:rgba(255,255,255,0.04)}
+  .btn-ghost:hover{border-color:rgba(46,196,182,0.5);color:var(--teal);background:var(--teal-dim)}
+  /* Violet CTA */
+  .btn-violet{
+    background:var(--violet);color:#fff;border-color:var(--violet);
+    box-shadow:0 0 0 0 rgba(90,109,232,0.0)}
+  .btn-violet:hover{
+    background:#6b7ff0;border-color:#6b7ff0;
+    box-shadow:0 4px 20px -4px rgba(90,109,232,0.35);
+    transform:translateY(-1px)}
 
   /* ---- hero ---- */
   .hero{position:relative;min-height:90vh;display:flex;align-items:center;overflow:hidden}
+
+  /* Canvas sits at z-index:0 — renders the holographic mesh */
   #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
+
+  /* DARK SCRIM: sits BETWEEN canvas (z:0) and text (z:2).
+     Ensures the deep near-black dominates even on devices where the canvas is bright.
+     On mobile especially this guarantees legibility regardless of WebGL rendering. */
+  .hero-scrim{
+    position:absolute;inset:0;z-index:1;pointer-events:none;
+    /* Radial: keep the glowing core visible at centre-right, crush edges to near-black */
+    background:
+      radial-gradient(ellipse 65% 70% at 68% 50%, transparent 0%, rgba(5,7,13,0.55) 55%, rgba(5,7,13,0.88) 100%),
+      /* Left half where text lives: very dark */
+      linear-gradient(to right, rgba(5,7,13,0.82) 0%, rgba(5,7,13,0.50) 45%, rgba(5,7,13,0.15) 100%)
+  }
+
   .hero-fallback{position:absolute;inset:0;z-index:0;display:none;
-    background:radial-gradient(600px 600px at 65% 45%, #39d8c81f, transparent 70%)}
+    background:radial-gradient(600px 600px at 65% 45%, rgba(46,196,182,0.06), transparent 70%)}
   .hero .wrap{position:relative;z-index:2;padding-top:48px;padding-bottom:48px}
   .hero-inner{max-width:720px}
-  .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 13px;border-radius:999px;
-    border:1px solid var(--teal-soft);background:#39d8c812;color:var(--teal);
+
+  /* Eyebrow pill — subtle, not a glowing mint slab */
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 14px;border-radius:999px;
+    border:1px solid rgba(46,196,182,0.22);background:rgba(46,196,182,0.06);color:var(--teal);
     font-size:12.5px;font-weight:600;letter-spacing:.4px;margin-bottom:22px}
   .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);
     box-shadow:0 0 0 0 var(--teal);animation:pulse 2.4s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 #39d8c8aa}70%{box-shadow:0 0 0 9px #39d8c800}100%{box-shadow:0 0 0 0 #39d8c800}}
-  h1.title{font-size:clamp(2.4rem,5.8vw,4.2rem);line-height:1.04;margin:0 0 18px;
-    font-weight:760;letter-spacing:-1.5px}
-  h1.title .grad{background:linear-gradient(120deg,var(--teal),var(--violet));
-    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .lede{font-size:clamp(1.06rem,2vw,1.32rem);color:var(--sub);max-width:620px;margin:0 0 28px}
+  @keyframes pulse{
+    0%  {box-shadow:0 0 0 0 rgba(46,196,182,0.6)}
+    70% {box-shadow:0 0 0 8px rgba(46,196,182,0.0)}
+    100%{box-shadow:0 0 0 0 rgba(46,196,182,0.0)}
+  }
+
+  /* Hero h1: near-white for plain words, accent ONLY on "signs its work" */
+  h1.title{
+    font-size:clamp(2.4rem,5.8vw,4.2rem);line-height:1.04;margin:0 0 18px;
+    font-weight:760;letter-spacing:-1.5px;
+    color:var(--ink);   /* #eaf1f7 — high-contrast near-white */
+    /* Subtle text shadow to punch through any residual canvas glow */
+    text-shadow:0 2px 20px rgba(5,7,13,0.8),0 1px 4px rgba(5,7,13,0.6)
+  }
+  /* Accent only on the "signs its work" span — teal/violet gradient */
+  h1.title .grad{
+    background:linear-gradient(110deg, var(--teal) 0%, #7b8ff5 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    /* Filter drop shadow preserves legibility of gradient text */
+    filter:drop-shadow(0 1px 8px rgba(5,7,13,0.7))
+  }
+
+  /* Body: #b8c4d6 — WCAG AA (5.8:1 on #05070d) */
+  .lede{font-size:clamp(1.06rem,2vw,1.24rem);color:var(--sub);max-width:600px;margin:0 0 28px;
+    text-shadow:0 1px 8px rgba(5,7,13,0.5)}
   .lede b{color:var(--ink);font-weight:600}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
+
+  /* Hero stats: frosted dark cards */
   .hero-stats{display:flex;gap:14px;flex-wrap:wrap}
   .stat{padding:13px 17px;border-radius:13px;border:1px solid var(--border);
-    background:linear-gradient(180deg,#ffffff0c,#ffffff04);min-width:150px;backdrop-filter:blur(6px)}
-  .stat .k{font-size:1.55rem;font-weight:720;font-family:var(--mono);line-height:1.1}
+    background:rgba(255,255,255,0.04);min-width:150px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .stat .k{font-size:1.55rem;font-weight:720;font-family:var(--mono);line-height:1.1;color:var(--ink)}
   .stat .l{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
   .stat .k.teal{color:var(--teal)}
 
@@ -100,29 +163,33 @@
   @media(max-width:900px){.g3{grid-template-columns:1fr}}
 
   .card{padding:26px;border-radius:var(--r);border:1px solid var(--border);
-    background:linear-gradient(180deg,#ffffff0b,#ffffff05);position:relative;overflow:hidden;
-    display:flex;flex-direction:column}
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018));
+    position:relative;overflow:hidden;display:flex;flex-direction:column}
   .card::before{content:"";position:absolute;inset:0;border-radius:var(--r);padding:1px;
-    background:linear-gradient(135deg,#39d8c855,transparent 40%);
+    background:linear-gradient(135deg,rgba(46,196,182,0.18),transparent 40%);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-    -webkit-mask-composite:xor;mask-composite:exclude;opacity:.6;pointer-events:none}
+    -webkit-mask-composite:xor;mask-composite:exclude;opacity:.5;pointer-events:none}
   .card h3{margin:0 0 8px;font-size:1.18rem;font-weight:700}
   .card p{margin:0;color:var(--sub);font-size:.97rem}
+  /* Icon: no filled circle — use outline approach, less "AI template" */
   .card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
-    background:#39d8c815;border:1px solid var(--teal-soft);color:var(--teal);margin-bottom:15px;font-size:19px}
+    background:rgba(46,196,182,0.07);border:1px solid rgba(46,196,182,0.18);
+    color:var(--teal);margin-bottom:15px;font-size:19px}
   .card .golinks{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;padding-top:16px}
   .card a.go{color:var(--teal);font-family:var(--mono);font-size:12.5px}
   .card a.go:hover{text-decoration:underline}
   .card .num{position:absolute;top:18px;right:22px;font-family:var(--mono);font-size:13px;color:var(--ghost)}
 
   /* ---- vertical (killinchu) ---- */
-  .vert{padding:34px;border-radius:var(--r);border:1px solid #6a7bff44;
-    background:linear-gradient(135deg,#6a7bff14,#ffffff05);position:relative;overflow:hidden;
+  .vert{padding:34px;border-radius:var(--r);border:1px solid rgba(90,109,232,0.25);
+    background:linear-gradient(135deg,rgba(90,109,232,0.07),rgba(255,255,255,0.02));
+    position:relative;overflow:hidden;
     display:grid;grid-template-columns:1.3fr .7fr;gap:26px;align-items:center}
   @media(max-width:840px){.vert{grid-template-columns:1fr}}
   .vert .pmark{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
     font-family:var(--mono);font-weight:720;font-size:15px;
-    background:#6a7bff18;border:1px solid #6a7bff44;color:var(--violet);margin-bottom:14px}
+    background:rgba(90,109,232,0.10);border:1px solid rgba(90,109,232,0.28);
+    color:var(--violet);margin-bottom:14px}
   .vert h3{font-size:1.6rem;font-weight:740;margin:0 0 4px;letter-spacing:-.4px}
   .vert .tag{font-size:12px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:14px}
   .vert p{color:var(--sub);margin:0 0 6px;font-size:1.02rem}
@@ -135,15 +202,15 @@
   .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
     font-size:12px;font-weight:600;font-family:var(--mono);border:1px solid var(--border)}
   .chip .dot{width:8px;height:8px;border-radius:50%}
-  .chip.live{color:var(--ok);border-color:#39d8c855;background:#39d8c810}
+  .chip.live{color:var(--ok);border-color:rgba(46,196,182,0.35);background:rgba(46,196,182,0.06)}
   .chip.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
-  .chip.down{color:var(--down);border-color:#e06a6a55;background:#e06a6a10}
+  .chip.down{color:var(--down);border-color:rgba(224,106,106,0.35);background:rgba(224,106,106,0.06)}
   .chip.down .dot{background:var(--down)}
 
   /* ---- evidence band ---- */
   .evidence{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
     padding:26px 30px;border-radius:var(--r);border:1px solid var(--border);
-    background:linear-gradient(180deg,#ffffff09,#ffffff04)}
+    background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))}
   .evidence .et{max-width:640px}
   .evidence h3{margin:0 0 6px;font-size:1.15rem;font-weight:700}
   .evidence p{margin:0;color:var(--sub);font-size:.97rem}
@@ -167,7 +234,7 @@
     <a class="brand" href="/" aria-label="a11oy home">
       <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#39d8c8"/><stop offset="1" stop-color="#6a7bff"/></linearGradient></defs>
+          <stop offset="0" stop-color="#2ec4b6"/><stop offset="1" stop-color="#5a6de8"/></linearGradient></defs>
         <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
         <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
         <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
@@ -186,6 +253,8 @@
 <!-- ============================ HERO / FLAGSHIP ============================ -->
 <section class="hero">
   <canvas id="hero-canvas"></canvas>
+  <!-- Dark scrim: sits between canvas and text to guarantee legibility on all devices -->
+  <div class="hero-scrim" aria-hidden="true"></div>
   <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
     <div class="hero-inner">
@@ -273,7 +342,7 @@
 </section>
 
 <!-- ====================== THE ONE VERTICAL: killinchu ====================== -->
-<section class="band" style="background:linear-gradient(180deg,#0a0f1e00,#0a0f1e88)">
+<section class="band" style="background:linear-gradient(180deg,rgba(10,15,30,0),rgba(10,15,30,0.6))">
   <div class="wrap">
     <p class="kick">The vertical it already runs</p>
     <h2>Where governed inference earns its keep.</h2>

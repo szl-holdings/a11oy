@@ -17,7 +17,18 @@
  *
  * PERF: capped DPR, instanced points (single draw call), 60fps target. Honors
  * prefers-reduced-motion (renders one static frame) and downshifts particle count
- * on small / low-DPR devices. Signed-off-by: Stephen P. Lutar Jr.
+ * on small / low-DPR devices.
+ *
+ * VISUAL FIX (2026-06-30): Tamed the canvas from blinding-cyan flood to a
+ * restrained, elegant dark field. Key changes:
+ *  - Core glow opacity: clamped to 0.40 max (was 0.92) — whispers, doesn't shout
+ *  - Halo sprite: opacity 0.10 (was 0.55), scale 7×7 (was 9×9)
+ *  - Particle alpha: gate-pass 0.45 (was 0.95), denied 0.18 (was 0.40)
+ *  - Canvas renderer alpha: transparent over deep near-black page bg (#05070d)
+ *  - Colors desaturated: teal at 30% brightness, dim at near-black for particles
+ *  - Net effect: holographic mesh whispers on deep dark, never floods
+ *
+ * Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
  * ========================================================================== */
 import * as THREE from "three";
 
@@ -26,9 +37,10 @@ const REDUCED = window.matchMedia &&
 const MOBILE = Math.min(window.innerWidth, window.innerHeight) < 720 ||
   /Mobi|Android/i.test(navigator.userAgent);
 
-const TEAL = new THREE.Color(0x39d8c8);
-const DEEP = new THREE.Color(0x6a7bff);
-const DIM  = new THREE.Color(0x1b2740);
+// Desaturated, restrained palette — hairlines on near-black, not bright floods
+const TEAL = new THREE.Color(0x1a6b63);  // deep teal — was 0x39d8c8 (too bright)
+const DEEP = new THREE.Color(0x2a3578);  // muted violet — was 0x6a7bff (too bright)
+const DIM  = new THREE.Color(0x0a0f1c);  // near-black for denied particles
 
 export function mountHero(canvas) {
   let renderer;
@@ -43,7 +55,7 @@ export function mountHero(canvas) {
 
   const DPR = Math.min(window.devicePixelRatio || 1, MOBILE ? 1.5 : 2);
   renderer.setPixelRatio(DPR);
-  renderer.setClearColor(0x000000, 0);
+  renderer.setClearColor(0x000000, 0); // fully transparent — page bg shows through
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
@@ -85,20 +97,22 @@ export function mountHero(canvas) {
       uniform vec3 uTeal; uniform vec3 uDeep;
       void main(){
         float fres = pow(1.0 - max(dot(normalize(vN), normalize(vView)), 0.0), 2.4);
-        // Λ-pulse: the shell brightens toward the advisory ceiling, never to 1.0
+        // Λ-pulse: the shell breathes gently — restrained, not flooding
         float pulse = 0.5 + 0.5*sin(uTime*1.6);
-        float glow = fres * (0.55 + 0.45*pulse) * uLambda;
+        // TAMED: glow multiplier capped — elegant whisper, not a bright flood
+        float glow = fres * (0.28 + 0.18*pulse) * uLambda;
         vec3 col = mix(uDeep, uTeal, fres);
-        gl_FragColor = vec4(col * glow, clamp(glow,0.0,0.92));
+        // max alpha 0.40 — ensures the dark page bg always dominates
+        gl_FragColor = vec4(col * glow, clamp(glow,0.0,0.40));
       }`,
   });
   const core = new THREE.Mesh(coreGeo, coreMat);
   root.add(core);
 
-  // wire lattice over the core (deny-by-default cage)
+  // wire lattice over the core (deny-by-default cage) — very dim hairlines
   const cage = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.62, 1)),
-    new THREE.LineBasicMaterial({ color: 0x39d8c8, transparent: true, opacity: 0.18 })
+    new THREE.LineBasicMaterial({ color: 0x1a4a46, transparent: true, opacity: 0.14 })
   );
   root.add(cage);
 
@@ -166,18 +180,20 @@ export function mountHero(canvas) {
         if (d > 0.5) discard;
         float a = smoothstep(0.5, 0.0, d);
         vec3 col = mix(uDim, uTeal, vGate) * (vGate>0.5 ? vTw : 0.5);
-        gl_FragColor = vec4(col, a * (vGate>0.5 ? 0.95 : 0.4));
+        // TAMED: max alpha 0.45 gate-pass, 0.18 denied — subtle field on dark bg
+        gl_FragColor = vec4(col, a * (vGate>0.5 ? 0.45 : 0.18));
       }`,
   });
   const points = new THREE.Points(pGeo, pMat);
   root.add(points);
 
-  // ---- soft additive halo sprite (fake bloom, no postprocessing) -----------
+  // ---- soft additive halo sprite (fake bloom) — very restrained -----------
+  // TAMED: opacity 0.10 (was 0.55), scale 7×7 (was 9×9) — barely perceptible glow
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({
     map: makeHaloTexture(), transparent: true, blending: THREE.AdditiveBlending,
-    depthWrite: false, opacity: 0.55, color: 0x39d8c8,
+    depthWrite: false, opacity: 0.10, color: 0x1a6b63,
   }));
-  halo.scale.set(9, 9, 1);
+  halo.scale.set(7, 7, 1);
   scene.add(halo);
 
   // ---- resize ---------------------------------------------------------------
@@ -237,15 +253,16 @@ export function mountHero(canvas) {
 }
 
 // radial-gradient halo texture, built in-canvas (no asset, no CDN)
+// TAMED: core stop 0.18 (was 0.55) — barely-visible glow ring on dark bg
 function makeHaloTexture() {
   const s = 256;
   const c = document.createElement("canvas");
   c.width = c.height = s;
   const g = c.getContext("2d");
   const grad = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
-  grad.addColorStop(0.0, "rgba(57,216,200,0.55)");
-  grad.addColorStop(0.25, "rgba(57,216,200,0.18)");
-  grad.addColorStop(1.0, "rgba(57,216,200,0.0)");
+  grad.addColorStop(0.0, "rgba(26,107,99,0.18)");   // was rgba(57,216,200,0.55)
+  grad.addColorStop(0.25, "rgba(26,107,99,0.06)");  // was rgba(57,216,200,0.18)
+  grad.addColorStop(1.0, "rgba(26,107,99,0.0)");
   g.fillStyle = grad;
   g.fillRect(0, 0, s, s);
   const tex = new THREE.CanvasTexture(c);

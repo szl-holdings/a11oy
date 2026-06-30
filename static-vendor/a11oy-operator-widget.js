@@ -1,5 +1,5 @@
 /* a11oy-operator-widget.js — floating governed-operator widget for SZL surfaces.
- * Version: 3.0.0 — Chaski agent surface, wired to the LIVE a11oy/killinchu
+ * Version: 3.0.1 — a11oy Code agent surface, wired to the LIVE a11oy/killinchu
  * substrate (real SSE chat + agentic loop + v4 ledger). No character codenames.
  *
  * The operator widget is a persistent, honest interface to the substrate. It is
@@ -7,8 +7,8 @@
  * and surfaces notifications (receipt minted, gate denied, build status,
  * doctrine drift). It ROUTES questions to the substrate backends — it has NO
  * model of its own — and is HONEST when a backend is unreachable (it never
- * fabricates an answer). The agent surface is named "Chaski" (the runner who
- * carries the message), per SZL doctrine.
+ * fabricates an answer). The agent surface is branded "a11oy Code" in the UI.
+ * Internal codename: Chaski (internal only, not user-visible).
  *
  * Auto-detection: the widget detects the host organ from the page origin
  * (killinchu -> /api/killinchu, otherwise -> /api/a11oy) and calls SAME-ORIGIN
@@ -76,7 +76,7 @@
     '<path d="M32 16 L32 48 M16 32 L48 32" stroke="#c9b787" stroke-width="1.4" opacity="0.55"/>' +
     '<circle cx="32" cy="32" r="4.5" fill="#c9b787"/>' +
     '<text x="32" y="59" font-family="ui-monospace,monospace" font-size="9" fill="#9fb4cc" ' +
-    'text-anchor="middle" letter-spacing="1">CHASKI</text></svg>'
+    'text-anchor="middle" letter-spacing="1">Code</text></svg>'
   );
 
   // ---- Small DOM helpers ----
@@ -243,7 +243,7 @@
     headAvatar,
     el('div', { class: 'aow-head-text' }, [
       el('span', { class: 'aow-eyebrow', text: 'a11oy operator' }),
-      el('span', { class: 'aow-head-name', text: 'Chaski \u2014 governed agent surface' }),
+      el('span', { class: 'aow-head-name', text: 'a11oy Code \u2014 governed agent surface' }),
     ]),
     statusEl,
     closeBtn,
@@ -261,7 +261,7 @@
     onclick: function () { open(); quickAction('verify'); }
   });
   var qaAgent = el('button', {
-    class: 'aow-qa-btn', type: 'button', title: 'Run the governed Chaski agentic loop on a task',
+    class: 'aow-qa-btn', type: 'button', title: 'Run the governed a11oy Code agentic loop on a task',
     text: '\u26A1 Agent',
     onclick: function () { open(); quickAction('agent'); }
   });
@@ -333,7 +333,7 @@
     if (!thread.length) {
       var em = el('div', { class: 'aow-empty' });
       em.innerHTML =
-        '<strong>a11oy operator \u2014 Chaski</strong><br>' +
+        '<strong>a11oy Code</strong><br>' +
         'Ask the substrate anything, or use the buttons above. I route to the live ' +
         esc(CFG.organ) + ' backend and stay honest when it is unreachable \u2014 I never fabricate.' +
         '<br><br><small style="color:#6b7a96">Surface: <em>' + esc(CFG.surface) + '</em> \u2022 organ: <em>' + esc(CFG.organ) + '</em></small>';
@@ -505,7 +505,7 @@
 
     } else if (kind === 'agent') {
       var task = 'Summarise the governance posture of the ' + CFG.surface + ' surface: what is proven, what is experimental, what is roadmap. Be honest and cite.';
-      pushMsg('user', '\u26A1 Run Chaski agent: ' + task);
+      pushMsg('user', '\u26A1 Run a11oy Code agent: ' + task);
       disableQA(true);
       runAgent(task, function () { disableQA(false); });
 
