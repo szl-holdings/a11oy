@@ -140,6 +140,40 @@ def _synthesize_wav(text: str, voice: dict[str, Any]) -> bytes:
     return buf.getvalue()
 
 
+
+def _call_govern_infer(text: str, timeout: float = 8.0) -> dict:
+    """Call the live govern/infer loop — govern decides, Wallpa expresses.
+
+    Tries same-origin first (HF Space / Docker at :7860), then localhost vLLM.
+    Never fabricates: on failure returns decision=UNAVAILABLE with honest_note.
+    """
+    import urllib.request
+
+    _GOVERN_URLS = [
+        "http://127.0.0.1:7860/api/a11oy/v1/govern/infer",
+        "http://127.0.0.1:8000/api/a11oy/v1/govern/infer",
+    ]
+    payload = json.dumps({"text": text, "caller": "wallpa", "surface": "voice/OSS-TTS"}).encode()
+    last_err: str = ""
+    for url in _GOVERN_URLS:
+        try:
+            req = urllib.request.Request(
+                url, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read())
+        except Exception as exc:
+            last_err = str(exc)
+    return {
+        "decision": "UNAVAILABLE",
+        "honest_note": (
+            f"govern/infer unreachable ({last_err[:100]!r}). "
+            "Wallpa never fabricates — honest UNAVAILABLE."
+        ),
+    }
+
+
 def register(app, ns: str = "a11oy") -> None:
     from fastapi import Request
     from fastapi.responses import JSONResponse, StreamingResponse
@@ -223,6 +257,82 @@ def register(app, ns: str = "a11oy") -> None:
         result = _do_speak(text, voice_id, drift_out=0.0)
         result["doctrine"] = "v13 — PURIQ master formula narration"
         result["narrator"] = "Hatun-Willay" if voice_id == "hatun-willay" else voice_id
+        return JSONResponse(result)
+
+    @app.get(base + "/health")
+    async def wallpa_health() -> JSONResponse:
+        """Health check — always honest (UNAVAILABLE if backend down, never fabricated)."""
+        engine = _detect_engine()
+        receipt = dag.emit("health", {"engine": engine["active"]})
+        return JSONResponse({
+            "organ": "WALLPA",
+            "status": "live",
+            "engine": engine,
+            "voices_count": len(VOICES),
+            "doctrine": "v13 \u00a72.2",
+            "theorem": "F8 Wallpa OSS-Only Safety (locked-proven)",
+            "khipu_receipt": receipt,
+        })
+
+    @app.post(base + "/governed-speak")
+    async def wallpa_governed_speak(request: Request) -> JSONResponse:
+        """Governed voice expression: govern decides \u2192 Wallpa expresses.
+
+        Sends the prompt to the live govern/infer loop, then renders the
+        governed answer as audio. If govern/infer is unreachable, returns
+        an honest UNAVAILABLE response with no fabrication.
+        Body: {"text": str, "voice": str (optional), "include_audio": bool (optional)}
+        """
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        text = (body.get("text") or "").strip()
+        if not text:
+            return JSONResponse({"error": "text required"}, status_code=400)
+        voice_id = body.get("voice", "amaru-voice")  # cortex voice for governed answers
+        include_audio = body.get("include_audio", True)
+        # Step 1: govern decides
+        gov = _call_govern_infer(text)
+        decision = gov.get("decision", "UNAVAILABLE")
+        answer_text = (
+            gov.get("answer") or gov.get("text") or gov.get("response") or ""
+        )
+        if not answer_text:
+            answer_text = (
+                f"Govern decision: {decision}. "
+                + (gov.get("honest_note") or gov.get("reason") or "No answer returned.")
+            )
+        # Step 2: Wallpa expresses
+        factor = _wallpa_factor(render_subsumed=(decision != "deny"), drift_out=0.0)
+        result: dict = {
+            "organ": "WALLPA",
+            "mode": "governed-speak",
+            "govern_decision": decision,
+            "govern_payload": gov,
+            "transcript": answer_text,
+            "voice": voice_id,
+            "wallpa_factor": round(factor, 6),
+            "doctrine": "v13 \u00a72.2 \u2014 govern decides, Wallpa expresses",
+            "theorem": "F8 Wallpa OSS-Only Safety (locked-proven)",
+        }
+        if include_audio:
+            voice = VOICES.get(voice_id, VOICES["hatun-willay"])
+            audio = _synthesize_wav(answer_text, voice)
+            b64 = base64.b64encode(audio).decode("ascii")
+            combined = hashlib.sha3_256(audio + answer_text.encode("utf-8")).hexdigest()
+            receipt = dag.emit("governed-speak", {
+                "voice": voice_id, "govern_decision": decision,
+                "chars": len(answer_text),
+                "audio_transcript_sha3": combined,
+                "wallpa_factor": round(factor, 6),
+            })
+            result.update({
+                "audio_format": "wav/pcm16/16000",
+                "audio_base64": b64,
+                "audio_transcript_sha3": combined,
+                "khipu_receipt": receipt,
+            })
         return JSONResponse(result)
 
     print(f"[{ns}] szl_wallpa routes registered (organ=WALLPA, expression)", flush=True)
