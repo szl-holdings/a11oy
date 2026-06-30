@@ -573,30 +573,31 @@ def _store_capsule(capsule: dict[str, Any]) -> None:
 
 def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     """
-    Register SCITT endpoints on a FastAPI app.
+    Register SCITT endpoints on a FastAPI / Starlette app.
 
-    Routes added:
+    Uses app.router.routes.insert(0, ...) — the PROVEN pattern in this codebase
+    (same as szl_intoto_routes.py, szl_governed_api.py, etc.) so routes are
+    registered at the HEAD of the router and win over the SPA catch-all.
+
+    Routes added (registered both with full prefix and stripped-prefix forms to
+    survive the HF Space nginx proxy that strips /api/a11oy):
       GET /api/{ns}/v1/scitt/capsule/{capsule_id}
-        → Return a stored SCITT capsule by ID.
       GET /api/{ns}/v1/scitt/transparency
-        → Return the SCITT Transparency Service view (Merkle log summary).
 
     Returns {"registered": [...routes...], "status": "ok"}
     """
     try:
-        from fastapi import FastAPI
-        from fastapi.responses import JSONResponse
+        from starlette.routing import Route
+        from starlette.responses import JSONResponse as _JSONResponse
     except ImportError:
-        return {"registered": [], "status": "fastapi-absent"}
+        return {"registered": [], "status": "starlette-absent"}
 
-    routes: list[str] = []
-
-    @app.get(f"/api/{ns}/v1/scitt/capsule/{{capsule_id}}")
-    async def scitt_get_capsule(capsule_id: str) -> JSONResponse:
+    async def _scitt_capsule(request: Any) -> Any:
+        capsule_id = request.path_params.get("capsule_id", "")
         with _CAPSULE_STORE_LOCK:
             capsule = _CAPSULE_STORE.get(capsule_id)
         if capsule is None:
-            return JSONResponse(
+            return _JSONResponse(
                 {
                     "error": f"capsule not found: {capsule_id}",
                     "hint": "Capsules are stored in-process; restart clears them. "
@@ -604,17 +605,26 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
                 },
                 status_code=404,
             )
-        return JSONResponse(capsule)
+        return _JSONResponse(capsule)
 
-    routes.append(f"GET /api/{ns}/v1/scitt/capsule/{{capsule_id}}")
+    async def _scitt_transparency(request: Any) -> Any:
+        return _JSONResponse(get_transparency_view())
 
-    @app.get(f"/api/{ns}/v1/scitt/transparency")
-    async def scitt_transparency_view() -> JSONResponse:
-        return JSONResponse(get_transparency_view())
+    # Insert at HEAD of router (wins over SPA catch-all)
+    paths = [
+        (f"/api/{ns}/v1/scitt/capsule/{{capsule_id}}", _scitt_capsule),
+        (f"/api/{ns}/v1/scitt/transparency", _scitt_transparency),
+        (f"/v1/scitt/capsule/{{capsule_id}}", _scitt_capsule),
+        (f"/v1/scitt/transparency", _scitt_transparency),
+        (f"/scitt/capsule/{{capsule_id}}", _scitt_capsule),
+        (f"/scitt/transparency", _scitt_transparency),
+    ]
+    registered = []
+    for path, fn in paths:
+        app.router.routes.insert(0, Route(path, fn, methods=["GET"]))
+        registered.append(path)
 
-    routes.append(f"GET /api/{ns}/v1/scitt/transparency")
-
-    return {"registered": routes, "status": "ok"}
+    return {"registered": registered, "status": "ok"}
 
 
 def build_and_store_capsule(**kwargs: Any) -> dict[str, Any]:
