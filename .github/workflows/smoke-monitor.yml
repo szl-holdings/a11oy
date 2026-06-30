@@ -61,6 +61,7 @@ jobs:
 
           # LIVE flagship Spaces only (sentra/amaru/rosie removed — not live).
           check "a11oy /"          "https://szlholdings-a11oy.hf.space/"
+          check "a11oy /api/a11oy/readyz" "https://szlholdings-a11oy.hf.space/api/a11oy/readyz"
           check "a11oy console"    "https://szlholdings-a11oy.hf.space/console"
           check "killinchu /"      "https://szlholdings-killinchu.hf.space/"
           check "killinchu /elite" "https://szlholdings-killinchu.hf.space/elite"
@@ -73,10 +74,10 @@ jobs:
           # Only fail the job if a MAJORITY are sustained-down (real outage),
           # not a single transient. Keeps the monitor low-noise.
           if [ "$FAIL" -ge 3 ]; then
-            echo "::error::Sustained outage on $FAIL/5 flagship probes:$FAILURES"
+            echo "::error::Sustained outage on $FAIL/6 flagship probes:$FAILURES"
             exit 1
           fi
           if [ "$FAIL" -gt 0 ]; then
             echo "::warning::$FAIL transient/probe miss (not a hard outage):$FAILURES"
           fi
-          echo "Smoke OK ($PASS/5 live; $FAIL soft)."
+          echo "Smoke OK ($PASS/6 live; $FAIL soft)."

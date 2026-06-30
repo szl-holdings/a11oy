@@ -92,6 +92,12 @@ a{color:inherit;text-decoration:none;}
 .brand .nm{font-weight:600;font-size:1.05rem;}
 .brand .role{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
 .nav-group{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:1rem .5rem .4rem;}
+/* Unified module nav — 7 top-level modules with accent bar (feat/unified-console-nav-sci-energy) */
+.nav-group[class*="mod-"]{display:flex;align-items:center;gap:.4rem;color:var(--gold);font-size:9.5px;letter-spacing:.14em;margin-top:1.4rem;padding-left:.3rem;border-left:2px solid var(--gold-line);}
+.nav-group.mod-energy{color:var(--teal);border-left-color:var(--teal-line);}
+.nav-group.mod-proofs{color:#a09cc0;border-left-color:rgba(160,156,192,.3);}
+.nav-group.mod-lake{color:var(--gold-bright);border-left-color:rgba(214,198,154,.3);}
+.nav-group.mod-api{color:var(--muted);border-left-color:rgba(136,136,136,.25);}
 .nav-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:7px;cursor:pointer;color:var(--paragraph);font-size:13.5px;transition:.15s;border:1px solid transparent;}
 .nav-item:hover{background:var(--gold-soft);color:var(--cream);}
 .nav-item.active{background:var(--teal-soft);color:var(--teal);border-color:var(--teal-line);}
@@ -661,29 +667,60 @@ details.raw[open] summary{color:var(--muted);}
   <div class="side-scrim" onclick="toggleSide(false)"></div>
   <aside class="side">
     <div class="brand"><div class="mark">A</div><div><div class="nm">a11oy</div><div class="role">orchestrating brain</div></div></div>
-    <!-- CONSOLIDATED NAV (production 2026-06-27): 58 -> 18 tabs, 5 groups.
-         Removed items remain in VIEWS[] and stay reachable via ?view=<key> deep-links;
-         only the menu is slimmed. warhacker/warboard archived per founder sign-off. -->
-    <div class="nav-group">Operate</div>
+    <!-- UNIFIED MODULE NAV (feat/unified-console-nav-sci-energy 2026-06-30):
+         7 top-level modules (Datadog "product-area" pattern, AWS ≤7 lesson).
+         Each module = its own route namespace /console/governance, /console/energy etc.
+         Existing views grouped under modules — NOT rebuilt, NOT removed.
+         All items reachable via ?view=<key> deep-links as before.
+         DOCTRINE: no banned codenames in UI prose; energy UNAVAILABLE when meter off. -->
+
+    <!-- ── MODULE 1: HOME ──────────────────────────────────────────────── -->
+    <div class="nav-group mod-home">Home</div>
     <div class="nav-item active" data-view="command" onclick="go('command')"><span class="ico">◎</span>Command Center</div>
-    <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
-    <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
     <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
-    <div class="nav-group">Govern</div>
-    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score</div>
+    <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
+    <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
+
+    <!-- ── MODULE 2: GOVERNANCE ─────────────────────────────────────────── -->
+    <div class="nav-group mod-governance">Governance</div>
     <div class="nav-item" data-view="decision" onclick="go('decision')"><span class="ico">◈</span>Governed Decision</div>
+    <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score (Λ)</div>
     <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
     <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
-    <div class="nav-group">Prove</div>
-    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
-    <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
-    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
-    <div class="nav-group">Knowledge</div>
-    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
-    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
     <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
-    <div class="nav-group">Models &amp; Tools</div>
+
+    <!-- ── MODULE 3: ENERGY ─────────────────────────────────────────────── -->
+    <!-- DOCTRINE: energy_joules UNAVAILABLE until sovereign GPU + meter online.
+         UI says UNAVAILABLE, never fakes watts. GSF SCI formula implemented own code.
+         SCI = (E × I + M) / R  per ISO 21031:2024. -->
+    <div class="nav-group mod-energy">Energy</div>
+    <div class="nav-item" data-view="energy" onclick="go('energy')"><span class="ico">⚡</span>Live Telemetry</div>
+    <div class="nav-item" data-view="energySci" onclick="go('energySci')"><span class="ico">♻</span>SCI Scores</div>
+    <div class="nav-item" data-view="energyReceipts" onclick="go('energyReceipts')"><span class="ico">⎙</span>Energy Receipts</div>
+    <div class="nav-item" data-view="energyGrid" onclick="go('energyGrid')"><span class="ico">⊟</span>Grid Settings</div>
+
+    <!-- ── MODULE 4: MATERIALS / PINN ───────────────────────────────────── -->
+    <div class="nav-group mod-pinn">Materials / PINN</div>
+    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
+    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
+    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
+
+    <!-- ── MODULE 5: PROOFS (LEAN) ──────────────────────────────────────── -->
+    <!-- DOCTRINE: Λ = Conjecture 1 (never theorem, never 1.0). F19/Bekenstein APPLIED
+         not re-claimed. 8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}. -->
+    <div class="nav-group mod-proofs">Proofs (Lean)</div>
+    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
+    <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
+    <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
+
+    <!-- ── MODULE 6: LAKE (RECEIPTS) ────────────────────────────────────── -->
+    <!-- Khipu receipt lake: all signed receipts, Rekor entries, export/API keys. -->
+    <div class="nav-group mod-lake">Lake</div>
+    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Explorer</div>
+    <div class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⬡</span>Evidence Ledger</div>
+
+    <!-- ── MODULE 7: API / SETTINGS ─────────────────────────────────────── -->
+    <div class="nav-group mod-api">API / Settings</div>
     <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
     <div class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</div>
     <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
@@ -14870,6 +14907,121 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function reg(){
     var V=window.VIEWS; if(!V){ return setTimeout(reg,60); }
     V['energy']={title:'Energy Harvest',badge:'LIVE GRID SIGNAL · JOULES SAMPLE · SOVEREIGN UNCHANGED',sub:'When the grid is <b>paying to offload load</b> (negative wholesale price) or renewables exceed demand (curtailment), running our own compute soaks <b>already-wasted</b> energy. Live from three real, no-key public feeds (aWATTar DE, energy-charts, UK Carbon Intensity); honest live/cached/unreachable labels and degradation. No free-energy: <code>joules_label=sample</code> until an on-box NVML meter, and this grid signal <b>never</b> sets <code>sovereign:true</code>. Not one of the locked-8; Λ = Conjecture&nbsp;1.',render:async function(c){ window.energy_render(c); }};
+
+    /* ── ENERGY MODULE SUB-VIEWS (feat/unified-console-nav-sci-energy 2026-06-30) ── */
+    /* DOCTRINE: energy_joules=null labeled UNAVAILABLE when GPU meter offline. NEVER fake watts.
+       GSF SCI formula (ISO 21031:2024): SCI = (E × I + M) / R  — reimplemented in own code.
+       F19/Bekenstein APPLIED not re-claimed. Λ = Conjecture 1. */
+    V['energySci']={
+      title:'SCI Scores',
+      badge:'GSF SCI · ISO 21031:2024 · UNAVAILABLE until GPU + meter online',
+      sub:'Software Carbon Intensity (SCI = (E×I + M) / R) per-inference, per-model. '
+         +'When the sovereign GPU meter is live: MEASURED joules → real SCI scores. '
+         +'When meter is offline: UNAVAILABLE — we never fabricate a carbon number. '
+         +'Formula source: Green Software Foundation SCI (MIT/CC-BY-4.0, now ISO 21031:2024). '
+         +'Λ = Conjecture 1.',
+      render: function(c){
+        c.innerHTML='<div style="padding:1.5rem">';
+        var url=window.__SCI_ENDPOINT||'/api/a11oy/v1/energy/sci';
+        c.innerHTML='<div style="padding:1.5rem 2rem"><h2 style="font-family:var(--display);color:var(--teal);margin:0 0 .5rem">SCI Scores <span style="font-size:.7em;color:var(--dim);font-family:var(--mono)">GSF · ISO 21031:2024</span></h2>'
+          +'<p style="color:var(--muted);font-family:var(--mono);font-size:.8rem;margin:0 0 1.2rem">SCI = (E × I + M) / R   ·   E=energy kWh · I=grid intensity gCO₂eq/kWh · M=embodied · R=1 inference call</p>'
+          +'<div id="sci-panel" style="color:var(--muted);font-family:var(--mono)">Loading…</div></div>';
+        _szlFetch(url).then(function(d){
+          var p=document.getElementById('sci-panel'); if(!p) return;
+          var label=d.label||'UNAVAILABLE';
+          var labelColor=label==='MEASURED'?'var(--teal)':label==='MODELED'?'var(--warn)':'var(--err)';
+          var html='<div style="display:grid;gap:.6rem;max-width:560px">';
+          html+='<div style="border:1px solid '+labelColor+';border-radius:8px;padding:1rem;background:rgba(0,0,0,.4)">';
+          html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">';
+          html+='<span style="font-family:var(--display);font-size:1.05rem;color:var(--cream)">SCI Score</span>';
+          html+='<span style="font-family:var(--mono);font-size:.75rem;color:'+labelColor+';border:1px solid '+labelColor+';padding:2px 8px;border-radius:4px">'+label+'</span>';
+          html+='</div>';
+          if(d.sci_score_gco2_per_call!==null&&d.sci_score_gco2_per_call!==undefined){
+            html+='<div style="font-size:1.8rem;font-weight:700;color:var(--teal);font-family:var(--mono)">'+d.sci_score_gco2_per_call.toFixed(6)+' <span style="font-size:.9rem;color:var(--muted)">gCO₂eq/call</span></div>';
+          } else {
+            html+='<div style="font-size:1.1rem;color:var(--err);font-family:var(--mono)">UNAVAILABLE — sovereign GPU + meter offline</div>';
+            html+='<p style="color:var(--muted);font-size:.8rem;margin:.5rem 0 0">Start the sovereign GPU + Cloudflare meter tunnel to populate SCI scores. When live: MEASURED joules → SCI. When offline: this card, honestly.</p>';
+          }
+          html+='</div>';
+          // Field breakdown
+          var fields=[['energy_joules',d.energy_joules,'J'],['energy_kwh',d.energy_kwh,'kWh'],['carbon_gco2eq',d.carbon_gco2eq,'gCO₂eq'],['grid_intensity_gco2_per_kwh',d.grid_intensity_gco2_per_kwh,'gCO₂/kWh'],['measurement_source',d.measurement_source,''],['methodology',d.methodology,'']];
+          html+='<table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.8rem">';
+          fields.forEach(function(f){
+            var val=f[1];
+            var disp=(val===null||val===undefined)?'<span style="color:var(--err)">UNAVAILABLE</span>':('<span style="color:var(--teal)">'+val+'</span>'+(f[2]?' <span style="color:var(--muted)">'+f[2]+'</span>':''));
+            html+='<tr style="border-bottom:1px solid var(--gold-line)"><td style="padding:.35rem .5rem;color:var(--dim)">'+f[0]+'</td><td style="padding:.35rem .5rem">'+disp+'</td></tr>';
+          });
+          html+='</table>';
+          html+='<p style="font-family:var(--mono);font-size:.75rem;color:var(--dim);margin:.5rem 0 0">';
+          html+='Label: MEASURED = live NVML joules. MODELED = static default grid intensity. UNAVAILABLE = meter offline.</p>';
+          html+='</div>';
+          p.innerHTML=html;
+        }).catch(function(e){ var p=document.getElementById('sci-panel'); if(p) p.innerHTML='<span style="color:var(--err)">'+e+'</span>'; });
+      }
+    };
+    V['energyReceipts']={
+      title:'Energy Receipts',
+      badge:'DSSE-SIGNED · KHIPU LAKE · UNAVAILABLE until GPU online',
+      sub:'Every governed inference through a11oy produces a signed energy receipt: '
+         +'measured_joules (or UNAVAILABLE), carbon_gco2eq, sci_score_gco2_per_call, '
+         +'methodology: GSF_SCI_ISO_21031_2024. All fields included in the DSSE-signed '
+         +'payload — offline verifiable. When GPU + meter offline: fields are present but '
+         +'null, labeled UNAVAILABLE. Never fabricated. Λ = Conjecture 1.',
+      render: function(c){
+        c.innerHTML='<div style="padding:1.5rem 2rem">';
+        _szlFetch('/api/a11oy/v1/energy/ledger').then(function(d){
+          var receipts=d.receipts||[];
+          var html='<h2 style="font-family:var(--display);color:var(--teal);margin:0 0 .5rem">Energy Receipts</h2>';
+          html+='<p style="color:var(--muted);font-size:.8rem;font-family:var(--mono);margin:0 0 1rem">'
+               +receipts.length+' receipts in Khipu lake · chain integrity: '+(d.chain&&d.chain.ok?'<span style="color:var(--teal)">OK</span>':'<span style="color:var(--err)">FAIL</span>')+'</p>';
+          if(!receipts.length){
+            html+='<div style="border:1px solid var(--gold-line);border-radius:8px;padding:1.2rem;color:var(--muted);font-family:var(--mono);font-size:.85rem">';
+            html+='<b style="color:var(--cream)">0 receipts</b> — sovereign GPU + meter are offline.<br>';
+            html+='When the meter is running, every inference turn mints a signed energy receipt here.';
+            html+='</div>';
+          } else {
+            receipts.slice(0,10).forEach(function(r){
+              html+='<div style="border:1px solid var(--gold-line);border-radius:6px;padding:.7rem;margin-bottom:.5rem;font-family:var(--mono);font-size:.78rem">';
+              html+='<div style="display:flex;justify-content:space-between"><span style="color:var(--gold)">'+( r.receipt_id||r.digest||'receipt')+'</span>';
+              var lc=r.joules_label==='MEASURED'?'var(--teal)':r.joules_label==='UNAVAILABLE'?'var(--err)':'var(--warn)';
+              html+='<span style="color:'+lc+'">'+( r.joules_label||'UNAVAILABLE')+'</span></div>';
+              html+='<div style="color:var(--muted)">joules: '+(r.joules_measured_billable||r.measured_joules||'null')+' · gCO₂: '+(r.carbon_gco2eq||'null')+'</div>';
+              html+='</div>';
+            });
+          }
+          c.innerHTML='<div style="padding:1.5rem 2rem">'+html+'</div>';
+        }).catch(function(e){ c.innerHTML='<div style="padding:1.5rem 2rem;color:var(--err);font-family:var(--mono)">'+e+'</div>'; });
+      }
+    };
+    V['energyGrid']={
+      title:'Grid Settings',
+      badge:'MODELED DEFAULT · wire Electricity Maps for MEASURED',
+      sub:'Grid carbon intensity (I in SCI formula). Default: 436 gCO₂eq/kWh (US avg, MODELED). '
+         +'Wire ELECTRICITY_MAPS_API_KEY for real-time MEASURED intensity per zone. '
+         +'UNAVAILABLE when GPU + meter are offline — SCI scores require measured energy first. '
+         +'Honest labels: MEASURED (live API), MODELED (static default), UNAVAILABLE (no meter). '
+         +'Λ = Conjecture 1.',
+      render: function(c){
+        c.innerHTML='<div style="padding:1.5rem 2rem"><h2 style="font-family:var(--display);color:var(--teal);margin:0 0 .5rem">Grid Settings</h2>'
+          +'<p style="color:var(--muted);font-family:var(--mono);font-size:.8rem;margin:0 0 1.2rem">Grid carbon intensity feeds for the SCI formula (I parameter).</p>'
+          +'<div style="border:1px solid var(--gold-line);border-radius:8px;padding:1.2rem;font-family:var(--mono);font-size:.85rem">';
+        _szlFetch('/api/a11oy/v1/energy/sci').then(function(d){
+          var gi=d.grid_intensity_gco2_per_kwh;
+          var src=d.grid_source||'static default';
+          var label=d.label||'UNAVAILABLE';
+          var html='<div style="display:grid;gap:.6rem">';
+          html+='<div><span style="color:var(--dim)">grid_intensity_gco2_per_kwh · </span><b style="color:var(--teal)">'+(gi||'UNAVAILABLE')+'</b> <span style="color:var(--muted)">gCO₂eq/kWh</span></div>';
+          html+='<div><span style="color:var(--dim)">source · </span><span style="color:var(--gold)">'+src+'</span></div>';
+          html+='<div><span style="color:var(--dim)">label · </span><span style="color:var(--warn)">'+label+'</span></div>';
+          html+='<div style="border-top:1px solid var(--gold-line);padding-top:.7rem;color:var(--muted);font-size:.78rem">'
+               +'To upgrade from MODELED to MEASURED: set <code>ELECTRICITY_MAPS_API_KEY</code> env var. '
+               +'The /api/a11oy/v1/energy/sci endpoint will then query the Electricity Maps API and label the intensity as MEASURED.</div>';
+          html+='</div>';
+          c.querySelector('div').insertAdjacentHTML('beforeend', html);
+        }).catch(function(){});
+        c.querySelector('div').insertAdjacentHTML('beforeend','</div></div>');
+      }
+    };
   }
   reg();
   function injectNav(){

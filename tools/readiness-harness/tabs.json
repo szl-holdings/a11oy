@@ -3,13 +3,13 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-06-23T00:00:00Z",
+  "generatedAt": "2026-06-30T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
     "tabs": 130,
-    "endpoints": 73,
-    "tabsWithCitations": 22,
-    "staticTabs": 39
+    "endpoints": 77,
+    "tabsWithCitations": 23,
+    "staticTabs": 35
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -309,6 +309,101 @@
         ]
       },
       "note": ""
+    },
+    "/api/a11oy/v1/energy/live": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 30,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "MEASURED",
+          "UNAVAILABLE",
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Live NVML power+energy snapshot. UNAVAILABLE when meter offline — honest null, never fabricated."
+    },
+    "/api/a11oy/v1/energy/mesh": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 30,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "MEASURED",
+          "UNAVAILABLE",
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Per-node energy + governance posture for 3D view."
+    },
+    "/api/a11oy/v1/energy/harvest": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 3600,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "MEASURED",
+          "UNAVAILABLE",
+          "SAMPLE",
+          "MODELED",
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Bekenstein budget series + heuristic tariff window. Tariff = client-side heuristic, NOT live feed."
+    },
+    "/api/a11oy/v1/energy/sci": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 60,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "MEASURED",
+          "UNAVAILABLE",
+          "MODELED",
+          "live",
+          "cached"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "GSF SCI ISO 21031:2024 energy+carbon. sci_score=null when meter offline. Grid intensity MODELED (436 gCO2eq/kWh EPA eGRID 2023) or MEASURED via Electricity Maps."
     },
     "/api/a11oy/v1/observability/summary": {
       "method": "GET",
@@ -2285,10 +2380,65 @@
       "title": "energy",
       "group": "Console",
       "route": "/console#energy",
-      "endpoints": [],
+      "endpoints": [
+        "/api/a11oy/v1/energy/live",
+        "/api/a11oy/v1/energy/mesh"
+      ],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
-      "static": true,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "energyGrid",
+      "title": "energyGrid",
+      "group": "Console",
+      "route": "/console#energyGrid",
+      "endpoints": [
+        "/api/a11oy/v1/energy/harvest"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "energyReceipts",
+      "title": "energyReceipts",
+      "group": "Console",
+      "route": "/console#energyReceipts",
+      "endpoints": [
+        "/api/a11oy/v1/energy/harvest",
+        "/api/a11oy/provenance"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
+      }
+    },
+    {
+      "key": "energySci",
+      "title": "energySci",
+      "group": "Console",
+      "route": "/console#energySci",
+      "endpoints": [
+        "/api/a11oy/v1/energy/sci"
+      ],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": false,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
@@ -3135,40 +3285,10 @@
       }
     },
     {
-      "key": "ontology",
-      "title": "ontology",
-      "group": "Console",
-      "route": "/console#ontology",
-      "endpoints": [],
-      "citationsRequired": false,
-      "sampleLabelAllowed": false,
-      "static": true,
-      "degradedRules": {
-        "allowSampleLabel": false,
-        "failOnUnlabeledPlaceholder": true,
-        "failOnMissingCitation": false
-      }
-    },
-    {
       "key": "organheart",
       "title": "organheart",
       "group": "Console",
       "route": "/console#organheart",
-      "endpoints": [],
-      "citationsRequired": false,
-      "sampleLabelAllowed": false,
-      "static": true,
-      "degradedRules": {
-        "allowSampleLabel": false,
-        "failOnUnlabeledPlaceholder": true,
-        "failOnMissingCitation": false
-      }
-    },
-    {
-      "key": "organism",
-      "title": "organism",
-      "group": "Console",
-      "route": "/console#organism",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
@@ -3229,21 +3349,6 @@
       "title": "Reasoning Depth Spiral",
       "group": "Console",
       "route": "/console#ouro_spiral",
-      "endpoints": [],
-      "citationsRequired": false,
-      "sampleLabelAllowed": false,
-      "static": true,
-      "degradedRules": {
-        "allowSampleLabel": false,
-        "failOnUnlabeledPlaceholder": true,
-        "failOnMissingCitation": false
-      }
-    },
-    {
-      "key": "oversight",
-      "title": "oversight",
-      "group": "Console",
-      "route": "/console#oversight",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
