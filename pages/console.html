@@ -683,57 +683,65 @@ details.raw[open] summary{color:var(--muted);}
          All items reachable via ?view=<key> deep-links as before.
          DOCTRINE: no banned codenames in UI prose; energy UNAVAILABLE when meter off. -->
 
-    <!-- ── MODULE 1: HOME ──────────────────────────────────────────────── -->
+    <!-- ── IA v2: leader-grade 7-section sidebar (Datadog/Linear/Stripe ≤7-item lesson).
+         REORGANIZATION ONLY — every existing data-view is preserved and reachable; the
+         injected EXPERIMENTAL nav-groups further down are untouched. The App Launcher
+         (OPERATE) and Labs (RESEARCH) open one searchable grid over ALL ~80 surfaces, so
+         nothing is hidden by progressive disclosure. Pinned shortcuts render in #pinned-host. -->
+
+    <!-- ★ Pinned (filled at runtime from localStorage by the App Launcher) -->
+    <div id="pinned-host"></div>
+
+    <!-- ── 1 · HOME ─────────────────────────────────────────────────────── -->
     <div class="nav-group mod-home">Home</div>
     <div class="nav-item active" data-view="command" onclick="go('command')"><span class="ico">◎</span>Command Center</div>
     <div class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</div>
-    <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
-    <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
 
-    <!-- ── MODULE 2: GOVERNANCE ─────────────────────────────────────────── -->
-    <div class="nav-group mod-governance">Governance</div>
+    <!-- ── 2 · OPERATE ──────────────────────────────────────────────────── -->
+    <div class="nav-group mod-operate">Operate</div>
+    <div class="nav-item" data-view="launcher" onclick="go('launcher')"><span class="ico">▦</span>App Launcher</div>
+    <div class="nav-item" data-view="ask" onclick="go('ask')"><span class="ico">✦</span>Ask &amp; Act</div>
+    <div class="nav-item" data-view="demo" onclick="go('demo')"><span class="ico">⊞</span>Run a Demo</div>
     <div class="nav-item" data-view="decision" onclick="go('decision')"><span class="ico">◈</span>Governed Decision</div>
+
+    <!-- ── 3 · BUILD ────────────────────────────────────────────────────── -->
+    <div class="nav-group mod-build">Build</div>
+    <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
+    <div class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</div>
+    <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
+    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
+    <div class="nav-item" data-view="genome" onclick="go('genome')"><span class="ico">⬢</span>Genome</div>
+    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
+
+    <!-- ── 4 · OBSERVE ──────────────────────────────────────────────────── -->
+    <!-- Khipu receipt lake + recorded eval/replay. Chain is the proof-of-governance hero. -->
+    <div class="nav-group mod-observe">Observe</div>
+    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
+    <div class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⬡</span>Evidence Ledger</div>
+    <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
+    <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
+
+    <!-- ── 5 · GOVERN ───────────────────────────────────────────────────── -->
+    <!-- DOCTRINE: Λ = Conjecture 1 (never theorem, never 1.0). 8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}. -->
+    <div class="nav-group mod-govern">Govern</div>
     <div class="nav-item" data-view="lambda" onclick="go('lambda')"><span class="ico">◔</span>Trust Score (Λ)</div>
     <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
     <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
     <div class="nav-item" data-view="honest" onclick="go('honest')"><span class="ico">⊘</span>What We Claim</div>
 
-    <!-- ── MODULE 3: ENERGY ─────────────────────────────────────────────── -->
-    <!-- DOCTRINE: energy_joules UNAVAILABLE until sovereign GPU + meter online.
-         UI says UNAVAILABLE, never fakes watts. GSF SCI formula implemented own code.
-         SCI = (E × I + M) / R  per ISO 21031:2024. -->
-    <div class="nav-group mod-energy">Energy</div>
-    <div class="nav-item" data-view="energy" onclick="go('energy')"><span class="ico">⚡</span>Live Telemetry</div>
+    <!-- ── 6 · RESEARCH ─────────────────────────────────────────────────── -->
+    <div class="nav-group mod-research">Research</div>
+    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
+    <div class="nav-item" data-view="labs" onclick="go('labs')"><span class="ico">⚛</span>Labs<span class="lab-chip">EXPERIMENTAL</span></div>
+
+    <!-- ── 7 · MORE ─────────────────────────────────────────────────────── -->
+    <!-- DOCTRINE: energy_joules UNAVAILABLE until sovereign GPU + meter online; UI says
+         UNAVAILABLE, never fakes watts. SCI = (E × I + M) / R per ISO 21031:2024. -->
+    <div class="nav-group mod-more">More ▾</div>
+    <div class="nav-item" data-view="energy" onclick="go('energy')"><span class="ico">⚡</span>Energy Telemetry</div>
     <div class="nav-item" data-view="energySci" onclick="go('energySci')"><span class="ico">♻</span>SCI Scores</div>
     <div class="nav-item" data-view="energyReceipts" onclick="go('energyReceipts')"><span class="ico">⎙</span>Energy Receipts</div>
     <div class="nav-item" data-view="energyGrid" onclick="go('energyGrid')"><span class="ico">⊟</span>Grid Settings</div>
-
-    <!-- ── MODULE 4: MATERIALS / PINN ───────────────────────────────────── -->
-    <div class="nav-group mod-pinn">Materials / PINN</div>
-    <div class="nav-item" data-view="kbformulas" onclick="go('kbformulas')"><span class="ico">∑</span>Formulas</div>
-    <div class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</div>
-    <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
-
-    <!-- ── MODULE 5: PROOFS (LEAN) ──────────────────────────────────────── -->
-    <!-- DOCTRINE: Λ = Conjecture 1 (never theorem, never 1.0). F19/Bekenstein APPLIED
-         not re-claimed. 8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}. -->
-    <div class="nav-group mod-proofs">Proofs (Lean)</div>
-    <div class="nav-item" data-view="genome" onclick="go('genome')"><span class="ico">⬢</span>Genome</div>
-    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Chain</div>
-    <div class="nav-item" data-view="arena" onclick="go('arena')"><span class="ico">⊜</span>Eval Arena</div>
-    <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
-
-    <!-- ── MODULE 6: LAKE (RECEIPTS) ────────────────────────────────────── -->
-    <!-- Khipu receipt lake: all signed receipts, Rekor entries, export/API keys. -->
-    <div class="nav-group mod-lake">Lake</div>
-    <div class="nav-item" data-view="chain" onclick="go('chain')"><span class="ico">⛓</span>Receipt Explorer</div>
-    <div class="nav-item" data-view="evidence" onclick="go('evidence')"><span class="ico">⬡</span>Evidence Ledger</div>
-
-    <!-- ── MODULE 7: API / SETTINGS ─────────────────────────────────────── -->
-    <div class="nav-group mod-api">API / Settings</div>
-    <div class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</div>
-    <div class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</div>
-    <div class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</div>
 
     <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
   </aside>
@@ -15937,6 +15945,177 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', schedule);
   else schedule();
   window.addEventListener('load', function(){ setTimeout(apply, 120); });
+})();
+</script>
+
+<!-- ── IA v2 · APP LAUNCHER + LABS + PIN-TO-SIDEBAR ──────────────────────────
+     Palantir/Stripe pattern: one searchable grid over EVERY registered surface, built
+     by iterating window.VIEWS at render time so every injected view is covered and
+     reachable. Pin-to-sidebar persists in localStorage. LABS surfaces the experimental
+     views honestly ("EXPERIMENTAL · not a locked-8 claim"), never green, never deleted.
+     REGISTRY-ONLY: registers window.VIEWS['launcher'/'labs'] — adds NO duplicate nav-item
+     for guarded injected views (e.g. conjecturefactory), so no injection block is broken. -->
+<style>
+  .lab-chip{margin-left:.45rem;font-family:var(--mono);font-size:8px;letter-spacing:.1em;
+    padding:.1rem .3rem;border-radius:4px;color:var(--proof);border:1px solid var(--proof-line);
+    background:var(--proof-soft);text-transform:uppercase;}
+  .lx-wrap{padding:.2rem .2rem 2rem;}
+  .lx-search{width:100%;box-sizing:border-box;margin:.2rem 0 1.1rem;padding:.7rem .9rem;
+    background:var(--panel,#0e0e0e);border:1px solid var(--gold-line);border-radius:9px;
+    color:var(--cream);font-family:var(--mono);font-size:13px;}
+  .lx-search:focus{outline:none;border-color:var(--teal-line);}
+  .lx-cat{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold);margin:1.4rem .2rem .6rem;padding-left:.3rem;border-left:2px solid var(--gold-line);}
+  .lx-cat.labs{color:var(--proof);border-left-color:var(--proof-line);}
+  .lx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.7rem;}
+  .lx-tile{position:relative;display:flex;flex-direction:column;gap:.35rem;padding:.85rem .9rem;
+    border-radius:10px;border:1px solid var(--gold-line);background:var(--gold-soft);cursor:pointer;
+    transition:.15s;min-height:62px;}
+  .lx-tile:hover{border-color:var(--teal-line);background:var(--teal-soft);}
+  .lx-tile.labs{border-color:var(--proof-line);background:var(--proof-soft);}
+  .lx-t{font-size:13.5px;color:var(--cream);font-weight:600;line-height:1.25;padding-right:1.4rem;}
+  .lx-b{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:var(--teal);text-transform:uppercase;}
+  .lx-tile.labs .lx-b{color:var(--proof);}
+  .lx-honest{font-family:var(--mono);font-size:9px;color:var(--proof);opacity:.9;line-height:1.4;}
+  .lx-pin{position:absolute;top:.5rem;right:.5rem;width:22px;height:22px;display:grid;place-items:center;
+    border-radius:6px;border:1px solid transparent;background:transparent;color:var(--dim);
+    font-size:13px;cursor:pointer;line-height:1;}
+  .lx-pin:hover{border-color:var(--gold-line);color:var(--gold);}
+  .lx-pin.on{color:var(--gold);}
+  .lx-note{font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.6;margin:.2rem .2rem 1rem;}
+  .lx-empty{font-family:var(--mono);font-size:11px;color:var(--dim);padding:1.2rem .3rem;}
+</style>
+<script>
+(function(){
+  // KANCHAY 'proof' cyan accent for EXPERIMENTAL labels (house gold/teal otherwise; no purple).
+  var rs=document.documentElement.style;
+  rs.setProperty('--proof','#3af4c8');
+  rs.setProperty('--proof-line','rgba(58,244,200,0.30)');
+  rs.setProperty('--proof-soft','rgba(58,244,200,0.07)');
+
+  // Curated section → keys. Any registered view NOT listed here falls into "More surfaces",
+  // so coverage is total regardless of which injectors ran.
+  var SECTIONS=[
+    ['Operate',   ['launcher','ask','demo','decision','mission','contracting','bounties']],
+    ['Build',     ['llm','alloy','mcp','knowledge','genome','kbformulas','codetab']],
+    ['Observe',   ['chain','evidence','replay','arena','ledger3d','lineage','receiptfp','anatomymap']],
+    ['Govern',    ['lambda','gates','govern','honest','readiness','uds','mzgov']],
+    ['Research',  ['frontier','atlas','capfsm','l6chain']],
+    ['Labs · experimental', ['entangle','neuro','sovereignty','scaling','conjecturefactory','energyGrid','reciprocity','allodialai']],
+    ['Verticals', ['verticals','vdefense','vfinance','vlegal','vcyber','vrealestate',
+                   'rem','red','reo','redeal','rebe','finq','finc','finm','finp','finr',
+                   'cybPosture','cybThreat','cybSurface','cybIncident','cybZero',
+                   'fltGov','fltObs','fltOrch','fltReceipts','fltTopo',
+                   'pvaAnchor','pvaGraph','pvaHealth','pvaPqc','pvaVerify']],
+    ['Home',      ['command','mesh']]
+  ];
+  var LAB_KEYS={entangle:1,neuro:1,sovereignty:1,scaling:1,conjecturefactory:1,energyGrid:1,reciprocity:1,allodialai:1};
+  var LAB_HONEST='EXPERIMENTAL · not a locked-8 claim';
+
+  function titleOf(k){ var v=window.VIEWS&&window.VIEWS[k]; return (v&&v.title)?v.title:k; }
+  function badgeOf(k){ var v=window.VIEWS&&window.VIEWS[k]; return (v&&v.badge)?v.badge:''; }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function getPins(){ try{ return JSON.parse(localStorage.getItem('a11oy_pins')||'[]'); }catch(e){ return []; } }
+  function setPins(p){ try{ localStorage.setItem('a11oy_pins',JSON.stringify(p)); }catch(e){} }
+  function togglePin(k){
+    var p=getPins(); var i=p.indexOf(k);
+    if(i>=0) p.splice(i,1); else p.push(k);
+    setPins(p); renderPins();
+    // refresh any open launcher pin-state
+    document.querySelectorAll('.lx-pin[data-k="'+k+'"]').forEach(function(b){ b.classList.toggle('on',p.indexOf(k)>=0); b.textContent=p.indexOf(k)>=0?'★':'☆'; });
+  }
+  window.__a11oyTogglePin=togglePin;
+
+  function renderPins(){
+    var host=document.getElementById('pinned-host'); if(!host) return;
+    var p=getPins().filter(function(k){ return window.VIEWS&&window.VIEWS[k]; });
+    if(!p.length){ host.innerHTML=''; return; }
+    var h='<div class="nav-group mod-pinned">★ Pinned</div>';
+    p.forEach(function(k){
+      h+='<div class="nav-item" data-view="'+esc(k)+'" onclick="go(\''+esc(k)+'\')"><span class="ico">★</span>'+esc(titleOf(k))+'</div>';
+    });
+    host.innerHTML=h;
+  }
+  window.__a11oyRenderPins=renderPins;
+
+  function classified(){
+    var seen={}, out=[];
+    SECTIONS.forEach(function(s){
+      var keys=s[1].filter(function(k){ return window.VIEWS&&window.VIEWS[k]&&!seen[k]; });
+      keys.forEach(function(k){ seen[k]=1; });
+      if(keys.length) out.push([s[0],keys]);
+    });
+    // sweep every remaining registered view into "More surfaces" — guarantees full reachability
+    var rest=Object.keys(window.VIEWS||{}).filter(function(k){ return !seen[k]; }).sort();
+    if(rest.length) out.push(['More surfaces',rest]);
+    return out;
+  }
+
+  function tileHTML(k){
+    var lab=!!LAB_KEYS[k], b=badgeOf(k);
+    var pins=getPins(), on=pins.indexOf(k)>=0;
+    var h='<div class="lx-tile'+(lab?' labs':'')+'" data-key="'+esc(k)+'" data-search="'+esc((titleOf(k)+' '+k+' '+b).toLowerCase())+'" onclick="go(\''+esc(k)+'\')">';
+    h+='<button class="lx-pin'+(on?' on':'')+'" data-k="'+esc(k)+'" title="Pin to sidebar" onclick="event.stopPropagation();window.__a11oyTogglePin(\''+esc(k)+'\')">'+(on?'★':'☆')+'</button>';
+    h+='<div class="lx-t">'+esc(titleOf(k))+'</div>';
+    if(b) h+='<div class="lx-b">'+esc(b)+'</div>';
+    if(lab) h+='<div class="lx-honest">'+LAB_HONEST+'</div>';
+    h+='</div>';
+    return h;
+  }
+
+  function renderGrid(container, labsOnly){
+    var cats=classified();
+    if(labsOnly) cats=cats.filter(function(c){ return /Labs/.test(c[0]); });
+    var h='<div class="lx-wrap">';
+    if(labsOnly){
+      h+='<div class="lx-note">LABS · experimental surfaces. Each is kernel-curious research — '+LAB_HONEST+'. Never folded into the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ stays Conjecture 1.</div>';
+    } else {
+      h+='<input class="lx-search" id="lx-q" placeholder="Search '+(Object.keys(window.VIEWS||{}).length)+' surfaces…" autocomplete="off">';
+    }
+    cats.forEach(function(c){
+      var isLab=/Labs/.test(c[0]);
+      h+='<div class="lx-cat'+(isLab?' labs':'')+'" data-cat="1">'+esc(c[0])+'</div>';
+      h+='<div class="lx-grid" data-grid="1">';
+      c[1].forEach(function(k){ h+=tileHTML(k); });
+      h+='</div>';
+    });
+    h+='<div class="lx-empty" id="lx-empty" style="display:none">No surface matches that search.</div></div>';
+    container.innerHTML=h;
+    var q=container.querySelector('#lx-q');
+    if(q){
+      q.addEventListener('input',function(){
+        var term=q.value.trim().toLowerCase(), any=false;
+        container.querySelectorAll('.lx-tile').forEach(function(t){
+          var m=!term||t.getAttribute('data-search').indexOf(term)>=0;
+          t.style.display=m?'':'none'; if(m) any=true;
+        });
+        // hide empty category headers/grids
+        container.querySelectorAll('.lx-grid').forEach(function(g){
+          var vis=Array.prototype.some.call(g.querySelectorAll('.lx-tile'),function(t){return t.style.display!=='none';});
+          g.style.display=vis?'':'none';
+          if(g.previousElementSibling&&g.previousElementSibling.classList.contains('lx-cat')) g.previousElementSibling.style.display=vis?'':'none';
+        });
+        var emp=container.querySelector('#lx-empty'); if(emp) emp.style.display=any?'none':'';
+      });
+    }
+  }
+
+  function reg(key,title,badge,sub,labsOnly){
+    window.VIEWS[key]={title:title,badge:badge,sub:sub,render:async function(c){ renderGrid(c,labsOnly); }};
+  }
+  // window.VIEWS already exists (defined far above, exposed at window.VIEWS=VIEWS).
+  if(window.VIEWS){
+    reg('launcher','App Launcher','ALL SURFACES · SEARCH · PIN',
+        'Every governed surface on the platform in one searchable grid — pin the ones you use to the sidebar. The catalog is built live from the running view registry, so nothing is hidden.',false);
+    reg('labs','Labs','EXPERIMENTAL · NOT A LOCKED-8 CLAIM',
+        'Experimental research surfaces — honestly labelled, never shown green, never deleted. These explore ideas beyond the 8 locked-proven formulas; Λ-uniqueness remains Conjecture 1.',true);
+  }
+
+  function boot(){ renderPins(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  // pinned-host is static, but re-assert after late injectors settle
+  var n=0,iv=setInterval(function(){ n++; renderPins(); if(n>6) clearInterval(iv); },800);
 })();
 </script>
 
