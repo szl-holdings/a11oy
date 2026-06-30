@@ -449,7 +449,7 @@ COPY static/cathedral_app.js ./static/cathedral_app.js
 # the ES module served at /landing/app.js. Reuses the vendor3d Three.js r160 above
 # (MIT) via the page importmap — 0 runtime CDN. MUST be per-file COPY'd or "/"
 # falls back to the cathedral/console. Doctrine v11 LOCKED; Λ = Conjecture 1.
-COPY a11oy_landing.html ./a11oy_landing.html
+COPY a11oy_landing.html /app/a11oy_landing.html
 COPY static/a11oy_landing.js ./static/a11oy_landing.js
 # ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
 # ADDITIVE: a11oy.code conversational orchestrator module (imported by serve.py).
