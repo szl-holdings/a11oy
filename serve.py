@@ -606,6 +606,19 @@ try:
 except Exception as _szl_kv2_e:  # pragma: no cover
     print(f"[a11oy] Universal Khipu verifier NOT registered: {_szl_kv2_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# Prove-Our-Whole-Stack attestation surface — GET /attest (KANCHAY verifier UI) +
+# GET /api/a11oy/v1/attest/{receipt_hash}: a single 6-factor provenance chain for any
+# decision receipt (DSSE+khipu chain, Rekor, Lean Theorem U, energy cert, 3-of-4 witness
+# cosign, overall verdict). READ/VERIFY only — never signs on this path. Reuses
+# szl_khipu_verify / szl_dsse / szl_rekor_anchor / szl_materials / szl_khipu_consensus.
+# Registered BEFORE the SPA catch-all so both routes resolve locally.
+try:
+    import szl_attest_stack as _szl_attest_stack
+    _szl_attest_stack.register(app, ns="a11oy")
+    print("[a11oy] Prove-our-whole-stack attestation registered: /attest + /api/a11oy/v1/attest/{receipt_hash}", file=__import__("sys").stderr)
+except Exception as _szl_attest_e:  # pragma: no cover
+    print(f"[a11oy] Attestation surface NOT registered: {_szl_attest_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
 # (topology + projection + governed-receipt overlay) against the two MODELED endpoints
 # above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
