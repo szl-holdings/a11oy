@@ -156,6 +156,10 @@ COPY console/ ./static/
 # (research-corpus endpoint reads /app/knowledge.json). Wave23 = conditional Khipu
 # BFT safety (Conjecture 2 conditional); locked-8 + Lambda Conjecture 1 UNCHANGED.
 COPY knowledge.json ./static/knowledge.json
+# Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
+# Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
+# degrades to an honest labeled 503 (never a faked payload), the panel shows it.
+COPY data/genome.json ./data/genome.json
 # ---------------------------------------------------------------------------
 # CONSOLIDATED ROOT-FILE COPY LAYERS (segment A: pre-LLM-gate) — Docker max-depth fix, Opus 4.8.
 # One image layer per COPY; collapsed root-file->same-name COPYs into grouped

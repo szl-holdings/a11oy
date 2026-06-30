@@ -1,0 +1,3482 @@
+[
+  {
+    "id": "F1",
+    "name": "F1 · replay-hash determinism",
+    "meaning": "A pure function returns the same output for the same input (replay/hash determinism). NOTE: this is the LOCKED meaning of F1 in the enforced lock set — it is NOT the brief's 'gate-pass ⇒ Λ≥0.90' soundness floor, which is NOT a single Lean theorem (see Q1-FLOOR-01).",
+    "math": "f x = f x  (rfl); and List.map f xs = List.map f xs",
+    "inputs": "f : α → β, x : α (or xs : List α)",
+    "outputs": "Prop (equality), proved by rfl",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 53
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f1_replay_hash_determinism",
+    "powers": "Receipt replay / determinism guarantees across all organs",
+    "notes": "DRIFT: the brief's canonical anchor 'Lutar/Soundness.lean::gate_pass_implies_lambda_floor' DOES NOT EXIST (verified by grep). The locked F1 in lutar-lean is the trivial determinism lemma, not the soundness floor. Member of locked-8 enforced by Wave8/9/10/11 AxiomDisclosure.lockedNames and Uniqueness/AxiomCheck.lean. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F4",
+    "name": "F4 · Khipu DAG acyclicity",
+    "meaning": "Appending a Khipu receipt edge whose destination index is strictly smaller than its source preserves acyclicity of the receipt DAG (no self-loops, no cycles).",
+    "math": "dst < src ⇒ src ≠ dst; ¬(n<n); reach strictly decreases ⇒ no cycle; append preserves invariant",
+    "inputs": "edges (src,dst : Nat) with dst < src; receipt DAG",
+    "outputs": "Prop: acyclicity preserved",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 165
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f4_khipu_dag_acyclic_preserved",
+    "powers": "Khipu receipt chain / Merkle DAG integrity",
+    "notes": "GENUINE non-trivial proof (real DAG acyclicity). Upgraded from vacuous to substantive when locked set grew 5→8 on 2026-06-10. Member of locked-8. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F7",
+    "name": "F7 · Chaski FIFO ordering",
+    "meaning": "The Chaski message queue preserves first-in-first-out order: enqueue preserves prefix, head is the oldest message, and positional order is maintained through drain.",
+    "math": "chaskiDrain q = q; head is oldest; enqueue preserves prefix; i<j positional FIFO order",
+    "inputs": "msgs : List Nat, ChaskiQueue",
+    "outputs": "Prop: FIFO ordering invariants",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 230
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f7_chaski_fifo_order",
+    "powers": "Chaski messaging / ordered delivery between organs",
+    "notes": "GENUINE FIFO proof. Upgraded from vacuous to substantive in the 5→8 lock-set growth (2026-06-10). Member of locked-8. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F11",
+    "name": "F11 · Ayni reciprocity conservation",
+    "meaning": "Reciprocity (Ayni) conservation: giving b then taking back c and re-adding c conserves the net b — a balance/conservation identity. NOTE: this LOCKED F11 is NOT the brief's STL-robustness theorem (that is Q1-STL-01, experimental).",
+    "math": "(b + c) - c = b  (over Int)",
+    "inputs": "b c : Int",
+    "outputs": "Prop: conservation equality",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 62
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f11_ayni_reciprocity_conservation",
+    "powers": "Ayni reciprocity accounting in governance/economics layer",
+    "notes": "DRIFT: brief anchor 'Lutar/STL.lean::stl_robustness_sound' DOES NOT EXIST. The locked F11 is a trivial Int conservation identity. The real STL robustness theorem the brief DESCRIBES lives in Wave10/STLRobustness.lean (rho_sound) and is EXPERIMENTAL, NOT locked — see Q1-STL-01. Member of locked-8. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F12",
+    "name": "F12 · Kuramoto additive",
+    "meaning": "Additive/distributive identity for Kuramoto-style coupling: k*(p1+p2) distributes. NOTE: this LOCKED F12 is NOT the brief's 'deny-by-default monotone gate' theorem (that is Q1-GATE-01, experimental).",
+    "math": "k*(p1+p2) = k*p1 + k*p2  (Nat distributivity)",
+    "inputs": "p1 p2 k : Nat",
+    "outputs": "Prop: distributive equality",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 67
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f12_kuramoto_additive",
+    "powers": "Kuramoto synchronization coupling in mesh/consensus dynamics",
+    "notes": "DRIFT: brief anchor 'Lutar/Gates.lean::policy_gate_monotone' DOES NOT EXIST. Locked F12 is a trivial distributivity identity. The real deny-by-default monotone gate theorem the brief DESCRIBES is Wave8/MinGate.lean::deny_by_default_unique, EXPERIMENTAL — see Q1-GATE-01. Member of locked-8. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F18",
+    "name": "F18 · Reed-Solomon parity / erasure tolerance",
+    "meaning": "Reed-Solomon (10,6) erasure code has 4 parity symbols and tolerates up to 4 erasures while keeping 6 data symbols recoverable. NOTE: this LOCKED F18 is NOT the brief's 'DSSE seal binding' theorem (that is Q1-DSSE-01, experimental).",
+    "math": "(10 - 6 : Nat) = 4; e ≤ 4 ⇒ 6 ≤ 10 - e",
+    "inputs": "code params n=10 k=6; erasures e : Nat",
+    "outputs": "Prop: parity count / erasure tolerance",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 72
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f18_reed_solomon_parity_count",
+    "powers": "Erasure-coded durability for receipt lake / storage layer",
+    "notes": "DRIFT: brief anchor 'Lutar/Receipt.lean::dsse_seal_binding' DOES NOT EXIST. Locked F18 is a trivial arithmetic decide. The real DSSE seal-binding theorem the brief DESCRIBES is Wave10/DSSEToken.lean::dsse_token_injective, EXPERIMENTAL — see Q1-DSSE-01. Member of locked-8. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F19",
+    "name": "F19 · Bekenstein additive / budget monotone",
+    "meaning": "Entropy/budget monotonicity (Bekenstein-style additive bound): combined entropy s1+s2 is at least s1; budget grows monotonically with added demand. NOTE: this LOCKED F19 is NOT the Λ 13-axis geomean aggregator wellformedness (that is Q1-LAMBDA-01).",
+    "math": "s1 ≤ s1 + s2; s ≤ s + d  (Nat.le_add_right)",
+    "inputs": "s1 s2 s d : Nat",
+    "outputs": "Prop: monotone additive bound",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 78
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f19_bekenstein_additive",
+    "powers": "Energy/entropy budget accounting (Bekenstein bound) in governed-inference-meter",
+    "notes": "DRIFT: brief anchor 'Lutar/Lambda.lean::lambda_geomean_wellformed' DOES NOT EXIST. Locked F19 is a trivial Nat inequality. The real Λ 13-axis geometric-mean aggregator the brief DESCRIBES is defined in Lutar/Invariant.lean::Λ with bounds in Lutar/Bound.lean — see Q1-LAMBDA-01. Member of locked-8. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F22",
+    "name": "F22 · Khipu emit monotone",
+    "meaning": "Khipu sequence-log emission is strictly monotone: every emitted sequence number is strictly less than the current counter, and emissions preserve strict order i<j.",
+    "math": "s ∈ f22_seqLog n ⇒ s < n; i<j<n ⇒ emitted order strict",
+    "inputs": "n i j : Nat",
+    "outputs": "Prop: strict monotone emission",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": 254
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f22_khipu_emit_monotone",
+    "powers": "Khipu monotone sequence numbering / replay ordering",
+    "notes": "GENUINE monotonicity proof. Member of locked-8. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-LAMBDA-01",
+    "name": "Λ 13-axis geometric-mean trust aggregator (definition + bounds)",
+    "meaning": "The Lutar Invariant Λ: a unit-fraction-weight geometric mean over k axes (advisory trust roll-up). Real machine-checked definition with proven sup/inf bounds (min ≤ Λ ≤ max). This is the semantic F19 the brief describes (13-axis geomean), distinct from the trivial locked Puriq F19.",
+    "math": "Λ_k(x) = (∏_{i<k} xᵢ)^(1/k)  for k>0, else 0  (NNReal). Bounds: min xᵢ ≤ Λ ≤ max xᵢ.",
+    "inputs": "k : ℕ, x : Axes k (k NNReal axis scores)",
+    "outputs": "Λ : NNReal (advisory trust scalar in [min,max])",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Invariant.lean",
+        "line": 26
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Bound.lean",
+        "line": 36
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Bound.lean",
+        "line": 78
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Invariant.lean",
+        "line": 54
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "Lutar/Invariant.lean::Λ (def, L26); Lutar/Bound.lean::Λ_le_max (L36, V14-T2 closed); Lutar/Bound.lean::min_le_Λ (L78); Lutar/Invariant.lean::a3_normalize_proof (L54, V14PF-T1). Axioms A1-A5 declared in Lutar/Axioms.lean.",
+    "powers": "Advisory 13-axis trust scoring across a11oy / lambda-gate / all organs",
+    "notes": "REAL machine-checked def + bounds. ADVISORY only — Λ-UNIQUENESS is Conjecture 1 (Q1-CONJ-01), NEVER locked-proven. The 13-axis instantiation lives in szl-lambda-gate (Q1-LG-01). reference-vectors.json uses k=9 example; lambda-gate uses k=13. Strict monotonicity gmean_strict_mono is in Wave8/LambdaMono.lean (EXPERIMENTAL, see notes of Q1-LG-01).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-RECV-01",
+    "name": "Receipt transduction round-trip invariant",
+    "meaning": "Transducing a receipt and inverting preserves the receipt body exactly (round-trip identity); the transduction invariant holds with zero open goals.",
+    "math": "decode(encode(body)) = body; receipt_transduction_invariant",
+    "inputs": "receipt body",
+    "outputs": "Prop: round-trip body preservation",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Transduction/ReceiptInvariant.lean",
+        "line": 26
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "Lutar/Transduction/ReceiptInvariant.lean::receipt_transduction_invariant (L26; also receipt_round_trip_preserves_body L36). Header asserts 'complete proof, zero sorry'.",
+    "powers": "Receipt integrity across szl-receipt / khipu-consensus transduction",
+    "notes": "Zero-sorry complete proof. Underpins the receipt-signing primitives in szl-receipt (Q1-SIGN-01).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-FLOOR-01",
+    "name": "Soundness floor: gate-pass ⇒ Λ ≥ 0.90 (brief F1 — DOWNGRADED)",
+    "meaning": "The doctrine soundness floor: passing the conjunctive gate implies trust meets the floor (Λ ≥ 0.90, with two sacred axes ≥ 0.95). There is NO single Lean theorem proving 'gate-pass ⇒ Λ≥0.90'. Closest formalization is the GΛR graded-semiring floor vector + a gate-pass⇔provability correspondence (full adjunction is a documented BLOCKED research gap).",
+    "math": "floorVec = (0.90^7, 0.95, 0.95) [axis1=A2 moralGrounding→0.95, axis2=A3 measurabilityHonesty→0.95, rest→0.90]; gatePass g := floorVec ≤ g; illProvable g ↔ gatePass g (TH8c). Runtime const A11OY_DOCTRINE_LAMBDA_FLOOR = 0.90.",
+    "inputs": "GradeVec g (per-axis grades)",
+    "outputs": "Prop: gatePass / provability correspondence (NOT a Λ≥0.90 implication)",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "TH8/lean_v2/GradedSemiring.lean",
+        "line": 161
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "TH8/lean_v2/GradedSemiring.lean",
+        "line": 170
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "TH8/lean_v2/GLR.lean",
+        "line": 419
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NO single decl proves gate-pass⇒Λ≥0.90. Related: TH8/lean_v2/GradedSemiring.lean::floorVec (L161) + ::gatePass (L170); TH8/lean_v2/GLR.lean::TH8c (L386) / ::TH8c_defn (L419, illProvable g ↔ gatePass g). Full Λ-floor adjunction is a documented BLOCKED gap.",
+    "powers": "Doctrine soundness floor enforced at runtime by a11oy gate",
+    "notes": "DOWNGRADED PER BRIEF RULE: the brief's anchor 'Lutar/Soundness.lean::gate_pass_implies_lambda_floor' does not exist and no equivalent single theorem exists, so this is evidence-backed, NOT locked-proven. The locked Puriq F1 (Q1-F1 above) is a different, trivial determinism lemma. This is the honest spine-drift finding.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-STL-01",
+    "name": "STL robustness ρ soundness (brief F11 — EXPERIMENTAL)",
+    "meaning": "Signal-Temporal-Logic robustness degree ρ is sound: positive robustness ⇒ satisfaction, negative robustness ⇒ violation (Donzé–Maler agreement bounds). REAL theorem but EXPERIMENTAL (Wave10), NOT in locked-8.",
+    "math": "ρ(φ, w, t) robustness margin; rho_pos_sound: ρ>0 ⇒ φ holds; rho_neg_violation: ρ<0 ⇒ ¬φ",
+    "inputs": "STL formula φ, signal/world W, time t",
+    "outputs": "Int robustness margin + soundness Props",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave10/STLRobustness.lean",
+        "line": 213
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Lutar/Wave10/STLRobustness.lean::rho_sound (L213; also rho_pos_sound L291, rho_neg_violation L298, def rho L93). Namespace Lutar.Wave10.STLRobustness.STL. Marked EXPERIMENTAL.",
+    "powers": "Temporal-logic monitoring for organs (e.g. C-UAS / plug-flow verticals)",
+    "notes": "DRIFT: brief anchor 'Lutar/STL.lean::stl_robustness_sound' does not exist; real decl is rho_sound in Wave10. EXPERIMENTAL — NOT locked. The locked F11 is the trivial Ayni identity (Q1-F11 above).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-GATE-01",
+    "name": "Deny-by-default monotone gate uniqueness (brief F12 — EXPERIMENTAL)",
+    "meaning": "The minimum (min) is the unique conjunctive 'deny-by-default' AND-gate: any monotone gate bounded below by its inputs and equal to deny-by-default must be min. REAL theorem but EXPERIMENTAL (Wave8), NOT in locked-8.",
+    "math": "vmin(x) = min_i xᵢ; deny_by_default_unique: D monotone + lower-bounded ⇒ D = vmin; min_gate_lower_bound",
+    "inputs": "gate D : (Fin (n+1) → Nat) → Nat",
+    "outputs": "Prop: D = deny-by-default min gate (uniqueness)",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave8/MinGate.lean",
+        "line": 96
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Lutar/Wave8/MinGate.lean::deny_by_default_unique (L96; also min_gate_lower_bound L82, vmin_is_deny_by_default L104). Namespace Lutar.Wave8.MinGate. EXPERIMENTAL.",
+    "powers": "Conjunctive AND gate semantics in lambda-gate / policy gates",
+    "notes": "DRIFT: brief anchor 'Lutar/Gates.lean::policy_gate_monotone' does not exist; real decl is deny_by_default_unique in Wave8. EXPERIMENTAL — NOT locked. Locked F12 is trivial Kuramoto distributivity (Q1-F12 above). Matches the conjunctive yuyay_v3 gate in szl-lambda-gate (Q1-LG-02).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-DSSE-01",
+    "name": "DSSE token injective seal binding (brief F18 — EXPERIMENTAL)",
+    "meaning": "The DSSE seal/token is injective: distinct canonical payloads map to distinct tokens, so a signature binds exactly one canonical payload. REAL theorem but EXPERIMENTAL (Wave10), NOT in locked-8.",
+    "math": "dsse_token injective: token(a)=token(b) ⇒ a=b; dsse_token_distinct: a≠b ⇒ token(a)≠token(b)",
+    "inputs": "canonical payload / action",
+    "outputs": "Prop: injectivity / distinctness of seal",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave10/DSSEToken.lean",
+        "line": 62
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Lutar/Wave10/DSSEToken.lean::dsse_token_injective (L62; also dsse_token_distinct L72, dsse_search_sound L86). Namespace Lutar.Wave10.DSSEToken. EXPERIMENTAL.",
+    "powers": "Receipt/verdict signing binding in szl-receipt & khipu-consensus",
+    "notes": "DRIFT: brief anchor 'Lutar/Receipt.lean::dsse_seal_binding' does not exist; real decl is dsse_token_injective in Wave10. EXPERIMENTAL — NOT locked. Locked F18 is the trivial Reed-Solomon count (Q1-F18 above). Backs the runtime DSSE primitive in szl-receipt (Q1-SIGN-01).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-CONS-01",
+    "name": "Khipu BFT consensus counting primitives (n≥3f+1)",
+    "meaning": "Decidable counting predicates for BFT consensus: validCount/faultyCount/honestCount, canonicity = threshold attainment (validCount ≥ threshold). With n=4, threshold=3 ⇒ tolerates f=1 fault. Counting lemmas are REAL/proven; SAFETY and LIVENESS are NOT (Conjectures 2 & 3).",
+    "math": "isCanonical c := decide(validCount c ≥ c.threshold); threshold=3, n=4, f=n-threshold=1; n ≥ 3f+1; validCount_le_n; isCanonical_iff",
+    "inputs": "Consensus n (n organ verdicts + signatures), threshold",
+    "outputs": "Bool canonicity + proven counting bounds",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/KhipuConsensus.lean",
+        "line": 131
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave3/Consensus.lean",
+        "line": 47
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave8/Byzantine.lean",
+        "line": 99
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave10/QuorumIntersection.lean",
+        "line": 74
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Lutar/KhipuConsensus.lean::isCanonical (L131), ::isCanonical_iff (L156), ::validCount_le_n (L143), ::faultyCount_le_n (L149) — all PROVEN. Lutar/Wave3/Consensus.lean::c10_threeFPlusOne (L47, PROVEN). Lutar/Wave8/Byzantine.lean::byzantine_impossibility_3_1 (L99, PROVEN). Lutar/Wave10/QuorumIntersection.lean::quorum_intersection_agreement (L74, PROVEN, EXPERIMENTAL).",
+    "powers": "BFT 3-of-4 consensus over organ verdicts (khipu-consensus runtime)",
+    "notes": "Counting/threshold primitives are proven. SAFETY (khipu_consensus_safety) and LIVENESS (khipu_consensus_liveness) are OPEN sorrys — see Q1-CONJ-02/03. Runtime mirror in khipu-consensus (Q1-KC-01). Wave23/QuorumSafety.lean::khipu_quorum_safety_conditional is CONDITIONAL only.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-MERKLE-01",
+    "name": "Khipu Merkle receipt functor validity (EXPERIMENTAL)",
+    "meaning": "The Khipu receipt-to-Merkle mapping is a valid functor (preserves identity & composition over the receipt category). REAL theorem, EXPERIMENTAL.",
+    "math": "khipuReceiptFunctor satisfies functor laws (id, ∘ preservation)",
+    "inputs": "receipt category morphisms",
+    "outputs": "Prop: valid functor",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Khipu/MerkleFunctor.lean",
+        "line": 172
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Lutar/Khipu/MerkleFunctor.lean::khipuReceiptFunctor_is_valid_functor (L172). EXPERIMENTAL.",
+    "powers": "Merkle-DAG receipt commitment structure",
+    "notes": "Real proof but EXPERIMENTAL, not in locked-8.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-LG-01",
+    "name": "Λ weighted-geomean aggregator (runtime, szl-lambda-gate)",
+    "meaning": "Runtime PyTorch implementation of the Λ aggregator: weighted geometric mean via log-sum-exp with non-compensatory zero-routing (any zero axis ⇒ Λ=0). Includes A1–A4 runtime self-checks.",
+    "math": "Λ(x;w) = ∏ xᵢ^wᵢ = exp(Σ wᵢ ln xᵢ); zero-routing: ∃ xᵢ=0 ⇒ Λ=0; weights uniform 1/k by default",
+    "inputs": "x: axis scores tensor, w: weights (default uniform 1/k)",
+    "outputs": "Λ advisory trust scalar tensor",
+    "locations": [
+      {
+        "repo": "szl-lambda-gate",
+        "file": "torch-ext/szl_lambda_gate/_lambda.py",
+        "line": 123
+      },
+      {
+        "repo": "szl-lambda-gate",
+        "file": "torch-ext/szl_lambda_gate/_lambda.py",
+        "line": 414
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Definition formalized in lutar-lean Lutar/Invariant.lean::Λ (Q1-LAMBDA-01); runtime code is unproven. Λ-uniqueness = Conjecture 1.",
+    "powers": "13-axis advisory trust scoring for a11oy / all organs",
+    "notes": "lambda_aggregate (L123), lambda_gate (L184), lambda_gate_batch (L213), yuyay_weights (L414). Canonical source platform/packages/puriq-os/puriq_os/lambda_aggregator.py (mirror tests/lambda_aggregator_source.py). DOI 10.5281/zenodo.20434308. Explicitly ADVISORY; docstring states Λ-uniqueness is Conjecture 1 (open).",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-LG-02",
+    "name": "Yuyay 13-axis conjunctive gate + per-axis floors (szl-lambda-gate)",
+    "meaning": "The published yuyay_v3 conjunctive AND gate: 13 named axes each with a floor; gate passes iff EVERY axis meets its floor (deny-by-default). Two 'sacred' axes at 0.95, eleven at 0.90.",
+    "math": "gate_pass ⇔ ∀i: xᵢ ≥ floorᵢ; YUYAY_FLOORS = (0.95,0.95, 0.90×11); axes: moralGrounding, measurabilityHonesty, empiricalGrounding, logicalConsistency, sourceTransparency, reproducibility, licenseHygiene, scopeDiscipline, claimCalibration, evalAwareness, deceptionKeywords, conflictingDirectives, reversalDirective",
+    "inputs": "13-axis score vector",
+    "outputs": "Bool gate pass/deny (advisory)",
+    "locations": [
+      {
+        "repo": "szl-lambda-gate",
+        "file": "torch-ext/szl_lambda_gate/_lambda.py",
+        "line": 390
+      },
+      {
+        "repo": "szl-lambda-gate",
+        "file": "torch-ext/szl_lambda_gate/_lambda.py",
+        "line": 407
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Conjunctive min-gate uniqueness formalized (EXPERIMENTAL) at Lutar/Wave8/MinGate.lean::deny_by_default_unique (Q1-GATE-01); floor vector at TH8/lean_v2/GradedSemiring.lean::floorVec (Q1-FLOOR-01). Runtime code unproven.",
+    "powers": "Conjunctive screen / deny-by-default policy gate across organs",
+    "notes": "YUYAY_AXES (L390, 13 axes), YUYAY_FLOORS (L407). The 0.90 floor matches runtime A11OY_DOCTRINE_LAMBDA_FLOOR. ADVISORY only.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-SIGN-01",
+    "name": "DSSE receipt signing primitive (szl-receipt)",
+    "meaning": "Sign/verify a receipt over its canonical payload using ECDSA-P256-SHA256 over the DSSE Pre-Authentication Encoding (PAE). Canonical JSON = sorted-keys, compact, UTF-8. Honest UNSIGNED contract when no key present.",
+    "math": "sig = ECDSA_P256_SHA256(pae('application/vnd.szl.receipt+json', canonical_json(body))); pae(type,body)=DSSEv1 'DSSEv1 '+len(type)+' '+type+' '+len(body)+' '+body; body_digest = SHA256(canonical_json)",
+    "inputs": "receipt body dict, private/public key PEM",
+    "outputs": "DSSE signature + keyid; verify ⇒ bool",
+    "locations": [
+      {
+        "repo": "szl-receipt",
+        "file": "src/szl_receipt/_sign.py",
+        "line": 64
+      },
+      {
+        "repo": "szl-receipt",
+        "file": "src/szl_receipt/_canonical.py",
+        "line": 16
+      },
+      {
+        "repo": "szl-receipt",
+        "file": "src/szl_receipt/receipt.py",
+        "line": 54
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Injectivity/binding formalized (EXPERIMENTAL) at Lutar/Wave10/DSSEToken.lean::dsse_token_injective (Q1-DSSE-01); round-trip invariant at Lutar/Transduction/ReceiptInvariant.lean (Q1-RECV-01). Runtime crypto code itself unproven.",
+    "powers": "Receipt sealing for every organ that emits receipts",
+    "notes": "sign_dsse (L64), verify_dsse (L87), generate_keypair (L37), body_digest (L120); canonical_json (L16) + pae (L33) in _canonical.py; Receipt class (L30), sign_receipt (L54), verify_receipt (L116) in receipt.py. PAYLOAD_TYPE='application/vnd.szl.receipt+json'. UNSIGNED-honest contract.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-KC-01",
+    "name": "BFT 3-of-4 verdict tally (khipu-consensus runtime)",
+    "meaning": "Multi-witness BFT consensus: each organ signs a verdict over an action hash with its own ECDSA-P256 key; ≥ threshold valid 'allow' signatures ⇒ action is CANONICAL. Default n=4, threshold=3, f=n-threshold=1.",
+    "math": "count = #{valid signatures with verdict='allow' over action_hash}; decision = canonical if count ≥ threshold else rejected; threshold=3, n=4, f=1",
+    "inputs": "action_hash, list of OrganVerdicts, pubkeys, threshold=3, n=4",
+    "outputs": "ConsensusResult (count, decision canonical/rejected)",
+    "locations": [
+      {
+        "repo": "khipu-consensus",
+        "file": "python/khipu_consensus/__init__.py",
+        "line": 138
+      },
+      {
+        "repo": "khipu-consensus",
+        "file": "python/khipu_consensus/witness.py",
+        "line": 188
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Counting/threshold primitives proven at Lutar/KhipuConsensus.lean (Q1-CONS-01). Runtime SAFETY = Conjecture 2, LIVENESS = Conjecture 3 (proof-deferred). Runtime code unproven.",
+    "powers": "BFT consensus over organ verdicts (the org's quorum gate)",
+    "notes": "tally (L138), sign_verdict (L87), verify_verdict (L111), canonical_json/pae (L28/L33) in __init__.py; attest (L188), Witness/WitnessRegistry/MultiWitnessReceipt, SAFETY_STATUS dict (L47, labels safety=Conjecture 2 / liveness=Conjecture 3 / slashing=ROADMAP) in witness.py. ORGAN_VERDICT_PAYLOAD_TYPE='application/vnd.szl.khipu.organ-verdict+json'. go/ & typescript/ mirrors exist; testdata/vectors.json.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-NORM-01",
+    "name": "Governed normalization reference kernels (szl-governed-norm)",
+    "meaning": "Pure-PyTorch reference implementations of RMSNorm, LayerNorm, and fused add+RMSNorm, computed in float32. Honest: makes NO speed/perf claims — reference correctness only.",
+    "math": "rms_norm(x) = x / sqrt(mean(x²)+eps) · γ; layer_norm(x) = (x-μ)/sqrt(σ²+eps)·γ+β; fused_add_rms_norm(x,res) = rms_norm(x+res)",
+    "inputs": "x tensor, weight γ (and β for layer_norm), eps",
+    "outputs": "normalized tensor (float32 compute)",
+    "locations": [
+      {
+        "repo": "szl-governed-norm",
+        "file": "torch-ext/szl_governed_norm/_norm.py",
+        "line": 124
+      },
+      {
+        "repo": "szl-governed-norm",
+        "file": "torch-ext/szl_governed_norm/_norm.py",
+        "line": 154
+      },
+      {
+        "repo": "szl-governed-norm",
+        "file": "torch-ext/szl_governed_norm/_norm.py",
+        "line": 194
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Governed model inference normalization layers",
+    "notes": "rms_norm (L124), layer_norm (L154), fused_add_rms_norm (L194). Standard normalization formulas — no novel math, no Lean proof. Honest no-speed-claims disclosure in module.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-NORM-02",
+    "name": "Governed-norm receipt chain (hash-chained, optional DSSE)",
+    "meaning": "Hash-chained receipt ledger for norm operations: each receipt body is digested and linked to the previous head; optional DSSE signing when a key is present. Tensor digests rounded to 6 decimals for reproducibility.",
+    "math": "head' = SHA256(canonical_json(body ∪ {prev: head})); tensor_digest = SHA256(round(t,6)); chain verify walks links",
+    "inputs": "operation body dict, optional signing key, tensors",
+    "outputs": "hash-chained receipt + head digest; verify ⇒ bool",
+    "locations": [
+      {
+        "repo": "szl-governed-norm",
+        "file": "torch-ext/szl_governed_norm/_receipt.py",
+        "line": 75
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Conceptually related to Lutar/Transduction/ReceiptInvariant.lean (Q1-RECV-01); this runtime code unproven.",
+    "powers": "Tamper-evident audit trail for governed-norm operations",
+    "notes": "ReceiptChain class (L75): emit (L92), head (L121), count (L125), tail (L129), verify (L133); _maybe_sign (L35), _tensor_digest (L59). Mirrors the meter receipt chain (Q1-METER-02) — DUPLICATE pattern across the two torch-ext packages.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-METER-01",
+    "name": "Energy meter — NVML counter or trapezoidal power integral (governed-inference-meter)",
+    "meaning": "Measures GPU energy for an inference: prefers NVML total-energy counter (millijoules); falls back to integrating power samples (milliwatts) over wall-time via the trapezoidal rule. Honest probe records WHY NVML is unavailable; degradation is unmeasured/disclosed.",
+    "math": "E = ΔnvmlTotalEnergy (mJ) if counter available; else E ≈ Σ ½(Pᵢ+Pᵢ₊₁)(tᵢ₊₁-tᵢ) (trapezoidal integral of power samples)",
+    "inputs": "GPU device handle, power/energy samples over time",
+    "outputs": "energy estimate (Joules) + capability/honesty metadata",
+    "locations": [
+      {
+        "repo": "governed-inference-meter",
+        "file": "build/torch-universal/governed_inference_meter/_energy.py",
+        "line": 1
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Energy/entropy accounting (relates to Bekenstein budget, locked F19) for governed inference",
+    "notes": "EnergyMeter class + nvml_available probe (L42). Stdlib + optional pynvml only; no network/disk. Honest: never raises, records failure reason; degradation explicitly unmeasured. Standard trapezoidal rule — no novel math, no Lean proof.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-METER-02",
+    "name": "Fail-closed advisory policy gate + receipt chain (governed-inference-meter)",
+    "meaning": "Advisory inference policy gate evaluated fail-closed (deny on error), with allow_all/deny_all primitives; plus a hash-chained receipt ledger (optional DSSE signing) mirroring the governed-norm chain.",
+    "math": "evaluate(gate,ctx) → PolicyResult, fail-closed (exception ⇒ deny); head' = SHA256(canonical_json(body+prev))",
+    "inputs": "PolicyGate, context dict; receipt body",
+    "outputs": "PolicyResult (allow/deny, advisory); hash-chained receipt",
+    "locations": [
+      {
+        "repo": "governed-inference-meter",
+        "file": "build/torch-universal/governed_inference_meter/_policy.py",
+        "line": 72
+      },
+      {
+        "repo": "governed-inference-meter",
+        "file": "build/torch-universal/governed_inference_meter/_receipt.py",
+        "line": 83
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Deny-by-default semantics relate to Lutar/Wave8/MinGate.lean (Q1-GATE-01, EXPERIMENTAL); runtime code unproven.",
+    "powers": "Advisory gate + audit trail for governed inference metering",
+    "notes": "PolicyResult (L29), allow_all (L47), deny_all (L52), evaluate (L72) in _policy.py; ReceiptChain (L83) with emit (L96)/head (L146)/count (L150)/tail (L154)/to_jsonl (L158) + canonical_json (L74) in _receipt.py. ADVISORY, fail-closed. DUPLICATE receipt-chain pattern with Q1-NORM-02.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-LK-01",
+    "name": "Lean kernel theorem scanner + verification service (lean-kernel)",
+    "meaning": "A service that scans the lutar-lean corpus and classifies each theorem/lemma/def as PROVEN, SORRY (open), or AXIOM, exposing a live machine-checked verification surface plus numeric reference-vector checks of Λ.",
+    "math": "regex classify: kind∈{theorem,lemma,def,abbrev,instance}; SORRY if non-comment `sorry` in body; PROVEN if no sorry & not axiom; reference-vectors check Λ_k(x)=(∏xᵢ)^(1/k) at k=9",
+    "inputs": "lutar-lean corpus root; reference-vectors.json",
+    "outputs": "per-theorem status summary {theorems_and_lemmas, proven, sorry, axiom}; Λ numeric agreement",
+    "locations": [
+      {
+        "repo": "lean-kernel",
+        "file": "app/theorem_scan.py",
+        "line": 43
+      },
+      {
+        "repo": "lean-kernel",
+        "file": "data/reference-vectors.json",
+        "line": 1
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Scans/verifies lutar-lean but contains no proofs itself. reference-vectors.json formula='Λ_k(x)=(∏xᵢ)^(1/k)', k=9.",
+    "powers": "Public independent verification of the Lean kernel (a11oy.net / docs-site)",
+    "notes": "scan (L43), summarize (L72), iter_lean_files (L29) in theorem_scan.py; also server.py, lean_numbers.py, index.html. README note (2026-06-30): HF entry is model SZLHOLDINGS/szl-kernels (an HF Space 'lean-kernel' was wrongly referenced and does not exist). SLSA L1 honest badge.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-CONJ-01",
+    "name": "Λ-uniqueness — CONJECTURE 1 (open; false as unconditionally stated)",
+    "meaning": "Whether Λ (geometric mean) is the UNIQUE aggregator satisfying axioms A1–A5. UNCONDITIONALLY this is machine-checked FALSE (the 2-axis max aggregator also satisfies A1–A5 but ≠ Λ). It holds only CONDITIONALLY (given a Factors decomposition, or the declared bisymmetry axiom A6). NEVER LOCKED-PROVEN.",
+    "math": "f23_unconditional_is_underdetermined := maxAgg_ne_Lambda (counterexample: max satisfies A1–A5, ≠Λ); conditional: lutar_is_geomean_of_factors (= Round13.lambda_unique_of_factors, CLOSED, conditional on Factors); lambda_unique_under_A6 (CLOSED but GATED on declared axiom A6_bisymmetric); monotone_additive_linear has an open `sorry` (STEP2_MONOTONE_ADDITIVE_CONTINUOUS, Cauchy 1821)",
+    "inputs": "axioms A1–A5 (+ optional Factors / A6)",
+    "outputs": "Conjecture (uniqueness) — open unconditionally",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/F23_Uniqueness.lean",
+        "line": 194
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "Lutar/Puriq/Formulas/F23_Uniqueness.lean::f23_unconditional_is_underdetermined (L194, = Lutar.Round13.maxAgg_ne_Lambda — proves the UNCONDITIONAL claim FALSE); conditional theorems lutar_is_geomean_of_factors (L152) and lambda_unique_under_A6 (L181) are CLOSED but conditional; monotone_additive_linear (L101) has open sorry (L128). axiom A6_bisymmetric declared L172.",
+    "powers": "Would (if true) upgrade Λ from advisory to canonical — it does NOT, by doctrine",
+    "notes": "CONJECTURE 1. NEVER tag LOCKED-PROVEN (brief binding rule). The file is explicit: 'No conjecture is upgraded to a theorem here.' A6_bisymmetric is a declared optional non-core axiom, fully disclosed, never folded into the core kernel-clean set {propext, funext, Classical.choice, Quot.sound}.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-CONJ-02",
+    "name": "Khipu BFT consensus SAFETY — CONJECTURE 2 (open sorry)",
+    "meaning": "BFT safety: if a quorum reaches threshold valid consents AND at most one organ is faulty (f≤1), then the canonical decision is unique/correct. This is NOT proven — it is an open `sorry` (Conjecture 2). Only the counting primitives are proven.",
+    "math": "khipu_consensus_safety: validCount c ≥ threshold ∧ faultyCount c ≤ 1 ⇒ <safety property>  := sorry",
+    "inputs": "Consensus c, hquorum: validCount≥threshold, hfault: faultyCount≤1",
+    "outputs": "Conjecture (safety) — open",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/KhipuConsensus.lean",
+        "line": 175
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "Lutar/KhipuConsensus.lean::khipu_consensus_safety (L175, body = `sorry` at L179). Conditional partial result only: Lutar/Wave23/QuorumSafety.lean::khipu_quorum_safety_conditional (L152, CONDITIONAL). Runtime SAFETY_STATUS in khipu-consensus/witness.py labels this Conjecture 2, proof-deferred.",
+    "powers": "BFT consensus correctness (would harden khipu-consensus)",
+    "notes": "CONJECTURE 2. NEVER locked-proven. Header of KhipuConsensus.lean explicitly lists safety as Conjecture 2 and liveness as Conjecture 3 as the only deferred tokens; all counting predicates elaborate with no deferred tokens.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "Q1-CONJ-03",
+    "name": "Khipu BFT consensus LIVENESS — CONJECTURE 3 (open sorry)",
+    "meaning": "BFT liveness: if at least threshold organs are honest, a canonical consensus exists/will be reached. NOT proven — open `sorry` (Conjecture 3); a constructive proof needs a synchrony/timeout model not formalized here.",
+    "math": "khipu_consensus_liveness: honestCount c ≥ threshold ⇒ ∃ canonical, validCount canonical ≥ threshold  := sorry",
+    "inputs": "Consensus c, hhonest: honestCount≥threshold",
+    "outputs": "Conjecture (liveness) — open",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/KhipuConsensus.lean",
+        "line": 193
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "Lutar/KhipuConsensus.lean::khipu_consensus_liveness (L193, body = `sorry` at L196). Runtime SAFETY_STATUS in khipu-consensus/witness.py labels this Conjecture 3, proof-deferred.",
+    "powers": "BFT consensus progress guarantee",
+    "notes": "CONJECTURE 3. NEVER locked-proven. Needs synchrony/timeout model per in-file note.",
+    "_quadrant": "Q1"
+  },
+  {
+    "id": "F1",
+    "name": "F1 · replay-hash determinism",
+    "meaning": "A pure function replayed on the same input yields the same output (and the same hash), so receipt replay is deterministic. NOTE: the brief described F1 as 'gate-pass ⇒ Λ ≥ 0.90'; the actual locked F1 theorem is replay-hash determinism, NOT a gate→Λ-floor implication.",
+    "math": "∀ (f:α→β)(x:α), f x = f x ; trace-stable over List α",
+    "inputs": "pure function f, input x (or list xs)",
+    "outputs": "equality / stable trace",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "53,57"
+      },
+      {
+        "repo": "a11oy",
+        "file": "a11oy_v4_formulas.py",
+        "line": "342-350 (replayDeterminism gate, claims Lean 'replayDeterminism' which does NOT exist)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f1_replay_hash_determinism",
+    "powers": "receipt replay / deterministic re-execution across organs",
+    "notes": "Locked-8 member. Real decl is the determinism of a pure function (Nat/α surrogate), proved by rfl. The a11oy v4 'replayDeterminism' gate cites a Lean theorem name that is NOT present in lutar-lean (see honest-N/A entries). | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "F4",
+    "name": "F4 · Khipu DAG acyclicity",
+    "meaning": "The Khipu receipt edge set forms an acyclic DAG: every edge points strictly backward, so there are no cycles; append preserves the invariant.",
+    "math": "edge (src,dst) ⇒ dst < src ; reach decreases ; append preserves KhipuBackwardInvariant",
+    "inputs": "KhipuEdges (set of (a,b) Nat pairs)",
+    "outputs": "acyclicity / invariant preservation",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "102-180"
+      },
+      {
+        "repo": "a11oy",
+        "file": "szl_be_hardening.py",
+        "line": "338-377 (DurableKhipu emit/verify hash-chain)"
+      },
+      {
+        "repo": "szl-mesh",
+        "file": "src/szl_mesh/crdt.py",
+        "line": "47-90 (content-addressed op_id / change_hash)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f4_khipu_dag_acyclic_preserved",
+    "powers": "Khipu/YAWAR receipt chain, blood/circulatory organ, mesh CRDT op DAG",
+    "notes": "Locked-8 member. Nat-surrogate model of the backward-edge invariant. The runtime hash-chain in a11oy szl_be_hardening.py (sha3_256) and the mesh CRDT op-id are the evidence-backed implementations of this structure. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "F7",
+    "name": "F7 · Chaski FIFO ordering",
+    "meaning": "The Chaski message queue is a faithful FIFO: enqueue/drain preserve order, head is oldest, positional order is stable.",
+    "math": "chaskiDrain q = q ; head_is_oldest ; fifo_positional",
+    "inputs": "ChaskiQueue (List Nat), messages",
+    "outputs": "FIFO ordering guarantees",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "185-244"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f7_chaski_fifo_order",
+    "powers": "Chaski message transport ordering (mesh/agent messaging)",
+    "notes": "Locked-8 member. No direct Q2-repo runtime found for Chaski queue; included because it is part of the locked-8 set the Q2 organs reference via DOCTRINE_LOCK. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "F11",
+    "name": "F11 · Ayni reciprocity conservation",
+    "meaning": "Reciprocity (give/take) ledger conserves: a balanced credit/debit pair sums consistently — additive conservation fragment.",
+    "math": "f11_ayni_reciprocity_conservation (b c : Int)",
+    "inputs": "credit b, debit c (Int)",
+    "outputs": "conservation equality",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "62"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f11_ayni_reciprocity_conservation",
+    "powers": "Ayni reciprocity accounting. NOTE: brief described F11 as 'STL robustness ρ'; the actual locked F11 is Ayni reciprocity conservation, NOT signal-temporal-logic robustness.",
+    "notes": "Locked-8 member. The brief's claimed file Lutar/STL.lean::stl_robustness_sound does NOT exist. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "F12",
+    "name": "F12 · Kuramoto additive",
+    "meaning": "Additive phase-coupling fragment of the Kuramoto synchronization model is bounded/monotone.",
+    "math": "f12_kuramoto_additive (p1 p2 k : Nat)",
+    "inputs": "phases p1,p2, coupling k (Nat)",
+    "outputs": "additive bound",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "67"
+      },
+      {
+        "repo": "anatomy",
+        "file": "data.js",
+        "line": "56 (F12 LOCKED card)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f12_kuramoto_additive",
+    "powers": "synchronization/coupling reasoning. NOTE: brief described F12 as 'monotone deny-by-default gate'; the actual locked F12 is the Kuramoto additive fragment. The brief's claimed Lutar/Gates.lean::policy_gate_monotone does NOT exist.",
+    "notes": "Locked-8 member. Anatomy's data.js correctly labels F12 as Kuramoto, confirming the registry over the brief's anchor description. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "F18",
+    "name": "F18 · Reed-Solomon parity / erasure tolerance",
+    "meaning": "A (10,6) Reed-Solomon code has 4 parity symbols and tolerates up to 4 erasures while still reconstructing the 6 data symbols.",
+    "math": "(10 - 6 : Nat) = 4 ; e ≤ 4 ⇒ 6 ≤ 10 - e",
+    "inputs": "n=10, k=6, erasures e",
+    "outputs": "parity count 4 / erasure tolerance",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "72,75"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f18_reed_solomon_parity_count",
+    "powers": "erasure-coded receipt durability / blood DSSE-Merkle redundancy. NOTE: brief described F18 as 'DSSE seal binding'; actual locked F18 is Reed-Solomon parity. Brief's Lutar/Receipt.lean::dsse_seal_binding does NOT exist (DSSE binding is evidence-backed, see Q2-RCPT-01).",
+    "notes": "Locked-8 member. Proved by decide/omega. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "F19",
+    "name": "F19 · Bekenstein additive / budget monotone",
+    "meaning": "Information entropy is additive and monotone: combining systems never decreases the bound (s1 ≤ s1+s2).",
+    "math": "f19_bekenstein_additive: s1 ≤ s1 + s2 ; budget_monotone: s ≤ s + d",
+    "inputs": "entropies s1,s2 (Nat)",
+    "outputs": "additive monotone bound",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "78,82"
+      },
+      {
+        "repo": "ouroboros",
+        "file": "runtime/bekenstein/src/entropy.ts",
+        "line": "41-75 (bekensteinBound = sizeBytes*8, recordTransit asserts within budget)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f19_bekenstein_additive",
+    "powers": "energy/entropy budget accounting; ouroboros bekenstein runtime guard. NOTE: brief described F19 as '13-axis Λ geomean'; actual locked F19 is Bekenstein additivity. Brief's Lutar/Lambda.lean::lambda_geomean_wellformed does NOT exist (Λ geomean is evidence-backed + Conjecture 1, see Q2-LAM-01).",
+    "notes": "Locked-8 member. Ouroboros entropy.ts is the runtime that enforces the Bekenstein bound (conservative sizeBytes*8 bits). | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "F22",
+    "name": "F22 · Khipu emit monotone",
+    "meaning": "Receipt sequence numbers strictly increase with position: emit appends, and seq at later index is strictly greater.",
+    "math": "f22_seqLog (n+1) = f22_seqLog n ++ [n] ; i<j<n ⇒ seqLog[i] < seqLog[j]",
+    "inputs": "emit count n, indices i,j",
+    "outputs": "strict monotone seq",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "244-263"
+      },
+      {
+        "repo": "a11oy",
+        "file": "szl_be_hardening.py",
+        "line": "338 (DurableKhipu emit seq++)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "ProvedFormulas.lean::f22_khipu_emit_monotone",
+    "powers": "Khipu/YAWAR receipt seq ordering; chain-depth probe (readyz khipu_depth)",
+    "notes": "Locked-8 member. The a11oy DurableKhipu.emit assigns monotone seq numbers; readyz exposes khipu_depth + khipu_first_break_seq. | CANONICAL truthful label (verified: proves the stated surrogate, NOT the governance property the old console advertised).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-DOC-01",
+    "name": "Locked-Baseline Count = 8",
+    "meaning": "The locked-proven formula baseline is EXACTLY 8 named formulas {F1,F4,F7,F11,F12,F18,F19,F22} — re-asserted as a kernel invariant by decide.",
+    "math": "lockedNames.length = 8 (by decide)",
+    "inputs": "lockedNames list",
+    "outputs": "= 8",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave11/AxiomDisclosure.lean",
+        "line": "96-100"
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Wave8/AxiomDisclosure.lean",
+        "line": "94"
+      },
+      {
+        "repo": "a11oy",
+        "file": "szl_be_hardening.py",
+        "line": "81-96 (DOCTRINE_LOCK locked_formula_count:8)"
+      },
+      {
+        "repo": "anatomy",
+        "file": "data.js",
+        "line": "22 (locked_proven array)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "lutar-lean::Lutar/Wave11/AxiomDisclosure.lean::locked_count_eight (also Wave8); #print axioms shows core-logic axioms only",
+    "powers": "doctrine honesty invariant surfaced at /api/a11oy/v1/honest and the anatomy SKELETON card",
+    "notes": "Genuinely proven (by decide). This is the one structural claim about the locked set that IS a theorem.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-LAM-01",
+    "name": "Λ 13-axis weighted geometric-mean trust aggregator (canonical advisory)",
+    "meaning": "The trust scalar Λ is the (weighted) geometric mean of 13 alignment-axis scores. Advisory signal; gate floor 0.90. Uniqueness of Λ is Conjecture 1 (OPEN).",
+    "math": "Λ = exp( (1/13) · Σ_i log(x_i) ) ; PASS iff Λ ≥ 0.90 (and per-axis floors)",
+    "inputs": "13 axis scores in (0,1]: truthfulness, calibration, transparency, forthrightness, non_deception, non_manipulation, autonomy_preservation, harm_avoidance, data_minimisation, contestability, accountability, interoperability, reversibility",
+    "outputs": "Λ ∈ (0,1], PASS/HALT",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "szl_jack.py",
+        "line": "76-94 (AXIS_NAMES, lambda_signal geomean, floor 0.90)"
+      },
+      {
+        "repo": "ouroboros",
+        "file": "runtime/lambda-gate/src/gate.ts",
+        "line": "23-99 (computeLambda geomean, LAMBDA_THRESHOLD 0.90, CRITICAL_THRESHOLD 0.95)"
+      },
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/governance.py",
+        "line": "303-318 (YUYAY_AXES 13, YUYAY_FLOORS)"
+      },
+      {
+        "repo": "anatomy",
+        "file": "data.js",
+        "line": "361-366 (HEART/YUYAY beat node)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE for the aggregator itself (Λ uniqueness = Conjecture 1, OPEN). Related kernel work is CONDITIONAL only: lutar-lean::Lutar/Round13::lambda_unique_of_separable (conditional on slice-multiplicativity), Lutar/Round9/SkeletonLambdaSpine.lean, Lutar/Innovations/round9/MonotoneContinuous.lean (per-axis strict monotonicity). The brief's Lutar/Lambda.lean::lambda_geomean_wellformed does NOT exist.",
+    "powers": "HEART/YUYAY gate, every governed turn, anatomy heartbeat",
+    "notes": "DRIFT: at least 5 distinct Λ definitions across a11oy (see Q2-LAM-DRIFT). NEVER tag LOCKED-PROVEN — uniqueness is machine-checked-false as stated (Conjecture 1).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-LAM-DRIFT",
+    "name": "Λ aggregator drift (multiple disagreeing definitions)",
+    "meaning": "The same 'Λ' name is computed several incompatible ways across a11oy modules and organs.",
+    "math": "(1) 13-axis weighted geomean exp(Σlog/13) floor 0.90 [canonical]; (2) min(axes) floor 0.5 [immune]; (3) 8-axis geomean trust [agentic loop]; (4) penalized estimate from 0.97 floor 0.90 [vertical feeds]; (5) Λ_v5 = C·(dp/dp0) closure≥0.25 [quantum-bio, PROPOSED not formal]",
+    "inputs": "axis scores (count varies 8/13)",
+    "outputs": "Λ scalar (semantics differ)",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "szl_jack.py",
+        "line": "84-94 (geomean, 13-axis, floor 0.90)"
+      },
+      {
+        "repo": "a11oy",
+        "file": "szl_immune.py",
+        "line": "106-109 (_compute_lambda=min(axes), floor 0.5)"
+      },
+      {
+        "repo": "a11oy",
+        "file": "szl_agentic_loop.py",
+        "line": "228 (8-axis geomean _trust_score)"
+      },
+      {
+        "repo": "a11oy",
+        "file": "a11oy_vertical_feeds.py",
+        "line": "149-220 (_lambda_estimate, floor 0.90)"
+      },
+      {
+        "repo": "a11oy",
+        "file": "szl_quantum_bio.py",
+        "line": "132 (lambda_v5 = C·dp/dp0, closure ≥ 0.25, PROPOSED)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE (Conjecture 1)",
+    "powers": "different organs (brand/immune/agentic/vertical/quantum-bio)",
+    "notes": "RECONCILIATION: canonical = szl_jack.py 13-axis weighted geomean, floor 0.90 (matches ouroboros gate.ts and hatun-mcp YUYAY). szl_immune.py uses min() with floor 0.5 — a stricter weakest-link gate (consistent with the proven MinGate uniqueness in lutar-lean Wave8 MinGate). szl_quantum_bio lambda_v5 is explicitly PROPOSED engineering, NOT the formal Λ — do not conflate.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-GATE-01",
+    "name": "Conjunctive deny-by-default gate (YUYAY 13-axis critique)",
+    "meaning": "A proposal passes ONLY if every axis is at or above its floor (conjunctive AND), not a weighted average. Deny-by-default; failing any single sacred axis denies even if all others are perfect.",
+    "math": "PASS ⇔ ∀ axis a: score[a] ≥ floor[a] ; sacred floors (moralGrounding, measurabilityHonesty) ≥ 0.95, structural ≥ 0.90",
+    "inputs": "axis scores, YUYAY_FLOORS",
+    "outputs": "PASS / AMBER / FAIL + blocked_axis",
+    "locations": [
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/governance.py",
+        "line": "318,337-394 (YUYAY_FLOORS, yuyay_gate, conjunctive loop)"
+      },
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/puriq.py",
+        "line": "76-82 (yuyay_verdict PASS≥0.95/AMBER/FAIL)"
+      },
+      {
+        "repo": "ouroboros",
+        "file": "runtime/lambda-gate/src/gate.ts",
+        "line": "78-99 (evaluateAxes per-axis + critical-axis + composite checks)"
+      },
+      {
+        "repo": "anatomy",
+        "file": "data.js",
+        "line": "364 (pass = all(score[i] >= floor[i]) — NOT weighted average)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Closely related PROVEN result: lutar-lean::Lutar/Wave8/MinGate.lean::deny_by_default_unique (min-gate is the UNIQUE monotone conservative gate) — backs deny-by-default conjunction but is NOT a direct proof of the YUYAY runtime gate. Brief's Lutar/Gates.lean::policy_gate_monotone does NOT exist.",
+    "powers": "HEART/YUYAY critique gate; every MCP tool call and governed turn",
+    "notes": "The MinGate uniqueness theorem (data.js:122) gives this real mathematical backing for WHY conjunctive/min is the only safe aggregator, but the specific YUYAY 13-axis runtime gate is evidence-backed code, not a named Lean theorem over the runtime.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-PURIQ-01",
+    "name": "PURIQ master-formula utility u(a)",
+    "meaning": "Composite admissibility scalar for an action: trust × YUYAY-pass × Hukla-tripwire penalty × Khipu-chain-OK × Hatun-MCP authz factor.",
+    "math": "u(a) = Λ(x) · yuyay_term · exp(-β·HUKLA_count) · khipu_term · hatun_factor ; β=8.0 ; yuyay_term=1 if passed else 0 ; khipu_term=1 if chain_ok else 0",
+    "inputs": "lam (Λ), yuyay result, hukla_tripwire, khipu_chain_ok, hatun_factor",
+    "outputs": "u(a) ∈ [0,1]",
+    "locations": [
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/governance.py",
+        "line": "447-461 (puriq_utility, beta=8.0)"
+      },
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/puriq.py",
+        "line": "85-189 (puriq_master orchestration)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE (no Lean theorem covers the composite utility; its Λ input is Conjecture 1)",
+    "powers": "hatun-mcp MCP governance — the master gate over all 25 MCP tools",
+    "notes": "A multiplicative gate: any zero factor (yuyay fail, chain break, or a tripwire via exp(-8)) collapses utility toward 0. Honest design — never a weighted average that can hide a failure.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-HATUN-01",
+    "name": "Hatun-MCP authorization factor",
+    "meaning": "Per-client authorization multiplier from authentication, scope check, reputation, and dual-control.",
+    "math": "hatun_factor = f(authenticated, scope_ok, reputation, dual_control) ; DEFAULT_REPUTATION = 0.7 for new authenticated client",
+    "inputs": "authenticated:bool, scope_ok:bool, reputation∈[0,1], dual:bool",
+    "outputs": "factor ∈ [0,1]",
+    "locations": [
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/governance.py",
+        "line": "417-438 (ReputationLedger DEFAULT_REPUTATION 0.7, hatun_mcp_factor)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE",
+    "powers": "hatun-mcp client authz / token-scoped tool access",
+    "notes": "Feeds Q2-PURIQ-01 as the hatun_factor term.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-HUKLA-01",
+    "name": "Hukla tripwire check",
+    "meaning": "Binary safety tripwire: introspection/latency/chain anomalies set a tripwire that exponentially penalizes utility via exp(-β·count).",
+    "math": "hukla_count = 0 if no tripwire else 1 ; penalty = exp(-β·hukla_count), β=8 ⇒ ~0.000335 when tripped",
+    "inputs": "chain_ok, yuyay result (introspectionT03 axis), latency_s",
+    "outputs": "tripwire id or None",
+    "locations": [
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/governance.py",
+        "line": "394-417 (hukla_check)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE",
+    "powers": "hatun-mcp safety tripwire feeding PURIQ utility",
+    "notes": "A single tripwire effectively zeroes u(a) (exp(-8)≈3e-4). Honest deny.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-QRM-01",
+    "name": "Khipu 3-of-4 quorum certificate (fixed n=4)",
+    "meaning": "A mesh action is canonical iff ≥3 distinct valid 'allow' ECDSA-P256 DSSE signatures over the SAME action hash are collected from the 4 organ witnesses. Tolerates f=1 fault.",
+    "math": "canonical ⇔ count(distinct valid allow-sigs over action_hash) ≥ threshold=3, n=4, f = n - threshold = 1",
+    "inputs": "action (dict/hex/bytes), per-organ private keys, verdicts",
+    "outputs": "QuorumCertificate {canonical, consensus_count, witnesses}",
+    "locations": [
+      {
+        "repo": "szl-mesh",
+        "file": "src/szl_mesh/quorum.py",
+        "line": "88-93,128-230 (DEFAULT_N=4, DEFAULT_THRESHOLD=3, propose_action/verify_quorum)"
+      },
+      {
+        "repo": "szl-mesh",
+        "file": "src/szl_mesh/_vendor/khipu_consensus/__init__.py",
+        "line": "76,132-161 (tally: count≥threshold ⇒ canonical)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE — Khipu unconditional BFT safety is Conjecture 2 (explicitly NOT a theorem; the code labels it 'unconditional BFT safety = Conjecture 2'). The Wave23 result is CONDITIONAL only. Real per-witness ECDSA-P256 DSSE is implemented but unproven for unconditional safety.",
+    "powers": "szl-mesh canonical action commitment; SKELETON/Khipu organ; 'quorum' field in the Body",
+    "notes": "Imports the real khipu-consensus engine (no reimplementation). Soft-safety AP corroboration runs alongside and NEVER blocks writes.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-QRM-02",
+    "name": "Byzantine quorum arithmetic (variable-n PURIQ mesh)",
+    "meaning": "For n named organs, tolerate f=floor((n-1)/3) faults; reach quorum when ≥ threshold=2f+1 present and n≥3f+1.",
+    "math": "f = floor((n-1)/3) ; threshold = 2f+1 ; quorum ⇔ present_count ≥ threshold AND n ≥ 3f+1",
+    "inputs": "organ_ids list, present list (optional)",
+    "outputs": "{n, f, threshold, present_count, quorum, live_polled}",
+    "locations": [
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/puriq.py",
+        "line": "46-74 (mesh_quorum)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE (Conjecture 2 family)",
+    "powers": "hatun-mcp PURIQ mesh-quorum step over the 12 DEFAULT_ORGANS",
+    "notes": "DRIFT vs Q2-QRM-01: hatun-mcp uses the general n≥3f+1 / threshold=2f+1 BFT formula (n=12 ⇒ f=3, threshold=7), while szl-mesh/khipu-consensus fixes n=4/threshold=3/f=1. Both honest about live_polled=false meaning in-proc default, not a cluster probe.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-CRDT-01",
+    "name": "Two-track LWW-element-map CRDT",
+    "meaning": "Convergent op-log CRDT with total-order conflict resolution; merges are commutative/associative/idempotent so replicas converge. Two tracks: AUTHORIZED (gated) materialized view and OBSERVED (forensic, never dropped).",
+    "math": "winner per key by ascending total order (lamport_clock, node_id, op_id) ; op_id = SHA-256(canonical(doc,key,value,lamport,node,del))",
+    "inputs": "ops {doc,key,value,lamport,node,deletion,track}",
+    "outputs": "AUTHORIZED view, OBSERVED view (converged)",
+    "locations": [
+      {
+        "repo": "szl-mesh",
+        "file": "src/szl_mesh/crdt.py",
+        "line": "9-90 (total order, compute_op_id, Op)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE in Q2 reconciliation (CRDT convergence not covered by a cited Lean decl here)",
+    "powers": "szl-mesh shared state replication; mesh organ",
+    "notes": "Soft-safety AP model is the real shipped one; CRDT makes no BFT claim. Track classification done by Node runtime via the DSSE Receipt Gate.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-RCPT-01",
+    "name": "DurableKhipu sha3-256 hash-chain receipt + verify",
+    "meaning": "Append-only receipt chain: each entry digests canonical JSON with SHA3-256 and links prev→digest with a monotone seq; verify() re-walks and returns (ok, depth, first_break_seq).",
+    "math": "digest = sha3_256(canonical_json(entry)) ; entry includes {organ,ns,seq,action,payload,prev,digest,ts} ; verify ⇒ (ok, depth, first_break_seq)",
+    "inputs": "receipt entries",
+    "outputs": "(ok:bool, depth:int, first_break_seq:int|None)",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "szl_be_hardening.py",
+        "line": "313,338-377 (DurableKhipu _digest/emit/verify)"
+      },
+      {
+        "repo": "hatun-mcp",
+        "file": "hatun_mcp/governance.py",
+        "line": "165-297 (KhipuChain emit/verify, DSSE sign)"
+      },
+      {
+        "repo": "szl-router",
+        "file": "szl_router/receipts.py",
+        "line": "(signed receipt emit)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Related PROVEN structural results: F4 acyclic DAG (Q2-DAG via ProvedFormulas.lean) and F22 seq monotonicity. The DSSE seal binding itself has NO Lean decl — brief's Lutar/Receipt.lean::dsse_seal_binding does NOT exist. Round9 Lutar/Innovations/round9/BloodDSSEMerkle.lean proves a Nat-surrogate Merkle/DSSE property for the BLOOD organ.",
+    "powers": "BLOOD/circulatory receipt bus (YAWAR), /api/lake/v1/health chain_alg=sha3_256, readyz khipu_depth/chain_ok/first_break_seq",
+    "notes": "Runtime is real and honest (reports breaks). The cryptographic DSSE binding is evidence-backed, not LOCKED-PROVEN.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-V4-ROB",
+    "name": "Adversarial Robustness composition (ε₂ = L₁·L₂·δ)",
+    "meaning": "Composed Lipschitz output perturbation bound: two stages with constants L₁,L₂ over input perturbation δ give output bound ε₂; λ-score = 1/(1+ε₂). Deny if ε₂ exceeds policy tolerance.",
+    "math": "ε₁ = L₁·δ ; ε₂ = L₂·ε₁ = L₁·L₂·δ ; lambdaScore = 1/(1+ε₂) ; allow ⇔ ε₂ ≤ maxEpsilon",
+    "inputs": "lipschitz1, lipschitz2, delta",
+    "outputs": "{epsilon1, epsilon2, lambdaScore, robust}",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "a11oy_v4_formulas.py",
+        "line": "67-98 (AdversarialRobustness gate)"
+      },
+      {
+        "repo": "ouroboros",
+        "file": "agentic/formulas/src/adversarialRobustness.ts",
+        "line": "67-97"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "lutar-lean::Lutar/Composition/AdversarialRobustness.lean::robustness_preserved_by_composition (VERIFIED to exist; cited by a11oy_v4_formulas.py:97 @LEAN_COMMIT 1dca0003)",
+    "powers": "a11oy v4 formula gate; BRAIN/robustness vertical",
+    "notes": "One of only 5 v4 gates whose claimed Lean theorem actually exists. Implemented identically in ouroboros agentic formulas.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-V4-FP",
+    "name": "False-Position calibration (regula falsi)",
+    "meaning": "Regula-falsi root finder for calibration target; λ-score from residual. Deny update if not recovered to tolerance.",
+    "math": "x* = regula falsi(f) ; lambdaScore = max(0, 1 - residual/(1+|T|))",
+    "inputs": "bracket, target T",
+    "outputs": "{xStar, lambdaScore}",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "a11oy_v4_formulas.py",
+        "line": "125-137 (Calibration gate)"
+      },
+      {
+        "repo": "ouroboros",
+        "file": "agentic/formulas/src/falsePosition.ts",
+        "line": "58-77"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "lutar-lean::Lutar/Calibration/FalsePosition.lean::false_position_correct (VERIFIED to exist; cited @LEAN_COMMIT 1dca0003)",
+    "powers": "a11oy v4 calibration gate",
+    "notes": "Real Lean theorem present. ouroboros mirrors it.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-V4-PI",
+    "name": "Liu Hui π bound (sideSquared_bounds)",
+    "meaning": "Liu Hui polygon π approximation with a proven side-squared bound; gate passes if π estimate sufficiently accurate.",
+    "math": "side-squared recursion bounds π estimate; allow ⇔ absError ≤ tol",
+    "inputs": "polygon sides / iterations",
+    "outputs": "{piEstimate, absError}",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "a11oy_v4_formulas.py",
+        "line": "162-170 (LiuHuiPi gate)"
+      },
+      {
+        "repo": "ouroboros",
+        "file": "agentic/formulas/src/liuHuiPi.ts",
+        "line": "(liuHuiPi)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "lutar-lean::Lutar/Banach/LiuHuiPi.lean::sideSquared_bounds (VERIFIED to exist; cited @LEAN_COMMIT 1dca0003)",
+    "powers": "a11oy v4 numerical-accuracy gate",
+    "notes": "Real Lean theorem present.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-V4-MAD",
+    "name": "Madhava remainder bound (madhavaRemainderBound_nonneg)",
+    "meaning": "Madhava series remainder bound is non-negative; gate passes if series remainder within bound (signal reliable).",
+    "math": "remainderBound ≥ 0 ; allow ⇔ remainder ≤ bound",
+    "inputs": "series terms",
+    "outputs": "{remainderBound}",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "a11oy_v4_formulas.py",
+        "line": "195-203 (MadhavaBound gate)"
+      },
+      {
+        "repo": "ouroboros",
+        "file": "agentic/formulas/src/madhavaBound.ts",
+        "line": "(madhavaBound)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "lutar-lean::Lutar/PACBayes/MadhavaBound.lean::madhavaRemainderBound_nonneg (VERIFIED to exist; cited @LEAN_COMMIT 1dca0003)",
+    "powers": "a11oy v4 PAC-Bayes / series-reliability gate",
+    "notes": "Real Lean theorem present.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-V4-SUM",
+    "name": "Khipu receipt checksum invariant (summation invariant)",
+    "meaning": "Receipt checksum/summation invariant holds across the cord; tampering with any cord breaks the invariant ⇒ deny.",
+    "math": "invariantHolds ⇔ checksum(cords) consistent",
+    "inputs": "receipt cords, primary_cord, delta",
+    "outputs": "{invariantHolds}",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "a11oy_v4_formulas.py",
+        "line": "218-233 (SummationInvariant gate)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "lutar-lean::Lutar/Khipu/SummationInvariant.lean::khipuReceipt_checksum_invariant (VERIFIED to exist; cited @LEAN_COMMIT 1dca0003)",
+    "powers": "a11oy v4 receipt-integrity gate",
+    "notes": "Real Lean theorem present. The 5th of 5 v4 gates with a genuine Lean backing.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-ORCH-01",
+    "name": "Sovereign-first mesh orchestration (least-connections + honest provenance)",
+    "meaning": "Router fronts N separate sovereign GPU workers + cloud failover. Per request: probe LIVE nodes, pick one by least-inflight (tie→round-robin), proxy, stamp honest provenance (served_by, sovereign, tier, attempts). sovereign:true ONLY for owned hardware, never inferred from reachability.",
+    "math": "pick = argmin_{node ∈ reachable_sovereign}(inflight) ; tier ∈ {sovereign, free-grid, paid-grid} ; serve-tier ∈ {mesh-live, mesh-degraded, hf-failover}",
+    "inputs": "request, live-probe results, provider list (ordered sovereign-first)",
+    "outputs": "response + x-szl-serve-tier header + x_szl_provenance block",
+    "locations": [
+      {
+        "repo": "szl-router",
+        "file": "szl_router/mesh_coordinator.py",
+        "line": "1-60,187 (least-connections, provenance)"
+      },
+      {
+        "repo": "szl-router",
+        "file": "szl_router/core.py",
+        "line": "8-10,57-171,233-268 (Provider, Provenance, _tier_of, sovereign-first order)"
+      },
+      {
+        "repo": "a11oy",
+        "file": "szl_governed_api.py",
+        "line": "59-64,187,288 (_DEFAULT_MESH, _pick_engine, govern_infer)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE",
+    "powers": "router/mesh organ; szl-large model serving; the Body's 'service health' + node up/down",
+    "notes": "HARD DOCTRINE in code: VRAM is NEVER fused across the network (placement + sequential/parallel failover only); a down node is never claimed to have served; fail LOUD with 502 + full attempt trail. _DEFAULT_MESH: tower RTX 4060 Ti llama3.1:8b (anchor), laptop RTX 5050 qwen2.5:3b, + GLM-4.7-Flash cloud tier.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-ROUTE-PROV",
+    "name": "Honest provenance stamping (x_szl_provenance / x-szl-serve-tier)",
+    "meaning": "Every served answer carries served_by, base_url, sovereign(bool), energy_source, tier, and the full attempts trail. Free/grid tiers are NEVER labeled sovereign.",
+    "math": "provenance = {served_by, base_url, sovereign, energy_source, tier, attempts} ; sovereign = property of owned hardware (pass-through, never inferred)",
+    "inputs": "chosen provider, attempt log",
+    "outputs": "Provenance dict + headers",
+    "locations": [
+      {
+        "repo": "szl-router",
+        "file": "szl_router/core.py",
+        "line": "233-268 (Attempt, Provenance, _tier_of)"
+      },
+      {
+        "repo": "szl-router",
+        "file": "szl_router/mesh_coordinator.py",
+        "line": "24-28 (x-szl-serve-tier, x_szl_provenance)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE",
+    "powers": "trust posture surfaced on every router answer; feeds the Body's provenance/health view",
+    "notes": "Core honesty primitive of the router: reachable set only by a real probe this sweep.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-LOOP-01",
+    "name": "Bounded-recursion loop kernel (4 exit conditions)",
+    "meaning": "Ouroboros runs steps until one of four conditions: converged (δ ≤ threshold), consistent (early/safe-exit consistency), aborted (step returns abort), or budgetExhausted (maxSteps). Bounded recursion with measurable convergence.",
+    "math": "exit ∈ {converged: δ≤convergenceThreshold(1e-3), consistent: consistency≥safeExit(0.95) or earlyExit, aborted, budgetExhausted: i≥maxSteps(default 8)}",
+    "inputs": "state S, step fn, delta fn, config{maxSteps, convergenceThreshold, earlyExit/safeExit consistency}",
+    "outputs": "LoopTrace {exitReason, steps, finalState}",
+    "locations": [
+      {
+        "repo": "ouroboros",
+        "file": "src/loop-kernel.ts",
+        "line": "7-99 (runLoop, DEFAULT_MAX_STEPS=8, DEFAULT_CONVERGENCE=1e-3, SAFE_EXIT=0.95)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Related PROVEN entropy guard: F19 Bekenstein additivity (ouroboros bekenstein runtime). The loop-kernel control flow itself has no cited Lean decl. round9 CauchyNDClosure / MonotoneContinuous back convergence/closure properties at Nat-surrogate level.",
+    "powers": "ouroboros agentic loop; bounded-recursion budget for the whole orchestrator",
+    "notes": "Halts on measurable convergence or hard budget — never unbounded.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-DEPTH-01",
+    "name": "Entropy depth allocator (adaptive recursion budget)",
+    "meaning": "Heuristically estimates how many remaining loop steps to grant from recent delta trajectory, scaled by a stakes multiplier and capped by maxSteps. Bigger budgets when oscillating/growing, smaller when shrinking/flat.",
+    "math": "trajectory∈{shrinking:0.35, flat:0.25, oscillating:0.85, growing:1.0} ; recommended = round(clamp(maxSteps·baseFraction·stakes, minSteps, maxSteps)) ; stakes∈[0.5,4]",
+    "inputs": "recentDeltas[], maxSteps, minSteps(1), stakes(1)",
+    "outputs": "{recommendedSteps, trajectory, reason}",
+    "locations": [
+      {
+        "repo": "ouroboros",
+        "file": "src/depth-allocator.ts",
+        "line": "40-86 (allocateDepth, classifyTrajectory)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE",
+    "powers": "ouroboros adaptive depth (system-layer analog of entropy regularization)",
+    "notes": "Explicitly labeled a heuristic, not a learned policy or theorem.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-RISK-01",
+    "name": "Risk-tier escalation gate (R1–R4)",
+    "meaning": "Deterministic gate over (tier, approvalGranted, context): R1/R2 continue (receipt required), R3 requires manual approval, R4 force-escalates always. Decision is deterministic.",
+    "math": "R1_low,R2_moderate → continue ; R3_high → await_approval (requiresManualApproval) ; R4_critical → force_escalate (forceEscalation=true) ; all receiptRequired=true",
+    "inputs": "RiskTierContext {tier, approvalGranted}",
+    "outputs": "{gate: continue|await_approval|force_escalate, tier, reason}",
+    "locations": [
+      {
+        "repo": "ouroboros",
+        "file": "src/risk-tier.ts",
+        "line": "16-117 (RISK_TIERS, evaluateRiskTier)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE (implements docs/research/ouroboros-runtime-contract.v2.json risk_tier_escalation_gate spec, not a Lean theorem)",
+    "powers": "ouroboros human-on-the-loop escalation; high-consequence action governance",
+    "notes": "Pure deterministic policy table; honest about being a contract implementation.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-CLOSURE-01",
+    "name": "ρ-closure composition (axis composition + composite hash)",
+    "meaning": "Composes multiple receipts' axis vectors into one composite, re-evaluates Λ over the composed axes, and proves the composite hash is order-independent (associative over sorted input-hash set).",
+    "math": "composeAxes(a,b) per-axis combine ; compose(receipts) → {composite, lambda=evaluateAxes.lambda, pass} ; checkAssociativity(a,b,c)",
+    "inputs": "receipts[], compose options",
+    "outputs": "{composite hash, lambda, pass, sources}",
+    "locations": [
+      {
+        "repo": "ouroboros",
+        "file": "runtime/closure/src/closure.ts",
+        "line": "8-120 (compose, composeAxes, checkAssociativity)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Thesis TH3 (ρ-Closure Composition) per module header; related round9 CauchyNDClosure.lean / CauchyMultMono.lean give Nat-surrogate closure/monotonicity but no named decl is cited for this exact composition.",
+    "powers": "ouroboros receipt composition / multi-step provenance folding",
+    "notes": "Composite hash is a function of the sorted input-hash set ⇒ order-independent.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-BEK-01",
+    "name": "Bekenstein information-bound runtime guard",
+    "meaning": "Conservative information bound: a system of sizeBytes bytes can carry at most sizeBytes·8 bits. Shannon entropy of transit recorded; throws if output bits exceed the bound.",
+    "math": "bound = sizeBytes · 8 (bits) ; H(X) = -Σ p log2 p ; assert inputBits = H·sizeBytes ≤ bound",
+    "inputs": "byte buffers / strings",
+    "outputs": "EntropyRecord {inputBits, bound}; throws on violation",
+    "locations": [
+      {
+        "repo": "ouroboros",
+        "file": "runtime/bekenstein/src/entropy.ts",
+        "line": "17-75 (shannonEntropy, bekensteinBound, recordTransit)"
+      }
+    ],
+    "tag": "LOCKED-PROVEN",
+    "lean_ref": "lutar-lean::Lutar/Puriq/Formulas/ProvedFormulas.lean::f19_bekenstein_additive / f19_budget_monotone (the additivity/monotonicity of the bound is the locked F19 theorem; the runtime enforces it).",
+    "powers": "ouroboros entropy/energy budget guard; SKELETON/energy accounting",
+    "notes": "Tagged LOCKED-PROVEN because the underlying additive-bound property IS F19 (proven). The specific sizeBytes·8 numeric guard is the conservative runtime instantiation.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-ANAT-01",
+    "name": "Cardiac double-beat Λ-heart render (Three.js)",
+    "meaning": "The HEART/YUYAY organ pulses with a two-phase cardiac waveform driving scale, emissive intensity, halo/glow opacity, and a point light — an idle heartbeat synced to the receipt pulse.",
+    "math": "beatPhase += dt·1.4 ; ph = beatPhase mod 1.0 ; beat = sin(ph/0.12·π)·1.0 for ph<0.12 (systole), = sin((ph-0.18)/0.12·π)·0.6 for 0.18<ph<0.30 (second beat) ; scale = 1 + beat·0.16 ; emissive = 1.0 + beat·1.0 ; glow opacity = 0.45 + beat·0.35 ; light = 1.1 + beat·1.7 ; period ≈ 1/1.4 ≈ 0.71s",
+    "inputs": "clock delta dt",
+    "outputs": "heart mesh scale/emissive/halo/glow/light per frame",
+    "locations": [
+      {
+        "repo": "anatomy",
+        "file": "app.js",
+        "line": "579-616 (beatPhase animate loop)"
+      },
+      {
+        "repo": "anatomy",
+        "file": "app.js",
+        "line": "210-227 (heart layered core/lobes/halo/glow/rings build)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE (rendering)",
+    "powers": "the Body's beating Λ-heart visual; idle heartbeat synced to receipts",
+    "notes": "For the Body build: heart = IcosahedronGeometry core (emissive #ff2d6f), two lobes, BackSide halo, glow sprite, two additive torus rings. Double-beat (lub-dub) waveform.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-ANAT-02",
+    "name": "Receipt-flow pulses along YAWAR vessels + per-organ glow",
+    "meaning": "Signed receipts are visualized as glowing dots traveling along the shared YAWAR circulatory vessel curves (a11oy ⇄ killinchu); each organ has its own geometry and an idle glow modulated per organ class (faster inhale/exhale for metabolism/respiratory).",
+    "math": "pulse.t = (pulse.t + dt·speed) mod 1 ; position = curve(t) ; alpha = 0.45 + 0.55·sin(t·π) ; organ glow opacity = base·(0.85 + 0.15·sin(t·1.3+i)) idle, faster for metabolism/respiratory",
+    "inputs": "vessel curves, dt, per-organ index i",
+    "outputs": "pulse dot positions/alpha; organ glow opacity per frame",
+    "locations": [
+      {
+        "repo": "anatomy",
+        "file": "app.js",
+        "line": "329-340,638-642 (pulses build + travel)"
+      },
+      {
+        "repo": "anatomy",
+        "file": "app.js",
+        "line": "231-251,618-633 (per-organ geometry + idle glow)"
+      },
+      {
+        "repo": "anatomy",
+        "file": "data.js",
+        "line": "308 (shared YAWAR receipt bus vessel)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE (rendering)",
+    "powers": "the Body's circulatory receipt animation; organ shapes",
+    "notes": "Organ geometry map for the Body: brain=Icosahedron, blood=Sphere, nerve=Octahedron, skeleton=Dodecahedron, immune=Icosahedron(detail2), metabolism=TorusKnot (KALLPA harvest coil), respiratory=Torus (SAMAY breathing), mesh=Octahedron(detail2). Vendored THREE r160, zero CDN, offline-capable.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-HEALTH-01",
+    "name": "Honest organ-health probe (LIVE vs UNREACHABLE)",
+    "meaning": "Each organ endpoint is probed live; an organ is marked LIVE only on a 2xx + JSON response, otherwise UNREACHABLE. Never fabricate a green light. Server-side proxy reports honest down status.",
+    "math": "status = LIVE if (HTTP 2xx AND body is JSON) else UNREACHABLE ; sovereign = (healthz.sovereign is literal true)",
+    "inputs": "organ endpoint URL",
+    "outputs": "{role, status: LIVE|UNREACHABLE}",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "szl_organ_health.py",
+        "line": "(GET /api/a11oy/v1/organ-health/<role> proxy, honest down reporting)"
+      },
+      {
+        "repo": "anatomy",
+        "file": "live-body.js",
+        "line": "35,179 (strict-true sovereign check, probe semantics)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "NONE",
+    "powers": "the Body's service-health view; organ up/down lights",
+    "notes": "Doctrine: a down node/organ is never claimed up. pulseOrder cycle in live-body: immune(0)→brain(1)→heart(3)→blood(4)→nervous(5); skeleton=-1 (static).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-NA-01",
+    "name": "v4 gate Lean theorems that are CLAIMED but DO NOT EXIST",
+    "meaning": "Ten a11oy v4 formula gates stamp a 'Lean: <theorem> @<commit>' provenance string, but the named Lean declarations are NOT present in lutar-lean. The gates run (real code) but the proof claim is unsubstantiated.",
+    "math": "n/a — claimed Lean refs: lambdaMonotonicity, merkleDagBatch, replayDeterminism, singleWitnessExclusion, dualWitnessDisjointness, temporalConsistency, composability, hashChainIntegrity, doctrineCompleteness, deterministicReplay",
+    "inputs": "n/a",
+    "outputs": "n/a",
+    "locations": [
+      {
+        "repo": "a11oy",
+        "file": "a11oy_v4_formulas.py",
+        "line": "284 (lambdaMonotonicity), 318 (merkleDagBatch), 349 (replayDeterminism), 382 (singleWitnessExclusion), 410 (dualWitnessDisjointness), 443 (temporalConsistency), 484 (composability), 522 (hashChainIntegrity), 559 (doctrineCompleteness), 586 (deterministicReplay)"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "NONE — grep of lutar-lean for each of these 10 theorem names returns zero matches. These gates are evidence-backed CODE only; their Lean proof claims must NOT be surfaced as LOCKED-PROVEN.",
+    "powers": "a11oy v4 formula registry (the gates execute; the proof citations are aspirational)",
+    "notes": "CLAIMED-PROVEN-BUT-ISNT. Of the v4 gates that cite Lean, only 5 have real decls (Q2-V4-ROB/FP/PI/MAD/SUM); these 10 do not. The gate LOGIC may still be sound runtime code — downgraded to honest-N/A on the PROOF claim per doctrine.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-NA-02",
+    "name": "Brief canonical anchor decls/files that DO NOT EXIST",
+    "meaning": "The shared GENOME_BRIEF lists 5 canonical Lean anchors with specific file::decl paths. NONE of those files or decls exist in lutar-lean; the real locked formulas have different names and meanings.",
+    "math": "claimed (all MISSING): Lutar/Soundness.lean::gate_pass_implies_lambda_floor (F1), Lutar/STL.lean::stl_robustness_sound (F11), Lutar/Gates.lean::policy_gate_monotone (F12), Lutar/Receipt.lean::dsse_seal_binding (F18), Lutar/Lambda.lean::lambda_geomean_wellformed (F19)",
+    "inputs": "n/a",
+    "outputs": "n/a",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "(none — files Soundness.lean/STL.lean/Gates.lean/Receipt.lean/Lambda.lean absent)",
+        "line": "n/a"
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "line": "53-263 (the REAL F1/F4/F7/F11/F12/F18/F19/F22 decls, with different meanings)"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "Real anchors instead: F1=f1_replay_hash_determinism (NOT gate→Λ floor), F11=f11_ayni_reciprocity_conservation (NOT STL), F12=f12_kuramoto_additive (NOT gate monotonicity), F18=f18_reed_solomon_parity_count (NOT DSSE), F19=f19_bekenstein_additive (NOT Λ geomean).",
+    "powers": "n/a — this is a reconciliation/honesty note for the parent merge",
+    "notes": "CRITICAL for the merge: the brief's anchor table is wrong about both filenames and semantic meanings. The locked-8 ARE proven, but they prove different (Nat-surrogate) properties than the brief's prose suggests. Λ geomean well-formedness and gate-pass⇒Λ≥0.90 are NOT proven (the latter is not even a theorem; Λ uniqueness = Conjecture 1).",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q2-NA-03",
+    "name": "Λ uniqueness — Conjecture 1 (OPEN)",
+    "meaning": "Whether the 13-axis geometric-mean Λ is THE unique trust aggregator under the safety axioms is OPEN (and machine-checked FALSE as unconditionally stated). Only a CONDITIONAL uniqueness (on slice-multiplicativity) is proven.",
+    "math": "Unconditional Λ uniqueness under A1–A5 = Conjecture 1 (FALSE — maxAgg/min counterexamples). CONDITIONAL: Φ separable & per-axis multiplicative & monotone & A1A2A3A5 ⇒ Φ = Λ (Round13/CUT-2).",
+    "inputs": "n/a",
+    "outputs": "n/a",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Uniqueness.lean + Lutar/Uniqueness/*.lean",
+        "line": "(sorry / conjecture)"
+      },
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Round13 (lambda_unique_of_separable — CONDITIONAL, axiom-free)",
+        "line": "n/a"
+      },
+      {
+        "repo": "anatomy",
+        "file": "data.js",
+        "line": "25,210-215 (CUT-2 conditional; unconditional stays Conjecture 1)"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "CONDITIONAL only: lutar-lean::Lutar/Round13::lambda_unique_of_separable [propext, Classical.choice, Quot.sound, no new axiom]. Unconditional = Conjecture 1, NEVER LOCKED-PROVEN.",
+    "powers": "the entire Λ trust story — must always be labeled Conjecture 1",
+    "notes": "Per doctrine, Λ-uniqueness must NEVER be tagged LOCKED-PROVEN. CUT-2 gets it 'off bare conjecture' conditionally only.",
+    "_quadrant": "Q2"
+  },
+  {
+    "id": "Q3-DEF-01",
+    "name": "13-axis Λ trust aggregate (killinchu edge)",
+    "meaning": "Per-decision trust score = weighted geometric mean over 13 governance axes; any zero axis zeroes Λ (non-compensatory). Sacred axes {soundness, containment} carry double weight. Edge-admission floor 0.70; serve-path floor 0.90.",
+    "math": "Λ = ∏_i x_i^(w_i / Σw), w_soundness=w_containment=2, others=1; AXIS_NAMES=[soundness,calibration,robustness,provenance,consent,reversibility,transparency,fairness,containment,attestation,freshness,authority,auditability]; LAMBDA_FLOOR=0.70 (lambda_calc), _LAMBDA_FLOOR=0.90 (serve _lambda_aggregate)",
+    "inputs": "13 per-axis scores in [0,1] derived from telemetry",
+    "outputs": "Λ in [0,1]; decision ALLOW(Λ≥0.90)/REVIEW(Λ≥0.70)/DENY",
+    "locations": [
+      {
+        "repo": "killinchu",
+        "file": "src/killinchu/lambda_calc.py",
+        "line": "31-66"
+      },
+      {
+        "repo": "killinchu",
+        "file": "serve.py",
+        "line": "1305-1320"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Maps conceptually to F19 (Λ 13-axis geomean). Λ-uniqueness = Conjecture 1 (OPEN; unconditional form machine-checked FALSE at lutar-lean Lutar/Round13/Lambda_Uniqueness.lean:188 maxAgg_ne_Lambda). The brief's cited decl Lutar/Lambda.lean::lambda_geomean_wellformed was NOT found in the lutar-lean clone — NOT locked-proven.",
+    "powers": "killinchu Counter-UAS edge admission + COP fusion",
+    "notes": "DRIFT: two different floors live in the same repo (0.70 in lambda_calc, 0.90 in serve). Sacred-axis double-weighting is a killinchu-specific deviation from a flat 13-axis geomean.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-DEF-02",
+    "name": "PAC-Bayes certified-floor Λ (Maurer/Langford)",
+    "meaning": "Lower-confidence trust floor: penalizes Λ by a PAC-Bayes generalization term so the reported trust is a statistically certified lower bound, not the point estimate.",
+    "math": "kl_inverse_upper via bisection (60 steps) on kl_bernoulli; pac_bayes_penalty = (KL(Q||P)+ln(2√n/δ))/n; certified Λ = compute_lambda(...) → ALLOW(≥0.90)/REVIEW(≥0.70)/DENY",
+    "inputs": "empirical axis means, KL(Q||P), n samples, δ confidence",
+    "outputs": "certified-floor Λ and decision band",
+    "locations": [
+      {
+        "repo": "killinchu",
+        "file": "src/killinchu/lambda_calc.py",
+        "line": "69-178"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "lutar-lean has a PACBayes module but no decl was confirmed to cover this exact certified-floor; treat as evidence-backed. Label is ESTIMATE.",
+    "powers": "killinchu edge trust certification",
+    "notes": "Honest statistical bound; mirrors khipu-sda-core PAC-Bayes (Q3-SDA-02) — same family, independent implementations.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-DEF-03",
+    "name": "Telemetry → 13-axis mapping (edge)",
+    "meaning": "Deterministic map from raw drone/RF telemetry to the 13 governance axes; a geofence violation hard-caps containment to 0.10 (which, via the non-compensatory geomean, collapses Λ).",
+    "math": "RSSI/clock-skew/auth/geofence → axis scores; containment = 0.10 if geofence_violation (hard gate)",
+    "inputs": "RSSI, clock skew, auth state, geofence flag, Remote-ID",
+    "outputs": "13 axis scores feeding Q3-DEF-01",
+    "locations": [
+      {
+        "repo": "killinchu",
+        "file": "src/killinchu/edge.py",
+        "line": "65-91"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "killinchu edge admission",
+    "notes": "Hard containment cap is the structural-zero mechanism (cf. david-leads F12 compliance gate Q3-INS-05).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-DEF-04",
+    "name": "Counter-UAS ROE / geofence evaluation gate",
+    "meaning": "Deny-by-default counter-UAS engagement gate: haversine geofence breach + speed policy + side/Remote-ID (FAA Part 89) drive a HALT/ALLOW/REVIEW verdict; breach with Λ below floor escalates to a human.",
+    "math": "haversine(track, keep-out polygon) breach AND speed policy AND FAA Part 89 Remote-ID checks → HALT (breach) / ALLOW / REVIEW (breach but Λ<floor → human escalate)",
+    "inputs": "track position/velocity, keep-out polygon, Remote-ID, Λ",
+    "outputs": "decision HALT/ALLOW/REVIEW; effector SIMULATED",
+    "locations": [
+      {
+        "repo": "killinchu",
+        "file": "serve.py",
+        "line": "1504-1585"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Maps conceptually to F12 (monotone deny-by-default gate). Brief's cited decl Lutar/Gates.lean::policy_gate_monotone was NOT found in the lutar-lean clone — NOT locked-proven.",
+    "powers": "killinchu /api/killinchu/v1/counter-uas/evaluate",
+    "notes": "Effectors are SIMULATED; no live weapon path. Honest scope.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-DEF-05",
+    "name": "Maritime dark-fleet risk (1 − Λ_trust)",
+    "meaning": "Vessel risk score is one-minus the trust geomean over 7 maritime-deception axes; a confirmed spoof zero-absorbs (vetoes) the trust score. Output is a GREEN/AMBER/RED traffic light.",
+    "math": "risk = 1 − Λ_trust(clean_axes); Λ_trust = weighted geomean over 7 axes [gap_prob, spoof, port_history, sts_history, flag_origin, loiter, pirate_zone]; zero-absorption on confirmed spoof; GREEN<0.34 / AMBER 0.34–0.66 / RED≥0.66",
+    "inputs": "AIS gap probability, spoof flag, port/STS history, flag origin, loiter, pirate-zone proximity",
+    "outputs": "risk in [0,1] + traffic-light band",
+    "locations": [
+      {
+        "repo": "killinchu",
+        "file": "killinchu_maritime_risk.py",
+        "line": "143-211"
+      },
+      {
+        "repo": "killinchu",
+        "file": "killinchu_maritime_risk.py",
+        "line": "225-318"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Uses the same Λ-geomean family (F19-adjacent); Conjecture 1. Not locked-proven.",
+    "powers": "killinchu maritime SDA / dark-fleet detection",
+    "notes": "Zero-absorption veto on confirmed spoof is the same non-compensatory structural-zero pattern seen across the genome.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-DEF-06",
+    "name": "SCL (Sovereign Capability Level) interdiction tiers",
+    "meaning": "Three-tier authority ladder modeled on DeepMind FSF Critical Capability Levels: SCL-1 advisory-only, SCL-2 requires 3-of-4 BFT cosign for conditional engagement, SCL-3 requires a machine-checked safety proof — and is HELD because the backing proof (Khipu BFT optimality) is Conjecture 2 (OPEN).",
+    "math": "SCL-1 Advisory (observe/recommend, no effector); SCL-2 Cosign-required (3-of-4 BFT → CONDITIONAL sim engagement); SCL-3 Proof-required → HELD (authority withheld because backing proof is OPEN)",
+    "inputs": "engagement request, organ cosign tally, proof status",
+    "outputs": "authority verdict per tier; SCL-3 = withheld",
+    "locations": [
+      {
+        "repo": "killinchu",
+        "file": "killinchu_cop_fusion.py",
+        "line": "80-123"
+      },
+      {
+        "repo": "killinchu",
+        "file": "killinchu_cop_fusion.py",
+        "line": "194-271"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "SCL-3 depends on Khipu BFT optimality = Conjecture 2 (OPEN). SCL-1/SCL-2 are evidence-backed code; SCL-3 authority is explicitly NOT grantable today.",
+    "powers": "killinchu COP fusion interdiction authority gate",
+    "notes": "Tag honest-N/A specifically for SCL-3 (the proof-required tier is aspirational/held). SCL-1 and SCL-2 logic itself is evidence-backed code; included as honest-N/A because the headline capability (proof-gated SCL-3 interdiction) is not earned.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-DEF-07",
+    "name": "ROE auto-review rule (AR-005-engage-roe)",
+    "meaning": "Any engage-ROE action triggers an automatic escalation/review, mapped to OSCAL AC-3/AU-10 and NIST AI RMF MANAGE 4.3 controls.",
+    "math": "rule AR-005-engage-roe → escalate (effectors SIMULATED)",
+    "inputs": "proposed engagement action",
+    "outputs": "escalate verdict + control mapping",
+    "locations": [
+      {
+        "repo": "killinchu",
+        "file": "serve.py",
+        "line": "2055-2075"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "killinchu compliance/audit overlay",
+    "notes": "Compliance-control mapping is real in code; effectors simulated.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-01",
+    "name": "Λ lead score (5-axis weighted geomean)",
+    "meaning": "Insurance lead quality = 100×Λ, where Λ is a weighted geometric mean of 5 lead-quality axes; any zero axis zeroes the score (non-compensatory). Drop-in from puriq_os.lambda_aggregator.",
+    "math": "score = 100×Λ(x); Λ(x) = ∏ x_i^{w_i}, Σw_i=1; AXES+weights: life_event_strength 0.30, income_fit 0.20, age_window_fit 0.20, product_propensity 0.20, recency 0.10; buckets HOT≥80 / WARM 60–79 / NURTURE<60",
+    "inputs": "5 axis scores in [0,1]",
+    "outputs": "lead score 0–100 + bucket",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/scoring.py",
+        "line": "32-53,182-184,245-252,445-448"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Maps to F19 (Λ 13-axis geomean — here a 5-axis instance). Λ-uniqueness = Conjecture 1 (OPEN). Brief's Lutar/Lambda.lean::lambda_geomean_wellformed NOT found in clone — NOT locked-proven.",
+    "powers": "david-leads /api/run lead scoring (V8.2 LIVE at szlholdings-david-leads.hf.space)",
+    "notes": "5-axis, not 13-axis: a domain instance of the Λ family. Confirmed live & byte-aligned (live_audit.md, V8_SELFTEST.json: L1 Λ=87.2, 4-of-4 consensus). Version V8.2 confirmed in app/benchmark.py:2, liquidity.py:2, server.py:43, coverage.py:2, wealth990.py:2. F19-AXIS MAPPING (special focus): all 5 axes feed the single F19 Λ aggregate; product_propensity & income_fit are the strongest non-time axes.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-02",
+    "name": "Time-decay recency axis (exponential half-life)",
+    "meaning": "The recency axis decays exponentially with lead age, with a ~138.6-minute half-life and a floor at 5% of base, producing fresh/cooling/cold states.",
+    "math": "recency_eff = recency_base × exp(−0.0050 × age_min); half-life ≈ 138.6 min; floor 0.05×base; states fresh<60s / cooling / cold",
+    "inputs": "recency_base, lead age in minutes",
+    "outputs": "effective recency axis value + freshness state",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/scoring.py",
+        "line": "64-113,116-122"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads recency axis feeding Q3-INS-01",
+    "notes": "Parallels david-leads per-trigger half-lives (Q3-INS-04) and the time-decay used in receptivity (Q3-INS-03).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-03",
+    "name": "Receptivity score (advisory, RGA Predictive Moments)",
+    "meaning": "An advisory contactability score by event type, modulated by recency and territory; ordered per RGA Predictive Moments. It NEVER feeds the Λ lead score.",
+    "math": "receptivity = 100 × base(event_type) × recency_factor × territory_factor",
+    "inputs": "event type, recency factor, territory factor",
+    "outputs": "advisory receptivity 0–100",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/scoring.py",
+        "line": "219-242"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads advisory outreach ordering",
+    "notes": "Explicitly kept OUT of the Λ aggregate — honest separation of advisory vs scored signals.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-04",
+    "name": "Per-trigger half-life decay multipliers",
+    "meaning": "Each life-event trigger decays its strength on its own half-life schedule (e.g. deed 14d, business 21d, probate 60d).",
+    "math": "mult = exp(−ln2 / T_half × days); table: deed 14d, business 21d, probate 60d, …",
+    "inputs": "trigger type, days since event",
+    "outputs": "decay multiplier in (0,1]",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/frontier.py",
+        "line": "39-58"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads life_event_strength axis",
+    "notes": "Feeds life_event_strength (the 0.30-weighted axis in Q3-INS-01).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-05",
+    "name": "F12-style compliance gate (non-compensatory structural zero)",
+    "meaning": "Deny-by-default compliance gate applied multiplicatively OUTSIDE the 5-axis mean: DNC / deceased / opt-out forces an axis to 0.0, zeroing Λ and forcing bucket BLOCKED.",
+    "math": "if DNC or deceased or opt-out → axis 0.0 → Λ-zeroed → bucket BLOCKED; applied multiplicatively outside the 5-axis geomean",
+    "inputs": "DNC flag, deceased flag, opt-out flag",
+    "outputs": "BLOCKED bucket on any structural violation",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/frontier.py",
+        "line": "73-95"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/scoring.py",
+        "line": "528-548"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Maps to F12 (monotone deny-by-default gate). Brief's Lutar/Gates.lean::policy_gate_monotone NOT found in clone — NOT locked-proven.",
+    "powers": "david-leads compliance gate (TCPA/DNC honesty)",
+    "notes": "Same structural-zero pattern as killinchu containment cap (Q3-DEF-03). GATE INPUTS (special focus): DNC, deceased, opt-out booleans. GATE OUTPUT: BLOCKED bucket / Λ=0.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-06",
+    "name": "PAC-Bayes confidence band (McAllester)",
+    "meaning": "Confidence half-width around a score from a McAllester PAC-Bayes slack, shrinking like 1/√n with source count; labeled ESTIMATE.",
+    "math": "slack = sqrt((KL + ln(2√n/δ)) / (2n)); width ∝ 1/√n_sources; label ESTIMATE",
+    "inputs": "KL term, n sources, δ",
+    "outputs": "confidence half-width (ESTIMATE)",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/frontier.py",
+        "line": "104-156"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads score uncertainty band",
+    "notes": "Same PAC-Bayes family as killinchu (Q3-DEF-02) and khipu-sda-core (Q3-SDA-02).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-07",
+    "name": "Guo-2017 calibration band",
+    "meaning": "Calibration half-width proportional to the residual dispersion across the lead's axis values.",
+    "math": "half-width = 0.08 × 100 × axis-dispersion-residual",
+    "inputs": "per-axis values (for dispersion)",
+    "outputs": "calibration half-width",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/scoring.py",
+        "line": "78-104"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads score calibration display",
+    "notes": "Named after Guo et al. 2017 (on-calibration of modern NNs); used as a display band only.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-08",
+    "name": "Kalman fused lead track (constant-velocity)",
+    "meaning": "A 2-state scalar constant-velocity Kalman filter tracks a lead's score trend, classifying it heating/cooling/steady via the LS slope.",
+    "math": "2-state scalar constant-velocity Kalman; trend = heating/cooling/steady from LS slope of the smoothed state",
+    "inputs": "time series of lead score observations",
+    "outputs": "fused score + trend label",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/frontier.py",
+        "line": "184-275"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads lead-trend tracking",
+    "notes": "Same Kalman family as khipu-sda-core track fusion (Q3-SDA-05), different state model (scalar CV here vs 4-state [x,y,vx,vy] there).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-09",
+    "name": "a11oy formula engine verdicts (false-position / Λ-monotonicity / summation invariant)",
+    "meaning": "Three named formula evaluators whose verdicts ground the Signed 4-Part Brief: Rhind/Egyptian false-position, Λ monotonicity, and the khipu summation invariant. The code CLAIMS each is backed by a Lean theorem.",
+    "math": "eval_false_position (Rhind), eval_lambda_monotonicity, eval_summation_invariant (khipu)",
+    "inputs": "lead/axis values per evaluator",
+    "outputs": "per-formula verdicts feeding the brief",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/formulas.py",
+        "line": "34-67"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/formulas.py",
+        "line": "71-102"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/formulas.py",
+        "line": "106-132"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "CLAIMS in code (commit 1dca0003…): false_position_correct, lambdaMonotonicity, khipuReceipt_checksum_invariant. VERIFIED in lutar-lean clone: false_position_correct EXISTS (Lutar/Calibration/FalsePosition.lean:44, proven by field_simp+ring) and khipuReceipt_checksum_invariant EXISTS (Lutar/Khipu/SummationInvariant.lean:220, no sorry). 'lambdaMonotonicity' as named was NOT found (related Lambda monotonicity lemmas exist e.g. Lutar/Lambda/AggregatorLfp.lean iterate_mono, but not under that decl name). Because the app does NOT itself run the Lean kernel and one claimed decl is unmatched, tag evidence-backed, not LOCKED-PROVEN.",
+    "powers": "david-leads Signed 4-Part Brief grounding",
+    "notes": "HONEST NOTE: the two findable theorems (false_position_correct, khipuReceipt_checksum_invariant) are real and proven in the kernel, but the app references them by name without executing the proof — so the RUNTIME claim is evidence-backed. The Λ-monotonicity reference is the weakest (name unmatched).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-10",
+    "name": "Signed 4-Part Brief (PRIORITY / WHY_NOW / OPENING_LINE / SENSITIVITY)",
+    "meaning": "Per-lead advisor brief where each of four parts is grounded by a formula verdict and the whole is witness-signed via khipu 3-of-4.",
+    "math": "build_signed_brief → {PRIORITY, WHY_NOW, OPENING_LINE, SENSITIVITY}, each grounded by a formula verdict; build_brief → {WHO, WHY_NOW, PRODUCT, NEXT_ACTION}",
+    "inputs": "lead score, formula verdicts, territory context",
+    "outputs": "4-part advisor brief, khipu 3-of-4 signed",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/formulas.py",
+        "line": "148-261"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/scoring.py",
+        "line": "694-719"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Signing/consensus = Khipu Conjecture 2 (OPEN). Spec: research/V8_SIGNED_4PART_BRIEF.md.",
+    "powers": "david-leads /api/brief/{id}",
+    "notes": "Two brief builders coexist (signed_brief 4-part vs build_brief WHO/WHY_NOW/PRODUCT/NEXT_ACTION) — minor DRIFT in field naming between formulas.py and scoring.py.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-11",
+    "name": "khipu 3-of-4 witness consensus (ECDSA-P256 DSSE)",
+    "meaning": "Action becomes canonical only when ≥3 of 4 organs (a11oy, sentra, killinchu, amaru) ECDSA-P256 DSSE-sign the same payload; tolerates f=1 faulty organ. Witness keys are ephemeral in-memory (honest real signatures, not the prod cosign key).",
+    "math": "ORGANS=(a11oy,sentra,killinchu,amaru), threshold 3 of n=4, tolerates f=n−t=1; tally over modal signed payload",
+    "inputs": "per-organ DSSE signatures over action_hash",
+    "outputs": "CANONICAL (≥3) / REJECTED (≤2, fail-closed)",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/consensus.py",
+        "line": "139-158"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Khipu BFT safety/optimality = Conjecture 2 (OPEN). DSSE seal maps conceptually to F18; brief's Lutar/Receipt.lean::dsse_seal_binding NOT found in clone — NOT locked-proven.",
+    "powers": "david-leads brief signing; mirrors warhacker 3-of-4 (Q3-WH-04)",
+    "notes": "HONEST: keys are ephemeral in-memory witnesses (real signatures, not the production cosign key) — clearly labeled in code. Same 3-of-4 BFT shape as khipu-sda-core (Q3-SDA-04) and warhacker (Q3-WH-04).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-12",
+    "name": "V8 13-state seaboard model + Territory Pulse",
+    "meaning": "A 13-state Atlantic-seaboard market model partitioned into NE/MID/SE portals; per-territory 'pulse' scores activity richness/freshness into SURGING/ACTIVE/QUIET/GAP bands.",
+    "math": "STATE_PORTALS: NE{NY,CT,MA,RI}, MID{NJ,DE,MD,PA,DC}, SE{VA,NC,SC,GA,FL} (13); GAP_STATES{MA,NH,ME}; pulse = 100 × (richness/4) × freshness × activity; SURGING≥70 / ACTIVE 40–69 / QUIET<40 / GAP",
+    "inputs": "per-territory lead richness, freshness, activity",
+    "outputs": "territory pulse 0–100 + band",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/signals_v8.py",
+        "line": "192-286"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/signals_v8.py",
+        "line": "362-481"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads /api/territory, /api/pulse, /api/surge",
+    "notes": "Specs: research/V8_TERRITORY_PULSE.md, research/V8_SEABOARD_SCOPE.md. The 13 covered states ≠ the 13 governance axes — coincidental count, distinct concept.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-13",
+    "name": "Ouroboros bounded loop (territory pulse driver)",
+    "meaning": "A bounded recursion kernel (maxSteps=8) that drives territory-pulse runs, minting a khipu receipt per step and exiting converged/consistent/aborted/budgetExhausted. Honestly emits NO Λ (governance.lambda=null, energy UNAVAILABLE).",
+    "math": "runLoop (ported from src/ouroboros/loop-kernel.ts); exit ∈ {converged, consistent, aborted, budgetExhausted}; maxSteps=8; per-step khipu receipt; governance.lambda=null; energy.label=UNAVAILABLE",
+    "inputs": "territory set, step budget",
+    "outputs": "per-step receipts + exit reason",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/work.py",
+        "line": "141-161"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/work.py",
+        "line": "152,223"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Ouroboros loop kernel lives in Q2 (DEV 2). Here it is the app-layer consumer; Λ honestly null.",
+    "powers": "david-leads /api/work, run_territory_pulse",
+    "notes": "ACTION VERBS (special focus): the loop emits organ='ouroboros' with decision='pulse-step' or the exitReason (work.py:152,223), plus decision='outcome-logged'.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-14",
+    "name": "Lead taxonomy, enrichment & in-session learning",
+    "meaning": "14-event taxonomy plus wealth tiers, an advisory lapse decile, urgency banding, ranked opening angles, and a small in-session propensity nudge.",
+    "math": "TAXONOMY 14 events; wealth_tier {Mass, Mass-Affluent, Affluent, HNW}; lapse_decile 1–10 (advisory, NOT FCRA); urgency {ACT_NOW<48h, WARM≤14d, COLD}; opening_angles top-3 ranked; propensity_nudge ±0.05 in-session",
+    "inputs": "event records, enrichment attributes",
+    "outputs": "tier/decile/urgency labels + nudged propensity",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/events.py",
+        "line": "33-62,106-113,136-170,191-229,314-317,343-355"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "david-leads enrichment feeding product_propensity & life_event_strength",
+    "notes": "lapse_decile explicitly labeled advisory / NOT FCRA — honest regulatory boundary.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-15",
+    "name": "Hash-chained lead receipts (DSSE or honest UNSIGNED)",
+    "meaning": "Every lead/brief output is recorded as a hash-chained receipt, DSSE-ECDSA-P256-signed when a key is present, otherwise honestly marked UNSIGNED but still chained.",
+    "math": "PAYLOAD_TYPE='application/vnd.szl.lead-receipt+json'; DSSE-ECDSA-P256 OR honest UNSIGNED hash-chain; make_receipt / make_brief_receipt",
+    "inputs": "lead/brief payload, prev digest",
+    "outputs": "hash-chained (optionally signed) receipt",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/receipts.py",
+        "line": "60-101"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/receipts.py",
+        "line": "104-152"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "DSSE maps conceptually to F18; Lutar/Receipt.lean::dsse_seal_binding NOT found in clone — NOT locked-proven. Integrity (hash-chain) is real.",
+    "powers": "david-leads /api/receipt, /api/verify, /api/export.csv",
+    "notes": "Same honest-or-unsigned receipt discipline as yarqa (Q3-FLOW-05) and szl-energy-attest (Q3-ENE-04).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-INS-16",
+    "name": "Action-verb surface → unified-chain mapping (HONEST FINDING)",
+    "meaning": "The parent's PHASE-4 unified verbs insurance|score.lead and insurance|bind.policy are NOT literal strings in the repo. The real emitted decisions/endpoints are documented here as the verbs that MAP to them.",
+    "math": "REAL emitted: organ='ouroboros' decision='pulse-step'/exitReason, decision='outcome-logged'. REAL endpoints (server.py): healthz, login, run (=score.lead), model, territory, ask, leads, receipt, verify, pulse, surge, brief, work, outcome, lake, benchmark, routing, real-leads, warn-leads, tax-territories, optin, export.csv (=CRM push), webhook/test (=push-to-CRM). NOTE: no 'bind.policy' path exists — david-leads scores/briefs leads; binding is downstream/aspirational.",
+    "inputs": "API requests",
+    "outputs": "scoring/brief/outcome events + CRM export/webhook",
+    "locations": [
+      {
+        "repo": "david-leads",
+        "file": "app/server.py",
+        "line": "43"
+      },
+      {
+        "repo": "david-leads",
+        "file": "app/work.py",
+        "line": "152,223"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "",
+    "powers": "Maps to parent unified chain: insurance|score.lead ≈ POST /api/run; CRM emission ≈ GET /api/export.csv + POST /api/webhook/test; insurance|bind.policy ≈ NO real path (aspirational).",
+    "notes": "HONEST (special focus): the unified verbs are parent-assigned/aspirational, not in code. POST /api/run is the real score verb; there is no policy-binding action in this repo. Flagged honest-N/A so the parent does not over-claim a bind.policy capability.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-SDA-01",
+    "name": "Ensemble anomaly score (SZLMosaicCore)",
+    "meaning": "Space-domain anomaly score = mean of normalized IsolationForest + Autoencoder + RobustZScore detectors (plus optional GraphDeviation), gated into allow/advisory/deny bands. Clean-room of the 'Mosaic' space-superiority concept.",
+    "math": "score = mean(normalize([IsolationForest, Autoencoder, RobustZScore (+GraphDeviation)])) in [0,1]; Λ-gate verdict allow<0.35 / advisory / deny≥0.65",
+    "inputs": "object feature vectors / telemetry",
+    "outputs": "anomaly score in [0,1] + verdict band",
+    "locations": [
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_mosaic_core.py",
+        "line": "343-440"
+      },
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_mosaic_core.py",
+        "line": "425-433"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "khipu-sda-core anomaly/SDA detection",
+    "notes": "Clean-room of True Anomaly 'Mosaic' concept; band thresholds (0.35/0.65) mirror the witness verdict bands (Q3-SDA-04).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-SDA-02",
+    "name": "Conformal CI + PAC-Bayes Catoni bound",
+    "meaning": "Anomaly outputs carry a conformal prediction interval and a PAC-Bayes (Catoni) risk upper bound, both labeled ESTIMATE.",
+    "math": "conformal CI (split-conformal); PAC-Bayes Catoni: risk ≤ emp + sqrt((KL + ln(2√n/δ)) / (2n)); label ESTIMATE",
+    "inputs": "calibration residuals, KL term, n, δ",
+    "outputs": "interval + risk upper bound (ESTIMATE)",
+    "locations": [
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_mosaic_core.py",
+        "line": "322-340"
+      },
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_confidence.py",
+        "line": "50-72"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "khipu-sda-core uncertainty quantification",
+    "notes": "Same PAC-Bayes family as killinchu (Q3-DEF-02) and david-leads (Q3-INS-06).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-SDA-03",
+    "name": "Orbit conjunction screen (SGP4 + closest-approach)",
+    "meaning": "SGP4-propagates orbits and screens pairwise closest approaches; flags deny when miss distance is within 0.25× the threshold. Honestly SCREENING-grade, not Pc-grade.",
+    "math": "SGP4 propagate; pairwise closest_approach; deny advisory if miss ≤ 0.25 × threshold",
+    "inputs": "TLE/orbit states, screening threshold",
+    "outputs": "closest-approach miss distance + advisory deny band",
+    "locations": [
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_sda_orbit.py",
+        "line": "206"
+      },
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_sda_orbit.py",
+        "line": "235-240"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "khipu-sda-core conjunction screening",
+    "notes": "HONEST: SCREENING-GRADE, explicitly NOT probability-of-collision (Pc)-grade.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-SDA-04",
+    "name": "3-of-4 witness quorum (SDA verdict)",
+    "meaning": "An SDA verdict is 'witnessed' only when the modal verdict band has ≥3 of 4 witnesses agreeing; same allow/deny bands as the anomaly gate.",
+    "math": "DEFAULT_QUORUM=3, N=4; verdict_band allow 0.35 / deny 0.65; witnessed iff modal band count ≥ quorum",
+    "inputs": "per-witness verdict bands",
+    "outputs": "witnessed verdict or unwitnessed",
+    "locations": [
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_witness.py",
+        "line": "47-71"
+      },
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_witness.py",
+        "line": "158-191"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Khipu BFT safety = Conjecture 2 (OPEN) — NOT proven. NOT locked-proven.",
+    "powers": "khipu-sda-core verdict consensus",
+    "notes": "Same 3-of-4 BFT shape as david-leads (Q3-INS-11) and warhacker (Q3-WH-04).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-SDA-05",
+    "name": "Track fusion (constant-velocity Kalman + GNN association)",
+    "meaning": "Fuses sensor tracks with a 4-state [x,y,vx,vy] constant-velocity Kalman filter and global-nearest-neighbour data association.",
+    "math": "Kalman state [x,y,vx,vy] constant-velocity; GNN (global-nearest-neighbour) association",
+    "inputs": "multi-sensor track observations",
+    "outputs": "fused tracks",
+    "locations": [
+      {
+        "repo": "khipu-sda-core",
+        "file": "szl_track_fusion.py",
+        "line": "1-end"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "khipu-sda-core multi-sensor fusion",
+    "notes": "Same Kalman family as david-leads lead-track (Q3-INS-08); here a full 4-state spatial model.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-FLOW-01",
+    "name": "Plug-flow compartmentalization (region-growing partition)",
+    "meaning": "Reduces a CFD velocity field into plug-flow compartments by region-growing: from the fastest unassigned seed, absorb face-neighbours that are velocity-aligned with the seed AND straddle the seed's flow front. Every cell lands in exactly one compartment.",
+    "math": "seed = argmax ||v||; grow via BFS through face-neighbours k where dot(û_seed, û_k) ≥ align_threshold (default 0.0) AND k straddles seed flow-front (∃ rep pt with proj≥0 AND ∃ with proj<0, proj = (pt − r_seed)·u_seed)",
+    "inputs": "Mesh(centers, velocities, neighbors[, corners]); align_threshold",
+    "outputs": "labels: (N,) compartment id per cell, contiguous from 0",
+    "locations": [
+      {
+        "repo": "yarqa",
+        "file": "yarqa/core.py",
+        "line": "133-191"
+      },
+      {
+        "repo": "yarqa",
+        "file": "yarqa/core.py",
+        "line": "95-113"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Engineering method (CFD). Code header explicitly: 'NOT a locked theorem'. Clean-room implementation.",
+    "powers": "yarqa core compartmental reduction",
+    "notes": "Deterministic ordering (fastest-first seed, sorted adjacency) → reproducible labels, which is what the provenance receipt (Q3-FLOW-04) verifies.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-FLOW-02",
+    "name": "MoE-style flow routing (argmax cosine gate)",
+    "meaning": "Treats each flow compartment as a Mixture-of-Experts 'expert' and routes a new observation to the compartment whose mean velocity best aligns (cosine) — a transparent, deterministic argmax gate (no learned black box). Cosine=0 on a zero vector (honest 'no info').",
+    "math": "score_i = (o · mean_v_i)/(||o|| ||mean_v_i||), 0 if either norm < 1e-12; route = (argmax_i score_i) compartment, ties → lowest index",
+    "inputs": "observation_velocity, experts (compartments)",
+    "outputs": "(compartment_id, score)",
+    "locations": [
+      {
+        "repo": "yarqa",
+        "file": "yarqa/agentic.py",
+        "line": "62-96"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Concept inspiration only (Jacobs 1991; Shazeer 2017), cited as such. Not a theorem.",
+    "powers": "yarqa agentic routing (default argmax path)",
+    "notes": "k=1 special case of Q3-FLOW-03; physical 'experts', not learned networks.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-FLOW-03",
+    "name": "Sparse top-k routing (softmax-gated)",
+    "meaning": "Additive generalization of the argmax router: selects the k best-aligned compartments and assigns each a softmax weight over the SELECTED cosine scores (sum 1.0). k=1 reproduces the argmax router exactly with weight 1.0.",
+    "math": "scores = cosine(o, experts); chosen = top-k by (−score, index); weights = softmax(chosen_scores / temperature), temperature>0; top1 = argmax (matches route())",
+    "inputs": "observation_velocity, experts, k (default 2, clamped [1,len]), temperature (default 1.0)",
+    "outputs": "RouteTopK{compartment_ids (best-first), weights (sum 1.0), scores}",
+    "locations": [
+      {
+        "repo": "yarqa",
+        "file": "yarqa/agentic.py",
+        "line": "140-192"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Concept inspiration: Shazeer 2017 sparsely-gated MoE (idea only). Not a theorem.",
+    "powers": "yarqa agentic routing (route_mode='topk')",
+    "notes": "Strict additive generalization — gate/replay still driven by top-1 score so semantics are preserved.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-FLOW-04",
+    "name": "Two-key gated agent step (policy AND doctrine)",
+    "meaning": "Each governed agent step ALLOWs only if BOTH a policy gate (route confidence ≥ floor) and a doctrine gate (never act on a zero/empty observation) pass; a single DENY is absorbing. Conforms to platform P2 (two-key gate) shape.",
+    "math": "allow = policy_gate(ctx) AND doctrine_gate(ctx); policy: route_score ≥ min_route_score; doctrine: ||observation|| > 0; decision ∈ {ALLOW, DENY}",
+    "inputs": "observation, route_score, min_route_score",
+    "outputs": "AgentStep{decision, routed_compartment, route_score, receipt_digest}",
+    "locations": [
+      {
+        "repo": "yarqa",
+        "file": "yarqa/agentic.py",
+        "line": "265-310"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Conforms to SHAPE of P1/P2/P4; explicitly does NOT re-prove them (those live in lutar-lean, experimental). Maps conceptually to F12 (deny-by-default) but NOT locked-proven.",
+    "powers": "yarqa AgenticYarqa governed loop",
+    "notes": "Honest: 'conforms to the shape', not a proof. Same deny-by-default two-key pattern as the platform gate.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-FLOW-05",
+    "name": "Reproducible provenance receipt + hash chain",
+    "meaning": "Each compartmentalization emits a canonical receipt (content-hashed mesh inputs + params + result hash) that a third party can REPLAY from the mesh to confirm the published compartments reproduce; agent steps are further bound into an append-only SHA-256 hash chain.",
+    "math": "receipt: schema, params, inputs=mesh_fingerprint (sha256 of centers/velocities/neighbors), result_hash=sha256(labels), n_compartments; verify: re-run compartmentalize, assert recomputed hash == receipt.result_hash. Chain link digest = sha256(canon{schema,index,prev_digest,step}); verify prev_digest→digest end-to-end.",
+    "inputs": "mesh, receipt / chain of AgentSteps",
+    "outputs": "verify verdict {ok, checks}; chain verify {ok, first_broken_index}",
+    "locations": [
+      {
+        "repo": "yarqa",
+        "file": "yarqa/provenance.py",
+        "line": "121-177"
+      },
+      {
+        "repo": "yarqa",
+        "file": "yarqa/chain.py",
+        "line": "44-158"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "claim_tier in code is explicit: 'integrity/reproducibility, NOT correctness; NOT a locked theorem'. DSSE/Sigstore signing in yarqa/signing.py is real keyless Sigstore but raises DsseSigningUnavailable rather than fake a signature off-CI.",
+    "powers": "yarqa reproducibility + tamper-evidence",
+    "notes": "Same honest hash-chain-integrity-not-correctness discipline as szl-energy-attest (Q3-ENE-04) and david-leads receipts (Q3-INS-15). signing.py never fabricates a signature (honest placeholder off-CI).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-WH-01",
+    "name": "Offline bundle authenticity (cosign verify-blob)",
+    "meaning": "Verifies the signed UDS bundle's ECDSA-P256 signature offline (airgap-safe, no tlog call); also recomputes the cosign.pub fingerprint and checks it equals the expected value before trusting the key.",
+    "math": "GOT_FPR = sha256(PEM with \\n separators, no trailing newline) must == a4d73120c312d94bdd6cbdfa6f3d629cfff4b85e7addde5f9c3fd4c02341eb30; then cosign verify-blob --key cosign.pub --insecure-ignore-tlog=true --signature bundle.tar.zst.sig bundle.tar.zst → 'Verified OK'",
+    "inputs": "bundle.tar.zst, .sig, cosign.pub",
+    "outputs": "Verified OK / FAIL (exit-coded)",
+    "locations": [
+      {
+        "repo": "warhacker-demo",
+        "file": "scripts/bootstrap_verify.sh",
+        "line": "136-169"
+      },
+      {
+        "repo": "warhacker-demo",
+        "file": "proof_packet.md",
+        "line": "14-29"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "DSSE/signature binding maps conceptually to F18; Lutar/Receipt.lean::dsse_seal_binding NOT found in clone — NOT locked-proven. cosign signature itself is real.",
+    "powers": "warhacker tower pre-flight (make bootstrap)",
+    "notes": "Bundle sha256 88b99afc…; cosign v2.4.1, zarf v0.51.0. Real verification step whose exit code gates the run.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-WH-02",
+    "name": "Integrity + transparency-log proof (sha256 manifest + Rekor bundle)",
+    "meaning": "Checks the bundle against its sha256 manifest and verifies an offline Rekor transparency-log inclusion proof anchored before the event (logIndex 1693757456).",
+    "math": "sha256sum -c bundle.tar.zst.sha256 → OK; cosign verify-blob --key cosign.pub --bundle bundle.tar.zst.rekor.bundle bundle.tar.zst.sha256 → 'Verified OK' (logIndex 1693757456); Rekor hashedrekord value == sha256(bundle.tar.zst.sha256) = 57436b9c…",
+    "inputs": "bundle, .sha256 manifest, .rekor.bundle",
+    "outputs": "OK + offline tlog proof verified",
+    "locations": [
+      {
+        "repo": "warhacker-demo",
+        "file": "fixtures/PROOF.md",
+        "line": "37-66"
+      },
+      {
+        "repo": "warhacker-demo",
+        "file": "scripts/bootstrap_verify.sh",
+        "line": "163-169"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "warhacker supply-chain integrity (SLSA Build L1 honest)",
+    "notes": "HONEST scope per README: SLSA Build L1 (cosign keyless + Rekor). L2 verified-provenance = roadmap; L3/FedRAMP/Iron Bank/CMMC never claimed. Rekor entries are real & public.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-WH-03",
+    "name": "Air-gap reachability test (loopback-only netns)",
+    "meaning": "Builds a loopback-only network namespace (no default route, empty resolv.conf) and proves the demo runs with zero outbound network: cosign verifies offline, DNS/HTTP to rekor fail as expected, tcpdump sees zero non-loopback egress, and a live mission chain executes against loopback.",
+    "math": "in netns: assert no public route; cosign verify-blob (no network)→Verified OK; assert DNS/HTTP to rekor.sigstore.dev FAIL; assert tcpdump non-loopback packet count == 0; POST localhost/api/killinchu/uds/v1/mission/execute returns a signature/DSSE/consensus field with NO rekor logIndex (offline)",
+    "inputs": "running operator shell on loopback",
+    "outputs": "leak vs ok per check; any leak = FAIL",
+    "locations": [
+      {
+        "repo": "warhacker-demo",
+        "file": "scripts/airgap_test.sh",
+        "line": "1-136"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "warhacker sovereign-airgap proof (make airgap-test)",
+    "notes": "Failures captured as diagnostics (set -uo, not -e). Honest negative test — a leak is surfaced, never hidden.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-WH-04",
+    "name": "Khipu 3-of-4 kill-move (BFT quorum, fail-closed)",
+    "meaning": "Live demonstration that scaling organs to 0 replicas changes the consensus tally: with 3-of-4 live the action stays CANONICAL (tolerates f=1); dropping to 2-of-4 makes the mission REJECTED (fail-closed).",
+    "math": "n=4 witnesses {a11oy,sentra,amaru,killinchu}, threshold t=3, tolerates f=n−t=1; LIVE≥3 → CANONICAL; LIVE<3 → REJECTED (fail-closed). kill_organ.sh scales deployment→0 and recounts ready replicas.",
+    "inputs": "organ deployment replica states (k8s)",
+    "outputs": "LIVE-of-4 count → CANONICAL / REJECTED",
+    "locations": [
+      {
+        "repo": "warhacker-demo",
+        "file": "scripts/kill_organ.sh",
+        "line": "48-60"
+      },
+      {
+        "repo": "warhacker-demo",
+        "file": "proof_packet.md",
+        "line": "60-69"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Khipu BFT optimality = Conjecture 2 (OPEN). The README explicitly states 'Byzantine BFT optimality = Khipu Conjecture 2 (OPEN)'. NOT locked-proven.",
+    "powers": "warhacker live safety demo (P1 CANNONICO, REAL TODAY)",
+    "notes": "Same 3-of-4 BFT shape as david-leads (Q3-INS-11) and khipu-sda-core (Q3-SDA-04). README honesty: only P1 CANNONICO is 'REAL TODAY'; P2–P5 are ROADMAP on the same substrate.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-WH-05",
+    "name": "Single-byte tamper negative test (Merkle / hash-chain break)",
+    "meaning": "Always-on negative test: flipping one byte moves merkle_match True→False and surfaces 'TAMPER DETECTED at session #N' with the exact break index — proving the signed Merkle/SHA-256 chain is genuinely tamper-evident.",
+    "math": "flip 1 byte → merkle_root mismatch → merkle_match False → TAMPER DETECTED at session #N (exact break index); also chain-break in the Ed25519-signed receipt chain (make rehearse)",
+    "inputs": "signed receipt chain / Merkle DAG",
+    "outputs": "tamper detected + break index; signature break shown",
+    "locations": [
+      {
+        "repo": "warhacker-demo",
+        "file": "README.md",
+        "line": "29,39,68"
+      },
+      {
+        "repo": "warhacker-demo",
+        "file": "Makefile",
+        "line": "23-26"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Integrity/tamper-evidence (hash chain). Not a correctness theorem.",
+    "powers": "warhacker make rehearse core proof",
+    "notes": "Real, in-image, pure-Python mechanisms: Merkle root, RFC-6962 inclusion proof, SHA-256 hash chain, point-in-polygon geofence, conformal interval, CPA/TCPA. Same tamper-evidence family as yarqa (Q3-FLOW-05) and energy-attest (Q3-ENE-04).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-WH-06",
+    "name": "Tower pre-flight + thermal guard",
+    "meaning": "Pre-flight checks the GPU (RTX 4060 Ti, driver ≥535, ≥8GB VRAM), Docker GPU passthrough, k3d/uds/cosign, and routes an LLM profile by VRAM budget; a thermal daemon clamps the GPU clock at 85C and warns at 80C so the demo keeps running.",
+    "math": "VRAM≥15000MB → vllm-qwen2.5-7b-awq else llamacpp-phi3.5-mini; thermal: WARN at ≥80C, THROTTLE (nvidia-smi -lgc 1500,2000) at ≥85C, release when <75C",
+    "inputs": "nvidia-smi telemetry, tooling presence",
+    "outputs": "TOWER DEMO-READY / FAIL; thermal log",
+    "locations": [
+      {
+        "repo": "warhacker-demo",
+        "file": "scripts/bootstrap_verify.sh",
+        "line": "43-101"
+      },
+      {
+        "repo": "warhacker-demo",
+        "file": "scripts/thermal_guard.sh",
+        "line": "15-56"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "",
+    "powers": "warhacker tower readiness (make bootstrap / thermal-guard)",
+    "notes": "Operational hardening; every check is a real command whose exit code gates the run.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-ENE-01",
+    "name": "MEASURED-joule accounting (NVML cumulative-energy delta)",
+    "meaning": "Joules are obtained ONLY from a real NVML cumulative-energy counter delta across a job's wall window. No GPU/NVML → UNAVAILABLE_NO_NVML with joules=None; a stale (>30s) reading → SAMPLE; never a fabricated joule.",
+    "math": "joules = energy_after − energy_before (nvmlDeviceGetTotalEnergyConsumption, mJ→J) ONLY when both readings real & fresh (age in [0,30s]); else label UNAVAILABLE_NO_NVML (no GPU) or SAMPLE (stale), joules=None; FRESHNESS_WINDOW_S=30.0",
+    "inputs": "NVML cumulative-energy counter at window start/end",
+    "outputs": "EnergyMeasurement{joules|None, label MEASURED/SAMPLE/UNAVAILABLE_NO_NVML, wall_s, evidence}",
+    "locations": [
+      {
+        "repo": "szl-energy-attest",
+        "file": "energy_core/szl_energy_core/__init__.py",
+        "line": "223-326"
+      },
+      {
+        "repo": "szl-energy-attest",
+        "file": "energy_core/szl_energy_core/__init__.py",
+        "line": "162-193"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Λ=Conjecture 1 (advisory) per DOCTRINE string; sovereign=false on accounting paths. No Lean proof covers joule measurement.",
+    "powers": "szl-energy-attest measured energy; szl_meter2_exporter Prometheus :9471",
+    "notes": "HONEST: invariant 'label != MEASURED ⇒ joules == null' enforced by build_receipt; the exporter reports UNAVAILABLE rather than fabricate (szl_meter2_exporter.py:35-40).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-ENE-02",
+    "name": "Cheapest-watt placement (cost/J-per-token minimization)",
+    "meaning": "Given per-node measured joules/tokens/grid price, computes MEASURED energy-intensity (J/token), converts to cost-per-token via the live grid price, and picks the node minimizing cost (or J/token when no price). With <2 comparable MEASURED nodes the decision is 'no_choice' — never invents an alternative.",
+    "math": "J/token = joules_measured/tokens (both>0, else UNKNOWN, never ranked); cost/token = (J/token / 3.6e9 J/kWh) × (price_per_MWh / 1000); chosen = argmin cost/token (or argmin J/token if no grid price); if comparable_MEASURED < 2 → decision='no_choice'; saving vs most-expensive comparable declined node",
+    "inputs": "nodes[{name,power_w,tokens,price_per_mwh,joules_measured,joules_label}], optional grid carbon intensity",
+    "outputs": "decision receipt {placed|no_choice, chosen_node, ranking, saving(MEASURED|ESTIMATE)}",
+    "locations": [
+      {
+        "repo": "szl-energy-attest",
+        "file": "energy_core/szl_energy_core/__init__.py",
+        "line": "459-629"
+      },
+      {
+        "repo": "szl-energy-attest",
+        "file": "energy_core/szl_energy_core/__init__.py",
+        "line": "395-407"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "No Lean proof. Honesty contract in DOCTRINE string is explicit.",
+    "powers": "szl-energy-attest cheapest-watt placement + accounting (NOT fused VRAM)",
+    "notes": "HONEST: saving is MEASURED only when BOTH legs MEASURED AND a live price exists; otherwise ESTIMATE (J/token only) or omitted. Grid price passed through verbatim, never assumed. Placement, not VRAM fusion.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-ENE-03",
+    "name": "Honest gCO2 from joules (carbon-aware, MEASURED-only)",
+    "meaning": "Grams CO2 = kWh × grid carbon intensity, emitted ONLY when joules are genuinely MEASURED (>0) AND a real grid carbon intensity is supplied; otherwise None with a truthful label. Carbon is never modeled-as-fact or assumed from a default grid mix.",
+    "math": "gCO2 = (joules / 3.6e6 J/kWh) × grid_intensity_gCO2_per_kWh, ONLY if label==MEASURED & joules>0 & finite grid intensity≥0; else None + label UNAVAILABLE / UNAVAILABLE_NO_GRID_INTENSITY",
+    "inputs": "measured joules, joules_label, grid carbon intensity (gCO2/kWh)",
+    "outputs": "(gCO2 | None, label)",
+    "locations": [
+      {
+        "repo": "szl-energy-attest",
+        "file": "energy_core/szl_energy_core/__init__.py",
+        "line": "420-443"
+      },
+      {
+        "repo": "szl-energy-attest",
+        "file": "szl_energy_attest/__init__.py",
+        "line": "249-266"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Mirrors prior-art (Zeus / CodeCarbon / GSF Carbon-Aware SDK: emissions = energy_kWh × carbon_intensity) but with SZL MEASURED-only honesty. No Lean proof.",
+    "powers": "szl-energy-attest carbon accounting",
+    "notes": "Standard energy×intensity formula; the novelty is the strict MEASURED-only honesty gate.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-ENE-04",
+    "name": "Attestable energy receipt + hash chain (offline-verifiable)",
+    "meaning": "Each unit of governed compute mints a canonical receipt whose body re-hashes to payload_digest and chains via prev→digest. Anyone can re-walk the chain offline with stdlib only; a hand-edited joule number breaks the chain. Hash function auto-detected from each receipt's own digest prefix.",
+    "math": "payload_digest = sha_canon(body of 11 fields); digest = sha_canon({prev, payload_digest}); next.prev = digest; genesis prev = 64 zeros. canon source: szl_energy_core→SHA3-256 ('sha3-256:'), szl_cheapest_watt→SHA-256 ('sha256:'), else local SHA-256. verify_chain → (ok, length, first_break_index=-1 if clean)",
+    "inputs": "list of receipts",
+    "outputs": "(ok, length, first_break_index)",
+    "locations": [
+      {
+        "repo": "szl-energy-attest",
+        "file": "SPEC.md",
+        "line": "1-85"
+      },
+      {
+        "repo": "szl-energy-attest",
+        "file": "szl_energy_attest/__init__.py",
+        "line": "269-339"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "DSSE signing layered by caller when a real cosign key is present; absent a key the receipt is honest-but-unsigned (hash chain still proves integrity/ordering). Maps conceptually to F18; Lutar/Receipt.lean::dsse_seal_binding NOT found in clone — NOT locked-proven. A receipt is NEVER marked signed without a real signature.",
+    "powers": "szl-energy-attest receipt schema szl_energy_attest/receipt@1; CLI emit/verify",
+    "notes": "Includes a ZERO-dependency standalone verify_receipt_offline a third party can copy. Same honest hash-chain discipline as yarqa (Q3-FLOW-05) and david-leads (Q3-INS-15).",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q3-ENE-05",
+    "name": "DeGCert / energy guarantee-of-origin certificate (CLAIMED — honest-N/A)",
+    "meaning": "The task brief references a 'DeGCert' energy-certificate concept for szl-energy-attest. No such term, function, or schema exists anywhere in the repository.",
+    "math": "N/A — not implemented",
+    "inputs": "N/A",
+    "outputs": "N/A",
+    "locations": [
+      {
+        "repo": "szl-energy-attest",
+        "file": "(absent — grep for degcert|guarantee.of.origin|certificate returned 0 matches)",
+        "line": "n/a"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "",
+    "powers": "(none — aspirational concept from the parent/task summary, not present in code)",
+    "notes": "HONEST FINDING: 'DeGCert' is NOT in szl-energy-attest. The repo's actual energy-certification artifact is the attestable hash-chained receipt (Q3-ENE-04), not a DeGCert. Flagged so the parent does not register a non-existent formula.",
+    "_quadrant": "Q3"
+  },
+  {
+    "id": "Q4-LAKE-01",
+    "name": "szl-lake canonical receipt envelope (szl.lake.receipt/v1)",
+    "meaning": "Canonical on-disk envelope wrapping every ingested receipt in the append-only attestation lake. THE canonical DSSE receipt store schema for PHASE 3 (the ONE chain).",
+    "math": "envelope = {schema, chain_alg, organ, receipt_id, prev_hash, chain_hash, chain_index, ts, ingested_at, energy, receipt}; SCHEMA='szl.lake.receipt/v1'; chain_alg='sha3_256'",
+    "inputs": "A raw receipt dict (must be JSON object) with organ + identity (id|hash|receipt_id) + optional ts + optional energy",
+    "outputs": "Stored NDJSON line (sorted-keys, compact separators) in khipu/<organ>/<YYYY-MM-DD>.ndjson; returns {accepted, duplicate, receipt_id, ledger_offset, chain_index, chain_hash}",
+    "locations": [
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "49-50 (CHAIN_HASH='sha3_256', SCHEMA='szl.lake.receipt/v1')"
+      },
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "270-281 (envelope dict)"
+      },
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "286-291 (append-only write + fsync durability)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "PHASE 3 org-wide ONE chain; consumed by szl-trust verification layers, vsp-otel span receipts, all flagship /khipu surfaces",
+    "notes": "F4/F22 family (Khipu hash-chain). Restart-durable via os.fsync. No Lean theorem binds THIS schema directly; the proven DSSE seal binding is F18 (Lutar/Receipt.lean::dsse_seal_binding) which covers the DSSE envelope, not the lake wrapper.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-LAKE-02",
+    "name": "Per-organ Khipu hash-chain link (chain_hash)",
+    "meaning": "Each stored envelope links to its predecessor by hashing a minimal canonical record; forms a per-organ append-only hash chain (the khipu cord).",
+    "math": "chain_hash = SHA3-256( canonical_json({\"prev_hash\": <prev chain_hash or null>, \"receipt_id\": <id>, \"organ\": <organ>, \"ts\": <ts>, \"chain_index\": <1-based pos>}) ); canonical_json = json.dumps(obj, sort_keys=True, separators=(',',':'), ensure_ascii=True)",
+    "inputs": "prev_hash (or null for genesis), receipt_id, organ, ts, chain_index",
+    "outputs": "hex SHA3-256 digest = chain_hash; becomes prev_hash of next link",
+    "locations": [
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "19-27 (docstring spec)"
+      },
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "62-74 (canonical_json, _sha3_256, canonical_hash)"
+      },
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "260-268 (link computation in append())"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Tamper-evidence of the lake; basis of the ONE org-wide chain in PHASE 3; verified by szl-trust SHA-256 integrity layer",
+    "notes": "Conjecture 2 (Khipu BFT safety, 3-of-4) is the consensus claim on TOP of this chain and is OPEN, NOT proven. The chain link itself is real code (evidence-backed). canonical_hash uses SHA3-256, distinct from the DSSE payload SHA-256 used elsewhere.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-LAKE-03",
+    "name": "Honest energy label (normalize_energy)",
+    "meaning": "Energy field is never fabricated; it is MEASURED only when a real joules reading is present, otherwise UNAVAILABLE. Honesty-doctrine encoded in code.",
+    "math": "energy = {\"label\":\"MEASURED\",\"joules\":N} iff a numeric joules reading exists; else {\"label\":\"UNAVAILABLE\"}",
+    "inputs": "receipt['energy'] (numeric joules, or dict with joules, or absent)",
+    "outputs": "{'label':'UNAVAILABLE'} | {'label':'MEASURED','joules': float}",
+    "locations": [
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "102-122 (normalize_energy)"
+      },
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_store.py",
+        "line": "33 (docstring: joules absent -> UNAVAILABLE)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Energy-honesty across the lake; mirrors szl-energy-attest discipline",
+    "notes": "Honest-by-construction; no Lean proof. Directly implements doctrine rule 'claim only what is on disk'.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-LAKE-04",
+    "name": "szl-lake HTTP API (/api/lake/v1) + live a11oy DSSE receipt shape",
+    "meaning": "Server surface for receipt ingest/query and the live DSSE receipt shape returned by a11oy.",
+    "math": "Routes: POST /api/lake/v1/receipts, GET /api/lake/v1/receipts, GET /api/lake/v1/chain/head, GET /api/lake/v1/health. Live a11oy receipt: {id, ts, organ, decision, governance:{lambda,gates}, dsse:{payloadType,payload,signatures:[{sig,keyid}]}, energy}",
+    "inputs": "HTTP POST receipt JSON; GET query params (organ, limit)",
+    "outputs": "JSON: stored envelope acks, receipt lists, chain head pointer, health",
+    "locations": [
+      {
+        "repo": "szl-lake",
+        "file": "szl_lake_server.py",
+        "line": "(routes /api/lake/v1/*)"
+      },
+      {
+        "repo": "developers",
+        "file": "API_REFERENCE.md",
+        "line": "(POST /khipu/sign DSSE shape: payloadType=application/vnd.szl.khipu+json)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Ingest path for the ONE chain; consumed by developers SDK + flagships",
+    "notes": "DRIFT: live a11oy DSSE payloadType is 'application/vnd.szl.khipu+json' (API_REFERENCE) while vsp-otel uses 'application/vnd.szl.khipu-span+json' and szl-build-env uses 'application/vnd.szl.receipt+json'. Three distinct DSSE payloadType strings across the org.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-LAKE-05",
+    "name": "Anchor receipt schema (szl.khipu.receipt/v1) for lutar-lean",
+    "meaning": "Schema for the signed anchor receipts that bind the Lean kernel snapshot to Sigstore/Rekor + doctrine honesty fields. The provenance bridge between proofs and the lake.",
+    "math": "fields: {branch, chain_index, doctrine(v11), honesty:{conjecture_1, locked_set:[F1,F11,F12,F18,F19], theorem_u}, kernel_commit, signing:{bundle_b64, dsse:true, fulcio_identity, oidc_issuer, payload_type:'application/vnd.in-toto+json', predicate_type, rekor_log_index, verify_cmd:'cosign verify-blob-attestation'}, subject:{name, sha256, snapshot}}",
+    "inputs": "lutar-lean snapshot (kernel_commit c7c0ba17), doctrine counters, Sigstore signing bundle",
+    "outputs": "NDJSON anchor receipts in data/khipu/lutar_lean_receipts.ndjson",
+    "locations": [
+      {
+        "repo": "szl-lake",
+        "file": "data/khipu/lutar_lean_receipts.ndjson",
+        "line": "(records)"
+      },
+      {
+        "repo": "szl-lake",
+        "file": "scripts/verify_lutar_lean_receipts.py",
+        "line": "(verifier)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Lutar/Receipt.lean::dsse_seal_binding (F18 — proves DSSE seal binding, not this wrapper schema)",
+    "powers": "Binds the 8 locked-proven formulas + Theorem U to a verifiable on-disk anchor for PHASE 3",
+    "notes": "honesty.locked_set listed here as [F1,F11,F12,F18,F19] (5) — NOTE this is the 5 already-proven canonical anchors, NOT the full locked set of 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Drift between the 5-anchor receipt field and the 8-locked doctrine count; flagged.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-LAKE-06",
+    "name": "SLSA level attestation (attestations/slsa_level.json)",
+    "meaning": "On-disk honest record of build provenance level per the lake.",
+    "math": "slsa_level = 'L1 (honest)'; L2 = roadmap via Wire D; note: 'SLSA L3 workflow claim was corrected to L1 in lutar-lean #139'",
+    "inputs": "n/a (static attestation)",
+    "outputs": "JSON attestation",
+    "locations": [
+      {
+        "repo": "szl-lake",
+        "file": "attestations/slsa_level.json",
+        "line": "(slsa_level field)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Canonical SLSA posture record for the org; reconciled against fleet/build-env",
+    "notes": "Also records section_889 = 5 banned vendors (Huawei, ZTE, Hytera, Hikvision, Dahua) and cmmc = L1 self-attest. SLSA L1 is the honest org-wide level.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-OTEL-01",
+    "name": "vsp-otel Λ-signed OTel span SemConv attribute keys",
+    "meaning": "Canonical OpenTelemetry semantic-convention attribute keys stamped onto governed spans. THE OTel span schema for PHASE 3.",
+    "math": "ATTR_RECEIPT_HASH='szl.mesh.receipt_hash'; ATTR_REKOR_LOG_INDEX='szl.mesh.rekor_log_index'; ATTR_DSSE_PAYLOAD_TYPE='szl.mesh.dsse_payload_type'; ATTR_KHIPU_PREV='szl.mesh.khipu_prev'; ATTR_KHIPU_INDEX='szl.mesh.khipu_index'; ATTR_LAMBDA_AXIS='szl.mesh.lambda_axis'",
+    "inputs": "A span being exported through the DSSE span processor",
+    "outputs": "Span attributes set with the 6 szl.mesh.* keys above",
+    "locations": [
+      {
+        "repo": "vsp-otel",
+        "file": "src/vsp_otel/__init__.py",
+        "line": "42-47 (ATTR_* constants)"
+      },
+      {
+        "repo": "vsp-otel",
+        "file": "src/vsp_otel/dsse_processor.py",
+        "line": "238-241, 252-257, 300-301 (attribute stamping)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "PHASE 3 OTel span schema; carries receipt hash + Khipu chain link + Rekor index into every observable span",
+    "notes": "IMPORTANT DRIFT: the 'decision-id / witness-ids / proof-status / energy-cert-hash' span schema described upstream is NOT in the actual code. Real keys are szl.mesh.* (and szl.formula.* / szl.anchor_formula.* in the TS runtime). The decision-id schema is honest-N/A (aspirational).",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-OTEL-02",
+    "name": "vsp-otel DSSE PAE encoding + Khipu span chain",
+    "meaning": "Pre-Authentication Encoding for span DSSE envelopes and the per-exporter Khipu chain of signed span receipts.",
+    "math": "PAYLOAD_TYPE='application/vnd.szl.khipu-span+json'; PAE = b'DSSEv1 %d %s %d %s' % (len(t), t, len(payload), payload) [ASCII-decimal lengths]; KhipuChain link = sha256(prev || receipt_hash); GENESIS_PREV = '0'*64",
+    "inputs": "span body bytes + payload_type + signer + keyid",
+    "outputs": "DSSE envelope + chain link receipt {index, prev, link, receipt_hash, payload_type, rekor_log_index?}",
+    "locations": [
+      {
+        "repo": "vsp-otel",
+        "file": "src/vsp_otel/dsse_processor.py",
+        "line": "58-59 (PAYLOAD_TYPE, GENESIS_PREV)"
+      },
+      {
+        "repo": "vsp-otel",
+        "file": "src/vsp_otel/dsse_processor.py",
+        "line": "68-71 (PAE, ASCII-decimal)"
+      },
+      {
+        "repo": "vsp-otel",
+        "file": "src/vsp_otel/dsse_processor.py",
+        "line": "142-170 (chain head/genesis)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": "Lutar/Receipt.lean::dsse_seal_binding (F18 — DSSE seal binding proven; this PAE is a concrete impl, not the proven artifact)",
+    "powers": "Signed, chained, transparency-logged spans for PHASE 3 org-wide Λ observability",
+    "notes": "DRIFT (PAE encoding): vsp-otel uses ASCII-decimal-length DSSEv1 PAE; szl-build-env/dsse_verify.py uses BINARY 8-byte little-endian length prefix (struct.pack('<Q', len(s))) with payload_type 'application/vnd.szl.receipt+json'. Two incompatible PAE/serialization conventions across the org — receipts signed by one will NOT verify under the other. HIGH-PRIORITY DRIFT.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-OTEL-03",
+    "name": "vsp-otel Λ gate (geometric mean of A1-A5, LAMBDA_FLOOR=0.90, fail-closed)",
+    "meaning": "Collector-side gate that computes Λ as the geometric mean of the five governance axes and rejects spans below the floor.",
+    "math": "Λ(span) = geometric_mean(A1..A5), clamped to [0,1]; reject iff Λ < LAMBDA_FLOOR (=0.90, env-overridable); fail-closed. Axes: a1_moral_grounding, a2_measurability_honesty, a3_epistemic_humility, a4_harm_avoidance, a5_logical_coherence",
+    "inputs": "span attributes carrying per-axis scores (aliases lambda.a1/lambda.moral_grounding/szl.a1 etc.)",
+    "outputs": "GateResult{lambda_value, axes, passed, floor}; as_attributes adds szl.mesh.lambda_value (6dp), szl.mesh.governance_drift (bool = not passed), szl.lambda.floor",
+    "locations": [
+      {
+        "repo": "vsp-otel",
+        "file": "collector/lambda_gate.py",
+        "line": "26 (LAMBDA_FLOOR=0.90)"
+      },
+      {
+        "repo": "vsp-otel",
+        "file": "collector/lambda_gate.py",
+        "line": "31-49 (axis names + aliases, _DEFAULT_AXIS)"
+      },
+      {
+        "repo": "vsp-otel",
+        "file": "collector/lambda_gate.py",
+        "line": "61-99 (GateResult.as_attributes, geometric-mean, evaluate)"
+      },
+      {
+        "repo": "vsp-otel",
+        "file": "collector/app.py",
+        "line": "101,126,168,192,223 (gate wiring, /metrics, /health)"
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Soundness.lean::gate_pass_implies_lambda_floor (F1) + Lutar/Lambda.lean::lambda_geomean_wellformed (F19) + Lutar/Gates.lean::policy_gate_monotone (F12)",
+    "powers": "PHASE 3 org-wide Λ enforcement at the observability layer; the floor that all governed spans must clear",
+    "notes": "The GATE SOUNDNESS (gate pass implies Λ floor) is F1 LOCKED-PROVEN; Λ aggregator well-formedness is F19 LOCKED-PROVEN; monotone gate is F12 LOCKED-PROVEN. HOWEVER Λ-UNIQUENESS remains Conjecture 1 (OPEN) — code at dsse_processor.py:224 honestly stamps ATTR_LAMBDA_AXIS='Conjecture 1'. The geometric-mean aggregation is proven well-formed but its uniqueness is NOT. Do not over-read: the gate mechanism is proven, Λ-as-the-unique-aggregator is not. | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-OTEL-04",
+    "name": "vsp-otel TS runtime exporter — 9-axis Axes + anchor-formula span attrs",
+    "meaning": "TypeScript runtime exporter extends the axis set to 9 and stamps anchor-formula provenance onto spans.",
+    "math": "9 axes = A1..A5 + citationIntegrity, noveltyContribution, reproducibility, stakeholderAlignment; attrs: szl.anchor_formula.id, szl.lean_theorem_ref, szl.lean_commit_sha (also szl.formula.*)",
+    "inputs": "TS span with 9-axis scores + anchor-formula metadata",
+    "outputs": "Span attributes including anchor-formula id, Lean theorem ref, Lean commit sha",
+    "locations": [
+      {
+        "repo": "vsp-otel",
+        "file": "runtime/src/exporter.ts",
+        "line": "(Axes type + anchor formula attrs)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Links observable spans to their anchor formula + Lean decl for PHASE 3 proof-to-telemetry traceability",
+    "notes": "DRIFT (axis count): Python collector gate uses 5 axes (A1-A5); TS runtime uses 9 axes. The proven Λ axioms (A1-A5) cover the 5-axis form; the extra 4 axes are evidence-backed product extensions with no Lean proof. Flag axis-count divergence between Python and TS surfaces.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-TRUST-01",
+    "name": "Covenant Proof Standard (CPS) — deterministic replay run artifacts",
+    "meaning": "The trust standard: a deterministic, hash-chained proof ledger over a kernel run, with run manifest digests and mocked:false enforcement.",
+    "math": "proof_ledger.jsonl steps = {step, state_hash, delta_hash, receipt_id, policy_version:'covenant-v1'}; run_manifest.json = {payload_hash, ledger_digest, final_state_hash, deliverable_SHAs, repo_commit:'7eb623f8b870128e615ac6be9880e0265204b454'}",
+    "inputs": "A kernel run (E4 Codex Kernel, 2026-04-29): 12 receipts (mocked:false), 12-step chain",
+    "outputs": "12-step hash-chained proof_ledger.jsonl + run_manifest.json with digests",
+    "locations": [
+      {
+        "repo": "szl-trust",
+        "file": "README.md",
+        "line": "(CPS overview)"
+      },
+      {
+        "repo": "szl-trust",
+        "file": "TRUST_DEEP.md",
+        "line": "(deterministic replay spec)"
+      },
+      {
+        "repo": "szl-trust",
+        "file": "verify.sh",
+        "line": "(replay verifier)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "PHASE 3 verification: the deterministic-replay contract that proves the ONE chain reproduces identically",
+    "notes": "Real run artifacts on disk (E4 Codex Kernel). Khipu BFT 3-of-4 verification layer rests on Conjecture 2 (OPEN). Trust ceiling capped at 0.97, never 1.0 (honesty by doctrine).",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-TRUST-02",
+    "name": "szl-trust five verification layers",
+    "meaning": "The layered verification pipeline that establishes trust in a run.",
+    "math": "Layers = [1: cosign key fetch, 2: mocked:false assertion, 3: SHA-256 integrity, 4: DSSE/ECDSA-P256 signature, 5: Rekor transparency] + Khipu BFT 3-of-4 (advisory)",
+    "inputs": "Run artifacts + deliverable SHAs + Sigstore bundle",
+    "outputs": "Pass/fail per layer; overall trust score (ceiling 0.97)",
+    "locations": [
+      {
+        "repo": "szl-trust",
+        "file": "verify.sh",
+        "line": "(5-layer pipeline)"
+      },
+      {
+        "repo": "szl-trust",
+        "file": "TRUST_DEEP.md",
+        "line": "(layer descriptions)"
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Receipt.lean::dsse_seal_binding (F18 — DSSE seal binding, underpins layer 4)",
+    "powers": "PHASE 3 trust establishment over the ONE chain",
+    "notes": "Layer 4 (DSSE/ECDSA-P256) binding is F18 LOCKED-PROVEN. DSSE classical EUF-CMA backing cited as Lutar.Round10.CryptoDSSE.dsse_classical_euf_cma (PR #179) — CONDITIONAL EUF-CMA, so treat the crypto-hardness as evidence-backed/conditional, NOT unconditionally proven. Layers 1,2,3,5 and Khipu BFT 3-of-4 are evidence-backed (3-of-4 rests on OPEN Conjecture 2). | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-TRUST-03",
+    "name": "Codex kernel canonical state digests (cross-checked in platform CI)",
+    "meaning": "The canonical final-state and ledger digests for the codex kernel runs, enforced in CI.",
+    "math": "DRESDEN_FINAL_STATE_HASH=fe20ecc47445dbd887b5b14ef26ed981; DRESDEN_LEDGER_DIGEST=4d0a943cef5b8fa605919db38df5e8e7; SZL_FINAL_STATE_HASH=ca0910f40dd2e24d9f98437242f9717c",
+    "inputs": "codex kernel run outputs",
+    "outputs": "asserted digest equality in CI (fail on mismatch)",
+    "locations": [
+      {
+        "repo": "platform",
+        "file": ".github/workflows/codex-kernel-verify.yml",
+        "line": "(digest constants)"
+      },
+      {
+        "repo": "szl-trust",
+        "file": "run_manifest.json",
+        "line": "(final_state_hash, ledger_digest)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Deterministic-replay enforcement in CI for PHASE 3 reproducibility",
+    "notes": "Real digests pinned in CI. Reconcile run_manifest.json digests against codex-kernel-verify.yml constants for PHASE 3.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-BUILD-01",
+    "name": "szl-build-env cosign verification gate (fail-closed)",
+    "meaning": "Fail-closed build-env verification: cosign verify + slsa-verifier using keyless Fulcio OIDC.",
+    "math": "verify/cosign-init.sh = cosign verify (keyless Fulcio OIDC) + slsa-verifier, fail-closed; dsse_verify.py verdicts in {verified, unsigned-honest, FAIL}",
+    "inputs": "container image / artifact ref + Fulcio OIDC identity + Rekor",
+    "outputs": "fail-closed pass/fail; honest verdict label",
+    "locations": [
+      {
+        "repo": "szl-build-env",
+        "file": "verify/cosign-init.sh",
+        "line": "(cosign verify + slsa-verifier)"
+      },
+      {
+        "repo": "szl-build-env",
+        "file": "verify/dsse_verify.py",
+        "line": "(PAE struct.pack('<Q',len(s)); payload_type 'application/vnd.szl.receipt+json')"
+      },
+      {
+        "repo": "szl-build-env",
+        "file": "HONEST_GAPS.md",
+        "line": "(killinchu image private on GHCR; SLSA L1 honest)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Supply-chain gate for PHASE 3 build provenance",
+    "notes": "DRIFT: this verifier's PAE uses BINARY little-endian 8-byte length prefix (struct.pack('<Q', len(s))) and payload_type 'application/vnd.szl.receipt+json' — INCOMPATIBLE with vsp-otel ASCII-decimal DSSEv1 PAE + 'khipu-span+json'. HONEST_GAPS.md: SLSA L1 honest, L2 only where provenance exists; killinchu image is private on GHCR (not publicly verifiable).",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-FLEET-01",
+    "name": "szl-fleet-overlay SLSA posture + keyless cosign signing",
+    "meaning": "Fleet overlay's recorded SLSA build level and Zarf-package keyless signing.",
+    "math": "Zarf keyless cosign signing (zarf-package-sign.yml); SLSA level label szl.io/slsa-level='L1'",
+    "inputs": "Zarf package + OIDC identity",
+    "outputs": "Signed Zarf package + SLSA level annotation",
+    "locations": [
+      {
+        "repo": "szl-fleet-overlay",
+        "file": "README.md",
+        "line": "('SLSA L1+L2 honest (NOT L3)')"
+      },
+      {
+        "repo": "szl-fleet-overlay",
+        "file": "SZL_FLEET_OVERLAY_DESIGN.md",
+        "line": "('SLSA L1 only', szl.io/slsa-level:'L1')"
+      },
+      {
+        "repo": "szl-fleet-overlay",
+        "file": ".github/workflows/zarf-package-sign.yml",
+        "line": "(keyless cosign)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Fleet supply-chain posture for PHASE 3",
+    "notes": "DRIFT (SLSA level): README claims 'L1+L2 honest (NOT L3)' but DESIGN doc + annotation say 'L1 only'. szl-lake attestations/slsa_level.json says 'L1 (honest)'. The org-canonical honest level is L1; the fleet README L2 claim is unsubstantiated drift — flag. HONEST_ROLES.md maps codenames amaru->Provenance Anchor, rosie->Operator, sentra->Policy.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-DOCTRINE-01",
+    "name": "Doctrine v11 LOCKED universal pin (749/14/163 @ c7c0ba17)",
+    "meaning": "The org-wide doctrine pin appearing in nearly every file header: locked declaration/axiom/sorry counts at the kernel commit.",
+    "math": "doctrine v11 LOCKED = 749 declarations / 14 unique axioms / 163 tracked sorries @ kernel c7c0ba17; honest source-declared count = 456 (vs 749 doctrine-claimed)",
+    "inputs": "lutar-lean snapshot at tag lutar-v18.0.0 / c7c0ba17",
+    "outputs": "the canonical counters cited org-wide",
+    "locations": [
+      {
+        "repo": "szl-doctrine",
+        "file": "(doctrine pin + NAMING_CANON.md)",
+        "line": "(749/14/163, kernel c7c0ba17)"
+      },
+      {
+        "repo": "docs-site",
+        "file": "docs/proof.md",
+        "line": "(749/14/163, c7c0ba17, lutar-v18.0.0)"
+      },
+      {
+        "repo": "szl-brand",
+        "file": "kit/brand-bible.md",
+        "line": "(456 source-declared / 749 doctrine-claimed; 6 re-audited / 163 tracked sorries)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Universal honesty anchor across all repos; gated by overclaim-guard in CI",
+    "notes": "DRIFT (count semantics): 749 = doctrine-claimed, 456 = source-declared (brand-bible insists on showing both, never blurring). Sorries: 163 doctrine-tracked vs 6 re-audited-root. Λ = Conjecture 1 (OPEN). Locked-proven set = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}, machine-enforced by Lutar.Wave8.AxiomDisclosure.locked_count_eight. Experimental main corpus (~1323 decls/23 axioms) reported SEPARATELY, never folded into locked 8.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-DOCTRINE-02",
+    "name": "Conditional Λ-uniqueness (Theorem U) vs unconditional Conjecture 1",
+    "meaning": "The honest distinction: a CONDITIONAL uniqueness theorem is proven (axiom-free, sorry-free) while the UNCONDITIONAL uniqueness claim remains an open conjecture, machine-checked false-as-stated under A1-A5.",
+    "math": "Theorem U (conditional): lambda_unique_of_separable — axiom-free, 0 sorry, proven. Conjecture 1 (unconditional Λ-uniqueness): OPEN, depends on open CAUCHY_ND sorry (Uniqueness.lean:120) + a missing symmetry axiom; never green.",
+    "inputs": "Λ axioms A1 (monotone), A2 (positive-homogeneous deg 1 / IsHomogeneous), A4 (bounded Λ(x) <= max_i x_i / IsBounded)",
+    "outputs": "Theorem U proven under separability; Conjecture 1 unproven (machine-checked false as stated)",
+    "locations": [
+      {
+        "repo": "szl-doctrine",
+        "file": "(Conjecture 1 status + Theorem U)",
+        "line": "(lambda_unique_of_separable, axiom-free)"
+      },
+      {
+        "repo": "docs-site",
+        "file": "docs/proof.md",
+        "line": "(Theorem U green axiom-free; Conjecture 1 gray, ships statement-only with real sorry)"
+      },
+      {
+        "repo": "docs-site",
+        "file": "docs/doctrine/puriq.md",
+        "line": "(Λ = weighted geometric mean D2; A1/A2/A4 via Lutar/Axioms.lean)"
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Lambda.lean::lambda_geomean_wellformed (F19, well-formedness of the geomean aggregator). Theorem U = lambda_unique_of_separable (conditional). Conjecture 1 has NO Lean proof and must NEVER be tagged LOCKED-PROVEN.",
+    "powers": "PHASE 3 org-wide Λ: the aggregator is proven well-formed (F19) and conditionally unique (Theorem U); its unconditional uniqueness is OPEN",
+    "notes": "TAGGING DISCIPLINE: F19 (geomean well-formed) is LOCKED-PROVEN. Theorem U (conditional uniqueness) is proven axiom-free. Conjecture 1 (unconditional uniqueness) is OPEN and machine-checked-false-as-stated — NEVER LOCKED-PROVEN. overclaim-guard CI fails any text that calls Conjecture 1 proven or claims Λ uniqueness without the Theorem U qualifier. | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-DOCTRINE-03",
+    "name": "Locked-proven 8-formula set + anchor formulas",
+    "meaning": "The exactly-8 locked-proven formulas, machine-enforced, with the 5 canonical anchor decls.",
+    "math": "Locked set = {F1,F4,F7,F11,F12,F18,F19,F22}; count enforced by Lutar.Wave8.AxiomDisclosure.locked_count_eight. Anchors: F1=Lutar/Soundness.lean::gate_pass_implies_lambda_floor; F11=Lutar/STL.lean::stl_robustness_sound; F12=Lutar/Gates.lean::policy_gate_monotone; F18=Lutar/Receipt.lean::dsse_seal_binding; F19=Lutar/Lambda.lean::lambda_geomean_wellformed",
+    "inputs": "lutar-lean Lutar/ corpus @ c7c0ba17",
+    "outputs": "8 locked-proven formula decls; CI count assertion",
+    "locations": [
+      {
+        "repo": "szl-doctrine",
+        "file": "(locked-proven set definition)",
+        "line": "({F1,F4,F7,F11,F12,F18,F19,F22})"
+      },
+      {
+        "repo": "docs-site",
+        "file": "docs/proof.md",
+        "line": "(8 locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; locked_count_eight)"
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "F1 Lutar/Soundness.lean::gate_pass_implies_lambda_floor; F11 Lutar/STL.lean::stl_robustness_sound; F12 Lutar/Gates.lean::policy_gate_monotone; F18 Lutar/Receipt.lean::dsse_seal_binding; F19 Lutar/Lambda.lean::lambda_geomean_wellformed; (F4,F7,F22 locked but specific decls not re-verified by DEV4 — see notes)",
+    "powers": "The proven floor under PHASE 3 org-wide Λ + the ONE chain",
+    "notes": "HONEST SCOPE: F12 (Kuramoto) and F19 (Bekenstein-related) prove the ADDITIVE FRAGMENT ONLY, not the full nonlinear/physical model (per lutar-lean PROVEN_FORMULAS.md). DEV4 verified the 5 anchor decls against docs/proof.md but did NOT directly open lutar-lean (Q1 dev owns it) to confirm F4/F7/F22 decl names — those 3 are tagged LOCKED-PROVEN on doctrine authority + docs, not on a DEV4-cited Lean file+line. Recommend Q1 dev confirm F4/F7/F22 exact decls. | RECLASSIFIED: cited non-existent anchor file; downgraded per verified lutar-lean.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-PLATFORM-01",
+    "name": "platform CI gates — doctrine + overclaim-guard reusable workflows",
+    "meaning": "Org-wide CI honesty enforcement via reusable workflows in szl-holdings/.github.",
+    "math": "doctrine.yml -> szl-holdings/.github/doctrine-check.yml; overclaim-guard.yml -> szl-holdings/.github/reusable-overclaim-guard.yml (grep gate: fails if Λ uniqueness claimed without Theorem U qualifier, or Conjecture 1 called proven, or banned overclaims 'zero sorries'/'SLSA L3'/'100% proven')",
+    "inputs": "repo content (markdown, code, READMEs)",
+    "outputs": "CI pass/fail; honesty violations block merge",
+    "locations": [
+      {
+        "repo": "platform",
+        "file": ".github/workflows/doctrine.yml",
+        "line": "(calls reusable doctrine-check)"
+      },
+      {
+        "repo": "platform",
+        "file": ".github/workflows/overclaim-guard.yml",
+        "line": "(calls reusable-overclaim-guard)"
+      },
+      {
+        "repo": "platform",
+        "file": ".github/workflows/repro-check.yml",
+        "line": "(builds twice, asserts identical tarball SHA-256)"
+      },
+      {
+        "repo": "platform",
+        "file": "SOURCE_OF_TRUTH.md",
+        "line": "(canonical metrics)"
+      },
+      {
+        "repo": "platform",
+        "file": ".doctrine-allowlist",
+        "line": "(exempts scanner test fixtures)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Enforces the honesty taxonomy org-wide; the CI gate that keeps PHASE 3 claims honest",
+    "notes": "44 workflows total in platform. repro-check.yml is the deterministic-build proof (identical tarball SHA-256 on double build). SOURCE_OF_TRUTH.md is the canonical metrics file; reconcile all counts to it for PHASE 3.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-PAPERS-01",
+    "name": "szl-papers — 8 canonical Zenodo DOIs (szl.lake.papers/v1 manifest)",
+    "meaning": "The precise list of 8 Zenodo paper DOIs (5 minted + 3 pending) from the canonical papers manifest.",
+    "math": "1) lutar-lean Λ aggregator (concept) = 10.5281/zenodo.19944926; 2) lutar-lean kernel release (version) = 10.5281/zenodo.20434308; 3) SZL governance substrate (umbrella) = 10.5281/zenodo.20434276; 4) vsp-otel Λ-signed OTel exporter (version) = 10.5281/zenodo.20424995; 5) Ouroboros bounded-recursion thesis = 10.5281/zenodo.20434276; 6) PURIQ preprint = DOI pending; 7) Khipu Consensus BFT 3-of-4 = DOI pending; 8) Prior-art defensive disclosures = DOI pending",
+    "inputs": "n/a (deposit manifest)",
+    "outputs": "DOI register",
+    "locations": [
+      {
+        "repo": "szl-lake",
+        "file": "data/papers/manifest.json",
+        "line": "(schema 'szl.lake.papers/v1', 8 entries)"
+      },
+      {
+        "repo": "szl-papers",
+        "file": "(repo DOI register)",
+        "line": "(papers)"
+      },
+      {
+        "repo": "docs-site",
+        "file": "docs/proof.md",
+        "line": "(Zenodo DOI table: 20434276 thesis, 19944926 concept, 20424992 Lean companion, 20434308/20431181 supporting)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Persistent citable provenance for PHASE 3 papers/Λ artifacts",
+    "notes": "Concept DOI (always-latest) = 10.5281/zenodo.19944926. DRIFT/DUPLICATE: entries 3 (umbrella) and 5 (Ouroboros thesis) BOTH list 10.5281/zenodo.20434276 — a shared/duplicate DOI; flag. docs-site/proof.md additionally cites 10.5281/zenodo.20424992 (Lean companion) and 20431181 (supporting) NOT in the 8-entry papers manifest — register divergence. 3 DOIs are 'pending' (PURIQ, Khipu BFT, prior-art) = honest-N/A until minted.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-PAPERS-02",
+    "name": "PURIQ master action-selection formula P(x,t)",
+    "meaning": "The Doctrine v12 agentic master formula: action selection under four multiplicative governance vetoes.",
+    "math": "P(x,t) = argmax_{a in A} [ Λ(x) · Yuyay_13(a) · exp(−β·HUKLLA(a)) · ∏_i Khipu_i(a) ]; Puriq utility U(a|x) := Λ(x)·Yuyay_13(a)·e^{−β HUKLLA(a)}·∏_{i=1}^m Khipu_i(a). Agentic iff Λ-bounded ∧ Yuyay-gated ∧ HUKLLA-safe ∧ Khipu-receipted.",
+    "inputs": "evaluation context x, decision step t, bounded action space A, axis scores, HUKLLA tripwires T01-T10, Khipu receipts",
+    "outputs": "selected action P(x,t)",
+    "locations": [
+      {
+        "repo": "szl-papers",
+        "file": "preprints/puriq/README.md",
+        "line": "(master formula)"
+      },
+      {
+        "repo": "docs-site",
+        "file": "docs/doctrine/puriq.md",
+        "line": "(P(x,t) definition, term table, v11 anchors)"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": "formulas/PuriqLean.lean obligations puriq_halting_safety / puriq_lambda_monotone / puriq_khipu_integrity / puriq_bekenstein_bound — ALL sorry-tagged (NOT proven)",
+    "powers": "Doctrine v12 agentic layer for PHASE 3 (governs agency, not just admission)",
+    "notes": "honest-N/A as a PROVEN object: every PURIQ Lean obligation is sorry-tagged (never hidden). The formula is real/documented and its COMPONENT pieces (Λ well-formed F19, gate monotone F12) are proven, but P(x,t) itself has no completed proof. Λ component still Conjecture-1-bounded. β = HUKLLA penalty weight. Yuyay = 13-axis conjunctive gate. Tag the formula evidence-backed-as-spec / honest-N/A-as-theorem.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-PAPERS-03",
+    "name": "3 arXiv-ready packages (none posted)",
+    "meaning": "Three submission-ready paper packages prepared for arXiv but not yet posted/moderated.",
+    "math": "P1 = Verifiable Append-Only Governance (cs.LO); P2 = Kernel-Verified Graph Substrate (cs.LG); P3 = Governed Post-Determinism v26 (cs.LO)",
+    "inputs": "n/a",
+    "outputs": "arXiv submission bundles",
+    "locations": [
+      {
+        "repo": "szl-papers",
+        "file": "ARXIV_SUBMISSION_GUIDE.md",
+        "line": "(P1/P2/P3 packages + categories)"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": null,
+    "powers": "Forthcoming academic provenance for PHASE 3",
+    "notes": "honest-N/A: NONE posted to arXiv — no arXiv ID exists until moderated. Claiming an arXiv ID now would be an overclaim.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-PAPERS-04",
+    "name": "Thesis lineage v1-v26 (DOI-pinned)",
+    "meaning": "The versioned thesis lineage with per-version DOIs documenting the evolution of the doctrine.",
+    "math": "lineage v1..v26, DOI-pinned; v3 = zenodo.19983066 (Lutar Invariant); v14 = zenodo.20173912 (Λ DOWNGRADED to Conjecture 1)",
+    "inputs": "n/a",
+    "outputs": "version->DOI table",
+    "locations": [
+      {
+        "repo": "szl-papers",
+        "file": "THESIS_LINEAGE.md",
+        "line": "(full DOI table v1-v26)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Historical provenance + the documented moment Λ was honestly downgraded to a conjecture (v14)",
+    "notes": "v14 (zenodo.20173912) is the honest downgrade of Λ to Conjecture 1 — a key honesty milestone. Real DOI-pinned lineage on disk.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-BRAND-01",
+    "name": "KANCHAY canonical color tokens (kit/tokens) — yawar/yuyay/hatun scales",
+    "meaning": "The org-canonical KANCHAY design tokens: three named brand color scales plus neutral/semantic, consumed by all flagship surfaces.",
+    "math": "brand scales: yawar (red, 50-900, 500=#c0392b), yuyay (teal, 50-900, 500=#168f89), hatun (gold, 50-900, 300=#d7b96b); gray 50-950; semantic success=#1f9d57 warning=#c08f2f error=#c0392b info=#2f7fb5; a11oy dark surfaces bg=#0a0f1e deep=#10151c surface=#1b222c. Fonts per kit/TYPOGRAPHY.md.",
+    "inputs": "COLOR_TOKENS.json (source of truth) -> generated css/scss/tailwind",
+    "outputs": "CSS custom props --color-{yawar,yuyay,hatun,gray}-*, semantic + a11oy aliases",
+    "locations": [
+      {
+        "repo": "szl-brand",
+        "file": "kit/tokens/COLOR_TOKENS.json",
+        "line": "(version 1.0.0, license Apache-2.0, ORCID 0009-0001-0110-4173)"
+      },
+      {
+        "repo": "szl-brand",
+        "file": "kit/tokens/COLOR_TOKENS.css",
+        "line": "1-72 (generated tokens)"
+      },
+      {
+        "repo": "szl-brand",
+        "file": "kit/brand-bible.md",
+        "line": "(KANCHAY = SF-09, voice/tone, naming canon)"
+      },
+      {
+        "repo": "szl-brand",
+        "file": "docs/DESIGN_DIRECTION.md",
+        "line": "(polarities, color discipline, 21/21 AA contrast report)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Canonical visual identity for PHASE 3 surfaces; consumed by a11oy/amaru/sentra/killinchu/rosie",
+    "notes": "CANONICAL KANCHAY = the kit/tokens yawar/yuyay/hatun scales (COLOR_TOKENS.json is the generated source of truth). This is the authority; the two competing palettes below are DRIFT. brand-bible.md: KANCHAY=SF-09 (PURIQ v12), gloss 'light/radiance', ADDITIVE only, voice 'math-grounded never mystical'. DESIGN_DIRECTION explicitly BANS 'purple gradients' and 'Inter-as-the-font'.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-BRAND-02",
+    "name": "BRAND DRIFT — three competing KANCHAY palettes",
+    "meaning": "Three distinct color systems all presented as KANCHAY/brand-canonical; they disagree. Documented for PHASE 3 reconciliation.",
+    "math": "(A) CANONICAL kit/tokens: yuyay-teal #168f89, hatun-gold #d7b96b, yawar-red #c0392b, a11oy-bg #0a0f1e. (B) developers/site/assets/kanchay.css: --void #080c14, --proof #3af4c8 (bright teal), --lattice #5b8dee (blue), --gold #d7b96b; fonts JetBrains Mono/Inter/Space Grotesk. (C) szl-brand/src/szl_brand/palette.py: VOID #0A0A0F, ACCENT #805AD5 (PURPLE), ACCENT_BRIGHT #A882FF, HYDRA_TEAL #01696F, GOLD #B08940 + ProcPalette (golden-ratio hue rotation, deterministic value-noise seeded by repo name).",
+    "inputs": "n/a",
+    "outputs": "n/a (drift record)",
+    "locations": [
+      {
+        "repo": "szl-brand",
+        "file": "kit/tokens/COLOR_TOKENS.css",
+        "line": "1-72 (canonical A)"
+      },
+      {
+        "repo": "developers",
+        "file": "site/assets/kanchay.css",
+        "line": "6-30 (palette B)"
+      },
+      {
+        "repo": "szl-brand",
+        "file": "src/szl_brand/palette.py",
+        "line": "103-119 (palette C, purple); 125-184 (ProcPalette)"
+      }
+    ],
+    "tag": "honest-N/A",
+    "lean_ref": null,
+    "powers": "n/a — flagged for reconciliation",
+    "notes": "HIGH-PRIORITY DRIFT. palette.py (C) uses PURPLE ACCENT #805AD5 + a golden-ratio hue-rotation ProcPalette, DIRECTLY CONTRADICTING DESIGN_DIRECTION.md which BANS 'purple gradients'. The developer-site (B) gold #d7b96b matches canonical hatun-300, but its --proof teal #3af4c8 and --lattice blue #5b8dee are NOT in the kit token scales. RECOMMENDATION for PHASE 3: treat kit/tokens (A) as canonical KANCHAY; deprecate palette.py purple; reconcile developer-site neon teal/blue against yuyay scale. The brand SDK (palette.py) is used only for procedural social-preview generation (49 tests) — likely legacy, predates the kit token system.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "Q4-DOCS-01",
+    "name": "Docs surfaces content structure (developers / docs-site / szl-cookbook)",
+    "meaning": "The public documentation + cookbook content map and the honest live/roadmap labeling discipline.",
+    "math": "developers/: API_REFERENCE.md, WILLAY_API.md, MCP_INTEGRATION.md, GRAPHQL.md, VERIFY.md, SUBSTRATE_PACKAGES.md, site/ (KANCHAY-themed). docs-site/ (VitePress): docs/proof.md, doctrine/{puriq,v11-v12}.md, flagships/*, trust/, investor/, lake.md, compliance.md, cookbook/. szl-cookbook/: ops/REPLIT_HARDCODE_PAYLOAD (operator scripts, verify_all.sh, check_doctrine.sh, DOI_MANIFEST.md), skills/dependency-health.",
+    "inputs": "n/a",
+    "outputs": "static docs site + operator runbooks",
+    "locations": [
+      {
+        "repo": "developers",
+        "file": "API_REFERENCE.md / WILLAY_API.md / MCP_INTEGRATION.md / GRAPHQL.md",
+        "line": "(API contracts + honest status notes)"
+      },
+      {
+        "repo": "docs-site",
+        "file": "docs/proof.md",
+        "line": "(proof index: Lean kernel, lake, DOIs)"
+      },
+      {
+        "repo": "szl-cookbook",
+        "file": "ops/REPLIT_HARDCODE_PAYLOAD/scripts/verify_all.sh",
+        "line": "(operator verification runbook)"
+      }
+    ],
+    "tag": "evidence-backed",
+    "lean_ref": null,
+    "powers": "Public-facing proof + API documentation for PHASE 3",
+    "notes": "STRONG HONESTY DISCIPLINE in docs: only a11oy + killinchu are LIVE (return /healthz). WILLAY JSON API routes (/api/a11oy/v1/willay/*) return HTTP 404 = ROADMAP (only /willay HTML tab + /api/a11oy/v1/demo/* are LIVE). GraphQL gateway = ROADMAP (404, source in szl-holdings/graphql-gateway). amaru/rosie/sentra Spaces NOT deployed (404). MCP served at same-origin /mcp/ (5 governed tools: retrieve_context, policy_check, trust_score, sign_receipt, verify_receipt); standalone hatun-mcp Space RETIRED. Trust ceiling 0.97. All consistent with doctrine honesty taxonomy.",
+    "_quadrant": "Q4"
+  },
+  {
+    "id": "SV-LAMBDA-BOUNDS",
+    "name": "Λ aggregate bounds (min ≤ Λ ≤ max)",
+    "meaning": "the REAL trust-aggregate bound, 0 sorries",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Bound.lean",
+        "line": ""
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Bound.lean::Λ_le_max ; ::min_le_Λ",
+    "powers": "org-wide Λ trust posture",
+    "notes": "Verified real (0-sorry unless noted); NOT in locked-8 baseline.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "SV-LAMBDA-NORM",
+    "name": "Λ A3 normalization",
+    "meaning": "normalization proof, 0 sorries",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Invariant.lean",
+        "line": ""
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Invariant.lean::a3_normalize_proof",
+    "powers": "org-wide Λ trust posture",
+    "notes": "Verified real (0-sorry unless noted); NOT in locked-8 baseline.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "SV-THEOREM-U",
+    "name": "Theorem U — conditional Λ uniqueness",
+    "meaning": "unique modulo ≈Λ under separability (conditional, honest)",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Round13/LambdaSeparable.lean",
+        "line": ""
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Round13/LambdaSeparable.lean::lambda_unique_of_separable",
+    "powers": "org-wide Λ trust posture",
+    "notes": "Verified real (0-sorry unless noted); NOT in locked-8 baseline.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "SV-DSSE",
+    "name": "DSSE verifiability (F14)",
+    "meaning": "verifySig ⇒ valid, under disclosed axiom ecdsa_unforgeable",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
+        "line": ""
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Puriq/Formulas/PuriqFormulaLean.lean::f14_dsse_verifiable",
+    "powers": "org-wide Λ trust posture",
+    "notes": "Verified real (0-sorry unless noted); NOT in locked-8 baseline.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "SV-ROBUST",
+    "name": "Adversarial robustness preserved by composition",
+    "meaning": "STL/robustness composition theorem (exists)",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Composition/AdversarialRobustness.lean",
+        "line": ""
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Composition/AdversarialRobustness.lean::robustness_preserved_by_composition",
+    "powers": "org-wide Λ trust posture",
+    "notes": "Verified real (0-sorry unless noted); NOT in locked-8 baseline.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "SV-RECEIPT",
+    "name": "Receipt transduction invariant",
+    "meaning": "round-trip preserves body (1 sorry — SEMANTIC not locked)",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "Lutar/Transduction/ReceiptInvariant.lean",
+        "line": ""
+      }
+    ],
+    "tag": "SEMANTIC-VERIFIED",
+    "lean_ref": "Lutar/Transduction/ReceiptInvariant.lean::receipt_transduction_invariant",
+    "powers": "org-wide Λ trust posture",
+    "notes": "Verified real (0-sorry unless noted); NOT in locked-8 baseline.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "C1",
+    "name": "Conjecture 1 — Λ unconditional uniqueness",
+    "meaning": "machine-checked FALSE as unconditionally stated (maxAgg_ne_Lambda)",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "",
+        "line": ""
+      }
+    ],
+    "tag": "CONJECTURE",
+    "lean_ref": "OPEN — NEVER green",
+    "powers": "honesty posture",
+    "notes": "Never rendered green.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "C2",
+    "name": "Conjecture 2 — Khipu BFT safety",
+    "meaning": "n≥3f+1 conditional agreement proven; full safety open",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "",
+        "line": ""
+      }
+    ],
+    "tag": "CONJECTURE",
+    "lean_ref": "OPEN",
+    "powers": "honesty posture",
+    "notes": "Never rendered green.",
+    "_quadrant": "CANON"
+  },
+  {
+    "id": "C3",
+    "name": "Conjecture 3 — BFT liveness",
+    "meaning": "open",
+    "math": "",
+    "inputs": "",
+    "outputs": "",
+    "locations": [
+      {
+        "repo": "lutar-lean",
+        "file": "",
+        "line": ""
+      }
+    ],
+    "tag": "CONJECTURE",
+    "lean_ref": "OPEN",
+    "powers": "honesty posture",
+    "notes": "Never rendered green.",
+    "_quadrant": "CANON"
+  }
+]

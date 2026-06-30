@@ -8380,6 +8380,49 @@ async def _intoto_verify_guide(request: Request) -> Response:
 print("[a11oy] in-toto verify guide registered: /api/a11oy/v1/verify/intoto (DEV2)", file=__import__("sys").stderr)
 
 
+# /api/a11oy/v1/genome — the formula-registry genome served to the console Genome
+# panel (the Palantir-ontology / Backstage-catalog single-pane pattern, beaten by
+# carrying a real machine-checkable Lean ref OR an explicit honest tier on every
+# row). Reads the static genome.json (per-file COPY'd to /app/data/genome.json by
+# the Dockerfile). READ path only — NO signing side effect (provenance rule: never
+# sign on a GET). Honest by design: a missing/unparseable file degrades to an
+# explicit labeled 503, never a faked payload. Defined BEFORE the generic
+# /api/a11oy/{path:path} Node proxy below so it resolves IN-PROCESS (not proxied).
+_GENOME_PATH = Path("/app/data/genome.json")
+
+
+@app.get("/api/a11oy/v1/genome")
+async def a11oy_genome() -> JSONResponse:
+    if not _GENOME_PATH.is_file():
+        return JSONResponse(
+            {"status": "UNAVAILABLE", "error": "genome.json not present in image",
+             "entries": [], "tier_counts": {}},
+            status_code=503,
+        )
+    try:
+        entries = json.loads(_GENOME_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse(
+            {"status": "UNAVAILABLE", "error": f"genome.json unparseable: {exc!s}",
+             "entries": [], "tier_counts": {}},
+            status_code=503,
+        )
+    tier_counts: dict[str, int] = {}
+    for e in entries:
+        t = (e or {}).get("tag", "untagged")
+        tier_counts[t] = tier_counts.get(t, 0) + 1
+    return JSONResponse({
+        "status": "OK",
+        "count": len(entries),
+        # Honest tier model — CONJECTURE is NEVER green; SEMANTIC-VERIFIED is the real
+        # trust math (Λ bounds, Theorem U, DSSE verifiability). Order = render order.
+        "tier_order": ["LOCKED-PROVEN", "SEMANTIC-VERIFIED", "evidence-backed",
+                       "honest-N/A", "CONJECTURE"],
+        "tier_counts": tier_counts,
+        "entries": entries,
+    })
+
+
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
     # DEV2: in-toto verify guide + inclusion proof — served in-process, NOT proxied
