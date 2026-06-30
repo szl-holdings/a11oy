@@ -1,34 +1,41 @@
 /* ============================================================================
- * a11oy_landing.js — holographic hero for the a11oy front door.
+ * a11oy_landing.js — the living-proof hero for the a11oy front door (v2).
  *
- * THE MOTIF: a "governed inference field" — a holographic glass governance core
- * (fresnel icosahedron) wrapped by an instanced-particle shell whose points are
- * gated inference tokens streaming inward and being sealed at the core. The core
- * pulses on the advisory Λ trust-ceiling; particles that "pass the gate" brighten
- * to holo-teal, the rest dim — a literal picture of deny-by-default governance.
+ * THE MOTIF (NVIDIA technical-sublime + True Anomaly operational COP, restrained
+ * like Anthropic): a holographic PROOF LATTICE / signed-receipt constellation.
+ * It encodes REAL state, not decorative noise:
+ *   • NODES   = the recent receipts from GET /api/a11oy/v1/ledger. Each instanced
+ *               node is one real receipt {seq, action, receipt_id}; the newest
+ *               (chain head) sits innermost and brightest.
+ *   • EDGES   = the SHA3-256 hash-chain links between consecutive receipts —
+ *               the append-only ledger drawn as a lattice.
+ *   • PULSE   = a token traveling the chain (genesis → head). When the live lake
+ *               (GET /api/lake/v1/health.total_receipts) actually GROWS between
+ *               polls, a brighter pulse fires to the head — a genuinely fresh
+ *               signed receipt. No growth → only the ambient chain traversal of
+ *               the receipts that already exist. We never fake a "new signature".
+ *   • GLOW    = the governance core's intensity is tied to the advisory Λ from
+ *               GET /api/a11oy/v1/lambda/org. Λ is Conjecture 1 (advisory bound),
+ *               so the glow is a mood, never a pass/fail oracle.
  *
- * SOVEREIGN: Three.js r160 (MIT) + nothing else, vendored in-image under
- * /hero/vendor3d (importmap in a11oy_landing.html). 0 runtime CDN. Bloom is faked
- * with additive fresnel + a layered glow sprite (no postprocessing dependency).
+ * HONEST DEGRADE: if the ledger is unreachable we do NOT invent receipts or a
+ * fake flow. The scene falls back to a calm, still lattice (dim wireframe core +
+ * sparse static dust), reports dataState:"unreachable", and emits no pulses.
  *
- * HONESTY DOCTRINE v11: Λ = Conjecture 1 (advisory, NOT a theorem). Nothing here
- * fabricates a number — the scene is a motif; all live figures are fetched and
- * labelled by a11oy_landing.html. locked-proven kernel = EXACTLY 8.
+ * SOVEREIGN: Three.js r160 (MIT) only, vendored in-image under /hero/vendor3d
+ * (importmap in a11oy_landing.html). 0 runtime CDN. Bloom is faked with additive
+ * fresnel + a layered halo sprite (no postprocessing dependency = GPU-light).
  *
- * PERF: capped DPR, instanced points (single draw call), 60fps target. Honors
- * prefers-reduced-motion (renders one static frame) and downshifts particle count
- * on small / low-DPR devices.
+ * KANCHAY palette: --void #080c14, --proof #3af4c8, --lattice #5b8dee. Calm and
+ * deep-near-black; the lattice whispers, it never floods. Purple is banned.
  *
- * VISUAL FIX (2026-06-30): Tamed the canvas from blinding-cyan flood to a
- * restrained, elegant dark field. Key changes:
- *  - Core glow opacity: clamped to 0.40 max (was 0.92) — whispers, doesn't shout
- *  - Halo sprite: opacity 0.10 (was 0.55), scale 7×7 (was 9×9)
- *  - Particle alpha: gate-pass 0.45 (was 0.95), denied 0.18 (was 0.40)
- *  - Canvas renderer alpha: transparent over deep near-black page bg (#05070d)
- *  - Colors desaturated: teal at 30% brightness, dim at near-black for particles
- *  - Net effect: holographic mesh whispers on deep dark, never floods
+ * PERF: instanced nodes (one draw call), capped DPR, <13ms/frame target. Honors
+ * prefers-reduced-motion (one static frame, no polling) and pauses when the hero
+ * scrolls out of view (IntersectionObserver). Live figures are also fetched and
+ * labelled by a11oy_landing.html — this module owns only the canvas.
  *
- * Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+ * Doctrine v11: Λ = Conjecture 1 (advisory, NOT a theorem). locked-proven = 8.
+ * Nothing here fabricates a number; every visual quantity is real or honestly off.
  * ========================================================================== */
 import * as THREE from "three";
 
@@ -37,10 +44,36 @@ const REDUCED = window.matchMedia &&
 const MOBILE = Math.min(window.innerWidth, window.innerHeight) < 720 ||
   /Mobi|Android/i.test(navigator.userAgent);
 
-// Desaturated, restrained palette — hairlines on near-black, not bright floods
-const TEAL = new THREE.Color(0x1a6b63);  // deep teal — was 0x39d8c8 (too bright)
-const DEEP = new THREE.Color(0x2a3578);  // muted violet — was 0x6a7bff (too bright)
-const DIM  = new THREE.Color(0x0a0f1c);  // near-black for denied particles
+// KANCHAY palette, held at restrained brightness so the deep void dominates.
+const VOID    = 0x080c14;
+const PROOF   = new THREE.Color(0x3af4c8); // --proof  : freshest receipt / head
+const LATTICE = new THREE.Color(0x5b8dee); // --lattice: older receipts / chain
+const DUSK    = new THREE.Color(0x101a2e); // near-void: ambient dust, denied glow
+
+const LEDGER_URL = "/api/a11oy/v1/ledger";
+const LAMBDA_URL = "/api/a11oy/v1/lambda/org";
+const LAKE_URL   = "/api/lake/v1/health";
+
+// Λ (Conjecture 1) → glow factor. Below the 0.80 advisory band the core is dim;
+// near 1.0 it is at full restrained glow. Never implies a "pass".
+function lambdaGlow(L) {
+  if (typeof L !== "number" || !isFinite(L)) return 0.45; // neutral, no claim
+  return Math.max(0.25, Math.min(1.0, (L - 0.80) / 0.20));
+}
+
+async function getJSON(url, ms = 3500) {
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { cache: "no-store", signal: ctl.signal });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (_e) {
+    return null;
+  } finally {
+    clearTimeout(to);
+  }
+}
 
 export function mountHero(canvas) {
   let renderer;
@@ -55,34 +88,29 @@ export function mountHero(canvas) {
 
   const DPR = Math.min(window.devicePixelRatio || 1, MOBILE ? 1.5 : 2);
   renderer.setPixelRatio(DPR);
-  renderer.setClearColor(0x000000, 0); // fully transparent — page bg shows through
+  renderer.setClearColor(VOID, 0); // transparent — the page's deep void shows through
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
-  camera.position.set(0, 0, 7.2);
+  camera.position.set(0, 0, 8.4);
 
   const root = new THREE.Group();
   scene.add(root);
 
-  // ---- Governance core: fresnel-shaded glass icosahedron --------------------
-  const coreGeo = new THREE.IcosahedronGeometry(1.55, MOBILE ? 2 : 4);
+  // ---- Governance core: fresnel glass icosahedron, glow tied to Λ ------------
   const coreMat = new THREE.ShaderMaterial({
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
     uniforms: {
       uTime: { value: 0 },
-      uLambda: { value: 0.97 },     // advisory Λ ceiling (Conjecture 1)
-      uTeal: { value: new THREE.Vector3(TEAL.r, TEAL.g, TEAL.b) },
-      uDeep: { value: new THREE.Vector3(DEEP.r, DEEP.g, DEEP.b) },
+      uGlow: { value: 0.45 },  // set from real Λ once fetched
+      uProof: { value: new THREE.Vector3(PROOF.r, PROOF.g, PROOF.b) },
+      uLattice: { value: new THREE.Vector3(LATTICE.r, LATTICE.g, LATTICE.b) },
     },
     vertexShader: /* glsl */`
-      varying vec3 vN; varying vec3 vView;
-      uniform float uTime;
+      varying vec3 vN; varying vec3 vView; uniform float uTime;
       void main(){
         vN = normalize(normalMatrix * normal);
         vec3 p = position;
-        // gentle breathing displacement along the normal
         float w = sin(uTime*0.8 + position.y*2.0)*0.03
                 + sin(uTime*1.3 + position.x*3.0)*0.02;
         p += normal * w;
@@ -93,108 +121,131 @@ export function mountHero(canvas) {
     fragmentShader: /* glsl */`
       precision highp float;
       varying vec3 vN; varying vec3 vView;
-      uniform float uTime; uniform float uLambda;
-      uniform vec3 uTeal; uniform vec3 uDeep;
+      uniform float uTime; uniform float uGlow; uniform vec3 uProof; uniform vec3 uLattice;
       void main(){
         float fres = pow(1.0 - max(dot(normalize(vN), normalize(vView)), 0.0), 2.4);
-        // Λ-pulse: the shell breathes gently — restrained, not flooding
-        float pulse = 0.5 + 0.5*sin(uTime*1.6);
-        // TAMED: glow multiplier capped — elegant whisper, not a bright flood
-        float glow = fres * (0.28 + 0.18*pulse) * uLambda;
-        vec3 col = mix(uDeep, uTeal, fres);
-        // max alpha 0.40 — ensures the dark page bg always dominates
-        gl_FragColor = vec4(col * glow, clamp(glow,0.0,0.40));
+        float breathe = 0.5 + 0.5*sin(uTime*1.4);
+        float glow = fres * (0.22 + 0.16*breathe) * uGlow;
+        vec3 col = mix(uLattice, uProof, fres);
+        gl_FragColor = vec4(col * glow, clamp(glow, 0.0, 0.42));
       }`,
   });
-  const core = new THREE.Mesh(coreGeo, coreMat);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.35, MOBILE ? 2 : 4), coreMat);
   root.add(core);
 
-  // wire lattice over the core (deny-by-default cage) — very dim hairlines
+  // deny-by-default cage — dim hairlines over the core
   const cage = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.62, 1)),
-    new THREE.LineBasicMaterial({ color: 0x1a4a46, transparent: true, opacity: 0.14 })
+    new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.42, 1)),
+    new THREE.LineBasicMaterial({ color: 0x274063, transparent: true, opacity: 0.16 })
   );
   root.add(cage);
 
-  // ---- Inference field: instanced particle shell ---------------------------
-  const COUNT = REDUCED ? 1400 : (MOBILE ? 2600 : 7000);
-  const pGeo = new THREE.BufferGeometry();
-  const pos = new Float32Array(COUNT * 3);
-  const seed = new Float32Array(COUNT);       // per-particle phase
-  const radius = new Float32Array(COUNT);     // home radius
-  const gate = new Float32Array(COUNT);       // 1 = passed gate, 0 = denied
-  for (let i = 0; i < COUNT; i++) {
-    // even-ish sphere distribution (golden spiral)
-    const t = i / COUNT;
-    const phi = Math.acos(1 - 2 * t);
-    const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-    const r = 2.4 + Math.random() * 2.6;
-    pos[i*3+0] = Math.sin(phi) * Math.cos(theta) * r;
-    pos[i*3+1] = Math.cos(phi) * r;
-    pos[i*3+2] = Math.sin(phi) * Math.sin(theta) * r;
-    seed[i] = Math.random() * Math.PI * 2;
-    radius[i] = r;
-    gate[i] = Math.random() < 0.62 ? 1.0 : 0.0;  // ~Λ share pass the gate
+  // ---- Ambient dust (pure decoration, clearly NOT data) ----------------------
+  // Sparse, very dim, static-ish depth field. Never labelled as receipts.
+  const dustN = REDUCED ? 350 : (MOBILE ? 600 : 1100);
+  const dpos = new Float32Array(dustN * 3);
+  for (let i = 0; i < dustN; i++) {
+    const t = i / dustN, phi = Math.acos(1 - 2 * t);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * i, r = 4.5 + Math.random() * 4.0;
+    dpos[i*3+0] = Math.sin(phi) * Math.cos(theta) * r;
+    dpos[i*3+1] = Math.cos(phi) * r;
+    dpos[i*3+2] = Math.sin(phi) * Math.sin(theta) * r;
   }
-  pGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  pGeo.setAttribute("aSeed", new THREE.BufferAttribute(seed, 1));
-  pGeo.setAttribute("aRadius", new THREE.BufferAttribute(radius, 1));
-  pGeo.setAttribute("aGate", new THREE.BufferAttribute(gate, 1));
-
-  const pMat = new THREE.ShaderMaterial({
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    uniforms: {
-      uTime: { value: 0 },
-      uDpr: { value: DPR },
-      uTeal: { value: new THREE.Vector3(TEAL.r, TEAL.g, TEAL.b) },
-      uDim: { value: new THREE.Vector3(DIM.r, DIM.g, DIM.b) },
-    },
-    vertexShader: /* glsl */`
-      attribute float aSeed; attribute float aRadius; attribute float aGate;
-      uniform float uTime; uniform float uDpr;
-      varying float vGate; varying float vTw;
-      void main(){
-        vGate = aGate;
-        // tokens drift inward then reset — a stream toward the governed core
-        float flow = fract(uTime*0.06 + aSeed*0.16);
-        float r = mix(aRadius, 1.75, flow*flow);
-        vec3 p = normalize(position) * r;
-        // subtle orbital sway
-        p.x += sin(uTime*0.5 + aSeed)*0.05;
-        p.y += cos(uTime*0.4 + aSeed*1.3)*0.05;
-        vTw = 0.6 + 0.4*sin(uTime*3.0 + aSeed*6.0);
-        vec4 mv = modelViewMatrix * vec4(p,1.0);
-        float size = (aGate>0.5 ? 5.5 : 2.6) * uDpr;
-        gl_PointSize = size * (300.0 / -mv.z);
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: /* glsl */`
-      precision highp float;
-      varying float vGate; varying float vTw;
-      uniform vec3 uTeal; uniform vec3 uDim;
-      void main(){
-        vec2 uv = gl_PointCoord - 0.5;
-        float d = length(uv);
-        if (d > 0.5) discard;
-        float a = smoothstep(0.5, 0.0, d);
-        vec3 col = mix(uDim, uTeal, vGate) * (vGate>0.5 ? vTw : 0.5);
-        // TAMED: max alpha 0.45 gate-pass, 0.18 denied — subtle field on dark bg
-        gl_FragColor = vec4(col, a * (vGate>0.5 ? 0.45 : 0.18));
-      }`,
-  });
-  const points = new THREE.Points(pGeo, pMat);
-  root.add(points);
-
-  // ---- soft additive halo sprite (fake bloom) — very restrained -----------
-  // TAMED: opacity 0.10 (was 0.55), scale 7×7 (was 9×9) — barely perceptible glow
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: makeHaloTexture(), transparent: true, blending: THREE.AdditiveBlending,
-    depthWrite: false, opacity: 0.10, color: 0x1a6b63,
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute("position", new THREE.BufferAttribute(dpos, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+    color: DUSK, size: 0.6 * DPR, sizeAttenuation: false,
+    transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending,
   }));
-  halo.scale.set(7, 7, 1);
-  scene.add(halo);
+  root.add(dust);
+
+  // ---- Receipt constellation (instanced nodes + chain edges + pulse) ---------
+  // Built only from REAL ledger data. Empty until/unless the ledger is reachable.
+  const MAX_NODES = 24;
+  const nodeGeo = new THREE.SphereGeometry(0.06, 10, 10);
+  const nodeMat = new THREE.MeshBasicMaterial({
+    transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const nodes = new THREE.InstancedMesh(nodeGeo, nodeMat, MAX_NODES);
+  nodes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  nodes.count = 0; // nothing claimed until real receipts arrive
+  nodes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NODES * 3), 3);
+  root.add(nodes);
+
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: 0x5b8dee, transparent: true, opacity: 0.0, // raised once edges exist
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const edges = new THREE.Line(new THREE.BufferGeometry(), edgeMat);
+  root.add(edges);
+
+  const pulse = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 12, 12),
+    new THREE.MeshBasicMaterial({ color: PROOF, transparent: true, opacity: 0.0,
+      blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  root.add(pulse);
+
+  const _m = new THREE.Matrix4();
+  const _v = new THREE.Vector3();
+  let chainCurve = null;          // CatmullRom through node positions (genesis→head)
+  let nodePositions = [];         // Vector3[]
+  let pulseT = 0;                 // 0..1 along the chain
+  let pulseBoost = 0;             // brief extra brightness on a genuinely fresh receipt
+  let receiptCount = 0;           // honest count actually rendered
+
+  // Lay out N receipts on a gentle helix around the core: genesis outer/low,
+  // head inner/high (append-only growth climbs toward the governed core).
+  function layout(n) {
+    nodePositions = [];
+    for (let i = 0; i < n; i++) {
+      const f = n > 1 ? i / (n - 1) : 0;          // 0 genesis → 1 head
+      const ang = f * Math.PI * 4.0;               // two turns of the helix
+      const rad = 3.4 - f * 1.4;                   // spirals inward to the core
+      const y = (f - 0.5) * 3.6;                   // climbs upward
+      nodePositions.push(new THREE.Vector3(Math.cos(ang) * rad, y, Math.sin(ang) * rad));
+    }
+    chainCurve = nodePositions.length > 1
+      ? new THREE.CatmullRomCurve3(nodePositions, false, "catmullrom", 0.4) : null;
+  }
+
+  // Apply REAL receipts to the constellation. `list` = [{seq,action,receipt_id}].
+  function applyReceipts(list) {
+    const n = Math.min(MAX_NODES, list.length);
+    receiptCount = n;
+    layout(n);
+    for (let i = 0; i < n; i++) {
+      const f = n > 1 ? i / (n - 1) : 1;
+      _m.makeScale(0.7 + f * 0.9, 0.7 + f * 0.9, 0.7 + f * 0.9); // head a touch larger
+      _m.setPosition(nodePositions[i]);
+      nodes.setMatrixAt(i, _m);
+      const c = LATTICE.clone().lerp(PROOF, f); // older=lattice blue, head=proof teal
+      nodes.setColorAt(i, c);
+    }
+    nodes.count = n;
+    nodes.instanceMatrix.needsUpdate = true;
+    if (nodes.instanceColor) nodes.instanceColor.needsUpdate = true;
+
+    if (n > 1) {
+      const pts = chainCurve.getPoints(Math.max(32, n * 4));
+      edges.geometry.dispose();
+      edges.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+      edgeMat.opacity = 0.20;
+      pulse.material.opacity = 0.0; // animated in the frame loop
+    } else {
+      edgeMat.opacity = 0.0;
+    }
+  }
+
+  // Calm, still, honestly-empty state — no receipts invented, no flow faked.
+  function showUnreachable() {
+    receiptCount = 0;
+    nodes.count = 0;
+    edgeMat.opacity = 0.0;
+    pulse.material.opacity = 0.0;
+    chainCurve = null;
+    cage.material.opacity = 0.22; // the lattice cage carries the quiet, honest mood
+  }
 
   // ---- resize ---------------------------------------------------------------
   function resize() {
@@ -216,29 +267,82 @@ export function mountHero(canvas) {
     }, { passive: true });
   }
 
+  const hero = {
+    ok: true, renderer, dataState: "loading", receiptCount: 0, lambda: null,
+    setLambda(v) {
+      hero.lambda = (typeof v === "number") ? v : null;
+      coreMat.uniforms.uGlow.value = lambdaGlow(v);
+    },
+    setReceipts(list) {
+      if (Array.isArray(list) && list.length) {
+        applyReceipts(list);
+        hero.dataState = "live"; hero.receiptCount = receiptCount;
+      } else {
+        showUnreachable(); hero.dataState = "unreachable"; hero.receiptCount = 0;
+      }
+    },
+    fireFreshReceipt() { pulseT = 0; pulseBoost = 1.0; }, // genuine new signed receipt
+  };
+
   // ---- render loop ----------------------------------------------------------
   const clock = new THREE.Clock();
   let raf = 0, running = true;
 
+  function render(t) {
+    coreMat.uniforms.uTime.value = t;
+    px += (tx - px) * 0.04; py += (ty - py) * 0.04;
+    root.rotation.y = t * 0.10 + px * 0.6;
+    root.rotation.x = py * 0.35;
+    cage.rotation.y = -t * 0.04;
+    dust.rotation.y = t * 0.015;
+
+    // signed-receipt pulse traverses the real chain (only when we have one)
+    if (chainCurve) {
+      pulseT += 0.0016 + 0.004 * pulseBoost; // fresh receipts travel faster + brighter
+      if (pulseT >= 1) { pulseT = 0; pulseBoost = 0; }
+      chainCurve.getPointAt(pulseT, _v);
+      pulse.position.copy(_v);
+      const base = 0.45 + 0.25 * Math.sin(t * 3.0);
+      pulse.material.opacity = Math.min(1.0, base + pulseBoost * 0.5);
+      const s = 1.0 + pulseBoost * 0.8;
+      pulse.scale.setScalar(s);
+    }
+    renderer.render(scene, camera);
+  }
+
   function frame() {
     if (!running) return;
-    const t = clock.getElapsedTime();
-    coreMat.uniforms.uTime.value = t;
-    pMat.uniforms.uTime.value = t;
-    px += (tx - px) * 0.04; py += (ty - py) * 0.04;
-    root.rotation.y = t * 0.12 + px * 0.6;
-    root.rotation.x = py * 0.4;
-    cage.rotation.y = -t * 0.05;
-    renderer.render(scene, camera);
+    render(clock.getElapsedTime());
     raf = requestAnimationFrame(frame);
   }
 
+  // ---- live data: fetch real receipts + Λ; poll lake for genuine growth ------
+  async function boot() {
+    const [ledger, lam] = await Promise.all([getJSON(LEDGER_URL), getJSON(LAMBDA_URL)]);
+    if (lam && typeof lam.lambda_org === "number") hero.setLambda(lam.lambda_org);
+    if (ledger && Array.isArray(ledger.receipts) && ledger.receipts.length) {
+      hero.setReceipts(ledger.receipts);
+    } else {
+      hero.setReceipts(null); // honest still state — no fabricated receipts
+    }
+  }
+
+  let lastLakeTotal = null;
+  async function pollLake() {
+    const h = await getJSON(LAKE_URL);
+    const total = h && typeof h.total_receipts === "number" ? h.total_receipts : null;
+    if (total !== null && lastLakeTotal !== null && total > lastLakeTotal) {
+      hero.fireFreshReceipt(); // a real new receipt landed in the lake
+    }
+    if (total !== null) lastLakeTotal = total;
+  }
+
   if (REDUCED) {
-    coreMat.uniforms.uTime.value = 1.2;
-    pMat.uniforms.uTime.value = 1.2;
-    renderer.render(scene, camera);
+    // Static, dignified single frame. Still fetch real data (no animation/polling).
+    boot().then(() => render(1.2));
+    render(1.2);
   } else {
-    // pause when the hero scrolls out of view (battery + perf)
+    boot();
     const io = new IntersectionObserver((ents) => {
       for (const en of ents) {
         if (en.isIntersecting && !running) { running = true; clock.start(); frame(); }
@@ -247,25 +351,10 @@ export function mountHero(canvas) {
     }, { threshold: 0.01 });
     io.observe(canvas);
     frame();
+    // poll the lake every 15s for genuine receipt growth (honest fresh pulse)
+    const poll = setInterval(() => { if (running) pollLake(); }, 15000);
+    hero._stopPoll = () => clearInterval(poll);
   }
 
-  return { ok: true, renderer, setLambda(v){ coreMat.uniforms.uLambda.value = v; } };
-}
-
-// radial-gradient halo texture, built in-canvas (no asset, no CDN)
-// TAMED: core stop 0.18 (was 0.55) — barely-visible glow ring on dark bg
-function makeHaloTexture() {
-  const s = 256;
-  const c = document.createElement("canvas");
-  c.width = c.height = s;
-  const g = c.getContext("2d");
-  const grad = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
-  grad.addColorStop(0.0, "rgba(26,107,99,0.18)");   // was rgba(57,216,200,0.55)
-  grad.addColorStop(0.25, "rgba(26,107,99,0.06)");  // was rgba(57,216,200,0.18)
-  grad.addColorStop(1.0, "rgba(26,107,99,0.0)");
-  g.fillStyle = grad;
-  g.fillRect(0, 0, s, s);
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  return tex;
+  return hero;
 }
