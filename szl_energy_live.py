@@ -525,6 +525,175 @@ def _h_harvest(req: Request):
     return JSONResponse(build_harvest())
 
 
+# ---------------------------------------------------------------------------
+# GSF SCI (ISO 21031:2024) energy + carbon receipt field.
+# SCI = (E × I + M) / R
+#   E = energy kWh (measured or UNAVAILABLE)
+#   I = grid carbon intensity gCO2eq/kWh (MEASURED from Electricity Maps if
+#       ELECTRICITY_MAPS_API_KEY is set; else MODELED static default)
+#   M = embodied carbon gCO2eq per call (MODELED fraction of hardware LCA)
+#   R = functional unit = 1 inference call
+#
+# Formula source: Green Software Foundation SCI (MIT + CC-BY-4.0, ISO 21031:2024).
+# Reimplemented in own code; no AGPL boavizta code imported.
+# DOCTRINE (v11, HARD):
+#   - When GPU / meter is OFF: energy_joules=null, label=UNAVAILABLE. NEVER fabricate.
+#   - Grid intensity: MODELED (static US avg 436 gCO2eq/kWh) unless Electricity Maps
+#     API key is set, in which case it is MEASURED from the free-tier API.
+#   - carbon_gco2eq is null whenever energy_joules is null.
+#   - sci_score_gco2_per_call is null whenever energy_joules is null.
+# ---------------------------------------------------------------------------
+
+# Static US-average grid intensity (EPA eGRID 2023, location-based, gCO2eq/kWh).
+# Label: MODELED. Upgrade path: set ELECTRICITY_MAPS_API_KEY.
+_SCI_DEFAULT_GRID_INTENSITY_GCO2_KWH = float(
+    os.environ.get("SZL_SCI_DEFAULT_GRID_INTENSITY", "436.0")
+)
+# Zone for Electricity Maps free tier (override with SZL_ELEC_MAPS_ZONE).
+_SCI_ELEC_MAPS_ZONE = os.environ.get("SZL_ELEC_MAPS_ZONE", "US")
+# Modeled embodied carbon per inference call (gCO2eq).
+# Based on GSF SCI M formula fragment: TE × (TiR/EL) × (RR/ToR) / daily_calls.
+# Conservative estimate for a mid-range GPU (RTX 4060 Ti class).
+# Label: MODELED. Never measured without real LCA data.
+_SCI_EMBODIED_GCO2_PER_CALL = float(
+    os.environ.get("SZL_SCI_EMBODIED_GCO2_PER_CALL", "0.0001")
+)
+
+
+def _fetch_grid_intensity() -> tuple[float, str, str]:
+    """Return (intensity_gco2_per_kwh, label, source).
+
+    If ELECTRICITY_MAPS_API_KEY is set and reachable, returns MEASURED from
+    the Electricity Maps carbon intensity API (free tier, zone=US by default).
+    Otherwise returns the static MODELED default.
+    NEVER raises; failures degrade to the static default."""
+    import urllib.request as _ur
+    api_key = os.environ.get("ELECTRICITY_MAPS_API_KEY", "").strip()
+    if not api_key:
+        return (_SCI_DEFAULT_GRID_INTENSITY_GCO2_KWH, "MODELED",
+                f"static default ({_SCI_DEFAULT_GRID_INTENSITY_GCO2_KWH} gCO2eq/kWh "
+                "EPA eGRID 2023 US avg); set ELECTRICITY_MAPS_API_KEY for MEASURED")
+    # Electricity Maps free-tier zone carbon intensity endpoint.
+    url = f"https://api.electricitymap.org/v3/carbon-intensity/latest?zone={_SCI_ELEC_MAPS_ZONE}"
+    try:
+        req = _ur.Request(
+            url,
+            headers={"auth-token": api_key, "User-Agent": _UA},
+        )
+        with _ur.urlopen(req, timeout=4) as r:
+            data = __import__("json").loads(r.read().decode())
+        ci = data.get("carbonIntensity")
+        if ci is not None:
+            return (
+                float(ci),
+                "MEASURED",
+                f"electricity_maps_v3 zone={_SCI_ELEC_MAPS_ZONE}",
+            )
+    except Exception:
+        pass  # fall through to static default
+    return (
+        _SCI_DEFAULT_GRID_INTENSITY_GCO2_KWH,
+        "MODELED",
+        f"electricity_maps_unavailable; fallback static {_SCI_DEFAULT_GRID_INTENSITY_GCO2_KWH}",
+    )
+
+
+def build_sci() -> dict:
+    """Build a GSF SCI (ISO 21031:2024) energy+carbon receipt payload.
+
+    Called by /api/a11oy/v1/energy/sci.
+
+    DOCTRINE (hard):
+      - energy_joules is null and label UNAVAILABLE when meter is down.
+      - carbon_gco2eq and sci_score_gco2_per_call are null when energy_joules is null.
+      - grid_intensity is MODELED (static) or MEASURED (Electricity Maps) — never fabricated.
+      - When everything is UNAVAILABLE, the payload is still returned so the caller
+        can see what fields exist and why they’re null.
+      - The Khipu receipt consumer MUST include these fields before DSSE signing.
+    """
+    snap = meter_snapshot()  # cached, short TTL
+    energy_joules: float | None = snap.get("total_joules")  # None when meter is down
+    meter_reachable: bool = bool(snap.get("reachable"))
+
+    grid_intensity, grid_label, grid_source = _fetch_grid_intensity()
+
+    if energy_joules is not None and energy_joules > 0 and meter_reachable:
+        energy_kwh = energy_joules / 3_600_000.0
+        operational_gco2 = energy_kwh * grid_intensity      # E × I
+        embodied_gco2 = _SCI_EMBODIED_GCO2_PER_CALL          # M (MODELED share)
+        sci_score = operational_gco2 + embodied_gco2          # (O + M) / R, R=1
+        carbon_gco2 = round(operational_gco2, 8)
+        sci_rounded = round(sci_score, 8)
+        energy_label = LABEL_MEASURED
+        overall_label = LABEL_MEASURED if grid_label == "MEASURED" else "MODELED"
+        note = "Energy MEASURED from live NVML meter; SCI computed per ISO 21031:2024."
+    else:
+        energy_kwh = None
+        carbon_gco2 = None
+        sci_rounded = None
+        energy_label = LABEL_UNAVAILABLE
+        overall_label = LABEL_UNAVAILABLE
+        note = ("energy_joules UNAVAILABLE — sovereign GPU + meter are offline. "
+                "Joules NOT fabricated. Turn on the sovereign GPU and start "
+                "the cloudflared meter tunnel to get MEASURED SCI scores.")
+
+    return {
+        "label": overall_label,
+        "energy_joules": energy_joules,
+        "energy_kwh": energy_kwh,
+        "energy_label": energy_label,
+        "carbon_gco2eq": carbon_gco2,
+        "grid_intensity_gco2_per_kwh": grid_intensity,
+        "grid_intensity_label": grid_label,
+        "grid_source": grid_source,
+        "embodied_gco2eq_per_call": _SCI_EMBODIED_GCO2_PER_CALL,
+        "embodied_label": "MODELED",
+        "sci_score_gco2_per_call": sci_rounded,
+        "sci_functional_unit": "inference_call",
+        "measurement_source": ("nvml/kepler" if meter_reachable and energy_joules is not None
+                               else "none/meter_offline"),
+        "methodology": "GSF_SCI_ISO_21031_2024",
+        "note": note,
+        "meter_reachable": meter_reachable,
+        "timestamp_utc": _now_iso(),
+    }
+
+
+def build_sci_receipt_fields() -> dict:
+    """Return ONLY the energy attestation fields to embed in a Khipu receipt
+    payload BEFORE DSSE signing. All fields present; null when UNAVAILABLE.
+
+    The receipt consumer (szl_governed_api, szl_energy_ledger) calls this
+    and merges the result into the receipt body before signing.
+
+    Schema follows DEV_CONSOLE_ENERGY.md §2.5 (the governal receipt pattern):
+      energy_joules, carbon_gco2eq, grid_intensity_gco2_per_kwh,
+      sci_score_gco2_per_call, measurement_source, methodology.
+    """
+    sci = build_sci()
+    return {
+        "energy_joules": sci["energy_joules"],
+        "energy_kwh": sci["energy_kwh"],
+        "carbon_gco2eq": sci["carbon_gco2eq"],
+        "grid_intensity_gco2_per_kwh": sci["grid_intensity_gco2_per_kwh"],
+        "sci_score_gco2_per_call": sci["sci_score_gco2_per_call"],
+        "sci_functional_unit": "inference_call",
+        "measurement_source": sci["measurement_source"],
+        "grid_source": sci["grid_source"],
+        "methodology": "GSF_SCI_ISO_21031_2024",
+        "energy_label": sci["energy_label"],
+        "grid_intensity_label": sci["grid_intensity_label"],
+        "embodied_gco2eq_per_call": sci["embodied_gco2eq_per_call"],
+        "embodied_label": "MODELED",
+        "sci_label": sci["label"],
+        "sci_note": sci["note"],
+    }
+
+
+def _h_sci(req: Request):
+    return JSONResponse(build_sci())
+
+
 def register(app, ns: str = "a11oy"):
     """Wire the live energy endpoints onto the app under /api/<ns>/v1/energy/*.
 
@@ -536,6 +705,7 @@ def register(app, ns: str = "a11oy"):
         (f"{base}/live", _h_live),
         (f"{base}/mesh", _h_mesh),
         (f"{base}/harvest", _h_harvest),
+        (f"{base}/sci", _h_sci),   # GSF SCI ISO 21031:2024 endpoint
     ]
     add_api_route = getattr(app, "add_api_route", None)
     mounted = []
