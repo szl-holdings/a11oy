@@ -682,7 +682,11 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="kpi"><div class="k">On real data</div><div class="v live" id="bz-real">\u2014</div></div>
       <div class="kpi"><div class="k">Trust status</div><div class="v warn">research conjecture</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Capability domains</span><span class="card-ep">live in-image</span></div><div id="bz-host"><div class="row mono dim">loading\u2026</div></div>
-        <details class="raw"><summary>raw business observability</summary><pre class="out" id="bz-raw">loading\u2026</pre></details></div>${HONEST}`;window.business_load();}},
+        <details class="raw"><summary>raw business observability</summary><pre class="out" id="bz-raw">loading\u2026</pre></details></div>
+      <div class="card"><div class="card-h"><span class="card-t">Markets &amp; Fiscal \u2014 live from SEC / Treasury / Fed</span><span class="card-ep" id="mk-ep">SEC EDGAR \u00b7 Treasury \u00b7 FRED</span></div>
+        <div class="row mono dim" style="margin-bottom:.4rem">A real filer\u2019s 10-K financials, the live U.S. national debt, and a Fed macro series \u2014 each labelled with its source + honest state. Informational, not investment advice.</div>
+        <div id="mk-host"><div class="row mono dim">loading live markets data\u2026</div></div>
+        <details class="raw"><summary>raw markets summary</summary><pre class="out" id="mk-raw">loading\u2026</pre></details></div>${HONEST}`;window.business_load();}},
 
   verticals:{title:'Vertical-Pack Ecosystem',badge:'13 PACKS \u00b7 LIVE + ROADMAP',sub:'The catalog of domain packs built on the a11oy core. Each pack reuses the same governed-decision engine, signed receipts, and trust scoring for a specific business domain. Live packs are shipping today; stub packs are scaffolded and honestly marked as roadmap.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
@@ -949,7 +953,27 @@ async function business_load(){try{const d=await getJSON(API+'/v1/observability/
   setHTML('bz-host','');dm.forEach(x=>addHTML('bz-host',`<div class="row"><span class="badge ${x.status==='real'?'b-live':'b-gold'}">${esc(x.status)}</span><span><b>${esc(x.name)}</b> \u2014 ${esc(x.measure||'')}</span><span class="spacer mono dim">${esc(x.value||'')}</span></div>`));
   addHTML('bz-host',`<div class="row mono dim">${esc(d.honesty||'')}</div>`);
   setOut('bz-raw',d);
-  }catch(e){setHTML('bz-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('bz-raw','retry: '+e.message);}}
+  }catch(e){setHTML('bz-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('bz-raw','retry: '+e.message);}
+  window.markets_load();}
+
+// Markets & Fiscal — REAL live SEC EDGAR companyfacts + Treasury debt-to-penny + FRED
+function mkState(s){const u=String(s||'').toUpperCase();return u==='MEASURED'?'b-live':(u==='ROADMAP'?'b-gold':'b-gold');}
+function mkUSD(n){if(n==null||isNaN(n))return '—';const a=Math.abs(n);
+  if(a>=1e12)return '$'+(n/1e12).toFixed(2)+'T';if(a>=1e9)return '$'+(n/1e9).toFixed(2)+'B';
+  if(a>=1e6)return '$'+(n/1e6).toFixed(2)+'M';return '$'+Number(n).toLocaleString();}
+async function markets_load(){const host='mk-host';try{const d=await getJSON(API+'/v1/markets/summary');
+  setHTML(host,'');
+  const co=d.company||{},m=co.metrics||{};
+  addHTML(host,`<div class="row"><span class="badge ${mkState(co.state)}">${esc(co.state||'')}</span><span><b>${esc(co.entity||'company')}</b> — SEC EDGAR 10-K (CIK ${esc(co.cik||'')})</span><span class="spacer mono dim">${esc(co.source_label||'live from SEC')}</span></div>`);
+  [['revenue','Revenue'],['net_income','Net income'],['assets','Total assets'],['stockholders_equity','Equity']].forEach(([k,lab])=>{const v=m[k];
+    if(v)addHTML(host,`<div class="row"><span class="badge b-gold">FY${esc(v.fiscal_year||'')}</span><span>${lab} <span class="mono dim">${esc(v.concept||'')}</span></span><span class="spacer mono teal">${mkUSD(v.value)}</span></div>`);});
+  const dbt=d.national_debt||{};
+  addHTML(host,`<div class="row"><span class="badge ${mkState(dbt.state)}">${esc(dbt.state||'')}</span><span><b>U.S. national debt</b> — Treasury debt-to-penny <span class="mono dim">${esc(dbt.record_date||'')}</span></span><span class="spacer mono teal">${mkUSD(dbt.total_public_debt_outstanding_usd)}</span></div>`);
+  const mac=d.macro||{},obs=(mac.observations||[])[0]||{};
+  addHTML(host,`<div class="row"><span class="badge ${mkState(mac.state)}">${esc(mac.state||'')}</span><span><b>FRED ${esc(mac.series_id||'')}</b> — ${esc(mac.note||'')}</span><span class="spacer mono teal">${obs.value?esc(obs.value)+' ('+esc(obs.date)+')':'—'}</span></div>`);
+  addHTML(host,`<div class="row mono dim">${esc(d.advisory||'')}</div>`);
+  setOut('mk-raw',d);
+  }catch(e){setHTML(host,'<div class="row mono dim">retry: '+esc(e.message)+'</div>');setOut('mk-raw','retry: '+e.message);}}
 
 // Vertical-Pack Ecosystem \u2014 13 packs (live + roadmap), reuse the a11oy core
 async function verticals_load(){try{const d=await getJSON(API+'/v1/vertical-packs');
