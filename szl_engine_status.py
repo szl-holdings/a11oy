@@ -68,13 +68,17 @@ DOCTRINE: dict[str, Any] = {
 # Space proxies organ paths, so a single base reaches them honestly. A probe that
 # 404s/refuses is reported reachable:false — never faked.)
 # ---------------------------------------------------------------------------
+# FIX 2: Remapped from retired amaru/sentra endpoints to a11oy-native LIVE
+# equivalents (verified 2026-06-30: all 6 return HTTP 200 on the live Space).
+# Old targets (/api/amaru/*, /api/sentra/*) are RETIRED and caused organs_healthy=0
+# even when the system was healthy — the dashboard was showing a corpse.
 ORGAN_ENDPOINTS: dict[str, str] = {
-    "brain":    "/api/amaru/v1/formulas",          # BrainBeliefUpdate (PAC-Bayes McAllester)
-    "heart":    "/api/amaru/receipts",             # HeartReceiptSigma (σ-algebra receipt bus)
-    "blood":    "/api/sentra/khipu/ledger",        # BloodDSSEMerkle (Cardano-anchored DSSE)
-    "immune":   "/api/sentra/v1/gates",            # ImmuneNeymanPearson (8 deny-by-default gates)
-    "skeleton": "/api/amaru/v1/math/lean/theorems", # SkeletonLambdaSpine (the Lean kernel; Λ=Conj1)
-    "nervous":  "/api/amaru/overwatch/snapshot",   # NervousShannonAlarm (Λ-signed OTEL + drift)
+    "brain":    "/api/a11oy/v1/formulas",          # BrainBeliefUpdate — formula registry (was /api/amaru/v1/formulas)
+    "heart":    "/api/lake/v1/health",             # HeartReceiptSigma — lake ledger health (was /api/amaru/receipts)
+    "blood":    "/api/a11oy/v1/govern/health",     # BloodDSSEMerkle — DSSE governance health (was /api/sentra/khipu/ledger)
+    "immune":   "/api/a11oy/v1/honest",            # ImmuneNeymanPearson — honesty/gate status (was /api/sentra/v1/gates)
+    "skeleton": "/api/a11oy/v1/materials/health",  # SkeletonLambdaSpine — materials/Lean health (was /api/amaru/v1/math/lean/theorems)
+    "nervous":  "/api/a11oy/v1/e8/verify",         # NervousShannonAlarm — E8 verification (was /api/amaru/overwatch/snapshot)
 }
 
 MIND_ENDPOINT = "/code/healthz"
