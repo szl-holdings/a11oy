@@ -24,6 +24,14 @@ and cryptographically verifies a real receipt in under a minute.
 | 14 | [Replicate the Walrus α-gap measurement](14-replicate-walrus-alpha-gap.md) | killinchu |
 | 15 | [Air-gapped install](15-air-gapped-install.md) | all 5 |
 
+## Formula-corpus surfaces (16–18) — Dev B, 2026-06-30
+
+| # | Recipe | Formula(s) | Label |
+|---|--------|------------|-------|
+| 16 | [Bekenstein/F19 plausibility check](16-bekenstein-plausibility-check.md) | A4/A14/A18 — F19 APPLIED | MODELED/SAMPLE |
+| 17 | [Landauer ratio — honest anti-free-energy proof](17-landauer-ratio-energy-proof.md) | A13/P9 — Landauer (1961) | MEASURED or SAMPLE |
+| 18 | [Science formula surfaces (Kalman, Hoeffding, BFT quorum, Yarqa CFD)](18-science-formula-surfaces.md) | K-25, K-11, K-24, Y-01/Y-02 | LIVE / ENGINEERING-METHOD-CFD |
+
 ## In-repo engineering recipes (runnable)
 
 - [`knot-calculus-v1/`](knot-calculus-v1/) — khipu receipt DAG + PAC-Bayes + knot-invariant tag (TypeScript).
