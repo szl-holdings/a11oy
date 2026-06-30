@@ -1054,6 +1054,20 @@ COPY live_snapshots/ ./live_snapshots/
 COPY bounties/ ./bounties/
 
 # ---------------------------------------------------------------------------
+# THEOREM-BACKED feature badges (provenance chain: paper DOI -> Lean proof
+# file+sha256 -> deployed feature). serve.py imports szl_feature_badge and calls
+# register(app, "a11oy") to mount /api/a11oy/v1/badge[s]. The module resolves
+# each feature's Lean proof status LIVE from source, so the four backing .lean
+# files (from szl-holdings/lutar-lean) are COPY'd preserving path (this
+# Dockerfile never uses `COPY . .`). Without them the badge honestly degrades to
+# proof_file_present:false instead of verifying the sha256 live.
+COPY szl_feature_badge.py feature_provenance.json ./
+COPY proofs/lutar-lean/Lutar/Thesis/TH_V18_08_KhipuChecksumInvariant.lean ./proofs/lutar-lean/Lutar/Thesis/TH_V18_08_KhipuChecksumInvariant.lean
+COPY proofs/lutar-lean/Lutar/Thesis/TH_V18_05_ReceiptTransduction.lean ./proofs/lutar-lean/Lutar/Thesis/TH_V18_05_ReceiptTransduction.lean
+COPY proofs/lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean ./proofs/lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean
+COPY proofs/lutar-lean/Lutar/KhipuConsensus.lean ./proofs/lutar-lean/Lutar/KhipuConsensus.lean
+
+# ---------------------------------------------------------------------------
 # SZL Enterprise Connector Framework. serve.py imports szl_connectors_serve
 # (which imports the szl_connectors/ package + szl_connector_mcp) and calls
 # register(app, "a11oy") to mount /api/a11oy/connectors + per-connector

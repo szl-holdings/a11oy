@@ -10131,6 +10131,22 @@ except Exception as _it_e:
 # ============================================================================
 
 # ============================================================================
+# BEGIN: THEOREM-BACKED feature badges (provenance chain: paper DOI -> Lean
+# proof file+sha256 -> deployed feature). Additive, try/except-guarded; routes
+# front-moved (before the SPA /{full_path:path} catch-all). Badge state is
+# decided LIVE from the .lean source and is NEVER green for a conjecture.
+# ============================================================================
+try:
+    import szl_feature_badge as _szl_feature_badge
+    _badge_status = _szl_feature_badge.register(app, ns="a11oy")
+    print(f"[a11oy] feature-badge routes registered: {_badge_status}", file=__import__("sys").stderr)
+except Exception as _fb_e:
+    print(f"[a11oy] feature-badge routes NOT registered (non-fatal): {_fb_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: THEOREM-BACKED feature badges
+# ============================================================================
+
+# ============================================================================
 # BEGIN: Tier-1 Demo Features (BVIR + Honest Refusal + Verifiable Thesis)
 # ADDITIVE. Path namespace /api/a11oy/v1/demo — no overlap with any existing
 # namespace. Front-moves routes in register() so they win over the /api proxy
