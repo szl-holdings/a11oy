@@ -1,107 +1,38 @@
 name: Sync to HuggingFace Space
 
-# hf-sync (Yachay, slsa-l2-promotion 2026-06-03): switched from git-push / orphan
-# mirror to huggingface_hub create_commit of README.md only. Prior failures:
-# (1) dangling LFS pointer (oid 28f749cf 404s) broke lfs:true checkout/push;
-# (2) HF pre-receive hook rejected oversized plain-git design blobs in ancestor
-# commits; (3) the upload_folder variant pushed the GitHub README verbatim with
-# NO Space front-matter, which CONFIG_ERROR'd the Space. create_commit of a
-# front-matter-prepended README needs no git history and no LFS, so it avoids all
-# three. Front-matter is base64 (FM_B64) so the python here-doc stays fully
-# indented inside the YAML block scalar (the indentation pitfall flagged in sentra).
+# Thin caller for the canonical reusable deployer
+# (szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml). This REPLACES
+# the former 297-line hf-sync.yml whose hand-maintained CATHEDRAL_FILES allowlist
+# grew one HARDCODED path every time a newly-served file fell outside its glob --
+# an accreting bandaid. The reusable deployer DERIVES the exact file set from the
+# Dockerfile's own COPY sources (no allowlist), pushes it to the Space, waits for
+# the rebuild, and ATTESTS every pushed file's sha256 against the live Space.
 #
-# front-door sync (drift-fix 2026-06-07): the README-only sync let the served
-# front-door HTML drift — an edit to pages/console.html / console/index.html on
-# GitHub would silently disappear on the next HF factory rebuild (the Space kept
-# its own older copy), forcing a manual second push to both repos. The
-# "Sync front-door files" step below now mirrors the plain-text front-door files
-# (pages/*.html, pages/*.js, console/*.html, console/*.js) to the Space via the
-# same git-free create_commit path. It deliberately EXCLUDES the built SPA
-# bundles (console/assets/**, console/static/**) — those are large/possibly-LFS
-# deployed artifacts that already live on the Space, and re-syncing them would
-# reintroduce the LFS/pre-receive failures documented above. Timestamped
-# *.bak-* backups are skipped.
+# The on.push.paths below are only a cheap TRIGGER, not a correctness dependency:
+# the deployer derives the real set from the Dockerfile, so a new served file no
+# longer needs a matching path entry here. Kept broad so any meaningful change
+# fires a deploy; the derivation is what guarantees completeness.
 #
-# front-door deletion sync (drift-fix 2026-06-08): the add/update-only path above
-# left a stale copy on the Space whenever a front-door file was DELETED or RENAMED
-# on GitHub main — the old page lingered and kept being served after an HF rebuild.
-# The step now also diffs the Space's current front-door file list
-# (HfApi.list_repo_files, filtered to the same pages/*.{html,js} + console/*.{html,js}
-# set) against the local files and emits CommitOperationDelete for any that are gone.
-# The same exclusions apply: built SPA bundles (console/assets/**, console/static/**)
-# and *.bak-* backups are NEVER deleted.
-#
-# cathedral front-door coverage (drift-fix 2026-06-10): the redesigned a11oy.net
-# hero is served from cathedral.html (repo ROOT) + static/a11oy_cathedral.js, which
-# fall OUTSIDE the pages/console glob above — so an edit to either on GitHub main was
-# NOT auto-mirrored to the Space and the two copies drifted (they only matched because
-# the launch pushed them by hand). Both exact paths are now part of on.push.paths, the
-# add/update glob, and the delete-aware is_front_door() set (matched as an EXACT pair,
-# NOT a broad static/* glob, so the Space's other static/ vendor blobs are untouched).
+# The HF<->GitHub module-drift guard stays wired separately (hf-module-drift.yml /
+# hf-drift-check.yml) -- this workflow only deploys.
 
 on:
   push:
     branches: [main]
     paths:
-      - "README.md"
+      - "Dockerfile"
+      - "serve.py"
+      - "**/*.py"
+      - "console/**"
       - "pages/**"
-      - "console/*.html"
-      - "console/*.js"
-      - "cathedral.html"
-      - "static/a11oy_cathedral.js"
-      # copy-sync lockstep guard (CHECK 3): cathedral_genius.html + static/cathedral_app.js are
-      # per-file COPY'd in the Dockerfile but live OUTSIDE the bulk dirs, so they must be mirrored
-      # to the HF Space explicitly or the front door drifts (the original BUILD_ERROR incident).
-      - "cathedral_genius.html"
-      - "static/cathedral_app.js"
-      # copy-sync lockstep guard (CHECK 3): the shared honesty helpers loaded by the
-      # served pages/console.html live in static/shared/ (outside the bulk dirs), so
-      # they must be mirrored to the HF Space explicitly or the console drifts.
-      - "static/shared/szl_codename_sanitizer.js"
-      - "static/shared/szl_label_engine.js"
-      - "static/shared/szl_receipt_cosign.js"
-      # Lane F1: the 3D/holographic substrate kit, loaded by the served /holo page.
-      # Lives in static/shared/ (outside the bulk dirs) so it is mirrored to the HF
-      # Space explicitly here AND in the front-door CATHEDRAL_FILES list below.
-      - "static/shared/szl_holo3d.js"
-      # live_wires.html: the served /live-wires 3D page lives at the repo ROOT,
-      # OUTSIDE the pages/console glob and the CATHEDRAL_FILES set, so an edit on
-      # GitHub main was NOT auto-mirrored and the HF Space drifted (caught by the
-      # hf-module-drift guard: live_wires.html ahead=github). Mirror it explicitly
-      # here AND in CATHEDRAL_FILES below so the front door stays byte-identical.
-      - "live_wires.html"
-      # copy-sync lockstep guard (CHECK 3): a11oy_landing.html is the investor front door
-      # served at "/" by serve.py and is per-file COPY'd in the Dockerfile. An edit on GitHub
-      # main must also reach the HF Space — mirror it explicitly here + CATHEDRAL_FILES.
-      - "a11oy_landing.html"
-      # copy-sync lockstep guard (CHECK 3): static/a11oy_landing.js is the JS bundle for the
-      # investor landing page. Per-file COPY'd in the Dockerfile; mirror explicitly to HF.
-      - "static/a11oy_landing.js"
-      # copy-sync lockstep guard (CHECK 3): govern_showcase.html is a governance showcase page
-      # per-file COPY'd in the Dockerfile and served from the HF Space. Mirror here so GitHub
-      # edits propagate to HF and the hf-module-drift guard stays green.
-      - "govern_showcase.html"
-      # web/*.html: per-page surfaces (immune, materials, sda, dns, energy, etc.) are
-      # per-file COPY'd by the Dockerfile but live OUTSIDE pages/console — so a new
-      # web/*.html on GitHub main (e.g. web/dns.html from the DNS page) was NOT mirrored
-      # to the Space and the image build FAILED on the missing COPY. Mirror them here.
-      - "web/*.html"
-      # copy-sync lockstep guard (CHECK 2): the Lane A agentic core module
-      # a11oy_react_core.py is per-file COPY'd in the Dockerfile and imported by
-      # serve.py (serves /api/a11oy/v1/agent/react/{run,resume,trace,checkpoints}).
-      # Its .py source is auto-mirrored to the HF Space by hf-sync-backend.yml; it
-      # is also declared here in on.push.paths AND env.APP_FILES (kept the IDENTICAL
-      # set) so the lockstep mirror set explicitly records it and the guard stays
-      # green. Restores Dev A wiring clobbered by a later stale-base integration push.
-      - "a11oy_react_core.py"
-      # SAPA: Energy per Successful Goal — the frontier agentic unit on top of the
-      # live MEASURED joules/token path. szl_sapa.py is the shared accounting layer
-      # (byte-identical a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa +
-      # /api/a11oy/v1/sapa/*. Both are per-file COPY'd in the Dockerfile + imported by
-      # serve.py; declared here in on.push.paths AND env.APP_FILES (IDENTICAL set) so
-      # the copy-sync lockstep guard stays green and the .py is mirrored to the Space.
-      - "szl_sapa.py"
-      - "szl_sapa_patch.py"
+      - "web/**"
+      - "static/**"
+      - "static-vendor/**"
+      - "src/**"
+      - "corpus/**"
+      - "*.html"
+      - "knowledge.json"
+      - "README.md"
       - ".github/workflows/hf-sync.yml"
   workflow_dispatch: {}
 
@@ -109,189 +40,6 @@ permissions:
   contents: read
 
 jobs:
-  sync-to-hub:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 1
-          lfs: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version: "3.12"
-      - name: Install huggingface_hub
-        run: pip install --quiet "huggingface_hub>=0.25"
-      - name: Sync README (front-matter + body) to HuggingFace Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          SPACE_ID: SZLHOLDINGS/a11oy
-          # APP_FILES is kept the IDENTICAL set to the Lane-A entries added to
-          # on.push.paths above (copy-sync lockstep guard reads both). The .py
-          # source itself is mirrored to the Space by hf-sync-backend.yml.
-          APP_FILES: "a11oy_react_core.py szl_sapa.py szl_sapa_patch.py"
-          FM_B64: "dGl0bGU6ICJhMTFveSDigJQgR292ZXJuYW5jZSBTdWJzdHJhdGUiCmVtb2ppOiAi8J+UrCIKY29sb3JGcm9tOiBpbmRpZ28KY29sb3JUbzogZ3JheQpzZGs6IGRvY2tlcgphcHBfcG9ydDogNzg2MApwaW5uZWQ6IHRydWUKbGljZW5zZTogYXBhY2hlLTIuMApzaG9ydF9kZXNjcmlwdGlvbjogImExMW95IOKAlCBwb2xpY3kgKyByZWNlaXB0IHN1YnN0cmF0ZSIKdGFnczoKICAtIGdvdmVybmFuY2UKICAtIGFnZW50aWMtYWkKICAtIGRvY3RyaW5lLXYxMQogIC0gYTExb3kKICAtIGV4ZWN1dGlvbi1mYWJyaWMKICAtIGFwYWNoZS0yLjAKZWNvc3lzdGVtLXN0YWdlOiAib3BlcmF0aW9uYWwi"
-        run: |
-          set -euo pipefail
-          if [ -z "${HF_TOKEN:-}" ]; then
-            echo "::error::HF_TOKEN secret is not set on this repo — cannot push to the HuggingFace Space."
-            echo "::error::Founder action required: add repo secret HF_TOKEN (HF write token with org write to SZLHOLDINGS)."
-            exit 1
-          fi
-          python3 <<'PYEOF'
-          import os, base64
-          from huggingface_hub import HfApi, CommitOperationAdd
-
-          # HF's server-side README YAML validator (_validate_yaml) intermittently
-          # returns a non-JSON body (HTML/5xx), which raises JSONDecodeError and
-          # aborts an otherwise-valid commit. The front-matter here is well-formed
-          # (identical structure is accepted on the sibling Spaces), so make the
-          # validator non-fatal: try it, and if it raises, skip it and commit.
-          _orig_validate = HfApi._validate_yaml
-          def _safe_validate(self, content, *a, **k):
-              try:
-                  return _orig_validate(self, content, *a, **k)
-              except Exception as e:
-                  print("::warning::HF _validate_yaml skipped (non-fatal):", repr(e)[:160])
-                  return None
-          HfApi._validate_yaml = _safe_validate
-
-          fm = base64.b64decode(os.environ["FM_B64"]).decode("utf-8")
-          front_matter = "---\n" + fm + "\n---\n"
-
-          with open("README.md", "r", encoding="utf-8") as fh:
-              body = fh.read()
-          # Strip any existing front-matter so we never double-stack a header.
-          if body.startswith("---"):
-              segs = body.split("\n---", 2)
-              if len(segs) >= 2:
-                  body = segs[-1].lstrip("\n")
-
-          note = ("<!-- HF Space front-matter is REQUIRED (sdk: docker). Injected by "
-                  "hf-sync\n     so the Space builds the Dockerfile. Do not remove. -->\n\n")
-          card = front_matter + note + body
-
-          api = HfApi(token=os.environ["HF_TOKEN"])
-          space = os.environ["SPACE_ID"]
-          commit = api.create_commit(
-              repo_id=space,
-              repo_type="space",
-              operations=[CommitOperationAdd(path_in_repo="README.md",
-                                             path_or_fileobj=card.encode("utf-8"))],
-              commit_message="docs(slsa): sync Space card with GitHub README (SLSA L1 honest; L2 roadmap, not yet claimed)",
-              commit_description=("Automated README sync from szl-holdings/a11oy main via hf-sync.\n\n"
-                                  "Signed-off-by: Yachay <yachay@szlholdings.ai>\n"
-                                  "Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>"),
-          )
-          print("HF commit:", commit.oid, "->", space)
-          PYEOF
-      - name: Sync front-door files to HuggingFace Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          SPACE_ID: SZLHOLDINGS/a11oy
-        run: |
-          set -euo pipefail
-          if [ -z "${HF_TOKEN:-}" ]; then
-            echo "::error::HF_TOKEN secret is not set on this repo — cannot push to the HuggingFace Space."
-            exit 1
-          fi
-          python3 <<'PYEOF'
-          import os, glob
-          from huggingface_hub import HfApi, CommitOperationAdd, CommitOperationDelete
-
-          # Plain-text front-door files served directly by serve.py (pages/console.html
-          # is the home page at "/", console/index.html is the SPA history fallback).
-          # EXCLUDES console/assets/** and console/static/** — those are the built SPA
-          # bundles (large / possibly LFS) that already live on the Space; re-syncing
-          # them reintroduces the documented LFS/pre-receive failures.
-          #
-          # CATHEDRAL_FILES: the redesigned a11oy.net hero (cathedral.html at the repo
-          # root + static/a11oy_cathedral.js) is served at "/" too but lives OUTSIDE the
-          # pages/console glob. These two EXACT paths are mirrored as well. They are
-          # matched as an exact pair (never a broad static/* glob), so the Space's other
-          # static/ vendor blobs (vendor3d/, knowledge.json, etc.) are never touched.
-          CATHEDRAL_FILES = ["cathedral.html", "static/a11oy_cathedral.js", "cathedral_genius.html", "static/cathedral_app.js",
-                             # shared honesty helpers loaded by the served pages/console.html;
-                             # outside the bulk dirs so mirrored explicitly (copy-sync CHECK 3).
-                             "static/shared/szl_codename_sanitizer.js", "static/shared/szl_label_engine.js", "static/shared/szl_receipt_cosign.js",
-                             # Lane F1: the 3D/holographic substrate kit (loaded by /holo).
-                             "static/shared/szl_holo3d.js",
-                             # served /live-wires 3D page at repo ROOT (outside pages/console glob).
-                             "live_wires.html",
-                             # copy-sync lockstep guard (CHECK 3): investor front door + governance showcase
-                             # per-file COPY'd in Dockerfile; mirror to HF so Space stays in sync.
-                             "a11oy_landing.html", "static/a11oy_landing.js", "govern_showcase.html"]
-          patterns = ["pages/*.html", "pages/*.js", "console/*.html", "console/*.js",
-                      "web/*.html",
-                      *CATHEDRAL_FILES]
-          paths = []
-          for pat in patterns:
-              paths.extend(glob.glob(pat))
-          # Regular files only; skip timestamped *.bak-* backups.
-          paths = sorted(
-              p for p in set(paths)
-              if os.path.isfile(p) and ".bak" not in os.path.basename(p)
-          )
-          local_set = set(paths)
-
-          # A Space path is "managed" by this front-door sync iff it sits DIRECTLY in
-          # pages/ or console/ with an .html/.js extension — i.e. it mirrors the glob
-          # set above (dirname must be exactly "pages"/"console", so console/assets/**
-          # and console/static/** are excluded), and it is not a *.bak-* backup.
-          def is_front_door(p):
-              base = os.path.basename(p)
-              if ".bak" in base:
-                  return False
-              # Cathedral hero files are managed as an EXACT pair so the delete pass
-              # never sweeps the Space's other static/ vendor blobs.
-              if p in CATHEDRAL_FILES:
-                  return True
-              d = os.path.dirname(p)
-              # web/*.html surfaces are Dockerfile-COPY'd and mirrored above; manage them
-              # in the delete-aware pass too so a renamed/removed web page is cleaned up.
-              if d == "web" and p.endswith(".html"):
-                  return True
-              return d in ("pages", "console") and (p.endswith(".html") or p.endswith(".js"))
-
-          api = HfApi(token=os.environ["HF_TOKEN"])
-          space = os.environ["SPACE_ID"]
-
-          ops = []
-          for p in paths:
-              with open(p, "rb") as fh:
-                  ops.append(CommitOperationAdd(path_in_repo=p, path_or_fileobj=fh.read()))
-
-          # Deletion side of the drift fix: any front-door file present on the Space
-          # but no longer on GitHub main (deleted/renamed) must be removed, otherwise
-          # the stale page lingers and keeps being served after an HF factory rebuild.
-          # Diff the Space's current front-door file list against the local set.
-          space_files = api.list_repo_files(repo_id=space, repo_type="space")
-          delete_paths = sorted(
-              p for p in space_files if is_front_door(p) and p not in local_set
-          )
-          for p in delete_paths:
-              ops.append(CommitOperationDelete(path_in_repo=p))
-
-          if not ops:
-              print("No front-door files to sync or delete.")
-          else:
-              commit = api.create_commit(
-                  repo_id=space,
-                  repo_type="space",
-                  operations=ops,
-                  commit_message="chore(sync): mirror front-door files to Space (hf-sync)",
-                  commit_description=(
-                      "Automated front-door sync from szl-holdings/a11oy main via hf-sync.\n"
-                      "Added/updated: " + (", ".join(paths) or "(none)") + "\n"
-                      "Deleted (gone from GitHub main): " + (", ".join(delete_paths) or "(none)") + "\n\n"
-                      "Keeps the served front-door (pages/*.html, console/*.html) identical\n"
-                      "to GitHub main so an HF factory rebuild never drops a GitHub edit or\n"
-                      "keeps serving a page that was deleted on GitHub."
-                  ),
-              )
-              print("HF commit:", commit.oid, "->", space,
-                    "added:", len(paths), "deleted:", len(delete_paths))
-              for p in paths:
-                  print("  synced:", p)
-              for p in delete_paths:
-                  print("  deleted:", p)
-          PYEOF
+  deploy:
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@main
+    secrets: inherit
