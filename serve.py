@@ -2381,6 +2381,24 @@ except Exception as _w910_e:  # additive: never break the Space
 
 
 # ---------------------------------------------------------------------------
+# ADDITIVE (EXPERIMENTAL TIER INSTILLATION, 2026-06-30, Dev A):
+# Wires the full experimental (CI-green, NOT in locked-8) tier into a single
+# navigable console endpoint so the "Experimental (CI-green)" nav group in the
+# SPA can display real, honestly-labelled data.
+# HONESTY: LOCKED = EXACTLY 8 @ c7c0ba17. NEVER folded into locked count.
+# Label: "EXPERIMENTAL · CI-green · NOT in locked-8 · kernel c7c0ba17 unchanged"
+# Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1. Additive only. 0 CDN.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_experimental_tier as _a11oy_exp
+    _exp_status = _a11oy_exp.register(app, ns="a11oy")
+    print(f"[a11oy] EXPERIMENTAL TIER registered: {_exp_status}", file=sys.stderr)
+except Exception as _exp_e:  # additive: never break the Space
+    print(f"[a11oy] EXPERIMENTAL TIER NOT registered: {_exp_e!r}; SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # ADDITIVE (LIVE DATA + RESEARCH INSTILLATION, 2026-06): server-side public-feed
 # fan-out so the browser never makes cross-origin calls (no CORS, single egress).
 # Wires NVD 2.0 CVE + CISA KEV + arXiv as LIVE feeds (cached briefly, labelled
