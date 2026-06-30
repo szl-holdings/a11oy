@@ -36,8 +36,16 @@ What it provides
    yet (genome Q3-INS-16); `POST /api/{ns}/v1/insurance/bind` returns an honest 501 and
    emits NOTHING. We do not fabricate a binding.
 
+4. ORG OVERVIEW (consolidation). `GET /api/{ns}/v1/org/overview` is ONE consolidated read
+   that powers the v2 front door in a single call — composed from org_lambda() (this
+   module), the genome.json tier registry, the szl.lake.receipt/v1 chain, and in-process
+   organ probes. Every field degrades to an explicit honest N/A / unreachable when its
+   source is down; nothing is fabricated. Front-moved (routes.insert(0,...)) so it wins
+   over the Node proxy + SPA catch-all and resolves in-process.
+
 Honesty (Doctrine v11): locked formulas = 8 {F1,F4,F7,F11,F12,F18,F19,F22}; Λ = Conjecture 1;
 Khipu BFT = Conjecture 2. Λ bounds = SEMANTIC-VERIFIED. SLSA = L1 honest. bind.policy = ROADMAP.
+The overview's genome tier counts are genome-ENTRY counts, NOT the locked-8 theorem baseline.
 
 stdlib-only (+ the in-repo szl_lake_store). Apache-2.0 — SZL Holdings 2026.
 """
@@ -47,6 +55,7 @@ import math
 import os
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 # ---- the ONE chain (durable szl-lake ledger) -----------------------------------
 try:
@@ -295,6 +304,161 @@ def org_lambda(vertical_scores: dict | None = None) -> dict:
 
 
 # ===========================================================================
+# ORG OVERVIEW — ONE consolidated read (powers the v2 front door in a single call)
+# ===========================================================================
+# In-image path first (per-file COPY'd to /app/data/genome.json by the Dockerfile),
+# then the repo-local fallback so the same read works under `python serve.py` in dev.
+_GENOME_CANDIDATES = (
+    Path("/app/data/genome.json"),
+    Path(__file__).resolve().parent / "data" / "genome.json",
+)
+
+
+def _genome_tiers() -> dict:
+    """Tier entry-counts from data/genome.json (the same file /v1/genome serves), or an
+    honest N/A when the file is absent/unparseable. These are GENOME-ENTRY counts per
+    honesty tier — NOT the locked-PROVEN Lean theorem baseline (which stays 8)."""
+    path = next((p for p in _GENOME_CANDIDATES if p.is_file()), None)
+    if path is None:
+        return {"status": "N/A", "reason": "genome.json not present in image", "counts": {}}
+    try:
+        entries = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001 - honest degrade, never fabricate
+        return {"status": "N/A", "reason": f"genome.json unparseable: {e!r}", "counts": {}}
+    counts: dict[str, int] = {}
+    for e in entries:
+        t = (e or {}).get("tag", "untagged")
+        counts[t] = counts.get(t, 0) + 1
+    return {"status": "OK", "total": len(entries), "counts": counts}
+
+
+def _chain_stats() -> dict:
+    """Depth + last receipt from the ONE szl.lake.receipt/v1 chain, or honest unreachable.
+    Never fabricates a count or a receipt when the lake store is down."""
+    if not _LAKE_OK:
+        return {"status": "unreachable", "depth": "N/A", "chain_alg": "sha3_256",
+                "last_receipt": None, "reason": "szl_lake_store unavailable"}
+    try:
+        led = _lake.get_default_ledger()
+        h = led.health()
+        recent = led.query(limit=1)
+        last = None
+        if recent:
+            r = recent[0]
+            last = {
+                "receipt_id": r.get("receipt_id"), "organ": r.get("organ"),
+                "ts": r.get("ts"), "chain_index": r.get("chain_index"),
+                "chain_hash": r.get("chain_hash"),
+            }
+        return {
+            "status": "OK",
+            "depth": int(h.get("total_receipts", 0)),
+            "chain_alg": h.get("chain_alg", "sha3_256"),
+            "schema": h.get("schema"),
+            "last_receipt": last,
+        }
+    except Exception as e:  # noqa: BLE001 - honest degrade
+        return {"status": "unreachable", "depth": "N/A", "chain_alg": "sha3_256",
+                "last_receipt": None, "reason": f"lake read failed: {e!r}"}
+
+
+# Honest organ probes: each maps to a REAL in-repo backing module. "live" = the backing
+# module imports in-process (its surface is loadable here); "unreachable" = import failed.
+# This is an import-reachability probe, stated as such — not an HTTP liveness assertion.
+_ORGAN_BACKING = (
+    ("Reasoning", "szl_governed_api"),
+    ("Policy", "a11oy_constitution"),
+    ("Operator", "szl_energy_operator"),
+    ("Receipts", "szl_lake_store"),
+)
+
+
+def _organ_probes() -> list:
+    import importlib
+    out = []
+    for name, mod in _ORGAN_BACKING:
+        try:
+            importlib.import_module(mod)
+            status = "live"
+            reason = None
+        except Exception as e:  # noqa: BLE001 - honest unreachable, never fake "live"
+            status = "unreachable"
+            reason = f"import {mod} failed: {e!r}"[:160]
+        entry = {"name": name, "status": status, "backing": mod,
+                 "probe": "in-process import-reachability"}
+        if reason:
+            entry["reason"] = reason
+        out.append(entry)
+    return out
+
+
+def org_overview() -> dict:
+    """ONE consolidated read powering the v2 front door in a single call.
+
+    Composed from the REAL existing surfaces — org_lambda() (this module), the genome.json
+    tier registry, the szl.lake.receipt/v1 chain, and in-process organ probes. Every field
+    degrades to an explicit honest N/A / unreachable when its source is down; nothing here
+    is fabricated. Doctrine v11: the locked-PROVEN Lean theorem baseline is 8
+    {F1,F4,F7,F11,F12,F18,F19,F22}; the genome tier counts below are genome-ENTRY counts,
+    not that baseline. Λ uniqueness = Conjecture 1 (gray, never green)."""
+    genome = _genome_tiers()
+    g = genome.get("counts", {})
+    chain = _chain_stats()
+    lam = org_lambda()
+    verts = lam.get("verticals", {})
+    floor = lam.get("lambda_floor", LAMBDA_FLOOR)
+
+    def _tier(name):
+        return g.get(name, "N/A") if genome["status"] == "OK" else "N/A"
+
+    verticals = [
+        {"name": k, "lambda": v,
+         "status": ("pass" if isinstance(v, (int, float)) and v >= floor else "below-floor")}
+        for k, v in verts.items()
+    ]
+
+    return {
+        "schema": "szl.a11oy.org.overview/v1",
+        "thesis_stats": {
+            "signed_receipts": chain["depth"],            # receipt count on the ONE chain (N/A if down)
+            "chain_alg": "sha3_256",
+            "locked_proven_count": _tier("LOCKED-PROVEN"),
+            "semantic_verified_count": _tier("SEMANTIC-VERIFIED"),
+            "conjecture_count": _tier("CONJECTURE"),
+        },
+        "verticals": verticals,
+        "organs": _organ_probes(),
+        "chain": {
+            "depth": chain["depth"],
+            "last_receipt": chain["last_receipt"],
+            "chain_alg": "sha3_256",
+            "status": chain["status"],
+        },
+        "proof_tiers": {
+            "locked": _tier("LOCKED-PROVEN"),
+            "semantic": _tier("SEMANTIC-VERIFIED"),
+            "evidence": _tier("evidence-backed"),
+            "conjecture": _tier("CONJECTURE"),
+            "honest_na": _tier("honest-N/A"),
+        },
+        "slsa": "L1+L2",
+        "honest_notes": {
+            "locked_proven_count": ("genome entries tagged LOCKED-PROVEN; the locked-PROVEN "
+                                    "Lean theorem baseline remains 8 {F1,F4,F7,F11,F12,F18,F19,F22}"),
+            "signed_receipts": ("count of receipts on the szl.lake.receipt/v1 chain "
+                                "(SHA3-256 hash-chained, append-only); honest N/A when the "
+                                "lake store is unreachable — never fabricated"),
+            "slsa": "L1 honest · L2 build-attested (Rekor) · L3 ROADMAP — not claimed achieved",
+            "lambda": "Λ = Conjecture 1 (advisory, gray); bounds min≤Λ≤max = SEMANTIC-VERIFIED",
+            "organs": "import-reachability probe — 'live' means the backing module loads in-process",
+            "genome": genome.get("reason") if genome["status"] != "OK" else "OK",
+        },
+        "doctrine": DOCTRINE,
+        "ts": _now_iso(),
+    }
+
+
+# ===========================================================================
 # REGISTER — attach the org surfaces (ADDITIVE; before the SPA catch-all)
 # ===========================================================================
 def register(app, ns: str = "a11oy") -> list:
@@ -302,9 +466,26 @@ def register(app, ns: str = "a11oy") -> list:
     /api/{ns}/v1/. Never replaces an existing route. Returns the list of paths."""
     from fastapi import Request
     from fastapi.responses import JSONResponse
+    from starlette.routing import Route as _OvRoute
+    from starlette.responses import JSONResponse as _OvJSON
 
     b = f"/api/{ns}/v1"
     paths = []
+
+    # ONE consolidated read for the v2 front door. FRONT-MOVED to the head of the route
+    # table (routes.insert(0, ...)) so it wins over the /api/a11oy/{path:path} Node proxy
+    # + SPA catch-all and resolves IN-PROCESS. Read path only — no signing side effect.
+    def _org_overview_handler(request=None):  # noqa: ANN001
+        try:
+            return _OvJSON(org_overview())
+        except Exception as e:  # noqa: BLE001 - honest degrade; NEVER a 404 on the front-door feed
+            return _OvJSON({
+                "schema": "szl.a11oy.org.overview/v1", "status": "NO-LIVE-DATA",
+                "label": "ROADMAP — org overview temporarily unavailable in this build",
+                "detail": str(e)[:160], "fabricated": False, "doctrine": DOCTRINE,
+            })
+    app.router.routes.insert(0, _OvRoute(f"{b}/org/overview", _org_overview_handler, methods=["GET"]))
+    paths.append(f"{b}/org/overview")
 
     @app.get(f"{b}/lambda/org")
     async def _org_lambda():  # noqa: ANN202
