@@ -273,6 +273,35 @@ def _make_httpx_fetcher(http_client: Any, base_url: str) -> Fetcher:
     return _fetch
 
 
+def _make_asgi_fetcher(app: Any) -> "Fetcher | None":
+    """Build an IN-PROCESS fetcher that calls the ASGI app directly (no network).
+
+    Root cause of the chronic organs=0/6: the HF Space sandbox FIREWALLS outbound
+    HTTP to both the public hostname AND the 127.0.0.1 loopback, so any self-HTTP
+    probe fails even though every organ endpoint is healthy. Calling the ASGI app
+    in-process via httpx.ASGITransport routes the probe through the same FastAPI
+    app object with ZERO network — always reachable in-container. This is the
+    reliable primary probe path; the loopback httpx client remains a fallback.
+    """
+    try:
+        import httpx as _httpx  # local import keeps module import-safe
+        transport = _httpx.ASGITransport(app=app)
+    except Exception:
+        return None
+
+    async def _fetch(path: str, timeout: float) -> "tuple[int, Any]":
+        async with _httpx.AsyncClient(
+            transport=transport, base_url="http://asgi.local"
+        ) as ac:
+            resp = await ac.get(path, timeout=timeout)
+        try:
+            body: Any = resp.json()
+        except Exception:
+            body = None
+        return resp.status_code, body
+    return _fetch
+
+
 def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = "") -> list[str]:
     """ADDITIVE: attach GET /api/{ns}/v1/engine/status. Never replaces a route.
 
@@ -309,21 +338,28 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
         # target; outbound-to-self is blocked in the HF sandbox. Set
         # SZL_ENGINE_STATUS_BASE only if running behind a reachable reverse proxy.
 
-        client = http_client
-        if client is None:
-            # Resolve the live client lazily from serve.py so this can register early.
-            try:
-                import serve as _serve  # type: ignore
-                client = getattr(_serve, "_http_client", None)
-            except Exception:
-                client = None
-        if client is None:
-            # No transport at all — honest, not fabricated: report the whole body unreachable.
-            async def _dead(_p: str, _t: float):
-                raise RuntimeError("no http client available for in-process organ probes")
-            payload = await aggregate_status(_dead, base_url=_eff_base)
+        # PRIMARY: in-process ASGI probe (no network) — the only path that works
+        # inside the HF sandbox, which firewalls BOTH public-host and loopback HTTP.
+        fetcher = _make_asgi_fetcher(app)
+        eff_base_for_probe = _eff_base
+        if fetcher is not None:
+            eff_base_for_probe = ""  # ASGI fetcher takes bare paths; no base needed.
         else:
-            payload = await aggregate_status(_make_httpx_fetcher(client, _eff_base), base_url=_eff_base)
+            # FALLBACK: shared httpx client over loopback (works outside the sandbox).
+            client = http_client
+            if client is None:
+                try:
+                    import serve as _serve  # type: ignore
+                    client = getattr(_serve, "_http_client", None)
+                except Exception:
+                    client = None
+            if client is None:
+                async def _dead(_p: str, _t: float):
+                    raise RuntimeError("no transport available for in-process organ probes")
+                fetcher = _dead
+            else:
+                fetcher = _make_httpx_fetcher(client, _eff_base)
+        payload = await aggregate_status(fetcher, base_url=eff_base_for_probe)
         # Stamp freshness + store the REAL aggregate for the brief TTL window.
         if isinstance(payload, dict):
             payload = {**payload, "cached_at": _now(), "cache_ttl_s": STATUS_CACHE_TTL}
