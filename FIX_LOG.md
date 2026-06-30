@@ -40,7 +40,7 @@ of the D3 "probing…" hangs.
 **PR:** #434 (`feat/pnt-pinn-surfaces`) · **MERGED** to main (squash adf132a) · drift
 allowlist follow-up #437 **MERGED** (squash) — main `hf-module-drift` gate now GREEN.
 
-**Live re-check (a11oy.net, box redeployed main).**
+**Live re-check (a-11-oy.com, box redeployed main).**
 - `/pnt` — serves the new "PNT · Quantum Nav" page (refs `surfaces/pnt.js`); headless:
   WEBGL2, canvas 1280x668, HUD builds with the full Q-CTRL Ironstone Opal overlay,
   honesty chip MODELED, UNSIGNED/STRUCTURAL-ONLY shown honestly. (Live API polls were

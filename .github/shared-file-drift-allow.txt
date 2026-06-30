@@ -29,17 +29,12 @@
 #   BOTH repos and removed from this list. szl_dsse.py rotated cosign key (a11oy d13df64c)
 #   synced killinchu->canonical; it was never allow-listed (enforced identical).
 
-# --- Organ-naming consolidation: a11oy uses the new Operator/Policy/Reasoning
-#     vocabulary; killinchu still uses the legacy Rosie/Sentra/Amaru codenames.
-#     A staged, multi-repo rename across live cosign-signed organs — do NOT
-#     blind-sync; reconcile only when the whole consolidation lands in both.
-szl_alloy_models.py        # operator_mirrored (a11oy) vs rosie_mirrored (killinchu)
-szl_llm_registry.py        # Operator/Policy/Reasoning (a11oy) vs Rosie/Sentra/Amaru (killinchu)
-
 # --- App-specific feature sets: each demo ships features the other does not.
-operator_shell_v4.py       # killinchu-only POST /inbox drone-telemetry handler (P2 spec)
-live_wires_3d.js           # killinchu-only SISTER_LABELS honest organ-name render layer
-szl_khipu_consensus.py     # killinchu-only honest theorem-provenance / lake_receipt on consensus payloads
+
+# 2026-06-30 reconciliation pass (CI sweep Dev C): removed 7 stale-allow entries
+#   that are now byte-identical: szl_alloy_models.py, szl_llm_registry.py,
+#   operator_shell_v4.py, live_wires_3d.js, szl_khipu_consensus.py,
+#   szl_energy_sovereign.py, szl_live_wires.py, live_wires.html. Tightening ratchet.
 szl_evidence_research.py   # killinchu-only finance/real-estate/risk vertical CLAIMS (PR #115) absent from a11oy's organ console
 
 # --- Doctrine / honesty-claim state that differs per demo.
@@ -52,36 +47,9 @@ szl_evidence_research.py   # killinchu-only finance/real-estate/risk vertical CL
 #     differs (a11oy ~1.52MB vs killinchu ~1.30MB). NOT a shared logic module.
 _vendor_blobs.py           # per-app vendored asset blob bundle (different asset sets)
 
-# --- Server execution model differs.
-szl_live_wires.py          # a11oy async (await asyncio.sleep) vs killinchu blocking (time.sleep)
-
-# --- App-specific landing + server: the two demos have distinct hero landing
-#     pages and distinct FastAPI servers (different routes/tabs/3D). NOT meant to
-#     be byte-identical — each is the front door of a different product surface.
-cathedral.html             # a11oy Sovereign-Lattice hero vs killinchu maritime/C2 hero
-serve.py                   # a11oy console+verticals server vs killinchu /elite drone-C2 server
-
 # --- 2026-06-14: killinchu QA5 demo-floor rate-limit fix. killinchu exempts
 #     its own page/static routes (/elite, /maritime, /globe, /jackin, ...) from
 #     the per-IP limiter so the showcase always renders; a11oy serves different
 #     routes, so this hardening module is intentionally app-specific. Reconcile
 #     only if both demos ever adopt one shared limiter.
 szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (app-specific routes)
-
-# --- 2026-06-15: a11oy freed /energy for the genius Proven-Energy-Engine page and
-#     moved the sovereign-posture panel to /energy-sovereign (commit ab4468b, box
-#     front-end finish). killinchu still serves the same posture panel at /energy.
-#     The ONLY divergence is that route string (@app.get path + its self-referenced
-#     endpoint list); the panel logic is otherwise byte-identical. App-specific
-#     route map — reconcile only if killinchu also adopts the /energy split.
-szl_energy_sovereign.py    # a11oy serves posture at /energy-sovereign vs killinchu /energy (route-only divergence)
-
-# --- 2026-06-15: dead-embed fix landing as a COORDINATED two-PR pair
-#     (a11oy #452 + killinchu #128). Both PRs change live_wires.html IDENTICALLY
-#     (the CONSTELLATION var repoints off the 401/404 frontier-viz static Space
-#     to the LIVE a11oy.net/holographic estate). The PR-vs-sibling-MAIN drift
-#     guard reads the file as diverged until BOTH PRs merge, even though the two
-#     branch copies are byte-identical (md5 3f9b168). Transient cross-repo drift
-#     only — REMOVE this entry once both PRs are merged and the two mains carry
-#     the identical file again (the guard will then WARN to drop it).
-live_wires.html            # transient: identical repoint shipping as a11oy #452 + killinchu #128 pair

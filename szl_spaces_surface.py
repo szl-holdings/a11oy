@@ -22,7 +22,7 @@ catch-alls — same route-to-front idiom as a11oy_hf_assets.py):
         Degrade -> stage:"unknown", app_reachable:false. NEVER a faked stage/200.
 
   GET/HEAD /spaces                 -> a clean tiles page (one card per Space: honest
-        title, live status dot fed by /health, "Open in a11oy.net" -> /spaces/<name>,
+        title, live status dot fed by /health, "Open in a-11-oy.com" -> /spaces/<name>,
         "Open on HF" -> hf.space url). Pure inline markup, 0 browser CDN. The status
         dots are filled by a tiny inline fetch of the SAME-ORIGIN /health JSON (not a
         CDN; the data is our own server-side-probed endpoint).
@@ -258,7 +258,7 @@ def _tiles_page(ns: str) -> bytes:
         name = sp["name"]
         title = sp["title"]
         primary = proxy_url(name)
-        primary_label = "Open on HF" if name in _OWN_HOST else "Open in a11oy.net"
+        primary_label = "Open on HF" if name in _OWN_HOST else "Open in a-11-oy.com"
         cards.append(
             '<article class="sp-card" data-space="%s">'
             '<header class="sp-head">'
@@ -300,7 +300,7 @@ def _tiles_page(ns: str) -> bytes:
         '</style></head>'
         '<body><main class="sp-wrap">'
         '<h1 class="sp-h1">Hugging Face Spaces</h1>'
-        '<p class="sp-sub">All live Spaces, surfaced on a11oy.net &mdash; server-side '
+        '<p class="sp-sub">All live Spaces, surfaced on a-11-oy.com &mdash; server-side '
         'reverse proxy + honest live health. 0 browser CDN.</p>'
         '<div class="sp-grid">' + "".join(cards) + '</div>'
         '<p class="sp-foot">Status dot &amp; stage are filled from the same-origin '

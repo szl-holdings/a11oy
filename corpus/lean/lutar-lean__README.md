@@ -16,7 +16,7 @@
 [![Khipu = Conjecture 2](https://img.shields.io/badge/Khipu_BFT-Conjecture_2_(Wave23_conditional)-B79BD6.svg?style=flat-square)](https://github.com/szl-holdings/khipu-consensus)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434308.svg)](https://doi.org/10.5281/zenodo.20434308)
 
-[a11oy.net](https://a11oy.net) · [Org](https://github.com/szl-holdings) · [Thesis (szl-papers)](https://github.com/szl-holdings/szl-papers) · [Λ bounty](./BOUNTY.md) · [🤗 SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS)
+[a-11-oy.com](https://a-11-oy.com) · [Org](https://github.com/szl-holdings) · [Thesis (szl-papers)](https://github.com/szl-holdings/szl-papers) · [Λ bounty](./BOUNTY.md) · [🤗 SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS)
 
 `receipts.in ≡ receipts.out`
 

@@ -305,6 +305,10 @@ def govern_infer(prompt: str, *, vertical: str = "general",
                            severity=severity, action_kind="inference")
     decision = g.get("decision", "deny")
 
+    # 1b) CONFORMAL + ECE on the advisory Λ (GAP 1/2). Guarded + additive: on any
+    #     failure this is None and Λ falls back to MODELED — never breaks the turn.
+    cb = _conformal_blocks(g, prompt)
+
     # 2) MEASURE the turn — joules MEASURED only, outside the model call window edges.
     j_before, ev_before = _meter_snapshot()
 
@@ -328,7 +332,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         if prov is None:
             if eng is None:
                 return {"decision": decision, "answer": None,
-                        "governance": _pub_gov(g), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
+                        "governance": _pub_gov(g, cb), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
                         "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "no live engine"}},
                         "honesty": "governance allowed the turn but NO mesh engine was reachable; "
                                    "no answer and no joules fabricated."}
@@ -342,7 +346,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
                 if alt is None:
                     _inflight_dec(eng["name"])
                     return {"decision": decision, "answer": None,
-                            "governance": _pub_gov(g), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
+                            "governance": _pub_gov(g, cb), "receipt": g.get("receipt"), "dsse": g.get("dsse"),
                             "energy": {"joules": None, "label": "UNAVAILABLE", "evidence": {"mesh": "engine failed, no failover"}},
                             "honesty": "governance allowed the turn but the chosen engine failed and no "
                                        "failover engine was live; no answer and no joules fabricated."}
@@ -408,7 +412,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
             # keys; the half-state of a receipt that omits its own verdict/Λ/
             # signature is unacceptable). _pub_gov already labels Λ as Conjecture 1.
             _rec["decision"] = decision
-            _rec["governance"] = _pub_gov(g)
+            _rec["governance"] = _pub_gov(g, cb)
             _rec["dsse"] = g.get("dsse")
             _rec["energy"] = energy
             _lake.record_receipt(_rec, organ="a11oy")
@@ -421,7 +425,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         "decision": decision,
         "answer": answer,
         "served_by": served_by,
-        "governance": _pub_gov(g),
+        "governance": _pub_gov(g, cb),
         "receipt": g.get("receipt"),
         "dsse": g.get("dsse"),
         "generation": gen_meta or None,
@@ -430,8 +434,30 @@ def govern_infer(prompt: str, *, vertical: str = "general",
     }
 
 
-def _pub_gov(g: dict) -> dict:
-    return {
+def _conformal_blocks(g: dict, prompt: str) -> dict | None:
+    """Compute the split-conformal interval + ECE calibration blocks for this turn's
+    advisory Λ (GAP_ML.md GAP 1/2). FULLY GUARDED + ADDITIVE: any failure (numpy
+    absent, cold-start buffer, import error) logs and returns None so the infer path
+    falls back to the existing MODELED Λ behaviour. NEVER breaks the turn or startup.
+
+    Honest labelling is enforced inside szl_conformal: MEASURED only on a real
+    held-out split of n ≥ 500; SAMPLE for the seed bootstrap; UNAVAILABLE on cold
+    start. Λ stays Conjecture 1 (advisory, ≤0.99) regardless of the conformal label."""
+    lam = g.get("lambda")
+    if not isinstance(lam, (int, float)):
+        return None
+    try:
+        import szl_conformal as _cf
+        return _cf.lambda_conformal_blocks(float(lam), prompt=prompt, alpha=0.10)
+    except Exception as _cf_e:  # pragma: no cover
+        import sys as _cf_sys
+        print(f"[a11oy] conformal/ECE block skipped (non-fatal): {_cf_e!r}",
+              file=_cf_sys.stderr)
+        return None
+
+
+def _pub_gov(g: dict, conformal_blocks: dict | None = None) -> dict:
+    pub = {
         "lambda": g.get("lambda"),
         "lambda_floor": g.get("lambda_floor"),
         "lambda_pass": g.get("lambda_pass"),
@@ -440,6 +466,13 @@ def _pub_gov(g: dict) -> dict:
         "route": g.get("route"),
         "doctrine": g.get("doctrine"),
     }
+    if isinstance(conformal_blocks, dict):
+        # Additive, honestly-labelled. The conformal block upgrades Λ's trust label
+        # to MEASURED only when its own label says so; otherwise Λ stays MODELED.
+        pub["conformal"] = conformal_blocks.get("conformal")
+        pub["calibration"] = conformal_blocks.get("calibration")
+        pub["lambda_label"] = conformal_blocks.get("lambda_label")
+    return pub
 
 
 # --- register on the a11oy FastAPI app (repo convention) ----------------------
@@ -512,15 +545,30 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
                        "labeled REMOTE/not-sovereign and yields UNAVAILABLE energy.",
         })
 
-    # Landing page: serve the holographic showcase at /govern and /govern/ (branded domain root)
+    # Front door ("/"): serve the INVESTOR landing (a11oy_landing.html) — the
+    # collapsed flagship story (signs-its-work / refuses / formally-backed cards,
+    # killinchu vertical, Conjecture 1 advisory). The holographic govern showcase
+    # remains available at /govern + /govern/. Previously "/" served
+    # govern_showcase.html, which front-insert-shadowed serve.py's spa_root and
+    # pinned the old 941KB showcase as the front door — root cause of the stale
+    # landing. Doctrine v11 LOCKED, Lambda Conjecture 1 (advisory, never theorem).
     try:
         from starlette.responses import FileResponse, HTMLResponse
         import os as _os
-        _PAGE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "govern_showcase.html")
+        _DIR = _os.path.dirname(_os.path.abspath(__file__))
+        _PAGE = _os.path.join(_DIR, "govern_showcase.html")          # /govern showcase
+        _FRONT = _os.path.join(_DIR, "a11oy_landing.html")            # "/" investor front door
         async def _landing(request=None):
             if _os.path.exists(_PAGE):
                 return FileResponse(_PAGE, media_type="text/html")
             return HTMLResponse("<h1>a11oy Governed Inference</h1><p>showcase asset missing</p>")
+        async def _front_door(request=None):
+            # Investor front door first; fall back to the govern showcase, then a stub.
+            if _os.path.exists(_FRONT):
+                return FileResponse(_FRONT, media_type="text/html")
+            if _os.path.exists(_PAGE):
+                return FileResponse(_PAGE, media_type="text/html")
+            return HTMLResponse("<h1>a11oy Governed Inference</h1><p>front-door asset missing</p>")
     except Exception:
         _landing = None
 
@@ -544,7 +592,7 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
     # like /api/a11oy/v1/reason) AND the post-strip /v1/govern/* + short /govern/*
     # forms, so it wins regardless of how the front-door forwards.
     paths = [
-        ("/",             _landing or _health, ["GET"]),  # front door: elite showcase
+        ("/",             (_front_door if '_front_door' in dir() else _landing) or _health, ["GET"]),  # front door: investor landing
         ("/govern",       _landing or _health, ["GET"]),
         ("/govern/",      _landing or _health, ["GET"]),
         ("/api/a11oy/v1/govern/infer",  _infer,  ["POST"]),
