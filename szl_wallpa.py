@@ -36,6 +36,7 @@ import hashlib
 import io
 import json
 import math
+import os
 import struct
 import wave
 from typing import Any
@@ -141,21 +142,41 @@ def _synthesize_wav(text: str, voice: dict[str, Any]) -> bytes:
 
 
 
+# Govern target is configurable so Wallpa can reach the brain from inside the HF
+# Space. Root cause of the old loopback-only bug: the brain listens on the
+# EXTERNAL public endpoint, so 127.0.0.1:7860 from inside the Space never reaches
+# it. Default is therefore the external public endpoint; loopback is opt-in only
+# (A11OY_GOVERN_LOOPBACK=1) for single-process local dev where it is reachable.
+DEFAULT_GOVERN_URL = "https://a-11-oy.com/api/a11oy/v1/govern/infer"
+_LOOPBACK_GOVERN_URLS = (
+    "http://127.0.0.1:7860/api/a11oy/v1/govern/infer",
+    "http://127.0.0.1:8000/api/a11oy/v1/govern/infer",
+)
+
+
+def _govern_targets() -> list[str]:
+    """Ordered govern/infer targets: A11OY_GOVERN_URL (default = external public
+    endpoint) first; loopback appended only when A11OY_GOVERN_LOOPBACK is opted in."""
+    primary = (os.environ.get("A11OY_GOVERN_URL") or DEFAULT_GOVERN_URL).strip()
+    targets = [primary] if primary else []
+    if (os.environ.get("A11OY_GOVERN_LOOPBACK") or "").strip().lower() in ("1", "true", "yes", "on"):
+        targets += [u for u in _LOOPBACK_GOVERN_URLS if u != primary]
+    return targets
+
+
 def _call_govern_infer(text: str, timeout: float = 8.0) -> dict:
     """Call the live govern/infer loop — govern decides, Wallpa expresses.
 
-    Tries same-origin first (HF Space / Docker at :7860), then localhost vLLM.
+    Targets the external public endpoint by default (configurable via
+    A11OY_GOVERN_URL); loopback is opt-in (A11OY_GOVERN_LOOPBACK=1).
     Never fabricates: on failure returns decision=UNAVAILABLE with honest_note.
     """
     import urllib.request
 
-    _GOVERN_URLS = [
-        "http://127.0.0.1:7860/api/a11oy/v1/govern/infer",
-        "http://127.0.0.1:8000/api/a11oy/v1/govern/infer",
-    ]
+    targets = _govern_targets()
     payload = json.dumps({"text": text, "caller": "wallpa", "surface": "voice/OSS-TTS"}).encode()
     last_err: str = ""
-    for url in _GOVERN_URLS:
+    for url in targets:
         try:
             req = urllib.request.Request(
                 url, data=payload,
@@ -168,7 +189,7 @@ def _call_govern_infer(text: str, timeout: float = 8.0) -> dict:
     return {
         "decision": "UNAVAILABLE",
         "honest_note": (
-            f"govern/infer unreachable ({last_err[:100]!r}). "
+            f"govern/infer unreachable ({last_err[:100]!r}); tried {targets}. "
             "Wallpa never fabricates — honest UNAVAILABLE."
         ),
     }
@@ -282,14 +303,15 @@ def register(app, ns: str = "a11oy") -> None:
         governed answer as audio. If govern/infer is unreachable, returns
         an honest UNAVAILABLE response with no fabrication.
         Body: {"text": str, "voice": str (optional), "include_audio": bool (optional)}
+        `text` is canonical; `prompt` is accepted as an ergonomic alias.
         """
         try:
             body = await request.json()
         except Exception:
             body = {}
-        text = (body.get("text") or "").strip()
+        text = (body.get("text") or body.get("prompt") or "").strip()
         if not text:
-            return JSONResponse({"error": "text required"}, status_code=400)
+            return JSONResponse({"error": "text required (alias: prompt)"}, status_code=400)
         voice_id = body.get("voice", "amaru-voice")  # cortex voice for governed answers
         include_audio = body.get("include_audio", True)
         # Step 1: govern decides
