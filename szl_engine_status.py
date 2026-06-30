@@ -287,11 +287,22 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
 
     @app.get(f"/api/{ns}/v1/engine/status")
     async def _engine_status():  # noqa: ANN202
+        import os as _os
         import time as _time
         # Fast path: a fresh cached aggregate -> serve WITHOUT re-probing the organism.
         ent = _STATUS_CACHE.get("_")
         if ent is not None and (_time.monotonic() - ent[1]) < STATUS_CACHE_TTL:
             return JSONResponse(ent[0])
+
+        # Resolve effective base_url: an empty base_url means same-origin loopback.
+        # Default to http://127.0.0.1:<PORT> so the organ probes resolve as absolute
+        # URLs for the in-process httpx client. Overridable via SZL_ENGINE_STATUS_BASE.
+        _eff_base = base_url
+        if not _eff_base:
+            _eff_base = _os.environ.get(
+                "SZL_ENGINE_STATUS_BASE",
+                f"http://127.0.0.1:{_os.environ.get('PORT', '7860')}",
+            )
 
         client = http_client
         if client is None:
@@ -305,9 +316,9 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
             # No transport at all — honest, not fabricated: report the whole body unreachable.
             async def _dead(_p: str, _t: float):
                 raise RuntimeError("no http client available for in-process organ probes")
-            payload = await aggregate_status(_dead, base_url=base_url)
+            payload = await aggregate_status(_dead, base_url=_eff_base)
         else:
-            payload = await aggregate_status(_make_httpx_fetcher(client, base_url), base_url=base_url)
+            payload = await aggregate_status(_make_httpx_fetcher(client, _eff_base), base_url=_eff_base)
         # Stamp freshness + store the REAL aggregate for the brief TTL window.
         if isinstance(payload, dict):
             payload = {**payload, "cached_at": _now(), "cache_ttl_s": STATUS_CACHE_TTL}
