@@ -46,6 +46,23 @@ for SZL Khipu receipts, backed by the SZLHOLDINGS **Cosign** keypair.
 #                Public key is embedded in COSIGN_PUBLIC_PEM for offline verification.
 # PAE spec:      DSSEv1 SP LEN(type) SP type SP LEN(body) SP body
 # ---------------------------------------------------------------------------
+# INTEROP NOTE — relationship to the shared `szl-receipt` lib (v0.1.0):
+#   szl_dsse and szl-receipt share the SAME crypto primitive end-to-end —
+#   DSSEv1 PAE, ECDSA-P256 over SHA-256, sorted-key canonical JSON — so the
+#   "one signing flag" doctrine already holds at the ALGORITHM level. They are
+#   intentionally NOT merged because they differ at the schema/key-model level:
+#     - payloadType: this module pins "application/vnd.szl.khipu+json" and a
+#       signatures[] array with keyid; szl-receipt uses a single `signature`
+#       field + organ/digest/algo and "application/vnd.szl.receipt+json".
+#     - key model: this module is bound to the published SZLHOLDINGS *Cosign*
+#       keypair (cosign.pub) so receipts stay verifiable by `cosign verify-blob`
+#       and Rekor; szl-receipt uses configurable/ephemeral keys.
+#   Swapping to szl-receipt would change the on-the-wire receipt format and
+#   break cosign/Rekor verification of existing Khipu receipts. Decision:
+#   KEEP szl_dsse as the canonical cosign/Rekor-backed Khipu signer; the shared
+#   lib remains canonical for non-Khipu organ receipts. Duplication is the
+#   PAE/sign/verify helpers (~3 small fns), documented rather than force-merged.
+# ---------------------------------------------------------------------------
 from __future__ import annotations
 
 import base64
