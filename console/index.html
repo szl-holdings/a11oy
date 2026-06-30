@@ -219,6 +219,7 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="gates" onclick="go('gates')"><span class="ico">⊠</span>Safety Gates</div>
     <div class="nav-item" data-view="feed" onclick="go('feed')"><span class="ico">∿</span>Live Decisions</div>
     <div class="nav-item" data-view="govern" onclick="go('govern')"><span class="ico">✓</span>Readiness &amp; Compliance</div>
+    <div class="nav-item" data-view="chat" onclick="go('chat')"><span class="ico">✦</span>Governed AI Chat</div>
     <div class="nav-item" data-view="forecast" onclick="go('forecast')"><span class="ico">↗</span>Forecast</div>
     <div class="nav-group">Prove &amp; Verify</div>
     <div class="nav-item" data-view="receipts" onclick="go('receipts')"><span class="ico">⎙</span>Signed Receipts</div>
@@ -892,6 +893,34 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       }catch(e2){setHTML('ex-wave910-rows',`<div class="row mono dim">proven/index unavailable: ${esc(e2.message)}</div>`);}
     }},
 
+  // ==========================================================================
+  // Governed AI Chat — wake-ai-chat-surface (Dev: Stephen Lutar 2026-06-30)
+  // Calls POST /api/a11oy/v1/govern/infer; renders answer, Λ advisory, receipt.
+  // Doctrine: Λ = Conjecture 1 (advisory, NOT a theorem). LIVE sovereign mesh.
+  // ==========================================================================
+  chat:{title:'Governed AI Chat',badge:'LIVE \u00b7 SOVEREIGN MESH \u00b7 \u039b=Conjecture 1',sub:'Conversational governed-AI wired to the live sovereign mesh (POST /api/a11oy/v1/govern/infer). Every turn is gate-checked, \u039b-scored, and returns a signed Khipu receipt. Answer returned only on decision=allow. \u039b is Conjecture 1 \u2014 advisory, not a theorem.',
+    render:(c)=>{c.innerHTML=`
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-h"><span class="card-t">Governed AI Chat</span><span class="card-ep">sovereign mesh \u00b7 \u039b = Conjecture 1</span></div>
+        <div style="margin-bottom:.7rem">
+          <div class="row mono dim" style="font-size:10.5px;margin-bottom:.5rem">Prompt is gated, \u039b-scored, and returned only on decision=allow. Khipu receipt on every turn.</div>
+          <textarea id="chat-prompt" rows="3" spellcheck="false" style="width:100%;background:#111;border:1px solid rgba(201,183,135,0.22);border-radius:8px;padding:.6rem .8rem;color:var(--cream);font-family:var(--mono);font-size:13px;resize:vertical" placeholder="Ask the governed AI a question\u2026">What does the governed-inference stack at a11oy do?</textarea>
+          <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center">
+            <button class="btn teal" id="chat-run" onclick="chat_send()">&#9654; Send governed turn</button>
+            <span id="chat-status" class="mono dim" style="font-size:11px"></span>
+          </div>
+        </div>
+        <pre class="out" id="chat-out" style="min-height:80px">&#8212; send a prompt to run it through the live governance stack &#8212;</pre>
+      </div>
+      <div class="card" id="chat-receipt-card" style="display:none">
+        <div class="card-h"><span class="card-t">Last turn receipt</span><span class="card-ep">Khipu hash-chain \u00b7 signed when cosign key present</span></div>
+        <div class="row mono dim" id="chat-lambda" style="font-size:11px">&#8212;</div>
+        <div class="row mono dim" id="chat-engine" style="font-size:11px">&#8212;</div>
+        <div class="row mono dim" id="chat-gates" style="font-size:11px">&#8212;</div>
+        <pre class="out" id="chat-receipt" style="font-size:10.5px;max-height:180px;overflow:auto">&#8212;</pre>
+      </div>
+      <div class="honesty"><b>Honesty (doctrine v11 LOCKED).</b> \u039b = Conjecture 1 \u2014 advisory floor, NOT a closed theorem. Answer returned only when decision == allow; on review/deny the governance verdict and receipt are returned with no answer. Energy labeled MEASURED only when NVML meter is live; otherwise UNAVAILABLE \u2014 never fabricated. Receipt chain is hash-linked; DSSE_PLACEHOLDER when cosign key is absent. Sovereign GPU 1 (laptop \u00b7 RTX 5050 \u00b7 Blackwell) is the live engine as of 2026-06-30; GPU 2 (tower \u00b7 RTX 4060 Ti) is offline.</div>
+    `;}},
 };
 
 // ============ HANDLERS ============
@@ -904,6 +933,54 @@ async function act_do(action){try{setOut('o-act','emitting\u2026');const d=await
 async function ask_recs(){try{const d=await orgGet('core','/api/a11oy/v1/operator/recommend');const cnt=d.counts||{};doughnut('ask-rec',['critical','warn','info','ok'],[cnt.critical||0,cnt.warn||0,cnt.info||0,cnt.ok||0],['#b06a5a',GOLD,TEAL,'#5a8a6e']);
   setHTML('ask-rec-list','');(d.recommendations||[]).forEach(r=>addHTML('ask-rec-list',`<div class="row"><span class="badge ${r.severity==='critical'?'b-err':(r.severity==='warn'?'b-gold':'b-teal')}">${esc(r.severity)}</span><span>${esc(r.organ||'')}: ${esc(r.finding||'')}</span></div>`));
   if(!(d.recommendations||[]).length)setHTML('ask-rec-list','<div class="row mono dim">no findings \u2014 all clear</div>');}catch(e){setHTML('ask-rec-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+
+// Governed AI Chat handler (wake-ai-chat-surface 2026-06-30)
+async function chat_send(){
+  const prompt=(document.getElementById('chat-prompt')||{}).value||'';
+  if(!prompt.trim()){return;}
+  const btn=document.getElementById('chat-run');
+  const st=document.getElementById('chat-status');
+  const out=document.getElementById('chat-out');
+  if(btn)btn.disabled=true;
+  if(st)st.textContent='governing\u2026';
+  if(out)out.textContent='governing on sovereign mesh\u2026';
+  try{
+    const resp=await fetch('/api/a11oy/v1/govern/infer',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt,vertical:'general',declared:'PUBLIC'})
+    });
+    const d=resp.ok?await resp.json():{decision:'error',answer:'HTTP '+resp.status};
+    const g=d.governance||{};
+    const lbl=g.lambda_label||('\u039b='+((g.lambda||0).toFixed?g.lambda.toFixed(2):g.lambda)+' [Conjecture 1 \u2014 advisory]');
+    const eng=d.served_by||'engine unavailable';
+    const decision=d.decision||'unknown';
+    const gates=(g.gates||[]).map(gt=>gt.gate+':'+(gt.decision||gt.fired)).join(' | ')||'none';
+    const energy=(d.energy||{});
+    const joules=energy.label==='MEASURED'?('joules='+energy.joules+' MEASURED'):'energy=UNAVAILABLE';
+    const receipt=d.receipt||{};
+    if(decision==='allow'){
+      if(out)out.textContent='ANSWER [decision=allow \u00b7 '+eng+']\n\n'+(d.answer||'(empty answer)');
+    }else{
+      if(out)out.textContent='GOVERNANCE HOLD [decision='+decision+']\nGovernance gate blocked this turn. No answer returned (doctrine: the half-state is the only unacceptable outcome).';
+    }
+    const rcCard=document.getElementById('chat-receipt-card');
+    if(rcCard)rcCard.style.display='';
+    const lambdaEl=document.getElementById('chat-lambda');
+    if(lambdaEl)lambdaEl.textContent=lbl;
+    const engineEl=document.getElementById('chat-engine');
+    if(engineEl)engineEl.textContent='engine: '+eng+' \u00b7 '+joules;
+    const gatesEl=document.getElementById('chat-gates');
+    if(gatesEl)gatesEl.textContent='gates: '+gates;
+    const rcEl=document.getElementById('chat-receipt');
+    if(rcEl)rcEl.textContent=JSON.stringify({seq:receipt.seq,digest:(receipt.digest||'').slice(0,16)+'\u2026',chain_verified:receipt.chain_verified,signed:!!(receipt.signature&&receipt.signature!=='DSSE_PLACEHOLDER')},null,2);
+    if(st)st.textContent='done \u00b7 decision='+decision;
+  }catch(e){
+    if(out)out.textContent='error: '+e.message;
+    if(st)st.textContent='error';
+  }
+  if(btn)btn.disabled=false;
+}
 
 // Demo / Warhacker (a11oy)
 async function wh_one(key,out){try{setOut(out,'launching\u2026');const d=await postJSON(API+'/v1/warhacker/launch/'+key,{});const o=d.organ_response||{};setOut(out,'service: '+esc(d.organ)+'  status: '+esc(o.status)+'  http: '+esc(o.http_code)+'\n'+JSON.stringify(o.json||o,null,2).slice(0,900));}catch(e){setOut(out,'retry: '+e.message);}}
