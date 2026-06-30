@@ -10513,6 +10513,42 @@ except Exception as _wirea_e:
 # ============================================================================
 
 # ============================================================================
+# Canonical honest 4-tier formula registry (LOCKED-PROVEN truthful labels +
+# SEMANTIC-VERIFIED tier + CONJECTURE gray). Single source of truth for what
+# each Lean obligation ACTUALLY proves; replaces the historical overclaiming
+# console copy. Per-file COPY in Dockerfile (no COPY . .). Λ = Conjecture 1.
+# ============================================================================
+try:
+    import a11oy_formula_tiers as _ftiers_mod
+    import sys as _ftiers_sys
+    _ftiers_status = _ftiers_mod.register(app)
+    print(f"[a11oy] formula-tiers registered ({len(_ftiers_status)} routes): {_ftiers_status}", file=_ftiers_sys.stderr)
+    _A11OY_FTIERS_DIAG = {"status": "ok", "routes": _ftiers_status}
+except Exception as _ftiers_e:
+    import sys as _ftiers_sys, traceback as _ftiers_tb
+    print(f"[a11oy] formula-tiers FAILED (non-fatal): {_ftiers_e!r}", file=_ftiers_sys.stderr)
+    _ftiers_tb.print_exc(file=_ftiers_sys.stderr)
+    _A11OY_FTIERS_DIAG = {"status": "FAILED", "error": repr(_ftiers_e)}
+
+# ============================================================================
+# Canonical host: a11oy.com. a11oy.net is SUNSET — app-level 301 redirect so the
+# public URL converges on a11oy.com. Read-path-safe (pure Location response, no
+# receipt, no signing). Registered before uvicorn.run so the middleware stack is
+# built with it; passes through the HF Space host + localhost untouched.
+# ============================================================================
+try:
+    import a11oy_canonical_domain as _canon_mod
+    import sys as _canon_sys
+    _canon_status = _canon_mod.register(app)
+    print(f"[a11oy] canonical-domain registered ({len(_canon_status)} redirects): {_canon_status}", file=_canon_sys.stderr)
+    _A11OY_CANON_DIAG = {"status": "ok", "redirects": _canon_status}
+except Exception as _canon_e:
+    import sys as _canon_sys, traceback as _canon_tb
+    print(f"[a11oy] canonical-domain FAILED (non-fatal): {_canon_e!r}", file=_canon_sys.stderr)
+    _canon_tb.print_exc(file=_canon_sys.stderr)
+    _A11OY_CANON_DIAG = {"status": "FAILED", "error": repr(_canon_e)}
+
+# ============================================================================
 # SOVEREIGN COMPUTE single-pane (#320): ADDITIVE, pure-stdlib, try/except-guarded.
 # Honest single-pane readiness for the sovereign-AI substrate — each capability
 # tier (LIVE-SOVEREIGN / LIVE-MANAGED / HONEST-STUB / ROADMAP) is derived from a

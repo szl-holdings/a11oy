@@ -401,12 +401,12 @@ def register(app):
 
     # ---- SQLite FTS5 search over an in-image governance corpus -------------------------
     _FTS_CORPUS = [
-        ("F1", "soundness gate-pass implies Λ ≥ 0.90 conjunctive soundness locked-proven"),
-        ("F11", "STL signal temporal logic robustness rho envelope geofence gates locked-proven"),
-        ("F12", "monotone policy gate deny-by-default monotonicity locked-proven"),
-        ("F18", "DSSE seal receipt signature binds canonical payload tamper-evident locked-proven"),
-        ("F19", "Λ aggregate 13-axis geometric mean trust advisory locked-proven"),
-        ("F23", "Λ uniqueness conditional slice multiplicativity axiom-free conjecture-1 unconditional"),
+        ("F1", "replay-hash determinism identical canonical input yields identical receipt hash locked-proven"),
+        ("F11", "Ayni reciprocity conservation balance over Int locked-proven"),
+        ("F12", "Kuramoto additive phase additivity locked-proven"),
+        ("F18", "Reed-Solomon parity count erasure tolerance arithmetic locked-proven"),
+        ("F19", "Bekenstein additive entropy budget monotonicity locked-proven"),
+        ("Lambda", "13-axis weighted geometric mean advisory floor 0.90 bounds SEMANTIC-VERIFIED uniqueness Conjecture-1 unconditional FALSE Theorem-U conditional"),
         ("organism", "living organism organ topology Reception Operator Provenance-Anchor Policy"),
         ("chain", "receipt hash-chain Khipu DSSE ledger locked-8 aggregate"),
         ("threat", "attack surface zero-trust path ingress auth-gate policy-gate egress"),
@@ -462,9 +462,11 @@ def register(app):
             "kind": kind, "p": p, "axes": xs, "variants": variants,
             "am_gm_hm_ordering_holds": ordered,
             "maturity": "Λ = Conjecture 1 (advisory, never a theorem)",
-            "lean": "Lutar/Lambda.lean::lambda_geomean_wellformed (F19, locked-proven well-formedness only)",
-            "honest": "Quasi-arithmetic (Kolmogorov–Nagumo) mean family. Λ generator = geometric (F19). "
-                      "Uniqueness is Conjecture 1 (machine-checked FALSE unconditionally).",
+            "lean": "Bounds SEMANTIC-VERIFIED: Lutar/Bound.lean::Λ_le_max, ::min_le_Λ (0 sorries). "
+                    "Uniqueness conditional: Lutar/Round13/LambdaSeparable.lean::lambda_unique_of_separable (Theorem U). "
+                    "F19 locked-proven theorem = f19_bekenstein_additive (entropy-budget monotonicity, NOT the Λ aggregate).",
+            "honest": "Quasi-arithmetic (Kolmogorov–Nagumo) mean family; canonical Λ = 13-axis weighted geometric mean. "
+                      "Unconditional uniqueness is Conjecture 1 (machine-checked FALSE); Theorem U is the proven conditional.",
             "note": NOTE,
         })
     _front("/api/a11oy/v1/wirea/lambda/panel")
