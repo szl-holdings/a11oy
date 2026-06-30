@@ -58,6 +58,9 @@ DEMO_CRITICAL_ROUTES = [
     "/vs",                                    # investor-WOW deep-link → /console#wowtoggle
     "/compare",                               # investor-WOW deep-link → /console#wowtoggle
     "/demo-cosign.pub",                        # GAP 1 — demo-signing-key public key for /verify (Option B)
+    "/proof",                                  # in-browser Lean 4 proof replay PAGE (Tao-Blueprint graph + live type-check)
+    "/api/a11oy/v1/attest/",                   # prove-our-whole-stack — 6-factor provenance chain for a decision receipt
+    "/attest",                                 # KANCHAY prove-the-stack verifier PAGE
 ]
 
 
