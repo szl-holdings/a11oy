@@ -1,0 +1,81 @@
+name: COPY-Completeness Guard
+
+# Root-cause fix for the recurring "module in repo but not in image → silent 404"
+# pattern documented in DEEP_WIRING_SYNTHESIS.md (hit 4+ times in szl-holdings/a11oy).
+#
+# This guard parses serve.py (+ other entrypoints) for locally-imported root
+# .py modules, then verifies every one appears in the Dockerfile COPY set.
+# It is ADDITIVE to the existing dockerfile-copy-guard (which checks COPY sources
+# exist in the repo). This guard checks the complementary direction: imports
+# exist in the repo AND are present in COPY.
+#
+# Required-style: added to branch-protection required checks (see NOTES below).
+# Runs on every PR + push to main; no external secrets required.
+#
+# NOTES FOR BRANCH PROTECTION
+# ----------------------------
+# Add "COPY completeness / import-vs-copy check" to the required status checks
+# list in GitHub → Settings → Branches → Branch protection rules → main.
+# This makes the guard required (not just advisory).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'serve.py'
+      - 'wayra_serve.py'
+      - 'ayni_os_serve.py'
+      - 'kipu_qillqaq_serve.py'
+      - 'Dockerfile'
+      - '.github/scripts/copy_completeness.py'
+      - '**.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'serve.py'
+      - 'wayra_serve.py'
+      - 'ayni_os_serve.py'
+      - 'kipu_qillqaq_serve.py'
+      - 'Dockerfile'
+      - '.github/scripts/copy_completeness.py'
+      - '**.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  import-vs-copy:
+    name: COPY completeness / import-vs-copy check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Run COPY-completeness guard
+        run: |
+          python3 .github/scripts/copy_completeness.py \
+            --dockerfile Dockerfile \
+            --root . \
+            --entrypoints serve.py wayra_serve.py ayni_os_serve.py kipu_qillqaq_serve.py
+        # Exit 1 = missing modules detected → fails the build.
+        # Exit 0 = all locally-imported root modules are present in COPY.
+
+      - name: Run built-in self-test (guard catches deliberate omission)
+        # This verifies the guard itself has no false-negative blind spots.
+        # Creates a synthetic dummy module, checks the guard flags it as missing,
+        # then cleans up. Must PASS (exit 0) for the CI step to pass.
+        run: |
+          python3 .github/scripts/copy_completeness.py \
+            --dockerfile Dockerfile \
+            --root . \
+            --missing-test
