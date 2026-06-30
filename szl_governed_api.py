@@ -446,6 +446,43 @@ def govern_infer(prompt: str, *, vertical: str = "general",
             print(f"[a11oy] in-toto attestation skipped (non-fatal): {_it_e!r}",
                   file=_it_sys.stderr)
 
+
+    # ── SCITT AGENT ACTION CAPSULE ───────────────────────────────────────────
+    # Build a SCITT Agent Action Capsule per draft-mih-scitt-agent-action-capsule-01.
+    # ADDITIVE: does NOT replace DSSE + in-toto formats. Appends scitt_capsule
+    # alongside existing receipt formats.
+    # CRITICAL DOCTRINE: BLOCK verdicts MUST produce a capsule (the whole point —
+    # refusals are signed too). We do NOT gate capsule production on decision==allow.
+    # Fully guarded — ANY failure is non-fatal; the governed turn always returns.
+    _scitt_capsule = None
+    try:
+        import szl_scitt as _szl_scitt
+        import hashlib as _sc_hashlib
+        _prompt_hash = _sc_hashlib.sha3_256(
+            (prompt or "").encode("utf-8")
+        ).hexdigest()
+        _output_hash = (
+            _sc_hashlib.sha3_256(
+                (answer or "").encode("utf-8")
+            ).hexdigest()
+            if answer else None
+        )
+        _gates = list((_pub_gov(g, cb) or {}).get("gates", {}).keys()) if g else []
+        _model_id = served_by or "unknown"
+        _receipt_id = (g.get("receipt") or {}).get("receipt_id", "") if g else ""
+        _scitt_capsule = _szl_scitt.build_and_store_capsule(
+            prompt_hash=_prompt_hash,
+            model_id=_model_id,
+            verdict=decision,
+            gates=_gates,
+            output_hash=_output_hash,
+            extra={"receipt_id": _receipt_id, "organ": "a11oy"},
+        )
+    except Exception as _sc_e:
+        import sys as _sc_sys
+        print(f"[a11oy] SCITT capsule skipped (non-fatal): {_sc_e!r}",
+              file=_sc_sys.stderr)
+
     return {
         "decision": decision,
         "answer": answer,
@@ -455,6 +492,7 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         "dsse": g.get("dsse"),
         "intoto_statement": _intoto_statement,
         "intoto_transparency": _intoto_transparency,
+        "scitt_capsule": _scitt_capsule,
         "generation": gen_meta or None,
         "energy": energy,
         "honesty": honesty,
@@ -636,6 +674,20 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
     for path, fn, methods in paths:
         app.router.routes.insert(0, Route(path, fn, methods=methods))
         registered.append(path)
+
+    # ── SCITT TRANSPARENCY ENDPOINTS ────────────────────────────────────────
+    # Register GET /api/a11oy/v1/scitt/capsule/<id> and
+    #         GET /api/a11oy/v1/scitt/transparency
+    # Fully guarded — absent szl_scitt is non-fatal.
+    try:
+        import szl_scitt as _szl_scitt_reg
+        _scitt_reg = _szl_scitt_reg.register(app, ns=ns)
+        registered.extend(_scitt_reg.get("registered", []))
+    except Exception as _scitt_reg_e:
+        import sys as _scitt_sys
+        print(f"[a11oy] SCITT route registration skipped (non-fatal): {_scitt_reg_e!r}",
+              file=_scitt_sys.stderr)
+
     return {"registered": registered, "status": "ok"}
 
 
