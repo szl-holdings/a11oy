@@ -10531,8 +10531,8 @@ except Exception as _ftiers_e:
     _A11OY_FTIERS_DIAG = {"status": "FAILED", "error": repr(_ftiers_e)}
 
 # ============================================================================
-# Canonical host: a11oy.com. a11oy.net is SUNSET — app-level 301 redirect so the
-# public URL converges on a11oy.com. Read-path-safe (pure Location response, no
+# Canonical host: a-11-oy.com. a11oy.net is SUNSET — app-level 301 redirect so the
+# public URL converges on a-11-oy.com. Read-path-safe (pure Location response, no
 # receipt, no signing). Registered before uvicorn.run so the middleware stack is
 # built with it; passes through the HF Space host + localhost untouched.
 # ============================================================================
