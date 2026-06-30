@@ -8825,6 +8825,25 @@ async def status_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# /proof — In-browser Lean 4 proof replay ("See the math"). web/proof.html is a
+# self-contained KANCHAY page: a Tao-Blueprint-style dependency graph (Cytoscape +
+# Dagre, vendored at /vendor/*) over SZL's REAL formal core. Each green node carries
+# verbatim Lean 4 source from the lutar-lean repo; the locked-8 formula snippets are
+# Mathlib-free / self-contained and type-check LIVE in the official Lean 4 web kernel
+# (live.lean-lang.org, opened with the source preloaded via #code=). Honest by design:
+# Theorem U = PROVEN but CONDITIONAL + axiom-free (green); Λ-uniqueness = Conjecture 1
+# = OPEN, machine-checked FALSE under A1–A5 (gray, preloads the real `sorry`); Khipu
+# BFT = Conjecture 2 (gray). 0 runtime CDN (KaTeX/Cytoscape/Dagre vendored). Registered
+# BEFORE the SPA /{full_path:path} catch-all so it wins the ordered match.
+# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+@app.get("/proof")
+async def proof_replay_page() -> Response:
+    f = Path("/app/web/proof.html")
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/chaski")
 async def chaski_page() -> Response:
     f = PAGES_DIR / "chaski.html"
