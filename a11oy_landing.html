@@ -1,11 +1,17 @@
 <!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
 <!--
-  a11oy — investor front door (holographic landing). Served at the Space root "/" by serve.py.
+  a11oy — front door (scroll narrative). Served at the Space root "/" by serve.py.
   SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
-  HONESTY DOCTRINE v11 LOCKED — every figure on this page is fetched live and labelled
-  honestly (LIVE / DOWN / empty-state). Nothing is fabricated. Λ = Conjecture 1 (advisory,
-  NOT a theorem, never 1.0). locked-proven kernel = EXACTLY 8. Receipts are signed on write,
-  never on GET. Every claim deep-links a live surface a visitor can open and check.
+  Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.
+  HONESTY DOCTRINE v11 LOCKED — every figure is fetched live and labelled honestly
+  (LIVE / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
+  never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
+  The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
+  Receipts are signed on write, never on GET. Every claim deep-links a live surface to check.
+  DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
+  preserved verbatim below. KANCHAY palette. No purple. No a11oy.net.
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
 <html lang="en">
@@ -13,215 +19,235 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>a11oy — Governed Inference · AI that signs its work and refuses to lie</title>
-<meta name="description" content="Governed Inference: AI that signs its work and refuses to lie. Every answer arrives with a signed receipt you can verify yourself — offline, in your own browser. When the model is not sure, it refuses rather than guesses. 8 Lean-proven theorems back the kernel." />
+<meta name="description" content="Governed Inference: AI that signs its work and refuses to lie. Every answer arrives with a signed receipt you can verify yourself — offline, in your own browser. When the model is not sure, it refuses rather than guesses. 8 Lean-proven theorems back the kernel; a 144-entry genome is graded across 4 honest tiers." />
 <link rel="icon" href="/social-preview.svg" />
 <style>
+  /* ---- vendored fonts (0 CDN; served from /vendor/fonts/*.woff2 by serve.py) ---- */
+  @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;
+    font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 600;
+    font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2')}
+
   :root{
-    /* PALETTE (2026-06-30 elegant dark refresh)
-       Anthropic/NVIDIA-grade: deep near-black canvas, ONE restrained teal accent,
-       violet as secondary. Accent glows softly — never floods. */
-    --bg:#05070d; --deep:#070b16; --surface:#0d1220; --border:#1e2d46;
-    --teal:#2ec4b6;       /* restrained teal — was #39d8c8 (too bright/saturated) */
-    --teal-soft:rgba(46,196,182,0.12);
-    --teal-dim:rgba(46,196,182,0.06);
-    --violet:#5a6de8;     /* muted violet — was #6a7bff */
-    --gold:#cda64a;
-    --ink:#eaf1f7;        /* near-white hero text */
-    --sub:#b8c4d6;        /* body copy — WCAG AA on dark bg */
-    --ghost:#64768f;
-    --ok:#2ec4b6; --warn:#cda64a; --down:#e06a6a;
+    /* KANCHAY palette (canonical, org-wide — RECONCILE.md). Purple is BANNED. */
+    --void:#080c14;            /* deep near-black ground */
+    --deep:#0a1019;            /* raised ground */
+    --surface:#0e1626;         /* card surface */
+    --border:#1c2942;          /* hairline */
+    --proof:#3af4c8;           /* proof teal — the one bright accent */
+    --proof-soft:rgba(58,244,200,0.12);
+    --proof-dim:rgba(58,244,200,0.06);
+    --lattice:#5b8dee;         /* lattice blue — secondary (NOT purple) */
+    --lattice-soft:rgba(91,141,238,0.12);
+    --gold:#d7b96b;            /* warm accent / conjecture-adjacent */
+    --ink:#eef4fb;             /* near-white heading */
+    --sub:#aebccf;             /* body copy — WCAG AA on --void */
+    --ghost:#65788f;           /* muted labels */
+    --gray:#7d8aa0;            /* CONJECTURE / advisory — never green */
+    --ok:#3af4c8; --warn:#d7b96b; --down:#e8746e;
     --r:16px; --maxw:1180px;
-    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --head:'Space Grotesk',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   body{
-    /* Deep near-black base — NO more bright radial gradients that wash the page */
     background:
-      radial-gradient(ellipse 900px 500px at 75% -5%, #0c1530 0%, transparent 55%),
-      radial-gradient(ellipse 700px 400px at 5% 15%,  #090e1e 0%, transparent 50%),
-      var(--bg);
-    color:var(--ink); font-family:var(--sans); line-height:1.55;
+      radial-gradient(ellipse 900px 520px at 76% -6%, #0d1730 0%, transparent 55%),
+      radial-gradient(ellipse 720px 420px at 4% 12%,  #0a1322 0%, transparent 50%),
+      var(--void);
+    color:var(--ink); font-family:var(--sans); line-height:1.58;
     -webkit-font-smoothing:antialiased; overflow-x:hidden;
   }
   a{color:inherit;text-decoration:none}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
   .mono{font-family:var(--mono)}
+  h1,h2,h3,.brand{font-family:var(--head)}
 
   /* ---- nav ---- */
   header.nav{position:sticky;top:0;z-index:40;
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    background:linear-gradient(180deg,rgba(5,7,13,0.94),rgba(5,7,13,0.78));
+    background:linear-gradient(180deg,rgba(8,12,20,0.94),rgba(8,12,20,0.74));
     border-bottom:1px solid var(--border)}
   .nav .wrap{display:flex;align-items:center;gap:18px;height:64px}
   .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
   .brand svg{display:block}
-  .brand .sub{color:var(--ghost);font-weight:500;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+  .brand .sub{color:var(--ghost);font-weight:500;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-family:var(--sans)}
   .nav nav{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .nav nav a{padding:8px 13px;border-radius:10px;color:var(--sub);font-size:14px;font-weight:500;transition:.15s}
   .nav nav a:hover{color:var(--ink);background:rgba(255,255,255,0.06)}
+  @media(max-width:680px){.nav nav a.hide-sm{display:none}}
 
-  /* Buttons — elegant, not loud */
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:9px;
+  /* ---- buttons ---- */
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 21px;border-radius:9px;
     font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
     transition:all .18s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;letter-spacing:.01em}
-  /* Primary: solid teal with dark text — confident, not gradient-gaudy */
-  .btn-primary{
-    background:var(--teal);color:#03201d;border-color:var(--teal);
-    box-shadow:0 0 0 0 rgba(46,196,182,0.0)}
-  .btn-primary:hover{
-    background:#38d4c7;border-color:#38d4c7;
-    box-shadow:0 4px 20px -4px rgba(46,196,182,0.35);
-    transform:translateY(-1px)}
-  /* Ghost: refined outline */
+  .btn-primary{background:var(--proof);color:#03201b;border-color:var(--proof)}
+  .btn-primary:hover{background:#5ff7d4;border-color:#5ff7d4;
+    box-shadow:0 4px 22px -4px rgba(58,244,200,0.4);transform:translateY(-1px)}
   .btn-ghost{border-color:var(--border);color:var(--sub);background:rgba(255,255,255,0.04)}
-  .btn-ghost:hover{border-color:rgba(46,196,182,0.5);color:var(--teal);background:var(--teal-dim)}
-  /* Violet CTA */
-  .btn-violet{
-    background:var(--violet);color:#fff;border-color:var(--violet);
-    box-shadow:0 0 0 0 rgba(90,109,232,0.0)}
-  .btn-violet:hover{
-    background:#6b7ff0;border-color:#6b7ff0;
-    box-shadow:0 4px 20px -4px rgba(90,109,232,0.35);
-    transform:translateY(-1px)}
+  .btn-ghost:hover{border-color:rgba(58,244,200,0.5);color:var(--proof);background:var(--proof-dim)}
+  .btn-lattice{background:var(--lattice);color:#06122b;border-color:var(--lattice)}
+  .btn-lattice:hover{background:#76a1f2;border-color:#76a1f2;
+    box-shadow:0 4px 22px -4px rgba(91,141,238,0.4);transform:translateY(-1px)}
 
-  /* ---- hero ---- */
-  .hero{position:relative;min-height:90vh;display:flex;align-items:center;overflow:hidden}
-
-  /* Canvas sits at z-index:0 — renders the holographic mesh */
+  /* ---- hero (canvas owned by Dev 2 — markup preserved) ---- */
+  .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
   #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
-
-  /* DARK SCRIM: sits BETWEEN canvas (z:0) and text (z:2).
-     Ensures the deep near-black dominates even on devices where the canvas is bright.
-     On mobile especially this guarantees legibility regardless of WebGL rendering. */
-  .hero-scrim{
-    position:absolute;inset:0;z-index:1;pointer-events:none;
-    /* Radial: keep the glowing core visible at centre-right, crush edges to near-black */
+  .hero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
     background:
-      radial-gradient(ellipse 65% 70% at 68% 50%, transparent 0%, rgba(5,7,13,0.55) 55%, rgba(5,7,13,0.88) 100%),
-      /* Left half where text lives: very dark */
-      linear-gradient(to right, rgba(5,7,13,0.82) 0%, rgba(5,7,13,0.50) 45%, rgba(5,7,13,0.15) 100%)
-  }
-
+      radial-gradient(ellipse 65% 70% at 68% 50%, transparent 0%, rgba(8,12,20,0.55) 55%, rgba(8,12,20,0.9) 100%),
+      linear-gradient(to right, rgba(8,12,20,0.84) 0%, rgba(8,12,20,0.5) 45%, rgba(8,12,20,0.14) 100%)}
   .hero-fallback{position:absolute;inset:0;z-index:0;display:none;
-    background:radial-gradient(600px 600px at 65% 45%, rgba(46,196,182,0.06), transparent 70%)}
-  .hero .wrap{position:relative;z-index:2;padding-top:48px;padding-bottom:48px}
-  .hero-inner{max-width:720px}
-
-  /* Eyebrow pill — subtle, not a glowing mint slab */
+    background:radial-gradient(600px 600px at 65% 45%, rgba(58,244,200,0.07), transparent 70%)}
+  .hero .wrap{position:relative;z-index:2;padding-top:54px;padding-bottom:54px}
+  .hero-inner{max-width:740px}
   .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 14px;border-radius:999px;
-    border:1px solid rgba(46,196,182,0.22);background:rgba(46,196,182,0.06);color:var(--teal);
+    border:1px solid rgba(58,244,200,0.24);background:rgba(58,244,200,0.06);color:var(--proof);
     font-size:12.5px;font-weight:600;letter-spacing:.4px;margin-bottom:22px}
-  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);
-    box-shadow:0 0 0 0 var(--teal);animation:pulse 2.4s infinite}
-  @keyframes pulse{
-    0%  {box-shadow:0 0 0 0 rgba(46,196,182,0.6)}
-    70% {box-shadow:0 0 0 8px rgba(46,196,182,0.0)}
-    100%{box-shadow:0 0 0 0 rgba(46,196,182,0.0)}
-  }
-
-  /* Hero h1: near-white for plain words, accent ONLY on "signs its work" */
-  h1.title{
-    font-size:clamp(2.4rem,5.8vw,4.2rem);line-height:1.04;margin:0 0 18px;
-    font-weight:760;letter-spacing:-1.5px;
-    color:var(--ink);   /* #eaf1f7 — high-contrast near-white */
-    /* Subtle text shadow to punch through any residual canvas glow */
-    text-shadow:0 2px 20px rgba(5,7,13,0.8),0 1px 4px rgba(5,7,13,0.6)
-  }
-  /* Accent only on the "signs its work" span — teal/violet gradient */
-  h1.title .grad{
-    background:linear-gradient(110deg, var(--teal) 0%, #7b8ff5 100%);
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--proof);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(58,244,200,0.6)}70%{box-shadow:0 0 0 8px rgba(58,244,200,0)}100%{box-shadow:0 0 0 0 rgba(58,244,200,0)}}
+  @media(prefers-reduced-motion:reduce){.eyebrow .dot{animation:none}}
+  h1.title{font-size:clamp(2.4rem,5.8vw,4.3rem);line-height:1.03;margin:0 0 18px;
+    font-weight:700;letter-spacing:-1.6px;color:var(--ink);
+    text-shadow:0 2px 22px rgba(8,12,20,0.8),0 1px 4px rgba(8,12,20,0.6)}
+  h1.title .grad{background:linear-gradient(110deg, var(--proof) 0%, var(--lattice) 100%);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-    /* Filter drop shadow preserves legibility of gradient text */
-    filter:drop-shadow(0 1px 8px rgba(5,7,13,0.7))
-  }
-
-  /* Body: #b8c4d6 — WCAG AA (5.8:1 on #05070d) */
-  .lede{font-size:clamp(1.06rem,2vw,1.24rem);color:var(--sub);max-width:600px;margin:0 0 28px;
-    text-shadow:0 1px 8px rgba(5,7,13,0.5)}
+    filter:drop-shadow(0 1px 8px rgba(8,12,20,0.7))}
+  .lede{font-size:clamp(1.06rem,2vw,1.26rem);color:var(--sub);max-width:610px;margin:0 0 28px;
+    text-shadow:0 1px 8px rgba(8,12,20,0.5)}
   .lede b{color:var(--ink);font-weight:600}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
-
-  /* Hero stats: frosted dark cards */
   .hero-stats{display:flex;gap:14px;flex-wrap:wrap}
   .stat{padding:13px 17px;border-radius:13px;border:1px solid var(--border);
-    background:rgba(255,255,255,0.04);min-width:150px;
+    background:rgba(255,255,255,0.04);min-width:152px;
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-  .stat .k{font-size:1.55rem;font-weight:720;font-family:var(--mono);line-height:1.1;color:var(--ink)}
+  .stat .k{font-size:1.55rem;font-weight:600;font-family:var(--mono);line-height:1.1;color:var(--ink)}
   .stat .l{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
-  .stat .k.teal{color:var(--teal)}
+  .stat .k.proof{color:var(--proof)}
+  .stat .k.gray{color:var(--gray)}
 
   /* ---- generic section ---- */
-  section.band{padding:74px 0;position:relative}
-  .band h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:720;letter-spacing:-.6px;margin:0 0 12px}
-  .band .kick{color:var(--teal);font-weight:600;font-size:13px;letter-spacing:1.6px;text-transform:uppercase;margin:0 0 10px}
-  .band p.intro{color:var(--sub);max-width:700px;font-size:1.05rem;margin:0 0 36px}
+  section.band{padding:88px 0;position:relative}
+  .band h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:700;letter-spacing:-.7px;margin:0 0 14px;line-height:1.1}
+  .band .kick{color:var(--proof);font-weight:600;font-size:13px;letter-spacing:1.7px;text-transform:uppercase;margin:0 0 12px;font-family:var(--mono)}
+  .band p.intro{color:var(--sub);max-width:720px;font-size:1.08rem;margin:0 0 40px}
+  .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
 
   .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:repeat(2,1fr)}
   .g3{grid-template-columns:repeat(3,1fr)}
-  @media(max-width:900px){.g3{grid-template-columns:1fr}}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:980px){.g4{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:900px){.g3{grid-template-columns:1fr}.g2{grid-template-columns:1fr}}
+  @media(max-width:560px){.g4{grid-template-columns:1fr}}
 
   .card{padding:26px;border-radius:var(--r);border:1px solid var(--border);
-    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.018));
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.016));
     position:relative;overflow:hidden;display:flex;flex-direction:column}
   .card::before{content:"";position:absolute;inset:0;border-radius:var(--r);padding:1px;
-    background:linear-gradient(135deg,rgba(46,196,182,0.18),transparent 40%);
+    background:linear-gradient(135deg,rgba(58,244,200,0.18),transparent 42%);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
     -webkit-mask-composite:xor;mask-composite:exclude;opacity:.5;pointer-events:none}
-  .card h3{margin:0 0 8px;font-size:1.18rem;font-weight:700}
+  .card h3{margin:0 0 8px;font-size:1.16rem;font-weight:600}
   .card p{margin:0;color:var(--sub);font-size:.97rem}
-  /* Icon: no filled circle — use outline approach, less "AI template" */
   .card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
-    background:rgba(46,196,182,0.07);border:1px solid rgba(46,196,182,0.18);
-    color:var(--teal);margin-bottom:15px;font-size:19px}
+    background:rgba(58,244,200,0.07);border:1px solid rgba(58,244,200,0.18);
+    color:var(--proof);margin-bottom:15px;font-size:19px}
   .card .golinks{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;padding-top:16px}
-  .card a.go{color:var(--teal);font-family:var(--mono);font-size:12.5px}
+  .card a.go{color:var(--proof);font-family:var(--mono);font-size:12.5px}
   .card a.go:hover{text-decoration:underline}
   .card .num{position:absolute;top:18px;right:22px;font-family:var(--mono);font-size:13px;color:var(--ghost)}
 
-  /* ---- vertical (killinchu) ---- */
-  .vert{padding:34px;border-radius:var(--r);border:1px solid rgba(90,109,232,0.25);
-    background:linear-gradient(135deg,rgba(90,109,232,0.07),rgba(255,255,255,0.02));
-    position:relative;overflow:hidden;
-    display:grid;grid-template-columns:1.3fr .7fr;gap:26px;align-items:center}
-  @media(max-width:840px){.vert{grid-template-columns:1fr}}
-  .vert .pmark{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
-    font-family:var(--mono);font-weight:720;font-size:15px;
-    background:rgba(90,109,232,0.10);border:1px solid rgba(90,109,232,0.28);
-    color:var(--violet);margin-bottom:14px}
-  .vert h3{font-size:1.6rem;font-weight:740;margin:0 0 4px;letter-spacing:-.4px}
-  .vert .tag{font-size:12px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:14px}
-  .vert p{color:var(--sub);margin:0 0 6px;font-size:1.02rem}
-  .vert .feat{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
-  .vert .feat li{display:flex;gap:10px;color:var(--sub);font-size:.96rem;line-height:1.4}
-  .vert .feat li::before{content:"▸";color:var(--violet);flex:0 0 auto;margin-top:1px}
-  .vert .vcta{display:flex;flex-direction:column;gap:10px}
+  /* thesis pillars */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:8px}
+  @media(max-width:840px){.pillars{grid-template-columns:1fr}}
+  .pillar{padding:22px 0;border-top:1px solid var(--border)}
+  .pillar .pk{font-family:var(--mono);font-size:12px;color:var(--proof);letter-spacing:1px;margin-bottom:10px}
+  .pillar h3{margin:0 0 8px;font-size:1.12rem;font-weight:600}
+  .pillar p{margin:0;color:var(--sub);font-size:.96rem}
 
-  /* ---- chips / labels ---- */
+  /* proof tier cards */
+  .tier{padding:24px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015));position:relative;overflow:hidden}
+  .tier .tnum{font-family:var(--mono);font-size:2.6rem;font-weight:600;line-height:1;color:var(--ink)}
+  .tier .tname{font-family:var(--mono);font-size:12px;letter-spacing:.6px;margin:10px 0 8px;font-weight:600}
+  .tier p{margin:0;color:var(--sub);font-size:.92rem}
+  .tier.locked{border-color:rgba(58,244,200,0.4)}   .tier.locked .tnum,.tier.locked .tname{color:var(--proof)}
+  .tier.semantic{border-color:rgba(91,141,238,0.45)} .tier.semantic .tnum,.tier.semantic .tname{color:var(--lattice)}
+  .tier.evidence{border-color:rgba(215,185,107,0.4)} .tier.evidence .tnum,.tier.evidence .tname{color:var(--gold)}
+  /* CONJECTURE: gray, NEVER green */
+  .tier.conjecture{border-color:rgba(125,138,160,0.4)} .tier.conjecture .tnum,.tier.conjecture .tname{color:var(--gray)}
+
+  /* vertical cards */
+  .vcard{padding:24px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015));
+    display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden}
+  .vcard .pmark{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;
+    font-family:var(--mono);font-weight:600;font-size:13px;
+    background:rgba(91,141,238,0.10);border:1px solid rgba(91,141,238,0.28);color:var(--lattice);margin-bottom:10px}
+  .vcard h3{margin:0;font-size:1.18rem;font-weight:600}
+  .vcard .tag{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+  .vcard p{margin:0;color:var(--sub);font-size:.92rem}
+  .vcard .lam{display:flex;align-items:baseline;gap:9px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+  .vcard .lam .val{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--ink)}
+  .vcard .lam .cap{font-size:11px;color:var(--ghost);text-transform:uppercase;letter-spacing:1px}
+
+  /* living body */
+  .body-embed{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);
+    background:radial-gradient(ellipse 70% 80% at 50% 30%, rgba(91,141,238,0.12), transparent 70%), var(--deep);
+    min-height:380px;display:grid;place-items:center;text-align:center}
+  .body-embed .poster{padding:40px 24px;max-width:560px}
+  .body-embed .poster h3{font-size:1.5rem;font-weight:600;margin:0 0 10px}
+  .body-embed .poster p{color:var(--sub);margin:0 0 22px}
+  .body-embed iframe{width:100%;height:560px;border:0;display:block}
+  .body-embed .pulse-ring{width:90px;height:90px;border-radius:50%;margin:0 auto 22px;
+    border:2px solid rgba(58,244,200,0.5);position:relative}
+  .body-embed .pulse-ring::after{content:"";position:absolute;inset:18px;border-radius:50%;
+    background:var(--proof);opacity:.85;animation:bpulse 2.6s ease-out infinite}
+  @keyframes bpulse{0%{transform:scale(.7);opacity:.85}70%{transform:scale(1.25);opacity:0}100%{opacity:0}}
+  @media(prefers-reduced-motion:reduce){.body-embed .pulse-ring::after{animation:none}}
+
+  /* one chain */
+  .chainrow{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  @media(max-width:860px){.chainrow{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.chainrow{grid-template-columns:1fr}}
+  .cstat{padding:22px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))}
+  .cstat .ck{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--proof);word-break:break-all;line-height:1.15}
+  .cstat .cl{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:6px}
+  .cstat .ck.ink{color:var(--ink);font-size:1.05rem}
+
+  /* trust CTA */
+  .trustcta{padding:48px 40px;border-radius:20px;border:1px solid rgba(58,244,200,0.3);
+    background:radial-gradient(ellipse 80% 120% at 0% 0%, rgba(58,244,200,0.1), transparent 60%),
+      linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));
+    display:flex;align-items:center;justify-content:space-between;gap:30px;flex-wrap:wrap}
+  .trustcta h2{margin:0 0 8px}
+  .trustcta p{margin:0;color:var(--sub);max-width:560px}
+  .trustcta .tcbtns{display:flex;gap:12px;flex-wrap:wrap}
+
+  /* chips */
   .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
     font-size:12px;font-weight:600;font-family:var(--mono);border:1px solid var(--border)}
   .chip .dot{width:8px;height:8px;border-radius:50%}
-  .chip.live{color:var(--ok);border-color:rgba(46,196,182,0.35);background:rgba(46,196,182,0.06)}
+  .chip.live{color:var(--ok);border-color:rgba(58,244,200,0.35);background:rgba(58,244,200,0.06)}
   .chip.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
-  .chip.down{color:var(--down);border-color:rgba(224,106,106,0.35);background:rgba(224,106,106,0.06)}
+  .chip.down{color:var(--down);border-color:rgba(232,116,110,0.35);background:rgba(232,116,110,0.06)}
   .chip.down .dot{background:var(--down)}
+  .chip.gray{color:var(--gray);border-color:rgba(125,138,160,0.35);background:rgba(125,138,160,0.06)}
+  .chip.gray .dot{background:var(--gray)}
+  .pass-chip{font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px}
 
-  /* ---- evidence band ---- */
-  .evidence{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
-    padding:26px 30px;border-radius:var(--r);border:1px solid var(--border);
-    background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))}
-  .evidence .et{max-width:640px}
-  .evidence h3{margin:0 0 6px;font-size:1.15rem;font-weight:700}
-  .evidence p{margin:0;color:var(--sub);font-size:.97rem}
-  .evidence .ecta{display:flex;gap:12px;flex-wrap:wrap}
-
-  /* ---- footer ---- */
-  footer{border-top:1px solid var(--border);padding:46px 0 60px;color:var(--ghost);font-size:13.5px}
+  /* footer */
+  footer{border-top:1px solid var(--border);padding:48px 0 64px;color:var(--ghost);font-size:13.5px}
   footer .cols{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
-  footer a{color:var(--sub)}footer a:hover{color:var(--teal)}
+  footer a{color:var(--sub)}footer a:hover{color:var(--proof)}
   footer .lk{display:flex;flex-direction:column;gap:8px}
-  .disc{margin-top:32px;padding-top:22px;border-top:1px solid var(--border);max-width:820px;line-height:1.6}
+  .disc{margin-top:32px;padding-top:22px;border-top:1px solid var(--border);max-width:860px;line-height:1.65}
   .muted{color:var(--ghost)}
   .skel{color:var(--ghost);font-family:var(--mono)}
 </style>
@@ -234,7 +260,7 @@
     <a class="brand" href="/" aria-label="a11oy home">
       <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
         <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#2ec4b6"/><stop offset="1" stop-color="#5a6de8"/></linearGradient></defs>
+          <stop offset="0" stop-color="#3af4c8"/><stop offset="1" stop-color="#5b8dee"/></linearGradient></defs>
         <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
         <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
         <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
@@ -242,18 +268,18 @@
       <span>a11oy<span class="sub" style="margin-left:9px">Governed Inference</span></span>
     </a>
     <nav>
-      <a href="#proof">How it proves</a>
-      <a href="/verify">Verify</a>
-      <a href="/elite">killinchu</a>
-      <a class="btn btn-primary" href="/console">Open the command center →</a>
+      <a class="hide-sm" href="#thesis">Thesis</a>
+      <a class="hide-sm" href="#proof">The proof</a>
+      <a class="hide-sm" href="#verticals">Verticals</a>
+      <a href="/trust">Trust center</a>
+      <a class="btn btn-primary" href="/console">Open the console →</a>
     </nav>
   </div>
 </header>
 
-<!-- ============================ HERO / FLAGSHIP ============================ -->
+<!-- ====================== (1) HERO — canvas + boot owned by Dev 2 ====================== -->
 <section class="hero">
   <canvas id="hero-canvas"></canvas>
-  <!-- Dark scrim: sits between canvas and text to guarantee legibility on all devices -->
   <div class="hero-scrim" aria-hidden="true"></div>
   <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
@@ -269,11 +295,11 @@
       </div>
       <div class="hero-stats">
         <div class="stat">
-          <div class="k teal" id="hs-receipts">—</div>
+          <div class="k proof" id="hs-receipts">—</div>
           <div class="l">Signed receipts <span id="hs-receipts-chip"></span></div>
         </div>
         <div class="stat">
-          <div class="k" id="hs-lambda">Conjecture 1</div>
+          <div class="k gray" id="hs-lambda">Conjecture 1</div>
           <div class="l">Λ trust gate · advisory bound</div>
         </div>
         <div class="stat">
@@ -285,108 +311,193 @@
   </div>
 </section>
 
-<!-- ====================== THE 3 PROOF POINTS ====================== -->
-<section class="band wrap" id="proof">
-  <p class="kick">Three claims · three live proofs</p>
-  <h2>Don't trust the demo — open it and check.</h2>
-  <p class="intro">a11oy makes exactly three promises, and each one links to a live surface you
-    can open right now and verify for yourself. Nothing here is asserted that you cannot click
-    through and check.</p>
-  <div class="grid g3">
-
-    <!-- 1 · Signs its work -->
-    <div class="card">
-      <div class="num">01</div>
-      <div class="ic">🔏</div>
+<!-- ====================== (2) THE THESIS ====================== -->
+<section class="band wrap" id="thesis">
+  <p class="kick">The thesis</p>
+  <h2>Governed AI you can prove — not AI you're asked to trust.</h2>
+  <p class="intro">Most AI asks for trust. a11oy earns it the way auditable systems do: every
+    governed decision is sealed into a signed, hash-chained receipt; a trust gate can only
+    tighten an answer, never wave it through; and the kernel rests on machine-checked theorems
+    you can read. The honest part is the product — when a claim isn't proven, we label it, and
+    you can open the check yourself.</p>
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pk">01 · SIGNS</div>
       <h3>It signs its work</h3>
-      <p>Every governed decision is sealed as a DSSE receipt — ECDSA&#8209;P256 signed and
-        SHA3&#8209;256 hash-chained into an append-only ledger. The signature is checked in your
-        browser with WebCrypto against a key you fetch yourself. Receipts are signed on write,
-        never on a read.</p>
-      <div class="golinks">
-        <a class="go" href="/verify">Verify in-browser →</a>
-        <a class="go" href="/api/lake/v1/health">Receipt ledger →</a>
-      </div>
+      <p>DSSE receipts, ECDSA-P256 signed and SHA3-256 hash-chained into an append-only ledger.
+        Signed on write, never on a read. Verify them in your own browser.</p>
     </div>
-
-    <!-- 2 · Refuses when unsure -->
-    <div class="card">
-      <div class="num">02</div>
-      <div class="ic">🛡</div>
+    <div class="pillar">
+      <div class="pk">02 · REFUSES</div>
       <h3>It refuses when unsure</h3>
-      <p>A self-doubt gate sits in front of the answer. The inverse-PINN physics and materials
-        engine measures its own uncertainty against a bound — and returns a truthful
-        <b>BLOCKED</b> rather than a confident wrong answer when it crosses it. A truthful refusal
-        beats a fabricated pass.</p>
-      <div class="golinks">
-        <a class="go" href="/pinn-console">Open the self-doubt demo →</a>
-      </div>
+      <p>A self-doubt gate measures uncertainty against a bound and returns a truthful
+        <b>BLOCKED</b> rather than a confident wrong answer. A refusal beats a fabrication.</p>
     </div>
-
-    <!-- 3 · Formally backed -->
-    <div class="card">
-      <div class="num">03</div>
-      <div class="ic">📐</div>
+    <div class="pillar">
+      <div class="pk">03 · PROVES</div>
       <h3>It is formally backed</h3>
-      <p>The kernel rests on <b>8 locked, Lean&nbsp;4 machine-checked theorems</b>
-        <span class="mono">{F1, F4, F7, F11, F12, F18, F19, F22}</span> that depend on no axioms
-        (enforced by <span class="mono">locked_count_eight</span>), archived with a Zenodo DOI.
-        The Λ trust gate is <b>Conjecture&nbsp;1</b> — an advisory bound, not a theorem.</p>
-      <div class="golinks">
-        <a class="go" href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs →</a>
-        <a class="go" href="https://doi.org/10.5281/zenodo.20434276">Zenodo DOI →</a>
-      </div>
+      <p>8 locked, axiom-free Lean&nbsp;4 theorems back the kernel. The Λ trust gate is
+        <b>Conjecture&nbsp;1</b> — an advisory bound, never dressed up as a theorem.</p>
     </div>
-
   </div>
 </section>
 
-<!-- ====================== THE ONE VERTICAL: killinchu ====================== -->
-<section class="band" style="background:linear-gradient(180deg,rgba(10,15,30,0),rgba(10,15,30,0.6))">
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- ====================== (3) THE PROOF — 4 honest tiers (live) ====================== -->
+<section class="band wrap" id="proof">
+  <p class="kick">The proof · four honest tiers <span id="proof-src"></span></p>
+  <h2>Every claim carries exactly one honesty tier.</h2>
+  <p class="intro">The 144-entry formula genome is graded across four tiers — and the rarest,
+    strongest tiers are the smallest on purpose. Counts below are read live from the genome
+    registry. A conjecture is shown in gray and is <b>never</b> rendered as proven.</p>
+  <div class="grid g4">
+    <div class="tier locked">
+      <div class="tnum" id="pt-locked">—</div>
+      <div class="tname">LOCKED-PROVEN</div>
+      <p>Truthful labels for what each Lean obligation actually proves — e.g. F18 = Reed-Solomon
+        parity (erasure tolerance), not "DSSE seal". Conservative and defensible.</p>
+    </div>
+    <div class="tier semantic">
+      <div class="tnum" id="pt-semantic">—</div>
+      <div class="tname">SEMANTIC-VERIFIED</div>
+      <p>Sorry-free real theorems outside the frozen locked-8: the Λ min≤Λ≤max bounds, Theorem U
+        (conditional uniqueness), DSSE verifiability. Where the real trust math lives.</p>
+    </div>
+    <div class="tier evidence">
+      <div class="tnum" id="pt-evidence">—</div>
+      <div class="tname">EVIDENCE-BACKED</div>
+      <p>Runtime / algorithmic rules backed by real code and live endpoints, with no proof claim
+        attached. Honest operational tier — not dressed up as proven.</p>
+    </div>
+    <div class="tier conjecture">
+      <div class="tnum" id="pt-conjecture">—</div>
+      <div class="tname">CONJECTURE · ADVISORY</div>
+      <p>Λ unconditional uniqueness = Conjecture&nbsp;1 (machine-checked false as stated). Gray,
+        advisory, <b>never green</b>. Theorem U is the proven conditional alternative.</p>
+    </div>
+  </div>
+  <div class="cta-row" style="margin-top:34px">
+    <a class="btn btn-ghost" href="/console#genome">Browse the genome →</a>
+    <a class="btn btn-ghost" href="/trust">Read the trust center →</a>
+  </div>
+</section>
+
+<!-- ====================== (4) THE VERTICALS — live /lambda/org ====================== -->
+<section class="band" id="verticals" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
   <div class="wrap">
-    <p class="kick">The vertical it already runs</p>
-    <h2>Where governed inference earns its keep.</h2>
-    <p class="intro">The same governed core powers <b>killinchu</b> — sovereign counter-UAS
-      defense, where every interdiction decision has to be auditable after the fact.</p>
-    <div class="vert">
-      <div>
+    <p class="kick">The verticals · live Λ posture <span id="verticals-src"></span></p>
+    <h2>One governed core. Five places it earns its keep.</h2>
+    <p class="intro">The same governed inference core runs across five verticals. Each card reads
+      its live advisory Λ posture from the org-wide 13-axis gate (canonical floor 0.90). Λ is
+      Conjecture&nbsp;1 — advisory, never a pass/fail oracle.</p>
+    <div class="grid g3">
+      <div class="vcard">
+        <div class="pmark">a11</div>
+        <h3>a11oy</h3>
+        <div class="tag">Core · governed inference</div>
+        <p>The platform itself — command center, signed receipts, the self-doubt gate.</p>
+        <div class="lam"><span class="val" id="v-core">—</span><span class="cap">advisory Λ</span><span id="v-core-chip"></span></div>
+      </div>
+      <div class="vcard">
         <div class="pmark">kil</div>
         <h3>killinchu</h3>
-        <div class="tag">Counter-UAS · sovereign defense</div>
-        <p>Auditable interdiction decisions: every call carries a signed receipt, clears a
-          13-axis trust gate, and requires a 3-of-4 consensus before it can act.</p>
-        <ul class="feat">
-          <li>Signed DSSE receipt per interdiction decision</li>
-          <li>13-axis Λ trust gate (Conjecture 1, advisory)</li>
-          <li>3-of-4 BFT consensus on every decision</li>
-        </ul>
+        <div class="tag">Defense · counter-UAS</div>
+        <p>Auditable interdiction: signed receipt per decision, 3-of-4 BFT consensus.</p>
+        <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
       </div>
-      <div class="vcta">
-        <a class="btn btn-violet" href="/elite">Open killinchu →</a>
-        <a class="btn btn-ghost" href="/verify">Verify a receipt</a>
+      <div class="vcard">
+        <div class="pmark">ins</div>
+        <h3>Insurance</h3>
+        <div class="tag">David Leads · lead scoring</div>
+        <p>Faithful David Leads scorer behind an F12 non-compensatory consent gate.</p>
+        <div class="lam"><span class="val" id="v-insurance">—</span><span class="cap">advisory Λ</span><span id="v-insurance-chip"></span></div>
+      </div>
+      <div class="vcard">
+        <div class="pmark">fin</div>
+        <h3>Finance</h3>
+        <div class="tag">Governed decisioning</div>
+        <p>Decision paths that have to be reconstructable and signed after the fact.</p>
+        <div class="lam"><span class="val" id="v-finance">—</span><span class="cap">advisory Λ</span><span id="v-finance-chip"></span></div>
+      </div>
+      <div class="vcard">
+        <div class="pmark">re</div>
+        <h3>Real estate</h3>
+        <div class="tag">Governed workflows</div>
+        <p>Workflow decisions captured into the same one-chain receipt ledger.</p>
+        <div class="lam"><span class="val" id="v-realestate">—</span><span class="cap">advisory Λ</span><span id="v-realestate-chip"></span></div>
+      </div>
+      <div class="vcard" style="border-style:dashed;align-items:flex-start;justify-content:center">
+        <div class="pmark" style="background:rgba(58,244,200,0.08);border-color:rgba(58,244,200,0.25);color:var(--proof)">Λ</div>
+        <h3>Org-wide Λ</h3>
+        <div class="tag">13-axis weighted geomean</div>
+        <p>The composite advisory posture across all verticals, with min≤Λ≤max SEMANTIC-VERIFIED.</p>
+        <div class="lam"><span class="val" id="v-org">—</span><span class="cap">floor 0.90</span><span id="v-org-chip"></span></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ====================== EVIDENCE / LEDGER ====================== -->
-<section class="band wrap" id="evidence">
-  <div class="evidence">
-    <div class="et">
-      <p class="kick">The evidence trail</p>
-      <h3>One ledger. Every decision. Replayable to the byte.</h3>
-      <p>The receipt ledger is a SHA3&#8209;256 hash-chain an auditor can replay to a
-        byte-identical root instead of trusting a dashboard. The full capability map — what is
-        MEASURED, MODELED, and ROADMAP — is published as honest JSON.</p>
+<!-- ====================== (5) THE LIVING BODY ====================== -->
+<section class="band wrap" id="body">
+  <p class="kick">The living body</p>
+  <h2>Watch the governed organism breathe.</h2>
+  <p class="intro">The same live endpoints render as a 3D anatomical organism — organs glow when
+    their probes are healthy and dim when they're not, and signed receipts travel the vessels as
+    pulses. It's the operational state of the platform, shown as a body. Nothing decorative: every
+    pulse is a real receipt.</p>
+  <div class="body-embed" id="body-embed">
+    <div class="poster" id="body-poster">
+      <div class="pulse-ring" aria-hidden="true"></div>
+      <h3>The Living Body</h3>
+      <p>A real-time 3D organism wired to the same probes as the console. Loads the anatomy Space
+        in-frame, or open it full-screen.</p>
+      <div class="cta-row" style="justify-content:center">
+        <button class="btn btn-lattice" id="body-load" type="button">Load the body in-frame</button>
+        <a class="btn btn-ghost" href="https://szlholdings-anatomy.hf.space/live-body.html" target="_blank" rel="noopener">Open full-screen →</a>
+      </div>
     </div>
-    <div class="ecta">
-      <a class="btn btn-primary" href="/api/lake/v1/health">Open the receipt ledger →</a>
+  </div>
+</section>
+
+<!-- ====================== (6) ONE CHAIN — live receipts/ledger ====================== -->
+<section class="band" id="chain" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
+  <div class="wrap">
+    <p class="kick">One chain · live ledger <span id="chain-src"></span></p>
+    <h2>One ledger. Every decision. Replayable to the byte.</h2>
+    <p class="intro">Every vertical emits into a single SHA3-256 hash-chain — append-only,
+      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.</p>
+    <div class="chainrow">
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Signed receipts</div></div>
+      <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
+      <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Chain depth (a11oy)</div></div>
+      <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">—</div><div class="cl">Last receipt id</div></div>
+    </div>
+    <div class="cta-row" style="margin-top:32px">
+      <a class="btn btn-primary" href="/api/a11oy/v1/ledger">Open the receipt ledger →</a>
+      <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== (7) TRUST CENTER CTA ====================== -->
+<section class="band wrap">
+  <div class="trustcta">
+    <div>
+      <p class="kick">Verify it yourself</p>
+      <h2>The trust center.</h2>
+      <p>The versioned honesty posture, the locked-8 with truthful Lean refs, Theorem U vs
+        Conjecture&nbsp;1 explained honestly, SLSA posture, and the offline receipt-verify flow.
+        Every claim links to its check.</p>
+    </div>
+    <div class="tcbtns">
+      <a class="btn btn-primary" href="/trust">Open the trust center →</a>
       <a class="btn btn-ghost" href="/api/a11oy/v1/honest">Honest status (JSON)</a>
     </div>
   </div>
 </section>
 
-<!-- ============================ FOOTER ============================ -->
+<!-- ============================ (8) FOOTER ============================ -->
 <footer>
   <div class="wrap">
     <div class="cols">
@@ -402,27 +513,26 @@
       </div>
       <div class="lk"><strong style="color:var(--ink)">Product</strong>
         <a href="/console">Command center</a>
+        <a href="/console#genome">Genome registry</a>
         <a href="/verify">Verify a receipt</a>
-        <a href="/pinn-console">Self-doubt demo</a>
         <a href="/elite">killinchu · counter-UAS</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
-        <a href="/api/lake/v1/health">Receipt ledger</a>
+        <a href="/trust">Trust center</a>
+        <a href="/api/a11oy/v1/ledger">Receipt ledger</a>
         <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
-        <a href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs</a>
-        <a href="https://doi.org/10.5281/zenodo.20434276">Zenodo DOI</a></div>
+        <a href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs</a></div>
     </div>
-    <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven kernel is exactly <b>8</b>
-      theorems (of a larger experimental, CI-green tier that is <i>not</i> folded into the locked
-      count). The Λ trust gate is <b>Conjecture&nbsp;1</b> — an advisory bound, never a theorem and
-      never 1.0. Receipts are signed on state changes, never on reads. Energy is MEASURED only
-      with a live exporter delta, otherwise honest SAMPLE. Supply chain is SLSA L1 honest
-      (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP, not held today. E8
-      receipt geometry follows Viazovska (error-detection geometry, not a security claim).
+    <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven Lean kernel is exactly <b>8</b>
+      theorems {F1,F4,F7,F11,F12,F18,F19,F22}; the 144-entry genome registry is a separate, larger
+      set graded across four honesty tiers. The Λ trust gate is <b>Conjecture&nbsp;1</b> — an
+      advisory bound, never a theorem and never 1.0. Receipts are signed on state changes, never on
+      reads. Energy is MEASURED only with a live exporter delta, otherwise honest SAMPLE. Supply
+      chain is SLSA L1 honest (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP.
       © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0.</p>
   </div>
 </footer>
 
-<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) ===================== -->
+<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) — Dev 2 ===================== -->
 <script type="importmap">
 { "imports": {
   "three": "/hero/vendor3d/three.module.min.js",
@@ -430,7 +540,7 @@
 } }
 </script>
 
-<!-- ===================== HERO BOOT (Three.js holographic field) ===================== -->
+<!-- ===================== HERO BOOT (Three.js holographic field) — Dev 2 ===================== -->
 <script type="module">
   import { mountHero } from "/landing/app.js";
   const canvas = document.getElementById("hero-canvas");
@@ -448,27 +558,145 @@
   }
 </script>
 
-<!-- ===================== LIVE RECEIPT COUNTER (honest, no deps) ===================== -->
+<!-- ===================== LIVE DATA (honest; one consolidated read + fallbacks) ===================== -->
 <script>
 (function(){
   "use strict";
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  /* live receipt counter + chain head — labelled offline if the ledger is unreachable. */
-  (async function loadLake(){
+  const liveChip  = (t) => '<span class="chip live" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
+  const downChip  = (t) => '<span class="chip down" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
+
+  async function getJSON(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error(url+" "+r.status);
+    return r.json();
+  }
+  const num = (v) => (typeof v === "number" && isFinite(v)) ? v : null;
+  const fmtLam = (v) => (num(v) === null) ? null : Number(v).toFixed(3);
+
+  // pass/fail chip for an advisory Λ vs the 0.90 floor (advisory ONLY — never an oracle)
+  function lamChip(elId, v){
+    const el = $(elId); if(!el) return;
+    if(num(v) === null){ el.innerHTML = downChip("N/A"); return; }
+    const pass = v >= 0.90;
+    el.innerHTML = '<span class="pass-chip" style="margin-left:8px;'
+      + (pass ? 'color:var(--ok);background:rgba(58,244,200,0.08);border:1px solid rgba(58,244,200,0.3)'
+              : 'color:var(--warn);background:rgba(215,185,107,0.08);border:1px solid rgba(215,185,107,0.3)')
+      + '">'+(pass?'≥ floor':'below floor')+'</span>';
+  }
+
+  function setTiers(t){
+    // t: {locked, semantic, evidence, conjecture}
+    $("pt-locked").textContent     = (num(t.locked)     === null) ? "N/A" : t.locked;
+    $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
+    $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
+    $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
+  }
+
+  function setVerticals(v){
+    // v: {core,defense,insurance,finance,realestate} advisory Λ (numbers or null)
+    [["core","v-core"],["defense","v-defense"],["insurance","v-insurance"],
+     ["finance","v-finance"],["realestate","v-realestate"]].forEach(([k,id])=>{
+      const val = fmtLam(v[k]);
+      $(id).textContent = (val===null) ? "N/A" : val;
+      lamChip(id+"-chip", num(v[k]));
+    });
+  }
+
+  function setChain(receipts, alg, depth, head){
+    $("chain-receipts").textContent = (num(receipts)===null) ? "UNAVAILABLE" : receipts.toLocaleString();
+    $("hs-receipts").textContent    = (num(receipts)===null) ? "—"           : receipts.toLocaleString();
+    $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : liveChip(alg || "sha3_256");
+    if(alg) $("chain-alg").textContent = alg;
+    $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
+    if(head){ const h = String(head); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
+    else { $("chain-head").textContent = "N/A"; }
+  }
+
+  // ---- (A) try the ONE consolidated read (Dev 5) ----
+  async function loadOverview(){
     try{
-      const r = await fetch("/api/lake/v1/health", {cache:"no-store"});
-      const d = await r.json();
-      const total = (typeof d.total_receipts === "number") ? d.total_receipts : null;
-      $("hs-receipts").textContent = (total === null) ? "—" : total.toLocaleString();
-      const alg = d.chain_alg || "sha3_256";
-      $("hs-receipts-chip").innerHTML =
-        '<span class="chip live" style="margin-left:6px"><span class="dot"></span>' + esc(alg) + '</span>';
+      const o = await getJSON("/api/a11oy/v1/org/overview");
+      if(!o || o.status === "UNAVAILABLE") return false;
+      let any = false;
+      if(o.proof_tiers){ setTiers(o.proof_tiers); $("proof-src").innerHTML = liveChip("overview"); any = true; }
+      if(Array.isArray(o.verticals)){
+        const vm = {};
+        o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
+        setVerticals(vm); $("verticals-src").innerHTML = liveChip("overview"); any = true;
+      }
+      const ts = o.thesis_stats || {};
+      const ch = o.chain || {};
+      if(ts.signed_receipts !== undefined || ch.depth !== undefined){
+        setChain(num(ts.signed_receipts), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
+        $("chain-src").innerHTML = liveChip("overview"); any = true;
+      }
+      if(o.org_lambda !== undefined){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
+      return any;
+    }catch(e){ return false; }
+  }
+
+  // ---- (B) fallbacks — each source degrades to honest N/A independently ----
+  async function loadGenomeTiers(){
+    try{
+      const g = await getJSON("/api/a11oy/v1/genome");
+      if(g && g.status === "UNAVAILABLE") throw new Error("genome unavailable");
+      const tc = g.tier_counts || {};
+      setTiers({ locked: tc["LOCKED-PROVEN"], semantic: tc["SEMANTIC-VERIFIED"],
+                 evidence: tc["evidence-backed"], conjecture: tc["CONJECTURE"] });
+      $("proof-src").innerHTML = liveChip("genome");
     }catch(e){
-      $("hs-receipts").textContent = "—";
-      $("hs-receipts-chip").innerHTML =
-        '<span class="chip down" style="margin-left:6px"><span class="dot"></span>offline</span>';
+      setTiers({}); $("proof-src").innerHTML = downChip("UNAVAILABLE");
     }
+  }
+  async function loadLambdaOrg(){
+    try{
+      const d = await getJSON("/api/a11oy/v1/lambda/org");
+      const v = d.verticals || {};
+      setVerticals({ core:v.core, defense:v.defense, insurance:v.insurance,
+                     finance:v.finance, realestate:v.realestate });
+      const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org));
+      $("verticals-src").innerHTML = liveChip("lambda/org");
+    }catch(e){
+      setVerticals({}); $("v-org").textContent = "N/A"; $("v-org-chip").innerHTML = downChip("N/A");
+      $("verticals-src").innerHTML = downChip("UNAVAILABLE");
+    }
+  }
+  async function loadChain(){
+    let receipts=null, alg="sha3_256", depth=null, head=null, ok=false;
+    try{ const h = await getJSON("/api/lake/v1/health"); receipts = num(h.total_receipts); alg = h.chain_alg || alg; ok = true; }catch(e){}
+    try{ const l = await getJSON("/api/a11oy/v1/ledger"); depth = num(l.count);
+         if(Array.isArray(l.receipts) && l.receipts.length){ head = l.receipts[l.receipts.length-1].receipt_id; }
+         if(receipts === null) receipts = depth; ok = true; }catch(e){}
+    setChain(receipts, alg, depth, head);
+    $("chain-src").innerHTML = ok ? liveChip(alg) : downChip("UNAVAILABLE");
+  }
+
+  // ---- (C) living body: load the anatomy Space in-frame only on click (perf + reduced-motion) ----
+  const bl = $("body-load");
+  if(bl){ bl.addEventListener("click", function(){
+    const wrap = $("body-embed");
+    const f = document.createElement("iframe");
+    f.src = "https://szlholdings-anatomy.hf.space/live-body.html";
+    f.title = "a11oy living body — 3D governed organism";
+    f.loading = "lazy"; f.referrerPolicy = "no-referrer";
+    wrap.innerHTML = ""; wrap.appendChild(f);
+  }); }
+
+  // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
+  (async function(){
+    const ov = await loadOverview();
+    const filled = {
+      tiers: $("proof-src").innerHTML.trim() !== "",
+      verts: $("verticals-src").innerHTML.trim() !== "",
+      chain: $("chain-src").innerHTML.trim() !== "",
+    };
+    const jobs = [];
+    if(!filled.tiers) jobs.push(loadGenomeTiers());
+    if(!filled.verts) jobs.push(loadLambdaOrg());
+    if(!filled.chain) jobs.push(loadChain());
+    await Promise.allSettled(jobs);
   })();
 })();
 </script>
