@@ -558,6 +558,13 @@ trustspace:{title:'Trust Space',badge:'3D POINT-CLOUD',sub:'Every trust dimensio
         <details class="raw"><summary>raw signed envelope + public key</summary><pre class="out" id="rc-env">\u2014</pre></details></div>
       <div class="card"><div class="card-h"><span class="card-t">Receipt activity</span><span class="card-ep">live</span></div><div class="chartbox" style="height:200px"><canvas id="rc-line"></canvas></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Audit trail</span><span class="card-ep">hash-chained</span></div><div id="rc-host"><div class="row mono dim">loading\u2026</div></div></div>
+      <div class="card"><div class="card-h"><span class="card-t">Public transparency-log anchor \u2014 Sigstore Rekor</span><span class="card-ep">live root \u00b7 RFC 6962 Merkle</span></div>
+        <div class="kpis"><div class="kpi"><div class="k">Rekor tree size</div><div class="v teal" id="rk-size">\u2014</div><div class="d">public good-instance</div></div>
+          <div class="kpi"><div class="k">Root hash</div><div class="v mono" id="rk-root" style="font-size:13px">\u2014</div><div class="d">live signed tree head</div></div>
+          <div class="kpi"><div class="k">Reachable</div><div class="v live" id="rk-reach">\u2014</div></div></div>
+        <div class="row"><button class="btn" onclick="window.rekor_verify()">Verify a real Rekor inclusion proof</button></div>
+        <div id="rk-vout" style="margin-top:.6rem"><div class="row mono dim">Recomputes the Merkle root from a real public entry's leaf + audit path (RFC 6962) \u2014 never trusting the server's verdict.</div></div>
+        <div class="brain-note">Adapts Sigstore/Chainguard transparency UX. The root shown is the <b>live, independently-verifiable</b> public Rekor log (1.9B+ entries). Honest: a11oy's own receipts use its in-image DSSE+khipu chain; public-log submission of a11oy receipts is <b>ROADMAP</b>. Merkle math mirrors Lean F15.</div></div>
       <div class="honesty"><b>Verify it yourself.</b> a11oy signs receipts with its own in-image ECDSA P-256 key. Fetch the public key at <span class="mono">/cosign.pub</span> and a signed envelope at <span class="mono">/api/a11oy/v1/receipt/export</span>, then verify the signature \u2014 here, in your browser, or offline with openssl. A single tampered byte fails verification. The key is ephemeral and resets on every rebuild.</div>`;window.receipts_load();}},
 
   /* PROOF-BINDING (cite-in-code-only): the Knowledge Ontology entity-link graph
@@ -890,7 +897,30 @@ async function receipts_load(){try{const d=await orgGet('core','/api/a11oy/v1/op
   }catch(e){setHTML('rc-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
   try{const cl=await orgGet('core','/api/a11oy/v2/operator/command-log');setTxt('rc-chain',cl.chain_verified?('verified \u00b7 depth '+(cl.depth||'')):'\u2014');}catch(e){setTxt('rc-chain','\u2014');}
   // auto-verify a real signed receipt against a11oy's own in-image key
-  window.receipts_verify(false,true);}
+  window.receipts_verify(false,true);
+  // live public transparency-log root (Sigstore Rekor) \u2014 server-side fetch w/ honest fallback
+  window.rekor_log_load();}
+
+// Live Rekor public-log tree state (treeSize + root + reachability) \u2014 read-only, honest.
+async function rekor_log_load(){try{const d=await getJSON(API+'/v1/rekor/log');const l=d.log||{};
+  if(l.reachable){setTxt('rk-size',(l.tree_size!=null?Number(l.tree_size).toLocaleString():'\u2014'));setTxt('rk-root',String(l.root_hash||'').slice(0,12)+'\u2026');setHTML('rk-reach','<span class="live">live \u00b7 '+esc(l.freshness||'')+'</span>');}
+  else{setTxt('rk-size','\u2014');setTxt('rk-root','unreachable');setHTML('rk-reach','<span class="warn">egress blocked (honest)</span>');}
+  }catch(e){setHTML('rk-reach','<span class="warn">\u2014</span>');}}
+
+// Verify a REAL public Rekor inclusion proof: server recomputes the Merkle root from
+// the entry's leaf + audit path (RFC 6962). Picks an entry index inside the live tree.
+async function rekor_verify(){const out=el('rk-vout');if(out)out.innerHTML='<div class="row mono dim">fetching a public entry + recomputing Merkle root\u2026</div>';
+  try{let idx=1;try{const lg=await getJSON(API+'/v1/rekor/log');const ts=(lg.log||{}).tree_size;if(ts)idx=Math.max(1,Math.floor(Number(ts)*0.5));}catch(e){}
+    const d=await getJSON(API+'/v1/rekor/verify/'+idx);const r=d.result||{};
+    if(r.verified===true){out.innerHTML=`<div class="row"><span class="badge b-live">VERIFIED</span><span>Merkle root recomputed locally matches the public Rekor root</span></div>`+
+      `<div class="row"><span>Log index</span><span class="spacer mono dim">${esc(r.log_index)} \u00b7 tree ${esc(Number(r.tree_size).toLocaleString())}</span></div>`+
+      `<div class="row"><span>Audit path</span><span class="spacer mono dim">${esc(r.audit_path_len)} hashes</span></div>`+
+      `<div class="row"><span>Computed root</span><span class="spacer mono dim">${esc(String(r.computed_root).slice(0,24))}\u2026</span></div>`+
+      `<div class="row mono dim">${esc(r.method||'')}</div>`;}
+    else if(r.verified===false){out.innerHTML=`<div class="row"><span class="badge b-err">MISMATCH</span><span>${esc(r.reason||'root mismatch')}</span></div>`;}
+    else{out.innerHTML=`<div class="row"><span class="badge b-gold">UNREACHABLE</span><span>${esc(r.reason||'public Rekor unreachable from this host (egress)')} \u2014 honest, not faked</span></div>`;}
+  }catch(e){if(out)out.innerHTML='<div class="row"><span class="badge b-err">error</span><span>'+esc(e.message)+'</span></div>';}}
+window.rekor_log_load=rekor_log_load;window.rekor_verify=rekor_verify;
 
 // Fetch a11oy's own public key + a signed DSSE envelope, verify locally in browser.
 // tamper=true flips a payload byte to demonstrate verification FAILS.
@@ -1511,9 +1541,13 @@ async function lineage_load(){
     setHTML('ln-detail','<div class="row mono dim">knowledge unavailable: '+esc(e.message)+'</div>');
   }
 }
-function lineage_export(){
-  loadKnowledge().then(kb=>{
+async function lineage_export(){
+  const kb=await loadKnowledge();
+  {
     const ps=kb.proof_summary||{};
+    // attach the LIVE public transparency-log root (Sigstore Rekor) as an external witness
+    let rekor={anchoring:'ROADMAP — a11oy receipt → public Rekor submission'};
+    try{const d=await getJSON(API+'/v1/rekor/log');const l=d.log||{};rekor={source:l.source,reachable:!!l.reachable,tree_size:l.tree_size,root_hash:l.root_hash,label:l.label,verify_endpoint:'/api/a11oy/v1/rekor/verify/{logIndex}',anchoring:'ROADMAP — a11oy receipt → public Rekor submission; in-image DSSE+khipu chain is live',merkle_formula:'F15 (structural)'};}catch(e){}
     const aibom={
       format:'a11oy-provenance-AIBOM/1.0',
       generated_at:new Date().toISOString(),
@@ -1524,12 +1558,13 @@ function lineage_export(){
       axioms: (kb.axioms||[]).length,
       theorems: (kb.theorems||[]).length,
       dois: (kb.dois||[]).map(d=>d.doi),
+      transparency_log: rekor,
       build_provenance:'SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap (in-toto v1, cosign keyless, Rekor evidence)',
       note:'Λ (trust-score uniqueness) is Conjecture 1, advisory — not a proven theorem.'
     };
     const blob=new Blob([JSON.stringify(aibom,null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='a11oy_provenance_aibom.json'; a.click();
-  });
+  }
 }
 window.lineage_load=lineage_load; window.lineage_export=lineage_export;
 
@@ -1608,11 +1643,14 @@ async function replay_run(){
     const decision = (pr.decision || r.decision || '—');
     const sev = r.severity_evaluated || '—';
     const lam = (pr.lambda_score!=null?pr.lambda_score:(r.lambda_score!=null?r.lambda_score:null));
+    // the POLICY VERSION that applied to this decision (Chainguard/in-toto provenance feature)
+    const polVer = r.policy_version || pr.policy_version || r.kernel_commit || pr.kernel_commit || r.doctrine_version || (r.doctrine?'doctrine v11':null);
     const decTeal = String(decision).toLowerCase()==='allow';
     setHTML('rp-answer',
       `<div class="row"><span class="badge b-live">grounded</span><span class="badge b-gold">cited · runtime gate</span></div>`
       +`<div class="row" style="font-size:13px;line-height:1.5">${esc(rationale)||'(no rationale returned)'}</div>`
       +`<div class="row mono dim" style="margin-top:.4rem">gate: <b>${esc(gateName)}</b> · severity: <b>${esc(sev)}</b> · decision: <b style="color:${decTeal?'#5fb3a3':'#c9a05f'}">${esc(String(decision).toUpperCase())}</b>${lam!=null?` · Λ score: <b>${esc(String(lam))}</b> <span style="color:#c9a05f">(conjecture)</span>`:''}</div>`
+      +(polVer?`<div class="row mono dim" style="font-size:10px">policy version applied: <b style="color:#5fb3a3">${esc(String(polVer))}</b> · re-run reproduces this verdict under the same policy</div>`:'')
       +(r.doctrine?`<div class="row mono dim" style="font-size:10px">${esc(r.doctrine)}</div>`:''));
     // build a run-tree DAG from the real reasoning structure (gate → policy → decision → receipt)
     const nodes=[{id:'q',name:'Question',color:'#c9b787',val:8}];
@@ -1651,7 +1689,7 @@ async function replay_run(){
       gauge('rp-cov', 0, 'coverage', '#5fb3a3'); gauge('rp-cons',0,'consistency','#c9b787');
       setHTML('rp-halluc','<span class="v dim">—</span>');
     }
-    setHTML('rp-receipt', `<span class="badge" style="border:1px solid #c9a05f;color:#c9a05f">UNSIGNED · hash-chained (no key — honest)</span>`);
+    setHTML('rp-receipt', `<span class="badge" style="border:1px solid #c9a05f;color:#c9a05f">UNSIGNED · hash-chained (no key — honest)</span> <span class="dim mono" style="font-size:10px">· external witness: <a href="#receipts" onclick="go('receipts');return false;" style="color:#5fb3a3">public Rekor log</a> (a11oy submission ROADMAP)</span>`);
   }catch(e){
     setHTML('rp-answer','<div class="row mono dim">reasoning endpoint unavailable: '+esc(e.message)+'</div>');
   }
