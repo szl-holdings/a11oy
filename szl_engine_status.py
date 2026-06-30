@@ -295,14 +295,19 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
             return JSONResponse(ent[0])
 
         # Resolve effective base_url: an empty base_url means same-origin loopback.
-        # Default to http://127.0.0.1:<PORT> so the organ probes resolve as absolute
-        # URLs for the in-process httpx client. Overridable via SZL_ENGINE_STATUS_BASE.
+        # Priority: SZL_ENGINE_STATUS_BASE > SPACE_HOST (HF env var) > 127.0.0.1:PORT.
+        # HF Spaces sets SPACE_HOST=szlholdings-a11oy.hf.space — use HTTPS to that
+        # public hostname as the loopback target when available (HF sandboxes may
+        # block direct 127.0.0.1 connections from within the container).
         _eff_base = base_url
         if not _eff_base:
-            _eff_base = _os.environ.get(
-                "SZL_ENGINE_STATUS_BASE",
-                f"http://127.0.0.1:{_os.environ.get('PORT', '7860')}",
-            )
+            _eff_base = _os.environ.get("SZL_ENGINE_STATUS_BASE", "")
+        if not _eff_base:
+            _space_host = _os.environ.get("SPACE_HOST", "")
+            if _space_host:
+                _eff_base = f"https://{_space_host}"
+            else:
+                _eff_base = f"http://127.0.0.1:{_os.environ.get('PORT', '7860')}"
 
         client = http_client
         if client is None:
