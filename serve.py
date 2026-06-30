@@ -243,6 +243,18 @@ try:
 except Exception as _szl_rd_e:  # pragma: no cover
     print(f"[a11oy] Operational Readiness NOT registered: {_szl_rd_e!r}", file=__import__("sys").stderr)
 
+# Rekor public transparency-log anchor: live Sigstore Rekor tree root + RFC 6962
+# inclusion verifier (root recomputed locally, never trusting the server). READ-PATH
+# ONLY (no signing on GET). Honest: a11oy receipt -> public-log submission is ROADMAP;
+# what is MEASURED is the live public root + a real Merkle proof. Pure stdlib + httpx.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all).
+try:
+    import szl_rekor_anchor as _szl_rekor_anchor
+    _szl_rekor_anchor.register(app, ns="a11oy")
+    print("[a11oy] Rekor anchor registered: /api/a11oy/v1/rekor/{log,verify/{i}}", file=__import__("sys").stderr)
+except Exception as _szl_rk_e:  # pragma: no cover
+    print(f"[a11oy] Rekor anchor NOT registered: {_szl_rk_e!r}", file=__import__("sys").stderr)
+
 # Quantum-Bio Λ-v5 layer (quantum-bio-v5): VERIFIED quantum-biology models served as
 # real same-origin endpoints (Mitchell pmf + two-ion, Lindblad coherence, radical-pair
 # compass, Λ-v5 closure gate). Honest VERIFIED/PROPOSED/NARRATIVE tags; Λ-v5 is an
