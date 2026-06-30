@@ -421,6 +421,31 @@ def govern_infer(prompt: str, *, vertical: str = "general",
             print(f"[a11oy] govern/infer ledger record skipped (non-fatal): {_lake_e!r}",
                   file=_lake_sys.stderr)
 
+    # ── IN-TOTO STATEMENT V1 + TRANSPARENCY LOG ──────────────────────────────
+    # Add in-toto Statement v1 serialization and per-receipt Merkle inclusion proof.
+    # Fully guarded — ANY failure here is non-fatal and logs; the governed turn
+    # response ALWAYS returns even if in-toto serialization is unavailable.
+    # Pattern: in-toto Attestation Framework v1 (Apache-2.0) — reimplemented in
+    # szl_intoto.py, NO library imported, NO AGPL dependency.
+    _intoto_statement = None
+    _intoto_transparency = None
+    if isinstance(g.get("receipt"), dict):
+        try:
+            import szl_intoto as _intoto
+            # Enrich the receipt with governance/answer/energy context before attesting
+            _full_receipt = dict(g.get("receipt") or {})
+            _full_receipt["decision"] = decision
+            _full_receipt["answer"] = answer
+            _full_receipt["energy"] = energy
+            _full_receipt["governance"] = _pub_gov(g, cb)
+            _attest = _intoto.attest_receipt(_full_receipt, try_rekor=False)
+            _intoto_statement = _attest["intoto_statement"]
+            _intoto_transparency = _attest["transparency"]
+        except Exception as _it_e:
+            import sys as _it_sys
+            print(f"[a11oy] in-toto attestation skipped (non-fatal): {_it_e!r}",
+                  file=_it_sys.stderr)
+
     return {
         "decision": decision,
         "answer": answer,
@@ -428,6 +453,8 @@ def govern_infer(prompt: str, *, vertical: str = "general",
         "governance": _pub_gov(g, cb),
         "receipt": g.get("receipt"),
         "dsse": g.get("dsse"),
+        "intoto_statement": _intoto_statement,
+        "intoto_transparency": _intoto_transparency,
         "generation": gen_meta or None,
         "energy": energy,
         "honesty": honesty,
