@@ -10398,6 +10398,30 @@ except Exception as _szl_ss_e:  # pragma: no cover
 # END: SPACES ON a-11-oy.com (Dev2+3)
 # ============================================================================
 
+# ============================================================================
+# FRONT-DOOR ROUTE LOCK (Dev D, 2026-06-30): ensure @app.get("/") spa_root
+# wins at position 0 after all additive modules have registered and front-moved
+# their own routes. Without this, a future module doing routes[0:0]=new could
+# shadow the "/" handler if it registers a catch-all (e.g. /{full_path:path}).
+# Idempotent: moves only the route whose .path == "/".
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# ============================================================================
+try:
+    _root_routes = [r for r in app.router.routes if getattr(r, "path", None) == "/"]
+    if _root_routes:
+        for _r in _root_routes:
+            app.router.routes.remove(_r)
+        for _r in reversed(_root_routes):
+            app.router.routes.insert(0, _r)
+        import sys as _fr_sys
+        print(f"[a11oy] front-door '/' route locked to position 0 ({len(_root_routes)} route(s))", file=_fr_sys.stderr)
+except Exception as _fr_e:
+    import sys as _fr_sys
+    print(f"[a11oy] front-door route lock skipped (non-fatal): {_fr_e!r}", file=_fr_sys.stderr)
+# ============================================================================
+# END FRONT-DOOR ROUTE LOCK
+# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn
