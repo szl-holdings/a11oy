@@ -1457,9 +1457,9 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
   codetab:{title:'a11oy Code',badge:'CHAT \u00b7 CODE \u00b7 RESEARCH \u00b7 GOVERNED',sub:'A governed agentic coder you can mathematically trust \u2014 NOT AGI. Three modes (chat, run code, research), and EVERY turn flows through the proven P1\u2013P6 governed loop and emits a signed, re-verifiable receipt. Code actually runs in a real governed sandbox (restricted subprocess: no network, CPU/memory/time limits). The model roster is OPEN-WEIGHT only (Qwen2.5-Coder, Phi, Gemma, Mistral-Nemo, StarCoder2, DeepSeek-Coder, Codestral, Llama) \u2014 nothing closed is ever claimed as baked in. The router pick is stability-bounded (C20), bracketed best\u2013worst (W7-5), and the confidence is conformal (W5-3/W7-4) so it never reports 100%.',
     render:async(c)=>{c.innerHTML=`
       <div class="btns" id="cd-subtabs" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="btn teal" id="cd-sub-chaski" onclick="codetab_sub('chaski')">\u2691 Chaski \u2014 agentic surface</button>
+        <button class="btn teal" id="cd-sub-chaski" onclick="codetab_sub('chaski')">\u2691 a11oy Code \u2014 agentic surface</button>
         <button class="btn" id="cd-sub-turn" onclick="codetab_sub('turn')">\u232b Governed turn (P1\u2013P6)</button>
-        <span class="mono dim" id="cd-sub-hint" style="font-size:11px;align-self:center">Chaski runs the live agent loop \u2014 plan, retrieve, act, verify \u2014 a receipt for every step</span>
+        <span class="mono dim" id="cd-sub-hint" style="font-size:11px;align-self:center">a11oy Code runs the live agent loop \u2014 plan, retrieve, act, verify \u2014 a receipt for every step</span>
       </div>
       <!-- ============ CHASKI AGENTIC SURFACE (additive, 0-CDN) ============ -->
       <div id="cd-pane-chaski">
@@ -1475,7 +1475,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
         <div id="ck-corpus" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
         <div class="btns" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn" id="ck-refresh-btn" onclick="chaski_refresh()">\u21bb Refresh corpus index</button><span class="mono dim" id="ck-refresh-note" style="font-size:11px;align-self:center"></span></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">Ask Chaski</span><span class="card-ep">live \u00b7 agentic \u00b7 governed</span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Ask a11oy Code</span><span class="card-ep">live \u00b7 agentic \u00b7 governed</span></div>
         <textarea id="ck-input" aria-label="Governed coder prompt" class="in" style="width:100%;min-height:72px;padding:10px;background:#0d1411;border:1px solid #1c2a24;color:#cfe;border-radius:6px;font-family:ui-monospace,monospace;font-size:13px">List the repos in the szl-holdings org and summarise what a11oy does.</textarea>
         <div class="btns" style="gap:8px;margin-top:8px;flex-wrap:wrap">
           <label class="mono dim" style="font-size:11px;align-self:center;display:inline-flex;align-items:center;gap:6px">tier
@@ -1486,14 +1486,14 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       </div>
       <div class="grid2" style="margin-top:12px">
         <div class="card"><div class="card-h"><span class="card-t">Live agent loop \u2014 the agent thinking</span><span class="card-ep" id="ck-loop-ep">FSM</span></div>
-          <div id="ck-steps" style="max-height:420px;overflow-y:auto"><div class="row mono dim">\u2014 run a turn to watch Chaski plan, retrieve, act, verify \u2014 each step Λ-scored + receipted \u2014</div></div>
+          <div id="ck-steps" style="max-height:420px;overflow-y:auto"><div class="row mono dim">\u2014 run a turn to watch a11oy Code plan, retrieve, act, verify \u2014 each step Λ-scored + receipted \u2014</div></div>
         </div>
         <div class="card"><div class="card-h"><span class="card-t">3D org-knowledge graph \u00b7 traversed live</span><span class="card-ep">RETRIEVE \u2192 nodes light up</span></div>
           <div id="ck-3d" style="width:100%;height:360px;border-radius:10px;background:radial-gradient(circle at 50% 40%,rgba(11,31,58,0.6),rgba(0,0,0,0.0))"></div>
           <div class="row mono dim" id="ck-3d-legend" style="font-size:10px;margin-top:6px"><span style="color:#c9b787">\u25cf repo</span> &nbsp; <span style="color:#5fb3a3">\u25cf file/symbol</span> &nbsp; <span style="color:#B79BD6">\u25cf retrieved (Λ-grounded)</span> &nbsp; gold path = the agent\u2019s traversal</div>
         </div>
       </div>
-      <div class="card" style="margin-top:12px"><div class="card-h"><span class="card-t">Chaski\u2019s answer</span><span class="card-ep" id="ck-answer-ep">\u2014</span></div>
+      <div class="card" style="margin-top:12px"><div class="card-h"><span class="card-t">a11oy Code\u2019s answer</span><span class="card-ep" id="ck-answer-ep">\u2014</span></div>
         <div id="ck-answer"><div class="row mono dim">\u2014</div></div>
         <div class="row mono dim" id="ck-done" style="margin-top:8px;font-size:11px"></div>
       </div>
@@ -1507,7 +1507,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
         </div>
         <pre class="out" id="ck-orch" style="max-height:200px;margin-top:8px">\u2014 dispatch a command to see its DSSE receipt \u2014</pre>
       </div>
-      <div class="honesty" style="margin-top:12px"><b>How to read Chaski.</b> Every step you see is REAL: a live FSM transition, a real Λ gate verdict (advisory floor 0.90 \u2014 Λ is Conjecture 1, never a pass/fail oracle, never shown as 1.00), and a real DSSE/Khipu receipt hash. Locked-proven formulas = exactly 8 {F1, F4, F7, F11, F12, F18, F19, F22} @ kernel c7c0ba17; Khipu BFT safety = Conjecture 2 (open). When no model credential is set, the loop still runs for real and the model text is a <b>labeled stub</b> \u2014 never fabricated. Patterns inspired by ReAct, Reflexion, Self-RAG, GraphRAG, Aider repo-map, Anthropic/OpenAI/LangGraph agent loops, ULab GraphRouter \u2014 reimplemented as SZL\u2019s own governed code (see /NOTICE).</div>
+      <div class="honesty" style="margin-top:12px"><b>How to read a11oy Code.</b> Every step you see is REAL: a live FSM transition, a real Λ gate verdict (advisory floor 0.90 \u2014 Λ is Conjecture 1, never a pass/fail oracle, never shown as 1.00), and a real DSSE/Khipu receipt hash. Locked-proven formulas = exactly 8 {F1, F4, F7, F11, F12, F18, F19, F22} @ kernel c7c0ba17; Khipu BFT safety = Conjecture 2 (open). When no model credential is set, the loop still runs for real and the model text is a <b>labeled stub</b> \u2014 never fabricated. Patterns inspired by ReAct, Reflexion, Self-RAG, GraphRAG, Aider repo-map, Anthropic/OpenAI/LangGraph agent loops, ULab GraphRouter \u2014 reimplemented as SZL\u2019s own governed code (see /NOTICE).</div>
       </div>
       <!-- ============ GOVERNED-TURN PANE (existing, preserved) ============ -->
       <div id="cd-pane-turn" style="display:none"><div class="kpis">
@@ -2987,7 +2987,7 @@ function codetab_sub(which){
   if(bt)bt.className='btn'+(which==='turn'?' teal':'');
   const h=el('cd-sub-hint');
   if(h)h.textContent=(which==='chaski')
-    ? 'Chaski runs the live agent loop \u2014 plan, retrieve, act, verify \u2014 a receipt for every step'
+    ? 'a11oy Code runs the live agent loop \u2014 plan, retrieve, act, verify \u2014 a receipt for every step'
     : 'Governed turn \u2014 single P1\u2013P6 governed run with signed receipt chain + tamper test';
   // (re)seed the 3D graph when the Chaski pane becomes visible
   if(which==='chaski'){ try{ chaski_seed_graph(); }catch(e){} }
