@@ -53,3 +53,8 @@ _vendor_blobs.py           # per-app vendored asset blob bundle (different asset
 #     routes, so this hardening module is intentionally app-specific. Reconcile
 #     only if both demos ever adopt one shared limiter.
 szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (app-specific routes)
+
+# --- 2026-06-30: elegant-dark-landing fix rebrands user-visible CHASKI → a11oy Code
+#     in the operator widget. killinchu's copy needs the same update (reconcile in
+#     killinchu PR). Allow temporarily until killinchu widget is synced.
+static-vendor/a11oy-operator-widget.js  # CHASKI→a11oy Code rebrand; killinchu sync pending
