@@ -1213,7 +1213,7 @@ COPY static/energy_3d.js ./static/energy_3d.js
 # GitHub-built image via this per-file COPY, served from /app/web/) and declared an
 # accepted divergence in .github/hf-module-drift-allow.json (same baked-only pattern
 # as web/immune.html + web/energy.html). Codename-free.
-COPY web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html ./web/
+COPY web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html ./web/
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # at the /honest endpoint so a stale box or Space is self-detecting. Provided at build

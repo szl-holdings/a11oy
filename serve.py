@@ -8927,6 +8927,23 @@ async def proof_replay_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# /trust — Trust Center + Verify Surface (KANCHAY). web/trust.html is self-contained:
+# the four honesty tiers with LIVE counts from /api/a11oy/v1/genome, the locked-8 with
+# TRUTHFUL labels (F18=Reed-Solomon parity NOT "DSSE seal", F19=Bekenstein additive, etc.)
+# + real lean_ref, the SEMANTIC-VERIFIED theorems, Theorem U (PROVEN conditional, teal) vs
+# Conjecture 1 (Λ-uniqueness, OPEN, gray — NEVER green), SLSA L1+L2 attested / L3 ROADMAP
+# linking /api/a11oy/v1/honest, and a "verify a receipt yourself" panel that POSTs
+# /api/a11oy/v1/govern/infer and re-verifies the DSSE ECDSA-P256 signature in-browser
+# against /cosign.pub (no sign-on-read). Every claim links to its check. 0 runtime CDN.
+# Registered BEFORE the SPA /{full_path:path} catch-all so it wins the ordered match.
+@app.get("/trust")
+async def trust_page() -> Response:
+    f = Path("/app/web/trust.html")
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/chaski")
 async def chaski_page() -> Response:
     f = PAGES_DIR / "chaski.html"
