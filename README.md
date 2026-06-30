@@ -1,6 +1,6 @@
 ---
-title: "a11oy — Governance Substrate"
-emoji: "🔬"
+title: "a11oy — Command Center"
+emoji: "🛡️"
 thumbnail: "https://a-11-oy.com/og-card.png"
 colorFrom: indigo
 colorTo: gray
@@ -8,7 +8,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "a11oy — signed-receipt substrate; receipts.in ≡ receipts.out"
+short_description: "a11oy — governed-AI Command Center, signed receipts"
 tags:
   - governance
   - agentic-ai
