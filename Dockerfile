@@ -187,6 +187,18 @@ COPY joule_billing.py szl_energy_ledger.py szl_energy_operator.py szl_energy_pro
 # energy LIVE feed (szl_energy_live) — imported by serve.py (guarded); MUST be per-file
 # COPY'd or /api/a11oy/v1/energy/{live,mesh,harvest} fall through to the SPA catch-all.
 COPY szl_energy_live.py ./
+# EU AI Act Art.53 signed energy disclosure (Dev 2 Build 2, 2026-06-30) — imported by
+# serve.py (guarded); MUST be per-file COPY'd or /api/a11oy/v1/energy/eu-disclosure + the
+# energy_eu_disclosure receipt field fall back to honest UNAVAILABLE stubs. The module is
+# also imported by szl_governed_api (additive guard) to embed the signed disclosure into
+# every govern/infer receipt. See DEVC_LEADERS.md #8 EU AI Act energy pattern.
+COPY szl_eu_energy.py ./
+# TEE attestation hook (Dev 2 Build 1, 2026-06-30) — imported by serve.py (guarded);
+# MUST be per-file COPY'd or /api/a11oy/v1/tee/status + the tee_attestation receipt field
+# fall back to honest UNAVAILABLE stubs. Pattern: dstack-capsule Apache-2.0 arXiv 2606.03323
+# (reimplemented). Auto-lights-up MEASURED on Intel TDX pod (/dev/tdx_guest) or AWS Nitro;
+# honest UNAVAILABLE on the current CPU-basic Space. See DEVC_LEADERS.md #6 dstack/TDX.
+COPY szl_tee_attest.py ./
 # Orbital tier (MODELED roadmap) — imported by serve.py (guarded); MUST be per-file
 # COPY'd (this Dockerfile uses no `COPY . .`) or the import falls back and
 # /api/a11oy/v1/orbital/{topology,projection} 404 live. szl_orbital_projection reuses
