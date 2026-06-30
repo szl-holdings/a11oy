@@ -731,8 +731,10 @@ details.raw[open] summary{color:var(--muted);}
 
     <!-- ── 6 · RESEARCH ─────────────────────────────────────────────────── -->
     <div class="nav-group mod-research">Research</div>
+    <div class="nav-item" data-view="publications" onclick="go('publications')"><span class="ico">▤</span>Publications</div>
     <div class="nav-item" data-view="frontier" onclick="go('frontier')"><span class="ico">◈</span>Frontier Pipeline</div>
     <div class="nav-item" data-view="labs" onclick="go('labs')"><span class="ico">⚛</span>Labs<span class="lab-chip">EXPERIMENTAL</span></div>
+    <div class="nav-item" data-view="labsintro" onclick="go('labsintro')"><span class="ico">⊹</span>Labs · what we extend<span class="lab-chip">EXPERIMENTAL</span></div>
 
     <!-- ── 7 · MORE ─────────────────────────────────────────────────────── -->
     <!-- DOCTRINE: energy_joules UNAVAILABLE until sovereign GPU + meter online; UI says
@@ -16000,8 +16002,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     ['Build',     ['llm','alloy','mcp','knowledge','genome','kbformulas','codetab']],
     ['Observe',   ['chain','evidence','replay','arena','ledger3d','lineage','receiptfp','anatomymap']],
     ['Govern',    ['lambda','gates','govern','honest','readiness','uds','mzgov']],
-    ['Research',  ['frontier','atlas','capfsm','l6chain']],
-    ['Labs · experimental', ['entangle','neuro','sovereignty','scaling','conjecturefactory','energyGrid','reciprocity','allodialai']],
+    ['Research',  ['publications','frontier','atlas','capfsm','l6chain']],
+    ['Labs · experimental', ['labsintro','entangle','neuro','sovereignty','scaling','conjecturefactory','energyGrid','reciprocity','allodialai']],
     ['Verticals', ['verticals','vdefense','vfinance','vlegal','vcyber','vrealestate',
                    'rem','red','reo','redeal','rebe','finq','finc','finm','finp','finr',
                    'cybPosture','cybThreat','cybSurface','cybIncident','cybZero',
@@ -16116,6 +16118,186 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
   // pinned-host is static, but re-assert after late injectors settle
   var n=0,iv=setInterval(function(){ n++; renderPins(); if(n>6) clearInterval(iv); },800);
+})();
+</script>
+
+<!-- ── RESEARCH content (IA DEV 2): Publications + Labs framing ──────────────
+     Registry-only views (go('publications') / go('labsintro')); the RESEARCH
+     nav-items added above call them. Honest 4-tier: locked-proven = 8
+     {F1,F4,F7,F11,F12,F18,F19,F22}; Λ-uniqueness = Conjecture 1 (gray, never
+     green); Khipu BFT safety = Conjecture 2. KANCHAY palette, no purple.
+     All DOIs are REAL — SZL's from szl-papers/PAPERS_INDEX.md, the 11 external
+     from LEADER_IA_RECON.md §6. EXPERIMENTAL chips use the cyan --proof accent,
+     never the green LOCKED tone. -->
+<style>
+  .pz-wrap{max-width:980px;}
+  .pz-lead{font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.7;margin:.2rem .1rem 1.3rem;border-left:2px solid var(--gold-line);padding-left:.8rem;}
+  .pz-h{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:1.6rem .1rem .6rem;border-bottom:1px solid var(--gold-line);padding-bottom:.35rem;}
+  .pz-card{border:1px solid var(--gold-line);border-radius:7px;padding:.7rem .85rem;margin:.45rem 0;background:rgba(255,255,255,0.012);}
+  .pz-card .t{font-size:13px;color:var(--cream);line-height:1.4;}
+  .pz-card .cite{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:.25rem;line-height:1.5;}
+  .pz-card .doi a{color:var(--teal);text-decoration:none;font-family:var(--mono);font-size:10px;}
+  .pz-card .doi a:hover{text-decoration:underline;}
+  .pz-card .adapt{font-size:11px;color:var(--gold-bright);margin-top:.4rem;line-height:1.5;}
+  .pz-card .adapt b{color:var(--teal);font-weight:600;}
+  .pz-num{display:inline-block;min-width:1.4em;color:var(--gold);font-family:var(--mono);font-size:10px;}
+  .pz-chip{display:inline-block;font-family:var(--mono);font-size:8.5px;letter-spacing:.05em;padding:.1rem .4rem;border-radius:4px;margin-left:.4rem;vertical-align:middle;}
+  .pz-chip.locked{color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);}
+  .pz-chip.exp{color:var(--proof);border:1px solid var(--proof-line);background:var(--proof-soft);}
+  .pz-chip.conj{color:#7e8aa3;border:1px solid rgba(126,138,163,0.30);background:rgba(126,138,163,0.06);}
+  .pz-card.exp{border-color:var(--proof-line);}
+  .pz-card .ext{font-family:var(--mono);font-size:10px;color:var(--proof);margin-top:.35rem;}
+  .pz-card .ext b{color:var(--cream);}
+</style>
+<script>
+(function(){
+  if(!window.VIEWS) return;
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function doiLink(d){ return '<span class="doi">DOI <a href="https://doi.org/'+esc(d)+'" target="_blank" rel="noopener">'+esc(d)+'</a></span>'; }
+
+  // ── SZL's own program — real Zenodo DOIs (szl-papers/PAPERS_INDEX.md) ──────
+  var SZL_UMBRELLA=[
+    ['Ouroboros / GPD program — umbrella concept DOI','10.5281/zenodo.19944926'],
+    ['Umbrella v21','10.5281/zenodo.20490218']
+  ];
+  var SZL=[
+    ['Lutar Omega Formalism','10.5281/zenodo.20499315'],
+    ['Prisca-GraphRAG','10.5281/zenodo.20499317'],
+    ['Hermetic Constitutional Guardrails','10.5281/zenodo.20499319'],
+    ['Sefirot Continual Learning','10.5281/zenodo.20499322'],
+    ['Free-Energy-Lutar Active Inference','10.5281/zenodo.20499324'],
+    ['Tawa Sparse Autoencoder','10.5281/zenodo.20499328'],
+    ['EPR-Bell Entanglement Validation','10.5281/zenodo.20499330'],
+    ['Chinchilla-Lutar Scaling Laws','10.5281/zenodo.20499334']
+  ];
+
+  // ── The 11 external papers we build on (LEADER_IA_RECON §6) — REAL cites ──
+  var EXT=[
+    {g:'Verifiable computation · zkML',
+     t:'South, T., Camuto, A., Jain, S., et al. (2024). "Verifiable evaluations of machine learning models using zkSNARKs." arXiv:2402.02675.',
+     d:'10.48550/arXiv.2402.02675',
+     a:'governed attestation — we back agent-performance claims with zkSNARK attestations that auditors verify without exposing model weights.'},
+    {g:'Verifiable computation · zkML',
+     t:'Jagannath, N., Wong, C., et al. (2025). "Enhancing Trust in AI Marketplaces: Reputation and Quality Estimation with zk-SNARKs." arXiv:2504.04794.',
+     d:'10.48550/arXiv.2504.04794',
+     a:'a trust-aggregation layer of oracle-backed attestations that compose into a verifiable multi-agent trust score.'},
+    {g:'Verifiable computation · zkML',
+     t:'Lycklama, H., Viand, A., Avramov, N., et al. (2024). "Artemis: Efficient Commit-and-Prove SNARKs for zkML." arXiv:2409.12055.',
+     d:'10.48550/arXiv.2409.12055',
+     a:'commit-and-prove so a decision can be verified BEFORE execution in Operate → Decisions.'},
+    {g:'BFT · formal verification',
+     t:'Andrade, J. O. (2025). "Four-Valued Model Checking for Byzantine Fault Tolerant Consensus Verification." IEEE CHILECON 2025.',
+     d:'10.1109/CHILECON66915.2025.11476325',
+     a:'a four-valued trust state machine {confirmed, refuted, uncertain, contested} for Govern → Policy.'},
+    {g:'BFT · formal verification',
+     t:'Yu, Q., Losa, G., Wang, X. (2024). "TetraBFT: Reducing Latency of Unauthenticated, Responsive BFT Consensus." ACM PODC 2024.',
+     d:'10.1145/3662158.3662783',
+     a:'a BFT substrate for quorum-based agent approval without long-term PKI (Khipu BFT safety stays Conjecture 2).'},
+    {g:'BFT · formal verification',
+     t:'Konnov, I., Lazic, M., Stoilkovska, I., Widder, J. (2020). "Tutorial: Parameterized Verification with the Byzantine Model Checker." FORTE 2020.',
+     d:'10.1007/978-3-030-50086-3_11',
+     a:'ByMC parameterized verification for fleet-scale quorum rules independent of fleet size.'},
+    {g:'Active inference · Bayesian mechanics',
+     t:'Smithe, T. St C. (2024). "Structured Active Inference (Extended Abstract)." arXiv:2406.07577.',
+     d:'10.48550/arXiv.2406.07577',
+     a:'the Markov blanket as the agent API surface — a compositional agent-interface model.'},
+    {g:'Active inference · Bayesian mechanics',
+     t:'Shafiei, A., Jesawada, H., Friston, K. J., Russo, G. (2025). "Distributionally Robust Free Energy principle for decision-making." Nature Communications.',
+     d:'10.1038/s41467-025-67348-6',
+     a:'DR-FREE robustness → Govern → Policy edge-case handling under distribution shift.'},
+    {g:'Active inference · Bayesian mechanics',
+     t:'Miyano, S., Shiono, T. (2026). "Chaotic Itinerancy in Collective Behaviour Emerging from Active Inference." Entropy 28(5), 491.',
+     d:'10.3390/e28050491',
+     a:'precision-gated trust learning — dynamic trust weights with Lyapunov stability.'},
+    {g:'Active inference · Bayesian mechanics',
+     t:'Heins, C., Pavliotis, G., Friston, K., Da Costa, L. (2021). "Bayesian mechanics for stationary processes." Proc. Royal Society A.',
+     d:'10.1098/rspa.2021.0518',
+     a:'the Markov-blanket epistemic boundary as a formal "agent epistemic state."'},
+    {g:'Category theory · composition',
+     t:'Diskin, Z., Maibaum, T. (2012). "Category Theory and Model-Driven Engineering: From Formal Semantics to Design Patterns and Beyond." EPTCS 93.',
+     d:'10.4204/EPTCS.93.1',
+     a:'functorial ontology composition that prevents semantic drift across surfaces.'}
+  ];
+
+  function pubCard(num,title,doi,extra){
+    return '<div class="pz-card"><div class="t"><span class="pz-num">'+esc(num)+'</span>'+esc(title)+'</div>'+
+           '<div class="cite">'+doiLink(doi)+(extra?(' &nbsp;·&nbsp; '+extra):'')+'</div></div>';
+  }
+  function extCard(i,p){
+    return '<div class="pz-card"><div class="t"><span class="pz-num">'+esc(i)+'</span>'+esc(p.t)+'</div>'+
+           '<div class="cite">'+doiLink(p.d)+'</div>'+
+           '<div class="adapt"><b>We adapt this by</b> '+esc(p.a)+'</div></div>';
+  }
+
+  async function renderPublications(c){
+    var lockedTxt='8';
+    try{ var g=await window.getJSON(window.API+'/v1/genome'); var lp=(g&&g.tier_counts&&g.tier_counts['LOCKED-PROVEN']); if(typeof lp==='number'&&lp>0) lockedTxt=String(lp); }catch(e){}
+    var h='<div class="pz-wrap">';
+    h+='<div class="pz-lead">The shoulders we stand on. SZL’s own program is DOI-pinned on Zenodo; the work it builds on is cited in full with a one-line note on exactly what we adapt. Honest tiers throughout: <b style="color:var(--teal)">'+esc(lockedTxt)+' locked-proven</b> {F1,F4,F7,F11,F12,F18,F19,F22}; Λ-uniqueness = <b style="color:#7e8aa3">Conjecture 1</b> (never green); Khipu BFT safety = Conjecture 2. Every formula’s proof tier is verifiable in <a href="#genome" onclick="go(\'genome\');return false;" style="color:var(--teal)">Genome</a> against <code>/api/a11oy/v1/genome</code>.</div>';
+
+    h+='<div class="pz-h">SZL program · Zenodo DOIs <span class="pz-chip locked">OUR WORK</span></div>';
+    h+='<div class="cite" style="font-family:var(--mono);font-size:10px;color:var(--dim);margin:0 .1rem .5rem;">Stephen P. Lutar Jr. · ORCID <a href="https://orcid.org/0009-0001-0110-4173" target="_blank" rel="noopener" style="color:var(--teal);text-decoration:none">0009-0001-0110-4173</a> · CC-BY-4.0</div>';
+    SZL_UMBRELLA.forEach(function(p){ h+=pubCard('✦',p[0],p[1]); });
+    SZL.forEach(function(p,i){ h+=pubCard(i+1,p[0],p[1]); });
+
+    var lastG=null;
+    h+='<div class="pz-h">The shoulders we stand on · 11 cited works</div>';
+    EXT.forEach(function(p,i){
+      if(p.g!==lastG){ h+='<div class="cite" style="color:var(--gold);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;margin:.8rem .1rem .3rem;text-transform:uppercase;">'+esc(p.g)+'</div>'; lastG=p.g; }
+      h+=extCard(i+1,p);
+    });
+    h+='<div class="pz-lead" style="margin-top:1.4rem;border-left-color:var(--proof-line);">External ideas are <b>cited, never claimed as ours</b> (doctrine v11). We extend them; we do not absorb their proofs into our locked-8.</div>';
+    h+='</div>';
+    c.innerHTML=h;
+  }
+
+  // ── Labs framing: each experimental module vs the frontier paper it extends ─
+  var LABS=[
+    {k:'entangle',name:'Entangle / quantum-bio',
+     ext:'SZL EPR-Bell Entanglement Validation (DOI 10.5281/zenodo.20499330) + Smithe, Structured Active Inference (arXiv:2406.07577) and Heins et al., Bayesian mechanics (Proc. R. Soc. A, 2021).',
+     by:'treating the agent API surface as a measurable Markov blanket and probing correlation bounds — EXPERIMENTAL, not a locked-8 claim. (The brief’s "quantum-bio" surface is realised here.)'},
+    {k:'neuro',name:'Neuro',
+     ext:'Shafiei et al., Distributionally Robust Free Energy (Nature Communications, 2025) + Miyano & Shiono, Chaotic Itinerancy in Active Inference (Entropy 28(5):491, 2026).',
+     by:'precision-gating trust updates with a distributionally-robust free-energy objective — EXPERIMENTAL; trust weights are advisory, never a proven bound.'},
+    {k:'sovereignty',name:'Sovereignty',
+     ext:'Andrade, Four-Valued Model Checking for BFT (IEEE CHILECON 2025) + Yu et al., TetraBFT (PODC 2024) + Konnov et al., Byzantine Model Checker (FORTE 2020).',
+     by:'mapping a sovereign quorum onto a four-valued BFT trust state machine — EXPERIMENTAL; Khipu BFT safety remains Conjecture 2 (Wave-23 proves only conditional agreement).'},
+    {k:'scaling',name:'Scaling',
+     ext:'SZL Chinchilla-Lutar Scaling Laws (DOI 10.5281/zenodo.20499334).',
+     by:'pairing compute-optimal scaling with governed-cost receipts so a scaling decision carries an auditable trail — EXPERIMENTAL, MODELED until a sovereign GPU lung reports MEASURED joules.'},
+    {k:'conjecturefactory',name:'Conjecture Factory',
+     ext:'Andrade, Four-Valued Model Checking for BFT (IEEE CHILECON 2025) — formal verification of candidate invariants.',
+     by:'auto-proposing candidate invariants and labelling every output CONJECTURE until a Lean kernel discharges it — EXPERIMENTAL; Λ-uniqueness stays Conjecture 1 (machine-checked false as stated).'}
+  ];
+
+  function labCard(p){
+    return '<div class="pz-card exp"><div class="t">'+esc(p.name)+' <span class="pz-chip exp">EXPERIMENTAL</span></div>'+
+           '<div class="ext"><b>Extends:</b> '+esc(p.ext)+'</div>'+
+           '<div class="adapt"><b>We extend it by</b> '+esc(p.by)+'</div></div>';
+  }
+
+  async function renderLabsIntro(c){
+    var h='<div class="pz-wrap">';
+    h+='<div class="pz-lead" style="border-left-color:var(--proof-line);">Labs is honest research at the frontier — each surface names the published work it extends and exactly how. <b style="color:var(--proof)">EXPERIMENTAL</b> means not folded into the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22}, never shown green, never deleted. Λ-uniqueness stays <b style="color:#7e8aa3">Conjecture 1</b>; Khipu BFT safety stays Conjecture 2. Full citations live in <a href="#publications" onclick="go(\'publications\');return false;" style="color:var(--teal)">Publications</a>; the live grid of every experimental surface is in <a href="#labs" onclick="go(\'labs\');return false;" style="color:var(--proof)">Labs</a>.</div>';
+    h+='<div class="pz-h">What each experiment extends</div>';
+    LABS.forEach(function(p){ h+=labCard(p); });
+    h+='<div class="pz-lead" style="margin-top:1.3rem;">Other Labs surfaces (energyGrid, reciprocity, allodialai, …) are reachable from the <a href="#labs" onclick="go(\'labs\');return false;" style="color:var(--proof)">Labs</a> grid, each carrying the same EXPERIMENTAL label. Energy joules stay UNAVAILABLE / MODELED until a sovereign GPU + meter are online — never faked.</div>';
+    h+='</div>';
+    c.innerHTML=h;
+  }
+
+  window.VIEWS['publications']={
+    title:'Publications',
+    badge:'THE SHOULDERS WE STAND ON',
+    sub:'SZL’s DOI-pinned program and the cited works it builds on — honest tiers, real DOIs, external ideas cited never claimed.',
+    render:renderPublications
+  };
+  window.VIEWS['labsintro']={
+    title:'Labs · what we extend',
+    badge:'EXPERIMENTAL · NOT A LOCKED-8 CLAIM',
+    sub:'Each experimental surface framed against the frontier paper it extends — honest "we extend X by Y", cited, never green.',
+    render:renderLabsIntro
+  };
 })();
 </script>
 
