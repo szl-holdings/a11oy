@@ -331,6 +331,8 @@ def _do_novelty(crystal: dict[str, Any]) -> dict[str, Any]:
         "fingerprint_digest": fp["fingerprint_digest"],
         "fingerprint": fp["fingerprint_short"],
         "invariant": fp["invariant_kind"],
+        # FIX 3: explicit top-level proof_status — PDDInjective has 1 open sorry
+        "proof_status": "ROADMAP — Lean sorry open (not in locked-8)",
         "receipt": {
             "receipt_type": _NOVELTY_RECEIPT_TYPE,
             "organ": _KHIPU_ORGAN,
@@ -464,7 +466,9 @@ def _register_novelty(app, ns: str = "a11oy") -> list[str]:
 _PACBAYES_RECEIPT_TYPE = "SZL.Materials.PACBayesCert.v1"
 
 # Lean backing for the McAllester bound — OPEN SORRY / ROADMAP, NOT in locked-8.
+# FIX 3: top-level proof_status label — PACBayesMaterials has 1 open sorry
 _PACBAYES_PROOF_STATUS = (
+    "ROADMAP — Lean sorry open (not in locked-8): "
     "bound formula PROVEN on paper (McAllester 1999, COLT); "
     "Lean proof = SORRY/ROADMAP (Lutar/Materials/PACBayesMaterials.lean); "
     "bound COMPUTATION exact"
