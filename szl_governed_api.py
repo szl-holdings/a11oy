@@ -545,15 +545,30 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
                        "labeled REMOTE/not-sovereign and yields UNAVAILABLE energy.",
         })
 
-    # Landing page: serve the holographic showcase at /govern and /govern/ (branded domain root)
+    # Front door ("/"): serve the INVESTOR landing (a11oy_landing.html) — the
+    # collapsed flagship story (signs-its-work / refuses / formally-backed cards,
+    # killinchu vertical, Conjecture 1 advisory). The holographic govern showcase
+    # remains available at /govern + /govern/. Previously "/" served
+    # govern_showcase.html, which front-insert-shadowed serve.py's spa_root and
+    # pinned the old 941KB showcase as the front door — root cause of the stale
+    # landing. Doctrine v11 LOCKED, Lambda Conjecture 1 (advisory, never theorem).
     try:
         from starlette.responses import FileResponse, HTMLResponse
         import os as _os
-        _PAGE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "govern_showcase.html")
+        _DIR = _os.path.dirname(_os.path.abspath(__file__))
+        _PAGE = _os.path.join(_DIR, "govern_showcase.html")          # /govern showcase
+        _FRONT = _os.path.join(_DIR, "a11oy_landing.html")            # "/" investor front door
         async def _landing(request=None):
             if _os.path.exists(_PAGE):
                 return FileResponse(_PAGE, media_type="text/html")
             return HTMLResponse("<h1>a11oy Governed Inference</h1><p>showcase asset missing</p>")
+        async def _front_door(request=None):
+            # Investor front door first; fall back to the govern showcase, then a stub.
+            if _os.path.exists(_FRONT):
+                return FileResponse(_FRONT, media_type="text/html")
+            if _os.path.exists(_PAGE):
+                return FileResponse(_PAGE, media_type="text/html")
+            return HTMLResponse("<h1>a11oy Governed Inference</h1><p>front-door asset missing</p>")
     except Exception:
         _landing = None
 
@@ -577,7 +592,7 @@ def register(app, ns: str = "a11oy"):  # pragma: no cover
     # like /api/a11oy/v1/reason) AND the post-strip /v1/govern/* + short /govern/*
     # forms, so it wins regardless of how the front-door forwards.
     paths = [
-        ("/",             _landing or _health, ["GET"]),  # front door: elite showcase
+        ("/",             (_front_door if '_front_door' in dir() else _landing) or _health, ["GET"]),  # front door: investor landing
         ("/govern",       _landing or _health, ["GET"]),
         ("/govern/",      _landing or _health, ["GET"]),
         ("/api/a11oy/v1/govern/infer",  _infer,  ["POST"]),
