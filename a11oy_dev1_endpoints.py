@@ -167,6 +167,7 @@ _VERTICALS = [
     {"id": "legal",      "label": "Legal"},
     {"id": "enterprise", "label": "Enterprise / Cyber"},
     {"id": "realestate", "label": "Real Estate"},
+    {"id": "insurance",  "label": "Insurance (David Leads)"},
     {"id": "core",       "label": "Core Governance"},
 ]
 
@@ -188,6 +189,11 @@ _LEDGER_ACTIONS = {
     "realestate": [("gate.distress", "distress-pipeline ownership gate evaluated", "F1"),
                    ("score.deal",    "deal risk Λ-scored against floor", "F19"),
                    ("sign.deal",     "deal-workflow receipt signed", "F18")],
+    # insurance = David Leads fold-in. score.lead is REAL (5-axis weighted-geomean Λ behind
+    # the F12 compliance gate, emits insurance|score.lead into szl.lake.receipt/v1).
+    # bind.policy is ROADMAP — no policy-binding path exists (genome Q3-INS-16); not fabricated.
+    "insurance":  [("gate.compliance", "DNC/deceased/opt-out compliance gate (non-compensatory)", "F12"),
+                   ("score.lead",    "lead Λ-scored across 5 transparent axes", "F19")],
     "core":       [("gate.evaluate", "policy gate evaluated action plan", "F1"),
                    ("lambda.score",  "trust score computed across 13 axes", "F19"),
                    ("receipt.sign",  "decision receipt DSSE-signed", "F18")],
@@ -224,7 +230,7 @@ def _seed_ledger(n: int = 28) -> None:
     """Seed an initial honest cross-vertical chain so the ledger is never empty."""
     if _LEDGER:
         return
-    order = ["core", "defense", "finance", "legal", "enterprise", "realestate"]
+    order = ["core", "defense", "finance", "legal", "enterprise", "realestate", "insurance"]
     import random as _r
     rng = _r.Random(8675309)  # deterministic seed -> stable initial chain
     for i in range(n):
@@ -578,7 +584,7 @@ def register(app, ns: str = "a11oy") -> str:
         # Optionally append a fresh governed turn so the chain visibly grows on
         # each auto-poll (the "always recording live" property). advance=0 to peek.
         if advance:
-            order = ["core", "defense", "finance", "legal", "enterprise", "realestate"]
+            order = ["core", "defense", "finance", "legal", "enterprise", "realestate", "insurance"]
             v = order[int(time.time()) % len(order)]
             acts = _LEDGER_ACTIONS[v]
             a = acts[int(time.time()) % len(acts)]

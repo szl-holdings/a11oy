@@ -112,6 +112,19 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# ── Org-wide Λ + ONE chain + insurance (David Leads) fold-in (dev C / unify-sovereign-org).
+# Adds GET /api/a11oy/v1/lambda/org (13-axis weighted-geomean org posture, advisory floor
+# 0.90; bounds SEMANTIC-VERIFIED Lutar/Bound.lean, uniqueness = Conjecture 1), the insurance
+# vertical surfaces (score.lead REAL → emits insurance|score.lead into the ONE szl.lake.receipt/v1
+# chain; bind.policy ROADMAP, honest 501, no fabricated write), and GET /api/a11oy/v1/verticals.
+# Additive, try/except-guarded, registered EARLY (before the SPA catch-all). stdlib + szl_lake_store.
+try:
+    import szl_org_lambda as _szl_org_lambda
+    _szl_org_paths = _szl_org_lambda.register(app, ns="a11oy")
+    print(f"[a11oy] Org-Λ + ONE chain + insurance registered: {_szl_org_paths}", file=__import__("sys").stderr)
+except Exception as _szl_org_e:  # pragma: no cover
+    print(f"[a11oy] Org-Λ + insurance NOT registered: {_szl_org_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
 # ── Mosaic governance-over-anomalies (feat/mosaic-governance-oversight) — a11oy is
 # the orchestrating governance brain over the SZL-Mosaic field detector
 # (szl_mosaic_core, sibling package). Adds GET /api/a11oy/v1/mosaic/governed:
