@@ -8297,11 +8297,81 @@ except Exception as _kl_e:
 
 _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/live/", "v1/code/", "v1/seismic/", "v1/feeds/",
-                              "v1/govern/")
+                              "v1/govern/",
+                              "v1/verify/intoto",      # in-toto verify guide (DEV2)
+                              "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
+                              )
+
+
+# ============================================================================
+# DEV2: in-toto verify guide (inline, proven register pattern)
+# Registered BEFORE /api/a11oy/{path:path} so it wins over the Node proxy.
+# ============================================================================
+@app.get("/api/a11oy/v1/verify/intoto")
+async def _intoto_verify_guide(request: Request) -> Response:
+    """in-toto verification guide: what is now verifiable vs roadmap."""
+    from starlette.responses import JSONResponse as _JSONResponse
+    _pub_key_url = "https://github.com/szl-holdings/.github/blob/main/cosign.pub"
+    return _JSONResponse({
+        "title": "SZL a11oy in-toto Verification Guide",
+        "what_is_now_verifiable": {
+            "1_dsse_signature": {
+                "status": "LIVE",
+                "description": "DSSE-signed with SZL ECDSA P-256 keypair. payloadType=application/vnd.in-toto+json. Verifiable with cosign verify-blob.",
+                "command": "cosign verify-blob --key https://a-11-oy.com/cosign.pub --bundle <receipt.bundle.json> <statement.json>",
+            },
+            "2_intoto_statement_v1": {
+                "status": "LIVE",
+                "description": "_type: https://in-toto.io/Statement/v1, subject:[{name, digest:{sha3-256:<output_hash>}}], predicateType: https://szl.holdings/khipu-governed-inference/v1",
+                "fetch_endpoint": "/khipu/intoto/<receipt_id>",
+            },
+            "3_hard_binding": {
+                "status": "LIVE",
+                "description": "subject.digest = SHA3-256(model_output). C2PA pattern: receipt cannot be recycled for a different output. Verify offline: SHA3-256(answer) == statement.subject[0].digest",
+            },
+            "4_self_hosted_merkle_log": {
+                "status": "LIVE",
+                "description": "RFC 6962 SHA3-256 Merkle transparency log. Inclusion proofs at /api/lake/v1/proof/<receipt_id>.",
+                "proof_endpoint": "/api/lake/v1/proof/<receipt_id>",
+                "log_endpoint": "/api/lake/v1/log",
+                "honest_label": "szl-lake-merkle (self-hosted) — NOT Sigstore public Rekor",
+            },
+        },
+        "what_is_roadmap": {
+            "per_receipt_public_rekor": "ROADMAP: submit each receipt to rekor.sigstore.dev on Lake publish.",
+            "slsa_l2_container": "ROADMAP: actions/attest-build-provenance in CI (~3 YAML lines).",
+            "tee_attestation": "ROADMAP Phase II: AWS Nitro PCR-bound inference attestation.",
+        },
+        "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+        "pr": "https://github.com/szl-holdings/a11oy/pull/567",
+        "public_key_url": _pub_key_url,
+    })
+print("[a11oy] in-toto verify guide registered: /api/a11oy/v1/verify/intoto (DEV2)", file=__import__("sys").stderr)
 
 
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
+    # DEV2: in-toto verify guide + inclusion proof — served in-process, NOT proxied
+    if path == "v1/verify/intoto":
+        return JSONResponse({
+            "title": "SZL a11oy in-toto Verification Guide",
+            "what_is_now_verifiable": {
+                "1_dsse_signature": {"status": "LIVE", "description": "payloadType=application/vnd.in-toto+json, ECDSA-P256-SHA256 DSSE sig"},
+                "2_intoto_statement_v1": {"status": "LIVE", "description": "_type: https://in-toto.io/Statement/v1, predicateType: https://szl.holdings/khipu-governed-inference/v1", "endpoint": "/khipu/intoto/<receipt_id>"},
+                "3_hard_binding": {"status": "LIVE", "description": "subject.digest = SHA3-256(output). C2PA pattern."},
+                "4_merkle_log": {"status": "LIVE", "description": "RFC 6962 SHA3-256 self-hosted log.", "proof_endpoint": "/api/lake/v1/proof/<id>", "log_endpoint": "/api/lake/v1/log", "honest_label": "szl-lake-merkle (self-hosted) — NOT Sigstore Rekor"},
+            },
+            "what_is_roadmap": {
+                "per_receipt_public_rekor": "ROADMAP: submit to rekor.sigstore.dev on Lake publish",
+                "slsa_l2": "ROADMAP: actions/attest-build-provenance in CI",
+                "tee": "ROADMAP Phase II: AWS Nitro PCR",
+            },
+            "offline_verifier": "szl-cookbook/verify-intoto-receipt.py (Apache-2.0)",
+            "pr": "https://github.com/szl-holdings/a11oy/pull/567",
+            "public_key_url": "https://github.com/szl-holdings/.github/blob/main/cosign.pub",
+            "_dev": "DEV2 in-toto attestation layer (szl_intoto.py)",
+        })
+
     if path.startswith(_LOCAL_ONLY_A11OY_PREFIXES):
         return JSONResponse(
             {"error": "local route unmatched — not proxied to Node backend",
@@ -10037,6 +10107,29 @@ except Exception as _szl_lake_e:  # pragma: no cover
 # ============================================================================
 # END: a11oy UNIFIED RECEIPT LEDGER sink
 # ============================================================================
+# ============================================================================
+# BEGIN: in-toto Statement v1 routes + Merkle transparency log (DEV2, additive)
+# Mounts in-toto-compatible receipt views and per-receipt inclusion proofs:
+#   GET /khipu/intoto/<receipt_id>      -> Statement v1 + DSSE envelope + proof
+#   GET /api/lake/v1/proof/<receipt_id> -> Merkle inclusion proof (RFC 6962)
+#   GET /api/lake/v1/log                -> self-hosted log state
+#   GET /api/a11oy/v1/verify/intoto     -> verification guide
+# REGISTERED AFTER szl_lake_ingest: because each register() uses insert(0,),
+# the LAST registered module wins (its routes are at index 0 = highest priority).
+# So intoto routes correctly WIN over any /api/lake/v1/* catch-alls.
+# Pattern: in-toto Attestation Framework v1 (Apache-2.0). No lib import, no AGPL.
+# Additive, try/except-guarded. HONEST LABELS: rekor-public vs szl-lake-merkle.
+# ============================================================================
+try:
+    import szl_intoto_routes as _szl_intoto_routes
+    _intoto_status = _szl_intoto_routes.register(app, ns="a11oy")
+    print(f"[a11oy] in-toto routes registered: {_intoto_status}", file=__import__("sys").stderr)
+except Exception as _it_e:
+    print(f"[a11oy] in-toto routes NOT registered (non-fatal): {_it_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: in-toto Statement v1 routes + Merkle transparency log
+# ============================================================================
+
 # ============================================================================
 # BEGIN: Tier-1 Demo Features (BVIR + Honest Refusal + Verifiable Thesis)
 # ADDITIVE. Path namespace /api/a11oy/v1/demo — no overlap with any existing
