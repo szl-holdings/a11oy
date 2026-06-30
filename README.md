@@ -141,6 +141,22 @@ Check current signing status: `GET /api/a11oy/v1/signing-status`
 
 ---
 
+## Shared modules (must not drift)
+
+`a11oy_agent_loop.py`, `a11oy_mcp_client.py`, and `operator_shell_v4.py` are **SHARED
+byte-identical** with the sibling [killinchu](https://github.com/szl-holdings/killinchu)
+deployment and must not drift. An in-repo ratchet pins their SHA-256 in
+`.shared_module_hashes.json`; the `Shared-module hash lock` workflow fails if any of
+them changes without the lock being regenerated. When a change is intentional,
+regenerate the lock in the same PR and mirror the edit to killinchu (cross-repo
+enforcement is a follow-up):
+
+```
+python3 .github/shared-module-hash-check.py --update
+```
+
+---
+
 ## Learn more
 
 - [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md)

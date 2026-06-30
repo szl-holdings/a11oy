@@ -1,0 +1,43 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+name: Shared-module hash lock
+
+# IN-REPO drift ratchet for the SHARED byte-identical modules that a11oy and
+# killinchu both deploy (the agent loop, the MCP client, the operator shell).
+#
+# The existing `shared-file-drift.yml` compares this repo against the live
+# killinchu checkout (cross-repo). THIS guard is the complementary IN-REPO lock:
+# it pins a committed SHA-256 of each shared module in .shared_module_hashes.json
+# and fails the moment one changes without the lock being regenerated — making
+# every edit to a shared module a deliberate, reviewable act.
+#
+# Regenerate the lock intentionally (same PR as the change), then mirror the edit
+# to killinchu (cross-repo enforcement is a documented follow-up):
+#   python3 .github/shared-module-hash-check.py --update
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-module-hash-lock:
+    name: Shared modules match committed SHA-256 lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+      - name: Verify shared-module hash lock
+        run: python3 .github/shared-module-hash-check.py
