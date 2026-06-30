@@ -39,7 +39,7 @@ _APP = Path("/app") if (Path("/app") / "pages").is_dir() else Path(__file__).res
 _PAGES = _APP / "pages"
 _STATIC = _APP / "static"
 
-# The six governed organs the Operator orchestrates. Positions match the viz
+# The governed organs the Operator orchestrates. Positions match the viz
 # fallback. `probe` is an in-process health route we can hit locally (best-effort).
 _NODES = [
     {"id": "gate",      "name": "Trust Gate",       "role": "heart",       "pos": [13, 6, 2],   "probe": "/api/a11oy/healthz"},
@@ -48,6 +48,9 @@ _NODES = [
     {"id": "telemetry", "name": "Telemetry Spans",  "role": "nervous",     "pos": [12, -5, 3],  "probe": "/api/a11oy/healthz"},
     {"id": "mesh",      "name": "Service Mesh",     "role": "skeleton",    "pos": [-12, -5, 3], "probe": "/api/a11oy/healthz"},
     {"id": "fleet",     "name": "Fleet C2",         "role": "effector",    "pos": [0, 6, -15],  "probe": "/api/a11oy/healthz"},
+    # WALLPA — the VOICE/expression organ (Doctrine v13 §2.2). Best-effort liveness
+    # via the in-process voices route; honestly null (amber) when unmeasured.
+    {"id": "voice",     "name": "Wallpa Voice",     "role": "voice",       "pos": [0, -12, -6], "probe": "/api/a11oy/wallpa/voices"},
 ]
 
 # Honest cache of the last successfully-built topology (so a degraded probe
