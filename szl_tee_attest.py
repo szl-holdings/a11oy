@@ -329,8 +329,9 @@ def _h_tee_status(request):
 def register(app, ns: str = "a11oy") -> dict:
     """Wire GET /api/<ns>/v1/tee/status onto the app.
 
-    Additive.  Prefers FastAPI's add_api_route (so the route resolves before the SPA
-    catch-all); falls back to Starlette Route append.  Never raises into the caller.
+    Additive.  Uses routes.insert(0, ...) to front-move so this route wins over
+    the generic /api/a11oy/{path:path} Node proxy catch-all (same proven pattern
+    as szl_compliance, szl_e8, etc. in serve.py).  Never raises into the caller.
     Returns {"registered": [...], "status": "ok"|"failed:<reason>"}.
     """
     path = f"/api/{ns}/v1/tee/status"
@@ -339,12 +340,12 @@ def register(app, ns: str = "a11oy") -> dict:
     except Exception as e:
         return {"registered": [], "status": f"failed:starlette-absent:{e}"}
 
-    add_api_route = getattr(app, "add_api_route", None)
     try:
-        if callable(add_api_route):
-            app.add_api_route(path, _h_tee_status, methods=["GET"])
-        else:
-            app.router.routes.append(Route(path, _h_tee_status))
+        # Front-insert so this route beats the /api/a11oy/{path:path} Node proxy
+        # catch-all.  add_api_route appends (loses to pre-registered catch-all);
+        # insert(0, ...) is the canonical pattern in this codebase.
+        _r = Route(path, _h_tee_status, methods=["GET"])
+        app.router.routes.insert(0, _r)
         return {"registered": [path], "status": "ok"}
     except Exception as e:
         return {"registered": [], "status": f"failed:{type(e).__name__}:{e}"}
