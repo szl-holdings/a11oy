@@ -305,6 +305,8 @@ def register(app, ns: str = "a11oy", http_client: Any = None, base_url: str = ""
         if not _eff_base:
             _space_host = _os.environ.get("SPACE_HOST", "")
             if _space_host:
+                # SPACE_HOST may be comma-separated (HF quirk); take the first one.
+                _space_host = _space_host.split(",")[0].strip()
                 _eff_base = f"https://{_space_host}"
             else:
                 _eff_base = f"http://127.0.0.1:{_os.environ.get('PORT', '7860')}"
