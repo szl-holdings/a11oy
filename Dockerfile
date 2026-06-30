@@ -449,6 +449,12 @@ COPY static/cathedral_app.js ./static/cathedral_app.js
 # the ES module served at /landing/app.js. Reuses the vendor3d Three.js r160 above
 # (MIT) via the page importmap — 0 runtime CDN. MUST be per-file COPY'd or "/"
 # falls back to the cathedral/console. Doctrine v11 LOCKED; Λ = Conjecture 1.
+# LANDING-CACHE-BUST (Dev D, 2026-06-30): ARG value = git oid of the correct
+# 21 347-byte investor landing. Change ARG value = new cache key = Docker
+# registry cache miss = fresh COPY of the new file. Root cause: HF Spaces
+# registry-based build cache keyed on instruction text only; BuildKit's
+# file-checksum invalidation is bypassed by --cache-from=type=registry.
+ARG LANDING_BLOB=42c337f01f6817d96e2573db33ccd5c4181be81e
 COPY a11oy_landing.html /app/a11oy_landing.html
 COPY static/a11oy_landing.js ./static/a11oy_landing.js
 # ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
