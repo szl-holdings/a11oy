@@ -606,6 +606,19 @@ try:
 except Exception as _szl_kv2_e:  # pragma: no cover
     print(f"[a11oy] Universal Khipu verifier NOT registered: {_szl_kv2_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# Prove-Our-Whole-Stack attestation surface — GET /attest (KANCHAY verifier UI) +
+# GET /api/a11oy/v1/attest/{receipt_hash}: a single 6-factor provenance chain for any
+# decision receipt (DSSE+khipu chain, Rekor, Lean Theorem U, energy cert, 3-of-4 witness
+# cosign, overall verdict). READ/VERIFY only — never signs on this path. Reuses
+# szl_khipu_verify / szl_dsse / szl_rekor_anchor / szl_materials / szl_khipu_consensus.
+# Registered BEFORE the SPA catch-all so both routes resolve locally.
+try:
+    import szl_attest_stack as _szl_attest_stack
+    _szl_attest_stack.register(app, ns="a11oy")
+    print("[a11oy] Prove-our-whole-stack attestation registered: /attest + /api/a11oy/v1/attest/{receipt_hash}", file=__import__("sys").stderr)
+except Exception as _szl_attest_e:  # pragma: no cover
+    print(f"[a11oy] Attestation surface NOT registered: {_szl_attest_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Orbital PAGE (frontend demo surface) — GET /orbital renders the MODELED constellation
 # (topology + projection + governed-receipt overlay) against the two MODELED endpoints
 # above. The whole surface is banner-labeled "MODELED — Orbital Roadmap (no on-orbit
@@ -2378,6 +2391,24 @@ try:
     print(f"[a11oy] WAVE9/10 proven-formulas registered: {_wave910_status}", file=sys.stderr)
 except Exception as _w910_e:  # additive: never break the Space
     print(f"[a11oy] WAVE9/10 proven-formulas NOT registered: {_w910_e!r}; SPA + API unaffected", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# ADDITIVE (EXPERIMENTAL TIER INSTILLATION, 2026-06-30, Dev A):
+# Wires the full experimental (CI-green, NOT in locked-8) tier into a single
+# navigable console endpoint so the "Experimental (CI-green)" nav group in the
+# SPA can display real, honestly-labelled data.
+# HONESTY: LOCKED = EXACTLY 8 @ c7c0ba17. NEVER folded into locked count.
+# Label: "EXPERIMENTAL · CI-green · NOT in locked-8 · kernel c7c0ba17 unchanged"
+# Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1. Additive only. 0 CDN.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# ---------------------------------------------------------------------------
+try:
+    import a11oy_experimental_tier as _a11oy_exp
+    _exp_status = _a11oy_exp.register(app, ns="a11oy")
+    print(f"[a11oy] EXPERIMENTAL TIER registered: {_exp_status}", file=sys.stderr)
+except Exception as _exp_e:  # additive: never break the Space
+    print(f"[a11oy] EXPERIMENTAL TIER NOT registered: {_exp_e!r}; SPA + API unaffected", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
