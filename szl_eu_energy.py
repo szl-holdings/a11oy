@@ -180,16 +180,27 @@ def _sign_disclosure(disclosure: dict, receipt_id: str | None = None) -> dict:
     sign_note = None
     try:
         import szl_dsse as _dsse
-        # szl_dsse.sign_payload returns bytes or a dict; normalise to hex
+        # szl_dsse.sign_payload(payload_obj: Any, payload_type: str) -> dict
+        # It does canonical_json(payload_obj) internally — pass the dict, NOT bytes.
         signer = getattr(_dsse, "sign_payload", None) or getattr(_dsse, "sign", None)
         if callable(signer):
-            sig_raw = signer(payload_bytes)
+            sig_raw = signer(disclosure)  # pass dict so canonical_json works
             if isinstance(sig_raw, (bytes, bytearray)):
                 sig_hex = sig_raw.hex()
             elif isinstance(sig_raw, dict):
-                # Some versions return {"sig": "...", "pub": "..."}
-                sig_hex = sig_raw.get("sig") or sig_raw.get("signature")
-            signed_ok = sig_hex is not None
+                # sign_payload returns a DSSE envelope dict; extract b64 sig
+                sigs = sig_raw.get("signatures", [])
+                if sigs and isinstance(sigs, list):
+                    sig_hex = sigs[0].get("sig")  # b64-encoded ECDSA sig
+                elif sig_raw.get("signed") is False:
+                    # No key — UNSIGNED envelope (honesty marker set)
+                    sig_hex = None
+                    sign_note = sig_raw.get("honesty", "UNSIGNED — no key")
+                else:
+                    sig_hex = sig_raw.get("sig") or sig_raw.get("signature")
+                signed_ok = bool(sig_hex) and sig_raw.get("signed", True) is not False
+            else:
+                signed_ok = sig_hex is not None
         else:
             sign_note = "szl_dsse has no sign_payload/sign callable"
     except Exception as e:
