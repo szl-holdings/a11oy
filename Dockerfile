@@ -550,6 +550,14 @@ COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-
 # /qhawaq + /api/a11oy/v1/qhawaq/*. Without this COPY the guarded import falls back
 # and /qhawaq 404s. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
 COPY szl_qhawaq.py ./szl_qhawaq.py
+
+COPY szl_wallpa.py ./szl_wallpa.py
+# ADDITIVE (WALLPA): Voice / expression organ — renders governed actions into audio output.
+# Quechua wallpay = to create/express. Doctrine v13 §2.2. Routes: /api/a11oy/wallpa/{voices,
+# speak,speak/stream,narrate-doctrine}. OSS-only TTS (Piper→Coqui→OpenVoice→synthetic fallback).
+# F8 "Wallpa OSS-Only Safety" locked-proven theorem. Without this COPY the try/except in
+# serve.py (edge organs loop, line ~2238) silently swallows the ImportError and all /wallpa
+# endpoints return 404. The .py auto-mirrors to the HF Space via hf-sync-backend.yml.
 # ADDITIVE (SAPA): Energy per Successful Goal — frontier agentic unit on top of
 # the live MEASURED joules/token path. szl_sapa.py is the shared accounting layer
 # (byte-identical a11oy<->killinchu); szl_sapa_patch.py front-inserts /sapa +
