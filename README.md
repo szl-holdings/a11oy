@@ -228,9 +228,18 @@ table in [`docs/architecture.md`](docs/architecture.md).
 | **energy/** | joule accounting + carbon (ROADMAP) | `szl_energy_operator`, `szl_energy_ledger`, `szl_energy_projection`, `joule_billing`, `szl_joules_truth` |
 | **supply-chain/** | cosign · SLSA · UDS · SBOM (ROADMAP) | `szl_uds_fleet`, `szl_uds_portability`, `runtime_attestation`, `sign_cert_dsse` |
 
----
+### Why `_vendor_blobs.py` is committed (a ~2.6 MB load-bearing blob, kept on purpose)
 
-## Parity vs. leaders
+`_vendor_blobs.py` is a ~2.6 MB file holding base64-encoded vendored viz assets (the globe
+texture `earth-night.jpg` + KaTeX `.woff2` fonts). It is **deliberately committed and is
+load-bearing at runtime, not a stray bundle** — `serve.py` imports it (`import _vendor_blobs`)
+to serve `/vendor/earth-night.jpg` and `/vendor/fonts/*`. Shipping these assets as **text
+inside the repo is the whole point**: the operator console then needs **zero CDN and zero Git
+LFS**, which is what makes the air-gap / sovereign deployment honest (`AIR-GAP vendor routes
+registered … NO CDN`). It is therefore **not** git-ignored or `git rm --cached`-ed: evicting
+it would break the `/vendor/*` routes on every fresh clone and air-gapped deploy, and the
+upstream binaries are not otherwise tracked in this repo. It is auto-generated (base64 of the
+binary assets); regenerate only by re-encoding those source assets, never by hand-editing.
 
 | Capability | Palantir AIP | a11oy | Differentiator |
 |---|---|---|---|
