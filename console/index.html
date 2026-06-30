@@ -242,7 +242,11 @@ details.raw[open] summary{color:var(--muted);}
     <div class="nav-item" data-view="replay" onclick="go('replay')"><span class="ico">◷</span>Reasoning Replay</div>
     <div class="nav-group">Doctrine</div>
     <div class="nav-item" data-view="gpd" onclick="go('gpd')"><span class="ico">⟁</span>Governed Post-Determinism</div>
-    <div class="side-foot">Trust score = research conjecture<br>8 formulas formally proven<br>SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · 5 services<br>Verifiable receipts · honest by design</div>
+    <div class="nav-group">Experimental (CI-green)</div>
+    <div class="nav-item" data-view="experimental" onclick="go('experimental')"><span class="ico">⚗</span>Experimental Tier</div>
+    <div class="nav-item" onclick="window.open('/proven-formulas','_blank')" style="cursor:pointer"><span class="ico">∿</span>Wave9/10 Formulas ↗</div>
+    <div class="nav-item" onclick="window.open('/frontier','_blank')" style="cursor:pointer"><span class="ico">◌</span>Frontier Showcase ↗</div>
+    <div class="side-foot">Trust score = research conjecture<br>8 formulas formally proven<br>SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap · 5 services<br>Verifiable receipts · honest by design<br><span style="color:#c9a05f;font-size:9px">+ 80+ EXPERIMENTAL · CI-green</span></div>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
@@ -802,7 +806,91 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
         ${guards}</div>
       <div class="card"><div class="card-h"><span class="card-t">SZL Prior Art \u2014 the foundation</span><span class="card-ep">DOI-stamped, Apr\u2013May 2026</span></div>
         ${pa}</div>
-      <div class="honesty"><b>Honest by design.</b> ${esc(G.honest_note)}</div>${HONEST}`;}},
+      <div class="honesty"><b>Honest by design.</b> ${esc(G.honest_note)}</div>
+  experimental:{title:'Experimental Tier',badge:'EXPERIMENTAL · CI-green · NOT in locked-8',sub:'Every theorem in the CI-green experimental tier — Waves 5–24, Theorem 9 (Khipu Merkle Functor), binary_pinsker, conditional Λ uniqueness, PAC-Bayes routing envelope, agentic loop, and more. LOCKED baseline = exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17. These 80+ theorems are CI-green on main @ dc64dd80 and are NEVER folded into the locked count. Λ = Conjecture 1.',
+    render:async(c)=>{
+      const EBADGE='<span class="badge" style="color:#c9a05f;border:1px solid rgba(201,160,95,.5);background:rgba(201,160,95,.08)">EXPERIMENTAL · CI-green · NOT in locked-8</span>';
+      const LOCK8='<span class="badge b-live">LOCKED-8 UNCHANGED</span>';
+      c.innerHTML=`<div class="kpis">
+        <div class="kpi"><div class="k">Locked-proven</div><div class="v live" id="ex-locked">8</div><div class="d">{F1,F4,F7,F11,F12,F18,F19,F22}</div></div>
+        <div class="kpi"><div class="k">Experimental CI-green</div><div class="v" style="color:#c9a05f" id="ex-exp-n">80+</div><div class="d">Waves 5–24 + campaigns</div></div>
+        <div class="kpi"><div class="k">Kernel (locked)</div><div class="v teal mono" id="ex-kern-locked">c7c0ba17</div><div class="d">founder-verified</div></div>
+        <div class="kpi"><div class="k">Kernel (experimental)</div><div class="v mono" id="ex-kern-exp">dc64dd80</div><div class="d">CI-green main</div></div>
+        <div class="kpi"><div class="k">Λ status</div><div class="v warn">Conjecture 1</div><div class="d">NOT a theorem</div></div>
+        <div class="kpi"><div class="k">Wave range</div><div class="v teal">5–24</div><div class="d">CI-green on main</div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">Honesty separation</span>${EBADGE}\u00a0${LOCK8}</div>
+        <div class="row"><span style="color:var(--cream)">LOCKED baseline = <b>exactly 8</b> formulas {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17. This count is enforced by <code>locked_count_eight</code> (a no-axiom Lean theorem that cannot silently grow). Every item below is CI-green experimental and NEVER folded into this count.</span></div>
+        <div class="row mono dim">Λ = Conjecture 1. Unconditional uniqueness machine-checked FALSE. Conditional theorem (lambda_unique_of_factors) IS proven; opens only under A6 bisymmetry.</div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">Top frontier theorems (EXPERIMENTAL · CI-green)</span><span class="card-ep">FORMULA_CORPUS_MASTER §2</span></div>
+        <div id="ex-frontier-rows"><div class="row mono dim">loading…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">Wave9 / Wave10 — 12 theorems live</span><span class="card-ep"><a href="/proven-formulas" target="_blank" style="color:var(--teal)">open full page ↗</a></span></div>
+        <div class="row mono dim" style="font-size:11px">Each carries verbatim #print axioms output. EXPERIMENTAL · CI-green on lutar-lean main. NOT in locked-8.</div>
+        <div id="ex-wave910-rows"><div class="row mono dim">loading…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">Founder-gated items</span><span class="card-ep">requires founder approval before use</span></div>
+        <div class="row"><span class="badge b-err">GATED</span><span>PDDInjective.lean — 3 new axioms (CrystalIsometryClass, PDDFingerprint, pdd). Need founder approval + PR to bump .github/data/lean_numbers.json. NOT shown as proven or CI-green.</span></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="card-t">Live experimental pages &amp; endpoints</span></div>
+        <div class="row"><span class="badge b-teal">PAGE</span>&nbsp;<a href="/proven-formulas" target="_blank" style="color:var(--teal)">/proven-formulas</a><span class="mono dim" style="margin-left:.5rem">Wave9/10 full honesty cards</span></div>
+        <div class="row"><span class="badge b-teal">PAGE</span>&nbsp;<a href="/frontier" target="_blank" style="color:var(--teal)">/frontier</a><span class="mono dim" style="margin-left:.5rem">Unified ecosystem showcase</span></div>
+        <div class="row"><span class="badge b-gold">API</span>&nbsp;<span class="mono" style="color:var(--gold)">/api/a11oy/v1/proven/index</span><span class="mono dim" style="margin-left:.5rem">Wave9/10 JSON manifest</span></div>
+        <div class="row"><span class="badge b-gold">API</span>&nbsp;<span class="mono" style="color:var(--gold)">/api/a11oy/v1/experimental/index</span><span class="mono dim" style="margin-left:.5rem">Full experimental tier index</span></div>
+        <div class="row"><span class="badge b-gold">API</span>&nbsp;<span class="mono" style="color:var(--gold)">/api/a11oy/v1/frontier/manifest</span><span class="mono dim" style="margin-left:.5rem">Frontier capability tiles</span></div>
+      </div>
+      <div class="honesty"><b>Honest by design.</b> The experimental tier is real and CI-green. It is NEVER conflated with the locked-8. The half-state (experimental items appearing as locked/proven) is the only unacceptable outcome.</div>`;
+      try{
+        const d=await getJSON(API+'/v1/experimental/index');
+        const ff=d.frontier_five||[];
+        setHTML('ex-frontier-rows','');
+        ff.forEach(th=>{
+          addHTML('ex-frontier-rows',`<div class="row">
+            <span class="badge" style="color:#c9a05f;border:1px solid rgba(201,160,95,.45);background:rgba(201,160,95,.08)">${esc(th.wave||'')}</span>
+            <span style="margin-left:.5rem"><b>${esc(th.name||'')}</b> \u2014 ${esc(th.plain||'')}</span>
+            <span class="mono dim" style="margin-left:.5rem;font-size:10px">${esc(th.lean_file||'')}</span>
+          </div>`);
+        });
+        if(!ff.length)setHTML('ex-frontier-rows','<div class="row mono dim">endpoint unavailable — check /api/a11oy/v1/experimental/index</div>');
+        const sc=d.experimental_scope||{};
+        setTxt('ex-exp-n', sc.theorems_ci_green_approx||'80+');
+        const lk=(d.doctrine||{}).locked_count||8;
+        setTxt('ex-locked', String(lk));
+        if(lk!==8){setTxt('ex-locked','ERROR: '+lk); console.error('Locked count not 8:', lk);}
+      }catch(e){
+        setHTML('ex-frontier-rows',`<div class="row mono dim">experimental/index endpoint unavailable (${esc(e.message)}); showing static record from FORMULA_CORPUS_MASTER</div>`);
+        const STATIC=[
+          {wave:'Waves 5-8 (Λ-uniqueness)',name:'lambda_unique_of_factors',plain:'Conditional Λ uniqueness (given factorisation Φ x = ∏ xᵢ^αᵢ). Λ = Conjecture 1.',lean_file:'Lutar/Wave8/LambdaUnique.lean'},
+          {wave:'Khipu BFT',name:'khipu_quorum_safety_conditional',plain:'BFT safety under n≥3f+1 + honest non-equivocation. Conjecture 2 OPEN.',lean_file:'Lutar/Khipu/QuorumSafety.lean'},
+          {wave:'Waves 5-8',name:'binary_pinsker',plain:'2(p−q)² ≤ KL_bin(p,q). Axiom-free.',lean_file:'Lutar/Wave5/BinaryPinsker.lean'},
+          {wave:'Theorem 9',name:'khipuReceiptChains_compositionalClosure',plain:'Khipu receipt chains form a valid CategoryTheory.Functor.',lean_file:'Lutar/Wave9/KhipuFunctor.lean'},
+          {wave:'Waves 5-8',name:'monotone_additive_linear',plain:'Cauchy linearity via rational squeeze (closes Aczél 1966).',lean_file:'Lutar/Wave6/MonotoneAdditive.lean'},
+        ];
+        setHTML('ex-frontier-rows','');
+        STATIC.forEach(th=>{addHTML('ex-frontier-rows',`<div class="row"><span class="badge" style="color:#c9a05f;border:1px solid rgba(201,160,95,.45);background:rgba(201,160,95,.08)">${esc(th.wave)}</span><span style="margin-left:.5rem"><b>${esc(th.name)}</b> — ${esc(th.plain)}</span><span class="mono dim" style="margin-left:.5rem;font-size:10px">${esc(th.lean_file)}</span></div>`);});
+      }
+      try{
+        const pw=await getJSON(API+'/v1/proven/index');
+        const cards=pw.cards||[];
+        setHTML('ex-wave910-rows','');
+        cards.forEach(c=>{
+          const partial=c.partial?` <span class="mono dim" style="font-size:10px">(partial)</span>`:'';
+          addHTML('ex-wave910-rows',`<div class="row">
+            <span class="badge b-teal">${esc(c.wave||'')}</span>
+            <span class="badge" style="color:#c9a05f;border:1px solid rgba(201,160,95,.4);background:rgba(201,160,95,.08);margin-left:.3rem">${esc(c.id||'')}</span>
+            <span style="margin-left:.5rem"><b>${esc(c.name||'')}</b>${partial}</span>
+            ${c.check?`<a href="${esc(c.check)}" target="_blank" class="badge b-gold" style="margin-left:.5rem;cursor:pointer">RUN ↗</a>`:''}
+          </div>`);
+        });
+        if(!cards.length)setHTML('ex-wave910-rows','<div class="row mono dim">Wave9/10 endpoint unavailable</div>');
+      }catch(e2){setHTML('ex-wave910-rows',`<div class="row mono dim">proven/index unavailable: ${esc(e2.message)}</div>`);}
+    }},
 
 };
 
