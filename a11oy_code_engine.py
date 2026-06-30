@@ -530,12 +530,15 @@ _GPU_LABEL = (os.environ.get("A11OY_GPU_LABEL") or "").strip()
 # ---------------------------------------------------------------------------
 # MODEL-ENDPOINT ADAPTER (sovereign, swappable).
 # Default target = the OpenAI-compatible Hugging Face Router. A single env var
-# A11OY_MODEL_BASE_URL repoints this at a Hetzner/GPU-hosted local open-weight
-# model later (any OpenAI-compatible /chat/completions server) WITHOUT code
-# changes. The token is read server-side only and NEVER sent to the browser.
+# (A11OY_BRAIN_URL, canonical; A11OY_MODEL_BASE_URL accepted as alias) repoints
+# this at an owned sovereign node (on-box SGLang/vLLM, any OpenAI-compatible
+# /chat/completions server) WITHOUT code changes. The token is read server-side
+# only and NEVER sent to the browser. sovereign:true is asserted ONLY when that
+# endpoint actually answers — a configured-but-dead URL never inflates the label.
 # Open-weight roster only — no closed (GPT/Claude/Gemini) models.
 # ---------------------------------------------------------------------------
-_MODEL_BASE_URL = (os.environ.get("A11OY_MODEL_BASE_URL")
+_MODEL_BASE_URL = (os.environ.get("A11OY_BRAIN_URL")
+                   or os.environ.get("A11OY_MODEL_BASE_URL")
                    or os.environ.get("HF_ROUTER_BASE")
                    or "https://router.huggingface.co/v1").rstrip("/")
 

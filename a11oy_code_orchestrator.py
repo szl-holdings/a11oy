@@ -118,9 +118,28 @@ except Exception:  # pragma: no cover - absent until the module merges; degrade 
 
 HF_ROUTER_BASE = os.environ.get("HF_ROUTER_BASE", "https://router.huggingface.co/v1")
 
+
+def _sovereign_base_url() -> str:
+    """Resolve the configured sovereign/local OpenAI-compatible base URL.
+
+    A11OY_BRAIN_URL is the canonical primary knob for pointing a11oy Code at an
+    owned sovereign node (szl-router / on-box SGLang/vLLM, see
+    docs SOVEREIGN_BRAIN_RUNBOOK). A11OY_MODEL_BASE_URL is kept as an accepted
+    alias for backwards compatibility. Read at runtime (env-flip law). Returns ""
+    when neither is set, so callers transparently fall back to the HF Router.
+
+    HONESTY: this returns CONFIGURED INTENT only. sovereign:true is asserted
+    elsewhere ONLY after _local_endpoint_reachable() confirms the node answers —
+    a set-but-unreachable brain URL never inflates the posture.
+    """
+    return (os.environ.get("A11OY_BRAIN_URL")
+            or os.environ.get("A11OY_MODEL_BASE_URL") or "").strip()
+
+
 # Honest backend classification for /healthz. The agent runs on our own GPU when
-# A11OY_MODEL_BASE_URL points at a NON-router endpoint (Hetzner RTX 5000 via vLLM),
-# matching a11oy_code_engine.py's adapter. Never claims sovereign while still routing.
+# A11OY_BRAIN_URL/A11OY_MODEL_BASE_URL points at a NON-router endpoint (sovereign
+# node via SGLang/vLLM), matching a11oy_code_engine.py's adapter. Never claims
+# sovereign while still routing.
 def _local_endpoint_reachable(base: str, timeout: float = 2.0) -> bool:
     """Quick liveness probe of a configured local/sovereign model endpoint.
 
@@ -144,7 +163,7 @@ def _local_endpoint_reachable(base: str, timeout: float = 2.0) -> bool:
 
 
 def _sovereign_inference_state() -> dict:
-    base = (os.environ.get("A11OY_MODEL_BASE_URL") or os.environ.get("HF_ROUTER_BASE")
+    base = (_sovereign_base_url() or os.environ.get("HF_ROUTER_BASE")
             or "https://router.huggingface.co/v1").rstrip("/")
     gpu = (os.environ.get("A11OY_GPU_LABEL") or "").strip()
     is_local = "router.huggingface.co" not in base
@@ -186,7 +205,7 @@ def _serving_base() -> tuple[str, bool]:
     unreachable (e.g. an HF Space with no GPU, or a tailnet endpoint this process
     can't reach) we honestly fall back to the router AND report sovereign:false.
     """
-    base = (os.environ.get("A11OY_MODEL_BASE_URL") or "").rstrip("/")
+    base = _sovereign_base_url().rstrip("/")
     if base and "router.huggingface.co" not in base and _local_endpoint_reachable(base):
         return base, True
     return HF_ROUTER_BASE, False
@@ -249,9 +268,11 @@ def _serving_base_selftest() -> dict:
     step. Returns a dict of results; raises AssertionError on any mismatch.
     """
     saved = os.environ.get("A11OY_MODEL_BASE_URL")
+    saved_brain = os.environ.get("A11OY_BRAIN_URL")
     out = {}
     try:
         os.environ.pop("A11OY_MODEL_BASE_URL", None)
+        os.environ.pop("A11OY_BRAIN_URL", None)  # hermetic: alias must not leak in
         b0, l0 = _serving_base()
         assert (b0, l0) == (HF_ROUTER_BASE, False), f"unset path: {(b0, l0)}"
         out["unset"] = [b0, l0]
@@ -283,6 +304,10 @@ def _serving_base_selftest() -> dict:
             os.environ.pop("A11OY_MODEL_BASE_URL", None)
         else:
             os.environ["A11OY_MODEL_BASE_URL"] = saved
+        if saved_brain is None:
+            os.environ.pop("A11OY_BRAIN_URL", None)
+        else:
+            os.environ["A11OY_BRAIN_URL"] = saved_brain
     return out
 
 
