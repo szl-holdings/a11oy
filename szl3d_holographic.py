@@ -29,8 +29,9 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-# Surface slots (id, human title) — the 9 devs that depend on this toolkit.
+# Surface slots (id, human title) — the frontier tier + the 9 estate surfaces.
 SURFACES: List[Dict[str, str]] = [
+    {"id": "frontier", "title": "Frontier", "owner": "Dev0"},
     {"id": "energy", "title": "Energy", "owner": "Dev1"},
     {"id": "fabric", "title": "Compute Fabric", "owner": "Dev2"},
     {"id": "pnt", "title": "PNT", "owner": "Dev3"},
@@ -212,7 +213,7 @@ def _selftest() -> None:
               "holographic.html", "vendor/VENDOR_MANIFEST.md",
               "vendor/three/three.module.min.js", "vendor/three/three.webgpu.min.js"):
         assert (base / f).is_file(), f"missing toolkit asset: {f}"
-    # 2. all 9 surface stubs exist
+    # 2. all surface modules exist (frontier tier + the 9 estate surfaces)
     for s in SURFACES:
         assert (base / "surfaces" / f"{s['id']}.js").is_file(), f"missing surface: {s['id']}"
     # 3. path traversal is rejected
@@ -232,8 +233,8 @@ def _selftest() -> None:
     # 5. info() surface
     i = info()
     assert i["vendor"]["three_revision"] == "r170"
-    assert len(i["surfaces"]) == 9
-    print("szl3d_holographic: ALL OK (toolkit+9 surfaces+vendor present, 0 CDN, traversal-safe)")
+    assert len(i["surfaces"]) == len(SURFACES) >= 9
+    print(f"szl3d_holographic: ALL OK (toolkit+{len(SURFACES)} surfaces+vendor present, 0 CDN, traversal-safe)")
 
 
 if __name__ == "__main__":

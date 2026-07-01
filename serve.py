@@ -686,6 +686,21 @@ except Exception as _frontier_page_e:  # pragma: no cover
     print(f"[a11oy] Frontier page NOT registered: {_frontier_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- szl3d HOLOGRAPHIC ESTATE (Dev0 foundation) -- the vendored three.js r170 toolkit +
+# the /holographic shell hosting the 3D surfaces (frontier tier + the 9 estate surfaces),
+# each lazy-loading its per-surface module and lit by REAL a11oy endpoints with honesty
+# labels read verbatim from the JSON. 0 runtime CDN (all 3D libs vendored in-image and
+# served same-origin from /static/3d/vendor/). Registered BEFORE the SPA /{full_path:path}
+# catch-all so the ES-module imports + /holographic resolve to this module, not the SPA.
+# Λ = Conjecture 1; nothing here is in the locked-8. Additive, try/except-guarded.
+try:
+    import szl3d_holographic as _szl3d_holographic
+    _szl3d_status = _szl3d_holographic.register(app, ns="a11oy")
+    print(f"[a11oy] szl3d holographic estate registered: {_szl3d_status}", file=__import__("sys").stderr)
+except Exception as _szl3d_e:  # pragma: no cover
+    print(f"[a11oy] szl3d holographic estate NOT registered: {_szl3d_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its
 # registration was dropped during a serve.py mesh refactor while szl_restraint.py
