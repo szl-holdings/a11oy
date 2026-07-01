@@ -66,3 +66,10 @@ static-vendor/a11oy-operator-widget.js  # CHASKI→a11oy Code rebrand; killinchu
 #     diverges. Additive; in-repo SHA lock (.shared_module_hashes.json) pins a11oy's
 #     canonical copy. Reconcile if killinchu ever adopts the VOICE organ.
 a11oy_agent_loop.py        # a11oy VOICE-organ FINALIZE fold-in + EXPERIMENTAL routing; killinchu sync pending
+
+# --- 2026-07-01: a11oy sovereign-router primary. a11oy's code engine prefers the
+#     self-hosted A11OY_BRAIN_URL (then A11OY_MODEL_BASE_URL, then HF_ROUTER_BASE)
+#     for model routing (PR #604). Security screening (_static_screen / _sandbox_exec)
+#     is byte-unchanged; only the model-base-URL env preference differs from killinchu.
+#     Additive. Reconcile if killinchu adopts the same sovereign-router default.
+a11oy_code_engine.py       # a11oy A11OY_BRAIN_URL sovereign-router preference; killinchu sync pending
