@@ -3,686 +3,504 @@
 //
 // surfaces/frontier.js — FRONTIER holographic surface (the experimental tier, made 3D).
 //
-// Fuses FIVE SZL frontier "organs" into ONE holographic lattice, each node lit by a REAL
-// live a11oy endpoint and carrying its honesty label VERBATIM from the JSON
-// (RIGOROUS / VERIFIED / PROPOSED / MEASURED / LIVE-MANAGED / HONEST-STUB / ROADMAP —
-// never upgraded here).
+// Fuses EIGHT SZL frontier "organs" into ONE holographic lattice on a ring, each node lit by
+// a REAL live a11oy endpoint and carrying its honesty label VERBATIM from the JSON — never
+// upgraded here. Quantum-bio renders as a Gaussian-splat-style VOLUMETRIC coherence field
+// (WebGPU compute pass when available; instanced WebGL2 splats otherwise). A Looking-Glass
+// LIGHT-FIELD export renders a 45-view quilt PNG for a real light-field display.
 //
-//   ENTANGLEMENT   — /api/a11oy/v1/entangle/{entropy,concurrence,negativity,capacity_bound}
-//        von Neumann entropy · Wootters concurrence + EoF (Wootters 1998) · Vidal-Werner
-//        negativity (2002) · Streltsov-2015 coherence→entanglement bound. Two Bloch spheres
-//        joined by a bond whose brightness == live concurrence + an entropy halo.
-//        Leaders adopted (NOT claimed-as): Google Quantum AI (Willow) · Quantinuum · PEPS/MERA.
+// ORGANS + endpoints (every shown value traces to one):
+//   entanglement      /entangle/{entropy,concurrence,negativity}   — QuTiP-style measures
+//   neuroplasticity   /neuro/{stdp,plasticity}                     — Bi-Poo STDP + ReDo/EWC
+//   quantum-bio       /qbio/{coherence,compass}   [WebGPU splat]   — Lindblad/GKSL + radical-pair
+//   sovereign-compute /sovereign-compute                          — honest sovereign-inference posture
+//   energy            /energy/sovereign                           — J/token + carbon (SCI-aligned)
+//   scaling           /scaling/{summary,exponents}                — Kleiber/WBE/MTE + urban allometry
+//   conjecture        /conjecture-factory                         — OPEN conjectures (generated, not proven)
+//   publications      /experimental/index                        — live locked-8 + thesis/DOI lineage
 //
-//   NEUROPLASTICITY — /api/a11oy/v1/neuro/{stdp,plasticity}
-//        Hebb/Oja/BCM + Bi-Poo 1998 STDP window + Dohare-Sutton 2024 loss-of-plasticity +
-//        EWC. A 3D STDP curve + dormant-neuron plasticity-health field.
-//        Leaders adopted: DeepMind EWC · Zenke SI · Numenta · Liquid AI LTC · Intel Loihi.
+// LEADERS ADOPTED & CITED (NOT claimed-as; clean-room re-implementations of open technique):
+//   entanglement: QuTiP (entropy_vn/concurrence/negativity, BSD) · quimb MPS/PEPS · Vidal MERA
+//     · Verstraete-Cirac RMP arXiv:2011.12127 · Google Quantum AI (Willow) · Quantinuum.
+//   quantum-bio: RadicalPy (MIT) · quantum_HEOM (MIT, FMO 7-site Lindblad) · Hore/Kattnig
+//     cryptochrome arXiv:2508.21350 · Tanimura HEOM · Engel/Fleming (Nature 2007).
+//   neuroplasticity: Avalanche (MIT) · ncps/LTC Apache-2 (Hasani arXiv:2006.04439) · Dohare-Sutton
+//     ReDo/continual-backprop arXiv:2306.13812 · Zenke SI arXiv:1703.04200 · Kirkpatrick EWC.
+//   sovereign-compute: Prime Intellect prime/OpenDiLoCo (Apache-2, arXiv:2501.18512 Streaming DiLoCo)
+//     · NVIDIA nvtrust confidential compute (H100 TEE) · Petals · vLLM/SGLang.
+//   energy: CodeCarbon (MIT) · GSF Carbon Aware SDK + SCI=(O+M)/R (ISO 21031:2024) · Zeus · NVML.
+//   holography: three.js WebGPU/TSL (MIT) · mkkellogg/GaussianSplats3D (MIT) · Kerbl 3DGS
+//     arXiv:2308.04079 · Looking Glass quilt (@lookingglass/webxr, Apache-2).
+//   scaling: Kleiber 1932 / West-Brown-Enquist 1997 / MTE 2004 / Bettencourt-West 2007.
 //
-//   QUANTUM-BIO    — /api/a11oy/v1/qbio/{coherence,compass}   (WebGPU compute accelerated)
-//        Lindblad/GKSL coherence master equation (decay helix) + radical-pair avian compass
-//        (singlet-yield rosette). When the renderer is WebGPU, a compute pass evolves a dense
-//        coherence/compass field on-GPU (visual density only — the reported KPI values ALWAYS
-//        stay the server's, honest doctrine). WebGL2 path renders the same shape from the
-//        endpoint series. Leaders adopted: Engel/Fleming (Nature 2007) · Hore · Lambert/Nori QuTiP.
-//
-//   SOVEREIGN-COMPUTE — /api/a11oy/v1/sovereign-compute
-//        The honest sovereign-inference posture: brain (LIVE-MANAGED hf-router today),
-//        embeddings (HONEST-STUB), + ROADMAP (PQC / Iron Bank / cross-mesh). Rendered as a
-//        GPU-fabric tower whose blocks color by tier; sovereign:true ONLY on a real local-GPU
-//        probe (false today → honestly MANAGED/STUB, never faked green).
-//        Leaders adopted: NVIDIA confidential compute (H100 TEE) · Prime Intellect DiLoCo · Petals.
-//
-//   ENERGY        — /api/a11oy/v1/energy/sovereign
-//        J/token + carbon posture. MEASURED only on a live GPU power probe (NVML/exporter);
-//        with no meter it stays honest ROADMAP (no meter → no number). Rendered as an energy
-//        column + carbon ring that light up MEASURED or dim to ROADMAP per the live label.
-//        Leaders adopted: Google carbon-intelligent computing · Green Software Foundation SCI ·
-//        CodeCarbon · Electricity Maps.
-//
-// BONUS — LIGHT-FIELD / HOLOGRAM EXPORT: a "◈ light-field" button renders a Looking-Glass-
-//   style QUILT (a grid of views from a horizontal camera sweep) to a downloadable PNG, so the
-//   lattice can drive a real light-field holographic display (Looking Glass Factory quilt fmt).
-//
-// DOCTRINE v11 (non-negotiable): every value traces to a real endpoint; honesty labels read
-// straight from the JSON. NOTHING here is in the locked-8. Λ = Conjecture 1. Trust < 100%.
-// Endpoints that 404/error/degrade render honest NO-LIVE-DATA/DEGRADED and grey their geometry.
-// 0 runtime CDN: three resolves through the page importmap to /static/3d/vendor/.
+// DOCTRINE v11: every value traces to a real endpoint; honesty labels read straight from JSON.
+// NOTHING here is in the locked-8. Λ = Conjecture 1. Trust < 100%. Endpoints that 404/error/
+// degrade render honest NO-LIVE-DATA/DEGRADED and grey their geometry. 0 runtime CDN.
 
 const ID = "frontier";
 const TITLE = "Frontier · Experimental Tier (live)";
 
-// live endpoints (every shown value comes from one of these)
 const EP_ENT_ENTROPY = "/api/a11oy/v1/entangle/entropy?state=bell";
 const EP_ENT_CONC = "/api/a11oy/v1/entangle/concurrence?state=bell";
 const EP_ENT_NEG = "/api/a11oy/v1/entangle/negativity?state=bell";
-const EP_ENT_BOUND = "/api/a11oy/v1/entangle/capacity_bound?C0=1.0&gamma=0.165&t=6.05";
 const EP_NEU_STDP = "/api/a11oy/v1/neuro/stdp?dt=10";
 const EP_NEU_PLAST = "/api/a11oy/v1/neuro/plasticity?act=0.5,0.0,0.0001,0.8,0.0";
 const EP_QB_COH = "/api/a11oy/v1/qbio/coherence?tau_c=6.05&steps=60";
 const EP_QB_COMPASS = "/api/a11oy/v1/qbio/compass?B_uT=50&angles=0,30,60,90,120,150,180";
 const EP_SC = "/api/a11oy/v1/sovereign-compute";
 const EP_EN = "/api/a11oy/v1/energy/sovereign";
+const EP_SCALE = "/api/a11oy/v1/scaling/exponents";
+const EP_CONJ = "/api/a11oy/v1/conjecture-factory";
+const EP_PUBS = "/api/a11oy/v1/experimental/index";
 
-// palette (data hues; matches the estate)
-const C_ENT = 0x8a6bff;   // entanglement — violet-blue (data hue only)
-const C_NEU = 0x39d3c4;   // neuroplasticity — teal
-const C_QB = 0xe8c074;    // quantum-bio — gold
-const C_SC = 0x6fb1ff;    // sovereign-compute — blue
-const C_EN = 0x6dd47e;    // energy — green
-const C_BOND = 0x6fb1ff;
-const C_DIM = 0x42505d;
-const C_ROADMAP = 0x9aa7b4;
+// data hues
+const C = { ent: 0x8a6bff, neu: 0x39d3c4, qb: 0xe8c074, sc: 0x6fb1ff, en: 0x6dd47e, scale: 0xffb56b, conj: 0xd7b96b, pubs: 0x9fd0ff, bond: 0x6fb1ff, dim: 0x42505d, roadmap: 0x9aa7b4 };
 
-// pentagon layout — 5 organs on a ring, camera frames the whole lattice
-const R = 11;
-function ring(i, n, y) { const a = Math.PI / 2 - (i / n) * Math.PI * 2; return [Math.cos(a) * R, y, -Math.sin(a) * R * 0.55]; }
-const POS_ENT = ring(0, 5, 3.0);
-const POS_NEU = ring(1, 5, 3.0);
-const POS_QB = ring(2, 5, 3.0);
-const POS_EN = ring(3, 5, 3.0);
-const POS_SC = ring(4, 5, 3.0);
+// 8 organs on a ring; camera frames the whole lattice
+const N_ORG = 8, RING = 13;
+function ring(i, y) { const a = Math.PI / 2 - (i / N_ORG) * Math.PI * 2; return [Math.cos(a) * RING, y, -Math.sin(a) * RING * 0.6]; }
+const POS = { ent: ring(0, 3), neu: ring(1, 3), qb: ring(2, 3), en: ring(3, 3), scale: ring(4, 3), sc: ring(5, 3), conj: ring(6, 3), pubs: ring(7, 3) };
+const HUB = [0, 3, 0];
 
 let _stage = null, _THREE = null, _ctx = null, _group = null, _overlay = null;
-let _frameReg = false;
-let _polls = [];
-let _el = {};
-let _badges = {};
-let _webgpu = false;         // true only when the stage booted a real WebGPU renderer
-let _computeReady = false;
+let _frameReg = false, _polls = [], _el = {}, _badges = {}, _webgpu = false, _computeReady = false;
+let _ent = {}, _neu = {}, _qb = {}, _sc = {}, _en = {}, _scale = {}, _conj = {}, _pubs = {};
 
-// per-organ scene handles
-let _ent = {}, _neu = {}, _qb = {}, _sc = {}, _en = {};
-
-// live state — null until a real fetch lands (NEVER seeded with fake numbers)
 const S = {
-  ent: { entropy: null, concurrence: null, eof: null, negativity: null, logneg: null, label: null, state: "init" },
-  neu: { stdp_dw: null, stdp_kind: null, plast_health: null, plast_dormant: null, label: null, state: "init" },
-  qb: { coh_series: null, tau_c: null, compass: null, contrast: null, works: null, cohState: "init", compState: "init" },
-  sc: { summary: null, sovereign_any: null, caps: null, roadmap: null, label: null, state: "init" },
-  en: { summary: null, sovereign: null, gpu_reachable: null, measured: null, total: null, jtoken: null, carbon: null, jlabel: null, state: "init" },
+  ent: { entropy: null, concurrence: null, negativity: null, state: "init" },
+  neu: { dw: null, kind: null, health: null, dormant: null, state: "init" },
+  qb: { coh: null, tau: null, compass: null, contrast: null, works: null, cohState: "init", compState: "init" },
+  sc: { summary: null, sovereign_any: null, caps: null, roadmap: null, state: "init" },
+  en: { jtoken: null, carbon: null, jlabel: null, measured: null, total: null, state: "init" },
+  scale: { exps: null, state: "init" },
+  conj: { count: null, first: null, state: "init" },
+  pubs: { locked: null, lockedCount: null, expKernel: null, lambda: null, state: "init" },
 };
 
 // =========================================================================================
-// mount
-// =========================================================================================
 function mount(ctx) {
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
-  const THREE = _THREE;
   _webgpu = (_stage.backend === "webgpu");
-  _group = new THREE.Group();
-  _stage.scene.add(_group);
-
-  _stage.camera.position.set(0, 8, 27);
-  try { if (_stage.controls && _stage.controls.target) { _stage.controls.target.set(0, 2.4, 0); _stage.controls.update(); } } catch (_) {}
+  _group = new _THREE.Group(); _stage.scene.add(_group);
+  _stage.camera.position.set(0, 10, 34);
+  try { if (_stage.controls && _stage.controls.target) { _stage.controls.target.set(0, 2.6, 0); _stage.controls.update(); } } catch (_) {}
   try { _stage.setBloom(true); } catch (_) {}
 
-  _buildLatticeFloor();
-  _buildEntanglement();
-  _buildNeuroplasticity();
-  _buildQuantumBio();
-  _buildSovereignCompute();
-  _buildEnergy();
-  _buildLinks();
-  _buildOrganLabels();
-  if (_webgpu) { try { _initCompute(); } catch (e) { _webgpu = false; console.warn("[frontier] WebGPU compute init failed, using endpoint path:", e && e.message); } }
-
+  _buildFloor();
+  _buildEntanglement(); _buildNeuroplasticity(); _buildQuantumBio();
+  _buildSovereignCompute(); _buildEnergy(); _buildScaling(); _buildConjecture(); _buildPublications();
+  _buildLinks(); _buildOrganLabels();
+  if (_webgpu) { try { _initCompute(); } catch (e) { _webgpu = false; console.warn("[frontier] WebGPU compute init failed, using splat/endpoint path:", e && e.message); } }
   _buildOverlay();
-
   if (!_frameReg) { _stage.onFrame(_onFrame); _frameReg = true; }
 
-  const P = (url, ms, cb, badgeKey, onState) => ctx.live.poll(url, ms, cb, { badge: _badges[badgeKey], onState });
-  _polls.push(P(EP_ENT_ENTROPY, 5000, _onEntEntropy, "ent", (m) => { S.ent.state = m.state; S.ent.label = m.label || S.ent.label; _paintEnt(); }));
+  const P = (url, ms, cb, bk, os) => ctx.live.poll(url, ms, cb, { badge: _badges[bk], onState: os });
+  _polls.push(P(EP_ENT_ENTROPY, 5000, _onEntEntropy, "ent", (m) => { S.ent.state = m.state; _paintEnt(); }));
   _polls.push(P(EP_ENT_CONC, 5200, _onEntConc, null));
   _polls.push(P(EP_ENT_NEG, 5400, _onEntNeg, null));
-  _polls.push(P(EP_ENT_BOUND, 7000, _onEntBound, null));
-  _polls.push(P(EP_NEU_STDP, 5600, _onNeuStdp, "neu", (m) => { S.neu.state = m.state; S.neu.label = m.label || S.neu.label; _paintNeu(); }));
+  _polls.push(P(EP_NEU_STDP, 5600, _onNeuStdp, "neu", (m) => { S.neu.state = m.state; _paintNeu(); }));
   _polls.push(P(EP_NEU_PLAST, 6000, _onNeuPlast, null));
   _polls.push(P(EP_QB_COH, 5800, _onQbCoh, "qbcoh", (m) => { S.qb.cohState = m.state; _paintQb(); }));
   _polls.push(P(EP_QB_COMPASS, 6200, _onQbCompass, "qbcomp", (m) => { S.qb.compState = m.state; _paintQb(); }));
-  _polls.push(P(EP_SC, 8000, _onSc, "sc", (m) => { S.sc.state = m.state; S.sc.label = m.label || S.sc.label; _paintSc(); }));
+  _polls.push(P(EP_SC, 8000, _onSc, "sc", (m) => { S.sc.state = m.state; _paintSc(); }));
   _polls.push(P(EP_EN, 8000, _onEn, "en", (m) => { S.en.state = m.state; _paintEn(); }));
-
+  _polls.push(P(EP_SCALE, 9000, _onScale, "scale", (m) => { S.scale.state = m.state; _paintScale(); }));
+  _polls.push(P(EP_CONJ, 9000, _onConj, "conj", (m) => { S.conj.state = m.state; _paintConj(); }));
+  _polls.push(P(EP_PUBS, 10000, _onPubs, "pubs", (m) => { S.pubs.state = m.state; _paintPubs(); }));
   return { id: ID, started: true };
 }
 
 // =========================================================================================
-// scene builders
+// builders
 // =========================================================================================
-function _buildLatticeFloor() {
+function _buildFloor() {
   const THREE = _THREE;
-  const grid = new THREE.GridHelper(52, 52, 0x16313c, 0x0f2027);
-  grid.material.opacity = 0.22; grid.material.transparent = true; grid.position.y = -0.01;
-  _group.add(grid);
+  const grid = new THREE.GridHelper(60, 60, 0x16313c, 0x0f2027);
+  grid.material.opacity = 0.2; grid.material.transparent = true; grid.position.y = -0.01; _group.add(grid);
 }
 
-// ---- ENTANGLEMENT -----------------------------------------------------------------------
+function _org(key) { const THREE = _THREE; const g = new THREE.Group(); g.position.set(...POS[key]); _group.add(g); return g; }
+
 function _buildEntanglement() {
-  const THREE = _THREE;
-  const g = new THREE.Group(); g.position.set(...POS_ENT);
+  const THREE = _THREE; const g = _org("ent");
   const mkBloch = (dx) => {
-    const sub = new THREE.Group();
-    sub.add(new THREE.Mesh(new THREE.SphereGeometry(0.85, 22, 14),
-      new THREE.MeshBasicMaterial({ color: 0x244a55, wireframe: true, transparent: true, opacity: 0.45 })));
-    sub.add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 14),
-      new THREE.MeshStandardMaterial({ color: C_ENT, emissive: C_ENT, emissiveIntensity: 1.0 })));
-    sub.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 0.85, C_ENT, 0.2, 0.11));
-    sub.position.x = dx; return sub;
+    const s = new THREE.Group();
+    s.add(new THREE.Mesh(new THREE.SphereGeometry(0.8, 20, 12), new THREE.MeshBasicMaterial({ color: 0x244a55, wireframe: true, transparent: true, opacity: 0.45 })));
+    s.add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 12), new THREE.MeshStandardMaterial({ color: C.ent, emissive: C.ent, emissiveIntensity: 1 })));
+    s.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 0.8, C.ent, 0.18, 0.1));
+    s.position.x = dx; return s;
   };
-  _ent.qA = mkBloch(-1.7); _ent.qB = mkBloch(1.7); g.add(_ent.qA, _ent.qB);
-  const bondGeo = new THREE.CylinderGeometry(0.05, 0.05, 3.4, 12); bondGeo.rotateZ(Math.PI / 2);
-  _ent.bond = new THREE.Mesh(bondGeo, new THREE.MeshStandardMaterial({ color: C_BOND, emissive: C_BOND, emissiveIntensity: 0.2, transparent: true, opacity: 0.6 }));
-  g.add(_ent.bond);
-  _ent.entHalo = new THREE.Mesh(new THREE.RingGeometry(2.0, 2.25, 48),
-    new THREE.MeshBasicMaterial({ color: C_ENT, transparent: true, opacity: 0.0, side: THREE.DoubleSide }));
-  _ent.entHalo.rotation.x = -Math.PI / 2; _ent.entHalo.position.y = -1.2; g.add(_ent.entHalo);
-  _ent.g = g; _group.add(g);
+  _ent.qA = mkBloch(-1.5); _ent.qB = mkBloch(1.5); g.add(_ent.qA, _ent.qB);
+  const bg = new THREE.CylinderGeometry(0.05, 0.05, 3, 12); bg.rotateZ(Math.PI / 2);
+  _ent.bond = new THREE.Mesh(bg, new THREE.MeshStandardMaterial({ color: C.bond, emissive: C.bond, emissiveIntensity: 0.2, transparent: true, opacity: 0.6 })); g.add(_ent.bond);
+  _ent.halo = new THREE.Mesh(new THREE.RingGeometry(1.8, 2.0, 40), new THREE.MeshBasicMaterial({ color: C.ent, transparent: true, opacity: 0, side: THREE.DoubleSide }));
+  _ent.halo.rotation.x = -Math.PI / 2; _ent.halo.position.y = -1.1; g.add(_ent.halo); _ent.g = g;
 }
 
-// ---- NEUROPLASTICITY --------------------------------------------------------------------
 function _buildNeuroplasticity() {
-  const THREE = _THREE;
-  const g = new THREE.Group(); g.position.set(...POS_NEU);
-  const N = 81, pts = [];
-  for (let i = 0; i < N; i++) {
-    const dt = (i / (N - 1) - 0.5) * 80;
-    const tauP = 16.8, tauM = 33.7;
-    const dw = dt >= 0 ? Math.exp(-dt / tauP) : -Math.exp(dt / tauM);
-    pts.push(new THREE.Vector3(dt / 14, dw * 1.4, 0));
-  }
-  _neu.stdpLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-    new THREE.LineBasicMaterial({ color: C_NEU, transparent: true, opacity: 0.5 }));
-  g.add(_neu.stdpLine);
-  const mkAx = (a, b) => new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]), new THREE.LineBasicMaterial({ color: 0x2a3a45, transparent: true, opacity: 0.35 }));
-  g.add(mkAx([-3, 0, 0], [3, 0, 0])); g.add(mkAx([0, -1.6, 0], [0, 1.6, 0]));
-  _neu.dwBead = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16),
-    new THREE.MeshStandardMaterial({ color: C_DIM, emissive: C_DIM, emissiveIntensity: 0.8 }));
-  g.add(_neu.dwBead);
+  const THREE = _THREE; const g = _org("neu");
+  const NP = 71, pts = [];
+  for (let i = 0; i < NP; i++) { const dt = (i / (NP - 1) - 0.5) * 80; const dw = dt >= 0 ? Math.exp(-dt / 16.8) : -Math.exp(dt / 33.7); pts.push(new THREE.Vector3(dt / 16, dw * 1.3, 0)); }
+  _neu.line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: C.neu, transparent: true, opacity: 0.5 })); g.add(_neu.line);
+  _neu.bead = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 14), new THREE.MeshStandardMaterial({ color: C.dim, emissive: C.dim, emissiveIntensity: 0.8 })); g.add(_neu.bead);
   _neu.cells = [];
-  for (let i = 0; i < 5; i++) {
-    const cell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0),
-      new THREE.MeshStandardMaterial({ color: C_NEU, emissive: C_NEU, emissiveIntensity: 0.15, metalness: 0.3, roughness: 0.5 }));
-    cell.position.set((i - 2) * 0.7, -2.3, 0); g.add(cell); _neu.cells.push(cell);
-  }
-  _neu.g = g; _group.add(g);
+  for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), new THREE.MeshStandardMaterial({ color: C.neu, emissive: C.neu, emissiveIntensity: 0.15, metalness: 0.3, roughness: 0.5 })); c.position.set((i - 2) * 0.62, -2, 0); g.add(c); _neu.cells.push(c); }
+  _neu.g = g;
 }
 
-// ---- QUANTUM-BIO ------------------------------------------------------------------------
 function _buildQuantumBio() {
-  const THREE = _THREE;
-  const g = new THREE.Group(); g.position.set(...POS_QB);
-  _qb.helix = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3()]),
-    new THREE.LineBasicMaterial({ color: C_QB, transparent: true, opacity: 0.3 }));
-  _qb.helix.position.set(0, 0.4, 0); g.add(_qb.helix);
-  _qb.compass = new THREE.Group(); _qb.compass.position.set(0, -2.2, 0); _qb.compass.rotation.x = -Math.PI / 2;
-  _qb.petals = []; g.add(_qb.compass);
-  // WebGPU compute field: a dense point cloud whose radii are evolved on-GPU (visual only)
-  _qb.field = null;
-  _qb.g = g; _group.add(g);
+  const THREE = _THREE; const g = _org("qb");
+  _qb.helix = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: C.qb, transparent: true, opacity: 0.3 }));
+  _qb.helix.position.set(0, 0.3, 0); g.add(_qb.helix);
+  _qb.compass = new THREE.Group(); _qb.compass.position.set(0, -2, 0); _qb.compass.rotation.x = -Math.PI / 2; _qb.petals = []; g.add(_qb.compass);
+  // Gaussian-splat-style VOLUMETRIC coherence field: instanced soft billboards whose radius ==
+  // live coherence C(t) along the Lindblad decay (a 3DGS-inspired point cloud, WebGL2-safe).
+  _buildSplatField(g);
+  _qb.g = g;
 }
 
-// ---- SOVEREIGN-COMPUTE ------------------------------------------------------------------
-function _buildSovereignCompute() {
-  const THREE = _THREE;
-  const g = new THREE.Group(); g.position.set(...POS_SC);
-  // a GPU-fabric tower: stacked blocks, one per capability; colored by tier when live
-  _sc.tower = new THREE.Group(); g.add(_sc.tower);
-  _sc.blocks = [];
-  _sc.trustSphere = new THREE.Mesh(new THREE.IcosahedronGeometry(0.6, 1),
-    new THREE.MeshStandardMaterial({ color: C_SC, emissive: C_SC, emissiveIntensity: 0.3, wireframe: true, transparent: true, opacity: 0.5 }));
-  _sc.trustSphere.position.y = 3.4; g.add(_sc.trustSphere);
-  _sc.g = g; _group.add(g);
+// clean-room 3DGS-style splat cloud: instanced additively-blended sprites (soft radial texture).
+// arXiv:2308.04079 (Kerbl) / mkkellogg/GaussianSplats3D (MIT) inspired — visual density only.
+let _splatTex = null;
+function _splatTexture() {
+  if (_splatTex) return _splatTex;
+  const THREE = _THREE; const s = 64; const cv = document.createElement("canvas"); cv.width = cv.height = s;
+  const cx = cv.getContext("2d"); const gr = cx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.4, "rgba(255,255,255,0.5)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+  cx.fillStyle = gr; cx.fillRect(0, 0, s, s); _splatTex = new THREE.CanvasTexture(cv); return _splatTex;
 }
-
-// ---- ENERGY -----------------------------------------------------------------------------
-function _buildEnergy() {
+const SPLAT_N = 1400;
+function _buildSplatField(g) {
   const THREE = _THREE;
-  const g = new THREE.Group(); g.position.set(...POS_EN);
-  // energy column (J/token proxy height) + carbon ring
-  _en.column = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 1, 20),
-    new THREE.MeshStandardMaterial({ color: C_ROADMAP, emissive: C_ROADMAP, emissiveIntensity: 0.2, metalness: 0.3, roughness: 0.5, transparent: true, opacity: 0.7 }));
-  _en.column.position.y = 0.5; g.add(_en.column);
-  _en.carbonRing = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.06, 12, 48),
-    new THREE.MeshStandardMaterial({ color: C_ROADMAP, emissive: C_ROADMAP, emissiveIntensity: 0.3, transparent: true, opacity: 0.5 }));
-  _en.carbonRing.rotation.x = Math.PI / 2; _en.carbonRing.position.y = 0.1; g.add(_en.carbonRing);
-  // measured/total pip row
-  _en.pips = []; const pr = new THREE.Group(); pr.position.set(0, -1.6, 0);
-  for (let i = 0; i < 6; i++) {
-    const pip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 10),
-      new THREE.MeshStandardMaterial({ color: C_DIM, emissive: C_DIM, emissiveIntensity: 0.4 }));
-    pip.position.x = (i - 2.5) * 0.4; pr.add(pip); _en.pips.push(pip);
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(SPLAT_N * 3), col = new Float32Array(SPLAT_N * 3), scl = new Float32Array(SPLAT_N);
+  for (let i = 0; i < SPLAT_N; i++) { scl[i] = Math.random(); }
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({ size: 0.32, map: _splatTexture(), vertexColors: true, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+  _qb.splat = new THREE.Points(geo, mat); _qb.splat.userData.rand = scl; _qb.splat.position.set(0, 0.3, 0);
+  g.add(_qb.splat);
+}
+function _updateSplatField() {
+  const s = _qb.splat; if (!s) return;
+  const series = S.qb.coh; const live = S.qb.cohState === "live";
+  const pos = s.geometry.attributes.position, col = s.geometry.attributes.color, rnd = s.userData.rand;
+  const n = series ? series.length : 60;
+  const cQb = new _THREE.Color(live ? C.qb : C.dim);
+  for (let i = 0; i < SPLAT_N; i++) {
+    const t = (i / SPLAT_N);
+    const k = Math.min(n - 1, Math.floor(t * n));
+    const Ck = series ? series[k] : Math.exp(-1.6 * t);         // live coherence at this depth
+    const ang = t * Math.PI * 8 + rnd[i] * 6.28;
+    const jitter = (rnd[i] - 0.5) * 0.5 * Ck;                    // spread ~ coherence (decoheres → collapses)
+    const r = 1.6 * Ck + jitter;
+    pos.setXYZ(i, Math.cos(ang) * r, t * 5 - 2.4, Math.sin(ang) * r);
+    const b = live ? (0.35 + 0.65 * Ck) : 0.3;
+    col.setXYZ(i, cQb.r * b, cQb.g * b, cQb.b * b);
   }
-  g.add(pr);
-  _en.g = g; _group.add(g);
+  pos.needsUpdate = true; col.needsUpdate = true;
+  s.material.opacity = live ? 0.55 : 0.2;
+}
+
+function _buildSovereignCompute() {
+  const THREE = _THREE; const g = _org("sc");
+  _sc.tower = new THREE.Group(); g.add(_sc.tower); _sc.blocks = [];
+  _sc.trust = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshStandardMaterial({ color: C.sc, emissive: C.sc, emissiveIntensity: 0.3, wireframe: true, transparent: true, opacity: 0.5 }));
+  _sc.trust.position.y = 3; g.add(_sc.trust); _sc.g = g;
+}
+
+function _buildEnergy() {
+  const THREE = _THREE; const g = _org("en");
+  _en.col = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 1, 20), new THREE.MeshStandardMaterial({ color: C.roadmap, emissive: C.roadmap, emissiveIntensity: 0.2, metalness: 0.3, roughness: 0.5, transparent: true, opacity: 0.6 }));
+  _en.col.position.y = 0.5; g.add(_en.col);
+  _en.ring = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.05, 12, 44), new THREE.MeshStandardMaterial({ color: C.roadmap, emissive: C.roadmap, emissiveIntensity: 0.3, transparent: true, opacity: 0.5 }));
+  _en.ring.rotation.x = Math.PI / 2; g.add(_en.ring);
+  _en.pips = []; const pr = new THREE.Group(); pr.position.set(0, -1.6, 0);
+  for (let i = 0; i < 6; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), new THREE.MeshStandardMaterial({ color: C.dim, emissive: C.dim, emissiveIntensity: 0.4 })); p.position.x = (i - 2.5) * 0.36; pr.add(p); _en.pips.push(p); } g.add(pr); _en.g = g;
+}
+
+function _buildScaling() {
+  const THREE = _THREE; const g = _org("scale");
+  // allometric power-law fan: each exponent drawn as a curve y=x^b from a shared origin
+  _scale.curves = new THREE.Group(); g.add(_scale.curves); _scale.g = g;
+  _scale.note = null;
+}
+function _updateScaling() {
+  const THREE = _THREE; if (!_scale.curves) return;
+  for (let i = _scale.curves.children.length - 1; i >= 0; i--) _scale.curves.remove(_scale.curves.children[i]);
+  const exps = S.scale.exps; const live = S.scale.state === "live"; if (!exps) return;
+  const cols = [0xffb56b, 0x6dd47e, 0x6fb1ff, 0xd7b96b, 0x8a6bff, 0x39d3c4];
+  exps.slice(0, 6).forEach((e, i) => {
+    const b = typeof e.exponent === "number" ? e.exponent : 1;
+    const pts = [];
+    for (let k = 0; k <= 40; k++) { const x = k / 40; const y = Math.pow(Math.max(x, 1e-4), Math.abs(b)); pts.push(new THREE.Vector3(x * 3 - 1.5, (b < 0 ? (1 - y) : y) * 2.6 - 0.5, 0)); }
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: live ? cols[i % cols.length] : C.dim, transparent: true, opacity: live ? 0.85 : 0.35 }));
+    _scale.curves.add(line);
+  });
+}
+
+function _buildConjecture() {
+  const THREE = _THREE; const g = _org("conj");
+  // OPEN conjectures as a slowly-rotating dodecahedron cage (open = wireframe, never solid/proven)
+  _conj.cage = new THREE.Mesh(new THREE.DodecahedronGeometry(1.4, 0), new THREE.MeshStandardMaterial({ color: C.conj, emissive: C.conj, emissiveIntensity: 0.25, wireframe: true, transparent: true, opacity: 0.5 }));
+  g.add(_conj.cage);
+  _conj.core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 0), new THREE.MeshStandardMaterial({ color: C.conj, emissive: C.conj, emissiveIntensity: 0.6, transparent: true, opacity: 0.7 }));
+  g.add(_conj.core); _conj.g = g;
+}
+
+function _buildPublications() {
+  const THREE = _THREE; const g = _org("pubs");
+  // thesis lineage as a rising helix of nodes (v1→v25); the locked-proven count is a solid core
+  _pubs.spine = new THREE.Group(); g.add(_pubs.spine);
+  const NV = 25, pts = [];
+  for (let i = 0; i < NV; i++) { const t = i / (NV - 1); const a = t * Math.PI * 4; pts.push(new THREE.Vector3(Math.cos(a) * 1.0, t * 4.5 - 2.2, Math.sin(a) * 1.0)); }
+  _pubs.helix = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: C.pubs, transparent: true, opacity: 0.5 }));
+  _pubs.spine.add(_pubs.helix);
+  _pubs.nodes = [];
+  pts.forEach((p) => { const n = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({ color: C.pubs, emissive: C.pubs, emissiveIntensity: 0.4 })); n.position.copy(p); _pubs.spine.add(n); _pubs.nodes.push(n); });
+  _pubs.core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 1), new THREE.MeshStandardMaterial({ color: C.pubs, emissive: C.pubs, emissiveIntensity: 0.7, transparent: true, opacity: 0.85 }));
+  _pubs.core.position.y = -2.2; g.add(_pubs.core); _pubs.g = g;
 }
 
 function _buildLinks() {
   const THREE = _THREE;
-  const P = [POS_ENT, POS_NEU, POS_QB, POS_EN, POS_SC];
-  const mk = (a, b) => new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]),
-    new THREE.LineBasicMaterial({ color: 0x1b3a44, transparent: true, opacity: 0.35 }));
-  for (let i = 0; i < P.length; i++) _group.add(mk(P[i], P[(i + 1) % P.length]));  // ring
-  // spokes to a faint center hub
-  const hub = [0, 3.0, 0];
-  P.forEach((p) => _group.add(mk(p, hub)));
+  const order = ["ent", "neu", "qb", "en", "scale", "sc", "conj", "pubs"];
+  const mk = (a, b) => new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]), new THREE.LineBasicMaterial({ color: 0x1b3a44, transparent: true, opacity: 0.3 }));
+  for (let i = 0; i < order.length; i++) { _group.add(mk(POS[order[i]], POS[order[(i + 1) % order.length]])); _group.add(mk(POS[order[i]], HUB)); }
+  // faint hub
+  _group.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0), new THREE.MeshBasicMaterial({ color: 0x1b3a44, wireframe: true, transparent: true, opacity: 0.4 }))).position.set(...HUB);
 }
 
 function _buildOrganLabels() {
   const THREE = _THREE;
-  const lab = (label, text, pos) => { try { const b = _ctx.label.billboard(THREE, label, { text, scale: 0.55, position: [pos[0], pos[1] + 3.4, pos[2]] }); _group.add(b); return b; } catch (_) { return null; } };
-  _ent.billboard = lab("RIGOROUS", "entanglement", POS_ENT);
-  _neu.billboard = lab("RIGOROUS", "neuroplasticity", POS_NEU);
-  _qb.billboard = lab("VERIFIED", "quantum-bio", POS_QB);
-  _en.billboard = lab("ROADMAP", "energy", POS_EN);
-  _sc.billboard = lab("LIVE-MANAGED", "sovereign-compute", POS_SC);
+  const lab = (label, text, p) => { try { const b = _ctx.label.billboard(THREE, label, { text, scale: 0.5, position: [p[0], p[1] + 3.2, p[2]] }); _group.add(b); return b; } catch (_) { return null; } };
+  _ent.bb = lab("RIGOROUS", "entanglement", POS.ent);
+  _neu.bb = lab("RIGOROUS", "neuroplasticity", POS.neu);
+  _qb.bb = lab("VERIFIED", "quantum-bio", POS.qb);
+  _en.bb = lab("ROADMAP", "energy", POS.en);
+  _scale.bb = lab("VERIFIED", "scaling", POS.scale);
+  _sc.bb = lab("LIVE-MANAGED", "sovereign-compute", POS.sc);
+  _conj.bb = lab("OPEN", "conjecture", POS.conj);
+  _pubs.bb = lab("PUBLISHED", "publications", POS.pubs);
 }
 
 // =========================================================================================
-// WebGPU compute path (quantum-bio) — evolves a dense coherence/compass FIELD on-GPU.
-// This drives VISUAL DENSITY only; the reported KPI values always stay the server's.
-// Uses three r170 TSL (Fn/storage/instancedArray/uniform) via the webgpu build. Guarded:
-// any failure flips _webgpu=false and the endpoint-driven WebGL2 path renders instead.
+// WebGPU compute (quantum-bio coherence field) — TSL kernel evolves the splat cloud on-GPU.
+// Visual density only; reported KPIs stay the server's. Guarded fallback to the WebGL2 splat.
 // =========================================================================================
-let _tsl = null, _computeNode = null, _cohBuf = null, _uTau = null, _uT = null, _computeN = 4096;
+let _computeNode = null, _cohBuf = null, _uTau = null, _uT = null, _CN = 4096;
 async function _initCompute() {
   const mod = await import("three/webgpu");
-  _tsl = mod;
-  const { Fn, instancedArray, uniform, float, int, instanceIndex, sin, cos, exp } = mod;
-  if (!Fn || !instancedArray || !uniform) throw new Error("TSL nodes unavailable in webgpu build");
+  const { Fn, instancedArray, uniform, float, instanceIndex, sin, cos, exp, vec3 } = mod;
+  if (!Fn || !instancedArray || !uniform) throw new Error("TSL nodes unavailable");
   const THREE = _THREE;
-
-  // storage buffer of particle positions (x,y,z) for the coherence helix cloud
-  _cohBuf = instancedArray(_computeN, "vec3");
-  _uTau = uniform(float(6.05));
-  _uT = uniform(float(0.0));
-
-  // compute kernel: each particle sits on the Lindblad decay helix C(t)=exp(-t/tau),
-  // radius == coherence at its normalized time; a real GKSL open-system decay shape.
+  _cohBuf = instancedArray(_CN, "vec3"); _uTau = uniform(float(6.05)); _uT = uniform(float(0.0));
   const kernel = Fn(() => {
-    const i = instanceIndex.toFloat();
-    const tnorm = i.div(float(_computeN));
-    const t = tnorm.mul(float(12.0));
-    const C = exp(t.div(_uTau).negate());               // Lindblad coherence decay
-    const ang = tnorm.mul(float(Math.PI * 10.0)).add(_uT);
-    const r = C.mul(float(1.6));
-    _cohBuf.element(instanceIndex).assign(
-      mod.vec3(cos(ang).mul(r), tnorm.mul(float(5.0)).sub(float(2.4)), sin(ang).mul(r)));
+    const i = instanceIndex.toFloat(); const tn = i.div(float(_CN)); const t = tn.mul(float(12.0));
+    const Cc = exp(t.div(_uTau).negate()); const ang = tn.mul(float(Math.PI * 10)).add(_uT); const r = Cc.mul(float(1.6));
+    _cohBuf.element(instanceIndex).assign(vec3(cos(ang).mul(r), tn.mul(float(5)).sub(float(2.4)), sin(ang).mul(r)));
   });
-  _computeNode = kernel().compute(_computeN);
-
-  // points object reading the storage buffer as positions (webgpu PointsNodeMaterial)
-  const mat = new mod.PointsNodeMaterial({ color: C_QB, size: 6, transparent: true, opacity: 0.85 });
+  _computeNode = kernel().compute(_CN);
+  const mat = new mod.PointsNodeMaterial({ color: C.qb, size: 5, transparent: true, opacity: 0.75, map: _splatTexture(), blending: THREE.AdditiveBlending, depthWrite: false });
   mat.positionNode = _cohBuf.toAttribute();
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(_computeN * 3), 3));
-  _qb.field = new THREE.Points(geo, mat);
-  _qb.g.add(_qb.field);
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(_CN * 3), 3));
+  _qb.gpuField = new THREE.Points(geo, mat); _qb.g.add(_qb.gpuField);
+  if (_qb.splat) _qb.splat.visible = false;  // GPU field supersedes the WebGL2 splat when compute is live
   _computeReady = true;
 }
 
 // =========================================================================================
-// live-data handlers
+// live handlers
 // =========================================================================================
-function _onEntEntropy(json) { if (typeof json.von_neumann_entropy_bits === "number") S.ent.entropy = json.von_neumann_entropy_bits; _updateEnt(); _paintEnt(); }
-function _onEntConc(json) { if (typeof json.concurrence === "number") S.ent.concurrence = json.concurrence; if (typeof json.entanglement_of_formation === "number") S.ent.eof = json.entanglement_of_formation; _updateEnt(); _paintEnt(); }
-function _onEntNeg(json) { if (typeof json.negativity === "number") S.ent.negativity = json.negativity; if (typeof json.log_negativity === "number") S.ent.logneg = json.log_negativity; _updateEnt(); _paintEnt(); }
-function _onEntBound() { /* bound value shown via capacity note; geometry already conveys concurrence/entropy */ }
-
-function _onNeuStdp(json) { if (typeof json.delta_w === "number") S.neu.stdp_dw = json.delta_w; if (typeof json.kind === "string") S.neu.stdp_kind = json.kind; _updateNeu(); _paintNeu(); }
-function _onNeuPlast(json) {
-  const h = num(json.plasticity_health, json.health, json.fraction_plastic);
-  let d = num(json.dormant_fraction, json.fraction_dormant);
-  if (d == null && Array.isArray(json.dormant)) d = json.dormant.filter(Boolean).length / json.dormant.length;
-  S.neu.plast_health = h; S.neu.plast_dormant = d; _updateNeu(); _paintNeu();
-}
-
-function _onQbCoh(json) {
-  const series = (json.series && Array.isArray(json.series.C)) ? json.series.C : (Array.isArray(json.C) ? json.C : null);
-  if (series) S.qb.coh_series = series;
-  S.qb.tau_c = json.fitted_tau_c != null ? json.fitted_tau_c : (json.series && json.series.tau_c != null ? json.series.tau_c : S.qb.tau_c);
-  if (_webgpu && _uTau && S.qb.tau_c != null) { try { _uTau.value = Number(S.qb.tau_c); } catch (_) {} }
-  _updateQbHelix(); _paintQb();
-}
-function _onQbCompass(json) {
-  if (json.yields && typeof json.yields === "object") S.qb.compass = json.yields;
-  if (typeof json.angular_contrast === "number") S.qb.contrast = json.angular_contrast;
-  if (typeof json.works === "boolean") S.qb.works = json.works;
-  _updateQbCompass(); _paintQb();
-}
-
-function _onSc(json) {
-  S.sc.summary = json.summary || null;
-  S.sc.sovereign_any = json.sovereign_any != null ? json.sovereign_any : null;
-  S.sc.caps = Array.isArray(json.capabilities) ? json.capabilities : null;
-  S.sc.roadmap = Array.isArray(json.roadmap) ? json.roadmap : null;
-  _updateSc(); _paintSc();
-}
-function _onEn(json) {
-  S.en.summary = json.summary || null;
-  S.en.sovereign = json.sovereign != null ? json.sovereign : null;
-  S.en.gpu_reachable = json.gpu_reachable != null ? json.gpu_reachable : null;
-  S.en.measured = json.measured_panels != null ? json.measured_panels : null;
-  S.en.total = json.total_panels != null ? json.total_panels : null;
-  const jt = json.panels && json.panels.jtoken;
-  if (jt) { S.en.jtoken = jt.joules_per_token; S.en.carbon = jt.carbon_g_co2eq_per_token; S.en.jlabel = jt.label || null; }
-  _updateEn(); _paintEn();
-}
-
-function num(...cands) { for (const c of cands) if (typeof c === "number") return c; return null; }
+function num(...c) { for (const x of c) if (typeof x === "number") return x; return null; }
+function _onEntEntropy(j) { if (typeof j.von_neumann_entropy_bits === "number") S.ent.entropy = j.von_neumann_entropy_bits; _updateEnt(); _paintEnt(); }
+function _onEntConc(j) { if (typeof j.concurrence === "number") S.ent.concurrence = j.concurrence; _updateEnt(); _paintEnt(); }
+function _onEntNeg(j) { if (typeof j.negativity === "number") S.ent.negativity = j.negativity; _updateEnt(); _paintEnt(); }
+function _onNeuStdp(j) { if (typeof j.delta_w === "number") S.neu.dw = j.delta_w; if (typeof j.kind === "string") S.neu.kind = j.kind; _updateNeu(); _paintNeu(); }
+function _onNeuPlast(j) { S.neu.health = num(j.plasticity_health, j.plasticity_score, j.health, j.fraction_plastic); let d = num(j.dormant_fraction, j.fraction_dormant); if (d == null && Array.isArray(j.dormant)) d = j.dormant.filter(Boolean).length / j.dormant.length; S.neu.dormant = d; _updateNeu(); _paintNeu(); }
+function _onQbCoh(j) { const s = (j.series && Array.isArray(j.series.C)) ? j.series.C : (Array.isArray(j.C) ? j.C : null); if (s) S.qb.coh = s; S.qb.tau = j.fitted_tau_c != null ? j.fitted_tau_c : (j.series && j.series.tau_c != null ? j.series.tau_c : S.qb.tau); if (_webgpu && _uTau && S.qb.tau != null) { try { _uTau.value = Number(S.qb.tau); } catch (_) {} } _updateQbHelix(); _updateSplatField(); _paintQb(); }
+function _onQbCompass(j) { if (j.yields && typeof j.yields === "object") S.qb.compass = j.yields; if (typeof j.angular_contrast === "number") S.qb.contrast = j.angular_contrast; if (typeof j.works === "boolean") S.qb.works = j.works; _updateQbCompass(); _paintQb(); }
+function _onSc(j) { S.sc.summary = j.summary || null; S.sc.sovereign_any = j.sovereign_any != null ? j.sovereign_any : null; S.sc.caps = Array.isArray(j.capabilities) ? j.capabilities : null; S.sc.roadmap = Array.isArray(j.roadmap) ? j.roadmap : null; _updateSc(); _paintSc(); }
+function _onEn(j) { S.en.summary = j.summary || null; S.en.measured = j.measured_panels; S.en.total = j.total_panels; const jt = j.panels && j.panels.jtoken; if (jt) { S.en.jtoken = jt.joules_per_token; S.en.carbon = jt.carbon_g_co2eq_per_token; S.en.jlabel = jt.label || null; } _updateEn(); _paintEn(); }
+function _onScale(j) { if (Array.isArray(j.exponents)) S.scale.exps = j.exponents; _updateScaling(); _paintScale(); }
+function _onConj(j) { S.conj.count = j.count != null ? j.count : (Array.isArray(j.conjectures) ? j.conjectures.length : null); S.conj.first = (Array.isArray(j.conjectures) && j.conjectures[0]) ? (j.conjectures[0].id || null) : null; _paintConj(); }
+function _onPubs(j) { const d = j.doctrine || j; S.pubs.locked = Array.isArray(d.locked_proven) ? d.locked_proven : null; S.pubs.lockedCount = d.locked_count != null ? d.locked_count : (S.pubs.locked ? S.pubs.locked.length : null); S.pubs.expKernel = d.experimental_kernel || null; S.pubs.lambda = d.lambda_status || null; _updatePubs(); _paintPubs(); }
 
 // =========================================================================================
-// live geometry updaters
+// geometry updaters
 // =========================================================================================
 function _updateEnt() {
-  const live = S.ent.state === "live"; const dim = live ? 1.0 : 0.32;
-  if (_ent.bond) {
-    const c = S.ent.concurrence != null ? S.ent.concurrence : 0;
-    _ent.bond.material.emissiveIntensity = (0.15 + 1.4 * c) * dim;
-    _ent.bond.material.opacity = (0.25 + 0.7 * c) * (live ? 1 : 0.4);
-    _ent.bond.material.color.setHex(live ? C_BOND : C_DIM); _ent.bond.material.emissive.setHex(live ? C_BOND : C_DIM);
-  }
-  if (_ent.entHalo) { const e = S.ent.entropy != null ? S.ent.entropy : 0; _ent.entHalo.material.opacity = (0.6 * e) * (live ? 1 : 0.4); const sc = 0.6 + 0.6 * e; _ent.entHalo.scale.set(sc, sc, sc); }
+  const live = S.ent.state === "live", dim = live ? 1 : 0.32;
+  if (_ent.bond) { const c = S.ent.concurrence || 0; _ent.bond.material.emissiveIntensity = (0.15 + 1.4 * c) * dim; _ent.bond.material.opacity = (0.25 + 0.7 * c) * (live ? 1 : 0.4); _ent.bond.material.color.setHex(live ? C.bond : C.dim); _ent.bond.material.emissive.setHex(live ? C.bond : C.dim); }
+  if (_ent.halo) { const e = S.ent.entropy || 0; _ent.halo.material.opacity = 0.6 * e * (live ? 1 : 0.4); const s = 0.6 + 0.6 * e; _ent.halo.scale.set(s, s, s); }
 }
 function _updateNeu() {
-  const live = S.neu.state === "live"; const dim = live ? 1.0 : 0.35;
-  if (_neu.dwBead) {
-    const dw = S.neu.stdp_dw != null ? S.neu.stdp_dw : 0;
-    _neu.dwBead.position.set(10 / 14, dw * 1.4, 0);
-    const pot = S.neu.stdp_kind && /LTP|potent/i.test(S.neu.stdp_kind);
-    const col = !live ? C_DIM : (pot ? 0x6dd47e : 0xff8f6b);
-    _neu.dwBead.material.color.setHex(col); _neu.dwBead.material.emissive.setHex(col); _neu.dwBead.material.emissiveIntensity = live ? 1.1 : 0.4;
-  }
-  if (_neu.stdpLine) { _neu.stdpLine.material.opacity = live ? 0.85 : 0.4; _neu.stdpLine.material.color.setHex(live ? C_NEU : C_DIM); }
-  if (_neu.cells) {
-    _neu.cells.forEach((cell) => {
-      let b = S.neu.plast_dormant != null ? 1 - S.neu.plast_dormant : (S.neu.plast_health != null ? S.neu.plast_health : 0.15);
-      const col = !live ? C_DIM : (b > 0.4 ? C_NEU : 0x7d8a96);
-      cell.material.color.setHex(col); cell.material.emissive.setHex(col);
-      cell.material.emissiveIntensity = (0.1 + 0.9 * b) * dim; cell.scale.setScalar(0.7 + 0.5 * b);
-    });
-  }
+  const live = S.neu.state === "live", dim = live ? 1 : 0.35;
+  if (_neu.bead) { const dw = S.neu.dw || 0; _neu.bead.position.set(10 / 16, dw * 1.3, 0); const pot = S.neu.kind && /LTP|potent/i.test(S.neu.kind); const col = !live ? C.dim : (pot ? 0x6dd47e : 0xff8f6b); _neu.bead.material.color.setHex(col); _neu.bead.material.emissive.setHex(col); _neu.bead.material.emissiveIntensity = live ? 1.1 : 0.4; }
+  if (_neu.line) { _neu.line.material.opacity = live ? 0.85 : 0.4; _neu.line.material.color.setHex(live ? C.neu : C.dim); }
+  if (_neu.cells) _neu.cells.forEach((c) => { let b = S.neu.dormant != null ? 1 - S.neu.dormant : (S.neu.health != null ? S.neu.health : 0.15); const col = !live ? C.dim : (b > 0.4 ? C.neu : 0x7d8a96); c.material.color.setHex(col); c.material.emissive.setHex(col); c.material.emissiveIntensity = (0.1 + 0.9 * b) * dim; c.scale.setScalar(0.7 + 0.5 * b); });
 }
 function _updateQbHelix() {
-  const THREE = _THREE; if (!_qb.helix) return;
-  const series = S.qb.coh_series; const live = S.qb.cohState === "live";
-  const n = series ? series.length : 60; const pts = [];
-  for (let i = 0; i < n; i++) {
-    const t = i / Math.max(1, n - 1);
-    const C = series ? series[i] : Math.exp(-1.6 * t);
-    const ang = t * Math.PI * 6; const r = 1.6 * (series ? C : 0.3);
-    pts.push(new THREE.Vector3(Math.cos(ang) * r, t * 5 - 2.4, Math.sin(ang) * r));
-  }
-  _qb.helix.geometry.setFromPoints(pts);
-  _qb.helix.material.opacity = live ? 0.9 : 0.3; _qb.helix.material.color.setHex(live ? C_QB : C_DIM);
+  const THREE = _THREE; if (!_qb.helix) return; const s = S.qb.coh; const live = S.qb.cohState === "live"; const n = s ? s.length : 60; const pts = [];
+  for (let i = 0; i < n; i++) { const t = i / Math.max(1, n - 1); const Cc = s ? s[i] : Math.exp(-1.6 * t); const a = t * Math.PI * 6; const r = 1.6 * (s ? Cc : 0.3); pts.push(new THREE.Vector3(Math.cos(a) * r, t * 5 - 2.4, Math.sin(a) * r)); }
+  _qb.helix.geometry.setFromPoints(pts); _qb.helix.material.opacity = live ? 0.85 : 0.3; _qb.helix.material.color.setHex(live ? C.qb : C.dim);
 }
 function _updateQbCompass() {
-  const THREE = _THREE; if (!_qb.compass) return;
-  _qb.petals.forEach((p) => { try { _qb.compass.remove(p); } catch (_) {} }); _qb.petals = [];
-  const yields = S.qb.compass; const live = S.qb.compState === "live"; if (!yields) return;
-  const entries = Object.keys(yields).map((k) => ({ angle: parseFloat(k), y: yields[k] })).filter((e) => !isNaN(e.angle) && typeof e.y === "number");
-  const ys = entries.map((e) => e.y); const ymin = Math.min(...ys), ymax = Math.max(...ys); const span = (ymax - ymin) || 1e-6;
-  entries.forEach((e) => {
-    const norm = 0.3 + 0.9 * ((e.y - ymin) / span); const a = e.angle * Math.PI / 180;
-    const petal = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.06, norm * 2.2, 8),
-      new THREE.MeshStandardMaterial({ color: C_QB, emissive: C_QB, emissiveIntensity: live ? 0.9 : 0.3, transparent: true, opacity: live ? 0.95 : 0.4 }));
-    petal.position.set(Math.cos(a) * norm * 1.1, 0, Math.sin(a) * norm * 1.1); petal.lookAt(0, 0, 0); petal.rotateX(Math.PI / 2);
-    _qb.compass.add(petal); _qb.petals.push(petal);
-  });
+  const THREE = _THREE; if (!_qb.compass) return; _qb.petals.forEach((p) => { try { _qb.compass.remove(p); } catch (_) {} }); _qb.petals = [];
+  const y = S.qb.compass; const live = S.qb.compState === "live"; if (!y) return;
+  const e = Object.keys(y).map((k) => ({ a: parseFloat(k), y: y[k] })).filter((x) => !isNaN(x.a) && typeof x.y === "number");
+  const ys = e.map((x) => x.y), mn = Math.min(...ys), mx = Math.max(...ys), sp = (mx - mn) || 1e-6;
+  e.forEach((x) => { const nz = 0.3 + 0.9 * ((x.y - mn) / sp); const a = x.a * Math.PI / 180; const p = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.055, nz * 2, 8), new THREE.MeshStandardMaterial({ color: C.qb, emissive: C.qb, emissiveIntensity: live ? 0.9 : 0.3, transparent: true, opacity: live ? 0.95 : 0.4 })); p.position.set(Math.cos(a) * nz, 0, Math.sin(a) * nz); p.lookAt(0, 0, 0); p.rotateX(Math.PI / 2); _qb.compass.add(p); _qb.petals.push(p); });
 }
 function _updateSc() {
   const THREE = _THREE; if (!_sc.tower) return; const live = S.sc.state === "live";
-  // rebuild blocks from live caps
   _sc.blocks.forEach((b) => { try { _sc.tower.remove(b); } catch (_) {} }); _sc.blocks = [];
-  const tierColor = (t) => ({ "LIVE-SOVEREIGN": C_EN, "LIVE-MANAGED": C_SC, "HONEST-STUB": C_ROADMAP, "ROADMAP": C_ROADMAP, "UNREACHABLE": 0xff7b72 }[t] || C_DIM);
-  const caps = S.sc.caps || [];
-  caps.forEach((c, i) => {
-    const col = live ? tierColor(c.tier) : C_DIM;
-    const box = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.55, 1.4),
-      new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: live ? 0.5 : 0.2, metalness: 0.35, roughness: 0.5, transparent: true, opacity: 0.9 }));
-    box.position.y = 0.4 + i * 0.7; _sc.tower.add(box); _sc.blocks.push(box);
-  });
-  // roadmap items as faint ghost blocks on top (honestly dim)
-  (S.sc.roadmap || []).forEach((r, i) => {
-    const box = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 1.1),
-      new THREE.MeshStandardMaterial({ color: C_ROADMAP, emissive: C_ROADMAP, emissiveIntensity: 0.12, wireframe: true, transparent: true, opacity: 0.4 }));
-    box.position.y = 0.4 + (caps.length + i) * 0.7; _sc.tower.add(box); _sc.blocks.push(box);
-  });
-  if (_sc.trustSphere) { const col = (live && S.sc.sovereign_any) ? C_EN : C_SC; _sc.trustSphere.material.color.setHex(col); _sc.trustSphere.material.emissive.setHex(col); _sc.trustSphere.material.emissiveIntensity = live ? 0.4 : 0.2; _sc.trustSphere.position.y = 0.6 + (_sc.blocks.length) * 0.7 + 0.6; }
+  const tc = (t) => ({ "LIVE-SOVEREIGN": C.en, "LIVE-MANAGED": C.sc, "HONEST-STUB": C.roadmap, "ROADMAP": C.roadmap, "UNREACHABLE": 0xff7b72 }[t] || C.dim);
+  (S.sc.caps || []).forEach((c, i) => { const col = live ? tc(c.tier) : C.dim; const b = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 1.3), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: live ? 0.5 : 0.2, metalness: 0.35, roughness: 0.5, transparent: true, opacity: 0.9 })); b.position.y = 0.4 + i * 0.65; _sc.tower.add(b); _sc.blocks.push(b); });
+  (S.sc.roadmap || []).forEach((r, i) => { const b = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.36, 1.0), new THREE.MeshStandardMaterial({ color: C.roadmap, emissive: C.roadmap, emissiveIntensity: 0.12, wireframe: true, transparent: true, opacity: 0.4 })); b.position.y = 0.4 + ((S.sc.caps || []).length + i) * 0.65; _sc.tower.add(b); _sc.blocks.push(b); });
+  if (_sc.trust) { const col = (live && S.sc.sovereign_any) ? C.en : C.sc; _sc.trust.material.color.setHex(col); _sc.trust.material.emissive.setHex(col); _sc.trust.position.y = 0.6 + _sc.blocks.length * 0.65 + 0.5; }
 }
 function _updateEn() {
-  if (!_en.column) return; const live = S.en.state === "live";
-  const measured = (S.en.jlabel && /MEASURED/i.test(S.en.jlabel));
-  const jt = S.en.jtoken;
-  const h = (jt != null) ? Math.max(0.3, Math.min(6, jt * 4)) : 1.0;   // J/token proxy height (only when MEASURED)
-  _en.column.scale.y = h; _en.column.position.y = h / 2;
-  const col = !live ? C_DIM : (measured ? C_EN : C_ROADMAP);
-  _en.column.material.color.setHex(col); _en.column.material.emissive.setHex(col); _en.column.material.emissiveIntensity = measured ? 0.6 : 0.2;
-  _en.column.material.opacity = measured ? 0.92 : 0.55;
-  if (_en.carbonRing) { _en.carbonRing.material.color.setHex(col); _en.carbonRing.material.emissive.setHex(col); _en.carbonRing.material.emissiveIntensity = measured ? 0.5 : 0.25; }
-  if (_en.pips) {
-    const m = S.en.measured != null ? S.en.measured : 0;
-    _en.pips.forEach((pip, i) => { const on = i < m; const c = !live ? C_DIM : (on ? C_EN : C_ROADMAP); pip.material.color.setHex(c); pip.material.emissive.setHex(c); pip.material.emissiveIntensity = on ? 0.9 : 0.3; });
-  }
+  if (!_en.col) return; const live = S.en.state === "live"; const measured = S.en.jlabel && /MEASURED/i.test(S.en.jlabel);
+  const h = (S.en.jtoken != null) ? Math.max(0.3, Math.min(6, S.en.jtoken * 4)) : 1;
+  _en.col.scale.y = h; _en.col.position.y = h / 2; const col = !live ? C.dim : (measured ? C.en : C.roadmap);
+  _en.col.material.color.setHex(col); _en.col.material.emissive.setHex(col); _en.col.material.emissiveIntensity = measured ? 0.6 : 0.2; _en.col.material.opacity = measured ? 0.92 : 0.55;
+  if (_en.ring) { _en.ring.material.color.setHex(col); _en.ring.material.emissive.setHex(col); }
+  if (_en.pips) { const m = S.en.measured || 0; _en.pips.forEach((p, i) => { const on = i < m; const c = !live ? C.dim : (on ? C.en : C.roadmap); p.material.color.setHex(c); p.material.emissive.setHex(c); p.material.emissiveIntensity = on ? 0.9 : 0.3; }); }
+}
+function _updatePubs() {
+  if (!_pubs.core) return; const live = S.pubs.state === "live"; const cnt = S.pubs.lockedCount || 0;
+  _pubs.core.scale.setScalar(0.6 + 0.12 * cnt); _pubs.core.material.emissiveIntensity = live ? 0.7 : 0.3; _pubs.core.material.color.setHex(live ? C.pubs : C.dim); _pubs.core.material.emissive.setHex(live ? C.pubs : C.dim);
+  if (_pubs.nodes) _pubs.nodes.forEach((n) => { n.material.emissiveIntensity = live ? 0.5 : 0.2; n.material.color.setHex(live ? C.pubs : C.dim); n.material.emissive.setHex(live ? C.pubs : C.dim); });
 }
 
-// =========================================================================================
-// per-frame animation + WebGPU compute dispatch
 // =========================================================================================
 function _onFrame() {
   const t = performance.now();
   if (_qb.compass) _qb.compass.rotation.z += 0.003;
   if (_neu.cells) _neu.cells.forEach((c, i) => { c.rotation.y += 0.01 + i * 0.001; });
-  if (_sc.trustSphere) _sc.trustSphere.rotation.y += 0.006;
-  if (_en.carbonRing) _en.carbonRing.rotation.z += 0.004;
+  if (_sc.trust) _sc.trust.rotation.y += 0.006;
+  if (_en.ring) _en.ring.rotation.z += 0.004;
   if (_ent.g) _ent.g.rotation.y = Math.sin(t * 0.0003) * 0.2;
-  // slow lattice breathing
-  if (_group) _group.rotation.y = Math.sin(t * 0.0001) * 0.06;
-  // WebGPU compute dispatch (animates the coherence field on-GPU each frame)
-  if (_webgpu && _computeReady && _uT && _computeNode && _stage.renderer && _stage.renderer.compute) {
-    try { _uT.value = t * 0.0008; _stage.renderer.compute(_computeNode); } catch (_) { _webgpu = false; }
-  }
+  if (_conj.cage) { _conj.cage.rotation.y += 0.004; _conj.cage.rotation.x += 0.002; }
+  if (_pubs.spine) _pubs.spine.rotation.y += 0.003;
+  if (_qb.splat && _qb.splat.visible) _qb.splat.rotation.y += 0.002;
+  if (_group) _group.rotation.y = Math.sin(t * 0.00008) * 0.05;
+  if (_webgpu && _computeReady && _uT && _computeNode && _stage.renderer && _stage.renderer.compute) { try { _uT.value = t * 0.0008; _stage.renderer.compute(_computeNode); } catch (_) { _webgpu = false; } }
 }
 
 // =========================================================================================
-// DOM overlay (HUD) + light-field export button
+// overlay
 // =========================================================================================
 function _buildOverlay() {
   const ctx = _ctx;
-  ["ent", "neu", "qbcoh", "qbcomp", "sc", "en"].forEach((k) => { _badges[k] = ctx.live.createBadge(); });
-
+  ["ent", "neu", "qbcoh", "qbcomp", "sc", "en", "scale", "conj", "pubs"].forEach((k) => { _badges[k] = ctx.live.createBadge(); });
   _overlay = document.createElement("div");
-  Object.assign(_overlay.style, {
-    position: "absolute", left: "14px", top: "14px", zIndex: "6",
-    display: "flex", flexDirection: "column", gap: "8px",
-    maxWidth: "min(94%,450px)", maxHeight: "calc(100vh - 130px)", overflowY: "auto",
-    font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial", color: "#eef3f6",
-    paddingRight: "6px",
-  });
+  Object.assign(_overlay.style, { position: "absolute", left: "14px", top: "14px", zIndex: "6", display: "flex", flexDirection: "column", gap: "8px", maxWidth: "min(94%,450px)", maxHeight: "calc(100vh - 130px)", overflowY: "auto", font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial", color: "#eef3f6", paddingRight: "6px" });
 
   const h = document.createElement("div"); h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px"; h.textContent = TITLE; _overlay.appendChild(h);
   const sub = document.createElement("div"); sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML = 'The experimental tier as one holographic lattice \u2014 <b>five frontier organs</b>, each lit by a <b>live</b> a11oy endpoint. ' +
-    'Quantum-bio runs on a <b>WebGPU compute pass</b> when available (<code>?webgpu=1</code>); WebGL2 otherwise. ' +
-    'Every label is read <b>verbatim</b> from the JSON. NOT in the locked-8 \u00b7 \u039b = Conjecture 1 \u00b7 trust &lt; 100%.';
+  sub.innerHTML = 'The experimental tier as one holographic lattice \u2014 <b>eight frontier organs</b> on a ring, each lit by a <b>live</b> a11oy endpoint. ' +
+    'Quantum-bio renders as a <b>Gaussian-splat volumetric field</b> (WebGPU compute when enabled). Every label is read <b>verbatim</b> from the JSON. NOT in the locked-8 \u00b7 \u039b = Conjecture 1 \u00b7 trust &lt; 100%.';
   _overlay.appendChild(sub);
 
-  // renderer + light-field controls
-  const ctlRow = document.createElement("div"); ctlRow.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
-  _el.rendererChip = document.createElement("span");
-  _el.rendererChip.style.cssText = "font:10px ui-monospace,monospace;padding:3px 8px;border-radius:6px;border:1px solid #1d2a36;color:" + (_webgpu ? "#6dd47e" : "#6fb1ff");
-  _el.rendererChip.textContent = _webgpu ? "compute: WebGPU" : "compute: endpoint (WebGL2)";
-  ctlRow.appendChild(_el.rendererChip);
-  const lfBtn = document.createElement("button");
-  lfBtn.textContent = "\u25c8 light-field export";
-  lfBtn.title = "Render a Looking Glass quilt (grid of horizontal views) as a downloadable PNG for a light-field holographic display.";
-  lfBtn.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #39d3c4;background:#0d2028;color:#39d3c4;cursor:pointer";
-  lfBtn.addEventListener("click", () => _exportLightField(lfBtn));
-  ctlRow.appendChild(lfBtn);
-  _el.lfStatus = document.createElement("span"); _el.lfStatus.style.cssText = "font:10px ui-monospace,monospace;color:#9fb1bf"; ctlRow.appendChild(_el.lfStatus);
-  _overlay.appendChild(ctlRow);
+  const ctl = document.createElement("div"); ctl.style.cssText = "display:flex;gap:8px;align-items:center;flex-wrap:wrap";
+  _el.rchip = document.createElement("span"); _el.rchip.style.cssText = "font:10px ui-monospace,monospace;padding:3px 8px;border-radius:6px;border:1px solid #1d2a36;color:" + (_webgpu ? "#6dd47e" : "#6fb1ff"); _el.rchip.textContent = _webgpu ? "splat: WebGPU compute" : "splat: WebGL2"; ctl.appendChild(_el.rchip);
+  const lf = document.createElement("button"); lf.textContent = "\u25c8 light-field export"; lf.title = "Render a Looking Glass 45-view quilt PNG for a light-field holographic display."; lf.style.cssText = "font:11px ui-monospace,monospace;padding:5px 11px;border-radius:7px;border:1px solid #39d3c4;background:#0d2028;color:#39d3c4;cursor:pointer"; lf.addEventListener("click", () => _exportLightField(lf)); ctl.appendChild(lf);
+  _el.lfStatus = document.createElement("span"); _el.lfStatus.style.cssText = "font:10px ui-monospace,monospace;color:#9fb1bf"; ctl.appendChild(_el.lfStatus);
+  _overlay.appendChild(ctl);
 
-  _overlay.appendChild(_organCard("entanglement", "#8a6bff", _badges.ent, [
-    ["ent-entropy", "von Neumann entropy (bits)"], ["ent-conc", "concurrence (Wootters)"], ["ent-neg", "negativity (Vidal-Werner)"],
-  ], "Streltsov-2015 coherence\u2192entanglement bound. Leaders: Google Quantum AI (Willow) \u00b7 Quantinuum \u00b7 Verstraete/Cirac/Schuch PEPS \u00b7 Vidal MERA. RIGOROUS \u00b7 not claimed-as."));
-
-  _overlay.appendChild(_organCard("neuroplasticity", "#39d3c4", _badges.neu, [
-    ["neu-dw", "STDP \u0394w @ \u0394t=10ms (Bi-Poo 1998)"], ["neu-kind", "LTP / LTD"], ["neu-health", "plasticity health"],
-  ], "Hebb/Oja/BCM/STDP + Dohare-Sutton loss-of-plasticity (Nature 2024). Leaders: DeepMind EWC \u00b7 Zenke SI \u00b7 Numenta \u00b7 Liquid AI LTC \u00b7 Intel Loihi. RIGOROUS \u00b7 not claimed-as."));
-
-  const qbBadges = document.createElement("div"); qbBadges.style.cssText = "display:flex;gap:6px;flex-wrap:wrap"; qbBadges.appendChild(_badges.qbcoh.el); qbBadges.appendChild(_badges.qbcomp.el);
-  _overlay.appendChild(_organCard("quantum-bio", "#e8c074", { el: qbBadges }, [
-    ["qb-tau", "Lindblad \u03c4_c (coherence)"], ["qb-contrast", "compass angular contrast"], ["qb-works", "compass works"],
-  ], "Lindblad/GKSL master eq + radical-pair compass \u2014 WebGPU compute accelerated. Leaders: Engel/Fleming (Nature 2007) \u00b7 Hore cryptochrome \u00b7 Lambert/Nori QuTiP. VERIFIED \u00b7 not claimed-as."));
-
-  _overlay.appendChild(_organCard("sovereign-compute", "#6fb1ff", _badges.sc, [
-    ["sc-summary", "posture"], ["sc-sovereign", "on our GPU?"], ["sc-caps", "capabilities"],
-  ], "Honest sovereign-inference posture; sovereign:true ONLY on a real local-GPU probe. Leaders: NVIDIA confidential compute (H100 TEE) \u00b7 Prime Intellect DiLoCo \u00b7 Petals. tier-labeled \u00b7 never faked green."));
-
-  _overlay.appendChild(_organCard("energy", "#6dd47e", _badges.en, [
-    ["en-jtoken", "J/token"], ["en-carbon", "gCO\u2082e/token"], ["en-measured", "measured panels"],
-  ], "MEASURED only on a live GPU power probe (NVML/exporter); no meter \u2192 honest ROADMAP. Leaders: Google carbon-intelligent computing \u00b7 GSF SCI \u00b7 CodeCarbon \u00b7 Electricity Maps."));
+  _overlay.appendChild(_card("entanglement", "#8a6bff", _badges.ent, [["ent-entropy", "von Neumann entropy (bits)"], ["ent-conc", "concurrence (Wootters)"], ["ent-neg", "negativity (Vidal-Werner)"]], "QuTiP entropy_vn/concurrence/negativity (BSD) \u00b7 quimb MPS/PEPS \u00b7 Vidal MERA \u00b7 Cirac-Verstraete RMP arXiv:2011.12127. RIGOROUS \u00b7 not claimed-as."));
+  _overlay.appendChild(_card("neuroplasticity", "#39d3c4", _badges.neu, [["neu-dw", "STDP \u0394w @ \u0394t=10ms"], ["neu-kind", "LTP / LTD"], ["neu-health", "plasticity health"]], "Bi-Poo 1998 STDP + Dohare-Sutton ReDo arXiv:2306.13812 + Zenke SI arXiv:1703.04200 + ncps/LTC (Apache-2, Hasani arXiv:2006.04439). RIGOROUS \u00b7 not claimed-as."));
+  const qbb = document.createElement("div"); qbb.style.cssText = "display:flex;gap:6px;flex-wrap:wrap"; qbb.appendChild(_badges.qbcoh.el); qbb.appendChild(_badges.qbcomp.el);
+  _overlay.appendChild(_card("quantum-bio", "#e8c074", { el: qbb }, [["qb-tau", "Lindblad \u03c4_c (coherence)"], ["qb-contrast", "compass angular contrast"], ["qb-works", "compass works"]], "Lindblad/GKSL + radical-pair compass \u2014 Gaussian-splat volumetric field (Kerbl 3DGS arXiv:2308.04079). RadicalPy (MIT) \u00b7 quantum_HEOM (MIT) \u00b7 Hore cryptochrome arXiv:2508.21350. VERIFIED \u00b7 not claimed-as."));
+  _overlay.appendChild(_card("energy", "#6dd47e", _badges.en, [["en-jtoken", "J/token"], ["en-carbon", "gCO\u2082e/token"], ["en-measured", "measured panels"]], "MEASURED only on a live NVML/exporter probe; no meter \u2192 honest ROADMAP. CodeCarbon (MIT) \u00b7 GSF Carbon Aware SDK + SCI=(O+M)/R (ISO 21031) \u00b7 Zeus (Apache-2)."));
+  _overlay.appendChild(_card("scaling", "#ffb56b", _badges.scale, [["sc-exps", "allometric exponents"]], "Kleiber 1932 / West-Brown-Enquist 1997 / MTE 2004 / Bettencourt-West 2007 urban allometry. VERIFIED (deterministic) \u00b7 unified \u03a6 is a PROPOSED SZL construct, not in locked-8."));
+  _overlay.appendChild(_card("sovereign-compute", "#6fb1ff", _badges.sc, [["scmp-summary", "posture"], ["scmp-sovereign", "on our GPU?"], ["scmp-caps", "capabilities"]], "sovereign:true ONLY on a real local-GPU probe. Prime Intellect prime/OpenDiLoCo (Apache-2, Streaming DiLoCo arXiv:2501.18512) \u00b7 NVIDIA nvtrust H100 TEE \u00b7 vLLM. never faked green."));
+  _overlay.appendChild(_card("conjecture", "#d7b96b", _badges.conj, [["conj-count", "open conjectures"], ["conj-first", "latest id"]], "Factory output is a set of OPEN conjectures \u2014 generated, NOT proven. Signatures attest timestamp + content, not truth. Conjecture 1 (unconditional \u039b uniqueness) remains OPEN."));
+  _overlay.appendChild(_card("publications", "#9fd0ff", _badges.pubs, [["pubs-locked", "locked-proven"], ["pubs-lambda", "\u039b status"], ["pubs-kernel", "experimental kernel"]], "SZL corpus: 41 Zenodo DOIs, thesis v1\u2192v25 (Ouroboros \u2192 Lutar Invariant \u2192 GPD), ORCID 0009-0001-0110-4173. Locked-proven read live; \u039b = Conjecture 1 (unconditional machine-checked FALSE)."));
 
   const lg = ctx.label.legend(); lg.style.opacity = "0.85"; _overlay.appendChild(lg);
   const src = document.createElement("div"); src.style.cssText = "font-size:9.5px;color:#5b6c78;line-height:1.6;margin-top:2px";
-  src.textContent = "Sources (adopted & cited, NOT claimed-as): Wootters 1998 \u00b7 Vidal-Werner 2002 \u00b7 Streltsov 2015 \u00b7 Bi&Poo 1998 \u00b7 Dohare-Sutton Nature 2024 \u00b7 Lindblad/GKSL \u00b7 Schulten/Hore radical-pair (PNAS) \u00b7 NVIDIA H100 confidential compute \u00b7 Prime Intellect DiLoCo \u00b7 GSF Software Carbon Intensity. EXPERIMENTAL tier; not in the locked-8. Light-field export = Looking Glass quilt format.";
+  src.textContent = "Open techniques adopted & cited, NOT claimed-as (clean-room): QuTiP \u00b7 quimb \u00b7 RadicalPy \u00b7 quantum_HEOM \u00b7 Avalanche \u00b7 ncps/LTC \u00b7 Prime Intellect OpenDiLoCo \u00b7 NVIDIA nvtrust \u00b7 CodeCarbon \u00b7 GSF SCI \u00b7 three.js WebGPU \u00b7 GaussianSplats3D \u00b7 Looking Glass quilt. Papers: Kerbl 3DGS 2308.04079 \u00b7 Cirac-Verstraete 2011.12127 \u00b7 Dohare-Sutton (Nature 2024) \u00b7 Hore 2508.21350 \u00b7 Streaming DiLoCo 2501.18512. EXPERIMENTAL tier; not in the locked-8.";
   _overlay.appendChild(src);
-
   (ctx.container || document.body).appendChild(_overlay);
-  _paintEnt(); _paintNeu(); _paintQb(); _paintSc(); _paintEn();
+  _paintEnt(); _paintNeu(); _paintQb(); _paintSc(); _paintEn(); _paintScale(); _paintConj(); _paintPubs();
 }
 
-function _organCard(name, color, badge, kpis, footnote) {
-  const card = document.createElement("div"); card.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
+function _card(name, color, badge, kpis, footnote) {
+  const c = document.createElement("div"); c.style.cssText = "background:#0a1117;border:1px solid #1d2a36;border-radius:9px;padding:9px 10px;display:flex;flex-direction:column;gap:6px";
   const head = document.createElement("div"); head.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
   const dot = document.createElement("span"); dot.style.cssText = `width:9px;height:9px;border-radius:50%;background:${color};box-shadow:0 0 7px ${color}`;
   const nm = document.createElement("b"); nm.style.cssText = `font-size:12px;color:${color};letter-spacing:.3px`; nm.textContent = name;
-  head.appendChild(dot); head.appendChild(nm); if (badge && badge.el) head.appendChild(badge.el); card.appendChild(head);
+  head.appendChild(dot); head.appendChild(nm); if (badge && badge.el) head.appendChild(badge.el); c.appendChild(head);
   const grid = document.createElement("div"); grid.style.cssText = "display:grid;grid-template-columns:1fr;gap:4px";
-  kpis.forEach(([id, lab]) => {
-    const row = document.createElement("div"); row.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px";
-    const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = lab;
-    const v = document.createElement("b"); v.id = id; v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:56%"; v.textContent = "\u2014"; _el[id] = v;
-    row.appendChild(l); row.appendChild(v); grid.appendChild(row);
-  });
-  card.appendChild(grid);
-  const fn = document.createElement("div"); fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5"; fn.textContent = footnote; card.appendChild(fn);
-  return card;
+  kpis.forEach(([id, lab]) => { const r = document.createElement("div"); r.style.cssText = "display:flex;justify-content:space-between;gap:10px;font-size:11px"; const l = document.createElement("span"); l.style.cssText = "color:#9fb1bf"; l.textContent = lab; const v = document.createElement("b"); v.id = id; v.style.cssText = "font-variant-numeric:tabular-nums;color:#eef3f6;text-align:right;max-width:58%"; v.textContent = "\u2014"; _el[id] = v; r.appendChild(l); r.appendChild(v); grid.appendChild(r); });
+  c.appendChild(grid);
+  const fn = document.createElement("div"); fn.style.cssText = "font-size:9.5px;color:#6b7a86;line-height:1.5"; fn.textContent = footnote; c.appendChild(fn);
+  return c;
 }
 
 // =========================================================================================
-// Light-field / Looking Glass QUILT export.
-// Renders the scene from N horizontal camera positions (a light-field sweep) into a grid
-// (quilt). The quilt is the Looking Glass display's native input: a downloadable PNG that
-// drives a real light-field holographic display. Uses only the vendored renderer (0 CDN).
+// Looking Glass quilt export (45-view horizontal sweep -> downloadable PNG)
 // =========================================================================================
 async function _exportLightField(btn) {
-  const THREE = _THREE, stage = _stage;
-  if (!stage || !stage.renderer) return;
-  const COLS = 5, ROWS = 9, VIEWS = COLS * ROWS;   // 45-view Looking Glass quilt
-  const TILE_W = 256, TILE_H = 256;                // per-view tile (keeps PNG reasonable)
-  btn.disabled = true; const prevTxt = btn.textContent; btn.textContent = "rendering\u2026";
-  if (_el.lfStatus) _el.lfStatus.textContent = `${VIEWS} views\u2026`;
+  const THREE = _THREE, stage = _stage; if (!stage || !stage.renderer) return;
+  const COLS = 5, ROWS = 9, VIEWS = COLS * ROWS, TW = 256, TH = 256;
+  btn.disabled = true; const prev = btn.textContent; btn.textContent = "rendering\u2026"; if (_el.lfStatus) _el.lfStatus.textContent = `${VIEWS} views\u2026`;
   try {
     const renderer = stage.renderer, scene = stage.scene, srcCam = stage.camera;
-    // dedicated render target + a cloned camera swept horizontally around the target
-    const rt = new THREE.WebGLRenderTarget(TILE_W, TILE_H, { samples: 2 });
-    const cam = srcCam.clone();
-    const target = (stage.controls && stage.controls.target) ? stage.controls.target.clone() : new THREE.Vector3(0, 2.4, 0);
-    const radius = srcCam.position.distanceTo(target);
-    const baseAngle = Math.atan2(srcCam.position.x - target.x, srcCam.position.z - target.z);
-    const height = srcCam.position.y;
-    const CONE = 0.5; // ~28° total horizontal sweep (Looking Glass viewing cone)
-
-    const quilt = document.createElement("canvas"); quilt.width = COLS * TILE_W; quilt.height = ROWS * TILE_H;
-    const qx = quilt.getContext("2d");
-    const readCanvas = document.createElement("canvas"); readCanvas.width = TILE_W; readCanvas.height = TILE_H;
-    const rc = readCanvas.getContext("2d");
-    const pixels = new Uint8Array(TILE_W * TILE_H * 4);
-
+    const rt = new THREE.WebGLRenderTarget(TW, TH, { samples: 2 }); const cam = srcCam.clone();
+    const target = (stage.controls && stage.controls.target) ? stage.controls.target.clone() : new THREE.Vector3(0, 2.6, 0);
+    const radius = srcCam.position.distanceTo(target); const baseAngle = Math.atan2(srcCam.position.x - target.x, srcCam.position.z - target.z); const height = srcCam.position.y; const CONE = 0.5;
+    const quilt = document.createElement("canvas"); quilt.width = COLS * TW; quilt.height = ROWS * TH; const qx = quilt.getContext("2d");
+    const rcv = document.createElement("canvas"); rcv.width = TW; rcv.height = TH; const rc = rcv.getContext("2d"); const px = new Uint8Array(TW * TH * 4);
     const prevRT = renderer.getRenderTarget();
     for (let v = 0; v < VIEWS; v++) {
-      const tView = VIEWS > 1 ? (v / (VIEWS - 1) - 0.5) : 0;   // -0.5..0.5
-      const ang = baseAngle + tView * CONE;
-      cam.position.set(target.x + Math.sin(ang) * radius, height, target.z + Math.cos(ang) * radius);
-      cam.lookAt(target); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
-      renderer.setRenderTarget(rt);
-      renderer.render(scene, cam);
-      renderer.readRenderTargetPixels(rt, 0, 0, TILE_W, TILE_H, pixels);
-      // flip vertically (GL origin is bottom-left) into the read canvas
-      const img = rc.createImageData(TILE_W, TILE_H);
-      for (let y = 0; y < TILE_H; y++) {
-        const sy = TILE_H - 1 - y;
-        img.data.set(pixels.subarray(sy * TILE_W * 4, (sy + 1) * TILE_W * 4), y * TILE_W * 4);
-      }
-      rc.putImageData(img, 0, 0);
-      // quilt layout: Looking Glass fills bottom-left→right, bottom→top
-      const col = v % COLS, row = ROWS - 1 - Math.floor(v / COLS);
-      qx.drawImage(readCanvas, col * TILE_W, row * TILE_H);
-      if (_el.lfStatus && (v % 5 === 0)) { _el.lfStatus.textContent = `view ${v + 1}/${VIEWS}`; await new Promise((r) => setTimeout(r, 0)); }
+      const tv = VIEWS > 1 ? (v / (VIEWS - 1) - 0.5) : 0; const ang = baseAngle + tv * CONE;
+      cam.position.set(target.x + Math.sin(ang) * radius, height, target.z + Math.cos(ang) * radius); cam.lookAt(target); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+      renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.readRenderTargetPixels(rt, 0, 0, TW, TH, px);
+      const img = rc.createImageData(TW, TH); for (let y = 0; y < TH; y++) { const sy = TH - 1 - y; img.data.set(px.subarray(sy * TW * 4, (sy + 1) * TW * 4), y * TW * 4); } rc.putImageData(img, 0, 0);
+      const col = v % COLS, row = ROWS - 1 - Math.floor(v / COLS); qx.drawImage(rcv, col * TW, row * TH);
+      if (_el.lfStatus && v % 5 === 0) { _el.lfStatus.textContent = `view ${v + 1}/${VIEWS}`; await new Promise((r) => setTimeout(r, 0)); }
     }
-    renderer.setRenderTarget(prevRT);
-    rt.dispose();
-
-    // download the quilt PNG (name encodes columns/rows/aspect per Looking Glass convention)
-    const name = `frontier_qs${COLS}x${ROWS}a${(TILE_W / TILE_H).toFixed(2)}.png`;
-    quilt.toBlob((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click();
-      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
-      if (_el.lfStatus) _el.lfStatus.textContent = `saved ${COLS}\u00d7${ROWS} quilt`;
-    }, "image/png");
-  } catch (e) {
-    if (_el.lfStatus) _el.lfStatus.textContent = "export failed"; console.error("[frontier] light-field export:", e);
-  } finally {
-    btn.disabled = false; btn.textContent = prevTxt;
-  }
+    renderer.setRenderTarget(prevRT); rt.dispose();
+    quilt.toBlob((blob) => { const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `frontier_qs${COLS}x${ROWS}a${(TW / TH).toFixed(2)}.png`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500); if (_el.lfStatus) _el.lfStatus.textContent = `saved ${COLS}\u00d7${ROWS} quilt`; }, "image/png");
+  } catch (e) { if (_el.lfStatus) _el.lfStatus.textContent = "export failed"; console.error("[frontier] light-field:", e); }
+  finally { btn.disabled = false; btn.textContent = prev; }
 }
 
 // =========================================================================================
-// KPI painters (honest tokens when not live)
+// painters
 // =========================================================================================
-function _tok(state) { if (state === "live") return null; if (state === "missing") return "NO-LIVE-DATA"; if (state === "degraded") return "DEGRADED"; if (state === "error") return "OFFLINE"; return "\u2026"; }
-function _paintEnt() { const t = _tok(S.ent.state); _set("ent-entropy", t || fx(S.ent.entropy, 4)); _set("ent-conc", t || fx(S.ent.concurrence, 4)); _set("ent-neg", t || fx(S.ent.negativity, 4)); }
-function _paintNeu() { const t = _tok(S.neu.state); _set("neu-dw", t || fx(S.neu.stdp_dw, 4)); _set("neu-kind", t || (S.neu.stdp_kind || "\u2014")); _set("neu-health", t || (S.neu.plast_health != null ? fx(S.neu.plast_health, 3) : (S.neu.plast_dormant != null ? "dormant " + fx(S.neu.plast_dormant, 2) : "\u2014"))); }
-function _paintQb() { const tc = _tok(S.qb.cohState), tk = _tok(S.qb.compState); _set("qb-tau", tc || (S.qb.tau_c != null ? String(S.qb.tau_c) : "\u2014")); _set("qb-contrast", tk || fx(S.qb.contrast, 4)); _set("qb-works", tk || (S.qb.works != null ? (S.qb.works ? "yes" : "no") : "\u2014")); }
-function _paintSc() {
-  const t = _tok(S.sc.state);
-  _set("sc-summary", t || (S.sc.summary ? (S.sc.summary.length > 30 ? S.sc.summary.slice(0, 29) + "\u2026" : S.sc.summary) : "\u2014"));
-  _set("sc-sovereign", t || (S.sc.sovereign_any != null ? (S.sc.sovereign_any ? "yes (sovereign GPU)" : "no (managed)") : "\u2014"));
-  _set("sc-caps", t || (S.sc.caps ? S.sc.caps.map((c) => c.tier).join(", ") : "\u2014"));
-}
-function _paintEn() {
-  const t = _tok(S.en.state);
-  _set("en-jtoken", t || (S.en.jtoken != null ? fx(S.en.jtoken, 4) : (S.en.jlabel || "ROADMAP")));
-  _set("en-carbon", t || (S.en.carbon != null ? fx(S.en.carbon, 4) : "ROADMAP"));
-  _set("en-measured", t || (S.en.measured != null && S.en.total != null ? `${S.en.measured}/${S.en.total}` : "\u2014"));
-}
+function _tok(s) { if (s === "live") return null; if (s === "missing") return "NO-LIVE-DATA"; if (s === "degraded") return "DEGRADED"; if (s === "error") return "OFFLINE"; return "\u2026"; }
 function fx(v, d) { return (typeof v === "number") ? v.toFixed(d) : "\u2014"; }
 function _set(id, v) { if (_el[id]) _el[id].textContent = v; }
+function _paintEnt() { const t = _tok(S.ent.state); _set("ent-entropy", t || fx(S.ent.entropy, 4)); _set("ent-conc", t || fx(S.ent.concurrence, 4)); _set("ent-neg", t || fx(S.ent.negativity, 4)); }
+function _paintNeu() { const t = _tok(S.neu.state); _set("neu-dw", t || fx(S.neu.dw, 4)); _set("neu-kind", t || (S.neu.kind || "\u2014")); _set("neu-health", t || (S.neu.health != null ? fx(S.neu.health, 3) : (S.neu.dormant != null ? "dormant " + fx(S.neu.dormant, 2) : "\u2014"))); }
+function _paintQb() { const tc = _tok(S.qb.cohState), tk = _tok(S.qb.compState); _set("qb-tau", tc || (S.qb.tau != null ? String(S.qb.tau) : "\u2014")); _set("qb-contrast", tk || fx(S.qb.contrast, 4)); _set("qb-works", tk || (S.qb.works != null ? (S.qb.works ? "yes" : "no") : "\u2014")); }
+function _paintSc() { const t = _tok(S.sc.state); _set("scmp-summary", t || (S.sc.summary ? (S.sc.summary.length > 28 ? S.sc.summary.slice(0, 27) + "\u2026" : S.sc.summary) : "\u2014")); _set("scmp-sovereign", t || (S.sc.sovereign_any != null ? (S.sc.sovereign_any ? "yes (sovereign)" : "no (managed)") : "\u2014")); _set("scmp-caps", t || (S.sc.caps ? S.sc.caps.map((c) => c.tier).join(", ") : "\u2014")); }
+function _paintEn() { const t = _tok(S.en.state); _set("en-jtoken", t || (S.en.jtoken != null ? fx(S.en.jtoken, 4) : (S.en.jlabel || "ROADMAP"))); _set("en-carbon", t || (S.en.carbon != null ? fx(S.en.carbon, 4) : "ROADMAP")); _set("en-measured", t || (S.en.measured != null && S.en.total != null ? `${S.en.measured}/${S.en.total}` : "\u2014")); }
+function _paintScale() { const t = _tok(S.scale.state); _set("sc-exps", t || (S.scale.exps ? S.scale.exps.slice(0, 4).map((e) => (e.exponent != null ? e.exponent : "?")).join(", ") + (S.scale.exps.length > 4 ? "\u2026" : "") : "\u2014")); }
+function _paintConj() { const t = _tok(S.conj.state); _set("conj-count", t || (S.conj.count != null ? String(S.conj.count) : "\u2014")); _set("conj-first", t || (S.conj.first ? String(S.conj.first).slice(0, 10) : "\u2014")); }
+function _paintPubs() { const t = _tok(S.pubs.state); _set("pubs-locked", t || (S.pubs.locked ? S.pubs.locked.join(",") : (S.pubs.lockedCount != null ? String(S.pubs.lockedCount) : "\u2014"))); _set("pubs-lambda", t || (S.pubs.lambda ? (S.pubs.lambda.length > 18 ? S.pubs.lambda.slice(0, 17) + "\u2026" : S.pubs.lambda) : "Conjecture 1")); _set("pubs-kernel", t || (S.pubs.expKernel || "\u2014")); }
 
-// =========================================================================================
-// unmount
 // =========================================================================================
 function unmount() {
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
-  try {
-    if (_group && _stage) {
-      _group.traverse((o) => {
-        if (o.geometry && o.geometry.dispose) o.geometry.dispose();
-        if (o.material) { const mats = Array.isArray(o.material) ? o.material : [o.material]; mats.forEach((m) => { if (m.map && m.map.dispose) m.map.dispose(); if (m.dispose) m.dispose(); }); }
-      });
-      _stage.scene.remove(_group);
-    }
-  } catch (_) {}
-  _group = _overlay = null; _ent = {}; _neu = {}; _qb = {}; _sc = {}; _en = {}; _el = {}; _badges = {};
-  _tsl = _computeNode = _cohBuf = _uTau = _uT = null; _computeReady = false;
-  S.ent = { entropy: null, concurrence: null, eof: null, negativity: null, logneg: null, label: null, state: "init" };
-  S.neu = { stdp_dw: null, stdp_kind: null, plast_health: null, plast_dormant: null, label: null, state: "init" };
-  S.qb = { coh_series: null, tau_c: null, compass: null, contrast: null, works: null, cohState: "init", compState: "init" };
-  S.sc = { summary: null, sovereign_any: null, caps: null, roadmap: null, label: null, state: "init" };
-  S.en = { summary: null, sovereign: null, gpu_reachable: null, measured: null, total: null, jtoken: null, carbon: null, jlabel: null, state: "init" };
+  try { if (_group && _stage) { _group.traverse((o) => { if (o.geometry && o.geometry.dispose) o.geometry.dispose(); if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach((x) => { if (x.map && x.map.dispose) x.map.dispose(); if (x.dispose) x.dispose(); }); } }); _stage.scene.remove(_group); } } catch (_) {}
+  _splatTex = null;
+  _group = _overlay = null; _ent = {}; _neu = {}; _qb = {}; _sc = {}; _en = {}; _scale = {}; _conj = {}; _pubs = {}; _el = {}; _badges = {};
+  _computeNode = _cohBuf = _uTau = _uT = null; _computeReady = false;
+  S.ent = { entropy: null, concurrence: null, negativity: null, state: "init" };
+  S.neu = { dw: null, kind: null, health: null, dormant: null, state: "init" };
+  S.qb = { coh: null, tau: null, compass: null, contrast: null, works: null, cohState: "init", compState: "init" };
+  S.sc = { summary: null, sovereign_any: null, caps: null, roadmap: null, state: "init" };
+  S.en = { jtoken: null, carbon: null, jlabel: null, measured: null, total: null, state: "init" };
+  S.scale = { exps: null, state: "init" }; S.conj = { count: null, first: null, state: "init" };
+  S.pubs = { locked: null, lockedCount: null, expKernel: null, lambda: null, state: "init" };
   _stage = _THREE = _ctx = null;
 }
 
-export default { id: ID, title: TITLE, endpoints: [EP_ENT_ENTROPY, EP_ENT_CONC, EP_ENT_NEG, EP_NEU_STDP, EP_QB_COH, EP_QB_COMPASS, EP_SC, EP_EN], mount, unmount };
+export default { id: ID, title: TITLE, endpoints: [EP_ENT_ENTROPY, EP_ENT_CONC, EP_ENT_NEG, EP_NEU_STDP, EP_QB_COH, EP_QB_COMPASS, EP_SC, EP_EN, EP_SCALE, EP_CONJ, EP_PUBS], mount, unmount };

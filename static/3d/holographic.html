@@ -45,6 +45,7 @@
 <header>
  <h1>◇ Holographic Estate</h1>
  <span class="badge" id="backend">renderer: …</span>
+ <button class="badge" id="gpu-toggle" title="Toggle WebGPU compute path (falls back to WebGL2 if the browser/driver can't provide a WebGPU device). WebGPU is not production-safe on all platforms — doctrine." style="cursor:pointer;background:#10171f">⚡ WebGPU: off</button>
  <span class="badge">three r<span id="three-rev">…</span></span>
  <span class="badge">0 runtime CDN</span>
  <span class="badge">Λ = Conjecture 1</span>
@@ -88,20 +89,21 @@ let stage = null;
 let current = null;       // { def, instance }
 let loadToken = 0;
 
+// WebGPU opt-in: seeded from ?webgpu=1, flippable live via the header toggle. WebGPU is not
+// production-safe on all browsers/drivers yet (doctrine) so WebGL2 stays the default; the
+// toolkit's probe is timeout-guarded and falls back honestly if no device is available.
+let wantWebGPU = /[?&]webgpu=1\b/.test(location.search);
+
 async function ensureStage() {
   if (stage) return stage;
   try {
-    // Default to the proven WebGL2 path (matches /estate-hologram). WebGPU is not
-    // production-safe across all browsers/drivers yet (doctrine) and the bloom pass
-    // is WebGL2-only, so the shell stays on WebGL2 unless explicitly opted in with
-    // ?webgpu=1. The toolkit's WebGPU probe is timeout-guarded either way.
-    const wantWebGPU = /[?&]webgpu=1\b/.test(location.search);
     stage = await szl3d.boot(stageEl, {
       bloom: { strength: 0.85, radius: 0.5, threshold: 0.18 },
       cameraPos: [0, 5, 16],
       forceWebGL: !wantWebGPU,
     });
     document.getElementById("backend").textContent = "renderer: " + stage.backend.toUpperCase();
+    _syncGpuToggle();
     stage.start();
   } catch (e) {
     fallbackEl.style.display = "flex";
@@ -110,6 +112,32 @@ async function ensureStage() {
     throw e;
   }
   return stage;
+}
+
+function _syncGpuToggle() {
+  const btn = document.getElementById("gpu-toggle");
+  if (!btn) return;
+  const on = stage && stage.backend === "webgpu";
+  btn.textContent = "\u26a1 WebGPU: " + (on ? "on" : (wantWebGPU ? "requested" : "off"));
+  btn.style.color = on ? "var(--proof, #3af4c8)" : "var(--gold)";
+  btn.style.borderColor = on ? "var(--teal)" : "var(--line)";
+}
+
+// Tear down the current stage + surface and re-boot with the new renderer preference, then
+// re-mount the active surface. Used by the header WebGPU toggle so users can engage the
+// compute path on capable browsers without editing the URL.
+async function rebootStage() {
+  const active = current ? current.def.id : (SURFACES[0] && SURFACES[0].id);
+  try { if (current && current.instance && current.instance.unmount) current.instance.unmount(); } catch (_) {}
+  current = null;
+  try { if (stage && stage.dispose) stage.dispose(); } catch (_) {}
+  stage = null;
+  // The toolkit's dispose() releases the GL context but leaves its <canvas> in the DOM;
+  // a fresh boot() appends a new one. Remove the orphaned canvas(es) here so a toggle
+  // never accumulates duplicate canvases / leaked contexts.
+  try { stageEl.querySelectorAll("canvas").forEach((c) => c.remove()); } catch (_) {}
+  fallbackEl.style.display = "none";
+  await selectSurface(active);
 }
 
 function clearScene() {
@@ -163,13 +191,31 @@ SURFACES.forEach((s) => {
   tabsEl.appendChild(b);
 });
 
+// WebGPU toggle: flip the preference and re-boot the renderer + re-mount the active surface.
+// Honest: if the browser/driver yields no WebGPU device the toolkit falls back to WebGL2 and
+// the badge reports the real backend ("WebGPU: requested" but renderer stays WEBGL2).
+{
+  const gpuBtn = document.getElementById("gpu-toggle");
+  if (gpuBtn) {
+    gpuBtn.addEventListener("click", async () => {
+      wantWebGPU = !wantWebGPU;
+      gpuBtn.disabled = true;
+      const prev = gpuBtn.textContent; gpuBtn.textContent = "\u26a1 switching\u2026";
+      try { await rebootStage(); } catch (_) { document.getElementById("backend").textContent = "renderer: UNAVAILABLE"; }
+      finally { gpuBtn.disabled = false; _syncGpuToggle(); }
+    });
+    _syncGpuToggle();
+  }
+}
+
 // expose a tiny API for the selftest harness to drive the shell headlessly.
 window.__SZL3D_SHELL__ = {
   surfaces: SURFACES,
   select: selectSurface,
   get stage() { return stage; },
   get current() { return current; },
-  ensureStage,
+  get wantWebGPU() { return wantWebGPU; },
+  ensureStage, rebootStage,
 };
 
 // initial surface from hash or default to the frontier tier
