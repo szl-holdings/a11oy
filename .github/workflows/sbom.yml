@@ -2,7 +2,7 @@ name: SBOM — CycloneDX via Syft
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     tags:
       - 'v*'
   release:
@@ -10,10 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: read
-  id-token: write
-
+  contents: read
 jobs:
   sbom:
     name: Generate SBOM
@@ -37,3 +34,7 @@ jobs:
           name: sbom-cyclonedx
           path: sbom.cdx.json
           retention-days: 90
+    permissions:
+      contents: write
+      packages: read
+      id-token: write

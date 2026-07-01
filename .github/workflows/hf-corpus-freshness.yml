@@ -34,8 +34,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-
 concurrency:
   group: hf-corpus-freshness
   cancel-in-progress: false
@@ -191,3 +189,6 @@ jobs:
             exit 1
           fi
           echo "All flagship HF datasets are fresh and above floor."
+    permissions:
+      contents: read
+      issues: write

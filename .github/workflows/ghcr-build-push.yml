@@ -266,3 +266,5 @@ jobs:
             --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
             "${IMG}@${DIGEST}" > /dev/null
           echo "SLSA L2 verified: cosign verify-attestation passed for ${IMG}@${DIGEST}"
+permissions:
+  contents: read

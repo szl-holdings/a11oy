@@ -52,8 +52,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-
 concurrency:
   group: hf-corpus-reverify
   cancel-in-progress: false
@@ -95,6 +93,9 @@ jobs:
           fi
           echo "Test alert delivered — the re-verify-failure alert path works end to end."
 
+    permissions:
+      contents: read
+      issues: write
   reverify:
     name: Re-verify a11oy corpus signed receipts
     if: ${{ inputs.test_alert != true }}
@@ -251,3 +252,6 @@ jobs:
             exit 1
           fi
           echo "All published a11oy receipts re-verify (or honest soft-pass on empty)."
+    permissions:
+      contents: read
+      issues: write

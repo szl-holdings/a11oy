@@ -28,9 +28,7 @@ name: Status Page Update
   workflow_dispatch:
 
 permissions:
-  contents: write
-  actions: read
-
+  contents: read
 jobs:
   update-status:
     name: Update STATUS.md
@@ -282,3 +280,6 @@ jobs:
           git commit -m "chore(status): publish STATUS.md [$TS]"
           git push -f origin status-publish:status
           echo "[status-page] published STATUS.md to the public 'status' branch"
+    permissions:
+      contents: write
+      actions: read

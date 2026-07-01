@@ -34,8 +34,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -233,3 +231,6 @@ jobs:
         run: |
           echo "::error::docs/site npm audit is not clean — see the audit step output and the tracking issue."
           exit 1
+    permissions:
+      contents: read
+      issues: write

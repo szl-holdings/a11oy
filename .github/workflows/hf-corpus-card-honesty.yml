@@ -40,8 +40,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-
 concurrency:
   group: hf-corpus-card-honesty
   cancel-in-progress: false
@@ -196,3 +194,6 @@ jobs:
             exit 1
           fi
           echo "Both flagship HF dataset cards are honest."
+    permissions:
+      contents: read
+      issues: write

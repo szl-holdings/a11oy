@@ -16,9 +16,7 @@ name: Dependabot auto-merge
 on: pull_request
 
 permissions:
-  contents: write
-  pull-requests: write
-
+  contents: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -67,3 +65,6 @@ jobs:
       - name: Leave for manual review
         if: steps.classify.outputs.merge != 'true'
         run: echo "PR contains a major or unclassified update — leaving for manual review."
+    permissions:
+      contents: write
+      pull-requests: write

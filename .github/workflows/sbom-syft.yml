@@ -10,7 +10,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
 jobs:
   sbom:
     runs-on: ubuntu-latest
@@ -29,3 +28,6 @@ jobs:
           name: sbom-spdx
           path: sbom.spdx.json
           retention-days: 90
+    permissions:
+      contents: read
+      id-token: write

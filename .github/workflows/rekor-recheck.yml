@@ -39,8 +39,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-
 concurrency:
   group: rekor-recheck
   cancel-in-progress: false
@@ -93,6 +91,9 @@ jobs:
           fi
           echo "Test alert delivered — the receipt-failure alert path works end to end."
 
+    permissions:
+      contents: read
+      issues: write
   recheck:
     name: Re-verify published receipts against Rekor
     # The manual delivery test (test_alert=true) must not run the real re-check
@@ -364,3 +365,6 @@ jobs:
             exit 1
           fi
           echo "All published receipts still verify against Rekor (or none published yet)."
+    permissions:
+      contents: read
+      issues: write

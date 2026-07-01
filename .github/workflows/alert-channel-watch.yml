@@ -45,8 +45,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-
 concurrency:
   group: alert-channel-watch
   cancel-in-progress: false
@@ -235,3 +233,6 @@ jobs:
             exit 1
           fi
           echo "Shared alert channel is wired$([ "${CANARY_CODE:-skipped}" != "skipped" ] && echo " and returned 2xx" || echo " (presence check only this run)")."
+    permissions:
+      contents: read
+      issues: write
