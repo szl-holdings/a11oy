@@ -140,6 +140,18 @@ _export("register_willay", _load_register_willay)
 _export("willay_verify_receipt", _load_willay_verify_receipt)
 
 
+# --- Cognitive drift guard (governed-reasoning step, default OFF) -----------
+# Additive reimplementation of the platform cognitive-runtime drift-detector
+# pattern: scores current-step-intent vs stated-objective divergence. Gated by
+# env A11OY_DRIFT_GUARD=1; honest no-op otherwise. See szl_agentic_loop.
+def _load_drift_check():
+    from szl_agentic_loop import drift_check
+    return drift_check
+
+
+_export("drift_check", _load_drift_check)
+
+
 def manifest() -> dict:
     """Honest snapshot of what the flagship surface actually exposes here."""
     return {
