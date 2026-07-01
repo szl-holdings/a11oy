@@ -73,6 +73,86 @@ except Exception:  # pragma: no cover - additive fallback, never crash the loop
     _ANAT = None
 
 # ----------------------------------------------------------------------------
+# UNIFIED RECEIPT ORGANS (ADDITIVE): the ONE per-turn receipt proves governed +
+# energy + (optional) multi-witness. Both are import-guarded so a host without
+# them keeps the receipt working EXACTLY as today (pure optional-field addition).
+#   - szl_energy_sovereign.energy_fields_for_receipt(): honest joules/carbon,
+#     labelled MEASURED (fresh on-box exporter) / ROADMAP (no meter) / UNAVAILABLE
+#     (module absent). NEVER fabricates a joule.
+#   - szl_khipu_consensus.run_consensus(): OPTIONAL Khipu 3-of-4 BFT multi-witness
+#     receipt (Conjecture 2), folded into the SAME hash chain. OFF by default;
+#     enable with env A11OY_MULTIWITNESS=1. Absent/disabled ⇒ honest SKIPPED.
+# ----------------------------------------------------------------------------
+try:
+    import szl_energy_sovereign as _ENERGY
+except Exception:  # pragma: no cover - additive fallback, never crash the loop
+    _ENERGY = None
+try:
+    import szl_khipu_consensus as _KHIPU_CONSENSUS
+except Exception:  # pragma: no cover - additive fallback, never crash the loop
+    _KHIPU_CONSENSUS = None
+
+
+def _energy_fields_for_receipt() -> dict:
+    """Honest per-turn energy attestation for the unified receipt. Delegates to
+    szl_energy_sovereign (MEASURED/ROADMAP) when present; honest UNAVAILABLE when
+    the kernel is absent. NEVER raises, NEVER fabricates a joule."""
+    if _ENERGY is None:
+        return {"joules_consumed": None, "carbon_g_co2eq": None,
+                "energy_label": "UNAVAILABLE",
+                "energy_source_note": ("szl_energy_sovereign not importable in this image "
+                                       "— per-receipt joules/carbon honestly UNAVAILABLE, "
+                                       "never fabricated.")}
+    try:
+        return _ENERGY.energy_fields_for_receipt()
+    except Exception as exc:  # a receipt helper must never take the loop down
+        return {"joules_consumed": None, "carbon_g_co2eq": None,
+                "energy_label": "UNAVAILABLE",
+                "energy_source_note": "energy attest fail-open: %s" % (str(exc)[:120],)}
+
+
+def _multiwitness_fields(action_hash: str, context: dict) -> dict:
+    """OPTIONAL Khipu 3-of-4 BFT multi-witness attestation. OFF unless env
+    A11OY_MULTIWITNESS=1 AND szl_khipu_consensus is importable AND no event loop
+    is already running in this thread. Honest SKIPPED otherwise. When it runs it
+    returns the consensus receipt hash + honest N-of-4 count (WITNESSED) so the
+    hash can be folded into the run's hash chain. NEVER raises."""
+    import os
+    if os.environ.get("A11OY_MULTIWITNESS") != "1":
+        return {"consensus_status": "SKIPPED",
+                "consensus_note": "multi-witness OFF (set A11OY_MULTIWITNESS=1 to enable)."}
+    if _KHIPU_CONSENSUS is None:
+        return {"consensus_status": "SKIPPED",
+                "consensus_note": "szl_khipu_consensus not importable in this image."}
+    try:
+        import asyncio
+        coro_factory = lambda: _KHIPU_CONSENSUS.run_consensus(action_hash, context)
+        try:
+            asyncio.get_running_loop()
+            # An event loop is already running in this thread (async route handler):
+            # asyncio.run would raise, so run the consensus in a fresh worker thread
+            # with its own loop. Keeps the multi-witness path REAL in production.
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                result = ex.submit(lambda: asyncio.run(coro_factory())).result(timeout=30)
+        except RuntimeError:
+            result = asyncio.run(coro_factory())
+        receipt = result.get("receipt") or {}
+        digest = hashlib.sha256(
+            json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        return {"consensus_status": "WITNESSED",
+                "khipu_consensus": receipt.get("khipu_consensus"),
+                "consensus_decision": receipt.get("decision"),
+                "consensus_threshold": receipt.get("threshold"),
+                "consensus_receipt_hash": digest,
+                "consensus_theorem": "Khipu Conjecture 2 (Byzantine quorum safety; OPEN — not a theorem)",
+                "consensus_note": "Khipu 3-of-4 BFT multi-witness executed; hash folded into the chain."}
+    except Exception as exc:
+        return {"consensus_status": "SKIPPED",
+                "consensus_note": "multi-witness fail-open: %s" % (str(exc)[:120],)}
+
+
+# ----------------------------------------------------------------------------
 # REAL in-image governance corpus (the thing the RAG hop retrieves over).
 # These are real doctrine/governance statements that ground the agent's tool
 # choice and the policy gate. No external dataset / no fabricated chunks.
@@ -537,6 +617,18 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         allowed = gate_allow and trust_pass
         decision = "ALLOW" if allowed else "DENY"
 
+        # ---- UNIFIED RECEIPT (ADDITIVE): energy + optional multi-witness ----
+        # Energy is a pure signed-field addition (never a new chain link, so the
+        # chain is byte-identical to today when the meter is absent). Multi-witness,
+        # when explicitly enabled and it runs, is FOLDED INTO THE HASH CHAIN via
+        # _chain_receipt so its hash is part of the tamper-evident linkage.
+        energy_attest = _energy_fields_for_receipt()
+        consensus_attest = _multiwitness_fields(prev_hash,
+                                                {"decision": decision, "action": action,
+                                                 "severity": severity, "run_id": tr.trace_id})
+        if consensus_attest.get("consensus_status") == "WITNESSED":
+            _chain_receipt("multiwitness", dict(consensus_attest))
+
         # ---- HOP 6: emit (ONLY on allow) + sign the final receipt ----
         with tr.span("emit", "emit") as sp:
             if allowed:
@@ -564,6 +656,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 "chain_final_hash": prev_hash,
                 "chain_depth": len(chain),
                 "emitted": effect["emitted"],
+                "energy": energy_attest,
+                "consensus": consensus_attest,
                 "issuer": ns,
                 "issued_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -662,6 +756,8 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                       "axes": axes,
                       "status": "Trust score (advisory) — research conjecture, not a proven oracle"},
             "formula_proof": formula_proof,
+            "energy": energy_attest,
+            "consensus": consensus_attest,
             "trace": tr.to_dict(),
             "receipt_chain": chain,
             "signed_receipt": envelope,
