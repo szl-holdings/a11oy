@@ -4922,36 +4922,34 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           var dims=['Reasoning','Code','Context','Latency','Cost-eff','Sovereignty'];
           var pcData=models.map(function(m){ var isOpen=(m.tier>=90)||/deepseek|qwen|llama|codestral|mistral/i.test((m.provider_slug||'')+(m.model_id||''));
             return {value:score(m),name:m.display_name||m.model_id,open:isOpen}; });
-          var ch=echarts.init(E('ar-pc'),null,{renderer:'canvas'});
-          ch.setOption({backgroundColor:'transparent',
+          /* managed mkEchart: disposes any prior instance (killEchart) + registered in
+             _echarts so _refitAllViz resizes it and tearDownAll disposes on tab switch.
+             No per-render window 'resize' listener → no listener accumulation. */
+          if(window.mkEchart){ window.mkEchart('ar-pc',{backgroundColor:'transparent',
             parallelAxis:dims.map(function(nm,i){return {dim:i,name:nm,min:0,max:100,nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLine:{lineStyle:{color:'#444'}},axisLabel:{color:'#777',fontSize:8}};}),
             parallel:{left:'5%',right:'13%',top:30,bottom:18,parallelAxisDefault:{type:'value'}},
             tooltip:{trigger:'item'},
-            series:[{type:'parallel',lineStyle:{width:1.4,opacity:0.6},data:pcData.map(function(p){return {value:p.value,name:p.name,lineStyle:{color:p.open?TEAL:GOLD}};})}]});
-          var bar=echarts.init(E('ar-bar'),null,{renderer:'canvas'});
+            series:[{type:'parallel',lineStyle:{width:1.4,opacity:0.6},data:pcData.map(function(p){return {value:p.value,name:p.name,lineStyle:{color:p.open?TEAL:GOLD}};})}]}); }
           var sov=pcData.map(function(p){return {name:p.name,sov:p.value[5],open:p.open};}).sort(function(a,b){return b.sov-a.sov;});
-          bar.setOption({backgroundColor:'transparent',grid:{left:130,right:20,top:10,bottom:20},
+          if(window.mkEchart){ window.mkEchart('ar-bar',{backgroundColor:'transparent',grid:{left:130,right:20,top:10,bottom:20},
             xAxis:{type:'value',max:100,axisLabel:{color:'#777',fontSize:8},splitLine:{lineStyle:{color:GRID}}},
             yAxis:{type:'category',data:sov.map(function(s){return s.name;}),axisLabel:{color:'#9aa0a8',fontSize:8}},
-            series:[{type:'bar',data:sov.map(function(s){return {value:s.sov,itemStyle:{color:s.open?TEAL:GOLD}};}),barWidth:'60%'}]});
-          window.addEventListener('resize',function(){ch.resize();bar.resize();},{passive:true});
+            series:[{type:'bar',data:sov.map(function(s){return {value:s.sov,itemStyle:{color:s.open?TEAL:GOLD}};}),barWidth:'60%'}]}); }
         }catch(e){ T('ar-n',window._szlKpi(e)); }
         // ---- Governance eval — recorded run + live re-run (no fabricated numbers) ----
         var GOV_DIMS=['correctness','evidence_completeness','approval_compliance','replay_completeness','policy_adherence','hallucination_resistance','tool_efficiency'];
         function arenaGovRender(d,isLive){
           var res=(d.results||[]); var dims=(d.dimensions&&d.dimensions.length?d.dimensions:GOV_DIMS);
           var labels=dims.map(function(s){return String(s).replace(/_/g,' ');});
-          if(window.echarts){
-            var host=E('ar-gov-pc'); if(host){ try{var old=echarts.getInstanceByDom(host); if(old)old.dispose();}catch(_x){}
-              var ch=echarts.init(host,null,{renderer:'canvas'});
-              ch.setOption({backgroundColor:'transparent',
+          if(window.echarts&&window.mkEchart){
+            if(E('ar-gov-pc')){ /* managed: mkEchart disposes prior instance; global _refitAllViz handles resize (no per-render listener) */
+              window.mkEchart('ar-gov-pc',{backgroundColor:'transparent',
                 parallelAxis:labels.map(function(nm,i){return {dim:i,name:nm,min:0,max:100,nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLine:{lineStyle:{color:'#444'}},axisLabel:{color:'#777',fontSize:8}};}),
                 parallel:{left:'5%',right:'15%',top:30,bottom:18,parallelAxisDefault:{type:'value'}},
                 tooltip:{trigger:'item'},
                 series:[{type:'parallel',lineStyle:{width:1.6,opacity:0.7},
                   data:res.map(function(r){var v=dims.map(function(k){return Math.round((((r.dimensions||{})[k])||0)*100);});
                     return {value:v,name:r.scenario,lineStyle:{color:r.pass?(isLive?TEAL:GOLD):RED}};})}]});
-              window.addEventListener('resize',function(){try{ch.resize();}catch(_x){}},{passive:true});
             }
           }
           var html=res.map(function(r){return '<div class="row"><span class="badge '+(r.pass?'b-live':'b-err')+'">'+(r.pass?'pass':'fail')+'</span><span>'+esc(r.scenario)+'</span><span class="spacer mono dim">'+esc(r.domain||'')+' \u00b7 overall '+esc(r.overall)+(r.chain_links_verified?(' \u00b7 chain '+esc(r.chain_links_verified)):'')+'</span></div>'+arenaReasonRows(r);}).join('');
@@ -4968,22 +4966,21 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var runs=(h.runs||[]);
             if(!runs.length){
               if(trend)trend.textContent='no live runs yet \u2014 click \u201cRe-run live\u201d to start the timeline';
-              if(host)host.innerHTML=''; if(list)list.innerHTML='<div class="row mono dim">\u2014</div>';
+              if(window.killEchart)window.killEchart('ar-gov-spark'); if(host)host.innerHTML=''; if(list)list.innerHTML='<div class="row mono dim">\u2014</div>';
               return;
             }
             var scores=runs.map(function(r){return Math.round(((r.avg_overall)||0)*1000)/10;});
             var last=scores[scores.length-1], first=scores[0];
             var delta=Math.round((last-first)*10)/10;
             if(trend)trend.textContent=runs.length+' run'+(runs.length>1?'s':'')+' \u00b7 latest '+last+'% \u00b7 '+(delta>=0?'+':'')+delta+'% since first';
-            if(window.echarts&&host){
-              try{var old=echarts.getInstanceByDom(host); if(old)old.dispose();}catch(_x){}
-              var ch=echarts.init(host,null,{renderer:'canvas'});
-              ch.setOption({backgroundColor:'transparent',grid:{left:38,right:12,top:14,bottom:20},
+            if(window.echarts&&window.mkEchart&&host){
+              /* managed: mkEchart disposes the prior spark instance each refresh; _refitAllViz
+                 resizes it (no per-render window 'resize' listener) → flat instance/listener count */
+              window.mkEchart('ar-gov-spark',{backgroundColor:'transparent',grid:{left:38,right:12,top:14,bottom:20},
                 xAxis:{type:'category',data:runs.map(function(_r,i){return i+1;}),axisLabel:{color:'#777',fontSize:8},axisLine:{lineStyle:{color:'#444'}}},
                 yAxis:{type:'value',min:0,max:100,axisLabel:{color:'#777',fontSize:8,formatter:'{value}%'},splitLine:{lineStyle:{color:GRID}}},
                 tooltip:{trigger:'axis',formatter:function(p){var r=runs[p[0].dataIndex]||{};return esc(r.run_id||'')+'<br/>'+p[0].data+'% \u00b7 '+(r.scenarios_passed||0)+'/'+(r.scenarios_total||0)+' pass';}},
                 series:[{type:'line',data:scores,smooth:true,symbol:'circle',symbolSize:5,lineStyle:{color:TEAL,width:2},itemStyle:{color:TEAL},areaStyle:{color:'rgba(0,200,180,0.10)'}}]});
-              window.addEventListener('resize',function(){try{ch.resize();}catch(_x){}},{passive:true});
             }
             if(list){
               var recent=runs.slice(-6).reverse();
@@ -5014,6 +5011,31 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         var govBtn=E('ar-gov-rerun'); if(govBtn)govBtn.onclick=function(){arenaGov('live');};
         arenaGov('recorded');
         arenaHist();
+        /* Live results-board auto-refresh (#1204): re-render only the live run history on the
+           same cadence as the other live tabs, gated by document.visibilityState (paused while
+           the tab is hidden). Each cycle calls arenaHist(), whose managed mkEchart disposes the
+           prior ar-gov-spark instance and relies on the global _refitAllViz resize hook — so no
+           ECharts instance or resize-listener accumulation across refreshes. Registered in
+           _liveTimers so tearDownAll() clears it on tab switch. Honesty labels are untouched. */
+        (function(){
+          var ARENA_HIST_MS=12000;
+          if(window.__arena_hist_timer){ try{clearInterval(window.__arena_hist_timer);}catch(_x){} window.__arena_hist_timer=null; }
+          window.__arena_hist_c=c;
+          window.__arena_hist_timer=setInterval(function(){
+            var cc=window.__arena_hist_c;
+            if(!cc||!document.body.contains(cc)||!E('ar-gov-spark')){ try{clearInterval(window.__arena_hist_timer);}catch(_x){} window.__arena_hist_timer=null; return; }
+            if(typeof document!=='undefined' && document.visibilityState && document.visibilityState!=='visible') return;
+            arenaHist();
+          }, ARENA_HIST_MS);
+          try{ (window._liveTimers=window._liveTimers||[]).push(window.__arena_hist_timer); }catch(_x){}
+          if(typeof document!=='undefined' && typeof document.addEventListener==='function' && !window.__arena_hist_vis){
+            window.__arena_hist_vis=true;
+            document.addEventListener('visibilitychange',function(){
+              var cc=window.__arena_hist_c;
+              if(document.visibilityState==='visible' && window.__arena_hist_timer && cc && document.body.contains(cc) && E('ar-gov-spark')){ arenaHist(); }
+            });
+          }
+        })();
       }};
 
     /* codetab override REMOVED (Warhacker, 2026-06-06): the static SVG P1-P6 DAG
