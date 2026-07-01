@@ -164,18 +164,55 @@ def _govern_targets() -> list[str]:
     return targets
 
 
-def _call_govern_infer(text: str, timeout: float = 8.0) -> dict:
-    """Call the live govern/infer loop — govern decides, Wallpa expresses.
+def _in_process_disabled() -> bool:
+    """A11OY_GOVERN_IN_PROCESS=0 forces the HTTP path (default: in-process ON)."""
+    return (os.environ.get("A11OY_GOVERN_IN_PROCESS") or "").strip().lower() in (
+        "0", "false", "no", "off")
 
-    Targets the external public endpoint by default (configurable via
-    A11OY_GOVERN_URL); loopback is opt-in (A11OY_GOVERN_LOOPBACK=1).
-    Never fabricates: on failure returns decision=UNAVAILABLE with honest_note.
+
+def _call_govern_infer_in_process(text: str) -> dict | None:
+    """Call the govern logic IN-PROCESS (no HTTP hop). Returns the govern dict on
+    success, or None if the in-process path is unavailable so the caller can fall
+    back to HTTP. Govern + Wallpa share one ASGI app, so the same-app HTTP hop to
+    the public domain 403s (self-origin/WAF/hairpin); calling govern_infer()
+    directly is the root-cause fix. Never fabricates."""
+    if _in_process_disabled():
+        return None
+    try:
+        from szl_governed_api import govern_infer
+    except Exception:
+        try:
+            from .szl_governed_api import govern_infer  # type: ignore
+        except Exception:
+            return None
+    # Canonical field is `text`; govern_infer's first positional arg is the prompt.
+    return govern_infer(text)
+
+
+def _call_govern_infer(text: str, timeout: float = 8.0) -> dict:
+    """Govern decides, Wallpa expresses. Prefers an IN-PROCESS call to the govern
+    logic (govern_infer) — govern is mounted in the SAME ASGI app, so the HTTP hop
+    is unnecessary and a same-origin POST to the public domain is what 403s.
+
+    Fallback order: in-process govern_infer() → HTTP targets (A11OY_GOVERN_URL,
+    default external; loopback opt-in via A11OY_GOVERN_LOOPBACK=1). Never
+    fabricates: on genuine failure of every path returns decision=UNAVAILABLE.
     """
+    last_err: str = ""
+    # 1) IN-PROCESS (default, no HTTP hop) — the root-cause fix for the 403.
+    try:
+        gov = _call_govern_infer_in_process(text)
+        if isinstance(gov, dict):
+            return gov
+    except Exception as exc:
+        last_err = f"in-process govern_infer raised: {str(exc)[:120]}"
+
+    # 2) HTTP FALLBACK (only when in-process import was unavailable).
     import urllib.request
 
     targets = _govern_targets()
-    payload = json.dumps({"text": text, "caller": "wallpa", "surface": "voice/OSS-TTS"}).encode()
-    last_err: str = ""
+    payload = json.dumps({"text": text, "prompt": text,
+                          "caller": "wallpa", "surface": "voice/OSS-TTS"}).encode()
     for url in targets:
         try:
             req = urllib.request.Request(
@@ -189,7 +226,8 @@ def _call_govern_infer(text: str, timeout: float = 8.0) -> dict:
     return {
         "decision": "UNAVAILABLE",
         "honest_note": (
-            f"govern/infer unreachable ({last_err[:100]!r}); tried {targets}. "
+            f"govern/infer unreachable ({last_err[:120]!r}); in-process import "
+            f"unavailable and HTTP targets {targets} failed. "
             "Wallpa never fabricates — honest UNAVAILABLE."
         ),
     }
