@@ -421,10 +421,11 @@ function openCmd(){ const el=document.getElementById('cmdk'); el.classList.add('
 function closeCmd(){ document.getElementById('cmdk').classList.remove('open'); }
 function refreshCmd(){ cmdItems=buildCmdItems(document.getElementById('cmdk-input').value.trim()); paintCmd(); }
 function paintCmd(){
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   document.getElementById('cmdk-results').innerHTML = cmdItems.map((it,i)=>
     `<div class="pitem ${i===cmdSel?'sel':''}" data-i="${i}">`+
     `<span class="pg" style="background:linear-gradient(135deg,${it.g1},${it.g2})"></span>`+
-    `<span class="pt">${it.title}<small>${it.sub}</small></span><span class="tag">${it.tag}</span></div>`).join('');
+    `<span class="pt">${esc(it.title)}<small>${esc(it.sub)}</small></span><span class="tag">${esc(it.tag)}</span></div>`).join('');
   [...document.querySelectorAll('.pitem')].forEach(el=>el.onclick=()=>cmdItems[+el.dataset.i].act());
 }
 
