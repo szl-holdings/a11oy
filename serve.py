@@ -1290,6 +1290,16 @@ try:
 except Exception as _szl_neuroplasticity_e:  # pragma: no cover
     print(f"[a11oy] Neuroplasticity formulas NOT registered: {_szl_neuroplasticity_e!r}", file=__import__("sys").stderr)
 
+# (neuromorphic-wire) — spiking/LIF neuromorphic organ for the frontier ring.
+# MODELED (simulation, not measured silicon). Clean-room LIF (Gerstner-Kistler),
+# energy-per-spike cites Intel Loihi 2 (Davies et al. 2021 JPROC). Never claimed-as.
+try:
+    import szl_neuromorphic as _szl_neuromorphic
+    _szl_neuromorphic.register(app, ns="a11oy")
+    print("[a11oy] Neuromorphic spikes registered: /api/a11oy/v1/neuromorphic/spikes", file=__import__("sys").stderr)
+except Exception as _szl_neuromorphic_e:  # pragma: no cover
+    print(f"[a11oy] Neuromorphic spikes NOT registered: {_szl_neuromorphic_e!r}", file=__import__("sys").stderr)
+
 # ── SZL L6 Chain-of-Title receipt assembler (chain-of-title-wire-patch) — the
 # genuine sovereignty differentiator the research found: industry sovereign-AI
 # operates L1-L5 (residency -> governed ops); SZL's L6 binds, in ONE offline-

@@ -9,7 +9,7 @@
  * ==========================================================================*/
 (function () {
   'use strict';
-  var A11OY = 'https://a11oy.net';
+  var A11OY = 'https://a-11-oy.com';
   var POOL  = '/api/a11oy/v1/compute-pool';
   var KILLINCHU = 'https://szlholdings-killinchu.hf.space'; // estate killinchu surface (HF Space host)
   var MOSAIC_COP = '/api/killinchu/v1/mosaic/cop';          // fused COP + anomaly scores (PR #118)

@@ -19,7 +19,7 @@
 (function (global) {
   'use strict';
 
-  var DEFAULT_BASE = 'https://a11oy.net'; // same fabric the estate already talks to
+  var DEFAULT_BASE = 'https://a-11-oy.com'; // same fabric the estate already talks to
   var TIMEOUT_MS   = 12000;
   var SAMPLE = {
     _type: 'https://in-toto.io/Statement/v1',

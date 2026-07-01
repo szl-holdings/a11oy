@@ -3,7 +3,7 @@
 //
 // surfaces/frontier.js — FRONTIER holographic surface (the experimental tier, made 3D).
 //
-// Fuses EIGHT SZL frontier "organs" into ONE holographic lattice on a ring, each node lit by
+// Fuses NINE SZL frontier "organs" into ONE holographic lattice on a ring, each node lit by
 // a REAL live a11oy endpoint and carrying its honesty label VERBATIM from the JSON — never
 // upgraded here. Quantum-bio renders as a Gaussian-splat-style VOLUMETRIC coherence field
 // (WebGPU compute pass when available; instanced WebGL2 splats otherwise). A Looking-Glass
@@ -360,7 +360,7 @@ function _buildOrganLabels() {
   _sc.bb = lab("LIVE-MANAGED", "sovereign-compute", POS.sc);
   _conj.bb = lab("OPEN", "conjecture", POS.conj);
   _pubs.bb = lab("PUBLISHED", "publications", POS.pubs);
-  _eco.bb = lab("LIVE", "ecosystem", POS.eco);
+  _eco.bb = lab("LIVE-STATIC", "ecosystem", POS.eco);
 }
 
 // =========================================================================================
@@ -483,7 +483,7 @@ function _buildOverlay() {
 
   const h = document.createElement("div"); h.style.cssText = "font:600 13px ui-sans-serif,system-ui;letter-spacing:.4px"; h.textContent = TITLE; _overlay.appendChild(h);
   const sub = document.createElement("div"); sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.55";
-  sub.innerHTML = 'The experimental tier as one holographic lattice \u2014 <b>eight frontier organs</b> on a ring, each lit by a <b>live</b> a11oy endpoint. ' +
+  sub.innerHTML = 'The experimental tier as one holographic lattice \u2014 <b>nine frontier organs</b> on a ring, each lit by a <b>live</b> a11oy endpoint. ' +
     'Quantum-bio renders as a <b>Gaussian-splat volumetric field</b> (WebGPU compute when enabled). Every label is read <b>verbatim</b> from the JSON. NOT in the locked-8 \u00b7 \u039b = Conjecture 1 \u00b7 trust &lt; 100%.';
   _overlay.appendChild(sub);
 

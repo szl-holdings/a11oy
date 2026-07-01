@@ -126,7 +126,7 @@ const FABRIC = {
   plain: 'A real multi-node compute pool. Sovereign = owned self-hosted hardware (the box + the RTX). Hosted APIs and cloud GPUs are fallback only — labelled NON-sovereign. No energy/joule claim made here.',
   functions: ['live node roster loads from /api/a11oy/v1/compute-pool-hardened'],
   proof: ['No node fabricated · reachable=true only on a real probe this poll · Λ = Conjecture 1, not one of the locked 8'],
-  url: 'https://a11oy.net/api/a11oy/v1/compute-pool-hardened'
+  url: 'https://a-11-oy.com/api/a11oy/v1/compute-pool-hardened'
 };
 
 /* ---------- live endpoints (real /healthz + live data; CORS open) ----------- */
@@ -139,7 +139,7 @@ const ENDPOINTS = {
     health: 'https://szlholdings-killinchu.hf.space/healthz',
     ledger: 'https://szlholdings-killinchu.hf.space/api/killinchu/v1/khipu/ledger'
   },
-  fabric: 'https://a11oy.net/api/a11oy/v1/compute-pool-hardened'
+  fabric: 'https://a-11-oy.com/api/a11oy/v1/compute-pool-hardened'
 };
 
 /* ---------- renderer / scene / camera --------------------------------------- */
