@@ -701,6 +701,20 @@ except Exception as _szl3d_e:  # pragma: no cover
     print(f"[a11oy] szl3d holographic estate NOT registered: {_szl3d_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- szl_anatomy_3d LIVING-ANATOMY 3D PAGES (Dev0 sweep: was DORMANT — shipped but unwired).
+# Reclaims 7 finished, self-contained 3D pages (/body-3d, /immune-3d, /nervous-3d,
+# /khipu-chain-3d, /lambda-spine-3d, /wires-3d, /yuyay-13) + their live JSON endpoints, each
+# wired to real evaluators / Khipu DAG / DSSE. Self-serves sovereign Three.js r128 at
+# /anatomy-three.min.js (0 runtime CDN). No path collision with szl_anatomy_routes (mounted
+# elsewhere). Registered BEFORE the SPA catch-all; try/except-guarded. Λ = Conjecture 1.
+try:
+    import szl_anatomy_3d as _szl_anatomy_3d
+    _anat3d_status = _szl_anatomy_3d.register(app, ns="a11oy")
+    print(f"[a11oy] Living-anatomy 3D pages registered: {_anat3d_status.get('paths') if isinstance(_anat3d_status, dict) else _anat3d_status}", file=__import__("sys").stderr)
+except Exception as _anat3d_e:  # pragma: no cover
+    print(f"[a11oy] Living-anatomy 3D pages NOT registered: {_anat3d_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- RESTRAINT (descend-the-ladder code-restraint ladder + info) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/restraint/info (+ evaluate, bench) is the restraint surface. Its
 # registration was dropped during a serve.py mesh refactor while szl_restraint.py

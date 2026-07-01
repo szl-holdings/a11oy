@@ -26,7 +26,7 @@ ecosystem-stage: "operational"
 > **Deny-by-default policy immune system. 8 gates. Every verdict signed, traced, and chained.**
 
 [![SLSA L1 honest](https://img.shields.io/badge/SLSA-L1%20honest%20(L2%20roadmap)-555?style=flat-square)](.compliance/SLSA_LEVEL.md)
-[![cosign signed](https://img.shields.io/badge/cosign-keyless%20signed-blueviolet?style=flat-square)](https://search.sigstore.dev/?logIndex=1723794608)
+[![cosign signed](https://img.shields.io/badge/cosign-keyless%20signed-blue?style=flat-square)](https://search.sigstore.dev/?logIndex=1723794608)
 [![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)

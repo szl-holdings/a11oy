@@ -36,7 +36,7 @@
   --red:#e05050; --red-dim:rgba(224,80,80,.15);
   --amber:#e8b030; --amber-dim:rgba(232,176,48,.12);
   --blue:#4090f0; --blue-dim:rgba(64,144,240,.12);
-  --purple:#9060e0; --purple-dim:rgba(144,96,224,.12);
+  --purple:#5b8dee; --purple-dim:rgba(91,141,238,.12);
   --cyan:#30d8e0; --cyan-dim:rgba(48,216,224,.12);
   /* Type */
   --sans:'Inter',system-ui,sans-serif;
@@ -60,7 +60,7 @@ body {
   font:14px/1.55 var(--sans); color:var(--text); background:var(--bg);
   overflow-x:hidden; min-height:100vh;
   background-image:
-    radial-gradient(ellipse 80% 40% at 70% -5%, rgba(144,96,224,.12) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 40% at 70% -5%, rgba(91,141,238,.12) 0%, transparent 60%),
     radial-gradient(ellipse 60% 30% at 0% 90%, rgba(212,165,116,.08) 0%, transparent 55%);
 }
 a { color:var(--gold); text-decoration:none }
@@ -2077,7 +2077,7 @@ function init3DOrganMap(organs, edges) {
   const { scene, camera } = makeScene();
   camera.aspect = W / H; camera.updateProjectionMatrix();
 
-  const COLORS = [0xd4a574, 0x4090f0, 0x9060e0, 0x3ecf7a, 0x30d8e0];
+  const COLORS = [0xd4a574, 0x4090f0, 0x5b8dee, 0x3ecf7a, 0x30d8e0];
   const nodes = organs.map((o, i) => {
     const angle = (i / organs.length) * Math.PI * 2;
     const x = 2.8 * Math.cos(angle), y = 2.8 * Math.sin(angle);
@@ -2181,7 +2181,7 @@ function init3DQuorum(organList) {
   camera.position.set(0, 0, 6);
 
   const orgNames = organList.map(o => o.organ || o);
-  const colors = [0xd4a574, 0x4090f0, 0x9060e0, 0x3ecf7a];
+  const colors = [0xd4a574, 0x4090f0, 0x5b8dee, 0x3ecf7a];
   const orgNodes = orgNames.map((name, i) => {
     const angle = (i / orgNames.length) * Math.PI * 2;
     const geo = new THREE.OctahedronGeometry(0.32, 0);
@@ -2244,7 +2244,7 @@ function init3DAnatomy(organs, edges) {
     new THREE.TetrahedronGeometry(0.35, 0),
     new THREE.DodecahedronGeometry(0.35, 0),
   ];
-  const COLORS = [0xd4a574, 0x4090f0, 0x9060e0, 0x3ecf7a, 0x30d8e0];
+  const COLORS = [0xd4a574, 0x4090f0, 0x5b8dee, 0x3ecf7a, 0x30d8e0];
   const positions = [
     [0, 0, 0], [-2.5, 1.5, -0.5], [2.5, 1.5, -0.5],
     [-2.5, -1.5, 0.5], [2.5, -1.5, 0.5]

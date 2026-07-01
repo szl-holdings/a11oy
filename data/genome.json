@@ -580,7 +580,7 @@
     ],
     "tag": "evidence-backed",
     "lean_ref": "Scans/verifies lutar-lean but contains no proofs itself. reference-vectors.json formula='Λ_k(x)=(∏xᵢ)^(1/k)', k=9.",
-    "powers": "Public independent verification of the Lean kernel (a11oy.net / docs-site)",
+    "powers": "Public independent verification of the Lean kernel (a-11-oy.com / docs-site)",
     "notes": "scan (L43), summarize (L72), iter_lean_files (L29) in theorem_scan.py; also server.py, lean_numbers.py, index.html. README note (2026-06-30): HF entry is model SZLHOLDINGS/szl-kernels (an HF Space 'lean-kernel' was wrongly referenced and does not exist). SLSA L1 honest badge.",
     "_quadrant": "Q1"
   },
