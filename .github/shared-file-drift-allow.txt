@@ -73,3 +73,13 @@ a11oy_agent_loop.py        # a11oy VOICE-organ FINALIZE fold-in + EXPERIMENTAL r
 #     is byte-unchanged; only the model-base-URL env preference differs from killinchu.
 #     Additive. Reconcile if killinchu adopts the same sovereign-router default.
 a11oy_code_engine.py       # a11oy A11OY_BRAIN_URL sovereign-router preference; killinchu sync pending
+
+# --- 2026-07-01: a11oy unified-receipt fields. a11oy's governed agentic loop
+#     additively folds energy attestation (MEASURED|UNAVAILABLE, never a fabricated
+#     joule) and an OPTIONAL Khipu 3-of-4 multi-witness link (default OFF, env
+#     A11OY_MULTIWITNESS=1) into the same signed hash chain (PR #607). Default path
+#     is byte-identical behaviour to today; prev-hash linkage unchanged. These lines
+#     are absent from killinchu's copy, so the file legitimately diverges. Additive;
+#     Λ = Conjecture 1 (advisory), locked-8 untouched. Reconcile if killinchu adopts
+#     the unified receipt.
+szl_agentic_loop.py        # a11oy unified-receipt (energy + optional multi-witness) fold-in; killinchu sync pending
