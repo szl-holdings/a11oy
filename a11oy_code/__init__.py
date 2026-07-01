@@ -152,6 +152,19 @@ def _load_drift_check():
 _export("drift_check", _load_drift_check)
 
 
+# --- Counterfactual check (governed-reasoning step, default OFF) ------------
+# Additive reimplementation of the platform cognitive-runtime counterfactual-
+# engine pattern: for a HIGH-CONSEQUENCE decision, asks the wired reasoning brain
+# "what would make this wrong?". Gated by env A11OY_COUNTERFACTUAL=1; honest
+# {ran:false} when no real brain is wired. See szl_agentic_loop.
+def _load_counterfactual_check():
+    from szl_agentic_loop import counterfactual_check
+    return counterfactual_check
+
+
+_export("counterfactual_check", _load_counterfactual_check)
+
+
 def manifest() -> dict:
     """Honest snapshot of what the flagship surface actually exposes here."""
     return {
