@@ -7,7 +7,7 @@
  * A11oy's doctrine API (/a11oy/api/doctrine/constitution/active). If the
  * endpoint is unreachable or returns an error, ROSIE falls back to the
  * locally-seeded clauses that mirror A11oy's ConstitutionClause schema
- * from artifacts/a11oy/src/data/mythosDoctrine.ts.
+ * from artifacts/a11oy/src/data/governanceDoctrine.ts.
  *
  * Status values:
  *   'loading'  — initial fetch in progress

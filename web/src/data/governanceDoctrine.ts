@@ -1,5 +1,4 @@
-// doctrine-scanner-exempt: legacy live-product surface; rename tracked as separate engineering debt — see scripts/check-doctrine-v6.mjs header.
-// Mythos Doctrine — types, constants, labels, and helpers
+// Governance Doctrine — types, constants, labels, and helpers
 // Data arrays have been moved to the database via doctrine-crud API endpoints.
 
 export const DOCTRINE_VERSION = '1.0.0';
@@ -231,7 +230,7 @@ export const fmtUsd = (n: number) =>
 
 export const fmtPct = (n: number, digits = 1) => `${(n * 100).toFixed(digits)}%`;
 
-export const MYTHOS_SPEC_VERSION = '0.1.0' as const;
+export const GOVERNANCE_SPEC_VERSION = '0.1.0' as const;
 
 export interface SpecArtifactKindInfo {
   kind: string;
@@ -242,7 +241,7 @@ export interface SpecArtifactKindInfo {
   example: Record<string, unknown>;
 }
 
-export const MYTHOS_SPEC_KINDS: SpecArtifactKindInfo[] = [
+export const GOVERNANCE_SPEC_KINDS: SpecArtifactKindInfo[] = [
   {
     kind: 'Constitution',
     title: 'Constitution',

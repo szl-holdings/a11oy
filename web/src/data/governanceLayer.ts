@@ -1,7 +1,6 @@
-// doctrine-scanner-exempt: legacy live-product surface; rename tracked as separate engineering debt — see scripts/check-doctrine-v6.mjs header.
-// MYTHOS LAYER — A11oy × Sentra defensive orchestration architecture.
+// GOVERNANCE LAYER — A11oy × Sentra defensive orchestration architecture.
 //
-// Distillation of the Mythos-class executive summary into a static doctrine
+// Distillation of the governance-class executive summary into a static doctrine
 // surface: the A11oy command-agent orchestration loop, the integrated scanner
 // toolchain catalogue, the RL pipeline formulation, the guardrails stack, and
 // the phased roadmap.
@@ -10,9 +9,9 @@
 // reconstructions. No leaks, no scraped weights, no telemetry. Adoption requires
 // a Sentra approval workflow per the Glasswing doctrine.
 
-export const MYTHOS_LAYER_VERSION = '0.1.0-seed';
+export const GOVERNANCE_LAYER_VERSION = '0.1.0-seed';
 
-export const MYTHOS_LAYER_TAGLINE =
+export const GOVERNANCE_LAYER_TAGLINE =
   'A11oy plans, Sentra executes, the human approves. Defensive only, evidence-bound, public-input only.';
 
 // ---------------------------------------------------------------------------
@@ -58,7 +57,7 @@ export const ORCHESTRATION_STEPS: readonly OrchestrationStep[] = [
     to: 'Sentra',
     action: 'findings → analyzer',
     detail:
-      'Raw scanner output is normalised into the Mythos finding schema and fed to the Risk Assessment Engine for de-duplication, severity scoring, and exploitability triage.',
+      'Raw scanner output is normalised into the governance finding schema and fed to the Risk Assessment Engine for de-duplication, severity scoring, and exploitability triage.',
     guardrail:
       'Every finding is hash-linked to the scanner version, ruleset version, and target snapshot for chain-of-custody.',
   },
@@ -179,7 +178,7 @@ export const SCANNERS: readonly Scanner[] = [
     license: 'MIT',
     source: { repo: 'github/codeql', url: 'https://github.com/github/codeql', org: 'GitHub', lang: 'C++ / QL' },
     sentraBinding:
-      'Invoked by the Static Scanner module on every plan that touches source. Findings normalise into the Mythos finding schema with rule-id provenance.',
+      'Invoked by the Static Scanner module on every plan that touches source. Findings normalise into the governance finding schema with rule-id provenance.',
     guardrail:
       'Runs in a sandboxed container against a read-only checkout. The query pack version is pinned and recorded in the evidence ledger.',
   },
@@ -338,7 +337,7 @@ export const GUARDRAILS: readonly Guardrail[] = [
   {
     layer: 'Input',
     control: 'Schema validation on every prompt and tool argument. Reject on parse failure, no silent coercion.',
-    enforcedBy: 'A11oy intent router + Mythos doctrine schemas (JSON Schema 2020-12).',
+    enforcedBy: 'A11oy intent router + governance doctrine schemas (JSON Schema 2020-12).',
   },
   {
     layer: 'Action',
@@ -388,7 +387,7 @@ export const ROADMAP: readonly RoadmapMilestone[] = [
     phase: '0\u20136',
     title: 'Scanner toolchain wired end-to-end',
     detail:
-      'CodeQL + Semgrep + OSV-Scanner + Trivy + Gitleaks + Checkov each producing normalised findings into the Mythos schema, with a deterministic merge pass and a single Risk Engine entry point.',
+      'CodeQL + Semgrep + OSV-Scanner + Trivy + Gitleaks + Checkov each producing normalised findings into the governance schema, with a deterministic merge pass and a single Risk Engine entry point.',
     module: 'Sentra Static Scanner + Risk Engine',
   },
   {
@@ -483,7 +482,7 @@ export const MODEL_REFERENCES: readonly ModelReference[] = [
     id: 'claude-opus-4-7',
     family: 'Anthropic Claude Opus 4.7',
     contextWindow: '~512K\u20131M tokens',
-    strengths: 'Deepest reasoning chain; first Mythos-class safety filters in the public Claude line.',
+    strengths: 'Deepest reasoning chain; first governance-class safety filters in the public Claude line.',
     access: 'Public Anthropic API. Reserved for high-risk patch reasoning routed via A11oy escalation.',
   },
   {
@@ -506,7 +505,7 @@ export const MODEL_REFERENCES: readonly ModelReference[] = [
 // 7. CITATIONS — anchor refs back to the source brief.
 // ---------------------------------------------------------------------------
 
-export const MYTHOS_LAYER_CITATIONS: ReadonlyArray<{ tag: string; source: string }> = [
+export const GOVERNANCE_LAYER_CITATIONS: ReadonlyArray<{ tag: string; source: string }> = [
   { tag: '66', source: 'Anthropic public posting on Mythos Preview vulnerability discovery and exploitation.' },
   { tag: '70', source: 'Project Glasswing public announcement and partner stack.' },
   { tag: '72', source: 'Claude Sonnet 4.6 public release notes (1M-token context, agentic coding).' },

@@ -3,7 +3,7 @@
  * A11oy Constitution Adapter for ROSIE
  *
  * Derives ROSIE's guardrail clauses and playbooks directly from A11oy's
- * exported seed constants in artifacts/a11oy/src/data/mythosDoctrine.ts:
+ * exported seed constants in artifacts/a11oy/src/data/governanceDoctrine.ts:
  *   - CODE_BEHAVIOR_DIMS / CODE_BEHAVIOR_LABELS  — governance dimensions
  *   - RH_WATCHDOG_RULES                          — reward-hacking watchdog rules
  *   - ConstitutionClause, DOCTRINE_VERSION        — schema and version
@@ -17,12 +17,12 @@
  * uses these A11oy-derived seeds as the documented fallback.
  */
 
-import type { ConstitutionClause } from '../../../../a11oy/src/data/mythosDoctrine';
+import type { ConstitutionClause } from '../../../../a11oy/src/data/governanceDoctrine';
 import {
   DOCTRINE_VERSION,
   CODE_BEHAVIOR_LABELS,
   RH_WATCHDOG_RULES,
-} from '../../../../a11oy/src/data/mythosDoctrine';
+} from '../../../../a11oy/src/data/governanceDoctrine';
 
 export { DOCTRINE_VERSION as CONSTITUTION_VERSION };
 

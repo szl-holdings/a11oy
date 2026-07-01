@@ -3,7 +3,7 @@
  * Doctrine fallback fixtures — used by useDoctrine hooks only when the API
  * returns an empty-but-successful response (demo / fresh-install state).
  *
- * Canonical agent IDs and labels come from mythosDoctrine.ts
+ * Canonical agent IDs and labels come from governanceDoctrine.ts
  * (DOCTRINE_AGENT_IDS, AGENT_LABEL). The data here is intentionally a minimal
  * representative set that mirrors what seedDoctrineData() seeds into the DB,
  * so the UI looks coherent before any seeding has run.
