@@ -89,4 +89,11 @@ a11oy_code_engine.py       # a11oy A11OY_BRAIN_URL sovereign-router preference; 
 #     with no brain). ALL default OFF, so the default 6-hop chain stays byte-identical.
 #     Advisory only; they never alter the gate/kernel verdict; locked-8 untouched.
 #     Deepens the existing a11oy-only divergence.
-szl_agentic_loop.py        # a11oy unified-receipt + cognitive DRIFT/COUNTERFACTUAL steps (default OFF) fold-in; killinchu sync pending
+# 2026-07-01 (cognitive-runtime wave, cont.): a11oy additively folds a durable HUMAN-
+#     APPROVAL-INTERRUPT primitive (A11OY_APPROVAL_INTERRUPT=1) — a gate-ALLOWED state-
+#     changing action is HELD at a durable checkpoint (checkpoint_id over action identity,
+#     not run) until a matching human grant releases it; solves tool-call-committed-before-yes.
+#     Composes with — never overrides — the gate (a DENY stays DENY; injected input cannot
+#     flip a DENY to a fire). Default OFF, so the default 6-hop chain stays byte-identical.
+#     Advisory-composed; locked-8 untouched. Deepens the existing a11oy-only divergence.
+szl_agentic_loop.py        # a11oy unified-receipt + cognitive DRIFT/COUNTERFACTUAL/APPROVAL-INTERRUPT steps (default OFF) fold-in; killinchu sync pending

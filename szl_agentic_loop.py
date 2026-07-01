@@ -301,6 +301,109 @@ def counterfactual_check(action: str, severity: str, confidence: float,
 
 
 # ----------------------------------------------------------------------------
+# HUMAN-APPROVAL-INTERRUPT (ADDITIVE 2026-07-01): reimplements the platform
+# cognitive-runtime approval-interrupt PATTERN as a small, additive Python
+# primitive. It solves the "tool-call-committed-before-yes" problem: when a
+# state-CHANGING action clears the automated gate, it is HELD at a durable
+# checkpoint and does NOT fire until a human grants approval for that exact
+# checkpoint. OFF by default; enable with env A11OY_APPROVAL_INTERRUPT=1.
+#
+# COMPOSES WITH — never replaces — the existing gate: the deterministic deny-by-
+# default policy gate + advisory Λ trust floor + C10 3-of-4 quorum still run and
+# can still DENY. Approval-interrupt is a SECOND, human layer that only engages
+# AFTER an ALLOW, so injected input can never use it to flip a DENY to fire.
+# Default OFF ⇒ behaviour byte-identical to today (no hold, no chain link).
+# NEVER raises.
+#
+# A verb heuristic marks state-changing actions; when uncertain it errs toward
+# REQUIRING approval (deny-by-default spirit). A grant is honoured only if it
+# names the SAME checkpoint_id and carries a non-empty human approver identity.
+# ----------------------------------------------------------------------------
+_STATE_CHANGE_VERBS = (
+    "deploy", "delete", "remove", "drop", "engage", "fire", "launch", "write",
+    "update", "modify", "patch", "merge", "push", "transfer", "send", "pay",
+    "purchase", "provision", "terminate", "shutdown", "restart", "reboot",
+    "grant", "revoke", "rotate", "publish", "release", "execute", "run", "apply",
+    "create", "destroy", "kill", "scale", "migrate", "rollback", "commit",
+)
+
+
+def _is_state_changing(action: str, reversible: bool) -> bool:
+    """Heuristic: irreversible actions are state-changing; otherwise look for a
+    mutation verb in the action text. Errs toward True (deny-by-default) only for
+    the irreversible case; a purely read-only reversible query stays False."""
+    if not reversible:
+        return True
+    low = (action or "").lower()
+    return any(v in low for v in _STATE_CHANGE_VERBS)
+
+
+def approval_interrupt(action: str, severity: str, reversible: bool, decision: str,
+                       grant: dict | None = None) -> dict:
+    """Durable human-approval-interrupt primitive (importable). For a state-
+    CHANGING action that has ALREADY cleared the automated gate (decision=ALLOW),
+    it records a DURABLE checkpoint and requires an explicit human grant BEFORE
+    the action may fire. OFF unless env A11OY_APPROVAL_INTERRUPT=1.
+
+    The checkpoint_id is a stable hash of the action identity (action + severity +
+    reversibility) — NOT the per-run id — so a human can approve THAT checkpoint
+    and a later replay carrying the matching grant will fire. This is what makes
+    the interrupt durable across the pause.
+
+    Returns: {required: bool, granted: bool|null, checkpoint_id: str, note: str}
+      - required=False (disabled, or gate already DENYied, or non-state-changing):
+        no hold, granted=None.
+      - required=True, granted=None: HELD — awaiting a human grant for this exact
+        checkpoint_id; the caller MUST NOT fire the action.
+      - required=True, granted=True: a matching human grant was supplied; the
+        action may fire (still subject to the gate that already ALLOWed it).
+
+    Composes with — never replaces — the deny-by-default gate + Λ floor + quorum.
+    NEVER raises, NEVER fires the action itself, NEVER flips a DENY.
+    """
+    import os
+    checkpoint_id = hashlib.sha256(
+        json.dumps({"action": action, "severity": severity, "reversible": bool(reversible)},
+                   sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:32]
+    if os.environ.get("A11OY_APPROVAL_INTERRUPT") != "1":
+        return {"required": False, "granted": None, "checkpoint_id": checkpoint_id,
+                "note": "approval-interrupt OFF (set A11OY_APPROVAL_INTERRUPT=1 to enable)."}
+    try:
+        if decision != "ALLOW":
+            return {"required": False, "granted": None, "checkpoint_id": checkpoint_id,
+                    "note": ("gate verdict is DENY — nothing to approve. Approval-interrupt "
+                             "composes with, and never overrides, the deny-by-default gate.")}
+        if not _is_state_changing(action, reversible):
+            return {"required": False, "granted": None, "checkpoint_id": checkpoint_id,
+                    "note": ("action is reversible and shows no state-change verb — treated as "
+                             "read-only; no human approval interrupt required.")}
+        # State-changing + gate-allowed: a human MUST approve THIS checkpoint before firing.
+        granted = False
+        if isinstance(grant, dict):
+            approver = str(grant.get("approver") or "").strip()
+            approved = bool(grant.get("approved"))
+            cp = str(grant.get("checkpoint_id") or "")
+            if approved and approver and cp == checkpoint_id:
+                granted = True
+        if granted:
+            return {"required": True, "granted": True, "checkpoint_id": checkpoint_id,
+                    "approver": str(grant.get("approver")).strip()[:120],
+                    "note": ("human approval granted for this exact checkpoint — the "
+                             "gate-allowed state-changing action MAY now fire. This is an "
+                             "ADDITIONAL human layer on top of the automated gate.")}
+        return {"required": True, "granted": None, "checkpoint_id": checkpoint_id,
+                "note": ("HELD for human approval — a gate-allowed STATE-CHANGING action is "
+                         "NOT fired until a human grants approval for checkpoint %s. This "
+                         "solves the tool-call-committed-before-yes problem; it composes "
+                         "with (does not replace) the deny-by-default gate + Λ floor + "
+                         "3-of-4 quorum." % checkpoint_id)}
+    except Exception as exc:  # a governance primitive must never take the loop down;
+        # fail SAFE: on any error, HOLD rather than fire (deny-by-default spirit).
+        return {"required": True, "granted": None, "checkpoint_id": checkpoint_id,
+                "note": "approval-interrupt fail-safe HOLD: %s" % (str(exc)[:120],)}
+
+
+# ----------------------------------------------------------------------------
 # REAL in-image governance corpus (the thing the RAG hop retrieves over).
 # These are real doctrine/governance statements that ground the agent's tool
 # choice and the policy gate. No external dataset / no fabricated chunks.
@@ -607,7 +710,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     _RUN_CHAIN = []  # list of {run_id, final_hash, prev_run_hash}
 
     def _do_run(query: str, action: str, severity: str, confidence: float,
-                reversible: bool, untrusted_input: str = ""):
+                reversible: bool, untrusted_input: str = "", approval_grant=None):
         tr = _Trace("governed_agent_run")
         hops = []
         # PER-RUN GENESIS (FIX 2026-06-06): seed each run's seq-0 receipt with the
@@ -799,9 +902,31 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         if counterfactual_attest.get("ran"):
             _chain_receipt("counterfactual", dict(counterfactual_attest))
 
-        # ---- HOP 6: emit (ONLY on allow) + sign the final receipt ----
+        # ---- HUMAN-APPROVAL-INTERRUPT (ADDITIVE, default OFF) ----
+        # A SECOND, human layer on top of the automated gate: when enabled, a
+        # gate-ALLOWED state-changing action is HELD at a durable checkpoint and
+        # is NOT fired until a human grants approval for that exact checkpoint
+        # (solving tool-call-committed-before-yes). OFF unless
+        # A11OY_APPROVAL_INTERRUPT=1. When it engages (required) it is FOLDED INTO
+        # THE HASH CHAIN; when disabled it adds NO chain link and does NOT change
+        # the emit (default chain + behaviour byte-identical). It composes with —
+        # never overrides — the deny-by-default gate (a DENY stays a DENY).
+        approval_attest = approval_interrupt(action, severity, reversible, decision,
+                                             grant=approval_grant)
+        approval_hold = bool(approval_attest.get("required")) and not approval_attest.get("granted")
+        if approval_attest.get("required"):
+            _chain_receipt("approval", dict(approval_attest))
+
+        # ---- HOP 6: emit (ONLY on allow AND not held for human approval) ----
         with tr.span("emit", "emit") as sp:
-            if allowed:
+            if allowed and approval_hold:
+                effect = {"emitted": False,
+                          "action": action,
+                          "effect": ("HELD for human approval — gate ALLOWED but this "
+                                     "state-changing action is NOT fired until a human "
+                                     "approves checkpoint %s (tool-call-committed-before-yes "
+                                     "solved)." % approval_attest.get("checkpoint_id"))}
+            elif allowed:
                 effect = {"emitted": True,
                           "action": action,
                           "effect": ("recommendation emitted with rollback path"
@@ -810,7 +935,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 effect = {"emitted": False,
                           "action": action,
                           "effect": "BLOCKED at the gate — no action taken (gate soundness)"}
-            sp.set(decision=decision, **effect)
+            sp.set(decision=decision, approval_hold=approval_hold, **effect)
             # Build the decision payload and SIGN it (host app's real signer).
             decision_payload = {
                 "run_id": tr.trace_id,
@@ -830,6 +955,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 "consensus": consensus_attest,
                 "drift": drift_attest,
                 "counterfactual": counterfactual_attest,
+                "approval": approval_attest,
                 "issuer": ns,
                 "issued_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -932,6 +1058,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             "consensus": consensus_attest,
             "drift": drift_attest,
             "counterfactual": counterfactual_attest,
+            "approval": approval_attest,
             "trace": tr.to_dict(),
             "receipt_chain": chain,
             "signed_receipt": envelope,
@@ -1131,8 +1258,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         confidence = float(b.get("confidence", 0.9))
         reversible = bool(b.get("reversible", True))
         untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
+        approval_grant = b.get("approval_grant") or b.get("approval")
         return JSONResponse(_do_run(query, action, severity, confidence, reversible,
-                                    untrusted_input=untrusted_input))
+                                    untrusted_input=untrusted_input,
+                                    approval_grant=approval_grant))
 
     async def _agent_tools(request: Request):
         return JSONResponse({"tools": _tool_catalog(ns), "count": len(_tool_catalog(ns)),
