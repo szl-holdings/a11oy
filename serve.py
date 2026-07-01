@@ -6902,8 +6902,9 @@ _A11OY_ARENA = {
     "run_id": "arena-1776831038439",
     "timestamp": "2026-04-22T04:10:38.439Z",
     "scenarios_total": 5, "scenarios_passed": 5, "scenarios_failed": 0,
-    "honesty": ("Recorded run from the SZL eval harness (eval-runner), 2026-04-22 — "
-                "deterministic, content-hashed. Live re-runs are roadmap."),
+    "honesty": ("Recorded baseline run from the SZL eval harness (eval-runner), 2026-04-22 — "
+                "deterministic, content-hashed. Click \u201cRe-run live\u201d to re-execute "
+                "a11oy\u2019s own governance primitives in-image now."),
     "dimensions": ["correctness", "evidence_completeness", "approval_compliance",
                    "replay_completeness", "policy_adherence", "hallucination_resistance",
                    "tool_efficiency"],

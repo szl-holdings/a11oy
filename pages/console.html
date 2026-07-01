@@ -4901,7 +4901,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="card"><div class="card-h"><span class="card-t">Sovereignty capability \u2014 open-weight vs API</span><span class="card-ep">bar</span></div>'
         +'<div class="echart" id="ar-bar"></div>'
         +'<div class="brain-note">Sovereignty axis = can it run on local GPU (open-weight=high). '+chip('eval harness','SAMPLE')+'</div></div>'
-        +'<div class="card"><div class="card-h"><span class="card-t">Governance eval \u2014 5 scenarios \u00d7 7 dimensions</span><span class="card-ep" id="ar-gov-badge" style="color:'+GOLD+'">RECORDED</span></div>'
+        +'<div class="card"><div class="card-h"><span class="card-t" id="ar-gov-title">Governance eval \u2014 5 scenarios \u00d7 7 dimensions</span><span class="card-ep" id="ar-gov-badge" style="color:'+GOLD+'">RECORDED</span></div>'
         +'<div class="btns" style="margin:.1rem 0 .5rem"><button class="btn teal" id="ar-gov-rerun">\u25b6 Re-run live</button></div>'
         +'<div class="brain-note mono" id="ar-gov-status">A recorded, content-hashed run from the SZL eval harness. Click \u201cRe-run live\u201d to re-execute a11oy\u2019s own governance primitives in-image now.</div>'
         +'<div class="echart tall" id="ar-gov-pc"></div>'
@@ -4941,6 +4941,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         function arenaGovRender(d,isLive){
           var res=(d.results||[]); var dims=(d.dimensions&&d.dimensions.length?d.dimensions:GOV_DIMS);
           var labels=dims.map(function(s){return String(s).replace(/_/g,' ');});
+          var gt=E('ar-gov-title'); if(gt){ gt.textContent='Governance eval \u2014 '+res.length+' scenario'+(res.length===1?'':'s')+' \u00d7 '+dims.length+' dimensions'; }
           if(window.echarts&&window.mkEchart){
             if(E('ar-gov-pc')){ /* managed: mkEchart disposes prior instance; global _refitAllViz handles resize (no per-render listener) */
               window.mkEchart('ar-gov-pc',{backgroundColor:'transparent',
