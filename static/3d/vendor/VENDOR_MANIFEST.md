@@ -148,3 +148,16 @@ embedded at the top of `three.module.min.js` / `three.webgpu.min.js`. deck.gl is
 (Copyright © Open Visualization Foundation / Urban Computing Foundation). CesiumJS is
 Apache-2.0. All compatible with the estate's Apache-2.0 posture; add full license
 files alongside each lib when vendored, and update the repo root `NOTICES.md`.
+
+## VENDORED — Looking Glass WebXR 0.6.0 (Apache-2.0)
+
+Upstream: https://github.com/Looking-Glass/looking-glass-webxr (`@lookingglass/webxr@0.6.0`),
+Apache-2.0. The dist `webxr.js` module-entry is NOT browser-standalone (bare imports to gl-matrix,
+holoplay-core, @lookingglass/webxr-polyfill). We vendor the esm.sh FULLY-BUNDLED build
+(`es2022/webxr.bundle.mjs`, all deps inlined, ZERO external imports — verified) so it loads
+in-browser same-origin with 0 runtime CDN. Served same-origin; drives a real Looking Glass light-field
+display via the WebXR immersive-vr session. 0 runtime CDN.
+
+| Path (under `/static/3d/vendor/`) | Upstream specifier | bytes | sha256 |
+|---|---|---|---|
+| `lookingglass/webxr.js` | `@lookingglass/webxr@0.6.0` (esm.sh fully-bundled `es2022/webxr.bundle.mjs` — all deps inlined: gl-matrix, holoplay-core, webxr-polyfill) | 234849 | `4624b2ca65026481f42c1ef6ef7e1345158ae00c0bad02e58ab6dd1f5a8aaf5e` |
