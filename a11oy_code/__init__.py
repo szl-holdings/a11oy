@@ -7,6 +7,14 @@ Code" — and this package re-exports the consolidated governed surface from the
 existing top-level modules so callers have one place to import from:
 
     from a11oy_code import AgentLoop, run_agent, govern_infer, register_wallpa
+    from a11oy_code import willay_gated_turn, register_willay
+
+Willay is the DISCLOSURE / SIGNING seam of the flagship: the governed INVERSE
+gate. Where the closed frontier removes the governor and hides the reasoning,
+Willay makes the governance verdict inspectable and returns it as a SIGNED DSSE
+provenance receipt — "they hide the governor; we sign and show it." Its gate+sign
+entrypoint (``willay_gated_turn``) and FastAPI registrar (``register_willay``)
+are re-exported here so the flagship's disclosure seam lives at the same import.
 
 Doctrine v11 (LOCKED): EXACTLY 8 locked-proven Lean formulas
 {F1,F4,F7,F11,F12,F18,F19,F22}. Λ = Conjecture 1 — advisory ONLY, never a
@@ -107,6 +115,29 @@ def _load_register_exp():
 
 
 _export("register_exp", _load_register_exp)
+
+
+# --- Willay (governed-inverse disclosure/signing gate) ---------------------
+# "they hide the governor; we sign and show it" — the gate+sign entrypoint,
+# its FastAPI registrar, and the receipt verifier of the flagship's seam.
+def _load_willay_gated_turn():
+    from szl_willay_gateway import gated_turn
+    return gated_turn
+
+
+def _load_register_willay():
+    from szl_willay_gateway import register as register_willay
+    return register_willay
+
+
+def _load_willay_verify_receipt():
+    from szl_willay_gateway import verify_receipt
+    return verify_receipt
+
+
+_export("willay_gated_turn", _load_willay_gated_turn)
+_export("register_willay", _load_register_willay)
+_export("willay_verify_receipt", _load_willay_verify_receipt)
 
 
 def manifest() -> dict:
