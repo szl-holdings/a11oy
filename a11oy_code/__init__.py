@@ -165,6 +165,19 @@ def _load_counterfactual_check():
 _export("counterfactual_check", _load_counterfactual_check)
 
 
+# --- Human-approval-interrupt (durable governance primitive, default OFF) ---
+# Additive reimplementation of the platform cognitive-runtime approval-interrupt
+# pattern: a gate-ALLOWED state-changing action is HELD at a durable checkpoint
+# until a human grants approval (solves tool-call-committed-before-yes). Gated by
+# env A11OY_APPROVAL_INTERRUPT=1; composes with — never replaces — the gate.
+def _load_approval_interrupt():
+    from szl_agentic_loop import approval_interrupt
+    return approval_interrupt
+
+
+_export("approval_interrupt", _load_approval_interrupt)
+
+
 def manifest() -> dict:
     """Honest snapshot of what the flagship surface actually exposes here."""
     return {
