@@ -290,7 +290,7 @@ def register(app, ns: str = "a11oy") -> None:
             "status": "live",
             "engine": engine,
             "voices_count": len(VOICES),
-            "doctrine": "v13 \u00a72.2",
+            "doctrine": "v13 §2.2",
             "theorem": "F8 Wallpa OSS-Only Safety (locked-proven)",
             "khipu_receipt": receipt,
         })
@@ -335,7 +335,7 @@ def register(app, ns: str = "a11oy") -> None:
             "transcript": answer_text,
             "voice": voice_id,
             "wallpa_factor": round(factor, 6),
-            "doctrine": "v13 \u00a72.2 \u2014 govern decides, Wallpa expresses",
+            "doctrine": "v13 §2.2 — govern decides, Wallpa expresses",
             "theorem": "F8 Wallpa OSS-Only Safety (locked-proven)",
         }
         if include_audio:

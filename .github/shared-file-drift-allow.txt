@@ -58,3 +58,11 @@ szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (ap
 #     in the operator widget. killinchu's copy needs the same update (reconcile in
 #     killinchu PR). Allow temporarily until killinchu widget is synced.
 static-vendor/a11oy-operator-widget.js  # CHASKI→a11oy Code rebrand; killinchu sync pending
+
+# --- 2026-07-01: a11oy-specific agent-loop feature set. a11oy folds the Wallpa
+#     VOICE organ into FINALIZE (PR #597) and adds EXPERIMENTAL Banach + active-flux
+#     routing pre-steps (PR #600, advisory-only, Λ = Conjecture 1, locked-8 untouched).
+#     These ~142 lines are absent from killinchu's copy, so the file legitimately
+#     diverges. Additive; in-repo SHA lock (.shared_module_hashes.json) pins a11oy's
+#     canonical copy. Reconcile if killinchu ever adopts the VOICE organ.
+a11oy_agent_loop.py        # a11oy VOICE-organ FINALIZE fold-in + EXPERIMENTAL routing; killinchu sync pending

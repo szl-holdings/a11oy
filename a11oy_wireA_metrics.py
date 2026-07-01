@@ -463,7 +463,7 @@ def register(app):
             "am_gm_hm_ordering_holds": ordered,
             "maturity": "Λ = Conjecture 1 (advisory, never a theorem)",
             "lean": "Bounds SEMANTIC-VERIFIED: Lutar/Bound.lean::Λ_le_max, ::min_le_Λ (0 sorries). "
-                    "Uniqueness conditional: Lutar/Round13/LambdaSeparable.lean::lambda_unique_of_separable (Theorem U). "
+                    "Uniqueness conditional: Lutar/Round13/LambdaSeparable.lean::lambda_unique_of_separable (Theorem U); unconditional Λ uniqueness = Conjecture 1 (advisory, not a theorem). "
                     "F19 locked-proven theorem = f19_bekenstein_additive (entropy-budget monotonicity, NOT the Λ aggregate).",
             "honest": "Quasi-arithmetic (Kolmogorov–Nagumo) mean family; canonical Λ = 13-axis weighted geometric mean. "
                       "Unconditional uniqueness is Conjecture 1 (machine-checked FALSE); Theorem U is the proven conditional.",
