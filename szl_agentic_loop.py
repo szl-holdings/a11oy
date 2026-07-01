@@ -153,6 +153,86 @@ def _multiwitness_fields(action_hash: str, context: dict) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# COGNITIVE DRIFT GUARD (ADDITIVE 2026-07-01): reimplements the platform
+# cognitive-runtime drift-detector PATTERN as a small, additive Python step.
+# Compares the current-step intent (the action) against the stated objective
+# (the run's query) via lexical token overlap; a low overlap means the agent's
+# trajectory is diverging from what it was asked to do. OFF by default; enable
+# with env A11OY_DRIFT_GUARD=1. Honest no-op (measured:false) when disabled or
+# when it cannot score (e.g. an empty objective). NEVER raises, NEVER fabricates
+# a score. This is a lexical proxy — labelled MEASURED (lexical) — NOT a semantic
+# embedding model; it never claims to understand meaning.
+# ----------------------------------------------------------------------------
+_DRIFT_STOPWORDS = frozenset((
+    "the", "a", "an", "to", "of", "and", "or", "for", "in", "on", "at", "by",
+    "with", "is", "are", "be", "this", "that", "it", "as", "from", "into",
+    "please", "should", "would", "could", "do", "does", "if", "then", "action",
+))
+
+
+def _drift_tokens(text: str) -> set:
+    """Lowercase alphanumeric word tokens minus stopwords. Pure, never raises."""
+    out = set()
+    word = []
+    for ch in (text or "").lower():
+        if ch.isalnum():
+            word.append(ch)
+        elif word:
+            tok = "".join(word)
+            word = []
+            if len(tok) > 2 and tok not in _DRIFT_STOPWORDS:
+                out.add(tok)
+    if word:
+        tok = "".join(word)
+        if len(tok) > 2 and tok not in _DRIFT_STOPWORDS:
+            out.add(tok)
+    return out
+
+
+def drift_check(objective: str, current_intent: str) -> dict:
+    """Governed drift-detection step (importable). Scores how far a current-step
+    intent has diverged from the stated objective using lexical token overlap
+    (Jaccard distance): 0.0 = perfectly aligned, 1.0 = fully diverged. OFF unless
+    env A11OY_DRIFT_GUARD=1. Honest no-op {measured:false} when disabled or when
+    it cannot score. When enabled and drift >= threshold (env A11OY_DRIFT_THRESHOLD,
+    default 0.85) it flags action='reflect' — an ADVISORY re-orient directive
+    recorded on the receipt; it does NOT rewrite the verdict or the gate. NEVER
+    raises, NEVER fabricates.
+
+    Returns: {measured: bool, score: float|null, action: 'none'|'reflect', note: str}
+    """
+    import os
+    if os.environ.get("A11OY_DRIFT_GUARD") != "1":
+        return {"measured": False, "score": None, "action": "none",
+                "note": "drift guard OFF (set A11OY_DRIFT_GUARD=1 to enable)."}
+    try:
+        obj = _drift_tokens(objective)
+        cur = _drift_tokens(current_intent)
+        if not obj or not cur:
+            return {"measured": False, "score": None, "action": "none",
+                    "note": ("drift unscoreable — objective or intent has no content "
+                             "tokens; honest no-op, never fabricated.")}
+        union = obj | cur
+        inter = obj & cur
+        overlap = len(inter) / len(union) if union else 0.0
+        score = round(1.0 - overlap, 4)  # lexical Jaccard distance
+        try:
+            threshold = float(os.environ.get("A11OY_DRIFT_THRESHOLD", "0.85"))
+        except Exception:
+            threshold = 0.85
+        action = "reflect" if score >= threshold else "none"
+        return {"measured": True, "score": score, "action": action,
+                "threshold": threshold,
+                "note": ("lexical Jaccard drift (MEASURED lexical, NOT semantic): "
+                         "%d shared / %d total content tokens. action='%s' is an "
+                         "ADVISORY re-orient flag; it does not alter the verdict."
+                         % (len(inter), len(union), action))}
+    except Exception as exc:  # a receipt helper must never take the loop down
+        return {"measured": False, "score": None, "action": "none",
+                "note": "drift fail-open: %s" % (str(exc)[:120],)}
+
+
+# ----------------------------------------------------------------------------
 # REAL in-image governance corpus (the thing the RAG hop retrieves over).
 # These are real doctrine/governance statements that ground the agent's tool
 # choice and the policy gate. No external dataset / no fabricated chunks.
@@ -629,6 +709,16 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         if consensus_attest.get("consensus_status") == "WITNESSED":
             _chain_receipt("multiwitness", dict(consensus_attest))
 
+        # ---- COGNITIVE DRIFT GUARD (ADDITIVE, default OFF) ----
+        # Scores whether the current-step intent (action) has diverged from the
+        # stated objective (query). OFF unless A11OY_DRIFT_GUARD=1. When it runs
+        # it is FOLDED INTO THE HASH CHAIN so the drift verdict is tamper-evident;
+        # when disabled it is an honest no-op and adds NO chain link (default
+        # chain stays byte-identical). It never alters the gate/kernel verdict.
+        drift_attest = drift_check(query, action)
+        if drift_attest.get("measured"):
+            _chain_receipt("drift_check", dict(drift_attest))
+
         # ---- HOP 6: emit (ONLY on allow) + sign the final receipt ----
         with tr.span("emit", "emit") as sp:
             if allowed:
@@ -658,6 +748,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 "emitted": effect["emitted"],
                 "energy": energy_attest,
                 "consensus": consensus_attest,
+                "drift": drift_attest,
                 "issuer": ns,
                 "issued_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -758,6 +849,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             "formula_proof": formula_proof,
             "energy": energy_attest,
             "consensus": consensus_attest,
+            "drift": drift_attest,
             "trace": tr.to_dict(),
             "receipt_chain": chain,
             "signed_receipt": envelope,

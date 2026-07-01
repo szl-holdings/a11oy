@@ -82,4 +82,10 @@ a11oy_code_engine.py       # a11oy A11OY_BRAIN_URL sovereign-router preference; 
 #     are absent from killinchu's copy, so the file legitimately diverges. Additive;
 #     Λ = Conjecture 1 (advisory), locked-8 untouched. Reconcile if killinchu adopts
 #     the unified receipt.
-szl_agentic_loop.py        # a11oy unified-receipt (energy + optional multi-witness) fold-in; killinchu sync pending
+# 2026-07-01 (cognitive-runtime wave): a11oy additively folds a governed DRIFT guard
+#     reimplemented from platform's cognitive-runtime drift-detector PATTERN — a
+#     lexical current-intent-vs-objective divergence score gated by env
+#     A11OY_DRIFT_GUARD=1 (default OFF, so the default 6-hop chain stays byte-identical).
+#     Advisory only; it never alters the gate/kernel verdict; locked-8 untouched.
+#     Deepens the existing a11oy-only divergence.
+szl_agentic_loop.py        # a11oy unified-receipt + cognitive DRIFT guard (default OFF) fold-in; killinchu sync pending
