@@ -19,11 +19,12 @@
 # drop the honesty ledger entirely, with no CI catching it.
 #
 # root is the SOURCE OF TRUTH. This guard FAILS if:
-#   * the SERVED copy overclaims relative to root — any theorem present in BOTH
-#     copies must carry the SAME maturity in pages as in root (pages may carry a
-#     SUBSET of theorems, but never a stronger honesty label), AND the honesty
-#     ledger that governs Conjecture 1 (proof_summary.conjecture / locked_ids /
-#     locked_count_theorem) must match root, OR
+#   * the SERVED copy overclaims relative to root — any theorem, FORMULA or AXIOM
+#     present (and honesty-labelled) in BOTH copies must carry the SAME maturity in
+#     pages as in root (pages may carry a SUBSET of items, or omit the label
+#     entirely as a lighter view, but never a stronger honesty label), AND the
+#     honesty ledger that governs Conjecture 1 (proof_summary.conjecture /
+#     locked_ids / locked_count_theorem) must match root, OR
 #   * EITHER copy violates a Doctrine-v11 honesty invariant (so a dishonest corpus
 #     can never be served silently).
 #
@@ -143,14 +144,48 @@ def validate_honesty(text, corpus, label):
     return errors
 
 
+def check_collection_overclaim(root, pages, key, noun, root_name, pages_name):
+    """Return honesty-label mismatches for one shared collection (theorems /
+    formulas / axioms).
+
+    For every item id present in BOTH copies, if the SERVED copy carries a
+    maturity/honesty label, that label must MATCH the canonical root label. A
+    served item that OMITS the label makes no claim (the console serves a lighter
+    view with fewer fields) — that is a legitimate subset, NOT an overclaim, so it
+    is skipped. Only a DISAGREEING label is a violation.
+    """
+    errors = []
+    root_mat = {}
+    for item in (root.get(key) or []):
+        if isinstance(item, dict) and item.get("id"):
+            root_mat[item["id"]] = (item.get("maturity") or "").strip()
+    for item in (pages.get(key) or []):
+        if not isinstance(item, dict) or not item.get("id"):
+            continue
+        iid = item["id"]
+        if iid not in root_mat:
+            continue
+        pmat = (item.get("maturity") or "").strip()
+        if not pmat:
+            # served copy omits the label => makes no claim => not an overclaim.
+            continue
+        if pmat != root_mat[iid]:
+            errors.append(
+                f"{pages_name}: {noun} {iid} maturity '{pmat}' disagrees with "
+                f"{root_name} '{root_mat[iid]}' — the served copy must not "
+                f"restate a canonical honesty label"
+            )
+    return errors
+
+
 def validate_consistency(root, pages, root_name="knowledge.json",
                          pages_name="pages/knowledge.json"):
     """Return a list of consistency violations: the SERVED copy (pages) must never
     overclaim relative to the CANONICAL root copy.
 
-    pages may legitimately carry a SUBSET of root's theorems (it is a lighter
-    console view) and its own version string, but for anything it DOES carry it
-    must agree with root's honesty stance.
+    pages may legitimately carry a SUBSET of root's theorems/formulas/axioms (it
+    is a lighter console view) and its own version string, but for anything it
+    DOES carry — and DOES label — it must agree with root's honesty stance.
     """
     errors = []
     if not isinstance(root, dict):
@@ -158,23 +193,16 @@ def validate_consistency(root, pages, root_name="knowledge.json",
     if not isinstance(pages, dict):
         return [f"{pages_name}: not a valid JSON object — cannot compare to root"]
 
-    # 1. Per-theorem maturity: anything present in BOTH must match root exactly.
-    root_mat = {}
-    for t in (root.get("theorems") or []):
-        if isinstance(t, dict) and t.get("id"):
-            root_mat[t["id"]] = (t.get("maturity") or "").strip()
-    for t in (pages.get("theorems") or []):
-        if not isinstance(t, dict) or not t.get("id"):
-            continue
-        tid = t["id"]
-        if tid in root_mat:
-            pmat = (t.get("maturity") or "").strip()
-            if pmat != root_mat[tid]:
-                errors.append(
-                    f"{pages_name}: theorem {tid} maturity '{pmat}' disagrees with "
-                    f"{root_name} '{root_mat[tid]}' — the served copy must not "
-                    f"restate a canonical honesty label"
-                )
+    # 1. Per-item maturity for theorems, formulas AND axioms: any id present in
+    #    BOTH copies that the SERVED copy labels must match root's honesty label.
+    #    (A served item that omits the label makes no claim — see helper.)
+    for key, noun in (("theorems", "theorem"),
+                      ("formulas", "formula"),
+                      ("axioms", "axiom")):
+        errors.extend(
+            check_collection_overclaim(root, pages, key, noun,
+                                       root_name, pages_name)
+        )
 
     # 2. Honesty ledger that governs Conjecture 1 must match root.
     rps = root.get("proof_summary") or {}

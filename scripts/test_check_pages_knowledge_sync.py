@@ -34,6 +34,15 @@ ROOT = {
         {"id": "TH_L2", "name": "Λ_min_max_bounds", "maturity": "proven"},
         {"id": "TH_L5", "name": "khipu_quorum_safety", "maturity": "experimental"},
     ],
+    "formulas": [
+        {"id": "F0001", "latex": "S = <...>", "maturity": "defined"},
+        {"id": "F0016", "latex": "\\Lambda = ...", "maturity": "conjectured"},
+    ],
+    "axioms": [
+        {"id": "A1", "name": "soundnessAxiom", "maturity": "proven"},
+        {"id": "A5", "name": "instillWave", "maturity": "measured"},
+        {"id": "A7", "name": "lambdaUniqueness", "maturity": "conjectured"},
+    ],
     "proof_summary": {
         "locked_proven": 8,
         "locked_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
@@ -44,12 +53,24 @@ ROOT = {
 
 # The console-served copy: a SUBSET of root's theorems (no TH_L5), its OWN version
 # string, but it must NOT overclaim and must carry the same Conjecture-1 ledger.
+# Its formulas legitimately OMIT the maturity label (lighter console view — the real
+# pages/knowledge.json serves formulas with fewer fields); its axioms DO carry the
+# label and must match root.
 PAGES = {
     "version": "1.0.0",
     "doctrine": "Doctrine v11 LOCKED",
     "theorems": [
         {"id": "TH_L1", "name": "Λ_uniqueness", "maturity": "conjectured"},
         {"id": "TH_L2", "name": "Λ_min_max_bounds", "maturity": "proven"},
+    ],
+    "formulas": [
+        {"id": "F0001", "latex": "S = <...>"},
+        {"id": "F0016", "latex": "\\Lambda = ..."},
+    ],
+    "axioms": [
+        {"id": "A1", "name": "soundnessAxiom", "maturity": "proven"},
+        {"id": "A5", "name": "instillWave", "maturity": "measured"},
+        {"id": "A7", "name": "lambdaUniqueness", "maturity": "conjectured"},
     ],
     "proof_summary": {
         "locked_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
@@ -178,6 +199,37 @@ class ConsistencyTests(unittest.TestCase):
         bad["proof_summary"]["locked_ids"] = ["F1"]
         errs = validate_consistency(ROOT, bad)
         self.assertTrue(any("locked_ids" in e and "out of sync" in e for e in errs), errs)
+
+    def test_pages_relabels_formula_fails(self):
+        # A conjectured formula in root, promoted to "proven" in the served copy.
+        bad = copy.deepcopy(PAGES)
+        bad["formulas"][1]["maturity"] = "proven"  # F0016 is conjectured in root
+        errs = validate_consistency(ROOT, bad)
+        self.assertTrue(
+            any("formula" in e and "F0016" in e and "disagrees" in e for e in errs),
+            errs,
+        )
+
+    def test_pages_relabels_axiom_fails(self):
+        # A "measured" axiom in root, overclaimed as "proven" in the served copy.
+        bad = copy.deepcopy(PAGES)
+        bad["axioms"][1]["maturity"] = "proven"  # A5 is measured in root
+        errs = validate_consistency(ROOT, bad)
+        self.assertTrue(
+            any("axiom" in e and "A5" in e and "disagrees" in e for e in errs),
+            errs,
+        )
+
+    def test_pages_formula_omitting_label_is_allowed(self):
+        # The served copy legitimately serves formulas without a maturity field —
+        # a lighter view, not an overclaim.
+        self.assertEqual(validate_consistency(ROOT, PAGES), [])
+
+    def test_pages_formula_matching_label_is_allowed(self):
+        # If the served copy DOES label a formula, matching root is fine.
+        ok = copy.deepcopy(PAGES)
+        ok["formulas"][1]["maturity"] = "conjectured"  # equals root
+        self.assertEqual(validate_consistency(ROOT, ok), [])
 
 
 class MainTests(unittest.TestCase):
