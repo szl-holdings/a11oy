@@ -1717,7 +1717,7 @@ async function tryFormula(name, argId, resId) {
     el.innerHTML = `<span class="tr-val">${JSON.stringify(d.value !== undefined ? d.value : d)}</span>
       <span style="margin-left:8px;font:10px var(--mono);color:var(--text-muted)">${d.lean_theorem||''}</span>`;
   } catch(e) {
-    el.innerHTML = `<span style="color:var(--red)">ERR: ${e.message}</span>`;
+    el.innerHTML = `<span style="color:var(--red)">ERR: ${String((e&&e.message)||e).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</span>`;
   }
 }
 
