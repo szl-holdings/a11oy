@@ -3,13 +3,13 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-06-30T00:00:00Z",
+  "generatedAt": "2026-07-01T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "summary": {
-    "tabs": 130,
+    "tabs": 135,
     "endpoints": 77,
     "tabsWithCitations": 23,
-    "staticTabs": 35
+    "staticTabs": 40
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -2857,6 +2857,21 @@
       }
     },
     {
+      "key": "genome",
+      "title": "genome",
+      "group": "Console",
+      "route": "/console#genome",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
       "key": "govatlas",
       "title": "govatlas",
       "group": "Console",
@@ -3008,6 +3023,36 @@
       }
     },
     {
+      "key": "labs",
+      "title": "Labs",
+      "group": "Console",
+      "route": "/console#labs",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "labsintro",
+      "title": "labsintro",
+      "group": "Console",
+      "route": "/console#labsintro",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
       "key": "lambda",
       "title": "lambda",
       "group": "Console",
@@ -3018,6 +3063,21 @@
       "citationsRequired": false,
       "sampleLabelAllowed": false,
       "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "launcher",
+      "title": "App Launcher",
+      "group": "Console",
+      "route": "/console#launcher",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
@@ -3371,6 +3431,21 @@
       "citationsRequired": false,
       "sampleLabelAllowed": false,
       "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "publications",
+      "title": "publications",
+      "group": "Console",
+      "route": "/console#publications",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
       "degradedRules": {
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
