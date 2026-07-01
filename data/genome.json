@@ -599,7 +599,7 @@
       }
     ],
     "tag": "honest-N/A",
-    "lean_ref": "Lutar/Puriq/Formulas/F23_Uniqueness.lean::f23_unconditional_is_underdetermined (L194, = Lutar.Round13.maxAgg_ne_Lambda — proves the UNCONDITIONAL claim FALSE); conditional theorems lutar_is_geomean_of_factors (L152) and lambda_unique_under_A6 (L181) are CLOSED but conditional; monotone_additive_linear (L101) has open sorry (L128). axiom A6_bisymmetric declared L172.",
+    "lean_ref": "Lutar/Puriq/Formulas/F23_Uniqueness.lean::f23_unconditional_is_underdetermined (L194, = Lutar.Round13.maxAgg_ne_Lambda — proves the UNCONDITIONAL claim FALSE, so unconditional Λ uniqueness = Conjecture 1); conditional theorems lutar_is_geomean_of_factors (L152) and lambda_unique_under_A6 (L181) are CLOSED but conditional; monotone_additive_linear (L101) has open sorry (L128). axiom A6_bisymmetric declared L172.",
     "powers": "Would (if true) upgrade Λ from advisory to canonical — it does NOT, by doctrine",
     "notes": "CONJECTURE 1. NEVER tag LOCKED-PROVEN (brief binding rule). The file is explicit: 'No conjecture is upgraded to a theorem here.' A6_bisymmetric is a declared optional non-core axiom, fully disclosed, never folded into the core kernel-clean set {propext, funext, Classical.choice, Quot.sound}.",
     "_quadrant": "Q1"
