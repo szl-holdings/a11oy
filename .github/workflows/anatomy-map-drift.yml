@@ -1,0 +1,36 @@
+name: Anatomy-map drift guard
+
+# szl-holdings/a11oy ships the honest SZL Anatomy map as the /console tab
+# (pages/console.html -> the marker-delimited `anatomy-map-tab-patch` block).
+# The SAME doctrine is also shipped from killinchu (/elite) and the
+# SZLHOLDINGS/anatomy HF Space, on independent pipelines, so an edit here can
+# silently DRIFT from the others.
+#
+# This delegates to the org-shared reusable guard in szl-holdings/.github, so an
+# edit to this repo's anatomy block is validated IMMEDIATELY against the
+# canonical locked-8 ladder {F1,F4,F7,F11,F12,F18,F19,F22}, the Λ=Conjecture-1
+# honesty label and the shared capability ladder -- instead of waiting up to a
+# week for the central sweep. Path-scoped to the surfaces that actually carry
+# the map so unrelated pushes stay quiet. The central weekly sweep
+# (szl-holdings/.github anatomy-map-drift.yml) remains the cross-surface backstop.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pages/console.html"
+      - ".github/workflows/anatomy-map-drift.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "pages/console.html"
+      - ".github/workflows/anatomy-map-drift.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  anatomy-map-drift:
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@633bb10bba717a321f2c153b185756b257e62293  # main
+    secrets: inherit
