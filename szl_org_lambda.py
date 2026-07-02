@@ -239,10 +239,20 @@ def org_lambda(vertical_scores: dict | None = None) -> dict:
     Fed by: (a) each vertical's posture score, (b) the build's SLSA level, (c) the
     drift-check status. ADVISORY, canonical floor 0.90. The min≤Λ≤max bound is
     SEMANTIC-VERIFIED in Lean; unconditional uniqueness is Conjecture 1 (gray, never green)."""
-    # Default per-vertical postures (advisory). 'insurance' is the David Leads fold-in.
+    # Per-vertical advisory postures (Λ = Conjecture 1 — advisory, gray, NEVER a pass/fail
+    # oracle). The five investor-facing verticals are named directly so the front door and
+    # this API agree; the legacy keys (core/defense/finance) are RETAINED additively (same
+    # advisory postures) so every existing reader keeps working. Honest mapping:
+    #   realestate → terra · Acquisition Time Machine
+    #   advisory   → finance · Capital Weather (HNW / CFO advisory)
+    #   legal      → counsel · Matter Flight Recorder
+    #   security   → killinchu counter-UAS + cyber resilience
+    #   enterprise → a11oy core · governed AgentOps / command center
+    #   insurance  → David Leads scorer fold-in (shipping; emits real receipts)
     verticals = {
-        "core": 0.93, "defense": 0.92, "finance": 0.91, "realestate": 0.90,
-        "insurance": 0.91,
+        "realestate": 0.90, "advisory": 0.91, "legal": 0.90,
+        "security": 0.92, "enterprise": 0.93, "insurance": 0.91,
+        "core": 0.93, "defense": 0.92, "finance": 0.91,  # legacy aliases (additive)
     }
     if isinstance(vertical_scores, dict):
         for k, v in vertical_scores.items():

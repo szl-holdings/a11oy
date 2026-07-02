@@ -202,6 +202,9 @@
   .vcard .lam{display:flex;align-items:baseline;gap:9px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
   .vcard .lam .val{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--ink)}
   .vcard .lam .cap{font-size:11px;color:var(--ghost);text-transform:uppercase;letter-spacing:1px}
+  .vcard{transition:transform .18s cubic-bezier(0.16,1,0.3,1),border-color .18s}
+  .vcard:hover{transform:translateY(-3px);border-color:rgba(58,244,200,0.32)}
+  .vcard .prod{font-family:var(--mono);font-size:11.5px;color:var(--lattice);margin:0 0 8px;letter-spacing:.2px}
 
   /* living body */
   .body-embed{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);
@@ -275,9 +278,9 @@
       <span>a11oy<span class="sub" style="margin-left:9px">Governed Inference</span></span>
     </a>
     <nav>
+      <a class="hide-sm" href="#verticals">Verticals</a>
       <a class="hide-sm" href="#thesis">Thesis</a>
       <a class="hide-sm" href="#proof">The proof</a>
-      <a class="hide-sm" href="#verticals">Verticals</a>
       <a href="/living-anatomy">Living anatomy</a>
       <a href="/trust">Trust center</a>
       <a class="btn btn-primary" href="/console">Open the console →</a>
@@ -395,45 +398,56 @@
 <section class="band" id="verticals" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
   <div class="wrap">
     <p class="kick">The verticals · live Λ posture <span id="verticals-src"></span></p>
-    <h2>One governed core. Five places it earns its keep.</h2>
-    <p class="intro">The same governed inference core runs across five verticals. Each card reads
-      its live advisory Λ posture from the org-wide 13-axis gate (canonical floor 0.90). Λ is
-      Conjecture&nbsp;1 — advisory, never a pass/fail oracle.</p>
+    <h2>One governed core. Five industries it earns its keep.</h2>
+    <p class="intro">The same governed-inference core runs across five industries — each with a
+      shipping product behind it. Every card reads its live advisory Λ posture from the org-wide
+      13-axis gate (canonical floor 0.90). Λ is Conjecture&nbsp;1 — advisory, never a pass/fail
+      oracle, and never rendered green.</p>
     <div class="grid g3">
       <div class="vcard">
-        <div class="pmark">a11</div>
-        <h3>a11oy</h3>
-        <div class="tag">Core · governed inference</div>
-        <p>The platform itself — command center, signed receipts, the self-doubt gate.</p>
-        <div class="lam"><span class="val" id="v-core">—</span><span class="cap">advisory Λ</span><span id="v-core-chip"></span></div>
+        <div class="pmark">ter</div>
+        <div class="tag">Real estate · acquisition</div>
+        <h3>Real Estate</h3>
+        <div class="prod">terra · Acquisition Time Machine</div>
+        <p>Acquisition and workflow decisions captured into the one signed receipt ledger —
+          every underwrite reconstructable to the byte, long after the deal closes.</p>
+        <div class="lam"><span class="val" id="v-realestate">—</span><span class="cap">advisory Λ</span><span id="v-realestate-chip"></span></div>
+      </div>
+      <div class="vcard">
+        <div class="pmark">cap</div>
+        <div class="tag">Advisory · HNW / CFO</div>
+        <h3>Advisory &amp; Capital</h3>
+        <div class="prod">finance · Capital Weather</div>
+        <p>Capital and advisory calls run behind the same self-doubt gate: an honest
+          <b>BLOCKED</b> beats a confident wrong answer when it&rsquo;s someone&rsquo;s money.</p>
+        <div class="lam"><span class="val" id="v-advisory">—</span><span class="cap">advisory Λ</span><span id="v-advisory-chip"></span></div>
+      </div>
+      <div class="vcard">
+        <div class="pmark">cou</div>
+        <div class="tag">Legal · matters</div>
+        <h3>Legal</h3>
+        <div class="prod">counsel · Matter Flight Recorder</div>
+        <p>Every matter action is a signed, hash-chained entry — a flight recorder for legal
+          decisions you can replay and prove after the fact.</p>
+        <div class="lam"><span class="val" id="v-legal">—</span><span class="cap">advisory Λ</span><span id="v-legal-chip"></span></div>
       </div>
       <div class="vcard">
         <div class="pmark">kil</div>
-        <h3>killinchu</h3>
-        <div class="tag">Defense · counter-UAS</div>
-        <p>Auditable interdiction: signed receipt per decision, 3-of-4 BFT consensus.</p>
-        <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
+        <div class="tag">Security · defense / cyber</div>
+        <h3>Security &amp; Defense</h3>
+        <div class="prod">killinchu · counter-UAS + cyber</div>
+        <p>Auditable interdiction and cyber posture: a signed receipt per decision, 3-of-4 BFT
+          consensus, and no action that isn&rsquo;t logged.</p>
+        <div class="lam"><span class="val" id="v-security">—</span><span class="cap">advisory Λ</span><span id="v-security-chip"></span></div>
       </div>
       <div class="vcard">
-        <div class="pmark">ins</div>
-        <h3>Insurance</h3>
-        <div class="tag">David Leads · lead scoring</div>
-        <p>Faithful David Leads scorer behind an F12 non-compensatory consent gate.</p>
-        <div class="lam"><span class="val" id="v-insurance">—</span><span class="cap">advisory Λ</span><span id="v-insurance-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">fin</div>
-        <h3>Finance</h3>
-        <div class="tag">Governed decisioning</div>
-        <p>Decision paths that have to be reconstructable and signed after the fact.</p>
-        <div class="lam"><span class="val" id="v-finance">—</span><span class="cap">advisory Λ</span><span id="v-finance-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">re</div>
-        <h3>Real estate</h3>
-        <div class="tag">Governed workflows</div>
-        <p>Workflow decisions captured into the same one-chain receipt ledger.</p>
-        <div class="lam"><span class="val" id="v-realestate">—</span><span class="cap">advisory Λ</span><span id="v-realestate-chip"></span></div>
+        <div class="pmark">a11</div>
+        <div class="tag">Enterprise · AgentOps</div>
+        <h3>Enterprise</h3>
+        <div class="prod">a11oy core · command center</div>
+        <p>The governed core itself — command center, signed receipts, the Λ trust gate —
+          deployed across an enterprise&rsquo;s own agents and workflows.</p>
+        <div class="lam"><span class="val" id="v-enterprise">—</span><span class="cap">advisory Λ</span><span id="v-enterprise-chip"></span></div>
       </div>
       <div class="vcard" style="border-style:dashed;align-items:flex-start;justify-content:center">
         <div class="pmark" style="background:rgba(58,244,200,0.08);border-color:rgba(58,244,200,0.25);color:var(--proof)">Λ</div>
@@ -442,6 +456,11 @@
         <p>The composite advisory posture across all verticals, with min≤Λ≤max SEMANTIC-VERIFIED.</p>
         <div class="lam"><span class="val" id="v-org">—</span><span class="cap">floor 0.90</span><span id="v-org-chip"></span></div>
       </div>
+    </div>
+    <div class="cta-row" style="margin-top:34px">
+      <a class="btn btn-primary" href="/console">Open the command center →</a>
+      <a class="btn btn-ghost" href="/api/a11oy/v1/lambda/org">Every vertical&rsquo;s Λ (JSON)</a>
+      <a class="btn btn-ghost" href="/api/a11oy/v1/verticals">Browse all verticals</a>
     </div>
   </div>
 </section>
@@ -604,11 +623,11 @@
   }
 
   function setVerticals(v){
-    // v: {core,defense,insurance,finance,realestate} advisory Λ (numbers or null)
-    [["core","v-core"],["defense","v-defense"],["insurance","v-insurance"],
-     ["finance","v-finance"],["realestate","v-realestate"]].forEach(([k,id])=>{
+    // v: {realestate,advisory,legal,security,enterprise} advisory Λ (numbers or null)
+    [["realestate","v-realestate"],["advisory","v-advisory"],["legal","v-legal"],
+     ["security","v-security"],["enterprise","v-enterprise"]].forEach(([k,id])=>{
       const val = fmtLam(v[k]);
-      $(id).textContent = (val===null) ? "N/A" : val;
+      const el = $(id); if(el) el.textContent = (val===null) ? "N/A" : val;
       lamChip(id+"-chip", num(v[k]));
     });
   }
@@ -619,7 +638,8 @@
     $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : liveChip(alg || "sha3_256");
     if(alg) $("chain-alg").textContent = alg;
     $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
-    if(head){ const h = String(head); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
+    if(head && typeof head === "object"){ head = head.receipt_id || head.chain_hash || head.id || head.hash || null; }
+    if(head){ const h = String(head); $("chain-head").textContent = (h && h !== "[object Object]") ? (h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h) : "N/A"; }
     else { $("chain-head").textContent = "N/A"; }
   }
 
@@ -630,11 +650,10 @@
       if(!o || o.status === "UNAVAILABLE") return false;
       let any = false;
       if(o.proof_tiers){ setTiers(o.proof_tiers); $("proof-src").innerHTML = liveChip("overview"); any = true; }
-      if(Array.isArray(o.verticals)){
-        const vm = {};
-        o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
-        setVerticals(vm); $("verticals-src").innerHTML = liveChip("overview"); any = true;
-      }
+      // NOTE: the five investor verticals (realestate/advisory/legal/security/enterprise)
+      // are a CURATED advisory-posture space in org_lambda(); /org/overview reports the
+      // registry per-vertical Λ (a different key space), so we NEVER fill the investor
+      // cards from overview — they always read /api/a11oy/v1/lambda/org via loadLambdaOrg().
       const ts = o.thesis_stats || {};
       const ch = o.chain || {};
       if(ts.signed_receipts !== undefined || ch.depth !== undefined){
@@ -663,8 +682,8 @@
     try{
       const d = await getJSON("/api/a11oy/v1/lambda/org");
       const v = d.verticals || {};
-      setVerticals({ core:v.core, defense:v.defense, insurance:v.insurance,
-                     finance:v.finance, realestate:v.realestate });
+      setVerticals({ realestate:v.realestate, advisory:v.advisory, legal:v.legal,
+                     security:v.security, enterprise:v.enterprise });
       const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org));
       $("verticals-src").innerHTML = liveChip("lambda/org");
     }catch(e){
@@ -704,7 +723,7 @@
     };
     const jobs = [];
     if(!filled.tiers) jobs.push(loadGenomeTiers());
-    if(!filled.verts) jobs.push(loadLambdaOrg());
+    jobs.push(loadLambdaOrg()); // investor cards ALWAYS read curated /lambda/org (not overview)
     if(!filled.chain) jobs.push(loadChain());
     await Promise.allSettled(jobs);
   })();
