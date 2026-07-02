@@ -25,6 +25,7 @@ Endpoints:
   GET  /api/a11oy/v1/formula/sovereign?served_by=&base_url=&local_node_serving=  -> sovereignty gate (EXPERIMENTAL)
   POST /api/a11oy/v1/formula/sovereign  {served_by, base_url, local_node_serving} -> sovereignty gate (EXPERIMENTAL)
   GET  /api/a11oy/v1/formulas/index                    -> list of wired formulas + citations
+  GET  /api/a11oy/v1/formulas/verify                   -> proof-carrying registry report (honest: no overclaims)
 
 Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem).
 """
@@ -78,14 +79,14 @@ _KALMAN = kalman.ScalarKalman() if _OK else None
 _LOCK = threading.Lock()
 
 _INDEX = [
-    {"name": "pacbayes", "citation": "thesis_v22.pdf §2", "lean_theorem": "Lutar/PACBayes.lean::pac_bayes_bound (TH13)"},
+    {"name": "pacbayes", "citation": "thesis_v22.pdf §2", "lean_theorem": "Lutar/PACBayes.lean::pacBayes_inequality_form (TH13)"},
     {"name": "welford", "citation": "thesis_v22.pdf §2", "lean_theorem": "FrontierWelfordVariance.lean::welford_mean_exact"},
     {"name": "quorum", "citation": "thesis_v22.pdf §2", "lean_theorem": "KhipuConsensus.lean::khipu_consensus_safety (Conjecture 2)"},
-    {"name": "holevo", "citation": "thesis_v22.pdf §2", "lean_theorem": "QuantumHolevoReceipt.lean::holevo_chi_nonneg (PR #176)"},
+    {"name": "holevo", "citation": "thesis_v22.pdf §2", "lean_theorem": "QuantumHolevoReceipt.lean::holevo_chi_nonneg (PR #176 — PROPOSED, not yet in corpus)", "tier": "experimental"},
     {"name": "bloom", "citation": "thesis_v22.pdf §2", "lean_theorem": "FrontierBloomCacheBypass.lean::query_after_insert"},
     {"name": "kalman", "citation": "thesis_v22.pdf §2", "lean_theorem": "FrontierKalmanGain.lean::posterior_le_prior"},
     {"name": "bls", "citation": "thesis_v22.pdf §2", "lean_theorem": "FrontierBLSAggregation.lean::aggregate_verify"},
-    {"name": "reidemeister", "citation": "thesis_v22.pdf §2", "lean_theorem": "KnotCalculus (v15, scaffolding)"},
+    {"name": "reidemeister", "citation": "thesis_v22.pdf §2", "lean_theorem": "KnotCalculus (v15, scaffolding — PROPOSED obligation, not a locked theorem)", "tier": "experimental"},
     {"name": "hnsw", "citation": "thesis_v22.pdf §2", "lean_theorem": "FrontierHNSWNavigability.lean::greedy_search_terminates"},
     {"name": "kl", "citation": "Cover–Thomas Thm 2.6.3 (Gibbs); χPO arXiv:2407.13399; f-DPO arXiv:2309.16240",
      "lean_theorem": "Wave15/DPOKLSimplex.lean::dpo_klDivergence_nonneg_on_simplex (CF-22)", "tier": "experimental"},
@@ -120,6 +121,16 @@ def register(app, ns: str = "a11oy") -> str:
     @app.get(f"/api/{ns}/v1/formulas/index")
     async def _formulas_index():
         return JSONResponse({"wired": _INDEX, "count": len(_INDEX), "doctrine": "v11"})
+
+    @app.get(f"/api/{ns}/v1/formulas/verify")
+    async def _formulas_verify():
+        # PROOF-CARRYING REGISTRY: verify every served formula's claimed Lean
+        # theorem / citation against the bundled canonical corpus. An overclaim
+        # (a non-experimental formula whose Lean theorem is ABSENT) is surfaced
+        # honestly as status "unbacked" (report.honest=false) — never dressed up
+        # as proven. Λ-uniqueness stays Conjecture 1 (never a theorem).
+        from a11oy_formula_registry_guard import registry_report
+        return JSONResponse(registry_report(_INDEX))
 
     @app.get(f"{base}/pacbayes")
     async def _pacbayes(n: int = 1000, epsilon: float = 0.05, kl: float = 0.0,

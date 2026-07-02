@@ -67,6 +67,30 @@ jobs:
         # deps and are out of scope for this guard.
         run: pytest tests/test_operator_reason_envelope.py -q
 
+  python-formula-registry-guard:
+    name: Proof-carrying formula registry — no overclaims (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # github-owned actions only (org allowed_actions policy). setup-python is github-owned.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (guard + _INDEX import are stdlib-only)
+        run: |
+          python -m pip install --upgrade pip
+          # a11oy_formula_registry_guard is pure stdlib; importing a11oy_formula_endpoints
+          # does not require FastAPI (the framework import is lazy inside register()).
+          pip install pytest
+      - name: Verify every served formula is corpus-backed or honestly experimental
+        # PROOF-CARRYING FORMULA REGISTRY GUARD: a11oy_formula_registry_guard.py checks
+        # every wired formula (a11oy_formula_endpoints._INDEX) against the bundled
+        # canonical corpus (corpus/ + proofs/). A non-experimental formula whose claimed
+        # Lean theorem is ABSENT is an overclaim -> status "unbacked" -> this job FAILS,
+        # turning a silent phantom-proof claim into a red gate. Formulas honestly marked
+        # tier=experimental/live-data are reported but allowed. Λ stays Conjecture 1.
+        run: pytest tests/test_formula_registry_guard.py -q
+
   python-demo-critical-routes:
     name: Demo-critical route-table regression guard (pytest)
     runs-on: ubuntu-latest
