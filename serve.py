@@ -9949,6 +9949,14 @@ async def spa_fallback(full_path: str) -> Response:
         return FileResponse(INDEX_HTML, media_type="text/html")
     if candidate.is_file():
         return FileResponse(candidate)
+    # ADDITIVE: serve a vendored static sub-app's index.html for directory paths
+    # (e.g. /anatomy-map/ -> /app/static/anatomy-map/index.html). Relative assets
+    # need the trailing slash, so bare /anatomy-map 307s to /anatomy-map/ first.
+    if full_path and candidate.is_dir() and (candidate / "index.html").is_file():
+        if not full_path.endswith("/"):
+            from fastapi.responses import RedirectResponse as _RedirSlash
+            return _RedirSlash(url="/" + full_path + "/", status_code=307)
+        return FileResponse(candidate / "index.html", media_type="text/html")
     # SPA history fallback — wouter renders the route client-side.
     return FileResponse(INDEX_HTML, media_type="text/html")
 
