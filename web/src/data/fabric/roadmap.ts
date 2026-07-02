@@ -1,6 +1,6 @@
 import type { RoadmapPhase, VerticalId } from './types';
 
-const ALL: readonly VerticalId[] = ['terra', 'vessels', 'counsel', 'carlota', 'aegis', 'lyte', 'sentra'];
+const ALL: readonly VerticalId[] = ['terra', 'vessels', 'counsel', 'carlota', 'aegis', 'lyte', 'sentra', 'atlas'];
 
 export const ROADMAP_PHASES: readonly RoadmapPhase[] = [
   {

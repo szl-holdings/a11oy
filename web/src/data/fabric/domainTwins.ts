@@ -155,6 +155,28 @@ export const DOMAIN_TWINS: readonly DomainTwin[] = [
     nextBestActions: ['Review Terra vendor fast-track exception against policy', 'Validate Aegis firewall rollback completeness', 'Assign auditor for SOC 2 evidence gap remediation'],
     linkedRoutes: ['/sentra', '/fabric/evidence', '/fabric/decisions'],
   },
+  {
+    id: 'twin-atlas',
+    verticalId: 'atlas',
+    name: 'AtlasTwin',
+    description: 'Tracks liquidity, treasury positions, FX and credit exposure, covenant headroom, and capital decisions across the finance plane.',
+    healthScore: 89,
+    signalVolume: 476,
+    activeRisks: 12,
+    pendingDecisions: 9,
+    openApprovals: 6,
+    outcomeVelocity: 84,
+    evidenceCompleteness: 90,
+    chainlightConfidence: 0.86,
+    sentraGovernanceState: 'amber',
+    psycheGovernanceState: 'green',
+    argoLearningStatus: 'active — 15 lessons last 30d',
+    proofChainCoverage: 92,
+    topSignals: ['Liquidity coverage ratio nearing 105% floor', 'FX hedge drift — EUR/USD 2.1% beyond band', 'Counterparty credit downgrade flagged — top-3 exposure'],
+    topRisks: ['Interest rate shock — duration mismatch on portfolio', 'Refinancing risk — 2027 maturity wall concentration', 'Credit concentration — single sector at 38%'],
+    nextBestActions: ['Rebalance FX hedge to restore EUR/USD band', 'Stagger settlements to lift intraday liquidity coverage', 'Open novation on largest counterparty exposure'],
+    linkedRoutes: ['/atlas', '/fabric/risks', '/fabric/decisions'],
+  },
 ] as const;
 
 export const TWIN_MAP = Object.fromEntries(DOMAIN_TWINS.map(t => [t.id, t])) as Record<string, DomainTwin>;

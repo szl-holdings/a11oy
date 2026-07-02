@@ -1,4 +1,4 @@
-export type VerticalId = 'terra' | 'vessels' | 'counsel' | 'carlota' | 'aegis' | 'lyte' | 'sentra';
+export type VerticalId = 'terra' | 'vessels' | 'counsel' | 'carlota' | 'aegis' | 'lyte' | 'sentra' | 'atlas';
 
 export type MaturityStage = 'seed' | 'operational' | 'scaling' | 'enterprise';
 export type PriorityLevel = 'critical' | 'high' | 'medium' | 'low';
