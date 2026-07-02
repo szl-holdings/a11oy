@@ -30,7 +30,7 @@ ARG REVISION=unknown
 ARG BUILD_DATE=unknown
 
 # ---- builder: install Python deps ----
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS builder
 
 WORKDIR /app
 
@@ -41,7 +41,7 @@ RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r sidecar/requirements.txt
 
 # ---- runner: minimal runtime image ----
-FROM python:3.12-slim AS runner
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS runner
 
 ARG VERSION
 ARG REVISION

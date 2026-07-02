@@ -1,6 +1,6 @@
 # SZLHOLDINGS/lean-kernel — live Lean/Lake verification kernel
 # Ubuntu 24.04 + elan + Lean v4.13.0 + Mathlib v4.13.0 + nginx + FastAPI
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.elan/bin:${PATH}"

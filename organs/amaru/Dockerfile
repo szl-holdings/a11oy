@@ -8,7 +8,7 @@
 # /conduit/) copied verbatim from the Replit artifact and served statically.
 # ADDITIVE ONLY: no existing route, console, reasoner, or Rosie widget is touched.
 # No Node build step is required at image build time — the SPA is shipped pre-built.
-FROM python:3.12-slim AS backend
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS backend
 
 WORKDIR /app
 COPY sidecar/ ./sidecar/
@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir "slowapi>=0.1.9"
 # ADDITIVE (Yachay / Provenance Hardening): cryptography for DSSE+Cosign Khipu signing.
 RUN pip install --no-cache-dir "cryptography>=42.0"
 
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf
 
 WORKDIR /app
 

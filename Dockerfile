@@ -38,7 +38,7 @@ ARG A11OY_REQUIRE_LOCAL_LLM=0
 # Real compile path (=1): build the pinned llama-cpp-python from source into a
 # prebuilt glibc wheel, then assert the bundled libllama.so links glibc
 # (NEEDs libc.so.6), not musl. set -eux => a bad compile fails the build LOUD.
-FROM python:3.12-slim AS llama-build-1
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS llama-build-1
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends build-essential cmake ninja-build git; \
@@ -60,7 +60,7 @@ GLIBCCHK
 
 # Skip path (!=1): no compile; just an empty wheel dir so the runtime
 # COPY --from has a valid (empty) source on the constrained build.
-FROM python:3.12-slim AS llama-build-0
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS llama-build-0
 RUN mkdir -p /wheels
 
 # Pick the builder the runtime stage actually copies from.
@@ -68,7 +68,7 @@ FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build
 
 # ---------------------------------------------------------------------------
 # RUNTIME IMAGE (the published a11oy Space / GHCR image).
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS runtime
 
 WORKDIR /app
 

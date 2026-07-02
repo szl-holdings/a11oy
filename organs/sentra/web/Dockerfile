@@ -14,7 +14,7 @@
 #   docker build -f web/Dockerfile -t sentra-web .
 #
 # Per-file COPY (Doctrine v11 — no COPY . .)
-FROM node:22-alpine AS base
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS base
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 RUN corepack enable pnpm
@@ -44,7 +44,7 @@ COPY --from=deps /app ./
 RUN pnpm --filter @workspace/sentra run build
 
 # ---- runner: static nginx, non-root ----
-FROM nginx:alpine AS runner
+FROM nginx:alpine@sha256:54f2a904c251d5a34adf545a72d32515a15e08418dae0266e23be2e18c66fefa AS runner
 COPY --from=builder /app/web/dist /usr/share/nginx/html
 RUN printf 'server {\n  listen 8080;\n  root /usr/share/nginx/html;\n  index index.html;\n  location / { try_files $uri $uri/ /index.html; }\n}\n' > /etc/nginx/conf.d/default.conf \
     && sed -i 's|pid\s*/run/nginx.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \

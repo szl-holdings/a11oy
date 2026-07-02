@@ -1,4 +1,4 @@
-FROM gcr.io/oss-fuzz-base/base-builder-javascript
+FROM gcr.io/oss-fuzz-base/base-builder-javascript@sha256:c0de2235c73edc0d02f6f6cb36c6e326d892ec16caf1b5f715083ad09fccdacd
 
 # Install Node.js (match .node-version in repo root)
 RUN apt-get update && apt-get install -y --no-install-recommends \

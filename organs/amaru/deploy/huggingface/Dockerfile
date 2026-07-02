@@ -1,10 +1,10 @@
-FROM python:3.12-slim AS backend
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS backend
 
 WORKDIR /app
 COPY sidecar/ ./sidecar/
 RUN pip install --no-cache-dir ./sidecar
 
-FROM node:22-slim AS frontend
+FROM node:22-slim@sha256:813a7480f28fdadac1f7f5c824bcdad435b5bc1322a5968bbbdef8d058f9dff4 AS frontend
 
 WORKDIR /build
 COPY web/package.json web/package-lock.json* ./
@@ -12,7 +12,7 @@ RUN npm ci --ignore-scripts
 COPY web/ ./
 RUN npm run build
 
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf
 
 WORKDIR /app
 
