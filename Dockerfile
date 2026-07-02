@@ -634,7 +634,7 @@ COPY benchmarks/pinn/run_bench.py ./benchmarks/pinn/run_bench.py
 # hf-sync mirrored) — same baked-only pattern as web/sda.html + web/immune.html;
 # declared in copy-sync-lockstep.json image_only_assets + hf-module-drift-allow.json
 # accepted_divergences.
-COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/signature-is-not-proof.html web/defense-readiness.html web/determinacy.html web/sda.html web/dns.html ./web/
+COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/signature-is-not-proof.html web/defense-readiness.html web/determinacy.html web/sda.html web/dns.html ./web/
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # resumable ReAct agent-loop core module. Per-file COPY (this Dockerfile uses no
 # COPY . .). a11oy_react_core.py is imported by serve.py (try/except guarded) and

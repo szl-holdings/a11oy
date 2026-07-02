@@ -65,13 +65,38 @@
     padding:7px 12px;letter-spacing:.05em;background:linear-gradient(0deg,#03060ce0,#03060c00)}
   #foot code{color:var(--dim)}
   a{color:var(--teal);text-decoration:none}
+  /* council (Ayllu) card — mid right, under MIND */
+  #council{top:190px;right:22px;width:300px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,#0a1626dd,#060d18ee);padding:13px 16px;pointer-events:auto;backdrop-filter:blur(4px)}
+  #council h2{margin:0 0 8px;font-size:11px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+  #council .row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #13203660}
+  #council .row:last-child{border-bottom:0}
+  #council .k{color:var(--dim)} #council .v{color:var(--ink);text-align:right}
+  #council .who{margin-top:7px;font-size:10.5px;color:var(--violet);line-height:1.5;word-spacing:1px}
+  /* lab (PINN research) card — mid left, under TITLE */
+  #lab{top:150px;left:22px;width:292px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,#0a1626dd,#060d18ee);padding:13px 16px;pointer-events:auto;backdrop-filter:blur(4px)}
+  #lab h2{margin:0 0 3px;font-size:11px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+  #lab .rig{font-size:10.5px;color:var(--teal);margin-bottom:7px;line-height:1.5}
+  #lab .row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #13203660}
+  #lab .row:last-child{border-bottom:0}
+  #lab .k{color:var(--dim)} #lab .v{color:var(--ink);font-family:var(--mono)}
+  .measured{display:inline-block;margin-left:6px;padding:1px 6px;border:1px solid #123a2c;border-radius:6px;
+    font-size:9px;letter-spacing:.06em;color:var(--green);background:#08241a}
+  /* zoom preset bar — top center */
+  #zoombar{top:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto;
+    background:#070f1ccc;border:1px solid var(--line);border-radius:999px;padding:5px 6px;backdrop-filter:blur(3px)}
+  #zoombar button{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--dim);
+    background:transparent;border:0;border-radius:999px;padding:5px 12px;cursor:pointer;transition:.15s}
+  #zoombar button:hover{color:var(--ink)}
+  #zoombar button.on{color:var(--bg0);background:var(--teal);font-weight:600}
   /* no-webgl fallback */
   #nogl{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:40px;
     font-family:var(--mono);color:var(--dim)}
   #nogl.show{display:grid}
-  @media(max-width:760px){
-    #title{max-width:90vw} #mind,#flow{width:min(92vw,300px)}
-    #legend{display:none}
+  @media(max-width:900px){
+    #title{max-width:90vw} #mind,#flow,#council,#lab{width:min(92vw,300px)}
+    #legend,#council,#lab{display:none}
   }
 </style>
 </head>
@@ -88,13 +113,20 @@
 </div>
 
 <div class="hud" id="title">
-  <h1>HOLOGRAPHIC COMMAND BRIDGE</h1>
+  <h1>SZL ESTATE — HOLOGRAPHIC BRIDGE</h1>
   <div class="sub">
-    The living <b>agentic-GPU organism</b> — RTX&nbsp;5000 @ betterwithage as the <b>MIND</b>,
-    six proven round9 <b>organs</b> as the body, energy flow as its <b>circulation</b>.<br/>
-    Reads the real endpoints; renders nothing it cannot confirm.
+    The living <b>agentic-GPU organism</b>, zoomed out to the whole estate — RTX&nbsp;5000 @ betterwithage as the <b>MIND</b>,
+    six proven <b>organs</b> as the body, the <b>Ayllu council</b> as its deliberating minds,
+    and your <b>hardware &amp; stack</b> as the surrounding estate.<br/>
+    Live nodes glow; declared nodes are labelled; nothing is fabricated.
   </div>
   <span class="badge" id="conn">● connecting…</span>
+</div>
+
+<div class="hud" id="zoombar">
+  <button data-zoom="council">COUNCIL</button>
+  <button data-zoom="organism" class="on">ORGANISM</button>
+  <button data-zoom="estate">ESTATE</button>
 </div>
 
 <div class="hud" id="mind">
@@ -105,12 +137,29 @@
   <div class="row"><span class="k">Λ trust</span><span class="v" id="m_lambda">Conjecture&nbsp;1</span></div>
 </div>
 
+<div class="hud" id="council">
+  <h2>COUNCIL — /v1/ayllu/roster</h2>
+  <div class="row"><span class="k">Personas</span><span class="v" id="cl_n">—</span></div>
+  <div class="row"><span class="k">Backend</span><span class="v" id="cl_be">—</span></div>
+  <div class="row"><span class="k">Loop</span><span class="v">bounded · Λ-gated</span></div>
+  <div class="who" id="cl_who">convening the core council…</div>
+</div>
+
 <div class="hud" id="flow">
   <h2>CIRCULATION — /v1/energy/budget</h2>
   <div class="row"><span class="k">Dominant source</span><span class="v" id="f_src">—</span></div>
   <div class="row"><span class="k">Σ joules<span class="sample">SAMPLE</span></span><span class="v" id="f_j">—</span></div>
   <div class="row"><span class="k">Receipts</span><span class="v" id="f_n">—</span></div>
   <div class="row"><span class="k">Bekenstein</span><span class="v" id="f_bek">—</span></div>
+</div>
+
+<div class="hud" id="lab">
+  <h2>LAB — PhysicsNeMo PINN<span class="measured">MEASURED</span></h2>
+  <div class="rig">rosie · RTX&nbsp;5050 (Blackwell sm_120)<br/>PhysicsNeMo 2.1.1 · torch 2.12.1+cu130</div>
+  <div class="row"><span class="k">Poisson rel-L2</span><span class="v">2.99e-4</span></div>
+  <div class="row"><span class="k">Burgers rel-L2</span><span class="v">0.644</span></div>
+  <div class="row"><span class="k">Duffing α err</span><span class="v">1.2e-5</span></div>
+  <div class="row"><span class="k">Snapshot</span><span class="v" style="color:var(--dim)">2026-07-02 · local</span></div>
 </div>
 
 <div class="hud" id="legend">
@@ -124,15 +173,19 @@
   <div class="lg-row"><span class="dot" style="color:var(--green)"></span>active&nbsp;(pulses)
     <span class="dot" style="color:var(--amber);margin-left:10px"></span>degraded
     <span class="dot" style="color:var(--grey);margin-left:10px"></span>unknown&nbsp;(unreachable — honest dim)</div>
+  <h3 style="margin-top:9px">SHELLS (zoom out)</h3>
+  <div class="lg-row"><span class="dot" style="color:var(--violet)"></span>Ayllu council&nbsp;(minds)
+    <span class="dot" style="color:var(--gold);margin-left:10px"></span>estate&nbsp;— hardware &amp; stack</div>
+  <div class="lg-row" style="color:var(--grey)">estate nodes are <b style="color:var(--dim)">declared</b> (no live probe) unless marked</div>
 </div>
 
 <div id="tip"></div>
 
 <div class="hud" id="foot">
-  Three.js r128 vendored locally — <b>0 runtime CDN</b>. Energy figures are <b>SAMPLE/ESTIMATE</b>
-  (no power meter wired). Sovereign glow only when <code>/code/healthz</code> reports
-  <code>sovereign:true</code>. Λ trust = <b>Conjecture 1</b> (advisory, never a theorem).
-  Unreachable organs render dim — <b>no fabricated data</b>. Consent-only swarm.
+  Three.js r128 vendored locally — <b>0 runtime CDN</b>. Energy figures are <b>SAMPLE/ESTIMATE</b>;
+  PINN results are a <b>MEASURED</b> local snapshot (not live). Council is read live from <code>/v1/ayllu/roster</code>.
+  Estate nodes are <b>declared</b> (no live probe) unless marked. Sovereign glow only when <code>/code/healthz</code> reports
+  <code>sovereign:true</code>. Λ trust = <b>Conjecture 1</b> (advisory). Unreachable organs render dim — <b>no fabricated data</b>.
 </div>
 
 <!-- THREE r128 (MIT), vendored locally at /vendor/three.min.js — NO CDN (matches fleet-c2.html). -->
@@ -178,6 +231,23 @@
     return 0x9aa6bd; // unknown source -> grid grey (honest neutral)
   }
 
+  // ---- Ayllu council (deliberating minds) — the 3 core personas as an honest
+  //      fallback; the live count/names come from /v1/ayllu/roster when reachable.
+  var COUNCIL_FALLBACK = ["Amaru","Kamachiq","Qhatuq"];
+  var COUNCIL_COL = 0xb98cff;
+
+  // ---- Estate shell: Rosa's real hardware & stack. These are DECLARED nodes
+  //      (no per-node live probe) unless noted — labelled honestly, never faked.
+  var ESTATE = [
+    {id:"rosie · RTX 5050",         col:0x34f5b0, kind:"GPU · research",  note:"Blackwell sm_120 — PINN lab (PhysicsNeMo)",     live:false},
+    {id:"betterwithage · RTX 5000", col:0x39d7ff, kind:"GPU · sovereign", note:"the MIND core — inference (probed at centre)",   live:true},
+    {id:"Hetzner · prod box",       col:0xffd66e, kind:"compute · host",  note:"alloy-api + agents · /opt/alloyscape",           live:false},
+    {id:"Neon · Postgres 17",       col:0x5ad6ff, kind:"data · database", note:"managed Postgres — ledgers & state",             live:false},
+    {id:"Hugging Face · Spaces",    col:0xffcb57, kind:"edge · deploy",   note:"a11oy / anatomy / killinchu / immune",           live:false},
+    {id:"Backblaze B2 · backups",   col:0x9aa6bd, kind:"storage · DR",    note:"daily pg_dump safety net",                       live:false}
+  ];
+  var ESTATE_COL_DEFAULT = 0xffd66e;
+
   // ---------- WebGL guard ----------
   if(!window.THREE || !(function(){try{var c=document.createElement("canvas");
       return !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl")));
@@ -196,7 +266,7 @@
   var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
   var scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x03060c, 0.018);
+  scene.fog = new THREE.FogExp2(0x03060c, 0.010); // gentler so the estate shell stays readable when zoomed out
 
   var camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
   camera.position.set(0, 9, 34);
@@ -311,9 +381,64 @@
   }
   buildSwarm(7); // default 7-node fabric; replaced by live count when available
 
+  // ============ COUNCIL RING (Ayllu — deliberating minds) ============
+  var COUNCIL_R = 15.5;
+  var councilGrp = new THREE.Group(); scene.add(councilGrp);
+  var councilNodes = [];
+  function buildCouncil(names){
+    if(!councilGrp) return; // no-op in the no-WebGL path
+    while(councilGrp.children.length) councilGrp.remove(councilGrp.children[0]);
+    councilNodes = [];
+    names = (names && names.length) ? names : COUNCIL_FALLBACK;
+    names.forEach(function(nm,i){
+      var a=(i/names.length)*Math.PI*2 + 0.5;
+      var m=new THREE.Mesh(new THREE.TetrahedronGeometry(0.7,0),
+        new THREE.MeshStandardMaterial({color:COUNCIL_COL, emissive:COUNCIL_COL,
+          emissiveIntensity:0.4, metalness:0.3, roughness:0.4, transparent:true, opacity:0.8}));
+      m.position.set(Math.cos(a)*COUNCIL_R, Math.sin(i*1.3)*1.6, Math.sin(a)*COUNCIL_R);
+      m.userData={hover:{title:esc(nm), role:"Ayllu council persona", note:"bounded, Λ-gated deliberation", status:"council"}};
+      councilGrp.add(m); councilNodes.push(m);
+    });
+  }
+  buildCouncil(COUNCIL_FALLBACK);
+
+  // ============ ESTATE SHELL (hardware & stack — declared) ============
+  var ESTATE_R = 25;
+  var estateGrp = new THREE.Group(); scene.add(estateGrp);
+  var estateNodes = [];
+  ESTATE.forEach(function(o,i){
+    var a=(i/ESTATE.length)*Math.PI*2;
+    var g=new THREE.Group();
+    var col = o.col || ESTATE_COL_DEFAULT;
+    var box=new THREE.Mesh(new THREE.BoxGeometry(1.1,1.1,1.1),
+      new THREE.MeshStandardMaterial({color:col, emissive:col,
+        emissiveIntensity:o.live?0.4:0.16, metalness:0.5, roughness:0.4,
+        transparent:true, opacity:o.live?0.85:0.5, flatShading:true}));
+    var ring=new THREE.Mesh(new THREE.TorusGeometry(1.5,0.045,6,32),
+      new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:o.live?0.4:0.18}));
+    ring.rotation.x=Math.PI/2;
+    g.add(box); g.add(ring);
+    g.position.set(Math.cos(a)*ESTATE_R, Math.sin(i*1.9)*2.6, Math.sin(a)*ESTATE_R);
+    box.userData={hover:{title:esc(o.id), role:esc(o.kind), note:esc(o.note),
+      status:o.live?"live (probed at centre)":"declared — no live probe"}};
+    estateGrp.add(g); estateNodes.push(box);
+  });
+
   // ---------- interaction: drag-rotate, wheel-zoom, hover organs ----------
   var ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
-  var rotY=0.0, rotX=0.0, dragging=false, lx=0, ly=0, autoRot=true, zoom=34;
+  var rotY=0.0, rotX=0.0, dragging=false, lx=0, ly=0, autoRot=true, zoom=34, zoomTarget=34;
+  var ZOOM_PRESET={council:22, organism:34, estate:80};
+  (function(){
+    var bar=$("zoombar"); if(!bar) return;
+    bar.addEventListener("click", function(e){
+      var b=e.target.closest("button"); if(!b) return;
+      var z=ZOOM_PRESET[b.getAttribute("data-zoom")]; if(z==null) return;
+      zoomTarget=z;
+      if(b.getAttribute("data-zoom")==="estate") autoRot=true; // let the estate slowly reveal itself
+      Array.prototype.forEach.call(bar.querySelectorAll("button"),function(x){x.classList.remove("on");});
+      b.classList.add("on");
+    });
+  })();
   canvas.addEventListener("pointerdown", function(e){ dragging=true; autoRot=false; lx=e.clientX; ly=e.clientY; });
   window.addEventListener("pointerup", function(){ dragging=false; });
   window.addEventListener("pointermove", function(e){
@@ -322,8 +447,8 @@
     // hover tooltip
     mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;
     ray.setFromCamera(mouse, camera);
-    var hit = ray.intersectObjects(organMeshes.map(function(g){return g.userData.node;}));
     var tip=$("tip");
+    var hit = ray.intersectObjects(organMeshes.map(function(g){return g.userData.node;}));
     if(hit.length){
       var g = organMeshes.filter(function(gg){return gg.userData.node===hit[0].object;})[0];
       var u=g.userData, st=u.status;
@@ -332,9 +457,20 @@
         '<div class="d">'+esc(u.organ.role)+'</div>'+
         '<div class="st"><span style="color:'+stc+'">●</span> '+esc(st)+' · <span style="color:var(--dim)">'+esc(u.organ.note)+'</span></div>';
       tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+12)+"px"; tip.style.opacity=1;
-    } else tip.style.opacity=0;
+    } else {
+      // council + estate nodes carry their own honest hover card
+      var xh = ray.intersectObjects(councilNodes.concat(estateNodes));
+      if(xh.length && xh[0].object.userData.hover){
+        var h=xh[0].object.userData.hover;
+        var col=(xh[0].object.material&&xh[0].object.material.color)?xh[0].object.material.color.getHexString():"dbe7ff";
+        tip.innerHTML='<div class="t" style="color:#'+col+'">'+h.title+'</div>'+
+          '<div class="d">'+h.role+'</div>'+
+          '<div class="st"><span style="color:var(--dim)">●</span> '+h.status+' · <span style="color:var(--dim)">'+h.note+'</span></div>';
+        tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+12)+"px"; tip.style.opacity=1;
+      } else tip.style.opacity=0;
+    }
   });
-  canvas.addEventListener("wheel", function(e){ e.preventDefault(); zoom=Math.max(16,Math.min(70, zoom+e.deltaY*0.02)); }, {passive:false});
+  canvas.addEventListener("wheel", function(e){ e.preventDefault(); zoomTarget=Math.max(16,Math.min(90, zoomTarget+e.deltaY*0.03)); }, {passive:false});
 
   function resize(){
     var w=window.innerWidth, h=window.innerHeight;
@@ -347,6 +483,7 @@
   function tick(now){
     var t=(now-t0)/1000;
     if(autoRot) rotY += 0.0016;
+    zoom += (zoomTarget - zoom) * 0.08; // smooth glide between zoom presets
     // camera framing from rot + zoom
     camera.position.x = Math.sin(rotY)*zoom*Math.cos(rotX);
     camera.position.z = Math.cos(rotY)*zoom*Math.cos(rotX);
@@ -389,6 +526,15 @@
     flowGeo.attributes.position.needsUpdate=true; flowGeo.attributes.color.needsUpdate=true;
 
     swarmGrp.rotation.y += 0.0006;
+    // council minds — slow counter-orbit, each tetra spins + breathes
+    councilGrp.rotation.y -= 0.0012;
+    councilNodes.forEach(function(m,i){
+      m.rotation.y += 0.02; m.rotation.x += 0.012;
+      m.material.emissiveIntensity = 0.35 + Math.abs(Math.sin(t*1.1 + i))*0.35;
+    });
+    // estate shell — gentle drift; each node slowly tumbles
+    estateGrp.rotation.y += 0.0004;
+    estateNodes.forEach(function(m){ m.rotation.y += 0.01; });
     renderer.render(scene,camera);
     requestAnimationFrame(tick);
   }
@@ -461,9 +607,31 @@
     g.userData.status = (ok===true)?"active":(ok===false?"degraded":"unknown");
   }
 
+  function applyCouncil(j){
+    var nEl=$("cl_n"), beEl=$("cl_be"), whoEl=$("cl_who");
+    if(!j){ // roster unreachable -> honest fallback to the declared core 3
+      if(nEl) nEl.textContent="3 (core · declared)";
+      if(beEl) beEl.innerHTML='<span style="color:var(--grey)">roster unreachable</span>';
+      if(whoEl) whoEl.textContent=COUNCIL_FALLBACK.join(" · ");
+      buildCouncil(COUNCIL_FALLBACK);
+      return;
+    }
+    var people = j.personas || j.roster || [];
+    if(!Array.isArray(people)) people=[];
+    var names = people.map(function(p){ return (p && (p.name||p.persona||p.id)) || String(p); }).filter(Boolean);
+    if(!names.length) names=COUNCIL_FALLBACK;
+    var be = (j.backend && (j.backend.mode||j.backend.status)) || j.backend || j.mode || "—";
+    var beLive = /live/i.test(String(be));
+    if(nEl) nEl.textContent=String(j.count!=null?j.count:names.length);
+    if(beEl) beEl.innerHTML='<span style="color:'+(beLive?"var(--green)":"var(--amber)")+'">'+esc(String(be))+'</span>';
+    if(whoEl) whoEl.textContent=names.join(" · ");
+    buildCouncil(names);
+  }
+
   function pollData(){
     getJSON(API+"/code/healthz").then(applyPosture);
     getJSON(API+"/v1/energy/budget").then(applyBudget);
+    getJSON(API+"/v1/ayllu/roster").then(applyCouncil);
     // probe each organ endpoint; honest dim on null. Never blocks the scene.
     organMeshes.forEach(function(g){
       getJSON(g.userData.organ.probe).then(function(j){
