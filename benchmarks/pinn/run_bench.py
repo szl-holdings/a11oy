@@ -354,11 +354,68 @@ def _modulus_stub(problem: str) -> Dict[str, Any]:
                           "train; report rel-L2 vs the same exact closed form.")}
 
 
+# PhysicsNeMo (NVIDIA Modulus) neural arm — produced by run_modulus.py on a CUDA GPU
+# and written to modulus_partial/. These configs mirror the DeepXDE arms EXACTLY (same
+# nets / optimizer budgets / exact solutions) so the two neural arms are comparable.
+_MODULUS_DIR = HERE.parent / "modulus_partial"
+_MODULUS_CONFIG = {
+    "poisson": {"net": "FNN [1,32,32,32,1] tanh (PhysicsNeMo FullyConnected, num_layers=3, layer_size=32)",
+                "optimizer": "Adam 8000 iters (lr=1e-3) + L-BFGS (max_iter=2000, strong_wolfe)",
+                "num_domain": 64, "num_boundary": 2, "num_eval": 400, "loss_weights": None},
+    "burgers": {"net": "FNN [1,40,40,40,1] tanh (PhysicsNeMo FullyConnected, num_layers=3, layer_size=40)",
+                "optimizer": "Adam 8000 iters (lr=1e-3) + L-BFGS (max_iter=2000, strong_wolfe)",
+                "num_domain": 200, "num_boundary": 2, "num_eval": 400, "loss_weights": [1.0, 100.0]},
+    "duffing": {"net": "FNN [1,40,40,40,1] tanh (PhysicsNeMo FullyConnected, num_layers=3, layer_size=40)",
+                "optimizer": "Adam 10000 iters (lr=1e-3) + L-BFGS (max_iter=3000, strong_wolfe)",
+                "num_domain": 200, "num_boundary": 2, "anchors": "120 observation points; alpha init=2.0"},
+}
+_MODULUS_CAVEAT = {
+    "burgers": ("STANDARD, non-shock-adapted PINN config IDENTICAL to the DeepXDE arm; "
+                "shock-adaptation (RAR / curriculum / hard-BC) is NOT-TESTED \u2014 the large "
+                "burgers error reflects the vanilla config, NOT a neural-PINN ceiling."),
+}
+
+
+def _load_modulus_partial(problem: str) -> Optional[Dict[str, Any]]:
+    fp = _MODULUS_DIR / ("modulus_%s.json" % problem)
+    if fp.is_file():
+        with fp.open("r", encoding="utf-8") as fh:
+            return json.load(fh)
+    return None
+
+
+def _modulus_summary(part: Optional[Dict[str, Any]], metric: str, problem: str) -> Dict[str, Any]:
+    if not part or not part.get("seeds"):
+        return _modulus_stub(problem)
+    vals = [row[metric] for row in part["seeds"]]
+    walls = [row["wall_s"] for row in part["seeds"]]
+    out = {"framework": "modulus_physicsnemo", "method_class": part.get("method_class"),
+           "license": part.get("license"), "seeds_run": len(vals),
+           metric: _stats(vals), "wall_s": _stats(walls),
+           "trainable_params": part["seeds"][0].get("trainable_params"),
+           "config": _MODULUS_CONFIG.get(problem),
+           "framework_versions": part.get("framework_versions"),
+           "device": part.get("device"),
+           "label": "MEASURED", "energy": part.get("energy")}
+    if problem in _MODULUS_CAVEAT:
+        out["caveat"] = _MODULUS_CAVEAT[problem]
+    if metric == "abs_err":
+        out["label"] = "MEASURED (fit error vs synthetic ground truth; not measured physics)"
+        out["alpha_estimate_median"] = float(statistics.median(
+            [row["alpha_estimate"] for row in part["seeds"]]))
+        out["alpha_truth"] = ALPHA_TRUTH
+    out["note"] = part.get("note")
+    return out
+
+
 def assemble(out_path: str) -> Dict[str, Any]:
     szl = _load_partial("szl.json")
     dx_pois = _load_partial("deepxde_poisson.json")
     dx_burg = _load_partial("deepxde_burgers.json")
     dx_duff = _load_partial("deepxde_duffing.json")
+    mod_pois = _load_modulus_partial("poisson")
+    mod_burg = _load_modulus_partial("burgers")
+    mod_duff = _load_modulus_partial("duffing")
 
     problems = [
         {
@@ -374,7 +431,7 @@ def assemble(out_path: str) -> Dict[str, Any]:
             "metric": "rel_l2_vs_exact",
             "arms": [szl["poisson"] if szl else {"framework": "szl", "label": "NOT-RUN"},
                      _dx_summary(dx_pois, "rel_l2_vs_exact", "poisson"),
-                     _modulus_stub("poisson")],
+                     _modulus_summary(mod_pois, "rel_l2_vs_exact", "poisson")],
         },
         {
             "id": "steady_burgers_shock",
@@ -389,7 +446,7 @@ def assemble(out_path: str) -> Dict[str, Any]:
             "metric": "rel_l2_vs_exact",
             "arms": [szl["burgers"] if szl else {"framework": "szl", "label": "NOT-RUN"},
                      _dx_summary(dx_burg, "rel_l2_vs_exact", "burgers"),
-                     _modulus_stub("burgers")],
+                     _modulus_summary(mod_burg, "rel_l2_vs_exact", "burgers")],
         },
         {
             "id": "inverse_duffing",
@@ -403,17 +460,78 @@ def assemble(out_path: str) -> Dict[str, Any]:
             "metric": "abs_err",
             "arms": [szl["duffing"] if szl else {"framework": "szl", "label": "NOT-RUN"},
                      _dx_summary(dx_duff, "abs_err", "duffing"),
-                     _modulus_stub("duffing")],
+                     _modulus_summary(mod_duff, "abs_err", "duffing")],
         },
     ]
+
+    mod_present = bool(mod_pois and mod_burg and mod_duff)
+    mod_vers = (mod_pois or mod_burg or mod_duff or {}).get("framework_versions")
+    if mod_present:
+        overall_label = ("MEASURED 3-way (SZL classical spectral on CPU; DeepXDE and NVIDIA "
+                         "Modulus/PhysicsNeMo neural PINNs \u2014 both neural arms GPU-measured, "
+                         "see each arm's framework_versions/device)")
+        modulus_fw = {"method_class": ("neural PINN (NVIDIA; PhysicsNeMo FullyConnected core model "
+                                       "+ manual PDE-residual loop, Adam + L-BFGS)"),
+                      "status": "MEASURED", "deps": ["nvidia-physicsnemo", "pytorch-cuda"],
+                      "license": "Apache-2.0", "shipped": False,
+                      "usage": ("benchmark-only dev dependency; NEVER imported by serve.py or any "
+                                "shipped module. The /pinn/bench endpoint only reads this artifact."),
+                      "versions": mod_vers,
+                      "note": ("NVIDIA Modulus was renamed PhysicsNeMo (same framework). Uses the "
+                               "PhysicsNeMo core model layer (physicsnemo.models.mlp.FullyConnected), "
+                               "NOT the PhysicsNeMo-Sym PDE DSL.")}
+        interp = {
+            "poisson": ("SZL is ~machine precision BY CONSTRUCTION (solution in basis, disclosed); "
+                        "both neural PINNs (DeepXDE and PhysicsNeMo) reach solid neural accuracy "
+                        "without knowing the basis."),
+            "burgers": ("honest nonlinear head-to-head: SZL's Newton-spectral solver targets the "
+                        "exact tanh shock. BOTH neural arms are STANDARD, non-shock-adapted PINNs "
+                        "and land at ~0.5\u20130.7 rel-L2 (vanilla config, not a ceiling); "
+                        "shock-adaptation (RAR / curriculum / hard-BC) is NOT-TESTED for either."),
+            "duffing": ("all three recover \u03b1 from the SAME synthetic data; compare "
+                        "|\u03b1\u0302-1| and cost. PhysicsNeMo's L-BFGS fit is typically the tightest."),
+        }
+        honesty = (
+            "All rel-L2 / |\u03b1\u0302-1| / wall-time numbers are MEASURED against the exact closed "
+            "form or synthetic ground truth; the two neural arms report 3 seeds as median[min,max]. "
+            "No joules (NOT-MEASURED: no power meter). Poisson's in-basis advantage is disclosed. "
+            "DeepXDE (LGPL) and NVIDIA PhysicsNeMo (Apache-2.0) are BOTH benchmark-only dev "
+            "dependencies, never imported by shipped code. The PhysicsNeMo arm uses the core "
+            "FullyConnected model (not PhysicsNeMo-Sym), mirroring the DeepXDE net/optimizer budget "
+            "and exact solutions. The two neural arms ran on the SAME GPU but may differ in CUDA "
+            "stack (see each arm's framework_versions) \u2014 accuracy is apples-to-apples, wall_s "
+            "only broadly comparable.")
+    else:
+        overall_label = "MEASURED (SZL + DeepXDE on this CPU box); Modulus NOT-RUN"
+        modulus_fw = {"method_class": "neural PINN (NVIDIA)", "status": "NOT-RUN",
+                      "license": "Apache-2.0",
+                      "note": "NVIDIA Modulus was renamed PhysicsNeMo (same framework)."}
+        interp = {
+            "poisson": ("SZL is ~machine precision BY CONSTRUCTION (solution in basis, disclosed); "
+                        "DeepXDE reaches a solid neural-PINN accuracy without knowing the basis."),
+            "burgers": ("honest nonlinear head-to-head: SZL's new Newton-spectral solver and the "
+                        "neural PINN both target the exact tanh shock; compare rel-L2 and wall time. "
+                        "The DeepXDE arm is a STANDARD, non-shock-adapted PINN \u2014 shock-adaptation "
+                        "(RAR / curriculum / hard-BC) is NOT-TESTED and would likely narrow the gap."),
+            "duffing": ("both recover \u03b1 from the same data; compare |\u03b1\u0302-1| and cost."),
+        }
+        honesty = (
+            "All rel-L2 and wall-time numbers are MEASURED on this box against the exact closed "
+            "form; \u22653 seeds are reported as median[min,max] for the neural arm. No joules are "
+            "reported (NOT-MEASURED: no power meter). Poisson's in-basis advantage is disclosed. "
+            "DeepXDE (LGPL) is benchmark-only and never shipped. Modulus/PhysicsNeMo is NOT-RUN "
+            "with a reproduce spec (no GPU).")
 
     result = {
         "service": "a11oy.pinn.bench",
         "title": "SZL Governed spectral collocation vs DeepXDE (neural PINN) vs Modulus/PhysicsNeMo",
-        "overall_label": "MEASURED (SZL + DeepXDE on this CPU box); Modulus NOT-RUN",
+        "overall_label": overall_label,
         "ran_at": _now(),
         "hardware": {"cpus": 2, "ram_gib": 15, "gpu": None, "torch_threads": 2,
-                     "note": "Replit sandbox — CPU-only, no CUDA GPU"},
+                     "note": ("Replit sandbox — CPU-only, no CUDA GPU. NOTE: the DeepXDE and "
+                              "PhysicsNeMo neural partials, when present, were MEASURED on a CUDA "
+                              "GPU host (see each arm's framework_versions/device), not on this "
+                              "assemble host.")},
         "frameworks": {
             "szl": {"method_class": ("classical spectral collocation least-squares (+ Newton "
                                      "for nonlinear BVP) — NOT a neural PINN"),
@@ -427,20 +545,10 @@ def assemble(out_path: str) -> Dict[str, Any]:
                                   "any shipped module. The /pinn/bench endpoint only reads this "
                                   "committed artifact."),
                         "versions": (dx_pois or dx_burg or dx_duff or {}).get("framework_versions")},
-            "modulus_physicsnemo": {"method_class": "neural PINN (NVIDIA)",
-                                    "status": "NOT-RUN", "license": "Apache-2.0",
-                                    "note": "NVIDIA Modulus was renamed PhysicsNeMo (same framework)."},
+            "modulus_physicsnemo": modulus_fw,
         },
         "problems": problems,
-        "interpretation": {
-            "poisson": ("SZL is ~machine precision BY CONSTRUCTION (solution in basis, disclosed); "
-                        "DeepXDE reaches a solid neural-PINN accuracy without knowing the basis."),
-            "burgers": ("honest nonlinear head-to-head: SZL's new Newton-spectral solver and the "
-                        "neural PINN both target the exact tanh shock; compare rel-L2 and wall time. "
-                        "The DeepXDE arm is a STANDARD, non-shock-adapted PINN \u2014 shock-adaptation "
-                        "(RAR / curriculum / hard-BC) is NOT-TESTED and would likely narrow the gap."),
-            "duffing": ("both recover α from the same data; compare |α̂-1| and cost."),
-        },
+        "interpretation": interp,
         "scope_limits": (
             "This is a LOW-DIMENSIONAL (1D), SMOOTH, CPU-ONLY suite with KNOWN good bases. "
             "It structurally favors spectral methods. The regimes neural PINNs are designed "
@@ -448,18 +556,15 @@ def assemble(out_path: str) -> Dict[str, Any]:
             "geometry, and problems with NO known good basis — are NOT exercised here and are "
             "reported as NOT-TESTED, not as a neural-arm loss. Do not read SZL wins on this "
             "suite as universal superiority."),
-        "honesty": (
-            "All rel-L2 and wall-time numbers are MEASURED on this box against the exact closed "
-            "form; ≥3 seeds are reported as median[min,max] for the neural arm. No joules are "
-            "reported (NOT-MEASURED: no power meter). Poisson's in-basis advantage is disclosed. "
-            "DeepXDE (LGPL) is benchmark-only and never shipped. Modulus/PhysicsNeMo is NOT-RUN "
-            "with a reproduce spec (no GPU)."),
+        "honesty": honesty,
         "doctrine": "Doctrine v11 LOCKED — no fabricated numbers; MEASURED/MODELED/NOT-RUN/NOT-MEASURED/NOT-TESTED labels only.",
         "reproduce": {
             "szl": "python benchmarks/pinn/run_bench.py --arm szl",
             "deepxde": "python benchmarks/pinn/run_bench.py --arm deepxde --problem {poisson|burgers|duffing} --seeds 3",
             "assemble": "python benchmarks/pinn/run_bench.py --assemble --out benchmarks/pinn/results.json",
-            "modulus": "requires a CUDA GPU host with nvidia-physicsnemo (see each problem's modulus arm)",
+            "modulus": ("python benchmarks/pinn/run_modulus.py --problem {poisson|burgers|duffing} "
+                        "--seeds 3 --out benchmarks/pinn/modulus_partial   (CUDA GPU host with "
+                        "`pip install nvidia-physicsnemo`); then --assemble picks up modulus_partial/"),
         },
     }
     outp = Path(out_path)
