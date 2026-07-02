@@ -822,7 +822,7 @@ except Exception as _szl_ipinn_e:  # pragma: no cover
 # solver for the NONLINEAR steady viscous Burgers shock (u u_x = nu u_xx), plus a
 # read-only honest benchmark surface. Adds GET /api/a11oy/v1/pinn/burgers (MODELED
 # nonlinear field; refuses nu<=0) and GET /api/a11oy/v1/pinn/bench (serves the
-# COMMITTED benchmarks/pinn/results.json — SZL vs DeepXDE MEASURED, Modulus NOT-RUN;
+# COMMITTED benchmarks/pinn/results.json — SZL vs DeepXDE vs NVIDIA Modulus/PhysicsNeMo, all three MEASURED (3-way);
 # NEVER runs DeepXDE in the request path — DeepXDE is LGPL, benchmark-only). NumPy-only,
 # Doctrine v11 labels (MEASURED/MODELED/NOT-RUN). Additive, try/except-guarded, then
 # FRONT-MOVED to the router head (same ROUTE-ORDERING FIX as the PINN blocks above) so
@@ -9153,6 +9153,24 @@ async def verify_demo_page() -> Response:
 @app.get("/a11oy/pinn-console")
 async def pinn_console_page() -> Response:
     f = PAGES_DIR / "pinn-console.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# /benchmark — Verifiable-AI 3-way PINN benchmark (public credibility surface).
+# Renders DIRECTLY from the committed artifact served at GET /api/a11oy/v1/pinn/bench
+# (SZL governed spectral on CPU vs DeepXDE and NVIDIA PhysicsNeMo/Modulus neural PINNs
+# on GPU - all three MEASURED). Types NO numbers into the page, so it cannot drift from
+# the source of truth; honestly surfaces disclosures + scope-limits (where this suite
+# does NOT let SZL claim victory). Pure HTML/JS/CSS (0 runtime CDN). Served from
+# pages/benchmark.html (COPYed wholesale by the Dockerfile COPY pages/ ./pages/).
+# Registered BEFORE the SPA catch-all so it returns the real page, not the SPA soft-404.
+# ADDITIVE - no existing route touched.
+@app.get("/benchmark")
+@app.get("/a11oy/benchmark")
+async def benchmark_page() -> Response:
+    f = PAGES_DIR / "benchmark.html"
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")

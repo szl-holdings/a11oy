@@ -1,0 +1,208 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>a11oy · Verifiable-AI Benchmark — 3-way MEASURED PINN (SZL vs DeepXDE vs NVIDIA PhysicsNeMo)</title>
+<meta name="description" content="An honest, measured 3-way physics-informed-neural-network benchmark: SZL governed spectral (CPU) vs DeepXDE (GPU) vs NVIDIA PhysicsNeMo/Modulus (GPU). Every number carries its provenance label; the artifact passes the a11oy honesty gate in CI.">
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · Signed: Forge -->
+<style>
+:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;--blu:#5cc4bf;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
+header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
+header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
+header .tag{color:var(--mut);font-size:12px}
+nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
+nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
+nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
+nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
+main{max-width:1080px;margin:0 auto;padding:28px 22px 60px}
+h1{font-size:27px;margin:0 0 6px;color:#fff}h2{font-size:18px;margin:30px 0 10px;color:var(--gold)}
+.sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
+.hero{background:linear-gradient(180deg,#141826,#0e1119);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:14px 0 8px}
+.hero .lede{font-size:15.5px;color:#d8dbe6;max-width:80ch}
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 2px}
+.badge{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--panel2)}
+.badge .dot{width:8px;height:8px;border-radius:50%}
+.badge.ok{border-color:rgba(63,185,80,.5);color:var(--grn)}.badge.ok .dot{background:var(--grn)}
+.badge.info{border-color:rgba(92,196,191,.5);color:var(--blu)}.badge.info .dot{background:var(--blu)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+.meta{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin:12px 0}
+.meta .m{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+.meta .m .k{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+.meta .m .v{color:var(--ink);font-size:13.5px;margin-top:3px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px}
+td .fw{font-weight:600;color:#fff}td .mc{color:var(--mut);font-size:12px}
+.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}.b{background:rgba(92,196,191,.14);color:var(--blu)}
+.note{border-left:3px solid var(--gold);padding:9px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13px;margin:12px 0;border-radius:0 8px 8px 0}
+.warn{border-left:3px solid var(--amb);background:rgba(210,153,34,.07)}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
+footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7;margin-top:30px}
+.eq{color:var(--blu)}
+.small{font-size:12px;color:var(--mut)}
+</style></head><body>
+<header><span class="brand">a11oy</span><span class="tag">Verifiable AI · every number carries its proof</span></header>
+<nav>
+<a href="/console">← Console</a><a href="/pinn-console">PINN Console</a>
+<a href="/benchmark" class="active">Benchmark</a><a href="/verify">Verify</a>
+<a href="/assurance">Assurance</a><a href="/company">Company</a>
+</nav>
+<main>
+<div class="hero">
+  <h1>The 3-way PINN benchmark — measured, not asserted</h1>
+  <p class="lede">SZL's governed classical spectral solver (CPU) versus two neural physics-informed
+  networks — <b>DeepXDE</b> and <b>NVIDIA PhysicsNeMo / Modulus</b> (both GPU). Three arms,
+  three problems, all <b>MEASURED</b> against exact closed forms or synthetic ground truth.
+  We publish the config, the seeds, the license of every dependency, and — most importantly —
+  <b>where this suite does <i>not</i> let us claim victory.</b> That last part is the product.</p>
+  <div class="badges">
+    <span class="badge ok"><span class="dot"></span>Honesty gate: PASS in CI</span>
+    <span class="badge info"><span class="dot"></span>Doctrine v11 labels</span>
+    <span class="badge info"><span class="dot"></span>Live artifact · <a href="/api/a11oy/v1/pinn/bench" style="color:inherit">/api/a11oy/v1/pinn/bench</a></span>
+  </div>
+  <p class="small" style="margin:10px 0 0">This page renders directly from the committed benchmark artifact — no numbers are typed into the page,
+  so it cannot drift from the source of truth. The same artifact must pass
+  <code>benchmarks/pinn/honesty_guard.py</code> before it can ship.</p>
+</div>
+
+<div id="status" class="note">Loading measured results from <code>/api/a11oy/v1/pinn/bench</code>…</div>
+
+<div id="report" hidden>
+  <h2 id="benchTitle"></h2>
+  <p class="sub" id="overallLabel"></p>
+  <div class="meta" id="meta"></div>
+  <div id="problems"></div>
+
+  <h2>How to read this</h2>
+  <div class="card" id="interpretation"></div>
+
+  <h2>What we are <span style="color:var(--red)">not</span> claiming</h2>
+  <div class="note warn" id="scopeLimits"></div>
+  <div class="note" id="honesty"></div>
+
+  <h2>Reproduce it yourself</h2>
+  <p class="sub">Nothing here is take-our-word-for-it. The exact commands that produced the artifact:</p>
+  <pre id="reproduce"></pre>
+  <p class="small" id="doctrine"></p>
+</div>
+
+<h2>Why this benchmark is different</h2>
+<div class="card">
+  <p style="margin:0 0 10px">Content-provenance tools prove where a <i>file</i> came from. Governance platforms document a
+  <i>process</i>. Evaluation suites <i>score</i> a model. None of them <b>break the build when a result
+  overclaims.</b> a11oy does:</p>
+  <ul style="margin:0;color:#d8dbe6">
+    <li>Every reported number is stamped <span class="pill g">MEASURED</span> / <span class="pill b">MODELED</span> /
+      <span class="pill n">NOT-RUN</span> / <span class="pill n">NOT-MEASURED</span> / <span class="pill n">NOT-TESTED</span>.</li>
+    <li>A <b>measured</b> number with no evidence, or a <b>not-run</b> arm carrying a value, fails the honesty gate — the artifact cannot ship.</li>
+    <li>Our advantages are <b>disclosed</b>: e.g. the Poisson solution lives inside SZL's trial basis, so that near-machine-precision result is by construction, not a general-accuracy claim.</li>
+  </ul>
+</div>
+
+</main>
+<footer>
+SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · a11oy — governed, verifiable AI · Doctrine v11.<br>
+Data source: the committed <code>benchmarks/pinn/results.json</code>, served read-only at <code>/api/a11oy/v1/pinn/bench</code>.
+DeepXDE (LGPL-2.1) and NVIDIA PhysicsNeMo/Modulus (Apache-2.0) are benchmark-only dev dependencies — never imported by shipped code.
+</footer>
+<script>
+(function(){
+  var FW = {
+    szl: {name:"SZL", cls:"spectral collocation · CPU", tag:"b"},
+    deepxde: {name:"DeepXDE", cls:"neural PINN · GPU", tag:"n"},
+    modulus_physicsnemo: {name:"NVIDIA PhysicsNeMo / Modulus", cls:"neural PINN · GPU", tag:"n"}
+  };
+  function esc(s){return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+  function fnum(v){
+    if(v==null) return "—";
+    if(typeof v!=="number") return esc(v);
+    var a=Math.abs(v);
+    if(a!==0 && (a<1e-2 || a>=1e4)) return v.toExponential(2);
+    return (Math.round(v*1e4)/1e4).toString();
+  }
+  function metricCell(arm,metric){
+    var v=arm[metric];
+    if(v==null) return '<span class="num">—</span>';
+    if(typeof v==="object"){
+      var m=fnum(v.median), lo=fnum(v.min), hi=fnum(v.max);
+      return '<span class="num">'+m+'</span> <span class="mc">('+lo+'–'+hi+', n='+esc(v.n)+')</span>';
+    }
+    return '<span class="num">'+fnum(v)+'</span>';
+  }
+  function wallCell(arm){
+    var w=arm.wall_s;
+    if(w==null) return '<span class="mc">—</span>';
+    if(typeof w==="object") return '<span class="num">'+fnum(w.median)+'s</span> <span class="mc">('+fnum(w.min)+'–'+fnum(w.max)+')</span>';
+    return '<span class="num">'+fnum(w)+'s</span>';
+  }
+  function labelPill(lbl){
+    if(!lbl) return '';
+    var head=String(lbl).split(" ")[0];
+    var cls = head.indexOf("MEASURED")===0?"g":head.indexOf("MODELED")===0?"b":"n";
+    return '<span class="pill '+cls+'">'+esc(head)+'</span>';
+  }
+  function render(d){
+    document.getElementById("status").hidden=true;
+    var rep=document.getElementById("report"); rep.hidden=false;
+    document.getElementById("benchTitle").textContent=d.title||"PINN benchmark";
+    document.getElementById("overallLabel").textContent=d.overall_label||"";
+    var hw=d.hardware||{};
+    var meta=[
+      ["Assembled at", d.ran_at||"—"],
+      ["Assemble host", (hw.cpus||"?")+" CPU · "+(hw.ram_gib||"?")+" GiB · GPU: "+(hw.gpu||"none")],
+      ["Neural arms", "MEASURED on a CUDA GPU host (see each arm)"],
+      ["Doctrine", "v11 — labelled numbers only"]
+    ];
+    document.getElementById("meta").innerHTML=meta.map(function(m){
+      return '<div class="m"><div class="k">'+esc(m[0])+'</div><div class="v">'+esc(m[1])+'</div></div>';}).join("");
+
+    var out="";
+    (d.problems||[]).forEach(function(p){
+      var metric=p.metric||"rel_l2_vs_exact";
+      out+='<div class="card"><h3 style="margin:0 0 4px;color:#fff">'+esc(p.id)+'</h3>';
+      out+='<p class="small" style="margin:0 0 2px"><span class="eq">'+esc(p.pde)+'</span></p>';
+      out+='<p class="small" style="margin:0 0 8px">exact: '+esc(p.exact)+' · metric: <b>'+esc(metric)+'</b></p>';
+      out+='<table><thead><tr><th>Framework</th><th>Method</th><th>'+esc(metric)+'</th><th>wall</th><th>seeds</th><th>device</th><th>label</th></tr></thead><tbody>';
+      (p.arms||[]).forEach(function(a){
+        var fw=FW[a.framework]||{name:a.framework,cls:a.method_class||""};
+        var method=a.method||a.method_class||fw.cls||"";
+        out+='<tr><td><span class="fw">'+esc(fw.name)+'</span><br><span class="mc">'+esc(fw.cls)+'</span></td>'
+          +'<td class="mc">'+esc(method)+'</td>'
+          +'<td>'+metricCell(a,metric)+'</td>'
+          +'<td>'+wallCell(a)+'</td>'
+          +'<td class="mc">'+esc(a.seeds_run||(typeof a[metric]==="object"?a[metric].n:1))+'</td>'
+          +'<td class="mc">'+esc(a.device||(a.framework==="szl"?"CPU":"—"))+'</td>'
+          +'<td>'+labelPill(a.label)+'</td></tr>';
+        var extra=a.caveat||a.disclosure;
+        if(a.caveat) out+='<tr><td colspan="7" class="mc" style="border-bottom:1px solid var(--line);padding-top:0"><span class="pill a">caveat</span> '+esc(a.caveat)+'</td></tr>';
+      });
+      out+='</tbody></table>';
+      if(p.disclosure&&p.disclosure.note) out+='<div class="note">Disclosure: '+esc(p.disclosure.note)+'</div>';
+      out+='</div>';
+    });
+    document.getElementById("problems").innerHTML=out;
+
+    var interp=d.interpretation||{};
+    document.getElementById("interpretation").innerHTML=Object.keys(interp).map(function(k){
+      return '<p style="margin:6px 0"><b style="color:var(--gold)">'+esc(k)+':</b> '+esc(interp[k])+'</p>';}).join("");
+    document.getElementById("scopeLimits").innerHTML="<b>Scope limits.</b> "+esc(d.scope_limits||"");
+    document.getElementById("honesty").innerHTML="<b>Honesty.</b> "+esc(d.honesty||"");
+    var rep2=d.reproduce||{};
+    document.getElementById("reproduce").textContent=Object.keys(rep2).map(function(k){return "# "+k+"\n"+rep2[k];}).join("\n\n");
+    document.getElementById("doctrine").textContent=d.doctrine||"";
+  }
+  fetch("/api/a11oy/v1/pinn/bench",{headers:{accept:"application/json"}})
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(render)
+    .catch(function(e){
+      document.getElementById("status").innerHTML=
+        'Live benchmark data is not reachable right now (<code>'+esc(e.message)+'</code>). '+
+        'The measured artifact is served at <a href="/api/a11oy/v1/pinn/bench">/api/a11oy/v1/pinn/bench</a> — '+
+        'this page intentionally shows no numbers it cannot fetch from that source.';
+    });
+})();
+</script>
+</body></html>
