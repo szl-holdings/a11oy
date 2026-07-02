@@ -92,6 +92,12 @@
   .con .nm{font-weight:700;color:var(--ink);font-size:14px}
   .con .kind{color:var(--mut);font-size:11.5px}
   .con .blurb{color:var(--dim);font-size:11.5px;line-height:1.45;margin-top:2px}
+  .con .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .con .chip{font-size:10px;letter-spacing:.3px;padding:2px 6px;border-radius:5px;
+    background:rgba(94,111,255,.10);border:1px solid rgba(94,111,255,.22);color:var(--dim);
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .con .chip.ok{background:rgba(52,199,132,.12);border-color:rgba(52,199,132,.30);color:#8fe6b8}
+  .con .chip.down{background:rgba(255,90,90,.12);border-color:rgba(255,90,90,.30);color:#ff9a9a}
   .con .meta{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-top:2px}
   .con a.open{font-size:11.5px}
   .group-label{grid-column:1/-1;color:var(--mut);font-size:10.5px;letter-spacing:1.4px;
@@ -225,6 +231,20 @@
   function renderCon(d){
     var s = (d && d.surfaces) || [];
     conCount.textContent = (d.reachable!=null?d.reachable:"—")+" / "+(d.total!=null?d.total:"—")+" reachable";
+    function reportChips(r){
+      if(!r) return '';
+      var chips = [];
+      if(r.service)   chips.push('<span class="chip">'+esc(r.service)+'</span>');
+      if(r.version)   chips.push('<span class="chip">v'+esc(String(r.version).replace(/^v/,''))+'</span>');
+      if(r.doctrine)  chips.push('<span class="chip">doctrine '+esc(r.doctrine)+'</span>');
+      if(r.commit)    chips.push('<span class="chip">@'+esc(String(r.commit).slice(0,8))+'</span>');
+      if(r.protocol)  chips.push('<span class="chip">mcp '+esc(r.protocol)+'</span>');
+      if(r.chain_verified===true)  chips.push('<span class="chip ok">chain \u2713'+(r.signer?' '+esc(r.signer):'')+'</span>');
+      if(r.chain_verified===false) chips.push('<span class="chip down">chain \u2717</span>');
+      if(r.honesty_tier) chips.push('<span class="chip">'+esc(r.honesty_tier)+'</span>');
+      if(!chips.length) return '';
+      return '<div class="chips" title="Self-reported by the surface\u2019s own /healthz">'+chips.join('')+'</div>';
+    }
     function tile(x){
       var live = x.reachable===true;
       return '<div class="con"><div class="top">'+
@@ -233,6 +253,7 @@
         '<span class="st state-'+(live?"LIVE":"DOWN")+'" style="margin-left:auto;font-size:10.5px;letter-spacing:.6px">'+(live?"LIVE":"DOWN")+'</span></div>'+
         '<div class="kind">'+esc(x.kind)+'</div>'+
         (x.blurb ? '<div class="blurb">'+esc(x.blurb)+'</div>' : '')+
+        (live ? reportChips(x.report) : '')+
         '<div class="meta"><span>HTTP '+esc(x.http_status)+'</span><span>'+esc(x.latency_ms)+' ms</span></div>'+
         '<a class="open" href="'+esc(x.url)+'" target="_blank" rel="noopener">open &rarr;</a>'+
         '</div>';

@@ -9382,28 +9382,87 @@ _constellation_cache = {"ts": 0.0, "data": None}
 _CONSTELLATION_TTL = 30.0
 
 
-def _probe_constellation_surface(surface: dict) -> dict:
-    import urllib.request, urllib.error, ssl, time as _t
-    url = surface["url"]
-    t0 = _t.monotonic()
-    code = 0
+# Keys we ingest from a surface's own /healthz self-report. This is honest by
+# construction: it is the surface REPORTING ON ITSELF, never a11oy inventing status.
+# Missing keys simply don't render (nulls show as "—"). Allowlisted so a surface can't
+# inject arbitrary UI, and label-mapped for compact display.
+_HEALTH_REPORT_KEYS = [
+    ("version",           ["version", "yarqa_version", "service_version"]),
+    ("commit",            ["commit", "lean_sha", "sha"]),
+    ("doctrine",          ["doctrine"]),
+    ("service",           ["service", "organ"]),
+    ("protocol",          ["protocol_revision"]),
+    ("chain_verified",    ["chain_verified"]),
+    ("signer",            ["signer_mode"]),
+    ("honesty_tier",      ["claim_tier"]),
+]
+
+
+def _extract_health_report(payload: dict) -> dict:
+    """Pull an allowlisted, compact self-report out of a surface's /healthz JSON."""
+    report = {}
+    if not isinstance(payload, dict):
+        return report
+    honesty = payload.get("honesty")
+    if isinstance(honesty, dict) and honesty.get("tier") and "claim_tier" not in payload:
+        payload = {**payload, "claim_tier": honesty.get("tier")}
+    for out_key, candidates in _HEALTH_REPORT_KEYS:
+        for c in candidates:
+            if c in payload and payload[c] not in (None, ""):
+                v = payload[c]
+                if isinstance(v, bool):
+                    report[out_key] = v
+                else:
+                    s = str(v)
+                    report[out_key] = (s[:60] + "…") if len(s) > 61 else s
+                break
+    return report
+
+
+def _http_get(url: str, timeout: int = 6):
+    """Return (status_code, body_text_or_None). Never raises."""
+    import urllib.request, urllib.error, ssl
     try:
         ctx = ssl.create_default_context()
         req = urllib.request.Request(url, method="GET",
                                      headers={"user-agent": "a11oy-cockpit-probe"})
-        with urllib.request.urlopen(req, timeout=6, context=ctx) as r:
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
             code = int(getattr(r, "status", 0) or 0)
+            body = r.read(8192).decode("utf-8", "replace")
+            return code, body
     except urllib.error.HTTPError as e:
-        code = int(getattr(e, "code", 0) or 0)
+        return int(getattr(e, "code", 0) or 0), None
     except Exception:
-        code = 0
+        return 0, None
+
+
+def _probe_constellation_surface(surface: dict) -> dict:
+    import json as _json, time as _t
+    url = surface["url"]
+    t0 = _t.monotonic()
+    code, _ = _http_get(url)
+    reachable = 200 <= code < 400
+    # Consolidation step: INGEST the surface's own /healthz self-report (honest — it is
+    # the surface describing itself). Defensive: only on reachable, only if JSON parses.
+    report = {}
+    health_url = surface.get("health")
+    if reachable and health_url is not False:
+        if not health_url:
+            health_url = url + ("healthz" if url.endswith("/") else "/healthz")
+        hcode, hbody = _http_get(health_url, timeout=5)
+        if hcode and 200 <= hcode < 400 and hbody:
+            try:
+                report = _extract_health_report(_json.loads(hbody))
+            except Exception:
+                report = {}
     return {
         "name": surface["name"], "kind": surface["kind"],
         "group": surface.get("group", "Other"), "blurb": surface.get("blurb", ""),
         "url": url,
         "http_status": code,
-        "reachable": 200 <= code < 400,
+        "reachable": reachable,
         "latency_ms": int((_t.monotonic() - t0) * 1000),
+        "report": report,
     }
 
 
