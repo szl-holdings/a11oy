@@ -104,9 +104,10 @@ def _redact_organ_url(url: Any) -> Any:
 # hf.space URL is the genuinely reachable endpoint, so it is the default.
 _ORGAN_PUBLIC_DEFAULT = {
     "a11oy": "https://szlholdings-a11oy.hf.space",
-    "sentra": "https://szlholdings-sentra.hf.space",
-    "amaru": "https://szlholdings-amaru.hf.space",
-    "rosie": "https://szlholdings-rosie.hf.space",
+    # sentra/amaru/rosie consolidated into a11oy; their standalone Spaces retired.
+    "sentra": "https://szlholdings-a11oy.hf.space",
+    "amaru": "https://szlholdings-a11oy.hf.space",
+    "rosie": "https://szlholdings-a11oy.hf.space",
     "killinchu": "https://szlholdings-killinchu.hf.space",
 }
 
