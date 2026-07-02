@@ -4757,6 +4757,31 @@ except Exception as _a11oy_af_e:
 # ── end ACTIVE-FLUX ROUTER CROSSOVER ──
 
 # ===========================================================================
+# RESTRAINT->ENERGY frugality surface (ADDITIVE, wiring fix). The /energy tab's
+# frugality panel (web/energy.html loadFrugalityEnergy) calls
+#   GET/POST /api/a11oy/v1/restraint/energy   (+ /restraint/bench-measured, /kpi)
+# but szl_restraint_energy.register() was never invoked in serve.py, so those
+# calls fell through to the /api/a11oy/{path} catch-all and returned 404 — the
+# panel silently degraded to em-dashes. This mounts the REAL module (stdlib-only,
+# honest SAMPLE/MEASURED labels). mount_page=False => register ONLY the JSON
+# routes; do NOT re-inject a duplicate frugality panel into the already-
+# frugality-aware /energy page. Additive, try/except-guarded, BEFORE the catch-all.
+# ===========================================================================
+try:
+    import sys as _re_sys
+    import szl_restraint_energy as _szl_restraint_energy
+    _re_status = _szl_restraint_energy.register(app, ns="a11oy", mount_page=False)
+    print(f"[a11oy] restraint->energy frugality registered: "
+          f"{_re_status.get('registered')} (page override suppressed)",
+          file=_re_sys.stderr)
+except Exception as _re_e:
+    import sys as _re_sys, traceback as _re_tb
+    print(f"[a11oy] restraint->energy frugality NOT registered: {_re_e!r}",
+          file=_re_sys.stderr)
+    _re_tb.print_exc(file=_re_sys.stderr)
+# ── end RESTRAINT->ENERGY FRUGALITY ──
+
+# ===========================================================================
 # GRC ALIGNMENT surface (Lane I5) — in-product ISO 42001 / NIST AI RMF / NIST
 # 800-53 Rev 5 / EU AI Act COVERAGE MATRIX (honest COVERED/PARTIAL/ROADMAP/NA per
 # control); the 13 Λ trust axes mapped to NIST AI RMF MEASURE 2 (+ Credo AI / MIT

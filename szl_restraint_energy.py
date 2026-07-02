@@ -463,7 +463,7 @@ def _energy_page_with_frugality() -> str:
 # Route registration (matches the a11oy register(app, ns=...) pattern). Routes
 # insert at position 0 so they beat the SPA catch-all. Try/except guarded.
 # ---------------------------------------------------------------------------
-def register(app, ns: str = "a11oy") -> dict:
+def register(app, ns: str = "a11oy", mount_page: bool = True) -> dict:
     from starlette.routing import Route
     from starlette.responses import JSONResponse, HTMLResponse
 
@@ -507,7 +507,10 @@ def register(app, ns: str = "a11oy") -> dict:
     ]
     # Only front-win /energy if we can actually augment it (else leave Forge's
     # route untouched — never shadow the sovereign-energy page with a 404).
-    if _energy_page_with_frugality():
+    # mount_page=False (used by serve.py) registers ONLY the JSON routes so we do
+    # NOT inject a duplicate frugality panel into the already-frugality-aware
+    # web/energy.html page that serve.py already serves at /energy.
+    if mount_page and _energy_page_with_frugality():
         routes.append(Route("/energy", _energy_page, methods=["GET"],
                             name="%s_energy_frugality" % ns))
         routes.append(Route("/%s/energy" % ns, _energy_page, methods=["GET"],
