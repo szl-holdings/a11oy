@@ -38,11 +38,13 @@ except Exception:  # pragma: no cover
 # --- Watched flagships + their health surfaces ------------------------------
 FLAGSHIP_HEALTH: dict[str, list[str]] = {
     "a11oy":     ["https://szlholdings-a11oy.hf.space/api/a11oy/healthz"],
-    "amaru":     ["https://szlholdings-amaru.hf.space/api/amaru/healthz"],
-    "sentra":    ["https://szlholdings-sentra.hf.space/api/sentra/healthz"],
+    # amaru/sentra/rosie retired & consolidated into a11oy; standalone Spaces gone.
+    # Watch the flagship they were folded into instead of dead 404 endpoints.
+    "amaru":     ["https://szlholdings-a11oy.hf.space/api/a11oy/v1/health"],
+    "sentra":    ["https://szlholdings-a11oy.hf.space/api/a11oy/v1/health"],
     "killinchu": ["https://szlholdings-killinchu.hf.space/api/killinchu/healthz",
                   "https://szlholdings-vessels.hf.space/api/vessels/healthz"],
-    "rosie":     ["https://szlholdings-rosie.hf.space/api/rosie/healthz"],
+    "rosie":     ["https://szlholdings-a11oy.hf.space/api/a11oy/v1/health"],
 }
 
 # Wires D-H (from resilience_observability/WIRES_D_TO_H_INTEGRATION.md).
