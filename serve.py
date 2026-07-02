@@ -9327,6 +9327,23 @@ async def energy_ops_dashboard() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# COMMAND COCKPIT (/cockpit): single-screen LIVE health cockpit for the whole
+# organism. Standalone sovereign page (0 runtime CDN) that reads the REAL
+# aggregate feed GET /api/a11oy/v1/engine/status (schema szl.engine_status/v1)
+# and renders the mind, six organs, energy and swarm exactly as the server
+# reports them — nulls render as "—", never fabricated (doctrine v11). pages/
+# cockpit.html ships via the wholesale `COPY pages/ ./pages/` in the Dockerfile;
+# on a missing file we fall back honestly to INDEX_HTML (no fabricated stub).
+# Registered BEFORE the /viz + SPA catch-all so the explicit route wins.
+@app.get("/cockpit")
+@app.get("/a11oy/cockpit")
+async def command_cockpit_page() -> Response:
+    f = PAGES_DIR / "cockpit.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/viz")
 async def viz_gallery() -> Response:
     f = VIZ_DIR / "index.html"

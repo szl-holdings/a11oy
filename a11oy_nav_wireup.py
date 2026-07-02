@@ -54,6 +54,7 @@ from typing import Any, Dict, List
 #   /sapa       -> generic shell; no dedicated SAPA page exists.
 # ---------------------------------------------------------------------------
 _SURFACES = [
+    ("/cockpit",        "\u2318",     "Command Cockpit"),                   # ⌘
     ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
     ("/autoreview",     "\u2713",     "Auto-Review (Governed Autonomy)"),   # ✓
     ("/factory",        "\u2699",     "Governed Factory"),                  # ⚙
