@@ -112,6 +112,14 @@ def _page_html(ns: str) -> str:
   .chip {{ background:rgba(16,26,46,.8); border:1px solid #21304d; border-radius:999px;
            padding:.3rem .7rem; color:var(--muted); }}
   .chip b {{ color:var(--ink); }}
+  #legend {{ display:flex; flex-wrap:wrap; gap:.4rem .6rem; margin:.9rem 0 .2rem;
+             font-family:ui-monospace,monospace; font-size:.66rem; }}
+  .lg {{ padding:.22rem .55rem; border-radius:999px; letter-spacing:.03em;
+         border:1px solid transparent; white-space:nowrap; }}
+  .lg.measured {{ color:var(--green);  border-color:rgba(47,208,122,.45);  background:rgba(47,208,122,.1); }}
+  .lg.modeled  {{ color:var(--amber);  border-color:rgba(232,192,116,.45); background:rgba(232,192,116,.1); }}
+  .lg.roadmap  {{ color:var(--violet); border-color:rgba(157,122,216,.5);  background:rgba(157,122,216,.1); }}
+  .lg.sample   {{ color:var(--indigo); border-color:rgba(77,143,204,.45);  background:rgba(77,143,204,.1); }}
   #grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
            gap:1rem; margin-top:1.2rem; }}
   .card {{ background:rgba(16,26,46,.84); border:1px solid #21304d; border-radius:14px;
@@ -169,12 +177,15 @@ def _page_html(ns: str) -> str:
   <div id="wrap">
     <div class="plaque">SZL HOLDINGS / A11OY / DOCTRINE <b>V11 · LOCKED</b> / Λ = CONJECTURE 1</div>
     <h1>The whole stack, <span class="accent">honestly</span> labeled.</h1>
-    <p class="sub" id="subline">Loading the unified ecosystem roll-up from the live
-       <code>/frontier/manifest</code> endpoint… Every capability below is a tile carrying
-       its own MEASURED / MODELED / ROADMAP / SAMPLE label and a pointer to where the real
-       evidence lives — signed energy receipts, the cosign+Rekor UDS bundle, the sovereign
-       GPU fabric, the MODELED orbital tier, governance/restraint, and the ROADMAP composite
-       inference-provenance receipt.</p>
+    <p class="sub" id="subline">Every capability we run, on one screen — live from
+       <code>/frontier/manifest</code>. Each tile is tagged with how real it is and links
+       straight to the proof.</p>
+    <div id="legend">
+      <span class="lg measured">MEASURED — live, measured now</span>
+      <span class="lg modeled">MODELED — derived from real data</span>
+      <span class="lg roadmap">ROADMAP — named next work</span>
+      <span class="lg sample">SAMPLE — illustrative only</span>
+    </div>
     <div id="rollup"></div>
     <div id="grid"></div>
     <div class="status-line" id="status">fetching /frontier/manifest…</div>
@@ -361,10 +372,8 @@ function fail(msg) {{
       ' · ' + esc(s.tiles ?? tiles.length) + ' tiles · all_sources_live=' +
       esc(String(s.all_sources_live));
     document.getElementById('subline').innerHTML =
-      'The unified SZL governed-provenance ecosystem, composed live and in-process by ' +
-      '<code>/frontier/manifest</code>. Each tile shows its capability, its <b>honest label</b>, ' +
-      'and a <b>provenance pointer</b> to the real artifact (ledger chain-head, the cosign/Rekor ' +
-      'verify path, the MODELED orbital endpoints, the live compute-pool probe). No label is upgraded.';
+      'Every capability we run, on one screen — composed live by <code>/frontier/manifest</code>. ' +
+      'Each tile shows its <b>honest label</b> and a <b>link to the proof</b>. No label is upgraded.';
   }} catch (e) {{
     fail('manifest unavailable: ' + e + ' (nothing fabricated — raw data at ' + MANIFEST_EP + ')');
   }}
