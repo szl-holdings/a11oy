@@ -16,4 +16,6 @@ pytest>=9.0.3,<10.0.0  # bumped to admit CVE-2025-71176 fix (9.0.3); prior cap <
 pytest-asyncio>=1.4.0,<2.0.0
 
 # feat/immune-dsse-rekor-verify: real Ed25519 DSSE signing + Rekor proof verify
-cryptography>=42.0.0,<46.0.0
+# bumped cap to admit cryptography>=48.0.1: clears GHSA-537c-gmf6-5ccf (OpenSSL-in-wheel,
+# fixed only in 48.0.1) + PYSEC-2026-35/36, GHSA-m959/p423/r6ph (fixed by 46.x).
+cryptography>=48.0.1,<50.0.0
