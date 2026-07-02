@@ -34,9 +34,9 @@ import re
 import sys
 from html.parser import HTMLParser
 
-# Comparative / superlative triggers. DISJOINT from doctrine-grep's fixed list
-# (revolutionary|world-class|best-in-class|state-of-the-art|…) — we do not
-# duplicate it. Lowercase; matched case-insensitively.
+# Comparative / superlative triggers. DISJOINT from doctrine-grep's fixed
+# banned-buzzword list — we do not duplicate it. Lowercase; matched
+# case-insensitively.
 TRIGGERS = [
     "one of one",
     "the only",

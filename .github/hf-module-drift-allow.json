@@ -1,8 +1,9 @@
 {
-  "_comment": "Allowlist for the GitHub<->HF-Space module-drift guard (a11oy). ignore_paths/ignore_extensions are excluded entirely (built SPA bundles, vendored + binary assets). accepted_divergences are KNOWN, pre-existing GitHub<->HF divergences recorded so the guard lands green; each is still printed as a warning every run. Remove an entry once the file is reconciled so any FUTURE re-divergence fails the job.",
+  "_comment": "Allowlist for the GitHub<->HF-Space module-drift guard (a11oy). ignore_paths/ignore_extensions are excluded entirely (built SPA bundles, vendored + binary assets, and CI-only page-claim manifests under pages/claims/** that are never served by the Space). accepted_divergences are KNOWN, pre-existing GitHub<->HF divergences recorded so the guard lands green; each is still printed as a warning every run. Remove an entry once the file is reconciled so any FUTURE re-divergence fails the job.",
   "ignore_paths": [
     "console/assets/**",
-    "console/static/**"
+    "console/static/**",
+    "pages/claims/**"
   ],
   "ignore_extensions": [
     ".png",
