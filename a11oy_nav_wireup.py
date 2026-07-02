@@ -106,7 +106,7 @@ def _build_nav_block() -> bytes:
 
 
 # ===========================================================================
-# QA11 — Command-centre VIEW consolidation.
+# QA11/QA12 — Command-centre VIEW consolidation (rendered via the SPA's SPEC).
 # ---------------------------------------------------------------------------
 # The /console SPA already CONTAINS these surfaces as in-app views (switched by
 # the page's own go('viewid') fn, not full-page routes). Each is registered in
@@ -114,26 +114,39 @@ def _build_nav_block() -> bytes:
 # their left-nav entries were dropped, so Rosa's "amazing tabs" (verticals,
 # neuroplasticity, allodial, ...) became unreachable from the command centre.
 #
-# FIX (ADDITIVE, idempotent, deterministic): inject the missing view-tabs as
-# proper <div class="nav-item" data-view="X" onclick="go('X')"> items — the SAME
-# markup the console's native nav uses. Because we carry data-view="X":
-#   * the console's own runtime injectNav() guards (which skip if a
-#     .nav-item[data-view="X"] already exists) DEDUPE against ours -> 0 dupes;
-#   * go()'s active-state toggle (n.dataset.view===view) highlights our items.
-# The verticals runtime cascade guards on getElementById('vert-nav-vdefense');
-# we give our Defense item that id so the cascade cleanly no-ops (no dupes, and
-# it stops the SPA's forever-retry that fired because the anchor never existed).
+# WHY STATIC NAV INJECTION DOES NOT WORK: the console's own buildNav() rebuilds
+# the ENTIRE left-nav from a single JS SPEC array on load — it removes every
+# existing .nav-group/.nav-item (whatever injected them) and re-adds only the
+# SPEC entries, then re-applies on a timer + a MutationObserver that prunes any
+# late-injected stray nav nodes. So SPEC is the single source of truth for the
+# nav; DOM injected before <div class="side-foot"> is wiped within ~1s.
+#
+# FIX (ADDITIVE, idempotent, deterministic): add the missing view groups to the
+# SPEC array itself (right before it closes, ahead of function buildNav()). Then
+# buildNav() renders them NATIVELY — identical markup/styling/onclick=go(view)
+# as every built-in tab — and they survive the rebuild + MutationObserver. This
+# mirrors how the prior willay/verify/assurance wireup items were folded into
+# SPEC. pages/console.html is NOT edited; we transform the served HTML response.
 #
 # ONLY views POSITIVELY confirmed present in the client VIEWS registry are wired
 # here — go('X') is a strict no-op for an unregistered key, so an unregistered
-# id would be a dead tab. Keyed by data-nav-wireup="qa11".
+# id would be a dead tab. The "verticals" overview item is deliberately dropped
+# (SPEC routes go(it[0]) and 'verticals' is not a registered key). Idempotent
+# via the marker /* qa12-nav ... */ embedded in the injected SPEC fragment.
 # ===========================================================================
-_VIEW_MARKER = b'data-nav-wireup="qa11"'
+_SPEC_MARKER = b"qa12-nav"
+
+# The SPEC array closes with "]]\n  ];\n\n  function buildNav(){" (the final
+# "]]" closes the last built-in group; "function buildNav(){" is unique in the
+# document). We splice our groups in after that final "]]" and before the "];".
+_SPEC_ANCHOR = b"]]\n  ];\n\n  function buildNav(){"
 
 # (viewid, icon-glyph, honest label, go-target|None, dom-id|None)
-# go-target defaults to viewid; the "verticals" overview opens the Finance pack
-# (go('verticals') itself is not a registered VIEWS key). dom-id is only set for
-# the vertical items so the SPA's verticals cascade guard trips cleanly.
+# go-target is set only for the "verticals" overview alias (-> Finance pack);
+# such alias rows are SKIPPED when building SPEC tuples (SPEC routes go(it[0])
+# and 'verticals' is not a registered VIEWS key, so it would be a dead tab).
+# dom-id is retained for reference but unused by the SPEC path (buildNav renders
+# tuples without ids); it is harmless and kept so the data table stays stable.
 _VIEW_GROUPS = [
     ("Verticals", [
         ("verticals",   "\u25A6", "Vertical Packs",         "vfinance", None),
@@ -159,25 +172,47 @@ _VIEW_GROUPS = [
 ]
 
 
-def _build_view_nav_block() -> bytes:
-    """The in-SPA view-tab nav groups. Mirrors the console's own nav-item markup
-    (class="nav-item" + data-view + onclick=go(...) + <span class="ico">) so it
-    inherits native styling and dedupes against the SPA's runtime injectors.
-    0 CDN, 0 inline <style>, 0 codenames (labels are the views' honest titles)."""
-    parts: List[str] = []
+def _js_str(s: str) -> str:
+    """Emit a JS double-quoted string literal, escaping non-ASCII as \\uXXXX so
+    the fragment matches the console's own SPEC style and keeps this file/the
+    injected bytes pure-ASCII (0 encoding surprises through the middleware)."""
+    out = ['"']
+    for ch in s:
+        o = ord(ch)
+        if ch == '"':
+            out.append('\\"')
+        elif ch == "\\":
+            out.append("\\\\")
+        elif 32 <= o < 127:
+            out.append(ch)
+        else:
+            out.append("\\u%04x" % o)
+    out.append('"')
+    return "".join(out)
+
+
+def _build_spec_view_groups_js() -> bytes:
+    """Build the JS SPEC-array fragment for the restored command-centre view
+    groups. Each row is a [viewid, glyph, label] tuple in the console's native
+    SPEC format, so buildNav() wires onclick=go(viewid) exactly like every
+    built-in tab. The leading comma + marker comment splice the groups in after
+    the last built-in SPEC group. The "verticals" overview (go_target set) is
+    skipped: a SPEC tuple would route go('verticals'), which is not a registered
+    VIEWS key -> a dead tab. Every id emitted is confirmed in the VIEWS registry.
+    0 CDN, 0 <script>, 0 codenames (labels are the views' honest titles)."""
+    groups_js: List[str] = []
     for group_label, items in _VIEW_GROUPS:
-        parts.append(
-            '<div class="nav-group" data-nav-wireup="qa11">%s</div>' % group_label
-        )
-        for viewid, ico, label, go_target, dom_id in items:
-            tgt = go_target or viewid
-            idattr = (' id="%s"' % dom_id) if dom_id else ""
-            parts.append(
-                '<div class="nav-item" data-nav-wireup="qa11" data-view="%s"%s '
-                'onclick="go(\'%s\')" style="cursor:pointer">'
-                '<span class="ico">%s</span>%s</div>' % (viewid, idattr, tgt, ico, label)
-            )
-    return "".join(parts).encode("utf-8")
+        rows: List[str] = []
+        for viewid, ico, label, go_target, _dom_id in items:
+            if go_target:  # overview alias -> would be a dead SPEC tab; skip
+                continue
+            rows.append("      [%s,%s,%s]"
+                        % (_js_str(viewid), _js_str(ico), _js_str(label)))
+        groups_js.append("    [%s, [\n%s\n    ]]"
+                         % (_js_str(group_label), ",\n".join(rows)))
+    frag = (",\n    /* qa12-nav: command-centre view-tabs restored into SPEC */\n"
+            + ",\n".join(groups_js))
+    return frag.encode("utf-8")
 
 
 # Idempotency marker for the related-surfaces cross-link strip.
@@ -237,7 +272,7 @@ def _make_injector():
     from starlette.responses import Response
 
     nav_block = _build_nav_block()
-    view_block = _build_view_nav_block()
+    spec_view_js = _build_spec_view_groups_js()
 
     class _NavWireupInjector(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
@@ -271,17 +306,19 @@ def _make_injector():
                         body = body.replace(_GROUP_ANCHOR, _GROUP_ANCHOR + nav_block, 1)
                         changed = True
 
-                # (1b) In-SPA view-tab groups (QA11) — restore the command-centre
-                #      view-tabs (verticals / research / formulas) as go() items.
-                #      Independent, idempotent check so this lands even on a page
-                #      that already carries the qa10 group.
-                if _VIEW_MARKER not in body:
-                    if _FOOT_ANCHOR in body:
-                        body = body.replace(_FOOT_ANCHOR, view_block + _FOOT_ANCHOR, 1)
-                        changed = True
-                    elif _GROUP_ANCHOR in body:
-                        body = body.replace(_GROUP_ANCHOR, _GROUP_ANCHOR + view_block, 1)
-                        changed = True
+                # (1b) Restore the command-centre view-tabs (verticals / research
+                #      / formulas) by splicing them into the SPA's SPEC array, so
+                #      the console's own buildNav() renders them natively and they
+                #      survive its nav rebuild + MutationObserver (static DOM does
+                #      not). Idempotent via _SPEC_MARKER. Only touches pages that
+                #      carry the SPEC array (the /console command centre).
+                if _SPEC_MARKER not in body and _SPEC_ANCHOR in body:
+                    body = body.replace(
+                        _SPEC_ANCHOR,
+                        b"]]" + spec_view_js + b"\n  ];\n\n  function buildNav(){",
+                        1,
+                    )
+                    changed = True
 
                 # (2) Related-surfaces strip — only on the flagship pages, and
                 #     only if not already present. Idempotent via _REL_MARKER.
@@ -356,11 +393,11 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     except Exception:
         pass
     app.add_middleware(_make_injector())
-    registered.append("MIDDLEWARE nav-wireup injector (QA10 + QA11 view-tabs)")
+    registered.append("MIDDLEWARE nav-wireup injector (QA10 surfaces + SPEC view-tabs)")
     return {
         "registered": registered,
         "count": len(registered),
-        "capability": "Nav Wire-Up (QA10 surfaces + QA11 view-tabs)",
+        "capability": "Nav Wire-Up (QA10 surfaces + SPEC view-tabs)",
         "surfaces": [p for p, _, _ in _SURFACES],
         "views": [v for _, items in _VIEW_GROUPS for v, _, _, _, _ in items],
         "data_label": "NAV",
@@ -384,7 +421,21 @@ if __name__ == "__main__":
         '<div class="nav-item" data-view="govern" onclick="go(\'govern\')">'
         '<span class="ico">\u2713</span>Readiness &amp; Compliance</div>'
         '<div class="side-foot">footer</div>'
-        '</aside><main>x</main></body></html>'
+        '</aside>'
+        # Minimal SPEC + buildNav mirroring the real console so the SPEC splice
+        # is exercised. Glyphs are literal \\uXXXX escapes exactly as the console
+        # ships them, and the closing "]]\\n  ];\\n\\n  function buildNav(){" is
+        # byte-identical to the real _SPEC_ANCHOR.
+        '<script>\n'
+        '  var SPEC = [\n'
+        '    ["Models & Tools", [\n'
+        '      ["mcp","\\u2699","Agent Tools"]\n'
+        '    ]]\n'
+        '  ];\n'
+        '\n'
+        '  function buildNav(){ return SPEC; }\n'
+        '</script>'
+        '<main>x</main></body></html>'
     )
     SAMPLE_NEMO = '<html><body><h1>SZL-Nemo</h1></body></html>'
     SAMPLE_RESTRAINT = '<html><body><h1>Restraint</h1><div id="bench"></div></body></html>'
@@ -427,24 +478,31 @@ if __name__ == "__main__":
         assert ("location.href='%s'" % path) in h1, "missing nav link for %s" % path
     assert "Sovereign &amp; Agentic Core (NEW)" in h1, "missing nav group label"
 
-    # QA11 in-SPA view-tabs: idempotent, one marker per group header + per item,
-    # each carries data-view + go() so it dedupes against the SPA's own injectors
-    # and highlights on active. Verticals cascade guard id must be present.
-    assert h1.count('data-nav-wireup="qa11"') == h2.count('data-nav-wireup="qa11"'), "view-tabs must be idempotent"
-    _view_items = sum(len(items) for _, items in _VIEW_GROUPS)
-    assert h1.count('data-nav-wireup="qa11"') == len(_VIEW_GROUPS) + _view_items, \
-        "expected one marker per view-group header + one per view item"
+    # QA12 SPEC view-tabs: the view groups are spliced into the SPA's SPEC array
+    # (so buildNav() renders them natively and they survive its rebuild). Marker
+    # is embedded once; splice is idempotent; every registered view id appears as
+    # a native SPEC tuple; the 'verticals' overview alias is dropped (no dead tab).
+    assert h1.count("qa12-nav") == h2.count("qa12-nav"), "SPEC splice must be idempotent"
+    assert h1.count("qa12-nav") == 1, "SPEC groups must be spliced in exactly once"
+    _view_items = sum(1 for _, items in _VIEW_GROUPS
+                      for _v, _i, _l, gt, _d in items if not gt)
     for group_label, items in _VIEW_GROUPS:
-        assert (">%s</div>" % group_label) in h1, "missing view group header %s" % group_label
+        assert ("[%s, [" % _js_str(group_label)) in h1, \
+            "missing SPEC group %s" % group_label
         for viewid, _ico, _label, go_target, _domid in items:
-            assert ('data-view="%s"' % viewid) in h1, "missing data-view for %s" % viewid
-            assert ("go('%s')" % (go_target or viewid)) in h1, "missing go() for %s" % viewid
-    assert 'id="vert-nav-vdefense"' in h1, "verticals cascade guard id (vert-nav-vdefense) must be present"
-    assert "Vertical Packs" in h1 and "Neuroplasticity" in h1 and "Allodial AI" in h1 \
-        and "Chain of Title" in h1, "expected honest view labels present"
-    # go('verticals') is NOT a registered VIEWS key -> the overview must open a real view
-    assert "go('vfinance')" in h1, "verticals overview must open a registered view (vfinance)"
-    # additive: original items untouched
+            if go_target:  # overview alias intentionally skipped
+                assert ('["%s"' % viewid) not in h1, \
+                    "overview alias %s must NOT be a SPEC tab" % viewid
+                continue
+            assert ("[%s," % _js_str(viewid)) in h1, \
+                "missing SPEC tab for %s" % viewid
+    # honest labels present in the spliced SPEC
+    assert "Neuroplasticity" in h1 and "Allodial AI" in h1 and "Chain of Title" in h1, \
+        "expected honest view labels present"
+    # the native SPEC + buildNav must be intact and the array still well-formed
+    assert "function buildNav(){" in h1, "buildNav must remain intact"
+    assert '["mcp","\\u2699","Agent Tools"]' in h1, "native SPEC group must be preserved"
+    # additive: original nav/foot markup untouched
     assert "Readiness &amp; Compliance" in h1, "must NOT remove existing nav items"
     assert "Operate</div>" in h1, "must NOT remove existing nav group"
     assert "footer</div>" in h1, "must NOT remove footer"
@@ -472,11 +530,11 @@ if __name__ == "__main__":
     # The banned-token list itself is NOT enumerated here so this module never
     # trips the doctrine-grep banned-token gate; the external integration test
     # (qa10/integration_test.py) performs the explicit banned-token assertion.
-    injected = (_build_nav_block().decode() + _build_view_nav_block().decode()
+    injected = (_build_nav_block().decode() + _build_spec_view_groups_js().decode()
                 + _build_related_strip("/grc").decode()).lower()
     assert "http://" not in injected and "https://" not in injected, "nav markup must be 0-CDN"
     assert "<script" not in injected, "nav markup must inject no script"
 
-    print("a11oy_nav_wireup: ALL OK (nav group + %d surfaces; %d view-tabs in %d "
-          "groups; idempotent; additive; cross-links; 0 codenames; 0 CDN)"
+    print("a11oy_nav_wireup: ALL OK (nav group + %d surfaces; %d SPEC view-tabs "
+          "in %d groups; idempotent; additive; cross-links; 0 codenames; 0 CDN)"
           % (len(_SURFACES), _view_items, len(_VIEW_GROUPS)))
