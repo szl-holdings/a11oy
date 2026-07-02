@@ -308,3 +308,7 @@ szl_fabric_surface.py
 # bundles governed for provenance (see spaces/immune/PROVENANCE.md), not prose.
 spaces/immune/dist/public/assets/index-DOCUUK5J.js
 spaces/immune/dist/public/assets/index-B0yATMcZ.css
+
+# Test fixtures for the page-claim honesty guard (fail/pass/stale samples).
+# The overclaim fixture intentionally contains comparative claims by design.
+.github/test-fixtures/page-claim-guard/

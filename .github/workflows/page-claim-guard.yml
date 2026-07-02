@@ -1,0 +1,76 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# page-claim-guard.yml — page-copy honesty gate.
+#
+# Closes the gap between the two existing honesty gates:
+#   * doctrine-grep.yml    greps ALL files for a FIXED banned-buzzword list.
+#   * overclaim-guard.yml   (org reusable) polices Λ-uniqueness / Conjecture-1.
+# Neither checks that a QUANTITATIVE claim on a page traces to results.json, nor
+# that a COMPARATIVE/SUPERLATIVE claim outside the fixed list ("the only",
+# "leads the field", "machine precision", "fastest", "beats all", …) is sourced.
+#
+# This guard requires every such claim on a covered page to be enumerated
+# verbatim in pages/claims/*.claims.json with a justification + source, and
+# fails on STALE manifest entries whose text no longer appears on the page
+# (no zombie approvals). Pure stdlib; self-tests its validators against
+# fail/pass fixtures before trusting them against the real pages — the org
+# guard pattern (cf. constellation-honesty-guard.yml, pinn-honesty-gate.yml).
+
+name: Page-claim honesty guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pages/*.html"
+      - "pages/claims/*.json"
+      - "tools/page-claim-guard/**"
+      - "benchmarks/pinn/results.json"
+      - ".github/test-fixtures/page-claim-guard/**"
+      - ".github/workflows/page-claim-guard.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "pages/*.html"
+      - "pages/claims/*.json"
+      - "tools/page-claim-guard/**"
+      - "benchmarks/pinn/results.json"
+      - ".github/test-fixtures/page-claim-guard/**"
+      - ".github/workflows/page-claim-guard.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: page-claim-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  self-test:
+    name: Self-test the guard (fail/pass/stale fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Guard rejects overclaim + stale, accepts honest (stdlib only)
+        run: python3 tools/page-claim-guard/check_page_claims.py --selftest
+
+  guard:
+    name: Page claims trace to source (real pages)
+    needs: self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Self-test the validators before trusting them
+        run: python3 tools/page-claim-guard/check_page_claims.py --selftest
+      - name: Every superlative is sourced + every number traces to results.json
+        run: python3 tools/page-claim-guard/check_page_claims.py
