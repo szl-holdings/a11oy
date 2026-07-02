@@ -1,181 +1,126 @@
 # -*- coding: utf-8 -*-
 # ===========================================================================
-# a11oy_nav_wireup.py — Estate wire-up gap closure (QA10)
+# a11oy_nav_wireup.py — Command-centre nav consolidation (full, real, no stubs)
 # ---------------------------------------------------------------------------
-# PROBLEM (QA10): seven integration surfaces are LIVE and serve HTTP 200 but were
-# NOT reachable from the /console left-nav:
-#     /nemo  /autoreview  /factory  /constitution  /quant  /agent-loop  /energy
-# (/grc was already linked by a11oy_grc.py's own injector; /governance served a
-# real page but had no nav entry either.) A demo viewer landing on /console could
-# not click through to any of them.
+# GOAL: every /console left-nav tab opens a REAL, working view backed by real
+# data — no dead tabs, no stubs, no static markup that gets wiped. Two proven
+# facts drive the design:
 #
-# FIX (ADDITIVE, idempotent, 0 lines removed from the SPA source): mirror the
-# proven a11oy_grc.py / serve.py _OperatorWidgetInjector pattern — a single
-# BaseHTTPMiddleware that, on every text/html response, injects:
-#   (1) a NEW left-nav group "Sovereign & Agentic Core (NEW)" into the /console
-#       page, with one honest, labelled nav-item per missing surface (+ a
-#       Governance entry), placed right before the sidebar footer. Keyed by the
-#       data-attribute data-nav-wireup="qa10" so re-runs NEVER double-inject and
-#       other lanes' nav items are NEVER touched.
-#   (2) a lightweight "Related surfaces" cross-link strip into each flagship page
-#       (nemo / autoreview / factory / constitution / energy / agent-loop / quant
-#       / grc) so the surfaces are cross-linked. Keyed by data-related-surfaces
-#       so it is idempotent and additive.
+#   (a) The console rebuilds its ENTIRE left-nav from one JS SPEC array on load
+#       (buildNav()): it removes every .nav-group/.nav-item and re-adds only the
+#       SPEC entries, then re-applies on a timer + a MutationObserver. So SPEC is
+#       the single source of truth; any DOM injected before <div class="side-foot">
+#       is wiped within ~1s. (An earlier build injected a static nav group here;
+#       that never survived — it was removed. Do NOT reintroduce static-DOM nav.)
 #
-# The console SPA source (pages/console.html) is NOT edited. The injector only
-# ADDS nav markup; it removes nothing.
+#   (b) buildNav() renders each SPEC row: a 3-tuple [id,glyph,label] wires
+#       onclick=go(id) (an in-app VIEW); a 4-tuple [id,glyph,label,href] wires
+#       onclick=location.href=href (a full-page surface). go(id) is a strict
+#       no-op for an id absent from the client VIEWS registry — so a 3-tuple for
+#       an unregistered id would be a DEAD tab.
 #
-# DOCTRINE (v11/v12): locked=8 @ c7c0ba17; Λ = Conjecture 1 (NOT a theorem); 0
-# visible codenames (labels are the surfaces' own honest titles); 0 CDN (pure
-# inline markup, no external assets); honest labels only; never weakens a gate;
-# never commits a key; additive-only.
+# THIS MODULE (additive, idempotent, 0 lines removed from the SPA source):
+#   1. Splices the command-centre VIEW groups (Verticals / Research / Formulas)
+#      into SPEC as 3-tuples. Every id is POSITIVELY confirmed in the VIEWS
+#      registry (each renders live data via vertPack / mountNeuro / etc.).
+#   2. Splices a "Sovereign & Agentic Core" group of 4-tuple PAGE-LINKS to the
+#      ops surfaces. Every path was probed live and serves a real, dedicated
+#      HTTP-200 page (NOT the SPA catch-all shell). Paths that only fell through
+#      to the generic orchestration shell (/restraint, /sapa) are deliberately
+#      EXCLUDED; the real Restraint page is reached at /restraint-bench instead.
+#   3. Repoints the previously-DEAD built-in 'frontier' tab (go('frontier') had
+#      no VIEWS entry) to the real /frontier page.
+#   4. Injects a small "Related surfaces" cross-link strip into the flagship ops
+#      pages so they cross-link each other.
 #
-# Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# The console SPA source (pages/console.html) is NOT edited; the served HTML
+# response is transformed in a BaseHTTPMiddleware. All transforms are idempotent.
+#
+# DOCTRINE (v11/v12): honest labels only (the surfaces' own public titles; no
+# codenames); 0 CDN (pure inline markup, no external assets); never weakens a
+# gate; never commits a key; additive-only.
 # ===========================================================================
 from typing import Any, Dict, List
 
 # ---------------------------------------------------------------------------
-# The seven surfaces missing from the /console nav, plus Governance (which had a
-# live page but no nav entry). Each tuple: (path, icon-glyph, honest label).
-# Labels are the surfaces' own public titles — NO codenames.
+# Ops / agentic surfaces exposed in the command centre as SPEC PAGE-LINKS.
+# Each was probed live and returns a real, dedicated HTTP-200 document (verified
+# it is NOT the SPA catch-all shell). Each tuple: (path, icon-glyph, honest
+# label). Labels are the surfaces' own public titles — NO codenames.
+#
+# Deliberately NOT listed (would be bandaids — they only fall through to the
+# generic orchestration SPA shell, not a dedicated page):
+#   /restraint  -> generic shell; the REAL Restraint page is /restraint-bench.
+#   /sapa       -> generic shell; no dedicated SAPA page exists.
 # ---------------------------------------------------------------------------
 _SURFACES = [
-    ("/nemo",         "\u25C6", "SZL-Nemo"),                       # ◆
-    ("/autoreview",   "\u2713", "Auto-Review (Governed Autonomy)"),  # ✓
-    ("/factory",      "\u2699", "Governed Factory"),               # ⚙
-    ("/constitution", "\u00A7", "Constitution"),                   # §
-    ("/quant",        "\u2211", "Quant Engine"),                   # ∑
-    ("/agent-loop",   "\u21BB", "Agent Loop"),                     # ↻
-    ("/energy",       "\u26A1", "Energy / Sovereign Compute"),     # ⚡
-    # Command-centre consolidation: the Code / Fleet C2 / Living Anatomy surfaces
-    # were LIVE (HTTP 200) and reachable from the energy-surface topbar, but were
-    # NOT in the /console left-nav — i.e. "hidden" from the command centre. Add
-    # them here (honest public titles; no codenames) so the command centre exposes
-    # every ops surface. Backend routes already serve these (serve.py).
-    ("/code",          "\u276F", "Code \u2014 Orchestration Platform"),  # ❯
-    ("/fleet-c2",      "\u2316", "Fleet C2"),                        # ⌖
-    ("/living-anatomy","\u2695", "Living Anatomy"),                  # ⚕
-    ("/governance",   "\u2696", "Governance / Eval / Calibration"),  # ⚖
-    # R5: a11oy Restraint (governed code-minimization / dependency-frugality
-    # ladder) + its two-arm benchmark. Honest labels; no codenames.
-    ("/restraint",       "\u27C2", "Restraint (Governed Frugality)"),  # ⟂ (perp)
-    ("/restraint-bench", "\u2696", "Restraint Benchmark"),            # ⚖
-    # SAPA: Energy per Successful Goal — the frontier agentic unit on top of the
-    # live MEASURED joules/token path. Honest label; no codename.
-    ("/sapa",            "\u26A1", "SAPA — Energy / Successful Goal"),   # ⚡
-    # Materials (Q'allariy): the honest Verifiable Alloy & Crystal Discovery surface
-    # (signed crystal-novelty cert + PAC-Bayes cert + Immune screen). Linked here
-    # alongside the other sovereign surfaces (the page's own topbar links /immune).
-    # Honest label; no codename.
-    ("/materials",       "\u269B", "Materials — Verifiable Discovery"),    # ⚛ (atom)
-    # DNS & Subdomains: a static internal infrastructure roadmap tracking the DNS
-    # records we want to add (e.g. immune.a-11-oy.com A 167.233.50.75). Honest label;
-    # no codename; the page shows NO live data.
-    ("/dns",             "\U0001F310", "DNS &amp; Subdomains"),            # 🌐 (globe)
+    ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
+    ("/autoreview",     "\u2713",     "Auto-Review (Governed Autonomy)"),   # ✓
+    ("/factory",        "\u2699",     "Governed Factory"),                  # ⚙
+    ("/constitution",   "\u00A7",     "Constitution"),                      # §
+    ("/quant",          "\u2211",     "Quant Engine"),                      # ∑
+    ("/agent-loop",     "\u21BB",     "Agent Loop"),                        # ↻
+    ("/energy",         "\u26A1",     "Energy / Sovereign Compute"),        # ⚡
+    ("/code",           "\u276F",     "Code \u2014 Orchestration Platform"),# ❯
+    ("/fleet-c2",       "\u2316",     "Fleet C2"),                          # ⌖
+    ("/living-anatomy", "\u2695",     "Living Anatomy"),                    # ⚕
+    ("/governance",     "\u2696",     "Governance / Eval / Calibration"),   # ⚖
+    ("/restraint-bench","\u27C2",     "Restraint (Governed Frugality)"),    # ⟂
+    ("/materials",      "\u269B",     "Materials \u2014 Verifiable Discovery"),  # ⚛
+    ("/dns",            "\U0001F310", "DNS &amp; Subdomains"),              # 🌐
 ]
 
-# Idempotency marker for the nav-group injection.
-_NAV_MARKER = b'data-nav-wireup="qa10"'
-
-# Sidebar anchor: the console sidebar ends with <div class="side-foot">…; we place
-# the new group immediately before it (so it is the last group in the aside).
-_FOOT_ANCHOR = b'<div class="side-foot">'
-# Fallbacks if the footer is ever renamed.
-_GROUP_ANCHOR = b'<div class="nav-group">'
-
-
-def _build_nav_block() -> bytes:
-    """The new left-nav group. Mirrors the existing nav-item markup verbatim
-    (class="nav-item" + <span class="ico"> + label) so it inherits the console's
-    own styling — 0 CDN, 0 inline <style>, 0 codenames."""
-    items = []
-    for path, ico, label in _SURFACES:
-        # esc the label defensively even though all labels are static + safe.
-        items.append(
-            '<div class="nav-item" data-nav-wireup="qa10" data-wireup-path="%s" '
-            'onclick="location.href=\'%s\'" style="cursor:pointer">'
-            '<span class="ico">%s</span>%s</div>' % (path, path, ico, label)
-        )
-    block = (
-        '<div class="nav-group" data-nav-wireup="qa10">'
-        'Sovereign &amp; Agentic Core (NEW)</div>'
-        + "".join(items)
-    )
-    return block.encode("utf-8")
-
-
 # ===========================================================================
-# QA11/QA12 — Command-centre VIEW consolidation (rendered via the SPA's SPEC).
+# Command-centre VIEW groups (in-app views switched by go('id')). ONLY ids
+# POSITIVELY confirmed in the client VIEWS registry are wired here (go('X') is a
+# strict no-op for an unregistered key -> a dead tab). Each renders live data.
 # ---------------------------------------------------------------------------
-# The /console SPA already CONTAINS these surfaces as in-app views (switched by
-# the page's own go('viewid') fn, not full-page routes). Each is registered in
-# the client VIEWS registry with a render() that fetches its own live data, but
-# their left-nav entries were dropped, so Rosa's "amazing tabs" (verticals,
-# neuroplasticity, allodial, ...) became unreachable from the command centre.
-#
-# WHY STATIC NAV INJECTION DOES NOT WORK: the console's own buildNav() rebuilds
-# the ENTIRE left-nav from a single JS SPEC array on load — it removes every
-# existing .nav-group/.nav-item (whatever injected them) and re-adds only the
-# SPEC entries, then re-applies on a timer + a MutationObserver that prunes any
-# late-injected stray nav nodes. So SPEC is the single source of truth for the
-# nav; DOM injected before <div class="side-foot"> is wiped within ~1s.
-#
-# FIX (ADDITIVE, idempotent, deterministic): add the missing view groups to the
-# SPEC array itself (right before it closes, ahead of function buildNav()). Then
-# buildNav() renders them NATIVELY — identical markup/styling/onclick=go(view)
-# as every built-in tab — and they survive the rebuild + MutationObserver. This
-# mirrors how the prior willay/verify/assurance wireup items were folded into
-# SPEC. pages/console.html is NOT edited; we transform the served HTML response.
-#
-# ONLY views POSITIVELY confirmed present in the client VIEWS registry are wired
-# here — go('X') is a strict no-op for an unregistered key, so an unregistered
-# id would be a dead tab. The "verticals" overview item is deliberately dropped
-# (SPEC routes go(it[0]) and 'verticals' is not a registered key). Idempotent
-# via the marker /* qa12-nav ... */ embedded in the injected SPEC fragment.
-# ===========================================================================
 _SPEC_MARKER = b"qa12-nav"
 
 # The SPEC array closes with "]]\n  ];\n\n  function buildNav(){" (the final
-# "]]" closes the last built-in group; "function buildNav(){" is unique in the
-# document). We splice our groups in after that final "]]" and before the "];".
+# "]]" closes the last built-in group; "function buildNav(){" is unique). We
+# splice our groups in after that final "]]" and before the "];".
 _SPEC_ANCHOR = b"]]\n  ];\n\n  function buildNav(){"
 
-# (viewid, icon-glyph, honest label, go-target|None, dom-id|None)
-# go-target is set only for the "verticals" overview alias (-> Finance pack);
-# such alias rows are SKIPPED when building SPEC tuples (SPEC routes go(it[0])
-# and 'verticals' is not a registered VIEWS key, so it would be a dead tab).
-# dom-id is retained for reference but unused by the SPEC path (buildNav renders
-# tuples without ids); it is harmless and kept so the data table stays stable.
+# (viewid, icon-glyph, honest label) — all rendered as 3-tuples -> go(viewid).
 _VIEW_GROUPS = [
     ("Verticals", [
-        ("verticals",   "\u25A6", "Vertical Packs",         "vfinance", None),
-        ("vfinance",    "\u25B3", "Finance",                None, "vert-nav-vfinance"),
-        ("vrealestate", "\u25E9", "Real Estate",            None, "vert-nav-vrealestate"),
-        ("vcyber",      "\u2726", "Cyber Resilience",       None, "vert-nav-vcyber"),
-        ("vdefense",    "\u26EF", "Defense / Gov",          None, "vert-nav-vdefense"),
-        ("vlegal",      "\u2696", "Legal Matter",           None, "vert-nav-vlegal"),
+        ("vfinance",    "\u25B3", "Finance"),
+        ("vrealestate", "\u25E9", "Real Estate"),
+        ("vcyber",      "\u2726", "Cyber Resilience"),
+        ("vdefense",    "\u26EF", "Defense / Gov"),
+        ("vlegal",      "\u2696", "Legal Matter"),
     ]),
     ("Research (Experimental)", [
-        ("neuro",       "\u25D0", "Neuroplasticity",         None, None),
-        ("sovereignty", "\u2691", "Sovereignty (Allodial)",  None, None),
-        ("allodialai",  "\u27D0", "Allodial AI",             None, None),
-        ("l6chain",     "\u2263", "Chain of Title",          None, None),
-        ("entangle",    "\u221E", "Entanglement",            None, None),
-        ("scaling",     "\u2922", "Metabolic Scaling",       None, None),
+        ("neuro",       "\u25D0", "Neuroplasticity"),
+        ("sovereignty", "\u2691", "Sovereignty (Allodial)"),
+        ("allodialai",  "\u27D0", "Allodial AI"),
+        ("l6chain",     "\u2263", "Chain of Title"),
+        ("entangle",    "\u221E", "Entanglement"),
+        ("scaling",     "\u2922", "Metabolic Scaling"),
     ]),
     ("Formulas & Capability", [
-        ("atlas",       "\u2733", "Formula Atlas",           None, None),
-        ("capfsm",      "\u25F0", "Capability FSM",          None, None),
-        ("receiptfp",   "\u25C9", "Receipt Fingerprint",     None, None),
+        ("atlas",       "\u2733", "Formula Atlas"),
+        ("capfsm",      "\u25F0", "Capability FSM"),
+        ("receiptfp",   "\u25C9", "Receipt Fingerprint"),
     ]),
 ]
 
+# The ops-surface page-link group label (rendered via textContent -> literal &).
+_PAGE_GROUP_LABEL = "Sovereign & Agentic Core"
+
+# Frontier fix: the built-in 'frontier' tab was a 3-tuple -> go('frontier'),
+# but no VIEWS['frontier'] exists, so it was a dead no-op. /frontier serves a
+# real page, so repoint it to a 4-tuple page-link. Byte-exact anchor (the source
+# ships the glyph as the literal escape \u25c8).
+_FRONTIER_OLD = b'["frontier","\\u25c8","Frontier Pipeline"]'
+_FRONTIER_NEW = b'["frontier","\\u25c8","SZL Frontier","/frontier"]'
+
 
 def _js_str(s: str) -> str:
-    """Emit a JS double-quoted string literal, escaping non-ASCII as \\uXXXX so
-    the fragment matches the console's own SPEC style and keeps this file/the
-    injected bytes pure-ASCII (0 encoding surprises through the middleware)."""
+    """Emit a JS double-quoted string literal, escaping non-ASCII as \\uXXXX
+    (astral chars > U+FFFF as a UTF-16 surrogate pair) so the fragment matches
+    the console's own SPEC style and the injected bytes stay pure-ASCII."""
     out = ['"']
     for ch in s:
         o = ord(ch)
@@ -185,32 +130,36 @@ def _js_str(s: str) -> str:
             out.append("\\\\")
         elif 32 <= o < 127:
             out.append(ch)
-        else:
+        elif o <= 0xFFFF:
             out.append("\\u%04x" % o)
+        else:  # astral plane -> UTF-16 surrogate pair
+            o -= 0x10000
+            out.append("\\u%04x\\u%04x" % (0xD800 + (o >> 10), 0xDC00 + (o & 0x3FF)))
     out.append('"')
     return "".join(out)
 
 
-def _build_spec_view_groups_js() -> bytes:
-    """Build the JS SPEC-array fragment for the restored command-centre view
-    groups. Each row is a [viewid, glyph, label] tuple in the console's native
-    SPEC format, so buildNav() wires onclick=go(viewid) exactly like every
-    built-in tab. The prefix comma + marker comment splice the groups in after
-    the last built-in SPEC group. The "verticals" overview (go_target set) is
-    skipped: a SPEC tuple would route go('verticals'), which is not a registered
-    VIEWS key -> a dead tab. Every id emitted is confirmed in the VIEWS registry.
-    0 CDN, 0 <script>, 0 codenames (labels are the views' honest titles)."""
+def _build_spec_groups_js() -> bytes:
+    """Build the JS SPEC-array fragment for the restored command-centre groups.
+    View groups emit 3-tuples ([id,glyph,label] -> go(id)); the ops-surface
+    group emits 4-tuples ([id,glyph,label,href] -> location.href=href), exactly
+    like the console's own willay/verify/assurance page-links. The prefix comma
+    + marker comment splice the groups in after the last built-in SPEC group.
+    0 CDN, 0 <script>, 0 codenames (labels are the surfaces' honest titles)."""
     groups_js: List[str] = []
+    # (1) in-app VIEW groups -> 3-tuples
     for group_label, items in _VIEW_GROUPS:
-        rows: List[str] = []
-        for viewid, ico, label, go_target, _dom_id in items:
-            if go_target:  # overview alias -> would be a dead SPEC tab; skip
-                continue
-            rows.append("      [%s,%s,%s]"
-                        % (_js_str(viewid), _js_str(ico), _js_str(label)))
+        rows = ["      [%s,%s,%s]" % (_js_str(v), _js_str(i), _js_str(l))
+                for v, i, l in items]
         groups_js.append("    [%s, [\n%s\n    ]]"
                          % (_js_str(group_label), ",\n".join(rows)))
-    frag = (",\n    /* qa12-nav: command-centre view-tabs restored into SPEC */\n"
+    # (2) ops-surface PAGE-LINK group -> 4-tuples (id derived from the path)
+    prows = ["      [%s,%s,%s,%s]"
+             % (_js_str(path.lstrip("/")), _js_str(ico), _js_str(label), _js_str(path))
+             for path, ico, label in _SURFACES]
+    groups_js.append("    [%s, [\n%s\n    ]]"
+                     % (_js_str(_PAGE_GROUP_LABEL), ",\n".join(prows)))
+    frag = (",\n    /* qa12-nav: command-centre view-tabs + ops surfaces restored into SPEC */\n"
             + ",\n".join(groups_js))
     return frag.encode("utf-8")
 
@@ -218,13 +167,11 @@ def _build_spec_view_groups_js() -> bytes:
 # Idempotency marker for the related-surfaces cross-link strip.
 _REL_MARKER = b'data-related-surfaces="qa10"'
 
-# Flagship surfaces that get the cross-link strip + the page each strip is hosted
-# on (so we can drop the current page from its own strip).
+# Flagship surfaces that get the cross-link strip. /restraint-bench (the REAL
+# Restraint page) is used, not /restraint (generic shell fallthrough).
 _FLAGSHIP_PATHS = {
     "/nemo", "/autoreview", "/factory", "/constitution",
-    "/energy", "/agent-loop", "/quant", "/grc", "/restraint",  # R5
-    # Command-centre consolidation: Code / Fleet C2 / Living Anatomy join the
-    # flagship cluster so they carry (and appear in) the Related-surfaces strip.
+    "/energy", "/agent-loop", "/quant", "/grc", "/restraint-bench",
     "/code", "/fleet-c2", "/living-anatomy",
 }
 
@@ -232,7 +179,6 @@ _FLAGSHIP_PATHS = {
 def _build_related_strip(current_path: str) -> bytes:
     """A small 'Related surfaces' strip linking the flagship surfaces to each
     other. Inline-styled (0 CDN). Honest labels; the current page is omitted."""
-    links = []
     rel = [
         ("/nemo", "SZL-Nemo"),
         ("/autoreview", "Auto-Review"),
@@ -242,12 +188,12 @@ def _build_related_strip(current_path: str) -> bytes:
         ("/agent-loop", "Agent Loop"),
         ("/quant", "Quant"),
         ("/grc", "GRC"),
-        ("/restraint", "Restraint"),  # R5: flagship cluster cross-link
-        # Command-centre consolidation cross-links.
+        ("/restraint-bench", "Restraint"),
         ("/code", "Code"),
         ("/fleet-c2", "Fleet C2"),
         ("/living-anatomy", "Living Anatomy"),
     ]
+    links = []
     for path, label in rel:
         if path == current_path:
             continue
@@ -271,8 +217,7 @@ def _make_injector():
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import Response
 
-    nav_block = _build_nav_block()
-    spec_view_js = _build_spec_view_groups_js()
+    spec_groups_js = _build_spec_groups_js()
 
     class _NavWireupInjector(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
@@ -292,44 +237,31 @@ def _make_injector():
                 async for chunk in resp.body_iterator:
                     body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
 
-                changed = False
-
-                # (1) Nav-group injection — only on pages that carry the console
-                #     sidebar markup. Idempotent via _NAV_MARKER.
-                if _NAV_MARKER not in body:
-                    if _FOOT_ANCHOR in body:
-                        body = body.replace(_FOOT_ANCHOR, nav_block + _FOOT_ANCHOR, 1)
-                        changed = True
-                    elif _GROUP_ANCHOR in body:
-                        # No footer found but a nav exists -> append after the
-                        # first nav-group so the new group still lands in the nav.
-                        body = body.replace(_GROUP_ANCHOR, _GROUP_ANCHOR + nav_block, 1)
-                        changed = True
-
-                # (1b) Restore the command-centre view-tabs (verticals / research
-                #      / formulas) by splicing them into the SPA's SPEC array, so
-                #      the console's own buildNav() renders them natively and they
-                #      survive its nav rebuild + MutationObserver (static DOM does
-                #      not). Idempotent via _SPEC_MARKER. Only touches pages that
-                #      carry the SPEC array (the /console command centre).
+                # (1) Splice the command-centre view-tabs + ops-surface page-links
+                #     into the SPA's SPEC array so buildNav() renders them natively
+                #     and they survive its nav rebuild + MutationObserver (static
+                #     DOM does not). Idempotent via _SPEC_MARKER.
                 if _SPEC_MARKER not in body and _SPEC_ANCHOR in body:
                     body = body.replace(
                         _SPEC_ANCHOR,
-                        b"]]" + spec_view_js + b"\n  ];\n\n  function buildNav(){",
+                        b"]]" + spec_groups_js + b"\n  ];\n\n  function buildNav(){",
                         1,
                     )
-                    changed = True
 
-                # (2) Related-surfaces strip — only on the flagship pages, and
-                #     only if not already present. Idempotent via _REL_MARKER.
+                # (2) Repoint the previously-dead 'frontier' built-in tab to the
+                #     real /frontier page. Naturally idempotent (the old 3-tuple is
+                #     gone after the replace; the source re-supplies it each request).
+                if _FRONTIER_OLD in body:
+                    body = body.replace(_FRONTIER_OLD, _FRONTIER_NEW, 1)
+
+                # (3) Related-surfaces cross-link strip on flagship pages. Idempotent.
                 if p in _FLAGSHIP_PATHS and _REL_MARKER not in body and b"</body>" in body:
                     body = body.replace(b"</body>", _build_related_strip(p) + b"</body>", 1)
-                    changed = True
 
-                # NOTE: body_iterator was fully consumed above, so we MUST
-                # rebuild the Response from the buffered bytes even when unchanged.
-                # Returning the original (exhausted) resp here emitted an EMPTY body
-                # downstream -> white-screen on / and other doc pages.
+                # body_iterator was fully consumed above, so we MUST rebuild the
+                # Response from the buffered bytes even when unchanged. Returning
+                # the original (exhausted) resp would emit an EMPTY body -> white
+                # screen on doc pages.
                 headers = dict(resp.headers)
                 headers.pop("content-length", None)
                 return Response(content=body, status_code=resp.status_code,
@@ -340,17 +272,16 @@ def _make_injector():
     return _NavWireupInjector
 
 
-# R5: where the console web assets live (matches serve.py _PTG_WEB).
+# Where the console web assets live (matches serve.py _PTG_WEB).
 _WEB_DIR = "/app/web"
 _RESTRAINT_HTML = "restraint.html"
 
 
 def _register_restraint_bench(app) -> List[str]:
-    """R5: register a REAL /restraint-bench route. Previously /restraint-bench only
-    fell through to the SPA catch-all; this serves the Restraint page (which hosts
-    the two-arm benchmark section, id="bench") directly via FileResponse so the nav
-    item resolves to a real 200 document. ADDITIVE + idempotent: if the route is
-    already present (re-run / another lane) we do NOT add a duplicate."""
+    """Register a REAL /restraint-bench route serving the Restraint page (which
+    hosts the frugality content + the two-arm benchmark, id="bench") directly via
+    FileResponse, so the nav item resolves to a real 200 document instead of the
+    SPA catch-all. ADDITIVE + idempotent: skip if the route already exists."""
     out: List[str] = []
     try:
         existing = {getattr(r, "path", None) for r in getattr(app, "routes", [])}
@@ -362,52 +293,48 @@ def _register_restraint_bench(app) -> List[str]:
     from starlette.responses import FileResponse, RedirectResponse
 
     async def _restraint_bench(request):
-        # Serve the Restraint page (it carries the live two-arm benchmark UI). If
-        # the asset is missing for any reason, redirect to /restraint rather than
-        # 404 — never breaks the nav link.
         fp = os.path.join(_WEB_DIR, _RESTRAINT_HTML)
         if os.path.isfile(fp):
             return FileResponse(fp, media_type="text/html")
         return RedirectResponse(url="/restraint")
 
-    # Insert at position 0 so it resolves BEFORE the SPA/proxy catch-all.
     try:
         from starlette.routing import Route
         app.router.routes.insert(0, Route("/restraint-bench", _restraint_bench, methods=["GET"]))
         out.append("GET /restraint-bench (FileResponse restraint.html)")
     except Exception:
-        # Fallback to the standard registration path.
         app.add_api_route("/restraint-bench", _restraint_bench, methods=["GET"])
         out.append("GET /restraint-bench (api_route)")
     return out
 
 
 def register(app, ns: str = "a11oy") -> Dict[str, Any]:
-    """Attach the idempotent nav-wireup injector + register the real /restraint-bench
-    route (R5). ADDITIVE; the injector only injects honest nav markup into HTML
-    responses and removes nothing. try/except-guarded by the caller."""
+    """Attach the idempotent nav-wireup injector + register the real
+    /restraint-bench route. ADDITIVE; the injector only transforms HTML responses
+    (SPEC splice + frontier repoint + cross-link strip) and removes nothing."""
     registered: List[str] = []
-    # R5: ensure /restraint-bench resolves to a real document (was SPA fallback).
     try:
         registered.extend(_register_restraint_bench(app))
     except Exception:
         pass
     app.add_middleware(_make_injector())
-    registered.append("MIDDLEWARE nav-wireup injector (QA10 surfaces + SPEC view-tabs)")
+    registered.append("MIDDLEWARE nav-wireup injector (SPEC view-tabs + ops page-links + frontier fix)")
     return {
         "registered": registered,
         "count": len(registered),
-        "capability": "Nav Wire-Up (QA10 surfaces + SPEC view-tabs)",
+        "capability": "Command-centre nav consolidation (real views + ops surfaces)",
         "surfaces": [p for p, _, _ in _SURFACES],
-        "views": [v for _, items in _VIEW_GROUPS for v, _, _, _, _ in items],
+        "views": [v for _, items in _VIEW_GROUPS for v, _, _ in items],
         "data_label": "NAV",
     }
 
 
 # ---------------------------------------------------------------------------
 # Self-test: builds a synthetic console + a flagship page, runs the injector
-# twice, asserts the nav group + every surface link appear EXACTLY ONCE, that
-# the related strip is idempotent, and that NO original markup was removed.
+# twice, and asserts: SPEC view-tabs + ops page-links spliced once (idempotent),
+# the dead 'frontier' tab repointed to /frontier, the cross-link strip is
+# idempotent + omits the current page, native SPEC/buildNav + original markup
+# untouched, and no CDN / no <script> injected.
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     from starlette.applications import Starlette
@@ -416,18 +343,22 @@ if __name__ == "__main__":
     from starlette.testclient import TestClient
 
     SAMPLE_CONSOLE = (
-        '<html><body><aside>'
+        '<html><body><aside class="side">'
+        '<div class="brand">brand</div>'
         '<div class="nav-group">Operate</div>'
         '<div class="nav-item" data-view="govern" onclick="go(\'govern\')">'
         '<span class="ico">\u2713</span>Readiness &amp; Compliance</div>'
         '<div class="side-foot">footer</div>'
         '</aside>'
         # Minimal SPEC + buildNav mirroring the real console so the SPEC splice
-        # is exercised. Glyphs are literal \\uXXXX escapes exactly as the console
-        # ships them, and the closing "]]\\n  ];\\n\\n  function buildNav(){" is
-        # byte-identical to the real _SPEC_ANCHOR.
+        # and the frontier repoint are exercised. The closing
+        # "]]\\n  ];\\n\\n  function buildNav(){" is byte-identical to _SPEC_ANCHOR.
         '<script>\n'
         '  var SPEC = [\n'
+        '    ["Prove", [\n'
+        '      ["arena","\\u229c","Eval Arena"],\n'
+        '      ["frontier","\\u25c8","Frontier Pipeline"]\n'
+        '    ]],\n'
         '    ["Models & Tools", [\n'
         '      ["mcp","\\u2699","Agent Tools"]\n'
         '    ]]\n'
@@ -451,90 +382,76 @@ if __name__ == "__main__":
 
     app = Starlette(routes=[Route("/console", _console), Route("/nemo", _nemo),
                             Route("/restraint", _restraint)])
-    # R5: /restraint-bench route registration must be idempotent. Exercise the
-    # route-registration helper directly twice BEFORE the app starts (add_middleware
-    # cannot run after start), so we can assert no duplicate route is added.
+    # /restraint-bench route registration must be idempotent.
     rb_first = _register_restraint_bench(app)
     assert any("/restraint-bench" in r for r in rb_first), rb_first
     rb_second = _register_restraint_bench(app)
     assert any("already registered" in r for r in rb_second), rb_second
     bench_routes = [r for r in app.router.routes if getattr(r, "path", None) == "/restraint-bench"]
     assert len(bench_routes) == 1, "/restraint-bench must be registered exactly once"
-    # now attach the injector (register() also calls _register_restraint_bench, which
-    # will no-op since the route now exists).
     st = register(app, ns="a11oy")
     assert any("already registered" in r for r in st["registered"]), st["registered"]
     c = TestClient(app)
-    # R5: /restraint-bench resolves (FileResponse missing in test -> redirect to /restraint)
+    # /restraint-bench resolves (FileResponse missing in test -> redirect to /restraint)
     rb = c.get("/restraint-bench")
     assert rb.status_code == 200 and "Restraint" in rb.text, (rb.status_code, rb.text[:120])
 
     h1 = c.get("/console").text
     h2 = c.get("/console").text  # second hit must be byte-identical (idempotent)
-    assert h1.count('data-nav-wireup="qa10"') == h2.count('data-nav-wireup="qa10"'), "nav must be idempotent"
-    # one group marker + one marker per surface item == 1 + 8 == 9
-    assert h1.count('data-nav-wireup="qa10"') == 1 + len(_SURFACES), "expected group + one item per surface"
-    for path, _, _ in _SURFACES:
-        assert ("location.href='%s'" % path) in h1, "missing nav link for %s" % path
-    assert "Sovereign &amp; Agentic Core (NEW)" in h1, "missing nav group label"
 
-    # QA12 SPEC view-tabs: the view groups are spliced into the SPA's SPEC array
-    # (so buildNav() renders them natively and they survive its rebuild). Marker
-    # is embedded once; splice is idempotent; every registered view id appears as
-    # a native SPEC tuple; the 'verticals' overview alias is dropped (no dead tab).
-    assert h1.count("qa12-nav") == h2.count("qa12-nav"), "SPEC splice must be idempotent"
+    # --- SPEC splice: exactly once, idempotent ---
     assert h1.count("qa12-nav") == 1, "SPEC groups must be spliced in exactly once"
-    _view_items = sum(1 for _, items in _VIEW_GROUPS
-                      for _v, _i, _l, gt, _d in items if not gt)
+    assert h1.count("qa12-nav") == h2.count("qa12-nav"), "SPEC splice must be idempotent"
+
+    # --- every VIEW group + 3-tuple tab present ---
     for group_label, items in _VIEW_GROUPS:
-        assert ("[%s, [" % _js_str(group_label)) in h1, \
-            "missing SPEC group %s" % group_label
-        for viewid, _ico, _label, go_target, _domid in items:
-            if go_target:  # overview alias intentionally skipped
-                assert ('["%s"' % viewid) not in h1, \
-                    "overview alias %s must NOT be a SPEC tab" % viewid
-                continue
-            assert ("[%s," % _js_str(viewid)) in h1, \
-                "missing SPEC tab for %s" % viewid
-    # honest labels present in the spliced SPEC
+        assert ("[%s, [" % _js_str(group_label)) in h1, "missing SPEC group %s" % group_label
+        for viewid, _ico, _label in items:
+            assert ("[%s," % _js_str(viewid)) in h1, "missing SPEC tab %s" % viewid
     assert "Neuroplasticity" in h1 and "Allodial AI" in h1 and "Chain of Title" in h1, \
         "expected honest view labels present"
-    # the native SPEC + buildNav must be intact and the array still well-formed
+
+    # --- ops-surface PAGE-LINK group: every surface present as a real href 4-tuple ---
+    assert ("[%s, [" % _js_str(_PAGE_GROUP_LABEL)) in h1, "missing ops-surface group"
+    for path, _ico, _label in _SURFACES:
+        assert (_js_str(path)) in h1, "missing ops page-link href %s" % path
+    # excluded bandaid paths must NOT be wired
+    assert '"/sapa"' not in h1, "/sapa (no real page) must not be wired"
+    assert '"/restraint"]' not in h1 and '"/restraint",' not in h1, \
+        "/restraint (generic shell fallthrough) must not be wired"
+
+    # --- dead 'frontier' tab repointed to the real /frontier page ---
+    assert '["frontier","\\u25c8","SZL Frontier","/frontier"]' in h1, \
+        "frontier must repoint to the real /frontier page"
+    assert '["frontier","\\u25c8","Frontier Pipeline"]' not in h1, \
+        "the dead frontier 3-tuple must be gone"
+
+    # --- native SPEC + buildNav + original markup intact ---
     assert "function buildNav(){" in h1, "buildNav must remain intact"
     assert '["mcp","\\u2699","Agent Tools"]' in h1, "native SPEC group must be preserved"
-    # additive: original nav/foot markup untouched
     assert "Readiness &amp; Compliance" in h1, "must NOT remove existing nav items"
     assert "Operate</div>" in h1, "must NOT remove existing nav group"
     assert "footer</div>" in h1, "must NOT remove footer"
     assert h1 == h2, "second render must be byte-identical (idempotent)"
 
+    # --- related-surfaces cross-link strip (flagship page) ---
     n1 = c.get("/nemo").text
     n2 = c.get("/nemo").text
     assert n1.count('data-related-surfaces="qa10"') == 1, "related strip must inject once"
     assert n2.count('data-related-surfaces="qa10"') == 1, "related strip must be idempotent"
-    assert "SZL-Nemo" in n1 and "/autoreview" in n1, "related strip must cross-link surfaces"
-    assert "/restraint" in n1, "related strip must cross-link Restraint (R5 flagship cluster)"
-    # R5: Restraint appears in the console nav group + the /restraint page gets the strip
-    assert "location.href='/restraint'" in h1, "nav must link /restraint"
-    assert "location.href='/restraint-bench'" in h1, "nav must link /restraint-bench"
-    r1 = c.get("/restraint").text
-    assert r1.count('data-related-surfaces="qa10"') == 1, "/restraint is a flagship -> gets cross-link strip"
-    assert "/restraint" not in r1.split('data-related-surfaces="qa10"')[1].split("</nav>")[0], \
-        "strip must omit current page (/restraint)"
+    assert "Auto-Review" in n1 and "/autoreview" in n1, "strip must cross-link surfaces"
+    assert "/restraint-bench" in n1, "strip must cross-link the real Restraint page"
     assert "/nemo" not in n1.split('data-related-surfaces="qa10"')[1].split("</nav>")[0], \
         "related strip must omit the current page (/nemo)"
     assert n1 == n2, "second nemo render must be byte-identical"
 
-    # Doctrine guard: the injected markup must be made of plain ASCII labels +
-    # a few named glyphs only (no marketing-prose tokens, no codenames, no CDN).
-    # The banned-token list itself is NOT enumerated here so this module never
-    # trips the doctrine-grep banned-token gate; the external integration test
-    # (qa10/integration_test.py) performs the explicit banned-token assertion.
-    injected = (_build_nav_block().decode() + _build_spec_view_groups_js().decode()
+    # --- doctrine guard: injected markup is 0-CDN + injects no <script> ---
+    injected = (_build_spec_groups_js().decode()
                 + _build_related_strip("/grc").decode()).lower()
     assert "http://" not in injected and "https://" not in injected, "nav markup must be 0-CDN"
     assert "<script" not in injected, "nav markup must inject no script"
 
-    print("a11oy_nav_wireup: ALL OK (nav group + %d surfaces; %d SPEC view-tabs "
-          "in %d groups; idempotent; additive; cross-links; 0 codenames; 0 CDN)"
-          % (len(_SURFACES), _view_items, len(_VIEW_GROUPS)))
+    _view_items = sum(len(items) for _, items in _VIEW_GROUPS)
+    print("a11oy_nav_wireup: ALL OK (%d SPEC view-tabs in %d groups; %d ops page-links; "
+          "frontier repointed; idempotent; additive; cross-links; 0 codenames; 0 CDN)"
+          % (_view_items, len(_VIEW_GROUPS), len(_SURFACES)))
