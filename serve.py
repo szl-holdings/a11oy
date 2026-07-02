@@ -9097,6 +9097,65 @@ async def command_console_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# --- Broken top-level routes repaired (2026-07-02) ---------------------------
+# These paths are linked from the landing / cathedral / sibling pages but had NO
+# explicit server route, so they fell through to the SPA /{full_path:path}
+# catch-all and served index.html — a STRIPPED shell where window.VIEWS and
+# window.go are undefined and NONE of the console tabs work (this is the exact
+# "the command centre tab brings me to a11oy where none of the tabs work" bug).
+# Each now maps to its REAL destination. Registered BEFORE the SPA catch-all so
+# they win the ordered match. ADDITIVE — no existing route touched.
+
+# /command + /command-center: the "command centre" IS the console. Old links /
+# bookmarks landed on the dead SPA shell; 307 to the real, working /console.
+async def _command_center_redirect() -> Response:
+    return _PTG_Redirect(url="/console", status_code=307)
+
+
+for _cc_path in ("/command", "/command-center"):
+    app.add_api_route(_cc_path, _command_center_redirect, methods=["GET"], include_in_schema=False)
+
+
+# /pinn — Physical-Bounds Certifier surface (distinct from /pinn-console).
+# Served from pages/pinn.html (COPYed wholesale by `COPY pages/ ./pages/`).
+@app.get("/pinn")
+async def pinn_bounds_page() -> Response:
+    f = PAGES_DIR / "pinn.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# /pnt — Quantum Navigation surface. Served from pages/pnt.html (wholesale COPY).
+@app.get("/pnt")
+async def pnt_nav_page() -> Response:
+    f = PAGES_DIR / "pnt.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+# /elite — the landing links this as "counter-UAS". The dedicated Elite Console
+# page (web/elite_console.html) is NOT resident on the HF Docker Space, so adding
+# a Dockerfile COPY for it would fail the flagship Space build (missing COPY
+# source is a hard build error). Redirect to the REAL, working Counter-UAS page.
+async def _elite_redirect() -> Response:
+    return _PTG_Redirect(url="/counter-uas", status_code=307)
+
+
+app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
+
+
+# /estate-hologram — Unified Estate Hologram. web/estate-hologram.html is already
+# baked (Dockerfile COPY) but lacked a route -> soft-404'd to the SPA shell.
+@app.get("/estate-hologram")
+async def estate_hologram_page() -> Response:
+    f = Path("/app/web/estate-hologram.html")
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 # INVESTOR-WOW deep-link entry path (2026-06-18). The "Ungoverned vs a11oy"
 # demo is the console SPA view V.wowtoggle, reachable today via the left-nav
 # but NOT via its obvious top-level URLs: /ungoverned, /ungoverned-vs-a11oy,
