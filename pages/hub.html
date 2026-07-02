@@ -1,41 +1,217 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>a11oy · Hub — everything, one place</title>
+<title>a11oy · Hub — the single front door</title>
 <!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v12 additive · Signed: Yachay · Co-author: Perplexity Computer Agent -->
 <style>
-:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;}
+:root{--bg:#0a0b10;--panel:#12141d;--panel2:#171a25;--ink:#e8eaf0;--mut:#9aa0b4;--gold:#d9b35c;--line:#252938;--grn:#3fb950;--amb:#d29922;--red:#f85149;--blu:#58a6ff;}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
 header{border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#10121b,#0a0b10)}
 header .brand{font-weight:700;letter-spacing:.5px;color:var(--gold);font-size:18px}
 header .tag{color:var(--mut);font-size:12px}
+header .spacer{flex:1}
+.kbtn{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;color:var(--mut);font-size:13px;cursor:pointer}
+.kbtn:hover{border-color:var(--gold);color:var(--gold)}
+.kbtn .kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px;color:var(--ink)}
 nav{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
 nav a{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
 nav a:hover{border-color:var(--gold);color:var(--gold);text-decoration:none}
 nav a.active{background:var(--gold);color:#0a0b10;border-color:var(--gold);font-weight:600}
-main{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
-h1{font-size:26px;margin:0 0 4px;color:#fff}h2{font-size:18px;margin:28px 0 10px;color:var(--gold)}
-.sub{color:var(--mut);margin:0 0 18px;font-size:13.5px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:16px 0}
-.grid a.tile{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink)}
+main{max-width:1080px;margin:0 auto;padding:26px 22px 60px}
+h1{font-size:26px;margin:0 0 4px;color:#fff}h2{font-size:16px;margin:30px 0 12px;color:var(--gold);letter-spacing:.3px}
+.sub{color:var(--mut);margin:0 0 4px;font-size:13.5px}
+/* health ribbon */
+.ribbon{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0 8px}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;position:relative;overflow:hidden}
+.chip .lbl{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.chip .val{font-size:21px;font-weight:700;color:#fff;line-height:1.1}
+.chip .foot{color:var(--mut);font-size:11.5px;margin-top:3px}
+.chip .bar{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--mut)}
+.chip.g .bar{background:var(--grn)}.chip.a .bar{background:var(--amb)}.chip.r .bar{background:var(--red)}.chip.g .val{color:var(--grn)}.chip.a .val{color:var(--amb)}.chip.r .val{color:var(--red)}
+/* launcher */
+.launch{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:14px;margin:14px 0}
+.launch a{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 17px;color:var(--ink);transition:border-color .12s,transform .12s}
+.launch a:hover{border-color:var(--gold);text-decoration:none;transform:translateY(-2px)}
+.launch .row{display:flex;align-items:center;gap:9px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mut);flex:0 0 auto;box-shadow:0 0 0 3px rgba(255,255,255,.03)}
+.dot.g{background:var(--grn);box-shadow:0 0 8px rgba(63,185,80,.6)}.dot.a{background:var(--amb)}.dot.r{background:var(--red)}
+.launch .t{color:#fff;font-weight:600;font-size:15px}
+.launch .d{color:var(--mut);font-size:12.5px;margin-top:7px}
+/* tabs grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin:12px 0}
+.grid a.tile{display:block;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 15px;color:var(--ink)}
 .grid a.tile:hover{border-color:var(--gold);text-decoration:none}
-.grid a.tile .t{color:var(--gold);font-weight:600;margin-bottom:4px}.grid a.tile .d{color:var(--mut);font-size:12.5px}
-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
-pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;color:#cdd3e3}
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
-.g{background:rgba(63,185,80,.15);color:var(--grn)}.a{background:rgba(210,153,34,.15);color:var(--amb)}.r{background:rgba(248,81,73,.15);color:var(--red)}.n{background:#1c2030;color:var(--mut)}
-.note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
-footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
-.kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
+.grid a.tile .row{display:flex;align-items:center;gap:8px}
+.grid a.tile .t{color:var(--gold);font-weight:600;font-size:13.5px}.grid a.tile .d{color:var(--mut);font-size:12px;margin-top:4px}
+.note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:16px 0;border-radius:0 8px 8px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7;margin-top:30px}
+/* command palette */
+.pal-wrap{position:fixed;inset:0;background:rgba(4,5,9,.66);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;z-index:99}
+.pal-wrap.on{display:flex}
+.pal{width:min(680px,92vw);margin-top:11vh;background:var(--panel);border:1px solid var(--line);border-radius:15px;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden}
+.pal input{width:100%;border:0;background:transparent;color:var(--ink);font-size:17px;padding:17px 19px;outline:none;border-bottom:1px solid var(--line)}
+.pal input::placeholder{color:var(--mut)}
+.pal .results{max-height:56vh;overflow:auto;padding:7px}
+.pal .grp{color:var(--mut);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;padding:9px 12px 4px}
+.pal .item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;cursor:pointer}
+.pal .item.sel{background:var(--panel2)}
+.pal .item .ic{width:22px;text-align:center;color:var(--gold);font-size:14px;flex:0 0 auto}
+.pal .item .nm{color:var(--ink);font-size:14px}
+.pal .item .ds{color:var(--mut);font-size:12px;margin-left:auto;padding-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44%}
+.pal .item .tagp{font-size:10.5px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-left:8px}
+.pal .empty{color:var(--mut);padding:22px;text-align:center;font-size:13.5px}
+.pal .foot{display:flex;gap:16px;color:var(--mut);font-size:11.5px;padding:9px 15px;border-top:1px solid var(--line);background:var(--panel2)}
+.pal .foot .kbd{background:#1c2030;border:1px solid var(--line);border-radius:5px;padding:0 6px;font-family:ui-monospace,monospace}
+.muted{color:var(--mut)}
 </style></head><body>
-<header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
-<nav><a href="/hub" class="active">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
-<main><h1>Hub — everything, one place</h1><p class="sub">The founder's single front door. Every cross-cutting concern produced across the SZL stack has a tab here.</p>
-<div class="note">Open <a href="/a11oy.code">/a11oy.code</a> to talk to the orchestrator, or <a href="/audit">/audit</a> to walk the Khipu DAG across all flagships — the live receipt graph behind every claim.</div><h2>All tabs</h2><div class="grid"><a class="tile" href="/a11oy.code"><div class="t">a11oy.code</div><div class="d"></div></a><a class="tile" href="/docs"><div class="t">Docs</div><div class="d"></div></a><a class="tile" href="/pricing"><div class="t">Pricing</div><div class="d"></div></a><a class="tile" href="/api-keys"><div class="t">API Keys</div><div class="d"></div></a><a class="tile" href="/sdk"><div class="t">SDK</div><div class="d"></div></a><a class="tile" href="/status"><div class="t">Status</div><div class="d"></div></a><a class="tile" href="/observability"><div class="t">Observability</div><div class="d"></div></a><a class="tile" href="/security"><div class="t">Security</div><div class="d"></div></a><a class="tile" href="/compliance"><div class="t">Compliance</div><div class="d"></div></a><a class="tile" href="/cued-engagement"><div class="t">Cued Engagement</div><div class="d"></div></a><a class="tile" href="/uds"><div class="t">UDS</div><div class="d"></div></a><a class="tile" href="/counter-uas"><div class="t">Counter-UAS</div><div class="d"></div></a><a class="tile" href="/evidence"><div class="t">Evidence</div><div class="d"></div></a><a class="tile" href="/upgrades"><div class="t">Upgrades</div><div class="d"></div></a><a class="tile" href="/audit"><div class="t">Audit</div><div class="d"></div></a><a class="tile" href="/gap-report"><div class="t">Gap Report</div><div class="d"></div></a></div><h2>Machine-readable</h2><p>The full tab manifest is available as JSON at <a href="/api/a11oy/v1/hub/manifest"><code>/api/a11oy/v1/hub/manifest</code></a> (Khipu-receipted).</p>
+<header>
+  <span class="brand">a11oy</span>
+  <span class="tag">Brand Orchestration Layer · single front door</span>
+  <span class="spacer"></span>
+  <button class="kbtn" id="palBtn">Search everything <span class="kbd">⌘K</span></button>
+</header>
+<nav><a href="/hub" class="active">Hub</a><a href="/console">Console</a><a href="/cockpit">Cockpit</a><a href="/console#organism">Organism</a><a href="/a11oy.code">a11oy.code</a><a href="/energy">Energy</a><a href="/audit">Audit</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/security">Security</a><a href="/compliance">Compliance</a></nav>
+<main>
+  <h1>Hub</h1>
+  <p class="sub">One place to see the whole organism and jump anywhere. Every number below is a live read — no figure is shown unless the source answered.</p>
+
+  <div class="ribbon" id="ribbon">
+    <div class="chip" id="ch-organs"><div class="bar"></div><div class="lbl">Organs</div><div class="val">…</div><div class="foot">reading engine</div></div>
+    <div class="chip" id="ch-mind"><div class="bar"></div><div class="lbl">Mind</div><div class="val">…</div><div class="foot">orchestrator</div></div>
+    <div class="chip" id="ch-spine"><div class="bar"></div><div class="lbl">Spine · federated tools</div><div class="val">…</div><div class="foot">reading MCP</div></div>
+    <div class="chip" id="ch-const"><div class="bar"></div><div class="lbl">Constellation</div><div class="val">…</div><div class="foot">surfaces reachable</div></div>
+    <div class="chip" id="ch-doc"><div class="bar"></div><div class="lbl">Doctrine</div><div class="val">…</div><div class="foot">constitutional lock</div></div>
+  </div>
+
+  <h2>Operate</h2>
+  <div class="launch" id="launch"></div>
+
+  <h2>All surfaces</h2>
+  <p class="sub">Live tab manifest — each carries its own honest status. <span class="muted">Press <span class="kbd" style="border:1px solid var(--line);border-radius:5px;padding:0 6px;font-family:ui-monospace,monospace">⌘K</span> to fuzzy-jump to any surface or federated tool.</span></p>
+  <div class="grid" id="tabs"><p class="muted">Loading manifest…</p></div>
+
+  <div class="note">Machine-readable: the tab manifest is JSON at <a href="/api/a11oy/v1/hub/manifest"><code>/api/a11oy/v1/hub/manifest</code></a>, the federated tools at <a href="/api/a11oy/v1/spine"><code>/api/a11oy/v1/spine</code></a>, and the full organism health at <a href="/api/a11oy/v1/engine/status"><code>/api/a11oy/v1/engine/status</code></a> — all Khipu-receipted.</div>
 </main>
+
+<div class="pal-wrap" id="palWrap">
+  <div class="pal" role="dialog" aria-label="Command palette">
+    <input id="palInput" placeholder="Jump to a surface, organ, or federated tool…" autocomplete="off" spellcheck="false">
+    <div class="results" id="palResults"></div>
+    <div class="foot"><span><span class="kbd">↑</span> <span class="kbd">↓</span> navigate</span><span><span class="kbd">↵</span> open</span><span><span class="kbd">esc</span> close</span><span class="spacer" style="margin-left:auto">Powered by the live spine</span></div>
+  </div>
+</div>
+
 <footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
+
+<script>
+const $=s=>document.querySelector(s);
+async function getJSON(u){const c=new AbortController();const t=setTimeout(()=>c.abort(),9000);try{const r=await fetch(u,{signal:c.signal});clearTimeout(t);if(!r.ok)throw new Error(r.status);return await r.json();}catch(e){clearTimeout(t);return null;}}
+function setChip(id,cls,val,foot){const el=$(id);if(!el)return;el.className='chip '+cls;el.querySelector('.val').textContent=val;if(foot!=null)el.querySelector('.foot').textContent=foot;}
+
+// ---- curated primary surfaces (always present; local to this app) ----
+const SURFACES=[
+ {name:'Console',route:'/console',ic:'▤',desc:'Operator console — organism, anatomy map, controls'},
+ {name:'Cockpit',route:'/cockpit',ic:'✦',desc:'Live command cockpit — spine, constellation, engine'},
+ {name:'Organism',route:'/console#organism',ic:'❋',desc:'The mind + six organs, rendered'},
+ {name:'a11oy.code',route:'/a11oy.code',ic:'⌘',desc:'Talk to the orchestrator'},
+ {name:'Energy',route:'/energy',ic:'⚡',desc:'Sovereign-compute energy instrumentation'},
+ {name:'Audit',route:'/audit',ic:'⛓',desc:'Walk the Khipu DAG — receipts behind every claim'},
+ {name:'Docs',route:'/docs',ic:'▦',desc:'Documentation'},
+ {name:'Pricing',route:'/pricing',ic:'◈',desc:'Pricing'},
+ {name:'API Keys',route:'/api-keys',ic:'⚿',desc:'API keys'},
+ {name:'SDK',route:'/sdk',ic:'◇',desc:'SDK'},
+ {name:'Status',route:'/status',ic:'◉',desc:'Status'},
+ {name:'Security',route:'/security',ic:'⛨',desc:'Security posture'},
+ {name:'Compliance',route:'/compliance',ic:'§',desc:'Compliance'},
+ {name:'Observability',route:'/observability',ic:'◎',desc:'Observability'}
+];
+// launcher = the six operator entries Rosa asked route to
+const LAUNCH=['Console','Cockpit','Organism','a11oy.code','Energy','Audit'];
+
+let PAL_INDEX=[]; // {name,route,ic,desc,group,tag,ext}
+
+function renderLaunch(engine,spine){
+  const health={};
+  if(engine){health['Console']=engine.mind&&engine.mind.status==='ok'?'g':'a';
+    health['Organism']=(engine.organs_healthy===engine.organs_total)?'g':(engine.organs_healthy>0?'a':'r');
+    health['Energy']=engine.energy&&engine.energy.status==='ok'?'g':'a';}
+  health['Cockpit']='g';health['a11oy.code']='g';health['Audit']='g';
+  const sub={Spine:spine?(spine.tool_count+' tools'):''};
+  const html=LAUNCH.map(n=>{const s=SURFACES.find(x=>x.name===n);const d=health[n]||'g';
+    return `<a href="${s.route}"><div class="row"><span class="dot ${d}"></span><span class="t">${s.name}</span></div><div class="d">${s.desc}</div></a>`;}).join('');
+  $('#launch').innerHTML=html;
+}
+function renderTabs(man){
+  const t=(man&&man.tabs)||[];
+  if(!t.length){$('#tabs').innerHTML='<p class="muted">Manifest unreachable.</p>';return;}
+  const cls=s=>s==='GREEN'?'g':(s==='AMBER'?'a':(s==='RED'?'r':''));
+  $('#tabs').innerHTML=t.map(x=>`<a class="tile" href="${x.route}"><div class="row"><span class="dot ${cls(x.status)}"></span><span class="t">${x.name||x.route}</span></div><div class="d">${x.purpose||''}</div></a>`).join('');
+}
+function buildIndex(spine,man,con){
+  const idx=[];
+  SURFACES.forEach(s=>idx.push({name:s.name,route:s.route,ic:s.ic,desc:s.desc,group:'Surfaces'}));
+  // 25 federated tools from the live spine — the "make it ours" bit
+  if(spine&&Array.isArray(spine.tools)){spine.tools.forEach(t=>{const p=t.product||t.group||'';idx.push({name:t.name||t.tool||String(t),route:'/cockpit',ic:'⚙',desc:(t.description||t.summary||'federated tool'),group:'Federated tools',tag:p});});}
+  // manifest tabs not already curated
+  if(man&&man.tabs){const have=new Set(idx.map(i=>i.route));man.tabs.forEach(x=>{if(!have.has(x.route))idx.push({name:x.name||x.route,route:x.route,ic:'▹',desc:x.purpose||'',group:'Surfaces'});});}
+  // constellation surfaces -> external
+  if(con&&Array.isArray(con.surfaces)){con.surfaces.forEach(s=>{if(s.url)idx.push({name:s.name||'surface',route:s.url,ic:'◱',desc:(s.kind||'')+(s.blurb?(' — '+s.blurb):''),group:'Constellation',tag:s.group,ext:true});});}
+  PAL_INDEX=idx;
+}
+
+// ---- fuzzy match (subsequence + contiguous bonus) ----
+function score(q,s){q=q.toLowerCase();s=s.toLowerCase();if(!q)return 0.1;let qi=0,sc=0,run=0,last=-1;for(let i=0;i<s.length&&qi<q.length;i++){if(s[i]===q[qi]){sc+=1+run*0.6+(i===last+1?1.2:0)+(i===0?1.5:0);run++;last=i;qi++;}else run=0;}return qi===q.length?sc:-1;}
+let selIdx=0,curList=[];
+function renderResults(q){
+  const scored=PAL_INDEX.map(it=>({it,s:Math.max(score(q,it.name),score(q,(it.tag||'')+' '+it.name)*0.8,score(q,it.desc||'')*0.4)})).filter(x=>x.s>=(q?0.5:0)).sort((a,b)=>b.s-a.s).slice(0,q?40:60);
+  curList=scored.map(x=>x.it);selIdx=0;
+  if(!curList.length){$('#palResults').innerHTML='<div class="empty">No match. Try “console”, “spine”, “energy”, or a tool name.</div>';return;}
+  const groups={};curList.forEach((it,i)=>{(groups[it.group]=groups[it.group]||[]).push({it,i});});
+  let html='';for(const g in groups){html+=`<div class="grp">${g}</div>`;groups[g].forEach(({it,i})=>{html+=`<div class="item${i===selIdx?' sel':''}" data-i="${i}"><span class="ic">${it.ic||'▹'}</span><span class="nm">${it.name}</span>${it.tag?`<span class="tagp">${it.tag}</span>`:''}<span class="ds">${it.desc||''}</span></div>`;});}
+  $('#palResults').innerHTML=html;
+  $('#palResults').querySelectorAll('.item').forEach(el=>{el.onmouseenter=()=>{selIdx=+el.dataset.i;paintSel();};el.onclick=()=>go(curList[+el.dataset.i]);});
+}
+function paintSel(){$('#palResults').querySelectorAll('.item').forEach(el=>el.classList.toggle('sel',+el.dataset.i===selIdx));const s=$('#palResults').querySelector('.item.sel');if(s)s.scrollIntoView({block:'nearest'});}
+function go(it){if(!it)return;if(it.ext){window.open(it.route,'_blank','noopener');}else{window.location.href=it.route;}}
+function openPal(){$('#palWrap').classList.add('on');$('#palInput').value='';renderResults('');$('#palInput').focus();}
+function closePal(){$('#palWrap').classList.remove('on');}
+$('#palBtn').onclick=openPal;
+$('#palWrap').onclick=e=>{if(e.target===$('#palWrap'))closePal();};
+$('#palInput').addEventListener('input',e=>renderResults(e.target.value));
+$('#palInput').addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){e.preventDefault();selIdx=Math.min(selIdx+1,curList.length-1);paintSel();}
+  else if(e.key==='ArrowUp'){e.preventDefault();selIdx=Math.max(selIdx-1,0);paintSel();}
+  else if(e.key==='Enter'){e.preventDefault();go(curList[selIdx]);}
+  else if(e.key==='Escape'){closePal();}
+});
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#palWrap').classList.contains('on')?closePal():openPal();}
+  else if(e.key==='/'&&!/input|textarea/i.test((document.activeElement||{}).tagName||'')&&!$('#palWrap').classList.contains('on')){e.preventDefault();openPal();}
+});
+
+// ---- boot: four live feeds in parallel ----
+(async()=>{
+  const [engine,spine,con,man]=await Promise.all([
+    getJSON('/api/a11oy/v1/engine/status'),
+    getJSON('/api/a11oy/v1/spine'),
+    getJSON('/api/a11oy/v1/constellation'),
+    getJSON('/api/a11oy/v1/hub/manifest')
+  ]);
+  // ribbon
+  if(engine){
+    const oh=engine.organs_healthy,ot=engine.organs_total;
+    setChip('#ch-organs',oh===ot?'g':(oh>0?'a':'r'),(oh!=null?`${oh}/${ot}`:'—'),'healthy organs');
+    const ms=engine.mind&&engine.mind.status;setChip('#ch-mind',ms==='ok'?'g':(ms?'a':'r'),ms?ms.toUpperCase():'—',engine.mind&&engine.mind.reachable?'reachable':'unreachable');
+    const d=engine.doctrine||{};setChip('#ch-doc','g',d.locked!=null?('locked-'+d.locked):'locked',(d.lambda?('Λ '+d.lambda):'')+(d.version?(' · '+d.version):''));
+  }else{setChip('#ch-organs','r','—','engine unreachable');setChip('#ch-mind','r','—','engine unreachable');setChip('#ch-doc','a','—','engine unreachable');}
+  if(spine){setChip('#ch-spine',spine.reachable?'g':'r',String(spine.tool_count),(spine.by_product?Object.entries(spine.by_product).map(([k,v])=>k+':'+v).join(' · '):'federated'));}
+  else setChip('#ch-spine','r','—','MCP unreachable');
+  if(con){setChip('#ch-const',con.reachable===con.total?'g':(con.reachable>0?'a':'r'),`${con.reachable}/${con.total}`,'surfaces reachable');}
+  else setChip('#ch-const','r','—','probe unreachable');
+  renderLaunch(engine,spine);
+  renderTabs(man);
+  buildIndex(spine,man,con);
+})();
+</script>
 </body></html>
