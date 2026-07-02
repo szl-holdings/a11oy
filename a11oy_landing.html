@@ -450,11 +450,11 @@
     <div class="poster" id="body-poster">
       <div class="pulse-ring" aria-hidden="true"></div>
       <h3>The Living Body</h3>
-      <p>A real-time 3D organism wired to the same probes as the console. Loads the anatomy Space
-        in-frame, or open it full-screen.</p>
+      <p>A real-time 3D organism wired to the same probes as the console. Loads a11oy&rsquo;s own
+        living-organism view in-frame, or open it full-screen.</p>
       <div class="cta-row" style="justify-content:center">
         <button class="btn btn-lattice" id="body-load" type="button">Load the body in-frame</button>
-        <a class="btn btn-ghost" href="https://szlholdings-anatomy.hf.space/live-body.html" target="_blank" rel="noopener">Open full-screen →</a>
+        <a class="btn btn-ghost" href="/console#organism" target="_blank" rel="noopener">Open full-screen →</a>
       </div>
     </div>
   </div>
@@ -678,7 +678,7 @@
   if(bl){ bl.addEventListener("click", function(){
     const wrap = $("body-embed");
     const f = document.createElement("iframe");
-    f.src = "https://szlholdings-anatomy.hf.space/live-body.html";
+    f.src = "/console#organism";
     f.title = "a11oy living body — 3D governed organism";
     f.loading = "lazy"; f.referrerPolicy = "no-referrer";
     wrap.innerHTML = ""; wrap.appendChild(f);
