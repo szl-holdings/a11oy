@@ -9344,6 +9344,72 @@ async def command_cockpit_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
+# CONSTELLATION status feed for the cockpit — one honest, org-wide view of the
+# SZL flagship surfaces. Every entry is a REAL HTTP GET probe (2xx/3xx counts as
+# reachable); no status is fabricated and an unreachable surface reports its real
+# http_status (0 on connect/timeout). Results are cached in-process for 30s so
+# the endpoint never fans out on every poll. Surfaces are curated to the ones
+# with a live deployed endpoint (verified 2026-07-02); dead Spaces are omitted
+# rather than listed as permanently-red noise. Registered BEFORE the SPA catch-all.
+_CONSTELLATION_SURFACES = [
+    ("a11oy",       "Orchestrator / Command Center", "https://szlholdings-a11oy.hf.space/"),
+    ("killinchu",   "Counter-UAS application",       "https://szlholdings-killinchu.hf.space/"),
+    ("hatun-mcp",   "Signed MCP gateway (spine)",    "https://szlholdings-hatun-mcp.hf.space/"),
+    ("immune",      "Investor demo",                 "https://szlholdings-immune.hf.space/"),
+    ("yarqa",       "Provenance CFD (showcase)",     "https://szlholdings-yarqa.hf.space/"),
+    ("cathedral",   "Constellation visualization",   "https://szlholdings-cathedral.hf.space/"),
+    ("a-11-oy.com", "Public site",                   "https://a-11-oy.com/"),
+]
+_constellation_cache = {"ts": 0.0, "data": None}
+_CONSTELLATION_TTL = 30.0
+
+
+def _probe_constellation_surface(name: str, kind: str, url: str) -> dict:
+    import urllib.request, urllib.error, ssl, time as _t
+    t0 = _t.monotonic()
+    code = 0
+    try:
+        ctx = ssl.create_default_context()
+        req = urllib.request.Request(url, method="GET",
+                                     headers={"user-agent": "a11oy-cockpit-probe"})
+        with urllib.request.urlopen(req, timeout=6, context=ctx) as r:
+            code = int(getattr(r, "status", 0) or 0)
+    except urllib.error.HTTPError as e:
+        code = int(getattr(e, "code", 0) or 0)
+    except Exception:
+        code = 0
+    return {
+        "name": name, "kind": kind, "url": url,
+        "http_status": code,
+        "reachable": 200 <= code < 400,
+        "latency_ms": int((_t.monotonic() - t0) * 1000),
+    }
+
+
+@app.get("/api/a11oy/v1/constellation")
+async def a11oy_constellation_status() -> Response:
+    import time as _t, datetime as _dt
+    now = _t.monotonic()
+    cached = _constellation_cache["data"]
+    if cached is not None and (now - _constellation_cache["ts"]) < _CONSTELLATION_TTL:
+        return JSONResponse(cached)
+    results = await asyncio.gather(*[
+        asyncio.to_thread(_probe_constellation_surface, n, k, u)
+        for (n, k, u) in _CONSTELLATION_SURFACES
+    ])
+    data = {
+        "schema": "szl.constellation_status/v1",
+        "checked_at": _dt.datetime.utcnow().isoformat() + "Z",
+        "reachable": sum(1 for r in results if r["reachable"]),
+        "total": len(results),
+        "surfaces": results,
+        "note": "each surface is a real HTTP GET probe (2xx/3xx = reachable); no status is fabricated",
+    }
+    _constellation_cache["data"] = data
+    _constellation_cache["ts"] = now
+    return JSONResponse(data)
+
+
 @app.get("/viz")
 async def viz_gallery() -> Response:
     f = VIZ_DIR / "index.html"
