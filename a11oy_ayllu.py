@@ -167,12 +167,26 @@ th{color:var(--teal);font-weight:600}
 .law{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--teal);
 padding:12px 14px;border-radius:6px;color:var(--dim);margin-top:6px;font-size:13px}
 code{color:var(--teal)}
-</style></head><body><main>
-<h1>Ayllu <span id="badge" class="badge">…</span></h1>
+html{scroll-behavior:smooth}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(8,12,20,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.tb-wrap{max-width:900px;margin:0 auto;padding:10px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tb-brand{color:var(--teal);font-weight:800;text-decoration:none;font-size:18px;display:flex;align-items:center;gap:8px}
+.tb-nav{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.tb-nav a{color:var(--dim);text-decoration:none;font-size:13px}
+.tb-nav a:hover{color:var(--fg)}
+.tb-nav a.tb-home{color:#d4a444;font-weight:600}
+section[id]{scroll-margin-top:72px}
+</style></head><body>
+<header class="topbar"><div class="tb-wrap">
+<a class="tb-brand" href="/ayllu">Ayllu <span id="badge" class="badge">…</span></a>
+<nav class="tb-nav"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
+</div></header>
+<main>
+<h1>Ayllu</h1>
 <p class="sub">The AlloyScape tribe, ingested and reborn as a11oy's own agent community —
 <span id="count">?</span> personas, one guarded loop. v__VERSION__</p>
 
-<section class="card">
+<section class="card" id="sec-ask">
   <h2>Ask a persona</h2>
   <div class="row">
     <select id="persona"></select>
@@ -184,7 +198,7 @@ code{color:var(--teal)}
   <div id="askout" class="out"></div>
 </section>
 
-<section class="card">
+<section class="card" id="sec-council">
   <h2>Convene a council</h2>
   <p class="hint">Defaults to 3 core personas; select up to 5 (⌘/Ctrl-click). Fan-out is
   capped to protect cost.</p>
@@ -194,13 +208,13 @@ code{color:var(--teal)}
   <div id="councilout" class="out"></div>
 </section>
 
-<section class="card">
+<section class="card" id="sec-roster">
   <h2>Roster</h2>
   <table id="roster"><thead><tr><th>Persona</th><th>Quechua</th><th>Archetype</th>
   <th>a11oy domain</th><th>Autonomy</th></tr></thead><tbody></tbody></table>
 </section>
 
-<section class="card">
+<section class="card" id="sec-lounge">
   <h2>Lounge <button id="refreshlounge" class="mini">refresh</button></h2>
   <div id="lounge" class="out"></div>
 </section>
