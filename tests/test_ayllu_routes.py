@@ -47,7 +47,13 @@ def test_roster_returns_200_not_query_param_422():
 
 def test_page_and_lounge_are_200():
     c = _client()
-    assert c.get("/ayllu").status_code == 200
+    page = c.get("/ayllu")
+    assert page.status_code == 200
+    # Upgrade guard: the standalone Ayllu space is a first-class surface that
+    # offers a round-trip link back to the a11oy command centre (/console), so
+    # it is reachable both ways — its own space, cleanly linked, not embedded.
+    assert 'href="/console"' in page.text, (
+        "The /ayllu page must link back to the command centre (/console).")
     lr = c.get("/api/a11oy/v1/ayllu/lounge")
     assert lr.status_code == 200
     assert "recent" in lr.json()
