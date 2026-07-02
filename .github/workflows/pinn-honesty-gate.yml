@@ -1,0 +1,39 @@
+name: PINN benchmark honesty gate
+
+# Makes the /benchmark page's public claim TRUE: the shipped PINN artifact
+# "passes the a11oy honesty gate in CI". Pure-stdlib core; the only network use
+# is installing pytest to run the negative-fixture self-test.
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/pinn/results.json'
+      - 'benchmarks/pinn/honesty_guard.py'
+      - 'verifiable-ai/**'
+      - '.github/workflows/pinn-honesty-gate.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'benchmarks/pinn/results.json'
+      - 'benchmarks/pinn/honesty_guard.py'
+      - 'verifiable-ai/**'
+      - '.github/workflows/pinn-honesty-gate.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  honesty-gate:
+    name: PINN artifact is honest (offline; stdlib core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.11'
+      - name: Install pytest (verifiable_ai core is stdlib-only otherwise)
+        run: pip install pytest
+      - name: verifiable-ai honesty core self-test (good path on the REAL artifact + overclaim negative fixtures)
+        run: pytest verifiable-ai/tests/ -q
+      - name: Honesty gate - the shipped PINN benchmark artifact must not overclaim
+        run: python3 benchmarks/pinn/honesty_guard.py benchmarks/pinn/results.json
