@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<!--
+  a11oy Command Cockpit — a single-screen LIVE health cockpit for the whole
+  organism. 0 runtime CDN, 0 build step, pure inline CSS/JS (doctrine: no
+  fabricated data). It reads ONE real aggregate feed:
+
+      GET /api/a11oy/v1/engine/status   (schema: szl.engine_status/v1)
+
+  and renders the mind, the six organs, energy and swarm exactly as the server
+  reports them. Every value carries an honesty state: LIVE (reachable/ok),
+  DOWN (reachable=false), or SAMPLE/— when the server itself returns null. No
+  number is invented client-side; nulls render as "—", never as a guess.
+
+  Served by serve.py @app.get("/cockpit") (registered before the SPA catch-all);
+  shipped by the wholesale `COPY pages/ ./pages/` in the Dockerfile.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>a11oy — Command Cockpit</title>
+<style>
+  :root{
+    --bg:#070b12; --panel:#0c111b; --panel2:#0f1624; --line:#1b2740;
+    --ink:#e8eefb; --mut:#8a99b8; --dim:#5c6a86;
+    --ok:#22c55e; --okglow:rgba(34,197,94,.45);
+    --warn:#f5a524; --down:#ef4444; --downglow:rgba(239,68,68,.4);
+    --accent:#5e6fff; --accent2:#26d0ce;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1100px 620px at 12% -10%, rgba(94,111,255,.14), transparent 60%),
+      radial-gradient(900px 520px at 100% 0%, rgba(38,208,206,.10), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 60px}
+  header{display:flex;flex-wrap:wrap;align-items:baseline;gap:14px;margin-bottom:6px}
+  h1{font-size:22px;margin:0;letter-spacing:.5px}
+  h1 .glyph{color:var(--accent);text-shadow:0 0 16px rgba(94,111,255,.7)}
+  .sub{color:var(--mut);font-size:12.5px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 22px;
+    padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel2);font-size:12px;color:var(--mut)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+  .dot.ok{background:var(--ok);box-shadow:0 0 10px var(--okglow);animation:pulse 2.2s ease-in-out infinite}
+  .dot.down{background:var(--down);box-shadow:0 0 10px var(--downglow)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .spacer{flex:1}
+  .refresh{color:var(--dim);font-size:11.5px}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .card{grid-column:span 4;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));padding:16px 16px 14px;
+    position:relative;overflow:hidden}
+  .card.big{grid-column:span 8}
+  .card.small{grid-column:span 4}
+  @media(max-width:860px){.card,.card.big,.card.small{grid-column:span 12}}
+  .card h2{margin:0 0 2px;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut);font-weight:600}
+  .metric{font-size:34px;font-weight:700;letter-spacing:.5px;margin:6px 0 2px}
+  .metric .unit{font-size:15px;color:var(--mut);font-weight:500}
+  .foot{color:var(--dim);font-size:11.5px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:9px;
+    border:1px solid var(--line);background:#0a0f19;font-size:12px}
+  .chip .nm{color:var(--ink)}
+  .chip .st{margin-left:auto;font-size:10.5px;letter-spacing:.6px;color:var(--dim)}
+  .state-LIVE{color:var(--ok)} .state-DOWN{color:var(--down)} .state-NA{color:var(--dim)}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .kv:last-child{border-bottom:0}
+  .kv .k{color:var(--mut)} .kv .v{color:var(--ink)}
+  .honest{font-size:10.5px;letter-spacing:.7px;padding:2px 7px;border-radius:6px;border:1px solid var(--line);color:var(--dim)}
+  .honest.live{color:var(--ok);border-color:rgba(34,197,94,.35)}
+  .honest.sample{color:var(--warn);border-color:rgba(245,165,36,.3)}
+  .err{grid-column:span 12;border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.06);
+    border-radius:12px;padding:14px 16px;color:#ffd7d7}
+  footer{margin-top:26px;color:var(--dim);font-size:11.5px;display:flex;flex-wrap:wrap;gap:16px}
+  .scan{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,transparent,rgba(94,111,255,.05) 50%,transparent);
+    background-size:100% 8px;opacity:.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="glyph">&#9880;</span> a11oy Command Cockpit</h1>
+    <span class="sub">one screen · the whole organism · live from <code>engine/status</code></span>
+  </header>
+
+  <div class="bar">
+    <span class="pill"><span class="dot" id="live-dot"></span><span id="live-label">connecting…</span></span>
+    <span class="pill">schema <span id="schema" style="color:var(--ink)">—</span></span>
+    <span class="pill">as of <span id="ts" style="color:var(--ink)">—</span></span>
+    <span class="spacer"></span>
+    <span class="refresh">auto-refresh 15s · <a href="/code">full command center &rarr;</a></span>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="card small"><h2>loading</h2><div class="metric">…</div></div>
+  </div>
+
+  <footer>
+    <span>Honest by design — nulls render as “—”, never invented.</span>
+    <span><a href="/">a11oy home</a></span>
+    <span><a href="/api/a11oy/v1/engine/status">raw engine/status JSON</a></span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var ENDPOINT = "/api/a11oy/v1/engine/status";
+  var grid = document.getElementById("grid");
+  var liveDot = document.getElementById("live-dot");
+  var liveLabel = document.getElementById("live-label");
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+    return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c];});}
+  function stateOf(reach){ return reach===true?"LIVE":(reach===false?"DOWN":"NA"); }
+  function fmtTs(iso){ if(!iso) return "—"; try{ var d=new Date(iso);
+    return d.toISOString().replace("T"," ").replace(/\.\d+Z$/,"Z"); }catch(e){ return esc(iso); } }
+
+  function organCard(organs){
+    organs = organs || {};
+    var names = Object.keys(organs);
+    var chips = names.map(function(n){
+      var o = organs[n]||{}; var st = stateOf(o.reachable);
+      return '<span class="chip"><span class="dot '+(st==="LIVE"?"ok":(st==="DOWN"?"down":""))+'"></span>'+
+        '<span class="nm">'+esc(n)+'</span><span class="st state-'+st+'">'+
+        esc((o.status||st)).toUpperCase()+'</span></span>';
+    }).join("");
+    return chips || '<span class="foot">no organs reported</span>';
+  }
+
+  function render(d){
+    var mind = d.mind||{}, energy = d.energy||{}, swarm = d.swarm||{};
+    var healthy = (d.organs_healthy!=null)?d.organs_healthy:"—";
+    var total = (d.organs_total!=null)?d.organs_total:"—";
+    var allUp = (d.organs_healthy!=null && d.organs_total!=null && d.organs_healthy===d.organs_total);
+    var eJ = (energy.joules&&energy.joules.value!=null)?energy.joules.value:null;
+    var eLabel = (energy.joules&&energy.joules.label)?energy.joules.label:"sample";
+    var eHonest = (eJ!=null)?'<span class="honest live">MEASURED</span>':'<span class="honest sample">'+esc(eLabel).toUpperCase()+'</span>';
+
+    grid.innerHTML = ''+
+    '<div class="card big"><div class="scan"></div><h2>Organism health</h2>'+
+      '<div class="metric">'+esc(healthy)+' <span class="unit">/ '+esc(total)+' organs '+(allUp?'nominal':'')+'</span></div>'+
+      '<div class="foot">brain · heart · blood · immune · skeleton · nervous</div>'+
+      '<div class="chips">'+organCard(d.organs)+'</div>'+
+    '</div>'+
+
+    '<div class="card small"><h2>Mind</h2>'+
+      '<div class="metric" style="font-size:22px">'+esc((mind.posture||"—")).toUpperCase()+'</div>'+
+      '<div class="kv"><span class="k">sovereign</span><span class="v">'+esc(mind.sovereign===true?"yes":(mind.sovereign===false?"no":"—"))+'</span></div>'+
+      '<div class="kv"><span class="k">inference</span><span class="v state-'+stateOf(mind.inference&&mind.inference.reachable)+'">'+stateOf(mind.inference&&mind.inference.reachable)+'</span></div>'+
+      '<div class="kv"><span class="k">gpu</span><span class="v">'+esc(mind.gpu!=null?mind.gpu:"—")+'</span></div>'+
+    '</div>'+
+
+    '<div class="card small"><h2>Energy &nbsp;'+eHonest+'</h2>'+
+      '<div class="metric" style="font-size:24px">'+(eJ!=null?esc(eJ)+' <span class="unit">J</span>':'<span class="unit">no measured sample</span>')+'</div>'+
+      '<div class="kv"><span class="k">within bound</span><span class="v">'+esc(energy.within_bound==null?"—":energy.within_bound)+'</span></div>'+
+      '<div class="kv"><span class="k">source</span><span class="v">'+esc(energy.source!=null?energy.source:"—")+'</span></div>'+
+    '</div>'+
+
+    '<div class="card small"><h2>Swarm</h2>'+
+      '<div class="metric" style="font-size:22px" class="state-'+stateOf(swarm.reachable)+'">'+stateOf(swarm.reachable)+'</div>'+
+      '<div class="foot">'+esc(swarm.reachable===false?"no swarm peers reachable":"mesh peers")+'</div>'+
+    '</div>'+
+
+    '<div class="card small"><h2>Sections</h2>'+
+      '<div class="kv"><span class="k">Formulas</span><a class="v" href="/formulas">open &rarr;</a></div>'+
+      '<div class="kv"><span class="k">Signed Receipts</span><a class="v" href="/code">open &rarr;</a></div>'+
+      '<div class="kv"><span class="k">Governance / Eval</span><a class="v" href="/governance">open &rarr;</a></div>'+
+      '<div class="kv"><span class="k">Energy / Compute</span><a class="v" href="/energy-ops">open &rarr;</a></div>'+
+    '</div>';
+
+    document.getElementById("schema").textContent = d.schema||"—";
+    document.getElementById("ts").textContent = fmtTs(d.ts_utc);
+    liveDot.className = "dot ok"; liveLabel.textContent = "LIVE";
+  }
+
+  function fail(msg){
+    liveDot.className = "dot down"; liveLabel.textContent = "UNREACHABLE";
+    grid.innerHTML = '<div class="err">Engine status is unreachable ('+esc(msg)+
+      '). No data is shown rather than fabricated — retrying every 15s.</div>';
+  }
+
+  function tick(){
+    fetch(ENDPOINT, {headers:{"accept":"application/json"}, cache:"no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(render)
+      .catch(function(e){ fail(e.message||String(e)); });
+  }
+  tick(); setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>
