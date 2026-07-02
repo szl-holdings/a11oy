@@ -1,0 +1,37 @@
+{
+  "_comment": "Page-claim honesty manifest. Every comparative/superlative sentence rendered on a covered page must be enumerated here VERBATIM (normalized whitespace) with a justification and a source, or CI fails. Every quantitative claim must trace to results_artifact. Stale entries (text no longer on the page) also fail CI. Enforced by tools/page-claim-guard/check_page_claims.py via .github/workflows/page-claim-guard.yml.",
+  "results_artifact": "benchmarks/pinn/results.json",
+  "covered_pages": [
+    "pages/benchmark.html"
+  ],
+  "claims": [
+    {
+      "page": "pages/benchmark.html",
+      "claim": "One of one — the only governed PDE solver here that actually ships",
+      "kind": "superlative",
+      "justification": "Scoped to THIS 3-arm suite. SZL's governed classical-spectral solver is the only arm that ships inside the a11oy product; the two neural arms (DeepXDE, NVIDIA PhysicsNeMo/Modulus) are benchmark-only comparators. 'Governed' = passes the doctrine + honesty gates in CI. This is not a claim of global superiority — the same page states where the suite does not let us claim victory.",
+      "source": "benchmarks/pinn/results.json (problems[].arms[].framework, arms[].license) + benchmarks/pinn/honesty_guard.py"
+    },
+    {
+      "page": "pages/benchmark.html",
+      "claim": "One of one · only shipped arm",
+      "kind": "superlative",
+      "justification": "Same scope as the heading: SZL is the only one of the three benchmarked arms that ships in the product. DeepXDE is an LGPL-2.1 benchmark-only dev dependency (not imported by shipped code) and PhysicsNeMo/Modulus is a comparator run on a local GPU.",
+      "source": "benchmarks/pinn/results.json (problems[].arms[].license, arms[].framework_versions)"
+    },
+    {
+      "page": "pages/benchmark.html",
+      "claim": "SZL leads the field on the axis that decides real deployments — verifiable, deployable governed solving.",
+      "kind": "superlative",
+      "justification": "Axis-qualified superlative. The axis is named explicitly — 'verifiable, deployable governed solving' — NOT raw accuracy or speed. On that specific axis SZL is the only license-clean, CI-reproduced, in-product arm among the three. Per-arm accuracy and wall-time numbers are published verbatim from results.json, and the page states where SZL does not win.",
+      "source": "benchmarks/pinn/results.json (arms[].label=MEASURED; scope_limits, honesty blocks) + .github/workflows/pinn-honesty-gate.yml"
+    },
+    {
+      "page": "pages/benchmark.html",
+      "claim": "It is the only arm that actually ships in the product, the only one that is license-clean (Apache-2.0, not LGPL), the only one re-derived from source in CI on every commit, and it reaches machine precision where the problem admits it — all measured on our own metal, not a rented cloud GPU farm.",
+      "kind": "superlative",
+      "justification": "Each clause is factual and scoped to the three benchmarked arms: (1) only arm that ships in the product; (2) only license-clean arm — Apache-2.0 vs DeepXDE's LGPL-2.1, recorded in the arm licenses in results.json; (3) only arm re-derived from source in CI, enforced by benchmarks/pinn/reproduce_szl_guard.py in pinn-honesty-gate.yml; (4) 'reaches machine precision where the problem admits it' is bounded by that qualifier and backed by rel_l2_vs_exact ≈ 5.2e-16 on poisson_1d_multimode (≈ f64 machine epsilon) — the inverse_duffing arm is explicitly labelled fit-error, not machine precision. 'our own metal' = the NVIDIA GeForce RTX 5050 Laptop GPU recorded as the device in results.json.",
+      "source": "benchmarks/pinn/results.json (problems[].arms[].rel_l2_vs_exact, arms[].license, arms[].device) + benchmarks/pinn/reproduce_szl_guard.py + .github/workflows/pinn-honesty-gate.yml"
+    }
+  ]
+}
