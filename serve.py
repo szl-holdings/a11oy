@@ -596,6 +596,20 @@ try:
 except Exception as _szl_op_e:  # pragma: no cover
     print(f"[a11oy] Orbital projection NOT registered: {_szl_op_e!r}", file=__import__("sys").stderr)
 
+# ── Ayllu — the AlloyScape tribe, ingested and reborn as a11oy's OWN agent
+# community (branch tribe-unification). a11oy-native reimplementation (NOT a copy):
+# learns the tribe's roster/collaboration design and rebuilds it on a11oy's active-flux
+# router, bounded-autonomy AgentLoop, and DSSE receipts. Deliberately drops the tribe's
+# unbounded "fully agentic" mandate for a11oy's fail-closed Λ-gate. See ayllu/INGEST.md.
+# Additive, try/except-guarded, same register() pattern. Model backend IS wired via
+# ayllu.backend -> a11oy_code_orchestrator (live iff an inference credential is set on
+# the Space; a clearly-labeled deterministic stub otherwise - never a fabricated answer).
+try:
+    import a11oy_ayllu as _a11oy_ayllu
+    print("[a11oy] " + _a11oy_ayllu.register(app, ns="a11oy"), file=__import__("sys").stderr)
+except Exception as _a11oy_ayllu_e:  # pragma: no cover
+    print(f"[a11oy] Ayllu NOT registered: {_a11oy_ayllu_e!r}", file=__import__("sys").stderr)
+
 # FRONTIER MANIFEST — GET /api/a11oy/v1/frontier/manifest is ONE honest roll-up of the
 # whole governed-provenance ecosystem. It composes LIVE, in-process data from the already-
 # wired surfaces (energy operator/ledger/provenance, signed UDS bundle, MODELED orbital,

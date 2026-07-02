@@ -69,6 +69,7 @@ _SURFACES = [
     ("/restraint-bench","\u27C2",     "Restraint (Governed Frugality)"),    # ⟂
     ("/materials",      "\u269B",     "Materials \u2014 Verifiable Discovery"),  # ⚛
     ("/dns",            "\U0001F310", "DNS &amp; Subdomains"),              # 🌐
+    ("/ayllu",          "\u2641",     "Ayllu Council"),                     # ♁ agent community
 ]
 
 # ===========================================================================
