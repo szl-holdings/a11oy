@@ -195,7 +195,7 @@ def _build_spec_view_groups_js() -> bytes:
     """Build the JS SPEC-array fragment for the restored command-centre view
     groups. Each row is a [viewid, glyph, label] tuple in the console's native
     SPEC format, so buildNav() wires onclick=go(viewid) exactly like every
-    built-in tab. The leading comma + marker comment splice the groups in after
+    built-in tab. The prefix comma + marker comment splice the groups in after
     the last built-in SPEC group. The "verticals" overview (go_target set) is
     skipped: a SPEC tuple would route go('verticals'), which is not a registered
     VIEWS key -> a dead tab. Every id emitted is confirmed in the VIEWS registry.
