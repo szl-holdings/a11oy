@@ -34,6 +34,8 @@ export function AtelierEmbedFrame({ spaceSlug, height = 380, title, tenantId }: 
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
+      // Only accept postMessage from the embedded A11oy origin (missing-origin-check / CWE-940).
+      if (e.origin !== atelierOrigin) return;
       if (!e.data || typeof e.data !== 'object') return;
       if (e.data.spaceSlug !== spaceSlug) return;
       if (e.data.type === 'a11oy-space-line') {
@@ -56,7 +58,7 @@ export function AtelierEmbedFrame({ spaceSlug, height = 380, title, tenantId }: 
     }).catch(() => {});
 
     return () => window.removeEventListener('message', onMessage);
-  }, [spaceSlug]);
+  }, [spaceSlug, atelierOrigin]);
 
   function runSpace() {
     setLines([]); setDone(false); setProofRef(null);
