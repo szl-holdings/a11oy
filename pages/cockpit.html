@@ -91,8 +91,11 @@
   .con .top{display:flex;align-items:center;gap:8px}
   .con .nm{font-weight:700;color:var(--ink);font-size:14px}
   .con .kind{color:var(--mut);font-size:11.5px}
+  .con .blurb{color:var(--dim);font-size:11.5px;line-height:1.45;margin-top:2px}
   .con .meta{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-top:2px}
   .con a.open{font-size:11.5px}
+  .group-label{grid-column:1/-1;color:var(--mut);font-size:10.5px;letter-spacing:1.4px;
+    text-transform:uppercase;margin:8px 2px 0;font-weight:700}
   footer{margin-top:26px;color:var(--dim);font-size:11.5px;display:flex;flex-wrap:wrap;gap:16px}
   .scan{position:absolute;inset:0;pointer-events:none;
     background:linear-gradient(180deg,transparent,rgba(94,111,255,.05) 50%,transparent);
@@ -222,17 +225,24 @@
   function renderCon(d){
     var s = (d && d.surfaces) || [];
     conCount.textContent = (d.reachable!=null?d.reachable:"—")+" / "+(d.total!=null?d.total:"—")+" reachable";
-    conEl.innerHTML = s.map(function(x){
+    function tile(x){
       var live = x.reachable===true;
       return '<div class="con"><div class="top">'+
         '<span class="dot '+(live?"ok":"down")+'"></span>'+
         '<span class="nm">'+esc(x.name)+'</span>'+
         '<span class="st state-'+(live?"LIVE":"DOWN")+'" style="margin-left:auto;font-size:10.5px;letter-spacing:.6px">'+(live?"LIVE":"DOWN")+'</span></div>'+
         '<div class="kind">'+esc(x.kind)+'</div>'+
+        (x.blurb ? '<div class="blurb">'+esc(x.blurb)+'</div>' : '')+
         '<div class="meta"><span>HTTP '+esc(x.http_status)+'</span><span>'+esc(x.latency_ms)+' ms</span></div>'+
         '<a class="open" href="'+esc(x.url)+'" target="_blank" rel="noopener">open &rarr;</a>'+
         '</div>';
-    }).join("") || '<div class="err">No surfaces reported.</div>';
+    }
+    if(!s.length){ conEl.innerHTML = '<div class="err">No surfaces reported.</div>'; return; }
+    var groups = [], seen = {};
+    s.forEach(function(x){ var g=x.group||"Other"; if(!seen[g]){seen[g]=[];groups.push(g);} seen[g].push(x); });
+    conEl.innerHTML = groups.map(function(g){
+      return '<div class="group-label">'+esc(g)+'</div>'+ seen[g].map(tile).join("");
+    }).join("");
   }
   function conFail(msg){
     conCount.textContent = "probe unreachable";

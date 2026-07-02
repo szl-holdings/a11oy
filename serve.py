@@ -9351,21 +9351,40 @@ async def command_cockpit_page() -> Response:
 # the endpoint never fans out on every poll. Surfaces are curated to the ones
 # with a live deployed endpoint (verified 2026-07-02); dead Spaces are omitted
 # rather than listed as permanently-red noise. Registered BEFORE the SPA catch-all.
+# Each surface carries: name, kind (role), a group (for the showcase grouping), an
+# honest one-line blurb (a STATIC fact about what the product is — NOT a live-status
+# claim), and its URL. Blurbs are provenance-safe: they describe the product, never its
+# runtime health (that comes only from the real HTTP probe).
 _CONSTELLATION_SURFACES = [
-    ("a11oy",       "Orchestrator / Command Center", "https://szlholdings-a11oy.hf.space/"),
-    ("killinchu",   "Counter-UAS application",       "https://szlholdings-killinchu.hf.space/"),
-    ("hatun-mcp",   "Signed MCP gateway (spine)",    "https://szlholdings-hatun-mcp.hf.space/"),
-    ("immune",      "Investor demo",                 "https://szlholdings-immune.hf.space/"),
-    ("yarqa",       "Provenance CFD (showcase)",     "https://szlholdings-yarqa.hf.space/"),
-    ("cathedral",   "Constellation visualization",   "https://szlholdings-cathedral.hf.space/"),
-    ("a-11-oy.com", "Public site",                   "https://a-11-oy.com/"),
+    {"name": "a11oy", "kind": "Orchestrator / Command Center", "group": "Core",
+     "blurb": "Governed brand-orchestration layer — the mind and six-organ engine this cockpit reads.",
+     "url": "https://szlholdings-a11oy.hf.space/"},
+    {"name": "hatun-mcp", "kind": "Signed MCP gateway", "group": "Core",
+     "blurb": "The spine: one signed gateway that aggregates a11oy + killinchu + immune + router tools.",
+     "url": "https://szlholdings-hatun-mcp.hf.space/"},
+    {"name": "killinchu", "kind": "Counter-UAS application", "group": "Applications",
+     "blurb": "Applied counter-UAS surface — the doctrine put to work on a real defense problem.",
+     "url": "https://szlholdings-killinchu.hf.space/"},
+    {"name": "immune", "kind": "Investor demo", "group": "Applications",
+     "blurb": "Investor-facing walkthrough of the immune-system metaphor and governed posture.",
+     "url": "https://szlholdings-immune.hf.space/"},
+    {"name": "yarqa", "kind": "Provenance CFD", "group": "Showcase",
+     "blurb": "Provenance-first CFD library — every result carries a verifiable derivation, no black boxes.",
+     "url": "https://szlholdings-yarqa.hf.space/"},
+    {"name": "cathedral", "kind": "Constellation visualization", "group": "Showcase",
+     "blurb": "Visual atlas of the constellation — the org rendered as one living structure.",
+     "url": "https://szlholdings-cathedral.hf.space/"},
+    {"name": "a-11-oy.com", "kind": "Public site", "group": "Public",
+     "blurb": "The public front door for a11oy.",
+     "url": "https://a-11-oy.com/"},
 ]
 _constellation_cache = {"ts": 0.0, "data": None}
 _CONSTELLATION_TTL = 30.0
 
 
-def _probe_constellation_surface(name: str, kind: str, url: str) -> dict:
+def _probe_constellation_surface(surface: dict) -> dict:
     import urllib.request, urllib.error, ssl, time as _t
+    url = surface["url"]
     t0 = _t.monotonic()
     code = 0
     try:
@@ -9379,7 +9398,9 @@ def _probe_constellation_surface(name: str, kind: str, url: str) -> dict:
     except Exception:
         code = 0
     return {
-        "name": name, "kind": kind, "url": url,
+        "name": surface["name"], "kind": surface["kind"],
+        "group": surface.get("group", "Other"), "blurb": surface.get("blurb", ""),
+        "url": url,
         "http_status": code,
         "reachable": 200 <= code < 400,
         "latency_ms": int((_t.monotonic() - t0) * 1000),
@@ -9394,8 +9415,8 @@ async def a11oy_constellation_status() -> Response:
     if cached is not None and (now - _constellation_cache["ts"]) < _CONSTELLATION_TTL:
         return JSONResponse(cached)
     results = await asyncio.gather(*[
-        asyncio.to_thread(_probe_constellation_surface, n, k, u)
-        for (n, k, u) in _CONSTELLATION_SURFACES
+        asyncio.to_thread(_probe_constellation_surface, s)
+        for s in _CONSTELLATION_SURFACES
     ])
     data = {
         "schema": "szl.constellation_status/v1",
