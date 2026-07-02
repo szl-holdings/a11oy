@@ -40,7 +40,7 @@ We took the architecture. We did **not** take:
 | delphina                         | **Qhaway**    | one-who-sees   | simulation, PINN, resilience, seismic|
 | krok                             | **Maskaq**    | seeker         | evidence-research, org-RAG, citation |
 | chiron, hygiea, panacea          | **Hampiq**    | healer         | organ-health, observability, remediation |
-| jarvik (jarvis)                  | **Yanapaq**   | helper         | readiness, incident/ops support      |
+| jarvik                           | **Yanapaq**   | helper         | readiness, incident/ops support      |
 | ponte                            | **Chaka**     | bridge         | MCP, compliance-crosswalk, integration |
 | lucas                            | **Kamachiq**  | organizer      | orchestration, planning, routing     |
 | vesper                           | **Qhatuq**    | trader         | markets, risk-first, revenue model   |
