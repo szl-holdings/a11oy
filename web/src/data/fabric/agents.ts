@@ -1,6 +1,6 @@
 import type { FabricAgent, VerticalId } from './types';
 
-const ALL: readonly VerticalId[] = ['terra', 'vessels', 'counsel', 'carlota', 'aegis', 'lyte', 'sentra'];
+const ALL: readonly VerticalId[] = ['terra', 'vessels', 'counsel', 'carlota', 'aegis', 'lyte', 'sentra', 'atlas'];
 
 export const FABRIC_AGENTS: readonly FabricAgent[] = [
   {

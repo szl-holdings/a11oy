@@ -190,6 +190,33 @@ export const VERTICALS: readonly VerticalProfile[] = [
       capability: 'Before a new policy is enacted, scan it against all existing policies across all verticals and surface contradictions with resolution recommendations.',
     },
   },
+  {
+    id: 'atlas',
+    name: 'Atlas',
+    tagline: 'Capital, treasury, and financial risk command.',
+    operatingModel: 'Finance intelligence layer — liquidity, treasury, FX and credit exposure, portfolio risk, and reporting are monitored continuously, with every material capital action gated through governance.',
+    primaryUsers: ['CFO', 'Treasurers', 'FP&A leads', 'Portfolio risk officers'],
+    coreEntities: ['account', 'position', 'exposure', 'counterparty', 'covenant', 'cash flow', 'hedge', 'budget', 'invoice', 'portfolio'],
+    signalTypes: ['liquidity drift', 'rate shock', 'FX drift', 'credit downgrade', 'covenant breach', 'cost variance', 'settlement break', 'concentration risk'],
+    workflowTypes: ['treasury rebalance', 'hedge management', 'liquidity planning', 'credit review', 'budget approval', 'financial close'],
+    riskTypes: ['liquidity risk', 'market risk', 'credit risk', 'covenant breach', 'cost overrun', 'fraud exposure', 'reporting error'],
+    approvalTypes: ['capital allocation', 'hedge execution', 'financing draw', 'budget exception', 'covenant waiver'],
+    evidenceTypes: ['document', 'system_event', 'approval_record', 'audit_event'],
+    outcomeTypes: ['liquidity protected', 'exposure reduced', 'hedge optimized', 'variance contained', 'covenant maintained', 'capital deployed'],
+    keyMetrics: ['Liquidity coverage ratio', 'VaR utilization', 'Days sales outstanding', 'Covenant headroom', 'Budget variance'],
+    connectedA11oyLayers: ['Signal Mesh', 'Chainlight', 'Proof Chain', 'Sentra', 'Argo'],
+    maturityStage: 'scaling',
+    priorityLevel: 'critical',
+    route: '/atlas',
+    colorToken: '#c9b787',
+    icon: '◈',
+    innovationSeed: {
+      name: 'Capital Consequence Simulator',
+      description: 'Models how a single financial event — a rate shock, a counterparty default, a covenant breach — cascades across liquidity, portfolio value, and covenant headroom before it materializes.',
+      researchBasis: 'Adapted from value-at-risk and expected-shortfall frameworks (Artzner et al. 1999) and financial contagion network models (Eisenberg & Noe 2001).',
+      capability: 'Run "what-if" shocks across the balance sheet and see the second-order impact on liquidity and covenants before committing capital.',
+    },
+  },
 ] as const;
 
 export const VERTICAL_MAP = Object.fromEntries(VERTICALS.map(v => [v.id, v])) as Record<string, VerticalProfile>;
