@@ -64,9 +64,11 @@ QUECHUA_NAMES: Dict[str, str] = {
 
 PEER_HEALTH_URLS: Dict[str, str] = {
     "a11oy":     "https://szlholdings-a11oy.hf.space/api/a11oy/healthz",
-    "sentra":    "https://szlholdings-sentra.hf.space/healthz",
-    "amaru":     "https://szlholdings-amaru.hf.space/healthz",
-    "rosie":     "https://szlholdings-rosie.hf.space/healthz",
+    # sentra/amaru/rosie were retired and consolidated INTO a11oy; probe the
+    # flagship they were folded into instead of their dead 404 Space endpoints.
+    "sentra":    "https://szlholdings-a11oy.hf.space/api/a11oy/v1/health",
+    "amaru":     "https://szlholdings-a11oy.hf.space/api/a11oy/v1/health",
+    "rosie":     "https://szlholdings-a11oy.hf.space/api/a11oy/v1/health",
     "killinchu": "https://szlholdings-killinchu.hf.space/api/killinchu/healthz",
 }
 
@@ -285,9 +287,9 @@ h2{{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#475569;ma
 <script>
 const PEERS=[
   {{id:"a11oy",q:"Yachay",url:"https://szlholdings-a11oy.hf.space/api/a11oy/healthz"}},
-  {{id:"sentra",q:"Musquy",url:"https://szlholdings-sentra.hf.space/healthz"}},
-  {{id:"amaru",q:"Amaru",url:"https://szlholdings-amaru.hf.space/healthz"}},
-  {{id:"rosie",q:"Yuyay",url:"https://szlholdings-rosie.hf.space/healthz"}},
+  {{id:"sentra",q:"Musquy",url:"https://szlholdings-a11oy.hf.space/api/a11oy/v1/health"}},
+  {{id:"amaru",q:"Amaru",url:"https://szlholdings-a11oy.hf.space/api/a11oy/v1/health"}},
+  {{id:"rosie",q:"Yuyay",url:"https://szlholdings-a11oy.hf.space/api/a11oy/v1/health"}},
   {{id:"killinchu",q:"Killinchu",url:"https://szlholdings-killinchu.hf.space/api/killinchu/healthz"}},
 ];
 async function load(){{
