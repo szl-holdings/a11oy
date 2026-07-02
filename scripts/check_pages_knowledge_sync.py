@@ -22,9 +22,13 @@
 #   * the SERVED copy overclaims relative to root — any theorem, FORMULA or AXIOM
 #     present (and honesty-labelled) in BOTH copies must carry the SAME maturity in
 #     pages as in root (pages may carry a SUBSET of items, or omit the label
-#     entirely as a lighter view, but never a stronger honesty label), AND the
-#     honesty ledger that governs Conjecture 1 (proof_summary.conjecture /
-#     locked_ids / locked_count_theorem) must match root, OR
+#     entirely as a lighter view, but never a stronger honesty label); AND pages
+#     may only ever be a SUBSET of root, so any theorem, FORMULA or AXIOM served
+#     with an id that does NOT exist in root is a fabricated, unbacked entry (the
+#     console inventing a claim the canonical corpus never made) and is flagged;
+#     AND the honesty ledger that governs Conjecture 1
+#     (proof_summary.conjecture / locked_ids / locked_count_theorem) must match
+#     root, OR
 #   * EITHER copy violates a Doctrine-v11 honesty invariant (so a dishonest corpus
 #     can never be served silently).
 #
@@ -148,11 +152,16 @@ def check_collection_overclaim(root, pages, key, noun, root_name, pages_name):
     """Return honesty-label mismatches for one shared collection (theorems /
     formulas / axioms).
 
-    For every item id present in BOTH copies, if the SERVED copy carries a
-    maturity/honesty label, that label must MATCH the canonical root label. A
-    served item that OMITS the label makes no claim (the console serves a lighter
-    view with fewer fields) — that is a legitimate subset, NOT an overclaim, so it
-    is skipped. Only a DISAGREEING label is a violation.
+    Two ways the served copy can overclaim:
+      * a SERVED-ONLY item — an id present in pages but ABSENT from root — is a
+        fabricated entry the console invents and presents as real. root is the
+        source of truth and pages may only ever carry a SUBSET of it, so a
+        served-only item is always an unbacked claim and is FLAGGED.
+      * for an id present in BOTH copies, if the SERVED copy carries a
+        maturity/honesty label that label must MATCH the canonical root label. A
+        served item that OMITS the label makes no claim (the console serves a
+        lighter view with fewer fields) — that is a legitimate subset, NOT an
+        overclaim, so it is skipped. Only a DISAGREEING label is a violation.
     """
     errors = []
     root_mat = {}
@@ -164,6 +173,13 @@ def check_collection_overclaim(root, pages, key, noun, root_name, pages_name):
             continue
         iid = item["id"]
         if iid not in root_mat:
+            # served-only id: pages invents a claim that the canonical corpus
+            # does not back. pages must be a subset of root — never a superset.
+            errors.append(
+                f"{pages_name}: {noun} {iid} is served but does NOT exist in "
+                f"{root_name} — a served-only, unbacked {noun} (the console must "
+                f"never invent {noun}s the canonical corpus does not carry)"
+            )
             continue
         pmat = (item.get("maturity") or "").strip()
         if not pmat:

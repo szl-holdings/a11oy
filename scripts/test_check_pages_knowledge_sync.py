@@ -231,6 +231,41 @@ class ConsistencyTests(unittest.TestCase):
         ok["formulas"][1]["maturity"] = "conjectured"  # equals root
         self.assertEqual(validate_consistency(ROOT, ok), [])
 
+    def test_pages_serves_formula_absent_from_root_fails(self):
+        # The console invents a formula id that does not exist in the canonical
+        # corpus and serves it as real — a fabricated, unbacked claim. It slips
+        # past the label check (there's nothing in root to compare against), so
+        # the guard must flag it as served-only.
+        bad = copy.deepcopy(PAGES)
+        bad["formulas"].append({"id": "F9999", "latex": "made up", "maturity": "proven"})
+        errs = validate_consistency(ROOT, bad)
+        self.assertTrue(
+            any("formula" in e and "F9999" in e and "does NOT exist" in e for e in errs),
+            errs,
+        )
+
+    def test_pages_serves_axiom_absent_from_root_fails(self):
+        # Same fabrication risk for axioms: a served-only axiom the canonical
+        # corpus never declared.
+        bad = copy.deepcopy(PAGES)
+        bad["axioms"].append({"id": "A99", "name": "inventedAxiom", "maturity": "proven"})
+        errs = validate_consistency(ROOT, bad)
+        self.assertTrue(
+            any("axiom" in e and "A99" in e and "does NOT exist" in e for e in errs),
+            errs,
+        )
+
+    def test_pages_serves_unlabelled_formula_absent_from_root_fails(self):
+        # Dropping the maturity label must NOT let a fabricated served-only
+        # formula through — its very presence (absent from root) is the overclaim.
+        bad = copy.deepcopy(PAGES)
+        bad["formulas"].append({"id": "F8888", "latex": "no label"})
+        errs = validate_consistency(ROOT, bad)
+        self.assertTrue(
+            any("formula" in e and "F8888" in e and "does NOT exist" in e for e in errs),
+            errs,
+        )
+
 
 class MainTests(unittest.TestCase):
     def test_consistent_and_honest_passes(self):
