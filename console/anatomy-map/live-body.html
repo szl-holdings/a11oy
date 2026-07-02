@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<!-- SAFE-NOW hardening (R2): browser-honored CSP subset + nosniff + Referrer-Policy.
+     HSTS / frame-ancestors omitted (browsers ignore them in <meta>; setting them
+     would be fabrication). 'unsafe-inline' is required: this page ships an inline
+     module script + inline styles, and Three.js is a vendored same-origin script. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://szlholdings-a11oy.hf.space; object-src 'none'; base-uri 'self'; form-action 'self'" />
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2" />
+<title>SZL Living Anatomy — BODY v1 · the Sovereign Org as one living organism</title>
+<meta name="description" content="Body v1: the Sovereign Org rendered as one living governed organism. CatmullRom Bezier-tube vessels = the one DSSE chain; GPU pulses = REAL receipts from /api/a11oy/v1/ledger; 4 organs (Reasoning/Policy/Operator/Receipts) glow LIVE or dim UNREACHABLE on real probes; Λ (F19) drives the double-beat heartbeat + overall glow; verticals & SLSA shown honestly as ROADMAP where no endpoint exists. Honest by construction. Λ = Conjecture 1." />
+<style>
+  :root{
+    --void:#080c14; --void2:#0b1120;
+    --proof:#3af4c8; --lattice:#5b8dee; --gold:#d7b96b; --warn:#e0795b;
+    --dim:#3a4456; --text:#e9eef7; --muted:#8b97b4; --faint:#5d6a8f;
+    --surface:rgba(11,17,32,0.72); --surface2:rgba(16,24,44,0.92);
+    --border:rgba(91,141,238,0.18); --border-strong:rgba(91,141,238,0.36);
+    --radius:14px; --blur:18px;
+    --font-d:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;
+    --font-m:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --shadow:0 18px 60px rgba(0,0,0,0.6);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--void);color:var(--text);
+    font-family:var(--font-d);-webkit-font-smoothing:antialiased;overflow:hidden}
+  a{color:var(--proof);text-decoration:none} a:hover{text-decoration:underline}
+
+  #scene{position:fixed;inset:0;display:block;touch-action:none}
+
+  /* ---- HUD overlay (does not steal scene pointer unless on a panel) ---- */
+  .hud{position:fixed;z-index:5;pointer-events:none}
+  .panel{pointer-events:auto;background:var(--surface);backdrop-filter:blur(var(--blur));
+    border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .hdr{font-family:var(--font-m);font-size:9px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--faint);padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid var(--border)}
+
+  /* top-left: title */
+  #title{top:16px;left:16px;max-width:min(46ch,calc(100vw - 32px))}
+  #title .eyebrow{font-family:var(--font-m);font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  #title h1{font-size:18px;font-weight:600;line-height:1.15;letter-spacing:-.01em}
+  #title h1 .accent{color:var(--proof)}
+  #title .sub{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.45;padding:11px 14px 0;display:none}
+  #title .inner{padding:13px 14px}
+
+  /* top-right: mind posture + Λ */
+  #mind{top:16px;right:16px;width:min(290px,calc(100vw - 32px));padding:13px 15px}
+  #mind .hdr{display:flex;justify-content:space-between;align-items:center}
+  #mind .row{display:flex;gap:9px;align-items:baseline;font-size:11.5px;line-height:1.5;color:var(--muted);margin-bottom:5px}
+  #mind .row:last-child{margin-bottom:0}
+  #mind .row .k{flex:0 0 64px;color:var(--faint);font-family:var(--font-m);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase}
+  #mind .row b{color:var(--text);font-weight:600;font-family:var(--font-m);font-size:11px}
+  .badge{display:inline-block;font-family:var(--font-m);font-size:9.5px;letter-spacing:.03em;padding:2px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+  .sov-true{color:var(--proof)} .sov-false{color:var(--warn)} .sov-unknown{color:var(--faint)}
+  #lambda-wrap{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+  #lambda-val{font-family:var(--font-m);font-size:21px;font-weight:600;color:var(--gold);letter-spacing:.01em}
+  #lambda-meta{font-family:var(--font-m);font-size:9.5px;color:var(--faint);margin-top:3px;line-height:1.4}
+  #ecg{width:100%;height:34px;margin-top:8px;display:block}
+
+  /* bottom-left: organ status list */
+  #organs{bottom:16px;left:16px;width:min(290px,calc(100vw - 32px));padding:13px 15px}
+  .orow{display:flex;align-items:center;gap:9px;font-size:11.5px;line-height:1.45;margin-bottom:8px}
+  .orow:last-child{margin-bottom:0}
+  .odot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--dim);box-shadow:0 0 0 transparent;transition:all .3s}
+  .orow[data-state="live"] .odot{box-shadow:0 0 9px currentColor}
+  .orow .on{font-weight:600;color:var(--text);min-width:74px;font-size:11px}
+  .orow .od{font-family:var(--font-m);font-size:9.5px;color:var(--muted);line-height:1.35}
+  .orow[data-state="unreachable"] .od{color:var(--faint)}
+  .orow[data-state="pending"] .odot{animation:breathe 1.1s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.35}50%{opacity:1}}
+
+  /* bottom-right: controls + log + honesty */
+  #side{bottom:16px;right:16px;width:min(320px,calc(100vw - 32px));padding:13px 15px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .btn{font-family:var(--font-m);font-size:10.5px;letter-spacing:.02em;color:var(--muted);background:var(--surface2);
+    border:1px solid var(--border);border-radius:99px;padding:8px 13px;cursor:pointer;transition:all .16s}
+  .btn:hover{border-color:var(--border-strong);color:var(--text);transform:translateY(-1px)}
+  .btn:focus-visible{outline:2px solid var(--lattice);outline-offset:2px}
+  .btn.primary{color:var(--proof);border-color:rgba(58,244,200,.45);background:rgba(58,244,200,.07)}
+  .btn[aria-disabled="true"]{opacity:.5;cursor:progress}
+  #log{font-family:var(--font-m);font-size:10px;color:var(--faint);line-height:1.55;min-height:2.6em;max-height:84px;overflow:auto}
+  #log b{color:var(--muted)}
+  #honesty{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--faint);line-height:1.5}
+  #honesty b{color:var(--muted);font-weight:600}
+  .sw{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--proof);box-shadow:0 0 6px currentColor;color:var(--proof);margin-right:5px;vertical-align:middle}
+
+  .legend{position:fixed;z-index:5;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:none;
+    display:flex;gap:14px;font-family:var(--font-m);font-size:9px;letter-spacing:.04em;color:var(--faint);
+    background:rgba(8,12,20,.55);padding:6px 13px;border-radius:99px;border:1px solid var(--border)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend i{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+  #boot{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+    background:var(--void);color:var(--faint);font-family:var(--font-m);font-size:12px;letter-spacing:.08em}
+
+  /* tighten on small screens: hide secondary panels, keep mind + organs + log */
+  @media (max-width:760px){
+    #title{max-width:calc(100vw - 32px)} #title h1{font-size:15px}
+    #mind,#organs,#side{width:calc(100vw - 32px)}
+    #organs{bottom:auto;top:auto;display:none}        /* avoid overlap on phones */
+    .legend{font-size:8px;gap:9px;bottom:10px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .orow[data-state="pending"] .odot{animation:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="3D living organism of the Sovereign Org"></canvas>
+<div id="boot">initializing living body…</div>
+
+<div class="hud" id="title"><div class="inner">
+  <div class="eyebrow">SZL Living Anatomy · body v1</div>
+  <h1>The Sovereign Org as <span class="accent">one living organism</span></h1>
+  <div class="sub">Vessels are the one DSSE chain. Each travelling pulse is a REAL receipt
+    from the ledger; each organ glows only on a real probe; Λ drives the heartbeat.
+    <a href="./index.html">← full 3D atlas</a></div>
+</div></div>
+
+<div class="hud panel" id="mind" aria-live="polite">
+  <div class="hdr"><span>GPU mind · posture</span><span>/code/healthz</span></div>
+  <div class="row"><span class="k">sovereign</span><span id="m-sov" class="badge sov-unknown">…</span></div>
+  <div class="row"><span class="k">backend</span><b id="m-backend">…</b></div>
+  <div class="row"><span class="k">mode</span><b id="m-mode">…</b></div>
+  <div class="row"><span class="k">doctrine</span><b id="m-doctrine">…</b></div>
+  <div id="lambda-wrap">
+    <div id="lambda-val">Λ …</div>
+    <div id="lambda-meta">heartbeat driver · /v1/lambda</div>
+    <canvas id="ecg" width="560" height="68" aria-hidden="true"></canvas>
+  </div>
+</div>
+
+<div class="hud panel" id="organs" aria-live="polite">
+  <div class="hdr">organs · honest probes</div>
+  <div id="organ-rows"></div>
+</div>
+
+<div class="hud panel" id="side">
+  <div class="controls">
+    <button id="run" class="btn primary" type="button">▶ Run proactive cycle</button>
+    <button id="refresh" class="btn" type="button">↻ Refresh</button>
+  </div>
+  <div id="log" aria-live="polite"></div>
+  <div id="honesty">
+    <span class="sw"></span><b id="h-lambda">Λ = Conjecture 1</b> — advisory, never green.<br>
+    <span class="sw"></span><b>Verticals</b> &amp; <b>SLSA</b>: no live endpoint → honest ROADMAP, no fake flow.<br>
+    <span class="sw"></span>Read-only · no key sent · open-weight.
+  </div>
+</div>
+
+<div class="legend hud">
+  <span><i style="background:var(--proof)"></i>live receipt pulse</span>
+  <span><i style="background:var(--warn)"></i>denied gate</span>
+  <span><i style="background:var(--gold)"></i>Λ heartbeat</span>
+  <span><i style="background:var(--dim)"></i>unreachable / roadmap</span>
+</div>
+
+<script src="./lib/three.min.js"></script>
+<script type="module">
+import LiveBody from "./live-body.js";
+const THREE = window.THREE;
+const K = LiveBody.KANCHAY;
+const $ = (id) => document.getElementById(id);
+
+/* ============================ scene scaffold ============================== */
+const canvas = $("scene");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(new THREE.Color(K.void), 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(new THREE.Color(K.void), 0.085);
+const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
+camera.position.set(0, 0.2, 6.2);
+
+scene.add(new THREE.AmbientLight(0x4a5878, 0.9));
+const key = new THREE.PointLight(0x9fc2ff, 1.1, 40); key.position.set(4, 6, 8); scene.add(key);
+const rim = new THREE.PointLight(0x3af4c8, 0.7, 40); rim.position.set(-6, -3, 4); scene.add(rim);
+
+const root = new THREE.Group(); scene.add(root);   // everything rotatable
+
+/* radial glow sprite texture (additive "selective bloom" — no jsm composer vendored) */
+function glowTexture() {
+  const s = 64, c = document.createElement("canvas"); c.width = c.height = s;
+  const g = c.getContext("2d");
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, "rgba(255,255,255,1)");
+  grd.addColorStop(0.25, "rgba(255,255,255,0.55)");
+  grd.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
+}
+const GLOW = glowTexture();
+function glowSprite(color, scale, opacity) {
+  const m = new THREE.SpriteMaterial({ map: GLOW, color: new THREE.Color(color),
+    transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+  const sp = new THREE.Sprite(m); sp.scale.set(scale, scale, 1); return sp;
+}
+
+/* ============================ organs ===================================== */
+const organMeshes = new Map();   // id -> {core, halo, color, baseEmissive, pos}
+const ORGAN_GEO = {
+  reasoning: () => new THREE.IcosahedronGeometry(0.32, 1),
+  policy:    () => new THREE.DodecahedronGeometry(0.30, 0),
+  operator:  () => new THREE.OctahedronGeometry(0.32, 1),
+  receipts:  () => new THREE.IcosahedronGeometry(0.40, 2),   // the heart hub (center-low)
+};
+for (const o of LiveBody.ORGANS) {
+  const geo = (ORGAN_GEO[o.id] || (() => new THREE.IcosahedronGeometry(0.3, 1)))();
+  const col = new THREE.Color(o.color);
+  const mat = new THREE.MeshStandardMaterial({
+    color: col, emissive: col, emissiveIntensity: 0.15,
+    metalness: 0.2, roughness: 0.45, flatShading: true });
+  const core = new THREE.Mesh(geo, mat);
+  core.position.set(o.pos[0], o.pos[1], o.pos[2]);
+  const halo = glowSprite(o.color, 1.25, 0.0); halo.position.copy(core.position);
+  root.add(core); root.add(halo);
+  organMeshes.set(o.id, { core, halo, color: col, mat, pos: core.position.clone() });
+}
+const HEART = organMeshes.get("receipts");   // Λ heartbeat target
+
+/* ============================ vessels (the chain) ======================== *
+ * One CatmullRom Bezier tube from each organ to the heart (RECEIPTS). These ARE
+ * the one DSSE chain; pulses travel them. <12 tubes => trivial draw-call cost. */
+const vessels = new Map();   // organId -> {curve, mesh}
+function makeVessel(fromPos, toPos, color) {
+  const mid = fromPos.clone().lerp(toPos, 0.5);
+  const bow = fromPos.clone().sub(toPos); // perpendicular-ish bow for a vessel look
+  mid.add(new THREE.Vector3(-bow.y, bow.x, bow.z * 0.5).multiplyScalar(0.28));
+  mid.z += 0.35;
+  const curve = new THREE.CatmullRomCurve3([fromPos.clone(), mid, toPos.clone()]);
+  const geo = new THREE.TubeGeometry(curve, 40, 0.018, 6, false);
+  const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color),
+    transparent: true, opacity: 0.22 });
+  const mesh = new THREE.Mesh(geo, mat); root.add(mesh);
+  return { curve, mesh };
+}
+for (const o of LiveBody.ORGANS) {
+  if (o.id === "receipts") continue;
+  vessels.set(o.id, makeVessel(organMeshes.get(o.id).pos, HEART.pos, K.lattice));
+}
+
+/* ============================ verticals (limbs) ========================== *
+ * Honest ROADMAP: rendered, dim, labeled — never fake-pulsed (no live throughput
+ * endpoint). They wake only if a real "<vertical>|<action>" receipt arrives. */
+const limbs = new Map();
+for (const v of LiveBody.VERTICALS) {
+  const geo = new THREE.TorusGeometry(0.16, 0.045, 8, 16);
+  const col = new THREE.Color(v.color);
+  const mat = new THREE.MeshStandardMaterial({ color: col, emissive: col,
+    emissiveIntensity: 0.04, metalness: 0.3, roughness: 0.6, flatShading: true });
+  const m = new THREE.Mesh(geo, mat); m.position.set(v.pos[0], v.pos[1], v.pos[2]);
+  m.rotation.x = Math.PI / 2; root.add(m);
+  // honest dashed tether to torso (structure only, not a chain vessel)
+  limbs.set(v.id, { mesh: m, color: col });
+}
+
+/* ============================ skeleton (SLSA) ============================ *
+ * Structural spine ring. Honest: no /v1/slsa endpoint => integrity UNVERIFIED;
+ * rendered as faint structure, never claiming a verified SLSA level. */
+const spineMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(K.dim),
+  transparent: true, opacity: 0.16, wireframe: true });
+const spine = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.012, 4, 48), spineMat);
+spine.rotation.x = Math.PI / 2.2; root.add(spine);
+
+/* ============================ immune swarm (E5) ========================== *
+ * GPU-instanced antibodies. count = REAL fraction of mesh engines down
+ * (/v1/govern/health). Dormant (count 0) when the mesh is healthy. */
+const SWARM_MAX = 1200;
+const swarmGeo = new THREE.SphereGeometry(0.018, 6, 6);
+const swarmMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(K.warn),
+  transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
+const swarm = new THREE.InstancedMesh(swarmGeo, swarmMat, SWARM_MAX);
+swarm.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+swarm.count = 0; root.add(swarm);
+const swarmSeed = [];
+for (let i = 0; i < SWARM_MAX; i++) {
+  swarmSeed.push({ r: 0.55 + Math.random() * 0.5, a: Math.random() * Math.PI * 2,
+    b: Math.random() * Math.PI, sp: 0.4 + Math.random() * 0.8 });
+}
+const _m = new THREE.Matrix4(), _v = new THREE.Vector3();
+
+/* ============================ pulse pool ================================= *
+ * Each active pulse corresponds to a REAL receipt. Pooled so we never exceed the
+ * perf budget; LIVE pulses recycle. Denied receipts bounce back at the organ wall. */
+const POOL = 48;
+const pulseCore = [];
+for (let i = 0; i < POOL; i++) {
+  const grp = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  const gl = glowSprite("#ffffff", 0.42, 0.9); grp.add(core); grp.add(gl);
+  grp.visible = false; root.add(grp);
+  pulseCore.push({ grp, core, gl, active: false, t: 0, speed: 0.0, curve: null,
+    color: new THREE.Color(K.proof), denied: false, dir: 1 });
+}
+function spawnPulse(organId, color, denied) {
+  const v = vessels.get(organId) || vessels.get("policy");
+  if (!v) return;
+  const p = pulseCore.find((x) => !x.active);
+  if (!p) return;   // pool exhausted this frame; honest backpressure (no over-budget spawns)
+  p.active = true; p.t = 0; p.dir = 1; p.denied = !!denied;
+  p.speed = 0.45 + Math.random() * 0.2;
+  p.curve = v.curve; p.color.set(denied ? K.warn : (color || K.proof));
+  p.core.material.color.copy(p.color); p.gl.material.color.copy(p.color);
+  p.grp.visible = true;
+}
+
+/* ============================ HUD: organ rows ============================ */
+const organRows = new Map();
+for (const o of LiveBody.ORGANS) {
+  const row = document.createElement("div");
+  row.className = "orow"; row.dataset.state = "pending";
+  row.innerHTML =
+    `<span class="odot" style="color:${o.color}"></span>
+     <span class="on">${o.name}</span>
+     <span class="od">probing…</span>`;
+  $("organ-rows").appendChild(row);
+  organRows.set(o.id, row);
+}
+function setOrganDot(row, state, color) {
+  const dot = row.querySelector(".odot");
+  dot.style.background = state === "live" ? color : "var(--dim)";
+}
+
+/* ============================ live data wiring =========================== */
+const STATE = { lambda: 0.90, lambdaPass: true, organLive: {}, lastSeq: -1, immune: 0 };
+let seenIds = new Set();
+
+function logLine(html) {
+  const el = $("log");
+  el.innerHTML = html + "<br>" + el.innerHTML;
+  if (el.innerHTML.length > 2400) el.innerHTML = el.innerHTML.slice(0, 2400);
+}
+
+async function refreshOrgans() {
+  await Promise.all(LiveBody.ORGANS.map(async (o) => {
+    const r = await LiveBody.probeOrgan(o);
+    const row = organRows.get(o.id);
+    row.dataset.state = r.status;
+    const od = row.querySelector(".od");
+    if (r.status === LiveBody.STATUS.LIVE) {
+      od.textContent = r.detail; setOrganDot(row, "live", o.color);
+      STATE.organLive[o.id] = true;
+      const om = organMeshes.get(o.id);
+      om.mat.emissiveIntensity = 0.6;        // healthy glow
+    } else {
+      od.textContent = `unreachable — ${r.detail} · honest empty-state`;
+      setOrganDot(row, "unreachable"); STATE.organLive[o.id] = false;
+      organMeshes.get(o.id).mat.emissiveIntensity = 0.06;   // dim, honest
+    }
+  }));
+}
+
+async function refreshMind() {
+  const m = await LiveBody.fetchMind();
+  const sov = $("m-sov");
+  if (!m.reachable) {
+    sov.className = "badge sov-unknown"; sov.textContent = "unknown";
+    $("m-backend").textContent = "unreachable"; $("m-mode").textContent = m.why || "—";
+    $("m-doctrine").textContent = "—"; return;
+  }
+  if (m.sovereign === true) { sov.className = "badge sov-true"; sov.textContent = "true (local serves)"; }
+  else { sov.className = "badge sov-false"; sov.textContent = "false (router serves)"; }
+  $("m-backend").textContent = m.backend; $("m-mode").textContent = m.mode;
+  $("m-doctrine").textContent = m.doctrine || "—";
+}
+
+async function refreshLambda() {
+  const d = await LiveBody.fetchLambda();
+  if (!d.reachable || d.lambda == null) {
+    $("lambda-val").textContent = "Λ unreachable";
+    $("lambda-meta").textContent = `${d.why || "no data"} · honest empty-state`;
+    return;
+  }
+  STATE.lambda = d.lambda; STATE.lambdaPass = d.pass;
+  $("lambda-val").textContent = `Λ ${d.lambda.toFixed(5)}`;
+  $("lambda-meta").textContent =
+    `${d.pass ? "≥" : "<"} floor ${d.floor} · ${d.axes.length}-axis ${d.aggregate ? "· " + d.aggregate.split("(")[0].trim() : ""}`;
+  $("h-lambda").textContent = `Λ = ${d.uniqueness}`;
+}
+
+async function refreshDoctrine() {
+  const d = await LiveBody.fetchDoctrine();
+  if (!d.reachable) return;
+  $("h-lambda").textContent = `Λ = ${d.lambda}`;
+}
+
+async function refreshImmune() {
+  const im = await LiveBody.fetchImmune();
+  STATE.immune = im.reachable ? im.intensity : 0;
+  swarm.count = Math.round(STATE.immune * SWARM_MAX);
+  if (im.reachable) logLine(`<b>immune:</b> ${im.detail}`);
+}
+
+/* spawn pulses for REAL receipts we haven't shown yet (honest: 1 pulse / receipt) */
+async function refreshLedger(initial) {
+  const L = await LiveBody.fetchLedger();
+  if (!L.reachable) {
+    logLine(`<b>ledger:</b> UNREACHABLE — ${L.why} · no pulses faked.`);
+    return 0;
+  }
+  let spawned = 0;
+  const recent = L.receipts.slice(-POOL);   // cap to pool; never exceed budget
+  for (const r of recent) {
+    if (seenIds.has(r.id)) continue;
+    seenIds.add(r.id);
+    if (!initial) {                         // on refresh, only animate genuinely-new receipts
+      spawnPulse(r.organ, organMeshes.get(r.organ)?.color.getStyle(), r.denied);
+      spawned++;
+    }
+  }
+  logLine(`<b>ledger:</b> ${L.count} receipts on the chain${spawned ? ` · +${spawned} new pulse(s)` : ""}.`);
+  return L.count;
+}
+
+async function refreshAll(initial) {
+  await Promise.all([refreshOrgans(), refreshMind(), refreshLambda(), refreshDoctrine(), refreshImmune()]);
+  await refreshLedger(initial);
+}
+
+/* the proactive cycle: replay the REAL chain's organ order as travelling pulses */
+let running = false;
+async function runCycle() {
+  if (running) return; running = true;
+  const btn = $("run"); btn.setAttribute("aria-disabled", "true");
+  const L = await LiveBody.fetchLedger();
+  if (!L.reachable) {
+    logLine(`<b>cycle:</b> ledger UNREACHABLE — ${L.why}; nothing faked.`);
+    btn.removeAttribute("aria-disabled"); running = false; return;
+  }
+  logLine(`<b>proactive cycle:</b> replaying ${L.receipts.length} real receipts…`);
+  for (const r of L.receipts) {
+    spawnPulse(r.organ, organMeshes.get(r.organ)?.color.getStyle(), r.denied);
+    await sleep(150);
+  }
+  logLine(`<b>cycle complete</b> — every pulse was a real receipt (seq 0…${L.receipts.length - 1}).`);
+  btn.removeAttribute("aria-disabled"); running = false;
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ============================ Λ heartbeat (E7) =========================== *
+ * Double-beat ECG waveform; rate scales with Λ. Drives heart scale + emissive
+ * and the overall organism glow. Honest: when Λ is unreachable it flatlines. */
+const ecg = $("ecg"), ectx = ecg.getContext("2d");
+let beatPhase = 0;
+function heartbeatEnvelope(phase) {
+  // two gaussian "lub-dub" bumps per cycle
+  const g = (c, w) => Math.exp(-((phase - c) ** 2) / (2 * w * w));
+  return g(0.18, 0.05) * 1.0 + g(0.34, 0.07) * 0.62;
+}
+function drawECG() {
+  const w = ecg.width, h = ecg.height; ectx.clearRect(0, 0, w, h);
+  ectx.strokeStyle = STATE.lambdaPass ? K.gold : K.warn; ectx.lineWidth = 1.6;
+  ectx.beginPath();
+  for (let x = 0; x <= w; x++) {
+    const ph = ((x / w) + beatPhase) % 1;
+    const y = h * 0.5 - heartbeatEnvelope(ph) * h * 0.42;
+    x === 0 ? ectx.moveTo(x, y) : ectx.lineTo(x, y);
+  }
+  ectx.stroke();
+}
+
+/* ============================ animation loop ============================= */
+let last = performance.now(), dragX = 0, dragY = 0, autoSpin = 0.04;
+function animate(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  // heartbeat rate from Λ (0.90→~0.8Hz, 1.0→~1.2Hz)
+  const rate = 0.8 + Math.max(0, STATE.lambda - 0.9) * 4;
+  beatPhase = (beatPhase + dt * rate) % 1;
+  const env = heartbeatEnvelope(beatPhase);
+  // heart pulse + overall glow
+  const s = 1 + env * 0.16; HEART.core.scale.setScalar(s);
+  HEART.mat.emissiveIntensity = (STATE.organLive.receipts ? 0.55 : 0.06) + env * 0.7;
+  HEART.halo.material.opacity = 0.12 + env * 0.4;
+  // organ halos track health + breathe with the beat
+  for (const [id, om] of organMeshes) {
+    const liveOn = STATE.organLive[id];
+    om.halo.material.opacity = (liveOn ? 0.16 : 0.0) + (liveOn ? env * 0.18 : 0);
+    om.core.rotation.y += dt * 0.25; om.core.rotation.x += dt * 0.12;
+  }
+  // verticals gently breathe but stay dim (honest ROADMAP)
+  for (const [, lb] of limbs) lb.mesh.rotation.z += dt * 0.2;
+  // pulses travel their vessel; denied bounce back at the organ wall
+  for (const p of pulseCore) {
+    if (!p.active) continue;
+    p.t += dt * p.speed * p.dir;
+    if (p.denied && p.t >= 0.82) { p.dir = -1; }     // rejected at the wall → bounce
+    if (p.t >= 1 || p.t <= 0) {
+      // arrived at heart (allow) or returned to organ (denied) → recycle
+      p.active = false; p.grp.visible = false; continue;
+    }
+    const pt = p.curve.getPointAt(Math.min(0.999, Math.max(0.001, p.t)));
+    p.grp.position.copy(pt);
+    // brighten the heart very slightly as an allow-pulse lands
+  }
+  // immune swarm orbit (instanced)
+  if (swarm.count > 0) {
+    for (let i = 0; i < swarm.count; i++) {
+      const sd = swarmSeed[i]; sd.a += dt * sd.sp;
+      _v.set(Math.sin(sd.b) * Math.cos(sd.a) * sd.r,
+             Math.cos(sd.b) * sd.r * 0.6,
+             Math.sin(sd.b) * Math.sin(sd.a) * sd.r);
+      _m.makeTranslation(_v.x, _v.y, _v.z); swarm.setMatrixAt(i, _m);
+    }
+    swarm.instanceMatrix.needsUpdate = true;
+  }
+  // gentle auto-spin + drag
+  root.rotation.y += dt * autoSpin + dragX; root.rotation.x += dragY;
+  root.rotation.x = Math.max(-0.5, Math.min(0.5, root.rotation.x));
+  dragX *= 0.85; dragY *= 0.85;
+  drawECG();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+/* ============================ resize + input ============================= */
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+
+let dragging = false, lx = 0, ly = 0;
+canvas.addEventListener("pointerdown", (e) => { dragging = true; lx = e.clientX; ly = e.clientY; autoSpin = 0; });
+window.addEventListener("pointerup", () => { dragging = false; autoSpin = 0.04; });
+window.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  dragX = (e.clientX - lx) * 0.00018; dragY = (e.clientY - ly) * 0.00012;
+  lx = e.clientX; ly = e.clientY;
+});
+
+/* ============================ boot ======================================= */
+$("run").addEventListener("click", runCycle);
+$("refresh").addEventListener("click", () => refreshAll(false));
+(async () => {
+  await refreshAll(true);          // initial: seed seenIds without a pulse storm
+  $("boot").style.display = "none";
+  requestAnimationFrame(animate);
+  // a short delayed replay so the first load visibly shows real receipts flowing
+  setTimeout(runCycle, 400);
+})();
+</script>
+</body>
+</html>
