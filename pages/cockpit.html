@@ -220,8 +220,11 @@
     '</div>'+
 
     '<div class="card small"><h2>Swarm</h2>'+
-      '<div class="metric" style="font-size:22px" class="state-'+stateOf(swarm.reachable)+'">'+stateOf(swarm.reachable)+'</div>'+
-      '<div class="foot">'+esc(swarm.reachable===false?"no swarm peers reachable":"mesh peers")+'</div>'+
+      (swarm.status==="standalone"
+        ? '<div class="metric state-NA" style="font-size:22px">STANDALONE</div>'+
+          '<div class="foot">'+esc(swarm.detail||"no swarm mesh on this Space (single-node)")+'</div>'
+        : '<div class="metric state-'+stateOf(swarm.reachable)+'" style="font-size:22px">'+stateOf(swarm.reachable)+'</div>'+
+          '<div class="foot">'+esc(swarm.reachable===false?"no swarm peers reachable":"mesh peers")+'</div>')+
     '</div>'+
 
     '<div class="card small"><h2>Sections</h2>'+

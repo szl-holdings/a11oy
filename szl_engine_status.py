@@ -195,7 +195,16 @@ def _swarm_from_probe(probe: dict[str, Any]) -> dict[str, Any]:
     """Project the swarm feed if available. Absent/unreachable -> reachable:false."""
     swarm: dict[str, Any] = {"reachable": probe.get("reachable", False), "nodes": None, "served_by": None}
     if not probe.get("reachable"):
-        swarm["status"] = probe.get("status", "unavailable")
+        st = probe.get("status", "unavailable")
+        # A 404 means no swarm mesh is *served* on this Space (single-node deploy).
+        # That is an honest "standalone" state, not a fault — report it as such
+        # (reachable stays False; nothing fabricated) so dashboards render a neutral
+        # chip instead of a scary red http_404.
+        if st == "http_404":
+            swarm["status"] = "standalone"
+            swarm["detail"] = "no swarm mesh on this Space (single-node)"
+        else:
+            swarm["status"] = st
         return swarm
     body = probe.get("body") or {}
     if isinstance(body, dict):
