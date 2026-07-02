@@ -472,6 +472,7 @@
   let V7=null;           // v5 quantum-bio layer (coherence + bioenergetic + Λ-v5 gate + compass; verified model, mirrors a11oy /qbio)
   let V8=null;           // v8 live agentic lens (read-only reflection of a11oy's real agent loop / gates / verified math)
   let V9=null;           // v9 fly-high: live receipt bloodstream + heartbeat loop + killinchu body + cinematic vital tour + agent trace + polish
+  let V10=null;          // v10 estate/ayllu: zoom-OUT to the whole SZL estate — live Ayllu council (roster) + declared hardware/stack shell + zoom presets
   function flyTo(targetVec, radius){
     tween={fromT:cam.target.clone(),toT:targetVec.clone(),fromR:cam.r,toR:radius==null?cam.r:radius,t:0,dur:0.9};
   }
@@ -653,6 +654,8 @@
     if(V7 && V7.tick) V7.tick(dt,t);
     // v9 fly-high: live receipt bloodstream particles + cinematic vital tour camera + heartbeat-loop heart breathing
     if(V9 && V9.tick) V9.tick(dt,t,beat);
+    // v10 estate/ayllu: rotate the council + estate shells and project their labels
+    if(V10 && V10.tick) V10.tick(dt,t,beat);
     renderer.render(scene,camera);
     if(!_loaderHidden){ _loaderHidden=true; var ld=$('loader'); if(ld) ld.classList.add('hidden'); }
   }
@@ -2817,6 +2820,201 @@
 
   /* ---- v9 bootstrap is internal to the IIFE above (wire + heartbeat + killinchu probe) ---- */
 
+  /* =====================================================================
+     V10 — ESTATE / AYLLU  (additive · honest · zoom-OUT)
+     Evolves the living anatomy from a single organism into the whole SZL
+     estate, in the same doctrine as every prior layer:
+       · Ayllu COUNCIL — the deliberating minds, read LIVE from a11oy
+         /api/a11oy/v1/ayllu/roster (CORS-allowed for this Space). If the
+         roster is unreachable it falls back to the declared core personas
+         and is labelled "offline · static snapshot" — never a fabricated
+         roster, never a fabricated count.
+       · ESTATE shell — Rosa's real hardware & stack rendered as DECLARED
+         nodes (no per-node live probe) — labelled "declared", never faked.
+       · PINN LAB — a MEASURED local snapshot (rosie · RTX 5050), explicitly
+         labelled MEASURED / not-live.
+       · Zoom presets — COUNCIL (in) · ORGANISM (home) · ESTATE (out) —
+         reuse the existing custom-camera flyTo()/tween + render loop.
+     Shares scene / camera / cam / HOME / flyTo / glowSprite / autoRotate by
+     closure; adds nothing to the network path except the read-only roster.
+     ===================================================================== */
+  V10 = (function(){
+    if(typeof THREE==='undefined' || !scene) return null;
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    /* ---- honest data ---- */
+    const COUNCIL_FALLBACK = ['Amaru','Ruwaq','Yupaq'];   // declared core (roster-unreachable path)
+    const COUNCIL_COL = 0xb98cff;
+    const ESTATE = [
+      {id:'rosie · RTX 5050',         col:0x34f5b0, kind:'GPU · research'},
+      {id:'betterwithage · RTX 5000', col:0x39d7ff, kind:'GPU · inference (MIND core)'},
+      {id:'Hetzner · prod box',       col:0xffd66e, kind:'compute · host'},
+      {id:'Neon · Postgres 17',       col:0x5ad6ff, kind:'data · database'},
+      {id:'Hugging Face · Spaces',    col:0xffcb57, kind:'edge · deploy'},
+      {id:'Backblaze B2 · backups',   col:0x9aa6bd, kind:'storage · DR'}
+    ];
+
+    /* ---- groups (share the existing scene) ---- */
+    const councilGroup = new THREE.Group(); councilGroup.position.set(0,3.15,0); scene.add(councilGroup);
+    const estateGroup  = new THREE.Group(); scene.add(estateGroup);
+    let councilNodes=[], estateNodes=[];
+    const ORIG_FOG = (scene.fog && scene.fog.density!=null) ? scene.fog.density : 0.020;
+
+    function clearGroup(g){ while(g.children.length) g.remove(g.children[0]); }
+
+    function buildCouncil(names){
+      clearGroup(councilGroup); councilNodes=[];
+      const n=Math.max(names.length,1), R=3.1;
+      names.forEach((nm,i)=>{
+        const a=(i/n)*TAU, grp=new THREE.Group();
+        grp.position.set(Math.cos(a)*R, Math.sin(i*1.7)*0.35, Math.sin(a)*R);
+        grp.add(new THREE.Mesh(new THREE.TetrahedronGeometry(0.22,0),
+          new THREE.MeshStandardMaterial({color:COUNCIL_COL,emissive:COUNCIL_COL,emissiveIntensity:0.75,roughness:0.3,metalness:0.22})));
+        grp.add(glowSprite(COUNCIL_COL,1.35,0.5));
+        grp.userData={label:esc(nm), sub:'Ayllu · council', spin:0.5+Math.random()*0.6};
+        councilGroup.add(grp); councilNodes.push(grp);
+      });
+      makeLabels();
+    }
+
+    function buildEstate(){
+      clearGroup(estateGroup); estateNodes=[];
+      const n=ESTATE.length, R=13;
+      ESTATE.forEach((e,i)=>{
+        const a=(i/n)*TAU, grp=new THREE.Group();
+        grp.position.set(Math.cos(a)*R, (i%2?1:-1)*(1.4+(i%3)*0.9), Math.sin(a)*R);
+        grp.add(new THREE.Mesh(new THREE.BoxGeometry(0.62,0.62,0.62),
+          new THREE.MeshStandardMaterial({color:e.col,emissive:e.col,emissiveIntensity:0.6,roughness:0.4,metalness:0.3,transparent:true,opacity:0.94})));
+        grp.add(glowSprite(e.col,2.1,0.34));
+        grp.userData={label:esc(e.id), sub:esc(e.kind)+' · declared', spin:0.3+Math.random()*0.4};
+        estateGroup.add(grp); estateNodes.push(grp);
+      });
+      makeLabels();
+    }
+
+    /* ---- own label layer (revealed only by the matching preset) ---- */
+    let labLayer=document.getElementById('v10-labels');
+    if(!labLayer){ labLayer=document.createElement('div'); labLayer.id='v10-labels';
+      labLayer.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:40'; document.body.appendChild(labLayer); }
+    let v10labels=[];
+    function makeLabels(){
+      labLayer.innerHTML=''; v10labels=[];
+      const add=(grp,kind)=>{
+        const d=document.createElement('div');
+        d.style.cssText='position:absolute;transform:translate(-50%,-150%);font:600 10px/1.3 ui-monospace,Menlo,monospace;'+
+          'letter-spacing:.04em;white-space:nowrap;padding:2px 7px;border-radius:7px;opacity:0;transition:opacity .25s;'+
+          'background:rgba(6,10,18,.72);border:1px solid rgba(120,140,180,.28)';
+        const col = kind==='council' ? '#c9adff' : '#ffd98a';
+        d.innerHTML='<span style="color:'+col+'">'+grp.userData.label+'</span>'+
+          '<span style="color:#8a97ad;margin-left:6px">'+grp.userData.sub+'</span>';
+        labLayer.appendChild(d); v10labels.push({grp,div:d,kind});
+      };
+      councilNodes.forEach(g=>add(g,'council'));
+      estateNodes.forEach(g=>add(g,'estate'));
+    }
+    const _wp=new THREE.Vector3();
+    function projectLabels(){
+      const w=innerWidth,h=innerHeight;
+      v10labels.forEach(L=>{
+        const show=(mode==='council'&&L.kind==='council')||(mode==='estate'&&L.kind==='estate');
+        if(!show){ L.div.style.opacity='0'; return; }
+        L.grp.getWorldPosition(_wp); _wp.project(camera);
+        if(_wp.z>1){ L.div.style.opacity='0'; return; }
+        const x=(_wp.x*0.5+0.5)*w, y=(-_wp.y*0.5+0.5)*h;
+        if(x<0||x>w||y<44||y>h-84){ L.div.style.opacity='0'; return; }
+        L.div.style.left=x+'px'; L.div.style.top=y+'px'; L.div.style.opacity='0.96';
+      });
+    }
+
+    /* ---- zoom presets (reuse the existing custom camera + flyTo tween) ---- */
+    let mode='organism';
+    function setFog(d){ if(scene.fog && scene.fog.density!=null) scene.fog.density=d; }
+    function goCouncil(){  mode='council';  setFog(ORIG_FOG); flyTo(new THREE.Vector3(0,3.0,0), 7.5); setActive('council'); }
+    function goOrganism(){ mode='organism'; setFog(ORIG_FOG); flyTo(HOME.target.clone(), HOME.r);      setActive('organism'); }
+    function goEstate(){   mode='estate';   setFog(0.009);    flyTo(new THREE.Vector3(0,0.3,0), 30); autoRotate=true; setActive('estate'); }
+
+    /* ---- controls (injected into the existing #controls hud) ---- */
+    const controls=document.getElementById('controls'); const btns={};
+    function mkBtn(id,txt,title,fn){ const b=document.createElement('button'); b.className='btn'; b.id=id; b.textContent=txt; b.title=title; b.addEventListener('click',fn); if(controls)controls.appendChild(b); btns[id]=b; return b; }
+    function setActive(m){ ['council','organism','estate'].forEach(k=>{ const b=btns['btn-v10-'+k]; if(b)b.classList.toggle('active',k===m); }); }
+    mkBtn('btn-v10-council','◎ council','v10: zoom to the Ayllu council (live roster · /v1/ayllu/roster)',goCouncil);
+    mkBtn('btn-v10-organism','◉ organism','v10: return to the organism (home view)',goOrganism);
+    mkBtn('btn-v10-estate','⤢ estate','v10: zoom OUT to the whole estate — hardware & stack (declared)',goEstate);
+    mkBtn('btn-v10-lens','▦ estate lens','v10: toggle the estate/council honesty panel',toggleLens);
+
+    /* ---- honest estate lens panel ---- */
+    const panelEl=document.createElement('div'); panelEl.id='v10-panel';
+    panelEl.style.cssText='position:fixed;left:18px;bottom:74px;width:min(92vw,300px);z-index:41;'+
+      'background:rgba(6,10,18,.85);border:1px solid rgba(120,140,180,.26);border-radius:12px;'+
+      'padding:12px 14px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#cdd6e6;display:none';
+    document.body.appendChild(panelEl);
+    function toggleLens(){ const open=panelEl.style.display!=='none'; panelEl.style.display=open?'none':'block'; const b=btns['btn-v10-lens']; if(b)b.classList.toggle('active',!open); }
+    function renderPanel(j, live){
+      const count = live ? (j && j.count!=null ? j.count : '—') : '3 (core · declared)';
+      const names = live ? ((j&&j.personas)||[]).map(p=>esc(p&&(p.name||p.id)||'')).filter(Boolean).join(' · ') : COUNCIL_FALLBACK.join(' · ');
+      const chip  = live ? '<span style="color:#34f5b0">● live · a11oy</span>' : '<span style="color:#9aa6bd">offline · static snapshot</span>';
+      const estateRows = ESTATE.map(e=>'<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0;border-bottom:1px dashed rgba(120,140,180,.14)">'+
+        '<span style="color:#aeb9cc">'+esc(e.id)+'</span><span style="color:#7f8aa0">'+esc(e.kind)+'</span></div>').join('');
+      panelEl.innerHTML=
+        '<div style="letter-spacing:.16em;color:#8a97ad;font-size:10.5px;margin-bottom:6px">ESTATE LENS · zoom-out</div>'+
+        '<div style="font-size:11px;color:#c9adff;letter-spacing:.06em">COUNCIL — /v1/ayllu/roster</div>'+
+        '<div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#8a97ad">personas</span><span>'+esc(String(count))+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#8a97ad">source</span>'+chip+'</div>'+
+        '<div style="color:#b7a3e6;font-size:10.5px;margin:4px 0 10px;line-height:1.5">'+(names||'—')+'</div>'+
+        '<div style="font-size:11px;color:#ffd98a;letter-spacing:.06em">LAB — PhysicsNeMo PINN '+
+          '<span style="margin-left:6px;padding:1px 6px;border:1px solid #123a2c;border-radius:6px;color:#34f5b0;font-size:9px">MEASURED</span></div>'+
+        '<div style="color:#aeb9cc;font-size:10.5px;margin:4px 0 1px">rosie · RTX 5050 (Blackwell sm_120)</div>'+
+        '<div style="color:#8a97ad;font-size:10px;margin-bottom:10px">PhysicsNeMo 2.1.1 · torch 2.12.1+cu130 · local snapshot (not live)</div>'+
+        '<div style="font-size:11px;color:#ffd98a;letter-spacing:.06em">ESTATE — hardware &amp; stack</div>'+
+        estateRows+
+        '<div style="color:#7f8aa0;font-size:9.5px;margin-top:6px">estate nodes are <b style="color:#aeb9cc">declared</b> (no live probe)</div>';
+    }
+
+    /* ---- live roster (read-only, CORS-allowed; graceful offline) ---- */
+    const BASE='https://szlholdings-a11oy.hf.space/api/a11oy';
+    async function pull(url,ms){
+      const ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+      const to=ctl?setTimeout(()=>{try{ctl.abort();}catch(e){}},ms||12000):null;
+      try{ const r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',signal:ctl?ctl.signal:undefined});
+        if(to)clearTimeout(to); if(!r||!r.ok)return null; return await r.json();
+      }catch(e){ if(to)clearTimeout(to); return null; }
+    }
+    let _lastCouncilKey=null;
+    function setCouncil(names){                 // v10 polish: rebuild the ring ONLY when the roster actually changes (kills the 30s GPU/DOM churn)
+      const key=names.join('\u241f');
+      if(key===_lastCouncilKey) return;
+      _lastCouncilKey=key;
+      buildCouncil(names);
+    }
+    async function pollRoster(){
+      const j=await pull(BASE+'/v1/ayllu/roster');
+      if(!j){ setCouncil(COUNCIL_FALLBACK); renderPanel(null,false); return; }
+      let people=j.personas||j.roster||[]; if(!Array.isArray(people))people=[];
+      let names=people.map(p=>(p&&(p.name||p.persona||p.id))||String(p)).filter(Boolean);
+      if(!names.length){ setCouncil(COUNCIL_FALLBACK); renderPanel(null,false); return; }  // v10 polish/honesty: an EMPTY live roster is shown as declared snapshot, never fallback names under a "live" chip
+      setCouncil(names); renderPanel(j,true);
+    }
+
+    function tick(dt,t){
+      councilGroup.rotation.y -= dt*0.12;
+      councilNodes.forEach(g=>{ g.rotation.y += dt*g.userData.spin; g.rotation.x += dt*g.userData.spin*0.5; });
+      estateGroup.rotation.y += dt*0.04;
+      estateNodes.forEach(g=>{ g.rotation.y += dt*0.2; });
+      projectLabels();
+    }
+
+    /* ---- boot: honest declared state first, then upgrade live ---- */
+    setCouncil(COUNCIL_FALLBACK);
+    buildEstate();
+    renderPanel(null,false);
+    pollRoster();
+    setInterval(pollRoster, 30000);
+
+    return { tick, api:{ mode:()=>mode, council:()=>councilNodes.length, estate:()=>estateNodes.length,
+      goCouncil, goOrganism, goEstate } };
+  })();
+  /* =========================  /v10 estate/ayllu  ===================== */
+
   /* ---------------- test hooks for headless QA ---------------- */
   window.__anatomy = {
     organs: organMeshes.length,
@@ -2834,6 +3032,7 @@
     v7: V7,  // v5 quantum-bio layer (coherence + bioenergetic + Λ-v5 gate + compass; verified model, mirrors a11oy /qbio)
     v8: V8,  // v8 live agentic lens (read-only reflection of a11oy's real agent loop; runDecisionFlow/pollVitals/onOrganOpen)
     v9: V9,  // v9 fly-high (bloodstream particles, autonomous heartbeat loop, killinchu 2nd body, cinematic vital tour, agent trace, polish)
+    v10: V10, // v10 estate/ayllu (live Ayllu council roster + declared hardware/stack estate shell + zoom presets)
     formulas: Object.keys(D.FORMULAS).length,
     tierCounts: (V5&&V5.api)?V5.api.tierCounts():null,
     qbio: (V7&&V7.api)?V7.api():null
