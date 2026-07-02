@@ -51,6 +51,9 @@ _NODES = [
     # WALLPA — the VOICE/expression organ (Doctrine v13 §2.2). Best-effort liveness
     # via the in-process voices route; honestly null (amber) when unmeasured.
     {"id": "voice",     "name": "Wallpa Voice",     "role": "voice",       "pos": [0, -12, -6], "probe": "/api/a11oy/wallpa/voices"},
+    # AYLLU — the a11oy-native agent community (ingested tribe). Liveness via the
+    # roster route (registered in-process); honestly null (amber) when unmeasured.
+    {"id": "ayllu",     "name": "Ayllu Council",    "role": "community",   "pos": [0, 2, 15],   "probe": "/api/a11oy/v1/ayllu/roster"},
 ]
 
 # Honest cache of the last successfully-built topology (so a degraded probe
