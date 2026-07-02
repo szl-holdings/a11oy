@@ -84,6 +84,21 @@
     padding-bottom:8px;border-bottom:1px solid var(--line)}
   .section-title{font-size:13px;letter-spacing:1.6px;text-transform:uppercase;color:var(--ink);font-weight:700}
   .section-sub{color:var(--mut);font-size:11.5px}
+  .spine-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+    border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--panel);margin-bottom:12px}
+  .spine-hero{display:flex;align-items:baseline;gap:10px}
+  .spine-hero .big{font-size:36px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+  .spine-hero .lbl{color:var(--dim);font-size:12px;max-width:280px}
+  .spine-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .spine-col{border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--panel)}
+  .spine-col-h{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--accent);
+    font-weight:700;margin-bottom:8px}
+  .spine-col-h .cnt{color:var(--dim);margin-left:5px;font-weight:600}
+  .tool{padding:6px 0;border-top:1px solid rgba(255,255,255,.045)}
+  .tool:first-of-type{border-top:none}
+  .tool .tn{display:block;font-size:11.5px;color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-word}
+  .tool .td{display:block;font-size:11px;color:var(--dim);line-height:1.4;margin-top:1px}
   .con{grid-column:span 3;border:1px solid var(--line);border-radius:12px;background:var(--panel2);
     padding:13px 14px;display:flex;flex-direction:column;gap:6px;position:relative}
   @media(max-width:860px){.con{grid-column:span 6}}
@@ -125,6 +140,14 @@
 
   <div class="grid" id="grid">
     <div class="card small"><h2>loading</h2><div class="metric">…</div></div>
+  </div>
+
+  <div class="section-head">
+    <span class="section-title">The Spine</span>
+    <span class="section-sub">hatun-mcp federates the org&rsquo;s tools &middot; live from its own manifest &middot; <span id="spine-count">—</span></span>
+  </div>
+  <div id="spine">
+    <div class="err" style="border-color:var(--line);background:var(--panel);color:var(--mut)">probing the spine…</div>
   </div>
 
   <div class="section-head">
@@ -276,7 +299,54 @@
       .catch(function(e){ conFail(e.message||String(e)); });
   }
 
+  var spineEl = document.getElementById("spine");
+  var spineCount = document.getElementById("spine-count");
+  var SPINE_LABELS = {a11oy:"a11oy", killinchu:"killinchu", immune:"immune", governance:"governance / doctrine"};
+  var SPINE_ORDER = ["a11oy","killinchu","immune","governance"];
+  function renderSpine(d){
+    if(!d || d.reachable===false){
+      spineCount.textContent = "spine unreachable";
+      spineEl.innerHTML = '<div class="err">hatun-mcp manifest unreachable (HTTP '+esc(d&&d.http_status)+'). Retrying.</div>';
+      return;
+    }
+    var gov = d.governance||{}, locked = gov.doctrine_locked||{}, srv = d.server||{};
+    spineCount.textContent = (d.tool_count!=null?d.tool_count:"—")+" federated tools";
+    var chips = [];
+    if(srv.version) chips.push('<span class="chip">hatun v'+esc(srv.version)+'</span>');
+    if(gov.protocol_revision) chips.push('<span class="chip">mcp '+esc(gov.protocol_revision)+'</span>');
+    if(gov.signer_mode) chips.push('<span class="chip ok">signer '+esc(gov.signer_mode)+'</span>');
+    if(locked.lean_declarations!=null) chips.push('<span class="chip">'+esc(locked.lean_declarations)+' lean decls</span>');
+    if(locked.yuyay_axes!=null) chips.push('<span class="chip">Yuyay-'+esc(locked.yuyay_axes)+'</span>');
+    if(d.auth_required) chips.push('<span class="chip">calls need an SZL key</span>');
+    var byp = {}; (d.tools||[]).forEach(function(t){ (byp[t.product]=byp[t.product]||[]).push(t); });
+    var seen = SPINE_ORDER.filter(function(p){return byp[p];});
+    Object.keys(byp).forEach(function(p){ if(seen.indexOf(p)<0) seen.push(p); });
+    var cols = seen.map(function(p){
+      var list = byp[p].map(function(t){
+        return '<div class="tool"><span class="tn">'+esc(t.name)+'</span>'+
+          (t.description?'<span class="td">'+esc(t.description)+'</span>':'')+'</div>';
+      }).join("");
+      return '<div class="spine-col"><div class="spine-col-h">'+esc(SPINE_LABELS[p]||p)+
+        '<span class="cnt">'+byp[p].length+'</span></div>'+list+'</div>';
+    }).join("");
+    spineEl.innerHTML =
+      '<div class="spine-head">'+
+        '<div class="spine-hero"><span class="big">'+esc(d.tool_count)+'</span>'+
+        '<span class="lbl">tools federated through one signed gateway — read live from hatun-mcp&rsquo;s own manifest</span></div>'+
+        (chips.length?'<div class="chips">'+chips.join("")+'</div>':'')+
+      '</div>'+
+      '<div class="spine-cols">'+cols+'</div>';
+  }
+  function tickSpine(){
+    fetch("/api/a11oy/v1/spine", {headers:{"accept":"application/json"}, cache:"no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(renderSpine)
+      .catch(function(e){ spineCount.textContent="spine unreachable";
+        spineEl.innerHTML='<div class="err">Spine probe unreachable ('+esc(e.message||String(e))+'). Retrying.</div>'; });
+  }
+
   tick(); setInterval(tick, 15000);
+  tickSpine(); setInterval(tickSpine, 60000);
   tickCon(); setInterval(tickCon, 30000);
 })();
 </script>

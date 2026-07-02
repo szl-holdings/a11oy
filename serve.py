@@ -9521,6 +9521,101 @@ except Exception as _con_move_e:  # pragma: no cover
     print(f"[a11oy] Constellation front-move skipped (route still registered): {_con_move_e!r}", file=__import__("sys").stderr)
 
 
+# ---------------------------------------------------------------------------
+# Spine status — PROVE hatun-mcp actually federates the org's tools.
+# Reads hatun-mcp's OWN public .well-known/mcp manifest (no auth needed for the
+# manifest itself) and surfaces the REAL federated tool list. Honest by
+# construction: it is hatun-mcp advertising its own tools; a11oy invents nothing.
+# ---------------------------------------------------------------------------
+_spine_cache = {"ts": 0.0, "data": None}
+_SPINE_TTL = 60.0
+_HATUN_MANIFEST_URL = "https://szlholdings-hatun-mcp.hf.space/.well-known/mcp"
+
+
+def _classify_spine_tool(name: str, desc: str) -> str:
+    n = (str(name) + " " + str(desc)).lower()
+    if any(k in n for k in ("killinchu", "drone", "yachay", "boe target", "ads-b", "remote-id")):
+        return "killinchu"
+    if any(k in n for k in ("immune", "sentinel", "hukulla", "sbom")):
+        return "immune"
+    if any(k in n for k in ("a11oy", "companion", "operator", "code_chat", "code chat")):
+        return "a11oy"
+    return "governance"
+
+
+def _fetch_spine() -> dict:
+    import json as _json
+    empty = {"reachable": False, "http_status": 0, "tools": [], "tool_count": 0,
+             "by_product": {}, "server": {}, "governance": {}, "resources": [],
+             "auth_required": None}
+    code, body = _http_get(_HATUN_MANIFEST_URL, timeout=8)
+    if not (code and 200 <= code < 400 and body):
+        empty["http_status"] = code
+        return empty
+    try:
+        m = _json.loads(body)
+    except Exception:
+        empty["http_status"] = code
+        return empty
+    tools, by_product = [], {}
+    for t in (m.get("tools") or []):
+        if not isinstance(t, dict):
+            continue
+        name = str(t.get("name", ""))[:80]
+        desc = str(t.get("description", ""))[:200]
+        prod = _classify_spine_tool(name, desc)
+        tools.append({"name": name, "description": desc, "product": prod})
+        by_product[prod] = by_product.get(prod, 0) + 1
+    resources = [{"uri": str(r.get("uri", ""))[:120],
+                  "description": str(r.get("description", ""))[:160]}
+                 for r in (m.get("resources") or []) if isinstance(r, dict)]
+    return {
+        "reachable": True,
+        "http_status": code,
+        "server": {k: str(v)[:160] for k, v in (m.get("serverInfo") or {}).items()},
+        "governance": m.get("governance") or {},
+        "tool_count": len(tools),
+        "by_product": by_product,
+        "tools": tools,
+        "resources": resources,
+        "auth_required": bool((m.get("authentication") or {}).get("required")),
+    }
+
+
+@app.get("/api/a11oy/v1/spine")
+async def a11oy_spine_status() -> Response:
+    import time as _t, datetime as _dt
+    now = _t.monotonic()
+    cached = _spine_cache["data"]
+    if cached is not None and (now - _spine_cache["ts"]) < _SPINE_TTL:
+        return JSONResponse(cached)
+    payload = await asyncio.to_thread(_fetch_spine)
+    data = {
+        "schema": "szl.spine_status/v1",
+        "checked_at": _dt.datetime.utcnow().isoformat() + "Z",
+        "source": _HATUN_MANIFEST_URL,
+        "note": "federated tools read live from hatun-mcp's own .well-known/mcp manifest; nothing invented",
+        **payload,
+    }
+    _spine_cache["data"] = data
+    _spine_cache["ts"] = now
+    return JSONResponse(data)
+
+
+# ROUTE-ORDERING FIX (same proven pattern as constellation): front-move the spine
+# route ahead of the /api/a11oy/{path:path} Node proxy catch-all so it resolves in-process.
+try:
+    _spine_paths = {"/api/a11oy/v1/spine"}
+    _spine_moved = [r for r in app.router.routes if getattr(r, "path", None) in _spine_paths]
+    for _r in _spine_moved:
+        app.router.routes.remove(_r)
+    for _r in reversed(_spine_moved):
+        app.router.routes.insert(0, _r)
+    print(f"[a11oy] Spine route front-moved to router head: {len(_spine_moved)} routes", file=__import__("sys").stderr)
+except Exception as _spine_move_e:  # pragma: no cover
+    print(f"[a11oy] Spine front-move skipped: {_spine_move_e!r}", file=__import__("sys").stderr)
+
+
 @app.get("/viz")
 async def viz_gallery() -> Response:
     f = VIZ_DIR / "index.html"
