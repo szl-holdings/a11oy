@@ -29,6 +29,20 @@ import time
 import uuid
 from typing import Any, Dict, Optional
 
+# FastAPI resolves endpoint annotations with get_type_hints against THIS module's
+# globals. The handlers in register() annotate `request: "Request"` — a string
+# forward-ref, because of `from __future__ import annotations` above — so `Request`
+# (and the response classes) MUST be importable at MODULE level, or FastAPI cannot
+# recognize the special Request parameter and mis-treats it as a REQUIRED query
+# param (every GET route then 422s with loc=["query","request"]). They are also
+# imported locally inside register() for the call sites; this module-level (guarded)
+# import is solely what makes the string annotations resolvable at route-build time.
+try:
+    from fastapi import Request  # noqa: F401
+    from fastapi.responses import HTMLResponse, JSONResponse  # noqa: F401
+except Exception:  # pragma: no cover - fastapi absent only where register() is never called
+    Request = HTMLResponse = JSONResponse = None  # type: ignore
+
 try:
     import szl_dsse as _dsse  # type: ignore
 except Exception:  # pragma: no cover
