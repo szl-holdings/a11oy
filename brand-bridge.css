@@ -24,3 +24,16 @@
   --color-a11oy-gold-dim: var(--color-hatun-400);
   --color-a11oy-gold-soft: color-mix(in srgb, var(--color-hatun-400) 14%, transparent);
 }
+
+/* --- console / dark-surface locals re-pointed at canonical tokens (T005) ---
+   Additive. Extends the re-points above so the teal accent + hairline + neutral
+   border locals also resolve to KANCHAY tokens, for a calmer, denser dark
+   surface. Zero new colors (every value is an existing --color-* token or a
+   color-mix of one with transparent, matching the pattern above). 0 CDN. */
+:root {
+  --teal: var(--color-yuyay-500);            /* was #5fb3a3 */
+  --teal-soft: color-mix(in srgb, var(--color-yuyay-500) 10%, transparent);
+  --teal-line: color-mix(in srgb, var(--color-yuyay-500) 32%, transparent);
+  --hairline: color-mix(in srgb, var(--color-a11oy-border) 55%, transparent);
+  --line: var(--color-a11oy-border);         /* neutral hairline border */
+}

@@ -180,6 +180,13 @@ def _page_html(ns: str) -> str:
        its source and links the exact Lean declaration at the locked SHA {LEAN_SHA}. "Try it"
        calls the live endpoint and shows the raw signed JSON. <a class="back" href="/">← back to console</a></p>
     <section class="grid">{cards}</section>
+    <section id="genome" style="margin-top:1.6rem">
+      <h2 style="font-size:1.05rem;margin:0 0 .3rem">Genome — formula registry <span class="badge" id="gtier">…</span></h2>
+      <p class="sub" style="margin:0 0 .5rem">Live honesty-tier counts read from
+        <code>/api/{ns}/v1/genome</code>, the single machine-checkable registry. Shown honestly:
+        if the endpoint is unavailable it says so rather than fabricating a count.</p>
+      <pre id="genome-out" style="white-space:pre-wrap;margin:.2rem 0 0;font-size:.8rem"></pre>
+    </section>
   </main>
 <script>
 document.querySelectorAll('.tryit').forEach(function(btn) {{
@@ -203,6 +210,26 @@ document.querySelectorAll('.tryit').forEach(function(btn) {{
     }} catch (e) {{ out.textContent = 'error: ' + e; }}
   }});
 }});
+(async function() {{
+  var gt = document.getElementById('gtier');
+  var gout = document.getElementById('genome-out');
+  try {{
+    var r = await fetch('/api/{ns}/v1/genome', {{ headers: {{ 'Accept': 'application/json' }} }});
+    var g = await r.json();
+    var d = (g && g.data && typeof g.data === 'object') ? g.data : g;
+    var tc = d.tier_counts || d.tiers || {{}};
+    var keys = Object.keys(tc);
+    var lp = tc['LOCKED-PROVEN'];
+    gt.textContent = (typeof lp === 'number') ? (lp + ' locked-proven') : ('live (' + r.status + ')');
+    gt.className = 'badge ok';
+    gout.textContent = keys.length
+      ? keys.map(function(k) {{ return k + ': ' + tc[k]; }}).join('\\n')
+      : ('[' + r.status + '] ' + JSON.stringify(d).slice(0, 600));
+  }} catch (e) {{
+    gt.textContent = 'unavailable'; gt.className = 'badge warn';
+    gout.textContent = 'genome registry unavailable right now — shown honestly, not faked.';
+  }}
+}})();
 </script>
 </body></html>"""
 

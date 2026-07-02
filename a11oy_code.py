@@ -179,6 +179,57 @@ def route(query: str, axis_scores: Optional[List[float]] = None,
     return out
 
 
+# --- governed-turn + policy-gate wiring (T002, additive) --------------------
+# a11oy.code is a pure library: route() does REAL organ/tier/Λ math but returns a
+# clearly-labelled honest stub for the *model-authored text* when no backend is
+# wired. governed_route() lets a caller upgrade a routed turn into a REAL governed
+# answer via the nemo governed-turn engine and attach the live /v1/policy/gates
+# posture — WITHOUT changing route()'s default (stub-honest) behaviour. Endpoint
+# values are relative path templates only (no external URL — 0-CDN).
+NEMO_TURN_ENDPOINT = "/api/{ns}/v1/code/turn"
+POLICY_GATES_ENDPOINT = "/api/{ns}/v1/policy/gates"
+
+
+def governed_route(query: str, axis_scores: Optional[List[float]] = None,
+                   organ_context: str = "", *, governed_turn=None,
+                   policy_gates=None, traceparent: Optional[str] = None,
+                   **route_kw) -> Dict[str, Any]:
+    """route() enriched with an (optional, dependency-injected) REAL nemo
+    governed-turn answer and the live /v1/policy/gates posture.
+
+    Mirrors this codebase's dependency-injection convention (see a11oy_agent_loop):
+    the caller wires the real backends. With no backend injected, the honest stub
+    from route() is preserved verbatim — this NEVER fabricates a model answer.
+
+        governed_turn(query, organ) -> dict | str   (optional real answer source)
+        policy_gates                -> dict | callable() -> dict  (/v1/policy/gates)
+    """
+    out = route(query, axis_scores, organ_context=organ_context,
+                traceparent=traceparent, **route_kw)
+    out["governed_turn_endpoint"] = NEMO_TURN_ENDPOINT
+    out["policy_gates_endpoint"] = POLICY_GATES_ENDPOINT
+    if callable(governed_turn):
+        try:
+            turn = governed_turn(query, out["organ_routed"])
+        except TypeError:
+            turn = governed_turn(query)
+        if isinstance(turn, dict):
+            out["governed_turn"] = turn
+            ans = turn.get("answer") or turn.get("text") or turn.get("response")
+            if ans and not turn.get("stub"):
+                out["response"] = ans
+                out["response_source"] = "nemo governed-turn (real, injected)"
+        elif isinstance(turn, str) and turn:
+            out["response"] = turn
+            out["response_source"] = "nemo governed-turn (real, injected)"
+    else:
+        out["response_source"] = "honest stub (no governed-turn backend injected)"
+    gates = policy_gates() if callable(policy_gates) else policy_gates
+    if gates is not None:
+        out["policy_gates"] = gates
+    return out
+
+
 def tiers_payload() -> Dict[str, Any]:
     return {
         "count": len(TIERS),

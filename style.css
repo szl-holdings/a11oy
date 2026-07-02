@@ -388,3 +388,24 @@ a { color: inherit; }
   color: var(--dim);
   font-style: italic;
 }
+
+/* ===== dark-surface polish (T005 — additive; 0 new colors, 0 CDN) =====
+   Tabular/mono numerics, hairline borders, and a denser ambient grid, built
+   only from existing local vars + the shared KANCHAY spacing/border tokens
+   (with safe fallbacks so this file still renders standalone). No new colors:
+   every color here is an existing local var. Later cascade, additive only. */
+.mono, code, pre, .output-pre, .output-label,
+.reasoner-eyebrow-text, .footer-note, .eyebrow-text {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.site-header, .site-footer {
+  border-color: var(--gold-line);
+  border-width: var(--border-hairline, 1px);
+}
+.reasoner-output, .output-label, .eyebrow, .hero-portrait img {
+  border-width: var(--border-hairline, 1px);
+}
+.grid-bg {
+  background-size: var(--space-12, 3rem) var(--space-12, 3rem);
+}

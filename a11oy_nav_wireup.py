@@ -23,11 +23,12 @@
 #   1. Splices the command-centre VIEW groups (Verticals / Research / Formulas)
 #      into SPEC as 3-tuples. Every id is POSITIVELY confirmed in the VIEWS
 #      registry (each renders live data via vertPack / mountNeuro / etc.).
-#   2. Splices a "Sovereign & Agentic Core" group of 4-tuple PAGE-LINKS to the
-#      ops surfaces. Every path was probed live and serves a real, dedicated
-#      HTTP-200 page (NOT the SPA catch-all shell). Paths that only fell through
-#      to the generic orchestration shell (/restraint, /sapa) are deliberately
-#      EXCLUDED; the real Restraint page is reached at /restraint-bench instead.
+#   2. Splices two 4-tuple PAGE-LINK groups ("Sovereign & Agentic Core" and
+#      "Platform & Infrastructure") to the ops surfaces. Every path was probed
+#      live and serves a real, dedicated HTTP-200 page (NOT the SPA catch-all
+#      shell). Paths that only fell through to the generic orchestration shell
+#      (/restraint, /sapa) are deliberately EXCLUDED; the real Restraint page is
+#      reached at /restraint-bench instead.
 #   3. Repoints the previously-DEAD built-in 'frontier' tab (go('frontier') had
 #      no VIEWS entry) to the real /frontier page.
 #   4. Injects a small "Related surfaces" cross-link strip into the flagship ops
@@ -72,6 +73,37 @@ _SURFACES = [
     ("/ayllu",          "\u2641",     "Ayllu Council"),                     # ♁ agent community
 ]
 
+# ---------------------------------------------------------------------------
+# Ops-surface nav groups (T001): consolidate the command centre to 10 total nav
+# groups = the 5 built-in console SPEC groups (Operate / Govern / Prove /
+# Knowledge / Models & Tools) + the 3 command-centre VIEW groups below + these 2
+# ops-surface page-link groups. Membership is by path so _SURFACES stays the flat
+# source of truth; every row remains a 4-tuple page-link -> every href reachable.
+# ---------------------------------------------------------------------------
+_SURFACE_GROUP_ORDER = ["Sovereign & Agentic Core", "Platform & Infrastructure"]
+_SURFACE_GROUP_OF = {
+    "/cockpit": "Sovereign & Agentic Core",
+    "/nemo": "Sovereign & Agentic Core",
+    "/autoreview": "Sovereign & Agentic Core",
+    "/factory": "Sovereign & Agentic Core",
+    "/constitution": "Sovereign & Agentic Core",
+    "/agent-loop": "Sovereign & Agentic Core",
+    "/code": "Sovereign & Agentic Core",
+    "/ayllu": "Sovereign & Agentic Core",
+    "/governance": "Sovereign & Agentic Core",
+    "/restraint-bench": "Sovereign & Agentic Core",
+    "/quant": "Platform & Infrastructure",
+    "/energy": "Platform & Infrastructure",
+    "/fleet-c2": "Platform & Infrastructure",
+    "/living-anatomy": "Platform & Infrastructure",
+    "/materials": "Platform & Infrastructure",
+    "/dns": "Platform & Infrastructure",
+}
+_SURFACE_GROUPS = [
+    (label, [row for row in _SURFACES if _SURFACE_GROUP_OF.get(row[0]) == label])
+    for label in _SURFACE_GROUP_ORDER
+]
+
 # ===========================================================================
 # Command-centre VIEW groups (in-app views switched by go('id')). ONLY ids
 # POSITIVELY confirmed in the client VIEWS registry are wired here (go('X') is a
@@ -107,9 +139,6 @@ _VIEW_GROUPS = [
         ("receiptfp",   "\u25C9", "Receipt Fingerprint"),
     ]),
 ]
-
-# The ops-surface page-link group label (rendered via textContent -> literal &).
-_PAGE_GROUP_LABEL = "Sovereign & Agentic Core"
 
 # Frontier fix: the built-in 'frontier' tab was a 3-tuple -> go('frontier'),
 # but no VIEWS['frontier'] exists, so it was a dead no-op. /frontier serves a
@@ -155,12 +184,13 @@ def _build_spec_groups_js() -> bytes:
                 for v, i, l in items]
         groups_js.append("    [%s, [\n%s\n    ]]"
                          % (_js_str(group_label), ",\n".join(rows)))
-    # (2) ops-surface PAGE-LINK group -> 4-tuples (id derived from the path)
-    prows = ["      [%s,%s,%s,%s]"
-             % (_js_str(path.lstrip("/")), _js_str(ico), _js_str(label), _js_str(path))
-             for path, ico, label in _SURFACES]
-    groups_js.append("    [%s, [\n%s\n    ]]"
-                     % (_js_str(_PAGE_GROUP_LABEL), ",\n".join(prows)))
+    # (2) ops-surface PAGE-LINK groups -> 4-tuples (id derived from the path)
+    for group_label, items in _SURFACE_GROUPS:
+        prows = ["      [%s,%s,%s,%s]"
+                 % (_js_str(path.lstrip("/")), _js_str(ico), _js_str(label), _js_str(path))
+                 for path, ico, label in items]
+        groups_js.append("    [%s, [\n%s\n    ]]"
+                         % (_js_str(group_label), ",\n".join(prows)))
     frag = (",\n    /* qa12-nav: command-centre view-tabs + ops surfaces restored into SPEC */\n"
             + ",\n".join(groups_js))
     return frag.encode("utf-8")
@@ -413,10 +443,20 @@ if __name__ == "__main__":
     assert "Neuroplasticity" in h1 and "Allodial AI" in h1 and "Chain of Title" in h1, \
         "expected honest view labels present"
 
-    # --- ops-surface PAGE-LINK group: every surface present as a real href 4-tuple ---
-    assert ("[%s, [" % _js_str(_PAGE_GROUP_LABEL)) in h1, "missing ops-surface group"
-    for path, _ico, _label in _SURFACES:
-        assert (_js_str(path)) in h1, "missing ops page-link href %s" % path
+    # --- ops-surface PAGE-LINK groups: every surface present as a real href 4-tuple ---
+    for _grp_label, _grp_items in _SURFACE_GROUPS:
+        assert ("[%s, [" % _js_str(_grp_label)) in h1, \
+            "missing ops-surface group %s" % _grp_label
+        for path, _ico, _label in _grp_items:
+            assert (_js_str(path)) in h1, "missing ops page-link href %s" % path
+    # every surface still lands in exactly one group (reachability preserved)
+    assert sum(len(i) for _, i in _SURFACE_GROUPS) == len(_SURFACES), \
+        "every ops surface must belong to exactly one nav group"
+    # --- 10-group consolidation: 5 built-in console SPEC groups + spliced groups ---
+    _BUILTIN_SPEC_GROUPS = 5  # Operate, Govern, Prove, Knowledge, Models & Tools
+    _spliced_groups = len(_VIEW_GROUPS) + len(_SURFACE_GROUPS)
+    assert _BUILTIN_SPEC_GROUPS + _spliced_groups == 10, \
+        "nav must consolidate to 10 groups (5 built-in + %d spliced)" % _spliced_groups
     # excluded bandaid paths must NOT be wired
     assert '"/sapa"' not in h1, "/sapa (no real page) must not be wired"
     assert '"/restraint"]' not in h1 and '"/restraint",' not in h1, \
@@ -454,6 +494,8 @@ if __name__ == "__main__":
     assert "<script" not in injected, "nav markup must inject no script"
 
     _view_items = sum(len(items) for _, items in _VIEW_GROUPS)
-    print("a11oy_nav_wireup: ALL OK (%d SPEC view-tabs in %d groups; %d ops page-links; "
+    _surface_items = sum(len(items) for _, items in _SURFACE_GROUPS)
+    print("a11oy_nav_wireup: ALL OK (%d SPEC view-tabs in %d groups; %d ops page-links "
+          "in %d groups; 10 nav groups total with the 5 built-in console groups; "
           "frontier repointed; idempotent; additive; cross-links; 0 codenames; 0 CDN)"
-          % (_view_items, len(_VIEW_GROUPS), len(_SURFACES)))
+          % (_view_items, len(_VIEW_GROUPS), _surface_items, len(_SURFACE_GROUPS)))

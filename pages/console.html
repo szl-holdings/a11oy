@@ -490,6 +490,21 @@ details.raw[open] summary{color:var(--muted);}
   --sans:'Space Grotesk',system-ui,sans-serif; /* maps to the vendored house display face */
   --fs-num-xl:24px; --fs-num-lg:18px; --fs-num:14px; --fs-label:11px;
 }
+/* ===== KANCHAY palette re-point (T001 — additive, values only) =====
+   Repoints the house console vars at the canonical KANCHAY hexes so the
+   command centre reads on the shared dark ground with gold/teal accents.
+   Declared last so it wins the cascade; overrides variable values only —
+   no markup, no new selectors. 0 CDN, 0 new URLs. */
+:root{
+  --ground:#0a0f1e;
+  --panel:#1b222c;
+  --gold:#d7b96b;
+  --gold-line:#c08f2f;
+  --cream:#f5f7fa;
+  --teal:#168f89;
+  --live:#1f9d57;
+  --line:#3c4757;
+}
 /* RECEIPT-MARK — CSS-only wax-seal dot; marks any cryptographically-attested datum */
 .rmark{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto;
   background:radial-gradient(circle at 35% 35%,var(--gold,#c9b787),#8a6f3a);
