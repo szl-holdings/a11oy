@@ -34,7 +34,7 @@ export function AtelierEmbedFrame({ spaceSlug, height = 380, title, tenantId }: 
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
-      // Only accept postMessage from the embedded A11oy origin (missing-origin-check / CWE-940).
+      // Only accept postMessage from the embedded A11oy origin (missing-origin-check / CWE-346 / CWE-940).
       if (e.origin !== atelierOrigin) return;
       if (!e.data || typeof e.data !== 'object') return;
       if (e.data.spaceSlug !== spaceSlug) return;
