@@ -63,7 +63,7 @@ _DECL_RE = re.compile(
     re.MULTILINE,
 )
 
-# A single leading Lean identifier (allows dotted / primed names).
+# A single Lean identifier at the start (allows dotted / primed names).
 _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_'\.]*")
 
 # A Lean file reference embedded in a citation string.
