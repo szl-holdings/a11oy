@@ -1,0 +1,265 @@
+{
+  "service": "a11oy.pinn.bench",
+  "title": "SZL Governed spectral collocation vs DeepXDE (neural PINN) vs Modulus/PhysicsNeMo",
+  "overall_label": "MEASURED (SZL + DeepXDE on this CPU box); Modulus NOT-RUN",
+  "ran_at": "2026-07-02T05:46:02Z",
+  "hardware": {
+    "cpus": 2,
+    "ram_gib": 15,
+    "gpu": null,
+    "torch_threads": 2,
+    "note": "Replit sandbox \u2014 CPU-only, no CUDA GPU"
+  },
+  "frameworks": {
+    "szl": {
+      "method_class": "classical spectral collocation least-squares (+ Newton for nonlinear BVP) \u2014 NOT a neural PINN",
+      "deps": [
+        "python-stdlib",
+        "numpy (BSD-3)"
+      ],
+      "license": "Apache-2.0",
+      "shipped": true,
+      "versions": {
+        "numpy": "2.4.6",
+        "python": "3.11.14"
+      }
+    },
+    "deepxde": {
+      "method_class": "neural PINN (MLP minimizes PDE residual)",
+      "deps": [
+        "pytorch"
+      ],
+      "license": "LGPL-2.1",
+      "shipped": false,
+      "usage": "benchmark-only dev dependency; NEVER imported by serve.py or any shipped module. The /pinn/bench endpoint only reads this committed artifact.",
+      "versions": {
+        "deepxde": "1.15.0",
+        "torch": "2.12.1+cpu",
+        "backend": "pytorch"
+      }
+    },
+    "modulus_physicsnemo": {
+      "method_class": "neural PINN (NVIDIA)",
+      "status": "NOT-RUN",
+      "license": "Apache-2.0",
+      "note": "NVIDIA Modulus was renamed PhysicsNeMo (same framework)."
+    }
+  },
+  "problems": [
+    {
+      "id": "poisson_1d_multimode",
+      "pde": "-u''(x) = f(x) on [0,1], u(0)=u(1)=0",
+      "exact": "u*(x)=\u03a3 c_k sin(k\u03c0x), modes {1:1.0, 3:0.5, 5:0.2}",
+      "disclosure": {
+        "solution_in_trial_basis": true,
+        "note": "the exact solution is a finite sine sum, so it lies INSIDE the SZL sine trial basis \u2192 SZL reaches ~machine precision BY CONSTRUCTION. This is a property of the problem, NOT a general-accuracy claim."
+      },
+      "metric": "rel_l2_vs_exact",
+      "arms": [
+        {
+          "framework": "szl",
+          "method": "spectral sine-collocation least-squares",
+          "rel_l2_vs_exact": 5.215454293376616e-16,
+          "dof_sine_modes": 8,
+          "wall_s": 0.0023,
+          "solution_in_trial_basis": true,
+          "label": "MEASURED",
+          "energy": "NOT-MEASURED (no power meter in sandbox)"
+        },
+        {
+          "framework": "deepxde",
+          "method_class": "neural PINN (MLP minimizes PDE residual via Adam + L-BFGS)",
+          "license": "LGPL-2.1 (benchmark-only dev dependency; NOT imported by shipped code)",
+          "seeds_run": 3,
+          "rel_l2_vs_exact": {
+            "median": 0.00032210408244282007,
+            "min": 0.0003143912763334811,
+            "max": 0.0023507345467805862,
+            "n": 3
+          },
+          "wall_s": {
+            "median": 25.45,
+            "min": 23.8,
+            "max": 57.1,
+            "n": 3
+          },
+          "trainable_params": 2209,
+          "config": {
+            "net": "FNN [1,32,32,32,1] tanh (Glorot uniform)",
+            "optimizer": "Adam 8000 iters (lr=1e-3) + L-BFGS (maxiter=2000)",
+            "num_domain": 64,
+            "num_boundary": 2,
+            "num_test": 200,
+            "loss_weights": null
+          },
+          "framework_versions": {
+            "deepxde": "1.15.0",
+            "torch": "2.12.1+cpu",
+            "backend": "pytorch"
+          },
+          "label": "MEASURED",
+          "energy": "NOT-MEASURED (no power meter in sandbox)"
+        },
+        {
+          "framework": "modulus_physicsnemo",
+          "label": "NOT-RUN",
+          "reason": "NVIDIA Modulus (renamed PhysicsNeMo) requires a CUDA GPU; this benchmark box is CPU-only (0 GPUs).",
+          "note": "NVIDIA Modulus was renamed to PhysicsNeMo \u2014 same framework lineage.",
+          "reproduce": "on a CUDA GPU host: `pip install nvidia-physicsnemo`; port the 'poisson' 1D residual to a PhysicsNeMo PDE + constraint and train; report rel-L2 vs the same exact closed form."
+        }
+      ]
+    },
+    {
+      "id": "steady_burgers_shock",
+      "pde": "\u03bd u''(x) - u(x) u'(x) = 0 on [0,1], Dirichlet BCs from exact",
+      "exact": "u*(x)=-C\u00b7tanh(C(x-x0)/(2\u03bd)), C=1, x0=0.5, \u03bd=0.05",
+      "disclosure": {
+        "solution_in_trial_basis": false,
+        "note": "the tanh shock is NOT a finite sine sum, so the SZL error is a genuine spectral-truncation error \u2014 an honest head-to-head on a NONLINEAR PDE (the frontier gap this build closes)."
+      },
+      "metric": "rel_l2_vs_exact",
+      "arms": [
+        {
+          "framework": "szl",
+          "method": "Newton-linearized spectral collocation (frontier, own code)",
+          "rel_l2_vs_exact": 2.2023624873983785e-06,
+          "dof_sine_modes": 48,
+          "newton_iterations": 6,
+          "wall_s": 0.0094,
+          "solution_in_trial_basis": false,
+          "label": "MEASURED",
+          "energy": "NOT-MEASURED (no power meter in sandbox)"
+        },
+        {
+          "framework": "deepxde",
+          "method_class": "neural PINN (MLP minimizes PDE residual via Adam + L-BFGS)",
+          "license": "LGPL-2.1 (benchmark-only dev dependency; NOT imported by shipped code)",
+          "seeds_run": 3,
+          "rel_l2_vs_exact": {
+            "median": 0.6519907116889954,
+            "min": 0.5070350170135498,
+            "max": 0.69850093126297,
+            "n": 3
+          },
+          "wall_s": {
+            "median": 45.94,
+            "min": 45.48,
+            "max": 48.88,
+            "n": 3
+          },
+          "trainable_params": 3401,
+          "config": {
+            "net": "FNN [1,40,40,40,1] tanh (Glorot uniform)",
+            "optimizer": "Adam 8000 iters (lr=1e-3) + L-BFGS (maxiter=2000)",
+            "num_domain": 200,
+            "num_boundary": 2,
+            "num_test": 400,
+            "loss_weights": [
+              1.0,
+              100.0
+            ]
+          },
+          "framework_versions": {
+            "deepxde": "1.15.0",
+            "torch": "2.12.1+cpu",
+            "backend": "pytorch"
+          },
+          "label": "MEASURED",
+          "energy": "NOT-MEASURED (no power meter in sandbox)",
+          "caveat": "STANDARD, non-shock-adapted PINN config: a plain FNN minimizing the PDE residual with firm BC weighting. Shock-adaptation techniques (adaptive resampling / RAR, curriculum in \u03bd, or hard-BC output transforms) would very likely improve this arm and are NOT-TESTED here \u2014 so the large burgers error reflects the vanilla config, NOT a ceiling for neural PINNs on this PDE."
+        },
+        {
+          "framework": "modulus_physicsnemo",
+          "label": "NOT-RUN",
+          "reason": "NVIDIA Modulus (renamed PhysicsNeMo) requires a CUDA GPU; this benchmark box is CPU-only (0 GPUs).",
+          "note": "NVIDIA Modulus was renamed to PhysicsNeMo \u2014 same framework lineage.",
+          "reproduce": "on a CUDA GPU host: `pip install nvidia-physicsnemo`; port the 'burgers' 1D residual to a PhysicsNeMo PDE + constraint and train; report rel-L2 vs the same exact closed form."
+        }
+      ]
+    },
+    {
+      "id": "inverse_duffing",
+      "pde": "m x'' + c x' + \u03b4 x + \u03b1 x\u00b3 = F cos(\u03c9t); DISCOVER \u03b1 (truth 1.0)",
+      "exact": "synthetic data integrated from the true system (\u03b1=1.0); same data both arms",
+      "disclosure": {
+        "solution_in_trial_basis": null,
+        "note": "inverse parameter-discovery problem: both arms see the SAME synthetic x(t) data and must recover \u03b1 from a deliberately wrong start."
+      },
+      "metric": "abs_err",
+      "arms": [
+        {
+          "framework": "szl",
+          "method": "governed inverse (Fisher-gated LS + physics-residual GD)",
+          "alpha_estimate": 0.989368,
+          "alpha_truth": 1.0,
+          "abs_err": 0.010631999999999975,
+          "ci95": [
+            0.942041,
+            1.013572
+          ],
+          "fisher_information": 219126.49065692967,
+          "convergence_label": "GREEN",
+          "identifiable": true,
+          "wall_s": 0.7881,
+          "label": "MEASURED (fit error vs synthetic ground truth; not measured physics)"
+        },
+        {
+          "framework": "deepxde",
+          "method_class": "neural PINN (MLP minimizes PDE residual via Adam + L-BFGS)",
+          "license": "LGPL-2.1 (benchmark-only dev dependency; NOT imported by shipped code)",
+          "seeds_run": 3,
+          "abs_err": {
+            "median": 0.0034275054931640625,
+            "min": 9.721517562866211e-05,
+            "max": 0.004570960998535156,
+            "n": 3
+          },
+          "wall_s": {
+            "median": 80.99,
+            "min": 76.66,
+            "max": 109.87,
+            "n": 3
+          },
+          "trainable_params": 3401,
+          "config": {
+            "net": "FNN [1,40,40,40,1] tanh (Glorot uniform)",
+            "optimizer": "Adam 10000 iters (lr=1e-3) + L-BFGS (maxiter=3000)",
+            "num_domain": 200,
+            "num_boundary": 2,
+            "anchors": "120 observation points (PointSetBC)"
+          },
+          "framework_versions": {
+            "deepxde": "1.15.0",
+            "torch": "2.12.1+cpu",
+            "backend": "pytorch"
+          },
+          "label": "MEASURED (fit error vs synthetic ground truth; not measured physics)",
+          "energy": "NOT-MEASURED (no power meter in sandbox)",
+          "alpha_estimate_median": 0.9965724945068359,
+          "alpha_truth": 1.0
+        },
+        {
+          "framework": "modulus_physicsnemo",
+          "label": "NOT-RUN",
+          "reason": "NVIDIA Modulus (renamed PhysicsNeMo) requires a CUDA GPU; this benchmark box is CPU-only (0 GPUs).",
+          "note": "NVIDIA Modulus was renamed to PhysicsNeMo \u2014 same framework lineage.",
+          "reproduce": "on a CUDA GPU host: `pip install nvidia-physicsnemo`; port the 'duffing' 1D residual to a PhysicsNeMo PDE + constraint and train; report rel-L2 vs the same exact closed form."
+        }
+      ]
+    }
+  ],
+  "interpretation": {
+    "poisson": "SZL is ~machine precision BY CONSTRUCTION (solution in basis, disclosed); DeepXDE reaches a solid neural-PINN accuracy without knowing the basis.",
+    "burgers": "honest nonlinear head-to-head: SZL's new Newton-spectral solver and the neural PINN both target the exact tanh shock; compare rel-L2 and wall time. The DeepXDE arm is a STANDARD, non-shock-adapted PINN \u2014 shock-adaptation (RAR / curriculum / hard-BC) is NOT-TESTED and would likely narrow the gap.",
+    "duffing": "both recover \u03b1 from the same data; compare |\u03b1\u0302-1| and cost."
+  },
+  "scope_limits": "This is a LOW-DIMENSIONAL (1D), SMOOTH, CPU-ONLY suite with KNOWN good bases. It structurally favors spectral methods. The regimes neural PINNs are designed for \u2014 high dimension (curse-of-dimensionality resistance), complex/irregular geometry, and problems with NO known good basis \u2014 are NOT exercised here and are reported as NOT-TESTED, not as a neural-arm loss. Do not read SZL wins on this suite as universal superiority.",
+  "honesty": "All rel-L2 and wall-time numbers are MEASURED on this box against the exact closed form; \u22653 seeds are reported as median[min,max] for the neural arm. No joules are reported (NOT-MEASURED: no power meter). Poisson's in-basis advantage is disclosed. DeepXDE (LGPL) is benchmark-only and never shipped. Modulus/PhysicsNeMo is NOT-RUN with a reproduce spec (no GPU).",
+  "doctrine": "Doctrine v11 LOCKED \u2014 no fabricated numbers; MEASURED/MODELED/NOT-RUN/NOT-MEASURED/NOT-TESTED labels only.",
+  "reproduce": {
+    "szl": "python benchmarks/pinn/run_bench.py --arm szl",
+    "deepxde": "python benchmarks/pinn/run_bench.py --arm deepxde --problem {poisson|burgers|duffing} --seeds 3",
+    "assemble": "python benchmarks/pinn/run_bench.py --assemble --out benchmarks/pinn/results.json",
+    "modulus": "requires a CUDA GPU host with nvidia-physicsnemo (see each problem's modulus arm)"
+  }
+}

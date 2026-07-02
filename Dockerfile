@@ -576,6 +576,19 @@ COPY szl_wallpa.py ./szl_wallpa.py
 # CONSUMES szl_restraint (R1) + szl_energy_sovereign (Forge) only; edits neither.
 # 0 runtime CDN (fonts only); 0 visible codenames; Ponytail CITED (MIT).
 COPY benchmarks/restraint/run_bench.py ./benchmarks/restraint/run_bench.py
+# ADDITIVE (nonlinear-PINN frontier, 2026-07-02): szl_pinn_nonlinear.py is imported by
+# serve.py (try/except guarded) and serves GET /api/a11oy/v1/pinn/burgers (MODELED
+# Newton-linearized spectral collocation for steady nonlinear Burgers) + /pinn/bench
+# (serves the committed honest cross-framework benchmark). Per-file COPY (this Dockerfile
+# never uses `COPY . .`) or the guarded import falls back (merged-but-not-live) and both
+# endpoints 404 to the SPA. The bench artifact benchmarks/pinn/results.json MUST ship too
+# or /pinn/bench honestly degrades to NOT-RUN; benchmarks/pinn/run_bench.py is the runnable
+# reproduce tool (SZL arm is NumPy-only; the DeepXDE comparison arm is a benchmark-ONLY dev
+# dep — LGPL-2.1, lazy-imported in the harness, NEVER imported by serve.py/shipped code).
+# Mirrors the restraint bench pattern above.
+COPY szl_pinn_nonlinear.py ./szl_pinn_nonlinear.py
+COPY benchmarks/pinn/results.json ./benchmarks/pinn/results.json
+COPY benchmarks/pinn/run_bench.py ./benchmarks/pinn/run_bench.py
 # ADDITIVE (Lane F1, 2026-06-14): the 3D/holographic SUBSTRATE demo page, served at
 # /holo + /a11oy/holo via _ptg_serve. Loads the shared kit /static/shared/szl_holo3d.js
 # (0 CDN). image-only like the other web/*.html demo pages (declared in

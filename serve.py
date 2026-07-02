@@ -803,6 +803,33 @@ try:
 except Exception as _szl_ipinn_e:  # pragma: no cover
     print(f"[a11oy] Governed Inverse-PINN NOT registered (a11oy continues): {_szl_ipinn_e!r}", file=__import__("sys").stderr)
 
+# ── Nonlinear-PINN frontier + honest cross-framework benchmark (pinn-nonlinear) —
+# closes the frontier gap flagged in review: a Newton-linearized spectral-collocation
+# solver for the NONLINEAR steady viscous Burgers shock (u u_x = nu u_xx), plus a
+# read-only honest benchmark surface. Adds GET /api/a11oy/v1/pinn/burgers (MODELED
+# nonlinear field; refuses nu<=0) and GET /api/a11oy/v1/pinn/bench (serves the
+# COMMITTED benchmarks/pinn/results.json — SZL vs DeepXDE MEASURED, Modulus NOT-RUN;
+# NEVER runs DeepXDE in the request path — DeepXDE is LGPL, benchmark-only). NumPy-only,
+# Doctrine v11 labels (MEASURED/MODELED/NOT-RUN). Additive, try/except-guarded, then
+# FRONT-MOVED to the router head (same ROUTE-ORDERING FIX as the PINN blocks above) so
+# it wins ordered matching instead of 404'ing to the /api/a11oy/{path:path} proxy.
+try:
+    import szl_pinn_nonlinear as _szl_pinn_nonlinear
+    _szl_pinn_nl_routes = _szl_pinn_nonlinear.register(app, ns="a11oy")
+    try:
+        _pinn_nl_paths = set(_szl_pinn_nl_routes)
+        _moved = [r for r in app.router.routes if getattr(r, "path", None) in _pinn_nl_paths]
+        for _r in _moved:
+            app.router.routes.remove(_r)
+        for _r in reversed(_moved):
+            app.router.routes.insert(0, _r)
+        print(f"[a11oy] Nonlinear-PINN + benchmark routes front-moved to router head: {len(_moved)} routes", file=__import__("sys").stderr)
+    except Exception as _szl_pinn_nl_move_e:  # pragma: no cover
+        print(f"[a11oy] Nonlinear-PINN front-move skipped (routes still registered): {_szl_pinn_nl_move_e!r}", file=__import__("sys").stderr)
+    print(f"[a11oy] Nonlinear-PINN + benchmark registered: GET /api/a11oy/v1/pinn/burgers + /pinn/bench {_szl_pinn_nl_routes}", file=__import__("sys").stderr)
+except Exception as _szl_pinn_nl_e:  # pragma: no cover
+    print(f"[a11oy] Nonlinear-PINN + benchmark NOT registered (a11oy continues): {_szl_pinn_nl_e!r}", file=__import__("sys").stderr)
+
 # ── Governed Materials-PROPERTY predictor (materials-property-prediction) — the
 # SECOND materials vertical: POST /api/a11oy/v1/materials/predict (+ GET
 # /materials/health, alias prefix /v1/materials). A NUMPY-ONLY calibrated SURROGATE
