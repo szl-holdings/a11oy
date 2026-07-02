@@ -179,7 +179,7 @@ section[id]{scroll-margin-top:72px}
 </style></head><body>
 <header class="topbar"><div class="tb-wrap">
 <a class="tb-brand" href="/ayllu">Ayllu <span id="badge" class="badge">…</span></a>
-<nav class="tb-nav"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
+<nav class="tb-nav"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a href="#sec-mesh">Mesh</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
 </div></header>
 <main>
 <h1>Ayllu</h1>
@@ -217,6 +217,15 @@ section[id]{scroll-margin-top:72px}
 <section class="card" id="sec-lounge">
   <h2>Lounge <button id="refreshlounge" class="mini">refresh</button></h2>
   <div id="lounge" class="out"></div>
+</section>
+
+<section class="card" id="sec-mesh">
+  <h2>Mesh &amp; observability <span class="stub" id="mesh-badge">&#8230;</span></h2>
+  <div class="src" style="margin:.2rem 0 .6rem">Live platform context the council runs
+  inside, read from the same governed endpoints the command centre uses. Shown honestly:
+  an unavailable endpoint says so rather than faking a value.</div>
+  <div id="mesh-out" class="out"></div>
+  <div id="obs-out" class="out" style="margin-top:.5rem"></div>
 </section>
 
 <div class="law"><b>Bounded-autonomy law.</b> Every persona runs under a11oy's
@@ -303,7 +312,26 @@ async function loadLounge(){
     :'<i>empty</i>';
 }
 document.getElementById('refreshlounge').onclick=loadLounge;
-loadRoster();loadLounge();
+async function loadMesh(){
+  const badge=document.getElementById('mesh-badge'), out=document.getElementById('mesh-out');
+  const {ok,status,data}=await j('/api/'+NS+'/v1/mesh/state');
+  if(!ok){badge.textContent='offline';
+    out.innerHTML='<span class="src">mesh state endpoint unavailable ('+esc(String(status))+') — shown honestly, not faked.</span>';return;}
+  const d=(data&&data.data&&typeof data.data==='object')?data.data:data;
+  const nodes=d.nodes||d.mesh||d.members||d.organs||[];
+  const cnt=(d.count!=null)?d.count:(Array.isArray(nodes)?nodes.length:'\u2014');
+  badge.textContent='live';
+  out.innerHTML='<div class="lg"><b>mesh nodes</b> <span class="src">'+esc(String(cnt))+'</span></div>';
+}
+async function loadObs(){
+  const out=document.getElementById('obs-out');
+  const {ok,status,data}=await j('/api/'+NS+'/v1/observability/summary');
+  if(!ok){out.innerHTML='<span class="src">observability summary unavailable ('+esc(String(status))+') — shown honestly.</span>';return;}
+  const d=(data&&data.data&&typeof data.data==='object')?data.data:data;
+  out.innerHTML='<div class="lg"><b>observability</b><pre class="src" style="white-space:pre-wrap;margin:.3rem 0 0">'
+    +esc(JSON.stringify(d,null,2).slice(0,700))+'</pre></div>';
+}
+loadRoster();loadLounge();loadMesh();loadObs();
 </script>
 </body></html>"""
 
