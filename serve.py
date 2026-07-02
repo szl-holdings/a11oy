@@ -9410,6 +9410,23 @@ async def a11oy_constellation_status() -> Response:
     return JSONResponse(data)
 
 
+# ROUTE-ORDERING FIX (same proven pattern as the Governed Inverse-PINN block above):
+# @app.get APPENDS to the tail of app.router.routes, but the /api/a11oy/{path:path}
+# Node proxy catch-all is defined earlier (line ~8558) and would win ordered matching,
+# forwarding /api/a11oy/v1/constellation to Node -> {"error":"not found"}. Front-move the
+# just-added constellation route to the HEAD of the router so it resolves IN-PROCESS.
+try:
+    _con_paths = {"/api/a11oy/v1/constellation"}
+    _con_moved = [r for r in app.router.routes if getattr(r, "path", None) in _con_paths]
+    for _r in _con_moved:
+        app.router.routes.remove(_r)
+    for _r in reversed(_con_moved):
+        app.router.routes.insert(0, _r)
+    print(f"[a11oy] Constellation route front-moved to router head: {len(_con_moved)} routes", file=__import__("sys").stderr)
+except Exception as _con_move_e:  # pragma: no cover
+    print(f"[a11oy] Constellation front-move skipped (route still registered): {_con_move_e!r}", file=__import__("sys").stderr)
+
+
 @app.get("/viz")
 async def viz_gallery() -> Response:
     f = VIZ_DIR / "index.html"
