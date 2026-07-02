@@ -22,9 +22,6 @@ on:
       - ".github/workflows/anatomy-map-drift.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "pages/console.html"
-      - ".github/workflows/anatomy-map-drift.yml"
   workflow_dispatch: {}
 
 permissions:
@@ -32,5 +29,5 @@ permissions:
 
 jobs:
   anatomy-map-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@633bb10bba717a321f2c153b185756b257e62293  # main
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@f7231270c8a4f227301bfee544f848938b71f14d  # main
     secrets: inherit
