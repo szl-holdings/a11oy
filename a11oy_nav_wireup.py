@@ -105,6 +105,81 @@ def _build_nav_block() -> bytes:
     return block.encode("utf-8")
 
 
+# ===========================================================================
+# QA11 — Command-centre VIEW consolidation.
+# ---------------------------------------------------------------------------
+# The /console SPA already CONTAINS these surfaces as in-app views (switched by
+# the page's own go('viewid') fn, not full-page routes). Each is registered in
+# the client VIEWS registry with a render() that fetches its own live data, but
+# their left-nav entries were dropped, so Rosa's "amazing tabs" (verticals,
+# neuroplasticity, allodial, ...) became unreachable from the command centre.
+#
+# FIX (ADDITIVE, idempotent, deterministic): inject the missing view-tabs as
+# proper <div class="nav-item" data-view="X" onclick="go('X')"> items — the SAME
+# markup the console's native nav uses. Because we carry data-view="X":
+#   * the console's own runtime injectNav() guards (which skip if a
+#     .nav-item[data-view="X"] already exists) DEDUPE against ours -> 0 dupes;
+#   * go()'s active-state toggle (n.dataset.view===view) highlights our items.
+# The verticals runtime cascade guards on getElementById('vert-nav-vdefense');
+# we give our Defense item that id so the cascade cleanly no-ops (no dupes, and
+# it stops the SPA's forever-retry that fired because the anchor never existed).
+#
+# ONLY views POSITIVELY confirmed present in the client VIEWS registry are wired
+# here — go('X') is a strict no-op for an unregistered key, so an unregistered
+# id would be a dead tab. Keyed by data-nav-wireup="qa11".
+# ===========================================================================
+_VIEW_MARKER = b'data-nav-wireup="qa11"'
+
+# (viewid, icon-glyph, honest label, go-target|None, dom-id|None)
+# go-target defaults to viewid; the "verticals" overview opens the Finance pack
+# (go('verticals') itself is not a registered VIEWS key). dom-id is only set for
+# the vertical items so the SPA's verticals cascade guard trips cleanly.
+_VIEW_GROUPS = [
+    ("Verticals", [
+        ("verticals",   "\u25A6", "Vertical Packs",         "vfinance", None),
+        ("vfinance",    "\u25B3", "Finance",                None, "vert-nav-vfinance"),
+        ("vrealestate", "\u25E9", "Real Estate",            None, "vert-nav-vrealestate"),
+        ("vcyber",      "\u2726", "Cyber Resilience",       None, "vert-nav-vcyber"),
+        ("vdefense",    "\u26EF", "Defense / Gov",          None, "vert-nav-vdefense"),
+        ("vlegal",      "\u2696", "Legal Matter",           None, "vert-nav-vlegal"),
+    ]),
+    ("Research (Experimental)", [
+        ("neuro",       "\u25D0", "Neuroplasticity",         None, None),
+        ("sovereignty", "\u2691", "Sovereignty (Allodial)",  None, None),
+        ("allodialai",  "\u27D0", "Allodial AI",             None, None),
+        ("l6chain",     "\u2263", "Chain of Title",          None, None),
+        ("entangle",    "\u221E", "Entanglement",            None, None),
+        ("scaling",     "\u2922", "Metabolic Scaling",       None, None),
+    ]),
+    ("Formulas & Capability", [
+        ("atlas",       "\u2733", "Formula Atlas",           None, None),
+        ("capfsm",      "\u25F0", "Capability FSM",          None, None),
+        ("receiptfp",   "\u25C9", "Receipt Fingerprint",     None, None),
+    ]),
+]
+
+
+def _build_view_nav_block() -> bytes:
+    """The in-SPA view-tab nav groups. Mirrors the console's own nav-item markup
+    (class="nav-item" + data-view + onclick=go(...) + <span class="ico">) so it
+    inherits native styling and dedupes against the SPA's runtime injectors.
+    0 CDN, 0 inline <style>, 0 codenames (labels are the views' honest titles)."""
+    parts: List[str] = []
+    for group_label, items in _VIEW_GROUPS:
+        parts.append(
+            '<div class="nav-group" data-nav-wireup="qa11">%s</div>' % group_label
+        )
+        for viewid, ico, label, go_target, dom_id in items:
+            tgt = go_target or viewid
+            idattr = (' id="%s"' % dom_id) if dom_id else ""
+            parts.append(
+                '<div class="nav-item" data-nav-wireup="qa11" data-view="%s"%s '
+                'onclick="go(\'%s\')" style="cursor:pointer">'
+                '<span class="ico">%s</span>%s</div>' % (viewid, idattr, tgt, ico, label)
+            )
+    return "".join(parts).encode("utf-8")
+
+
 # Idempotency marker for the related-surfaces cross-link strip.
 _REL_MARKER = b'data-related-surfaces="qa10"'
 
@@ -162,6 +237,7 @@ def _make_injector():
     from starlette.responses import Response
 
     nav_block = _build_nav_block()
+    view_block = _build_view_nav_block()
 
     class _NavWireupInjector(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
@@ -193,6 +269,18 @@ def _make_injector():
                         # No footer found but a nav exists -> append after the
                         # first nav-group so the new group still lands in the nav.
                         body = body.replace(_GROUP_ANCHOR, _GROUP_ANCHOR + nav_block, 1)
+                        changed = True
+
+                # (1b) In-SPA view-tab groups (QA11) — restore the command-centre
+                #      view-tabs (verticals / research / formulas) as go() items.
+                #      Independent, idempotent check so this lands even on a page
+                #      that already carries the qa10 group.
+                if _VIEW_MARKER not in body:
+                    if _FOOT_ANCHOR in body:
+                        body = body.replace(_FOOT_ANCHOR, view_block + _FOOT_ANCHOR, 1)
+                        changed = True
+                    elif _GROUP_ANCHOR in body:
+                        body = body.replace(_GROUP_ANCHOR, _GROUP_ANCHOR + view_block, 1)
                         changed = True
 
                 # (2) Related-surfaces strip — only on the flagship pages, and
@@ -268,12 +356,13 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     except Exception:
         pass
     app.add_middleware(_make_injector())
-    registered.append("MIDDLEWARE nav-wireup injector (QA10)")
+    registered.append("MIDDLEWARE nav-wireup injector (QA10 + QA11 view-tabs)")
     return {
         "registered": registered,
         "count": len(registered),
-        "capability": "Nav Wire-Up (QA10)",
+        "capability": "Nav Wire-Up (QA10 surfaces + QA11 view-tabs)",
         "surfaces": [p for p, _, _ in _SURFACES],
+        "views": [v for _, items in _VIEW_GROUPS for v, _, _, _, _ in items],
         "data_label": "NAV",
     }
 
@@ -337,6 +426,24 @@ if __name__ == "__main__":
     for path, _, _ in _SURFACES:
         assert ("location.href='%s'" % path) in h1, "missing nav link for %s" % path
     assert "Sovereign &amp; Agentic Core (NEW)" in h1, "missing nav group label"
+
+    # QA11 in-SPA view-tabs: idempotent, one marker per group header + per item,
+    # each carries data-view + go() so it dedupes against the SPA's own injectors
+    # and highlights on active. Verticals cascade guard id must be present.
+    assert h1.count('data-nav-wireup="qa11"') == h2.count('data-nav-wireup="qa11"'), "view-tabs must be idempotent"
+    _view_items = sum(len(items) for _, items in _VIEW_GROUPS)
+    assert h1.count('data-nav-wireup="qa11"') == len(_VIEW_GROUPS) + _view_items, \
+        "expected one marker per view-group header + one per view item"
+    for group_label, items in _VIEW_GROUPS:
+        assert (">%s</div>" % group_label) in h1, "missing view group header %s" % group_label
+        for viewid, _ico, _label, go_target, _domid in items:
+            assert ('data-view="%s"' % viewid) in h1, "missing data-view for %s" % viewid
+            assert ("go('%s')" % (go_target or viewid)) in h1, "missing go() for %s" % viewid
+    assert 'id="vert-nav-vdefense"' in h1, "verticals cascade guard id (vert-nav-vdefense) must be present"
+    assert "Vertical Packs" in h1 and "Neuroplasticity" in h1 and "Allodial AI" in h1 \
+        and "Chain of Title" in h1, "expected honest view labels present"
+    # go('verticals') is NOT a registered VIEWS key -> the overview must open a real view
+    assert "go('vfinance')" in h1, "verticals overview must open a registered view (vfinance)"
     # additive: original items untouched
     assert "Readiness &amp; Compliance" in h1, "must NOT remove existing nav items"
     assert "Operate</div>" in h1, "must NOT remove existing nav group"
@@ -365,9 +472,11 @@ if __name__ == "__main__":
     # The banned-token list itself is NOT enumerated here so this module never
     # trips the doctrine-grep banned-token gate; the external integration test
     # (qa10/integration_test.py) performs the explicit banned-token assertion.
-    injected = (_build_nav_block().decode() + _build_related_strip("/grc").decode()).lower()
+    injected = (_build_nav_block().decode() + _build_view_nav_block().decode()
+                + _build_related_strip("/grc").decode()).lower()
     assert "http://" not in injected and "https://" not in injected, "nav markup must be 0-CDN"
     assert "<script" not in injected, "nav markup must inject no script"
 
-    print("a11oy_nav_wireup: ALL OK (nav group + %d surfaces; idempotent; "
-          "additive; cross-links; 0 codenames; 0 CDN)" % len(_SURFACES))
+    print("a11oy_nav_wireup: ALL OK (nav group + %d surfaces; %d view-tabs in %d "
+          "groups; idempotent; additive; cross-links; 0 codenames; 0 CDN)"
+          % (len(_SURFACES), _view_items, len(_VIEW_GROUPS)))
