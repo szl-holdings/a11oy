@@ -85,14 +85,21 @@
   .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 21px;border-radius:9px;
     font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
     transition:all .18s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;letter-spacing:.01em}
-  .btn-primary{background:var(--proof);color:#03201b;border-color:var(--proof)}
-  .btn-primary:hover{background:#5ff7d4;border-color:#5ff7d4;
-    box-shadow:0 4px 22px -4px rgba(58,244,200,0.4);transform:translateY(-1px)}
+  /* restrained "holographic glass" buttons — luminous hairline + soft fill, never a neon block */
+  .btn-primary{background:linear-gradient(180deg,rgba(58,244,200,0.13),rgba(58,244,200,0.04));
+    color:var(--proof);border-color:rgba(58,244,200,0.42);
+    box-shadow:inset 0 1px 0 rgba(58,244,200,0.10),0 1px 14px -8px rgba(58,244,200,0.45)}
+  .btn-primary:hover{background:linear-gradient(180deg,rgba(58,244,200,0.2),rgba(58,244,200,0.07));
+    border-color:rgba(58,244,200,0.6);color:#c8fff0;
+    box-shadow:0 6px 24px -12px rgba(58,244,200,0.35);transform:translateY(-1px)}
   .btn-ghost{border-color:var(--border);color:var(--sub);background:rgba(255,255,255,0.04)}
-  .btn-ghost:hover{border-color:rgba(58,244,200,0.5);color:var(--proof);background:var(--proof-dim)}
-  .btn-lattice{background:var(--lattice);color:#06122b;border-color:var(--lattice)}
-  .btn-lattice:hover{background:#76a1f2;border-color:#76a1f2;
-    box-shadow:0 4px 22px -4px rgba(91,141,238,0.4);transform:translateY(-1px)}
+  .btn-ghost:hover{border-color:rgba(58,244,200,0.45);color:var(--proof);background:var(--proof-dim)}
+  .btn-lattice{background:linear-gradient(180deg,rgba(91,141,238,0.15),rgba(91,141,238,0.05));
+    color:#a9c5ff;border-color:rgba(91,141,238,0.42);
+    box-shadow:inset 0 1px 0 rgba(91,141,238,0.10),0 1px 14px -8px rgba(91,141,238,0.4)}
+  .btn-lattice:hover{background:linear-gradient(180deg,rgba(91,141,238,0.23),rgba(91,141,238,0.08));
+    border-color:rgba(91,141,238,0.6);color:#c5d8ff;
+    box-shadow:0 6px 24px -12px rgba(91,141,238,0.32);transform:translateY(-1px)}
 
   /* ---- hero (canvas owned by Dev 2 — markup preserved) ---- */
   .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
@@ -109,7 +116,7 @@
     border:1px solid rgba(58,244,200,0.24);background:rgba(58,244,200,0.06);color:var(--proof);
     font-size:12.5px;font-weight:600;letter-spacing:.4px;margin-bottom:22px}
   .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--proof);animation:pulse 2.4s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(58,244,200,0.6)}70%{box-shadow:0 0 0 8px rgba(58,244,200,0)}100%{box-shadow:0 0 0 0 rgba(58,244,200,0)}}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(58,244,200,0.3)}70%{box-shadow:0 0 0 8px rgba(58,244,200,0)}100%{box-shadow:0 0 0 0 rgba(58,244,200,0)}}
   @media(prefers-reduced-motion:reduce){.eyebrow .dot{animation:none}}
   h1.title{font-size:clamp(2.4rem,5.8vw,4.3rem);line-height:1.03;margin:0 0 18px;
     font-weight:700;letter-spacing:-1.6px;color:var(--ink);
@@ -205,9 +212,9 @@
   .body-embed .poster p{color:var(--sub);margin:0 0 22px}
   .body-embed iframe{width:100%;height:560px;border:0;display:block}
   .body-embed .pulse-ring{width:90px;height:90px;border-radius:50%;margin:0 auto 22px;
-    border:2px solid rgba(58,244,200,0.5);position:relative}
+    border:2px solid rgba(58,244,200,0.32);position:relative}
   .body-embed .pulse-ring::after{content:"";position:absolute;inset:18px;border-radius:50%;
-    background:var(--proof);opacity:.85;animation:bpulse 2.6s ease-out infinite}
+    background:var(--proof);opacity:.55;animation:bpulse 2.6s ease-out infinite}
   @keyframes bpulse{0%{transform:scale(.7);opacity:.85}70%{transform:scale(1.25);opacity:0}100%{opacity:0}}
   @media(prefers-reduced-motion:reduce){.body-embed .pulse-ring::after{animation:none}}
 
@@ -222,8 +229,8 @@
   .cstat .ck.ink{color:var(--ink);font-size:1.05rem}
 
   /* trust CTA */
-  .trustcta{padding:48px 40px;border-radius:20px;border:1px solid rgba(58,244,200,0.3);
-    background:radial-gradient(ellipse 80% 120% at 0% 0%, rgba(58,244,200,0.1), transparent 60%),
+  .trustcta{padding:48px 40px;border-radius:20px;border:1px solid rgba(58,244,200,0.2);
+    background:radial-gradient(ellipse 80% 120% at 0% 0%, rgba(58,244,200,0.05), transparent 60%),
       linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));
     display:flex;align-items:center;justify-content:space-between;gap:30px;flex-wrap:wrap}
   .trustcta h2{margin:0 0 8px}
@@ -683,6 +690,7 @@
     f.src = "https://szlholdings-anatomy.hf.space#estate";
     f.title = "a11oy living body — 3D governed organism (V10 · Estate + Ayllu wirings)";
     f.loading = "lazy"; f.referrerPolicy = "no-referrer";
+    f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");
     wrap.innerHTML = ""; wrap.appendChild(f);
   }); }
 
