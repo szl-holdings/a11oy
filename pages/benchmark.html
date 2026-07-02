@@ -59,7 +59,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
   We publish the config, the seeds, the license of every dependency, and — most importantly —
   <b>where this suite does <i>not</i> let us claim victory.</b> That last part is the product.</p>
   <div class="badges">
-    <span class="badge ok"><span class="dot"></span>Honesty gate: PASS in CI</span>
+    <span class="badge ok"><span class="dot"></span><a href="https://github.com/szl-holdings/a11oy/actions/workflows/pinn-honesty-gate.yml" style="color:inherit">Honesty gate: PASS in CI</a></span>
     <span class="badge info"><span class="dot"></span>Doctrine v11 labels</span>
     <span class="badge info"><span class="dot"></span>Live artifact · <a href="/api/a11oy/v1/pinn/bench" style="color:inherit">/api/a11oy/v1/pinn/bench</a></span>
   </div>
@@ -100,6 +100,35 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
     <li>A <b>measured</b> number with no evidence, or a <b>not-run</b> arm carrying a value, fails the honesty gate — the artifact cannot ship.</li>
     <li>Our advantages are <b>disclosed</b>: e.g. the Poisson solution lives inside SZL's trial basis, so that near-machine-precision result is by construction, not a general-accuracy claim.</li>
   </ul>
+</div>
+
+<h2>Verify the source</h2>
+<div class="card">
+  <p style="margin:0 0 10px">This page is public and so is everything behind it. Inspect the code that
+  produces — and polices — these numbers on the public
+  <a href="https://github.com/szl-holdings/a11oy">szl-holdings/a11oy</a> repository:</p>
+  <ul style="margin:0;color:#d8dbe6">
+    <li>The measured artifact —
+      <a href="https://github.com/szl-holdings/a11oy/blob/main/benchmarks/pinn/results.json"><code>benchmarks/pinn/results.json</code></a>,
+      served read-only at <a href="/api/a11oy/v1/pinn/bench"><code>/api/a11oy/v1/pinn/bench</code></a> (this page renders it — no numbers are typed in).</li>
+    <li>The benchmark harness —
+      <a href="https://github.com/szl-holdings/a11oy/blob/main/benchmarks/pinn/run_bench.py"><code>benchmarks/pinn/run_bench.py</code></a>.
+      The SZL arm is NumPy-only; the DeepXDE / PhysicsNeMo arms are lazy-imported and never shipped.</li>
+    <li>The honesty gate —
+      <a href="https://github.com/szl-holdings/a11oy/blob/main/benchmarks/pinn/honesty_guard.py"><code>benchmarks/pinn/honesty_guard.py</code></a>
+      over the reusable
+      <a href="https://github.com/szl-holdings/a11oy/tree/main/verifiable-ai"><code>verifiable-ai/</code></a>
+      core: a MEASURED number with no evidence, or a NOT-RUN arm carrying a value, fails the build.</li>
+    <li>The reproducibility gate —
+      <a href="https://github.com/szl-holdings/a11oy/blob/main/benchmarks/pinn/reproduce_szl_guard.py"><code>benchmarks/pinn/reproduce_szl_guard.py</code></a>:
+      CI re-derives the SZL classical-spectral arm from source and asserts it still matches the published numbers.</li>
+    <li>The CI itself —
+      <a href="https://github.com/szl-holdings/a11oy/blob/main/.github/workflows/pinn-honesty-gate.yml"><code>pinn-honesty-gate.yml</code></a>
+      · <a href="https://github.com/szl-holdings/a11oy/actions/workflows/pinn-honesty-gate.yml">live runs on GitHub Actions</a>.</li>
+  </ul>
+  <p class="small" style="margin:10px 0 0">Both gates run on every change before it can reach <code>main</code>:
+  the labels cannot overclaim, and the classical-arm numbers cannot drift from source. That is what
+  <b>verifiable</b> means here — not a promise, a build check.</p>
 </div>
 
 </main>

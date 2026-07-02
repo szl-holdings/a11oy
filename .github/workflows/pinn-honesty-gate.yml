@@ -1,21 +1,34 @@
 name: PINN benchmark honesty gate
 
-# Makes the /benchmark page's public claim TRUE: the shipped PINN artifact
-# "passes the a11oy honesty gate in CI". Pure-stdlib core; the only network use
-# is installing pytest to run the negative-fixture self-test.
+# Makes the /benchmark page's public claims TRUE on every change to main:
+#  1. honesty-gate         — the shipped PINN artifact never overclaims (labels policed).
+#  2. reproduce-classical-arm — the SZL classical-spectral numbers in results.json are
+#     RE-DERIVED from source and must still match ("measured, not asserted", enforced).
+# Both jobs are offline (the only network use is pip installing pytest / numpy); the
+# verifiable_ai honesty core is pure stdlib.
 on:
   pull_request:
     paths:
       - 'benchmarks/pinn/results.json'
       - 'benchmarks/pinn/honesty_guard.py'
+      - 'benchmarks/pinn/reproduce_szl_guard.py'
+      - 'benchmarks/pinn/run_bench.py'
       - 'verifiable-ai/**'
+      - 'szl_pinn_nonlinear.py'
+      - 'szl_governed_ipinn.py'
+      - 'szl_pinn_inverse.py'
       - '.github/workflows/pinn-honesty-gate.yml'
   push:
     branches: [ main ]
     paths:
       - 'benchmarks/pinn/results.json'
       - 'benchmarks/pinn/honesty_guard.py'
+      - 'benchmarks/pinn/reproduce_szl_guard.py'
+      - 'benchmarks/pinn/run_bench.py'
       - 'verifiable-ai/**'
+      - 'szl_pinn_nonlinear.py'
+      - 'szl_governed_ipinn.py'
+      - 'szl_pinn_inverse.py'
       - '.github/workflows/pinn-honesty-gate.yml'
   workflow_dispatch: {}
 
@@ -37,3 +50,16 @@ jobs:
         run: pytest verifiable-ai/tests/ -q
       - name: Honesty gate - the shipped PINN benchmark artifact must not overclaim
         run: python3 benchmarks/pinn/honesty_guard.py benchmarks/pinn/results.json
+
+  reproduce-classical-arm:
+    name: SZL classical arm reproduces from source (offline; numpy-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.11'
+      - name: Install numpy pinned to the artifact's recorded version
+        run: pip install 'numpy==2.4.6'
+      - name: Re-derive the SZL classical arm and assert it matches the committed results.json
+        run: python3 benchmarks/pinn/reproduce_szl_guard.py benchmarks/pinn/results.json
