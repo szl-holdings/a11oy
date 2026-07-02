@@ -48,6 +48,14 @@ _SURFACES = [
     ("/quant",        "\u2211", "Quant Engine"),                   # ∑
     ("/agent-loop",   "\u21BB", "Agent Loop"),                     # ↻
     ("/energy",       "\u26A1", "Energy / Sovereign Compute"),     # ⚡
+    # Command-centre consolidation: the Code / Fleet C2 / Living Anatomy surfaces
+    # were LIVE (HTTP 200) and reachable from the energy-surface topbar, but were
+    # NOT in the /console left-nav — i.e. "hidden" from the command centre. Add
+    # them here (honest public titles; no codenames) so the command centre exposes
+    # every ops surface. Backend routes already serve these (serve.py).
+    ("/code",          "\u276F", "Code \u2014 Orchestration Platform"),  # ❯
+    ("/fleet-c2",      "\u2316", "Fleet C2"),                        # ⌖
+    ("/living-anatomy","\u2695", "Living Anatomy"),                  # ⚕
     ("/governance",   "\u2696", "Governance / Eval / Calibration"),  # ⚖
     # R5: a11oy Restraint (governed code-minimization / dependency-frugality
     # ladder) + its two-arm benchmark. Honest labels; no codenames.
@@ -105,6 +113,9 @@ _REL_MARKER = b'data-related-surfaces="qa10"'
 _FLAGSHIP_PATHS = {
     "/nemo", "/autoreview", "/factory", "/constitution",
     "/energy", "/agent-loop", "/quant", "/grc", "/restraint",  # R5
+    # Command-centre consolidation: Code / Fleet C2 / Living Anatomy join the
+    # flagship cluster so they carry (and appear in) the Related-surfaces strip.
+    "/code", "/fleet-c2", "/living-anatomy",
 }
 
 
@@ -122,6 +133,10 @@ def _build_related_strip(current_path: str) -> bytes:
         ("/quant", "Quant"),
         ("/grc", "GRC"),
         ("/restraint", "Restraint"),  # R5: flagship cluster cross-link
+        # Command-centre consolidation cross-links.
+        ("/code", "Code"),
+        ("/fleet-c2", "Fleet C2"),
+        ("/living-anatomy", "Living Anatomy"),
     ]
     for path, label in rel:
         if path == current_path:
