@@ -59,28 +59,36 @@ async def run_turn(
     tier = select_tier(diff)
     system = persona.system_prompt()
 
-    # Bind a11oy's bounded-autonomy loop when available (honest note otherwise).
-    try:
-        import a11oy_agent_loop as _al  # type: ignore
+    # Bind a11oy's bounded-autonomy loop ONLY when there is a backend to run — we do
+    # not construct an AgentLoop we won't use (avoids any orchestrator side effects).
+    if model_complete is None:
+        loop_info = {
+            "bounded_loop": "not constructed (no model backend to run this turn)",
+            "note": "ayllu.autonomy.gate is AVAILABLE for any future tool dispatch but "
+                    "is not invoked here — this turn runs no tools and changes no state",
+        }
+    else:
+        try:
+            import a11oy_agent_loop as _al  # type: ignore
 
-        loop = _al.AgentLoop(
-            khipu_emit=khipu_emit,
-            puriq_decide=puriq_decide,
-            execute_tool=execute_tool,
-            model_complete=model_complete,
-            two_person_attested=two_person_attested,
-        )
-        loop_info = {
-            "bounded_loop": "a11oy_agent_loop.AgentLoop",
-            "run_id": getattr(loop, "run_id", None),
-            "lambda_floor": getattr(loop, "lambda_floor", None),
-        }
-    except Exception as exc:
-        loop_info = {
-            "bounded_loop": "honest-fallback",
-            "note": f"AgentLoop unavailable ({str(exc)[:80]}); autonomy gate still "
-                    "enforced via ayllu.autonomy.gate",
-        }
+            loop = _al.AgentLoop(
+                khipu_emit=khipu_emit,
+                puriq_decide=puriq_decide,
+                execute_tool=execute_tool,
+                model_complete=model_complete,
+                two_person_attested=two_person_attested,
+            )
+            loop_info = {
+                "bounded_loop": "a11oy_agent_loop.AgentLoop",
+                "run_id": getattr(loop, "run_id", None),
+                "lambda_floor": getattr(loop, "lambda_floor", None),
+            }
+        except Exception as exc:
+            loop_info = {
+                "bounded_loop": "honest-fallback",
+                "note": f"AgentLoop unavailable ({str(exc)[:80]}); ayllu.autonomy.gate "
+                        "MUST gate any tool dispatch before it runs",
+            }
 
     answer: Optional[str] = None
     if model_complete is None:

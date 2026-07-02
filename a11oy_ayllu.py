@@ -39,17 +39,19 @@ _LOUNGE = Lounge()
 def _make_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Wrap payload in a DSSE envelope (honest UNSIGNED if no cosign key)."""
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    honesty = "UNSIGNED — szl_dsse not present; no signature fabricated."
     if _dsse is not None:
         try:
             return _dsse.sign(payload)
-        except Exception:
-            pass
+        except Exception as exc:
+            honesty = (f"UNSIGNED — szl_dsse.sign raised ({str(exc)[:80]}); "
+                       "no signature fabricated.")
     return {
         "payloadType": "application/vnd.szl.receipt+json",
         "payload": base64.b64encode(body).decode("ascii"),
         "signatures": [],
         "signed": False,
-        "honesty": "UNSIGNED — szl_dsse not present; no signature fabricated.",
+        "honesty": honesty,
     }
 
 
@@ -114,8 +116,11 @@ def register(app, ns: str = "a11oy") -> str:
             body = await request.json()
         except Exception as e:
             return JSONResponse({"error": f"invalid JSON: {e}"}, status_code=400)
-        name = (body or {}).get("persona")
-        prompt = (body or {}).get("prompt")
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "request body must be a JSON object"},
+                                status_code=422)
+        name = body.get("persona")
+        prompt = body.get("prompt")
         if not name or not prompt:
             return JSONResponse({"error": "'persona' and 'prompt' are required"},
                                 status_code=422)
@@ -124,11 +129,14 @@ def register(app, ns: str = "a11oy") -> str:
             return JSONResponse(
                 {"error": f"unknown persona '{name}'",
                  "known": [x.name for x in ROSTER]}, status_code=404)
-        difficulty = body.get("difficulty")
-        turn = await run_turn(
-            p, prompt,
-            difficulty=None if difficulty is None else float(difficulty),
-        )
+        raw_diff = body.get("difficulty")
+        try:
+            difficulty = None if raw_diff is None else float(raw_diff)
+        except (TypeError, ValueError):
+            return JSONResponse(
+                {"error": "'difficulty' must be a number between 0 and 1"},
+                status_code=422)
+        turn = await run_turn(p, prompt, difficulty=difficulty)
         ask_id = str(uuid.uuid4())
         receipt = _make_receipt({
             "ask_id": ask_id,
@@ -147,8 +155,11 @@ def register(app, ns: str = "a11oy") -> str:
             body = await request.json()
         except Exception as e:
             return JSONResponse({"error": f"invalid JSON: {e}"}, status_code=400)
-        prompt = (body or {}).get("prompt")
-        names = (body or {}).get("personas") or [p.name for p in ROSTER]
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "request body must be a JSON object"},
+                                status_code=422)
+        prompt = body.get("prompt")
+        names = body.get("personas") or [p.name for p in ROSTER]
         if not prompt:
             return JSONResponse({"error": "'prompt' is required"}, status_code=422)
         personas = [get_persona(n) for n in names]

@@ -31,12 +31,17 @@ def main() -> None:
     assert turn["answer"] is None, "must not fabricate an answer without a backend"
     assert "not injected" in turn["honesty"], turn["honesty"]
 
-    # Autonomy gate: fail-closed.
+    # Autonomy gate: attestation is the binding fail-closed gate; Λ floor is advisory.
     assert gate("deploy", state_changing=True)["allow"] is False
-    assert gate("deploy", state_changing=True, two_person_attested=True)["allow"] is True
+    g_attested = gate("deploy", state_changing=True, two_person_attested=True)
+    assert g_attested["allow"] is True
+    assert g_attested["lambda_checked"] is False and g_attested["advisories"], \
+        "an unchecked Λ on a state-change must be annotated as advisory, not hidden"
     assert gate("read", state_changing=False)["allow"] is True
     assert gate("write", state_changing=True, two_person_attested=True,
-                lambda_score=0.5)["allow"] is False  # below Λ floor
+                lambda_score=0.5)["allow"] is False  # below advisory Λ floor
+    assert gate("write", state_changing=True, two_person_attested=True,
+                lambda_score=0.95)["allow"] is True   # Λ ≥ floor
 
     # Lounge deliberation, honest (no backend => no fabricated answers).
     lounge = Lounge()
