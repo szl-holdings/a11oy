@@ -89,7 +89,21 @@ def test_mesh_matches_on_metal_artifact_if_present():
         return  # nothing to compare against in this environment — not a failure
     with open(art_path) as fh:
         art = json.load(fh)
-    c = _sample_cert()
+    # Recompute from the ARTIFACT'S OWN measured inputs (not the _SAMPLE_JOB): the test
+    # verifies the stdlib mesh certifier reproduces the on-metal engine's DERIVED bounds
+    # from the SAME MEASURED inputs via the SAME cited formulas. Comparing against a
+    # different job (the 700 W × 10 s sample) would be meaningless.
+    meas = art["measured"]
+    c = m.certify_job(
+        avg_power_w=float(meas["avg_power_w_MEASURED"]),
+        wall_time_s=float(meas["wall_time_s_MEASURED"]),
+        temperature_k=float(meas["temperature_k_MEASURED"]),
+        bit_operations=float(meas["bit_operations_MEASURED"]),
+        bits_erased=float(meas["bits_erased_MEASURED"]),
+        info_content_bits=float(meas["info_content_bits_MEASURED"]),
+        device_mass_kg=float(meas["device_mass_kg"]),
+        device_radius_m=float(meas["device_radius_m"]),
+    )
     for key in ("energy_joules_derived", "landauer_floor_joules",
                 "landauer_multiple_above_floor", "margolus_levitin_max_ops_per_s",
                 "bremermann_max_ops_per_s", "bekenstein_max_info_bits",
