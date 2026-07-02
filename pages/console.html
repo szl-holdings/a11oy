@@ -1395,7 +1395,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Locked vs experimental</span><span class="card-ep">honest split</span></div><div class="chartbox"><canvas id="kf-donut"></canvas></div><div class="legend"><span><i style="background:#5fb3a3"></i>locked proven (8)</span><span><i style="background:#c9b787"></i>experimental CI-green (80+)</span><span><i style="background:#e0a82e"></i>\u039b conjecture (conditional-proven)</span></div></div>
       <div class="card"><div class="card-h"><span class="card-t">The eight locked-proven (Lean, sorry-free)</span><span class="card-ep">locked</span></div><div id="kf-proven"><div class="row mono dim">loading\u2026</div></div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Formula corpus \u2014 rendered &amp; searchable</span><span class="card-ep" id="kf-count">\u2014</span></div>
-        <input id="kf-search" placeholder="search formulas by id, source, or LaTeX\u2026" oninput="window.kbf_filter(this.value)" style="width:100%;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px;margin-bottom:.8rem"/>
+        <input id="kf-search" placeholder="search formulas, theorems and proof campaigns by id, name, source, or LaTeX\u2026" oninput="window.kbf_filter(this.value)" style="width:100%;padding:.6rem .8rem;background:#080808;border:1px solid var(--gold-line);border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:12px;margin-bottom:.8rem"/>
         <div id="kf-list" style="max-height:520px;overflow:auto"><div class="row mono dim">loading /knowledge.json\u2026</div></div></div>${FRONTIER_CARDS}${HONEST}`;window.kbformulas_load();}},
 
   policies:{title:'Vertical Policies',badge:'10 REGULATED INDUSTRIES',sub:'Governance policy packs for ten regulated verticals \u2014 each binds real-world regulations to required attestors, per-axis trust-score floors, forbidden inputs, mandatory output formats, retention windows, and a deal-size band. These are the configurable guardrails the brain enforces per industry. Loaded live from the published policy bundle.',
@@ -2308,8 +2308,19 @@ async function knowledge_load(){
 function _prLink(pr){if(!pr)return '';var url=String(pr).indexOf('http')===0?String(pr):('https://github.com/szl-holdings/lutar-lean/pull/'+pr);var num=url.replace(/.*\/pull\//,'');return `<a href="${url}" target="_blank" rel="noopener" class="badge b-gold" style="text-decoration:none" title="open lutar-lean PR — CI-green">PR #${esc(num)} \u2197</a>`;}
 function _chip(label){var col=matColor(label);return `<span class="badge" style="color:${col};border:1px solid ${col}">${esc(label)}</span>`;}
 function _honestRow(chip,title,detail,pr){return `<div class="row" style="align-items:flex-start;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--gold-line)"><span style="min-width:130px">${_chip(chip)}</span><span style="flex:1"><b style="color:var(--cream)">${esc(title)}</b><div class="mono dim" style="font-size:11px;margin-top:.2rem">${detail}</div></span><span>${pr?_prLink(pr):''}</span></div>`;}
+// deep-link + clipboard + honest runtime corpus expansion (theorems + proof campaigns, derived from knowledge.json)
+function _kf_qparam(){try{var m=String(location.search||'').match(/[?&]f=([^&]*)/);return m?decodeURIComponent(m[1].replace(/\+/g,' ')):'';}catch(e){return '';}}
+window.__kf_deeplink=_kf_qparam;
+window.__kf_copylink=function(id,a){try{var url=location.origin+location.pathname+'?f='+encodeURIComponent(id)+'#kbformulas';try{history.replaceState(null,'',url);}catch(_){}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url);}if(a){var o=a.textContent;a.textContent='copied';setTimeout(function(){a.textContent=o;},1400);}}catch(e){}return false;};
+function _kf_matClass(m){m=String(m||'').toLowerCase();if(m.indexOf('conjectur')>=0)return 'conjecture';if(m.indexOf('measured')>=0||m.indexOf('axiom')>=0||m.indexOf('pending')>=0)return 'pending';if(m.indexOf('proven')>=0||m.indexOf('ci-green')>=0)return 'experimental';return 'pending';}
+window.__atlasFromKnowledge=function(kb){var out=[];try{
+  (kb.theorems||[]).forEach(function(t){var doi=String(t.citation||'');out.push({id:String(t.id||''),name:String(t.name||''),kind:'theorem',statusClass:_kf_matClass(t.maturity),status:String(t.maturity||''),detail:String(t.statement||''),repo:String(t.source_file||''),source:'knowledge corpus',prov:doi,provLabel:(doi.indexOf('doi.org')>=0?'citation':'source')});});
+  var ps=kb.proof_summary||{};var sum=(ps.experimental_waves_summary||{});
+  var waves=[['wave3','Wave 3 - research candidates C1-C20'],['wave4','Wave 4 - conditional Lambda uniqueness'],['wave5','Wave 5 - Tsirelson / CHSH / Jensen re-wire'],['wave6','Wave 6 - graph + information substrate'],['wave7','Wave 7 - conformal p-value / Doob / PAC-Bayes'],['agentic_loop','Agentic loop P1-P6 - end-to-end governed run'],['wave23','Wave 23 - conditional Khipu BFT safety']];
+  waves.forEach(function(w){var b=ps[w[0]];if(!b)return;var s=sum[w[0]]||{};var n=b.new_theorems||s.new_theorems||b.new_proven_sorry_free||'';var pr=b.pull_request||(s.pr?('https://github.com/szl-holdings/lutar-lean/pull/'+s.pr):'');out.push({id:w[0].toUpperCase().replace('_','-'),name:w[1],kind:'campaign',statusClass:'experimental',status:(n?(n+' theorems - '):'')+'experimental CI-green',detail:String(b.headline||b.campaign||''),repo:'szl-holdings/lutar-lean',source:(b.commit_ci_green?('@'+String(b.commit_ci_green).slice(0,10)):''),prov:pr,provLabel:'lutar-lean PR'});});
+}catch(e){}return out;};
 async function kbformulas_load(){
-  try{const kb=await loadKnowledge();const fm=kb.formulas||[];_kf_all=(window.ORG_ATLAS||[]).concat(fm);setTxt('kf-n',_kf_all.length);
+  try{const kb=await loadKnowledge();const fm=kb.formulas||[];var _extra=(window.__atlasFromKnowledge?window.__atlasFromKnowledge(kb):[]);var _seen={},_merged=[];(window.ORG_ATLAS||[]).concat(_extra).concat(fm).forEach(function(f){var k=String((f&&f.id)||'');if(k&&_seen[k])return;if(k)_seen[k]=1;_merged.push(f);});_kf_all=_merged;setTxt('kf-n',_kf_all.length);
     const ps=kb.proof_summary||{};
     // ---- honest proof ledger from proof_summary (the FULL set, each with its PR) ----
     const expCount=(ps.experimental_count_min||80);
@@ -2334,22 +2345,23 @@ async function kbformulas_load(){
     doughnut('kf-donut',['locked proven','experimental CI-green','\u039b conjecture'],[8,expCount,1],[TEAL,'#c9b787',AMBER]);
     setHTML('kf-proven',`<div class="row"><span>Eight proven in Lean (sorry-free)</span><span class="spacer b-live badge">F1 F4 F7 F11 F12 F18 F19 F22</span></div>`+
       (kb.theorems||[]).map(t=>`<div class="row"><span class="badge" style="color:${matColor(t.maturity)};border:1px solid ${matColor(t.maturity)}">${esc(t.maturity)}</span><span>${esc(t.id)} \u00b7 ${esc(t.name)}</span></div>`).join(''));
-    window.kbf_filter('');
+    var _pf=(window.__kf_deeplink?window.__kf_deeplink():'');var _si=el('kf-search');if(_si&&_pf){_si.value=_pf;}window.kbf_filter(_pf||'');
   }catch(e){setHTML('kf-list','<div class="row mono dim">knowledge.json unavailable: '+esc(e.message)+'</div>');setHTML('kf-honest','<div class="row mono dim">proof ledger unavailable: '+esc(e.message)+' \u2014 <a href="#" onclick="window.kbformulas_load();return false">retry</a></div>');setTxt('kf-n','\u2014');}}
 function kbf_filter(q){q=String(q||'').toLowerCase();var list=el('kf-list');if(!list)return;
   var _hit=function(f){return [f.id,f.source_file,f.latex,f.name,f.status,f.repo,f.source,f.detail,f.kind].some(function(x){return String(x||'').toLowerCase().includes(q);});};
   var rows=_kf_all.filter(function(f){return !q||_hit(f);});
   setTxt('kf-count',rows.length+' / '+_kf_all.length);
-  var SC={proven:'#5fb3a3',partial:'#e0a82e',conjecture:'#e0a82e',pending:'#c9b787'};
+  var SC={proven:'#5fb3a3',partial:'#e0a82e',conjecture:'#e0a82e',pending:'#c9b787',experimental:'#c9b787'};
   var rowHtml=function(f){
     if(f.kind){var col=SC[f.statusClass]||'#c9b787';
-      var prov=f.prov?(' \u00b7 <a href="'+esc(f.prov)+'" target="_blank" rel="noopener" style="color:var(--gold)">signed attestation \u2197</a>'):'';
+      var prov=f.prov?(' \u00b7 <a href="'+esc(f.prov)+'" target="_blank" rel="noopener" style="color:var(--gold)">'+esc(f.provLabel||'signed attestation')+' \u2197</a>'):'';
+      var link=' \u00b7 <a href="#kbformulas" onclick="return window.__kf_copylink(\''+esc(f.id)+'\',this)" style="color:var(--gold);cursor:pointer" title="copy a shareable link">link</a>';
       return '<div class="row"><span class="badge b-gold" style="min-width:66px;text-align:center">'+esc(f.id)+'</span>'+
         '<span style="flex:1"><b>'+esc(f.name)+'</b> <span class="mono dim" style="font-size:10px">'+esc(f.detail||'')+'</span>'+
-        '<div class="mono dim" style="font-size:10px">'+esc(f.repo||f.source||'')+prov+'</div></span>'+
+        '<div class="mono dim" style="font-size:10px">'+esc(f.repo||f.source||'')+prov+link+'</div></span>'+
         '<span class="spacer mono" style="font-size:10px;color:'+col+';min-width:130px;text-align:right">'+esc(f.status||'')+'</span></div>';}
     return '<div class="row"><span class="badge b-gold" style="min-width:66px;text-align:center">'+esc(f.id)+'</span><span style="flex:1">'+renderKatex(f.latex||'')+'</span><span class="spacer mono dim" style="font-size:10px">'+esc(f.source_file||'')+(f.source_line?':'+f.source_line:'')+'</span></div>';};
-  list.innerHTML=rows.slice(0,140).map(rowHtml).join('')||'<div class="row mono dim">no matches</div>';
+  list.innerHTML=rows.slice(0,140).map(rowHtml).join('')||'<div class="row mono dim">no matches for "'+esc(q)+'"</div>';
 } window.kbf_filter=kbf_filter;
 
 // Vertical Policies \u2014 10 regulated industries (knowledge bundle)
