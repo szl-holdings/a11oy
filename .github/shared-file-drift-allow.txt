@@ -115,3 +115,13 @@ szl_joules_truth.py        # a11oy FRESHNESS_WINDOW_S 120.0->canonical 30s hones
 #     killinchu's copy still carries the old register_rag_routes; reconcile by
 #     applying the same drop in killinchu, then remove this entry.
 szl_rag.py                 # a11oy library-only + dead register_rag_routes drop (FIX 4); killinchu sync pending
+
+# --- 2026-07-03: a11oy federates its genuinely-live standalone sibling Spaces.
+#     a11oy additively adds immune-standalone (/healthz=200) and yarqa
+#     (/healthz=200) to szl_v4_fleet.PEER_HEALTH_URLS so its fleet/peer-health
+#     view probes them for real, and adds an explicit honest `up` boolean to
+#     _probe_peer (True ONLY on a real 200, never fabricated). These siblings are
+#     a11oy's fleet peers, not killinchu's, so the file legitimately diverges.
+#     Additive; locked-8 @ c7c0ba17 untouched; Λ = Conjecture 1. Reconcile if
+#     killinchu ever federates the same siblings.
+szl_v4_fleet.py            # a11oy immune-standalone/yarqa peer-health federation + honest up field; killinchu sync pending
