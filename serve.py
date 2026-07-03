@@ -1341,6 +1341,12 @@ try:
 except Exception as _szl_neuromorphic_e:  # pragma: no cover
     print(f"[a11oy] Neuromorphic spikes NOT registered: {_szl_neuromorphic_e!r}", file=__import__("sys").stderr)
 
+# NOTE (interpretability): the mechanistic-interpretability / JumpReLU sparse-autoencoder
+# ORGAN is hosted on the dedicated killinchu Space (isolated compute) at
+# /api/killinchu/v1/interpretability/features. The flagship serves ONLY the static
+# surface (static/3d/surfaces/interpretability.js) + holographic tab, which polls
+# killinchu cross-origin (CORS allows a-11-oy.com). No endpoint is registered here.
+
 # ── SZL L6 Chain-of-Title receipt assembler (chain-of-title-wire-patch) — the
 # genuine sovereignty differentiator the research found: industry sovereign-AI
 # operates L1-L5 (residency -> governed ops); SZL's L6 binds, in ONE offline-
