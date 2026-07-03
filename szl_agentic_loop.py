@@ -92,6 +92,21 @@ try:
 except Exception:  # pragma: no cover - additive fallback, never crash the loop
     _KHIPU_CONSENSUS = None
 
+# ----------------------------------------------------------------------------
+# OUROBOROS CLOSED-LOOP GUARD (ADDITIVE 2026-07-03): the Banach contraction
+# primitive used ONLY by the optional governed *cycle* below. Import-guarded like
+# every other optional dep — if szl_agent_loop_banach is absent (it currently
+# lives only in killinchu), the cycle simply SKIPS the advisory contraction test
+# (honest no-op) and still halts via budget / gate-deny / receipt-stable-delta.
+# ADVISORY ONLY: Λ = Conjecture 1, the Banach guard is best-effort/experimental —
+# the loop is BOUNDED (always halts within `budget`) but NEVER "provably
+# convergent". Reimplemented-in-Python discipline; the TS runLoop is not imported.
+# ----------------------------------------------------------------------------
+try:
+    import szl_agent_loop_banach as _BANACH  # contraction ratio + timeout bound
+except Exception:  # pragma: no cover - additive fallback, honest no-op
+    _BANACH = None
+
 
 def _energy_fields_for_receipt() -> dict:
     """Honest per-turn energy attestation for the unified receipt. Delegates to
@@ -710,7 +725,15 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     _RUN_CHAIN = []  # list of {run_id, final_hash, prev_run_hash}
 
     def _do_run(query: str, action: str, severity: str, confidence: float,
-                reversible: bool, untrusted_input: str = "", approval_grant=None):
+                reversible: bool, untrusted_input: str = "", approval_grant=None,
+                precondition_hash=None):
+        # precondition_hash (ADDITIVE, default None): when a governed *cycle* feeds
+        # the PRIOR iteration's signed chain_final_hash in here, it is threaded into
+        # this run's FIRST (retrieve) receipt body as an input field — so the next
+        # decision's witnessed receipt cryptographically commits to the previous
+        # one (the Ouroboros "receipt eats its own tail" closure). When None (every
+        # existing /agent/run call), NO field is added and the chain seed stays the
+        # per-run "GENESIS" constant, so the receipt bytes are IDENTICAL to before.
         tr = _Trace("governed_agent_run")
         hops = []
         # PER-RUN GENESIS (FIX 2026-06-06): seed each run's seq-0 receipt with the
@@ -742,8 +765,13 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             sp.set(query=query, chunks=len(chunks),
                    cited=[c["chunk_id"] for c in chunks],
                    source="in-image governance corpus")
-        _chain_receipt("retrieve", {"query": query,
-                                    "cited_chunk_ids": [c["chunk_id"] for c in chunks]})
+        _retrieve_body = {"query": query,
+                          "cited_chunk_ids": [c["chunk_id"] for c in chunks]}
+        # Ouroboros self-feed: only present when a cycle passes the prior iteration's
+        # sealed hash. Absent (None) => byte-identical to the pre-2026-07-03 receipt.
+        if precondition_hash is not None:
+            _retrieve_body["precondition_hash"] = precondition_hash
+        _chain_receipt("retrieve", _retrieve_body)
 
         # ---- HOP 2: QUARANTINE untrusted retrieval (P3 non-interference) ----
         # Any untrusted/poisoned text (e.g. prompt-injection in a retrieved blob)
@@ -1134,6 +1162,163 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                      "Flip any byte in any receipt body and chain_intact becomes false."),
         }
 
+    # ------------------------------------------------------------------ #
+    # OUROBOROS CLOSED LOOP (ADDITIVE 2026-07-03, default-OFF, honest).
+    # Wraps the single governed pass `_do_run` into a BOUNDED, WITNESSED,
+    # SELF-REFERENTIAL, converge-or-halt cycle. The existing /agent/run path
+    # is untouched and byte-identical when A11OY_OUROBOROS is unset.
+    # ADVISORY DISCIPLINE: Λ = Conjecture 1 and the Banach guard are advisory
+    # only. The loop is BOUNDED (always halts within `budget`) but is NEVER
+    # claimed "provably convergent"; "converged" is an advisory/experimental
+    # label, not a proof. Reimplemented-in-Python; the TS runLoop is not used.
+    # ------------------------------------------------------------------ #
+    def _cycle_delta(prev_run, cur_run):
+        """Advisory scalar distance between two consecutive iteration outputs:
+        the trust-score delta plus whether the decision flipped. Feeds ONLY the
+        ADVISORY 'converged' status (Conjecture 1 — never a convergence proof)."""
+        if prev_run is None or cur_run is None:
+            return None
+        pt = float(((prev_run.get("trust") or {}).get("score")) or 0.0)
+        ct = float(((cur_run.get("trust") or {}).get("score")) or 0.0)
+        return {"trust_delta": abs(ct - pt),
+                "decision_changed": prev_run.get("decision") != cur_run.get("decision")}
+
+    def _do_governed_cycle(*, budget, eps=0.01, **run_kwargs):
+        """OUROBOROS closed loop over the single governed pass.
+
+        Runs `_do_run` up to `budget` times, feeding each iteration's SIGNED
+        `chain_final_hash` as the next iteration's `precondition_hash` (the
+        self-reference / Ouroboros closure). Halts on the FIRST honest status:
+          * halted_by_gate   — deny-by-default gate denied (DENY halts the cycle),
+          * converged        — ADVISORY: decision stable and trust delta <= eps,
+          * halted_by_banach — ADVISORY: Banach guard estimates non-contraction,
+          * budget_exhausted — bounded ceiling reached without converging.
+        Convergence is ADVISORY ONLY (Conjecture 1 / experimental) — never claimed
+        provably convergent. The loop ALWAYS terminates within `budget`."""
+        try:
+            budget = int(budget)
+        except Exception:
+            budget = 1
+        if budget < 1:
+            budget = 1
+        budget = min(budget, 64)  # hard ceiling — the loop is always bounded
+        eps = float(eps)
+        iterations = []
+        trust_trace = []
+        cyc_prev = "GENESIS"
+        cyc_chain = []
+        prev_hash = None   # precondition for iteration 0 (None -> byte-identical seed)
+        prev_run = None
+        prev_delta = None
+        final_status = "budget_exhausted"
+        banach_note = None
+        for i in range(budget):
+            run = _do_run(precondition_hash=prev_hash, **run_kwargs)
+            cur_hash = run.get("chain_final_hash")
+            decision = run.get("decision")
+            trust = (run.get("trust") or {}).get("score")
+            delta = _cycle_delta(prev_run, run)
+            # cycle-level receipt: chains the per-iteration final hashes so the
+            # whole cycle is tamper-evident with prev-hash linkage intact.
+            entry_body = {"iteration": i, "precondition_hash": prev_hash,
+                          "chain_final_hash": cur_hash, "decision": decision,
+                          "trust_score": trust, "delta": delta}
+            entry_hash = _sha({"seq": i, "kind": "cycle_iteration",
+                               "body": entry_body, "prev_hash": cyc_prev})
+            cyc_chain.append({"seq": i, "kind": "cycle_iteration", "body": entry_body,
+                              "prev_hash": cyc_prev, "hash": entry_hash})
+            cyc_prev = entry_hash
+            trust_trace.append({"iteration": i, "trust_score": trust,
+                                "decision": decision, "precondition_hash": prev_hash,
+                                "chain_final_hash": cur_hash})
+            iterations.append(run)
+            prev_run = run
+            prev_hash = cur_hash
+            # (c) halted_by_gate — deny-by-default gate denied; halt the cycle.
+            if decision == "DENY":
+                final_status = "halted_by_gate"
+                break
+            # (a) converged (ADVISORY) — decision stable and trust delta <= eps.
+            if delta is not None and not delta["decision_changed"] \
+                    and delta["trust_delta"] <= eps:
+                final_status = "converged"
+                break
+            # (d) halted_by_banach (ADVISORY) — Banach guard estimates
+            # non-contraction over the observed error-reduction ratio. Honest
+            # no-op / skipped when the optional guard is unavailable.
+            if _BANACH is not None and delta is not None and prev_delta is not None:
+                try:
+                    k = None
+                    if prev_delta > 0:
+                        k = delta["trust_delta"] / prev_delta
+                    guard = _BANACH.banach_convergence_guard(k)
+                    banach_note = guard
+                    if isinstance(guard, dict) and guard.get("measurable") \
+                            and guard.get("contraction") is False:
+                        final_status = "halted_by_banach"
+                        break
+                except Exception:  # pragma: no cover - advisory guard never crashes the loop
+                    banach_note = {"experimental": True, "measurable": False,
+                                   "note": "banach guard raised — honest no-op (advisory)"}
+            if delta is not None:
+                prev_delta = delta["trust_delta"]
+
+        cycle_payload = {
+            "cycle": True,
+            "issuer": ns,
+            "budget": budget,
+            "eps": eps,
+            "iterations_run": len(iterations),
+            "final_status": final_status,
+            "trust_trace": trust_trace,
+            "cycle_chain_final_hash": cyc_prev,
+            "last_run_chain_final_hash": (iterations[-1].get("chain_final_hash")
+                                          if iterations else None),
+            "issued_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            cyc_envelope = sign_fn(cycle_payload)
+        except Exception as e:  # never crash; honest fallback
+            cyc_envelope = {"signed": False, "signatures": [],
+                            "honesty": "UNSIGNED — signer raised: %s" % (type(e).__name__),
+                            "payloadType": "application/vnd.szl.receipt+json"}
+        _STATUS_NOTE = {
+            "converged": ("Advisory-converged: the decision was stable and the trust "
+                          "delta fell to <= eps between iterations. ADVISORY ONLY "
+                          "(Conjecture 1 / experimental) — NOT a proof of convergence."),
+            "budget_exhausted": ("Bounded budget reached without advisory convergence. "
+                                 "The loop halted safely (finite budget guarantees it always halts)."),
+            "halted_by_gate": ("Halted by the deny-by-default safety gate: an iteration "
+                               "returned DENY, which stops the cycle (deny-by-default preserved)."),
+            "halted_by_banach": ("Halted by the ADVISORY Banach guard: the observed "
+                                 "error-reduction ratio looked non-contractive. ADVISORY "
+                                 "ONLY — the finite budget, not this guard, guarantees halting."),
+        }
+        return {
+            "cycle": True,
+            "budget": budget,
+            "eps": eps,
+            "iterations_run": len(iterations),
+            "final_status": final_status,
+            "final_status_note": _STATUS_NOTE.get(final_status, ""),
+            "convergence": ("advisory — Conjecture 1 / experimental; the loop is BOUNDED "
+                            "(always halts within budget) but is NOT claimed provably "
+                            "convergent. 'converged' is a best-effort advisory label."),
+            "self_reference": ("Each iteration's signed chain_final_hash preconditions the "
+                               "next iteration (Ouroboros closure); see trust_trace."),
+            "trust_trace": trust_trace,
+            "cycle_receipt_chain": cyc_chain,
+            "cycle_chain_final_hash": cyc_prev,
+            "signed_cycle_receipt": cyc_envelope,
+            "banach_guard": (banach_note if banach_note is not None else
+                             {"available": _BANACH is not None,
+                              "note": ("advisory Banach guard not engaged (unavailable or "
+                                       "insufficient iterations) — honest no-op")}),
+            "iterations": iterations,
+            "signer": signer_label,
+            "doctrine": "v11",
+        }
+
     # ---- MCP JSON-RPC handler (canonical live MCP) ----
     async def _mcp_post(request: Request):
         try:
@@ -1279,6 +1464,44 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         run = b.get("run") if isinstance(b.get("run"), dict) else b
         return JSONResponse(_verify_chain(run))
 
+    async def _agent_cycle(request: Request):
+        # OUROBOROS closed loop (ADDITIVE, default-OFF). Gated at request time on
+        # env A11OY_OUROBOROS=1 so the surface exists but is inert by default;
+        # /agent/run is entirely untouched. Honest disabled note when off.
+        import os
+        if os.environ.get("A11OY_OUROBOROS") != "1":
+            return JSONResponse({
+                "cycle": False,
+                "enabled": False,
+                "note": ("Ouroboros closed loop is OFF. Set A11OY_OUROBOROS=1 to enable. "
+                         "The single-pass /agent/run path is unaffected."),
+                "doctrine": "v11",
+            }, status_code=200)
+        try:
+            b = await request.json()
+        except Exception:
+            b = {}
+        query = b.get("query") or b.get("goal") or "deploy a low-risk reversible change"
+        action = b.get("action") or query
+        severity = b.get("severity", "low")
+        confidence = float(b.get("confidence", 0.9))
+        reversible = bool(b.get("reversible", True))
+        untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
+        approval_grant = b.get("approval_grant") or b.get("approval")
+        try:
+            budget = int(b.get("budget", 4))
+        except Exception:
+            budget = 4
+        try:
+            eps = float(b.get("eps", 0.01))
+        except Exception:
+            eps = 0.01
+        return JSONResponse(_do_governed_cycle(
+            budget=budget, eps=eps,
+            query=query, action=action, severity=severity, confidence=confidence,
+            reversible=reversible, untrusted_input=untrusted_input,
+            approval_grant=approval_grant))
+
     async def _ask_and_act_ui(request: Request):
         return HTMLResponse(_UI_HTML.replace("__NS__", ns).replace("__SIGNER__", signer_label))
 
@@ -1296,6 +1519,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         Route("/api/%s/v1/agent/governance-standards" % ns, _agent_governance_standards,
               methods=["GET"], name="%s_agent_gov_standards" % ns),
         Route("/api/%s/v1/agent/verify-chain" % ns, _agent_verify, methods=["POST"], name="%s_agent_verify" % ns),
+        Route("/api/%s/v1/agent/cycle" % ns, _agent_cycle, methods=["POST"], name="%s_agent_cycle" % ns),
         Route("/ask-and-act", _ask_and_act_ui, methods=["GET"], name="%s_ask_and_act" % ns),
         Route("/governed-run", _ask_and_act_ui, methods=["GET"], name="%s_governed_run" % ns),
     ]
