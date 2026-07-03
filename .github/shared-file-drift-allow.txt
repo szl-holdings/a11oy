@@ -97,3 +97,13 @@ a11oy_code_engine.py       # a11oy A11OY_BRAIN_URL sovereign-router preference; 
 #     flip a DENY to a fire). Default OFF, so the default 6-hop chain stays byte-identical.
 #     Advisory-composed; locked-8 untouched. Deepens the existing a11oy-only divergence.
 szl_agentic_loop.py        # a11oy unified-receipt + cognitive DRIFT/COUNTERFACTUAL/APPROVAL-INTERRUPT steps (default OFF) fold-in; killinchu sync pending
+
+# --- 2026-07-03: a11oy corrected szl_joules_truth.FRESHNESS_WINDOW_S from a
+#     non-canonical 120.0 to the CANONICAL 30s value shared by szl_energy_operator
+#     (MAX_NVML_AGE_S=30.0), joule_billing (MAX_NVML_AGE_S=30), and the published
+#     kernel szl-energy-attest/energy_core (FRESHNESS_WINDOW_S=30.0). The old 120s
+#     let a 31-120s NVML reading read MEASURED here while billing/operator/kernel
+#     treated it as SAMPLE — an internal honesty inconsistency (PR #672). killinchu's
+#     copy still carries the old window; reconcile by applying the same 30s value in
+#     killinchu, then remove this entry.
+szl_joules_truth.py        # a11oy FRESHNESS_WINDOW_S 120.0->canonical 30s honesty fix (PR #672); killinchu sync pending
